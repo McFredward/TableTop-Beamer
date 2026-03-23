@@ -120,6 +120,97 @@ function applySessionState(session) {
   updateStageTransform();
 }
 
+function createEffectRegistry(effectState, allParticles) {
+  const registry = {
+    ambient: {
+      start: () => {
+        effectState.ambient = true;
+      },
+      stop: () => {
+        effectState.ambient = false;
+      },
+      toggle: () => {
+        effectState.ambient = !effectState.ambient;
+      },
+      isActive: () => effectState.ambient,
+    },
+    ash: {
+      start: () => {
+        effectState.ash = true;
+      },
+      stop: () => {
+        effectState.ash = false;
+      },
+      toggle: () => {
+        effectState.ash = !effectState.ash;
+      },
+      isActive: () => effectState.ash,
+    },
+    leak: {
+      start: () => {
+        effectState.leak = true;
+      },
+      stop: () => {
+        effectState.leak = false;
+      },
+      toggle: () => {
+        effectState.leak = !effectState.leak;
+      },
+      isActive: () => effectState.leak,
+    },
+    intruder: {
+      start: (now) => {
+        effectState.intruderUntil = now + 6500;
+      },
+      stop: () => {
+        effectState.intruderUntil = 0;
+      },
+      isActive: (now) => effectState.intruderUntil > now,
+    },
+    reactor: {
+      start: (now) => {
+        effectState.reactorUntil = now + 9000;
+      },
+      stop: () => {
+        effectState.reactorUntil = 0;
+      },
+      isActive: (now) => effectState.reactorUntil > now,
+    },
+    fire: {
+      start: (now) => {
+        effectState.fireUntil = now + 4200;
+      },
+      stop: () => {
+        effectState.fireUntil = 0;
+      },
+      isActive: (now) => effectState.fireUntil > now,
+    },
+    blackout: {
+      start: (now) => {
+        effectState.blackoutUntil = now + 2600;
+      },
+      stop: () => {
+        effectState.blackoutUntil = 0;
+      },
+      isActive: (now) => effectState.blackoutUntil > now,
+    },
+  };
+
+  return {
+    ...registry,
+    clear: {
+      start: () => {
+        Object.values(registry).forEach((effect) => effect.stop());
+        allParticles.length = 0;
+      },
+      stop: () => {},
+      isActive: () => false,
+    },
+  };
+}
+
+const effects = createEffectRegistry(state, particles);
+
 async function switchBoard(boardId) {
   const selected = BOARDS.find((item) => item.id === boardId);
   if (!selected) {
@@ -177,44 +268,26 @@ document.querySelectorAll("button[data-trigger]").forEach((button) => {
 
 function applyTrigger(trigger) {
   const now = performance.now();
-  if (trigger === "ambient" || trigger === "ash" || trigger === "leak") {
-    state[trigger] = !state[trigger];
+  const effect = effects[trigger];
+  if (!effect) {
     return;
   }
-  if (trigger === "intruder") {
-    state.intruderUntil = now + 6500;
-    return;
-  }
-  if (trigger === "reactor") {
-    state.reactorUntil = now + 9000;
-    return;
-  }
-  if (trigger === "fire") {
-    state.fireUntil = now + 4200;
-    return;
-  }
-  if (trigger === "blackout") {
-    state.blackoutUntil = now + 2600;
-    return;
-  }
-  if (trigger === "clear") {
-    state.ambient = false;
-    state.ash = false;
-    state.leak = false;
-    state.intruderUntil = 0;
-    state.reactorUntil = 0;
-    state.fireUntil = 0;
-    state.blackoutUntil = 0;
-    particles.length = 0;
+
+  if (effect.toggle) {
+    effect.toggle(now);
+  } else {
+    effect.start(now);
   }
 }
 
 function refreshButtonStates() {
   document.querySelectorAll("button[data-trigger]").forEach((button) => {
     const trigger = button.dataset.trigger;
-    if (trigger === "ambient" || trigger === "ash" || trigger === "leak") {
-      button.classList.toggle("active", Boolean(state[trigger]));
+    const effect = effects[trigger];
+    if (!effect) {
+      return;
     }
+    button.classList.toggle("active", Boolean(effect.isActive(performance.now())));
   });
 }
 

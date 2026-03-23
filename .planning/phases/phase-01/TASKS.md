@@ -9,7 +9,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 - [x] DONE P1-T4 Reset-Defaults und session-lokalen State absichern.
 
 ## Milestone B - Effects Core
-- [ ] TODO P1-T5 Effekt-Registry mit einheitlichem Start/Stop Interface bauen.
+- [x] DONE P1-T5 Effekt-Registry mit einheitlichem Start/Stop Interface bauen.
 - [ ] TODO P1-T6 Ambient-Toggles (Flicker, Ash Drift, Toxic Leak) anbinden.
 - [ ] TODO P1-T7 Event-Buttons (Intruder, Reactor, Fire, Power) mit Trigger-Feedback bauen.
 - [ ] TODO P1-T8 Master-Intensity auf alle Effekte zentral anwenden.
