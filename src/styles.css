@@ -59,7 +59,7 @@ body {
 
 #fx-canvas {
   pointer-events: none;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 
 #room-overlay {

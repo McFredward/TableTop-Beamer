@@ -354,9 +354,11 @@ function refreshGlobalButtons() {
 
 function applyOutputRoute(route) {
   const requested = route;
+  outputRouteSelect.value = requested;
   if (requested === "beamer-fullscreen") {
     if (!document.fullscreenEnabled) {
-      outputRouteStatus.textContent = "Output Route: Fullscreen nicht verfuegbar";
+      outputRouteStatus.textContent =
+        "Output Route: beamer-fullscreen angefordert, Fallback auf windowed-preview (Fullscreen nicht verfuegbar)";
       state.outputRoute = "windowed-preview";
       outputRouteSelect.value = state.outputRoute;
       return;
@@ -365,12 +367,13 @@ function applyOutputRoute(route) {
       .requestFullscreen({ navigationUI: "hide" })
       .then(() => {
         state.outputRoute = "beamer-fullscreen";
-        outputRouteStatus.textContent = "Output Route: Fullscreen aktiv";
+        outputRouteStatus.textContent = "Output Route: beamer-fullscreen aktiv";
       })
       .catch(() => {
         state.outputRoute = "windowed-preview";
         outputRouteSelect.value = state.outputRoute;
-        outputRouteStatus.textContent = "Output Route: Fullscreen fehlgeschlagen, Windowed aktiv";
+        outputRouteStatus.textContent =
+          "Output Route: beamer-fullscreen fehlgeschlagen, Fallback auf windowed-preview";
       });
     return;
   }
@@ -379,8 +382,7 @@ function applyOutputRoute(route) {
     document.exitFullscreen().catch(() => undefined);
   }
   state.outputRoute = requested;
-  outputRouteStatus.textContent =
-    requested === "auto" ? "Output Route: Auto" : "Output Route: Windowed Preview";
+  outputRouteStatus.textContent = requested === "auto" ? "Output Route: auto" : "Output Route: windowed-preview";
 }
 
 function clipToRoom(room) {
@@ -485,7 +487,7 @@ function drawEffectVisual(type, age, intensity, room) {
 
   if (type === "power-outage") {
     const pulse = (Math.sin(age * 20) + 1) / 2;
-    const alpha = 0.68 + pulse * 0.22;
+    const alpha = 0.76 + pulse * 0.2;
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
 
@@ -663,7 +665,8 @@ document.addEventListener("fullscreenchange", () => {
   if (state.outputRoute === "beamer-fullscreen" && !document.fullscreenElement) {
     state.outputRoute = "windowed-preview";
     outputRouteSelect.value = state.outputRoute;
-    outputRouteStatus.textContent = "Output Route: Fullscreen beendet, Windowed aktiv";
+    outputRouteStatus.textContent =
+      "Output Route: beamer-fullscreen beendet, Fallback auf windowed-preview";
   }
 });
 
