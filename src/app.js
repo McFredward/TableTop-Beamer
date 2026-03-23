@@ -20,6 +20,81 @@ const BOARDS = [
       ["a-14", "Hex A-14", 0.385, 0.886, 0.056],
       ["a-15", "Hex A-15", 0.534, 0.879, 0.055],
       ["a-16", "Hex A-16", 0.69, 0.879, 0.055],
+      {
+        id: "special-cockpit",
+        label: "Cockpit",
+        radius: 0.066,
+        points: [
+          [0.026, 0.456],
+          [0.056, 0.402],
+          [0.098, 0.415],
+          [0.119, 0.49],
+          [0.1, 0.57],
+          [0.058, 0.617],
+          [0.027, 0.556],
+        ],
+      },
+      {
+        id: "special-cryoschlaf",
+        label: "Cryoschlaf",
+        radius: 0.091,
+        points: [
+          [0.457, 0.505],
+          [0.49, 0.401],
+          [0.55, 0.368],
+          [0.59, 0.411],
+          [0.6, 0.514],
+          [0.585, 0.62],
+          [0.547, 0.664],
+          [0.495, 0.655],
+          [0.466, 0.59],
+        ],
+      },
+      {
+        id: "special-maschinenraum-1",
+        label: "Maschinenraum 1",
+        radius: 0.059,
+        points: [
+          [0.855, 0.769],
+          [0.888, 0.728],
+          [0.953, 0.728],
+          [0.981, 0.769],
+          [0.981, 0.85],
+          [0.952, 0.892],
+          [0.888, 0.892],
+          [0.855, 0.852],
+        ],
+      },
+      {
+        id: "special-maschinenraum-2",
+        label: "Maschinenraum 2",
+        radius: 0.052,
+        points: [
+          [0.857, 0.488],
+          [0.889, 0.457],
+          [0.952, 0.457],
+          [0.98, 0.486],
+          [0.98, 0.559],
+          [0.952, 0.588],
+          [0.889, 0.588],
+          [0.857, 0.561],
+        ],
+      },
+      {
+        id: "special-maschinenraum-3",
+        label: "Maschinenraum 3",
+        radius: 0.055,
+        points: [
+          [0.855, 0.206],
+          [0.888, 0.165],
+          [0.952, 0.165],
+          [0.981, 0.203],
+          [0.981, 0.285],
+          [0.95, 0.327],
+          [0.888, 0.327],
+          [0.855, 0.286],
+        ],
+      },
     ],
   },
   {
@@ -41,11 +116,92 @@ const BOARDS = [
       ["b-12", "Hex B-12", 0.696, 0.875, 0.056],
       ["b-13", "Hex B-13", 0.811, 0.963, 0.056],
       ["b-14", "Hex B-14", 0.082, 0.869, 0.058],
+      {
+        id: "special-cockpit",
+        label: "Cockpit",
+        radius: 0.07,
+        points: [
+          [0.014, 0.383],
+          [0.051, 0.347],
+          [0.108, 0.348],
+          [0.135, 0.392],
+          [0.135, 0.67],
+          [0.108, 0.71],
+          [0.051, 0.71],
+          [0.014, 0.668],
+        ],
+      },
+      {
+        id: "special-cryoschlaf",
+        label: "Cryoschlaf",
+        radius: 0.09,
+        points: [
+          [0.261, 0.402],
+          [0.306, 0.347],
+          [0.387, 0.347],
+          [0.426, 0.392],
+          [0.426, 0.667],
+          [0.387, 0.709],
+          [0.306, 0.709],
+          [0.261, 0.668],
+        ],
+      },
+      {
+        id: "special-maschinenraum-1",
+        label: "Maschinenraum 1",
+        radius: 0.055,
+        points: [
+          [0.856, 0.587],
+          [0.895, 0.558],
+          [0.957, 0.558],
+          [0.986, 0.587],
+          [0.986, 0.678],
+          [0.957, 0.704],
+          [0.895, 0.704],
+          [0.856, 0.676],
+        ],
+      },
+      {
+        id: "special-maschinenraum-2",
+        label: "Maschinenraum 2",
+        radius: 0.051,
+        points: [
+          [0.856, 0.455],
+          [0.895, 0.425],
+          [0.957, 0.425],
+          [0.986, 0.453],
+          [0.986, 0.542],
+          [0.957, 0.572],
+          [0.895, 0.572],
+          [0.856, 0.545],
+        ],
+      },
+      {
+        id: "special-maschinenraum-3",
+        label: "Maschinenraum 3",
+        radius: 0.05,
+        points: [
+          [0.858, 0.323],
+          [0.895, 0.294],
+          [0.958, 0.294],
+          [0.986, 0.323],
+          [0.986, 0.409],
+          [0.958, 0.435],
+          [0.895, 0.435],
+          [0.858, 0.411],
+        ],
+      },
     ],
   },
 ].map((board) => ({
   ...board,
-  rooms: board.rooms.map(([id, label, x, y, radius = 0.055]) => ({ id, label, x, y, radius })),
+  rooms: board.rooms.map((room) => {
+    if (Array.isArray(room)) {
+      const [id, label, x, y, radius = 0.055] = room;
+      return { id, label, x, y, radius };
+    }
+    return room;
+  }),
 }));
 
 const ROOM_ANIMATIONS = [
@@ -114,6 +270,9 @@ function clampRoomDurationSec(value) {
 }
 
 function getRoomPoints(room) {
+  if (room.points) {
+    return room.points.map(([x, y]) => [x * 1000, y * 1000]);
+  }
   const points = [];
   const cx = room.x * 1000;
   const cy = room.y * 1000;
@@ -123,6 +282,24 @@ function getRoomPoints(room) {
     points.push([cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]);
   }
   return points;
+}
+
+function getRoomLabelPosition(room) {
+  if (room.x !== undefined && room.y !== undefined) {
+    return { x: room.x, y: room.y };
+  }
+  const points = room.points ?? [];
+  if (points.length === 0) {
+    return { x: 0.5, y: 0.5 };
+  }
+  const center = points.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+    { x: 0, y: 0 },
+  );
+  return {
+    x: center.x / points.length,
+    y: center.y / points.length,
+  };
 }
 
 function getRoomPolygonPixels(room, width, height) {
@@ -155,13 +332,20 @@ function renderRoomOverlay() {
     if (state.selectedRoomId === room.id) {
       polygon.classList.add("is-selected");
     }
+    if (room.id.startsWith("special-")) {
+      polygon.classList.add("is-special");
+    }
     roomOverlay.append(polygon);
 
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.classList.add("room-zone-label");
-    label.setAttribute("x", String((room.x * 1000).toFixed(1)));
-    label.setAttribute("y", String((room.y * 1000 + 8).toFixed(1)));
-    label.textContent = room.label.replace("Hex ", "");
+    if (room.id.startsWith("special-")) {
+      label.classList.add("is-special");
+    }
+    const labelPosition = getRoomLabelPosition(room);
+    label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
+    label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
+    label.textContent = room.label.startsWith("Hex ") ? room.label.replace("Hex ", "") : room.label;
     roomOverlay.append(label);
   }
 }
