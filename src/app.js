@@ -51,6 +51,8 @@ let pendingPowerOutageRequestAt = null;
 let pointerPressWasHandled = false;
 const POWER_OUTAGE_SAMPLE_WINDOW = 24;
 const POWER_OUTAGE_TARGET_MS = 150;
+const CLEAR_PRIORITY_WINDOW_MS = 220;
+let clearPriorityUntil = 0;
 const SESSION_KEY = "tt-beamer.phase1.session";
 const defaultSession = {
   boardId: BOARDS[0].id,
@@ -228,6 +230,8 @@ function createEffectRegistry(effectState, allParticles) {
 const effects = createEffectRegistry(state, particles);
 
 function clearAllEffectsNow() {
+  clearPriorityUntil = performance.now() + CLEAR_PRIORITY_WINDOW_MS;
+  pendingPowerOutageRequestAt = null;
   effects.clear.start();
   triggerFeedback.textContent = "Event Feedback: Safety stop aktiv";
   refreshButtonStates();
@@ -267,6 +271,10 @@ function updatePowerOutageMetric() {
 
 function triggerPowerOutage(triggerSource) {
   const requestStartedAt = performance.now();
+  if (requestStartedAt <= clearPriorityUntil) {
+    triggerFeedback.textContent = "Event Feedback: blackout durch Safety-Fenster geblockt";
+    return;
+  }
   pendingPowerOutageRequestAt = requestStartedAt;
   effects.blackout.start(requestStartedAt);
   triggerFeedback.textContent = `Event Feedback: blackout via ${triggerSource}`;
@@ -323,13 +331,10 @@ resetCalibrationButton.addEventListener("click", () => {
 
 document.querySelectorAll("button[data-trigger]").forEach((button) => {
   if (button.dataset.trigger === "clear") {
-    const triggerSafetyStop = (event) => {
-      event.preventDefault();
+    bindPressFirstAction(button, () => {
       emergencyStopRequested = true;
       clearAllEffectsNow();
-    };
-    button.addEventListener("pointerdown", triggerSafetyStop, { passive: false });
-    button.addEventListener("click", triggerSafetyStop);
+    });
     return;
   }
 
@@ -421,7 +426,7 @@ function draw(timestamp) {
 
   if (emergencyStopRequested) {
     emergencyStopRequested = false;
-    effects.clear.start();
+    clearAllEffectsNow();
   }
 
   ctx.clearRect(0, 0, w, h);
