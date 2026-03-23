@@ -14,6 +14,7 @@ const BOARDS = [
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
+const roomOverlay = document.querySelector("#room-overlay");
 const ctx = canvas.getContext("2d");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
@@ -63,14 +64,16 @@ const defaultSession = {
   rotation: 0,
 };
 
-const zoneAnchors = [
-  [0.19, 0.28],
-  [0.3, 0.53],
-  [0.43, 0.42],
-  [0.56, 0.64],
-  [0.72, 0.29],
-  [0.84, 0.55],
+const ROOM_ZONES = [
+  { id: "bridge", label: "Bridge", x: 0.19, y: 0.28 },
+  { id: "lab", label: "Lab", x: 0.3, y: 0.53 },
+  { id: "nest", label: "Nest", x: 0.43, y: 0.42 },
+  { id: "engine", label: "Engine", x: 0.56, y: 0.64 },
+  { id: "comms", label: "Comms", x: 0.72, y: 0.29 },
+  { id: "cargo", label: "Cargo", x: 0.84, y: 0.55 },
 ];
+
+const zoneAnchors = ROOM_ZONES.map((zone) => [zone.x, zone.y]);
 
 for (const board of BOARDS) {
   const option = document.createElement("option");
@@ -412,6 +415,38 @@ function refreshButtonStates() {
   }
 }
 
+function highlightRoomZone(roomId) {
+  roomOverlay.querySelectorAll(".room-zone").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.roomId === roomId);
+  });
+}
+
+function handleRoomZoneClick(zone) {
+  const roomButton = roomOverlay.querySelector(`[data-room-id="${zone.id}"]`);
+  if (!roomButton) {
+    return;
+  }
+  highlightRoomZone(zone.id);
+  roomButton.classList.add("is-fired");
+  setTimeout(() => roomButton.classList.remove("is-fired"), 320);
+  triggerFeedback.textContent = `Event Feedback: room ${zone.label} markiert`;
+}
+
+function renderRoomZones() {
+  roomOverlay.replaceChildren();
+  for (const zone of ROOM_ZONES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "room-zone";
+    button.dataset.roomId = zone.id;
+    button.textContent = zone.label;
+    button.style.left = `${zone.x * 100}%`;
+    button.style.top = `${zone.y * 100}%`;
+    button.addEventListener("click", () => handleRoomZoneClick(zone));
+    roomOverlay.append(button);
+  }
+}
+
 const resizeObserver = new ResizeObserver((entries) => {
   const size = entries[0].contentRect;
   canvas.width = Math.max(1, Math.floor(size.width));
@@ -539,6 +574,7 @@ function draw(timestamp) {
 }
 
 preloadBoardAssets();
+renderRoomZones();
 applySessionState(loadSessionState());
 saveSessionState();
 void switchBoard(boardSelect.value);

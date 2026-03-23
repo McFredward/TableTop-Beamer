@@ -45,7 +45,8 @@ body {
 }
 
 #board-image,
-#fx-canvas {
+#fx-canvas,
+#room-overlay {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -60,6 +61,54 @@ body {
 #fx-canvas {
   pointer-events: none;
   mix-blend-mode: screen;
+}
+
+.room-overlay {
+  z-index: 3;
+}
+
+.room-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: clamp(34px, 4.3vw, 56px);
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  border: 1px solid rgba(130, 216, 244, 0.72);
+  background: rgba(20, 52, 81, 0.18);
+  color: #d2e9ff;
+  font-size: 0.6rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(1px);
+  cursor: pointer;
+}
+
+.room-zone:hover {
+  border-color: #6ee4f9;
+  background: rgba(33, 105, 126, 0.32);
+}
+
+.room-zone.is-active {
+  border-color: #8ef7f5;
+  box-shadow: 0 0 0.85rem rgba(88, 243, 247, 0.55);
+  background: rgba(43, 130, 138, 0.34);
+}
+
+.room-zone.is-fired {
+  animation: roomPulse 300ms ease-out;
+}
+
+@keyframes roomPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .dashboard {
