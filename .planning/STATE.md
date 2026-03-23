@@ -9,10 +9,10 @@
 - Planning Mode: active
 - Current Phase: 1
 - Current Phase Key: phase-01
-- Last Prepared: 2026-03-23
+- Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-2
-- Last Execution Summary: `.planning/phases/phase-01/1-2-SUMMARY.md`
+- Last Executed Plan: 1-3
+- Last Execution Summary: `.planning/phases/phase-01/1-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -23,13 +23,19 @@
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
-- Effektsteuerung laeuft ueber Registry mit einheitlichem Start/Stop/isActive-Contract.
-- Session-Persistenz bleibt in Phase 1 browser-lokal (`sessionStorage`) ohne Profil-Model.
-- `Clear All` wird auf `pointerdown` verarbeitet, um Stop-Latenz zu minimieren.
+- Effektsteuerung nutzt ein gemeinsames Laufzeitmodell (`runningAnimations`) mit Scope `global`/`room`.
+- Session-Status bleibt in Phase 1 bewusst runtime-lokal (kein `sessionStorage`, kein Profil-Model).
+- `Clear All` wird als globaler Sofort-Stop ueber einen expliziten UI-Button ausgefuehrt.
 - Plan-Update 1 setzt Prioritaetsfokus: P0 Power Outage, P1 Room-Click UX, P1 Per-Room Animation Config, P2 Output Device.
-- `Clear All` hat fuer 220 ms Prioritaetsfenster, um gleichzeitige Power-Outage-Starts deterministisch zu blocken.
-- Room-Zonen werden als klickbare Overlay-Hit-Areas mit session-lokalem Trigger/Intensity-Mapping verwaltet.
+- Room-Zonen werden als klickbare Overlay-Hit-Areas verwaltet; das Raum-Submenu liefert die Triggerparameter.
 - Output-Routing nutzt Fullscreen als Zielpfad und faellt bei Fehlern automatisch auf Windowed Preview zurueck.
+- Raum-Hitareas sind als board-spezifische Hex-Polygone mit Hover/Selection Rueckmeldung umgesetzt.
+- Raumlabels bleiben neutral (`Hex A-xx`/`Hex B-xx`), keine erfundene Raumsemantik.
+- Animationen sind klar nach Scope getrennt (`global` vs `room`); room-Renderings werden auf den Zielraum geclippt.
+- Running-Animations-Liste bietet `Stop` fuer alle und `Edit` fuer room-Eintraege.
+- Room-Selektion wird pro Board gemerkt, damit Board-Wechsel den Kontext stabil halten.
+- Runtime-Liste kennzeichnet Scope explizit (`GLOBAL`/`ROOM`) und Edit springt in den Board-Kontext der Animation.
+- Power-Outage nutzt sichtbare Abdunkelung; Output-Route meldet Fullscreen-Fallback explizit.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -52,3 +58,10 @@
 - Task Commits: 7 atomare Commits (`8b8fd36` .. `0e82c66`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T23-OUTPUT-SMOKE.md`
+
+## Execution Results (Phase 1 Plan 3)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-3-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`f916d3a` .. `1e99d06`)
+- Evidence:
+  - `node --check src/app.js` (Regression Syntax Check)
