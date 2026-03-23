@@ -47,6 +47,15 @@ const state = {
   fireUntil: 0,
   blackoutUntil: 0,
   intensity: Number(intensityInput.value),
+  effectIntensity: {
+    ambient: 1,
+    ash: 1,
+    leak: 1,
+    intruder: 1,
+    reactor: 1,
+    fire: 1,
+    blackout: 1,
+  },
 };
 
 const particles = [];
@@ -207,6 +216,10 @@ function syncRoomConfigControls() {
 function getMasterIntensity(multiplier = 1) {
   const value = state.intensity * multiplier;
   return Math.max(0, Math.min(1, value));
+}
+
+function getEffectGain(trigger) {
+  return getMasterIntensity(state.effectIntensity[trigger] ?? 1);
 }
 
 function createEffectRegistry(effectState, allParticles) {
@@ -424,7 +437,7 @@ document.querySelectorAll("button[data-trigger]").forEach((button) => {
   button.addEventListener("click", () => {
     const trigger = button.dataset.trigger;
     const start = performance.now();
-    applyTrigger(trigger);
+    applyTrigger(trigger, { multiplier: 1, source: "dashboard" });
     const elapsed = performance.now() - start;
     if (!["ambient", "ash", "leak", "clear"].includes(trigger)) {
       triggerFeedback.textContent = `Event Feedback: ${trigger} in ${elapsed.toFixed(1)} ms`;
@@ -435,12 +448,15 @@ document.querySelectorAll("button[data-trigger]").forEach((button) => {
   });
 });
 
-function applyTrigger(trigger) {
+function applyTrigger(trigger, options = {}) {
+  const { multiplier = 1 } = options;
   const now = performance.now();
   const effect = effects[trigger];
   if (!effect) {
     return;
   }
+
+  state.effectIntensity[trigger] = Math.max(0.5, Math.min(1.5, multiplier));
 
   if (effect.toggle) {
     effect.toggle(now);
@@ -500,7 +516,10 @@ function handleRoomZoneClick(zone) {
   highlightRoomZone(zone.id);
   roomButton.classList.add("is-fired");
   setTimeout(() => roomButton.classList.remove("is-fired"), 320);
-  triggerFeedback.textContent = `Event Feedback: room ${zone.label} markiert`;
+  const config = state.roomConfigs[zone.id] ?? DEFAULT_ROOM_CONFIGS[zone.id];
+  applyTrigger(config.trigger, { multiplier: config.intensity, source: "room-zone" });
+  refreshButtonStates();
+  triggerFeedback.textContent = `Event Feedback: room ${zone.label} -> ${config.trigger} (${config.intensity.toFixed(2)}x)`;
 }
 
 function renderRoomZones() {
@@ -557,10 +576,9 @@ function draw(timestamp) {
 
   ctx.clearRect(0, 0, w, h);
   const t = timestamp / 1000;
-  const gain = getMasterIntensity();
 
   if (state.ambient) {
-    const alpha = (0.08 + Math.sin(t * 1.6) * 0.03) * gain;
+    const alpha = (0.08 + Math.sin(t * 1.6) * 0.03) * getEffectGain("ambient");
     const gradient = ctx.createRadialGradient(w * 0.5, h * 0.55, h * 0.05, w * 0.5, h * 0.55, h * 0.85);
     gradient.addColorStop(0, `rgba(90, 130, 180, ${alpha})`);
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -568,7 +586,7 @@ function draw(timestamp) {
     ctx.fillRect(0, 0, w, h);
   }
 
-  if (state.ash && Math.random() > 0.7 - gain * 0.2) {
+  if (state.ash && Math.random() > 0.7 - getEffectGain("ash") * 0.2) {
     particles.push({
       x: Math.random() * w,
       y: -14,
@@ -580,7 +598,7 @@ function draw(timestamp) {
     });
   }
 
-  if (state.leak && Math.random() > 0.8 - gain * 0.18) {
+  if (state.leak && Math.random() > 0.8 - getEffectGain("leak") * 0.18) {
     const [zx, zy] = zoneAnchors[(Math.random() * zoneAnchors.length) | 0];
     particles.push({
       x: zx * w + (Math.random() - 0.5) * 40,
@@ -596,7 +614,7 @@ function draw(timestamp) {
   const intruder = Math.max(0, state.intruderUntil - timestamp);
   if (intruder > 0) {
     const pulse = (Math.sin(t * 11) + 1) / 2;
-    ctx.fillStyle = `rgba(255, 45, 45, ${(0.12 + pulse * 0.2) * gain})`;
+    ctx.fillStyle = `rgba(255, 45, 45, ${(0.12 + pulse * 0.2) * getEffectGain("intruder")})`;
     ctx.fillRect(0, 0, w, h);
   }
 
@@ -605,7 +623,7 @@ function draw(timestamp) {
     const phase = 1 - reactor / 9000;
     const radius = (0.12 + phase * 0.7) * Math.max(w, h);
     const gradient = ctx.createRadialGradient(w * 0.5, h * 0.5, radius * 0.15, w * 0.5, h * 0.5, radius);
-    gradient.addColorStop(0, `rgba(255, 156, 45, ${0.32 * gain})`);
+    gradient.addColorStop(0, `rgba(255, 156, 45, ${0.32 * getEffectGain("reactor")})`);
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
@@ -613,7 +631,7 @@ function draw(timestamp) {
 
   const fire = Math.max(0, state.fireUntil - timestamp);
   if (fire > 0) {
-    const flicker = 0.2 + Math.random() * 0.28;
+    const flicker = (0.2 + Math.random() * 0.28) * getEffectGain("fire");
     for (const [zx, zy] of zoneAnchors) {
       const gradient = ctx.createRadialGradient(zx * w, zy * h, 1, zx * w, zy * h, 70);
       gradient.addColorStop(0, `rgba(255, 120, 45, ${flicker * gain})`);
@@ -634,12 +652,12 @@ function draw(timestamp) {
     }
 
     if (p.kind === "ash") {
-      ctx.fillStyle = `rgba(210, 220, 230, ${p.life * 0.42 * gain})`;
+      ctx.fillStyle = `rgba(210, 220, 230, ${p.life * 0.42 * getEffectGain("ash")})`;
       ctx.fillRect(p.x, p.y, p.size, p.size);
       continue;
     }
 
-    ctx.fillStyle = `rgba(95, 210, 140, ${p.life * 0.2 * gain})`;
+    ctx.fillStyle = `rgba(95, 210, 140, ${p.life * 0.2 * getEffectGain("leak")})`;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
@@ -656,7 +674,7 @@ function draw(timestamp) {
       pendingPowerOutageRequestAt = null;
       updatePowerOutageMetric();
     }
-    const alpha = (0.82 - (blackout / 2600) * 0.18) * getMasterIntensity(0.95);
+    const alpha = (0.82 - (blackout / 2600) * 0.18) * getMasterIntensity(0.95 * (state.effectIntensity.blackout ?? 1));
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
   }
