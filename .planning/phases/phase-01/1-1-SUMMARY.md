@@ -34,7 +34,7 @@ patterns-established:
   - "Effect registry: each effect exposes start/stop/isActive (optional toggle)"
   - "Safety first: global stop path bypasses normal trigger feedback flow"
 requirements-completed: []
-duration: 8min 13s
+duration: 10min 4s
 completed: 2026-03-23
 ---
 
@@ -44,9 +44,9 @@ completed: 2026-03-23
 
 ## Performance
 
-- **Duration:** 8min 13s
+- **Duration:** 10min 4s
 - **Started:** 2026-03-23T22:21:13Z
-- **Completed:** 2026-03-23T22:29:26Z
+- **Completed:** 2026-03-23T22:31:20Z
 - **Tasks:** 16
 - **Files modified:** 8
 
