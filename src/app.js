@@ -23,6 +23,10 @@ const offsetXInput = document.querySelector("#offset-x");
 const offsetYInput = document.querySelector("#offset-y");
 const scaleInput = document.querySelector("#scale");
 const rotationInput = document.querySelector("#rotation");
+const offsetXValue = document.querySelector("#offset-x-value");
+const offsetYValue = document.querySelector("#offset-y-value");
+const scaleValue = document.querySelector("#scale-value");
+const rotationValue = document.querySelector("#rotation-value");
 
 const state = {
   ambient: false,
@@ -88,7 +92,11 @@ intensityInput.addEventListener("input", () => {
 });
 
 const updateStageTransform = () => {
-  stage.style.transform = `translate(${offsetXInput.value}px, ${offsetYInput.value}px) scale(${scaleInput.value}) rotate(${rotationInput.value}deg)`;
+  stage.style.transform = `translate3d(${offsetXInput.value}px, ${offsetYInput.value}px, 0) scale(${scaleInput.value}) rotate(${rotationInput.value}deg)`;
+  offsetXValue.textContent = `${Number(offsetXInput.value)} px`;
+  offsetYValue.textContent = `${Number(offsetYInput.value)} px`;
+  scaleValue.textContent = `${Number(scaleInput.value).toFixed(2)}x`;
+  rotationValue.textContent = `${Number(rotationInput.value).toFixed(1)}°`;
 };
 
 [offsetXInput, offsetYInput, scaleInput, rotationInput].forEach((input) => {

@@ -118,6 +118,12 @@ label {
   color: var(--muted);
 }
 
+label span {
+  justify-self: end;
+  color: #c0cad8;
+  font-variant-numeric: tabular-nums;
+}
+
 select,
 input,
 button {
