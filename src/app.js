@@ -24,6 +24,7 @@ const offsetYInput = document.querySelector("#offset-y");
 const scaleInput = document.querySelector("#scale");
 const rotationInput = document.querySelector("#rotation");
 const resetCalibrationButton = document.querySelector("#reset-calibration");
+const triggerFeedback = document.querySelector("#trigger-feedback");
 const offsetXValue = document.querySelector("#offset-x-value");
 const offsetYValue = document.querySelector("#offset-y-value");
 const scaleValue = document.querySelector("#scale-value");
@@ -261,7 +262,14 @@ resetCalibrationButton.addEventListener("click", () => {
 document.querySelectorAll("button[data-trigger]").forEach((button) => {
   button.addEventListener("click", () => {
     const trigger = button.dataset.trigger;
+    const start = performance.now();
     applyTrigger(trigger);
+    const elapsed = performance.now() - start;
+    if (!["ambient", "ash", "leak", "clear"].includes(trigger)) {
+      triggerFeedback.textContent = `Event Feedback: ${trigger} in ${elapsed.toFixed(1)} ms`;
+      button.classList.add("event-fired");
+      setTimeout(() => button.classList.remove("event-fired"), 280);
+    }
     refreshButtonStates();
   });
 });

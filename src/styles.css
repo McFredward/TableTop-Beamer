@@ -168,6 +168,11 @@ button.active {
   box-shadow: inset 0 0 0 1px #5de6c7, 0 0 0.8rem rgba(93, 230, 199, 0.32);
 }
 
+button.event-fired {
+  border-color: #ffbf66;
+  box-shadow: 0 0 0.8rem rgba(255, 191, 102, 0.32);
+}
+
 button.danger {
   background: linear-gradient(180deg, #572222, #431818);
   border-color: rgba(207, 102, 102, 0.5);

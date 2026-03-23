@@ -11,7 +11,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 ## Milestone B - Effects Core
 - [x] DONE P1-T5 Effekt-Registry mit einheitlichem Start/Stop Interface bauen.
 - [x] DONE P1-T6 Ambient-Toggles (Flicker, Ash Drift, Toxic Leak) anbinden.
-- [ ] TODO P1-T7 Event-Buttons (Intruder, Reactor, Fire, Power) mit Trigger-Feedback bauen.
+- [x] DONE P1-T7 Event-Buttons (Intruder, Reactor, Fire, Power) mit Trigger-Feedback bauen.
 - [ ] TODO P1-T8 Master-Intensity auf alle Effekte zentral anwenden.
 
 ## Milestone C - Operator UX
