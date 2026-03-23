@@ -287,7 +287,12 @@ function refreshButtonStates() {
     if (!effect) {
       return;
     }
-    button.classList.toggle("active", Boolean(effect.isActive(performance.now())));
+    const active = Boolean(effect.isActive(performance.now()));
+    const isAmbient = button.dataset.kind === "ambient";
+    button.classList.toggle("active", isAmbient && active);
+    if (isAmbient) {
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    }
   });
 }
 
