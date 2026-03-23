@@ -44,6 +44,7 @@ const state = {
 };
 
 const particles = [];
+let emergencyStopRequested = false;
 const SESSION_KEY = "tt-beamer.phase1.session";
 const defaultSession = {
   boardId: BOARDS[0].id,
@@ -220,6 +221,12 @@ function createEffectRegistry(effectState, allParticles) {
 
 const effects = createEffectRegistry(state, particles);
 
+function clearAllEffectsNow() {
+  effects.clear.start();
+  triggerFeedback.textContent = "Event Feedback: Safety stop aktiv";
+  refreshButtonStates();
+}
+
 async function switchBoard(boardId) {
   const selected = BOARDS.find((item) => item.id === boardId);
   if (!selected) {
@@ -269,6 +276,17 @@ resetCalibrationButton.addEventListener("click", () => {
 });
 
 document.querySelectorAll("button[data-trigger]").forEach((button) => {
+  if (button.dataset.trigger === "clear") {
+    const triggerSafetyStop = (event) => {
+      event.preventDefault();
+      emergencyStopRequested = true;
+      clearAllEffectsNow();
+    };
+    button.addEventListener("pointerdown", triggerSafetyStop, { passive: false });
+    button.addEventListener("click", triggerSafetyStop);
+    return;
+  }
+
   button.addEventListener("click", () => {
     const trigger = button.dataset.trigger;
     const start = performance.now();
@@ -342,6 +360,12 @@ resizeObserver.observe(stage);
 function draw(timestamp) {
   const w = canvas.width;
   const h = canvas.height;
+
+  if (emergencyStopRequested) {
+    emergencyStopRequested = false;
+    effects.clear.start();
+  }
+
   ctx.clearRect(0, 0, w, h);
   const t = timestamp / 1000;
   const gain = getMasterIntensity();
