@@ -89,10 +89,18 @@ completed: 2026-03-23
 - **Verification:** `node --check src/app.js`
 - **Committed in:** `95bf417`
 
+**3. [Rule 3 - Blocking] STATE/ROADMAP helper commands incompatible with repository STATE format**
+- **Found during:** Task 5 (state updates)
+- **Issue:** `gsd-tools state *` and `roadmap update-plan-progress` failed because expected sections/fields were not present in the current markdown schema.
+- **Fix:** Applied equivalent updates manually in `.planning/STATE.md` and `.planning/ROADMAP.md`.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Manual readback confirms plan 1-3 status, summary pointer, and roadmap progress entries.
+- **Committed in:** `6790bd1`
+
 ---
 
-**Total deviations:** 2 auto-fixed (1 bug, 1 missing critical)
-**Impact on plan:** Both fixes improved correctness and reliability without changing scope.
+**Total deviations:** 3 auto-fixed (1 bug, 1 missing critical, 1 blocking)
+**Impact on plan:** All fixes were required for correctness, reliability, or completion of execution metadata.
 
 ## Auth Gates
 None.
@@ -101,7 +109,7 @@ None.
 None.
 
 ## Issues Encountered
-None.
+- `gsd-tools` state/roadmap helper commands could not parse this repository's STATE/ROADMAP schema; manual updates were applied instead.
 
 ## User Setup Required
 None - no external service configuration required.
