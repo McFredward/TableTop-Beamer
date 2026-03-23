@@ -74,6 +74,8 @@ completed: 2026-03-23
 15. **Task 15: Smoke- und Safety-Regression dokumentieren** - `77354e7` (test)
 16. **Task 16: README um Session-Flow und Safety-Hinweise aktualisieren** - `70cc9e2` (docs)
 
+**Plan metadata:** `b7d612c` (docs)
+
 ## Files Created/Modified
 - `index.html` - setup flow, board metrics, trigger sections, and status surfaces.
 - `src/app.js` - board preload timing, session persistence, effect registry, event feedback, safety stop path.
@@ -100,10 +102,17 @@ completed: 2026-03-23
 - **Files modified:** repository metadata (`.git/`)
 - **Verification:** subsequent 16 task commits created successfully.
 
+**2. [Rule 3 - Blocking] Updated STATE/ROADMAP manually after tooling parse mismatch**
+- **Found during:** Post-task state update
+- **Issue:** `gsd-tools state/roadmap` commands could not parse existing project-specific markdown structure.
+- **Fix:** Applied equivalent updates directly in `.planning/STATE.md` and `.planning/ROADMAP.md`, then captured in metadata commit.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** metadata commit `b7d612c` includes both files plus summary.
+
 ---
 
-**Total deviations:** 1 auto-fixed (1 blocking)
-**Impact on plan:** Required infrastructure unblock only; no feature scope change.
+**Total deviations:** 2 auto-fixed (2 blocking)
+**Impact on plan:** Infrastructure/process unblocks only; no product scope change.
 
 ## Authentication Gates
 - Encountered one human-action gate after initial Task 1 implementation: git author identity (`user.name` / `user.email`) was missing. User configured identity and execution resumed successfully.
