@@ -42,3 +42,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-R3 Animation Scope Model + Runtime List (GLOBAL/ROOM Trennung, Stop/Edit je Eintrag, Edit-Reload).
 - [x] DONE P1-R4 Power Outage Visibility + Output Route (sichtbare Outage-Dunkelheit, expliziter Fullscreen-Fallback).
 - [x] DONE P1-R5 Regression Checks + Docs Sync (`node --check src/app.js`, Akzeptanz-/Task-Doku abgeglichen).
+
+## Priority Add-on - Plan Update 2
+- [x] DONE P1-T24 [P0] Hex-Hitareas auf beiden Boards gegen reale Raumflaechen nachkalibrieren (inkl. Rand-/Mitte-Treffmatrix).
+- [x] DONE P1-T25 [P1] Fuenf Special-Raeume aufnehmen und board-spezifisch mappen (Cockpit links, Cryoschlaf Mitte, Maschinenraum 1-3 rechts).
+- [x] DONE P1-T26 [P1] Event-Sounds fuer Intruder Alert, Reactor Pulse und Power Outage in den Triggerpfad integrieren.
+- [x] DONE P1-T27 [P1] Audio-Settings um globales Enable/Disable und Lautstaerke-Regler erweitern.
+- [x] DONE P1-T28 [P0] Manuelle Verifikations-Checkliste fuer Phase 1 finalisieren und als Pflichtabnahme durchlaufen.
