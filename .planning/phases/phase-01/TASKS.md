@@ -18,7 +18,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 - [x] DONE P1-T9 Dashboard-Grid fuer Schnellzugriff optimieren.
 - [x] DONE P1-T10 Aktive Zustandsmarkierung fuer Dauer-Effekte verstaerken.
 - [x] DONE P1-T11 Responsive Verhalten fuer kleine Displays pruefen und fixen.
-- [ ] TODO P1-T12 Setup-Flow im UI sichtbar strukturieren.
+- [x] DONE P1-T12 Setup-Flow im UI sichtbar strukturieren.
 
 ## Milestone D - Safety & Hardening
 - [ ] TODO P1-T13 `Clear All` als priorisierten globalen Stop implementieren.

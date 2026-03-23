@@ -28,10 +28,15 @@
           <p class="lead">
             Manuelle Trigger fur subtile, nicht spielbeeinflussende Effekte.
           </p>
+          <ol class="setup-flow">
+            <li><strong>1.</strong> Board waehlen</li>
+            <li><strong>2.</strong> Kalibrieren + Intensity setzen</li>
+            <li><strong>3.</strong> Trigger ausloesen</li>
+          </ol>
         </header>
 
         <section class="panel">
-          <h2>Board</h2>
+          <h2>Step 1 - Board</h2>
           <label>
             Layout
             <select id="board-select"></select>
@@ -41,7 +46,32 @@
         </section>
 
         <section class="panel">
-          <h2>Quick Triggers</h2>
+          <h2>Step 2 - Intensity + Calibration</h2>
+          <label>
+            Master Intensity <span id="intensity-value">0.80</span>
+            <input id="intensity" type="range" min="0.2" max="1" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Offset X <span id="offset-x-value">0 px</span>
+            <input id="offset-x" type="range" min="-140" max="140" value="0" />
+          </label>
+          <label>
+            Offset Y <span id="offset-y-value">0 px</span>
+            <input id="offset-y" type="range" min="-140" max="140" value="0" />
+          </label>
+          <label>
+            Scale <span id="scale-value">1.00x</span>
+            <input id="scale" type="range" min="0.85" max="1.15" step="0.01" value="1" />
+          </label>
+          <label>
+            Rotation <span id="rotation-value">0.0°</span>
+            <input id="rotation" type="range" min="-3" max="3" step="0.1" value="0" />
+          </label>
+          <button id="reset-calibration" type="button">Reset Calibration Defaults</button>
+        </section>
+
+        <section class="panel">
+          <h2>Step 3 - Quick Triggers</h2>
           <div class="trigger-section">
             <p class="section-title">Ambient</p>
             <div class="button-grid button-grid-3">
@@ -65,31 +95,6 @@
           <p id="trigger-feedback" class="status-line" aria-live="polite">Event Feedback: bereit</p>
           <p class="section-title">Aktive Dauer-Effekte</p>
           <ul id="active-effects" class="active-effects" aria-live="polite"></ul>
-        </section>
-
-        <section class="panel">
-          <h2>Intensity + Calibration</h2>
-          <label>
-            Master Intensity <span id="intensity-value">0.80</span>
-            <input id="intensity" type="range" min="0.2" max="1" step="0.05" value="0.8" />
-          </label>
-          <label>
-            Offset X <span id="offset-x-value">0 px</span>
-            <input id="offset-x" type="range" min="-140" max="140" value="0" />
-          </label>
-          <label>
-            Offset Y <span id="offset-y-value">0 px</span>
-            <input id="offset-y" type="range" min="-140" max="140" value="0" />
-          </label>
-          <label>
-            Scale <span id="scale-value">1.00x</span>
-            <input id="scale" type="range" min="0.85" max="1.15" step="0.01" value="1" />
-          </label>
-          <label>
-            Rotation <span id="rotation-value">0.0°</span>
-            <input id="rotation" type="range" min="-3" max="3" step="0.1" value="0" />
-          </label>
-          <button id="reset-calibration" type="button">Reset Calibration Defaults</button>
         </section>
 
         <footer class="hint">Tip: `F11` fur Fullscreen auf dem Beamer.</footer>

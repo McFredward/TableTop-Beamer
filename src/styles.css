@@ -97,6 +97,19 @@ h1 {
   line-height: 1.4;
 }
 
+.setup-flow {
+  margin: 0.7rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.2rem;
+  color: #c5d0e0;
+  font-size: 0.8rem;
+}
+
+.setup-flow strong {
+  color: #78e3ca;
+}
+
 .panel {
   padding: 0.8rem;
   background: linear-gradient(180deg, var(--panel), var(--panel-alt));
