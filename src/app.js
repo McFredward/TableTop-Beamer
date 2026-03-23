@@ -37,6 +37,9 @@ const roomSelected = document.querySelector("#room-selected");
 const roomTriggerSelect = document.querySelector("#room-trigger-select");
 const roomIntensityInput = document.querySelector("#room-intensity");
 const roomIntensityValue = document.querySelector("#room-intensity-value");
+const outputRouteSelect = document.querySelector("#output-route-select");
+const applyOutputRouteButton = document.querySelector("#apply-output-route");
+const outputRouteStatus = document.querySelector("#output-route-status");
 
 const state = {
   ambient: false,
@@ -56,6 +59,7 @@ const state = {
     fire: 1,
     blackout: 1,
   },
+  outputRoute: "auto",
 };
 
 const particles = [];
@@ -87,6 +91,7 @@ const ROOM_ZONES = [
 ];
 
 const ROOM_TRIGGER_OPTIONS = ["intruder", "reactor", "fire", "blackout", "ambient", "ash", "leak"];
+const OUTPUT_ROUTE_OPTIONS = ["auto", "beamer-fullscreen", "windowed-preview"];
 
 function createDefaultRoomConfigs() {
   return Object.fromEntries(ROOM_ZONES.map((zone) => [zone.id, { trigger: "intruder", intensity: 1 }]));
@@ -127,6 +132,7 @@ function saveSessionState() {
     rotation: Number(rotationInput.value),
     activeRoomId: state.activeRoomId,
     roomConfigs: state.roomConfigs,
+    outputRoute: state.outputRoute,
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
 }
@@ -161,6 +167,7 @@ function loadSessionState() {
         ...defaultSession,
         activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
         roomConfigs: createDefaultRoomConfigs(),
+        outputRoute: "auto",
       };
     }
     const parsed = JSON.parse(raw);
@@ -175,12 +182,14 @@ function loadSessionState() {
         ? parsed.activeRoomId
         : DEFAULT_ACTIVE_ROOM_ID,
       roomConfigs: sanitizeRoomConfigs(parsed.roomConfigs),
+      outputRoute: OUTPUT_ROUTE_OPTIONS.includes(parsed.outputRoute) ? parsed.outputRoute : "auto",
     };
   } catch {
     return {
       ...defaultSession,
       activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
       roomConfigs: createDefaultRoomConfigs(),
+      outputRoute: "auto",
     };
   }
 }
@@ -194,10 +203,12 @@ function applySessionState(session) {
   rotationInput.value = String(session.rotation);
   state.activeRoomId = session.activeRoomId ?? DEFAULT_ACTIVE_ROOM_ID;
   state.roomConfigs = sanitizeRoomConfigs(session.roomConfigs ?? DEFAULT_ROOM_CONFIGS);
+  state.outputRoute = OUTPUT_ROUTE_OPTIONS.includes(session.outputRoute) ? session.outputRoute : "auto";
   state.intensity = Number(intensityInput.value);
   intensityValue.textContent = state.intensity.toFixed(2);
   updateStageTransform();
   syncRoomConfigControls();
+  outputRouteSelect.value = state.outputRoute;
 }
 
 function getSelectedRoom() {
@@ -211,6 +222,43 @@ function syncRoomConfigControls() {
   roomTriggerSelect.value = config.trigger;
   roomIntensityInput.value = String(config.intensity);
   roomIntensityValue.textContent = `${config.intensity.toFixed(2)}x`;
+}
+
+async function applyOutputRoute(route, source = "system") {
+  const nextRoute = OUTPUT_ROUTE_OPTIONS.includes(route) ? route : "auto";
+  if (nextRoute === "beamer-fullscreen") {
+    if (!document.fullscreenEnabled) {
+      state.outputRoute = "windowed-preview";
+      outputRouteSelect.value = state.outputRoute;
+      outputRouteStatus.textContent = "Output Route: Fullscreen nicht verfuegbar, Fallback auf Windowed Preview";
+      saveSessionState();
+      return;
+    }
+    try {
+      await stage.requestFullscreen({ navigationUI: "hide" });
+      state.outputRoute = nextRoute;
+      outputRouteStatus.textContent = `Output Route: Target Beamer aktiv (${source})`;
+      saveSessionState();
+      return;
+    } catch {
+      state.outputRoute = "windowed-preview";
+      outputRouteSelect.value = state.outputRoute;
+      outputRouteStatus.textContent = "Output Route: Fullscreen fehlgeschlagen, Fallback auf Windowed Preview";
+      saveSessionState();
+      return;
+    }
+  }
+
+  if (document.fullscreenElement) {
+    await document.exitFullscreen().catch(() => undefined);
+  }
+  state.outputRoute = nextRoute;
+  outputRouteSelect.value = state.outputRoute;
+  outputRouteStatus.textContent =
+    state.outputRoute === "auto"
+      ? `Output Route: Auto aktiv (${source})`
+      : `Output Route: Windowed Preview aktiv (${source})`;
+  saveSessionState();
 }
 
 function getMasterIntensity(multiplier = 1) {
@@ -557,6 +605,19 @@ roomIntensityInput.addEventListener("input", () => {
   saveSessionState();
 });
 
+applyOutputRouteButton.addEventListener("click", () => {
+  void applyOutputRoute(outputRouteSelect.value, "manual");
+});
+
+document.addEventListener("fullscreenchange", () => {
+  if (state.outputRoute === "beamer-fullscreen" && !document.fullscreenElement) {
+    state.outputRoute = "windowed-preview";
+    outputRouteSelect.value = state.outputRoute;
+    outputRouteStatus.textContent = "Output Route: Fullscreen beendet, Fallback auf Windowed Preview";
+    saveSessionState();
+  }
+});
+
 const resizeObserver = new ResizeObserver((entries) => {
   const size = entries[0].contentRect;
   canvas.width = Math.max(1, Math.floor(size.width));
@@ -687,6 +748,7 @@ renderRoomZones();
 applySessionState(loadSessionState());
 highlightRoomZone(state.activeRoomId);
 saveSessionState();
+void applyOutputRoute(state.outputRoute, "restore");
 void switchBoard(boardSelect.value);
 refreshButtonStates();
 updatePowerOutageMetric();

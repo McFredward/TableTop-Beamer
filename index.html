@@ -120,6 +120,20 @@
           </label>
         </section>
 
+        <section class="panel">
+          <h2>Step 5 - Output Device</h2>
+          <label>
+            Output Route
+            <select id="output-route-select">
+              <option value="auto">Auto (Aktueller Screen)</option>
+              <option value="beamer-fullscreen">Target Beamer (Fullscreen)</option>
+              <option value="windowed-preview">Windowed Preview (Fallback)</option>
+            </select>
+          </label>
+          <button id="apply-output-route" type="button">Apply Output Route</button>
+          <p id="output-route-status" class="status-line" aria-live="polite">Output Route: Auto</p>
+        </section>
+
         <footer class="hint">Tip: `F11` fur Fullscreen auf dem Beamer.</footer>
       </aside>
     </div>
