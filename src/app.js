@@ -17,6 +17,7 @@ const canvas = document.querySelector("#fx-canvas");
 const ctx = canvas.getContext("2d");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
+const boardMetric = document.querySelector("#board-metric");
 const intensityInput = document.querySelector("#intensity");
 const offsetXInput = document.querySelector("#offset-x");
 const offsetYInput = document.querySelector("#offset-y");
@@ -52,12 +53,34 @@ for (const board of BOARDS) {
   boardSelect.append(option);
 }
 
-boardSelect.addEventListener("change", () => {
-  const selected = BOARDS.find((item) => item.id === boardSelect.value);
-  if (selected) {
-    boardImage.src = selected.src;
-    boardStatus.textContent = `Aktives Board: ${selected.label}`;
+const boardPreload = new Map();
+
+function preloadBoardAssets() {
+  for (const board of BOARDS) {
+    const image = new Image();
+    image.src = board.src;
+    boardPreload.set(board.id, image.decode().catch(() => undefined));
   }
+}
+
+async function switchBoard(boardId) {
+  const selected = BOARDS.find((item) => item.id === boardId);
+  if (!selected) {
+    return;
+  }
+
+  const start = performance.now();
+  boardMetric.textContent = "Boardwechsel: laeuft...";
+  await boardPreload.get(boardId);
+  boardImage.src = selected.src;
+  const elapsed = performance.now() - start;
+  const outcome = elapsed < 1000 ? "OK" : "WARN";
+  boardStatus.textContent = `Aktives Board: ${selected.label}`;
+  boardMetric.textContent = `Boardwechsel: ${elapsed.toFixed(0)} ms (${outcome})`;
+}
+
+boardSelect.addEventListener("change", () => {
+  void switchBoard(boardSelect.value);
 });
 
 intensityInput.addEventListener("input", () => {
@@ -234,9 +257,9 @@ function draw(timestamp) {
   requestAnimationFrame(draw);
 }
 
+preloadBoardAssets();
 boardSelect.value = BOARDS[0].id;
-boardImage.src = BOARDS[0].src;
-boardStatus.textContent = `Aktives Board: ${BOARDS[0].label}`;
+void switchBoard(BOARDS[0].id);
 updateStageTransform();
 refreshButtonStates();
 requestAnimationFrame(draw);
