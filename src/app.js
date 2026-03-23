@@ -213,6 +213,24 @@ const ROOM_ANIMATIONS = [
   { id: "alarm-beacon", label: "Alarm Beacon" },
 ];
 
+const EVENT_SOUNDS = {
+  "intruder-alert": [
+    { wave: "sawtooth", freq: 840, duration: 0.08, gain: 0.42 },
+    { wave: "sawtooth", freq: 740, duration: 0.08, gain: 0.4 },
+    { wave: "triangle", freq: 620, duration: 0.12, gain: 0.34 },
+  ],
+  "reactor-pulse": [
+    { wave: "sine", freq: 110, duration: 0.16, gain: 0.38 },
+    { wave: "sine", freq: 130, duration: 0.18, gain: 0.36 },
+    { wave: "triangle", freq: 150, duration: 0.21, gain: 0.33 },
+  ],
+  "power-outage": [
+    { wave: "square", freq: 92, duration: 0.22, gain: 0.4 },
+    { wave: "triangle", freq: 74, duration: 0.24, gain: 0.35 },
+    { wave: "sawtooth", freq: 58, duration: 0.28, gain: 0.28 },
+  ],
+};
+
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
@@ -247,11 +265,17 @@ const state = {
     hold: false,
   },
   runningAnimations: [],
+  audio: {
+    enabled: true,
+    volume: 0.7,
+  },
 };
 
 let animationIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
+let audioCtx = null;
+let audioMasterGain = null;
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
@@ -267,6 +291,57 @@ function clampRoomIntensity(value) {
 
 function clampRoomDurationSec(value) {
   return Math.max(1, Math.min(180, value));
+}
+
+function ensureAudioGraph() {
+  if (!window.AudioContext && !window.webkitAudioContext) {
+    return null;
+  }
+  if (!audioCtx) {
+    const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
+    audioCtx = new AudioContextCtor();
+    audioMasterGain = audioCtx.createGain();
+    audioMasterGain.connect(audioCtx.destination);
+  }
+  audioMasterGain.gain.setValueAtTime(state.audio.volume, audioCtx.currentTime);
+  return audioCtx;
+}
+
+function playEventSound(effectType) {
+  const pattern = EVENT_SOUNDS[effectType];
+  if (!pattern || !state.audio.enabled) {
+    return;
+  }
+  const ctx = ensureAudioGraph();
+  if (!ctx || !audioMasterGain) {
+    return;
+  }
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => undefined);
+  }
+
+  let cursor = ctx.currentTime + 0.01;
+  for (const step of pattern) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = step.wave;
+    osc.frequency.setValueAtTime(step.freq, cursor);
+
+    const peak = step.gain * state.audio.volume;
+    gain.gain.setValueAtTime(0.001, cursor);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), cursor + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, cursor + step.duration);
+
+    osc.connect(gain);
+    gain.connect(audioMasterGain);
+    osc.start(cursor);
+    osc.stop(cursor + step.duration + 0.02);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
+    cursor += step.duration * 0.72;
+  }
 }
 
 function getRoomPoints(room) {
@@ -412,6 +487,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
         durationSec: defaultDurationSec ?? 0,
       }),
     );
+    playEventSound(type);
     triggerFeedback.textContent = `Status: ${type} gestartet`;
   }
   renderRunningAnimationsList();
