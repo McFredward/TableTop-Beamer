@@ -1,6 +1,7 @@
 # Phase 1 Tasks
 
 Statuslegende: TODO | IN-PROGRESS | DONE
+Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Milestone A - Projection Core
 - [x] DONE P1-T1 Board-Katalog und Auswahl-UI stabilisieren.
@@ -25,3 +26,12 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 - [x] DONE P1-T14 Lasttest mit parallelen Effekten durchfuehren.
 - [x] DONE P1-T15 Smoke- und Safety-Regression dokumentieren.
 - [x] DONE P1-T16 README um Session-Flow und Safety-Hinweise aktualisieren.
+
+## Priority Add-on - Plan Update 1
+- [x] DONE P1-T17 [P0] Power-Outage Triggerpfad unter Last messen und haerten.
+- [x] DONE P1-T18 [P0] Deterministisches Zusammenspiel von Power Outage und `Clear All` sicherstellen.
+- [x] DONE P1-T19 [P1] Room-Click Hit-Areas modellieren und visuelle Rueckmeldung anbinden.
+- [x] DONE P1-T20 [P1] Per-Room Animation Config als session-lokales Modell aufbauen.
+- [x] DONE P1-T21 [P1] Room-Click mit Per-Room Trigger-Mapping verbinden.
+- [x] DONE P1-T22 [P2] Output Device Auswahlpfad inkl. robustem Fallback implementieren.
+- [x] DONE P1-T23 [P2] Output-Routing auf Zielgeraet und Fallback smoke-testen.
