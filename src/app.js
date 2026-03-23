@@ -18,6 +18,7 @@ const ctx = canvas.getContext("2d");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
 const boardMetric = document.querySelector("#board-metric");
+const powerOutageMetric = document.querySelector("#power-outage-metric");
 const intensityInput = document.querySelector("#intensity");
 const intensityValue = document.querySelector("#intensity-value");
 const offsetXInput = document.querySelector("#offset-x");
@@ -45,6 +46,11 @@ const state = {
 
 const particles = [];
 let emergencyStopRequested = false;
+const powerOutageLatencySamples = [];
+let pendingPowerOutageRequestAt = null;
+let pointerPressWasHandled = false;
+const POWER_OUTAGE_SAMPLE_WINDOW = 24;
+const POWER_OUTAGE_TARGET_MS = 150;
 const SESSION_KEY = "tt-beamer.phase1.session";
 const defaultSession = {
   boardId: BOARDS[0].id,
@@ -227,6 +233,46 @@ function clearAllEffectsNow() {
   refreshButtonStates();
 }
 
+function bindPressFirstAction(button, action) {
+  button.addEventListener(
+    "pointerdown",
+    (event) => {
+      event.preventDefault();
+      pointerPressWasHandled = true;
+      action("pointerdown");
+    },
+    { passive: false },
+  );
+
+  button.addEventListener("click", () => {
+    if (pointerPressWasHandled) {
+      pointerPressWasHandled = false;
+      return;
+    }
+    action("click");
+  });
+}
+
+function updatePowerOutageMetric() {
+  if (powerOutageLatencySamples.length === 0) {
+    powerOutageMetric.textContent = "Power Outage: noch keine Messwerte";
+    return;
+  }
+  const total = powerOutageLatencySamples.reduce((sum, sample) => sum + sample, 0);
+  const average = total / powerOutageLatencySamples.length;
+  const latest = powerOutageLatencySamples[powerOutageLatencySamples.length - 1];
+  const status = average <= POWER_OUTAGE_TARGET_MS ? "OK" : "WARN";
+  powerOutageMetric.textContent = `Power Outage: avg ${average.toFixed(1)} ms | last ${latest.toFixed(1)} ms (${status})`;
+}
+
+function triggerPowerOutage(triggerSource) {
+  const requestStartedAt = performance.now();
+  pendingPowerOutageRequestAt = requestStartedAt;
+  effects.blackout.start(requestStartedAt);
+  triggerFeedback.textContent = `Event Feedback: blackout via ${triggerSource}`;
+  refreshButtonStates();
+}
+
 async function switchBoard(boardId) {
   const selected = BOARDS.find((item) => item.id === boardId);
   if (!selected) {
@@ -284,6 +330,18 @@ document.querySelectorAll("button[data-trigger]").forEach((button) => {
     };
     button.addEventListener("pointerdown", triggerSafetyStop, { passive: false });
     button.addEventListener("click", triggerSafetyStop);
+    return;
+  }
+
+  if (button.dataset.trigger === "blackout") {
+    bindPressFirstAction(button, (source) => {
+      const start = performance.now();
+      triggerPowerOutage(source);
+      const elapsed = performance.now() - start;
+      button.classList.add("event-fired");
+      setTimeout(() => button.classList.remove("event-fired"), 280);
+      triggerFeedback.textContent = `Event Feedback: blackout queued in ${elapsed.toFixed(1)} ms`;
+    });
     return;
   }
 
@@ -458,6 +516,15 @@ function draw(timestamp) {
 
   const blackout = Math.max(0, state.blackoutUntil - timestamp);
   if (blackout > 0) {
+    if (pendingPowerOutageRequestAt !== null) {
+      const latency = Math.max(0, timestamp - pendingPowerOutageRequestAt);
+      powerOutageLatencySamples.push(latency);
+      if (powerOutageLatencySamples.length > POWER_OUTAGE_SAMPLE_WINDOW) {
+        powerOutageLatencySamples.shift();
+      }
+      pendingPowerOutageRequestAt = null;
+      updatePowerOutageMetric();
+    }
     const alpha = (0.82 - (blackout / 2600) * 0.18) * getMasterIntensity(0.95);
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
@@ -471,4 +538,5 @@ applySessionState(loadSessionState());
 saveSessionState();
 void switchBoard(boardSelect.value);
 refreshButtonStates();
+updatePowerOutageMetric();
 requestAnimationFrame(draw);
