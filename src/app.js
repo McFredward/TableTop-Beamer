@@ -26,6 +26,7 @@ const scaleInput = document.querySelector("#scale");
 const rotationInput = document.querySelector("#rotation");
 const resetCalibrationButton = document.querySelector("#reset-calibration");
 const triggerFeedback = document.querySelector("#trigger-feedback");
+const activeEffectsList = document.querySelector("#active-effects");
 const offsetXValue = document.querySelector("#offset-x-value");
 const offsetYValue = document.querySelector("#offset-y-value");
 const scaleValue = document.querySelector("#scale-value");
@@ -297,6 +298,7 @@ function applyTrigger(trigger) {
 }
 
 function refreshButtonStates() {
+  const activeAmbientEffects = [];
   document.querySelectorAll("button[data-trigger]").forEach((button) => {
     const trigger = button.dataset.trigger;
     const effect = effects[trigger];
@@ -308,8 +310,25 @@ function refreshButtonStates() {
     button.classList.toggle("active", isAmbient && active);
     if (isAmbient) {
       button.setAttribute("aria-pressed", active ? "true" : "false");
+      if (active) {
+        activeAmbientEffects.push(button.textContent.trim());
+      }
     }
   });
+
+  activeEffectsList.replaceChildren();
+  if (activeAmbientEffects.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "is-empty";
+    empty.textContent = "Keine";
+    activeEffectsList.append(empty);
+    return;
+  }
+  for (const name of activeAmbientEffects) {
+    const item = document.createElement("li");
+    item.textContent = name;
+    activeEffectsList.append(item);
+  }
 }
 
 const resizeObserver = new ResizeObserver((entries) => {

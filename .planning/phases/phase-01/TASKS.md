@@ -16,7 +16,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 
 ## Milestone C - Operator UX
 - [x] DONE P1-T9 Dashboard-Grid fuer Schnellzugriff optimieren.
-- [ ] TODO P1-T10 Aktive Zustandsmarkierung fuer Dauer-Effekte verstaerken.
+- [x] DONE P1-T10 Aktive Zustandsmarkierung fuer Dauer-Effekte verstaerken.
 - [ ] TODO P1-T11 Responsive Verhalten fuer kleine Displays pruefen und fixen.
 - [ ] TODO P1-T12 Setup-Flow im UI sichtbar strukturieren.
 
