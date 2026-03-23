@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-23
 - Execution Readiness: READY
-- Last Executed Plan: 1-1
-- Last Execution Summary: `.planning/phases/phase-01/1-1-SUMMARY.md`
+- Last Executed Plan: 1-2
+- Last Execution Summary: `.planning/phases/phase-01/1-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -26,6 +26,10 @@
 - Effektsteuerung laeuft ueber Registry mit einheitlichem Start/Stop/isActive-Contract.
 - Session-Persistenz bleibt in Phase 1 browser-lokal (`sessionStorage`) ohne Profil-Model.
 - `Clear All` wird auf `pointerdown` verarbeitet, um Stop-Latenz zu minimieren.
+- Plan-Update 1 setzt Prioritaetsfokus: P0 Power Outage, P1 Room-Click UX, P1 Per-Room Animation Config, P2 Output Device.
+- `Clear All` hat fuer 220 ms Prioritaetsfenster, um gleichzeitige Power-Outage-Starts deterministisch zu blocken.
+- Room-Zonen werden als klickbare Overlay-Hit-Areas mit session-lokalem Trigger/Intensity-Mapping verwaltet.
+- Output-Routing nutzt Fullscreen als Zielpfad und faellt bei Fehlern automatisch auf Windowed Preview zurueck.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -41,3 +45,10 @@
 - Evidence:
   - `.planning/phases/phase-01/P1-T14-LOADTEST.md`
   - `.planning/phases/phase-01/P1-T15-REGRESSION.md`
+
+## Execution Results (Phase 1 Plan 2)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-2-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`8b8fd36` .. `0e82c66`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T23-OUTPUT-SMOKE.md`

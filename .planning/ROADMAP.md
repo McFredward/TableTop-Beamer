@@ -3,16 +3,17 @@
 ## Direction
 Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen, Datenzonen und Preview/Live-Flow (Phase 2).
 
-## Phase 1 - Vertical Slice (Completed)
+## Phase 1 - Vertical Slice + Priority Add-on (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
 
-Status: 16/16 Tasks abgeschlossen (siehe `.planning/phases/phase-01/1-1-SUMMARY.md`).
+Status: 23/23 Tasks abgeschlossen (siehe `.planning/phases/phase-01/1-1-SUMMARY.md`, `.planning/phases/phase-01/1-2-SUMMARY.md`).
 
 Milestones:
 1. Projection Core: Board-Auswahl + Kalibrierung stabil.
 2. Effects Core: Ambient + Event-Trigger + Master-Intensity.
 3. Operator UX: kompaktes Dashboard mit klaren Zustandsanzeigen.
 4. Safety Hardening: `Clear All` priorisiert, Lastchecks, Fixes.
+5. Priority Add-on: Power-Outage-Hardening, Room-Click + Per-Room Mapping, Output-Routing mit Fallback.
 
 Exit Criteria:
 - Stories aus Phase-1-Backlog inkl. Akzeptanzkriterien umgesetzt.
