@@ -23,6 +23,7 @@ const offsetXInput = document.querySelector("#offset-x");
 const offsetYInput = document.querySelector("#offset-y");
 const scaleInput = document.querySelector("#scale");
 const rotationInput = document.querySelector("#rotation");
+const resetCalibrationButton = document.querySelector("#reset-calibration");
 const offsetXValue = document.querySelector("#offset-x-value");
 const offsetYValue = document.querySelector("#offset-y-value");
 const scaleValue = document.querySelector("#scale-value");
@@ -40,6 +41,15 @@ const state = {
 };
 
 const particles = [];
+const SESSION_KEY = "tt-beamer.phase1.session";
+const defaultSession = {
+  boardId: BOARDS[0].id,
+  intensity: 0.8,
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+  rotation: 0,
+};
 
 const zoneAnchors = [
   [0.19, 0.28],
@@ -67,6 +77,49 @@ function preloadBoardAssets() {
   }
 }
 
+function saveSessionState() {
+  const payload = {
+    boardId: boardSelect.value,
+    intensity: Number(intensityInput.value),
+    offsetX: Number(offsetXInput.value),
+    offsetY: Number(offsetYInput.value),
+    scale: Number(scaleInput.value),
+    rotation: Number(rotationInput.value),
+  };
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+}
+
+function loadSessionState() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) {
+      return { ...defaultSession };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      boardId: BOARDS.some((b) => b.id === parsed.boardId) ? parsed.boardId : defaultSession.boardId,
+      intensity: Number.isFinite(parsed.intensity) ? parsed.intensity : defaultSession.intensity,
+      offsetX: Number.isFinite(parsed.offsetX) ? parsed.offsetX : defaultSession.offsetX,
+      offsetY: Number.isFinite(parsed.offsetY) ? parsed.offsetY : defaultSession.offsetY,
+      scale: Number.isFinite(parsed.scale) ? parsed.scale : defaultSession.scale,
+      rotation: Number.isFinite(parsed.rotation) ? parsed.rotation : defaultSession.rotation,
+    };
+  } catch {
+    return { ...defaultSession };
+  }
+}
+
+function applySessionState(session) {
+  boardSelect.value = session.boardId;
+  intensityInput.value = String(session.intensity);
+  offsetXInput.value = String(session.offsetX);
+  offsetYInput.value = String(session.offsetY);
+  scaleInput.value = String(session.scale);
+  rotationInput.value = String(session.rotation);
+  state.intensity = Number(intensityInput.value);
+  updateStageTransform();
+}
+
 async function switchBoard(boardId) {
   const selected = BOARDS.find((item) => item.id === boardId);
   if (!selected) {
@@ -84,11 +137,13 @@ async function switchBoard(boardId) {
 }
 
 boardSelect.addEventListener("change", () => {
+  saveSessionState();
   void switchBoard(boardSelect.value);
 });
 
 intensityInput.addEventListener("input", () => {
   state.intensity = Number(intensityInput.value);
+  saveSessionState();
 });
 
 const updateStageTransform = () => {
@@ -100,7 +155,16 @@ const updateStageTransform = () => {
 };
 
 [offsetXInput, offsetYInput, scaleInput, rotationInput].forEach((input) => {
-  input.addEventListener("input", updateStageTransform);
+  input.addEventListener("input", () => {
+    updateStageTransform();
+    saveSessionState();
+  });
+});
+
+resetCalibrationButton.addEventListener("click", () => {
+  applySessionState(defaultSession);
+  saveSessionState();
+  void switchBoard(boardSelect.value);
 });
 
 document.querySelectorAll("button[data-trigger]").forEach((button) => {
@@ -266,8 +330,8 @@ function draw(timestamp) {
 }
 
 preloadBoardAssets();
-boardSelect.value = BOARDS[0].id;
-void switchBoard(BOARDS[0].id);
-updateStageTransform();
+applySessionState(loadSessionState());
+saveSessionState();
+void switchBoard(boardSelect.value);
 refreshButtonStates();
 requestAnimationFrame(draw);

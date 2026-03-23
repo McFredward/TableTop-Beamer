@@ -6,7 +6,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 - [x] DONE P1-T1 Board-Katalog und Auswahl-UI stabilisieren.
 - [x] DONE P1-T2 Boardwechselzeit messen und auf <1s bringen.
 - [x] DONE P1-T3 Kalibrierregler (X/Y/Scale/Rotation) mit Stage-Update verbinden.
-- [ ] TODO P1-T4 Reset-Defaults und session-lokalen State absichern.
+- [x] DONE P1-T4 Reset-Defaults und session-lokalen State absichern.
 
 ## Milestone B - Effects Core
 - [ ] TODO P1-T5 Effekt-Registry mit einheitlichem Start/Stop Interface bauen.
