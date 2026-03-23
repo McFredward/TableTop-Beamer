@@ -23,5 +23,5 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 ## Milestone D - Safety & Hardening
 - [x] DONE P1-T13 `Clear All` als priorisierten globalen Stop implementieren.
 - [x] DONE P1-T14 Lasttest mit parallelen Effekten durchfuehren.
-- [ ] TODO P1-T15 Smoke- und Safety-Regression dokumentieren.
+- [x] DONE P1-T15 Smoke- und Safety-Regression dokumentieren.
 - [ ] TODO P1-T16 README um Session-Flow und Safety-Hinweise aktualisieren.
