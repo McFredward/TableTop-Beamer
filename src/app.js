@@ -148,6 +148,7 @@ function renderRoomOverlay() {
     );
     polygon.addEventListener("click", () => {
       state.selectedRoomId = room.id;
+      state.selectedRoomByBoard[state.boardId] = room.id;
       syncRoomPanelFromSelection();
       renderRoomOverlay();
     });
@@ -191,8 +192,10 @@ function syncRoomPanelFromSelection() {
   const room = getSelectedRoom();
   if (!room) {
     roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
+    startRoomAnimationButton.disabled = true;
     return;
   }
+  startRoomAnimationButton.disabled = false;
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
 }
 

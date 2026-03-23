@@ -14,11 +14,11 @@
   </head>
   <body>
     <div class="app-shell">
-      <main class="projection-area" aria-label="Projektionsvorschau">
+      <main class="projection-area" aria-label="Projektionsflaeche">
         <div id="stage" class="stage">
           <img id="board-image" alt="Nemesis Board" />
           <canvas id="fx-canvas" aria-hidden="true"></canvas>
-          <div id="room-overlay" class="room-overlay" aria-label="Room Trigger Overlay"></div>
+          <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
         </div>
       </main>
 
@@ -27,114 +27,80 @@
           <p class="eyebrow">Nemesis Operator Deck</p>
           <h1>Atmosphere Controller</h1>
           <p class="lead">
-            Manuelle Trigger fur subtile, nicht spielbeeinflussende Effekte.
+            Klicke direkt auf den Raum-hex, waehle die Animation im Untermenue und starte sie gezielt fur diesen Raum.
           </p>
-          <ol class="setup-flow">
-            <li><strong>1.</strong> Board waehlen</li>
-            <li><strong>2.</strong> Kalibrieren + Intensity setzen</li>
-            <li><strong>3.</strong> Trigger ausloesen</li>
-          </ol>
         </header>
 
         <section class="panel">
-          <h2>Step 1 - Board</h2>
+          <h2>Board + Output</h2>
           <label>
             Layout
             <select id="board-select"></select>
           </label>
-          <p id="board-status" class="status-line" aria-live="polite"></p>
-          <p id="board-metric" class="status-line" aria-live="polite"></p>
-          <p id="power-outage-metric" class="status-line" aria-live="polite"></p>
-        </section>
-
-        <section class="panel">
-          <h2>Step 2 - Intensity + Calibration</h2>
-          <label>
-            Master Intensity <span id="intensity-value">0.80</span>
-            <input id="intensity" type="range" min="0.2" max="1" step="0.05" value="0.8" />
-          </label>
-          <label>
-            Offset X <span id="offset-x-value">0 px</span>
-            <input id="offset-x" type="range" min="-140" max="140" value="0" />
-          </label>
-          <label>
-            Offset Y <span id="offset-y-value">0 px</span>
-            <input id="offset-y" type="range" min="-140" max="140" value="0" />
-          </label>
-          <label>
-            Scale <span id="scale-value">1.00x</span>
-            <input id="scale" type="range" min="0.85" max="1.15" step="0.01" value="1" />
-          </label>
-          <label>
-            Rotation <span id="rotation-value">0.0°</span>
-            <input id="rotation" type="range" min="-3" max="3" step="0.1" value="0" />
-          </label>
-          <button id="reset-calibration" type="button">Reset Calibration Defaults</button>
-        </section>
-
-        <section class="panel">
-          <h2>Step 3 - Quick Triggers</h2>
-          <div class="trigger-section">
-            <p class="section-title">Ambient</p>
-            <div class="button-grid button-grid-3">
-              <button data-trigger="ambient" data-kind="ambient" aria-pressed="false">Ambient Flicker</button>
-              <button data-trigger="ash" data-kind="ambient" aria-pressed="false">Ash Drift</button>
-              <button data-trigger="leak" data-kind="ambient" aria-pressed="false">Toxic Leak</button>
-            </div>
-          </div>
-          <div class="trigger-section">
-            <p class="section-title">Events</p>
-            <div class="button-grid button-grid-2">
-              <button data-trigger="intruder">Intruder Alert</button>
-              <button data-trigger="reactor">Reactor Pulse</button>
-              <button data-trigger="fire">Fire Burst</button>
-              <button data-trigger="blackout">Power Outage</button>
-            </div>
-          </div>
-          <div class="button-grid button-grid-1">
-            <button data-trigger="clear" class="danger">Clear All</button>
-          </div>
-          <p id="trigger-feedback" class="status-line" aria-live="polite">Event Feedback: bereit</p>
-          <p class="section-title">Aktive Dauer-Effekte</p>
-          <ul id="active-effects" class="active-effects" aria-live="polite"></ul>
-        </section>
-
-        <section class="panel">
-          <h2>Step 4 - Room Config</h2>
-          <p id="room-selected" class="status-line">Ausgewaehlter Raum: Bridge</p>
-          <label>
-            Room Trigger
-            <select id="room-trigger-select">
-              <option value="intruder">Intruder Alert</option>
-              <option value="reactor">Reactor Pulse</option>
-              <option value="fire">Fire Burst</option>
-              <option value="blackout">Power Outage</option>
-              <option value="ambient">Ambient Flicker</option>
-              <option value="ash">Ash Drift</option>
-              <option value="leak">Toxic Leak</option>
-            </select>
-          </label>
-          <label>
-            Room Intensity Multiplier <span id="room-intensity-value">1.00x</span>
-            <input id="room-intensity" type="range" min="0.5" max="1.5" step="0.05" value="1" />
-          </label>
-        </section>
-
-        <section class="panel">
-          <h2>Step 5 - Output Device</h2>
           <label>
             Output Route
             <select id="output-route-select">
-              <option value="auto">Auto (Aktueller Screen)</option>
-              <option value="beamer-fullscreen">Target Beamer (Fullscreen)</option>
-              <option value="windowed-preview">Windowed Preview (Fallback)</option>
+              <option value="auto">Auto (aktueller Screen)</option>
+              <option value="beamer-fullscreen">Beamer (Fullscreen)</option>
+              <option value="windowed-preview">Windowed Preview</option>
             </select>
           </label>
-          <button id="apply-output-route" type="button">Apply Output Route</button>
+          <button id="apply-output-route" type="button">Output Route anwenden</button>
+          <p id="board-status" class="status-line" aria-live="polite">Aktives Board: -</p>
           <p id="output-route-status" class="status-line" aria-live="polite">Output Route: Auto</p>
         </section>
 
-        <footer class="hint">Tip: `F11` fur Fullscreen auf dem Beamer.</footer>
+        <section class="panel">
+          <h2>Globale Animationen</h2>
+          <div class="button-grid button-grid-3">
+            <button data-global="ambient-drift">Ambient Drift</button>
+            <button data-global="ash-fall">Ash Fall</button>
+            <button data-global="hull-flicker">Hull Flicker</button>
+          </div>
+          <div class="button-grid button-grid-2">
+            <button data-global="intruder-alert">Intruder Alert</button>
+            <button data-global="reactor-pulse">Reactor Pulse</button>
+            <button data-global="power-outage">Power Outage</button>
+            <button id="stop-all" class="danger">Clear All</button>
+          </div>
+          <p id="trigger-feedback" class="status-line" aria-live="polite">Status: bereit</p>
+        </section>
+
+        <section class="panel">
+          <h2>Raum-Animation</h2>
+          <p id="room-selected" class="status-line">Ausgewaehlter Raum: bitte Hex auf dem Board anklicken</p>
+          <label>
+            Animation
+            <select id="room-animation-select">
+              <option value="scanner-sweep">Scanner Sweep</option>
+              <option value="steam-vent">Steam Vent</option>
+              <option value="contamination">Contamination Cloud</option>
+              <option value="electrical-arc">Electrical Arc</option>
+              <option value="fire-pocket">Fire Pocket</option>
+              <option value="alarm-beacon">Alarm Beacon</option>
+            </select>
+          </label>
+          <label>
+            Intensitaet <span id="room-intensity-value">0.80</span>
+            <input id="room-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Dauer in Sekunden
+            <input id="room-duration" type="number" min="1" max="180" step="1" value="18" />
+          </label>
+          <label class="inline-checkbox">
+            <input id="room-hold" type="checkbox" />
+            Anhalten bis ich stoppe
+          </label>
+          <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
+        </section>
+
+        <section class="panel">
+          <h2>Laufende Animationen</h2>
+          <ul id="running-animations" class="running-list" aria-live="polite"></ul>
+        </section>
+
+        <footer class="hint">Hinweis: Fuer echtes Beamer-Targeting im Browser Fullscreen auf den Beamer-Screen schieben.</footer>
       </aside>
     </div>
 
