@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nemesis Table Beamer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="projection-area" aria-label="Projektionsvorschau">
+        <div id="stage" class="stage">
+          <img id="board-image" alt="Nemesis Board" />
+          <canvas id="fx-canvas" aria-hidden="true"></canvas>
+        </div>
+      </main>
+
+      <aside class="dashboard" aria-label="Effektsteuerung">
+        <header>
+          <p class="eyebrow">Nemesis Operator Deck</p>
+          <h1>Atmosphere Controller</h1>
+          <p class="lead">
+            Manuelle Trigger fur subtile, nicht spielbeeinflussende Effekte.
+          </p>
+        </header>
+
+        <section class="panel">
+          <h2>Board</h2>
+          <label>
+            Layout
+            <select id="board-select"></select>
+          </label>
+          <p id="board-status" class="status-line" aria-live="polite"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Quick Triggers</h2>
+          <div class="button-grid">
+            <button data-trigger="ambient">Ambient Flicker</button>
+            <button data-trigger="ash">Ash Drift</button>
+            <button data-trigger="leak">Toxic Leak</button>
+            <button data-trigger="intruder">Intruder Alert</button>
+            <button data-trigger="reactor">Reactor Pulse</button>
+            <button data-trigger="fire">Fire Burst</button>
+            <button data-trigger="blackout">Power Outage</button>
+            <button data-trigger="clear" class="danger">Clear All</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Intensity + Calibration</h2>
+          <label>
+            Master Intensity
+            <input id="intensity" type="range" min="0.2" max="1" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Offset X
+            <input id="offset-x" type="range" min="-140" max="140" value="0" />
+          </label>
+          <label>
+            Offset Y
+            <input id="offset-y" type="range" min="-140" max="140" value="0" />
+          </label>
+          <label>
+            Scale
+            <input id="scale" type="range" min="0.85" max="1.15" step="0.01" value="1" />
+          </label>
+          <label>
+            Rotation
+            <input id="rotation" type="range" min="-3" max="3" step="0.1" value="0" />
+          </label>
+        </section>
+
+        <footer class="hint">Tip: `F11` fur Fullscreen auf dem Beamer.</footer>
+      </aside>
+    </div>
+
+    <script src="src/app.js" defer></script>
+  </body>
+</html>

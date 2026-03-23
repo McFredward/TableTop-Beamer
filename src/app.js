@@ -1,0 +1,242 @@
+const BOARDS = [
+  {
+    id: "nemesis-board-a",
+    label: "Nemesis Board A",
+    src: "resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg",
+  },
+  {
+    id: "nemesis-board-b",
+    label: "Nemesis Board B",
+    src: "resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg",
+  },
+];
+
+const stage = document.querySelector("#stage");
+const boardImage = document.querySelector("#board-image");
+const canvas = document.querySelector("#fx-canvas");
+const ctx = canvas.getContext("2d");
+const boardSelect = document.querySelector("#board-select");
+const boardStatus = document.querySelector("#board-status");
+const intensityInput = document.querySelector("#intensity");
+const offsetXInput = document.querySelector("#offset-x");
+const offsetYInput = document.querySelector("#offset-y");
+const scaleInput = document.querySelector("#scale");
+const rotationInput = document.querySelector("#rotation");
+
+const state = {
+  ambient: false,
+  ash: false,
+  leak: false,
+  intruderUntil: 0,
+  reactorUntil: 0,
+  fireUntil: 0,
+  blackoutUntil: 0,
+  intensity: Number(intensityInput.value),
+};
+
+const particles = [];
+
+const zoneAnchors = [
+  [0.19, 0.28],
+  [0.3, 0.53],
+  [0.43, 0.42],
+  [0.56, 0.64],
+  [0.72, 0.29],
+  [0.84, 0.55],
+];
+
+for (const board of BOARDS) {
+  const option = document.createElement("option");
+  option.value = board.id;
+  option.textContent = board.label;
+  boardSelect.append(option);
+}
+
+boardSelect.addEventListener("change", () => {
+  const selected = BOARDS.find((item) => item.id === boardSelect.value);
+  if (selected) {
+    boardImage.src = selected.src;
+    boardStatus.textContent = `Aktives Board: ${selected.label}`;
+  }
+});
+
+intensityInput.addEventListener("input", () => {
+  state.intensity = Number(intensityInput.value);
+});
+
+const updateStageTransform = () => {
+  stage.style.transform = `translate(${offsetXInput.value}px, ${offsetYInput.value}px) scale(${scaleInput.value}) rotate(${rotationInput.value}deg)`;
+};
+
+[offsetXInput, offsetYInput, scaleInput, rotationInput].forEach((input) => {
+  input.addEventListener("input", updateStageTransform);
+});
+
+document.querySelectorAll("button[data-trigger]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const trigger = button.dataset.trigger;
+    applyTrigger(trigger);
+    refreshButtonStates();
+  });
+});
+
+function applyTrigger(trigger) {
+  const now = performance.now();
+  if (trigger === "ambient" || trigger === "ash" || trigger === "leak") {
+    state[trigger] = !state[trigger];
+    return;
+  }
+  if (trigger === "intruder") {
+    state.intruderUntil = now + 6500;
+    return;
+  }
+  if (trigger === "reactor") {
+    state.reactorUntil = now + 9000;
+    return;
+  }
+  if (trigger === "fire") {
+    state.fireUntil = now + 4200;
+    return;
+  }
+  if (trigger === "blackout") {
+    state.blackoutUntil = now + 2600;
+    return;
+  }
+  if (trigger === "clear") {
+    state.ambient = false;
+    state.ash = false;
+    state.leak = false;
+    state.intruderUntil = 0;
+    state.reactorUntil = 0;
+    state.fireUntil = 0;
+    state.blackoutUntil = 0;
+    particles.length = 0;
+  }
+}
+
+function refreshButtonStates() {
+  document.querySelectorAll("button[data-trigger]").forEach((button) => {
+    const trigger = button.dataset.trigger;
+    if (trigger === "ambient" || trigger === "ash" || trigger === "leak") {
+      button.classList.toggle("active", Boolean(state[trigger]));
+    }
+  });
+}
+
+const resizeObserver = new ResizeObserver((entries) => {
+  const size = entries[0].contentRect;
+  canvas.width = Math.max(1, Math.floor(size.width));
+  canvas.height = Math.max(1, Math.floor(size.height));
+});
+
+resizeObserver.observe(stage);
+
+function draw(timestamp) {
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  const t = timestamp / 1000;
+  const gain = state.intensity;
+
+  if (state.ambient) {
+    const alpha = (0.08 + Math.sin(t * 1.6) * 0.03) * gain;
+    const gradient = ctx.createRadialGradient(w * 0.5, h * 0.55, h * 0.05, w * 0.5, h * 0.55, h * 0.85);
+    gradient.addColorStop(0, `rgba(90, 130, 180, ${alpha})`);
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  if (state.ash && Math.random() > 0.6) {
+    particles.push({
+      x: Math.random() * w,
+      y: -14,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: 0.45 + Math.random() * 0.9,
+      life: 1,
+      kind: "ash",
+      size: 0.8 + Math.random() * 2.8,
+    });
+  }
+
+  if (state.leak && Math.random() > 0.72) {
+    const [zx, zy] = zoneAnchors[(Math.random() * zoneAnchors.length) | 0];
+    particles.push({
+      x: zx * w + (Math.random() - 0.5) * 40,
+      y: zy * h + (Math.random() - 0.5) * 22,
+      vx: (Math.random() - 0.5) * 0.22,
+      vy: -0.15 - Math.random() * 0.32,
+      life: 1,
+      kind: "leak",
+      size: 8 + Math.random() * 12,
+    });
+  }
+
+  const intruder = Math.max(0, state.intruderUntil - timestamp);
+  if (intruder > 0) {
+    const pulse = (Math.sin(t * 11) + 1) / 2;
+    ctx.fillStyle = `rgba(255, 45, 45, ${(0.12 + pulse * 0.2) * gain})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  const reactor = Math.max(0, state.reactorUntil - timestamp);
+  if (reactor > 0) {
+    const phase = 1 - reactor / 9000;
+    const radius = (0.12 + phase * 0.7) * Math.max(w, h);
+    const gradient = ctx.createRadialGradient(w * 0.5, h * 0.5, radius * 0.15, w * 0.5, h * 0.5, radius);
+    gradient.addColorStop(0, `rgba(255, 156, 45, ${0.32 * gain})`);
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  const fire = Math.max(0, state.fireUntil - timestamp);
+  if (fire > 0) {
+    const flicker = 0.2 + Math.random() * 0.28;
+    for (const [zx, zy] of zoneAnchors) {
+      const gradient = ctx.createRadialGradient(zx * w, zy * h, 1, zx * w, zy * h, 70);
+      gradient.addColorStop(0, `rgba(255, 120, 45, ${flicker * gain})`);
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(zx * w - 72, zy * h - 72, 144, 144);
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i -= 1) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.008;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+      continue;
+    }
+
+    if (p.kind === "ash") {
+      ctx.fillStyle = `rgba(210, 220, 230, ${p.life * 0.42 * gain})`;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+      continue;
+    }
+
+    ctx.fillStyle = `rgba(95, 210, 140, ${p.life * 0.2 * gain})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const blackout = Math.max(0, state.blackoutUntil - timestamp);
+  if (blackout > 0) {
+    const alpha = 0.82 - (blackout / 2600) * 0.18;
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+boardSelect.value = BOARDS[0].id;
+boardImage.src = BOARDS[0].src;
+boardStatus.textContent = `Aktives Board: ${BOARDS[0].label}`;
+updateStageTransform();
+refreshButtonStates();
+requestAnimationFrame(draw);
