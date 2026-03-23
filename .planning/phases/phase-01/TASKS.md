@@ -12,7 +12,7 @@ Statuslegende: TODO | IN-PROGRESS | DONE
 - [x] DONE P1-T5 Effekt-Registry mit einheitlichem Start/Stop Interface bauen.
 - [x] DONE P1-T6 Ambient-Toggles (Flicker, Ash Drift, Toxic Leak) anbinden.
 - [x] DONE P1-T7 Event-Buttons (Intruder, Reactor, Fire, Power) mit Trigger-Feedback bauen.
-- [ ] TODO P1-T8 Master-Intensity auf alle Effekte zentral anwenden.
+- [x] DONE P1-T8 Master-Intensity auf alle Effekte zentral anwenden.
 
 ## Milestone C - Operator UX
 - [ ] TODO P1-T9 Dashboard-Grid fuer Schnellzugriff optimieren.

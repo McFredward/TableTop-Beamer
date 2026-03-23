@@ -19,6 +19,7 @@ const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
 const boardMetric = document.querySelector("#board-metric");
 const intensityInput = document.querySelector("#intensity");
+const intensityValue = document.querySelector("#intensity-value");
 const offsetXInput = document.querySelector("#offset-x");
 const offsetYInput = document.querySelector("#offset-y");
 const scaleInput = document.querySelector("#scale");
@@ -118,7 +119,13 @@ function applySessionState(session) {
   scaleInput.value = String(session.scale);
   rotationInput.value = String(session.rotation);
   state.intensity = Number(intensityInput.value);
+  intensityValue.textContent = state.intensity.toFixed(2);
   updateStageTransform();
+}
+
+function getMasterIntensity(multiplier = 1) {
+  const value = state.intensity * multiplier;
+  return Math.max(0, Math.min(1, value));
 }
 
 function createEffectRegistry(effectState, allParticles) {
@@ -235,6 +242,7 @@ boardSelect.addEventListener("change", () => {
 
 intensityInput.addEventListener("input", () => {
   state.intensity = Number(intensityInput.value);
+  intensityValue.textContent = state.intensity.toFixed(2);
   saveSessionState();
 });
 
@@ -317,7 +325,7 @@ function draw(timestamp) {
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
   const t = timestamp / 1000;
-  const gain = state.intensity;
+  const gain = getMasterIntensity();
 
   if (state.ambient) {
     const alpha = (0.08 + Math.sin(t * 1.6) * 0.03) * gain;
@@ -328,7 +336,7 @@ function draw(timestamp) {
     ctx.fillRect(0, 0, w, h);
   }
 
-  if (state.ash && Math.random() > 0.6) {
+  if (state.ash && Math.random() > 0.7 - gain * 0.2) {
     particles.push({
       x: Math.random() * w,
       y: -14,
@@ -340,7 +348,7 @@ function draw(timestamp) {
     });
   }
 
-  if (state.leak && Math.random() > 0.72) {
+  if (state.leak && Math.random() > 0.8 - gain * 0.18) {
     const [zx, zy] = zoneAnchors[(Math.random() * zoneAnchors.length) | 0];
     particles.push({
       x: zx * w + (Math.random() - 0.5) * 40,
@@ -407,7 +415,7 @@ function draw(timestamp) {
 
   const blackout = Math.max(0, state.blackoutUntil - timestamp);
   if (blackout > 0) {
-    const alpha = 0.82 - (blackout / 2600) * 0.18;
+    const alpha = (0.82 - (blackout / 2600) * 0.18) * getMasterIntensity(0.95);
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
     ctx.fillRect(0, 0, w, h);
   }
