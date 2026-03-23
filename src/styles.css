@@ -149,6 +149,31 @@ select {
   gap: 0.5rem;
 }
 
+.button-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.button-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.button-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.trigger-section {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9fb0c8;
+}
+
 button {
   border: 1px solid rgba(110, 130, 156, 0.54);
   color: var(--text);

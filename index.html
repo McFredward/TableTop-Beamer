@@ -42,14 +42,24 @@
 
         <section class="panel">
           <h2>Quick Triggers</h2>
-          <div class="button-grid">
-            <button data-trigger="ambient" data-kind="ambient" aria-pressed="false">Ambient Flicker</button>
-            <button data-trigger="ash" data-kind="ambient" aria-pressed="false">Ash Drift</button>
-            <button data-trigger="leak" data-kind="ambient" aria-pressed="false">Toxic Leak</button>
-            <button data-trigger="intruder">Intruder Alert</button>
-            <button data-trigger="reactor">Reactor Pulse</button>
-            <button data-trigger="fire">Fire Burst</button>
-            <button data-trigger="blackout">Power Outage</button>
+          <div class="trigger-section">
+            <p class="section-title">Ambient</p>
+            <div class="button-grid button-grid-3">
+              <button data-trigger="ambient" data-kind="ambient" aria-pressed="false">Ambient Flicker</button>
+              <button data-trigger="ash" data-kind="ambient" aria-pressed="false">Ash Drift</button>
+              <button data-trigger="leak" data-kind="ambient" aria-pressed="false">Toxic Leak</button>
+            </div>
+          </div>
+          <div class="trigger-section">
+            <p class="section-title">Events</p>
+            <div class="button-grid button-grid-2">
+              <button data-trigger="intruder">Intruder Alert</button>
+              <button data-trigger="reactor">Reactor Pulse</button>
+              <button data-trigger="fire">Fire Burst</button>
+              <button data-trigger="blackout">Power Outage</button>
+            </div>
+          </div>
+          <div class="button-grid button-grid-1">
             <button data-trigger="clear" class="danger">Clear All</button>
           </div>
           <p id="trigger-feedback" class="status-line" aria-live="polite">Event Feedback: bereit</p>
