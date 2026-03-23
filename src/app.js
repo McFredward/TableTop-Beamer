@@ -250,6 +250,10 @@ const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
+const audioEnabledInput = document.querySelector("#audio-enabled");
+const audioVolumeInput = document.querySelector("#audio-volume");
+const audioVolumeValue = document.querySelector("#audio-volume-value");
+const audioStatus = document.querySelector("#audio-status");
 
 const ctx = canvas.getContext("2d");
 
@@ -293,6 +297,24 @@ function clampRoomDurationSec(value) {
   return Math.max(1, Math.min(180, value));
 }
 
+function clampAudioVolumePercent(value) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function syncAudioStatus() {
+  const volumePercent = Math.round(state.audio.volume * 100);
+  const mode = state.audio.enabled ? "ON" : "OFF";
+  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
+}
+
+function applyAudioGain() {
+  if (!audioCtx || !audioMasterGain) {
+    return;
+  }
+  const gainTarget = state.audio.enabled ? state.audio.volume : 0;
+  audioMasterGain.gain.setValueAtTime(gainTarget, audioCtx.currentTime);
+}
+
 function ensureAudioGraph() {
   if (!window.AudioContext && !window.webkitAudioContext) {
     return null;
@@ -303,7 +325,7 @@ function ensureAudioGraph() {
     audioMasterGain = audioCtx.createGain();
     audioMasterGain.connect(audioCtx.destination);
   }
-  audioMasterGain.gain.setValueAtTime(state.audio.volume, audioCtx.currentTime);
+  applyAudioGain();
   return audioCtx;
 }
 
@@ -913,6 +935,20 @@ roomHoldInput.addEventListener("change", () => {
   state.roomDraft.hold = roomHoldInput.checked;
 });
 
+audioEnabledInput.addEventListener("change", () => {
+  state.audio.enabled = audioEnabledInput.checked;
+  applyAudioGain();
+  syncAudioStatus();
+});
+
+audioVolumeInput.addEventListener("input", () => {
+  const volumePercent = clampAudioVolumePercent(Number(audioVolumeInput.value));
+  state.audio.volume = volumePercent / 100;
+  audioVolumeValue.textContent = `${volumePercent}%`;
+  applyAudioGain();
+  syncAudioStatus();
+});
+
 startRoomAnimationButton.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
@@ -941,6 +977,10 @@ resizeObserver.observe(stage);
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
 roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+audioEnabledInput.checked = state.audio.enabled;
+audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
+audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
+syncAudioStatus();
 renderRunningAnimationsList();
 refreshGlobalButtons();
 requestAnimationFrame(draw);

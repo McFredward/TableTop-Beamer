@@ -67,6 +67,19 @@
         </section>
 
         <section class="panel">
+          <h2>Audio Settings</h2>
+          <label class="inline-checkbox">
+            <input id="audio-enabled" type="checkbox" checked />
+            Event-Sounds aktiviert
+          </label>
+          <label>
+            Lautstaerke <span id="audio-volume-value">70%</span>
+            <input id="audio-volume" type="range" min="0" max="100" step="1" value="70" />
+          </label>
+          <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
+        </section>
+
+        <section class="panel">
           <h2>Raum-Animation</h2>
           <p id="room-selected" class="status-line">Ausgewaehlter Raum: bitte Hex auf dem Board anklicken</p>
           <label>
