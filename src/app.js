@@ -3,107 +3,607 @@ const BOARDS = [
     id: "nemesis-board-a",
     label: "Nemesis Board A",
     src: "resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg",
+    rooms: [
+      ["a-01", "Hex A-01", 0.239, 0.212],
+      ["a-02", "Hex A-02", 0.382, 0.135],
+      ["a-03", "Hex A-03", 0.548, 0.137],
+      ["a-04", "Hex A-04", 0.694, 0.157],
+      ["a-05", "Hex A-05", 0.777, 0.385],
+      ["a-06", "Hex A-06", 0.626, 0.384],
+      ["a-07", "Hex A-07", 0.41, 0.341],
+      ["a-08", "Hex A-08", 0.206, 0.529],
+      ["a-09", "Hex A-09", 0.332, 0.533],
+      ["a-10", "Hex A-10", 0.407, 0.676],
+      ["a-11", "Hex A-11", 0.62, 0.604],
+      ["a-12", "Hex A-12", 0.778, 0.604],
+      ["a-13", "Hex A-13", 0.214, 0.807],
+      ["a-14", "Hex A-14", 0.385, 0.857],
+      ["a-15", "Hex A-15", 0.534, 0.846],
+      ["a-16", "Hex A-16", 0.69, 0.847],
+    ],
   },
   {
     id: "nemesis-board-b",
     label: "Nemesis Board B",
     src: "resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg",
+    rooms: [
+      ["b-01", "Hex B-01", 0.082, 0.201],
+      ["b-02", "Hex B-02", 0.214, 0.269],
+      ["b-03", "Hex B-03", 0.47, 0.248],
+      ["b-04", "Hex B-04", 0.656, 0.216],
+      ["b-05", "Hex B-05", 0.812, 0.162],
+      ["b-06", "Hex B-06", 0.213, 0.515],
+      ["b-07", "Hex B-07", 0.451, 0.548],
+      ["b-08", "Hex B-08", 0.575, 0.548],
+      ["b-09", "Hex B-09", 0.693, 0.548],
+      ["b-10", "Hex B-10", 0.216, 0.742],
+      ["b-11", "Hex B-11", 0.477, 0.786],
+      ["b-12", "Hex B-12", 0.696, 0.845],
+      ["b-13", "Hex B-13", 0.811, 0.935],
+      ["b-14", "Hex B-14", 0.082, 0.845],
+    ],
   },
+].map((board) => ({
+  ...board,
+  rooms: board.rooms.map(([id, label, x, y]) => ({ id, label, x, y, radius: 0.055 })),
+}));
+
+const ROOM_ANIMATIONS = [
+  { id: "scanner-sweep", label: "Scanner Sweep" },
+  { id: "steam-vent", label: "Steam Vent" },
+  { id: "contamination", label: "Contamination Cloud" },
+  { id: "electrical-arc", label: "Electrical Arc" },
+  { id: "fire-pocket", label: "Fire Pocket" },
+  { id: "alarm-beacon", label: "Alarm Beacon" },
 ];
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
 const roomOverlay = document.querySelector("#room-overlay");
-const ctx = canvas.getContext("2d");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
-const boardMetric = document.querySelector("#board-metric");
-const powerOutageMetric = document.querySelector("#power-outage-metric");
-const intensityInput = document.querySelector("#intensity");
-const intensityValue = document.querySelector("#intensity-value");
-const offsetXInput = document.querySelector("#offset-x");
-const offsetYInput = document.querySelector("#offset-y");
-const scaleInput = document.querySelector("#scale");
-const rotationInput = document.querySelector("#rotation");
-const resetCalibrationButton = document.querySelector("#reset-calibration");
+const outputRouteSelect = document.querySelector("#output-route-select");
+const outputRouteStatus = document.querySelector("#output-route-status");
+const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const triggerFeedback = document.querySelector("#trigger-feedback");
-const activeEffectsList = document.querySelector("#active-effects");
-const offsetXValue = document.querySelector("#offset-x-value");
-const offsetYValue = document.querySelector("#offset-y-value");
-const scaleValue = document.querySelector("#scale-value");
-const rotationValue = document.querySelector("#rotation-value");
+const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
-const roomTriggerSelect = document.querySelector("#room-trigger-select");
+const roomAnimationSelect = document.querySelector("#room-animation-select");
 const roomIntensityInput = document.querySelector("#room-intensity");
 const roomIntensityValue = document.querySelector("#room-intensity-value");
-const outputRouteSelect = document.querySelector("#output-route-select");
-const applyOutputRouteButton = document.querySelector("#apply-output-route");
-const outputRouteStatus = document.querySelector("#output-route-status");
+const roomDurationInput = document.querySelector("#room-duration");
+const roomHoldInput = document.querySelector("#room-hold");
+const startRoomAnimationButton = document.querySelector("#start-room-animation");
+const runningAnimationsList = document.querySelector("#running-animations");
+
+const ctx = canvas.getContext("2d");
 
 const state = {
-  ambient: false,
-  ash: false,
-  leak: false,
-  intruderUntil: 0,
-  reactorUntil: 0,
-  fireUntil: 0,
-  blackoutUntil: 0,
-  intensity: Number(intensityInput.value),
-  effectIntensity: {
-    ambient: 1,
-    ash: 1,
-    leak: 1,
-    intruder: 1,
-    reactor: 1,
-    fire: 1,
-    blackout: 1,
-  },
-  outputRoute: "auto",
-};
-
-const particles = [];
-let emergencyStopRequested = false;
-const powerOutageLatencySamples = [];
-let pendingPowerOutageRequestAt = null;
-let pointerPressWasHandled = false;
-const POWER_OUTAGE_SAMPLE_WINDOW = 24;
-const POWER_OUTAGE_TARGET_MS = 150;
-const CLEAR_PRIORITY_WINDOW_MS = 220;
-let clearPriorityUntil = 0;
-const SESSION_KEY = "tt-beamer.phase1.session";
-const defaultSession = {
   boardId: BOARDS[0].id,
-  intensity: 0.8,
-  offsetX: 0,
-  offsetY: 0,
-  scale: 1,
-  rotation: 0,
+  selectedRoomId: null,
+  selectedRoomByBoard: {},
+  outputRoute: "auto",
+  roomDraft: {
+    animationId: ROOM_ANIMATIONS[0].id,
+    intensity: Number(roomIntensityInput.value),
+    durationSec: Number(roomDurationInput.value),
+    hold: false,
+  },
+  runningAnimations: [],
 };
 
-const ROOM_ZONES = [
-  { id: "bridge", label: "Bridge", x: 0.19, y: 0.28 },
-  { id: "lab", label: "Lab", x: 0.3, y: 0.53 },
-  { id: "nest", label: "Nest", x: 0.43, y: 0.42 },
-  { id: "engine", label: "Engine", x: 0.56, y: 0.64 },
-  { id: "comms", label: "Comms", x: 0.72, y: 0.29 },
-  { id: "cargo", label: "Cargo", x: 0.84, y: 0.55 },
-];
+let animationIdCounter = 1;
+const ashParticles = [];
+let lastListRenderAt = 0;
 
-const ROOM_TRIGGER_OPTIONS = ["intruder", "reactor", "fire", "blackout", "ambient", "ash", "leak"];
-const OUTPUT_ROUTE_OPTIONS = ["auto", "beamer-fullscreen", "windowed-preview"];
-
-function createDefaultRoomConfigs() {
-  return Object.fromEntries(ROOM_ZONES.map((zone) => [zone.id, { trigger: "intruder", intensity: 1 }]));
+function getBoard(boardId = state.boardId) {
+  return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
 }
 
-const DEFAULT_ACTIVE_ROOM_ID = ROOM_ZONES[0].id;
-const DEFAULT_ROOM_CONFIGS = createDefaultRoomConfigs();
+function getSelectedRoom() {
+  return getBoard().rooms.find((room) => room.id === state.selectedRoomId) ?? null;
+}
 
-state.activeRoomId = DEFAULT_ACTIVE_ROOM_ID;
-state.roomConfigs = createDefaultRoomConfigs();
+function clampRoomIntensity(value) {
+  return Math.max(0.2, Math.min(1.5, value));
+}
 
-const zoneAnchors = ROOM_ZONES.map((zone) => [zone.x, zone.y]);
+function clampRoomDurationSec(value) {
+  return Math.max(1, Math.min(180, value));
+}
+
+function getRoomPoints(room) {
+  const points = [];
+  const cx = room.x * 1000;
+  const cy = room.y * 1000;
+  const r = room.radius * 1000;
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    points.push([cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]);
+  }
+  return points;
+}
+
+function getRoomPolygonPixels(room, width, height) {
+  return getRoomPoints(room).map(([x, y]) => [
+    (x / 1000) * width,
+    (y / 1000) * height,
+  ]);
+}
+
+function renderRoomOverlay() {
+  const board = getBoard();
+  roomOverlay.replaceChildren();
+
+  for (const room of board.rooms) {
+    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    polygon.classList.add("room-zone");
+    polygon.dataset.roomId = room.id;
+    polygon.setAttribute(
+      "points",
+      getRoomPoints(room)
+        .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+        .join(" "),
+    );
+    polygon.addEventListener("click", () => {
+      state.selectedRoomId = room.id;
+      syncRoomPanelFromSelection();
+      renderRoomOverlay();
+    });
+    if (state.selectedRoomId === room.id) {
+      polygon.classList.add("is-selected");
+    }
+    roomOverlay.append(polygon);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.classList.add("room-zone-label");
+    label.setAttribute("x", String((room.x * 1000).toFixed(1)));
+    label.setAttribute("y", String((room.y * 1000 + 8).toFixed(1)));
+    label.textContent = room.label.replace("Hex ", "");
+    roomOverlay.append(label);
+  }
+}
+
+function switchBoard(boardId) {
+  const previousBoardId = state.boardId;
+  const previousRoomId = state.selectedRoomId;
+  if (previousBoardId && previousRoomId) {
+    state.selectedRoomByBoard[previousBoardId] = previousRoomId;
+  }
+
+  const board = getBoard(boardId);
+  state.boardId = board.id;
+  boardImage.src = board.src;
+  boardSelect.value = board.id;
+  boardStatus.textContent = `Aktives Board: ${board.label}`;
+  const rememberedRoom = state.selectedRoomByBoard[board.id];
+  state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
+    ? rememberedRoom
+    : board.rooms[0]?.id ?? null;
+  state.selectedRoomByBoard[board.id] = state.selectedRoomId;
+  syncRoomPanelFromSelection();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Board gewechselt";
+}
+
+function syncRoomPanelFromSelection() {
+  const room = getSelectedRoom();
+  if (!room) {
+    roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
+    return;
+  }
+  roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
+}
+
+function createAnimation({ type, scope, roomId = null, intensity = 0.8, hold = false, durationSec = 15 }) {
+  return {
+    id: `anim-${animationIdCounter++}`,
+    boardId: state.boardId,
+    type,
+    scope,
+    roomId,
+    intensity,
+    hold,
+    durationMs: hold ? null : Math.max(1000, durationSec * 1000),
+    startedAt: performance.now(),
+  };
+}
+
+function upsertGlobalAnimation(type, defaultDurationSec) {
+  const existing = state.runningAnimations.find((anim) => anim.scope === "global" && anim.type === type);
+  if (existing) {
+    state.runningAnimations = state.runningAnimations.filter((anim) => anim.id !== existing.id);
+    triggerFeedback.textContent = `Status: ${type} gestoppt`;
+  } else {
+    state.runningAnimations.push(
+      createAnimation({
+        type,
+        scope: "global",
+        intensity: 1,
+        hold: defaultDurationSec === null,
+        durationSec: defaultDurationSec ?? 0,
+      }),
+    );
+    triggerFeedback.textContent = `Status: ${type} gestartet`;
+  }
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+}
+
+function startRoomAnimationFromDraft() {
+  const room = getSelectedRoom();
+  if (!room) {
+    triggerFeedback.textContent = "Status: zuerst einen Raum anklicken";
+    return;
+  }
+
+  const animation = createAnimation({
+    type: state.roomDraft.animationId,
+    scope: "room",
+    roomId: room.id,
+    intensity: clampRoomIntensity(state.roomDraft.intensity),
+    hold: state.roomDraft.hold,
+    durationSec: clampRoomDurationSec(state.roomDraft.durationSec),
+  });
+
+  state.runningAnimations.push(animation);
+  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
+  renderRunningAnimationsList();
+}
+
+function stopAnimation(animationId) {
+  state.runningAnimations = state.runningAnimations.filter((item) => item.id !== animationId);
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+}
+
+function editAnimation(animationId) {
+  const animation = state.runningAnimations.find((item) => item.id === animationId);
+  if (!animation || animation.scope !== "room") {
+    return;
+  }
+  state.boardId = animation.boardId;
+  boardSelect.value = animation.boardId;
+  boardImage.src = getBoard(animation.boardId).src;
+  boardStatus.textContent = `Aktives Board: ${getBoard(animation.boardId).label}`;
+  state.selectedRoomId = animation.roomId;
+  state.selectedRoomByBoard[animation.boardId] = animation.roomId;
+  state.roomDraft.animationId = animation.type;
+  state.roomDraft.intensity = clampRoomIntensity(animation.intensity);
+  state.roomDraft.durationSec = animation.durationMs
+    ? clampRoomDurationSec(Math.round(animation.durationMs / 1000))
+    : 18;
+  state.roomDraft.hold = animation.hold;
+
+  roomAnimationSelect.value = state.roomDraft.animationId;
+  roomIntensityInput.value = String(state.roomDraft.intensity);
+  roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+  roomDurationInput.value = String(state.roomDraft.durationSec);
+  roomHoldInput.checked = state.roomDraft.hold;
+
+  syncRoomPanelFromSelection();
+  renderRoomOverlay();
+  triggerFeedback.textContent = `Status: ${animation.id} in Editor geladen`;
+}
+
+function renderRunningAnimationsList() {
+  runningAnimationsList.replaceChildren();
+  if (state.runningAnimations.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "running-empty";
+    empty.textContent = "Keine aktiven Animationen";
+    runningAnimationsList.append(empty);
+    return;
+  }
+
+  for (const anim of state.runningAnimations) {
+    const li = document.createElement("li");
+    li.className = "running-item";
+    const title = document.createElement("div");
+    title.className = "running-title";
+    const effectLabel = ROOM_ANIMATIONS.find((item) => item.id === anim.type)?.label ?? anim.type;
+    const animationBoard = getBoard(anim.boardId);
+    const roomLabel =
+      anim.scope === "room"
+        ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
+        : "Global";
+    title.textContent = `${effectLabel} - ${roomLabel}`;
+
+    const meta = document.createElement("div");
+    meta.className = "running-meta";
+    const remaining = anim.durationMs
+      ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
+      : "hold";
+    meta.textContent = `Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)} | Rest: ${remaining}`;
+
+    const actions = document.createElement("div");
+    actions.className = "running-actions";
+    const stopButton = document.createElement("button");
+    stopButton.type = "button";
+    stopButton.textContent = "Stop";
+    stopButton.addEventListener("click", () => stopAnimation(anim.id));
+    actions.append(stopButton);
+
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = anim.scope === "room" ? "Edit" : "Details";
+    editButton.disabled = anim.scope !== "room";
+    if (anim.scope === "room") {
+      editButton.addEventListener("click", () => editAnimation(anim.id));
+    }
+    actions.append(editButton);
+
+    li.append(title, meta, actions);
+    runningAnimationsList.append(li);
+  }
+}
+
+function refreshGlobalButtons() {
+  document.querySelectorAll("button[data-global]").forEach((button) => {
+    const isActive = state.runningAnimations.some(
+      (anim) => anim.scope === "global" && anim.type === button.dataset.global,
+    );
+    button.classList.toggle("active", isActive);
+  });
+}
+
+function applyOutputRoute(route) {
+  const requested = route;
+  if (requested === "beamer-fullscreen") {
+    if (!document.fullscreenEnabled) {
+      outputRouteStatus.textContent = "Output Route: Fullscreen nicht verfuegbar";
+      state.outputRoute = "windowed-preview";
+      outputRouteSelect.value = state.outputRoute;
+      return;
+    }
+    stage
+      .requestFullscreen({ navigationUI: "hide" })
+      .then(() => {
+        state.outputRoute = "beamer-fullscreen";
+        outputRouteStatus.textContent = "Output Route: Fullscreen aktiv";
+      })
+      .catch(() => {
+        state.outputRoute = "windowed-preview";
+        outputRouteSelect.value = state.outputRoute;
+        outputRouteStatus.textContent = "Output Route: Fullscreen fehlgeschlagen, Windowed aktiv";
+      });
+    return;
+  }
+
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => undefined);
+  }
+  state.outputRoute = requested;
+  outputRouteStatus.textContent =
+    requested === "auto" ? "Output Route: Auto" : "Output Route: Windowed Preview";
+}
+
+function clipToRoom(room) {
+  const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height);
+  ctx.beginPath();
+  polygon.forEach(([x, y], index) => {
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
+  ctx.clip();
+}
+
+function drawAnimation(animation, now) {
+  const age = (now - animation.startedAt) / 1000;
+  if (animation.scope === "room") {
+    if (animation.boardId !== state.boardId) {
+      return;
+    }
+    const room = getBoard(animation.boardId).rooms.find((entry) => entry.id === animation.roomId);
+    if (!room) {
+      return;
+    }
+    ctx.save();
+    clipToRoom(room);
+    drawEffectVisual(animation.type, age, animation.intensity, room);
+    ctx.restore();
+    return;
+  }
+
+  drawEffectVisual(animation.type, age, animation.intensity, null);
+}
+
+function drawEffectVisual(type, age, intensity, room) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const roomX = room ? room.x * w : w * 0.5;
+  const roomY = room ? room.y * h : h * 0.5;
+
+  if (type === "ambient-drift") {
+    const alpha = (0.07 + Math.sin(age * 1.4) * 0.03) * intensity;
+    const g = ctx.createRadialGradient(w * 0.52, h * 0.56, h * 0.03, w * 0.52, h * 0.56, h * 0.9);
+    g.addColorStop(0, `rgba(95, 145, 180, ${alpha})`);
+    g.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (type === "ash-fall") {
+    if (Math.random() > 0.72) {
+      ashParticles.push({
+        x: Math.random() * w,
+        y: -8,
+        life: 1,
+        size: 0.8 + Math.random() * 2.2,
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: 0.3 + Math.random() * 0.7,
+      });
+    }
+    for (let i = ashParticles.length - 1; i >= 0; i -= 1) {
+      const p = ashParticles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.006;
+      if (p.life <= 0) {
+        ashParticles.splice(i, 1);
+        continue;
+      }
+      ctx.fillStyle = `rgba(204, 221, 239, ${p.life * 0.42 * intensity})`;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    return;
+  }
+
+  if (type === "hull-flicker") {
+    const alpha = (0.05 + Math.sin(age * 6.3) * 0.03) * intensity;
+    ctx.fillStyle = `rgba(120, 255, 220, ${alpha})`;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (type === "intruder-alert") {
+    const pulse = (Math.sin(age * 9) + 1) / 2;
+    ctx.fillStyle = `rgba(255, 45, 45, ${(0.1 + pulse * 0.24) * intensity})`;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (type === "reactor-pulse") {
+    const radius = (0.12 + (age % 3) * 0.22) * Math.max(w, h);
+    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, radius * 0.08, w * 0.5, h * 0.5, radius);
+    g.addColorStop(0, `rgba(255, 157, 55, ${0.35 * intensity})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
+
+  if (type === "power-outage") {
+    const pulse = (Math.sin(age * 20) + 1) / 2;
+    const alpha = 0.68 + pulse * 0.22;
+    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+    ctx.fillRect(0, 0, w, h);
+
+    const flash = Math.random() > 0.88;
+    if (flash) {
+      ctx.fillStyle = `rgba(122, 182, 255, ${0.15 * intensity})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    for (let i = 0; i < 4; i += 1) {
+      const y = h * (0.2 + i * 0.2);
+      ctx.strokeStyle = `rgba(125, 191, 255, ${(0.07 + pulse * 0.07) * intensity})`;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  if (type === "scanner-sweep") {
+    const r = room.radius * Math.min(w, h) * 1.4;
+    const angle = age * 1.9;
+    ctx.fillStyle = `rgba(84, 255, 218, ${0.2 * intensity})`;
+    ctx.beginPath();
+    ctx.moveTo(roomX, roomY);
+    ctx.arc(roomX, roomY, r, angle, angle + Math.PI / 3);
+    ctx.closePath();
+    ctx.fill();
+    return;
+  }
+
+  if (type === "steam-vent") {
+    for (let i = 0; i < 3; i += 1) {
+      const rise = ((age * 45 + i * 24) % 120) - 60;
+      const radius = 9 + ((age * 12 + i * 6) % 14);
+      ctx.fillStyle = `rgba(225, 236, 255, ${0.09 * intensity})`;
+      ctx.beginPath();
+      ctx.arc(roomX + i * 11 - 11, roomY + rise, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+
+  if (type === "contamination") {
+    const alpha = (0.1 + Math.sin(age * 2.6) * 0.04) * intensity;
+    const g = ctx.createRadialGradient(roomX, roomY, 2, roomX, roomY, room.radius * Math.min(w, h));
+    g.addColorStop(0, `rgba(96, 232, 142, ${alpha})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(roomX - 180, roomY - 180, 360, 360);
+    return;
+  }
+
+  if (type === "electrical-arc") {
+    ctx.strokeStyle = `rgba(120, 200, 255, ${0.8 * intensity})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i += 1) {
+      const px = roomX + (Math.random() - 0.5) * room.radius * Math.min(w, h);
+      const py = roomY + (Math.random() - 0.5) * room.radius * Math.min(w, h);
+      if (i === 0) {
+        ctx.moveTo(px, py);
+      } else {
+        ctx.lineTo(px, py);
+      }
+    }
+    ctx.stroke();
+    return;
+  }
+
+  if (type === "fire-pocket") {
+    const alpha = (0.2 + Math.sin(age * 12) * 0.1) * intensity;
+    const g = ctx.createRadialGradient(roomX, roomY, 3, roomX, roomY, room.radius * Math.min(w, h) * 0.9);
+    g.addColorStop(0, `rgba(255, 123, 61, ${alpha})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(roomX - 140, roomY - 140, 280, 280);
+    return;
+  }
+
+  if (type === "alarm-beacon") {
+    const pulse = (Math.sin(age * 8) + 1) / 2;
+    const g = ctx.createRadialGradient(roomX, roomY, 2, roomX, roomY, room.radius * Math.min(w, h));
+    g.addColorStop(0, `rgba(255, 60, 60, ${(0.12 + pulse * 0.18) * intensity})`);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(roomX - 150, roomY - 150, 300, 300);
+  }
+}
+
+function pruneFinishedAnimations(now) {
+  const before = state.runningAnimations.length;
+  state.runningAnimations = state.runningAnimations.filter((anim) => {
+    if (anim.hold || anim.durationMs === null) {
+      return true;
+    }
+    return now - anim.startedAt < anim.durationMs;
+  });
+
+  if (before !== state.runningAnimations.length) {
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+  }
+}
+
+function draw(now) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  pruneFinishedAnimations(now);
+
+  for (const anim of state.runningAnimations) {
+    drawAnimation(anim, now);
+  }
+
+  if (now - lastListRenderAt > 500) {
+    renderRunningAnimationsList();
+    lastListRenderAt = now;
+  }
+
+  requestAnimationFrame(draw);
+}
 
 for (const board of BOARDS) {
   const option = document.createElement("option");
@@ -112,509 +612,54 @@ for (const board of BOARDS) {
   boardSelect.append(option);
 }
 
-const boardPreload = new Map();
+boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
-function preloadBoardAssets() {
-  for (const board of BOARDS) {
-    const image = new Image();
-    image.src = board.src;
-    boardPreload.set(board.id, image.decode().catch(() => undefined));
-  }
-}
-
-function saveSessionState() {
-  const payload = {
-    boardId: boardSelect.value,
-    intensity: Number(intensityInput.value),
-    offsetX: Number(offsetXInput.value),
-    offsetY: Number(offsetYInput.value),
-    scale: Number(scaleInput.value),
-    rotation: Number(rotationInput.value),
-    activeRoomId: state.activeRoomId,
-    roomConfigs: state.roomConfigs,
-    outputRoute: state.outputRoute,
-  };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
-}
-
-function sanitizeRoomConfigs(input) {
-  const safe = createDefaultRoomConfigs();
-  if (!input || typeof input !== "object") {
-    return safe;
-  }
-
-  for (const zone of ROOM_ZONES) {
-    const candidate = input[zone.id];
-    if (!candidate || typeof candidate !== "object") {
-      continue;
-    }
-    const trigger = ROOM_TRIGGER_OPTIONS.includes(candidate.trigger) ? candidate.trigger : safe[zone.id].trigger;
-    const intensity = Number(candidate.intensity);
-    safe[zone.id] = {
-      trigger,
-      intensity: Number.isFinite(intensity) ? Math.max(0.5, Math.min(1.5, intensity)) : safe[zone.id].intensity,
-    };
-  }
-
-  return safe;
-}
-
-function loadSessionState() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) {
-      return {
-        ...defaultSession,
-        activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
-        roomConfigs: createDefaultRoomConfigs(),
-        outputRoute: "auto",
-      };
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      boardId: BOARDS.some((b) => b.id === parsed.boardId) ? parsed.boardId : defaultSession.boardId,
-      intensity: Number.isFinite(parsed.intensity) ? parsed.intensity : defaultSession.intensity,
-      offsetX: Number.isFinite(parsed.offsetX) ? parsed.offsetX : defaultSession.offsetX,
-      offsetY: Number.isFinite(parsed.offsetY) ? parsed.offsetY : defaultSession.offsetY,
-      scale: Number.isFinite(parsed.scale) ? parsed.scale : defaultSession.scale,
-      rotation: Number.isFinite(parsed.rotation) ? parsed.rotation : defaultSession.rotation,
-      activeRoomId: ROOM_ZONES.some((zone) => zone.id === parsed.activeRoomId)
-        ? parsed.activeRoomId
-        : DEFAULT_ACTIVE_ROOM_ID,
-      roomConfigs: sanitizeRoomConfigs(parsed.roomConfigs),
-      outputRoute: OUTPUT_ROUTE_OPTIONS.includes(parsed.outputRoute) ? parsed.outputRoute : "auto",
-    };
-  } catch {
-    return {
-      ...defaultSession,
-      activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
-      roomConfigs: createDefaultRoomConfigs(),
-      outputRoute: "auto",
-    };
-  }
-}
-
-function applySessionState(session) {
-  boardSelect.value = session.boardId;
-  intensityInput.value = String(session.intensity);
-  offsetXInput.value = String(session.offsetX);
-  offsetYInput.value = String(session.offsetY);
-  scaleInput.value = String(session.scale);
-  rotationInput.value = String(session.rotation);
-  state.activeRoomId = session.activeRoomId ?? DEFAULT_ACTIVE_ROOM_ID;
-  state.roomConfigs = sanitizeRoomConfigs(session.roomConfigs ?? DEFAULT_ROOM_CONFIGS);
-  state.outputRoute = OUTPUT_ROUTE_OPTIONS.includes(session.outputRoute) ? session.outputRoute : "auto";
-  state.intensity = Number(intensityInput.value);
-  intensityValue.textContent = state.intensity.toFixed(2);
-  updateStageTransform();
-  syncRoomConfigControls();
-  outputRouteSelect.value = state.outputRoute;
-}
-
-function getSelectedRoom() {
-  return ROOM_ZONES.find((zone) => zone.id === state.activeRoomId) ?? ROOM_ZONES[0];
-}
-
-function syncRoomConfigControls() {
-  const selectedRoom = getSelectedRoom();
-  const config = state.roomConfigs[selectedRoom.id] ?? DEFAULT_ROOM_CONFIGS[selectedRoom.id];
-  roomSelected.textContent = `Ausgewaehlter Raum: ${selectedRoom.label}`;
-  roomTriggerSelect.value = config.trigger;
-  roomIntensityInput.value = String(config.intensity);
-  roomIntensityValue.textContent = `${config.intensity.toFixed(2)}x`;
-}
-
-async function applyOutputRoute(route, source = "system") {
-  const nextRoute = OUTPUT_ROUTE_OPTIONS.includes(route) ? route : "auto";
-  if (nextRoute === "beamer-fullscreen") {
-    if (!document.fullscreenEnabled) {
-      state.outputRoute = "windowed-preview";
-      outputRouteSelect.value = state.outputRoute;
-      outputRouteStatus.textContent = "Output Route: Fullscreen nicht verfuegbar, Fallback auf Windowed Preview";
-      saveSessionState();
-      return;
-    }
-    try {
-      await stage.requestFullscreen({ navigationUI: "hide" });
-      state.outputRoute = nextRoute;
-      outputRouteStatus.textContent = `Output Route: Target Beamer aktiv (${source})`;
-      saveSessionState();
-      return;
-    } catch {
-      state.outputRoute = "windowed-preview";
-      outputRouteSelect.value = state.outputRoute;
-      outputRouteStatus.textContent = "Output Route: Fullscreen fehlgeschlagen, Fallback auf Windowed Preview";
-      saveSessionState();
-      return;
-    }
-  }
-
-  if (document.fullscreenElement) {
-    await document.exitFullscreen().catch(() => undefined);
-  }
-  state.outputRoute = nextRoute;
-  outputRouteSelect.value = state.outputRoute;
-  outputRouteStatus.textContent =
-    state.outputRoute === "auto"
-      ? `Output Route: Auto aktiv (${source})`
-      : `Output Route: Windowed Preview aktiv (${source})`;
-  saveSessionState();
-}
-
-function getMasterIntensity(multiplier = 1) {
-  const value = state.intensity * multiplier;
-  return Math.max(0, Math.min(1, value));
-}
-
-function getEffectGain(trigger) {
-  return getMasterIntensity(state.effectIntensity[trigger] ?? 1);
-}
-
-function createEffectRegistry(effectState, allParticles) {
-  const registry = {
-    ambient: {
-      start: () => {
-        effectState.ambient = true;
-      },
-      stop: () => {
-        effectState.ambient = false;
-      },
-      toggle: () => {
-        effectState.ambient = !effectState.ambient;
-      },
-      isActive: () => effectState.ambient,
-    },
-    ash: {
-      start: () => {
-        effectState.ash = true;
-      },
-      stop: () => {
-        effectState.ash = false;
-      },
-      toggle: () => {
-        effectState.ash = !effectState.ash;
-      },
-      isActive: () => effectState.ash,
-    },
-    leak: {
-      start: () => {
-        effectState.leak = true;
-      },
-      stop: () => {
-        effectState.leak = false;
-      },
-      toggle: () => {
-        effectState.leak = !effectState.leak;
-      },
-      isActive: () => effectState.leak,
-    },
-    intruder: {
-      start: (now) => {
-        effectState.intruderUntil = now + 6500;
-      },
-      stop: () => {
-        effectState.intruderUntil = 0;
-      },
-      isActive: (now) => effectState.intruderUntil > now,
-    },
-    reactor: {
-      start: (now) => {
-        effectState.reactorUntil = now + 9000;
-      },
-      stop: () => {
-        effectState.reactorUntil = 0;
-      },
-      isActive: (now) => effectState.reactorUntil > now,
-    },
-    fire: {
-      start: (now) => {
-        effectState.fireUntil = now + 4200;
-      },
-      stop: () => {
-        effectState.fireUntil = 0;
-      },
-      isActive: (now) => effectState.fireUntil > now,
-    },
-    blackout: {
-      start: (now) => {
-        effectState.blackoutUntil = now + 2600;
-      },
-      stop: () => {
-        effectState.blackoutUntil = 0;
-      },
-      isActive: (now) => effectState.blackoutUntil > now,
-    },
-  };
-
-  return {
-    ...registry,
-    clear: {
-      start: () => {
-        Object.values(registry).forEach((effect) => effect.stop());
-        allParticles.length = 0;
-      },
-      stop: () => {},
-      isActive: () => false,
-    },
-  };
-}
-
-const effects = createEffectRegistry(state, particles);
-
-function clearAllEffectsNow() {
-  clearPriorityUntil = performance.now() + CLEAR_PRIORITY_WINDOW_MS;
-  pendingPowerOutageRequestAt = null;
-  effects.clear.start();
-  triggerFeedback.textContent = "Event Feedback: Safety stop aktiv";
-  refreshButtonStates();
-}
-
-function bindPressFirstAction(button, action) {
-  button.addEventListener(
-    "pointerdown",
-    (event) => {
-      event.preventDefault();
-      pointerPressWasHandled = true;
-      action("pointerdown");
-    },
-    { passive: false },
-  );
-
+document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
-    if (pointerPressWasHandled) {
-      pointerPressWasHandled = false;
-      return;
-    }
-    action("click");
-  });
-}
-
-function updatePowerOutageMetric() {
-  if (powerOutageLatencySamples.length === 0) {
-    powerOutageMetric.textContent = "Power Outage: noch keine Messwerte";
-    return;
-  }
-  const total = powerOutageLatencySamples.reduce((sum, sample) => sum + sample, 0);
-  const average = total / powerOutageLatencySamples.length;
-  const latest = powerOutageLatencySamples[powerOutageLatencySamples.length - 1];
-  const status = average <= POWER_OUTAGE_TARGET_MS ? "OK" : "WARN";
-  powerOutageMetric.textContent = `Power Outage: avg ${average.toFixed(1)} ms | last ${latest.toFixed(1)} ms (${status})`;
-}
-
-function triggerPowerOutage(triggerSource) {
-  const requestStartedAt = performance.now();
-  if (requestStartedAt <= clearPriorityUntil) {
-    triggerFeedback.textContent = "Event Feedback: blackout durch Safety-Fenster geblockt";
-    return;
-  }
-  pendingPowerOutageRequestAt = requestStartedAt;
-  effects.blackout.start(requestStartedAt);
-  triggerFeedback.textContent = `Event Feedback: blackout via ${triggerSource}`;
-  refreshButtonStates();
-}
-
-async function switchBoard(boardId) {
-  const selected = BOARDS.find((item) => item.id === boardId);
-  if (!selected) {
-    return;
-  }
-
-  const start = performance.now();
-  boardMetric.textContent = "Boardwechsel: laeuft...";
-  await boardPreload.get(boardId);
-  boardImage.src = selected.src;
-  const elapsed = performance.now() - start;
-  const outcome = elapsed < 1000 ? "OK" : "WARN";
-  boardStatus.textContent = `Aktives Board: ${selected.label}`;
-  boardMetric.textContent = `Boardwechsel: ${elapsed.toFixed(0)} ms (${outcome})`;
-}
-
-boardSelect.addEventListener("change", () => {
-  saveSessionState();
-  void switchBoard(boardSelect.value);
-});
-
-intensityInput.addEventListener("input", () => {
-  state.intensity = Number(intensityInput.value);
-  intensityValue.textContent = state.intensity.toFixed(2);
-  saveSessionState();
-});
-
-const updateStageTransform = () => {
-  stage.style.transform = `translate3d(${offsetXInput.value}px, ${offsetYInput.value}px, 0) scale(${scaleInput.value}) rotate(${rotationInput.value}deg)`;
-  offsetXValue.textContent = `${Number(offsetXInput.value)} px`;
-  offsetYValue.textContent = `${Number(offsetYInput.value)} px`;
-  scaleValue.textContent = `${Number(scaleInput.value).toFixed(2)}x`;
-  rotationValue.textContent = `${Number(rotationInput.value).toFixed(1)}°`;
-};
-
-[offsetXInput, offsetYInput, scaleInput, rotationInput].forEach((input) => {
-  input.addEventListener("input", () => {
-    updateStageTransform();
-    saveSessionState();
+    const type = button.dataset.global;
+    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" ? null : 6;
+    upsertGlobalAnimation(type, mode);
   });
 });
 
-resetCalibrationButton.addEventListener("click", () => {
-  applySessionState(defaultSession);
-  saveSessionState();
-  void switchBoard(boardSelect.value);
+stopAllButton.addEventListener("click", () => {
+  state.runningAnimations = [];
+  ashParticles.length = 0;
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
 });
 
-document.querySelectorAll("button[data-trigger]").forEach((button) => {
-  if (button.dataset.trigger === "clear") {
-    bindPressFirstAction(button, () => {
-      emergencyStopRequested = true;
-      clearAllEffectsNow();
-    });
-    return;
-  }
-
-  if (button.dataset.trigger === "blackout") {
-    bindPressFirstAction(button, (source) => {
-      const start = performance.now();
-      triggerPowerOutage(source);
-      const elapsed = performance.now() - start;
-      button.classList.add("event-fired");
-      setTimeout(() => button.classList.remove("event-fired"), 280);
-      triggerFeedback.textContent = `Event Feedback: blackout queued in ${elapsed.toFixed(1)} ms`;
-    });
-    return;
-  }
-
-  button.addEventListener("click", () => {
-    const trigger = button.dataset.trigger;
-    const start = performance.now();
-    applyTrigger(trigger, { multiplier: 1, source: "dashboard" });
-    const elapsed = performance.now() - start;
-    if (!["ambient", "ash", "leak", "clear"].includes(trigger)) {
-      triggerFeedback.textContent = `Event Feedback: ${trigger} in ${elapsed.toFixed(1)} ms`;
-      button.classList.add("event-fired");
-      setTimeout(() => button.classList.remove("event-fired"), 280);
-    }
-    refreshButtonStates();
-  });
-});
-
-function applyTrigger(trigger, options = {}) {
-  const { multiplier = 1 } = options;
-  const now = performance.now();
-  const effect = effects[trigger];
-  if (!effect) {
-    return;
-  }
-
-  state.effectIntensity[trigger] = Math.max(0.5, Math.min(1.5, multiplier));
-
-  if (effect.toggle) {
-    effect.toggle(now);
-  } else {
-    effect.start(now);
-  }
-}
-
-function refreshButtonStates() {
-  const activeAmbientEffects = [];
-  document.querySelectorAll("button[data-trigger]").forEach((button) => {
-    const trigger = button.dataset.trigger;
-    const effect = effects[trigger];
-    if (!effect) {
-      return;
-    }
-    const active = Boolean(effect.isActive(performance.now()));
-    const isAmbient = button.dataset.kind === "ambient";
-    button.classList.toggle("active", isAmbient && active);
-    if (isAmbient) {
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-      if (active) {
-        activeAmbientEffects.push(button.textContent.trim());
-      }
-    }
-  });
-
-  activeEffectsList.replaceChildren();
-  if (activeAmbientEffects.length === 0) {
-    const empty = document.createElement("li");
-    empty.className = "is-empty";
-    empty.textContent = "Keine";
-    activeEffectsList.append(empty);
-    return;
-  }
-  for (const name of activeAmbientEffects) {
-    const item = document.createElement("li");
-    item.textContent = name;
-    activeEffectsList.append(item);
-  }
-}
-
-function highlightRoomZone(roomId) {
-  state.activeRoomId = roomId;
-  roomOverlay.querySelectorAll(".room-zone").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.roomId === roomId);
-  });
-  syncRoomConfigControls();
-  saveSessionState();
-}
-
-function handleRoomZoneClick(zone) {
-  const roomButton = roomOverlay.querySelector(`[data-room-id="${zone.id}"]`);
-  if (!roomButton) {
-    return;
-  }
-  highlightRoomZone(zone.id);
-  roomButton.classList.add("is-fired");
-  setTimeout(() => roomButton.classList.remove("is-fired"), 320);
-  const config = state.roomConfigs[zone.id] ?? DEFAULT_ROOM_CONFIGS[zone.id];
-  applyTrigger(config.trigger, { multiplier: config.intensity, source: "room-zone" });
-  refreshButtonStates();
-  triggerFeedback.textContent = `Event Feedback: room ${zone.label} -> ${config.trigger} (${config.intensity.toFixed(2)}x)`;
-}
-
-function renderRoomZones() {
-  roomOverlay.replaceChildren();
-  for (const zone of ROOM_ZONES) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "room-zone";
-    button.dataset.roomId = zone.id;
-    button.textContent = zone.label;
-    button.style.left = `${zone.x * 100}%`;
-    button.style.top = `${zone.y * 100}%`;
-    button.addEventListener("click", () => handleRoomZoneClick(zone));
-    roomOverlay.append(button);
-  }
-}
-
-roomTriggerSelect.addEventListener("change", () => {
-  const selectedRoom = getSelectedRoom();
-  state.roomConfigs[selectedRoom.id] = {
-    ...state.roomConfigs[selectedRoom.id],
-    trigger: roomTriggerSelect.value,
-  };
-  saveSessionState();
+roomAnimationSelect.addEventListener("change", () => {
+  state.roomDraft.animationId = roomAnimationSelect.value;
 });
 
 roomIntensityInput.addEventListener("input", () => {
-  const selectedRoom = getSelectedRoom();
-  const intensity = Number(roomIntensityInput.value);
-  state.roomConfigs[selectedRoom.id] = {
-    ...state.roomConfigs[selectedRoom.id],
-    intensity,
-  };
-  roomIntensityValue.textContent = `${intensity.toFixed(2)}x`;
-  saveSessionState();
+  state.roomDraft.intensity = clampRoomIntensity(Number(roomIntensityInput.value));
+  roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+});
+
+roomDurationInput.addEventListener("input", () => {
+  state.roomDraft.durationSec = clampRoomDurationSec(Number(roomDurationInput.value) || 1);
+});
+
+roomHoldInput.addEventListener("change", () => {
+  state.roomDraft.hold = roomHoldInput.checked;
+});
+
+startRoomAnimationButton.addEventListener("click", () => {
+  startRoomAnimationFromDraft();
 });
 
 applyOutputRouteButton.addEventListener("click", () => {
-  void applyOutputRoute(outputRouteSelect.value, "manual");
+  applyOutputRoute(outputRouteSelect.value);
 });
 
 document.addEventListener("fullscreenchange", () => {
   if (state.outputRoute === "beamer-fullscreen" && !document.fullscreenElement) {
     state.outputRoute = "windowed-preview";
     outputRouteSelect.value = state.outputRoute;
-    outputRouteStatus.textContent = "Output Route: Fullscreen beendet, Fallback auf Windowed Preview";
-    saveSessionState();
+    outputRouteStatus.textContent = "Output Route: Fullscreen beendet, Windowed aktiv";
   }
 });
 
@@ -626,130 +671,9 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 resizeObserver.observe(stage);
 
-function draw(timestamp) {
-  const w = canvas.width;
-  const h = canvas.height;
-
-  if (emergencyStopRequested) {
-    emergencyStopRequested = false;
-    clearAllEffectsNow();
-  }
-
-  ctx.clearRect(0, 0, w, h);
-  const t = timestamp / 1000;
-
-  if (state.ambient) {
-    const alpha = (0.08 + Math.sin(t * 1.6) * 0.03) * getEffectGain("ambient");
-    const gradient = ctx.createRadialGradient(w * 0.5, h * 0.55, h * 0.05, w * 0.5, h * 0.55, h * 0.85);
-    gradient.addColorStop(0, `rgba(90, 130, 180, ${alpha})`);
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  if (state.ash && Math.random() > 0.7 - getEffectGain("ash") * 0.2) {
-    particles.push({
-      x: Math.random() * w,
-      y: -14,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: 0.45 + Math.random() * 0.9,
-      life: 1,
-      kind: "ash",
-      size: 0.8 + Math.random() * 2.8,
-    });
-  }
-
-  if (state.leak && Math.random() > 0.8 - getEffectGain("leak") * 0.18) {
-    const [zx, zy] = zoneAnchors[(Math.random() * zoneAnchors.length) | 0];
-    particles.push({
-      x: zx * w + (Math.random() - 0.5) * 40,
-      y: zy * h + (Math.random() - 0.5) * 22,
-      vx: (Math.random() - 0.5) * 0.22,
-      vy: -0.15 - Math.random() * 0.32,
-      life: 1,
-      kind: "leak",
-      size: 8 + Math.random() * 12,
-    });
-  }
-
-  const intruder = Math.max(0, state.intruderUntil - timestamp);
-  if (intruder > 0) {
-    const pulse = (Math.sin(t * 11) + 1) / 2;
-    ctx.fillStyle = `rgba(255, 45, 45, ${(0.12 + pulse * 0.2) * getEffectGain("intruder")})`;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  const reactor = Math.max(0, state.reactorUntil - timestamp);
-  if (reactor > 0) {
-    const phase = 1 - reactor / 9000;
-    const radius = (0.12 + phase * 0.7) * Math.max(w, h);
-    const gradient = ctx.createRadialGradient(w * 0.5, h * 0.5, radius * 0.15, w * 0.5, h * 0.5, radius);
-    gradient.addColorStop(0, `rgba(255, 156, 45, ${0.32 * getEffectGain("reactor")})`);
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  const fire = Math.max(0, state.fireUntil - timestamp);
-  if (fire > 0) {
-    const flicker = (0.2 + Math.random() * 0.28) * getEffectGain("fire");
-    for (const [zx, zy] of zoneAnchors) {
-      const gradient = ctx.createRadialGradient(zx * w, zy * h, 1, zx * w, zy * h, 70);
-      gradient.addColorStop(0, `rgba(255, 120, 45, ${flicker * gain})`);
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(zx * w - 72, zy * h - 72, 144, 144);
-    }
-  }
-
-  for (let i = particles.length - 1; i >= 0; i -= 1) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life -= 0.008;
-    if (p.life <= 0) {
-      particles.splice(i, 1);
-      continue;
-    }
-
-    if (p.kind === "ash") {
-      ctx.fillStyle = `rgba(210, 220, 230, ${p.life * 0.42 * getEffectGain("ash")})`;
-      ctx.fillRect(p.x, p.y, p.size, p.size);
-      continue;
-    }
-
-    ctx.fillStyle = `rgba(95, 210, 140, ${p.life * 0.2 * getEffectGain("leak")})`;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const blackout = Math.max(0, state.blackoutUntil - timestamp);
-  if (blackout > 0) {
-    if (pendingPowerOutageRequestAt !== null) {
-      const latency = Math.max(0, timestamp - pendingPowerOutageRequestAt);
-      powerOutageLatencySamples.push(latency);
-      if (powerOutageLatencySamples.length > POWER_OUTAGE_SAMPLE_WINDOW) {
-        powerOutageLatencySamples.shift();
-      }
-      pendingPowerOutageRequestAt = null;
-      updatePowerOutageMetric();
-    }
-    const alpha = (0.82 - (blackout / 2600) * 0.18) * getMasterIntensity(0.95 * (state.effectIntensity.blackout ?? 1));
-    ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  requestAnimationFrame(draw);
-}
-
-preloadBoardAssets();
-renderRoomZones();
-applySessionState(loadSessionState());
-highlightRoomZone(state.activeRoomId);
-saveSessionState();
-void applyOutputRoute(state.outputRoute, "restore");
-void switchBoard(boardSelect.value);
-refreshButtonStates();
-updatePowerOutageMetric();
+switchBoard(state.boardId);
+roomAnimationSelect.value = state.roomDraft.animationId;
+roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+renderRunningAnimationsList();
+refreshGlobalButtons();
 requestAnimationFrame(draw);
