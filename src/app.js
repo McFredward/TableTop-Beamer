@@ -300,7 +300,8 @@ function renderRunningAnimationsList() {
     return;
   }
 
-  for (const anim of state.runningAnimations) {
+  const sortedAnimations = [...state.runningAnimations].sort((a, b) => b.startedAt - a.startedAt);
+  for (const anim of sortedAnimations) {
     const li = document.createElement("li");
     li.className = "running-item";
     const title = document.createElement("div");
@@ -311,7 +312,8 @@ function renderRunningAnimationsList() {
       anim.scope === "room"
         ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
         : "Global";
-    title.textContent = `${effectLabel} - ${roomLabel}`;
+    const scopeLabel = anim.scope === "room" ? "ROOM" : "GLOBAL";
+    title.textContent = `[${scopeLabel}] ${effectLabel} - ${roomLabel}`;
 
     const meta = document.createElement("div");
     meta.className = "running-meta";
@@ -328,14 +330,13 @@ function renderRunningAnimationsList() {
     stopButton.addEventListener("click", () => stopAnimation(anim.id));
     actions.append(stopButton);
 
-    const editButton = document.createElement("button");
-    editButton.type = "button";
-    editButton.textContent = anim.scope === "room" ? "Edit" : "Details";
-    editButton.disabled = anim.scope !== "room";
     if (anim.scope === "room") {
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.textContent = "Edit";
       editButton.addEventListener("click", () => editAnimation(anim.id));
+      actions.append(editButton);
     }
-    actions.append(editButton);
 
     li.append(title, meta, actions);
     runningAnimationsList.append(li);
