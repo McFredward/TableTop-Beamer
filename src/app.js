@@ -33,6 +33,10 @@ const offsetXValue = document.querySelector("#offset-x-value");
 const offsetYValue = document.querySelector("#offset-y-value");
 const scaleValue = document.querySelector("#scale-value");
 const rotationValue = document.querySelector("#rotation-value");
+const roomSelected = document.querySelector("#room-selected");
+const roomTriggerSelect = document.querySelector("#room-trigger-select");
+const roomIntensityInput = document.querySelector("#room-intensity");
+const roomIntensityValue = document.querySelector("#room-intensity-value");
 
 const state = {
   ambient: false,
@@ -73,6 +77,18 @@ const ROOM_ZONES = [
   { id: "cargo", label: "Cargo", x: 0.84, y: 0.55 },
 ];
 
+const ROOM_TRIGGER_OPTIONS = ["intruder", "reactor", "fire", "blackout", "ambient", "ash", "leak"];
+
+function createDefaultRoomConfigs() {
+  return Object.fromEntries(ROOM_ZONES.map((zone) => [zone.id, { trigger: "intruder", intensity: 1 }]));
+}
+
+const DEFAULT_ACTIVE_ROOM_ID = ROOM_ZONES[0].id;
+const DEFAULT_ROOM_CONFIGS = createDefaultRoomConfigs();
+
+state.activeRoomId = DEFAULT_ACTIVE_ROOM_ID;
+state.roomConfigs = createDefaultRoomConfigs();
+
 const zoneAnchors = ROOM_ZONES.map((zone) => [zone.x, zone.y]);
 
 for (const board of BOARDS) {
@@ -100,15 +116,43 @@ function saveSessionState() {
     offsetY: Number(offsetYInput.value),
     scale: Number(scaleInput.value),
     rotation: Number(rotationInput.value),
+    activeRoomId: state.activeRoomId,
+    roomConfigs: state.roomConfigs,
   };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+}
+
+function sanitizeRoomConfigs(input) {
+  const safe = createDefaultRoomConfigs();
+  if (!input || typeof input !== "object") {
+    return safe;
+  }
+
+  for (const zone of ROOM_ZONES) {
+    const candidate = input[zone.id];
+    if (!candidate || typeof candidate !== "object") {
+      continue;
+    }
+    const trigger = ROOM_TRIGGER_OPTIONS.includes(candidate.trigger) ? candidate.trigger : safe[zone.id].trigger;
+    const intensity = Number(candidate.intensity);
+    safe[zone.id] = {
+      trigger,
+      intensity: Number.isFinite(intensity) ? Math.max(0.5, Math.min(1.5, intensity)) : safe[zone.id].intensity,
+    };
+  }
+
+  return safe;
 }
 
 function loadSessionState() {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) {
-      return { ...defaultSession };
+      return {
+        ...defaultSession,
+        activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
+        roomConfigs: createDefaultRoomConfigs(),
+      };
     }
     const parsed = JSON.parse(raw);
     return {
@@ -118,9 +162,17 @@ function loadSessionState() {
       offsetY: Number.isFinite(parsed.offsetY) ? parsed.offsetY : defaultSession.offsetY,
       scale: Number.isFinite(parsed.scale) ? parsed.scale : defaultSession.scale,
       rotation: Number.isFinite(parsed.rotation) ? parsed.rotation : defaultSession.rotation,
+      activeRoomId: ROOM_ZONES.some((zone) => zone.id === parsed.activeRoomId)
+        ? parsed.activeRoomId
+        : DEFAULT_ACTIVE_ROOM_ID,
+      roomConfigs: sanitizeRoomConfigs(parsed.roomConfigs),
     };
   } catch {
-    return { ...defaultSession };
+    return {
+      ...defaultSession,
+      activeRoomId: DEFAULT_ACTIVE_ROOM_ID,
+      roomConfigs: createDefaultRoomConfigs(),
+    };
   }
 }
 
@@ -131,9 +183,25 @@ function applySessionState(session) {
   offsetYInput.value = String(session.offsetY);
   scaleInput.value = String(session.scale);
   rotationInput.value = String(session.rotation);
+  state.activeRoomId = session.activeRoomId ?? DEFAULT_ACTIVE_ROOM_ID;
+  state.roomConfigs = sanitizeRoomConfigs(session.roomConfigs ?? DEFAULT_ROOM_CONFIGS);
   state.intensity = Number(intensityInput.value);
   intensityValue.textContent = state.intensity.toFixed(2);
   updateStageTransform();
+  syncRoomConfigControls();
+}
+
+function getSelectedRoom() {
+  return ROOM_ZONES.find((zone) => zone.id === state.activeRoomId) ?? ROOM_ZONES[0];
+}
+
+function syncRoomConfigControls() {
+  const selectedRoom = getSelectedRoom();
+  const config = state.roomConfigs[selectedRoom.id] ?? DEFAULT_ROOM_CONFIGS[selectedRoom.id];
+  roomSelected.textContent = `Ausgewaehlter Raum: ${selectedRoom.label}`;
+  roomTriggerSelect.value = config.trigger;
+  roomIntensityInput.value = String(config.intensity);
+  roomIntensityValue.textContent = `${config.intensity.toFixed(2)}x`;
 }
 
 function getMasterIntensity(multiplier = 1) {
@@ -416,9 +484,12 @@ function refreshButtonStates() {
 }
 
 function highlightRoomZone(roomId) {
+  state.activeRoomId = roomId;
   roomOverlay.querySelectorAll(".room-zone").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.roomId === roomId);
   });
+  syncRoomConfigControls();
+  saveSessionState();
 }
 
 function handleRoomZoneClick(zone) {
@@ -446,6 +517,26 @@ function renderRoomZones() {
     roomOverlay.append(button);
   }
 }
+
+roomTriggerSelect.addEventListener("change", () => {
+  const selectedRoom = getSelectedRoom();
+  state.roomConfigs[selectedRoom.id] = {
+    ...state.roomConfigs[selectedRoom.id],
+    trigger: roomTriggerSelect.value,
+  };
+  saveSessionState();
+});
+
+roomIntensityInput.addEventListener("input", () => {
+  const selectedRoom = getSelectedRoom();
+  const intensity = Number(roomIntensityInput.value);
+  state.roomConfigs[selectedRoom.id] = {
+    ...state.roomConfigs[selectedRoom.id],
+    intensity,
+  };
+  roomIntensityValue.textContent = `${intensity.toFixed(2)}x`;
+  saveSessionState();
+});
 
 const resizeObserver = new ResizeObserver((entries) => {
   const size = entries[0].contentRect;
@@ -576,6 +667,7 @@ function draw(timestamp) {
 preloadBoardAssets();
 renderRoomZones();
 applySessionState(loadSessionState());
+highlightRoomZone(state.activeRoomId);
 saveSessionState();
 void switchBoard(boardSelect.value);
 refreshButtonStates();
