@@ -3155,11 +3155,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
     const directionMultiplier = options.outsideDirection === "reverse" ? -1 : 1;
 
-    const nebulaField = ctx.createLinearGradient(0, 0, w, h);
-    nebulaField.addColorStop(0, `rgba(16, 30, 68, ${0.16 * intensity})`);
-    nebulaField.addColorStop(0.4, `rgba(37, 20, 84, ${0.12 * intensity})`);
-    nebulaField.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = nebulaField;
+    ctx.fillStyle = "rgba(0, 0, 0, 1)";
     ctx.fillRect(0, 0, w, h);
 
     const parallaxLayers = immersive
@@ -3194,14 +3190,14 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
           (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
         const streakWidth = Math.max(0.8, size * (0.65 + layerIndex * 0.08));
 
-        ctx.strokeStyle = `rgba(192, 226, 255, ${Math.min(0.9, alpha * 0.72)})`;
+        ctx.strokeStyle = `rgba(232, 238, 255, ${Math.min(0.9, alpha * 0.72)})`;
         ctx.lineWidth = streakWidth;
         ctx.beginPath();
         ctx.moveTo(x + streakLength * directionMultiplier, y);
         ctx.lineTo(x, y);
         ctx.stroke();
 
-        ctx.fillStyle = `rgba(214, 236, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(245, 248, 255, ${alpha})`;
         ctx.fillRect(x, y, size, size);
       }
     }
@@ -3212,7 +3208,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
       const laneLength = 140 + speedInfluence * 55 + intensity * 70;
       const laneAlpha = (0.04 + ((Math.sin(age * 4.6 + i) + 1) / 2) * 0.15) * (immersive ? 1.2 : 0.92);
-      ctx.strokeStyle = `rgba(156, 206, 255, ${Math.min(0.48, laneAlpha)})`;
+      ctx.strokeStyle = `rgba(224, 233, 255, ${Math.min(0.48, laneAlpha)})`;
       ctx.lineWidth = 0.8 + ((i % 3) + 1) * 0.38;
       ctx.beginPath();
       const laneHeadX = directionMultiplier > 0 ? w - pulse : pulse;
@@ -3220,13 +3216,6 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.lineTo(laneHeadX, laneY);
       ctx.stroke();
     }
-
-    const depthSweep = (Math.sin(age * 0.75) + 1) / 2;
-    const depthGradient = ctx.createLinearGradient(0, h * (0.18 + depthSweep * 0.12), w, h * (0.82 - depthSweep * 0.1));
-    depthGradient.addColorStop(0, `rgba(48, 91, 152, ${0.07 * intensity})`);
-    depthGradient.addColorStop(1, `rgba(148, 197, 255, ${0.12 * intensity})`);
-    ctx.fillStyle = depthGradient;
-    ctx.fillRect(0, 0, w, h);
     return;
   }
 

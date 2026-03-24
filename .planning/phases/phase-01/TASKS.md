@@ -136,7 +136,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Priority Add-on - Plan Update 14
 - [x] DONE P1-T91 [P0] Outside-Animation um Richtungsoption erweitern (`forward`/`reverse`) und Umschaltung zur Laufzeit robust in den Outside-Renderpfad integrieren.
-- [ ] TODO P1-T92 [P0] Blauen Outside-Hintergrund entfernen und Outside-Basis strikt tiefschwarz halten; sichtbar bleiben nur Sterne/Motion-Streaks.
+- [x] DONE P1-T92 [P0] Blauen Outside-Hintergrund entfernen und Outside-Basis strikt tiefschwarz halten; sichtbar bleiben nur Sterne/Motion-Streaks.
 - [ ] TODO P1-T93 [P0] Per-Room-Animation-Controls um `Speed`, `Intensity` und `Sound Volume` pro einzelner Animation erweitern (Start + Edit-Flow).
 - [ ] TODO P1-T94 [P0] Runtime-Modell pro Room-Animation-Instanz um `speed`, `intensity`, `soundVolume` erweitern und in Start/Update/Stop konsistent nutzen.
 - [ ] TODO P1-T95 [P0] P0-Bugfix Running-List-`Edit`: bestehende laufende Instanz laden, Edit-Werte in-place auf dieselbe `animation.id` anwenden, kein Neu-Eintrag.
