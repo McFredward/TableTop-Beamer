@@ -426,6 +426,7 @@ const state = {
   selectedRoomByBoard: {},
   outputRoute: "auto",
   roomDraft: {
+    editTargetId: null,
     animationId: ROOM_ANIMATIONS[0].id,
     intensity: Number(roomIntensityInput.value),
     speed: Number(roomSpeedInput.value),
@@ -2805,6 +2806,18 @@ function syncRoomPanelFromSelection() {
   syncRoomGeometryPanel();
 }
 
+function syncRoomDraftActionButton() {
+  const isEditMode = Boolean(state.roomDraft.editTargetId);
+  startRoomAnimationButton.textContent = isEditMode
+    ? "Laufende Instanz aktualisieren"
+    : "Animation fuer Raum starten";
+}
+
+function clearRoomDraftEditTarget() {
+  state.roomDraft.editTargetId = null;
+  syncRoomDraftActionButton();
+}
+
 function createAnimation({
   type,
   scope,
@@ -2873,15 +2886,47 @@ function startRoomAnimationFromDraft() {
     return;
   }
 
-  const animation = createAnimation({
+  const draftPayload = {
     type: state.roomDraft.animationId,
-    scope: "room",
     roomId: room.id,
     intensity: clampRoomIntensity(state.roomDraft.intensity),
     speed: clampRoomSpeed(state.roomDraft.speed),
     soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
     hold: state.roomDraft.hold,
-    durationSec: clampRoomDurationSec(state.roomDraft.durationSec),
+    durationMs: state.roomDraft.hold ? null : Math.max(1000, clampRoomDurationSec(state.roomDraft.durationSec) * 1000),
+  };
+
+  if (state.roomDraft.editTargetId) {
+    const editIndex = state.runningAnimations.findIndex(
+      (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
+    );
+    if (editIndex >= 0) {
+      const existing = state.runningAnimations[editIndex];
+      const updated = {
+        ...existing,
+        ...draftPayload,
+        boardId: state.boardId,
+        startedAt: performance.now(),
+      };
+      state.runningAnimations[editIndex] = updated;
+      playSoundForAnimation(updated);
+      triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
+      clearRoomDraftEditTarget();
+      renderRunningAnimationsList();
+      return;
+    }
+    clearRoomDraftEditTarget();
+  }
+
+  const animation = createAnimation({
+    type: draftPayload.type,
+    scope: "room",
+    roomId: draftPayload.roomId,
+    intensity: draftPayload.intensity,
+    speed: draftPayload.speed,
+    soundVolume: draftPayload.soundVolume,
+    hold: draftPayload.hold,
+    durationSec: draftPayload.durationMs ? draftPayload.durationMs / 1000 : 0,
   });
 
   state.runningAnimations.push(animation);
@@ -2894,6 +2939,9 @@ function stopAnimation(animationId) {
   const target = state.runningAnimations.find((item) => item.id === animationId) ?? null;
   stopAnimationSound(animationId);
   state.runningAnimations = state.runningAnimations.filter((item) => item.id !== animationId);
+  if (state.roomDraft.editTargetId === animationId) {
+    clearRoomDraftEditTarget();
+  }
   if (target?.scope === "global" && target.type === "outside-space") {
     updateOutsideFxProfile(target.boardId, { enabled: false });
     persistBoardProfiles();
@@ -2916,6 +2964,7 @@ function editAnimation(animationId) {
   boardStatus.textContent = `Aktives Board: ${getBoard(animation.boardId).label}`;
   state.selectedRoomId = animation.roomId;
   state.selectedRoomByBoard[animation.boardId] = animation.roomId;
+  state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.intensity = clampRoomIntensity(animation.intensity);
   state.roomDraft.speed = clampRoomSpeed(animation.speed ?? 1);
@@ -2934,6 +2983,7 @@ function editAnimation(animationId) {
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
   roomHoldInput.checked = state.roomDraft.hold;
+  syncRoomDraftActionButton();
 
   syncRoomPanelFromSelection();
   renderRoomOverlay();
@@ -3444,6 +3494,12 @@ function pruneFinishedAnimations(now) {
     stopSoundsForInactiveAnimations();
     renderRunningAnimationsList();
     refreshGlobalButtons();
+  }
+  if (
+    state.roomDraft.editTargetId &&
+    !state.runningAnimations.some((anim) => anim.id === state.roomDraft.editTargetId)
+  ) {
+    clearRoomDraftEditTarget();
   }
 }
 
@@ -4041,6 +4097,7 @@ stopAllButton.addEventListener("click", () => {
   }
   persistBoardProfiles();
   state.runningAnimations = [];
+  clearRoomDraftEditTarget();
   ashParticles.length = 0;
   syncOutsideFxPanel();
   renderRunningAnimationsList();
@@ -4191,6 +4248,7 @@ roomAnimationSelect.value = state.roomDraft.animationId;
 roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
 roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
 roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
+syncRoomDraftActionButton();
 audioEnabledInput.checked = state.audio.enabled;
 audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
 audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
