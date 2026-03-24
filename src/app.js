@@ -1303,6 +1303,14 @@ function formatApiDiagnoseSummary(reports) {
         `Status: API nicht erreichbar (${hostFlow}). ${remoteHint ?? "Starte `node server.mjs` oder setze eine korrekte API-Base mit ?ttApiBase=http://localhost:4173."}`,
     };
   }
+  if (failed.preflight.code === "STATIC_ONLY_SERVER") {
+    return {
+      statusText:
+        `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
+      feedbackText:
+        `Status: Static-only Server aktiv, Save nicht moeglich (${hostFlow}; ${failed.endpoint}). ${remoteHint ?? "Nutze einen POST-faehigen Node-API-Server statt python http.server."}`,
+    };
+  }
   if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
     return {
       statusText:
@@ -1571,6 +1579,13 @@ function formatGlobalDefaultsSaveError(error) {
     ? remoteHint
     : "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
   const hostMeta = `${hostFlow}, Quelle ${sourceLabel}`;
+  if (code === "STATIC_ONLY_SERVER") {
+    return {
+      statusText: `Speichern blockiert - Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}).`,
+      feedbackText:
+        `Status: Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}). ${startHint}`,
+    };
+  }
   if (
     code === "API_UNREACHABLE" ||
     code === "API_HTML_ERROR" ||
