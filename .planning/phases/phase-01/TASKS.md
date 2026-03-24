@@ -64,3 +64,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T37 [P0] Spezialraum-Polygoneditor in Settings bauen (Vertex einfuegen, loeschen, frei verschieben; beliebige Polygonform).
 - [x] DONE P1-T38 [P1] Persistenz pro Board fuer komplette Geometrie-/Shape-Konfiguration (global + je Raum + Spezialraum-Polygone) absichern.
 - [x] DONE P1-T39 [P1] Manuelle Pflichtabnahme + Regression fuer Plan-Update-4 dokumentieren (inkl. Reload/App-Neustart-Nachweis).
+
+## Priority Add-on - Plan Update 5
+- [x] DONE P1-T40 [P0] Tab-Architektur fixen: `Settings` als exklusiver View-Switch implementieren, damit Dashboard-/Editor-Elemente im Settings-Tab nicht mehr sichtbar sind.
+- [ ] TODO P1-T41 [P0] Sichtbare Vertex-Handles fuer Spezialraum-Polygone auf dem Board rendern und aktive Ecke deutlich hervorheben (rot/kontraststark).
+- [ ] TODO P1-T42 [P0] Polygoneditor-Interaktion stabilisieren: freien Vertex-Drag mit sauberem Pointer-Capture, Live-Update und robustem Cancel/Commit Verhalten.
+- [ ] TODO P1-T43 [P0] Vertex-Operationen komplettieren: aktive Ecke loeschen (mit Mindestpunkt-Guard) und neue Ecke an ausgewaehlter Kante einfuegen.
+- [ ] TODO P1-T44 [P0] Persistenz-Compatibility-Layer bauen: bestehende kalibrierte Raumdaten aus Legacy-Profilen migrieren und im aktuellen Schema verlustfrei speichern.
+- [ ] TODO P1-T45 [P1] Plan-Update-5 Pflichtabnahme + Regression dokumentieren (View-Switch, Polygoneditor UX, Persistenz-Reload/App-Neustart).

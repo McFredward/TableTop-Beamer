@@ -755,14 +755,22 @@ function setActiveView(view) {
   const nextView = view === "settings" ? "settings" : "dashboard";
   state.uiView = nextView;
   const showSettings = nextView === "settings";
-  document.querySelectorAll(".settings-only").forEach((entry) => {
-    entry.classList.toggle("view-hidden", !showSettings);
+  document.querySelectorAll('[data-view="settings"]').forEach((entry) => {
+    const shouldHide = !showSettings;
+    entry.classList.toggle("view-hidden", shouldHide);
+    entry.toggleAttribute("hidden", shouldHide);
+    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
   });
-  document.querySelectorAll(".dashboard-only").forEach((entry) => {
-    entry.classList.toggle("view-hidden", showSettings);
+  document.querySelectorAll('[data-view="dashboard"]').forEach((entry) => {
+    const shouldHide = showSettings;
+    entry.classList.toggle("view-hidden", shouldHide);
+    entry.toggleAttribute("hidden", shouldHide);
+    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
   });
   openDashboardViewButton.classList.toggle("active", !showSettings);
   openSettingsViewButton.classList.toggle("active", showSettings);
+  openDashboardViewButton.setAttribute("aria-pressed", showSettings ? "false" : "true");
+  openSettingsViewButton.setAttribute("aria-pressed", showSettings ? "true" : "false");
   if (showSettings) {
     syncPolygonEditorPanel();
   }
