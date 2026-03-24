@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-3
-- Last Execution Summary: `.planning/phases/phase-01/1-3-SUMMARY.md`
+- Last Executed Plan: 1-4
+- Last Execution Summary: `.planning/phases/phase-01/1-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -30,12 +30,19 @@
 - Room-Zonen werden als klickbare Overlay-Hit-Areas verwaltet; das Raum-Submenu liefert die Triggerparameter.
 - Output-Routing nutzt Fullscreen als Zielpfad und faellt bei Fehlern automatisch auf Windowed Preview zurueck.
 - Raum-Hitareas sind als board-spezifische Hex-Polygone mit Hover/Selection Rueckmeldung umgesetzt.
-- Raumlabels bleiben neutral (`Hex A-xx`/`Hex B-xx`), keine erfundene Raumsemantik.
+- Raumlabels bleiben neutral (`Hex A-xx`/`Hex B-xx`); einzig freigegebene Semantik sind die 5 Special-Raeume.
 - Animationen sind klar nach Scope getrennt (`global` vs `room`); room-Renderings werden auf den Zielraum geclippt.
 - Running-Animations-Liste bietet `Stop` fuer alle und `Edit` fuer room-Eintraege.
 - Room-Selektion wird pro Board gemerkt, damit Board-Wechsel den Kontext stabil halten.
 - Runtime-Liste kennzeichnet Scope explizit (`GLOBAL`/`ROOM`) und Edit springt in den Board-Kontext der Animation.
 - Power-Outage nutzt sichtbare Abdunkelung; Output-Route meldet Fullscreen-Fallback explizit.
+- Plan-Update 2 setzt Prioritaetsfokus: P0 exakte Hitarea-Passung + manueller Verifikationsfokus, P1 Special-Room Mapping, P1 Event-Sounds mit globalen Audio-Settings.
+- Special-Room Set ist fest definiert: `Cockpit (links)`, `Cryoschlaf (Mitte)`, `Maschinenraum 1-3 (rechts)`.
+- Event-Sounds sind in Phase 1 auf `Intruder Alert`, `Reactor Pulse` und `Power Outage` begrenzt.
+- Manuelle Pflichttests im realen Beamer-Setup sind Gate fuer den Abschluss von Plan-Update 2.
+- Hex-Hitareas wurden fuer beide Boards mit Flat-Top-Geometrie nachkalibriert; kleine Toleranz bleibt nur an Randflaechen.
+- Special-Room Mapping wurde als festes 5er-Set mit board-spezifischen Polygonen umgesetzt.
+- Event-Sounds laufen als lizenzsichere WebAudio-Synth-Cues mit globalem Master (default ON) und Lautstaerke-Regler.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -64,4 +71,12 @@
 - Summary: `.planning/phases/phase-01/1-3-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`f916d3a` .. `1e99d06`)
 - Evidence:
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 4)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-4-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`f7b6297` .. `1d0ecd5`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T28-MANUAL-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
