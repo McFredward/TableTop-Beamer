@@ -283,6 +283,8 @@ const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex
 const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
 const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
 const polygonEditorStatus = document.querySelector("#polygon-editor-status");
+const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
+const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
 
 const ctx = canvas.getContext("2d");
 
@@ -874,22 +876,24 @@ function syncRoomGeometryPanel() {
   syncRoomGeometryStatus();
 }
 
+function setViewGroupVisibility(groups, visible) {
+  for (const entry of groups) {
+    const shouldHide = !visible;
+    entry.classList.toggle("view-hidden", shouldHide);
+    entry.toggleAttribute("hidden", shouldHide);
+    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
+    if ("inert" in entry) {
+      entry.inert = shouldHide;
+    }
+  }
+}
+
 function setActiveView(view) {
   const nextView = view === "settings" ? "settings" : "dashboard";
   state.uiView = nextView;
   const showSettings = nextView === "settings";
-  document.querySelectorAll('[data-view="settings"]').forEach((entry) => {
-    const shouldHide = !showSettings;
-    entry.classList.toggle("view-hidden", shouldHide);
-    entry.toggleAttribute("hidden", shouldHide);
-    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
-  });
-  document.querySelectorAll('[data-view="dashboard"]').forEach((entry) => {
-    const shouldHide = showSettings;
-    entry.classList.toggle("view-hidden", shouldHide);
-    entry.toggleAttribute("hidden", shouldHide);
-    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
-  });
+  setViewGroupVisibility(settingsViewGroups, showSettings);
+  setViewGroupVisibility(dashboardViewGroups, !showSettings);
   openDashboardViewButton.classList.toggle("active", !showSettings);
   openSettingsViewButton.classList.toggle("active", showSettings);
   openDashboardViewButton.setAttribute("aria-pressed", showSettings ? "false" : "true");
