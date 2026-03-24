@@ -911,12 +911,13 @@ function syncStageZoomTransform() {
 function syncBoardZoomStatus() {
   const zoom = getBoardZoom(state.boardId);
   const percent = Math.round(zoom.scale * 100);
+  const bounds = getStagePanBounds(zoom.scale);
   const modeLabel = state.panMode.active
     ? "PAN aktiv (ziehen)"
     : state.panMode.spacePressed
       ? "PAN bereit (Space gedrueckt)"
       : "Edit-Modus";
-  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px`;
+  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px | Bounds ±${Math.round(bounds.maxPanX)}px/±${Math.round(bounds.maxPanY)}px`;
   if (boardPanStatus) {
     const hint = zoom.scale > 1
       ? "Space + Drag oder mittlere Maustaste: Board verschieben"
@@ -2496,7 +2497,9 @@ boardZoomRangeInput.addEventListener("input", () => {
 });
 
 boardZoomFitButton.addEventListener("click", () => {
+  endPanMode(null, { canceled: true });
   fitZoomToActiveSpecialRoom();
+  setPanCursorState();
 });
 
 boardZoomResetButton.addEventListener("click", () => {
