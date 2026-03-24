@@ -1249,6 +1249,13 @@ function renderPolygonEditorHandles() {
     return;
   }
   const points = getRoomPoints(room, state.boardId);
+  const zoomScale = getBoardZoom(state.boardId).scale;
+  const inverseZoom = 1 / zoomScale;
+  const edgeHitRadius = Math.max(8, 12 * inverseZoom);
+  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom);
+  const vertexHitRadius = Math.max(10, 16 * inverseZoom);
+  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom);
+  const vertexLabelSize = Math.max(9, 11 * inverseZoom);
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
     const [bX, bY] = points[(index + 1) % points.length];
@@ -1266,10 +1273,10 @@ function renderPolygonEditorHandles() {
     const centerY = ((aY + bY) / 2).toFixed(1);
     edgeHitTarget.setAttribute("cx", centerX);
     edgeHitTarget.setAttribute("cy", centerY);
-    edgeHitTarget.setAttribute("r", "12");
+    edgeHitTarget.setAttribute("r", edgeHitRadius.toFixed(2));
     edgeHandle.setAttribute("cx", centerX);
     edgeHandle.setAttribute("cy", centerY);
-    edgeHandle.setAttribute("r", "5.5");
+    edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
@@ -1298,16 +1305,17 @@ function renderPolygonEditorHandles() {
     hitTarget.dataset.vertexIndex = String(index);
     hitTarget.setAttribute("cx", x.toFixed(1));
     hitTarget.setAttribute("cy", y.toFixed(1));
-    hitTarget.setAttribute("r", "16");
+    hitTarget.setAttribute("r", vertexHitRadius.toFixed(2));
     handle.setAttribute("cx", x.toFixed(1));
     handle.setAttribute("cy", y.toFixed(1));
-    handle.setAttribute("r", "7.5");
+    handle.setAttribute("r", vertexHandleRadius.toFixed(2));
 
     const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
     indexLabel.classList.add("polygon-vertex-index");
     if (index === state.polygonEditor.selectedVertexIndex) {
       indexLabel.classList.add("is-active");
     }
+    indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
     indexLabel.setAttribute("x", x.toFixed(1));
     indexLabel.setAttribute("y", (y + 3).toFixed(1));
     indexLabel.textContent = String(index + 1);
@@ -1325,6 +1333,19 @@ function renderPolygonEditorHandles() {
 }
 
 function getNormalizedOverlayPoint(event) {
+  if (typeof roomOverlay.createSVGPoint === "function") {
+    const svgPoint = roomOverlay.createSVGPoint();
+    svgPoint.x = event.clientX;
+    svgPoint.y = event.clientY;
+    const ctm = roomOverlay.getScreenCTM();
+    if (ctm && typeof ctm.inverse === "function") {
+      const local = svgPoint.matrixTransform(ctm.inverse());
+      return [
+        clampRoomAbsoluteCoordinate(local.x / 1000),
+        clampRoomAbsoluteCoordinate(local.y / 1000),
+      ];
+    }
+  }
   const rect = roomOverlay.getBoundingClientRect();
   const rawX = (event.clientX - rect.left) / rect.width;
   const rawY = (event.clientY - rect.top) / rect.height;
