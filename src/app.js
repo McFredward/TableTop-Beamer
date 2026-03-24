@@ -260,6 +260,7 @@ const hitareaOffsetYInput = document.querySelector("#hitarea-offset-y");
 const hitareaOffsetYValue = document.querySelector("#hitarea-offset-y-value");
 const hitareaScaleInput = document.querySelector("#hitarea-scale");
 const hitareaScaleValue = document.querySelector("#hitarea-scale-value");
+const hitareaSaveButton = document.querySelector("#hitarea-save");
 const hitareaResetButton = document.querySelector("#hitarea-reset");
 const hitareaStatus = document.querySelector("#hitarea-status");
 
@@ -270,6 +271,7 @@ const HITAREA_CALIBRATION_DEFAULT = {
   offsetY: 0,
   scale: 1,
 };
+const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
 
 const state = {
   boardId: BOARDS[0].id,
@@ -324,6 +326,38 @@ function createDefaultHitareaCalibrationMap() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
   );
+}
+
+function loadHitareaCalibrationMap() {
+  const defaults = createDefaultHitareaCalibrationMap();
+  try {
+    const raw = window.localStorage.getItem(HITAREA_CALIBRATION_STORAGE_KEY);
+    if (!raw) {
+      return defaults;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return defaults;
+    }
+    for (const board of BOARDS) {
+      defaults[board.id] = normalizeHitareaCalibration(parsed[board.id]);
+    }
+    return defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+function persistHitareaCalibrationMap() {
+  try {
+    window.localStorage.setItem(
+      HITAREA_CALIBRATION_STORAGE_KEY,
+      JSON.stringify(state.hitareaCalibrationByBoard),
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getHitareaCalibration(boardId = state.boardId) {
@@ -987,6 +1021,7 @@ function updateActiveBoardHitareaCalibration(partial) {
   });
   syncHitareaCalibrationPanel();
   renderRoomOverlay();
+  hitareaStatus.textContent = `${hitareaStatus.textContent} (nicht gespeichert)`;
 }
 
 hitareaOffsetXInput.addEventListener("input", () => {
@@ -1004,11 +1039,22 @@ hitareaScaleInput.addEventListener("input", () => {
   updateActiveBoardHitareaCalibration({ scale });
 });
 
+hitareaSaveButton.addEventListener("click", () => {
+  const persisted = persistHitareaCalibrationMap();
+  syncHitareaCalibrationPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Hitarea-Kalibrierung gespeichert"
+    : "Status: Hitarea-Kalibrierung konnte nicht gespeichert werden";
+});
+
 hitareaResetButton.addEventListener("click", () => {
   setHitareaCalibration(state.boardId, HITAREA_CALIBRATION_DEFAULT);
+  const persisted = persistHitareaCalibrationMap();
   syncHitareaCalibrationPanel();
   renderRoomOverlay();
-  triggerFeedback.textContent = "Status: Hitarea-Kalibrierung auf Default gesetzt";
+  triggerFeedback.textContent = persisted
+    ? "Status: Hitarea-Kalibrierung auf Default gesetzt"
+    : "Status: Hitarea-Default gesetzt, Persistenz fehlgeschlagen";
 });
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
@@ -1083,7 +1129,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 resizeObserver.observe(stage);
 
-state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
+state.hitareaCalibrationByBoard = loadHitareaCalibrationMap();
 
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
