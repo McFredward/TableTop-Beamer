@@ -168,4 +168,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T113 [P0] Save-/Diagnose-UX fuer Static-only verbessern: klare Blocker-Meldung `Static-only Server aktiv, Save nicht moeglich` statt generischer API-/localhost-Fehlertexte.
 - [x] DONE P1-T114 [P0] Guided-Fix-Flow in `Settings` liefern: headless/LAN-konkrete Next Steps inkl. `node server.mjs --host 0.0.0.0 --port 4173`, plus finalen Host-/Endpoint-Trace sichtbar halten.
 - [x] DONE P1-T115 [P0] Resolver-Transparenz robust machen: identischen Resolve-Snapshot fuer Save und Diagnose verwenden und Remote-IP-Flow ohne verwirrenden Client-`localhost`-Fallback absichern.
-- [ ] TODO P1-T116 [P0] Pflichtabnahme + Regression fuer Plan-Update 18 dokumentieren: echter Negativtest mit `python3 -m http.server 4173` und anschliessender Positivtest mit Node-API-Server.
+- [x] DONE P1-T116 [P0] Pflichtabnahme + Regression fuer Plan-Update 18 dokumentieren: echter Negativtest mit `python3 -m http.server 4173` und anschliessender Positivtest mit Node-API-Server.
