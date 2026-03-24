@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-7
-- Last Execution Summary: `.planning/phases/phase-01/1-7-SUMMARY.md`
+- Last Executed Plan: 1-8
+- Last Execution Summary: `.planning/phases/phase-01/1-8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -62,6 +62,15 @@
 - View-Switch erzwingt Dashboard/Settings-Exklusivitaet per `hidden` + `aria-hidden` auf Gruppenebene.
 - Polygoneditor adressiert Insert ueber aktive Kante und Delete ueber aktive Ecke mit Mindestpunkt-Guard.
 - Legacy-Kalibrierdaten werden beim Laden in `tt-beamer.board-profiles.v1` migriert und sofort vorwaerts gespeichert.
+- Plan-Update 6 setzt Prioritaetsfokus: P0 harte Tab-Exklusivitaet, P0 transparentere Vertex-Handles, P0 vollflaechige Spezialraum-Animationen, P0 Persistenzschutz fuer bestehende Polygone.
+- View-Regel fuer Plan-Update 6: `Dashboard` enthaelt nur Trigger-/Runtime-Bedienung; `Settings` enthaelt nur Geometrie-/Polygon-/Kalibrierfunktionen.
+- Polygoneditor-Handles werden visuell entschlackt (mehr Transparenz), aber mit robuster Hitflaeche und klarer Active-Markierung betrieben.
+- Spezialraum-Render nutzt polygon-normalisierte Skalierung, damit Animationen unabhaengig von Raumgroesse die volle Zielflaeche ausfuellen.
+- Bereits gezeichnete Spezialraum-Polygone gelten als Bestandsdaten und duerfen durch Save/Reload/Restart/Boardwechsel nicht veraendert werden.
+- Tab-Exklusivitaet wird zur Laufzeit aktiv geprueft (Switch + Resize), um sichtbare Rest-Element-Leaks sofort zu erkennen.
+- Polygon-Handle-UX nutzt transparente Visuals mit separaten, vergroesserten Hit-Targets fuer robuste Selektion auf Desktop/Touch.
+- Spezialraum-Effekte werden ueber polygonbasierte Bounds/Radius-Metriken skaliert und fuellen grosse Zielpolygone vollflaechig.
+- Spezialraum-Polygone werden beim Profil-Load als Bestandsdaten geschuetzt und bei partiellen Payloads nicht durch Defaults ersetzt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -122,4 +131,12 @@
 - Task Commits: 6 atomare Commits (`057e7d2` .. `dfa0d27`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T45-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 8)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-8-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`0813906` .. `310f42e`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T51-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
