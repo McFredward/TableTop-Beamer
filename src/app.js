@@ -1604,7 +1604,7 @@ function getEndpointPort(endpoint) {
 function downloadGlobalDefaultsFallback() {
   const payload = buildGlobalDefaultsPayload();
   const stamp = payload.savedAt.replace(/[.:]/g, "-");
-  const fileName = `global-defaults-fallback-${stamp}.json`;
+  const fileName = `global-defaults-download-export-${stamp}.json`;
   const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], {
     type: "application/json;charset=utf-8",
   });
@@ -4752,15 +4752,15 @@ exportGlobalDefaultsButton.addEventListener("click", () => {
   const persisted = persistBoardProfiles();
   if (!persisted) {
     globalDefaultsStatus.textContent =
-      "Global Defaults: Notfall-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
-    triggerFeedback.textContent = "Status: Notfall-Export konnte nicht vorbereitet werden";
+      "Global Defaults: Download-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
+    triggerFeedback.textContent = "Status: Download-Export konnte nicht vorbereitet werden";
     return;
   }
 
   const fileName = downloadGlobalDefaultsFallback();
-  globalDefaultsStatus.textContent = `Global Defaults: Notfall-Export heruntergeladen (${fileName})`;
+  globalDefaultsStatus.textContent = `Global Defaults: Download-Export heruntergeladen (${fileName})`;
   triggerFeedback.textContent =
-    "Status: Notfall-Export erstellt (sekundaer); primaerer Weg bleibt API-Speichern";
+    "Status: Download-Export erstellt (sekundaerer Fallback); primaerer Weg bleibt API-Speichern";
 });
 
 document.addEventListener("fullscreenchange", () => {
