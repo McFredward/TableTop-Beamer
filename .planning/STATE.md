@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-18
-- Last Execution Summary: `.planning/phases/phase-01/1-18-SUMMARY.md`
+- Last Executed Plan: 1-19
+- Last Execution Summary: `.planning/phases/phase-01/1-19-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -141,6 +141,13 @@
 - Verifikations-Regel fuer Plan-Update 16: Reproduzierbarkeit gilt erst als erreicht, wenn Mehrfach-Save plus Reload/Restart bei laufender API ohne intermittierende Fehler durchlaufen.
 - API-Base-Aufloesung nutzt jetzt feste Reihenfolge: `window.__TT_BEAMER_API_BASE__` > URL-Parameter > `localStorage` > deterministische Localhost-Port-Fallbacks.
 - Save-Guard fuehrt verpflichtend `GET /api/health` + `OPTIONS /api/global-defaults` vor dem eigentlichen POST aus; Diagnose und Save teilen denselben Endpoint-Resolver.
+- Plan-Update 17 setzt Prioritaetsfokus: headless/remote LAN-Betrieb ist Pflichtfall; Save darf nicht mehr auf `localhost` des Client-Geraets aufloesen.
+- Endpoint-Regel fuer Plan-Update 17: sicherer Default ist der Host der aufgerufenen UI (`window.location.hostname`), nicht ein pauschaler `localhost`-Fallback.
+- Override-Regel fuer Plan-Update 17: explizite API-Base-Konfiguration bleibt erlaubt und priorisiert (`override > ui-host-default > fallback`).
+- UX-Regel fuer Plan-Update 17: Save/Diagnose zeigen explizit `UI-Host -> API-Host` und liefern bei Remote-Mismatch eine konkrete LAN-Handlungsempfehlung.
+- Verifikations-Regel fuer Plan-Update 17: reproduzierbarer Save muss ueber IP-Aufruf der UI von einem zweiten LAN-Geraet nachgewiesen werden (mindestens 5x Save + Reload/Restart).
+- Plan-Update-17 Umsetzung: Resolver nutzt jetzt UI-Host-default mit hostbasierten Fallback-Ports; stiller Client-`localhost`-Drift im Remote-Fall ist entfernt.
+- Plan-Update-17 Umsetzung: Save/Diagnose zeigen Resolver-Quelle sowie `UI-Host -> API-Host` und geben bei Localhost-Mismatch eine konkrete LAN-Hilfestellung.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -295,4 +302,14 @@
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
   - Static-Hosting-Simulation: `GET /api/health` => `404`, `POST /api/global-defaults` => `501` (python http.server:8099)
+- Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
+
+## Execution Results (Phase 1 Plan 19)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-19-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`4d29aa8`, `7f34d2f`, `2b7fd5b`, `d46d696`, `74c9019`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T110-VERIFICATION.md`
+  - `.planning/phases/phase-01/P1-T111-VERIFICATION.md`
+  - `node debug/p1-t110-resolver-regression.mjs` => `REMOTE_FIRST=192.168.0.80`, `REMOTE_HAS_LOCALHOST=false`, `OVERRIDE_FIRST=localhost`
   - Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
