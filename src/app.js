@@ -1143,6 +1143,14 @@ function runLayoutScrollRegression() {
   if (!runningOverviewPanel || !globalAnimationPanel) {
     issues.push("running/global panel missing");
   } else {
+    const runningPosition = window.getComputedStyle(runningOverviewPanel).position;
+    if (runningPosition !== "sticky" && runningPosition !== "fixed") {
+      issues.push(`running panel position=${runningPosition || "missing"}`);
+    }
+    const stickyTop = window.getComputedStyle(runningOverviewPanel).top;
+    if (!stickyTop || stickyTop === "auto") {
+      issues.push(`running panel top=${stickyTop || "missing"}`);
+    }
     const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
     if ((orderMask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
       issues.push("running panel not before trigger groups");
