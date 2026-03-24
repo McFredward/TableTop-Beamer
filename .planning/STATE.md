@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-6
-- Last Execution Summary: `.planning/phases/phase-01/1-6-SUMMARY.md`
+- Last Executed Plan: 1-7
+- Last Execution Summary: `.planning/phases/phase-01/1-7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -55,6 +55,13 @@
 - Per-Room-Geometrie wird transform-first gerechnet (REL/ABS + Stretch), danach erst globale Hitarea-Kalibrierung angewandt.
 - Spezialraum-Polygone werden als freie Vertex-Listen pro Board gehalten und im Overlay direkt editiert.
 - Persistenz nutzt ein gemeinsames Board-Profil-Schema (`tt-beamer.board-profiles.v1`) mit Legacy-Hitarea-Fallback.
+- Plan-Update 5 setzt Prioritaetsfokus: P0 echter Tab-/View-Switch fuer `Settings`, P0 Photoshop-aehnliches Vertex-Editing (sichtbare Handles, aktive Ecke, Insert/Delete/Drag), P0 Persistenz-Rueckwaertskompatibilitaet fuer bestehende Kalibrierdaten.
+- `Settings` und `Dashboard` werden als gegenseitig exklusive Arbeitsbereiche behandelt; sichtbare Mischansicht gilt als Blocker.
+- Spezialraum-Polygoneditor muss jeden Vertex als Handle zeigen; aktive Ecke wird kontraststark markiert und direkt loeschbar gehalten.
+- Bestehende kalibrierte Raumdaten bleiben auch nach Profilschema-Erweiterungen ohne manuelle Migration weiter nutzbar.
+- View-Switch erzwingt Dashboard/Settings-Exklusivitaet per `hidden` + `aria-hidden` auf Gruppenebene.
+- Polygoneditor adressiert Insert ueber aktive Kante und Delete ueber aktive Ecke mit Mindestpunkt-Guard.
+- Legacy-Kalibrierdaten werden beim Laden in `tt-beamer.board-profiles.v1` migriert und sofort vorwaerts gespeichert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -107,4 +114,12 @@
 - Task Commits: 6 atomare Commits (`a650104` .. `f9543e9`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T39-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 7)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-7-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`057e7d2` .. `dfa0d27`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T45-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
