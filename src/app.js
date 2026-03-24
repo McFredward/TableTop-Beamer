@@ -254,8 +254,10 @@ const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
+const runApiDiagnoseButton = document.querySelector("#run-api-diagnose");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
 const globalDefaultsStatus = document.querySelector("#global-defaults-status");
+const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
 const triggerFeedback = document.querySelector("#trigger-feedback");
 const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
@@ -339,6 +341,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "output-route-select",
   "apply-output-route",
   "save-global-defaults",
+  "run-api-diagnose",
   "export-global-defaults",
   "animation-speed",
   "audio-enabled",
@@ -1243,6 +1246,61 @@ async function runApiPreflight(saveEndpoint) {
     method: "OPTIONS",
     status: 200,
     details: "preflight ok",
+  };
+}
+
+async function runApiDiagnose() {
+  const endpoints = resolveGlobalDefaultsApiCandidates();
+  const reports = [];
+  for (const endpoint of endpoints) {
+    const preflight = await runApiPreflight(endpoint);
+    const report = { endpoint, preflight };
+    reports.push(report);
+    if (preflight.ok) {
+      break;
+    }
+  }
+  return reports;
+}
+
+function formatApiDiagnoseSummary(reports) {
+  if (!reports.length) {
+    return {
+      statusText: "API Diagnose: keine gueltige API-Base aufgeloest",
+      feedbackText:
+        "Status: Keine API-Endpunkte aufgeloest. Setze ?ttApiBase=http://localhost:4173 oder starte den Node-Server.",
+    };
+  }
+
+  const success = reports.find((entry) => entry.preflight.ok);
+  if (success) {
+    return {
+      statusText: `API Diagnose: OK (GET /api/health + OPTIONS /api/global-defaults via ${success.endpoint})`,
+      feedbackText: `Status: API erreichbar und POST erlaubt (${success.endpoint}).`,
+    };
+  }
+
+  const failed = reports[0];
+  const statusLabel = Number.isFinite(Number(failed.preflight.status))
+    ? `${failed.preflight.status} (${classifyHttpStatus(failed.preflight.status)})`
+    : "n/a";
+  if (failed.preflight.code === "API_UNREACHABLE") {
+    return {
+      statusText: `API Diagnose: nicht erreichbar (${failed.endpoint})`,
+      feedbackText:
+        "Status: API nicht erreichbar. Starte `node server.mjs` oder setze eine korrekte API-Base mit ?ttApiBase=http://localhost:4173.",
+    };
+  }
+  if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
+    return {
+      statusText: `API Diagnose: POST nicht erlaubt (${failed.endpoint}, ${statusLabel})`,
+      feedbackText:
+        "Status: Erreichbar, aber POST nicht erlaubt. Nutze den Node-API-Server statt reinem Static-Server.",
+    };
+  }
+  return {
+    statusText: `API Diagnose: fehlgeschlagen (${failed.endpoint}, ${statusLabel})`,
+    feedbackText: "Status: Diagnose ohne Erfolg. Endpoint, Port und Server-Log pruefen.",
   };
 }
 
@@ -4561,6 +4619,23 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     triggerFeedback.textContent = saveError.feedbackText;
   } finally {
     saveGlobalDefaultsButton.disabled = false;
+  }
+});
+
+runApiDiagnoseButton.addEventListener("click", async () => {
+  runApiDiagnoseButton.disabled = true;
+  apiDiagnoseStatus.textContent = "API Diagnose: pruefe Reachability + POST-Faehigkeit ...";
+  try {
+    const reports = await runApiDiagnose();
+    const summary = formatApiDiagnoseSummary(reports);
+    apiDiagnoseStatus.textContent = summary.statusText;
+    triggerFeedback.textContent = summary.feedbackText;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    apiDiagnoseStatus.textContent = `API Diagnose: fehlgeschlagen (${message})`;
+    triggerFeedback.textContent = "Status: API Diagnose konnte nicht abgeschlossen werden";
+  } finally {
+    runApiDiagnoseButton.disabled = false;
   }
 });
 

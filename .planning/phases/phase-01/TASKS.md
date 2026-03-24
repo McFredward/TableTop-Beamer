@@ -153,5 +153,5 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T102 [P0] API-Base-Resolving fuer Save haerten: explizite API-Base-Konfiguration + deterministische Fallback-Reihenfolge fuer statisches Frontend-Hosting (inkl. Port-Fallback).
 - [x] DONE P1-T103 [P0] Save-Preflight integrieren: API-Health-Check und POST-Faehigkeits-Check vor `POST /api/global-defaults`, mit sauber klassifizierten Fehlerpfaden.
 - [x] DONE P1-T104 [P0] Save-UX endpoint-transparent machen: genutzten API-Endpunkt, Methode, Statusklasse und konkrete naechste Schritte im UI anzeigen.
-- [ ] TODO P1-T105 [P0] One-Click `API Diagnose` im Settings-Tab implementieren (Reachability + POST erlaubt?) inkl. klarer Operator-Anweisungen.
+- [x] DONE P1-T105 [P0] One-Click `API Diagnose` im Settings-Tab implementieren (Reachability + POST erlaubt?) inkl. klarer Operator-Anweisungen.
 - [ ] TODO P1-T106 [P0] Plan-Update-16 Pflichtabnahme + Regression dokumentieren (statisches Hosting, Endpoint-Transparenz, Diagnose-Flow, reproduzierbarer Save bei laufender API).
