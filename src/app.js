@@ -1280,33 +1280,42 @@ function formatApiDiagnoseSummary(reports) {
 
   const success = reports.find((entry) => entry.preflight.ok);
   if (success) {
+    const hostFlow = formatHostFlow(success.routing);
+    const sourceLabel = formatResolverSourceLabel(success.routing?.source);
     return {
-      statusText: `API Diagnose: OK (GET /api/health + OPTIONS /api/global-defaults via ${success.endpoint})`,
-      feedbackText: `Status: API erreichbar und POST erlaubt (${success.endpoint}).`,
+      statusText:
+        `API Diagnose: OK (${hostFlow}, Quelle ${sourceLabel}, GET /api/health + OPTIONS /api/global-defaults via ${success.endpoint})`,
+      feedbackText: `Status: API erreichbar und POST erlaubt (${hostFlow}, ${success.endpoint}).`,
     };
   }
 
   const failed = reports[0];
+  const hostFlow = formatHostFlow(failed.routing);
+  const sourceLabel = formatResolverSourceLabel(failed.routing?.source);
+  const remoteHint = getRemoteMismatchHint(failed.routing);
   const statusLabel = Number.isFinite(Number(failed.preflight.status))
     ? `${failed.preflight.status} (${classifyHttpStatus(failed.preflight.status)})`
     : "n/a";
   if (failed.preflight.code === "API_UNREACHABLE") {
     return {
-      statusText: `API Diagnose: nicht erreichbar (${failed.endpoint})`,
+      statusText: `API Diagnose: nicht erreichbar (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint})`,
       feedbackText:
-        "Status: API nicht erreichbar. Starte `node server.mjs` oder setze eine korrekte API-Base mit ?ttApiBase=http://localhost:4173.",
+        `Status: API nicht erreichbar (${hostFlow}). ${remoteHint ?? "Starte `node server.mjs` oder setze eine korrekte API-Base mit ?ttApiBase=http://localhost:4173."}`,
     };
   }
   if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
     return {
-      statusText: `API Diagnose: POST nicht erlaubt (${failed.endpoint}, ${statusLabel})`,
+      statusText:
+        `API Diagnose: POST nicht erlaubt (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
       feedbackText:
-        "Status: Erreichbar, aber POST nicht erlaubt. Nutze den Node-API-Server statt reinem Static-Server.",
+        `Status: Erreichbar, aber POST nicht erlaubt (${hostFlow}). Nutze den Node-API-Server statt reinem Static-Server.${remoteHint ? ` ${remoteHint}` : ""}`,
     };
   }
   return {
-    statusText: `API Diagnose: fehlgeschlagen (${failed.endpoint}, ${statusLabel})`,
-    feedbackText: "Status: Diagnose ohne Erfolg. Endpoint, Port und Server-Log pruefen.",
+    statusText:
+      `API Diagnose: fehlgeschlagen (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
+    feedbackText:
+      `Status: Diagnose ohne Erfolg (${hostFlow}). Endpoint, Port und Server-Log pruefen.${remoteHint ? ` ${remoteHint}` : ""}`,
   };
 }
 
@@ -1522,8 +1531,15 @@ function formatGlobalDefaultsSaveError(error) {
     error && typeof error === "object" && "statusClass" in error
       ? String(error.statusClass || classifyHttpStatus(status))
       : classifyHttpStatus(status);
+  const routing = error && typeof error === "object" && "routing" in error ? error.routing : null;
+  const hostFlow = formatHostFlow(routing);
+  const sourceLabel = formatResolverSourceLabel(routing?.source);
+  const remoteHint = getRemoteMismatchHint(routing);
   const endpointMeta = `${method} ${endpoint} | Status ${status ?? "n/a"} (${statusClass})`;
-  const startHint = "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
+  const startHint = remoteHint
+    ? remoteHint
+    : "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
+  const hostMeta = `${hostFlow}, Quelle ${sourceLabel}`;
   if (
     code === "API_UNREACHABLE" ||
     code === "API_HTML_ERROR" ||
@@ -1531,20 +1547,42 @@ function formatGlobalDefaultsSaveError(error) {
     code === "API_HEALTH_FAILED"
   ) {
     return {
-      statusText: `Speichern fehlgeschlagen - API-Endpoint nicht save-faehig (${endpointMeta}).`,
-      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar (${endpointMeta}). ${startHint}`,
+      statusText: `Speichern fehlgeschlagen - API-Endpoint nicht save-faehig (${hostMeta}; ${endpointMeta}).`,
+      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar (${hostMeta}; ${endpointMeta}). ${startHint}`,
     };
   }
   if (code === "API_SERVER_ERROR") {
     return {
-      statusText: `Speichern fehlgeschlagen - API-Serverfehler (${endpointMeta}).`,
-      feedbackText: `Status: API-Server hat den Save-Request nicht verarbeitet (${endpointMeta}).`,
+      statusText: `Speichern fehlgeschlagen - API-Serverfehler (${hostMeta}; ${endpointMeta}).`,
+      feedbackText: `Status: API-Server hat den Save-Request nicht verarbeitet (${hostMeta}; ${endpointMeta}).`,
     };
   }
   return {
-    statusText: `Speichern fehlgeschlagen - bitte Save-Setup pruefen (${endpointMeta}).`,
-    feedbackText: `Status: Save fehlgeschlagen (${endpointMeta}). ${startHint}`,
+    statusText: `Speichern fehlgeschlagen - bitte Save-Setup pruefen (${hostMeta}; ${endpointMeta}).`,
+    feedbackText: `Status: Save fehlgeschlagen (${hostMeta}; ${endpointMeta}). ${startHint}`,
   };
+}
+
+function formatResolverSourceLabel(source) {
+  return source || "unbekannt";
+}
+
+function formatHostFlow(routing) {
+  const uiHost = routing?.uiHost || getUiHostName() || "unbekannt";
+  const apiHost = routing?.apiHost || "unbekannt";
+  return `UI-Host ${uiHost} -> API-Host ${apiHost}`;
+}
+
+function getRemoteMismatchHint(routing) {
+  const uiHost = routing?.uiHost || getUiHostName();
+  const apiHost = routing?.apiHost || "";
+  if (!uiHost || !apiHost) {
+    return null;
+  }
+  if (!isLocalApiHost(uiHost) && isLocalApiHost(apiHost)) {
+    return "Remote/LAN-Hinweis: Die UI laeuft remote, aber API zeigt auf localhost. Setze ?ttApiBase=http://<SERVER-IP>:4173 oder oeffne die UI direkt ueber den Server-Host.";
+  }
+  return null;
 }
 
 function downloadGlobalDefaultsFallback() {
@@ -4671,10 +4709,13 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
   try {
     const result = await saveGlobalDefaultsToServer();
+    const hostFlow = formatHostFlow(result.routing);
+    const sourceLabel = formatResolverSourceLabel(result.routing?.source);
+    const remoteHint = getRemoteMismatchHint(result.routing);
     globalDefaultsStatus.textContent =
-      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | Endpoint ${result.method} ${result.endpoint} [${result.statusClass}]`;
+      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | ${hostFlow} | Quelle ${sourceLabel} | Endpoint ${result.method} ${result.endpoint} [${result.statusClass}]`;
     triggerFeedback.textContent =
-      `Status: Global Defaults gespeichert via ${result.method} ${result.endpoint} (Status ${result.status}/${result.statusClass})`;
+      `Status: Global Defaults gespeichert via ${result.method} ${result.endpoint} (${hostFlow}; Quelle ${sourceLabel}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
