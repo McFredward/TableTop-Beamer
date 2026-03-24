@@ -1679,6 +1679,57 @@ function runOutsideIsolationRegression() {
   return true;
 }
 
+function runShipClipRegression() {
+  const boardId = state.boardId;
+  const previousShipPolygon = getShipPolygonPoints(boardId);
+  const issues = [];
+
+  try {
+    ctx.save();
+    const insideValid = clipToInsideShip(boardId);
+    ctx.restore();
+    if (!insideValid) {
+      issues.push("inside clip rejected valid ship polygon");
+    }
+
+    ctx.save();
+    const outsideValid = clipToOutsideShip(boardId);
+    ctx.restore();
+    if (!outsideValid) {
+      issues.push("outside clip rejected valid ship polygon");
+    }
+
+    state.shipPolygonsByBoard[boardId] = [
+      [0.2, 0.2],
+      [0.8, 0.8],
+    ];
+
+    ctx.save();
+    const insideInvalid = clipToInsideShip(boardId);
+    ctx.restore();
+    if (insideInvalid) {
+      issues.push("inside clip accepted invalid ship polygon");
+    }
+
+    ctx.save();
+    const outsideInvalid = clipToOutsideShip(boardId);
+    ctx.restore();
+    if (outsideInvalid) {
+      issues.push("outside clip accepted invalid ship polygon");
+    }
+  } catch {
+    issues.push("ship clip regression threw unexpectedly");
+  } finally {
+    setShipPolygonPoints(boardId, previousShipPolygon);
+  }
+
+  if (issues.length > 0) {
+    console.error("Ship clip regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
 function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
@@ -2854,9 +2905,14 @@ function clipToRoom(room) {
   ctx.clip();
 }
 
-function clipToOutsideShip(boardId = state.boardId) {
+function getShipClipPolygon(boardId = state.boardId) {
   const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
-  if (shipPolygon.length < 3) {
+  return shipPolygon.length >= 3 ? shipPolygon : null;
+}
+
+function clipToOutsideShip(boardId = state.boardId) {
+  const shipPolygon = getShipClipPolygon(boardId);
+  if (!shipPolygon) {
     ctx.beginPath();
     ctx.rect(0, 0, 0, 0);
     ctx.clip();
@@ -2877,8 +2933,8 @@ function clipToOutsideShip(boardId = state.boardId) {
 }
 
 function clipToInsideShip(boardId = state.boardId) {
-  const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
-  if (shipPolygon.length < 3) {
+  const shipPolygon = getShipClipPolygon(boardId);
+  if (!shipPolygon) {
     ctx.beginPath();
     ctx.rect(0, 0, 0, 0);
     ctx.clip();
@@ -3959,17 +4015,20 @@ const layoutRegressionOk = runLayoutScrollRegression();
 const zoomPanRegressionOk = runZoomPanEditRegression();
 const panPointerRegressionOk = runPanPointerCaptureRegression();
 const outsideIsolationRegressionOk = runOutsideIsolationRegression();
+const shipClipRegressionOk = runShipClipRegression();
 if (
   !viewRegressionOk ||
   !layoutRegressionOk ||
   !zoomPanRegressionOk ||
   !panPointerRegressionOk ||
-  !outsideIsolationRegressionOk
+  !outsideIsolationRegressionOk ||
+  !shipClipRegressionOk
 ) {
-  triggerFeedback.textContent = "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan + Outside-Isolation Guard)";
+  triggerFeedback.textContent =
+    "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan + Outside-Isolation + Ship-Clip Guard)";
 } else {
   triggerFeedback.textContent =
-    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture + Outside-Isolation Guard)";
+    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();

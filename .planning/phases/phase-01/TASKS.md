@@ -127,7 +127,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Priority Add-on - Plan Update 13
 - [x] DONE P1-T84 [P0] Ship-Clipping-Grenzen haerten: Inside-Animationen strikt auf Ship-Polygon maskieren und Outside-Anteile sicher unterdruecken.
-- [ ] TODO P1-T85 [P0] Inverses Ship-Clipping fuer Outside absichern: Outside-Animationen strikt ausserhalb des Ship-Polygons rendern, inklusive Fail-safe bei ungueltiger Maske.
+- [x] DONE P1-T85 [P0] Inverses Ship-Clipping fuer Outside absichern: Outside-Animationen strikt ausserhalb des Ship-Polygons rendern, inklusive Fail-safe bei ungueltiger Maske.
 - [ ] TODO P1-T86 [P0] Outside-Visual von glitzerartig auf High-Speed-Spaceflow umbauen (mehrere Tiefenebenen mit differenzierten Geschwindigkeiten).
 - [ ] TODO P1-T87 [P0] Deutliche Motion-Streaks/Striche in den Outside-Renderer integrieren und mit Intensity/Speed-Reglern koppeln.
 - [ ] TODO P1-T88 [P0] Single-User-Persistenzpfad erweitern: `Settings`-Button `Speichern` schreibt aktuellen Browserzustand in server-/repo-seitige globale Default-Config.
