@@ -427,13 +427,38 @@ input[type="number"] {
 }
 
 .running-title {
-  font-size: 0.8rem;
-  color: #d5ecff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #e3f3ff;
 }
 
 .running-meta {
-  font-size: 0.73rem;
-  color: #9eb1cb;
+  font-size: 0.78rem;
+  color: #bfd2ea;
+}
+
+.running-scope-badge {
+  display: inline-block;
+  min-width: 5.6rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-align: center;
+  border: 1px solid rgba(168, 219, 255, 0.6);
+  background: rgba(25, 76, 104, 0.42);
+  color: #dff5ff;
+}
+
+.running-scope-badge-room {
+  border-color: rgba(156, 232, 191, 0.78);
+  background: rgba(24, 81, 63, 0.42);
+}
+
+.running-scope-badge-global-inside,
+.running-scope-badge-global-outside {
+  border-color: rgba(164, 207, 255, 0.74);
+  background: rgba(31, 73, 118, 0.48);
 }
 
 .running-actions {
@@ -592,6 +617,16 @@ button.danger.is-armed {
   .button-grid,
   .running-actions {
     gap: 0.62rem;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  label,
+  .status-line,
+  .running-meta {
+    font-size: 0.88rem;
   }
 }
 

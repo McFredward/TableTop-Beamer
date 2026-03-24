@@ -3714,7 +3714,10 @@ function renderRunningAnimationsList() {
         ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
         : "Global";
     const scopeLabel = anim.scope === "room" ? "ROOM" : getGlobalCategoryRuntimeLabel(anim.type);
-    title.textContent = `[${scopeLabel}] ${effectLabel} - ${roomLabel}`;
+    const scopeBadge = document.createElement("span");
+    scopeBadge.className = `running-scope-badge running-scope-badge-${scopeLabel.toLowerCase()}`;
+    scopeBadge.textContent = scopeLabel;
+    title.append(scopeBadge, document.createTextNode(` ${effectLabel} - ${roomLabel}`));
 
     const meta = document.createElement("div");
     meta.className = "running-meta";
