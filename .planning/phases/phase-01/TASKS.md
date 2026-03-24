@@ -93,4 +93,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T58 [P0] Polygon-Editing unter Zoom haerten (Handle-Hit-Targets, Drag, Insert/Delete, Pointer-Koordinaten korrekt auf Zoom transformieren).
 - [x] DONE P1-T59 [P0] Spezialraum-Klick im Settings-Board direkt mit Polygon-Editor-Dropdown synchronisieren (Board -> Dropdown inkl. konsistenter Highlight-State).
 - [x] DONE P1-T60 [P0] Dashboard-Block `Aktive Animationen` sticky im scrollenden Control-Panel verankern, ohne Tab-/Small-Screen-Regressions.
-- [ ] TODO P1-T61 [P1] Plan-Update-8 Pflichtabnahme + Regression dokumentieren (Zoom-Precision, Spezialraum-Sync, Sticky-Running-Block).
+- [x] DONE P1-T61 [P1] Plan-Update-8 Pflichtabnahme + Regression dokumentieren (Zoom-Precision, Spezialraum-Sync, Sticky-Running-Block).
