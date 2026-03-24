@@ -23,7 +23,10 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
   1. `window.__TT_BEAMER_API_BASE__`
   2. URL-Parameter `?ttApiBase=http://localhost:4173` (alternativ `apiBase` / `api_base`)
   3. `localStorage["tt-beamer.api-base.v1"]`
-  4. deterministische Fallback-Ports: `localhost:4173`, `4174`, `3000`, `8080`
+  4. UI-Host als sicherer Default (`window.location.hostname`) mit deterministischen Port-Fallbacks `4173`, `4174`, `3000`, `8080`
+- Resolver-Reihenfolge bleibt: `Override > UI-Host-Default > Fallback`.
+- Im Remote/LAN-Betrieb wird **kein** stiller Client-`localhost`-Default verwendet.
+- Save- und Diagnose-Status zeigen explizit `UI-Host -> API-Host`, Quelle und finalen Endpoint.
 - Save + Diagnose pruefen den Endpunkt vor dem eigentlichen POST mit:
   - `GET /api/health`
   - `OPTIONS /api/global-defaults` (POST erlaubt?)
@@ -33,7 +36,8 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 
 1. Terminal A: `node server.mjs` (API fuer Save auf Port 4173)
 2. Terminal B: optional eigener Frontend-Server
-3. Fuer Save immer die App ueber `http://localhost:4173` nutzen
+3. Lokal: `http://localhost:4173`; im LAN: `http://<SERVER-IP>:4173` (zweites Geraet)
+4. In `Settings` bei Save/Diagnose pruefen: `UI-Host <SERVER-IP> -> API-Host <SERVER-IP>`
 
 ## Session-Flow (Phase 1)
 
