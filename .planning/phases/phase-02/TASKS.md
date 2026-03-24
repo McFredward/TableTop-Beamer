@@ -7,7 +7,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P2-T1 [P0] Mobile UX-Blueprint fuer Smartphone definieren (Portrait/Landscape, Thumb-Zonen, Trigger-vs-Manage-Trennung).
 - [x] DONE P2-T2 [P0] Dashboard-Layout fuer Portrait umsetzen: schnelle Daumen-Trigger ohne Scrollpflicht fuer Kernaktionen.
 - [x] DONE P2-T3 [P0] Dashboard-Layout fuer Landscape umsetzen: klare Trennung Triggern vs `Aktive Animationen`/Stop/Edit.
-- [ ] TODO P2-T4 [P0] Touch-Target-Hardening: interaktive Targets auf >=44x44 px und konsistente Abstaende bringen.
+- [x] DONE P2-T4 [P0] Touch-Target-Hardening: interaktive Targets auf >=44x44 px und konsistente Abstaende bringen.
 - [ ] TODO P2-T5 [P0] Einhand-Bedienpfad optimieren: primaere Aktionen im Daumenradius, sekundaere Aktionen entkoppeln.
 - [ ] TODO P2-T6 [P0] Fehlklick-Schutz fuer Touch einbauen (insb. `Clear All`, nahe Targets, versehentliche Doppeltaps).
 - [ ] TODO P2-T7 [P1] Mobile Lesbarkeit am Spieltisch absichern (Kontrast, Typografie, Zustandskennzeichnung unter Beamer-/Raumlicht).
