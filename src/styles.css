@@ -43,8 +43,8 @@ body {
 
 .stage {
   --stage-zoom-scale: 1;
-  --stage-zoom-origin-x: 50%;
-  --stage-zoom-origin-y: 50%;
+  --stage-pan-x: 0px;
+  --stage-pan-y: 0px;
   position: relative;
   width: min(95vw, calc((100vh - 2rem) * (7978 / 5456)), 1280px);
   aspect-ratio: 7978 / 5456;
@@ -52,9 +52,13 @@ body {
   overflow: hidden;
   border: 1px solid #3d4d66;
   box-shadow: 0 1rem 2.2rem rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  transform: scale(var(--stage-zoom-scale));
-  transform-origin: var(--stage-zoom-origin-x) var(--stage-zoom-origin-y);
+  transform: translate(var(--stage-pan-x), var(--stage-pan-y)) scale(var(--stage-zoom-scale));
+  transform-origin: 50% 50%;
   transition: transform 120ms ease;
+}
+
+.stage.is-panning {
+  transition: none;
 }
 
 #board-image,
@@ -78,6 +82,18 @@ body {
 
 #room-overlay {
   z-index: 3;
+}
+
+#room-overlay.is-pan-enabled {
+  cursor: default;
+}
+
+#room-overlay.is-pan-ready {
+  cursor: grab;
+}
+
+#room-overlay.is-panning {
+  cursor: grabbing;
 }
 
 .room-zone {

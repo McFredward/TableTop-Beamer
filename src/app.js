@@ -292,6 +292,7 @@ const boardZoomValue = document.querySelector("#board-zoom-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
 const boardZoomResetButton = document.querySelector("#board-zoom-reset");
 const boardZoomStatus = document.querySelector("#board-zoom-status");
+const boardPanStatus = document.querySelector("#board-pan-status");
 const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
 const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
 
@@ -319,8 +320,8 @@ const ROOM_GEOMETRY_DEFAULT = {
 
 const BOARD_ZOOM_DEFAULT = {
   scale: 1,
-  originX: 0.5,
-  originY: 0.5,
+  panX: 0,
+  panY: 0,
 };
 
 const state = {
@@ -354,6 +355,16 @@ const state = {
     dragBoardId: null,
     dragStartPoints: null,
     dragMoved: false,
+  },
+  panMode: {
+    spacePressed: false,
+    active: false,
+    pointerId: null,
+    startClientX: 0,
+    startClientY: 0,
+    startPanX: 0,
+    startPanY: 0,
+    trigger: null,
   },
 };
 
@@ -400,11 +411,39 @@ function clampBoardZoomScale(value) {
 }
 
 function normalizeBoardZoomProfile(profile) {
+  const scale = clampBoardZoomScale(Number(profile?.scale) || BOARD_ZOOM_DEFAULT.scale);
+  return clampPanToBounds({
+    scale,
+    panX: Number(profile?.panX) || 0,
+    panY: Number(profile?.panY) || 0,
+  });
+}
+
+function getStagePanBounds(scale) {
+  const width = stage?.clientWidth || 0;
+  const height = stage?.clientHeight || 0;
+  const maxPanX = Math.max(0, (width * (scale - 1)) / 2);
+  const maxPanY = Math.max(0, (height * (scale - 1)) / 2);
+  return { maxPanX, maxPanY };
+}
+
+function clampPanToBounds(profile) {
+  const scale = clampBoardZoomScale(Number(profile?.scale) || 1);
+  const { maxPanX, maxPanY } = getStagePanBounds(scale);
   return {
-    scale: clampBoardZoomScale(Number(profile?.scale) || BOARD_ZOOM_DEFAULT.scale),
-    originX: clampRoomAbsoluteCoordinate(Number(profile?.originX) || BOARD_ZOOM_DEFAULT.originX),
-    originY: clampRoomAbsoluteCoordinate(Number(profile?.originY) || BOARD_ZOOM_DEFAULT.originY),
+    scale,
+    panX: Math.max(-maxPanX, Math.min(maxPanX, Number(profile?.panX) || 0)),
+    panY: Math.max(-maxPanY, Math.min(maxPanY, Number(profile?.panY) || 0)),
   };
+}
+
+function computePanForZoomFocus(scale, focus = null) {
+  const width = stage?.clientWidth || 0;
+  const height = stage?.clientHeight || 0;
+  const center = focus ?? { x: 0.5, y: 0.5 };
+  const rawPanX = -((center.x - 0.5) * width * scale);
+  const rawPanY = -((center.y - 0.5) * height * scale);
+  return clampPanToBounds({ scale, panX: rawPanX, panY: rawPanY });
 }
 
 function createDefaultBoardZoomByBoard() {
@@ -865,14 +904,25 @@ function syncStageZoomTransform() {
     ? getBoardZoom(state.boardId)
     : BOARD_ZOOM_DEFAULT;
   stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
-  stage.style.setProperty("--stage-zoom-origin-x", `${(zoom.originX * 100).toFixed(2)}%`);
-  stage.style.setProperty("--stage-zoom-origin-y", `${(zoom.originY * 100).toFixed(2)}%`);
+  stage.style.setProperty("--stage-pan-x", `${zoom.panX.toFixed(2)}px`);
+  stage.style.setProperty("--stage-pan-y", `${zoom.panY.toFixed(2)}px`);
 }
 
 function syncBoardZoomStatus() {
   const zoom = getBoardZoom(state.boardId);
   const percent = Math.round(zoom.scale * 100);
-  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%)`;
+  const modeLabel = state.panMode.active
+    ? "PAN aktiv (ziehen)"
+    : state.panMode.spacePressed
+      ? "PAN bereit (Space gedrueckt)"
+      : "Edit-Modus";
+  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px`;
+  if (boardPanStatus) {
+    const hint = zoom.scale > 1
+      ? "Space + Drag oder mittlere Maustaste: Board verschieben"
+      : "Pan wird ab Zoom > 100% aktiv";
+    boardPanStatus.textContent = `Pan-Status: ${modeLabel} | ${hint}`;
+  }
 }
 
 function syncBoardZoomPanel() {
@@ -886,11 +936,13 @@ function syncBoardZoomPanel() {
 
 function updateCurrentBoardZoom(partial, statusText = null) {
   const current = getBoardZoom(state.boardId);
-  setBoardZoom(state.boardId, {
+  const next = clampPanToBounds({
     ...current,
     ...partial,
   });
+  setBoardZoom(state.boardId, next);
   syncBoardZoomPanel();
+  setPanCursorState();
   if (statusText) {
     triggerFeedback.textContent = `Status: ${statusText}`;
   }
@@ -925,14 +977,64 @@ function fitZoomToActiveSpecialRoom() {
   const targetCoverage = 0.45;
   const scale = clampBoardZoomScale(targetCoverage / boxSize);
   const center = getRoomCenterForZoom(state.boardId, room.id);
-  updateCurrentBoardZoom(
-    {
-      scale,
-      originX: center.x,
-      originY: center.y,
-    },
-    `${room.label} gezoomt (${Math.round(scale * 100)}%)`,
-  );
+  const viewport = computePanForZoomFocus(scale, center);
+  updateCurrentBoardZoom(viewport, `${room.label} gezoomt (${Math.round(scale * 100)}%)`);
+}
+
+function canStartPanModeFromEvent(event) {
+  if (state.uiView !== "settings") {
+    return false;
+  }
+  const zoom = getBoardZoom(state.boardId);
+  if (zoom.scale <= 1) {
+    return false;
+  }
+  return event.button === 1 || state.panMode.spacePressed;
+}
+
+function setPanCursorState() {
+  const zoom = getBoardZoom(state.boardId);
+  const interactive = state.uiView === "settings" && zoom.scale > 1;
+  stage.classList.toggle("is-panning", state.panMode.active);
+  roomOverlay.classList.toggle("is-pan-enabled", interactive);
+  roomOverlay.classList.toggle("is-pan-ready", interactive && state.panMode.spacePressed && !state.panMode.active);
+  roomOverlay.classList.toggle("is-panning", state.panMode.active);
+  syncBoardZoomStatus();
+}
+
+function startPanMode(event, trigger) {
+  const zoom = getBoardZoom(state.boardId);
+  state.panMode.active = true;
+  state.panMode.pointerId = event.pointerId;
+  state.panMode.startClientX = event.clientX;
+  state.panMode.startClientY = event.clientY;
+  state.panMode.startPanX = zoom.panX;
+  state.panMode.startPanY = zoom.panY;
+  state.panMode.trigger = trigger;
+  try {
+    roomOverlay.setPointerCapture(event.pointerId);
+  } catch {
+    // ignore unsupported pointer capture
+  }
+  setPanCursorState();
+  triggerFeedback.textContent = "Status: Pan-Modus aktiv (Board verschieben)";
+}
+
+function endPanMode(event, { canceled = false } = {}) {
+  if (!state.panMode.active) {
+    return;
+  }
+  const pointerId = state.panMode.pointerId;
+  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
+    roomOverlay.releasePointerCapture(pointerId);
+  }
+  state.panMode.active = false;
+  state.panMode.pointerId = null;
+  state.panMode.trigger = null;
+  setPanCursorState();
+  triggerFeedback.textContent = canceled
+    ? "Status: Pan-Modus abgebrochen"
+    : "Status: Pan-Modus beendet";
 }
 
 function clampRoomIntensity(value) {
@@ -1084,6 +1186,10 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 
 function setActiveView(view, { skipGuard = false } = {}) {
   const nextView = view === "settings" ? "settings" : "dashboard";
+  if (nextView !== "settings") {
+    state.panMode.spacePressed = false;
+    endPanMode(null, { canceled: true });
+  }
   state.uiView = nextView;
   if (controlPanel) {
     controlPanel.dataset.activeView = nextView;
@@ -1099,6 +1205,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
     syncPolygonEditorPanel();
   }
   syncStageZoomTransform();
+  setPanCursorState();
   renderRoomOverlay();
   if (!skipGuard) {
     validateViewExclusivity(nextView, { context: "set-active-view" });
@@ -1159,6 +1266,62 @@ function runLayoutScrollRegression() {
 
   if (issues.length > 0) {
     console.error("Layout regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
+function runZoomPanEditRegression() {
+  const issues = [];
+  const previousView = state.uiView;
+  const previousSpacePressed = state.panMode.spacePressed;
+  const previousZoom = getBoardZoom(state.boardId);
+
+  try {
+    setActiveView("settings", { skipGuard: true });
+    const focus = getRoomCenterForZoom(state.boardId);
+    const zoomed = computePanForZoomFocus(2, focus);
+    updateCurrentBoardZoom(zoomed);
+
+    const bounds = getStagePanBounds(2);
+    updateCurrentBoardZoom({ scale: 2, panX: bounds.maxPanX * 4, panY: -bounds.maxPanY * 4 });
+    const clamped = getBoardZoom(state.boardId);
+    if (Math.abs(clamped.panX) - bounds.maxPanX > 0.5 || Math.abs(clamped.panY) - bounds.maxPanY > 0.5) {
+      issues.push("pan bounds clamp failed");
+    }
+
+    state.panMode.spacePressed = true;
+    const canPanWithSpace = canStartPanModeFromEvent({ button: 0 });
+    if (!canPanWithSpace) {
+      issues.push("space+drag pan gate failed");
+    }
+    state.panMode.spacePressed = false;
+
+    const canPanWithoutSpace = canStartPanModeFromEvent({ button: 0 });
+    if (canPanWithoutSpace) {
+      issues.push("edit mode incorrectly blocked by pan gate");
+    }
+
+    const canPanWithMiddle = canStartPanModeFromEvent({ button: 1 });
+    if (!canPanWithMiddle) {
+      issues.push("middle-button pan alias failed");
+    }
+
+    fitZoomToActiveSpecialRoom();
+    boardZoomResetButton.click();
+    const reset = getBoardZoom(state.boardId);
+    if (reset.scale !== 1 || Math.abs(reset.panX) > 0.5 || Math.abs(reset.panY) > 0.5) {
+      issues.push("zoom/pan reset roundtrip failed");
+    }
+  } finally {
+    state.panMode.spacePressed = previousSpacePressed;
+    updateCurrentBoardZoom(previousZoom);
+    setActiveView(previousView, { skipGuard: true });
+    setPanCursorState();
+  }
+
+  if (issues.length > 0) {
+    console.error("Zoom+Pan+Edit regression violation", issues);
     return false;
   }
   return true;
@@ -1304,6 +1467,9 @@ function renderPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
+      if (state.panMode.spacePressed || state.panMode.active || event.button !== 0) {
+        return;
+      }
       event.stopPropagation();
       event.preventDefault();
       state.polygonEditor.selectedEdgeIndex = index;
@@ -1347,6 +1513,9 @@ function renderPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
+      if (state.panMode.spacePressed || state.panMode.active || event.button !== 0) {
+        return;
+      }
       event.stopPropagation();
       event.preventDefault();
       beginPolygonVertexDrag(event, room.id, index);
@@ -1648,6 +1817,9 @@ function renderRoomOverlay() {
         .join(" "),
     );
     polygon.addEventListener("click", () => {
+      if (state.panMode.spacePressed || state.panMode.active) {
+        return;
+      }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
       if (room.id.startsWith("special-")) {
@@ -1702,6 +1874,7 @@ function switchBoard(boardId) {
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
   syncBoardZoomPanel();
+  setPanCursorState();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
@@ -2318,14 +2491,8 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 boardZoomRangeInput.addEventListener("input", () => {
   const scale = clampBoardZoomScale((Number(boardZoomRangeInput.value) || 100) / 100);
   const center = getRoomCenterForZoom(state.boardId);
-  updateCurrentBoardZoom(
-    {
-      scale,
-      originX: center.x,
-      originY: center.y,
-    },
-    `Board-Zoom auf ${Math.round(scale * 100)}% gesetzt`,
-  );
+  updateCurrentBoardZoom(computePanForZoomFocus(scale, center), `Board-Zoom auf ${Math.round(scale * 100)}% gesetzt`);
+  setPanCursorState();
 });
 
 boardZoomFitButton.addEventListener("click", () => {
@@ -2334,6 +2501,8 @@ boardZoomFitButton.addEventListener("click", () => {
 
 boardZoomResetButton.addEventListener("click", () => {
   updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Board-Zoom zurueckgesetzt");
+  endPanMode(null, { canceled: true });
+  setPanCursorState();
 });
 
 polygonRoomSelect.addEventListener("change", () => {
@@ -2341,14 +2510,11 @@ polygonRoomSelect.addEventListener("change", () => {
   syncSpecialRoomSelection(roomId);
   const zoom = getBoardZoom(state.boardId);
   const center = getRoomCenterForZoom(state.boardId, roomId);
-  updateCurrentBoardZoom({
-    scale: zoom.scale,
-    originX: center.x,
-    originY: center.y,
-  });
+  updateCurrentBoardZoom(computePanForZoomFocus(zoom.scale, center));
   syncRoomPanelFromSelection();
   syncPolygonEditorPanel();
   renderRoomOverlay();
+  setPanCursorState();
 });
 
 polygonVertexSelect.addEventListener("change", () => {
@@ -2440,6 +2606,18 @@ polygonFocusRoomButton.addEventListener("click", () => {
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {
+  if (state.panMode.active) {
+    if (state.panMode.pointerId !== event.pointerId) {
+      return;
+    }
+    const deltaX = event.clientX - state.panMode.startClientX;
+    const deltaY = event.clientY - state.panMode.startClientY;
+    updateCurrentBoardZoom({
+      panX: state.panMode.startPanX + deltaX,
+      panY: state.panMode.startPanY + deltaY,
+    });
+    return;
+  }
   if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
     return;
   }
@@ -2461,6 +2639,10 @@ roomOverlay.addEventListener("pointermove", (event) => {
 });
 
 roomOverlay.addEventListener("pointerup", (event) => {
+  if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
+    endPanMode(event, { canceled: false });
+    return;
+  }
   if (
     state.polygonEditor.dragVertexIndex === null ||
     state.polygonEditor.dragPointerId !== event.pointerId
@@ -2471,17 +2653,60 @@ roomOverlay.addEventListener("pointerup", (event) => {
 });
 
 roomOverlay.addEventListener("pointercancel", (event) => {
+  if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
+    endPanMode(event, { canceled: true });
+    return;
+  }
   if (state.polygonEditor.dragPointerId !== event.pointerId) {
     return;
   }
   finishPolygonVertexDrag(event, { cancel: true });
 });
 
+roomOverlay.addEventListener("pointerdown", (event) => {
+  if (!canStartPanModeFromEvent(event)) {
+    return;
+  }
+  if (state.polygonEditor.dragVertexIndex !== null) {
+    finishPolygonVertexDrag(event, { cancel: true });
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  const trigger = event.button === 1 ? "middle" : "space";
+  startPanMode(event, trigger);
+});
+
 document.addEventListener("keydown", (event) => {
+  if (event.code === "Space") {
+    if (event.repeat) {
+      return;
+    }
+    state.panMode.spacePressed = true;
+    setPanCursorState();
+    return;
+  }
   if (event.key !== "Escape" || state.polygonEditor.dragVertexIndex === null) {
     return;
   }
   finishPolygonVertexDrag(null, { cancel: true });
+});
+
+document.addEventListener("keyup", (event) => {
+  if (event.code !== "Space") {
+    return;
+  }
+  state.panMode.spacePressed = false;
+  if (state.panMode.active && state.panMode.trigger === "space") {
+    endPanMode(null, { canceled: false });
+  } else {
+    setPanCursorState();
+  }
+});
+
+window.addEventListener("blur", () => {
+  state.panMode.spacePressed = false;
+  endPanMode(null, { canceled: true });
+  setPanCursorState();
 });
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
@@ -2552,6 +2777,8 @@ const resizeObserver = new ResizeObserver((entries) => {
   const size = entries[0].contentRect;
   canvas.width = Math.max(1, Math.floor(size.width));
   canvas.height = Math.max(1, Math.floor(size.height));
+  updateCurrentBoardZoom(getBoardZoom(state.boardId));
+  setPanCursorState();
   validateViewExclusivity(state.uiView, { context: "resize-guard" });
   runLayoutScrollRegression();
 });
@@ -2576,12 +2803,14 @@ syncRoomGeometryPanel();
 syncPolygonEditorPanel();
 syncBoardZoomPanel();
 setActiveView("dashboard");
+setPanCursorState();
 const viewRegressionOk = runViewVisibilityRegression();
 const layoutRegressionOk = runLayoutScrollRegression();
-if (!viewRegressionOk || !layoutRegressionOk) {
-  triggerFeedback.textContent = "Status: View/Layout-Regression fehlgeschlagen (Tab + Fixed-Board/Scroll Guard)";
+const zoomPanRegressionOk = runZoomPanEditRegression();
+if (!viewRegressionOk || !layoutRegressionOk || !zoomPanRegressionOk) {
+  triggerFeedback.textContent = "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan-Edit Guard)";
 } else {
-  triggerFeedback.textContent = "Status: View/Layout-Regression ok (Tab + Fixed-Board/Scroll Guard)";
+  triggerFeedback.textContent = "Status: Regression ok (View/Layout + Zoom-Pan-Edit Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();
