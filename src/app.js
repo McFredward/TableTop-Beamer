@@ -4716,13 +4716,13 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   const persisted = persistBoardProfiles();
   if (!persisted) {
     globalDefaultsStatus.textContent =
-      "Global Defaults: lokales Profil konnte vor Export nicht gespeichert werden";
-    triggerFeedback.textContent = "Status: Global-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
+      "Global Defaults: lokales Profil konnte vor Save nicht gespeichert werden";
+    triggerFeedback.textContent = "Status: Global-Defaults-Save abgebrochen (lokale Persistenz fehlgeschlagen)";
     return;
   }
 
   saveGlobalDefaultsButton.disabled = true;
-  globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
+  globalDefaultsStatus.textContent = "Global Defaults: Save laeuft ...";
   apiDiagnoseStatus.textContent = "API Diagnose: pruefe Reachability + POST-Faehigkeit (Save-Preflight) ...";
   try {
     const result = await saveGlobalDefaultsToServer();
