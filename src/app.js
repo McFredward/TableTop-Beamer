@@ -888,7 +888,45 @@ function setViewGroupVisibility(groups, visible) {
   }
 }
 
-function setActiveView(view) {
+function isViewGroupVisible(entry) {
+  return !entry.hidden && !entry.classList.contains("view-hidden") && entry.getAttribute("aria-hidden") !== "true";
+}
+
+function validateViewExclusivity(expectedView, { silent = false, context = "runtime" } = {}) {
+  const leaks = [];
+  const expectSettings = expectedView === "settings";
+
+  if (expectSettings && settingsViewGroups.every((entry) => !isViewGroupVisible(entry))) {
+    leaks.push("settings groups unexpectedly hidden");
+  }
+  if (!expectSettings && dashboardViewGroups.every((entry) => !isViewGroupVisible(entry))) {
+    leaks.push("dashboard groups unexpectedly hidden");
+  }
+
+  for (const entry of settingsViewGroups) {
+    if (isViewGroupVisible(entry) !== expectSettings) {
+      leaks.push(`settings leak: ${entry.tagName.toLowerCase()}`);
+      break;
+    }
+  }
+  for (const entry of dashboardViewGroups) {
+    if (isViewGroupVisible(entry) === expectSettings) {
+      leaks.push(`dashboard leak: ${entry.tagName.toLowerCase()}`);
+      break;
+    }
+  }
+
+  if (leaks.length > 0) {
+    if (!silent) {
+      console.error(`View exclusivity violation (${context})`, leaks);
+      triggerFeedback.textContent = "Status: Tab-Exklusivitaet verletzt (sichtbarer Rest-Block erkannt)";
+    }
+    return false;
+  }
+  return true;
+}
+
+function setActiveView(view, { skipGuard = false } = {}) {
   const nextView = view === "settings" ? "settings" : "dashboard";
   state.uiView = nextView;
   const showSettings = nextView === "settings";
@@ -902,6 +940,25 @@ function setActiveView(view) {
     syncPolygonEditorPanel();
   }
   renderRoomOverlay();
+  if (!skipGuard) {
+    validateViewExclusivity(nextView, { context: "set-active-view" });
+  }
+}
+
+function runViewVisibilityRegression() {
+  const originalView = state.uiView;
+  let ok = true;
+  for (let i = 0; i < 10; i += 1) {
+    const target = i % 2 === 0 ? "settings" : "dashboard";
+    setActiveView(target, { skipGuard: true });
+    ok = validateViewExclusivity(target, { silent: true, context: `toggle-${i + 1}` }) && ok;
+  }
+  const viewportContext = window.matchMedia("(max-width: 760px)").matches
+    ? "small-screen"
+    : "desktop";
+  ok = validateViewExclusivity(state.uiView, { silent: true, context: viewportContext }) && ok;
+  setActiveView(originalView, { skipGuard: true });
+  return ok;
 }
 
 function syncPolygonEditorStatus() {
@@ -2148,6 +2205,7 @@ const resizeObserver = new ResizeObserver((entries) => {
   const size = entries[0].contentRect;
   canvas.width = Math.max(1, Math.floor(size.width));
   canvas.height = Math.max(1, Math.floor(size.height));
+  validateViewExclusivity(state.uiView, { context: "resize-guard" });
 });
 
 resizeObserver.observe(stage);
@@ -2168,6 +2226,11 @@ syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
 setActiveView("dashboard");
+if (!runViewVisibilityRegression()) {
+  triggerFeedback.textContent = "Status: View-Toggle-Regression fehlgeschlagen (10x Guard)";
+} else {
+  triggerFeedback.textContent = "Status: View-Toggle-Regression ok (10x Desktop/Small-Screen Guard)";
+}
 renderRunningAnimationsList();
 refreshGlobalButtons();
 requestAnimationFrame(draw);
