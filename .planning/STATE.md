@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-4
-- Last Execution Summary: `.planning/phases/phase-01/1-4-SUMMARY.md`
+- Last Executed Plan: 1-5
+- Last Execution Summary: `.planning/phases/phase-01/1-5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -43,6 +43,11 @@
 - Hex-Hitareas wurden fuer beide Boards mit Flat-Top-Geometrie nachkalibriert; kleine Toleranz bleibt nur an Randflaechen.
 - Special-Room Mapping wurde als festes 5er-Set mit board-spezifischen Polygonen umgesetzt.
 - Event-Sounds laufen als lizenzsichere WebAudio-Synth-Cues mit globalem Master (default ON) und Lautstaerke-Regler.
+- Plan-Update 3 setzt Prioritaetsfokus: P0 manuelle Hitarea-Feinkalibrierung per Sliderseite (Offset/Scale) mit Persistenz pro Board statt Auto-Tuning.
+- Spezialraum-Animationen gelten erst als done, wenn Running-List und sichtbarer Renderzustand 1:1 konsistent sind.
+- Bekannter Kritikal-Bug: Kombination `Spezialraum + Alarm Beacon` kann visuellen Animationspfad stoppen; Fix und Regression-Guard sind P0.
+- Hitarea-Feinjustierung erfolgt ausschliesslich ueber sichtbare Slider-Settings (X/Y/Scale) und wird pro Board persistent gespeichert.
+- Render-Stabilitaet ist per Animation isoliert (`try/catch` + `try/finally`) abgesichert; Einzel-Fehler stoppen den globalen Draw-Timer nicht mehr.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -79,4 +84,12 @@
 - Task Commits: 5 atomare Commits (`f7b6297` .. `1d0ecd5`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T28-MANUAL-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 5)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-5-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`48dac0d` .. `39caaaf`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T33-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
