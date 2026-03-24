@@ -993,6 +993,10 @@ function canStartPanModeFromEvent(event) {
   return event.button === 1 || state.panMode.spacePressed;
 }
 
+function isPanArbitrating() {
+  return state.panMode.spacePressed || state.panMode.active;
+}
+
 function setPanCursorState() {
   const zoom = getBoardZoom(state.boardId);
   const interactive = state.uiView === "settings" && zoom.scale > 1;
@@ -1468,7 +1472,7 @@ function renderPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (state.panMode.spacePressed || state.panMode.active || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0) {
         return;
       }
       event.stopPropagation();
@@ -1514,7 +1518,7 @@ function renderPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
-      if (state.panMode.spacePressed || state.panMode.active || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0) {
         return;
       }
       event.stopPropagation();
@@ -1818,7 +1822,7 @@ function renderRoomOverlay() {
         .join(" "),
     );
     polygon.addEventListener("click", () => {
-      if (state.panMode.spacePressed || state.panMode.active) {
+      if (isPanArbitrating()) {
         return;
       }
       state.selectedRoomId = room.id;
@@ -2535,6 +2539,10 @@ polygonEdgeSelect.addEventListener("change", () => {
 });
 
 polygonInsertVertexButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    return;
+  }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
     return;
@@ -2558,6 +2566,10 @@ polygonInsertVertexButton.addEventListener("click", () => {
 });
 
 polygonDeleteVertexButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    return;
+  }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
     return;
@@ -2581,6 +2593,10 @@ polygonDeleteVertexButton.addEventListener("click", () => {
 });
 
 polygonResetRoomButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    return;
+  }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
     return;
@@ -2597,6 +2613,10 @@ polygonResetRoomButton.addEventListener("click", () => {
 });
 
 polygonFocusRoomButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    return;
+  }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
     return;
@@ -2685,6 +2705,9 @@ document.addEventListener("keydown", (event) => {
       return;
     }
     state.panMode.spacePressed = true;
+    if (state.polygonEditor.dragVertexIndex !== null) {
+      finishPolygonVertexDrag(null, { cancel: true });
+    }
     setPanCursorState();
     return;
   }
