@@ -286,6 +286,11 @@ const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-inse
 const shipPolygonDeleteVertexButton = document.querySelector("#ship-polygon-delete-vertex");
 const shipPolygonResetButton = document.querySelector("#ship-polygon-reset");
 const shipPolygonEditorStatus = document.querySelector("#ship-polygon-editor-status");
+const outsideEnabledInput = document.querySelector("#outside-enabled");
+const outsideIntensityInput = document.querySelector("#outside-intensity");
+const outsideIntensityValue = document.querySelector("#outside-intensity-value");
+const outsideSpeedInput = document.querySelector("#outside-speed");
+const outsideSpeedValue = document.querySelector("#outside-speed-value");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
@@ -332,6 +337,12 @@ const SHIP_POLYGON_DEFAULT = [
   [0.03, 0.5],
 ];
 
+const OUTSIDE_FX_DEFAULT = {
+  enabled: false,
+  intensity: 0.7,
+  speed: 1,
+};
+
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -353,6 +364,7 @@ const state = {
   roomGeometryByBoard: {},
   specialPolygonsByBoard: {},
   shipPolygonsByBoard: {},
+  outsideFxByBoard: {},
   boardZoomByBoard: {},
   polygonEditor: {
     roomIdByBoard: {},
@@ -592,6 +604,33 @@ function setShipPolygonPoints(boardId, points) {
   state.shipPolygonsByBoard[boardId] = normalizeShipPolygon(points);
 }
 
+function normalizeOutsideFxProfile(profile) {
+  return {
+    enabled: Boolean(profile?.enabled),
+    intensity: clampOutsideIntensity(profile?.intensity),
+    speed: clampOutsideSpeed(profile?.speed),
+  };
+}
+
+function createDefaultOutsideFxByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT)]),
+  );
+}
+
+function getOutsideFxProfile(boardId = state.boardId) {
+  return normalizeOutsideFxProfile(state.outsideFxByBoard[boardId]);
+}
+
+function setOutsideFxProfile(boardId, profile) {
+  state.outsideFxByBoard[boardId] = normalizeOutsideFxProfile(profile);
+}
+
+function updateOutsideFxProfile(boardId, partial) {
+  const current = getOutsideFxProfile(boardId);
+  setOutsideFxProfile(boardId, { ...current, ...partial });
+}
+
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
   const defaults = createDefaultRoomGeometryMap(boardId);
   for (const room of getBoard(boardId).rooms) {
@@ -621,6 +660,8 @@ function createDefaultBoardProfiles() {
         hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
         roomGeometry: createDefaultRoomGeometryMap(board.id),
         specialPolygons: createDefaultSpecialPolygonMap(board.id),
+        shipPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
+        outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
       },
     ]),
   );
@@ -634,6 +675,8 @@ function buildBoardProfilesFromState() {
         hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
         specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
+        shipPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
+        outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
       },
     ]),
   );
@@ -661,6 +704,12 @@ function applyBoardProfilesToState(profiles) {
         state.specialPolygonsByBoard?.[board.id],
       ),
     ]),
+  );
+  state.shipPolygonsByBoard = Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeShipPolygon(profiles?.[board.id]?.shipPolygon)]),
+  );
+  state.outsideFxByBoard = Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
   );
 }
 
@@ -759,6 +808,14 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
         profile.polygons ??
         legacySpecialPolygons[board.id] ??
         createDefaultSpecialPolygonMap(board.id),
+      shipPolygon:
+        profile.shipPolygon ??
+        profile.shipMask ??
+        SHIP_POLYGON_DEFAULT,
+      outsideFx:
+        profile.outsideFx ??
+        profile.outside ??
+        OUTSIDE_FX_DEFAULT,
     };
   }
   return migrated;
@@ -1087,6 +1144,14 @@ function clampRoomDurationSec(value) {
 
 function clampAudioVolumePercent(value) {
   return Math.max(0, Math.min(100, value));
+}
+
+function clampOutsideIntensity(value) {
+  return Math.max(0.2, Math.min(1.5, Number(value) || OUTSIDE_FX_DEFAULT.intensity));
+}
+
+function clampOutsideSpeed(value) {
+  return Math.max(0.3, Math.min(2.5, Number(value) || OUTSIDE_FX_DEFAULT.speed));
 }
 
 function formatHitareaValue(value) {
@@ -1542,6 +1607,15 @@ function syncShipPolygonEditorPanel() {
   syncShipPolygonVertexSelect();
   syncShipPolygonEdgeSelect();
   syncShipPolygonEditorStatus();
+}
+
+function syncOutsideFxPanel() {
+  const outside = getOutsideFxProfile(state.boardId);
+  outsideEnabledInput.checked = outside.enabled;
+  outsideIntensityInput.value = String(outside.intensity);
+  outsideSpeedInput.value = String(outside.speed);
+  outsideIntensityValue.textContent = outside.intensity.toFixed(2);
+  outsideSpeedValue.textContent = `${outside.speed.toFixed(2)}x`;
 }
 
 function beginShipPolygonVertexDrag(event, vertexIndex) {
@@ -2186,9 +2260,11 @@ function switchBoard(boardId) {
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
+  syncOutsideFxPanel();
   syncBoardZoomPanel();
   setPanCursorState();
   renderRoomOverlay();
+  refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
 
@@ -2353,9 +2429,10 @@ function renderRunningAnimationsList() {
 
 function refreshGlobalButtons() {
   document.querySelectorAll("button[data-global]").forEach((button) => {
-    const isActive = state.runningAnimations.some(
-      (anim) => anim.scope === "global" && anim.type === button.dataset.global,
-    );
+    const type = button.dataset.global;
+    const isActive = type === "outside-space"
+      ? getOutsideFxProfile(state.boardId).enabled
+      : state.runningAnimations.some((anim) => anim.scope === "global" && anim.type === type);
     button.classList.toggle("active", isActive);
   });
 }
@@ -2465,6 +2542,20 @@ function drawAnimationSafely(animation, now) {
   } catch (error) {
     console.error(`Animation ${animation.id} failed`, error);
     return false;
+  }
+}
+
+function drawOutsideFxLayer(now) {
+  const outside = getOutsideFxProfile(state.boardId);
+  if (!outside.enabled) {
+    return;
+  }
+  ctx.save();
+  try {
+    clipToOutsideShip(state.boardId);
+    drawEffectVisual("outside-space", (now / 1000) * outside.speed, outside.intensity, null);
+  } finally {
+    ctx.restore();
   }
 }
 
@@ -2687,6 +2778,7 @@ function draw(now) {
   try {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
+    drawOutsideFxLayer(now);
 
     const failedAnimationIds = [];
     for (const anim of state.runningAnimations) {
@@ -3061,6 +3153,34 @@ shipPolygonResetButton.addEventListener("click", () => {
     : "Status: Ship-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
 });
 
+outsideEnabledInput.addEventListener("change", () => {
+  updateOutsideFxProfile(state.boardId, { enabled: outsideEnabledInput.checked });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  refreshGlobalButtons();
+  triggerFeedback.textContent = persisted
+    ? `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"}`
+    : `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"} (Persistenz fehlgeschlagen)`;
+});
+
+outsideIntensityInput.addEventListener("input", () => {
+  updateOutsideFxProfile(state.boardId, { intensity: clampOutsideIntensity(outsideIntensityInput.value) });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside-Intensitaet aktualisiert"
+    : "Status: Outside-Intensitaet aktualisiert (Persistenz fehlgeschlagen)";
+});
+
+outsideSpeedInput.addEventListener("input", () => {
+  updateOutsideFxProfile(state.boardId, { speed: clampOutsideSpeed(outsideSpeedInput.value) });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside-Geschwindigkeit aktualisiert"
+    : "Status: Outside-Geschwindigkeit aktualisiert (Persistenz fehlgeschlagen)";
+});
+
 roomOverlay.addEventListener("pointermove", (event) => {
   if (state.panMode.active) {
     if (state.panMode.pointerId !== event.pointerId) {
@@ -3210,7 +3330,18 @@ window.addEventListener("blur", () => {
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
-    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space" ? null : 6;
+    if (type === "outside-space") {
+      const current = getOutsideFxProfile(state.boardId);
+      updateOutsideFxProfile(state.boardId, { enabled: !current.enabled });
+      persistBoardProfiles();
+      syncOutsideFxPanel();
+      refreshGlobalButtons();
+      triggerFeedback.textContent = current.enabled
+        ? "Status: Outside Space gestoppt"
+        : "Status: Outside Space gestartet";
+      return;
+    }
+    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" ? null : 6;
     upsertGlobalAnimation(type, mode);
   });
 });
@@ -3290,6 +3421,7 @@ state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
 state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
 state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
 state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
+state.outsideFxByBoard = createDefaultOutsideFxByBoard();
 state.boardZoomByBoard = createDefaultBoardZoomByBoard();
 loadBoardProfiles();
 
@@ -3306,6 +3438,7 @@ syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
 syncShipPolygonEditorPanel();
+syncOutsideFxPanel();
 syncBoardZoomPanel();
 setActiveView("dashboard");
 setPanCursorState();

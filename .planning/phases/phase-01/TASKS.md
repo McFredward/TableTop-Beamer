@@ -101,3 +101,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T64 [P0] Interaktions-Arbitration haerten: Pan darf Room-Klick, Vertex-Selektion, Vertex-Drag und Insert/Delete ausserhalb des Pan-Modus nicht regressieren.
 - [x] DONE P1-T65 [P0] Regression-Checks fuer Zoom+Pan+Polygon-Editing auf Desktop und Small-Screen ergaenzen (inkl. mehrfacher Tabwechsel und Pointer-Capture-Grenzfaelle).
 - [x] DONE P1-T66 [P1] Plan-Update-9 Pflichtabnahme + Nachweisdokumentation erstellen (Pan-Regel, Edit-Stabilitaet, Zoom/Pan-Roundtrip).
+
+## Priority Add-on - Plan Update 10
+- [x] DONE P1-T67 [P0] Event-Sound-System auf vorhandene Assets aus `resources/nemesis/sounds/` umstellen und Trigger-Mapping fuer Intruder/Reactor/Power Outage (+ passende globale Events) fest verdrahten.
+- [x] DONE P1-T68 [P0] Audio-Settings-Integration haerten: Master on/off und Volume muessen unveraendert auf alle assetbasierten Sounds greifen (inkl. mehrfachem Triggern unter Last).
+- [x] DONE P1-T69 [P0] Globalen Outside-Effekt implementieren (Weltraum-Motion) und Rendering strikt auf den Bereich ausserhalb des Ship-Polygons maskieren.
+- [x] DONE P1-T70 [P0] Ship-Polygon-Editor im Settings-Tab umsetzen (Insert/Delete/Drag, aktive Ecke) und Outside-Maske live aus dem Polygon ableiten.
+- [x] DONE P1-T71 [P1] Board-spezifische Persistenz fuer Ship-Polygon + Outside-Effekt-Settings absichern und Pflichtabnahme/Regression dokumentieren (Reload/Restart/Boardwechsel).

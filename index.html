@@ -188,8 +188,19 @@
           </div>
           <div class="button-grid button-grid-2">
             <button id="ship-polygon-reset" type="button">Ship-Polygon auf Default</button>
-            <button data-global="outside-space" type="button">Outside Space ein/aus</button>
+            <label class="inline-checkbox">
+              <input id="outside-enabled" type="checkbox" />
+              Outside Space aktiv
+            </label>
           </div>
+          <label>
+            Outside Intensitaet <span id="outside-intensity-value">0.70</span>
+            <input id="outside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.7" />
+          </label>
+          <label>
+            Outside Geschwindigkeit <span id="outside-speed-value">1.00x</span>
+            <input id="outside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
+          </label>
           <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
             Ship-Polygoneditor: bereit
           </p>
