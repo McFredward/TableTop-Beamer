@@ -254,6 +254,7 @@ const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
+const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
 const globalDefaultsStatus = document.querySelector("#global-defaults-status");
 const triggerFeedback = document.querySelector("#trigger-feedback");
 const stopAllButton = document.querySelector("#stop-all");
@@ -338,6 +339,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "output-route-select",
   "apply-output-route",
   "save-global-defaults",
+  "export-global-defaults",
   "animation-speed",
   "audio-enabled",
   "audio-volume",
@@ -1183,6 +1185,24 @@ function formatGlobalDefaultsSaveError(error) {
     statusText: "Speichern fehlgeschlagen - bitte Save-Setup pruefen.",
     feedbackText: `Status: Save fehlgeschlagen. ${startHint}`,
   };
+}
+
+function downloadGlobalDefaultsFallback() {
+  const payload = buildGlobalDefaultsPayload();
+  const stamp = payload.savedAt.replace(/[.:]/g, "-");
+  const fileName = `global-defaults-fallback-${stamp}.json`;
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return fileName;
 }
 
 function createDefaultHitareaCalibrationMap() {
@@ -4300,6 +4320,21 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   } finally {
     saveGlobalDefaultsButton.disabled = false;
   }
+});
+
+exportGlobalDefaultsButton.addEventListener("click", () => {
+  const persisted = persistBoardProfiles();
+  if (!persisted) {
+    globalDefaultsStatus.textContent =
+      "Global Defaults: Notfall-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
+    triggerFeedback.textContent = "Status: Notfall-Export konnte nicht vorbereitet werden";
+    return;
+  }
+
+  const fileName = downloadGlobalDefaultsFallback();
+  globalDefaultsStatus.textContent = `Global Defaults: Notfall-Export heruntergeladen (${fileName})`;
+  triggerFeedback.textContent =
+    "Status: Notfall-Export erstellt (sekundaer); primaerer Weg bleibt API-Speichern";
 });
 
 document.addEventListener("fullscreenchange", () => {
