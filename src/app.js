@@ -261,6 +261,10 @@ const roomSelected = document.querySelector("#room-selected");
 const roomAnimationSelect = document.querySelector("#room-animation-select");
 const roomIntensityInput = document.querySelector("#room-intensity");
 const roomIntensityValue = document.querySelector("#room-intensity-value");
+const roomSpeedInput = document.querySelector("#room-speed");
+const roomSpeedValue = document.querySelector("#room-speed-value");
+const roomSoundVolumeInput = document.querySelector("#room-sound-volume");
+const roomSoundVolumeValue = document.querySelector("#room-sound-volume-value");
 const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
@@ -424,6 +428,8 @@ const state = {
   roomDraft: {
     animationId: ROOM_ANIMATIONS[0].id,
     intensity: Number(roomIntensityInput.value),
+    speed: Number(roomSpeedInput.value),
+    soundVolume: Number(roomSoundVolumeInput.value) / 100,
     durationSec: Number(roomDurationInput.value),
     hold: false,
   },
@@ -1362,6 +1368,14 @@ function clampRoomIntensity(value) {
 
 function clampRoomDurationSec(value) {
   return Math.max(1, Math.min(180, value));
+}
+
+function clampRoomSpeed(value) {
+  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
+}
+
+function clampRoomSoundVolume(value) {
+  return Math.max(0, Math.min(1, Number(value) || 0));
 }
 
 function clampAudioVolumePercent(value) {
@@ -2885,6 +2899,8 @@ function editAnimation(animationId) {
   state.selectedRoomByBoard[animation.boardId] = animation.roomId;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.intensity = clampRoomIntensity(animation.intensity);
+  state.roomDraft.speed = clampRoomSpeed(animation.speed ?? 1);
+  state.roomDraft.soundVolume = clampRoomSoundVolume(animation.soundVolume ?? 1);
   state.roomDraft.durationSec = animation.durationMs
     ? clampRoomDurationSec(Math.round(animation.durationMs / 1000))
     : 18;
@@ -2893,6 +2909,10 @@ function editAnimation(animationId) {
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomIntensityInput.value = String(state.roomDraft.intensity);
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+  roomSpeedInput.value = String(state.roomDraft.speed);
+  roomSpeedValue.textContent = `${state.roomDraft.speed.toFixed(2)}x`;
+  roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
+  roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
   roomHoldInput.checked = state.roomDraft.hold;
 
@@ -4012,6 +4032,17 @@ roomIntensityInput.addEventListener("input", () => {
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
 });
 
+roomSpeedInput.addEventListener("input", () => {
+  state.roomDraft.speed = clampRoomSpeed(Number(roomSpeedInput.value));
+  roomSpeedValue.textContent = `${state.roomDraft.speed.toFixed(2)}x`;
+});
+
+roomSoundVolumeInput.addEventListener("input", () => {
+  const volume = Math.max(0, Math.min(100, Number(roomSoundVolumeInput.value) || 0));
+  state.roomDraft.soundVolume = clampRoomSoundVolume(volume / 100);
+  roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
+});
+
 roomDurationInput.addEventListener("input", () => {
   state.roomDraft.durationSec = clampRoomDurationSec(Number(roomDurationInput.value) || 1);
 });
@@ -4133,6 +4164,8 @@ loadBoardProfiles();
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
 roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
+roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
 audioEnabledInput.checked = state.audio.enabled;
 audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
 audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
