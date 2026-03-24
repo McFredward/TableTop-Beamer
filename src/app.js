@@ -2127,8 +2127,10 @@ function updateMobilePerformanceStatus() {
   const p95Trigger = percentile(trigger, 0.95);
   const p95Frame = percentile(frames, 0.95);
   const approxFps = p95Frame > 0 ? (1000 / p95Frame).toFixed(1) : "0.0";
+  const jankFrames = frames.filter((delta) => delta >= 40).length;
+  const jankRate = frames.length > 0 ? (jankFrames / frames.length) * 100 : 0;
   mobilePerformanceStatus.textContent =
-    `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS)`;
+    `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS) | Jank>=40ms ${jankRate.toFixed(1)}%`;
 }
 
 function recordTriggerIntent() {
@@ -5043,16 +5045,21 @@ exportGlobalDefaultsButton.addEventListener("click", () => {
 
 runMobilePerformanceCheckButton?.addEventListener("click", () => {
   updateMobilePerformanceStatus();
+  const jankFrames = state.mobilePerf.frameDeltaSamples.filter((delta) => delta >= 40).length;
   state.mobilePerf.lastSnapshot = {
     measuredAt: new Date().toISOString(),
     triggerSampleCount: state.mobilePerf.triggerLatencySamples.length,
     frameSampleCount: state.mobilePerf.frameDeltaSamples.length,
     triggerP95Ms: percentile(state.mobilePerf.triggerLatencySamples, 0.95),
     frameP95Ms: percentile(state.mobilePerf.frameDeltaSamples, 0.95),
+    jankRatePct:
+      state.mobilePerf.frameDeltaSamples.length > 0
+        ? (jankFrames / state.mobilePerf.frameDeltaSamples.length) * 100
+        : 0,
   };
   const snapshot = state.mobilePerf.lastSnapshot;
   triggerFeedback.textContent =
-    `Status: Mobile-Snapshot erstellt (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms)`;
+    `Status: Mobile-Snapshot erstellt (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
 });
 
 document.addEventListener("fullscreenchange", () => {
