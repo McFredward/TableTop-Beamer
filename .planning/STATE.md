@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-10
-- Last Execution Summary: `.planning/phases/phase-01/1-10-SUMMARY.md`
+- Last Executed Plan: 1-11
+- Last Execution Summary: `.planning/phases/phase-01/1-11-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -85,6 +85,13 @@
 - Settings-Zoom bleibt auf den `Settings`-View begrenzt; Dashboard-Interaktion bleibt unskaliert und stabil.
 - Polygon-Drag nutzt SVG-CTM-Inversion, damit Pointer-Koordinaten unter Zoom exakt im Overlay landen.
 - Spezialraum-Selektion wird zentral synchronisiert, damit Board-Klick und Polygon-Dropdown keinen Drift mehr erzeugen.
+- Plan-Update 9 setzt Prioritaetsfokus: P0 Pan im gezoomten Settings-Board, P0 robuste Trennung Pan vs Polygon-Edit, P1 Regression fuer Zoom+Pan+Edit.
+- Interaktionsregel fuer Plan-Update 9: Pan erfolgt primaer ueber `Space + Drag`; mittlere Maustaste kann als Alias denselben Pan-Modus starten.
+- Guard-Regel fuer Plan-Update 9: Mit gedrueckter `Space`-Taste startet kein Room-/Vertex-Edit; ohne `Space` bleibt das bestehende Polygon-Editing unveraendert.
+- Transform-Regel fuer Plan-Update 9: Zoom, Pan und Fit/Reset nutzen denselben Viewport-State, damit kein Koordinatenversatz zwischen Anzeige und Edit entsteht.
+- Plan-Update-9 Viewport nutzt explizites `scale + panX/panY` mit Bounds-Clamp, damit Fit/Reset keinen Arbeitsbereich verlieren.
+- Pan-Intent blockiert Room-/Vertex-Edits deterministisch; Exit erfolgt robust ueber Pointer-Up, Key-Up und Blur.
+- Runtime-Regression prueft jetzt zusaetzlich Zoom+Pan+Edit und Pointer-Session-Cleanup beim Startup.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -169,4 +176,12 @@
 - Task Commits: 5 atomare Commits (`55dd54c` .. `59a8d45`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T61-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 11)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-11-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`6fed501` .. `d3196cc`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T66-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
