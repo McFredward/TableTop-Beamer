@@ -293,6 +293,8 @@ const HITAREA_CALIBRATION_DEFAULT = {
 };
 const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
 const BOARD_PROFILE_STORAGE_KEY = "tt-beamer.board-profiles.v1";
+const ROOM_GEOMETRY_STORAGE_KEY = "tt-beamer.room-geometry.v1";
+const SPECIAL_POLYGON_STORAGE_KEY = "tt-beamer.special-polygons.v1";
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -533,14 +535,125 @@ function applyBoardProfilesToState(profiles) {
   );
 }
 
+function extractBoardProfilesCandidate(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  if (raw.boards && typeof raw.boards === "object") {
+    return raw.boards;
+  }
+
+  if (raw.boardProfiles && typeof raw.boardProfiles === "object") {
+    return raw.boardProfiles;
+  }
+
+  if (
+    raw.hitareaCalibrationByBoard ||
+    raw.roomGeometryByBoard ||
+    raw.specialPolygonsByBoard
+  ) {
+    return Object.fromEntries(
+      BOARDS.map((board) => [
+        board.id,
+        {
+          hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
+          roomGeometry: raw.roomGeometryByBoard?.[board.id],
+          specialPolygons: raw.specialPolygonsByBoard?.[board.id],
+        },
+      ]),
+    );
+  }
+
+  const hasBoardKeys = BOARDS.some((board) => raw[board.id] && typeof raw[board.id] === "object");
+  if (hasBoardKeys) {
+    return raw;
+  }
+
+  return null;
+}
+
+function loadLegacyRoomGeometryByBoard() {
+  const defaults = createDefaultRoomGeometryByBoard();
+  try {
+    const raw = window.localStorage.getItem(ROOM_GEOMETRY_STORAGE_KEY);
+    if (!raw) {
+      return defaults;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return defaults;
+    }
+    for (const board of BOARDS) {
+      defaults[board.id] = normalizeRoomGeometryMap(parsed[board.id], board.id);
+    }
+    return defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+function loadLegacySpecialPolygonsByBoard() {
+  const defaults = createDefaultSpecialPolygonsByBoard();
+  try {
+    const raw = window.localStorage.getItem(SPECIAL_POLYGON_STORAGE_KEY);
+    if (!raw) {
+      return defaults;
+    }
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return defaults;
+    }
+    for (const board of BOARDS) {
+      defaults[board.id] = normalizeSpecialPolygonMap(parsed[board.id], board.id);
+    }
+    return defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry, legacySpecialPolygons) {
+  const migrated = createDefaultBoardProfiles();
+  for (const board of BOARDS) {
+    const profile = candidate?.[board.id] ?? {};
+    migrated[board.id] = {
+      hitareaCalibration:
+        profile.hitareaCalibration ??
+        profile.hitarea ??
+        legacyHitarea[board.id] ??
+        HITAREA_CALIBRATION_DEFAULT,
+      roomGeometry:
+        profile.roomGeometry ?? profile.geometry ?? legacyRoomGeometry[board.id] ?? createDefaultRoomGeometryMap(board.id),
+      specialPolygons:
+        profile.specialPolygons ??
+        profile.polygons ??
+        legacySpecialPolygons[board.id] ??
+        createDefaultSpecialPolygonMap(board.id),
+    };
+  }
+  return migrated;
+}
+
 function loadBoardProfiles() {
-  const defaults = createDefaultBoardProfiles();
+  const legacyHitarea = loadHitareaCalibrationMap();
+  const legacyRoomGeometry = loadLegacyRoomGeometryByBoard();
+  const legacySpecialPolygons = loadLegacySpecialPolygonsByBoard();
+
   try {
     const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        applyBoardProfilesToState(parsed);
+      const candidate = extractBoardProfilesCandidate(parsed);
+      if (candidate) {
+        const migratedProfiles = buildMigratedBoardProfiles(
+          candidate,
+          legacyHitarea,
+          legacyRoomGeometry,
+          legacySpecialPolygons,
+        );
+        applyBoardProfilesToState(migratedProfiles);
+        persistBoardProfiles();
         return;
       }
     }
@@ -548,11 +661,14 @@ function loadBoardProfiles() {
     // ignore and continue with fallback/defaults
   }
 
-  const legacyHitarea = loadHitareaCalibrationMap();
-  for (const board of BOARDS) {
-    defaults[board.id].hitareaCalibration = normalizeHitareaCalibration(legacyHitarea[board.id]);
-  }
-  applyBoardProfilesToState(defaults);
+  const migratedLegacyProfiles = buildMigratedBoardProfiles(
+    null,
+    legacyHitarea,
+    legacyRoomGeometry,
+    legacySpecialPolygons,
+  );
+  applyBoardProfilesToState(migratedLegacyProfiles);
+  persistBoardProfiles();
 }
 
 function persistBoardProfiles() {
