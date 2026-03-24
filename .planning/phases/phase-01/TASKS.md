@@ -122,5 +122,5 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T79 [P0] Settings-Tab als exklusive Konfigurationsflaeche konsolidieren (inkl. Mapping, Calibration, Spezialraum-/Ship-Editor und Outside-Parameter) und Leak-Guards ergaenzen.
 - [x] DONE P1-T80 [P0] Globale Animationsarchitektur fachlich trennen in `Innerhalb des Schiffs` vs `Ausserhalb des Schiffs` (Datenmodell, Triggerrouting, Running-Liste, Stop-Pfade).
 - [x] DONE P1-T81 [P0] Outside-Animationen immersiv ueberarbeiten: High-Speed-Raumfluss mit mehrlagigen Sternen/Parallax und klarer Bewegungsrichtung.
-- [ ] TODO P1-T82 [P0] Outside-Layer-Isolation haerten: keine Innenraumbeeinflussung (Maskenleck, Timing-/State-Seiteneffekte, Render-Ueberlagerung) auch bei Paralleltriggern.
+- [x] DONE P1-T82 [P0] Outside-Layer-Isolation haerten: keine Innenraumbeeinflussung (Maskenleck, Timing-/State-Seiteneffekte, Render-Ueberlagerung) auch bei Paralleltriggern.
 - [ ] TODO P1-T83 [P1] Plan-Update-12 Pflichtabnahme + Regression dokumentieren (Tab-Exklusivitaet, Inside/Outside-Trennung, immersive Outside-Wirkung, Layer-Isolation, Performance).

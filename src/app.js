@@ -1636,6 +1636,49 @@ function runPanPointerCaptureRegression() {
   return true;
 }
 
+function runOutsideIsolationRegression() {
+  const issues = [];
+  const boardId = state.boardId;
+  const previousProfile = getOutsideFxProfile(boardId);
+
+  const captureNonOutsideIds = () =>
+    state.runningAnimations
+      .filter((animation) => !(animation.scope === "global" && animation.type === "outside-space"))
+      .map((animation) => animation.id)
+      .sort();
+
+  const before = captureNonOutsideIds();
+
+  try {
+    updateOutsideFxProfile(boardId, { enabled: true });
+    syncOutsideRuntimeMirror(boardId);
+    const during = captureNonOutsideIds();
+    if (during.join("|") !== before.join("|")) {
+      issues.push("outside enable changed non-outside runtime entries");
+    }
+
+    updateOutsideFxProfile(boardId, { enabled: false });
+    syncOutsideRuntimeMirror(boardId);
+    const after = captureNonOutsideIds();
+    if (after.join("|") !== before.join("|")) {
+      issues.push("outside disable changed non-outside runtime entries");
+    }
+  } catch {
+    issues.push("outside isolation regression threw unexpectedly");
+  } finally {
+    setOutsideFxProfile(boardId, previousProfile);
+    syncOutsideRuntimeMirror(boardId);
+    syncOutsideFxPanel();
+    refreshGlobalButtons();
+  }
+
+  if (issues.length > 0) {
+    console.error("Outside isolation regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
 function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
@@ -2813,19 +2856,24 @@ function clipToRoom(room) {
 
 function clipToOutsideShip(boardId = state.boardId) {
   const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
+  if (shipPolygon.length < 3) {
+    ctx.beginPath();
+    ctx.rect(0, 0, 0, 0);
+    ctx.clip();
+    return false;
+  }
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
-  if (shipPolygon.length >= 3) {
-    shipPolygon.forEach(([x, y], index) => {
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.closePath();
-  }
+  shipPolygon.forEach(([x, y], index) => {
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
   ctx.clip("evenodd");
+  return true;
 }
 
 function drawAnimation(animation, now) {
@@ -2873,7 +2921,13 @@ function drawOutsideFxLayer(now) {
   }
   ctx.save();
   try {
-    clipToOutsideShip(state.boardId);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.filter = "none";
+    const clipped = clipToOutsideShip(state.boardId);
+    if (!clipped) {
+      return;
+    }
     drawEffectVisual(
       "outside-space",
       (now / 1000) * outside.speed * state.animationSpeed,
@@ -3874,10 +3928,18 @@ const viewRegressionOk = runViewVisibilityRegression();
 const layoutRegressionOk = runLayoutScrollRegression();
 const zoomPanRegressionOk = runZoomPanEditRegression();
 const panPointerRegressionOk = runPanPointerCaptureRegression();
-if (!viewRegressionOk || !layoutRegressionOk || !zoomPanRegressionOk || !panPointerRegressionOk) {
-  triggerFeedback.textContent = "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan-Edit Guard)";
+const outsideIsolationRegressionOk = runOutsideIsolationRegression();
+if (
+  !viewRegressionOk ||
+  !layoutRegressionOk ||
+  !zoomPanRegressionOk ||
+  !panPointerRegressionOk ||
+  !outsideIsolationRegressionOk
+) {
+  triggerFeedback.textContent = "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan + Outside-Isolation Guard)";
 } else {
-  triggerFeedback.textContent = "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture Guard)";
+  triggerFeedback.textContent =
+    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture + Outside-Isolation Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();
