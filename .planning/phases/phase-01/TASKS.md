@@ -55,4 +55,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T30 [P0] Board-spezifische Persistenz fuer Hitarea-Kalibrierwerte umsetzen (laden/speichern/reset pro Board, sofort wirksam im Hit-Test).
 - [x] DONE P1-T31 [P0] Spezialraum-Animationen debuggen und den visuellen Renderpfad reparieren, sodass Running-List und sichtbarer Zustand konsistent sind.
 - [x] DONE P1-T32 [P0] Bugfix fuer Kombination `Spezialraum + Alarm Beacon`: globaler Timer darf nicht stoppen, andere Animationen muessen sichtbar weiterlaufen.
-- [ ] TODO P1-T33 [P0] Regression-Absicherung ergaenzen (kombinierter Triggerpfad inkl. Audio-parallel), Nachweis in Acceptance-Artefakten dokumentieren.
+- [x] DONE P1-T33 [P0] Regression-Absicherung ergaenzen (kombinierter Triggerpfad inkl. Audio-parallel), Nachweis in Acceptance-Artefakten dokumentieren.
