@@ -268,6 +268,10 @@ const roomGeometryXInput = document.querySelector("#room-geometry-x");
 const roomGeometryXValue = document.querySelector("#room-geometry-x-value");
 const roomGeometryYInput = document.querySelector("#room-geometry-y");
 const roomGeometryYValue = document.querySelector("#room-geometry-y-value");
+const roomGeometryStretchXInput = document.querySelector("#room-geometry-stretch-x");
+const roomGeometryStretchXValue = document.querySelector("#room-geometry-stretch-x-value");
+const roomGeometryStretchYInput = document.querySelector("#room-geometry-stretch-y");
+const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch-y-value");
 const roomGeometryStatus = document.querySelector("#room-geometry-status");
 
 const ctx = canvas.getContext("2d");
@@ -347,6 +351,10 @@ function clampRoomAbsoluteCoordinate(value) {
   return Math.max(-0.2, Math.min(1.2, value));
 }
 
+function clampRoomStretch(value) {
+  return Math.max(0.6, Math.min(1.6, value));
+}
+
 function normalizeRoomGeometryMode(mode) {
   return mode === "absolute" ? "absolute" : "relative";
 }
@@ -385,8 +393,8 @@ function normalizeRoomGeometry(geometry, room) {
     offsetY,
     absoluteX,
     absoluteY,
-    stretchX: 1,
-    stretchY: 1,
+    stretchX: clampRoomStretch(Number(geometry?.stretchX) || 1),
+    stretchY: clampRoomStretch(Number(geometry?.stretchY) || 1),
   };
 }
 
@@ -517,10 +525,10 @@ function syncRoomGeometryStatus() {
   }
   const geometry = getRoomGeometry(state.boardId, room.id);
   if (geometry.mode === "absolute") {
-    roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)}`;
+    roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
     return;
   }
-  roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)}`;
+  roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
 }
 
 function syncRoomGeometryPanel() {
@@ -529,12 +537,18 @@ function syncRoomGeometryPanel() {
   roomGeometryModeInput.disabled = disabled;
   roomGeometryXInput.disabled = disabled;
   roomGeometryYInput.disabled = disabled;
+  roomGeometryStretchXInput.disabled = disabled;
+  roomGeometryStretchYInput.disabled = disabled;
   if (!room) {
     roomGeometryModeInput.value = "relative";
     roomGeometryXInput.value = "0";
     roomGeometryYInput.value = "0";
     roomGeometryXValue.textContent = "0.000";
     roomGeometryYValue.textContent = "0.000";
+    roomGeometryStretchXInput.value = "1";
+    roomGeometryStretchYInput.value = "1";
+    roomGeometryStretchXValue.textContent = "1.000";
+    roomGeometryStretchYValue.textContent = "1.000";
     syncRoomGeometryStatus();
     return;
   }
@@ -551,6 +565,10 @@ function syncRoomGeometryPanel() {
   roomGeometryYInput.value = String(yValue);
   roomGeometryXValue.textContent = formatRoomGeometryValue(xValue);
   roomGeometryYValue.textContent = formatRoomGeometryValue(yValue);
+  roomGeometryStretchXInput.value = String(geometry.stretchX);
+  roomGeometryStretchYInput.value = String(geometry.stretchY);
+  roomGeometryStretchXValue.textContent = formatRoomGeometryValue(geometry.stretchX);
+  roomGeometryStretchYValue.textContent = formatRoomGeometryValue(geometry.stretchY);
   syncRoomGeometryStatus();
 }
 
@@ -1343,6 +1361,16 @@ roomGeometryYInput.addEventListener("input", () => {
     const offsetY = clampRoomRelativeOffset(Number(roomGeometryYInput.value));
     updateSelectedRoomGeometry({ offsetY }, "Y kalibriert (REL)");
   }
+});
+
+roomGeometryStretchXInput.addEventListener("input", () => {
+  const stretchX = clampRoomStretch(Number(roomGeometryStretchXInput.value));
+  updateSelectedRoomGeometry({ stretchX }, "Stretch X gesetzt");
+});
+
+roomGeometryStretchYInput.addEventListener("input", () => {
+  const stretchY = clampRoomStretch(Number(roomGeometryStretchYInput.value));
+  updateSelectedRoomGeometry({ stretchY }, "Stretch Y gesetzt");
 });
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
