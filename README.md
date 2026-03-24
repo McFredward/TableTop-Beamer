@@ -4,10 +4,13 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 
 ## Starten
 
-1. Im Projektordner einen statischen Server starten:
-   - `python3 -m http.server 4173`
+1. Im Projektordner den lokalen App-Server starten:
+   - `node server.mjs`
 2. Browser offnen: `http://localhost:4173`
 3. Optional `F11` fur Fullscreen auf dem Beamer.
+
+Hinweis: Der Button `Speichern (lokal -> globale Defaults)` benoetigt den integrierten
+`server.mjs`, damit die Daten in `config/global-defaults.json` geschrieben werden koennen.
 
 ## Session-Flow (Phase 1)
 

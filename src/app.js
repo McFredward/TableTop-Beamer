@@ -253,6 +253,8 @@ const boardStatus = document.querySelector("#board-status");
 const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
+const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
+const globalDefaultsStatus = document.querySelector("#global-defaults-status");
 const triggerFeedback = document.querySelector("#trigger-feedback");
 const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
@@ -330,6 +332,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "output-route-select",
   "apply-output-route",
+  "save-global-defaults",
   "animation-speed",
   "audio-enabled",
   "audio-volume",
@@ -985,6 +988,41 @@ function persistBoardProfiles() {
   } catch {
     return false;
   }
+}
+
+function buildGlobalDefaultsPayload() {
+  return {
+    schema: "tt-beamer.global-defaults.v1",
+    savedAt: new Date().toISOString(),
+    source: "browser-local-state",
+    boardProfiles: buildBoardProfilesFromState(),
+    audio: {
+      enabled: Boolean(state.audio.enabled),
+      volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
+    },
+    animationSpeed: clampAnimationSpeed(state.animationSpeed),
+    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+  };
+}
+
+async function saveGlobalDefaultsToServer() {
+  const payload = buildGlobalDefaultsPayload();
+  const response = await fetch("/api/global-defaults", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(details || `HTTP ${response.status}`);
+  }
+  const result = await response.json();
+  return {
+    savedAt: result?.savedAt ?? payload.savedAt,
+    target: result?.target ?? "config/global-defaults.json",
+  };
 }
 
 function createDefaultHitareaCalibrationMap() {
@@ -3964,6 +4002,30 @@ startRoomAnimationButton.addEventListener("click", () => {
 
 applyOutputRouteButton.addEventListener("click", () => {
   applyOutputRoute(outputRouteSelect.value);
+});
+
+saveGlobalDefaultsButton.addEventListener("click", async () => {
+  const persisted = persistBoardProfiles();
+  if (!persisted) {
+    globalDefaultsStatus.textContent =
+      "Global Defaults: lokales Profil konnte vor Export nicht gespeichert werden";
+    triggerFeedback.textContent = "Status: Global-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
+    return;
+  }
+
+  saveGlobalDefaultsButton.disabled = true;
+  globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
+  try {
+    const result = await saveGlobalDefaultsToServer();
+    globalDefaultsStatus.textContent = `Global Defaults: gespeichert (${result.target}, ${result.savedAt})`;
+    triggerFeedback.textContent = "Status: Global Defaults aus lokalem Browserstand gespeichert";
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unbekannter Fehler";
+    globalDefaultsStatus.textContent = `Global Defaults: Speichern fehlgeschlagen (${reason})`;
+    triggerFeedback.textContent = "Status: Global Defaults konnten nicht gespeichert werden";
+  } finally {
+    saveGlobalDefaultsButton.disabled = false;
+  }
 });
 
 document.addEventListener("fullscreenchange", () => {

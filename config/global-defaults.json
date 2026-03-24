@@ -1,0 +1,12 @@
+{
+  "schema": "tt-beamer.global-defaults.v1",
+  "savedAt": null,
+  "source": "seed-defaults",
+  "boardProfiles": {},
+  "audio": {
+    "enabled": true,
+    "volume": 0.7
+  },
+  "animationSpeed": 1,
+  "animationSoundMap": {}
+}
