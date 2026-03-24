@@ -79,7 +79,16 @@ completed: 2026-03-24
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] gsd-tools state/roadmap automation was incompatible with current STATE format**
+- **Found during:** Post-task state update
+- **Issue:** `state advance-plan`, `state update-progress`, `state record-metric`, `state add-decision`, `state record-session`, and `roadmap update-plan-progress` returned format/phase-not-found errors.
+- **Fix:** Applied equivalent updates manually in `.planning/STATE.md` and `.planning/ROADMAP.md` (last executed plan/summary, decision log additions, execution results for Plan 19, roadmap task count/status).
+- **Verification:** Metadata files updated and final docs commit created successfully.
+
+**Total deviations:** 1 auto-fixed (Rule 3)
+**Impact on plan:** No scope creep; administrative state sync was completed manually due tooling incompatibility.
 
 ## Known Stubs
 
