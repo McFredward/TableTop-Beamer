@@ -44,6 +44,12 @@
           <button id="open-settings-view" type="button">Settings</button>
         </nav>
 
+        <section class="panel dashboard-only running-overview-panel" data-view="dashboard">
+          <h2>Aktive Animationen</h2>
+          <p class="status-line">Priorisiert: Runtime-Status mit direktem Stop/Edit vor den Triggergruppen.</p>
+          <ul id="running-animations" class="running-list" aria-live="polite"></ul>
+        </section>
+
         <section class="panel dashboard-only" data-view="dashboard">
           <h2>Board + Output</h2>
           <label>
@@ -204,12 +210,6 @@
             Anhalten bis ich stoppe
           </label>
           <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
-        </section>
-
-        <section class="panel dashboard-only" data-view="dashboard">
-          <h2>Laufende Animationen</h2>
-          <p class="status-line">Scopes: GLOBAL (boardweit) und ROOM (hex-begrenzt)</p>
-          <ul id="running-animations" class="running-list" aria-live="polite"></ul>
         </section>
 
         <footer class="hint dashboard-only" data-view="dashboard">Hinweis: Fuer echtes Beamer-Targeting im Browser Fullscreen auf den Beamer-Screen schieben.</footer>
