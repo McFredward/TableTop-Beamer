@@ -113,34 +113,58 @@ body {
   pointer-events: none;
 }
 
-.polygon-edge-handle {
-  fill: rgba(118, 206, 255, 0.88);
-  stroke: rgba(7, 22, 35, 0.95);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
-  cursor: copy;
+.polygon-edge-marker {
+  pointer-events: none;
+}
+
+.polygon-edge-hit-target,
+.polygon-vertex-hit-target {
+  fill: rgba(255, 255, 255, 0.001);
   pointer-events: auto;
+}
+
+.polygon-edge-handle {
+  fill: rgba(118, 206, 255, 0.42);
+  stroke: rgba(223, 245, 255, 0.82);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .polygon-edge-handle.is-active {
-  fill: rgba(152, 255, 213, 0.96);
-  stroke: rgba(228, 255, 241, 0.98);
+  fill: rgba(152, 255, 213, 0.52);
+  stroke: rgba(234, 255, 244, 0.96);
+}
+
+.polygon-edge-hit-target {
+  cursor: copy;
+}
+
+.polygon-edge-hit-target.is-active {
+  fill: rgba(152, 255, 213, 0.1);
 }
 
 .polygon-vertex-handle {
-  fill: rgba(255, 218, 140, 0.98);
-  stroke: rgba(40, 18, 0, 0.95);
-  stroke-width: 2.6;
+  fill: rgba(255, 218, 140, 0.45);
+  stroke: rgba(255, 242, 214, 0.92);
+  stroke-width: 2.1;
   vector-effect: non-scaling-stroke;
-  cursor: grab;
-  pointer-events: auto;
-  filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
 }
 
 .polygon-vertex-handle.is-active {
-  fill: rgba(255, 63, 63, 0.98);
+  fill: rgba(255, 63, 63, 0.6);
   stroke: rgba(255, 246, 246, 0.98);
-  stroke-width: 3.2;
+  stroke-width: 2.8;
+}
+
+.polygon-vertex-hit-target {
+  cursor: grab;
+}
+
+.polygon-vertex-hit-target.is-active {
+  fill: rgba(255, 63, 63, 0.12);
 }
 
 .polygon-vertex-index {

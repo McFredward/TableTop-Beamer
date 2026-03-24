@@ -1057,15 +1057,25 @@ function renderPolygonEditorHandles() {
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
     const [bX, bY] = points[(index + 1) % points.length];
+    const edgeMarker = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    edgeMarker.classList.add("polygon-edge-marker");
+    const edgeHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    edgeHitTarget.classList.add("polygon-edge-hit-target");
     const edgeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     edgeHandle.classList.add("polygon-edge-handle");
     if (index === state.polygonEditor.selectedEdgeIndex) {
       edgeHandle.classList.add("is-active");
+      edgeHitTarget.classList.add("is-active");
     }
-    edgeHandle.setAttribute("cx", ((aX + bX) / 2).toFixed(1));
-    edgeHandle.setAttribute("cy", ((aY + bY) / 2).toFixed(1));
-    edgeHandle.setAttribute("r", "6.5");
-    edgeHandle.addEventListener("pointerdown", (event) => {
+    const centerX = ((aX + bX) / 2).toFixed(1);
+    const centerY = ((aY + bY) / 2).toFixed(1);
+    edgeHitTarget.setAttribute("cx", centerX);
+    edgeHitTarget.setAttribute("cy", centerY);
+    edgeHitTarget.setAttribute("r", "12");
+    edgeHandle.setAttribute("cx", centerX);
+    edgeHandle.setAttribute("cy", centerY);
+    edgeHandle.setAttribute("r", "5.5");
+    edgeHitTarget.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
       state.polygonEditor.selectedEdgeIndex = index;
@@ -1073,22 +1083,30 @@ function renderPolygonEditorHandles() {
       renderRoomOverlay();
       syncPolygonEditorStatus();
     });
-    roomOverlay.append(edgeHandle);
+    edgeMarker.append(edgeHitTarget, edgeHandle);
+    roomOverlay.append(edgeMarker);
   }
 
   points.forEach(([x, y], index) => {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
     marker.classList.add("polygon-vertex-marker");
+    const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    hitTarget.classList.add("polygon-vertex-hit-target");
     const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     handle.classList.add("polygon-vertex-handle");
     if (index === state.polygonEditor.selectedVertexIndex) {
       handle.classList.add("is-active");
       marker.classList.add("is-active");
+      hitTarget.classList.add("is-active");
     }
     handle.dataset.vertexIndex = String(index);
+    hitTarget.dataset.vertexIndex = String(index);
+    hitTarget.setAttribute("cx", x.toFixed(1));
+    hitTarget.setAttribute("cy", y.toFixed(1));
+    hitTarget.setAttribute("r", "16");
     handle.setAttribute("cx", x.toFixed(1));
     handle.setAttribute("cy", y.toFixed(1));
-    handle.setAttribute("r", "10");
+    handle.setAttribute("r", "7.5");
 
     const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
     indexLabel.classList.add("polygon-vertex-index");
@@ -1099,14 +1117,14 @@ function renderPolygonEditorHandles() {
     indexLabel.setAttribute("y", (y + 3).toFixed(1));
     indexLabel.textContent = String(index + 1);
 
-    handle.addEventListener("pointerdown", (event) => {
+    hitTarget.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
       beginPolygonVertexDrag(event, room.id, index);
       state.polygonEditor.selectedVertexIndex = index;
       syncPolygonVertexSelect(room.id);
     });
-    marker.append(handle, indexLabel);
+    marker.append(hitTarget, handle, indexLabel);
     roomOverlay.append(marker);
   });
 }
