@@ -263,6 +263,12 @@ const hitareaScaleValue = document.querySelector("#hitarea-scale-value");
 const hitareaSaveButton = document.querySelector("#hitarea-save");
 const hitareaResetButton = document.querySelector("#hitarea-reset");
 const hitareaStatus = document.querySelector("#hitarea-status");
+const roomGeometryModeInput = document.querySelector("#room-geometry-mode");
+const roomGeometryXInput = document.querySelector("#room-geometry-x");
+const roomGeometryXValue = document.querySelector("#room-geometry-x-value");
+const roomGeometryYInput = document.querySelector("#room-geometry-y");
+const roomGeometryYValue = document.querySelector("#room-geometry-y-value");
+const roomGeometryStatus = document.querySelector("#room-geometry-status");
 
 const ctx = canvas.getContext("2d");
 
@@ -272,6 +278,16 @@ const HITAREA_CALIBRATION_DEFAULT = {
   scale: 1,
 };
 const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
+
+const ROOM_GEOMETRY_DEFAULT = {
+  mode: "relative",
+  offsetX: 0,
+  offsetY: 0,
+  absoluteX: null,
+  absoluteY: null,
+  stretchX: 1,
+  stretchY: 1,
+};
 
 const state = {
   boardId: BOARDS[0].id,
@@ -290,6 +306,7 @@ const state = {
     volume: 0.7,
   },
   hitareaCalibrationByBoard: {},
+  roomGeometryByBoard: {},
 };
 
 let animationIdCounter = 1;
@@ -320,6 +337,70 @@ function normalizeHitareaCalibration(calibration) {
     offsetY: clampHitareaOffset(Number(calibration?.offsetY) || 0),
     scale: clampHitareaScale(Number(calibration?.scale) || 1),
   };
+}
+
+function clampRoomRelativeOffset(value) {
+  return Math.max(-0.25, Math.min(0.25, value));
+}
+
+function clampRoomAbsoluteCoordinate(value) {
+  return Math.max(-0.2, Math.min(1.2, value));
+}
+
+function normalizeRoomGeometryMode(mode) {
+  return mode === "absolute" ? "absolute" : "relative";
+}
+
+function getRawRoomCenter(room) {
+  if (room?.points?.length) {
+    const center = room.points.reduce(
+      (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+      { x: 0, y: 0 },
+    );
+    return {
+      x: center.x / room.points.length,
+      y: center.y / room.points.length,
+    };
+  }
+  return {
+    x: Number(room?.x) || 0.5,
+    y: Number(room?.y) || 0.5,
+  };
+}
+
+function normalizeRoomGeometry(geometry, room) {
+  const mode = normalizeRoomGeometryMode(geometry?.mode);
+  const baseCenter = getRawRoomCenter(room);
+  const offsetX = clampRoomRelativeOffset(Number(geometry?.offsetX) || 0);
+  const offsetY = clampRoomRelativeOffset(Number(geometry?.offsetY) || 0);
+  const absoluteX = Number.isFinite(Number(geometry?.absoluteX))
+    ? clampRoomAbsoluteCoordinate(Number(geometry?.absoluteX))
+    : baseCenter.x;
+  const absoluteY = Number.isFinite(Number(geometry?.absoluteY))
+    ? clampRoomAbsoluteCoordinate(Number(geometry?.absoluteY))
+    : baseCenter.y;
+  return {
+    mode,
+    offsetX,
+    offsetY,
+    absoluteX,
+    absoluteY,
+    stretchX: 1,
+    stretchY: 1,
+  };
+}
+
+function createDefaultRoomGeometryMap(boardId) {
+  const board = getBoard(boardId);
+  return Object.fromEntries(
+    board.rooms.map((room) => [room.id, normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room)]),
+  );
+}
+
+function createDefaultRoomGeometryByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, createDefaultRoomGeometryMap(board.id)]),
+  );
 }
 
 function createDefaultHitareaCalibrationMap() {
@@ -372,6 +453,25 @@ function setHitareaCalibration(boardId, calibration) {
   state.hitareaCalibrationByBoard[boardId] = normalizeHitareaCalibration(calibration);
 }
 
+function getRoomGeometry(boardId, roomId) {
+  const boardGeometry = state.roomGeometryByBoard[boardId] ?? {};
+  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
+  return normalizeRoomGeometry(boardGeometry[roomId], room);
+}
+
+function setRoomGeometry(boardId, roomId, geometry) {
+  if (!state.roomGeometryByBoard[boardId]) {
+    state.roomGeometryByBoard[boardId] = createDefaultRoomGeometryMap(boardId);
+  }
+  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
+  state.roomGeometryByBoard[boardId][roomId] = normalizeRoomGeometry(geometry, room);
+}
+
+function updateRoomGeometry(boardId, roomId, partial) {
+  const previous = getRoomGeometry(boardId, roomId);
+  setRoomGeometry(boardId, roomId, { ...previous, ...partial });
+}
+
 function clampRoomIntensity(value) {
   return Math.max(0.2, Math.min(1.5, value));
 }
@@ -403,6 +503,55 @@ function syncHitareaCalibrationPanel() {
   hitareaOffsetYValue.textContent = formatHitareaValue(calibration.offsetY);
   hitareaScaleValue.textContent = formatHitareaValue(calibration.scale);
   syncHitareaStatus();
+}
+
+function formatRoomGeometryValue(value) {
+  return (Number(value) || 0).toFixed(3);
+}
+
+function syncRoomGeometryStatus() {
+  const room = getSelectedRoom();
+  if (!room) {
+    roomGeometryStatus.textContent = "Raum-Geometrie: bitte Raum auf dem Board waehlen";
+    return;
+  }
+  const geometry = getRoomGeometry(state.boardId, room.id);
+  if (geometry.mode === "absolute") {
+    roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)}`;
+    return;
+  }
+  roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)}`;
+}
+
+function syncRoomGeometryPanel() {
+  const room = getSelectedRoom();
+  const disabled = !room;
+  roomGeometryModeInput.disabled = disabled;
+  roomGeometryXInput.disabled = disabled;
+  roomGeometryYInput.disabled = disabled;
+  if (!room) {
+    roomGeometryModeInput.value = "relative";
+    roomGeometryXInput.value = "0";
+    roomGeometryYInput.value = "0";
+    roomGeometryXValue.textContent = "0.000";
+    roomGeometryYValue.textContent = "0.000";
+    syncRoomGeometryStatus();
+    return;
+  }
+  const geometry = getRoomGeometry(state.boardId, room.id);
+  roomGeometryModeInput.value = geometry.mode;
+  const usesAbsolute = geometry.mode === "absolute";
+  roomGeometryXInput.min = usesAbsolute ? "-0.2" : "-0.25";
+  roomGeometryXInput.max = usesAbsolute ? "1.2" : "0.25";
+  roomGeometryYInput.min = usesAbsolute ? "-0.2" : "-0.25";
+  roomGeometryYInput.max = usesAbsolute ? "1.2" : "0.25";
+  const xValue = usesAbsolute ? geometry.absoluteX : geometry.offsetX;
+  const yValue = usesAbsolute ? geometry.absoluteY : geometry.offsetY;
+  roomGeometryXInput.value = String(xValue);
+  roomGeometryYInput.value = String(yValue);
+  roomGeometryXValue.textContent = formatRoomGeometryValue(xValue);
+  roomGeometryYValue.textContent = formatRoomGeometryValue(yValue);
+  syncRoomGeometryStatus();
 }
 
 function syncAudioStatus() {
@@ -476,20 +625,57 @@ function applyHitareaCalibration(x, y, calibration) {
   return [Math.max(-0.2, Math.min(1.2, scaledX)), Math.max(-0.2, Math.min(1.2, scaledY))];
 }
 
+function getRoomCenterFromPoints(points) {
+  if (!points.length) {
+    return { x: 0.5, y: 0.5 };
+  }
+  const center = points.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+    { x: 0, y: 0 },
+  );
+  return {
+    x: center.x / points.length,
+    y: center.y / points.length,
+  };
+}
+
+function getRoomTransform(room, boardId = state.boardId) {
+  const geometry = getRoomGeometry(boardId, room.id);
+  const baseCenter = getRawRoomCenter(room);
+  const centerX = geometry.mode === "absolute" ? geometry.absoluteX : baseCenter.x + geometry.offsetX;
+  const centerY = geometry.mode === "absolute" ? geometry.absoluteY : baseCenter.y + geometry.offsetY;
+  return {
+    centerX,
+    centerY,
+    stretchX: geometry.stretchX,
+    stretchY: geometry.stretchY,
+  };
+}
+
 function getRoomPoints(room, boardId = state.boardId) {
   const calibration = getHitareaCalibration(boardId);
+  const transform = getRoomTransform(room, boardId);
   if (room.points) {
+    const baseCenter = getRoomCenterFromPoints(room.points);
     return room.points
-      .map(([x, y]) => applyHitareaCalibration(x, y, calibration))
+      .map(([x, y]) => {
+        const transformedX = transform.centerX + (x - baseCenter.x) * transform.stretchX;
+        const transformedY = transform.centerY + (y - baseCenter.y) * transform.stretchY;
+        return applyHitareaCalibration(transformedX, transformedY, calibration);
+      })
       .map(([x, y]) => [x * 1000, y * 1000]);
   }
   const points = [];
-  const cx = room.x;
-  const cy = room.y;
+  const cx = transform.centerX;
+  const cy = transform.centerY;
   const r = room.radius;
   for (let i = 0; i < 6; i += 1) {
     const angle = (Math.PI / 3) * i;
-    const point = applyHitareaCalibration(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, calibration);
+    const point = applyHitareaCalibration(
+      cx + Math.cos(angle) * r * transform.stretchX,
+      cy + Math.sin(angle) * r * transform.stretchY,
+      calibration,
+    );
     points.push([point[0] * 1000, point[1] * 1000]);
   }
   return points;
@@ -577,6 +763,7 @@ function switchBoard(boardId) {
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
+  syncRoomGeometryPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
@@ -586,10 +773,12 @@ function syncRoomPanelFromSelection() {
   if (!room) {
     roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
     startRoomAnimationButton.disabled = true;
+    syncRoomGeometryPanel();
     return;
   }
   startRoomAnimationButton.disabled = false;
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
+  syncRoomGeometryPanel();
 }
 
 function createAnimation({ type, scope, roomId = null, intensity = 0.8, hold = false, durationSec = 15 }) {
@@ -1094,6 +1283,68 @@ hitareaResetButton.addEventListener("click", () => {
     : "Status: Hitarea-Default gesetzt, Persistenz fehlgeschlagen";
 });
 
+function updateSelectedRoomGeometry(partial, statusSuffix = "") {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  updateRoomGeometry(state.boardId, room.id, partial);
+  renderRoomOverlay();
+  syncRoomGeometryPanel();
+  if (statusSuffix) {
+    triggerFeedback.textContent = `Status: ${room.label} ${statusSuffix}`;
+  }
+}
+
+roomGeometryModeInput.addEventListener("change", () => {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  const current = getRoomGeometry(state.boardId, room.id);
+  const baseCenter = getRawRoomCenter(room);
+  const nextMode = normalizeRoomGeometryMode(roomGeometryModeInput.value);
+  if (nextMode === "absolute") {
+    const absoluteX = clampRoomAbsoluteCoordinate(baseCenter.x + current.offsetX);
+    const absoluteY = clampRoomAbsoluteCoordinate(baseCenter.y + current.offsetY);
+    updateSelectedRoomGeometry({ mode: nextMode, absoluteX, absoluteY }, "auf Modus ABS gesetzt");
+  } else {
+    const offsetX = clampRoomRelativeOffset(current.absoluteX - baseCenter.x);
+    const offsetY = clampRoomRelativeOffset(current.absoluteY - baseCenter.y);
+    updateSelectedRoomGeometry({ mode: nextMode, offsetX, offsetY }, "auf Modus REL gesetzt");
+  }
+});
+
+roomGeometryXInput.addEventListener("input", () => {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  const geometry = getRoomGeometry(state.boardId, room.id);
+  if (geometry.mode === "absolute") {
+    const absoluteX = clampRoomAbsoluteCoordinate(Number(roomGeometryXInput.value));
+    updateSelectedRoomGeometry({ absoluteX }, "X kalibriert (ABS)");
+  } else {
+    const offsetX = clampRoomRelativeOffset(Number(roomGeometryXInput.value));
+    updateSelectedRoomGeometry({ offsetX }, "X kalibriert (REL)");
+  }
+});
+
+roomGeometryYInput.addEventListener("input", () => {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  const geometry = getRoomGeometry(state.boardId, room.id);
+  if (geometry.mode === "absolute") {
+    const absoluteY = clampRoomAbsoluteCoordinate(Number(roomGeometryYInput.value));
+    updateSelectedRoomGeometry({ absoluteY }, "Y kalibriert (ABS)");
+  } else {
+    const offsetY = clampRoomRelativeOffset(Number(roomGeometryYInput.value));
+    updateSelectedRoomGeometry({ offsetY }, "Y kalibriert (REL)");
+  }
+});
+
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
@@ -1167,6 +1418,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 resizeObserver.observe(stage);
 
 state.hitareaCalibrationByBoard = loadHitareaCalibrationMap();
+state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
 
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
@@ -1176,6 +1428,7 @@ audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
 audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
 syncAudioStatus();
 syncHitareaCalibrationPanel();
+syncRoomGeometryPanel();
 renderRunningAnimationsList();
 refreshGlobalButtons();
 requestAnimationFrame(draw);

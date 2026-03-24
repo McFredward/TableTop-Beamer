@@ -75,6 +75,31 @@
         </section>
 
         <section class="panel">
+          <h2>Raum-Geometrie</h2>
+          <p class="status-line">Pro Raum Position als Relativ-Offset oder absolute Zielposition kalibrieren.</p>
+          <label>
+            Kalibriermodus
+            <select id="room-geometry-mode">
+              <option value="relative">Relativ (Offset)</option>
+              <option value="absolute">Absolut (Zielkoordinate)</option>
+            </select>
+          </label>
+          <div class="calibration-grid">
+            <label>
+              Position X <span id="room-geometry-x-value">0.000</span>
+              <input id="room-geometry-x" type="range" min="-0.25" max="0.25" step="0.001" value="0" />
+            </label>
+            <label>
+              Position Y <span id="room-geometry-y-value">0.000</span>
+              <input id="room-geometry-y" type="range" min="-0.25" max="0.25" step="0.001" value="0" />
+            </label>
+          </div>
+          <p id="room-geometry-status" class="status-line" aria-live="polite">
+            Raum-Geometrie: bitte Raum auf dem Board waehlen
+          </p>
+        </section>
+
+        <section class="panel">
           <h2>Globale Animationen</h2>
           <div class="button-grid button-grid-3">
             <button data-global="ambient-drift">Ambient Drift</button>

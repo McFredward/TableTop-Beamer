@@ -56,3 +56,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T31 [P0] Spezialraum-Animationen debuggen und den visuellen Renderpfad reparieren, sodass Running-List und sichtbarer Zustand konsistent sind.
 - [x] DONE P1-T32 [P0] Bugfix fuer Kombination `Spezialraum + Alarm Beacon`: globaler Timer darf nicht stoppen, andere Animationen muessen sichtbar weiterlaufen.
 - [x] DONE P1-T33 [P0] Regression-Absicherung ergaenzen (kombinierter Triggerpfad inkl. Audio-parallel), Nachweis in Acceptance-Artefakten dokumentieren.
+
+## Priority Add-on - Plan Update 4
+- [x] DONE P1-T34 [P0] Datenmodell fuer raumindividuelle Kalibrierung erweitern (Position relativ/absolut je Raum + Distanzkorrektur zwischen Raeumen).
+- [ ] TODO P1-T35 [P0] Unabhaengiges Stretching pro Raum (`stretchX`/`stretchY`) mit Live-Wirkung auf Hit-Test und Clip-Pfad implementieren.
+- [ ] TODO P1-T36 [P0] Kalibrier- und Shape-Controls aus dem Haupt-Dashboard entfernen und auf eine separate Settings-Seite migrieren.
+- [ ] TODO P1-T37 [P0] Spezialraum-Polygoneditor in Settings bauen (Vertex einfuegen, loeschen, frei verschieben; beliebige Polygonform).
+- [ ] TODO P1-T38 [P1] Persistenz pro Board fuer komplette Geometrie-/Shape-Konfiguration (global + je Raum + Spezialraum-Polygone) absichern.
+- [ ] TODO P1-T39 [P1] Manuelle Pflichtabnahme + Regression fuer Plan-Update-4 dokumentieren (inkl. Reload/App-Neustart-Nachweis).
