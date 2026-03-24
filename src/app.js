@@ -816,8 +816,9 @@ function drawAnimation(animation, now) {
 function drawEffectVisual(type, age, intensity, room) {
   const w = canvas.width;
   const h = canvas.height;
-  const roomX = room ? room.x * w : w * 0.5;
-  const roomY = room ? room.y * h : h * 0.5;
+  const roomCenter = room ? getRoomLabelPosition(room, state.boardId) : { x: 0.5, y: 0.5 };
+  const roomX = roomCenter.x * w;
+  const roomY = roomCenter.y * h;
 
   if (type === "ambient-drift") {
     const alpha = (0.07 + Math.sin(age * 1.4) * 0.03) * intensity;
@@ -977,6 +978,13 @@ function drawEffectVisual(type, age, intensity, room) {
 function pruneFinishedAnimations(now) {
   const before = state.runningAnimations.length;
   state.runningAnimations = state.runningAnimations.filter((anim) => {
+    if (anim.scope === "room") {
+      const board = getBoard(anim.boardId);
+      const hasRoom = board.rooms.some((room) => room.id === anim.roomId);
+      if (!hasRoom) {
+        return false;
+      }
+    }
     if (anim.hold || anim.durationMs === null) {
       return true;
     }
