@@ -1274,7 +1274,7 @@ function formatApiDiagnoseSummary(reports) {
     return {
       statusText: "API Diagnose: keine gueltige API-Base aufgeloest",
       feedbackText:
-        "Status: Keine API-Endpunkte aufgeloest. Setze ?ttApiBase=http://localhost:4173 oder starte den Node-Server.",
+        "Status: Keine API-Endpunkte aufgeloest. Setze ?ttApiBase=http://<SERVER-IP>:4173 oder starte `node server.mjs --host 0.0.0.0 --port 4173`.",
     };
   }
 
@@ -1297,18 +1297,19 @@ function formatApiDiagnoseSummary(reports) {
     ? `${failed.preflight.status} (${classifyHttpStatus(failed.preflight.status)})`
     : "n/a";
   if (failed.preflight.code === "API_UNREACHABLE") {
+    const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
     return {
       statusText: `API Diagnose: nicht erreichbar (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint})`,
-      feedbackText:
-        `Status: API nicht erreichbar (${hostFlow}). ${remoteHint ?? "Starte `node server.mjs` oder setze eine korrekte API-Base mit ?ttApiBase=http://localhost:4173."}`,
+      feedbackText: `Status: API nicht erreichbar (${hostFlow}). ${guidedFix}`,
     };
   }
   if (failed.preflight.code === "STATIC_ONLY_SERVER") {
+    const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
     return {
       statusText:
         `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
       feedbackText:
-        `Status: Static-only Server aktiv, Save nicht moeglich (${hostFlow}; ${failed.endpoint}). ${remoteHint ?? "Nutze einen POST-faehigen Node-API-Server statt python http.server."}`,
+        `Status: Static-only Server aktiv, Save nicht moeglich (${hostFlow}; ${failed.endpoint}). ${guidedFix}`,
     };
   }
   if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
@@ -1573,11 +1574,8 @@ function formatGlobalDefaultsSaveError(error) {
   const routing = error && typeof error === "object" && "routing" in error ? error.routing : null;
   const hostFlow = formatHostFlow(routing);
   const sourceLabel = formatResolverSourceLabel(routing?.source);
-  const remoteHint = getRemoteMismatchHint(routing);
   const endpointMeta = `${method} ${endpoint} | Status ${status ?? "n/a"} (${statusClass})`;
-  const startHint = remoteHint
-    ? remoteHint
-    : "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
+  const startHint = buildGuidedFixHint({ routing, endpoint });
   const hostMeta = `${hostFlow}, Quelle ${sourceLabel}`;
   if (code === "STATIC_ONLY_SERVER") {
     return {
@@ -1629,6 +1627,33 @@ function getRemoteMismatchHint(routing) {
     return "Remote/LAN-Hinweis: Die UI laeuft remote, aber API zeigt auf localhost. Setze ?ttApiBase=http://<SERVER-IP>:4173 oder oeffne die UI direkt ueber den Server-Host.";
   }
   return null;
+}
+
+function buildGuidedFixHint({ routing, endpoint } = {}) {
+  const port = getEndpointPort(endpoint);
+  const uiHost = routing?.uiHost || getUiHostName() || "<SERVER-IP>";
+  const apiHost = routing?.apiHost || uiHost;
+  const remoteHint = getRemoteMismatchHint(routing);
+  const serverStartCmd = `node server.mjs --host 0.0.0.0 --port ${port}`;
+  const envStartCmd = `HOST=0.0.0.0 PORT=${port} node server.mjs`;
+  const verifyUrl = `http://${apiHost}:${port}`;
+  const uiUrl = `http://${uiHost}:${port}`;
+  const baseHint =
+    `Next Steps (headless/LAN): Stoppe ggf. \`python3 -m http.server ${port}\` (Static-only) und starte \`${serverStartCmd}\` ` +
+    `(alternativ \`${envStartCmd}\`). Pruefe danach API unter ${verifyUrl}/api/health und oeffne die UI ueber ${uiUrl}.`;
+  return remoteHint ? `${baseHint} ${remoteHint}` : baseHint;
+}
+
+function getEndpointPort(endpoint) {
+  try {
+    const parsed = new URL(endpoint);
+    if (parsed.port) {
+      return Number(parsed.port) || 4173;
+    }
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return 4173;
+  }
 }
 
 function downloadGlobalDefaultsFallback() {
