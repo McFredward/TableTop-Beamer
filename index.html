@@ -50,7 +50,12 @@
           <ul id="running-animations" class="running-list" aria-live="polite"></ul>
         </section>
 
-        <section id="global-animation-panel" class="panel dashboard-only" data-view="dashboard">
+        <section
+          id="global-animation-panel"
+          class="panel settings-only view-hidden"
+          data-view="settings"
+          hidden
+        >
           <h2>Board + Output</h2>
           <label>
             Layout
@@ -230,7 +235,7 @@
           <p id="trigger-feedback" class="status-line" aria-live="polite">Status: bereit</p>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
           <h2>Allgemeine Animations-Settings</h2>
           <label>
             Globaler Speed-Faktor <span id="animation-speed-value">1.00x</span>
@@ -239,7 +244,7 @@
           <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
           <h2>Audio Settings</h2>
           <label class="inline-checkbox">
             <input id="audio-enabled" type="checkbox" checked />
@@ -252,7 +257,7 @@
           <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
           <h2>Sound-Mapping pro Animation</h2>
           <label>
             Animation

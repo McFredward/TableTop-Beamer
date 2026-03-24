@@ -116,3 +116,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T75 [P1] Allgemeine Animations-Settings um Geschwindigkeitssteuerung erweitern (globaler Speed-Faktor mit Live-Wirkung und regressionfreiem Stop/Edit-Verhalten).
 - [x] DONE P1-T76 [P1] Immersive Outside-Alternativanimation inkl. UI-Toggle implementieren und bestehende Outside-Logik (Maske, Enable, Intensity, Speed) ohne Bruch weiterfuehren.
 - [x] DONE P1-T77 [P1] Pflichtabnahme + Regression fuer Plan-Update-11 dokumentieren (Audio-Loop/Stop-Sync, Mapping, Speed, Outside-Modus, Persistenz).
+
+## Priority Add-on - Plan Update 12
+- [x] DONE P1-T78 [P0] Tab-Trennung verschaerfen: `Dashboard` strikt auf Animation triggern/stoppen begrenzen; alle Settings-/Mapping-/Calibration-/Editor-Controls im Dashboard entfernen.
+- [ ] TODO P1-T79 [P0] Settings-Tab als exklusive Konfigurationsflaeche konsolidieren (inkl. Mapping, Calibration, Spezialraum-/Ship-Editor und Outside-Parameter) und Leak-Guards ergaenzen.
+- [ ] TODO P1-T80 [P0] Globale Animationsarchitektur fachlich trennen in `Innerhalb des Schiffs` vs `Ausserhalb des Schiffs` (Datenmodell, Triggerrouting, Running-Liste, Stop-Pfade).
+- [ ] TODO P1-T81 [P0] Outside-Animationen immersiv ueberarbeiten: High-Speed-Raumfluss mit mehrlagigen Sternen/Parallax und klarer Bewegungsrichtung.
+- [ ] TODO P1-T82 [P0] Outside-Layer-Isolation haerten: keine Innenraumbeeinflussung (Maskenleck, Timing-/State-Seiteneffekte, Render-Ueberlagerung) auch bei Paralleltriggern.
+- [ ] TODO P1-T83 [P1] Plan-Update-12 Pflichtabnahme + Regression dokumentieren (Tab-Exklusivitaet, Inside/Outside-Trennung, immersive Outside-Wirkung, Layer-Isolation, Performance).
