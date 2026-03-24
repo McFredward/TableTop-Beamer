@@ -211,6 +211,11 @@ input[type="number"] {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.calibration-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .running-list {
   margin: 0;
   padding: 0;

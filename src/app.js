@@ -254,8 +254,22 @@ const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
 const audioStatus = document.querySelector("#audio-status");
+const hitareaOffsetXInput = document.querySelector("#hitarea-offset-x");
+const hitareaOffsetXValue = document.querySelector("#hitarea-offset-x-value");
+const hitareaOffsetYInput = document.querySelector("#hitarea-offset-y");
+const hitareaOffsetYValue = document.querySelector("#hitarea-offset-y-value");
+const hitareaScaleInput = document.querySelector("#hitarea-scale");
+const hitareaScaleValue = document.querySelector("#hitarea-scale-value");
+const hitareaResetButton = document.querySelector("#hitarea-reset");
+const hitareaStatus = document.querySelector("#hitarea-status");
 
 const ctx = canvas.getContext("2d");
+
+const HITAREA_CALIBRATION_DEFAULT = {
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+};
 
 const state = {
   boardId: BOARDS[0].id,
@@ -273,6 +287,7 @@ const state = {
     enabled: true,
     volume: 0.7,
   },
+  hitareaCalibrationByBoard: {},
 };
 
 let animationIdCounter = 1;
@@ -289,6 +304,40 @@ function getSelectedRoom() {
   return getBoard().rooms.find((room) => room.id === state.selectedRoomId) ?? null;
 }
 
+function clampHitareaOffset(value) {
+  return Math.max(-0.15, Math.min(0.15, value));
+}
+
+function clampHitareaScale(value) {
+  return Math.max(0.85, Math.min(1.15, value));
+}
+
+function normalizeHitareaCalibration(calibration) {
+  return {
+    offsetX: clampHitareaOffset(Number(calibration?.offsetX) || 0),
+    offsetY: clampHitareaOffset(Number(calibration?.offsetY) || 0),
+    scale: clampHitareaScale(Number(calibration?.scale) || 1),
+  };
+}
+
+function createDefaultHitareaCalibrationMap() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
+  );
+}
+
+function getHitareaCalibration(boardId = state.boardId) {
+  return (
+    state.hitareaCalibrationByBoard[boardId] ?? {
+      ...HITAREA_CALIBRATION_DEFAULT,
+    }
+  );
+}
+
+function setHitareaCalibration(boardId, calibration) {
+  state.hitareaCalibrationByBoard[boardId] = normalizeHitareaCalibration(calibration);
+}
+
 function clampRoomIntensity(value) {
   return Math.max(0.2, Math.min(1.5, value));
 }
@@ -299,6 +348,27 @@ function clampRoomDurationSec(value) {
 
 function clampAudioVolumePercent(value) {
   return Math.max(0, Math.min(100, value));
+}
+
+function formatHitareaValue(value) {
+  const numeric = Number(value) || 0;
+  return numeric.toFixed(3);
+}
+
+function syncHitareaStatus() {
+  const calibration = getHitareaCalibration();
+  hitareaStatus.textContent = `Hitarea: X ${formatHitareaValue(calibration.offsetX)}, Y ${formatHitareaValue(calibration.offsetY)}, Scale ${formatHitareaValue(calibration.scale)}`;
+}
+
+function syncHitareaCalibrationPanel() {
+  const calibration = getHitareaCalibration();
+  hitareaOffsetXInput.value = String(calibration.offsetX);
+  hitareaOffsetYInput.value = String(calibration.offsetY);
+  hitareaScaleInput.value = String(calibration.scale);
+  hitareaOffsetXValue.textContent = formatHitareaValue(calibration.offsetX);
+  hitareaOffsetYValue.textContent = formatHitareaValue(calibration.offsetY);
+  hitareaScaleValue.textContent = formatHitareaValue(calibration.scale);
+  syncHitareaStatus();
 }
 
 function syncAudioStatus() {
@@ -366,26 +436,33 @@ function playEventSound(effectType) {
   }
 }
 
-function getRoomPoints(room) {
+function applyHitareaCalibration(x, y, calibration) {
+  const scaledX = (x - 0.5) * calibration.scale + 0.5 + calibration.offsetX;
+  const scaledY = (y - 0.5) * calibration.scale + 0.5 + calibration.offsetY;
+  return [Math.max(-0.2, Math.min(1.2, scaledX)), Math.max(-0.2, Math.min(1.2, scaledY))];
+}
+
+function getRoomPoints(room, boardId = state.boardId) {
+  const calibration = getHitareaCalibration(boardId);
   if (room.points) {
-    return room.points.map(([x, y]) => [x * 1000, y * 1000]);
+    return room.points
+      .map(([x, y]) => applyHitareaCalibration(x, y, calibration))
+      .map(([x, y]) => [x * 1000, y * 1000]);
   }
   const points = [];
-  const cx = room.x * 1000;
-  const cy = room.y * 1000;
-  const r = room.radius * 1000;
+  const cx = room.x;
+  const cy = room.y;
+  const r = room.radius;
   for (let i = 0; i < 6; i += 1) {
     const angle = (Math.PI / 3) * i;
-    points.push([cx + Math.cos(angle) * r, cy + Math.sin(angle) * r]);
+    const point = applyHitareaCalibration(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, calibration);
+    points.push([point[0] * 1000, point[1] * 1000]);
   }
   return points;
 }
 
-function getRoomLabelPosition(room) {
-  if (room.x !== undefined && room.y !== undefined) {
-    return { x: room.x, y: room.y };
-  }
-  const points = room.points ?? [];
+function getRoomLabelPosition(room, boardId = state.boardId) {
+  const points = getRoomPoints(room, boardId);
   if (points.length === 0) {
     return { x: 0.5, y: 0.5 };
   }
@@ -394,13 +471,13 @@ function getRoomLabelPosition(room) {
     { x: 0, y: 0 },
   );
   return {
-    x: center.x / points.length,
-    y: center.y / points.length,
+    x: center.x / points.length / 1000,
+    y: center.y / points.length / 1000,
   };
 }
 
-function getRoomPolygonPixels(room, width, height) {
-  return getRoomPoints(room).map(([x, y]) => [
+function getRoomPolygonPixels(room, width, height, boardId = state.boardId) {
+  return getRoomPoints(room, boardId).map(([x, y]) => [
     (x / 1000) * width,
     (y / 1000) * height,
   ]);
@@ -416,7 +493,7 @@ function renderRoomOverlay() {
     polygon.dataset.roomId = room.id;
     polygon.setAttribute(
       "points",
-      getRoomPoints(room)
+      getRoomPoints(room, state.boardId)
         .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
         .join(" "),
     );
@@ -439,7 +516,7 @@ function renderRoomOverlay() {
     if (room.id.startsWith("special-")) {
       label.classList.add("is-special");
     }
-    const labelPosition = getRoomLabelPosition(room);
+    const labelPosition = getRoomLabelPosition(room, state.boardId);
     label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
     label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
     label.textContent = room.label.startsWith("Hex ") ? room.label.replace("Hex ", "") : room.label;
@@ -465,6 +542,7 @@ function switchBoard(boardId) {
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
   syncRoomPanelFromSelection();
+  syncHitareaCalibrationPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
@@ -902,6 +980,37 @@ for (const board of BOARDS) {
 
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
+function updateActiveBoardHitareaCalibration(partial) {
+  setHitareaCalibration(state.boardId, {
+    ...getHitareaCalibration(state.boardId),
+    ...partial,
+  });
+  syncHitareaCalibrationPanel();
+  renderRoomOverlay();
+}
+
+hitareaOffsetXInput.addEventListener("input", () => {
+  const offsetX = clampHitareaOffset(Number(hitareaOffsetXInput.value));
+  updateActiveBoardHitareaCalibration({ offsetX });
+});
+
+hitareaOffsetYInput.addEventListener("input", () => {
+  const offsetY = clampHitareaOffset(Number(hitareaOffsetYInput.value));
+  updateActiveBoardHitareaCalibration({ offsetY });
+});
+
+hitareaScaleInput.addEventListener("input", () => {
+  const scale = clampHitareaScale(Number(hitareaScaleInput.value));
+  updateActiveBoardHitareaCalibration({ scale });
+});
+
+hitareaResetButton.addEventListener("click", () => {
+  setHitareaCalibration(state.boardId, HITAREA_CALIBRATION_DEFAULT);
+  syncHitareaCalibrationPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Hitarea-Kalibrierung auf Default gesetzt";
+});
+
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
@@ -974,6 +1083,8 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 resizeObserver.observe(stage);
 
+state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
+
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
 roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
@@ -981,6 +1092,7 @@ audioEnabledInput.checked = state.audio.enabled;
 audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
 audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
 syncAudioStatus();
+syncHitareaCalibrationPanel();
 renderRunningAnimationsList();
 refreshGlobalButtons();
 requestAnimationFrame(draw);
