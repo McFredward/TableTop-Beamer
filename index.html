@@ -39,24 +39,31 @@
           </p>
         </header>
 
-        <nav class="view-switch" aria-label="Seitenwechsel">
-          <button id="open-dashboard-view" type="button" class="active">Dashboard</button>
-          <button id="open-settings-view" type="button">Settings</button>
-        </nav>
+        <div class="dashboard-sticky-shell dashboard-only" data-view="dashboard">
+          <nav class="view-switch" aria-label="Seitenwechsel">
+            <button id="open-dashboard-view" type="button" class="active">Dashboard</button>
+            <button id="open-settings-view" type="button">Settings</button>
+          </nav>
 
-        <nav
-          id="mobile-zone-switch"
-          class="mobile-zone-switch dashboard-only"
-          data-view="dashboard"
-          aria-label="Mobile Fokusbereich"
-        >
-          <button id="open-trigger-zone" type="button" class="active">Triggern</button>
-          <button id="open-manage-zone" type="button">Running managen</button>
-          <button id="mobile-start-room" type="button" class="mobile-start-room">Raum starten</button>
-        </nav>
-        <p id="mobile-layout-status" class="status-line dashboard-only mobile-layout-status" data-view="dashboard" aria-live="polite">
-          Mobile-Fokus: Triggern
-        </p>
+          <nav
+            id="mobile-zone-switch"
+            class="mobile-zone-switch dashboard-only"
+            data-view="dashboard"
+            aria-label="Mobile Fokusbereich"
+          >
+            <button id="open-trigger-zone" type="button" class="active">Triggern</button>
+            <button id="open-manage-zone" type="button">Running managen</button>
+            <button id="mobile-start-room" type="button" class="mobile-start-room">Raum starten</button>
+          </nav>
+          <p
+            id="mobile-layout-status"
+            class="status-line dashboard-only mobile-layout-status"
+            data-view="dashboard"
+            aria-live="polite"
+          >
+            Mobile-Fokus: Triggern
+          </p>
+        </div>
 
         <section
           id="running-overview-panel"

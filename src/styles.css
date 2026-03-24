@@ -264,6 +264,11 @@ body {
   gap: 0.5rem;
 }
 
+.dashboard-sticky-shell {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .mobile-zone-switch {
   display: none;
   grid-template-columns: 1fr 1fr;
@@ -600,6 +605,27 @@ button.danger.is-armed {
     gap: 0.8rem;
   }
 
+  #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    margin: -0.35rem -0.2rem 0;
+    padding: 0.35rem 0.2rem 0.45rem;
+    background: linear-gradient(180deg, rgba(18, 29, 44, 0.97), rgba(13, 21, 34, 0.94));
+    border-bottom: 1px solid rgba(105, 130, 158, 0.4);
+    box-shadow: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.28);
+  }
+
+  #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell .view-switch,
+  #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell .mobile-zone-switch {
+    position: static;
+    top: auto;
+  }
+
+  #control-panel[data-active-view="dashboard"] [data-dashboard-zone] {
+    scroll-margin-top: 8.8rem;
+  }
+
   .mobile-zone-switch,
   .mobile-layout-status {
     display: grid;
@@ -631,15 +657,8 @@ button.danger.is-armed {
 }
 
 @media (max-width: 920px) and (orientation: portrait) {
-  #control-panel[data-active-view="dashboard"] .mobile-zone-switch {
-    position: sticky;
-    bottom: 0.45rem;
-    z-index: 9;
-    padding: 0.42rem;
-    border: 1px solid rgba(117, 139, 166, 0.45);
-    border-radius: 0.72rem;
-    background: rgba(12, 20, 31, 0.94);
-    box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.42);
+  #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell {
+    top: 0;
   }
 
   #control-panel[data-mobile-orientation="portrait"] [data-dashboard-zone="trigger"] button {
