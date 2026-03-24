@@ -213,15 +213,20 @@ const ROOM_ANIMATIONS = [
   { id: "alarm-beacon", label: "Alarm Beacon" },
 ];
 
-const GLOBAL_ANIMATIONS = [
-  { id: "ambient-drift", label: "Ambient Drift" },
-  { id: "ash-fall", label: "Ash Fall" },
-  { id: "hull-flicker", label: "Hull Flicker" },
-  { id: "outside-space", label: "Outside Space" },
-  { id: "intruder-alert", label: "Intruder Alert" },
-  { id: "reactor-pulse", label: "Reactor Pulse" },
-  { id: "power-outage", label: "Power Outage" },
+const INSIDE_SHIP_GLOBAL_ANIMATIONS = [
+  { id: "ambient-drift", label: "Ambient Drift", category: "inside-ship" },
+  { id: "ash-fall", label: "Ash Fall", category: "inside-ship" },
+  { id: "hull-flicker", label: "Hull Flicker", category: "inside-ship" },
+  { id: "intruder-alert", label: "Intruder Alert", category: "inside-ship" },
+  { id: "reactor-pulse", label: "Reactor Pulse", category: "inside-ship" },
+  { id: "power-outage", label: "Power Outage", category: "inside-ship" },
 ];
+
+const OUTSIDE_SHIP_GLOBAL_ANIMATIONS = [
+  { id: "outside-space", label: "Outside Space", category: "outside-ship" },
+];
+
+const GLOBAL_ANIMATIONS = [...INSIDE_SHIP_GLOBAL_ANIMATIONS, ...OUTSIDE_SHIP_GLOBAL_ANIMATIONS];
 
 const ALL_ANIMATION_TYPES = [...GLOBAL_ANIMATIONS, ...ROOM_ANIMATIONS];
 const SOUND_MAPPING_NONE = "none";
@@ -480,6 +485,14 @@ function createDefaultAnimationSoundMap() {
 
 function getAnimationLabel(animationType) {
   return ALL_ANIMATION_TYPES.find((entry) => entry.id === animationType)?.label ?? animationType;
+}
+
+function getGlobalAnimationCategory(animationType) {
+  return GLOBAL_ANIMATIONS.find((entry) => entry.id === animationType)?.category ?? "inside-ship";
+}
+
+function getGlobalCategoryRuntimeLabel(animationType) {
+  return getGlobalAnimationCategory(animationType) === "outside-ship" ? "GLOBAL-OUTSIDE" : "GLOBAL-INSIDE";
 }
 
 function normalizeAnimationSoundPath(animationType, path) {
@@ -1763,6 +1776,40 @@ function syncOutsideFxPanel() {
   outsideSpeedValue.textContent = `${outside.speed.toFixed(2)}x`;
 }
 
+function findOutsideGlobalAnimation(boardId) {
+  return state.runningAnimations.find(
+    (animation) =>
+      animation.scope === "global" && animation.type === "outside-space" && animation.boardId === boardId,
+  );
+}
+
+function syncOutsideRuntimeMirror(boardId = state.boardId) {
+  const outsideEnabled = getOutsideFxProfile(boardId).enabled;
+  const existing = findOutsideGlobalAnimation(boardId);
+
+  if (outsideEnabled && !existing) {
+    const outsideAnimation = createAnimation({
+      boardId,
+      type: "outside-space",
+      scope: "global",
+      intensity: 1,
+      hold: true,
+      durationSec: 0,
+    });
+    state.runningAnimations.push(outsideAnimation);
+    playSoundForAnimation(outsideAnimation);
+    return true;
+  }
+
+  if (!outsideEnabled && existing) {
+    stopAnimationSound(existing.id);
+    state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
+    return true;
+  }
+
+  return false;
+}
+
 function beginShipPolygonVertexDrag(event, vertexIndex) {
   state.shipPolygonEditor.dragVertexIndex = vertexIndex;
   state.shipPolygonEditor.dragPointerId = event.pointerId;
@@ -2254,7 +2301,14 @@ function syncAudioMappingPanel() {
     for (const animation of ALL_ANIMATION_TYPES) {
       const option = document.createElement("option");
       option.value = animation.id;
-      option.textContent = animation.label;
+      if (GLOBAL_ANIMATIONS.some((entry) => entry.id === animation.id)) {
+        const categoryLabel = getGlobalAnimationCategory(animation.id) === "outside-ship"
+          ? "Ausserhalb des Schiffs"
+          : "Innerhalb des Schiffs";
+        option.textContent = `[${categoryLabel}] ${animation.label}`;
+      } else {
+        option.textContent = animation.label;
+      }
       audioMappingAnimationSelect.append(option);
     }
   }
@@ -2503,6 +2557,7 @@ function switchBoard(boardId) {
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
   syncOutsideFxPanel();
+  syncOutsideRuntimeMirror(board.id);
   syncBoardZoomPanel();
   setPanCursorState();
   renderRoomOverlay();
@@ -2523,10 +2578,18 @@ function syncRoomPanelFromSelection() {
   syncRoomGeometryPanel();
 }
 
-function createAnimation({ type, scope, roomId = null, intensity = 0.8, hold = false, durationSec = 15 }) {
+function createAnimation({
+  type,
+  scope,
+  boardId = state.boardId,
+  roomId = null,
+  intensity = 0.8,
+  hold = false,
+  durationSec = 15,
+}) {
   return {
     id: `anim-${animationIdCounter++}`,
-    boardId: state.boardId,
+    boardId,
     type,
     scope,
     roomId,
@@ -2538,11 +2601,19 @@ function createAnimation({ type, scope, roomId = null, intensity = 0.8, hold = f
 }
 
 function upsertGlobalAnimation(type, defaultDurationSec) {
-  const existing = state.runningAnimations.find((anim) => anim.scope === "global" && anim.type === type);
+  const existing = state.runningAnimations.find(
+    (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
+  );
+  const isOutside = getGlobalAnimationCategory(type) === "outside-ship";
   if (existing) {
     stopAnimationSound(existing.id);
     state.runningAnimations = state.runningAnimations.filter((anim) => anim.id !== existing.id);
-    triggerFeedback.textContent = `Status: ${type} gestoppt`;
+    if (isOutside) {
+      updateOutsideFxProfile(existing.boardId, { enabled: false });
+      persistBoardProfiles();
+      syncOutsideFxPanel();
+    }
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
   } else {
     const animation = createAnimation({
       type,
@@ -2552,8 +2623,13 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       durationSec: defaultDurationSec ?? 0,
     });
     state.runningAnimations.push(animation);
+    if (isOutside) {
+      updateOutsideFxProfile(animation.boardId, { enabled: true });
+      persistBoardProfiles();
+      syncOutsideFxPanel();
+    }
     playSoundForAnimation(animation);
-    triggerFeedback.textContent = `Status: ${type} gestartet`;
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -2582,8 +2658,16 @@ function startRoomAnimationFromDraft() {
 }
 
 function stopAnimation(animationId) {
+  const target = state.runningAnimations.find((item) => item.id === animationId) ?? null;
   stopAnimationSound(animationId);
   state.runningAnimations = state.runningAnimations.filter((item) => item.id !== animationId);
+  if (target?.scope === "global" && target.type === "outside-space") {
+    updateOutsideFxProfile(target.boardId, { enabled: false });
+    persistBoardProfiles();
+    if (target.boardId === state.boardId) {
+      syncOutsideFxPanel();
+    }
+  }
   renderRunningAnimationsList();
   refreshGlobalButtons();
 }
@@ -2639,7 +2723,7 @@ function renderRunningAnimationsList() {
       anim.scope === "room"
         ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
         : "Global";
-    const scopeLabel = anim.scope === "room" ? "ROOM" : "GLOBAL";
+    const scopeLabel = anim.scope === "room" ? "ROOM" : getGlobalCategoryRuntimeLabel(anim.type);
     title.textContent = `[${scopeLabel}] ${effectLabel} - ${roomLabel}`;
 
     const meta = document.createElement("div");
@@ -2673,9 +2757,9 @@ function renderRunningAnimationsList() {
 function refreshGlobalButtons() {
   document.querySelectorAll("button[data-global]").forEach((button) => {
     const type = button.dataset.global;
-    const isActive = type === "outside-space"
-      ? getOutsideFxProfile(state.boardId).enabled
-      : state.runningAnimations.some((anim) => anim.scope === "global" && anim.type === type);
+    const isActive = state.runningAnimations.some(
+      (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
+    );
     button.classList.toggle("active", isActive);
   });
 }
@@ -2765,16 +2849,7 @@ function drawAnimation(animation, now) {
     return;
   }
   if (animation.type === "outside-space") {
-    const outside = getOutsideFxProfile(animation.boardId);
-    ctx.save();
-    try {
-      clipToOutsideShip(animation.boardId);
-      drawEffectVisual(animation.type, age, animation.intensity, null, null, {
-        outsideMode: outside.mode,
-      });
-    } finally {
-      ctx.restore();
-    }
+    // Outside is rendered in a dedicated isolated layer path.
     return;
   }
 
@@ -3441,7 +3516,9 @@ shipPolygonResetButton.addEventListener("click", () => {
 outsideEnabledInput.addEventListener("change", () => {
   updateOutsideFxProfile(state.boardId, { enabled: outsideEnabledInput.checked });
   const persisted = persistBoardProfiles();
+  syncOutsideRuntimeMirror(state.boardId);
   syncOutsideFxPanel();
+  renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = persisted
     ? `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"}`
@@ -3624,18 +3701,9 @@ window.addEventListener("blur", () => {
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
-    if (type === "outside-space") {
-      const current = getOutsideFxProfile(state.boardId);
-      updateOutsideFxProfile(state.boardId, { enabled: !current.enabled });
-      persistBoardProfiles();
-      syncOutsideFxPanel();
-      refreshGlobalButtons();
-      triggerFeedback.textContent = current.enabled
-        ? "Status: Outside Space gestoppt"
-        : "Status: Outside Space gestartet";
-      return;
-    }
-    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" ? null : 6;
+    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space"
+      ? null
+      : 6;
     upsertGlobalAnimation(type, mode);
   });
 });
@@ -3644,8 +3712,13 @@ stopAllButton.addEventListener("click", () => {
   for (const animation of state.runningAnimations) {
     stopAnimationSound(animation.id);
   }
+  for (const board of BOARDS) {
+    updateOutsideFxProfile(board.id, { enabled: false });
+  }
+  persistBoardProfiles();
   state.runningAnimations = [];
   ashParticles.length = 0;
+  syncOutsideFxPanel();
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
