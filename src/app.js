@@ -1091,7 +1091,8 @@ async function saveGlobalDefaultsToServer() {
   const requestBody = JSON.stringify(payload);
   let lastError = null;
 
-  for (const endpoint of apiCandidates) {
+  for (const candidate of apiCandidates) {
+    const endpoint = candidate.endpoint;
     const preflight = await runApiPreflight(endpoint);
     if (!preflight.ok) {
       lastError = buildGlobalDefaultsSaveError({
@@ -1101,6 +1102,7 @@ async function saveGlobalDefaultsToServer() {
         details: preflight.details,
         endpoint,
         method: preflight.method,
+        routing: candidate,
       });
       continue;
     }
@@ -1123,6 +1125,7 @@ async function saveGlobalDefaultsToServer() {
           details,
           endpoint,
           method: "POST",
+          routing: candidate,
         });
         continue;
       }
@@ -1135,6 +1138,7 @@ async function saveGlobalDefaultsToServer() {
         method: "POST",
         status: response.status,
         statusClass: classifyHttpStatus(response.status),
+        routing: candidate,
       };
     } catch (error) {
       lastError =
@@ -1145,6 +1149,7 @@ async function saveGlobalDefaultsToServer() {
               details: error instanceof Error ? error.message : "request failed",
               endpoint,
               method: "POST",
+              routing: candidate,
             });
     }
   }
@@ -1251,11 +1256,11 @@ async function runApiPreflight(saveEndpoint) {
 }
 
 async function runApiDiagnose() {
-  const endpoints = resolveGlobalDefaultsApiCandidates();
+  const candidates = resolveGlobalDefaultsApiCandidates();
   const reports = [];
-  for (const endpoint of endpoints) {
-    const preflight = await runApiPreflight(endpoint);
-    const report = { endpoint, preflight };
+  for (const candidate of candidates) {
+    const preflight = await runApiPreflight(candidate.endpoint);
+    const report = { endpoint: candidate.endpoint, routing: candidate, preflight };
     reports.push(report);
     if (preflight.ok) {
       break;
@@ -1325,21 +1330,27 @@ function resolveGlobalDefaultsApiCandidates() {
   const endpoints = [];
   const seen = new Set();
 
-  function addEndpoint(base) {
+  function addEndpoint(base, source) {
     const normalized = normalizeApiBase(base);
     if (!normalized || seen.has(normalized)) {
       return;
     }
     seen.add(normalized);
-    endpoints.push(`${normalized}/api/global-defaults`);
+    endpoints.push({
+      apiBase: normalized,
+      endpoint: `${normalized}/api/global-defaults`,
+      source,
+      uiHost: getUiHostName(),
+      apiHost: getApiHostName(normalized),
+    });
   }
 
   const configured = readConfiguredApiBase();
   if (configured) {
-    addEndpoint(configured);
+    addEndpoint(configured.base, configured.source);
   }
 
-  addEndpoint(window.location?.origin);
+  addEndpoint(window.location?.origin, "ui-host-default");
 
   const uiHost = getUiHostName();
   const uiProtocol = getUiProtocol();
@@ -1347,12 +1358,12 @@ function resolveGlobalDefaultsApiCandidates() {
   const allowLocalhostFallback = !uiHost || isLocalApiHost(uiHost);
 
   for (const port of API_PORT_FALLBACKS) {
-    addEndpoint(`${uiProtocol}//${fallbackHost}:${port}`);
+    addEndpoint(`${uiProtocol}//${fallbackHost}:${port}`, `fallback:${fallbackHost}:${port}`);
   }
 
   if (allowLocalhostFallback) {
-    addEndpoint("http://localhost:4173");
-    addEndpoint("http://127.0.0.1:4173");
+    addEndpoint("http://localhost:4173", "fallback:localhost:4173");
+    addEndpoint("http://127.0.0.1:4173", "fallback:127.0.0.1:4173");
   }
 
   return endpoints;
@@ -1361,7 +1372,10 @@ function resolveGlobalDefaultsApiCandidates() {
 function readConfiguredApiBase() {
   const globalBase = normalizeApiBase(window.__TT_BEAMER_API_BASE__);
   if (globalBase) {
-    return globalBase;
+    return {
+      base: globalBase,
+      source: "override:window.__TT_BEAMER_API_BASE__",
+    };
   }
 
   const queryBase = readApiBaseFromQuery();
@@ -1372,7 +1386,10 @@ function readConfiguredApiBase() {
   try {
     const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));
     if (localBase) {
-      return localBase;
+      return {
+        base: localBase,
+        source: `override:localStorage(${API_BASE_STORAGE_KEY})`,
+      };
     }
   } catch {
     // ignore localStorage failures
@@ -1387,7 +1404,10 @@ function readApiBaseFromQuery() {
     for (const key of API_BASE_URL_PARAM_KEYS) {
       const value = normalizeApiBase(params.get(key));
       if (value) {
-        return value;
+        return {
+          base: value,
+          source: `override:url(${key})`,
+        };
       }
     }
   } catch {
@@ -1470,6 +1490,7 @@ function buildGlobalDefaultsSaveError({
   details = "",
   endpoint = "",
   method = "POST",
+  routing = null,
 }) {
   const error = new Error(`Global Defaults Save fehlgeschlagen (${code})`);
   error.code = code;
@@ -1478,7 +1499,16 @@ function buildGlobalDefaultsSaveError({
   error.details = details;
   error.endpoint = endpoint;
   error.method = method;
+  error.routing = routing;
   return error;
+}
+
+function getApiHostName(base) {
+  try {
+    return String(new URL(base).hostname || "").toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 function formatGlobalDefaultsSaveError(error) {
