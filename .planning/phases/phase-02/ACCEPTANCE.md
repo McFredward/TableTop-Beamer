@@ -8,6 +8,11 @@
 - Lesbarkeits-Test: Status und Triggerlabels unter realem Spieltisch-Licht klar erkennbar.
 - Orientation-Test: Portrait <-> Landscape Wechsel ohne Verlust laufender Animationen oder UI-State.
 - Mobile-Performance-Test: stabile Interaktion bei laufenden Effekten, keine deutlichen Bedienhaenger in 30+ Minuten.
+- Global-Defaults-Bootstrap-Test: auf neuem/geleertem Browserprofil werden globale Defaults automatisch geladen und direkt wirksam.
+- Local-Storage-Empty-Test: leeres `localStorage` fuehrt nicht zu stiller Ignorierung, sondern zu explizitem Default-Fallback.
+- Settings-Apply-Test: Button `Defaults laden & anwenden` zieht globale Defaults und aktualisiert die laufende Session ohne Neustart.
+- Mobile-Sticky-Overlap-Test: Trigger-/Running-Cluster bleiben sticky/fixiert, ueberdecken beim Scrollen aber keinen Dashboard-Content.
+- Desktop-Paritaets-Test: Sticky-Anpassungen sind auf Mobile begrenzt; Desktop-Layout und Scrollverhalten bleiben unveraendert.
 - Session-Test: 3h Betrieb (Desktop + mobile Bedienung) ohne Crash und ohne Funktionsverlust.
 - Real-Setup-Test: Mehrmonitor-/Beamer-Setup inkl. Standard- und Special-Raumprofil dokumentiert.
 
@@ -20,8 +25,16 @@
 - Orientation-Wechsel bleibt stabil: keine State-Verluste, keine unbenutzbaren Layout-Zustaende.
 - Mobile Responsiveness/Performance ist verifiziert und als Protokoll abgelegt.
 
+## Verpflichtendes Feedback Add-on - Pflichtabnahme (P2-T26..P2-T30)
+- Neuer/geleerter Browser startet mit globalen Defaults als aktivem Session-Stand (kein manuelles Vorladen noetig).
+- Empty-Storage wird als gueltiger Fallback-Fall behandelt und nicht still uebersprungen.
+- `Settings` bietet den Button `Defaults laden & anwenden`; Wirkung ist unmittelbar in Trigger-/Runtime-Konfiguration sichtbar.
+- Auf Mobile bleibt der obere Dashboard-Bereich konsistent sticky/fixiert, ohne darunterliegenden Content zu verdecken.
+- Desktop zeigt nach Mobile-Fix keine Layout-/Scroll-Regression.
+
 ## Definition of Done
 - Alle Stories aus `.planning/phases/phase-02/BACKLOG.md` sind mit zugeordneten Tasks umgesetzt.
+- Pflichtfeedback P2-T26..P2-T30 ist vor nachgelagerten Ausbauarbeiten abgeschlossen.
 - Priorisierte Mobile-First-Tasks (P2-T1..P2-T10) sind vor den nachgelagerten P2-Ausbaustories abgeschlossen.
 - Trigger-Bedienung ist auf Smartphone (Portrait/Landscape) schnell, lesbar, einhaendig und fehlklickarm.
 - Trennung `Triggern` vs `laufende Animationen managen` ist im UI klar und bleibt unter Last stabil.
@@ -45,3 +58,4 @@
 - `.planning/phases/phase-02/P2-T8-ORIENTATION-ROUNDTRIP.md`
 - `.planning/phases/phase-02/P2-T9-MOBILE-PERFORMANCE.md`
 - `.planning/phases/phase-02/P2-T10-SPIELTISCH-VERIFIKATION.md`
+- `.planning/phases/phase-02/P2-T30-DESKTOP-PARITAET.md`

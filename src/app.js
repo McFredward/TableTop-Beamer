@@ -309,6 +309,7 @@ const mobileStartRoomButton = document.querySelector("#mobile-start-room");
 const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
 const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
+const dashboardStickyShell = document.querySelector(".dashboard-sticky-shell");
 const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
@@ -2517,6 +2518,17 @@ function runLayoutScrollRegression() {
   const expectedBodyOverflow = mobileViewport ? ["auto", "visible"] : ["hidden"];
   if (!expectedBodyOverflow.includes(bodyOverflowY)) {
     issues.push(`body overflowY=${bodyOverflowY}`);
+  }
+
+  if (dashboardStickyShell) {
+    const stickyShellPosition = window.getComputedStyle(dashboardStickyShell).position;
+    if (mobileViewport) {
+      if (state.uiView === "dashboard" && stickyShellPosition !== "sticky") {
+        issues.push(`mobile sticky-shell position=${stickyShellPosition || "missing"}`);
+      }
+    } else if (!["static", "relative"].includes(stickyShellPosition)) {
+      issues.push(`desktop sticky-shell regression position=${stickyShellPosition || "missing"}`);
+    }
   }
 
   if (!runningOverviewPanel || !globalAnimationPanel) {
