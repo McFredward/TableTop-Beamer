@@ -75,7 +75,13 @@ completed: 2026-03-23
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state/roadmap commands could not parse repository planning schema**
+- **Found during:** Post-task state updates
+- **Issue:** `state advance-plan` and `roadmap update-plan-progress` failed against the current markdown format.
+- **Fix:** Applied equivalent updates manually in `.planning/STATE.md` and `.planning/ROADMAP.md`.
+- **Verification:** Readback confirmed plan pointer (`1-4`), summary path, and 33/33 roadmap progress.
 
 ## Auth Gates
 
