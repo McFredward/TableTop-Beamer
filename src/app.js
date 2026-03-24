@@ -275,6 +275,7 @@ const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch
 const roomGeometryStatus = document.querySelector("#room-geometry-status");
 const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
+const controlPanel = document.querySelector("#control-panel");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
 const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
@@ -908,6 +909,11 @@ function isViewGroupVisible(entry) {
 function validateViewExclusivity(expectedView, { silent = false, context = "runtime" } = {}) {
   const leaks = [];
   const expectSettings = expectedView === "settings";
+  const rootView = controlPanel?.dataset.activeView;
+
+  if (rootView !== expectedView) {
+    leaks.push(`root-view mismatch: expected ${expectedView}, got ${rootView ?? "missing"}`);
+  }
 
   if (expectSettings && settingsViewGroups.every((entry) => !isViewGroupVisible(entry))) {
     leaks.push("settings groups unexpectedly hidden");
@@ -942,6 +948,9 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 function setActiveView(view, { skipGuard = false } = {}) {
   const nextView = view === "settings" ? "settings" : "dashboard";
   state.uiView = nextView;
+  if (controlPanel) {
+    controlPanel.dataset.activeView = nextView;
+  }
   const showSettings = nextView === "settings";
   setViewGroupVisibility(settingsViewGroups, showSettings);
   setViewGroupVisibility(dashboardViewGroups, !showSettings);

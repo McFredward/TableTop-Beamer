@@ -199,6 +199,14 @@ body {
   display: none;
 }
 
+#control-panel[data-active-view="dashboard"] [data-view="settings"] {
+  display: none !important;
+}
+
+#control-panel[data-active-view="settings"] [data-view="dashboard"] {
+  display: none !important;
+}
+
 .eyebrow,
 h1,
 h2 {
