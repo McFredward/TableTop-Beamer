@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-15
-- Last Execution Summary: `.planning/phases/phase-01/1-15-SUMMARY.md`
+- Last Executed Plan: 1-16
+- Last Execution Summary: `.planning/phases/phase-01/1-16-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -120,6 +120,11 @@
 - Inside-Renderpfad ist jetzt maskenpflichtig ueber `clipToInsideShip`; ungueltige Ship-Masken triggern fail-safe no-draw statt Fullscreen-Leak.
 - Outside-Visual nutzt High-Speed-Spaceflow mit Multi-Depth-Parallax plus speedgekoppelten Motion-Streaks.
 - `Settings` exportiert lokalen Browserstand in `config/global-defaults.json`; Client- und Server-Merge-Guards erhalten Ship-/Spezialraum-Polygone verlustfrei.
+- Plan-Update 14 setzt Prioritaetsfokus: P0 Outside-Richtungsumschaltung, P0 Outside-Basis strikt tiefschwarz, P0 Per-Room-Instanzparameter (`speed`/`intensity`/`soundVolume`) und P0 Edit-Flow-Bugfix fuer laufende Instanzen.
+- Outside-Regel fuer Plan-Update 14: Richtungswechsel (`forward`/`reverse`) wird als Laufzeitoption im bestehenden Outside-Layer gefuehrt und darf keine Innenraum-Seiteneffekte erzeugen.
+- Visual-Regel fuer Plan-Update 14: ausserhalb des Ship-Polygons bleibt der Hintergrund tiefschwarz; blaue Outside-Flaechen sind nicht zulaessig.
+- Runtime-Regel fuer Plan-Update 14: Room-Animationen halten Parameter instanzscharf pro `animation.id`; parallele Instanzen duerfen sich nicht ueberschreiben.
+- Edit-Regel fuer Plan-Update 14: `Edit` laedt immer die bestehende laufende Instanz und schreibt Aenderungen in-place auf dieselbe `animation.id` (kein Neu-Eintrag).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -246,3 +251,11 @@
   - `.planning/phases/phase-01/P1-T90-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 1 Plan 16)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-16-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`f42ef6c` .. `4bb251f`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T96-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
