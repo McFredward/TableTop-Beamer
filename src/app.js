@@ -273,6 +273,8 @@ const roomGeometryStretchXValue = document.querySelector("#room-geometry-stretch
 const roomGeometryStretchYInput = document.querySelector("#room-geometry-stretch-y");
 const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch-y-value");
 const roomGeometryStatus = document.querySelector("#room-geometry-status");
+const openDashboardViewButton = document.querySelector("#open-dashboard-view");
+const openSettingsViewButton = document.querySelector("#open-settings-view");
 
 const ctx = canvas.getContext("2d");
 
@@ -309,6 +311,7 @@ const state = {
     enabled: true,
     volume: 0.7,
   },
+  uiView: "dashboard",
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
 };
@@ -570,6 +573,20 @@ function syncRoomGeometryPanel() {
   roomGeometryStretchXValue.textContent = formatRoomGeometryValue(geometry.stretchX);
   roomGeometryStretchYValue.textContent = formatRoomGeometryValue(geometry.stretchY);
   syncRoomGeometryStatus();
+}
+
+function setActiveView(view) {
+  const nextView = view === "settings" ? "settings" : "dashboard";
+  state.uiView = nextView;
+  const showSettings = nextView === "settings";
+  document.querySelectorAll(".settings-only").forEach((entry) => {
+    entry.classList.toggle("view-hidden", !showSettings);
+  });
+  document.querySelectorAll(".dashboard-only").forEach((entry) => {
+    entry.classList.toggle("view-hidden", showSettings);
+  });
+  openDashboardViewButton.classList.toggle("active", !showSettings);
+  openSettingsViewButton.classList.toggle("active", showSettings);
 }
 
 function syncAudioStatus() {
@@ -1258,6 +1275,14 @@ for (const board of BOARDS) {
 
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
+openDashboardViewButton.addEventListener("click", () => {
+  setActiveView("dashboard");
+});
+
+openSettingsViewButton.addEventListener("click", () => {
+  setActiveView("settings");
+});
+
 function updateActiveBoardHitareaCalibration(partial) {
   setHitareaCalibration(state.boardId, {
     ...getHitareaCalibration(state.boardId),
@@ -1457,6 +1482,7 @@ audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
 syncAudioStatus();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
+setActiveView("dashboard");
 renderRunningAnimationsList();
 refreshGlobalButtons();
 requestAnimationFrame(draw);

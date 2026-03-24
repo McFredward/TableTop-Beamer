@@ -118,6 +118,16 @@ body {
   align-content: start;
 }
 
+.view-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.view-hidden {
+  display: none;
+}
+
 .eyebrow,
 h1,
 h2 {

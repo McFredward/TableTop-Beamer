@@ -31,7 +31,12 @@
           </p>
         </header>
 
-        <section class="panel">
+        <nav class="view-switch" aria-label="Seitenwechsel">
+          <button id="open-dashboard-view" type="button" class="active">Dashboard</button>
+          <button id="open-settings-view" type="button">Settings</button>
+        </nav>
+
+        <section class="panel dashboard-only">
           <h2>Board + Output</h2>
           <label>
             Layout
@@ -50,7 +55,7 @@
           <p id="output-route-status" class="status-line" aria-live="polite">Output Route: Auto</p>
         </section>
 
-        <section class="panel">
+        <section class="panel settings-only view-hidden">
           <h2>Hitarea Calibration</h2>
           <p class="status-line">Manuelle Feinjustierung fuer Hit-Test/Overlay (pro aktivem Board).</p>
           <div class="calibration-grid">
@@ -74,7 +79,7 @@
           <p id="hitarea-status" class="status-line" aria-live="polite">Hitarea: Default</p>
         </section>
 
-        <section class="panel">
+        <section class="panel settings-only view-hidden">
           <h2>Raum-Geometrie</h2>
           <p class="status-line">Pro Raum Position als Relativ-Offset oder absolute Zielposition kalibrieren.</p>
           <label>
@@ -107,7 +112,7 @@
           </p>
         </section>
 
-        <section class="panel">
+        <section class="panel dashboard-only">
           <h2>Globale Animationen</h2>
           <div class="button-grid button-grid-3">
             <button data-global="ambient-drift">Ambient Drift</button>
@@ -123,7 +128,7 @@
           <p id="trigger-feedback" class="status-line" aria-live="polite">Status: bereit</p>
         </section>
 
-        <section class="panel">
+        <section class="panel dashboard-only">
           <h2>Audio Settings</h2>
           <label class="inline-checkbox">
             <input id="audio-enabled" type="checkbox" checked />
@@ -136,7 +141,7 @@
           <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
         </section>
 
-        <section class="panel">
+        <section class="panel dashboard-only">
           <h2>Raum-Animation</h2>
           <p id="room-selected" class="status-line">Ausgewaehlter Raum: bitte Hex auf dem Board anklicken</p>
           <label>
@@ -165,13 +170,13 @@
           <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
         </section>
 
-        <section class="panel">
+        <section class="panel dashboard-only">
           <h2>Laufende Animationen</h2>
           <p class="status-line">Scopes: GLOBAL (boardweit) und ROOM (hex-begrenzt)</p>
           <ul id="running-animations" class="running-list" aria-live="polite"></ul>
         </section>
 
-        <footer class="hint">Hinweis: Fuer echtes Beamer-Targeting im Browser Fullscreen auf den Beamer-Screen schieben.</footer>
+        <footer class="hint dashboard-only">Hinweis: Fuer echtes Beamer-Targeting im Browser Fullscreen auf den Beamer-Screen schieben.</footer>
       </aside>
     </div>
 
