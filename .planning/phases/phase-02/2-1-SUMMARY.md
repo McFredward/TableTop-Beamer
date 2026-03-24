@@ -86,7 +86,19 @@ completed: 2026-03-24
 
 ## Deviations from Plan
 
-None - plan executed exactly as written for P2-T1..P2-T10.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] gsd-tools state/roadmap update commands incompatible with current STATE.md schema**
+- **Found during:** post-task state update
+- **Issue:** `state advance-plan`, `state update-progress`, `state record-metric`, `state add-decision`, and `roadmap update-plan-progress` returned schema/section errors.
+- **Fix:** Manually updated `.planning/STATE.md` lifecycle + decision/evidence entries and `.planning/ROADMAP.md` Phase-2 progress line.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** summary/state/roadmap committed and cross-referenced successfully.
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** No feature scope change; only execution-metadata update path switched from tooling to manual edits.
 
 ## Auth Gates
 
