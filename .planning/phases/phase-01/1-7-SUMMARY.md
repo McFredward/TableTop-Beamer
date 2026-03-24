@@ -74,7 +74,8 @@ completed: 2026-03-24
 None - plan executed exactly as written.
 
 ## Issues Encountered
-None.
+- `gsd-tools` state/roadmap subcommands konnten das vorhandene STATE/ROADMAP-Format nicht parsen (`Current Plan`, `Progress`, `Decisions` Felder nicht gefunden).
+- Loesung: STATE/ROADMAP wurden manuell im bestehenden Repository-Format aktualisiert (inhaltlich identisch zum beabsichtigten Tool-Update).
 
 ## User Setup Required
 None - no external service configuration required.
