@@ -388,7 +388,9 @@ const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
 const BOARD_PROFILE_STORAGE_KEY = "tt-beamer.board-profiles.v1";
 const ROOM_GEOMETRY_STORAGE_KEY = "tt-beamer.room-geometry.v1";
 const SPECIAL_POLYGON_STORAGE_KEY = "tt-beamer.special-polygons.v1";
-const FALLBACK_API_ORIGIN = "http://localhost:4173";
+const API_BASE_STORAGE_KEY = "tt-beamer.api-base.v1";
+const API_BASE_URL_PARAM_KEYS = ["ttApiBase", "apiBase", "api_base"];
+const API_PORT_FALLBACKS = [4173, 4174, 3000, 8080];
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -1129,13 +1131,87 @@ async function saveGlobalDefaultsToServer() {
 }
 
 function resolveGlobalDefaultsApiCandidates() {
-  const endpoints = ["/api/global-defaults"];
-  if (!window.location?.origin || window.location.origin === "null") {
-    endpoints.push(`${FALLBACK_API_ORIGIN}/api/global-defaults`);
-  } else if (window.location.origin !== FALLBACK_API_ORIGIN) {
-    endpoints.push(`${FALLBACK_API_ORIGIN}/api/global-defaults`);
+  const endpoints = [];
+  const seen = new Set();
+
+  function addEndpoint(base) {
+    const normalized = normalizeApiBase(base);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    endpoints.push(`${normalized}/api/global-defaults`);
   }
-  return Array.from(new Set(endpoints));
+
+  const configured = readConfiguredApiBase();
+  if (configured) {
+    addEndpoint(configured);
+  }
+
+  addEndpoint(window.location?.origin);
+
+  for (const port of API_PORT_FALLBACKS) {
+    addEndpoint(`http://localhost:${port}`);
+  }
+
+  return endpoints;
+}
+
+function readConfiguredApiBase() {
+  const globalBase = normalizeApiBase(window.__TT_BEAMER_API_BASE__);
+  if (globalBase) {
+    return globalBase;
+  }
+
+  const queryBase = readApiBaseFromQuery();
+  if (queryBase) {
+    return queryBase;
+  }
+
+  try {
+    const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));
+    if (localBase) {
+      return localBase;
+    }
+  } catch {
+    // ignore localStorage failures
+  }
+
+  return null;
+}
+
+function readApiBaseFromQuery() {
+  try {
+    const params = new URLSearchParams(window.location?.search || "");
+    for (const key of API_BASE_URL_PARAM_KEYS) {
+      const value = normalizeApiBase(params.get(key));
+      if (value) {
+        return value;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function normalizeApiBase(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
 }
 
 function classifyFailedSaveResponse(response, details) {

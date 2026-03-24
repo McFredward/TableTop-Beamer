@@ -148,3 +148,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T99 [P0] Start-Flow dokumentieren: klarer Hinweis auf POST-faehigen API-Server (`node server.mjs`) inkl. kurzer Startsequenz fuer Frontend + API.
 - [x] DONE P1-T100 [P1] Optionalen Export-/Download-Fallback fuer API-Ausfall integrieren, klar als Sekundaerpfad markieren (primaerer Server-Save bleibt Standard).
 - [x] DONE P1-T101 [P1] Plan-Update-15 Pflichtabnahme + Regression dokumentieren (Save-Robustheit, API-offline UX, Doku-Konsistenz, optionaler Fallback).
+
+## Priority Add-on - Plan Update 16
+- [x] DONE P1-T102 [P0] API-Base-Resolving fuer Save haerten: explizite API-Base-Konfiguration + deterministische Fallback-Reihenfolge fuer statisches Frontend-Hosting (inkl. Port-Fallback).
+- [ ] TODO P1-T103 [P0] Save-Preflight integrieren: API-Health-Check und POST-Faehigkeits-Check vor `POST /api/global-defaults`, mit sauber klassifizierten Fehlerpfaden.
+- [ ] TODO P1-T104 [P0] Save-UX endpoint-transparent machen: genutzten API-Endpunkt, Methode, Statusklasse und konkrete naechste Schritte im UI anzeigen.
+- [ ] TODO P1-T105 [P0] One-Click `API Diagnose` im Settings-Tab implementieren (Reachability + POST erlaubt?) inkl. klarer Operator-Anweisungen.
+- [ ] TODO P1-T106 [P0] Plan-Update-16 Pflichtabnahme + Regression dokumentieren (statisches Hosting, Endpoint-Transparenz, Diagnose-Flow, reproduzierbarer Save bei laufender API).
