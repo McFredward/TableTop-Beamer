@@ -11,8 +11,8 @@
 - Current Phase Key: phase-02
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 2-2
-- Last Execution Summary: `.planning/phases/phase-02/2-2-SUMMARY.md`
+- Last Executed Plan: 2-3
+- Last Execution Summary: `.planning/phases/phase-02/2-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -176,6 +176,12 @@
 - Startup-Fallback fuer neue/geleerte Geraete ist jetzt explizit abgesichert: Empty-Storage wird als Pflichtfall verfolgt (`applied` oder `failed-explicit`), nie still uebersprungen.
 - Settings besitzt `Defaults laden & anwenden`; globale Defaults werden ohne Neustart in den laufenden Runtime-Zustand uebernommen.
 - Mobile Dashboard nutzt eine top-sticky Shell ohne Content-Overlap; Desktop-Paritaet wird in Runtime-Regression + P2-T30-Protokoll nachgewiesen.
+- Neues verpflichtendes Feedback fuer Phase 2 ist gesetzt: P0-Bugfix fuer Mobile-Cluster-Overlap zur Board-Projektionsflaeche plus robuste, immer sichtbare Navigation `Dashboard` <-> `Settings`.
+- Projektions-Regel (Phase 2, Plan-Update 3): oberes Mobile-Cluster darf Board-Flaeche beim Scrollen nicht ueberdecken; Board bleibt sichtbar und bedienbar.
+- Navigations-Regel (Phase 2, Plan-Update 3): Dashboard-Button in `Settings` bleibt persistent sichtbar; kein Navigations-Dead-End bei Scroll/Orientation/Resize/View-Switch.
+- Mobile-Sticky-Cluster wird per Runtime-Offset unterhalb der Projektionsflaeche verankert; Board bleibt bei Scroll sichtbar und interaktiv.
+- Primary-View-Navigation (`Dashboard`/`Settings`) ist strukturell persistent und nicht mehr an Dashboard-only-Sichtbarkeit gebunden.
+- Navigation/Projection-Resilienz wird ueber kombinierte Guards fuer Scroll, Orientation, Resize und View-Switch regressionsgeprueft.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -385,5 +391,14 @@
 - Task Commits: 5 atomare Commits (`add84bb`, `94a61fd`, `6b97253`, `3964df8`, `4c8cca3`)
 - Evidence:
   - `.planning/phases/phase-02/P2-T30-DESKTOP-PARITAET.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 2 Plan 3)
+- Status: completed
+- Summary: `.planning/phases/phase-02/2-3-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`324bce2`, `c0e4c46`, `703c371`, `eeb68a6`, `befb9da`)
+- Evidence:
+  - `.planning/phases/phase-02/P2-T35-NAV-AND-PROJECTION-VERIFIKATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
