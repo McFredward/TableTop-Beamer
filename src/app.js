@@ -277,6 +277,7 @@ const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
+const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
 const polygonInsertVertexButton = document.querySelector("#polygon-insert-vertex");
 const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex");
 const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
@@ -326,6 +327,7 @@ const state = {
   polygonEditor: {
     roomIdByBoard: {},
     selectedVertexIndex: 0,
+    selectedEdgeIndex: 0,
     dragVertexIndex: null,
     dragPointerId: null,
     dragRoomId: null,
@@ -790,7 +792,9 @@ function syncPolygonEditorStatus() {
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, room.id);
-  polygonEditorStatus.textContent = `Polygoneditor (${room.label}): ${points.length} Ecken`;
+  const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
+  const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
+  polygonEditorStatus.textContent = `Polygoneditor (${room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
 }
 
 function syncPolygonVertexSelect(roomId) {
@@ -809,9 +813,31 @@ function syncPolygonVertexSelect(roomId) {
   }
   const maxIndex = Math.max(0, points.length - 1);
   state.polygonEditor.selectedVertexIndex = Math.min(state.polygonEditor.selectedVertexIndex, maxIndex);
+  state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
   polygonVertexSelect.value = String(state.polygonEditor.selectedVertexIndex);
   polygonVertexSelect.disabled = points.length === 0;
   polygonDeleteVertexButton.disabled = points.length <= 3;
+}
+
+function syncPolygonEdgeSelect(roomId) {
+  polygonEdgeSelect.replaceChildren();
+  const room = getBoard().rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    polygonEdgeSelect.disabled = true;
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, room.id);
+  for (let i = 0; i < points.length; i += 1) {
+    const option = document.createElement("option");
+    const next = i === points.length - 1 ? 1 : i + 2;
+    option.value = String(i);
+    option.textContent = `Kante ${i + 1} (Ecke ${i + 1} -> ${next})`;
+    polygonEdgeSelect.append(option);
+  }
+  const maxIndex = Math.max(0, points.length - 1);
+  state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
+  polygonEdgeSelect.value = String(state.polygonEditor.selectedEdgeIndex);
+  polygonEdgeSelect.disabled = points.length === 0;
 }
 
 function syncPolygonEditorPanel() {
@@ -837,6 +863,7 @@ function syncPolygonEditorPanel() {
   polygonResetRoomButton.disabled = disabled;
   polygonFocusRoomButton.disabled = disabled;
   syncPolygonVertexSelect(activeRoomId);
+  syncPolygonEdgeSelect(activeRoomId);
   syncPolygonEditorStatus();
 }
 
@@ -850,6 +877,28 @@ function renderPolygonEditorHandles() {
     return;
   }
   const points = getRoomPoints(room, state.boardId);
+  for (let index = 0; index < points.length; index += 1) {
+    const [aX, aY] = points[index];
+    const [bX, bY] = points[(index + 1) % points.length];
+    const edgeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    edgeHandle.classList.add("polygon-edge-handle");
+    if (index === state.polygonEditor.selectedEdgeIndex) {
+      edgeHandle.classList.add("is-active");
+    }
+    edgeHandle.setAttribute("cx", ((aX + bX) / 2).toFixed(1));
+    edgeHandle.setAttribute("cy", ((aY + bY) / 2).toFixed(1));
+    edgeHandle.setAttribute("r", "6.5");
+    edgeHandle.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      state.polygonEditor.selectedEdgeIndex = index;
+      polygonEdgeSelect.value = String(index);
+      renderRoomOverlay();
+      syncPolygonEditorStatus();
+    });
+    roomOverlay.append(edgeHandle);
+  }
+
   points.forEach(([x, y], index) => {
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
     marker.classList.add("polygon-vertex-marker");
@@ -1780,6 +1829,14 @@ polygonRoomSelect.addEventListener("change", () => {
 
 polygonVertexSelect.addEventListener("change", () => {
   state.polygonEditor.selectedVertexIndex = Math.max(0, Number(polygonVertexSelect.value) || 0);
+  state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
+  syncPolygonEdgeSelect(getActivePolygonRoomId(state.boardId));
+  renderRoomOverlay();
+  syncPolygonEditorStatus();
+});
+
+polygonEdgeSelect.addEventListener("change", () => {
+  state.polygonEditor.selectedEdgeIndex = Math.max(0, Number(polygonEdgeSelect.value) || 0);
   renderRoomOverlay();
   syncPolygonEditorStatus();
 });
@@ -1790,7 +1847,7 @@ polygonInsertVertexButton.addEventListener("click", () => {
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, roomId);
-  const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
+  const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
   const nextIndex = (index + 1) % points.length;
   const a = points[index];
   const b = points[nextIndex];
@@ -1798,6 +1855,7 @@ polygonInsertVertexButton.addEventListener("click", () => {
   points.splice(nextIndex, 0, normalizePolygonPoint(midpoint));
   setSpecialPolygonPoints(state.boardId, roomId, points);
   const persisted = persistBoardProfiles();
+  state.polygonEditor.selectedEdgeIndex = index;
   state.polygonEditor.selectedVertexIndex = nextIndex;
   syncPolygonEditorPanel();
   renderRoomOverlay();
@@ -1813,6 +1871,7 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   }
   const points = getSpecialPolygonPoints(state.boardId, roomId);
   if (points.length <= 3) {
+    triggerFeedback.textContent = "Status: Polygon braucht mindestens 3 Ecken";
     return;
   }
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
@@ -1820,6 +1879,7 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   setSpecialPolygonPoints(state.boardId, roomId, points);
   const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
+  state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted

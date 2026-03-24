@@ -113,6 +113,20 @@ body {
   pointer-events: none;
 }
 
+.polygon-edge-handle {
+  fill: rgba(118, 206, 255, 0.88);
+  stroke: rgba(7, 22, 35, 0.95);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: copy;
+  pointer-events: auto;
+}
+
+.polygon-edge-handle.is-active {
+  fill: rgba(152, 255, 213, 0.96);
+  stroke: rgba(228, 255, 241, 0.98);
+}
+
 .polygon-vertex-handle {
   fill: rgba(255, 218, 140, 0.98);
   stroke: rgba(40, 18, 0, 0.95);
