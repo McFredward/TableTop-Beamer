@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-11
-- Last Execution Summary: `.planning/phases/phase-01/1-11-SUMMARY.md`
+- Last Executed Plan: 1-12
+- Last Execution Summary: `.planning/phases/phase-01/1-12-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -92,6 +92,14 @@
 - Plan-Update-9 Viewport nutzt explizites `scale + panX/panY` mit Bounds-Clamp, damit Fit/Reset keinen Arbeitsbereich verlieren.
 - Pan-Intent blockiert Room-/Vertex-Edits deterministisch; Exit erfolgt robust ueber Pointer-Up, Key-Up und Blur.
 - Runtime-Regression prueft jetzt zusaetzlich Zoom+Pan+Edit und Pointer-Session-Cleanup beim Startup.
+- Entscheidung Plan-Update 10: Neue Anforderungen bleiben in Phase 1 (kein Verschieben in Phase 2), da sie den Nemesis-Vertical-Slice direkt betreffen und ohne neue Infrastruktur umsetzbar sind.
+- Plan-Update 10 setzt Prioritaetsfokus: P0 assetbasierte Event-Sounds aus `resources`, P0 globaler Outside-Effekt, P0 Ship-Polygon-Editor als Maskenquelle, P1 board-spezifische Persistenz fuer Ship/Outside.
+- Sound-Regel fuer Plan-Update 10: Intruder/Reactor/Power-Outage (und passende globale Events) verwenden vorhandene Dateien `alarm.mp3`, `electricity.mp3`, `monsters/048.wav`, `power/3.wav` statt rein synthetischer Cues.
+- Masken-Regel fuer Plan-Update 10: Outside-Rendering wird ausschliesslich aus dem editierbaren Ship-Polygon abgeleitet; innerhalb der Schiffsmaske bleibt der Effekt unsichtbar.
+- Persistenz-Regel fuer Plan-Update 10: Ship-Polygon und Outside-Effekt-Settings werden pro Board gespeichert und bei Save/Reload/Restart/Boardwechsel deterministisch wiederhergestellt.
+- Event-Sound-Pfad ist auf assetbasiertes Voice-Pooling umgestellt; Audio-Master/Volume greifen unveraendert auch bei Mehrfachtriggern.
+- Outside-Layer rendert per Even-Odd-Inversclip strikt ausserhalb des Ship-Polygons.
+- Ship-Polygon und Outside-Einstellungen (`enabled`, `intensity`, `speed`) sind board-spezifischer Teil des Board-Profilschemas.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -184,4 +192,12 @@
 - Task Commits: 5 atomare Commits (`6fed501` .. `d3196cc`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T66-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 12)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-12-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`9f4ec9d` .. `7b25994`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T71-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
