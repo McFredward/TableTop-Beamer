@@ -2903,30 +2903,54 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "outside-space") {
     if (options.outsideMode === "immersive") {
-      const nebulaBands = 6;
-      for (let i = 0; i < nebulaBands; i += 1) {
-        const phase = age * (0.18 + i * 0.02) + i * 1.73;
-        const bandY = (((Math.sin(phase) + 1) / 2) * 1.2 - 0.1) * h;
-        const bandHeight = h * (0.12 + i * 0.03);
-        const gradient = ctx.createLinearGradient(0, bandY, w, bandY + bandHeight);
-        gradient.addColorStop(0, `rgba(55, 84, 150, ${0.08 * intensity})`);
-        gradient.addColorStop(0.5, `rgba(112, 75, 180, ${0.12 * intensity})`);
-        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, bandY - bandHeight * 0.5, w, bandHeight * 1.4);
+      const driftField = ctx.createLinearGradient(0, 0, w, h);
+      driftField.addColorStop(0, `rgba(22, 42, 84, ${0.24 * intensity})`);
+      driftField.addColorStop(0.45, `rgba(56, 24, 112, ${0.14 * intensity})`);
+      driftField.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = driftField;
+      ctx.fillRect(0, 0, w, h);
+
+      const parallaxLayers = [
+        { density: 52, speed: 140, streak: 7, alpha: 0.22, size: 0.9 },
+        { density: 74, speed: 260, streak: 15, alpha: 0.34, size: 1.2 },
+        { density: 92, speed: 420, streak: 24, alpha: 0.52, size: 1.7 },
+      ];
+
+      for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
+        const layer = parallaxLayers[layerIndex];
+        const starCount = Math.max(24, Math.round(layer.density * intensity));
+        const layerSpeed = layer.speed * (0.85 + intensity * 0.7);
+
+        for (let i = 0; i < starCount; i += 1) {
+          const seedA = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
+          const seedB = ((i * 57.913 + layerIndex * 79.1) % 1000) / 1000;
+          const wave = Math.sin(age * 0.35 + i * 0.07 + layerIndex) * (h * 0.012);
+          const xProgress = (seedA * (w + layer.streak) - age * layerSpeed) % (w + layer.streak);
+          const x = xProgress < 0 ? xProgress + w + layer.streak : xProgress;
+          const y = seedB * h + wave;
+          const streakLength = layer.streak * (0.7 + intensity * 1.15);
+          const alpha = Math.min(0.96, layer.alpha * (0.8 + intensity * 0.7));
+
+          ctx.strokeStyle = `rgba(214, 236, 255, ${alpha})`;
+          ctx.lineWidth = layer.size;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + streakLength, y);
+          ctx.stroke();
+        }
       }
 
-      const starCount = Math.max(50, Math.round(130 * intensity));
-      for (let i = 0; i < starCount; i += 1) {
-        const lane = i / starCount;
-        const depth = 0.25 + ((i * 17) % 8) * 0.12;
-        const drift = (age * 0.08 * depth + lane * 1.91) % 1;
-        const x = ((lane * 887 + age * (20 + depth * 12)) % 1) * w;
-        const y = drift * h;
-        const size = 0.7 + depth * 1.8;
-        const alpha = Math.min(0.95, (0.16 + depth * 0.22) * intensity);
-        ctx.fillStyle = `rgba(213, 230, 255, ${alpha})`;
-        ctx.fillRect(x, y, size, size);
+      const warpLineCount = Math.max(8, Math.round(18 * intensity));
+      for (let i = 0; i < warpLineCount; i += 1) {
+        const lane = (((i * 43.17) % 1000) / 1000) * h;
+        const pulse = ((age * (0.7 + i * 0.03)) % 1) * (w + 160);
+        const alpha = 0.06 + (((Math.sin(age * 5 + i) + 1) / 2) * 0.2 + 0.04) * intensity;
+        ctx.strokeStyle = `rgba(162, 208, 255, ${Math.min(0.5, alpha)})`;
+        ctx.lineWidth = 0.7 + ((i % 3) + 1) * 0.35;
+        ctx.beginPath();
+        ctx.moveTo(w - pulse, lane);
+        ctx.lineTo(w - pulse + 130 + intensity * 90, lane);
+        ctx.stroke();
       }
       return;
     }
