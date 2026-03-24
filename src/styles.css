@@ -247,6 +247,8 @@ body {
 }
 
 .dashboard {
+  --mobile-projection-offset: 0px;
+  --mobile-nav-offset: 0px;
   background: linear-gradient(180deg, rgba(20, 29, 45, 0.96), rgba(11, 17, 27, 0.96));
   border-left: 1px solid rgba(146, 166, 191, 0.25);
   padding: 1rem;
@@ -262,6 +264,11 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+}
+
+.primary-view-switch {
+  position: relative;
+  z-index: 7;
 }
 
 .dashboard-sticky-shell {
@@ -607,13 +614,24 @@ button.danger.is-armed {
 
   #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell {
     position: sticky;
-    top: 0;
+    top: var(--mobile-nav-offset, 0px);
     z-index: 9;
     margin: -0.35rem -0.2rem 0;
     padding: 0.35rem 0.2rem 0.45rem;
     background: linear-gradient(180deg, rgba(18, 29, 44, 0.97), rgba(13, 21, 34, 0.94));
     border-bottom: 1px solid rgba(105, 130, 158, 0.4);
     box-shadow: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.28);
+  }
+
+  .primary-view-switch {
+    position: sticky;
+    top: var(--mobile-projection-offset, 0px);
+    z-index: 10;
+    margin: -0.35rem -0.2rem 0;
+    padding: 0.35rem 0.2rem 0.42rem;
+    background: linear-gradient(180deg, rgba(17, 27, 41, 0.98), rgba(12, 20, 32, 0.96));
+    border-bottom: 1px solid rgba(105, 130, 158, 0.38);
+    box-shadow: 0 0.32rem 0.85rem rgba(0, 0, 0, 0.24);
   }
 
   #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell .view-switch,
@@ -623,7 +641,7 @@ button.danger.is-armed {
   }
 
   #control-panel[data-active-view="dashboard"] [data-dashboard-zone] {
-    scroll-margin-top: 8.8rem;
+    scroll-margin-top: calc(var(--mobile-nav-offset, 0px) + 5rem);
   }
 
   .mobile-zone-switch,

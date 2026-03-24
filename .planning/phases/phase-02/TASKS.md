@@ -22,6 +22,13 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P2-T29 [P0] Mobile Dashboard Sticky/Fixierung so anpassen, dass Trigger-/Running-Cluster beim Scrollen keinen Content ueberdecken.
 - [x] DONE P2-T30 [P1] Desktop-Paritaetscheck fuer P2-T29 dokumentieren (Desktop-Layout/Scrollverhalten unveraendert).
 
+## Priority Add-on - Neues verpflichtendes Feedback Phase 2 (Plan Update 3)
+- [x] DONE P2-T31 [P0] Mobile Overlap-Bugfix: oberes Mobile-Cluster so kapseln/offsetten, dass Board-Projektionsflaeche beim Scrollen sichtbar und bedienbar bleibt.
+- [ ] TODO P2-T32 [P0] Sticky-Interaktionsguard: sicherstellen, dass Mobile-Sticky-Bereiche keine Pointer-Interaktion auf der Board-Flaeche blockieren.
+- [ ] TODO P2-T33 [P0] View-Navigation-Hardening: `Dashboard`/`Settings`-Switch dauerhaft sichtbar machen; Dashboard-Button darf in `Settings` nie verschwinden.
+- [ ] TODO P2-T34 [P0] Navigation-State-Guard + Regression: Scroll, Orientation-Wechsel, Resize und View-Switch ohne Navigationsverlust absichern.
+- [ ] TODO P2-T35 [P1] Nachweisprotokoll fuer P2-T31..P2-T34 erstellen (Mobile + Desktop Paritaet).
+
 ## Milestone A - Core Data
 - [ ] TODO P2-T11 [P1] Session-Profile speichern/laden pro Board inkl. sicherem Fallback umsetzen.
 - [ ] TODO P2-T12 [P1] Board-Zonen aus externen JSON-Dateien laden und validieren.

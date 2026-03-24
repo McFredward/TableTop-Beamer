@@ -309,6 +309,7 @@ const mobileStartRoomButton = document.querySelector("#mobile-start-room");
 const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
 const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
+const primaryViewSwitch = document.querySelector(".primary-view-switch");
 const dashboardStickyShell = document.querySelector(".dashboard-sticky-shell");
 const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
@@ -2229,6 +2230,43 @@ function getMobileOrientationLabel() {
   return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
 }
 
+function isElementRendered(element) {
+  if (!element || element.hidden) {
+    return false;
+  }
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") {
+    return false;
+  }
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function getRenderedHeight(element) {
+  if (!isElementRendered(element)) {
+    return 0;
+  }
+  return Math.max(0, Math.ceil(element.getBoundingClientRect().height));
+}
+
+function syncMobileStickyOffsets() {
+  if (!controlPanel) {
+    return;
+  }
+  if (!isMobileViewport()) {
+    controlPanel.style.setProperty("--mobile-projection-offset", "0px");
+    controlPanel.style.setProperty("--mobile-nav-offset", "0px");
+    return;
+  }
+
+  const projectionHeight = Math.max(0, Math.ceil(projectionArea?.getBoundingClientRect().height ?? 0));
+  const projectionOffset = `${projectionHeight + 6}px`;
+  const navHeight = getRenderedHeight(primaryViewSwitch);
+  const navOffset = `${projectionHeight + navHeight + 12}px`;
+  controlPanel.style.setProperty("--mobile-projection-offset", projectionOffset);
+  controlPanel.style.setProperty("--mobile-nav-offset", navOffset);
+}
+
 function syncMobileLayoutStatus() {
   if (!controlPanel || !mobileLayoutStatus) {
     return;
@@ -2267,7 +2305,89 @@ function syncDashboardZoneVisibility() {
     mobileStartRoomButton.disabled = !roomSelectedNow;
   }
 
+  syncMobileStickyOffsets();
   syncMobileLayoutStatus();
+}
+
+function validateViewNavigationVisibility({ silent = false, context = "runtime" } = {}) {
+  const issues = [];
+  const navButtons = [
+    ["dashboard", openDashboardViewButton],
+    ["settings", openSettingsViewButton],
+  ];
+
+  for (const [key, button] of navButtons) {
+    if (!button) {
+      issues.push(`missing navigation button: ${key}`);
+      continue;
+    }
+    const style = window.getComputedStyle(button);
+    const rect = button.getBoundingClientRect();
+    if (
+      button.hidden ||
+      button.disabled ||
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.pointerEvents === "none" ||
+      rect.width < 1 ||
+      rect.height < 1
+    ) {
+      issues.push(`navigation button unreachable: ${key}`);
+    }
+  }
+
+  if (!isElementRendered(primaryViewSwitch)) {
+    issues.push("navigation container hidden");
+  }
+
+  if (controlPanel?.dataset.activeView !== state.uiView) {
+    issues.push(`navigation state drift: dataset=${controlPanel?.dataset.activeView} state=${state.uiView}`);
+  }
+
+  if (issues.length > 0) {
+    if (!silent) {
+      console.error(`Navigation visibility violation (${context})`, issues);
+      triggerFeedback.textContent =
+        "Status: Navigation-Guard meldet Ausfall (Dashboard/Settings nicht durchgaengig sichtbar)";
+    }
+    return false;
+  }
+  return true;
+}
+
+function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime" } = {}) {
+  if (!isMobileViewport() || !projectionArea) {
+    return true;
+  }
+
+  const issues = [];
+  const projectionRect = projectionArea.getBoundingClientRect();
+  if (projectionRect.width < 1 || projectionRect.height < 1) {
+    return true;
+  }
+
+  const blockers = [primaryViewSwitch, state.uiView === "dashboard" ? dashboardStickyShell : null].filter(Boolean);
+  for (const blocker of blockers) {
+    if (!isElementRendered(blocker)) {
+      continue;
+    }
+    const rect = blocker.getBoundingClientRect();
+    const overlapX = Math.max(0, Math.min(projectionRect.right, rect.right) - Math.max(projectionRect.left, rect.left));
+    const overlapY = Math.max(0, Math.min(projectionRect.bottom, rect.bottom) - Math.max(projectionRect.top, rect.top));
+    if (overlapX > 1 && overlapY > 1) {
+      issues.push(`projection overlap by ${blocker.className || blocker.id || blocker.tagName}`);
+    }
+  }
+
+  if (issues.length > 0) {
+    if (!silent) {
+      console.error(`Mobile projection visibility violation (${context})`, issues);
+      triggerFeedback.textContent =
+        "Status: Mobile-Projektions-Guard meldet Overlap (Board darf nicht von Sticky-Cluster ueberdeckt werden)";
+    }
+    return false;
+  }
+  return true;
 }
 
 function setDashboardZone(zone, { announce = false } = {}) {
@@ -2473,11 +2593,14 @@ function setActiveView(view, { skipGuard = false } = {}) {
     syncShipPolygonEditorPanel();
   }
   syncDashboardZoneVisibility();
+  syncMobileStickyOffsets();
   syncStageZoomTransform();
   setPanCursorState();
   renderRoomOverlay();
   if (!skipGuard) {
     validateViewExclusivity(nextView, { context: "set-active-view" });
+    validateViewNavigationVisibility({ context: "set-active-view" });
+    runMobileProjectionVisibilityGuard({ context: "set-active-view" });
   }
 }
 
@@ -2501,6 +2624,7 @@ function runViewVisibilityRegression() {
 function runLayoutScrollRegression() {
   const issues = [];
   const mobileViewport = isMobileViewport();
+  syncMobileStickyOffsets();
   const panelOverflowY = controlPanel ? window.getComputedStyle(controlPanel).overflowY : "";
   const expectedPanelOverflow = mobileViewport ? ["visible", "auto", "scroll"] : ["auto", "scroll"];
   if (!expectedPanelOverflow.includes(panelOverflowY)) {
@@ -2529,6 +2653,19 @@ function runLayoutScrollRegression() {
     } else if (!["static", "relative"].includes(stickyShellPosition)) {
       issues.push(`desktop sticky-shell regression position=${stickyShellPosition || "missing"}`);
     }
+  }
+
+  if (primaryViewSwitch) {
+    const navPosition = window.getComputedStyle(primaryViewSwitch).position;
+    if (mobileViewport) {
+      if (navPosition !== "sticky") {
+        issues.push(`mobile nav position=${navPosition || "missing"}`);
+      }
+    } else if (!["static", "relative"].includes(navPosition)) {
+      issues.push(`desktop nav regression position=${navPosition || "missing"}`);
+    }
+  } else {
+    issues.push("primary view switch missing");
   }
 
   if (!runningOverviewPanel || !globalAnimationPanel) {
@@ -2708,6 +2845,52 @@ function runOrientationStateRegression() {
     console.error("Orientation regression violation", { before, after });
   }
   return same;
+}
+
+function runNavigationStateRegression() {
+  const previousView = state.uiView;
+  const previousZone = state.dashboardZone;
+  let ok = true;
+
+  const checkpoints = [
+    { view: "dashboard", zone: "trigger", label: "dashboard-trigger" },
+    { view: "settings", zone: "trigger", label: "settings" },
+    { view: "dashboard", zone: "manage", label: "dashboard-manage" },
+  ];
+
+  try {
+    for (const checkpoint of checkpoints) {
+      setActiveView(checkpoint.view, { skipGuard: true });
+      if (checkpoint.view === "dashboard") {
+        setDashboardZone(checkpoint.zone);
+      }
+      syncDashboardZoneVisibility();
+      syncMobileLayoutStatus();
+      syncMobileStickyOffsets();
+      ok =
+        validateViewNavigationVisibility({
+          silent: true,
+          context: `navigation-${checkpoint.label}`,
+        }) && ok;
+      ok = runMobileProjectionVisibilityGuard({
+        silent: true,
+        context: `projection-${checkpoint.label}`,
+      }) && ok;
+    }
+  } finally {
+    setActiveView(previousView, { skipGuard: true });
+    setDashboardZone(previousZone);
+    syncDashboardZoneVisibility();
+    syncMobileStickyOffsets();
+  }
+
+  if (!ok) {
+    console.error("Navigation regression violation", {
+      view: state.uiView,
+      zone: state.dashboardZone,
+    });
+  }
+  return ok;
 }
 
 function runOutsideIsolationRegression() {
@@ -5082,11 +5265,29 @@ window.addEventListener("blur", () => {
 
 window.addEventListener("orientationchange", () => {
   syncDashboardZoneVisibility();
-  const ok = runOrientationStateRegression();
+  syncMobileStickyOffsets();
+  const orientationOk = runOrientationStateRegression();
+  const navigationOk = runNavigationStateRegression();
+  const projectionOk = runMobileProjectionVisibilityGuard({ context: "orientationchange" });
+  const ok = orientationOk && navigationOk && projectionOk;
   triggerFeedback.textContent = ok
-    ? "Status: Orientation gewechselt, UI-State beibehalten"
-    : "Status: Orientation-Guard meldet State-Drift";
+    ? "Status: Orientation gewechselt, UI-State/Navigation/Board-Sichtbarkeit stabil"
+    : "Status: Orientation-Guard meldet Drift bei State, Navigation oder Board-Sichtbarkeit";
 });
+
+window.addEventListener(
+  "scroll",
+  () => {
+    syncMobileStickyOffsets();
+    const navigationOk = validateViewNavigationVisibility({ silent: true, context: "scroll" });
+    const projectionOk = runMobileProjectionVisibilityGuard({ silent: true, context: "scroll" });
+    if (!navigationOk || !projectionOk) {
+      triggerFeedback.textContent =
+        "Status: Scroll-Guard meldet Navigation/Board-Overlap-Problem im Mobile-Layout";
+    }
+  },
+  { passive: true },
+);
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -5318,8 +5519,11 @@ const resizeObserver = new ResizeObserver((entries) => {
   updateCurrentBoardZoom(getBoardZoom(state.boardId));
   setPanCursorState();
   syncDashboardZoneVisibility();
+  syncMobileStickyOffsets();
   updateMobilePerformanceStatus();
   validateViewExclusivity(state.uiView, { context: "resize-guard" });
+  validateViewNavigationVisibility({ context: "resize-guard" });
+  runMobileProjectionVisibilityGuard({ context: "resize-guard" });
   runLayoutScrollRegression();
 });
 
@@ -5400,6 +5604,7 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
+  syncMobileStickyOffsets();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
       `Global Defaults: automatisch geladen & angewendet (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
@@ -5417,6 +5622,8 @@ async function initializeApplication() {
   const zoomPanRegressionOk = runZoomPanEditRegression();
   const panPointerRegressionOk = runPanPointerCaptureRegression();
   const orientationRegressionOk = runOrientationStateRegression();
+  const navigationRegressionOk = runNavigationStateRegression();
+  const projectionVisibilityOk = runMobileProjectionVisibilityGuard({ silent: true, context: "startup" });
   const outsideIsolationRegressionOk = runOutsideIsolationRegression();
   const shipClipRegressionOk = runShipClipRegression();
   if (
@@ -5426,14 +5633,16 @@ async function initializeApplication() {
     !zoomPanRegressionOk ||
     !panPointerRegressionOk ||
     !orientationRegressionOk ||
+    !navigationRegressionOk ||
+    !projectionVisibilityOk ||
     !outsideIsolationRegressionOk ||
     !shipClipRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (Startup-Guard/View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
+      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip)";
   } else {
     triggerFeedback.textContent =
-      "Status: Regression ok (Startup-Guard + View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
+      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
