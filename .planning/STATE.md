@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-19
-- Last Execution Summary: `.planning/phases/phase-01/1-19-SUMMARY.md`
+- Last Executed Plan: 1-20
+- Last Execution Summary: `.planning/phases/phase-01/1-20-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -148,6 +148,14 @@
 - Verifikations-Regel fuer Plan-Update 17: reproduzierbarer Save muss ueber IP-Aufruf der UI von einem zweiten LAN-Geraet nachgewiesen werden (mindestens 5x Save + Reload/Restart).
 - Plan-Update-17 Umsetzung: Resolver nutzt jetzt UI-Host-default mit hostbasierten Fallback-Ports; stiller Client-`localhost`-Drift im Remote-Fall ist entfernt.
 - Plan-Update-17 Umsetzung: Save/Diagnose zeigen Resolver-Quelle sowie `UI-Host -> API-Host` und geben bei Localhost-Mismatch eine konkrete LAN-Hilfestellung.
+- Plan-Update 18 setzt Prioritaetsfokus: Realbetrieb nutzt aktuell `python3 -m http.server 4173`; diese Static-only-Fehlkonfiguration muss explizit erkannt und als Save-Blocker ausgewiesen werden.
+- Misconfiguration-Regel fuer Plan-Update 18: `GET /api/health` mit 404 + typischer Static-Signatur (Header/Body) wird als `static-only` klassifiziert; Save meldet klar `Static-only Server aktiv, Save nicht moeglich`.
+- Guided-Fix-Regel fuer Plan-Update 18: Save-/Diagnose-UX liefert konkrete headless/LAN-Kommandos fuer API-Start (z. B. `node server.mjs --host 0.0.0.0 --port 4173`) und markiert Python-Static explizit als nicht POST-faehig.
+- Resolver-Regel fuer Plan-Update 18: Save und Diagnose teilen einen identischen Host-/Endpoint-Snapshot; remote IP-Flow zeigt keine verwirrenden `localhost`-Fallback-Meldungen.
+- Verifikations-Regel fuer Plan-Update 18: Pflichtabnahme enthaelt zwingend einen echten Negativtest mit Python-Static und anschliessenden Positivtest mit Node-API auf demselben Host/Port.
+- Static-only-Erkennung klassifiziert Python/SimpleHTTP-Health-404 jetzt explizit als Save-Blocker (`STATIC_ONLY_SERVER`) statt generischem API-Fehler.
+- Guided-Fix-UX gibt host-korrekte Headless/LAN-Kommandos aus (`node server.mjs --host 0.0.0.0 --port <endpoint-port>`) und markiert Python-Static als nicht POST-faehig.
+- Save- und Diagnosepfad nutzen einen identischen Resolver-Snapshot (`UI-Host -> API-Host`, Quelle, Methode, Endpoint); malformed Endpoint-Fallback driftet nicht mehr auf `localhost`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -313,3 +321,15 @@
   - `.planning/phases/phase-01/P1-T111-VERIFICATION.md`
   - `node debug/p1-t110-resolver-regression.mjs` => `REMOTE_FIRST=192.168.0.80`, `REMOTE_HAS_LOCALHOST=false`, `OVERRIDE_FIRST=localhost`
   - Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
+
+## Execution Results (Phase 1 Plan 20)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-20-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`3b56f06`, `d74a58d`, `cf23e34`, `e786892`, `a7dfec4`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T116-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - `node debug/p1-t115-resolver-snapshot-regression.mjs` => `SNAPSHOT_SAVE=UI-Host 192.168.0.80 -> API-Host 192.168.0.80`, `SNAPSHOT_DIAG=...`, `INVALID_ENDPOINT_FALLBACK=http://192.168.0.80:4173`
+  - Python-Static-Negativtest (Port 4173): `PY_HEALTH=404 PY_POST=501 PY_SERVER=SimpleHTTP/0.6 Python/3.14.3`
+  - Node-API-Positivtest (gleicher Port 4173): `NODE_HEALTH=200 NODE_OPTIONS=204 NODE_SAVES=[200,200,200,200,200] NODE_AFTER_RESTART=200`
