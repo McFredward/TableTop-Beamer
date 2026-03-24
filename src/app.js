@@ -1280,12 +1280,14 @@ function formatApiDiagnoseSummary(reports) {
 
   const success = reports.find((entry) => entry.preflight.ok);
   if (success) {
-    const hostFlow = formatHostFlow(success.routing);
-    const sourceLabel = formatResolverSourceLabel(success.routing?.source);
+    const snapshot = buildResolveSnapshot({
+      routing: success.routing,
+      endpoint: success.endpoint,
+      method: "OPTIONS",
+    });
     return {
-      statusText:
-        `API Diagnose: OK (${hostFlow}, Quelle ${sourceLabel}, GET /api/health + OPTIONS /api/global-defaults via ${success.endpoint})`,
-      feedbackText: `Status: API erreichbar und POST erlaubt (${hostFlow}, ${success.endpoint}).`,
+      statusText: `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`,
+      feedbackText: `Status: API erreichbar und POST erlaubt (${formatResolveSnapshot(snapshot)}).`,
     };
   }
 
@@ -1298,18 +1300,28 @@ function formatApiDiagnoseSummary(reports) {
     : "n/a";
   if (failed.preflight.code === "API_UNREACHABLE") {
     const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
+    const snapshot = buildResolveSnapshot({
+      routing: failed.routing,
+      endpoint: failed.endpoint,
+      method: failed.preflight.method || "GET",
+    });
     return {
-      statusText: `API Diagnose: nicht erreichbar (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint})`,
-      feedbackText: `Status: API nicht erreichbar (${hostFlow}). ${guidedFix}`,
+      statusText: `API Diagnose: nicht erreichbar (${formatResolveSnapshot(snapshot)})`,
+      feedbackText: `Status: API nicht erreichbar (${formatResolveSnapshot(snapshot)}). ${guidedFix}`,
     };
   }
   if (failed.preflight.code === "STATIC_ONLY_SERVER") {
     const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
+    const snapshot = buildResolveSnapshot({
+      routing: failed.routing,
+      endpoint: failed.endpoint,
+      method: failed.preflight.method || "GET",
+    });
     return {
       statusText:
-        `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
+        `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${formatResolveSnapshot(snapshot)}, Status ${statusLabel})`,
       feedbackText:
-        `Status: Static-only Server aktiv, Save nicht moeglich (${hostFlow}; ${failed.endpoint}). ${guidedFix}`,
+        `Status: Static-only Server aktiv, Save nicht moeglich (${formatResolveSnapshot(snapshot)}). ${guidedFix}`,
     };
   }
   if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
@@ -1340,7 +1352,7 @@ function getApiBaseFromSaveEndpoint(saveEndpoint) {
     const url = new URL(saveEndpoint);
     return url.origin;
   } catch {
-    return "http://localhost:4173";
+    return window.location?.origin || "http://127.0.0.1:4173";
   }
 }
 
@@ -1572,11 +1584,10 @@ function formatGlobalDefaultsSaveError(error) {
       ? String(error.statusClass || classifyHttpStatus(status))
       : classifyHttpStatus(status);
   const routing = error && typeof error === "object" && "routing" in error ? error.routing : null;
-  const hostFlow = formatHostFlow(routing);
-  const sourceLabel = formatResolverSourceLabel(routing?.source);
+  const snapshot = buildResolveSnapshot({ routing, endpoint, method });
   const endpointMeta = `${method} ${endpoint} | Status ${status ?? "n/a"} (${statusClass})`;
   const startHint = buildGuidedFixHint({ routing, endpoint });
-  const hostMeta = `${hostFlow}, Quelle ${sourceLabel}`;
+  const hostMeta = formatResolveSnapshot(snapshot);
   if (code === "STATIC_ONLY_SERVER") {
     return {
       statusText: `Speichern blockiert - Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}).`,
@@ -1609,6 +1620,23 @@ function formatGlobalDefaultsSaveError(error) {
 
 function formatResolverSourceLabel(source) {
   return source || "unbekannt";
+}
+
+function buildResolveSnapshot({ routing = null, endpoint = "", method = "POST" } = {}) {
+  return {
+    uiHost: routing?.uiHost || getUiHostName() || "unbekannt",
+    apiHost: routing?.apiHost || getApiHostName(getApiBaseFromSaveEndpoint(endpoint)) || "unbekannt",
+    source: formatResolverSourceLabel(routing?.source),
+    endpoint,
+    method,
+  };
+}
+
+function formatResolveSnapshot(snapshot) {
+  if (!snapshot) {
+    return "UI-Host unbekannt -> API-Host unbekannt | Quelle unbekannt | Endpoint unbekannt";
+  }
+  return `UI-Host ${snapshot.uiHost} -> API-Host ${snapshot.apiHost} | Quelle ${snapshot.source} | Endpoint ${snapshot.method} ${snapshot.endpoint}`;
 }
 
 function formatHostFlow(routing) {
@@ -4780,13 +4808,16 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
   try {
     const result = await saveGlobalDefaultsToServer();
-    const hostFlow = formatHostFlow(result.routing);
-    const sourceLabel = formatResolverSourceLabel(result.routing?.source);
+    const snapshot = buildResolveSnapshot({
+      routing: result.routing,
+      endpoint: result.endpoint,
+      method: result.method,
+    });
     const remoteHint = getRemoteMismatchHint(result.routing);
     globalDefaultsStatus.textContent =
-      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | ${hostFlow} | Quelle ${sourceLabel} | Endpoint ${result.method} ${result.endpoint} [${result.statusClass}]`;
+      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | ${formatResolveSnapshot(snapshot)} [${result.statusClass}]`;
     triggerFeedback.textContent =
-      `Status: Global Defaults gespeichert via ${result.method} ${result.endpoint} (${hostFlow}; Quelle ${sourceLabel}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
+      `Status: Global Defaults gespeichert (${formatResolveSnapshot(snapshot)}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
