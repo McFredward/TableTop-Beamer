@@ -366,6 +366,7 @@ const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const audioAssetCursorByEffect = {};
+const audioAssetVoiceCursorByPath = {};
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
@@ -1659,10 +1660,27 @@ function createAudioAssetVoice(path) {
 
 function getAudioAssetPool(path) {
   if (!audioAssetPoolByPath.has(path)) {
-    const pool = [createAudioAssetVoice(path), createAudioAssetVoice(path), createAudioAssetVoice(path)];
+    const pool = [
+      createAudioAssetVoice(path),
+      createAudioAssetVoice(path),
+      createAudioAssetVoice(path),
+      createAudioAssetVoice(path),
+      createAudioAssetVoice(path),
+    ];
     audioAssetPoolByPath.set(path, pool);
   }
   return audioAssetPoolByPath.get(path);
+}
+
+function warmEventSoundAssets() {
+  const paths = new Set(Object.values(EVENT_SOUND_ASSETS).flat());
+  for (const path of paths) {
+    const pool = getAudioAssetPool(path);
+    for (const voice of pool) {
+      voice.volume = state.audio.enabled ? state.audio.volume : 0;
+      voice.load();
+    }
+  }
 }
 
 function applyAudioGain() {
@@ -1670,6 +1688,15 @@ function applyAudioGain() {
   for (const pool of audioAssetPoolByPath.values()) {
     for (const voice of pool) {
       voice.volume = targetVolume;
+    }
+  }
+}
+
+function stopAllAudioVoices() {
+  for (const pool of audioAssetPoolByPath.values()) {
+    for (const voice of pool) {
+      voice.pause();
+      voice.currentTime = 0;
     }
   }
 }
@@ -1697,7 +1724,9 @@ function playEventSound(effectType) {
   if (!pool?.length) {
     return;
   }
-  const reusable = pool.find((voice) => voice.paused || voice.ended) ?? pool[0];
+  const nextIndex = audioAssetVoiceCursorByPath[path] ?? 0;
+  const reusable = pool[nextIndex % pool.length];
+  audioAssetVoiceCursorByPath[path] = (nextIndex + 1) % pool.length;
   reusable.pause();
   reusable.currentTime = 0;
   reusable.volume = state.audio.volume;
@@ -2804,6 +2833,9 @@ roomHoldInput.addEventListener("change", () => {
 
 audioEnabledInput.addEventListener("change", () => {
   state.audio.enabled = audioEnabledInput.checked;
+  if (!state.audio.enabled) {
+    stopAllAudioVoices();
+  }
   applyAudioGain();
   syncAudioStatus();
 });
@@ -2857,6 +2889,8 @@ roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
 audioEnabledInput.checked = state.audio.enabled;
 audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
 audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
+warmEventSoundAssets();
+applyAudioGain();
 syncAudioStatus();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
