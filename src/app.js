@@ -312,6 +312,7 @@ const outsideIntensityInput = document.querySelector("#outside-intensity");
 const outsideIntensityValue = document.querySelector("#outside-intensity-value");
 const outsideSpeedInput = document.querySelector("#outside-speed");
 const outsideSpeedValue = document.querySelector("#outside-speed-value");
+const outsideModeInput = document.querySelector("#outside-mode");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
@@ -362,6 +363,7 @@ const OUTSIDE_FX_DEFAULT = {
   enabled: false,
   intensity: 0.7,
   speed: 1,
+  mode: "standard",
 };
 
 const state = {
@@ -675,6 +677,7 @@ function normalizeOutsideFxProfile(profile) {
     enabled: Boolean(profile?.enabled),
     intensity: clampOutsideIntensity(profile?.intensity),
     speed: clampOutsideSpeed(profile?.speed),
+    mode: normalizeOutsideMode(profile?.mode),
   };
 }
 
@@ -1224,6 +1227,10 @@ function clampOutsideSpeed(value) {
   return Math.max(0.3, Math.min(2.5, Number(value) || OUTSIDE_FX_DEFAULT.speed));
 }
 
+function normalizeOutsideMode(value) {
+  return value === "immersive" ? "immersive" : "standard";
+}
+
 function formatHitareaValue(value) {
   const numeric = Number(value) || 0;
   return numeric.toFixed(3);
@@ -1684,6 +1691,7 @@ function syncOutsideFxPanel() {
   outsideEnabledInput.checked = outside.enabled;
   outsideIntensityInput.value = String(outside.intensity);
   outsideSpeedInput.value = String(outside.speed);
+  outsideModeInput.value = outside.mode;
   outsideIntensityValue.textContent = outside.intensity.toFixed(2);
   outsideSpeedValue.textContent = `${outside.speed.toFixed(2)}x`;
 }
@@ -2690,10 +2698,13 @@ function drawAnimation(animation, now) {
     return;
   }
   if (animation.type === "outside-space") {
+    const outside = getOutsideFxProfile(animation.boardId);
     ctx.save();
     try {
-      clipToOutsideShip(state.boardId);
-      drawEffectVisual(animation.type, age, animation.intensity, null);
+      clipToOutsideShip(animation.boardId);
+      drawEffectVisual(animation.type, age, animation.intensity, null, null, {
+        outsideMode: outside.mode,
+      });
     } finally {
       ctx.restore();
     }
@@ -2726,13 +2737,17 @@ function drawOutsideFxLayer(now) {
       (now / 1000) * outside.speed * state.animationSpeed,
       outside.intensity,
       null,
+      null,
+      {
+        outsideMode: outside.mode,
+      },
     );
   } finally {
     ctx.restore();
   }
 }
 
-function drawEffectVisual(type, age, intensity, room, roomMetrics = null) {
+function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
   const w = canvas.width;
   const h = canvas.height;
   const roomCenter = room ? getRoomLabelPosition(room, state.boardId) : { x: 0.5, y: 0.5 };
@@ -2745,6 +2760,35 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null) {
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
 
   if (type === "outside-space") {
+    if (options.outsideMode === "immersive") {
+      const nebulaBands = 6;
+      for (let i = 0; i < nebulaBands; i += 1) {
+        const phase = age * (0.18 + i * 0.02) + i * 1.73;
+        const bandY = (((Math.sin(phase) + 1) / 2) * 1.2 - 0.1) * h;
+        const bandHeight = h * (0.12 + i * 0.03);
+        const gradient = ctx.createLinearGradient(0, bandY, w, bandY + bandHeight);
+        gradient.addColorStop(0, `rgba(55, 84, 150, ${0.08 * intensity})`);
+        gradient.addColorStop(0.5, `rgba(112, 75, 180, ${0.12 * intensity})`);
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, bandY - bandHeight * 0.5, w, bandHeight * 1.4);
+      }
+
+      const starCount = Math.max(50, Math.round(130 * intensity));
+      for (let i = 0; i < starCount; i += 1) {
+        const lane = i / starCount;
+        const depth = 0.25 + ((i * 17) % 8) * 0.12;
+        const drift = (age * 0.08 * depth + lane * 1.91) % 1;
+        const x = ((lane * 887 + age * (20 + depth * 12)) % 1) * w;
+        const y = drift * h;
+        const size = 0.7 + depth * 1.8;
+        const alpha = Math.min(0.95, (0.16 + depth * 0.22) * intensity);
+        ctx.fillStyle = `rgba(213, 230, 255, ${alpha})`;
+        ctx.fillRect(x, y, size, size);
+      }
+      return;
+    }
+
     const starCount = Math.max(32, Math.round(90 * intensity));
     for (let i = 0; i < starCount; i += 1) {
       const lane = i / starCount;
@@ -3353,6 +3397,15 @@ outsideSpeedInput.addEventListener("input", () => {
   triggerFeedback.textContent = persisted
     ? "Status: Outside-Geschwindigkeit aktualisiert"
     : "Status: Outside-Geschwindigkeit aktualisiert (Persistenz fehlgeschlagen)";
+});
+
+outsideModeInput.addEventListener("change", () => {
+  updateOutsideFxProfile(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert`
+    : `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert (Persistenz fehlgeschlagen)`;
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {
