@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-20
-- Last Execution Summary: `.planning/phases/phase-01/1-20-SUMMARY.md`
+- Last Executed Plan: 1-21
+- Last Execution Summary: `.planning/phases/phase-01/1-21-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -129,14 +129,14 @@
 - Save-Regel fuer Plan-Update 15: Primaerer Persistenzpfad bleibt `lokaler Browserstand -> globale Defaults` ueber den Node-API-Server; statisches Hosting ohne API gilt als Nicht-POST-Setup.
 - UX-Regel fuer Plan-Update 15: Save-Fehler zeigen kurze, handlungsorientierte Klartexte mit konkreter Startanweisung; HTML-Rohantworten werden nicht direkt in der UI angezeigt.
 - Doku-Regel fuer Plan-Update 15: README/Startanleitung benennt explizit den noetigen API-Server (`node server.mjs`) und eine kurze Startsequenz fuer API + Frontend.
-- Fallback-Regel fuer Plan-Update 15: Optionaler Export/Download ist nur sekundaerer Notfallpfad und darf den Server-Save nicht ersetzen oder verdecken.
+- Fallback-Regel fuer Plan-Update 15: Optionaler Export/Download ist nur sekundaerer Fallbackpfad und darf den Server-Save nicht ersetzen oder verdecken.
 - Save-Transport versucht fuer globale Defaults zuerst Same-Origin-API und dann `localhost:4173` als Fallback fuer das vorgesehene Node-Setup.
 - Save-Fehler werden klassifiziert (`API unreachable`/`method unavailable`/`HTML error`/`server error`) und als kurze Operator-Anweisung statt Roh-Fehlertext angezeigt.
-- Optionaler Download-Export ist als sekundaerer Notfallpfad gekennzeichnet; primaerer Standard bleibt API-Speichern.
-- Plan-Update 16 setzt Prioritaetsfokus: P0 statisches Frontend-Hosting robust machen (API-Base-Konfiguration + Port-Fallback + klarer Health-Check), P0 endpoint-transparente Save-UX, P0 One-Click-API-Diagnose, P0 reproduzierbarer Save bei laufender API.
+- Optionaler Download-Export ist als sekundaerer Fallbackpfad gekennzeichnet; primaerer Standard bleibt API-Speichern.
+- Plan-Update 16 setzt Prioritaetsfokus: P0 statisches Frontend-Hosting robust machen (API-Base-Konfiguration + Port-Fallback + klarer Health-Check), P0 endpoint-transparente Save-UX, P0 API-Diagnosepfad, P0 reproduzierbarer Save bei laufender API.
 - Reales Betriebsfeedback hebt Plan-Update-15-Defekt wieder auf Blocker-Niveau: `POST /api/global-defaults` liefert unter Static-/Python-Server weiterhin `501`, wenn Endpoint-Aufloesung nicht explizit steuerbar ist.
 - Endpoint-Regel fuer Plan-Update 16: Save und Diagnose nutzen dieselbe deterministische API-Base-Aufloesung (explizite Konfiguration > definierte Localhost-Fallbacks > klarer Fehlerzustand).
-- Diagnose-Regel fuer Plan-Update 16: One-Click-Pruefung testet sowohl API-Erreichbarkeit als auch POST-Faehigkeit auf dem echten Save-Endpunkt und liefert pro Ergebnis konkrete Next Steps.
+- Diagnose-Regel fuer Plan-Update 16: Diagnosepruefung testet sowohl API-Erreichbarkeit als auch POST-Faehigkeit auf dem echten Save-Endpunkt und liefert pro Ergebnis konkrete Next Steps.
 - UX-Regel fuer Plan-Update 16: Save-Feedback zeigt den tatsaechlich verwendeten Endpoint (Host/Port/Pfad) inklusive Methode/Statusklasse, damit Fehlersuche zielgerichtet bleibt.
 - Verifikations-Regel fuer Plan-Update 16: Reproduzierbarkeit gilt erst als erreicht, wenn Mehrfach-Save plus Reload/Restart bei laufender API ohne intermittierende Fehler durchlaufen.
 - API-Base-Aufloesung nutzt jetzt feste Reihenfolge: `window.__TT_BEAMER_API_BASE__` > URL-Parameter > `localStorage` > deterministische Localhost-Port-Fallbacks.
@@ -156,6 +156,11 @@
 - Static-only-Erkennung klassifiziert Python/SimpleHTTP-Health-404 jetzt explizit als Save-Blocker (`STATIC_ONLY_SERVER`) statt generischem API-Fehler.
 - Guided-Fix-UX gibt host-korrekte Headless/LAN-Kommandos aus (`node server.mjs --host 0.0.0.0 --port <endpoint-port>`) und markiert Python-Static als nicht POST-faehig.
 - Save- und Diagnosepfad nutzen einen identischen Resolver-Snapshot (`UI-Host -> API-Host`, Quelle, Methode, Endpoint); malformed Endpoint-Fallback driftet nicht mehr auf `localhost`.
+- Plan-Update 19 setzt Prioritaetsfokus: dedizierten UI-Button `API Diagnose` entfernen und Download-Fallback auf neutrales Wording ohne `Notfall` umstellen.
+- Diagnose-Regel fuer Plan-Update 19: Reachability/POST-Pruefung bleibt verpflichtend im Save-Preflight + Save-Feedback, jedoch ohne separaten Diagnose-Button.
+- Wording-Regel fuer Plan-Update 19: Export-/Download-Fallback wird durchgaengig als sekundaerer Pfad benannt; alarmistische Labels sind unzulaessig.
+- Plan-Update-19 Umsetzung: dedizierter `API Diagnose`-Button ist entfernt; Diagnose-Status wird direkt im Save-Preflight-/Save-Feedback gepflegt.
+- Plan-Update-19 Umsetzung: Download-Fallback nutzt durchgaengig neutrales Wording als sekundaeren Pfad ohne `Notfall`-Label.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -332,4 +337,15 @@
   - `node --check server.mjs` (Server Syntax Check)
   - `node debug/p1-t115-resolver-snapshot-regression.mjs` => `SNAPSHOT_SAVE=UI-Host 192.168.0.80 -> API-Host 192.168.0.80`, `SNAPSHOT_DIAG=...`, `INVALID_ENDPOINT_FALLBACK=http://192.168.0.80:4173`
   - Python-Static-Negativtest (Port 4173): `PY_HEALTH=404 PY_POST=501 PY_SERVER=SimpleHTTP/0.6 Python/3.14.3`
-  - Node-API-Positivtest (gleicher Port 4173): `NODE_HEALTH=200 NODE_OPTIONS=204 NODE_SAVES=[200,200,200,200,200] NODE_AFTER_RESTART=200`
+- Node-API-Positivtest (gleicher Port 4173): `NODE_HEALTH=200 NODE_OPTIONS=204 NODE_SAVES=[200,200,200,200,200] NODE_AFTER_RESTART=200`
+
+## Execution Results (Phase 1 Plan 21)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-21-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`96345d4`, `d5fb34a`, `9e50f94`, `ce8330b`, `2edff83`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T121-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - Pattern-Checks: kein `run-api-diagnose`/`API Diagnose (One-Click)` und kein `Notfall`-Wording in `index.html`, `src/app.js`, `README.md`
+  - Node-API-Smoke (Port 4180): `HEALTH=200 OPTIONS=204 SAVE=200`
