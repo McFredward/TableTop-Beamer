@@ -1093,8 +1093,10 @@ async function saveGlobalDefaultsToServer() {
       lastError = buildGlobalDefaultsSaveError({
         code: preflight.code,
         status: preflight.status,
+        statusClass: classifyHttpStatus(preflight.status),
         details: preflight.details,
         endpoint,
+        method: preflight.method,
       });
       continue;
     }
@@ -1113,8 +1115,10 @@ async function saveGlobalDefaultsToServer() {
         lastError = buildGlobalDefaultsSaveError({
           code: classifyFailedSaveResponse(response, details),
           status: response.status,
+          statusClass: classifyHttpStatus(response.status),
           details,
           endpoint,
+          method: "POST",
         });
         continue;
       }
@@ -1123,6 +1127,10 @@ async function saveGlobalDefaultsToServer() {
       return {
         savedAt: result?.savedAt ?? payload.savedAt,
         target: result?.target ?? "config/global-defaults.json",
+        endpoint,
+        method: "POST",
+        status: response.status,
+        statusClass: classifyHttpStatus(response.status),
       };
     } catch (error) {
       lastError =
@@ -1132,6 +1140,7 @@ async function saveGlobalDefaultsToServer() {
               code: "API_UNREACHABLE",
               details: error instanceof Error ? error.message : "request failed",
               endpoint,
+              method: "POST",
             });
     }
   }
@@ -1156,6 +1165,7 @@ async function fetchWithTimeout(url, options = {}) {
         code: "API_UNREACHABLE",
         details: `timeout after ${API_REQUEST_TIMEOUT_MS}ms`,
         endpoint: url,
+        method: options.method ?? "GET",
       });
     }
     throw error;
@@ -1178,6 +1188,7 @@ async function runApiPreflight(saveEndpoint) {
       return {
         ok: false,
         code: classifyFailedHealthResponse(healthResponse, details),
+        method: "GET",
         status: healthResponse.status,
         details,
       };
@@ -1186,6 +1197,7 @@ async function runApiPreflight(saveEndpoint) {
     return {
       ok: false,
       code: "API_UNREACHABLE",
+      method: "GET",
       status: null,
       details: error instanceof Error ? error.message : "health request failed",
     };
@@ -1200,6 +1212,7 @@ async function runApiPreflight(saveEndpoint) {
       return {
         ok: false,
         code: classifyFailedSaveResponse(optionsResponse, details),
+        method: "OPTIONS",
         status: optionsResponse.status,
         details,
       };
@@ -1209,6 +1222,7 @@ async function runApiPreflight(saveEndpoint) {
       return {
         ok: false,
         code: "API_METHOD_UNAVAILABLE",
+        method: "OPTIONS",
         status: optionsResponse.status,
         details: `allow=${allowHeader}`,
       };
@@ -1217,6 +1231,7 @@ async function runApiPreflight(saveEndpoint) {
     return {
       ok: false,
       code: "API_UNREACHABLE",
+      method: "OPTIONS",
       status: null,
       details: error instanceof Error ? error.message : "options request failed",
     };
@@ -1225,9 +1240,17 @@ async function runApiPreflight(saveEndpoint) {
   return {
     ok: true,
     code: "OK",
+    method: "OPTIONS",
     status: 200,
     details: "preflight ok",
   };
+}
+
+function classifyHttpStatus(status) {
+  if (!Number.isFinite(Number(status))) {
+    return "n/a";
+  }
+  return `${Math.floor(Number(status) / 100)}xx`;
 }
 
 function getApiBaseFromSaveEndpoint(saveEndpoint) {
@@ -1350,37 +1373,57 @@ function classifyFailedHealthResponse(response, details) {
   return "API_HEALTH_FAILED";
 }
 
-function buildGlobalDefaultsSaveError({ code, status = null, details = "", endpoint = "" }) {
+function buildGlobalDefaultsSaveError({
+  code,
+  status = null,
+  statusClass = "n/a",
+  details = "",
+  endpoint = "",
+  method = "POST",
+}) {
   const error = new Error(`Global Defaults Save fehlgeschlagen (${code})`);
   error.code = code;
   error.status = status;
+  error.statusClass = statusClass;
   error.details = details;
   error.endpoint = endpoint;
+  error.method = method;
   return error;
 }
 
 function formatGlobalDefaultsSaveError(error) {
   const code = error && typeof error === "object" && "code" in error ? error.code : "UNKNOWN";
+  const endpoint =
+    error && typeof error === "object" && "endpoint" in error ? String(error.endpoint || "") : "unbekannt";
+  const method =
+    error && typeof error === "object" && "method" in error ? String(error.method || "POST") : "POST";
+  const status = error && typeof error === "object" && "status" in error ? error.status : null;
+  const statusClass =
+    error && typeof error === "object" && "statusClass" in error
+      ? String(error.statusClass || classifyHttpStatus(status))
+      : classifyHttpStatus(status);
+  const endpointMeta = `${method} ${endpoint} | Status ${status ?? "n/a"} (${statusClass})`;
   const startHint = "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
   if (
     code === "API_UNREACHABLE" ||
     code === "API_HTML_ERROR" ||
-    code === "API_METHOD_UNAVAILABLE"
+    code === "API_METHOD_UNAVAILABLE" ||
+    code === "API_HEALTH_FAILED"
   ) {
     return {
-      statusText: "Speichern fehlgeschlagen - API-Server fehlt oder falscher Server aktiv.",
-      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar. ${startHint}`,
+      statusText: `Speichern fehlgeschlagen - API-Endpoint nicht save-faehig (${endpointMeta}).`,
+      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar (${endpointMeta}). ${startHint}`,
     };
   }
   if (code === "API_SERVER_ERROR") {
     return {
-      statusText: "Speichern fehlgeschlagen - API-Serverfehler.",
-      feedbackText: "Status: API-Server hat den Save-Request nicht verarbeitet (Server-Log pruefen).",
+      statusText: `Speichern fehlgeschlagen - API-Serverfehler (${endpointMeta}).`,
+      feedbackText: `Status: API-Server hat den Save-Request nicht verarbeitet (${endpointMeta}).`,
     };
   }
   return {
-    statusText: "Speichern fehlgeschlagen - bitte Save-Setup pruefen.",
-    feedbackText: `Status: Save fehlgeschlagen. ${startHint}`,
+    statusText: `Speichern fehlgeschlagen - bitte Save-Setup pruefen (${endpointMeta}).`,
+    feedbackText: `Status: Save fehlgeschlagen (${endpointMeta}). ${startHint}`,
   };
 }
 
@@ -4508,8 +4551,10 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
   try {
     const result = await saveGlobalDefaultsToServer();
-    globalDefaultsStatus.textContent = `Global Defaults: gespeichert (${result.target}, ${result.savedAt})`;
-    triggerFeedback.textContent = "Status: Global Defaults aus lokalem Browserstand gespeichert";
+    globalDefaultsStatus.textContent =
+      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | Endpoint ${result.method} ${result.endpoint} [${result.statusClass}]`;
+    triggerFeedback.textContent =
+      `Status: Global Defaults gespeichert via ${result.method} ${result.endpoint} (Status ${result.status}/${result.statusClass})`;
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
