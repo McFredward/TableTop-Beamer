@@ -2082,6 +2082,9 @@ function syncDashboardZoneVisibility() {
 
 function setDashboardZone(zone, { announce = false } = {}) {
   const nextZone = zone === "manage" ? "manage" : "trigger";
+  if (nextZone !== "manage") {
+    resetClearAllGuard();
+  }
   state.dashboardZone = nextZone;
   syncDashboardZoneVisibility();
   if (announce && state.uiView === "dashboard") {
@@ -2273,6 +2276,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
   openDashboardViewButton.setAttribute("aria-pressed", showSettings ? "false" : "true");
   openSettingsViewButton.setAttribute("aria-pressed", showSettings ? "true" : "false");
   if (showSettings) {
+    resetClearAllGuard();
     syncPolygonEditorPanel();
     syncShipPolygonEditorPanel();
   }
