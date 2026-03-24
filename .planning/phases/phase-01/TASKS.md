@@ -147,4 +147,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T98 [P0] Save-Fehler-UX verbessern: bei fehlendem API-Server kurze Klartextmeldung mit konkreter Startanweisung statt HTML-Fehlerdump ausgeben.
 - [x] DONE P1-T99 [P0] Start-Flow dokumentieren: klarer Hinweis auf POST-faehigen API-Server (`node server.mjs`) inkl. kurzer Startsequenz fuer Frontend + API.
 - [x] DONE P1-T100 [P1] Optionalen Export-/Download-Fallback fuer API-Ausfall integrieren, klar als Sekundaerpfad markieren (primaerer Server-Save bleibt Standard).
-- [ ] TODO P1-T101 [P1] Plan-Update-15 Pflichtabnahme + Regression dokumentieren (Save-Robustheit, API-offline UX, Doku-Konsistenz, optionaler Fallback).
+- [x] DONE P1-T101 [P1] Plan-Update-15 Pflichtabnahme + Regression dokumentieren (Save-Robustheit, API-offline UX, Doku-Konsistenz, optionaler Fallback).
