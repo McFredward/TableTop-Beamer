@@ -460,6 +460,10 @@ function normalizeSpecialPolygon(points, fallbackPoints = []) {
   ];
 }
 
+function isValidSpecialPolygon(points) {
+  return Array.isArray(points) && points.length >= 3;
+}
+
 function createDefaultSpecialPolygonMap(boardId) {
   const board = getBoard(boardId);
   const specials = board.rooms.filter((room) => room.id.startsWith("special-") && room.points?.length >= 3);
@@ -482,10 +486,15 @@ function normalizeRoomGeometryMap(roomGeometry, boardId) {
   return defaults;
 }
 
-function normalizeSpecialPolygonMap(polygonMap, boardId) {
+function normalizeSpecialPolygonMap(polygonMap, boardId, preservedPolygonMap = null) {
   const defaults = createDefaultSpecialPolygonMap(boardId);
   for (const room of getSpecialRooms(boardId)) {
-    defaults[room.id] = normalizeSpecialPolygon(polygonMap?.[room.id], room.points ?? []);
+    const preserved = preservedPolygonMap?.[room.id];
+    const fallbackPoints = isValidSpecialPolygon(preserved) ? preserved : room.points ?? [];
+    const source = isValidSpecialPolygon(polygonMap?.[room.id])
+      ? polygonMap[room.id]
+      : fallbackPoints;
+    defaults[room.id] = normalizeSpecialPolygon(source, fallbackPoints);
   }
   return defaults;
 }
@@ -532,7 +541,11 @@ function applyBoardProfilesToState(profiles) {
   state.specialPolygonsByBoard = Object.fromEntries(
     BOARDS.map((board) => [
       board.id,
-      normalizeSpecialPolygonMap(profiles?.[board.id]?.specialPolygons, board.id),
+      normalizeSpecialPolygonMap(
+        profiles?.[board.id]?.specialPolygons,
+        board.id,
+        state.specialPolygonsByBoard?.[board.id],
+      ),
     ]),
   );
 }
