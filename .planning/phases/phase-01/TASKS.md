@@ -112,7 +112,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Priority Add-on - Plan Update 11
 - [x] DONE P1-T72 [P0] Audio-Lifecycle an Animationslaufzeit koppeln: Sound startet/schleift nur waehrend aktiver Animation; Ablauf, manueller Stop und `Clear All` beenden Sound sofort.
 - [x] DONE P1-T73 [P0] Looping fuer zu kurze Audiodateien robust umsetzen (nahtloser Re-Start bis Animationsende, ohne Doppelinstanzen oder Restton).
-- [ ] TODO P1-T74 [P0] UI fuer editierbares Sound-Mapping pro Animation integrieren (Asset-Auswahl/none, Default-Mapping, Guard fuer ungueltige Zuordnung).
+- [x] DONE P1-T74 [P0] UI fuer editierbares Sound-Mapping pro Animation integrieren (Asset-Auswahl/none, Default-Mapping, Guard fuer ungueltige Zuordnung).
 - [ ] TODO P1-T75 [P1] Allgemeine Animations-Settings um Geschwindigkeitssteuerung erweitern (globaler Speed-Faktor mit Live-Wirkung und regressionfreiem Stop/Edit-Verhalten).
 - [ ] TODO P1-T76 [P1] Immersive Outside-Alternativanimation inkl. UI-Toggle implementieren und bestehende Outside-Logik (Maske, Enable, Intensity, Speed) ohne Bruch weiterfuehren.
 - [ ] TODO P1-T77 [P1] Pflichtabnahme + Regression fuer Plan-Update-11 dokumentieren (Audio-Loop/Stop-Sync, Mapping, Speed, Outside-Modus, Persistenz).

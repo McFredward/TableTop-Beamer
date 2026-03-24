@@ -213,6 +213,19 @@ const ROOM_ANIMATIONS = [
   { id: "alarm-beacon", label: "Alarm Beacon" },
 ];
 
+const GLOBAL_ANIMATIONS = [
+  { id: "ambient-drift", label: "Ambient Drift" },
+  { id: "ash-fall", label: "Ash Fall" },
+  { id: "hull-flicker", label: "Hull Flicker" },
+  { id: "outside-space", label: "Outside Space" },
+  { id: "intruder-alert", label: "Intruder Alert" },
+  { id: "reactor-pulse", label: "Reactor Pulse" },
+  { id: "power-outage", label: "Power Outage" },
+];
+
+const ALL_ANIMATION_TYPES = [...GLOBAL_ANIMATIONS, ...ROOM_ANIMATIONS];
+const SOUND_MAPPING_NONE = "none";
+
 const EVENT_SOUND_ASSETS = {
   "intruder-alert": [
     "resources/nemesis/sounds/alarm.mp3",
@@ -223,6 +236,8 @@ const EVENT_SOUND_ASSETS = {
   "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
   "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
 };
+
+const ALL_SOUND_ASSET_PATHS = Array.from(new Set(Object.values(EVENT_SOUND_ASSETS).flat()));
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
@@ -247,6 +262,9 @@ const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
 const audioStatus = document.querySelector("#audio-status");
+const audioMappingAnimationSelect = document.querySelector("#audio-mapping-animation");
+const audioMappingSoundSelect = document.querySelector("#audio-mapping-sound");
+const audioMappingStatus = document.querySelector("#audio-mapping-status");
 const hitareaOffsetXInput = document.querySelector("#hitarea-offset-x");
 const hitareaOffsetXValue = document.querySelector("#hitarea-offset-x-value");
 const hitareaOffsetYInput = document.querySelector("#hitarea-offset-y");
@@ -359,6 +377,7 @@ const state = {
     enabled: true,
     volume: 0.7,
   },
+  animationSoundMap: {},
   uiView: "dashboard",
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
@@ -405,6 +424,48 @@ const audioAssetPoolByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
+
+function createDefaultAnimationSoundMap() {
+  const defaults = {};
+  for (const { id } of ALL_ANIMATION_TYPES) {
+    defaults[id] = EVENT_SOUND_ASSETS[id]?.[0] ?? SOUND_MAPPING_NONE;
+  }
+  return defaults;
+}
+
+function getAnimationLabel(animationType) {
+  return ALL_ANIMATION_TYPES.find((entry) => entry.id === animationType)?.label ?? animationType;
+}
+
+function normalizeAnimationSoundPath(animationType, path) {
+  if (path === SOUND_MAPPING_NONE) {
+    return SOUND_MAPPING_NONE;
+  }
+  if (ALL_SOUND_ASSET_PATHS.includes(path)) {
+    return path;
+  }
+  const defaultPath = EVENT_SOUND_ASSETS[animationType]?.[0];
+  if (defaultPath && ALL_SOUND_ASSET_PATHS.includes(defaultPath)) {
+    return defaultPath;
+  }
+  return SOUND_MAPPING_NONE;
+}
+
+function normalizeAnimationSoundMap(soundMap) {
+  const defaults = createDefaultAnimationSoundMap();
+  for (const animationType of Object.keys(defaults)) {
+    defaults[animationType] = normalizeAnimationSoundPath(animationType, soundMap?.[animationType]);
+  }
+  return defaults;
+}
+
+function getMappedSoundPathForAnimation(animationType) {
+  const mapped = normalizeAnimationSoundPath(animationType, state.animationSoundMap[animationType]);
+  if (mapped === SOUND_MAPPING_NONE) {
+    return null;
+  }
+  return mapped;
+}
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
@@ -1988,7 +2049,7 @@ function getAudioAssetPool(path) {
 }
 
 function warmEventSoundAssets() {
-  const paths = new Set(Object.values(EVENT_SOUND_ASSETS).flat());
+  const paths = new Set(ALL_SOUND_ASSET_PATHS);
   for (const path of paths) {
     const pool = getAudioAssetPool(path);
     for (const voice of pool) {
@@ -2041,22 +2102,11 @@ function stopSoundsForInactiveAnimations() {
   }
 }
 
-function pickAssetPathForEffect(effectType) {
-  const mappedPaths = EVENT_SOUND_ASSETS[effectType];
-  if (!Array.isArray(mappedPaths) || mappedPaths.length === 0) {
-    return null;
-  }
-  const currentIndex = audioAssetCursorByEffect[effectType] ?? 0;
-  const nextPath = mappedPaths[currentIndex % mappedPaths.length];
-  audioAssetCursorByEffect[effectType] = (currentIndex + 1) % mappedPaths.length;
-  return nextPath;
-}
-
 function playSoundForAnimation(animation) {
   if (!animation || !state.audio.enabled) {
     return;
   }
-  const path = pickAssetPathForEffect(animation.type);
+  const path = getMappedSoundPathForAnimation(animation.type);
   if (!path) {
     stopAnimationSound(animation.id);
     return;
@@ -2090,6 +2140,62 @@ function playSoundForAnimation(animation) {
     onEnded,
   });
   reusable.play().catch(() => undefined);
+}
+
+function syncAudioMappingStatus() {
+  const animationType = audioMappingAnimationSelect.value || ALL_ANIMATION_TYPES[0]?.id;
+  if (!animationType) {
+    audioMappingStatus.textContent = "Sound-Mapping: keine Animationen verfuegbar";
+    return;
+  }
+  const label = getAnimationLabel(animationType);
+  const mapped = normalizeAnimationSoundPath(animationType, state.animationSoundMap[animationType]);
+  if (mapped === SOUND_MAPPING_NONE) {
+    audioMappingStatus.textContent = `Sound-Mapping: ${label} -> none`;
+    return;
+  }
+  const fileName = mapped.split("/").pop() ?? mapped;
+  audioMappingStatus.textContent = `Sound-Mapping: ${label} -> ${fileName}`;
+}
+
+function syncAudioMappingPanel() {
+  if (audioMappingAnimationSelect.childElementCount === 0) {
+    for (const animation of ALL_ANIMATION_TYPES) {
+      const option = document.createElement("option");
+      option.value = animation.id;
+      option.textContent = animation.label;
+      audioMappingAnimationSelect.append(option);
+    }
+  }
+
+  const selectedAnimationType = ALL_ANIMATION_TYPES.some((entry) => entry.id === audioMappingAnimationSelect.value)
+    ? audioMappingAnimationSelect.value
+    : ALL_ANIMATION_TYPES[0]?.id;
+  if (!selectedAnimationType) {
+    return;
+  }
+  audioMappingAnimationSelect.value = selectedAnimationType;
+
+  audioMappingSoundSelect.replaceChildren();
+  const noneOption = document.createElement("option");
+  noneOption.value = SOUND_MAPPING_NONE;
+  noneOption.textContent = "none (kein Sound)";
+  audioMappingSoundSelect.append(noneOption);
+
+  for (const soundPath of ALL_SOUND_ASSET_PATHS) {
+    const option = document.createElement("option");
+    option.value = soundPath;
+    option.textContent = soundPath.replace("resources/nemesis/sounds/", "");
+    audioMappingSoundSelect.append(option);
+  }
+
+  const mapped = normalizeAnimationSoundPath(
+    selectedAnimationType,
+    state.animationSoundMap[selectedAnimationType],
+  );
+  state.animationSoundMap[selectedAnimationType] = mapped;
+  audioMappingSoundSelect.value = mapped;
+  syncAudioMappingStatus();
 }
 
 function applyHitareaCalibration(x, y, calibration) {
@@ -3437,6 +3543,23 @@ audioEnabledInput.addEventListener("change", () => {
   syncAudioStatus();
 });
 
+audioMappingAnimationSelect.addEventListener("change", () => {
+  syncAudioMappingPanel();
+});
+
+audioMappingSoundSelect.addEventListener("change", () => {
+  const animationType = audioMappingAnimationSelect.value;
+  if (!animationType) {
+    return;
+  }
+  state.animationSoundMap[animationType] = normalizeAnimationSoundPath(
+    animationType,
+    audioMappingSoundSelect.value,
+  );
+  syncAudioMappingPanel();
+  triggerFeedback.textContent = `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
+});
+
 audioVolumeInput.addEventListener("input", () => {
   const volumePercent = clampAudioVolumePercent(Number(audioVolumeInput.value));
   state.audio.volume = volumePercent / 100;
@@ -3480,6 +3603,7 @@ state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
 state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
 state.outsideFxByBoard = createDefaultOutsideFxByBoard();
 state.boardZoomByBoard = createDefaultBoardZoomByBoard();
+state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
 loadBoardProfiles();
 
 switchBoard(state.boardId);
@@ -3491,6 +3615,7 @@ audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
 warmEventSoundAssets();
 applyAudioGain();
 syncAudioStatus();
+syncAudioMappingPanel();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
