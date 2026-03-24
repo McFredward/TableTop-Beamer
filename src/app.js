@@ -2267,6 +2267,17 @@ function syncMobileStickyOffsets() {
   controlPanel.style.setProperty("--mobile-nav-offset", navOffset);
 }
 
+function ensurePrimaryNavigationVisible() {
+  if (!primaryViewSwitch) {
+    return;
+  }
+  primaryViewSwitch.toggleAttribute("hidden", false);
+  primaryViewSwitch.setAttribute("aria-hidden", "false");
+  if ("inert" in primaryViewSwitch) {
+    primaryViewSwitch.inert = false;
+  }
+}
+
 function syncMobileLayoutStatus() {
   if (!controlPanel || !mobileLayoutStatus) {
     return;
@@ -2282,6 +2293,7 @@ function syncMobileLayoutStatus() {
 }
 
 function syncDashboardZoneVisibility() {
+  ensurePrimaryNavigationVisible();
   const mobilePortrait = isMobilePortraitViewport();
   for (const entry of dashboardZoneGroups) {
     const zone = entry.dataset.dashboardZone;
@@ -2591,6 +2603,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
     endPanMode(null, { canceled: true });
   }
   state.uiView = nextView;
+  ensurePrimaryNavigationVisible();
   if (controlPanel) {
     controlPanel.dataset.activeView = nextView;
   }
