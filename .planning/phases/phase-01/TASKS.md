@@ -162,3 +162,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T109 [P0] Save- und Diagnose-Feedback erweitern: `UI-Host -> API-Host`, finaler Endpoint + Methode, plus explizite Remote/LAN-Hinweise bei Host-Mismatch.
 - [x] DONE P1-T110 [P0] Regression fuer LAN-IP-Setup aufsetzen und dokumentieren (UI von zweitem Geraet via `http://192.168.x.x:4173`, mindestens 5x Save, kein Rueckfall auf Client-`localhost`).
 - [x] DONE P1-T111 [P1] Plan-Update-17 Pflichtabnahme + Doku-Sync dokumentieren (`ACCEPTANCE.md`/Runbook/STATE), inkl. reproduzierbarem Save-Roundtrip nach Reload/Restart im LAN-Szenario.
+
+## Priority Add-on - Plan Update 18
+- [x] DONE P1-T112 [P0] Static-only-Misconfiguration-Detection haerten: `GET /api/health`-Fehlbild von Python `http.server`/statischem Host ueber Header- und Body-Signatur explizit als `static-only` klassifizieren.
+- [ ] TODO P1-T113 [P0] Save-/Diagnose-UX fuer Static-only verbessern: klare Blocker-Meldung `Static-only Server aktiv, Save nicht moeglich` statt generischer API-/localhost-Fehlertexte.
+- [ ] TODO P1-T114 [P0] Guided-Fix-Flow in `Settings` liefern: headless/LAN-konkrete Next Steps inkl. `node server.mjs --host 0.0.0.0 --port 4173`, plus finalen Host-/Endpoint-Trace sichtbar halten.
+- [ ] TODO P1-T115 [P0] Resolver-Transparenz robust machen: identischen Resolve-Snapshot fuer Save und Diagnose verwenden und Remote-IP-Flow ohne verwirrenden Client-`localhost`-Fallback absichern.
+- [ ] TODO P1-T116 [P0] Pflichtabnahme + Regression fuer Plan-Update 18 dokumentieren: echter Negativtest mit `python3 -m http.server 4173` und anschliessender Positivtest mit Node-API-Server.

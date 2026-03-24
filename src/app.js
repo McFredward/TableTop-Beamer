@@ -1481,6 +1481,9 @@ function classifyFailedSaveResponse(response, details) {
 }
 
 function classifyFailedHealthResponse(response, details) {
+  if (isStaticOnlyHealthResponse(response, details)) {
+    return "STATIC_ONLY_SERVER";
+  }
   const contentType = String(response.headers.get("content-type") || "").toLowerCase();
   const body = String(details || "").toLowerCase();
   if (contentType.includes("text/html") || body.includes("<html") || body.includes("<!doctype")) {
@@ -1490,6 +1493,34 @@ function classifyFailedHealthResponse(response, details) {
     return "API_SERVER_ERROR";
   }
   return "API_HEALTH_FAILED";
+}
+
+function isStaticOnlyHealthResponse(response, details) {
+  const status = Number(response?.status);
+  if (status !== 404) {
+    return false;
+  }
+
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  const serverHeader = String(response.headers.get("server") || "").toLowerCase();
+  const body = String(details || "").toLowerCase();
+
+  const headerSignals =
+    serverHeader.includes("simplehttp") ||
+    serverHeader.includes("python") ||
+    serverHeader.includes("http.server") ||
+    serverHeader.includes("static") ||
+    serverHeader.includes("file");
+  const bodySignals =
+    body.includes("error response") ||
+    body.includes("error code: 404") ||
+    body.includes("file not found") ||
+    body.includes("directory listing") ||
+    body.includes("/api/health") ||
+    body.includes("cannot get /api/health") ||
+    body.includes("not found");
+
+  return headerSignals || (contentType.includes("text/html") && bodySignals);
 }
 
 function buildGlobalDefaultsSaveError({
