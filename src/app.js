@@ -2070,11 +2070,17 @@ function playSoundForAnimation(animation) {
   const reusable = pool[nextIndex % pool.length];
   audioAssetVoiceCursorByPath[path] = (nextIndex + 1) % pool.length;
   const onEnded = () => {
-    if (!state.runningAnimations.some((item) => item.id === animation.id)) {
+    const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
+    const stillActive = activeAnimationAudioById.get(animation.id)?.voice === reusable;
+    if (!stillRunning || !stillActive || !state.audio.enabled) {
       stopAnimationSound(animation.id);
+      return;
     }
+    reusable.currentTime = 0;
+    reusable.play().catch(() => {
+      stopAnimationSound(animation.id);
+    });
   };
-  reusable.removeEventListener("ended", onEnded);
   reusable.addEventListener("ended", onEnded);
   reusable.pause();
   reusable.currentTime = 0;
