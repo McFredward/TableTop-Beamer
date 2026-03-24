@@ -1222,9 +1222,12 @@ function syncPolygonEditorPanel() {
     option.textContent = room.label;
     polygonRoomSelect.append(option);
   }
-  const activeRoomId = specials.some((room) => room.id === previous)
-    ? previous
-    : getActivePolygonRoomId(state.boardId);
+  const preferred = getActivePolygonRoomId(state.boardId);
+  const activeRoomId = specials.some((room) => room.id === preferred)
+    ? preferred
+    : specials.some((room) => room.id === previous)
+      ? previous
+      : specials[0]?.id;
   if (activeRoomId) {
     setActivePolygonRoomId(state.boardId, activeRoomId);
     polygonRoomSelect.value = activeRoomId;
@@ -1237,6 +1240,21 @@ function syncPolygonEditorPanel() {
   syncPolygonVertexSelect(activeRoomId);
   syncPolygonEdgeSelect(activeRoomId);
   syncPolygonEditorStatus();
+}
+
+function syncSpecialRoomSelection(roomId) {
+  if (!roomId || !roomId.startsWith("special-")) {
+    return;
+  }
+  const specials = getSpecialRooms(state.boardId);
+  if (!specials.some((room) => room.id === roomId)) {
+    return;
+  }
+  setActivePolygonRoomId(state.boardId, roomId);
+  state.selectedRoomId = roomId;
+  state.selectedRoomByBoard[state.boardId] = roomId;
+  state.polygonEditor.selectedVertexIndex = 0;
+  state.polygonEditor.selectedEdgeIndex = 0;
 }
 
 function renderPolygonEditorHandles() {
@@ -1625,8 +1643,7 @@ function renderRoomOverlay() {
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
       if (room.id.startsWith("special-")) {
-        setActivePolygonRoomId(state.boardId, room.id);
-        state.polygonEditor.selectedVertexIndex = 0;
+        syncSpecialRoomSelection(room.id);
         syncPolygonEditorPanel();
       }
       syncRoomPanelFromSelection();
@@ -2313,10 +2330,7 @@ boardZoomResetButton.addEventListener("click", () => {
 
 polygonRoomSelect.addEventListener("change", () => {
   const roomId = polygonRoomSelect.value;
-  setActivePolygonRoomId(state.boardId, roomId);
-  state.selectedRoomId = roomId;
-  state.selectedRoomByBoard[state.boardId] = roomId;
-  state.polygonEditor.selectedVertexIndex = 0;
+  syncSpecialRoomSelection(roomId);
   const zoom = getBoardZoom(state.boardId);
   const center = getRoomCenterForZoom(state.boardId, roomId);
   updateCurrentBoardZoom({
