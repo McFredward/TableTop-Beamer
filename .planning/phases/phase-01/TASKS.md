@@ -80,3 +80,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T49 [P0] Spezialraum-Animationen auf volle Polygonflaeche skalieren (raumgroessenunabhaengig, kein Insel-Rendering in grossen Polygonen).
 - [x] DONE P1-T50 [P0] Persistenzschutz fuer bestehende Spezialraum-Polygone ergaenzen (Save/Reload/Restart + Boardwechsel ohne Datenverlust).
 - [x] DONE P1-T51 [P1] Plan-Update-6 Pflichtabnahme + Regression dokumentieren (View-Exklusivitaet, Handle-Transparenz, Vollflaechen-Animation, Polygon-Persistenz).
+
+## Priority Add-on - Plan Update 7
+- [x] DONE P1-T52 [P0] Tab-Bug final fixen: harte, root-basierte View-Exklusivitaet herstellen (`Dashboard` nur Animations-UI, `Settings` nur Geometrie/Polygon/Kalibrierung) inkl. Guard gegen Rest-Leaks.
+- [x] DONE P1-T53 [P0] Layout auf Fixed-Board umbauen: Boardbereich sticky/fix halten, nur rechten Steuerbereich als vertikalen Scroll-Container ausfuehren.
+- [x] DONE P1-T54 [P0] Running-Animations-Uebersicht als separaten, klar priorisierten Bereich platzieren (sichtbar vor Trigger-Controls, Stop/Edit unveraendert bedienbar).
+- [x] DONE P1-T55 [P0] Usability-Hardening fuer Desktop + Small-Screen: Scroll-Verhalten, Tabwechsel und Sichtbarkeit gegen Regression absichern.
+- [x] DONE P1-T56 [P1] Plan-Update-7 Pflichtabnahme + Nachweisdokumentation erstellen (Tab-Exklusivitaet, Fixed-Board-Scroll, Running-Overview).

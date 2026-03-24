@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-8
-- Last Execution Summary: `.planning/phases/phase-01/1-8-SUMMARY.md`
+- Last Executed Plan: 1-9
+- Last Execution Summary: `.planning/phases/phase-01/1-9-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -71,6 +71,13 @@
 - Polygon-Handle-UX nutzt transparente Visuals mit separaten, vergroesserten Hit-Targets fuer robuste Selektion auf Desktop/Touch.
 - Spezialraum-Effekte werden ueber polygonbasierte Bounds/Radius-Metriken skaliert und fuellen grosse Zielpolygone vollflaechig.
 - Spezialraum-Polygone werden beim Profil-Load als Bestandsdaten geschuetzt und bei partiellen Payloads nicht durch Defaults ersetzt.
+- Plan-Update 7 setzt Prioritaetsfokus: P0 Tab-Bug final schliessen, P0 Fixed-Board-Layout mit rechtsseitigem Scroll, P0 separater Running-Animations-Bereich.
+- Tab-Regel fuer Plan-Update 7: `Dashboard` enthaelt ausschliesslich Animations-/Trigger-UI; `Settings` ausschliesslich Geometrie/Polygon/Kalibrierung.
+- Layout-Regel fuer Plan-Update 7: Board bleibt fixiert/sticky im Sichtbereich; vertikales Scrollen ist auf den rechten Steuerbereich begrenzt.
+- Running-Animations-Regel fuer Plan-Update 7: aktive Animationen stehen als separater, visuell priorisierter Abschnitt vor den Triggergruppen.
+- Tab-Exklusivitaet nutzt zusaetzlich ein Root-Gating (`#control-panel[data-active-view]`) mit Laufzeitvalidierung gegen State-Drift.
+- Operator-Layout trennt Scroll-Besitz klar: Board bleibt sticky im Viewport, nur der rechte Control-Stack scrollt.
+- Running-Animations-Uebersicht ist als eigener priorisierter Abschnitt oberhalb der Triggergruppen platziert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -139,4 +146,12 @@
 - Task Commits: 6 atomare Commits (`0813906` .. `310f42e`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T51-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 9)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-9-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`00cfd78` .. `ad883d0`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T56-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
