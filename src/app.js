@@ -276,6 +276,9 @@ const roomGeometryStatus = document.querySelector("#room-geometry-status");
 const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
 const controlPanel = document.querySelector("#control-panel");
+const projectionArea = document.querySelector(".projection-area");
+const runningOverviewPanel = document.querySelector("#running-overview-panel");
+const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
 const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
@@ -981,6 +984,41 @@ function runViewVisibilityRegression() {
   ok = validateViewExclusivity(state.uiView, { silent: true, context: viewportContext }) && ok;
   setActiveView(originalView, { skipGuard: true });
   return ok;
+}
+
+function runLayoutScrollRegression() {
+  const issues = [];
+  const panelOverflowY = controlPanel ? window.getComputedStyle(controlPanel).overflowY : "";
+  if (panelOverflowY !== "auto" && panelOverflowY !== "scroll") {
+    issues.push(`control overflowY=${panelOverflowY || "missing"}`);
+  }
+
+  const projectionPosition = projectionArea
+    ? window.getComputedStyle(projectionArea).position
+    : "";
+  if (projectionPosition !== "sticky" && projectionPosition !== "fixed") {
+    issues.push(`projection position=${projectionPosition || "missing"}`);
+  }
+
+  const bodyOverflowY = window.getComputedStyle(document.body).overflowY;
+  if (bodyOverflowY !== "hidden") {
+    issues.push(`body overflowY=${bodyOverflowY}`);
+  }
+
+  if (!runningOverviewPanel || !globalAnimationPanel) {
+    issues.push("running/global panel missing");
+  } else {
+    const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
+    if ((orderMask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
+      issues.push("running panel not before trigger groups");
+    }
+  }
+
+  if (issues.length > 0) {
+    console.error("Layout regression violation", issues);
+    return false;
+  }
+  return true;
 }
 
 function syncPolygonEditorStatus() {
@@ -2308,6 +2346,7 @@ const resizeObserver = new ResizeObserver((entries) => {
   canvas.width = Math.max(1, Math.floor(size.width));
   canvas.height = Math.max(1, Math.floor(size.height));
   validateViewExclusivity(state.uiView, { context: "resize-guard" });
+  runLayoutScrollRegression();
 });
 
 resizeObserver.observe(stage);
@@ -2328,10 +2367,12 @@ syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
 setActiveView("dashboard");
-if (!runViewVisibilityRegression()) {
-  triggerFeedback.textContent = "Status: View-Toggle-Regression fehlgeschlagen (10x Guard)";
+const viewRegressionOk = runViewVisibilityRegression();
+const layoutRegressionOk = runLayoutScrollRegression();
+if (!viewRegressionOk || !layoutRegressionOk) {
+  triggerFeedback.textContent = "Status: View/Layout-Regression fehlgeschlagen (Tab + Fixed-Board/Scroll Guard)";
 } else {
-  triggerFeedback.textContent = "Status: View-Toggle-Regression ok (10x Desktop/Small-Screen Guard)";
+  triggerFeedback.textContent = "Status: View/Layout-Regression ok (Tab + Fixed-Board/Scroll Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();
