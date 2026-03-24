@@ -270,6 +270,13 @@ body {
   gap: 0.5rem;
 }
 
+.mobile-zone-switch .mobile-start-room {
+  grid-column: 1 / -1;
+  min-height: 3.05rem;
+  border-color: rgba(91, 230, 188, 0.72);
+  background: linear-gradient(180deg, #1f3f48, #18343a);
+}
+
 .mobile-zone-switch.mobile-zone-switch-hidden {
   display: none;
 }

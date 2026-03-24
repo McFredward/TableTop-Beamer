@@ -304,6 +304,7 @@ const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
 const openTriggerZoneButton = document.querySelector("#open-trigger-zone");
 const openManageZoneButton = document.querySelector("#open-manage-zone");
+const mobileStartRoomButton = document.querySelector("#mobile-start-room");
 const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
 const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
@@ -2069,6 +2070,13 @@ function syncDashboardZoneVisibility() {
     openManageZoneButton.setAttribute("aria-pressed", state.dashboardZone === "manage" ? "true" : "false");
   }
 
+  if (mobileStartRoomButton) {
+    const roomSelectedNow = Boolean(getSelectedRoom());
+    const showStart = isMobileViewport() && state.uiView === "dashboard";
+    mobileStartRoomButton.toggleAttribute("hidden", !showStart);
+    mobileStartRoomButton.disabled = !roomSelectedNow;
+  }
+
   syncMobileLayoutStatus();
 }
 
@@ -3486,11 +3494,13 @@ function syncRoomPanelFromSelection() {
     roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
     startRoomAnimationButton.disabled = true;
     syncRoomGeometryPanel();
+    syncDashboardZoneVisibility();
     return;
   }
   startRoomAnimationButton.disabled = false;
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
   syncRoomGeometryPanel();
+  syncDashboardZoneVisibility();
 }
 
 function syncRoomDraftActionButton() {
@@ -4921,6 +4931,15 @@ startRoomAnimationButton.addEventListener("click", () => {
   }
   recordTriggerIntent();
   setDashboardZone("trigger");
+  startRoomAnimationFromDraft();
+});
+
+mobileStartRoomButton?.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("room-start-mobile")) {
+    return;
+  }
+  setDashboardZone("trigger");
+  recordTriggerIntent();
   startRoomAnimationFromDraft();
 });
 
