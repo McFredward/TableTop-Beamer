@@ -11,8 +11,8 @@
 - Current Phase Key: phase-02
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 2-1
-- Last Execution Summary: `.planning/phases/phase-02/2-1-SUMMARY.md`
+- Last Executed Plan: 2-2
+- Last Execution Summary: `.planning/phases/phase-02/2-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -167,6 +167,15 @@
 - Phase-2 Plan 1 fuehrt mobilen Dashboard-Fokus explizit als Zonenmodell (`Triggern`/`Running managen`) statt Mischpanel.
 - `Clear All` ist im Mobile-Flow aus Triggerflaechen entkoppelt und nur ueber Running-Management mit Doppelbestaetigung ausfuehrbar.
 - Orientation-Wechsel wird zusaetzlich ueber Runtime-Regression auf State-Drift geprueft (Board/Room/View/Running-IDs stabil).
+- Verpflichtendes Feedback fuer Phase 2 ist gesetzt: Global-Defaults-Bugfix fuer neue Geraete, Settings-Button `Defaults laden & anwenden`, Mobile-Sticky-Schutz ohne Content-Ueberdeckung.
+- Bootstrap-Regel (Phase 2): leerer/fehlender Local Storage ist ein verpflichtender Fallback-Fall; globale Defaults werden automatisch geladen und direkt angewendet.
+- Settings-Regel (Phase 2): `Defaults laden & anwenden` zieht globale Defaults bewusst nach und aktualisiert den aktuellen Laufzeitzustand ohne Neustart.
+- Mobile-Layout-Regel (Phase 2): oberer Dashboard-Bereich bleibt auf Mobile konsistent sticky/fixiert mit sauberem Offset; Trigger-/Running-Cluster duerfen keinen Scroll-Content verdecken.
+- Desktop-Paritaets-Regel (Phase 2): Mobile-Sticky-Anpassungen sind breakpoint-begrenzt; Desktop-Verhalten bleibt unveraendert.
+- Phase-2 Plan 2 setzt Prioritaetsfokus: P2-T26..P2-T30 (Global-Defaults-Bootstrap, Startup-Guard, Settings-Reapply, Mobile-Sticky, Desktop-Paritaet).
+- Startup-Fallback fuer neue/geleerte Geraete ist jetzt explizit abgesichert: Empty-Storage wird als Pflichtfall verfolgt (`applied` oder `failed-explicit`), nie still uebersprungen.
+- Settings besitzt `Defaults laden & anwenden`; globale Defaults werden ohne Neustart in den laufenden Runtime-Zustand uebernommen.
+- Mobile Dashboard nutzt eine top-sticky Shell ohne Content-Overlap; Desktop-Paritaet wird in Runtime-Regression + P2-T30-Protokoll nachgewiesen.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -369,3 +378,12 @@
   - `.planning/phases/phase-02/P2-T9-MOBILE-PERFORMANCE.md`
   - `.planning/phases/phase-02/P2-T10-SPIELTISCH-VERIFIKATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 2 Plan 2)
+- Status: completed
+- Summary: `.planning/phases/phase-02/2-2-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`add84bb`, `94a61fd`, `6b97253`, `3964df8`, `4c8cca3`)
+- Evidence:
+  - `.planning/phases/phase-02/P2-T30-DESKTOP-PARITAET.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
