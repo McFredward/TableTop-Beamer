@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-16
-- Last Execution Summary: `.planning/phases/phase-01/1-16-SUMMARY.md`
+- Last Executed Plan: 1-17
+- Last Execution Summary: `.planning/phases/phase-01/1-17-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -125,6 +125,14 @@
 - Visual-Regel fuer Plan-Update 14: ausserhalb des Ship-Polygons bleibt der Hintergrund tiefschwarz; blaue Outside-Flaechen sind nicht zulaessig.
 - Runtime-Regel fuer Plan-Update 14: Room-Animationen halten Parameter instanzscharf pro `animation.id`; parallele Instanzen duerfen sich nicht ueberschreiben.
 - Edit-Regel fuer Plan-Update 14: `Edit` laedt immer die bestehende laufende Instanz und schreibt Aenderungen in-place auf dieselbe `animation.id` (kein Neu-Eintrag).
+- Plan-Update 15 setzt Prioritaetsfokus: P0 robuster Global-Defaults-Save ohne `501 Unsupported method POST`, P0 klare Save-Fehlermeldung bei fehlendem API-Server, P0 Start-Flow-Doku fuer POST-faehigen Server, P1 optionaler Export-/Download-Fallback.
+- Save-Regel fuer Plan-Update 15: Primaerer Persistenzpfad bleibt `lokaler Browserstand -> globale Defaults` ueber den Node-API-Server; statisches Hosting ohne API gilt als Nicht-POST-Setup.
+- UX-Regel fuer Plan-Update 15: Save-Fehler zeigen kurze, handlungsorientierte Klartexte mit konkreter Startanweisung; HTML-Rohantworten werden nicht direkt in der UI angezeigt.
+- Doku-Regel fuer Plan-Update 15: README/Startanleitung benennt explizit den noetigen API-Server (`node server.mjs`) und eine kurze Startsequenz fuer API + Frontend.
+- Fallback-Regel fuer Plan-Update 15: Optionaler Export/Download ist nur sekundaerer Notfallpfad und darf den Server-Save nicht ersetzen oder verdecken.
+- Save-Transport versucht fuer globale Defaults zuerst Same-Origin-API und dann `localhost:4173` als Fallback fuer das vorgesehene Node-Setup.
+- Save-Fehler werden klassifiziert (`API unreachable`/`method unavailable`/`HTML error`/`server error`) und als kurze Operator-Anweisung statt Roh-Fehlertext angezeigt.
+- Optionaler Download-Export ist als sekundaerer Notfallpfad gekennzeichnet; primaerer Standard bleibt API-Speichern.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -259,3 +267,13 @@
 - Evidence:
   - `.planning/phases/phase-01/P1-T96-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 17)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-17-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`5d69ceb`, `ee7b200`, `186a44a`, `0b42592`, `4483437`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T101-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - `POST /api/global-defaults` und `POST /api/global-defaults/` => `200` auf Node-Server-Smoke (Port 4180)
