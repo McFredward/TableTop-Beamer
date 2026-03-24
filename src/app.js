@@ -3022,6 +3022,7 @@ function drawOutsideFxLayer(now) {
       null,
       {
         outsideMode: outside.mode,
+        outsideSpeed: outside.speed,
       },
     );
   } finally {
@@ -3043,7 +3044,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "outside-space") {
     const immersive = options.outsideMode === "immersive";
-    const speedFactor = immersive ? 1.45 : 1;
+    const speedInfluence = clampOutsideSpeed(options.outsideSpeed ?? 1);
+    const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
 
     const nebulaField = ctx.createLinearGradient(0, 0, w, h);
     nebulaField.addColorStop(0, `rgba(16, 30, 68, ${0.16 * intensity})`);
@@ -3080,10 +3082,34 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
         const twinkle = (Math.sin(age * (2 + layerIndex * 0.7) + i * 0.9) + 1) / 2;
         const alpha = Math.min(0.95, layer.alpha * (0.8 + intensity * 0.7) * (0.75 + twinkle * 0.45));
         const size = layer.size * (0.8 + (((i * 19.9) % 100) / 100) * 0.7);
+        const streakLength =
+          (3.5 + layerIndex * 3.2 + speedInfluence * 4.2 + intensity * 2.8) * (immersive ? 1.25 : 1);
+        const streakWidth = Math.max(0.8, size * (0.65 + layerIndex * 0.08));
+
+        ctx.strokeStyle = `rgba(192, 226, 255, ${Math.min(0.9, alpha * 0.72)})`;
+        ctx.lineWidth = streakWidth;
+        ctx.beginPath();
+        ctx.moveTo(x + streakLength, y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
 
         ctx.fillStyle = `rgba(214, 236, 255, ${alpha})`;
         ctx.fillRect(x, y, size, size);
       }
+    }
+
+    const expressLanes = Math.max(6, Math.round((immersive ? 14 : 9) * intensity));
+    for (let i = 0; i < expressLanes; i += 1) {
+      const laneY = (((i * 63.17) % 1000) / 1000) * h;
+      const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
+      const laneLength = 140 + speedInfluence * 55 + intensity * 70;
+      const laneAlpha = (0.04 + ((Math.sin(age * 4.6 + i) + 1) / 2) * 0.15) * (immersive ? 1.2 : 0.92);
+      ctx.strokeStyle = `rgba(156, 206, 255, ${Math.min(0.48, laneAlpha)})`;
+      ctx.lineWidth = 0.8 + ((i % 3) + 1) * 0.38;
+      ctx.beginPath();
+      ctx.moveTo(w - pulse, laneY);
+      ctx.lineTo(w - pulse + laneLength, laneY);
+      ctx.stroke();
     }
 
     const depthSweep = (Math.sin(age * 0.75) + 1) / 2;
