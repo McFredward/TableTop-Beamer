@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-12
-- Last Execution Summary: `.planning/phases/phase-01/1-12-SUMMARY.md`
+- Last Executed Plan: 1-13
+- Last Execution Summary: `.planning/phases/phase-01/1-13-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -100,6 +100,13 @@
 - Event-Sound-Pfad ist auf assetbasiertes Voice-Pooling umgestellt; Audio-Master/Volume greifen unveraendert auch bei Mehrfachtriggern.
 - Outside-Layer rendert per Even-Odd-Inversclip strikt ausserhalb des Ship-Polygons.
 - Ship-Polygon und Outside-Einstellungen (`enabled`, `intensity`, `speed`) sind board-spezifischer Teil des Board-Profilschemas.
+- Plan-Update 11 setzt Prioritaetsfokus: P0 Audio an Animationslaufzeit koppeln (inkl. Loop/sofortiger Stop), P0 editierbares Sound-Mapping pro Animation, P1 globale Geschwindigkeitssteuerung, P1 immersive Outside-Alternative mit UI-Toggle.
+- Audio-Lifecycle-Regel fuer Plan-Update 11: Sound existiert nur waehrend aktiver Animation; bei laengerer Animation wird geloopt, bei Stop/Ablauf/`Clear All` endet Audio sofort.
+- Mapping-Regel fuer Plan-Update 11: Soundzuordnung ist pro Animation in der UI editierbar und muss `none`/Fallback ohne Runtime-Fehler unterstuetzen.
+- Outside-Regel fuer Plan-Update 11: Alternative Outside-Animation nutzt denselben Ship-Maskenpfad und darf bestehende Outside-Steuerung/Persistenz nicht brechen.
+- Audio wird fuer Plan-Update 11 strikt animationsgebunden verwaltet (`animation.id` als Source-of-Truth fuer Start/Loop/Stop).
+- Sound-Mapping ist pro Animation explizit (`asset` oder `none`) und wird vor Runtime-Nutzung auf erlaubte Asset-Pfade normalisiert.
+- Outside-Modus (`standard`/`immersive`) bleibt Teil des board-spezifischen `outsideFx`-Profils und rendert weiterhin ausschliesslich im Outside-Maskenpfad.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -200,4 +207,12 @@
 - Task Commits: 5 atomare Commits (`9f4ec9d` .. `7b25994`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T71-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 13)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-13-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`515081e` .. `e3b36a4`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T77-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
