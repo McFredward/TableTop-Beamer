@@ -187,6 +187,24 @@ const server = createServer(async (req, res) => {
   try {
     const routePath = normalizeRoutePath(req.url || "/");
 
+    if (req.method === "GET" && routePath === "/api/health") {
+      sendJson(res, 200, {
+        ok: true,
+        service: "tt-beamer-api",
+        saveEndpoint: "/api/global-defaults",
+        postSupported: true,
+      });
+      return;
+    }
+
+    if (req.method === "OPTIONS" && routePath === "/api/global-defaults") {
+      res.writeHead(204, {
+        allow: "GET,HEAD,POST,OPTIONS",
+      });
+      res.end();
+      return;
+    }
+
     if (req.method === "POST" && routePath === "/api/global-defaults") {
       await handleGlobalDefaultsSave(req, res);
       return;
@@ -205,7 +223,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method !== "GET" && req.method !== "HEAD") {
       res.writeHead(405, {
-        allow: "GET,HEAD,POST",
+        allow: "GET,HEAD,POST,OPTIONS",
       });
       res.end();
       return;

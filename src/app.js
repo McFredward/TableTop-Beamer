@@ -391,6 +391,7 @@ const SPECIAL_POLYGON_STORAGE_KEY = "tt-beamer.special-polygons.v1";
 const API_BASE_STORAGE_KEY = "tt-beamer.api-base.v1";
 const API_BASE_URL_PARAM_KEYS = ["ttApiBase", "apiBase", "api_base"];
 const API_PORT_FALLBACKS = [4173, 4174, 3000, 8080];
+const API_REQUEST_TIMEOUT_MS = 3000;
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -1087,8 +1088,19 @@ async function saveGlobalDefaultsToServer() {
   let lastError = null;
 
   for (const endpoint of apiCandidates) {
+    const preflight = await runApiPreflight(endpoint);
+    if (!preflight.ok) {
+      lastError = buildGlobalDefaultsSaveError({
+        code: preflight.code,
+        status: preflight.status,
+        details: preflight.details,
+        endpoint,
+      });
+      continue;
+    }
+
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -1128,6 +1140,103 @@ async function saveGlobalDefaultsToServer() {
     throw lastError;
   }
   throw new Error("Global Defaults Save fehlgeschlagen");
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw buildGlobalDefaultsSaveError({
+        code: "API_UNREACHABLE",
+        details: `timeout after ${API_REQUEST_TIMEOUT_MS}ms`,
+        endpoint: url,
+      });
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function runApiPreflight(saveEndpoint) {
+  const healthEndpoint = `${getApiBaseFromSaveEndpoint(saveEndpoint)}/api/health`;
+  try {
+    const healthResponse = await fetchWithTimeout(healthEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+    if (!healthResponse.ok) {
+      const details = await healthResponse.text();
+      return {
+        ok: false,
+        code: classifyFailedHealthResponse(healthResponse, details),
+        status: healthResponse.status,
+        details,
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      code: "API_UNREACHABLE",
+      status: null,
+      details: error instanceof Error ? error.message : "health request failed",
+    };
+  }
+
+  try {
+    const optionsResponse = await fetchWithTimeout(saveEndpoint, {
+      method: "OPTIONS",
+    });
+    if (!optionsResponse.ok) {
+      const details = await optionsResponse.text();
+      return {
+        ok: false,
+        code: classifyFailedSaveResponse(optionsResponse, details),
+        status: optionsResponse.status,
+        details,
+      };
+    }
+    const allowHeader = String(optionsResponse.headers.get("allow") || "").toUpperCase();
+    if (allowHeader && !allowHeader.split(",").map((entry) => entry.trim()).includes("POST")) {
+      return {
+        ok: false,
+        code: "API_METHOD_UNAVAILABLE",
+        status: optionsResponse.status,
+        details: `allow=${allowHeader}`,
+      };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      code: "API_UNREACHABLE",
+      status: null,
+      details: error instanceof Error ? error.message : "options request failed",
+    };
+  }
+
+  return {
+    ok: true,
+    code: "OK",
+    status: 200,
+    details: "preflight ok",
+  };
+}
+
+function getApiBaseFromSaveEndpoint(saveEndpoint) {
+  try {
+    const url = new URL(saveEndpoint);
+    return url.origin;
+  } catch {
+    return "http://localhost:4173";
+  }
 }
 
 function resolveGlobalDefaultsApiCandidates() {
@@ -1227,6 +1336,18 @@ function classifyFailedSaveResponse(response, details) {
     return "API_SERVER_ERROR";
   }
   return "API_REQUEST_FAILED";
+}
+
+function classifyFailedHealthResponse(response, details) {
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  const body = String(details || "").toLowerCase();
+  if (contentType.includes("text/html") || body.includes("<html") || body.includes("<!doctype")) {
+    return "API_HTML_ERROR";
+  }
+  if (response.status >= 500) {
+    return "API_SERVER_ERROR";
+  }
+  return "API_HEALTH_FAILED";
 }
 
 function buildGlobalDefaultsSaveError({ code, status = null, details = "", endpoint = "" }) {
