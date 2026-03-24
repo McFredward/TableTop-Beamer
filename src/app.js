@@ -1332,6 +1332,52 @@ function runZoomPanEditRegression() {
   return true;
 }
 
+function runPanPointerCaptureRegression() {
+  const issues = [];
+  const prevView = state.uiView;
+  const prevZoom = getBoardZoom(state.boardId);
+  const prevPanMode = { ...state.panMode };
+
+  try {
+    setActiveView("settings", { skipGuard: true });
+    updateCurrentBoardZoom(computePanForZoomFocus(2, getRoomCenterForZoom(state.boardId)));
+
+    state.panMode.spacePressed = true;
+    startPanMode({
+      pointerId: 999,
+      clientX: 10,
+      clientY: 10,
+    }, "space");
+
+    if (!state.panMode.active) {
+      issues.push("pan mode did not activate");
+    }
+
+    endPanMode(null, { canceled: false });
+    if (state.panMode.active || state.panMode.pointerId !== null) {
+      issues.push("pan mode did not clear pointer session");
+    }
+  } catch {
+    issues.push("pan pointer-capture regression threw unexpectedly");
+  } finally {
+    state.panMode = {
+      ...prevPanMode,
+      active: false,
+      pointerId: null,
+      trigger: null,
+    };
+    updateCurrentBoardZoom(prevZoom);
+    setActiveView(prevView, { skipGuard: true });
+    setPanCursorState();
+  }
+
+  if (issues.length > 0) {
+    console.error("Pan pointer regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
 function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
@@ -2833,10 +2879,11 @@ setPanCursorState();
 const viewRegressionOk = runViewVisibilityRegression();
 const layoutRegressionOk = runLayoutScrollRegression();
 const zoomPanRegressionOk = runZoomPanEditRegression();
-if (!viewRegressionOk || !layoutRegressionOk || !zoomPanRegressionOk) {
+const panPointerRegressionOk = runPanPointerCaptureRegression();
+if (!viewRegressionOk || !layoutRegressionOk || !zoomPanRegressionOk || !panPointerRegressionOk) {
   triggerFeedback.textContent = "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan-Edit Guard)";
 } else {
-  triggerFeedback.textContent = "Status: Regression ok (View/Layout + Zoom-Pan-Edit Guard)";
+  triggerFeedback.textContent = "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();
