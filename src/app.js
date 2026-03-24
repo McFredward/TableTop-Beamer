@@ -2455,6 +2455,39 @@ function runPanPointerCaptureRegression() {
   return true;
 }
 
+function runOrientationStateRegression() {
+  const before = {
+    boardId: state.boardId,
+    selectedRoomId: state.selectedRoomId,
+    uiView: state.uiView,
+    dashboardZone: state.dashboardZone,
+    runningIds: state.runningAnimations.map((entry) => entry.id).join("|"),
+  };
+
+  syncDashboardZoneVisibility();
+  syncMobileLayoutStatus();
+  syncDashboardZoneVisibility();
+
+  const after = {
+    boardId: state.boardId,
+    selectedRoomId: state.selectedRoomId,
+    uiView: state.uiView,
+    dashboardZone: state.dashboardZone,
+    runningIds: state.runningAnimations.map((entry) => entry.id).join("|"),
+  };
+
+  const same =
+    before.boardId === after.boardId &&
+    before.selectedRoomId === after.selectedRoomId &&
+    before.uiView === after.uiView &&
+    before.dashboardZone === after.dashboardZone &&
+    before.runningIds === after.runningIds;
+  if (!same) {
+    console.error("Orientation regression violation", { before, after });
+  }
+  return same;
+}
+
 function runOutsideIsolationRegression() {
   const issues = [];
   const boardId = state.boardId;
@@ -4827,7 +4860,10 @@ window.addEventListener("blur", () => {
 
 window.addEventListener("orientationchange", () => {
   syncDashboardZoneVisibility();
-  triggerFeedback.textContent = "Status: Orientation gewechselt, UI-State beibehalten";
+  const ok = runOrientationStateRegression();
+  triggerFeedback.textContent = ok
+    ? "Status: Orientation gewechselt, UI-State beibehalten"
+    : "Status: Orientation-Guard meldet State-Drift";
 });
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
@@ -5080,6 +5116,7 @@ const viewRegressionOk = runViewVisibilityRegression();
 const layoutRegressionOk = runLayoutScrollRegression();
 const zoomPanRegressionOk = runZoomPanEditRegression();
 const panPointerRegressionOk = runPanPointerCaptureRegression();
+const orientationRegressionOk = runOrientationStateRegression();
 const outsideIsolationRegressionOk = runOutsideIsolationRegression();
 const shipClipRegressionOk = runShipClipRegression();
 if (
@@ -5087,14 +5124,15 @@ if (
   !layoutRegressionOk ||
   !zoomPanRegressionOk ||
   !panPointerRegressionOk ||
+  !orientationRegressionOk ||
   !outsideIsolationRegressionOk ||
   !shipClipRegressionOk
 ) {
   triggerFeedback.textContent =
-    "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan + Outside-Isolation + Ship-Clip Guard)";
+    "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
 } else {
   triggerFeedback.textContent =
-    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
+    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
 }
 renderRunningAnimationsList();
 refreshGlobalButtons();

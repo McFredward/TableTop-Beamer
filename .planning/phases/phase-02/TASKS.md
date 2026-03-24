@@ -11,7 +11,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P2-T5 [P0] Einhand-Bedienpfad optimieren: primaere Aktionen im Daumenradius, sekundaere Aktionen entkoppeln.
 - [x] DONE P2-T6 [P0] Fehlklick-Schutz fuer Touch einbauen (insb. `Clear All`, nahe Targets, versehentliche Doppeltaps).
 - [x] DONE P2-T7 [P1] Mobile Lesbarkeit am Spieltisch absichern (Kontrast, Typografie, Zustandskennzeichnung unter Beamer-/Raumlicht).
-- [ ] TODO P2-T8 [P1] Orientation-Handling stabilisieren: Portrait/Landscape-Wechsel ohne State-Verlust und ohne UI-Drift.
+- [x] DONE P2-T8 [P1] Orientation-Handling stabilisieren: Portrait/Landscape-Wechsel ohne State-Verlust und ohne UI-Drift.
 - [ ] TODO P2-T9 [P1] Mobile Performance-Checks integrieren (Trigger-Reaktionszeit, Scroll/Touch-Fluessigkeit, 30+ min Laufzeit).
 - [ ] TODO P2-T10 [P1] Verifikationsprotokoll fuer reales Spieltisch-Setup (einhaendig, Fehlklickquote, Lesbarkeit) erstellen.
 
