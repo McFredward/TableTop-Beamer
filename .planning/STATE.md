@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-13
-- Last Execution Summary: `.planning/phases/phase-01/1-13-SUMMARY.md`
+- Last Executed Plan: 1-14
+- Last Execution Summary: `.planning/phases/phase-01/1-14-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -107,6 +107,13 @@
 - Audio wird fuer Plan-Update 11 strikt animationsgebunden verwaltet (`animation.id` als Source-of-Truth fuer Start/Loop/Stop).
 - Sound-Mapping ist pro Animation explizit (`asset` oder `none`) und wird vor Runtime-Nutzung auf erlaubte Asset-Pfade normalisiert.
 - Outside-Modus (`standard`/`immersive`) bleibt Teil des board-spezifischen `outsideFx`-Profils und rendert weiterhin ausschliesslich im Outside-Maskenpfad.
+- Plan-Update 12 setzt Prioritaetsfokus: harte Tab-Trennung (`Dashboard` nur Trigger/Stop, Konfiguration exklusiv in `Settings`), fachliche Trennung globaler Animationen (`Innerhalb` vs `Ausserhalb`), immersive High-Speed-Outside-Ueberarbeitung.
+- Tab-Regel fuer Plan-Update 12: Im Dashboard sind Settings-/Mapping-/Calibration-/Editor-Controls strikt verboten; diese sind ausschliesslich im Settings-Tab zulaessig.
+- Kategorien-Regel fuer Plan-Update 12: Globale Animationen werden als `inside-ship` bzw. `outside-ship` gefuehrt und in UI + Running-Liste eindeutig getrennt angezeigt.
+- Outside-Regel fuer Plan-Update 12: High-Speed-Parallax bleibt ein isolierter Outside-Layer ausserhalb der Ship-Maske; Innenraum-Layer und Room-Renderer bleiben unbeeinflusst.
+- Settings-Ownership-Guard validiert zur Laufzeit, dass saemtliche Konfigurationscontrols nur unter `data-view="settings"` gemountet sind.
+- Running-Liste kennzeichnet globale Effekte jetzt explizit als `GLOBAL-INSIDE` bzw. `GLOBAL-OUTSIDE` fuer klare fachliche Trennung.
+- Outside-Rendering nutzt fail-safe Maskenclipping; ohne gueltiges Ship-Polygon wird kein Outside-Layer gezeichnet (kein Fullscreen-Leak).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -215,4 +222,12 @@
 - Task Commits: 6 atomare Commits (`515081e` .. `e3b36a4`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T77-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 14)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-14-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`75efc56` .. `74f638f`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T83-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
