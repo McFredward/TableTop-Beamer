@@ -254,7 +254,6 @@ const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
-const runApiDiagnoseButton = document.querySelector("#run-api-diagnose");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
 const globalDefaultsStatus = document.querySelector("#global-defaults-status");
 const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
@@ -341,7 +340,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "output-route-select",
   "apply-output-route",
   "save-global-defaults",
-  "run-api-diagnose",
   "export-global-defaults",
   "animation-speed",
   "audio-enabled",
@@ -1255,91 +1253,6 @@ async function runApiPreflight(saveEndpoint) {
   };
 }
 
-async function runApiDiagnose() {
-  const candidates = resolveGlobalDefaultsApiCandidates();
-  const reports = [];
-  for (const candidate of candidates) {
-    const preflight = await runApiPreflight(candidate.endpoint);
-    const report = { endpoint: candidate.endpoint, routing: candidate, preflight };
-    reports.push(report);
-    if (preflight.ok) {
-      break;
-    }
-  }
-  return reports;
-}
-
-function formatApiDiagnoseSummary(reports) {
-  if (!reports.length) {
-    return {
-      statusText: "API Diagnose: keine gueltige API-Base aufgeloest",
-      feedbackText:
-        "Status: Keine API-Endpunkte aufgeloest. Setze ?ttApiBase=http://<SERVER-IP>:4173 oder starte `node server.mjs --host 0.0.0.0 --port 4173`.",
-    };
-  }
-
-  const success = reports.find((entry) => entry.preflight.ok);
-  if (success) {
-    const snapshot = buildResolveSnapshot({
-      routing: success.routing,
-      endpoint: success.endpoint,
-      method: "OPTIONS",
-    });
-    return {
-      statusText: `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`,
-      feedbackText: `Status: API erreichbar und POST erlaubt (${formatResolveSnapshot(snapshot)}).`,
-    };
-  }
-
-  const failed = reports[0];
-  const hostFlow = formatHostFlow(failed.routing);
-  const sourceLabel = formatResolverSourceLabel(failed.routing?.source);
-  const remoteHint = getRemoteMismatchHint(failed.routing);
-  const statusLabel = Number.isFinite(Number(failed.preflight.status))
-    ? `${failed.preflight.status} (${classifyHttpStatus(failed.preflight.status)})`
-    : "n/a";
-  if (failed.preflight.code === "API_UNREACHABLE") {
-    const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
-    const snapshot = buildResolveSnapshot({
-      routing: failed.routing,
-      endpoint: failed.endpoint,
-      method: failed.preflight.method || "GET",
-    });
-    return {
-      statusText: `API Diagnose: nicht erreichbar (${formatResolveSnapshot(snapshot)})`,
-      feedbackText: `Status: API nicht erreichbar (${formatResolveSnapshot(snapshot)}). ${guidedFix}`,
-    };
-  }
-  if (failed.preflight.code === "STATIC_ONLY_SERVER") {
-    const guidedFix = buildGuidedFixHint({ routing: failed.routing, endpoint: failed.endpoint });
-    const snapshot = buildResolveSnapshot({
-      routing: failed.routing,
-      endpoint: failed.endpoint,
-      method: failed.preflight.method || "GET",
-    });
-    return {
-      statusText:
-        `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${formatResolveSnapshot(snapshot)}, Status ${statusLabel})`,
-      feedbackText:
-        `Status: Static-only Server aktiv, Save nicht moeglich (${formatResolveSnapshot(snapshot)}). ${guidedFix}`,
-    };
-  }
-  if (failed.preflight.code === "API_METHOD_UNAVAILABLE") {
-    return {
-      statusText:
-        `API Diagnose: POST nicht erlaubt (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
-      feedbackText:
-        `Status: Erreichbar, aber POST nicht erlaubt (${hostFlow}). Nutze den Node-API-Server statt reinem Static-Server.${remoteHint ? ` ${remoteHint}` : ""}`,
-    };
-  }
-  return {
-    statusText:
-      `API Diagnose: fehlgeschlagen (${hostFlow}, Quelle ${sourceLabel}, ${failed.endpoint}, ${statusLabel})`,
-    feedbackText:
-      `Status: Diagnose ohne Erfolg (${hostFlow}). Endpoint, Port und Server-Log pruefen.${remoteHint ? ` ${remoteHint}` : ""}`,
-  };
-}
-
 function classifyHttpStatus(status) {
   if (!Number.isFinite(Number(status))) {
     return "n/a";
@@ -1593,6 +1506,7 @@ function formatGlobalDefaultsSaveError(error) {
       statusText: `Speichern blockiert - Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}).`,
       feedbackText:
         `Status: Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}). ${startHint}`,
+      diagnoseStatusText: `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta})`,
     };
   }
   if (
@@ -1604,17 +1518,20 @@ function formatGlobalDefaultsSaveError(error) {
     return {
       statusText: `Speichern fehlgeschlagen - API-Endpoint nicht save-faehig (${hostMeta}; ${endpointMeta}).`,
       feedbackText: `Status: API fuer Global Defaults nicht verfuegbar (${hostMeta}; ${endpointMeta}). ${startHint}`,
+      diagnoseStatusText: `API Diagnose: API-Endpoint nicht save-faehig (${hostMeta}; ${endpointMeta})`,
     };
   }
   if (code === "API_SERVER_ERROR") {
     return {
       statusText: `Speichern fehlgeschlagen - API-Serverfehler (${hostMeta}; ${endpointMeta}).`,
       feedbackText: `Status: API-Server hat den Save-Request nicht verarbeitet (${hostMeta}; ${endpointMeta}).`,
+      diagnoseStatusText: `API Diagnose: API-Serverfehler (${hostMeta}; ${endpointMeta})`,
     };
   }
   return {
     statusText: `Speichern fehlgeschlagen - bitte Save-Setup pruefen (${hostMeta}; ${endpointMeta}).`,
     feedbackText: `Status: Save fehlgeschlagen (${hostMeta}; ${endpointMeta}). ${startHint}`,
+    diagnoseStatusText: `API Diagnose: fehlgeschlagen (${hostMeta}; ${endpointMeta})`,
   };
 }
 
@@ -4806,6 +4723,7 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
 
   saveGlobalDefaultsButton.disabled = true;
   globalDefaultsStatus.textContent = "Global Defaults: Export laeuft ...";
+  apiDiagnoseStatus.textContent = "API Diagnose: pruefe Reachability + POST-Faehigkeit (Save-Preflight) ...";
   try {
     const result = await saveGlobalDefaultsToServer();
     const snapshot = buildResolveSnapshot({
@@ -4816,31 +4734,17 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     const remoteHint = getRemoteMismatchHint(result.routing);
     globalDefaultsStatus.textContent =
       `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | ${formatResolveSnapshot(snapshot)} [${result.statusClass}]`;
+    apiDiagnoseStatus.textContent =
+      `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`;
     triggerFeedback.textContent =
       `Status: Global Defaults gespeichert (${formatResolveSnapshot(snapshot)}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
+    apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
     triggerFeedback.textContent = saveError.feedbackText;
   } finally {
     saveGlobalDefaultsButton.disabled = false;
-  }
-});
-
-runApiDiagnoseButton.addEventListener("click", async () => {
-  runApiDiagnoseButton.disabled = true;
-  apiDiagnoseStatus.textContent = "API Diagnose: pruefe Reachability + POST-Faehigkeit ...";
-  try {
-    const reports = await runApiDiagnose();
-    const summary = formatApiDiagnoseSummary(reports);
-    apiDiagnoseStatus.textContent = summary.statusText;
-    triggerFeedback.textContent = summary.feedbackText;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown error";
-    apiDiagnoseStatus.textContent = `API Diagnose: fehlgeschlagen (${message})`;
-    triggerFeedback.textContent = "Status: API Diagnose konnte nicht abgeschlossen werden";
-  } finally {
-    runApiDiagnoseButton.disabled = false;
   }
 });
 

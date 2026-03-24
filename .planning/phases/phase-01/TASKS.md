@@ -169,3 +169,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T114 [P0] Guided-Fix-Flow in `Settings` liefern: headless/LAN-konkrete Next Steps inkl. `node server.mjs --host 0.0.0.0 --port 4173`, plus finalen Host-/Endpoint-Trace sichtbar halten.
 - [x] DONE P1-T115 [P0] Resolver-Transparenz robust machen: identischen Resolve-Snapshot fuer Save und Diagnose verwenden und Remote-IP-Flow ohne verwirrenden Client-`localhost`-Fallback absichern.
 - [x] DONE P1-T116 [P0] Pflichtabnahme + Regression fuer Plan-Update 18 dokumentieren: echter Negativtest mit `python3 -m http.server 4173` und anschliessender Positivtest mit Node-API-Server.
+
+## Priority Add-on - Plan Update 19
+- [x] DONE P1-T117 [P0] Settings-UI bereinigen: dedizierten Button `API Diagnose` entfernen und Diagnose ausschliesslich ueber Save-Preflight + Feedback fuehren.
+- [ ] TODO P1-T118 [P0] Download-Fallback in der UI neutral umbenennen (kein `Notfall`-Label in Button-/Hint-/Status-Texten).
+- [ ] TODO P1-T119 [P0] Save-/Diagnose-Textbausteine konsolidieren: host-transparente Next Steps beibehalten, aber alle Button-Referenzen auf `API Diagnose` entfernen.
+- [ ] TODO P1-T120 [P1] Phase-01-Doku- und QA-Texte auf neutrales Fallback-Wording vereinheitlichen (`sekundaerer Fallback` statt `Notfallpfad`).
+- [ ] TODO P1-T121 [P0] Pflichtabnahme + Regression fuer Plan-Update 19 dokumentieren (kein Diagnose-Button sichtbar, Diagnose ueber Save weiterhin nutzbar, neutrales Export-Wording konsistent).
