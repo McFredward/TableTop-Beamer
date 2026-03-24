@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-14
-- Last Execution Summary: `.planning/phases/phase-01/1-14-SUMMARY.md`
+- Last Executed Plan: 1-15
+- Last Execution Summary: `.planning/phases/phase-01/1-15-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -114,6 +114,12 @@
 - Settings-Ownership-Guard validiert zur Laufzeit, dass saemtliche Konfigurationscontrols nur unter `data-view="settings"` gemountet sind.
 - Running-Liste kennzeichnet globale Effekte jetzt explizit als `GLOBAL-INSIDE` bzw. `GLOBAL-OUTSIDE` fuer klare fachliche Trennung.
 - Outside-Rendering nutzt fail-safe Maskenclipping; ohne gueltiges Ship-Polygon wird kein Outside-Layer gezeichnet (kein Fullscreen-Leak).
+- Plan-Update 13 setzt Prioritaetsfokus: P0 bidirektionales Ship-Clipping (Inside strikt innen, Outside strikt aussen), P0 Outside-Rework zu High-Speed-Spaceflow mit Tiefenebenen/Streaks, P0 globale Config-Persistenz aus Browserdaten via Settings-Button `Speichern`.
+- Clipping-Regel fuer Plan-Update 13: Rendergrenzen sind beidseitig verpflichtend und exklusiv (`inside -> in ship mask`, `outside -> inverse ship mask`) ohne Grenzlecks bei Paralleltriggern.
+- Persistenz-Regel fuer Plan-Update 13: Single-User-Setup schreibt aktuelle lokale Browserdaten als globale Repo-/Server-Defaults; bestehende Polygon-/Geometriedaten bleiben verlustfrei erhalten.
+- Inside-Renderpfad ist jetzt maskenpflichtig ueber `clipToInsideShip`; ungueltige Ship-Masken triggern fail-safe no-draw statt Fullscreen-Leak.
+- Outside-Visual nutzt High-Speed-Spaceflow mit Multi-Depth-Parallax plus speedgekoppelten Motion-Streaks.
+- `Settings` exportiert lokalen Browserstand in `config/global-defaults.json`; Client- und Server-Merge-Guards erhalten Ship-/Spezialraum-Polygone verlustfrei.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -231,3 +237,12 @@
 - Evidence:
   - `.planning/phases/phase-01/P1-T83-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 15)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-15-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`511da73` .. `c932d10`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T90-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
