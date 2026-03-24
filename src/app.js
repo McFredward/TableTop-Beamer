@@ -317,6 +317,15 @@ const BOARD_ZOOM_DEFAULT = {
   panY: 0,
 };
 
+const SHIP_POLYGON_DEFAULT = [
+  [0.06, 0.08],
+  [0.94, 0.08],
+  [0.97, 0.5],
+  [0.94, 0.92],
+  [0.06, 0.92],
+  [0.03, 0.5],
+];
+
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -337,6 +346,7 @@ const state = {
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
   specialPolygonsByBoard: {},
+  shipPolygonsByBoard: {},
   boardZoomByBoard: {},
   polygonEditor: {
     roomIdByBoard: {},
@@ -549,6 +559,22 @@ function createDefaultSpecialPolygonsByBoard() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, createDefaultSpecialPolygonMap(board.id)]),
   );
+}
+
+function normalizeShipPolygon(points) {
+  return normalizeSpecialPolygon(points, SHIP_POLYGON_DEFAULT);
+}
+
+function createDefaultShipPolygonsByBoard() {
+  return Object.fromEntries(BOARDS.map((board) => [board.id, normalizeShipPolygon(SHIP_POLYGON_DEFAULT)]));
+}
+
+function getShipPolygonPoints(boardId = state.boardId) {
+  return normalizeShipPolygon(state.shipPolygonsByBoard[boardId]);
+}
+
+function setShipPolygonPoints(boardId, points) {
+  state.shipPolygonsByBoard[boardId] = normalizeShipPolygon(points);
 }
 
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
@@ -1818,6 +1844,10 @@ function getRoomPolygonPixels(room, width, height, boardId = state.boardId) {
   ]);
 }
 
+function getShipPolygonPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
+  return getShipPolygonPoints(boardId).map(([x, y]) => [x * width, y * height]);
+}
+
 function getRoomRenderMetrics(room, boardId = state.boardId) {
   const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height, boardId);
   if (polygon.length === 0) {
@@ -2161,6 +2191,23 @@ function clipToRoom(room) {
   ctx.clip();
 }
 
+function clipToOutsideShip(boardId = state.boardId) {
+  const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  if (shipPolygon.length >= 3) {
+    shipPolygon.forEach(([x, y], index) => {
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+  }
+  ctx.clip("evenodd");
+}
+
 function drawAnimation(animation, now) {
   const age = (now - animation.startedAt) / 1000;
   if (animation.scope === "room") {
@@ -2176,6 +2223,16 @@ function drawAnimation(animation, now) {
     try {
       clipToRoom(room);
       drawEffectVisual(animation.type, age, animation.intensity, room, roomMetrics);
+    } finally {
+      ctx.restore();
+    }
+    return;
+  }
+  if (animation.type === "outside-space") {
+    ctx.save();
+    try {
+      clipToOutsideShip(state.boardId);
+      drawEffectVisual(animation.type, age, animation.intensity, null);
     } finally {
       ctx.restore();
     }
@@ -2206,6 +2263,27 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null) {
   const roomHeight = roomMetrics?.height ?? roomRadius * 2;
   const roomMinX = roomMetrics?.minX ?? roomX - roomWidth / 2;
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
+
+  if (type === "outside-space") {
+    const starCount = Math.max(32, Math.round(90 * intensity));
+    for (let i = 0; i < starCount; i += 1) {
+      const lane = i / starCount;
+      const drift = (age * 0.055 + lane * 1.618) % 1;
+      const x = ((lane * 967 + age * 22) % 1) * w;
+      const y = drift * h;
+      const size = 0.8 + ((i * 37) % 3) * 0.5;
+      const alpha = 0.12 + (((Math.sin(age * 2.4 + i) + 1) / 2) * 0.36 + 0.05) * intensity;
+      ctx.fillStyle = `rgba(196, 222, 255, ${Math.min(0.9, alpha)})`;
+      ctx.fillRect(x, y, size, size);
+    }
+    const sweep = (Math.sin(age * 0.9) + 1) / 2;
+    const g = ctx.createLinearGradient(0, h * (0.15 + sweep * 0.15), w, h * (0.85 - sweep * 0.1));
+    g.addColorStop(0, `rgba(33, 68, 120, ${0.08 * intensity})`);
+    g.addColorStop(1, `rgba(122, 176, 255, ${0.14 * intensity})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    return;
+  }
 
   if (type === "ambient-drift") {
     const alpha = (0.07 + Math.sin(age * 1.4) * 0.03) * intensity;
@@ -2801,7 +2879,7 @@ window.addEventListener("blur", () => {
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
-    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" ? null : 6;
+    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space" ? null : 6;
     upsertGlobalAnimation(type, mode);
   });
 });
@@ -2880,6 +2958,7 @@ resizeObserver.observe(stage);
 state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
 state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
 state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
+state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
 state.boardZoomByBoard = createDefaultBoardZoomByBoard();
 loadBoardProfiles();
 
