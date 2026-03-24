@@ -94,3 +94,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T59 [P0] Spezialraum-Klick im Settings-Board direkt mit Polygon-Editor-Dropdown synchronisieren (Board -> Dropdown inkl. konsistenter Highlight-State).
 - [x] DONE P1-T60 [P0] Dashboard-Block `Aktive Animationen` sticky im scrollenden Control-Panel verankern, ohne Tab-/Small-Screen-Regressions.
 - [x] DONE P1-T61 [P1] Plan-Update-8 Pflichtabnahme + Regression dokumentieren (Zoom-Precision, Spezialraum-Sync, Sticky-Running-Block).
+
+## Priority Add-on - Plan Update 9
+- [x] DONE P1-T62 [P0] Settings-Pan-Modus implementieren (primaer `Space + Drag`, optional mittlere Maustaste) fuer gezoomtes Board inkl. klarer Cursor-/Statusrueckmeldung.
+- [x] DONE P1-T63 [P0] Pan-Viewport-Logik mit Zoom/Fit/Reset koppeln (Bounds, Start-/Endzustand, kein Verlust der Arbeitsflaeche).
+- [x] DONE P1-T64 [P0] Interaktions-Arbitration haerten: Pan darf Room-Klick, Vertex-Selektion, Vertex-Drag und Insert/Delete ausserhalb des Pan-Modus nicht regressieren.
+- [x] DONE P1-T65 [P0] Regression-Checks fuer Zoom+Pan+Polygon-Editing auf Desktop und Small-Screen ergaenzen (inkl. mehrfacher Tabwechsel und Pointer-Capture-Grenzfaelle).
+- [x] DONE P1-T66 [P1] Plan-Update-9 Pflichtabnahme + Nachweisdokumentation erstellen (Pan-Regel, Edit-Stabilitaet, Zoom/Pan-Roundtrip).
