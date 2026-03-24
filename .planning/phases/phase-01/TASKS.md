@@ -133,3 +133,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T88 [P0] Single-User-Persistenzpfad erweitern: `Settings`-Button `Speichern` schreibt aktuellen Browserzustand in server-/repo-seitige globale Default-Config.
 - [x] DONE P1-T89 [P0] Save-Merge-Guard implementieren: lokale Browserdaten als Quelle uebernehmen und bestehende Ship-/Spezialraum-Polygondaten verlustfrei erhalten.
 - [x] DONE P1-T90 [P1] Plan-Update-13 Pflichtabnahme + Regression dokumentieren (Inside/Outside-Clipping, High-Speed-Spaceflow mit Streaks, globale Config-Save-Pfad, Polygon-Datenerhalt).
+
+## Priority Add-on - Plan Update 14
+- [x] DONE P1-T91 [P0] Outside-Animation um Richtungsoption erweitern (`forward`/`reverse`) und Umschaltung zur Laufzeit robust in den Outside-Renderpfad integrieren.
+- [ ] TODO P1-T92 [P0] Blauen Outside-Hintergrund entfernen und Outside-Basis strikt tiefschwarz halten; sichtbar bleiben nur Sterne/Motion-Streaks.
+- [ ] TODO P1-T93 [P0] Per-Room-Animation-Controls um `Speed`, `Intensity` und `Sound Volume` pro einzelner Animation erweitern (Start + Edit-Flow).
+- [ ] TODO P1-T94 [P0] Runtime-Modell pro Room-Animation-Instanz um `speed`, `intensity`, `soundVolume` erweitern und in Start/Update/Stop konsistent nutzen.
+- [ ] TODO P1-T95 [P0] P0-Bugfix Running-List-`Edit`: bestehende laufende Instanz laden, Edit-Werte in-place auf dieselbe `animation.id` anwenden, kein Neu-Eintrag.
+- [ ] TODO P1-T96 [P1] Plan-Update-14 Pflichtabnahme + Regression dokumentieren (Outside-Richtung + Black-Background, Per-Instance-Room-Parameter, Edit-in-place).

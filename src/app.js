@@ -320,6 +320,7 @@ const outsideIntensityValue = document.querySelector("#outside-intensity-value")
 const outsideSpeedInput = document.querySelector("#outside-speed");
 const outsideSpeedValue = document.querySelector("#outside-speed-value");
 const outsideModeInput = document.querySelector("#outside-mode");
+const outsideDirectionInput = document.querySelector("#outside-direction");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
@@ -367,6 +368,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-intensity",
   "outside-speed",
   "outside-mode",
+  "outside-direction",
  ];
 
 const ctx = canvas.getContext("2d");
@@ -411,6 +413,7 @@ const OUTSIDE_FX_DEFAULT = {
   intensity: 0.7,
   speed: 1,
   mode: "standard",
+  direction: "forward",
 };
 
 const state = {
@@ -770,6 +773,7 @@ function normalizeOutsideFxProfile(profile) {
     intensity: clampOutsideIntensity(profile?.intensity),
     speed: clampOutsideSpeed(profile?.speed),
     mode: normalizeOutsideMode(profile?.mode),
+    direction: normalizeOutsideDirection(profile?.direction),
   };
 }
 
@@ -1380,6 +1384,10 @@ function normalizeOutsideMode(value) {
   return value === "immersive" ? "immersive" : "standard";
 }
 
+function normalizeOutsideDirection(value) {
+  return value === "reverse" ? "reverse" : "forward";
+}
+
 function formatHitareaValue(value) {
   const numeric = Number(value) || 0;
   return numeric.toFixed(3);
@@ -1963,6 +1971,7 @@ function syncOutsideFxPanel() {
   outsideIntensityInput.value = String(outside.intensity);
   outsideSpeedInput.value = String(outside.speed);
   outsideModeInput.value = outside.mode;
+  outsideDirectionInput.value = outside.direction;
   outsideIntensityValue.textContent = outside.intensity.toFixed(2);
   outsideSpeedValue.textContent = `${outside.speed.toFixed(2)}x`;
 }
@@ -3120,6 +3129,7 @@ function drawOutsideFxLayer(now) {
       {
         outsideMode: outside.mode,
         outsideSpeed: outside.speed,
+        outsideDirection: outside.direction,
       },
     );
   } finally {
@@ -3143,6 +3153,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const immersive = options.outsideMode === "immersive";
     const speedInfluence = clampOutsideSpeed(options.outsideSpeed ?? 1);
     const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
+    const directionMultiplier = options.outsideDirection === "reverse" ? -1 : 1;
 
     const nebulaField = ctx.createLinearGradient(0, 0, w, h);
     nebulaField.addColorStop(0, `rgba(16, 30, 68, ${0.16 * intensity})`);
@@ -3173,7 +3184,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       for (let i = 0; i < starCount; i += 1) {
         const seedX = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
         const seedY = ((i * 57.913 + layerIndex * 79.1) % 1000) / 1000;
-        const progressRaw = (seedX * (w + 8) - age * layerSpeed) % (w + 8);
+        const progressRaw = (seedX * (w + 8) - age * layerSpeed * directionMultiplier) % (w + 8);
         const x = progressRaw < 0 ? progressRaw + w + 8 : progressRaw;
         const y = seedY * h + Math.sin(age * 0.35 + i * 0.07 + layerIndex) * layerWave;
         const twinkle = (Math.sin(age * (2 + layerIndex * 0.7) + i * 0.9) + 1) / 2;
@@ -3186,7 +3197,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
         ctx.strokeStyle = `rgba(192, 226, 255, ${Math.min(0.9, alpha * 0.72)})`;
         ctx.lineWidth = streakWidth;
         ctx.beginPath();
-        ctx.moveTo(x + streakLength, y);
+        ctx.moveTo(x + streakLength * directionMultiplier, y);
         ctx.lineTo(x, y);
         ctx.stroke();
 
@@ -3204,8 +3215,9 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.strokeStyle = `rgba(156, 206, 255, ${Math.min(0.48, laneAlpha)})`;
       ctx.lineWidth = 0.8 + ((i % 3) + 1) * 0.38;
       ctx.beginPath();
-      ctx.moveTo(w - pulse, laneY);
-      ctx.lineTo(w - pulse + laneLength, laneY);
+      const laneHeadX = directionMultiplier > 0 ? w - pulse : pulse;
+      ctx.moveTo(laneHeadX + laneLength * directionMultiplier, laneY);
+      ctx.lineTo(laneHeadX, laneY);
       ctx.stroke();
     }
 
@@ -3817,6 +3829,17 @@ outsideModeInput.addEventListener("change", () => {
   triggerFeedback.textContent = persisted
     ? `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert`
     : `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert (Persistenz fehlgeschlagen)`;
+});
+
+outsideDirectionInput.addEventListener("change", () => {
+  updateOutsideFxProfile(state.boardId, {
+    direction: normalizeOutsideDirection(outsideDirectionInput.value),
+  });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert`
+    : `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert (Persistenz fehlgeschlagen)`;
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {
