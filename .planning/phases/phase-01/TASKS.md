@@ -155,3 +155,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T104 [P0] Save-UX endpoint-transparent machen: genutzten API-Endpunkt, Methode, Statusklasse und konkrete naechste Schritte im UI anzeigen.
 - [x] DONE P1-T105 [P0] One-Click `API Diagnose` im Settings-Tab implementieren (Reachability + POST erlaubt?) inkl. klarer Operator-Anweisungen.
 - [x] DONE P1-T106 [P0] Plan-Update-16 Pflichtabnahme + Regression dokumentieren (statisches Hosting, Endpoint-Transparenz, Diagnose-Flow, reproduzierbarer Save bei laufender API).
+
+## Priority Add-on - Plan Update 17
+- [x] DONE P1-T107 [P0] Endpoint-Resolver fuer headless/remote Betrieb korrigieren: Default-API-Host vom aufgerufenen UI-Host ableiten (LAN/IP/Hostname), `localhost` nur bei lokalem UI-Aufruf oder explizitem Override.
+- [ ] TODO P1-T108 [P0] Override-Kompatibilitaet sichern: explizite API-Base-Pfade (window/url/localStorage) behalten Vorrang und bleiben mit neuem LAN-Default deterministisch kombinierbar.
+- [ ] TODO P1-T109 [P0] Save- und Diagnose-Feedback erweitern: `UI-Host -> API-Host`, finaler Endpoint + Methode, plus explizite Remote/LAN-Hinweise bei Host-Mismatch.
+- [ ] TODO P1-T110 [P0] Regression fuer LAN-IP-Setup aufsetzen und dokumentieren (UI von zweitem Geraet via `http://192.168.x.x:4173`, mindestens 5x Save, kein Rueckfall auf Client-`localhost`).
+- [ ] TODO P1-T111 [P1] Plan-Update-17 Pflichtabnahme + Doku-Sync dokumentieren (`ACCEPTANCE.md`/Runbook/STATE), inkl. reproduzierbarem Save-Roundtrip nach Reload/Restart im LAN-Szenario.

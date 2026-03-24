@@ -395,6 +395,7 @@ const API_BASE_STORAGE_KEY = "tt-beamer.api-base.v1";
 const API_BASE_URL_PARAM_KEYS = ["ttApiBase", "apiBase", "api_base"];
 const API_PORT_FALLBACKS = [4173, 4174, 3000, 8080];
 const API_REQUEST_TIMEOUT_MS = 3000;
+const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -1340,8 +1341,18 @@ function resolveGlobalDefaultsApiCandidates() {
 
   addEndpoint(window.location?.origin);
 
+  const uiHost = getUiHostName();
+  const uiProtocol = getUiProtocol();
+  const fallbackHost = uiHost || "localhost";
+  const allowLocalhostFallback = !uiHost || isLocalApiHost(uiHost);
+
   for (const port of API_PORT_FALLBACKS) {
-    addEndpoint(`http://localhost:${port}`);
+    addEndpoint(`${uiProtocol}//${fallbackHost}:${port}`);
+  }
+
+  if (allowLocalhostFallback) {
+    addEndpoint("http://localhost:4173");
+    addEndpoint("http://127.0.0.1:4173");
   }
 
   return endpoints;
@@ -1402,6 +1413,27 @@ function normalizeApiBase(value) {
   } catch {
     return null;
   }
+}
+
+function getUiHostName() {
+  try {
+    return String(window.location?.hostname || "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function getUiProtocol() {
+  const protocol = String(window.location?.protocol || "http:").toLowerCase();
+  return protocol === "https:" ? "https:" : "http:";
+}
+
+function isLocalApiHost(hostname) {
+  if (!hostname) {
+    return false;
+  }
+  const normalized = String(hostname).toLowerCase();
+  return LOCAL_API_HOSTS.has(normalized) || normalized.startsWith("127.");
 }
 
 function classifyFailedSaveResponse(response, details) {
