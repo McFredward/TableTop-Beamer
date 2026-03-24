@@ -804,13 +804,26 @@ function drawAnimation(animation, now) {
       return;
     }
     ctx.save();
-    clipToRoom(room);
-    drawEffectVisual(animation.type, age, animation.intensity, room);
-    ctx.restore();
+    try {
+      clipToRoom(room);
+      drawEffectVisual(animation.type, age, animation.intensity, room);
+    } finally {
+      ctx.restore();
+    }
     return;
   }
 
   drawEffectVisual(animation.type, age, animation.intensity, null);
+}
+
+function drawAnimationSafely(animation, now) {
+  try {
+    drawAnimation(animation, now);
+    return true;
+  } catch (error) {
+    console.error(`Animation ${animation.id} failed`, error);
+    return false;
+  }
 }
 
 function drawEffectVisual(type, age, intensity, room) {
@@ -998,19 +1011,35 @@ function pruneFinishedAnimations(now) {
 }
 
 function draw(now) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  pruneFinishedAnimations(now);
+  try {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pruneFinishedAnimations(now);
 
-  for (const anim of state.runningAnimations) {
-    drawAnimation(anim, now);
+    const failedAnimationIds = [];
+    for (const anim of state.runningAnimations) {
+      const ok = drawAnimationSafely(anim, now);
+      if (!ok) {
+        failedAnimationIds.push(anim.id);
+      }
+    }
+
+    if (failedAnimationIds.length > 0) {
+      state.runningAnimations = state.runningAnimations.filter(
+        (anim) => !failedAnimationIds.includes(anim.id),
+      );
+      renderRunningAnimationsList();
+      refreshGlobalButtons();
+      triggerFeedback.textContent =
+        "Status: fehlerhafte Animation isoliert, Render-Timer laeuft weiter";
+    }
+
+    if (now - lastListRenderAt > 500) {
+      renderRunningAnimationsList();
+      lastListRenderAt = now;
+    }
+  } finally {
+    requestAnimationFrame(draw);
   }
-
-  if (now - lastListRenderAt > 500) {
-    renderRunningAnimationsList();
-    lastListRenderAt = now;
-  }
-
-  requestAnimationFrame(draw);
 }
 
 for (const board of BOARDS) {
