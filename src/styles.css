@@ -109,16 +109,37 @@ body {
   font-size: 16px;
 }
 
+.polygon-vertex-marker {
+  pointer-events: none;
+}
+
 .polygon-vertex-handle {
-  fill: rgba(255, 214, 125, 0.95);
-  stroke: rgba(86, 52, 0, 0.9);
-  stroke-width: 2;
+  fill: rgba(255, 218, 140, 0.98);
+  stroke: rgba(40, 18, 0, 0.95);
+  stroke-width: 2.6;
   vector-effect: non-scaling-stroke;
   cursor: grab;
+  pointer-events: auto;
+  filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.55));
 }
 
 .polygon-vertex-handle.is-active {
-  fill: rgba(255, 130, 76, 0.95);
+  fill: rgba(255, 63, 63, 0.98);
+  stroke: rgba(255, 246, 246, 0.98);
+  stroke-width: 3.2;
+}
+
+.polygon-vertex-index {
+  fill: #0a0f18;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 11px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.polygon-vertex-index.is-active {
+  fill: #fff4f4;
+  font-weight: 700;
 }
 
 .dashboard {

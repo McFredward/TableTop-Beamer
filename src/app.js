@@ -846,15 +846,28 @@ function renderPolygonEditorHandles() {
   }
   const points = getRoomPoints(room, state.boardId);
   points.forEach(([x, y], index) => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    marker.classList.add("polygon-vertex-marker");
     const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     handle.classList.add("polygon-vertex-handle");
     if (index === state.polygonEditor.selectedVertexIndex) {
       handle.classList.add("is-active");
+      marker.classList.add("is-active");
     }
     handle.dataset.vertexIndex = String(index);
     handle.setAttribute("cx", x.toFixed(1));
     handle.setAttribute("cy", y.toFixed(1));
-    handle.setAttribute("r", "8");
+    handle.setAttribute("r", "10");
+
+    const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    indexLabel.classList.add("polygon-vertex-index");
+    if (index === state.polygonEditor.selectedVertexIndex) {
+      indexLabel.classList.add("is-active");
+    }
+    indexLabel.setAttribute("x", x.toFixed(1));
+    indexLabel.setAttribute("y", (y + 3).toFixed(1));
+    indexLabel.textContent = String(index + 1);
+
     handle.addEventListener("pointerdown", (event) => {
       event.stopPropagation();
       event.preventDefault();
@@ -863,7 +876,8 @@ function renderPolygonEditorHandles() {
       syncPolygonVertexSelect(room.id);
       roomOverlay.setPointerCapture(event.pointerId);
     });
-    roomOverlay.append(handle);
+    marker.append(handle, indexLabel);
+    roomOverlay.append(marker);
   });
 }
 
