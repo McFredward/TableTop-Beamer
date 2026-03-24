@@ -171,6 +171,30 @@
           </p>
         </section>
 
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
+          <h2>Ship-Polygoneditor (Outside-Maske)</h2>
+          <p class="status-line">Bearbeite die Schiffsmaske; der Outside-Effekt wird live ausserhalb dieses Polygons gerendert.</p>
+          <label>
+            Aktive Ecke
+            <select id="ship-polygon-vertex-select"></select>
+          </label>
+          <label>
+            Aktive Kante
+            <select id="ship-polygon-edge-select"></select>
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="ship-polygon-insert-vertex" type="button">Ecke einfuegen</button>
+            <button id="ship-polygon-delete-vertex" type="button">Ecke loeschen</button>
+          </div>
+          <div class="button-grid button-grid-2">
+            <button id="ship-polygon-reset" type="button">Ship-Polygon auf Default</button>
+            <button data-global="outside-space" type="button">Outside Space ein/aus</button>
+          </div>
+          <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
+            Ship-Polygoneditor: bereit
+          </p>
+        </section>
+
         <section class="panel dashboard-only" data-view="dashboard">
           <h2>Globale Animationen</h2>
           <div class="button-grid button-grid-3">

@@ -280,6 +280,12 @@ const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex
 const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
 const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
 const polygonEditorStatus = document.querySelector("#polygon-editor-status");
+const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
+const shipPolygonEdgeSelect = document.querySelector("#ship-polygon-edge-select");
+const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-insert-vertex");
+const shipPolygonDeleteVertexButton = document.querySelector("#ship-polygon-delete-vertex");
+const shipPolygonResetButton = document.querySelector("#ship-polygon-reset");
+const shipPolygonEditorStatus = document.querySelector("#ship-polygon-editor-status");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
@@ -355,6 +361,15 @@ const state = {
     dragVertexIndex: null,
     dragPointerId: null,
     dragRoomId: null,
+    dragBoardId: null,
+    dragStartPoints: null,
+    dragMoved: false,
+  },
+  shipPolygonEditor: {
+    selectedVertexIndex: 0,
+    selectedEdgeIndex: 0,
+    dragVertexIndex: null,
+    dragPointerId: null,
     dragBoardId: null,
     dragStartPoints: null,
     dragMoved: false,
@@ -1228,6 +1243,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
   openSettingsViewButton.setAttribute("aria-pressed", showSettings ? "true" : "false");
   if (showSettings) {
     syncPolygonEditorPanel();
+    syncShipPolygonEditorPanel();
   }
   syncStageZoomTransform();
   setPanCursorState();
@@ -1482,6 +1498,204 @@ function syncPolygonEditorPanel() {
   syncPolygonVertexSelect(activeRoomId);
   syncPolygonEdgeSelect(activeRoomId);
   syncPolygonEditorStatus();
+}
+
+function syncShipPolygonEditorStatus() {
+  const points = getShipPolygonPoints(state.boardId);
+  const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
+  const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
+  shipPolygonEditorStatus.textContent = `Ship-Polygoneditor: ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
+}
+
+function syncShipPolygonVertexSelect() {
+  shipPolygonVertexSelect.replaceChildren();
+  const points = getShipPolygonPoints(state.boardId);
+  for (let i = 0; i < points.length; i += 1) {
+    const option = document.createElement("option");
+    option.value = String(i);
+    option.textContent = `Ecke ${i + 1}`;
+    shipPolygonVertexSelect.append(option);
+  }
+  const maxIndex = Math.max(0, points.length - 1);
+  state.shipPolygonEditor.selectedVertexIndex = Math.min(state.shipPolygonEditor.selectedVertexIndex, maxIndex);
+  state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
+  shipPolygonVertexSelect.value = String(state.shipPolygonEditor.selectedVertexIndex);
+  shipPolygonDeleteVertexButton.disabled = points.length <= 3;
+}
+
+function syncShipPolygonEdgeSelect() {
+  shipPolygonEdgeSelect.replaceChildren();
+  const points = getShipPolygonPoints(state.boardId);
+  for (let i = 0; i < points.length; i += 1) {
+    const option = document.createElement("option");
+    const next = i === points.length - 1 ? 1 : i + 2;
+    option.value = String(i);
+    option.textContent = `Kante ${i + 1} (Ecke ${i + 1} -> ${next})`;
+    shipPolygonEdgeSelect.append(option);
+  }
+  const maxIndex = Math.max(0, points.length - 1);
+  state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
+  shipPolygonEdgeSelect.value = String(state.shipPolygonEditor.selectedEdgeIndex);
+}
+
+function syncShipPolygonEditorPanel() {
+  syncShipPolygonVertexSelect();
+  syncShipPolygonEdgeSelect();
+  syncShipPolygonEditorStatus();
+}
+
+function beginShipPolygonVertexDrag(event, vertexIndex) {
+  state.shipPolygonEditor.dragVertexIndex = vertexIndex;
+  state.shipPolygonEditor.dragPointerId = event.pointerId;
+  state.shipPolygonEditor.dragBoardId = state.boardId;
+  state.shipPolygonEditor.dragStartPoints = getShipPolygonPoints(state.boardId);
+  state.shipPolygonEditor.dragMoved = false;
+  try {
+    roomOverlay.setPointerCapture(event.pointerId);
+  } catch {
+    // pointer capture can fail on unsupported devices; drag still continues
+  }
+}
+
+function clearShipPolygonDragSession() {
+  state.shipPolygonEditor.dragVertexIndex = null;
+  state.shipPolygonEditor.dragPointerId = null;
+  state.shipPolygonEditor.dragBoardId = null;
+  state.shipPolygonEditor.dragStartPoints = null;
+  state.shipPolygonEditor.dragMoved = false;
+}
+
+function commitShipPolygonDrag() {
+  const persisted = persistBoardProfiles();
+  triggerFeedback.textContent = persisted
+    ? "Status: Ship-Polygon-Ecke verschoben"
+    : "Status: Ship-Polygon-Ecke verschoben (Persistenz fehlgeschlagen)";
+}
+
+function cancelShipPolygonDrag() {
+  const { dragBoardId, dragStartPoints } = state.shipPolygonEditor;
+  if (dragBoardId && Array.isArray(dragStartPoints)) {
+    setShipPolygonPoints(dragBoardId, dragStartPoints);
+  }
+  renderRoomOverlay();
+  syncShipPolygonEditorStatus();
+  triggerFeedback.textContent = "Status: Ship-Polygon-Drag abgebrochen";
+}
+
+function finishShipPolygonVertexDrag(event, { cancel = false } = {}) {
+  const pointerId = state.shipPolygonEditor.dragPointerId;
+  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
+    roomOverlay.releasePointerCapture(pointerId);
+  }
+  const moved = state.shipPolygonEditor.dragMoved;
+  if (cancel) {
+    cancelShipPolygonDrag();
+  } else if (moved) {
+    commitShipPolygonDrag();
+  }
+  clearShipPolygonDragSession();
+}
+
+function renderShipPolygonEditorHandles() {
+  if (state.uiView !== "settings") {
+    return;
+  }
+  const points = getShipPolygonPoints(state.boardId).map(([x, y]) => [x * 1000, y * 1000]);
+  if (points.length < 3) {
+    return;
+  }
+  const zoomScale = getBoardZoom(state.boardId).scale;
+  const inverseZoom = 1 / zoomScale;
+  const edgeHitRadius = Math.max(8, 12 * inverseZoom);
+  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom);
+  const vertexHitRadius = Math.max(10, 16 * inverseZoom);
+  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom);
+  const vertexLabelSize = Math.max(9, 11 * inverseZoom);
+
+  const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  maskPolygon.classList.add("ship-zone-mask");
+  maskPolygon.setAttribute("points", points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+  roomOverlay.append(maskPolygon);
+
+  for (let index = 0; index < points.length; index += 1) {
+    const [aX, aY] = points[index];
+    const [bX, bY] = points[(index + 1) % points.length];
+    const edgeMarker = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    edgeMarker.classList.add("polygon-edge-marker", "ship-polygon-edge-marker");
+    const edgeHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    edgeHitTarget.classList.add("polygon-edge-hit-target", "ship-polygon-edge-hit-target");
+    const edgeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    edgeHandle.classList.add("polygon-edge-handle", "ship-polygon-edge-handle");
+    if (index === state.shipPolygonEditor.selectedEdgeIndex) {
+      edgeHandle.classList.add("is-active");
+      edgeHitTarget.classList.add("is-active");
+    }
+    const centerX = ((aX + bX) / 2).toFixed(1);
+    const centerY = ((aY + bY) / 2).toFixed(1);
+    edgeHitTarget.setAttribute("cx", centerX);
+    edgeHitTarget.setAttribute("cy", centerY);
+    edgeHitTarget.setAttribute("r", edgeHitRadius.toFixed(2));
+    edgeHandle.setAttribute("cx", centerX);
+    edgeHandle.setAttribute("cy", centerY);
+    edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
+    edgeHitTarget.addEventListener("pointerdown", (event) => {
+      if (isPanArbitrating() || event.button !== 0) {
+        return;
+      }
+      event.stopPropagation();
+      event.preventDefault();
+      state.shipPolygonEditor.selectedEdgeIndex = index;
+      shipPolygonEdgeSelect.value = String(index);
+      renderRoomOverlay();
+      syncShipPolygonEditorStatus();
+    });
+    edgeMarker.append(edgeHitTarget, edgeHandle);
+    roomOverlay.append(edgeMarker);
+  }
+
+  points.forEach(([x, y], index) => {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    marker.classList.add("polygon-vertex-marker", "ship-polygon-vertex-marker");
+    const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    hitTarget.classList.add("polygon-vertex-hit-target", "ship-polygon-vertex-hit-target");
+    const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    handle.classList.add("polygon-vertex-handle", "ship-polygon-vertex-handle");
+    if (index === state.shipPolygonEditor.selectedVertexIndex) {
+      handle.classList.add("is-active");
+      marker.classList.add("is-active");
+      hitTarget.classList.add("is-active");
+    }
+    hitTarget.dataset.vertexIndex = String(index);
+    hitTarget.setAttribute("cx", x.toFixed(1));
+    hitTarget.setAttribute("cy", y.toFixed(1));
+    hitTarget.setAttribute("r", vertexHitRadius.toFixed(2));
+    handle.setAttribute("cx", x.toFixed(1));
+    handle.setAttribute("cy", y.toFixed(1));
+    handle.setAttribute("r", vertexHandleRadius.toFixed(2));
+
+    const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    indexLabel.classList.add("polygon-vertex-index", "ship-polygon-vertex-index");
+    if (index === state.shipPolygonEditor.selectedVertexIndex) {
+      indexLabel.classList.add("is-active");
+    }
+    indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
+    indexLabel.setAttribute("x", x.toFixed(1));
+    indexLabel.setAttribute("y", (y + 3).toFixed(1));
+    indexLabel.textContent = String(index + 1);
+
+    hitTarget.addEventListener("pointerdown", (event) => {
+      if (isPanArbitrating() || event.button !== 0) {
+        return;
+      }
+      event.stopPropagation();
+      event.preventDefault();
+      beginShipPolygonVertexDrag(event, index);
+      state.shipPolygonEditor.selectedVertexIndex = index;
+      syncShipPolygonVertexSelect();
+    });
+    marker.append(hitTarget, handle, indexLabel);
+    roomOverlay.append(marker);
+  });
 }
 
 function syncSpecialRoomSelection(roomId) {
@@ -1947,6 +2161,7 @@ function renderRoomOverlay() {
   }
 
   renderPolygonEditorHandles();
+  renderShipPolygonEditorHandles();
 }
 
 function switchBoard(boardId) {
@@ -1970,6 +2185,7 @@ function switchBoard(boardId) {
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
+  syncShipPolygonEditorPanel();
   syncBoardZoomPanel();
   setPanCursorState();
   renderRoomOverlay();
@@ -2769,6 +2985,82 @@ polygonFocusRoomButton.addEventListener("click", () => {
   triggerFeedback.textContent = "Status: Spezialraum im Overlay fokussiert";
 });
 
+shipPolygonVertexSelect.addEventListener("change", () => {
+  state.shipPolygonEditor.selectedVertexIndex = Math.max(0, Number(shipPolygonVertexSelect.value) || 0);
+  state.shipPolygonEditor.selectedEdgeIndex = state.shipPolygonEditor.selectedVertexIndex;
+  syncShipPolygonEdgeSelect();
+  renderRoomOverlay();
+  syncShipPolygonEditorStatus();
+});
+
+shipPolygonEdgeSelect.addEventListener("change", () => {
+  state.shipPolygonEditor.selectedEdgeIndex = Math.max(0, Number(shipPolygonEdgeSelect.value) || 0);
+  renderRoomOverlay();
+  syncShipPolygonEditorStatus();
+});
+
+shipPolygonInsertVertexButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    return;
+  }
+  const points = getShipPolygonPoints(state.boardId);
+  const index = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
+  const nextIndex = (index + 1) % points.length;
+  const a = points[index];
+  const b = points[nextIndex];
+  const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  points.splice(nextIndex, 0, normalizePolygonPoint(midpoint));
+  setShipPolygonPoints(state.boardId, points);
+  const persisted = persistBoardProfiles();
+  state.shipPolygonEditor.selectedEdgeIndex = index;
+  state.shipPolygonEditor.selectedVertexIndex = nextIndex;
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? "Status: Ship-Polygon-Ecke eingefuegt"
+    : "Status: Ship-Polygon-Ecke eingefuegt (Persistenz fehlgeschlagen)";
+});
+
+shipPolygonDeleteVertexButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    return;
+  }
+  const points = getShipPolygonPoints(state.boardId);
+  if (points.length <= 3) {
+    triggerFeedback.textContent = "Status: Ship-Polygon braucht mindestens 3 Ecken";
+    return;
+  }
+  const index = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
+  points.splice(index, 1);
+  setShipPolygonPoints(state.boardId, points);
+  const persisted = persistBoardProfiles();
+  state.shipPolygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
+  state.shipPolygonEditor.selectedEdgeIndex = state.shipPolygonEditor.selectedVertexIndex;
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? "Status: Ship-Polygon-Ecke geloescht"
+    : "Status: Ship-Polygon-Ecke geloescht (Persistenz fehlgeschlagen)";
+});
+
+shipPolygonResetButton.addEventListener("click", () => {
+  if (isPanArbitrating()) {
+    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    return;
+  }
+  setShipPolygonPoints(state.boardId, SHIP_POLYGON_DEFAULT);
+  const persisted = persistBoardProfiles();
+  state.shipPolygonEditor.selectedVertexIndex = 0;
+  state.shipPolygonEditor.selectedEdgeIndex = 0;
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? "Status: Ship-Polygon auf Default gesetzt"
+    : "Status: Ship-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
+});
+
 roomOverlay.addEventListener("pointermove", (event) => {
   if (state.panMode.active) {
     if (state.panMode.pointerId !== event.pointerId) {
@@ -2780,6 +3072,20 @@ roomOverlay.addEventListener("pointermove", (event) => {
       panX: state.panMode.startPanX + deltaX,
       panY: state.panMode.startPanY + deltaY,
     });
+    return;
+  }
+  if (state.shipPolygonEditor.dragVertexIndex !== null && state.uiView === "settings") {
+    if (state.shipPolygonEditor.dragPointerId !== event.pointerId) {
+      return;
+    }
+    const boardId = state.shipPolygonEditor.dragBoardId;
+    const points = getShipPolygonPoints(boardId);
+    const [x, y] = getNormalizedOverlayPoint(event);
+    points[state.shipPolygonEditor.dragVertexIndex] = [x, y];
+    setShipPolygonPoints(boardId, points);
+    state.shipPolygonEditor.dragMoved = true;
+    renderRoomOverlay();
+    syncShipPolygonEditorStatus();
     return;
   }
   if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
@@ -2808,6 +3114,13 @@ roomOverlay.addEventListener("pointerup", (event) => {
     return;
   }
   if (
+    state.shipPolygonEditor.dragVertexIndex !== null &&
+    state.shipPolygonEditor.dragPointerId === event.pointerId
+  ) {
+    finishShipPolygonVertexDrag(event, { cancel: false });
+    return;
+  }
+  if (
     state.polygonEditor.dragVertexIndex === null ||
     state.polygonEditor.dragPointerId !== event.pointerId
   ) {
@@ -2821,6 +3134,10 @@ roomOverlay.addEventListener("pointercancel", (event) => {
     endPanMode(event, { canceled: true });
     return;
   }
+  if (state.shipPolygonEditor.dragPointerId === event.pointerId) {
+    finishShipPolygonVertexDrag(event, { cancel: true });
+    return;
+  }
   if (state.polygonEditor.dragPointerId !== event.pointerId) {
     return;
   }
@@ -2830,6 +3147,9 @@ roomOverlay.addEventListener("pointercancel", (event) => {
 roomOverlay.addEventListener("pointerdown", (event) => {
   if (!canStartPanModeFromEvent(event)) {
     return;
+  }
+  if (state.shipPolygonEditor.dragVertexIndex !== null) {
+    finishShipPolygonVertexDrag(event, { cancel: true });
   }
   if (state.polygonEditor.dragVertexIndex !== null) {
     finishPolygonVertexDrag(event, { cancel: true });
@@ -2849,13 +3169,21 @@ document.addEventListener("keydown", (event) => {
     if (state.polygonEditor.dragVertexIndex !== null) {
       finishPolygonVertexDrag(null, { cancel: true });
     }
+    if (state.shipPolygonEditor.dragVertexIndex !== null) {
+      finishShipPolygonVertexDrag(null, { cancel: true });
+    }
     setPanCursorState();
     return;
   }
-  if (event.key !== "Escape" || state.polygonEditor.dragVertexIndex === null) {
-    return;
+  if (event.key === "Escape") {
+    if (state.polygonEditor.dragVertexIndex !== null) {
+      finishPolygonVertexDrag(null, { cancel: true });
+      return;
+    }
+    if (state.shipPolygonEditor.dragVertexIndex !== null) {
+      finishShipPolygonVertexDrag(null, { cancel: true });
+    }
   }
-  finishPolygonVertexDrag(null, { cancel: true });
 });
 
 document.addEventListener("keyup", (event) => {
@@ -2872,6 +3200,9 @@ document.addEventListener("keyup", (event) => {
 
 window.addEventListener("blur", () => {
   state.panMode.spacePressed = false;
+  if (state.shipPolygonEditor.dragVertexIndex !== null) {
+    finishShipPolygonVertexDrag(null, { cancel: true });
+  }
   endPanMode(null, { canceled: true });
   setPanCursorState();
 });
@@ -2974,6 +3305,7 @@ syncAudioStatus();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
+syncShipPolygonEditorPanel();
 syncBoardZoomPanel();
 setActiveView("dashboard");
 setPanCursorState();

@@ -210,6 +210,42 @@ body {
   font-weight: 700;
 }
 
+.ship-zone-mask {
+  fill: rgba(98, 124, 248, 0.08);
+  stroke: rgba(170, 191, 255, 0.9);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.ship-polygon-edge-handle {
+  fill: rgba(164, 178, 255, 0.42);
+  stroke: rgba(229, 236, 255, 0.88);
+}
+
+.ship-polygon-edge-handle.is-active {
+  fill: rgba(186, 255, 233, 0.58);
+  stroke: rgba(236, 255, 247, 0.98);
+}
+
+.ship-polygon-vertex-handle {
+  fill: rgba(172, 183, 255, 0.52);
+  stroke: rgba(240, 244, 255, 0.96);
+}
+
+.ship-polygon-vertex-handle.is-active {
+  fill: rgba(103, 255, 226, 0.74);
+  stroke: rgba(230, 255, 248, 0.99);
+}
+
+.ship-polygon-vertex-index {
+  fill: #0c1428;
+}
+
+.ship-polygon-vertex-index.is-active {
+  fill: #effffd;
+}
+
 .dashboard {
   background: linear-gradient(180deg, rgba(20, 29, 45, 0.96), rgba(11, 17, 27, 0.96));
   border-left: 1px solid rgba(146, 166, 191, 0.25);
