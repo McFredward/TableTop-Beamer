@@ -15,27 +15,35 @@
 
 body {
   margin: 0;
+  height: 100vh;
   min-height: 100vh;
   font-family: "Space Grotesk", sans-serif;
   color: var(--text);
   background: radial-gradient(160% 180% at 20% 0%, #1a2538 0%, var(--bg) 45%);
+  overflow: hidden;
 }
 
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 390px;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .projection-area {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   padding: 1rem;
   display: grid;
   place-items: center;
+  overflow: hidden;
 }
 
 .stage {
   position: relative;
-  width: min(95vw, 1280px);
+  width: min(95vw, calc((100vh - 2rem) * (7978 / 5456)), 1280px);
   aspect-ratio: 7978 / 5456;
   border-radius: 1rem;
   overflow: hidden;
@@ -187,6 +195,9 @@ body {
   display: grid;
   gap: 1rem;
   align-content: start;
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .view-switch {
@@ -383,12 +394,11 @@ button.danger {
 
 @media (max-width: 1080px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 340px;
   }
 
   .dashboard {
-    border-left: 0;
-    border-top: 1px solid rgba(146, 166, 191, 0.25);
+    border-left: 1px solid rgba(146, 166, 191, 0.25);
   }
 
   .projection-area {
@@ -401,6 +411,10 @@ button.danger {
 }
 
 @media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
   .dashboard {
     padding: 0.75rem;
     gap: 0.75rem;
