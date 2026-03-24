@@ -404,6 +404,7 @@ let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
+const activeAnimationAudioById = new Map();
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
@@ -2015,6 +2016,31 @@ function stopAllAudioVoices() {
   }
 }
 
+function stopAnimationSound(animationId) {
+  const active = activeAnimationAudioById.get(animationId);
+  if (!active) {
+    return;
+  }
+  const { voice, onEnded } = active;
+  if (voice && onEnded) {
+    voice.removeEventListener("ended", onEnded);
+  }
+  if (voice) {
+    voice.pause();
+    voice.currentTime = 0;
+  }
+  activeAnimationAudioById.delete(animationId);
+}
+
+function stopSoundsForInactiveAnimations() {
+  const activeIds = new Set(state.runningAnimations.map((anim) => anim.id));
+  for (const animationId of activeAnimationAudioById.keys()) {
+    if (!activeIds.has(animationId)) {
+      stopAnimationSound(animationId);
+    }
+  }
+}
+
 function pickAssetPathForEffect(effectType) {
   const mappedPaths = EVENT_SOUND_ASSETS[effectType];
   if (!Array.isArray(mappedPaths) || mappedPaths.length === 0) {
@@ -2026,24 +2052,37 @@ function pickAssetPathForEffect(effectType) {
   return nextPath;
 }
 
-function playEventSound(effectType) {
-  if (!state.audio.enabled) {
+function playSoundForAnimation(animation) {
+  if (!animation || !state.audio.enabled) {
     return;
   }
-  const path = pickAssetPathForEffect(effectType);
+  const path = pickAssetPathForEffect(animation.type);
   if (!path) {
+    stopAnimationSound(animation.id);
     return;
   }
   const pool = getAudioAssetPool(path);
   if (!pool?.length) {
     return;
   }
+  stopAnimationSound(animation.id);
   const nextIndex = audioAssetVoiceCursorByPath[path] ?? 0;
   const reusable = pool[nextIndex % pool.length];
   audioAssetVoiceCursorByPath[path] = (nextIndex + 1) % pool.length;
+  const onEnded = () => {
+    if (!state.runningAnimations.some((item) => item.id === animation.id)) {
+      stopAnimationSound(animation.id);
+    }
+  };
+  reusable.removeEventListener("ended", onEnded);
+  reusable.addEventListener("ended", onEnded);
   reusable.pause();
   reusable.currentTime = 0;
   reusable.volume = state.audio.volume;
+  activeAnimationAudioById.set(animation.id, {
+    voice: reusable,
+    onEnded,
+  });
   reusable.play().catch(() => undefined);
 }
 
@@ -2298,19 +2337,19 @@ function createAnimation({ type, scope, roomId = null, intensity = 0.8, hold = f
 function upsertGlobalAnimation(type, defaultDurationSec) {
   const existing = state.runningAnimations.find((anim) => anim.scope === "global" && anim.type === type);
   if (existing) {
+    stopAnimationSound(existing.id);
     state.runningAnimations = state.runningAnimations.filter((anim) => anim.id !== existing.id);
     triggerFeedback.textContent = `Status: ${type} gestoppt`;
   } else {
-    state.runningAnimations.push(
-      createAnimation({
-        type,
-        scope: "global",
-        intensity: 1,
-        hold: defaultDurationSec === null,
-        durationSec: defaultDurationSec ?? 0,
-      }),
-    );
-    playEventSound(type);
+    const animation = createAnimation({
+      type,
+      scope: "global",
+      intensity: 1,
+      hold: defaultDurationSec === null,
+      durationSec: defaultDurationSec ?? 0,
+    });
+    state.runningAnimations.push(animation);
+    playSoundForAnimation(animation);
     triggerFeedback.textContent = `Status: ${type} gestartet`;
   }
   renderRunningAnimationsList();
@@ -2334,12 +2373,13 @@ function startRoomAnimationFromDraft() {
   });
 
   state.runningAnimations.push(animation);
-  playEventSound(animation.type);
+  playSoundForAnimation(animation);
   triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
   renderRunningAnimationsList();
 }
 
 function stopAnimation(animationId) {
+  stopAnimationSound(animationId);
   state.runningAnimations = state.runningAnimations.filter((item) => item.id !== animationId);
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -2769,6 +2809,7 @@ function pruneFinishedAnimations(now) {
   });
 
   if (before !== state.runningAnimations.length) {
+    stopSoundsForInactiveAnimations();
     renderRunningAnimationsList();
     refreshGlobalButtons();
   }
@@ -3347,6 +3388,9 @@ document.querySelectorAll("button[data-global]").forEach((button) => {
 });
 
 stopAllButton.addEventListener("click", () => {
+  for (const animation of state.runningAnimations) {
+    stopAnimationSound(animation.id);
+  }
   state.runningAnimations = [];
   ashParticles.length = 0;
   renderRunningAnimationsList();
@@ -3374,7 +3418,14 @@ roomHoldInput.addEventListener("change", () => {
 audioEnabledInput.addEventListener("change", () => {
   state.audio.enabled = audioEnabledInput.checked;
   if (!state.audio.enabled) {
+    for (const animation of state.runningAnimations) {
+      stopAnimationSound(animation.id);
+    }
     stopAllAudioVoices();
+  } else {
+    for (const animation of state.runningAnimations) {
+      playSoundForAnimation(animation);
+    }
   }
   applyAudioGain();
   syncAudioStatus();
