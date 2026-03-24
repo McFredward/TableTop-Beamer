@@ -1340,6 +1340,57 @@ function getRoomPolygonPixels(room, width, height, boardId = state.boardId) {
   ]);
 }
 
+function getRoomRenderMetrics(room, boardId = state.boardId) {
+  const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height, boardId);
+  if (polygon.length === 0) {
+    return {
+      polygon,
+      centerX: canvas.width * 0.5,
+      centerY: canvas.height * 0.5,
+      minX: canvas.width * 0.4,
+      maxX: canvas.width * 0.6,
+      minY: canvas.height * 0.4,
+      maxY: canvas.height * 0.6,
+      width: Math.max(20, canvas.width * 0.2),
+      height: Math.max(20, canvas.height * 0.2),
+      radius: Math.max(10, Math.min(canvas.width, canvas.height) * 0.08),
+    };
+  }
+
+  const center = polygon.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+    { x: 0, y: 0 },
+  );
+  const centerX = center.x / polygon.length;
+  const centerY = center.y / polygon.length;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let radius = 0;
+  for (const [x, y] of polygon) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+    radius = Math.max(radius, Math.hypot(x - centerX, y - centerY));
+  }
+
+  return {
+    polygon,
+    centerX,
+    centerY,
+    minX,
+    maxX,
+    minY,
+    maxY,
+    width: Math.max(12, maxX - minX),
+    height: Math.max(12, maxY - minY),
+    radius: Math.max(8, radius),
+  };
+}
+
 function renderRoomOverlay() {
   const board = getBoard();
   roomOverlay.replaceChildren();
@@ -1637,10 +1688,11 @@ function drawAnimation(animation, now) {
     if (!room) {
       return;
     }
+    const roomMetrics = getRoomRenderMetrics(room, animation.boardId);
     ctx.save();
     try {
       clipToRoom(room);
-      drawEffectVisual(animation.type, age, animation.intensity, room);
+      drawEffectVisual(animation.type, age, animation.intensity, room, roomMetrics);
     } finally {
       ctx.restore();
     }
@@ -1660,12 +1712,17 @@ function drawAnimationSafely(animation, now) {
   }
 }
 
-function drawEffectVisual(type, age, intensity, room) {
+function drawEffectVisual(type, age, intensity, room, roomMetrics = null) {
   const w = canvas.width;
   const h = canvas.height;
   const roomCenter = room ? getRoomLabelPosition(room, state.boardId) : { x: 0.5, y: 0.5 };
-  const roomX = roomCenter.x * w;
-  const roomY = roomCenter.y * h;
+  const roomX = roomMetrics?.centerX ?? roomCenter.x * w;
+  const roomY = roomMetrics?.centerY ?? roomCenter.y * h;
+  const roomRadius = roomMetrics?.radius ?? room?.radius * Math.min(w, h) ?? Math.min(w, h) * 0.08;
+  const roomWidth = roomMetrics?.width ?? roomRadius * 2;
+  const roomHeight = roomMetrics?.height ?? roomRadius * 2;
+  const roomMinX = roomMetrics?.minX ?? roomX - roomWidth / 2;
+  const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
 
   if (type === "ambient-drift") {
     const alpha = (0.07 + Math.sin(age * 1.4) * 0.03) * intensity;
@@ -1752,7 +1809,7 @@ function drawEffectVisual(type, age, intensity, room) {
   }
 
   if (type === "scanner-sweep") {
-    const r = room.radius * Math.min(w, h) * 1.4;
+    const r = Math.max(roomRadius * 1.35, Math.max(roomWidth, roomHeight) * 0.75);
     const angle = age * 1.9;
     ctx.fillStyle = `rgba(84, 255, 218, ${0.2 * intensity})`;
     ctx.beginPath();
@@ -1764,12 +1821,17 @@ function drawEffectVisual(type, age, intensity, room) {
   }
 
   if (type === "steam-vent") {
-    for (let i = 0; i < 3; i += 1) {
-      const rise = ((age * 45 + i * 24) % 120) - 60;
-      const radius = 9 + ((age * 12 + i * 6) % 14);
-      ctx.fillStyle = `rgba(225, 236, 255, ${0.09 * intensity})`;
+    const columns = 6;
+    const plumeTravel = roomHeight * 1.2;
+    for (let i = 0; i < columns; i += 1) {
+      const columnOffset = (i / (columns - 1 || 1)) * roomWidth;
+      const phase = (age * 0.9 + i * 0.19) % 1;
+      const rise = roomMinY + roomHeight - phase * plumeTravel;
+      const radius = Math.max(7, roomWidth * 0.06 + ((age * 16 + i * 7) % (roomWidth * 0.08)));
+      const sway = Math.sin(age * 2 + i) * roomWidth * 0.04;
+      ctx.fillStyle = `rgba(225, 236, 255, ${0.085 * intensity})`;
       ctx.beginPath();
-      ctx.arc(roomX + i * 11 - 11, roomY + rise, radius, 0, Math.PI * 2);
+      ctx.arc(roomMinX + columnOffset + sway, rise, radius, 0, Math.PI * 2);
       ctx.fill();
     }
     return;
@@ -1777,21 +1839,21 @@ function drawEffectVisual(type, age, intensity, room) {
 
   if (type === "contamination") {
     const alpha = (0.1 + Math.sin(age * 2.6) * 0.04) * intensity;
-    const g = ctx.createRadialGradient(roomX, roomY, 2, roomX, roomY, room.radius * Math.min(w, h));
+    const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.72);
     g.addColorStop(0, `rgba(96, 232, 142, ${alpha})`);
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
-    ctx.fillRect(roomX - 180, roomY - 180, 360, 360);
+    ctx.fillRect(roomMinX - roomWidth * 0.35, roomMinY - roomHeight * 0.35, roomWidth * 1.7, roomHeight * 1.7);
     return;
   }
 
   if (type === "electrical-arc") {
     ctx.strokeStyle = `rgba(120, 200, 255, ${0.8 * intensity})`;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(2, Math.min(roomWidth, roomHeight) * 0.015);
     ctx.beginPath();
-    for (let i = 0; i < 5; i += 1) {
-      const px = roomX + (Math.random() - 0.5) * room.radius * Math.min(w, h);
-      const py = roomY + (Math.random() - 0.5) * room.radius * Math.min(w, h);
+    for (let i = 0; i < 9; i += 1) {
+      const px = roomMinX + roomWidth * (0.08 + Math.random() * 0.84);
+      const py = roomMinY + roomHeight * (0.08 + Math.random() * 0.84);
       if (i === 0) {
         ctx.moveTo(px, py);
       } else {
@@ -1804,21 +1866,21 @@ function drawEffectVisual(type, age, intensity, room) {
 
   if (type === "fire-pocket") {
     const alpha = (0.2 + Math.sin(age * 12) * 0.1) * intensity;
-    const g = ctx.createRadialGradient(roomX, roomY, 3, roomX, roomY, room.radius * Math.min(w, h) * 0.9);
+    const g = ctx.createRadialGradient(roomX, roomY, 6, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.68);
     g.addColorStop(0, `rgba(255, 123, 61, ${alpha})`);
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
-    ctx.fillRect(roomX - 140, roomY - 140, 280, 280);
+    ctx.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
     return;
   }
 
   if (type === "alarm-beacon") {
     const pulse = (Math.sin(age * 8) + 1) / 2;
-    const g = ctx.createRadialGradient(roomX, roomY, 2, roomX, roomY, room.radius * Math.min(w, h));
+    const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * (0.55 + pulse * 0.12));
     g.addColorStop(0, `rgba(255, 60, 60, ${(0.12 + pulse * 0.18) * intensity})`);
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = g;
-    ctx.fillRect(roomX - 150, roomY - 150, 300, 300);
+    ctx.fillRect(roomMinX - roomWidth * 0.35, roomMinY - roomHeight * 0.35, roomWidth * 1.7, roomHeight * 1.7);
   }
 }
 
