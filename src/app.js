@@ -265,6 +265,9 @@ const audioStatus = document.querySelector("#audio-status");
 const audioMappingAnimationSelect = document.querySelector("#audio-mapping-animation");
 const audioMappingSoundSelect = document.querySelector("#audio-mapping-sound");
 const audioMappingStatus = document.querySelector("#audio-mapping-status");
+const animationSpeedInput = document.querySelector("#animation-speed");
+const animationSpeedValue = document.querySelector("#animation-speed-value");
+const animationSpeedStatus = document.querySelector("#animation-speed-status");
 const hitareaOffsetXInput = document.querySelector("#hitarea-offset-x");
 const hitareaOffsetXValue = document.querySelector("#hitarea-offset-x-value");
 const hitareaOffsetYInput = document.querySelector("#hitarea-offset-y");
@@ -377,6 +380,7 @@ const state = {
     enabled: true,
     volume: 0.7,
   },
+  animationSpeed: 1,
   animationSoundMap: {},
   uiView: "dashboard",
   hitareaCalibrationByBoard: {},
@@ -1208,6 +1212,10 @@ function clampAudioVolumePercent(value) {
   return Math.max(0, Math.min(100, value));
 }
 
+function clampAnimationSpeed(value) {
+  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
+}
+
 function clampOutsideIntensity(value) {
   return Math.max(0.2, Math.min(1.5, Number(value) || OUTSIDE_FX_DEFAULT.intensity));
 }
@@ -2028,6 +2036,14 @@ function syncAudioStatus() {
   audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
 }
 
+function syncAnimationSpeedPanel() {
+  const speed = clampAnimationSpeed(state.animationSpeed);
+  state.animationSpeed = speed;
+  animationSpeedInput.value = String(speed);
+  animationSpeedValue.textContent = `${speed.toFixed(2)}x`;
+  animationSpeedStatus.textContent = `Animation Speed: ${speed.toFixed(2)}x`;
+}
+
 function createAudioAssetVoice(path) {
   const voice = new Audio(path);
   voice.preload = "auto";
@@ -2654,7 +2670,7 @@ function clipToOutsideShip(boardId = state.boardId) {
 }
 
 function drawAnimation(animation, now) {
-  const age = (now - animation.startedAt) / 1000;
+  const age = ((now - animation.startedAt) / 1000) * state.animationSpeed;
   if (animation.scope === "room") {
     if (animation.boardId !== state.boardId) {
       return;
@@ -2705,7 +2721,12 @@ function drawOutsideFxLayer(now) {
   ctx.save();
   try {
     clipToOutsideShip(state.boardId);
-    drawEffectVisual("outside-space", (now / 1000) * outside.speed, outside.intensity, null);
+    drawEffectVisual(
+      "outside-space",
+      (now / 1000) * outside.speed * state.animationSpeed,
+      outside.intensity,
+      null,
+    );
   } finally {
     ctx.restore();
   }
@@ -3568,6 +3589,12 @@ audioVolumeInput.addEventListener("input", () => {
   syncAudioStatus();
 });
 
+animationSpeedInput.addEventListener("input", () => {
+  state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
+  syncAnimationSpeedPanel();
+  triggerFeedback.textContent = `Status: Animation Speed ${state.animationSpeed.toFixed(2)}x`;
+});
+
 startRoomAnimationButton.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
@@ -3604,6 +3631,7 @@ state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
 state.outsideFxByBoard = createDefaultOutsideFxByBoard();
 state.boardZoomByBoard = createDefaultBoardZoomByBoard();
 state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
+state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
 loadBoardProfiles();
 
 switchBoard(state.boardId);
@@ -3616,6 +3644,7 @@ warmEventSoundAssets();
 applyAudioGain();
 syncAudioStatus();
 syncAudioMappingPanel();
+syncAnimationSpeedPanel();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();

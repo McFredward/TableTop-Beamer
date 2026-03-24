@@ -224,6 +224,15 @@
         </section>
 
         <section class="panel dashboard-only" data-view="dashboard">
+          <h2>Allgemeine Animations-Settings</h2>
+          <label>
+            Globaler Speed-Faktor <span id="animation-speed-value">1.00x</span>
+            <input id="animation-speed" type="range" min="0.5" max="2.5" step="0.05" value="1" />
+          </label>
+          <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
+        </section>
+
+        <section class="panel dashboard-only" data-view="dashboard">
           <h2>Audio Settings</h2>
           <label class="inline-checkbox">
             <input id="audio-enabled" type="checkbox" checked />
