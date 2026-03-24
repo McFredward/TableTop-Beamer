@@ -291,6 +291,7 @@ const HITAREA_CALIBRATION_DEFAULT = {
   scale: 1,
 };
 const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
+const BOARD_PROFILE_STORAGE_KEY = "tt-beamer.board-profiles.v1";
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -462,6 +463,100 @@ function createDefaultSpecialPolygonsByBoard() {
   );
 }
 
+function normalizeRoomGeometryMap(roomGeometry, boardId) {
+  const defaults = createDefaultRoomGeometryMap(boardId);
+  for (const room of getBoard(boardId).rooms) {
+    defaults[room.id] = normalizeRoomGeometry(roomGeometry?.[room.id], room, boardId);
+  }
+  return defaults;
+}
+
+function normalizeSpecialPolygonMap(polygonMap, boardId) {
+  const defaults = createDefaultSpecialPolygonMap(boardId);
+  for (const room of getSpecialRooms(boardId)) {
+    defaults[room.id] = normalizeSpecialPolygon(polygonMap?.[room.id], room.points ?? []);
+  }
+  return defaults;
+}
+
+function createDefaultBoardProfiles() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      {
+        hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
+        roomGeometry: createDefaultRoomGeometryMap(board.id),
+        specialPolygons: createDefaultSpecialPolygonMap(board.id),
+      },
+    ]),
+  );
+}
+
+function buildBoardProfilesFromState() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      {
+        hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
+        roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
+        specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
+      },
+    ]),
+  );
+}
+
+function applyBoardProfilesToState(profiles) {
+  state.hitareaCalibrationByBoard = Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizeHitareaCalibration(profiles?.[board.id]?.hitareaCalibration),
+    ]),
+  );
+  state.roomGeometryByBoard = Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizeRoomGeometryMap(profiles?.[board.id]?.roomGeometry, board.id),
+    ]),
+  );
+  state.specialPolygonsByBoard = Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizeSpecialPolygonMap(profiles?.[board.id]?.specialPolygons, board.id),
+    ]),
+  );
+}
+
+function loadBoardProfiles() {
+  const defaults = createDefaultBoardProfiles();
+  try {
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        applyBoardProfilesToState(parsed);
+        return;
+      }
+    }
+  } catch {
+    // ignore and continue with fallback/defaults
+  }
+
+  const legacyHitarea = loadHitareaCalibrationMap();
+  for (const board of BOARDS) {
+    defaults[board.id].hitareaCalibration = normalizeHitareaCalibration(legacyHitarea[board.id]);
+  }
+  applyBoardProfilesToState(defaults);
+}
+
+function persistBoardProfiles() {
+  try {
+    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildBoardProfilesFromState()));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function createDefaultHitareaCalibrationMap() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
@@ -489,15 +584,7 @@ function loadHitareaCalibrationMap() {
 }
 
 function persistHitareaCalibrationMap() {
-  try {
-    window.localStorage.setItem(
-      HITAREA_CALIBRATION_STORAGE_KEY,
-      JSON.stringify(state.hitareaCalibrationByBoard),
-    );
-    return true;
-  } catch {
-    return false;
-  }
+  return persistBoardProfiles();
 }
 
 function getHitareaCalibration(boardId = state.boardId) {
@@ -1511,8 +1598,8 @@ hitareaSaveButton.addEventListener("click", () => {
   const persisted = persistHitareaCalibrationMap();
   syncHitareaCalibrationPanel();
   triggerFeedback.textContent = persisted
-    ? "Status: Hitarea-Kalibrierung gespeichert"
-    : "Status: Hitarea-Kalibrierung konnte nicht gespeichert werden";
+    ? "Status: Board-Profil (Hitarea + Geometrie + Shapes) gespeichert"
+    : "Status: Board-Profil konnte nicht gespeichert werden";
 });
 
 hitareaResetButton.addEventListener("click", () => {
@@ -1531,10 +1618,13 @@ function updateSelectedRoomGeometry(partial, statusSuffix = "") {
     return;
   }
   updateRoomGeometry(state.boardId, room.id, partial);
+  const persisted = persistBoardProfiles();
   renderRoomOverlay();
   syncRoomGeometryPanel();
   if (statusSuffix) {
-    triggerFeedback.textContent = `Status: ${room.label} ${statusSuffix}`;
+    triggerFeedback.textContent = persisted
+      ? `Status: ${room.label} ${statusSuffix}`
+      : `Status: ${room.label} ${statusSuffix} (Persistenz fehlgeschlagen)`;
   }
 }
 
@@ -1627,10 +1717,13 @@ polygonInsertVertexButton.addEventListener("click", () => {
   const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   points.splice(nextIndex, 0, normalizePolygonPoint(midpoint));
   setSpecialPolygonPoints(state.boardId, roomId, points);
+  const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = nextIndex;
   syncPolygonEditorPanel();
   renderRoomOverlay();
-  triggerFeedback.textContent = "Status: Polygon-Ecke eingefuegt";
+  triggerFeedback.textContent = persisted
+    ? "Status: Polygon-Ecke eingefuegt"
+    : "Status: Polygon-Ecke eingefuegt (Persistenz fehlgeschlagen)";
 });
 
 polygonDeleteVertexButton.addEventListener("click", () => {
@@ -1645,10 +1738,13 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   points.splice(index, 1);
   setSpecialPolygonPoints(state.boardId, roomId, points);
+  const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
   syncPolygonEditorPanel();
   renderRoomOverlay();
-  triggerFeedback.textContent = "Status: Polygon-Ecke geloescht";
+  triggerFeedback.textContent = persisted
+    ? "Status: Polygon-Ecke geloescht"
+    : "Status: Polygon-Ecke geloescht (Persistenz fehlgeschlagen)";
 });
 
 polygonResetRoomButton.addEventListener("click", () => {
@@ -1658,10 +1754,13 @@ polygonResetRoomButton.addEventListener("click", () => {
   }
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   setSpecialPolygonPoints(state.boardId, roomId, room?.points ?? []);
+  const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = 0;
   syncPolygonEditorPanel();
   renderRoomOverlay();
-  triggerFeedback.textContent = "Status: Spezialraum-Polygon auf Default gesetzt";
+  triggerFeedback.textContent = persisted
+    ? "Status: Spezialraum-Polygon auf Default gesetzt"
+    : "Status: Spezialraum-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
 });
 
 polygonFocusRoomButton.addEventListener("click", () => {
@@ -1688,6 +1787,7 @@ roomOverlay.addEventListener("pointermove", (event) => {
   const [x, y] = getNormalizedOverlayPoint(event);
   points[state.polygonEditor.dragVertexIndex] = [x, y];
   setSpecialPolygonPoints(state.boardId, roomId, points);
+  persistBoardProfiles();
   renderRoomOverlay();
   syncPolygonEditorStatus();
 });
@@ -1779,9 +1879,10 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 resizeObserver.observe(stage);
 
-state.hitareaCalibrationByBoard = loadHitareaCalibrationMap();
+state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
 state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
 state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
+loadBoardProfiles();
 
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
