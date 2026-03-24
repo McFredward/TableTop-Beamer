@@ -2379,6 +2379,20 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
     }
   }
 
+  const projectionStyle = window.getComputedStyle(projectionArea);
+  if (projectionStyle.pointerEvents === "none") {
+    issues.push("projection pointer-events disabled");
+  }
+
+  const probeX = projectionRect.left + projectionRect.width * 0.5;
+  const probeY = projectionRect.top + Math.min(projectionRect.height * 0.5, projectionRect.height - 6);
+  if (Number.isFinite(probeX) && Number.isFinite(probeY)) {
+    const probeTarget = document.elementFromPoint(probeX, probeY);
+    if (probeTarget && !projectionArea.contains(probeTarget) && probeTarget !== projectionArea) {
+      issues.push(`projection pointer path blocked by ${probeTarget.className || probeTarget.id || probeTarget.tagName}`);
+    }
+  }
+
   if (issues.length > 0) {
     if (!silent) {
       console.error(`Mobile projection visibility violation (${context})`, issues);
