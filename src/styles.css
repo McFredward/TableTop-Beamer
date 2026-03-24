@@ -610,6 +610,31 @@ button.danger.is-armed {
     padding-bottom: 1rem;
   }
 
+  #control-panel[data-active-view="dashboard"] {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    column-gap: 0.72rem;
+    align-items: start;
+  }
+
+  #control-panel[data-active-view="dashboard"] .view-switch,
+  #control-panel[data-active-view="dashboard"] .mobile-zone-switch,
+  #control-panel[data-active-view="dashboard"] .mobile-layout-status,
+  #control-panel[data-active-view="dashboard"] > header,
+  #control-panel[data-active-view="dashboard"] > footer {
+    grid-column: 1 / -1;
+  }
+
+  #control-panel[data-active-view="dashboard"] [data-dashboard-zone="trigger"] {
+    grid-column: 1;
+  }
+
+  #control-panel[data-active-view="dashboard"] [data-dashboard-zone="manage"] {
+    grid-column: 2;
+    position: sticky;
+    top: 0.5rem;
+    align-self: start;
+  }
+
   .dashboard .button-grid-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
