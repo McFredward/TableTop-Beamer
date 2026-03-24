@@ -2418,6 +2418,17 @@ function applyAudioGain() {
       voice.volume = targetVolume;
     }
   }
+  for (const [animationId, active] of activeAnimationAudioById.entries()) {
+    if (!active?.voice) {
+      continue;
+    }
+    const instanceVolume = state.audio.enabled ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1) : 0;
+    active.voice.volume = instanceVolume;
+    activeAnimationAudioById.set(animationId, {
+      ...active,
+      soundVolume: clampRoomSoundVolume(active.soundVolume ?? 1),
+    });
+  }
 }
 
 function stopAllAudioVoices() {
@@ -2486,10 +2497,12 @@ function playSoundForAnimation(animation) {
   reusable.addEventListener("ended", onEnded);
   reusable.pause();
   reusable.currentTime = 0;
-  reusable.volume = state.audio.volume;
+  const soundVolume = clampRoomSoundVolume(animation.soundVolume ?? 1);
+  reusable.volume = state.audio.volume * soundVolume;
   activeAnimationAudioById.set(animation.id, {
     voice: reusable,
     onEnded,
+    soundVolume,
   });
   reusable.play().catch(() => undefined);
 }
@@ -2798,6 +2811,8 @@ function createAnimation({
   boardId = state.boardId,
   roomId = null,
   intensity = 0.8,
+  speed = 1,
+  soundVolume = 1,
   hold = false,
   durationSec = 15,
 }) {
@@ -2808,6 +2823,8 @@ function createAnimation({
     scope,
     roomId,
     intensity,
+    speed: clampRoomSpeed(speed),
+    soundVolume: clampRoomSoundVolume(soundVolume),
     hold,
     durationMs: hold ? null : Math.max(1000, durationSec * 1000),
     startedAt: performance.now(),
@@ -2861,6 +2878,8 @@ function startRoomAnimationFromDraft() {
     scope: "room",
     roomId: room.id,
     intensity: clampRoomIntensity(state.roomDraft.intensity),
+    speed: clampRoomSpeed(state.roomDraft.speed),
+    soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
     hold: state.roomDraft.hold,
     durationSec: clampRoomDurationSec(state.roomDraft.durationSec),
   });
@@ -2951,7 +2970,12 @@ function renderRunningAnimationsList() {
     const remaining = anim.durationMs
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
-    meta.textContent = `Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)} | Rest: ${remaining}`;
+    const roomMeta = anim.scope === "room"
+      ? ` | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x | Sound: ${Math.round(
+          clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
+        )}%`
+      : "";
+    meta.textContent = `Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Rest: ${remaining}`;
 
     const actions = document.createElement("div");
     actions.className = "running-actions";
@@ -3080,7 +3104,8 @@ function clipToInsideShip(boardId = state.boardId) {
 }
 
 function drawAnimation(animation, now) {
-  const age = ((now - animation.startedAt) / 1000) * state.animationSpeed;
+  const runtimeSpeed = animation.scope === "room" ? clampRoomSpeed(animation.speed ?? 1) : 1;
+  const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
   if (animation.scope === "room") {
     if (animation.boardId !== state.boardId) {
       return;
