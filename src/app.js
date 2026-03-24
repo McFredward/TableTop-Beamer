@@ -2876,6 +2876,27 @@ function clipToOutsideShip(boardId = state.boardId) {
   return true;
 }
 
+function clipToInsideShip(boardId = state.boardId) {
+  const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
+  if (shipPolygon.length < 3) {
+    ctx.beginPath();
+    ctx.rect(0, 0, 0, 0);
+    ctx.clip();
+    return false;
+  }
+  ctx.beginPath();
+  shipPolygon.forEach(([x, y], index) => {
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
+  ctx.clip();
+  return true;
+}
+
 function drawAnimation(animation, now) {
   const age = ((now - animation.startedAt) / 1000) * state.animationSpeed;
   if (animation.scope === "room") {
@@ -2901,7 +2922,16 @@ function drawAnimation(animation, now) {
     return;
   }
 
-  drawEffectVisual(animation.type, age, animation.intensity, null);
+  ctx.save();
+  try {
+    const clipped = clipToInsideShip(animation.boardId ?? state.boardId);
+    if (!clipped) {
+      return;
+    }
+    drawEffectVisual(animation.type, age, animation.intensity, null);
+  } finally {
+    ctx.restore();
+  }
 }
 
 function drawAnimationSafely(animation, now) {
