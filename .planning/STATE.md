@@ -7,12 +7,12 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 1
-- Current Phase Key: phase-01
+- Current Phase: 2
+- Current Phase Key: phase-02
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-21
-- Last Execution Summary: `.planning/phases/phase-01/1-21-SUMMARY.md`
+- Last Executed Plan: 2-1
+- Last Execution Summary: `.planning/phases/phase-02/2-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -161,6 +161,12 @@
 - Wording-Regel fuer Plan-Update 19: Export-/Download-Fallback wird durchgaengig als sekundaerer Pfad benannt; alarmistische Labels sind unzulaessig.
 - Plan-Update-19 Umsetzung: dedizierter `API Diagnose`-Button ist entfernt; Diagnose-Status wird direkt im Save-Preflight-/Save-Feedback gepflegt.
 - Plan-Update-19 Umsetzung: Download-Fallback nutzt durchgaengig neutrales Wording als sekundaeren Pfad ohne `Notfall`-Label.
+- Phase-2 Ergaenzung (Plan-Update 2) ist verbindlich gesetzt: Mobile-First Bedienung fuer Touch-Endgeraete (Smartphone Portrait/Landscape) wird als priorisierte Umsetzungsstrecke gefuehrt.
+- Mobile-UX-Regel fuer Phase 2: schnelle Daumen-Trigger, klare Trennung `Triggern` vs `laufende Animationen managen`, Touch-Targets >=44x44 px, einhaendige Spieltisch-Bedienung als Pflicht.
+- Verifikationsregel fuer Phase 2: reale Spieltischtests sowie mobile Performance-/Responsiveness-Checks sind fester Teil der Abnahme.
+- Phase-2 Plan 1 fuehrt mobilen Dashboard-Fokus explizit als Zonenmodell (`Triggern`/`Running managen`) statt Mischpanel.
+- `Clear All` ist im Mobile-Flow aus Triggerflaechen entkoppelt und nur ueber Running-Management mit Doppelbestaetigung ausfuehrbar.
+- Orientation-Wechsel wird zusaetzlich ueber Runtime-Regression auf State-Drift geprueft (Board/Room/View/Running-IDs stabil).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -349,3 +355,17 @@
   - `node --check server.mjs` (Server Syntax Check)
   - Pattern-Checks: kein `run-api-diagnose`/`API Diagnose (One-Click)` und kein `Notfall`-Wording in `index.html`, `src/app.js`, `README.md`
   - Node-API-Smoke (Port 4180): `HEALTH=200 OPTIONS=204 SAVE=200`
+
+## Execution Results (Phase 2 Plan 1)
+- Status: completed
+- Summary: `.planning/phases/phase-02/2-1-SUMMARY.md`
+- Task Commits: 10 atomare Commits (`9a9a157`, `22ffe34`, `44e9c7f`, `ffaa6cf`, `e6e89ea`, `ce8b948`, `4e67972`, `1cb6cf1`, `c082c9c`, `ce53529`)
+- Evidence:
+  - `.planning/phases/phase-02/P2-T1-MOBILE-UX-BLUEPRINT.md`
+  - `.planning/phases/phase-02/P2-T4-TOUCH-TARGET-CHECKLIST.md`
+  - `.planning/phases/phase-02/P2-T6-FEHLKLICK-PROTOKOLL.md`
+  - `.planning/phases/phase-02/P2-T7-LESBARKEIT-PROTOKOLL.md`
+  - `.planning/phases/phase-02/P2-T8-ORIENTATION-ROUNDTRIP.md`
+  - `.planning/phases/phase-02/P2-T9-MOBILE-PERFORMANCE.md`
+  - `.planning/phases/phase-02/P2-T10-SPIELTISCH-VERIFIKATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)

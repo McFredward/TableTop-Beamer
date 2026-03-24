@@ -20,8 +20,10 @@ Exit Criteria:
 - Bedienbarkeit auf Desktop und kleinem Display gegeben.
 - Reproduzierbarer Safety-Stop auch unter Last.
 
-## Phase 2 - Session Betrieb (Planned)
+## Phase 2 - Session Betrieb (In Progress)
 Ziel: Schnellstart pro Spielabend, reproduzierbare Kalibrierung, datengetriebene Zonen, Preview/Kombi/Absenden fuer Live-Ausgabe.
+
+Status: 10/25 Tasks abgeschlossen (P2-T1..P2-T10), siehe `.planning/phases/phase-02/2-1-SUMMARY.md`.
 
 Milestones:
 1. Core Data: Profile + Zone-JSON.
