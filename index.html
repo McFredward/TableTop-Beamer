@@ -44,10 +44,30 @@
           <button id="open-settings-view" type="button">Settings</button>
         </nav>
 
-        <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard">
+        <nav
+          id="mobile-zone-switch"
+          class="mobile-zone-switch dashboard-only"
+          data-view="dashboard"
+          aria-label="Mobile Fokusbereich"
+        >
+          <button id="open-trigger-zone" type="button" class="active">Triggern</button>
+          <button id="open-manage-zone" type="button">Running managen</button>
+        </nav>
+        <p id="mobile-layout-status" class="status-line dashboard-only mobile-layout-status" data-view="dashboard" aria-live="polite">
+          Mobile-Fokus: Triggern
+        </p>
+
+        <section
+          id="running-overview-panel"
+          class="panel dashboard-only running-overview-panel"
+          data-view="dashboard"
+          data-dashboard-zone="manage"
+        >
           <h2>Aktive Animationen</h2>
           <p class="status-line">Priorisiert: Runtime-Status mit direktem Stop/Edit vor den Triggergruppen.</p>
           <ul id="running-animations" class="running-list" aria-live="polite"></ul>
+          <button id="stop-all" class="danger" type="button">Clear All</button>
+          <p class="status-line">Touch-Safety: fuer `Clear All` ist eine explizite Doppelbestaetigung erforderlich.</p>
         </section>
 
         <section
@@ -236,7 +256,7 @@
           </p>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
           <h2>Globale Animationen - Innerhalb des Schiffs</h2>
           <div class="button-grid button-grid-3">
             <button data-global="ambient-drift">Ambient Drift</button>
@@ -248,11 +268,10 @@
           </div>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
           <h2>Globale Animationen - Ausserhalb des Schiffs</h2>
           <div class="button-grid button-grid-2">
             <button data-global="outside-space">Outside Space</button>
-            <button id="stop-all" class="danger">Clear All</button>
           </div>
           <p id="trigger-feedback" class="status-line" aria-live="polite">Status: bereit</p>
         </section>
@@ -292,7 +311,7 @@
           <p id="audio-mapping-status" class="status-line" aria-live="polite">Sound-Mapping: bereit</p>
         </section>
 
-        <section class="panel dashboard-only" data-view="dashboard">
+        <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
           <h2>Raum-Animation</h2>
           <p id="room-selected" class="status-line">Ausgewaehlter Raum: bitte Hex auf dem Board anklicken</p>
           <label>
@@ -327,6 +346,13 @@
             Anhalten bis ich stoppe
           </label>
           <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
+        </section>
+
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
+          <h2>Mobile Performance-Checks</h2>
+          <p class="status-line">Misst Trigger-Latenz und Frame-Stabilitaet fuer mobile Bedienung.</p>
+          <button id="run-mobile-performance-check" type="button">Performance-Snapshot erstellen</button>
+          <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile Performance: noch kein Snapshot</p>
         </section>
 
         <footer class="hint dashboard-only" data-view="dashboard">Hinweis: Fuer echtes Beamer-Targeting im Browser Fullscreen auf den Beamer-Screen schieben.</footer>

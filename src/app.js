@@ -302,10 +302,15 @@ const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch
 const roomGeometryStatus = document.querySelector("#room-geometry-status");
 const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
+const openTriggerZoneButton = document.querySelector("#open-trigger-zone");
+const openManageZoneButton = document.querySelector("#open-manage-zone");
+const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
 const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
 const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
+const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
+const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
 const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
@@ -335,6 +340,7 @@ const boardZoomStatus = document.querySelector("#board-zoom-status");
 const boardPanStatus = document.querySelector("#board-pan-status");
 const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
 const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
+const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboard-zone]"));
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "output-route-select",
@@ -450,6 +456,7 @@ const state = {
   animationSpeed: 1,
   animationSoundMap: {},
   uiView: "dashboard",
+  dashboardZone: "trigger",
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
   specialPolygonsByBoard: {},
@@ -485,6 +492,18 @@ const state = {
     startPanX: 0,
     startPanY: 0,
     trigger: null,
+  },
+  touchActionGuard: {},
+  clearAllGuard: {
+    armedUntil: 0,
+    timeoutId: null,
+  },
+  mobilePerf: {
+    triggerLatencySamples: [],
+    frameDeltaSamples: [],
+    pendingTriggerAt: null,
+    lastFrameAt: null,
+    lastSnapshot: null,
   },
 };
 
@@ -2007,6 +2026,145 @@ function syncRoomGeometryPanel() {
   syncRoomGeometryStatus();
 }
 
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 920px)").matches;
+}
+
+function isMobilePortraitViewport() {
+  return window.matchMedia("(max-width: 920px) and (orientation: portrait)").matches;
+}
+
+function getMobileOrientationLabel() {
+  return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+}
+
+function syncMobileLayoutStatus() {
+  if (!controlPanel || !mobileLayoutStatus) {
+    return;
+  }
+  const orientation = getMobileOrientationLabel();
+  const isMobile = isMobileViewport();
+  controlPanel.dataset.mobileViewport = isMobile ? "true" : "false";
+  controlPanel.dataset.mobileOrientation = orientation;
+  const zoneLabel = state.dashboardZone === "manage" ? "Running managen" : "Triggern";
+  mobileLayoutStatus.textContent = isMobile
+    ? `Mobile (${orientation}): Fokus ${zoneLabel}`
+    : "Desktop: Trigger- und Manage-Bereiche parallel sichtbar";
+}
+
+function syncDashboardZoneVisibility() {
+  const mobilePortrait = isMobilePortraitViewport();
+  for (const entry of dashboardZoneGroups) {
+    const zone = entry.dataset.dashboardZone;
+    const shouldHide = mobilePortrait && zone && zone !== state.dashboardZone;
+    entry.classList.toggle("dashboard-zone-hidden", shouldHide);
+  }
+
+  if (openTriggerZoneButton && openManageZoneButton) {
+    const showSwitch = isMobileViewport() && state.uiView === "dashboard";
+    openTriggerZoneButton.parentElement?.classList.toggle("mobile-zone-switch-hidden", !showSwitch);
+    openTriggerZoneButton.classList.toggle("active", state.dashboardZone === "trigger");
+    openManageZoneButton.classList.toggle("active", state.dashboardZone === "manage");
+    openTriggerZoneButton.setAttribute("aria-pressed", state.dashboardZone === "trigger" ? "true" : "false");
+    openManageZoneButton.setAttribute("aria-pressed", state.dashboardZone === "manage" ? "true" : "false");
+  }
+
+  syncMobileLayoutStatus();
+}
+
+function setDashboardZone(zone, { announce = false } = {}) {
+  const nextZone = zone === "manage" ? "manage" : "trigger";
+  state.dashboardZone = nextZone;
+  syncDashboardZoneVisibility();
+  if (announce && state.uiView === "dashboard") {
+    triggerFeedback.textContent =
+      nextZone === "manage"
+        ? "Status: Mobile-Fokus auf Running-Management gesetzt"
+        : "Status: Mobile-Fokus auf Trigger gesetzt";
+  }
+}
+
+function shouldSuppressRapidTap(actionKey, thresholdMs = 320) {
+  const now = performance.now();
+  const lastAt = state.touchActionGuard[actionKey] ?? 0;
+  if (now - lastAt < thresholdMs) {
+    return true;
+  }
+  state.touchActionGuard[actionKey] = now;
+  return false;
+}
+
+function percentile(values, p) {
+  if (!values.length) {
+    return 0;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p)));
+  return sorted[index];
+}
+
+function updateMobilePerformanceStatus() {
+  if (!mobilePerformanceStatus) {
+    return;
+  }
+  const trigger = state.mobilePerf.triggerLatencySamples;
+  const frames = state.mobilePerf.frameDeltaSamples;
+  if (trigger.length === 0 || frames.length === 0) {
+    mobilePerformanceStatus.textContent = "Mobile Performance: noch kein Snapshot";
+    return;
+  }
+  const p95Trigger = percentile(trigger, 0.95);
+  const p95Frame = percentile(frames, 0.95);
+  const approxFps = p95Frame > 0 ? (1000 / p95Frame).toFixed(1) : "0.0";
+  mobilePerformanceStatus.textContent =
+    `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS)`;
+}
+
+function recordTriggerIntent() {
+  state.mobilePerf.pendingTriggerAt = performance.now();
+}
+
+function executeClearAll() {
+  for (const animation of state.runningAnimations) {
+    stopAnimationSound(animation.id);
+  }
+  for (const board of BOARDS) {
+    updateOutsideFxProfile(board.id, { enabled: false });
+  }
+  persistBoardProfiles();
+  state.runningAnimations = [];
+  clearRoomDraftEditTarget();
+  ashParticles.length = 0;
+  syncOutsideFxPanel();
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
+}
+
+function resetClearAllGuard() {
+  if (state.clearAllGuard.timeoutId !== null) {
+    window.clearTimeout(state.clearAllGuard.timeoutId);
+  }
+  state.clearAllGuard.armedUntil = 0;
+  state.clearAllGuard.timeoutId = null;
+  if (stopAllButton) {
+    stopAllButton.textContent = "Clear All";
+    stopAllButton.classList.remove("is-armed");
+  }
+}
+
+function armClearAllGuard() {
+  resetClearAllGuard();
+  state.clearAllGuard.armedUntil = performance.now() + 2600;
+  if (stopAllButton) {
+    stopAllButton.textContent = "Clear All bestaetigen";
+    stopAllButton.classList.add("is-armed");
+  }
+  state.clearAllGuard.timeoutId = window.setTimeout(() => {
+    resetClearAllGuard();
+  }, 2700);
+}
+
 function setViewGroupVisibility(groups, visible) {
   for (const entry of groups) {
     const shouldHide = !visible;
@@ -2110,6 +2268,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
     syncPolygonEditorPanel();
     syncShipPolygonEditorPanel();
   }
+  syncDashboardZoneVisibility();
   syncStageZoomTransform();
   setPanCursorState();
   renderRoomOverlay();
@@ -2137,8 +2296,10 @@ function runViewVisibilityRegression() {
 
 function runLayoutScrollRegression() {
   const issues = [];
+  const mobileViewport = isMobileViewport();
   const panelOverflowY = controlPanel ? window.getComputedStyle(controlPanel).overflowY : "";
-  if (panelOverflowY !== "auto" && panelOverflowY !== "scroll") {
+  const expectedPanelOverflow = mobileViewport ? ["visible", "auto", "scroll"] : ["auto", "scroll"];
+  if (!expectedPanelOverflow.includes(panelOverflowY)) {
     issues.push(`control overflowY=${panelOverflowY || "missing"}`);
   }
 
@@ -2150,7 +2311,8 @@ function runLayoutScrollRegression() {
   }
 
   const bodyOverflowY = window.getComputedStyle(document.body).overflowY;
-  if (bodyOverflowY !== "hidden") {
+  const expectedBodyOverflow = mobileViewport ? ["auto", "visible"] : ["hidden"];
+  if (!expectedBodyOverflow.includes(bodyOverflowY)) {
     issues.push(`body overflowY=${bodyOverflowY}`);
   }
 
@@ -2158,11 +2320,12 @@ function runLayoutScrollRegression() {
     issues.push("running/global panel missing");
   } else {
     const runningPosition = window.getComputedStyle(runningOverviewPanel).position;
-    if (runningPosition !== "sticky" && runningPosition !== "fixed") {
+    const expectedRunningPositions = mobileViewport ? ["static", "relative", "sticky", "fixed"] : ["sticky", "fixed"];
+    if (!expectedRunningPositions.includes(runningPosition)) {
       issues.push(`running panel position=${runningPosition || "missing"}`);
     }
     const stickyTop = window.getComputedStyle(runningOverviewPanel).top;
-    if (!stickyTop || stickyTop === "auto") {
+    if (!mobileViewport && (!stickyTop || stickyTop === "auto")) {
       issues.push(`running panel top=${stickyTop || "missing"}`);
     }
     const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
@@ -3556,14 +3719,26 @@ function renderRunningAnimationsList() {
     const stopButton = document.createElement("button");
     stopButton.type = "button";
     stopButton.textContent = "Stop";
-    stopButton.addEventListener("click", () => stopAnimation(anim.id));
+    stopButton.addEventListener("click", () => {
+      if (shouldSuppressRapidTap(`running-stop-${anim.id}`)) {
+        return;
+      }
+      setDashboardZone("manage");
+      stopAnimation(anim.id);
+    });
     actions.append(stopButton);
 
     if (anim.scope === "room") {
       const editButton = document.createElement("button");
       editButton.type = "button";
       editButton.textContent = "Edit";
-      editButton.addEventListener("click", () => editAnimation(anim.id));
+      editButton.addEventListener("click", () => {
+        if (shouldSuppressRapidTap(`running-edit-${anim.id}`)) {
+          return;
+        }
+        setDashboardZone("manage");
+        editAnimation(anim.id);
+      });
       actions.append(editButton);
     }
 
@@ -4029,6 +4204,28 @@ function pruneFinishedAnimations(now) {
 
 function draw(now) {
   try {
+    if (state.mobilePerf.lastFrameAt !== null) {
+      const frameDelta = now - state.mobilePerf.lastFrameAt;
+      if (Number.isFinite(frameDelta) && frameDelta > 0 && frameDelta < 1000) {
+        state.mobilePerf.frameDeltaSamples.push(frameDelta);
+        if (state.mobilePerf.frameDeltaSamples.length > 900) {
+          state.mobilePerf.frameDeltaSamples.shift();
+        }
+      }
+    }
+    state.mobilePerf.lastFrameAt = now;
+
+    if (state.mobilePerf.pendingTriggerAt !== null) {
+      const latency = now - state.mobilePerf.pendingTriggerAt;
+      if (Number.isFinite(latency) && latency >= 0 && latency < 1500) {
+        state.mobilePerf.triggerLatencySamples.push(latency);
+        if (state.mobilePerf.triggerLatencySamples.length > 200) {
+          state.mobilePerf.triggerLatencySamples.shift();
+        }
+      }
+      state.mobilePerf.pendingTriggerAt = null;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
     drawOutsideFxLayer(now);
@@ -4075,6 +4272,14 @@ openDashboardViewButton.addEventListener("click", () => {
 
 openSettingsViewButton.addEventListener("click", () => {
   setActiveView("settings");
+});
+
+openTriggerZoneButton?.addEventListener("click", () => {
+  setDashboardZone("trigger", { announce: true });
+});
+
+openManageZoneButton?.addEventListener("click", () => {
+  setDashboardZone("manage", { announce: true });
 });
 
 function updateActiveBoardHitareaCalibration(partial) {
@@ -4599,12 +4804,23 @@ window.addEventListener("blur", () => {
     finishShipPolygonVertexDrag(null, { cancel: true });
   }
   endPanMode(null, { canceled: true });
+  resetClearAllGuard();
   setPanCursorState();
+});
+
+window.addEventListener("orientationchange", () => {
+  syncDashboardZoneVisibility();
+  triggerFeedback.textContent = "Status: Orientation gewechselt, UI-State beibehalten";
 });
 
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
+    if (shouldSuppressRapidTap(`global-${type}`)) {
+      return;
+    }
+    recordTriggerIntent();
+    setDashboardZone("trigger");
     const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space"
       ? null
       : 6;
@@ -4613,20 +4829,15 @@ document.querySelectorAll("button[data-global]").forEach((button) => {
 });
 
 stopAllButton.addEventListener("click", () => {
-  for (const animation of state.runningAnimations) {
-    stopAnimationSound(animation.id);
+  const now = performance.now();
+  if (state.clearAllGuard.armedUntil <= now) {
+    armClearAllGuard();
+    setDashboardZone("manage");
+    triggerFeedback.textContent = "Status: Clear All ist bewaffnet - erneut tippen zum Bestaetigen";
+    return;
   }
-  for (const board of BOARDS) {
-    updateOutsideFxProfile(board.id, { enabled: false });
-  }
-  persistBoardProfiles();
-  state.runningAnimations = [];
-  clearRoomDraftEditTarget();
-  ashParticles.length = 0;
-  syncOutsideFxPanel();
-  renderRunningAnimationsList();
-  refreshGlobalButtons();
-  triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
+  resetClearAllGuard();
+  executeClearAll();
 });
 
 roomAnimationSelect.addEventListener("change", () => {
@@ -4705,6 +4916,11 @@ animationSpeedInput.addEventListener("input", () => {
 });
 
 startRoomAnimationButton.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("room-start")) {
+    return;
+  }
+  recordTriggerIntent();
+  setDashboardZone("trigger");
   startRoomAnimationFromDraft();
 });
 
@@ -4763,6 +4979,20 @@ exportGlobalDefaultsButton.addEventListener("click", () => {
     "Status: Download-Export erstellt (sekundaerer Fallback); primaerer Weg bleibt API-Speichern";
 });
 
+runMobilePerformanceCheckButton?.addEventListener("click", () => {
+  updateMobilePerformanceStatus();
+  state.mobilePerf.lastSnapshot = {
+    measuredAt: new Date().toISOString(),
+    triggerSampleCount: state.mobilePerf.triggerLatencySamples.length,
+    frameSampleCount: state.mobilePerf.frameDeltaSamples.length,
+    triggerP95Ms: percentile(state.mobilePerf.triggerLatencySamples, 0.95),
+    frameP95Ms: percentile(state.mobilePerf.frameDeltaSamples, 0.95),
+  };
+  const snapshot = state.mobilePerf.lastSnapshot;
+  triggerFeedback.textContent =
+    `Status: Mobile-Snapshot erstellt (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms)`;
+});
+
 document.addEventListener("fullscreenchange", () => {
   if (state.outputRoute === "beamer-fullscreen" && !document.fullscreenElement) {
     state.outputRoute = "windowed-preview";
@@ -4778,6 +5008,8 @@ const resizeObserver = new ResizeObserver((entries) => {
   canvas.height = Math.max(1, Math.floor(size.height));
   updateCurrentBoardZoom(getBoardZoom(state.boardId));
   setPanCursorState();
+  syncDashboardZoneVisibility();
+  updateMobilePerformanceStatus();
   validateViewExclusivity(state.uiView, { context: "resize-guard" });
   runLayoutScrollRegression();
 });
@@ -4814,6 +5046,8 @@ syncPolygonEditorPanel();
 syncShipPolygonEditorPanel();
 syncOutsideFxPanel();
 syncBoardZoomPanel();
+syncDashboardZoneVisibility();
+updateMobilePerformanceStatus();
 setActiveView("dashboard");
 setPanCursorState();
 const viewRegressionOk = runViewVisibilityRegression();

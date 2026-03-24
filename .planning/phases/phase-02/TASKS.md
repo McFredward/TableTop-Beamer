@@ -5,7 +5,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Priority Add-on - Plan Update 2 (Mobile-First Bedienung)
 - [x] DONE P2-T1 [P0] Mobile UX-Blueprint fuer Smartphone definieren (Portrait/Landscape, Thumb-Zonen, Trigger-vs-Manage-Trennung).
-- [ ] TODO P2-T2 [P0] Dashboard-Layout fuer Portrait umsetzen: schnelle Daumen-Trigger ohne Scrollpflicht fuer Kernaktionen.
+- [x] DONE P2-T2 [P0] Dashboard-Layout fuer Portrait umsetzen: schnelle Daumen-Trigger ohne Scrollpflicht fuer Kernaktionen.
 - [ ] TODO P2-T3 [P0] Dashboard-Layout fuer Landscape umsetzen: klare Trennung Triggern vs `Aktive Animationen`/Stop/Edit.
 - [ ] TODO P2-T4 [P0] Touch-Target-Hardening: interaktive Targets auf >=44x44 px und konsistente Abstaende bringen.
 - [ ] TODO P2-T5 [P0] Einhand-Bedienpfad optimieren: primaere Aktionen im Daumenradius, sekundaere Aktionen entkoppeln.
