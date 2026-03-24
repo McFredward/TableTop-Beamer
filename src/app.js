@@ -213,22 +213,15 @@ const ROOM_ANIMATIONS = [
   { id: "alarm-beacon", label: "Alarm Beacon" },
 ];
 
-const EVENT_SOUNDS = {
+const EVENT_SOUND_ASSETS = {
   "intruder-alert": [
-    { wave: "sawtooth", freq: 840, duration: 0.08, gain: 0.42 },
-    { wave: "sawtooth", freq: 740, duration: 0.08, gain: 0.4 },
-    { wave: "triangle", freq: 620, duration: 0.12, gain: 0.34 },
+    "resources/nemesis/sounds/alarm.mp3",
+    "resources/nemesis/sounds/monsters/048.wav",
   ],
-  "reactor-pulse": [
-    { wave: "sine", freq: 110, duration: 0.16, gain: 0.38 },
-    { wave: "sine", freq: 130, duration: 0.18, gain: 0.36 },
-    { wave: "triangle", freq: 150, duration: 0.21, gain: 0.33 },
-  ],
-  "power-outage": [
-    { wave: "square", freq: 92, duration: 0.22, gain: 0.4 },
-    { wave: "triangle", freq: 74, duration: 0.24, gain: 0.35 },
-    { wave: "sawtooth", freq: 58, duration: 0.28, gain: 0.28 },
-  ],
+  "reactor-pulse": ["resources/nemesis/sounds/electricity.mp3"],
+  "power-outage": ["resources/nemesis/sounds/power/3.wav"],
+  "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
+  "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
 };
 
 const stage = document.querySelector("#stage");
@@ -371,8 +364,8 @@ const state = {
 let animationIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
-let audioCtx = null;
-let audioMasterGain = null;
+const audioAssetPoolByPath = new Map();
+const audioAssetCursorByEffect = {};
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
@@ -1658,63 +1651,57 @@ function syncAudioStatus() {
   audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
 }
 
-function applyAudioGain() {
-  if (!audioCtx || !audioMasterGain) {
-    return;
-  }
-  const gainTarget = state.audio.enabled ? state.audio.volume : 0;
-  audioMasterGain.gain.setValueAtTime(gainTarget, audioCtx.currentTime);
+function createAudioAssetVoice(path) {
+  const voice = new Audio(path);
+  voice.preload = "auto";
+  return voice;
 }
 
-function ensureAudioGraph() {
-  if (!window.AudioContext && !window.webkitAudioContext) {
+function getAudioAssetPool(path) {
+  if (!audioAssetPoolByPath.has(path)) {
+    const pool = [createAudioAssetVoice(path), createAudioAssetVoice(path), createAudioAssetVoice(path)];
+    audioAssetPoolByPath.set(path, pool);
+  }
+  return audioAssetPoolByPath.get(path);
+}
+
+function applyAudioGain() {
+  const targetVolume = state.audio.enabled ? state.audio.volume : 0;
+  for (const pool of audioAssetPoolByPath.values()) {
+    for (const voice of pool) {
+      voice.volume = targetVolume;
+    }
+  }
+}
+
+function pickAssetPathForEffect(effectType) {
+  const mappedPaths = EVENT_SOUND_ASSETS[effectType];
+  if (!Array.isArray(mappedPaths) || mappedPaths.length === 0) {
     return null;
   }
-  if (!audioCtx) {
-    const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
-    audioCtx = new AudioContextCtor();
-    audioMasterGain = audioCtx.createGain();
-    audioMasterGain.connect(audioCtx.destination);
-  }
-  applyAudioGain();
-  return audioCtx;
+  const currentIndex = audioAssetCursorByEffect[effectType] ?? 0;
+  const nextPath = mappedPaths[currentIndex % mappedPaths.length];
+  audioAssetCursorByEffect[effectType] = (currentIndex + 1) % mappedPaths.length;
+  return nextPath;
 }
 
 function playEventSound(effectType) {
-  const pattern = EVENT_SOUNDS[effectType];
-  if (!pattern || !state.audio.enabled) {
+  if (!state.audio.enabled) {
     return;
   }
-  const ctx = ensureAudioGraph();
-  if (!ctx || !audioMasterGain) {
+  const path = pickAssetPathForEffect(effectType);
+  if (!path) {
     return;
   }
-  if (ctx.state === "suspended") {
-    ctx.resume().catch(() => undefined);
+  const pool = getAudioAssetPool(path);
+  if (!pool?.length) {
+    return;
   }
-
-  let cursor = ctx.currentTime + 0.01;
-  for (const step of pattern) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = step.wave;
-    osc.frequency.setValueAtTime(step.freq, cursor);
-
-    const peak = step.gain * state.audio.volume;
-    gain.gain.setValueAtTime(0.001, cursor);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), cursor + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.001, cursor + step.duration);
-
-    osc.connect(gain);
-    gain.connect(audioMasterGain);
-    osc.start(cursor);
-    osc.stop(cursor + step.duration + 0.02);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
-    cursor += step.duration * 0.72;
-  }
+  const reusable = pool.find((voice) => voice.paused || voice.ended) ?? pool[0];
+  reusable.pause();
+  reusable.currentTime = 0;
+  reusable.volume = state.audio.volume;
+  reusable.play().catch(() => undefined);
 }
 
 function applyHitareaCalibration(x, y, calibration) {
@@ -1996,6 +1983,7 @@ function startRoomAnimationFromDraft() {
   });
 
   state.runningAnimations.push(animation);
+  playEventSound(animation.type);
   triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
   renderRunningAnimationsList();
 }
