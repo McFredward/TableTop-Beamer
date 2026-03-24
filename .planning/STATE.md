@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-9
-- Last Execution Summary: `.planning/phases/phase-01/1-9-SUMMARY.md`
+- Last Executed Plan: 1-10
+- Last Execution Summary: `.planning/phases/phase-01/1-10-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -78,6 +78,13 @@
 - Tab-Exklusivitaet nutzt zusaetzlich ein Root-Gating (`#control-panel[data-active-view]`) mit Laufzeitvalidierung gegen State-Drift.
 - Operator-Layout trennt Scroll-Besitz klar: Board bleibt sticky im Viewport, nur der rechte Control-Stack scrollt.
 - Running-Animations-Uebersicht ist als eigener priorisierter Abschnitt oberhalb der Triggergruppen platziert.
+- Plan-Update 8 setzt Prioritaetsfokus: P0 Settings-Board-Zoom fuer praezises Polygon-Editing, P0 Spezialraum-Klick-zu-Dropdown-Sync, P0 sticky sichtbarer Dashboard-Block `Aktive Animationen`.
+- Zoom-Regel fuer Plan-Update 8: Board-Zoom darf Handle-Selektion/Drag/Insert/Delete nicht entkoppeln; Transform-Pfad bleibt konsistent.
+- Sync-Regel fuer Plan-Update 8: Spezialraum-Selektion hat eine gemeinsame Source-of-Truth fuer Board-Klick und Polygon-Editor-Dropdown.
+- Sticky-Regel fuer Plan-Update 8: `Aktive Animationen` bleibt beim Scrollen im Dashboard sichtbar und priorisiert bedienbar.
+- Settings-Zoom bleibt auf den `Settings`-View begrenzt; Dashboard-Interaktion bleibt unskaliert und stabil.
+- Polygon-Drag nutzt SVG-CTM-Inversion, damit Pointer-Koordinaten unter Zoom exakt im Overlay landen.
+- Spezialraum-Selektion wird zentral synchronisiert, damit Board-Klick und Polygon-Dropdown keinen Drift mehr erzeugen.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -154,4 +161,12 @@
 - Task Commits: 5 atomare Commits (`00cfd78` .. `ad883d0`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T56-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 10)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-10-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`55dd54c` .. `59a8d45`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T61-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
