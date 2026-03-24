@@ -3042,75 +3042,55 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
 
   if (type === "outside-space") {
-    if (options.outsideMode === "immersive") {
-      const driftField = ctx.createLinearGradient(0, 0, w, h);
-      driftField.addColorStop(0, `rgba(22, 42, 84, ${0.24 * intensity})`);
-      driftField.addColorStop(0.45, `rgba(56, 24, 112, ${0.14 * intensity})`);
-      driftField.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = driftField;
-      ctx.fillRect(0, 0, w, h);
+    const immersive = options.outsideMode === "immersive";
+    const speedFactor = immersive ? 1.45 : 1;
 
-      const parallaxLayers = [
-        { density: 52, speed: 140, streak: 7, alpha: 0.22, size: 0.9 },
-        { density: 74, speed: 260, streak: 15, alpha: 0.34, size: 1.2 },
-        { density: 92, speed: 420, streak: 24, alpha: 0.52, size: 1.7 },
-      ];
+    const nebulaField = ctx.createLinearGradient(0, 0, w, h);
+    nebulaField.addColorStop(0, `rgba(16, 30, 68, ${0.16 * intensity})`);
+    nebulaField.addColorStop(0.4, `rgba(37, 20, 84, ${0.12 * intensity})`);
+    nebulaField.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = nebulaField;
+    ctx.fillRect(0, 0, w, h);
 
-      for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
-        const layer = parallaxLayers[layerIndex];
-        const starCount = Math.max(24, Math.round(layer.density * intensity));
-        const layerSpeed = layer.speed * (0.85 + intensity * 0.7);
+    const parallaxLayers = immersive
+      ? [
+          { density: 46, speed: 190, size: 0.9, alpha: 0.16, wave: 0.008 },
+          { density: 66, speed: 310, size: 1.2, alpha: 0.26, wave: 0.011 },
+          { density: 82, speed: 470, size: 1.6, alpha: 0.38, wave: 0.014 },
+          { density: 98, speed: 660, size: 2, alpha: 0.52, wave: 0.017 },
+        ]
+      : [
+          { density: 32, speed: 130, size: 0.85, alpha: 0.14, wave: 0.006 },
+          { density: 50, speed: 230, size: 1.1, alpha: 0.22, wave: 0.009 },
+          { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
+        ];
 
-        for (let i = 0; i < starCount; i += 1) {
-          const seedA = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
-          const seedB = ((i * 57.913 + layerIndex * 79.1) % 1000) / 1000;
-          const wave = Math.sin(age * 0.35 + i * 0.07 + layerIndex) * (h * 0.012);
-          const xProgress = (seedA * (w + layer.streak) - age * layerSpeed) % (w + layer.streak);
-          const x = xProgress < 0 ? xProgress + w + layer.streak : xProgress;
-          const y = seedB * h + wave;
-          const streakLength = layer.streak * (0.7 + intensity * 1.15);
-          const alpha = Math.min(0.96, layer.alpha * (0.8 + intensity * 0.7));
+    for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
+      const layer = parallaxLayers[layerIndex];
+      const starCount = Math.max(24, Math.round(layer.density * intensity));
+      const layerSpeed = layer.speed * (0.8 + intensity * 0.75) * speedFactor;
+      const layerWave = h * layer.wave;
 
-          ctx.strokeStyle = `rgba(214, 236, 255, ${alpha})`;
-          ctx.lineWidth = layer.size;
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x + streakLength, y);
-          ctx.stroke();
-        }
+      for (let i = 0; i < starCount; i += 1) {
+        const seedX = ((i * 97.173 + layerIndex * 31.7) % 1000) / 1000;
+        const seedY = ((i * 57.913 + layerIndex * 79.1) % 1000) / 1000;
+        const progressRaw = (seedX * (w + 8) - age * layerSpeed) % (w + 8);
+        const x = progressRaw < 0 ? progressRaw + w + 8 : progressRaw;
+        const y = seedY * h + Math.sin(age * 0.35 + i * 0.07 + layerIndex) * layerWave;
+        const twinkle = (Math.sin(age * (2 + layerIndex * 0.7) + i * 0.9) + 1) / 2;
+        const alpha = Math.min(0.95, layer.alpha * (0.8 + intensity * 0.7) * (0.75 + twinkle * 0.45));
+        const size = layer.size * (0.8 + (((i * 19.9) % 100) / 100) * 0.7);
+
+        ctx.fillStyle = `rgba(214, 236, 255, ${alpha})`;
+        ctx.fillRect(x, y, size, size);
       }
-
-      const warpLineCount = Math.max(8, Math.round(18 * intensity));
-      for (let i = 0; i < warpLineCount; i += 1) {
-        const lane = (((i * 43.17) % 1000) / 1000) * h;
-        const pulse = ((age * (0.7 + i * 0.03)) % 1) * (w + 160);
-        const alpha = 0.06 + (((Math.sin(age * 5 + i) + 1) / 2) * 0.2 + 0.04) * intensity;
-        ctx.strokeStyle = `rgba(162, 208, 255, ${Math.min(0.5, alpha)})`;
-        ctx.lineWidth = 0.7 + ((i % 3) + 1) * 0.35;
-        ctx.beginPath();
-        ctx.moveTo(w - pulse, lane);
-        ctx.lineTo(w - pulse + 130 + intensity * 90, lane);
-        ctx.stroke();
-      }
-      return;
     }
 
-    const starCount = Math.max(32, Math.round(90 * intensity));
-    for (let i = 0; i < starCount; i += 1) {
-      const lane = i / starCount;
-      const drift = (age * 0.055 + lane * 1.618) % 1;
-      const x = ((lane * 967 + age * 22) % 1) * w;
-      const y = drift * h;
-      const size = 0.8 + ((i * 37) % 3) * 0.5;
-      const alpha = 0.12 + (((Math.sin(age * 2.4 + i) + 1) / 2) * 0.36 + 0.05) * intensity;
-      ctx.fillStyle = `rgba(196, 222, 255, ${Math.min(0.9, alpha)})`;
-      ctx.fillRect(x, y, size, size);
-    }
-    const sweep = (Math.sin(age * 0.9) + 1) / 2;
-    const g = ctx.createLinearGradient(0, h * (0.15 + sweep * 0.15), w, h * (0.85 - sweep * 0.1));
-    g.addColorStop(0, `rgba(33, 68, 120, ${0.08 * intensity})`);
-    g.addColorStop(1, `rgba(122, 176, 255, ${0.14 * intensity})`);
-    ctx.fillStyle = g;
+    const depthSweep = (Math.sin(age * 0.75) + 1) / 2;
+    const depthGradient = ctx.createLinearGradient(0, h * (0.18 + depthSweep * 0.12), w, h * (0.82 - depthSweep * 0.1));
+    depthGradient.addColorStop(0, `rgba(48, 91, 152, ${0.07 * intensity})`);
+    depthGradient.addColorStop(1, `rgba(148, 197, 255, ${0.12 * intensity})`);
+    ctx.fillStyle = depthGradient;
     ctx.fillRect(0, 0, w, h);
     return;
   }
