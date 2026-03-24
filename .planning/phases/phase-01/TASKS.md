@@ -71,4 +71,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T42 [P0] Polygoneditor-Interaktion stabilisieren: freien Vertex-Drag mit sauberem Pointer-Capture, Live-Update und robustem Cancel/Commit Verhalten.
 - [x] DONE P1-T43 [P0] Vertex-Operationen komplettieren: aktive Ecke loeschen (mit Mindestpunkt-Guard) und neue Ecke an ausgewaehlter Kante einfuegen.
 - [x] DONE P1-T44 [P0] Persistenz-Compatibility-Layer bauen: bestehende kalibrierte Raumdaten aus Legacy-Profilen migrieren und im aktuellen Schema verlustfrei speichern.
-- [ ] TODO P1-T45 [P1] Plan-Update-5 Pflichtabnahme + Regression dokumentieren (View-Switch, Polygoneditor UX, Persistenz-Reload/App-Neustart).
+- [x] DONE P1-T45 [P1] Plan-Update-5 Pflichtabnahme + Regression dokumentieren (View-Switch, Polygoneditor UX, Persistenz-Reload/App-Neustart).
