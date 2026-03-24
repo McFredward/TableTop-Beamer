@@ -115,4 +115,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T74 [P0] UI fuer editierbares Sound-Mapping pro Animation integrieren (Asset-Auswahl/none, Default-Mapping, Guard fuer ungueltige Zuordnung).
 - [x] DONE P1-T75 [P1] Allgemeine Animations-Settings um Geschwindigkeitssteuerung erweitern (globaler Speed-Faktor mit Live-Wirkung und regressionfreiem Stop/Edit-Verhalten).
 - [x] DONE P1-T76 [P1] Immersive Outside-Alternativanimation inkl. UI-Toggle implementieren und bestehende Outside-Logik (Maske, Enable, Intensity, Speed) ohne Bruch weiterfuehren.
-- [ ] TODO P1-T77 [P1] Pflichtabnahme + Regression fuer Plan-Update-11 dokumentieren (Audio-Loop/Stop-Sync, Mapping, Speed, Outside-Modus, Persistenz).
+- [x] DONE P1-T77 [P1] Pflichtabnahme + Regression fuer Plan-Update-11 dokumentieren (Audio-Loop/Stop-Sync, Mapping, Speed, Outside-Modus, Persistenz).
