@@ -17,6 +17,18 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 - Ein reiner Static-Server oder Datei-Hosting ohne API reicht **nicht** fuer Save (typischer Fehler:
   `501 Unsupported method POST`).
 
+### API-Base konfigurieren (statisches Frontend)
+
+- Prioritaet der API-Base-Aufloesung:
+  1. `window.__TT_BEAMER_API_BASE__`
+  2. URL-Parameter `?ttApiBase=http://localhost:4173` (alternativ `apiBase` / `api_base`)
+  3. `localStorage["tt-beamer.api-base.v1"]`
+  4. deterministische Fallback-Ports: `localhost:4173`, `4174`, `3000`, `8080`
+- Save + Diagnose pruefen den Endpunkt vor dem eigentlichen POST mit:
+  - `GET /api/health`
+  - `OPTIONS /api/global-defaults` (POST erlaubt?)
+- Im `Settings`-Tab zeigt **API Diagnose (One-Click)** den aktiven Endpoint und konkrete Next Steps.
+
 ### Kurzsequenz (wenn du getrennt startest)
 
 1. Terminal A: `node server.mjs` (API fuer Save auf Port 4173)
