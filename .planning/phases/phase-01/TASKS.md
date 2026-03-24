@@ -131,5 +131,5 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T86 [P0] Outside-Visual von glitzerartig auf High-Speed-Spaceflow umbauen (mehrere Tiefenebenen mit differenzierten Geschwindigkeiten).
 - [x] DONE P1-T87 [P0] Deutliche Motion-Streaks/Striche in den Outside-Renderer integrieren und mit Intensity/Speed-Reglern koppeln.
 - [x] DONE P1-T88 [P0] Single-User-Persistenzpfad erweitern: `Settings`-Button `Speichern` schreibt aktuellen Browserzustand in server-/repo-seitige globale Default-Config.
-- [ ] TODO P1-T89 [P0] Save-Merge-Guard implementieren: lokale Browserdaten als Quelle uebernehmen und bestehende Ship-/Spezialraum-Polygondaten verlustfrei erhalten.
+- [x] DONE P1-T89 [P0] Save-Merge-Guard implementieren: lokale Browserdaten als Quelle uebernehmen und bestehende Ship-/Spezialraum-Polygondaten verlustfrei erhalten.
 - [ ] TODO P1-T90 [P1] Plan-Update-13 Pflichtabnahme + Regression dokumentieren (Inside/Outside-Clipping, High-Speed-Spaceflow mit Streaks, globale Config-Save-Pfad, Polygon-Datenerhalt).

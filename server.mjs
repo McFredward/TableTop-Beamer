@@ -47,6 +47,58 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
+function isValidPolygon(points) {
+  return (
+    Array.isArray(points) &&
+    points.length >= 3 &&
+    points.every(
+      (point) =>
+        Array.isArray(point) &&
+        point.length >= 2 &&
+        Number.isFinite(Number(point[0])) &&
+        Number.isFinite(Number(point[1])),
+    )
+  );
+}
+
+function mergeSpecialPolygonMap(primaryMap, fallbackMap) {
+  const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
+  if (!primaryMap || typeof primaryMap !== "object") {
+    return merged;
+  }
+  for (const [roomId, polygon] of Object.entries(primaryMap)) {
+    if (isValidPolygon(polygon)) {
+      merged[roomId] = polygon;
+    }
+  }
+  return merged;
+}
+
+function mergeBoardProfiles(primaryProfiles, fallbackProfiles) {
+  const merged = {};
+  const boardIds = new Set([
+    ...Object.keys(fallbackProfiles ?? {}),
+    ...Object.keys(primaryProfiles ?? {}),
+  ]);
+
+  for (const boardId of boardIds) {
+    const primary = primaryProfiles?.[boardId] ?? {};
+    const fallback = fallbackProfiles?.[boardId] ?? {};
+    merged[boardId] = {
+      ...fallback,
+      ...primary,
+      specialPolygons: mergeSpecialPolygonMap(primary.specialPolygons, fallback.specialPolygons),
+      shipPolygon: isValidPolygon(primary.shipPolygon)
+        ? primary.shipPolygon
+        : isValidPolygon(fallback.shipPolygon)
+          ? fallback.shipPolygon
+          : undefined,
+    };
+  }
+
+  return merged;
+}
+
 async function handleGlobalDefaultsSave(req, res) {
   const chunks = [];
   for await (const chunk of req) {
@@ -71,11 +123,19 @@ async function handleGlobalDefaultsSave(req, res) {
     return;
   }
 
+  let existing = null;
+  try {
+    const currentRaw = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
+    existing = JSON.parse(currentRaw);
+  } catch {
+    existing = null;
+  }
+
   const next = {
     schema: "tt-beamer.global-defaults.v1",
     savedAt: new Date().toISOString(),
     source: parsed.source ?? "browser-local-state",
-    boardProfiles: parsed.boardProfiles ?? {},
+    boardProfiles: mergeBoardProfiles(parsed.boardProfiles ?? {}, existing?.boardProfiles ?? {}),
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
     animationSoundMap: parsed.animationSoundMap ?? {},

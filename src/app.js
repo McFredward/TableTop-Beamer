@@ -697,6 +697,43 @@ function isValidSpecialPolygon(points) {
   return Array.isArray(points) && points.length >= 3;
 }
 
+function mergeSpecialPolygonMaps(primaryMap, fallbackMap) {
+  const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
+  if (!primaryMap || typeof primaryMap !== "object") {
+    return merged;
+  }
+  for (const [roomId, polygon] of Object.entries(primaryMap)) {
+    if (isValidSpecialPolygon(polygon)) {
+      merged[roomId] = polygon;
+    }
+  }
+  return merged;
+}
+
+function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
+  const merged = {};
+  const boardIds = new Set([
+    ...Object.keys(fallbackProfiles ?? {}),
+    ...Object.keys(primaryProfiles ?? {}),
+  ]);
+
+  for (const boardId of boardIds) {
+    const primary = primaryProfiles?.[boardId] ?? {};
+    const fallback = fallbackProfiles?.[boardId] ?? {};
+    const primaryShipPolygon = isValidSpecialPolygon(primary.shipPolygon) ? primary.shipPolygon : null;
+    const fallbackShipPolygon = isValidSpecialPolygon(fallback.shipPolygon) ? fallback.shipPolygon : null;
+
+    merged[boardId] = {
+      ...fallback,
+      ...primary,
+      specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
+      shipPolygon: primaryShipPolygon ?? fallbackShipPolygon ?? SHIP_POLYGON_DEFAULT,
+    };
+  }
+
+  return merged;
+}
+
 function createDefaultSpecialPolygonMap(boardId) {
   const board = getBoard(boardId);
   const specials = board.rooms.filter((room) => room.id.startsWith("special-") && room.points?.length >= 3);
@@ -991,11 +1028,33 @@ function persistBoardProfiles() {
 }
 
 function buildGlobalDefaultsPayload() {
+  let localStorageProfiles = null;
+  try {
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const candidate = extractBoardProfilesCandidate(parsed);
+      if (candidate) {
+        localStorageProfiles = buildMigratedBoardProfiles(
+          candidate,
+          state.hitareaCalibrationByBoard,
+          state.roomGeometryByBoard,
+          state.specialPolygonsByBoard,
+        );
+      }
+    }
+  } catch {
+    localStorageProfiles = null;
+  }
+
+  const stateProfiles = buildBoardProfilesFromState();
+  const mergedProfiles = mergeBoardProfilesForGlobalExport(stateProfiles, localStorageProfiles);
+
   return {
     schema: "tt-beamer.global-defaults.v1",
     savedAt: new Date().toISOString(),
     source: "browser-local-state",
-    boardProfiles: buildBoardProfilesFromState(),
+    boardProfiles: mergedProfiles,
     audio: {
       enabled: Boolean(state.audio.enabled),
       volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
