@@ -2903,7 +2903,19 @@ function runNavigationStateRegression() {
         silent: true,
         context: `projection-${checkpoint.label}`,
       }) && ok;
+
+      for (let i = 0; i < 3; i += 1) {
+        syncDashboardZoneVisibility();
+        syncMobileLayoutStatus();
+        syncMobileStickyOffsets();
+        ok = validateViewNavigationVisibility({
+          silent: true,
+          context: `navigation-resync-${checkpoint.label}-${i + 1}`,
+        }) && ok;
+      }
     }
+
+    ok = runLayoutScrollRegression() && ok;
   } finally {
     setActiveView(previousView, { skipGuard: true });
     setDashboardZone(previousZone);
@@ -5551,7 +5563,12 @@ const resizeObserver = new ResizeObserver((entries) => {
   validateViewExclusivity(state.uiView, { context: "resize-guard" });
   validateViewNavigationVisibility({ context: "resize-guard" });
   runMobileProjectionVisibilityGuard({ context: "resize-guard" });
-  runLayoutScrollRegression();
+  const layoutOk = runLayoutScrollRegression();
+  const navigationOk = runNavigationStateRegression();
+  if (!layoutOk || !navigationOk) {
+    triggerFeedback.textContent =
+      "Status: Resize-Guard meldet Layout-/Navigation-Drift (Scroll/Resize/View-Switch pruefen)";
+  }
 });
 
 resizeObserver.observe(stage);
