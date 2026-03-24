@@ -140,4 +140,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T93 [P0] Per-Room-Animation-Controls um `Speed`, `Intensity` und `Sound Volume` pro einzelner Animation erweitern (Start + Edit-Flow).
 - [x] DONE P1-T94 [P0] Runtime-Modell pro Room-Animation-Instanz um `speed`, `intensity`, `soundVolume` erweitern und in Start/Update/Stop konsistent nutzen.
 - [x] DONE P1-T95 [P0] P0-Bugfix Running-List-`Edit`: bestehende laufende Instanz laden, Edit-Werte in-place auf dieselbe `animation.id` anwenden, kein Neu-Eintrag.
-- [ ] TODO P1-T96 [P1] Plan-Update-14 Pflichtabnahme + Regression dokumentieren (Outside-Richtung + Black-Background, Per-Instance-Room-Parameter, Edit-in-place).
+- [x] DONE P1-T96 [P1] Plan-Update-14 Pflichtabnahme + Regression dokumentieren (Outside-Richtung + Black-Background, Per-Instance-Room-Parameter, Edit-in-place).
