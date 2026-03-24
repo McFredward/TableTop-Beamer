@@ -61,6 +61,6 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T34 [P0] Datenmodell fuer raumindividuelle Kalibrierung erweitern (Position relativ/absolut je Raum + Distanzkorrektur zwischen Raeumen).
 - [x] DONE P1-T35 [P0] Unabhaengiges Stretching pro Raum (`stretchX`/`stretchY`) mit Live-Wirkung auf Hit-Test und Clip-Pfad implementieren.
 - [x] DONE P1-T36 [P0] Kalibrier- und Shape-Controls aus dem Haupt-Dashboard entfernen und auf eine separate Settings-Seite migrieren.
-- [ ] TODO P1-T37 [P0] Spezialraum-Polygoneditor in Settings bauen (Vertex einfuegen, loeschen, frei verschieben; beliebige Polygonform).
+- [x] DONE P1-T37 [P0] Spezialraum-Polygoneditor in Settings bauen (Vertex einfuegen, loeschen, frei verschieben; beliebige Polygonform).
 - [ ] TODO P1-T38 [P1] Persistenz pro Board fuer komplette Geometrie-/Shape-Konfiguration (global + je Raum + Spezialraum-Polygone) absichern.
 - [ ] TODO P1-T39 [P1] Manuelle Pflichtabnahme + Regression fuer Plan-Update-4 dokumentieren (inkl. Reload/App-Neustart-Nachweis).

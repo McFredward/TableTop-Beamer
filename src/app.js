@@ -275,6 +275,13 @@ const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch
 const roomGeometryStatus = document.querySelector("#room-geometry-status");
 const openDashboardViewButton = document.querySelector("#open-dashboard-view");
 const openSettingsViewButton = document.querySelector("#open-settings-view");
+const polygonRoomSelect = document.querySelector("#polygon-room-select");
+const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
+const polygonInsertVertexButton = document.querySelector("#polygon-insert-vertex");
+const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex");
+const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
+const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
+const polygonEditorStatus = document.querySelector("#polygon-editor-status");
 
 const ctx = canvas.getContext("2d");
 
@@ -314,6 +321,12 @@ const state = {
   uiView: "dashboard",
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
+  specialPolygonsByBoard: {},
+  polygonEditor: {
+    roomIdByBoard: {},
+    selectedVertexIndex: 0,
+    dragVertexIndex: null,
+  },
 };
 
 let animationIdCounter = 1;
@@ -362,15 +375,16 @@ function normalizeRoomGeometryMode(mode) {
   return mode === "absolute" ? "absolute" : "relative";
 }
 
-function getRawRoomCenter(room) {
+function getRawRoomCenter(room, boardId = state.boardId) {
   if (room?.points?.length) {
-    const center = room.points.reduce(
+    const sourcePoints = getRoomSourcePoints(room, boardId);
+    const center = sourcePoints.reduce(
       (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
       { x: 0, y: 0 },
     );
     return {
-      x: center.x / room.points.length,
-      y: center.y / room.points.length,
+      x: center.x / sourcePoints.length,
+      y: center.y / sourcePoints.length,
     };
   }
   return {
@@ -379,9 +393,9 @@ function getRawRoomCenter(room) {
   };
 }
 
-function normalizeRoomGeometry(geometry, room) {
+function normalizeRoomGeometry(geometry, room, boardId = state.boardId) {
   const mode = normalizeRoomGeometryMode(geometry?.mode);
-  const baseCenter = getRawRoomCenter(room);
+  const baseCenter = getRawRoomCenter(room, boardId);
   const offsetX = clampRoomRelativeOffset(Number(geometry?.offsetX) || 0);
   const offsetY = clampRoomRelativeOffset(Number(geometry?.offsetY) || 0);
   const absoluteX = Number.isFinite(Number(geometry?.absoluteX))
@@ -404,13 +418,47 @@ function normalizeRoomGeometry(geometry, room) {
 function createDefaultRoomGeometryMap(boardId) {
   const board = getBoard(boardId);
   return Object.fromEntries(
-    board.rooms.map((room) => [room.id, normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room)]),
+    board.rooms.map((room) => [room.id, normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room, boardId)]),
   );
 }
 
 function createDefaultRoomGeometryByBoard() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, createDefaultRoomGeometryMap(board.id)]),
+  );
+}
+
+function normalizePolygonPoint(point) {
+  return [
+    clampRoomAbsoluteCoordinate(Number(point?.[0]) || 0.5),
+    clampRoomAbsoluteCoordinate(Number(point?.[1]) || 0.5),
+  ];
+}
+
+function normalizeSpecialPolygon(points, fallbackPoints = []) {
+  const source = Array.isArray(points) && points.length >= 3 ? points : fallbackPoints;
+  const normalized = source.map((entry) => normalizePolygonPoint(entry));
+  if (normalized.length >= 3) {
+    return normalized;
+  }
+  return [
+    [0.45, 0.45],
+    [0.55, 0.45],
+    [0.5, 0.55],
+  ];
+}
+
+function createDefaultSpecialPolygonMap(boardId) {
+  const board = getBoard(boardId);
+  const specials = board.rooms.filter((room) => room.id.startsWith("special-") && room.points?.length >= 3);
+  return Object.fromEntries(
+    specials.map((room) => [room.id, normalizeSpecialPolygon(room.points, room.points)]),
+  );
+}
+
+function createDefaultSpecialPolygonsByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, createDefaultSpecialPolygonMap(board.id)]),
   );
 }
 
@@ -467,7 +515,7 @@ function setHitareaCalibration(boardId, calibration) {
 function getRoomGeometry(boardId, roomId) {
   const boardGeometry = state.roomGeometryByBoard[boardId] ?? {};
   const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  return normalizeRoomGeometry(boardGeometry[roomId], room);
+  return normalizeRoomGeometry(boardGeometry[roomId], room, boardId);
 }
 
 function setRoomGeometry(boardId, roomId, geometry) {
@@ -475,12 +523,53 @@ function setRoomGeometry(boardId, roomId, geometry) {
     state.roomGeometryByBoard[boardId] = createDefaultRoomGeometryMap(boardId);
   }
   const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  state.roomGeometryByBoard[boardId][roomId] = normalizeRoomGeometry(geometry, room);
+  state.roomGeometryByBoard[boardId][roomId] = normalizeRoomGeometry(geometry, room, boardId);
 }
 
 function updateRoomGeometry(boardId, roomId, partial) {
   const previous = getRoomGeometry(boardId, roomId);
   setRoomGeometry(boardId, roomId, { ...previous, ...partial });
+}
+
+function getSpecialPolygonPoints(boardId, roomId) {
+  const boardPolygons = state.specialPolygonsByBoard[boardId] ?? {};
+  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
+  return normalizeSpecialPolygon(boardPolygons[roomId], room?.points ?? []);
+}
+
+function setSpecialPolygonPoints(boardId, roomId, points) {
+  if (!state.specialPolygonsByBoard[boardId]) {
+    state.specialPolygonsByBoard[boardId] = createDefaultSpecialPolygonMap(boardId);
+  }
+  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
+  state.specialPolygonsByBoard[boardId][roomId] = normalizeSpecialPolygon(points, room?.points ?? []);
+}
+
+function getRoomSourcePoints(room, boardId = state.boardId) {
+  if (!room.points) {
+    return [];
+  }
+  if (room.id.startsWith("special-")) {
+    return getSpecialPolygonPoints(boardId, room.id);
+  }
+  return room.points;
+}
+
+function getSpecialRooms(boardId = state.boardId) {
+  return getBoard(boardId).rooms.filter((room) => room.id.startsWith("special-"));
+}
+
+function getActivePolygonRoomId(boardId = state.boardId) {
+  const available = getSpecialRooms(boardId);
+  const preferred = state.polygonEditor.roomIdByBoard[boardId];
+  if (available.some((room) => room.id === preferred)) {
+    return preferred;
+  }
+  return available[0]?.id ?? null;
+}
+
+function setActivePolygonRoomId(boardId, roomId) {
+  state.polygonEditor.roomIdByBoard[boardId] = roomId;
 }
 
 function clampRoomIntensity(value) {
@@ -587,6 +676,107 @@ function setActiveView(view) {
   });
   openDashboardViewButton.classList.toggle("active", !showSettings);
   openSettingsViewButton.classList.toggle("active", showSettings);
+  if (showSettings) {
+    syncPolygonEditorPanel();
+  }
+  renderRoomOverlay();
+}
+
+function syncPolygonEditorStatus() {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  const room = getBoard().rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    polygonEditorStatus.textContent = "Polygoneditor: keine Spezialraeume auf diesem Board";
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, room.id);
+  polygonEditorStatus.textContent = `Polygoneditor (${room.label}): ${points.length} Ecken`;
+}
+
+function syncPolygonVertexSelect(roomId) {
+  polygonVertexSelect.replaceChildren();
+  const room = getBoard().rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    polygonVertexSelect.disabled = true;
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, room.id);
+  for (let i = 0; i < points.length; i += 1) {
+    const option = document.createElement("option");
+    option.value = String(i);
+    option.textContent = `Ecke ${i + 1}`;
+    polygonVertexSelect.append(option);
+  }
+  const maxIndex = Math.max(0, points.length - 1);
+  state.polygonEditor.selectedVertexIndex = Math.min(state.polygonEditor.selectedVertexIndex, maxIndex);
+  polygonVertexSelect.value = String(state.polygonEditor.selectedVertexIndex);
+  polygonVertexSelect.disabled = points.length === 0;
+  polygonDeleteVertexButton.disabled = points.length <= 3;
+}
+
+function syncPolygonEditorPanel() {
+  const specials = getSpecialRooms(state.boardId);
+  const previous = polygonRoomSelect.value;
+  polygonRoomSelect.replaceChildren();
+  for (const room of specials) {
+    const option = document.createElement("option");
+    option.value = room.id;
+    option.textContent = room.label;
+    polygonRoomSelect.append(option);
+  }
+  const activeRoomId = specials.some((room) => room.id === previous)
+    ? previous
+    : getActivePolygonRoomId(state.boardId);
+  if (activeRoomId) {
+    setActivePolygonRoomId(state.boardId, activeRoomId);
+    polygonRoomSelect.value = activeRoomId;
+  }
+  const disabled = specials.length === 0;
+  polygonRoomSelect.disabled = disabled;
+  polygonInsertVertexButton.disabled = disabled;
+  polygonResetRoomButton.disabled = disabled;
+  polygonFocusRoomButton.disabled = disabled;
+  syncPolygonVertexSelect(activeRoomId);
+  syncPolygonEditorStatus();
+}
+
+function renderPolygonEditorHandles() {
+  if (state.uiView !== "settings") {
+    return;
+  }
+  const roomId = getActivePolygonRoomId(state.boardId);
+  const room = getBoard().rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    return;
+  }
+  const points = getRoomPoints(room, state.boardId);
+  points.forEach(([x, y], index) => {
+    const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    handle.classList.add("polygon-vertex-handle");
+    if (index === state.polygonEditor.selectedVertexIndex) {
+      handle.classList.add("is-active");
+    }
+    handle.dataset.vertexIndex = String(index);
+    handle.setAttribute("cx", x.toFixed(1));
+    handle.setAttribute("cy", y.toFixed(1));
+    handle.setAttribute("r", "8");
+    handle.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      state.polygonEditor.dragVertexIndex = index;
+      state.polygonEditor.selectedVertexIndex = index;
+      syncPolygonVertexSelect(room.id);
+      roomOverlay.setPointerCapture(event.pointerId);
+    });
+    roomOverlay.append(handle);
+  });
+}
+
+function getNormalizedOverlayPoint(event) {
+  const rect = roomOverlay.getBoundingClientRect();
+  const rawX = (event.clientX - rect.left) / rect.width;
+  const rawY = (event.clientY - rect.top) / rect.height;
+  return [clampRoomAbsoluteCoordinate(rawX), clampRoomAbsoluteCoordinate(rawY)];
 }
 
 function syncAudioStatus() {
@@ -676,7 +866,7 @@ function getRoomCenterFromPoints(points) {
 
 function getRoomTransform(room, boardId = state.boardId) {
   const geometry = getRoomGeometry(boardId, room.id);
-  const baseCenter = getRawRoomCenter(room);
+  const baseCenter = getRawRoomCenter(room, boardId);
   const centerX = geometry.mode === "absolute" ? geometry.absoluteX : baseCenter.x + geometry.offsetX;
   const centerY = geometry.mode === "absolute" ? geometry.absoluteY : baseCenter.y + geometry.offsetY;
   return {
@@ -691,8 +881,9 @@ function getRoomPoints(room, boardId = state.boardId) {
   const calibration = getHitareaCalibration(boardId);
   const transform = getRoomTransform(room, boardId);
   if (room.points) {
-    const baseCenter = getRoomCenterFromPoints(room.points);
-    return room.points
+    const sourcePoints = getRoomSourcePoints(room, boardId);
+    const baseCenter = getRoomCenterFromPoints(sourcePoints);
+    return sourcePoints
       .map(([x, y]) => {
         const transformedX = transform.centerX + (x - baseCenter.x) * transform.stretchX;
         const transformedY = transform.centerY + (y - baseCenter.y) * transform.stretchY;
@@ -755,6 +946,11 @@ function renderRoomOverlay() {
     polygon.addEventListener("click", () => {
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
+      if (room.id.startsWith("special-")) {
+        setActivePolygonRoomId(state.boardId, room.id);
+        state.polygonEditor.selectedVertexIndex = 0;
+        syncPolygonEditorPanel();
+      }
       syncRoomPanelFromSelection();
       renderRoomOverlay();
     });
@@ -777,6 +973,8 @@ function renderRoomOverlay() {
     label.textContent = room.label.startsWith("Hex ") ? room.label.replace("Hex ", "") : room.label;
     roomOverlay.append(label);
   }
+
+  renderPolygonEditorHandles();
 }
 
 function switchBoard(boardId) {
@@ -799,6 +997,7 @@ function switchBoard(boardId) {
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
+  syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
@@ -1398,6 +1597,116 @@ roomGeometryStretchYInput.addEventListener("input", () => {
   updateSelectedRoomGeometry({ stretchY }, "Stretch Y gesetzt");
 });
 
+polygonRoomSelect.addEventListener("change", () => {
+  const roomId = polygonRoomSelect.value;
+  setActivePolygonRoomId(state.boardId, roomId);
+  state.selectedRoomId = roomId;
+  state.selectedRoomByBoard[state.boardId] = roomId;
+  state.polygonEditor.selectedVertexIndex = 0;
+  syncRoomPanelFromSelection();
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+});
+
+polygonVertexSelect.addEventListener("change", () => {
+  state.polygonEditor.selectedVertexIndex = Math.max(0, Number(polygonVertexSelect.value) || 0);
+  renderRoomOverlay();
+  syncPolygonEditorStatus();
+});
+
+polygonInsertVertexButton.addEventListener("click", () => {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, roomId);
+  const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
+  const nextIndex = (index + 1) % points.length;
+  const a = points[index];
+  const b = points[nextIndex];
+  const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  points.splice(nextIndex, 0, normalizePolygonPoint(midpoint));
+  setSpecialPolygonPoints(state.boardId, roomId, points);
+  state.polygonEditor.selectedVertexIndex = nextIndex;
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Polygon-Ecke eingefuegt";
+});
+
+polygonDeleteVertexButton.addEventListener("click", () => {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, roomId);
+  if (points.length <= 3) {
+    return;
+  }
+  const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
+  points.splice(index, 1);
+  setSpecialPolygonPoints(state.boardId, roomId, points);
+  state.polygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Polygon-Ecke geloescht";
+});
+
+polygonResetRoomButton.addEventListener("click", () => {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  const room = getBoard().rooms.find((entry) => entry.id === roomId);
+  setSpecialPolygonPoints(state.boardId, roomId, room?.points ?? []);
+  state.polygonEditor.selectedVertexIndex = 0;
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Spezialraum-Polygon auf Default gesetzt";
+});
+
+polygonFocusRoomButton.addEventListener("click", () => {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  state.selectedRoomId = roomId;
+  state.selectedRoomByBoard[state.boardId] = roomId;
+  syncRoomPanelFromSelection();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Spezialraum im Overlay fokussiert";
+});
+
+roomOverlay.addEventListener("pointermove", (event) => {
+  if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
+    return;
+  }
+  const roomId = getActivePolygonRoomId(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  const points = getSpecialPolygonPoints(state.boardId, roomId);
+  const [x, y] = getNormalizedOverlayPoint(event);
+  points[state.polygonEditor.dragVertexIndex] = [x, y];
+  setSpecialPolygonPoints(state.boardId, roomId, points);
+  renderRoomOverlay();
+  syncPolygonEditorStatus();
+});
+
+roomOverlay.addEventListener("pointerup", (event) => {
+  if (state.polygonEditor.dragVertexIndex === null) {
+    return;
+  }
+  state.polygonEditor.dragVertexIndex = null;
+  if (roomOverlay.hasPointerCapture(event.pointerId)) {
+    roomOverlay.releasePointerCapture(event.pointerId);
+  }
+  triggerFeedback.textContent = "Status: Polygon-Ecke verschoben";
+});
+
+roomOverlay.addEventListener("pointercancel", () => {
+  state.polygonEditor.dragVertexIndex = null;
+});
+
 document.querySelectorAll("button[data-global]").forEach((button) => {
   button.addEventListener("click", () => {
     const type = button.dataset.global;
@@ -1472,6 +1781,7 @@ resizeObserver.observe(stage);
 
 state.hitareaCalibrationByBoard = loadHitareaCalibrationMap();
 state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
+state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
 
 switchBoard(state.boardId);
 roomAnimationSelect.value = state.roomDraft.animationId;
@@ -1482,6 +1792,7 @@ audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
 syncAudioStatus();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
+syncPolygonEditorPanel();
 setActiveView("dashboard");
 renderRunningAnimationsList();
 refreshGlobalButtons();

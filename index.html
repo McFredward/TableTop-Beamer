@@ -112,6 +112,30 @@
           </p>
         </section>
 
+        <section class="panel settings-only view-hidden">
+          <h2>Spezialraum-Polygoneditor</h2>
+          <p class="status-line">Knoten auf dem Overlay ziehen oder per Buttons einfuegen/loeschen.</p>
+          <label>
+            Spezialraum
+            <select id="polygon-room-select"></select>
+          </label>
+          <label>
+            Aktive Ecke
+            <select id="polygon-vertex-select"></select>
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="polygon-insert-vertex" type="button">Ecke einfuegen</button>
+            <button id="polygon-delete-vertex" type="button">Ecke loeschen</button>
+          </div>
+          <div class="button-grid button-grid-2">
+            <button id="polygon-reset-room" type="button">Polygon auf Board-Default</button>
+            <button id="polygon-focus-room" type="button">Raum im Overlay auswaehlen</button>
+          </div>
+          <p id="polygon-editor-status" class="status-line" aria-live="polite">
+            Polygoneditor: Spezialraum waehlen
+          </p>
+        </section>
+
         <section class="panel dashboard-only">
           <h2>Globale Animationen</h2>
           <div class="button-grid button-grid-3">

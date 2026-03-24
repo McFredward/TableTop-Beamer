@@ -109,6 +109,18 @@ body {
   font-size: 16px;
 }
 
+.polygon-vertex-handle {
+  fill: rgba(255, 214, 125, 0.95);
+  stroke: rgba(86, 52, 0, 0.9);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+
+.polygon-vertex-handle.is-active {
+  fill: rgba(255, 130, 76, 0.95);
+}
+
 .dashboard {
   background: linear-gradient(180deg, rgba(20, 29, 45, 0.96), rgba(11, 17, 27, 0.96));
   border-left: 1px solid rgba(146, 166, 191, 0.25);
