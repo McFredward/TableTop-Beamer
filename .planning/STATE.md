@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-5
-- Last Execution Summary: `.planning/phases/phase-01/1-5-SUMMARY.md`
+- Last Executed Plan: 1-6
+- Last Execution Summary: `.planning/phases/phase-01/1-6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -48,6 +48,13 @@
 - Bekannter Kritikal-Bug: Kombination `Spezialraum + Alarm Beacon` kann visuellen Animationspfad stoppen; Fix und Regression-Guard sind P0.
 - Hitarea-Feinjustierung erfolgt ausschliesslich ueber sichtbare Slider-Settings (X/Y/Scale) und wird pro Board persistent gespeichert.
 - Render-Stabilitaet ist per Animation isoliert (`try/catch` + `try/finally`) abgesichert; Einzel-Fehler stoppen den globalen Draw-Timer nicht mehr.
+- Plan-Update 4 setzt Prioritaetsfokus: P0 raumindividuelle Kalibrierung (Position relativ/absolut + Stretch X/Y), P0 separate Settings-Seite fuer Kalibrierung/Shape, P0 Spezialraum-Polygoneditor, P1 Persistenz pro Board fuer Gesamtprofil.
+- Geometrie wird ab Plan-Update 4 nicht mehr nur global, sondern pro Raum verwaltet; Distanzkorrekturen zwischen Raeumen sind explizit erlaubt.
+- Spezialraum-Polygone duerfen als freie Formen gespeichert werden; erforderliche Editoraktionen sind Vertex Insert/Delete/Move.
+- Haupt-Dashboard bleibt Trigger-zentriert; Kalibrier- und Shape-Workflows werden ausschliesslich im Settings-Bereich gefuehrt.
+- Per-Room-Geometrie wird transform-first gerechnet (REL/ABS + Stretch), danach erst globale Hitarea-Kalibrierung angewandt.
+- Spezialraum-Polygone werden als freie Vertex-Listen pro Board gehalten und im Overlay direkt editiert.
+- Persistenz nutzt ein gemeinsames Board-Profil-Schema (`tt-beamer.board-profiles.v1`) mit Legacy-Hitarea-Fallback.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -92,4 +99,12 @@
 - Task Commits: 5 atomare Commits (`48dac0d` .. `39caaaf`)
 - Evidence:
   - `.planning/phases/phase-01/P1-T33-REGRESSION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 1 Plan 6)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-6-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`a650104` .. `f9543e9`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T39-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
