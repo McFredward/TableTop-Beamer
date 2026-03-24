@@ -321,6 +321,45 @@ const boardZoomStatus = document.querySelector("#board-zoom-status");
 const boardPanStatus = document.querySelector("#board-pan-status");
 const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
 const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
+const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
+  "board-select",
+  "output-route-select",
+  "apply-output-route",
+  "animation-speed",
+  "audio-enabled",
+  "audio-volume",
+  "audio-mapping-animation",
+  "audio-mapping-sound",
+  "board-zoom-range",
+  "board-zoom-fit",
+  "board-zoom-reset",
+  "hitarea-offset-x",
+  "hitarea-offset-y",
+  "hitarea-scale",
+  "hitarea-save",
+  "hitarea-reset",
+  "room-geometry-mode",
+  "room-geometry-x",
+  "room-geometry-y",
+  "room-geometry-stretch-x",
+  "room-geometry-stretch-y",
+  "polygon-room-select",
+  "polygon-vertex-select",
+  "polygon-edge-select",
+  "polygon-insert-vertex",
+  "polygon-delete-vertex",
+  "polygon-reset-room",
+  "polygon-focus-room",
+  "ship-polygon-vertex-select",
+  "ship-polygon-edge-select",
+  "ship-polygon-insert-vertex",
+  "ship-polygon-delete-vertex",
+  "ship-polygon-reset",
+  "outside-enabled",
+  "outside-intensity",
+  "outside-speed",
+  "outside-mode",
+ ];
 
 const ctx = canvas.getContext("2d");
 
@@ -1327,6 +1366,33 @@ function isViewGroupVisible(entry) {
   return !entry.hidden && !entry.classList.contains("view-hidden") && entry.getAttribute("aria-hidden") !== "true";
 }
 
+function validateSettingsControlOwnership({ silent = false, context = "runtime" } = {}) {
+  const leaks = [];
+  for (const id of SETTINGS_EXCLUSIVE_CONTROL_IDS) {
+    const element = document.getElementById(id);
+    if (!element) {
+      leaks.push(`missing control: #${id}`);
+      continue;
+    }
+    const viewOwner = element.closest("[data-view]");
+    const ownerView = viewOwner?.dataset?.view;
+    if (ownerView !== "settings") {
+      leaks.push(`settings-control leak: #${id} mounted in ${ownerView ?? "unknown"}`);
+      break;
+    }
+  }
+
+  if (leaks.length > 0) {
+    if (!silent) {
+      console.error(`Settings ownership violation (${context})`, leaks);
+      triggerFeedback.textContent =
+        "Status: Konfigurations-Leak erkannt (Settings-Control ausserhalb Settings gefunden)";
+    }
+    return false;
+  }
+  return true;
+}
+
 function validateViewExclusivity(expectedView, { silent = false, context = "runtime" } = {}) {
   const leaks = [];
   const expectSettings = expectedView === "settings";
@@ -1363,7 +1429,7 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
     }
     return false;
   }
-  return true;
+  return validateSettingsControlOwnership({ silent, context });
 }
 
 function setActiveView(view, { skipGuard = false } = {}) {
@@ -1407,6 +1473,7 @@ function runViewVisibilityRegression() {
     ? "small-screen"
     : "desktop";
   ok = validateViewExclusivity(state.uiView, { silent: true, context: viewportContext }) && ok;
+  ok = validateSettingsControlOwnership({ silent: true, context: `${viewportContext}-settings-ownership` }) && ok;
   setActiveView(originalView, { skipGuard: true });
   return ok;
 }
