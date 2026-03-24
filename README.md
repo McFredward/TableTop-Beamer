@@ -30,7 +30,7 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 - Save + Diagnose pruefen den Endpunkt vor dem eigentlichen POST mit:
   - `GET /api/health`
   - `OPTIONS /api/global-defaults` (POST erlaubt?)
-- Im `Settings`-Tab zeigt **API Diagnose (One-Click)** den aktiven Endpoint und konkrete Next Steps.
+- Im `Settings`-Tab zeigt der Save-Preflight den aktiven Endpoint und konkrete Next Steps direkt im Save-/Diagnose-Feedback.
 
 ### Kurzsequenz (wenn du getrennt startest)
 

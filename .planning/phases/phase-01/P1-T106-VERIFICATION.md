@@ -9,7 +9,7 @@ Pflichtabnahme fuer P1-T102..P1-T106:
 - robuste API-Base-Aufloesung (inkl. Port-Fallback)
 - Save-Preflight (`GET /api/health` + `OPTIONS /api/global-defaults`)
 - endpoint-transparente Save-Fehlermeldungen
-- One-Click `API Diagnose` im Settings-Tab
+- Diagnose im Save-Kontext (ohne separaten Button)
 - reproduzierbarer Save bei laufender API (5x + Restart)
 
 ## Automatisierte Checks

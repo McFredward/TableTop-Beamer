@@ -174,5 +174,5 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T117 [P0] Settings-UI bereinigen: dedizierten Button `API Diagnose` entfernen und Diagnose ausschliesslich ueber Save-Preflight + Feedback fuehren.
 - [x] DONE P1-T118 [P0] Download-Fallback in der UI neutral umbenennen (kein `Notfall`-Label in Button-/Hint-/Status-Texten).
 - [x] DONE P1-T119 [P0] Save-/Diagnose-Textbausteine konsolidieren: host-transparente Next Steps beibehalten, aber alle Button-Referenzen auf `API Diagnose` entfernen.
-- [ ] TODO P1-T120 [P1] Phase-01-Doku- und QA-Texte auf neutrales Fallback-Wording vereinheitlichen (`sekundaerer Fallback` statt `Notfallpfad`).
+- [x] DONE P1-T120 [P1] Phase-01-Doku- und QA-Texte auf neutrales Fallback-Wording vereinheitlichen (`sekundaerer Fallback` statt `Notfallpfad`).
 - [ ] TODO P1-T121 [P0] Pflichtabnahme + Regression fuer Plan-Update 19 dokumentieren (kein Diagnose-Button sichtbar, Diagnose ueber Save weiterhin nutzbar, neutrales Export-Wording konsistent).

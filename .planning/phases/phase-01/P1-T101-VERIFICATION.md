@@ -8,7 +8,7 @@ Scope: P1-T97 .. P1-T101 (Save-Transport-Repair, API-Fehler-UX, Startdoku, optio
 - **P1-T97:** Global-Defaults-Save-Transport gehaertet (API-Candidate-Aufloesung im Client + robustes Server-Routing fuer `/api/global-defaults` mit/ohne Trailing-Slash).
 - **P1-T98:** Save-Fehlerpfad klassifiziert (`API unreachable`, `method unavailable`, `HTML error`, `server error`) und auf kurze Klartextmeldungen mit Startanweisung umgestellt.
 - **P1-T99:** README-Startflow auf POST-faehigen Node-Server (`node server.mjs`) geschliffen, inkl. Kurzsequenz API + Frontend.
-- **P1-T100:** Optionaler Download-/Export-Fallback als explizit sekundaerer Notfallpfad im Settings-Save-Bereich ergaenzt.
+- **P1-T100:** Optionaler Download-/Export-Fallback als explizit sekundaerer Fallback im Settings-Save-Bereich ergaenzt.
 
 ## 2) Akzeptanzabgleich (Plan Update 15)
 
@@ -49,8 +49,8 @@ Ergebnis:
 ### D) Optionaler Fallback bleibt sekundaer (P0az)
 
 Nachweis:
-- Neuer Settings-Button `Notfall-Export herunterladen (sekundaer)` vorhanden.
-- UI-Hinweistext + Statusfeedback markieren den Download klar als Notfallpfad.
+- Neuer Settings-Button `Download-Export herunterladen (sekundaer)` vorhanden.
+- UI-Hinweistext + Statusfeedback markieren den Download klar als sekundaeren Fallback.
 - Primaerer Pfad bleibt unveraendert der API-Save via `Speichern`.
 
 Ergebnis:
@@ -78,7 +78,7 @@ In-App Guards (weiterhin aktiv):
 1. **API-Method-Check:** Save auf Node-Setup triggern, kein `501 Unsupported method POST`.
 2. **API-Offline-UX-Check:** Save bei statischem Server ohne API triggern; kurze Startanweisung statt HTML-Rohinhalt.
 3. **Start-Flow-Doku-Check:** README auf API-Pflicht + Startsequenz pruefen.
-4. **Optional-Fallback-Check:** Notfall-Export ausfuehren; Sekundaer-Label und Hinweistext bestaetigen.
+4. **Optional-Fallback-Check:** Download-Export ausfuehren; Sekundaer-Label und Hinweistext bestaetigen.
 
 ## 5) Betroffene Dateien
 
@@ -91,4 +91,4 @@ In-App Guards (weiterhin aktiv):
 
 ## 6) Fazit
 
-Plan-Update-15 ist im Scope umgesetzt: Der Save-Transport ist auf das Node-API-Setup gehaertet, der Fehlerpfad liefert klare Operator-Hinweise statt HTML-Dumps, die Startdoku fuehrt explizit ueber den POST-faehigen Server, und ein optionaler Download-Fallback ist als sekundaerer Notfallpfad verfuegbar.
+Plan-Update-15 ist im Scope umgesetzt: Der Save-Transport ist auf das Node-API-Setup gehaertet, der Fehlerpfad liefert klare Operator-Hinweise statt HTML-Dumps, die Startdoku fuehrt explizit ueber den POST-faehigen Server, und ein optionaler Download-Fallback ist als sekundaerer Fallback verfuegbar.
