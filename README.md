@@ -4,13 +4,24 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 
 ## Starten
 
-1. Im Projektordner den lokalen App-Server starten:
+1. **API + Frontend gemeinsam starten (empfohlen fuer Save-Flow):**
    - `node server.mjs`
 2. Browser offnen: `http://localhost:4173`
 3. Optional `F11` fur Fullscreen auf dem Beamer.
 
-Hinweis: Der Button `Speichern (lokal -> globale Defaults)` benoetigt den integrierten
-`server.mjs`, damit die Daten in `config/global-defaults.json` geschrieben werden koennen.
+### Wichtiger Save-Hinweis
+
+- Der Button `Speichern (lokal -> globale Defaults)` schreibt per `POST /api/global-defaults` nach
+  `config/global-defaults.json`.
+- Dafuer muss ein **POST-faehiger API-Server** laufen (`node server.mjs`).
+- Ein reiner Static-Server oder Datei-Hosting ohne API reicht **nicht** fuer Save (typischer Fehler:
+  `501 Unsupported method POST`).
+
+### Kurzsequenz (wenn du getrennt startest)
+
+1. Terminal A: `node server.mjs` (API fuer Save auf Port 4173)
+2. Terminal B: optional eigener Frontend-Server
+3. Fuer Save immer die App ueber `http://localhost:4173` nutzen
 
 ## Session-Flow (Phase 1)
 
