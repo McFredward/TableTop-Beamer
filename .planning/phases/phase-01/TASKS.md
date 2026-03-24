@@ -72,3 +72,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T43 [P0] Vertex-Operationen komplettieren: aktive Ecke loeschen (mit Mindestpunkt-Guard) und neue Ecke an ausgewaehlter Kante einfuegen.
 - [x] DONE P1-T44 [P0] Persistenz-Compatibility-Layer bauen: bestehende kalibrierte Raumdaten aus Legacy-Profilen migrieren und im aktuellen Schema verlustfrei speichern.
 - [x] DONE P1-T45 [P1] Plan-Update-5 Pflichtabnahme + Regression dokumentieren (View-Switch, Polygoneditor UX, Persistenz-Reload/App-Neustart).
+
+## Priority Add-on - Plan Update 6
+- [x] DONE P1-T46 [P0] View-Switch final haerten: `Dashboard` nur Trigger-/Animations-Controls, `Settings` nur Geometrie/Polygon/Kalibrierung; harte Exklusivitaet je Tab auf Gruppenebene absichern.
+- [x] DONE P1-T47 [P0] Sichtbarkeits-Regressionstest fuer Tabwechsel bauen (mind. 10x Toggle, Desktop + Small-Screen), inkl. Guard gegen partiell sichtbare Rest-Elemente.
+- [x] DONE P1-T48 [P0] Vertex-Handles visuell entschlacken: deutlich transparentere Bubbles mit weiterhin klarer Selektion (Border/Active-State/Hitflaeche).
+- [x] DONE P1-T49 [P0] Spezialraum-Animationen auf volle Polygonflaeche skalieren (raumgroessenunabhaengig, kein Insel-Rendering in grossen Polygonen).
+- [x] DONE P1-T50 [P0] Persistenzschutz fuer bestehende Spezialraum-Polygone ergaenzen (Save/Reload/Restart + Boardwechsel ohne Datenverlust).
+- [x] DONE P1-T51 [P1] Plan-Update-6 Pflichtabnahme + Regression dokumentieren (View-Exklusivitaet, Handle-Transparenz, Vollflaechen-Animation, Polygon-Persistenz).
