@@ -1639,6 +1639,158 @@ function downloadGlobalDefaultsFallback() {
   return fileName;
 }
 
+function hasStoredBoardProfilesInLocalStorage() {
+  try {
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    if (!raw) {
+      return false;
+    }
+    const parsed = JSON.parse(raw);
+    const candidate = extractBoardProfilesCandidate(parsed);
+    if (!candidate || typeof candidate !== "object") {
+      return false;
+    }
+    return BOARDS.some((board) => candidate[board.id] && typeof candidate[board.id] === "object");
+  } catch {
+    return false;
+  }
+}
+
+function listGlobalDefaultsLoadCandidates() {
+  const seen = new Set();
+  const candidates = [];
+
+  function addCandidate(endpoint, source, routing = null) {
+    if (!endpoint || seen.has(endpoint)) {
+      return;
+    }
+    seen.add(endpoint);
+    candidates.push({ endpoint, source, routing });
+  }
+
+  for (const candidate of resolveGlobalDefaultsApiCandidates()) {
+    addCandidate(candidate.endpoint, candidate.source, candidate);
+  }
+
+  const origin = window.location?.origin;
+  if (origin) {
+    addCandidate(`${origin}/config/global-defaults.json`, "static:ui-origin-config");
+  }
+  addCandidate("/config/global-defaults.json", "static:relative-config");
+
+  return candidates;
+}
+
+async function fetchGlobalDefaultsPayload() {
+  const candidates = listGlobalDefaultsLoadCandidates();
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetchWithTimeout(candidate.endpoint, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      });
+      if (!response.ok) {
+        lastError = buildGlobalDefaultsSaveError({
+          code: "API_REQUEST_FAILED",
+          status: response.status,
+          statusClass: classifyHttpStatus(response.status),
+          endpoint: candidate.endpoint,
+          method: "GET",
+          routing: candidate.routing,
+        });
+        continue;
+      }
+      const payload = await response.json();
+      if (!payload || typeof payload !== "object") {
+        continue;
+      }
+      return {
+        payload,
+        endpoint: candidate.endpoint,
+        source: candidate.source,
+        routing: candidate.routing,
+      };
+    } catch (error) {
+      lastError =
+        error instanceof Error && "code" in error
+          ? error
+          : buildGlobalDefaultsSaveError({
+              code: "API_UNREACHABLE",
+              details: error instanceof Error ? error.message : "defaults load failed",
+              endpoint: candidate.endpoint,
+              method: "GET",
+              routing: candidate.routing,
+            });
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+
+  throw buildGlobalDefaultsSaveError({
+    code: "API_REQUEST_FAILED",
+    details: "no defaults endpoint reachable",
+    endpoint: "n/a",
+    method: "GET",
+  });
+}
+
+function applyGlobalDefaultsPayloadToState(payload) {
+  const boardCandidate = extractBoardProfilesCandidate(payload);
+  if (boardCandidate) {
+    const migratedProfiles = buildMigratedBoardProfiles(
+      boardCandidate,
+      state.hitareaCalibrationByBoard,
+      state.roomGeometryByBoard,
+      state.specialPolygonsByBoard,
+    );
+    applyBoardProfilesToState(migratedProfiles);
+  }
+
+  if (payload?.audio && typeof payload.audio === "object") {
+    state.audio.enabled = Boolean(payload.audio.enabled);
+    const nextVolume = Number(payload.audio.volume);
+    if (Number.isFinite(nextVolume)) {
+      state.audio.volume = Math.max(0, Math.min(1, nextVolume));
+    }
+  }
+
+  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
+    state.animationSpeed = clampAnimationSpeed(payload.animationSpeed);
+  }
+
+  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
+    state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
+  }
+}
+
+async function autoLoadGlobalDefaultsForFreshDevice() {
+  if (hasStoredBoardProfilesInLocalStorage()) {
+    return {
+      attempted: false,
+      applied: false,
+      reason: "local-profiles-present",
+    };
+  }
+
+  const loaded = await fetchGlobalDefaultsPayload();
+  applyGlobalDefaultsPayloadToState(loaded.payload);
+  const persisted = persistBoardProfiles();
+  return {
+    attempted: true,
+    applied: true,
+    persisted,
+    source: loaded.source,
+    endpoint: loaded.endpoint,
+    routing: loaded.routing,
+  };
+}
+
 function createDefaultHitareaCalibrationMap() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
@@ -5085,62 +5237,93 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 resizeObserver.observe(stage);
 
-state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
-state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
-state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
-state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
-state.outsideFxByBoard = createDefaultOutsideFxByBoard();
-state.boardZoomByBoard = createDefaultBoardZoomByBoard();
-state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
-state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
-loadBoardProfiles();
-
-switchBoard(state.boardId);
-roomAnimationSelect.value = state.roomDraft.animationId;
-roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
-roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
-roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
-syncRoomDraftActionButton();
-audioEnabledInput.checked = state.audio.enabled;
-audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
-audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
-warmEventSoundAssets();
-applyAudioGain();
-syncAudioStatus();
-syncAudioMappingPanel();
-syncAnimationSpeedPanel();
-syncHitareaCalibrationPanel();
-syncRoomGeometryPanel();
-syncPolygonEditorPanel();
-syncShipPolygonEditorPanel();
-syncOutsideFxPanel();
-syncBoardZoomPanel();
-syncDashboardZoneVisibility();
-updateMobilePerformanceStatus();
-setActiveView("dashboard");
-setPanCursorState();
-const viewRegressionOk = runViewVisibilityRegression();
-const layoutRegressionOk = runLayoutScrollRegression();
-const zoomPanRegressionOk = runZoomPanEditRegression();
-const panPointerRegressionOk = runPanPointerCaptureRegression();
-const orientationRegressionOk = runOrientationStateRegression();
-const outsideIsolationRegressionOk = runOutsideIsolationRegression();
-const shipClipRegressionOk = runShipClipRegression();
-if (
-  !viewRegressionOk ||
-  !layoutRegressionOk ||
-  !zoomPanRegressionOk ||
-  !panPointerRegressionOk ||
-  !orientationRegressionOk ||
-  !outsideIsolationRegressionOk ||
-  !shipClipRegressionOk
-) {
-  triggerFeedback.textContent =
-    "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
-} else {
-  triggerFeedback.textContent =
-    "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
+function syncRuntimePanelsFromState() {
+  switchBoard(state.boardId);
+  roomAnimationSelect.value = state.roomDraft.animationId;
+  roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+  roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
+  roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
+  syncRoomDraftActionButton();
+  audioEnabledInput.checked = state.audio.enabled;
+  audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
+  audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
+  applyAudioGain();
+  syncAudioStatus();
+  syncAudioMappingPanel();
+  syncAnimationSpeedPanel();
+  syncHitareaCalibrationPanel();
+  syncRoomGeometryPanel();
+  syncPolygonEditorPanel();
+  syncShipPolygonEditorPanel();
+  syncOutsideFxPanel();
+  syncBoardZoomPanel();
+  syncDashboardZoneVisibility();
+  updateMobilePerformanceStatus();
 }
-renderRunningAnimationsList();
-refreshGlobalButtons();
-requestAnimationFrame(draw);
+
+async function initializeApplication() {
+  state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
+  state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
+  state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
+  state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
+  state.outsideFxByBoard = createDefaultOutsideFxByBoard();
+  state.boardZoomByBoard = createDefaultBoardZoomByBoard();
+  state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
+  state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
+  loadBoardProfiles();
+  let startupDefaultsSnapshot = null;
+
+  try {
+    const bootstrap = await autoLoadGlobalDefaultsForFreshDevice();
+    if (bootstrap.applied) {
+      syncRuntimePanelsFromState();
+      startupDefaultsSnapshot = buildResolveSnapshot({
+        routing: bootstrap.routing,
+        endpoint: bootstrap.endpoint,
+        method: "GET",
+      });
+    }
+  } catch {
+    // startup autoload is best-effort; keep local runtime defaults
+  }
+
+  syncRuntimePanelsFromState();
+  if (startupDefaultsSnapshot) {
+    globalDefaultsStatus.textContent =
+      `Global Defaults: automatisch geladen & angewendet (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+    triggerFeedback.textContent =
+      `Status: Startup-Defaults aktiv (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+    apiDiagnoseStatus.textContent =
+      `API Diagnose: Startup-Load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+  }
+  warmEventSoundAssets();
+  setActiveView("dashboard");
+  setPanCursorState();
+  const viewRegressionOk = runViewVisibilityRegression();
+  const layoutRegressionOk = runLayoutScrollRegression();
+  const zoomPanRegressionOk = runZoomPanEditRegression();
+  const panPointerRegressionOk = runPanPointerCaptureRegression();
+  const orientationRegressionOk = runOrientationStateRegression();
+  const outsideIsolationRegressionOk = runOutsideIsolationRegression();
+  const shipClipRegressionOk = runShipClipRegression();
+  if (
+    !viewRegressionOk ||
+    !layoutRegressionOk ||
+    !zoomPanRegressionOk ||
+    !panPointerRegressionOk ||
+    !orientationRegressionOk ||
+    !outsideIsolationRegressionOk ||
+    !shipClipRegressionOk
+  ) {
+    triggerFeedback.textContent =
+      "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
+  } else {
+    triggerFeedback.textContent =
+      "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
+  }
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  requestAnimationFrame(draw);
+}
+
+void initializeApplication();
