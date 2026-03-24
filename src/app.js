@@ -287,6 +287,11 @@ const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex
 const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
 const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
 const polygonEditorStatus = document.querySelector("#polygon-editor-status");
+const boardZoomRangeInput = document.querySelector("#board-zoom-range");
+const boardZoomValue = document.querySelector("#board-zoom-value");
+const boardZoomFitButton = document.querySelector("#board-zoom-fit");
+const boardZoomResetButton = document.querySelector("#board-zoom-reset");
+const boardZoomStatus = document.querySelector("#board-zoom-status");
 const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
 const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
 
@@ -312,6 +317,12 @@ const ROOM_GEOMETRY_DEFAULT = {
   stretchY: 1,
 };
 
+const BOARD_ZOOM_DEFAULT = {
+  scale: 1,
+  originX: 0.5,
+  originY: 0.5,
+};
+
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -332,6 +343,7 @@ const state = {
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
   specialPolygonsByBoard: {},
+  boardZoomByBoard: {},
   polygonEditor: {
     roomIdByBoard: {},
     selectedVertexIndex: 0,
@@ -381,6 +393,30 @@ function clampRoomRelativeOffset(value) {
 
 function clampRoomAbsoluteCoordinate(value) {
   return Math.max(-0.2, Math.min(1.2, value));
+}
+
+function clampBoardZoomScale(value) {
+  return Math.max(1, Math.min(3, value));
+}
+
+function normalizeBoardZoomProfile(profile) {
+  return {
+    scale: clampBoardZoomScale(Number(profile?.scale) || BOARD_ZOOM_DEFAULT.scale),
+    originX: clampRoomAbsoluteCoordinate(Number(profile?.originX) || BOARD_ZOOM_DEFAULT.originX),
+    originY: clampRoomAbsoluteCoordinate(Number(profile?.originY) || BOARD_ZOOM_DEFAULT.originY),
+  };
+}
+
+function createDefaultBoardZoomByBoard() {
+  return Object.fromEntries(BOARDS.map((board) => [board.id, { ...BOARD_ZOOM_DEFAULT }]));
+}
+
+function getBoardZoom(boardId = state.boardId) {
+  return normalizeBoardZoomProfile(state.boardZoomByBoard[boardId]);
+}
+
+function setBoardZoom(boardId, profile) {
+  state.boardZoomByBoard[boardId] = normalizeBoardZoomProfile(profile);
 }
 
 function clampRoomStretch(value) {
@@ -801,6 +837,104 @@ function setActivePolygonRoomId(boardId, roomId) {
   state.polygonEditor.roomIdByBoard[boardId] = roomId;
 }
 
+function getRoomCenterForZoom(boardId = state.boardId, roomId = getActivePolygonRoomId(boardId)) {
+  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    return {
+      x: BOARD_ZOOM_DEFAULT.originX,
+      y: BOARD_ZOOM_DEFAULT.originY,
+    };
+  }
+  const points = getRoomPoints(room, boardId);
+  if (!points.length) {
+    const fallback = getRawRoomCenter(room, boardId);
+    return { x: fallback.x, y: fallback.y };
+  }
+  const center = points.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x / 1000, y: acc.y + y / 1000 }),
+    { x: 0, y: 0 },
+  );
+  return {
+    x: center.x / points.length,
+    y: center.y / points.length,
+  };
+}
+
+function syncStageZoomTransform() {
+  const zoom = state.uiView === "settings"
+    ? getBoardZoom(state.boardId)
+    : BOARD_ZOOM_DEFAULT;
+  stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
+  stage.style.setProperty("--stage-zoom-origin-x", `${(zoom.originX * 100).toFixed(2)}%`);
+  stage.style.setProperty("--stage-zoom-origin-y", `${(zoom.originY * 100).toFixed(2)}%`);
+}
+
+function syncBoardZoomStatus() {
+  const zoom = getBoardZoom(state.boardId);
+  const percent = Math.round(zoom.scale * 100);
+  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%)`;
+}
+
+function syncBoardZoomPanel() {
+  const zoom = getBoardZoom(state.boardId);
+  const percent = Math.round(zoom.scale * 100);
+  boardZoomRangeInput.value = String(percent);
+  boardZoomValue.textContent = `${percent}%`;
+  syncBoardZoomStatus();
+  syncStageZoomTransform();
+}
+
+function updateCurrentBoardZoom(partial, statusText = null) {
+  const current = getBoardZoom(state.boardId);
+  setBoardZoom(state.boardId, {
+    ...current,
+    ...partial,
+  });
+  syncBoardZoomPanel();
+  if (statusText) {
+    triggerFeedback.textContent = `Status: ${statusText}`;
+  }
+}
+
+function fitZoomToActiveSpecialRoom() {
+  const roomId = getActivePolygonRoomId(state.boardId);
+  const room = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId);
+  if (!room) {
+    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom auf Default gesetzt");
+    return;
+  }
+
+  const points = getRoomPoints(room, state.boardId).map(([x, y]) => [x / 1000, y / 1000]);
+  if (!points.length) {
+    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom auf Default gesetzt");
+    return;
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const [x, y] of points) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+
+  const boxSize = Math.max(0.05, maxX - minX, maxY - minY);
+  const targetCoverage = 0.45;
+  const scale = clampBoardZoomScale(targetCoverage / boxSize);
+  const center = getRoomCenterForZoom(state.boardId, room.id);
+  updateCurrentBoardZoom(
+    {
+      scale,
+      originX: center.x,
+      originY: center.y,
+    },
+    `${room.label} gezoomt (${Math.round(scale * 100)}%)`,
+  );
+}
+
 function clampRoomIntensity(value) {
   return Math.max(0.2, Math.min(1.5, value));
 }
@@ -964,6 +1098,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
   if (showSettings) {
     syncPolygonEditorPanel();
   }
+  syncStageZoomTransform();
   renderRoomOverlay();
   if (!skipGuard) {
     validateViewExclusivity(nextView, { context: "set-active-view" });
@@ -1520,6 +1655,7 @@ function switchBoard(boardId) {
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
+  syncBoardZoomPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
@@ -2133,12 +2269,40 @@ roomGeometryStretchYInput.addEventListener("input", () => {
   updateSelectedRoomGeometry({ stretchY }, "Stretch Y gesetzt");
 });
 
+boardZoomRangeInput.addEventListener("input", () => {
+  const scale = clampBoardZoomScale((Number(boardZoomRangeInput.value) || 100) / 100);
+  const center = getRoomCenterForZoom(state.boardId);
+  updateCurrentBoardZoom(
+    {
+      scale,
+      originX: center.x,
+      originY: center.y,
+    },
+    `Board-Zoom auf ${Math.round(scale * 100)}% gesetzt`,
+  );
+});
+
+boardZoomFitButton.addEventListener("click", () => {
+  fitZoomToActiveSpecialRoom();
+});
+
+boardZoomResetButton.addEventListener("click", () => {
+  updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Board-Zoom zurueckgesetzt");
+});
+
 polygonRoomSelect.addEventListener("change", () => {
   const roomId = polygonRoomSelect.value;
   setActivePolygonRoomId(state.boardId, roomId);
   state.selectedRoomId = roomId;
   state.selectedRoomByBoard[state.boardId] = roomId;
   state.polygonEditor.selectedVertexIndex = 0;
+  const zoom = getBoardZoom(state.boardId);
+  const center = getRoomCenterForZoom(state.boardId, roomId);
+  updateCurrentBoardZoom({
+    scale: zoom.scale,
+    originX: center.x,
+    originY: center.y,
+  });
   syncRoomPanelFromSelection();
   syncPolygonEditorPanel();
   renderRoomOverlay();
@@ -2354,6 +2518,7 @@ resizeObserver.observe(stage);
 state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
 state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
 state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
+state.boardZoomByBoard = createDefaultBoardZoomByBoard();
 loadBoardProfiles();
 
 switchBoard(state.boardId);
@@ -2366,6 +2531,7 @@ syncAudioStatus();
 syncHitareaCalibrationPanel();
 syncRoomGeometryPanel();
 syncPolygonEditorPanel();
+syncBoardZoomPanel();
 setActiveView("dashboard");
 const viewRegressionOk = runViewVisibilityRegression();
 const layoutRegressionOk = runLayoutScrollRegression();

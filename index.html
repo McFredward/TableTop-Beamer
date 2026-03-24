@@ -70,6 +70,20 @@
         </section>
 
         <section class="panel settings-only view-hidden" data-view="settings" hidden>
+          <h2>Board-Zoom (Settings)</h2>
+          <p class="status-line">Praezisionszoom fuer Spezialraum-Polygone inkl. Fit/Reset.</p>
+          <label>
+            Zoom <span id="board-zoom-value">100%</span>
+            <input id="board-zoom-range" type="range" min="100" max="300" step="1" value="100" />
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="board-zoom-fit" type="button">Auf Spezialraum fitten</button>
+            <button id="board-zoom-reset" type="button">Zoom zuruecksetzen</button>
+          </div>
+          <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
+        </section>
+
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
           <h2>Hitarea Calibration</h2>
           <p class="status-line">Manuelle Feinjustierung fuer Hit-Test/Overlay (pro aktivem Board).</p>
           <div class="calibration-grid">

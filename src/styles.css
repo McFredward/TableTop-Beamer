@@ -42,6 +42,9 @@ body {
 }
 
 .stage {
+  --stage-zoom-scale: 1;
+  --stage-zoom-origin-x: 50%;
+  --stage-zoom-origin-y: 50%;
   position: relative;
   width: min(95vw, calc((100vh - 2rem) * (7978 / 5456)), 1280px);
   aspect-ratio: 7978 / 5456;
@@ -49,6 +52,9 @@ body {
   overflow: hidden;
   border: 1px solid #3d4d66;
   box-shadow: 0 1rem 2.2rem rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform: scale(var(--stage-zoom-scale));
+  transform-origin: var(--stage-zoom-origin-x) var(--stage-zoom-origin-y);
+  transition: transform 120ms ease;
 }
 
 #board-image,
