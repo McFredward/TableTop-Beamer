@@ -141,3 +141,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P1-T94 [P0] Runtime-Modell pro Room-Animation-Instanz um `speed`, `intensity`, `soundVolume` erweitern und in Start/Update/Stop konsistent nutzen.
 - [x] DONE P1-T95 [P0] P0-Bugfix Running-List-`Edit`: bestehende laufende Instanz laden, Edit-Werte in-place auf dieselbe `animation.id` anwenden, kein Neu-Eintrag.
 - [x] DONE P1-T96 [P1] Plan-Update-14 Pflichtabnahme + Regression dokumentieren (Outside-Richtung + Black-Background, Per-Instance-Room-Parameter, Edit-in-place).
+
+## Priority Add-on - Plan Update 15
+- [x] DONE P1-T97 [P0] Global-Defaults-Save-Pfad haerten: POST-Flow im vorgesehenen Node-Setup reparieren, `501 Unsupported method POST` eliminieren und Save-Zielpfad deterministisch absichern.
+- [ ] TODO P1-T98 [P0] Save-Fehler-UX verbessern: bei fehlendem API-Server kurze Klartextmeldung mit konkreter Startanweisung statt HTML-Fehlerdump ausgeben.
+- [ ] TODO P1-T99 [P0] Start-Flow dokumentieren: klarer Hinweis auf POST-faehigen API-Server (`node server.mjs`) inkl. kurzer Startsequenz fuer Frontend + API.
+- [ ] TODO P1-T100 [P1] Optionalen Export-/Download-Fallback fuer API-Ausfall integrieren, klar als Sekundaerpfad markieren (primaerer Server-Save bleibt Standard).
+- [ ] TODO P1-T101 [P1] Plan-Update-15 Pflichtabnahme + Regression dokumentieren (Save-Robustheit, API-offline UX, Doku-Konsistenz, optionaler Fallback).

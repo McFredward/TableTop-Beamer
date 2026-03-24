@@ -47,6 +47,16 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
+function normalizeRoutePath(urlValue = "/") {
+  try {
+    const routeUrl = new URL(urlValue, "http://localhost");
+    const pathname = routeUrl.pathname || "/";
+    return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  } catch {
+    return "/";
+  }
+}
+
 function isValidPolygon(points) {
   return (
     Array.isArray(points) &&
@@ -175,12 +185,14 @@ async function handleStaticFile(req, res) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (req.method === "POST" && req.url === "/api/global-defaults") {
+    const routePath = normalizeRoutePath(req.url || "/");
+
+    if (req.method === "POST" && routePath === "/api/global-defaults") {
       await handleGlobalDefaultsSave(req, res);
       return;
     }
 
-    if (req.method === "GET" && req.url === "/api/global-defaults") {
+    if (req.method === "GET" && routePath === "/api/global-defaults") {
       try {
         const content = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
         const parsed = JSON.parse(content);

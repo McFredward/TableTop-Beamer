@@ -386,6 +386,7 @@ const HITAREA_CALIBRATION_STORAGE_KEY = "tt-beamer.hitarea-calibration.v1";
 const BOARD_PROFILE_STORAGE_KEY = "tt-beamer.board-profiles.v1";
 const ROOM_GEOMETRY_STORAGE_KEY = "tt-beamer.room-geometry.v1";
 const SPECIAL_POLYGON_STORAGE_KEY = "tt-beamer.special-polygons.v1";
+const FALLBACK_API_ORIGIN = "http://localhost:4173";
 
 const ROOM_GEOMETRY_DEFAULT = {
   mode: "relative",
@@ -1077,22 +1078,50 @@ function buildGlobalDefaultsPayload() {
 
 async function saveGlobalDefaultsToServer() {
   const payload = buildGlobalDefaultsPayload();
-  const response = await fetch("/api/global-defaults", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `HTTP ${response.status}`);
+  const apiCandidates = resolveGlobalDefaultsApiCandidates();
+  const requestBody = JSON.stringify(payload);
+  let lastError = null;
+
+  for (const endpoint of apiCandidates) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: requestBody,
+      });
+
+      if (!response.ok) {
+        const details = await response.text();
+        lastError = new Error(details || `HTTP ${response.status}`);
+        continue;
+      }
+
+      const result = await response.json();
+      return {
+        savedAt: result?.savedAt ?? payload.savedAt,
+        target: result?.target ?? "config/global-defaults.json",
+      };
+    } catch (error) {
+      lastError = error;
+    }
   }
-  const result = await response.json();
-  return {
-    savedAt: result?.savedAt ?? payload.savedAt,
-    target: result?.target ?? "config/global-defaults.json",
-  };
+
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error("Global Defaults Save fehlgeschlagen");
+}
+
+function resolveGlobalDefaultsApiCandidates() {
+  const endpoints = ["/api/global-defaults"];
+  if (!window.location?.origin || window.location.origin === "null") {
+    endpoints.push(`${FALLBACK_API_ORIGIN}/api/global-defaults`);
+  } else if (window.location.origin !== FALLBACK_API_ORIGIN) {
+    endpoints.push(`${FALLBACK_API_ORIGIN}/api/global-defaults`);
+  }
+  return Array.from(new Set(endpoints));
 }
 
 function createDefaultHitareaCalibrationMap() {
