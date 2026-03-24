@@ -1094,7 +1094,12 @@ async function saveGlobalDefaultsToServer() {
 
       if (!response.ok) {
         const details = await response.text();
-        lastError = new Error(details || `HTTP ${response.status}`);
+        lastError = buildGlobalDefaultsSaveError({
+          code: classifyFailedSaveResponse(response, details),
+          status: response.status,
+          details,
+          endpoint,
+        });
         continue;
       }
 
@@ -1104,7 +1109,14 @@ async function saveGlobalDefaultsToServer() {
         target: result?.target ?? "config/global-defaults.json",
       };
     } catch (error) {
-      lastError = error;
+      lastError =
+        error instanceof Error && "code" in error
+          ? error
+          : buildGlobalDefaultsSaveError({
+              code: "API_UNREACHABLE",
+              details: error instanceof Error ? error.message : "request failed",
+              endpoint,
+            });
     }
   }
 
@@ -1122,6 +1134,55 @@ function resolveGlobalDefaultsApiCandidates() {
     endpoints.push(`${FALLBACK_API_ORIGIN}/api/global-defaults`);
   }
   return Array.from(new Set(endpoints));
+}
+
+function classifyFailedSaveResponse(response, details) {
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  const body = String(details || "").toLowerCase();
+  if (response.status === 405 || response.status === 501) {
+    return "API_METHOD_UNAVAILABLE";
+  }
+  if (contentType.includes("text/html") || body.includes("<html") || body.includes("<!doctype")) {
+    return "API_HTML_ERROR";
+  }
+  if (response.status >= 500) {
+    return "API_SERVER_ERROR";
+  }
+  return "API_REQUEST_FAILED";
+}
+
+function buildGlobalDefaultsSaveError({ code, status = null, details = "", endpoint = "" }) {
+  const error = new Error(`Global Defaults Save fehlgeschlagen (${code})`);
+  error.code = code;
+  error.status = status;
+  error.details = details;
+  error.endpoint = endpoint;
+  return error;
+}
+
+function formatGlobalDefaultsSaveError(error) {
+  const code = error && typeof error === "object" && "code" in error ? error.code : "UNKNOWN";
+  const startHint = "Starte im Projektordner den API-Server mit `node server.mjs` und nutze http://localhost:4173.";
+  if (
+    code === "API_UNREACHABLE" ||
+    code === "API_HTML_ERROR" ||
+    code === "API_METHOD_UNAVAILABLE"
+  ) {
+    return {
+      statusText: "Speichern fehlgeschlagen - API-Server fehlt oder falscher Server aktiv.",
+      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar. ${startHint}`,
+    };
+  }
+  if (code === "API_SERVER_ERROR") {
+    return {
+      statusText: "Speichern fehlgeschlagen - API-Serverfehler.",
+      feedbackText: "Status: API-Server hat den Save-Request nicht verarbeitet (Server-Log pruefen).",
+    };
+  }
+  return {
+    statusText: "Speichern fehlgeschlagen - bitte Save-Setup pruefen.",
+    feedbackText: `Status: Save fehlgeschlagen. ${startHint}`,
+  };
 }
 
 function createDefaultHitareaCalibrationMap() {
@@ -4233,9 +4294,9 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     globalDefaultsStatus.textContent = `Global Defaults: gespeichert (${result.target}, ${result.savedAt})`;
     triggerFeedback.textContent = "Status: Global Defaults aus lokalem Browserstand gespeichert";
   } catch (error) {
-    const reason = error instanceof Error ? error.message : "unbekannter Fehler";
-    globalDefaultsStatus.textContent = `Global Defaults: Speichern fehlgeschlagen (${reason})`;
-    triggerFeedback.textContent = "Status: Global Defaults konnten nicht gespeichert werden";
+    const saveError = formatGlobalDefaultsSaveError(error);
+    globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
+    triggerFeedback.textContent = saveError.feedbackText;
   } finally {
     saveGlobalDefaultsButton.disabled = false;
   }
