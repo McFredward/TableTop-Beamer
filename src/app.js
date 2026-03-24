@@ -506,6 +506,13 @@ const state = {
     lastFrameAt: null,
     lastSnapshot: null,
   },
+  startupDefaultsGuard: {
+    fallbackRequired: false,
+    attempted: false,
+    applied: false,
+    outcome: "pending",
+    detail: "",
+  },
 };
 
 let animationIdCounter = 1;
@@ -2502,6 +2509,25 @@ function runLayoutScrollRegression() {
 
   if (issues.length > 0) {
     console.error("Layout regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
+function runStartupDefaultsGuardRegression() {
+  const guard = state.startupDefaultsGuard;
+  if (!guard?.fallbackRequired) {
+    return true;
+  }
+  const attempted = guard.attempted === true;
+  const explicitOutcome = guard.outcome === "applied" || guard.outcome === "failed-explicit";
+  if (!attempted || !explicitOutcome) {
+    console.error("Startup defaults guard violation", {
+      fallbackRequired: guard.fallbackRequired,
+      attempted: guard.attempted,
+      outcome: guard.outcome,
+      detail: guard.detail,
+    });
     return false;
   }
   return true;
@@ -5270,11 +5296,24 @@ async function initializeApplication() {
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
+  state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
+  state.startupDefaultsGuard.attempted = false;
+  state.startupDefaultsGuard.applied = false;
+  state.startupDefaultsGuard.outcome = state.startupDefaultsGuard.fallbackRequired
+    ? "pending"
+    : "local-storage-present";
+  state.startupDefaultsGuard.detail = state.startupDefaultsGuard.fallbackRequired
+    ? "fresh-device-fallback-required"
+    : "local-profiles-detected";
   loadBoardProfiles();
   let startupDefaultsSnapshot = null;
 
   try {
     const bootstrap = await autoLoadGlobalDefaultsForFreshDevice();
+    state.startupDefaultsGuard.attempted = Boolean(bootstrap.attempted);
+    state.startupDefaultsGuard.applied = Boolean(bootstrap.applied);
+    state.startupDefaultsGuard.outcome = bootstrap.applied ? "applied" : bootstrap.reason ?? "skipped";
+    state.startupDefaultsGuard.detail = bootstrap.endpoint || bootstrap.reason || "n/a";
     if (bootstrap.applied) {
       syncRuntimePanelsFromState();
       startupDefaultsSnapshot = buildResolveSnapshot({
@@ -5284,7 +5323,18 @@ async function initializeApplication() {
       });
     }
   } catch {
-    // startup autoload is best-effort; keep local runtime defaults
+    if (state.startupDefaultsGuard.fallbackRequired) {
+      state.startupDefaultsGuard.attempted = true;
+      state.startupDefaultsGuard.applied = false;
+      state.startupDefaultsGuard.outcome = "failed-explicit";
+      state.startupDefaultsGuard.detail = "fallback-load-failed";
+      globalDefaultsStatus.textContent =
+        "Global Defaults: Startup-Fallback fehlgeschlagen (kein stilles Ignorieren; Defaults muessen manuell geladen werden)";
+      apiDiagnoseStatus.textContent =
+        "API Diagnose: Startup-Fallback fehlgeschlagen (bitte Defaults-Endpoint pruefen oder Settings-Button nutzen)";
+      triggerFeedback.textContent =
+        "Status: Startup-Guard aktiv - leerer Local Storage erkannt, Global-Defaults-Ladevorgang ist explizit fehlgeschlagen";
+    }
   }
 
   syncRuntimePanelsFromState();
@@ -5301,6 +5351,7 @@ async function initializeApplication() {
   setPanCursorState();
   const viewRegressionOk = runViewVisibilityRegression();
   const layoutRegressionOk = runLayoutScrollRegression();
+  const startupGuardRegressionOk = runStartupDefaultsGuardRegression();
   const zoomPanRegressionOk = runZoomPanEditRegression();
   const panPointerRegressionOk = runPanPointerCaptureRegression();
   const orientationRegressionOk = runOrientationStateRegression();
@@ -5309,6 +5360,7 @@ async function initializeApplication() {
   if (
     !viewRegressionOk ||
     !layoutRegressionOk ||
+    !startupGuardRegressionOk ||
     !zoomPanRegressionOk ||
     !panPointerRegressionOk ||
     !orientationRegressionOk ||
@@ -5316,10 +5368,10 @@ async function initializeApplication() {
     !shipClipRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
+      "Status: Regression fehlgeschlagen (Startup-Guard/View/Layout/Zoom-Pan/Orientation + Outside-Isolation + Ship-Clip Guard)";
   } else {
     triggerFeedback.textContent =
-      "Status: Regression ok (View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
+      "Status: Regression ok (Startup-Guard + View/Layout + Zoom-Pan-Edit + Orientation + Pointer-Capture + Outside-Isolation + Ship-Clip Guard)";
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
