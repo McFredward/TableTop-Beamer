@@ -11,8 +11,8 @@
 - Current Phase Key: phase-01
 - Last Prepared: 2026-03-24
 - Execution Readiness: READY
-- Last Executed Plan: 1-17
-- Last Execution Summary: `.planning/phases/phase-01/1-17-SUMMARY.md`
+- Last Executed Plan: 1-18
+- Last Execution Summary: `.planning/phases/phase-01/1-18-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -133,6 +133,14 @@
 - Save-Transport versucht fuer globale Defaults zuerst Same-Origin-API und dann `localhost:4173` als Fallback fuer das vorgesehene Node-Setup.
 - Save-Fehler werden klassifiziert (`API unreachable`/`method unavailable`/`HTML error`/`server error`) und als kurze Operator-Anweisung statt Roh-Fehlertext angezeigt.
 - Optionaler Download-Export ist als sekundaerer Notfallpfad gekennzeichnet; primaerer Standard bleibt API-Speichern.
+- Plan-Update 16 setzt Prioritaetsfokus: P0 statisches Frontend-Hosting robust machen (API-Base-Konfiguration + Port-Fallback + klarer Health-Check), P0 endpoint-transparente Save-UX, P0 One-Click-API-Diagnose, P0 reproduzierbarer Save bei laufender API.
+- Reales Betriebsfeedback hebt Plan-Update-15-Defekt wieder auf Blocker-Niveau: `POST /api/global-defaults` liefert unter Static-/Python-Server weiterhin `501`, wenn Endpoint-Aufloesung nicht explizit steuerbar ist.
+- Endpoint-Regel fuer Plan-Update 16: Save und Diagnose nutzen dieselbe deterministische API-Base-Aufloesung (explizite Konfiguration > definierte Localhost-Fallbacks > klarer Fehlerzustand).
+- Diagnose-Regel fuer Plan-Update 16: One-Click-Pruefung testet sowohl API-Erreichbarkeit als auch POST-Faehigkeit auf dem echten Save-Endpunkt und liefert pro Ergebnis konkrete Next Steps.
+- UX-Regel fuer Plan-Update 16: Save-Feedback zeigt den tatsaechlich verwendeten Endpoint (Host/Port/Pfad) inklusive Methode/Statusklasse, damit Fehlersuche zielgerichtet bleibt.
+- Verifikations-Regel fuer Plan-Update 16: Reproduzierbarkeit gilt erst als erreicht, wenn Mehrfach-Save plus Reload/Restart bei laufender API ohne intermittierende Fehler durchlaufen.
+- API-Base-Aufloesung nutzt jetzt feste Reihenfolge: `window.__TT_BEAMER_API_BASE__` > URL-Parameter > `localStorage` > deterministische Localhost-Port-Fallbacks.
+- Save-Guard fuehrt verpflichtend `GET /api/health` + `OPTIONS /api/global-defaults` vor dem eigentlichen POST aus; Diagnose und Save teilen denselben Endpoint-Resolver.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -277,3 +285,14 @@
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
   - `POST /api/global-defaults` und `POST /api/global-defaults/` => `200` auf Node-Server-Smoke (Port 4180)
+
+## Execution Results (Phase 1 Plan 18)
+- Status: completed
+- Summary: `.planning/phases/phase-01/1-18-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`aab8191`, `bca9ea5`, `def14a5`, `f53d8b6`, `fe1b375`)
+- Evidence:
+  - `.planning/phases/phase-01/P1-T106-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - Static-Hosting-Simulation: `GET /api/health` => `404`, `POST /api/global-defaults` => `501` (python http.server:8099)
+  - Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
