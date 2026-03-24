@@ -254,6 +254,7 @@ const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
+const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
 const globalDefaultsStatus = document.querySelector("#global-defaults-status");
 const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
@@ -347,6 +348,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "output-route-select",
   "apply-output-route",
   "save-global-defaults",
+  "load-apply-global-defaults",
   "export-global-defaults",
   "animation-speed",
   "audio-enabled",
@@ -1793,6 +1795,34 @@ async function autoLoadGlobalDefaultsForFreshDevice() {
     applied: true,
     persisted,
     source: loaded.source,
+    endpoint: loaded.endpoint,
+    routing: loaded.routing,
+  };
+}
+
+async function loadAndApplyGlobalDefaults({ sourceLabel = "manual" } = {}) {
+  const loaded = await fetchGlobalDefaultsPayload();
+  applyGlobalDefaultsPayloadToState(loaded.payload);
+  const persisted = persistBoardProfiles();
+  syncRuntimePanelsFromState();
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+
+  const snapshot = buildResolveSnapshot({
+    routing: loaded.routing,
+    endpoint: loaded.endpoint,
+    method: "GET",
+  });
+  globalDefaultsStatus.textContent =
+    `Global Defaults: geladen & angewendet (${formatResolveSnapshot(snapshot)} | Quelle ${sourceLabel})`;
+  apiDiagnoseStatus.textContent =
+    `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | GET /api/global-defaults oder config/global-defaults.json)`;
+  triggerFeedback.textContent =
+    `Status: Defaults geladen & angewendet (${formatResolveSnapshot(snapshot)} | ${sourceLabel})`;
+
+  return {
+    snapshot,
+    persisted,
     endpoint: loaded.endpoint,
     routing: loaded.routing,
   };
@@ -5203,6 +5233,26 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     triggerFeedback.textContent = saveError.feedbackText;
   } finally {
     saveGlobalDefaultsButton.disabled = false;
+  }
+});
+
+loadApplyGlobalDefaultsButton?.addEventListener("click", async () => {
+  loadApplyGlobalDefaultsButton.disabled = true;
+  globalDefaultsStatus.textContent = "Global Defaults: Laden & Anwenden laeuft ...";
+  try {
+    const result = await loadAndApplyGlobalDefaults({ sourceLabel: "settings-button" });
+    if (!result.persisted) {
+      triggerFeedback.textContent =
+        "Status: Defaults geladen und angewendet, aber lokale Persistenz fehlgeschlagen";
+    }
+  } catch (error) {
+    const saveError = formatGlobalDefaultsSaveError(error);
+    globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
+    apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
+    triggerFeedback.textContent =
+      `Status: Defaults laden & anwenden fehlgeschlagen. ${saveError.feedbackText}`;
+  } finally {
+    loadApplyGlobalDefaultsButton.disabled = false;
   }
 });
 

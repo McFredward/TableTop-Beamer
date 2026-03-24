@@ -18,7 +18,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Priority Add-on - Verpflichtendes Feedback Phase 2
 - [x] DONE P2-T26 [P0] Bugfix Global Defaults: bei leerem/fehlendem Local Storage globale Defaults automatisch laden und sofort auf Session anwenden.
 - [x] DONE P2-T27 [P0] Startup-Guard gegen stilles Ignorieren implementieren (expliziter Fallback-Pfad fuer neue Geraete, inkl. Regression-Check).
-- [ ] TODO P2-T28 [P0] Settings-UX erweitern: Button `Defaults laden & anwenden` integrieren und Laufzeitzustand unmittelbar aktualisieren.
+- [x] DONE P2-T28 [P0] Settings-UX erweitern: Button `Defaults laden & anwenden` integrieren und Laufzeitzustand unmittelbar aktualisieren.
 - [ ] TODO P2-T29 [P0] Mobile Dashboard Sticky/Fixierung so anpassen, dass Trigger-/Running-Cluster beim Scrollen keinen Content ueberdecken.
 - [ ] TODO P2-T30 [P1] Desktop-Paritaetscheck fuer P2-T29 dokumentieren (Desktop-Layout/Scrollverhalten unveraendert).
 
