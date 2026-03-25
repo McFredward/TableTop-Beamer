@@ -3119,7 +3119,8 @@ function syncPolygonEditorStatus() {
   const points = getSpecialPolygonPoints(state.boardId, room.id);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
-  polygonEditorStatus.textContent = `Polygoneditor (${room.name ?? room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
+  const handleSize = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  polygonEditorStatus.textContent = `Polygoneditor (${room.name ?? room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
 }
 
 function syncPolygonVertexSelect(roomId) {
@@ -3463,9 +3464,9 @@ function renderPolygonEditorHandles() {
   const zoomScale = getBoardZoom(state.boardId).scale;
   const inverseZoom = 1 / zoomScale;
   const handleScale = clampPolygonHandleScale(state.polygonEditor.handleScale);
-  const edgeHitRadius = Math.max(8, 12 * inverseZoom);
+  const edgeHitRadius = Math.max(8, 12 * inverseZoom) * handleScale;
   const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom) * handleScale;
-  const vertexHitRadius = Math.max(10, 16 * inverseZoom);
+  const vertexHitRadius = Math.max(10, 16 * inverseZoom) * handleScale;
   const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom) * handleScale;
   const vertexLabelSize = Math.max(9, 11 * inverseZoom) * Math.max(0.9, handleScale * 0.95);
   for (let index = 0; index < points.length; index += 1) {

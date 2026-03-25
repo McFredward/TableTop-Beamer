@@ -32,7 +32,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 4-4 - Editor/Immersion-Polish Hotfix (execute-ready)
 - [x] DONE P4-T28 [P0] Polygon-Editor: Handle-Groesse als eigene Settings-Steuerung nahe Zoom-Controls einbauen (klarer Wertebereich, sofort wirksam).
-- [ ] TODO P4-T29 [P0] Polygon-Editor-Render/Input auf variable Handle-Groesse umstellen (sichtbarer Radius + Hit-Target konsistent, auch bei hohem Zoom).
+- [x] DONE P4-T29 [P0] Polygon-Editor-Render/Input auf variable Handle-Groesse umstellen (sichtbarer Radius + Hit-Target konsistent, auch bei hohem Zoom).
 - [ ] TODO P4-T30 [P0] `lichtflackern` von Pulsieren auf unregelmaessiges kaputtes Random-Flicker reworken (Dead-Space-artig), weiterhin strikt raumgeclippt.
 - [ ] TODO P4-T31 [P0] Settings-Edit-Mode erweitern: Room-Polygon per LMB-Flaechen-Drag als Ganzes verschiebbar machen, mit eindeutigen Guards gegen Vertex-Edit-Kollision.
 - [ ] TODO P4-T32 [P0] Hotfix-Regression dokumentieren (High-Zoom-Precision, Random-Flicker-Charakter, Room-Drag ohne Vertex-Regression, Clipping unveraendert).
