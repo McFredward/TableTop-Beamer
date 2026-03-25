@@ -658,6 +658,16 @@ function setSessionRetryError(code, { endpoint = "", status = null, detail = "" 
   }
 }
 
+function clearSessionReconnectTimer() {
+  if (sessionReconnectTimer) {
+    window.clearTimeout(sessionReconnectTimer);
+    sessionReconnectTimer = null;
+  }
+  const retry = getSessionRetryState();
+  retry.nextDelayMs = 0;
+  retry.nextRetryAt = 0;
+}
+
 function calculateSessionRetryDelay(attempt) {
   const exponent = Math.max(0, Number(attempt || 1) - 1);
   const baseDelay = Math.min(SESSION_RETRY_MAX_DELAY_MS, SESSION_RETRY_BASE_DELAY_MS * 2 ** exponent);
@@ -761,6 +771,9 @@ async function emitSessionEvent(type, payload = {}) {
 }
 
 function scheduleSessionReconnect({ reason = "reconnect", delayMs = null } = {}) {
+  if (sessionConnectInFlight || state.session.connected) {
+    return false;
+  }
   if (sessionReconnectTimer) {
     return false;
   }
@@ -880,6 +893,12 @@ function attachSessionStream() {
 }
 
 async function connectSession({ reconnect = false, reason = "manual" } = {}) {
+  if (sessionConnectInFlight) {
+    return;
+  }
+  sessionConnectInFlight = true;
+  clearSessionReconnectTimer();
+  try {
   const resolution = await resolveSessionApiCandidates();
   const sessionCandidates = Array.isArray(resolution?.candidates) ? resolution.candidates : [];
   const preferredSessionIds = getPreferredSessionIdCandidates();
@@ -942,6 +961,7 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             state.session.connected = true;
             state.session.reconnectAttempts = 0;
             state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
+            clearSessionReconnectTimer();
             retry.status = "connected";
             retry.attempt = 0;
             retry.nextDelayMs = 0;
@@ -987,6 +1007,9 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
   scheduleSessionReconnect({ reason: "connect-failed" });
   if (lastError) {
     console.warn("session connect failed", retry.lastErrorCode || "CONNECT_FAILED");
+  }
+  } finally {
+    sessionConnectInFlight = false;
   }
 }
 
@@ -1095,6 +1118,7 @@ const activeAnimationAudioById = new Map();
 let sessionEventSource = null;
 let sessionHeartbeatTimer = null;
 let sessionReconnectTimer = null;
+let sessionConnectInFlight = false;
 let sessionApplyingRemoteState = false;
 const SESSION_PROTOCOL_VERSION = "5-1";
 
