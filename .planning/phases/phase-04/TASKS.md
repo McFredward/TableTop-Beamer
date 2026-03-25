@@ -28,7 +28,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P4-T18 [P0] Desktop-Layout-Guard einbauen (keine Ueberdeckung/Vertreibung anderer Bedienmodule durch Laufzeitliste bei vielen Instanzen).
 - [x] DONE P4-T19 [P0] Preview-Staging-UI komplett entfernen (Panels, Buttons, Labels, Hinweise) inkl. leerer States im DOM-Wiring.
 - [x] DONE P4-T20 [P0] Preview-Staging-Runtime entfernen (Preview-Queue/Commit/Rollback-Logik, Actions, Event-Pfade, State-Felder).
-- [ ] TODO P4-T21 [P0] Regression fuer Pflicht-Feedback dokumentieren (Desktop-Erreichbarkeit unter Last + Kernflow-Paritaet ohne Preview-Staging).
+- [x] DONE P4-T21 [P0] Regression fuer Pflicht-Feedback dokumentieren (Desktop-Erreichbarkeit unter Last + Kernflow-Paritaet ohne Preview-Staging).
 
 ## Plan 4-4 - Render/GIF/UI Isolation
 - [ ] TODO P4-T22 [P1] GIF-Subsystem modularisieren (`loader`, `decoder`, `scheduler`, `cache`) mit nativer und fallback Paritaet.
