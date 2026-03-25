@@ -155,6 +155,18 @@ body[data-client-role="final-output"] .stage {
   stroke: rgba(242, 219, 255, 0.95);
 }
 
+#room-overlay.overlay-guides-hidden .room-zone {
+  fill: rgba(0, 0, 0, 0.001);
+  stroke: rgba(0, 0, 0, 0);
+}
+
+#room-overlay.overlay-guides-hidden .room-zone-label,
+#room-overlay.overlay-guides-hidden .polygon-vertex-marker,
+#room-overlay.overlay-guides-hidden .polygon-edge-marker,
+#room-overlay.overlay-guides-hidden .ship-zone-mask {
+  opacity: 0;
+}
+
 .room-zone-label {
   fill: #caf5ff;
   font-family: "Barlow Condensed", sans-serif;

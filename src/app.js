@@ -44,6 +44,7 @@ const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const sessionIdInput = document.querySelector("#session-id-input");
 const clientRoleSelect = document.querySelector("#client-role-select");
 const sessionReconnectButton = document.querySelector("#session-reconnect");
+const alignmentOverlayToggleInput = document.querySelector("#alignment-overlay-toggle");
 const sessionStatus = document.querySelector("#session-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
@@ -544,6 +545,10 @@ function shouldRenderOverlay() {
   return isHelperLayerAllowed();
 }
 
+function shouldShowOverlayGuides() {
+  return !isFinalOutputRole() && (state.uiView === "settings" || state.alignmentOverlayEnabled);
+}
+
 function applyRoleRenderMode() {
   const finalOutput = isFinalOutputRole();
   document.body.dataset.clientRole = state.role;
@@ -557,6 +562,10 @@ function applyRoleRenderMode() {
   boardImage.style.visibility = finalOutput ? "hidden" : "visible";
   roomOverlay.style.display = shouldRenderOverlay() ? "block" : "none";
   roomOverlay.style.pointerEvents = shouldRenderOverlay() ? "auto" : "none";
+  roomOverlay.classList.toggle("overlay-guides-hidden", !shouldShowOverlayGuides());
+  if (alignmentOverlayToggleInput) {
+    alignmentOverlayToggleInput.checked = Boolean(state.alignmentOverlayEnabled);
+  }
   stage.classList.toggle("is-final-output", finalOutput);
 }
 
@@ -1056,6 +1065,7 @@ function buildPersistedRuntimeSettingsFromState() {
       enabled: Boolean(state.audio.enabled),
       volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
     },
+    alignmentOverlayEnabled: Boolean(state.alignmentOverlayEnabled),
     animationSpeed: clampAnimationSpeed(state.animationSpeed),
     animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
   };
@@ -1081,6 +1091,10 @@ function applyPersistedRuntimeSettings(payload) {
     if (Number.isFinite(nextVolume)) {
       state.audio.volume = Math.max(0, Math.min(1, nextVolume));
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "alignmentOverlayEnabled")) {
+    state.alignmentOverlayEnabled = Boolean(payload.alignmentOverlayEnabled);
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
@@ -3090,6 +3104,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
   syncMobileStickyOffsets();
   syncStageZoomTransform();
   setPanCursorState();
+  applyRoleRenderMode();
   renderRoomOverlay();
   if (!skipGuard) {
     validateViewExclusivity(nextView, { context: "set-active-view" });
@@ -5820,6 +5835,19 @@ sessionReconnectButton?.addEventListener("click", () => {
   closeSessionStream();
   state.session.connected = false;
   void connectSession({ reconnect: true });
+});
+
+alignmentOverlayToggleInput?.addEventListener("change", () => {
+  state.alignmentOverlayEnabled = Boolean(alignmentOverlayToggleInput.checked);
+  const persisted = persistBoardProfiles();
+  applyRoleRenderMode();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? `Status: Alignment-Overlay ${state.alignmentOverlayEnabled ? "aktiviert" : "deaktiviert"}`
+    : `Status: Alignment-Overlay ${state.alignmentOverlayEnabled ? "aktiviert" : "deaktiviert"} (Persistenz fehlgeschlagen)`;
+  void emitSessionEvent("alignment-overlay-toggle", {
+    enabled: state.alignmentOverlayEnabled,
+  });
 });
 
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
