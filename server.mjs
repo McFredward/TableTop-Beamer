@@ -8,11 +8,6 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
-const liveSessionState = {
-  sendCounter: 0,
-  liveCount: 0,
-  sends: [],
-};
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -165,81 +160,6 @@ async function handleGlobalDefaultsSave(req, res) {
   });
 }
 
-async function readJsonPayload(req, res) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-    if (chunks.reduce((size, item) => size + item.length, 0) > 2 * 1024 * 1024) {
-      sendJson(res, 413, { error: "payload too large" });
-      return null;
-    }
-  }
-  const raw = Buffer.concat(chunks).toString("utf8");
-  try {
-    return JSON.parse(raw);
-  } catch {
-    sendJson(res, 400, { error: "invalid JSON payload" });
-    return null;
-  }
-}
-
-async function handleLiveSend(req, res) {
-  const payload = await readJsonPayload(req, res);
-  if (!payload) {
-    return;
-  }
-  const previewItems = Array.isArray(payload.previewItems) ? payload.previewItems : [];
-  if (previewItems.length === 0 || previewItems.length > 200) {
-    sendJson(res, 400, { error: "previewItems must be a non-empty array (<=200)" });
-    return;
-  }
-
-  liveSessionState.sendCounter += 1;
-  const sendId = `live-${Date.now()}-${liveSessionState.sendCounter}`;
-  const committedCount = previewItems.length;
-  liveSessionState.liveCount += committedCount;
-  liveSessionState.sends.push({
-    sendId,
-    committedCount,
-    sentAt: payload.sentAt ?? new Date().toISOString(),
-    boardId: payload.boardId ?? null,
-  });
-
-  sendJson(res, 200, {
-    ok: true,
-    sendId,
-    committedCount,
-    liveCount: liveSessionState.liveCount,
-  });
-}
-
-async function handleLiveRollback(req, res) {
-  const payload = await readJsonPayload(req, res);
-  if (!payload) {
-    return;
-  }
-  if (liveSessionState.sends.length === 0) {
-    sendJson(res, 409, { error: "no send available for rollback" });
-    return;
-  }
-  const expectedSendId = payload?.sendId ? String(payload.sendId) : null;
-  const lastSend = liveSessionState.sends[liveSessionState.sends.length - 1];
-  if (expectedSendId && expectedSendId !== lastSend.sendId) {
-    sendJson(res, 409, {
-      error: "rollback must target latest send",
-      latestSendId: lastSend.sendId,
-    });
-    return;
-  }
-  const rolledBack = liveSessionState.sends.pop();
-  liveSessionState.liveCount = Math.max(0, liveSessionState.liveCount - rolledBack.committedCount);
-  sendJson(res, 200, {
-    ok: true,
-    rolledBackSendId: rolledBack.sendId,
-    liveCount: liveSessionState.liveCount,
-  });
-}
-
 async function handleStaticFile(req, res) {
   const targetPath = toSafePath(req.url || "/");
   if (!targetPath) {
@@ -286,14 +206,6 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "OPTIONS" && (routePath === "/api/live/send" || routePath === "/api/live/rollback")) {
-      res.writeHead(204, {
-        allow: "POST,OPTIONS",
-      });
-      res.end();
-      return;
-    }
-
     if (req.method === "POST" && routePath === "/api/global-defaults") {
       await handleGlobalDefaultsSave(req, res);
       return;
@@ -307,27 +219,6 @@ const server = createServer(async (req, res) => {
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });
       }
-      return;
-    }
-
-    if (req.method === "GET" && routePath === "/api/live/state") {
-      const lastSend = liveSessionState.sends[liveSessionState.sends.length - 1] ?? null;
-      sendJson(res, 200, {
-        ok: true,
-        liveCount: liveSessionState.liveCount,
-        sendCount: liveSessionState.sends.length,
-        lastSend,
-      });
-      return;
-    }
-
-    if (req.method === "POST" && routePath === "/api/live/send") {
-      await handleLiveSend(req, res);
-      return;
-    }
-
-    if (req.method === "POST" && routePath === "/api/live/rollback") {
-      await handleLiveRollback(req, res);
       return;
     }
 
