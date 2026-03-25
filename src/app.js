@@ -49,6 +49,8 @@ const alignmentOverlayToggleInput = document.querySelector("#alignment-overlay-t
 const sessionStatus = document.querySelector("#session-status");
 const sessionEndpointStatus = document.querySelector("#session-endpoint-status");
 const sessionHeartbeatEndpointStatus = document.querySelector("#session-heartbeat-endpoint-status");
+const sessionHeartbeatTransportStatus = document.querySelector("#session-heartbeat-transport-status");
+const sessionEventTransportStatus = document.querySelector("#session-event-transport-status");
 const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
 const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
 const sessionRetryStatus = document.querySelector("#session-retry-status");
@@ -644,7 +646,26 @@ function syncSessionDiagnosticsPanel() {
     const endpointText = heartbeatEndpoint
       ? `${heartbeatEndpoint} | ${resolver.text}`
       : `noch nicht aufgeloest | ${resolver.text}`;
-    sessionHeartbeatEndpointStatus.textContent = `Heartbeat Endpoint: ${endpointText}`;
+    sessionHeartbeatEndpointStatus.textContent =
+      `Heartbeat Endpoint: ${endpointText} | Methode ${retry.lastHeartbeatMethod || "POST"} | fallback ${retry.lastHeartbeatFallbackReason || "none"}`;
+  }
+
+  if (sessionHeartbeatTransportStatus) {
+    const switchedText = retry.lastHeartbeatMethodSwitchAt
+      ? `${formatSessionTimestamp(retry.lastHeartbeatMethodSwitchAt)} (${retry.lastHeartbeatMethodSwitchLabel || "-"})`
+      : "-";
+    sessionHeartbeatTransportStatus.textContent =
+      `Heartbeat Transport: aktiv ${retry.lastHeartbeatMethod || "POST"} | letzter Wechsel ${switchedText}`;
+  }
+
+  if (sessionEventTransportStatus) {
+    const eventEndpoint = retry.lastEventEndpoint || buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
+    const switchedText = retry.lastEventMethodSwitchAt
+      ? `${formatSessionTimestamp(retry.lastEventMethodSwitchAt)} (${retry.lastEventMethodSwitchLabel || "-"})`
+      : "-";
+    const flagState = SESSION_EVENT_GET_FALLBACK_ENABLED ? "GET-Fallback ON" : "GET-Fallback OFF";
+    sessionEventTransportStatus.textContent =
+      `Event Transport: aktiv ${retry.lastEventMethod || "POST"} | Endpoint ${eventEndpoint || "-"} | fallback ${retry.lastEventFallbackReason || "none"} | letzter Wechsel ${switchedText} | ${flagState}`;
   }
 
   if (sessionConnectionStateStatus) {
@@ -1315,7 +1336,7 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
               buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event, {
                 apiBase: candidate.apiBase,
               }),
-              SESSION_EVENT_GET_FALLBACK_ENABLED ? "none (fallback-enabled)" : "none (fallback-disabled)",
+              SESSION_EVENT_GET_FALLBACK_ENABLED ? "none" : "feature-flag-off",
             );
             applySessionSnapshot(result?.snapshot);
             attachSessionStream();
