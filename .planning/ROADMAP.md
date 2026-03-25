@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen, Datenzonen und Preview/Live-Flow (Phase 2).
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2) und priorisiere in Phase 3 den direkten Live-Trigger-Betrieb ohne Preview-Zwischenflow.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -37,10 +37,10 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
-## Phase 3 - Nemesis Animations Overhaul (In Progress)
+## Phase 3 - Nemesis Animations Overhaul (Completed)
 Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe, GIF-Mapping pro Animation (UI + Persistenz) sowie robuster, modularer Runtime-Architektur.
 
-Status: 44/44 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34) und Plan 3-5 Rework (P3-T35..P3-T44) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`, `.planning/phases/phase-03/3-5-SUMMARY.md`).
+Status: 50/50 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34), Plan 3-5 Rework (P3-T35..P3-T44) und Plan 3-6 P0-Hotfix (P3-T45..P3-T50) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`, `.planning/phases/phase-03/3-5-SUMMARY.md`, `.planning/phases/phase-03/3-6-SUMMARY.md`).
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
@@ -52,6 +52,9 @@ Milestones:
 7. P0 Rework 3-5: kritischen Render-Regression-Bug schliessen (Animationen wieder sichtbar auf Board, Audio-only-Fall ausgeschlossen).
 8. P0 Rework 3-5: Pflicht-Refactor `app.js` in Modulgrenzen (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`).
 9. P1 Rework 3-5: Lesbarkeit (gezielte Kommentare) plus Paritaets-/Stabilitaetsnachweise nach Refactor.
+10. P0 Hotfix 3-6: Preview-Flow vollstaendig entfernen und auf direkten Live-Trigger zurueckstellen.
+11. P0 Hotfix 3-6: sichtbares Rendering fuer `global`/`room`/`gif` sofort wiederherstellen; Running/Stop/Edit stabil halten.
+12. P1 Gate 3-6: weiterer Refactor erst nach stabilem P0-Hotfix-Nachweis fortsetzen.
 
 Exit Criteria:
 - Plan-3-2-P0 bleibt abgeschlossen und nachgewiesen.
@@ -64,6 +67,8 @@ Exit Criteria:
 - Kritischer Render-Bug ist behoben: aktive Animationen rendern auf dem Board sichtbar und stabil, auch bei parallel laufendem Audio.
 - `app.js` ist in verpflichtende Modulgrenzen aufgeteilt; keine monolithische Kernlogik bleibt ungeordnet zurueck.
 - Nach Refactor ist funktionale Paritaet + Stabilitaet via Regression/Soak dokumentiert.
+- Preview-Flow ist vollstaendig entfernt; direkter Live-Trigger ist wieder der einzige Runtime-Pfad.
+- P0-Hotfix-Nachweis fuer sichtbares Rendering (`global`/`room`/`gif`) und stabile Running-/Stop-/Edit-Integritaet liegt vor.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

@@ -11,9 +11,10 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-5
-- Planned Next Execution: 3-6
-- Last Execution Summary: `.planning/phases/phase-03/3-5-SUMMARY.md`
+- Last Executed Plan: 3-6
+- Planned Next Execution: TBD (Phase-3 Follow-up nach Hotfix-Gate)
+- Last Execution Summary: `.planning/phases/phase-03/3-6-SUMMARY.md`
+- Active Blocker Focus: Kein aktiver P0-Blocker (Plan 3-6 abgeschlossen)
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -226,6 +227,15 @@
 - Plan-3-5-Fix: Renderpfad zeigt bei fehlendem Effektframe einen sichtbaren Fallback, damit Audio-only-Zustaende nicht mehr still passieren.
 - Plan-3-5-Refactor: Domain-Helfer fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` sind als explizite Modulgrenzen eingefuehrt.
 - Plan-3-5-Nachweis: Paritaets-Regression (`P3-T42`) und Soak (`P3-T43`) sind dokumentiert; Plan 3-5 ist formal abgeschlossen.
+- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3-6 als kritischen P0-Blocker: Seit Preview-Einfuehrung sind Animationen visuell unsichtbar; Preview wird nicht benoetigt und muss vollstaendig entfernt werden.
+- Plan-Update 3-6 Scope-Regel: Preview-Flow wird end-to-end entfernt (UI, State, Routing, Send/Rollback) und direkter Live-Trigger wird als einziger Bedienpfad wiederhergestellt.
+- Plan-Update 3-6 Render-Regel: sichtbares Rendering muss fuer `global` + `room` + GIF-basierte Animationen sofort stabil sein; Audio-only-Lauf gilt als Fail.
+- Plan-Update 3-6 Integritaets-Regel: Running-Liste sowie `Stop`/`Edit` bleiben nach Preview-Rueckbau verpflichtend funktionsfaehig.
+- Plan-Update 3-6 Sequenz-Regel: weiterer Refactor wird bis zum stabilen P0-Hotfix-Nachweis eingefroren.
+- Plan-3-6-Hotfix ist abgeschlossen: Preview-Flow (UI/State/Routing/Send/Rollback) ist vollstaendig entfernt; direkter Live-Trigger ist wieder alleiniger Runtime-Pfad.
+- Render-Hotfix fuer Plan 3-6 setzt sichtbare Fallbacks bei Clip-Fehlern und schliesst den Audio-only-Fehlmodus fuer `global`/`room`/GIF-Pfade.
+- Running-Liste nutzt Integritaetsguard (Duplikat-/Invalid-Entry-Bereinigung + EditTarget-Cleanup); `Stop`/`Edit` bleiben instanzkonsistent.
+- Refactor-Resume-Gate bleibt aktiv: weiterer Architekturumbau erst nach dokumentiert stabilem Plan-3-6-Nachweis (`3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -518,3 +528,15 @@
   - `.planning/phases/phase-03/P3-T43-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check src/state/index.js`, `src/rendering/index.js`, `src/effects/index.js`, `src/audio/index.js`, `src/ui/index.js`, `src/persistence/index.js`, `src/api/save.js`
+
+## Execution Results (Phase 3 Plan 6)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-6-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`eb9fb09`, `c2b08aa`, `e4b05a7`, `b30f087`, `ed6a440`, `dfc78ac`)
+- Evidence:
+  - `.planning/phases/phase-03/3-6-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T49-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T49-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - Pattern-Checks: kein Preview-UI-IDs in `index.html`/`src/app.js`, keine `/api/live/*`-Routen in `src/app.js`/`server.mjs`
