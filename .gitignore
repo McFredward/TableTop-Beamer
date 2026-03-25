@@ -1,0 +1,15 @@
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/*.jsonl
+
+# Local environment
+.env
+.env.*

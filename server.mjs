@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -9,6 +9,7 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
+const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 
@@ -24,6 +25,42 @@ const liveSessionState = {
 };
 
 const liveClients = new Map();
+
+async function appendLiveLog(className, payload = {}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    class: className,
+    ...payload,
+  };
+  try {
+    await mkdir(path.dirname(LIVE_LOG_PATH), { recursive: true });
+    await appendFile(LIVE_LOG_PATH, `${JSON.stringify(entry)}\n`, "utf8");
+  } catch (error) {
+    console.error("[live-log] failed to write log entry", error);
+  }
+}
+
+function logSessionEvent(event, context = {}) {
+  void appendLiveLog("session_event", {
+    event,
+    ...context,
+  });
+}
+
+function logStateChange(mutationType, context = {}) {
+  void appendLiveLog("state_change", {
+    mutationType,
+    ...context,
+  });
+}
+
+function logErrorEvent(event, detail, context = {}) {
+  void appendLiveLog("error", {
+    event,
+    detail,
+    ...context,
+  });
+}
 
 function acceptLiveMutationType(type) {
   return new Set([
@@ -161,8 +198,20 @@ function attachLiveWebSocket(server) {
     const role = requestUrl.searchParams.get("role") || "control";
     const clientId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
+    logSessionEvent("connect", {
+      clientId,
+      role,
+      routePath,
+      remoteAddress: req.socket.remoteAddress ?? null,
+      connectedClients: liveClients.size,
+    });
 
     sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-hello", { clientId, role }));
+    logSessionEvent("join-snapshot", {
+      clientId,
+      role,
+      snapshotVersion: liveSessionState.version,
+    });
 
     socket.on("data", (chunk) => {
       const frame = decodeWebSocketTextFrame(chunk);
@@ -192,15 +241,27 @@ function attachLiveWebSocket(server) {
           mutationType: parsed.mutationType,
         });
       } catch {
-        // ignore malformed ws payloads
+        logErrorEvent("malformed-ws-payload", "invalid-json", {
+          clientId,
+          role,
+        });
       }
     });
 
     socket.on("close", () => {
       liveClients.delete(clientId);
+      logSessionEvent("disconnect", {
+        clientId,
+        role,
+        connectedClients: liveClients.size,
+      });
     });
-    socket.on("error", () => {
+    socket.on("error", (error) => {
       liveClients.delete(clientId);
+      logErrorEvent("socket-error", error instanceof Error ? error.message : "unknown", {
+        clientId,
+        role,
+      });
     });
   });
 }
@@ -252,6 +313,12 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
     ...nextSnapshotPatch,
     schema: LIVE_STATE_SCHEMA,
   };
+  logStateChange(mutation?.type ?? "unknown", {
+    version: liveSessionState.version,
+    byClientId: mutation?.byClientId ?? null,
+    byRole: mutation?.byRole ?? null,
+    alignMode: liveSessionState.snapshot.alignMode,
+  });
   return {
     version: liveSessionState.version,
     updatedAt: liveSessionState.updatedAt,
@@ -413,6 +480,7 @@ const server = createServer(async (req, res) => {
         service: "tt-beamer-api",
         saveEndpoint: "/api/global-defaults",
         postSupported: true,
+        liveLogPath: LIVE_LOG_PATH,
       });
       return;
     }
@@ -459,6 +527,10 @@ const server = createServer(async (req, res) => {
 
     await handleStaticFile(req, res, routePath);
   } catch (error) {
+    logErrorEvent("http-handler-error", error instanceof Error ? error.message : "unknown", {
+      route: req.url || "/",
+      method: req.method,
+    });
     sendJson(res, 500, {
       error: "internal server error",
       detail: error instanceof Error ? error.message : "unknown",
@@ -469,5 +541,10 @@ const server = createServer(async (req, res) => {
 attachLiveWebSocket(server);
 
 server.listen(PORT, HOST, () => {
+  logSessionEvent("server-start", {
+    host: HOST,
+    port: PORT,
+    logPath: LIVE_LOG_PATH,
+  });
   console.log(`TT Beamer server listening on http://${HOST}:${PORT}`);
 });
