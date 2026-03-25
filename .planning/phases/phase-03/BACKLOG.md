@@ -1,4 +1,4 @@
-# Phase 3 Backlog (Rework 3-6 P0 Hotfix Execute-Ready)
+# Phase 3 Backlog (Rework 3-7 P0 Hotfix Add-on Execute-Ready)
 
 ## Epics
 - Separate Room Trigger Engine (Einzelstart/-stop pro Animation)
@@ -12,6 +12,10 @@
 - Preview Flow Removal (UI + State + Routing + Send/Rollback vollstaendig entfernen)
 - Direct Live Trigger Restore (kein Preview-Staging, Trigger gehen direkt live)
 - Render Visibility Recovery (`global` + `room` + `gif` sofort sichtbar)
+- Render-Loop Fault Isolation (Layer-/Clip-Fehler duerfen nie globalen Tick stoppen)
+- Clip Compatibility Hardening (Outside-/Ship-Masken robust fuer mobile WebView/Canvas-evenodd)
+- Outside Failure Isolation (`outside` fail-open ohne Impact auf `inside`/`room`/`gif`)
+- Mobile Visibility Proof (`global` + `room` + `gif` sichtbar/bewegt nach Trigger)
 - Architecture Refactor `app.js` -> Module (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`)
 - Refactor Parity & Stability Proof (vor/nach Umbau funktional gleich + stabil)
 - Targeted Readability Improvements (Kommentare in nicht-offensichtlichen Bereichen)
@@ -42,6 +46,12 @@
 - P3-S6.4 Running-Liste sowie `Stop`/`Edit` nach Hotfix instanzkonsistent stabilisieren.
 - P3-S6.5 Regression + Soak als P0-Stabilitaetsgate fuer Hotfix-Pfade dokumentieren.
 - P3-S6.6 Refactor-Resume-Gate dokumentieren (weiterer Umbau erst nach stabilem P0-Fix).
+- P3-S7.1 Render-Loop fail-safe machen: einzelner Layer-/Clip-Path-Fehler darf Draw-Tick nicht beenden.
+- P3-S7.2 Outside-/Ship-Clipping kompatibel hardenen (Capability-Detection + evenodd-Fallback fuer mobile WebView).
+- P3-S7.3 Outside-Layer-Fehler isolieren: Inside/Room/GIF laufen sichtbar weiter.
+- P3-S7.4 Mobile-Flow-Nachweis verpflichtend machen: nach Trigger sind globale + room + GIF-Effekte sichtbar.
+- P3-S7.5 Reopen-Regression + Soak fuer Root-Cause-Fix dokumentieren.
+- P3-S7.6 Artefakte/Acceptance/Execute/State/Roadmap konsistent auf Plan 3-7 synchronisieren.
 
 ## Priorisierte Umsetzungsstrecke - Plan 3-3 (verbindlich)
 
@@ -109,9 +119,28 @@
 - Story P3-S6.6: Refactor-Resume-Gate.
   - Ziel: weiterer Architektur-Refactor wird bis zum stabilen P0-Nachweis eingefroren und erst danach wieder aufgenommen.
 
+## Priorisierte Umsetzungsstrecke - Plan 3-7 P0 Hotfix Add-on (verbindlich)
+
+### Prioritaet P0 - Root-Cause zuerst
+- Story P3-S7.1: Render-Loop-Fehlertoleranz.
+  - Ziel: Render-Tick bleibt immer aktiv; einzelne Layer-/Clip-Exceptions werden lokal abgefangen und nur der betroffene Layer faellt aus.
+- Story P3-S7.2: Browserrobustes Outside-/Ship-Clipping.
+  - Ziel: Outside- und Inside-Masken funktionieren deterministisch in Desktop-Browsern und mobilen WebViews, auch wenn evenodd nicht verlaesslich ist.
+- Story P3-S7.3: Outside-Isolation.
+  - Ziel: Fehler im Outside-Layer koennen Inside/Room/GIF nicht mehr blockieren; sichtbare Animationen laufen weiter.
+- Story P3-S7.4: Mobiler Sichtbarkeits-Hartnachweis.
+  - Ziel: im Mobile-Flow sind nach Trigger mindestens globale + room + GIF-Effekte sichtbar und bewegend.
+
+### Prioritaet P1 - Abschluss danach
+- Story P3-S7.5: Reopen-Regression + Soak.
+  - Ziel: P0-Fix bleibt stabil unter Trigger/Edit/Stop/Reload/Save-Load inklusive Mobile-Fokus.
+- Story P3-S7.6: Vollstaendiger Artefakt-Sync.
+  - Ziel: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP sind konsistent und execute-ready.
+
 ## Status
 - Plan 3-2 bleibt abgeschlossen; Nachweise in `3-2-VERIFICATION.md`, `P3-T23-REGRESSION.md`, `P3-T24-SOAK.md`.
 - Rework-Welle Plan 3-3 ist umgesetzt; Nachweise in `3-3-VERIFICATION.md`, `P3-T30-REGRESSION.md`, `P3-T30-SOAK.md`.
 - Plan 3-4 Hotfix-Add-on ist umgesetzt; Nachweise in `3-4-VERIFICATION.md` und `P3-T33-REGRESSION.md`.
 - Plan 3-5 Rework ist abgeschlossen; Nachweise in `3-5-VERIFICATION.md`, `P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`.
-- Plan 3-6 ist abgeschlossen; Nachweise in `3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`.
+- Plan 3-6 ist formal abgeschlossen, aber durch die 3. P0-Blocker-Meldung als Reopen-Basis markiert.
+- Plan 3-7 ist abgeschlossen; Nachweise in `3-7-VERIFICATION.md`, `P3-T55-REGRESSION.md`, `P3-T55-SOAK.md`.

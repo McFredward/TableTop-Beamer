@@ -64,3 +64,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T48 [P0] Running-Liste/Stop/Edit regressionsfest halten (1:1 Instanzabbildung, kein ID-/State-Drift nach Preview-Rueckbau).
 - [x] DONE P3-T49 [P1] Hotfix-Regression + Soak dokumentieren (Trigger/Edit/Stop/Reload/Save-Load ohne Preview-Pfad).
 - [x] DONE P3-T50 [P1] Plan-3-6-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) inkl. Refactor-Resume-Gate abschliessen.
+
+## Plan 3-7 - P0 Hotfix Add-on Root-Cause (execute-ready)
+- [x] DONE P3-T51 [P0] Repro-Harness + Telemetrie fuer den statischen-Board-Fehlmodus bauen (Audio laeuft, Render still) inkl. Layer-/Clip-Fehlerzaehlern pro Tick.
+- [x] DONE P3-T52 [P0] Render-Loop fail-safe hardenen: globaler Draw-Tick bleibt aktiv, auch wenn einzelne Layer/Clip-Paths Exceptions werfen.
+- [x] DONE P3-T53 [P0] Outside-/Ship-Clipping kompatibel machen: Capability-Detection + robuster Fallback fuer mobile WebView/Canvas-evenodd-Inkompatibilitaet.
+- [x] DONE P3-T54 [P0] Outside-Fehler-Isolation erzwingen: bei Outside-Layer-Fail laufen Inside/Room/GIF weiterhin sichtbar und bewegend.
+- [x] DONE P3-T55 [P0] Pflicht-Regression Mobile-Flow dokumentieren: nach Trigger sind mindestens globale + room + GIF-Effekte sichtbar (Hard-Proof).
+- [x] DONE P3-T56 [P1] Plan-3-7-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.

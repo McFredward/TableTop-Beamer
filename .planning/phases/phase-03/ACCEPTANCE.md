@@ -23,6 +23,10 @@
 - Preview-Removal-Test: Es existieren keine bedienbaren Preview-Elemente und keine Preview-Zwischenzustaende mehr im aktiven Runtime-Flow.
 - Routing-/State-Test ohne Preview: Start/Edit/Stop nutzen ausschliesslich direkten Live-Pfad; Send/Rollback-Endpunkte sind funktionslos oder entfernt.
 - Sichtbarkeits-Matrix-Test: `global`, `room` und GIF-basierte Animationen sind jeweils sofort sichtbar, auch bei parallel laufendem Audio.
+- Render-Loop-Fault-Isolation-Test: ein absichtlich fehlschlagender Layer/Clip-Path stoppt den globalen Draw-Tick nicht; verbleibende Layer bleiben sichtbar animiert.
+- Clip-Kompatibilitaets-Test (Mobile-WebView): Outside-/Ship-Maskierung rendert korrekt auch ohne verlaessliches Canvas-evenodd (Fallback-Pfad aktiv, kein Fullscreen-Leak).
+- Outside-Failure-Isolation-Test: bei simuliertem Outside-Layer-Fehler bleiben Inside/Room/GIF-Effekte sichtbar und bewegend.
+- Mobile-Hard-Proof-Test: im Mobile-Flow sind nach Trigger mindestens ein globaler, ein room- und ein GIF-Effekt gleichzeitig sichtbar.
 - Runtime-Integritaetstest nach Preview-Rueckbau: Running-Liste bleibt 1:1 zur Instanz, `Stop`/`Edit` bleiben stabil bedienbar.
 - Architekturtest Modulgrenzen: `app.js` ist entlastet; Kernlogik liegt in getrennten Modulen `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`.
 - Refactor-Paritaetstest: Trigger/Direct-Start/Edit/Stop/Reload/Save-Load/GIF-Mapping verhalten sich vor/nach Refactor gleich.
@@ -61,14 +65,24 @@
 - Regression + Soak belegen stabile Hotfix-Wirkung ueber Trigger/Edit/Stop/Reload/Save-Load-Pfade.
 - Refactor-Fortsetzung ist explizit auf "nach stabilem P0-Fix" gate-gesteuert dokumentiert.
 
+## Pflichtabnahme Plan 3-7 (P3-T51..P3-T56)
+- Render-Loop faellt nie komplett aus: ein einzelner Layer-/Clip-Path-Fehler wird lokal isoliert, der globale Tick bleibt aktiv.
+- Outside-/Ship-Clipping laeuft browserrobust inkl. mobilem WebView-Fallback bei Canvas-evenodd-Inkompatibilitaet.
+- Fehler im Outside-Layer blockieren Inside/Room/GIF nicht; sichtbare Animationen laufen weiter.
+- Preview bleibt entfernt; es wurden keine Preview-UI-/State-/Routing-/Send-/Rollback-Pfade reaktiviert.
+- Mobile-Flow zeigt nach Trigger nachweisbar mindestens globale + room + GIF-Effekte gleichzeitig sichtbar und bewegt.
+- Regression + Soak + Artefakt-Sync belegen den geschlossenen Reopen-Blocker nachvollziehbar.
+
 ## Definition of Done
 - Alle P0-Tasks aus Plan 3-3 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-4 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-5 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-6 sind abgeschlossen.
+- Alle P0-Tasks aus Plan 3-7 sind abgeschlossen.
 - Keine offenen Blocker-Risiken fuer GIF-Loop-Runtime, Mapping-Persistenz oder Running-List-Paritaet.
 - Keine offenen Blocker-Risiken fuer Board-Render-Regression oder Refactor-Integritaet.
 - Keine offenen Blocker-Risiken fuer Preview-Restpfade oder unsichtbares Rendering nach Preview-Rueckbau.
+- Keine offenen Blocker-Risiken fuer Render-Loop-Komplettausfall, evenodd-Clip-Inkompatibilitaet oder Outside-Failure-Kaskaden.
 - P1-Hardening fuer Stabilitaet und Performance ist mindestens initial umgesetzt und dokumentiert.
 - Artefakte `PLAN.md`, `BACKLOG.md`, `TASKS.md`, `EXECUTE.md`, `RISKS.md` sind konsistent.
 
@@ -78,3 +92,4 @@
 - Plan 3-4 wurde am 2026-03-25 mit Verweis auf `3-4-VERIFICATION.md` sowie `P3-T33-REGRESSION.md` abgenommen.
 - Plan 3-5 wurde am 2026-03-25 mit Verweis auf `3-5-VERIFICATION.md` sowie `P3-T42-REGRESSION.md`/`P3-T43-SOAK.md` abgenommen.
 - Plan 3-6 wurde am 2026-03-25 mit Verweis auf `3-6-VERIFICATION.md` sowie `P3-T49-REGRESSION.md`/`P3-T49-SOAK.md` abgenommen.
+- Plan 3-7 wurde am 2026-03-25 mit Verweis auf `3-7-VERIFICATION.md` sowie `P3-T55-REGRESSION.md`/`P3-T55-SOAK.md` abgenommen.
