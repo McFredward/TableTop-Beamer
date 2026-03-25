@@ -29,13 +29,7 @@ const {
   ROOM_STATE_DEFAULT,
 } = window.TT_BEAMER_CONFIG;
 
-let BOARDS = CONFIG_BOARDS.map((board) => ({
-  ...board,
-  rooms: board.rooms.map((room) => ({
-    ...room,
-    points: Array.isArray(room.points) ? room.points.map((point) => [...point]) : undefined,
-  })),
-}));
+let BOARDS = CONFIG_BOARDS.map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board));
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
@@ -131,6 +125,12 @@ const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex
 const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
 const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
 const polygonEditorStatus = document.querySelector("#polygon-editor-status");
+const roomNameInput = document.querySelector("#room-name-input");
+const roomCreateShapeSelect = document.querySelector("#room-create-shape");
+const roomCreateButton = document.querySelector("#room-create");
+const roomDeleteButton = document.querySelector("#room-delete");
+const roomManagementStatus = document.querySelector("#room-management-status");
+const roomRenameInput = document.querySelector("#room-rename-input");
 const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
 const shipPolygonEdgeSelect = document.querySelector("#ship-polygon-edge-select");
 const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-insert-vertex");
@@ -176,9 +176,14 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-geometry-mode",
   "room-geometry-x",
   "room-geometry-y",
-  "room-geometry-stretch-x",
-  "room-geometry-stretch-y",
-  "polygon-room-select",
+   "room-geometry-stretch-x",
+   "room-geometry-stretch-y",
+   "room-name-input",
+   "room-create-shape",
+   "room-create",
+   "room-delete",
+   "room-rename-input",
+   "polygon-room-select",
   "polygon-vertex-select",
   "polygon-edge-select",
   "polygon-insert-vertex",
@@ -243,6 +248,18 @@ const {
 } = window.TT_BEAMER_NORMALIZERS;
 
 const {
+  cloneBoard: cloneRoomBoard,
+  createHexagonPolygon,
+  normalizePoint: normalizeRoomPoint,
+  normalizeRoomName,
+  roomToCatalogEntry,
+  applyRoomCatalog,
+  createRoomId,
+} = window.TT_BEAMER_ROOMS;
+
+const { syncRoomSelect } = window.TT_BEAMER_UI_SETTINGS_ROOMS;
+
+const {
   writeJson: writePersistenceJson,
   extractBoardProfilesCandidate: extractBoardProfilesCandidateFromPersistence,
   loadLegacyRoomGeometryByBoard: loadLegacyRoomGeometryByBoardFromPersistence,
@@ -268,13 +285,7 @@ function getMappedSoundPathForAnimation(animationType) {
 }
 
 function cloneBoardEntry(board) {
-  return {
-    ...board,
-    rooms: board.rooms.map((room) => ({
-      ...room,
-      points: Array.isArray(room.points) ? room.points.map((point) => [...point]) : undefined,
-    })),
-  };
+  return cloneRoomBoard(board);
 }
 
 const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
@@ -436,8 +447,8 @@ function normalizeRoomGeometryMode(mode) {
 }
 
 function getRawRoomCenter(room, boardId = state.boardId) {
-  if (room?.points?.length) {
-    const sourcePoints = getRoomSourcePoints(room, boardId);
+  const sourcePoints = getRoomSourcePoints(room, boardId);
+  if (sourcePoints.length) {
     const center = sourcePoints.reduce(
       (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
       { x: 0, y: 0 },
@@ -541,6 +552,11 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
     merged[boardId] = {
       ...fallback,
       ...primary,
+      roomCatalog: Array.isArray(primary.roomCatalog)
+        ? primary.roomCatalog
+        : Array.isArray(fallback.roomCatalog)
+          ? fallback.roomCatalog
+          : null,
       specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
       shipPolygon: primaryShipPolygon ?? fallbackShipPolygon ?? SHIP_POLYGON_DEFAULT,
     };
@@ -551,9 +567,9 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
 
 function createDefaultSpecialPolygonMap(boardId) {
   const board = getBoard(boardId);
-  const specials = board.rooms.filter((room) => room.id.startsWith("special-") && room.points?.length >= 3);
+  const specials = board.rooms.filter((room) => room.id.startsWith("special-") && getRoomSourcePoints(room, boardId).length >= 3);
   return Object.fromEntries(
-    specials.map((room) => [room.id, normalizeSpecialPolygon(room.points, room.points)]),
+    specials.map((room) => [room.id, normalizeSpecialPolygon(getRoomSourcePoints(room, boardId), getRoomSourcePoints(room, boardId))]),
   );
 }
 
@@ -634,6 +650,7 @@ function createDefaultBoardProfiles() {
     BOARDS.map((board) => [
       board.id,
       {
+        roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
         hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
         roomGeometry: createDefaultRoomGeometryMap(board.id),
         roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
@@ -650,6 +667,7 @@ function buildBoardProfilesFromState() {
     BOARDS.map((board) => [
       board.id,
       {
+        roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
         hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
         roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
@@ -662,6 +680,10 @@ function buildBoardProfilesFromState() {
 }
 
 function applyBoardProfilesToState(profiles) {
+  BOARDS = BOARDS.map((board) => {
+    const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
+    return applyRoomCatalog(board, roomCatalog);
+  });
   state.hitareaCalibrationByBoard = Object.fromEntries(
     BOARDS.map((board) => [
       board.id,
@@ -1344,7 +1366,7 @@ function updateRoomGeometry(boardId, roomId, partial) {
 function getSpecialPolygonPoints(boardId, roomId) {
   const boardPolygons = state.specialPolygonsByBoard[boardId] ?? {};
   const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  return normalizeSpecialPolygon(boardPolygons[roomId], room?.points ?? []);
+  return normalizeSpecialPolygon(boardPolygons[roomId], room?.polygon ?? room?.points ?? []);
 }
 
 function setSpecialPolygonPoints(boardId, roomId, points) {
@@ -1352,21 +1374,36 @@ function setSpecialPolygonPoints(boardId, roomId, points) {
     state.specialPolygonsByBoard[boardId] = createDefaultSpecialPolygonMap(boardId);
   }
   const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  state.specialPolygonsByBoard[boardId][roomId] = normalizeSpecialPolygon(points, room?.points ?? []);
+  const normalized = normalizeSpecialPolygon(points, room?.polygon ?? room?.points ?? []);
+  state.specialPolygonsByBoard[boardId][roomId] = normalized;
+  if (room) {
+    room.polygon = normalized.map((point) => [...point]);
+    room.points = normalized.map((point) => [...point]);
+  }
+}
+
+function getDefaultRoomPolygon(boardId, roomId) {
+  const fallbackBoard = INLINE_FALLBACK_BOARDS.find((board) => board.id === boardId);
+  const fallbackRoom = fallbackBoard?.rooms?.find((room) => room.id === roomId);
+  const normalizedRoom = fallbackRoom ? window.TT_BEAMER_ROOMS.normalizeRoom(fallbackRoom) : null;
+  if (normalizedRoom?.polygon?.length >= 3) {
+    return normalizedRoom.polygon;
+  }
+  return null;
 }
 
 function getRoomSourcePoints(room, boardId = state.boardId) {
-  if (!room.points) {
-    return [];
+  if (Array.isArray(room?.polygon) && room.polygon.length >= 3) {
+    return room.polygon;
   }
-  if (room.id.startsWith("special-")) {
-    return getSpecialPolygonPoints(boardId, room.id);
+  if (Array.isArray(room?.points) && room.points.length >= 3) {
+    return room.points;
   }
-  return room.points;
+  return [];
 }
 
 function getSpecialRooms(boardId = state.boardId) {
-  return getBoard(boardId).rooms.filter((room) => room.id.startsWith("special-"));
+  return getBoard(boardId).rooms;
 }
 
 function getActivePolygonRoomId(boardId = state.boardId) {
@@ -1485,7 +1522,7 @@ function fitZoomToActiveSpecialRoom() {
   const scale = clampBoardZoomScale(targetCoverage / boxSize);
   const center = getRoomCenterForZoom(state.boardId, room.id);
   const viewport = computePanForZoomFocus(scale, center);
-  updateCurrentBoardZoom(viewport, `${room.label} gezoomt (${Math.round(scale * 100)}%)`);
+  updateCurrentBoardZoom(viewport, `${room.name ?? room.label} gezoomt (${Math.round(scale * 100)}%)`);
 }
 
 function canStartPanModeFromEvent(event) {
@@ -2154,10 +2191,10 @@ function syncRoomGeometryStatus() {
   }
   const geometry = getRoomGeometry(state.boardId, room.id);
   if (geometry.mode === "absolute") {
-    roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
+    roomGeometryStatus.textContent = `Raum-Geometrie (${room.name ?? room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
     return;
   }
-  roomGeometryStatus.textContent = `Raum-Geometrie (${room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
+  roomGeometryStatus.textContent = `Raum-Geometrie (${room.name ?? room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
 }
 
 function syncRoomGeometryPanel() {
@@ -3057,13 +3094,13 @@ function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
-    polygonEditorStatus.textContent = "Polygoneditor: keine Spezialraeume auf diesem Board";
+    polygonEditorStatus.textContent = "Polygoneditor: keine Raeume auf diesem Board";
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, room.id);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
-  polygonEditorStatus.textContent = `Polygoneditor (${room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
+  polygonEditorStatus.textContent = `Polygoneditor (${room.name ?? room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
 }
 
 function syncPolygonVertexSelect(roomId) {
@@ -3110,30 +3147,27 @@ function syncPolygonEdgeSelect(roomId) {
 }
 
 function syncPolygonEditorPanel() {
-  const specials = getSpecialRooms(state.boardId);
+  const rooms = getSpecialRooms(state.boardId);
   const previous = polygonRoomSelect.value;
-  polygonRoomSelect.replaceChildren();
-  for (const room of specials) {
-    const option = document.createElement("option");
-    option.value = room.id;
-    option.textContent = room.label;
-    polygonRoomSelect.append(option);
-  }
   const preferred = getActivePolygonRoomId(state.boardId);
-  const activeRoomId = specials.some((room) => room.id === preferred)
+  const activeRoomId = rooms.some((room) => room.id === preferred)
     ? preferred
-    : specials.some((room) => room.id === previous)
+    : rooms.some((room) => room.id === previous)
       ? previous
-      : specials[0]?.id;
+      : rooms[0]?.id;
+  syncRoomSelect(polygonRoomSelect, rooms, activeRoomId);
   if (activeRoomId) {
     setActivePolygonRoomId(state.boardId, activeRoomId);
-    polygonRoomSelect.value = activeRoomId;
   }
-  const disabled = specials.length === 0;
-  polygonRoomSelect.disabled = disabled;
+  const disabled = rooms.length === 0;
   polygonInsertVertexButton.disabled = disabled;
   polygonResetRoomButton.disabled = disabled;
   polygonFocusRoomButton.disabled = disabled;
+  if (roomRenameInput) {
+    const activeRoom = getBoard().rooms.find((entry) => entry.id === activeRoomId);
+    roomRenameInput.value = activeRoom?.name ?? activeRoom?.label ?? "";
+    roomRenameInput.disabled = disabled;
+  }
   syncPolygonVertexSelect(activeRoomId);
   syncPolygonEdgeSelect(activeRoomId);
   syncPolygonEditorStatus();
@@ -3382,12 +3416,12 @@ function renderShipPolygonEditorHandles() {
   });
 }
 
-function syncSpecialRoomSelection(roomId) {
-  if (!roomId || !roomId.startsWith("special-")) {
+function syncPolygonRoomSelection(roomId) {
+  if (!roomId) {
     return;
   }
-  const specials = getSpecialRooms(state.boardId);
-  if (!specials.some((room) => room.id === roomId)) {
+  const rooms = getSpecialRooms(state.boardId);
+  if (!rooms.some((room) => room.id === roomId)) {
     return;
   }
   setActivePolygonRoomId(state.boardId, roomId);
@@ -3810,8 +3844,8 @@ function getRoomTransform(room, boardId = state.boardId) {
 function getRoomPoints(room, boardId = state.boardId) {
   const calibration = getHitareaCalibration(boardId);
   const transform = getRoomTransform(room, boardId);
-  if (room.points) {
-    const sourcePoints = getRoomSourcePoints(room, boardId);
+  const sourcePoints = getRoomSourcePoints(room, boardId);
+  if (sourcePoints.length >= 3) {
     const baseCenter = getRoomCenterFromPoints(sourcePoints);
     return sourcePoints
       .map(([x, y]) => {
@@ -3934,10 +3968,8 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      if (room.id.startsWith("special-")) {
-        syncSpecialRoomSelection(room.id);
-        syncPolygonEditorPanel();
-      }
+      syncPolygonRoomSelection(room.id);
+      syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
       renderRoomOverlay();
     });
@@ -3957,7 +3989,8 @@ function renderRoomOverlay() {
     const labelPosition = getRoomLabelPosition(room, state.boardId);
     label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
     label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
-    label.textContent = room.label.startsWith("Hex ") ? room.label.replace("Hex ", "") : room.label;
+    const roomName = room.name ?? room.label;
+    label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
     roomOverlay.append(label);
   }
 
@@ -3982,6 +4015,7 @@ function switchBoard(boardId) {
     ? rememberedRoom
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
+  ensureBoardRoomStateMaps(board.id);
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
@@ -3994,6 +4028,154 @@ function switchBoard(boardId) {
   renderRoomOverlay();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Board gewechselt";
+}
+
+function ensureBoardRoomStateMaps(boardId) {
+  const board = getBoard(boardId);
+  const geometryMap = state.roomGeometryByBoard[boardId] ?? {};
+  const stateMap = state.roomStateProfilesByBoard[boardId] ?? {};
+  for (const room of board.rooms) {
+    if (!geometryMap[room.id]) {
+      geometryMap[room.id] = normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room, boardId);
+    }
+    if (!stateMap[room.id]) {
+      stateMap[room.id] = normalizeRoomStateProfile(ROOM_STATE_DEFAULT);
+    }
+  }
+  state.roomGeometryByBoard[boardId] = geometryMap;
+  state.roomStateProfilesByBoard[boardId] = stateMap;
+}
+
+function syncRoomManagementPanel(statusText = null) {
+  const board = getBoard();
+  const selectedRoom = getSelectedRoom();
+  if (roomDeleteButton) {
+    roomDeleteButton.disabled = board.rooms.length <= 1 || !selectedRoom;
+  }
+  if (roomNameInput && selectedRoom) {
+    roomNameInput.value = selectedRoom.name ?? selectedRoom.label ?? "";
+  }
+  if (roomManagementStatus && statusText) {
+    roomManagementStatus.textContent = statusText;
+  }
+}
+
+function createRoomFromSettings() {
+  const board = getBoard();
+  const id = createRoomId(board);
+  const selectedRoom = getSelectedRoom() ?? board.rooms[0] ?? null;
+  const selectedCenter = selectedRoom ? getRawRoomCenter(selectedRoom) : { x: 0.5, y: 0.5 };
+  const spawnShape = roomCreateShapeSelect?.value === "free" ? "free" : "hexagon";
+  const fallbackName = `Raum ${board.rooms.length + 1}`;
+  const name = normalizeRoomName(roomNameInput?.value, fallbackName);
+  const polygon = spawnShape === "hexagon"
+    ? createHexagonPolygon({ x: selectedCenter.x, y: selectedCenter.y, radius: selectedRoom?.radius ?? 0.055 })
+    : [
+      normalizeRoomPoint([selectedCenter.x - 0.03, selectedCenter.y - 0.03]),
+      normalizeRoomPoint([selectedCenter.x + 0.04, selectedCenter.y]),
+      normalizeRoomPoint([selectedCenter.x - 0.02, selectedCenter.y + 0.04]),
+    ];
+  const room = {
+    id,
+    name,
+    label: name,
+    polygon: polygon.map((point) => [...point]),
+    points: polygon.map((point) => [...point]),
+    radius: selectedRoom?.radius ?? 0.055,
+    x: selectedCenter.x,
+    y: selectedCenter.y,
+    meta: {
+      schema: "tt-beamer.room.v2",
+      spawnShape,
+    },
+  };
+  board.rooms.push(room);
+  ensureBoardRoomStateMaps(state.boardId);
+  state.selectedRoomId = id;
+  state.selectedRoomByBoard[state.boardId] = id;
+  setActivePolygonRoomId(state.boardId, id);
+  const persisted = persistBoardProfiles();
+  syncRoomPanelFromSelection();
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  syncRoomManagementPanel(
+    persisted
+      ? `Raumverwaltung: ${name} angelegt (${spawnShape === "hexagon" ? "Hexagon-Startform" : "freie Startform"})`
+      : `Raumverwaltung: ${name} angelegt (Persistenz fehlgeschlagen)`,
+  );
+}
+
+function deleteSelectedRoom() {
+  const board = getBoard();
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  if (board.rooms.length <= 1) {
+    syncRoomManagementPanel("Raumverwaltung: Mindestens ein Raum muss erhalten bleiben");
+    return;
+  }
+  const nextRooms = board.rooms.filter((entry) => entry.id !== room.id);
+  board.rooms = nextRooms;
+  state.runningAnimations = state.runningAnimations.filter((anim) => {
+    if (anim.scope !== "room") {
+      return true;
+    }
+    const sameBoard = anim.boardId === state.boardId;
+    const sameRoom = anim.roomId === room.id;
+    if (sameBoard && sameRoom) {
+      stopAnimationSound(anim.id);
+      return false;
+    }
+    return true;
+  });
+  state.preview.queue = state.preview.queue.filter(
+    (entry) => !(entry.scope === "room" && entry.boardId === state.boardId && entry.roomId === room.id),
+  );
+  if (state.roomGeometryByBoard[state.boardId]) {
+    delete state.roomGeometryByBoard[state.boardId][room.id];
+  }
+  if (state.roomStateProfilesByBoard[state.boardId]) {
+    delete state.roomStateProfilesByBoard[state.boardId][room.id];
+  }
+  if (state.specialPolygonsByBoard[state.boardId]) {
+    delete state.specialPolygonsByBoard[state.boardId][room.id];
+  }
+  const fallbackRoomId = nextRooms[0]?.id ?? null;
+  state.selectedRoomId = fallbackRoomId;
+  state.selectedRoomByBoard[state.boardId] = fallbackRoomId;
+  setActivePolygonRoomId(state.boardId, fallbackRoomId);
+  clearRoomDraftEditTarget();
+  const persisted = persistBoardProfiles();
+  syncRoomPanelFromSelection();
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  renderRunningAnimationsList();
+  renderPreviewQueue();
+  syncRoomManagementPanel(
+    persisted
+      ? `Raumverwaltung: ${room.name ?? room.label ?? room.id} geloescht`
+      : `Raumverwaltung: ${room.name ?? room.label ?? room.id} geloescht (Persistenz fehlgeschlagen)`,
+  );
+}
+
+function renameSelectedRoom(nextName) {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  const normalized = normalizeRoomName(nextName, room.name ?? room.label ?? room.id);
+  room.name = normalized;
+  room.label = normalized;
+  const persisted = persistBoardProfiles();
+  syncRoomPanelFromSelection({ preserveDraftState: true });
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  syncRoomManagementPanel(
+    persisted
+      ? `Raumverwaltung: Name aktualisiert (${normalized})`
+      : `Raumverwaltung: Name aktualisiert (${normalized}, Persistenz fehlgeschlagen)`,
+  );
 }
 
 function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
@@ -4022,8 +4204,15 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
   syncGifRoomControls();
   roomHoldInput.checked = true;
-  roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
+  roomSelected.textContent = `Ausgewaehlter Raum: ${room.name ?? room.label}`;
+  if (roomRenameInput) {
+    roomRenameInput.value = room.name ?? room.label ?? "";
+  }
+  if (roomNameInput) {
+    roomNameInput.value = room.name ?? room.label ?? "";
+  }
   syncRoomGeometryPanel();
+  syncRoomManagementPanel();
   syncDashboardZoneVisibility();
 }
 
@@ -4134,8 +4323,8 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
 function formatPreviewQueueLabel(item) {
   const boardLabel = getBoard(item.boardId).label;
   if (item.scope === "room") {
-    const roomLabel =
-      getBoard(item.boardId).rooms.find((room) => room.id === item.roomId)?.label ?? item.roomId ?? "Raum";
+    const room = getBoard(item.boardId).rooms.find((entry) => entry.id === item.roomId);
+    const roomLabel = room?.name ?? room?.label ?? item.roomId ?? "Raum";
     return `${getAnimationLabel(item.type)} auf ${roomLabel} (${boardLabel})`;
   }
   return `${getAnimationLabel(item.type)} global (${boardLabel})`;
@@ -4512,7 +4701,7 @@ function startRoomAnimationFromDraft() {
 
   state.runningAnimations.push(animation);
   playSoundForAnimation(animation);
-  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
+  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.name ?? room.label} gestartet`;
   renderRunningAnimationsList();
 }
 
@@ -5432,8 +5621,8 @@ function updateSelectedRoomGeometry(partial, statusSuffix = "") {
   syncRoomGeometryPanel();
   if (statusSuffix) {
     triggerFeedback.textContent = persisted
-      ? `Status: ${room.label} ${statusSuffix}`
-      : `Status: ${room.label} ${statusSuffix} (Persistenz fehlgeschlagen)`;
+      ? `Status: ${room.name ?? room.label} ${statusSuffix}`
+      : `Status: ${room.name ?? room.label} ${statusSuffix} (Persistenz fehlgeschlagen)`;
   }
 }
 
@@ -5517,7 +5706,7 @@ boardZoomResetButton.addEventListener("click", () => {
 
 polygonRoomSelect.addEventListener("change", () => {
   const roomId = polygonRoomSelect.value;
-  syncSpecialRoomSelection(roomId);
+  syncPolygonRoomSelection(roomId);
   const zoom = getBoardZoom(state.boardId);
   const center = getRoomCenterForZoom(state.boardId, roomId);
   updateCurrentBoardZoom(computePanForZoomFocus(zoom.scale, center));
@@ -5604,15 +5793,19 @@ polygonResetRoomButton.addEventListener("click", () => {
   if (!roomId) {
     return;
   }
-  const room = getBoard().rooms.find((entry) => entry.id === roomId);
-  setSpecialPolygonPoints(state.boardId, roomId, room?.points ?? []);
+  const fallbackPolygon = getDefaultRoomPolygon(state.boardId, roomId);
+  if (!fallbackPolygon) {
+    triggerFeedback.textContent = "Status: Kein Board-Default fuer diesen Raum vorhanden";
+    return;
+  }
+  setSpecialPolygonPoints(state.boardId, roomId, fallbackPolygon);
   const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = 0;
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Spezialraum-Polygon auf Default gesetzt"
-    : "Status: Spezialraum-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
+    ? "Status: Raum-Polygon auf Default gesetzt"
+    : "Status: Raum-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
 });
 
 polygonFocusRoomButton.addEventListener("click", () => {
@@ -5955,6 +6148,18 @@ stopAllButton.addEventListener("click", () => {
   }
   resetClearAllGuard();
   executeClearAll();
+});
+
+roomCreateButton?.addEventListener("click", () => {
+  createRoomFromSettings();
+});
+
+roomDeleteButton?.addEventListener("click", () => {
+  deleteSelectedRoom();
+});
+
+roomRenameInput?.addEventListener("input", () => {
+  renameSelectedRoom(roomRenameInput.value);
 });
 
 roomAnimationSelect.addEventListener("change", () => {

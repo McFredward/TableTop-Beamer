@@ -160,6 +160,28 @@
         </section>
 
         <section class="panel settings-only view-hidden" data-view="settings" hidden>
+          <h2>Raumverwaltung</h2>
+          <label>
+            Neuer Raumname
+            <input id="room-name-input" type="text" maxlength="64" placeholder="z. B. Brutkammer" />
+          </label>
+          <label>
+            Startform beim Anlegen
+            <select id="room-create-shape">
+              <option value="hexagon">Hexagon (Startvorlage)</option>
+              <option value="free">Freies Dreieck (Startvorlage)</option>
+            </select>
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="room-create" type="button">Raum anlegen</button>
+            <button id="room-delete" type="button">Raum loeschen</button>
+          </div>
+          <p id="room-management-status" class="status-line" aria-live="polite">
+            Raumverwaltung: bereit
+          </p>
+        </section>
+
+        <section class="panel settings-only view-hidden" data-view="settings" hidden>
           <h2>Raum-Geometrie</h2>
           <p class="status-line">Pro Raum Position als Relativ-Offset oder absolute Zielposition kalibrieren.</p>
           <label>
@@ -193,10 +215,10 @@
         </section>
 
         <section class="panel settings-only view-hidden" data-view="settings" hidden>
-          <h2>Spezialraum-Polygoneditor</h2>
+          <h2>Raum-Polygoneditor</h2>
           <p class="status-line">Knoten auf dem Overlay ziehen oder per Buttons einfuegen/loeschen.</p>
           <label>
-            Spezialraum
+            Raum
             <select id="polygon-room-select"></select>
           </label>
           <label>
@@ -215,8 +237,12 @@
             <button id="polygon-reset-room" type="button">Polygon auf Board-Default</button>
             <button id="polygon-focus-room" type="button">Raum im Overlay auswaehlen</button>
           </div>
+          <label>
+            Raumname
+            <input id="room-rename-input" type="text" maxlength="64" placeholder="Raumname bearbeiten" />
+          </label>
           <p id="polygon-editor-status" class="status-line" aria-live="polite">
-            Polygoneditor: Spezialraum waehlen
+            Polygoneditor: Raum waehlen
           </p>
         </section>
 
@@ -402,10 +428,12 @@
 
     <script src="src/app/shared/config.js" defer></script>
     <script src="src/app/shared/normalizers.js" defer></script>
+    <script src="src/app/domain/rooms.js" defer></script>
     <script src="src/app/api/global-defaults-api.js" defer></script>
     <script src="src/app/persistence/board-profiles.js" defer></script>
     <script src="src/app/state/runtime-state.js" defer></script>
     <script src="src/app/boot/runtime-bootstrap.js" defer></script>
+    <script src="src/app/ui/settings/rooms.js" defer></script>
     <script src="src/app.js" defer></script>
   </body>
 </html>

@@ -57,15 +57,23 @@
 
   function normalizeZoneRoom(room, fallbackRadius = 0.055) {
     const radius = Number.isFinite(Number(room?.radius)) ? Number(room.radius) : fallbackRadius;
+    const normalizedPoints = Array.isArray(room?.polygon)
+      ? room.polygon
+      : Array.isArray(room?.points)
+        ? room.points
+        : null;
+    const displayName = String(room?.name || room?.label || "").trim();
     const base = {
       id: String(room?.id || "").trim(),
-      label: String(room?.label || "").trim(),
+      name: displayName,
+      label: displayName,
       radius,
     };
-    if (Array.isArray(room?.points)) {
+    if (Array.isArray(normalizedPoints)) {
       return {
         ...base,
-        points: room.points.map((point) => [Number(point?.[0]), Number(point?.[1])]),
+        polygon: normalizedPoints.map((point) => [Number(point?.[0]), Number(point?.[1])]),
+        points: normalizedPoints.map((point) => [Number(point?.[0]), Number(point?.[1])]),
       };
     }
     return {
@@ -80,19 +88,20 @@
     if (!room.id) {
       issues.push(`rooms[${roomIndex}].id missing`);
     }
-    if (!room.label) {
-      issues.push(`rooms[${roomIndex}].label missing`);
+    if (!room.label && !room.name) {
+      issues.push(`rooms[${roomIndex}].name/label missing`);
     }
     if (!Number.isFinite(room.radius) || room.radius <= 0 || room.radius > 0.25) {
       issues.push(`rooms[${roomIndex}].radius invalid`);
     }
-    if (Array.isArray(room.points)) {
-      if (room.points.length < 3) {
-        issues.push(`rooms[${roomIndex}].points requires >= 3 vertices`);
+    const polygon = Array.isArray(room.polygon) ? room.polygon : room.points;
+    if (Array.isArray(polygon)) {
+      if (polygon.length < 3) {
+        issues.push(`rooms[${roomIndex}].polygon requires >= 3 vertices`);
       }
-      room.points.forEach((point, pointIndex) => {
+      polygon.forEach((point, pointIndex) => {
         if (!isFiniteUnitValue(point?.[0]) || !isFiniteUnitValue(point?.[1])) {
-          issues.push(`rooms[${roomIndex}].points[${pointIndex}] out of bounds`);
+          issues.push(`rooms[${roomIndex}].polygon[${pointIndex}] out of bounds`);
         }
       });
     } else if (!isFiniteUnitValue(room.x) || !isFiniteUnitValue(room.y)) {

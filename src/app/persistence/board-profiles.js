@@ -37,12 +37,14 @@
       raw.hitareaCalibrationByBoard ||
       raw.roomGeometryByBoard ||
       raw.roomStateProfilesByBoard ||
-      raw.specialPolygonsByBoard
+      raw.specialPolygonsByBoard ||
+      raw.roomCatalogByBoard
     ) {
       return Object.fromEntries(
         boards.map((board) => [
           board.id,
           {
+            roomCatalog: raw.roomCatalogByBoard?.[board.id] ?? raw.roomsByBoard?.[board.id],
             hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
             roomGeometry: raw.roomGeometryByBoard?.[board.id],
             roomStateProfiles: raw.roomStateProfilesByBoard?.[board.id],
@@ -114,6 +116,7 @@
     for (const board of boards) {
       const profile = candidate?.[board.id] ?? {};
       migrated[board.id] = {
+        roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
         hitareaCalibration:
           profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[board.id] ?? HITAREA_CALIBRATION_DEFAULT,
         roomGeometry:
