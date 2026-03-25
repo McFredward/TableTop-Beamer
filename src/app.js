@@ -212,6 +212,9 @@ const SESSION_ENDPOINT_PATHS = {
   heartbeat: "/api/session/heartbeat",
   event: "/api/session/event",
 };
+const SESSION_RETRY_BASE_DELAY_MS = 1200;
+const SESSION_RETRY_MAX_DELAY_MS = 12000;
+const SESSION_RETRY_JITTER_MS = 450;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
@@ -385,6 +388,33 @@ function syncSessionStatus(text) {
   sessionStatus.textContent = text;
 }
 
+function getSessionRetryState() {
+  if (!state.session.retry || typeof state.session.retry !== "object") {
+    state.session.retry = {
+      status: "idle",
+      attempt: 0,
+      maxAttempts: 8,
+      nextDelayMs: 0,
+      nextRetryAt: 0,
+      terminal: false,
+      lastError: "",
+      lastErrorCode: "",
+      lastErrorAt: 0,
+      lastAttemptAt: 0,
+      lastSuccessAt: 0,
+      lastEndpoint: "",
+    };
+  }
+  return state.session.retry;
+}
+
+function calculateSessionRetryDelay(attempt) {
+  const exponent = Math.max(0, Number(attempt || 1) - 1);
+  const baseDelay = Math.min(SESSION_RETRY_MAX_DELAY_MS, SESSION_RETRY_BASE_DELAY_MS * 2 ** exponent);
+  const jitter = Math.floor((Math.random() * 2 - 1) * SESSION_RETRY_JITTER_MS);
+  return Math.max(SESSION_RETRY_BASE_DELAY_MS, Math.min(SESSION_RETRY_MAX_DELAY_MS, baseDelay + jitter));
+}
+
 function updateSessionInputsFromState() {
   if (sessionIdInput) {
     sessionIdInput.value = state.session.id || "default-session";
@@ -477,15 +507,39 @@ async function emitSessionEvent(type, payload = {}) {
   }
 }
 
-function scheduleSessionReconnect(delayMs = 1200) {
+function scheduleSessionReconnect({ reason = "reconnect", delayMs = null } = {}) {
   if (sessionReconnectTimer) {
-    return;
+    return false;
   }
-  state.session.reconnectAttempts = (state.session.reconnectAttempts || 0) + 1;
+
+  const retry = getSessionRetryState();
+  const nextAttempt = Number(retry.attempt || 0) + 1;
+  const maxAttempts = Math.max(1, Number(retry.maxAttempts || 8));
+  if (nextAttempt > maxAttempts) {
+    retry.status = "terminal";
+    retry.terminal = true;
+    retry.nextDelayMs = 0;
+    retry.nextRetryAt = 0;
+    state.session.reconnectAttempts = retry.attempt;
+    syncSessionStatus(`Session: reconnect abgebrochen (${state.session.id}) | terminal nach ${retry.attempt}/${maxAttempts}`);
+    return false;
+  }
+
+  const computedDelay = Number.isFinite(Number(delayMs))
+    ? Math.max(SESSION_RETRY_BASE_DELAY_MS, Number(delayMs))
+    : calculateSessionRetryDelay(nextAttempt);
+  retry.status = "scheduled";
+  retry.terminal = false;
+  retry.attempt = nextAttempt;
+  retry.nextDelayMs = computedDelay;
+  retry.nextRetryAt = Date.now() + computedDelay;
+  state.session.reconnectAttempts = retry.attempt;
+
   sessionReconnectTimer = window.setTimeout(() => {
     sessionReconnectTimer = null;
-    void connectSession({ reconnect: true });
-  }, delayMs);
+    void connectSession({ reconnect: true, reason });
+  }, computedDelay);
+  return true;
 }
 
 function startSessionHeartbeat(intervalMs = 4000) {
@@ -516,8 +570,13 @@ function startSessionHeartbeat(intervalMs = 4000) {
       applySessionSnapshot(result?.snapshot);
     } catch {
       state.session.connected = false;
+      const retry = getSessionRetryState();
+      retry.status = "failed";
+      retry.lastError = "heartbeat failed";
+      retry.lastErrorCode = "HEARTBEAT_FAILED";
+      retry.lastErrorAt = Date.now();
       syncSessionStatus(`Session: Heartbeat-Fehler, reconnect geplant (${state.session.id})`);
-      scheduleSessionReconnect(1500);
+      scheduleSessionReconnect({ reason: "heartbeat-failed" });
     }
   }, Math.max(1200, Number(intervalMs) || 4000));
 }
@@ -557,16 +616,27 @@ function attachSessionStream() {
   });
   stream.addEventListener("error", () => {
     state.session.connected = false;
+    const retry = getSessionRetryState();
+    retry.status = "failed";
+    retry.lastError = "sse stream interrupted";
+    retry.lastErrorCode = "SSE_INTERRUPTED";
+    retry.lastErrorAt = Date.now();
     syncSessionStatus(`Session: SSE unterbrochen, reconnect geplant (${state.session.id})`);
     closeSessionStream();
-    scheduleSessionReconnect(1800);
+    scheduleSessionReconnect({ reason: "sse-interrupted" });
   });
 }
 
-async function connectSession({ reconnect = false } = {}) {
+async function connectSession({ reconnect = false, reason = "manual" } = {}) {
   const sessionCandidates = resolveSessionApiCandidates();
   const preferredSessionIds = getPreferredSessionIdCandidates();
+  const retry = getSessionRetryState();
   let lastError = null;
+
+  retry.status = reconnect ? "reconnecting" : "connecting";
+  retry.lastAttemptAt = Date.now();
+  retry.nextRetryAt = 0;
+  retry.nextDelayMs = 0;
 
   for (const candidate of sessionCandidates) {
     for (const candidateSessionId of preferredSessionIds) {
@@ -579,6 +649,7 @@ async function connectSession({ reconnect = false } = {}) {
           apiBase: candidate.apiBase,
           includeClientId,
         });
+        retry.lastEndpoint = endpoint;
         try {
           response = await fetchWithTimeout(endpoint, {
             method: "GET",
@@ -597,19 +668,35 @@ async function connectSession({ reconnect = false } = {}) {
             state.session.connected = true;
             state.session.reconnectAttempts = 0;
             state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
+            retry.status = "connected";
+            retry.attempt = 0;
+            retry.nextDelayMs = 0;
+            retry.nextRetryAt = 0;
+            retry.terminal = false;
+            retry.lastError = "";
+            retry.lastErrorCode = "";
+            retry.lastSuccessAt = Date.now();
             applySessionSnapshot(result?.snapshot);
             attachSessionStream();
             startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
             syncSessionStatus(
-              `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect+snapshot" : "join"} | Rolle ${state.role}`,
+              `Session: verbunden (${state.session.id}) | ${reconnect ? `reconnect:${reason}` : "join"} | Rolle ${state.role}`,
             );
             return;
           }
 
           const details = await response.text();
           lastError = new Error(`connect failed (${response.status}) ${details}`);
+          retry.status = "failed";
+          retry.lastError = `connect failed (${response.status})`;
+          retry.lastErrorCode = "CONNECT_HTTP_ERROR";
+          retry.lastErrorAt = Date.now();
         } catch (error) {
           lastError = error instanceof Error ? error : new Error("session connect failed");
+          retry.status = "failed";
+          retry.lastError = lastError.message;
+          retry.lastErrorCode = "CONNECT_UNREACHABLE";
+          retry.lastErrorAt = Date.now();
         }
 
         if (includeClientId && state.session.clientId) {
@@ -621,8 +708,9 @@ async function connectSession({ reconnect = false } = {}) {
   }
 
   state.session.connected = false;
+  retry.status = "failed";
   syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id || "default-session"})`);
-  scheduleSessionReconnect(2500);
+  scheduleSessionReconnect({ reason: "connect-failed" });
   if (lastError) {
     console.warn("session connect failed", lastError);
   }
