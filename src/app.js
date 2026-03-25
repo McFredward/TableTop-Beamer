@@ -6159,6 +6159,10 @@ audioEnabledInput.addEventListener("change", () => {
   }
   applyAudioGain();
   syncAudioStatus();
+  const persisted = persistBoardProfiles();
+  if (!persisted) {
+    triggerFeedback.textContent = "Status: Audio-Umschaltung gesetzt, aber Persistenz fehlgeschlagen";
+  }
 });
 
 audioMappingAnimationSelect.addEventListener("change", () => {
@@ -6174,8 +6178,11 @@ audioMappingSoundSelect.addEventListener("change", () => {
     animationType,
     audioMappingSoundSelect.value,
   );
+  const persisted = persistBoardProfiles();
   syncAudioMappingPanel();
-  triggerFeedback.textContent = `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
+  triggerFeedback.textContent = persisted
+    ? `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
+    : `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
 });
 
 audioVolumeInput.addEventListener("input", () => {
@@ -6184,6 +6191,10 @@ audioVolumeInput.addEventListener("input", () => {
   audioVolumeValue.textContent = `${volumePercent}%`;
   applyAudioGain();
   syncAudioStatus();
+  const persisted = persistBoardProfiles();
+  if (!persisted) {
+    triggerFeedback.textContent = "Status: Audio-Lautstaerke gesetzt, aber Persistenz fehlgeschlagen";
+  }
 });
 
 animationSpeedInput.addEventListener("input", () => {
