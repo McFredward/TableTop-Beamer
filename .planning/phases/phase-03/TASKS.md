@@ -30,4 +30,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T22 [P0] Default-Verhalten `hold` fuer alle Raumanimationen erzwingen (aktiv bis expliziter Stop).
 - [x] DONE P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
 - [x] DONE P3-T24 [P1] Performance-/Soak-Check fuer mehrere daueraktive Raum-Animationen protokollieren.
-- [ ] TODO P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
+- [x] DONE P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.

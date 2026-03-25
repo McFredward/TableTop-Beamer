@@ -1,16 +1,17 @@
 # Phase 3 Workspace
 
-Vorbereitete Planung fuer den Nemesis Animations-Overhaul mit kombinierten Raumzustaenden, spezialraum-spezifischen Effekten, sauberem Raum-Clipping und immersiver Darstellung.
+Vorbereitete und reworkte Planung fuer den Nemesis Animations-Overhaul mit separatem Trigger-Modell pro Raumanimation, raumstrengem Clipping und instanzscharfer GIF-Steuerung.
 
 - `PLAN.md`: Zielbild, Scope, Milestones und Definition of Done fuer Phase 3.
-- `BACKLOG.md`: Epics, Story-Mapping und priorisierte Umsetzungsstrecke (Plan 3-1 zuerst).
-- `TASKS.md`: konkrete Task-Sequenz mit P0-First-Ausfuehrungswelle.
+- `BACKLOG.md`: Epics, Story-Mapping und priorisierte Umsetzungsstrecke fuer Rework Plan 3-2.
+- `TASKS.md`: konkrete Task-Sequenz mit P0-First-Reworkwelle.
 - `ACCEPTANCE.md`: verbindliche Test- und Abnahmekriterien fuer Kombinationslogik, Clipping und Immersion.
 - `RISKS.md`: zentrale Projektrisiken und Gegenmassnahmen fuer Rendering, Performance und Bedienbarkeit.
-- `EXECUTE.md`: ausfuehrbare Reihenfolge mit klaren Gates fuer Plan 3-1.
+- `EXECUTE.md`: ausfuehrbare Reihenfolge mit klaren Gates fuer Plan 3-2.
 - `3-1-VERIFICATION.md`: Nachweise fuer Kombinationsmatrix, Spezialraum-Effekte und Clipping-Integritaet.
+- `3-2-VERIFICATION.md`: Abschlussnachweis fuer das Rework auf separates Trigger-Modell.
 
 ## Stand
 
-- Plan 3-1 (P3-T1..P3-T12) ist umgesetzt.
-- Acceptance-Nachweise sind in `3-1-VERIFICATION.md` dokumentiert.
+- Plan 3-1 (P3-T1..P3-T12) ist umgesetzt und nachgewiesen.
+- Rework Plan 3-2 (P3-T13..P3-T25) ist umgesetzt und verifiziert.
