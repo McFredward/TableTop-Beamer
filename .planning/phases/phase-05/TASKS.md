@@ -6,7 +6,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Plan 5-1 - Multi-Device Live-Sync Core (erste Ausfuehrungswelle, execute-ready)
 - [x] DONE P5-T1 [P0] Serverseitige Final-Output-Route `/output/final` bereitstellen und in Startup-Doku verankern.
 - [x] DONE P5-T2 [P0] Final-Output-Render-Guard implementieren: kein Board-Bild, keine Raum-Polygone, keine Raum-Namen.
-- [ ] TODO P5-T3 [P0] Final-Output an bestehende FX-Renderpfade anbinden (room/global/inside/outside), ohne Controller-UI-Anteile.
+- [x] DONE P5-T3 [P0] Final-Output an bestehende FX-Renderpfade anbinden (room/global/inside/outside), ohne Controller-UI-Anteile.
 
 - [ ] TODO P5-T4 [P0] Shared Session-State am Server einfuehren (Snapshot + Versionszaehler + letzte Mutation).
 - [ ] TODO P5-T5 [P0] Client-Aktionen serverautoritiv mutieren (Trigger/Edit/Stop/Clear-All/Align-Toggle).

@@ -209,6 +209,20 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-direction",
 ];
 
+function applyOutputRoleViewContract() {
+  if (outputRole !== OUTPUT_ROLE_FINAL) {
+    return;
+  }
+  if (controlPanel) {
+    controlPanel.setAttribute("aria-hidden", "true");
+    controlPanel.setAttribute("inert", "");
+  }
+  if (roomOverlay) {
+    roomOverlay.setAttribute("aria-hidden", "true");
+  }
+  triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
+}
+
 const ctx = canvas.getContext("2d");
 
 const state = window.TT_BEAMER_STATE.createInitialState({
@@ -6466,6 +6480,7 @@ async function initializeApplication() {
 
   syncRuntimePanelsFromState();
   syncMobileStickyOffsets();
+  applyOutputRoleViewContract();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
       `Global Defaults: automatisch geladen & angewendet (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
