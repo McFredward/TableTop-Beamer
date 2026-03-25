@@ -47,7 +47,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 3-5 - P0 Render-Regression + Pflicht-Refactor `app.js` (execute-ready)
 - [x] DONE P3-T35 [P0] Kritischen Regression-Bug reproduzieren und fixen: Board rendert laufende Animationen wieder sichtbar, waehrend Audio parallel korrekt weiterlaeuft.
-- [ ] TODO P3-T36 [P0] Render-/Audio-Entkopplung hardenen: Draw-Tick/Render-Scheduler gegen Audio-Lifecycle-Ereignisse (`loop`, `stop`, `clear all`, `edit`) absichern.
+- [x] DONE P3-T36 [P0] Render-/Audio-Entkopplung hardenen: Draw-Tick/Render-Scheduler gegen Audio-Lifecycle-Ereignisse (`loop`, `stop`, `clear all`, `edit`) absichern.
 - [ ] TODO P3-T37 [P0] Zielstruktur fuer Modulgrenzen einfuehren (Ordner/Dateien fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) und Entry-Composition definieren.
 - [ ] TODO P3-T38 [P0] `state` + `persistence` aus `app.js` extrahieren (inkl. Load/Save-Flow) und API-gleiches Verhalten sichern.
 - [ ] TODO P3-T39 [P0] `rendering` + `effects` aus `app.js` extrahieren; Board-Renderpfad inkl. Clipping/GIF-Loop bleibt funktional identisch.
