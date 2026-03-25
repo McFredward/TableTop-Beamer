@@ -8,7 +8,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T2 [P0] Session-Handshake/Join-Protokoll erweitern (Role-Announcement, Session-ID, Client-ID, Version-Guard).
 - [x] DONE P5-T3 [P0] Reconnect-/Heartbeat-Guard implementieren (stale client cleanup, Snapshot-Recover bei Rejoin).
 - [x] DONE P5-T4 [P0] Final-Output-Renderroute einbauen: Board-Hintergrund, Polygon-Overlay, Handles und Raumlabels fuer Rolle `final-output` unterdruecken.
-- [ ] TODO P5-T5 [P0] Render-Layer-Guard zentralisieren, damit `final-output` niemals Editor-/Settings-Hilfselemente rendert.
+- [x] DONE P5-T5 [P0] Render-Layer-Guard zentralisieren, damit `final-output` niemals Editor-/Settings-Hilfselemente rendert.
 - [ ] TODO P5-T6 [P0] Alignment-Mode-Toggle in UI + Session-State + Persistenz integrieren.
 - [ ] TODO P5-T7 [P0] Rollenregel fuer Alignment-Mode durchsetzen: Toggle wirkt nur auf `operator`/`alignment`, nicht auf `final-output`.
 - [ ] TODO P5-T8 [P0] Realtime-Sync fuer Trigger/Edit/Stop/Clear-All als verbindlichen Event-Contract stabilisieren.

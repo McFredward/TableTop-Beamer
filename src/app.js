@@ -536,19 +536,27 @@ function applySessionId(nextSessionId) {
   }
 }
 
-function shouldRenderOverlay() {
+function isHelperLayerAllowed() {
   return !isFinalOutputRole();
+}
+
+function shouldRenderOverlay() {
+  return isHelperLayerAllowed();
 }
 
 function applyRoleRenderMode() {
   const finalOutput = isFinalOutputRole();
   document.body.dataset.clientRole = state.role;
+  if (finalOutput && state.uiView !== "dashboard") {
+    state.uiView = "dashboard";
+  }
   if (controlPanel) {
     controlPanel.toggleAttribute("hidden", finalOutput);
     controlPanel.setAttribute("aria-hidden", finalOutput ? "true" : "false");
   }
   boardImage.style.visibility = finalOutput ? "hidden" : "visible";
   roomOverlay.style.display = shouldRenderOverlay() ? "block" : "none";
+  roomOverlay.style.pointerEvents = shouldRenderOverlay() ? "auto" : "none";
   stage.classList.toggle("is-final-output", finalOutput);
 }
 
@@ -3056,7 +3064,7 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 }
 
 function setActiveView(view, { skipGuard = false } = {}) {
-  const nextView = view === "settings" ? "settings" : "dashboard";
+  const nextView = isFinalOutputRole() ? "dashboard" : view === "settings" ? "settings" : "dashboard";
   if (nextView !== "settings") {
     state.panMode.spacePressed = false;
     endPanMode(null, { canceled: true });
