@@ -818,77 +818,7 @@ function buildGlobalDefaultsPayload() {
 
 async function saveGlobalDefaultsToServer() {
   const payload = buildGlobalDefaultsPayload();
-  const apiCandidates = resolveGlobalDefaultsApiCandidates();
-  const requestBody = JSON.stringify(payload);
-  let lastError = null;
-
-  for (const candidate of apiCandidates) {
-    const endpoint = candidate.endpoint;
-    const preflight = await runApiPreflight(endpoint);
-    if (!preflight.ok) {
-      lastError = buildGlobalDefaultsSaveError({
-        code: preflight.code,
-        status: preflight.status,
-        statusClass: classifyHttpStatus(preflight.status),
-        details: preflight.details,
-        endpoint,
-        method: preflight.method,
-        routing: candidate,
-      });
-      continue;
-    }
-
-    try {
-      const response = await fetchWithTimeout(endpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: requestBody,
-      });
-
-      if (!response.ok) {
-        const details = await response.text();
-        lastError = buildGlobalDefaultsSaveError({
-          code: classifyFailedSaveResponse(response, details),
-          status: response.status,
-          statusClass: classifyHttpStatus(response.status),
-          details,
-          endpoint,
-          method: "POST",
-          routing: candidate,
-        });
-        continue;
-      }
-
-      const result = await response.json();
-      return {
-        savedAt: result?.savedAt ?? payload.savedAt,
-        target: result?.target ?? "config/global-defaults.json",
-        endpoint,
-        method: "POST",
-        status: response.status,
-        statusClass: classifyHttpStatus(response.status),
-        routing: candidate,
-      };
-    } catch (error) {
-      lastError =
-        error instanceof Error && "code" in error
-          ? error
-          : buildGlobalDefaultsSaveError({
-              code: "API_UNREACHABLE",
-              details: error instanceof Error ? error.message : "request failed",
-              endpoint,
-              method: "POST",
-              routing: candidate,
-            });
-    }
-  }
-
-  if (lastError instanceof Error) {
-    throw lastError;
-  }
-  throw new Error("Global Defaults Save fehlgeschlagen");
+  return getGlobalDefaultsApiFacade().saveGlobalDefaults(payload);
 }
 
 async function fetchWithTimeout(url, options = {}) {
@@ -914,83 +844,31 @@ async function fetchWithTimeout(url, options = {}) {
   }
 }
 
+let globalDefaultsApiFacade = null;
+
+function getGlobalDefaultsApiFacade() {
+  if (globalDefaultsApiFacade) {
+    return globalDefaultsApiFacade;
+  }
+  globalDefaultsApiFacade = window.TT_BEAMER_API.createGlobalDefaultsApiFacade({
+    apiBaseStorageKey: API_BASE_STORAGE_KEY,
+    apiBaseUrlParamKeys: API_BASE_URL_PARAM_KEYS,
+    apiPortFallbacks: API_PORT_FALLBACKS,
+    localApiHosts: LOCAL_API_HOSTS,
+    requestTimeoutMs: API_REQUEST_TIMEOUT_MS,
+    fetchWithTimeout,
+    location: window.location,
+    localStorage: window.localStorage,
+  });
+  return globalDefaultsApiFacade;
+}
+
 async function runApiPreflight(saveEndpoint) {
-  const healthEndpoint = `${getApiBaseFromSaveEndpoint(saveEndpoint)}/api/health`;
-  try {
-    const healthResponse = await fetchWithTimeout(healthEndpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-    });
-    if (!healthResponse.ok) {
-      const details = await healthResponse.text();
-      return {
-        ok: false,
-        code: classifyFailedHealthResponse(healthResponse, details),
-        method: "GET",
-        status: healthResponse.status,
-        details,
-      };
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      code: "API_UNREACHABLE",
-      method: "GET",
-      status: null,
-      details: error instanceof Error ? error.message : "health request failed",
-    };
-  }
-
-  try {
-    const optionsResponse = await fetchWithTimeout(saveEndpoint, {
-      method: "OPTIONS",
-    });
-    if (!optionsResponse.ok) {
-      const details = await optionsResponse.text();
-      return {
-        ok: false,
-        code: classifyFailedSaveResponse(optionsResponse, details),
-        method: "OPTIONS",
-        status: optionsResponse.status,
-        details,
-      };
-    }
-    const allowHeader = String(optionsResponse.headers.get("allow") || "").toUpperCase();
-    if (allowHeader && !allowHeader.split(",").map((entry) => entry.trim()).includes("POST")) {
-      return {
-        ok: false,
-        code: "API_METHOD_UNAVAILABLE",
-        method: "OPTIONS",
-        status: optionsResponse.status,
-        details: `allow=${allowHeader}`,
-      };
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      code: "API_UNREACHABLE",
-      method: "OPTIONS",
-      status: null,
-      details: error instanceof Error ? error.message : "options request failed",
-    };
-  }
-
-  return {
-    ok: true,
-    code: "OK",
-    method: "OPTIONS",
-    status: 200,
-    details: "preflight ok",
-  };
+  return getGlobalDefaultsApiFacade().runApiPreflight(saveEndpoint);
 }
 
 function classifyHttpStatus(status) {
-  if (!Number.isFinite(Number(status))) {
-    return "n/a";
-  }
-  return `${Math.floor(Number(status) / 100)}xx`;
+  return getGlobalDefaultsApiFacade().classifyHttpStatus(status);
 }
 
 function getApiBaseFromSaveEndpoint(saveEndpoint) {
@@ -1003,46 +881,7 @@ function getApiBaseFromSaveEndpoint(saveEndpoint) {
 }
 
 function resolveGlobalDefaultsApiCandidates() {
-  const endpoints = [];
-  const seen = new Set();
-
-  function addEndpoint(base, source) {
-    const normalized = normalizeApiBase(base);
-    if (!normalized || seen.has(normalized)) {
-      return;
-    }
-    seen.add(normalized);
-    endpoints.push({
-      apiBase: normalized,
-      endpoint: `${normalized}/api/global-defaults`,
-      source,
-      uiHost: getUiHostName(),
-      apiHost: getApiHostName(normalized),
-    });
-  }
-
-  const configured = readConfiguredApiBase();
-  if (configured) {
-    addEndpoint(configured.base, configured.source);
-  }
-
-  addEndpoint(window.location?.origin, "ui-host-default");
-
-  const uiHost = getUiHostName();
-  const uiProtocol = getUiProtocol();
-  const fallbackHost = uiHost || "localhost";
-  const allowLocalhostFallback = !uiHost || isLocalApiHost(uiHost);
-
-  for (const port of API_PORT_FALLBACKS) {
-    addEndpoint(`${uiProtocol}//${fallbackHost}:${port}`, `fallback:${fallbackHost}:${port}`);
-  }
-
-  if (allowLocalhostFallback) {
-    addEndpoint("http://localhost:4173", "fallback:localhost:4173");
-    addEndpoint("http://127.0.0.1:4173", "fallback:127.0.0.1:4173");
-  }
-
-  return endpoints;
+  return getGlobalDefaultsApiFacade().resolveGlobalDefaultsApiCandidates();
 }
 
 function readConfiguredApiBase() {
@@ -1093,22 +932,7 @@ function readApiBaseFromQuery() {
 }
 
 function normalizeApiBase(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-    return parsed.origin;
-  } catch {
-    return null;
-  }
+  return getGlobalDefaultsApiFacade().normalizeApiBase(value);
 }
 
 function getUiHostName() {
@@ -1133,18 +957,7 @@ function isLocalApiHost(hostname) {
 }
 
 function classifyFailedSaveResponse(response, details) {
-  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  const body = String(details || "").toLowerCase();
-  if (response.status === 405 || response.status === 501) {
-    return "API_METHOD_UNAVAILABLE";
-  }
-  if (contentType.includes("text/html") || body.includes("<html") || body.includes("<!doctype")) {
-    return "API_HTML_ERROR";
-  }
-  if (response.status >= 500) {
-    return "API_SERVER_ERROR";
-  }
-  return "API_REQUEST_FAILED";
+  return getGlobalDefaultsApiFacade().classifyFailedSaveResponse(response, details);
 }
 
 function classifyFailedHealthResponse(response, details) {
@@ -1199,15 +1012,15 @@ function buildGlobalDefaultsSaveError({
   method = "POST",
   routing = null,
 }) {
-  const error = new Error(`Global Defaults Save fehlgeschlagen (${code})`);
-  error.code = code;
-  error.status = status;
-  error.statusClass = statusClass;
-  error.details = details;
-  error.endpoint = endpoint;
-  error.method = method;
-  error.routing = routing;
-  return error;
+  return getGlobalDefaultsApiFacade().buildGlobalDefaultsSaveError({
+    code,
+    status,
+    statusClass,
+    details,
+    endpoint,
+    method,
+    routing,
+  });
 }
 
 function getApiHostName(base) {
@@ -1395,62 +1208,7 @@ function listGlobalDefaultsLoadCandidates() {
 }
 
 async function fetchGlobalDefaultsPayload() {
-  const candidates = listGlobalDefaultsLoadCandidates();
-  let lastError = null;
-
-  for (const candidate of candidates) {
-    try {
-      const response = await fetchWithTimeout(candidate.endpoint, {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-        },
-      });
-      if (!response.ok) {
-        lastError = buildGlobalDefaultsSaveError({
-          code: "API_REQUEST_FAILED",
-          status: response.status,
-          statusClass: classifyHttpStatus(response.status),
-          endpoint: candidate.endpoint,
-          method: "GET",
-          routing: candidate.routing,
-        });
-        continue;
-      }
-      const payload = await response.json();
-      if (!payload || typeof payload !== "object") {
-        continue;
-      }
-      return {
-        payload,
-        endpoint: candidate.endpoint,
-        source: candidate.source,
-        routing: candidate.routing,
-      };
-    } catch (error) {
-      lastError =
-        error instanceof Error && "code" in error
-          ? error
-          : buildGlobalDefaultsSaveError({
-              code: "API_UNREACHABLE",
-              details: error instanceof Error ? error.message : "defaults load failed",
-              endpoint: candidate.endpoint,
-              method: "GET",
-              routing: candidate.routing,
-            });
-    }
-  }
-
-  if (lastError instanceof Error) {
-    throw lastError;
-  }
-
-  throw buildGlobalDefaultsSaveError({
-    code: "API_REQUEST_FAILED",
-    details: "no defaults endpoint reachable",
-    endpoint: "n/a",
-    method: "GET",
-  });
+  return getGlobalDefaultsApiFacade().fetchGlobalDefaultsPayload();
 }
 
 function applyGlobalDefaultsPayloadToState(payload) {
