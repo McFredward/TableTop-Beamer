@@ -39,3 +39,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T29 [P0] Regression-Guard fuer GIF-Raumtrigger nachziehen: Running-List-1:1, hold-by-default und raumstrenges Clipping unveraendert sicherstellen.
 - [x] DONE P3-T30 [P1] Loop-Playback- und Soak-Nachweise fuer echte GIF-Framefolge dokumentieren (inkl. mindestens einem kompletten Loop-Roundtrip pro GIF).
 - [x] DONE P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.
+
+## Plan 3-4 - P0 Cross-Browser-Fallback-Fix (priorisiert)
+- [x] DONE P3-T32 [P0] Fallback-Root-Cause fixieren: GIF-Raumtrigger duerfen bei fehlendem nativen Decoder nicht auf statisches Erstframe zurueckfallen.
+- [x] DONE P3-T33 [P0] Decoder-agnostischen GIF-Frame-Scheduler fuer `kaputt`/`feuer`/`schleim` implementieren (echter Frame-Fortschritt + nativer/fallback Loop).
+- [x] DONE P3-T34 [P0] Instanzparitaet in beiden Playback-Pfaden hardenen: `opacity`/`playbackSpeed` bleiben pro `animation.id` isoliert und editierbar.
+- [x] DONE P3-T35 [P0] Regression-Gate erneuern: Running-List-1:1, hold-by-default und raumstrenges Clipping bleiben unveraendert.
+- [ ] TODO P3-T36 [P1] Browser-Matrix + Soak fuer Fallback-Looping dokumentieren (mind. 1 kompletter Loop-Roundtrip je GIF ohne `ImageDecoder`).
+- [ ] TODO P3-T37 [P1] Plan-3-4-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.
