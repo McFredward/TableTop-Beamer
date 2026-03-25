@@ -492,7 +492,7 @@ async function connectSession({ reconnect = false } = {}) {
     const result = await response.json();
     state.session.id = String(result.sessionId || state.session.id || "default-session");
     state.session.clientId = String(result.clientId || state.session.clientId || "");
-    state.role = normalizeClientRole(result.role || state.role);
+    applyClientRole(result.role || state.role);
     state.session.connected = true;
     state.session.reconnectAttempts = reconnect ? state.session.reconnectAttempts : 0;
     state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
@@ -510,6 +510,7 @@ async function connectSession({ reconnect = false } = {}) {
 }
 
 function applyClientRole(nextRole) {
+  const previousRole = state.role;
   state.role = normalizeClientRole(nextRole);
   if (clientRoleSelect) {
     clientRoleSelect.value = state.role;
@@ -519,7 +520,20 @@ function applyClientRole(nextRole) {
   } catch {
     // ignore persistence failures
   }
+  if (previousRole !== state.role) {
+    if (!isAudioAllowedForCurrentRole()) {
+      for (const animation of state.runningAnimations) {
+        stopAnimationSound(animation.id);
+      }
+      stopAllAudioVoices();
+    } else if (state.audio.enabled) {
+      for (const animation of state.runningAnimations) {
+        playSoundForAnimation(animation);
+      }
+    }
+  }
   applyRoleRenderMode();
+  applyAudioGain();
   syncAudioStatus();
   syncSessionStatus(`Session: Rolle gesetzt auf ${state.role}`);
 }
@@ -547,6 +561,10 @@ function shouldRenderOverlay() {
 
 function shouldShowOverlayGuides() {
   return !isFinalOutputRole() && (state.uiView === "settings" || state.alignmentOverlayEnabled);
+}
+
+function isAudioAllowedForCurrentRole() {
+  return isFinalOutputRole();
 }
 
 function applyRoleRenderMode() {
@@ -4120,7 +4138,8 @@ function finishPolygonAreaDrag(event, { cancel = false } = {}) {
 function syncAudioStatus() {
   const volumePercent = Math.round(state.audio.volume * 100);
   const mode = state.audio.enabled ? "ON" : "OFF";
-  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
+  const roleMode = isAudioAllowedForCurrentRole() ? "role=final-output" : `role=${state.role} (mute-gated)`;
+  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%) | ${roleMode}`;
 }
 
 function persistRuntimeSoundSettingsChange(failureMessage) {
@@ -4171,7 +4190,7 @@ function warmEventSoundAssets() {
 }
 
 function applyAudioGain() {
-  const targetVolume = state.audio.enabled ? state.audio.volume : 0;
+  const targetVolume = state.audio.enabled && isAudioAllowedForCurrentRole() ? state.audio.volume : 0;
   for (const pool of audioAssetPoolByPath.values()) {
     for (const voice of pool) {
       voice.volume = targetVolume;
@@ -4181,7 +4200,9 @@ function applyAudioGain() {
     if (!active?.voice) {
       continue;
     }
-    const instanceVolume = state.audio.enabled ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1) : 0;
+    const instanceVolume = state.audio.enabled && isAudioAllowedForCurrentRole()
+      ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1)
+      : 0;
     active.voice.volume = instanceVolume;
     activeAnimationAudioById.set(animationId, {
       ...active,
@@ -4225,7 +4246,7 @@ function stopSoundsForInactiveAnimations() {
 }
 
 function playSoundForAnimation(animation) {
-  if (!animation || !state.audio.enabled) {
+  if (!animation || !state.audio.enabled || !isAudioAllowedForCurrentRole()) {
     return;
   }
   const path = getMappedSoundPathForAnimation(animation.type);
@@ -4244,7 +4265,7 @@ function playSoundForAnimation(animation) {
   const onEnded = () => {
     const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
     const stillActive = activeAnimationAudioById.get(animation.id)?.voice === reusable;
-    if (!stillRunning || !stillActive || !state.audio.enabled) {
+    if (!stillRunning || !stillActive || !state.audio.enabled || !isAudioAllowedForCurrentRole()) {
       stopAnimationSound(animation.id);
       return;
     }
