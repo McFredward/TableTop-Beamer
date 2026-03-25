@@ -17,8 +17,12 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
    - **Alignment (Tablet):** `http://<SERVER-IP>:4173/?role=alignment&session=default-session`
    - **Final Output (Raspberry/Beamer):** `http://<SERVER-IP>:4173/?role=final-output&session=default-session`
 3. Im Settings-Diagnoseblock pruefen:
-   - `Session Endpoint` zeigt einen `resolved endpoint` auf `http://<SERVER-IP>:4173/...`
-   - `selected via` und `fallback reason` sind gesetzt und konsistent mit dem Verbindungsversuch.
+    - `Session Endpoint` zeigt einen `resolved endpoint` auf `http://<SERVER-IP>:4173/...`
+    - `selected via` und `fallback reason` sind gesetzt und konsistent mit dem Verbindungsversuch.
+4. Heartbeat-Diagnose korrekt testen (**POST-only**):
+   - Erwartet: `GET /api/session/heartbeat` liefert `404` (by design, kein Session-Bug).
+   - Korrekt ist nur `POST`, z. B.:
+     - `curl -i -X POST "http://<SERVER-IP>:4173/api/session/heartbeat" -H "Content-Type: application/json" -d '{"sessionId":"default-session","clientId":"diag-client","role":"operator"}'`
 
 ### Wichtiger Save-Hinweis
 
