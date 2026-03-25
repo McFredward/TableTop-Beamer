@@ -886,12 +886,7 @@ function buildGlobalDefaultsPayload() {
     savedAt: new Date().toISOString(),
     source: "browser-local-state",
     boardProfiles: mergedProfiles,
-    audio: {
-      enabled: Boolean(state.audio.enabled),
-      volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
-    },
-    animationSpeed: clampAnimationSpeed(state.animationSpeed),
-    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+    ...buildPersistedRuntimeSettingsFromState(),
   };
 }
 
