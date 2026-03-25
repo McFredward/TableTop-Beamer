@@ -1,3 +1,25 @@
+import {
+  clampAlienCount,
+  clampAnimationSpeed,
+  clampAudioVolumePercent,
+  clampGifPlaybackSpeed,
+  clampOutsideIntensity,
+  clampOutsideSpeed,
+  clampRoomDurationSec,
+  clampRoomIntensity,
+  clampRoomOpacity,
+  clampRoomSpeed,
+  normalizeOutsideDirection,
+  normalizeOutsideMode,
+  normalizeRoomGeometryMode,
+} from "./state/index.js";
+import { resolveRoomAnimationEffectType, getRoomEquivalentType } from "./effects/index.js";
+import { clampRoomSoundVolume } from "./audio/index.js";
+import { isElementRendered } from "./ui/index.js";
+import { safeLocalStorageGet, safeLocalStorageSet } from "./persistence/index.js";
+import { classifyHttpStatus } from "./api/save.js";
+import { drawRenderFallback } from "./rendering/index.js";
+
 let BOARDS = [
   {
     id: "nemesis-board-a",
@@ -585,6 +607,10 @@ const state = {
     frameCostSamples: [],
     qualityScale: 1,
   },
+  renderWatchdog: {
+    consecutiveInvisibleFrames: 0,
+    lastVisibleFrameAt: 0,
+  },
   startupDefaultsGuard: {
     fallbackRequired: false,
     attempted: false,
@@ -1039,10 +1065,6 @@ function clampRoomStretch(value) {
   return Math.max(0.6, Math.min(1.6, value));
 }
 
-function normalizeRoomGeometryMode(mode) {
-  return mode === "absolute" ? "absolute" : "relative";
-}
-
 function getRawRoomCenter(room, boardId = state.boardId) {
   if (room?.points?.length) {
     const sourcePoints = getRoomSourcePoints(room, boardId);
@@ -1379,7 +1401,7 @@ function extractBoardProfilesCandidate(raw) {
 function loadLegacyRoomGeometryByBoard() {
   const defaults = createDefaultRoomGeometryByBoard();
   try {
-    const raw = window.localStorage.getItem(ROOM_GEOMETRY_STORAGE_KEY);
+    const raw = safeLocalStorageGet(ROOM_GEOMETRY_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -1399,7 +1421,7 @@ function loadLegacyRoomGeometryByBoard() {
 function loadLegacySpecialPolygonsByBoard() {
   const defaults = createDefaultSpecialPolygonsByBoard();
   try {
-    const raw = window.localStorage.getItem(SPECIAL_POLYGON_STORAGE_KEY);
+    const raw = safeLocalStorageGet(SPECIAL_POLYGON_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -1454,7 +1476,7 @@ function loadBoardProfiles() {
   const legacySpecialPolygons = loadLegacySpecialPolygonsByBoard();
 
   try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const candidate = extractBoardProfilesCandidate(parsed);
@@ -1486,18 +1508,13 @@ function loadBoardProfiles() {
 }
 
 function persistBoardProfiles() {
-  try {
-    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildLocalProfileSnapshotFromState()));
-    return true;
-  } catch {
-    return false;
-  }
+  return safeLocalStorageSet(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildLocalProfileSnapshotFromState()));
 }
 
 function buildGlobalDefaultsPayload() {
   let localStorageProfiles = null;
   try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const candidate = extractBoardProfilesCandidate(parsed);
@@ -1631,6 +1648,8 @@ async function fetchWithTimeout(url, options = {}) {
 }
 
 async function runApiPreflight(saveEndpoint) {
+  // Save uses the same endpoint snapshot as diagnostics. We always probe health + OPTIONS first,
+  // so operators get deterministic feedback before the actual POST attempt.
   const healthEndpoint = `${getApiBaseFromSaveEndpoint(saveEndpoint)}/api/health`;
   try {
     const healthResponse = await fetchWithTimeout(healthEndpoint, {
@@ -1702,13 +1721,6 @@ async function runApiPreflight(saveEndpoint) {
   };
 }
 
-function classifyHttpStatus(status) {
-  if (!Number.isFinite(Number(status))) {
-    return "n/a";
-  }
-  return `${Math.floor(Number(status) / 100)}xx`;
-}
-
 function getApiBaseFromSaveEndpoint(saveEndpoint) {
   try {
     const url = new URL(saveEndpoint);
@@ -1776,7 +1788,7 @@ function readConfiguredApiBase() {
   }
 
   try {
-    const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));
+    const localBase = normalizeApiBase(safeLocalStorageGet(API_BASE_STORAGE_KEY));
     if (localBase) {
       return {
         base: localBase,
@@ -2070,7 +2082,7 @@ function downloadGlobalDefaultsFallback() {
 
 function hasStoredBoardProfilesInLocalStorage() {
   try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
+    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
     if (!raw) {
       return false;
     }
@@ -2260,7 +2272,7 @@ function createDefaultHitareaCalibrationMap() {
 function loadHitareaCalibrationMap() {
   const defaults = createDefaultHitareaCalibrationMap();
   try {
-    const raw = window.localStorage.getItem(HITAREA_CALIBRATION_STORAGE_KEY);
+    const raw = safeLocalStorageGet(HITAREA_CALIBRATION_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -2519,26 +2531,6 @@ function endPanMode(event, { canceled = false } = {}) {
     : "Status: Pan-Modus beendet";
 }
 
-function clampRoomIntensity(value) {
-  return Math.max(0.2, Math.min(1.5, value));
-}
-
-function clampRoomOpacity(value) {
-  return Math.max(0.1, Math.min(1, Number(value) || 1));
-}
-
-function clampGifPlaybackSpeed(value) {
-  return Math.max(0.25, Math.min(3, Number(value) || 1));
-}
-
-function clampRoomDurationSec(value) {
-  return Math.max(1, Math.min(180, value));
-}
-
-function clampAlienCount(value) {
-  return Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
-}
-
 function normalizeRoomStateProfile(profile) {
   return {
     broken: Boolean(profile?.broken),
@@ -2590,20 +2582,6 @@ function isRoomAnimationType(type) {
 
 function isRoomGlobalEquivalent(type) {
   return Boolean(ROOM_GLOBAL_EQUIVALENT_MAP[type]);
-}
-
-function resolveRoomAnimationEffectType(type) {
-  if (type === "nest") {
-    return "special-nest";
-  }
-  if (type === "dekompression") {
-    return "special-decompression";
-  }
-  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
-}
-
-function getRoomEquivalentType(type) {
-  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? null;
 }
 
 function getRoomGifAssetFileNameByPath(path) {
@@ -2729,38 +2707,6 @@ function getGifFrameForElapsedMs(playback, elapsedMs) {
   return playback.frames[playback.frames.length - 1]?.image ?? null;
 }
 
-function clampRoomSpeed(value) {
-  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
-}
-
-function clampRoomSoundVolume(value) {
-  return Math.max(0, Math.min(1, Number(value) || 0));
-}
-
-function clampAudioVolumePercent(value) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function clampAnimationSpeed(value) {
-  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
-}
-
-function clampOutsideIntensity(value) {
-  return Math.max(0.2, Math.min(1.5, Number(value) || OUTSIDE_FX_DEFAULT.intensity));
-}
-
-function clampOutsideSpeed(value) {
-  return Math.max(0.3, Math.min(2.5, Number(value) || OUTSIDE_FX_DEFAULT.speed));
-}
-
-function normalizeOutsideMode(value) {
-  return value === "immersive" ? "immersive" : "standard";
-}
-
-function normalizeOutsideDirection(value) {
-  return value === "reverse" ? "reverse" : "forward";
-}
-
 function formatHitareaValue(value) {
   const numeric = Number(value) || 0;
   return numeric.toFixed(3);
@@ -2851,18 +2797,6 @@ function isMobilePortraitViewport() {
 
 function getMobileOrientationLabel() {
   return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
-}
-
-function isElementRendered(element) {
-  if (!element || element.hidden) {
-    return false;
-  }
-  const style = window.getComputedStyle(element);
-  if (style.display === "none" || style.visibility === "hidden") {
-    return false;
-  }
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
 }
 
 function syncMobileStickyOffsets() {
@@ -4906,7 +4840,7 @@ function createPreviewQueueItem({
 
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
-  const effectType = resolveRoomAnimationEffectType(animation.type);
+  const effectType = resolveRoomAnimationEffectType(animation.type, ROOM_GLOBAL_EQUIVALENT_MAP);
   const isGifAnimation = isGifRoomAnimation(animation.type);
   const playbackAge = isGifAnimation
     ? age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1)
@@ -4915,7 +4849,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
   const gifAssetPath = normalizedGifPath === ROOM_GIF_MAPPING_NONE
     ? getMappedGifPathForAnimation(animation.type) ?? ROOM_GIF_ANIMATION_ASSETS[animation.type]
     : normalizedGifPath;
-  drawEffectVisual(
+  return drawEffectVisual(
     effectType,
     playbackAge,
     animation.intensity,
@@ -5418,7 +5352,7 @@ function renderRunningAnimationsList() {
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
   const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.gifAssetPath) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.gifAssetPath)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.gifAssetPath) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.gifAssetPath)}` : ""}${getRoomEquivalentType(anim.type, ROOM_GLOBAL_EQUIVALENT_MAP) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, ROOM_GLOBAL_EQUIVALENT_MAP)}` : ""} | Sound: ${Math.round(
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
@@ -5578,37 +5512,46 @@ function drawAnimation(animation, now) {
   const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
   if (animation.scope === "room") {
     if (animation.boardId !== state.boardId) {
-      return;
+      return true;
     }
     const room = getBoard(animation.boardId).rooms.find((entry) => entry.id === animation.roomId);
     if (!room) {
-      return;
+      return false;
     }
     const roomMetrics = getRoomRenderMetrics(room, animation.boardId);
     ctx.save();
     try {
       const clipped = clipToRoom(room, animation.boardId);
       if (!clipped) {
-        return;
+        return true;
       }
-      drawRoomComposition(animation, age, room, roomMetrics);
+      const rendered = drawRoomComposition(animation, age, room, roomMetrics);
+      if (rendered === false) {
+        // Critical render regression guard: if a specific effect cannot draw (e.g. GIF frame unavailable),
+        // we still emit a visible fallback pulse so "audio-only" states are immediately obvious.
+        drawRenderFallback(ctx, canvas, roomMetrics, age, "room");
+      }
+      return true;
     } finally {
       ctx.restore();
     }
-    return;
   }
   if (animation.type === "outside-space") {
     // Outside is rendered in a dedicated isolated layer path.
-    return;
+    return true;
   }
 
   ctx.save();
   try {
     const clipped = clipToInsideShip(animation.boardId ?? state.boardId);
     if (!clipped) {
-      return;
+      return true;
     }
-    drawEffectVisual(animation.type, age, animation.intensity, null);
+    const rendered = drawEffectVisual(animation.type, age, animation.intensity, null);
+    if (rendered === false) {
+      drawRenderFallback(ctx, canvas, null, age, "global");
+    }
+    return true;
   } finally {
     ctx.restore();
   }
@@ -5616,8 +5559,7 @@ function drawAnimation(animation, now) {
 
 function drawAnimationSafely(animation, now) {
   try {
-    drawAnimation(animation, now);
-    return true;
+    return drawAnimation(animation, now);
   } catch (error) {
     console.error(`Animation ${animation.id} failed`, error);
     return false;
@@ -5911,7 +5853,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const fallbackImage = gifPlayback?.fallbackImage ?? getGifImage(gifPath);
     const drawableImage = gifFrame ?? (fallbackImage?.complete ? fallbackImage : null);
     if (!drawableImage) {
-      return;
+      return false;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
     const baseScale = 1.04;
@@ -5924,7 +5866,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     ctx.globalAlpha = opacity;
     ctx.drawImage(drawableImage, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
-    return;
+    return true;
   }
 
   if (type === "state-broken") {
