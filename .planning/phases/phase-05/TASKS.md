@@ -55,7 +55,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 5-6 - Transport-Fallback + persistente Logdiagnose (execute-ready, P0 sofort)
 - [x] DONE P5-T45 [P0] Persistente Session-Server-Logdatei einbauen (`logs/session-api.log`): Request-Methode, Endpoint, Status, Fehlercode, Session-ID, Client-ID, Timestamp.
-- [ ] TODO P5-T46 [P0] Server-Heartbeat-Endpoint um GET-Unterstuetzung erweitern, kompatibel zu bestehendem POST-Pfad und identischem Error-Code-Schema.
+- [x] DONE P5-T46 [P0] Server-Heartbeat-Endpoint um GET-Unterstuetzung erweitern, kompatibel zu bestehendem POST-Pfad und identischem Error-Code-Schema.
 - [ ] TODO P5-T47 [P0] Client-Heartbeat auf POST-primaer mit deterministischem GET-Fallback umbauen (nur bei POST-Fehler, mit klarer Fallback-Ursache).
 - [ ] TODO P5-T48 [P0] Optionalen Session-Event-GET-Fallback implementieren (konfigurierbar), inklusive Duplikat-/Loss-Guard und nachvollziehbarer Diagnose.
 - [ ] TODO P5-T49 [P0] UI-Diagnose erweitern: aktuell genutzte Methode (`POST`/`GET-fallback`) fuer Heartbeat/Event samt Endpoint und letztem Methodenwechsel anzeigen.

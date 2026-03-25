@@ -513,18 +513,28 @@ function handleSessionStream(req, res) {
 }
 
 async function handleSessionHeartbeat(req, res) {
-  const parsed = await parseRequestBody(req, { maxBytes: 64 * 1024 });
-  if (!parsed.ok) {
-    logSessionCode("SESSION_HEARTBEAT_BAD_PAYLOAD", {
-      endpoint: SESSION_ENDPOINTS.heartbeat,
-      status: 400,
-      method: req.method,
-      detail: parsed.error,
-    });
-    sendJson(res, 400, { error: parsed.error });
-    return;
+  let body = {};
+  if (req.method === "GET") {
+    const url = new URL(req.url || "/", "http://localhost");
+    body = {
+      sessionId: String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session",
+      clientId: String(url.searchParams.get("clientId") || "").trim(),
+      role: String(url.searchParams.get("role") || "operator").trim() || "operator",
+    };
+  } else {
+    const parsed = await parseRequestBody(req, { maxBytes: 64 * 1024 });
+    if (!parsed.ok) {
+      logSessionCode("SESSION_HEARTBEAT_BAD_PAYLOAD", {
+        endpoint: SESSION_ENDPOINTS.heartbeat,
+        status: 400,
+        method: req.method,
+        detail: parsed.error,
+      });
+      sendJson(res, 400, { error: parsed.error });
+      return;
+    }
+    body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
   }
-  const body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
   const session = getSession(body.sessionId);
   const clientId = String(body.clientId || "").trim();
   if (!clientId) {
@@ -712,7 +722,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && routePath === "/api/session/heartbeat") {
+    if ((req.method === "POST" || req.method === "GET") && routePath === "/api/session/heartbeat") {
       await handleSessionHeartbeat(req, res);
       return;
     }
