@@ -477,6 +477,14 @@ const ROOM_STATE_DEFAULT = {
   corpse: false,
 };
 
+const ROOM_STATE_LAYER_PRIORITY = {
+  broken: 10,
+  burning: 20,
+  corpse: 30,
+  aliens: 40,
+  special: 100,
+};
+
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -4436,6 +4444,65 @@ function createPreviewQueueItem({
   };
 }
 
+function getAnimationRoomState(animation) {
+  return normalizeRoomStateProfile(animation?.roomState ?? ROOM_STATE_DEFAULT);
+}
+
+function composeRoomLayers(animation, room) {
+  if (isSpecialRoomEffect(animation.type)) {
+    return [
+      {
+        id: animation.type,
+        priority: ROOM_STATE_LAYER_PRIORITY.special,
+        roomState: getAnimationRoomState(animation),
+      },
+    ];
+  }
+
+  const roomState = getAnimationRoomState(animation);
+  const layers = [];
+  if (roomState.broken) {
+    layers.push({ id: "state-broken", priority: ROOM_STATE_LAYER_PRIORITY.broken, roomState });
+  }
+  if (roomState.burning) {
+    layers.push({ id: "state-burning", priority: ROOM_STATE_LAYER_PRIORITY.burning, roomState });
+  }
+  if (roomState.corpse) {
+    layers.push({ id: "state-corpse", priority: ROOM_STATE_LAYER_PRIORITY.corpse, roomState });
+  }
+  if (roomState.alienCount > 0) {
+    layers.push({
+      id: "state-aliens",
+      priority: ROOM_STATE_LAYER_PRIORITY.aliens,
+      roomState,
+      alienCount: roomState.alienCount,
+    });
+  }
+
+  if (layers.length === 0) {
+    layers.push({ id: ROOM_STATE_COMBO_ANIMATION_ID, priority: 0, roomState, roomId: room.id });
+  }
+
+  return layers.sort((a, b) => a.priority - b.priority);
+}
+
+function drawRoomComposition(animation, age, room, roomMetrics) {
+  const layers = composeRoomLayers(animation, room);
+  for (const layer of layers) {
+    drawEffectVisual(
+      layer.id,
+      age,
+      animation.intensity,
+      room,
+      roomMetrics,
+      {
+        roomState: layer.roomState,
+        alienCount: layer.alienCount,
+      },
+    );
+  }
+}
+
 function formatPreviewQueueLabel(item) {
   const boardLabel = getBoard(item.boardId).label;
   if (item.scope === "room") {
@@ -5060,7 +5127,7 @@ function drawAnimation(animation, now) {
     ctx.save();
     try {
       clipToRoom(room);
-      drawEffectVisual(animation.type, age, animation.intensity, room, roomMetrics);
+      drawRoomComposition(animation, age, room, roomMetrics);
     } finally {
       ctx.restore();
     }
