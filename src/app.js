@@ -47,6 +47,7 @@ const sessionReconnectButton = document.querySelector("#session-reconnect");
 const alignmentOverlayToggleInput = document.querySelector("#alignment-overlay-toggle");
 const sessionStatus = document.querySelector("#session-status");
 const sessionEndpointStatus = document.querySelector("#session-endpoint-status");
+const sessionHeartbeatEndpointStatus = document.querySelector("#session-heartbeat-endpoint-status");
 const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
 const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
 const sessionRetryStatus = document.querySelector("#session-retry-status");
@@ -590,6 +591,20 @@ function syncSessionDiagnosticsPanel() {
     sessionEndpointStatus.textContent = `Session Endpoint: ${endpointText}`;
   }
 
+  if (sessionHeartbeatEndpointStatus) {
+    const heartbeatEndpoint =
+      retry.lastHeartbeatEndpoint ||
+      (state.session.apiBase
+        ? buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
+            apiBase: state.session.apiBase,
+          })
+        : "");
+    const endpointText = heartbeatEndpoint
+      ? `${heartbeatEndpoint} | ${resolver.text}`
+      : `noch nicht aufgeloest | ${resolver.text}`;
+    sessionHeartbeatEndpointStatus.textContent = `Heartbeat Endpoint: ${endpointText}`;
+  }
+
   if (sessionConnectionStateStatus) {
     const connectionState = state.session.connected ? "connected" : retry.status || "idle";
     sessionConnectionStateStatus.textContent =
@@ -637,6 +652,7 @@ function getSessionRetryState() {
       lastAttemptAt: 0,
       lastSuccessAt: 0,
       lastEndpoint: "",
+      lastHeartbeatEndpoint: "",
     };
   }
   return state.session.retry;
@@ -652,6 +668,9 @@ function setSessionRetryError(code, { endpoint = "", status = null, detail = "" 
   retry.lastErrorAt = Date.now();
   if (endpoint) {
     retry.lastEndpoint = endpoint;
+    if (code === "HEARTBEAT_FAILED") {
+      retry.lastHeartbeatEndpoint = endpoint;
+    }
   }
   if (detail) {
     retry.lastError = `${retry.lastError} - ${detail}`;
@@ -970,6 +989,9 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             retry.lastError = "";
             retry.lastErrorCode = "";
             retry.lastSuccessAt = Date.now();
+            retry.lastHeartbeatEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
+              apiBase: candidate.apiBase,
+            });
             applySessionSnapshot(result?.snapshot);
             attachSessionStream();
             startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);

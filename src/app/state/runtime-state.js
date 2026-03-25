@@ -42,6 +42,7 @@
           lastAttemptAt: 0,
           lastSuccessAt: 0,
           lastEndpoint: "",
+          lastHeartbeatEndpoint: "",
         },
       },
       roomDraft: {
