@@ -11,9 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-4
-- Planned Next Execution: none
-- Last Execution Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
+- Last Executed Plan: 3-5
+- Planned Next Execution: 3-6
+- Last Execution Summary: `.planning/phases/phase-03/3-5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -220,6 +220,12 @@
 - Plan-Update 3-4 setzt Prioritaetsfokus: P0 Verdrahtung Direct-Start -> gemapptes `gifAssetPath`, P1 Regression fuer Direct-Start + Edit-Flow + Reload, P1 Artefakt-/Acceptance-Sync fuer Ende-zu-Ende-GIF-Mapping.
 - Plan-3-4-Hotfix: Direct-Start uebergibt `gifAssetPath` explizit an `createAnimation`; impliziter Default-Drift im Startpfad ist geschlossen.
 - Plan-3-4-Hardening: Kette Direct-Start -> Edit -> Reload ist als Runtime-Regression guardiert und auf Instanz-/Mapping-Konsistenz abgesichert.
+- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3-5: P0-Fix fuer kritische Render-Regression (Board zeigt keine Animation, Audio laeuft weiter) ist sofortiger Startpunkt.
+- Architektur-Regel Plan-Update 3-5: `app.js` wird verpflichtend in klare Module getrennt (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) mit expliziten Modulgrenzen.
+- Qualitaets-Regel Plan-Update 3-5: Nach Refactor ist funktionale Paritaet + Stabilitaet verpflichtend nachzuweisen; gezielte Kommentare fuer nicht-offensichtliche Bereiche sind Pflicht.
+- Plan-3-5-Fix: Renderpfad zeigt bei fehlendem Effektframe einen sichtbaren Fallback, damit Audio-only-Zustaende nicht mehr still passieren.
+- Plan-3-5-Refactor: Domain-Helfer fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` sind als explizite Modulgrenzen eingefuehrt.
+- Plan-3-5-Nachweis: Paritaets-Regression (`P3-T42`) und Soak (`P3-T43`) sind dokumentiert; Plan 3-5 ist formal abgeschlossen.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -501,3 +507,14 @@
   - `.planning/phases/phase-03/P3-T33-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 5)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-5-SUMMARY.md`
+- Task Commits: 10 atomare Commits (`aeca234`, `524cb6c`, `a70c9ad`, `a607a45`, `cb9372d`, `483e82c`, `d4d9b7d`, `df913f0`, `f482753`, `58121f0`)
+- Evidence:
+  - `.planning/phases/phase-03/3-5-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T42-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T43-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check src/state/index.js`, `src/rendering/index.js`, `src/effects/index.js`, `src/audio/index.js`, `src/ui/index.js`, `src/persistence/index.js`, `src/api/save.js`

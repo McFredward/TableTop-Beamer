@@ -38,9 +38,9 @@ Exit Criteria:
 - README auf neuen Session-Workflow aktualisiert.
 
 ## Phase 3 - Nemesis Animations Overhaul (In Progress)
-Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe und GIF-Mapping pro Animation (UI + Persistenz).
+Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe, GIF-Mapping pro Animation (UI + Persistenz) sowie robuster, modularer Runtime-Architektur.
 
-Status: 34/34 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31) und Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`).
+Status: 44/44 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34) und Plan 3-5 Rework (P3-T35..P3-T44) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`, `.planning/phases/phase-03/3-5-SUMMARY.md`).
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
@@ -49,6 +49,9 @@ Milestones:
 4. P0 Rework 3-3: GIF-Mapping-UI pro Animation inkl. Persistenz (analog Sound-Mapping).
 5. P1 Hardening: Regression, Performance, Verifikation, Artefakt-Sync.
 6. P0/P1 Hotfix 3-4: Direct-Start verdrahtet gemappten GIF-Pfad inkl. Regression Direct-Start/Edit/Reload und Artefakt-Sync.
+7. P0 Rework 3-5: kritischen Render-Regression-Bug schliessen (Animationen wieder sichtbar auf Board, Audio-only-Fall ausgeschlossen).
+8. P0 Rework 3-5: Pflicht-Refactor `app.js` in Modulgrenzen (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`).
+9. P1 Rework 3-5: Lesbarkeit (gezielte Kommentare) plus Paritaets-/Stabilitaetsnachweise nach Refactor.
 
 Exit Criteria:
 - Plan-3-2-P0 bleibt abgeschlossen und nachgewiesen.
@@ -58,6 +61,9 @@ Exit Criteria:
 - GIF-Mapping pro Animation ist in der UI auswaehlbar und persistent gespeichert.
 - Verifikation und Planungsartefakte (inkl. Plan 3-3) sind konsistent abgeschlossen.
 - Plan 3-4 Hotfix weist Ende-zu-Ende-Mapping fuer Direct-Start + Edit + Reload explizit nach.
+- Kritischer Render-Bug ist behoben: aktive Animationen rendern auf dem Board sichtbar und stabil, auch bei parallel laufendem Audio.
+- `app.js` ist in verpflichtende Modulgrenzen aufgeteilt; keine monolithische Kernlogik bleibt ungeordnet zurueck.
+- Nach Refactor ist funktionale Paritaet + Stabilitaet via Regression/Soak dokumentiert.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
