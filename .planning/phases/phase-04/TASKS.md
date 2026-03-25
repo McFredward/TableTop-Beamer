@@ -42,7 +42,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P4-T34 [P0] Ship-Polygon-Editor auf die gemeinsame Handle-Groessensteuerung anbinden (sofort wirksam, zoomstabil, keine eigene Sonderlogik).
 - [x] DONE P4-T35 [P0] `lichtflackern` visuell bereinigen: stoerende horizontale weisse Streifen/Glitch-Baender entfernen, Random-Flicker-Stil beibehalten.
 - [x] DONE P4-T36 [P0] `lichtflackern`-Speed-Floor auf 10% absenken (UI-Range, Normalisierung, Runtime-Playback konsistent).
-- [ ] TODO P4-T37 [P0] Sound-Mapping/Sound-Auswahl in Profil-/Board-Persistenz aufnehmen, inklusive Reload-Paritaet und Legacy-Fallback.
+- [x] DONE P4-T37 [P0] Sound-Mapping/Sound-Auswahl in Profil-/Board-Persistenz aufnehmen, inklusive Reload-Paritaet und Legacy-Fallback.
 - [ ] TODO P4-T38 [P0] Global-Defaults-Save/Load auf Sound-Mappings erweitern und Hotfix-Regression dokumentieren (Persistenz lokal + Global Defaults + Reload).
 
 ## Plan 4-6 - Render/GIF/UI Isolation

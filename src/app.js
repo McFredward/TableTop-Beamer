@@ -693,6 +693,48 @@ function buildBoardProfilesFromState() {
   );
 }
 
+function buildPersistedRuntimeSettingsFromState() {
+  return {
+    audio: {
+      enabled: Boolean(state.audio.enabled),
+      volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
+    },
+    animationSpeed: clampAnimationSpeed(state.animationSpeed),
+    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+  };
+}
+
+function buildBoardProfileStoragePayload() {
+  return {
+    schema: "tt-beamer.board-profiles.v2",
+    savedAt: new Date().toISOString(),
+    boards: buildBoardProfilesFromState(),
+    ...buildPersistedRuntimeSettingsFromState(),
+  };
+}
+
+function applyPersistedRuntimeSettings(payload) {
+  if (!payload || typeof payload !== "object") {
+    return;
+  }
+
+  if (payload.audio && typeof payload.audio === "object") {
+    state.audio.enabled = Boolean(payload.audio.enabled);
+    const nextVolume = Number(payload.audio.volume);
+    if (Number.isFinite(nextVolume)) {
+      state.audio.volume = Math.max(0, Math.min(1, nextVolume));
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
+    state.animationSpeed = clampAnimationSpeed(payload.animationSpeed);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
+    state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
+  }
+}
+
 function applyBoardProfilesToState(profiles) {
   BOARDS = BOARDS.map((board) => {
     const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
@@ -793,6 +835,7 @@ function loadBoardProfiles() {
           legacySpecialPolygons,
         );
         applyBoardProfilesToState(migratedProfiles);
+        applyPersistedRuntimeSettings(parsed);
         persistBoardProfiles();
         return;
       }
@@ -812,7 +855,7 @@ function loadBoardProfiles() {
 }
 
 function persistBoardProfiles() {
-  return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfilesFromState());
+  return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfileStoragePayload());
 }
 
 function buildGlobalDefaultsPayload() {
