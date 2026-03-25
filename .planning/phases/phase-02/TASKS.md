@@ -38,7 +38,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Priority Add-on - Phase 2 Abschluss (Plan Update 5)
 - [x] DONE P2-T41 [P0] Externe Board-Zonen einziehen: `config/zones/*.json` als kanonische Datenquelle pro Board anlegen und Inline-`BOARDS` schrittweise auf Loader-Pfad umstellen.
-- [ ] TODO P2-T42 [P0] Zonen-Validator + Fallback implementieren: JSON-Schema-/Strukturchecks, klare Fehlerklassifikation und deterministischer Runtime-Fallback bei defekten/missing Dateien.
+- [x] DONE P2-T42 [P0] Zonen-Validator + Fallback implementieren: JSON-Schema-/Strukturchecks, klare Fehlerklassifikation und deterministischer Runtime-Fallback bei defekten/missing Dateien.
 - [ ] TODO P2-T43 [P1] Zonen-Ladepfad absichern: Boot-Sequenz/State/Rendering gegen Partial-Data haerten und Negativtests (missing, malformed, partial) dokumentieren.
 - [ ] TODO P2-T44 [P0] Echter Preview-Flow bauen: Einzel-Preview + Kombi-Staging als explizites Session-Modell mit klarer Operator-UI.
 - [ ] TODO P2-T45 [P0] Live-Absenden + Rollback umsetzen: Preview-Commit auf Live-Output, API-Routen fuer send/rollback und Undo des letzten Sends mit konsistentem Statusfeedback.

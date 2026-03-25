@@ -269,6 +269,7 @@ const canvas = document.querySelector("#fx-canvas");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
+const zonesStatus = document.querySelector("#zones-status");
 const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
@@ -537,6 +538,12 @@ const state = {
     outcome: "pending",
     detail: "",
   },
+  zoneLoader: {
+    loadedBoards: {},
+    fallbackBoards: {},
+    classificationByBoard: {},
+    detailByBoard: {},
+  },
 };
 
 let animationIdCounter = 1;
@@ -601,47 +608,167 @@ function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
 }
 
-function normalizeRoomFromZonePayload(room) {
-  const id = typeof room?.id === "string" ? room.id : "unknown-room";
-  const label = typeof room?.label === "string" ? room.label : id;
-  const radius = Number.isFinite(Number(room?.radius)) ? Number(room.radius) : 0.055;
-  if (Array.isArray(room?.points) && room.points.length >= 3) {
-    return {
-      id,
-      label,
-      radius,
-      points: room.points
-        .map((point) => [Number(point?.[0]), Number(point?.[1])])
-        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)),
-    };
-  }
+function cloneBoardEntry(board) {
   return {
-    id,
-    label,
-    x: Number(room?.x),
-    y: Number(room?.y),
-    radius,
+    ...board,
+    rooms: board.rooms.map((room) => ({
+      ...room,
+      points: Array.isArray(room.points) ? room.points.map((point) => [...point]) : undefined,
+    })),
   };
 }
 
-function normalizeBoardFromZonePayload(payload, fallbackBoard) {
-  const boardMeta = payload?.board ?? {};
-  const rooms = Array.isArray(payload?.rooms) ? payload.rooms.map((room) => normalizeRoomFromZonePayload(room)) : [];
-  return {
-    id: typeof boardMeta.id === "string" ? boardMeta.id : fallbackBoard.id,
-    label: typeof boardMeta.label === "string" ? boardMeta.label : fallbackBoard.label,
-    src: typeof boardMeta.src === "string" ? boardMeta.src : fallbackBoard.src,
-    rooms: rooms.length > 0 ? rooms : fallbackBoard.rooms,
+const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
+
+function isFiniteUnitValue(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 && numeric <= 1;
+}
+
+function normalizeZoneRoom(room, fallbackRadius = 0.055) {
+  const radius = Number.isFinite(Number(room?.radius)) ? Number(room.radius) : fallbackRadius;
+  const base = {
+    id: String(room?.id || "").trim(),
+    label: String(room?.label || "").trim(),
+    radius,
   };
+  if (Array.isArray(room?.points)) {
+    return {
+      ...base,
+      points: room.points.map((point) => [Number(point?.[0]), Number(point?.[1])]),
+    };
+  }
+  return {
+    ...base,
+    x: Number(room?.x),
+    y: Number(room?.y),
+  };
+}
+
+function validateZoneRoom(room, roomIndex = 0) {
+  const issues = [];
+  if (!room.id) {
+    issues.push(`rooms[${roomIndex}].id missing`);
+  }
+  if (!room.label) {
+    issues.push(`rooms[${roomIndex}].label missing`);
+  }
+  if (!Number.isFinite(room.radius) || room.radius <= 0 || room.radius > 0.25) {
+    issues.push(`rooms[${roomIndex}].radius invalid`);
+  }
+  if (Array.isArray(room.points)) {
+    if (room.points.length < 3) {
+      issues.push(`rooms[${roomIndex}].points requires >= 3 vertices`);
+    }
+    room.points.forEach((point, pointIndex) => {
+      if (!isFiniteUnitValue(point?.[0]) || !isFiniteUnitValue(point?.[1])) {
+        issues.push(`rooms[${roomIndex}].points[${pointIndex}] out of bounds`);
+      }
+    });
+  } else if (!isFiniteUnitValue(room.x) || !isFiniteUnitValue(room.y)) {
+    issues.push(`rooms[${roomIndex}] requires x/y in [0..1]`);
+  }
+  return issues;
+}
+
+function validateZonePayload(payload, expectedBoardId) {
+  const issues = [];
+  if (!payload || typeof payload !== "object") {
+    return {
+      ok: false,
+      code: "ZONE_INVALID_PAYLOAD",
+      issues: ["payload must be an object"],
+      normalizedBoard: null,
+    };
+  }
+  const boardMeta = payload.board;
+  if (!boardMeta || typeof boardMeta !== "object") {
+    issues.push("board metadata missing");
+  }
+  if (String(boardMeta?.id || "") !== expectedBoardId) {
+    issues.push(`board.id mismatch (expected ${expectedBoardId})`);
+  }
+  if (!boardMeta?.label || !boardMeta?.src) {
+    issues.push("board.label/board.src required");
+  }
+  if (!Array.isArray(payload.rooms) || payload.rooms.length === 0) {
+    issues.push("rooms[] required and cannot be empty");
+  }
+
+  const normalizedRooms = Array.isArray(payload.rooms)
+    ? payload.rooms.map((room) => normalizeZoneRoom(room)).filter((room) => room.id)
+    : [];
+  const roomIds = new Set();
+  normalizedRooms.forEach((room, roomIndex) => {
+    const key = room.id;
+    if (roomIds.has(key)) {
+      issues.push(`duplicate room id: ${key}`);
+    }
+    roomIds.add(key);
+    issues.push(...validateZoneRoom(room, roomIndex));
+  });
+
+  if (issues.length > 0) {
+    return {
+      ok: false,
+      code: "ZONE_VALIDATION_FAILED",
+      issues,
+      normalizedBoard: null,
+    };
+  }
+
+  return {
+    ok: true,
+    code: "OK",
+    issues: [],
+    normalizedBoard: {
+      id: expectedBoardId,
+      label: boardMeta.label,
+      src: boardMeta.src,
+      rooms: normalizedRooms,
+    },
+  };
+}
+
+function classifyZoneFallback(responseStatus = null, errorCode = "") {
+  if (responseStatus === 404) {
+    return "ZONE_FILE_MISSING";
+  }
+  if (responseStatus === 0) {
+    return "ZONE_ENDPOINT_UNREACHABLE";
+  }
+  if (errorCode === "ZONE_MALFORMED_JSON") {
+    return "ZONE_MALFORMED_JSON";
+  }
+  if (errorCode === "ZONE_VALIDATION_FAILED" || errorCode === "ZONE_INVALID_PAYLOAD") {
+    return "ZONE_INVALID_STRUCTURE";
+  }
+  return "ZONE_LOAD_FAILED";
+}
+
+function syncZoneLoaderStatus() {
+  if (!zonesStatus) {
+    return;
+  }
+  const boards = ZONE_CONFIG_SOURCES.map((source) => {
+    const mode = state.zoneLoader.classificationByBoard[source.boardId] ?? "UNKNOWN";
+    const fallback = state.zoneLoader.fallbackBoards[source.boardId] || "none";
+    return `${source.boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
+  });
+  zonesStatus.textContent = `Zonenquelle: ${boards.join(" | ")}`;
 }
 
 async function loadExternalBoardZones() {
   const loadedByBoardId = new Map();
+  const loadedBoards = {};
+  const fallbackBoards = {};
+  const classificationByBoard = {};
+  const detailByBoard = {};
+
   for (const source of ZONE_CONFIG_SOURCES) {
-    const fallbackBoard = INLINE_FALLBACK_BOARDS.find((board) => board.id === source.boardId);
-    if (!fallbackBoard) {
-      continue;
-    }
+    const fallbackInline = INLINE_FALLBACK_BOARDS.find((board) => board.id === source.boardId);
+    const fallbackLastKnown = lastKnownGoodBoardById.get(source.boardId) ?? fallbackInline;
+    let responseStatus = null;
     try {
       const response = await fetchWithTimeout(source.endpoint, {
         method: "GET",
@@ -649,20 +776,54 @@ async function loadExternalBoardZones() {
           accept: "application/json",
         },
       });
+      responseStatus = response.status;
       if (!response.ok) {
-        continue;
+        throw new Error(`HTTP ${response.status}`);
       }
-      const payload = await response.json();
-      const normalized = normalizeBoardFromZonePayload(payload, fallbackBoard);
-      loadedByBoardId.set(source.boardId, normalized);
-    } catch {
-      // Fallback remains active.
+
+      let payload;
+      try {
+        payload = await response.json();
+      } catch {
+        throw Object.assign(new Error("malformed JSON"), { zoneCode: "ZONE_MALFORMED_JSON" });
+      }
+
+      const validated = validateZonePayload(payload, source.boardId);
+      if (!validated.ok || !validated.normalizedBoard) {
+        throw Object.assign(new Error(validated.issues.join("; ")), {
+          zoneCode: validated.code,
+        });
+      }
+
+      const board = cloneBoardEntry(validated.normalizedBoard);
+      loadedByBoardId.set(source.boardId, board);
+      lastKnownGoodBoardById.set(source.boardId, cloneBoardEntry(board));
+      loadedBoards[source.boardId] = source.endpoint;
+      fallbackBoards[source.boardId] = "none";
+      classificationByBoard[source.boardId] = "ZONE_LOADED";
+      detailByBoard[source.boardId] = "ok";
+    } catch (error) {
+      const zoneCode =
+        error && typeof error === "object" && "zoneCode" in error ? String(error.zoneCode || "") : "";
+      const classification = classifyZoneFallback(responseStatus, zoneCode);
+      const fallbackType = lastKnownGoodBoardById.has(source.boardId) ? "fallback:last-known-good" : "fallback:inline";
+      loadedByBoardId.set(source.boardId, cloneBoardEntry(fallbackLastKnown));
+      loadedBoards[source.boardId] = "fallback";
+      fallbackBoards[source.boardId] = fallbackType;
+      classificationByBoard[source.boardId] = classification;
+      detailByBoard[source.boardId] =
+        error instanceof Error ? error.message : zoneCode || `status=${responseStatus ?? "n/a"}`;
     }
   }
 
   BOARDS = INLINE_FALLBACK_BOARDS.map(
-    (fallbackBoard) => loadedByBoardId.get(fallbackBoard.id) ?? fallbackBoard,
+    (fallbackBoard) => cloneBoardEntry(loadedByBoardId.get(fallbackBoard.id) ?? fallbackBoard),
   );
+  state.zoneLoader.loadedBoards = loadedBoards;
+  state.zoneLoader.fallbackBoards = fallbackBoards;
+  state.zoneLoader.classificationByBoard = classificationByBoard;
+  state.zoneLoader.detailByBoard = detailByBoard;
+  syncZoneLoaderStatus();
 }
 
 function syncBoardSelectOptions() {
