@@ -5010,6 +5010,7 @@ function editAnimation(animationId) {
 }
 
 function renderRunningAnimationsList() {
+  const parity = validateRunningListParity();
   runningAnimationsList.replaceChildren();
   if (state.runningAnimations.length === 0) {
     const empty = document.createElement("li");
@@ -5047,7 +5048,7 @@ function renderRunningAnimationsList() {
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
-    meta.textContent = `Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Rest: ${remaining}`;
+    meta.textContent = `Instanz: ${anim.id} | Typ: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Rest: ${remaining}`;
 
     const actions = document.createElement("div");
     actions.className = "running-actions";
@@ -5080,6 +5081,21 @@ function renderRunningAnimationsList() {
     li.append(title, meta, actions);
     runningAnimationsList.append(li);
   }
+
+  if (!parity.ok) {
+    triggerFeedback.textContent = `Status: Running-Liste-Guard meldet Drift (${parity.reason})`;
+  }
+}
+
+function validateRunningListParity() {
+  const seenIds = new Set();
+  for (const entry of state.runningAnimations) {
+    if (!entry?.id || seenIds.has(entry.id)) {
+      return { ok: false, reason: "duplicate-or-missing-id" };
+    }
+    seenIds.add(entry.id);
+  }
+  return { ok: true, reason: "ok" };
 }
 
 function refreshGlobalButtons() {
