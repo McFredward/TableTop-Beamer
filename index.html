@@ -101,6 +101,7 @@
           </select>
         </label>
         <button id="apply-output-route" type="button">Output Route anwenden</button>
+        <button id="session-self-test" type="button">Session Self-Test (connect/stream/heartbeat/event)</button>
         <button id="save-global-defaults" type="button">Speichern (lokal -&gt; globale Defaults)</button>
         <button id="load-apply-global-defaults" type="button">Defaults laden &amp; anwenden</button>
         <button id="export-global-defaults" type="button">Download-Export herunterladen (sekundaer)</button>
@@ -133,6 +134,21 @@
         <p id="session-last-success-status" class="status-line" aria-live="polite">
           Letzter erfolgreicher Connect: -
         </p>
+        <p id="session-self-test-status" class="status-line" aria-live="polite">
+          Session Self-Test: noch nicht ausgefuehrt
+        </p>
+        <table class="session-self-test-table" aria-label="Session Self-Test Matrix">
+          <thead>
+            <tr>
+              <th scope="col">Route</th>
+              <th scope="col">Result</th>
+              <th scope="col">Endpoint</th>
+              <th scope="col">Methode</th>
+              <th scope="col">Detail</th>
+            </tr>
+          </thead>
+          <tbody id="session-self-test-matrix"></tbody>
+        </table>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: noch nicht gespeichert
         </p>

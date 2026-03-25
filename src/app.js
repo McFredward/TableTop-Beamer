@@ -56,6 +56,9 @@ const sessionConnectTransportStatus = document.querySelector("#session-connect-t
 const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
 const sessionRetryStatus = document.querySelector("#session-retry-status");
 const sessionLastSuccessStatus = document.querySelector("#session-last-success-status");
+const sessionSelfTestButton = document.querySelector("#session-self-test");
+const sessionSelfTestStatus = document.querySelector("#session-self-test-status");
+const sessionSelfTestMatrix = document.querySelector("#session-self-test-matrix");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -165,6 +168,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "output-route-select",
   "apply-output-route",
+  "session-self-test",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
@@ -574,12 +578,12 @@ function getSessionConnectUrl({ sessionId, apiBase, includeClientId = true } = {
   });
 }
 
-function getSessionStreamUrl({ apiBase } = {}) {
+function getSessionStreamUrl({ apiBase, sessionId = state.session.id, clientId = state.session.clientId } = {}) {
   return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.stream, {
     apiBase,
     query: {
-      sessionId: state.session.id || "default-session",
-      clientId: state.session.clientId || "",
+      sessionId: sessionId || "default-session",
+      clientId: clientId || "",
     },
   });
 }
@@ -1008,6 +1012,297 @@ async function fetchSessionConnectWithTransportFallback(endpoint) {
       transport: "xhr",
       fallbackReason,
     };
+  }
+}
+
+function setSessionSelfTestStatus(text) {
+  if (sessionSelfTestStatus) {
+    sessionSelfTestStatus.textContent = text;
+  }
+}
+
+function renderSessionSelfTestMatrix(results = []) {
+  if (!sessionSelfTestMatrix) {
+    return;
+  }
+  const expectedRoutes = ["connect", "stream", "heartbeat", "event"];
+  const normalized = expectedRoutes.map((routeName) => {
+    const existing = results.find((entry) => entry && entry.route === routeName);
+    return (
+      existing || {
+        route: routeName,
+        ok: false,
+        endpoint: "-",
+        method: "-",
+        detail: "nicht ausgefuehrt",
+      }
+    );
+  });
+  sessionSelfTestMatrix.replaceChildren(
+    ...normalized.map((entry) => {
+      const row = document.createElement("tr");
+      const routeCell = document.createElement("th");
+      routeCell.scope = "row";
+      routeCell.textContent = String(entry.route || "-");
+      const verdictCell = document.createElement("td");
+      verdictCell.textContent = entry.ok ? "OK" : "FAIL";
+      const endpointCell = document.createElement("td");
+      endpointCell.textContent = String(entry.endpoint || "-");
+      const methodCell = document.createElement("td");
+      methodCell.textContent = String(entry.method || "-");
+      const detailCell = document.createElement("td");
+      detailCell.textContent = String(entry.detail || "-");
+      row.append(routeCell, verdictCell, endpointCell, methodCell, detailCell);
+      return row;
+    }),
+  );
+}
+
+async function runSessionConnectSelfTest() {
+  const endpoint = getSessionConnectUrl({
+    sessionId: state.session.id || "default-session",
+    includeClientId: false,
+  });
+  try {
+    const connectAttempt = await fetchSessionConnectWithTransportFallback(endpoint);
+    const response = connectAttempt.response;
+    if (!response.ok) {
+      return {
+        route: "connect",
+        ok: false,
+        endpoint,
+        method: connectAttempt.transport,
+        detail: `HTTP ${response.status}`,
+      };
+    }
+    const payload = await response.json();
+    return {
+      route: "connect",
+      ok: true,
+      endpoint,
+      method: connectAttempt.transport,
+      detail: `session=${payload?.sessionId || "default-session"}`,
+      sessionId: String(payload?.sessionId || state.session.id || "default-session"),
+      clientId: String(payload?.clientId || "").trim(),
+    };
+  } catch (error) {
+    return {
+      route: "connect",
+      ok: false,
+      endpoint,
+      method: "fetch/xhr",
+      detail: String(error?.message || "connect test failed"),
+    };
+  }
+}
+
+async function runSessionStreamSelfTest({ sessionId, clientId }) {
+  const endpoint = getSessionStreamUrl({ sessionId, clientId });
+  try {
+    const opened = await new Promise((resolve, reject) => {
+      const source = new EventSource(endpoint);
+      const timeoutId = window.setTimeout(() => {
+        source.close();
+        reject(new Error("stream timeout"));
+      }, Math.min(3000, SESSION_REQUEST_TIMEOUT_MS));
+      source.addEventListener("open", () => {
+        window.clearTimeout(timeoutId);
+        source.close();
+        resolve(true);
+      });
+      source.addEventListener("error", () => {
+        window.clearTimeout(timeoutId);
+        source.close();
+        reject(new Error("stream open failed"));
+      });
+    });
+    return {
+      route: "stream",
+      ok: Boolean(opened),
+      endpoint,
+      method: "GET",
+      detail: "SSE open",
+    };
+  } catch (error) {
+    return {
+      route: "stream",
+      ok: false,
+      endpoint,
+      method: "GET",
+      detail: String(error?.message || "stream test failed"),
+    };
+  }
+}
+
+async function runSessionHeartbeatSelfTest({ sessionId, clientId }) {
+  const endpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat);
+  const basePayload = {
+    sessionId,
+    clientId,
+    role: state.role,
+  };
+  try {
+    const postResponse = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify(basePayload),
+    });
+    if (postResponse.ok) {
+      return {
+        route: "heartbeat",
+        ok: true,
+        endpoint,
+        method: "POST",
+        detail: "HTTP 200",
+      };
+    }
+    const fallbackEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
+      query: basePayload,
+    });
+    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    });
+    return {
+      route: "heartbeat",
+      ok: fallbackResponse.ok,
+      endpoint: fallbackEndpoint,
+      method: "GET-fallback",
+      detail: fallbackResponse.ok
+        ? `post HTTP ${postResponse.status} -> fallback OK`
+        : `post HTTP ${postResponse.status}, fallback HTTP ${fallbackResponse.status}`,
+    };
+  } catch (error) {
+    return {
+      route: "heartbeat",
+      ok: false,
+      endpoint,
+      method: "POST",
+      detail: String(error?.message || "heartbeat test failed"),
+    };
+  }
+}
+
+async function runSessionEventSelfTest({ sessionId, clientId }) {
+  const endpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
+  const eventPayload = {
+    sessionId,
+    clientId,
+    role: state.role,
+    type: "self-test",
+    eventId: buildSessionEventId(),
+    payload: {
+      source: "settings-self-test",
+      timestamp: Date.now(),
+    },
+    sharedState: {},
+  };
+  try {
+    const postResponse = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify(eventPayload),
+    });
+    if (postResponse.ok) {
+      return {
+        route: "event",
+        ok: true,
+        endpoint,
+        method: "POST",
+        detail: "HTTP 200",
+      };
+    }
+    if (!SESSION_EVENT_GET_FALLBACK_ENABLED) {
+      return {
+        route: "event",
+        ok: false,
+        endpoint,
+        method: "POST",
+        detail: `HTTP ${postResponse.status}`,
+      };
+    }
+    const fallbackEndpoint = buildEventGetFallbackEndpoint(eventPayload);
+    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    });
+    return {
+      route: "event",
+      ok: fallbackResponse.ok,
+      endpoint: fallbackEndpoint,
+      method: "GET-fallback",
+      detail: fallbackResponse.ok
+        ? `post HTTP ${postResponse.status} -> fallback OK`
+        : `post HTTP ${postResponse.status}, fallback HTTP ${fallbackResponse.status}`,
+    };
+  } catch (error) {
+    return {
+      route: "event",
+      ok: false,
+      endpoint,
+      method: "POST",
+      detail: String(error?.message || "event test failed"),
+    };
+  }
+}
+
+async function runSessionSelfTest() {
+  if (!sessionSelfTestButton) {
+    return;
+  }
+  sessionSelfTestButton.disabled = true;
+  setSessionSelfTestStatus("Session Self-Test: laeuft...");
+  const results = [];
+  try {
+    const connectResult = await runSessionConnectSelfTest();
+    results.push(connectResult);
+    const sessionId = connectResult.sessionId || state.session.id || "default-session";
+    const clientId = connectResult.clientId || state.session.clientId || "";
+
+    if (!connectResult.ok || !clientId) {
+      results.push({
+        route: "stream",
+        ok: false,
+        endpoint: getSessionStreamUrl({ sessionId, clientId: clientId || "-" }),
+        method: "GET",
+        detail: "connect prerequisite failed",
+      });
+      results.push({
+        route: "heartbeat",
+        ok: false,
+        endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
+        method: "POST",
+        detail: "connect prerequisite failed",
+      });
+      results.push({
+        route: "event",
+        ok: false,
+        endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event),
+        method: "POST",
+        detail: "connect prerequisite failed",
+      });
+    } else {
+      results.push(await runSessionStreamSelfTest({ sessionId, clientId }));
+      results.push(await runSessionHeartbeatSelfTest({ sessionId, clientId }));
+      results.push(await runSessionEventSelfTest({ sessionId, clientId }));
+    }
+  } finally {
+    renderSessionSelfTestMatrix(results);
+    const successCount = results.filter((entry) => entry.ok).length;
+    setSessionSelfTestStatus(`Session Self-Test: ${successCount}/${results.length} OK`);
+    sessionSelfTestButton.disabled = false;
   }
 }
 
@@ -6957,6 +7252,10 @@ sessionReconnectButton?.addEventListener("click", () => {
   void connectSession({ reconnect: true });
 });
 
+sessionSelfTestButton?.addEventListener("click", () => {
+  void runSessionSelfTest();
+});
+
 alignmentOverlayToggleInput?.addEventListener("change", () => {
   state.alignmentOverlayEnabled = Boolean(alignmentOverlayToggleInput.checked);
   const persisted = persistBoardProfiles();
@@ -7917,6 +8216,7 @@ function syncRuntimePanelsFromState() {
   syncSessionStatus(
     `Session: ${state.session.connected ? "verbunden" : "nicht verbunden"} (${state.session.id}) | Rolle ${state.role}`,
   );
+  renderSessionSelfTestMatrix();
 }
 
 async function initializeApplication() {
