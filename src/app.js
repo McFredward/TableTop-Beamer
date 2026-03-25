@@ -2242,29 +2242,12 @@ function isElementRendered(element) {
   return rect.width > 0 && rect.height > 0;
 }
 
-function getRenderedHeight(element) {
-  if (!isElementRendered(element)) {
-    return 0;
-  }
-  return Math.max(0, Math.ceil(element.getBoundingClientRect().height));
-}
-
 function syncMobileStickyOffsets() {
   if (!controlPanel) {
     return;
   }
-  if (!isMobileViewport()) {
-    controlPanel.style.setProperty("--mobile-projection-offset", "0px");
-    controlPanel.style.setProperty("--mobile-nav-offset", "0px");
-    return;
-  }
-
-  const projectionHeight = Math.max(0, Math.ceil(projectionArea?.getBoundingClientRect().height ?? 0));
-  const projectionOffset = `${projectionHeight + 6}px`;
-  const navHeight = getRenderedHeight(primaryViewSwitch);
-  const navOffset = `${projectionHeight + navHeight + 12}px`;
-  controlPanel.style.setProperty("--mobile-projection-offset", projectionOffset);
-  controlPanel.style.setProperty("--mobile-nav-offset", navOffset);
+  controlPanel.style.setProperty("--mobile-projection-offset", "0px");
+  controlPanel.style.setProperty("--mobile-nav-offset", "0px");
 }
 
 function ensurePrimaryNavigationVisible() {

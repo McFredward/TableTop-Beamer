@@ -624,9 +624,9 @@ button.danger.is-armed {
   }
 
   .primary-view-switch {
-    position: sticky;
-    top: var(--mobile-projection-offset, 0px);
-    z-index: 10;
+    position: static;
+    top: auto;
+    z-index: auto;
     margin: -0.35rem -0.2rem 0;
     padding: 0.35rem 0.2rem 0.42rem;
     background: linear-gradient(180deg, rgba(17, 27, 41, 0.98), rgba(12, 20, 32, 0.96));
