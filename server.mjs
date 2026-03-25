@@ -11,6 +11,12 @@ const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json
 const SESSION_PROTOCOL_VERSION = "5-1";
 const HEARTBEAT_INTERVAL_MS = 4000;
 const STALE_CLIENT_TIMEOUT_MS = 16000;
+const SESSION_ENDPOINTS = {
+  connect: "/api/session/connect",
+  stream: "/api/session/stream",
+  heartbeat: "/api/session/heartbeat",
+  event: "/api/session/event",
+};
 const sessionStore = new Map();
 
 const MIME_TYPES = {
@@ -49,6 +55,39 @@ function sendJson(res, statusCode, body) {
     "content-length": Buffer.byteLength(payload),
   });
   res.end(payload);
+}
+
+function logSessionCode(code, {
+  endpoint,
+  sessionId = "",
+  clientId = "",
+  status = null,
+  detail = "",
+  method = "",
+  level = "warn",
+} = {}) {
+  const payload = {
+    scope: "session",
+    code,
+    endpoint: endpoint || "unknown",
+    method: method || "-",
+    sessionId: String(sessionId || "").trim() || "default-session",
+    clientId: String(clientId || "").trim() || "-",
+  };
+  if (Number.isFinite(Number(status))) {
+    payload.status = Number(status);
+  }
+  if (detail) {
+    payload.detail = String(detail);
+  }
+  const message = JSON.stringify(payload);
+  if (level === "error") {
+    console.error(message);
+  } else if (level === "info") {
+    console.log(message);
+  } else {
+    console.warn(message);
+  }
 }
 
 function normalizeRole(role) {
@@ -113,12 +152,19 @@ function markClientStale(session, clientId) {
   });
 }
 
-function removeSessionStream(session, stream, { clientId = "" } = {}) {
+function removeSessionStream(session, stream, { clientId = "", reason = "" } = {}) {
   if (!session.streams.has(stream)) {
     return false;
   }
   session.streams.delete(stream);
   markClientStale(session, clientId);
+  logSessionCode("SESSION_STREAM_CLEANUP", {
+    endpoint: SESSION_ENDPOINTS.stream,
+    sessionId: session.id,
+    clientId,
+    detail: reason || "stream closed/cleaned",
+    level: "info",
+  });
   return true;
 }
 
@@ -155,6 +201,11 @@ function broadcastSessionEvent(session, event) {
     const writeOk = writeSse(stream, "session-event", packet);
     if (!writeOk) {
       session.streams.delete(stream);
+      logSessionCode("SESSION_STREAM_WRITE_FAILED", {
+        endpoint: SESSION_ENDPOINTS.stream,
+        sessionId: session.id,
+        detail: "broadcast write failed on stale/closed stream",
+      });
     }
   }
 }
@@ -304,7 +355,17 @@ async function handleGlobalDefaultsSave(req, res) {
 function handleSessionConnect(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
   const version = String(url.searchParams.get("version") || "").trim();
+  const sessionId = String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session";
+  const requestedClientId = String(url.searchParams.get("clientId") || "").trim();
   if (version && version !== SESSION_PROTOCOL_VERSION) {
+    logSessionCode("SESSION_CONNECT_VERSION_MISMATCH", {
+      endpoint: SESSION_ENDPOINTS.connect,
+      sessionId,
+      clientId: requestedClientId,
+      status: 409,
+      method: req.method,
+      detail: `expected=${SESSION_PROTOCOL_VERSION}, received=${version}`,
+    });
     sendJson(res, 409, {
       error: "SESSION_VERSION_MISMATCH",
       expected: SESSION_PROTOCOL_VERSION,
@@ -312,9 +373,7 @@ function handleSessionConnect(req, res) {
     });
     return;
   }
-  const sessionId = String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session";
   const role = normalizeRole(url.searchParams.get("role"));
-  const requestedClientId = String(url.searchParams.get("clientId") || "").trim();
   const clientId = requestedClientId || randomId("client");
   const session = getSession(sessionId);
   const now = Date.now();
@@ -338,6 +397,17 @@ function handleSessionStream(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
   const sessionId = String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session";
   const clientId = String(url.searchParams.get("clientId") || "").trim();
+  if (!clientId) {
+    logSessionCode("SESSION_STREAM_CLIENT_REQUIRED", {
+      endpoint: SESSION_ENDPOINTS.stream,
+      sessionId,
+      status: 400,
+      method: req.method,
+      detail: "missing clientId query param",
+    });
+    sendJson(res, 400, { error: "clientId required" });
+    return;
+  }
   const session = getSession(sessionId);
 
   res.writeHead(200, {
@@ -354,30 +424,42 @@ function handleSessionStream(req, res) {
   });
   if (!initialSnapshotWritten) {
     session.streams.delete(res);
+    logSessionCode("SESSION_STREAM_INIT_WRITE_FAILED", {
+      endpoint: SESSION_ENDPOINTS.stream,
+      sessionId,
+      clientId,
+      detail: "unable to write initial snapshot",
+    });
     res.end();
     return;
   }
 
   let cleanedUp = false;
-  const cleanup = () => {
+  const cleanup = (reason = "stream-close") => {
     if (cleanedUp) {
       return;
     }
     cleanedUp = true;
-    removeSessionStream(session, res, { clientId });
+    removeSessionStream(session, res, { clientId, reason });
   };
 
-  req.on("close", cleanup);
-  req.on("aborted", cleanup);
-  req.on("error", cleanup);
-  res.on("close", cleanup);
-  res.on("finish", cleanup);
-  res.on("error", cleanup);
+  req.on("close", () => cleanup("req-close"));
+  req.on("aborted", () => cleanup("req-aborted"));
+  req.on("error", () => cleanup("req-error"));
+  res.on("close", () => cleanup("res-close"));
+  res.on("finish", () => cleanup("res-finish"));
+  res.on("error", () => cleanup("res-error"));
 }
 
 async function handleSessionHeartbeat(req, res) {
   const parsed = await parseRequestBody(req, { maxBytes: 64 * 1024 });
   if (!parsed.ok) {
+    logSessionCode("SESSION_HEARTBEAT_BAD_PAYLOAD", {
+      endpoint: SESSION_ENDPOINTS.heartbeat,
+      status: 400,
+      method: req.method,
+      detail: parsed.error,
+    });
     sendJson(res, 400, { error: parsed.error });
     return;
   }
@@ -385,6 +467,13 @@ async function handleSessionHeartbeat(req, res) {
   const session = getSession(body.sessionId);
   const clientId = String(body.clientId || "").trim();
   if (!clientId) {
+    logSessionCode("SESSION_HEARTBEAT_CLIENT_REQUIRED", {
+      endpoint: SESSION_ENDPOINTS.heartbeat,
+      sessionId: session.id,
+      status: 400,
+      method: req.method,
+      detail: "missing clientId",
+    });
     sendJson(res, 400, { error: "clientId required" });
     return;
   }
@@ -404,6 +493,12 @@ async function handleSessionHeartbeat(req, res) {
 async function handleSessionEvent(req, res) {
   const parsed = await parseRequestBody(req, { maxBytes: 512 * 1024 });
   if (!parsed.ok) {
+    logSessionCode("SESSION_EVENT_BAD_PAYLOAD", {
+      endpoint: SESSION_ENDPOINTS.event,
+      status: 400,
+      method: req.method,
+      detail: parsed.error,
+    });
     sendJson(res, 400, { error: parsed.error });
     return;
   }
@@ -411,6 +506,13 @@ async function handleSessionEvent(req, res) {
   const session = getSession(body.sessionId);
   const clientId = String(body.clientId || "").trim();
   if (!clientId) {
+    logSessionCode("SESSION_EVENT_CLIENT_REQUIRED", {
+      endpoint: SESSION_ENDPOINTS.event,
+      sessionId: session.id,
+      status: 400,
+      method: req.method,
+      detail: "missing clientId",
+    });
     sendJson(res, 400, { error: "clientId required" });
     return;
   }
@@ -477,8 +579,9 @@ async function handleStaticFile(req, res) {
 }
 
 const server = createServer(async (req, res) => {
+  let routePath = "/";
   try {
-    const routePath = normalizeRoutePath(req.url || "/");
+    routePath = normalizeRoutePath(req.url || "/");
 
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
@@ -487,10 +590,10 @@ const server = createServer(async (req, res) => {
         saveEndpoint: "/api/global-defaults",
         postSupported: true,
         sessionEndpoint: {
-          connect: "/api/session/connect",
-          stream: "/api/session/stream",
-          heartbeat: "/api/session/heartbeat",
-          event: "/api/session/event",
+          connect: SESSION_ENDPOINTS.connect,
+          stream: SESSION_ENDPOINTS.stream,
+          heartbeat: SESSION_ENDPOINTS.heartbeat,
+          event: SESSION_ENDPOINTS.event,
           version: SESSION_PROTOCOL_VERSION,
         },
       });
@@ -551,6 +654,15 @@ const server = createServer(async (req, res) => {
 
     await handleStaticFile(req, res);
   } catch (error) {
+    if (routePath.startsWith("/api/session/")) {
+      logSessionCode("SESSION_ENDPOINT_UNHANDLED_ERROR", {
+        endpoint: routePath,
+        status: 500,
+        method: req.method,
+        detail: error instanceof Error ? error.message : "unknown",
+        level: "error",
+      });
+    }
     sendJson(res, 500, {
       error: "internal server error",
       detail: error instanceof Error ? error.message : "unknown",
