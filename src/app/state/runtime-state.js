@@ -45,6 +45,8 @@
           lastHeartbeatEndpoint: "",
           heartbeatFailureCount: 0,
           heartbeatFailureThreshold: 3,
+          stableResetPending: false,
+          reconnectTransitionId: 0,
         },
       },
       roomDraft: {
