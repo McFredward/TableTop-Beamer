@@ -58,20 +58,24 @@ Exit Criteria:
 - Verifikation und Planungsartefakte konsistent abgeschlossen.
 
 ## Phase 4 - Maintainability Refactor (In Progress)
-Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren, ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
+Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 7/14 Tasks abgeschlossen (Plan 4-1 erledigt), siehe `.planning/phases/phase-04/4-1-SUMMARY.md`, `.planning/phases/phase-04/PLAN.md`, `.planning/phases/phase-04/BACKLOG.md`, `.planning/phases/phase-04/TASKS.md`, `.planning/phases/phase-04/EXECUTE.md`.
+Status: 16/23 Tasks abgeschlossen (Plan 4-1 und Plan 4-2 erledigt); Plan 4-2 Nachweise liegen in `.planning/phases/phase-04/4-2-SUMMARY.md` und `.planning/phases/phase-04/P4-T16-ROOM-MODEL-REGRESSION.md`.
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
 2. State/Domain-Zerlegung: Config, pure Utilities, Runtime-State und Domain-Aktionen modularisieren.
 3. Persistenz/API-Zerlegung: LocalStorage-Migration, Resolver/Preflight/Save-Client isolieren.
-4. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
-5. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running/Preview-Bindings, Pan/Edit-Guards entkoppeln.
-6. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
+4. Raum-Generalization: Room-CRUD, freie Polygonraeume und editierbare Custom-Namen produktiv umsetzen.
+5. Datenmigration/Kompatibilitaet: neuer Room-JSON-Standard mit verlustfreier Migration und Legacy-Load-Pfad.
+6. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
+7. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running/Preview-Bindings, Pan/Edit-Guards entkoppeln.
+8. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
 
 Exit Criteria:
 - `src/app.js` ist auf schlanke Bootstrap-Orchestrierung reduziert; Kernlogik lebt in Modulen.
+- Settings unterstuetzt Raum anlegen/loeschen; jeder Raum bleibt frei als Polygon editierbar und hat einen frei editierbaren Namen.
+- Bestehende Defaults/Profile sind auf den neuen JSON-Standard migriert, bei voller Rueckwaertskompatibilitaet fuer Bestandsdaten.
 - Keine Regression bei Dashboard/Settings, Running-Liste, GIF-Looping (native+fallback), Clipping, Persistenz, Save/API und Mobile-UX.
 - Phase-4-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 

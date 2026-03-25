@@ -11,9 +11,9 @@
 - Current Phase Key: phase-04
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 4-1
-- Planned Next Execution: 4-2
-- Last Execution Summary: `.planning/phases/phase-04/4-1-SUMMARY.md`
+- Last Executed Plan: 4-2
+- Planned Next Execution: 4-3
+- Last Execution Summary: `.planning/phases/phase-04/4-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -229,6 +229,12 @@
 - Phase-4 Migrationsregel: inkrementelle Extraktion (Config/State/API/Persistenz/GIF/Render/UI) mit Pflicht-Regressionsgate nach jedem Block.
 - Phase-4 Plan 4-1 extrahiert Config/Normalizer/State/Persistenz/API als modulare Facades, waehrend Runtime-Paritaet ueber bestehende App-Callsites erhalten bleibt.
 - Save/Load fuer Global Defaults laeuft ab Plan 4-1 ueber eine dedizierte API-Facade mit unveraenderter Resolver-/Preflight-/Error-Semantik.
+- Verbindliche Erweiterung fuer Phase 4: Raummodell wird generalisiert (`room create/delete`, freie Polygone, editierbare Custom-Namen) statt statischem Raumset.
+- Phase-4 Plan 4-2 ist als priorisierte P0-Ausfuehrungswelle fuer Room-Generalisierung + Datenmigration execute-ready gesetzt.
+- Datenregel fuer Plan 4-2: Defaults/Profile migrieren auf neuen Room-JSON-Standard; Legacy-Staende bleiben ladbar und werden beim Speichern auf den neuen Standard normalisiert.
+- Plan-4-2 Umsetzung: Room-Ownership ist modularisiert (`src/app/domain/rooms`, `src/app/ui/settings/rooms`), waehrend `src/app.js` die Orchestrierung beibehlt.
+- Plan-4-2 Umsetzung: Kanonisches Raummodell nutzt `roomCatalog` (`id`,`name`,`polygon`,`meta`), UI erlaubt Room-Create/Delete, freie Polygonbearbeitung und Custom-Namen.
+- Plan-4-2 Umsetzung: Legacy-Roomdaten bleiben ladbar; Save schreibt konsistent das neue roomCatalog-Schema.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
