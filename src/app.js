@@ -599,7 +599,6 @@ let previewItemIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
-const gifImageCacheByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
@@ -2527,19 +2526,6 @@ function getRoomEquivalentType(type) {
 function getRoomGifAssetFileName(type) {
   const path = ROOM_GIF_ANIMATION_ASSETS[type];
   return path ? path.split("/").pop() ?? path : null;
-}
-
-function getGifImage(path) {
-  if (!path) {
-    return null;
-  }
-  if (!gifImageCacheByPath.has(path)) {
-    const image = new Image();
-    image.decoding = "async";
-    image.src = path;
-    gifImageCacheByPath.set(path, image);
-  }
-  return gifImageCacheByPath.get(path) ?? null;
 }
 
 function canDecodeGifFramesWithImageDecoder() {
@@ -5995,15 +5981,14 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
     const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
     const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
-    const gifImage = gifFrame ?? getGifImage(gifPath);
-    if (!gifImage || (!gifFrame && !gifImage.complete)) {
+    if (!gifFrame) {
       return;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.drawImage(gifImage, roomMinX, roomMinY, roomWidth, roomHeight);
+    ctx.drawImage(gifFrame, roomMinX, roomMinY, roomWidth, roomHeight);
     ctx.restore();
     return;
   }
@@ -6013,15 +5998,14 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
     const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
     const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
-    const gifImage = gifFrame ?? getGifImage(gifPath);
-    if (!gifImage || (!gifFrame && !gifImage.complete)) {
+    if (!gifFrame) {
       return;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.drawImage(gifImage, roomMinX, roomMinY, roomWidth, roomHeight);
+    ctx.drawImage(gifFrame, roomMinX, roomMinY, roomWidth, roomHeight);
     ctx.restore();
     return;
   }
