@@ -76,23 +76,6 @@
           <select id="board-select"></select>
         </label>
         <label>
-          Session-ID
-          <input id="session-id-input" type="text" maxlength="64" placeholder="z. B. nemesis-lan" />
-        </label>
-        <label>
-          Client-Rolle
-          <select id="client-role-select">
-            <option value="operator">Operator</option>
-            <option value="alignment">Alignment</option>
-            <option value="final-output">Final Output (Beamer)</option>
-          </select>
-        </label>
-        <button id="session-reconnect" type="button">Session verbinden / reconnect</button>
-        <label class="inline-checkbox">
-          <input id="alignment-overlay-toggle" type="checkbox" />
-          Alignment-Overlay (Polygonhilfe)
-        </label>
-        <label>
           Output Route
           <select id="output-route-select">
             <option value="auto">Auto (aktueller Screen)</option>
@@ -101,7 +84,10 @@
           </select>
         </label>
         <button id="apply-output-route" type="button">Output Route anwenden</button>
-        <button id="session-self-test" type="button">Session Self-Test (connect/stream/heartbeat/event)</button>
+        <label class="inline-checkbox">
+          <input id="align-mode-toggle" type="checkbox" />
+          Align-Mode (Final-Output Polygone einblenden)
+        </label>
         <button id="save-global-defaults" type="button">Speichern (lokal -&gt; globale Defaults)</button>
         <button id="load-apply-global-defaults" type="button">Defaults laden &amp; anwenden</button>
         <button id="export-global-defaults" type="button">Download-Export herunterladen (sekundaer)</button>
@@ -110,51 +96,7 @@
           Zonenquelle: wird beim Startup geprueft
         </p>
         <p id="output-route-status" class="status-line" aria-live="polite">Output Route: Auto</p>
-        <p id="session-status" class="status-line" aria-live="polite">Session: nicht verbunden</p>
-        <p id="session-endpoint-status" class="status-line" aria-live="polite">
-          Session Endpoint: noch nicht aufgeloest | selected via unresolved | fallback reason none
-        </p>
-        <p id="session-heartbeat-endpoint-status" class="status-line" aria-live="polite">
-          Heartbeat Endpoint: noch nicht aufgeloest | selected via unresolved | fallback reason none
-        </p>
-        <p id="session-heartbeat-transport-status" class="status-line" aria-live="polite">
-          Heartbeat Transport: aktiv POST | letzter Wechsel -
-        </p>
-        <p id="session-event-transport-status" class="status-line" aria-live="polite">
-          Event Transport: aktiv POST | letzter Wechsel -
-        </p>
-        <p id="session-connection-state-status" class="status-line" aria-live="polite">
-          Session Status: idle
-        </p>
-        <p id="session-stream-connectivity-status" class="status-line" aria-live="polite">
-          Session Stream: disconnected
-        </p>
-        <p id="session-heartbeat-status-split" class="status-line" aria-live="polite">
-          Session Heartbeat: unknown
-        </p>
-        <p id="session-connect-transport-status" class="status-line" aria-live="polite">
-          Connect Transport: fetch | fallback none | online unknown
-        </p>
-        <p id="session-last-error-status" class="status-line" aria-live="polite">Session Fehler: kein Fehler</p>
-        <p id="session-retry-status" class="status-line" aria-live="polite">Session Retry: Versuche 0/8</p>
-        <p id="session-last-success-status" class="status-line" aria-live="polite">
-          Letzter erfolgreicher Connect: -
-        </p>
-        <p id="session-self-test-status" class="status-line" aria-live="polite">
-          Session Self-Test: noch nicht ausgefuehrt
-        </p>
-        <table class="session-self-test-table" aria-label="Session Self-Test Matrix">
-          <thead>
-            <tr>
-              <th scope="col">Route</th>
-              <th scope="col">Result</th>
-              <th scope="col">Endpoint</th>
-              <th scope="col">Methode</th>
-              <th scope="col">Detail</th>
-            </tr>
-          </thead>
-          <tbody id="session-self-test-matrix"></tbody>
-        </table>
+        <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: noch nicht gespeichert
         </p>

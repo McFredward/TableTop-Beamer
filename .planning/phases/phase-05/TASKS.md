@@ -13,7 +13,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T6 [P0] Broadcast-Kanal fuer sofortige Push-Synchronisierung auf alle verbundenen Clients einbauen.
 - [x] DONE P5-T7 [P0] Reconnect-/Join-Flow: neuer Client erhaelt unmittelbar den aktuellen Live-Snapshot.
 
-- [ ] TODO P5-T8 [P0] Globalen Align-Mode als Shared-State-Flag integrieren und ueber Controller toggelbar machen.
+- [x] DONE P5-T8 [P0] Globalen Align-Mode als Shared-State-Flag integrieren und ueber Controller toggelbar machen.
 - [ ] TODO P5-T9 [P0] Final-Output: Polygone nur bei aktivem Align-Mode einblenden; im Normalbetrieb ausblenden.
 - [ ] TODO P5-T10 [P0] Control-Views: Polygone unabhaengig vom Align-Mode immer sichtbar halten.
 

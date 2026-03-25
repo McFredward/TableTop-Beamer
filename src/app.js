@@ -59,6 +59,8 @@ const zonesStatus = document.querySelector("#zones-status");
 const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
+const alignModeToggleInput = document.querySelector("#align-mode-toggle");
+const alignModeStatus = document.querySelector("#align-mode-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -228,6 +230,28 @@ function applyOutputRoleViewContract() {
   triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
 }
 
+function syncAlignModePanel() {
+  const enabled = Boolean(state.alignMode);
+  if (alignModeToggleInput) {
+    alignModeToggleInput.checked = enabled;
+  }
+  if (alignModeStatus) {
+    alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
+  }
+  document.body.classList.toggle("align-mode-active", enabled);
+}
+
+function setAlignMode(enabled, { emit = true } = {}) {
+  state.alignMode = Boolean(enabled);
+  syncAlignModePanel();
+  renderRoomOverlay();
+  if (emit) {
+    emitLiveMutation("align-toggle", {
+      alignMode: state.alignMode,
+    });
+  }
+}
+
 const ctx = canvas.getContext("2d");
 
 const state = window.TT_BEAMER_STATE.createInitialState({
@@ -270,6 +294,7 @@ function buildRuntimeSnapshotForLiveSync() {
     roomDraft: state.roomDraft,
     animationSpeed: state.animationSpeed,
     audio: state.audio,
+    alignMode: state.alignMode,
   };
 }
 
@@ -321,6 +346,11 @@ function applyLiveRuntimeSnapshot(snapshot) {
   if (runtime.audio && typeof runtime.audio === "object") {
     state.audio.enabled = Boolean(runtime.audio.enabled);
     state.audio.volume = clampAudioVolumePercent(Math.round(Number(runtime.audio.volume ?? state.audio.volume) * 100)) / 100;
+  }
+  if (typeof snapshot?.alignMode === "boolean") {
+    state.alignMode = snapshot.alignMode;
+  } else if (typeof runtime.alignMode === "boolean") {
+    state.alignMode = runtime.alignMode;
   }
   stopSoundsForInactiveAnimations();
   for (const animation of state.runningAnimations) {
@@ -4264,6 +4294,10 @@ function renderRoomOverlay() {
   const board = getBoard();
   roomOverlay.replaceChildren();
 
+  if (outputRole === OUTPUT_ROLE_FINAL && !state.alignMode) {
+    return;
+  }
+
   for (const room of board.rooms) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     polygon.classList.add("room-zone");
@@ -4320,17 +4354,19 @@ function renderRoomOverlay() {
     }
     roomOverlay.append(polygon);
 
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.classList.add("room-zone-label");
-    if (room.id.startsWith("special-")) {
-      label.classList.add("is-special");
+    if (outputRole !== OUTPUT_ROLE_FINAL) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.classList.add("room-zone-label");
+      if (room.id.startsWith("special-")) {
+        label.classList.add("is-special");
+      }
+      const labelPosition = getRoomLabelPosition(room, state.boardId);
+      label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
+      label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
+      const roomName = room.name ?? room.label;
+      label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
+      roomOverlay.append(label);
     }
-    const labelPosition = getRoomLabelPosition(room, state.boardId);
-    label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
-    label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
-    const roomName = room.name ?? room.label;
-    label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
-    roomOverlay.append(label);
   }
 
   renderPolygonEditorHandles();
@@ -6410,6 +6446,10 @@ applyOutputRouteButton.addEventListener("click", () => {
   applyOutputRoute(outputRouteSelect.value);
 });
 
+alignModeToggleInput?.addEventListener("change", () => {
+  setAlignMode(Boolean(alignModeToggleInput.checked));
+});
+
 saveGlobalDefaultsButton.addEventListener("click", async () => {
   const persisted = persistBoardProfiles();
   if (!persisted) {
@@ -6558,6 +6598,7 @@ function syncRuntimePanelsFromState() {
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
   syncOutsideFxPanel();
+  syncAlignModePanel();
   syncBoardZoomPanel();
   syncDashboardZoneVisibility();
   updateMobilePerformanceStatus();
