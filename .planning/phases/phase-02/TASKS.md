@@ -42,7 +42,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P2-T43 [P1] Zonen-Ladepfad absichern: Boot-Sequenz/State/Rendering gegen Partial-Data haerten und Negativtests (missing, malformed, partial) dokumentieren.
 - [x] DONE P2-T44 [P0] Echter Preview-Flow bauen: Einzel-Preview + Kombi-Staging als explizites Session-Modell mit klarer Operator-UI.
 - [x] DONE P2-T45 [P0] Live-Absenden + Rollback umsetzen: Preview-Commit auf Live-Output, API-Routen fuer send/rollback und Undo des letzten Sends mit konsistentem Statusfeedback.
-- [ ] TODO P2-T46 [P1] README auf finalen Phase-2-Operator-Workflow aktualisieren (Defaults/Profile/Kalibrierung + Preview/Kombi/Absenden inkl. Rollback).
+- [x] DONE P2-T46 [P1] README auf finalen Phase-2-Operator-Workflow aktualisieren (Defaults/Profile/Kalibrierung + Preview/Kombi/Absenden inkl. Rollback).
 - [ ] TODO P2-T47 [P1] Abschlussnachweis fuer Plan-Update 5 erstellen: Re-Verification (`2-VERIFICATION.md` Follow-up), Artefakt-Consistency-Check und Phase-2-Exit-Gate dokumentieren.
 
 ## Milestone A - Core Data

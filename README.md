@@ -39,21 +39,38 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 3. Lokal: `http://localhost:4173`; im LAN: `http://<SERVER-IP>:4173` (zweites Geraet)
 4. In `Settings` bei Save/Diagnose pruefen: `UI-Host <SERVER-IP> -> API-Host <SERVER-IP>`
 
-## Session-Flow (Phase 1)
+## Session-Flow (Phase 2 - final)
 
-1. **Board waehlen** im Panel `Step 1 - Board`.
-2. **Kalibrieren** ueber Offset/Scale/Rotation und **Master Intensity** im Panel `Step 2`.
-3. **Effekte triggern** im Panel `Step 3 - Quick Triggers`.
+1. **Startup + Defaults**
+   - App starten (`node server.mjs`) und `Settings` oeffnen.
+   - Auf neuen/geleerten Geraeten werden globale Defaults automatisch geladen.
+   - Optional manuell: `Defaults laden & anwenden`.
 
-Kalibrierung und Board-Auswahl werden session-lokal im Browser gehalten. Mit
-`Reset Calibration Defaults` springt die Session auf sichere Startwerte zurueck.
+2. **Board + Profile/Kalibrierung**
+   - `Layout` waehlen (Board A/B).
+   - Hitarea, Raum-Geometrie, Spezialraum-Polygone und Ship-Maske im `Settings`-Workspace kalibrieren.
+   - Persistenz erfolgt board-spezifisch ueber Board-Profile.
 
-## Enthalten
+3. **Zonenquelle pruefen**
+   - Board-Zonen kommen aus `config/zones/nemesis-board-*.json`.
+   - Der Settings-Status `Zonenquelle` zeigt pro Board, ob JSON geladen wurde oder Fallback aktiv ist.
 
-- Board-Auswahl fur die zwei hinterlegten Nemesis-Boards.
-- Manuelle Trigger fur Atmosphare und Event-Effekte.
-- Master-Intensity + grobe Kalibrierung (Offset/Scale/Rotation).
-- Sofortiges `Clear All` als Safety-Control.
+4. **Preview/Kombi aufbauen**
+   - Im Dashboard zuerst Preview nutzen: `Global zu Preview` und/oder `Raum-Draft zu Preview`.
+   - Mehrere Eintraege ergeben eine Kombi-Queue.
+
+5. **Live senden + Undo**
+   - `Preview an Live senden` uebernimmt die Queue in die laufende Live-Ausgabe.
+   - `Letzten Send rueckgaengig` macht den letzten Commit wieder rueckgaengig (Rollback).
+   - Laufende Animationen bleiben separat unter `Aktive Animationen` steuerbar (`Stop`, `Edit`, `Clear All`).
+
+## Enthalten (Ist-Stand)
+
+- Mobile-First Dashboard/Settings-Flow ohne Board-Overlay.
+- Externe Board-Zonen (`config/zones/*.json`) inkl. Validator, Fehlerklassifikation und Fallback.
+- Board-spezifische Kalibrier-/Polygon-/Outside-Profile inkl. Persistenz.
+- Preview-Queue (Einzel + Kombi), Live-Send und Undo/Rollback des letzten Sends.
+- Audio-Mapping pro Animation und globale Audio-Settings.
 
 ## Safety-Hinweise
 
@@ -64,8 +81,8 @@ Kalibrierung und Board-Auswahl werden session-lokal im Browser gehalten. Mit
   - `.planning/phases/phase-01/P1-T14-LOADTEST.md`
   - `.planning/phases/phase-01/P1-T15-REGRESSION.md`
 
-## Nachechster Schritt
+## Verifikationsartefakte (Phase 2)
 
-- Kalibrierungsprofile speichern/laden.
-- Hotkeys (z. B. Stream Deck/Tastatur).
-- Board-Zonen pro Layout als Datenfile auslagern.
+- `.planning/phases/phase-02/2-VERIFICATION.md`
+- `.planning/phases/phase-02/P2-T40-MOBILE-NO-OVERLAY-VERIFIKATION.md`
+- `.planning/phases/phase-02/P2-T43-ZONEN-NEGATIVTESTS.md`
