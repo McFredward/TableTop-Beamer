@@ -95,6 +95,16 @@
 - Impact: Hoch, Rework verfehlt Ziel trotz "sauberer" Struktur.
 - Gegenmassnahme: verpflichtender Vorher/Nachher-Regression- und Soak-Nachweis als Exit-Gate fuer Plan 3-5.
 
+## R20 Preview-Restpfade blockieren wieder sichtbares Live-Rendering
+- Risiko: verbliebene Preview-State-/Routing-/Send-Rollback-Logik uebersteuert oder verzweigt den direkten Renderpfad; Animationen laufen intern, bleiben aber unsichtbar.
+- Impact: Kritisch (P0), Kernworkflow unbrauchbar.
+- Gegenmassnahme: Preview-Flow vollstaendig entfernen (UI + State + Routing + Send/Rollback) und direkten Live-Pfad als einzige Runtime-Quelle erzwingen.
+
+## R21 P0-Hotfix verliert Running-/Edit-/Stop-Integritaet
+- Risiko: schneller Preview-Rueckbau repariert Sichtbarkeit, verursacht aber Drift in Running-Liste oder bricht `Stop`/`Edit`.
+- Impact: Hoch, Kontrollverlust im Live-Betrieb.
+- Gegenmassnahme: verpflichtende Integritaets-Regression fuer Running 1:1 + `Stop`/`Edit` plus Soak vor Refactor-Fortsetzung.
+
 ## Statusupdate nach Plan 3-2
 - R2/R4/R5/R7/R10 wurden fuer den aktuellen Rework-Scope durch Regression + Soak-Nachweise auf "beobachten" reduziert.
 - Neues verpflichtendes Feedback fuer Plan 3-3 hebt R11/R12 auf Blocker-Niveau (P0), bis echte GIF-Loops und Mapping-Persistenz nachgewiesen sind.
@@ -120,3 +130,15 @@
 - R16/R17 sind nach eingefuehrter Modulstruktur (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) auf "beobachten" reduziert.
 - R18 ist durch gezielte Kommentierung kritischer Kontrollfluesse auf "beobachten" reduziert.
 - R19 ist durch dokumentierte Regression + Soak (`P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`) auf "beobachten" reduziert.
+
+## Statusupdate fuer Plan 3-6 (P0 Hotfix)
+- Neues verpflichtendes Feedback hebt Preview-bezogene Restpfade (R20) auf Blocker-Niveau, bis der Preview-Flow vollstaendig entfernt ist.
+- Sichtbarkeitsdefekt fuer laufende Animationen wird erneut als P0-Blocker gefuehrt, bis Matrix-Nachweis `global`/`room`/`gif` bestanden ist.
+- R21 ist als aktives Integritaetsrisiko gesetzt, bis Running-Liste sowie `Stop`/`Edit` nach Preview-Rueckbau regressionsfest dokumentiert sind.
+- R16/R17/R18/R19 bleiben waehrend P0-Hotfix auf "beobachten", weiterer Refactor wird bis P0-Stabilitaetsgate eingefroren.
+
+## Statusupdate nach Plan 3-6
+- R20 ist durch vollstaendige Preview-Entfernung (UI/State/Routing/Send/Rollback) auf "beobachten" reduziert.
+- Sichtbarkeitsblocker ist durch Render-Fallback-Hotfix fuer `global`/`room`/`gif` auf "beobachten" reduziert.
+- R21 ist durch Running-Integritaetsguard und Nachweise in `P3-T49-REGRESSION.md`/`P3-T49-SOAK.md` auf "beobachten" reduziert.
+- Refactor-Resume-Gate bleibt aktiv: weiterer Umbau erst nach dokumentiert stabilem Plan-3-6-Hotfix-Nachweis (`3-6-VERIFICATION.md`).

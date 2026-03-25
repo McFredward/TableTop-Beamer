@@ -20,6 +20,10 @@
 - Trigger/Edit-Roundtrip-Test: gesetzte Einzelanimationen bleiben beim Edit konsistent und erzeugen keinen Runtime-State-Drift.
 - Render-Regression-P0-Test: Bei aktiven Animationen sind auf dem Board sichtbare Bewegungen vorhanden; Audio-only ohne sichtbares Rendering gilt als Fail.
 - Render-vs-Audio-Entkopplungs-Test: Audio-Loop/Stop/Edit/Clear-All duerfen den Render-Tick nicht stoppen oder einfrieren.
+- Preview-Removal-Test: Es existieren keine bedienbaren Preview-Elemente und keine Preview-Zwischenzustaende mehr im aktiven Runtime-Flow.
+- Routing-/State-Test ohne Preview: Start/Edit/Stop nutzen ausschliesslich direkten Live-Pfad; Send/Rollback-Endpunkte sind funktionslos oder entfernt.
+- Sichtbarkeits-Matrix-Test: `global`, `room` und GIF-basierte Animationen sind jeweils sofort sichtbar, auch bei parallel laufendem Audio.
+- Runtime-Integritaetstest nach Preview-Rueckbau: Running-Liste bleibt 1:1 zur Instanz, `Stop`/`Edit` bleiben stabil bedienbar.
 - Architekturtest Modulgrenzen: `app.js` ist entlastet; Kernlogik liegt in getrennten Modulen `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`.
 - Refactor-Paritaetstest: Trigger/Direct-Start/Edit/Stop/Reload/Save-Load/GIF-Mapping verhalten sich vor/nach Refactor gleich.
 - Lesbarkeitstest: nicht-offensichtliche Kontrollfluesse sind mit zielgerichteten Kommentaren dokumentiert.
@@ -49,12 +53,22 @@
 - Nicht-offensichtliche Stellen sind mit sinnvollen, knappen Kommentaren dokumentiert.
 - Funktionale Paritaet und Stabilitaet sind per Regression + Soak dokumentiert und nachvollziehbar.
 
+## Pflichtabnahme Plan 3-6 (P3-T45..P3-T50)
+- Preview-Flow ist vollstaendig entfernt (UI + State + Routing + Send/Rollback); es existiert kein Preview-Zwischenzustand mehr.
+- Direkter Live-Trigger ist als einziger Bedienpfad aktiv; Start/Edit/Stop gehen ohne Preview-Staging direkt auf Runtime.
+- Render-Pipeline zeigt laufende Animationen sofort sichtbar fuer `global`, `room` und GIF-basierte Pfade; Audio-only gilt als harter Fail.
+- Running-Liste bleibt 1:1 zur Instanz; `Stop` und `Edit` funktionieren weiterhin stabil ohne ID-/State-Drift.
+- Regression + Soak belegen stabile Hotfix-Wirkung ueber Trigger/Edit/Stop/Reload/Save-Load-Pfade.
+- Refactor-Fortsetzung ist explizit auf "nach stabilem P0-Fix" gate-gesteuert dokumentiert.
+
 ## Definition of Done
 - Alle P0-Tasks aus Plan 3-3 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-4 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-5 sind abgeschlossen.
+- Alle P0-Tasks aus Plan 3-6 sind abgeschlossen.
 - Keine offenen Blocker-Risiken fuer GIF-Loop-Runtime, Mapping-Persistenz oder Running-List-Paritaet.
 - Keine offenen Blocker-Risiken fuer Board-Render-Regression oder Refactor-Integritaet.
+- Keine offenen Blocker-Risiken fuer Preview-Restpfade oder unsichtbares Rendering nach Preview-Rueckbau.
 - P1-Hardening fuer Stabilitaet und Performance ist mindestens initial umgesetzt und dokumentiert.
 - Artefakte `PLAN.md`, `BACKLOG.md`, `TASKS.md`, `EXECUTE.md`, `RISKS.md` sind konsistent.
 
@@ -63,3 +77,4 @@
 - Plan 3-3 wurde am 2026-03-25 mit Verweis auf `3-3-VERIFICATION.md` sowie `P3-T30-REGRESSION.md`/`P3-T30-SOAK.md` abgenommen.
 - Plan 3-4 wurde am 2026-03-25 mit Verweis auf `3-4-VERIFICATION.md` sowie `P3-T33-REGRESSION.md` abgenommen.
 - Plan 3-5 wurde am 2026-03-25 mit Verweis auf `3-5-VERIFICATION.md` sowie `P3-T42-REGRESSION.md`/`P3-T43-SOAK.md` abgenommen.
+- Plan 3-6 wurde am 2026-03-25 mit Verweis auf `3-6-VERIFICATION.md` sowie `P3-T49-REGRESSION.md`/`P3-T49-SOAK.md` abgenommen.

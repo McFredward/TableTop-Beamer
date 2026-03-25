@@ -1,7 +1,7 @@
-# Phase 3 Plan (Rework 3-5 Execute-Ready)
+# Phase 3 Plan (Rework 3-6 P0 Hotfix Execute-Ready)
 
 ## Zielbild
-Phase 3 umfasst nach Rework 3-4 ein verpflichtendes Rework 3-5 mit zwei harten Zielen: (1) P0-Fix fuer den kritischen Render-Regression-Bug (Board zeigt keine Animationen mehr, Audio laeuft weiter) und (2) Architektur-Refactor von `app.js` in klare Module (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) bei erhaltener funktionaler Paritaet und stabiler Laufzeit.
+Phase 3 umfasst nach Rework 3-5 ein verpflichtendes Rework 3-6 mit P0-Hotfix-Fokus: (1) Preview-Flow wird vollstaendig entfernt (UI, State, Routing, Send/Rollback-Pfade), (2) direkter Live-Trigger-Flow wird wiederhergestellt und (3) Render-Pipeline stellt sofort sichtbare Animationen fuer globale, room- und gif-basierte Effekte wieder her. Weiterer Refactor ist bis zur stabilen P0-Wiederherstellung explizit eingefroren.
 
 ## Scope
 - Separates Trigger-Modell pro Raumanimation mit Start/Stop je Instanz.
@@ -11,11 +11,13 @@ Phase 3 umfasst nach Rework 3-4 ein verpflichtendes Rework 3-5 mit zwei harten Z
 - GIF-Runtime-Wiedergabe fuer `kaputt`/`feuer`/`schleim` als echte Frame-Loops (kein statischer Frame mit Puls-Ersatz).
 - Pro Animation ist das GIF in der UI auswaehlbar (analog Sound-Mapping), mit validierter Asset-Liste und persistenter Speicherung.
 - GIF-Instanzparameter pro laufender Animation steuerbar: Transparenz (`opacity`) und Abspielgeschwindigkeit (`playbackSpeed`).
+- Preview-Flow ist vollstaendig entfernt; es gibt keinen Preview/Send/Rollback-Zwischenzustand mehr.
+- Direkter Live-Trigger ist wieder der einzige Bedienpfad fuer Start/Edit/Stop.
 - Default-Verhalten fuer Raum-Animationen: `hold` bis expliziter Stop.
 - Clipping-Integritaet fuer alle Raumanimationen ohne Leaks in Nachbarraeume/Outside-Bereiche.
-- Kritischer Render-Bug ist geschlossen: Board-Animationen rendern wieder deterministisch, auch wenn Audio parallel laeuft.
-- `app.js` wird in sinnvolle Modulstruktur aufgeteilt; Modulgrenzen sind klar dokumentiert und technisch durchgesetzt.
-- Lesbarkeit steigt durch gezielte Kommentare in nicht-offensichtlichen Codepfaden (kein Kommentarrauschen).
+- Kritischer Render-Bug ist geschlossen: Board-Animationen rendern wieder deterministisch und sofort sichtbar fuer `global` + `room` + `gif`, auch wenn Audio parallel laeuft.
+- Running-Liste inklusive `Stop`/`Edit` bleibt durchgehend funktionsfaehig.
+- Refactor-Fortsetzung startet erst nach stabilem P0-Nachweis (kein Parallelumbau waehrend Hotfix).
 
 ## Out of Scope
 - Neue Spielmechanik oder Regelautomatisierung.
@@ -24,11 +26,11 @@ Phase 3 umfasst nach Rework 3-4 ein verpflichtendes Rework 3-5 mit zwei harten Z
 - Freies Hochladen beliebiger Dateien als GIF-Quelle.
 
 ## Milestones (priorisiert)
-1. Plan 3-5 P0 Regression-Fix: Board-Rendering fuer laufende Animationen sofort wiederherstellen (Audio darf kein false-positive fuer Erfolg sein).
-2. Plan 3-5 P0 Architektur-Refactor: `app.js` in klar abgegrenzte Module fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` aufteilen.
-3. Plan 3-5 P0 Integrationshygiene: Start/Edit/Stop/Reload-Flow nach Modultrennung ohne Render-/State-Drift stabilisieren.
-4. Plan 3-5 P1 Lesbarkeit: nicht-offensichtliche Pfade mit praezisen Kommentaren dokumentieren.
-5. Plan 3-5 P1 Hardening: funktionale Paritaet, Regression, Stabilitaet und Artefaktabschluss nach Refactor nachweisen.
+1. Plan 3-6 P0 Preview-Removal: Preview-Flow vollstaendig entfernen und direkten Live-Trigger-Flow wiederherstellen.
+2. Plan 3-6 P0 Render-Recovery: sichtbares Rendering fuer alle Animationsarten (`global`, `room`, `gif`) sofort stabilisieren.
+3. Plan 3-6 P0 Runtime-Paritaet: Running-Liste sowie `Stop`/`Edit` ohne Drift sicherstellen.
+4. Plan 3-6 P0 Stabilitaets-Gate: Regression + Soak fuer Hotfix-Pfade abschliessen.
+5. Plan 3-6 P1 Refactor-Resume-Gate: weiterer Architektur-Refactor erst nach bestandenem P0-Gate.
 
 ## Plan 3-3 (Rework-Welle, execute-ready)
 
@@ -63,10 +65,23 @@ Phase 3 umfasst nach Rework 3-4 ein verpflichtendes Rework 3-5 mit zwei harten Z
 - P3-S5.5 Lesbarkeit gezielt verbessern: Kommentare fuer nicht-offensichtliche Kontrollfluesse, Timing- und Fallback-Logik.
 - P3-S5.6 Funktionale Paritaet + Stabilitaet per Regression/Soak nachweisen und Artefakte konsistent abschliessen.
 
+## Plan 3-6 (P0 Hotfix Preview-Removal + Render-Recovery, execute-ready)
+
+### Prioritaet P0
+- P3-S6.1 Preview-Flow vollstaendig entfernen (UI + State + Routing + Send/Rollback).
+- P3-S6.2 Direkten Live-Trigger-Flow fuer Start/Edit/Stop wieder als alleinigen Runtime-Pfad herstellen.
+- P3-S6.3 Render-Pipeline fixen: aktive Animationen sind sofort sichtbar fuer `global`, `room`, `gif`.
+- P3-S6.4 Running-Liste/Stop/Edit gegen Hotfix-Regression absichern (instanzkonsistent, kein Drift).
+
+### Prioritaet P1
+- P3-S6.5 P0-Stabilitaetsnachweis via Regression + Soak + Artefakt-Sync abschliessen.
+- P3-S6.6 Refactor-Resume-Gate dokumentieren: weiterer Umbau erst nach stabilem P0-Fix fortsetzen.
+
 ## Definition of Done
 - Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-3 sind abgeschlossen.
 - Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-4 sind abgeschlossen.
 - Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-5 sind abgeschlossen.
+- Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-6 sind abgeschlossen.
 - Jede Raum-Animation ist einzeln start-/stoppbar und wird separat in der Running-Uebersicht gefuehrt.
 - Das 7er-Set (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) ist vollstaendig und funktionsgleich verfuegbar.
 - `alarm` und `lichtflackern` laufen als globale Aequivalente mit strikt raumbegrenztem Clipping.
@@ -74,18 +89,20 @@ Phase 3 umfasst nach Rework 3-4 ein verpflichtendes Rework 3-5 mit zwei harten Z
 - GIF-Mapping ist pro Animation in der UI auswaehlbar, validiert und persistent gespeichert.
 - Raumanimationen bleiben standardmaessig im `hold`-Modus aktiv, bis explizit gestoppt.
 - Keine sichtbaren Clipping-Leaks in Nachbarraeume oder ausserhalb der Zielmasken.
-- Kritischer Regression-Bug ist geschlossen: laufende Animationen sind auf dem Board sichtbar, waehrend Audio weiterhin korrekt arbeitet.
-- `app.js` ist modularisiert; Modulgrenzen entsprechen den verpflichtenden Domainen (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`).
-- Nicht-offensichtliche Bereiche sind mit gezielten, wartbaren Kommentaren dokumentiert.
-- Funktionale Paritaet vor/nach Refactor ist durch Regression und Stabilitaetsnachweise belegt.
+- Preview-Flow ist vollstaendig entfernt; keine UI-/State-/Routing-/Send-/Rollback-Reste sind aktiv.
+- Kritischer Regression-Bug ist geschlossen: laufende Animationen sind auf dem Board sichtbar (global + room + gif), waehrend Audio weiterhin korrekt arbeitet.
+- Running-Liste sowie `Stop`/`Edit` bleiben instanzscharf und stabil bedienbar.
+- Refactor-Fortsetzung startet erst nach dokumentiert stabilem P0-Hotfix-Gate.
 - Performance-/Stabilitaetskriterien aus `ACCEPTANCE.md` sind nachgewiesen.
 
 ## Referenz
 - Verbindliches User-Feedback fuer Phase-3-Rework 3-3 (echte GIF-Loops statt Pulsing-Einzelbild + GIF-Auswahl pro Animation in der UI mit Persistenz).
 - Neues verpflichtendes Feedback fuer Phase-3-Rework 3-5 (P0 Render-Regression-Fix + Pflicht-Architektur-Refactor + Lesbarkeits-/Stabilitaetsnachweis).
+- Neues verpflichtendes Feedback fuer Phase-3-Rework 3-6 (Preview komplett entfernen, sofort sichtbares Rendering wiederherstellen, Running/Stop/Edit stabil halten, Refactor erst danach fortsetzen).
 
 ## Execution Status
 - Plan 3-2 (P3-T13..P3-T25): completed, siehe `3-2-VERIFICATION.md`.
 - Plan 3-3 (P3-T26..P3-T31): completed, siehe `3-3-VERIFICATION.md`.
 - Plan 3-4 (P3-T32..P3-T34): completed, siehe `3-4-VERIFICATION.md` und `P3-T33-REGRESSION.md`.
 - Plan 3-5 (P3-T35..P3-T44): completed, siehe `3-5-VERIFICATION.md`, `P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`.
+- Plan 3-6 (P3-T45..P3-T50): completed, siehe `3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`.

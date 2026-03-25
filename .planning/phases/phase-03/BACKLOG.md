@@ -1,4 +1,4 @@
-# Phase 3 Backlog (Rework 3-5 Execute-Ready)
+# Phase 3 Backlog (Rework 3-6 P0 Hotfix Execute-Ready)
 
 ## Epics
 - Separate Room Trigger Engine (Einzelstart/-stop pro Animation)
@@ -9,6 +9,9 @@
 - GIF Mapping UI + Persistenz (pro Animation auswaehlbar)
 - Direct-Start GIF Mapping Integrity (`room start` respektiert Mapping bis Runtime)
 - Board Render Regression Recovery (P0: Animation sichtbar trotz parallel laufendem Audio)
+- Preview Flow Removal (UI + State + Routing + Send/Rollback vollstaendig entfernen)
+- Direct Live Trigger Restore (kein Preview-Staging, Trigger gehen direkt live)
+- Render Visibility Recovery (`global` + `room` + `gif` sofort sichtbar)
 - Architecture Refactor `app.js` -> Module (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`)
 - Refactor Parity & Stability Proof (vor/nach Umbau funktional gleich + stabil)
 - Targeted Readability Improvements (Kommentare in nicht-offensichtlichen Bereichen)
@@ -33,6 +36,12 @@
 - P3-S5.4 Integrationsfluesse nach Modultrennung stabilisieren (Trigger/Direct-Start/Edit/Stop/Reload/Save).
 - P3-S5.5 Lesbarkeit in nicht-offensichtlichen Bereichen durch gezielte Kommentare verbessern.
 - P3-S5.6 Funktionale Paritaet + Stabilitaet nach Refactor via Regression/Soak + Artefakt-Sync nachweisen.
+- P3-S6.1 Preview-Flow vollstaendig entfernen (UI, State, Routing, Send, Rollback).
+- P3-S6.2 Direkten Live-Trigger-Flow fuer Start/Edit/Stop als alleinigen Pfad wiederherstellen.
+- P3-S6.3 Render-Pipeline-Hotfix: aktive Animationen sind sofort sichtbar fuer `global`/`room`/`gif`.
+- P3-S6.4 Running-Liste sowie `Stop`/`Edit` nach Hotfix instanzkonsistent stabilisieren.
+- P3-S6.5 Regression + Soak als P0-Stabilitaetsgate fuer Hotfix-Pfade dokumentieren.
+- P3-S6.6 Refactor-Resume-Gate dokumentieren (weiterer Umbau erst nach stabilem P0-Fix).
 
 ## Priorisierte Umsetzungsstrecke - Plan 3-3 (verbindlich)
 
@@ -82,8 +91,27 @@
 - Story P3-S5.6: Paritaet + Stabilitaet.
   - Ziel: Regression/Soak zeigen keine Funktionsverluste oder neue Instabilitaet durch Refactor.
 
+## Priorisierte Umsetzungsstrecke - Plan 3-6 P0 Hotfix (verbindlich)
+
+### Prioritaet P0 - Blocker sofort schliessen
+- Story P3-S6.1: Preview-Flow komplett entfernen.
+  - Ziel: kein Preview-UI-State, kein Preview-Routing und keine Send/Rollback-Pfade mehr im Runtime-Flow.
+- Story P3-S6.2: Direkter Live-Trigger wiederherstellen.
+  - Ziel: Start/Edit/Stop gehen ohne Zwischenstaging direkt auf die Live-Runtime.
+- Story P3-S6.3: Sichtbares Rendering fuer alle Animationsarten fixen.
+  - Ziel: `global`, `room` und GIF-basierte Effekte sind sofort sichtbar; Audio-only-Lauf gilt als Fehler.
+- Story P3-S6.4: Running/Stop/Edit-Integritaet halten.
+  - Ziel: Running-Liste bleibt 1:1 zur Runtime-Instanz, `Stop`/`Edit` bleiben stabil.
+
+### Prioritaet P1 - Stabilisieren und danach erst weitermachen
+- Story P3-S6.5: Hotfix-Regression + Soak als Exit-Gate.
+  - Ziel: keine Regressionsdrift in Trigger-, Edit-, Stop-, Reload- und Save/Load-Pfaden.
+- Story P3-S6.6: Refactor-Resume-Gate.
+  - Ziel: weiterer Architektur-Refactor wird bis zum stabilen P0-Nachweis eingefroren und erst danach wieder aufgenommen.
+
 ## Status
 - Plan 3-2 bleibt abgeschlossen; Nachweise in `3-2-VERIFICATION.md`, `P3-T23-REGRESSION.md`, `P3-T24-SOAK.md`.
 - Rework-Welle Plan 3-3 ist umgesetzt; Nachweise in `3-3-VERIFICATION.md`, `P3-T30-REGRESSION.md`, `P3-T30-SOAK.md`.
 - Plan 3-4 Hotfix-Add-on ist umgesetzt; Nachweise in `3-4-VERIFICATION.md` und `P3-T33-REGRESSION.md`.
 - Plan 3-5 Rework ist abgeschlossen; Nachweise in `3-5-VERIFICATION.md`, `P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`.
+- Plan 3-6 ist abgeschlossen; Nachweise in `3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`.
