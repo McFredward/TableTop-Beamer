@@ -75,6 +75,10 @@ function acceptLiveMutationType(type) {
 
 function applyLiveMutation({ clientId, role, mutationType, payload }) {
   if (!acceptLiveMutationType(mutationType)) {
+    logErrorEvent("invalid-mutation-type", String(mutationType ?? "unknown"), {
+      clientId,
+      role,
+    });
     return null;
   }
   const nextSnapshotPatch = {
@@ -216,6 +220,10 @@ function attachLiveWebSocket(server) {
     socket.on("data", (chunk) => {
       const frame = decodeWebSocketTextFrame(chunk);
       if (!frame) {
+        logErrorEvent("invalid-ws-frame", "frame-decode-failed", {
+          clientId,
+          role,
+        });
         return;
       }
       if (frame.close) {
