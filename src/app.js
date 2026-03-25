@@ -311,6 +311,7 @@ const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
 const primaryViewSwitch = document.querySelector(".primary-view-switch");
 const dashboardStickyShell = document.querySelector(".dashboard-sticky-shell");
+const mobileZoneSwitch = document.querySelector("#mobile-zone-switch");
 const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
@@ -2361,16 +2362,30 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
     return true;
   }
 
-  const blockers = [primaryViewSwitch, state.uiView === "dashboard" ? dashboardStickyShell : null].filter(Boolean);
+  const blockers = [
+    primaryViewSwitch,
+    state.uiView === "dashboard" ? dashboardStickyShell : null,
+    state.uiView === "dashboard" ? mobileZoneSwitch : null,
+    state.uiView === "dashboard" ? runningOverviewPanel : null,
+  ].filter(Boolean);
   for (const blocker of blockers) {
     if (!isElementRendered(blocker)) {
       continue;
     }
+    const blockerStyle = window.getComputedStyle(blocker);
+    if (blockerStyle.position === "sticky" || blockerStyle.position === "fixed") {
+      issues.push(`mobile control uses sticky/fixed: ${blocker.className || blocker.id || blocker.tagName}`);
+    }
     const rect = blocker.getBoundingClientRect();
-    const overlapX = Math.max(0, Math.min(projectionRect.right, rect.right) - Math.max(projectionRect.left, rect.left));
-    const overlapY = Math.max(0, Math.min(projectionRect.bottom, rect.bottom) - Math.max(projectionRect.top, rect.top));
-    if (overlapX > 1 && overlapY > 1) {
-      issues.push(`projection overlap by ${blocker.className || blocker.id || blocker.tagName}`);
+    const probeX = projectionRect.left + projectionRect.width * 0.5;
+    const probeY = projectionRect.top + projectionRect.height * 0.5;
+    const intersectsProbe =
+      probeX >= rect.left && probeX <= rect.right && probeY >= rect.top && probeY <= rect.bottom;
+    if (intersectsProbe) {
+      const probeTarget = document.elementFromPoint(probeX, probeY);
+      if (probeTarget && !projectionArea.contains(probeTarget) && probeTarget !== projectionArea) {
+        issues.push(`projection overlap by ${blocker.className || blocker.id || blocker.tagName}`);
+      }
     }
   }
 
@@ -2379,12 +2394,19 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
     issues.push("projection pointer-events disabled");
   }
 
-  const probeX = projectionRect.left + projectionRect.width * 0.5;
-  const probeY = projectionRect.top + Math.min(projectionRect.height * 0.5, projectionRect.height - 6);
-  if (Number.isFinite(probeX) && Number.isFinite(probeY)) {
+  const probePoints = [
+    [projectionRect.left + projectionRect.width * 0.5, projectionRect.top + projectionRect.height * 0.5],
+    [projectionRect.left + projectionRect.width * 0.2, projectionRect.top + projectionRect.height * 0.35],
+    [projectionRect.left + projectionRect.width * 0.8, projectionRect.top + projectionRect.height * 0.65],
+  ];
+  for (const [probeX, probeY] of probePoints) {
+    if (!Number.isFinite(probeX) || !Number.isFinite(probeY)) {
+      continue;
+    }
     const probeTarget = document.elementFromPoint(probeX, probeY);
     if (probeTarget && !projectionArea.contains(probeTarget) && probeTarget !== projectionArea) {
       issues.push(`projection pointer path blocked by ${probeTarget.className || probeTarget.id || probeTarget.tagName}`);
+      break;
     }
   }
 
@@ -2392,7 +2414,7 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
     if (!silent) {
       console.error(`Mobile projection visibility violation (${context})`, issues);
       triggerFeedback.textContent =
-        "Status: Mobile-Projektions-Guard meldet Overlap (Board darf nicht von Sticky-Cluster ueberdeckt werden)";
+        "Status: Mobile-Projektions-Guard meldet Overlay (Board darf nicht von Controls ueberdeckt werden)";
     }
     return false;
   }
