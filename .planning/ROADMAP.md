@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2) und halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), stabilisiere Runtime/Architektur in Phase 4 und fokussiere in Phase 5 den realen Mehrgeraete-Betrieb mit finalem Raspberry/Beamer-Output, Realtime-Sync und rollenbasiertem Audio.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -57,10 +57,10 @@ Exit Criteria:
 - GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` laufen als echte Loops in nativen und fallback Pfaden; `opacity`/`playbackSpeed` bleiben instanzscharf steuerbar.
 - Verifikation und Planungsartefakte konsistent abgeschlossen.
 
-## Phase 4 - Maintainability Refactor (In Progress)
+## Phase 4 - Maintainability Refactor (Stabilized / Follow-up Deferred)
 Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 35/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5b erledigt); naechster priorisierter Schritt ist Plan 4-6 (GIF/Render/UI-Isolation).
+Status: 35/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5b erledigt); verbleibende Follow-up-Tasks (Plan 4-6/4-7) sind vorerst nachrangig, da Phase 5 als Betriebsprioritaet aktiviert ist.
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
@@ -95,7 +95,26 @@ Exit Criteria:
 - Keine Regression bei Dashboard/Settings, Running-Liste, GIF-Looping (native+fallback), Clipping, Persistenz, Save/API und Mobile-UX.
 - Phase-4-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 
-## Deferred (Post-Phase-2)
+## Phase 5 - Multi-Client Final Output (In Progress)
+Ziel: Produktiver 3-Geraete-Betrieb im LAN mit klaren Rollen (`operator`, `alignment`, `final-output`), sauberem Beamer-Endbild und echtzeitfaehiger Session-Synchronisierung.
+
+Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); verbleibende Plan-5-1-Tasks P5-T9..P5-T14 bleiben offen fuer die naechste Ausfuehrung.
+
+Milestones:
+1. Rollenmodell + Session-Handshake (`operator`/`alignment`/`final-output`) stabilisieren.
+2. Final-Output-Route fuer Raspberry/Beamer ohne Board/Polygone/Namen produktiv schalten.
+3. Alignment-Mode-Toggle fuer Polygon-Overlay einfuehren, ohne Nebenwirkung auf finales Output-Bild.
+4. Multi-Client-Realtime-Sync fuer Trigger/Edit/Stop/Clear-All und Running-Instanzen absichern.
+5. Audio strikt auf `final-output` begrenzen, inklusive Role-Switch/Reconnect-Faellen.
+6. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
+
+Exit Criteria:
+- Finaler Beamer-Output ist clean (kein Board, keine Polygone, keine Namen).
+- Realtime-Sync bleibt unter 3-Device-LAN-Betrieb ohne sichtbaren Drift stabil.
+- Alignment-Overlay ist togglebar, aber auf nicht-finale Rollen begrenzt.
+- Audio ist technisch nachweisbar `final-output` only.
+- Plan-5-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
+
+## Deferred (Post-Phase-5)
 - Kamera/CV-Ausrichtung
-- Netzwerk-Remote / Multi-Client-Sync
 - Vollwertiger Effekt-Editor

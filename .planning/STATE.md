@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 4
-- Current Phase Key: phase-04
+- Current Phase: 5
+- Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 4-5b
-- Planned Next Execution: 4-6
-- Last Execution Summary: `.planning/phases/phase-04/4-5b-SUMMARY.md`
+- Last Executed Plan: 5-1
+- Planned Next Execution: 5-2
+- Last Execution Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -257,6 +257,15 @@
 - Plan-Update-4-5 Umsetzung: Board-Profile persistieren `audio`, `animationSpeed` und `animationSoundMap`; Reload + Global-Defaults-Apply bleiben fuer Sound-Mapping konsistent.
 - Plan-Update 4-5b setzt Prioritaetsfokus: P0 Mini-Hotfix fuer Persist-on-change in Audio/Sound-Mapping-Handlern und deterministischen Direkt-Reload.
 - Plan-Update-4-5b Umsetzung: Audio-Enable/Volume und Animation-Sound-Mapping persistieren sofort; Mapping-Normalisierung schreibt ebenfalls direkt, damit Reload ohne Timing-Luecke den letzten Stand liest.
+- Phase-5 Planung ist aktiviert: Multi-Client-Betrieb mit klaren Rollen (`operator`, `alignment`, `final-output`) wird priorisiert vor weiteren Phase-4-Follow-ups.
+- Plan-5-1 setzt Prioritaetsfokus: final output route fuer Raspberry/Beamer ohne Board/Polygone/Namen, Realtime-Multi-Client-Sync, Alignment-Mode-Toggle fuer Polygon-Overlay, Audio strikt nur auf `final-output`.
+- Rollenregel Plan-5-1: `final-output` rendert ausschliesslich den finalen Effekt-Layer; Hilfsoverlays/Labels/Editor-Elemente sind dort technisch deaktiviert.
+- Sync-Regel Plan-5-1: Trigger/Edit/Stop/Clear-All und Running-Instanzen replizieren in Echtzeit ueber eine gemeinsame Session-Source-of-Truth mit Reconnect-Resync.
+- Audio-Regel Plan-5-1: Audio-Playback ist rollenbasiert auf `final-output` begrenzt und muss bei Role-Switch/Rejoin deterministisch start/stoppen.
+- Verifikationsregel Plan-5-1: 3-Device-Pflichtabnahme (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output) ist Gate fuer den Abschluss.
+- Plan-5-1 Umsetzung: Session-Layer nutzt `/api/session/connect|stream|heartbeat|event` mit Snapshot+SSE-Eventfluss und stale-client cleanup.
+- Plan-5-1 Umsetzung: `final-output` erzwingt animation-only Renderpfad (kein Board, keine Overlays, keine Settings/Helper-Layer).
+- Plan-5-1 Umsetzung: Audio-Gate ist technisch auf `final-output` begrenzt; Role-Switch triggert sofortigen Hard-Stop/Re-Start.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
