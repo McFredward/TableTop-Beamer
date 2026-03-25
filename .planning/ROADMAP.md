@@ -98,20 +98,22 @@ Exit Criteria:
 ## Phase 5 - Multi-Client Final Output (In Progress)
 Ziel: Produktiver 3-Geraete-Betrieb im LAN mit klaren Rollen (`operator`, `alignment`, `final-output`), sauberem Beamer-Endbild und echtzeitfaehiger Session-Synchronisierung.
 
-Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); verbleibende Plan-5-1-Tasks P5-T9..P5-T14 bleiben offen fuer die naechste Ausfuehrung.
+Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist ebenfalls abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`), verbleibend sind Gate-Nachweise P5-T21..P5-T22 und Resttasks P5-T9..P5-T14.
 
 Milestones:
 1. Rollenmodell + Session-Handshake (`operator`/`alignment`/`final-output`) stabilisieren.
 2. Final-Output-Route fuer Raspberry/Beamer ohne Board/Polygone/Namen produktiv schalten.
-3. Alignment-Mode-Toggle fuer Polygon-Overlay einfuehren, ohne Nebenwirkung auf finales Output-Bild.
-4. Multi-Client-Realtime-Sync fuer Trigger/Edit/Stop/Clear-All und Running-Instanzen absichern.
-5. Audio strikt auf `final-output` begrenzen, inklusive Role-Switch/Reconnect-Faellen.
-6. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
+3. Overlay-Semantik korrigieren: `operator` sieht Overlay immer; Toggle steuert ausschliesslich Final-Output-Overlay.
+4. Session-Verbindungspfad robust machen (Endpoint-Resolver, Join-Fallback, Retry/Backoff) und UI-Diagnose stark ausbauen.
+5. Multi-Client-Realtime-Sync fuer Trigger/Edit/Stop/Clear-All und Running-Instanzen absichern.
+6. Audio strikt auf `final-output` begrenzen, inklusive Role-Switch/Reconnect-Faellen.
+7. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
 
 Exit Criteria:
-- Finaler Beamer-Output ist clean (kein Board, keine Polygone, keine Namen).
+- Finaler Beamer-Output ist clean bei deaktiviertem Final-Overlay-Toggle (kein Board, keine Polygone, keine Namen).
 - Realtime-Sync bleibt unter 3-Device-LAN-Betrieb ohne sichtbaren Drift stabil.
-- Alignment-Overlay ist togglebar, aber auf nicht-finale Rollen begrenzt.
+- Overlay-Semantik ist feldkonform (`operator` always-on; Toggle nur Final-Output-Overlay).
+- Session-Connect ist robust gegen `default-session`-Fehlpfad; Diagnoseinfos sind im UI voll sichtbar.
 - Audio ist technisch nachweisbar `final-output` only.
 - Plan-5-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 

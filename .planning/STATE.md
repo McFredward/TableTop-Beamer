@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-1
-- Planned Next Execution: 5-2
-- Last Execution Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
+- Last Executed Plan: 5-2
+- Planned Next Execution: 5-3
+- Last Execution Summary: `.planning/phases/phase-05/5-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -266,6 +266,13 @@
 - Plan-5-1 Umsetzung: Session-Layer nutzt `/api/session/connect|stream|heartbeat|event` mit Snapshot+SSE-Eventfluss und stale-client cleanup.
 - Plan-5-1 Umsetzung: `final-output` erzwingt animation-only Renderpfad (kein Board, keine Overlays, keine Settings/Helper-Layer).
 - Plan-5-1 Umsetzung: Audio-Gate ist technisch auf `final-output` begrenzt; Role-Switch triggert sofortigen Hard-Stop/Re-Start.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Overlay-Semantik muss korrigiert werden (`operator` immer sichtbar; Toggle steuert nur Final-Output-Overlay) und Session-Connect-Fehler `default-session` werden als P0-Hotfix behandelt.
+- Plan-Update 5-2 setzt Prioritaetsfokus: P0 Overlay-Semantikfix, P0 robuster Session-Verbindungspfad, P0 deutlich erweiterte UI-Diagnose (Endpoint/Status/letzte Fehlermeldung/Retry-Status), danach erst Rest von Plan 5-1.
+- Verbindliche Diagnose-Regel Plan-Update 5-2: Feldbetrieb muss ohne Devtools debugbar sein; Control-UI zeigt Endpoint-Snapshot, Connection-State, Retry-Counter und letzte Fehlerursache.
+- Reihenfolge-Regel Plan-Update 5-2: Hotfix-Paket P5-T15..P5-T22 ist Gate vor den offenen Plan-5-1-Tasks P5-T9..P5-T14.
+- Plan-Update-5-2 Umsetzung: Overlay-Semantik ist hart korrigiert (`operator` always-on; Toggle steuert nur `final-output` Overlay).
+- Plan-Update-5-2 Umsetzung: Session-Connect nutzt deterministische Endpoint-Kandidaten + Join-Fallback ohne stale `clientId`; Session-ID-Priorisierung reduziert `default-session` Fehlpfade.
+- Plan-Update-5-2 Umsetzung: Retry/Backoff laeuft mit Jitter, Retry-Counter und terminal reconnect state; Diagnosefelder zeigen Endpoint/Status/Fehler/Retry/letzten Erfolg ohne Rohfehler-Noise.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -596,3 +603,13 @@
   - `.planning/phases/phase-04/P4-T41-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - Static Nachweis: Persist-on-change Hook fuer `audio.enabled`, `audio.volume`, `animationSoundMap` + persistierte Mapping-Normalisierung (`src/app.js`)
+
+## Execution Results (Phase 5 Plan 2)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-2-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`c6dce0e`, `b7e839c`, `00aa878`, `33c2a47`, `3e29565`, `941e276`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T20-HOTFIX-ACCEPTANCE.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
