@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-7
+- Last Executed Plan: 5-8
 - Planned Next Execution: 5-2 Rest (P5-T21..P5-T22), danach 5-1 Rest (P5-T9..P5-T14)
-- Last Execution Summary: `.planning/phases/phase-05/5-7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -298,6 +298,12 @@
 - Plan-Update-5-7 Umsetzung: Session-Access-Logging ist fuer connect/stream/heartbeat/event per Request verpflichtend (`method`, `path`, `status`, `duration`, `client-ip`) und in `logs/session-api.log` korrelierbar.
 - Plan-Update-5-7 Umsetzung: Connect nutzt fetch-primaer mit deterministischem XHR-Fallback bei HTTP0-/Netzwerkfehlern inklusive Timeout/Abort-Haertung.
 - Plan-Update-5-7 Umsetzung: UI-Diagnose zeigt Connect-Transport, Fallback-Grund, `error.name`, `error.message`, Online-State und Endpoint; Settings bietet aktive Self-Test-Matrix fuer connect/stream/heartbeat/event.
+- Neues dringendes Pflichtfeedback fuer Phase 5 ist gesetzt: Heartbeat scheitert weiterhin mit HTTP0, waehrend Connect/Stream teilweise stabil bleiben; Session darf deshalb nicht mehr an Heartbeat allein auf `failed` eskalieren.
+- Plan-Update 5-8 setzt Prioritaetsfokus: SSE-first-Liveness (Stream hat Vorrang), getrennte Connectivity-Zustaende (`streamConnected` vs `heartbeatStatus`), reconnect nur bei Stream-Abbruch/Connect-Fehler, Sync robust trotz heartbeat degraded und erweiterte Stream-Transition-Logs.
+- Reihenfolge-Regel Plan-Update 5-8: P5-T57..P5-T62 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
+- Plan-Update-5-8 Umsetzung: Heartbeat-Fehler bleiben bei offenem Stream im Zustand `degraded`; Session eskaliert dabei nicht mehr auf `failed`.
+- Plan-Update-5-8 Umsetzung: Connectivity ist getrennt sichtbar und fuehrend (`streamConnected` + `heartbeatStatus` in Runtime/UI) bei stream-zentrierter Reconnect-Policy.
+- Plan-Update-5-8 Umsetzung: Emit/Sync bleiben trotz heartbeat degraded robust; Stream-Transitionen (`opened|healthy|degraded|closed|reconnecting`) werden strukturiert mit Ursache geloggt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
