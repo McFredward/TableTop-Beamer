@@ -98,7 +98,7 @@ Exit Criteria:
 ## Phase 5 - Multi-Client Final Output (In Progress)
 Ziel: Produktiver 3-Geraete-Betrieb im LAN mit klaren Rollen (`operator`, `alignment`, `final-output`), sauberem Beamer-Endbild und echtzeitfaehiger Session-Synchronisierung.
 
-Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`); Plan 5-3 P0-Resolver-Hotfix P5-T23..P5-T28 ist abgeschlossen (`.planning/phases/phase-05/5-3-SUMMARY.md`). Offen bleiben die Rest-Gates P5-T21..P5-T22 sowie Plan-5-1-Rest P5-T9..P5-T14.
+Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`); Plan 5-3 P0-Resolver-Hotfix P5-T23..P5-T28 ist abgeschlossen (`.planning/phases/phase-05/5-3-SUMMARY.md`); Plan 5-4 Session/SSE-Stabilitaets-Hotfix P5-T31..P5-T36 ist abgeschlossen (`.planning/phases/phase-05/5-4-SUMMARY.md`). Offen bleiben die Rest-Gates P5-T21..P5-T22 sowie Plan-5-1-Rest P5-T9..P5-T14.
 
 Milestones:
 1. Rollenmodell + Session-Handshake (`operator`/`alignment`/`final-output`) stabilisieren.

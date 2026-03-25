@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-3
+- Last Executed Plan: 5-4
 - Planned Next Execution: 5-2 (P5-T21..P5-T22)
-- Last Execution Summary: `.planning/phases/phase-05/5-3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -279,6 +279,9 @@
 - Plan-Update-5-3 Umsetzung: Session-Resolver nutzt fuer Connect/Reconnect standardmaessig UI-Origin inkl. Port (`:4173`) und laeuft nicht mehr ueber Legacy-Portkandidaten (`:8080`-Drift entfernt).
 - Plan-Update-5-3 Umsetzung: Stale/legacy API-Base-Overrides aus `localStorage` werden nur bei Reachability genutzt; invalid/unreachable Werte werden transparent auf UI-Origin gefallbackt und als stale markiert.
 - Plan-Update-5-3 Umsetzung: Session-Diagnose fuehrt resolver-konsistent `resolved endpoint + selected via + fallback reason` in Endpoint-/Status-/Fehlerpfad.
+- Plan-Update-5-4 Umsetzung: SSE-Broadcast/Write ist crash-safe; defekte Streams werden pro Stream isoliert entfernt und verursachen keinen Prozessabbruch.
+- Plan-Update-5-4 Umsetzung: Reconnect ist gegen Kurzunterbrechungs-Loops gehaertet (connect in-flight guard + stale reconnect timer cleanup).
+- Plan-Update-5-4 Umsetzung: Session-Diagnose zeigt Heartbeat-Endpoint separat; Server-Logs liefern endpoint-spezifische Fehlercodes fuer `connect`/`stream`/`heartbeat`/`event` mit Session-/Client-Korrelation.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
