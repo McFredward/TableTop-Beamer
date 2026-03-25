@@ -10,7 +10,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 - [x] DONE P5-T4 [P0] Shared Session-State am Server einfuehren (Snapshot + Versionszaehler + letzte Mutation).
 - [x] DONE P5-T5 [P0] Client-Aktionen serverautoritiv mutieren (Trigger/Edit/Stop/Clear-All/Align-Toggle).
-- [ ] TODO P5-T6 [P0] Broadcast-Kanal fuer sofortige Push-Synchronisierung auf alle verbundenen Clients einbauen.
+- [x] DONE P5-T6 [P0] Broadcast-Kanal fuer sofortige Push-Synchronisierung auf alle verbundenen Clients einbauen.
 - [ ] TODO P5-T7 [P0] Reconnect-/Join-Flow: neuer Client erhaelt unmittelbar den aktuellen Live-Snapshot.
 
 - [ ] TODO P5-T8 [P0] Globalen Align-Mode als Shared-State-Flag integrieren und ueber Controller toggelbar machen.

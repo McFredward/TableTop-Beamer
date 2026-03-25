@@ -119,6 +119,17 @@ function buildLiveSessionEnvelope(type, extra = {}) {
   };
 }
 
+function broadcastLiveSession(type, extra = {}) {
+  const payload = buildLiveSessionEnvelope(type, extra);
+  for (const [clientId, client] of liveClients.entries()) {
+    if (!client?.socket || client.socket.destroyed) {
+      liveClients.delete(clientId);
+      continue;
+    }
+    sendLiveSocketMessage(client.socket, payload);
+  }
+}
+
 function attachLiveWebSocket(server) {
   server.on("upgrade", (req, socket) => {
     const routePath = normalizeRoutePath(req.url || "/");
@@ -177,6 +188,9 @@ function attachLiveWebSocket(server) {
           return;
         }
         sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-ack", { mutationType: parsed.mutationType }));
+        broadcastLiveSession("live-session-update", {
+          mutationType: parsed.mutationType,
+        });
       } catch {
         // ignore malformed ws payloads
       }

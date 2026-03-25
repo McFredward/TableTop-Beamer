@@ -289,6 +289,49 @@ function emitLiveMutation(mutationType, payload = {}) {
   );
 }
 
+function hydrateRunningAnimationStartTimestamps(runningAnimations) {
+  return (Array.isArray(runningAnimations) ? runningAnimations : []).map((animation) => {
+    const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
+    const ageMs = Math.max(0, Date.now() - startedAtEpochMs);
+    return {
+      ...animation,
+      startedAtEpochMs,
+      startedAt: performance.now() - ageMs,
+    };
+  });
+}
+
+function applyLiveRuntimeSnapshot(snapshot) {
+  const runtime = snapshot?.runtime;
+  if (!runtime || typeof runtime !== "object") {
+    return;
+  }
+  state.boardId = runtime.boardId ?? state.boardId;
+  state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
+  state.selectedRoomByBoard =
+    runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
+      ? runtime.selectedRoomByBoard
+      : state.selectedRoomByBoard;
+  state.runningAnimations = hydrateRunningAnimationStartTimestamps(runtime.runningAnimations);
+  state.roomDraft = {
+    ...state.roomDraft,
+    ...(runtime.roomDraft && typeof runtime.roomDraft === "object" ? runtime.roomDraft : {}),
+  };
+  state.animationSpeed = clampAnimationSpeed(runtime.animationSpeed ?? state.animationSpeed);
+  if (runtime.audio && typeof runtime.audio === "object") {
+    state.audio.enabled = Boolean(runtime.audio.enabled);
+    state.audio.volume = clampAudioVolumePercent(Math.round(Number(runtime.audio.volume ?? state.audio.volume) * 100)) / 100;
+  }
+  stopSoundsForInactiveAnimations();
+  for (const animation of state.runningAnimations) {
+    playSoundForAnimation(animation);
+  }
+  syncRuntimePanelsFromState();
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  renderRoomOverlay();
+}
+
 function connectLiveSyncSocket() {
   try {
     const socket = new WebSocket(resolveLiveWebSocketUrl());
@@ -304,6 +347,9 @@ function connectLiveSyncSocket() {
         }
         if (payload?.type === "live-ack") {
           liveSync.lastAckAt = Date.now();
+        }
+        if (payload?.type === "live-session-update") {
+          applyLiveRuntimeSnapshot(payload?.session?.snapshot);
         }
       } catch {
         // ignore malformed live-sync payloads
