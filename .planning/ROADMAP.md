@@ -60,7 +60,7 @@ Exit Criteria:
 ## Phase 4 - Maintainability Refactor (In Progress)
 Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 21/27 Tasks abgeschlossen (Plan 4-1, Plan 4-2 und Plan 4-3 erledigt); P0-Hotfix fuer Desktop-Running-Containment und Preview-Decommission ist umgesetzt und nachgewiesen in `.planning/phases/phase-04/4-3-SUMMARY.md` und `.planning/phases/phase-04/P4-T21-HOTFIX-REGRESSION.md`.
+Status: 26/32 Tasks abgeschlossen (Plan 4-1, Plan 4-2, Plan 4-3 und Plan 4-4 erledigt); naechster priorisierter Schritt ist Plan 4-5 (GIF/Render/UI-Isolation).
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
@@ -70,9 +70,12 @@ Milestones:
 5. Datenmigration/Kompatibilitaet: neuer Room-JSON-Standard mit verlustfreier Migration und Legacy-Load-Pfad.
 6. P0 UX-Hotfix: Desktop-Running-Liste hart begrenzen, damit restliche Controls immer bedienbar bleiben.
 7. P0 Decommission: Preview-Staging vollstaendig aus UI/Runtime/State entfernen.
-8. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
-9. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running-Bindings und Pan/Edit-Guards entkoppeln.
-10. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
+8. P0 Editor-Polish-Hotfix: Polygon-Handle-Groesse nahe Zoom einstellbar und hitarea-konsistent.
+9. P0 Immersion-Hotfix: `lichtflackern` als unregelmaessiges Horror-Random-Flicker, weiterhin strikt raumgeclippt.
+10. P0 Edit-Flow-Hotfix: gesamtes Room-Polygon per LMB-Flaechen-Drag verschiebbar ohne Vertex-Edit-Regression.
+11. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
+12. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running-Bindings und Pan/Edit-Guards entkoppeln.
+13. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
 
 Exit Criteria:
 - `src/app.js` ist auf schlanke Bootstrap-Orchestrierung reduziert; Kernlogik lebt in Modulen.
@@ -80,6 +83,9 @@ Exit Criteria:
 - Bestehende Defaults/Profile sind auf den neuen JSON-Standard migriert, bei voller Rueckwaertskompatibilitaet fuer Bestandsdaten.
 - Running-Liste bleibt auf Desktop auch unter Last begrenzt; keine Ueberdeckung/Vertreibung anderer Bedienmodule.
 - Preview-Staging ist vollstaendig entfernt; es gibt keine Preview-Queue/Commit/Rollback-Pfade mehr.
+- Polygon-Editor bietet eine sichtbare Handle-Groessensteuerung nahe Zoom; hohe Zoomstufen bleiben praezise editierbar.
+- `lichtflackern` zeigt unregelmaessiges Random-Flicker statt periodischem Pulsieren und bleibt strikt auf den Zielraum begrenzt.
+- Room-Polygon kann in Settings per Flaechen-Drag verschoben werden, ohne Insert/Delete/Vertex-Drag zu beeintraechtigen.
 - Keine Regression bei Dashboard/Settings, Running-Liste, GIF-Looping (native+fallback), Clipping, Persistenz, Save/API und Mobile-UX.
 - Phase-4-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 

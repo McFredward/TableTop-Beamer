@@ -11,9 +11,9 @@
 - Current Phase Key: phase-04
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 4-3
-- Planned Next Execution: 4-4
-- Last Execution Summary: `.planning/phases/phase-04/4-3-SUMMARY.md`
+- Last Executed Plan: 4-4
+- Planned Next Execution: 4-5
+- Last Execution Summary: `.planning/phases/phase-04/4-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -240,6 +240,13 @@
 - Plan-4-3 ist entsprechend neu priorisiert als execute-ready P0-Hotfixpaket (Running-Containment + Preview-Decommission + Fokus-Regression).
 - Plan-4-3 Umsetzung: Running-Overview ist auf Desktop nicht mehr sticky, die Liste ist hoehenbegrenzt und besitzt einen eigenen Scrollbereich mit Layout-Containment.
 - Plan-4-3 Umsetzung: Preview-Staging ist aus UI, Runtime-State, Event-Flows und `/api/live/*` Serverpfaden entfernt; Trigger/Edit/Stop/Save bleiben preview-frei stabil.
+- Neues verpflichtendes Feedback fuer Phase 4 (Plan-Update 4-4) ist gesetzt: Polygon-Editor braucht einstellbare Handle-Groesse nahe Zoom fuer Praezisionsarbeit bei hohem Zoom.
+- Immersion-Regel fuer Plan-Update 4-4: `lichtflackern` wird als unregelmaessiges, kaputtes Random-Flicker statt Pulsieren gefuehrt und bleibt strikt raumbegrenzt geclippt.
+- Edit-Mode-Regel fuer Plan-Update 4-4: gesamtes Room-Polygon ist per LMB-Flaechen-Drag verschiebbar (Photoshop-aehnlich), ohne Vertex-Insert/Delete/Move zu brechen.
+- Plan-4-4 ist als priorisierter P0-Hotfix execute-ready; nachgelagerte GIF/Render/UI-Isolation verschiebt sich auf Plan 4-5.
+- Plan-4-4 Umsetzung: Polygon-Handle-Groesse ist als zoomnaher Slider (70..220%) eingebaut und wirkt sofort auf Overlay-Handles.
+- Plan-4-4 Umsetzung: `lichtflackern` nutzt jetzt unregelmaessiges Random-Flicker (Burst/Dip/Glitch) statt periodischem Puls.
+- Plan-4-4 Umsetzung: Room-Polygon-Flaechen-Drag per LMB ist aktiv und gegen Vertex-Edit/Pan-Kollisionen guardiert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -538,6 +545,16 @@
 - Task Commits: 5 atomare Commits (`dbe1704`, `ef97862`, `269c770`, `0d88d8e`, `c8ad4b1`)
 - Evidence:
   - `.planning/phases/phase-04/P4-T21-HOTFIX-REGRESSION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 4 Plan 4)
+- Status: completed
+- Summary: `.planning/phases/phase-04/4-4-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`8cc1841`, `fec3884`, `5182609`, `6c1d025`, `1efbf52`)
+- Evidence:
+  - `.planning/phases/phase-04/P4-T32-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check src/app/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
