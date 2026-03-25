@@ -5213,6 +5213,7 @@ function startRoomAnimationFromDraft() {
     speed: draftPayload.speed,
     opacity: draftPayload.opacity,
     playbackSpeed: draftPayload.playbackSpeed,
+    gifAssetPath: draftPayload.gifAssetPath,
     soundVolume: draftPayload.soundVolume,
     hold: true,
     durationSec: 0,
