@@ -1498,7 +1498,9 @@ function applySessionSnapshot(snapshot, { fromRemoteEvent = false } = {}) {
 }
 
 async function emitSessionEvent(type, payload = {}) {
-  if (sessionApplyingRemoteState || !state.session.connected || !state.session.clientId) {
+  ensureSessionConnectivityState();
+  const syncAvailable = Boolean(state.session.clientId) && (state.session.connected || state.session.streamConnected);
+  if (sessionApplyingRemoteState || !syncAvailable) {
     return;
   }
   const eventPayload = {
@@ -1561,6 +1563,12 @@ async function emitSessionEvent(type, payload = {}) {
     const fallbackResult = await fallbackResponse.json();
     applySessionSnapshot(fallbackResult?.snapshot);
   } catch {
+    if (state.session.streamConnected) {
+      const retry = getSessionRetryState();
+      retry.status = "event-degraded";
+      syncSessionStatus(`Session: Event-Send degraded, Stream-Sync aktiv (${state.session.id})`);
+      return;
+    }
     state.session.connected = false;
     setSessionRetryError("EMIT_FAILED", {
       endpoint: getSessionRetryState().lastEventEndpoint || postEndpoint,
