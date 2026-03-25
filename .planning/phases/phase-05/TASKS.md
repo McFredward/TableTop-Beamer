@@ -19,7 +19,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [ ] TODO P5-T13 [P0] 3-Device-Verifikationsprotokoll erstellen (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output).
 - [ ] TODO P5-T14 [P0] Plan-5-1-Fokusregression dokumentieren (clean final output, realtime sync, alignment toggle, audio role isolation).
 
-## Plan 5-2 - Priorisierter Hotfix (execute-ready, zuerst)
+## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-3 Abschluss)
 - [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
 - [x] DONE P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
 - [x] DONE P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
@@ -29,6 +29,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [ ] TODO P5-T21 [P0] 3-Device-Hotfix-Verifikation dokumentieren (Operator immer Overlay, Final-Output Toggle-Verhalten, Connect-Failure-Recovery).
 - [ ] TODO P5-T22 [P0] Hotfix-Regressionsprotokoll finalisieren und als Gate fuer Rest von Plan 5-1 markieren.
 
+## Plan 5-3 - Realbetrieb Endpoint-Drift Hotfix (execute-ready, hoechste Prioritaet)
+- [x] DONE P5-T23 [P0] Session-Resolver auf UI-Origin-Port-Default fixieren (`:4173` im Node-Standardsetup), Legacy-Portdrift auf `:8080` verhindern.
+- [x] DONE P5-T24 [P0] `localStorage`-Override-Guard einbauen: stale/legacy API-Bases validieren und nur bei Erreichbarkeit priorisieren.
+- [x] DONE P5-T25 [P0] Resolver-Fallback-Regeln transparent machen (selection source + fallback reason) und fuer Connect/Retry vereinheitlichen.
+- [x] DONE P5-T26 [P0] Session-Diagnose konsolidieren: aufgeloester Endpoint immer anzeigen, keine inkonsistenten `unaufgeloest`-Texte bei vorhandenem Last-Endpoint.
+- [x] DONE P5-T27 [P0] Feldbetriebs-Startanleitung aktualisieren (Node-Start `--host 0.0.0.0 --port 4173`, UI-/Client-URLs, Troubleshooting-Kurzform).
+- [x] DONE P5-T28 [P0] Realbetrieb-Hotfix-Verifikation dokumentieren (Negativfall stale `:8080` Override + Positivfall UI-Origin `:4173` + Diagnosekonsistenz).
+
 ## Optional direkt danach (P1)
-- [ ] TODO P5-T23 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
-- [ ] TODO P5-T24 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.
+- [ ] TODO P5-T29 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
+- [ ] TODO P5-T30 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.
