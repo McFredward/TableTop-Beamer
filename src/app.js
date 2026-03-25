@@ -508,7 +508,7 @@ const state = {
     intensity: Number(roomIntensityInput.value),
     speed: Number(roomSpeedInput.value),
     soundVolume: Number(roomSoundVolumeInput.value) / 100,
-    durationSec: Number(roomDurationInput.value),
+    durationSec: 0,
     hold: true,
   },
   runningAnimations: [],
@@ -6690,6 +6690,8 @@ function syncRuntimePanelsFromState() {
   roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
   roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
   roomHoldInput.checked = true;
+  roomDurationInput.value = "0";
+  roomDurationInput.disabled = true;
   syncRoomDraftActionButton();
   audioEnabledInput.checked = state.audio.enabled;
   audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
