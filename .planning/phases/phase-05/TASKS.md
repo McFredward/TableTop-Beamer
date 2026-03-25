@@ -76,7 +76,7 @@ Aktuelle P0-Prioritaet (verbindlich): Plan 5-8 (P5-T57..P5-T62) vor allen offene
 - [x] DONE P5-T58 [P0] Connectivity-State trennen: `streamConnected` und `heartbeatStatus` als getrennte Source-of-Truth in Runtime + UI fuehren.
 - [x] DONE P5-T59 [P0] Reconnect-Policy korrigieren: Reconnect nur bei Stream-Abbruch oder explizitem Connect-Fehler; Heartbeat bleibt optionaler Liveness-Check/Fallback.
 - [x] DONE P5-T60 [P0] Emit-/Sync-Pfad robust halten: Event-Emit und State-Sync laufen weiter, auch wenn Heartbeat auf `degraded` steht.
-- [ ] TODO P5-T61 [P0] Stream-State-Transitions diagnostisch erweitern: `opened|healthy|degraded|closed|reconnecting` mit Ursache in Logs erfassen.
+- [x] DONE P5-T61 [P0] Stream-State-Transitions diagnostisch erweitern: `opened|healthy|degraded|closed|reconnecting` mit Ursache in Logs erfassen.
 - [ ] TODO P5-T62 [P0] Plan-5-8-Verifikation dokumentieren (SSE-first-Stabilitaet, getrennte Statusanzeige, Reconnect-Regel, Sync trotz heartbeat degraded).
 
 ## Optional direkt danach (P1)

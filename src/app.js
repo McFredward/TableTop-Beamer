@@ -775,6 +775,9 @@ function getSessionRetryState() {
       lastEventMethodChanged: false,
       heartbeatFailureCount: 0,
       heartbeatFailureThreshold: SESSION_HEARTBEAT_FAILURE_THRESHOLD,
+      lastStreamState: "closed",
+      lastStreamTransitionAt: 0,
+      lastStreamTransitionReason: "init",
       stableResetPending: false,
       reconnectTransitionId: 0,
     };
@@ -839,7 +842,44 @@ function getSessionRetryState() {
   if (typeof state.session.retry.lastOnlineState !== "string") {
     state.session.retry.lastOnlineState = "unknown";
   }
+  if (!["opened", "healthy", "degraded", "closed", "reconnecting"].includes(String(state.session.retry.lastStreamState || ""))) {
+    state.session.retry.lastStreamState = "closed";
+  }
+  if (!Number.isFinite(Number(state.session.retry.lastStreamTransitionAt))) {
+    state.session.retry.lastStreamTransitionAt = 0;
+  }
+  if (typeof state.session.retry.lastStreamTransitionReason !== "string") {
+    state.session.retry.lastStreamTransitionReason = "init";
+  }
   return state.session.retry;
+}
+
+function logSessionStreamTransition(nextState, { reason = "unspecified", detail = "" } = {}) {
+  const normalizedState = String(nextState || "").trim().toLowerCase();
+  if (!["opened", "healthy", "degraded", "closed", "reconnecting"].includes(normalizedState)) {
+    return;
+  }
+  const retry = getSessionRetryState();
+  ensureSessionConnectivityState();
+  const previous = retry.lastStreamState || "closed";
+  if (previous === normalizedState && retry.lastStreamTransitionReason === reason) {
+    return;
+  }
+  retry.lastStreamState = normalizedState;
+  retry.lastStreamTransitionAt = Date.now();
+  retry.lastStreamTransitionReason = String(reason || "unspecified");
+  console.info("[session-stream-transition]", {
+    from: previous,
+    to: normalizedState,
+    reason: retry.lastStreamTransitionReason,
+    detail: String(detail || ""),
+    sessionId: state.session.id || "default-session",
+    clientId: state.session.clientId || "",
+    streamConnected: state.session.streamConnected,
+    heartbeatStatus: state.session.heartbeatStatus,
+    retryStatus: retry.status || "idle",
+    at: new Date(retry.lastStreamTransitionAt).toISOString(),
+  });
 }
 
 function updateHeartbeatTransport(method, endpoint, fallbackReason = "none") {
@@ -1614,6 +1654,10 @@ function scheduleSessionReconnect({ reason = "reconnect", delayMs = null } = {})
     ? Math.max(SESSION_RETRY_BASE_DELAY_MS, Number(delayMs))
     : calculateSessionRetryDelay(nextAttempt);
   retry.status = "scheduled";
+  logSessionStreamTransition("reconnecting", {
+    reason,
+    detail: `scheduled in ${Math.round(computedDelay)}ms`,
+  });
   retry.terminal = false;
   retry.attempt = nextAttempt;
   retry.nextDelayMs = computedDelay;
@@ -1648,6 +1692,12 @@ function startSessionHeartbeat(intervalMs = 4000) {
       const result = await response.json();
       retry.heartbeatFailureCount = 0;
       state.session.heartbeatStatus = "healthy";
+      if (state.session.streamConnected) {
+        logSessionStreamTransition("healthy", {
+          reason: "heartbeat-ok",
+          detail: `method ${retry.lastHeartbeatMethod || "POST"}`,
+        });
+      }
       if (retry.stableResetPending) {
         retry.attempt = 0;
         retry.nextDelayMs = 0;
@@ -1666,6 +1716,10 @@ function startSessionHeartbeat(intervalMs = 4000) {
       const streamOpen = Boolean(sessionEventSource && sessionEventSource.readyState === EventSource.OPEN);
       const heartbeatDetail = `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`;
       state.session.heartbeatStatus = "degraded";
+      logSessionStreamTransition("degraded", {
+        reason: "heartbeat-failed",
+        detail: heartbeatDetail,
+      });
       retry.status = "heartbeat-degraded";
       if (streamOpen) {
         syncSessionStatus(`Session: Heartbeat degraded, Stream aktiv (${heartbeatDetail}) (${state.session.id})`);
@@ -1687,6 +1741,10 @@ function closeSessionStream() {
   }
   ensureSessionConnectivityState();
   state.session.streamConnected = false;
+  logSessionStreamTransition("closed", {
+    reason: "stream-close",
+    detail: "event source closed",
+  });
 }
 
 function attachSessionStream() {
@@ -1694,6 +1752,10 @@ function attachSessionStream() {
   if (!state.session.clientId) {
     return;
   }
+  logSessionStreamTransition("reconnecting", {
+    reason: "stream-attach",
+    detail: "opening event source",
+  });
   const streamEndpoint = getSessionStreamUrl();
   const stream = new EventSource(streamEndpoint);
   sessionEventSource = stream;
@@ -1713,6 +1775,10 @@ function attachSessionStream() {
   stream.addEventListener("open", () => {
     ensureSessionConnectivityState();
     state.session.streamConnected = true;
+    logSessionStreamTransition("opened", {
+      reason: "stream-open",
+      detail: streamEndpoint,
+    });
     if (sessionStreamConnectTimeoutTimer) {
       window.clearTimeout(sessionStreamConnectTimeoutTimer);
       sessionStreamConnectTimeoutTimer = null;
@@ -1748,6 +1814,10 @@ function attachSessionStream() {
     }
     ensureSessionConnectivityState();
     state.session.streamConnected = false;
+    logSessionStreamTransition("closed", {
+      reason: "stream-error",
+      detail: streamEndpoint,
+    });
     state.session.connected = false;
     setSessionRetryError("SSE_INTERRUPTED", {
       endpoint: streamEndpoint,
@@ -1772,6 +1842,12 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
   let lastError = null;
 
   retry.status = reconnect ? "reconnecting" : "connecting";
+  if (reconnect) {
+    logSessionStreamTransition("reconnecting", {
+      reason,
+      detail: "connect-session-start",
+    });
+  }
   retry.lastAttemptAt = Date.now();
   retry.nextRetryAt = 0;
   retry.nextDelayMs = 0;
