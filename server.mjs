@@ -174,8 +174,49 @@ function createSession(sessionId) {
     },
     clients: new Map(),
     streams: new Set(),
+    recentEventIds: new Map(),
     updatedAt: Date.now(),
   };
+}
+
+function rememberSessionEventId(session, eventId) {
+  const cleaned = String(eventId || "").trim();
+  if (!cleaned) {
+    return { duplicated: false };
+  }
+  const now = Date.now();
+  const ttlMs = 5 * 60 * 1000;
+  for (const [knownId, seenAt] of session.recentEventIds.entries()) {
+    if (now - Number(seenAt || 0) > ttlMs) {
+      session.recentEventIds.delete(knownId);
+    }
+  }
+  if (session.recentEventIds.has(cleaned)) {
+    return { duplicated: true };
+  }
+  session.recentEventIds.set(cleaned, now);
+  if (session.recentEventIds.size > 600) {
+    const oldestKey = session.recentEventIds.keys().next().value;
+    if (oldestKey) {
+      session.recentEventIds.delete(oldestKey);
+    }
+  }
+  return { duplicated: false };
+}
+
+function parseJsonQueryValue(rawValue) {
+  if (!rawValue) {
+    return {};
+  }
+  const text = String(rawValue || "").trim();
+  if (!text) {
+    return {};
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function getSession(sessionId) {
@@ -570,18 +611,44 @@ async function handleSessionHeartbeat(req, res) {
 }
 
 async function handleSessionEvent(req, res) {
-  const parsed = await parseRequestBody(req, { maxBytes: 512 * 1024 });
-  if (!parsed.ok) {
-    logSessionCode("SESSION_EVENT_BAD_PAYLOAD", {
-      endpoint: SESSION_ENDPOINTS.event,
-      status: 400,
-      method: req.method,
-      detail: parsed.error,
-    });
-    sendJson(res, 400, { error: parsed.error });
-    return;
+  let body = {};
+  if (req.method === "GET") {
+    const url = new URL(req.url || "/", "http://localhost");
+    const payload = parseJsonQueryValue(url.searchParams.get("payload"));
+    const sharedState = parseJsonQueryValue(url.searchParams.get("sharedState"));
+    if (payload === null || sharedState === null) {
+      logSessionCode("SESSION_EVENT_BAD_PAYLOAD", {
+        endpoint: SESSION_ENDPOINTS.event,
+        status: 400,
+        method: req.method,
+        detail: "invalid JSON query payload/sharedState",
+      });
+      sendJson(res, 400, { error: "invalid JSON query payload/sharedState" });
+      return;
+    }
+    body = {
+      sessionId: String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session",
+      clientId: String(url.searchParams.get("clientId") || "").trim(),
+      role: String(url.searchParams.get("role") || "operator").trim() || "operator",
+      type: String(url.searchParams.get("type") || "state-sync").trim() || "state-sync",
+      eventId: String(url.searchParams.get("eventId") || "").trim(),
+      payload,
+      sharedState,
+    };
+  } else {
+    const parsed = await parseRequestBody(req, { maxBytes: 512 * 1024 });
+    if (!parsed.ok) {
+      logSessionCode("SESSION_EVENT_BAD_PAYLOAD", {
+        endpoint: SESSION_ENDPOINTS.event,
+        status: 400,
+        method: req.method,
+        detail: parsed.error,
+      });
+      sendJson(res, 400, { error: parsed.error });
+      return;
+    }
+    body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
   }
-  const body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
   const session = getSession(body.sessionId);
   const clientId = String(body.clientId || "").trim();
   if (!clientId) {
@@ -607,6 +674,25 @@ async function handleSessionEvent(req, res) {
   });
 
   const eventType = String(body.type || "state-sync").trim() || "state-sync";
+  const eventId = String(body.eventId || "").trim();
+  const seen = rememberSessionEventId(session, eventId);
+  if (seen.duplicated) {
+    logSessionRequest({
+      code: "SESSION_EVENT_DUPLICATE_IGNORED",
+      endpoint: SESSION_ENDPOINTS.event,
+      method: req.method,
+      status: 200,
+      sessionId: session.id,
+      clientId,
+      detail: eventId,
+    });
+    sendJson(res, 200, {
+      ok: true,
+      duplicate: true,
+      snapshot: buildSessionSnapshot(session),
+    });
+    return;
+  }
   if (body.sharedState && typeof body.sharedState === "object") {
     session.sharedState = {
       ...session.sharedState,
@@ -727,7 +813,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "POST" && routePath === "/api/session/event") {
+    if ((req.method === "POST" || req.method === "GET") && routePath === "/api/session/event") {
       await handleSessionEvent(req, res);
       return;
     }

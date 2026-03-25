@@ -213,6 +213,8 @@ const ROLE_STORAGE_KEY = "tt-beamer.client-role.v1";
 const SESSION_STORAGE_KEY = "tt-beamer.session-id.v1";
 const CLIENT_ROLE_VALUES = new Set(["operator", "alignment", "final-output"]);
 const DEFAULT_CLIENT_ROLE = "operator";
+const SESSION_EVENT_GET_FALLBACK_STORAGE_KEY = "tt-beamer.session-event-get-fallback.v1";
+const SESSION_EVENT_GET_FALLBACK_QUERY_KEYS = ["eventGetFallback", "ttSessionEventGetFallback"];
 const SESSION_ENDPOINT_PATHS = {
   connect: "/api/session/connect",
   stream: "/api/session/stream",
@@ -293,6 +295,42 @@ function resolveSessionIdFromRuntimeContext() {
   }
   return "default-session";
 }
+
+function parseBooleanLike(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return null;
+}
+
+function isSessionEventGetFallbackEnabled() {
+  try {
+    const params = new URLSearchParams(window.location?.search || "");
+    for (const key of SESSION_EVENT_GET_FALLBACK_QUERY_KEYS) {
+      const parsed = parseBooleanLike(params.get(key));
+      if (parsed !== null) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore malformed query
+  }
+  try {
+    const parsed = parseBooleanLike(window.localStorage.getItem(SESSION_EVENT_GET_FALLBACK_STORAGE_KEY));
+    if (parsed !== null) {
+      return parsed;
+    }
+  } catch {
+    // ignore storage failures
+  }
+  return false;
+}
+
+const SESSION_EVENT_GET_FALLBACK_ENABLED = isSessionEventGetFallbackEnabled();
 
 function getPreferredSessionIdCandidates() {
   const candidates = [];
@@ -665,6 +703,12 @@ function getSessionRetryState() {
       lastHeartbeatMethodSwitchAt: 0,
       lastHeartbeatMethodSwitchLabel: "-",
       lastHeartbeatMethodChanged: false,
+      lastEventEndpoint: "",
+      lastEventMethod: "POST",
+      lastEventFallbackReason: "none",
+      lastEventMethodSwitchAt: 0,
+      lastEventMethodSwitchLabel: "-",
+      lastEventMethodChanged: false,
       heartbeatFailureCount: 0,
       heartbeatFailureThreshold: SESSION_HEARTBEAT_FAILURE_THRESHOLD,
       stableResetPending: false,
@@ -698,6 +742,24 @@ function getSessionRetryState() {
   if (typeof state.session.retry.lastHeartbeatMethodChanged !== "boolean") {
     state.session.retry.lastHeartbeatMethodChanged = false;
   }
+  if (typeof state.session.retry.lastEventEndpoint !== "string") {
+    state.session.retry.lastEventEndpoint = "";
+  }
+  if (!["POST", "GET-fallback"].includes(String(state.session.retry.lastEventMethod || ""))) {
+    state.session.retry.lastEventMethod = "POST";
+  }
+  if (typeof state.session.retry.lastEventFallbackReason !== "string") {
+    state.session.retry.lastEventFallbackReason = "none";
+  }
+  if (!Number.isFinite(Number(state.session.retry.lastEventMethodSwitchAt))) {
+    state.session.retry.lastEventMethodSwitchAt = 0;
+  }
+  if (typeof state.session.retry.lastEventMethodSwitchLabel !== "string") {
+    state.session.retry.lastEventMethodSwitchLabel = "-";
+  }
+  if (typeof state.session.retry.lastEventMethodChanged !== "boolean") {
+    state.session.retry.lastEventMethodChanged = false;
+  }
   return state.session.retry;
 }
 
@@ -723,6 +785,40 @@ function buildHeartbeatGetFallbackEndpoint() {
       sessionId: state.session.id || "default-session",
       clientId: state.session.clientId || "",
       role: state.role,
+    },
+  });
+}
+
+function updateEventTransport(method, endpoint, fallbackReason = "none") {
+  const retry = getSessionRetryState();
+  const normalizedMethod = method === "GET-fallback" ? "GET-fallback" : "POST";
+  const previousMethod = retry.lastEventMethod || "POST";
+  const methodChanged = previousMethod !== normalizedMethod;
+  const switchedAt = methodChanged ? Date.now() : Number(retry.lastEventMethodSwitchAt || 0);
+  retry.lastEventMethod = normalizedMethod;
+  retry.lastEventEndpoint = endpoint;
+  retry.lastEventFallbackReason = fallbackReason || "none";
+  retry.lastEventMethodChanged = methodChanged;
+  retry.lastEventMethodSwitchAt = switchedAt;
+  retry.lastEventMethodSwitchLabel = methodChanged
+    ? `${previousMethod} -> ${normalizedMethod}`
+    : retry.lastEventMethodSwitchLabel || "-";
+}
+
+function buildSessionEventId() {
+  return `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function buildEventGetFallbackEndpoint(eventPayload) {
+  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event, {
+    query: {
+      sessionId: eventPayload.sessionId,
+      clientId: eventPayload.clientId,
+      role: eventPayload.role,
+      type: eventPayload.type,
+      eventId: eventPayload.eventId,
+      payload: JSON.stringify(eventPayload.payload || {}),
+      sharedState: JSON.stringify(eventPayload.sharedState || {}),
     },
   });
 }
@@ -882,30 +978,69 @@ async function emitSessionEvent(type, payload = {}) {
   if (sessionApplyingRemoteState || !state.session.connected || !state.session.clientId) {
     return;
   }
+  const eventPayload = {
+    sessionId: state.session.id,
+    clientId: state.session.clientId,
+    role: state.role,
+    type,
+    eventId: buildSessionEventId(),
+    payload,
+    sharedState: buildSharedSessionState(),
+  };
+  const postEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
   try {
-    const response = await fetchWithTimeout(buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sessionId: state.session.id,
-        clientId: state.session.clientId,
-        role: state.role,
-        type,
-        payload,
-        sharedState: buildSharedSessionState(),
-      }),
-    });
-    if (!response.ok) {
-      throw new Error(`session event failed (${response.status})`);
+    let response = null;
+    let fallbackReason = "none";
+    try {
+      response = await fetchWithTimeout(postEndpoint, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(eventPayload),
+      });
+    } catch (error) {
+      fallbackReason =
+        error instanceof Error && error.message
+          ? `post-exception-${error.message}`
+          : "post-exception-unknown";
     }
-    const result = await response.json();
-    applySessionSnapshot(result?.snapshot);
+
+    if (response?.ok) {
+      updateEventTransport("POST", postEndpoint, "none");
+      const result = await response.json();
+      applySessionSnapshot(result?.snapshot);
+      return;
+    }
+
+    if (response && !response.ok) {
+      fallbackReason = `post-http-${response.status}`;
+    }
+
+    if (!SESSION_EVENT_GET_FALLBACK_ENABLED) {
+      throw new Error(
+        response ? `session event failed (${response.status})` : "session event failed (post unreachable)",
+      );
+    }
+
+    const fallbackEndpoint = buildEventGetFallbackEndpoint(eventPayload);
+    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    });
+    if (!fallbackResponse.ok) {
+      throw new Error(`session event fallback failed (${fallbackResponse.status})`);
+    }
+    updateEventTransport("GET-fallback", fallbackEndpoint, fallbackReason);
+    const fallbackResult = await fallbackResponse.json();
+    applySessionSnapshot(fallbackResult?.snapshot);
   } catch {
     state.session.connected = false;
     setSessionRetryError("EMIT_FAILED", {
-      endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event),
+      endpoint: getSessionRetryState().lastEventEndpoint || postEndpoint,
     });
     syncSessionStatus(`Session: Verbindung verloren (${state.session.id})`);
   }
@@ -1174,6 +1309,13 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
                 apiBase: candidate.apiBase,
               }),
               "none",
+            );
+            updateEventTransport(
+              "POST",
+              buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event, {
+                apiBase: candidate.apiBase,
+              }),
+              SESSION_EVENT_GET_FALLBACK_ENABLED ? "none (fallback-enabled)" : "none (fallback-disabled)",
             );
             applySessionSnapshot(result?.snapshot);
             attachSessionStream();
