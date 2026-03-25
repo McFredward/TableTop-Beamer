@@ -59,7 +59,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T47 [P0] Client-Heartbeat auf POST-primaer mit deterministischem GET-Fallback umbauen (nur bei POST-Fehler, mit klarer Fallback-Ursache).
 - [x] DONE P5-T48 [P0] Optionalen Session-Event-GET-Fallback implementieren (konfigurierbar), inklusive Duplikat-/Loss-Guard und nachvollziehbarer Diagnose.
 - [x] DONE P5-T49 [P0] UI-Diagnose erweitern: aktuell genutzte Methode (`POST`/`GET-fallback`) fuer Heartbeat/Event samt Endpoint und letztem Methodenwechsel anzeigen.
-- [ ] TODO P5-T50 [P0] Runbook + Feldtestprotokoll erweitern: Logfile-Pfad, POST/GET-Fallback-Testbefehle, erwartete Logzeilen und Auslese-Checkliste dokumentieren.
+- [x] DONE P5-T50 [P0] Runbook + Feldtestprotokoll erweitern: Logfile-Pfad, POST/GET-Fallback-Testbefehle, erwartete Logzeilen und Auslese-Checkliste dokumentieren.
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
