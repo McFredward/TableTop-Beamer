@@ -2746,14 +2746,25 @@ function runLayoutScrollRegression() {
     issues.push("running/global panel missing");
   } else {
     const runningPosition = window.getComputedStyle(runningOverviewPanel).position;
-    const expectedRunningPositions = mobileViewport ? ["static", "relative"] : ["sticky", "fixed"];
+    const expectedRunningPositions = ["static", "relative"];
     if (!expectedRunningPositions.includes(runningPosition)) {
       issues.push(`running panel position=${runningPosition || "missing"}`);
     }
-    const stickyTop = window.getComputedStyle(runningOverviewPanel).top;
-    if (!mobileViewport && (!stickyTop || stickyTop === "auto")) {
-      issues.push(`running panel top=${stickyTop || "missing"}`);
+
+    if (!runningAnimationsList) {
+      issues.push("running list missing");
+    } else {
+      const runningListStyle = window.getComputedStyle(runningAnimationsList);
+      const overflowY = runningListStyle.overflowY;
+      if (!mobileViewport && !["auto", "scroll"].includes(overflowY)) {
+        issues.push(`running list overflowY=${overflowY || "missing"}`);
+      }
+      const maxHeight = runningListStyle.maxHeight;
+      if (!mobileViewport && (!maxHeight || maxHeight === "none")) {
+        issues.push(`running list maxHeight=${maxHeight || "missing"}`);
+      }
     }
+
     const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
     if ((orderMask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
       issues.push("running panel not before trigger groups");
