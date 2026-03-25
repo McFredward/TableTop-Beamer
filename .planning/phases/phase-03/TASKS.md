@@ -22,7 +22,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T14 [P0] Trigger/Stop/Edit auf Einzelanimation umstellen: jede Aktion arbeitet auf genau einer Raum-Animationsinstanz.
 - [x] DONE P3-T15 [P0] Running-Uebersicht hardenen: jede aktive Raumanimation (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) erscheint als eigener Eintrag.
 - [x] DONE P3-T16 [P0] `kaputt` auf `resources/nemesis/animations/malfunction.gif` umstellen und sauber im Zielraum clippen.
-- [ ] TODO P3-T17 [P0] `feuer` auf `resources/nemesis/animations/fire.gif` umstellen und sauber im Zielraum clippen.
+- [x] DONE P3-T17 [P0] `feuer` auf `resources/nemesis/animations/fire.gif` umstellen und sauber im Zielraum clippen.
 - [ ] TODO P3-T18 [P0] `schleim` auf `resources/nemesis/animations/final.gif` umstellen und sauber im Zielraum clippen.
 - [ ] TODO P3-T19 [P0] `alarm` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
 - [ ] TODO P3-T20 [P0] `lichtflackern` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
