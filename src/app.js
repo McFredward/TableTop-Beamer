@@ -292,6 +292,12 @@ const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
+const previewGlobalSelect = document.querySelector("#preview-global-select");
+const stageGlobalPreviewButton = document.querySelector("#stage-global-preview");
+const stageRoomPreviewButton = document.querySelector("#stage-room-preview");
+const previewQueueList = document.querySelector("#preview-queue");
+const clearPreviewQueueButton = document.querySelector("#clear-preview-queue");
+const previewStatus = document.querySelector("#preview-status");
 const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
@@ -475,6 +481,9 @@ const state = {
     hold: false,
   },
   runningAnimations: [],
+  preview: {
+    queue: [],
+  },
   audio: {
     enabled: true,
     volume: 0.7,
@@ -547,6 +556,7 @@ const state = {
 };
 
 let animationIdCounter = 1;
+let previewItemIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
@@ -4319,6 +4329,148 @@ function createAnimation({
   };
 }
 
+function createPreviewQueueItem({
+  type,
+  scope,
+  boardId = state.boardId,
+  roomId = null,
+  intensity = 1,
+  speed = 1,
+  soundVolume = 1,
+  hold = false,
+  durationSec = 18,
+}) {
+  return {
+    id: `preview-${previewItemIdCounter++}`,
+    type,
+    scope,
+    boardId,
+    roomId,
+    intensity: scope === "room" ? clampRoomIntensity(intensity) : 1,
+    speed: scope === "room" ? clampRoomSpeed(speed) : 1,
+    soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
+    hold: Boolean(hold),
+    durationSec: hold ? null : Math.max(1, Math.round(durationSec)),
+    queuedAt: Date.now(),
+  };
+}
+
+function formatPreviewQueueLabel(item) {
+  const boardLabel = getBoard(item.boardId).label;
+  if (item.scope === "room") {
+    const roomLabel =
+      getBoard(item.boardId).rooms.find((room) => room.id === item.roomId)?.label ?? item.roomId ?? "Raum";
+    return `${getAnimationLabel(item.type)} auf ${roomLabel} (${boardLabel})`;
+  }
+  return `${getAnimationLabel(item.type)} global (${boardLabel})`;
+}
+
+function syncPreviewGlobalOptions() {
+  if (!previewGlobalSelect) {
+    return;
+  }
+  previewGlobalSelect.replaceChildren();
+  for (const animation of GLOBAL_ANIMATIONS) {
+    const option = document.createElement("option");
+    option.value = animation.id;
+    option.textContent = animation.label;
+    previewGlobalSelect.append(option);
+  }
+}
+
+function renderPreviewQueue() {
+  if (!previewQueueList) {
+    return;
+  }
+  previewQueueList.replaceChildren();
+  if (state.preview.queue.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "running-empty";
+    empty.textContent = "Preview ist leer";
+    previewQueueList.append(empty);
+    if (previewStatus) {
+      previewStatus.textContent = "Preview: leer";
+    }
+    return;
+  }
+
+  for (const item of state.preview.queue) {
+    const li = document.createElement("li");
+    li.className = "running-item";
+    const title = document.createElement("div");
+    title.className = "running-title";
+    const scopeLabel = item.scope === "room" ? "PREVIEW-ROOM" : "PREVIEW-GLOBAL";
+    const scopeBadge = document.createElement("span");
+    scopeBadge.className = "running-scope-badge";
+    scopeBadge.textContent = scopeLabel;
+    title.append(scopeBadge, document.createTextNode(` ${formatPreviewQueueLabel(item)}`));
+
+    const meta = document.createElement("div");
+    meta.className = "running-meta";
+    meta.textContent =
+      item.scope === "room"
+        ? `Intensity ${item.intensity.toFixed(2)} | Speed ${item.speed.toFixed(2)}x | Sound ${Math.round(item.soundVolume * 100)}%`
+        : "Global-Preview";
+
+    const actions = document.createElement("div");
+    actions.className = "running-actions";
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Entfernen";
+    removeButton.addEventListener("click", () => {
+      state.preview.queue = state.preview.queue.filter((entry) => entry.id !== item.id);
+      renderPreviewQueue();
+      triggerFeedback.textContent = `Status: ${item.id} aus Preview entfernt`;
+    });
+    actions.append(removeButton);
+
+    li.append(title, meta, actions);
+    previewQueueList.append(li);
+  }
+  if (previewStatus) {
+    previewStatus.textContent = `Preview: ${state.preview.queue.length} Eintrag/Eintraege bereit`;
+  }
+}
+
+function stageRoomDraftToPreview() {
+  const room = getSelectedRoom();
+  if (!room) {
+    triggerFeedback.textContent = "Status: kein Raum fuer Preview ausgewaehlt";
+    return;
+  }
+  const item = createPreviewQueueItem({
+    type: state.roomDraft.animationId,
+    scope: "room",
+    boardId: state.boardId,
+    roomId: room.id,
+    intensity: state.roomDraft.intensity,
+    speed: state.roomDraft.speed,
+    soundVolume: state.roomDraft.soundVolume,
+    hold: state.roomDraft.hold,
+    durationSec: state.roomDraft.durationSec,
+  });
+  state.preview.queue.push(item);
+  renderPreviewQueue();
+  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
+}
+
+function stageGlobalToPreview() {
+  const animationId = previewGlobalSelect?.value || GLOBAL_ANIMATIONS[0]?.id;
+  if (!animationId) {
+    return;
+  }
+  const item = createPreviewQueueItem({
+    type: animationId,
+    scope: "global",
+    boardId: state.boardId,
+    hold: false,
+    durationSec: 18,
+  });
+  state.preview.queue.push(item);
+  renderPreviewQueue();
+  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
+}
+
 function upsertGlobalAnimation(type, defaultDurationSec) {
   const existing = state.runningAnimations.find(
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
@@ -5738,6 +5890,26 @@ mobileStartRoomButton?.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
 
+stageGlobalPreviewButton?.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("preview-global-stage")) {
+    return;
+  }
+  stageGlobalToPreview();
+});
+
+stageRoomPreviewButton?.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("preview-room-stage")) {
+    return;
+  }
+  stageRoomDraftToPreview();
+});
+
+clearPreviewQueueButton?.addEventListener("click", () => {
+  state.preview.queue = [];
+  renderPreviewQueue();
+  triggerFeedback.textContent = "Status: Preview geleert";
+});
+
 applyOutputRouteButton.addEventListener("click", () => {
   applyOutputRoute(outputRouteSelect.value);
 });
@@ -5907,6 +6079,7 @@ async function initializeApplication() {
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
+  state.preview.queue = [];
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
@@ -5950,6 +6123,8 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
+  syncPreviewGlobalOptions();
+  renderPreviewQueue();
   syncMobileStickyOffsets();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
