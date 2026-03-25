@@ -358,6 +358,15 @@ function readSessionOverrideCandidate() {
   return null;
 }
 
+function clearStaleSessionLocalStorageOverride(reason = "") {
+  try {
+    window.localStorage.removeItem(API_BASE_STORAGE_KEY);
+    return `cleared stale localStorage override${reason ? ` (${reason})` : ""}`;
+  } catch {
+    return reason ? `localStorage override stale (${reason})` : "localStorage override stale";
+  }
+}
+
 async function probeSessionApiBase(apiBase) {
   const normalized = normalizeApiBase(apiBase);
   if (!normalized) {
@@ -412,16 +421,20 @@ async function resolveSessionApiCandidates() {
   }
 
   if (!override.valid) {
+    const staleReason = override.source.startsWith("override:localStorage")
+      ? clearStaleSessionLocalStorageOverride("invalid-api-base")
+      : null;
+    const fallbackReason = `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default${staleReason ? ` | ${staleReason}` : ""}`;
     return {
       candidates: [
         {
           ...uiDefault,
-          fallbackReason: `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default`,
+          fallbackReason,
         },
       ],
       resolved: {
         ...uiDefault,
-        fallbackReason: `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default`,
+        fallbackReason,
       },
     };
   }
@@ -459,16 +472,19 @@ async function resolveSessionApiCandidates() {
   }
 
   const fallbackReason = `${override.source} unreachable (${reachability.reason}) -> ui-origin-default`;
+  const fallbackWithCleanup = override.source.startsWith("override:localStorage")
+    ? `${fallbackReason} | ${clearStaleSessionLocalStorageOverride(reachability.reason)}`
+    : fallbackReason;
   return {
     candidates: [
       {
         ...uiDefault,
-        fallbackReason,
+        fallbackReason: fallbackWithCleanup,
       },
     ],
     resolved: {
       ...uiDefault,
-      fallbackReason,
+      fallbackReason: fallbackWithCleanup,
     },
   };
 }
