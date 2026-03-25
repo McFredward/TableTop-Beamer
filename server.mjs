@@ -8,6 +8,10 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
+const SESSION_PROTOCOL_VERSION = "5-1";
+const HEARTBEAT_INTERVAL_MS = 4000;
+const STALE_CLIENT_TIMEOUT_MS = 16000;
+const sessionStore = new Map();
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -46,6 +50,107 @@ function sendJson(res, statusCode, body) {
   });
   res.end(payload);
 }
+
+function normalizeRole(role) {
+  const normalized = String(role || "").trim().toLowerCase();
+  if (normalized === "operator" || normalized === "alignment" || normalized === "final-output") {
+    return normalized;
+  }
+  return "operator";
+}
+
+function randomId(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+}
+
+function writeSse(res, eventName, payload) {
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function createSession(sessionId) {
+  return {
+    id: sessionId,
+    seq: 0,
+    sharedState: {
+      boardId: null,
+      selectedRoomId: null,
+      runningAnimations: [],
+      alignmentOverlayEnabled: false,
+      outputRoute: "auto",
+      outsideFxByBoard: {},
+    },
+    clients: new Map(),
+    streams: new Set(),
+    updatedAt: Date.now(),
+  };
+}
+
+function getSession(sessionId) {
+  const key = String(sessionId || "").trim() || "default-session";
+  if (!sessionStore.has(key)) {
+    sessionStore.set(key, createSession(key));
+  }
+  return sessionStore.get(key);
+}
+
+function listClients(session) {
+  return Array.from(session.clients.values()).map((client) => ({
+    clientId: client.clientId,
+    role: client.role,
+    lastHeartbeatAt: client.lastHeartbeatAt,
+  }));
+}
+
+function buildSessionSnapshot(session) {
+  return {
+    sessionId: session.id,
+    seq: session.seq,
+    serverVersion: SESSION_PROTOCOL_VERSION,
+    heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
+    staleTimeoutMs: STALE_CLIENT_TIMEOUT_MS,
+    sharedState: session.sharedState,
+    clients: listClients(session),
+  };
+}
+
+function broadcastSessionEvent(session, event) {
+  session.seq += 1;
+  session.updatedAt = Date.now();
+  const packet = {
+    seq: session.seq,
+    serverTime: new Date().toISOString(),
+    ...event,
+    snapshot: buildSessionSnapshot(session),
+  };
+  for (const stream of session.streams) {
+    writeSse(stream, "session-event", packet);
+  }
+}
+
+function pruneStaleClients(session) {
+  const now = Date.now();
+  let changed = false;
+  for (const [clientId, entry] of session.clients.entries()) {
+    if (now - entry.lastHeartbeatAt > STALE_CLIENT_TIMEOUT_MS) {
+      session.clients.delete(clientId);
+      changed = true;
+    }
+  }
+  if (changed) {
+    broadcastSessionEvent(session, {
+      type: "client-prune",
+      sourceClientId: "server",
+      payload: { reason: "stale-timeout" },
+    });
+  }
+}
+
+setInterval(() => {
+  for (const session of sessionStore.values()) {
+    pruneStaleClients(session);
+  }
+}, Math.max(1200, Math.floor(HEARTBEAT_INTERVAL_MS * 0.75))).unref();
 
 function normalizeRoutePath(urlValue = "/") {
   try {
@@ -109,25 +214,31 @@ function mergeBoardProfiles(primaryProfiles, fallbackProfiles) {
   return merged;
 }
 
-async function handleGlobalDefaultsSave(req, res) {
+async function parseRequestBody(req, { maxBytes = 1024 * 1024 } = {}) {
   const chunks = [];
+  let total = 0;
   for await (const chunk of req) {
-    chunks.push(chunk);
-    if (chunks.reduce((size, item) => size + item.length, 0) > 5 * 1024 * 1024) {
-      sendJson(res, 413, { error: "payload too large" });
-      return;
+    total += chunk.length;
+    if (total > maxBytes) {
+      return { ok: false, error: "payload too large" };
     }
+    chunks.push(chunk);
   }
-
   const raw = Buffer.concat(chunks).toString("utf8");
-  let parsed;
   try {
-    parsed = JSON.parse(raw);
+    return { ok: true, value: raw ? JSON.parse(raw) : {} };
   } catch {
-    sendJson(res, 400, { error: "invalid JSON payload" });
+    return { ok: false, error: "invalid JSON payload" };
+  }
+}
+
+async function handleGlobalDefaultsSave(req, res) {
+  const parsedPayload = await parseRequestBody(req, { maxBytes: 5 * 1024 * 1024 });
+  if (!parsedPayload.ok) {
+    sendJson(res, 400, { error: parsedPayload.error });
     return;
   }
-
+  const parsed = parsedPayload.value;
   if (!parsed || typeof parsed !== "object") {
     sendJson(res, 400, { error: "payload must be an object" });
     return;
@@ -156,6 +267,147 @@ async function handleGlobalDefaultsSave(req, res) {
     ok: true,
     target: "config/global-defaults.json",
     savedAt: next.savedAt,
+  });
+}
+
+function handleSessionConnect(req, res) {
+  const url = new URL(req.url || "/", "http://localhost");
+  const version = String(url.searchParams.get("version") || "").trim();
+  if (version && version !== SESSION_PROTOCOL_VERSION) {
+    sendJson(res, 409, {
+      error: "SESSION_VERSION_MISMATCH",
+      expected: SESSION_PROTOCOL_VERSION,
+      received: version,
+    });
+    return;
+  }
+  const sessionId = String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session";
+  const role = normalizeRole(url.searchParams.get("role"));
+  const requestedClientId = String(url.searchParams.get("clientId") || "").trim();
+  const clientId = requestedClientId || randomId("client");
+  const session = getSession(sessionId);
+  const now = Date.now();
+  session.clients.set(clientId, {
+    clientId,
+    role,
+    userAgent: String(req.headers["user-agent"] || ""),
+    lastHeartbeatAt: now,
+  });
+
+  sendJson(res, 200, {
+    ok: true,
+    sessionId,
+    clientId,
+    role,
+    snapshot: buildSessionSnapshot(session),
+  });
+}
+
+function handleSessionStream(req, res) {
+  const url = new URL(req.url || "/", "http://localhost");
+  const sessionId = String(url.searchParams.get("sessionId") || "default-session").trim() || "default-session";
+  const clientId = String(url.searchParams.get("clientId") || "").trim();
+  const session = getSession(sessionId);
+
+  res.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+  });
+  res.write("retry: 2000\n\n");
+  session.streams.add(res);
+
+  writeSse(res, "session-snapshot", {
+    sourceClientId: "server",
+    snapshot: buildSessionSnapshot(session),
+  });
+
+  req.on("close", () => {
+    session.streams.delete(res);
+    if (clientId && session.clients.has(clientId)) {
+      const previous = session.clients.get(clientId);
+      session.clients.set(clientId, {
+        ...previous,
+        lastHeartbeatAt: Math.min(previous.lastHeartbeatAt, Date.now() - STALE_CLIENT_TIMEOUT_MS - 1),
+      });
+    }
+  });
+}
+
+async function handleSessionHeartbeat(req, res) {
+  const parsed = await parseRequestBody(req, { maxBytes: 64 * 1024 });
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error });
+    return;
+  }
+  const body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
+  const session = getSession(body.sessionId);
+  const clientId = String(body.clientId || "").trim();
+  if (!clientId) {
+    sendJson(res, 400, { error: "clientId required" });
+    return;
+  }
+  const existing = session.clients.get(clientId) || { clientId, role: "operator" };
+  session.clients.set(clientId, {
+    ...existing,
+    role: normalizeRole(body.role || existing.role),
+    lastHeartbeatAt: Date.now(),
+  });
+  pruneStaleClients(session);
+  sendJson(res, 200, {
+    ok: true,
+    snapshot: buildSessionSnapshot(session),
+  });
+}
+
+async function handleSessionEvent(req, res) {
+  const parsed = await parseRequestBody(req, { maxBytes: 512 * 1024 });
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error });
+    return;
+  }
+  const body = parsed.value && typeof parsed.value === "object" ? parsed.value : {};
+  const session = getSession(body.sessionId);
+  const clientId = String(body.clientId || "").trim();
+  if (!clientId) {
+    sendJson(res, 400, { error: "clientId required" });
+    return;
+  }
+  const existingClient = session.clients.get(clientId) || {
+    clientId,
+    role: normalizeRole(body.role),
+    userAgent: String(req.headers["user-agent"] || ""),
+  };
+  session.clients.set(clientId, {
+    ...existingClient,
+    role: normalizeRole(body.role || existingClient.role),
+    lastHeartbeatAt: Date.now(),
+  });
+
+  const eventType = String(body.type || "state-sync").trim() || "state-sync";
+  if (body.sharedState && typeof body.sharedState === "object") {
+    session.sharedState = {
+      ...session.sharedState,
+      ...body.sharedState,
+      runningAnimations: Array.isArray(body.sharedState.runningAnimations)
+        ? body.sharedState.runningAnimations
+        : session.sharedState.runningAnimations,
+      outsideFxByBoard:
+        body.sharedState.outsideFxByBoard && typeof body.sharedState.outsideFxByBoard === "object"
+          ? body.sharedState.outsideFxByBoard
+          : session.sharedState.outsideFxByBoard,
+    };
+  }
+
+  broadcastSessionEvent(session, {
+    type: eventType,
+    sourceClientId: clientId,
+    payload: body.payload && typeof body.payload === "object" ? body.payload : {},
+  });
+
+  sendJson(res, 200, {
+    ok: true,
+    snapshot: buildSessionSnapshot(session),
   });
 }
 
@@ -193,6 +445,13 @@ const server = createServer(async (req, res) => {
         service: "tt-beamer-api",
         saveEndpoint: "/api/global-defaults",
         postSupported: true,
+        sessionEndpoint: {
+          connect: "/api/session/connect",
+          stream: "/api/session/stream",
+          heartbeat: "/api/session/heartbeat",
+          event: "/api/session/event",
+          version: SESSION_PROTOCOL_VERSION,
+        },
       });
       return;
     }
@@ -218,6 +477,26 @@ const server = createServer(async (req, res) => {
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });
       }
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/session/connect") {
+      handleSessionConnect(req, res);
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/session/stream") {
+      handleSessionStream(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/session/heartbeat") {
+      await handleSessionHeartbeat(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/session/event") {
+      await handleSessionEvent(req, res);
       return;
     }
 

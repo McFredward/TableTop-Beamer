@@ -41,6 +41,10 @@ const zonesStatus = document.querySelector("#zones-status");
 const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
+const sessionIdInput = document.querySelector("#session-id-input");
+const clientRoleSelect = document.querySelector("#client-role-select");
+const sessionReconnectButton = document.querySelector("#session-reconnect");
+const sessionStatus = document.querySelector("#session-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -241,6 +245,294 @@ function resolveRoleFromRuntimeContext() {
   }
 }
 
+function resolveSessionIdFromRuntimeContext() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = String(params.get("session") || params.get("sessionId") || "").trim();
+    if (fromQuery) {
+      return fromQuery;
+    }
+  } catch {
+    // ignore malformed query
+  }
+  try {
+    const stored = String(window.localStorage.getItem(SESSION_STORAGE_KEY) || "").trim();
+    if (stored) {
+      return stored;
+    }
+  } catch {
+    // ignore storage failure
+  }
+  return "default-session";
+}
+
+function getSessionConnectUrl() {
+  const role = normalizeClientRole(state.role);
+  const sessionId = encodeURIComponent(state.session.id || "default-session");
+  const clientId = state.session.clientId ? encodeURIComponent(state.session.clientId) : "";
+  const roleParam = encodeURIComponent(role);
+  const version = encodeURIComponent(SESSION_PROTOCOL_VERSION);
+  return `/api/session/connect?sessionId=${sessionId}&role=${roleParam}&version=${version}${clientId ? `&clientId=${clientId}` : ""}`;
+}
+
+function getSessionStreamUrl() {
+  const sessionId = encodeURIComponent(state.session.id || "default-session");
+  const clientId = encodeURIComponent(state.session.clientId || "");
+  return `/api/session/stream?sessionId=${sessionId}&clientId=${clientId}`;
+}
+
+function buildSharedSessionState() {
+  return {
+    boardId: state.boardId,
+    selectedRoomId: state.selectedRoomId,
+    runningAnimations: state.runningAnimations,
+    alignmentOverlayEnabled: Boolean(state.alignmentOverlayEnabled),
+    outputRoute: state.outputRoute,
+    outsideFxByBoard: state.outsideFxByBoard,
+  };
+}
+
+function syncSessionStatus(text) {
+  if (!sessionStatus) {
+    return;
+  }
+  sessionStatus.textContent = text;
+}
+
+function updateSessionInputsFromState() {
+  if (sessionIdInput) {
+    sessionIdInput.value = state.session.id || "default-session";
+  }
+  if (clientRoleSelect) {
+    clientRoleSelect.value = normalizeClientRole(state.role);
+  }
+}
+
+function applySessionSnapshot(snapshot, { fromRemoteEvent = false } = {}) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return;
+  }
+  const nextSeq = Number(snapshot.seq) || 0;
+  if (nextSeq < (state.session.lastSeq || 0)) {
+    return;
+  }
+  state.session.lastSeq = nextSeq;
+  state.session.connected = true;
+  state.session.serverVersion = String(snapshot.serverVersion || state.session.serverVersion || "unknown");
+  const shared = snapshot.sharedState && typeof snapshot.sharedState === "object" ? snapshot.sharedState : {};
+
+  sessionApplyingRemoteState = true;
+  try {
+    if (typeof shared.boardId === "string" && BOARDS.some((board) => board.id === shared.boardId)) {
+      state.boardId = shared.boardId;
+    }
+    if (Array.isArray(shared.runningAnimations)) {
+      state.runningAnimations = shared.runningAnimations;
+      const maxCounter = state.runningAnimations.reduce((maxValue, animation) => {
+        const numeric = Number(String(animation.id || "").replace(/^anim-/, ""));
+        return Number.isFinite(numeric) ? Math.max(maxValue, numeric) : maxValue;
+      }, 0);
+      animationIdCounter = Math.max(animationIdCounter, maxCounter + 1);
+    }
+    if (typeof shared.selectedRoomId === "string") {
+      state.selectedRoomId = shared.selectedRoomId;
+      state.selectedRoomByBoard[state.boardId] = shared.selectedRoomId;
+    }
+    if (shared.outsideFxByBoard && typeof shared.outsideFxByBoard === "object") {
+      state.outsideFxByBoard = shared.outsideFxByBoard;
+    }
+    if (Object.prototype.hasOwnProperty.call(shared, "alignmentOverlayEnabled")) {
+      state.alignmentOverlayEnabled = Boolean(shared.alignmentOverlayEnabled);
+    }
+    if (Object.prototype.hasOwnProperty.call(shared, "outputRoute")) {
+      state.outputRoute = String(shared.outputRoute || "auto");
+    }
+  } finally {
+    sessionApplyingRemoteState = false;
+  }
+
+  switchBoard(state.boardId);
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  stopSoundsForInactiveAnimations();
+  syncAudioStatus();
+  syncSessionStatus(
+    `Session: verbunden (${state.session.id}) | Rolle ${state.role} | seq ${state.session.lastSeq}${fromRemoteEvent ? " | live" : ""}`,
+  );
+}
+
+async function emitSessionEvent(type, payload = {}) {
+  if (sessionApplyingRemoteState || !state.session.connected || !state.session.clientId) {
+    return;
+  }
+  try {
+    const response = await fetch("/api/session/event", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId: state.session.id,
+        clientId: state.session.clientId,
+        role: state.role,
+        type,
+        payload,
+        sharedState: buildSharedSessionState(),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`session event failed (${response.status})`);
+    }
+    const result = await response.json();
+    applySessionSnapshot(result?.snapshot);
+  } catch {
+    state.session.connected = false;
+    syncSessionStatus(`Session: Verbindung verloren (${state.session.id})`);
+  }
+}
+
+function scheduleSessionReconnect(delayMs = 1200) {
+  if (sessionReconnectTimer) {
+    return;
+  }
+  sessionReconnectTimer = window.setTimeout(() => {
+    sessionReconnectTimer = null;
+    void connectSession({ reconnect: true });
+  }, delayMs);
+}
+
+function startSessionHeartbeat(intervalMs = 4000) {
+  if (sessionHeartbeatTimer) {
+    window.clearInterval(sessionHeartbeatTimer);
+  }
+  sessionHeartbeatTimer = window.setInterval(async () => {
+    if (!state.session.connected || !state.session.clientId) {
+      return;
+    }
+    try {
+      const response = await fetch("/api/session/heartbeat", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: state.session.id,
+          clientId: state.session.clientId,
+          role: state.role,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`heartbeat failed (${response.status})`);
+      }
+      const result = await response.json();
+      state.session.lastHeartbeatAt = Date.now();
+      applySessionSnapshot(result?.snapshot);
+    } catch {
+      state.session.connected = false;
+      syncSessionStatus(`Session: Heartbeat-Fehler, reconnect geplant (${state.session.id})`);
+      scheduleSessionReconnect(1500);
+    }
+  }, Math.max(1200, Number(intervalMs) || 4000));
+}
+
+function closeSessionStream() {
+  if (sessionEventSource) {
+    sessionEventSource.close();
+    sessionEventSource = null;
+  }
+}
+
+function attachSessionStream() {
+  closeSessionStream();
+  if (!state.session.clientId) {
+    return;
+  }
+  const stream = new EventSource(getSessionStreamUrl());
+  sessionEventSource = stream;
+  stream.addEventListener("session-snapshot", (event) => {
+    try {
+      const parsed = JSON.parse(event.data);
+      applySessionSnapshot(parsed?.snapshot);
+    } catch {
+      // ignore malformed snapshot
+    }
+  });
+  stream.addEventListener("session-event", (event) => {
+    try {
+      const parsed = JSON.parse(event.data);
+      if (parsed?.sourceClientId && parsed.sourceClientId === state.session.clientId) {
+        return;
+      }
+      applySessionSnapshot(parsed?.snapshot, { fromRemoteEvent: true });
+    } catch {
+      // ignore malformed event
+    }
+  });
+  stream.addEventListener("error", () => {
+    state.session.connected = false;
+    syncSessionStatus(`Session: SSE unterbrochen, reconnect geplant (${state.session.id})`);
+    closeSessionStream();
+    scheduleSessionReconnect(1800);
+  });
+}
+
+async function connectSession({ reconnect = false } = {}) {
+  try {
+    const response = await fetch(getSessionConnectUrl(), {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`connect failed (${response.status})`);
+    }
+    const result = await response.json();
+    state.session.id = String(result.sessionId || state.session.id || "default-session");
+    state.session.clientId = String(result.clientId || state.session.clientId || "");
+    state.role = normalizeClientRole(result.role || state.role);
+    state.session.connected = true;
+    state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
+    applySessionSnapshot(result?.snapshot);
+    attachSessionStream();
+    startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
+    syncSessionStatus(
+      `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect" : "join"} | Rolle ${state.role}`,
+    );
+  } catch {
+    state.session.connected = false;
+    syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id})`);
+    scheduleSessionReconnect(2500);
+  }
+}
+
+function applyClientRole(nextRole) {
+  state.role = normalizeClientRole(nextRole);
+  if (clientRoleSelect) {
+    clientRoleSelect.value = state.role;
+  }
+  try {
+    window.localStorage.setItem(ROLE_STORAGE_KEY, state.role);
+  } catch {
+    // ignore persistence failures
+  }
+  syncAudioStatus();
+  syncSessionStatus(`Session: Rolle gesetzt auf ${state.role}`);
+}
+
+function applySessionId(nextSessionId) {
+  const cleaned = String(nextSessionId || "").trim() || "default-session";
+  state.session.id = cleaned;
+  if (sessionIdInput) {
+    sessionIdInput.value = cleaned;
+  }
+  try {
+    window.localStorage.setItem(SESSION_STORAGE_KEY, cleaned);
+  } catch {
+    // ignore persistence failures
+  }
+}
+
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
   getBoards: () => BOARDS,
   getState: () => state,
@@ -254,6 +546,11 @@ const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
+let sessionEventSource = null;
+let sessionHeartbeatTimer = null;
+let sessionReconnectTimer = null;
+let sessionApplyingRemoteState = false;
+const SESSION_PROTOCOL_VERSION = "5-1";
 
 const {
   createDefaultAnimationSoundMap,
@@ -5477,6 +5774,24 @@ function draw(now) {
   }
 }
 
+sessionIdInput?.addEventListener("change", () => {
+  applySessionId(sessionIdInput.value);
+  closeSessionStream();
+  state.session.connected = false;
+  void connectSession({ reconnect: true });
+});
+
+clientRoleSelect?.addEventListener("change", () => {
+  applyClientRole(clientRoleSelect.value);
+  void emitSessionEvent("role-change", { role: state.role });
+});
+
+sessionReconnectButton?.addEventListener("click", () => {
+  closeSessionStream();
+  state.session.connected = false;
+  void connectSession({ reconnect: true });
+});
+
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
 openDashboardViewButton.addEventListener("click", () => {
@@ -6390,6 +6705,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 resizeObserver.observe(stage);
 
 function syncRuntimePanelsFromState() {
+  updateSessionInputsFromState();
   switchBoard(state.boardId);
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
@@ -6419,15 +6735,15 @@ function syncRuntimePanelsFromState() {
   syncBoardZoomPanel();
   syncDashboardZoneVisibility();
   updateMobilePerformanceStatus();
+  syncSessionStatus(
+    `Session: ${state.session.connected ? "verbunden" : "nicht verbunden"} (${state.session.id}) | Rolle ${state.role}`,
+  );
 }
 
 async function initializeApplication() {
-  state.role = resolveRoleFromRuntimeContext();
-  try {
-    window.localStorage.setItem(ROLE_STORAGE_KEY, state.role);
-  } catch {
-    // ignore local persistence issues
-  }
+  applyClientRole(resolveRoleFromRuntimeContext());
+  applySessionId(resolveSessionIdFromRuntimeContext());
+  updateSessionInputsFromState();
   await loadExternalBoardZones();
   syncBoardSelectOptions();
   const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
@@ -6501,6 +6817,7 @@ async function initializeApplication() {
       `API Diagnose: Startup-Load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
   }
   warmEventSoundAssets();
+  await connectSession();
   setActiveView("dashboard");
   setPanCursorState();
   const viewRegressionOk = runViewVisibilityRegression();
