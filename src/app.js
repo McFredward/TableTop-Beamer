@@ -4862,6 +4862,10 @@ function startRoomAnimationFromDraft() {
   }
 
   const roomState = normalizeRoomStateProfile(state.roomDraft.roomState);
+  if (isSpecialRoomEffect(state.roomDraft.animationId) && !room.id.startsWith("special-")) {
+    triggerFeedback.textContent = "Status: Spezialraum-Effekte nur in Spezialraeumen startbar";
+    return;
+  }
   setRoomStateProfile(state.boardId, room.id, roomState);
   persistBoardProfiles();
 
@@ -5393,6 +5397,27 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  if (type === "special-nest") {
+    const cells = Math.max(10, Math.round(22 * intensity));
+    for (let i = 0; i < cells; i += 1) {
+      const seed = ((i * 71.97) % 1000) / 1000;
+      const seedB = ((i * 33.41 + 17) % 1000) / 1000;
+      const pulse = (Math.sin(age * 4.3 + i * 1.11) + 1) / 2;
+      const x = roomMinX + roomWidth * (0.08 + seed * 0.84);
+      const y = roomMinY + roomHeight * (0.1 + seedB * 0.8);
+      const rx = Math.max(4, roomWidth * (0.04 + (seed * 0.03)));
+      const ry = rx * (0.75 + pulse * 0.28);
+      ctx.fillStyle = `rgba(152, 205, 88, ${(0.2 + pulse * 0.22) * intensity})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, pulse * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(222, 255, 188, ${(0.18 + pulse * 0.2) * intensity})`;
+      ctx.lineWidth = Math.max(1, rx * 0.12);
       ctx.stroke();
     }
     return;
