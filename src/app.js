@@ -52,6 +52,8 @@ const sessionHeartbeatEndpointStatus = document.querySelector("#session-heartbea
 const sessionHeartbeatTransportStatus = document.querySelector("#session-heartbeat-transport-status");
 const sessionEventTransportStatus = document.querySelector("#session-event-transport-status");
 const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
+const sessionStreamConnectivityStatus = document.querySelector("#session-stream-connectivity-status");
+const sessionHeartbeatStatusSplit = document.querySelector("#session-heartbeat-status-split");
 const sessionConnectTransportStatus = document.querySelector("#session-connect-transport-status");
 const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
 const sessionRetryStatus = document.querySelector("#session-retry-status");
@@ -629,7 +631,23 @@ function getSessionResolverMeta() {
   };
 }
 
+function normalizeHeartbeatStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (["unknown", "healthy", "degraded", "failed"].includes(normalized)) {
+    return normalized;
+  }
+  return "unknown";
+}
+
+function ensureSessionConnectivityState() {
+  if (typeof state.session.streamConnected !== "boolean") {
+    state.session.streamConnected = false;
+  }
+  state.session.heartbeatStatus = normalizeHeartbeatStatus(state.session.heartbeatStatus);
+}
+
 function syncSessionDiagnosticsPanel() {
+  ensureSessionConnectivityState();
   const retry = getSessionRetryState();
   const resolver = getSessionResolverMeta();
   if (sessionEndpointStatus) {
@@ -677,6 +695,15 @@ function syncSessionDiagnosticsPanel() {
     const connectionState = state.session.connected ? "connected" : retry.status || "idle";
     sessionConnectionStateStatus.textContent =
       `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"} | ${resolver.text}`;
+  }
+
+  if (sessionStreamConnectivityStatus) {
+    sessionStreamConnectivityStatus.textContent =
+      `Session Stream: ${state.session.streamConnected ? "connected" : "disconnected"}`;
+  }
+
+  if (sessionHeartbeatStatusSplit) {
+    sessionHeartbeatStatusSplit.textContent = `Session Heartbeat: ${state.session.heartbeatStatus}`;
   }
 
   if (sessionConnectTransportStatus) {
@@ -1359,6 +1386,7 @@ async function sendHeartbeatWithFallback() {
 }
 
 function setSessionRetryError(code, { endpoint = "", status = null, detail = "", error = null } = {}) {
+  ensureSessionConnectivityState();
   const retry = getSessionRetryState();
   retry.status = "failed";
   retry.lastErrorCode = code;
@@ -1378,6 +1406,9 @@ function setSessionRetryError(code, { endpoint = "", status = null, detail = "",
   retry.lastErrorName = String(error?.name || "");
   retry.lastErrorMessage = String(error?.message || "");
   retry.lastOnlineState = navigator.onLine ? "online" : "offline";
+  if (code === "HEARTBEAT_FAILED") {
+    state.session.heartbeatStatus = "failed";
+  }
 }
 
 function updateConnectTransport(transport = "fetch", fallbackReason = "none") {
@@ -1603,10 +1634,12 @@ function startSessionHeartbeat(intervalMs = 4000) {
       return;
     }
     try {
+      ensureSessionConnectivityState();
       const retry = getSessionRetryState();
       const response = await sendHeartbeatWithFallback();
       const result = await response.json();
       retry.heartbeatFailureCount = 0;
+      state.session.heartbeatStatus = "healthy";
       if (retry.stableResetPending) {
         retry.attempt = 0;
         retry.nextDelayMs = 0;
@@ -1618,11 +1651,13 @@ function startSessionHeartbeat(intervalMs = 4000) {
       state.session.lastHeartbeatAt = Date.now();
       applySessionSnapshot(result?.snapshot);
     } catch {
+      ensureSessionConnectivityState();
       const retry = getSessionRetryState();
       const threshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
       retry.heartbeatFailureCount = Math.max(0, Number(retry.heartbeatFailureCount || 0)) + 1;
       const streamOpen = Boolean(sessionEventSource && sessionEventSource.readyState === EventSource.OPEN);
       const heartbeatDetail = `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`;
+      state.session.heartbeatStatus = "degraded";
       if (streamOpen) {
         retry.status = "heartbeat-degraded";
         syncSessionStatus(
@@ -1658,6 +1693,8 @@ function closeSessionStream() {
     sessionEventSource.close();
     sessionEventSource = null;
   }
+  ensureSessionConnectivityState();
+  state.session.streamConnected = false;
 }
 
 function attachSessionStream() {
@@ -1682,6 +1719,8 @@ function attachSessionStream() {
     scheduleSessionReconnect({ reason: "sse-timeout" });
   }, SESSION_REQUEST_TIMEOUT_MS);
   stream.addEventListener("open", () => {
+    ensureSessionConnectivityState();
+    state.session.streamConnected = true;
     if (sessionStreamConnectTimeoutTimer) {
       window.clearTimeout(sessionStreamConnectTimeoutTimer);
       sessionStreamConnectTimeoutTimer = null;
@@ -1689,6 +1728,8 @@ function attachSessionStream() {
   });
   stream.addEventListener("session-snapshot", (event) => {
     try {
+      ensureSessionConnectivityState();
+      state.session.streamConnected = true;
       const parsed = JSON.parse(event.data);
       applySessionSnapshot(parsed?.snapshot);
     } catch {
@@ -1697,6 +1738,8 @@ function attachSessionStream() {
   });
   stream.addEventListener("session-event", (event) => {
     try {
+      ensureSessionConnectivityState();
+      state.session.streamConnected = true;
       const parsed = JSON.parse(event.data);
       if (parsed?.sourceClientId && parsed.sourceClientId === state.session.clientId) {
         return;
@@ -1711,6 +1754,8 @@ function attachSessionStream() {
       window.clearTimeout(sessionStreamConnectTimeoutTimer);
       sessionStreamConnectTimeoutTimer = null;
     }
+    ensureSessionConnectivityState();
+    state.session.streamConnected = false;
     state.session.connected = false;
     setSessionRetryError("SSE_INTERRUPTED", {
       endpoint: streamEndpoint,
@@ -1785,6 +1830,9 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             });
             applyClientRole(result.role || state.role);
             state.session.connected = true;
+            ensureSessionConnectivityState();
+            state.session.streamConnected = false;
+            state.session.heartbeatStatus = "unknown";
             state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
             clearSessionReconnectTimer();
             retry.status = "connected";
@@ -1849,6 +1897,8 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
   }
 
   state.session.connected = false;
+  ensureSessionConnectivityState();
+  state.session.streamConnected = false;
   retry.status = "failed";
   syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id || "default-session"})`);
   scheduleSessionReconnect({ reason: "connect-failed" });

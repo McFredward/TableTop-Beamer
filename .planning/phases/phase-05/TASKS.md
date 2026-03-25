@@ -73,7 +73,7 @@ Aktuelle P0-Prioritaet (verbindlich): Plan 5-8 (P5-T57..P5-T62) vor allen offene
 
 ## Plan 5-8 - SSE-first Session-Stabilitaet aus dringendem Feldfeedback (execute-ready, P0 sofort, hoechste Prioritaet)
 - [x] DONE P5-T57 [P0] SSE-first-Guard einziehen: solange Stream aktiv/offen ist, duerfen Heartbeat-Fehler die Session nicht auf `failed` setzen.
-- [ ] TODO P5-T58 [P0] Connectivity-State trennen: `streamConnected` und `heartbeatStatus` als getrennte Source-of-Truth in Runtime + UI fuehren.
+- [x] DONE P5-T58 [P0] Connectivity-State trennen: `streamConnected` und `heartbeatStatus` als getrennte Source-of-Truth in Runtime + UI fuehren.
 - [ ] TODO P5-T59 [P0] Reconnect-Policy korrigieren: Reconnect nur bei Stream-Abbruch oder explizitem Connect-Fehler; Heartbeat bleibt optionaler Liveness-Check/Fallback.
 - [ ] TODO P5-T60 [P0] Emit-/Sync-Pfad robust halten: Event-Emit und State-Sync laufen weiter, auch wenn Heartbeat auf `degraded` steht.
 - [ ] TODO P5-T61 [P0] Stream-State-Transitions diagnostisch erweitern: `opened|healthy|degraded|closed|reconnecting` mit Ursache in Logs erfassen.

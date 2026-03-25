@@ -26,6 +26,8 @@
         lastSuccessfulSessionId: "",
         serverVersion: "unknown",
         connected: false,
+        streamConnected: false,
+        heartbeatStatus: "unknown",
         lastSeq: 0,
         lastHeartbeatAt: 0,
         reconnectAttempts: 0,
