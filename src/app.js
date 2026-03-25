@@ -2152,7 +2152,7 @@ function resolveRoomGifRenderConfig(type, age, intensity, options = {}) {
 }
 
 function clampRoomSpeed(value) {
-  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
+  return Math.max(0.1, Math.min(2.5, Number(value) || 1));
 }
 
 function clampRoomSoundVolume(value) {
