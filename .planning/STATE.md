@@ -11,9 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-3
-- Planned Next Execution: none
-- Last Execution Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
+- Last Executed Plan: 3-4
+- Planned Next Execution: TBD
+- Last Execution Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -217,6 +217,13 @@
 - Plan-3-3-Bugfix ist umgesetzt: `kaputt`/`feuer`/`schleim` rendern als native GIF-Frame-Loops ohne Pulse-/Zoom-Ersatz.
 - Instanzparitaet bleibt fuer natives GIF-Playback erhalten (`opacity`/`playbackSpeed` je `animation.id` querwirkungsfrei).
 - Plan-3-3-Nachweise sind dokumentiert: `P3-T29-REGRESSION.md`, `P3-T30-SOAK.md`, `3-3-VERIFICATION.md`.
+- Neues verpflichtendes Feedback fuer Phase 3 (Plan-Update 3-4) ist gesetzt: GIF-Raumanimationen koennen im Fallback-Pfad als Standbild enden, wenn native Decoder nicht verfuegbar sind.
+- P0-Regel Plan-Update 3-4: `kaputt`/`feuer`/`schleim` muessen auf allen Zielbrowsern als echte Loops laufen, unabhaengig von `ImageDecoder`.
+- Fallback-Regel Plan-Update 3-4: Ersatzpfad muss echten Frame-Fortschritt inkl. Loop liefern; statisches Erstframe ist ein Blocker.
+- Paritaets-Regel Plan-Update 3-4: `opacity`/`playbackSpeed` bleiben pro Instanz in nativen und fallback Pfaden konsistent.
+- Regression-Regel Plan-Update 3-4: Running-Liste 1:1, hold-by-default und raumstrenges Clipping bleiben Pflicht-Gates ohne Regression.
+- Plan-Update-3-4 Umsetzung: GIF-Playback ist decoder-agnostisch; bei fehlendem `ImageDecoder` liefert der Parser-Fallback echte Frame-Loops statt Standbild.
+- Plan-Update-3-4 Umsetzung: GIF-Renderpfad zeichnet nur Timeline-Frames (kein Erstframe-Fallback), waehrend `opacity`/`playbackSpeed` pro Instanz unveraendert isoliert bleiben.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -475,5 +482,27 @@
   - `.planning/phases/phase-03/3-2-VERIFICATION.md`
   - `.planning/phases/phase-03/P3-T23-REGRESSION.md`
   - `.planning/phases/phase-03/P3-T24-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 3)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`ed34cd3`, `772ae75`, `9888c46`, `578c367`, `b06f498`, `998dada`)
+- Evidence:
+  - `.planning/phases/phase-03/3-3-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T29-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T30-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 4)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`807de04`, `e2b08da`, `ce12e43`, `cd62c92`, `3e5cde9`, `da1b9f5`)
+- Evidence:
+  - `.planning/phases/phase-03/3-4-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T35-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T36-BROWSER-MATRIX-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)

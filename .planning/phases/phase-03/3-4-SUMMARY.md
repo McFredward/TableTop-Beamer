@@ -1,100 +1,71 @@
 ---
 phase: phase-03
 plan: 3-4
-subsystem: ui
-tags: [nemesis, gif-mapping, regression, runtime]
+subsystem: rendering
+tags: [gif, fallback, browser-compatibility, room-clipping, verification]
 requires:
-  - phase: phase-03
-    provides: Plan-3-3 GIF-Loop-Runtime und Mapping-Persistenz als Basis fuer den Direct-Start-Hotfix
+  - phase: phase-03-3-3
+    provides: native GIF loop playback with instance-local opacity/playbackSpeed controls
 provides:
-  - Direct-Start-Flow uebergibt gemapptes `gifAssetPath` deterministisch an `createAnimation`
-  - Startup-Regression fuer Direct-Start -> Edit -> Reload mit Mapping-/ID-Guards
-  - Synchronisierte Phase-3-Artefakte inkl. Plan-3-4-Abnahmenachweis
-affects: [phase-03-acceptance, runtime-regression-guards, operator-workflow]
+  - Decoder-agnostic GIF playback path with real frame progression and looping for kaputt/feuer/schleim
+  - No static-first-frame fallback when ImageDecoder is unavailable
+  - Regression and browser-matrix evidence for running-list parity, hold-default and clipping stability
+affects: [runtime-rendering, phase-03-verification, cross-browser-fallback]
 tech-stack:
-  added: []
-  patterns: [instanzscharfer-gifAssetPath, startup-regression-guard]
+  added: [binary GIF parser fallback pipeline]
+  patterns: [shared GIF frame scheduler across native and fallback decode backends]
 key-files:
   created:
-    - .planning/phases/phase-03/P3-T33-REGRESSION.md
+    - .planning/phases/phase-03/P3-T35-REGRESSION.md
+    - .planning/phases/phase-03/P3-T36-BROWSER-MATRIX-SOAK.md
     - .planning/phases/phase-03/3-4-VERIFICATION.md
+    - .planning/phases/phase-03/3-4-SUMMARY.md
   modified:
     - src/app.js
-    - .planning/phases/phase-03/TASKS.md
     - .planning/phases/phase-03/PLAN.md
+    - .planning/phases/phase-03/BACKLOG.md
+    - .planning/phases/phase-03/TASKS.md
     - .planning/phases/phase-03/ACCEPTANCE.md
+    - .planning/phases/phase-03/RISKS.md
+    - .planning/phases/phase-03/EXECUTE.md
+    - .planning/phases/phase-03/README.md
 key-decisions:
-  - "Direct-Start bekommt den gemappten GIF-Pfad bereits im createAnimation-Aufruf statt nur implizit im Draw-Fallback."
-  - "Der Pfad Direct-Start -> Edit -> Reload wird als Startup-Regression dauerhaft automatisch geprueft."
-patterns-established:
-  - "Runtime-Guards testen Operator-Ketten als End-to-End-Sequenz mit Restore im finally-Block."
+  - "GIF room effects no longer draw first-frame image fallbacks; rendering waits for scheduled decoded frames."
+  - "Fallback decoding uses a built-in GIF parser so missing ImageDecoder still yields real frame-loop playback."
 requirements-completed: []
-duration: 3min
+duration: 19min
 completed: 2026-03-25
 ---
 
-# Phase 3 Plan 3-4: Direct-Start GIF-Mapping Hotfix Summary
+# Phase 3 Plan 4: Cross-Browser GIF Fallback Loop Fix Summary
 
-**Direct-Start von Raumanimationen materialisiert jetzt das gemappte GIF deterministisch in der Runtime-Instanz, abgesichert durch eine automatische Direct-Start/Edit/Reload-Regression und synchronisierte Plan-3-4-Abnahmeartefakte.**
+**Kaputt/Feuer/Schleim now run as real GIF loops through a decoder-agnostic frame scheduler, so missing ImageDecoder no longer degrades playback to a static frame.**
 
 ## Performance
-
-- **Duration:** 3 min
-- **Started:** 2026-03-25T09:46:31Z
-- **Completed:** 2026-03-25T09:49:32Z
-- **Tasks:** 3
-- **Files modified:** 10
+- **Duration:** 19 min
+- **Tasks:** 6
+- **Files modified:** 12
 
 ## Accomplishments
-- Direct-Start (`Raum starten`) reicht `draftPayload.gifAssetPath` explizit an `createAnimation` durch.
-- Neue Regression `runGifDirectStartEditReloadRegression()` prueft Direct-Start, In-Place-Edit und Reload-Restore auf `gifAssetPath`-/ID-Konsistenz.
-- Phase-3-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/README`) plus `3-4-VERIFICATION.md` auf completed-Status synchronisiert.
+- Replaced the decoder-dependent fallback behavior with a shared frame-scheduler that works with both native decoding and parser fallback decoding.
+- Removed static first-frame drawing for GIF room effects; only scheduled timeline frames are rendered.
+- Preserved per-instance `opacity` and `playbackSpeed` parity across native and fallback paths by centralizing GIF render config resolution.
+- Documented required acceptance evidence: regression guardrails, fallback browser matrix + soak, and final verification artifact.
 
 ## Task Commits
-
-1. **Task P3-T32: Direct-Start-Flow auf gemappten GIF-Pfad verdrahten** - `62e77ec` (fix)
-2. **Task P3-T33: Regression Direct-Start -> Edit -> Reload** - `17c8f9c` (test)
-3. **Task P3-T34: Artefakte/Acceptance synchronisieren** - `91d60f1` (docs)
-
-## Files Created/Modified
-- `src/app.js` - Fix fuer Direct-Start-Parameteruebergabe und neuer Startup-Regression-Guard.
-- `.planning/phases/phase-03/P3-T33-REGRESSION.md` - expliziter Regressionsnachweis fuer den Hotfix-Pfad.
-- `.planning/phases/phase-03/3-4-VERIFICATION.md` - Plan-3-4-Abschlussnachweis.
-- `.planning/phases/phase-03/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE,README}.md` - Status-/Abnahme-Sync auf completed.
-
-## Decisions Made
-- Direct-Start soll den gemappten GIF-Pfad frueh (bei Instanzerzeugung) materialisieren, damit Runtime und Running-Liste dieselbe Truth-Source sehen.
-- Die kritische Bedienkette wird als fester Startup-Regression-Guard gehalten, nicht nur als manuelles Protokoll.
+1. **Task P3-T32: Fallback root-cause fix** - `807de04` (fix)
+2. **Task P3-T33: Decoder-agnostic scheduler** - `e2b08da` (feat)
+3. **Task P3-T34: Instance parity hardening** - `ce12e43` (fix)
+4. **Task P3-T35: Regression gate refresh** - `cd62c92` (test)
+5. **Task P3-T36: Browser matrix + soak evidence** - `3e5cde9` (test)
+6. **Task P3-T37: Verification + artifact sync** - `da1b9f5` (chore)
 
 ## Deviations from Plan
-
-### Auto-fixed Issues
-
-**1. [Rule 3 - Blocking] STATE/ROADMAP gsd-tools commands konnten altes STATE-Schema nicht parsen**
-- **Found during:** Abschluss- und State-Update-Schritt nach Task 3
-- **Issue:** `state advance-plan`, `state update-progress` und `roadmap update-plan-progress` lieferten Schema-/Section-Fehler statt Update.
-- **Fix:** Lifecycle-, Decision- und Execution-Result-Abschnitte in `.planning/STATE.md` sowie Phase-3-Status in `.planning/ROADMAP.md` manuell auf Plan-3-4-Abschluss synchronisiert.
-- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
-- **Verification:** Inhalte gegen `3-4-SUMMARY.md`, Task-Commits und neue Verifikationsartefakte gegengeprueft.
-
----
-
-**Total deviations:** 1 auto-fixed (1 blocking)
-**Impact on plan:** Kein Scope-Creep; nur erforderlicher Fallback fuer Abschluss-Metadaten.
-
-## Issues Encountered
-- `gsd-tools`-State-Befehle erwarteten ein anderes STATE/ROADMAP-Schema; Abschlussdaten wurden deshalb manuell konsistent nachgezogen.
-
-## User Setup Required
-None - no external service configuration required.
+None - plan executed exactly as written.
 
 ## Known Stubs
-None found in changed files.
-
-## Next Phase Readiness
-- Plan 3-4 Hotfix-Scope ist abgeschlossen und dokumentiert.
-- GIF-Mapping-End-to-End (Direct-Start/Edit/Reload) ist technisch und artefaktseitig abgesichert.
+None.
 
 ## Self-Check: PASSED
-- Files verifiziert: `3-4-SUMMARY.md`, `3-4-VERIFICATION.md`, `P3-T33-REGRESSION.md`
-- Commits verifiziert: `62e77ec`, `17c8f9c`, `91d60f1`
+- Verified summary file exists at `.planning/phases/phase-03/3-4-SUMMARY.md`.
+- Verified all task commit hashes are present in git history (`807de04`, `e2b08da`, `ce12e43`, `cd62c92`, `3e5cde9`, `da1b9f5`).

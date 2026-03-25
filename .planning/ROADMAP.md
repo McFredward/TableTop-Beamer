@@ -37,23 +37,24 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
-## Phase 3 - Nemesis Animations Overhaul (Rework in Progress)
+## Phase 3 - Nemesis Animations Overhaul (Rework Completed)
 Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping und echter GIF-Loop-Wiedergabe fuer die 3 GIF-basierten Raumtypen bei instanzscharfer Steuerung (`opacity`, `playbackSpeed`) und Default `hold`.
 
-Status: 31/31 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25) und Plan 3-3 P0-Bugfix (P3-T26..P3-T31) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`).
+Status: 37/37 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 P0-Bugfix (P3-T26..P3-T31) und Plan 3-4 Cross-Browser-Fallback-Fix (P3-T32..P3-T37) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`).
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
 2. P0 Render-Rework: GIF-Vorgaben + globale Aequivalente (`alarm`/`lichtflackern`) strikt raumbegrenzt.
 3. P0 Bugfix Plan 3-3: echtes GIF-Playback fuer `kaputt`/`feuer`/`schleim` (native Loops statt Pulse-/Zoom-Ersatz).
-4. P0 UX-Paritaet: Running-Uebersicht 1:1 pro aktiver Animation + hold-by-default bleibt stabil.
-5. P1 Hardening: Regression, Performance, Verifikation, Artefakt-Sync.
+4. P0 Bugfix Plan 3-4: echter GIF-Frame-Fortschritt im Fallback-Pfad (kein Standbild ohne `ImageDecoder`).
+5. P0 UX-Paritaet: Running-Uebersicht 1:1 pro aktiver Animation + hold-by-default bleibt stabil.
+6. P1 Hardening: Regression, Browser-Matrix, Performance, Verifikation, Artefakt-Sync.
 
 Exit Criteria:
-- Plan-3-2-P0 ist abgeschlossen und Plan-3-3-P0 Bugfix ist vollstaendig umgesetzt und nachgewiesen.
+- Plan-3-2-P0 und Plan-3-3-P0 bleiben abgeschlossen; Plan-3-4-P0 (Fallback-Loop-Fix) ist vollstaendig umgesetzt und nachgewiesen.
 - Alle 7 separaten Raumanimationen sind einzeln triggerbar/stoppbar und in Running 1:1 sichtbar.
 - `alarm` und `lichtflackern` laufen als globale Aequivalente ohne Clipping-Leaks ausserhalb des Zielraums.
-- GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` laufen als echte native Loops; `opacity`/`playbackSpeed` bleiben instanzscharf steuerbar.
+- GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` laufen als echte Loops in nativen und fallback Pfaden; `opacity`/`playbackSpeed` bleiben instanzscharf steuerbar.
 - Verifikation und Planungsartefakte konsistent abgeschlossen.
 
 ## Deferred (Post-Phase-2)
