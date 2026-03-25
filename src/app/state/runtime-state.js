@@ -13,6 +13,17 @@
       selectedRoomId: null,
       selectedRoomByBoard: {},
       outputRoute: "auto",
+      role: "operator",
+      alignmentOverlayEnabled: false,
+      session: {
+        id: "default-session",
+        clientId: null,
+        serverVersion: "unknown",
+        connected: false,
+        lastSeq: 0,
+        lastHeartbeatAt: 0,
+        reconnectAttempts: 0,
+      },
       roomDraft: {
         editTargetId: null,
         animationId: defaultRoomAnimationId,

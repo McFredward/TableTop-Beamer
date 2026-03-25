@@ -197,6 +197,10 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
 ];
 
 const ctx = canvas.getContext("2d");
+const ROLE_STORAGE_KEY = "tt-beamer.client-role.v1";
+const SESSION_STORAGE_KEY = "tt-beamer.session-id.v1";
+const CLIENT_ROLE_VALUES = new Set(["operator", "alignment", "final-output"]);
+const DEFAULT_CLIENT_ROLE = "operator";
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
@@ -207,6 +211,35 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
+
+function normalizeClientRole(role) {
+  const normalized = String(role || "").trim().toLowerCase();
+  if (CLIENT_ROLE_VALUES.has(normalized)) {
+    return normalized;
+  }
+  return DEFAULT_CLIENT_ROLE;
+}
+
+function isFinalOutputRole(role = state.role) {
+  return normalizeClientRole(role) === "final-output";
+}
+
+function resolveRoleFromRuntimeContext() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = normalizeClientRole(params.get("role") || params.get("ttRole"));
+    if (CLIENT_ROLE_VALUES.has(fromQuery)) {
+      return fromQuery;
+    }
+  } catch {
+    // ignore malformed URL
+  }
+  try {
+    return normalizeClientRole(window.localStorage.getItem(ROLE_STORAGE_KEY));
+  } catch {
+    return DEFAULT_CLIENT_ROLE;
+  }
+}
 
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
   getBoards: () => BOARDS,
@@ -6389,6 +6422,12 @@ function syncRuntimePanelsFromState() {
 }
 
 async function initializeApplication() {
+  state.role = resolveRoleFromRuntimeContext();
+  try {
+    window.localStorage.setItem(ROLE_STORAGE_KEY, state.role);
+  } catch {
+    // ignore local persistence issues
+  }
   await loadExternalBoardZones();
   syncBoardSelectOptions();
   const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
