@@ -223,13 +223,14 @@ const ZONE_CONFIG_SOURCES = [
   },
 ];
 
+const ROOM_STATE_COMBO_ANIMATION_ID = "room-state-combo";
+const SPECIAL_ROOM_EFFECT_IDS = ["special-nest", "special-slime", "special-decompression"];
+
 const ROOM_ANIMATIONS = [
-  { id: "scanner-sweep", label: "Scanner Sweep" },
-  { id: "steam-vent", label: "Steam Vent" },
-  { id: "contamination", label: "Contamination Cloud" },
-  { id: "electrical-arc", label: "Electrical Arc" },
-  { id: "fire-pocket", label: "Fire Pocket" },
-  { id: "alarm-beacon", label: "Alarm Beacon" },
+  { id: ROOM_STATE_COMBO_ANIMATION_ID, label: "Raumzustand (Kombi)" },
+  { id: "special-nest", label: "Special Effect: Nest" },
+  { id: "special-slime", label: "Special Effect: Slime" },
+  { id: "special-decompression", label: "Special Effect: Decompression" },
 ];
 
 const INSIDE_SHIP_GLOBAL_ANIMATIONS = [
@@ -469,6 +470,13 @@ const OUTSIDE_FX_DEFAULT = {
   direction: "forward",
 };
 
+const ROOM_STATE_DEFAULT = {
+  broken: false,
+  burning: false,
+  alienCount: 0,
+  corpse: false,
+};
+
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -482,6 +490,7 @@ const state = {
     soundVolume: Number(roomSoundVolumeInput.value) / 100,
     durationSec: Number(roomDurationInput.value),
     hold: false,
+    roomState: { ...ROOM_STATE_DEFAULT },
   },
   runningAnimations: [],
   preview: {
@@ -500,6 +509,7 @@ const state = {
   dashboardZone: "trigger",
   hitareaCalibrationByBoard: {},
   roomGeometryByBoard: {},
+  roomStateProfilesByBoard: {},
   specialPolygonsByBoard: {},
   shipPolygonsByBoard: {},
   outsideFxByBoard: {},
@@ -1162,6 +1172,7 @@ function createDefaultBoardProfiles() {
       {
         hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
         roomGeometry: createDefaultRoomGeometryMap(board.id),
+        roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
         specialPolygons: createDefaultSpecialPolygonMap(board.id),
         shipPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
         outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
@@ -1177,6 +1188,7 @@ function buildBoardProfilesFromState() {
       {
         hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
+        roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
         specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
         shipPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
         outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
@@ -1196,6 +1208,12 @@ function applyBoardProfilesToState(profiles) {
     BOARDS.map((board) => [
       board.id,
       normalizeRoomGeometryMap(profiles?.[board.id]?.roomGeometry, board.id),
+    ]),
+  );
+  state.roomStateProfilesByBoard = Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizeRoomStateProfileMap(profiles?.[board.id]?.roomStateProfiles, board.id),
     ]),
   );
   state.specialPolygonsByBoard = Object.fromEntries(
@@ -1232,6 +1250,7 @@ function extractBoardProfilesCandidate(raw) {
   if (
     raw.hitareaCalibrationByBoard ||
     raw.roomGeometryByBoard ||
+    raw.roomStateProfilesByBoard ||
     raw.specialPolygonsByBoard
   ) {
     return Object.fromEntries(
@@ -1240,6 +1259,7 @@ function extractBoardProfilesCandidate(raw) {
         {
           hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
           roomGeometry: raw.roomGeometryByBoard?.[board.id],
+          roomStateProfiles: raw.roomStateProfilesByBoard?.[board.id],
           specialPolygons: raw.specialPolygonsByBoard?.[board.id],
         },
       ]),
@@ -1306,6 +1326,8 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
         HITAREA_CALIBRATION_DEFAULT,
       roomGeometry:
         profile.roomGeometry ?? profile.geometry ?? legacyRoomGeometry[board.id] ?? createDefaultRoomGeometryMap(board.id),
+      roomStateProfiles:
+        profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(board.id),
       specialPolygons:
         profile.specialPolygons ??
         profile.polygons ??
@@ -2396,6 +2418,55 @@ function clampRoomIntensity(value) {
 
 function clampRoomDurationSec(value) {
   return Math.max(1, Math.min(180, value));
+}
+
+function clampAlienCount(value) {
+  return Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
+}
+
+function normalizeRoomStateProfile(profile) {
+  return {
+    broken: Boolean(profile?.broken),
+    burning: Boolean(profile?.burning),
+    alienCount: clampAlienCount(profile?.alienCount),
+    corpse: Boolean(profile?.corpse),
+  };
+}
+
+function createDefaultRoomStateProfileMap(boardId) {
+  const board = getBoard(boardId);
+  return Object.fromEntries(
+    board.rooms.map((room) => [room.id, normalizeRoomStateProfile(ROOM_STATE_DEFAULT)]),
+  );
+}
+
+function createDefaultRoomStateProfilesByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, createDefaultRoomStateProfileMap(board.id)]),
+  );
+}
+
+function normalizeRoomStateProfileMap(profiles, boardId) {
+  const defaults = createDefaultRoomStateProfileMap(boardId);
+  for (const room of getBoard(boardId).rooms) {
+    defaults[room.id] = normalizeRoomStateProfile(profiles?.[room.id]);
+  }
+  return defaults;
+}
+
+function getRoomStateProfile(boardId, roomId) {
+  return normalizeRoomStateProfile(state.roomStateProfilesByBoard?.[boardId]?.[roomId]);
+}
+
+function setRoomStateProfile(boardId, roomId, profile) {
+  if (!state.roomStateProfilesByBoard[boardId]) {
+    state.roomStateProfilesByBoard[boardId] = createDefaultRoomStateProfileMap(boardId);
+  }
+  state.roomStateProfilesByBoard[boardId][roomId] = normalizeRoomStateProfile(profile);
+}
+
+function isSpecialRoomEffect(type) {
+  return SPECIAL_ROOM_EFFECT_IDS.includes(type);
 }
 
 function clampRoomSpeed(value) {
@@ -4319,6 +4390,7 @@ function createAnimation({
   soundVolume = 1,
   hold = false,
   durationSec = 15,
+  roomState = ROOM_STATE_DEFAULT,
 }) {
   return {
     id: `anim-${animationIdCounter++}`,
@@ -4330,6 +4402,7 @@ function createAnimation({
     speed: clampRoomSpeed(speed),
     soundVolume: clampRoomSoundVolume(soundVolume),
     hold,
+    roomState: normalizeRoomStateProfile(roomState),
     durationMs: hold ? null : Math.max(1000, durationSec * 1000),
     startedAt: performance.now(),
   };
@@ -4345,6 +4418,7 @@ function createPreviewQueueItem({
   soundVolume = 1,
   hold = false,
   durationSec = 18,
+  roomState = ROOM_STATE_DEFAULT,
 }) {
   return {
     id: `preview-${previewItemIdCounter++}`,
@@ -4356,6 +4430,7 @@ function createPreviewQueueItem({
     speed: scope === "room" ? clampRoomSpeed(speed) : 1,
     soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
     hold: Boolean(hold),
+    roomState: normalizeRoomStateProfile(roomState),
     durationSec: hold ? null : Math.max(1, Math.round(durationSec)),
     queuedAt: Date.now(),
   };
@@ -4454,6 +4529,7 @@ function stageRoomDraftToPreview() {
     soundVolume: state.roomDraft.soundVolume,
     hold: state.roomDraft.hold,
     durationSec: state.roomDraft.durationSec,
+    roomState: state.roomDraft.roomState,
   });
   state.preview.queue.push(item);
   renderPreviewQueue();
@@ -4552,6 +4628,7 @@ function previewItemToAnimation(item) {
     intensity: item.scope === "room" ? item.intensity : 1,
     speed: item.scope === "room" ? item.speed : 1,
     soundVolume: item.scope === "room" ? item.soundVolume : 1,
+    roomState: item.scope === "room" ? item.roomState : ROOM_STATE_DEFAULT,
     hold: Boolean(item.hold),
     durationSec: item.hold ? 0 : item.durationSec ?? 18,
   });
@@ -4692,6 +4769,7 @@ function startRoomAnimationFromDraft() {
     soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
     hold: state.roomDraft.hold,
     durationMs: state.roomDraft.hold ? null : Math.max(1000, clampRoomDurationSec(state.roomDraft.durationSec) * 1000),
+    roomState: normalizeRoomStateProfile(state.roomDraft.roomState),
   };
 
   if (state.roomDraft.editTargetId) {
@@ -4725,6 +4803,7 @@ function startRoomAnimationFromDraft() {
     soundVolume: draftPayload.soundVolume,
     hold: draftPayload.hold,
     durationSec: draftPayload.durationMs ? draftPayload.durationMs / 1000 : 0,
+    roomState: draftPayload.roomState,
   });
 
   state.runningAnimations.push(animation);
@@ -6270,6 +6349,7 @@ async function initializeApplication() {
   }
   state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
   state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
+  state.roomStateProfilesByBoard = createDefaultRoomStateProfilesByBoard();
   state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
   state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
