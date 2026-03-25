@@ -102,6 +102,26 @@ function getSession(sessionId) {
   return sessionStore.get(key);
 }
 
+function markClientStale(session, clientId) {
+  if (!clientId || !session.clients.has(clientId)) {
+    return;
+  }
+  const previous = session.clients.get(clientId);
+  session.clients.set(clientId, {
+    ...previous,
+    lastHeartbeatAt: Math.min(previous.lastHeartbeatAt, Date.now() - STALE_CLIENT_TIMEOUT_MS - 1),
+  });
+}
+
+function removeSessionStream(session, stream, { clientId = "" } = {}) {
+  if (!session.streams.has(stream)) {
+    return false;
+  }
+  session.streams.delete(stream);
+  markClientStale(session, clientId);
+  return true;
+}
+
 function listClients(session) {
   return Array.from(session.clients.values()).map((client) => ({
     clientId: client.clientId,
@@ -338,16 +358,21 @@ function handleSessionStream(req, res) {
     return;
   }
 
-  req.on("close", () => {
-    session.streams.delete(res);
-    if (clientId && session.clients.has(clientId)) {
-      const previous = session.clients.get(clientId);
-      session.clients.set(clientId, {
-        ...previous,
-        lastHeartbeatAt: Math.min(previous.lastHeartbeatAt, Date.now() - STALE_CLIENT_TIMEOUT_MS - 1),
-      });
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) {
+      return;
     }
-  });
+    cleanedUp = true;
+    removeSessionStream(session, res, { clientId });
+  };
+
+  req.on("close", cleanup);
+  req.on("aborted", cleanup);
+  req.on("error", cleanup);
+  res.on("close", cleanup);
+  res.on("finish", cleanup);
+  res.on("error", cleanup);
 }
 
 async function handleSessionHeartbeat(req, res) {
