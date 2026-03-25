@@ -4972,7 +4972,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     const step = Math.floor(timeline * 26);
     const burstSeed = flickerNoise(step + 17.13);
     const colorSeed = flickerNoise(step * 0.87 + 91.4);
-    const glitchSeed = flickerNoise(step * 1.47 + 211.8);
+    const sparkSeed = flickerNoise(step * 1.47 + 211.8);
 
     const ambientAlpha = (0.02 + flickerNoise(step * 0.23 + 8.1) * 0.035) * intensity;
     const burstAlpha = burstSeed > 0.86 ? (0.14 + burstSeed * 0.26) * intensity : 0;
@@ -4989,15 +4989,18 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.fillRect(0, 0, w, h);
     }
 
-    if (glitchSeed > 0.74) {
-      const glitchLines = 2 + Math.floor(glitchSeed * 5);
-      for (let i = 0; i < glitchLines; i += 1) {
-        const lineSeed = flickerNoise(step * 2.31 + i * 13.7);
-        const y = lineSeed * h;
-        const thickness = 2 + lineSeed * 7;
-        const lineAlpha = (0.04 + flickerNoise(step * 3.11 + i) * 0.16) * intensity;
-        ctx.fillStyle = `rgba(${overlayColor}, ${Math.min(0.34, lineAlpha)})`;
-        ctx.fillRect(0, y, w, thickness);
+    if (sparkSeed > 0.68) {
+      const sparkCount = 2 + Math.floor(sparkSeed * 6);
+      for (let i = 0; i < sparkCount; i += 1) {
+        const sparkX = flickerNoise(step * 2.31 + i * 13.7) * w;
+        const sparkY = flickerNoise(step * 3.11 + i * 7.3) * h;
+        const sparkSize = 12 + flickerNoise(step * 5.1 + i) * 48;
+        const sparkAlpha = (0.03 + flickerNoise(step * 4.7 + i * 0.5) * 0.12) * intensity;
+        const gradient = ctx.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, sparkSize);
+        gradient.addColorStop(0, `rgba(${overlayColor}, ${Math.min(0.28, sparkAlpha)})`);
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(sparkX - sparkSize, sparkY - sparkSize, sparkSize * 2, sparkSize * 2);
       }
     }
     return;
