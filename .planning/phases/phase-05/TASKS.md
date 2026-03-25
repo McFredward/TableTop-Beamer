@@ -21,7 +21,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 5-2 - Priorisierter Hotfix (execute-ready, zuerst)
 - [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
-- [ ] TODO P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
+- [x] DONE P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
 - [ ] TODO P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
 - [ ] TODO P5-T18 [P0] Retry/Backoff fuer Session-Verbindung stabilisieren (Jitter, Retry-Counter, klarer terminal state bei permanentem Fehler).
 - [ ] TODO P5-T19 [P0] Diagnosepanel im Control-UI erweitern: Endpoint, Verbindungsstatus, letzte Fehlermeldung, Retry-Status, letzter erfolgreicher Connect.

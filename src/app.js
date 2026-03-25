@@ -556,14 +556,17 @@ function isHelperLayerAllowed() {
 }
 
 function shouldRenderOverlay() {
-  return isHelperLayerAllowed();
+  return isHelperLayerAllowed() || state.alignmentOverlayEnabled;
 }
 
 function shouldShowOverlayGuides() {
+  if (isFinalOutputRole()) {
+    return Boolean(state.alignmentOverlayEnabled);
+  }
   if (state.role === "operator") {
     return true;
   }
-  return !isFinalOutputRole() && (state.uiView === "settings" || state.alignmentOverlayEnabled);
+  return true;
 }
 
 function isAudioAllowedForCurrentRole() {
@@ -5894,11 +5897,6 @@ sessionReconnectButton?.addEventListener("click", () => {
 });
 
 alignmentOverlayToggleInput?.addEventListener("change", () => {
-  if (isFinalOutputRole()) {
-    alignmentOverlayToggleInput.checked = false;
-    triggerFeedback.textContent = "Status: Alignment-Overlay ist fuer final-output gesperrt";
-    return;
-  }
   state.alignmentOverlayEnabled = Boolean(alignmentOverlayToggleInput.checked);
   const persisted = persistBoardProfiles();
   applyRoleRenderMode();
