@@ -23,7 +23,7 @@ Exit Criteria:
 ## Phase 2 - Session Betrieb (In Progress)
 Ziel: Schnellstart pro Spielabend, reproduzierbare Kalibrierung, datengetriebene Zonen, Preview/Kombi/Absenden fuer Live-Ausgabe.
 
-Status: 20/35 Tasks abgeschlossen (P2-T1..P2-T10, P2-T26..P2-T35), siehe `.planning/phases/phase-02/2-1-SUMMARY.md`, `.planning/phases/phase-02/2-2-SUMMARY.md`, `.planning/phases/phase-02/2-3-SUMMARY.md`.
+Status: 25/40 Tasks abgeschlossen (P2-T1..P2-T10, P2-T26..P2-T40), siehe `.planning/phases/phase-02/2-1-SUMMARY.md`, `.planning/phases/phase-02/2-2-SUMMARY.md`, `.planning/phases/phase-02/2-3-SUMMARY.md`, `.planning/phases/phase-02/2-4-SUMMARY.md`.
 
 Milestones:
 1. Core Data: Profile + Zone-JSON.

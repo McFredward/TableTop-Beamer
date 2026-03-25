@@ -9,10 +9,10 @@
 - Planning Mode: active
 - Current Phase: 2
 - Current Phase Key: phase-02
-- Last Prepared: 2026-03-24
+- Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 2-3
-- Last Execution Summary: `.planning/phases/phase-02/2-3-SUMMARY.md`
+- Last Executed Plan: 2-4
+- Last Execution Summary: `.planning/phases/phase-02/2-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -167,21 +167,27 @@
 - Phase-2 Plan 1 fuehrt mobilen Dashboard-Fokus explizit als Zonenmodell (`Triggern`/`Running managen`) statt Mischpanel.
 - `Clear All` ist im Mobile-Flow aus Triggerflaechen entkoppelt und nur ueber Running-Management mit Doppelbestaetigung ausfuehrbar.
 - Orientation-Wechsel wird zusaetzlich ueber Runtime-Regression auf State-Drift geprueft (Board/Room/View/Running-IDs stabil).
-- Verpflichtendes Feedback fuer Phase 2 ist gesetzt: Global-Defaults-Bugfix fuer neue Geraete, Settings-Button `Defaults laden & anwenden`, Mobile-Sticky-Schutz ohne Content-Ueberdeckung.
+- Verpflichtendes Feedback fuer Phase 2 ist gesetzt: Global-Defaults-Bugfix fuer neue Geraete, Settings-Button `Defaults laden & anwenden`, Mobile-Top-Control-Schutz ohne Content-Ueberdeckung.
 - Bootstrap-Regel (Phase 2): leerer/fehlender Local Storage ist ein verpflichtender Fallback-Fall; globale Defaults werden automatisch geladen und direkt angewendet.
 - Settings-Regel (Phase 2): `Defaults laden & anwenden` zieht globale Defaults bewusst nach und aktualisiert den aktuellen Laufzeitzustand ohne Neustart.
-- Mobile-Layout-Regel (Phase 2): oberer Dashboard-Bereich bleibt auf Mobile konsistent sticky/fixiert mit sauberem Offset; Trigger-/Running-Cluster duerfen keinen Scroll-Content verdecken.
-- Desktop-Paritaets-Regel (Phase 2): Mobile-Sticky-Anpassungen sind breakpoint-begrenzt; Desktop-Verhalten bleibt unveraendert.
-- Phase-2 Plan 2 setzt Prioritaetsfokus: P2-T26..P2-T30 (Global-Defaults-Bootstrap, Startup-Guard, Settings-Reapply, Mobile-Sticky, Desktop-Paritaet).
+- Mobile-Layout-Regel (Phase 2): Mobile Top-Controls folgen dem normalen Dokumentfluss; Trigger-/Running-Cluster duerfen keinen Scroll-Content verdecken.
+- Desktop-Paritaets-Regel (Phase 2): Mobile-Layout-Anpassungen sind breakpoint-begrenzt; Desktop-Verhalten bleibt unveraendert.
+- Phase-2 Plan 2 setzt Prioritaetsfokus: P2-T26..P2-T30 (Global-Defaults-Bootstrap, Startup-Guard, Settings-Reapply, Mobile-Top-Control-Flow, Desktop-Paritaet).
 - Startup-Fallback fuer neue/geleerte Geraete ist jetzt explizit abgesichert: Empty-Storage wird als Pflichtfall verfolgt (`applied` oder `failed-explicit`), nie still uebersprungen.
 - Settings besitzt `Defaults laden & anwenden`; globale Defaults werden ohne Neustart in den laufenden Runtime-Zustand uebernommen.
-- Mobile Dashboard nutzt eine top-sticky Shell ohne Content-Overlap; Desktop-Paritaet wird in Runtime-Regression + P2-T30-Protokoll nachgewiesen.
-- Neues verpflichtendes Feedback fuer Phase 2 ist gesetzt: P0-Bugfix fuer Mobile-Cluster-Overlap zur Board-Projektionsflaeche plus robuste, immer sichtbare Navigation `Dashboard` <-> `Settings`.
+- Mobile Dashboard nutzt eine topnahe Steuerzone im normalen Scrollfluss ohne Content-Overlap; Desktop-Paritaet wird in Runtime-Regression + P2-T30-Protokoll nachgewiesen.
+- Neues verpflichtendes Feedback fuer Phase 2 ist gesetzt: P0-Bugfix fuer Mobile-Cluster-Overlap zur Board-Projektionsflaeche plus robuste, verlaesslich erreichbare Navigation `Dashboard` <-> `Settings`.
 - Projektions-Regel (Phase 2, Plan-Update 3): oberes Mobile-Cluster darf Board-Flaeche beim Scrollen nicht ueberdecken; Board bleibt sichtbar und bedienbar.
-- Navigations-Regel (Phase 2, Plan-Update 3): Dashboard-Button in `Settings` bleibt persistent sichtbar; kein Navigations-Dead-End bei Scroll/Orientation/Resize/View-Switch.
-- Mobile-Sticky-Cluster wird per Runtime-Offset unterhalb der Projektionsflaeche verankert; Board bleibt bei Scroll sichtbar und interaktiv.
+- Navigations-Regel (Phase 2, Plan-Update 3): Dashboard-Button in `Settings` bleibt robust erreichbar; kein Navigations-Dead-End bei Scroll/Orientation/Resize/View-Switch.
+- Mobile-Control-Cluster wird per Runtime-Offset unterhalb der Projektionsflaeche verankert; Board bleibt bei Scroll sichtbar und interaktiv.
 - Primary-View-Navigation (`Dashboard`/`Settings`) ist strukturell persistent und nicht mehr an Dashboard-only-Sichtbarkeit gebunden.
 - Navigation/Projection-Resilienz wird ueber kombinierte Guards fuer Scroll, Orientation, Resize und View-Switch regressionsgeprueft.
+- Neues verpflichtendes Feedback fuer Phase 2 (Plan-Update 4) ist gesetzt: P0-Hotfix fuer non-sticky `Dashboard`/`Settings` und finales No-Overlay-Mobile-Layout (Referenz `debug/screenshot_debug.jpg`).
+- Top-Control-Regel (Phase 2, Plan-Update 4): `Dashboard`/`Settings` sind am Scroll-Start sichtbar, aber explizit nicht sticky/fixiert und duerfen beim Scrollen normal verschwinden.
+- Trigger-Layout-Regel (Phase 2, Plan-Update 4): `Triggern`/`Running managen`/`Raum starten` ueberdecken die Board-Flaeche in keinem mobilen Zustand.
+- No-Overlay-Regel (Phase 2, Plan-Update 4): Scroll, Orientation-Wechsel, Resize und View-Switch behalten Board-Sichtbarkeit und Interaktion ohne Control-Overlay.
+- Mobile Dashboard/Settings und Trigger-Cluster gelten in Plan-Update 4 als harte Non-Sticky-Regel (nur normaler Dokumentfluss auf Mobile).
+- Board-Containment-Verification nutzt fuer Plan-Update 4 kombinierte Style-Checks (kein sticky/fixed) und Multi-Point Pointer-Probes.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -402,3 +408,12 @@
   - `.planning/phases/phase-02/P2-T35-NAV-AND-PROJECTION-VERIFIKATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 2 Plan 4)
+- Status: completed
+- Summary: `.planning/phases/phase-02/2-4-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`5110c2f`, `47d5867`, `4d25bb6`, `b6aefb7`, `ad06399`)
+- Evidence:
+  - `.planning/phases/phase-02/P2-T40-MOBILE-NO-OVERLAY-VERIFIKATION.md`
+  - `debug/screenshot_debug.jpg` (Vorher-Referenz)
+  - `node --check src/app.js` (Regression Syntax Check)
