@@ -7268,4 +7268,4 @@ async function initializeApplication() {
   requestAnimationFrame(draw);
 }
 
-void initializeApplication();
+void window.TT_BEAMER_BOOT.run(initializeApplication);
