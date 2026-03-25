@@ -5454,6 +5454,34 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
+  if (type === "special-decompression") {
+    const rings = Math.max(4, Math.round(7 * intensity));
+    const maxRadius = Math.max(roomWidth, roomHeight) * 0.72;
+    for (let i = 0; i < rings; i += 1) {
+      const progress = ((age * 0.9 + i / rings) % 1);
+      const radius = Math.max(6, progress * maxRadius);
+      const alpha = (1 - progress) * 0.38 * intensity;
+      ctx.strokeStyle = `rgba(178, 230, 255, ${alpha})`;
+      ctx.lineWidth = Math.max(1.5, roomWidth * 0.01);
+      ctx.beginPath();
+      ctx.arc(roomX, roomY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const streaks = 14;
+    for (let i = 0; i < streaks; i += 1) {
+      const angle = (Math.PI * 2 * i) / streaks + age * 1.2;
+      const inner = Math.max(10, Math.min(roomWidth, roomHeight) * 0.1);
+      const outer = maxRadius * (0.8 + Math.sin(age * 2 + i) * 0.1);
+      ctx.strokeStyle = `rgba(212, 245, 255, ${(0.12 + ((i % 3) * 0.04)) * intensity})`;
+      ctx.lineWidth = Math.max(1, roomWidth * 0.006);
+      ctx.beginPath();
+      ctx.moveTo(roomX + Math.cos(angle) * inner, roomY + Math.sin(angle) * inner);
+      ctx.lineTo(roomX + Math.cos(angle) * outer, roomY + Math.sin(angle) * outer);
+      ctx.stroke();
+    }
+    return;
+  }
+
   if (type === ROOM_STATE_COMBO_ANIMATION_ID) {
     const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.72);
     g.addColorStop(0, `rgba(123, 201, 255, ${0.08 * intensity})`);
