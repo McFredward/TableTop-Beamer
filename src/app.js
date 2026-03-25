@@ -560,6 +560,9 @@ function shouldRenderOverlay() {
 }
 
 function shouldShowOverlayGuides() {
+  if (state.role === "operator") {
+    return true;
+  }
   return !isFinalOutputRole() && (state.uiView === "settings" || state.alignmentOverlayEnabled);
 }
 

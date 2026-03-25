@@ -10,7 +10,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T4 [P0] Final-Output-Renderroute einbauen: Board-Hintergrund, Polygon-Overlay, Handles und Raumlabels fuer Rolle `final-output` unterdruecken.
 - [x] DONE P5-T5 [P0] Render-Layer-Guard zentralisieren, damit `final-output` niemals Editor-/Settings-Hilfselemente rendert.
 - [x] DONE P5-T6 [P0] Alignment-Mode-Toggle in UI + Session-State + Persistenz integrieren.
-- [x] DONE P5-T7 [P0] Rollenregel fuer Alignment-Mode durchsetzen: Toggle wirkt nur auf `operator`/`alignment`, nicht auf `final-output`.
+- [x] DONE P5-T7 [P0] Erste Rollenregel fuer Alignment-Mode umgesetzt (wird durch Plan-5-2-Hotfix semantisch korrigiert).
 - [x] DONE P5-T8 [P0] Realtime-Sync fuer Trigger/Edit/Stop/Clear-All als verbindlichen Event-Contract stabilisieren.
 - [ ] TODO P5-T9 [P0] Running-Instanzen clientuebergreifend konsistent replizieren (IDs, Parameter, lifecycle, stop reasons).
 - [ ] TODO P5-T10 [P0] Snapshot-/Delta-Drift-Guard ergaenzen (Out-of-order events, missed packets, full-resync fallback).
@@ -19,6 +19,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [ ] TODO P5-T13 [P0] 3-Device-Verifikationsprotokoll erstellen (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output).
 - [ ] TODO P5-T14 [P0] Plan-5-1-Fokusregression dokumentieren (clean final output, realtime sync, alignment toggle, audio role isolation).
 
+## Plan 5-2 - Priorisierter Hotfix (execute-ready, zuerst)
+- [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
+- [ ] TODO P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
+- [ ] TODO P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
+- [ ] TODO P5-T18 [P0] Retry/Backoff fuer Session-Verbindung stabilisieren (Jitter, Retry-Counter, klarer terminal state bei permanentem Fehler).
+- [ ] TODO P5-T19 [P0] Diagnosepanel im Control-UI erweitern: Endpoint, Verbindungsstatus, letzte Fehlermeldung, Retry-Status, letzter erfolgreicher Connect.
+- [ ] TODO P5-T20 [P0] Session-/Diagnose-Events strukturieren und im UI konsistent ausgeben (kein Rohfehler-Noise, klare Feldhinweise).
+- [ ] TODO P5-T21 [P0] 3-Device-Hotfix-Verifikation dokumentieren (Operator immer Overlay, Final-Output Toggle-Verhalten, Connect-Failure-Recovery).
+- [ ] TODO P5-T22 [P0] Hotfix-Regressionsprotokoll finalisieren und als Gate fuer Rest von Plan 5-1 markieren.
+
 ## Optional direkt danach (P1)
-- [ ] TODO P5-T15 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
-- [ ] TODO P5-T16 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.
+- [ ] TODO P5-T23 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
+- [ ] TODO P5-T24 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.
