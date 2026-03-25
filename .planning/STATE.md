@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 3
-- Current Phase Key: phase-03
+- Current Phase: 4
+- Current Phase Key: phase-04
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-4
-- Planned Next Execution: TBD
-- Last Execution Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
+- Last Executed Plan: 4-1
+- Planned Next Execution: 4-2
+- Last Execution Summary: `.planning/phases/phase-04/4-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -224,6 +224,11 @@
 - Regression-Regel Plan-Update 3-4: Running-Liste 1:1, hold-by-default und raumstrenges Clipping bleiben Pflicht-Gates ohne Regression.
 - Plan-Update-3-4 Umsetzung: GIF-Playback ist decoder-agnostisch; bei fehlendem `ImageDecoder` liefert der Parser-Fallback echte Frame-Loops statt Standbild.
 - Plan-Update-3-4 Umsetzung: GIF-Renderpfad zeichnet nur Timeline-Frames (kein Erstframe-Fallback), waehrend `opacity`/`playbackSpeed` pro Instanz unveraendert isoliert bleiben.
+- Phase-4 Planung ist vorbereitet: umfassendes Refactoring fuer Wartbarkeit mit modularer Zielarchitektur statt monolithischem `src/app.js`.
+- Phase-4 Scope-Regel: Verhaltensparitaet ist verpflichtend fuer Dashboard/Settings, Room-Animationen, GIF-Playback, Persistenz, Save/API und mobile UX.
+- Phase-4 Migrationsregel: inkrementelle Extraktion (Config/State/API/Persistenz/GIF/Render/UI) mit Pflicht-Regressionsgate nach jedem Block.
+- Phase-4 Plan 4-1 extrahiert Config/Normalizer/State/Persistenz/API als modulare Facades, waehrend Runtime-Paritaet ueber bestehende App-Callsites erhalten bleibt.
+- Save/Load fuer Global Defaults laeuft ab Plan 4-1 ueber eine dedizierte API-Facade mit unveraenderter Resolver-/Preflight-/Error-Semantik.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -506,3 +511,12 @@
   - `.planning/phases/phase-03/P3-T36-BROWSER-MATRIX-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 4 Plan 1)
+- Status: completed
+- Summary: `.planning/phases/phase-04/4-1-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`c8a36be`, `3bc677b`, `f822097`, `bf889dd`, `480b5d3`, `6186e3c`, `8ad1af8`)
+- Evidence:
+  - `.planning/phases/phase-04/P4-T7-SMOKE-REGRESSION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `GET /api/health=200`, `OPTIONS /api/global-defaults=204`, `POST/GET /api/global-defaults=200` (Port 4199)
