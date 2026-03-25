@@ -60,7 +60,15 @@ completed: 2026-03-25
 5. **P4-T21 (Regression dokumentieren)** - `c8ad4b1` (test)
 
 ## Deviations from Plan
-None - plan executed exactly as written.
+
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools state/*` automation was incompatible with current STATE/ROADMAP format**
+- **Found during:** post-task state update
+- **Issue:** `state advance-plan`, `state update-progress`, `state record-metric`, `state add-decision`, `state record-session` and `roadmap update-plan-progress` returned parse/not-found errors against existing planning file structure.
+- **Fix:** Applied equivalent lifecycle/decision/progress updates manually in `.planning/STATE.md` and `.planning/ROADMAP.md`, then committed via metadata docs commit.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Commit:** `974e74e`
 
 ## Auth Gates
 None.
