@@ -592,6 +592,33 @@ const state = {
     frameCostSamples: [],
     qualityScale: 1,
   },
+  renderTelemetry: {
+    frameCount: 0,
+    lastFrameAt: 0,
+    lastFrameCostMs: 0,
+    lastTick: {
+      outsideLayerErrors: 0,
+      animationLayerErrors: 0,
+      clipErrors: 0,
+      schedulerErrors: 0,
+      totalErrors: 0,
+    },
+    totals: {
+      outsideLayerErrors: 0,
+      animationLayerErrors: 0,
+      clipErrors: 0,
+      schedulerErrors: 0,
+    },
+    clipFallbacks: {
+      outsideEvenOddFallback: 0,
+      outsideCompositeFallback: 0,
+      insideInvalidPolygon: 0,
+    },
+    faultInjection: {
+      outsideLayerFailOnce: false,
+      clipFailOnce: false,
+    },
+  },
   renderWatchdog: {
     consecutiveInvisibleFrames: 0,
     lastVisibleFrameAt: 0,
@@ -2999,6 +3026,96 @@ function getRuntimeQualityScale() {
   return Math.max(0.68, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
 }
 
+function createEmptyRenderTickStats() {
+  return {
+    outsideLayerErrors: 0,
+    animationLayerErrors: 0,
+    clipErrors: 0,
+    schedulerErrors: 0,
+    totalErrors: 0,
+  };
+}
+
+function beginRenderTick(now) {
+  state.renderTelemetry.lastTick = createEmptyRenderTickStats();
+  if (Number.isFinite(now)) {
+    state.renderTelemetry.lastFrameAt = now;
+  }
+}
+
+function recordRenderTickError(kind) {
+  const bucketByKind = {
+    outside: "outsideLayerErrors",
+    animation: "animationLayerErrors",
+    clip: "clipErrors",
+    scheduler: "schedulerErrors",
+  };
+  const bucket = bucketByKind[kind] ?? "schedulerErrors";
+  state.renderTelemetry.lastTick[bucket] += 1;
+  state.renderTelemetry.lastTick.totalErrors += 1;
+  state.renderTelemetry.totals[bucket] += 1;
+}
+
+function recordRenderClipFallback(kind) {
+  if (!Object.prototype.hasOwnProperty.call(state.renderTelemetry.clipFallbacks, kind)) {
+    return;
+  }
+  state.renderTelemetry.clipFallbacks[kind] += 1;
+}
+
+function finalizeRenderTick(frameCostMs) {
+  state.renderTelemetry.frameCount += 1;
+  state.renderTelemetry.lastFrameCostMs = Number.isFinite(frameCostMs) ? frameCostMs : 0;
+}
+
+function consumeRenderFaultInjectionFlag(key) {
+  if (!state.renderTelemetry.faultInjection[key]) {
+    return false;
+  }
+  state.renderTelemetry.faultInjection[key] = false;
+  return true;
+}
+
+function getRenderTelemetrySnapshot() {
+  return {
+    frameCount: state.renderTelemetry.frameCount,
+    lastFrameAt: state.renderTelemetry.lastFrameAt,
+    lastFrameCostMs: state.renderTelemetry.lastFrameCostMs,
+    lastTick: { ...state.renderTelemetry.lastTick },
+    totals: { ...state.renderTelemetry.totals },
+    clipFallbacks: { ...state.renderTelemetry.clipFallbacks },
+  };
+}
+
+function installRenderReproHarness() {
+  window.__TT_BEAMER_RENDER_HARNESS__ = {
+    injectOutsideLayerFailureOnce() {
+      state.renderTelemetry.faultInjection.outsideLayerFailOnce = true;
+      return getRenderTelemetrySnapshot();
+    },
+    injectClipFailureOnce() {
+      state.renderTelemetry.faultInjection.clipFailOnce = true;
+      return getRenderTelemetrySnapshot();
+    },
+    getSnapshot() {
+      return getRenderTelemetrySnapshot();
+    },
+    resetCounters() {
+      state.renderTelemetry.frameCount = 0;
+      state.renderTelemetry.lastFrameAt = 0;
+      state.renderTelemetry.lastFrameCostMs = 0;
+      state.renderTelemetry.lastTick = createEmptyRenderTickStats();
+      state.renderTelemetry.totals = createEmptyRenderTickStats();
+      state.renderTelemetry.clipFallbacks = {
+        outsideEvenOddFallback: 0,
+        outsideCompositeFallback: 0,
+        insideInvalidPolygon: 0,
+      };
+      return getRenderTelemetrySnapshot();
+    },
+  };
+}
+
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -5167,6 +5284,9 @@ function applyOutputRoute(route) {
 }
 
 function clipToPolygon(polygon, { evenodd = false } = {}) {
+  if (consumeRenderFaultInjectionFlag("clipFailOnce")) {
+    throw new Error("Render harness injected clip failure");
+  }
   if (!Array.isArray(polygon) || polygon.length < 3) {
     ctx.beginPath();
     ctx.rect(0, 0, 0, 0);
@@ -5292,6 +5412,9 @@ function drawOutsideFxLayer(now) {
   const outside = getOutsideFxProfile(state.boardId);
   if (!outside.enabled) {
     return;
+  }
+  if (consumeRenderFaultInjectionFlag("outsideLayerFailOnce")) {
+    throw new Error("Render harness injected outside layer failure");
   }
   ctx.save();
   try {
@@ -5772,6 +5895,7 @@ function pruneFinishedAnimations(now) {
 
 function draw(now) {
   const frameStart = performance.now();
+  beginRenderTick(now);
   try {
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
@@ -5821,7 +5945,9 @@ function draw(now) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }
-    recordRuntimeFrameCost(performance.now() - frameStart);
+    const frameCostMs = performance.now() - frameStart;
+    finalizeRenderTick(frameCostMs);
+    recordRuntimeFrameCost(frameCostMs);
   } finally {
     requestAnimationFrame(draw);
   }
@@ -6786,6 +6912,7 @@ async function initializeApplication() {
   warmEventSoundAssets();
   setActiveView("dashboard");
   setPanCursorState();
+  installRenderReproHarness();
   const viewRegressionOk = runViewVisibilityRegression();
   const layoutRegressionOk = runLayoutScrollRegression();
   const startupGuardRegressionOk = runStartupDefaultsGuardRegression();
