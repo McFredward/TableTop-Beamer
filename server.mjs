@@ -101,10 +101,21 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
 function encodeWebSocketTextFrame(message) {
   const payload = Buffer.from(message, "utf8");
   const payloadLength = payload.length;
-  if (payloadLength >= 126) {
-    throw new Error("websocket payload too large for lightweight encoder");
+  if (payloadLength < 126) {
+    return Buffer.concat([Buffer.from([0x81, payloadLength]), payload]);
   }
-  return Buffer.concat([Buffer.from([0x81, payloadLength]), payload]);
+  if (payloadLength < 65536) {
+    const header = Buffer.alloc(4);
+    header[0] = 0x81;
+    header[1] = 126;
+    header.writeUInt16BE(payloadLength, 2);
+    return Buffer.concat([header, payload]);
+  }
+  const header = Buffer.alloc(10);
+  header[0] = 0x81;
+  header[1] = 127;
+  header.writeBigUInt64BE(BigInt(payloadLength), 2);
+  return Buffer.concat([header, payload]);
 }
 
 function decodeWebSocketTextFrame(chunk) {
@@ -121,14 +132,33 @@ function decodeWebSocketTextFrame(chunk) {
     return null;
   }
   const masked = (secondByte & 0x80) === 0x80;
-  const payloadLength = secondByte & 0x7f;
-  if (!masked || payloadLength >= 126) {
+  const initialPayloadLength = secondByte & 0x7f;
+  if (!masked) {
     return null;
   }
-  if (chunk.length < 2 + 4 + payloadLength) {
+  let payloadLength = initialPayloadLength;
+  let cursor = 2;
+  if (initialPayloadLength === 126) {
+    if (chunk.length < cursor + 2) {
+      return null;
+    }
+    payloadLength = chunk.readUInt16BE(cursor);
+    cursor += 2;
+  } else if (initialPayloadLength === 127) {
+    if (chunk.length < cursor + 8) {
+      return null;
+    }
+    const value = Number(chunk.readBigUInt64BE(cursor));
+    if (!Number.isFinite(value) || value > 8 * 1024 * 1024) {
+      return null;
+    }
+    payloadLength = value;
+    cursor += 8;
+  }
+  if (chunk.length < cursor + 4 + payloadLength) {
     return null;
   }
-  const maskOffset = 2;
+  const maskOffset = cursor;
   const payloadOffset = maskOffset + 4;
   const mask = chunk.subarray(maskOffset, maskOffset + 4);
   const payload = chunk.subarray(payloadOffset, payloadOffset + payloadLength);
