@@ -8,7 +8,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P4-T2 [P0] Zentrale Constants/Config (`boards`, animation maps, defaults, storage keys) in dedizierte Module extrahieren.
 - [x] DONE P4-T3 [P0] Pure Helper/Normalizer-Cluster auslagern (Zone-Validation, Geometry-Normalizer, Sound-Mapping-Helper).
 - [x] DONE P4-T4 [P0] State-Kern extrahieren (`state`, defaults, selector helper) und bestehende Aufrufe auf Modul-API umstellen.
-- [ ] TODO P4-T5 [P0] Persistenz-Schicht extrahieren (Board-Profiles, Legacy-Migration, LocalStorage read/write) mit unveraendertem Datenformat.
+- [x] DONE P4-T5 [P0] Persistenz-Schicht extrahieren (Board-Profiles, Legacy-Migration, LocalStorage read/write) mit unveraendertem Datenformat.
 - [ ] TODO P4-T6 [P0] API-Schicht extrahieren (Resolver, Preflight, Save/Load, Error-Klassifikation) und Save-Flow auf Facade umstellen.
 - [ ] TODO P4-T7 [P0] Smoke-Regression fuer P4-T1..P4-T6 dokumentieren (`node --check`, Save/Load, Startup, View-Switch).
 

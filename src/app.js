@@ -242,6 +242,15 @@ const {
   clampRoomAbsoluteCoordinate,
 } = window.TT_BEAMER_NORMALIZERS;
 
+const {
+  writeJson: writePersistenceJson,
+  extractBoardProfilesCandidate: extractBoardProfilesCandidateFromPersistence,
+  loadLegacyRoomGeometryByBoard: loadLegacyRoomGeometryByBoardFromPersistence,
+  loadLegacySpecialPolygonsByBoard: loadLegacySpecialPolygonsByBoardFromPersistence,
+  loadHitareaCalibrationMap: loadHitareaCalibrationMapFromPersistence,
+  buildMigratedBoardProfiles: buildMigratedBoardProfilesFromPersistence,
+} = window.TT_BEAMER_PERSISTENCE;
+
 function getGlobalAnimationCategory(animationType) {
   return getGlobalAnimationCategoryFromModule(animationType, GLOBAL_ANIMATIONS);
 }
@@ -690,115 +699,44 @@ function applyBoardProfilesToState(profiles) {
 }
 
 function extractBoardProfilesCandidate(raw) {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-
-  if (raw.boards && typeof raw.boards === "object") {
-    return raw.boards;
-  }
-
-  if (raw.boardProfiles && typeof raw.boardProfiles === "object") {
-    return raw.boardProfiles;
-  }
-
-  if (
-    raw.hitareaCalibrationByBoard ||
-    raw.roomGeometryByBoard ||
-    raw.roomStateProfilesByBoard ||
-    raw.specialPolygonsByBoard
-  ) {
-    return Object.fromEntries(
-      BOARDS.map((board) => [
-        board.id,
-        {
-          hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
-          roomGeometry: raw.roomGeometryByBoard?.[board.id],
-          roomStateProfiles: raw.roomStateProfilesByBoard?.[board.id],
-          specialPolygons: raw.specialPolygonsByBoard?.[board.id],
-        },
-      ]),
-    );
-  }
-
-  const hasBoardKeys = BOARDS.some((board) => raw[board.id] && typeof raw[board.id] === "object");
-  if (hasBoardKeys) {
-    return raw;
-  }
-
-  return null;
+  return extractBoardProfilesCandidateFromPersistence(raw, BOARDS);
 }
 
 function loadLegacyRoomGeometryByBoard() {
-  const defaults = createDefaultRoomGeometryByBoard();
-  try {
-    const raw = window.localStorage.getItem(ROOM_GEOMETRY_STORAGE_KEY);
-    if (!raw) {
-      return defaults;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of BOARDS) {
-      defaults[board.id] = normalizeRoomGeometryMap(parsed[board.id], board.id);
-    }
-    return defaults;
-  } catch {
-    return defaults;
-  }
+  return loadLegacyRoomGeometryByBoardFromPersistence({
+    storage: window.localStorage,
+    key: ROOM_GEOMETRY_STORAGE_KEY,
+    boards: BOARDS,
+    createDefault: createDefaultRoomGeometryByBoard,
+    normalizeMap: normalizeRoomGeometryMap,
+  });
 }
 
 function loadLegacySpecialPolygonsByBoard() {
-  const defaults = createDefaultSpecialPolygonsByBoard();
-  try {
-    const raw = window.localStorage.getItem(SPECIAL_POLYGON_STORAGE_KEY);
-    if (!raw) {
-      return defaults;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of BOARDS) {
-      defaults[board.id] = normalizeSpecialPolygonMap(parsed[board.id], board.id);
-    }
-    return defaults;
-  } catch {
-    return defaults;
-  }
+  return loadLegacySpecialPolygonsByBoardFromPersistence({
+    storage: window.localStorage,
+    key: SPECIAL_POLYGON_STORAGE_KEY,
+    boards: BOARDS,
+    createDefault: createDefaultSpecialPolygonsByBoard,
+    normalizeMap: normalizeSpecialPolygonMap,
+  });
 }
 
 function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry, legacySpecialPolygons) {
-  const migrated = createDefaultBoardProfiles();
-  for (const board of BOARDS) {
-    const profile = candidate?.[board.id] ?? {};
-    migrated[board.id] = {
-      hitareaCalibration:
-        profile.hitareaCalibration ??
-        profile.hitarea ??
-        legacyHitarea[board.id] ??
-        HITAREA_CALIBRATION_DEFAULT,
-      roomGeometry:
-        profile.roomGeometry ?? profile.geometry ?? legacyRoomGeometry[board.id] ?? createDefaultRoomGeometryMap(board.id),
-      roomStateProfiles:
-        profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(board.id),
-      specialPolygons:
-        profile.specialPolygons ??
-        profile.polygons ??
-        legacySpecialPolygons[board.id] ??
-        createDefaultSpecialPolygonMap(board.id),
-      shipPolygon:
-        profile.shipPolygon ??
-        profile.shipMask ??
-        SHIP_POLYGON_DEFAULT,
-      outsideFx:
-        profile.outsideFx ??
-        profile.outside ??
-        OUTSIDE_FX_DEFAULT,
-    };
-  }
-  return migrated;
+  return buildMigratedBoardProfilesFromPersistence({
+    boards: BOARDS,
+    candidate,
+    legacyHitarea,
+    legacyRoomGeometry,
+    legacySpecialPolygons,
+    createDefaultBoardProfiles,
+    createDefaultRoomGeometryMap,
+    createDefaultRoomStateProfileMap,
+    createDefaultSpecialPolygonMap,
+    HITAREA_CALIBRATION_DEFAULT,
+    SHIP_POLYGON_DEFAULT,
+    OUTSIDE_FX_DEFAULT,
+  });
 }
 
 function loadBoardProfiles() {
@@ -838,12 +776,7 @@ function loadBoardProfiles() {
 }
 
 function persistBoardProfiles() {
-  try {
-    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildBoardProfilesFromState()));
-    return true;
-  } catch {
-    return false;
-  }
+  return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfilesFromState());
 }
 
 function buildGlobalDefaultsPayload() {
@@ -1606,23 +1539,13 @@ function createDefaultHitareaCalibrationMap() {
 }
 
 function loadHitareaCalibrationMap() {
-  const defaults = createDefaultHitareaCalibrationMap();
-  try {
-    const raw = window.localStorage.getItem(HITAREA_CALIBRATION_STORAGE_KEY);
-    if (!raw) {
-      return defaults;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of BOARDS) {
-      defaults[board.id] = normalizeHitareaCalibration(parsed[board.id]);
-    }
-    return defaults;
-  } catch {
-    return defaults;
-  }
+  return loadHitareaCalibrationMapFromPersistence({
+    storage: window.localStorage,
+    key: HITAREA_CALIBRATION_STORAGE_KEY,
+    boards: BOARDS,
+    createDefault: createDefaultHitareaCalibrationMap,
+    normalize: normalizeHitareaCalibration,
+  });
 }
 
 function persistHitareaCalibrationMap() {
