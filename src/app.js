@@ -5653,22 +5653,16 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "feuer" || type === "schleim") {
     const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const gifImage = getGifImage(gifPath);
-    if (!gifImage?.complete) {
+    const gifFrame = getGifPlaybackFrame(gifPath, age);
+    const gifImage = gifFrame ?? getGifImage(gifPath);
+    if (!gifImage || (!gifFrame && !gifImage.complete)) {
       return;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
-    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
-    const pulse = (Math.sin(age * (0.7 + playbackSpeed * 0.6)) + 1) / 2;
-    const baseScale = 1.02 + pulse * 0.06;
-    const drawWidth = roomWidth * baseScale;
-    const drawHeight = roomHeight * baseScale;
-    const drawX = roomX - drawWidth / 2;
-    const drawY = roomY - drawHeight / 2;
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.drawImage(gifImage, drawX, drawY, drawWidth, drawHeight);
+    ctx.drawImage(gifImage, roomMinX, roomMinY, roomWidth, roomHeight);
     ctx.restore();
     return;
   }

@@ -34,7 +34,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 3-3 - P0 Bugfix echtes GIF-Playback (priorisiert)
 - [x] DONE P3-T26 [P0] Renderer fuer `kaputt` auf natives GIF-Loop-Playback aus `resources/nemesis/animations/malfunction.gif` umstellen (kein Pulse-/Zoom-Ersatz).
-- [ ] TODO P3-T27 [P0] Renderer fuer `feuer` und `schleim` auf natives GIF-Loop-Playback aus `fire.gif`/`final.gif` umstellen (kein Pulse-/Zoom-Ersatz).
+- [x] DONE P3-T27 [P0] Renderer fuer `feuer` und `schleim` auf natives GIF-Loop-Playback aus `fire.gif`/`final.gif` umstellen (kein Pulse-/Zoom-Ersatz).
 - [ ] TODO P3-T28 [P0] Instanzparameter-Paritaet fuer native GIF-Wiedergabe hardenen: `opacity` und `playbackSpeed` bleiben pro Instanz editierbar und querwirkungsfrei.
 - [ ] TODO P3-T29 [P0] Regression-Guard fuer GIF-Raumtrigger nachziehen: Running-List-1:1, hold-by-default und raumstrenges Clipping unveraendert sicherstellen.
 - [ ] TODO P3-T30 [P1] Loop-Playback- und Soak-Nachweise fuer echte GIF-Framefolge dokumentieren (inkl. mindestens einem kompletten Loop-Roundtrip pro GIF).
