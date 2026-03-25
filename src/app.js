@@ -237,6 +237,11 @@ function syncAlignModePanel() {
   }
   document.body.classList.toggle("align-mode-active", enabled);
   if (roomOverlay) {
+    if (outputRole === OUTPUT_ROLE_CONTROL) {
+      roomOverlay.style.display = "";
+      roomOverlay.setAttribute("aria-hidden", "false");
+      return;
+    }
     const hiddenInFinal = outputRole === OUTPUT_ROLE_FINAL && !enabled;
     roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
   }
