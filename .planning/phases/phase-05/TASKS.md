@@ -17,8 +17,8 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T9 [P0] Final-Output: Polygone nur bei aktivem Align-Mode einblenden; im Normalbetrieb ausblenden.
 - [x] DONE P5-T10 [P0] Control-Views: Polygone unabhaengig vom Align-Mode immer sichtbar halten.
 
-- [ ] TODO P5-T11 [P0] Rollenbasierte Audio-Routing-Entscheidung (`control` muted, `final-output` audible) implementieren.
-- [ ] TODO P5-T12 [P0] Audio-Lifecycle-Guard pruefen (`start/loop/stop/clear-all`) mit strikter Output-Rollenbindung.
+- [x] DONE P5-T11 [P0] Rollenbasierte Audio-Routing-Entscheidung (`control` muted, `final-output` audible) implementieren.
+- [x] DONE P5-T12 [P0] Audio-Lifecycle-Guard pruefen (`start/loop/stop/clear-all`) mit strikter Output-Rollenbindung.
 
 - [ ] TODO P5-T13 [P0] Persistentes Server-Logging als append-only Datei integrieren (konfigurierbarer Pfad, Rotation optional vorbereitet).
 - [ ] TODO P5-T14 [P0] Strukturierte Log-Events fuer Session-Events, State-Aenderungen und Fehler schreiben.

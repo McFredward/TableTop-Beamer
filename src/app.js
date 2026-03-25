@@ -358,6 +358,7 @@ function applyLiveRuntimeSnapshot(snapshot) {
   } else if (typeof runtime.alignMode === "boolean") {
     state.alignMode = runtime.alignMode;
   }
+  enforceAudioLifecycleGuard();
   stopSoundsForInactiveAnimations();
   for (const animation of state.runningAnimations) {
     playSoundForAnimation(animation);
@@ -3940,8 +3941,19 @@ function finishPolygonAreaDrag(event, { cancel = false } = {}) {
 
 function syncAudioStatus() {
   const volumePercent = Math.round(state.audio.volume * 100);
+  const roleMuted = outputRole !== OUTPUT_ROLE_FINAL;
   const mode = state.audio.enabled ? "ON" : "OFF";
-  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
+  audioStatus.textContent = roleMuted
+    ? `Audio: stumm in Control-View (Final-Output-only, Mapping ${mode}, ${volumePercent}%)`
+    : `Audio: ${mode} (${volumePercent}%)`;
+}
+
+function isOutputAudibleRole() {
+  return outputRole === OUTPUT_ROLE_FINAL;
+}
+
+function isAudioPlaybackAllowed() {
+  return isOutputAudibleRole() && state.audio.enabled;
 }
 
 function persistRuntimeSoundSettingsChange(failureMessage) {
@@ -3985,14 +3997,14 @@ function warmEventSoundAssets() {
   for (const path of paths) {
     const pool = getAudioAssetPool(path);
     for (const voice of pool) {
-      voice.volume = state.audio.enabled ? state.audio.volume : 0;
+      voice.volume = isAudioPlaybackAllowed() ? state.audio.volume : 0;
       voice.load();
     }
   }
 }
 
 function applyAudioGain() {
-  const targetVolume = state.audio.enabled ? state.audio.volume : 0;
+  const targetVolume = isAudioPlaybackAllowed() ? state.audio.volume : 0;
   for (const pool of audioAssetPoolByPath.values()) {
     for (const voice of pool) {
       voice.volume = targetVolume;
@@ -4002,7 +4014,7 @@ function applyAudioGain() {
     if (!active?.voice) {
       continue;
     }
-    const instanceVolume = state.audio.enabled ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1) : 0;
+    const instanceVolume = isAudioPlaybackAllowed() ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1) : 0;
     active.voice.volume = instanceVolume;
     activeAnimationAudioById.set(animationId, {
       ...active,
@@ -4045,8 +4057,18 @@ function stopSoundsForInactiveAnimations() {
   }
 }
 
+function enforceAudioLifecycleGuard() {
+  if (isAudioPlaybackAllowed()) {
+    return;
+  }
+  for (const animationId of Array.from(activeAnimationAudioById.keys())) {
+    stopAnimationSound(animationId);
+  }
+  stopAllAudioVoices();
+}
+
 function playSoundForAnimation(animation) {
-  if (!animation || !state.audio.enabled) {
+  if (!animation || !isAudioPlaybackAllowed()) {
     return;
   }
   const path = getMappedSoundPathForAnimation(animation.type);
@@ -4065,7 +4087,7 @@ function playSoundForAnimation(animation) {
   const onEnded = () => {
     const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
     const stillActive = activeAnimationAudioById.get(animation.id)?.voice === reusable;
-    if (!stillRunning || !stillActive || !state.audio.enabled) {
+    if (!stillRunning || !stillActive || !isAudioPlaybackAllowed()) {
       stopAnimationSound(animation.id);
       return;
     }
@@ -6389,6 +6411,7 @@ audioEnabledInput.addEventListener("change", () => {
     }
   }
   applyAudioGain();
+  enforceAudioLifecycleGuard();
   syncAudioStatus();
   persistRuntimeSoundSettingsChange("Status: Audio-Umschaltung gesetzt, aber Persistenz fehlgeschlagen");
 });
@@ -6596,6 +6619,7 @@ function syncRuntimePanelsFromState() {
   audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
   audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
   applyAudioGain();
+  enforceAudioLifecycleGuard();
   syncAudioStatus();
   syncAudioMappingPanel();
   syncAnimationSpeedPanel();

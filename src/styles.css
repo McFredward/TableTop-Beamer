@@ -58,6 +58,10 @@ body[data-output-role="final-output"] #room-overlay {
   display: none;
 }
 
+body[data-output-role="final-output"].align-mode-active #room-overlay {
+  display: block;
+}
+
 .projection-area {
   position: sticky;
   top: 0;
