@@ -439,6 +439,10 @@ function clampPolygonHandleScale(value) {
   return Math.max(0.1, Math.min(1, Number(value) || 1));
 }
 
+function getCurrentPolygonHandleScale() {
+  return clampPolygonHandleScale(state.polygonEditor.handleScale);
+}
+
 function getPolygonEditorHandleMetrics(zoomScale, handleScale = 1) {
   const safeZoomScale = Math.max(0.1, Number(zoomScale) || 1);
   const inverseZoom = 1 / safeZoomScale;
@@ -1490,7 +1494,7 @@ function syncBoardZoomPanel() {
 }
 
 function syncPolygonHandleSizePanel() {
-  const percent = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  const percent = Math.round(getCurrentPolygonHandleScale() * 100);
   if (polygonHandleSizeInput) {
     polygonHandleSizeInput.value = String(percent);
   }
@@ -3132,7 +3136,7 @@ function syncPolygonEditorStatus() {
   const points = getSpecialPolygonPoints(state.boardId, room.id);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
-  const handleSize = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
   polygonEditorStatus.textContent = `Polygoneditor (${room.name ?? room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
 }
 
@@ -3210,7 +3214,7 @@ function syncShipPolygonEditorStatus() {
   const points = getShipPolygonPoints(state.boardId);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
-  const handleSize = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
   shipPolygonEditorStatus.textContent =
     `Ship-Polygoneditor: ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
 }
@@ -3364,7 +3368,7 @@ function renderShipPolygonEditorHandles() {
     vertexHitRadius,
     vertexHandleRadius,
     vertexLabelSize,
-  } = getPolygonEditorHandleMetrics(zoomScale, state.polygonEditor.handleScale);
+  } = getPolygonEditorHandleMetrics(zoomScale, getCurrentPolygonHandleScale());
 
   const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   maskPolygon.classList.add("ship-zone-mask");
@@ -3484,7 +3488,7 @@ function renderPolygonEditorHandles() {
     vertexHitRadius,
     vertexHandleRadius,
     vertexLabelSize,
-  } = getPolygonEditorHandleMetrics(zoomScale, state.polygonEditor.handleScale);
+  } = getPolygonEditorHandleMetrics(zoomScale, getCurrentPolygonHandleScale());
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
     const [bX, bY] = points[(index + 1) % points.length];
