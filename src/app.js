@@ -46,6 +46,11 @@ const clientRoleSelect = document.querySelector("#client-role-select");
 const sessionReconnectButton = document.querySelector("#session-reconnect");
 const alignmentOverlayToggleInput = document.querySelector("#alignment-overlay-toggle");
 const sessionStatus = document.querySelector("#session-status");
+const sessionEndpointStatus = document.querySelector("#session-endpoint-status");
+const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
+const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
+const sessionRetryStatus = document.querySelector("#session-retry-status");
+const sessionLastSuccessStatus = document.querySelector("#session-last-success-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -386,6 +391,59 @@ function syncSessionStatus(text) {
     return;
   }
   sessionStatus.textContent = text;
+  syncSessionDiagnosticsPanel();
+}
+
+function formatSessionTimestamp(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "-";
+  }
+  try {
+    return new Date(numeric).toLocaleTimeString("de-DE", { hour12: false });
+  } catch {
+    return "-";
+  }
+}
+
+function syncSessionDiagnosticsPanel() {
+  const retry = getSessionRetryState();
+  if (sessionEndpointStatus) {
+    const endpointText = state.session.apiBase
+      ? `${state.session.apiBase} | Quelle ${state.session.apiSource || "unbekannt"}`
+      : "noch nicht aufgeloest";
+    sessionEndpointStatus.textContent = `Session Endpoint: ${endpointText}`;
+  }
+
+  if (sessionConnectionStateStatus) {
+    const connectionState = state.session.connected ? "connected" : retry.status || "idle";
+    sessionConnectionStateStatus.textContent =
+      `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"}`;
+  }
+
+  if (sessionLastErrorStatus) {
+    const errorText = retry.lastError
+      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError}`
+      : "kein Fehler";
+    sessionLastErrorStatus.textContent = `Session Fehler: ${errorText}`;
+  }
+
+  if (sessionRetryStatus) {
+    let retryText = `Versuche ${retry.attempt}/${retry.maxAttempts}`;
+    if (retry.terminal) {
+      retryText += " | terminal";
+    } else if (retry.nextRetryAt > 0) {
+      const inMs = Math.max(0, retry.nextRetryAt - Date.now());
+      retryText += ` | naechster Retry in ${(inMs / 1000).toFixed(1)}s`;
+    }
+    sessionRetryStatus.textContent = `Session Retry: ${retryText}`;
+  }
+
+  if (sessionLastSuccessStatus) {
+    const endpoint = retry.lastEndpoint || "-";
+    sessionLastSuccessStatus.textContent =
+      `Letzter erfolgreicher Connect: ${formatSessionTimestamp(retry.lastSuccessAt)} | Endpoint ${endpoint}`;
+  }
 }
 
 function getSessionRetryState() {
