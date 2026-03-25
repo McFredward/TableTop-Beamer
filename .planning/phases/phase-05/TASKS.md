@@ -3,7 +3,7 @@
 Statuslegende: TODO | IN-PROGRESS | DONE
 Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
-Aktuelle P0-Prioritaet (verbindlich): Plan 5-7 (P5-T51..P5-T56) vor allen offenen Resttasks aus 5-2 und 5-1.
+Aktuelle P0-Prioritaet (verbindlich): Plan 5-8 (P5-T57..P5-T62) vor allen offenen Resttasks aus 5-2 und 5-1.
 
 ## Plan 5-1 - Multi-Client Final-Output Routing (execute-ready)
 - [x] DONE P5-T1 [P0] Rollenmodell im Runtime-State einfuehren (`operator`, `alignment`, `final-output`) inkl. safe fallback fuer unbekannte Rollen.
@@ -21,7 +21,7 @@ Aktuelle P0-Prioritaet (verbindlich): Plan 5-7 (P5-T51..P5-T56) vor allen offene
 - [ ] TODO P5-T13 [P0] 3-Device-Verifikationsprotokoll erstellen (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output).
 - [ ] TODO P5-T14 [P0] Plan-5-1-Fokusregression dokumentieren (clean final output, realtime sync, alignment toggle, audio role isolation).
 
-## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-6/5-5/5-3 Abschluss)
+## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-8/5-7/5-6/5-5/5-3 Abschluss)
 - [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
 - [x] DONE P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
 - [x] DONE P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
@@ -70,6 +70,14 @@ Aktuelle P0-Prioritaet (verbindlich): Plan 5-7 (P5-T51..P5-T56) vor allen offene
 - [x] DONE P5-T54 [P0] Aktiven Self-Test-Button in `Settings` implementieren: testet `connect`/`stream`/`heartbeat`/`event` und zeigt eine Ergebnis-Matrix (`OK|FAIL`, Endpoint, Methode, Detail).
 - [x] DONE P5-T55 [P0] Hard-Acceptance fuer Feldbetrieb ergaenzen: Stabil verbinden + synchronisieren ohne terminalen Retry-Status unter normalem WLAN als verpflichtendes Gate.
 - [x] DONE P5-T56 [P0] Root-Cause-Hotfix-Verifikation dokumentieren (3-Device-Feldsetup, Access-Log-Korrelation, Self-Test-Matrix, kein Retry-Terminal im Normalbetrieb).
+
+## Plan 5-8 - SSE-first Session-Stabilitaet aus dringendem Feldfeedback (execute-ready, P0 sofort, hoechste Prioritaet)
+- [x] DONE P5-T57 [P0] SSE-first-Guard einziehen: solange Stream aktiv/offen ist, duerfen Heartbeat-Fehler die Session nicht auf `failed` setzen.
+- [ ] TODO P5-T58 [P0] Connectivity-State trennen: `streamConnected` und `heartbeatStatus` als getrennte Source-of-Truth in Runtime + UI fuehren.
+- [ ] TODO P5-T59 [P0] Reconnect-Policy korrigieren: Reconnect nur bei Stream-Abbruch oder explizitem Connect-Fehler; Heartbeat bleibt optionaler Liveness-Check/Fallback.
+- [ ] TODO P5-T60 [P0] Emit-/Sync-Pfad robust halten: Event-Emit und State-Sync laufen weiter, auch wenn Heartbeat auf `degraded` steht.
+- [ ] TODO P5-T61 [P0] Stream-State-Transitions diagnostisch erweitern: `opened|healthy|degraded|closed|reconnecting` mit Ursache in Logs erfassen.
+- [ ] TODO P5-T62 [P0] Plan-5-8-Verifikation dokumentieren (SSE-first-Stabilitaet, getrennte Statusanzeige, Reconnect-Regel, Sync trotz heartbeat degraded).
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.

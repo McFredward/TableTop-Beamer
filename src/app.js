@@ -1621,9 +1621,18 @@ function startSessionHeartbeat(intervalMs = 4000) {
       const retry = getSessionRetryState();
       const threshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
       retry.heartbeatFailureCount = Math.max(0, Number(retry.heartbeatFailureCount || 0)) + 1;
+      const streamOpen = Boolean(sessionEventSource && sessionEventSource.readyState === EventSource.OPEN);
+      const heartbeatDetail = `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`;
+      if (streamOpen) {
+        retry.status = "heartbeat-degraded";
+        syncSessionStatus(
+          `Session: Heartbeat degraded, Stream aktiv (${heartbeatDetail}) (${state.session.id})`,
+        );
+        return;
+      }
       setSessionRetryError("HEARTBEAT_FAILED", {
         endpoint: retry.lastHeartbeatEndpoint || buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
-        detail: `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`,
+        detail: heartbeatDetail,
       });
       if (retry.heartbeatFailureCount < threshold) {
         retry.status = "heartbeat-degraded";
