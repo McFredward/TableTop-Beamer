@@ -5193,6 +5193,7 @@ function drawAnimation(animation, now) {
     try {
       const clipped = clipToRoom(room, animation.boardId);
       if (!clipped) {
+        drawRenderFallback(ctx, canvas, roomMetrics, age, "room");
         return true;
       }
       const rendered = drawRoomComposition(animation, age, room, roomMetrics);
@@ -5206,6 +5207,9 @@ function drawAnimation(animation, now) {
       ctx.restore();
     }
   }
+  if (animation.boardId && animation.boardId !== state.boardId) {
+    return true;
+  }
   if (animation.type === "outside-space") {
     // Outside is rendered in a dedicated isolated layer path.
     return true;
@@ -5215,6 +5219,7 @@ function drawAnimation(animation, now) {
   try {
     const clipped = clipToInsideShip(animation.boardId ?? state.boardId);
     if (!clipped) {
+      drawRenderFallback(ctx, canvas, null, age, "global");
       return true;
     }
     const rendered = drawEffectVisual(animation.type, age, animation.intensity, null);
