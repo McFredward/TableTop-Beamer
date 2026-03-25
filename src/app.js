@@ -228,6 +228,8 @@ const ROOM_GIF_ANIMATION_ASSETS = {
   feuer: "resources/nemesis/animations/fire.gif",
   schleim: "resources/nemesis/animations/final.gif",
 };
+const ROOM_GIF_MAPPING_NONE = "none";
+const ROOM_GIF_ASSET_PATHS = Array.from(new Set(Object.values(ROOM_GIF_ANIMATION_ASSETS)));
 
 const ROOM_GLOBAL_EQUIVALENT_MAP = {
   alarm: "intruder-alert",
@@ -327,6 +329,9 @@ const audioStatus = document.querySelector("#audio-status");
 const audioMappingAnimationSelect = document.querySelector("#audio-mapping-animation");
 const audioMappingSoundSelect = document.querySelector("#audio-mapping-sound");
 const audioMappingStatus = document.querySelector("#audio-mapping-status");
+const gifMappingAnimationSelect = document.querySelector("#gif-mapping-animation");
+const gifMappingAssetSelect = document.querySelector("#gif-mapping-asset");
+const gifMappingStatus = document.querySelector("#gif-mapping-status");
 const animationSpeedInput = document.querySelector("#animation-speed");
 const animationSpeedValue = document.querySelector("#animation-speed-value");
 const animationSpeedStatus = document.querySelector("#animation-speed-status");
@@ -524,6 +529,7 @@ const state = {
   },
   animationSpeed: 1,
   animationSoundMap: {},
+  animationGifMap: {},
   uiView: "dashboard",
   dashboardZone: "trigger",
   hitareaCalibrationByBoard: {},
@@ -600,6 +606,7 @@ const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifImageCacheByPath = new Map();
+const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -608,6 +615,14 @@ function createDefaultAnimationSoundMap() {
   const defaults = {};
   for (const { id } of ALL_ANIMATION_TYPES) {
     defaults[id] = EVENT_SOUND_ASSETS[id]?.[0] ?? SOUND_MAPPING_NONE;
+  }
+  return defaults;
+}
+
+function createDefaultAnimationGifMap() {
+  const defaults = {};
+  for (const { id } of ROOM_ANIMATIONS) {
+    defaults[id] = ROOM_GIF_ANIMATION_ASSETS[id] ?? ROOM_GIF_MAPPING_NONE;
   }
   return defaults;
 }
@@ -644,6 +659,39 @@ function normalizeAnimationSoundMap(soundMap) {
     defaults[animationType] = normalizeAnimationSoundPath(animationType, soundMap?.[animationType]);
   }
   return defaults;
+}
+
+function normalizeAnimationGifPath(animationType, path) {
+  if (!isRoomAnimationType(animationType)) {
+    return ROOM_GIF_MAPPING_NONE;
+  }
+  if (path === ROOM_GIF_MAPPING_NONE) {
+    return ROOM_GIF_MAPPING_NONE;
+  }
+  if (ROOM_GIF_ASSET_PATHS.includes(path)) {
+    return path;
+  }
+  const defaultPath = ROOM_GIF_ANIMATION_ASSETS[animationType];
+  if (defaultPath && ROOM_GIF_ASSET_PATHS.includes(defaultPath)) {
+    return defaultPath;
+  }
+  return ROOM_GIF_MAPPING_NONE;
+}
+
+function normalizeAnimationGifMap(gifMap) {
+  const defaults = createDefaultAnimationGifMap();
+  for (const animationType of Object.keys(defaults)) {
+    defaults[animationType] = normalizeAnimationGifPath(animationType, gifMap?.[animationType]);
+  }
+  return defaults;
+}
+
+function getMappedGifPathForAnimation(animationType) {
+  const mapped = normalizeAnimationGifPath(animationType, state.animationGifMap?.[animationType]);
+  if (mapped === ROOM_GIF_MAPPING_NONE) {
+    return null;
+  }
+  return mapped;
 }
 
 function getMappedSoundPathForAnimation(animationType) {
@@ -1221,6 +1269,16 @@ function buildBoardProfilesFromState() {
   );
 }
 
+function buildLocalProfileSnapshotFromState() {
+  return {
+    schema: "tt-beamer.local-profiles.v2",
+    savedAt: new Date().toISOString(),
+    boardProfiles: buildBoardProfilesFromState(),
+    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+    animationGifMap: normalizeAnimationGifMap(state.animationGifMap),
+  };
+}
+
 function applyBoardProfilesToState(profiles) {
   state.hitareaCalibrationByBoard = Object.fromEntries(
     BOARDS.map((board) => [
@@ -1256,6 +1314,26 @@ function applyBoardProfilesToState(profiles) {
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
   );
+}
+
+function applyLocalProfileSnapshotToState(payload) {
+  const boardCandidate = extractBoardProfilesCandidate(payload);
+  if (boardCandidate) {
+    const migratedProfiles = buildMigratedBoardProfiles(
+      boardCandidate,
+      state.hitareaCalibrationByBoard,
+      state.roomGeometryByBoard,
+      state.specialPolygonsByBoard,
+    );
+    applyBoardProfilesToState(migratedProfiles);
+  }
+
+  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
+    state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
+  }
+  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationGifMap")) {
+    state.animationGifMap = normalizeAnimationGifMap(payload.animationGifMap);
+  }
 }
 
 function extractBoardProfilesCandidate(raw) {
@@ -1381,8 +1459,9 @@ function loadBoardProfiles() {
       const parsed = JSON.parse(raw);
       const candidate = extractBoardProfilesCandidate(parsed);
       if (candidate) {
+        applyLocalProfileSnapshotToState(parsed);
         const migratedProfiles = buildMigratedBoardProfiles(
-          candidate,
+          extractBoardProfilesCandidate(parsed),
           legacyHitarea,
           legacyRoomGeometry,
           legacySpecialPolygons,
@@ -1408,7 +1487,7 @@ function loadBoardProfiles() {
 
 function persistBoardProfiles() {
   try {
-    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildBoardProfilesFromState()));
+    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildLocalProfileSnapshotFromState()));
     return true;
   } catch {
     return false;
@@ -1449,6 +1528,7 @@ function buildGlobalDefaultsPayload() {
     },
     animationSpeed: clampAnimationSpeed(state.animationSpeed),
     animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+    animationGifMap: normalizeAnimationGifMap(state.animationGifMap),
   };
 }
 
@@ -2116,6 +2196,9 @@ function applyGlobalDefaultsPayloadToState(payload) {
   if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
     state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
   }
+  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationGifMap")) {
+    state.animationGifMap = normalizeAnimationGifMap(payload.animationGifMap);
+  }
 }
 
 async function autoLoadGlobalDefaultsForFreshDevice() {
@@ -2523,9 +2606,16 @@ function getRoomEquivalentType(type) {
   return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? null;
 }
 
-function getRoomGifAssetFileName(type) {
-  const path = ROOM_GIF_ANIMATION_ASSETS[type];
+function getRoomGifAssetFileNameByPath(path) {
+  if (!path || path === ROOM_GIF_MAPPING_NONE) {
+    return null;
+  }
   return path ? path.split("/").pop() ?? path : null;
+}
+
+function getRoomGifAssetFileName(type, explicitPath = null) {
+  const path = explicitPath ?? getMappedGifPathForAnimation(type) ?? ROOM_GIF_ANIMATION_ASSETS[type];
+  return getRoomGifAssetFileNameByPath(path);
 }
 
 function getGifImage(path) {
@@ -2539,6 +2629,104 @@ function getGifImage(path) {
     gifImageCacheByPath.set(path, image);
   }
   return gifImageCacheByPath.get(path) ?? null;
+}
+
+function getGifPlayback(path) {
+  if (!path) {
+    return null;
+  }
+  if (gifPlaybackCacheByPath.has(path)) {
+    return gifPlaybackCacheByPath.get(path) ?? null;
+  }
+  const fallbackImage = getGifImage(path);
+  const record = {
+    path,
+    status: "loading",
+    frames: [],
+    totalDurationMs: 0,
+    loopCount: Infinity,
+    fallbackImage,
+  };
+  gifPlaybackCacheByPath.set(path, record);
+
+  void (async () => {
+    if (typeof ImageDecoder !== "function") {
+      record.status = "error";
+      return;
+    }
+    try {
+      const response = await fetch(path);
+      if (!response.ok) {
+        throw new Error(`GIF fetch failed: ${response.status}`);
+      }
+      const data = await response.arrayBuffer();
+      const decoder = new ImageDecoder({ type: "image/gif", data });
+      const track = decoder.tracks?.selectedTrack;
+      const frameCount = Math.max(1, Number(track?.frameCount) || 1);
+      const repetitionCount = Number(track?.repetitionCount);
+      if (Number.isFinite(repetitionCount) && repetitionCount >= 0) {
+        record.loopCount = repetitionCount === 0 ? Infinity : repetitionCount;
+      } else {
+        record.loopCount = Infinity;
+      }
+      const frames = [];
+      let totalDurationMs = 0;
+      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+        const result = await decoder.decode({ frameIndex, completeFramesOnly: true });
+        const videoFrame = result?.image;
+        if (!videoFrame) {
+          continue;
+        }
+        const bitmap = await createImageBitmap(videoFrame);
+        const rawDuration = Number(videoFrame.duration);
+        const durationMs = Number.isFinite(rawDuration) && rawDuration > 0
+          ? Math.max(20, Math.round(rawDuration / 1000))
+          : 100;
+        videoFrame.close();
+        frames.push({ image: bitmap, durationMs });
+        totalDurationMs += durationMs;
+      }
+      if (frames.length === 0) {
+        throw new Error("GIF decode produced 0 frames");
+      }
+      record.frames = frames;
+      record.totalDurationMs = Math.max(1, totalDurationMs);
+      record.status = "ready";
+      decoder.close();
+    } catch {
+      record.status = "error";
+    }
+  })();
+
+  return record;
+}
+
+function getGifFrameForElapsedMs(playback, elapsedMs) {
+  if (!playback || playback.status !== "ready" || playback.frames.length === 0) {
+    return null;
+  }
+  if (playback.frames.length === 1 || playback.totalDurationMs <= 1) {
+    return playback.frames[0]?.image ?? null;
+  }
+
+  const finiteLoop = Number.isFinite(playback.loopCount);
+  let cursor = Math.max(0, elapsedMs);
+  if (finiteLoop) {
+    const maxDuration = playback.totalDurationMs * Math.max(1, playback.loopCount);
+    if (cursor >= maxDuration) {
+      return playback.frames[playback.frames.length - 1]?.image ?? null;
+    }
+  }
+  cursor %= playback.totalDurationMs;
+
+  let accumulator = 0;
+  for (const frame of playback.frames) {
+    accumulator += frame.durationMs;
+    if (cursor < accumulator) {
+      return frame.image;
+    }
+  }
+  return playback.frames[playback.frames.length - 1]?.image ?? null;
 }
 
 function clampRoomSpeed(value) {
@@ -4226,6 +4414,62 @@ function syncAudioMappingPanel() {
   syncAudioMappingStatus();
 }
 
+function syncGifMappingStatus() {
+  const animationType = gifMappingAnimationSelect?.value || ROOM_ANIMATIONS[0]?.id;
+  if (!animationType || !gifMappingStatus) {
+    return;
+  }
+  const label = getAnimationLabel(animationType);
+  const mapped = normalizeAnimationGifPath(animationType, state.animationGifMap?.[animationType]);
+  if (mapped === ROOM_GIF_MAPPING_NONE) {
+    gifMappingStatus.textContent = `GIF-Mapping: ${label} -> none`;
+    return;
+  }
+  const fileName = mapped.split("/").pop() ?? mapped;
+  gifMappingStatus.textContent = `GIF-Mapping: ${label} -> ${fileName}`;
+}
+
+function syncGifMappingPanel() {
+  if (!gifMappingAnimationSelect || !gifMappingAssetSelect) {
+    return;
+  }
+
+  if (gifMappingAnimationSelect.childElementCount === 0) {
+    for (const animation of ROOM_ANIMATIONS) {
+      const option = document.createElement("option");
+      option.value = animation.id;
+      option.textContent = animation.label;
+      gifMappingAnimationSelect.append(option);
+    }
+  }
+
+  const selectedAnimationType = ROOM_ANIMATIONS.some((entry) => entry.id === gifMappingAnimationSelect.value)
+    ? gifMappingAnimationSelect.value
+    : ROOM_ANIMATIONS[0]?.id;
+  if (!selectedAnimationType) {
+    return;
+  }
+  gifMappingAnimationSelect.value = selectedAnimationType;
+
+  gifMappingAssetSelect.replaceChildren();
+  const noneOption = document.createElement("option");
+  noneOption.value = ROOM_GIF_MAPPING_NONE;
+  noneOption.textContent = "none (kein GIF)";
+  gifMappingAssetSelect.append(noneOption);
+
+  for (const gifPath of ROOM_GIF_ASSET_PATHS) {
+    const option = document.createElement("option");
+    option.value = gifPath;
+    option.textContent = gifPath.replace("resources/nemesis/animations/", "");
+    gifMappingAssetSelect.append(option);
+  }
+
+  const mapped = normalizeAnimationGifPath(selectedAnimationType, state.animationGifMap?.[selectedAnimationType]);
+  state.animationGifMap[selectedAnimationType] = mapped;
+  gifMappingAssetSelect.value = mapped;
+  syncGifMappingStatus();
+}
+
 function applyHitareaCalibration(x, y, calibration) {
   const scaledX = (x - 0.5) * calibration.scale + 0.5 + calibration.offsetX;
   const scaledY = (y - 0.5) * calibration.scale + 0.5 + calibration.offsetY;
@@ -4506,6 +4750,7 @@ function createAnimation({
   speed = 1,
   opacity = 0.9,
   playbackSpeed = 1,
+  gifAssetPath = null,
   soundVolume = 1,
   hold = false,
   durationSec = 15,
@@ -4521,6 +4766,7 @@ function createAnimation({
     speed: clampRoomSpeed(speed),
     opacity: clampRoomOpacity(opacity),
     playbackSpeed: clampGifPlaybackSpeed(playbackSpeed),
+    gifAssetPath: scope === "room" ? normalizeAnimationGifPath(type, gifAssetPath) : null,
     soundVolume: clampRoomSoundVolume(soundVolume),
     hold: effectiveHold,
     durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
@@ -4537,6 +4783,7 @@ function createPreviewQueueItem({
   speed = 1,
   opacity = 0.9,
   playbackSpeed = 1,
+  gifAssetPath = null,
   soundVolume = 1,
   hold = false,
   durationSec = 18,
@@ -4552,6 +4799,7 @@ function createPreviewQueueItem({
     speed: scope === "room" ? clampRoomSpeed(speed) : 1,
     opacity: scope === "room" ? clampRoomOpacity(opacity) : 1,
     playbackSpeed: scope === "room" ? clampGifPlaybackSpeed(playbackSpeed) : 1,
+    gifAssetPath: scope === "room" ? normalizeAnimationGifPath(type, gifAssetPath) : null,
     soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
     hold: effectiveHold,
     durationSec: effectiveHold ? null : Math.max(1, Math.round(durationSec)),
@@ -4562,7 +4810,14 @@ function createPreviewQueueItem({
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
   const effectType = resolveRoomAnimationEffectType(animation.type);
-  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  const isGifAnimation = isGifRoomAnimation(animation.type);
+  const playbackAge = isGifAnimation
+    ? age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1)
+    : age;
+  const normalizedGifPath = normalizeAnimationGifPath(animation.type, animation.gifAssetPath);
+  const gifAssetPath = normalizedGifPath === ROOM_GIF_MAPPING_NONE
+    ? getMappedGifPathForAnimation(animation.type) ?? ROOM_GIF_ANIMATION_ASSETS[animation.type]
+    : normalizedGifPath;
   drawEffectVisual(
     effectType,
     playbackAge,
@@ -4572,8 +4827,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     {
       densityFactor: qualityScale,
       opacity: clampRoomOpacity(animation.opacity),
-      gifAssetPath: ROOM_GIF_ANIMATION_ASSETS[animation.type],
-      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
+      gifAssetPath,
       roomAnimationType: animation.type,
     },
   );
@@ -4671,6 +4925,7 @@ function stageRoomDraftToPreview() {
     speed: state.roomDraft.speed,
     opacity: state.roomDraft.opacity,
     playbackSpeed: state.roomDraft.playbackSpeed,
+    gifAssetPath: getMappedGifPathForAnimation(state.roomDraft.animationId),
     soundVolume: state.roomDraft.soundVolume,
     hold: state.roomDraft.hold,
     durationSec: state.roomDraft.durationSec,
@@ -4773,6 +5028,7 @@ function previewItemToAnimation(item) {
     speed: item.scope === "room" ? item.speed : 1,
     opacity: item.scope === "room" ? item.opacity : 1,
     playbackSpeed: item.scope === "room" ? item.playbackSpeed : 1,
+    gifAssetPath: item.scope === "room" ? item.gifAssetPath : null,
     soundVolume: item.scope === "room" ? item.soundVolume : 1,
     hold: Boolean(item.hold),
     durationSec: item.hold ? 0 : item.durationSec ?? 18,
@@ -4918,6 +5174,7 @@ function startRoomAnimationFromDraft() {
     speed: clampRoomSpeed(state.roomDraft.speed),
     opacity: clampRoomOpacity(state.roomDraft.opacity),
     playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
+    gifAssetPath: getMappedGifPathForAnimation(state.roomDraft.animationId),
     soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
     hold: true,
     durationMs: null,
@@ -4932,6 +5189,9 @@ function startRoomAnimationFromDraft() {
       const updated = {
         ...existing,
         ...draftPayload,
+        gifAssetPath: isGifRoomAnimation(draftPayload.type)
+          ? normalizeAnimationGifPath(draftPayload.type, existing.gifAssetPath ?? draftPayload.gifAssetPath)
+          : ROOM_GIF_MAPPING_NONE,
         boardId: state.boardId,
         startedAt: performance.now(),
       };
@@ -5059,8 +5319,8 @@ function renderRunningAnimationsList() {
     const remaining = anim.durationMs
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
-    const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
+  const roomMeta = anim.scope === "room"
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.gifAssetPath) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.gifAssetPath)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
@@ -5547,15 +5807,16 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "kaputt" || type === "feuer" || type === "schleim") {
-    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const gifImage = getGifImage(gifPath);
-    if (!gifImage?.complete) {
+    const gifPath = options.gifAssetPath ?? getMappedGifPathForAnimation(options.roomAnimationType ?? type) ?? ROOM_GIF_ANIMATION_ASSETS[type];
+    const gifPlayback = getGifPlayback(gifPath);
+    const gifFrame = getGifFrameForElapsedMs(gifPlayback, age * 1000);
+    const fallbackImage = gifPlayback?.fallbackImage ?? getGifImage(gifPath);
+    const drawableImage = gifFrame ?? (fallbackImage?.complete ? fallbackImage : null);
+    if (!drawableImage) {
       return;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
-    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
-    const pulse = (Math.sin(age * (0.7 + playbackSpeed * 0.6)) + 1) / 2;
-    const baseScale = 1.02 + pulse * 0.06;
+    const baseScale = 1.04;
     const drawWidth = roomWidth * baseScale;
     const drawHeight = roomHeight * baseScale;
     const drawX = roomX - drawWidth / 2;
@@ -5563,7 +5824,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.drawImage(gifImage, drawX, drawY, drawWidth, drawHeight);
+    ctx.drawImage(drawableImage, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
     return;
   }
@@ -6476,6 +6737,20 @@ audioMappingSoundSelect.addEventListener("change", () => {
   triggerFeedback.textContent = `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
 });
 
+gifMappingAnimationSelect?.addEventListener("change", () => {
+  syncGifMappingPanel();
+});
+
+gifMappingAssetSelect?.addEventListener("change", () => {
+  const animationType = gifMappingAnimationSelect?.value;
+  if (!animationType) {
+    return;
+  }
+  state.animationGifMap[animationType] = normalizeAnimationGifPath(animationType, gifMappingAssetSelect.value);
+  syncGifMappingPanel();
+  triggerFeedback.textContent = `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
+});
+
 audioVolumeInput.addEventListener("input", () => {
   const volumePercent = clampAudioVolumePercent(Number(audioVolumeInput.value));
   state.audio.volume = volumePercent / 100;
@@ -6699,6 +6974,7 @@ function syncRuntimePanelsFromState() {
   applyAudioGain();
   syncAudioStatus();
   syncAudioMappingPanel();
+  syncGifMappingPanel();
   syncAnimationSpeedPanel();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
@@ -6731,6 +7007,7 @@ async function initializeApplication() {
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
+  state.animationGifMap = normalizeAnimationGifMap(createDefaultAnimationGifMap());
   state.preview.queue = [];
   state.live.lastSend = null;
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
