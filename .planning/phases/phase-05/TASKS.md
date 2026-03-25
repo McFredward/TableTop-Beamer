@@ -43,7 +43,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T33 [P0] Connect/Heartbeat-Reconnect stabilisieren: mehrfaches Reconnect nach Kurzunterbrechung ohne HTTP0->terminal loop.
 - [x] DONE P5-T34 [P0] Session-Serverdiagnose ausbauen: strukturierte Fehlercodes fuer `connect`, `stream`, `heartbeat`, `event` inkl. Session-/Client-Korrelation.
 - [x] DONE P5-T35 [P0] UI-Diagnose korrigieren: Heartbeat-Endpoint korrekt und getrennt von Connect-Endpoint anzeigen.
-- [ ] TODO P5-T36 [P0] Hotfix-Verifikation dokumentieren (SSE-close-Negativtest, Multi-Reconnect-Stabilitaet, endpoint-spezifische Logs/UI-Diagnose).
+- [x] DONE P5-T36 [P0] Hotfix-Verifikation dokumentieren (SSE-close-Negativtest, Multi-Reconnect-Stabilitaet, endpoint-spezifische Logs/UI-Diagnose).
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
