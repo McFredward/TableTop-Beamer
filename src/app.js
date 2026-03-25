@@ -5284,30 +5284,36 @@ function applyOutputRoute(route) {
 }
 
 function clipToPolygon(polygon, { evenodd = false } = {}) {
-  if (consumeRenderFaultInjectionFlag("clipFailOnce")) {
-    throw new Error("Render harness injected clip failure");
-  }
-  if (!Array.isArray(polygon) || polygon.length < 3) {
+  try {
+    if (consumeRenderFaultInjectionFlag("clipFailOnce")) {
+      throw new Error("Render harness injected clip failure");
+    }
+    if (!Array.isArray(polygon) || polygon.length < 3) {
+      ctx.beginPath();
+      ctx.rect(0, 0, 0, 0);
+      ctx.clip();
+      return false;
+    }
     ctx.beginPath();
-    ctx.rect(0, 0, 0, 0);
-    ctx.clip();
+    polygon.forEach(([x, y], index) => {
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+    if (evenodd) {
+      ctx.clip("evenodd");
+    } else {
+      ctx.clip();
+    }
+    return true;
+  } catch (error) {
+    recordRenderTickError("clip");
+    console.error("clipToPolygon failed", error);
     return false;
   }
-  ctx.beginPath();
-  polygon.forEach(([x, y], index) => {
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
-  if (evenodd) {
-    ctx.clip("evenodd");
-  } else {
-    ctx.clip();
-  }
-  return true;
 }
 
 function clipToRoom(room, boardId = state.boardId) {
@@ -5323,20 +5329,27 @@ function getShipClipPolygon(boardId = state.boardId) {
 function clipToOutsideShip(boardId = state.boardId) {
   const shipPolygon = getShipClipPolygon(boardId);
   if (!shipPolygon) {
+    recordRenderClipFallback("insideInvalidPolygon");
     return clipToPolygon(null);
   }
-  ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
-  shipPolygon.forEach(([x, y], index) => {
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
-  ctx.clip("evenodd");
-  return true;
+  try {
+    ctx.beginPath();
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    shipPolygon.forEach(([x, y], index) => {
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+    ctx.clip("evenodd");
+    return true;
+  } catch (error) {
+    recordRenderTickError("clip");
+    console.error("clipToOutsideShip failed", error);
+    return false;
+  }
 }
 
 function clipToInsideShip(boardId = state.boardId) {
@@ -5403,6 +5416,7 @@ function drawAnimationSafely(animation, now) {
   try {
     return drawAnimation(animation, now);
   } catch (error) {
+    recordRenderTickError("animation");
     console.error(`Animation ${animation.id} failed`, error);
     return false;
   }
@@ -5413,16 +5427,17 @@ function drawOutsideFxLayer(now) {
   if (!outside.enabled) {
     return;
   }
-  if (consumeRenderFaultInjectionFlag("outsideLayerFailOnce")) {
-    throw new Error("Render harness injected outside layer failure");
-  }
-  ctx.save();
   try {
+    if (consumeRenderFaultInjectionFlag("outsideLayerFailOnce")) {
+      throw new Error("Render harness injected outside layer failure");
+    }
+    ctx.save();
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.filter = "none";
     const clipped = clipToOutsideShip(state.boardId);
     if (!clipped) {
+      ctx.restore();
       return;
     }
     drawEffectVisual(
@@ -5437,9 +5452,38 @@ function drawOutsideFxLayer(now) {
         outsideDirection: outside.direction,
       },
     );
-  } finally {
     ctx.restore();
+  } catch (error) {
+    recordRenderTickError("outside");
+    console.error("Outside layer failed", error);
   }
+}
+
+function clearCanvasSafely() {
+  try {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  } catch (error) {
+    recordRenderTickError("scheduler");
+    console.error("clearRect failed", error);
+  }
+}
+
+function pruneFinishedAnimationsSafely(now) {
+  try {
+    pruneFinishedAnimations(now);
+  } catch (error) {
+    recordRenderTickError("scheduler");
+    console.error("pruneFinishedAnimations failed", error);
+  }
+}
+
+function updateRenderFaultFeedback() {
+  const tick = state.renderTelemetry.lastTick;
+  if (!tick || tick.totalErrors <= 0) {
+    return;
+  }
+  triggerFeedback.textContent =
+    `Status: Render-Fail-Safe aktiv (outside=${tick.outsideLayerErrors}, animation=${tick.animationLayerErrors}, clip=${tick.clipErrors}, scheduler=${tick.schedulerErrors})`;
 }
 
 function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
@@ -5919,8 +5963,8 @@ function draw(now) {
       state.mobilePerf.pendingTriggerAt = null;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    pruneFinishedAnimations(now);
+    clearCanvasSafely();
+    pruneFinishedAnimationsSafely(now);
     drawOutsideFxLayer(now);
 
     const failedAnimationIds = [];
@@ -5945,6 +5989,7 @@ function draw(now) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }
+    updateRenderFaultFeedback();
     const frameCostMs = performance.now() - frameStart;
     finalizeRenderTick(frameCostMs);
     recordRuntimeFrameCost(frameCostMs);
