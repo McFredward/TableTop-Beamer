@@ -5050,8 +5050,13 @@ function applyOutputRoute(route) {
   outputRouteStatus.textContent = requested === "auto" ? "Output Route: auto" : "Output Route: windowed-preview";
 }
 
-function clipToRoom(room) {
-  const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height);
+function clipToPolygon(polygon, { evenodd = false } = {}) {
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    ctx.beginPath();
+    ctx.rect(0, 0, 0, 0);
+    ctx.clip();
+    return false;
+  }
   ctx.beginPath();
   polygon.forEach(([x, y], index) => {
     if (index === 0) {
@@ -5061,7 +5066,17 @@ function clipToRoom(room) {
     }
   });
   ctx.closePath();
-  ctx.clip();
+  if (evenodd) {
+    ctx.clip("evenodd");
+  } else {
+    ctx.clip();
+  }
+  return true;
+}
+
+function clipToRoom(room, boardId = state.boardId) {
+  const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height, boardId);
+  return clipToPolygon(polygon);
 }
 
 function getShipClipPolygon(boardId = state.boardId) {
@@ -5072,10 +5087,7 @@ function getShipClipPolygon(boardId = state.boardId) {
 function clipToOutsideShip(boardId = state.boardId) {
   const shipPolygon = getShipClipPolygon(boardId);
   if (!shipPolygon) {
-    ctx.beginPath();
-    ctx.rect(0, 0, 0, 0);
-    ctx.clip();
-    return false;
+    return clipToPolygon(null);
   }
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
@@ -5093,23 +5105,7 @@ function clipToOutsideShip(boardId = state.boardId) {
 
 function clipToInsideShip(boardId = state.boardId) {
   const shipPolygon = getShipClipPolygon(boardId);
-  if (!shipPolygon) {
-    ctx.beginPath();
-    ctx.rect(0, 0, 0, 0);
-    ctx.clip();
-    return false;
-  }
-  ctx.beginPath();
-  shipPolygon.forEach(([x, y], index) => {
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
-  ctx.clip();
-  return true;
+  return clipToPolygon(shipPolygon);
 }
 
 function drawAnimation(animation, now) {
@@ -5126,7 +5122,10 @@ function drawAnimation(animation, now) {
     const roomMetrics = getRoomRenderMetrics(room, animation.boardId);
     ctx.save();
     try {
-      clipToRoom(room);
+      const clipped = clipToRoom(room, animation.boardId);
+      if (!clipped) {
+        return;
+      }
       drawRoomComposition(animation, age, room, roomMetrics);
     } finally {
       ctx.restore();
