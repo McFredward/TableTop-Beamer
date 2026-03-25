@@ -80,6 +80,7 @@ None - plan executed exactly as written.
 
 ## Issues Encountered
 - `rg` was not available in the shell environment; file counting and verification were completed without it.
+- `gsd-tools` state/roadmap update helpers were incompatible with the current `STATE.md` structure; lifecycle/roadmap fields were synchronized manually and then captured in the final docs commit.
 
 ## User Setup Required
 None - no external service configuration required.
