@@ -52,6 +52,7 @@ const sessionHeartbeatEndpointStatus = document.querySelector("#session-heartbea
 const sessionHeartbeatTransportStatus = document.querySelector("#session-heartbeat-transport-status");
 const sessionEventTransportStatus = document.querySelector("#session-event-transport-status");
 const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
+const sessionConnectTransportStatus = document.querySelector("#session-connect-transport-status");
 const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
 const sessionRetryStatus = document.querySelector("#session-retry-status");
 const sessionLastSuccessStatus = document.querySelector("#session-last-success-status");
@@ -674,10 +675,16 @@ function syncSessionDiagnosticsPanel() {
       `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"} | ${resolver.text}`;
   }
 
+  if (sessionConnectTransportStatus) {
+    const onlineText = retry.lastOnlineState || (navigator.onLine ? "online" : "offline");
+    sessionConnectTransportStatus.textContent =
+      `Connect Transport: ${retry.lastConnectTransport || "fetch"} | fallback ${retry.lastConnectFallbackReason || "none"} | online ${onlineText}`;
+  }
+
   if (sessionLastErrorStatus) {
     const errorEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "-";
     const errorText = retry.lastError
-      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError} | Endpoint ${errorEndpoint}`
+      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError} | name ${retry.lastErrorName || "-"} | message ${retry.lastErrorMessage || "-"} | online ${retry.lastOnlineState || "unknown"} | transport ${retry.lastConnectTransport || "fetch"} | Endpoint ${errorEndpoint}`
       : "kein Fehler";
     sessionLastErrorStatus.textContent = `Session Fehler: ${errorText}`;
   }
@@ -720,6 +727,9 @@ function getSessionRetryState() {
       lastEndpoint: "",
       lastConnectTransport: "fetch",
       lastConnectFallbackReason: "none",
+      lastErrorName: "",
+      lastErrorMessage: "",
+      lastOnlineState: "unknown",
       lastHeartbeatEndpoint: "",
       lastHeartbeatMethod: "POST",
       lastHeartbeatFallbackReason: "none",
@@ -788,6 +798,15 @@ function getSessionRetryState() {
   }
   if (typeof state.session.retry.lastConnectFallbackReason !== "string") {
     state.session.retry.lastConnectFallbackReason = "none";
+  }
+  if (typeof state.session.retry.lastErrorName !== "string") {
+    state.session.retry.lastErrorName = "";
+  }
+  if (typeof state.session.retry.lastErrorMessage !== "string") {
+    state.session.retry.lastErrorMessage = "";
+  }
+  if (typeof state.session.retry.lastOnlineState !== "string") {
+    state.session.retry.lastOnlineState = "unknown";
   }
   return state.session.retry;
 }
@@ -1044,7 +1063,7 @@ async function sendHeartbeatWithFallback() {
   return fallbackResponse;
 }
 
-function setSessionRetryError(code, { endpoint = "", status = null, detail = "" } = {}) {
+function setSessionRetryError(code, { endpoint = "", status = null, detail = "", error = null } = {}) {
   const retry = getSessionRetryState();
   retry.status = "failed";
   retry.lastErrorCode = code;
@@ -1061,6 +1080,9 @@ function setSessionRetryError(code, { endpoint = "", status = null, detail = "" 
   if (detail) {
     retry.lastError = `${retry.lastError} - ${detail}`;
   }
+  retry.lastErrorName = String(error?.name || "");
+  retry.lastErrorMessage = String(error?.message || "");
+  retry.lastOnlineState = navigator.onLine ? "online" : "offline";
 }
 
 function updateConnectTransport(transport = "fetch", fallbackReason = "none") {
@@ -1499,16 +1521,18 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
 
           const details = await response.text();
           lastError = new Error(`connect failed (${response.status}) ${details}`);
-          setSessionRetryError("CONNECT_HTTP_ERROR", {
-            endpoint,
-            status: response.status,
-            detail: `transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
-          });
+            setSessionRetryError("CONNECT_HTTP_ERROR", {
+              endpoint,
+              status: response.status,
+              detail: `transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
+              error: lastError,
+            });
         } catch (error) {
           lastError = error instanceof Error ? error : new Error("session connect failed");
           setSessionRetryError("CONNECT_UNREACHABLE", {
             endpoint,
             detail: `${reconnect ? "reconnect" : "join"} | transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
+            error: lastError,
           });
         }
 
