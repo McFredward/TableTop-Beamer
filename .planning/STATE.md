@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-4
+- Last Executed Plan: 5-5
 - Planned Next Execution: 5-2 (P5-T21..P5-T22)
-- Last Execution Summary: `.planning/phases/phase-05/5-4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -282,6 +282,9 @@
 - Plan-Update-5-4 Umsetzung: SSE-Broadcast/Write ist crash-safe; defekte Streams werden pro Stream isoliert entfernt und verursachen keinen Prozessabbruch.
 - Plan-Update-5-4 Umsetzung: Reconnect ist gegen Kurzunterbrechungs-Loops gehaertet (connect in-flight guard + stale reconnect timer cleanup).
 - Plan-Update-5-4 Umsetzung: Session-Diagnose zeigt Heartbeat-Endpoint separat; Server-Logs liefern endpoint-spezifische Fehlercodes fuer `connect`/`stream`/`heartbeat`/`event` mit Session-/Client-Korrelation.
+- Plan-Update-5-5 Umsetzung: Session-Requests nutzen ein dediziertes Timeout-Budget (`SESSION_REQUEST_TIMEOUT_MS=9000`) statt des Global-Defaults (`API_REQUEST_TIMEOUT_MS=3000`).
+- Plan-Update-5-5 Umsetzung: Heartbeat-Eskalation startet erst nach N aufeinanderfolgenden Fehlschlaegen (default 3); Einzel-Aussetzer werden toleriert.
+- Plan-Update-5-5 Umsetzung: Retry-Transitionen sind serialisiert (Transition-IDs), terminal wird durch Success-Grace-Window gegen Kurzjitter gehaertet; Retry-Reset erfolgt erst nach stabilem Heartbeat-Erfolg.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -622,3 +625,13 @@
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check src/app/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 5 Plan 5)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-5-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`1ef55ac`, `f9f300f`, `1c4cb48`, `1ec3512`, `4f009e5`, `07cde3f`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T43-WLAN-JITTER-REGRESSION.md`
+  - `.planning/phases/phase-05/P5-T44-SESSION-RESILIENCE-HOTFIX-VERIFICATION.md`
+  - `node debug/p5-t43-session-jitter-regression.mjs` (`JITTER_REGRESSION_GUARD=true`)
+  - `node debug/p5-t44-session-resilience-verification.mjs` (`PLAN_5_5_VERIFICATION=true`, `HEARTBEAT_GET_404=true`, `HEARTBEAT_POST_200=true`)
