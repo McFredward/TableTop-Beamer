@@ -344,6 +344,7 @@ function connectLiveSyncSocket() {
         const payload = JSON.parse(event.data);
         if (payload?.type === "live-hello") {
           liveSync.clientId = payload.clientId ?? null;
+          applyLiveRuntimeSnapshot(payload?.session?.snapshot);
         }
         if (payload?.type === "live-ack") {
           liveSync.lastAckAt = Date.now();
