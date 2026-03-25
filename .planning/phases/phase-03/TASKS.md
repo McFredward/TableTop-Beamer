@@ -31,3 +31,11 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
 - [x] DONE P3-T24 [P1] Performance-/Soak-Check fuer mehrere daueraktive Raum-Animationen protokollieren.
 - [x] DONE P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
+
+## Plan 3-3 - Rework GIF-Loop + GIF-Mapping (priorisiert)
+- [x] DONE P3-T26 [P0] GIF-Runtime fuer `kaputt`/`feuer`/`schleim` von Einzelbild-Pulsing auf echte GIF-Frame-Loops umstellen.
+- [x] DONE P3-T27 [P0] GIF-Decoder-/Renderer-Pfad so anbinden, dass eingebettete GIF-Loop-Informationen deterministisch respektiert werden (inkl. `playbackSpeed`).
+- [x] DONE P3-T28 [P0] Settings-UI fuer GIF-Mapping pro Animation einfuehren (analog Sound-Mapping, inkl. `none`/Fallback-Auswahl).
+- [x] DONE P3-T29 [P0] Persistenz fuer GIF-Mapping pro Animation implementieren und robust ueber Save/Load/Reload/Restart verifizieren.
+- [x] DONE P3-T30 [P1] Regression + Soak fuer Multi-GIF-Loop-Betrieb und Mapping-Edit waehrend laufender Instanzen dokumentieren.
+- [x] DONE P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.

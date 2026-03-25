@@ -50,5 +50,26 @@
 - Impact: Hoch, Live-Betrieb zeigt spaete Fehler.
 - Gegenmassnahme: Pflichtmatrix fuer 7x Einzelanimation + Parallel- und Soak-Tests als Gate.
 
+## R11 GIF bleibt auf Einzelbild-Pulsing statt echter Loop-Wiedergabe
+- Risiko: GIF-Raumanimationen werden weiterhin als statischer Frame mit Alpha-/Scale-Puls simuliert statt als echte GIF-Framefolge.
+- Impact: Hoch, verpflichtendes Feedback nicht erfuellt; visuelle Qualitaet und inhaltliche Erwartung verletzt.
+- Gegenmassnahme: Decoder-/Renderpfad auf echte GIF-Framefolge umstellen, Loop-Verifikation mit Frame-Differenz-Nachweis als Pflichtgate.
+
+## R12 GIF-Mapping pro Animation driftet oder ist nicht persistent
+- Risiko: UI-Mapping wird nicht sauber pro Animation gespeichert oder beim Reload/Restart verloren/ueberschrieben.
+- Impact: Hoch, Operator verliert reproduzierbare Konfiguration.
+- Gegenmassnahme: explizites Persistenzschema pro Animation, Normalisierung/Validierung beim Laden, Save/Reload/Restart-Regression als Gate.
+
+## R13 Mapping-Edit beeinflusst laufende Instanzen unkontrolliert
+- Risiko: Aenderung des GIF-Mappings wirkt auf falsche Instanzen oder erzeugt Running-List-Drift.
+- Impact: Mittel bis hoch, Kontrollverlust bei Live-Triggern.
+- Gegenmassnahme: Mapping auf Konfigurationsschicht trennen, laufende Instanzen ueber stabile `animation.id` isolieren, Edit-Roundtrip-Tests fuer aktive Sessions.
+
 ## Statusupdate nach Plan 3-2
 - R2/R4/R5/R7/R10 wurden fuer den aktuellen Rework-Scope durch Regression + Soak-Nachweise auf "beobachten" reduziert.
+- Neues verpflichtendes Feedback fuer Plan 3-3 hebt R11/R12 auf Blocker-Niveau (P0), bis echte GIF-Loops und Mapping-Persistenz nachgewiesen sind.
+
+## Statusupdate nach Plan 3-3
+- R11 ist durch Decoder-basierte GIF-Frame-Loop-Runtime mit Verifikation in `3-3-VERIFICATION.md` auf "beobachten" reduziert.
+- R12 ist durch GIF-Mapping-UI + Persistenzpfad (`animationGifMap`) und Nachweise in `P3-T30-REGRESSION.md` auf "beobachten" reduziert.
+- R13 bleibt als Betriebsrisiko auf "beobachten" (instanzscharfer `gifAssetPath` aktiv, weitere Langzeitbeobachtung empfohlen).
