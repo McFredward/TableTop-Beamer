@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-2
-- Planned Next Execution: 5-3
-- Last Execution Summary: `.planning/phases/phase-05/5-2-SUMMARY.md`
+- Last Executed Plan: 5-3
+- Planned Next Execution: 5-2 (P5-T21..P5-T22)
+- Last Execution Summary: `.planning/phases/phase-05/5-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -273,6 +273,12 @@
 - Plan-Update-5-2 Umsetzung: Overlay-Semantik ist hart korrigiert (`operator` always-on; Toggle steuert nur `final-output` Overlay).
 - Plan-Update-5-2 Umsetzung: Session-Connect nutzt deterministische Endpoint-Kandidaten + Join-Fallback ohne stale `clientId`; Session-ID-Priorisierung reduziert `default-session` Fehlpfade.
 - Plan-Update-5-2 Umsetzung: Retry/Backoff laeuft mit Jitter, Retry-Counter und terminal reconnect state; Diagnosefelder zeigen Endpoint/Status/Fehler/Retry/letzten Erfolg ohne Rohfehler-Noise.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Im Realbetrieb driftet Session-Connect auf `http://<host>:8080` trotz Node-Start auf `:4173`; dies wird als P0-Blocker gefuehrt.
+- Plan-Update 5-3 setzt Prioritaetsfokus: Resolver-Default strikt UI-Origin-Port (`:4173`), robustes Handling fuer stale/legacy `localStorage`-Overrides, konsistente Session-Diagnose (`resolved endpoint` + Quelle/Ursache), kurze Betriebsanleitung fuer Start/URLs.
+- Reihenfolge-Regel Plan-Update 5-3: P5-T23..P5-T28 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
+- Plan-Update-5-3 Umsetzung: Session-Resolver nutzt fuer Connect/Reconnect standardmaessig UI-Origin inkl. Port (`:4173`) und laeuft nicht mehr ueber Legacy-Portkandidaten (`:8080`-Drift entfernt).
+- Plan-Update-5-3 Umsetzung: Stale/legacy API-Base-Overrides aus `localStorage` werden nur bei Reachability genutzt; invalid/unreachable Werte werden transparent auf UI-Origin gefallbackt und als stale markiert.
+- Plan-Update-5-3 Umsetzung: Session-Diagnose fuehrt resolver-konsistent `resolved endpoint + selected via + fallback reason` in Endpoint-/Status-/Fehlerpfad.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
