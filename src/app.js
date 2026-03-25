@@ -597,8 +597,9 @@ function syncSessionDiagnosticsPanel() {
   }
 
   if (sessionLastErrorStatus) {
+    const errorEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "-";
     const errorText = retry.lastError
-      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError}`
+      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError} | Endpoint ${errorEndpoint}`
       : "kein Fehler";
     sessionLastErrorStatus.textContent = `Session Fehler: ${errorText}`;
   }
