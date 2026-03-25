@@ -11,9 +11,11 @@ Vorbereitete und reworkte Planung fuer den Nemesis Animations-Overhaul mit separ
 - `3-1-VERIFICATION.md`: Nachweise fuer Kombinationsmatrix, Spezialraum-Effekte und Clipping-Integritaet.
 - `3-2-VERIFICATION.md`: Abschlussnachweis fuer das Rework auf separates Trigger-Modell.
 - `3-3-VERIFICATION.md`: Abschlussnachweis fuer natives GIF-Loop-Playback ohne Pulse-/Zoom-Ersatz.
+- `3-4-VERIFICATION.md`: Abschlussnachweis fuer decoder-agnostisches GIF-Looping ohne Standbild-Fallback.
 
 ## Stand
 
 - Plan 3-1 (P3-T1..P3-T12) ist umgesetzt und nachgewiesen.
 - Rework Plan 3-2 (P3-T13..P3-T25) ist umgesetzt und verifiziert.
 - Plan 3-3 (P3-T26..P3-T31) ist umgesetzt und verifiziert.
+- Plan 3-4 (P3-T32..P3-T37) ist umgesetzt und verifiziert.

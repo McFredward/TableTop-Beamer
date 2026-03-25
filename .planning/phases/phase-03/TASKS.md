@@ -46,4 +46,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T34 [P0] Instanzparitaet in beiden Playback-Pfaden hardenen: `opacity`/`playbackSpeed` bleiben pro `animation.id` isoliert und editierbar.
 - [x] DONE P3-T35 [P0] Regression-Gate erneuern: Running-List-1:1, hold-by-default und raumstrenges Clipping bleiben unveraendert.
 - [x] DONE P3-T36 [P1] Browser-Matrix + Soak fuer Fallback-Looping dokumentieren (mind. 1 kompletter Loop-Roundtrip je GIF ohne `ImageDecoder`).
-- [ ] TODO P3-T37 [P1] Plan-3-4-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.
+- [x] DONE P3-T37 [P1] Plan-3-4-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.

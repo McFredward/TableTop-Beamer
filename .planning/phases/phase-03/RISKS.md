@@ -65,9 +65,32 @@
 - Impact: Hoch, zuvor geschlossene Rework-3-2-Defekte kehren zurueck.
 - Gegenmassnahme: verpflichtende Regression fuer Running/hold/Clipping als P0-Gate vor Plan-3-3-Abnahme.
 
+## R14 Fallback rendert statisches Erstframe
+- Risiko: Bei fehlendem nativen Decoder zeichnet der GIF-Pfad nur ein Standbild statt Frame-Fortschritt.
+- Impact: Kritisch, P0-Anforderung "echte Loops auf allen Zielbrowsern" verletzt.
+- Gegenmassnahme: decoder-agnostischer Frame-Scheduler mit Loop-Zeitbasis; Fallback-Path als Pflichttest ohne `ImageDecoder`.
+
+## R15 Parameterdrift zwischen nativen und Fallback-Pfaden
+- Risiko: `opacity`/`playbackSpeed` verhalten sich je Playback-Pfad unterschiedlich oder verlieren Instanzbezug.
+- Impact: Hoch, inkonsistente Bedienung und Querwirkungen zwischen laufenden Instanzen.
+- Gegenmassnahme: gemeinsame Instanzparameter-Pipeline pro `animation.id` + Matrix-Regression native vs fallback.
+
+## R16 Browser-Matrix-Luecken bei GIF-Fallback
+- Risiko: Fix funktioniert nur in einem Teil der Zielbrowser; unbeachtete Browser bleiben mit Standbild-/Timing-Fehlern.
+- Impact: Hoch, reale Einsatzfaelle schlagen trotz lokaler Positivtests fehl.
+- Gegenmassnahme: verpflichtende Browser-Matrix-Nachweise inkl. kompletter Loop-Roundtrips pro GIF im Fallback.
+
 ## Statusupdate nach Plan 3-2
 - R2/R4/R5/R7/R10 wurden fuer den aktuellen Rework-Scope durch Regression + Soak-Nachweise auf "beobachten" reduziert.
 
 ## Statusupdate fuer Plan 3-3
-- R11 (Pseudoanimation statt nativer GIF-Loop) ist durch P3-T26..P3-T27 auf "geschlossen" gesetzt.
-- R12 (PlaybackSpeed-Zeitbasis) und R13 (Regression bestehender Guards) sind nach P3-T28..P3-T30 auf "beobachten" reduziert.
+- R11 wird durch neues Realfeedback wieder auf "offen" gesetzt (Fallback liefert Standbild statt Loop).
+- R12 und R13 bleiben auf "beobachten" bis Plan-3-4-P0 abgeschlossen ist.
+
+## Statusupdate fuer Plan 3-4
+- R14/R15/R16 sind neu und initial auf "offen" gesetzt (P0/P1-Gates in Plan 3-4).
+
+## Abschlussstatus nach Plan 3-4
+- R14 ist mitigiert: Fallback-Standbild wurde durch decoder-agnostisches GIF-Frame-Playback mit Loop ersetzt.
+- R15 ist mitigiert: `opacity`/`playbackSpeed` laufen ueber dieselbe instanzscharfe Pipeline in nativen und fallback Pfaden.
+- R16 ist auf "beobachten" reduziert: Browser-Matrix- und Soak-Nachweise liegen fuer Fallback-Looping vor.
