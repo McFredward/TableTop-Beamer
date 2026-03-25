@@ -4365,7 +4365,7 @@ function switchBoard(boardId) {
   triggerFeedback.textContent = "Status: Board gewechselt";
 }
 
-function syncRoomPanelFromSelection() {
+function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   const room = getSelectedRoom();
   if (!room) {
     roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
@@ -4383,7 +4383,13 @@ function syncRoomPanelFromSelection() {
   roomStateBurningInput.disabled = false;
   roomStateAlienCountSelect.disabled = false;
   roomStateCorpseInput.disabled = false;
-  state.roomDraft.roomState = getRoomStateProfile(state.boardId, room.id);
+  if (!preserveDraftState) {
+    state.roomDraft.roomState = getRoomStateProfile(state.boardId, room.id);
+  }
+  if (!room.id.startsWith("special-") && isSpecialRoomEffect(state.roomDraft.animationId)) {
+    state.roomDraft.animationId = ROOM_STATE_COMBO_ANIMATION_ID;
+    roomAnimationSelect.value = ROOM_STATE_COMBO_ANIMATION_ID;
+  }
   roomStateBrokenInput.checked = state.roomDraft.roomState.broken;
   roomStateBurningInput.checked = state.roomDraft.roomState.burning;
   roomStateAlienCountSelect.value = String(state.roomDraft.roomState.alienCount);
@@ -4391,6 +4397,17 @@ function syncRoomPanelFromSelection() {
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
   syncRoomGeometryPanel();
   syncDashboardZoneVisibility();
+}
+
+function persistRoomStateDraftForSelectedRoom() {
+  const room = getSelectedRoom();
+  if (!room) {
+    return;
+  }
+  const normalized = normalizeRoomStateProfile(state.roomDraft.roomState);
+  state.roomDraft.roomState = normalized;
+  setRoomStateProfile(state.boardId, room.id, normalized);
+  persistBoardProfiles();
 }
 
 function syncRoomDraftActionButton() {
@@ -4975,7 +4992,7 @@ function editAnimation(animationId) {
   roomHoldInput.checked = state.roomDraft.hold;
   syncRoomDraftActionButton();
 
-  syncRoomPanelFromSelection();
+  syncRoomPanelFromSelection({ preserveDraftState: true });
   renderRoomOverlay();
   triggerFeedback.textContent = `Status: ${animation.id} in Editor geladen`;
 }
@@ -6320,7 +6337,15 @@ stopAllButton.addEventListener("click", () => {
 });
 
 roomAnimationSelect.addEventListener("change", () => {
-  state.roomDraft.animationId = roomAnimationSelect.value;
+  const selected = roomAnimationSelect.value;
+  const room = getSelectedRoom();
+  if (isSpecialRoomEffect(selected) && room && !room.id.startsWith("special-")) {
+    state.roomDraft.animationId = ROOM_STATE_COMBO_ANIMATION_ID;
+    roomAnimationSelect.value = ROOM_STATE_COMBO_ANIMATION_ID;
+    triggerFeedback.textContent = "Status: Spezialraum-Effekte sind nur fuer Spezialraeume verfuegbar";
+    return;
+  }
+  state.roomDraft.animationId = selected;
 });
 
 roomStateBrokenInput.addEventListener("change", () => {
@@ -6328,6 +6353,7 @@ roomStateBrokenInput.addEventListener("change", () => {
     ...state.roomDraft.roomState,
     broken: roomStateBrokenInput.checked,
   });
+  persistRoomStateDraftForSelectedRoom();
 });
 
 roomStateBurningInput.addEventListener("change", () => {
@@ -6335,6 +6361,7 @@ roomStateBurningInput.addEventListener("change", () => {
     ...state.roomDraft.roomState,
     burning: roomStateBurningInput.checked,
   });
+  persistRoomStateDraftForSelectedRoom();
 });
 
 roomStateAlienCountSelect.addEventListener("change", () => {
@@ -6342,6 +6369,7 @@ roomStateAlienCountSelect.addEventListener("change", () => {
     ...state.roomDraft.roomState,
     alienCount: Number(roomStateAlienCountSelect.value),
   });
+  persistRoomStateDraftForSelectedRoom();
 });
 
 roomStateCorpseInput.addEventListener("change", () => {
@@ -6349,6 +6377,7 @@ roomStateCorpseInput.addEventListener("change", () => {
     ...state.roomDraft.roomState,
     corpse: roomStateCorpseInput.checked,
   });
+  persistRoomStateDraftForSelectedRoom();
 });
 
 roomIntensityInput.addEventListener("input", () => {
