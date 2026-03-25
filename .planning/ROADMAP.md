@@ -37,21 +37,22 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
-## Phase 3 - Nemesis Animations Overhaul (Prepared)
-Ziel: Kombinierte Raumzustaende (`kaputt`, `brennend`, `alienCount 0-2`, `leiche`) plus Spezialraum-Effekte (`nest`, `slime`, `decompression`) mit sauberem Raum-Clipping und immersiver Darstellung.
+## Phase 3 - Nemesis Animations Overhaul (Rework in Progress)
+Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping und GIF-Instanzsteuerung (`opacity`, `playbackSpeed`) bei Default `hold`.
 
-Status: 12/15 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12) umgesetzt und nachgewiesen (siehe `.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-1-VERIFICATION.md`).
+Status: 25/25 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12) und Plan 3-2 Rework (P3-T13..P3-T25) sind abgeschlossen und nachgewiesen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`).
 
 Milestones:
-1. P0 Foundation: Zustandsmodell + Layer-/Konfliktregeln.
-2. P0 Clipping: einheitlicher Guard fuer alle Raumrenderpfade.
-3. P0 Rendering: kombinierte Standardraumzustaende + Spezialraum-Effekte live.
-4. P1 Hardening: Immersion, Performance, Verifikation, Artefakt-Sync.
+1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
+2. P0 Render-Rework: GIF-Vorgaben + globale Aequivalente (`alarm`/`lichtflackern`) strikt raumbegrenzt.
+3. P0 UX-Paritaet: Running-Uebersicht 1:1 pro aktiver Animation + hold-by-default.
+4. P1 Hardening: Regression, Performance, Verifikation, Artefakt-Sync.
 
 Exit Criteria:
-- Plan-3-1-P0 vollstaendig abgeschlossen und nachgewiesen.
-- Clipping-Integritaet ohne Leaks in allen relevanten Raumpfaden.
-- Spezialraum-Effekte stabil triggerbar und editierbar.
+- Plan-3-2-P0 vollstaendig abgeschlossen und nachgewiesen.
+- Alle 7 separaten Raumanimationen sind einzeln triggerbar/stoppbar und in Running 1:1 sichtbar.
+- `alarm` und `lichtflackern` laufen als globale Aequivalente ohne Clipping-Leaks ausserhalb des Zielraums.
+- GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` inkl. instanzscharfer `opacity`/`playbackSpeed` sind umgesetzt.
 - Verifikation und Planungsartefakte konsistent abgeschlossen.
 
 ## Deferred (Post-Phase-2)

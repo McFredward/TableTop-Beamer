@@ -11,8 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-1
-- Last Execution Summary: `.planning/phases/phase-03/3-1-SUMMARY.md`
+- Last Executed Plan: 3-2
+- Planned Next Execution: 3-3
+- Last Execution Summary: `.planning/phases/phase-03/3-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -200,6 +201,15 @@
 - Phase-3 Plan 3-1 ist ausgefuehrt: kombinierbare Raumzustaende laufen als persistente Per-Room-Profile mit zentraler Layer-Komposition.
 - Spezialraum-Effekte `nest`, `slime`, `decompression` sind in Trigger/Edit/Runtime integriert und bleiben strikt auf Raum-Polygone geclippt.
 - Runtime-Hardening fuer Plan 3-1 nutzt adaptive Quality-Skalierung auf Framekostenbasis und dokumentierte Acceptance-Nachweise in `.planning/phases/phase-03/3-1-VERIFICATION.md`.
+- Verbindliches User-Feedback fuer Phase 3 setzt Rework 3-2: Rueckkehr zum separaten Trigger-Modell pro Raumanimation statt kombinierten Raumzustandsobjekten.
+- Rework-Regel Plan 3-2: Running-Uebersicht fuehrt jede aktive Raumanimation als eigenen Eintrag; Kombinationen entstehen nur durch parallele Einzeltrigger.
+- Verbindliches Raumset fuer Plan 3-2 ist fix: `kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`.
+- Renderer-Regel Plan 3-2: `alarm` und `lichtflackern` nutzen globale Aequivalente, bleiben aber strikt auf den Zielraum geclippt.
+- Asset-/Parameter-Regel Plan 3-2: `kaputt`/`feuer`/`schleim` nutzen feste GIF-Assets; GIF-Instanzen unterstuetzen `opacity` + `playbackSpeed` und laufen default im `hold`-Modus bis Stop.
+- Plan-3-2-Rework ist ausgefuehrt: Room-Trigger laufen wieder als separate Instanzen statt Kombi-Objekt.
+- Running-Liste zeigt Instanz-ID/Typ 1:1 pro aktiver Raumanimation; Edit/Stop bleiben instanzgenau.
+- `alarm` und `lichtflackern` rendern als globale Aequivalente nur innerhalb des Zielraum-Clips.
+- GIF-Assets `malfunction.gif`/`fire.gif`/`final.gif` sind fuer `kaputt`/`feuer`/`schleim` live und instanzscharf mit `opacity` + `playbackSpeed` steuerbar.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -447,5 +457,16 @@
 - Task Commits: 12 atomare Commits (`4e959aa`, `2272d2b`, `6b4f96b`, `4ccc445`, `105e5d2`, `c63e07f`, `8f42c2f`, `7ce0b9d`, `90956dc`, `2a0e6f3`, `f563afe`, `364c4a6`)
 - Evidence:
   - `.planning/phases/phase-03/3-1-VERIFICATION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 2)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-2-SUMMARY.md`
+- Task Commits: 13 atomare Commits (`87c8b0e`, `1eec785`, `0e27d86`, `0b933d2`, `66924cf`, `735e1b2`, `a257923`, `d85028a`, `74c5485`, `3bc2e3e`, `a3c222a`, `a5a3019`, `42da20b`)
+- Evidence:
+  - `.planning/phases/phase-03/3-2-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T23-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T24-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
