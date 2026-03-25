@@ -4756,6 +4756,10 @@ function clearRoomDraftEditTarget() {
   syncRoomDraftActionButton();
 }
 
+function setLiveTriggerFeedback(message) {
+  triggerFeedback.textContent = `Status: ${message} (direkt live)`;
+}
+
 function createAnimation({
   type,
   scope,
@@ -4828,7 +4832,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       persistBoardProfiles();
       syncOutsideFxPanel();
     }
-    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
+    setLiveTriggerFeedback(`${getAnimationLabel(type)} gestoppt`);
   } else {
     const animation = createAnimation({
       type,
@@ -4844,7 +4848,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     playSoundForAnimation(animation);
-    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
+    setLiveTriggerFeedback(`${getAnimationLabel(type)} gestartet`);
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -4892,7 +4896,7 @@ function startRoomAnimationFromDraft() {
       };
       state.runningAnimations[editIndex] = updated;
       playSoundForAnimation(updated);
-      triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
+      setLiveTriggerFeedback(`${updated.id} in-place aktualisiert`);
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
       return;
@@ -4916,7 +4920,9 @@ function startRoomAnimationFromDraft() {
 
   state.runningAnimations.push(animation);
   playSoundForAnimation(animation);
-  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
+  setLiveTriggerFeedback(
+    `${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`,
+  );
   renderRunningAnimationsList();
 }
 
