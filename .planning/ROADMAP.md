@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen, Datenzonen und Preview/Live-Flow (Phase 2).
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2) und halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -60,7 +60,7 @@ Exit Criteria:
 ## Phase 4 - Maintainability Refactor (In Progress)
 Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 16/23 Tasks abgeschlossen (Plan 4-1 und Plan 4-2 erledigt); Plan 4-2 Nachweise liegen in `.planning/phases/phase-04/4-2-SUMMARY.md` und `.planning/phases/phase-04/P4-T16-ROOM-MODEL-REGRESSION.md`.
+Status: 21/27 Tasks abgeschlossen (Plan 4-1, Plan 4-2 und Plan 4-3 erledigt); P0-Hotfix fuer Desktop-Running-Containment und Preview-Decommission ist umgesetzt und nachgewiesen in `.planning/phases/phase-04/4-3-SUMMARY.md` und `.planning/phases/phase-04/P4-T21-HOTFIX-REGRESSION.md`.
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
@@ -68,14 +68,18 @@ Milestones:
 3. Persistenz/API-Zerlegung: LocalStorage-Migration, Resolver/Preflight/Save-Client isolieren.
 4. Raum-Generalization: Room-CRUD, freie Polygonraeume und editierbare Custom-Namen produktiv umsetzen.
 5. Datenmigration/Kompatibilitaet: neuer Room-JSON-Standard mit verlustfreier Migration und Legacy-Load-Pfad.
-6. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
-7. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running/Preview-Bindings, Pan/Edit-Guards entkoppeln.
-8. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
+6. P0 UX-Hotfix: Desktop-Running-Liste hart begrenzen, damit restliche Controls immer bedienbar bleiben.
+7. P0 Decommission: Preview-Staging vollstaendig aus UI/Runtime/State entfernen.
+8. GIF/Render-Zerlegung: decoder-agnostisches GIF-Subsystem und Render-Pipelines modularisieren.
+9. UI/Input-Zerlegung: Dashboard/Settings-Controller, Running-Bindings und Pan/Edit-Guards entkoppeln.
+10. Hardening: Vollmatrix-Regression und Abschlussdokumentation.
 
 Exit Criteria:
 - `src/app.js` ist auf schlanke Bootstrap-Orchestrierung reduziert; Kernlogik lebt in Modulen.
 - Settings unterstuetzt Raum anlegen/loeschen; jeder Raum bleibt frei als Polygon editierbar und hat einen frei editierbaren Namen.
 - Bestehende Defaults/Profile sind auf den neuen JSON-Standard migriert, bei voller Rueckwaertskompatibilitaet fuer Bestandsdaten.
+- Running-Liste bleibt auf Desktop auch unter Last begrenzt; keine Ueberdeckung/Vertreibung anderer Bedienmodule.
+- Preview-Staging ist vollstaendig entfernt; es gibt keine Preview-Queue/Commit/Rollback-Pfade mehr.
 - Keine Regression bei Dashboard/Settings, Running-Liste, GIF-Looping (native+fallback), Clipping, Persistenz, Save/API und Mobile-UX.
 - Phase-4-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 

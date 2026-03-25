@@ -11,9 +11,9 @@
 - Current Phase Key: phase-04
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 4-2
-- Planned Next Execution: 4-3
-- Last Execution Summary: `.planning/phases/phase-04/4-2-SUMMARY.md`
+- Last Executed Plan: 4-3
+- Planned Next Execution: 4-4
+- Last Execution Summary: `.planning/phases/phase-04/4-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -235,6 +235,11 @@
 - Plan-4-2 Umsetzung: Room-Ownership ist modularisiert (`src/app/domain/rooms`, `src/app/ui/settings/rooms`), waehrend `src/app.js` die Orchestrierung beibehlt.
 - Plan-4-2 Umsetzung: Kanonisches Raummodell nutzt `roomCatalog` (`id`,`name`,`polygon`,`meta`), UI erlaubt Room-Create/Delete, freie Polygonbearbeitung und Custom-Namen.
 - Plan-4-2 Umsetzung: Legacy-Roomdaten bleiben ladbar; Save schreibt konsistent das neue roomCatalog-Schema.
+- Neues verpflichtendes Feedback fuer Phase 4 ist gesetzt: Desktop-Problem mit wachsender Running-Liste wird als P0 behandelt; Liste muss begrenzt/scrollbar oder layout-separiert sein, damit Controls immer erreichbar bleiben.
+- Scope-Entscheidung fuer Phase 4: Preview-Staging wird vollstaendig entfernt (UI + Runtime + State/Flows), solange Trigger/Edit/Stop/Save-Kernfunktionen regressionsfrei bleiben.
+- Plan-4-3 ist entsprechend neu priorisiert als execute-ready P0-Hotfixpaket (Running-Containment + Preview-Decommission + Fokus-Regression).
+- Plan-4-3 Umsetzung: Running-Overview ist auf Desktop nicht mehr sticky, die Liste ist hoehenbegrenzt und besitzt einen eigenen Scrollbereich mit Layout-Containment.
+- Plan-4-3 Umsetzung: Preview-Staging ist aus UI, Runtime-State, Event-Flows und `/api/live/*` Serverpfaden entfernt; Trigger/Edit/Stop/Save bleiben preview-frei stabil.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -526,3 +531,13 @@
   - `.planning/phases/phase-04/P4-T7-SMOKE-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `GET /api/health=200`, `OPTIONS /api/global-defaults=204`, `POST/GET /api/global-defaults=200` (Port 4199)
+
+## Execution Results (Phase 4 Plan 3)
+- Status: completed
+- Summary: `.planning/phases/phase-04/4-3-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`dbe1704`, `ef97862`, `269c770`, `0d88d8e`, `c8ad4b1`)
+- Evidence:
+  - `.planning/phases/phase-04/P4-T21-HOTFIX-REGRESSION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
