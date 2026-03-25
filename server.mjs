@@ -149,7 +149,6 @@ async function handleGlobalDefaultsSave(req, res) {
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
     animationSoundMap: parsed.animationSoundMap ?? {},
-    animationGifMap: parsed.animationGifMap ?? {},
   };
 
   await writeFile(GLOBAL_DEFAULTS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");

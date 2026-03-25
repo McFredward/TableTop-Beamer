@@ -25,12 +25,6 @@
         hold: true,
       },
       runningAnimations: [],
-      preview: {
-        queue: [],
-      },
-      live: {
-        lastSend: null,
-      },
       audio: {
         enabled: true,
         volume: 0.7,

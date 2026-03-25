@@ -64,15 +64,6 @@ const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
-const previewGlobalSelect = document.querySelector("#preview-global-select");
-const stageGlobalPreviewButton = document.querySelector("#stage-global-preview");
-const stageRoomPreviewButton = document.querySelector("#stage-room-preview");
-const sendPreviewLiveButton = document.querySelector("#send-preview-live");
-const rollbackLastSendButton = document.querySelector("#rollback-last-send");
-const previewQueueList = document.querySelector("#preview-queue");
-const clearPreviewQueueButton = document.querySelector("#clear-preview-queue");
-const previewStatus = document.querySelector("#preview-status");
-const liveSendStatus = document.querySelector("#live-send-status");
 const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
@@ -220,7 +211,6 @@ const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelector
 });
 
 let animationIdCounter = 1;
-let previewItemIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
@@ -4140,9 +4130,6 @@ function deleteSelectedRoom() {
     }
     return true;
   });
-  state.preview.queue = state.preview.queue.filter(
-    (entry) => !(entry.scope === "room" && entry.boardId === state.boardId && entry.roomId === room.id),
-  );
   if (state.roomGeometryByBoard[state.boardId]) {
     delete state.roomGeometryByBoard[state.boardId][room.id];
   }
@@ -4162,7 +4149,6 @@ function deleteSelectedRoom() {
   syncPolygonEditorPanel();
   renderRoomOverlay();
   renderRunningAnimationsList();
-  renderPreviewQueue();
   syncRoomManagementPanel(
     persisted
       ? `Raumverwaltung: ${room.name ?? room.label ?? room.id} geloescht`
@@ -4276,37 +4262,6 @@ function createAnimation({
   };
 }
 
-function createPreviewQueueItem({
-  type,
-  scope,
-  boardId = state.boardId,
-  roomId = null,
-  intensity = 1,
-  speed = 1,
-  opacity = 0.9,
-  playbackSpeed = 1,
-  soundVolume = 1,
-  hold = false,
-  durationSec = 18,
-}) {
-  const effectiveHold = scope === "room" ? true : Boolean(hold);
-  return {
-    id: `preview-${previewItemIdCounter++}`,
-    type,
-    scope,
-    boardId,
-    roomId,
-    intensity: scope === "room" ? clampRoomIntensity(intensity) : 1,
-    speed: scope === "room" ? clampRoomSpeed(speed) : 1,
-    opacity: scope === "room" ? clampRoomOpacity(opacity) : 1,
-    playbackSpeed: scope === "room" ? clampGifPlaybackSpeed(playbackSpeed) : 1,
-    soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
-    hold: effectiveHold,
-    durationSec: effectiveHold ? null : Math.max(1, Math.round(durationSec)),
-    queuedAt: Date.now(),
-  };
-}
-
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
   const effectType = resolveRoomAnimationEffectType(animation.type);
@@ -4329,291 +4284,6 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
       roomAnimationType: animation.type,
     },
   );
-}
-
-function formatPreviewQueueLabel(item) {
-  const boardLabel = getBoard(item.boardId).label;
-  if (item.scope === "room") {
-    const room = getBoard(item.boardId).rooms.find((entry) => entry.id === item.roomId);
-    const roomLabel = room?.name ?? room?.label ?? item.roomId ?? "Raum";
-    return `${getAnimationLabel(item.type)} auf ${roomLabel} (${boardLabel})`;
-  }
-  return `${getAnimationLabel(item.type)} global (${boardLabel})`;
-}
-
-function syncPreviewGlobalOptions() {
-  if (!previewGlobalSelect) {
-    return;
-  }
-  previewGlobalSelect.replaceChildren();
-  for (const animation of GLOBAL_ANIMATIONS) {
-    const option = document.createElement("option");
-    option.value = animation.id;
-    option.textContent = animation.label;
-    previewGlobalSelect.append(option);
-  }
-}
-
-function renderPreviewQueue() {
-  if (!previewQueueList) {
-    return;
-  }
-  previewQueueList.replaceChildren();
-  if (state.preview.queue.length === 0) {
-    const empty = document.createElement("li");
-    empty.className = "running-empty";
-    empty.textContent = "Preview ist leer";
-    previewQueueList.append(empty);
-    if (previewStatus) {
-      previewStatus.textContent = "Preview: leer";
-    }
-    return;
-  }
-
-  for (const item of state.preview.queue) {
-    const li = document.createElement("li");
-    li.className = "running-item";
-    const title = document.createElement("div");
-    title.className = "running-title";
-    const scopeLabel = item.scope === "room" ? "PREVIEW-ROOM" : "PREVIEW-GLOBAL";
-    const scopeBadge = document.createElement("span");
-    scopeBadge.className = "running-scope-badge";
-    scopeBadge.textContent = scopeLabel;
-    title.append(scopeBadge, document.createTextNode(` ${formatPreviewQueueLabel(item)}`));
-
-    const meta = document.createElement("div");
-    meta.className = "running-meta";
-    meta.textContent =
-      item.scope === "room"
-        ? `Intensity ${item.intensity.toFixed(2)} | Opacity ${clampRoomOpacity(item.opacity).toFixed(2)} | Playback ${clampGifPlaybackSpeed(item.playbackSpeed).toFixed(2)}x | Sound ${Math.round(item.soundVolume * 100)}%`
-        : "Global-Preview";
-
-    const actions = document.createElement("div");
-    actions.className = "running-actions";
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.textContent = "Entfernen";
-    removeButton.addEventListener("click", () => {
-      state.preview.queue = state.preview.queue.filter((entry) => entry.id !== item.id);
-      renderPreviewQueue();
-      triggerFeedback.textContent = `Status: ${item.id} aus Preview entfernt`;
-    });
-    actions.append(removeButton);
-
-    li.append(title, meta, actions);
-    previewQueueList.append(li);
-  }
-  if (previewStatus) {
-    previewStatus.textContent = `Preview: ${state.preview.queue.length} Eintrag/Eintraege bereit`;
-  }
-}
-
-function stageRoomDraftToPreview() {
-  const room = getSelectedRoom();
-  if (!room) {
-    triggerFeedback.textContent = "Status: kein Raum fuer Preview ausgewaehlt";
-    return;
-  }
-  const item = createPreviewQueueItem({
-    type: state.roomDraft.animationId,
-    scope: "room",
-    boardId: state.boardId,
-    roomId: room.id,
-    intensity: state.roomDraft.intensity,
-    speed: state.roomDraft.speed,
-    opacity: state.roomDraft.opacity,
-    playbackSpeed: state.roomDraft.playbackSpeed,
-    soundVolume: state.roomDraft.soundVolume,
-    hold: state.roomDraft.hold,
-    durationSec: state.roomDraft.durationSec,
-  });
-  state.preview.queue.push(item);
-  renderPreviewQueue();
-  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
-}
-
-function stageGlobalToPreview() {
-  const animationId = previewGlobalSelect?.value || GLOBAL_ANIMATIONS[0]?.id;
-  if (!animationId) {
-    return;
-  }
-  const item = createPreviewQueueItem({
-    type: animationId,
-    scope: "global",
-    boardId: state.boardId,
-    hold: false,
-    durationSec: 18,
-  });
-  state.preview.queue.push(item);
-  renderPreviewQueue();
-  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
-}
-
-function syncLiveSendStatus(message = null) {
-  if (!liveSendStatus) {
-    return;
-  }
-  if (message) {
-    liveSendStatus.textContent = message;
-    return;
-  }
-  if (!state.live.lastSend) {
-    liveSendStatus.textContent = "Live-Send: noch kein Send";
-    return;
-  }
-  liveSendStatus.textContent =
-    `Live-Send: ${state.live.lastSend.sendId} (${state.live.lastSend.committedCount} Eintrag/Eintraege) aktiv`;
-}
-
-function buildLiveApiCandidates(pathname) {
-  const seen = new Set();
-  const candidates = [];
-  for (const route of resolveGlobalDefaultsApiCandidates()) {
-    const endpoint = `${route.apiBase}${pathname}`;
-    if (seen.has(endpoint)) {
-      continue;
-    }
-    seen.add(endpoint);
-    candidates.push({
-      endpoint,
-      routing: route,
-    });
-  }
-  return candidates;
-}
-
-async function callLiveApi(pathname, method, payload = null) {
-  let lastError = null;
-  for (const candidate of buildLiveApiCandidates(pathname)) {
-    try {
-      const response = await fetchWithTimeout(candidate.endpoint, {
-        method,
-        headers: {
-          accept: "application/json",
-          ...(payload ? { "content-type": "application/json" } : {}),
-        },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-      if (!response.ok) {
-        const detail = await response.text();
-        lastError = new Error(`${method} ${candidate.endpoint} failed: ${response.status} ${detail}`);
-        continue;
-      }
-      const parsed = await response.json();
-      return {
-        payload: parsed,
-        endpoint: candidate.endpoint,
-        routing: candidate.routing,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("live api call failed");
-    }
-  }
-  if (lastError instanceof Error) {
-    throw lastError;
-  }
-  throw new Error(`No reachable endpoint for ${method} ${pathname}`);
-}
-
-function previewItemToAnimation(item) {
-  return createAnimation({
-    type: item.type,
-    scope: item.scope,
-    boardId: item.boardId,
-    roomId: item.scope === "room" ? item.roomId : null,
-    intensity: item.scope === "room" ? item.intensity : 1,
-    speed: item.scope === "room" ? item.speed : 1,
-    opacity: item.scope === "room" ? item.opacity : 1,
-    playbackSpeed: item.scope === "room" ? item.playbackSpeed : 1,
-    soundVolume: item.scope === "room" ? item.soundVolume : 1,
-    hold: Boolean(item.hold),
-    durationSec: item.hold ? 0 : item.durationSec ?? 18,
-  });
-}
-
-async function sendPreviewToLive() {
-  if (state.preview.queue.length === 0) {
-    triggerFeedback.textContent = "Status: Preview leer - nichts zu senden";
-    return;
-  }
-  const previewSnapshot = state.preview.queue.map((item) => ({ ...item }));
-  const createdAnimations = previewSnapshot.map((item) => previewItemToAnimation(item));
-  state.runningAnimations.push(...createdAnimations);
-  for (const animation of createdAnimations) {
-    playSoundForAnimation(animation);
-  }
-  renderRunningAnimationsList();
-  refreshGlobalButtons();
-
-  try {
-    const sent = await callLiveApi("/api/live/send", "POST", {
-      sentAt: new Date().toISOString(),
-      boardId: state.boardId,
-      previewItems: previewSnapshot,
-    });
-    const sendId = String(sent.payload?.sendId || `local-${Date.now()}`);
-    state.live.lastSend = {
-      sendId,
-      committedCount: createdAnimations.length,
-      animationIds: createdAnimations.map((animation) => animation.id),
-      endpoint: sent.endpoint,
-      routing: sent.routing,
-    };
-    state.preview.queue = [];
-    renderPreviewQueue();
-    syncLiveSendStatus();
-    const snapshot = buildResolveSnapshot({
-      routing: sent.routing,
-      endpoint: sent.endpoint,
-      method: "POST",
-    });
-    triggerFeedback.textContent =
-      `Status: Preview an Live gesendet (${sendId}, ${createdAnimations.length} Eintrag/Eintraege | ${formatResolveSnapshot(snapshot)})`;
-  } catch (error) {
-    for (const animation of createdAnimations) {
-      stopAnimationSound(animation.id);
-    }
-    state.runningAnimations = state.runningAnimations.filter(
-      (animation) => !createdAnimations.some((created) => created.id === animation.id),
-    );
-    renderRunningAnimationsList();
-    refreshGlobalButtons();
-    triggerFeedback.textContent =
-      `Status: Live-Send fehlgeschlagen, Preview bleibt aktiv (${error instanceof Error ? error.message : "n/a"})`;
-  }
-}
-
-async function rollbackLastSend() {
-  const lastSend = state.live.lastSend;
-  if (!lastSend) {
-    triggerFeedback.textContent = "Status: kein Send zum Rueckgaengigmachen vorhanden";
-    return;
-  }
-  try {
-    const rolledBack = await callLiveApi("/api/live/rollback", "POST", {
-      sendId: lastSend.sendId,
-    });
-    const removedAnimations = state.runningAnimations.filter((animation) =>
-      lastSend.animationIds.includes(animation.id),
-    );
-    for (const animation of removedAnimations) {
-      stopAnimationSound(animation.id);
-    }
-    state.runningAnimations = state.runningAnimations.filter(
-      (animation) => !lastSend.animationIds.includes(animation.id),
-    );
-    state.live.lastSend = null;
-    renderRunningAnimationsList();
-    refreshGlobalButtons();
-    syncLiveSendStatus(
-      `Live-Send: ${rolledBack.payload?.rolledBackSendId || lastSend.sendId} rueckgaengig`,
-    );
-    triggerFeedback.textContent =
-      `Status: Letzter Send rueckgaengig (${rolledBack.payload?.rolledBackSendId || lastSend.sendId})`;
-  } catch (error) {
-    triggerFeedback.textContent =
-      `Status: Rollback fehlgeschlagen (${error instanceof Error ? error.message : "n/a"})`;
-  }
 }
 
 function upsertGlobalAnimation(type, defaultDurationSec) {
@@ -6280,51 +5950,6 @@ mobileStartRoomButton?.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
 
-stageGlobalPreviewButton?.addEventListener("click", () => {
-  if (shouldSuppressRapidTap("preview-global-stage")) {
-    return;
-  }
-  stageGlobalToPreview();
-});
-
-stageRoomPreviewButton?.addEventListener("click", () => {
-  if (shouldSuppressRapidTap("preview-room-stage")) {
-    return;
-  }
-  stageRoomDraftToPreview();
-});
-
-clearPreviewQueueButton?.addEventListener("click", () => {
-  state.preview.queue = [];
-  renderPreviewQueue();
-  triggerFeedback.textContent = "Status: Preview geleert";
-});
-
-sendPreviewLiveButton?.addEventListener("click", async () => {
-  if (shouldSuppressRapidTap("preview-send-live")) {
-    return;
-  }
-  sendPreviewLiveButton.disabled = true;
-  syncLiveSendStatus("Live-Send: sende Preview ...");
-  try {
-    await sendPreviewToLive();
-  } finally {
-    sendPreviewLiveButton.disabled = false;
-  }
-});
-
-rollbackLastSendButton?.addEventListener("click", async () => {
-  if (shouldSuppressRapidTap("preview-rollback-live")) {
-    return;
-  }
-  rollbackLastSendButton.disabled = true;
-  try {
-    await rollbackLastSend();
-  } finally {
-    rollbackLastSendButton.disabled = false;
-  }
-});
-
 applyOutputRouteButton.addEventListener("click", () => {
   applyOutputRoute(outputRouteSelect.value);
 });
@@ -6503,8 +6128,6 @@ async function initializeApplication() {
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
-  state.preview.queue = [];
-  state.live.lastSend = null;
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
@@ -6548,9 +6171,6 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
-  syncPreviewGlobalOptions();
-  renderPreviewQueue();
-  syncLiveSendStatus();
   syncMobileStickyOffsets();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
