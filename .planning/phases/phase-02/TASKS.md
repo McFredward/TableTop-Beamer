@@ -33,7 +33,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P2-T36 [P0] Mobile Trigger-Modus refactoren: Control-Cluster (`Triggern`/`Running managen`/`Raum starten`) in non-overlapping Layoutfluss bringen, sodass kein Board-Overlay mehr auftritt.
 - [x] DONE P2-T37 [P0] Mobile `Dashboard`/`Settings` Buttons von sticky/fixed auf normalen Dokumentfluss umstellen; Sichtbarkeit nur am Scroll-Start garantieren.
 - [x] DONE P2-T38 [P0] Mobile Board-Containment-Guard einbauen: Board bleibt bei Scroll, View-Switch und Orientation-Wechsel sichtbar/bedienbar ohne ueberlagernde Controls.
-- [ ] TODO P2-T39 [P0] Regression-Checks fuer No-Overlay-Layout (Triggern/Running managen/Raum starten) plus Desktop-Paritaet erweitern.
+- [x] DONE P2-T39 [P0] Regression-Checks fuer No-Overlay-Layout (Triggern/Running managen/Raum starten) plus Desktop-Paritaet erweitern.
 - [ ] TODO P2-T40 [P1] Verifikationsnachweis mit Referenz `debug/screenshot_debug.jpg` und aktualisiertem Mobile-Nachher-Protokoll dokumentieren.
 
 ## Milestone A - Core Data

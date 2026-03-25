@@ -2679,8 +2679,8 @@ function runLayoutScrollRegression() {
   if (dashboardStickyShell) {
     const stickyShellPosition = window.getComputedStyle(dashboardStickyShell).position;
     if (mobileViewport) {
-      if (state.uiView === "dashboard" && stickyShellPosition !== "sticky") {
-        issues.push(`mobile sticky-shell position=${stickyShellPosition || "missing"}`);
+      if (state.uiView === "dashboard" && !["static", "relative"].includes(stickyShellPosition)) {
+        issues.push(`mobile trigger cluster must not be sticky/fixed (position=${stickyShellPosition || "missing"})`);
       }
     } else if (!["static", "relative"].includes(stickyShellPosition)) {
       issues.push(`desktop sticky-shell regression position=${stickyShellPosition || "missing"}`);
@@ -2690,8 +2690,8 @@ function runLayoutScrollRegression() {
   if (primaryViewSwitch) {
     const navPosition = window.getComputedStyle(primaryViewSwitch).position;
     if (mobileViewport) {
-      if (navPosition !== "sticky") {
-        issues.push(`mobile nav position=${navPosition || "missing"}`);
+      if (!["static", "relative"].includes(navPosition)) {
+        issues.push(`mobile view nav must not be sticky/fixed (position=${navPosition || "missing"})`);
       }
     } else if (!["static", "relative"].includes(navPosition)) {
       issues.push(`desktop nav regression position=${navPosition || "missing"}`);
@@ -2704,7 +2704,7 @@ function runLayoutScrollRegression() {
     issues.push("running/global panel missing");
   } else {
     const runningPosition = window.getComputedStyle(runningOverviewPanel).position;
-    const expectedRunningPositions = mobileViewport ? ["static", "relative", "sticky", "fixed"] : ["sticky", "fixed"];
+    const expectedRunningPositions = mobileViewport ? ["static", "relative"] : ["sticky", "fixed"];
     if (!expectedRunningPositions.includes(runningPosition)) {
       issues.push(`running panel position=${runningPosition || "missing"}`);
     }
@@ -2715,6 +2715,23 @@ function runLayoutScrollRegression() {
     const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
     if ((orderMask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
       issues.push("running panel not before trigger groups");
+    }
+
+    if (mobileViewport) {
+      const mobileClusterEntries = [
+        ["mobile zone switch", mobileZoneSwitch],
+        ["mobile start room", mobileStartRoomButton],
+        ["running panel", runningOverviewPanel],
+      ];
+      for (const [label, element] of mobileClusterEntries) {
+        if (!element || !isElementRendered(element)) {
+          continue;
+        }
+        const position = window.getComputedStyle(element).position;
+        if (position === "sticky" || position === "fixed") {
+          issues.push(`${label} must not be sticky/fixed (position=${position})`);
+        }
+      }
     }
   }
 
