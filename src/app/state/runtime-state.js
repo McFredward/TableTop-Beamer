@@ -42,6 +42,8 @@
           lastAttemptAt: 0,
           lastSuccessAt: 0,
           lastEndpoint: "",
+          lastConnectTransport: "fetch",
+          lastConnectFallbackReason: "none",
           lastHeartbeatEndpoint: "",
           lastHeartbeatMethod: "POST",
           lastHeartbeatFallbackReason: "none",

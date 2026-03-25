@@ -718,6 +718,8 @@ function getSessionRetryState() {
       lastAttemptAt: 0,
       lastSuccessAt: 0,
       lastEndpoint: "",
+      lastConnectTransport: "fetch",
+      lastConnectFallbackReason: "none",
       lastHeartbeatEndpoint: "",
       lastHeartbeatMethod: "POST",
       lastHeartbeatFallbackReason: "none",
@@ -781,6 +783,12 @@ function getSessionRetryState() {
   if (typeof state.session.retry.lastEventMethodChanged !== "boolean") {
     state.session.retry.lastEventMethodChanged = false;
   }
+  if (!["fetch", "xhr"].includes(String(state.session.retry.lastConnectTransport || ""))) {
+    state.session.retry.lastConnectTransport = "fetch";
+  }
+  if (typeof state.session.retry.lastConnectFallbackReason !== "string") {
+    state.session.retry.lastConnectFallbackReason = "none";
+  }
   return state.session.retry;
 }
 
@@ -842,6 +850,146 @@ function buildEventGetFallbackEndpoint(eventPayload) {
       sharedState: JSON.stringify(eventPayload.sharedState || {}),
     },
   });
+}
+
+function isConnectFallbackEligible(error) {
+  if (!error) {
+    return false;
+  }
+  if (String(error?.code || "") === "API_UNREACHABLE") {
+    return true;
+  }
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+  const name = String(error?.name || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+  return (
+    name.includes("network") ||
+    name.includes("abort") ||
+    name.includes("timeout") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("load failed") ||
+    message.includes("timeout")
+  );
+}
+
+function describeConnectFallbackReason(error) {
+  if (!error) {
+    return "fetch-error-unknown";
+  }
+  if (String(error?.code || "") === "API_UNREACHABLE") {
+    return "fetch-timeout";
+  }
+  const errorName = String(error?.name || "error").toLowerCase();
+  if (errorName.includes("abort")) {
+    return "fetch-abort";
+  }
+  if (errorName.includes("network")) {
+    return "fetch-network-error";
+  }
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("failed to fetch") || message.includes("load failed")) {
+    return "fetch-unreachable";
+  }
+  return "fetch-network-error";
+}
+
+function createXhrResponseLike({ endpoint, status, responseText }) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    url: endpoint,
+    async json() {
+      return JSON.parse(String(responseText || "{}"));
+    },
+    async text() {
+      return String(responseText || "");
+    },
+  };
+}
+
+async function fetchSessionConnectViaXhr(endpoint, { timeoutMs = SESSION_REQUEST_TIMEOUT_MS } = {}) {
+  return await new Promise((resolve, reject) => {
+    let settled = false;
+    const resolveOnce = (value) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+    const rejectOnce = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error);
+    };
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", endpoint, true);
+    xhr.timeout = Math.max(250, Number(timeoutMs) || SESSION_REQUEST_TIMEOUT_MS);
+    xhr.setRequestHeader("accept", "application/json");
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        return;
+      }
+      resolveOnce(
+        createXhrResponseLike({
+          endpoint,
+          status: Number(xhr.status || 0),
+          responseText: xhr.responseText || "",
+        }),
+      );
+    };
+    xhr.onerror = () => {
+      const error = new Error("xhr connect network error");
+      error.name = "NetworkError";
+      rejectOnce(error);
+    };
+    xhr.ontimeout = () => {
+      const error = new Error(`xhr connect timeout after ${xhr.timeout}ms`);
+      error.name = "TimeoutError";
+      rejectOnce(error);
+    };
+    xhr.onabort = () => {
+      const error = new Error("xhr connect aborted");
+      error.name = "AbortError";
+      rejectOnce(error);
+    };
+    xhr.send();
+  });
+}
+
+async function fetchSessionConnectWithTransportFallback(endpoint) {
+  try {
+    const response = await fetchWithTimeout(endpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    });
+    return {
+      response,
+      transport: "fetch",
+      fallbackReason: "none",
+    };
+  } catch (error) {
+    if (!isConnectFallbackEligible(error)) {
+      throw error;
+    }
+    const fallbackReason = describeConnectFallbackReason(error);
+    const response = await fetchSessionConnectViaXhr(endpoint, {
+      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    });
+    return {
+      response,
+      transport: "xhr",
+      fallbackReason,
+    };
+  }
 }
 
 async function sendHeartbeatWithFallback() {
@@ -913,6 +1061,12 @@ function setSessionRetryError(code, { endpoint = "", status = null, detail = "" 
   if (detail) {
     retry.lastError = `${retry.lastError} - ${detail}`;
   }
+}
+
+function updateConnectTransport(transport = "fetch", fallbackReason = "none") {
+  const retry = getSessionRetryState();
+  retry.lastConnectTransport = transport === "xhr" ? "xhr" : "fetch";
+  retry.lastConnectFallbackReason = fallbackReason || "none";
 }
 
 function clearSessionReconnectTimer() {
@@ -1289,13 +1443,9 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
           endpoint,
         });
         try {
-          response = await fetchWithTimeout(endpoint, {
-            method: "GET",
-            headers: {
-              accept: "application/json",
-            },
-            timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-          });
+          const connectAttempt = await fetchSessionConnectWithTransportFallback(endpoint);
+          response = connectAttempt.response;
+          updateConnectTransport(connectAttempt.transport, connectAttempt.fallbackReason);
           if (response.ok) {
             const result = await response.json();
             state.session.id = String(result.sessionId || candidateSessionId || "default-session");
@@ -1352,12 +1502,13 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
           setSessionRetryError("CONNECT_HTTP_ERROR", {
             endpoint,
             status: response.status,
+            detail: `transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
           });
         } catch (error) {
           lastError = error instanceof Error ? error : new Error("session connect failed");
           setSessionRetryError("CONNECT_UNREACHABLE", {
             endpoint,
-            detail: reconnect ? "reconnect" : "join",
+            detail: `${reconnect ? "reconnect" : "join"} | transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
           });
         }
 
