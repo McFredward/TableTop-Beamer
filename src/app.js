@@ -206,6 +206,12 @@ const ROLE_STORAGE_KEY = "tt-beamer.client-role.v1";
 const SESSION_STORAGE_KEY = "tt-beamer.session-id.v1";
 const CLIENT_ROLE_VALUES = new Set(["operator", "alignment", "final-output"]);
 const DEFAULT_CLIENT_ROLE = "operator";
+const SESSION_ENDPOINT_PATHS = {
+  connect: "/api/session/connect",
+  stream: "/api/session/stream",
+  heartbeat: "/api/session/heartbeat",
+  event: "/api/session/event",
+};
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
@@ -267,19 +273,98 @@ function resolveSessionIdFromRuntimeContext() {
   return "default-session";
 }
 
-function getSessionConnectUrl() {
-  const role = normalizeClientRole(state.role);
-  const sessionId = encodeURIComponent(state.session.id || "default-session");
-  const clientId = state.session.clientId ? encodeURIComponent(state.session.clientId) : "";
-  const roleParam = encodeURIComponent(role);
-  const version = encodeURIComponent(SESSION_PROTOCOL_VERSION);
-  return `/api/session/connect?sessionId=${sessionId}&role=${roleParam}&version=${version}${clientId ? `&clientId=${clientId}` : ""}`;
+function getPreferredSessionIdCandidates() {
+  const candidates = [];
+  const seen = new Set();
+  const add = (value) => {
+    const cleaned = String(value || "").trim();
+    if (!cleaned || seen.has(cleaned)) {
+      return;
+    }
+    seen.add(cleaned);
+    candidates.push(cleaned);
+  };
+
+  add(state.session.id);
+  add(state.session.lastSuccessfulSessionId);
+  add(resolveSessionIdFromRuntimeContext());
+  add("default-session");
+
+  candidates.sort((left, right) => {
+    if (left === "default-session" && right !== "default-session") {
+      return 1;
+    }
+    if (right === "default-session" && left !== "default-session") {
+      return -1;
+    }
+    return 0;
+  });
+  return candidates;
 }
 
-function getSessionStreamUrl() {
-  const sessionId = encodeURIComponent(state.session.id || "default-session");
-  const clientId = encodeURIComponent(state.session.clientId || "");
-  return `/api/session/stream?sessionId=${sessionId}&clientId=${clientId}`;
+function resolveSessionApiCandidates() {
+  const resolved = [];
+  const seen = new Set();
+  const addCandidate = ({ apiBase, source, uiHost, apiHost }) => {
+    const normalized = normalizeApiBase(apiBase);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    resolved.push({
+      apiBase: normalized,
+      source: source || "session:fallback",
+      uiHost: uiHost || getUiHostName(),
+      apiHost: apiHost || getApiHostName(normalized),
+    });
+  };
+
+  for (const candidate of resolveGlobalDefaultsApiCandidates()) {
+    addCandidate(candidate);
+  }
+
+  addCandidate({
+    apiBase: window.location?.origin,
+    source: "session:ui-origin",
+    uiHost: getUiHostName(),
+    apiHost: getUiHostName(),
+  });
+
+  return resolved;
+}
+
+function buildSessionEndpoint(path, { apiBase = state.session.apiBase || window.location?.origin || "", query } = {}) {
+  const normalizedBase = normalizeApiBase(apiBase) || window.location?.origin || "";
+  const endpoint = `${normalizedBase}${path}`;
+  if (!query) {
+    return endpoint;
+  }
+  const search = new URLSearchParams(query);
+  return `${endpoint}?${search.toString()}`;
+}
+
+function getSessionConnectUrl({ sessionId, apiBase, includeClientId = true } = {}) {
+  const role = normalizeClientRole(state.role);
+  const resolvedSessionId = String(sessionId || state.session.id || "default-session").trim() || "default-session";
+  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
+    apiBase,
+    query: {
+      sessionId: resolvedSessionId,
+      role,
+      version: SESSION_PROTOCOL_VERSION,
+      ...(includeClientId && state.session.clientId ? { clientId: state.session.clientId } : {}),
+    },
+  });
+}
+
+function getSessionStreamUrl({ apiBase } = {}) {
+  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.stream, {
+    apiBase,
+    query: {
+      sessionId: state.session.id || "default-session",
+      clientId: state.session.clientId || "",
+    },
+  });
 }
 
 function buildSharedSessionState() {
@@ -367,7 +452,7 @@ async function emitSessionEvent(type, payload = {}) {
     return;
   }
   try {
-    const response = await fetch("/api/session/event", {
+    const response = await fetchWithTimeout(buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event), {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -412,7 +497,7 @@ function startSessionHeartbeat(intervalMs = 4000) {
       return;
     }
     try {
-      const response = await fetch("/api/session/heartbeat", {
+      const response = await fetchWithTimeout(buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat), {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -479,33 +564,67 @@ function attachSessionStream() {
 }
 
 async function connectSession({ reconnect = false } = {}) {
-  try {
-    const response = await fetch(getSessionConnectUrl(), {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`connect failed (${response.status})`);
+  const sessionCandidates = resolveSessionApiCandidates();
+  const preferredSessionIds = getPreferredSessionIdCandidates();
+  let lastError = null;
+
+  for (const candidate of sessionCandidates) {
+    for (const candidateSessionId of preferredSessionIds) {
+      let response = null;
+      let includeClientId = true;
+
+      for (let joinAttempt = 0; joinAttempt < 2; joinAttempt += 1) {
+        const endpoint = getSessionConnectUrl({
+          sessionId: candidateSessionId,
+          apiBase: candidate.apiBase,
+          includeClientId,
+        });
+        try {
+          response = await fetchWithTimeout(endpoint, {
+            method: "GET",
+            headers: {
+              accept: "application/json",
+            },
+          });
+          if (response.ok) {
+            const result = await response.json();
+            state.session.id = String(result.sessionId || candidateSessionId || "default-session");
+            state.session.lastSuccessfulSessionId = state.session.id;
+            state.session.clientId = String(result.clientId || state.session.clientId || "");
+            state.session.apiBase = candidate.apiBase;
+            state.session.apiSource = candidate.source;
+            applyClientRole(result.role || state.role);
+            state.session.connected = true;
+            state.session.reconnectAttempts = 0;
+            state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
+            applySessionSnapshot(result?.snapshot);
+            attachSessionStream();
+            startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
+            syncSessionStatus(
+              `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect+snapshot" : "join"} | Rolle ${state.role}`,
+            );
+            return;
+          }
+
+          const details = await response.text();
+          lastError = new Error(`connect failed (${response.status}) ${details}`);
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error("session connect failed");
+        }
+
+        if (includeClientId && state.session.clientId) {
+          includeClientId = false;
+          continue;
+        }
+      }
     }
-    const result = await response.json();
-    state.session.id = String(result.sessionId || state.session.id || "default-session");
-    state.session.clientId = String(result.clientId || state.session.clientId || "");
-    applyClientRole(result.role || state.role);
-    state.session.connected = true;
-    state.session.reconnectAttempts = reconnect ? state.session.reconnectAttempts : 0;
-    state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
-    applySessionSnapshot(result?.snapshot);
-    attachSessionStream();
-    startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
-    syncSessionStatus(
-      `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect+snapshot" : "join"} | Rolle ${state.role}`,
-    );
-  } catch {
-    state.session.connected = false;
-    syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id})`);
-    scheduleSessionReconnect(2500);
+  }
+
+  state.session.connected = false;
+  syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id || "default-session"})`);
+  scheduleSessionReconnect(2500);
+  if (lastError) {
+    console.warn("session connect failed", lastError);
   }
 }
 
@@ -539,7 +658,11 @@ function applyClientRole(nextRole) {
 }
 
 function applySessionId(nextSessionId) {
-  const cleaned = String(nextSessionId || "").trim() || "default-session";
+  const cleaned =
+    String(nextSessionId || "").trim() ||
+    String(state.session.lastSuccessfulSessionId || "").trim() ||
+    String(resolveSessionIdFromRuntimeContext() || "").trim() ||
+    "default-session";
   state.session.id = cleaned;
   if (sessionIdInput) {
     sessionIdInput.value = cleaned;

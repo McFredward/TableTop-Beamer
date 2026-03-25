@@ -18,6 +18,9 @@
       session: {
         id: "default-session",
         clientId: null,
+        apiBase: "",
+        apiSource: "unresolved",
+        lastSuccessfulSessionId: "",
         serverVersion: "unknown",
         connected: false,
         lastSeq: 0,
