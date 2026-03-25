@@ -224,9 +224,6 @@ function applyOutputRoleViewContract() {
     controlPanel.setAttribute("aria-hidden", "true");
     controlPanel.setAttribute("inert", "");
   }
-  if (roomOverlay) {
-    roomOverlay.setAttribute("aria-hidden", "true");
-  }
   triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
 }
 
@@ -239,6 +236,10 @@ function syncAlignModePanel() {
     alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
   }
   document.body.classList.toggle("align-mode-active", enabled);
+  if (roomOverlay) {
+    const hiddenInFinal = outputRole === OUTPUT_ROLE_FINAL && !enabled;
+    roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
+  }
 }
 
 function setAlignMode(enabled, { emit = true } = {}) {
