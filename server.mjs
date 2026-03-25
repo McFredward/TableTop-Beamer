@@ -9,6 +9,19 @@ const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 
+const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
+
+const liveSessionState = {
+  version: 0,
+  updatedAt: new Date().toISOString(),
+  lastMutation: null,
+  snapshot: {
+    schema: LIVE_STATE_SCHEMA,
+    alignMode: false,
+    runtime: null,
+  },
+};
+
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
@@ -45,6 +58,23 @@ function sendJson(res, statusCode, body) {
     "content-length": Buffer.byteLength(payload),
   });
   res.end(payload);
+}
+
+function mutateLiveSession({ mutation, nextSnapshotPatch }) {
+  liveSessionState.version += 1;
+  liveSessionState.updatedAt = new Date().toISOString();
+  liveSessionState.lastMutation = mutation;
+  liveSessionState.snapshot = {
+    ...liveSessionState.snapshot,
+    ...nextSnapshotPatch,
+    schema: LIVE_STATE_SCHEMA,
+  };
+  return {
+    version: liveSessionState.version,
+    updatedAt: liveSessionState.updatedAt,
+    lastMutation: liveSessionState.lastMutation,
+    snapshot: liveSessionState.snapshot,
+  };
 }
 
 function normalizeRoutePath(urlValue = "/") {
@@ -209,6 +239,14 @@ const server = createServer(async (req, res) => {
         allow: "GET,HEAD,POST,OPTIONS",
       });
       res.end();
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/live/state") {
+      sendJson(res, 200, {
+        ok: true,
+        session: liveSessionState,
+      });
       return;
     }
 

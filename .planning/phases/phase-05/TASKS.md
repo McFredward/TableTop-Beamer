@@ -8,7 +8,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T2 [P0] Final-Output-Render-Guard implementieren: kein Board-Bild, keine Raum-Polygone, keine Raum-Namen.
 - [x] DONE P5-T3 [P0] Final-Output an bestehende FX-Renderpfade anbinden (room/global/inside/outside), ohne Controller-UI-Anteile.
 
-- [ ] TODO P5-T4 [P0] Shared Session-State am Server einfuehren (Snapshot + Versionszaehler + letzte Mutation).
+- [x] DONE P5-T4 [P0] Shared Session-State am Server einfuehren (Snapshot + Versionszaehler + letzte Mutation).
 - [ ] TODO P5-T5 [P0] Client-Aktionen serverautoritiv mutieren (Trigger/Edit/Stop/Clear-All/Align-Toggle).
 - [ ] TODO P5-T6 [P0] Broadcast-Kanal fuer sofortige Push-Synchronisierung auf alle verbundenen Clients einbauen.
 - [ ] TODO P5-T7 [P0] Reconnect-/Join-Flow: neuer Client erhaelt unmittelbar den aktuellen Live-Snapshot.
