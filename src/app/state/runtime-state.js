@@ -42,6 +42,7 @@
       boardZoomByBoard: {},
       polygonEditor: {
         roomIdByBoard: {},
+        handleScale: 1,
         selectedVertexIndex: 0,
         selectedEdgeIndex: 0,
         dragVertexIndex: null,
@@ -50,6 +51,13 @@
         dragBoardId: null,
         dragStartPoints: null,
         dragMoved: false,
+        suppressRoomClickUntil: 0,
+        dragAreaPointerId: null,
+        dragAreaRoomId: null,
+        dragAreaBoardId: null,
+        dragAreaStartPoints: null,
+        dragAreaStartPointerPoint: null,
+        dragAreaMoved: false,
       },
       shipPolygonEditor: {
         selectedVertexIndex: 0,

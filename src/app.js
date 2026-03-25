@@ -137,6 +137,8 @@ const outsideModeInput = document.querySelector("#outside-mode");
 const outsideDirectionInput = document.querySelector("#outside-direction");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
+const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
+const polygonHandleSizeValue = document.querySelector("#polygon-handle-size-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
 const boardZoomResetButton = document.querySelector("#board-zoom-reset");
 const boardZoomStatus = document.querySelector("#board-zoom-status");
@@ -157,6 +159,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "audio-mapping-animation",
   "audio-mapping-sound",
   "board-zoom-range",
+  "polygon-handle-size",
   "board-zoom-fit",
   "board-zoom-reset",
   "hitarea-offset-x",
@@ -430,6 +433,10 @@ function setBoardZoom(boardId, profile) {
 
 function clampRoomStretch(value) {
   return Math.max(0.6, Math.min(1.6, value));
+}
+
+function clampPolygonHandleScale(value) {
+  return Math.max(0.7, Math.min(2.2, Number(value) || 1));
 }
 
 function normalizeRoomGeometryMode(mode) {
@@ -1464,8 +1471,19 @@ function syncBoardZoomPanel() {
   const percent = Math.round(zoom.scale * 100);
   boardZoomRangeInput.value = String(percent);
   boardZoomValue.textContent = `${percent}%`;
+  syncPolygonHandleSizePanel();
   syncBoardZoomStatus();
   syncStageZoomTransform();
+}
+
+function syncPolygonHandleSizePanel() {
+  const percent = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  if (polygonHandleSizeInput) {
+    polygonHandleSizeInput.value = String(percent);
+  }
+  if (polygonHandleSizeValue) {
+    polygonHandleSizeValue.textContent = `${percent}%`;
+  }
 }
 
 function updateCurrentBoardZoom(partial, statusText = null) {
@@ -3444,11 +3462,12 @@ function renderPolygonEditorHandles() {
   const points = getRoomPoints(room, state.boardId);
   const zoomScale = getBoardZoom(state.boardId).scale;
   const inverseZoom = 1 / zoomScale;
+  const handleScale = clampPolygonHandleScale(state.polygonEditor.handleScale);
   const edgeHitRadius = Math.max(8, 12 * inverseZoom);
-  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom);
+  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom) * handleScale;
   const vertexHitRadius = Math.max(10, 16 * inverseZoom);
-  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom);
-  const vertexLabelSize = Math.max(9, 11 * inverseZoom);
+  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom) * handleScale;
+  const vertexLabelSize = Math.max(9, 11 * inverseZoom) * Math.max(0.9, handleScale * 0.95);
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
     const [bX, bY] = points[(index + 1) % points.length];
@@ -5371,6 +5390,14 @@ boardZoomRangeInput.addEventListener("input", () => {
   const center = getRoomCenterForZoom(state.boardId);
   updateCurrentBoardZoom(computePanForZoomFocus(scale, center), `Board-Zoom auf ${Math.round(scale * 100)}% gesetzt`);
   setPanCursorState();
+});
+
+polygonHandleSizeInput?.addEventListener("input", () => {
+  const handleScale = clampPolygonHandleScale((Number(polygonHandleSizeInput.value) || 100) / 100);
+  state.polygonEditor.handleScale = handleScale;
+  syncPolygonHandleSizePanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = `Status: Polygon-Handle-Groesse auf ${Math.round(handleScale * 100)}% gesetzt`;
 });
 
 boardZoomFitButton.addEventListener("click", () => {
