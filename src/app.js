@@ -3747,6 +3747,14 @@ function syncAudioStatus() {
   audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
 }
 
+function persistRuntimeSoundSettingsChange(failureMessage) {
+  const persisted = persistBoardProfiles();
+  if (!persisted) {
+    triggerFeedback.textContent = failureMessage;
+  }
+  return persisted;
+}
+
 function syncAnimationSpeedPanel() {
   const speed = clampAnimationSpeed(state.animationSpeed);
   state.animationSpeed = speed;
@@ -3940,7 +3948,13 @@ function syncAudioMappingPanel() {
     selectedAnimationType,
     state.animationSoundMap[selectedAnimationType],
   );
+  const previousMapped = state.animationSoundMap[selectedAnimationType];
   state.animationSoundMap[selectedAnimationType] = mapped;
+  if (previousMapped !== mapped) {
+    persistRuntimeSoundSettingsChange(
+      "Status: Sound-Mapping normalisiert, aber Persistenz fehlgeschlagen",
+    );
+  }
   audioMappingSoundSelect.value = mapped;
   syncAudioMappingStatus();
 }
@@ -6159,10 +6173,7 @@ audioEnabledInput.addEventListener("change", () => {
   }
   applyAudioGain();
   syncAudioStatus();
-  const persisted = persistBoardProfiles();
-  if (!persisted) {
-    triggerFeedback.textContent = "Status: Audio-Umschaltung gesetzt, aber Persistenz fehlgeschlagen";
-  }
+  persistRuntimeSoundSettingsChange("Status: Audio-Umschaltung gesetzt, aber Persistenz fehlgeschlagen");
 });
 
 audioMappingAnimationSelect.addEventListener("change", () => {
@@ -6178,7 +6189,9 @@ audioMappingSoundSelect.addEventListener("change", () => {
     animationType,
     audioMappingSoundSelect.value,
   );
-  const persisted = persistBoardProfiles();
+  const persisted = persistRuntimeSoundSettingsChange(
+    `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`,
+  );
   syncAudioMappingPanel();
   triggerFeedback.textContent = persisted
     ? `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
@@ -6191,10 +6204,7 @@ audioVolumeInput.addEventListener("input", () => {
   audioVolumeValue.textContent = `${volumePercent}%`;
   applyAudioGain();
   syncAudioStatus();
-  const persisted = persistBoardProfiles();
-  if (!persisted) {
-    triggerFeedback.textContent = "Status: Audio-Lautstaerke gesetzt, aber Persistenz fehlgeschlagen";
-  }
+  persistRuntimeSoundSettingsChange("Status: Audio-Lautstaerke gesetzt, aber Persistenz fehlgeschlagen");
 });
 
 animationSpeedInput.addEventListener("input", () => {

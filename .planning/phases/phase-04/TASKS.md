@@ -47,7 +47,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 4-5b - Verify-Follow-up Rest-Gap (P0 Mini-Hotfix, execute-ready)
 - [x] DONE P4-T39 [P0] Audio-/Sound-Mapping-UI-Handler auf Persist-on-change umstellen (Aenderungen in `audio.enabled`, `audio.volume`, `animationSoundMap` sofort in LocalStorage schreiben).
-- [ ] TODO P4-T40 [P0] Reload-Determinismus sicherstellen: Direkt-Reload nach Audio-/Mapping-Aenderung muss ohne zusaetzliche Aktion den zuletzt geaenderten Stand laden.
+- [x] DONE P4-T40 [P0] Reload-Determinismus sicherstellen: Direkt-Reload nach Audio-/Mapping-Aenderung muss ohne zusaetzliche Aktion den zuletzt geaenderten Stand laden.
 - [ ] TODO P4-T41 [P0] Kurze Regression-Doku erstellen (Sofort-Persistenz + Reload-Roundtrip + Negativhinweis bei LocalStorage-Write-Fehler).
 
 ## Plan 4-6 - Render/GIF/UI Isolation
