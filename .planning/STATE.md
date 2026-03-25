@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-5
+- Last Executed Plan: 5-6
 - Planned Next Execution: 5-2 (P5-T21..P5-T22)
-- Last Execution Summary: `.planning/phases/phase-05/5-5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -285,6 +285,12 @@
 - Plan-Update-5-5 Umsetzung: Session-Requests nutzen ein dediziertes Timeout-Budget (`SESSION_REQUEST_TIMEOUT_MS=9000`) statt des Global-Defaults (`API_REQUEST_TIMEOUT_MS=3000`).
 - Plan-Update-5-5 Umsetzung: Heartbeat-Eskalation startet erst nach N aufeinanderfolgenden Fehlschlaegen (default 3); Einzel-Aussetzer werden toleriert.
 - Plan-Update-5-5 Umsetzung: Retry-Transitionen sind serialisiert (Transition-IDs), terminal wird durch Success-Grace-Window gegen Kurzjitter gehaertet; Retry-Reset erfolgt erst nach stabilem Heartbeat-Erfolg.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Heartbeat scheitert weiterhin als HTTP0-Loop, Connect degradiert nach kurzem Erfolg und Multi-Device-Sync bleibt dadurch unzuverlaessig.
+- Plan-Update 5-6 setzt Prioritaetsfokus: persistente Session-API-Logdatei, Heartbeat POST-primaer mit GET-Fallback, optionaler Event-GET-Fallback, methodenscharfe UI-Diagnose und erweitertes Runbook mit Testbefehlen.
+- Transport-Regel Plan-Update 5-6: Heartbeat/Event nutzen POST als Primaerweg; GET-Fallback ist nur degradationsgetrieben aktiv und muss serverseitig kompatibel + diagnostisch sichtbar sein.
+- Plan-Update-5-6 Umsetzung: Session-API schreibt persistente JSON-Logs nach `logs/session-api.log` (Methode, Endpoint, Status, Code, Session-/Client-Korrelation).
+- Plan-Update-5-6 Umsetzung: Heartbeat ist POST-primaer mit GET-Fallback in Client+Server; UI zeigt aktive Methode, Endpoint, Fallback-Ursache und letzten Methodenwechsel.
+- Plan-Update-5-6 Umsetzung: Event-GET-Fallback ist optional per Flag (`eventGetFallback`) aktivierbar und serverseitig per `eventId`-Duplicate-Guard gegen Doppelzustellung gehaertet.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -635,3 +641,13 @@
   - `.planning/phases/phase-05/P5-T44-SESSION-RESILIENCE-HOTFIX-VERIFICATION.md`
   - `node debug/p5-t43-session-jitter-regression.mjs` (`JITTER_REGRESSION_GUARD=true`)
   - `node debug/p5-t44-session-resilience-verification.mjs` (`PLAN_5_5_VERIFICATION=true`, `HEARTBEAT_GET_404=true`, `HEARTBEAT_POST_200=true`)
+
+## Execution Results (Phase 5 Plan 6)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-6-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`5def0c2`, `b12997a`, `3fa9389`, `8c3f1e5`, `4da9307`, `66102a9`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T50-TRANSPORT-FALLBACK-VERIFICATION.md`
+  - `curl`-Smoke: `CONNECT=200`, `HB_POST=200`, `HB_GET=200`, `EVENT_POST=200`, `EVENT_GET=200`, `EVENT_DUP=200`
+  - `logs/session-api.log` enthaelt `SESSION_HEARTBEAT_OK` (POST+GET), `SESSION_EVENT_OK` (POST+GET), `SESSION_EVENT_DUPLICATE_IGNORED`
+  - `node --check src/app.js`, `node --check src/app/state/runtime-state.js`, `node --check server.mjs`
