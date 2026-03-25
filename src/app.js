@@ -3693,6 +3693,103 @@ function runShipClipRegression() {
   return true;
 }
 
+function runGifDirectStartEditReloadRegression() {
+  const gifType = ROOM_ANIMATIONS.find((animation) => isGifRoomAnimation(animation.id))?.id ?? "kaputt";
+  const defaultPath = ROOM_GIF_ANIMATION_ASSETS[gifType] ?? null;
+  const mappedPath = ROOM_GIF_ASSET_PATHS.find((path) => path !== defaultPath) ?? defaultPath;
+  const targetRoom = getBoard().rooms[0];
+
+  if (!targetRoom || !mappedPath) {
+    return true;
+  }
+
+  const issues = [];
+  const previousSelectedRoomId = state.selectedRoomId;
+  const previousRoomDraft = { ...state.roomDraft };
+  const previousRunningAnimations = state.runningAnimations.map((entry) => ({ ...entry }));
+  const previousAnimationGifMap = { ...state.animationGifMap };
+  const previousRunningIds = new Set(previousRunningAnimations.map((entry) => entry.id));
+
+  let createdId = null;
+
+  try {
+    state.selectedRoomId = targetRoom.id;
+    state.animationGifMap[gifType] = mappedPath;
+    state.roomDraft = {
+      ...state.roomDraft,
+      animationId: gifType,
+      intensity: 0.8,
+      speed: 1,
+      opacity: 0.9,
+      playbackSpeed: 1,
+      soundVolume: 1,
+      editTargetId: null,
+    };
+
+    startRoomAnimationFromDraft();
+    const created = state.runningAnimations.find(
+      (entry) =>
+        !previousRunningIds.has(entry.id) && entry.scope === "room" && entry.roomId === targetRoom.id,
+    );
+    if (!created) {
+      issues.push("direct-start did not create room animation instance");
+    } else {
+      createdId = created.id;
+      const normalizedMapped = normalizeAnimationGifPath(gifType, mappedPath);
+      if (created.gifAssetPath !== normalizedMapped) {
+        issues.push("direct-start instance missing mapped gifAssetPath");
+      }
+    }
+
+    if (createdId) {
+      state.roomDraft = {
+        ...state.roomDraft,
+        animationId: gifType,
+        editTargetId: createdId,
+      };
+      startRoomAnimationFromDraft();
+      const edited = state.runningAnimations.find((entry) => entry.id === createdId) ?? null;
+      if (!edited) {
+        issues.push("edit-flow replaced instance id instead of in-place update");
+      } else {
+        const normalizedMapped = normalizeAnimationGifPath(gifType, mappedPath);
+        if (edited.gifAssetPath !== normalizedMapped) {
+          issues.push("edit-flow changed gifAssetPath away from mapped value");
+        }
+      }
+    }
+
+    const snapshot = buildLocalProfileSnapshotFromState();
+    state.animationGifMap[gifType] = ROOM_GIF_MAPPING_NONE;
+    applyLocalProfileSnapshotToState(snapshot);
+    const restoredMapped = normalizeAnimationGifPath(gifType, state.animationGifMap[gifType]);
+    const expectedMapped = normalizeAnimationGifPath(gifType, mappedPath);
+    if (restoredMapped !== expectedMapped) {
+      issues.push("reload snapshot failed to restore mapped gif path");
+    }
+  } catch {
+    issues.push("direct-start/edit/reload regression threw unexpectedly");
+  } finally {
+    const currentExtraIds = state.runningAnimations
+      .filter((entry) => !previousRunningIds.has(entry.id))
+      .map((entry) => entry.id);
+    for (const animationId of currentExtraIds) {
+      stopAnimationSound(animationId);
+    }
+    state.runningAnimations = previousRunningAnimations;
+    state.animationGifMap = previousAnimationGifMap;
+    state.selectedRoomId = previousSelectedRoomId;
+    state.roomDraft = { ...previousRoomDraft };
+    syncRoomForm();
+  }
+
+  if (issues.length > 0) {
+    console.error("Direct-start GIF mapping regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
 function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
@@ -7085,6 +7182,7 @@ async function initializeApplication() {
   const projectionVisibilityOk = runMobileProjectionVisibilityGuard({ silent: true, context: "startup" });
   const outsideIsolationRegressionOk = runOutsideIsolationRegression();
   const shipClipRegressionOk = runShipClipRegression();
+  const directStartGifRegressionOk = runGifDirectStartEditReloadRegression();
   if (
     !viewRegressionOk ||
     !layoutRegressionOk ||
@@ -7095,13 +7193,14 @@ async function initializeApplication() {
     !navigationRegressionOk ||
     !projectionVisibilityOk ||
     !outsideIsolationRegressionOk ||
-    !shipClipRegressionOk
+    !shipClipRegressionOk ||
+    !directStartGifRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip)";
+      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip + Direct-Start-GIF)";
   } else {
     triggerFeedback.textContent =
-      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
+      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip + Direct-Start-GIF)";
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
