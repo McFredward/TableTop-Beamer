@@ -2967,6 +2967,16 @@ function getGifPlaybackFrame(path, elapsedSeconds) {
   return entry.frames[entry.frames.length - 1]?.bitmap ?? null;
 }
 
+function resolveRoomGifRenderConfig(type, age, intensity, options = {}) {
+  const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
+  const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
+  const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
+  return {
+    frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed),
+    opacity: clampRoomOpacity(options.opacity ?? intensity),
+  };
+}
+
 function clampRoomSpeed(value) {
   return Math.max(0.5, Math.min(2.5, Number(value) || 1));
 }
@@ -5977,35 +5987,27 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "kaputt") {
-    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
-    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
-    const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
-    if (!gifFrame) {
+    const gifRenderConfig = resolveRoomGifRenderConfig(type, age, intensity, options);
+    if (!gifRenderConfig.frame) {
       return;
     }
-    const opacity = clampRoomOpacity(options.opacity ?? intensity);
 
     ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(gifFrame, roomMinX, roomMinY, roomWidth, roomHeight);
+    ctx.globalAlpha = gifRenderConfig.opacity;
+    ctx.drawImage(gifRenderConfig.frame, roomMinX, roomMinY, roomWidth, roomHeight);
     ctx.restore();
     return;
   }
 
   if (type === "feuer" || type === "schleim") {
-    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
-    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
-    const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
-    if (!gifFrame) {
+    const gifRenderConfig = resolveRoomGifRenderConfig(type, age, intensity, options);
+    if (!gifRenderConfig.frame) {
       return;
     }
-    const opacity = clampRoomOpacity(options.opacity ?? intensity);
 
     ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.drawImage(gifFrame, roomMinX, roomMinY, roomWidth, roomHeight);
+    ctx.globalAlpha = gifRenderConfig.opacity;
+    ctx.drawImage(gifRenderConfig.frame, roomMinX, roomMinY, roomWidth, roomHeight);
     ctx.restore();
     return;
   }
