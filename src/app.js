@@ -568,6 +568,10 @@ const state = {
     lastFrameAt: null,
     lastSnapshot: null,
   },
+  runtimePerf: {
+    frameCostSamples: [],
+    qualityScale: 1,
+  },
   startupDefaultsGuard: {
     fallbackRequired: false,
     attempted: false,
@@ -2829,6 +2833,28 @@ function percentile(values, p) {
   return sorted[index];
 }
 
+function getRuntimeQualityScale() {
+  return Math.max(0.68, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
+}
+
+function recordRuntimeFrameCost(frameCostMs) {
+  if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
+    return;
+  }
+  const samples = state.runtimePerf.frameCostSamples;
+  samples.push(frameCostMs);
+  if (samples.length > 240) {
+    samples.shift();
+  }
+  const p90 = percentile(samples, 0.9);
+  const targetMs = 16.7;
+  if (p90 > targetMs * 1.25) {
+    state.runtimePerf.qualityScale = Math.max(0.68, getRuntimeQualityScale() - 0.03);
+  } else if (p90 < targetMs * 0.92) {
+    state.runtimePerf.qualityScale = Math.min(1, getRuntimeQualityScale() + 0.015);
+  }
+}
+
 function updateMobilePerformanceStatus() {
   if (!mobilePerformanceStatus) {
     return;
@@ -2844,8 +2870,9 @@ function updateMobilePerformanceStatus() {
   const approxFps = p95Frame > 0 ? (1000 / p95Frame).toFixed(1) : "0.0";
   const jankFrames = frames.filter((delta) => delta >= 40).length;
   const jankRate = frames.length > 0 ? (jankFrames / frames.length) * 100 : 0;
+  const quality = Math.round(getRuntimeQualityScale() * 100);
   mobilePerformanceStatus.textContent =
-    `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS) | Jank>=40ms ${jankRate.toFixed(1)}%`;
+    `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS) | Jank>=40ms ${jankRate.toFixed(1)}% | Quality ${quality}%`;
 }
 
 function recordTriggerIntent() {
@@ -4526,6 +4553,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
   const activeFlags = Number(roomState.broken) + Number(roomState.burning) + Number(roomState.corpse);
   const severity = activeFlags + roomState.alienCount * 0.7;
   const densityFactor = Math.max(0.75, Math.min(1.8, 1 + severity * 0.2));
+  const qualityScale = getRuntimeQualityScale();
   const tempoFactor = Math.max(0.85, Math.min(1.9, 1 + severity * 0.15));
   for (const layer of layers) {
     drawEffectVisual(
@@ -4537,7 +4565,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
       {
         roomState: layer.roomState,
         alienCount: layer.alienCount,
-        densityFactor,
+        densityFactor: densityFactor * qualityScale,
         tempoFactor,
       },
     );
@@ -5698,6 +5726,7 @@ function pruneFinishedAnimations(now) {
 }
 
 function draw(now) {
+  const frameStart = performance.now();
   try {
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
@@ -5747,6 +5776,7 @@ function draw(now) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }
+    recordRuntimeFrameCost(performance.now() - frameStart);
   } finally {
     requestAnimationFrame(draw);
   }
