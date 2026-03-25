@@ -25,7 +25,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
 - [x] DONE P5-T18 [P0] Retry/Backoff fuer Session-Verbindung stabilisieren (Jitter, Retry-Counter, klarer terminal state bei permanentem Fehler).
 - [x] DONE P5-T19 [P0] Diagnosepanel im Control-UI erweitern: Endpoint, Verbindungsstatus, letzte Fehlermeldung, Retry-Status, letzter erfolgreicher Connect.
-- [ ] TODO P5-T20 [P0] Session-/Diagnose-Events strukturieren und im UI konsistent ausgeben (kein Rohfehler-Noise, klare Feldhinweise).
+- [x] DONE P5-T20 [P0] Session-/Diagnose-Events strukturieren und im UI konsistent ausgeben (kein Rohfehler-Noise, klare Feldhinweise).
 - [ ] TODO P5-T21 [P0] 3-Device-Hotfix-Verifikation dokumentieren (Operator immer Overlay, Final-Output Toggle-Verhalten, Connect-Failure-Recovery).
 - [ ] TODO P5-T22 [P0] Hotfix-Regressionsprotokoll finalisieren und als Gate fuer Rest von Plan 5-1 markieren.
 
