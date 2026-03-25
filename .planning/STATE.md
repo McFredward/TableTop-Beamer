@@ -11,9 +11,9 @@
 - Current Phase Key: phase-04
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 4-4
-- Planned Next Execution: 4-5
-- Last Execution Summary: `.planning/phases/phase-04/4-4-SUMMARY.md`
+- Last Executed Plan: 4-5
+- Planned Next Execution: 4-6
+- Last Execution Summary: `.planning/phases/phase-04/4-5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -247,6 +247,14 @@
 - Plan-4-4 Umsetzung: Polygon-Handle-Groesse ist als zoomnaher Slider (70..220%) eingebaut und wirkt sofort auf Overlay-Handles.
 - Plan-4-4 Umsetzung: `lichtflackern` nutzt jetzt unregelmaessiges Random-Flicker (Burst/Dip/Glitch) statt periodischem Puls.
 - Plan-4-4 Umsetzung: Room-Polygon-Flaechen-Drag per LMB ist aktiv und gegen Vertex-Edit/Pan-Kollisionen guardiert.
+- Neues verpflichtendes Feedback fuer Phase 4 (Plan-Update 4-5) ist gesetzt: Handle-Groesse muss fuer alle Editor-Punkte inkl. Ship-Polygon-Vertices gelten.
+- Visual-Regel fuer Plan-Update 4-5: `lichtflackern` behaelt den Stil, entfernt aber stoerende horizontale weisse Streifen (kein Glitch-Look).
+- Speed-Regel fuer Plan-Update 4-5: Mindest-Speed fuer `lichtflackern` wird auf 10% abgesenkt, konsistent in UI/Runtime/Persistenz.
+- Persistenz-Regel fuer Plan-Update 4-5: Sound-Mapping/Sound-Auswahl bleibt nach Reload erhalten und ist ueber Global Defaults speicher-/ladbar.
+- Plan-4-5 ist als priorisierter P0-Hotfix execute-ready gesetzt; GIF/Render/UI-Isolation verschiebt sich auf Plan 4-6.
+- Plan-Update-4-5 Umsetzung: Room- und Ship-Polygoneditor nutzen denselben Handle-Metrikpfad inklusive gemeinsamer Handle-Scale-Quelle.
+- Plan-Update-4-5 Umsetzung: `lichtflackern`-Cleanup ersetzt horizontale Glitch-Baender durch lokale Spark-Bursts bei unveraendert unregelmaessigem Flicker-Charakter.
+- Plan-Update-4-5 Umsetzung: Board-Profile persistieren `audio`, `animationSpeed` und `animationSoundMap`; Reload + Global-Defaults-Apply bleiben fuer Sound-Mapping konsistent.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -555,6 +563,16 @@
 - Task Commits: 5 atomare Commits (`8cc1841`, `fec3884`, `5182609`, `6c1d025`, `1efbf52`)
 - Evidence:
   - `.planning/phases/phase-04/P4-T32-HOTFIX-REGRESSION.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 4 Plan 5)
+- Status: completed
+- Summary: `.planning/phases/phase-04/4-5-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`f04c09f`, `8e09d7e`, `4fc2308`, `a597c66`, `482a313`, `09e01a9`)
+- Evidence:
+  - `.planning/phases/phase-04/P4-T38-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check src/app/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
