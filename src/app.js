@@ -240,7 +240,7 @@ const ROOM_ANIMATIONS = [
   { id: "schleim", label: "Schleim (final.gif)" },
   { id: "nest", label: "Nest" },
   { id: "dekompression", label: "Dekompression" },
-  { id: "lichtflackern", label: "Lichtflackern" },
+  { id: "lichtflackern", label: "Lichtflackern (global hull-flicker)" },
   { id: "alarm", label: "Alarm" },
 ];
 

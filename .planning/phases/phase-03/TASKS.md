@@ -25,7 +25,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T17 [P0] `feuer` auf `resources/nemesis/animations/fire.gif` umstellen und sauber im Zielraum clippen.
 - [x] DONE P3-T18 [P0] `schleim` auf `resources/nemesis/animations/final.gif` umstellen und sauber im Zielraum clippen.
 - [x] DONE P3-T19 [P0] `alarm` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
-- [ ] TODO P3-T20 [P0] `lichtflackern` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
+- [x] DONE P3-T20 [P0] `lichtflackern` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
 - [ ] TODO P3-T21 [P0] GIF-Instanzparameter pro laufender Animation steuerbar machen (`opacity`, `playbackSpeed`) inkl. Edit-Roundtrip.
 - [ ] TODO P3-T22 [P0] Default-Verhalten `hold` fuer alle Raumanimationen erzwingen (aktiv bis expliziter Stop).
 - [ ] TODO P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
