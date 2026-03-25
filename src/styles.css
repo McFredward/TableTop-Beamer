@@ -613,9 +613,9 @@ button.danger.is-armed {
   }
 
   #control-panel[data-active-view="dashboard"] .dashboard-sticky-shell {
-    position: sticky;
-    top: var(--mobile-nav-offset, 0px);
-    z-index: 9;
+    position: static;
+    top: auto;
+    z-index: auto;
     margin: -0.35rem -0.2rem 0;
     padding: 0.35rem 0.2rem 0.45rem;
     background: linear-gradient(180deg, rgba(18, 29, 44, 0.97), rgba(13, 21, 34, 0.94));
@@ -713,8 +713,8 @@ button.danger.is-armed {
 
   #control-panel[data-active-view="dashboard"] [data-dashboard-zone="manage"] {
     grid-column: 2;
-    position: sticky;
-    top: 0.5rem;
+    position: static;
+    top: auto;
     align-self: start;
   }
 
