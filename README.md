@@ -8,30 +8,7 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
    - `node server.mjs`
 2. Browser offnen: `http://localhost:4173`
 3. Optional `F11` fur Fullscreen auf dem Beamer.
-
-### Multi-Client Session Start (Operator / Tablet / Beamer)
-
-1. Server im LAN starten: `node server.mjs --host 0.0.0.0 --port 4173`
-2. Auf allen Geraeten denselben Host + Port verwenden (kein `:8080` Drift):
-   - **Operator (Laptop):** `http://<SERVER-IP>:4173/?role=operator&session=default-session`
-   - **Alignment (Tablet):** `http://<SERVER-IP>:4173/?role=alignment&session=default-session`
-   - **Final Output (Raspberry/Beamer):** `http://<SERVER-IP>:4173/?role=final-output&session=default-session`
-3. Im Settings-Diagnoseblock pruefen:
-    - `Session Endpoint` zeigt einen `resolved endpoint` auf `http://<SERVER-IP>:4173/...`
-    - `selected via` und `fallback reason` sind gesetzt und konsistent mit dem Verbindungsversuch.
-4. Heartbeat/Event-Diagnose korrekt testen (**POST-primaer mit GET-Fallback**):
-   - Heartbeat POST (Primaerpfad):
-     - `curl -i -X POST "http://<SERVER-IP>:4173/api/session/heartbeat" -H "Content-Type: application/json" -d '{"sessionId":"default-session","clientId":"diag-client","role":"operator"}'`
-   - Heartbeat GET (Fallback-Kompatibilitaet):
-     - `curl -i "http://<SERVER-IP>:4173/api/session/heartbeat?sessionId=default-session&clientId=diag-client&role=operator"`
-   - Event POST (Primaerpfad):
-     - `curl -i -X POST "http://<SERVER-IP>:4173/api/session/event" -H "Content-Type: application/json" -d '{"sessionId":"default-session","clientId":"diag-client","role":"operator","type":"diag-smoke","eventId":"evt-diag-post","payload":{"ok":true},"sharedState":{"runningAnimations":[]}}'`
-   - Event GET (optionaler Fallback, nur bei aktiviertem Flag `?eventGetFallback=1` oder `localStorage["tt-beamer.session-event-get-fallback.v1"]="true"`):
-     - `curl -i "http://<SERVER-IP>:4173/api/session/event?sessionId=default-session&clientId=diag-client&role=operator&type=diag-smoke&eventId=evt-diag-get&payload=%7B%22ok%22%3Atrue%7D&sharedState=%7B%22runningAnimations%22%3A%5B%5D%7D"`
-5. Persistente Session-Logs pruefen:
-   - Datei: `logs/session-api.log`
-   - Live-View: `tail -f logs/session-api.log`
-   - Erwartet pro Request JSON-Linien mit `timestamp`, `code`, `method`, `endpoint`, `status`, `sessionId`, `clientId`.
+4. Dedizierter Final-Output (nur FX-Layer): `http://localhost:4173/output/final`
 
 ### Wichtiger Save-Hinweis
 
@@ -62,12 +39,6 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 2. Terminal B: optional eigener Frontend-Server
 3. Lokal: `http://localhost:4173`; im LAN: `http://<SERVER-IP>:4173` (zweites Geraet)
 4. In `Settings` bei Save/Diagnose pruefen: `UI-Host <SERVER-IP> -> API-Host <SERVER-IP>`
-
-### Session Resolver Verhalten (Plan 5-3 Hotfix)
-
-- Default fuer Session-Connect ist strikt **UI-Origin inkl. aktivem Port** (z. B. `:4173`).
-- Legacy-Overrides (`window.__TT_BEAMER_API_BASE__`, URL `ttApiBase`, `localStorage`) werden nur genutzt, wenn sie gueltig **und erreichbar** sind.
-- Unerreichbare/stale `localStorage`-Overrides werden automatisch verworfen; der Connect faellt auf den UI-Origin-Endpoint zurueck.
 
 ## Session-Flow (Phase 2 - final)
 
