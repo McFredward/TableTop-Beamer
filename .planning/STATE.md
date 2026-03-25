@@ -11,10 +11,10 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-6
-- Planned Next Execution: TBD (Phase-3 Follow-up nach Hotfix-Gate)
-- Last Execution Summary: `.planning/phases/phase-03/3-6-SUMMARY.md`
-- Active Blocker Focus: Kein aktiver P0-Blocker (Plan 3-6 abgeschlossen)
+- Last Executed Plan: 3-7
+- Planned Next Execution: none (Phase-3 Planlinie abgeschlossen)
+- Last Execution Summary: `.planning/phases/phase-03/3-7-SUMMARY.md`
+- Active Blocker Focus: Kein aktiver P0-Render-Blocker; Plan 3-7 Root-Cause-Hotfix abgeschlossen
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -236,6 +236,15 @@
 - Render-Hotfix fuer Plan 3-6 setzt sichtbare Fallbacks bei Clip-Fehlern und schliesst den Audio-only-Fehlmodus fuer `global`/`room`/GIF-Pfade.
 - Running-Liste nutzt Integritaetsguard (Duplikat-/Invalid-Entry-Bereinigung + EditTarget-Cleanup); `Stop`/`Edit` bleiben instanzkonsistent.
 - Refactor-Resume-Gate bleibt aktiv: weiterer Architekturumbau erst nach dokumentiert stabilem Plan-3-6-Nachweis (`3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`).
+- Kritischer P0-Blocker ist erneut aktiv (3. Meldung): Board bleibt in Mobile-Flow/Praxisfaellen statisch, waehrend Audio weiterlaeuft.
+- Plan-Update 3-7 setzt Root-Cause-Fokus: Render-Loop darf nie komplett ausfallen, auch nicht bei Layer-/Clip-Path-Fehlern.
+- Browser-Kompatibilitaets-Regel Plan-Update 3-7: Outside-/Ship-Clipping braucht robusten Fallback fuer mobile WebView/Canvas-evenodd-Inkompatibilitaet.
+- Isolations-Regel Plan-Update 3-7: Outside-Layer-Fails duerfen Inside/Room/GIF nicht blockieren; sichtbare Restanimationen bleiben Pflicht.
+- Preview-Entfernung bleibt unveraendert gueltig; kein Re-Introduce von Preview/UI/State/Routing/Send/Rollback.
+- Abnahme-Regel Plan-Update 3-7: mobiler Hard-Proof muss nach Trigger mindestens globale + room + GIF-Effekte sichtbar nachweisen.
+- Plan-Update-3-7 Umsetzung: Renderfehler werden per-Tick pro Layer (`outside`/`animation`/`clip`/`scheduler`) isoliert; Draw-Tick bleibt auch bei Fehlern aktiv.
+- Plan-Update-3-7 Umsetzung: Outside-/Ship-Maskierung nutzt Capability-Detection fuer evenodd plus deterministischen Composite-Fallback (`destination-out`) fuer mobile WebViews.
+- Plan-Update-3-7 Umsetzung: Outside-Failure-Isolation ist als Startup-Regression mit Fault-Injection verpflichtend geprueft; Inside/Room/GIF bleiben sichtbar.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -540,3 +549,15 @@
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
   - Pattern-Checks: kein Preview-UI-IDs in `index.html`/`src/app.js`, keine `/api/live/*`-Routen in `src/app.js`/`server.mjs`
+
+## Execution Results (Phase 3 Plan 7)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-7-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`59cbc4f`, `b4bdd4b`, `9422ad9`, `82d0e22`, `83c452a`, `51d8c41`)
+- Evidence:
+  - `.planning/phases/phase-03/3-7-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T55-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T55-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+  - Pattern-Checks: keine Preview-UI-IDs und keine `/api/live/*`-Routen reaktiviert

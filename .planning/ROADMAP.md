@@ -38,9 +38,9 @@ Exit Criteria:
 - README auf neuen Session-Workflow aktualisiert.
 
 ## Phase 3 - Nemesis Animations Overhaul (Completed)
-Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe, GIF-Mapping pro Animation (UI + Persistenz) sowie robuster, modularer Runtime-Architektur.
+Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe, GIF-Mapping pro Animation (UI + Persistenz) sowie robustem Render-Loop-Hardening fuer mobile und browserinkonsistente Clip-Pfade.
 
-Status: 50/50 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34), Plan 3-5 Rework (P3-T35..P3-T44) und Plan 3-6 P0-Hotfix (P3-T45..P3-T50) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`, `.planning/phases/phase-03/3-5-SUMMARY.md`, `.planning/phases/phase-03/3-6-SUMMARY.md`).
+Status: 56/56 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34), Plan 3-5 Rework (P3-T35..P3-T44), Plan 3-6 P0-Hotfix (P3-T45..P3-T50) und Plan 3-7 Reopen-P0-Hotfix (P3-T51..P3-T56) sind abgeschlossen; Nachweise in `.planning/phases/phase-03/3-7-SUMMARY.md`, `.planning/phases/phase-03/3-7-VERIFICATION.md`, `.planning/phases/phase-03/P3-T55-REGRESSION.md`, `.planning/phases/phase-03/P3-T55-SOAK.md`.
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
@@ -55,6 +55,9 @@ Milestones:
 10. P0 Hotfix 3-6: Preview-Flow vollstaendig entfernen und auf direkten Live-Trigger zurueckstellen.
 11. P0 Hotfix 3-6: sichtbares Rendering fuer `global`/`room`/`gif` sofort wiederherstellen; Running/Stop/Edit stabil halten.
 12. P1 Gate 3-6: weiterer Refactor erst nach stabilem P0-Hotfix-Nachweis fortsetzen.
+13. P0 Hotfix 3-7: Render-Loop-Fault-Isolation, sodass Einzel-Layer-/Clip-Fehler nie den gesamten Draw-Tick stoppen.
+14. P0 Hotfix 3-7: Outside-/Ship-Clip-Kompatibilitaet fuer mobile WebView/Canvas-evenodd-Faelle plus Outside-Failure-Isolation.
+15. P0 Gate 3-7: mobiler Hartnachweis, dass nach Trigger mindestens `global` + `room` + `gif` sichtbar/bewegt sind.
 
 Exit Criteria:
 - Plan-3-2-P0 bleibt abgeschlossen und nachgewiesen.
@@ -69,6 +72,10 @@ Exit Criteria:
 - Nach Refactor ist funktionale Paritaet + Stabilitaet via Regression/Soak dokumentiert.
 - Preview-Flow ist vollstaendig entfernt; direkter Live-Trigger ist wieder der einzige Runtime-Pfad.
 - P0-Hotfix-Nachweis fuer sichtbares Rendering (`global`/`room`/`gif`) und stabile Running-/Stop-/Edit-Integritaet liegt vor.
+- Render-Loop bleibt auch bei Layer-/Clip-Path-Fehlern aktiv; kein globaler Draw-Stop durch Einzeldefekt.
+- Outside-/Ship-Clipping ist browserrobust inklusive Mobile-WebView-Fallback ohne evenodd-Abhaengigkeit.
+- Outside-Layer-Fehler stoppen Inside/Room/GIF nicht; Sichtbarkeit bleibt fuer verbleibende Layer erhalten.
+- Mobiler Trigger-Flow weist sichtbare/bewegte `global` + `room` + `gif`-Effekte als Pflichtnachweis nach.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
