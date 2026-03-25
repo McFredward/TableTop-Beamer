@@ -50,7 +50,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T40 [P0] Heartbeat-Ausfalltoleranz einbauen: Reconnect erst nach N aufeinanderfolgenden Heartbeat-Fehlschlaegen (konfigurierbare Schwelle, Startwert 3).
 - [x] DONE P5-T41 [P0] Retry-Determinismus verbessern: serialisierte Reconnect-Transition, sauberer Retry-Reset, kein schneller terminal state bei Kurzjitter.
 - [x] DONE P5-T42 [P0] Diagnose/Runbook korrigieren: `/api/session/heartbeat` explizit POST-only dokumentieren inkl. korrektem `curl -X POST` Beispiel.
-- [ ] TODO P5-T43 [P0] WLAN-Jitter-Regressionstest erfassen (Handy im WLAN): kurze Aussetzer duerfen Session nicht sofort zerlegen.
+- [x] DONE P5-T43 [P0] WLAN-Jitter-Regressionstest erfassen (Handy im WLAN): kurze Aussetzer duerfen Session nicht sofort zerlegen.
 - [ ] TODO P5-T44 [P0] Hotfix-Nachweis dokumentieren (Timeout-Entkopplung, N-Failure-Guard, deterministischer Retry-Loop, POST-only Heartbeat-Runbook).
 
 ## Optional direkt danach (P1)
