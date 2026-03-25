@@ -4522,16 +4522,23 @@ function composeRoomLayers(animation, room) {
 
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const layers = composeRoomLayers(animation, room);
+  const roomState = getAnimationRoomState(animation);
+  const activeFlags = Number(roomState.broken) + Number(roomState.burning) + Number(roomState.corpse);
+  const severity = activeFlags + roomState.alienCount * 0.7;
+  const densityFactor = Math.max(0.75, Math.min(1.8, 1 + severity * 0.2));
+  const tempoFactor = Math.max(0.85, Math.min(1.9, 1 + severity * 0.15));
   for (const layer of layers) {
     drawEffectVisual(
       layer.id,
-      age,
+      age * tempoFactor,
       animation.intensity,
       room,
       roomMetrics,
       {
         roomState: layer.roomState,
         alienCount: layer.alienCount,
+        densityFactor,
+        tempoFactor,
       },
     );
   }
@@ -5420,7 +5427,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "special-nest") {
-    const cells = Math.max(10, Math.round(22 * intensity));
+    const densityFactor = Number(options.densityFactor) || 1;
+    const cells = Math.max(10, Math.round(22 * intensity * densityFactor));
     for (let i = 0; i < cells; i += 1) {
       const seed = ((i * 71.97) % 1000) / 1000;
       const seedB = ((i * 33.41 + 17) % 1000) / 1000;
@@ -5441,7 +5449,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "special-slime") {
-    const bands = Math.max(5, Math.round(9 * intensity));
+    const densityFactor = Number(options.densityFactor) || 1;
+    const bands = Math.max(5, Math.round(9 * intensity * densityFactor));
     for (let i = 0; i < bands; i += 1) {
       const wave = Math.sin(age * 1.8 + i * 0.9);
       const y = roomMinY + roomHeight * (0.14 + (i / Math.max(1, bands - 1)) * 0.72);
@@ -5472,7 +5481,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "special-decompression") {
-    const rings = Math.max(4, Math.round(7 * intensity));
+    const densityFactor = Number(options.densityFactor) || 1;
+    const rings = Math.max(4, Math.round(7 * intensity * densityFactor));
     const maxRadius = Math.max(roomWidth, roomHeight) * 0.72;
     for (let i = 0; i < rings; i += 1) {
       const progress = ((age * 0.9 + i / rings) % 1);
@@ -5509,7 +5519,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "state-broken") {
-    const crackCount = 6;
+    const densityFactor = Number(options.densityFactor) || 1;
+    const crackCount = Math.max(4, Math.round(6 * densityFactor));
     ctx.strokeStyle = `rgba(186, 210, 226, ${0.58 * intensity})`;
     ctx.lineWidth = Math.max(1.2, Math.min(roomWidth, roomHeight) * 0.012);
     for (let i = 0; i < crackCount; i += 1) {
@@ -5525,7 +5536,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "state-burning") {
-    const flames = 11;
+    const densityFactor = Number(options.densityFactor) || 1;
+    const flames = Math.max(8, Math.round(11 * densityFactor));
     for (let i = 0; i < flames; i += 1) {
       const phase = (age * 1.7 + i * 0.17) % 1;
       const x = roomMinX + roomWidth * (((i * 0.41) % 1) * 0.92 + 0.04);
@@ -5560,12 +5572,13 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "state-aliens") {
     const count = clampAlienCount(options.alienCount ?? options.roomState?.alienCount ?? 0);
+    const densityFactor = Number(options.densityFactor) || 1;
     for (let i = 0; i < count; i += 1) {
       const offset = (i - (count - 1) / 2) * roomWidth * 0.22;
       const pulse = (Math.sin(age * 5 + i * 1.9) + 1) / 2;
       const x = roomX + offset;
       const y = roomY - roomHeight * 0.1;
-      const r = Math.max(8, Math.min(roomWidth, roomHeight) * 0.12);
+      const r = Math.max(8, Math.min(roomWidth, roomHeight) * 0.12 * densityFactor);
       ctx.fillStyle = `rgba(153, 255, 102, ${(0.22 + pulse * 0.2) * intensity})`;
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
