@@ -23,13 +23,19 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P4-T15 [P0] Rueckwaertskompatibilitaet: Legacy-Daten robust lesen; nach Save nur noch neues Schema schreiben.
 - [x] DONE P4-T16 [P0] Plan-4-2-Gate: gezielte Regression fuer Room-CRUD, Polygon-Editing, Name-Editing, Save/Load alt+neu dokumentieren.
 
-## Plan 4-3 - Render/GIF/UI Isolation
-- [ ] TODO P4-T17 [P1] GIF-Subsystem modularisieren (`loader`, `decoder`, `scheduler`, `cache`) mit nativer und fallback Paritaet.
-- [ ] TODO P4-T18 [P1] Render-Engine splitten (`room`, `global-inside`, `global-outside`, clipping utils) bei unveraendertem Output.
-- [ ] TODO P4-T19 [P1] UI-Bindings fuer Dashboard/Settings in View-Controller aufteilen; Settings-Ownership-Guard erhalten.
-- [ ] TODO P4-T20 [P1] Input-Handling fuer Pointer/Touch/Keyboard/Pan in dediziertes Modul ziehen; Pan-vs-Edit-Guards erhalten.
-- [ ] TODO P4-T21 [P1] Running-Liste + Preview/Live-Bindings auf neue Domain-Services umstellen und 1:1-Instanzparitaet verifizieren.
+## Plan 4-3 - Pflicht-Feedback-Hotfix (execute-ready)
+- [x] DONE P4-T17 [P0] Desktop-Running-Liste begrenzen (maximale Hoehe + eigener Scrollbereich oder layout-separiert), sodass restliche Dashboard-Controls stets erreichbar bleiben.
+- [ ] TODO P4-T18 [P0] Desktop-Layout-Guard einbauen (keine Ueberdeckung/Vertreibung anderer Bedienmodule durch Laufzeitliste bei vielen Instanzen).
+- [ ] TODO P4-T19 [P0] Preview-Staging-UI komplett entfernen (Panels, Buttons, Labels, Hinweise) inkl. leerer States im DOM-Wiring.
+- [ ] TODO P4-T20 [P0] Preview-Staging-Runtime entfernen (Preview-Queue/Commit/Rollback-Logik, Actions, Event-Pfade, State-Felder).
+- [ ] TODO P4-T21 [P0] Regression fuer Pflicht-Feedback dokumentieren (Desktop-Erreichbarkeit unter Last + Kernflow-Paritaet ohne Preview-Staging).
 
-## Plan 4-4 - Abschluss und Hardening
-- [ ] TODO P4-T22 [P1] Vollstaendige Regression-Matrix aus `ACCEPTANCE.md` durchfuehren (Desktop, Mobile, GIF fallback, Save/API, Clipping, Room-CRUD).
-- [ ] TODO P4-T23 [P1] Wartbarkeitsdoku finalisieren (Modulkarte, Import-Regeln, Erweiterungspunkte) und Artefakt-Sync abschliessen.
+## Plan 4-4 - Render/GIF/UI Isolation
+- [ ] TODO P4-T22 [P1] GIF-Subsystem modularisieren (`loader`, `decoder`, `scheduler`, `cache`) mit nativer und fallback Paritaet.
+- [ ] TODO P4-T23 [P1] Render-Engine splitten (`room`, `global-inside`, `global-outside`, clipping utils) bei unveraendertem Output.
+- [ ] TODO P4-T24 [P1] UI-Bindings fuer Dashboard/Settings in View-Controller aufteilen; Settings-Ownership-Guard erhalten.
+- [ ] TODO P4-T25 [P1] Input-Handling fuer Pointer/Touch/Keyboard/Pan in dediziertes Modul ziehen; Pan-vs-Edit-Guards erhalten.
+
+## Plan 4-5 - Abschluss und Hardening
+- [ ] TODO P4-T26 [P1] Vollstaendige Regression-Matrix aus `ACCEPTANCE.md` durchfuehren (Desktop, Mobile, GIF fallback, Save/API, Clipping, Room-CRUD, Preview-entfernt).
+- [ ] TODO P4-T27 [P1] Wartbarkeitsdoku finalisieren (Modulkarte, Import-Regeln, Erweiterungspunkte) und Artefakt-Sync abschliessen.

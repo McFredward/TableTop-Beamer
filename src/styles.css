@@ -347,10 +347,18 @@ h1 {
 .running-overview-panel {
   border-color: rgba(93, 230, 199, 0.55);
   box-shadow: inset 0 0 0 1px rgba(93, 230, 199, 0.2);
-  position: sticky;
-  top: 0.7rem;
-  z-index: 6;
+  position: relative;
+  z-index: 2;
+  contain: layout paint;
   background: linear-gradient(180deg, rgba(20, 38, 54, 0.98), rgba(12, 23, 34, 0.98));
+}
+
+#running-animations {
+  max-height: min(36vh, 24rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
 }
 
 .dashboard-zone-hidden {
@@ -656,6 +664,13 @@ button.danger.is-armed {
   .running-overview-panel {
     position: static;
     top: auto;
+    contain: none;
+  }
+
+  #running-animations {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
   }
 
   .button-grid,
