@@ -70,6 +70,31 @@
 - Impact: Hoch, Ende-zu-Ende-Mapping verletzt und Operator bekommt inkonsistente GIF-Ausgabe.
 - Gegenmassnahme: Direct-Start-Parameterpfad explizit auf gemapptes `gifAssetPath` verdrahten; Regression fuer Direct-Start + Edit + Reload verpflichtend.
 
+## R15 Kritische Render-Regression: Board bleibt visuell leer bei laufendem Audio
+- Risiko: Renderpfad/Tick bricht oder zeichnet nicht mehr, obwohl Audio-Lifecycle weiterlaeuft; Operator bekommt false-positive Laufzeitindikatoren.
+- Impact: Kritisch (P0), Kernfunktionalitaet im Live-Betrieb nicht nutzbar.
+- Gegenmassnahme: reproduzierbarer Bugfall + P0-Hotfix mit explizitem Sichtbarkeits-Regressionstest (Board-Frame-Delta statt Audio-Indikator).
+
+## R16 Gross-Refactor in `app.js` erzeugt Integrationsbrueche
+- Risiko: Modultrennung verschiebt Seiteneffekte/Reihenfolgen und bricht Trigger, Running-Liste, Edit oder Persistenz.
+- Impact: Hoch, funktionaler Drift nach Umbau.
+- Gegenmassnahme: strangler-artige Extraktion pro Domane, klare API-Grenzen, Integrationsregression nach jedem Modulschritt.
+
+## R17 Modulgrenzen erosieren nach initialer Aufteilung
+- Risiko: Cross-Imports/Shared Mutable State verwischen Grenzen zwischen `state`/`rendering`/`effects`/`audio`/`ui`/`persistence`/`api/save`.
+- Impact: Mittel bis hoch, Wartbarkeit sinkt und Fehlerlokalisierung wird teuer.
+- Gegenmassnahme: verbindliche Ownership pro Modulpaket, minimierte Schnittstellen und Review-Check auf Grenzverletzungen.
+
+## R18 Lesbarkeit bleibt trotz Refactor unzureichend
+- Risiko: nicht-offensichtliche Kontrollfluesse bleiben implizit; Onboarding/Debugging wird langsam und fehleranfaellig.
+- Impact: Mittel, erhoehte Betriebs- und Wartungskosten.
+- Gegenmassnahme: gezielte Kommentare nur an kritischen Stellen (Timing, Fallback, Entkopplung, Persistenznormalisierung) als Pflichtpunkt.
+
+## R19 Paritaetsverlust oder neue Instabilitaet nach Modulumbau
+- Risiko: Refactor besteht strukturell, aber Verhalten weicht von bestehender Runtime ab oder wird unter Last instabil.
+- Impact: Hoch, Rework verfehlt Ziel trotz "sauberer" Struktur.
+- Gegenmassnahme: verpflichtender Vorher/Nachher-Regression- und Soak-Nachweis als Exit-Gate fuer Plan 3-5.
+
 ## Statusupdate nach Plan 3-2
 - R2/R4/R5/R7/R10 wurden fuer den aktuellen Rework-Scope durch Regression + Soak-Nachweise auf "beobachten" reduziert.
 - Neues verpflichtendes Feedback fuer Plan 3-3 hebt R11/R12 auf Blocker-Niveau (P0), bis echte GIF-Loops und Mapping-Persistenz nachgewiesen sind.
@@ -84,3 +109,14 @@
 
 ## Statusupdate nach Plan 3-4
 - R14 ist durch Direct-Start-Parameterverdrahtung (`gifAssetPath` -> `createAnimation`) sowie Regression in `P3-T33-REGRESSION.md` auf "beobachten" reduziert.
+
+## Statusupdate fuer Plan 3-5 (verpflichtendes neues Feedback)
+- R15 ist auf Blocker-Niveau (P0) bis Board-Rendering sichtbar wiederhergestellt und per Regression abgesichert ist.
+- R16 und R19 sind bis Abschluss von Modulrefactor + Paritaetsnachweis auf Blocker-Niveau gesetzt.
+- R17 und R18 sind als aktive Architektur-/Wartbarkeitsrisiken im Plan-3-5-Hardening zu bearbeiten.
+
+## Statusupdate nach Plan 3-5
+- R15 ist durch sichtbaren Render-Fallback-Guard und Verifikation (`3-5-VERIFICATION.md`) auf "beobachten" reduziert.
+- R16/R17 sind nach eingefuehrter Modulstruktur (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) auf "beobachten" reduziert.
+- R18 ist durch gezielte Kommentierung kritischer Kontrollfluesse auf "beobachten" reduziert.
+- R19 ist durch dokumentierte Regression + Soak (`P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`) auf "beobachten" reduziert.

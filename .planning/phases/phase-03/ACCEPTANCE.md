@@ -18,6 +18,11 @@
 - Clipping-Integritaets-Test: keine sichtbaren Leaks in Nachbarraeume, keine Draws ausserhalb der aktiven Raumgrenzen.
 - Multi-Room-Paralleltest: gleichzeitige Raumzustaende beeinflussen sich nicht unzulaessig.
 - Trigger/Edit-Roundtrip-Test: gesetzte Einzelanimationen bleiben beim Edit konsistent und erzeugen keinen Runtime-State-Drift.
+- Render-Regression-P0-Test: Bei aktiven Animationen sind auf dem Board sichtbare Bewegungen vorhanden; Audio-only ohne sichtbares Rendering gilt als Fail.
+- Render-vs-Audio-Entkopplungs-Test: Audio-Loop/Stop/Edit/Clear-All duerfen den Render-Tick nicht stoppen oder einfrieren.
+- Architekturtest Modulgrenzen: `app.js` ist entlastet; Kernlogik liegt in getrennten Modulen `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`.
+- Refactor-Paritaetstest: Trigger/Direct-Start/Edit/Stop/Reload/Save-Load/GIF-Mapping verhalten sich vor/nach Refactor gleich.
+- Lesbarkeitstest: nicht-offensichtliche Kontrollfluesse sind mit zielgerichteten Kommentaren dokumentiert.
 - Performance-Test: stabile Darstellung unter Mehrfachzustand ohne spuerbaren Bedienabfall.
 
 ## Pflichtabnahme Plan 3-3 (P3-T26..P3-T31)
@@ -36,10 +41,20 @@
 - Running-/Edit-Instanzen bleiben dabei ID- und `gifAssetPath`-konsistent; kein unkontrollierter Drift auf neue Mappingwerte bei bereits laufenden Instanzen.
 - Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus Verifikationshinweis) sind auf den Hotfix-Scope synchronisiert.
 
+## Pflichtabnahme Plan 3-5 (P3-T35..P3-T44)
+- Kritischer Regression-Bug ist behoben: laufende Animationen rendern auf dem Board wieder sichtbar und kontinuierlich; Audio allein gilt nicht als Erfolgsnachweis.
+- Renderpfad ist robust gegen Audio-Lifecycle-Ereignisse; kein Freeze/Stillstand bei Loop, Stop, Clear-All, Edit oder Reload.
+- `app.js` ist in klare Module aufgeteilt; verpflichtende Grenzziehung `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` ist umgesetzt.
+- Integrationspfade bleiben nach Refactor stabil: Trigger, Running-Liste, Direct-Start, Edit, Stop, Reload und Save/Load arbeiten ohne Drift.
+- Nicht-offensichtliche Stellen sind mit sinnvollen, knappen Kommentaren dokumentiert.
+- Funktionale Paritaet und Stabilitaet sind per Regression + Soak dokumentiert und nachvollziehbar.
+
 ## Definition of Done
 - Alle P0-Tasks aus Plan 3-3 sind abgeschlossen.
 - Alle P0-Tasks aus Plan 3-4 sind abgeschlossen.
+- Alle P0-Tasks aus Plan 3-5 sind abgeschlossen.
 - Keine offenen Blocker-Risiken fuer GIF-Loop-Runtime, Mapping-Persistenz oder Running-List-Paritaet.
+- Keine offenen Blocker-Risiken fuer Board-Render-Regression oder Refactor-Integritaet.
 - P1-Hardening fuer Stabilitaet und Performance ist mindestens initial umgesetzt und dokumentiert.
 - Artefakte `PLAN.md`, `BACKLOG.md`, `TASKS.md`, `EXECUTE.md`, `RISKS.md` sind konsistent.
 
@@ -47,3 +62,4 @@
 - Plan 3-2 wurde am 2026-03-25 mit Verweis auf `3-2-VERIFICATION.md` abgenommen.
 - Plan 3-3 wurde am 2026-03-25 mit Verweis auf `3-3-VERIFICATION.md` sowie `P3-T30-REGRESSION.md`/`P3-T30-SOAK.md` abgenommen.
 - Plan 3-4 wurde am 2026-03-25 mit Verweis auf `3-4-VERIFICATION.md` sowie `P3-T33-REGRESSION.md` abgenommen.
+- Plan 3-5 wurde am 2026-03-25 mit Verweis auf `3-5-VERIFICATION.md` sowie `P3-T42-REGRESSION.md`/`P3-T43-SOAK.md` abgenommen.

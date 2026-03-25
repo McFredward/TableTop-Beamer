@@ -1,4 +1,4 @@
-# Phase 3 Backlog (Rework 3-4 Hotfix Completed)
+# Phase 3 Backlog (Rework 3-5 Execute-Ready)
 
 ## Epics
 - Separate Room Trigger Engine (Einzelstart/-stop pro Animation)
@@ -8,6 +8,10 @@
 - GIF Loop Runtime (echte GIF-Framewiedergabe statt Pulsing-Einzelbild)
 - GIF Mapping UI + Persistenz (pro Animation auswaehlbar)
 - Direct-Start GIF Mapping Integrity (`room start` respektiert Mapping bis Runtime)
+- Board Render Regression Recovery (P0: Animation sichtbar trotz parallel laufendem Audio)
+- Architecture Refactor `app.js` -> Module (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`)
+- Refactor Parity & Stability Proof (vor/nach Umbau funktional gleich + stabil)
+- Targeted Readability Improvements (Kommentare in nicht-offensichtlichen Bereichen)
 - Running List Integrity (1:1 Triggerinstanz zu Runtime-Eintrag)
 - Clipping Integrity (raumgenaue Rendergrenzen ohne Leaks)
 - Regression & Performance Hardening
@@ -23,6 +27,12 @@
 - P3-S4.1 Direct-Start-Pfad fuer GIF-Mapping fixen (`gifAssetPath` muss gemappt in `createAnimation` landen).
 - P3-S4.2 Regression fuer Direct-Start + Edit-Flow + Reload als Pflichttest aufnehmen.
 - P3-S4.3 Acceptance-/Artefakt-Sync fuer Ende-zu-Ende-GIF-Mapping abschliessen.
+- P3-S5.1 Kritischen Regression-Bug beheben: Board-Animationen rendern wieder sichtbar und kontinuierlich.
+- P3-S5.2 Render-Engine gegen Audio-entkoppelte Stillstaende hardenen (Render-Tick bleibt robust bei aktivem Sound).
+- P3-S5.3 `app.js` in klare Modulstruktur aufteilen (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`).
+- P3-S5.4 Integrationsfluesse nach Modultrennung stabilisieren (Trigger/Direct-Start/Edit/Stop/Reload/Save).
+- P3-S5.5 Lesbarkeit in nicht-offensichtlichen Bereichen durch gezielte Kommentare verbessern.
+- P3-S5.6 Funktionale Paritaet + Stabilitaet nach Refactor via Regression/Soak + Artefakt-Sync nachweisen.
 
 ## Priorisierte Umsetzungsstrecke - Plan 3-3 (verbindlich)
 
@@ -54,7 +64,26 @@
 - Story P3-S4.3: Artefakt-/Acceptance-Sync.
   - Ziel: Planungsdokumente und Pflichtabnahme bilden den Hotfix-End-to-End-Nachweis konsistent ab.
 
+## Priorisierte Umsetzungsstrecke - Plan 3-5 Rework (verbindlich)
+
+### Prioritaet P0 - Sofortmassnahmen
+- Story P3-S5.1: Board-Render-Regression schliessen.
+  - Ziel: aktive Animationen sind auf dem Board wieder sichtbar; Audio-only-Lauf ist ausgeschlossen.
+- Story P3-S5.2: Render-/Audio-Entkopplung hardenen.
+  - Ziel: Render-Timer/Draw-Pipeline bleibt auch bei Audio-Loop, Stop, Clear-All und Edit robust aktiv.
+- Story P3-S5.3: Pflicht-Refactor `app.js` in Module.
+  - Ziel: klare Modulgrenzen fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` ohne monolithische Kernlogik.
+- Story P3-S5.4: Integrationshygiene nach Refactor.
+  - Ziel: Trigger, Running-Liste, Edit, Direct-Start, Reload und Save/Load bleiben funktional konsistent.
+
+### Prioritaet P1 - Nachgelagerte Absicherung
+- Story P3-S5.5: Lesbarkeits-Upgrade.
+  - Ziel: nicht-offensichtliche Pfade sind mit praezisen Kommentaren nachvollziehbar.
+- Story P3-S5.6: Paritaet + Stabilitaet.
+  - Ziel: Regression/Soak zeigen keine Funktionsverluste oder neue Instabilitaet durch Refactor.
+
 ## Status
 - Plan 3-2 bleibt abgeschlossen; Nachweise in `3-2-VERIFICATION.md`, `P3-T23-REGRESSION.md`, `P3-T24-SOAK.md`.
 - Rework-Welle Plan 3-3 ist umgesetzt; Nachweise in `3-3-VERIFICATION.md`, `P3-T30-REGRESSION.md`, `P3-T30-SOAK.md`.
 - Plan 3-4 Hotfix-Add-on ist umgesetzt; Nachweise in `3-4-VERIFICATION.md` und `P3-T33-REGRESSION.md`.
+- Plan 3-5 Rework ist abgeschlossen; Nachweise in `3-5-VERIFICATION.md`, `P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`.
