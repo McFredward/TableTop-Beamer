@@ -52,7 +52,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T38 [P0] `state` + `persistence` aus `app.js` extrahieren (inkl. Load/Save-Flow) und API-gleiches Verhalten sichern.
 - [x] DONE P3-T39 [P0] `rendering` + `effects` aus `app.js` extrahieren; Board-Renderpfad inkl. Clipping/GIF-Loop bleibt funktional identisch.
 - [x] DONE P3-T40 [P0] `audio` + `ui` + `api/save` aus `app.js` extrahieren und Integrationspunkte ueber explizite Modulgrenzen stabilisieren.
-- [ ] TODO P3-T41 [P1] Nicht-offensichtliche Bereiche gezielt kommentieren (Timing, Fallbacks, Entkopplungs-Guards, Persistenznormalisierung).
+- [x] DONE P3-T41 [P1] Nicht-offensichtliche Bereiche gezielt kommentieren (Timing, Fallbacks, Entkopplungs-Guards, Persistenznormalisierung).
 - [ ] TODO P3-T42 [P1] Funktionale Paritaets-Regression dokumentieren (Trigger, Running-Liste, Direct-Start, Edit, Stop, Reload, Save/Load, GIF-Mapping).
 - [ ] TODO P3-T43 [P1] Stabilitaets-/Soak-Check nach Refactor dokumentieren (insb. parallele Raumanimationen + Audio).
 - [ ] TODO P3-T44 [P1] Plan-3-5-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
