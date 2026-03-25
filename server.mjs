@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +22,174 @@ const liveSessionState = {
     runtime: null,
   },
 };
+
+const liveClients = new Map();
+
+function acceptLiveMutationType(type) {
+  return new Set([
+    "trigger-global",
+    "trigger-room",
+    "edit-room",
+    "stop-animation",
+    "clear-all",
+    "align-toggle",
+  ]).has(type);
+}
+
+function applyLiveMutation({ clientId, role, mutationType, payload }) {
+  if (!acceptLiveMutationType(mutationType)) {
+    return null;
+  }
+  const nextSnapshotPatch = {
+    runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
+  };
+  if (typeof payload?.alignMode === "boolean") {
+    nextSnapshotPatch.alignMode = payload.alignMode;
+  }
+  return mutateLiveSession({
+    mutation: {
+      type: mutationType,
+      byClientId: clientId,
+      byRole: role,
+      at: new Date().toISOString(),
+    },
+    nextSnapshotPatch,
+  });
+}
+
+function encodeWebSocketTextFrame(message) {
+  const payload = Buffer.from(message, "utf8");
+  const payloadLength = payload.length;
+  if (payloadLength >= 126) {
+    throw new Error("websocket payload too large for lightweight encoder");
+  }
+  return Buffer.concat([Buffer.from([0x81, payloadLength]), payload]);
+}
+
+function decodeWebSocketTextFrame(chunk) {
+  if (!chunk || chunk.length < 6) {
+    return null;
+  }
+  const firstByte = chunk[0];
+  const secondByte = chunk[1];
+  const opcode = firstByte & 0x0f;
+  if (opcode === 0x8) {
+    return { close: true, text: null };
+  }
+  if (opcode !== 0x1) {
+    return null;
+  }
+  const masked = (secondByte & 0x80) === 0x80;
+  const payloadLength = secondByte & 0x7f;
+  if (!masked || payloadLength >= 126) {
+    return null;
+  }
+  if (chunk.length < 2 + 4 + payloadLength) {
+    return null;
+  }
+  const maskOffset = 2;
+  const payloadOffset = maskOffset + 4;
+  const mask = chunk.subarray(maskOffset, maskOffset + 4);
+  const payload = chunk.subarray(payloadOffset, payloadOffset + payloadLength);
+  const unmasked = Buffer.alloc(payload.length);
+  for (let i = 0; i < payload.length; i += 1) {
+    unmasked[i] = payload[i] ^ mask[i % 4];
+  }
+  return { close: false, text: unmasked.toString("utf8") };
+}
+
+function sendLiveSocketMessage(socket, payload) {
+  if (!socket || socket.destroyed) {
+    return;
+  }
+  const encoded = encodeWebSocketTextFrame(JSON.stringify(payload));
+  socket.write(encoded);
+}
+
+function buildLiveSessionEnvelope(type, extra = {}) {
+  return {
+    type,
+    session: {
+      version: liveSessionState.version,
+      updatedAt: liveSessionState.updatedAt,
+      lastMutation: liveSessionState.lastMutation,
+      snapshot: liveSessionState.snapshot,
+    },
+    ...extra,
+  };
+}
+
+function attachLiveWebSocket(server) {
+  server.on("upgrade", (req, socket) => {
+    const routePath = normalizeRoutePath(req.url || "/");
+    if (routePath !== "/api/live/ws") {
+      socket.destroy();
+      return;
+    }
+
+    const key = req.headers["sec-websocket-key"];
+    if (!key) {
+      socket.destroy();
+      return;
+    }
+
+    const accept = createHash("sha1")
+      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`, "utf8")
+      .digest("base64");
+    const responseHeaders = [
+      "HTTP/1.1 101 Switching Protocols",
+      "Upgrade: websocket",
+      "Connection: Upgrade",
+      `Sec-WebSocket-Accept: ${accept}`,
+      "",
+      "",
+    ];
+    socket.write(responseHeaders.join("\r\n"));
+
+    const requestUrl = new URL(req.url || "/api/live/ws", "http://localhost");
+    const role = requestUrl.searchParams.get("role") || "control";
+    const clientId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
+
+    sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-hello", { clientId, role }));
+
+    socket.on("data", (chunk) => {
+      const frame = decodeWebSocketTextFrame(chunk);
+      if (!frame) {
+        return;
+      }
+      if (frame.close) {
+        socket.end();
+        return;
+      }
+      try {
+        const parsed = JSON.parse(frame.text || "{}");
+        if (parsed?.type !== "live-mutation") {
+          return;
+        }
+        const session = applyLiveMutation({
+          clientId,
+          role,
+          mutationType: parsed.mutationType,
+          payload: parsed.payload,
+        });
+        if (!session) {
+          return;
+        }
+        sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-ack", { mutationType: parsed.mutationType }));
+      } catch {
+        // ignore malformed ws payloads
+      }
+    });
+
+    socket.on("close", () => {
+      liveClients.delete(clientId);
+    });
+    socket.on("error", () => {
+      liveClients.delete(clientId);
+    });
+  });
+}
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -282,6 +451,8 @@ const server = createServer(async (req, res) => {
     });
   }
 });
+
+attachLiveWebSocket(server);
 
 server.listen(PORT, HOST, () => {
   console.log(`TT Beamer server listening on http://${HOST}:${PORT}`);

@@ -44,6 +44,11 @@ function resolveOutputRoleFromLocation() {
 const outputRole = resolveOutputRoleFromLocation();
 document.body.dataset.outputRole = outputRole;
 
+function resolveLiveWebSocketUrl() {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/api/live/ws?role=${encodeURIComponent(outputRole)}`;
+}
+
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
@@ -234,6 +239,87 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
+
+const liveSync = {
+  socket: null,
+  connected: false,
+  clientId: null,
+  lastAckAt: null,
+};
+
+function getAnimationStartedAtEpochMs(animation) {
+  if (Number.isFinite(animation?.startedAtEpochMs)) {
+    return Number(animation.startedAtEpochMs);
+  }
+  const startedAt = Number(animation?.startedAt);
+  if (!Number.isFinite(startedAt)) {
+    return Date.now();
+  }
+  return Date.now() - (performance.now() - startedAt);
+}
+
+function buildRuntimeSnapshotForLiveSync() {
+  return {
+    boardId: state.boardId,
+    selectedRoomId: state.selectedRoomId,
+    selectedRoomByBoard: state.selectedRoomByBoard,
+    runningAnimations: state.runningAnimations.map((animation) => ({
+      ...animation,
+      startedAtEpochMs: getAnimationStartedAtEpochMs(animation),
+    })),
+    roomDraft: state.roomDraft,
+    animationSpeed: state.animationSpeed,
+    audio: state.audio,
+  };
+}
+
+function emitLiveMutation(mutationType, payload = {}) {
+  if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  liveSync.socket.send(
+    JSON.stringify({
+      type: "live-mutation",
+      mutationType,
+      payload: {
+        ...payload,
+        runtime: buildRuntimeSnapshotForLiveSync(),
+      },
+    }),
+  );
+}
+
+function connectLiveSyncSocket() {
+  try {
+    const socket = new WebSocket(resolveLiveWebSocketUrl());
+    liveSync.socket = socket;
+    socket.addEventListener("open", () => {
+      liveSync.connected = true;
+    });
+    socket.addEventListener("message", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload?.type === "live-hello") {
+          liveSync.clientId = payload.clientId ?? null;
+        }
+        if (payload?.type === "live-ack") {
+          liveSync.lastAckAt = Date.now();
+        }
+      } catch {
+        // ignore malformed live-sync payloads
+      }
+    });
+    socket.addEventListener("close", () => {
+      liveSync.connected = false;
+      window.setTimeout(connectLiveSyncSocket, 1200);
+    });
+    socket.addEventListener("error", () => {
+      liveSync.connected = false;
+    });
+  } catch {
+    liveSync.connected = false;
+  }
+}
 
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
   getBoards: () => BOARDS,
@@ -2625,6 +2711,7 @@ function executeClearAll() {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
+  emitLiveMutation("clear-all", {});
 }
 
 function resetClearAllGuard() {
@@ -4463,6 +4550,7 @@ function createAnimation({
     hold: effectiveHold,
     durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
     startedAt: performance.now(),
+    startedAtEpochMs: Date.now(),
   };
 }
 
@@ -4523,6 +4611,9 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
+  emitLiveMutation("trigger-global", {
+    animationType: type,
+  });
 }
 
 function startRoomAnimationFromDraft() {
@@ -4560,12 +4651,16 @@ function startRoomAnimationFromDraft() {
         ...draftPayload,
         boardId: state.boardId,
         startedAt: performance.now(),
+        startedAtEpochMs: Date.now(),
       };
       state.runningAnimations[editIndex] = updated;
       playSoundForAnimation(updated);
       triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
+      emitLiveMutation("edit-room", {
+        animationId: updated.id,
+      });
       return;
     }
     clearRoomDraftEditTarget();
@@ -4588,6 +4683,9 @@ function startRoomAnimationFromDraft() {
   playSoundForAnimation(animation);
   triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.name ?? room.label} gestartet`;
   renderRunningAnimationsList();
+  emitLiveMutation("trigger-room", {
+    animationId: animation.id,
+  });
 }
 
 function stopAnimation(animationId) {
@@ -4606,6 +4704,9 @@ function stopAnimation(animationId) {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
+  emitLiveMutation("stop-animation", {
+    animationId,
+  });
 }
 
 function editAnimation(animationId) {
@@ -6481,6 +6582,7 @@ async function initializeApplication() {
   syncRuntimePanelsFromState();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
+  connectLiveSyncSocket();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
       `Global Defaults: automatisch geladen & angewendet (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
