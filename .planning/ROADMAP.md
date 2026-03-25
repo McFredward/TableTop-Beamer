@@ -60,7 +60,7 @@ Exit Criteria:
 ## Phase 4 - Maintainability Refactor (In Progress)
 Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 32/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5 erledigt); naechster priorisierter Schritt ist Plan 4-6 (GIF/Render/UI-Isolation).
+Status: 35/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5b erledigt); naechster priorisierter Schritt ist Plan 4-6 (GIF/Render/UI-Isolation).
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
