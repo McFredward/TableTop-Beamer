@@ -295,9 +295,12 @@ const runningAnimationsList = document.querySelector("#running-animations");
 const previewGlobalSelect = document.querySelector("#preview-global-select");
 const stageGlobalPreviewButton = document.querySelector("#stage-global-preview");
 const stageRoomPreviewButton = document.querySelector("#stage-room-preview");
+const sendPreviewLiveButton = document.querySelector("#send-preview-live");
+const rollbackLastSendButton = document.querySelector("#rollback-last-send");
 const previewQueueList = document.querySelector("#preview-queue");
 const clearPreviewQueueButton = document.querySelector("#clear-preview-queue");
 const previewStatus = document.querySelector("#preview-status");
+const liveSendStatus = document.querySelector("#live-send-status");
 const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
@@ -483,6 +486,9 @@ const state = {
   runningAnimations: [],
   preview: {
     queue: [],
+  },
+  live: {
+    lastSend: null,
   },
   audio: {
     enabled: true,
@@ -4471,6 +4477,171 @@ function stageGlobalToPreview() {
   triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
 }
 
+function syncLiveSendStatus(message = null) {
+  if (!liveSendStatus) {
+    return;
+  }
+  if (message) {
+    liveSendStatus.textContent = message;
+    return;
+  }
+  if (!state.live.lastSend) {
+    liveSendStatus.textContent = "Live-Send: noch kein Send";
+    return;
+  }
+  liveSendStatus.textContent =
+    `Live-Send: ${state.live.lastSend.sendId} (${state.live.lastSend.committedCount} Eintrag/Eintraege) aktiv`;
+}
+
+function buildLiveApiCandidates(pathname) {
+  const seen = new Set();
+  const candidates = [];
+  for (const route of resolveGlobalDefaultsApiCandidates()) {
+    const endpoint = `${route.apiBase}${pathname}`;
+    if (seen.has(endpoint)) {
+      continue;
+    }
+    seen.add(endpoint);
+    candidates.push({
+      endpoint,
+      routing: route,
+    });
+  }
+  return candidates;
+}
+
+async function callLiveApi(pathname, method, payload = null) {
+  let lastError = null;
+  for (const candidate of buildLiveApiCandidates(pathname)) {
+    try {
+      const response = await fetchWithTimeout(candidate.endpoint, {
+        method,
+        headers: {
+          accept: "application/json",
+          ...(payload ? { "content-type": "application/json" } : {}),
+        },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        lastError = new Error(`${method} ${candidate.endpoint} failed: ${response.status} ${detail}`);
+        continue;
+      }
+      const parsed = await response.json();
+      return {
+        payload: parsed,
+        endpoint: candidate.endpoint,
+        routing: candidate.routing,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("live api call failed");
+    }
+  }
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error(`No reachable endpoint for ${method} ${pathname}`);
+}
+
+function previewItemToAnimation(item) {
+  return createAnimation({
+    type: item.type,
+    scope: item.scope,
+    boardId: item.boardId,
+    roomId: item.scope === "room" ? item.roomId : null,
+    intensity: item.scope === "room" ? item.intensity : 1,
+    speed: item.scope === "room" ? item.speed : 1,
+    soundVolume: item.scope === "room" ? item.soundVolume : 1,
+    hold: Boolean(item.hold),
+    durationSec: item.hold ? 0 : item.durationSec ?? 18,
+  });
+}
+
+async function sendPreviewToLive() {
+  if (state.preview.queue.length === 0) {
+    triggerFeedback.textContent = "Status: Preview leer - nichts zu senden";
+    return;
+  }
+  const previewSnapshot = state.preview.queue.map((item) => ({ ...item }));
+  const createdAnimations = previewSnapshot.map((item) => previewItemToAnimation(item));
+  state.runningAnimations.push(...createdAnimations);
+  for (const animation of createdAnimations) {
+    playSoundForAnimation(animation);
+  }
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+
+  try {
+    const sent = await callLiveApi("/api/live/send", "POST", {
+      sentAt: new Date().toISOString(),
+      boardId: state.boardId,
+      previewItems: previewSnapshot,
+    });
+    const sendId = String(sent.payload?.sendId || `local-${Date.now()}`);
+    state.live.lastSend = {
+      sendId,
+      committedCount: createdAnimations.length,
+      animationIds: createdAnimations.map((animation) => animation.id),
+      endpoint: sent.endpoint,
+      routing: sent.routing,
+    };
+    state.preview.queue = [];
+    renderPreviewQueue();
+    syncLiveSendStatus();
+    const snapshot = buildResolveSnapshot({
+      routing: sent.routing,
+      endpoint: sent.endpoint,
+      method: "POST",
+    });
+    triggerFeedback.textContent =
+      `Status: Preview an Live gesendet (${sendId}, ${createdAnimations.length} Eintrag/Eintraege | ${formatResolveSnapshot(snapshot)})`;
+  } catch (error) {
+    for (const animation of createdAnimations) {
+      stopAnimationSound(animation.id);
+    }
+    state.runningAnimations = state.runningAnimations.filter(
+      (animation) => !createdAnimations.some((created) => created.id === animation.id),
+    );
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+    triggerFeedback.textContent =
+      `Status: Live-Send fehlgeschlagen, Preview bleibt aktiv (${error instanceof Error ? error.message : "n/a"})`;
+  }
+}
+
+async function rollbackLastSend() {
+  const lastSend = state.live.lastSend;
+  if (!lastSend) {
+    triggerFeedback.textContent = "Status: kein Send zum Rueckgaengigmachen vorhanden";
+    return;
+  }
+  try {
+    const rolledBack = await callLiveApi("/api/live/rollback", "POST", {
+      sendId: lastSend.sendId,
+    });
+    const removedAnimations = state.runningAnimations.filter((animation) =>
+      lastSend.animationIds.includes(animation.id),
+    );
+    for (const animation of removedAnimations) {
+      stopAnimationSound(animation.id);
+    }
+    state.runningAnimations = state.runningAnimations.filter(
+      (animation) => !lastSend.animationIds.includes(animation.id),
+    );
+    state.live.lastSend = null;
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+    syncLiveSendStatus(
+      `Live-Send: ${rolledBack.payload?.rolledBackSendId || lastSend.sendId} rueckgaengig`,
+    );
+    triggerFeedback.textContent =
+      `Status: Letzter Send rueckgaengig (${rolledBack.payload?.rolledBackSendId || lastSend.sendId})`;
+  } catch (error) {
+    triggerFeedback.textContent =
+      `Status: Rollback fehlgeschlagen (${error instanceof Error ? error.message : "n/a"})`;
+  }
+}
+
 function upsertGlobalAnimation(type, defaultDurationSec) {
   const existing = state.runningAnimations.find(
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
@@ -5910,6 +6081,31 @@ clearPreviewQueueButton?.addEventListener("click", () => {
   triggerFeedback.textContent = "Status: Preview geleert";
 });
 
+sendPreviewLiveButton?.addEventListener("click", async () => {
+  if (shouldSuppressRapidTap("preview-send-live")) {
+    return;
+  }
+  sendPreviewLiveButton.disabled = true;
+  syncLiveSendStatus("Live-Send: sende Preview ...");
+  try {
+    await sendPreviewToLive();
+  } finally {
+    sendPreviewLiveButton.disabled = false;
+  }
+});
+
+rollbackLastSendButton?.addEventListener("click", async () => {
+  if (shouldSuppressRapidTap("preview-rollback-live")) {
+    return;
+  }
+  rollbackLastSendButton.disabled = true;
+  try {
+    await rollbackLastSend();
+  } finally {
+    rollbackLastSendButton.disabled = false;
+  }
+});
+
 applyOutputRouteButton.addEventListener("click", () => {
   applyOutputRoute(outputRouteSelect.value);
 });
@@ -6080,6 +6276,7 @@ async function initializeApplication() {
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.preview.queue = [];
+  state.live.lastSend = null;
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
@@ -6125,6 +6322,7 @@ async function initializeApplication() {
   syncRuntimePanelsFromState();
   syncPreviewGlobalOptions();
   renderPreviewQueue();
+  syncLiveSendStatus();
   syncMobileStickyOffsets();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
