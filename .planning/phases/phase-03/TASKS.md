@@ -38,4 +38,4 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T28 [P0] Instanzparameter-Paritaet fuer native GIF-Wiedergabe hardenen: `opacity` und `playbackSpeed` bleiben pro Instanz editierbar und querwirkungsfrei.
 - [x] DONE P3-T29 [P0] Regression-Guard fuer GIF-Raumtrigger nachziehen: Running-List-1:1, hold-by-default und raumstrenges Clipping unveraendert sicherstellen.
 - [x] DONE P3-T30 [P1] Loop-Playback- und Soak-Nachweise fuer echte GIF-Framefolge dokumentieren (inkl. mindestens einem kompletten Loop-Roundtrip pro GIF).
-- [ ] TODO P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.
+- [x] DONE P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.

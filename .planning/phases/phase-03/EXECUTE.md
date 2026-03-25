@@ -7,30 +7,41 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 3-7 P0 Hotfix Add-on (verbindlich)
-1. P0 sofort: P3-T51 (Repro-Harness + Telemetrie fuer den statischen Board-Fehlmodus bei laufendem Audio).
-2. P0 sofort: P3-T52 (Render-Loop fail-safe hardenen: Einzel-Layer-/Clip-Fehler duerfen globalen Draw-Tick nie stoppen).
-3. P0 sofort: P3-T53 (Outside-/Ship-Clip-Kompatibilitaet inkl. mobilem WebView-Fallback ohne evenodd-Abhaengigkeit).
-4. P0 Gate: P3-T54 + P3-T55 (Outside-Fehler-Isolation + Mobile-Hard-Proof fuer sichtbare `global`/`room`/`gif`-Effekte).
-5. P1 Abschluss: P3-T56 (Plan-3-7-Verifikation + Artefakt-Sync inkl. STATE/ROADMAP).
+## Priority Execution - Plan 3-2 Rework (verbindlich)
+1. P0 zuerst: P3-T13..P3-T15 (separates Instanzmodell + Trigger/Stop/Edit + Running-List-Paritaet).
+2. P0 danach: P3-T16..P3-T18 (`kaputt`/`feuer`/`schleim` auf verbindliche GIF-Assets).
+3. P0 danach: P3-T19..P3-T20 (`alarm` + `lichtflackern` als globales Aequivalent, strikt raumbegrenzt).
+4. P0 Abschluss: P3-T21..P3-T22 (instanzscharfe GIF-Parameter + `hold`-Default).
+5. P1 Hardening: P3-T23..P3-T24 (Regression, Parallelbetrieb, Soak/Performance).
+6. P1 Abschluss: P3-T25 (Plan-3-2-Verifikation + Artefakt-Sync).
 
-## Gate-Regeln Plan 3-7
-- Ohne reproduzierbaren Nachweis des Fehlmodus (Board statisch, Audio laeuft) kein Abschluss von P3-T51.
-- Ohne Render-Loop-Liveness unter injizierten Layer-/Clip-Fehlern kein Abschluss von P3-T52.
-- Ohne browserrobusten Clip-Fallback fuer Outside/Ship (inkl. Mobile-WebView-Pfad) kein Abschluss von P3-T53.
-- Ohne Negativtest `outside fail` mit weiterlaufenden Inside/Room/GIF-Effekten kein Abschluss von P3-T54.
-- Ohne mobilen Sichtbarkeits-Hartnachweis fuer `global` + `room` + `gif` kein Abschluss von P3-T55.
-- Ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) kein Abschluss von P3-T56.
+## Priority Execution - Plan 3-3 P0 Bugfix (verbindlich)
+1. P0 zuerst: P3-T26..P3-T27 (native GIF-Loops fuer `kaputt`/`feuer`/`schleim`, kein Pulse-/Zoom-Ersatz).
+2. P0 danach: P3-T28 (Instanzparameter-Paritaet `opacity`/`playbackSpeed` unter nativer GIF-Wiedergabe).
+3. P0 Abschluss: P3-T29 (Regression-Gate fuer Running-List, hold-by-default, Clipping).
+4. P1 Hardening: P3-T30 (Loop-Roundtrip-Nachweise + Soak).
+5. P1 Abschluss: P3-T31 (Plan-3-3-Verifikation + Artefakt-Sync).
+
+## Gate-Regeln Plan 3-2
+- Ohne nachgewiesenes separates Instanzmodell kein Fortschritt ueber P3-T15 hinaus.
+- Ohne 1:1-Paritaet Triggerinstanz zu Running-Eintrag kein Fortschritt zu GIF-/Global-Aequivalent-Tasks.
+- Ohne verbindliche GIF-Assets fuer `kaputt`/`feuer`/`schleim` kein P0-Abschluss.
+- Ohne raumbegrenztes Clipping fuer `alarm` und `lichtflackern` kein P0-Abschluss.
+- Ohne nachgewiesenes `hold`-Default-Verhalten kein Plan-3-2-Abschluss.
+- Ohne Verifikationsartefakt fuer Plan 3-2 kein Wechsel in weitere Ausbauwellen.
+
+## Gate-Regeln Plan 3-3
+- Ohne echten GIF-Loop-Playback-Nachweis fuer `kaputt`/`feuer`/`schleim` kein P0-Abschluss.
+- Wenn fuer GIF-Raumtrigger ein Pulse-/Zoom-Ersatz sichtbar ist, gilt der Task als offen.
+- Ohne instanzscharfe Wirkung von `opacity`/`playbackSpeed` kein Fortschritt zu Abschluss-Tasks.
+- Ohne Regressionserfolg fuer Running-List, hold-default und Clipping kein Plan-3-3-Abschluss.
+- Ohne Plan-3-3-Verifikationsartefakt (`3-3-VERIFICATION.md`) kein Wechsel in weitere Ausbauwellen.
 
 ## Update Rules
 - Taskstatus in `TASKS.md` kontinuierlich pflegen.
 - Scope-/Prioritaetsaenderungen in `.planning/STATE.md` Decision Log dokumentieren.
-- Vor Abschluss von Plan 3-7 alle Pflichtpunkte in `ACCEPTANCE.md` nachweisen.
+- Vor Abschluss von Plan 3-3 alle Pflichtpunkte in `ACCEPTANCE.md` nachweisen.
 
 ## Execution Result
 - Plan 3-2 abgeschlossen; siehe `3-2-VERIFICATION.md` sowie Task-Nachweise `P3-T23-REGRESSION.md` und `P3-T24-SOAK.md`.
-- Plan 3-3 abgeschlossen; siehe `3-3-VERIFICATION.md` sowie Task-Nachweise `P3-T30-REGRESSION.md` und `P3-T30-SOAK.md`.
-- Plan 3-4 abgeschlossen; siehe `3-4-VERIFICATION.md` sowie Task-Nachweis `P3-T33-REGRESSION.md`.
-- Plan 3-5 ist abgeschlossen; siehe `3-5-VERIFICATION.md`, `P3-T42-REGRESSION.md`, `P3-T43-SOAK.md`.
-- Plan 3-6 ist abgeschlossen; siehe `3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`.
-- Plan 3-7 ist abgeschlossen; siehe `3-7-VERIFICATION.md`, `P3-T55-REGRESSION.md`, `P3-T55-SOAK.md`.
+- Plan 3-3 abgeschlossen; siehe `3-3-VERIFICATION.md` sowie Task-Nachweise `P3-T29-REGRESSION.md` und `P3-T30-SOAK.md`.
