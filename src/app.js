@@ -5423,6 +5423,37 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
+  if (type === "special-slime") {
+    const bands = Math.max(5, Math.round(9 * intensity));
+    for (let i = 0; i < bands; i += 1) {
+      const wave = Math.sin(age * 1.8 + i * 0.9);
+      const y = roomMinY + roomHeight * (0.14 + (i / Math.max(1, bands - 1)) * 0.72);
+      const thickness = Math.max(4, roomHeight * 0.06);
+      const startX = roomMinX - roomWidth * 0.15;
+      const endX = roomMinX + roomWidth * 1.15;
+      const gradient = ctx.createLinearGradient(startX, y, endX, y + thickness);
+      gradient.addColorStop(0, `rgba(58, 255, 162, ${(0.08 + i * 0.01) * intensity})`);
+      gradient.addColorStop(0.5, `rgba(132, 255, 196, ${(0.2 + wave * 0.06) * intensity})`);
+      gradient.addColorStop(1, `rgba(41, 149, 92, ${(0.12 + i * 0.015) * intensity})`);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(startX, y + Math.sin(age + i) * 6);
+      ctx.bezierCurveTo(
+        roomX - roomWidth * 0.35,
+        y + wave * 14,
+        roomX + roomWidth * 0.3,
+        y - wave * 12,
+        endX,
+        y + Math.cos(age * 1.2 + i) * 6,
+      );
+      ctx.lineTo(endX, y + thickness);
+      ctx.lineTo(startX, y + thickness);
+      ctx.closePath();
+      ctx.fill();
+    }
+    return;
+  }
+
   if (type === ROOM_STATE_COMBO_ANIMATION_ID) {
     const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.72);
     g.addColorStop(0, `rgba(123, 201, 255, ${0.08 * intensity})`);
