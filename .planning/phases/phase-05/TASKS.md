@@ -19,7 +19,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [ ] TODO P5-T13 [P0] 3-Device-Verifikationsprotokoll erstellen (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output).
 - [ ] TODO P5-T14 [P0] Plan-5-1-Fokusregression dokumentieren (clean final output, realtime sync, alignment toggle, audio role isolation).
 
-## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-3 Abschluss)
+## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-5/5-3 Abschluss)
 - [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
 - [x] DONE P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
 - [x] DONE P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
@@ -44,6 +44,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T34 [P0] Session-Serverdiagnose ausbauen: strukturierte Fehlercodes fuer `connect`, `stream`, `heartbeat`, `event` inkl. Session-/Client-Korrelation.
 - [x] DONE P5-T35 [P0] UI-Diagnose korrigieren: Heartbeat-Endpoint korrekt und getrennt von Connect-Endpoint anzeigen.
 - [x] DONE P5-T36 [P0] Hotfix-Verifikation dokumentieren (SSE-close-Negativtest, Multi-Reconnect-Stabilitaet, endpoint-spezifische Logs/UI-Diagnose).
+
+## Plan 5-5 - Session-Resilience-Hotfix aus Feldfeedback (execute-ready, P0 sofort)
+- [x] DONE P5-T39 [P0] Session-Timeout-Budget entkoppeln: `connect`/`heartbeat`/`stream` nutzen dediziertes Session-Timeout statt Global-HTTP-Default.
+- [ ] TODO P5-T40 [P0] Heartbeat-Ausfalltoleranz einbauen: Reconnect erst nach N aufeinanderfolgenden Heartbeat-Fehlschlaegen (konfigurierbare Schwelle, Startwert 3).
+- [ ] TODO P5-T41 [P0] Retry-Determinismus verbessern: serialisierte Reconnect-Transition, sauberer Retry-Reset, kein schneller terminal state bei Kurzjitter.
+- [ ] TODO P5-T42 [P0] Diagnose/Runbook korrigieren: `/api/session/heartbeat` explizit POST-only dokumentieren inkl. korrektem `curl -X POST` Beispiel.
+- [ ] TODO P5-T43 [P0] WLAN-Jitter-Regressionstest erfassen (Handy im WLAN): kurze Aussetzer duerfen Session nicht sofort zerlegen.
+- [ ] TODO P5-T44 [P0] Hotfix-Nachweis dokumentieren (Timeout-Entkopplung, N-Failure-Guard, deterministischer Retry-Loop, POST-only Heartbeat-Runbook).
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.

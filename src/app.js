@@ -21,6 +21,7 @@ const {
   API_BASE_URL_PARAM_KEYS,
   API_PORT_FALLBACKS,
   API_REQUEST_TIMEOUT_MS,
+  SESSION_REQUEST_TIMEOUT_MS,
   LOCAL_API_HOSTS,
   ROOM_GEOMETRY_DEFAULT,
   BOARD_ZOOM_DEFAULT,
@@ -226,6 +227,7 @@ const SESSION_ERROR_MESSAGES = {
   CONNECT_UNREACHABLE: "Session-Endpoint nicht erreichbar",
   HEARTBEAT_FAILED: "Heartbeat fehlgeschlagen",
   SSE_INTERRUPTED: "Session-Stream unterbrochen",
+  SSE_STREAM_TIMEOUT: "Session-Stream-Connect Timeout",
   EMIT_FAILED: "Session-Event konnte nicht gesendet werden",
   RETRY_TERMINAL: "Reconnect-Limit erreicht (terminal)",
 };
@@ -844,6 +846,7 @@ function startSessionHeartbeat(intervalMs = 4000) {
         headers: {
           "content-type": "application/json",
         },
+        timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({
           sessionId: state.session.id,
           clientId: state.session.clientId,
@@ -868,6 +871,10 @@ function startSessionHeartbeat(intervalMs = 4000) {
 }
 
 function closeSessionStream() {
+  if (sessionStreamConnectTimeoutTimer) {
+    window.clearTimeout(sessionStreamConnectTimeoutTimer);
+    sessionStreamConnectTimeoutTimer = null;
+  }
   if (sessionEventSource) {
     sessionEventSource.close();
     sessionEventSource = null;
@@ -879,8 +886,28 @@ function attachSessionStream() {
   if (!state.session.clientId) {
     return;
   }
-  const stream = new EventSource(getSessionStreamUrl());
+  const streamEndpoint = getSessionStreamUrl();
+  const stream = new EventSource(streamEndpoint);
   sessionEventSource = stream;
+  sessionStreamConnectTimeoutTimer = window.setTimeout(() => {
+    if (sessionEventSource !== stream) {
+      return;
+    }
+    state.session.connected = false;
+    setSessionRetryError("SSE_STREAM_TIMEOUT", {
+      endpoint: streamEndpoint,
+      detail: `timeout after ${SESSION_REQUEST_TIMEOUT_MS}ms`,
+    });
+    syncSessionStatus(`Session: Stream-Timeout, reconnect geplant (${state.session.id})`);
+    closeSessionStream();
+    scheduleSessionReconnect({ reason: "sse-timeout" });
+  }, SESSION_REQUEST_TIMEOUT_MS);
+  stream.addEventListener("open", () => {
+    if (sessionStreamConnectTimeoutTimer) {
+      window.clearTimeout(sessionStreamConnectTimeoutTimer);
+      sessionStreamConnectTimeoutTimer = null;
+    }
+  });
   stream.addEventListener("session-snapshot", (event) => {
     try {
       const parsed = JSON.parse(event.data);
@@ -901,9 +928,13 @@ function attachSessionStream() {
     }
   });
   stream.addEventListener("error", () => {
+    if (sessionStreamConnectTimeoutTimer) {
+      window.clearTimeout(sessionStreamConnectTimeoutTimer);
+      sessionStreamConnectTimeoutTimer = null;
+    }
     state.session.connected = false;
     setSessionRetryError("SSE_INTERRUPTED", {
-      endpoint: getSessionStreamUrl(),
+      endpoint: streamEndpoint,
     });
     syncSessionStatus(`Session: SSE unterbrochen, reconnect geplant (${state.session.id})`);
     closeSessionStream();
@@ -964,6 +995,7 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             headers: {
               accept: "application/json",
             },
+            timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
           });
           if (response.ok) {
             const result = await response.json();
@@ -1139,6 +1171,7 @@ const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
 let sessionEventSource = null;
 let sessionHeartbeatTimer = null;
+let sessionStreamConnectTimeoutTimer = null;
 let sessionReconnectTimer = null;
 let sessionConnectInFlight = false;
 let sessionApplyingRemoteState = false;
@@ -1823,20 +1856,28 @@ async function saveGlobalDefaultsToServer() {
 }
 
 async function fetchWithTimeout(url, options = {}) {
+  const timeoutMsValue = Number(options.timeoutMs);
+  const timeoutMs = Number.isFinite(timeoutMsValue)
+    ? Math.max(250, timeoutMsValue)
+    : API_REQUEST_TIMEOUT_MS;
+  const fetchOptions = {
+    ...options,
+  };
+  delete fetchOptions.timeoutMs;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw buildGlobalDefaultsSaveError({
         code: "API_UNREACHABLE",
-        details: `timeout after ${API_REQUEST_TIMEOUT_MS}ms`,
+        details: `timeout after ${timeoutMs}ms`,
         endpoint: url,
-        method: options.method ?? "GET",
+        method: fetchOptions.method ?? "GET",
       });
     }
     throw error;
