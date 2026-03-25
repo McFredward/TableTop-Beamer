@@ -28,6 +28,6 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T20 [P0] `lichtflackern` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
 - [x] DONE P3-T21 [P0] GIF-Instanzparameter pro laufender Animation steuerbar machen (`opacity`, `playbackSpeed`) inkl. Edit-Roundtrip.
 - [x] DONE P3-T22 [P0] Default-Verhalten `hold` fuer alle Raumanimationen erzwingen (aktiv bis expliziter Stop).
-- [ ] TODO P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
+- [x] DONE P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
 - [ ] TODO P3-T24 [P1] Performance-/Soak-Check fuer mehrere daueraktive Raum-Animationen protokollieren.
 - [ ] TODO P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
