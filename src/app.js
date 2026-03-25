@@ -395,6 +395,7 @@ function scheduleSessionReconnect(delayMs = 1200) {
   if (sessionReconnectTimer) {
     return;
   }
+  state.session.reconnectAttempts = (state.session.reconnectAttempts || 0) + 1;
   sessionReconnectTimer = window.setTimeout(() => {
     sessionReconnectTimer = null;
     void connectSession({ reconnect: true });
@@ -492,12 +493,13 @@ async function connectSession({ reconnect = false } = {}) {
     state.session.clientId = String(result.clientId || state.session.clientId || "");
     state.role = normalizeClientRole(result.role || state.role);
     state.session.connected = true;
+    state.session.reconnectAttempts = reconnect ? state.session.reconnectAttempts : 0;
     state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
     applySessionSnapshot(result?.snapshot);
     attachSessionStream();
     startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
     syncSessionStatus(
-      `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect" : "join"} | Rolle ${state.role}`,
+      `Session: verbunden (${state.session.id}) | ${reconnect ? "reconnect+snapshot" : "join"} | Rolle ${state.role}`,
     );
   } catch {
     state.session.connected = false;
