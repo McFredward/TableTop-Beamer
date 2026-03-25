@@ -19,7 +19,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [ ] TODO P5-T13 [P0] 3-Device-Verifikationsprotokoll erstellen (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output).
 - [ ] TODO P5-T14 [P0] Plan-5-1-Fokusregression dokumentieren (clean final output, realtime sync, alignment toggle, audio role isolation).
 
-## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-5/5-3 Abschluss)
+## Plan 5-2 - Priorisierter Hotfix (execute-ready, nach Plan 5-6/5-5/5-3 Abschluss)
 - [x] DONE P5-T15 [P0] Overlay-Semantik hart korrigieren: `operator` sieht Alignment-Overlay immer (unabhaengig vom Toggle).
 - [x] DONE P5-T16 [P0] Toggle-Wirkung auf `final-output` begrenzen: Flag steuert nur Overlay-Einblendung im Beamer-Output.
 - [x] DONE P5-T17 [P0] Session-Connect-Pfad robust machen (Endpoint-Resolver + Join-Fallback + Guard gegen `default-session` Fehlpfad).
@@ -49,9 +49,17 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T39 [P0] Session-Timeout-Budget entkoppeln: `connect`/`heartbeat`/`stream` nutzen dediziertes Session-Timeout statt Global-HTTP-Default.
 - [x] DONE P5-T40 [P0] Heartbeat-Ausfalltoleranz einbauen: Reconnect erst nach N aufeinanderfolgenden Heartbeat-Fehlschlaegen (konfigurierbare Schwelle, Startwert 3).
 - [x] DONE P5-T41 [P0] Retry-Determinismus verbessern: serialisierte Reconnect-Transition, sauberer Retry-Reset, kein schneller terminal state bei Kurzjitter.
-- [x] DONE P5-T42 [P0] Diagnose/Runbook korrigieren: `/api/session/heartbeat` explizit POST-only dokumentieren inkl. korrektem `curl -X POST` Beispiel.
+- [x] DONE P5-T42 [P0] Diagnose/Runbook korrigieren: Heartbeat-Methodik als damalige Basisdoku vereinheitlichen inkl. reproduzierbarem `curl`-Smoke.
 - [x] DONE P5-T43 [P0] WLAN-Jitter-Regressionstest erfassen (Handy im WLAN): kurze Aussetzer duerfen Session nicht sofort zerlegen.
-- [x] DONE P5-T44 [P0] Hotfix-Nachweis dokumentieren (Timeout-Entkopplung, N-Failure-Guard, deterministischer Retry-Loop, POST-only Heartbeat-Runbook).
+- [x] DONE P5-T44 [P0] Hotfix-Nachweis dokumentieren (Timeout-Entkopplung, N-Failure-Guard, deterministischer Retry-Loop, damaliges Heartbeat-Runbook als Ausgangsbasis).
+
+## Plan 5-6 - Transport-Fallback + persistente Logdiagnose (execute-ready, P0 sofort)
+- [x] DONE P5-T45 [P0] Persistente Session-Server-Logdatei einbauen (`logs/session-api.log`): Request-Methode, Endpoint, Status, Fehlercode, Session-ID, Client-ID, Timestamp.
+- [ ] TODO P5-T46 [P0] Server-Heartbeat-Endpoint um GET-Unterstuetzung erweitern, kompatibel zu bestehendem POST-Pfad und identischem Error-Code-Schema.
+- [ ] TODO P5-T47 [P0] Client-Heartbeat auf POST-primaer mit deterministischem GET-Fallback umbauen (nur bei POST-Fehler, mit klarer Fallback-Ursache).
+- [ ] TODO P5-T48 [P0] Optionalen Session-Event-GET-Fallback implementieren (konfigurierbar), inklusive Duplikat-/Loss-Guard und nachvollziehbarer Diagnose.
+- [ ] TODO P5-T49 [P0] UI-Diagnose erweitern: aktuell genutzte Methode (`POST`/`GET-fallback`) fuer Heartbeat/Event samt Endpoint und letztem Methodenwechsel anzeigen.
+- [ ] TODO P5-T50 [P0] Runbook + Feldtestprotokoll erweitern: Logfile-Pfad, POST/GET-Fallback-Testbefehle, erwartete Logzeilen und Auslese-Checkliste dokumentieren.
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.

@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, stat } from "node:fs/promises";
-import { createReadStream } from "node:fs";
+import { createReadStream, appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +8,7 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
+const SESSION_LOG_PATH = path.join(ROOT_DIR, "logs", "session-api.log");
 const SESSION_PROTOCOL_VERSION = "5-1";
 const HEARTBEAT_INTERVAL_MS = 4000;
 const STALE_CLIENT_TIMEOUT_MS = 16000;
@@ -88,6 +89,50 @@ function logSessionCode(code, {
   } else {
     console.warn(message);
   }
+  void appendSessionLog(payload);
+}
+
+function appendSessionLog(payload) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    ...payload,
+  };
+  const serialized = `${JSON.stringify(entry)}\n`;
+  try {
+    mkdirSync(path.dirname(SESSION_LOG_PATH), { recursive: true });
+    appendFileSync(SESSION_LOG_PATH, serialized, "utf8");
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        scope: "session",
+        code: "SESSION_LOG_WRITE_FAILED",
+        endpoint: "logfile",
+        method: "-",
+        status: 500,
+        detail: error instanceof Error ? error.message : "unknown",
+      }),
+    );
+  }
+}
+
+function logSessionRequest({
+  code,
+  endpoint,
+  method,
+  status,
+  sessionId = "",
+  clientId = "",
+  detail = "",
+}) {
+  logSessionCode(code, {
+    endpoint,
+    method,
+    status,
+    sessionId,
+    clientId,
+    detail,
+    level: status >= 500 ? "error" : status >= 400 ? "warn" : "info",
+  });
 }
 
 function normalizeRole(role) {
@@ -391,6 +436,14 @@ function handleSessionConnect(req, res) {
     role,
     snapshot: buildSessionSnapshot(session),
   });
+  logSessionRequest({
+    code: "SESSION_CONNECT_OK",
+    endpoint: SESSION_ENDPOINTS.connect,
+    method: req.method,
+    status: 200,
+    sessionId,
+    clientId,
+  });
 }
 
 function handleSessionStream(req, res) {
@@ -417,6 +470,14 @@ function handleSessionStream(req, res) {
   });
   res.write("retry: 2000\n\n");
   session.streams.add(res);
+  logSessionRequest({
+    code: "SESSION_STREAM_OPEN",
+    endpoint: SESSION_ENDPOINTS.stream,
+    method: req.method,
+    status: 200,
+    sessionId,
+    clientId,
+  });
 
   const initialSnapshotWritten = writeSse(res, "session-snapshot", {
     sourceClientId: "server",
@@ -488,6 +549,14 @@ async function handleSessionHeartbeat(req, res) {
     ok: true,
     snapshot: buildSessionSnapshot(session),
   });
+  logSessionRequest({
+    code: "SESSION_HEARTBEAT_OK",
+    endpoint: SESSION_ENDPOINTS.heartbeat,
+    method: req.method,
+    status: 200,
+    sessionId: session.id,
+    clientId,
+  });
 }
 
 async function handleSessionEvent(req, res) {
@@ -551,6 +620,15 @@ async function handleSessionEvent(req, res) {
   sendJson(res, 200, {
     ok: true,
     snapshot: buildSessionSnapshot(session),
+  });
+  logSessionRequest({
+    code: "SESSION_EVENT_OK",
+    endpoint: SESSION_ENDPOINTS.event,
+    method: req.method,
+    status: 200,
+    sessionId: session.id,
+    clientId,
+    detail: eventType,
   });
 }
 
