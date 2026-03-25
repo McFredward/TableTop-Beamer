@@ -7,12 +7,12 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 2
-- Current Phase Key: phase-02
+- Current Phase: 3
+- Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 2-5
-- Last Execution Summary: `.planning/phases/phase-02/2-5-SUMMARY.md`
+- Last Executed Plan: 3-1
+- Last Execution Summary: `.planning/phases/phase-03/3-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -195,6 +195,11 @@
 - Zonenquelle fuer Phase-2-Abschluss ist jetzt extern (`config/zones/*.json`) mit strikter Validierung und klassifiziertem Fallback (`last-known-good`/Inline).
 - Preview/Kombi und Live-Commit sind als getrennte Zustandsmodelle umgesetzt; letzter Live-Send ist per Undo/Rollback ruecknehmbar.
 - Phase-2-README wurde auf den finalen Operator-Workflow (Defaults -> Kalibrierung -> Preview -> Live -> Rollback) aktualisiert.
+- Phase-3 Planung ist vorbereitet: Nemesis Animations-Overhaul mit kombinierten Raumzustaenden (`kaputt`, `brennend`, `alienCount 0-2`, `leiche`), Spezialraum-Effekten (`nest`, `slime`, `decompression`), sauberem Raum-Clipping und immersiver Darstellung.
+- Plan-3-1 ist als erste Ausfuehrungswelle execute-ready gesetzt; P0 umfasst Zustandsmodell, Kompositionsregeln, Clipping-Guard, Kombinationsrenderer und Spezialraum-Integration.
+- Phase-3 Plan 3-1 ist ausgefuehrt: kombinierbare Raumzustaende laufen als persistente Per-Room-Profile mit zentraler Layer-Komposition.
+- Spezialraum-Effekte `nest`, `slime`, `decompression` sind in Trigger/Edit/Runtime integriert und bleiben strikt auf Raum-Polygone geclippt.
+- Runtime-Hardening fuer Plan 3-1 nutzt adaptive Quality-Skalierung auf Framekostenbasis und dokumentierte Acceptance-Nachweise in `.planning/phases/phase-03/3-1-VERIFICATION.md`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -433,5 +438,14 @@
   - `.planning/phases/phase-02/2-VERIFICATION.md` (Follow-up: 6/6 must-haves verified)
   - `.planning/phases/phase-02/P2-T43-ZONEN-NEGATIVTESTS.md`
   - `.planning/phases/phase-02/P2-T47-EXIT-GATE.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 1)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-1-SUMMARY.md`
+- Task Commits: 12 atomare Commits (`4e959aa`, `2272d2b`, `6b4f96b`, `4ccc445`, `105e5d2`, `c63e07f`, `8f42c2f`, `7ce0b9d`, `90956dc`, `2a0e6f3`, `f563afe`, `364c4a6`)
+- Evidence:
+  - `.planning/phases/phase-03/3-1-VERIFICATION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)

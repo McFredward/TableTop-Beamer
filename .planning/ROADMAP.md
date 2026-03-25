@@ -37,6 +37,23 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
+## Phase 3 - Nemesis Animations Overhaul (Prepared)
+Ziel: Kombinierte Raumzustaende (`kaputt`, `brennend`, `alienCount 0-2`, `leiche`) plus Spezialraum-Effekte (`nest`, `slime`, `decompression`) mit sauberem Raum-Clipping und immersiver Darstellung.
+
+Status: 12/15 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12) umgesetzt und nachgewiesen (siehe `.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-1-VERIFICATION.md`).
+
+Milestones:
+1. P0 Foundation: Zustandsmodell + Layer-/Konfliktregeln.
+2. P0 Clipping: einheitlicher Guard fuer alle Raumrenderpfade.
+3. P0 Rendering: kombinierte Standardraumzustaende + Spezialraum-Effekte live.
+4. P1 Hardening: Immersion, Performance, Verifikation, Artefakt-Sync.
+
+Exit Criteria:
+- Plan-3-1-P0 vollstaendig abgeschlossen und nachgewiesen.
+- Clipping-Integritaet ohne Leaks in allen relevanten Raumpfaden.
+- Spezialraum-Effekte stabil triggerbar und editierbar.
+- Verifikation und Planungsartefakte konsistent abgeschlossen.
+
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
 - Netzwerk-Remote / Multi-Client-Sync
