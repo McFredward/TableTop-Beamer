@@ -82,7 +82,19 @@ completed: 2026-03-25
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state helpers waren mit dem aktuellen STATE/ROADMAP-Format inkompatibel**
+- **Found during:** Abschluss (State-Update)
+- **Issue:** `state advance-plan`, `state update-progress` und `roadmap update-plan-progress` lieferten Parsing-Fehler.
+- **Fix:** STATE/ROADMAP wurden manuell auf den abgeschlossenen 3-2-Stand aktualisiert.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Inhalte zeigen `Last Executed Plan: 3-2` und Phase-3-Status `25/25 Tasks abgeschlossen`.
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** Kein Scope-Creep; nur notwendige Format-Umgehung fuer konsistente Abschlussmetadaten.
 
 ## Issues Encountered
 
