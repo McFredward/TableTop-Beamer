@@ -2501,6 +2501,10 @@ function isGifRoomAnimation(type) {
   return Boolean(ROOM_GIF_ANIMATION_ASSETS[type]);
 }
 
+function isRoomAnimationType(type) {
+  return ROOM_ANIMATIONS.some((entry) => entry.id === type);
+}
+
 function isRoomGlobalEquivalent(type) {
   return Boolean(ROOM_GLOBAL_EQUIVALENT_MAP[type]);
 }
@@ -4886,6 +4890,11 @@ function startRoomAnimationFromDraft() {
     return;
   }
 
+  if (!isRoomAnimationType(state.roomDraft.animationId)) {
+    state.roomDraft.animationId = ROOM_ANIMATIONS[0]?.id ?? "kaputt";
+    roomAnimationSelect.value = state.roomDraft.animationId;
+  }
+
   const draftPayload = {
     type: state.roomDraft.animationId,
     roomId: room.id,
@@ -4959,7 +4968,7 @@ function stopAnimation(animationId) {
 
 function editAnimation(animationId) {
   const animation = state.runningAnimations.find((item) => item.id === animationId);
-  if (!animation || animation.scope !== "room") {
+  if (!animation || animation.scope !== "room" || !isRoomAnimationType(animation.type)) {
     return;
   }
   state.boardId = animation.boardId;
@@ -6361,7 +6370,9 @@ stopAllButton.addEventListener("click", () => {
 });
 
 roomAnimationSelect.addEventListener("change", () => {
-  state.roomDraft.animationId = roomAnimationSelect.value;
+  const selected = roomAnimationSelect.value;
+  state.roomDraft.animationId = isRoomAnimationType(selected) ? selected : ROOM_ANIMATIONS[0]?.id ?? "kaputt";
+  roomAnimationSelect.value = state.roomDraft.animationId;
 });
 
 roomOpacityInput.addEventListener("input", () => {
