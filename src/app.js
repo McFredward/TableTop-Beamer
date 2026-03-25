@@ -237,7 +237,7 @@ const ROOM_GLOBAL_EQUIVALENT_MAP = {
 const ROOM_ANIMATIONS = [
   { id: "kaputt", label: "Kaputt (malfunction.gif)" },
   { id: "feuer", label: "Feuer (fire.gif)" },
-  { id: "schleim", label: "Schleim" },
+  { id: "schleim", label: "Schleim (final.gif)" },
   { id: "nest", label: "Nest" },
   { id: "dekompression", label: "Dekompression" },
   { id: "lichtflackern", label: "Lichtflackern" },
