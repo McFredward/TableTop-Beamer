@@ -647,6 +647,7 @@ const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
+let evenOddClipCapability = null;
 
 function createDefaultAnimationSoundMap() {
   const defaults = {};
@@ -5326,7 +5327,74 @@ function getShipClipPolygon(boardId = state.boardId) {
   return shipPolygon.length >= 3 ? shipPolygon : null;
 }
 
+function detectEvenOddClipCapability() {
+  if (evenOddClipCapability !== null) {
+    return evenOddClipCapability;
+  }
+  try {
+    const testCanvas = document.createElement("canvas");
+    testCanvas.width = 8;
+    testCanvas.height = 8;
+    const testCtx = testCanvas.getContext("2d", { willReadFrequently: true });
+    if (!testCtx) {
+      evenOddClipCapability = false;
+      return evenOddClipCapability;
+    }
+    testCtx.beginPath();
+    testCtx.rect(0, 0, 8, 8);
+    testCtx.rect(2, 2, 4, 4);
+    testCtx.clip("evenodd");
+    testCtx.fillStyle = "rgba(255,0,0,1)";
+    testCtx.fillRect(0, 0, 8, 8);
+    const centerAlpha = testCtx.getImageData(4, 4, 1, 1).data[3];
+    evenOddClipCapability = centerAlpha === 0;
+  } catch {
+    evenOddClipCapability = false;
+  }
+  return evenOddClipCapability;
+}
+
+function shouldUseOutsideCompositeFallback() {
+  const fallback = !detectEvenOddClipCapability();
+  if (fallback) {
+    recordRenderClipFallback("outsideEvenOddFallback");
+  }
+  return fallback;
+}
+
+function cutOutShipMaskFromCurrentLayer(boardId = state.boardId) {
+  const shipPolygon = getShipClipPolygon(boardId);
+  if (!shipPolygon) {
+    recordRenderClipFallback("insideInvalidPolygon");
+    return false;
+  }
+  try {
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    shipPolygon.forEach(([x, y], index) => {
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+    ctx.fillStyle = "rgba(0,0,0,1)";
+    ctx.fill();
+    ctx.restore();
+    return true;
+  } catch (error) {
+    recordRenderTickError("clip");
+    console.error("cutOutShipMaskFromCurrentLayer failed", error);
+    return false;
+  }
+}
+
 function clipToOutsideShip(boardId = state.boardId) {
+  if (shouldUseOutsideCompositeFallback()) {
+    return true;
+  }
   const shipPolygon = getShipClipPolygon(boardId);
   if (!shipPolygon) {
     recordRenderClipFallback("insideInvalidPolygon");
@@ -5435,10 +5503,13 @@ function drawOutsideFxLayer(now) {
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.filter = "none";
-    const clipped = clipToOutsideShip(state.boardId);
-    if (!clipped) {
-      ctx.restore();
-      return;
+    const useCompositeFallback = shouldUseOutsideCompositeFallback();
+    if (!useCompositeFallback) {
+      const clipped = clipToOutsideShip(state.boardId);
+      if (!clipped) {
+        ctx.restore();
+        return;
+      }
     }
     drawEffectVisual(
       "outside-space",
@@ -5452,6 +5523,10 @@ function drawOutsideFxLayer(now) {
         outsideDirection: outside.direction,
       },
     );
+    if (useCompositeFallback) {
+      recordRenderClipFallback("outsideCompositeFallback");
+      cutOutShipMaskFromCurrentLayer(state.boardId);
+    }
     ctx.restore();
   } catch (error) {
     recordRenderTickError("outside");
