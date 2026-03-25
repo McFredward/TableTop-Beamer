@@ -6733,8 +6733,11 @@ audioMappingSoundSelect.addEventListener("change", () => {
     animationType,
     audioMappingSoundSelect.value,
   );
+  const persisted = persistBoardProfiles();
   syncAudioMappingPanel();
-  triggerFeedback.textContent = `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
+  triggerFeedback.textContent = persisted
+    ? `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
+    : `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
 });
 
 gifMappingAnimationSelect?.addEventListener("change", () => {
@@ -6747,8 +6750,11 @@ gifMappingAssetSelect?.addEventListener("change", () => {
     return;
   }
   state.animationGifMap[animationType] = normalizeAnimationGifPath(animationType, gifMappingAssetSelect.value);
+  const persisted = persistBoardProfiles();
   syncGifMappingPanel();
-  triggerFeedback.textContent = `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
+  triggerFeedback.textContent = persisted
+    ? `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
+    : `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
 });
 
 audioVolumeInput.addEventListener("input", () => {
