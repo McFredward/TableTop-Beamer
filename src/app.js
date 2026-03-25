@@ -2970,6 +2970,9 @@ function executeClearAll() {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
+  void emitSessionEvent("clear-all", {
+    reason: "operator-action",
+  });
 }
 
 function resetClearAllGuard() {
@@ -4853,6 +4856,11 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
+    void emitSessionEvent("global-stop", {
+      type,
+      boardId: state.boardId,
+      animationId: existing.id,
+    });
   } else {
     const animation = createAnimation({
       type,
@@ -4869,6 +4877,11 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     }
     playSoundForAnimation(animation);
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
+    void emitSessionEvent("global-start", {
+      type,
+      boardId: state.boardId,
+      animationId: animation.id,
+    });
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -4915,6 +4928,12 @@ function startRoomAnimationFromDraft() {
       triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
+      void emitSessionEvent("room-edit", {
+        boardId: state.boardId,
+        roomId: updated.roomId,
+        animationId: updated.id,
+        type: updated.type,
+      });
       return;
     }
     clearRoomDraftEditTarget();
@@ -4937,6 +4956,12 @@ function startRoomAnimationFromDraft() {
   playSoundForAnimation(animation);
   triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.name ?? room.label} gestartet`;
   renderRunningAnimationsList();
+  void emitSessionEvent("room-start", {
+    boardId: state.boardId,
+    roomId: animation.roomId,
+    animationId: animation.id,
+    type: animation.type,
+  });
 }
 
 function stopAnimation(animationId) {
@@ -4955,6 +4980,12 @@ function stopAnimation(animationId) {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
+  void emitSessionEvent("animation-stop", {
+    animationId,
+    boardId: target?.boardId ?? state.boardId,
+    scope: target?.scope ?? "unknown",
+    type: target?.type ?? "unknown",
+  });
 }
 
 function editAnimation(animationId) {
