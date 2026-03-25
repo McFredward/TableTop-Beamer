@@ -31,6 +31,27 @@ body {
   overflow: hidden;
 }
 
+body[data-client-role="final-output"] {
+  background: #000;
+}
+
+body[data-client-role="final-output"] .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body[data-client-role="final-output"] .projection-area {
+  padding: 0;
+}
+
+body[data-client-role="final-output"] .stage {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .projection-area {
   position: sticky;
   top: 0;

@@ -518,6 +518,7 @@ function applyClientRole(nextRole) {
   } catch {
     // ignore persistence failures
   }
+  applyRoleRenderMode();
   syncAudioStatus();
   syncSessionStatus(`Session: Rolle gesetzt auf ${state.role}`);
 }
@@ -533,6 +534,22 @@ function applySessionId(nextSessionId) {
   } catch {
     // ignore persistence failures
   }
+}
+
+function shouldRenderOverlay() {
+  return !isFinalOutputRole();
+}
+
+function applyRoleRenderMode() {
+  const finalOutput = isFinalOutputRole();
+  document.body.dataset.clientRole = state.role;
+  if (controlPanel) {
+    controlPanel.toggleAttribute("hidden", finalOutput);
+    controlPanel.setAttribute("aria-hidden", finalOutput ? "true" : "false");
+  }
+  boardImage.style.visibility = finalOutput ? "hidden" : "visible";
+  roomOverlay.style.display = shouldRenderOverlay() ? "block" : "none";
+  stage.classList.toggle("is-final-output", finalOutput);
 }
 
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
@@ -4434,6 +4451,9 @@ function getRoomRenderMetrics(room, boardId = state.boardId) {
 function renderRoomOverlay() {
   const board = getBoard();
   roomOverlay.replaceChildren();
+  if (!shouldRenderOverlay()) {
+    return;
+  }
 
   for (const room of board.rooms) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
@@ -6708,6 +6728,7 @@ resizeObserver.observe(stage);
 
 function syncRuntimePanelsFromState() {
   updateSessionInputsFromState();
+  applyRoleRenderMode();
   switchBoard(state.boardId);
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
