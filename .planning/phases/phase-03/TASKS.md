@@ -15,7 +15,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T9 [P1] Immersions-Tuning: visuelle Intensitaet/Tempo/Layer-Dichte je Zustandsprofil kalibrieren.
 - [x] DONE P3-T10 [P1] Performance-Hardening: Framezeitprofiling und Optimierungen fuer Mehrfachzustand + Parallelraeume.
 - [x] DONE P3-T11 [P1] Plan-3-1-Verifikation dokumentieren (Kombinationsmatrix, Clipping-Negativtests, Spezialraum-Nachweise).
-- [ ] TODO P3-T12 [P1] README-/Planungsartefakte final synchronisieren (Phase-3-Stand, Execute-Gates, Nachweise).
+- [x] DONE P3-T12 [P1] README-/Planungsartefakte final synchronisieren (Phase-3-Stand, Execute-Gates, Nachweise).
 
 ## Plan 3-2 - Nachgelagerte Ausbauwelle
 - [ ] TODO P3-T13 [P1] Erweiterte Zustandsprofile und Presets fuer typische Nemesis-Szenarien definieren.

@@ -71,6 +71,8 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 - Board-spezifische Kalibrier-/Polygon-/Outside-Profile inkl. Persistenz.
 - Preview-Queue (Einzel + Kombi), Live-Send und Undo/Rollback des letzten Sends.
 - Audio-Mapping pro Animation und globale Audio-Settings.
+- Kombinierbare Raumzustaende fuer Raum-Rendering (`kaputt`, `brennend`, `alienCount 0..2`, `leiche`) inkl. deterministischer Layer-Komposition.
+- Spezialraum-Effekte `nest`, `slime`, `decompression` mit strikt raumbezogenem Clipping.
 
 ## Safety-Hinweise
 
@@ -86,3 +88,7 @@ Kleiner Nemesis-Prototype fur visuelle Beamer-Overlays am Spieltisch.
 - `.planning/phases/phase-02/2-VERIFICATION.md`
 - `.planning/phases/phase-02/P2-T40-MOBILE-NO-OVERLAY-VERIFIKATION.md`
 - `.planning/phases/phase-02/P2-T43-ZONEN-NEGATIVTESTS.md`
+
+## Verifikationsartefakte (Phase 3)
+
+- `.planning/phases/phase-03/3-1-VERIFICATION.md`
