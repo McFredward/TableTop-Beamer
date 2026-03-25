@@ -37,6 +37,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T27 [P0] Feldbetriebs-Startanleitung aktualisieren (Node-Start `--host 0.0.0.0 --port 4173`, UI-/Client-URLs, Troubleshooting-Kurzform).
 - [x] DONE P5-T28 [P0] Realbetrieb-Hotfix-Verifikation dokumentieren (Negativfall stale `:8080` Override + Positivfall UI-Origin `:4173` + Diagnosekonsistenz).
 
+## Plan 5-4 - Session/SSE-Stabilitaets-Hotfix (execute-ready, P0 sofort)
+- [x] DONE P5-T31 [P0] Server-SSE-Broadcast haerten: write/broadcast-Fehler auf geschlossenen Sockets pro Stream abfangen, ohne Prozessabbruch.
+- [ ] TODO P5-T32 [P0] Defekte SSE-Streams hygienisch entfernen (close/error cleanup, keine stale stream handles in Sessions).
+- [ ] TODO P5-T33 [P0] Connect/Heartbeat-Reconnect stabilisieren: mehrfaches Reconnect nach Kurzunterbrechung ohne HTTP0->terminal loop.
+- [ ] TODO P5-T34 [P0] Session-Serverdiagnose ausbauen: strukturierte Fehlercodes fuer `connect`, `stream`, `heartbeat`, `event` inkl. Session-/Client-Korrelation.
+- [ ] TODO P5-T35 [P0] UI-Diagnose korrigieren: Heartbeat-Endpoint korrekt und getrennt von Connect-Endpoint anzeigen.
+- [ ] TODO P5-T36 [P0] Hotfix-Verifikation dokumentieren (SSE-close-Negativtest, Multi-Reconnect-Stabilitaet, endpoint-spezifische Logs/UI-Diagnose).
+
 ## Optional direkt danach (P1)
-- [ ] TODO P5-T29 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
-- [ ] TODO P5-T30 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.
+- [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
+- [ ] TODO P5-T38 [P1] Minimaler Operator-Hinweis fuer aktive Rolle + Endpoint, um Fehlkonfiguration schneller zu erkennen.

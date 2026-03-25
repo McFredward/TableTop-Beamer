@@ -64,8 +64,16 @@ function randomId(prefix) {
 }
 
 function writeSse(res, eventName, payload) {
-  res.write(`event: ${eventName}\n`);
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  if (!res || res.destroyed || res.writableEnded) {
+    return false;
+  }
+  try {
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function createSession(sessionId) {
@@ -123,8 +131,11 @@ function broadcastSessionEvent(session, event) {
     ...event,
     snapshot: buildSessionSnapshot(session),
   };
-  for (const stream of session.streams) {
-    writeSse(stream, "session-event", packet);
+  for (const stream of Array.from(session.streams)) {
+    const writeOk = writeSse(stream, "session-event", packet);
+    if (!writeOk) {
+      session.streams.delete(stream);
+    }
   }
 }
 
@@ -317,10 +328,15 @@ function handleSessionStream(req, res) {
   res.write("retry: 2000\n\n");
   session.streams.add(res);
 
-  writeSse(res, "session-snapshot", {
+  const initialSnapshotWritten = writeSse(res, "session-snapshot", {
     sourceClientId: "server",
     snapshot: buildSessionSnapshot(session),
   });
+  if (!initialSnapshotWritten) {
+    session.streams.delete(res);
+    res.end();
+    return;
+  }
 
   req.on("close", () => {
     session.streams.delete(res);
