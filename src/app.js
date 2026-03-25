@@ -223,14 +223,25 @@ const ZONE_CONFIG_SOURCES = [
   },
 ];
 
-const ROOM_STATE_COMBO_ANIMATION_ID = "room-state-combo";
-const SPECIAL_ROOM_EFFECT_IDS = ["special-nest", "special-slime", "special-decompression"];
+const ROOM_GIF_ANIMATION_ASSETS = {
+  kaputt: "resources/nemesis/animations/malfunction.gif",
+  feuer: "resources/nemesis/animations/fire.gif",
+  schleim: "resources/nemesis/animations/final.gif",
+};
+
+const ROOM_GLOBAL_EQUIVALENT_MAP = {
+  alarm: "intruder-alert",
+  lichtflackern: "hull-flicker",
+};
 
 const ROOM_ANIMATIONS = [
-  { id: ROOM_STATE_COMBO_ANIMATION_ID, label: "Raumzustand (Kombi)" },
-  { id: "special-nest", label: "Special Effect: Nest" },
-  { id: "special-slime", label: "Special Effect: Slime" },
-  { id: "special-decompression", label: "Special Effect: Decompression" },
+  { id: "kaputt", label: "Kaputt" },
+  { id: "feuer", label: "Feuer" },
+  { id: "schleim", label: "Schleim" },
+  { id: "nest", label: "Nest" },
+  { id: "dekompression", label: "Dekompression" },
+  { id: "lichtflackern", label: "Lichtflackern" },
+  { id: "alarm", label: "Alarm" },
 ];
 
 const INSIDE_SHIP_GLOBAL_ANIMATIONS = [
@@ -260,6 +271,9 @@ const EVENT_SOUND_ASSETS = {
   "power-outage": ["resources/nemesis/sounds/power/3.wav"],
   "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
   "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
+  alarm: ["resources/nemesis/sounds/alarm.mp3"],
+  lichtflackern: ["resources/nemesis/sounds/electricity.mp3"],
+  feuer: ["resources/nemesis/sounds/power/3.wav"],
 };
 
 const ALL_SOUND_ASSET_PATHS = Array.from(new Set(Object.values(EVENT_SOUND_ASSETS).flat()));
@@ -283,10 +297,10 @@ const triggerFeedback = document.querySelector("#trigger-feedback");
 const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
 const roomAnimationSelect = document.querySelector("#room-animation-select");
-const roomStateBrokenInput = document.querySelector("#room-state-broken");
-const roomStateBurningInput = document.querySelector("#room-state-burning");
-const roomStateAlienCountSelect = document.querySelector("#room-state-alien-count");
-const roomStateCorpseInput = document.querySelector("#room-state-corpse");
+const roomOpacityInput = document.querySelector("#room-opacity");
+const roomOpacityValue = document.querySelector("#room-opacity-value");
+const roomPlaybackSpeedInput = document.querySelector("#room-playback-speed");
+const roomPlaybackSpeedValue = document.querySelector("#room-playback-speed-value");
 const roomIntensityInput = document.querySelector("#room-intensity");
 const roomIntensityValue = document.querySelector("#room-intensity-value");
 const roomSpeedInput = document.querySelector("#room-speed");
@@ -481,14 +495,6 @@ const ROOM_STATE_DEFAULT = {
   corpse: false,
 };
 
-const ROOM_STATE_LAYER_PRIORITY = {
-  broken: 10,
-  burning: 20,
-  corpse: 30,
-  aliens: 40,
-  special: 100,
-};
-
 const state = {
   boardId: BOARDS[0].id,
   selectedRoomId: null,
@@ -497,12 +503,13 @@ const state = {
   roomDraft: {
     editTargetId: null,
     animationId: ROOM_ANIMATIONS[0].id,
+    opacity: Number(roomOpacityInput?.value ?? 0.9),
+    playbackSpeed: Number(roomPlaybackSpeedInput?.value ?? 1),
     intensity: Number(roomIntensityInput.value),
     speed: Number(roomSpeedInput.value),
     soundVolume: Number(roomSoundVolumeInput.value) / 100,
     durationSec: Number(roomDurationInput.value),
-    hold: false,
-    roomState: { ...ROOM_STATE_DEFAULT },
+    hold: true,
   },
   runningAnimations: [],
   preview: {
@@ -592,6 +599,7 @@ let previewItemIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
+const gifImageCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -2432,6 +2440,14 @@ function clampRoomIntensity(value) {
   return Math.max(0.2, Math.min(1.5, value));
 }
 
+function clampRoomOpacity(value) {
+  return Math.max(0.1, Math.min(1, Number(value) || 1));
+}
+
+function clampGifPlaybackSpeed(value) {
+  return Math.max(0.25, Math.min(3, Number(value) || 1));
+}
+
 function clampRoomDurationSec(value) {
   return Math.max(1, Math.min(180, value));
 }
@@ -2481,8 +2497,35 @@ function setRoomStateProfile(boardId, roomId, profile) {
   state.roomStateProfilesByBoard[boardId][roomId] = normalizeRoomStateProfile(profile);
 }
 
-function isSpecialRoomEffect(type) {
-  return SPECIAL_ROOM_EFFECT_IDS.includes(type);
+function isGifRoomAnimation(type) {
+  return Boolean(ROOM_GIF_ANIMATION_ASSETS[type]);
+}
+
+function isRoomGlobalEquivalent(type) {
+  return Boolean(ROOM_GLOBAL_EQUIVALENT_MAP[type]);
+}
+
+function resolveRoomAnimationEffectType(type) {
+  if (type === "nest") {
+    return "special-nest";
+  }
+  if (type === "dekompression") {
+    return "special-decompression";
+  }
+  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
+}
+
+function getGifImage(path) {
+  if (!path) {
+    return null;
+  }
+  if (!gifImageCacheByPath.has(path)) {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = path;
+    gifImageCacheByPath.set(path, image);
+  }
+  return gifImageCacheByPath.get(path) ?? null;
 }
 
 function clampRoomSpeed(value) {
@@ -4397,44 +4440,29 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   if (!room) {
     roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
     startRoomAnimationButton.disabled = true;
-    roomStateBrokenInput.disabled = true;
-    roomStateBurningInput.disabled = true;
-    roomStateAlienCountSelect.disabled = true;
-    roomStateCorpseInput.disabled = true;
+    roomOpacityInput.disabled = true;
+    roomPlaybackSpeedInput.disabled = true;
     syncRoomGeometryPanel();
     syncDashboardZoneVisibility();
     return;
   }
   startRoomAnimationButton.disabled = false;
-  roomStateBrokenInput.disabled = false;
-  roomStateBurningInput.disabled = false;
-  roomStateAlienCountSelect.disabled = false;
-  roomStateCorpseInput.disabled = false;
+  roomOpacityInput.disabled = false;
+  roomPlaybackSpeedInput.disabled = false;
   if (!preserveDraftState) {
-    state.roomDraft.roomState = getRoomStateProfile(state.boardId, room.id);
+    state.roomDraft.animationId = ROOM_ANIMATIONS.some((entry) => entry.id === state.roomDraft.animationId)
+      ? state.roomDraft.animationId
+      : ROOM_ANIMATIONS[0].id;
   }
-  if (!room.id.startsWith("special-") && isSpecialRoomEffect(state.roomDraft.animationId)) {
-    state.roomDraft.animationId = ROOM_STATE_COMBO_ANIMATION_ID;
-    roomAnimationSelect.value = ROOM_STATE_COMBO_ANIMATION_ID;
-  }
-  roomStateBrokenInput.checked = state.roomDraft.roomState.broken;
-  roomStateBurningInput.checked = state.roomDraft.roomState.burning;
-  roomStateAlienCountSelect.value = String(state.roomDraft.roomState.alienCount);
-  roomStateCorpseInput.checked = state.roomDraft.roomState.corpse;
+  roomAnimationSelect.value = state.roomDraft.animationId;
+  roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
+  roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
+  roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
+  roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
+  roomHoldInput.checked = true;
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
   syncRoomGeometryPanel();
   syncDashboardZoneVisibility();
-}
-
-function persistRoomStateDraftForSelectedRoom() {
-  const room = getSelectedRoom();
-  if (!room) {
-    return;
-  }
-  const normalized = normalizeRoomStateProfile(state.roomDraft.roomState);
-  state.roomDraft.roomState = normalized;
-  setRoomStateProfile(state.boardId, room.id, normalized);
-  persistBoardProfiles();
 }
 
 function syncRoomDraftActionButton() {
@@ -4456,11 +4484,13 @@ function createAnimation({
   roomId = null,
   intensity = 0.8,
   speed = 1,
+  opacity = 0.9,
+  playbackSpeed = 1,
   soundVolume = 1,
   hold = false,
   durationSec = 15,
-  roomState = ROOM_STATE_DEFAULT,
 }) {
+  const effectiveHold = scope === "room" ? true : hold;
   return {
     id: `anim-${animationIdCounter++}`,
     boardId,
@@ -4469,10 +4499,11 @@ function createAnimation({
     roomId,
     intensity,
     speed: clampRoomSpeed(speed),
+    opacity: clampRoomOpacity(opacity),
+    playbackSpeed: clampGifPlaybackSpeed(playbackSpeed),
     soundVolume: clampRoomSoundVolume(soundVolume),
-    hold,
-    roomState: normalizeRoomStateProfile(roomState),
-    durationMs: hold ? null : Math.max(1000, durationSec * 1000),
+    hold: effectiveHold,
+    durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
     startedAt: performance.now(),
   };
 }
@@ -4484,11 +4515,13 @@ function createPreviewQueueItem({
   roomId = null,
   intensity = 1,
   speed = 1,
+  opacity = 0.9,
+  playbackSpeed = 1,
   soundVolume = 1,
   hold = false,
   durationSec = 18,
-  roomState = ROOM_STATE_DEFAULT,
 }) {
+  const effectiveHold = scope === "room" ? true : Boolean(hold);
   return {
     id: `preview-${previewItemIdCounter++}`,
     type,
@@ -4497,95 +4530,33 @@ function createPreviewQueueItem({
     roomId,
     intensity: scope === "room" ? clampRoomIntensity(intensity) : 1,
     speed: scope === "room" ? clampRoomSpeed(speed) : 1,
+    opacity: scope === "room" ? clampRoomOpacity(opacity) : 1,
+    playbackSpeed: scope === "room" ? clampGifPlaybackSpeed(playbackSpeed) : 1,
     soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
-    hold: Boolean(hold),
-    roomState: normalizeRoomStateProfile(roomState),
-    durationSec: hold ? null : Math.max(1, Math.round(durationSec)),
+    hold: effectiveHold,
+    durationSec: effectiveHold ? null : Math.max(1, Math.round(durationSec)),
     queuedAt: Date.now(),
   };
 }
 
-function getAnimationRoomState(animation) {
-  return normalizeRoomStateProfile(animation?.roomState ?? ROOM_STATE_DEFAULT);
-}
-
-function composeRoomLayers(animation, room) {
-  if (isSpecialRoomEffect(animation.type)) {
-    return [
-      {
-        id: animation.type,
-        priority: ROOM_STATE_LAYER_PRIORITY.special,
-        roomState: getAnimationRoomState(animation),
-      },
-    ];
-  }
-
-  const roomState = getAnimationRoomState(animation);
-  const layers = [];
-  if (roomState.broken) {
-    layers.push({ id: "state-broken", priority: ROOM_STATE_LAYER_PRIORITY.broken, roomState });
-  }
-  if (roomState.burning) {
-    layers.push({ id: "state-burning", priority: ROOM_STATE_LAYER_PRIORITY.burning, roomState });
-  }
-  if (roomState.corpse) {
-    layers.push({ id: "state-corpse", priority: ROOM_STATE_LAYER_PRIORITY.corpse, roomState });
-  }
-  if (roomState.alienCount > 0) {
-    layers.push({
-      id: "state-aliens",
-      priority: ROOM_STATE_LAYER_PRIORITY.aliens,
-      roomState,
-      alienCount: roomState.alienCount,
-    });
-  }
-
-  if (layers.length === 0) {
-    layers.push({ id: ROOM_STATE_COMBO_ANIMATION_ID, priority: 0, roomState, roomId: room.id });
-  }
-
-  return layers.sort((a, b) => a.priority - b.priority);
-}
-
 function drawRoomComposition(animation, age, room, roomMetrics) {
-  const layers = composeRoomLayers(animation, room);
-  const roomState = getAnimationRoomState(animation);
-  const activeFlags = Number(roomState.broken) + Number(roomState.burning) + Number(roomState.corpse);
-  const severity = activeFlags + roomState.alienCount * 0.7;
-  const densityFactor = Math.max(0.75, Math.min(1.8, 1 + severity * 0.2));
   const qualityScale = getRuntimeQualityScale();
-  const tempoFactor = Math.max(0.85, Math.min(1.9, 1 + severity * 0.15));
-  for (const layer of layers) {
-    drawEffectVisual(
-      layer.id,
-      age * tempoFactor,
-      animation.intensity,
-      room,
-      roomMetrics,
-      {
-        roomState: layer.roomState,
-        alienCount: layer.alienCount,
-        densityFactor: densityFactor * qualityScale,
-        tempoFactor,
-      },
-    );
-  }
-}
-
-function formatRoomStateRuntimeLabel(roomState) {
-  const normalized = normalizeRoomStateProfile(roomState);
-  const flags = [];
-  if (normalized.broken) {
-    flags.push("kaputt");
-  }
-  if (normalized.burning) {
-    flags.push("brennend");
-  }
-  if (normalized.corpse) {
-    flags.push("leiche");
-  }
-  flags.push(`aliens:${normalized.alienCount}`);
-  return flags.join(", ");
+  const effectType = resolveRoomAnimationEffectType(animation.type);
+  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  drawEffectVisual(
+    effectType,
+    playbackAge,
+    animation.intensity,
+    room,
+    roomMetrics,
+    {
+      densityFactor: qualityScale,
+      opacity: clampRoomOpacity(animation.opacity),
+      gifAssetPath: ROOM_GIF_ANIMATION_ASSETS[animation.type],
+      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
+      roomAnimationType: animation.type,
+    },
+  );
 }
 
 function formatPreviewQueueLabel(item) {
@@ -4642,7 +4613,7 @@ function renderPreviewQueue() {
     meta.className = "running-meta";
     meta.textContent =
       item.scope === "room"
-        ? `State ${formatRoomStateRuntimeLabel(item.roomState)} | Intensity ${item.intensity.toFixed(2)} | Speed ${item.speed.toFixed(2)}x | Sound ${Math.round(item.soundVolume * 100)}%`
+        ? `Intensity ${item.intensity.toFixed(2)} | Opacity ${clampRoomOpacity(item.opacity).toFixed(2)} | Playback ${clampGifPlaybackSpeed(item.playbackSpeed).toFixed(2)}x | Sound ${Math.round(item.soundVolume * 100)}%`
         : "Global-Preview";
 
     const actions = document.createElement("div");
@@ -4678,10 +4649,11 @@ function stageRoomDraftToPreview() {
     roomId: room.id,
     intensity: state.roomDraft.intensity,
     speed: state.roomDraft.speed,
+    opacity: state.roomDraft.opacity,
+    playbackSpeed: state.roomDraft.playbackSpeed,
     soundVolume: state.roomDraft.soundVolume,
     hold: state.roomDraft.hold,
     durationSec: state.roomDraft.durationSec,
-    roomState: state.roomDraft.roomState,
   });
   state.preview.queue.push(item);
   renderPreviewQueue();
@@ -4779,8 +4751,9 @@ function previewItemToAnimation(item) {
     roomId: item.scope === "room" ? item.roomId : null,
     intensity: item.scope === "room" ? item.intensity : 1,
     speed: item.scope === "room" ? item.speed : 1,
+    opacity: item.scope === "room" ? item.opacity : 1,
+    playbackSpeed: item.scope === "room" ? item.playbackSpeed : 1,
     soundVolume: item.scope === "room" ? item.soundVolume : 1,
-    roomState: item.scope === "room" ? item.roomState : ROOM_STATE_DEFAULT,
     hold: Boolean(item.hold),
     durationSec: item.hold ? 0 : item.durationSec ?? 18,
   });
@@ -4913,23 +4886,16 @@ function startRoomAnimationFromDraft() {
     return;
   }
 
-  const roomState = normalizeRoomStateProfile(state.roomDraft.roomState);
-  if (isSpecialRoomEffect(state.roomDraft.animationId) && !room.id.startsWith("special-")) {
-    triggerFeedback.textContent = "Status: Spezialraum-Effekte nur in Spezialraeumen startbar";
-    return;
-  }
-  setRoomStateProfile(state.boardId, room.id, roomState);
-  persistBoardProfiles();
-
   const draftPayload = {
     type: state.roomDraft.animationId,
     roomId: room.id,
     intensity: clampRoomIntensity(state.roomDraft.intensity),
     speed: clampRoomSpeed(state.roomDraft.speed),
+    opacity: clampRoomOpacity(state.roomDraft.opacity),
+    playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
     soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
-    hold: state.roomDraft.hold,
-    durationMs: state.roomDraft.hold ? null : Math.max(1000, clampRoomDurationSec(state.roomDraft.durationSec) * 1000),
-    roomState,
+    hold: true,
+    durationMs: null,
   };
 
   if (state.roomDraft.editTargetId) {
@@ -4960,10 +4926,11 @@ function startRoomAnimationFromDraft() {
     roomId: draftPayload.roomId,
     intensity: draftPayload.intensity,
     speed: draftPayload.speed,
+    opacity: draftPayload.opacity,
+    playbackSpeed: draftPayload.playbackSpeed,
     soundVolume: draftPayload.soundVolume,
-    hold: draftPayload.hold,
-    durationSec: draftPayload.durationMs ? draftPayload.durationMs / 1000 : 0,
-    roomState: draftPayload.roomState,
+    hold: true,
+    durationSec: 0,
   });
 
   state.runningAnimations.push(animation);
@@ -5003,20 +4970,21 @@ function editAnimation(animationId) {
   state.selectedRoomByBoard[animation.boardId] = animation.roomId;
   state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
-  state.roomDraft.roomState = normalizeRoomStateProfile(animation.roomState ?? getRoomStateProfile(animation.boardId, animation.roomId));
+  state.roomDraft.opacity = clampRoomOpacity(animation.opacity ?? 0.9);
+  state.roomDraft.playbackSpeed = clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
   state.roomDraft.intensity = clampRoomIntensity(animation.intensity);
   state.roomDraft.speed = clampRoomSpeed(animation.speed ?? 1);
   state.roomDraft.soundVolume = clampRoomSoundVolume(animation.soundVolume ?? 1);
   state.roomDraft.durationSec = animation.durationMs
     ? clampRoomDurationSec(Math.round(animation.durationMs / 1000))
     : 18;
-  state.roomDraft.hold = animation.hold;
+  state.roomDraft.hold = true;
 
   roomAnimationSelect.value = state.roomDraft.animationId;
-  roomStateBrokenInput.checked = state.roomDraft.roomState.broken;
-  roomStateBurningInput.checked = state.roomDraft.roomState.burning;
-  roomStateAlienCountSelect.value = String(state.roomDraft.roomState.alienCount);
-  roomStateCorpseInput.checked = state.roomDraft.roomState.corpse;
+  roomOpacityInput.value = String(state.roomDraft.opacity);
+  roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
+  roomPlaybackSpeedInput.value = String(state.roomDraft.playbackSpeed);
+  roomPlaybackSpeedValue.textContent = `${state.roomDraft.playbackSpeed.toFixed(2)}x`;
   roomIntensityInput.value = String(state.roomDraft.intensity);
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
   roomSpeedInput.value = String(state.roomDraft.speed);
@@ -5024,7 +4992,7 @@ function editAnimation(animationId) {
   roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
-  roomHoldInput.checked = state.roomDraft.hold;
+  roomHoldInput.checked = true;
   syncRoomDraftActionButton();
 
   syncRoomPanelFromSelection({ preserveDraftState: true });
@@ -5066,7 +5034,7 @@ function renderRunningAnimationsList() {
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
     const roomMeta = anim.scope === "room"
-      ? ` | State: ${formatRoomStateRuntimeLabel(anim.roomState)} | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x | Sound: ${Math.round(
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x | Sound: ${Math.round(
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
@@ -5537,12 +5505,25 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === ROOM_STATE_COMBO_ANIMATION_ID) {
-    const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.72);
-    g.addColorStop(0, `rgba(123, 201, 255, ${0.08 * intensity})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(roomMinX - roomWidth * 0.35, roomMinY - roomHeight * 0.35, roomWidth * 1.7, roomHeight * 1.7);
+  if (type === "kaputt" || type === "feuer" || type === "schleim") {
+    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
+    const gifImage = getGifImage(gifPath);
+    if (!gifImage?.complete) {
+      return;
+    }
+    const opacity = clampRoomOpacity(options.opacity ?? intensity);
+    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
+    const pulse = (Math.sin(age * (0.7 + playbackSpeed * 0.6)) + 1) / 2;
+    const baseScale = 1.02 + pulse * 0.06;
+    const drawWidth = roomWidth * baseScale;
+    const drawHeight = roomHeight * baseScale;
+    const drawX = roomX - drawWidth / 2;
+    const drawY = roomY - drawHeight / 2;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(gifImage, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
     return;
   }
 
@@ -6380,47 +6361,17 @@ stopAllButton.addEventListener("click", () => {
 });
 
 roomAnimationSelect.addEventListener("change", () => {
-  const selected = roomAnimationSelect.value;
-  const room = getSelectedRoom();
-  if (isSpecialRoomEffect(selected) && room && !room.id.startsWith("special-")) {
-    state.roomDraft.animationId = ROOM_STATE_COMBO_ANIMATION_ID;
-    roomAnimationSelect.value = ROOM_STATE_COMBO_ANIMATION_ID;
-    triggerFeedback.textContent = "Status: Spezialraum-Effekte sind nur fuer Spezialraeume verfuegbar";
-    return;
-  }
-  state.roomDraft.animationId = selected;
+  state.roomDraft.animationId = roomAnimationSelect.value;
 });
 
-roomStateBrokenInput.addEventListener("change", () => {
-  state.roomDraft.roomState = normalizeRoomStateProfile({
-    ...state.roomDraft.roomState,
-    broken: roomStateBrokenInput.checked,
-  });
-  persistRoomStateDraftForSelectedRoom();
+roomOpacityInput.addEventListener("input", () => {
+  state.roomDraft.opacity = clampRoomOpacity(roomOpacityInput.value);
+  roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
 });
 
-roomStateBurningInput.addEventListener("change", () => {
-  state.roomDraft.roomState = normalizeRoomStateProfile({
-    ...state.roomDraft.roomState,
-    burning: roomStateBurningInput.checked,
-  });
-  persistRoomStateDraftForSelectedRoom();
-});
-
-roomStateAlienCountSelect.addEventListener("change", () => {
-  state.roomDraft.roomState = normalizeRoomStateProfile({
-    ...state.roomDraft.roomState,
-    alienCount: Number(roomStateAlienCountSelect.value),
-  });
-  persistRoomStateDraftForSelectedRoom();
-});
-
-roomStateCorpseInput.addEventListener("change", () => {
-  state.roomDraft.roomState = normalizeRoomStateProfile({
-    ...state.roomDraft.roomState,
-    corpse: roomStateCorpseInput.checked,
-  });
-  persistRoomStateDraftForSelectedRoom();
+roomPlaybackSpeedInput.addEventListener("input", () => {
+  state.roomDraft.playbackSpeed = clampGifPlaybackSpeed(roomPlaybackSpeedInput.value);
+  roomPlaybackSpeedValue.textContent = `${state.roomDraft.playbackSpeed.toFixed(2)}x`;
 });
 
 roomIntensityInput.addEventListener("input", () => {
@@ -6444,7 +6395,8 @@ roomDurationInput.addEventListener("input", () => {
 });
 
 roomHoldInput.addEventListener("change", () => {
-  state.roomDraft.hold = roomHoldInput.checked;
+  roomHoldInput.checked = true;
+  state.roomDraft.hold = true;
 });
 
 audioEnabledInput.addEventListener("change", () => {
@@ -6685,13 +6637,14 @@ resizeObserver.observe(stage);
 function syncRuntimePanelsFromState() {
   switchBoard(state.boardId);
   roomAnimationSelect.value = state.roomDraft.animationId;
-  roomStateBrokenInput.checked = state.roomDraft.roomState.broken;
-  roomStateBurningInput.checked = state.roomDraft.roomState.burning;
-  roomStateAlienCountSelect.value = String(state.roomDraft.roomState.alienCount);
-  roomStateCorpseInput.checked = state.roomDraft.roomState.corpse;
+  roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
+  roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
+  roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
+  roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
   roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
   roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
+  roomHoldInput.checked = true;
   syncRoomDraftActionButton();
   audioEnabledInput.checked = state.audio.enabled;
   audioVolumeInput.value = String(Math.round(state.audio.volume * 100));

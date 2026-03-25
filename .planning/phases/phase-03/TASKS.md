@@ -17,7 +17,17 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T11 [P1] Plan-3-1-Verifikation dokumentieren (Kombinationsmatrix, Clipping-Negativtests, Spezialraum-Nachweise).
 - [x] DONE P3-T12 [P1] README-/Planungsartefakte final synchronisieren (Phase-3-Stand, Execute-Gates, Nachweise).
 
-## Plan 3-2 - Nachgelagerte Ausbauwelle
-- [ ] TODO P3-T13 [P1] Erweiterte Zustandsprofile und Presets fuer typische Nemesis-Szenarien definieren.
-- [ ] TODO P3-T14 [P2] Zusatzeffekte fuer Raumuebergaenge und weiche Zustandswechsel evaluieren.
-- [ ] TODO P3-T15 [P2] Langzeit-Soak-Test (>=3h) fuer kombinierte Mehrraum-Szenarien protokollieren.
+## Plan 3-2 - Rework auf separates Trigger-Modell (priorisiert)
+- [x] DONE P3-T13 [P0] Kombi-Zustandsmodell im Room-Flow rueckbauen und separates Instanzmodell pro Raumanimation als Runtime-Source-of-Truth verankern.
+- [ ] TODO P3-T14 [P0] Trigger/Stop/Edit auf Einzelanimation umstellen: jede Aktion arbeitet auf genau einer Raum-Animationsinstanz.
+- [ ] TODO P3-T15 [P0] Running-Uebersicht hardenen: jede aktive Raumanimation (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) erscheint als eigener Eintrag.
+- [ ] TODO P3-T16 [P0] `kaputt` auf `resources/nemesis/animations/malfunction.gif` umstellen und sauber im Zielraum clippen.
+- [ ] TODO P3-T17 [P0] `feuer` auf `resources/nemesis/animations/fire.gif` umstellen und sauber im Zielraum clippen.
+- [ ] TODO P3-T18 [P0] `schleim` auf `resources/nemesis/animations/final.gif` umstellen und sauber im Zielraum clippen.
+- [ ] TODO P3-T19 [P0] `alarm` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
+- [ ] TODO P3-T20 [P0] `lichtflackern` als globales Aequivalent raumbegrenzt anbinden (globaler Effektpfad + harter Raum-Clip).
+- [ ] TODO P3-T21 [P0] GIF-Instanzparameter pro laufender Animation steuerbar machen (`opacity`, `playbackSpeed`) inkl. Edit-Roundtrip.
+- [ ] TODO P3-T22 [P0] Default-Verhalten `hold` fuer alle Raumanimationen erzwingen (aktiv bis expliziter Stop).
+- [ ] TODO P3-T23 [P1] Regression fuer Parallelkombinationen aus Einzelanimationen dokumentieren (Running-List, Clipping, Stop/Edit-Konsistenz).
+- [ ] TODO P3-T24 [P1] Performance-/Soak-Check fuer mehrere daueraktive Raum-Animationen protokollieren.
+- [ ] TODO P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.

@@ -351,34 +351,24 @@
           <label>
             Animation
             <select id="room-animation-select">
-              <option value="room-state-combo">Raumzustand (Kombi)</option>
-              <option value="special-nest">Special Effect: Nest</option>
-              <option value="special-slime">Special Effect: Slime</option>
-              <option value="special-decompression">Special Effect: Decompression</option>
+              <option value="kaputt">Kaputt</option>
+              <option value="feuer">Feuer</option>
+              <option value="schleim">Schleim</option>
+              <option value="nest">Nest</option>
+              <option value="dekompression">Dekompression</option>
+              <option value="lichtflackern">Lichtflackern</option>
+              <option value="alarm">Alarm</option>
             </select>
           </label>
-          <div class="calibration-grid">
-            <label class="inline-checkbox">
-              <input id="room-state-broken" type="checkbox" />
-              Zustand: kaputt
-            </label>
-            <label class="inline-checkbox">
-              <input id="room-state-burning" type="checkbox" />
-              Zustand: brennend
-            </label>
-            <label>
-              Alien Count
-              <select id="room-state-alien-count">
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-              </select>
-            </label>
-            <label class="inline-checkbox">
-              <input id="room-state-corpse" type="checkbox" />
-              Zustand: Leiche vorhanden
-            </label>
-          </div>
+          <p class="status-line">Raumanimationen laufen standardmaessig im Hold-Modus bis Stop.</p>
+          <label>
+            Opacity <span id="room-opacity-value">0.90</span>
+            <input id="room-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
+          </label>
+          <label>
+            GIF Playback Speed <span id="room-playback-speed-value">1.00x</span>
+            <input id="room-playback-speed" type="range" min="0.25" max="3" step="0.05" value="1" />
+          </label>
           <label>
             Intensitaet <span id="room-intensity-value">0.80</span>
             <input id="room-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
@@ -391,12 +381,9 @@
             Sound Volume <span id="room-sound-volume-value">100%</span>
             <input id="room-sound-volume" type="range" min="0" max="100" step="1" value="100" />
           </label>
-          <label>
-            Dauer in Sekunden
-            <input id="room-duration" type="number" min="1" max="180" step="1" value="18" />
-          </label>
+          <input id="room-duration" type="hidden" value="18" />
           <label class="inline-checkbox">
-            <input id="room-hold" type="checkbox" />
+            <input id="room-hold" type="checkbox" checked disabled />
             Anhalten bis ich stoppe
           </label>
           <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
