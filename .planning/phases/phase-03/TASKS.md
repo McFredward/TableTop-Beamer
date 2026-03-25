@@ -7,7 +7,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T1 [P0] Raumzustandsmodell implementieren (`broken`, `burning`, `alienCount:0-2`, `corpse`) inkl. Runtime-Defaults.
 - [x] DONE P3-T2 [P0] Deterministische Layer-Prioritaet und Konfliktregeln fuer Zustandskombinationen als zentrale Kompositionslogik umsetzen.
 - [x] DONE P3-T3 [P0] Clipping-Guard vereinheitlichen: Standard- und Spezialraum-Renderer strikt auf Zielpolygone begrenzen.
-- [ ] TODO P3-T4 [P0] Standardraum-Renderer fuer kombinierte Zustandsdarstellung (kaputt + brennend + alienCount + leiche) umbauen.
+- [x] DONE P3-T4 [P0] Standardraum-Renderer fuer kombinierte Zustandsdarstellung (kaputt + brennend + alienCount + leiche) umbauen.
 - [ ] TODO P3-T5 [P0] Spezialraum-Effekt `nest` implementieren und in Trigger-/Runtime-Pfad integrieren.
 - [ ] TODO P3-T6 [P0] Spezialraum-Effekt `slime` implementieren und in Trigger-/Runtime-Pfad integrieren.
 - [ ] TODO P3-T7 [P0] Spezialraum-Effekt `decompression` implementieren und in Trigger-/Runtime-Pfad integrieren.
