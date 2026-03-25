@@ -1,0 +1,56 @@
+{
+  "schema": "tt-beamer.zones.v1",
+  "board": {
+    "id": "nemesis-board-a",
+    "label": "Nemesis Board A",
+    "src": "resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg"
+  },
+  "rooms": [
+    { "id": "a-01", "label": "Hex A-01", "x": 0.231, "y": 0.248, "radius": 0.059 },
+    { "id": "a-02", "label": "Hex A-02", "x": 0.383, "y": 0.165, "radius": 0.058 },
+    { "id": "a-03", "label": "Hex A-03", "x": 0.547, "y": 0.167, "radius": 0.058 },
+    { "id": "a-04", "label": "Hex A-04", "x": 0.694, "y": 0.191, "radius": 0.057 },
+    { "id": "a-05", "label": "Hex A-05", "x": 0.778, "y": 0.41, "radius": 0.055 },
+    { "id": "a-06", "label": "Hex A-06", "x": 0.623, "y": 0.409, "radius": 0.054 },
+    { "id": "a-07", "label": "Hex A-07", "x": 0.411, "y": 0.358, "radius": 0.057 },
+    { "id": "a-08", "label": "Hex A-08", "x": 0.206, "y": 0.556, "radius": 0.057 },
+    { "id": "a-09", "label": "Hex A-09", "x": 0.333, "y": 0.56, "radius": 0.055 },
+    { "id": "a-10", "label": "Hex A-10", "x": 0.409, "y": 0.704, "radius": 0.056 },
+    { "id": "a-11", "label": "Hex A-11", "x": 0.631, "y": 0.63, "radius": 0.054 },
+    { "id": "a-12", "label": "Hex A-12", "x": 0.777, "y": 0.631, "radius": 0.054 },
+    { "id": "a-13", "label": "Hex A-13", "x": 0.215, "y": 0.835, "radius": 0.056 },
+    { "id": "a-14", "label": "Hex A-14", "x": 0.385, "y": 0.886, "radius": 0.056 },
+    { "id": "a-15", "label": "Hex A-15", "x": 0.534, "y": 0.879, "radius": 0.055 },
+    { "id": "a-16", "label": "Hex A-16", "x": 0.69, "y": 0.879, "radius": 0.055 },
+    {
+      "id": "special-cockpit",
+      "label": "Cockpit",
+      "radius": 0.066,
+      "points": [[0.026, 0.456], [0.056, 0.402], [0.098, 0.415], [0.119, 0.49], [0.1, 0.57], [0.058, 0.617], [0.027, 0.556]]
+    },
+    {
+      "id": "special-cryoschlaf",
+      "label": "Cryoschlaf",
+      "radius": 0.091,
+      "points": [[0.457, 0.505], [0.49, 0.401], [0.55, 0.368], [0.59, 0.411], [0.6, 0.514], [0.585, 0.62], [0.547, 0.664], [0.495, 0.655], [0.466, 0.59]]
+    },
+    {
+      "id": "special-maschinenraum-1",
+      "label": "Maschinenraum 1",
+      "radius": 0.059,
+      "points": [[0.855, 0.769], [0.888, 0.728], [0.953, 0.728], [0.981, 0.769], [0.981, 0.85], [0.952, 0.892], [0.888, 0.892], [0.855, 0.852]]
+    },
+    {
+      "id": "special-maschinenraum-2",
+      "label": "Maschinenraum 2",
+      "radius": 0.052,
+      "points": [[0.857, 0.488], [0.889, 0.457], [0.952, 0.457], [0.98, 0.486], [0.98, 0.559], [0.952, 0.588], [0.889, 0.588], [0.857, 0.561]]
+    },
+    {
+      "id": "special-maschinenraum-3",
+      "label": "Maschinenraum 3",
+      "radius": 0.055,
+      "points": [[0.855, 0.206], [0.888, 0.165], [0.952, 0.165], [0.981, 0.203], [0.981, 0.285], [0.95, 0.327], [0.888, 0.327], [0.855, 0.286]]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-const BOARDS = [
+let BOARDS = [
   {
     id: "nemesis-board-a",
     label: "Nemesis Board A",
@@ -203,6 +203,25 @@ const BOARDS = [
     return room;
   }),
 }));
+
+const INLINE_FALLBACK_BOARDS = BOARDS.map((board) => ({
+  ...board,
+  rooms: board.rooms.map((room) => ({
+    ...room,
+    points: Array.isArray(room.points) ? room.points.map((point) => [...point]) : undefined,
+  })),
+}));
+
+const ZONE_CONFIG_SOURCES = [
+  {
+    boardId: "nemesis-board-a",
+    endpoint: "/config/zones/nemesis-board-a.json",
+  },
+  {
+    boardId: "nemesis-board-b",
+    endpoint: "/config/zones/nemesis-board-b.json",
+  },
+];
 
 const ROOM_ANIMATIONS = [
   { id: "scanner-sweep", label: "Scanner Sweep" },
@@ -580,6 +599,84 @@ function getMappedSoundPathForAnimation(animationType) {
 
 function getBoard(boardId = state.boardId) {
   return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
+}
+
+function normalizeRoomFromZonePayload(room) {
+  const id = typeof room?.id === "string" ? room.id : "unknown-room";
+  const label = typeof room?.label === "string" ? room.label : id;
+  const radius = Number.isFinite(Number(room?.radius)) ? Number(room.radius) : 0.055;
+  if (Array.isArray(room?.points) && room.points.length >= 3) {
+    return {
+      id,
+      label,
+      radius,
+      points: room.points
+        .map((point) => [Number(point?.[0]), Number(point?.[1])])
+        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y)),
+    };
+  }
+  return {
+    id,
+    label,
+    x: Number(room?.x),
+    y: Number(room?.y),
+    radius,
+  };
+}
+
+function normalizeBoardFromZonePayload(payload, fallbackBoard) {
+  const boardMeta = payload?.board ?? {};
+  const rooms = Array.isArray(payload?.rooms) ? payload.rooms.map((room) => normalizeRoomFromZonePayload(room)) : [];
+  return {
+    id: typeof boardMeta.id === "string" ? boardMeta.id : fallbackBoard.id,
+    label: typeof boardMeta.label === "string" ? boardMeta.label : fallbackBoard.label,
+    src: typeof boardMeta.src === "string" ? boardMeta.src : fallbackBoard.src,
+    rooms: rooms.length > 0 ? rooms : fallbackBoard.rooms,
+  };
+}
+
+async function loadExternalBoardZones() {
+  const loadedByBoardId = new Map();
+  for (const source of ZONE_CONFIG_SOURCES) {
+    const fallbackBoard = INLINE_FALLBACK_BOARDS.find((board) => board.id === source.boardId);
+    if (!fallbackBoard) {
+      continue;
+    }
+    try {
+      const response = await fetchWithTimeout(source.endpoint, {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const payload = await response.json();
+      const normalized = normalizeBoardFromZonePayload(payload, fallbackBoard);
+      loadedByBoardId.set(source.boardId, normalized);
+    } catch {
+      // Fallback remains active.
+    }
+  }
+
+  BOARDS = INLINE_FALLBACK_BOARDS.map(
+    (fallbackBoard) => loadedByBoardId.get(fallbackBoard.id) ?? fallbackBoard,
+  );
+}
+
+function syncBoardSelectOptions() {
+  boardSelect.replaceChildren();
+  for (const board of BOARDS) {
+    const option = document.createElement("option");
+    option.value = board.id;
+    option.textContent = board.label;
+    boardSelect.append(option);
+  }
+  if (!BOARDS.some((board) => board.id === state.boardId)) {
+    state.boardId = BOARDS[0]?.id ?? "";
+  }
+  boardSelect.value = state.boardId;
 }
 
 function getSelectedRoom() {
@@ -4773,13 +4870,6 @@ function draw(now) {
   }
 }
 
-for (const board of BOARDS) {
-  const option = document.createElement("option");
-  option.value = board.id;
-  option.textContent = board.label;
-  boardSelect.append(option);
-}
-
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
 openDashboardViewButton.addEventListener("click", () => {
@@ -5620,6 +5710,11 @@ function syncRuntimePanelsFromState() {
 }
 
 async function initializeApplication() {
+  await loadExternalBoardZones();
+  syncBoardSelectOptions();
+  if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
+    state.boardId = BOARDS[0]?.id ?? "";
+  }
   state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
   state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
   state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
