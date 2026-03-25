@@ -43,6 +43,8 @@
           lastSuccessAt: 0,
           lastEndpoint: "",
           lastHeartbeatEndpoint: "",
+          heartbeatFailureCount: 0,
+          heartbeatFailureThreshold: 3,
         },
       },
       roomDraft: {

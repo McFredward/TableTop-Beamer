@@ -222,6 +222,7 @@ const SESSION_ENDPOINT_PATHS = {
 const SESSION_RETRY_BASE_DELAY_MS = 1200;
 const SESSION_RETRY_MAX_DELAY_MS = 12000;
 const SESSION_RETRY_JITTER_MS = 450;
+const SESSION_HEARTBEAT_FAILURE_THRESHOLD = 3;
 const SESSION_ERROR_MESSAGES = {
   CONNECT_HTTP_ERROR: "Connect-Request vom Session-Server abgelehnt",
   CONNECT_UNREACHABLE: "Session-Endpoint nicht erreichbar",
@@ -629,6 +630,9 @@ function syncSessionDiagnosticsPanel() {
       const inMs = Math.max(0, retry.nextRetryAt - Date.now());
       retryText += ` | naechster Retry in ${(inMs / 1000).toFixed(1)}s`;
     }
+    const heartbeatFailures = Math.max(0, Number(retry.heartbeatFailureCount || 0));
+    const heartbeatThreshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
+    retryText += ` | heartbeat failures ${heartbeatFailures}/${heartbeatThreshold}`;
     sessionRetryStatus.textContent = `Session Retry: ${retryText}`;
   }
 
@@ -655,7 +659,15 @@ function getSessionRetryState() {
       lastSuccessAt: 0,
       lastEndpoint: "",
       lastHeartbeatEndpoint: "",
+      heartbeatFailureCount: 0,
+      heartbeatFailureThreshold: SESSION_HEARTBEAT_FAILURE_THRESHOLD,
     };
+  }
+  if (!Number.isFinite(Number(state.session.retry.heartbeatFailureCount))) {
+    state.session.retry.heartbeatFailureCount = 0;
+  }
+  if (!Number.isFinite(Number(state.session.retry.heartbeatFailureThreshold))) {
+    state.session.retry.heartbeatFailureThreshold = SESSION_HEARTBEAT_FAILURE_THRESHOLD;
   }
   return state.session.retry;
 }
@@ -841,6 +853,7 @@ function startSessionHeartbeat(intervalMs = 4000) {
       return;
     }
     try {
+      const retry = getSessionRetryState();
       const response = await fetchWithTimeout(buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat), {
         method: "POST",
         headers: {
@@ -857,14 +870,27 @@ function startSessionHeartbeat(intervalMs = 4000) {
         throw new Error(`heartbeat failed (${response.status})`);
       }
       const result = await response.json();
+      retry.heartbeatFailureCount = 0;
       state.session.lastHeartbeatAt = Date.now();
       applySessionSnapshot(result?.snapshot);
     } catch {
-      state.session.connected = false;
+      const retry = getSessionRetryState();
+      const threshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
+      retry.heartbeatFailureCount = Math.max(0, Number(retry.heartbeatFailureCount || 0)) + 1;
       setSessionRetryError("HEARTBEAT_FAILED", {
         endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
+        detail: `${retry.heartbeatFailureCount}/${threshold}`,
       });
-      syncSessionStatus(`Session: Heartbeat-Fehler, reconnect geplant (${state.session.id})`);
+      if (retry.heartbeatFailureCount < threshold) {
+        retry.status = "heartbeat-degraded";
+        syncSessionStatus(
+          `Session: Heartbeat-Fehler toleriert (${retry.heartbeatFailureCount}/${threshold}) (${state.session.id})`,
+        );
+        return;
+      }
+      retry.heartbeatFailureCount = 0;
+      state.session.connected = false;
+      syncSessionStatus(`Session: Heartbeat-Fehler-Schwelle erreicht, reconnect geplant (${state.session.id})`);
       scheduleSessionReconnect({ reason: "heartbeat-failed" });
     }
   }, Math.max(1200, Number(intervalMs) || 4000));
@@ -1021,6 +1047,7 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             retry.lastError = "";
             retry.lastErrorCode = "";
             retry.lastSuccessAt = Date.now();
+            retry.heartbeatFailureCount = 0;
             retry.lastHeartbeatEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
               apiBase: candidate.apiBase,
             });
