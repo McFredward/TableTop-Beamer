@@ -199,104 +199,20 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
 
 const ctx = canvas.getContext("2d");
 
-const state = {
-  boardId: BOARDS[0].id,
-  selectedRoomId: null,
-  selectedRoomByBoard: {},
-  outputRoute: "auto",
-  roomDraft: {
-    editTargetId: null,
-    animationId: ROOM_ANIMATIONS[0].id,
-    opacity: Number(roomOpacityInput?.value ?? 0.9),
-    playbackSpeed: Number(roomPlaybackSpeedInput?.value ?? 1),
-    intensity: Number(roomIntensityInput.value),
-    speed: Number(roomSpeedInput.value),
-    soundVolume: Number(roomSoundVolumeInput.value) / 100,
-    durationSec: 0,
-    hold: true,
-  },
-  runningAnimations: [],
-  preview: {
-    queue: [],
-  },
-  live: {
-    lastSend: null,
-  },
-  audio: {
-    enabled: true,
-    volume: 0.7,
-  },
-  animationSpeed: 1,
-  animationSoundMap: {},
-  uiView: "dashboard",
-  dashboardZone: "trigger",
-  hitareaCalibrationByBoard: {},
-  roomGeometryByBoard: {},
-  roomStateProfilesByBoard: {},
-  specialPolygonsByBoard: {},
-  shipPolygonsByBoard: {},
-  outsideFxByBoard: {},
-  boardZoomByBoard: {},
-  polygonEditor: {
-    roomIdByBoard: {},
-    selectedVertexIndex: 0,
-    selectedEdgeIndex: 0,
-    dragVertexIndex: null,
-    dragPointerId: null,
-    dragRoomId: null,
-    dragBoardId: null,
-    dragStartPoints: null,
-    dragMoved: false,
-  },
-  shipPolygonEditor: {
-    selectedVertexIndex: 0,
-    selectedEdgeIndex: 0,
-    dragVertexIndex: null,
-    dragPointerId: null,
-    dragBoardId: null,
-    dragStartPoints: null,
-    dragMoved: false,
-  },
-  panMode: {
-    spacePressed: false,
-    active: false,
-    pointerId: null,
-    startClientX: 0,
-    startClientY: 0,
-    startPanX: 0,
-    startPanY: 0,
-    trigger: null,
-  },
-  touchActionGuard: {},
-  clearAllGuard: {
-    armedUntil: 0,
-    timeoutId: null,
-  },
-  mobilePerf: {
-    triggerLatencySamples: [],
-    frameDeltaSamples: [],
-    pendingTriggerAt: null,
-    lastFrameAt: null,
-    lastSnapshot: null,
-  },
-  runtimePerf: {
-    frameCostSamples: [],
-    qualityScale: 1,
-  },
-  startupDefaultsGuard: {
-    fallbackRequired: false,
-    attempted: false,
-    applied: false,
-    outcome: "pending",
-    detail: "",
-  },
-  zoneLoader: {
-    loadedBoards: {},
-    fallbackBoards: {},
-    classificationByBoard: {},
-    detailByBoard: {},
-  },
-};
+const state = window.TT_BEAMER_STATE.createInitialState({
+  defaultBoardId: BOARDS[0].id,
+  defaultRoomAnimationId: ROOM_ANIMATIONS[0].id,
+  roomOpacity: roomOpacityInput?.value,
+  roomPlaybackSpeed: roomPlaybackSpeedInput?.value,
+  roomIntensity: roomIntensityInput?.value,
+  roomSpeed: roomSpeedInput?.value,
+  roomSoundVolume: roomSoundVolumeInput?.value,
+});
+
+const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
+  getBoards: () => BOARDS,
+  getState: () => state,
+});
 
 let animationIdCounter = 1;
 let previewItemIdCounter = 1;
@@ -340,10 +256,6 @@ function getMappedSoundPathForAnimation(animationType) {
     return null;
   }
   return mapped;
-}
-
-function getBoard(boardId = state.boardId) {
-  return BOARDS.find((entry) => entry.id === boardId) ?? BOARDS[0];
 }
 
 function cloneBoardEntry(board) {
@@ -452,10 +364,6 @@ function syncBoardSelectOptions() {
     state.boardId = BOARDS[0]?.id ?? "";
   }
   boardSelect.value = state.boardId;
-}
-
-function getSelectedRoom() {
-  return getBoard().rooms.find((room) => room.id === state.selectedRoomId) ?? null;
 }
 
 function clampBoardZoomScale(value) {
