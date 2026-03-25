@@ -4472,6 +4472,7 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
   roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
   roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
+  syncGifRoomControls();
   roomHoldInput.checked = true;
   roomSelected.textContent = `Ausgewaehlter Raum: ${room.label}`;
   syncRoomGeometryPanel();
@@ -4483,6 +4484,12 @@ function syncRoomDraftActionButton() {
   startRoomAnimationButton.textContent = isEditMode
     ? "Laufende Instanz aktualisieren"
     : "Animation fuer Raum starten";
+}
+
+function syncGifRoomControls() {
+  const isGif = isGifRoomAnimation(state.roomDraft.animationId);
+  roomOpacityInput.disabled = !isGif;
+  roomPlaybackSpeedInput.disabled = !isGif;
 }
 
 function clearRoomDraftEditTarget() {
@@ -6398,6 +6405,7 @@ roomAnimationSelect.addEventListener("change", () => {
   const selected = roomAnimationSelect.value;
   state.roomDraft.animationId = isRoomAnimationType(selected) ? selected : ROOM_ANIMATIONS[0]?.id ?? "kaputt";
   roomAnimationSelect.value = state.roomDraft.animationId;
+  syncGifRoomControls();
 });
 
 roomOpacityInput.addEventListener("input", () => {
@@ -6677,6 +6685,7 @@ function syncRuntimePanelsFromState() {
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
   roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
   roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
+  syncGifRoomControls();
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
   roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
   roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
