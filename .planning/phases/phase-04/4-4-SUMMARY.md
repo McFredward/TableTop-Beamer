@@ -80,7 +80,19 @@ completed: 2026-03-25
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] gsd state/roadmap commands konnten STATE/ROADMAP nicht parsen**
+- **Found during:** Abschluss nach Task P4-T32 (State-Update-Phase)
+- **Issue:** `gsd-tools state advance-plan/update-progress/...` und `roadmap update-plan-progress` lieferten Parser-Fehler wegen nicht erwarteter STATE/ROADMAP-Formate.
+- **Fix:** Lifecycle, Decision-Log, Execution-Result-Block (Phase 4 Plan 4) und Roadmap-Status wurden manuell konsistent in `.planning/STATE.md` und `.planning/ROADMAP.md` aktualisiert; finaler Docs-Commit weiterhin via `gsd-tools commit` erstellt.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Summary/State/Roadmap referenzieren konsistent `4-4-SUMMARY.md`, Planstatus `4-4` und Fortschritt `26/32`.
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** Kein Scope-Creep; Abweichung betraf nur die technische Fortschrittsverbuchung.
 
 ## Auth Gates
 
@@ -89,6 +101,7 @@ None.
 ## Issues Encountered
 
 - `rg` war in der Shell nicht verfuegbar; statische Feature-Nachweise wurden stattdessen ueber das `grep`-Tool ausgefuehrt.
+- `gsd-tools` konnte STATE/ROADMAP nicht automatisiert fortschreiben (Parser-Mismatch); Fortschrittsfelder wurden deshalb manuell synchronisiert.
 
 ## Known Stubs
 
