@@ -3678,6 +3678,54 @@ function runOutsideIsolationRegression() {
   return true;
 }
 
+function runOutsideFailureIsolationRegression() {
+  const boardId = state.boardId;
+  const now = performance.now();
+  const issues = [];
+  const previousOutside = getOutsideFxProfile(boardId);
+
+  try {
+    beginRenderTick(now);
+    updateOutsideFxProfile(boardId, { enabled: true });
+    state.renderTelemetry.faultInjection.outsideLayerFailOnce = true;
+    drawOutsideFxLayer(now);
+    if (state.renderTelemetry.lastTick.outsideLayerErrors < 1) {
+      issues.push("outside layer failure was not detected");
+    }
+
+    const probeAnimation = {
+      id: "outside-isolation-probe",
+      scope: "global",
+      type: "ambient-drift",
+      boardId,
+      startedAt: now - 16,
+      intensity: 0.7,
+      speed: 1,
+      hold: true,
+      durationMs: null,
+    };
+    const visibleLayerOk = drawAnimationSafely(probeAnimation, now + 16);
+    if (!visibleLayerOk) {
+      issues.push("inside/global layer draw failed after outside failure");
+    }
+    if (state.renderTelemetry.lastTick.animationLayerErrors > 0) {
+      issues.push("outside failure cascaded into animation layer errors");
+    }
+  } catch {
+    issues.push("outside failure isolation regression threw unexpectedly");
+  } finally {
+    setOutsideFxProfile(boardId, previousOutside);
+    syncOutsideRuntimeMirror(boardId);
+    syncOutsideFxPanel();
+  }
+
+  if (issues.length > 0) {
+    console.error("Outside failure isolation regression violation", issues);
+    return false;
+  }
+  return true;
+}
+
 function runShipClipRegression() {
   const boardId = state.boardId;
   const previousShipPolygon = getShipPolygonPoints(boardId);
@@ -7042,6 +7090,7 @@ async function initializeApplication() {
   const navigationRegressionOk = runNavigationStateRegression();
   const projectionVisibilityOk = runMobileProjectionVisibilityGuard({ silent: true, context: "startup" });
   const outsideIsolationRegressionOk = runOutsideIsolationRegression();
+  const outsideFailureIsolationOk = runOutsideFailureIsolationRegression();
   const shipClipRegressionOk = runShipClipRegression();
   const directStartGifRegressionOk = runGifDirectStartEditReloadRegression();
   if (
@@ -7054,14 +7103,15 @@ async function initializeApplication() {
     !navigationRegressionOk ||
     !projectionVisibilityOk ||
     !outsideIsolationRegressionOk ||
+    !outsideFailureIsolationOk ||
     !shipClipRegressionOk ||
     !directStartGifRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip + Direct-Start-GIF)";
+      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation/Outside-Failure + Ship-Clip + Direct-Start-GIF)";
   } else {
     triggerFeedback.textContent =
-      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip + Direct-Start-GIF)";
+      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation/Outside-Failure + Ship-Clip + Direct-Start-GIF)";
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
