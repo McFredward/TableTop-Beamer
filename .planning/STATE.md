@@ -11,9 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-2
-- Planned Next Execution: 3-3
-- Last Execution Summary: `.planning/phases/phase-03/3-2-SUMMARY.md`
+- Last Executed Plan: 3-3
+- Planned Next Execution: 3-4
+- Last Execution Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -210,6 +210,12 @@
 - Running-Liste zeigt Instanz-ID/Typ 1:1 pro aktiver Raumanimation; Edit/Stop bleiben instanzgenau.
 - `alarm` und `lichtflackern` rendern als globale Aequivalente nur innerhalb des Zielraum-Clips.
 - GIF-Assets `malfunction.gif`/`fire.gif`/`final.gif` sind fuer `kaputt`/`feuer`/`schleim` live und instanzscharf mit `opacity` + `playbackSpeed` steuerbar.
+- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3 (Rework 3-3) als P0: GIF-Raumanimationen muessen als echte GIF-Loops laufen statt Einzelbild-Pulsing.
+- GIF-Mapping-Regel fuer Plan-Update 3: pro Animation ist das GIF in der UI auswaehlbar (analog Sound-Mapping) inklusive Persistenz ueber Save/Reload/Restart.
+- Execution-Fokus Phase 3 verschiebt auf P3-T26..P3-T31 (Loop-Runtime, Mapping-UI, Persistenz, Hardening, Verifikation).
+- Plan-3-3-Rework ist ausgefuehrt: GIF-Raumanimationen rendern framebasiert via ImageDecoder mit deterministischer Loop-Wiedergabe.
+- GIF-Mapping wurde als Settings-Panel pro Raumanimation eingefuehrt und in Runtime-Instanzen instanzscharf (`gifAssetPath`) materialisiert.
+- Persistenz fuer GIF-Mapping (`animationGifMap`) laeuft lokal ueber Board-Profil-Snapshot und serverseitig ueber Global-Defaults-Save.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -468,5 +474,16 @@
   - `.planning/phases/phase-03/3-2-VERIFICATION.md`
   - `.planning/phases/phase-03/P3-T23-REGRESSION.md`
   - `.planning/phases/phase-03/P3-T24-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 3)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`b465bfd`, `adb71ff`, `6c8c6dc`, `bb50935`, `af3ba92`)
+- Evidence:
+  - `.planning/phases/phase-03/3-3-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T30-REGRESSION.md`
+  - `.planning/phases/phase-03/P3-T30-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
