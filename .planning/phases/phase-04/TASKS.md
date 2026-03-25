@@ -37,12 +37,20 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P4-T31 [P0] Settings-Edit-Mode erweitern: Room-Polygon per LMB-Flaechen-Drag als Ganzes verschiebbar machen, mit eindeutigen Guards gegen Vertex-Edit-Kollision.
 - [x] DONE P4-T32 [P0] Hotfix-Regression dokumentieren (High-Zoom-Precision, Random-Flicker-Charakter, Room-Drag ohne Vertex-Regression, Clipping unveraendert).
 
-## Plan 4-5 - Render/GIF/UI Isolation
+## Plan 4-5 - weiteres Pflicht-Feedback (priorisierter P0-Hotfix, execute-ready)
+- [x] DONE P4-T33 [P0] Handle-Groessen-Contract editoruebergreifend vereinheitlichen, sodass ALLE Editor-Punkte inkl. Ship-Polygon-Vertices denselben Visual-/Hitarea-Skalierungspfad nutzen.
+- [ ] TODO P4-T34 [P0] Ship-Polygon-Editor auf die gemeinsame Handle-Groessensteuerung anbinden (sofort wirksam, zoomstabil, keine eigene Sonderlogik).
+- [ ] TODO P4-T35 [P0] `lichtflackern` visuell bereinigen: stoerende horizontale weisse Streifen/Glitch-Baender entfernen, Random-Flicker-Stil beibehalten.
+- [ ] TODO P4-T36 [P0] `lichtflackern`-Speed-Floor auf 10% absenken (UI-Range, Normalisierung, Runtime-Playback konsistent).
+- [ ] TODO P4-T37 [P0] Sound-Mapping/Sound-Auswahl in Profil-/Board-Persistenz aufnehmen, inklusive Reload-Paritaet und Legacy-Fallback.
+- [ ] TODO P4-T38 [P0] Global-Defaults-Save/Load auf Sound-Mappings erweitern und Hotfix-Regression dokumentieren (Persistenz lokal + Global Defaults + Reload).
+
+## Plan 4-6 - Render/GIF/UI Isolation
 - [ ] TODO P4-T22 [P1] GIF-Subsystem modularisieren (`loader`, `decoder`, `scheduler`, `cache`) mit nativer und fallback Paritaet.
 - [ ] TODO P4-T23 [P1] Render-Engine splitten (`room`, `global-inside`, `global-outside`, clipping utils) bei unveraendertem Output.
 - [ ] TODO P4-T24 [P1] UI-Bindings fuer Dashboard/Settings in View-Controller aufteilen; Settings-Ownership-Guard erhalten.
 - [ ] TODO P4-T25 [P1] Input-Handling fuer Pointer/Touch/Keyboard/Pan in dediziertes Modul ziehen; Pan-vs-Edit-Guards erhalten.
 
-## Plan 4-6 - Abschluss und Hardening
+## Plan 4-7 - Abschluss und Hardening
 - [ ] TODO P4-T26 [P1] Vollstaendige Regression-Matrix aus `ACCEPTANCE.md` durchfuehren (Desktop, Mobile, GIF fallback, Save/API, Clipping, Room-CRUD, Preview-entfernt).
 - [ ] TODO P4-T27 [P1] Wartbarkeitsdoku finalisieren (Modulkarte, Import-Regeln, Erweiterungspunkte) und Artefakt-Sync abschliessen.

@@ -170,14 +170,14 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-geometry-mode",
   "room-geometry-x",
   "room-geometry-y",
-   "room-geometry-stretch-x",
-   "room-geometry-stretch-y",
-   "room-name-input",
-   "room-create-shape",
-   "room-create",
-   "room-delete",
-   "room-rename-input",
-   "polygon-room-select",
+  "room-geometry-stretch-x",
+  "room-geometry-stretch-y",
+  "room-name-input",
+  "room-create-shape",
+  "room-create",
+  "room-delete",
+  "room-rename-input",
+  "polygon-room-select",
   "polygon-vertex-select",
   "polygon-edge-select",
   "polygon-insert-vertex",
@@ -194,7 +194,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-speed",
   "outside-mode",
   "outside-direction",
- ];
+];
 
 const ctx = canvas.getContext("2d");
 
@@ -436,7 +436,20 @@ function clampRoomStretch(value) {
 }
 
 function clampPolygonHandleScale(value) {
-  return Math.max(0.7, Math.min(2.2, Number(value) || 1));
+  return Math.max(0.1, Math.min(1, Number(value) || 1));
+}
+
+function getPolygonEditorHandleMetrics(zoomScale, handleScale = 1) {
+  const safeZoomScale = Math.max(0.1, Number(zoomScale) || 1);
+  const inverseZoom = 1 / safeZoomScale;
+  const normalizedHandleScale = clampPolygonHandleScale(handleScale);
+  return {
+    edgeHitRadius: Math.max(8, 12 * inverseZoom) * normalizedHandleScale,
+    edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale,
+    vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale,
+    vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale,
+    vertexLabelSize: Math.max(9, 11 * inverseZoom) * Math.max(0.9, normalizedHandleScale * 0.95),
+  };
 }
 
 function normalizeRoomGeometryMode(mode) {
@@ -3197,7 +3210,9 @@ function syncShipPolygonEditorStatus() {
   const points = getShipPolygonPoints(state.boardId);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
-  shipPolygonEditorStatus.textContent = `Ship-Polygoneditor: ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1}`;
+  const handleSize = Math.round(clampPolygonHandleScale(state.polygonEditor.handleScale) * 100);
+  shipPolygonEditorStatus.textContent =
+    `Ship-Polygoneditor: ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
 }
 
 function syncShipPolygonVertexSelect() {
@@ -3343,12 +3358,13 @@ function renderShipPolygonEditorHandles() {
     return;
   }
   const zoomScale = getBoardZoom(state.boardId).scale;
-  const inverseZoom = 1 / zoomScale;
-  const edgeHitRadius = Math.max(8, 12 * inverseZoom);
-  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom);
-  const vertexHitRadius = Math.max(10, 16 * inverseZoom);
-  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom);
-  const vertexLabelSize = Math.max(9, 11 * inverseZoom);
+  const {
+    edgeHitRadius,
+    edgeHandleRadius,
+    vertexHitRadius,
+    vertexHandleRadius,
+    vertexLabelSize,
+  } = getPolygonEditorHandleMetrics(zoomScale, state.polygonEditor.handleScale);
 
   const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
   maskPolygon.classList.add("ship-zone-mask");
@@ -3462,13 +3478,13 @@ function renderPolygonEditorHandles() {
   }
   const points = getRoomPoints(room, state.boardId);
   const zoomScale = getBoardZoom(state.boardId).scale;
-  const inverseZoom = 1 / zoomScale;
-  const handleScale = clampPolygonHandleScale(state.polygonEditor.handleScale);
-  const edgeHitRadius = Math.max(8, 12 * inverseZoom) * handleScale;
-  const edgeHandleRadius = Math.max(4, 5.5 * inverseZoom) * handleScale;
-  const vertexHitRadius = Math.max(10, 16 * inverseZoom) * handleScale;
-  const vertexHandleRadius = Math.max(5, 7.5 * inverseZoom) * handleScale;
-  const vertexLabelSize = Math.max(9, 11 * inverseZoom) * Math.max(0.9, handleScale * 0.95);
+  const {
+    edgeHitRadius,
+    edgeHandleRadius,
+    vertexHitRadius,
+    vertexHandleRadius,
+    vertexLabelSize,
+  } = getPolygonEditorHandleMetrics(zoomScale, state.polygonEditor.handleScale);
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
     const [bX, bY] = points[(index + 1) % points.length];
@@ -4588,8 +4604,8 @@ function renderRunningAnimationsList() {
       : "hold";
     const roomMeta = anim.scope === "room"
       ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
-          clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
-        )}%`
+        clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
+      )}%`
       : "";
     meta.textContent = `Instanz: ${anim.id} | Typ: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Rest: ${remaining}`;
 
@@ -4852,16 +4868,16 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
     const parallaxLayers = immersive
       ? [
-          { density: 46, speed: 190, size: 0.9, alpha: 0.16, wave: 0.008 },
-          { density: 66, speed: 310, size: 1.2, alpha: 0.26, wave: 0.011 },
-          { density: 82, speed: 470, size: 1.6, alpha: 0.38, wave: 0.014 },
-          { density: 98, speed: 660, size: 2, alpha: 0.52, wave: 0.017 },
-        ]
+        { density: 46, speed: 190, size: 0.9, alpha: 0.16, wave: 0.008 },
+        { density: 66, speed: 310, size: 1.2, alpha: 0.26, wave: 0.011 },
+        { density: 82, speed: 470, size: 1.6, alpha: 0.38, wave: 0.014 },
+        { density: 98, speed: 660, size: 2, alpha: 0.52, wave: 0.017 },
+      ]
       : [
-          { density: 32, speed: 130, size: 0.85, alpha: 0.14, wave: 0.006 },
-          { density: 50, speed: 230, size: 1.1, alpha: 0.22, wave: 0.009 },
-          { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
-        ];
+        { density: 32, speed: 130, size: 0.85, alpha: 0.14, wave: 0.006 },
+        { density: 50, speed: 230, size: 1.1, alpha: 0.22, wave: 0.009 },
+        { density: 68, speed: 360, size: 1.45, alpha: 0.32, wave: 0.012 },
+      ];
 
     for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
       const layer = parallaxLayers[layerIndex];
@@ -5516,8 +5532,10 @@ polygonHandleSizeInput?.addEventListener("input", () => {
   const handleScale = clampPolygonHandleScale((Number(polygonHandleSizeInput.value) || 100) / 100);
   state.polygonEditor.handleScale = handleScale;
   syncPolygonHandleSizePanel();
+  syncPolygonEditorStatus();
+  syncShipPolygonEditorStatus();
   renderRoomOverlay();
-  triggerFeedback.textContent = `Status: Polygon-Handle-Groesse auf ${Math.round(handleScale * 100)}% gesetzt`;
+  triggerFeedback.textContent = `Status: Polygon-Handle-Groesse (inkl. Ship) auf ${Math.round(handleScale * 100)}% gesetzt`;
 });
 
 boardZoomFitButton.addEventListener("click", () => {
