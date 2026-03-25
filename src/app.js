@@ -671,7 +671,7 @@ function validateZoneRoom(room, roomIndex = 0) {
   return issues;
 }
 
-function validateZonePayload(payload, expectedBoardId) {
+function validateZonePayload(payload, expectedBoardId, requiredRoomIds = []) {
   const issues = [];
   if (!payload || typeof payload !== "object") {
     return {
@@ -708,6 +708,19 @@ function validateZonePayload(payload, expectedBoardId) {
     issues.push(...validateZoneRoom(room, roomIndex));
   });
 
+  if (requiredRoomIds.length > 0) {
+    const loadedRoomIds = new Set(normalizedRooms.map((room) => room.id));
+    const missingRequired = requiredRoomIds.filter((roomId) => !loadedRoomIds.has(roomId));
+    if (missingRequired.length > 0) {
+      return {
+        ok: false,
+        code: "ZONE_PARTIAL_DATA",
+        issues: [`missing required room ids: ${missingRequired.join(", ")}`],
+        normalizedBoard: null,
+      };
+    }
+  }
+
   if (issues.length > 0) {
     return {
       ok: false,
@@ -739,6 +752,9 @@ function classifyZoneFallback(responseStatus = null, errorCode = "") {
   }
   if (errorCode === "ZONE_MALFORMED_JSON") {
     return "ZONE_MALFORMED_JSON";
+  }
+  if (errorCode === "ZONE_PARTIAL_DATA") {
+    return "ZONE_PARTIAL_DATA";
   }
   if (errorCode === "ZONE_VALIDATION_FAILED" || errorCode === "ZONE_INVALID_PAYLOAD") {
     return "ZONE_INVALID_STRUCTURE";
@@ -788,7 +804,8 @@ async function loadExternalBoardZones() {
         throw Object.assign(new Error("malformed JSON"), { zoneCode: "ZONE_MALFORMED_JSON" });
       }
 
-      const validated = validateZonePayload(payload, source.boardId);
+      const requiredRoomIds = (fallbackInline?.rooms ?? []).map((room) => room.id);
+      const validated = validateZonePayload(payload, source.boardId, requiredRoomIds);
       if (!validated.ok || !validated.normalizedBoard) {
         throw Object.assign(new Error(validated.issues.join("; ")), {
           zoneCode: validated.code,
@@ -5873,6 +5890,13 @@ function syncRuntimePanelsFromState() {
 async function initializeApplication() {
   await loadExternalBoardZones();
   syncBoardSelectOptions();
+  const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
+    (entry) => entry && entry !== "ZONE_LOADED",
+  ).length;
+  if (zoneFallbackCount > 0) {
+    triggerFeedback.textContent =
+      `Status: Zone-Fallback aktiv (${zoneFallbackCount} Board) - siehe Zonenquelle-Status im Settings-Panel`;
+  }
   if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
     state.boardId = BOARDS[0]?.id ?? "";
   }
