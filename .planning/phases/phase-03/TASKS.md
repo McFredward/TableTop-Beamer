@@ -39,3 +39,8 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T29 [P0] Persistenz fuer GIF-Mapping pro Animation implementieren und robust ueber Save/Load/Reload/Restart verifizieren.
 - [x] DONE P3-T30 [P1] Regression + Soak fuer Multi-GIF-Loop-Betrieb und Mapping-Edit waehrend laufender Instanzen dokumentieren.
 - [x] DONE P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
+
+## Plan 3-4 - Hotfix Direct-Start GIF-Mapping (verify-work follow-up)
+- [x] DONE P3-T32 [P0] Direct-Start-Flow auf gemappten GIF-Pfad verdrahten, damit `createAnimation` bei Raumstart den Mapping-Wert (`gifAssetPath`) statt Default-GIF nutzt.
+- [x] DONE P3-T33 [P1] Regressionstest ergaenzen fuer Kette Direct-Start -> Edit-Flow -> Reload mit stablem GIF-Mapping-Endzustand.
+- [x] DONE P3-T34 [P1] Planungsartefakte + Acceptance auf End-to-End-GIF-Mapping synchronisieren und Abschlussnachweis dokumentieren.

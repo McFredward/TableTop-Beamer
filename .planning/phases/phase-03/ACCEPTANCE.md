@@ -30,8 +30,15 @@
 - Performance bleibt unter Parallelbetrieb mehrerer GIF-Loops bedienbar und stabil.
 - Verifikationsdokument fuer Plan 3-3 ist vorhanden und referenziert die wichtigsten Nachweise.
 
+## Pflichtabnahme Plan 3-4 (P3-T32..P3-T34)
+- Direct-Start (`Raum starten`) uebergibt bei GIF-Raumanimationen den gemappten `gifAssetPath` explizit an `createAnimation`; Default-GIF greift nur bei `none`/ungueltigem Mapping gemaess Fallback-Regel.
+- Regression deckt explizit den Pfad Direct-Start -> Edit-Flow -> Reload ab und weist nach, dass GIF-Mapping in allen drei Schritten konsistent bleibt.
+- Running-/Edit-Instanzen bleiben dabei ID- und `gifAssetPath`-konsistent; kein unkontrollierter Drift auf neue Mappingwerte bei bereits laufenden Instanzen.
+- Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus Verifikationshinweis) sind auf den Hotfix-Scope synchronisiert.
+
 ## Definition of Done
 - Alle P0-Tasks aus Plan 3-3 sind abgeschlossen.
+- Alle P0-Tasks aus Plan 3-4 sind abgeschlossen.
 - Keine offenen Blocker-Risiken fuer GIF-Loop-Runtime, Mapping-Persistenz oder Running-List-Paritaet.
 - P1-Hardening fuer Stabilitaet und Performance ist mindestens initial umgesetzt und dokumentiert.
 - Artefakte `PLAN.md`, `BACKLOG.md`, `TASKS.md`, `EXECUTE.md`, `RISKS.md` sind konsistent.
@@ -39,3 +46,4 @@
 ## Abnahmeprotokoll
 - Plan 3-2 wurde am 2026-03-25 mit Verweis auf `3-2-VERIFICATION.md` abgenommen.
 - Plan 3-3 wurde am 2026-03-25 mit Verweis auf `3-3-VERIFICATION.md` sowie `P3-T30-REGRESSION.md`/`P3-T30-SOAK.md` abgenommen.
+- Plan 3-4 wurde am 2026-03-25 mit Verweis auf `3-4-VERIFICATION.md` sowie `P3-T33-REGRESSION.md` abgenommen.

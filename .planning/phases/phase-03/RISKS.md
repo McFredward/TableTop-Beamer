@@ -65,6 +65,11 @@
 - Impact: Mittel bis hoch, Kontrollverlust bei Live-Triggern.
 - Gegenmassnahme: Mapping auf Konfigurationsschicht trennen, laufende Instanzen ueber stabile `animation.id` isolieren, Edit-Roundtrip-Tests fuer aktive Sessions.
 
+## R14 Direct-Start umgeht GIF-Mapping im Startpfad
+- Risiko: Beim direkten Raumstart wird gemapptes GIF nicht bis `createAnimation` durchgereicht; Runtime faellt implizit auf Default-GIF zurueck.
+- Impact: Hoch, Ende-zu-Ende-Mapping verletzt und Operator bekommt inkonsistente GIF-Ausgabe.
+- Gegenmassnahme: Direct-Start-Parameterpfad explizit auf gemapptes `gifAssetPath` verdrahten; Regression fuer Direct-Start + Edit + Reload verpflichtend.
+
 ## Statusupdate nach Plan 3-2
 - R2/R4/R5/R7/R10 wurden fuer den aktuellen Rework-Scope durch Regression + Soak-Nachweise auf "beobachten" reduziert.
 - Neues verpflichtendes Feedback fuer Plan 3-3 hebt R11/R12 auf Blocker-Niveau (P0), bis echte GIF-Loops und Mapping-Persistenz nachgewiesen sind.
@@ -73,3 +78,9 @@
 - R11 ist durch Decoder-basierte GIF-Frame-Loop-Runtime mit Verifikation in `3-3-VERIFICATION.md` auf "beobachten" reduziert.
 - R12 ist durch GIF-Mapping-UI + Persistenzpfad (`animationGifMap`) und Nachweise in `P3-T30-REGRESSION.md` auf "beobachten" reduziert.
 - R13 bleibt als Betriebsrisiko auf "beobachten" (instanzscharfer `gifAssetPath` aktiv, weitere Langzeitbeobachtung empfohlen).
+
+## Statusupdate fuer Plan 3-4 Hotfix-Add-on
+- Verify-Work-3-Follow-up hebt R14 auf Blocker-Niveau (P0), bis Direct-Start den gemappten GIF-Pfad deterministisch an `createAnimation` uebergibt und Regression + Artefakt-Sync vorliegen.
+
+## Statusupdate nach Plan 3-4
+- R14 ist durch Direct-Start-Parameterverdrahtung (`gifAssetPath` -> `createAnimation`) sowie Regression in `P3-T33-REGRESSION.md` auf "beobachten" reduziert.

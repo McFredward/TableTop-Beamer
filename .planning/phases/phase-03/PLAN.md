@@ -1,7 +1,7 @@
-# Phase 3 Plan (Rework 3-3 Prepared)
+# Phase 3 Plan (Rework 3-4 Hotfix Completed)
 
 ## Zielbild
-Phase 3 Rework 3-3 schliesst die verbleibenden Runtime-/UX-Luecken nach Rework 3-2: GIF-Raumanimationen laufen als echte GIF-Loops statt Einzelbild-Pulsing, und pro Raumanimation ist das verwendete GIF in der UI explizit auswaehlbar (analog Sound-Mapping) inklusive persistenter Speicherung.
+Phase 3 umfasst nach Rework 3-3 ein kurzes Hotfix-Add-on 3-4 fuer den End-to-End-Mapping-Pfad: GIF-Raumanimationen laufen als echte GIF-Loops, GIF-Mapping ist pro Animation auswaehlbar und persistent, und der Direct-Start-Flow verdrahtet den gemappten GIF-Pfad konsistent bis in `createAnimation`.
 
 ## Scope
 - Separates Trigger-Modell pro Raumanimation mit Start/Stop je Instanz.
@@ -25,6 +25,8 @@ Phase 3 Rework 3-3 schliesst die verbleibenden Runtime-/UX-Luecken nach Rework 3
 2. Plan 3-3 P0 GIF-Mapping-UX: pro Animation selektierbares GIF-Mapping in der UI (paritaetisch zum Sound-Mapping).
 3. Plan 3-3 P0 Persistenz-Paritaet: GIF-Mapping wird robust gespeichert/geladen und ueber Reload/Restart stabil gehalten.
 4. Plan 3-3 P1 Hardening: Regression, Performance, Verifikations- und Artefaktabschluss.
+5. Plan 3-4 P0 Hotfix-Add-on: Direct-Start-Flow nutzt gemappten GIF-Pfad deterministisch im Runtime-Startpfad.
+6. Plan 3-4 P1 Hardening: Regression fuer Direct-Start + Edit-Flow + Reload sowie Artefakt-/Acceptance-Sync.
 
 ## Plan 3-3 (Rework-Welle, execute-ready)
 
@@ -38,8 +40,18 @@ Phase 3 Rework 3-3 schliesst die verbleibenden Runtime-/UX-Luecken nach Rework 3
 - P3-S3.5 Regression- und Performance-Hardening fuer echte GIF-Loops bei Mehrfachbetrieb.
 - P3-S3.6 Dokumentations- und Verifikationsabschluss fuer Rework Plan 3-3.
 
+## Plan 3-4 (Hotfix Add-on, execute-ready)
+
+### Prioritaet P0
+- P3-S4.1 Direct-Start-Flow auf gemappten GIF-Pfad verdrahten, damit `createAnimation` nicht auf Default-GIF zurueckfaellt.
+
+### Prioritaet P1
+- P3-S4.2 Regression explizit fuer Direct-Start + Edit-Flow + Reload ergaenzen.
+- P3-S4.3 Artefakte/Acceptance synchronisieren, damit GIF-Mapping Ende-zu-Ende nachweisbar greift.
+
 ## Definition of Done
 - Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-3 sind abgeschlossen.
+- Stories und Tasks aus `BACKLOG.md` und `TASKS.md` fuer Plan 3-4 sind abgeschlossen.
 - Jede Raum-Animation ist einzeln start-/stoppbar und wird separat in der Running-Uebersicht gefuehrt.
 - Das 7er-Set (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) ist vollstaendig und funktionsgleich verfuegbar.
 - `alarm` und `lichtflackern` laufen als globale Aequivalente mit strikt raumbegrenztem Clipping.
@@ -55,3 +67,4 @@ Phase 3 Rework 3-3 schliesst die verbleibenden Runtime-/UX-Luecken nach Rework 3
 ## Execution Status
 - Plan 3-2 (P3-T13..P3-T25): completed, siehe `3-2-VERIFICATION.md`.
 - Plan 3-3 (P3-T26..P3-T31): completed, siehe `3-3-VERIFICATION.md`.
+- Plan 3-4 (P3-T32..P3-T34): completed, siehe `3-4-VERIFICATION.md` und `P3-T33-REGRESSION.md`.
