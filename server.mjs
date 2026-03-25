@@ -139,7 +139,7 @@ function getRequestClientIp(req) {
   return String(req.socket?.remoteAddress || "-").trim() || "-";
 }
 
-function logSessionAccess({ req, path: routePath, status, durationMs }) {
+function logSessionAccess({ req, path: routePath, status, durationMs, clientIp = "" }) {
   appendSessionLog({
     scope: "session",
     code: "SESSION_ACCESS",
@@ -147,7 +147,7 @@ function logSessionAccess({ req, path: routePath, status, durationMs }) {
     path: routePath || "-",
     status: Number.isFinite(Number(status)) ? Number(status) : 0,
     duration: `${Math.max(0, Number(durationMs) || 0)}ms`,
-    "client-ip": getRequestClientIp(req),
+    "client-ip": clientIp || getRequestClientIp(req),
   });
 }
 
@@ -790,6 +790,7 @@ async function handleStaticFile(req, res) {
 
 const server = createServer(async (req, res) => {
   const requestStartedAt = Date.now();
+  const requestClientIp = getRequestClientIp(req);
   let accessPath = "/";
   let accessLogged = false;
   const logSessionAccessOnFinish = () => {
@@ -802,6 +803,7 @@ const server = createServer(async (req, res) => {
       path: accessPath,
       status: res.statusCode,
       durationMs: Date.now() - requestStartedAt,
+      clientIp: requestClientIp,
     });
   };
   res.on("finish", logSessionAccessOnFinish);

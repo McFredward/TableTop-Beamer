@@ -3,6 +3,8 @@
 Statuslegende: TODO | IN-PROGRESS | DONE
 Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
+Aktuelle P0-Prioritaet (verbindlich): Plan 5-7 (P5-T51..P5-T56) vor allen offenen Resttasks aus 5-2 und 5-1.
+
 ## Plan 5-1 - Multi-Client Final-Output Routing (execute-ready)
 - [x] DONE P5-T1 [P0] Rollenmodell im Runtime-State einfuehren (`operator`, `alignment`, `final-output`) inkl. safe fallback fuer unbekannte Rollen.
 - [x] DONE P5-T2 [P0] Session-Handshake/Join-Protokoll erweitern (Role-Announcement, Session-ID, Client-ID, Version-Guard).
@@ -60,6 +62,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T48 [P0] Optionalen Session-Event-GET-Fallback implementieren (konfigurierbar), inklusive Duplikat-/Loss-Guard und nachvollziehbarer Diagnose.
 - [x] DONE P5-T49 [P0] UI-Diagnose erweitern: aktuell genutzte Methode (`POST`/`GET-fallback`) fuer Heartbeat/Event samt Endpoint und letztem Methodenwechsel anzeigen.
 - [x] DONE P5-T50 [P0] Runbook + Feldtestprotokoll erweitern: Logfile-Pfad, POST/GET-Fallback-Testbefehle, erwartete Logzeilen und Auslese-Checkliste dokumentieren.
+
+## Plan 5-7 - Root-Cause-Hotfix CONNECT_UNREACHABLE (execute-ready, P0 sofort, hoechste Prioritaet, dritte Eskalation)
+- [x] DONE P5-T51 [P0] Access-Logging fuer ALLE Session-API Requests (`connect`/`stream`/`heartbeat`/`event`) in `logs/session-api.log` verbindlich machen: immer Methode, Path, Status, Duration und Client-IP fuer Success + Error.
+- [x] DONE P5-T52 [P0] Connect-Transport robust machen: `fetch` als Primaerpfad, deterministischer XHR-Fallback (oder gleichwertig) fuer HTTP0/Network-Error-Umgebungen mit sauberem Timeout-/Abort-Verhalten.
+- [x] DONE P5-T53 [P0] UI-Fehlerdiagnose fuer Connect ausbauen: `error.name`, `error.message`, `navigator.onLine`, verwendeter Transport (`fetch`/`xhr`) und betroffener Endpoint immer sichtbar.
+- [x] DONE P5-T54 [P0] Aktiven Self-Test-Button in `Settings` implementieren: testet `connect`/`stream`/`heartbeat`/`event` und zeigt eine Ergebnis-Matrix (`OK|FAIL`, Endpoint, Methode, Detail).
+- [x] DONE P5-T55 [P0] Hard-Acceptance fuer Feldbetrieb ergaenzen: Stabil verbinden + synchronisieren ohne terminalen Retry-Status unter normalem WLAN als verpflichtendes Gate.
+- [x] DONE P5-T56 [P0] Root-Cause-Hotfix-Verifikation dokumentieren (3-Device-Feldsetup, Access-Log-Korrelation, Self-Test-Matrix, kein Retry-Terminal im Normalbetrieb).
 
 ## Optional direkt danach (P1)
 - [ ] TODO P5-T37 [P1] Netzwerkdiagnosepanel fuer Sync-Latenz/Jitter/Resync-Counter als Debug-only Option.
