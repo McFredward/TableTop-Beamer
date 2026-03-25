@@ -23,13 +23,14 @@ Exit Criteria:
 ## Phase 2 - Session Betrieb (In Progress)
 Ziel: Schnellstart pro Spielabend, reproduzierbare Kalibrierung, datengetriebene Zonen, Preview/Kombi/Absenden fuer Live-Ausgabe.
 
-Status: 25/40 Tasks abgeschlossen (P2-T1..P2-T10, P2-T26..P2-T40), siehe `.planning/phases/phase-02/2-1-SUMMARY.md`, `.planning/phases/phase-02/2-2-SUMMARY.md`, `.planning/phases/phase-02/2-3-SUMMARY.md`, `.planning/phases/phase-02/2-4-SUMMARY.md`.
+Status: 32/47 Tasks abgeschlossen (P2-T1..P2-T10, P2-T26..P2-T47); Gap-Closure Add-on fuer externe Zonen + Preview/Live/Rollback + README ist abgeschlossen, siehe `.planning/phases/phase-02/2-1-SUMMARY.md`, `.planning/phases/phase-02/2-2-SUMMARY.md`, `.planning/phases/phase-02/2-3-SUMMARY.md`, `.planning/phases/phase-02/2-4-SUMMARY.md`, `.planning/phases/phase-02/2-5-SUMMARY.md`.
 
 Milestones:
 1. Core Data: Profile + Zone-JSON.
 2. Control: Hotkeys + Presets + Safety-Feinschliff.
 3. Preview/Live: aktive Session-Anzeige, Preview-Panel, Kombinationen, Absenden.
 4. Hardening: Debug-Overlay, Soak-Test, UX-Polish.
+5. Abschluss-Add-on: externe Zonen mit Validator/Fallback, echter Preview/Kombi/Absenden-Flow mit Rollback, README-Finalisierung.
 
 Exit Criteria:
 - Phase-2-Stories mit Akzeptanzkriterien umgesetzt.

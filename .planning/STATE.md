@@ -11,8 +11,8 @@
 - Current Phase Key: phase-02
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 2-4
-- Last Execution Summary: `.planning/phases/phase-02/2-4-SUMMARY.md`
+- Last Executed Plan: 2-5
+- Last Execution Summary: `.planning/phases/phase-02/2-5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -188,6 +188,13 @@
 - No-Overlay-Regel (Phase 2, Plan-Update 4): Scroll, Orientation-Wechsel, Resize und View-Switch behalten Board-Sichtbarkeit und Interaktion ohne Control-Overlay.
 - Mobile Dashboard/Settings und Trigger-Cluster gelten in Plan-Update 4 als harte Non-Sticky-Regel (nur normaler Dokumentfluss auf Mobile).
 - Board-Containment-Verification nutzt fuer Plan-Update 4 kombinierte Style-Checks (kein sticky/fixed) und Multi-Point Pointer-Probes.
+- Plan-Update 5 setzt Prioritaetsfokus: formale Gap-Closure fuer Phase 2 mit (a) externen Zonen-JSON inkl. Validator/Fallback, (b) echtem Preview/Kombi/Absenden-Flow inkl. Rollback und (c) README-Finalisierung.
+- Datenregel fuer Plan-Update 5: `config/zones/*.json` wird kanonische Board-Zonenquelle; Inline-Zonen gelten nur noch als expliziter Notfall-Fallback.
+- Live-Flow-Regel fuer Plan-Update 5: Preview-Staging und Live-Commit teilen ein konsistentes Zustandsmodell; letzter Send ist ruecknehmbar (Undo/Rollback).
+- Abschlussregel fuer Plan-Update 5: Phase 2 ist formal erst abschliessbar, wenn Gap-Re-Verification + README-Workflow-Update dokumentiert sind.
+- Zonenquelle fuer Phase-2-Abschluss ist jetzt extern (`config/zones/*.json`) mit strikter Validierung und klassifiziertem Fallback (`last-known-good`/Inline).
+- Preview/Kombi und Live-Commit sind als getrennte Zustandsmodelle umgesetzt; letzter Live-Send ist per Undo/Rollback ruecknehmbar.
+- Phase-2-README wurde auf den finalen Operator-Workflow (Defaults -> Kalibrierung -> Preview -> Live -> Rollback) aktualisiert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -417,3 +424,14 @@
   - `.planning/phases/phase-02/P2-T40-MOBILE-NO-OVERLAY-VERIFIKATION.md`
   - `debug/screenshot_debug.jpg` (Vorher-Referenz)
   - `node --check src/app.js` (Regression Syntax Check)
+
+## Execution Results (Phase 2 Plan 5)
+- Status: completed
+- Summary: `.planning/phases/phase-02/2-5-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`9cf5083`, `a64c45b`, `b7c8e25`, `3b2f6c6`, `dc8456a`, `fc150fb`, `543e11c`)
+- Evidence:
+  - `.planning/phases/phase-02/2-VERIFICATION.md` (Follow-up: 6/6 must-haves verified)
+  - `.planning/phases/phase-02/P2-T43-ZONEN-NEGATIVTESTS.md`
+  - `.planning/phases/phase-02/P2-T47-EXIT-GATE.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
