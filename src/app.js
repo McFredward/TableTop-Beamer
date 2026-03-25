@@ -660,6 +660,11 @@ function getSessionRetryState() {
       lastSuccessAt: 0,
       lastEndpoint: "",
       lastHeartbeatEndpoint: "",
+      lastHeartbeatMethod: "POST",
+      lastHeartbeatFallbackReason: "none",
+      lastHeartbeatMethodSwitchAt: 0,
+      lastHeartbeatMethodSwitchLabel: "-",
+      lastHeartbeatMethodChanged: false,
       heartbeatFailureCount: 0,
       heartbeatFailureThreshold: SESSION_HEARTBEAT_FAILURE_THRESHOLD,
       stableResetPending: false,
@@ -678,7 +683,100 @@ function getSessionRetryState() {
   if (!Number.isFinite(Number(state.session.retry.reconnectTransitionId))) {
     state.session.retry.reconnectTransitionId = 0;
   }
+  if (!["POST", "GET-fallback"].includes(String(state.session.retry.lastHeartbeatMethod || ""))) {
+    state.session.retry.lastHeartbeatMethod = "POST";
+  }
+  if (typeof state.session.retry.lastHeartbeatFallbackReason !== "string") {
+    state.session.retry.lastHeartbeatFallbackReason = "none";
+  }
+  if (!Number.isFinite(Number(state.session.retry.lastHeartbeatMethodSwitchAt))) {
+    state.session.retry.lastHeartbeatMethodSwitchAt = 0;
+  }
+  if (typeof state.session.retry.lastHeartbeatMethodSwitchLabel !== "string") {
+    state.session.retry.lastHeartbeatMethodSwitchLabel = "-";
+  }
+  if (typeof state.session.retry.lastHeartbeatMethodChanged !== "boolean") {
+    state.session.retry.lastHeartbeatMethodChanged = false;
+  }
   return state.session.retry;
+}
+
+function updateHeartbeatTransport(method, endpoint, fallbackReason = "none") {
+  const retry = getSessionRetryState();
+  const normalizedMethod = method === "GET-fallback" ? "GET-fallback" : "POST";
+  const previousMethod = retry.lastHeartbeatMethod || "POST";
+  const methodChanged = previousMethod !== normalizedMethod;
+  const switchedAt = methodChanged ? Date.now() : Number(retry.lastHeartbeatMethodSwitchAt || 0);
+  retry.lastHeartbeatMethod = normalizedMethod;
+  retry.lastHeartbeatEndpoint = endpoint;
+  retry.lastHeartbeatFallbackReason = fallbackReason || "none";
+  retry.lastHeartbeatMethodChanged = methodChanged;
+  retry.lastHeartbeatMethodSwitchAt = switchedAt;
+  retry.lastHeartbeatMethodSwitchLabel = methodChanged
+    ? `${previousMethod} -> ${normalizedMethod}`
+    : retry.lastHeartbeatMethodSwitchLabel || "-";
+}
+
+function buildHeartbeatGetFallbackEndpoint() {
+  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
+    query: {
+      sessionId: state.session.id || "default-session",
+      clientId: state.session.clientId || "",
+      role: state.role,
+    },
+  });
+}
+
+async function sendHeartbeatWithFallback() {
+  const postEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat);
+  const postRequest = {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+    body: JSON.stringify({
+      sessionId: state.session.id,
+      clientId: state.session.clientId,
+      role: state.role,
+    }),
+  };
+
+  let postResponse = null;
+  let fallbackReason = "post-exception-unknown";
+  try {
+    postResponse = await fetchWithTimeout(postEndpoint, postRequest);
+  } catch (error) {
+    fallbackReason =
+      error instanceof Error && error.message
+        ? `post-exception-${error.message}`
+        : "post-exception-unknown";
+  }
+
+  if (postResponse?.ok) {
+    updateHeartbeatTransport("POST", postEndpoint, "none");
+    return postResponse;
+  }
+
+  if (postResponse && !postResponse.ok) {
+    fallbackReason = `post-http-${postResponse.status}`;
+  }
+
+  const getEndpoint = buildHeartbeatGetFallbackEndpoint();
+  const fallbackResponse = await fetchWithTimeout(getEndpoint, {
+    method: "GET",
+    headers: {
+      accept: "application/json",
+    },
+    timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
+  });
+  if (!fallbackResponse.ok) {
+    throw new Error(
+      `heartbeat failed (post endpoint ${postEndpoint}, fallback endpoint ${getEndpoint}, status ${fallbackResponse.status})`,
+    );
+  }
+  updateHeartbeatTransport("GET-fallback", getEndpoint, fallbackReason);
+  return fallbackResponse;
 }
 
 function setSessionRetryError(code, { endpoint = "", status = null, detail = "" } = {}) {
@@ -879,21 +977,7 @@ function startSessionHeartbeat(intervalMs = 4000) {
     }
     try {
       const retry = getSessionRetryState();
-      const response = await fetchWithTimeout(buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat), {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({
-          sessionId: state.session.id,
-          clientId: state.session.clientId,
-          role: state.role,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`heartbeat failed (${response.status})`);
-      }
+      const response = await sendHeartbeatWithFallback();
       const result = await response.json();
       retry.heartbeatFailureCount = 0;
       if (retry.stableResetPending) {
@@ -911,8 +995,8 @@ function startSessionHeartbeat(intervalMs = 4000) {
       const threshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
       retry.heartbeatFailureCount = Math.max(0, Number(retry.heartbeatFailureCount || 0)) + 1;
       setSessionRetryError("HEARTBEAT_FAILED", {
-        endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
-        detail: `${retry.heartbeatFailureCount}/${threshold}`,
+        endpoint: retry.lastHeartbeatEndpoint || buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
+        detail: `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`,
       });
       if (retry.heartbeatFailureCount < threshold) {
         retry.status = "heartbeat-degraded";
@@ -1084,9 +1168,13 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
               retry.attempt = 0;
               state.session.reconnectAttempts = 0;
             }
-            retry.lastHeartbeatEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
-              apiBase: candidate.apiBase,
-            });
+            updateHeartbeatTransport(
+              "POST",
+              buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
+                apiBase: candidate.apiBase,
+              }),
+              "none",
+            );
             applySessionSnapshot(result?.snapshot);
             attachSessionStream();
             startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
