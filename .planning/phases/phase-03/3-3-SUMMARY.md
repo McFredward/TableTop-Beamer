@@ -1,100 +1,97 @@
 ---
 phase: phase-03
 plan: 3-3
-subsystem: ui
-tags: [gif, imagedecoder, canvas, mapping, persistence]
+subsystem: rendering
+tags: [gif, canvas, room-clipping, runtime-controls, verification]
 requires:
-  - phase: phase-03
-    provides: separates room-animation instances from plan 3-2
+  - phase: phase-03-3-2
+    provides: separates room instance runtime model with running-list parity and hold-default
 provides:
-  - echte GIF-Frame-Loop-Runtime fuer kaputt/feuer/schleim
-  - GIF-Mapping-UI pro Raumanimation
-  - persistentes animationGifMap fuer Reload/Restart und Global-Defaults-Save
-affects: [runtime-rendering, settings-ui, global-defaults]
+  - Native GIF frame-loop playback for kaputt/feuer/schleim without pulse or zoom substitution
+  - Per-instance opacity/playbackSpeed parity on native GIF timelines
+  - Regression and soak evidence for running-list, hold-default, clipping and loop roundtrip
+affects: [phase-03-verification, runtime-rendering, operator-regression]
 tech-stack:
-  added: [ImageDecoder Web API]
-  patterns: [decoder-cache-per-asset, instanzscharfer gifAssetPath]
+  added: [ImageDecoder-based GIF frame decoding]
+  patterns: [cached native GIF frame timelines, per-instance playback timeline mapping]
 key-files:
   created:
     - .planning/phases/phase-03/3-3-VERIFICATION.md
-    - .planning/phases/phase-03/P3-T30-REGRESSION.md
+    - .planning/phases/phase-03/P3-T29-REGRESSION.md
     - .planning/phases/phase-03/P3-T30-SOAK.md
   modified:
     - src/app.js
-    - index.html
-    - server.mjs
     - .planning/phases/phase-03/TASKS.md
+    - .planning/phases/phase-03/PLAN.md
+    - .planning/phases/phase-03/ACCEPTANCE.md
+    - .planning/phases/phase-03/BACKLOG.md
+    - .planning/phases/phase-03/EXECUTE.md
+    - .planning/phases/phase-03/RISKS.md
 key-decisions:
-  - "GIFs werden framebasiert via ImageDecoder decodiert; Fallback bleibt statisches Image bei fehlendem Support."
-  - "Laufende Instanzen tragen gifAssetPath instanzscharf, damit Mapping-Aenderungen keinen Runtime-Drift erzeugen."
+  - "GIF room render path decodes native frames once and reuses cached timelines instead of pulse/zoom transforms."
+  - "Playback speed is applied on per-instance timeline selection to preserve instance isolation under shared GIF assets."
 patterns-established:
-  - "Per-animation mapping panels folgen dem Sound-Mapping-Muster (Animation-Select + Asset-Select + Status)."
-  - "Lokaler Board-Profile-Snapshot speichert neben Geometrie auch Runtime-Mappings fuer restart-sichere Defaults."
+  - "Room GIF effects use native frame modulo loop selection keyed by asset path."
+  - "Plan evidence for GIF fixes always includes regression gate + loop soak artifact pair."
 requirements-completed: []
-duration: 3min
+duration: 6min
 completed: 2026-03-25
 ---
 
-# Phase 3 Plan 3: GIF Loop + Mapping Rework Summary
+# Phase 3 Plan 3: GIF Loop Playback Bugfix Summary
 
-**Room-GIFs werden jetzt als echte decodierte Frame-Loops gerendert, mit pro-Animation GIF-Mapping in Settings und persistenter Speicherung ueber Reload/Restart.**
+**Native GIF frame-loop playback for kaputt/feuer/schleim now runs asset-true in room clips with per-instance opacity and playbackSpeed controls preserved.**
 
 ## Performance
-- **Duration:** 3 min
-- **Started:** 2026-03-25T09:36:27Z
-- **Completed:** 2026-03-25T09:39:09Z
+
+- **Duration:** 6 min
+- **Started:** 2026-03-25T11:14:01Z
+- **Completed:** 2026-03-25T11:20:05Z
 - **Tasks:** 6
-- **Files modified:** 13
+- **Files modified:** 12
 
 ## Accomplishments
-- Pulsing-Einzelbildpfad fuer `kaputt`/`feuer`/`schleim` durch framebasierte GIF-Wiedergabe ersetzt.
-- GIF-Mapping-UI (analog Sound-Mapping) fuer Raumanimationen in Settings eingefuehrt.
-- GIF-Mapping-Persistenz lokal + via Global-Defaults-API erweitert und mit Regression/Soak-Nachweisen dokumentiert.
+- Replaced pulse/zoom substitute path for all three GIF room effects with native decoded GIF frame-loop playback.
+- Preserved per-instance control parity by applying playback speed on each animation instance timeline while keeping opacity instance-local.
+- Documented full acceptance evidence for regression gates and loop soak, then synced phase-03 artifacts to completed plan-3-3 state.
 
 ## Task Commits
-1. **P3-T26 + P3-T27: GIF-Loop-Runtime + Decoderpfad** - `b465bfd` (feat)
-2. **P3-T28: GIF-Mapping-UI** - `adb71ff` (feat)
-3. **P3-T29: GIF-Mapping-Persistenz** - `6c8c6dc` (feat)
-4. **P3-T30: Regression + Soak Dokumentation** - `bb50935` (test)
-5. **P3-T31: Verifikation + Artefakt-Sync** - `af3ba92` (docs)
+
+1. **Task P3-T26: Native GIF loop for kaputt** - `ed34cd3` (feat)
+2. **Task P3-T27: Native GIF loops for feuer/schleim** - `772ae75` (feat)
+3. **Task P3-T28: Instance parameter parity hardening** - `9888c46` (fix)
+4. **Task P3-T29: Regression guard documentation** - `578c367` (test)
+5. **Task P3-T30: Loop roundtrip and soak evidence** - `b06f498` (test)
+6. **Task P3-T31: Plan verification and artifact sync** - `998dada` (chore)
 
 ## Files Created/Modified
-- `src/app.js` - GIF decoder cache, frame-selektion, GIF-mapping state/panel logic, persistence hooks.
-- `index.html` - neues Settings-Panel fuer GIF-Mapping.
-- `server.mjs` - `animationGifMap` im Global-Defaults-Savepfad.
-- `.planning/phases/phase-03/3-3-VERIFICATION.md` - Plan-3-3-Abnahme.
-- `.planning/phases/phase-03/P3-T30-REGRESSION.md` - Regression-Nachweise.
-- `.planning/phases/phase-03/P3-T30-SOAK.md` - Soak-Protokoll.
+- `src/app.js` - Native GIF frame decode/cache playback path plus per-instance timeline speed handling.
+- `.planning/phases/phase-03/P3-T29-REGRESSION.md` - Regression gate evidence for running-list parity, hold-default and clipping.
+- `.planning/phases/phase-03/P3-T30-SOAK.md` - GIF loop roundtrip and soak evidence for all three assets.
+- `.planning/phases/phase-03/3-3-VERIFICATION.md` - Consolidated acceptance verification for plan 3-3.
+- `.planning/phases/phase-03/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE,README}.md` - Artifact status sync to completed plan 3-3.
 
 ## Decisions Made
-- Decoderbasierte GIF-Framewiedergabe ist der Primaerpfad; bei fehlendem `ImageDecoder` bleibt ein robuster Fallback ohne Runtime-Crash.
-- Mapping wird in laufenden Instanzen materialisiert (`gifAssetPath`), damit Mapping-Edits nur neue/gezielt editierte Instanzen beeinflussen.
+- Use ImageDecoder-backed frame extraction with per-asset caching for deterministic canvas GIF loop playback.
+- Keep fallback image path available only as decoder fallback while removing pulse/zoom simulation for required GIF room triggers.
 
 ## Deviations from Plan
-
-### Auto-fixed Issues
-
-**1. [Rule 2 - Missing Critical] Lokale Persistenz fuer Mapping sofort beim UI-Edit**
-- **Found during:** P3-T29
-- **Issue:** Mapping-Aenderungen waren ohne sofortiges Persistieren bei Reload verlustgefaehrdet.
-- **Fix:** `persistBoardProfiles()` direkt in Mapping-Change-Handlern (Sound + GIF) eingebaut.
-- **Files modified:** `src/app.js`
-- **Verification:** Syntax-Check + Persistenzpfad in Regression dokumentiert.
-- **Committed in:** `6c8c6dc`
-
----
-
-**Total deviations:** 1 auto-fixed (Rule 2)
-**Impact on plan:** Kritische Korrektheit fuer Persistenz verbessert, kein Scope-Creep.
+None - plan executed exactly as written.
 
 ## Issues Encountered
-- `rg` war in der Shell nicht verfuegbar; Nachweissuche wurde stattdessen mit Projekt-Grep-Tool durchgefuehrt.
+- `rg` was not available in the shell environment; file counting and verification were completed without it.
 
 ## User Setup Required
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Plan 3-3 ist abgeschlossen und dokumentiert (`3-3-VERIFICATION.md`).
-- Runtime-Basis ist bereit fuer weitere Nemesis-Effektwellen auf derselben Instanz-/Mapping-Architektur.
+- GIF playback blocker for plan 3-3 is closed with artifacts in place.
+- Ready for next phase planning or additional hardening beyond current acceptance gates.
 
 ## Self-Check: PASSED
+- Verified summary and evidence files exist.
+- Verified all task commit hashes are present in git history.
+
+---
+*Phase: phase-03*
+*Completed: 2026-03-25*

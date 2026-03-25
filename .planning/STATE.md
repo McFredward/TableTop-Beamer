@@ -11,10 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-7
-- Planned Next Execution: none (Phase-3 Planlinie abgeschlossen)
-- Last Execution Summary: `.planning/phases/phase-03/3-7-SUMMARY.md`
-- Active Blocker Focus: Kein aktiver P0-Render-Blocker; Plan 3-7 Root-Cause-Hotfix abgeschlossen
+- Last Executed Plan: 3-3
+- Planned Next Execution: none
+- Last Execution Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -211,40 +210,13 @@
 - Running-Liste zeigt Instanz-ID/Typ 1:1 pro aktiver Raumanimation; Edit/Stop bleiben instanzgenau.
 - `alarm` und `lichtflackern` rendern als globale Aequivalente nur innerhalb des Zielraum-Clips.
 - GIF-Assets `malfunction.gif`/`fire.gif`/`final.gif` sind fuer `kaputt`/`feuer`/`schleim` live und instanzscharf mit `opacity` + `playbackSpeed` steuerbar.
-- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3 (Rework 3-3) als P0: GIF-Raumanimationen muessen als echte GIF-Loops laufen statt Einzelbild-Pulsing.
-- GIF-Mapping-Regel fuer Plan-Update 3: pro Animation ist das GIF in der UI auswaehlbar (analog Sound-Mapping) inklusive Persistenz ueber Save/Reload/Restart.
-- Execution-Fokus Phase 3 verschiebt auf P3-T26..P3-T31 (Loop-Runtime, Mapping-UI, Persistenz, Hardening, Verifikation).
-- Plan-3-3-Rework ist ausgefuehrt: GIF-Raumanimationen rendern framebasiert via ImageDecoder mit deterministischer Loop-Wiedergabe.
-- GIF-Mapping wurde als Settings-Panel pro Raumanimation eingefuehrt und in Runtime-Instanzen instanzscharf (`gifAssetPath`) materialisiert.
-- Persistenz fuer GIF-Mapping (`animationGifMap`) laeuft lokal ueber Board-Profil-Snapshot und serverseitig ueber Global-Defaults-Save.
-- Follow-up aus Verify-Work 3 identifiziert eine P0-Luecke im Direct-Start-Pfad: gemapptes GIF wird beim Raumstart nicht deterministisch bis `createAnimation` durchgereicht.
-- Plan-Update 3-4 setzt Prioritaetsfokus: P0 Verdrahtung Direct-Start -> gemapptes `gifAssetPath`, P1 Regression fuer Direct-Start + Edit-Flow + Reload, P1 Artefakt-/Acceptance-Sync fuer Ende-zu-Ende-GIF-Mapping.
-- Plan-3-4-Hotfix: Direct-Start uebergibt `gifAssetPath` explizit an `createAnimation`; impliziter Default-Drift im Startpfad ist geschlossen.
-- Plan-3-4-Hardening: Kette Direct-Start -> Edit -> Reload ist als Runtime-Regression guardiert und auf Instanz-/Mapping-Konsistenz abgesichert.
-- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3-5: P0-Fix fuer kritische Render-Regression (Board zeigt keine Animation, Audio laeuft weiter) ist sofortiger Startpunkt.
-- Architektur-Regel Plan-Update 3-5: `app.js` wird verpflichtend in klare Module getrennt (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) mit expliziten Modulgrenzen.
-- Qualitaets-Regel Plan-Update 3-5: Nach Refactor ist funktionale Paritaet + Stabilitaet verpflichtend nachzuweisen; gezielte Kommentare fuer nicht-offensichtliche Bereiche sind Pflicht.
-- Plan-3-5-Fix: Renderpfad zeigt bei fehlendem Effektframe einen sichtbaren Fallback, damit Audio-only-Zustaende nicht mehr still passieren.
-- Plan-3-5-Refactor: Domain-Helfer fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save` sind als explizite Modulgrenzen eingefuehrt.
-- Plan-3-5-Nachweis: Paritaets-Regression (`P3-T42`) und Soak (`P3-T43`) sind dokumentiert; Plan 3-5 ist formal abgeschlossen.
-- Neues verpflichtendes Feedback fuer Phase 3 setzt Plan-Update 3-6 als kritischen P0-Blocker: Seit Preview-Einfuehrung sind Animationen visuell unsichtbar; Preview wird nicht benoetigt und muss vollstaendig entfernt werden.
-- Plan-Update 3-6 Scope-Regel: Preview-Flow wird end-to-end entfernt (UI, State, Routing, Send/Rollback) und direkter Live-Trigger wird als einziger Bedienpfad wiederhergestellt.
-- Plan-Update 3-6 Render-Regel: sichtbares Rendering muss fuer `global` + `room` + GIF-basierte Animationen sofort stabil sein; Audio-only-Lauf gilt als Fail.
-- Plan-Update 3-6 Integritaets-Regel: Running-Liste sowie `Stop`/`Edit` bleiben nach Preview-Rueckbau verpflichtend funktionsfaehig.
-- Plan-Update 3-6 Sequenz-Regel: weiterer Refactor wird bis zum stabilen P0-Hotfix-Nachweis eingefroren.
-- Plan-3-6-Hotfix ist abgeschlossen: Preview-Flow (UI/State/Routing/Send/Rollback) ist vollstaendig entfernt; direkter Live-Trigger ist wieder alleiniger Runtime-Pfad.
-- Render-Hotfix fuer Plan 3-6 setzt sichtbare Fallbacks bei Clip-Fehlern und schliesst den Audio-only-Fehlmodus fuer `global`/`room`/GIF-Pfade.
-- Running-Liste nutzt Integritaetsguard (Duplikat-/Invalid-Entry-Bereinigung + EditTarget-Cleanup); `Stop`/`Edit` bleiben instanzkonsistent.
-- Refactor-Resume-Gate bleibt aktiv: weiterer Architekturumbau erst nach dokumentiert stabilem Plan-3-6-Nachweis (`3-6-VERIFICATION.md`, `P3-T49-REGRESSION.md`, `P3-T49-SOAK.md`).
-- Kritischer P0-Blocker ist erneut aktiv (3. Meldung): Board bleibt in Mobile-Flow/Praxisfaellen statisch, waehrend Audio weiterlaeuft.
-- Plan-Update 3-7 setzt Root-Cause-Fokus: Render-Loop darf nie komplett ausfallen, auch nicht bei Layer-/Clip-Path-Fehlern.
-- Browser-Kompatibilitaets-Regel Plan-Update 3-7: Outside-/Ship-Clipping braucht robusten Fallback fuer mobile WebView/Canvas-evenodd-Inkompatibilitaet.
-- Isolations-Regel Plan-Update 3-7: Outside-Layer-Fails duerfen Inside/Room/GIF nicht blockieren; sichtbare Restanimationen bleiben Pflicht.
-- Preview-Entfernung bleibt unveraendert gueltig; kein Re-Introduce von Preview/UI/State/Routing/Send/Rollback.
-- Abnahme-Regel Plan-Update 3-7: mobiler Hard-Proof muss nach Trigger mindestens globale + room + GIF-Effekte sichtbar nachweisen.
-- Plan-Update-3-7 Umsetzung: Renderfehler werden per-Tick pro Layer (`outside`/`animation`/`clip`/`scheduler`) isoliert; Draw-Tick bleibt auch bei Fehlern aktiv.
-- Plan-Update-3-7 Umsetzung: Outside-/Ship-Maskierung nutzt Capability-Detection fuer evenodd plus deterministischen Composite-Fallback (`destination-out`) fuer mobile WebViews.
-- Plan-Update-3-7 Umsetzung: Outside-Failure-Isolation ist als Startup-Regression mit Fault-Injection verpflichtend geprueft; Inside/Room/GIF bleiben sichtbar.
+- Neues verpflichtendes Feedback fuer Phase 3 (Plan-Update 3-3) ist gesetzt: GIF-Raumanimationen laufen aktuell nicht als echte GIF-Loops, sondern zeigen Pulse-/Zoom-Muster.
+- P0-Regel Plan-Update 3-3: Renderer muss fuer `kaputt`/`feuer`/`schleim` native GIF-Framefolge + echten Loop aus den Assets abspielen (kein Pseudoersatz).
+- Paritaets-Regel Plan-Update 3-3: `opacity`/`playbackSpeed` bleiben instanzscharf unter nativer GIF-Wiedergabe.
+- Regression-Regel Plan-Update 3-3: Running-List-1:1, hold-by-default und Clipping bleiben unveraendert Pflicht-Gates.
+- Plan-3-3-Bugfix ist umgesetzt: `kaputt`/`feuer`/`schleim` rendern als native GIF-Frame-Loops ohne Pulse-/Zoom-Ersatz.
+- Instanzparitaet bleibt fuer natives GIF-Playback erhalten (`opacity`/`playbackSpeed` je `animation.id` querwirkungsfrei).
+- Plan-3-3-Nachweise sind dokumentiert: `P3-T29-REGRESSION.md`, `P3-T30-SOAK.md`, `3-3-VERIFICATION.md`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -505,59 +477,3 @@
   - `.planning/phases/phase-03/P3-T24-SOAK.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
-
-## Execution Results (Phase 3 Plan 3)
-- Status: completed
-- Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
-- Task Commits: 5 atomare Commits (`b465bfd`, `adb71ff`, `6c8c6dc`, `bb50935`, `af3ba92`)
-- Evidence:
-  - `.planning/phases/phase-03/3-3-VERIFICATION.md`
-  - `.planning/phases/phase-03/P3-T30-REGRESSION.md`
-  - `.planning/phases/phase-03/P3-T30-SOAK.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check server.mjs` (Server Syntax Check)
-
-## Execution Results (Phase 3 Plan 4)
-- Status: completed
-- Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
-- Task Commits: 3 atomare Commits (`62e77ec`, `17c8f9c`, `91d60f1`)
-- Evidence:
-  - `.planning/phases/phase-03/3-4-VERIFICATION.md`
-  - `.planning/phases/phase-03/P3-T33-REGRESSION.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check server.mjs` (Server Syntax Check)
-
-## Execution Results (Phase 3 Plan 5)
-- Status: completed
-- Summary: `.planning/phases/phase-03/3-5-SUMMARY.md`
-- Task Commits: 10 atomare Commits (`aeca234`, `524cb6c`, `a70c9ad`, `a607a45`, `cb9372d`, `483e82c`, `d4d9b7d`, `df913f0`, `f482753`, `58121f0`)
-- Evidence:
-  - `.planning/phases/phase-03/3-5-VERIFICATION.md`
-  - `.planning/phases/phase-03/P3-T42-REGRESSION.md`
-  - `.planning/phases/phase-03/P3-T43-SOAK.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check src/state/index.js`, `src/rendering/index.js`, `src/effects/index.js`, `src/audio/index.js`, `src/ui/index.js`, `src/persistence/index.js`, `src/api/save.js`
-
-## Execution Results (Phase 3 Plan 6)
-- Status: completed
-- Summary: `.planning/phases/phase-03/3-6-SUMMARY.md`
-- Task Commits: 6 atomare Commits (`eb9fb09`, `c2b08aa`, `e4b05a7`, `b30f087`, `ed6a440`, `dfc78ac`)
-- Evidence:
-  - `.planning/phases/phase-03/3-6-VERIFICATION.md`
-  - `.planning/phases/phase-03/P3-T49-REGRESSION.md`
-  - `.planning/phases/phase-03/P3-T49-SOAK.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check server.mjs` (Server Syntax Check)
-  - Pattern-Checks: kein Preview-UI-IDs in `index.html`/`src/app.js`, keine `/api/live/*`-Routen in `src/app.js`/`server.mjs`
-
-## Execution Results (Phase 3 Plan 7)
-- Status: completed
-- Summary: `.planning/phases/phase-03/3-7-SUMMARY.md`
-- Task Commits: 6 atomare Commits (`59cbc4f`, `b4bdd4b`, `9422ad9`, `82d0e22`, `83c452a`, `51d8c41`)
-- Evidence:
-  - `.planning/phases/phase-03/3-7-VERIFICATION.md`
-  - `.planning/phases/phase-03/P3-T55-REGRESSION.md`
-  - `.planning/phases/phase-03/P3-T55-SOAK.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check server.mjs` (Server Syntax Check)
-  - Pattern-Checks: keine Preview-UI-IDs und keine `/api/live/*`-Routen reaktiviert

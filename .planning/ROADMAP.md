@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2) und priorisiere in Phase 3 den direkten Live-Trigger-Betrieb ohne Preview-Zwischenflow.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen, Datenzonen und Preview/Live-Flow (Phase 2).
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -37,45 +37,24 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
-## Phase 3 - Nemesis Animations Overhaul (Completed)
-Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe, GIF-Mapping pro Animation (UI + Persistenz) sowie robustem Render-Loop-Hardening fuer mobile und browserinkonsistente Clip-Pfade.
+## Phase 3 - Nemesis Animations Overhaul (Rework in Progress)
+Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping und echter GIF-Loop-Wiedergabe fuer die 3 GIF-basierten Raumtypen bei instanzscharfer Steuerung (`opacity`, `playbackSpeed`) und Default `hold`.
 
-Status: 56/56 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31), Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34), Plan 3-5 Rework (P3-T35..P3-T44), Plan 3-6 P0-Hotfix (P3-T45..P3-T50) und Plan 3-7 Reopen-P0-Hotfix (P3-T51..P3-T56) sind abgeschlossen; Nachweise in `.planning/phases/phase-03/3-7-SUMMARY.md`, `.planning/phases/phase-03/3-7-VERIFICATION.md`, `.planning/phases/phase-03/P3-T55-REGRESSION.md`, `.planning/phases/phase-03/P3-T55-SOAK.md`.
+Status: 31/31 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25) und Plan 3-3 P0-Bugfix (P3-T26..P3-T31) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`).
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
 2. P0 Render-Rework: GIF-Vorgaben + globale Aequivalente (`alarm`/`lichtflackern`) strikt raumbegrenzt.
-3. P0 Rework 3-3: echte GIF-Loops fuer `kaputt`/`feuer`/`schleim` statt Einzelbild-Pulsing.
-4. P0 Rework 3-3: GIF-Mapping-UI pro Animation inkl. Persistenz (analog Sound-Mapping).
+3. P0 Bugfix Plan 3-3: echtes GIF-Playback fuer `kaputt`/`feuer`/`schleim` (native Loops statt Pulse-/Zoom-Ersatz).
+4. P0 UX-Paritaet: Running-Uebersicht 1:1 pro aktiver Animation + hold-by-default bleibt stabil.
 5. P1 Hardening: Regression, Performance, Verifikation, Artefakt-Sync.
-6. P0/P1 Hotfix 3-4: Direct-Start verdrahtet gemappten GIF-Pfad inkl. Regression Direct-Start/Edit/Reload und Artefakt-Sync.
-7. P0 Rework 3-5: kritischen Render-Regression-Bug schliessen (Animationen wieder sichtbar auf Board, Audio-only-Fall ausgeschlossen).
-8. P0 Rework 3-5: Pflicht-Refactor `app.js` in Modulgrenzen (`state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`).
-9. P1 Rework 3-5: Lesbarkeit (gezielte Kommentare) plus Paritaets-/Stabilitaetsnachweise nach Refactor.
-10. P0 Hotfix 3-6: Preview-Flow vollstaendig entfernen und auf direkten Live-Trigger zurueckstellen.
-11. P0 Hotfix 3-6: sichtbares Rendering fuer `global`/`room`/`gif` sofort wiederherstellen; Running/Stop/Edit stabil halten.
-12. P1 Gate 3-6: weiterer Refactor erst nach stabilem P0-Hotfix-Nachweis fortsetzen.
-13. P0 Hotfix 3-7: Render-Loop-Fault-Isolation, sodass Einzel-Layer-/Clip-Fehler nie den gesamten Draw-Tick stoppen.
-14. P0 Hotfix 3-7: Outside-/Ship-Clip-Kompatibilitaet fuer mobile WebView/Canvas-evenodd-Faelle plus Outside-Failure-Isolation.
-15. P0 Gate 3-7: mobiler Hartnachweis, dass nach Trigger mindestens `global` + `room` + `gif` sichtbar/bewegt sind.
 
 Exit Criteria:
-- Plan-3-2-P0 bleibt abgeschlossen und nachgewiesen.
+- Plan-3-2-P0 ist abgeschlossen und Plan-3-3-P0 Bugfix ist vollstaendig umgesetzt und nachgewiesen.
 - Alle 7 separaten Raumanimationen sind einzeln triggerbar/stoppbar und in Running 1:1 sichtbar.
 - `alarm` und `lichtflackern` laufen als globale Aequivalente ohne Clipping-Leaks ausserhalb des Zielraums.
-- GIF-Raumanimationen `kaputt`/`feuer`/`schleim` laufen als echte Mehrframe-Loops, nicht als Pulsing-Einzelbild.
-- GIF-Mapping pro Animation ist in der UI auswaehlbar und persistent gespeichert.
-- Verifikation und Planungsartefakte (inkl. Plan 3-3) sind konsistent abgeschlossen.
-- Plan 3-4 Hotfix weist Ende-zu-Ende-Mapping fuer Direct-Start + Edit + Reload explizit nach.
-- Kritischer Render-Bug ist behoben: aktive Animationen rendern auf dem Board sichtbar und stabil, auch bei parallel laufendem Audio.
-- `app.js` ist in verpflichtende Modulgrenzen aufgeteilt; keine monolithische Kernlogik bleibt ungeordnet zurueck.
-- Nach Refactor ist funktionale Paritaet + Stabilitaet via Regression/Soak dokumentiert.
-- Preview-Flow ist vollstaendig entfernt; direkter Live-Trigger ist wieder der einzige Runtime-Pfad.
-- P0-Hotfix-Nachweis fuer sichtbares Rendering (`global`/`room`/`gif`) und stabile Running-/Stop-/Edit-Integritaet liegt vor.
-- Render-Loop bleibt auch bei Layer-/Clip-Path-Fehlern aktiv; kein globaler Draw-Stop durch Einzeldefekt.
-- Outside-/Ship-Clipping ist browserrobust inklusive Mobile-WebView-Fallback ohne evenodd-Abhaengigkeit.
-- Outside-Layer-Fehler stoppen Inside/Room/GIF nicht; Sichtbarkeit bleibt fuer verbleibende Layer erhalten.
-- Mobiler Trigger-Flow weist sichtbare/bewegte `global` + `room` + `gif`-Effekte als Pflichtnachweis nach.
+- GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` laufen als echte native Loops; `opacity`/`playbackSpeed` bleiben instanzscharf steuerbar.
+- Verifikation und Planungsartefakte konsistent abgeschlossen.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
