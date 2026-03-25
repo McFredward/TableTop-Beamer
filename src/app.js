@@ -21,7 +21,6 @@ const {
   API_BASE_URL_PARAM_KEYS,
   API_PORT_FALLBACKS,
   API_REQUEST_TIMEOUT_MS,
-  SESSION_REQUEST_TIMEOUT_MS,
   LOCAL_API_HOSTS,
   ROOM_GEOMETRY_DEFAULT,
   BOARD_ZOOM_DEFAULT,
@@ -31,6 +30,19 @@ const {
 } = window.TT_BEAMER_CONFIG;
 
 let BOARDS = CONFIG_BOARDS.map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board));
+
+const OUTPUT_ROLE_CONTROL = "control";
+const OUTPUT_ROLE_FINAL = "final-output";
+
+function resolveOutputRoleFromLocation() {
+  const pathname = window.location.pathname || "/";
+  return pathname === "/output/final" || pathname.startsWith("/output/final/")
+    ? OUTPUT_ROLE_FINAL
+    : OUTPUT_ROLE_CONTROL;
+}
+
+const outputRole = resolveOutputRoleFromLocation();
+document.body.dataset.outputRole = outputRole;
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
@@ -42,25 +54,6 @@ const zonesStatus = document.querySelector("#zones-status");
 const outputRouteSelect = document.querySelector("#output-route-select");
 const outputRouteStatus = document.querySelector("#output-route-status");
 const applyOutputRouteButton = document.querySelector("#apply-output-route");
-const sessionIdInput = document.querySelector("#session-id-input");
-const clientRoleSelect = document.querySelector("#client-role-select");
-const sessionReconnectButton = document.querySelector("#session-reconnect");
-const alignmentOverlayToggleInput = document.querySelector("#alignment-overlay-toggle");
-const sessionStatus = document.querySelector("#session-status");
-const sessionEndpointStatus = document.querySelector("#session-endpoint-status");
-const sessionHeartbeatEndpointStatus = document.querySelector("#session-heartbeat-endpoint-status");
-const sessionHeartbeatTransportStatus = document.querySelector("#session-heartbeat-transport-status");
-const sessionEventTransportStatus = document.querySelector("#session-event-transport-status");
-const sessionConnectionStateStatus = document.querySelector("#session-connection-state-status");
-const sessionStreamConnectivityStatus = document.querySelector("#session-stream-connectivity-status");
-const sessionHeartbeatStatusSplit = document.querySelector("#session-heartbeat-status-split");
-const sessionConnectTransportStatus = document.querySelector("#session-connect-transport-status");
-const sessionLastErrorStatus = document.querySelector("#session-last-error-status");
-const sessionRetryStatus = document.querySelector("#session-retry-status");
-const sessionLastSuccessStatus = document.querySelector("#session-last-success-status");
-const sessionSelfTestButton = document.querySelector("#session-self-test");
-const sessionSelfTestStatus = document.querySelector("#session-self-test-status");
-const sessionSelfTestMatrix = document.querySelector("#session-self-test-matrix");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -170,7 +163,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "output-route-select",
   "apply-output-route",
-  "session-self-test",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
@@ -218,32 +210,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
 ];
 
 const ctx = canvas.getContext("2d");
-const ROLE_STORAGE_KEY = "tt-beamer.client-role.v1";
-const SESSION_STORAGE_KEY = "tt-beamer.session-id.v1";
-const CLIENT_ROLE_VALUES = new Set(["operator", "alignment", "final-output"]);
-const DEFAULT_CLIENT_ROLE = "operator";
-const SESSION_EVENT_GET_FALLBACK_STORAGE_KEY = "tt-beamer.session-event-get-fallback.v1";
-const SESSION_EVENT_GET_FALLBACK_QUERY_KEYS = ["eventGetFallback", "ttSessionEventGetFallback"];
-const SESSION_ENDPOINT_PATHS = {
-  connect: "/api/session/connect",
-  stream: "/api/session/stream",
-  heartbeat: "/api/session/heartbeat",
-  event: "/api/session/event",
-};
-const SESSION_RETRY_BASE_DELAY_MS = 1200;
-const SESSION_RETRY_MAX_DELAY_MS = 12000;
-const SESSION_RETRY_JITTER_MS = 450;
-const SESSION_HEARTBEAT_FAILURE_THRESHOLD = 3;
-const SESSION_RETRY_TERMINAL_GRACE_MS = 45000;
-const SESSION_ERROR_MESSAGES = {
-  CONNECT_HTTP_ERROR: "Connect-Request vom Session-Server abgelehnt",
-  CONNECT_UNREACHABLE: "Session-Endpoint nicht erreichbar",
-  HEARTBEAT_FAILED: "Heartbeat fehlgeschlagen",
-  SSE_INTERRUPTED: "Session-Stream unterbrochen",
-  SSE_STREAM_TIMEOUT: "Session-Stream-Connect Timeout",
-  EMIT_FAILED: "Session-Event konnte nicht gesendet werden",
-  RETRY_TERMINAL: "Reconnect-Limit erreicht (terminal)",
-};
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
@@ -254,1818 +220,6 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
-
-function normalizeClientRole(role) {
-  const normalized = String(role || "").trim().toLowerCase();
-  if (CLIENT_ROLE_VALUES.has(normalized)) {
-    return normalized;
-  }
-  return DEFAULT_CLIENT_ROLE;
-}
-
-function isFinalOutputRole(role = state.role) {
-  return normalizeClientRole(role) === "final-output";
-}
-
-function resolveRoleFromRuntimeContext() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = normalizeClientRole(params.get("role") || params.get("ttRole"));
-    if (CLIENT_ROLE_VALUES.has(fromQuery)) {
-      return fromQuery;
-    }
-  } catch {
-    // ignore malformed URL
-  }
-  try {
-    return normalizeClientRole(window.localStorage.getItem(ROLE_STORAGE_KEY));
-  } catch {
-    return DEFAULT_CLIENT_ROLE;
-  }
-}
-
-function resolveSessionIdFromRuntimeContext() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = String(params.get("session") || params.get("sessionId") || "").trim();
-    if (fromQuery) {
-      return fromQuery;
-    }
-  } catch {
-    // ignore malformed query
-  }
-  try {
-    const stored = String(window.localStorage.getItem(SESSION_STORAGE_KEY) || "").trim();
-    if (stored) {
-      return stored;
-    }
-  } catch {
-    // ignore storage failure
-  }
-  return "default-session";
-}
-
-function parseBooleanLike(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) {
-    return true;
-  }
-  if (["0", "false", "no", "off"].includes(normalized)) {
-    return false;
-  }
-  return null;
-}
-
-function isSessionEventGetFallbackEnabled() {
-  try {
-    const params = new URLSearchParams(window.location?.search || "");
-    for (const key of SESSION_EVENT_GET_FALLBACK_QUERY_KEYS) {
-      const parsed = parseBooleanLike(params.get(key));
-      if (parsed !== null) {
-        return parsed;
-      }
-    }
-  } catch {
-    // ignore malformed query
-  }
-  try {
-    const parsed = parseBooleanLike(window.localStorage.getItem(SESSION_EVENT_GET_FALLBACK_STORAGE_KEY));
-    if (parsed !== null) {
-      return parsed;
-    }
-  } catch {
-    // ignore storage failures
-  }
-  return false;
-}
-
-const SESSION_EVENT_GET_FALLBACK_ENABLED = isSessionEventGetFallbackEnabled();
-
-function getPreferredSessionIdCandidates() {
-  const candidates = [];
-  const seen = new Set();
-  const add = (value) => {
-    const cleaned = String(value || "").trim();
-    if (!cleaned || seen.has(cleaned)) {
-      return;
-    }
-    seen.add(cleaned);
-    candidates.push(cleaned);
-  };
-
-  add(state.session.id);
-  add(state.session.lastSuccessfulSessionId);
-  add(resolveSessionIdFromRuntimeContext());
-  add("default-session");
-
-  candidates.sort((left, right) => {
-    if (left === "default-session" && right !== "default-session") {
-      return 1;
-    }
-    if (right === "default-session" && left !== "default-session") {
-      return -1;
-    }
-    return 0;
-  });
-  return candidates;
-}
-
-function readSessionOverrideCandidate() {
-  const finalize = (base, source, raw) => {
-    const normalized = normalizeApiBase(base);
-    return {
-      raw: typeof raw === "string" ? raw.trim() : "",
-      source,
-      apiBase: normalized,
-      valid: Boolean(normalized),
-    };
-  };
-
-  const globalRaw = typeof window.__TT_BEAMER_API_BASE__ === "string" ? window.__TT_BEAMER_API_BASE__.trim() : "";
-  if (globalRaw) {
-    return finalize(globalRaw, "override:window.__TT_BEAMER_API_BASE__", globalRaw);
-  }
-
-  try {
-    const params = new URLSearchParams(window.location?.search || "");
-    for (const key of API_BASE_URL_PARAM_KEYS) {
-      const value = String(params.get(key) || "").trim();
-      if (value) {
-        return finalize(value, `override:url(${key})`, value);
-      }
-    }
-  } catch {
-    // ignore malformed URL
-  }
-
-  try {
-    const localRaw = String(window.localStorage.getItem(API_BASE_STORAGE_KEY) || "").trim();
-    if (localRaw) {
-      return finalize(localRaw, `override:localStorage(${API_BASE_STORAGE_KEY})`, localRaw);
-    }
-  } catch {
-    // ignore localStorage failures
-  }
-
-  return null;
-}
-
-function clearStaleSessionLocalStorageOverride(reason = "") {
-  try {
-    window.localStorage.removeItem(API_BASE_STORAGE_KEY);
-    return `cleared stale localStorage override${reason ? ` (${reason})` : ""}`;
-  } catch {
-    return reason ? `localStorage override stale (${reason})` : "localStorage override stale";
-  }
-}
-
-async function probeSessionApiBase(apiBase) {
-  const normalized = normalizeApiBase(apiBase);
-  if (!normalized) {
-    return {
-      reachable: false,
-      reason: "invalid-api-base",
-    };
-  }
-  const healthEndpoint = `${normalized}/api/health`;
-  try {
-    const response = await fetchWithTimeout(healthEndpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      return {
-        reachable: false,
-        reason: `health-http-${response.status}`,
-      };
-    }
-    return {
-      reachable: true,
-      reason: "ok",
-    };
-  } catch (error) {
-    return {
-      reachable: false,
-      reason: error instanceof Error ? `unreachable:${error.message}` : "unreachable",
-    };
-  }
-}
-
-async function resolveSessionApiCandidates() {
-  const uiOrigin = normalizeApiBase(window.location?.origin) || "http://127.0.0.1:4173";
-  const uiHost = getUiHostName();
-  const uiDefault = {
-    apiBase: uiOrigin,
-    source: "session:ui-origin-default",
-    uiHost,
-    apiHost: getApiHostName(uiOrigin),
-    fallbackReason: "none",
-  };
-  const override = readSessionOverrideCandidate();
-
-  if (!override) {
-    return {
-      candidates: [uiDefault],
-      resolved: uiDefault,
-    };
-  }
-
-  if (!override.valid) {
-    const staleReason = override.source.startsWith("override:localStorage")
-      ? clearStaleSessionLocalStorageOverride("invalid-api-base")
-      : null;
-    const fallbackReason = `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default${staleReason ? ` | ${staleReason}` : ""}`;
-    return {
-      candidates: [
-        {
-          ...uiDefault,
-          fallbackReason,
-        },
-      ],
-      resolved: {
-        ...uiDefault,
-        fallbackReason,
-      },
-    };
-  }
-
-  const overrideApiBase = normalizeApiBase(override.apiBase);
-  if (!overrideApiBase || overrideApiBase === uiOrigin) {
-    return {
-      candidates: [
-        {
-          ...uiDefault,
-          source: "session:ui-origin-default",
-          fallbackReason: overrideApiBase === uiOrigin ? `${override.source} matched ui-origin` : "none",
-        },
-      ],
-      resolved: {
-        ...uiDefault,
-        fallbackReason: overrideApiBase === uiOrigin ? `${override.source} matched ui-origin` : "none",
-      },
-    };
-  }
-
-  const reachability = await probeSessionApiBase(overrideApiBase);
-  if (reachability.reachable) {
-    const selected = {
-      apiBase: overrideApiBase,
-      source: `session:${override.source}`,
-      uiHost,
-      apiHost: getApiHostName(overrideApiBase),
-      fallbackReason: "none",
-    };
-    return {
-      candidates: [selected, uiDefault],
-      resolved: selected,
-    };
-  }
-
-  const fallbackReason = `${override.source} unreachable (${reachability.reason}) -> ui-origin-default`;
-  const fallbackWithCleanup = override.source.startsWith("override:localStorage")
-    ? `${fallbackReason} | ${clearStaleSessionLocalStorageOverride(reachability.reason)}`
-    : fallbackReason;
-  return {
-    candidates: [
-      {
-        ...uiDefault,
-        fallbackReason: fallbackWithCleanup,
-      },
-    ],
-    resolved: {
-      ...uiDefault,
-      fallbackReason: fallbackWithCleanup,
-    },
-  };
-}
-
-function setSessionResolverSnapshot({ apiBase, source, fallbackReason = "none", endpoint = "" } = {}) {
-  const normalizedBase = normalizeApiBase(apiBase) || "";
-  state.session.apiBase = normalizedBase;
-  state.session.apiSource = source || "unresolved";
-  state.session.selectedVia = source || "unresolved";
-  state.session.fallbackReason = fallbackReason || "none";
-  state.session.resolvedEndpoint =
-    endpoint ||
-    (normalizedBase
-      ? buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
-          apiBase: normalizedBase,
-        })
-      : "");
-}
-
-function buildSessionEndpoint(path, { apiBase = state.session.apiBase || window.location?.origin || "", query } = {}) {
-  const normalizedBase = normalizeApiBase(apiBase) || window.location?.origin || "";
-  const endpoint = `${normalizedBase}${path}`;
-  if (!query) {
-    return endpoint;
-  }
-  const search = new URLSearchParams(query);
-  return `${endpoint}?${search.toString()}`;
-}
-
-function getSessionConnectUrl({ sessionId, apiBase, includeClientId = true } = {}) {
-  const role = normalizeClientRole(state.role);
-  const resolvedSessionId = String(sessionId || state.session.id || "default-session").trim() || "default-session";
-  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
-    apiBase,
-    query: {
-      sessionId: resolvedSessionId,
-      role,
-      version: SESSION_PROTOCOL_VERSION,
-      ...(includeClientId && state.session.clientId ? { clientId: state.session.clientId } : {}),
-    },
-  });
-}
-
-function getSessionStreamUrl({ apiBase, sessionId = state.session.id, clientId = state.session.clientId } = {}) {
-  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.stream, {
-    apiBase,
-    query: {
-      sessionId: sessionId || "default-session",
-      clientId: clientId || "",
-    },
-  });
-}
-
-function buildSharedSessionState() {
-  return {
-    boardId: state.boardId,
-    selectedRoomId: state.selectedRoomId,
-    runningAnimations: state.runningAnimations,
-    alignmentOverlayEnabled: Boolean(state.alignmentOverlayEnabled),
-    outputRoute: state.outputRoute,
-    outsideFxByBoard: state.outsideFxByBoard,
-  };
-}
-
-function syncSessionStatus(text) {
-  if (!sessionStatus) {
-    return;
-  }
-  sessionStatus.textContent = text;
-  syncSessionDiagnosticsPanel();
-}
-
-function formatSessionTimestamp(value) {
-  const numeric = Number(value || 0);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return "-";
-  }
-  try {
-    return new Date(numeric).toLocaleTimeString("de-DE", { hour12: false });
-  } catch {
-    return "-";
-  }
-}
-
-function getSessionResolverMeta() {
-  const selectedVia = state.session.selectedVia || state.session.apiSource || "unbekannt";
-  const fallbackReason = state.session.fallbackReason || "none";
-  return {
-    selectedVia,
-    fallbackReason,
-    text: `selected via ${selectedVia} | fallback reason ${fallbackReason}`,
-  };
-}
-
-function normalizeHeartbeatStatus(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (["unknown", "healthy", "degraded", "failed"].includes(normalized)) {
-    return normalized;
-  }
-  return "unknown";
-}
-
-function ensureSessionConnectivityState() {
-  if (typeof state.session.streamConnected !== "boolean") {
-    state.session.streamConnected = false;
-  }
-  state.session.heartbeatStatus = normalizeHeartbeatStatus(state.session.heartbeatStatus);
-}
-
-function syncSessionDiagnosticsPanel() {
-  ensureSessionConnectivityState();
-  const retry = getSessionRetryState();
-  const resolver = getSessionResolverMeta();
-  if (sessionEndpointStatus) {
-    const resolvedEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "";
-    const endpointText = resolvedEndpoint
-      ? `${resolvedEndpoint} | ${resolver.text}`
-      : `noch nicht aufgeloest | ${resolver.text}`;
-    sessionEndpointStatus.textContent = `Session Endpoint: ${endpointText}`;
-  }
-
-  if (sessionHeartbeatEndpointStatus) {
-    const heartbeatEndpoint =
-      retry.lastHeartbeatEndpoint ||
-      (state.session.apiBase
-        ? buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
-            apiBase: state.session.apiBase,
-          })
-        : "");
-    const endpointText = heartbeatEndpoint
-      ? `${heartbeatEndpoint} | ${resolver.text}`
-      : `noch nicht aufgeloest | ${resolver.text}`;
-    sessionHeartbeatEndpointStatus.textContent =
-      `Heartbeat Endpoint: ${endpointText} | Methode ${retry.lastHeartbeatMethod || "POST"} | fallback ${retry.lastHeartbeatFallbackReason || "none"}`;
-  }
-
-  if (sessionHeartbeatTransportStatus) {
-    const switchedText = retry.lastHeartbeatMethodSwitchAt
-      ? `${formatSessionTimestamp(retry.lastHeartbeatMethodSwitchAt)} (${retry.lastHeartbeatMethodSwitchLabel || "-"})`
-      : "-";
-    sessionHeartbeatTransportStatus.textContent =
-      `Heartbeat Transport: aktiv ${retry.lastHeartbeatMethod || "POST"} | letzter Wechsel ${switchedText}`;
-  }
-
-  if (sessionEventTransportStatus) {
-    const eventEndpoint = retry.lastEventEndpoint || buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
-    const switchedText = retry.lastEventMethodSwitchAt
-      ? `${formatSessionTimestamp(retry.lastEventMethodSwitchAt)} (${retry.lastEventMethodSwitchLabel || "-"})`
-      : "-";
-    const flagState = SESSION_EVENT_GET_FALLBACK_ENABLED ? "GET-Fallback ON" : "GET-Fallback OFF";
-    sessionEventTransportStatus.textContent =
-      `Event Transport: aktiv ${retry.lastEventMethod || "POST"} | Endpoint ${eventEndpoint || "-"} | fallback ${retry.lastEventFallbackReason || "none"} | letzter Wechsel ${switchedText} | ${flagState}`;
-  }
-
-  if (sessionConnectionStateStatus) {
-    const connectionState = state.session.connected ? "connected" : retry.status || "idle";
-    sessionConnectionStateStatus.textContent =
-      `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"} | ${resolver.text}`;
-  }
-
-  if (sessionStreamConnectivityStatus) {
-    sessionStreamConnectivityStatus.textContent =
-      `Session Stream: ${state.session.streamConnected ? "connected" : "disconnected"}`;
-  }
-
-  if (sessionHeartbeatStatusSplit) {
-    sessionHeartbeatStatusSplit.textContent = `Session Heartbeat: ${state.session.heartbeatStatus}`;
-  }
-
-  if (sessionConnectTransportStatus) {
-    const onlineText = retry.lastOnlineState || (navigator.onLine ? "online" : "offline");
-    sessionConnectTransportStatus.textContent =
-      `Connect Transport: ${retry.lastConnectTransport || "fetch"} | fallback ${retry.lastConnectFallbackReason || "none"} | online ${onlineText}`;
-  }
-
-  if (sessionLastErrorStatus) {
-    const errorEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "-";
-    const errorText = retry.lastError
-      ? `${retry.lastErrorCode || "ERROR"}: ${retry.lastError} | name ${retry.lastErrorName || "-"} | message ${retry.lastErrorMessage || "-"} | online ${retry.lastOnlineState || "unknown"} | transport ${retry.lastConnectTransport || "fetch"} | Endpoint ${errorEndpoint}`
-      : "kein Fehler";
-    sessionLastErrorStatus.textContent = `Session Fehler: ${errorText}`;
-  }
-
-  if (sessionRetryStatus) {
-    let retryText = `Versuche ${retry.attempt}/${retry.maxAttempts}`;
-    if (retry.terminal) {
-      retryText += " | terminal";
-    } else if (retry.nextRetryAt > 0) {
-      const inMs = Math.max(0, retry.nextRetryAt - Date.now());
-      retryText += ` | naechster Retry in ${(inMs / 1000).toFixed(1)}s`;
-    }
-    const heartbeatFailures = Math.max(0, Number(retry.heartbeatFailureCount || 0));
-    const heartbeatThreshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
-    retryText += ` | heartbeat failures ${heartbeatFailures}/${heartbeatThreshold}`;
-    sessionRetryStatus.textContent = `Session Retry: ${retryText}`;
-  }
-
-  if (sessionLastSuccessStatus) {
-    const endpoint = retry.lastEndpoint || "-";
-    sessionLastSuccessStatus.textContent =
-      `Letzter erfolgreicher Connect: ${formatSessionTimestamp(retry.lastSuccessAt)} | Endpoint ${endpoint}`;
-  }
-}
-
-function getSessionRetryState() {
-  if (!state.session.retry || typeof state.session.retry !== "object") {
-    state.session.retry = {
-      status: "idle",
-      attempt: 0,
-      maxAttempts: 8,
-      nextDelayMs: 0,
-      nextRetryAt: 0,
-      terminal: false,
-      lastError: "",
-      lastErrorCode: "",
-      lastErrorAt: 0,
-      lastAttemptAt: 0,
-      lastSuccessAt: 0,
-      lastEndpoint: "",
-      lastConnectTransport: "fetch",
-      lastConnectFallbackReason: "none",
-      lastErrorName: "",
-      lastErrorMessage: "",
-      lastOnlineState: "unknown",
-      lastHeartbeatEndpoint: "",
-      lastHeartbeatMethod: "POST",
-      lastHeartbeatFallbackReason: "none",
-      lastHeartbeatMethodSwitchAt: 0,
-      lastHeartbeatMethodSwitchLabel: "-",
-      lastHeartbeatMethodChanged: false,
-      lastEventEndpoint: "",
-      lastEventMethod: "POST",
-      lastEventFallbackReason: "none",
-      lastEventMethodSwitchAt: 0,
-      lastEventMethodSwitchLabel: "-",
-      lastEventMethodChanged: false,
-      heartbeatFailureCount: 0,
-      heartbeatFailureThreshold: SESSION_HEARTBEAT_FAILURE_THRESHOLD,
-      lastStreamState: "closed",
-      lastStreamTransitionAt: 0,
-      lastStreamTransitionReason: "init",
-      stableResetPending: false,
-      reconnectTransitionId: 0,
-    };
-  }
-  if (!Number.isFinite(Number(state.session.retry.heartbeatFailureCount))) {
-    state.session.retry.heartbeatFailureCount = 0;
-  }
-  if (!Number.isFinite(Number(state.session.retry.heartbeatFailureThreshold))) {
-    state.session.retry.heartbeatFailureThreshold = SESSION_HEARTBEAT_FAILURE_THRESHOLD;
-  }
-  if (typeof state.session.retry.stableResetPending !== "boolean") {
-    state.session.retry.stableResetPending = false;
-  }
-  if (!Number.isFinite(Number(state.session.retry.reconnectTransitionId))) {
-    state.session.retry.reconnectTransitionId = 0;
-  }
-  if (!["POST", "GET-fallback"].includes(String(state.session.retry.lastHeartbeatMethod || ""))) {
-    state.session.retry.lastHeartbeatMethod = "POST";
-  }
-  if (typeof state.session.retry.lastHeartbeatFallbackReason !== "string") {
-    state.session.retry.lastHeartbeatFallbackReason = "none";
-  }
-  if (!Number.isFinite(Number(state.session.retry.lastHeartbeatMethodSwitchAt))) {
-    state.session.retry.lastHeartbeatMethodSwitchAt = 0;
-  }
-  if (typeof state.session.retry.lastHeartbeatMethodSwitchLabel !== "string") {
-    state.session.retry.lastHeartbeatMethodSwitchLabel = "-";
-  }
-  if (typeof state.session.retry.lastHeartbeatMethodChanged !== "boolean") {
-    state.session.retry.lastHeartbeatMethodChanged = false;
-  }
-  if (typeof state.session.retry.lastEventEndpoint !== "string") {
-    state.session.retry.lastEventEndpoint = "";
-  }
-  if (!["POST", "GET-fallback"].includes(String(state.session.retry.lastEventMethod || ""))) {
-    state.session.retry.lastEventMethod = "POST";
-  }
-  if (typeof state.session.retry.lastEventFallbackReason !== "string") {
-    state.session.retry.lastEventFallbackReason = "none";
-  }
-  if (!Number.isFinite(Number(state.session.retry.lastEventMethodSwitchAt))) {
-    state.session.retry.lastEventMethodSwitchAt = 0;
-  }
-  if (typeof state.session.retry.lastEventMethodSwitchLabel !== "string") {
-    state.session.retry.lastEventMethodSwitchLabel = "-";
-  }
-  if (typeof state.session.retry.lastEventMethodChanged !== "boolean") {
-    state.session.retry.lastEventMethodChanged = false;
-  }
-  if (!["fetch", "xhr"].includes(String(state.session.retry.lastConnectTransport || ""))) {
-    state.session.retry.lastConnectTransport = "fetch";
-  }
-  if (typeof state.session.retry.lastConnectFallbackReason !== "string") {
-    state.session.retry.lastConnectFallbackReason = "none";
-  }
-  if (typeof state.session.retry.lastErrorName !== "string") {
-    state.session.retry.lastErrorName = "";
-  }
-  if (typeof state.session.retry.lastErrorMessage !== "string") {
-    state.session.retry.lastErrorMessage = "";
-  }
-  if (typeof state.session.retry.lastOnlineState !== "string") {
-    state.session.retry.lastOnlineState = "unknown";
-  }
-  if (!["opened", "healthy", "degraded", "closed", "reconnecting"].includes(String(state.session.retry.lastStreamState || ""))) {
-    state.session.retry.lastStreamState = "closed";
-  }
-  if (!Number.isFinite(Number(state.session.retry.lastStreamTransitionAt))) {
-    state.session.retry.lastStreamTransitionAt = 0;
-  }
-  if (typeof state.session.retry.lastStreamTransitionReason !== "string") {
-    state.session.retry.lastStreamTransitionReason = "init";
-  }
-  return state.session.retry;
-}
-
-function logSessionStreamTransition(nextState, { reason = "unspecified", detail = "" } = {}) {
-  const normalizedState = String(nextState || "").trim().toLowerCase();
-  if (!["opened", "healthy", "degraded", "closed", "reconnecting"].includes(normalizedState)) {
-    return;
-  }
-  const retry = getSessionRetryState();
-  ensureSessionConnectivityState();
-  const previous = retry.lastStreamState || "closed";
-  if (previous === normalizedState && retry.lastStreamTransitionReason === reason) {
-    return;
-  }
-  retry.lastStreamState = normalizedState;
-  retry.lastStreamTransitionAt = Date.now();
-  retry.lastStreamTransitionReason = String(reason || "unspecified");
-  console.info("[session-stream-transition]", {
-    from: previous,
-    to: normalizedState,
-    reason: retry.lastStreamTransitionReason,
-    detail: String(detail || ""),
-    sessionId: state.session.id || "default-session",
-    clientId: state.session.clientId || "",
-    streamConnected: state.session.streamConnected,
-    heartbeatStatus: state.session.heartbeatStatus,
-    retryStatus: retry.status || "idle",
-    at: new Date(retry.lastStreamTransitionAt).toISOString(),
-  });
-}
-
-function updateHeartbeatTransport(method, endpoint, fallbackReason = "none") {
-  const retry = getSessionRetryState();
-  const normalizedMethod = method === "GET-fallback" ? "GET-fallback" : "POST";
-  const previousMethod = retry.lastHeartbeatMethod || "POST";
-  const methodChanged = previousMethod !== normalizedMethod;
-  const switchedAt = methodChanged ? Date.now() : Number(retry.lastHeartbeatMethodSwitchAt || 0);
-  retry.lastHeartbeatMethod = normalizedMethod;
-  retry.lastHeartbeatEndpoint = endpoint;
-  retry.lastHeartbeatFallbackReason = fallbackReason || "none";
-  retry.lastHeartbeatMethodChanged = methodChanged;
-  retry.lastHeartbeatMethodSwitchAt = switchedAt;
-  retry.lastHeartbeatMethodSwitchLabel = methodChanged
-    ? `${previousMethod} -> ${normalizedMethod}`
-    : retry.lastHeartbeatMethodSwitchLabel || "-";
-}
-
-function buildHeartbeatGetFallbackEndpoint() {
-  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
-    query: {
-      sessionId: state.session.id || "default-session",
-      clientId: state.session.clientId || "",
-      role: state.role,
-    },
-  });
-}
-
-function updateEventTransport(method, endpoint, fallbackReason = "none") {
-  const retry = getSessionRetryState();
-  const normalizedMethod = method === "GET-fallback" ? "GET-fallback" : "POST";
-  const previousMethod = retry.lastEventMethod || "POST";
-  const methodChanged = previousMethod !== normalizedMethod;
-  const switchedAt = methodChanged ? Date.now() : Number(retry.lastEventMethodSwitchAt || 0);
-  retry.lastEventMethod = normalizedMethod;
-  retry.lastEventEndpoint = endpoint;
-  retry.lastEventFallbackReason = fallbackReason || "none";
-  retry.lastEventMethodChanged = methodChanged;
-  retry.lastEventMethodSwitchAt = switchedAt;
-  retry.lastEventMethodSwitchLabel = methodChanged
-    ? `${previousMethod} -> ${normalizedMethod}`
-    : retry.lastEventMethodSwitchLabel || "-";
-}
-
-function buildSessionEventId() {
-  return `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function buildEventGetFallbackEndpoint(eventPayload) {
-  return buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event, {
-    query: {
-      sessionId: eventPayload.sessionId,
-      clientId: eventPayload.clientId,
-      role: eventPayload.role,
-      type: eventPayload.type,
-      eventId: eventPayload.eventId,
-      payload: JSON.stringify(eventPayload.payload || {}),
-      sharedState: JSON.stringify(eventPayload.sharedState || {}),
-    },
-  });
-}
-
-function isConnectFallbackEligible(error) {
-  if (!error) {
-    return false;
-  }
-  if (String(error?.code || "") === "API_UNREACHABLE") {
-    return true;
-  }
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return true;
-  }
-  const name = String(error?.name || "").toLowerCase();
-  const message = String(error?.message || "").toLowerCase();
-  return (
-    name.includes("network") ||
-    name.includes("abort") ||
-    name.includes("timeout") ||
-    message.includes("failed to fetch") ||
-    message.includes("network") ||
-    message.includes("load failed") ||
-    message.includes("timeout")
-  );
-}
-
-function describeConnectFallbackReason(error) {
-  if (!error) {
-    return "fetch-error-unknown";
-  }
-  if (String(error?.code || "") === "API_UNREACHABLE") {
-    return "fetch-timeout";
-  }
-  const errorName = String(error?.name || "error").toLowerCase();
-  if (errorName.includes("abort")) {
-    return "fetch-abort";
-  }
-  if (errorName.includes("network")) {
-    return "fetch-network-error";
-  }
-  const message = String(error?.message || "").toLowerCase();
-  if (message.includes("failed to fetch") || message.includes("load failed")) {
-    return "fetch-unreachable";
-  }
-  return "fetch-network-error";
-}
-
-function createXhrResponseLike({ endpoint, status, responseText }) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    url: endpoint,
-    async json() {
-      return JSON.parse(String(responseText || "{}"));
-    },
-    async text() {
-      return String(responseText || "");
-    },
-  };
-}
-
-async function fetchSessionConnectViaXhr(endpoint, { timeoutMs = SESSION_REQUEST_TIMEOUT_MS } = {}) {
-  return await new Promise((resolve, reject) => {
-    let settled = false;
-    const resolveOnce = (value) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      resolve(value);
-    };
-    const rejectOnce = (error) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      reject(error);
-    };
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", endpoint, true);
-    xhr.timeout = Math.max(250, Number(timeoutMs) || SESSION_REQUEST_TIMEOUT_MS);
-    xhr.setRequestHeader("accept", "application/json");
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState !== XMLHttpRequest.DONE) {
-        return;
-      }
-      resolveOnce(
-        createXhrResponseLike({
-          endpoint,
-          status: Number(xhr.status || 0),
-          responseText: xhr.responseText || "",
-        }),
-      );
-    };
-    xhr.onerror = () => {
-      const error = new Error("xhr connect network error");
-      error.name = "NetworkError";
-      rejectOnce(error);
-    };
-    xhr.ontimeout = () => {
-      const error = new Error(`xhr connect timeout after ${xhr.timeout}ms`);
-      error.name = "TimeoutError";
-      rejectOnce(error);
-    };
-    xhr.onabort = () => {
-      const error = new Error("xhr connect aborted");
-      error.name = "AbortError";
-      rejectOnce(error);
-    };
-    xhr.send();
-  });
-}
-
-async function fetchSessionConnectWithTransportFallback(endpoint) {
-  try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    });
-    return {
-      response,
-      transport: "fetch",
-      fallbackReason: "none",
-    };
-  } catch (error) {
-    if (!isConnectFallbackEligible(error)) {
-      throw error;
-    }
-    const fallbackReason = describeConnectFallbackReason(error);
-    const response = await fetchSessionConnectViaXhr(endpoint, {
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    });
-    return {
-      response,
-      transport: "xhr",
-      fallbackReason,
-    };
-  }
-}
-
-function setSessionSelfTestStatus(text) {
-  if (sessionSelfTestStatus) {
-    sessionSelfTestStatus.textContent = text;
-  }
-}
-
-function renderSessionSelfTestMatrix(results = []) {
-  if (!sessionSelfTestMatrix) {
-    return;
-  }
-  const expectedRoutes = ["connect", "stream", "heartbeat", "event"];
-  const normalized = expectedRoutes.map((routeName) => {
-    const existing = results.find((entry) => entry && entry.route === routeName);
-    return (
-      existing || {
-        route: routeName,
-        ok: false,
-        endpoint: "-",
-        method: "-",
-        detail: "nicht ausgefuehrt",
-      }
-    );
-  });
-  sessionSelfTestMatrix.replaceChildren(
-    ...normalized.map((entry) => {
-      const row = document.createElement("tr");
-      const routeCell = document.createElement("th");
-      routeCell.scope = "row";
-      routeCell.textContent = String(entry.route || "-");
-      const verdictCell = document.createElement("td");
-      verdictCell.textContent = entry.ok ? "OK" : "FAIL";
-      const endpointCell = document.createElement("td");
-      endpointCell.textContent = String(entry.endpoint || "-");
-      const methodCell = document.createElement("td");
-      methodCell.textContent = String(entry.method || "-");
-      const detailCell = document.createElement("td");
-      detailCell.textContent = String(entry.detail || "-");
-      row.append(routeCell, verdictCell, endpointCell, methodCell, detailCell);
-      return row;
-    }),
-  );
-}
-
-async function runSessionConnectSelfTest() {
-  const endpoint = getSessionConnectUrl({
-    sessionId: state.session.id || "default-session",
-    includeClientId: false,
-  });
-  try {
-    const connectAttempt = await fetchSessionConnectWithTransportFallback(endpoint);
-    const response = connectAttempt.response;
-    if (!response.ok) {
-      return {
-        route: "connect",
-        ok: false,
-        endpoint,
-        method: connectAttempt.transport,
-        detail: `HTTP ${response.status}`,
-      };
-    }
-    const payload = await response.json();
-    return {
-      route: "connect",
-      ok: true,
-      endpoint,
-      method: connectAttempt.transport,
-      detail: `session=${payload?.sessionId || "default-session"}`,
-      sessionId: String(payload?.sessionId || state.session.id || "default-session"),
-      clientId: String(payload?.clientId || "").trim(),
-    };
-  } catch (error) {
-    return {
-      route: "connect",
-      ok: false,
-      endpoint,
-      method: "fetch/xhr",
-      detail: String(error?.message || "connect test failed"),
-    };
-  }
-}
-
-async function runSessionStreamSelfTest({ sessionId, clientId }) {
-  const endpoint = getSessionStreamUrl({ sessionId, clientId });
-  try {
-    const opened = await new Promise((resolve, reject) => {
-      const source = new EventSource(endpoint);
-      const timeoutId = window.setTimeout(() => {
-        source.close();
-        reject(new Error("stream timeout"));
-      }, Math.min(3000, SESSION_REQUEST_TIMEOUT_MS));
-      source.addEventListener("open", () => {
-        window.clearTimeout(timeoutId);
-        source.close();
-        resolve(true);
-      });
-      source.addEventListener("error", () => {
-        window.clearTimeout(timeoutId);
-        source.close();
-        reject(new Error("stream open failed"));
-      });
-    });
-    return {
-      route: "stream",
-      ok: Boolean(opened),
-      endpoint,
-      method: "GET",
-      detail: "SSE open",
-    };
-  } catch (error) {
-    return {
-      route: "stream",
-      ok: false,
-      endpoint,
-      method: "GET",
-      detail: String(error?.message || "stream test failed"),
-    };
-  }
-}
-
-async function runSessionHeartbeatSelfTest({ sessionId, clientId }) {
-  const endpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat);
-  const basePayload = {
-    sessionId,
-    clientId,
-    role: state.role,
-  };
-  try {
-    const postResponse = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify(basePayload),
-    });
-    if (postResponse.ok) {
-      return {
-        route: "heartbeat",
-        ok: true,
-        endpoint,
-        method: "POST",
-        detail: "HTTP 200",
-      };
-    }
-    const fallbackEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
-      query: basePayload,
-    });
-    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    });
-    return {
-      route: "heartbeat",
-      ok: fallbackResponse.ok,
-      endpoint: fallbackEndpoint,
-      method: "GET-fallback",
-      detail: fallbackResponse.ok
-        ? `post HTTP ${postResponse.status} -> fallback OK`
-        : `post HTTP ${postResponse.status}, fallback HTTP ${fallbackResponse.status}`,
-    };
-  } catch (error) {
-    return {
-      route: "heartbeat",
-      ok: false,
-      endpoint,
-      method: "POST",
-      detail: String(error?.message || "heartbeat test failed"),
-    };
-  }
-}
-
-async function runSessionEventSelfTest({ sessionId, clientId }) {
-  const endpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
-  const eventPayload = {
-    sessionId,
-    clientId,
-    role: state.role,
-    type: "self-test",
-    eventId: buildSessionEventId(),
-    payload: {
-      source: "settings-self-test",
-      timestamp: Date.now(),
-    },
-    sharedState: {},
-  };
-  try {
-    const postResponse = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify(eventPayload),
-    });
-    if (postResponse.ok) {
-      return {
-        route: "event",
-        ok: true,
-        endpoint,
-        method: "POST",
-        detail: "HTTP 200",
-      };
-    }
-    if (!SESSION_EVENT_GET_FALLBACK_ENABLED) {
-      return {
-        route: "event",
-        ok: false,
-        endpoint,
-        method: "POST",
-        detail: `HTTP ${postResponse.status}`,
-      };
-    }
-    const fallbackEndpoint = buildEventGetFallbackEndpoint(eventPayload);
-    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    });
-    return {
-      route: "event",
-      ok: fallbackResponse.ok,
-      endpoint: fallbackEndpoint,
-      method: "GET-fallback",
-      detail: fallbackResponse.ok
-        ? `post HTTP ${postResponse.status} -> fallback OK`
-        : `post HTTP ${postResponse.status}, fallback HTTP ${fallbackResponse.status}`,
-    };
-  } catch (error) {
-    return {
-      route: "event",
-      ok: false,
-      endpoint,
-      method: "POST",
-      detail: String(error?.message || "event test failed"),
-    };
-  }
-}
-
-async function runSessionSelfTest() {
-  if (!sessionSelfTestButton) {
-    return;
-  }
-  sessionSelfTestButton.disabled = true;
-  setSessionSelfTestStatus("Session Self-Test: laeuft...");
-  const results = [];
-  try {
-    const connectResult = await runSessionConnectSelfTest();
-    results.push(connectResult);
-    const sessionId = connectResult.sessionId || state.session.id || "default-session";
-    const clientId = connectResult.clientId || state.session.clientId || "";
-
-    if (!connectResult.ok || !clientId) {
-      results.push({
-        route: "stream",
-        ok: false,
-        endpoint: getSessionStreamUrl({ sessionId, clientId: clientId || "-" }),
-        method: "GET",
-        detail: "connect prerequisite failed",
-      });
-      results.push({
-        route: "heartbeat",
-        ok: false,
-        endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
-        method: "POST",
-        detail: "connect prerequisite failed",
-      });
-      results.push({
-        route: "event",
-        ok: false,
-        endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event),
-        method: "POST",
-        detail: "connect prerequisite failed",
-      });
-    } else {
-      results.push(await runSessionStreamSelfTest({ sessionId, clientId }));
-      results.push(await runSessionHeartbeatSelfTest({ sessionId, clientId }));
-      results.push(await runSessionEventSelfTest({ sessionId, clientId }));
-    }
-  } finally {
-    renderSessionSelfTestMatrix(results);
-    const successCount = results.filter((entry) => entry.ok).length;
-    setSessionSelfTestStatus(`Session Self-Test: ${successCount}/${results.length} OK`);
-    sessionSelfTestButton.disabled = false;
-  }
-}
-
-async function sendHeartbeatWithFallback() {
-  const postEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat);
-  const postRequest = {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    body: JSON.stringify({
-      sessionId: state.session.id,
-      clientId: state.session.clientId,
-      role: state.role,
-    }),
-  };
-
-  let postResponse = null;
-  let fallbackReason = "post-exception-unknown";
-  try {
-    postResponse = await fetchWithTimeout(postEndpoint, postRequest);
-  } catch (error) {
-    fallbackReason =
-      error instanceof Error && error.message
-        ? `post-exception-${error.message}`
-        : "post-exception-unknown";
-  }
-
-  if (postResponse?.ok) {
-    updateHeartbeatTransport("POST", postEndpoint, "none");
-    return postResponse;
-  }
-
-  if (postResponse && !postResponse.ok) {
-    fallbackReason = `post-http-${postResponse.status}`;
-  }
-
-  const getEndpoint = buildHeartbeatGetFallbackEndpoint();
-  const fallbackResponse = await fetchWithTimeout(getEndpoint, {
-    method: "GET",
-    headers: {
-      accept: "application/json",
-    },
-    timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-  });
-  if (!fallbackResponse.ok) {
-    throw new Error(
-      `heartbeat failed (post endpoint ${postEndpoint}, fallback endpoint ${getEndpoint}, status ${fallbackResponse.status})`,
-    );
-  }
-  updateHeartbeatTransport("GET-fallback", getEndpoint, fallbackReason);
-  return fallbackResponse;
-}
-
-function setSessionRetryError(code, { endpoint = "", status = null, detail = "", error = null } = {}) {
-  ensureSessionConnectivityState();
-  const retry = getSessionRetryState();
-  retry.status = "failed";
-  retry.lastErrorCode = code;
-  const base = SESSION_ERROR_MESSAGES[code] || "Session-Fehler";
-  const statusPart = Number.isFinite(Number(status)) ? ` (HTTP ${Number(status)})` : "";
-  retry.lastError = `${base}${statusPart}`;
-  retry.lastErrorAt = Date.now();
-  if (endpoint) {
-    retry.lastEndpoint = endpoint;
-    if (code === "HEARTBEAT_FAILED") {
-      retry.lastHeartbeatEndpoint = endpoint;
-    }
-  }
-  if (detail) {
-    retry.lastError = `${retry.lastError} - ${detail}`;
-  }
-  retry.lastErrorName = String(error?.name || "");
-  retry.lastErrorMessage = String(error?.message || "");
-  retry.lastOnlineState = navigator.onLine ? "online" : "offline";
-  if (code === "HEARTBEAT_FAILED") {
-    state.session.heartbeatStatus = "failed";
-  }
-}
-
-function updateConnectTransport(transport = "fetch", fallbackReason = "none") {
-  const retry = getSessionRetryState();
-  retry.lastConnectTransport = transport === "xhr" ? "xhr" : "fetch";
-  retry.lastConnectFallbackReason = fallbackReason || "none";
-}
-
-function clearSessionReconnectTimer() {
-  const retry = getSessionRetryState();
-  if (sessionReconnectTimer) {
-    window.clearTimeout(sessionReconnectTimer);
-    sessionReconnectTimer = null;
-  }
-  retry.reconnectTransitionId = Math.max(0, Number(retry.reconnectTransitionId || 0)) + 1;
-  retry.nextDelayMs = 0;
-  retry.nextRetryAt = 0;
-}
-
-function calculateSessionRetryDelay(attempt) {
-  const exponent = Math.max(0, Number(attempt || 1) - 1);
-  const baseDelay = Math.min(SESSION_RETRY_MAX_DELAY_MS, SESSION_RETRY_BASE_DELAY_MS * 2 ** exponent);
-  const jitter = Math.floor((Math.random() * 2 - 1) * SESSION_RETRY_JITTER_MS);
-  return Math.max(SESSION_RETRY_BASE_DELAY_MS, Math.min(SESSION_RETRY_MAX_DELAY_MS, baseDelay + jitter));
-}
-
-function updateSessionInputsFromState() {
-  if (sessionIdInput) {
-    sessionIdInput.value = state.session.id || "default-session";
-  }
-  if (clientRoleSelect) {
-    clientRoleSelect.value = normalizeClientRole(state.role);
-  }
-}
-
-function applySessionSnapshot(snapshot, { fromRemoteEvent = false } = {}) {
-  if (!snapshot || typeof snapshot !== "object") {
-    return;
-  }
-  const nextSeq = Number(snapshot.seq) || 0;
-  if (nextSeq < (state.session.lastSeq || 0)) {
-    return;
-  }
-  state.session.lastSeq = nextSeq;
-  state.session.connected = true;
-  state.session.serverVersion = String(snapshot.serverVersion || state.session.serverVersion || "unknown");
-  const shared = snapshot.sharedState && typeof snapshot.sharedState === "object" ? snapshot.sharedState : {};
-
-  sessionApplyingRemoteState = true;
-  try {
-    if (typeof shared.boardId === "string" && BOARDS.some((board) => board.id === shared.boardId)) {
-      state.boardId = shared.boardId;
-    }
-    if (Array.isArray(shared.runningAnimations)) {
-      state.runningAnimations = shared.runningAnimations;
-      const maxCounter = state.runningAnimations.reduce((maxValue, animation) => {
-        const numeric = Number(String(animation.id || "").replace(/^anim-/, ""));
-        return Number.isFinite(numeric) ? Math.max(maxValue, numeric) : maxValue;
-      }, 0);
-      animationIdCounter = Math.max(animationIdCounter, maxCounter + 1);
-    }
-    if (typeof shared.selectedRoomId === "string") {
-      state.selectedRoomId = shared.selectedRoomId;
-      state.selectedRoomByBoard[state.boardId] = shared.selectedRoomId;
-    }
-    if (shared.outsideFxByBoard && typeof shared.outsideFxByBoard === "object") {
-      state.outsideFxByBoard = shared.outsideFxByBoard;
-    }
-    if (Object.prototype.hasOwnProperty.call(shared, "alignmentOverlayEnabled")) {
-      state.alignmentOverlayEnabled = Boolean(shared.alignmentOverlayEnabled);
-    }
-    if (Object.prototype.hasOwnProperty.call(shared, "outputRoute")) {
-      state.outputRoute = String(shared.outputRoute || "auto");
-    }
-  } finally {
-    sessionApplyingRemoteState = false;
-  }
-
-  switchBoard(state.boardId);
-  renderRunningAnimationsList();
-  refreshGlobalButtons();
-  stopSoundsForInactiveAnimations();
-  syncAudioStatus();
-  syncSessionStatus(
-    `Session: verbunden (${state.session.id}) | Rolle ${state.role} | seq ${state.session.lastSeq}${fromRemoteEvent ? " | live" : ""}`,
-  );
-}
-
-async function emitSessionEvent(type, payload = {}) {
-  ensureSessionConnectivityState();
-  const syncAvailable = Boolean(state.session.clientId) && (state.session.connected || state.session.streamConnected);
-  if (sessionApplyingRemoteState || !syncAvailable) {
-    return;
-  }
-  const eventPayload = {
-    sessionId: state.session.id,
-    clientId: state.session.clientId,
-    role: state.role,
-    type,
-    eventId: buildSessionEventId(),
-    payload,
-    sharedState: buildSharedSessionState(),
-  };
-  const postEndpoint = buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event);
-  try {
-    let response = null;
-    let fallbackReason = "none";
-    try {
-      response = await fetchWithTimeout(postEndpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(eventPayload),
-      });
-    } catch (error) {
-      fallbackReason =
-        error instanceof Error && error.message
-          ? `post-exception-${error.message}`
-          : "post-exception-unknown";
-    }
-
-    if (response?.ok) {
-      updateEventTransport("POST", postEndpoint, "none");
-      const result = await response.json();
-      applySessionSnapshot(result?.snapshot);
-      return;
-    }
-
-    if (response && !response.ok) {
-      fallbackReason = `post-http-${response.status}`;
-    }
-
-    if (!SESSION_EVENT_GET_FALLBACK_ENABLED) {
-      throw new Error(
-        response ? `session event failed (${response.status})` : "session event failed (post unreachable)",
-      );
-    }
-
-    const fallbackEndpoint = buildEventGetFallbackEndpoint(eventPayload);
-    const fallbackResponse = await fetchWithTimeout(fallbackEndpoint, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-      timeoutMs: SESSION_REQUEST_TIMEOUT_MS,
-    });
-    if (!fallbackResponse.ok) {
-      throw new Error(`session event fallback failed (${fallbackResponse.status})`);
-    }
-    updateEventTransport("GET-fallback", fallbackEndpoint, fallbackReason);
-    const fallbackResult = await fallbackResponse.json();
-    applySessionSnapshot(fallbackResult?.snapshot);
-  } catch {
-    if (state.session.streamConnected) {
-      const retry = getSessionRetryState();
-      retry.status = "event-degraded";
-      syncSessionStatus(`Session: Event-Send degraded, Stream-Sync aktiv (${state.session.id})`);
-      return;
-    }
-    state.session.connected = false;
-    setSessionRetryError("EMIT_FAILED", {
-      endpoint: getSessionRetryState().lastEventEndpoint || postEndpoint,
-    });
-    syncSessionStatus(`Session: Verbindung verloren (${state.session.id})`);
-  }
-}
-
-function scheduleSessionReconnect({ reason = "reconnect", delayMs = null } = {}) {
-  if (sessionConnectInFlight || state.session.connected) {
-    return false;
-  }
-  if (sessionReconnectTimer) {
-    return false;
-  }
-
-  const retry = getSessionRetryState();
-  let nextAttempt = Number(retry.attempt || 0) + 1;
-  const maxAttempts = Math.max(1, Number(retry.maxAttempts || 8));
-  const now = Date.now();
-  if (nextAttempt > maxAttempts) {
-    const lastSuccessAt = Number(retry.lastSuccessAt || 0);
-    const withinGraceWindow =
-      Number.isFinite(lastSuccessAt) && lastSuccessAt > 0 && now - lastSuccessAt <= SESSION_RETRY_TERMINAL_GRACE_MS;
-    if (withinGraceWindow) {
-      nextAttempt = maxAttempts;
-    } else {
-      retry.status = "terminal";
-      retry.terminal = true;
-      retry.lastErrorCode = "RETRY_TERMINAL";
-      retry.lastError = SESSION_ERROR_MESSAGES.RETRY_TERMINAL;
-      retry.lastErrorAt = Date.now();
-      retry.nextDelayMs = 0;
-      retry.nextRetryAt = 0;
-      retry.stableResetPending = false;
-      state.session.reconnectAttempts = retry.attempt;
-      syncSessionStatus(`Session: reconnect abgebrochen (${state.session.id}) | terminal nach ${retry.attempt}/${maxAttempts}`);
-      return false;
-    }
-  }
-
-  const computedDelay = Number.isFinite(Number(delayMs))
-    ? Math.max(SESSION_RETRY_BASE_DELAY_MS, Number(delayMs))
-    : calculateSessionRetryDelay(nextAttempt);
-  retry.status = "scheduled";
-  logSessionStreamTransition("reconnecting", {
-    reason,
-    detail: `scheduled in ${Math.round(computedDelay)}ms`,
-  });
-  retry.terminal = false;
-  retry.attempt = nextAttempt;
-  retry.nextDelayMs = computedDelay;
-  retry.nextRetryAt = Date.now() + computedDelay;
-  retry.stableResetPending = false;
-  state.session.reconnectAttempts = retry.attempt;
-  const transitionId = Math.max(0, Number(retry.reconnectTransitionId || 0)) + 1;
-  retry.reconnectTransitionId = transitionId;
-
-  sessionReconnectTimer = window.setTimeout(() => {
-    if (Number(getSessionRetryState().reconnectTransitionId) !== transitionId) {
-      return;
-    }
-    sessionReconnectTimer = null;
-    void connectSession({ reconnect: true, reason });
-  }, computedDelay);
-  return true;
-}
-
-function startSessionHeartbeat(intervalMs = 4000) {
-  if (sessionHeartbeatTimer) {
-    window.clearInterval(sessionHeartbeatTimer);
-  }
-  sessionHeartbeatTimer = window.setInterval(async () => {
-    if (!state.session.connected || !state.session.clientId) {
-      return;
-    }
-    try {
-      ensureSessionConnectivityState();
-      const retry = getSessionRetryState();
-      const response = await sendHeartbeatWithFallback();
-      const result = await response.json();
-      retry.heartbeatFailureCount = 0;
-      state.session.heartbeatStatus = "healthy";
-      if (state.session.streamConnected) {
-        logSessionStreamTransition("healthy", {
-          reason: "heartbeat-ok",
-          detail: `method ${retry.lastHeartbeatMethod || "POST"}`,
-        });
-      }
-      if (retry.stableResetPending) {
-        retry.attempt = 0;
-        retry.nextDelayMs = 0;
-        retry.nextRetryAt = 0;
-        retry.terminal = false;
-        retry.stableResetPending = false;
-        state.session.reconnectAttempts = 0;
-      }
-      state.session.lastHeartbeatAt = Date.now();
-      applySessionSnapshot(result?.snapshot);
-    } catch {
-      ensureSessionConnectivityState();
-      const retry = getSessionRetryState();
-      const threshold = Math.max(1, Number(retry.heartbeatFailureThreshold || SESSION_HEARTBEAT_FAILURE_THRESHOLD));
-      retry.heartbeatFailureCount = Math.max(0, Number(retry.heartbeatFailureCount || 0)) + 1;
-      const streamOpen = Boolean(sessionEventSource && sessionEventSource.readyState === EventSource.OPEN);
-      const heartbeatDetail = `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`;
-      state.session.heartbeatStatus = "degraded";
-      logSessionStreamTransition("degraded", {
-        reason: "heartbeat-failed",
-        detail: heartbeatDetail,
-      });
-      retry.status = "heartbeat-degraded";
-      if (streamOpen) {
-        syncSessionStatus(`Session: Heartbeat degraded, Stream aktiv (${heartbeatDetail}) (${state.session.id})`);
-        return;
-      }
-      syncSessionStatus(`Session: Heartbeat degraded ohne Stream-Hard-Reconnect (${heartbeatDetail}) (${state.session.id})`);
-    }
-  }, Math.max(1200, Number(intervalMs) || 4000));
-}
-
-function closeSessionStream() {
-  if (sessionStreamConnectTimeoutTimer) {
-    window.clearTimeout(sessionStreamConnectTimeoutTimer);
-    sessionStreamConnectTimeoutTimer = null;
-  }
-  if (sessionEventSource) {
-    sessionEventSource.close();
-    sessionEventSource = null;
-  }
-  ensureSessionConnectivityState();
-  state.session.streamConnected = false;
-  logSessionStreamTransition("closed", {
-    reason: "stream-close",
-    detail: "event source closed",
-  });
-}
-
-function attachSessionStream() {
-  closeSessionStream();
-  if (!state.session.clientId) {
-    return;
-  }
-  logSessionStreamTransition("reconnecting", {
-    reason: "stream-attach",
-    detail: "opening event source",
-  });
-  const streamEndpoint = getSessionStreamUrl();
-  const stream = new EventSource(streamEndpoint);
-  sessionEventSource = stream;
-  sessionStreamConnectTimeoutTimer = window.setTimeout(() => {
-    if (sessionEventSource !== stream) {
-      return;
-    }
-    state.session.connected = false;
-    setSessionRetryError("SSE_STREAM_TIMEOUT", {
-      endpoint: streamEndpoint,
-      detail: `timeout after ${SESSION_REQUEST_TIMEOUT_MS}ms`,
-    });
-    syncSessionStatus(`Session: Stream-Timeout, reconnect geplant (${state.session.id})`);
-    closeSessionStream();
-    scheduleSessionReconnect({ reason: "sse-timeout" });
-  }, SESSION_REQUEST_TIMEOUT_MS);
-  stream.addEventListener("open", () => {
-    ensureSessionConnectivityState();
-    state.session.streamConnected = true;
-    logSessionStreamTransition("opened", {
-      reason: "stream-open",
-      detail: streamEndpoint,
-    });
-    if (sessionStreamConnectTimeoutTimer) {
-      window.clearTimeout(sessionStreamConnectTimeoutTimer);
-      sessionStreamConnectTimeoutTimer = null;
-    }
-  });
-  stream.addEventListener("session-snapshot", (event) => {
-    try {
-      ensureSessionConnectivityState();
-      state.session.streamConnected = true;
-      const parsed = JSON.parse(event.data);
-      applySessionSnapshot(parsed?.snapshot);
-    } catch {
-      // ignore malformed snapshot
-    }
-  });
-  stream.addEventListener("session-event", (event) => {
-    try {
-      ensureSessionConnectivityState();
-      state.session.streamConnected = true;
-      const parsed = JSON.parse(event.data);
-      if (parsed?.sourceClientId && parsed.sourceClientId === state.session.clientId) {
-        return;
-      }
-      applySessionSnapshot(parsed?.snapshot, { fromRemoteEvent: true });
-    } catch {
-      // ignore malformed event
-    }
-  });
-  stream.addEventListener("error", () => {
-    if (sessionStreamConnectTimeoutTimer) {
-      window.clearTimeout(sessionStreamConnectTimeoutTimer);
-      sessionStreamConnectTimeoutTimer = null;
-    }
-    ensureSessionConnectivityState();
-    state.session.streamConnected = false;
-    logSessionStreamTransition("closed", {
-      reason: "stream-error",
-      detail: streamEndpoint,
-    });
-    state.session.connected = false;
-    setSessionRetryError("SSE_INTERRUPTED", {
-      endpoint: streamEndpoint,
-    });
-    syncSessionStatus(`Session: SSE unterbrochen, reconnect geplant (${state.session.id})`);
-    closeSessionStream();
-    scheduleSessionReconnect({ reason: "sse-interrupted" });
-  });
-}
-
-async function connectSession({ reconnect = false, reason = "manual" } = {}) {
-  if (sessionConnectInFlight) {
-    return;
-  }
-  sessionConnectInFlight = true;
-  clearSessionReconnectTimer();
-  try {
-  const resolution = await resolveSessionApiCandidates();
-  const sessionCandidates = Array.isArray(resolution?.candidates) ? resolution.candidates : [];
-  const preferredSessionIds = getPreferredSessionIdCandidates();
-  const retry = getSessionRetryState();
-  let lastError = null;
-
-  retry.status = reconnect ? "reconnecting" : "connecting";
-  if (reconnect) {
-    logSessionStreamTransition("reconnecting", {
-      reason,
-      detail: "connect-session-start",
-    });
-  }
-  retry.lastAttemptAt = Date.now();
-  retry.nextRetryAt = 0;
-  retry.nextDelayMs = 0;
-
-  if (resolution?.resolved) {
-    setSessionResolverSnapshot({
-      apiBase: resolution.resolved.apiBase,
-      source: resolution.resolved.source,
-      fallbackReason: resolution.resolved.fallbackReason || "none",
-      endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
-        apiBase: resolution.resolved.apiBase,
-      }),
-    });
-  }
-
-  for (const candidate of sessionCandidates) {
-    for (const candidateSessionId of preferredSessionIds) {
-      let response = null;
-      let includeClientId = true;
-
-      for (let joinAttempt = 0; joinAttempt < 2; joinAttempt += 1) {
-        const endpoint = getSessionConnectUrl({
-          sessionId: candidateSessionId,
-          apiBase: candidate.apiBase,
-          includeClientId,
-        });
-        retry.lastEndpoint = endpoint;
-        setSessionResolverSnapshot({
-          apiBase: candidate.apiBase,
-          source: candidate.source,
-          fallbackReason: candidate.fallbackReason || resolution?.resolved?.fallbackReason || "none",
-          endpoint,
-        });
-        try {
-          const connectAttempt = await fetchSessionConnectWithTransportFallback(endpoint);
-          response = connectAttempt.response;
-          updateConnectTransport(connectAttempt.transport, connectAttempt.fallbackReason);
-          if (response.ok) {
-            const result = await response.json();
-            state.session.id = String(result.sessionId || candidateSessionId || "default-session");
-            state.session.lastSuccessfulSessionId = state.session.id;
-            state.session.clientId = String(result.clientId || state.session.clientId || "");
-            setSessionResolverSnapshot({
-              apiBase: candidate.apiBase,
-              source: candidate.source,
-              fallbackReason: candidate.fallbackReason || resolution?.resolved?.fallbackReason || "none",
-              endpoint,
-            });
-            applyClientRole(result.role || state.role);
-            state.session.connected = true;
-            ensureSessionConnectivityState();
-            state.session.streamConnected = false;
-            state.session.heartbeatStatus = "unknown";
-            state.session.serverVersion = String(result?.snapshot?.serverVersion || "unknown");
-            clearSessionReconnectTimer();
-            retry.status = "connected";
-            retry.nextDelayMs = 0;
-            retry.nextRetryAt = 0;
-            retry.terminal = false;
-            retry.lastError = "";
-            retry.lastErrorCode = "";
-            retry.lastSuccessAt = Date.now();
-            retry.heartbeatFailureCount = 0;
-            retry.stableResetPending = reconnect || Number(retry.attempt || 0) > 0;
-            if (!retry.stableResetPending) {
-              retry.attempt = 0;
-              state.session.reconnectAttempts = 0;
-            }
-            updateHeartbeatTransport(
-              "POST",
-              buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat, {
-                apiBase: candidate.apiBase,
-              }),
-              "none",
-            );
-            updateEventTransport(
-              "POST",
-              buildSessionEndpoint(SESSION_ENDPOINT_PATHS.event, {
-                apiBase: candidate.apiBase,
-              }),
-              SESSION_EVENT_GET_FALLBACK_ENABLED ? "none" : "feature-flag-off",
-            );
-            applySessionSnapshot(result?.snapshot);
-            attachSessionStream();
-            startSessionHeartbeat(result?.snapshot?.heartbeatIntervalMs ?? 4000);
-            syncSessionStatus(
-              `Session: verbunden (${state.session.id}) | ${reconnect ? `reconnect:${reason}` : "join"} | Rolle ${state.role}`,
-            );
-            return;
-          }
-
-          const details = await response.text();
-          lastError = new Error(`connect failed (${response.status}) ${details}`);
-            setSessionRetryError("CONNECT_HTTP_ERROR", {
-              endpoint,
-              status: response.status,
-              detail: `transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
-              error: lastError,
-            });
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error("session connect failed");
-          setSessionRetryError("CONNECT_UNREACHABLE", {
-            endpoint,
-            detail: `${reconnect ? "reconnect" : "join"} | transport ${getSessionRetryState().lastConnectTransport || "fetch"}`,
-            error: lastError,
-          });
-        }
-
-        if (includeClientId && state.session.clientId) {
-          includeClientId = false;
-          continue;
-        }
-      }
-    }
-  }
-
-  state.session.connected = false;
-  ensureSessionConnectivityState();
-  state.session.streamConnected = false;
-  retry.status = "failed";
-  syncSessionStatus(`Session: Verbindung fehlgeschlagen (${state.session.id || "default-session"})`);
-  scheduleSessionReconnect({ reason: "connect-failed" });
-  if (lastError) {
-    console.warn("session connect failed", retry.lastErrorCode || "CONNECT_FAILED");
-  }
-  } finally {
-    sessionConnectInFlight = false;
-  }
-}
-
-function applyClientRole(nextRole) {
-  const previousRole = state.role;
-  state.role = normalizeClientRole(nextRole);
-  if (clientRoleSelect) {
-    clientRoleSelect.value = state.role;
-  }
-  try {
-    window.localStorage.setItem(ROLE_STORAGE_KEY, state.role);
-  } catch {
-    // ignore persistence failures
-  }
-  if (previousRole !== state.role) {
-    if (!isAudioAllowedForCurrentRole()) {
-      for (const animation of state.runningAnimations) {
-        stopAnimationSound(animation.id);
-      }
-      stopAllAudioVoices();
-    } else if (state.audio.enabled) {
-      for (const animation of state.runningAnimations) {
-        playSoundForAnimation(animation);
-      }
-    }
-  }
-  applyRoleRenderMode();
-  applyAudioGain();
-  syncAudioStatus();
-  syncSessionStatus(`Session: Rolle gesetzt auf ${state.role}`);
-}
-
-function applySessionId(nextSessionId) {
-  const cleaned =
-    String(nextSessionId || "").trim() ||
-    String(state.session.lastSuccessfulSessionId || "").trim() ||
-    String(resolveSessionIdFromRuntimeContext() || "").trim() ||
-    "default-session";
-  state.session.id = cleaned;
-  if (sessionIdInput) {
-    sessionIdInput.value = cleaned;
-  }
-  try {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, cleaned);
-  } catch {
-    // ignore persistence failures
-  }
-}
-
-function isHelperLayerAllowed() {
-  return !isFinalOutputRole();
-}
-
-function shouldRenderOverlay() {
-  return isHelperLayerAllowed() || state.alignmentOverlayEnabled;
-}
-
-function shouldShowOverlayGuides() {
-  if (isFinalOutputRole()) {
-    return Boolean(state.alignmentOverlayEnabled);
-  }
-  if (state.role === "operator") {
-    return true;
-  }
-  return true;
-}
-
-function isAudioAllowedForCurrentRole() {
-  return isFinalOutputRole();
-}
-
-function applyRoleRenderMode() {
-  const finalOutput = isFinalOutputRole();
-  document.body.dataset.clientRole = state.role;
-  if (finalOutput && state.uiView !== "dashboard") {
-    state.uiView = "dashboard";
-  }
-  if (controlPanel) {
-    controlPanel.toggleAttribute("hidden", finalOutput);
-    controlPanel.setAttribute("aria-hidden", finalOutput ? "true" : "false");
-  }
-  boardImage.style.visibility = finalOutput ? "hidden" : "visible";
-  roomOverlay.style.display = shouldRenderOverlay() ? "block" : "none";
-  roomOverlay.style.pointerEvents = shouldRenderOverlay() ? "auto" : "none";
-  roomOverlay.classList.toggle("overlay-guides-hidden", !shouldShowOverlayGuides());
-  if (alignmentOverlayToggleInput) {
-    alignmentOverlayToggleInput.disabled = finalOutput;
-    alignmentOverlayToggleInput.checked = Boolean(state.alignmentOverlayEnabled);
-  }
-  stage.classList.toggle("is-final-output", finalOutput);
-}
 
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
   getBoards: () => BOARDS,
@@ -2080,13 +234,6 @@ const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
-let sessionEventSource = null;
-let sessionHeartbeatTimer = null;
-let sessionStreamConnectTimeoutTimer = null;
-let sessionReconnectTimer = null;
-let sessionConnectInFlight = false;
-let sessionApplyingRemoteState = false;
-const SESSION_PROTOCOL_VERSION = "5-1";
 
 const {
   createDefaultAnimationSoundMap,
@@ -2565,7 +712,6 @@ function buildPersistedRuntimeSettingsFromState() {
       enabled: Boolean(state.audio.enabled),
       volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
     },
-    alignmentOverlayEnabled: Boolean(state.alignmentOverlayEnabled),
     animationSpeed: clampAnimationSpeed(state.animationSpeed),
     animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
   };
@@ -2591,10 +737,6 @@ function applyPersistedRuntimeSettings(payload) {
     if (Number.isFinite(nextVolume)) {
       state.audio.volume = Math.max(0, Math.min(1, nextVolume));
     }
-  }
-
-  if (Object.prototype.hasOwnProperty.call(payload, "alignmentOverlayEnabled")) {
-    state.alignmentOverlayEnabled = Boolean(payload.alignmentOverlayEnabled);
   }
 
   if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
@@ -2767,28 +909,20 @@ async function saveGlobalDefaultsToServer() {
 }
 
 async function fetchWithTimeout(url, options = {}) {
-  const timeoutMsValue = Number(options.timeoutMs);
-  const timeoutMs = Number.isFinite(timeoutMsValue)
-    ? Math.max(250, timeoutMsValue)
-    : API_REQUEST_TIMEOUT_MS;
-  const fetchOptions = {
-    ...options,
-  };
-  delete fetchOptions.timeoutMs;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
   try {
     return await fetch(url, {
-      ...fetchOptions,
+      ...options,
       signal: controller.signal,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw buildGlobalDefaultsSaveError({
         code: "API_UNREACHABLE",
-        details: `timeout after ${timeoutMs}ms`,
+        details: `timeout after ${API_REQUEST_TIMEOUT_MS}ms`,
         endpoint: url,
-        method: fetchOptions.method ?? "GET",
+        method: options.method ?? "GET",
       });
     }
     throw error;
@@ -4477,9 +2611,6 @@ function executeClearAll() {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
-  void emitSessionEvent("clear-all", {
-    reason: "operator-action",
-  });
 }
 
 function resetClearAllGuard() {
@@ -4589,7 +2720,7 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 }
 
 function setActiveView(view, { skipGuard = false } = {}) {
-  const nextView = isFinalOutputRole() ? "dashboard" : view === "settings" ? "settings" : "dashboard";
+  const nextView = view === "settings" ? "settings" : "dashboard";
   if (nextView !== "settings") {
     state.panMode.spacePressed = false;
     endPanMode(null, { canceled: true });
@@ -4615,7 +2746,6 @@ function setActiveView(view, { skipGuard = false } = {}) {
   syncMobileStickyOffsets();
   syncStageZoomTransform();
   setPanCursorState();
-  applyRoleRenderMode();
   renderRoomOverlay();
   if (!skipGuard) {
     validateViewExclusivity(nextView, { context: "set-active-view" });
@@ -5627,8 +3757,7 @@ function finishPolygonAreaDrag(event, { cancel = false } = {}) {
 function syncAudioStatus() {
   const volumePercent = Math.round(state.audio.volume * 100);
   const mode = state.audio.enabled ? "ON" : "OFF";
-  const roleMode = isAudioAllowedForCurrentRole() ? "role=final-output" : `role=${state.role} (mute-gated)`;
-  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%) | ${roleMode}`;
+  audioStatus.textContent = `Audio: ${mode} (${volumePercent}%)`;
 }
 
 function persistRuntimeSoundSettingsChange(failureMessage) {
@@ -5679,7 +3808,7 @@ function warmEventSoundAssets() {
 }
 
 function applyAudioGain() {
-  const targetVolume = state.audio.enabled && isAudioAllowedForCurrentRole() ? state.audio.volume : 0;
+  const targetVolume = state.audio.enabled ? state.audio.volume : 0;
   for (const pool of audioAssetPoolByPath.values()) {
     for (const voice of pool) {
       voice.volume = targetVolume;
@@ -5689,9 +3818,7 @@ function applyAudioGain() {
     if (!active?.voice) {
       continue;
     }
-    const instanceVolume = state.audio.enabled && isAudioAllowedForCurrentRole()
-      ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1)
-      : 0;
+    const instanceVolume = state.audio.enabled ? state.audio.volume * clampRoomSoundVolume(active.soundVolume ?? 1) : 0;
     active.voice.volume = instanceVolume;
     activeAnimationAudioById.set(animationId, {
       ...active,
@@ -5735,7 +3862,7 @@ function stopSoundsForInactiveAnimations() {
 }
 
 function playSoundForAnimation(animation) {
-  if (!animation || !state.audio.enabled || !isAudioAllowedForCurrentRole()) {
+  if (!animation || !state.audio.enabled) {
     return;
   }
   const path = getMappedSoundPathForAnimation(animation.type);
@@ -5754,7 +3881,7 @@ function playSoundForAnimation(animation) {
   const onEnded = () => {
     const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
     const stillActive = activeAnimationAudioById.get(animation.id)?.voice === reusable;
-    if (!stillRunning || !stillActive || !state.audio.enabled || !isAudioAllowedForCurrentRole()) {
+    if (!stillRunning || !stillActive || !state.audio.enabled) {
       stopAnimationSound(animation.id);
       return;
     }
@@ -5988,9 +4115,6 @@ function getRoomRenderMetrics(room, boardId = state.boardId) {
 function renderRoomOverlay() {
   const board = getBoard();
   roomOverlay.replaceChildren();
-  if (!shouldRenderOverlay()) {
-    return;
-  }
 
   for (const room of board.rooms) {
     const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
@@ -6366,11 +4490,6 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
-    void emitSessionEvent("global-stop", {
-      type,
-      boardId: state.boardId,
-      animationId: existing.id,
-    });
   } else {
     const animation = createAnimation({
       type,
@@ -6387,11 +4506,6 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     }
     playSoundForAnimation(animation);
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
-    void emitSessionEvent("global-start", {
-      type,
-      boardId: state.boardId,
-      animationId: animation.id,
-    });
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -6438,12 +4552,6 @@ function startRoomAnimationFromDraft() {
       triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
-      void emitSessionEvent("room-edit", {
-        boardId: state.boardId,
-        roomId: updated.roomId,
-        animationId: updated.id,
-        type: updated.type,
-      });
       return;
     }
     clearRoomDraftEditTarget();
@@ -6466,12 +4574,6 @@ function startRoomAnimationFromDraft() {
   playSoundForAnimation(animation);
   triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.name ?? room.label} gestartet`;
   renderRunningAnimationsList();
-  void emitSessionEvent("room-start", {
-    boardId: state.boardId,
-    roomId: animation.roomId,
-    animationId: animation.id,
-    type: animation.type,
-  });
 }
 
 function stopAnimation(animationId) {
@@ -6490,12 +4592,6 @@ function stopAnimation(animationId) {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
-  void emitSessionEvent("animation-stop", {
-    animationId,
-    boardId: target?.boardId ?? state.boardId,
-    scope: target?.scope ?? "unknown",
-    type: target?.type ?? "unknown",
-  });
 }
 
 function editAnimation(animationId) {
@@ -7360,41 +5456,6 @@ function draw(now) {
     requestAnimationFrame(draw);
   }
 }
-
-sessionIdInput?.addEventListener("change", () => {
-  applySessionId(sessionIdInput.value);
-  closeSessionStream();
-  state.session.connected = false;
-  void connectSession({ reconnect: true });
-});
-
-clientRoleSelect?.addEventListener("change", () => {
-  applyClientRole(clientRoleSelect.value);
-  void emitSessionEvent("role-change", { role: state.role });
-});
-
-sessionReconnectButton?.addEventListener("click", () => {
-  closeSessionStream();
-  state.session.connected = false;
-  void connectSession({ reconnect: true });
-});
-
-sessionSelfTestButton?.addEventListener("click", () => {
-  void runSessionSelfTest();
-});
-
-alignmentOverlayToggleInput?.addEventListener("change", () => {
-  state.alignmentOverlayEnabled = Boolean(alignmentOverlayToggleInput.checked);
-  const persisted = persistBoardProfiles();
-  applyRoleRenderMode();
-  renderRoomOverlay();
-  triggerFeedback.textContent = persisted
-    ? `Status: Alignment-Overlay ${state.alignmentOverlayEnabled ? "aktiviert" : "deaktiviert"}`
-    : `Status: Alignment-Overlay ${state.alignmentOverlayEnabled ? "aktiviert" : "deaktiviert"} (Persistenz fehlgeschlagen)`;
-  void emitSessionEvent("alignment-overlay-toggle", {
-    enabled: state.alignmentOverlayEnabled,
-  });
-});
 
 boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
 
@@ -8309,8 +6370,6 @@ const resizeObserver = new ResizeObserver((entries) => {
 resizeObserver.observe(stage);
 
 function syncRuntimePanelsFromState() {
-  updateSessionInputsFromState();
-  applyRoleRenderMode();
   switchBoard(state.boardId);
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
@@ -8340,16 +6399,9 @@ function syncRuntimePanelsFromState() {
   syncBoardZoomPanel();
   syncDashboardZoneVisibility();
   updateMobilePerformanceStatus();
-  syncSessionStatus(
-    `Session: ${state.session.connected ? "verbunden" : "nicht verbunden"} (${state.session.id}) | Rolle ${state.role}`,
-  );
-  renderSessionSelfTestMatrix();
 }
 
 async function initializeApplication() {
-  applyClientRole(resolveRoleFromRuntimeContext());
-  applySessionId(resolveSessionIdFromRuntimeContext());
-  updateSessionInputsFromState();
   await loadExternalBoardZones();
   syncBoardSelectOptions();
   const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
@@ -8423,7 +6475,6 @@ async function initializeApplication() {
       `API Diagnose: Startup-Load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
   }
   warmEventSoundAssets();
-  await connectSession();
   setActiveView("dashboard");
   setPanCursorState();
   const viewRegressionOk = runViewVisibilityRegression();

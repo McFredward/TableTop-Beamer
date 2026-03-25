@@ -31,25 +31,31 @@ body {
   overflow: hidden;
 }
 
-body[data-client-role="final-output"] {
+body[data-output-role="final-output"] {
   background: #000;
 }
 
-body[data-client-role="final-output"] .app-shell {
+body[data-output-role="final-output"] .app-shell {
   grid-template-columns: minmax(0, 1fr);
 }
 
-body[data-client-role="final-output"] .projection-area {
+body[data-output-role="final-output"] .projection-area {
+  position: relative;
   padding: 0;
 }
 
-body[data-client-role="final-output"] .stage {
+body[data-output-role="final-output"] .stage {
   width: 100vw;
   height: 100vh;
-  aspect-ratio: auto;
-  border: none;
+  border: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+body[data-output-role="final-output"] #board-image,
+body[data-output-role="final-output"] #control-panel,
+body[data-output-role="final-output"] #room-overlay {
+  display: none;
 }
 
 .projection-area {
@@ -153,18 +159,6 @@ body[data-client-role="final-output"] .stage {
 .room-zone.is-special.is-selected {
   fill: rgba(198, 128, 255, 0.2);
   stroke: rgba(242, 219, 255, 0.95);
-}
-
-#room-overlay.overlay-guides-hidden .room-zone {
-  fill: rgba(0, 0, 0, 0.001);
-  stroke: rgba(0, 0, 0, 0);
-}
-
-#room-overlay.overlay-guides-hidden .room-zone-label,
-#room-overlay.overlay-guides-hidden .polygon-vertex-marker,
-#room-overlay.overlay-guides-hidden .polygon-edge-marker,
-#room-overlay.overlay-guides-hidden .ship-zone-mask {
-  opacity: 0;
 }
 
 .room-zone-label {
