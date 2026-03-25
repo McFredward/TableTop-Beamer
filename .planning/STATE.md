@@ -11,9 +11,9 @@
 - Current Phase Key: phase-03
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 3-3
-- Planned Next Execution: 3-4
-- Last Execution Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
+- Last Executed Plan: 3-4
+- Planned Next Execution: none
+- Last Execution Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -216,6 +216,10 @@
 - Plan-3-3-Rework ist ausgefuehrt: GIF-Raumanimationen rendern framebasiert via ImageDecoder mit deterministischer Loop-Wiedergabe.
 - GIF-Mapping wurde als Settings-Panel pro Raumanimation eingefuehrt und in Runtime-Instanzen instanzscharf (`gifAssetPath`) materialisiert.
 - Persistenz fuer GIF-Mapping (`animationGifMap`) laeuft lokal ueber Board-Profil-Snapshot und serverseitig ueber Global-Defaults-Save.
+- Follow-up aus Verify-Work 3 identifiziert eine P0-Luecke im Direct-Start-Pfad: gemapptes GIF wird beim Raumstart nicht deterministisch bis `createAnimation` durchgereicht.
+- Plan-Update 3-4 setzt Prioritaetsfokus: P0 Verdrahtung Direct-Start -> gemapptes `gifAssetPath`, P1 Regression fuer Direct-Start + Edit-Flow + Reload, P1 Artefakt-/Acceptance-Sync fuer Ende-zu-Ende-GIF-Mapping.
+- Plan-3-4-Hotfix: Direct-Start uebergibt `gifAssetPath` explizit an `createAnimation`; impliziter Default-Drift im Startpfad ist geschlossen.
+- Plan-3-4-Hardening: Kette Direct-Start -> Edit -> Reload ist als Runtime-Regression guardiert und auf Instanz-/Mapping-Konsistenz abgesichert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -485,5 +489,15 @@
   - `.planning/phases/phase-03/3-3-VERIFICATION.md`
   - `.planning/phases/phase-03/P3-T30-REGRESSION.md`
   - `.planning/phases/phase-03/P3-T30-SOAK.md`
+  - `node --check src/app.js` (Regression Syntax Check)
+  - `node --check server.mjs` (Server Syntax Check)
+
+## Execution Results (Phase 3 Plan 4)
+- Status: completed
+- Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
+- Task Commits: 3 atomare Commits (`62e77ec`, `17c8f9c`, `91d60f1`)
+- Evidence:
+  - `.planning/phases/phase-03/3-4-VERIFICATION.md`
+  - `.planning/phases/phase-03/P3-T33-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)

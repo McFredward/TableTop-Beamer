@@ -37,10 +37,10 @@ Exit Criteria:
 - Laufzeit- und Bedien-Checks dokumentiert.
 - README auf neuen Session-Workflow aktualisiert.
 
-## Phase 3 - Nemesis Animations Overhaul (Completed)
+## Phase 3 - Nemesis Animations Overhaul (In Progress)
 Ziel: Separat triggerbare Raumanimationen (`kaputt`, `feuer`, `schleim`, `nest`, `dekompression`, `lichtflackern`, `alarm`) mit 1:1-Running-Liste, raumstrengem Clipping, echter GIF-Loop-Wiedergabe und GIF-Mapping pro Animation (UI + Persistenz).
 
-Status: 31/31 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25) und Plan 3-3 Rework (P3-T26..P3-T31) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`).
+Status: 34/34 Tasks abgeschlossen; Plan 3-1 (P3-T1..P3-T12), Plan 3-2 Rework (P3-T13..P3-T25), Plan 3-3 Rework (P3-T26..P3-T31) und Plan 3-4 Hotfix-Add-on (P3-T32..P3-T34) sind abgeschlossen (`.planning/phases/phase-03/3-1-SUMMARY.md`, `.planning/phases/phase-03/3-2-SUMMARY.md`, `.planning/phases/phase-03/3-3-SUMMARY.md`, `.planning/phases/phase-03/3-4-SUMMARY.md`).
 
 Milestones:
 1. P0 Runtime-Rework: separates Trigger-/Instanzmodell pro Raumanimation.
@@ -48,6 +48,7 @@ Milestones:
 3. P0 Rework 3-3: echte GIF-Loops fuer `kaputt`/`feuer`/`schleim` statt Einzelbild-Pulsing.
 4. P0 Rework 3-3: GIF-Mapping-UI pro Animation inkl. Persistenz (analog Sound-Mapping).
 5. P1 Hardening: Regression, Performance, Verifikation, Artefakt-Sync.
+6. P0/P1 Hotfix 3-4: Direct-Start verdrahtet gemappten GIF-Pfad inkl. Regression Direct-Start/Edit/Reload und Artefakt-Sync.
 
 Exit Criteria:
 - Plan-3-2-P0 bleibt abgeschlossen und nachgewiesen.
@@ -56,6 +57,7 @@ Exit Criteria:
 - GIF-Raumanimationen `kaputt`/`feuer`/`schleim` laufen als echte Mehrframe-Loops, nicht als Pulsing-Einzelbild.
 - GIF-Mapping pro Animation ist in der UI auswaehlbar und persistent gespeichert.
 - Verifikation und Planungsartefakte (inkl. Plan 3-3) sind konsistent abgeschlossen.
+- Plan 3-4 Hotfix weist Ende-zu-Ende-Mapping fuer Direct-Start + Edit + Reload explizit nach.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
