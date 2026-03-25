@@ -4651,7 +4651,10 @@ function createPreviewQueueItem({
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
   const effectType = resolveRoomAnimationEffectType(animation.type);
-  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  const playbackSpeed = clampGifPlaybackSpeed(animation.playbackSpeed ?? 1);
+  const playbackAge = isGifRoomAnimation(animation.type)
+    ? age
+    : age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
   drawEffectVisual(
     effectType,
     playbackAge,
@@ -4662,7 +4665,8 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
       densityFactor: qualityScale,
       opacity: clampRoomOpacity(animation.opacity),
       gifAssetPath: ROOM_GIF_ANIMATION_ASSETS[animation.type],
-      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
+      gifTimelineAgeSec: age,
+      gifPlaybackSpeed: playbackSpeed,
       roomAnimationType: animation.type,
     },
   );
@@ -5637,7 +5641,9 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "kaputt") {
     const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const gifFrame = getGifPlaybackFrame(gifPath, age);
+    const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
+    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
+    const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
     const gifImage = gifFrame ?? getGifImage(gifPath);
     if (!gifImage || (!gifFrame && !gifImage.complete)) {
       return;
@@ -5653,7 +5659,9 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "feuer" || type === "schleim") {
     const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const gifFrame = getGifPlaybackFrame(gifPath, age);
+    const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
+    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
+    const gifFrame = getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed);
     const gifImage = gifFrame ?? getGifImage(gifPath);
     if (!gifImage || (!gifFrame && !gifImage.complete)) {
       return;
