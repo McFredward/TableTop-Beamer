@@ -569,22 +569,31 @@ function formatSessionTimestamp(value) {
   }
 }
 
+function getSessionResolverMeta() {
+  const selectedVia = state.session.selectedVia || state.session.apiSource || "unbekannt";
+  const fallbackReason = state.session.fallbackReason || "none";
+  return {
+    selectedVia,
+    fallbackReason,
+    text: `selected via ${selectedVia} | fallback reason ${fallbackReason}`,
+  };
+}
+
 function syncSessionDiagnosticsPanel() {
   const retry = getSessionRetryState();
+  const resolver = getSessionResolverMeta();
   if (sessionEndpointStatus) {
     const resolvedEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "";
-    const selectedVia = state.session.selectedVia || state.session.apiSource || "unbekannt";
-    const fallbackReason = state.session.fallbackReason || "none";
     const endpointText = resolvedEndpoint
-      ? `${resolvedEndpoint} | selected via ${selectedVia} | fallback reason ${fallbackReason}`
-      : `noch nicht aufgeloest | selected via ${selectedVia} | fallback reason ${fallbackReason}`;
+      ? `${resolvedEndpoint} | ${resolver.text}`
+      : `noch nicht aufgeloest | ${resolver.text}`;
     sessionEndpointStatus.textContent = `Session Endpoint: ${endpointText}`;
   }
 
   if (sessionConnectionStateStatus) {
     const connectionState = state.session.connected ? "connected" : retry.status || "idle";
     sessionConnectionStateStatus.textContent =
-      `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"}`;
+      `Session Status: ${connectionState} | Rolle ${state.role} | Session ${state.session.id || "default-session"} | ${resolver.text}`;
   }
 
   if (sessionLastErrorStatus) {
