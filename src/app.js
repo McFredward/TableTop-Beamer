@@ -4988,6 +4988,7 @@ function editAnimation(animationId) {
 }
 
 function renderRunningAnimationsList() {
+  const integrity = enforceRunningAnimationIntegrity();
   const parity = validateRunningListParity();
   runningAnimationsList.replaceChildren();
   if (state.runningAnimations.length === 0) {
@@ -5060,9 +5061,55 @@ function renderRunningAnimationsList() {
     runningAnimationsList.append(li);
   }
 
+  if (integrity.repaired) {
+    triggerFeedback.textContent = `Status: Running-Liste-Guard hat ${integrity.removed} inkonsistente Eintrag/Eintraege bereinigt`;
+  }
+
   if (!parity.ok) {
     triggerFeedback.textContent = `Status: Running-Liste-Guard meldet Drift (${parity.reason})`;
   }
+}
+
+function enforceRunningAnimationIntegrity() {
+  const next = [];
+  const seen = new Set();
+  let removed = 0;
+  for (const animation of state.runningAnimations) {
+    if (!animation?.id || seen.has(animation.id)) {
+      removed += 1;
+      continue;
+    }
+    if (!BOARDS.some((board) => board.id === animation.boardId)) {
+      removed += 1;
+      continue;
+    }
+    if (animation.scope === "room") {
+      const board = getBoard(animation.boardId);
+      if (!board.rooms.some((room) => room.id === animation.roomId)) {
+        removed += 1;
+        continue;
+      }
+    }
+    seen.add(animation.id);
+    next.push(animation);
+  }
+  if (removed > 0) {
+    const previousIds = new Set(state.runningAnimations.map((entry) => entry.id));
+    state.runningAnimations = next;
+    for (const id of previousIds) {
+      if (!seen.has(id)) {
+        stopAnimationSound(id);
+      }
+    }
+    refreshGlobalButtons();
+  }
+  if (
+    state.roomDraft.editTargetId &&
+    !next.some((animation) => animation.id === state.roomDraft.editTargetId)
+  ) {
+    clearRoomDraftEditTarget();
+  }
+  return { repaired: removed > 0, removed };
 }
 
 function validateRunningListParity() {

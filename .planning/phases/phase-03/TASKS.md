@@ -61,6 +61,6 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T45 [P0] Preview-Flow komplett entfernen: Preview-UI, Preview-State, Preview-Routing sowie Send/Rollback-Pfade aus Runtime entfernen.
 - [x] DONE P3-T46 [P0] Direkten Live-Trigger-Flow wiederherstellen: Start/Edit/Stop laufen ohne Preview-Staging direkt gegen die Live-Runtime.
 - [x] DONE P3-T47 [P0] Render-Pipeline-Hotfix umsetzen, damit aktive Animationen fuer alle Typen (`global`, `room`, `gif`) sofort sichtbar rendern.
-- [ ] TODO P3-T48 [P0] Running-Liste/Stop/Edit regressionsfest halten (1:1 Instanzabbildung, kein ID-/State-Drift nach Preview-Rueckbau).
+- [x] DONE P3-T48 [P0] Running-Liste/Stop/Edit regressionsfest halten (1:1 Instanzabbildung, kein ID-/State-Drift nach Preview-Rueckbau).
 - [ ] TODO P3-T49 [P1] Hotfix-Regression + Soak dokumentieren (Trigger/Edit/Stop/Reload/Save-Load ohne Preview-Pfad).
 - [ ] TODO P3-T50 [P1] Plan-3-6-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) inkl. Refactor-Resume-Gate abschliessen.
