@@ -318,35 +318,174 @@ function getPreferredSessionIdCandidates() {
   return candidates;
 }
 
-function resolveSessionApiCandidates() {
-  const resolved = [];
-  const seen = new Set();
-  const addCandidate = ({ apiBase, source, uiHost, apiHost }) => {
-    const normalized = normalizeApiBase(apiBase);
-    if (!normalized || seen.has(normalized)) {
-      return;
-    }
-    seen.add(normalized);
-    resolved.push({
+function readSessionOverrideCandidate() {
+  const finalize = (base, source, raw) => {
+    const normalized = normalizeApiBase(base);
+    return {
+      raw: typeof raw === "string" ? raw.trim() : "",
+      source,
       apiBase: normalized,
-      source: source || "session:fallback",
-      uiHost: uiHost || getUiHostName(),
-      apiHost: apiHost || getApiHostName(normalized),
-    });
+      valid: Boolean(normalized),
+    };
   };
 
-  for (const candidate of resolveGlobalDefaultsApiCandidates()) {
-    addCandidate(candidate);
+  const globalRaw = typeof window.__TT_BEAMER_API_BASE__ === "string" ? window.__TT_BEAMER_API_BASE__.trim() : "";
+  if (globalRaw) {
+    return finalize(globalRaw, "override:window.__TT_BEAMER_API_BASE__", globalRaw);
   }
 
-  addCandidate({
-    apiBase: window.location?.origin,
-    source: "session:ui-origin",
-    uiHost: getUiHostName(),
-    apiHost: getUiHostName(),
-  });
+  try {
+    const params = new URLSearchParams(window.location?.search || "");
+    for (const key of API_BASE_URL_PARAM_KEYS) {
+      const value = String(params.get(key) || "").trim();
+      if (value) {
+        return finalize(value, `override:url(${key})`, value);
+      }
+    }
+  } catch {
+    // ignore malformed URL
+  }
 
-  return resolved;
+  try {
+    const localRaw = String(window.localStorage.getItem(API_BASE_STORAGE_KEY) || "").trim();
+    if (localRaw) {
+      return finalize(localRaw, `override:localStorage(${API_BASE_STORAGE_KEY})`, localRaw);
+    }
+  } catch {
+    // ignore localStorage failures
+  }
+
+  return null;
+}
+
+async function probeSessionApiBase(apiBase) {
+  const normalized = normalizeApiBase(apiBase);
+  if (!normalized) {
+    return {
+      reachable: false,
+      reason: "invalid-api-base",
+    };
+  }
+  const healthEndpoint = `${normalized}/api/health`;
+  try {
+    const response = await fetchWithTimeout(healthEndpoint, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      return {
+        reachable: false,
+        reason: `health-http-${response.status}`,
+      };
+    }
+    return {
+      reachable: true,
+      reason: "ok",
+    };
+  } catch (error) {
+    return {
+      reachable: false,
+      reason: error instanceof Error ? `unreachable:${error.message}` : "unreachable",
+    };
+  }
+}
+
+async function resolveSessionApiCandidates() {
+  const uiOrigin = normalizeApiBase(window.location?.origin) || "http://127.0.0.1:4173";
+  const uiHost = getUiHostName();
+  const uiDefault = {
+    apiBase: uiOrigin,
+    source: "session:ui-origin-default",
+    uiHost,
+    apiHost: getApiHostName(uiOrigin),
+    fallbackReason: "none",
+  };
+  const override = readSessionOverrideCandidate();
+
+  if (!override) {
+    return {
+      candidates: [uiDefault],
+      resolved: uiDefault,
+    };
+  }
+
+  if (!override.valid) {
+    return {
+      candidates: [
+        {
+          ...uiDefault,
+          fallbackReason: `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default`,
+        },
+      ],
+      resolved: {
+        ...uiDefault,
+        fallbackReason: `${override.source} invalid (${override.raw || "empty"}) -> ui-origin-default`,
+      },
+    };
+  }
+
+  const overrideApiBase = normalizeApiBase(override.apiBase);
+  if (!overrideApiBase || overrideApiBase === uiOrigin) {
+    return {
+      candidates: [
+        {
+          ...uiDefault,
+          source: "session:ui-origin-default",
+          fallbackReason: overrideApiBase === uiOrigin ? `${override.source} matched ui-origin` : "none",
+        },
+      ],
+      resolved: {
+        ...uiDefault,
+        fallbackReason: overrideApiBase === uiOrigin ? `${override.source} matched ui-origin` : "none",
+      },
+    };
+  }
+
+  const reachability = await probeSessionApiBase(overrideApiBase);
+  if (reachability.reachable) {
+    const selected = {
+      apiBase: overrideApiBase,
+      source: `session:${override.source}`,
+      uiHost,
+      apiHost: getApiHostName(overrideApiBase),
+      fallbackReason: "none",
+    };
+    return {
+      candidates: [selected, uiDefault],
+      resolved: selected,
+    };
+  }
+
+  const fallbackReason = `${override.source} unreachable (${reachability.reason}) -> ui-origin-default`;
+  return {
+    candidates: [
+      {
+        ...uiDefault,
+        fallbackReason,
+      },
+    ],
+    resolved: {
+      ...uiDefault,
+      fallbackReason,
+    },
+  };
+}
+
+function setSessionResolverSnapshot({ apiBase, source, fallbackReason = "none", endpoint = "" } = {}) {
+  const normalizedBase = normalizeApiBase(apiBase) || "";
+  state.session.apiBase = normalizedBase;
+  state.session.apiSource = source || "unresolved";
+  state.session.selectedVia = source || "unresolved";
+  state.session.fallbackReason = fallbackReason || "none";
+  state.session.resolvedEndpoint =
+    endpoint ||
+    (normalizedBase
+      ? buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
+          apiBase: normalizedBase,
+        })
+      : "");
 }
 
 function buildSessionEndpoint(path, { apiBase = state.session.apiBase || window.location?.origin || "", query } = {}) {
@@ -417,9 +556,12 @@ function formatSessionTimestamp(value) {
 function syncSessionDiagnosticsPanel() {
   const retry = getSessionRetryState();
   if (sessionEndpointStatus) {
-    const endpointText = state.session.apiBase
-      ? `${state.session.apiBase} | Quelle ${state.session.apiSource || "unbekannt"}`
-      : "noch nicht aufgeloest";
+    const resolvedEndpoint = state.session.resolvedEndpoint || retry.lastEndpoint || "";
+    const selectedVia = state.session.selectedVia || state.session.apiSource || "unbekannt";
+    const fallbackReason = state.session.fallbackReason || "none";
+    const endpointText = resolvedEndpoint
+      ? `${resolvedEndpoint} | selected via ${selectedVia} | fallback reason ${fallbackReason}`
+      : `noch nicht aufgeloest | selected via ${selectedVia} | fallback reason ${fallbackReason}`;
     sessionEndpointStatus.textContent = `Session Endpoint: ${endpointText}`;
   }
 
@@ -712,7 +854,8 @@ function attachSessionStream() {
 }
 
 async function connectSession({ reconnect = false, reason = "manual" } = {}) {
-  const sessionCandidates = resolveSessionApiCandidates();
+  const resolution = await resolveSessionApiCandidates();
+  const sessionCandidates = Array.isArray(resolution?.candidates) ? resolution.candidates : [];
   const preferredSessionIds = getPreferredSessionIdCandidates();
   const retry = getSessionRetryState();
   let lastError = null;
@@ -721,6 +864,17 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
   retry.lastAttemptAt = Date.now();
   retry.nextRetryAt = 0;
   retry.nextDelayMs = 0;
+
+  if (resolution?.resolved) {
+    setSessionResolverSnapshot({
+      apiBase: resolution.resolved.apiBase,
+      source: resolution.resolved.source,
+      fallbackReason: resolution.resolved.fallbackReason || "none",
+      endpoint: buildSessionEndpoint(SESSION_ENDPOINT_PATHS.connect, {
+        apiBase: resolution.resolved.apiBase,
+      }),
+    });
+  }
 
   for (const candidate of sessionCandidates) {
     for (const candidateSessionId of preferredSessionIds) {
@@ -734,6 +888,12 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
           includeClientId,
         });
         retry.lastEndpoint = endpoint;
+        setSessionResolverSnapshot({
+          apiBase: candidate.apiBase,
+          source: candidate.source,
+          fallbackReason: candidate.fallbackReason || resolution?.resolved?.fallbackReason || "none",
+          endpoint,
+        });
         try {
           response = await fetchWithTimeout(endpoint, {
             method: "GET",
@@ -746,8 +906,12 @@ async function connectSession({ reconnect = false, reason = "manual" } = {}) {
             state.session.id = String(result.sessionId || candidateSessionId || "default-session");
             state.session.lastSuccessfulSessionId = state.session.id;
             state.session.clientId = String(result.clientId || state.session.clientId || "");
-            state.session.apiBase = candidate.apiBase;
-            state.session.apiSource = candidate.source;
+            setSessionResolverSnapshot({
+              apiBase: candidate.apiBase,
+              source: candidate.source,
+              fallbackReason: candidate.fallbackReason || resolution?.resolved?.fallbackReason || "none",
+              endpoint,
+            });
             applyClientRole(result.role || state.role);
             state.session.connected = true;
             state.session.reconnectAttempts = 0;
