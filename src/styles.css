@@ -96,6 +96,10 @@ body {
   cursor: grabbing;
 }
 
+#room-overlay.is-room-dragging {
+  cursor: grabbing;
+}
+
 .room-zone {
   fill: rgba(35, 169, 210, 0.05);
   stroke: rgba(120, 214, 244, 0.45);
@@ -103,6 +107,10 @@ body {
   vector-effect: non-scaling-stroke;
   cursor: pointer;
   transition: fill 120ms ease, stroke 120ms ease;
+}
+
+.room-zone.is-draggable {
+  cursor: move;
 }
 
 .room-zone:hover {
