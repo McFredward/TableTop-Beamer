@@ -70,7 +70,20 @@ completed: 2026-03-25
 - Running-Liste fuehrt vor dem Rendern eine Integritaetsbereinigung durch (duplikate/ungueltige Eintraege).
 
 ## Deviations from Plan
-None - plan executed exactly as written.
+
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state/roadmap updater inkompatibel zum vorhandenen STATE/ROADMAP-Format**
+- **Found during:** Abschluss nach Task P3-T50
+- **Issue:** `state advance-plan`, `state update-progress`, `state record-metric` und `roadmap update-plan-progress` schlugen wegen nicht erkanntem Dokumentformat fehl.
+- **Fix:** STATE/ROADMAP wurden manuell auf den Plan-3-6-Endstand aktualisiert (Execution-Status, Decision-Log, Plan-Fortschritt, Summary-Referenzen).
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Eintraege fuer Plan 3-6 sind sichtbar und verweisen auf `3-6-SUMMARY.md` / `3-6-VERIFICATION.md`.
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** Kein Scope-Creep; nur notwendiger Abschlusspfad, weil Automations-Tooling nicht auf das aktuelle Dokumentformat passte.
 
 ## Issues Encountered
 - `rg` war in der Umgebung nicht verfuegbar; Pattern-Checks wurden mit `grep` ausgefuehrt.
