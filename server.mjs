@@ -115,6 +115,42 @@ function appendSessionLog(payload) {
   }
 }
 
+function isSessionApiPath(routePath) {
+  return (
+    routePath === SESSION_ENDPOINTS.connect ||
+    routePath === SESSION_ENDPOINTS.stream ||
+    routePath === SESSION_ENDPOINTS.heartbeat ||
+    routePath === SESSION_ENDPOINTS.event
+  );
+}
+
+function getRequestClientIp(req) {
+  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .find(Boolean);
+  if (forwardedFor) {
+    return forwardedFor;
+  }
+  const realIp = String(req.headers["x-real-ip"] || "").trim();
+  if (realIp) {
+    return realIp;
+  }
+  return String(req.socket?.remoteAddress || "-").trim() || "-";
+}
+
+function logSessionAccess({ req, path: routePath, status, durationMs }) {
+  appendSessionLog({
+    scope: "session",
+    code: "SESSION_ACCESS",
+    method: req.method || "-",
+    path: routePath || "-",
+    status: Number.isFinite(Number(status)) ? Number(status) : 0,
+    duration: `${Math.max(0, Number(durationMs) || 0)}ms`,
+    "client-ip": getRequestClientIp(req),
+  });
+}
+
 function logSessionRequest({
   code,
   endpoint,
@@ -753,9 +789,27 @@ async function handleStaticFile(req, res) {
 }
 
 const server = createServer(async (req, res) => {
+  const requestStartedAt = Date.now();
+  let accessPath = "/";
+  let accessLogged = false;
+  const logSessionAccessOnFinish = () => {
+    if (accessLogged || !isSessionApiPath(accessPath)) {
+      return;
+    }
+    accessLogged = true;
+    logSessionAccess({
+      req,
+      path: accessPath,
+      status: res.statusCode,
+      durationMs: Date.now() - requestStartedAt,
+    });
+  };
+  res.on("finish", logSessionAccessOnFinish);
+  res.on("close", logSessionAccessOnFinish);
   let routePath = "/";
   try {
     routePath = normalizeRoutePath(req.url || "/");
+    accessPath = routePath;
 
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
