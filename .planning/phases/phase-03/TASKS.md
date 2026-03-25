@@ -32,43 +32,10 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P3-T24 [P1] Performance-/Soak-Check fuer mehrere daueraktive Raum-Animationen protokollieren.
 - [x] DONE P3-T25 [P1] Plan-3-2-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
 
-## Plan 3-3 - Rework GIF-Loop + GIF-Mapping (priorisiert)
-- [x] DONE P3-T26 [P0] GIF-Runtime fuer `kaputt`/`feuer`/`schleim` von Einzelbild-Pulsing auf echte GIF-Frame-Loops umstellen.
-- [x] DONE P3-T27 [P0] GIF-Decoder-/Renderer-Pfad so anbinden, dass eingebettete GIF-Loop-Informationen deterministisch respektiert werden (inkl. `playbackSpeed`).
-- [x] DONE P3-T28 [P0] Settings-UI fuer GIF-Mapping pro Animation einfuehren (analog Sound-Mapping, inkl. `none`/Fallback-Auswahl).
-- [x] DONE P3-T29 [P0] Persistenz fuer GIF-Mapping pro Animation implementieren und robust ueber Save/Load/Reload/Restart verifizieren.
-- [x] DONE P3-T30 [P1] Regression + Soak fuer Multi-GIF-Loop-Betrieb und Mapping-Edit waehrend laufender Instanzen dokumentieren.
-- [x] DONE P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
-
-## Plan 3-4 - Hotfix Direct-Start GIF-Mapping (verify-work follow-up)
-- [x] DONE P3-T32 [P0] Direct-Start-Flow auf gemappten GIF-Pfad verdrahten, damit `createAnimation` bei Raumstart den Mapping-Wert (`gifAssetPath`) statt Default-GIF nutzt.
-- [x] DONE P3-T33 [P1] Regressionstest ergaenzen fuer Kette Direct-Start -> Edit-Flow -> Reload mit stablem GIF-Mapping-Endzustand.
-- [x] DONE P3-T34 [P1] Planungsartefakte + Acceptance auf End-to-End-GIF-Mapping synchronisieren und Abschlussnachweis dokumentieren.
-
-## Plan 3-5 - P0 Render-Regression + Pflicht-Refactor `app.js` (execute-ready)
-- [x] DONE P3-T35 [P0] Kritischen Regression-Bug reproduzieren und fixen: Board rendert laufende Animationen wieder sichtbar, waehrend Audio parallel korrekt weiterlaeuft.
-- [x] DONE P3-T36 [P0] Render-/Audio-Entkopplung hardenen: Draw-Tick/Render-Scheduler gegen Audio-Lifecycle-Ereignisse (`loop`, `stop`, `clear all`, `edit`) absichern.
-- [x] DONE P3-T37 [P0] Zielstruktur fuer Modulgrenzen einfuehren (Ordner/Dateien fuer `state`, `rendering`, `effects`, `audio`, `ui`, `persistence`, `api/save`) und Entry-Composition definieren.
-- [x] DONE P3-T38 [P0] `state` + `persistence` aus `app.js` extrahieren (inkl. Load/Save-Flow) und API-gleiches Verhalten sichern.
-- [x] DONE P3-T39 [P0] `rendering` + `effects` aus `app.js` extrahieren; Board-Renderpfad inkl. Clipping/GIF-Loop bleibt funktional identisch.
-- [x] DONE P3-T40 [P0] `audio` + `ui` + `api/save` aus `app.js` extrahieren und Integrationspunkte ueber explizite Modulgrenzen stabilisieren.
-- [x] DONE P3-T41 [P1] Nicht-offensichtliche Bereiche gezielt kommentieren (Timing, Fallbacks, Entkopplungs-Guards, Persistenznormalisierung).
-- [x] DONE P3-T42 [P1] Funktionale Paritaets-Regression dokumentieren (Trigger, Running-Liste, Direct-Start, Edit, Stop, Reload, Save/Load, GIF-Mapping).
-- [x] DONE P3-T43 [P1] Stabilitaets-/Soak-Check nach Refactor dokumentieren (insb. parallele Raumanimationen + Audio).
-- [x] DONE P3-T44 [P1] Plan-3-5-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) abschliessen.
-
-## Plan 3-6 - P0 Hotfix Preview-Removal + Render-Recovery (execute-ready)
-- [x] DONE P3-T45 [P0] Preview-Flow komplett entfernen: Preview-UI, Preview-State, Preview-Routing sowie Send/Rollback-Pfade aus Runtime entfernen.
-- [x] DONE P3-T46 [P0] Direkten Live-Trigger-Flow wiederherstellen: Start/Edit/Stop laufen ohne Preview-Staging direkt gegen die Live-Runtime.
-- [x] DONE P3-T47 [P0] Render-Pipeline-Hotfix umsetzen, damit aktive Animationen fuer alle Typen (`global`, `room`, `gif`) sofort sichtbar rendern.
-- [x] DONE P3-T48 [P0] Running-Liste/Stop/Edit regressionsfest halten (1:1 Instanzabbildung, kein ID-/State-Drift nach Preview-Rueckbau).
-- [x] DONE P3-T49 [P1] Hotfix-Regression + Soak dokumentieren (Trigger/Edit/Stop/Reload/Save-Load ohne Preview-Pfad).
-- [x] DONE P3-T50 [P1] Plan-3-6-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) inkl. Refactor-Resume-Gate abschliessen.
-
-## Plan 3-7 - P0 Hotfix Add-on Root-Cause (execute-ready)
-- [x] DONE P3-T51 [P0] Repro-Harness + Telemetrie fuer den statischen-Board-Fehlmodus bauen (Audio laeuft, Render still) inkl. Layer-/Clip-Fehlerzaehlern pro Tick.
-- [x] DONE P3-T52 [P0] Render-Loop fail-safe hardenen: globaler Draw-Tick bleibt aktiv, auch wenn einzelne Layer/Clip-Paths Exceptions werfen.
-- [x] DONE P3-T53 [P0] Outside-/Ship-Clipping kompatibel machen: Capability-Detection + robuster Fallback fuer mobile WebView/Canvas-evenodd-Inkompatibilitaet.
-- [x] DONE P3-T54 [P0] Outside-Fehler-Isolation erzwingen: bei Outside-Layer-Fail laufen Inside/Room/GIF weiterhin sichtbar und bewegend.
-- [x] DONE P3-T55 [P0] Pflicht-Regression Mobile-Flow dokumentieren: nach Trigger sind mindestens globale + room + GIF-Effekte sichtbar (Hard-Proof).
-- [x] DONE P3-T56 [P1] Plan-3-7-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.
+## Plan 3-3 - P0 Bugfix echtes GIF-Playback (priorisiert)
+- [x] DONE P3-T26 [P0] Renderer fuer `kaputt` auf natives GIF-Loop-Playback aus `resources/nemesis/animations/malfunction.gif` umstellen (kein Pulse-/Zoom-Ersatz).
+- [ ] TODO P3-T27 [P0] Renderer fuer `feuer` und `schleim` auf natives GIF-Loop-Playback aus `fire.gif`/`final.gif` umstellen (kein Pulse-/Zoom-Ersatz).
+- [ ] TODO P3-T28 [P0] Instanzparameter-Paritaet fuer native GIF-Wiedergabe hardenen: `opacity` und `playbackSpeed` bleiben pro Instanz editierbar und querwirkungsfrei.
+- [ ] TODO P3-T29 [P0] Regression-Guard fuer GIF-Raumtrigger nachziehen: Running-List-1:1, hold-by-default und raumstrenges Clipping unveraendert sicherstellen.
+- [ ] TODO P3-T30 [P1] Loop-Playback- und Soak-Nachweise fuer echte GIF-Framefolge dokumentieren (inkl. mindestens einem kompletten Loop-Roundtrip pro GIF).
+- [ ] TODO P3-T31 [P1] Plan-3-3-Verifikation + Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP`) abschliessen.

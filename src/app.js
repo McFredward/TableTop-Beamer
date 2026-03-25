@@ -1,25 +1,3 @@
-import {
-  clampAlienCount,
-  clampAnimationSpeed,
-  clampAudioVolumePercent,
-  clampGifPlaybackSpeed,
-  clampOutsideIntensity,
-  clampOutsideSpeed,
-  clampRoomDurationSec,
-  clampRoomIntensity,
-  clampRoomOpacity,
-  clampRoomSpeed,
-  normalizeOutsideDirection,
-  normalizeOutsideMode,
-  normalizeRoomGeometryMode,
-} from "./state/index.js";
-import { resolveRoomAnimationEffectType, getRoomEquivalentType } from "./effects/index.js";
-import { clampRoomSoundVolume } from "./audio/index.js";
-import { isElementRendered } from "./ui/index.js";
-import { safeLocalStorageGet, safeLocalStorageSet } from "./persistence/index.js";
-import { classifyHttpStatus } from "./api/save.js";
-import { drawRenderFallback } from "./rendering/index.js";
-
 let BOARDS = [
   {
     id: "nemesis-board-a",
@@ -250,8 +228,6 @@ const ROOM_GIF_ANIMATION_ASSETS = {
   feuer: "resources/nemesis/animations/fire.gif",
   schleim: "resources/nemesis/animations/final.gif",
 };
-const ROOM_GIF_MAPPING_NONE = "none";
-const ROOM_GIF_ASSET_PATHS = Array.from(new Set(Object.values(ROOM_GIF_ANIMATION_ASSETS)));
 
 const ROOM_GLOBAL_EQUIVALENT_MAP = {
   alarm: "intruder-alert",
@@ -335,6 +311,15 @@ const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
+const previewGlobalSelect = document.querySelector("#preview-global-select");
+const stageGlobalPreviewButton = document.querySelector("#stage-global-preview");
+const stageRoomPreviewButton = document.querySelector("#stage-room-preview");
+const sendPreviewLiveButton = document.querySelector("#send-preview-live");
+const rollbackLastSendButton = document.querySelector("#rollback-last-send");
+const previewQueueList = document.querySelector("#preview-queue");
+const clearPreviewQueueButton = document.querySelector("#clear-preview-queue");
+const previewStatus = document.querySelector("#preview-status");
+const liveSendStatus = document.querySelector("#live-send-status");
 const audioEnabledInput = document.querySelector("#audio-enabled");
 const audioVolumeInput = document.querySelector("#audio-volume");
 const audioVolumeValue = document.querySelector("#audio-volume-value");
@@ -342,9 +327,6 @@ const audioStatus = document.querySelector("#audio-status");
 const audioMappingAnimationSelect = document.querySelector("#audio-mapping-animation");
 const audioMappingSoundSelect = document.querySelector("#audio-mapping-sound");
 const audioMappingStatus = document.querySelector("#audio-mapping-status");
-const gifMappingAnimationSelect = document.querySelector("#gif-mapping-animation");
-const gifMappingAssetSelect = document.querySelector("#gif-mapping-asset");
-const gifMappingStatus = document.querySelector("#gif-mapping-status");
 const animationSpeedInput = document.querySelector("#animation-speed");
 const animationSpeedValue = document.querySelector("#animation-speed-value");
 const animationSpeedStatus = document.querySelector("#animation-speed-status");
@@ -530,13 +512,18 @@ const state = {
     hold: true,
   },
   runningAnimations: [],
+  preview: {
+    queue: [],
+  },
+  live: {
+    lastSend: null,
+  },
   audio: {
     enabled: true,
     volume: 0.7,
   },
   animationSpeed: 1,
   animationSoundMap: {},
-  animationGifMap: {},
   uiView: "dashboard",
   dashboardZone: "trigger",
   hitareaCalibrationByBoard: {},
@@ -592,37 +579,6 @@ const state = {
     frameCostSamples: [],
     qualityScale: 1,
   },
-  renderTelemetry: {
-    frameCount: 0,
-    lastFrameAt: 0,
-    lastFrameCostMs: 0,
-    lastTick: {
-      outsideLayerErrors: 0,
-      animationLayerErrors: 0,
-      clipErrors: 0,
-      schedulerErrors: 0,
-      totalErrors: 0,
-    },
-    totals: {
-      outsideLayerErrors: 0,
-      animationLayerErrors: 0,
-      clipErrors: 0,
-      schedulerErrors: 0,
-    },
-    clipFallbacks: {
-      outsideEvenOddFallback: 0,
-      outsideCompositeFallback: 0,
-      insideInvalidPolygon: 0,
-    },
-    faultInjection: {
-      outsideLayerFailOnce: false,
-      clipFailOnce: false,
-    },
-  },
-  renderWatchdog: {
-    consecutiveInvisibleFrames: 0,
-    lastVisibleFrameAt: 0,
-  },
   startupDefaultsGuard: {
     fallbackRequired: false,
     attempted: false,
@@ -639,6 +595,7 @@ const state = {
 };
 
 let animationIdCounter = 1;
+let previewItemIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
@@ -647,20 +604,11 @@ const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
-let evenOddClipCapability = null;
 
 function createDefaultAnimationSoundMap() {
   const defaults = {};
   for (const { id } of ALL_ANIMATION_TYPES) {
     defaults[id] = EVENT_SOUND_ASSETS[id]?.[0] ?? SOUND_MAPPING_NONE;
-  }
-  return defaults;
-}
-
-function createDefaultAnimationGifMap() {
-  const defaults = {};
-  for (const { id } of ROOM_ANIMATIONS) {
-    defaults[id] = ROOM_GIF_ANIMATION_ASSETS[id] ?? ROOM_GIF_MAPPING_NONE;
   }
   return defaults;
 }
@@ -697,39 +645,6 @@ function normalizeAnimationSoundMap(soundMap) {
     defaults[animationType] = normalizeAnimationSoundPath(animationType, soundMap?.[animationType]);
   }
   return defaults;
-}
-
-function normalizeAnimationGifPath(animationType, path) {
-  if (!isRoomAnimationType(animationType)) {
-    return ROOM_GIF_MAPPING_NONE;
-  }
-  if (path === ROOM_GIF_MAPPING_NONE) {
-    return ROOM_GIF_MAPPING_NONE;
-  }
-  if (ROOM_GIF_ASSET_PATHS.includes(path)) {
-    return path;
-  }
-  const defaultPath = ROOM_GIF_ANIMATION_ASSETS[animationType];
-  if (defaultPath && ROOM_GIF_ASSET_PATHS.includes(defaultPath)) {
-    return defaultPath;
-  }
-  return ROOM_GIF_MAPPING_NONE;
-}
-
-function normalizeAnimationGifMap(gifMap) {
-  const defaults = createDefaultAnimationGifMap();
-  for (const animationType of Object.keys(defaults)) {
-    defaults[animationType] = normalizeAnimationGifPath(animationType, gifMap?.[animationType]);
-  }
-  return defaults;
-}
-
-function getMappedGifPathForAnimation(animationType) {
-  const mapped = normalizeAnimationGifPath(animationType, state.animationGifMap?.[animationType]);
-  if (mapped === ROOM_GIF_MAPPING_NONE) {
-    return null;
-  }
-  return mapped;
 }
 
 function getMappedSoundPathForAnimation(animationType) {
@@ -1077,6 +992,10 @@ function clampRoomStretch(value) {
   return Math.max(0.6, Math.min(1.6, value));
 }
 
+function normalizeRoomGeometryMode(mode) {
+  return mode === "absolute" ? "absolute" : "relative";
+}
+
 function getRawRoomCenter(room, boardId = state.boardId) {
   if (room?.points?.length) {
     const sourcePoints = getRoomSourcePoints(room, boardId);
@@ -1303,16 +1222,6 @@ function buildBoardProfilesFromState() {
   );
 }
 
-function buildLocalProfileSnapshotFromState() {
-  return {
-    schema: "tt-beamer.local-profiles.v2",
-    savedAt: new Date().toISOString(),
-    boardProfiles: buildBoardProfilesFromState(),
-    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
-    animationGifMap: normalizeAnimationGifMap(state.animationGifMap),
-  };
-}
-
 function applyBoardProfilesToState(profiles) {
   state.hitareaCalibrationByBoard = Object.fromEntries(
     BOARDS.map((board) => [
@@ -1348,26 +1257,6 @@ function applyBoardProfilesToState(profiles) {
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
   );
-}
-
-function applyLocalProfileSnapshotToState(payload) {
-  const boardCandidate = extractBoardProfilesCandidate(payload);
-  if (boardCandidate) {
-    const migratedProfiles = buildMigratedBoardProfiles(
-      boardCandidate,
-      state.hitareaCalibrationByBoard,
-      state.roomGeometryByBoard,
-      state.specialPolygonsByBoard,
-    );
-    applyBoardProfilesToState(migratedProfiles);
-  }
-
-  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
-    state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
-  }
-  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationGifMap")) {
-    state.animationGifMap = normalizeAnimationGifMap(payload.animationGifMap);
-  }
 }
 
 function extractBoardProfilesCandidate(raw) {
@@ -1413,7 +1302,7 @@ function extractBoardProfilesCandidate(raw) {
 function loadLegacyRoomGeometryByBoard() {
   const defaults = createDefaultRoomGeometryByBoard();
   try {
-    const raw = safeLocalStorageGet(ROOM_GEOMETRY_STORAGE_KEY);
+    const raw = window.localStorage.getItem(ROOM_GEOMETRY_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -1433,7 +1322,7 @@ function loadLegacyRoomGeometryByBoard() {
 function loadLegacySpecialPolygonsByBoard() {
   const defaults = createDefaultSpecialPolygonsByBoard();
   try {
-    const raw = safeLocalStorageGet(SPECIAL_POLYGON_STORAGE_KEY);
+    const raw = window.localStorage.getItem(SPECIAL_POLYGON_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -1488,14 +1377,13 @@ function loadBoardProfiles() {
   const legacySpecialPolygons = loadLegacySpecialPolygonsByBoard();
 
   try {
-    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const candidate = extractBoardProfilesCandidate(parsed);
       if (candidate) {
-        applyLocalProfileSnapshotToState(parsed);
         const migratedProfiles = buildMigratedBoardProfiles(
-          extractBoardProfilesCandidate(parsed),
+          candidate,
           legacyHitarea,
           legacyRoomGeometry,
           legacySpecialPolygons,
@@ -1520,13 +1408,18 @@ function loadBoardProfiles() {
 }
 
 function persistBoardProfiles() {
-  return safeLocalStorageSet(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildLocalProfileSnapshotFromState()));
+  try {
+    window.localStorage.setItem(BOARD_PROFILE_STORAGE_KEY, JSON.stringify(buildBoardProfilesFromState()));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function buildGlobalDefaultsPayload() {
   let localStorageProfiles = null;
   try {
-    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const candidate = extractBoardProfilesCandidate(parsed);
@@ -1557,7 +1450,6 @@ function buildGlobalDefaultsPayload() {
     },
     animationSpeed: clampAnimationSpeed(state.animationSpeed),
     animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
-    animationGifMap: normalizeAnimationGifMap(state.animationGifMap),
   };
 }
 
@@ -1660,8 +1552,6 @@ async function fetchWithTimeout(url, options = {}) {
 }
 
 async function runApiPreflight(saveEndpoint) {
-  // Save uses the same endpoint snapshot as diagnostics. We always probe health + OPTIONS first,
-  // so operators get deterministic feedback before the actual POST attempt.
   const healthEndpoint = `${getApiBaseFromSaveEndpoint(saveEndpoint)}/api/health`;
   try {
     const healthResponse = await fetchWithTimeout(healthEndpoint, {
@@ -1733,6 +1623,13 @@ async function runApiPreflight(saveEndpoint) {
   };
 }
 
+function classifyHttpStatus(status) {
+  if (!Number.isFinite(Number(status))) {
+    return "n/a";
+  }
+  return `${Math.floor(Number(status) / 100)}xx`;
+}
+
 function getApiBaseFromSaveEndpoint(saveEndpoint) {
   try {
     const url = new URL(saveEndpoint);
@@ -1800,7 +1697,7 @@ function readConfiguredApiBase() {
   }
 
   try {
-    const localBase = normalizeApiBase(safeLocalStorageGet(API_BASE_STORAGE_KEY));
+    const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));
     if (localBase) {
       return {
         base: localBase,
@@ -2094,7 +1991,7 @@ function downloadGlobalDefaultsFallback() {
 
 function hasStoredBoardProfilesInLocalStorage() {
   try {
-    const raw = safeLocalStorageGet(BOARD_PROFILE_STORAGE_KEY);
+    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
     if (!raw) {
       return false;
     }
@@ -2220,9 +2117,6 @@ function applyGlobalDefaultsPayloadToState(payload) {
   if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
     state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
   }
-  if (payload && Object.prototype.hasOwnProperty.call(payload, "animationGifMap")) {
-    state.animationGifMap = normalizeAnimationGifMap(payload.animationGifMap);
-  }
 }
 
 async function autoLoadGlobalDefaultsForFreshDevice() {
@@ -2284,7 +2178,7 @@ function createDefaultHitareaCalibrationMap() {
 function loadHitareaCalibrationMap() {
   const defaults = createDefaultHitareaCalibrationMap();
   try {
-    const raw = safeLocalStorageGet(HITAREA_CALIBRATION_STORAGE_KEY);
+    const raw = window.localStorage.getItem(HITAREA_CALIBRATION_STORAGE_KEY);
     if (!raw) {
       return defaults;
     }
@@ -2543,6 +2437,26 @@ function endPanMode(event, { canceled = false } = {}) {
     : "Status: Pan-Modus beendet";
 }
 
+function clampRoomIntensity(value) {
+  return Math.max(0.2, Math.min(1.5, value));
+}
+
+function clampRoomOpacity(value) {
+  return Math.max(0.1, Math.min(1, Number(value) || 1));
+}
+
+function clampGifPlaybackSpeed(value) {
+  return Math.max(0.25, Math.min(3, Number(value) || 1));
+}
+
+function clampRoomDurationSec(value) {
+  return Math.max(1, Math.min(180, value));
+}
+
+function clampAlienCount(value) {
+  return Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
+}
+
 function normalizeRoomStateProfile(profile) {
   return {
     broken: Boolean(profile?.broken),
@@ -2596,16 +2510,23 @@ function isRoomGlobalEquivalent(type) {
   return Boolean(ROOM_GLOBAL_EQUIVALENT_MAP[type]);
 }
 
-function getRoomGifAssetFileNameByPath(path) {
-  if (!path || path === ROOM_GIF_MAPPING_NONE) {
-    return null;
+function resolveRoomAnimationEffectType(type) {
+  if (type === "nest") {
+    return "special-nest";
   }
-  return path ? path.split("/").pop() ?? path : null;
+  if (type === "dekompression") {
+    return "special-decompression";
+  }
+  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
 }
 
-function getRoomGifAssetFileName(type, explicitPath = null) {
-  const path = explicitPath ?? getMappedGifPathForAnimation(type) ?? ROOM_GIF_ANIMATION_ASSETS[type];
-  return getRoomGifAssetFileNameByPath(path);
+function getRoomEquivalentType(type) {
+  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? null;
+}
+
+function getRoomGifAssetFileName(type) {
+  const path = ROOM_GIF_ANIMATION_ASSETS[type];
+  return path ? path.split("/").pop() ?? path : null;
 }
 
 function getGifImage(path) {
@@ -2621,102 +2542,124 @@ function getGifImage(path) {
   return gifImageCacheByPath.get(path) ?? null;
 }
 
-function getGifPlayback(path) {
+function canDecodeGifFramesNatively() {
+  return typeof ImageDecoder === "function" && typeof createImageBitmap === "function";
+}
+
+function getGifPlaybackCacheEntry(path) {
   if (!path) {
     return null;
   }
-  if (gifPlaybackCacheByPath.has(path)) {
-    return gifPlaybackCacheByPath.get(path) ?? null;
+  if (!gifPlaybackCacheByPath.has(path)) {
+    const entry = {
+      status: "idle",
+      frames: [],
+      totalDurationMs: 0,
+      error: null,
+      promise: null,
+    };
+    gifPlaybackCacheByPath.set(path, entry);
   }
-  const fallbackImage = getGifImage(path);
-  const record = {
-    path,
-    status: "loading",
-    frames: [],
-    totalDurationMs: 0,
-    loopCount: Infinity,
-    fallbackImage,
-  };
-  gifPlaybackCacheByPath.set(path, record);
-
-  void (async () => {
-    if (typeof ImageDecoder !== "function") {
-      record.status = "error";
-      return;
-    }
-    try {
-      const response = await fetch(path);
-      if (!response.ok) {
-        throw new Error(`GIF fetch failed: ${response.status}`);
-      }
-      const data = await response.arrayBuffer();
-      const decoder = new ImageDecoder({ type: "image/gif", data });
-      const track = decoder.tracks?.selectedTrack;
-      const frameCount = Math.max(1, Number(track?.frameCount) || 1);
-      const repetitionCount = Number(track?.repetitionCount);
-      if (Number.isFinite(repetitionCount) && repetitionCount >= 0) {
-        record.loopCount = repetitionCount === 0 ? Infinity : repetitionCount;
-      } else {
-        record.loopCount = Infinity;
-      }
-      const frames = [];
-      let totalDurationMs = 0;
-      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-        const result = await decoder.decode({ frameIndex, completeFramesOnly: true });
-        const videoFrame = result?.image;
-        if (!videoFrame) {
-          continue;
-        }
-        const bitmap = await createImageBitmap(videoFrame);
-        const rawDuration = Number(videoFrame.duration);
-        const durationMs = Number.isFinite(rawDuration) && rawDuration > 0
-          ? Math.max(20, Math.round(rawDuration / 1000))
-          : 100;
-        videoFrame.close();
-        frames.push({ image: bitmap, durationMs });
-        totalDurationMs += durationMs;
-      }
-      if (frames.length === 0) {
-        throw new Error("GIF decode produced 0 frames");
-      }
-      record.frames = frames;
-      record.totalDurationMs = Math.max(1, totalDurationMs);
-      record.status = "ready";
-      decoder.close();
-    } catch {
-      record.status = "error";
-    }
-  })();
-
-  return record;
+  return gifPlaybackCacheByPath.get(path) ?? null;
 }
 
-function getGifFrameForElapsedMs(playback, elapsedMs) {
-  if (!playback || playback.status !== "ready" || playback.frames.length === 0) {
+async function decodeGifPlaybackFrames(path, entry) {
+  const response = await fetch(path, { cache: "force-cache" });
+  if (!response.ok) {
+    throw new Error(`GIF fetch failed (${response.status})`);
+  }
+  const data = await response.arrayBuffer();
+  const decoder = new ImageDecoder({ data, type: "image/gif" });
+  await decoder.tracks.ready;
+  const frameCount = Math.max(1, Number(decoder.tracks?.selectedTrack?.frameCount) || 1);
+  const frames = [];
+  let totalDurationMs = 0;
+  for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+    const { image } = await decoder.decode({ frameIndex });
+    const durationMs = Math.max(16, Math.round((Number(image.duration) || 100000) / 1000));
+    const bitmap = await createImageBitmap(image);
+    image.close();
+    frames.push({ bitmap, durationMs });
+    totalDurationMs += durationMs;
+  }
+  decoder.close?.();
+  entry.frames = frames;
+  entry.totalDurationMs = Math.max(16, totalDurationMs);
+  entry.status = "ready";
+  entry.error = null;
+}
+
+function ensureGifPlaybackReady(path) {
+  const entry = getGifPlaybackCacheEntry(path);
+  if (!entry) {
     return null;
   }
-  if (playback.frames.length === 1 || playback.totalDurationMs <= 1) {
-    return playback.frames[0]?.image ?? null;
+  if (!canDecodeGifFramesNatively()) {
+    entry.status = "fallback";
+    return entry;
   }
+  if (entry.status === "ready" || entry.status === "loading") {
+    return entry;
+  }
+  entry.status = "loading";
+  entry.promise = decodeGifPlaybackFrames(path, entry)
+    .catch((error) => {
+      console.warn(`Native GIF decode failed for ${path}`, error);
+      entry.status = "fallback";
+      entry.error = error;
+    })
+    .finally(() => {
+      entry.promise = null;
+    });
+  return entry;
+}
 
-  const finiteLoop = Number.isFinite(playback.loopCount);
-  let cursor = Math.max(0, elapsedMs);
-  if (finiteLoop) {
-    const maxDuration = playback.totalDurationMs * Math.max(1, playback.loopCount);
-    if (cursor >= maxDuration) {
-      return playback.frames[playback.frames.length - 1]?.image ?? null;
-    }
+function getGifPlaybackFrame(path, elapsedSeconds) {
+  const entry = ensureGifPlaybackReady(path);
+  if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
+    return null;
   }
-  cursor %= playback.totalDurationMs;
+  const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
+  let cursorMs = (((Number(elapsedSeconds) || 0) * 1000) % totalDurationMs + totalDurationMs) % totalDurationMs;
+  for (const frame of entry.frames) {
+    if (cursorMs < frame.durationMs) {
+      return frame.bitmap;
+    }
+    cursorMs -= frame.durationMs;
+  }
+  return entry.frames[entry.frames.length - 1]?.bitmap ?? null;
+}
 
-  let accumulator = 0;
-  for (const frame of playback.frames) {
-    accumulator += frame.durationMs;
-    if (cursor < accumulator) {
-      return frame.image;
-    }
-  }
-  return playback.frames[playback.frames.length - 1]?.image ?? null;
+function clampRoomSpeed(value) {
+  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
+}
+
+function clampRoomSoundVolume(value) {
+  return Math.max(0, Math.min(1, Number(value) || 0));
+}
+
+function clampAudioVolumePercent(value) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function clampAnimationSpeed(value) {
+  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
+}
+
+function clampOutsideIntensity(value) {
+  return Math.max(0.2, Math.min(1.5, Number(value) || OUTSIDE_FX_DEFAULT.intensity));
+}
+
+function clampOutsideSpeed(value) {
+  return Math.max(0.3, Math.min(2.5, Number(value) || OUTSIDE_FX_DEFAULT.speed));
+}
+
+function normalizeOutsideMode(value) {
+  return value === "immersive" ? "immersive" : "standard";
+}
+
+function normalizeOutsideDirection(value) {
+  return value === "reverse" ? "reverse" : "forward";
 }
 
 function formatHitareaValue(value) {
@@ -2809,6 +2752,18 @@ function isMobilePortraitViewport() {
 
 function getMobileOrientationLabel() {
   return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
+}
+
+function isElementRendered(element) {
+  if (!element || element.hidden) {
+    return false;
+  }
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden") {
+    return false;
+  }
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
 }
 
 function syncMobileStickyOffsets() {
@@ -3025,96 +2980,6 @@ function percentile(values, p) {
 
 function getRuntimeQualityScale() {
   return Math.max(0.68, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
-}
-
-function createEmptyRenderTickStats() {
-  return {
-    outsideLayerErrors: 0,
-    animationLayerErrors: 0,
-    clipErrors: 0,
-    schedulerErrors: 0,
-    totalErrors: 0,
-  };
-}
-
-function beginRenderTick(now) {
-  state.renderTelemetry.lastTick = createEmptyRenderTickStats();
-  if (Number.isFinite(now)) {
-    state.renderTelemetry.lastFrameAt = now;
-  }
-}
-
-function recordRenderTickError(kind) {
-  const bucketByKind = {
-    outside: "outsideLayerErrors",
-    animation: "animationLayerErrors",
-    clip: "clipErrors",
-    scheduler: "schedulerErrors",
-  };
-  const bucket = bucketByKind[kind] ?? "schedulerErrors";
-  state.renderTelemetry.lastTick[bucket] += 1;
-  state.renderTelemetry.lastTick.totalErrors += 1;
-  state.renderTelemetry.totals[bucket] += 1;
-}
-
-function recordRenderClipFallback(kind) {
-  if (!Object.prototype.hasOwnProperty.call(state.renderTelemetry.clipFallbacks, kind)) {
-    return;
-  }
-  state.renderTelemetry.clipFallbacks[kind] += 1;
-}
-
-function finalizeRenderTick(frameCostMs) {
-  state.renderTelemetry.frameCount += 1;
-  state.renderTelemetry.lastFrameCostMs = Number.isFinite(frameCostMs) ? frameCostMs : 0;
-}
-
-function consumeRenderFaultInjectionFlag(key) {
-  if (!state.renderTelemetry.faultInjection[key]) {
-    return false;
-  }
-  state.renderTelemetry.faultInjection[key] = false;
-  return true;
-}
-
-function getRenderTelemetrySnapshot() {
-  return {
-    frameCount: state.renderTelemetry.frameCount,
-    lastFrameAt: state.renderTelemetry.lastFrameAt,
-    lastFrameCostMs: state.renderTelemetry.lastFrameCostMs,
-    lastTick: { ...state.renderTelemetry.lastTick },
-    totals: { ...state.renderTelemetry.totals },
-    clipFallbacks: { ...state.renderTelemetry.clipFallbacks },
-  };
-}
-
-function installRenderReproHarness() {
-  window.__TT_BEAMER_RENDER_HARNESS__ = {
-    injectOutsideLayerFailureOnce() {
-      state.renderTelemetry.faultInjection.outsideLayerFailOnce = true;
-      return getRenderTelemetrySnapshot();
-    },
-    injectClipFailureOnce() {
-      state.renderTelemetry.faultInjection.clipFailOnce = true;
-      return getRenderTelemetrySnapshot();
-    },
-    getSnapshot() {
-      return getRenderTelemetrySnapshot();
-    },
-    resetCounters() {
-      state.renderTelemetry.frameCount = 0;
-      state.renderTelemetry.lastFrameAt = 0;
-      state.renderTelemetry.lastFrameCostMs = 0;
-      state.renderTelemetry.lastTick = createEmptyRenderTickStats();
-      state.renderTelemetry.totals = createEmptyRenderTickStats();
-      state.renderTelemetry.clipFallbacks = {
-        outsideEvenOddFallback: 0,
-        outsideCompositeFallback: 0,
-        insideInvalidPolygon: 0,
-      };
-      return getRenderTelemetrySnapshot();
-    },
-  };
 }
 
 function recordRuntimeFrameCost(frameCostMs) {
@@ -3678,54 +3543,6 @@ function runOutsideIsolationRegression() {
   return true;
 }
 
-function runOutsideFailureIsolationRegression() {
-  const boardId = state.boardId;
-  const now = performance.now();
-  const issues = [];
-  const previousOutside = getOutsideFxProfile(boardId);
-
-  try {
-    beginRenderTick(now);
-    updateOutsideFxProfile(boardId, { enabled: true });
-    state.renderTelemetry.faultInjection.outsideLayerFailOnce = true;
-    drawOutsideFxLayer(now);
-    if (state.renderTelemetry.lastTick.outsideLayerErrors < 1) {
-      issues.push("outside layer failure was not detected");
-    }
-
-    const probeAnimation = {
-      id: "outside-isolation-probe",
-      scope: "global",
-      type: "ambient-drift",
-      boardId,
-      startedAt: now - 16,
-      intensity: 0.7,
-      speed: 1,
-      hold: true,
-      durationMs: null,
-    };
-    const visibleLayerOk = drawAnimationSafely(probeAnimation, now + 16);
-    if (!visibleLayerOk) {
-      issues.push("inside/global layer draw failed after outside failure");
-    }
-    if (state.renderTelemetry.lastTick.animationLayerErrors > 0) {
-      issues.push("outside failure cascaded into animation layer errors");
-    }
-  } catch {
-    issues.push("outside failure isolation regression threw unexpectedly");
-  } finally {
-    setOutsideFxProfile(boardId, previousOutside);
-    syncOutsideRuntimeMirror(boardId);
-    syncOutsideFxPanel();
-  }
-
-  if (issues.length > 0) {
-    console.error("Outside failure isolation regression violation", issues);
-    return false;
-  }
-  return true;
-}
-
 function runShipClipRegression() {
   const boardId = state.boardId;
   const previousShipPolygon = getShipPolygonPoints(boardId);
@@ -3772,103 +3589,6 @@ function runShipClipRegression() {
 
   if (issues.length > 0) {
     console.error("Ship clip regression violation", issues);
-    return false;
-  }
-  return true;
-}
-
-function runGifDirectStartEditReloadRegression() {
-  const gifType = ROOM_ANIMATIONS.find((animation) => isGifRoomAnimation(animation.id))?.id ?? "kaputt";
-  const defaultPath = ROOM_GIF_ANIMATION_ASSETS[gifType] ?? null;
-  const mappedPath = ROOM_GIF_ASSET_PATHS.find((path) => path !== defaultPath) ?? defaultPath;
-  const targetRoom = getBoard().rooms[0];
-
-  if (!targetRoom || !mappedPath) {
-    return true;
-  }
-
-  const issues = [];
-  const previousSelectedRoomId = state.selectedRoomId;
-  const previousRoomDraft = { ...state.roomDraft };
-  const previousRunningAnimations = state.runningAnimations.map((entry) => ({ ...entry }));
-  const previousAnimationGifMap = { ...state.animationGifMap };
-  const previousRunningIds = new Set(previousRunningAnimations.map((entry) => entry.id));
-
-  let createdId = null;
-
-  try {
-    state.selectedRoomId = targetRoom.id;
-    state.animationGifMap[gifType] = mappedPath;
-    state.roomDraft = {
-      ...state.roomDraft,
-      animationId: gifType,
-      intensity: 0.8,
-      speed: 1,
-      opacity: 0.9,
-      playbackSpeed: 1,
-      soundVolume: 1,
-      editTargetId: null,
-    };
-
-    startRoomAnimationFromDraft();
-    const created = state.runningAnimations.find(
-      (entry) =>
-        !previousRunningIds.has(entry.id) && entry.scope === "room" && entry.roomId === targetRoom.id,
-    );
-    if (!created) {
-      issues.push("direct-start did not create room animation instance");
-    } else {
-      createdId = created.id;
-      const normalizedMapped = normalizeAnimationGifPath(gifType, mappedPath);
-      if (created.gifAssetPath !== normalizedMapped) {
-        issues.push("direct-start instance missing mapped gifAssetPath");
-      }
-    }
-
-    if (createdId) {
-      state.roomDraft = {
-        ...state.roomDraft,
-        animationId: gifType,
-        editTargetId: createdId,
-      };
-      startRoomAnimationFromDraft();
-      const edited = state.runningAnimations.find((entry) => entry.id === createdId) ?? null;
-      if (!edited) {
-        issues.push("edit-flow replaced instance id instead of in-place update");
-      } else {
-        const normalizedMapped = normalizeAnimationGifPath(gifType, mappedPath);
-        if (edited.gifAssetPath !== normalizedMapped) {
-          issues.push("edit-flow changed gifAssetPath away from mapped value");
-        }
-      }
-    }
-
-    const snapshot = buildLocalProfileSnapshotFromState();
-    state.animationGifMap[gifType] = ROOM_GIF_MAPPING_NONE;
-    applyLocalProfileSnapshotToState(snapshot);
-    const restoredMapped = normalizeAnimationGifPath(gifType, state.animationGifMap[gifType]);
-    const expectedMapped = normalizeAnimationGifPath(gifType, mappedPath);
-    if (restoredMapped !== expectedMapped) {
-      issues.push("reload snapshot failed to restore mapped gif path");
-    }
-  } catch {
-    issues.push("direct-start/edit/reload regression threw unexpectedly");
-  } finally {
-    const currentExtraIds = state.runningAnimations
-      .filter((entry) => !previousRunningIds.has(entry.id))
-      .map((entry) => entry.id);
-    for (const animationId of currentExtraIds) {
-      stopAnimationSound(animationId);
-    }
-    state.runningAnimations = previousRunningAnimations;
-    state.animationGifMap = previousAnimationGifMap;
-    state.selectedRoomId = previousSelectedRoomId;
-    state.roomDraft = { ...previousRoomDraft };
-    syncRoomForm();
-  }
-
-  if (issues.length > 0) {
-    console.error("Direct-start GIF mapping regression violation", issues);
     return false;
   }
   return true;
@@ -4595,62 +4315,6 @@ function syncAudioMappingPanel() {
   syncAudioMappingStatus();
 }
 
-function syncGifMappingStatus() {
-  const animationType = gifMappingAnimationSelect?.value || ROOM_ANIMATIONS[0]?.id;
-  if (!animationType || !gifMappingStatus) {
-    return;
-  }
-  const label = getAnimationLabel(animationType);
-  const mapped = normalizeAnimationGifPath(animationType, state.animationGifMap?.[animationType]);
-  if (mapped === ROOM_GIF_MAPPING_NONE) {
-    gifMappingStatus.textContent = `GIF-Mapping: ${label} -> none`;
-    return;
-  }
-  const fileName = mapped.split("/").pop() ?? mapped;
-  gifMappingStatus.textContent = `GIF-Mapping: ${label} -> ${fileName}`;
-}
-
-function syncGifMappingPanel() {
-  if (!gifMappingAnimationSelect || !gifMappingAssetSelect) {
-    return;
-  }
-
-  if (gifMappingAnimationSelect.childElementCount === 0) {
-    for (const animation of ROOM_ANIMATIONS) {
-      const option = document.createElement("option");
-      option.value = animation.id;
-      option.textContent = animation.label;
-      gifMappingAnimationSelect.append(option);
-    }
-  }
-
-  const selectedAnimationType = ROOM_ANIMATIONS.some((entry) => entry.id === gifMappingAnimationSelect.value)
-    ? gifMappingAnimationSelect.value
-    : ROOM_ANIMATIONS[0]?.id;
-  if (!selectedAnimationType) {
-    return;
-  }
-  gifMappingAnimationSelect.value = selectedAnimationType;
-
-  gifMappingAssetSelect.replaceChildren();
-  const noneOption = document.createElement("option");
-  noneOption.value = ROOM_GIF_MAPPING_NONE;
-  noneOption.textContent = "none (kein GIF)";
-  gifMappingAssetSelect.append(noneOption);
-
-  for (const gifPath of ROOM_GIF_ASSET_PATHS) {
-    const option = document.createElement("option");
-    option.value = gifPath;
-    option.textContent = gifPath.replace("resources/nemesis/animations/", "");
-    gifMappingAssetSelect.append(option);
-  }
-
-  const mapped = normalizeAnimationGifPath(selectedAnimationType, state.animationGifMap?.[selectedAnimationType]);
-  state.animationGifMap[selectedAnimationType] = mapped;
-  gifMappingAssetSelect.value = mapped;
-  syncGifMappingStatus();
-}
-
 function applyHitareaCalibration(x, y, calibration) {
   const scaledX = (x - 0.5) * calibration.scale + 0.5 + calibration.offsetX;
   const scaledY = (y - 0.5) * calibration.scale + 0.5 + calibration.offsetY;
@@ -4922,10 +4586,6 @@ function clearRoomDraftEditTarget() {
   syncRoomDraftActionButton();
 }
 
-function setLiveTriggerFeedback(message) {
-  triggerFeedback.textContent = `Status: ${message} (direkt live)`;
-}
-
 function createAnimation({
   type,
   scope,
@@ -4935,7 +4595,6 @@ function createAnimation({
   speed = 1,
   opacity = 0.9,
   playbackSpeed = 1,
-  gifAssetPath = null,
   soundVolume = 1,
   hold = false,
   durationSec = 15,
@@ -4951,7 +4610,6 @@ function createAnimation({
     speed: clampRoomSpeed(speed),
     opacity: clampRoomOpacity(opacity),
     playbackSpeed: clampGifPlaybackSpeed(playbackSpeed),
-    gifAssetPath: scope === "room" ? normalizeAnimationGifPath(type, gifAssetPath) : null,
     soundVolume: clampRoomSoundVolume(soundVolume),
     hold: effectiveHold,
     durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
@@ -4959,18 +4617,42 @@ function createAnimation({
   };
 }
 
+function createPreviewQueueItem({
+  type,
+  scope,
+  boardId = state.boardId,
+  roomId = null,
+  intensity = 1,
+  speed = 1,
+  opacity = 0.9,
+  playbackSpeed = 1,
+  soundVolume = 1,
+  hold = false,
+  durationSec = 18,
+}) {
+  const effectiveHold = scope === "room" ? true : Boolean(hold);
+  return {
+    id: `preview-${previewItemIdCounter++}`,
+    type,
+    scope,
+    boardId,
+    roomId,
+    intensity: scope === "room" ? clampRoomIntensity(intensity) : 1,
+    speed: scope === "room" ? clampRoomSpeed(speed) : 1,
+    opacity: scope === "room" ? clampRoomOpacity(opacity) : 1,
+    playbackSpeed: scope === "room" ? clampGifPlaybackSpeed(playbackSpeed) : 1,
+    soundVolume: scope === "room" ? clampRoomSoundVolume(soundVolume) : 1,
+    hold: effectiveHold,
+    durationSec: effectiveHold ? null : Math.max(1, Math.round(durationSec)),
+    queuedAt: Date.now(),
+  };
+}
+
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
-  const effectType = resolveRoomAnimationEffectType(animation.type, ROOM_GLOBAL_EQUIVALENT_MAP);
-  const isGifAnimation = isGifRoomAnimation(animation.type);
-  const playbackAge = isGifAnimation
-    ? age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1)
-    : age;
-  const normalizedGifPath = normalizeAnimationGifPath(animation.type, animation.gifAssetPath);
-  const gifAssetPath = normalizedGifPath === ROOM_GIF_MAPPING_NONE
-    ? getMappedGifPathForAnimation(animation.type) ?? ROOM_GIF_ANIMATION_ASSETS[animation.type]
-    : normalizedGifPath;
-  return drawEffectVisual(
+  const effectType = resolveRoomAnimationEffectType(animation.type);
+  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  drawEffectVisual(
     effectType,
     playbackAge,
     animation.intensity,
@@ -4979,10 +4661,296 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     {
       densityFactor: qualityScale,
       opacity: clampRoomOpacity(animation.opacity),
-      gifAssetPath,
+      gifAssetPath: ROOM_GIF_ANIMATION_ASSETS[animation.type],
+      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
       roomAnimationType: animation.type,
     },
   );
+}
+
+function formatPreviewQueueLabel(item) {
+  const boardLabel = getBoard(item.boardId).label;
+  if (item.scope === "room") {
+    const roomLabel =
+      getBoard(item.boardId).rooms.find((room) => room.id === item.roomId)?.label ?? item.roomId ?? "Raum";
+    return `${getAnimationLabel(item.type)} auf ${roomLabel} (${boardLabel})`;
+  }
+  return `${getAnimationLabel(item.type)} global (${boardLabel})`;
+}
+
+function syncPreviewGlobalOptions() {
+  if (!previewGlobalSelect) {
+    return;
+  }
+  previewGlobalSelect.replaceChildren();
+  for (const animation of GLOBAL_ANIMATIONS) {
+    const option = document.createElement("option");
+    option.value = animation.id;
+    option.textContent = animation.label;
+    previewGlobalSelect.append(option);
+  }
+}
+
+function renderPreviewQueue() {
+  if (!previewQueueList) {
+    return;
+  }
+  previewQueueList.replaceChildren();
+  if (state.preview.queue.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "running-empty";
+    empty.textContent = "Preview ist leer";
+    previewQueueList.append(empty);
+    if (previewStatus) {
+      previewStatus.textContent = "Preview: leer";
+    }
+    return;
+  }
+
+  for (const item of state.preview.queue) {
+    const li = document.createElement("li");
+    li.className = "running-item";
+    const title = document.createElement("div");
+    title.className = "running-title";
+    const scopeLabel = item.scope === "room" ? "PREVIEW-ROOM" : "PREVIEW-GLOBAL";
+    const scopeBadge = document.createElement("span");
+    scopeBadge.className = "running-scope-badge";
+    scopeBadge.textContent = scopeLabel;
+    title.append(scopeBadge, document.createTextNode(` ${formatPreviewQueueLabel(item)}`));
+
+    const meta = document.createElement("div");
+    meta.className = "running-meta";
+    meta.textContent =
+      item.scope === "room"
+        ? `Intensity ${item.intensity.toFixed(2)} | Opacity ${clampRoomOpacity(item.opacity).toFixed(2)} | Playback ${clampGifPlaybackSpeed(item.playbackSpeed).toFixed(2)}x | Sound ${Math.round(item.soundVolume * 100)}%`
+        : "Global-Preview";
+
+    const actions = document.createElement("div");
+    actions.className = "running-actions";
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Entfernen";
+    removeButton.addEventListener("click", () => {
+      state.preview.queue = state.preview.queue.filter((entry) => entry.id !== item.id);
+      renderPreviewQueue();
+      triggerFeedback.textContent = `Status: ${item.id} aus Preview entfernt`;
+    });
+    actions.append(removeButton);
+
+    li.append(title, meta, actions);
+    previewQueueList.append(li);
+  }
+  if (previewStatus) {
+    previewStatus.textContent = `Preview: ${state.preview.queue.length} Eintrag/Eintraege bereit`;
+  }
+}
+
+function stageRoomDraftToPreview() {
+  const room = getSelectedRoom();
+  if (!room) {
+    triggerFeedback.textContent = "Status: kein Raum fuer Preview ausgewaehlt";
+    return;
+  }
+  const item = createPreviewQueueItem({
+    type: state.roomDraft.animationId,
+    scope: "room",
+    boardId: state.boardId,
+    roomId: room.id,
+    intensity: state.roomDraft.intensity,
+    speed: state.roomDraft.speed,
+    opacity: state.roomDraft.opacity,
+    playbackSpeed: state.roomDraft.playbackSpeed,
+    soundVolume: state.roomDraft.soundVolume,
+    hold: state.roomDraft.hold,
+    durationSec: state.roomDraft.durationSec,
+  });
+  state.preview.queue.push(item);
+  renderPreviewQueue();
+  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
+}
+
+function stageGlobalToPreview() {
+  const animationId = previewGlobalSelect?.value || GLOBAL_ANIMATIONS[0]?.id;
+  if (!animationId) {
+    return;
+  }
+  const item = createPreviewQueueItem({
+    type: animationId,
+    scope: "global",
+    boardId: state.boardId,
+    hold: false,
+    durationSec: 18,
+  });
+  state.preview.queue.push(item);
+  renderPreviewQueue();
+  triggerFeedback.textContent = `Status: ${formatPreviewQueueLabel(item)} zu Preview hinzugefuegt`;
+}
+
+function syncLiveSendStatus(message = null) {
+  if (!liveSendStatus) {
+    return;
+  }
+  if (message) {
+    liveSendStatus.textContent = message;
+    return;
+  }
+  if (!state.live.lastSend) {
+    liveSendStatus.textContent = "Live-Send: noch kein Send";
+    return;
+  }
+  liveSendStatus.textContent =
+    `Live-Send: ${state.live.lastSend.sendId} (${state.live.lastSend.committedCount} Eintrag/Eintraege) aktiv`;
+}
+
+function buildLiveApiCandidates(pathname) {
+  const seen = new Set();
+  const candidates = [];
+  for (const route of resolveGlobalDefaultsApiCandidates()) {
+    const endpoint = `${route.apiBase}${pathname}`;
+    if (seen.has(endpoint)) {
+      continue;
+    }
+    seen.add(endpoint);
+    candidates.push({
+      endpoint,
+      routing: route,
+    });
+  }
+  return candidates;
+}
+
+async function callLiveApi(pathname, method, payload = null) {
+  let lastError = null;
+  for (const candidate of buildLiveApiCandidates(pathname)) {
+    try {
+      const response = await fetchWithTimeout(candidate.endpoint, {
+        method,
+        headers: {
+          accept: "application/json",
+          ...(payload ? { "content-type": "application/json" } : {}),
+        },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        lastError = new Error(`${method} ${candidate.endpoint} failed: ${response.status} ${detail}`);
+        continue;
+      }
+      const parsed = await response.json();
+      return {
+        payload: parsed,
+        endpoint: candidate.endpoint,
+        routing: candidate.routing,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("live api call failed");
+    }
+  }
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error(`No reachable endpoint for ${method} ${pathname}`);
+}
+
+function previewItemToAnimation(item) {
+  return createAnimation({
+    type: item.type,
+    scope: item.scope,
+    boardId: item.boardId,
+    roomId: item.scope === "room" ? item.roomId : null,
+    intensity: item.scope === "room" ? item.intensity : 1,
+    speed: item.scope === "room" ? item.speed : 1,
+    opacity: item.scope === "room" ? item.opacity : 1,
+    playbackSpeed: item.scope === "room" ? item.playbackSpeed : 1,
+    soundVolume: item.scope === "room" ? item.soundVolume : 1,
+    hold: Boolean(item.hold),
+    durationSec: item.hold ? 0 : item.durationSec ?? 18,
+  });
+}
+
+async function sendPreviewToLive() {
+  if (state.preview.queue.length === 0) {
+    triggerFeedback.textContent = "Status: Preview leer - nichts zu senden";
+    return;
+  }
+  const previewSnapshot = state.preview.queue.map((item) => ({ ...item }));
+  const createdAnimations = previewSnapshot.map((item) => previewItemToAnimation(item));
+  state.runningAnimations.push(...createdAnimations);
+  for (const animation of createdAnimations) {
+    playSoundForAnimation(animation);
+  }
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+
+  try {
+    const sent = await callLiveApi("/api/live/send", "POST", {
+      sentAt: new Date().toISOString(),
+      boardId: state.boardId,
+      previewItems: previewSnapshot,
+    });
+    const sendId = String(sent.payload?.sendId || `local-${Date.now()}`);
+    state.live.lastSend = {
+      sendId,
+      committedCount: createdAnimations.length,
+      animationIds: createdAnimations.map((animation) => animation.id),
+      endpoint: sent.endpoint,
+      routing: sent.routing,
+    };
+    state.preview.queue = [];
+    renderPreviewQueue();
+    syncLiveSendStatus();
+    const snapshot = buildResolveSnapshot({
+      routing: sent.routing,
+      endpoint: sent.endpoint,
+      method: "POST",
+    });
+    triggerFeedback.textContent =
+      `Status: Preview an Live gesendet (${sendId}, ${createdAnimations.length} Eintrag/Eintraege | ${formatResolveSnapshot(snapshot)})`;
+  } catch (error) {
+    for (const animation of createdAnimations) {
+      stopAnimationSound(animation.id);
+    }
+    state.runningAnimations = state.runningAnimations.filter(
+      (animation) => !createdAnimations.some((created) => created.id === animation.id),
+    );
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+    triggerFeedback.textContent =
+      `Status: Live-Send fehlgeschlagen, Preview bleibt aktiv (${error instanceof Error ? error.message : "n/a"})`;
+  }
+}
+
+async function rollbackLastSend() {
+  const lastSend = state.live.lastSend;
+  if (!lastSend) {
+    triggerFeedback.textContent = "Status: kein Send zum Rueckgaengigmachen vorhanden";
+    return;
+  }
+  try {
+    const rolledBack = await callLiveApi("/api/live/rollback", "POST", {
+      sendId: lastSend.sendId,
+    });
+    const removedAnimations = state.runningAnimations.filter((animation) =>
+      lastSend.animationIds.includes(animation.id),
+    );
+    for (const animation of removedAnimations) {
+      stopAnimationSound(animation.id);
+    }
+    state.runningAnimations = state.runningAnimations.filter(
+      (animation) => !lastSend.animationIds.includes(animation.id),
+    );
+    state.live.lastSend = null;
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+    syncLiveSendStatus(
+      `Live-Send: ${rolledBack.payload?.rolledBackSendId || lastSend.sendId} rueckgaengig`,
+    );
+    triggerFeedback.textContent =
+      `Status: Letzter Send rueckgaengig (${rolledBack.payload?.rolledBackSendId || lastSend.sendId})`;
+  } catch (error) {
+    triggerFeedback.textContent =
+      `Status: Rollback fehlgeschlagen (${error instanceof Error ? error.message : "n/a"})`;
+  }
 }
 
 function upsertGlobalAnimation(type, defaultDurationSec) {
@@ -4998,7 +4966,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       persistBoardProfiles();
       syncOutsideFxPanel();
     }
-    setLiveTriggerFeedback(`${getAnimationLabel(type)} gestoppt`);
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
   } else {
     const animation = createAnimation({
       type,
@@ -5014,7 +4982,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     playSoundForAnimation(animation);
-    setLiveTriggerFeedback(`${getAnimationLabel(type)} gestartet`);
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -5039,7 +5007,6 @@ function startRoomAnimationFromDraft() {
     speed: clampRoomSpeed(state.roomDraft.speed),
     opacity: clampRoomOpacity(state.roomDraft.opacity),
     playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
-    gifAssetPath: getMappedGifPathForAnimation(state.roomDraft.animationId),
     soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
     hold: true,
     durationMs: null,
@@ -5054,15 +5021,12 @@ function startRoomAnimationFromDraft() {
       const updated = {
         ...existing,
         ...draftPayload,
-        gifAssetPath: isGifRoomAnimation(draftPayload.type)
-          ? normalizeAnimationGifPath(draftPayload.type, existing.gifAssetPath ?? draftPayload.gifAssetPath)
-          : ROOM_GIF_MAPPING_NONE,
         boardId: state.boardId,
         startedAt: performance.now(),
       };
       state.runningAnimations[editIndex] = updated;
       playSoundForAnimation(updated);
-      setLiveTriggerFeedback(`${updated.id} in-place aktualisiert`);
+      triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
       return;
@@ -5078,7 +5042,6 @@ function startRoomAnimationFromDraft() {
     speed: draftPayload.speed,
     opacity: draftPayload.opacity,
     playbackSpeed: draftPayload.playbackSpeed,
-    gifAssetPath: draftPayload.gifAssetPath,
     soundVolume: draftPayload.soundVolume,
     hold: true,
     durationSec: 0,
@@ -5086,9 +5049,7 @@ function startRoomAnimationFromDraft() {
 
   state.runningAnimations.push(animation);
   playSoundForAnimation(animation);
-  setLiveTriggerFeedback(
-    `${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`,
-  );
+  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.label} gestartet`;
   renderRunningAnimationsList();
 }
 
@@ -5154,7 +5115,6 @@ function editAnimation(animationId) {
 }
 
 function renderRunningAnimationsList() {
-  const integrity = enforceRunningAnimationIntegrity();
   const parity = validateRunningListParity();
   runningAnimationsList.replaceChildren();
   if (state.runningAnimations.length === 0) {
@@ -5188,8 +5148,8 @@ function renderRunningAnimationsList() {
     const remaining = anim.durationMs
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
-  const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.gifAssetPath) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.gifAssetPath)}` : ""}${getRoomEquivalentType(anim.type, ROOM_GLOBAL_EQUIVALENT_MAP) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, ROOM_GLOBAL_EQUIVALENT_MAP)}` : ""} | Sound: ${Math.round(
+    const roomMeta = anim.scope === "room"
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
@@ -5227,55 +5187,9 @@ function renderRunningAnimationsList() {
     runningAnimationsList.append(li);
   }
 
-  if (integrity.repaired) {
-    triggerFeedback.textContent = `Status: Running-Liste-Guard hat ${integrity.removed} inkonsistente Eintrag/Eintraege bereinigt`;
-  }
-
   if (!parity.ok) {
     triggerFeedback.textContent = `Status: Running-Liste-Guard meldet Drift (${parity.reason})`;
   }
-}
-
-function enforceRunningAnimationIntegrity() {
-  const next = [];
-  const seen = new Set();
-  let removed = 0;
-  for (const animation of state.runningAnimations) {
-    if (!animation?.id || seen.has(animation.id)) {
-      removed += 1;
-      continue;
-    }
-    if (!BOARDS.some((board) => board.id === animation.boardId)) {
-      removed += 1;
-      continue;
-    }
-    if (animation.scope === "room") {
-      const board = getBoard(animation.boardId);
-      if (!board.rooms.some((room) => room.id === animation.roomId)) {
-        removed += 1;
-        continue;
-      }
-    }
-    seen.add(animation.id);
-    next.push(animation);
-  }
-  if (removed > 0) {
-    const previousIds = new Set(state.runningAnimations.map((entry) => entry.id));
-    state.runningAnimations = next;
-    for (const id of previousIds) {
-      if (!seen.has(id)) {
-        stopAnimationSound(id);
-      }
-    }
-    refreshGlobalButtons();
-  }
-  if (
-    state.roomDraft.editTargetId &&
-    !next.some((animation) => animation.id === state.roomDraft.editTargetId)
-  ) {
-    clearRoomDraftEditTarget();
-  }
-  return { repaired: removed > 0, removed };
 }
 
 function validateRunningListParity() {
@@ -5333,36 +5247,27 @@ function applyOutputRoute(route) {
 }
 
 function clipToPolygon(polygon, { evenodd = false } = {}) {
-  try {
-    if (consumeRenderFaultInjectionFlag("clipFailOnce")) {
-      throw new Error("Render harness injected clip failure");
-    }
-    if (!Array.isArray(polygon) || polygon.length < 3) {
-      ctx.beginPath();
-      ctx.rect(0, 0, 0, 0);
-      ctx.clip();
-      return false;
-    }
+  if (!Array.isArray(polygon) || polygon.length < 3) {
     ctx.beginPath();
-    polygon.forEach(([x, y], index) => {
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.closePath();
-    if (evenodd) {
-      ctx.clip("evenodd");
-    } else {
-      ctx.clip();
-    }
-    return true;
-  } catch (error) {
-    recordRenderTickError("clip");
-    console.error("clipToPolygon failed", error);
+    ctx.rect(0, 0, 0, 0);
+    ctx.clip();
     return false;
   }
+  ctx.beginPath();
+  polygon.forEach(([x, y], index) => {
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
+  if (evenodd) {
+    ctx.clip("evenodd");
+  } else {
+    ctx.clip();
+  }
+  return true;
 }
 
 function clipToRoom(room, boardId = state.boardId) {
@@ -5375,97 +5280,23 @@ function getShipClipPolygon(boardId = state.boardId) {
   return shipPolygon.length >= 3 ? shipPolygon : null;
 }
 
-function detectEvenOddClipCapability() {
-  if (evenOddClipCapability !== null) {
-    return evenOddClipCapability;
-  }
-  try {
-    const testCanvas = document.createElement("canvas");
-    testCanvas.width = 8;
-    testCanvas.height = 8;
-    const testCtx = testCanvas.getContext("2d", { willReadFrequently: true });
-    if (!testCtx) {
-      evenOddClipCapability = false;
-      return evenOddClipCapability;
-    }
-    testCtx.beginPath();
-    testCtx.rect(0, 0, 8, 8);
-    testCtx.rect(2, 2, 4, 4);
-    testCtx.clip("evenodd");
-    testCtx.fillStyle = "rgba(255,0,0,1)";
-    testCtx.fillRect(0, 0, 8, 8);
-    const centerAlpha = testCtx.getImageData(4, 4, 1, 1).data[3];
-    evenOddClipCapability = centerAlpha === 0;
-  } catch {
-    evenOddClipCapability = false;
-  }
-  return evenOddClipCapability;
-}
-
-function shouldUseOutsideCompositeFallback() {
-  const fallback = !detectEvenOddClipCapability();
-  if (fallback) {
-    recordRenderClipFallback("outsideEvenOddFallback");
-  }
-  return fallback;
-}
-
-function cutOutShipMaskFromCurrentLayer(boardId = state.boardId) {
-  const shipPolygon = getShipClipPolygon(boardId);
-  if (!shipPolygon) {
-    recordRenderClipFallback("insideInvalidPolygon");
-    return false;
-  }
-  try {
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    shipPolygon.forEach(([x, y], index) => {
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.closePath();
-    ctx.fillStyle = "rgba(0,0,0,1)";
-    ctx.fill();
-    ctx.restore();
-    return true;
-  } catch (error) {
-    recordRenderTickError("clip");
-    console.error("cutOutShipMaskFromCurrentLayer failed", error);
-    return false;
-  }
-}
-
 function clipToOutsideShip(boardId = state.boardId) {
-  if (shouldUseOutsideCompositeFallback()) {
-    return true;
-  }
   const shipPolygon = getShipClipPolygon(boardId);
   if (!shipPolygon) {
-    recordRenderClipFallback("insideInvalidPolygon");
     return clipToPolygon(null);
   }
-  try {
-    ctx.beginPath();
-    ctx.rect(0, 0, canvas.width, canvas.height);
-    shipPolygon.forEach(([x, y], index) => {
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.closePath();
-    ctx.clip("evenodd");
-    return true;
-  } catch (error) {
-    recordRenderTickError("clip");
-    console.error("clipToOutsideShip failed", error);
-    return false;
-  }
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  shipPolygon.forEach(([x, y], index) => {
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
+  ctx.clip("evenodd");
+  return true;
 }
 
 function clipToInsideShip(boardId = state.boardId) {
@@ -5478,51 +5309,37 @@ function drawAnimation(animation, now) {
   const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
   if (animation.scope === "room") {
     if (animation.boardId !== state.boardId) {
-      return true;
+      return;
     }
     const room = getBoard(animation.boardId).rooms.find((entry) => entry.id === animation.roomId);
     if (!room) {
-      return false;
+      return;
     }
     const roomMetrics = getRoomRenderMetrics(room, animation.boardId);
     ctx.save();
     try {
       const clipped = clipToRoom(room, animation.boardId);
       if (!clipped) {
-        drawRenderFallback(ctx, canvas, roomMetrics, age, "room");
-        return true;
+        return;
       }
-      const rendered = drawRoomComposition(animation, age, room, roomMetrics);
-      if (rendered === false) {
-        // Critical render regression guard: if a specific effect cannot draw (e.g. GIF frame unavailable),
-        // we still emit a visible fallback pulse so "audio-only" states are immediately obvious.
-        drawRenderFallback(ctx, canvas, roomMetrics, age, "room");
-      }
-      return true;
+      drawRoomComposition(animation, age, room, roomMetrics);
     } finally {
       ctx.restore();
     }
-  }
-  if (animation.boardId && animation.boardId !== state.boardId) {
-    return true;
+    return;
   }
   if (animation.type === "outside-space") {
     // Outside is rendered in a dedicated isolated layer path.
-    return true;
+    return;
   }
 
   ctx.save();
   try {
     const clipped = clipToInsideShip(animation.boardId ?? state.boardId);
     if (!clipped) {
-      drawRenderFallback(ctx, canvas, null, age, "global");
-      return true;
+      return;
     }
-    const rendered = drawEffectVisual(animation.type, age, animation.intensity, null);
-    if (rendered === false) {
-      drawRenderFallback(ctx, canvas, null, age, "global");
-    }
-    return true;
+    drawEffectVisual(animation.type, age, animation.intensity, null);
   } finally {
     ctx.restore();
   }
@@ -5530,9 +5347,9 @@ function drawAnimation(animation, now) {
 
 function drawAnimationSafely(animation, now) {
   try {
-    return drawAnimation(animation, now);
+    drawAnimation(animation, now);
+    return true;
   } catch (error) {
-    recordRenderTickError("animation");
     console.error(`Animation ${animation.id} failed`, error);
     return false;
   }
@@ -5543,21 +5360,14 @@ function drawOutsideFxLayer(now) {
   if (!outside.enabled) {
     return;
   }
+  ctx.save();
   try {
-    if (consumeRenderFaultInjectionFlag("outsideLayerFailOnce")) {
-      throw new Error("Render harness injected outside layer failure");
-    }
-    ctx.save();
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     ctx.filter = "none";
-    const useCompositeFallback = shouldUseOutsideCompositeFallback();
-    if (!useCompositeFallback) {
-      const clipped = clipToOutsideShip(state.boardId);
-      if (!clipped) {
-        ctx.restore();
-        return;
-      }
+    const clipped = clipToOutsideShip(state.boardId);
+    if (!clipped) {
+      return;
     }
     drawEffectVisual(
       "outside-space",
@@ -5571,42 +5381,9 @@ function drawOutsideFxLayer(now) {
         outsideDirection: outside.direction,
       },
     );
-    if (useCompositeFallback) {
-      recordRenderClipFallback("outsideCompositeFallback");
-      cutOutShipMaskFromCurrentLayer(state.boardId);
-    }
+  } finally {
     ctx.restore();
-  } catch (error) {
-    recordRenderTickError("outside");
-    console.error("Outside layer failed", error);
   }
-}
-
-function clearCanvasSafely() {
-  try {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  } catch (error) {
-    recordRenderTickError("scheduler");
-    console.error("clearRect failed", error);
-  }
-}
-
-function pruneFinishedAnimationsSafely(now) {
-  try {
-    pruneFinishedAnimations(now);
-  } catch (error) {
-    recordRenderTickError("scheduler");
-    console.error("pruneFinishedAnimations failed", error);
-  }
-}
-
-function updateRenderFaultFeedback() {
-  const tick = state.renderTelemetry.lastTick;
-  if (!tick || tick.totalErrors <= 0) {
-    return;
-  }
-  triggerFeedback.textContent =
-    `Status: Render-Fail-Safe aktiv (outside=${tick.outsideLayerErrors}, animation=${tick.animationLayerErrors}, clip=${tick.clipErrors}, scheduler=${tick.schedulerErrors})`;
 }
 
 function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
@@ -5858,17 +5635,32 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === "kaputt" || type === "feuer" || type === "schleim") {
-    const gifPath = options.gifAssetPath ?? getMappedGifPathForAnimation(options.roomAnimationType ?? type) ?? ROOM_GIF_ANIMATION_ASSETS[type];
-    const gifPlayback = getGifPlayback(gifPath);
-    const gifFrame = getGifFrameForElapsedMs(gifPlayback, age * 1000);
-    const fallbackImage = gifPlayback?.fallbackImage ?? getGifImage(gifPath);
-    const drawableImage = gifFrame ?? (fallbackImage?.complete ? fallbackImage : null);
-    if (!drawableImage) {
-      return false;
+  if (type === "kaputt") {
+    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
+    const gifFrame = getGifPlaybackFrame(gifPath, age);
+    const gifImage = gifFrame ?? getGifImage(gifPath);
+    if (!gifImage || (!gifFrame && !gifImage.complete)) {
+      return;
     }
     const opacity = clampRoomOpacity(options.opacity ?? intensity);
-    const baseScale = 1.04;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(gifImage, roomMinX, roomMinY, roomWidth, roomHeight);
+    ctx.restore();
+    return;
+  }
+
+  if (type === "feuer" || type === "schleim") {
+    const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
+    const gifImage = getGifImage(gifPath);
+    if (!gifImage?.complete) {
+      return;
+    }
+    const opacity = clampRoomOpacity(options.opacity ?? intensity);
+    const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
+    const pulse = (Math.sin(age * (0.7 + playbackSpeed * 0.6)) + 1) / 2;
+    const baseScale = 1.02 + pulse * 0.06;
     const drawWidth = roomWidth * baseScale;
     const drawHeight = roomHeight * baseScale;
     const drawX = roomX - drawWidth / 2;
@@ -5876,9 +5668,9 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.drawImage(drawableImage, drawX, drawY, drawWidth, drawHeight);
+    ctx.drawImage(gifImage, drawX, drawY, drawWidth, drawHeight);
     ctx.restore();
-    return true;
+    return;
   }
 
   if (type === "state-broken") {
@@ -6062,7 +5854,6 @@ function pruneFinishedAnimations(now) {
 
 function draw(now) {
   const frameStart = performance.now();
-  beginRenderTick(now);
   try {
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
@@ -6086,8 +5877,8 @@ function draw(now) {
       state.mobilePerf.pendingTriggerAt = null;
     }
 
-    clearCanvasSafely();
-    pruneFinishedAnimationsSafely(now);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pruneFinishedAnimations(now);
     drawOutsideFxLayer(now);
 
     const failedAnimationIds = [];
@@ -6112,10 +5903,7 @@ function draw(now) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }
-    updateRenderFaultFeedback();
-    const frameCostMs = performance.now() - frameStart;
-    finalizeRenderTick(frameCostMs);
-    recordRuntimeFrameCost(frameCostMs);
+    recordRuntimeFrameCost(performance.now() - frameStart);
   } finally {
     requestAnimationFrame(draw);
   }
@@ -6789,28 +6577,8 @@ audioMappingSoundSelect.addEventListener("change", () => {
     animationType,
     audioMappingSoundSelect.value,
   );
-  const persisted = persistBoardProfiles();
   syncAudioMappingPanel();
-  triggerFeedback.textContent = persisted
-    ? `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
-    : `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
-});
-
-gifMappingAnimationSelect?.addEventListener("change", () => {
-  syncGifMappingPanel();
-});
-
-gifMappingAssetSelect?.addEventListener("change", () => {
-  const animationType = gifMappingAnimationSelect?.value;
-  if (!animationType) {
-    return;
-  }
-  state.animationGifMap[animationType] = normalizeAnimationGifPath(animationType, gifMappingAssetSelect.value);
-  const persisted = persistBoardProfiles();
-  syncGifMappingPanel();
-  triggerFeedback.textContent = persisted
-    ? `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
-    : `Status: GIF-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
+  triggerFeedback.textContent = `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`;
 });
 
 audioVolumeInput.addEventListener("input", () => {
@@ -6843,6 +6611,51 @@ mobileStartRoomButton?.addEventListener("click", () => {
   setDashboardZone("trigger");
   recordTriggerIntent();
   startRoomAnimationFromDraft();
+});
+
+stageGlobalPreviewButton?.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("preview-global-stage")) {
+    return;
+  }
+  stageGlobalToPreview();
+});
+
+stageRoomPreviewButton?.addEventListener("click", () => {
+  if (shouldSuppressRapidTap("preview-room-stage")) {
+    return;
+  }
+  stageRoomDraftToPreview();
+});
+
+clearPreviewQueueButton?.addEventListener("click", () => {
+  state.preview.queue = [];
+  renderPreviewQueue();
+  triggerFeedback.textContent = "Status: Preview geleert";
+});
+
+sendPreviewLiveButton?.addEventListener("click", async () => {
+  if (shouldSuppressRapidTap("preview-send-live")) {
+    return;
+  }
+  sendPreviewLiveButton.disabled = true;
+  syncLiveSendStatus("Live-Send: sende Preview ...");
+  try {
+    await sendPreviewToLive();
+  } finally {
+    sendPreviewLiveButton.disabled = false;
+  }
+});
+
+rollbackLastSendButton?.addEventListener("click", async () => {
+  if (shouldSuppressRapidTap("preview-rollback-live")) {
+    return;
+  }
+  rollbackLastSendButton.disabled = true;
+  try {
+    await rollbackLastSend();
+  } finally {
+    rollbackLastSendButton.disabled = false;
+  }
 });
 
 applyOutputRouteButton.addEventListener("click", () => {
@@ -6991,7 +6804,6 @@ function syncRuntimePanelsFromState() {
   applyAudioGain();
   syncAudioStatus();
   syncAudioMappingPanel();
-  syncGifMappingPanel();
   syncAnimationSpeedPanel();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
@@ -7024,7 +6836,8 @@ async function initializeApplication() {
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
-  state.animationGifMap = normalizeAnimationGifMap(createDefaultAnimationGifMap());
+  state.preview.queue = [];
+  state.live.lastSend = null;
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
@@ -7068,6 +6881,9 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
+  syncPreviewGlobalOptions();
+  renderPreviewQueue();
+  syncLiveSendStatus();
   syncMobileStickyOffsets();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
@@ -7080,7 +6896,6 @@ async function initializeApplication() {
   warmEventSoundAssets();
   setActiveView("dashboard");
   setPanCursorState();
-  installRenderReproHarness();
   const viewRegressionOk = runViewVisibilityRegression();
   const layoutRegressionOk = runLayoutScrollRegression();
   const startupGuardRegressionOk = runStartupDefaultsGuardRegression();
@@ -7090,9 +6905,7 @@ async function initializeApplication() {
   const navigationRegressionOk = runNavigationStateRegression();
   const projectionVisibilityOk = runMobileProjectionVisibilityGuard({ silent: true, context: "startup" });
   const outsideIsolationRegressionOk = runOutsideIsolationRegression();
-  const outsideFailureIsolationOk = runOutsideFailureIsolationRegression();
   const shipClipRegressionOk = runShipClipRegression();
-  const directStartGifRegressionOk = runGifDirectStartEditReloadRegression();
   if (
     !viewRegressionOk ||
     !layoutRegressionOk ||
@@ -7103,15 +6916,13 @@ async function initializeApplication() {
     !navigationRegressionOk ||
     !projectionVisibilityOk ||
     !outsideIsolationRegressionOk ||
-    !outsideFailureIsolationOk ||
-    !shipClipRegressionOk ||
-    !directStartGifRegressionOk
+    !shipClipRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation/Outside-Failure + Ship-Clip + Direct-Start-GIF)";
+      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip)";
   } else {
     triggerFeedback.textContent =
-      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation/Outside-Failure + Ship-Clip + Direct-Start-GIF)";
+      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
