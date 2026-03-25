@@ -235,7 +235,7 @@ const ROOM_GLOBAL_EQUIVALENT_MAP = {
 };
 
 const ROOM_ANIMATIONS = [
-  { id: "kaputt", label: "Kaputt" },
+  { id: "kaputt", label: "Kaputt (malfunction.gif)" },
   { id: "feuer", label: "Feuer" },
   { id: "schleim", label: "Schleim" },
   { id: "nest", label: "Nest" },
@@ -2517,6 +2517,11 @@ function resolveRoomAnimationEffectType(type) {
     return "special-decompression";
   }
   return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
+}
+
+function getRoomGifAssetFileName(type) {
+  const path = ROOM_GIF_ANIMATION_ASSETS[type];
+  return path ? path.split("/").pop() ?? path : null;
 }
 
 function getGifImage(path) {
@@ -5044,7 +5049,7 @@ function renderRunningAnimationsList() {
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
     const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x | Sound: ${Math.round(
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""} | Sound: ${Math.round(
           clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
         )}%`
       : "";
