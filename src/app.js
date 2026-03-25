@@ -4739,6 +4739,11 @@ function drawOutsideFxLayer(now) {
   }
 }
 
+function flickerNoise(seed) {
+  const raw = Math.sin(seed * 127.1) * 43758.5453123;
+  return raw - Math.floor(raw);
+}
+
 function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
   const w = canvas.width;
   const h = canvas.height;
@@ -4858,9 +4863,38 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "hull-flicker") {
-    const alpha = (0.05 + Math.sin(age * 6.3) * 0.03) * intensity;
-    ctx.fillStyle = `rgba(120, 255, 220, ${alpha})`;
+    const timeline = age * (1.2 + intensity * 1.1);
+    const step = Math.floor(timeline * 26);
+    const burstSeed = flickerNoise(step + 17.13);
+    const colorSeed = flickerNoise(step * 0.87 + 91.4);
+    const glitchSeed = flickerNoise(step * 1.47 + 211.8);
+
+    const ambientAlpha = (0.02 + flickerNoise(step * 0.23 + 8.1) * 0.035) * intensity;
+    const burstAlpha = burstSeed > 0.86 ? (0.14 + burstSeed * 0.26) * intensity : 0;
+    const dipAlpha = burstSeed < 0.12 ? 0.18 + (0.12 - burstSeed) * 0.9 : 0;
+
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.72, dipAlpha)})`;
     ctx.fillRect(0, 0, w, h);
+
+    const cool = colorSeed > 0.58;
+    const overlayColor = cool ? "122, 246, 228" : "255, 232, 182";
+    const overlayAlpha = Math.min(0.38, ambientAlpha + burstAlpha);
+    if (overlayAlpha > 0.008) {
+      ctx.fillStyle = `rgba(${overlayColor}, ${overlayAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    if (glitchSeed > 0.74) {
+      const glitchLines = 2 + Math.floor(glitchSeed * 5);
+      for (let i = 0; i < glitchLines; i += 1) {
+        const lineSeed = flickerNoise(step * 2.31 + i * 13.7);
+        const y = lineSeed * h;
+        const thickness = 2 + lineSeed * 7;
+        const lineAlpha = (0.04 + flickerNoise(step * 3.11 + i) * 0.16) * intensity;
+        ctx.fillStyle = `rgba(${overlayColor}, ${Math.min(0.34, lineAlpha)})`;
+        ctx.fillRect(0, y, w, thickness);
+      }
+    }
     return;
   }
 
