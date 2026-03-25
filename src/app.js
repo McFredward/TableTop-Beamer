@@ -564,6 +564,7 @@ function applyRoleRenderMode() {
   roomOverlay.style.pointerEvents = shouldRenderOverlay() ? "auto" : "none";
   roomOverlay.classList.toggle("overlay-guides-hidden", !shouldShowOverlayGuides());
   if (alignmentOverlayToggleInput) {
+    alignmentOverlayToggleInput.disabled = finalOutput;
     alignmentOverlayToggleInput.checked = Boolean(state.alignmentOverlayEnabled);
   }
   stage.classList.toggle("is-final-output", finalOutput);
@@ -5838,6 +5839,11 @@ sessionReconnectButton?.addEventListener("click", () => {
 });
 
 alignmentOverlayToggleInput?.addEventListener("change", () => {
+  if (isFinalOutputRole()) {
+    alignmentOverlayToggleInput.checked = false;
+    triggerFeedback.textContent = "Status: Alignment-Overlay ist fuer final-output gesperrt";
+    return;
+  }
   state.alignmentOverlayEnabled = Boolean(alignmentOverlayToggleInput.checked);
   const persisted = persistBoardProfiles();
   applyRoleRenderMode();
