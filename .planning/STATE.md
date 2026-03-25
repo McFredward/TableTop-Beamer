@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-25
 - Execution Readiness: READY
-- Last Executed Plan: 5-6
-- Planned Next Execution: 5-2 (P5-T21..P5-T22)
-- Last Execution Summary: `.planning/phases/phase-05/5-6-SUMMARY.md`
+- Last Executed Plan: 5-7
+- Planned Next Execution: 5-2 Rest (P5-T21..P5-T22), danach 5-1 Rest (P5-T9..P5-T14)
+- Last Execution Summary: `.planning/phases/phase-05/5-7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -291,6 +291,13 @@
 - Plan-Update-5-6 Umsetzung: Session-API schreibt persistente JSON-Logs nach `logs/session-api.log` (Methode, Endpoint, Status, Code, Session-/Client-Korrelation).
 - Plan-Update-5-6 Umsetzung: Heartbeat ist POST-primaer mit GET-Fallback in Client+Server; UI zeigt aktive Methode, Endpoint, Fallback-Ursache und letzten Methodenwechsel.
 - Plan-Update-5-6 Umsetzung: Event-GET-Fallback ist optional per Flag (`eventGetFallback`) aktivierbar und serverseitig per `eventId`-Duplicate-Guard gegen Doppelzustellung gehaertet.
+- Neues dringendes Pflichtfeedback fuer Phase 5 (dritte Eskalation) ist gesetzt: Client zeigt weiter `CONNECT_UNREACHABLE (HTTP 0)` auf `/api/session/connect`; vorhandene Logs/Fixes reichen fuer Root-Cause im Feld nicht aus.
+- Plan-Update 5-7 setzt Prioritaetsfokus: verbindliches Access-Logging fuer ALLE Session-API-Requests (`method`, `path`, `status`, `duration`, `client-ip`), robuster Connect-Transport mit `fetch`+XHR-Fallback, detaillierte UI-Fehlerdiagnose und aktiver Settings-Self-Test.
+- Harte Abnahme-Regel Plan-Update 5-7: Feldsetup muss unter normalem WLAN stabil verbinden und synchronisieren; kein terminaler Retry-Zustand im Normalbetrieb.
+- Reihenfolge-Regel Plan-Update 5-7: P5-T51..P5-T56 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
+- Plan-Update-5-7 Umsetzung: Session-Access-Logging ist fuer connect/stream/heartbeat/event per Request verpflichtend (`method`, `path`, `status`, `duration`, `client-ip`) und in `logs/session-api.log` korrelierbar.
+- Plan-Update-5-7 Umsetzung: Connect nutzt fetch-primaer mit deterministischem XHR-Fallback bei HTTP0-/Netzwerkfehlern inklusive Timeout/Abort-Haertung.
+- Plan-Update-5-7 Umsetzung: UI-Diagnose zeigt Connect-Transport, Fallback-Grund, `error.name`, `error.message`, Online-State und Endpoint; Settings bietet aktive Self-Test-Matrix fuer connect/stream/heartbeat/event.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

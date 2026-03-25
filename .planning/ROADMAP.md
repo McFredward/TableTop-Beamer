@@ -98,7 +98,7 @@ Exit Criteria:
 ## Phase 5 - Multi-Client Final Output (In Progress)
 Ziel: Produktiver 3-Geraete-Betrieb im LAN mit klaren Rollen (`operator`, `alignment`, `final-output`), sauberem Beamer-Endbild und echtzeitfaehiger Session-Synchronisierung.
 
-Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`); Plan 5-3 P0-Resolver-Hotfix P5-T23..P5-T28 ist abgeschlossen (`.planning/phases/phase-05/5-3-SUMMARY.md`); Plan 5-4 Session/SSE-Stabilitaets-Hotfix P5-T31..P5-T36 ist abgeschlossen (`.planning/phases/phase-05/5-4-SUMMARY.md`); Plan 5-5 Session-Resilience-Hotfix P5-T39..P5-T44 ist abgeschlossen (`.planning/phases/phase-05/5-5-SUMMARY.md`); Plan 5-6 Transport-Fallback + Logdiagnose P5-T45..P5-T50 ist abgeschlossen (`.planning/phases/phase-05/5-6-SUMMARY.md`). Offen bleiben danach Rest-Gates P5-T21..P5-T22 sowie Plan-5-1-Rest P5-T9..P5-T14.
+Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`); Plan 5-3 P0-Resolver-Hotfix P5-T23..P5-T28 ist abgeschlossen (`.planning/phases/phase-05/5-3-SUMMARY.md`); Plan 5-4 Session/SSE-Stabilitaets-Hotfix P5-T31..P5-T36 ist abgeschlossen (`.planning/phases/phase-05/5-4-SUMMARY.md`); Plan 5-5 Session-Resilience-Hotfix P5-T39..P5-T44 ist abgeschlossen (`.planning/phases/phase-05/5-5-SUMMARY.md`); Plan 5-6 Transport-Fallback + Logdiagnose P5-T45..P5-T50 ist abgeschlossen (`.planning/phases/phase-05/5-6-SUMMARY.md`); Plan 5-7 Root-Cause-Hotfix CONNECT_UNREACHABLE (P5-T51..P5-T56) ist abgeschlossen (`.planning/phases/phase-05/5-7-SUMMARY.md`). Offen bleiben danach Rest-Gates P5-T21..P5-T22 sowie Plan-5-1-Rest P5-T9..P5-T14.
 
 Milestones:
 1. Rollenmodell + Session-Handshake (`operator`/`alignment`/`final-output`) stabilisieren.
@@ -109,7 +109,8 @@ Milestones:
 6. Multi-Client-Realtime-Sync fuer Trigger/Edit/Stop/Clear-All und Running-Instanzen absichern.
 7. Audio strikt auf `final-output` begrenzen, inklusive Role-Switch/Reconnect-Faellen.
 8. Transport-Hotfix 5-6: persistentes API-Logfile plus POST-primaer/GET-fallback fuer Heartbeat (und optional Event) in Client+Server+UI-Diagnose stabilisieren.
-9. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
+9. Root-Cause-Hotfix 5-7: vollstaendiges Session-Access-Logging, Connect `fetch`+XHR-Fallback, aktive Self-Tests und harte WLAN-Abnahme ohne Retry-Terminal.
+10. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
 
 Exit Criteria:
 - Finaler Beamer-Output ist clean bei deaktiviertem Final-Overlay-Toggle (kein Board, keine Polygone, keine Namen).
@@ -117,7 +118,11 @@ Exit Criteria:
 - Overlay-Semantik ist feldkonform (`operator` always-on; Toggle nur Final-Output-Overlay).
 - Session-Connect ist robust gegen `default-session`-Fehlpfad; Resolver driftet nicht auf `:8080`; Diagnoseinfos sind im UI voll sichtbar und konsistent.
 - Persistente Session-API-Logs liegen unter `logs/session-api.log` vor und enthalten endpoint-/methodenspezifische Fehlercodes fuer Feldanalyse.
+- Session-Access-Logging ist fuer ALLE Session-Requests vollstaendig (Methode, Path, Status, Duration, Client-IP; Success+Error).
 - Heartbeat (und optional Event) bleibt bei POST-Problemen ueber GET-Fallback stabil; UI zeigt die tatsaechlich verwendete Methode transparent an.
+- Connect bleibt auch in HTTP0-Umgebungen robust ueber Transport-Fallback (`fetch` primaer, XHR oder gleichwertig fallback) mit detaillierter UI-Diagnose.
+- `Settings` bietet einen aktiven Self-Test fuer `connect`/`stream`/`heartbeat`/`event` als OK/Fail-Matrix inkl. Endpoint/Methode.
+- Feldsetup verbindet und synchronisiert unter normalem WLAN stabil ohne terminalen Retry-Zustand.
 - Audio ist technisch nachweisbar `final-output` only.
 - Plan-5-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 
