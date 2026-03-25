@@ -1658,28 +1658,12 @@ function startSessionHeartbeat(intervalMs = 4000) {
       const streamOpen = Boolean(sessionEventSource && sessionEventSource.readyState === EventSource.OPEN);
       const heartbeatDetail = `${retry.heartbeatFailureCount}/${threshold} via ${retry.lastHeartbeatMethod || "POST"}`;
       state.session.heartbeatStatus = "degraded";
+      retry.status = "heartbeat-degraded";
       if (streamOpen) {
-        retry.status = "heartbeat-degraded";
-        syncSessionStatus(
-          `Session: Heartbeat degraded, Stream aktiv (${heartbeatDetail}) (${state.session.id})`,
-        );
+        syncSessionStatus(`Session: Heartbeat degraded, Stream aktiv (${heartbeatDetail}) (${state.session.id})`);
         return;
       }
-      setSessionRetryError("HEARTBEAT_FAILED", {
-        endpoint: retry.lastHeartbeatEndpoint || buildSessionEndpoint(SESSION_ENDPOINT_PATHS.heartbeat),
-        detail: heartbeatDetail,
-      });
-      if (retry.heartbeatFailureCount < threshold) {
-        retry.status = "heartbeat-degraded";
-        syncSessionStatus(
-          `Session: Heartbeat-Fehler toleriert (${retry.heartbeatFailureCount}/${threshold}) (${state.session.id})`,
-        );
-        return;
-      }
-      retry.heartbeatFailureCount = 0;
-      state.session.connected = false;
-      syncSessionStatus(`Session: Heartbeat-Fehler-Schwelle erreicht, reconnect geplant (${state.session.id})`);
-      scheduleSessionReconnect({ reason: "heartbeat-failed" });
+      syncSessionStatus(`Session: Heartbeat degraded ohne Stream-Hard-Reconnect (${heartbeatDetail}) (${state.session.id})`);
     }
   }, Math.max(1200, Number(intervalMs) || 4000));
 }
