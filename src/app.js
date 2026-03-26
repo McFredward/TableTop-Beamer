@@ -4152,6 +4152,11 @@ function clearPendingPolygonAreaDragSession() {
   state.polygonEditor.pendingAreaStartPointerPoint = null;
 }
 
+function preserveRoomSelectionAfterPointerLifecycle() {
+  state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
+  refreshPersistentRoomSelectionVisualState();
+}
+
 function beginPolygonAreaDrag(event, roomId, { boardId = state.boardId, startPointerPoint = null } = {}) {
   const startPoints = getSpecialPolygonPoints(boardId, roomId);
   if (!Array.isArray(startPoints) || startPoints.length < 3) {
@@ -6988,13 +6993,12 @@ roomOverlay.addEventListener("pointerup", (event) => {
     state.polygonEditor.dragAreaPointerId === event.pointerId
   ) {
     finishPolygonAreaDrag(event, { cancel: false });
-    refreshPersistentRoomSelectionVisualState();
+    preserveRoomSelectionAfterPointerLifecycle();
     return;
   }
   if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
     clearPendingPolygonAreaDragSession();
-    state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
-    refreshPersistentRoomSelectionVisualState();
+    preserveRoomSelectionAfterPointerLifecycle();
     return;
   }
   if (
