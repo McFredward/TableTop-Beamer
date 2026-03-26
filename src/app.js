@@ -3353,7 +3353,9 @@ function executeClearAll() {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All executed";
-  emitLiveMutation("clear-all", {});
+  emitLiveMutation("clear-all", {
+    priorityHint: "high",
+  });
 }
 
 function resetClearAllGuard() {
@@ -6112,6 +6114,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     emitLiveMutation("trigger-global", {
       animationType: type,
       action: "stop",
+      priorityHint: "high",
     });
   } else {
     const animation = createAnimation({
@@ -6464,6 +6467,7 @@ function stopAnimation(animationId) {
   for (const id of idsToStop) {
     emitLiveMutation("stop-animation", {
       animationId: id,
+      priorityHint: "high",
     });
   }
 }

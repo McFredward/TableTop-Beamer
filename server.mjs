@@ -140,7 +140,7 @@ function acceptLiveMutationType(type) {
 }
 
 function classifyLiveMutationType(type, payload = null) {
-  if (CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
+  if (payload?.priorityHint === "high" || CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
     return "control-critical";
   }
   if (type === "outside-update" || type === "context-update") {
@@ -150,7 +150,7 @@ function classifyLiveMutationType(type, payload = null) {
 }
 
 function resolveMutationPriority(type, payload = null) {
-  if (CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
+  if (payload?.priorityHint === "high" || CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
     return "high";
   }
   if (type === "outside-update" || type === "context-update") {
