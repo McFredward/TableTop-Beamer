@@ -300,6 +300,7 @@ const state = window.TT_BEAMER_STATE.createInitialState({
 
 const liveSync = {
   socket: null,
+  socketGeneration: 0,
   connected: false,
   clientId: null,
   lastAckAt: null,
@@ -520,11 +521,19 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null } = {}) {
 function connectLiveSyncSocket() {
   try {
     const socket = new WebSocket(resolveLiveWebSocketUrl());
+    const socketGeneration = liveSync.socketGeneration + 1;
+    liveSync.socketGeneration = socketGeneration;
     liveSync.socket = socket;
     socket.addEventListener("open", () => {
+      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
+        return;
+      }
       liveSync.connected = true;
     });
     socket.addEventListener("message", (event) => {
+      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
+        return;
+      }
       try {
         const payload = JSON.parse(event.data);
         if (payload?.type === "live-hello") {
@@ -556,10 +565,16 @@ function connectLiveSyncSocket() {
       }
     });
     socket.addEventListener("close", () => {
+      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
+        return;
+      }
       liveSync.connected = false;
       window.setTimeout(connectLiveSyncSocket, 1200);
     });
     socket.addEventListener("error", () => {
+      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
+        return;
+      }
       liveSync.connected = false;
     });
   } catch {
