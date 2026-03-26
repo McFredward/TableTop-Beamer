@@ -5769,7 +5769,7 @@ function createAnimation({
   const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
   const startedAt = performance.now() + normalizedStartDelayMs;
   const startedAtEpochMs = Date.now() + normalizedStartDelayMs;
-  const effectiveHold = scope === "room" ? true : hold;
+  const effectiveHold = scope === "room" || scope === "cluster" ? true : hold;
   return {
     id: `anim-${animationIdCounter++}`,
     boardId,
@@ -6824,19 +6824,11 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
 function pruneFinishedAnimations(now) {
   const before = state.runningAnimations.length;
-  const activeClusterIds = new Set(
-    state.runningAnimations
-      .filter((entry) => entry?.scope === "cluster")
-      .map((entry) => entry.id),
-  );
   state.runningAnimations = state.runningAnimations.filter((anim) => {
     if (anim.scope === "cluster") {
       return true;
     }
     if (anim.scope === "room") {
-      if (anim.parentClusterRunId && !activeClusterIds.has(anim.parentClusterRunId)) {
-        return false;
-      }
       const board = getBoard(anim.boardId);
       const hasRoom = board.rooms.some((room) => room.id === anim.roomId);
       if (!hasRoom) {
@@ -6858,18 +6850,17 @@ function pruneFinishedAnimations(now) {
     }
     activeRoomByCluster.get(anim.parentClusterRunId).push(anim);
   }
-  state.runningAnimations = state.runningAnimations.filter((anim) => {
+  for (const anim of state.runningAnimations) {
     if (anim.scope !== "cluster") {
-      return true;
+      continue;
     }
     const members = activeRoomByCluster.get(anim.id) ?? [];
     if (members.length === 0) {
-      return false;
+      continue;
     }
     anim.memberAnimationIds = members.map((entry) => entry.id);
     anim.memberRoomIds = members.map((entry) => entry.roomId);
-    return true;
-  });
+  }
 
   if (before !== state.runningAnimations.length) {
     stopSoundsForInactiveAnimations();
