@@ -7418,7 +7418,7 @@ function draw(now) {
         "Status: faulty animation isolated, render timer continues";
     }
 
-    if (now - lastListRenderAt > 500) {
+    if (outputRole !== OUTPUT_ROLE_FINAL && now - lastListRenderAt > 500) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }
