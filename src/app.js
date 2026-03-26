@@ -5669,6 +5669,80 @@ function getClusterMemberAnimationIds(clusterAnimation) {
     .map((entry) => entry.id);
 }
 
+function getRunningAnimationsForList() {
+  const activeClusterIds = new Set(
+    state.runningAnimations
+      .filter((entry) => entry?.scope === "cluster" && typeof entry?.id === "string")
+      .map((entry) => entry.id),
+  );
+  return state.runningAnimations.filter((entry) => !(
+    entry?.scope === "room"
+    && entry?.parentClusterRunId
+    && activeClusterIds.has(entry.parentClusterRunId)
+  ));
+}
+
+function resolveClusterMemberFallbackDelayMs(clusterAnimation, roomId) {
+  if (!clusterAnimation || typeof roomId !== "string") {
+    return 0;
+  }
+  const delayMap = clusterAnimation.memberStartDelays;
+  if (!delayMap || typeof delayMap !== "object") {
+    return 0;
+  }
+  const delay = Number(delayMap[roomId]);
+  return Number.isFinite(delay) && delay > 0 ? delay : 0;
+}
+
+function buildClusterMemberRuntimeViews(clusterAnimation) {
+  if (!clusterAnimation || clusterAnimation.scope !== "cluster") {
+    return [];
+  }
+  const memberByRoomId = new Map();
+  for (const member of state.runningAnimations) {
+    if (member?.scope !== "room" || member?.parentClusterRunId !== clusterAnimation.id) {
+      continue;
+    }
+    const roomId = String(member.roomId || "").trim();
+    if (!roomId || memberByRoomId.has(roomId)) {
+      continue;
+    }
+    memberByRoomId.set(roomId, member);
+  }
+  const memberRoomIds = Array.isArray(clusterAnimation.memberRoomIds)
+    ? clusterAnimation.memberRoomIds.map((roomId) => String(roomId || "").trim()).filter(Boolean)
+    : [];
+  const orderedRoomIds = memberRoomIds.length > 0
+    ? memberRoomIds
+    : Array.from(memberByRoomId.keys());
+  return orderedRoomIds.map((roomId) => {
+    const linkedMember = memberByRoomId.get(roomId) ?? null;
+    if (linkedMember) {
+      return {
+        roomId,
+        animation: linkedMember,
+      };
+    }
+    const baseStartedAt = Number.isFinite(Number(clusterAnimation.startedAt))
+      ? Number(clusterAnimation.startedAt)
+      : performance.now();
+    const baseStartedAtEpochMs = Number.isFinite(Number(clusterAnimation.startedAtEpochMs))
+      ? Number(clusterAnimation.startedAtEpochMs)
+      : Date.now();
+    const fallbackDelayMs = resolveClusterMemberFallbackDelayMs(clusterAnimation, roomId);
+    return {
+      roomId,
+      animation: {
+        ...clusterAnimation,
+        scope: "room",
+        roomId,
+        startedAt: baseStartedAt + fallbackDelayMs,
+        startedAtEpochMs: baseStartedAtEpochMs + fallbackDelayMs,
+      },
+    };
+  });
+}
+
 function syncRoomTargetSelect() {
   if (!roomTargetSelect) {
     return;
@@ -6037,6 +6111,9 @@ function startRoomAnimationFromDraft() {
           clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
           memberAnimationIds: nextMemberAnimationIds,
           memberRoomIds: nextMemberRoomIds,
+          memberStartDelays: Object.fromEntries(
+            dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+          ),
           startedAt: performance.now(),
           startedAtEpochMs: Date.now(),
         };
@@ -6124,6 +6201,9 @@ function startRoomAnimationFromDraft() {
     clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
     clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
     clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
+    clusterRunAnimation.memberStartDelays = Object.fromEntries(
+      dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+    );
   }
 
   if (clusterRunAnimation) {
@@ -6272,7 +6352,8 @@ function editAnimation(animationId) {
 function renderRunningAnimationsList() {
   const parity = validateRunningListParity();
   runningAnimationsList.replaceChildren();
-  if (state.runningAnimations.length === 0) {
+  const listAnimations = getRunningAnimationsForList();
+  if (listAnimations.length === 0) {
     const empty = document.createElement("li");
     empty.className = "running-empty";
     empty.textContent = "No active animations";
@@ -6280,7 +6361,13 @@ function renderRunningAnimationsList() {
     return;
   }
 
-  const sortedAnimations = [...state.runningAnimations].sort((a, b) => b.startedAt - a.startedAt);
+  const sortedAnimations = [...listAnimations].sort((a, b) => {
+    const startedDelta = Number(b.startedAt || 0) - Number(a.startedAt || 0);
+    if (startedDelta !== 0) {
+      return startedDelta;
+    }
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  });
   for (const anim of sortedAnimations) {
     const li = document.createElement("li");
     li.className = "running-item";
@@ -6359,11 +6446,24 @@ function renderRunningAnimationsList() {
 
 function validateRunningListParity() {
   const seenIds = new Set();
+  const activeClusterIds = new Set();
   for (const entry of state.runningAnimations) {
     if (!entry?.id || seenIds.has(entry.id)) {
       return { ok: false, reason: "duplicate-or-missing-id" };
     }
     seenIds.add(entry.id);
+    if (entry.scope === "cluster") {
+      activeClusterIds.add(entry.id);
+    }
+  }
+  for (const entry of state.runningAnimations) {
+    if (entry?.scope !== "room" || !entry?.parentClusterRunId) {
+      continue;
+    }
+    if (activeClusterIds.has(entry.parentClusterRunId)) {
+      continue;
+    }
+    return { ok: false, reason: "orphaned-cluster-member" };
   }
   return { ok: true, reason: "ok" };
 }
@@ -6441,7 +6541,43 @@ function drawAnimation(animation, now) {
     return;
   }
   if (animation.scope === "cluster") {
+    if (animation.boardId !== state.boardId) {
+      return;
+    }
+    const board = getBoard(animation.boardId);
+    const memberViews = buildClusterMemberRuntimeViews(animation);
+    for (const memberView of memberViews) {
+      const room = board.rooms.find((entry) => entry.id === memberView.roomId);
+      if (!room) {
+        continue;
+      }
+      const memberAnimation = memberView.animation;
+      if (Number.isFinite(memberAnimation?.startedAt) && now < Number(memberAnimation.startedAt)) {
+        continue;
+      }
+      const runtimeSpeed = clampRoomSpeed(memberAnimation.speed ?? animation.speed ?? 1);
+      const age = ((now - Number(memberAnimation.startedAt)) / 1000) * state.animationSpeed * runtimeSpeed;
+      const roomMetrics = getRoomRenderMetrics(room, animation.boardId);
+      ctx.save();
+      try {
+        const clipped = clipToRoom(room, animation.boardId);
+        if (!clipped) {
+          continue;
+        }
+        drawRoomComposition(memberAnimation, age, room, roomMetrics);
+      } finally {
+        ctx.restore();
+      }
+    }
     return;
+  }
+  if (animation.scope === "room" && animation.parentClusterRunId) {
+    const hasClusterController = state.runningAnimations.some(
+      (entry) => entry?.id === animation.parentClusterRunId && entry?.scope === "cluster",
+    );
+    if (hasClusterController) {
+      return;
+    }
   }
   const runtimeSpeed = animation.scope === "room" ? clampRoomSpeed(animation.speed ?? 1) : 1;
   const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
