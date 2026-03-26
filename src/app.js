@@ -142,6 +142,13 @@ const roomCreateShapeSelect = document.querySelector("#room-create-shape");
 const roomCreateButton = document.querySelector("#room-create");
 const roomDeleteButton = document.querySelector("#room-delete");
 const roomManagementStatus = document.querySelector("#room-management-status");
+const clusterSelect = document.querySelector("#cluster-select");
+const clusterNameInput = document.querySelector("#cluster-name-input");
+const clusterRoomIdsSelect = document.querySelector("#cluster-room-ids");
+const clusterCreateButton = document.querySelector("#cluster-create");
+const clusterSaveButton = document.querySelector("#cluster-save");
+const clusterDeleteButton = document.querySelector("#cluster-delete");
+const clusterManagementStatus = document.querySelector("#cluster-management-status");
 const roomRenameInput = document.querySelector("#room-rename-input");
 const showPlayAreaVerticesInput = document.querySelector("#show-play-area-vertices");
 const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
@@ -198,6 +205,12 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-create-shape",
   "room-create",
   "room-delete",
+  "cluster-select",
+  "cluster-name-input",
+  "cluster-room-ids",
+  "cluster-create",
+  "cluster-save",
+  "cluster-delete",
   "room-rename-input",
   "show-room-vertices",
   "polygon-room-select",
@@ -4933,6 +4946,7 @@ function syncRoomManagementPanel(statusText = null) {
   if (roomManagementStatus && statusText) {
     roomManagementStatus.textContent = statusText;
   }
+  syncClusterManagementPanel();
 }
 
 function syncRoomCreateShapeOptions(board = getBoard()) {
@@ -4958,6 +4972,184 @@ function syncRoomCreateShapeOptions(board = getBoard()) {
   }
   const hasPrevious = options.some((entry) => entry.value === previousValue);
   roomCreateShapeSelect.value = hasPrevious ? previousValue : "hexagon";
+}
+
+function getSelectedOptionValues(selectEl) {
+  if (!selectEl) {
+    return [];
+  }
+  return Array.from(selectEl.selectedOptions || [])
+    .map((option) => String(option.value || "").trim())
+    .filter(Boolean);
+}
+
+function createClusterId(board) {
+  const existing = new Set(
+    (Array.isArray(board?.roomClusters) ? board.roomClusters : [])
+      .map((cluster) => String(cluster?.clusterId || cluster?.id || "").trim())
+      .filter(Boolean),
+  );
+  let index = existing.size + 1;
+  let candidate = `cluster-${index}`;
+  while (existing.has(candidate)) {
+    index += 1;
+    candidate = `cluster-${index}`;
+  }
+  return candidate;
+}
+
+function normalizeClusterRoomIds(roomIds, board = getBoard()) {
+  const validIds = new Set((board.rooms || []).map((room) => room.id));
+  return Array.from(new Set((Array.isArray(roomIds) ? roomIds : [])
+    .map((roomId) => String(roomId || "").trim())
+    .filter((roomId) => validIds.has(roomId))));
+}
+
+function getSelectedClusterForBoard(board = getBoard()) {
+  if (!clusterSelect) {
+    return null;
+  }
+  const clusters = getBoardRoomClusters(board.id);
+  const selectedId = String(clusterSelect.value || "").trim();
+  return clusters.find((cluster) => cluster.clusterId === selectedId) ?? null;
+}
+
+function syncClusterRoomMultiSelect(board, selectedRoomIds = []) {
+  if (!clusterRoomIdsSelect) {
+    return;
+  }
+  const normalizedSelection = new Set(normalizeClusterRoomIds(selectedRoomIds, board));
+  clusterRoomIdsSelect.replaceChildren();
+  for (const room of board.rooms) {
+    const option = document.createElement("option");
+    option.value = room.id;
+    option.textContent = room.name ?? room.label ?? room.id;
+    option.selected = normalizedSelection.has(room.id);
+    clusterRoomIdsSelect.append(option);
+  }
+  clusterRoomIdsSelect.disabled = board.rooms.length === 0;
+}
+
+function syncClusterManagementPanel(statusText = null, { preferredClusterId = null } = {}) {
+  if (!clusterSelect || !clusterNameInput || !clusterRoomIdsSelect) {
+    return;
+  }
+  const board = getBoard();
+  const clusters = getBoardRoomClusters(board.id);
+  const previousSelection = String(clusterSelect.value || "").trim();
+  clusterSelect.replaceChildren();
+  for (const cluster of clusters) {
+    const option = document.createElement("option");
+    option.value = cluster.clusterId;
+    option.textContent = `${cluster.name} (${cluster.roomIds.length} rooms)`;
+    clusterSelect.append(option);
+  }
+
+  const fallbackClusterId = clusters[0]?.clusterId ?? "";
+  const nextClusterId = clusters.some((cluster) => cluster.clusterId === preferredClusterId)
+    ? preferredClusterId
+    : clusters.some((cluster) => cluster.clusterId === previousSelection)
+      ? previousSelection
+      : fallbackClusterId;
+  clusterSelect.value = nextClusterId;
+  const selectedCluster = clusters.find((cluster) => cluster.clusterId === nextClusterId) ?? null;
+  clusterNameInput.value = selectedCluster?.name ?? "";
+  syncClusterRoomMultiSelect(board, selectedCluster?.roomIds ?? []);
+  clusterSelect.disabled = clusters.length === 0;
+  if (clusterSaveButton) {
+    clusterSaveButton.disabled = !selectedCluster;
+  }
+  if (clusterDeleteButton) {
+    clusterDeleteButton.disabled = !selectedCluster;
+  }
+  if (clusterManagementStatus && statusText) {
+    clusterManagementStatus.textContent = statusText;
+  }
+}
+
+function createClusterFromSettings() {
+  const board = getBoard();
+  const selectedRoomIds = normalizeClusterRoomIds(getSelectedOptionValues(clusterRoomIdsSelect), board);
+  if (selectedRoomIds.length === 0) {
+    syncClusterManagementPanel("Cluster management: select at least one room");
+    return false;
+  }
+  const clusterId = createClusterId(board);
+  const fallbackName = `Cluster ${getBoardRoomClusters(board.id).length + 1}`;
+  const name = String(clusterNameInput?.value || "").trim() || fallbackName;
+  const nextClusters = [
+    ...getBoardRoomClusters(board.id),
+    {
+      clusterId,
+      name,
+      roomIds: selectedRoomIds,
+    },
+  ];
+  board.roomClusters = nextClusters;
+  const persisted = persistBoardProfiles();
+  syncRoomTargetSelect();
+  syncClusterManagementPanel(
+    persisted
+      ? `Cluster management: ${name} created`
+      : `Cluster management: ${name} created (persistence failed)`,
+    { preferredClusterId: clusterId },
+  );
+  return persisted;
+}
+
+function updateClusterFromSettings() {
+  const board = getBoard();
+  const selectedCluster = getSelectedClusterForBoard(board);
+  if (!selectedCluster) {
+    syncClusterManagementPanel("Cluster management: update skipped (no cluster selected)");
+    return false;
+  }
+  const selectedRoomIds = normalizeClusterRoomIds(getSelectedOptionValues(clusterRoomIdsSelect), board);
+  if (selectedRoomIds.length === 0) {
+    syncClusterManagementPanel("Cluster management: select at least one room");
+    return false;
+  }
+  const name = String(clusterNameInput?.value || "").trim() || selectedCluster.name || "Cluster";
+  board.roomClusters = getBoardRoomClusters(board.id).map((cluster) => (
+    cluster.clusterId === selectedCluster.clusterId
+      ? {
+        ...cluster,
+        name,
+        roomIds: selectedRoomIds,
+      }
+      : cluster
+  ));
+  const persisted = persistBoardProfiles();
+  syncRoomTargetSelect();
+  syncClusterManagementPanel(
+    persisted
+      ? `Cluster management: ${name} updated`
+      : `Cluster management: ${name} updated (persistence failed)`,
+    { preferredClusterId: selectedCluster.clusterId },
+  );
+  return persisted;
+}
+
+function deleteSelectedClusterFromSettings() {
+  const board = getBoard();
+  const selectedCluster = getSelectedClusterForBoard(board);
+  if (!selectedCluster) {
+    syncClusterManagementPanel("Cluster management: delete skipped (no cluster selected)");
+    return false;
+  }
+  board.roomClusters = getBoardRoomClusters(board.id).filter((cluster) => cluster.clusterId !== selectedCluster.clusterId);
+  if (state.roomDraft.targetType === "cluster" && state.roomDraft.targetId === selectedCluster.clusterId) {
+    state.roomDraft.targetType = "room";
+    state.roomDraft.targetId = state.selectedRoomId;
+  }
+  const persisted = persistBoardProfiles();
+  syncRoomTargetSelect();
+  syncClusterManagementPanel(
+    persisted
+      ? `Cluster management: ${selectedCluster.name} deleted`
+      : `Cluster management: ${selectedCluster.name} deleted (persistence failed)`,
+  );
+  return persisted;
 }
 
 function calculatePolygonCenterAndRadius(polygon, fallbackCenter = { x: 0.5, y: 0.5 }, fallbackRadius = 0.055) {
@@ -5230,6 +5422,12 @@ function deleteSelectedRoom({ roomId = null } = {}) {
   }
   const nextRooms = board.rooms.filter((entry) => entry.id !== room.id);
   board.rooms = nextRooms;
+  board.roomClusters = getBoardRoomClusters(state.boardId)
+    .map((cluster) => ({
+      ...cluster,
+      roomIds: cluster.roomIds.filter((roomId) => roomId !== room.id),
+    }))
+    .filter((cluster) => cluster.roomIds.length > 0);
   state.runningAnimations = state.runningAnimations.filter((anim) => {
     if (anim.scope !== "room") {
       return true;
@@ -7376,6 +7574,22 @@ roomCreateButton?.addEventListener("click", () => {
 
 roomDeleteButton?.addEventListener("click", () => {
   deleteSelectedRoom();
+});
+
+clusterSelect?.addEventListener("change", () => {
+  syncClusterManagementPanel();
+});
+
+clusterCreateButton?.addEventListener("click", () => {
+  createClusterFromSettings();
+});
+
+clusterSaveButton?.addEventListener("click", () => {
+  updateClusterFromSettings();
+});
+
+clusterDeleteButton?.addEventListener("click", () => {
+  deleteSelectedClusterFromSettings();
 });
 
 roomRenameInput?.addEventListener("input", () => {
