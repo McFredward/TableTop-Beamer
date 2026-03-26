@@ -82,7 +82,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 6-HF8 - Draft Persistence + Cluster UX Completion Hotfix (execute-ready, vor 6-3)
 - [x] DONE P6-T61 [P0] Room-Draft-Selection persistieren: zuletzt gewaehlte Room-Animation bleibt bei Room-/Target-Wechsel als aktive Voreinstellung (kein impliziter Reset auf Defaultanimation).
-- [ ] TODO P6-T62 [P0] Room-Draft-Parameter persistieren: Trigger-Parameter (`speed`, `opacity`, `soundVolume`, weitere Feldwerte) bleiben bei Room-Wechsel und nach Trigger-Start als Draft-Voreinstellung erhalten.
+- [x] DONE P6-T62 [P0] Room-Draft-Parameter persistieren: Trigger-Parameter (`speed`, `opacity`, `soundVolume`, weitere Feldwerte) bleiben bei Room-Wechsel und nach Trigger-Start als Draft-Voreinstellung erhalten.
 - [ ] TODO P6-T63 [P0] Cluster-CRUD liefern: Cluster im Operator-Flow erstellen, bearbeiten und loeschen (beliebige Room-Mengen, board-spezifisch persistiert).
 - [ ] TODO P6-T64 [P0] Target-Flow vervollstaendigen: Cluster als `target` waehlbar und Start fanout fuer alle Cluster-Rooms ohne Einzelraumklick-Regression.
 - [ ] TODO P6-T65 [P0] Trigger-Option `stagger start` integrieren: optionaler kurzer randomisierter Startversatz je Cluster-Room; deaktiviert = synchroner Start.

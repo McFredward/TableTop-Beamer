@@ -5436,6 +5436,17 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
   roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
   roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
+  state.roomDraft.intensity = clampRoomIntensity(state.roomDraft.intensity);
+  state.roomDraft.speed = clampRoomSpeed(state.roomDraft.speed);
+  state.roomDraft.soundVolume = clampRoomSoundVolume(state.roomDraft.soundVolume);
+  state.roomDraft.durationSec = clampRoomDurationSec(state.roomDraft.durationSec);
+  roomIntensityInput.value = String(state.roomDraft.intensity);
+  roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+  roomSpeedInput.value = String(state.roomDraft.speed);
+  roomSpeedValue.textContent = `${state.roomDraft.speed.toFixed(2)}x`;
+  roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
+  roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
+  roomDurationInput.value = String(state.roomDraft.durationSec);
   syncGifRoomControls();
   roomHoldInput.checked = true;
   if (!state.roomDraft.targetType || !state.roomDraft.targetId) {
@@ -5589,6 +5600,13 @@ function startRoomAnimationFromDraft() {
     hold: true,
     durationMs: null,
   };
+
+  state.roomDraft.animationId = draftPayload.type;
+  state.roomDraft.intensity = draftPayload.intensity;
+  state.roomDraft.speed = draftPayload.speed;
+  state.roomDraft.opacity = draftPayload.opacity;
+  state.roomDraft.playbackSpeed = draftPayload.playbackSpeed;
+  state.roomDraft.soundVolume = draftPayload.soundVolume;
 
   const targetRoomIds = resolveRoomDraftTargets();
   if (targetRoomIds.length === 0) {
