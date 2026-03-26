@@ -5594,6 +5594,16 @@ function resolveRoomDraftTargets() {
   return [];
 }
 
+function buildClusterDispatchPlan(roomIds, { staggerStart = false } = {}) {
+  const normalizedRoomIds = Array.from(new Set((Array.isArray(roomIds) ? roomIds : [])
+    .map((roomId) => String(roomId || "").trim())
+    .filter(Boolean)));
+  return normalizedRoomIds.map((roomId) => ({
+    roomId,
+    startDelayMs: staggerStart ? Math.floor(Math.random() * 280) + 40 : 0,
+  }));
+}
+
 function syncRoomTargetSelect() {
   if (!roomTargetSelect) {
     return;
@@ -5884,7 +5894,10 @@ function startRoomAnimationFromDraft() {
   }
 
   const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
-  const createdAnimations = targetRoomIds.map((roomId) => createAnimation({
+  const dispatchPlan = state.roomDraft.targetType === "cluster"
+    ? buildClusterDispatchPlan(targetRoomIds, { staggerStart: shouldStaggerClusterStart })
+    : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
+  const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
     type: draftPayload.type,
     scope: "room",
     roomId,
@@ -5895,7 +5908,7 @@ function startRoomAnimationFromDraft() {
     soundVolume: draftPayload.soundVolume,
     hold: true,
     durationSec: 0,
-    startDelayMs: shouldStaggerClusterStart ? Math.floor(Math.random() * 280) + 40 : 0,
+    startDelayMs,
   }));
 
   for (const animation of createdAnimations) {
