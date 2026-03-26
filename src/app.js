@@ -319,6 +319,8 @@ function getAnimationStartedAtEpochMs(animation) {
 function buildRuntimeSnapshotForLiveSync() {
   return {
     boardId: state.boardId,
+    selectedBoard: state.selectedBoard ?? state.boardId,
+    selectedLayout: state.selectedLayout ?? state.boardId,
     selectedRoomId: state.selectedRoomId,
     selectedRoomByBoard: state.selectedRoomByBoard,
     outsideFxByBoard: Object.fromEntries(

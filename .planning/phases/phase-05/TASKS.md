@@ -41,6 +41,13 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T30 [P0] Regressiontests fuer Single-Click-Sync ergaenzen: Outside mode/direction sowie Room trigger/edit/stop/clear-all.
 - [x] DONE P5-T31 [P0] Hotfix-Abnahme dokumentieren (Mehrfachklick-Negativtest, Burst-Toggle-Soak, 3-Client-Paritaet).
 
+## Plan 5-HF3 - Context-Parity-Hotfix (P0, execute-ready)
+- [x] DONE P5-T32 [P0] Shared-State-Schema um `selectedBoard`/`selectedLayout` erweitern und serverseitig versioniert als kanonischen Kontext fuehren.
+- [ ] TODO P5-T33 [P0] Board-/Layout-Mutationen serverautoritiv anwenden und mit sofortigem Broadcast/Ack auf alle Clients replizieren.
+- [ ] TODO P5-T34 [P0] Join/Reconnect-Snapshot fuer Board/Layout haerten, damit spaet verbundene Clients ohne Reload im identischen Kontext landen.
+- [ ] TODO P5-T35 [P0] Legacy-`Output Route` aus UI/State/Runtime-Pfaden entfernen; `/output/final` bleibt unveraendert der dedizierte Ausgabepfad.
+- [ ] TODO P5-T36 [P0] HF3-Regression dokumentieren (3-Client-Board/Layout-Paritaet + Output-Route-Negativtests + `/output/final`-Pfadstabilitaet).
+
 ## Plan 5-2 - Diagnostics + Hardening (nach P0-Hotfixes)
 - [ ] TODO P5-T16 [P1] Sichtbare Sync-/Connection-Diagnostik fuer Operator-Views ergaenzen (Rolle, verbunden, letzte Sync-Zeit).
 - [ ] TODO P5-T17 [P1] Latenz-/Burst-Soak fuer parallele Trigger aus 2 Controller-Clients dokumentieren.

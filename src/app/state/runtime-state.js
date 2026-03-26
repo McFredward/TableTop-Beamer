@@ -10,6 +10,8 @@
   }) {
     return {
       boardId: defaultBoardId,
+      selectedBoard: defaultBoardId,
+      selectedLayout: defaultBoardId,
       selectedRoomId: null,
       selectedRoomByBoard: {},
       outputRoute: "auto",

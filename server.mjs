@@ -20,6 +20,8 @@ const liveSessionState = {
   snapshot: {
     schema: LIVE_STATE_SCHEMA,
     alignMode: false,
+    selectedBoard: null,
+    selectedLayout: null,
     outsideFxByBoard: {},
     runtime: null,
   },
