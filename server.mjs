@@ -88,6 +88,7 @@ function acceptLiveMutationType(type) {
     "clear-all",
     "align-toggle",
     "outside-update",
+    "context-update",
   ]).has(type);
 }
 
@@ -97,6 +98,14 @@ function cloneJson(value) {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeNonEmptyString(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function readRuntimeSnapshot() {
@@ -196,6 +205,40 @@ function applyRoomMutationPatch(mutationType, payload) {
   };
 }
 
+function applyContextUpdatePatch(payload) {
+  const nextRuntime = readRuntimeSnapshot();
+  const runtimePatch = isPlainObject(payload?.runtime) ? payload.runtime : {};
+  const selectedBoard =
+    normalizeNonEmptyString(payload?.selectedBoard) ??
+    normalizeNonEmptyString(payload?.boardId) ??
+    normalizeNonEmptyString(runtimePatch?.selectedBoard) ??
+    normalizeNonEmptyString(runtimePatch?.boardId) ??
+    normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard) ??
+    normalizeNonEmptyString(nextRuntime?.selectedBoard) ??
+    normalizeNonEmptyString(nextRuntime?.boardId) ??
+    null;
+  const selectedLayout =
+    normalizeNonEmptyString(payload?.selectedLayout) ??
+    normalizeNonEmptyString(payload?.layoutId) ??
+    normalizeNonEmptyString(runtimePatch?.selectedLayout) ??
+    normalizeNonEmptyString(runtimePatch?.layoutId) ??
+    selectedBoard;
+
+  if (selectedBoard) {
+    nextRuntime.boardId = selectedBoard;
+    nextRuntime.selectedBoard = selectedBoard;
+  }
+  if (selectedLayout) {
+    nextRuntime.selectedLayout = selectedLayout;
+  }
+
+  return {
+    runtime: nextRuntime,
+    selectedBoard,
+    selectedLayout,
+  };
+}
+
 function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, clientSequence }) {
   if (!acceptLiveMutationType(mutationType)) {
     logErrorEvent("invalid-mutation-type", String(mutationType ?? "unknown"), {
@@ -234,6 +277,8 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
   let nextSnapshotPatch = null;
   if (mutationType === "outside-update") {
     nextSnapshotPatch = applyOutsideUpdatePatch(payload);
+  } else if (mutationType === "context-update") {
+    nextSnapshotPatch = applyContextUpdatePatch(payload);
   } else if (
     mutationType === "trigger-room" ||
     mutationType === "edit-room" ||

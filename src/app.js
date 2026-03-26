@@ -4511,7 +4511,17 @@ function renderRoomOverlay() {
   renderShipPolygonEditorHandles();
 }
 
-function switchBoard(boardId) {
+function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
+  emitLiveMutation("context-update", {
+    reason,
+    selectedBoard: boardId,
+    selectedLayout: boardId,
+    boardId,
+    layoutId: boardId,
+  });
+}
+
+function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch" } = {}) {
   const previousBoardId = state.boardId;
   const previousRoomId = state.selectedRoomId;
   if (previousBoardId && previousRoomId) {
@@ -4520,6 +4530,8 @@ function switchBoard(boardId) {
 
   const board = getBoard(boardId);
   state.boardId = board.id;
+   state.selectedBoard = board.id;
+   state.selectedLayout = board.id;
   boardImage.src = board.src;
   boardSelect.value = board.id;
   boardStatus.textContent = `Aktives Board: ${board.label}`;
@@ -4541,6 +4553,9 @@ function switchBoard(boardId) {
   renderRoomOverlay();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Board gewechselt";
+  if (emitLiveContext) {
+    emitBoardLayoutContextMutation(board.id, reason);
+  }
 }
 
 function ensureBoardRoomStateMaps(boardId) {
@@ -4937,10 +4952,10 @@ function editAnimation(animationId) {
   if (!animation || animation.scope !== "room" || !isRoomAnimationType(animation.type)) {
     return;
   }
-  state.boardId = animation.boardId;
-  boardSelect.value = animation.boardId;
-  boardImage.src = getBoard(animation.boardId).src;
-  boardStatus.textContent = `Aktives Board: ${getBoard(animation.boardId).label}`;
+  switchBoard(animation.boardId, {
+    emitLiveContext: true,
+    reason: "edit-room-focus",
+  });
   state.selectedRoomId = animation.roomId;
   state.selectedRoomByBoard[animation.boardId] = animation.roomId;
   state.roomDraft.editTargetId = animation.id;
@@ -5795,7 +5810,10 @@ function draw(now) {
   }
 }
 
-boardSelect.addEventListener("change", () => switchBoard(boardSelect.value));
+boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
+  emitLiveContext: true,
+  reason: "board-select",
+}));
 
 openDashboardViewButton.addEventListener("click", () => {
   setActiveView("dashboard");
