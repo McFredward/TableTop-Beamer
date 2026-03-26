@@ -66,7 +66,7 @@ completed: 2026-03-26
 4. **Task P6-T47: Guard-Regression dokumentieren** - `e49a4b3` (test)
 5. **Task P6-T48: Artefakt-Sync abschliessen** - `bf3f18c` (docs)
 
-**Plan metadata:** pending final docs commit
+**Plan metadata:** `8f48c69` (docs)
 
 ## Files Created/Modified
 - `src/app.js` - pointer-up pending-session fix + shared lifecycle preservation for persistent room selection visuals.
