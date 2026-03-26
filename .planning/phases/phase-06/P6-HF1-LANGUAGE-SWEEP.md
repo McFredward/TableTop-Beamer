@@ -1,7 +1,7 @@
 # P6-HF1 Language Sweep Verification
 
 Date: 2026-03-26
-Status: IN PROGRESS (T18 inventory complete)
+Status: DONE
 
 ## Goal
 
@@ -55,22 +55,40 @@ Close verify-work-6 P0 blocker `English-only operator flow` with reproducible ev
 
 ## Evidence Log
 
-- Pattern checks:
-  - Manual file sweep completed for `index.html` and `src/app.js` (operator-facing hotspots listed above).
-- Manual sweep protocol:
-  - Baseline inventory captured before string conversion.
-- Error-path checks:
-  - Save/preflight, startup-fallback, and runtime-guard message families identified for conversion.
-- Documentation sync checks:
-  - `README.md` and Phase-06 docs flagged for explicit policy alignment in P6-T21.
+### Pattern checks (post-fix)
+
+1. `grep(path=/home/claw/tt-beamer/src, include=*.js, pattern=German-token-list)`
+   - Result: no matches in operator runtime paths after final conversion.
+2. `node --check src/app.js`
+   - Result: pass.
+3. `node --check src/app/api/global-defaults-api.js`
+   - Result: pass.
+
+### Manual sweep matrix
+
+| Area | Path | Check | Result |
+| --- | --- | --- | --- |
+| Control UI labels/hints | `index.html` | No German operator-facing labels/buttons/empty states | PASS |
+| Settings UI labels/hints | `index.html` | No German settings copy or placeholders | PASS |
+| Runtime status messages | `src/app.js` | Trigger/status feedback in English | PASS |
+| Save/preflight/startup errors | `src/app.js`, `src/app/api/global-defaults-api.js` | Operator-facing errors/diagnostics in English | PASS |
+| Final-flow messaging | `src/app.js` | Final-flow relevant status/error copy in English | PASS |
+| Operator docs | `README.md`, `.planning/phases/phase-06/README.md` | English-only policy stated consistently | PASS |
+
+### Error-path spot checks
+
+- Static-only preflight classification message: English.
+- API endpoint unavailable / server error message families: English.
+- Startup fallback failure and diagnostics: English.
+- Runtime fault isolation status (`faulty animation isolated...`): English.
 
 ## Findings
 
-- Open findings count: `3 families` (UI copy, status/error copy, docs policy consistency)
-- Closed findings count: `0`
-- Remaining blocker: `English-only operator flow` still open until P6-T19..P6-T22
+- Open findings count: `0`
+- Closed findings count: `all identified HF1 findings`
+- Remaining blocker: `none`
 
 ## Result
 
-- Final verdict: `Inventory complete`
-- Gate statement: `P6-T18 complete; proceed with conversion tasks P6-T19 and P6-T20`
+- Final verdict: `PASS`
+- Gate statement: `verify-work-6 P0 blocker 'English-only operator flow' is closed for Control/Settings/Final-flow + status/errors/docs scope.`

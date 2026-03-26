@@ -228,7 +228,7 @@
       method = "POST",
       routing = null,
     }) {
-      const error = new Error(`Global Defaults Save fehlgeschlagen (${code})`);
+      const error = new Error(`Global Defaults save failed (${code})`);
       error.code = code;
       error.status = status;
       error.statusClass = statusClass;
@@ -382,7 +382,7 @@
       if (lastError instanceof Error) {
         throw lastError;
       }
-      throw new Error("Global Defaults Save fehlgeschlagen");
+      throw new Error("Global Defaults save failed");
     }
 
     async function fetchGlobalDefaultsPayload() {

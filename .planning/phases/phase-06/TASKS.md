@@ -26,7 +26,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T19 [P0] Alle deutschen UI-Texte in `Control` und `Settings` auf Englisch umstellen (inkl. Labels, Buttons, Hinweise, leere Zustaende).
 - [x] DONE P6-T20 [P0] Final-Flow, Statusmeldungen und Fehlermeldungen auf Englisch vereinheitlichen (inkl. server/client operatorrelevanter Fehlerpfade).
 - [x] DONE P6-T21 [P0] Dokumentationskonsistenz herstellen (`README.md` + Phase-06-Artefakte) mit expliziter English-only Operator Policy.
-- [ ] TODO P6-T22 [P0] Language-Sweep-Regression artefaktbasiert nachweisen (Pattern-Checks + manuelle Sweep-Matrix + Ergebnisprotokoll).
+- [x] DONE P6-T22 [P0] Language-Sweep-Regression artefaktbasiert nachweisen (Pattern-Checks + manuelle Sweep-Matrix + Ergebnisprotokoll).
 
 ## Plan 6-2 - Hardening + Operator Verification (nach 6-HF1)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
