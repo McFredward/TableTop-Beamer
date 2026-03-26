@@ -205,6 +205,26 @@
 - Impact: Hoch bis kritisch, Operator verliert Kontrolle und kann Cluster-Laufkontext nicht sicher unterscheiden.
 - Gegenmassnahme: Running-Model/Rendering um Scope `CLUSTER` erweitern (Label + Farbe + stop/edit contract) und gegen Room/Global-Guards regressionspruefen.
 
+## R42 Cluster-Lifecycle entfernt Instanzen vorzeitig
+- Risiko: Cluster-Runs werden kurz nach Start durch race zwischen overwrite/cleanup/expiry entfernt; Trigger wirkt fuer Operator intermittierend wirkungslos.
+- Impact: Kritisch, Cluster-Feature verliert Betriebszuverlaessigkeit im Live-Flow.
+- Gegenmassnahme: root-cause-fix fuer lifecycle transitions (hold-by-default parity), instanzscharfer cleanup und kombinierte start/edit/stop/clear-all Regression.
+
+## R43 Cleanup-/Overwrite-Pfade mutieren falschen Run-Kontext
+- Risiko: lifecycle operationen auf Cluster-Kontext treffen versehentlich fremde member-Instanzen (falsche `animation.id`/scope bindung).
+- Impact: Kritisch, aktive Effekte verschwinden oder werden unerwartet ueberschrieben.
+- Gegenmassnahme: strikte run-context-keys (`animation.id` + scope metadata), stale guard und matrix tests fuer parallele room+cluster runs.
+
+## R44 Board-Context-Sync ist nicht first-try deterministisch
+- Risiko: Board-Wechsel braucht Mehrfach-Toggle oder repliziert zeitweise nicht auf einzelne Clients (inkl. `/output/final`).
+- Impact: Kritisch, Multi-Device-Livebetrieb verliert gemeinsame Kontextbasis.
+- Gegenmassnahme: serverautoritives context mutation protokoll mit ack/version/order und verpflichtender first-toggle propagation matrix.
+
+## R45 Reconnect/InFlight verursacht Context-Drift
+- Risiko: Join/Reconnect und gleichzeitige Kontextaenderungen fuehren zu stale apply oder out-of-order board context.
+- Impact: Hoch bis kritisch, Controller und Final-Output laufen auf unterschiedlichen Boards/Layouts.
+- Gegenmassnahme: monotone Context-Version, stale-drop, deterministic replay nach `live-hello` und reconnect regression evidence.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
@@ -238,3 +258,13 @@
 - R39 ist geschlossen: cluster start fanout dispatches all valid member rooms (no first-room truncation) in sync and stagger modes.
 - R40 ist geschlossen: stagger/sync semantics are parity-stable across complete cluster member sets (`off=sync`, `on=staggered`).
 - R41 ist geschlossen: running model/rendering now includes dedicated `CLUSTER` scope with distinct label/color and consistent cluster stop/edit semantics.
+
+## Risk Update - HF11 Open (new mandatory feedback)
+- R42..R45 sind als neue P0/P1-Risiken aktiv und blockieren Plan 6-3 bis zur HF11-Closure.
+- Pflichtnachweis fuer Schliessung: kombinierte HF11-Matrix fuer cluster lifecycle stability (hold/default + cleanup isolation) sowie board context determinism (first-toggle propagation + ack/version/order + reconnect replay).
+
+## Risk Update - HF11 Closed
+- R42 ist geschlossen: cluster lifecycle no longer self-cleans via prune parent-race; hold-by-default parity remains stable for cluster controller/member paths.
+- R43 ist geschlossen: cluster edit/stop/cleanup now reconciles only the owning run context (`animation.id`/`parentClusterRunId`) and avoids cross-instance removals.
+- R44 ist geschlossen: board switch propagation is first-toggle deterministic across connected clients including `/output/final`.
+- R45 ist geschlossen: reconnect/inflight replay is stabilized via mutation-id dedup, stale context replay drop, and socket-generation ordering guards.

@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF10
+- Last Executed Plan: 6-HF11
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF10-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF11-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -387,6 +387,17 @@
 - Plan-6-HF10 execution: cluster start fanout now dispatches to all valid cluster members in both sync and stagger modes without first-room truncation.
 - Plan-6-HF10 execution: running model/list now includes dedicated `CLUSTER` scope entries with distinct scope color and linked member semantics.
 - Plan-6-HF10 execution: cluster stop/edit actions on the `CLUSTER` entry operate consistently across linked member instances; combined evidence is PASS in `P6-T76-REGRESSION.md`.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF10): Cluster-Animationen sind instabil und koennen nach ~1s verschwinden; Start wirkt teils wirkungslos.
+- Cluster-Lifecycle-Regel fuer Phase 6 (Plan 6-HF11): Cluster-Instanzen folgen denselben hold-by-default- und lifetime-Regeln wie Room-Instanzen; kein implizites Self-cleanup/overwrite ohne expliziten Stop oder Ablauf.
+- Overwrite/Cleanup-Regel fuer Phase 6 (Plan 6-HF11): Cluster-Fanout, Instanz-Merge und Cleanup-Pfade arbeiten instanzscharf (`animation.id`/run-context) und duerfen keine fremden Member-Instanzen vorzeitig entfernen.
+- Sync-Regel fuer Phase 6 (Plan 6-HF11): Board-Wechsel in Settings ist serverautoritativ mit Ack/Version/Ordering und repliziert deterministisch auf alle Clients inkl. `/output/final` ohne Mehrfach-Toggle.
+- Reconnect-Regel fuer Phase 6 (Plan 6-HF11): Join/Reconnect-InFlight-Replay respektiert monotone Kontext-Versionen; stale Kontext-Patches werden verworfen, aktuelle Versionen deterministisch angewendet.
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF11): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF11 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF11 execution: cluster lifecycle prune/cleanup keeps hold-by-default parity and no longer self-removes cluster runs via parent-race paths.
+- Plan-6-HF11 execution: cluster edit/stop semantics are run-context isolated (`animation.id`/`parentClusterRunId`) with in-place cluster updates and id-scoped member reconciliation.
+- Plan-6-HF11 execution: board context sync uses reconnect-safe mutation-id dedup + stale context replay drop + socket ordering guards; first-toggle propagation is deterministic across clients incl. `/output/final`.
+- Plan-6-HF11 execution: combined regression matrix is PASS and documented in `P6-T81-REGRESSION.md`; Plan 6-3 is unblocked.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

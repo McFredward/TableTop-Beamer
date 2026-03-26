@@ -16,6 +16,7 @@
 - Draft Persistence + Cluster UX Completion Hotfix
 - Target Auto+Manual Parity Hotfix
 - Cluster Fanout + Running Scope Hotfix
+- Cluster Lifecycle + Board Context Determinism Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -98,6 +99,12 @@
 - P6-S16.3 Running-Model erweitern: Cluster-Run wird als eigener Scope-Typ `CLUSTER` modelliert (nicht `ROOM`, nicht `GLOBAL-INSIDE`).
 - P6-S16.4 Running-Rendering erweitern: dedizierter Cluster-Eintrag mit Label `CLUSTER` und visuell unterscheidbarer Farbe inkl. konsistenter Stop/Edit-Semantik.
 - P6-S16.5 HF10-Kombinations-Regression + Artefakt-Sync abschliessen (cluster fanout sync/stagger + cluster stop/edit behavior + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S17.1 Cluster-Lifecycle root-cause fixen: vorzeitiges Verschwinden durch overwrite/cleanup races eliminieren; hold-by-default-Paritaet zu Room-Animationen herstellen.
+- P6-S17.2 Cluster-Cleanup semantisch haerten: cleanup/expiry/edit/stop auf run-context begrenzen, keine fremden Member-Instanzen entfernen.
+- P6-S17.3 Serverautoritiven Board-Context-Sync haerten: `context-update` mit Ack/Version/Ordering (stale drop + deterministic last-write).
+- P6-S17.4 Join/Reconnect-/InFlight-Verhalten absichern: context-version replay fuer spaet joinende Clients inkl. `/output/final` ohne Mehrfach-Toggle.
+- P6-S17.5 HF11-Kombinations-Regression + Artefakt-Sync abschliessen (cluster lifecycle stability + board-switch determinism + reconnect/order matrix + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -223,7 +230,15 @@
 - Story P6-S16.5.
   - Ziel: kombinierte HF10-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF10)
+## Priorisierte Hotfix-Welle 11 (P0) - Plan 6-HF11 execute-ready
+- Story P6-S17.1 + P6-S17.2.
+  - Ziel: Cluster-Animationen bleiben lifecycle-stabil wie Room-Animationen (hold-by-default, kein sofortiges Self-cleanup/overwrite).
+- Story P6-S17.3 + P6-S17.4.
+  - Ziel: Board-Wechsel ist serverautoritativ first-try-deterministisch auf allen Clients inkl. `/output/final` (Ack/Version/Ordering/Reconnect).
+- Story P6-S17.5.
+  - Ziel: kombinierte HF11-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF11)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -268,3 +283,14 @@
 - Cluster launch fanout is now member-complete for both modes (`off = sync`, `on = staggered`) without first-room truncation.
 - Running model/rendering now includes a dedicated `CLUSTER` scope entry (label + distinct color) and linked cluster stop/edit semantics.
 - Combined HF10 evidence is PASS in `P6-T76-REGRESSION.md`; backlog flow proceeds to Plan 6-3 hardening.
+
+## Plan Update - 6-HF11 inserted (P0)
+- Mandatory feedback introduces an additional P0 gate before hardening: cluster animation lifecycle is unstable (premature disappearance after start) and must be parity-stable to room animation lifecycle.
+- Board context switch currently is not deterministic; server-authoritative context sync must be hardened with ack/version/order/reconnect so first toggle replicates reliably to every client including `/output/final`.
+- Backlog flow is updated to execute Plan 6-HF11 before Plan 6-3.
+
+## Execution Update - 6-HF11 completed (P0)
+- Cluster lifecycle stability is closed: hold-by-default parity is enforced for cluster controller/member flows and prune no longer causes implicit self-cleanup races.
+- Cluster edit/stop semantics are now run-context isolated: edits stay in-place on the same cluster run and member cleanup/removal is `animation.id`-scoped.
+- Board context determinism is hardened: reconnect replay uses stale-context drop + mutation-id dedup and socket ordering guards, so first-toggle board propagation remains deterministic across controllers and `/output/final`.
+- Combined HF11 evidence is PASS in `P6-T81-REGRESSION.md`; backlog flow proceeds to Plan 6-3 hardening.

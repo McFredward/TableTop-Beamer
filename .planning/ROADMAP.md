@@ -130,7 +130,7 @@ Exit Criteria:
 ## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6, Plan 6-HF7, Plan 6-HF8, Plan 6-HF9 und Plan 6-HF10 sind abgeschlossen; verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, HF6 ist mit `P6-T53-REGRESSION.md` geschlossen, HF7 ist mit `P6-T59-REGRESSION.md` geschlossen, HF8 ist mit `P6-T66-REGRESSION.md` geschlossen, HF9 ist mit `P6-T71-REGRESSION.md` geschlossen und HF10 ist mit `P6-T76-REGRESSION.md` geschlossen. Naechster Schritt ist Plan 6-3.
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6, Plan 6-HF7, Plan 6-HF8, Plan 6-HF9, Plan 6-HF10 und Plan 6-HF11 sind abgeschlossen; verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, HF6 ist mit `P6-T53-REGRESSION.md` geschlossen, HF7 ist mit `P6-T59-REGRESSION.md` geschlossen, HF8 ist mit `P6-T66-REGRESSION.md` geschlossen, HF9 ist mit `P6-T71-REGRESSION.md` geschlossen, HF10 ist mit `P6-T76-REGRESSION.md` geschlossen und HF11 ist mit `P6-T81-REGRESSION.md` geschlossen. Naechster Schritt ist Plan 6-3 (Hardening + Operator Verification).
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -157,7 +157,9 @@ Milestones:
 22. M22 Target Auto+Manual Parity Hotfix: Room-Klick setzt `target` automatisch auf Room, Target-Dropdown bleibt immer manuell bedienbar und manuelle Overrides auf Room/Cluster bleiben selection-unabhaengig moeglich.
 23. M23 Cluster Fanout Reliability Hotfix: Cluster-Start fanout erreicht in sync/stagger deterministisch alle Cluster-Member (kein First-Room-Only-Start).
 24. M24 Cluster Running Scope Hotfix: Running-Liste fuehrt dedizierten Scope `CLUSTER` (eigener Eintrag, Label `CLUSTER`, distinct color) inkl. konsistenter Stop/Edit-Semantik.
-25. M25 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+25. M25 Cluster Lifecycle Stability Hotfix: Cluster-Animationen bleiben hold-by-default stabil und werden nicht durch vorzeitige Cleanup-/Overwrite-Pfade entfernt.
+26. M26 Board Context Determinism Hotfix: Board-Switch in Settings repliziert serverautoritativ sofort und zuverlaessig auf alle Clients inkl. `/output/final` (Ack/Version/Ordering/Reconnect).
+27. M27 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -196,6 +198,10 @@ Exit Criteria:
 - Cluster-Fanout bleibt member-vollstaendig fuer beide Modi (`off`/`on`); kein Cluster-Member geht im Startpfad verloren.
 - Running-Liste fuehrt Cluster-Starts als dedizierten Scope `CLUSTER` mit klar unterscheidbarer Farbe statt ROOM/global-inside-Mischdarstellung.
 - Stop/Edit auf `CLUSTER`-Eintraegen arbeitet robust und konsistent fuer Cluster-Run-Kontext ohne Regression bestehender Guards.
+- Cluster-Animationen verhalten sich lifecycle-paritaetisch zu Room-Animationen: hold-by-default bleibt stabil, kein unerwartetes Verschwinden nach dem Start.
+- Cluster-Start/Edit/Stop/Cleanup nutzen instanzscharfe Kontextbindung; keine vorzeitige Selbstentfernung durch overwrite oder stale cleanup.
+- Board/Layout-Kontextwechsel aus Settings repliziert deterministisch beim ersten Toggle auf alle Controller und `/output/final` ohne manuelle Wiederholung.
+- Board-Context-Sync ist serverautoritativ versioniert; Ack/Reconnect/Ordering verhindern stale apply und Kontextdrift.
 - Buttons/Hotkeys funktionieren auf derselben persistenten Selection-Quelle wie visuelle Handles/Polygone.
 - Klick auf leere Boardflaeche setzt Room-Selektion deterministisch auf `none`.
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.

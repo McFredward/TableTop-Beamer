@@ -102,7 +102,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T75 [P0] Running-Rendering erweitern: dedizierten Cluster-Eintrag mit Label `CLUSTER` und visuell unterscheidbarer Farbe liefern; Stop/Edit bleiben konsistent.
 - [x] DONE P6-T76 [P0] HF10-Regression + Artefakt-Sync dokumentieren: cluster start sync/stagger + cluster stop/edit behavior + guards und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF10-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF10)
+## Plan 6-HF11 - Cluster Lifecycle + Board Context Determinism Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T77 [P0] Cluster-Lifecycle root-cause fixen: hold-by-default-Paritaet fuer Cluster-Instanzen herstellen und vorzeitiges Verschwinden nach Start (overwrite/cleanup race) eliminieren.
+- [x] DONE P6-T78 [P0] Cluster-Cleanup/Overwrite-Guards haerten: lifecycle-Operationen (`start/edit/stop/cleanup`) strikt run-context-/`animation.id`-scharf anwenden.
+- [x] DONE P6-T79 [P0] Serverautoritiven Board-Context-Sync haerten: `context-update` fuer Board/Layout mit Ack + monotoner Version + stale-drop/order-guard absichern.
+- [x] DONE P6-T80 [P0] Join/Reconnect/InFlight-Paritaet fuer Board-Context liefern: Snapshot + Pending-Replay replizieren deterministisch auf alle Rollen inkl. `/output/final`.
+- [x] DONE P6-T81 [P0] HF11-Regression dokumentieren: cluster lifecycle stability (start/edit/stop/clear-all), board-switch first-try propagation, reconnect/order burst matrix.
+- [x] DONE P6-T82 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF11-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF11)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

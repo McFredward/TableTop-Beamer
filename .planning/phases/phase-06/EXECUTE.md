@@ -88,7 +88,15 @@
 4. P0 danach: P6-T75 (Running-Rendering vervollstaendigen: Label `CLUSTER` + visuell unterscheidbare Farbe + konsistente Stop/Edit-Semantik).
 5. P0 Abschluss: P6-T76 (HF10-Kombinationsmatrix + Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
-## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF10)
+## Priority Execution - Plan 6-HF11 (verbindlich, P0-Hotfix vor 6-3)
+1. P0 zuerst: P6-T77 (Cluster-Lifecycle root-cause fixen: hold-by-default-Paritaet herstellen und vorzeitiges Verschwinden durch cleanup/overwrite race eliminieren).
+2. P0 danach: P6-T78 (Cluster cleanup/overwrite guards haerten: lifecycle-mutations nur run-context-/`animation.id`-scharf anwenden).
+3. P0 danach: P6-T79 (Serverautoritiven Board-Context-Sync fuer Board/Layout haerten: Ack + monotone Version + ordering/stale-drop).
+4. P0 danach: P6-T80 (Join/Reconnect/InFlight-Paritaet liefern: snapshot + replay deterministisch fuer alle Rollen inkl. `/output/final`).
+5. P0 Abschluss: P6-T81 (HF11-Kombinationsmatrix dokumentieren: cluster lifecycle stability + first-toggle board propagation + reconnect/order burst).
+6. P0 Abschluss: P6-T82 (HF11-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF11)
 1. P1 zuerst: P6-T14 (Import-Konfliktstrategie finalisieren und Operator-Feedback absichern).
 2. P1 danach: P6-T15..P6-T16 (Negativtests + Multi-Board-Soak fuer Import/Cluster/Migration).
 3. P1 Abschluss: P6-T17 (formale Operator-E2E-Abnahme im Realsetup).
@@ -140,7 +148,12 @@
 - Kein Weitergehen zu P6-T74+, bevor P6-T73 sync/stagger parity fuer alle Cluster-Member bestaetigt.
 - Kein Weitergehen zu P6-T75+, bevor P6-T74 den dedizierten Running-Scope `CLUSTER` im Modell nachweist.
 - Kein Weitergehen zu P6-T76+, bevor P6-T75 `CLUSTER`-Rendering (Label/Farbe) und konsistente Stop/Edit-Semantik regressionsfrei bestaetigt.
-- Kein Weitergehen zu P6-T14+, bevor P6-T76 die HF10-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T77+, bevor P6-T76 die HF10-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T78+, bevor P6-T77 hold-by-default lifecycle-paritaet fuer cluster starts ohne frueh-cancel regressionsfrei nachweist.
+- Kein Weitergehen zu P6-T79+, bevor P6-T78 cleanup/overwrite isolation pro run-context bestaetigt.
+- Kein Weitergehen zu P6-T80+, bevor P6-T79 serverautoritiven context-sync mit ack/version/order guard nachweist.
+- Kein Weitergehen zu P6-T81+, bevor P6-T80 reconnect/inflight replay fuer board-context inkl. `/output/final` bestaetigt.
+- Kein Weitergehen zu P6-T14+, bevor P6-T82 die HF11-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
 - Kein Phase-6-Exit ohne Migration-Idempotenznachweis und Reload/Restart-Paritaet.
 
 ## Update Rules
@@ -187,3 +200,14 @@
 - Cluster launch fanout now dispatches member-complete for every valid cluster room in both modes (`stagger start off|on`).
 - Running model/rendering now exposes a dedicated `CLUSTER` entry with distinct scope color and linked cluster stop/edit semantics.
 - HF10 combined regression evidence is PASS in `P6-T76-REGRESSION.md`; Plan 6-3 is unblocked.
+
+## Plan Update - 6-HF11 Execute-Ready (P0)
+- New mandatory feedback introduces a new P0 gate before hardening: cluster animations are lifecycle-unstable (short-lived/disappearing after start) and must match room-animation hold-by-default stability.
+- Board switch sync is currently non-deterministic; server-authoritative board/layout context sync must be hardened with ack/version/order/reconnect for immediate first-toggle propagation to all clients including `/output/final`.
+- Plan 6-3 is postponed until HF11 passes with combined regression evidence and full artifact sync.
+
+## Execution Update - 6-HF11 Completed (P0)
+- Cluster lifecycle is now hold-stable: prune/cleanup no longer removes cluster controllers or linked members via parent-race side effects.
+- Cluster edit/stop semantics are run-context scoped: cluster edits update the same cluster run in place and reconcile member instances by `animation.id` without cross-run removals.
+- Board context sync is reconnect-hardened: mutation-id dedup, stale context replay drop, and socket-generation ordering guards keep first-toggle propagation deterministic across controllers and `/output/final`.
+- HF11 combined regression evidence is PASS in `P6-T81-REGRESSION.md`; Plan 6-3 gate is closed.

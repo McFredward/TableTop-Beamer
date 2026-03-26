@@ -43,6 +43,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF10 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF9 und 6-3 gesetzt.
 - Ziel von 6-HF10: Cluster-Fanout robust auf alle Member-Raeume korrigieren, `stagger start`/simultaneous fuer komplette Cluster-Mengen absichern und Running-Model/-Rendering um Scope `CLUSTER` (eigener Eintrag + visuelle Abgrenzung) execute-ready liefern.
 
+## Hotfix Trigger (Neues verpflichtendes Feedback nach 6-HF10)
+- Neues verpflichtendes Feedback meldet zwei neue P0-Defekte: (1) Cluster-Animationen sind lifecycle-instabil (starten teils nur kurz und verschwinden/werden ueberschrieben), (2) Board-Switch-Sync ist nicht deterministisch und braucht teils Mehrfach-Toggles.
+- Konsequenz: Plan 6-HF11 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF10 und 6-3 gesetzt.
+- Ziel von 6-HF11: root-cause fuer Cluster-Lifecycle/Overwrite/Cleanup schliessen und serverautoritiven Board-Context-Sync (Ack/Version/Ordering/Reconnect) fuer alle Clients inkl. `/output/final` deterministisch haerten.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -87,6 +92,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Cluster-Fanout ist member-vollstaendig verpflichtend: jeder Cluster-Start (sync oder staggered) erzeugt fuer jede gueltige `roomId` im Cluster genau eine Startaktion; partieller First-Room-Start ist unzulaessig.
 - Running-Model besitzt fuer Cluster-Starts einen eigenen Scope-Typ `CLUSTER` (nicht `ROOM`, nicht `GLOBAL-INSIDE`) mit eigener visueller Kennzeichnung in der Running-Liste.
 - Stop/Edit-Semantik fuer Cluster arbeitet auf dem Cluster-Scope-Eintrag deterministisch und beeinflusst die zugehoerigen Member-Instanzen konsistent, ohne bestehende Room/Global-Guards zu regressieren.
+- Cluster-Animation-Lifecycle ist parity-pflichtig zu Room-Animationen: hold-by-default, keine implizite Sofortentfernung, keine self-cancel cleanup races.
+- Cluster-Instanzen und Member-Instanzen werden instanzscharf verarbeitet (`animation.id`/run-context); Update/Stop/Cleanup duerfen nur den zugehoerigen Kontext mutieren.
+- Board-/Layout-Context ist serverautoritativ versioniert; `context-update` nutzt monotone Version + Ack und stale-drop fuer deterministic last-write.
+- Board-Switch wird als sofortiger Shared-State propagiert und auf Join/Reconnect deterministisch rehydriert, inklusive `/output/final` ohne Zusatzklick.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -149,6 +158,12 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Running-Scope-Hotfix liefern: Running-Model/-Rendering um eigene Scope-Art `CLUSTER` erweitern (eigener Eintrag, Label `CLUSTER`, visuell unterscheidbare Farbe).
 - Regression fuer Cluster-Start (sync/stagger), Stop/Edit-Verhalten auf Cluster-Eintrag und bestehende Guards als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF10-Stand synchronisieren und execute-ready halten.
+- Cluster-Lifecycle-Hotfix liefern: root-cause fuer vorzeitiges Verschwinden/overwrite von Cluster-Animationen beseitigen (hold-by-default Paritaet zu Room-Instanzen).
+- Cluster-Cleanup-Hotfix liefern: cleanup-/expiry-/merge-pfade instanzscharf auf run-context begrenzen, keine fremden Cluster-Member-Removals.
+- Board-Context-Sync-Hotfix liefern: serverautoritives `context-update` fuer Board/Layout mit Ack/Version/Ordering robust haerten, inkl. stale-drop und reconnect replay.
+- Deterministische Propagation nachweisen: Board-Wechsel repliziert beim ersten Toggle sofort auf alle Clients inkl. `/output/final`, ohne Mehrfach-Toggle.
+- Regression fuer Cluster-Lifecycle + Board-Context-Sync + Join/Reconnect/Burst-Ordering als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF11-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -176,7 +191,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 17. Cluster-UX-Hotfix ausrollen: Cluster CRUD in Operator-Flow + Target-Selection + Cluster-Startoption `stagger start` integrieren.
 18. Target-Flow-Paritaet-Hotfix ausrollen: Room-Click setzt `target` automatisch auf Room, `target` bleibt immer manuell editierbar (Room/Cluster, auch ohne Selection), Draft-Persistenz bleibt fuer Animation/Parameter stabil.
 19. Cluster-Fanout/Running-Scope-Hotfix ausrollen: Cluster-Start fanout fuer alle Member (sync + stagger) stabilisieren und Running-Scope `CLUSTER` mit dediziertem Eintrag/Farbkennung integrieren.
-20. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger + CLUSTER running scope) dokumentieren.
+20. Cluster-Lifecycle-Hotfix ausrollen: Cluster-Instanzen gegen vorzeitiges cleanup/overwrite haerten und hold-by-default-Paritaet zu Room-Animationen sichern.
+21. Board-Context-Sync-Hotfix ausrollen: serverautoritiven Board/Layout-Sync mit Ack/Version/Ordering/Reconnect fuer alle Clients inkl. `/output/final` deterministisch machen.
+22. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger + CLUSTER running scope + lifecycle/sync determinism) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -201,7 +218,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 20. M20 Target Auto+Manual Parity Hotfix: Room-Click setzt `target` automatisch auf Room; manuelle Umstellung auf Room/Cluster bleibt jederzeit verfuegbar (auch ohne Selection).
 21. M21 Cluster Fanout Reliability Hotfix: Cluster-Start fanout erreicht alle Cluster-Member robust fuer sync + stagger.
 22. M22 Cluster Running Scope Hotfix: Running-Liste zeigt Cluster als eigenen Scope `CLUSTER` mit visueller Abgrenzung und konsistenter Stop/Edit-Semantik.
-23. M23 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+23. M23 Cluster Lifecycle Stability Hotfix: Cluster-Animationen bleiben stabil hold-by-default ohne unerwartetes Selbstentfernen.
+24. M24 Board Context Determinism Hotfix: Board-Switch repliziert first-try deterministisch auf alle Clients inkl. `/output/final`.
+25. M25 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -230,6 +249,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (Draft-Reset bei Room-Wechsel + fehlender Cluster-UX-Flow inkl. stagger start) wird als Plan 6-HF8 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Draft-Persistenz praezisiert: alles stabil ausser `target`, Room-Click-Autofill + always-manual target dropdown) wird als Plan 6-HF9 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Cluster-Start fanout nur erster Room + fehlender Cluster-Scope in Running-Liste) wird als Plan 6-HF10 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Cluster-Lifecycle instabil + nicht-deterministischer Board-Switch-Sync inkl. `/output/final`) wird als Plan 6-HF11 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -270,6 +290,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Cluster-Start fanout verarbeitet jeden Cluster-Member robust und verliert keinen Room in Sync- oder Stagger-Modus.
 - Running-Liste zeigt pro Cluster-Start einen eigenen Scope-Eintrag mit Label `CLUSTER` und eindeutig abgesetzter Scope-Farbe.
 - Stop/Edit fuer den `CLUSTER`-Eintrag arbeitet konsistent auf dem Cluster-Run und laesst bestehende Room/Global-Controls regressionsfrei.
+- Cluster-Animationen laufen stabil wie Room-Animationen (hold-by-default) und verschwinden nicht unmittelbar durch Cleanup-/Overwrite-Races.
+- Cluster-Lifecycle (start/edit/stop/cleanup) ist instanzscharf; nur zugehoerige Member-Instanzen werden mutiert/entfernt.
+- Board-Wechsel aus Settings repliziert beim ersten Toggle deterministisch auf alle Clients inkl. `/output/final`.
+- Serverautoritiver Board-Context-Sync nutzt Ack/Version/Ordering/Reconnect-Guards gegen stale apply und Kontextdrift.
 - `target` bleibt vom Draft-Persistenzvertrag ausgenommen: Room-Klick setzt `target` auto auf den geklickten Room, waehrend Animation + Parameter unveraendert bleiben.
 - `target`-Dropdown ist nie selection-bedingt deaktiviert und bleibt auch ohne aktive Room-Selektion manuell bedienbar.
 - Nach Auto-Set durch Room-Klick kann der Operator `target` jederzeit manuell auf Room oder Cluster umstellen, unabhaengig vom Selection-State.
@@ -321,3 +345,14 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - HF10 ist umgesetzt: Cluster-Fanout startet in beiden Modi (`stagger start off|on`) deterministisch fuer alle gueltigen Cluster-Member-Raeume.
 - Running-Liste fuehrt Cluster-Runs jetzt als dedizierten Scope `CLUSTER` mit eigener Farbe; Stop/Edit auf Cluster-Eintrag arbeiten run-konsistent fuer verlinkte Member-Instanzen.
 - HF10-Regressionsevidenz ist erbracht (`P6-T76-REGRESSION.md`) und das Gate vor Plan 6-3 ist geschlossen.
+
+## Plan Update - 6-HF11 Execute-Ready (P0)
+- Neues verpflichtendes Feedback nach HF10 setzt ein weiteres P0-Gate: Cluster-Animationen sind lifecycle-instabil (kurz sichtbar, dann weg) und muessen parity-stabil wie Room-Animationen laufen.
+- Board-Switch-Sync ist aktuell nicht first-try-deterministisch; serverautoritiver Context-Sync fuer Board/Layout wird mit Ack/Version/Ordering/Reconnect gehaertet und fuer alle Clients inkl. `/output/final` verbindlich gemacht.
+- HF11 wird vor Plan 6-3 ausgefuehrt; Hardening startet erst nach PASS fuer Cluster-lifecycle regression + board-context propagation/reconnect matrix und vollstaendigem Artefakt-Sync.
+
+## Execution Update - 6-HF11 Completed (P0)
+- HF11 ist umgesetzt: Cluster-Lifecycle bleibt hold-by-default stabil; prune/cleanup entfernt keine Cluster-Controller oder Member mehr implizit durch Parent-Race.
+- Cluster-Edit/Stop arbeitet run-context-scharf: laufende Cluster-Runs werden in-place aktualisiert, Member-Reconciliation bleibt `animation.id`-gebunden ohne Fremdinstanzen zu entfernen.
+- Board-Context-Sync ist reconnect-stabil gehaertet: mutation-id-dedup, stale-context-replay-drop und socket-generation guards liefern first-toggle-deterministische Propagation inkl. `/output/final`.
+- HF11-Regressionsevidenz ist in `P6-T81-REGRESSION.md` als PASS dokumentiert; Gate vor Plan 6-3 ist geschlossen.

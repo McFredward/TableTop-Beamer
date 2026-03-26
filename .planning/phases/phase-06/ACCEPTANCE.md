@@ -23,6 +23,10 @@
 - Cluster-stagger-integrity: Cluster-Start bietet pro Trigger `stagger start` (an/aus) mit deterministischer On/Off-Semantik (kurzer randomisierter Versatz vs synchron).
 - Cluster-fanout-completeness-integrity: Cluster-Start fanout verarbeitet alle Cluster-Member-Raeume ohne First-Room-Verlust (sync + stagger).
 - Cluster-running-scope-integrity: Running-Liste fuehrt Cluster-Starts als dedizierten Scope `CLUSTER` (eigener Eintrag + visuelle Farbtrennung) inkl. konsistenter Stop/Edit-Semantik.
+- Cluster-lifecycle-stability-integrity: Cluster-Animationen folgen Room-Paritaet (hold-by-default), ohne vorzeitiges Selbstentfernen durch cleanup/overwrite races.
+- Cluster-context-isolation-integrity: Cluster-Start/Edit/Stop/Cleanup wirken nur auf den zugehoerigen run-context (`animation.id`) und entfernen keine fremden Member-Instanzen.
+- Board-context-determinism-integrity: Board-Wechsel repliziert beim ersten Toggle deterministisch auf alle Clients inkl. `/output/final`.
+- Board-context-versioning-integrity: context-mutations sind serverautoritativ versioniert (ack + ordering + stale drop) und bleiben bei Join/Reconnect driftfrei.
 
 ## Language-Sweep Pflichtnachweis (P0)
 - Sweep Scope: `Control`, `Settings`, `Final-Flow`, operatorrelevante Statusmeldungen, Fehlermeldungen und Diagnose-Logs.
@@ -92,6 +96,12 @@
 - Cluster-Running-Scope-Color-Test: `CLUSTER`-Eintrag besitzt visuell unterscheidbare Scope-Farbe gegenueber ROOM/GLOBAL-Scope.
 - Cluster-Running-Stop-Behavior-Test: Stop auf `CLUSTER`-Eintrag beendet den zugehoerigen Cluster-Run konsistent fuer alle Member ohne Room/Global-Regression.
 - Cluster-Running-Edit-Behavior-Test: Edit auf `CLUSTER`-Eintrag oeffnet den korrekten Cluster-Kontext und bleibt fanout-/target-konsistent.
+- Cluster-Hold-By-Default-Stability-Test: neu gestartete Cluster-Animationen bleiben stabil aktiv (kein unmittelbares Verschwinden nach ~1s) bis explizitem Stop/Ablauf.
+- Cluster-Cleanup-Isolation-Test: lifecycle-cleanup (edit/stop/clear-all/expiry) entfernt nur zugehoerige Cluster-Kontexte; parallele Room-/Cluster-Instanzen bleiben intakt.
+- Cluster-Overwrite-Race-Test: schnelle Trigger/Edit-Folgen auf demselben Cluster ueberschreiben keine fremden Member-Instanzen und erzeugen keine self-cancel races.
+- Board-Switch-First-Toggle-Propagation-Test: Board-Wechsel in Settings repliziert beim ersten Toggle auf alle verbundenen Controller und `/output/final`.
+- Board-Context-Ack-Version-Ordering-Test: `context-update` acked mit monotoner Version; stale/out-of-order updates werden verworfen und finaler Zustand bleibt deterministic last-write.
+- Board-Context-Reconnect-Replay-Test: nach Disconnect/Reconnect und InFlight-Mutationen wird aktueller Board/Layout-Kontext ohne Mehrfach-Toggle korrekt rehydriert.
 
 - English-UI-Text-Test: UI-Texte/Labels/Buttons sind Englisch-only.
 - English-Status-Test: Statusmeldungen/Toasts/Operator-Hinweise sind Englisch-only.
@@ -143,9 +153,12 @@
 - Nach P6-T72..P6-T73: Cluster-Fanout startet in allen Cluster-Membern robust; Sync/Stagger-Semantik bleibt fuer komplette Member-Mengen konsistent.
 - Nach P6-T74..P6-T75: Running-Liste fuehrt dedizierten Scope `CLUSTER` mit eigener Farbe; Stop/Edit verhalten sich cluster-konsistent ohne Guard-Regression.
 - Nach P6-T76: HF10-Kombinationsmatrix ist PASS, Artefakte sind HF10-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T77..P6-T78: Cluster-Lifecycle ist hold-by-default stabil; cleanup/overwrite arbeitet instanzscharf ohne vorzeitige Selbstentfernung.
+- Nach P6-T79..P6-T80: Board-Context-Sync repliziert first-try-deterministisch (Ack/Version/Ordering/Reconnect) auf alle Rollen inkl. `/output/final`.
+- Nach P6-T81..P6-T82: HF11-Kombinationsmatrix ist PASS, Artefakte sind HF11-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66, P6-T67..P6-T71 und P6-T72..P6-T76 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66, P6-T67..P6-T71, P6-T72..P6-T76 und P6-T77..P6-T82 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -182,6 +195,10 @@
 - Cluster-Fanout startet in allen Cluster-Member-Raeumen robust; First-Room-only-Starts sind ausgeschlossen (sync + stagger).
 - Running-Liste zeigt Cluster-Runs als dedizierten Scope `CLUSTER` mit eigener Scope-Farbe und klarem visuellen Unterschied zu ROOM/GLOBAL.
 - Stop/Edit auf `CLUSTER`-Eintraegen arbeitet konsistent fuer Cluster-Run-Kontext ohne Regression bei Room/Global-Guards.
+- Cluster-Animationen sind lifecycle-stabil und verhalten sich wie Room-Animationen (hold-by-default, kein ungewolltes Frueh-Cleanup).
+- Cluster-Cleanup/Edit/Stop/Overwrite wirken instanzscharf auf den zugehoerigen run-context und entfernen keine fremden Member-Instanzen.
+- Board-Wechsel aus Settings repliziert first-try deterministisch auf alle Clients inkl. `/output/final`.
+- Board-Context-Sync bleibt unter Ack/Version/Ordering/Reconnect driftfrei; stale Kontext-Events werden nicht angewendet.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -205,3 +222,11 @@
 ## Evidence Update - HF10 Completed
 - HF10-Nachweis ist erbracht: `P6-T76-REGRESSION.md` dokumentiert PASS fuer all-member cluster fanout (`sync` + `stagger`), dedizierten Running-Scope `CLUSTER` (Label + Farbe) und cluster-konsistente stop/edit semantics.
 - Das HF10-Pflichtgate vor Plan 6-3 ist geschlossen.
+
+## Plan Update - HF11 Open
+- Neues verpflichtendes Feedback oeffnet vor Plan 6-3 ein neues P0-Gate: Cluster-Lifecycle ist nicht stabil (vorzeitiges Verschwinden nach Start) und Board-Switch-Sync ist nicht first-try-deterministisch.
+- Closure-Nachweis fuer HF11 erfordert PASS fuer cluster lifecycle stability + cleanup isolation + board context first-toggle propagation + ack/version/order/reconnect matrix.
+
+## Evidence Update - HF11 Completed
+- HF11-Nachweis ist erbracht: `P6-T81-REGRESSION.md` dokumentiert PASS fuer cluster lifecycle hold-stability, run-context cleanup/edit/stop isolation und board-context determinism (first-toggle + reconnect/order replay).
+- Das HF11-Pflichtgate vor Plan 6-3 ist geschlossen.
