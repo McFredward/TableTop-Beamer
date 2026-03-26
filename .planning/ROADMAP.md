@@ -130,7 +130,7 @@ Exit Criteria:
 ## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6 und Plan 6-HF7 sind abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, der HF6 Vertex-Regression-Blocker ist mit `P6-T53-REGRESSION.md` geschlossen und das HF7-Gate (Edge-Bubble lifecycle + delete persistence gegen defaults rehydrate) ist mit `P6-T59-REGRESSION.md` geschlossen. Plan 6-3 ist als naechster Schritt freigegeben.
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6, Plan 6-HF7 und Plan 6-HF8 sind abgeschlossen; verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, HF6 ist mit `P6-T53-REGRESSION.md` geschlossen, HF7 ist mit `P6-T59-REGRESSION.md` geschlossen und HF8 ist mit `P6-T66-REGRESSION.md` geschlossen. Naechster Schritt ist Plan 6-3 (Hardening + Operator Verification).
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -151,7 +151,10 @@ Milestones:
 16. M16 Drag UX Guard Hotfix (low risk): unbeabsichtigte Text-Selektion wird waehrend Room-Drag unterdrueckt, ohne Input-/Keyboard-Regression.
 17. M17 Edge-Bubble Arbitration Hotfix: Edge-Bubble-Click behaelt persistente Room-Selektion und aktive Edge fuer Insert-Vertex ohne Re-Select.
 18. M18 Room Deletion Tombstone Hotfix: geloeschte Rooms bleiben auch nach Reload/Restart/Defaults-Apply dauerhaft geloescht.
-19. M19 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+19. M19 Draft Persistence Hotfix: zuletzt gewaehlte Animation und Trigger-Parameter bleiben ueber Room-/Target-Wechsel als aktive Voreinstellung erhalten.
+20. M20 Cluster UX Completion Hotfix: Cluster sind per CRUD im Operator-Flow verwaltbar und als `target` voll nutzbar.
+21. M21 Cluster Stagger Start Hotfix: Cluster-Start unterstuetzt pro Trigger `stagger start` (`off` synchron, `on` kurzer randomisierter Versatz).
+22. M22 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -179,6 +182,10 @@ Exit Criteria:
 - Unbeabsichtigte Browser-Textmarkierung wird waehrend Room-Drag unterdrueckt (mindestens fuer den Drag-Lifecycle), ohne Textinput-Bedienung ausserhalb des Drags zu brechen.
 - Edge-Bubble-Click zwischen Vertices behaelt persistente Room-Selektion und eine stabile aktive Edge fuer direkten Insert-Vertex-Flow.
 - Geloeschte Rooms bleiben ueber Save/Reload/Restart/Defaults-Apply dauerhaft geloescht; defaults-merge/overlay rehydriert keine getombstoneten Rooms.
+- Room-Animation-Drafts bleiben ueber Room-/Target-Wechsel erhalten; Dropdown-Animation und Parameter werden nicht implizit auf Defaults resetet.
+- Cluster koennen in der Operator-UX erstellt/bearbeitet/geloescht werden und bleiben board-spezifisch persistent.
+- Cluster sind in `target` waehlbar; Start auf Cluster fuehrt Fanout fuer alle Cluster-Raeume aus.
+- Pro Trigger ist `stagger start` verfuegbar: `off` startet alle Cluster-Raeume zeitgleich, `on` startet mit kurzem randomisiertem Versatz je Room.
 - Buttons/Hotkeys funktionieren auf derselben persistenten Selection-Quelle wie visuelle Handles/Polygone.
 - Klick auf leere Boardflaeche setzt Room-Selektion deterministisch auf `none`.
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.

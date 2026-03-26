@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF7
+- Last Executed Plan: 6-HF8
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -364,6 +364,12 @@
 - Plan-6-HF7 execution: edge-bubble click now preserves persistent room selection and stable active edge lifecycle for direct insert-vertex without reselect.
 - Plan-6-HF7 execution: room deletions persist as board-scoped `deletedRoomIds` tombstones; catalog apply and defaults export merge enforce `tombstone > defaults` precedence.
 - Plan-6-HF7 execution: combined regression matrix is PASS and documented in `P6-T59-REGRESSION.md`; Plan 6-3 is unblocked.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF7): Room-Animation-Drafts resetten bei Room-Wechsel; Cluster-UX/Flow ist unvollstaendig (fehlendes CRUD, fehlendes `stagger start`).
+- Draft-Regel fuer Phase 6 (Plan 6-HF8): zuletzt gewaehlte Room-Animation sowie aktuelle Trigger-Parameter bleiben ueber Room-/Target-Wechsel und Trigger-Start als aktive Voreinstellung erhalten.
+- Cluster-UX-Regel fuer Phase 6 (Plan 6-HF8): Cluster sind im Operator-Flow board-spezifisch voll verwaltbar (create/edit/delete) und in `target` waehlbar.
+- Trigger-Option-Regel fuer Phase 6 (Plan 6-HF8): `stagger start` ist pro Trigger schaltbar (`off` = synchron, `on` = kurzer randomisierter Room-Versatz).
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF8): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF8 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -730,3 +736,16 @@
 - Evidence:
   - `.planning/phases/phase-05/P5-T36-CONTEXT-PARITY-VERIFICATION.md`
   - `node debug/p5-t36-context-parity-regression.mjs` => `P5_T36_CONTEXT_PARITY_GUARDS=PASS`
+
+## Execution Results (Phase 6 Plan HF8)
+- Status: completed
+- Summary: `.planning/phases/phase-06/6-HF8-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`f24f0c8`, `3af979c`, `884c308`, `e1d8c41`, `1150c47`, `47878f4`)
+- Evidence:
+  - `.planning/phases/phase-06/P6-T66-REGRESSION.md`
+  - `node --check src/app.js` => PASS
+  - `node --check src/app/state/runtime-state.js` => PASS
+
+## Decision Log Addendum (HF8)
+- Room/vertex/edge selection darf `roomDraft.targetType/targetId` nicht implizit ueberschreiben; Target-Auswahl bleibt operator-owned.
+- Cluster-Startmodus `stagger start` ist cluster-only mit kurzem randomisiertem Versatz; `off` bleibt deterministisch synchron.
