@@ -257,7 +257,7 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
   }
 
   const normalizedMutationId = typeof mutationId === "string" && mutationId.trim() ? mutationId.trim() : null;
-  const dedupKey = normalizedMutationId ? `${clientId}:${normalizedMutationId}` : null;
+  const dedupKey = normalizedMutationId ? normalizedMutationId : null;
   if (dedupKey && processedMutations.has(dedupKey)) {
     const previous = processedMutations.get(dedupKey);
     return {

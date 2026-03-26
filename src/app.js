@@ -319,6 +319,16 @@ function replayPendingLiveMutations() {
     if (!entry?.wirePayload) {
       continue;
     }
+    if (
+      entry.mutationType === "context-update" &&
+      Number.isFinite(entry.baseVersion) &&
+      Number(entry.baseVersion) < liveSync.lastSessionVersion
+    ) {
+      if (entry.mutationId) {
+        liveSync.pendingMutations.delete(entry.mutationId);
+      }
+      continue;
+    }
     liveSync.socket.send(entry.wirePayload);
   }
 }
@@ -369,11 +379,21 @@ function emitLiveMutation(mutationType, payload = {}) {
   if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
   }
+  if (mutationType === "context-update") {
+    for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
+      if (entry?.mutationType === "context-update") {
+        liveSync.pendingMutations.delete(pendingMutationId);
+      }
+    }
+  }
   const mutationId = `m-${Date.now().toString(36)}-${liveSync.nextClientSequence.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   const clientSequence = liveSync.nextClientSequence;
   liveSync.nextClientSequence += 1;
+  const baseVersion = liveSync.lastSessionVersion;
   liveSync.pendingMutations.set(mutationId, {
+    mutationId,
     mutationType,
+    baseVersion,
     queuedAt: Date.now(),
     clientSequence,
     wirePayload: null,
@@ -385,12 +405,14 @@ function emitLiveMutation(mutationType, payload = {}) {
     mutationType,
     payload: {
       ...payload,
-      baseVersion: liveSync.lastSessionVersion,
+      baseVersion,
       runtime: buildRuntimeSnapshotForLiveSync(),
     },
   });
   liveSync.pendingMutations.set(mutationId, {
+    mutationId,
     mutationType,
+    baseVersion,
     queuedAt: Date.now(),
     clientSequence,
     wirePayload,
