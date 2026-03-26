@@ -57,7 +57,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T42 [P0] Kombinierte Regression dokumentieren: Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard unter neuer Pointer-Arbitration.
 - [x] DONE P6-T43 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF4-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF4)
+## Plan 6-HF5 - Click-Without-Move Persistence Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T44 [P0] Click-only Selection fixen: kurzer Click auf Room (ohne Move) setzt persistente Selection deterministisch.
+- [ ] TODO P6-T45 [P0] Pointer-Up-Lifecycle stabilisieren: Room-Polygon/Handles bleiben nach no-move Click sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
+- [ ] TODO P6-T46 [P0] Drag-Paritaet absichern: Hold/Move-Drag bleibt unveraendert funktionsfaehig, Selection-Click bleibt drag-frei.
+- [ ] TODO P6-T47 [P0] Guard-Regression dokumentieren: Empty-space deselect + Play-Area-Guard + Copy/Paste/Delete unter HF5-Flow matrixbasiert verifizieren.
+- [ ] TODO P6-T48 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF5-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF5)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

@@ -6993,6 +6993,7 @@ roomOverlay.addEventListener("pointerup", (event) => {
   }
   if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
     clearPendingPolygonAreaDragSession();
+    state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
     refreshPersistentRoomSelectionVisualState();
     return;
   }
