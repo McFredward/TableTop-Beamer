@@ -5,7 +5,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 7-1 - Sync Overhaul Core Wave (erste Ausfuehrungswelle, execute-ready)
 - [x] DONE P7-T1 [P0] Mutation envelope und Event-Klassen verbindlich definieren (`mutationId`, `serverVersion`, `serverTimestamp`, priority/coalescing rules).
-- [ ] TODO P7-T2 [P0] Server-Ordered-Queue einfuehren: ingest -> order -> commit als deterministische Single-Writer-Pipeline.
+- [x] DONE P7-T2 [P0] Server-Ordered-Queue einfuehren: ingest -> order -> commit als deterministische Single-Writer-Pipeline.
 - [ ] TODO P7-T3 [P0] Fanout-Pipeline haerten: commit-gekoppelte Broadcast-Reihenfolge, dedup und stale-drop guards aktivieren.
 - [ ] TODO P7-T4 [P0] Backpressure-Mechanismen implementieren (bounded queues, overflow handling, safe coalescing nur fuer nicht-kritische Updates).
 - [ ] TODO P7-T5 [P0] Client-Apply-Engine auf version-aware idempotent apply umstellen (`appliedVersion`, duplicate guard, stale reject).

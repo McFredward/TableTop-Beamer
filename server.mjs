@@ -69,6 +69,7 @@ const liveMutationQueue = {
   queued: 0,
   droppedOverflow: 0,
   coalesced: 0,
+  maxDepthObserved: 0,
 };
 
 const liveTelemetry = {
@@ -646,6 +647,7 @@ function buildLiveTelemetrySnapshot() {
   return {
     queue: {
       depth: getLiveQueueSize(),
+      maxDepthObserved: liveMutationQueue.maxDepthObserved,
       droppedOverflow: liveMutationQueue.droppedOverflow,
       coalesced: liveMutationQueue.coalesced,
     },
@@ -707,6 +709,7 @@ function processLiveMutationQueue() {
           serverTimestamp: mutationResult.serverTimestamp,
           serverIngestTimestamp: mutationResult.serverIngestTimestamp,
           queueDepth: getLiveQueueSize(),
+          queueWaitMs: Math.max(0, Date.now() - Number(next.enqueuedAt || Date.now())),
           ackTimestamp: nowIso,
         }),
       );
@@ -773,6 +776,7 @@ function enqueueLiveMutation({ socket, clientId, role, mutationType, payload, mu
   if (!coalesced) {
     queue.push(queueEntry);
     liveMutationQueue.queued += 1;
+    liveMutationQueue.maxDepthObserved = Math.max(liveMutationQueue.maxDepthObserved, getLiveQueueSize());
   }
   processLiveMutationQueue();
 }
