@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-2
+- Last Executed Plan: 6-HF2
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -314,7 +314,15 @@
 - Plan-6-2 execution: Polygon editor now has independent vertex visibility toggles for room polygons vs Play Area polygons with hidden-group drag/selection guards.
 - Plan-6-2 execution: Operator-facing `Ship Polygon` wording is generalized to `Play Area`; persistence canonical key is `playAreaPolygon` with legacy ship aliases for load/merge migration.
 - Plan-6-2 execution: Special-room visual highlighting is removed and room creation can clone polygon templates from Play Area or existing rooms.
-- Plan-6-Hardening ist als Plan 6-3 nachgelagert und startet erst nach Plan-6-2-Regressionsevidenz.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt: Room-Copy muss vollstaendig alle Room-Geometry-Eigenschaften inkl. Scale/Offset/Transform uebernehmen.
+- Keyboard-Regel fuer Phase 6 (Plan 6-HF2): bei selektiertem Room muss `CTRL+C` kopieren, `CTRL+V` einfuegen und `Delete` loeschen.
+- Selection-Regel fuer Phase 6 (Plan 6-HF2): Klick auf leere Boardflaeche setzt Room-Selektion auf `none`.
+- Non-Regression-Regel fuer Phase 6 (Plan 6-HF2): Play-Area-Editing/-Selection bleibt durch Room-Copy/Keyboard/Deselection unberuehrt.
+- Phase-6 Plan 6-HF2 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-Hardening ist als Plan 6-3 nachgelagert und startet erst nach Plan-6-HF2-Regressionsevidenz.
+- Plan-6-HF2 execution: room template-copy now preserves full room geometry parity (transform fields plus roomGeometry scale/offset/absolute/stretch values).
+- Plan-6-HF2 execution: selected-room keyboard editing supports `CTRL/CMD+C`, `CTRL/CMD+V`, and `Delete` with typing/play-area conflict guards.
+- Plan-6-HF2 execution: empty-board click clears selected room deterministically while Play-Area editing/selection remains unchanged.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

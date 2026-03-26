@@ -28,7 +28,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T21 [P0] Dokumentationskonsistenz herstellen (`README.md` + Phase-06-Artefakte) mit expliziter English-only Operator Policy.
 - [x] DONE P6-T22 [P0] Language-Sweep-Regression artefaktbasiert nachweisen (Pattern-Checks + manuelle Sweep-Matrix + Ergebnisprotokoll).
 
-## Plan 6-2 - Polygon Editor Safety + Play-Area Generalization (nach 6-HF1, execute-ready)
+## Plan 6-2 - Polygon Editor Safety + Play-Area Generalization (nach 6-HF1)
 - [x] DONE P6-T23 [P0] Polygon-Editor-Toggles aufsplitten: `Show Room Vertices` und `Show Play Area Vertices` als getrennte Controls einfuehren.
 - [x] DONE P6-T24 [P0] Hit-Test-/Selection-Guards implementieren: ausgeblendete Vertex-Gruppen sind nicht selektierbar, nicht dragbar und nicht als aktiv markierbar.
 - [x] DONE P6-T25 [P0] UI/Model/Operator-Wording migrieren: `Ship Polygon` vollstaendig auf `Play Area` umbenennen (inkl. Labels, Settings, relevante Runtime-Texte).
@@ -37,7 +37,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T28 [P0] Persistenz-/Migration-Guard ergaenzen: Play-Area-Rename + Polygon-Template-Copy bleiben Save/Reload/Restart-stabil.
 - [x] DONE P6-T29 [P0] Plan-6-2-Regression dokumentieren (Toggle-Separation, no-special-room-visuals, Play-Area-Wording, Template-Creation).
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-2)
+## Plan 6-HF2 - Room Editing Completion Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T30 [P0] Room-Copy vervollstaendigen: alle Room-Geometry-Eigenschaften (inkl. Scale/Offsets/Transform-Parameter) als tiefe Kopie uebernehmen.
+- [x] DONE P6-T31 [P0] Keyboard-Editing fuer selektierten Room implementieren (`CTRL+C` copy, `CTRL+V` paste, `Delete` remove) inkl. Shortcut-Konfliktguards.
+- [x] DONE P6-T32 [P0] Selection-Behavior absichern: Klick auf leere Boardflaeche setzt aktive Room-Selektion deterministisch auf `none`.
+- [x] DONE P6-T33 [P0] Play-Area-Guard-Regression nachweisen: Room-Copy/Keyboard/Deselection veraendern Play-Area-Editing und Play-Area-Selection nicht.
+- [x] DONE P6-T34 [P0] Plan-6-HF2-Regression dokumentieren (copy parity matrix, keyboard matrix, empty-space deselection, play-area non-regression).
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF2)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).
