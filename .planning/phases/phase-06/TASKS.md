@@ -72,7 +72,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T53 [P0] HF6-Regression dokumentieren: Vertex-click persistence + delete/panel parity + empty-space deselect + play-area-guard + drag parity.
 - [x] DONE P6-T54 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF6-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF6)
+## Plan 6-HF7 - Edge-Bubble Arbitration + Deletion Tombstone Persistence Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T55 [P0] Edge-pointer arbitration fixen: Edge-Bubble-Click zwischen Vertices behaelt persistente Room-Selektion (paritaetisch zu Vertex-Click) und blockiert same-cycle deselect races.
+- [x] DONE P6-T56 [P0] Edge-selection lifecycle stabilisieren: aktive Edge bleibt nach Click/Pointer-Up fuer Insert-Vertex nutzbar ohne Dropdown-Re-Select.
+- [x] DONE P6-T57 [P0] Room-delete tombstone semantics einfuehren: geloeschte Rooms werden board-spezifisch persistent als Deletion-Overlay gespeichert.
+- [x] DONE P6-T58 [P0] Global-defaults merge/rehydrate guard liefern: Tombstones haben Vorrang vor Defaults/Legacy-Roomquellen, Move-Persistenz bleibt unveraendert korrekt.
+- [x] DONE P6-T59 [P0] HF7-Regression dokumentieren: Insert-Vertex flow (edge click -> edge active -> insert) + delete persistence (reload/restart/defaults-apply) + empty-space/play-area guards.
+- [x] DONE P6-T60 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF7-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF7)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

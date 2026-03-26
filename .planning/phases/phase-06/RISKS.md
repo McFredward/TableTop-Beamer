@@ -140,8 +140,24 @@
 - Impact: Mittel bis hoch, UX-Qualitaet sinkt und Drag kann subjektiv "hakeln".
 - Gegenmassnahme: low-risk Text-Selection-Suppression nur im Room-Drag-Lifecycle, mit Guard gegen Input-Feld-/Keyboard-Regression.
 
+## R29 Edge-Bubble-Click deselektiert Room-Selection
+- Risiko: Pointer-Arbitration behandelt Edge-Bubble-Click als Deselect-Pfad; aktive Room-Selektion und Handles gehen verloren.
+- Impact: Kritisch, Insert-Vertex-Workflow bricht und erfordert fehleranfaelligen Re-Select.
+- Gegenmassnahme: Edge-Pointerpfad an Vertex-Pfad angleichen (`edge click => keep room selected + keep edge active`) und durch Lifecycle-Regression absichern.
+
+## R30 Deleted Rooms werden durch Defaults-Merge rehydriert
+- Risiko: global-defaults overlay setzt geloeschte Rooms erneut ein, weil Delete nicht als persistenter Tombstone modelliert ist.
+- Impact: Kritisch, Datenintegritaet und Operator-Vertrauen brechen bei Reload/Restart.
+- Gegenmassnahme: board-spezifische Tombstone-/Deletion-Semantik im Room-Katalog einziehen und Merge-Prioritaet `tombstone > defaults` erzwingen.
+
+## R31 Tombstone-Guard regressiert bestehende Room-Persistenz
+- Risiko: neue Delete-Semantik beeinflusst versehentlich Move/Transform-Persistenz oder Legacy-Migration fuer nicht geloeschte Rooms.
+- Impact: Hoch, bestehende Geometrie-Workflows werden instabil.
+- Gegenmassnahme: kombinierte Regression fuer delete persistence + move parity + defaults apply + legacy load als Pflichtgate vor Plan 6-3.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
 - R23/R24/R25 bleiben ueber HF5-Evidenz geschlossen (`P6-T46-DRAG-PARITY.md`, `P6-T47-REGRESSION.md`).
 - R28 ist als optionaler UX-Risikopfad mit low-risk Umsetzung geschlossen (Text-Selection-Suppression nur im Room-Drag-Lifecycle).
+- R29/R30/R31 sind mit HF7 geschlossen: Edge-Bubble lifecycle parity + tombstone precedence gegen defaults rehydrate sind umgesetzt und in `P6-T59-REGRESSION.md` als PASS belegt.

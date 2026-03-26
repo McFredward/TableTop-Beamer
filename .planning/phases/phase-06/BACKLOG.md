@@ -12,6 +12,7 @@
 - Pointer Arbitration + Persistent Selection Regression Hotfix
 - Click-Without-Move Persistence Re-Regression Hotfix
 - Vertex Selection Lifecycle Regression Hotfix
+- Edge-Bubble Arbitration + Room Deletion Tombstone Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -69,6 +70,12 @@
 - P6-S12.3 Delete-Key/Delete-Panel auf stabile Vertex-Auswahl binden, ohne Room-Re-Select oder Pointer-Hold-Zwang.
 - P6-S12.4 Optionalen UX-Guard liefern: Text-Selektion waehrend Room-Drag unterdruecken (low-risk, keine Input-Regression).
 - P6-S12.5 HF6-Kombinations-Regression + Artefakt-Sync abschliessen (PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S13.1 Pointer-Arbitration fuer Edge-Bubbles angleichen: Edge-Click zwischen Vertices darf aktive Room-Selektion nicht deselektieren.
+- P6-S13.2 Edge-Selection-Lifecycle haerten: aktive Edge bleibt nach Click/Pointer-Up stabil und ist direkte Insert-Vertex-Quelle ohne Re-Select.
+- P6-S13.3 Room-Delete-Persistenz absichern: Tombstone-/Deletion-Semantik im board-spezifischen Room-Katalog einfuehren.
+- P6-S13.4 Defaults-Merge/Overlay-Guard liefern: Global-Defaults-Rehydrate darf geloeschte Rooms nicht wiederherstellen; bestehende Move/Update-Persistenz bleibt intakt.
+- P6-S13.5 HF7-Kombinations-Regression + Artefakt-Sync abschliessen (Insert-Vertex flow + delete persistence + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -158,7 +165,15 @@
 - Story P6-S12.5.
   - Ziel: kombinierte HF6-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF6)
+## Priorisierte Hotfix-Welle 7 (P0) - Plan 6-HF7 execute-ready
+- Story P6-S13.1 + P6-S13.2.
+  - Ziel: Edge-Bubble-Klick arbeitet lifecycle-paritaetisch zu Vertex-Click (persistente Room-Selektion + stabile Edge-Selektion fuer Insert-Vertex).
+- Story P6-S13.3 + P6-S13.4.
+  - Ziel: geloeschte Rooms bleiben dauerhaft geloescht, auch bei Reload/Restart/Global-Defaults-Merge.
+- Story P6-S13.5.
+  - Ziel: kombinierte HF7-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF7)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -168,4 +183,9 @@
 - HF6 regression closure is complete: Room-vs-Vertex arbitration no longer drops persistent room selection on vertex click.
 - Vertex selection lifecycle is stable for direct click -> move/delete flows; delete key + delete panel parity is now deterministic without dropdown reselect.
 - Optional low-risk UX hardening is implemented: text selection is suppressed during room drag.
-- HF6 combined regression matrix is PASS (`P6-T53-REGRESSION.md`); backlog focus returns to Plan 6-3 hardening tasks.
+- HF6 combined regression matrix is PASS (`P6-T53-REGRESSION.md`); subsequent mandatory feedback inserts HF7 before Plan 6-3 hardening tasks.
+
+## Execution Update - 6-HF7 completed (P0)
+- Edge-bubble click no longer drops persistent room selection; active edge remains stable for insert-vertex without reselect.
+- Deleted rooms are now persisted as board-scoped tombstones and cannot be rehydrated by defaults merge/apply.
+- HF7 combined evidence is PASS (`P6-T59-REGRESSION.md`); backlog flow proceeds to Plan 6-3 hardening.

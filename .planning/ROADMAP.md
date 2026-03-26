@@ -130,7 +130,7 @@ Exit Criteria:
 ## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5 und Plan 6-HF6 sind abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen und der HF6 Vertex-Regression-Blocker ist mit `P6-T53-REGRESSION.md` geschlossen. Naechster Schritt ist Plan 6-3.
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6 und Plan 6-HF7 sind abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, der HF6 Vertex-Regression-Blocker ist mit `P6-T53-REGRESSION.md` geschlossen und das HF7-Gate (Edge-Bubble lifecycle + delete persistence gegen defaults rehydrate) ist mit `P6-T59-REGRESSION.md` geschlossen. Plan 6-3 ist als naechster Schritt freigegeben.
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -149,7 +149,9 @@ Milestones:
 14. M14 Click-Without-Move Hotfix: no-move kurzer Click selektiert persistent, Handles/Polygone bleiben nach Pointer-Up sichtbar.
 15. M15 Vertex Selection Lifecycle Hotfix: Vertex-Interaktion bleibt stabil ohne Room-Deselect; direkter Vertex-Click ist delete-/panel-faehig ohne Dropdown-Re-Select.
 16. M16 Drag UX Guard Hotfix (low risk): unbeabsichtigte Text-Selektion wird waehrend Room-Drag unterdrueckt, ohne Input-/Keyboard-Regression.
-17. M17 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+17. M17 Edge-Bubble Arbitration Hotfix: Edge-Bubble-Click behaelt persistente Room-Selektion und aktive Edge fuer Insert-Vertex ohne Re-Select.
+18. M18 Room Deletion Tombstone Hotfix: geloeschte Rooms bleiben auch nach Reload/Restart/Defaults-Apply dauerhaft geloescht.
+19. M19 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -175,6 +177,8 @@ Exit Criteria:
 - Vertex-Move/Delete bleibt nach direktem Vertex-Click stabil; Delete-Key/Panel arbeiten ohne Dropdown-Re-Select.
 - Pointer-Arbitration trennt Room-Drag und Vertex-Edit robust, sodass Room-Selection nicht durch Vertex-Pointerevents verlorengeht.
 - Unbeabsichtigte Browser-Textmarkierung wird waehrend Room-Drag unterdrueckt (mindestens fuer den Drag-Lifecycle), ohne Textinput-Bedienung ausserhalb des Drags zu brechen.
+- Edge-Bubble-Click zwischen Vertices behaelt persistente Room-Selektion und eine stabile aktive Edge fuer direkten Insert-Vertex-Flow.
+- Geloeschte Rooms bleiben ueber Save/Reload/Restart/Defaults-Apply dauerhaft geloescht; defaults-merge/overlay rehydriert keine getombstoneten Rooms.
 - Buttons/Hotkeys funktionieren auf derselben persistenten Selection-Quelle wie visuelle Handles/Polygone.
 - Klick auf leere Boardflaeche setzt Room-Selektion deterministisch auf `none`.
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.

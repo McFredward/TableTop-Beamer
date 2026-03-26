@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF6
+- Last Executed Plan: 6-HF7
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF6-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -355,6 +355,15 @@
 - Plan-6-HF6 execution: vertex pointerup now preserves persistent room selection lifecycle and blocks same-cycle deselect races.
 - Plan-6-HF6 execution: direct vertex click remains stable as active selection for move/delete; delete key + delete panel share the same vertex selection source.
 - Plan-6-HF6 execution: room-area drag suppresses browser text selection via low-risk drag-only guard; combined HF6 regression matrix is PASS (`P6-T53-REGRESSION.md`).
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF6): Edge-Bubble-Click zwischen Vertices deselektiert den Room; Room-Delete ist gegen Global-Defaults-Rehydrate nicht persistent.
+- Pointer-Arbitration-Regel fuer Phase 6 (Plan 6-HF7): Edge-Bubble-Click folgt dem Vertex-Lifecycle, behaelt persistente Room-Selektion und laesst aktive Edge fuer Insert-Vertex stabil.
+- Delete-Persistenz-Regel fuer Phase 6 (Plan 6-HF7): geloeschte Rooms werden als board-spezifische Tombstones persistiert; Defaults-Merge/Overlay darf getombstonete Rooms nicht wiederherstellen.
+- Regression-Regel fuer Phase 6 (Plan 6-HF7): Pflichtnachweis umfasst Insert-Vertex-Flow (edge click ohne reselect), delete persistence (reload/restart/defaults apply) und bestehende Guards (empty-space deselect, play-area parity).
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF7): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF7 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF7 execution: edge-bubble click now preserves persistent room selection and stable active edge lifecycle for direct insert-vertex without reselect.
+- Plan-6-HF7 execution: room deletions persist as board-scoped `deletedRoomIds` tombstones; catalog apply and defaults export merge enforce `tombstone > defaults` precedence.
+- Plan-6-HF7 execution: combined regression matrix is PASS and documented in `P6-T59-REGRESSION.md`; Plan 6-3 is unblocked.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

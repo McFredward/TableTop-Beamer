@@ -60,7 +60,14 @@
 4. P0 Abschluss: P6-T53 (HF6-Kombinationsmatrix dokumentieren: vertex-click persistence + delete/panel + deselect/play-area guard + drag parity).
 5. P0 Abschluss: P6-T54 (HF6-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
-## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF6)
+## Priority Execution - Plan 6-HF7 (verbindlich, P0-Hotfix vor 6-3)
+1. P0 zuerst: P6-T55 (Edge-pointer arbitration fixen: Edge-Bubble-Click behaelt persistente Room-Selektion und verhindert same-cycle deselect).
+2. P0 danach: P6-T56 (Edge-selection lifecycle stabilisieren: aktive Edge bleibt nach Click/Pointer-Up fuer Insert-Vertex verfuegbar).
+3. P0 danach: P6-T57..P6-T58 (Room-delete tombstones + defaults-merge guard gegen Rehydrate bei Reload/Restart/Defaults-Apply).
+4. P0 Abschluss: P6-T59 (HF7-Kombinationsmatrix dokumentieren: insert-vertex flow + delete persistence + empty-space/play-area guards + move parity).
+5. P0 Abschluss: P6-T60 (HF7-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF7)
 1. P1 zuerst: P6-T14 (Import-Konfliktstrategie finalisieren und Operator-Feedback absichern).
 2. P1 danach: P6-T15..P6-T16 (Negativtests + Multi-Board-Soak fuer Import/Cluster/Migration).
 3. P1 Abschluss: P6-T17 (formale Operator-E2E-Abnahme im Realsetup).
@@ -92,7 +99,12 @@
 - Kein Weitergehen zu P6-T51+, bevor P6-T50 stabile direkte Vertex-Selection fuer Move/Delete ohne Dropdown-Re-Select bestaetigt.
 - Kein Weitergehen zu P6-T53+, bevor P6-T51 Delete-Key/Delete-Panel-Paritaet auf direkter Vertex-Auswahl bestaetigt.
 - Kein Weitergehen zu P6-T54+, bevor P6-T53 die HF6-Kombinationsmatrix artefaktbasiert als PASS nachweist.
-- Kein Weitergehen zu P6-T14+, bevor P6-T54 den HF6-Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T55+, bevor P6-T54 den HF6-Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T56+, bevor P6-T55 Edge-Bubble-Click ohne Room-Deselect regressionsfrei nachweist.
+- Kein Weitergehen zu P6-T57+, bevor P6-T56 stabile Edge-Selection fuer Insert-Vertex ohne Re-Select bestaetigt.
+- Kein Weitergehen zu P6-T59+, bevor P6-T58 Tombstone-Prioritaet gegen Defaults-Rehydrate bei Reload/Restart/Defaults-Apply bestaetigt.
+- Kein Weitergehen zu P6-T60+, bevor P6-T59 die HF7-Kombinationsmatrix artefaktbasiert als PASS nachweist.
+- Kein Weitergehen zu P6-T14+, bevor P6-T60 den HF7-Artefakt-Sync abgeschlossen hat.
 - Kein Phase-6-Exit ohne Migration-Idempotenznachweis und Reload/Restart-Paritaet.
 
 ## Update Rules
@@ -104,4 +116,9 @@
 - Room-vs-Vertex pointer arbitration is closed: vertex-click no longer deselects the selected room or hides handles.
 - Direct vertex selection is stable for move/delete without dropdown reselect; delete key and delete panel now resolve against the same active vertex selection.
 - Optional low-risk drag UX guard is active: browser text selection is suppressed during room-area drag.
-- HF6 regression evidence is recorded in `P6-T53-REGRESSION.md`; gate to Plan 6-3 is reopened.
+- HF6 regression evidence is recorded in `P6-T53-REGRESSION.md`; subsequent mandatory feedback supersedes this with a new HF7 gate before Plan 6-3.
+
+## Execution Update - 6-HF7 Completed (P0)
+- Edge-bubble pointer lifecycle parity is closed: edge click keeps persistent room selection and preserves active edge for insert-vertex without dropdown reselect.
+- Room deletion persistence is hardened via board-scoped tombstones (`deletedRoomIds`) with defaults-merge precedence (`tombstone > defaults`).
+- Combined HF7 evidence is PASS in `P6-T59-REGRESSION.md`; Plan 6-3 is unblocked.

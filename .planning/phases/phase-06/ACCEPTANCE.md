@@ -13,6 +13,8 @@
 - Vertex-selection-integrity: Vertex-Interaktion darf persistente Room-Selektion nicht verlieren; Handles bleiben sichtbar.
 - Direct-vertex-edit-integrity: direkter Vertex-Click muss stabile Move/Delete-Aktionen (Delete-Key/Panel) ohne Dropdown-Re-Select erlauben.
 - Drag-ux-integrity: waehrend Room-Drag darf keine unbeabsichtigte Browser-Text-Selektion auftreten (low-risk Guard).
+- Edge-selection-integrity: Edge-Bubble-Interaktion folgt Vertex-Paritaet; Room-Selektion bleibt persistent und aktive Edge bleibt editierbar.
+- Deletion-tombstone-integrity: geloeschte Rooms bleiben auch nach Defaults-Rehydrate dauerhaft geloescht.
 
 ## Language-Sweep Pflichtnachweis (P0)
 - Sweep Scope: `Control`, `Settings`, `Final-Flow`, operatorrelevante Statusmeldungen, Fehlermeldungen und Diagnose-Logs.
@@ -54,9 +56,16 @@
 - Vertex-Direct-Delete-Panel-Test: nach direktem Vertex-Click entfernt das Delete-Panel denselben aktiven Vertex ohne Re-Select.
 - Room-vs-Vertex-Arbitration-Test: Vertex-Drag/Edit und Room-Drag bleiben getrennt; Vertex-Pointerevents invalidieren Room-Selektion nicht.
 - Room-Drag-Text-Selection-Guard-Test: waehrend Room-Drag entsteht keine unbeabsichtigte Textmarkierung; Textinputs ausserhalb des Drags bleiben funktionsfaehig.
+- Edge-Click-Keeps-Room-Selection-Test: Klick auf Edge-Bubble behaelt persistente Room-Selektion und sichtbare Handles.
+- Edge-Click-Keeps-Edge-Active-Test: nach Edge-Bubble-Click bleibt dieselbe Edge aktiv bis Insert/Wechsel/Deselect.
+- Insert-Vertex-Without-Reselect-Test: Insert-Vertex funktioniert direkt nach Edge-Bubble-Click ohne erneute Room-Selektion.
 - Hotkey-On-Persistent-Selection-Test: Buttons/Hotkeys (`Delete`, `CTRL+C`, `CTRL+V`) funktionieren auf persistenter Selection ohne erneuten Hold.
 - Empty-Space-Deselect-Test: Klick auf board-leere Flaeche setzt Room-Selektion auf `none`.
 - Play-Area-Non-Regression-Test: Room-Copy/Keyboard/Deselection veraendern Play-Area-Selection/-Editing nicht.
+- Room-Delete-Persistence-Reload-Test: geloeschter Room bleibt nach Save + Reload dauerhaft entfernt.
+- Room-Delete-Persistence-Restart-Test: geloeschter Room bleibt nach Server-Restart entfernt.
+- Room-Delete-Persistence-Defaults-Apply-Test: `Defaults laden & anwenden` oder global-defaults merge stellt geloeschte Rooms nicht wieder her.
+- Room-Delete-vs-Move-Parity-Test: Move/Transform-Persistenz nicht geloeschter Rooms bleibt unter Tombstone-Semantik unveraendert korrekt.
 
 - English-UI-Text-Test: UI-Texte/Labels/Buttons sind Englisch-only.
 - English-Status-Test: Statusmeldungen/Toasts/Operator-Hinweise sind Englisch-only.
@@ -94,9 +103,12 @@
 - Nach P6-T49..P6-T50: Vertex-Click behaelt Room-Selektion persistent und stabilisiert direkten Vertex-Edit-Flow ohne Dropdown-Re-Select.
 - Nach P6-T51..P6-T52: Delete-Key/Delete-Panel laufen direkt auf Vertex-Selection; Room-Drag unterdrueckt Text-Selektion ohne Input-Regression.
 - Nach P6-T53..P6-T54: HF6-Kombinationsmatrix ist PASS, Artefakte sind HF6-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T55..P6-T56: Edge-Bubble-Click behaelt persistente Room-Selektion und stabile aktive Edge fuer Insert-Vertex ohne Re-Select.
+- Nach P6-T57..P6-T58: Tombstone-Delete-Persistenz blockiert Defaults-Rehydrate fuer geloeschte Rooms bei Reload/Restart/Defaults-Apply.
+- Nach P6-T59..P6-T60: HF7-Kombinationsmatrix ist PASS, Artefakte sind HF7-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48 und P6-T49..P6-T51, P6-T53..P6-T54 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54 und P6-T55..P6-T60 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -120,11 +132,17 @@
 - Direkter Vertex-Click aktiviert stabile Vertex-Auswahl fuer Move/Delete ueber Delete-Key und Delete-Panel ohne Dropdown-Re-Select.
 - Pointer-Arbitration trennt Room-Drag und Vertex-Edit deterministisch ohne Selection-Drift.
 - Waehrend Room-Drag ist Browser-Text-Selektion unterdrueckt, ohne Textinput-/Shortcut-Bedienung ausserhalb des Drags zu brechen.
+- Edge-Bubble-Click behaelt persistente Room-Selektion und aktive Edge-Selection; Insert-Vertex ist ohne Re-Select direkt moeglich.
 - Klick auf leere Boardflaeche setzt Room-Selektion auf `none`; Play-Area-Verhalten bleibt unveraendert.
+- Geloeschte Rooms bleiben ueber Save/Reload/Restart/Defaults-Apply dauerhaft geloescht; Defaults-Merge rehydriert keine getombstoneten Rooms.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Evidence Update - HF6 Completed
 - HF4/HF5-Basisnachweise bleiben gueltig (`P6-T42-REGRESSION.md`, `P6-T46-DRAG-PARITY.md`, `P6-T47-REGRESSION.md`).
 - HF6-Nachweis ist erbracht: `P6-T53-REGRESSION.md` dokumentiert PASS fuer vertex-click persistence, delete-key/delete-panel parity, empty-space deselect, play-area guard und drag parity.
-- Plan-6-3-Gate ist aus HF6-Sicht freigegeben.
+- Plan-6-3-Gate war aus HF6-Sicht freigegeben, wird jedoch durch neues verpflichtendes Feedback mit HF7-Pflichtgate ersetzt.
+
+## Evidence Update - HF7 Completed
+- HF7-Nachweis ist erbracht: `P6-T59-REGRESSION.md` dokumentiert PASS fuer edge-click selection persistence, stable edge->insert flow ohne reselect, delete persistence (reload/restart/defaults-apply) sowie empty-space/play-area guards.
+- Das HF7-Pflichtgate vor Plan 6-3 ist geschlossen.
