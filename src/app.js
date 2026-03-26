@@ -220,9 +220,18 @@ function applyOutputRoleViewContract() {
   if (outputRole !== OUTPUT_ROLE_FINAL) {
     return;
   }
+  document.body.dataset.finalFxOnly = "true";
   if (controlPanel) {
+    controlPanel.hidden = true;
     controlPanel.setAttribute("aria-hidden", "true");
     controlPanel.setAttribute("inert", "");
+  }
+  if (boardImage) {
+    boardImage.setAttribute("aria-hidden", "true");
+    boardImage.style.display = "none";
+  }
+  if (projectionArea) {
+    projectionArea.setAttribute("aria-label", "Final Output FX-only");
   }
   triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
 }
@@ -243,6 +252,7 @@ function syncAlignModePanel() {
       return;
     }
     const hiddenInFinal = outputRole === OUTPUT_ROLE_FINAL && !enabled;
+    roomOverlay.style.display = hiddenInFinal ? "none" : "block";
     roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
   }
 }

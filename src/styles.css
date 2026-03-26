@@ -55,11 +55,19 @@ body[data-output-role="final-output"] .stage {
 body[data-output-role="final-output"] #board-image,
 body[data-output-role="final-output"] #control-panel,
 body[data-output-role="final-output"] #room-overlay {
-  display: none;
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 body[data-output-role="final-output"].align-mode-active #room-overlay {
-  display: block;
+  display: block !important;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay) {
+  display: none !important;
 }
 
 .projection-area {
