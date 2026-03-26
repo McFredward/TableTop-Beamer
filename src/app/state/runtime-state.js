@@ -52,6 +52,7 @@
         playAreaVerticesVisible: true,
         selectedVertexIndex: 0,
         selectedEdgeIndex: 0,
+        vertexSelectionActive: false,
         dragVertexIndex: null,
         dragPointerId: null,
         dragRoomId: null,

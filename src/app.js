@@ -3998,6 +3998,7 @@ function syncPolygonRoomSelection(roomId) {
   if (roomChanged) {
     state.polygonEditor.selectedVertexIndex = 0;
     state.polygonEditor.selectedEdgeIndex = 0;
+    state.polygonEditor.vertexSelectionActive = false;
   }
 }
 
@@ -4106,6 +4107,7 @@ function renderPolygonEditorHandles() {
       setActivePolygonRoomId(state.boardId, room.id);
       state.polygonEditor.selectedVertexIndex = index;
       state.polygonEditor.selectedEdgeIndex = index;
+      state.polygonEditor.vertexSelectionActive = true;
       syncPolygonVertexSelect(room.id);
       syncPolygonEdgeSelect(room.id);
       syncRoomPanelFromSelection({ preserveDraftState: true });
@@ -4711,6 +4713,7 @@ function renderRoomOverlay() {
       state.selectedRoomByBoard[state.boardId] = room.id;
       state.roomDraft.targetType = "room";
       state.roomDraft.targetId = room.id;
+      state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
@@ -4731,6 +4734,7 @@ function renderRoomOverlay() {
       state.selectedRoomByBoard[state.boardId] = room.id;
       state.roomDraft.targetType = "room";
       state.roomDraft.targetId = room.id;
+      state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
@@ -4968,6 +4972,7 @@ function pasteRoomFromClipboard() {
   state.selectedRoomByBoard[state.boardId] = id;
   state.roomDraft.targetType = "room";
   state.roomDraft.targetId = id;
+  state.polygonEditor.vertexSelectionActive = false;
   setActivePolygonRoomId(state.boardId, id);
   const persisted = persistBoardProfiles();
   syncRoomPanelFromSelection();
@@ -4990,6 +4995,7 @@ function clearSelectedRoomSelection(statusText = null) {
   }
   state.selectedRoomId = null;
   state.selectedRoomByBoard[state.boardId] = null;
+  state.polygonEditor.vertexSelectionActive = false;
   setActivePolygonRoomId(state.boardId, null);
   if (state.roomDraft.targetType === "room") {
     state.roomDraft.targetId = null;
@@ -5103,6 +5109,7 @@ function createRoomFromSettings() {
   state.selectedRoomByBoard[state.boardId] = id;
   state.roomDraft.targetType = "room";
   state.roomDraft.targetId = id;
+  state.polygonEditor.vertexSelectionActive = false;
   setActivePolygonRoomId(state.boardId, id);
   const persisted = persistBoardProfiles();
   syncRoomPanelFromSelection();
@@ -5153,6 +5160,7 @@ function deleteSelectedRoom({ roomId = null } = {}) {
   const fallbackRoomId = nextRooms[0]?.id ?? null;
   state.selectedRoomId = fallbackRoomId;
   state.selectedRoomByBoard[state.boardId] = fallbackRoomId;
+  state.polygonEditor.vertexSelectionActive = false;
   state.roomDraft.targetType = "room";
   state.roomDraft.targetId = fallbackRoomId;
   setActivePolygonRoomId(state.boardId, fallbackRoomId);
@@ -6635,6 +6643,7 @@ polygonVertexSelect.addEventListener("change", () => {
   }
   state.polygonEditor.selectedVertexIndex = Math.max(0, Number(polygonVertexSelect.value) || 0);
   state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
+  state.polygonEditor.vertexSelectionActive = true;
   syncPolygonEdgeSelect(getActivePolygonRoomId(state.boardId));
   renderRoomOverlay();
   syncPolygonEditorStatus();
@@ -6680,23 +6689,23 @@ polygonInsertVertexButton.addEventListener("click", () => {
     : "Status: Polygon vertex inserted (persistence failed)";
 });
 
-polygonDeleteVertexButton.addEventListener("click", () => {
+function deleteSelectedPolygonVertex() {
   if (isPanArbitrating()) {
     triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
-    return;
+    return false;
   }
   if (!areRoomVerticesEditable()) {
     triggerFeedback.textContent = "Status: Room vertices hidden - polygon edit paused";
-    return;
+    return false;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
-    return;
+    return false;
   }
   const points = getSpecialPolygonPoints(state.boardId, roomId);
   if (points.length <= 3) {
     triggerFeedback.textContent = "Status: Polygon requires at least 3 vertices";
-    return;
+    return false;
   }
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   points.splice(index, 1);
@@ -6704,11 +6713,17 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
   state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
+  state.polygonEditor.vertexSelectionActive = true;
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
     ? "Status: Polygon vertex deleted"
     : "Status: Polygon vertex deleted (persistence failed)";
+  return persisted;
+}
+
+polygonDeleteVertexButton.addEventListener("click", () => {
+  deleteSelectedPolygonVertex();
 });
 
 polygonResetRoomButton.addEventListener("click", () => {
@@ -7113,7 +7128,15 @@ document.addEventListener("keydown", (event) => {
       (key === "delete" || event.code === "Delete")
     ) {
       event.preventDefault();
-      deleteSelectedRoom();
+      const shouldDeleteVertex =
+        state.polygonEditor.vertexSelectionActive &&
+        areRoomVerticesEditable() &&
+        Boolean(getActivePolygonRoomId(state.boardId));
+      if (shouldDeleteVertex) {
+        deleteSelectedPolygonVertex();
+      } else {
+        deleteSelectedRoom();
+      }
       return;
     }
   }
