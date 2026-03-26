@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 5-HF1
+- Last Executed Plan: 5-HF2
 - Planned Next Execution: 5-2
-- Last Execution Summary: `.planning/phases/phase-05/5-HF1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -274,6 +274,14 @@
 - Phase-5 Plan 5-HF1 ist als priorisierte execute-ready P0-Welle vor Plan 5-2 gesetzt.
 - Plan-5-HF1 Umsetzung: Outside-FX wird im Shared-State vollstaendig synchronisiert (`outsideFxByBoard` inkl. Toggle/Speed/Intensity/Mode/Direction) und bei Join/Reconnect ueber Snapshot hydratisiert.
 - Plan-5-HF1 Umsetzung: `/output/final` nutzt root-absolute Bootstrap-Assets und harte FX-only Guards; Align-Overlay bleibt die einzige erlaubte Sichtbarkeitsausnahme.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Outside `direction`/`mode` und vereinzelt Room-Animation-Aktionen benoetigen teils Mehrfachklicks fuer sichtbare Synchronisierung.
+- Hotfix-Regel fuer Phase 5 (Plan 5-HF2): jede Aktion muss beim ersten Ausloesen deterministisch ueber alle Clients synchron sein (kein Retry-/Mehrfachklick-Zwang).
+- Architektur-Regel fuer Plan 5-HF2: Mutationen sind serverautoritativ-idempotent und werden nur mit sofortigem Broadcast-Ack (Mutation-ID + Version) als bestaetigt betrachtet.
+- Ordering-Regel fuer Plan 5-HF2: schnelle Toggle-Folgen nutzen monotone Versionierung mit stale-drop und deterministic last-write.
+- Verifikations-Regel fuer Plan 5-HF2: verpflichtende Single-Click-Regression fuer Outside mode/direction und Room trigger/edit/stop/clear-all inklusive Burst-Soak.
+- Plan-5-HF2 Umsetzung: HF2-kritische Mutationen (`outside-update`, `trigger-room`, `edit-room`, `stop-animation`, `clear-all`) werden serverautoritativ als mutationsspezifische Patches statt Vollsnapshot-Overwrite angewendet.
+- Plan-5-HF2 Umsetzung: Live-Ack/Broadcast tragen `mutationId` + `version`; Duplicate/Stale-Mutationen werden bestaetigt, aber nicht erneut broadcast-applied.
+- Plan-5-HF2 Umsetzung: Client fuehrt `lastSessionVersion`-Guard und Pending-Replay nach `live-hello`, damit Join/Reconnect + Inflight ohne State-Drift bleiben.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -614,3 +622,21 @@
   - `.planning/phases/phase-05/P5-T15-REGRESSION.md`
   - Endpoint Smoke: `FINAL=200 LIVE=200 HEALTH=200`
   - WebSocket Sync: `WS_SYNC=ok`, `SYNC_3C=ok receivers=2`
+
+## Execution Results (Phase 5 Plan HF1)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-HF1-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`5d3caa3`, `494a805`, `e690a27`, `3d0d276`, `11eabe0`, `1e41e7a`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T24-HOTFIX-REGRESSION.md`
+  - `node debug/p5-t24-outside-join-regression.mjs` => `OUTSIDE_JOIN_SYNC=PASS`
+  - `node debug/p5-t24-final-output-contract-check.mjs` => `FINAL_CONTRACT=PASS`
+
+## Execution Results (Phase 5 Plan HF2)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-HF2-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`fbcfce4`, `0b71203`, `a7b1925`, `31cafdc`, `41cb473`, `1df1d66`, `e4267c1`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T25-ROOT-CAUSE.md`
+  - `.planning/phases/phase-05/P5-T31-SYNC-RELIABILITY-VERIFICATION.md`
+  - `node debug/p5-t30-single-click-sync-regression.mjs` => `P5_T30_SINGLE_CLICK_SYNC_GUARDS=PASS`

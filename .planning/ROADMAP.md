@@ -98,7 +98,7 @@ Exit Criteria:
 ## Phase 5 - Multi-Device Live Sync + Final Beamer Output (In Progress)
 Ziel: Gemeinsamer Live-State fuer Handy-Controller, PC-Controller und Raspberry-Pi-Beamer mit dediziertem Final-Output-Pfad, Align-Mode fuer physische Kalibrierung, strengem Audio-Routing und persistentem Server-Logging.
 
-Status: Plan 5-1 (P5-T1..P5-T15) und Plan 5-HF1 (P5-T19..P5-T24) sind abgeschlossen (`.planning/phases/phase-05/5-1-SUMMARY.md`, `.planning/phases/phase-05/5-HF1-SUMMARY.md`); verpflichtender naechster Schritt ist Plan 5-2 (Diagnostics + Hardening).
+Status: Plan 5-1 (P5-T1..P5-T15), Plan 5-HF1 (P5-T19..P5-T24) und Plan 5-HF2 (P5-T25..P5-T31) sind abgeschlossen (`.planning/phases/phase-05/5-1-SUMMARY.md`, `.planning/phases/phase-05/5-HF1-SUMMARY.md`, `.planning/phases/phase-05/5-HF2-SUMMARY.md`); naechster Schritt ist Plan 5-2 (Diagnostics + Hardening).
 
 Milestones:
 1. Final Output Core: Serverpfad `/output/final` liefert ausschliesslich FX/Animationen.
@@ -108,12 +108,15 @@ Milestones:
 5. Logging Core: persistente Dateilogs fuer Session-Events, State-Aenderungen und Fehler.
 6. P0 Hotfix: Outside-Space-Sync vollstaendig (ON/OFF, Speed, relevante Parameter inkl. Join/Reconnect).
 7. P0 Hotfix: `/output/final` stabiler Vollbild-FX-only-Pfad ohne UI-Leaks/White-Page; Align-Ausnahme bleibt erhalten.
-8. Real Setup Gate: 3-Geraete-E2E (Handy + PC + Raspberry Pi) ohne P0-Blocker.
+8. P0 Hotfix: Sync-Reliability fuer Outside-Mode/-Direction und Room-Animation-Aktionen (First-Click, idempotentes Apply, Ack, Ordering/Versioning).
+9. Real Setup Gate: 3-Geraete-E2E (Handy + PC + Raspberry Pi) ohne P0-Blocker.
 
 Exit Criteria:
 - Final-Output verletzt nie den FX-only-Vertrag (kein Board-Bild, keine Raum-Polygone, keine Raumnamen).
 - Aenderungen von Handy werden sofort auf PC und Beamer sichtbar (und umgekehrt fuer Controller-Aktionen).
 - Outside-Space-State ist fuer alle Clients vollstaendig synchron (ON/OFF, Speed, relevante Parameter) inklusive Join/Reconnect.
+- Outside `direction`/`mode` und Room-Animation-Aktionen sind beim ersten Klick deterministisch auf allen Clients synchron.
+- Mutationsverarbeitung ist serverautoritativ-idempotent mit sofortigem Broadcast-Ack und versionsstabilem Ordering bei Burst-Toggles.
 - Align-Mode ist global steuerbar und wirkt nur auf den Final-Output-Polygonlayer.
 - `/output/final` zeigt keine Slider/Settings/Control-UI und faellt nicht in White-Page-Bootstraps; einzige Sichtbarkeitsausnahme ist Align-Overlay ON.
 - Audio ist strikt auf Final-Output begrenzt.
