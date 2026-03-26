@@ -1,0 +1,67 @@
+{
+  "pass": true,
+  "rows": [
+    {
+      "area": "room",
+      "behavior": "start",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "edit",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "stop",
+      "status": "PASS"
+    },
+    {
+      "area": "cluster",
+      "behavior": "start",
+      "status": "PASS"
+    },
+    {
+      "area": "cluster",
+      "behavior": "edit",
+      "status": "PASS"
+    },
+    {
+      "area": "cluster",
+      "behavior": "stop",
+      "status": "PASS"
+    },
+    {
+      "area": "align",
+      "behavior": "start",
+      "status": "PASS"
+    },
+    {
+      "area": "align",
+      "behavior": "clear",
+      "status": "PASS"
+    },
+    {
+      "area": "align",
+      "behavior": "stop",
+      "status": "PASS"
+    },
+    {
+      "area": "audio-role-routing",
+      "behavior": "role visibility",
+      "status": "PASS"
+    },
+    {
+      "area": "persistence",
+      "behavior": "save/reload",
+      "status": "PASS"
+    },
+    {
+      "area": "reload-rejoin",
+      "behavior": "snapshot parity",
+      "status": "PASS"
+    }
+  ],
+  "checkedAt": "2026-03-26T23:21:13.383Z",
+  "baseUrl": "http://127.0.0.1:4273"
+}

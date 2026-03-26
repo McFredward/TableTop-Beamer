@@ -19,3 +19,12 @@
 
 - Instrumentation wired and queryable.
 - Final target pass/fail requires live multi-device run capture (controller + final-output) with production-like burst traffic.
+- PASS (Plan 7-HF1 evidence refresh): verifier/schema and behavior-matrix blockers are closed and artifacts regenerated.
+
+## Refreshed Evidence (Plan 7-HF1)
+
+- `debug/p7-hf1-t12-output.json`
+- `debug/p7-hf1-t13-output.json`
+- `debug/p7-hf1-t14-output.json`
+
+Hotfix closure note: this PASS confirms verifier integrity + evidence freshness. Production SLO sign-off for Phase 7 still requires dedicated multi-device latency capture.
