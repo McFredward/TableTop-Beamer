@@ -53,6 +53,7 @@
       meta: {
         schema: ROOM_SCHEMA,
         spawnShape: room?.meta?.spawnShape || (room?.points ? "custom" : "hexagon"),
+        templateSource: room?.meta?.templateSource ? String(room.meta.templateSource) : null,
       },
     };
   }
@@ -99,6 +100,7 @@
       meta: {
         schema: ROOM_SCHEMA,
         spawnShape: room?.meta?.spawnShape || "custom",
+        templateSource: room?.meta?.templateSource ? String(room.meta.templateSource) : null,
       },
     };
   }
