@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF9
+- Last Executed Plan: 6-HF10
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF9-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF10-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -377,7 +377,16 @@
 - Phase-6 Plan 6-HF9 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
 - Plan-6-HF9 execution: Draft-Persistenz bleibt fuer Animation + Parameter stabil; `target` ist explizit aus Selection-Lifecycle-Resets ausgenommen.
 - Plan-6-HF9 execution: Board-Raumklick setzt `target` deterministisch auf den geklickten Raum; Target-Dropdown bleibt auch ohne aktive Room-Selektion manuell bedienbar.
-- Plan-6-HF9 execution: Auto+Manual-Target-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; Plan 6-3 ist freigegeben.
+- Plan-6-HF9 execution: Auto+Manual-Target-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; nachfolgendes Pflichtfeedback setzt jedoch HF10 vor Plan 6-3.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF9): Cluster-Start fanout startet aktuell nur in einem Raum statt allen Cluster-Membern (betrifft sync + `stagger start`).
+- Running-Regel fuer Phase 6 (Plan 6-HF10): Running-Model/-Rendering fuehrt Cluster-Starts als dedizierten Scope `CLUSTER` mit eigener Farbe und separatem Eintrag.
+- Fanout-Regel fuer Phase 6 (Plan 6-HF10): Cluster-Start verarbeitet alle Cluster-Member-Raeume robust (kein First-Room-Only), fuer `stagger start = off|on` gleichermassen verbindlich.
+- Stop/Edit-Regel fuer Phase 6 (Plan 6-HF10): Aktionen auf dem `CLUSTER`-Eintrag bleiben konsistent und regressieren bestehende Room/Global-Guards nicht.
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF10): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF10 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF10 execution: cluster start fanout now dispatches to all valid cluster members in both sync and stagger modes without first-room truncation.
+- Plan-6-HF10 execution: running model/list now includes dedicated `CLUSTER` scope entries with distinct scope color and linked member semantics.
+- Plan-6-HF10 execution: cluster stop/edit actions on the `CLUSTER` entry operate consistently across linked member instances; combined evidence is PASS in `P6-T76-REGRESSION.md`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

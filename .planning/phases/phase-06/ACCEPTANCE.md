@@ -21,6 +21,8 @@
 - Target-auto-manual-parity-integrity: nach Room-Autofill bleibt manuelle Umstellung auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
 - Cluster-ux-integrity: Cluster sind im Operator-Flow vollstaendig CRUD-faehig und board-spezifisch persistiert.
 - Cluster-stagger-integrity: Cluster-Start bietet pro Trigger `stagger start` (an/aus) mit deterministischer On/Off-Semantik (kurzer randomisierter Versatz vs synchron).
+- Cluster-fanout-completeness-integrity: Cluster-Start fanout verarbeitet alle Cluster-Member-Raeume ohne First-Room-Verlust (sync + stagger).
+- Cluster-running-scope-integrity: Running-Liste fuehrt Cluster-Starts als dedizierten Scope `CLUSTER` (eigener Eintrag + visuelle Farbtrennung) inkl. konsistenter Stop/Edit-Semantik.
 
 ## Language-Sweep Pflichtnachweis (P0)
 - Sweep Scope: `Control`, `Settings`, `Final-Flow`, operatorrelevante Statusmeldungen, Fehlermeldungen und Diagnose-Logs.
@@ -85,6 +87,11 @@
 - Cluster-Start-Synchronous-Test: bei `stagger start = off` starten alle Cluster-Room-Instanzen zeitgleich.
 - Cluster-Start-Staggered-Test: bei `stagger start = on` starten alle Cluster-Room-Instanzen mit kurzem randomisiertem Versatz und ohne Room-Verlust.
 - Cluster-Stagger-Guard-Test: `stagger start` wirkt nur auf Cluster-Fanout, nicht auf Einzelraum-Startpfade.
+- Cluster-Fanout-All-Members-Test: fuer Cluster mit N Member-Raeumen entstehen exakt N Startaktionen/Running-Member in beiden Modi (`off`/`on`).
+- Cluster-Running-Scope-Label-Test: Running-Liste zeigt fuer Cluster-Start einen eigenen Scope-Eintrag mit Label `CLUSTER` (nicht `ROOM`, nicht `GLOBAL-INSIDE`).
+- Cluster-Running-Scope-Color-Test: `CLUSTER`-Eintrag besitzt visuell unterscheidbare Scope-Farbe gegenueber ROOM/GLOBAL-Scope.
+- Cluster-Running-Stop-Behavior-Test: Stop auf `CLUSTER`-Eintrag beendet den zugehoerigen Cluster-Run konsistent fuer alle Member ohne Room/Global-Regression.
+- Cluster-Running-Edit-Behavior-Test: Edit auf `CLUSTER`-Eintrag oeffnet den korrekten Cluster-Kontext und bleibt fanout-/target-konsistent.
 
 - English-UI-Text-Test: UI-Texte/Labels/Buttons sind Englisch-only.
 - English-Status-Test: Statusmeldungen/Toasts/Operator-Hinweise sind Englisch-only.
@@ -133,9 +140,12 @@
 - Nach P6-T68..P6-T69: Room-Click-Target-Autofill ist deterministisch und Target-Dropdown bleibt auch ohne Selection manuell bedienbar.
 - Nach P6-T70: Auto+Manual-Paritaet ist stabil; manueller Target-Wechsel auf Room/Cluster bleibt jederzeit moeglich.
 - Nach P6-T71: HF9-Kombinationsmatrix ist PASS (`P6-T71-REGRESSION.md`), Artefakte sind HF9-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T72..P6-T73: Cluster-Fanout startet in allen Cluster-Membern robust; Sync/Stagger-Semantik bleibt fuer komplette Member-Mengen konsistent.
+- Nach P6-T74..P6-T75: Running-Liste fuehrt dedizierten Scope `CLUSTER` mit eigener Farbe; Stop/Edit verhalten sich cluster-konsistent ohne Guard-Regression.
+- Nach P6-T76: HF10-Kombinationsmatrix ist PASS, Artefakte sind HF10-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66 und P6-T67..P6-T71 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66, P6-T67..P6-T71 und P6-T72..P6-T76 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -169,6 +179,9 @@
 - Auto- und Manual-Target-Flow bleiben kombinierbar: nach Room-Autofill ist manueller Override unabhaengig vom Selection-State moeglich.
 - Cluster sind in der UX vollstaendig verwaltbar (create/edit/delete), board-spezifisch persistent und als `target` nutzbar.
 - Cluster-Start unterstuetzt pro Trigger `stagger start`: deaktiviert startet synchron, aktiviert nutzt kurzen randomisierten Startversatz je Room.
+- Cluster-Fanout startet in allen Cluster-Member-Raeumen robust; First-Room-only-Starts sind ausgeschlossen (sync + stagger).
+- Running-Liste zeigt Cluster-Runs als dedizierten Scope `CLUSTER` mit eigener Scope-Farbe und klarem visuellen Unterschied zu ROOM/GLOBAL.
+- Stop/Edit auf `CLUSTER`-Eintraegen arbeitet konsistent fuer Cluster-Run-Kontext ohne Regression bei Room/Global-Guards.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -187,4 +200,8 @@
 
 ## Evidence Update - HF9 Completed
 - HF9-Nachweis ist erbracht: `P6-T71-REGRESSION.md` dokumentiert PASS fuer draft-target exception, room-click target autofill, always-manual target dropdown und selection-unabhaengige manual overrides.
-- Das HF9-Pflichtgate vor Plan 6-3 ist geschlossen.
+- Das HF9-Pflichtgate war geschlossen; neues verpflichtendes Feedback oeffnet vor Plan 6-3 ein zusaetzliches HF10-Gate.
+
+## Evidence Update - HF10 Completed
+- HF10-Nachweis ist erbracht: `P6-T76-REGRESSION.md` dokumentiert PASS fuer all-member cluster fanout (`sync` + `stagger`), dedizierten Running-Scope `CLUSTER` (Label + Farbe) und cluster-konsistente stop/edit semantics.
+- Das HF10-Pflichtgate vor Plan 6-3 ist geschlossen.

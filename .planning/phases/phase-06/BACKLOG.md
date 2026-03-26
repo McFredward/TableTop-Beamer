@@ -15,6 +15,7 @@
 - Edge-Bubble Arbitration + Room Deletion Tombstone Hotfix
 - Draft Persistence + Cluster UX Completion Hotfix
 - Target Auto+Manual Parity Hotfix
+- Cluster Fanout + Running Scope Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -91,6 +92,12 @@
 - P6-S15.3 Target-Dropdown immer manuell bedienbar machen: nie selection-bedingt deaktivieren, auch nicht bei `none`-Selection.
 - P6-S15.4 Auto+Manual-Flow absichern: nach Room-Autofill darf `target` jederzeit manuell auf Room/Cluster umgestellt werden, unabhaengig vom Selection-State.
 - P6-S15.5 HF9-Kombinations-Regression + Artefakt-Sync abschliessen (target autofill + always-manual dropdown + draft-non-target persistence + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S16.1 Cluster-Fanout robust machen: Cluster-Start (sync + staggered) startet deterministisch fuer alle gueltigen Cluster-Member-Raeume statt nur fuer den ersten Room.
+- P6-S16.2 Stagger/Sync-Paritaet absichern: `stagger start = off` startet alle Member zeitgleich, `on` wendet kurzen randomisierten Versatz auf alle Member an (kein Room-Verlust).
+- P6-S16.3 Running-Model erweitern: Cluster-Run wird als eigener Scope-Typ `CLUSTER` modelliert (nicht `ROOM`, nicht `GLOBAL-INSIDE`).
+- P6-S16.4 Running-Rendering erweitern: dedizierter Cluster-Eintrag mit Label `CLUSTER` und visuell unterscheidbarer Farbe inkl. konsistenter Stop/Edit-Semantik.
+- P6-S16.5 HF10-Kombinations-Regression + Artefakt-Sync abschliessen (cluster fanout sync/stagger + cluster stop/edit behavior + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -208,7 +215,15 @@
 - Story P6-S15.5.
   - Ziel: kombinierte HF9-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF9)
+## Priorisierte Hotfix-Welle 10 (P0) - Plan 6-HF10 execute-ready
+- Story P6-S16.1 + P6-S16.2.
+  - Ziel: Cluster-Fanout startet in allen Cluster-Member-Raeumen robust und haelt Sync/Stagger-Semantik fuer alle Member ein.
+- Story P6-S16.3 + P6-S16.4.
+  - Ziel: Running-Liste fuehrt Cluster als dedizierten Scope `CLUSTER` mit eigener visueller Kennzeichnung und konsistenter Stop/Edit-Logik.
+- Story P6-S16.5.
+  - Ziel: kombinierte HF10-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF10)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -243,3 +258,13 @@
 - Draft contract is closed: animation + parameter drafts persist; `target` is now explicitly excluded from deselection/pointer refresh resets.
 - Room-click target autofill is active and deterministic, and target dropdown remains manually operable even with no active room selection.
 - Auto+manual target parity is verified: manual room/cluster override remains robust after autofill; combined evidence is PASS in `P6-T71-REGRESSION.md`.
+
+## Plan Update - 6-HF10 inserted (P0)
+- Mandatory feedback introduces an additional P0 gate before hardening: cluster launches must fan out to all cluster member rooms in both sync and stagger mode (no first-room-only starts).
+- Running model/rendering must represent cluster launches as a dedicated `CLUSTER` scope entry with distinct visual color and consistent stop/edit behavior.
+- Backlog flow is updated to execute Plan 6-HF10 before Plan 6-3.
+
+## Execution Update - 6-HF10 completed (P0)
+- Cluster launch fanout is now member-complete for both modes (`off = sync`, `on = staggered`) without first-room truncation.
+- Running model/rendering now includes a dedicated `CLUSTER` scope entry (label + distinct color) and linked cluster stop/edit semantics.
+- Combined HF10 evidence is PASS in `P6-T76-REGRESSION.md`; backlog flow proceeds to Plan 6-3 hardening.

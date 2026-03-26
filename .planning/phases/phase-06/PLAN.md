@@ -38,6 +38,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF9 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF8 und 6-3 gesetzt.
 - Ziel von 6-HF9: auto+manual Target-Paritaet execute-ready liefern (Raumklick => `target=room`, danach jederzeit manuelle Umstellung auf Room/Cluster, Dropdown nie deaktiviert - auch ohne selektierten Raum).
 
+## Hotfix Trigger (Neues verpflichtendes Feedback nach 6-HF9)
+- Neues verpflichtendes Feedback meldet zwei offene P0-Regressionen: (1) Cluster-Start fanout startet aktuell nur in einem Raum statt in allen Cluster-Membern (betrifft sync + `stagger start`), (2) Running-Liste fuehrt Cluster nicht als eigenen Scope-Eintrag.
+- Konsequenz: Plan 6-HF10 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF9 und 6-3 gesetzt.
+- Ziel von 6-HF10: Cluster-Fanout robust auf alle Member-Raeume korrigieren, `stagger start`/simultaneous fuer komplette Cluster-Mengen absichern und Running-Model/-Rendering um Scope `CLUSTER` (eigener Eintrag + visuelle Abgrenzung) execute-ready liefern.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -79,6 +84,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Draft-Reset erfolgt nur explizit (z. B. ueber bewusstes UI-Reset) und nicht implizit durch Target-/Room-Navigation oder Trigger-Start.
 - Cluster sind als vollwertige board-spezifische Domainobjekte in der Operator-UX verwaltbar (create/edit/delete) und nicht nur passiv ladbar.
 - Trigger-Konfiguration unterstuetzt pro Ausloesung `staggerStart` als explizite Option: `off` startet alle Cluster-Raeume zeitgleich, `on` startet mit kurzem randomisiertem Versatz pro Room.
+- Cluster-Fanout ist member-vollstaendig verpflichtend: jeder Cluster-Start (sync oder staggered) erzeugt fuer jede gueltige `roomId` im Cluster genau eine Startaktion; partieller First-Room-Start ist unzulaessig.
+- Running-Model besitzt fuer Cluster-Starts einen eigenen Scope-Typ `CLUSTER` (nicht `ROOM`, nicht `GLOBAL-INSIDE`) mit eigener visueller Kennzeichnung in der Running-Liste.
+- Stop/Edit-Semantik fuer Cluster arbeitet auf dem Cluster-Scope-Eintrag deterministisch und beeinflusst die zugehoerigen Member-Instanzen konsistent, ohne bestehende Room/Global-Guards zu regressieren.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -136,6 +144,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Auto+Manual-Paritaet-Hotfix liefern: manueller Target-Wechsel bleibt nach Autofill jederzeit moeglich und ist nicht an Selection-State gekoppelt.
 - Regression fuer Draft-Ausnahme `target` + Room-Click-Autofill + always-enabled manual target + cluster/room manual override als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF9-Stand synchronisieren und execute-ready halten.
+- Cluster-Fanout-Hotfix liefern: Startpfad fuer `targetType=cluster` fanout auf alle Cluster-Member-Raeume robust korrigieren (keine First-Room-Verkuerzung).
+- Stagger-Paritaet-Hotfix liefern: `stagger start = off|on` wirkt fuer jeden Cluster-Member konsistent (off = synchron fuer alle, on = kurzer randomisierter Versatz fuer alle).
+- Running-Scope-Hotfix liefern: Running-Model/-Rendering um eigene Scope-Art `CLUSTER` erweitern (eigener Eintrag, Label `CLUSTER`, visuell unterscheidbare Farbe).
+- Regression fuer Cluster-Start (sync/stagger), Stop/Edit-Verhalten auf Cluster-Eintrag und bestehende Guards als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF10-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -162,7 +175,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 16. Draft-Persistenz-Hotfix ausrollen: room-unabhaengige Trigger-Drafts (Animation + Parameter) ueber Room-/Target-Wechsel stabil halten.
 17. Cluster-UX-Hotfix ausrollen: Cluster CRUD in Operator-Flow + Target-Selection + Cluster-Startoption `stagger start` integrieren.
 18. Target-Flow-Paritaet-Hotfix ausrollen: Room-Click setzt `target` automatisch auf Room, `target` bleibt immer manuell editierbar (Room/Cluster, auch ohne Selection), Draft-Persistenz bleibt fuer Animation/Parameter stabil.
-19. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger) dokumentieren.
+19. Cluster-Fanout/Running-Scope-Hotfix ausrollen: Cluster-Start fanout fuer alle Member (sync + stagger) stabilisieren und Running-Scope `CLUSTER` mit dediziertem Eintrag/Farbkennung integrieren.
+20. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger + CLUSTER running scope) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -185,7 +199,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 18. M18 Cluster UX Completion Hotfix: Cluster koennen erstellt/bearbeitet/geloescht werden und sind als `target` voll nutzbar.
 19. M19 Cluster Stagger Start Hotfix: Cluster-Start unterstuetzt pro Trigger `stagger start` (an/aus) fuer randomisierten Kurzversatz vs synchronen Start.
 20. M20 Target Auto+Manual Parity Hotfix: Room-Click setzt `target` automatisch auf Room; manuelle Umstellung auf Room/Cluster bleibt jederzeit verfuegbar (auch ohne Selection).
-21. M21 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+21. M21 Cluster Fanout Reliability Hotfix: Cluster-Start fanout erreicht alle Cluster-Member robust fuer sync + stagger.
+22. M22 Cluster Running Scope Hotfix: Running-Liste zeigt Cluster als eigenen Scope `CLUSTER` mit visueller Abgrenzung und konsistenter Stop/Edit-Semantik.
+23. M23 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -213,6 +229,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (Edge-Bubble deselect + delete persistence gegen defaults rehydrate) wird als Plan 6-HF7 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Draft-Reset bei Room-Wechsel + fehlender Cluster-UX-Flow inkl. stagger start) wird als Plan 6-HF8 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Draft-Persistenz praezisiert: alles stabil ausser `target`, Room-Click-Autofill + always-manual target dropdown) wird als Plan 6-HF9 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Cluster-Start fanout nur erster Room + fehlender Cluster-Scope in Running-Liste) wird als Plan 6-HF10 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -250,6 +267,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Room-Animation-Drafts bleiben bei Room-/Target-Wechsel erhalten; Dropdown und Parameter resetten nicht implizit auf Defaultwerte.
 - Cluster koennen in der UX erstellt, bearbeitet und geloescht werden (beliebige Room-Mengen) und sind in `target` waehlbar.
 - Cluster-Start triggert in allen enthaltenen Rooms; `stagger start` aus startet zeitgleich, `stagger start` an nutzt kurzen randomisierten Startversatz pro Room.
+- Cluster-Start fanout verarbeitet jeden Cluster-Member robust und verliert keinen Room in Sync- oder Stagger-Modus.
+- Running-Liste zeigt pro Cluster-Start einen eigenen Scope-Eintrag mit Label `CLUSTER` und eindeutig abgesetzter Scope-Farbe.
+- Stop/Edit fuer den `CLUSTER`-Eintrag arbeitet konsistent auf dem Cluster-Run und laesst bestehende Room/Global-Controls regressionsfrei.
 - `target` bleibt vom Draft-Persistenzvertrag ausgenommen: Room-Klick setzt `target` auto auf den geklickten Room, waehrend Animation + Parameter unveraendert bleiben.
 - `target`-Dropdown ist nie selection-bedingt deaktiviert und bleibt auch ohne aktive Room-Selektion manuell bedienbar.
 - Nach Auto-Set durch Room-Klick kann der Operator `target` jederzeit manuell auf Room oder Cluster umstellen, unabhaengig vom Selection-State.
@@ -290,4 +310,14 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 ## Execution Update - 6-HF9 Completed (P0)
 - HF9 ist umgesetzt: Draft-Persistenz bleibt stabil fuer Animation + Parameter, waehrend `target` explizit aus dem Selection-Lifecycle-Reset ausgeschlossen ist.
 - Board-Raumklick setzt `target` deterministisch auf den geklickten Raum; Target-Dropdown bleibt auch bei `selection = none` manuell bedienbar.
-- Auto+Manual-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; Plan 6-3 ist als naechste Welle freigegeben.
+- Auto+Manual-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; nachfolgendes Pflichtfeedback setzt jedoch ein neues HF10-Gate vor Plan 6-3.
+
+## Plan Update - 6-HF10 Execute-Ready (P0)
+- Neues verpflichtendes Feedback nach HF9 setzt ein weiteres P0-Gate: Cluster-Start fanout muss fuer alle Cluster-Member robust funktionieren (sync + stagger), aktuell beobachteter First-Room-Only-Start ist unzulaessig.
+- Running-Model/-Rendering wird um eigene Scope-Art `CLUSTER` erweitert: separater Running-Eintrag, Label `CLUSTER`, visuell unterscheidbare Farbe sowie konsistente Stop/Edit-Semantik.
+- HF10 wird vor Plan 6-3 ausgefuehrt; Hardening startet erst nach PASS fuer Cluster fanout, stagger parity, stop/edit behavior und guard non-regression.
+
+## Execution Update - 6-HF10 Completed (P0)
+- HF10 ist umgesetzt: Cluster-Fanout startet in beiden Modi (`stagger start off|on`) deterministisch fuer alle gueltigen Cluster-Member-Raeume.
+- Running-Liste fuehrt Cluster-Runs jetzt als dedizierten Scope `CLUSTER` mit eigener Farbe; Stop/Edit auf Cluster-Eintrag arbeiten run-konsistent fuer verlinkte Member-Instanzen.
+- HF10-Regressionsevidenz ist erbracht (`P6-T76-REGRESSION.md`) und das Gate vor Plan 6-3 ist geschlossen.

@@ -95,7 +95,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T70 [P0] Auto+Manual-Flow haerten: nach Autofill bleibt manueller Target-Wechsel auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
 - [x] DONE P6-T71 [P0] HF9-Regression + Artefakt-Sync dokumentieren: target exception + room-click autofill + always-manual dropdown + override parity und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF9-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF9)
+## Plan 6-HF10 - Cluster Fanout + Running Scope Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T72 [P0] Cluster-Fanout fixen: `targetType=cluster` startet deterministisch fuer alle Cluster-Member-Raeume statt nur fuer First-Room-Pfade.
+- [x] DONE P6-T73 [P0] Stagger/Sync-Paritaet fuer Cluster fanout absichern: `stagger start = off` startet alle Member synchron, `on` startet alle Member mit kurzem randomisiertem Versatz.
+- [x] DONE P6-T74 [P0] Running-Model erweitern: Cluster-Runs als eigene Scope-Art `CLUSTER` fuehren (separater Laufkontext statt ROOM/global-inside).
+- [x] DONE P6-T75 [P0] Running-Rendering erweitern: dedizierten Cluster-Eintrag mit Label `CLUSTER` und visuell unterscheidbarer Farbe liefern; Stop/Edit bleiben konsistent.
+- [x] DONE P6-T76 [P0] HF10-Regression + Artefakt-Sync dokumentieren: cluster start sync/stagger + cluster stop/edit behavior + guards und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF10-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF10)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

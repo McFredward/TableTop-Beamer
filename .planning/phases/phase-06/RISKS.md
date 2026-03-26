@@ -190,6 +190,21 @@
 - Impact: Kritisch, kombinierter Auto+Manual-Workflow ist instabil und erzeugt Fehlstarts.
 - Gegenmassnahme: klare Prioritaetslogik (`room click => auto set once`, manueller Wechsel jederzeit erlaubt) plus Regression fuer Selection-unabhaengige Overrides.
 
+## R39 Cluster-Fanout startet nur Teilmengen (First-Room-Only)
+- Risiko: `target=cluster` loest Startpfade nur fuer den ersten/teilweise Member aus; einzelne Cluster-Raeume werden gar nicht gestartet.
+- Impact: Kritisch, Cluster-Trigger ist funktional unzuverlaessig und verletzt Kernanforderung an Gruppenstart.
+- Gegenmassnahme: fanout-routing strikt member-vollstaendig implementieren (`for each roomId`) und per Sync/Stagger-Matrix auf exakt N/N Starts absichern.
+
+## R40 Stagger-Paritaet verliert Cluster-Member
+- Risiko: bei `stagger start` wird Delay/Dispatch nur auf Teilmengen angewandt oder durch fruehen Exit/Pfadkollision abgebrochen.
+- Impact: Kritisch, Timing-Semantik (`off=sync`, `on=stagger`) ist fachlich inkonsistent.
+- Gegenmassnahme: einheitlicher dispatch-plan fuer alle Member (sync/stagger) mit gemeinsamen Guard-Checks und deterministischer Completion.
+
+## R41 Running-Liste kennt keinen dedizierten Cluster-Scope
+- Risiko: Cluster-Runs erscheinen als ROOM/global-Eintraege ohne klare Scope-Kennung; Stop/Edit wirken uneindeutig oder inkonsistent.
+- Impact: Hoch bis kritisch, Operator verliert Kontrolle und kann Cluster-Laufkontext nicht sicher unterscheiden.
+- Gegenmassnahme: Running-Model/Rendering um Scope `CLUSTER` erweitern (Label + Farbe + stop/edit contract) und gegen Room/Global-Guards regressionspruefen.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
@@ -214,3 +229,12 @@
 - R36 ist geschlossen: draft contract now excludes `target`, while animation + parameter presets remain stable across room/target navigation.
 - R37 ist geschlossen: target dropdown remains manually operable in no-selection state (`selection = none`).
 - R38 ist geschlossen: room-click autofill and manual room/cluster overrides now coexist deterministically without selection-coupled lock-in.
+
+## Risk Update - HF10 Open (new mandatory feedback)
+- R39..R41 sind als neue P0/P1-Risiken aktiv und blockieren Plan 6-3 bis zur HF10-Closure.
+- Pflichtnachweis fuer Schliessung: kombinierte HF10-Matrix fuer all-member cluster fanout (sync+stagger), dedizierten running scope `CLUSTER` (label+color) sowie cluster stop/edit behavior ohne guard regression.
+
+## Risk Update - HF10 Closed
+- R39 ist geschlossen: cluster start fanout dispatches all valid member rooms (no first-room truncation) in sync and stagger modes.
+- R40 ist geschlossen: stagger/sync semantics are parity-stable across complete cluster member sets (`off=sync`, `on=staggered`).
+- R41 ist geschlossen: running model/rendering now includes dedicated `CLUSTER` scope with distinct label/color and consistent cluster stop/edit semantics.
