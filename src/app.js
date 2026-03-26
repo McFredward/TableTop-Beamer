@@ -129,6 +129,7 @@ const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
 const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
+const showRoomVerticesInput = document.querySelector("#show-room-vertices");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
 const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
 const polygonInsertVertexButton = document.querySelector("#polygon-insert-vertex");
@@ -142,6 +143,7 @@ const roomCreateButton = document.querySelector("#room-create");
 const roomDeleteButton = document.querySelector("#room-delete");
 const roomManagementStatus = document.querySelector("#room-management-status");
 const roomRenameInput = document.querySelector("#room-rename-input");
+const showPlayAreaVerticesInput = document.querySelector("#show-play-area-vertices");
 const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
 const shipPolygonEdgeSelect = document.querySelector("#ship-polygon-edge-select");
 const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-insert-vertex");
@@ -197,6 +199,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-create",
   "room-delete",
   "room-rename-input",
+  "show-room-vertices",
   "polygon-room-select",
   "polygon-vertex-select",
   "polygon-edge-select",
@@ -209,6 +212,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "ship-polygon-insert-vertex",
   "ship-polygon-delete-vertex",
   "ship-polygon-reset",
+  "show-play-area-vertices",
   "outside-enabled",
   "outside-intensity",
   "outside-speed",
@@ -3589,6 +3593,7 @@ function syncPolygonEditorStatus() {
 
 function syncPolygonVertexSelect(roomId) {
   polygonVertexSelect.replaceChildren();
+  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
     polygonVertexSelect.disabled = true;
@@ -3605,12 +3610,13 @@ function syncPolygonVertexSelect(roomId) {
   state.polygonEditor.selectedVertexIndex = Math.min(state.polygonEditor.selectedVertexIndex, maxIndex);
   state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
   polygonVertexSelect.value = String(state.polygonEditor.selectedVertexIndex);
-  polygonVertexSelect.disabled = points.length === 0;
-  polygonDeleteVertexButton.disabled = points.length <= 3;
+  polygonVertexSelect.disabled = points.length === 0 || !roomVerticesVisible;
+  polygonDeleteVertexButton.disabled = points.length <= 3 || !roomVerticesVisible;
 }
 
 function syncPolygonEdgeSelect(roomId) {
   polygonEdgeSelect.replaceChildren();
+  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
     polygonEdgeSelect.disabled = true;
@@ -3627,7 +3633,7 @@ function syncPolygonEdgeSelect(roomId) {
   const maxIndex = Math.max(0, points.length - 1);
   state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
   polygonEdgeSelect.value = String(state.polygonEditor.selectedEdgeIndex);
-  polygonEdgeSelect.disabled = points.length === 0;
+  polygonEdgeSelect.disabled = points.length === 0 || !roomVerticesVisible;
 }
 
 function syncPolygonEditorPanel() {
@@ -3652,6 +3658,14 @@ function syncPolygonEditorPanel() {
     roomRenameInput.value = activeRoom?.name ?? activeRoom?.label ?? "";
     roomRenameInput.disabled = disabled;
   }
+  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
+  if (showRoomVerticesInput) {
+    showRoomVerticesInput.checked = roomVerticesVisible;
+  }
+  polygonVertexSelect.disabled = disabled || !roomVerticesVisible;
+  polygonEdgeSelect.disabled = disabled || !roomVerticesVisible;
+  polygonInsertVertexButton.disabled = disabled || !roomVerticesVisible;
+  polygonDeleteVertexButton.disabled = disabled || !roomVerticesVisible;
   syncPolygonVertexSelect(activeRoomId);
   syncPolygonEdgeSelect(activeRoomId);
   syncPolygonEditorStatus();
@@ -3668,6 +3682,7 @@ function syncShipPolygonEditorStatus() {
 
 function syncShipPolygonVertexSelect() {
   shipPolygonVertexSelect.replaceChildren();
+  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
   const points = getShipPolygonPoints(state.boardId);
   for (let i = 0; i < points.length; i += 1) {
     const option = document.createElement("option");
@@ -3679,11 +3694,13 @@ function syncShipPolygonVertexSelect() {
   state.shipPolygonEditor.selectedVertexIndex = Math.min(state.shipPolygonEditor.selectedVertexIndex, maxIndex);
   state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
   shipPolygonVertexSelect.value = String(state.shipPolygonEditor.selectedVertexIndex);
-  shipPolygonDeleteVertexButton.disabled = points.length <= 3;
+  shipPolygonDeleteVertexButton.disabled = points.length <= 3 || !playAreaVerticesVisible;
+  shipPolygonVertexSelect.disabled = !playAreaVerticesVisible;
 }
 
 function syncShipPolygonEdgeSelect() {
   shipPolygonEdgeSelect.replaceChildren();
+  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
   const points = getShipPolygonPoints(state.boardId);
   for (let i = 0; i < points.length; i += 1) {
     const option = document.createElement("option");
@@ -3695,9 +3712,18 @@ function syncShipPolygonEdgeSelect() {
   const maxIndex = Math.max(0, points.length - 1);
   state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
   shipPolygonEdgeSelect.value = String(state.shipPolygonEditor.selectedEdgeIndex);
+  shipPolygonEdgeSelect.disabled = !playAreaVerticesVisible;
 }
 
 function syncShipPolygonEditorPanel() {
+  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
+  if (showPlayAreaVerticesInput) {
+    showPlayAreaVerticesInput.checked = playAreaVerticesVisible;
+  }
+  shipPolygonVertexSelect.disabled = !playAreaVerticesVisible;
+  shipPolygonEdgeSelect.disabled = !playAreaVerticesVisible;
+  shipPolygonInsertVertexButton.disabled = !playAreaVerticesVisible;
+  shipPolygonDeleteVertexButton.disabled = !playAreaVerticesVisible;
   syncShipPolygonVertexSelect();
   syncShipPolygonEdgeSelect();
   syncShipPolygonEditorStatus();
@@ -3802,6 +3828,9 @@ function finishShipPolygonVertexDrag(event, { cancel = false } = {}) {
 
 function renderShipPolygonEditorHandles() {
   if (state.uiView !== "settings") {
+    return;
+  }
+  if (state.polygonEditor.playAreaVerticesVisible === false) {
     return;
   }
   const points = getShipPolygonPoints(state.boardId).map(([x, y]) => [x * 1000, y * 1000]);
@@ -3920,6 +3949,9 @@ function syncPolygonRoomSelection(roomId) {
 
 function renderPolygonEditorHandles() {
   if (state.uiView !== "settings") {
+    return;
+  }
+  if (state.polygonEditor.roomVerticesVisible === false) {
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6214,6 +6246,20 @@ polygonRoomSelect.addEventListener("change", () => {
   syncPolygonEditorPanel();
   renderRoomOverlay();
   setPanCursorState();
+});
+
+showRoomVerticesInput?.addEventListener("change", () => {
+  state.polygonEditor.roomVerticesVisible = showRoomVerticesInput.checked;
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = `Status: Room vertices ${showRoomVerticesInput.checked ? "shown" : "hidden"}`;
+});
+
+showPlayAreaVerticesInput?.addEventListener("change", () => {
+  state.polygonEditor.playAreaVerticesVisible = showPlayAreaVerticesInput.checked;
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = `Status: Play Area vertices ${showPlayAreaVerticesInput.checked ? "shown" : "hidden"}`;
 });
 
 polygonVertexSelect.addEventListener("change", () => {

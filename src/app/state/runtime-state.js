@@ -47,6 +47,8 @@
       polygonEditor: {
         roomIdByBoard: {},
         handleScale: 1,
+        roomVerticesVisible: true,
+        playAreaVerticesVisible: true,
         selectedVertexIndex: 0,
         selectedEdgeIndex: 0,
         dragVertexIndex: null,

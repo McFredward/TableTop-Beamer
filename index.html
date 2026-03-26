@@ -205,6 +205,10 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Room polygon editor</h2>
         <p class="status-line">Drag vertices on the overlay or insert/delete using buttons.</p>
+        <label class="inline-checkbox">
+          <input id="show-room-vertices" type="checkbox" checked />
+          Show Room Vertices
+        </label>
         <label>
           Room
           <select id="polygon-room-select"></select>
@@ -237,6 +241,10 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Ship polygon editor (outside mask)</h2>
         <p class="status-line">Edit the ship mask; outside effects are rendered only outside this polygon.</p>
+        <label class="inline-checkbox">
+          <input id="show-play-area-vertices" type="checkbox" checked />
+          Show Play Area Vertices
+        </label>
         <label>
           Active vertex
           <select id="ship-polygon-vertex-select"></select>
