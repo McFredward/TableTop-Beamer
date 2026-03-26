@@ -11,7 +11,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-T5 [P0] Client-Apply-Engine auf version-aware idempotent apply umstellen (`appliedVersion`, duplicate guard, stale reject).
 - [x] DONE P7-T6 [P0] Reconnect/Join snapshot+delta replay deterministisch machen (kein Zwischenzustands-Flackern, kein no-op override).
 - [x] DONE P7-T7 [P0] Priority-Control-Path einfuehren: `stop`, `toggle-off`, `clear-all` preemptiv und first-click-deterministisch verarbeiten.
-- [ ] TODO P7-T8 [P0] Render/Audio teardown fuer stop-path haerten (sofortiger visual clear + audio hard-stop ohne Restartefakte).
+- [x] DONE P7-T8 [P0] Render/Audio teardown fuer stop-path haerten (sofortiger visual clear + audio hard-stop ohne Restartefakte).
 - [ ] TODO P7-T9 [P0] `/output/final` low-latency apply path priorisieren (final-first scheduling, minimal pre-render overhead).
 - [ ] TODO P7-T10 [P0] GIF trigger responsiveness verbessern (prewarm/decode readiness + reduced trigger-to-first-frame latency).
 - [ ] TODO P7-T11 [P0] E2E telemetry/tracing integrieren (ingest, commit, fanout, receive, apply, first-frame, audio-start/stop) mit mutation correlation.

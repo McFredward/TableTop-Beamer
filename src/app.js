@@ -622,7 +622,7 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   }
 
   if (mutationType === "clear-all" || mutationType === "stop-animation") {
-    ashParticles.length = Math.min(ashParticles.length, 0);
+    hardStopRuntimeEffects({ clearVisuals: true });
   }
 
   const isFastFinalApply = outputRole === OUTPUT_ROLE_FINAL && isControlCriticalMutationEnvelope(mutationEnvelope);
@@ -3338,17 +3338,28 @@ function recordTriggerIntent() {
   state.mobilePerf.pendingTriggerAt = performance.now();
 }
 
-function executeClearAll() {
+function hardStopRuntimeEffects({ clearVisuals = true } = {}) {
   for (const animation of state.runningAnimations) {
     stopAnimationSound(animation.id);
   }
+  for (const timeoutId of pendingAnimationAudioStartTimers.values()) {
+    window.clearTimeout(timeoutId);
+  }
+  pendingAnimationAudioStartTimers.clear();
+  activeAnimationAudioById.clear();
+  if (clearVisuals) {
+    ashParticles.length = 0;
+  }
+}
+
+function executeClearAll() {
+  hardStopRuntimeEffects({ clearVisuals: true });
   for (const board of BOARDS) {
     updateOutsideFxProfile(board.id, { enabled: false });
   }
   persistBoardProfiles();
   state.runningAnimations = [];
   clearRoomDraftEditTarget();
-  ashParticles.length = 0;
   syncOutsideFxPanel();
   renderRunningAnimationsList();
   refreshGlobalButtons();
