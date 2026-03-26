@@ -28,6 +28,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF7 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF6 und 6-3 gesetzt.
 - Ziel von 6-HF7: Edge-Pointer-Arbitration auf Vertex-Paritaet bringen (Selection persistent + Edge aktiv fuer Insert-Vertex) und persistente Tombstone-Semantik fuer geloeschte Rooms gegen Defaults-Rehydrate absichern.
 
+## Hotfix Trigger (Neues verpflichtendes Feedback nach 6-HF7)
+- Neues verpflichtendes Feedback meldet zwei offene P0-Themen: (1) Room-Animation-Draft-Werte werden bei Raumwechsel unzulaessig zurueckgesetzt, (2) Cluster-UX/Flow ist unvollstaendig (fehlendes CRUD, fehlende Zielauswahl-/Startoptionen).
+- Konsequenz: Plan 6-HF8 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF7 und 6-3 gesetzt.
+- Ziel von 6-HF8: persistente Draft-Voreinstellungen ueber Room-Wechsel sicherstellen und vollstaendige Cluster-Bedienung inkl. CRUD + Trigger-Option `stagger start` (an/aus) execute-ready liefern.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -61,6 +66,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Insert-Vertex-Flow darf nach Edge-Bubble-Click keinen Re-Select erfordern; Edge-Selection bleibt bis explizitem Wechsel/Deselect stabil.
 - Room-Delete nutzt persistente Tombstones im Room-Katalog (board-spezifisch), damit geloeschte Rooms bei Global-Defaults-Merge/Overlay nicht rehydratisiert werden.
 - Defaults-Merge priorisiert Tombstones gegen Legacy/Default-Room-Quellen; Move/Update-Persistenz fuer nicht geloeschte Rooms bleibt unveraendert.
+- Room-Animation-Draft-State ist board-/sessionweit persistent und nicht an den aktuell selektierten Room gebunden: zuletzt gewaehltes Animationstemplate und Parameterwerte bleiben bei Room-Wechsel als aktive Voreinstellung erhalten.
+- Draft-Reset erfolgt nur explizit (z. B. ueber bewusstes UI-Reset) und nicht implizit durch Target-/Room-Navigation oder Trigger-Start.
+- Cluster sind als vollwertige board-spezifische Domainobjekte in der Operator-UX verwaltbar (create/edit/delete) und nicht nur passiv ladbar.
+- Trigger-Konfiguration unterstuetzt pro Ausloesung `staggerStart` als explizite Option: `off` startet alle Cluster-Raeume zeitgleich, `on` startet mit kurzem randomisiertem Versatz pro Room.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -107,6 +116,12 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Save/Load/Merge-Guards absichern: geloeschte Rooms bleiben nach Reload/Restart/Defaults-Apply dauerhaft geloescht.
 - Regression fuer Insert-Vertex-Flow + Delete-Persistenz + bestehende Selection/Play-Area-Guards als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF7-Stand synchronisieren und execute-ready halten.
+- Draft-Persistenz-Hotfix liefern: zuletzt gewaehlte Room-Animation + Parameter (`speed`, `opacity`, `soundVolume`, weitere Trigger-Parameter) bleiben bei Room-/Target-Wechsel als Startvoreinstellung erhalten.
+- Cluster-UX-Hotfix liefern: Cluster im Operator-Flow erstellen/bearbeiten/loeschen koennen (beliebige Room-Mengen, board-spezifisch persistiert).
+- Target-Hotfix liefern: Cluster in `target` deterministisch waehlbar machen und Trigger-Start fuer alle Cluster-Raeume ausfuehren.
+- Trigger-Option-Hotfix liefern: pro Trigger eine Option `stagger start` integrieren (random short delay je Room, optional deaktivierbar fuer synchronen Start).
+- Regression fuer Draft-Persistenz + Cluster-CRUD + Cluster-Start (sync/staggered) + bestehende Guards als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF8-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -130,7 +145,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 13. Pointer-Arbitration-Regression-Hotfix ausrollen: no-move short-click persistiert Selection, Drag bleibt unveraendert.
 14. Vertex-Selection-Hotfix ausrollen: Room-vs-Vertex-Arbitration stabilisieren, direkter Vertex-Click/Delete fixen, optional Text-Selection-Guard waehrend Room-Drag absichern.
 15. Edge+Deletion-Hotfix ausrollen: Edge-Bubble-Selection persistent halten und Tombstone-Delete-Persistenz gegen Defaults-Rehydrate absichern.
-16. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
+16. Draft-Persistenz-Hotfix ausrollen: room-unabhaengige Trigger-Drafts (Animation + Parameter) ueber Room-/Target-Wechsel stabil halten.
+17. Cluster-UX-Hotfix ausrollen: Cluster CRUD in Operator-Flow + Target-Selection + Cluster-Startoption `stagger start` integrieren.
+18. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Cluster sync/stagger) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -149,6 +166,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 14. M14 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 15. M15 Edge-Bubble Arbitration Hotfix: Edge-Click behaelt persistente Room-Selection und aktive Edge fuer Insert-Vertex ohne Re-Select.
 16. M16 Room Deletion Tombstone Hotfix: geloeschte Rooms bleiben ueber Save/Reload/Defaults-Merge dauerhaft geloescht.
+17. M17 Draft Persistence Hotfix: zuletzt gewaehltes Animationstemplate und Parameterwerte bleiben ueber Room-/Target-Wechsel als aktive Trigger-Voreinstellung erhalten.
+18. M18 Cluster UX Completion Hotfix: Cluster koennen erstellt/bearbeitet/geloescht werden und sind als `target` voll nutzbar.
+19. M19 Cluster Stagger Start Hotfix: Cluster-Start unterstuetzt pro Trigger `stagger start` (an/aus) fuer randomisierten Kurzversatz vs synchronen Start.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -174,6 +194,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (kurzer Click selektiert nicht persistent ohne Move) wird als Plan 6-HF5 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Vertex-Klick deselektiert Room, Vertex-Delete instabil, Textmarkierung bei Room-Drag) wird als Plan 6-HF6 (P0/P1) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Edge-Bubble deselect + delete persistence gegen defaults rehydrate) wird als Plan 6-HF7 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Draft-Reset bei Room-Wechsel + fehlender Cluster-UX-Flow inkl. stagger start) wird als Plan 6-HF8 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -208,6 +229,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Insert-Vertex ist direkt nach Edge-Bubble-Click moeglich, ohne erneute Room-Selektion ueber Dropdown oder Board-Reclick.
 - Geloeschte Rooms bleiben nach Save/Reload/Restart/Defaults-Apply dauerhaft geloescht; Default-Rehydrate kann Tombstones nicht ueberschreiben.
 - Defaults-Merge/Overlay respektiert Deletion-Tombstones fuer Room-Kataloge board-spezifisch und regressiert bestehende Move/Update-Persistenz nicht.
+- Room-Animation-Drafts bleiben bei Room-/Target-Wechsel erhalten; Dropdown und Parameter resetten nicht implizit auf Defaultwerte.
+- Cluster koennen in der UX erstellt, bearbeitet und geloescht werden (beliebige Room-Mengen) und sind in `target` waehlbar.
+- Cluster-Start triggert in allen enthaltenen Rooms; `stagger start` aus startet zeitgleich, `stagger start` an nutzt kurzen randomisierten Startversatz pro Room.
 - Play-Area-Selection/-Editing zeigt keine Regression durch Room-Copy/Keyboard/Deselection.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Clipping, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien (`STATE/ROADMAP/CURRENT_PHASE`) synchronisiert.
@@ -227,3 +251,12 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - HF7 ist umgesetzt: Edge-Bubble-Click folgt jetzt dem Vertex-Lifecycle, behaelt persistente Room-Selektion und stabilisiert aktive Edge-Selection fuer Insert-Vertex ohne Re-Select.
 - Room-Delete wird board-spezifisch als `deletedRoomIds`-Tombstone persistiert; Room-Katalog-Anwendung und Global-Defaults-Merge respektieren Tombstones gegen Rehydrate.
 - HF7-Regressionsevidenz ist erbracht (`P6-T59-REGRESSION.md`) und das Gate vor Plan 6-3 ist geschlossen.
+
+## Plan Update - 6-HF8 Execute-Ready (P0)
+- Neues verpflichtendes Feedback nach HF7 setzt ein weiteres P0-Gate: Draft-Voreinstellungen duerfen bei Room-Wechsel nicht resetten und Cluster-UX/Flow muss vollstaendig bedienbar werden.
+- HF8 wird vor Plan 6-3 ausgefuehrt; Hardening startet erst nach PASS fuer Draft-Persistenz + Cluster-CRUD + Cluster-Start (`sync`/`stagger`).
+
+## Execution Update - 6-HF8 Completed (P0)
+- HF8 ist umgesetzt: Room-Animation-Drafts bleiben ueber Room-/Target-Wechsel sowie nach Trigger-Start als aktive Voreinstellung erhalten.
+- Cluster-UX ist vollstaendig: create/edit/delete inkl. board-spezifischer Persistenz und room-assignment-management sind im Operator-Flow verfuegbar.
+- Trigger-Option `stagger start` ist umgesetzt (`off = synchron`, `on = kurzer randomisierter Room-Offset`) und in `P6-T66-REGRESSION.md` als PASS dokumentiert.

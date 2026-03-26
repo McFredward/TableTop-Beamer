@@ -155,9 +155,38 @@
 - Impact: Hoch, bestehende Geometrie-Workflows werden instabil.
 - Gegenmassnahme: kombinierte Regression fuer delete persistence + move parity + defaults apply + legacy load als Pflichtgate vor Plan 6-3.
 
+## R32 Draft-State ist weiterhin room-gebunden und resettet bei Navigation
+- Risiko: Animation-Dropdown und Parameterwerte fallen bei Room-/Target-Wechsel auf Defaults zurueck.
+- Impact: Kritisch, Operator muss Werte bei jedem Room erneut setzen und verliert Arbeitsfluss.
+- Gegenmassnahme: board-/sessionweiter Draft-Store fuer Trigger-Voreinstellungen, explizite Reset-Strategie und Pflichttests fuer room-switch + post-start persistence.
+
+## R33 Cluster-UX bleibt read-only oder unvollstaendig
+- Risiko: Cluster sind zwar modelliert, koennen aber nicht robust im Operator-Flow erstellt/bearbeitet/geloescht werden.
+- Impact: Kritisch, zentrale Gruppensteuerung bleibt praktisch unbenutzbar.
+- Gegenmassnahme: vollstaendige CRUD-Flows inkl. Persistenz-/Validierungsregeln und Regression fuer Save/Reload/Restart.
+
+## R34 Cluster-Target-/Fanout-Pfad bleibt inkonsistent
+- Risiko: Cluster sind in `target` nicht stabil waehlbar oder starten nicht deterministisch in allen enthaltenen Rooms.
+- Impact: Kritisch, Trigger-Semantik ist unzuverlaessig und erzeugt Laufzeitdrift.
+- Gegenmassnahme: eindeutiges targetType-routing (`room|cluster`), fanout-verifizierte Startmatrix und Guard gegen Einzelraumklick-Regression.
+
+## R35 Stagger-Start verursacht Timing-Drift oder kollidiert mit Sync-Start
+- Risiko: randomisierter Startversatz ist nicht klar begrenzt oder wirkt versehentlich auch auf Einzelraumstarts.
+- Impact: Hoch, Operator verliert Kontrolle ueber erwartete Timing-Semantik.
+- Gegenmassnahme: explizite Option `stagger start` (on/off), begrenztes Delay-Fenster, getrennte Tests fuer `off=sync` und `on=staggered`.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
 - R23/R24/R25 bleiben ueber HF5-Evidenz geschlossen (`P6-T46-DRAG-PARITY.md`, `P6-T47-REGRESSION.md`).
 - R28 ist als optionaler UX-Risikopfad mit low-risk Umsetzung geschlossen (Text-Selection-Suppression nur im Room-Drag-Lifecycle).
 - R29/R30/R31 sind mit HF7 geschlossen: Edge-Bubble lifecycle parity + tombstone precedence gegen defaults rehydrate sind umgesetzt und in `P6-T59-REGRESSION.md` als PASS belegt.
+
+## Risk Update - HF8 Open (new mandatory feedback)
+- R32..R35 sind als neue P0/P1-Risiken aktiv und blockieren Plan 6-3 bis zur HF8-Closure.
+- Pflichtnachweis fuer Schliessung: kombinierte HF8-Matrix fuer Draft-Persistenz, Cluster-CRUD, target/fanout und stagger on/off ohne Guard-Regression.
+
+## Risk Update - HF8 Closed
+- R32 ist geschlossen: room draft selection + parameter values bleiben stabil ueber room/target switch und post-start.
+- R33/R34 sind geschlossen: cluster CRUD + target/fanout routing sind im Operator-Flow vollstaendig umgesetzt und board-spezifisch persistent.
+- R35 ist geschlossen: `stagger start` liefert klare On/Off-Semantik (`off=sync`, `on=short randomized delay`) ohne Single-Room-Regression.

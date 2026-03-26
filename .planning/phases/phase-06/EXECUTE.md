@@ -67,7 +67,14 @@
 4. P0 Abschluss: P6-T59 (HF7-Kombinationsmatrix dokumentieren: insert-vertex flow + delete persistence + empty-space/play-area guards + move parity).
 5. P0 Abschluss: P6-T60 (HF7-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
-## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF7)
+## Priority Execution - Plan 6-HF8 (verbindlich, P0-Hotfix vor 6-3)
+1. P0 zuerst: P6-T61..P6-T62 (Room-Animation-Draft persistieren: Dropdown + Parameter bleiben ueber Room-/Target-Wechsel und Trigger-Start stabil).
+2. P0 danach: P6-T63 (Cluster-CRUD im Operator-Flow liefern: create/edit/delete fuer beliebige Room-Mengen inkl. Persistenz).
+3. P0 danach: P6-T64 (Target-Flow vervollstaendigen: Cluster als Ziel waehlbar und Fanout-Start fuer alle Cluster-Rooms).
+4. P0 danach: P6-T65 (`stagger start` pro Trigger integrieren: off synchron, on kurzer randomisierter Versatz je Room).
+5. P0 Abschluss: P6-T66 (HF8-Kombinationsmatrix + Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF8)
 1. P1 zuerst: P6-T14 (Import-Konfliktstrategie finalisieren und Operator-Feedback absichern).
 2. P1 danach: P6-T15..P6-T16 (Negativtests + Multi-Board-Soak fuer Import/Cluster/Migration).
 3. P1 Abschluss: P6-T17 (formale Operator-E2E-Abnahme im Realsetup).
@@ -104,7 +111,12 @@
 - Kein Weitergehen zu P6-T57+, bevor P6-T56 stabile Edge-Selection fuer Insert-Vertex ohne Re-Select bestaetigt.
 - Kein Weitergehen zu P6-T59+, bevor P6-T58 Tombstone-Prioritaet gegen Defaults-Rehydrate bei Reload/Restart/Defaults-Apply bestaetigt.
 - Kein Weitergehen zu P6-T60+, bevor P6-T59 die HF7-Kombinationsmatrix artefaktbasiert als PASS nachweist.
-- Kein Weitergehen zu P6-T14+, bevor P6-T60 den HF7-Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T61+, bevor P6-T60 den HF7-Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T63+, bevor P6-T62 Draft-Persistenz fuer Animation + Parameter ueber room/target switch + post-start nachweist.
+- Kein Weitergehen zu P6-T64+, bevor P6-T63 Cluster-CRUD mit board-spezifischer Persistenz regressionsfrei bestaetigt.
+- Kein Weitergehen zu P6-T65+, bevor P6-T64 target/fanout fuer Cluster ohne Einzelraumklick-Regression bestaetigt.
+- Kein Weitergehen zu P6-T66+, bevor P6-T65 `stagger start` on/off-Semantik (`off=sync`, `on=random short delay`) regressionsfrei bestaetigt.
+- Kein Weitergehen zu P6-T14+, bevor P6-T66 die HF8-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
 - Kein Phase-6-Exit ohne Migration-Idempotenznachweis und Reload/Restart-Paritaet.
 
 ## Update Rules
@@ -122,3 +134,12 @@
 - Edge-bubble pointer lifecycle parity is closed: edge click keeps persistent room selection and preserves active edge for insert-vertex without dropdown reselect.
 - Room deletion persistence is hardened via board-scoped tombstones (`deletedRoomIds`) with defaults-merge precedence (`tombstone > defaults`).
 - Combined HF7 evidence is PASS in `P6-T59-REGRESSION.md`; Plan 6-3 is unblocked.
+
+## Plan Update - 6-HF8 Execute-Ready (P0)
+- New mandatory feedback adds a new gate before hardening: room animation draft values must not reset on room switch and cluster UX/flow must support CRUD + stagger start.
+- Plan 6-3 is postponed until HF8 passes with combined regression evidence and artifact sync.
+
+## Execution Update - 6-HF8 Completed (P0)
+- Draft persistence is closed: room animation draft selection + parameters remain stable across room/target switch and post-start flows.
+- Cluster UX is closed: Settings now supports cluster create/edit/delete with board-scoped persistence and refreshed room/cluster target options.
+- Cluster start semantics are closed: optional `stagger start` is implemented (`off = synchronous`, `on = short randomized offset`); combined evidence PASS in `P6-T66-REGRESSION.md`.

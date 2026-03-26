@@ -13,6 +13,7 @@
 - Click-Without-Move Persistence Re-Regression Hotfix
 - Vertex Selection Lifecycle Regression Hotfix
 - Edge-Bubble Arbitration + Room Deletion Tombstone Hotfix
+- Draft Persistence + Cluster UX Completion Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -76,6 +77,13 @@
 - P6-S13.3 Room-Delete-Persistenz absichern: Tombstone-/Deletion-Semantik im board-spezifischen Room-Katalog einfuehren.
 - P6-S13.4 Defaults-Merge/Overlay-Guard liefern: Global-Defaults-Rehydrate darf geloeschte Rooms nicht wiederherstellen; bestehende Move/Update-Persistenz bleibt intakt.
 - P6-S13.5 HF7-Kombinations-Regression + Artefakt-Sync abschliessen (Insert-Vertex flow + delete persistence + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S14.1 Draft-Persistenz fuer Room-Animationen absichern: zuletzt gewaehltes Animationstemplate bleibt bei Room-/Target-Wechsel als aktive Voreinstellung erhalten.
+- P6-S14.2 Parameter-Persistenz absichern: aktuelle Triggerwerte (`speed`, `opacity`, `soundVolume`, weitere Parameter) bleiben ueber Room-Wechsel und Trigger-Starts als Draft-Voreinstellung erhalten.
+- P6-S14.3 Cluster-UX vervollstaendigen: Cluster create/edit/delete im Operator-Flow fuer beliebige Room-Mengen liefern (board-spezifisch persistiert).
+- P6-S14.4 Target-Flow vervollstaendigen: Cluster als Ziel waehlbar halten und Cluster-Start fuer alle enthaltenen Rooms stabil ausfuehren.
+- P6-S14.5 Trigger-Option `stagger start` liefern: pro Trigger optional kurzer randomisierter Room-Startversatz; deaktiviert = synchroner Start.
+- P6-S14.6 HF8-Kombinations-Regression + Artefakt-Sync abschliessen (draft persistence + cluster CRUD + sync/staggered start + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -173,7 +181,17 @@
 - Story P6-S13.5.
   - Ziel: kombinierte HF7-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF7)
+## Priorisierte Hotfix-Welle 8 (P0) - Plan 6-HF8 execute-ready
+- Story P6-S14.1 + P6-S14.2.
+  - Ziel: Room-Animation-Drafts (Dropdown + Parameter) bleiben ueber Room-/Target-Wechsel und Trigger-Starts stabil erhalten.
+- Story P6-S14.3 + P6-S14.4.
+  - Ziel: Cluster koennen erstellt/bearbeitet/geloescht werden und sind als vollwertiges `target` fuer Cluster-Starts nutzbar.
+- Story P6-S14.5.
+  - Ziel: `stagger start` ist pro Trigger schaltbar (`off` synchron, `on` kurzer randomisierter Versatz je Room).
+- Story P6-S14.6.
+  - Ziel: kombinierte HF8-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF8)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -189,3 +207,12 @@
 - Edge-bubble click no longer drops persistent room selection; active edge remains stable for insert-vertex without reselect.
 - Deleted rooms are now persisted as board-scoped tombstones and cannot be rehydrated by defaults merge/apply.
 - HF7 combined evidence is PASS (`P6-T59-REGRESSION.md`); backlog flow proceeds to Plan 6-3 hardening.
+
+## Plan Update - 6-HF8 inserted (P0)
+- Mandatory feedback introduces an additional P0 gate before hardening: draft values must persist across room switches and cluster UX/flow must support CRUD + staggered starts.
+- Backlog flow is updated to execute Plan 6-HF8 before Plan 6-3.
+
+## Execution Update - 6-HF8 completed (P0)
+- Room animation drafts are now session-persistent across room/target switches: selected animation and parameter sliders no longer reset implicitly.
+- Cluster UX is complete in Settings (create/edit/delete with board-scoped room assignment persistence), and target flow supports room/cluster selection with deterministic fanout.
+- Optional `stagger start` is active for cluster launches (`off = sync`, `on = short randomized delay`) with regression evidence in `P6-T66-REGRESSION.md`.
