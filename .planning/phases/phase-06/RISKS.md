@@ -225,6 +225,26 @@
 - Impact: Hoch bis kritisch, Controller und Final-Output laufen auf unterschiedlichen Boards/Layouts.
 - Gegenmassnahme: monotone Context-Version, stale-drop, deterministic replay nach `live-hello` und reconnect regression evidence.
 
+## R46 Running-Liste dupliziert Cluster-Starts als ROOM+CLUSTER
+- Risiko: bei Cluster-Start erscheinen zusaetzliche memberbezogene `ROOM`-Eintraege neben `CLUSTER`; Scope-Darstellung wird nicht deterministisch.
+- Impact: Kritisch, Operator verliert verlaessliche Scope-Kontrolle und Stop/Edit kann auf falschen sichtbaren Entry zielen.
+- Gegenmassnahme: kanonischen Cluster-Controller-Scope erzwingen (genau ein `CLUSTER`-Eintrag pro Trigger) und member-`ROOM`-Duplikate fuer denselben Run unterdruecken.
+
+## R47 CLUSTER-Entry ohne sichtbare Runtime-Wirkung
+- Risiko: nach Running-Dedupe bleibt nur `CLUSTER`, aber Member-Animationen rendern nicht oder verschwinden als no-op.
+- Impact: Kritisch, Cluster-Start wirkt fuer Operator wirkungslos trotz scheinbar laufendem Eintrag.
+- Gegenmassnahme: Controller-vs-member Trennung explizit modellieren; Rendering/Fanout muss alle Cluster-Member unveraendert ansteuern (sync + stagger).
+
+## R48 Cluster Stop/Edit propagiert nicht konsistent auf Member
+- Risiko: Stop/Edit auf `CLUSTER` aendert nur Teilmengen oder verliert einzelne Member-Instanzen.
+- Impact: Kritisch, Laufzeit driftet zwischen Running-Anzeige und effektiver Renderrealitaet.
+- Gegenmassnahme: run-kontextscharfe Member-Bindung (`clusterRunId`/`animation.id`) und verpflichtende Matrix fuer stop/edit propagation ueber alle Member.
+
+## R49 Cluster-Dedupe regressiert Room-Target-Pfade
+- Risiko: Fix fuer Cluster-running-dedupe beeinflusst unbeabsichtigt `targetType=room` (Start/Edit/Stop) und oeffnet alte Room-Regressionen.
+- Impact: Hoch bis kritisch, Kern-Operatorfluss fuer Einzelraeume wird instabil.
+- Gegenmassnahme: expliziter room-target non-regression guard in HF12 inkl. Vergleich gegen HF11-Baseline.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
@@ -268,3 +288,9 @@
 - R43 ist geschlossen: cluster edit/stop/cleanup now reconciles only the owning run context (`animation.id`/`parentClusterRunId`) and avoids cross-instance removals.
 - R44 ist geschlossen: board switch propagation is first-toggle deterministic across connected clients including `/output/final`.
 - R45 ist geschlossen: reconnect/inflight replay is stabilized via mutation-id dedup, stale context replay drop, and socket-generation ordering guards.
+
+## Risk Update - HF12 Closed
+- R46 ist geschlossen: running determinism now keeps cluster starts on a canonical single `CLUSTER` controller row without member-`ROOM` duplicates in the running list.
+- R47 ist geschlossen: deduped cluster controller path preserves full-member runtime effect (sync + stagger), including controller-first snapshot fallback safeguards.
+- R48 ist geschlossen: stop/edit propagation on `CLUSTER` remains run-context consistent across linked member instances.
+- R49 ist geschlossen: room-target path (`targetType=room`) remains non-regressed and deterministic under HF12 changes.

@@ -48,6 +48,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF11 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF10 und 6-3 gesetzt.
 - Ziel von 6-HF11: root-cause fuer Cluster-Lifecycle/Overwrite/Cleanup schliessen und serverautoritiven Board-Context-Sync (Ack/Version/Ordering/Reconnect) fuer alle Clients inkl. `/output/final` deterministisch haerten.
 
+## Hotfix Trigger (Neues verpflichtendes Feedback nach 6-HF11)
+- Neues verpflichtendes Feedback meldet weiterhin einen P0-Determinismus-Defekt beim Cluster-Start: Running-Liste ist inkonsistent (teils zusaetzliche ROOM-Eintraege, teils nur CLUSTER ohne sichtbare Wirkung).
+- Konsequenz: Plan 6-HF12 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF11 und 6-3 gesetzt.
+- Ziel von 6-HF12: Cluster-Start auf einen kanonischen `CLUSTER`-Controller-Eintrag determinisieren (keine ROOM-Duplikate), dabei Runtime-Fanout fuer alle Cluster-Member sichern und Stop/Edit-Semantik fuer Cluster-Member konsistent durchziehen, ohne Room-Target-Regression.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -94,6 +99,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Stop/Edit-Semantik fuer Cluster arbeitet auf dem Cluster-Scope-Eintrag deterministisch und beeinflusst die zugehoerigen Member-Instanzen konsistent, ohne bestehende Room/Global-Guards zu regressieren.
 - Cluster-Animation-Lifecycle ist parity-pflichtig zu Room-Animationen: hold-by-default, keine implizite Sofortentfernung, keine self-cancel cleanup races.
 - Cluster-Instanzen und Member-Instanzen werden instanzscharf verarbeitet (`animation.id`/run-context); Update/Stop/Cleanup duerfen nur den zugehoerigen Kontext mutieren.
+- Cluster-Start besitzt genau einen kanonischen Running-Scope-Eintrag `CLUSTER`; member-interne `ROOM`-Runs fuer denselben Trigger werden nicht als zusaetzliche Running-Zeilen exponiert.
+- Der kanonische `CLUSTER`-Eintrag bleibt reine Controller-Sicht: Rendering/Runtime-Fanout muss weiterhin alle Cluster-Member animieren (sync + `stagger start`) und darf durch Running-Dedupe nicht ausfallen.
+- Stop/Edit auf dem `CLUSTER`-Controller mutiert deterministisch alle zugeordneten Cluster-Member-Instanzen desselben Run-Kontexts.
+- Einzelraum-Target-Pfade (`targetType=room`) bleiben durch Cluster-Controller-Dedupe semantisch unveraendert.
 - Board-/Layout-Context ist serverautoritativ versioniert; `context-update` nutzt monotone Version + Ack und stale-drop fuer deterministic last-write.
 - Board-Switch wird als sofortiger Shared-State propagiert und auf Join/Reconnect deterministisch rehydriert, inklusive `/output/final` ohne Zusatzklick.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
@@ -164,6 +173,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Deterministische Propagation nachweisen: Board-Wechsel repliziert beim ersten Toggle sofort auf alle Clients inkl. `/output/final`, ohne Mehrfach-Toggle.
 - Regression fuer Cluster-Lifecycle + Board-Context-Sync + Join/Reconnect/Burst-Ordering als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF11-Stand synchronisieren und execute-ready halten.
+- Cluster-Controller-Dedupe-Hotfix liefern: pro Cluster-Start genau ein Running-Eintrag `CLUSTER`, keine zusaetzlichen member-`ROOM`-Eintraege fuer denselben Trigger.
+- Runtime-Fanout-Hotfix absichern: dedupter `CLUSTER`-Run muss weiterhin alle Cluster-Member sichtbar animieren (kein no-op/silent run).
+- Stop/Edit-Propagation-Hotfix liefern: Cluster-Aktionen am `CLUSTER`-Eintrag wirken deterministisch auf alle zugeordneten Member-Instanzen.
+- Regression fuer cluster single-entry running + full-member runtime effect + cluster stop/edit propagation + room-target non-regression als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF12-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -193,7 +207,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 19. Cluster-Fanout/Running-Scope-Hotfix ausrollen: Cluster-Start fanout fuer alle Member (sync + stagger) stabilisieren und Running-Scope `CLUSTER` mit dediziertem Eintrag/Farbkennung integrieren.
 20. Cluster-Lifecycle-Hotfix ausrollen: Cluster-Instanzen gegen vorzeitiges cleanup/overwrite haerten und hold-by-default-Paritaet zu Room-Animationen sichern.
 21. Board-Context-Sync-Hotfix ausrollen: serverautoritiven Board/Layout-Sync mit Ack/Version/Ordering/Reconnect fuer alle Clients inkl. `/output/final` deterministisch machen.
-22. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger + CLUSTER running scope + lifecycle/sync determinism) dokumentieren.
+22. Cluster-Controller-Scope-Hotfix ausrollen: Running-Liste auf single-entry `CLUSTER` determinisieren und Member-ROOM-Duplikate fuer denselben Trigger unterdruecken.
+23. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger + CLUSTER running scope + lifecycle/sync determinism + cluster single-entry determinism) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -220,7 +235,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 22. M22 Cluster Running Scope Hotfix: Running-Liste zeigt Cluster als eigenen Scope `CLUSTER` mit visueller Abgrenzung und konsistenter Stop/Edit-Semantik.
 23. M23 Cluster Lifecycle Stability Hotfix: Cluster-Animationen bleiben stabil hold-by-default ohne unerwartetes Selbstentfernen.
 24. M24 Board Context Determinism Hotfix: Board-Switch repliziert first-try deterministisch auf alle Clients inkl. `/output/final`.
-25. M25 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+25. M25 Cluster Controller Determinism Hotfix: Running-Liste zeigt pro Cluster-Start exakt einen `CLUSTER`-Eintrag bei weiterhin vollstaendigem Member-Rendering und konsistenter Stop/Edit-Propagation.
+26. M26 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -250,6 +266,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (Draft-Persistenz praezisiert: alles stabil ausser `target`, Room-Click-Autofill + always-manual target dropdown) wird als Plan 6-HF9 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Cluster-Start fanout nur erster Room + fehlender Cluster-Scope in Running-Liste) wird als Plan 6-HF10 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Cluster-Lifecycle instabil + nicht-deterministischer Board-Switch-Sync inkl. `/output/final`) wird als Plan 6-HF11 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Cluster-Start weiterhin inkonsistent: zusaetzliche ROOM-Eintraege oder CLUSTER ohne sichtbare Wirkung) wird als Plan 6-HF12 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -292,6 +309,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Stop/Edit fuer den `CLUSTER`-Eintrag arbeitet konsistent auf dem Cluster-Run und laesst bestehende Room/Global-Controls regressionsfrei.
 - Cluster-Animationen laufen stabil wie Room-Animationen (hold-by-default) und verschwinden nicht unmittelbar durch Cleanup-/Overwrite-Races.
 - Cluster-Lifecycle (start/edit/stop/cleanup) ist instanzscharf; nur zugehoerige Member-Instanzen werden mutiert/entfernt.
+- Running-Liste zeigt bei Cluster-Start deterministisch genau einen `CLUSTER`-Eintrag; zusaetzliche `ROOM`-Eintraege fuer denselben Trigger werden nicht erzeugt.
+- Der dedizierte `CLUSTER`-Eintrag hat trotz Dedupe sichtbare Runtime-Wirkung auf alle Cluster-Member-Raeume.
+- Stop/Edit auf dem `CLUSTER`-Eintrag wirkt konsistent auf alle zugeordneten Cluster-Member-Instanzen desselben Runs.
 - Board-Wechsel aus Settings repliziert beim ersten Toggle deterministisch auf alle Clients inkl. `/output/final`.
 - Serverautoritiver Board-Context-Sync nutzt Ack/Version/Ordering/Reconnect-Guards gegen stale apply und Kontextdrift.
 - `target` bleibt vom Draft-Persistenzvertrag ausgenommen: Room-Klick setzt `target` auto auf den geklickten Room, waehrend Animation + Parameter unveraendert bleiben.
@@ -356,3 +376,15 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Cluster-Edit/Stop arbeitet run-context-scharf: laufende Cluster-Runs werden in-place aktualisiert, Member-Reconciliation bleibt `animation.id`-gebunden ohne Fremdinstanzen zu entfernen.
 - Board-Context-Sync ist reconnect-stabil gehaertet: mutation-id-dedup, stale-context-replay-drop und socket-generation guards liefern first-toggle-deterministische Propagation inkl. `/output/final`.
 - HF11-Regressionsevidenz ist in `P6-T81-REGRESSION.md` als PASS dokumentiert; Gate vor Plan 6-3 ist geschlossen.
+
+## Plan Update - 6-HF12 Execute-Ready (P0)
+- Neues verpflichtendes Feedback nach HF11 setzt ein weiteres P0-Gate: Cluster-Start bleibt nicht deterministisch (teils zusaetzliche `ROOM`-Eintraege, teils nur `CLUSTER` ohne sichtbare Wirkung).
+- Running-Liste wird auf einen kanonischen Cluster-Controller-Eintrag gehaertet: pro Cluster-Trigger genau ein `CLUSTER`-Eintrag, keine memberbezogenen Doppelzeilen fuer denselben Trigger.
+- Runtime-Fanout/Rendering bleibt dabei verpflichtend member-vollstaendig; Stop/Edit auf `CLUSTER` propagiert konsistent auf alle Cluster-Member, Room-Target bleibt regressionsfrei.
+- HF12 wird vor Plan 6-3 ausgefuehrt; Hardening startet erst nach PASS fuer single-entry running determinism + full-member runtime effect + cluster stop/edit propagation + room-target non-regression und vollstaendigem Artefakt-Sync.
+
+## Execution Update - 6-HF12 Completed (P0)
+- HF12 ist umgesetzt: Running-Liste projiziert Cluster-Starts deterministisch als genau einen kanonischen `CLUSTER`-Controller-Eintrag ohne member-`ROOM`-Duplikate.
+- Runtime-Fanout bleibt vollstaendig wirksam (sync + stagger) auch unter dedupter Running-Projektion; controller-first Snapshot-Faelle behalten sichtbare Member-Wirkung.
+- Stop/Edit auf dem `CLUSTER`-Eintrag propagiert run-kontextscharf auf alle zugeordneten Member-Instanzen; room-target Pfad (`targetType=room`) bleibt unveraendert stabil.
+- HF12-Regressionsevidenz ist in `P6-T87-REGRESSION.md` (plus `P6-T86-ROOM-TARGET-REGRESSION.md`) als PASS dokumentiert; Gate vor Plan 6-3 ist geschlossen.

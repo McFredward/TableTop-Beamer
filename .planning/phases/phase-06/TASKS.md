@@ -110,7 +110,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T81 [P0] HF11-Regression dokumentieren: cluster lifecycle stability (start/edit/stop/clear-all), board-switch first-try propagation, reconnect/order burst matrix.
 - [x] DONE P6-T82 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF11-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF11)
+## Plan 6-HF12 - Cluster Deterministic Controller Scope Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T83 [P0] Running-Dedupe fixen: Cluster-Start erzeugt deterministisch genau einen `CLUSTER`-Eintrag und keine zusaetzlichen `ROOM`-Eintraege fuer denselben Trigger.
+- [x] DONE P6-T84 [P0] Runtime-Fanout entkoppeln: trotz Running-Dedupe animiert der `CLUSTER`-Run weiterhin alle gueltigen Cluster-Member-Raeume (sync + `stagger start`).
+- [x] DONE P6-T85 [P0] Stop/Edit-Semantik haerten: Aktionen auf dem `CLUSTER`-Eintrag wirken konsistent auf alle zugehoerigen Member-Instanzen.
+- [x] DONE P6-T86 [P0] Room-Target-Regression absichern: Einzelraum-Trigger/Edit/Stop bleiben unveraendert deterministisch funktionsfaehig.
+- [x] DONE P6-T87 [P0] HF12-Regression dokumentieren: running single-entry + full-member runtime effect + cluster stop/edit propagation + room-target non-regression.
+- [x] DONE P6-T88 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF12-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF12)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

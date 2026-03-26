@@ -17,6 +17,7 @@
 - Target Auto+Manual Parity Hotfix
 - Cluster Fanout + Running Scope Hotfix
 - Cluster Lifecycle + Board Context Determinism Hotfix
+- Cluster Controller Determinism Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -105,6 +106,13 @@
 - P6-S17.3 Serverautoritiven Board-Context-Sync haerten: `context-update` mit Ack/Version/Ordering (stale drop + deterministic last-write).
 - P6-S17.4 Join/Reconnect-/InFlight-Verhalten absichern: context-version replay fuer spaet joinende Clients inkl. `/output/final` ohne Mehrfach-Toggle.
 - P6-S17.5 HF11-Kombinations-Regression + Artefakt-Sync abschliessen (cluster lifecycle stability + board-switch determinism + reconnect/order matrix + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S18.1 Running-Dedupe determinisieren: Cluster-Start fuehrt genau einen kanonischen Running-Scope-Eintrag `CLUSTER` (keine memberbezogenen `ROOM`-Duplikate fuer denselben Trigger).
+- P6-S18.2 Runtime-Fanout absichern: dedupter `CLUSTER`-Controller startet/rendert weiterhin alle gueltigen Cluster-Member-Raeume (`sync` + `stagger`).
+- P6-S18.3 Stop-Semantik haerten: Stop auf `CLUSTER` wirkt deterministisch auf alle Member-Instanzen des zugehoerigen Cluster-Runs.
+- P6-S18.4 Edit-Semantik haerten: Edit auf `CLUSTER` bleibt run-kontextscharf und aktualisiert alle zugeordneten Member konsistent.
+- P6-S18.5 Room-Target-Non-Regression absichern: `targetType=room` bleibt unveraendert funktionsstabil trotz Cluster-Controller-Dedupe.
+- P6-S18.6 HF12-Kombinations-Regression + Artefakt-Sync abschliessen (single-entry running + full-member runtime effect + cluster stop/edit propagation + room-target guard + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -238,7 +246,19 @@
 - Story P6-S17.5.
   - Ziel: kombinierte HF11-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF11)
+## Priorisierte Hotfix-Welle 12 (P0) - Plan 6-HF12 execute-ready
+- Story P6-S18.1.
+  - Ziel: Running-Liste ist bei Cluster-Start deterministisch auf exakt einen `CLUSTER`-Eintrag begrenzt.
+- Story P6-S18.2.
+  - Ziel: dedupter `CLUSTER`-Eintrag animiert weiterhin alle Cluster-Member robust (sync + stagger).
+- Story P6-S18.3 + P6-S18.4.
+  - Ziel: Stop/Edit auf `CLUSTER` propagiert konsistent auf alle Cluster-Member-Instanzen desselben Run-Kontexts.
+- Story P6-S18.5.
+  - Ziel: Room-Target-Flow bleibt unveraendert regressionsfrei.
+- Story P6-S18.6.
+  - Ziel: kombinierte HF12-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF12)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -294,3 +314,13 @@
 - Cluster edit/stop semantics are now run-context isolated: edits stay in-place on the same cluster run and member cleanup/removal is `animation.id`-scoped.
 - Board context determinism is hardened: reconnect replay uses stale-context drop + mutation-id dedup and socket ordering guards, so first-toggle board propagation remains deterministic across controllers and `/output/final`.
 - Combined HF11 evidence is PASS in `P6-T81-REGRESSION.md`; backlog flow proceeds to Plan 6-3 hardening.
+
+## Plan Update - 6-HF12 inserted (P0)
+- Mandatory feedback introduces another P0 gate before hardening: cluster start is still non-deterministic in the running list (extra member `ROOM` rows or only `CLUSTER` row without visible member animation effect).
+- Backlog flow is updated to execute Plan 6-HF12 before Plan 6-3 with strict closure on single-entry `CLUSTER` running determinism, full-member runtime effect, and consistent cluster stop/edit propagation plus room-target non-regression.
+
+## Execution Update - 6-HF12 completed (P0)
+- Running list determinism is closed: cluster starts now expose a canonical single `CLUSTER` controller row without member `ROOM` duplicates.
+- Cluster runtime fanout remains member-complete under deduped running projection (sync + stagger), including cluster-only fallback rendering safeguards.
+- Cluster stop/edit propagation remains run-context consistent across all linked members; room-target flow is unchanged and documented as non-regression.
+- Combined HF12 evidence is PASS in `P6-T87-REGRESSION.md` with room-path guard evidence in `P6-T86-ROOM-TARGET-REGRESSION.md`; backlog flow proceeds to Plan 6-3 hardening.

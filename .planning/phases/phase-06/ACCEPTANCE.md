@@ -25,6 +25,10 @@
 - Cluster-running-scope-integrity: Running-Liste fuehrt Cluster-Starts als dedizierten Scope `CLUSTER` (eigener Eintrag + visuelle Farbtrennung) inkl. konsistenter Stop/Edit-Semantik.
 - Cluster-lifecycle-stability-integrity: Cluster-Animationen folgen Room-Paritaet (hold-by-default), ohne vorzeitiges Selbstentfernen durch cleanup/overwrite races.
 - Cluster-context-isolation-integrity: Cluster-Start/Edit/Stop/Cleanup wirken nur auf den zugehoerigen run-context (`animation.id`) und entfernen keine fremden Member-Instanzen.
+- Cluster-running-dedup-integrity: pro Cluster-Start existiert in Running deterministisch genau ein `CLUSTER`-Eintrag; memberbezogene `ROOM`-Duplikate fuer denselben Trigger sind unzulaessig.
+- Cluster-controller-runtime-integrity: der `CLUSTER`-Eintrag bleibt ein Controller-Scope mit sichtbarer Wirkung auf alle Cluster-Member-Raeume (kein no-op trotz Dedupe).
+- Cluster-stop-edit-propagation-integrity: Stop/Edit am `CLUSTER`-Eintrag propagiert konsistent auf alle zugeordneten Member-Instanzen des Cluster-Runs.
+- Room-target-non-regression-integrity: room-basierte Trigger/Edit/Stop-Semantik bleibt durch Cluster-Dedupe unveraendert deterministisch.
 - Board-context-determinism-integrity: Board-Wechsel repliziert beim ersten Toggle deterministisch auf alle Clients inkl. `/output/final`.
 - Board-context-versioning-integrity: context-mutations sind serverautoritativ versioniert (ack + ordering + stale drop) und bleiben bei Join/Reconnect driftfrei.
 
@@ -99,6 +103,12 @@
 - Cluster-Hold-By-Default-Stability-Test: neu gestartete Cluster-Animationen bleiben stabil aktiv (kein unmittelbares Verschwinden nach ~1s) bis explizitem Stop/Ablauf.
 - Cluster-Cleanup-Isolation-Test: lifecycle-cleanup (edit/stop/clear-all/expiry) entfernt nur zugehoerige Cluster-Kontexte; parallele Room-/Cluster-Instanzen bleiben intakt.
 - Cluster-Overwrite-Race-Test: schnelle Trigger/Edit-Folgen auf demselben Cluster ueberschreiben keine fremden Member-Instanzen und erzeugen keine self-cancel races.
+- Cluster-Running-Single-Entry-Test: jeder Cluster-Start erzeugt exakt einen Running-Eintrag mit Scope `CLUSTER`.
+- Cluster-Running-No-Member-Room-Duplicate-Test: fuer denselben Cluster-Trigger erscheinen keine zusaetzlichen memberbezogenen `ROOM`-Eintraege in Running.
+- Cluster-Controller-Full-Member-Effect-Test: trotz single-entry Running werden alle Cluster-Member sichtbar animiert (sync + stagger).
+- Cluster-Stop-Propagation-All-Members-Test: Stop auf `CLUSTER` beendet alle zugehoerigen Member-Instanzen des Runs konsistent.
+- Cluster-Edit-Propagation-All-Members-Test: Edit auf `CLUSTER` aktualisiert alle zugeordneten Member-Instanzen ohne run-context Drift.
+- Room-Target-Non-Regression-Test: room-basierte Trigger/Edit/Stop-Pfade bleiben gegenueber HF11 unveraendert stabil.
 - Board-Switch-First-Toggle-Propagation-Test: Board-Wechsel in Settings repliziert beim ersten Toggle auf alle verbundenen Controller und `/output/final`.
 - Board-Context-Ack-Version-Ordering-Test: `context-update` acked mit monotoner Version; stale/out-of-order updates werden verworfen und finaler Zustand bleibt deterministic last-write.
 - Board-Context-Reconnect-Replay-Test: nach Disconnect/Reconnect und InFlight-Mutationen wird aktueller Board/Layout-Kontext ohne Mehrfach-Toggle korrekt rehydriert.
@@ -156,9 +166,14 @@
 - Nach P6-T77..P6-T78: Cluster-Lifecycle ist hold-by-default stabil; cleanup/overwrite arbeitet instanzscharf ohne vorzeitige Selbstentfernung.
 - Nach P6-T79..P6-T80: Board-Context-Sync repliziert first-try-deterministisch (Ack/Version/Ordering/Reconnect) auf alle Rollen inkl. `/output/final`.
 - Nach P6-T81..P6-T82: HF11-Kombinationsmatrix ist PASS, Artefakte sind HF11-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T83: Running-Liste ist fuer Cluster-Starts single-entry-deterministisch (`CLUSTER` only, keine member-`ROOM`-Duplikate).
+- Nach P6-T84: Cluster-Controller-Run zeigt trotz Dedupe vollstaendige sichtbare Runtime-Wirkung in allen Cluster-Membern.
+- Nach P6-T85: Stop/Edit auf `CLUSTER` propagiert run-kontextscharf auf alle zugeordneten Member-Instanzen.
+- Nach P6-T86: room-basierte Trigger/Edit/Stop-Pfade bleiben regressionsfrei und deterministisch unveraendert.
+- Nach P6-T87..P6-T88: HF12-Kombinationsmatrix ist PASS, Artefakte sind HF12-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66, P6-T67..P6-T71, P6-T72..P6-T76 und P6-T77..P6-T82 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66, P6-T67..P6-T71, P6-T72..P6-T76, P6-T77..P6-T82 und P6-T83..P6-T88 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -197,6 +212,10 @@
 - Stop/Edit auf `CLUSTER`-Eintraegen arbeitet konsistent fuer Cluster-Run-Kontext ohne Regression bei Room/Global-Guards.
 - Cluster-Animationen sind lifecycle-stabil und verhalten sich wie Room-Animationen (hold-by-default, kein ungewolltes Frueh-Cleanup).
 - Cluster-Cleanup/Edit/Stop/Overwrite wirken instanzscharf auf den zugehoerigen run-context und entfernen keine fremden Member-Instanzen.
+- Running-Liste bleibt bei Cluster-Start deterministisch single-entry (`CLUSTER`), ohne zusaetzliche member-`ROOM`-Eintraege fuer denselben Trigger.
+- Der single-entry `CLUSTER`-Run animiert trotzdem alle Cluster-Member-Raeume sichtbar und vollstaendig (sync + stagger).
+- Stop/Edit auf dem `CLUSTER`-Eintrag propagiert konsistent auf alle zugeordneten Member-Instanzen desselben Run-Kontexts.
+- Room-Target-Flow (`targetType=room`) bleibt durch Cluster-running-dedupe unveraendert regressionsfrei.
 - Board-Wechsel aus Settings repliziert first-try deterministisch auf alle Clients inkl. `/output/final`.
 - Board-Context-Sync bleibt unter Ack/Version/Ordering/Reconnect driftfrei; stale Kontext-Events werden nicht angewendet.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
@@ -230,3 +249,8 @@
 ## Evidence Update - HF11 Completed
 - HF11-Nachweis ist erbracht: `P6-T81-REGRESSION.md` dokumentiert PASS fuer cluster lifecycle hold-stability, run-context cleanup/edit/stop isolation und board-context determinism (first-toggle + reconnect/order replay).
 - Das HF11-Pflichtgate vor Plan 6-3 ist geschlossen.
+
+## Evidence Update - HF12 Completed
+- HF12-Nachweis ist erbracht: `P6-T87-REGRESSION.md` dokumentiert PASS fuer running single-entry determinism (`CLUSTER` only), full-member runtime effect und run-kontextscharfe cluster stop/edit propagation.
+- Room-target non-regression ist zusaetzlich mit `P6-T86-ROOM-TARGET-REGRESSION.md` dokumentiert.
+- Das HF12-Pflichtgate vor Plan 6-3 ist geschlossen.
