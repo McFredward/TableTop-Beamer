@@ -37,7 +37,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T26 [P0] Serverseitige Apply-Logik fuer Outside `direction`/`mode` und Room-Animation-Aktionen idempotent + autoritativ haerten.
 - [x] DONE P5-T27 [P0] Sofortige Broadcast-Bestaetigung je Mutation einziehen (Ack mit Mutation-ID/Version) und Client-Apply daran binden.
 - [x] DONE P5-T28 [P0] Ordering/Versioning fuer schnelle Toggle-Folgen robust machen (monotone Version, stale-drop, deterministic last-write).
-- [ ] TODO P5-T29 [P0] Join/Reconnect + Inflight-Synchronisierung absichern (Snapshot + letzte bestaetigte Version ohne Drift).
+- [x] DONE P5-T29 [P0] Join/Reconnect + Inflight-Synchronisierung absichern (Snapshot + letzte bestaetigte Version ohne Drift).
 - [ ] TODO P5-T30 [P0] Regressiontests fuer Single-Click-Sync ergaenzen: Outside mode/direction sowie Room trigger/edit/stop/clear-all.
 - [ ] TODO P5-T31 [P0] Hotfix-Abnahme dokumentieren (Mehrfachklick-Negativtest, Burst-Toggle-Soak, 3-Client-Paritaet).
 

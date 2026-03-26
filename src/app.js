@@ -287,9 +287,23 @@ const liveSync = {
   lastAckAt: null,
   lastAckedMutationId: null,
   lastAckedVersion: 0,
+  lastSessionVersion: 0,
   nextClientSequence: 1,
   pendingMutations: new Map(),
 };
+
+function replayPendingLiveMutations() {
+  if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  const pendingEntries = [...liveSync.pendingMutations.values()].sort((a, b) => a.clientSequence - b.clientSequence);
+  for (const entry of pendingEntries) {
+    if (!entry?.wirePayload) {
+      continue;
+    }
+    liveSync.socket.send(entry.wirePayload);
+  }
+}
 
 function getAnimationStartedAtEpochMs(animation) {
   if (Number.isFinite(animation?.startedAtEpochMs)) {
@@ -342,19 +356,26 @@ function emitLiveMutation(mutationType, payload = {}) {
     mutationType,
     queuedAt: Date.now(),
     clientSequence,
+    wirePayload: null,
   });
-  liveSync.socket.send(
-    JSON.stringify({
-      type: "live-mutation",
-      mutationId,
-      clientSequence,
-      mutationType,
-      payload: {
-        ...payload,
-        runtime: buildRuntimeSnapshotForLiveSync(),
-      },
-    }),
-  );
+  const wirePayload = JSON.stringify({
+    type: "live-mutation",
+    mutationId,
+    clientSequence,
+    mutationType,
+    payload: {
+      ...payload,
+      baseVersion: liveSync.lastSessionVersion,
+      runtime: buildRuntimeSnapshotForLiveSync(),
+    },
+  });
+  liveSync.pendingMutations.set(mutationId, {
+    mutationType,
+    queuedAt: Date.now(),
+    clientSequence,
+    wirePayload,
+  });
+  liveSync.socket.send(wirePayload);
 }
 
 function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settings") {
@@ -381,10 +402,13 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   });
 }
 
-function applyLiveRuntimeSnapshot(snapshot) {
+function applyLiveRuntimeSnapshot(snapshot, { version = null } = {}) {
+  if (Number.isFinite(version) && Number(version) < liveSync.lastSessionVersion) {
+    return false;
+  }
   const runtime = snapshot?.runtime;
   if (!runtime || typeof runtime !== "object") {
-    return;
+    return false;
   }
   const sharedOutsideFxByBoard =
     snapshot?.outsideFxByBoard && typeof snapshot.outsideFxByBoard === "object"
@@ -433,6 +457,10 @@ function applyLiveRuntimeSnapshot(snapshot) {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   renderRoomOverlay();
+  if (Number.isFinite(version)) {
+    liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, Number(version));
+  }
+  return true;
 }
 
 function connectLiveSyncSocket() {
@@ -447,7 +475,10 @@ function connectLiveSyncSocket() {
         const payload = JSON.parse(event.data);
         if (payload?.type === "live-hello") {
           liveSync.clientId = payload.clientId ?? null;
-          applyLiveRuntimeSnapshot(payload?.session?.snapshot);
+          applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
+            version: payload?.session?.version,
+          });
+          replayPendingLiveMutations();
         }
         if (payload?.type === "live-ack") {
           liveSync.lastAckAt = Date.now();
@@ -456,11 +487,15 @@ function connectLiveSyncSocket() {
             liveSync.lastAckedMutationId = payload.mutationId;
           }
           if (Number.isFinite(payload?.version)) {
-            liveSync.lastAckedVersion = Math.max(liveSync.lastAckedVersion, Number(payload.version));
+            const version = Number(payload.version);
+            liveSync.lastAckedVersion = Math.max(liveSync.lastAckedVersion, version);
+            liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
           }
         }
         if (payload?.type === "live-session-update") {
-          applyLiveRuntimeSnapshot(payload?.session?.snapshot);
+          applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
+            version: payload?.session?.version,
+          });
         }
       } catch {
         // ignore malformed live-sync payloads
