@@ -11,9 +11,9 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T5 [P0] Runtime-Pfade fuer Boarddaten generalisieren (Render/Selection/Profile anhand boardId aus Katalog aufloesen).
 
 - [x] DONE P6-T6 [P0] Room-Cluster-Domain + Persistenzmodell einfuehren (`clusterId`, `name`, `roomIds`, board-spezifisch).
-- [ ] TODO P6-T7 [P0] Dropdown-Zielliste auf `room` + `cluster` erweitern und UI-Darstellung eindeutig kennzeichnen.
-- [ ] TODO P6-T8 [P0] Cluster-Trigger/Edit-Fanout implementieren (Animationsstart fuer alle Cluster-Raeume, Running-Liste instanzscharf konsistent).
-- [ ] TODO P6-T9 [P0] Einzelraum-Klickguard absichern: Board-Klick selektiert weiterhin nur den einzelnen Raum ohne implizite Cluster-Selektion.
+- [x] DONE P6-T7 [P0] Dropdown-Zielliste auf `room` + `cluster` erweitern und UI-Darstellung eindeutig kennzeichnen.
+- [x] DONE P6-T8 [P0] Cluster-Trigger/Edit-Fanout implementieren (Animationsstart fuer alle Cluster-Raeume, Running-Liste instanzscharf konsistent).
+- [x] DONE P6-T9 [P0] Einzelraum-Klickguard absichern: Board-Klick selektiert weiterhin nur den einzelnen Raum ohne implizite Cluster-Selektion.
 
 - [ ] TODO P6-T10 [P0] English-only Sweep fuer UI-Texte/Labels/Statusmeldungen im Operator-Flow umsetzen.
 - [ ] TODO P6-T11 [P0] Relevante Logs/Errors und README-/Operator-Hinweise auf Englisch vereinheitlichen.
