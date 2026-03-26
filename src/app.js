@@ -4546,6 +4546,9 @@ function playSoundForAnimation(animation) {
   if (!animation || !isAudioPlaybackAllowed()) {
     return;
   }
+  if (animation.scope === "cluster") {
+    return;
+  }
   const startDelayMs = Math.max(0, Math.ceil((Number(animation.startedAt) || 0) - performance.now()));
   if (startDelayMs > 0) {
     stopAnimationSound(animation.id);
@@ -5616,11 +5619,17 @@ function getClusterMemberAnimationIds(clusterAnimation) {
   if (!clusterAnimation || clusterAnimation.scope !== "cluster") {
     return [];
   }
-  return Array.isArray(clusterAnimation.memberAnimationIds)
+  const directMembers = Array.isArray(clusterAnimation.memberAnimationIds)
     ? clusterAnimation.memberAnimationIds
       .map((animationId) => String(animationId || "").trim())
       .filter(Boolean)
     : [];
+  if (directMembers.length > 0) {
+    return directMembers;
+  }
+  return state.runningAnimations
+    .filter((entry) => entry?.scope === "room" && entry?.parentClusterRunId === clusterAnimation.id)
+    .map((entry) => entry.id);
 }
 
 function syncRoomTargetSelect() {
@@ -5988,9 +5997,34 @@ function startRoomAnimationFromDraft() {
 
 function stopAnimation(animationId) {
   const target = state.runningAnimations.find((item) => item.id === animationId) ?? null;
-  stopAnimationSound(animationId);
-  state.runningAnimations = state.runningAnimations.filter((item) => item.id !== animationId);
-  if (state.roomDraft.editTargetId === animationId) {
+  if (!target) {
+    return;
+  }
+  const idsToStop = new Set([animationId]);
+  if (target.scope === "cluster") {
+    for (const memberId of getClusterMemberAnimationIds(target)) {
+      idsToStop.add(memberId);
+    }
+  }
+  if (target.scope === "room" && target.parentClusterRunId) {
+    const parentCluster = state.runningAnimations.find(
+      (entry) => entry?.id === target.parentClusterRunId && entry?.scope === "cluster",
+    );
+    if (parentCluster) {
+      parentCluster.memberAnimationIds = getClusterMemberAnimationIds(parentCluster)
+        .filter((memberId) => memberId !== target.id);
+      parentCluster.memberRoomIds = (Array.isArray(parentCluster.memberRoomIds) ? parentCluster.memberRoomIds : [])
+        .filter((roomId) => roomId !== target.roomId);
+      if (parentCluster.memberAnimationIds.length === 0) {
+        idsToStop.add(parentCluster.id);
+      }
+    }
+  }
+  for (const id of idsToStop) {
+    stopAnimationSound(id);
+  }
+  state.runningAnimations = state.runningAnimations.filter((item) => !idsToStop.has(item.id));
+  if (state.roomDraft.editTargetId && idsToStop.has(state.roomDraft.editTargetId)) {
     clearRoomDraftEditTarget();
   }
   if (target?.scope === "global" && target.type === "outside-space") {
@@ -6002,24 +6036,37 @@ function stopAnimation(animationId) {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
-  emitLiveMutation("stop-animation", {
-    animationId,
-  });
+  for (const id of idsToStop) {
+    emitLiveMutation("stop-animation", {
+      animationId: id,
+    });
+  }
 }
 
 function editAnimation(animationId) {
   const animation = state.runningAnimations.find((item) => item.id === animationId);
-  if (!animation || animation.scope !== "room" || !isRoomAnimationType(animation.type)) {
+  if (!animation || (animation.scope !== "room" && animation.scope !== "cluster") || !isRoomAnimationType(animation.type)) {
     return;
   }
   switchBoard(animation.boardId, {
     emitLiveContext: true,
     reason: "edit-room-focus",
   });
-  state.selectedRoomId = animation.roomId;
-  state.selectedRoomByBoard[animation.boardId] = animation.roomId;
-  state.roomDraft.targetType = "room";
-  state.roomDraft.targetId = animation.roomId;
+  const isClusterScope = animation.scope === "cluster";
+  const clusterTarget = isClusterScope
+    ? getClusterTargetById(animation.clusterId, animation.boardId)
+    : null;
+  const fallbackRoomId = isClusterScope
+    ? clusterTarget?.roomIds?.[0] ?? null
+    : animation.roomId;
+  state.selectedRoomId = fallbackRoomId;
+  if (fallbackRoomId) {
+    state.selectedRoomByBoard[animation.boardId] = fallbackRoomId;
+  }
+  state.roomDraft.targetType = isClusterScope ? "cluster" : "room";
+  state.roomDraft.targetId = isClusterScope
+    ? (clusterTarget?.clusterId ?? animation.clusterId ?? null)
+    : animation.roomId;
   state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.opacity = clampRoomOpacity(animation.opacity ?? 0.9);
@@ -6030,6 +6077,9 @@ function editAnimation(animationId) {
   state.roomDraft.durationSec = animation.durationMs
     ? clampRoomDurationSec(Math.round(animation.durationMs / 1000))
     : 18;
+  state.roomDraft.staggerStart = isClusterScope
+    ? animation.clusterStartMode === "staggered"
+    : state.roomDraft.staggerStart;
   state.roomDraft.hold = true;
 
   roomAnimationSelect.value = state.roomDraft.animationId;
@@ -6045,11 +6095,14 @@ function editAnimation(animationId) {
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
   roomHoldInput.checked = true;
+  if (roomStaggerStartInput) {
+    roomStaggerStartInput.checked = state.roomDraft.staggerStart;
+  }
   syncRoomDraftActionButton();
 
   syncRoomPanelFromSelection({ preserveDraftState: true });
   renderRoomOverlay();
-  triggerFeedback.textContent = `Status: ${animation.id} loaded into editor`;
+  triggerFeedback.textContent = `Status: ${animation.id} loaded into editor${isClusterScope ? " (cluster)" : ""}`;
 }
 
 function renderRunningAnimationsList() {
@@ -6071,11 +6124,16 @@ function renderRunningAnimationsList() {
     title.className = "running-title";
     const effectLabel = ROOM_ANIMATIONS.find((item) => item.id === anim.type)?.label ?? anim.type;
     const animationBoard = getBoard(anim.boardId);
-    const roomLabel =
-      anim.scope === "room"
-        ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
+    const roomLabel = anim.scope === "room"
+      ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
+      : anim.scope === "cluster"
+        ? anim.clusterName ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name ?? anim.clusterId ?? "Cluster"
         : "Global";
-    const scopeLabel = anim.scope === "room" ? "ROOM" : getGlobalCategoryRuntimeLabel(anim.type);
+    const scopeLabel = anim.scope === "room"
+      ? "ROOM"
+      : anim.scope === "cluster"
+        ? "CLUSTER"
+        : getGlobalCategoryRuntimeLabel(anim.type);
     const scopeBadge = document.createElement("span");
     scopeBadge.className = `running-scope-badge running-scope-badge-${scopeLabel.toLowerCase()}`;
     scopeBadge.textContent = scopeLabel;
@@ -6090,6 +6148,11 @@ function renderRunningAnimationsList() {
       ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
         clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
       )}%`
+      : anim.scope === "cluster"
+        ? ` | Cluster: ${anim.clusterName ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name ?? anim.clusterId ?? "unknown"} | Members: ${Math.max(
+          0,
+          getClusterMemberAnimationIds(anim).length,
+        )} | Start: ${(anim.clusterStartMode ?? "synchronous") === "staggered" ? "staggered" : "synchronous"}`
       : "";
     meta.textContent = `Instance: ${anim.id} | Type: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Remaining: ${remaining}`;
 
@@ -6107,7 +6170,7 @@ function renderRunningAnimationsList() {
     });
     actions.append(stopButton);
 
-    if (anim.scope === "room") {
+    if (anim.scope === "room" || anim.scope === "cluster") {
       const editButton = document.createElement("button");
       editButton.type = "button";
       editButton.textContent = "Edit";
@@ -6761,8 +6824,19 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
 function pruneFinishedAnimations(now) {
   const before = state.runningAnimations.length;
+  const activeClusterIds = new Set(
+    state.runningAnimations
+      .filter((entry) => entry?.scope === "cluster")
+      .map((entry) => entry.id),
+  );
   state.runningAnimations = state.runningAnimations.filter((anim) => {
+    if (anim.scope === "cluster") {
+      return true;
+    }
     if (anim.scope === "room") {
+      if (anim.parentClusterRunId && !activeClusterIds.has(anim.parentClusterRunId)) {
+        return false;
+      }
       const board = getBoard(anim.boardId);
       const hasRoom = board.rooms.some((room) => room.id === anim.roomId);
       if (!hasRoom) {
@@ -6773,6 +6847,28 @@ function pruneFinishedAnimations(now) {
       return true;
     }
     return now - anim.startedAt < anim.durationMs;
+  });
+  const activeRoomByCluster = new Map();
+  for (const anim of state.runningAnimations) {
+    if (anim.scope !== "room" || !anim.parentClusterRunId) {
+      continue;
+    }
+    if (!activeRoomByCluster.has(anim.parentClusterRunId)) {
+      activeRoomByCluster.set(anim.parentClusterRunId, []);
+    }
+    activeRoomByCluster.get(anim.parentClusterRunId).push(anim);
+  }
+  state.runningAnimations = state.runningAnimations.filter((anim) => {
+    if (anim.scope !== "cluster") {
+      return true;
+    }
+    const members = activeRoomByCluster.get(anim.id) ?? [];
+    if (members.length === 0) {
+      return false;
+    }
+    anim.memberAnimationIds = members.map((entry) => entry.id);
+    anim.memberRoomIds = members.map((entry) => entry.roomId);
+    return true;
   });
 
   if (before !== state.runningAnimations.length) {

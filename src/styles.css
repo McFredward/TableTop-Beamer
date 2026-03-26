@@ -514,6 +514,12 @@ input[type="number"] {
   background: rgba(31, 73, 118, 0.48);
 }
 
+.running-scope-badge-cluster {
+  border-color: rgba(228, 180, 255, 0.8);
+  background: rgba(94, 39, 136, 0.5);
+  color: #f5dcff;
+}
+
 .running-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
