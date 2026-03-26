@@ -7657,13 +7657,10 @@ roomTargetSelect?.addEventListener("change", () => {
   }
   state.roomDraft.targetType = parsed.targetType;
   state.roomDraft.targetId = parsed.targetId;
-  if (parsed.targetType === "room") {
-    state.selectedRoomId = parsed.targetId;
-    state.selectedRoomByBoard[state.boardId] = parsed.targetId;
-    syncPolygonRoomSelection(parsed.targetId);
-    renderRoomOverlay();
+  syncRoomTargetSelect();
+  if (getSelectedRoom()) {
+    syncRoomPanelFromSelection({ preserveDraftState: true });
   }
-  syncRoomPanelFromSelection({ preserveDraftState: true });
 });
 
 roomOpacityInput.addEventListener("input", () => {
