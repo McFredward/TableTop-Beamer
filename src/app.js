@@ -4892,6 +4892,24 @@ function pasteRoomFromClipboard() {
   return persisted;
 }
 
+function clearSelectedRoomSelection(statusText = null) {
+  if (!state.selectedRoomId) {
+    if (statusText) {
+      syncRoomManagementPanel(statusText);
+    }
+    return;
+  }
+  state.selectedRoomId = null;
+  state.selectedRoomByBoard[state.boardId] = null;
+  if (state.roomDraft.targetType === "room") {
+    state.roomDraft.targetId = null;
+  }
+  clearRoomDraftEditTarget();
+  syncRoomPanelFromSelection({ preserveDraftState: true });
+  syncRoomManagementPanel(statusText ?? "Room management: selection cleared");
+  renderRoomOverlay();
+}
+
 function isTypingShortcutTarget(target) {
   if (!target || !(target instanceof Element)) {
     return false;
@@ -6916,6 +6934,23 @@ roomOverlay.addEventListener("pointerdown", (event) => {
   event.stopPropagation();
   const trigger = event.button === 1 ? "middle" : "space";
   startPanMode(event, trigger);
+});
+
+roomOverlay.addEventListener("click", (event) => {
+  if (event.target !== roomOverlay) {
+    return;
+  }
+  if (isPanArbitrating()) {
+    return;
+  }
+  if (
+    state.polygonEditor.dragVertexIndex !== null ||
+    state.polygonEditor.dragAreaPointerId !== null ||
+    state.shipPolygonEditor.dragVertexIndex !== null
+  ) {
+    return;
+  }
+  clearSelectedRoomSelection("Room management: selection cleared (empty board click)");
 });
 
 document.addEventListener("keydown", (event) => {
