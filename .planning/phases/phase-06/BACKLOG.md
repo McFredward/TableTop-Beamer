@@ -10,6 +10,7 @@
 - Room Editing Hotfix (Copy Parity + Keyboard + Deselection)
 - Selection Semantics + Delete Consistency Hotfix
 - Pointer Arbitration + Persistent Selection Regression Hotfix
+- Click-Without-Move Persistence Re-Regression Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -55,6 +56,12 @@
 - P6-S10.2 Selection-Lifecycle fixen: sichtbare Room-Polygone/Handles bleiben bis expliziter Deselection oder Room-Wechsel aktiv.
 - P6-S10.3 Input-Semantik absichern: Hold ist nur fuer Drag/Move noetig, Buttons/Hotkeys arbeiten auf persistenter Selection.
 - P6-S10.4 Regression fuer Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard unter neuer Arbitration matrixbasiert nachweisen und Artefakte synchronisieren.
+
+- P6-S11.1 Click-Commit fixen: kurzer Click ohne Move aktiviert persistente Room-Selection deterministisch.
+- P6-S11.2 Pointer-Up-Lifecycle stabilisieren: Polygone/Handles bleiben nach no-move Click sichtbar bis Deselect/Room-Wechsel.
+- P6-S11.3 Drag-Paritaet absichern: Hold/Move-Drag bleibt unveraendert nutzbar, Selection-Click startet keinen erzwungenen Drag.
+- P6-S11.4 Guard-Regression verifizieren: Empty-space deselect, Play-Area-Guard und Copy/Paste/Delete bleiben unter no-move Click-Fix intakt.
+- P6-S11.5 HF5-Artefakt-Sync abschliessen (PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -122,14 +129,26 @@
 - Story P6-S10.4.
   - Ziel: kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) ist unter neuer Arbitration artefaktbasiert PASS.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF4)
+## Priorisierte Hotfix-Welle 5 (P0) - Plan 6-HF5 execute-ready
+- Story P6-S11.1.
+  - Ziel: kurzer Click ohne Move selektiert Room persistent (kein Drag, kein Zwischen-Move erforderlich).
+- Story P6-S11.2.
+  - Ziel: Room-Polygon/Handles bleiben nach Pointer-Up sichtbar, solange keine explizite Deselection erfolgt.
+- Story P6-S11.3.
+  - Ziel: Drag bleibt unveraendert funktionsfaehig und move-threshold-basiert.
+- Story P6-S11.4.
+  - Ziel: Empty-space deselect, Play-Area-Guard und Copy/Paste/Delete bleiben regressionsfrei.
+- Story P6-S11.5.
+  - Ziel: alle Phase-6- und globalen Planungsartefakte sind HF5-konsistent und execute-ready synchronisiert.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF5)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
   - Ziel: formale Hardening-/Soak-/E2E-Nachweise ohne offene P0-Luecken.
 
-## Execution Update - 6-HF4 Completed
-- P6-S10.1 umgesetzt: Pointer-Arbitration folgt `click select` vs `hold/move drag` ohne Hold-only-Selection.
-- P6-S10.2 umgesetzt: Selection-Lifecycle bleibt nach Pointer-Up persistent sichtbar bis expliziter Deselection/Room-Wechsel.
-- P6-S10.3 umgesetzt: Hotkeys und Room-Management-Bedienpfade sind auf persistente Selection vereinheitlicht.
-- P6-S10.4 umgesetzt: kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) ist als PASS dokumentiert (`P6-T42-REGRESSION.md`).
+## Execution Update - 6-HF5 Completed (P0)
+- No-move short-click aktiviert persistente Room-Selektion deterministisch; Pointer-Up behaelt Selection/Handles sichtbar.
+- Drag-Paritaet bleibt move-threshold-basiert intakt (`P6-T46-DRAG-PARITY.md`).
+- Guard-Pflichtmatrix (Empty-space deselect, Play-Area-Guard, Copy/Paste/Delete) ist unter HF5 regressionsfrei bestaetigt (`P6-T47-REGRESSION.md`).
+- Plan 6-3 ist nach HF5-Artefakt-Sync freigegeben.

@@ -62,7 +62,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T45 [P0] Pointer-Up-Lifecycle stabilisieren: Room-Polygon/Handles bleiben nach no-move Click sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
 - [x] DONE P6-T46 [P0] Drag-Paritaet absichern: Hold/Move-Drag bleibt unveraendert funktionsfaehig, Selection-Click bleibt drag-frei.
 - [x] DONE P6-T47 [P0] Guard-Regression dokumentieren: Empty-space deselect + Play-Area-Guard + Copy/Paste/Delete unter HF5-Flow matrixbasiert verifizieren.
-- [ ] TODO P6-T48 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF5-Stand bringen.
+- [x] DONE P6-T48 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF5-Stand bringen.
 
 ## Plan 6-3 - Hardening + Operator Verification (nach 6-HF5)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).

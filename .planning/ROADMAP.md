@@ -130,7 +130,7 @@ Exit Criteria:
 ## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3 und Plan 6-HF4 abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` ist ueber das Language-Sweep-Artefakt geschlossen und die Pointer-Arbitration-Regression (Selection nur waehrend Hold sichtbar) ist in HF4 behoben. Naechster Schritt ist Plan 6-3 (hardening + operator verification).
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4 und Plan 6-HF5 abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` bleibt ueber das Language-Sweep-Artefakt geschlossen. Click-without-move Regression ist mit HF5 geschlossen, damit ist Plan 6-3 als naechste Welle freigegeben.
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -146,7 +146,8 @@ Milestones:
 11. M11 Room Editing Completion Hotfix: full geometry copy parity + keyboard room editing + empty-space deselection bei stabiler Play-Area.
 12. M12 Selection Semantics Hotfix: persistente aktive Auswahl fuer visuell selektierte Raeume und Delete ohne Hold-/Drag-Zwang.
 13. M13 Pointer Arbitration Hotfix: Click-Selection bleibt persistent nach Pointer-Up; Hold ist ausschliesslich Drag/Move.
-14. M14 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+14. M14 Click-Without-Move Hotfix: no-move kurzer Click selektiert persistent, Handles/Polygone bleiben nach Pointer-Up sichtbar.
+15. M15 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -164,8 +165,10 @@ Exit Criteria:
 - Ein visuell selektierter Room (Polygon/Handles sichtbar) gilt immer als aktive Auswahlquelle fuer Room-Hotkeys.
 - `Delete` loescht aktiv selektierte Raeume sofort ohne Abhaengigkeit von LMB-Hold oder Drag.
 - Single-Click auf Room setzt persistente Selection; Pointer-Up beendet nur Pointer-Session, nicht die aktive Selection.
+- Kurzer Click ohne Move selektiert den Room persistent; persistente Selection darf nicht erst durch kurzes Verschieben entstehen.
 - Room-Polygone/Handles bleiben sichtbar bis expliziter Deselection (Empty-Space) oder Selektion eines anderen Rooms.
 - Pointer-Arbitration trennt deterministisch Selection (`click`) von Drag (`hold/move`); Hold ist kein Selection-Zwang.
+- Drag bleibt voll funktionsfaehig und threshold-basiert; no-move Click-Fix darf Drag nicht blockieren.
 - Buttons/Hotkeys funktionieren auf derselben persistenten Selection-Quelle wie visuelle Handles/Polygone.
 - Klick auf leere Boardflaeche setzt Room-Selektion deterministisch auf `none`.
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.

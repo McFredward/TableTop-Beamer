@@ -110,8 +110,22 @@
 - Impact: Kritisch, Editing-Operationen wirken zufaellig und regressieren bestehende HF2/HF3-Gates.
 - Gegenmassnahme: einheitliche Selection-Source-of-Truth fuer alle Editing-Entry-Points und kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) unter neuer Arbitration.
 
-## Risk Closure Update - 6-HF4 Completed
-- R19/R20 sind unter HF4 erneut verifiziert und bleiben geschlossen (persistente Selection + Delete ohne Hold weiterhin PASS).
-- R21 ist geschlossen: Pointer-Arbitration invalidiert Click-Selection nicht mehr; Selection bleibt nach Pointer-Up stabil.
-- R22 ist geschlossen: Hotkeys/Buttons lesen persistente Selection und sind nicht mehr an transienten Pointer-State gekoppelt.
-- Plan 6-3 ist aus Risikosicht freigegeben.
+## R23 No-Move-Click persistiert Selection nicht
+- Risiko: kurzer Click ohne Move bleibt transient; persistente Selection entsteht erst nach kurzem Verschieben.
+- Impact: Kritisch, Kern-Interaction `einfach klicken = selektiert` ist fuer Operator unzuverlaessig.
+- Gegenmassnahme: Click-Commit explizit an no-move Pointer-Up koppeln, dedizierter no-move Regressionstest und Guard gegen Hold-only-Fallback.
+
+## R24 Drag-Paritaet regressiert durch Click-Fix
+- Risiko: Fix fuer no-move Click blockiert oder verzoegert Drag-Start, sodass Room-Drag subjektiv "kaputt" wirkt.
+- Impact: Hoch, bestehende Bearbeitungsworkflows verlieren Praezision/Vertrauen.
+- Gegenmassnahme: Drag-Promotion/Threshold unveraendert halten und getrennte Positivtests fuer Selection-only Click vs Move-Drag ausfuehren.
+
+## R25 Guard-Regression bei HF5
+- Risiko: Empty-space deselect, Play-Area-Guard oder Copy/Paste/Delete verhalten sich unter neuer Click-Arbitration inkonsistent.
+- Impact: Kritisch, bereits geschlossene P0-Gates aus HF2/HF3/HF4 werden erneut geoeffnet.
+- Gegenmassnahme: verpflichtende HF5-Kombinationsmatrix fuer no-move click + guard non-regression mit expliziten Negativpfaden.
+
+## Risk Update - HF5 Closed
+- R19/R20 bleiben als Basisrisiken dokumentiert, sind fuer den aktuellen Scope aber regressionsfrei bestaetigt.
+- R21/R22 sind durch HF4+HF5 zusammen geschlossen (persistente Selection + pointer lifecycle + persisted-hotkey source).
+- R23/R24/R25 sind ueber no-move-click-Fix, Drag-Paritaetsnachweis und Guard-Matrix geschlossen; Plan 6-3 ist nicht mehr durch HF5 blockiert.

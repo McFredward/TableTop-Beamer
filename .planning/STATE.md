@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF4
+- Last Executed Plan: 6-HF5
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -340,6 +340,14 @@
 - Plan-6-HF4 execution: pointer arbitration now uses pending drag promotion (`click => persistent selection`, `hold+move => area drag`).
 - Plan-6-HF4 execution: pointerup keeps persistent room selection/handles visible until empty-space deselect or room switch.
 - Plan-6-HF4 execution: room keyboard/buttons resolve actions from persisted selected-room state; combined regression documented in `P6-T42-REGRESSION.md`.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt: kurzer Click selektiert Room nicht persistent ohne Move; Selection bleibt nur waehrend Hold sichtbar.
+- P0-Regel fuer Phase 6 (Plan 6-HF5): no-move short-click muss persistente Selection aktivieren; Drag darf dafuer nicht erforderlich sein.
+- Lifecycle-Regel fuer Phase 6 (Plan 6-HF5): Pointer-Up nach no-move Click behaelt Polygon/Handles sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
+- Guard-Regel fuer Phase 6 (Plan 6-HF5): Empty-space deselect, Play-Area-Guard sowie Copy/Paste/Delete bleiben unter Click-Fix regressionsfrei.
+- Phase-6 Plan 6-HF5 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF5 execution: no-move short-click persists room selection without move/drag requirement.
+- Plan-6-HF5 execution: pointer-up lifecycle keeps persistent selection visuals/handles active until explicit deselect or room switch.
+- Plan-6-HF5 execution: drag parity + guard matrix remain PASS, documented in `P6-T46-DRAG-PARITY.md` and `P6-T47-REGRESSION.md`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

@@ -13,6 +13,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF4 ist als verpflichtende P0-Hotfix-Welle zwischen 6-HF3 und 6-3 gesetzt.
 - Ziel von 6-HF4: Pointerdown/Click/Pointerup-Arbitration zwischen Select vs Drag korrigieren, persistente Selection-Lifecycle stabilisieren und Buttons/Hotkeys auf persistenter Selection absichern.
 
+## Hotfix Trigger (Regression nach 6-HF4)
+- Neues verpflichtendes Feedback meldet eine weiterhin offene P0-Regression: kurzer Click selektiert Room nicht persistent, Selection erscheint nur waehrend Hold und wird erst nach kurzem Move persistent.
+- Konsequenz: Plan 6-HF5 ist als verpflichtende P0-Hotfix-Welle zwischen 6-HF4 und 6-3 gesetzt.
+- Ziel von 6-HF5: `click-without-move` als persistente Selection garantieren, Pointer-Up-Sichtbarkeit stabil halten, Drag-Verhalten unveraendert erhalten und bestehende Guards regressionsfrei absichern.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -35,6 +40,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Pointer-Up darf aktive Room-Selection nicht invalidieren; Deaktivierung erfolgt nur ueber Empty-Space-Deselect oder explizite Umschaltung auf anderen Room.
 - Room-Polygone/Handles bleiben bei aktiver Selection sichtbar, unabhaengig vom Pointer-Hold-State.
 - Room-Buttons/Hotkeys arbeiten gegen denselben persistenten Selection-State (`single source of truth`) und nicht gegen transienten Pointer-State.
+- Click-Commit erfolgt ohne Drag-Zwang: `pointerup` nach kurzem Click ohne Move muss dieselbe persistente Room-Selection aktivieren wie ein Click mit nachfolgendem Ruhe-State.
+- Drag-Promotion bleibt threshold-basiert: nur Move-Intent startet Drag; Selection darf durch no-move Click nicht auf Drag-Pfade umgebogen werden.
+- Bestehende Guards bleiben unveraendert bindend: Empty-Space-Deselect, Play-Area-Guard sowie Copy/Paste/Delete duerfen durch Arbitration-Fix nicht regressieren.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -65,6 +73,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Drag/Move klar entkoppeln: Hold ist nur fuer Move relevant, nicht fuer Selection-Aktivierung.
 - Regression gegen Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard unter neuer Pointer-Arbitration dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF4-Stand synchronisieren und execute-ready halten.
+- Pointer-Arbitration-Rework nachziehen: no-move Short-Click muss persistente Selection deterministisch aufbauen (ohne Zwischen-Move).
+- Selection-Lifecycle gegen Click-only-Regression haerten: Handles/Polygone bleiben nach Pointer-Up sichtbar, auch wenn kein Drag gestartet wurde.
+- Drag-Funktionalitaet explizit erhalten: Move-Threshold/Drag-Start und laufende Drag-Flows bleiben unveraendert nutzbar.
+- Regression fuer Empty-Space-Deselect, Play-Area-Guard sowie Copy/Paste/Delete unter HF5 erneut als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF5-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -85,7 +98,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 10. Room-Editing-Hotfix ausrollen: full room-copy geometry parity, keyboard copy/paste/delete, empty-space deselection, play-area non-regression.
 11. Selection-Semantik-Hotfix ausrollen: persistent selected room state, delete-without-hold, copy/paste/delete+deselect+play-area regression matrix.
 12. Pointer-Arbitration-Hotfix ausrollen: click-persist selection, hold-only-drag semantics, persistent handles/polygons.
-13. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
+13. Pointer-Arbitration-Regression-Hotfix ausrollen: no-move short-click persistiert Selection, Drag bleibt unveraendert.
+14. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -98,7 +112,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 8. M8 Room Editing Hotfix: Room-Copy-Paritaet, Keyboard-Editing und Empty-Space-Deselection ohne Play-Area-Regression.
 9. M9 Selection Semantics Hotfix: visuell selektiert = aktiv selektiert, Delete ohne Hold-Abhaengigkeit.
 10. M10 Pointer Arbitration Hotfix: Selection bleibt persistent nach Click/Pointer-Up; Hold bleibt Drag-only.
-11. M11 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+11. M11 Pointer Arbitration Regression Closure: no-move short-click selektiert persistent; Guards bleiben intakt.
+12. M12 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -121,6 +136,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback wird als Plan 6-HF2 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Selection/Delete-Konsistenz) wird als Plan 6-HF3 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Selection nur waehrend LMB-Hold sichtbar) wird als Plan 6-HF4 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (kurzer Click selektiert nicht persistent ohne Move) wird als Plan 6-HF5 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -143,14 +159,18 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Room-Polygone/Handles bleiben sichtbar, bis der Room aktiv deselektiert oder ein anderer Room selektiert wird.
 - Pointer-Hold ist ausschliesslich fuer Drag/Move relevant; Selection bleibt davon entkoppelt.
 - Buttons/Hotkeys (`Delete`, `CTRL+C`, `CTRL+V`) funktionieren auf persistenter Selection ohne erneuten Hold.
+- Kurzer Single-Click ohne Move selektiert den Room persistent; kein Drag und kein Zwischen-Move sind erforderlich.
+- Pointer-Up nach no-move Click behaelt Polygon/Handles sichtbar und active-selection-stabil.
+- Drag bleibt voll funktionsfaehig und startet weiterhin nur bei Move-Intent/Threshold.
+- Empty-space deselect, Play-Area-Guard sowie Copy/Paste/Delete bleiben unter no-move Click-Fix regressionsfrei.
 - Play-Area-Selection/-Editing zeigt keine Regression durch Room-Copy/Keyboard/Deselection.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Clipping, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien (`STATE/ROADMAP/CURRENT_PHASE`) synchronisiert.
 - Language-Sweep-Regression ist als Artefakt dokumentiert und schliesst den P0-Blocker aus verify-work 6 explizit.
 
-## Execution Update - 6-HF4 Completed
-- P0-Regression nach 6-HF3 ist geschlossen: Pointer-Arbitration trennt nun deterministisch `click => persistent selection` und `hold+move => drag`.
-- Selection-Lifecycle bleibt nach Pointer-Up stabil; Room-Polygone/Handles bleiben sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
-- Delete/Copy/Paste sowie Room-Management-Buttons lesen dieselbe persistente Selection-Quelle ohne Hold-Abhaengigkeit.
-- Kombinierte Regression ist in `.planning/phases/phase-06/P6-T42-REGRESSION.md` als PASS dokumentiert.
+## Execution Update - 6-HF5 Completed (P0)
+- Follow-up-Regression aus HF4 ist geschlossen: no-move Short-Click persistiert Selection jetzt ohne Zwischen-Move.
+- Pointer-Up-Lifecycle behaelt Room-Polygon/Handles sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
+- Drag-Paritaet bleibt unveraendert funktionsfaehig; Selection-Click bleibt drag-frei (`P6-T46-DRAG-PARITY.md`).
+- Matrixnachweis fuer `Delete`/`CTRL+C`/`CTRL+V`, Empty-Space-Deselect und Play-Area-Guard ist PASS (`P6-T47-REGRESSION.md`).
 - Gate fuer Plan 6-3 ist geoeffnet.
