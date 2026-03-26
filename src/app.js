@@ -4923,6 +4923,20 @@ function isTypingShortcutTarget(target) {
   return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 }
 
+function isPlayAreaShortcutContext(target) {
+  if (state.shipPolygonEditor.dragVertexIndex !== null) {
+    return true;
+  }
+  if (!target || !(target instanceof Element)) {
+    return false;
+  }
+  return Boolean(
+    target.closest(
+      "#show-play-area-vertices, #ship-polygon-vertex-select, #ship-polygon-edge-select, #ship-polygon-insert-vertex, #ship-polygon-delete-vertex, #ship-polygon-reset, #outside-enabled, #outside-intensity, #outside-speed, #outside-mode, #outside-direction",
+    ),
+  );
+}
+
 function createRoomFromSettings() {
   const board = getBoard();
   const id = createRoomId(board);
@@ -6958,17 +6972,18 @@ document.addEventListener("keydown", (event) => {
     const key = String(event.key || "").toLowerCase();
     const modifierPressed = event.ctrlKey || event.metaKey;
     const typingTarget = isTypingShortcutTarget(event.target);
-    if (!typingTarget && modifierPressed && !event.altKey && !event.shiftKey && key === "c") {
+    const playAreaContext = isPlayAreaShortcutContext(event.target);
+    if (!typingTarget && !playAreaContext && modifierPressed && !event.altKey && !event.shiftKey && key === "c") {
       event.preventDefault();
       copySelectedRoomToClipboard();
       return;
     }
-    if (!typingTarget && modifierPressed && !event.altKey && !event.shiftKey && key === "v") {
+    if (!typingTarget && !playAreaContext && modifierPressed && !event.altKey && !event.shiftKey && key === "v") {
       event.preventDefault();
       pasteRoomFromClipboard();
       return;
     }
-    if (!typingTarget && !modifierPressed && !event.altKey && key === "delete") {
+    if (!typingTarget && !playAreaContext && !modifierPressed && !event.altKey && key === "delete") {
       event.preventDefault();
       deleteSelectedRoom();
       return;
