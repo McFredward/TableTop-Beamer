@@ -5777,11 +5777,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
 }
 
 function startRoomAnimationFromDraft() {
-  const room = getSelectedRoom();
-  if (!room) {
-    triggerFeedback.textContent = "Status: select a room on the board first";
-    return;
-  }
+  const board = getBoard();
 
   if (!isRoomAnimationType(state.roomDraft.animationId)) {
     state.roomDraft.animationId = ROOM_ANIMATIONS[0]?.id ?? "kaputt";
@@ -5810,6 +5806,14 @@ function startRoomAnimationFromDraft() {
   if (targetRoomIds.length === 0) {
     triggerFeedback.textContent = "Status: selected target has no rooms";
     return;
+  }
+
+  if (state.roomDraft.targetType === "room") {
+    const selectedTargetRoom = targetRoomIds[0];
+    if (!selectedTargetRoom) {
+      triggerFeedback.textContent = "Status: select a room on the board first";
+      return;
+    }
   }
 
   if (state.roomDraft.editTargetId) {
@@ -5863,9 +5867,10 @@ function startRoomAnimationFromDraft() {
   }
 
   const isClusterTarget = state.roomDraft.targetType === "cluster";
+  const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
   const targetLabel = isClusterTarget
     ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
-    : room.name ?? room.label;
+    : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
   triggerFeedback.textContent = isClusterTarget
     ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms)`
     : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
