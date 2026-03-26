@@ -3,17 +3,17 @@
 ## Project
 - Name: TT Beamer - Nemesis Overlay Prototype
 - Context: Brettspiel-Beamer-Projekt fuer visuelle, nicht spielbeeinflussende Overlays
-- Product Focus: OG-Nemesis als Startsystem
+- Product Focus: Transition von OG-Nemesis auf boardspiel-agnostischen Katalogbetrieb
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 5
-- Current Phase Key: phase-05
+- Current Phase: 6
+- Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 5-HF3
-- Planned Next Execution: 5-2
-- Last Execution Summary: `.planning/phases/phase-05/5-HF3-SUMMARY.md`
+- Last Executed Plan: 6-1
+- Planned Next Execution: 6-2
+- Last Execution Summary: `.planning/phases/phase-06/6-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -290,6 +290,15 @@
 - Plan-5-HF3 Umsetzung: Board/Layout-Kontext wird serverautoritativ ueber `context-update` mit Ack/Version synchronisiert und auf allen Clients repliziert.
 - Plan-5-HF3 Umsetzung: Join/Reconnect-Hydrierung uebernimmt `selectedBoard`/`selectedLayout` deterministisch aus dem Live-Snapshot ohne manuelles Nachstellen.
 - Plan-5-HF3 Umsetzung: Legacy-`Output Route` ist aus UI/Runtime/State entfernt; `/output/final` bleibt der einzige dedizierte Output-Pfad.
+- Phase-6 Planung ist vorbereitet: boardspiel-agnostischer Betrieb mit importierbaren Boards, serverseitiger Persistenz und dynamischer Katalogauswahl statt Nemesis-only A/B-Hardcoding.
+- Board-Katalog-Regel fuer Phase 6: Board-Auswahl basiert auf kanonischem Catalog-Schema (`boardId`, Metadaten, Raumdaten, optionale Cluster); Runtime/UI lesen ausschliesslich aus dem Katalog.
+- English-Flow-Regel fuer Phase 6: Operator-relevante UI-Texte, Statusmeldungen, Dokumentationshinweise sowie Logs/Errors werden auf durchgaengiges Englisch vereinheitlicht.
+- Cluster-Regel fuer Phase 6: Room-Clusters sind frei definierbar und als Dropdown-Ziel waehlbar; Trigger/Edit starten fuer alle enthaltenen Raeume, waehrend Board-Klick auf Einzelraum weiterhin nur den angeklickten Raum selektiert.
+- Migrations-Regel fuer Phase 6: bestehende Nemesis-Daten inklusive Polygonen und Animationskonfigurationen werden verlustfrei, idempotent und rueckwaertskompatibel in den neuen Standard ueberfuehrt.
+- Phase-6 Plan 6-1 ist als priorisierte execute-ready P0-Welle gesetzt (Catalog/Import, English-Flow, Clusters, Migration).
+- Plan-6-1 execution: board catalog now loads via `/api/boards` with server-side import endpoint `/api/boards/import` and persisted storage in `config/boards/imported`.
+- Plan-6-1 execution: room target model supports `room` + `cluster`; cluster launch fans out per room while board click remains single-room only.
+- Plan-6-1 execution: operator-facing README and major board/catalog/target UI copy migrated to English for phase-6 workflows.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
