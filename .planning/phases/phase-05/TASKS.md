@@ -32,7 +32,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T23 [P0] Final-Output-UI-Guard verstaerken: keine Slider/Settings/UI-Elemente im Final-Render; Align-Mode ON bleibt die einzige Overlay-Ausnahme.
 - [x] DONE P5-T24 [P0] Hotfix-Regression dokumentieren (3-Client Outside-Sync + Final-Output FX-only/Align-Ausnahme + White-Page-Negativtest).
 
-## Plan 5-2 - Diagnostics + Hardening (nach Hotfix)
+## Plan 5-HF2 - Sync-Reliability-Hotfix (P0, execute-ready)
+- [x] DONE P5-T25 [P0] Root-Cause fuer nicht-deterministischen First-Click-Sync analysieren (Event->Mutation->Dedup->Ack) und reproduzierbare Fehlerfaelle dokumentieren.
+- [ ] TODO P5-T26 [P0] Serverseitige Apply-Logik fuer Outside `direction`/`mode` und Room-Animation-Aktionen idempotent + autoritativ haerten.
+- [ ] TODO P5-T27 [P0] Sofortige Broadcast-Bestaetigung je Mutation einziehen (Ack mit Mutation-ID/Version) und Client-Apply daran binden.
+- [ ] TODO P5-T28 [P0] Ordering/Versioning fuer schnelle Toggle-Folgen robust machen (monotone Version, stale-drop, deterministic last-write).
+- [ ] TODO P5-T29 [P0] Join/Reconnect + Inflight-Synchronisierung absichern (Snapshot + letzte bestaetigte Version ohne Drift).
+- [ ] TODO P5-T30 [P0] Regressiontests fuer Single-Click-Sync ergaenzen: Outside mode/direction sowie Room trigger/edit/stop/clear-all.
+- [ ] TODO P5-T31 [P0] Hotfix-Abnahme dokumentieren (Mehrfachklick-Negativtest, Burst-Toggle-Soak, 3-Client-Paritaet).
+
+## Plan 5-2 - Diagnostics + Hardening (nach P0-Hotfixes)
 - [ ] TODO P5-T16 [P1] Sichtbare Sync-/Connection-Diagnostik fuer Operator-Views ergaenzen (Rolle, verbunden, letzte Sync-Zeit).
 - [ ] TODO P5-T17 [P1] Latenz-/Burst-Soak fuer parallele Trigger aus 2 Controller-Clients dokumentieren.
 - [ ] TODO P5-T18 [P1] E2E-Abnahme im echten Setup (Handy + PC + Raspberry Pi/Beamer) als Artefakt protokollieren.
