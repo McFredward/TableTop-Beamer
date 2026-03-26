@@ -54,6 +54,8 @@ const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
+const boardImportFileInput = document.querySelector("#board-import-file");
+const boardImportButton = document.querySelector("#board-import-button");
 const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
 const alignModeToggleInput = document.querySelector("#align-mode-toggle");
@@ -66,6 +68,7 @@ const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
 const triggerFeedback = document.querySelector("#trigger-feedback");
 const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
+const roomTargetSelect = document.querySelector("#room-target-select");
 const roomAnimationSelect = document.querySelector("#room-animation-select");
 const roomOpacityInput = document.querySelector("#room-opacity");
 const roomOpacityValue = document.querySelector("#room-opacity-value");
@@ -165,6 +168,8 @@ const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="set
 const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboard-zone]"));
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
+  "board-import-file",
+  "board-import-button",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
@@ -602,15 +607,55 @@ function syncZoneLoaderStatus() {
   if (!zonesStatus) {
     return;
   }
-  const boards = ZONE_CONFIG_SOURCES.map((source) => {
-    const mode = state.zoneLoader.classificationByBoard[source.boardId] ?? "UNKNOWN";
-    const fallback = state.zoneLoader.fallbackBoards[source.boardId] || "none";
-    return `${source.boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
+  const boardIds = BOARDS.map((board) => board.id);
+  const boards = boardIds.map((boardId) => {
+    const mode = state.zoneLoader.classificationByBoard[boardId] ?? "UNKNOWN";
+    const fallback = state.zoneLoader.fallbackBoards[boardId] || "none";
+    return `${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
   });
-  zonesStatus.textContent = `Zonenquelle: ${boards.join(" | ")}`;
+  zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
 }
 
 async function loadExternalBoardZones() {
+  try {
+    const response = await fetchWithTimeout("/api/boards", {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      const runtimeBoards = Array.isArray(payload?.runtimeBoards)
+        ? payload.runtimeBoards
+        : Array.isArray(payload?.boards)
+          ? payload.boards.map((entry) => ({
+            id: entry?.boardId,
+            label: entry?.metadata?.name,
+            src: entry?.metadata?.imageSrc,
+            rooms: entry?.roomCatalog,
+            roomClusters: entry?.roomClusters,
+          }))
+          : [];
+      const normalizedBoards = runtimeBoards
+        .map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board))
+        .filter((board) => board?.id && Array.isArray(board.rooms) && board.rooms.length > 0);
+      if (normalizedBoards.length > 0) {
+        BOARDS = normalizedBoards;
+        for (const board of BOARDS) {
+          state.zoneLoader.loadedBoards[board.id] = "/api/boards";
+          state.zoneLoader.fallbackBoards[board.id] = "none";
+          state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
+          state.zoneLoader.detailByBoard[board.id] = "ok";
+        }
+        syncZoneLoaderStatus();
+        return;
+      }
+    }
+  } catch {
+    // fall back to static zone files below
+  }
+
   const loadedByBoardId = new Map();
   const loadedBoards = {};
   const fallbackBoards = {};
@@ -677,6 +722,47 @@ async function loadExternalBoardZones() {
   state.zoneLoader.classificationByBoard = classificationByBoard;
   state.zoneLoader.detailByBoard = detailByBoard;
   syncZoneLoaderStatus();
+}
+
+async function importBoardFromFile(file) {
+  if (!file) {
+    throw new Error("Please select a JSON file first");
+  }
+  const text = await file.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error("Selected file is not valid JSON");
+  }
+
+  const response = await fetchWithTimeout("/api/boards/import", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  let parsed = null;
+  try {
+    parsed = await response.json();
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok) {
+    const message = parsed?.error || parsed?.code || `HTTP ${response.status}`;
+    throw new Error(`Board import failed: ${message}`);
+  }
+
+  await loadExternalBoardZones();
+  syncBoardSelectOptions();
+  if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
+    switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import" });
+  }
+  return parsed;
 }
 
 function syncBoardSelectOptions() {
@@ -979,6 +1065,7 @@ function createDefaultBoardProfiles() {
       board.id,
       {
         roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
+        roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
         hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
         roomGeometry: createDefaultRoomGeometryMap(board.id),
         roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
@@ -996,6 +1083,7 @@ function buildBoardProfilesFromState() {
       board.id,
       {
         roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
+        roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
         hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
         roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
@@ -1052,7 +1140,13 @@ function applyPersistedRuntimeSettings(payload) {
 function applyBoardProfilesToState(profiles) {
   BOARDS = BOARDS.map((board) => {
     const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
-    return applyRoomCatalog(board, roomCatalog);
+    const nextBoard = applyRoomCatalog(board, roomCatalog);
+    nextBoard.roomClusters = Array.isArray(profiles?.[board.id]?.roomClusters)
+      ? profiles[board.id].roomClusters.map((cluster) => ({ ...cluster }))
+      : Array.isArray(nextBoard.roomClusters)
+        ? nextBoard.roomClusters.map((cluster) => ({ ...cluster }))
+        : [];
+    return nextBoard;
   });
   state.hitareaCalibrationByBoard = Object.fromEntries(
     BOARDS.map((board) => [
@@ -4465,6 +4559,8 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
+      state.roomDraft.targetType = "room";
+      state.roomDraft.targetId = room.id;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
@@ -4485,6 +4581,8 @@ function renderRoomOverlay() {
       event.preventDefault();
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
+      state.roomDraft.targetType = "room";
+      state.roomDraft.targetId = room.id;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
@@ -4541,12 +4639,14 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
    state.selectedLayout = board.id;
   boardImage.src = board.src;
   boardSelect.value = board.id;
-  boardStatus.textContent = `Aktives Board: ${board.label}`;
+  boardStatus.textContent = `Active board: ${board.label}`;
   const rememberedRoom = state.selectedRoomByBoard[board.id];
   state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
     ? rememberedRoom
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = state.selectedRoomId;
   ensureBoardRoomStateMaps(board.id);
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
@@ -4559,7 +4659,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   setPanCursorState();
   renderRoomOverlay();
   refreshGlobalButtons();
-  triggerFeedback.textContent = "Status: Board gewechselt";
+  triggerFeedback.textContent = "Status: board switched";
   if (emitLiveContext) {
     emitBoardLayoutContextMutation(board.id, reason);
   }
@@ -4628,6 +4728,8 @@ function createRoomFromSettings() {
   ensureBoardRoomStateMaps(state.boardId);
   state.selectedRoomId = id;
   state.selectedRoomByBoard[state.boardId] = id;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = id;
   setActivePolygonRoomId(state.boardId, id);
   const persisted = persistBoardProfiles();
   syncRoomPanelFromSelection();
@@ -4676,6 +4778,8 @@ function deleteSelectedRoom() {
   const fallbackRoomId = nextRooms[0]?.id ?? null;
   state.selectedRoomId = fallbackRoomId;
   state.selectedRoomByBoard[state.boardId] = fallbackRoomId;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = fallbackRoomId;
   setActivePolygonRoomId(state.boardId, fallbackRoomId);
   clearRoomDraftEditTarget();
   const persisted = persistBoardProfiles();
@@ -4709,13 +4813,118 @@ function renameSelectedRoom(nextName) {
   );
 }
 
+function getBoardRoomClusters(boardId = state.boardId) {
+  const board = getBoard(boardId);
+  const roomIds = new Set(board.rooms.map((room) => room.id));
+  const clusters = Array.isArray(board.roomClusters) ? board.roomClusters : [];
+  return clusters
+    .map((cluster, index) => {
+      const clusterId = String(cluster?.clusterId || cluster?.id || "").trim() || `cluster-${index + 1}`;
+      const name = String(cluster?.name || cluster?.label || "").trim() || `Cluster ${index + 1}`;
+      const roomIdsInCluster = Array.from(
+        new Set(
+          (Array.isArray(cluster?.roomIds) ? cluster.roomIds : [])
+            .map((roomId) => String(roomId || "").trim())
+            .filter((roomId) => roomIds.has(roomId)),
+        ),
+      );
+      return {
+        clusterId,
+        name,
+        roomIds: roomIdsInCluster,
+      };
+    })
+    .filter((cluster) => cluster.roomIds.length > 0);
+}
+
+function getRoomTargetOptions(boardId = state.boardId) {
+  const board = getBoard(boardId);
+  const roomTargets = board.rooms.map((room) => ({
+    value: `room:${room.id}`,
+    label: `Room: ${room.name ?? room.label}`,
+    targetType: "room",
+    targetId: room.id,
+  }));
+  const clusterTargets = getBoardRoomClusters(boardId).map((cluster) => ({
+    value: `cluster:${cluster.clusterId}`,
+    label: `Cluster: ${cluster.name} (${cluster.roomIds.length})`,
+    targetType: "cluster",
+    targetId: cluster.clusterId,
+  }));
+  return [...roomTargets, ...clusterTargets];
+}
+
+function parseRoomTargetValue(value) {
+  const [targetType, ...rest] = String(value || "").split(":");
+  const targetId = rest.join(":");
+  if ((targetType === "room" || targetType === "cluster") && targetId) {
+    return { targetType, targetId };
+  }
+  return null;
+}
+
+function resolveRoomDraftTargets() {
+  const board = getBoard();
+  const room = getSelectedRoom();
+  const fallbackRoomId = room?.id ?? board.rooms[0]?.id ?? null;
+  const clusters = getBoardRoomClusters(state.boardId);
+  const clusterById = new Map(clusters.map((cluster) => [cluster.clusterId, cluster]));
+  const hasRoom = (roomId) => board.rooms.some((entry) => entry.id === roomId);
+
+  if (state.roomDraft.targetType === "cluster") {
+    const cluster = clusterById.get(state.roomDraft.targetId);
+    if (cluster && cluster.roomIds.length > 0) {
+      return cluster.roomIds;
+    }
+  }
+
+  const selectedRoomId = state.roomDraft.targetType === "room" ? state.roomDraft.targetId : fallbackRoomId;
+  if (selectedRoomId && hasRoom(selectedRoomId)) {
+    return [selectedRoomId];
+  }
+  if (fallbackRoomId && hasRoom(fallbackRoomId)) {
+    return [fallbackRoomId];
+  }
+  return [];
+}
+
+function syncRoomTargetSelect() {
+  if (!roomTargetSelect) {
+    return;
+  }
+  const options = getRoomTargetOptions(state.boardId);
+  roomTargetSelect.replaceChildren();
+  for (const optionEntry of options) {
+    const option = document.createElement("option");
+    option.value = optionEntry.value;
+    option.textContent = optionEntry.label;
+    roomTargetSelect.append(option);
+  }
+
+  const room = getSelectedRoom();
+  const fallbackValue = room ? `room:${room.id}` : options[0]?.value ?? "";
+  const currentValue = state.roomDraft.targetType && state.roomDraft.targetId
+    ? `${state.roomDraft.targetType}:${state.roomDraft.targetId}`
+    : fallbackValue;
+  const existing = options.some((entry) => entry.value === currentValue) ? currentValue : fallbackValue;
+  const parsed = parseRoomTargetValue(existing);
+  if (parsed) {
+    state.roomDraft.targetType = parsed.targetType;
+    state.roomDraft.targetId = parsed.targetId;
+    roomTargetSelect.value = existing;
+  }
+}
+
 function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   const room = getSelectedRoom();
   if (!room) {
-    roomSelected.textContent = "Ausgewaehlter Raum: bitte Hex auf dem Board anklicken";
+    roomSelected.textContent = "Selected room: click a room polygon on the board";
     startRoomAnimationButton.disabled = true;
     roomOpacityInput.disabled = true;
     roomPlaybackSpeedInput.disabled = true;
+    if (roomTargetSelect) {
+      roomTargetSelect.disabled = true;
+    }
     syncRoomGeometryPanel();
     syncDashboardZoneVisibility();
     return;
@@ -4723,6 +4932,9 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   startRoomAnimationButton.disabled = false;
   roomOpacityInput.disabled = false;
   roomPlaybackSpeedInput.disabled = false;
+  if (roomTargetSelect) {
+    roomTargetSelect.disabled = false;
+  }
   if (!preserveDraftState) {
     state.roomDraft.animationId = ROOM_ANIMATIONS.some((entry) => entry.id === state.roomDraft.animationId)
       ? state.roomDraft.animationId
@@ -4735,7 +4947,12 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
   syncGifRoomControls();
   roomHoldInput.checked = true;
-  roomSelected.textContent = `Ausgewaehlter Raum: ${room.name ?? room.label}`;
+  if (!state.roomDraft.targetType || !state.roomDraft.targetId) {
+    state.roomDraft.targetType = "room";
+    state.roomDraft.targetId = room.id;
+  }
+  syncRoomTargetSelect();
+  roomSelected.textContent = `Selected room: ${room.name ?? room.label}`;
   if (roomRenameInput) {
     roomRenameInput.value = room.name ?? room.label ?? "";
   }
@@ -4750,8 +4967,8 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
 function syncRoomDraftActionButton() {
   const isEditMode = Boolean(state.roomDraft.editTargetId);
   startRoomAnimationButton.textContent = isEditMode
-    ? "Laufende Instanz aktualisieren"
-    : "Animation fuer Raum starten";
+    ? "Update running instance"
+    : "Start room animation";
 }
 
 function syncGifRoomControls() {
@@ -4834,7 +5051,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       persistBoardProfiles();
       syncOutsideFxPanel();
     }
-    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestoppt`;
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stopped`;
   } else {
     const animation = createAnimation({
       type,
@@ -4850,7 +5067,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     playSoundForAnimation(animation);
-    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} gestartet`;
+    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} started`;
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
@@ -4862,7 +5079,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
 function startRoomAnimationFromDraft() {
   const room = getSelectedRoom();
   if (!room) {
-    triggerFeedback.textContent = "Status: zuerst einen Raum anklicken";
+    triggerFeedback.textContent = "Status: select a room on the board first";
     return;
   }
 
@@ -4873,7 +5090,6 @@ function startRoomAnimationFromDraft() {
 
   const draftPayload = {
     type: state.roomDraft.animationId,
-    roomId: room.id,
     intensity: clampRoomIntensity(state.roomDraft.intensity),
     speed: clampRoomSpeed(state.roomDraft.speed),
     opacity: clampRoomOpacity(state.roomDraft.opacity),
@@ -4882,6 +5098,12 @@ function startRoomAnimationFromDraft() {
     hold: true,
     durationMs: null,
   };
+
+  const targetRoomIds = resolveRoomDraftTargets();
+  if (targetRoomIds.length === 0) {
+    triggerFeedback.textContent = "Status: selected target has no rooms";
+    return;
+  }
 
   if (state.roomDraft.editTargetId) {
     const editIndex = state.runningAnimations.findIndex(
@@ -4892,13 +5114,14 @@ function startRoomAnimationFromDraft() {
       const updated = {
         ...existing,
         ...draftPayload,
+        roomId: targetRoomIds[0],
         boardId: state.boardId,
         startedAt: performance.now(),
         startedAtEpochMs: Date.now(),
       };
       state.runningAnimations[editIndex] = updated;
       playSoundForAnimation(updated);
-      triggerFeedback.textContent = `Status: ${updated.id} in-place aktualisiert`;
+      triggerFeedback.textContent = `Status: ${updated.id} updated in place`;
       clearRoomDraftEditTarget();
       renderRunningAnimationsList();
       emitLiveMutation("edit-room", {
@@ -4910,10 +5133,10 @@ function startRoomAnimationFromDraft() {
     clearRoomDraftEditTarget();
   }
 
-  const animation = createAnimation({
+  const createdAnimations = targetRoomIds.map((roomId) => createAnimation({
     type: draftPayload.type,
     scope: "room",
-    roomId: draftPayload.roomId,
+    roomId,
     intensity: draftPayload.intensity,
     speed: draftPayload.speed,
     opacity: draftPayload.opacity,
@@ -4921,16 +5144,25 @@ function startRoomAnimationFromDraft() {
     soundVolume: draftPayload.soundVolume,
     hold: true,
     durationSec: 0,
-  });
+  }));
 
-  state.runningAnimations.push(animation);
-  playSoundForAnimation(animation);
-  triggerFeedback.textContent = `Status: ${ROOM_ANIMATIONS.find((item) => item.id === animation.type)?.label ?? animation.type} auf ${room.name ?? room.label} gestartet`;
+  for (const animation of createdAnimations) {
+    state.runningAnimations.push(animation);
+    playSoundForAnimation(animation);
+    emitLiveMutation("trigger-room", {
+      animationId: animation.id,
+      animation: buildAnimationSnapshotForLiveSync(animation),
+    });
+  }
+
+  const isClusterTarget = state.roomDraft.targetType === "cluster";
+  const targetLabel = isClusterTarget
+    ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
+    : room.name ?? room.label;
+  triggerFeedback.textContent = isClusterTarget
+    ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms)`
+    : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
   renderRunningAnimationsList();
-  emitLiveMutation("trigger-room", {
-    animationId: animation.id,
-    animation: buildAnimationSnapshotForLiveSync(animation),
-  });
 }
 
 function stopAnimation(animationId) {
@@ -4965,6 +5197,8 @@ function editAnimation(animationId) {
   });
   state.selectedRoomId = animation.roomId;
   state.selectedRoomByBoard[animation.boardId] = animation.roomId;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = animation.roomId;
   state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.opacity = clampRoomOpacity(animation.opacity ?? 0.9);
@@ -4994,7 +5228,7 @@ function editAnimation(animationId) {
 
   syncRoomPanelFromSelection({ preserveDraftState: true });
   renderRoomOverlay();
-  triggerFeedback.textContent = `Status: ${animation.id} in Editor geladen`;
+  triggerFeedback.textContent = `Status: ${animation.id} loaded into editor`;
 }
 
 function renderRunningAnimationsList() {
@@ -5003,7 +5237,7 @@ function renderRunningAnimationsList() {
   if (state.runningAnimations.length === 0) {
     const empty = document.createElement("li");
     empty.className = "running-empty";
-    empty.textContent = "Keine aktiven Animationen";
+    empty.textContent = "No active animations";
     runningAnimationsList.append(empty);
     return;
   }
@@ -5036,7 +5270,7 @@ function renderRunningAnimationsList() {
         clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
       )}%`
       : "";
-    meta.textContent = `Instanz: ${anim.id} | Typ: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Rest: ${remaining}`;
+    meta.textContent = `Instance: ${anim.id} | Type: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Remaining: ${remaining}`;
 
     const actions = document.createElement("div");
     actions.className = "running-actions";
@@ -5789,6 +6023,24 @@ boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
   reason: "board-select",
 }));
 
+boardImportButton?.addEventListener("click", async () => {
+  const file = boardImportFileInput?.files?.[0] ?? null;
+  boardImportButton.disabled = true;
+  try {
+    const result = await importBoardFromFile(file);
+    const importedBoardId = result?.boardId || "unknown";
+    triggerFeedback.textContent = `Status: board import succeeded (${importedBoardId})`;
+    boardStatus.textContent = `Active board: ${getBoard().label}`;
+    if (boardImportFileInput) {
+      boardImportFileInput.value = "";
+    }
+  } catch (error) {
+    triggerFeedback.textContent = `Status: ${error instanceof Error ? error.message : "Board import failed"}`;
+  } finally {
+    boardImportButton.disabled = false;
+  }
+});
+
 openDashboardViewButton.addEventListener("click", () => {
   setActiveView("dashboard");
 });
@@ -6470,6 +6722,22 @@ roomAnimationSelect.addEventListener("change", () => {
   state.roomDraft.animationId = isRoomAnimationType(selected) ? selected : ROOM_ANIMATIONS[0]?.id ?? "kaputt";
   roomAnimationSelect.value = state.roomDraft.animationId;
   syncGifRoomControls();
+});
+
+roomTargetSelect?.addEventListener("change", () => {
+  const parsed = parseRoomTargetValue(roomTargetSelect.value);
+  if (!parsed) {
+    return;
+  }
+  state.roomDraft.targetType = parsed.targetType;
+  state.roomDraft.targetId = parsed.targetId;
+  if (parsed.targetType === "room") {
+    state.selectedRoomId = parsed.targetId;
+    state.selectedRoomByBoard[state.boardId] = parsed.targetId;
+    syncPolygonRoomSelection(parsed.targetId);
+    renderRoomOverlay();
+  }
+  syncRoomPanelFromSelection({ preserveDraftState: true });
 });
 
 roomOpacityInput.addEventListener("input", () => {

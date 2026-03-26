@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nemesis Table Beamer</title>
+  <title>TT Beamer Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -15,20 +15,20 @@
 
 <body>
   <div class="app-shell">
-    <main class="projection-area" aria-label="Projektionsflaeche">
+    <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
-        <img id="board-image" alt="Nemesis Board" />
+        <img id="board-image" alt="Board" />
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
         <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
       </div>
     </main>
 
-    <aside id="control-panel" class="dashboard" data-active-view="dashboard" aria-label="Effektsteuerung">
+    <aside id="control-panel" class="dashboard" data-active-view="dashboard" aria-label="Effect control panel">
       <header class="dashboard-only" data-view="dashboard">
         <p class="eyebrow">Nemesis Operator Deck</p>
         <h1>Atmosphere Controller</h1>
         <p class="lead">
-          Klicke direkt auf den Raum-hex, waehle die Animation im Untermenue und starte sie gezielt fur diesen Raum.
+          Click a room polygon on the board, pick an animation, and start it for the selected target.
         </p>
       </header>
 
@@ -36,8 +36,7 @@
         <p class="eyebrow">Nemesis Operator Deck</p>
         <h1>Settings Workspace</h1>
         <p class="lead">
-          Kalibriere Hitareas und Raumgeometrie getrennt vom Trigger-Dashboard. Dashboard-Elemente bleiben hier
-          vollstaendig ausgeblendet.
+          Calibrate hit areas and room geometry separately from the trigger dashboard. Dashboard controls stay hidden here.
         </p>
       </header>
 
@@ -49,58 +48,63 @@
       <div class="dashboard-sticky-shell dashboard-only" data-view="dashboard">
 
         <nav id="mobile-zone-switch" class="mobile-zone-switch dashboard-only" data-view="dashboard"
-          aria-label="Mobile Fokusbereich">
-          <button id="open-trigger-zone" type="button" class="active">Triggern</button>
-          <button id="open-manage-zone" type="button">Running managen</button>
-          <button id="mobile-start-room" type="button" class="mobile-start-room">Raum starten</button>
+          aria-label="Mobile focus zone">
+          <button id="open-trigger-zone" type="button" class="active">Trigger</button>
+          <button id="open-manage-zone" type="button">Manage running</button>
+          <button id="mobile-start-room" type="button" class="mobile-start-room">Start room</button>
         </nav>
         <p id="mobile-layout-status" class="status-line dashboard-only mobile-layout-status" data-view="dashboard"
           aria-live="polite">
-          Mobile-Fokus: Triggern
+          Mobile focus: Trigger
         </p>
       </div>
 
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
         data-dashboard-zone="manage">
-        <h2>Aktive Animationen</h2>
-        <p class="status-line">Priorisiert: Runtime-Status mit direktem Stop/Edit vor den Triggergruppen.</p>
+        <h2>Active animations</h2>
+        <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
         <ul id="running-animations" class="running-list" aria-live="polite"></ul>
         <button id="stop-all" class="danger" type="button">Clear All</button>
-        <p class="status-line">Touch-Safety: fuer `Clear All` ist eine explizite Doppelbestaetigung erforderlich.</p>
+        <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
       <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Board + Output</h2>
+        <h2>Board catalog + output</h2>
         <label>
-          Layout
+          Board
           <select id="board-select"></select>
         </label>
+        <label>
+          Import board (JSON)
+          <input id="board-import-file" type="file" accept="application/json,.json" />
+        </label>
+        <button id="board-import-button" type="button">Import board to server catalog</button>
         <label class="inline-checkbox">
           <input id="align-mode-toggle" type="checkbox" />
-          Align-Mode (Final-Output Polygone einblenden)
+          Align mode (show polygons on final output)
         </label>
-        <button id="save-global-defaults" type="button">Speichern (lokal -&gt; globale Defaults)</button>
-        <button id="load-apply-global-defaults" type="button">Defaults laden &amp; anwenden</button>
-        <button id="export-global-defaults" type="button">Download-Export herunterladen (sekundaer)</button>
-        <p id="board-status" class="status-line" aria-live="polite">Aktives Board: -</p>
+        <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
+        <button id="load-apply-global-defaults" type="button">Load and apply defaults</button>
+        <button id="export-global-defaults" type="button">Download export (secondary)</button>
+        <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
         <p id="zones-status" class="status-line" aria-live="polite">
-          Zonenquelle: wird beim Startup geprueft
+          Board source: checked at startup
         </p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: noch nicht gespeichert
         </p>
         <p id="api-diagnose-status" class="status-line" aria-live="polite">
-          API Diagnose: wird ueber Save-Preflight geprueft
+          API diagnostics: checked in save preflight
         </p>
         <p class="status-line">
-          Hinweis: Download-Export ist ein sekundaerer Fallback. Primaer bleibt `Speichern` ueber den API-Server.
+          Note: Download export is a secondary fallback. Primary path remains API save.
         </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Board-Zoom (Settings)</h2>
-        <p class="status-line">Praezisionszoom fuer Spezialraum-Polygone inkl. Fit/Reset.</p>
+        <p class="status-line">Precision zoom for room polygons with fit/reset.</p>
         <label>
           Zoom <span id="board-zoom-value">100%</span>
           <input id="board-zoom-range" type="range" min="100" max="300" step="1" value="100" />
@@ -110,18 +114,18 @@
           <input id="polygon-handle-size" type="range" min="10" max="100" step="1" value="100" />
         </label>
         <div class="button-grid button-grid-2">
-          <button id="board-zoom-fit" type="button">Auf Spezialraum fitten</button>
-          <button id="board-zoom-reset" type="button">Zoom zuruecksetzen</button>
+          <button id="board-zoom-fit" type="button">Fit to selected room</button>
+          <button id="board-zoom-reset" type="button">Reset zoom</button>
         </div>
         <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
         <p id="board-pan-status" class="status-line" aria-live="polite">
-          Pan-Status: Edit-Modus | Pan wird ab Zoom &gt; 100% aktiv
+          Pan status: edit mode | pan becomes active above 100% zoom
         </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Hitarea Calibration</h2>
-        <p class="status-line">Manuelle Feinjustierung fuer Hit-Test/Overlay (pro aktivem Board).</p>
+        <p class="status-line">Manual fine tuning for hit test and overlay (per active board).</p>
         <div class="calibration-grid">
           <label>
             Hitarea X-Offset <span id="hitarea-offset-x-value">0.000</span>
@@ -137,16 +141,16 @@
           </label>
         </div>
         <div class="button-grid button-grid-2">
-          <button id="hitarea-save" type="button">Kalibrierung speichern</button>
-          <button id="hitarea-reset" type="button">Kalibrierung auf Default</button>
+          <button id="hitarea-save" type="button">Save calibration</button>
+          <button id="hitarea-reset" type="button">Reset calibration to default</button>
         </div>
         <p id="hitarea-status" class="status-line" aria-live="polite">Hitarea: Default</p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Raumverwaltung</h2>
+        <h2>Room management</h2>
         <label>
-          Neuer Raumname
+          New room name
           <input id="room-name-input" type="text" maxlength="64" placeholder="z. B. Brutkammer" />
         </label>
         <label>
@@ -157,19 +161,19 @@
           </select>
         </label>
         <div class="button-grid button-grid-2">
-          <button id="room-create" type="button">Raum anlegen</button>
-          <button id="room-delete" type="button">Raum loeschen</button>
+          <button id="room-create" type="button">Create room</button>
+          <button id="room-delete" type="button">Delete room</button>
         </div>
         <p id="room-management-status" class="status-line" aria-live="polite">
-          Raumverwaltung: bereit
+          Room management: ready
         </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Raum-Geometrie</h2>
-        <p class="status-line">Pro Raum Position als Relativ-Offset oder absolute Zielposition kalibrieren.</p>
+        <h2>Room geometry</h2>
+        <p class="status-line">Calibrate per-room position as relative offset or absolute target position.</p>
         <label>
-          Kalibriermodus
+          Calibration mode
           <select id="room-geometry-mode">
             <option value="relative">Relativ (Offset)</option>
             <option value="absolute">Absolut (Zielkoordinate)</option>
@@ -194,94 +198,93 @@
           </label>
         </div>
         <p id="room-geometry-status" class="status-line" aria-live="polite">
-          Raum-Geometrie: bitte Raum auf dem Board waehlen
+          Room geometry: select a room on the board
         </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Raum-Polygoneditor</h2>
-        <p class="status-line">Knoten auf dem Overlay ziehen oder per Buttons einfuegen/loeschen.</p>
+        <h2>Room polygon editor</h2>
+        <p class="status-line">Drag vertices on the overlay or insert/delete using buttons.</p>
         <label>
-          Raum
+          Room
           <select id="polygon-room-select"></select>
         </label>
         <label>
-          Aktive Ecke
+          Active vertex
           <select id="polygon-vertex-select"></select>
         </label>
         <label>
-          Aktive Kante
+          Active edge
           <select id="polygon-edge-select"></select>
         </label>
         <div class="button-grid button-grid-2">
-          <button id="polygon-insert-vertex" type="button">Ecke einfuegen</button>
-          <button id="polygon-delete-vertex" type="button">Ecke loeschen</button>
+          <button id="polygon-insert-vertex" type="button">Insert vertex</button>
+          <button id="polygon-delete-vertex" type="button">Delete vertex</button>
         </div>
         <div class="button-grid button-grid-2">
-          <button id="polygon-reset-room" type="button">Polygon auf Board-Default</button>
-          <button id="polygon-focus-room" type="button">Raum im Overlay auswaehlen</button>
+          <button id="polygon-reset-room" type="button">Reset polygon to board default</button>
+          <button id="polygon-focus-room" type="button">Select room in overlay</button>
         </div>
         <label>
-          Raumname
-          <input id="room-rename-input" type="text" maxlength="64" placeholder="Raumname bearbeiten" />
+          Room name
+          <input id="room-rename-input" type="text" maxlength="64" placeholder="Edit room name" />
         </label>
         <p id="polygon-editor-status" class="status-line" aria-live="polite">
-          Polygoneditor: Raum waehlen
+          Polygon editor: select a room
         </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Ship-Polygoneditor (Outside-Maske)</h2>
-        <p class="status-line">Bearbeite die Schiffsmaske; der Outside-Effekt wird live ausserhalb dieses Polygons
-          gerendert.</p>
+        <h2>Ship polygon editor (outside mask)</h2>
+        <p class="status-line">Edit the ship mask; outside effects are rendered only outside this polygon.</p>
         <label>
-          Aktive Ecke
+          Active vertex
           <select id="ship-polygon-vertex-select"></select>
         </label>
         <label>
-          Aktive Kante
+          Active edge
           <select id="ship-polygon-edge-select"></select>
         </label>
         <div class="button-grid button-grid-2">
-          <button id="ship-polygon-insert-vertex" type="button">Ecke einfuegen</button>
-          <button id="ship-polygon-delete-vertex" type="button">Ecke loeschen</button>
+          <button id="ship-polygon-insert-vertex" type="button">Insert vertex</button>
+          <button id="ship-polygon-delete-vertex" type="button">Delete vertex</button>
         </div>
         <div class="button-grid button-grid-2">
-          <button id="ship-polygon-reset" type="button">Ship-Polygon auf Default</button>
+          <button id="ship-polygon-reset" type="button">Reset ship polygon to default</button>
           <label class="inline-checkbox">
             <input id="outside-enabled" type="checkbox" />
-            Outside Space aktiv
+            Outside Space enabled
           </label>
         </div>
         <label>
-          Outside Intensitaet <span id="outside-intensity-value">0.70</span>
+          Outside intensity <span id="outside-intensity-value">0.70</span>
           <input id="outside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.7" />
         </label>
         <label>
-          Outside Geschwindigkeit <span id="outside-speed-value">1.00x</span>
+          Outside speed <span id="outside-speed-value">1.00x</span>
           <input id="outside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
         </label>
         <label>
-          Outside-Modus
+          Outside mode
           <select id="outside-mode">
             <option value="standard">Standard</option>
             <option value="immersive">Immersive</option>
           </select>
         </label>
         <label>
-          Outside-Richtung
+          Outside direction
           <select id="outside-direction">
             <option value="forward">Forward</option>
             <option value="reverse">Reverse</option>
           </select>
         </label>
         <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
-          Ship-Polygoneditor: bereit
+          Ship polygon editor: ready
         </p>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
-        <h2>Globale Animationen - Innerhalb des Schiffs</h2>
+        <h2>Global animations - inside ship</h2>
         <div class="button-grid button-grid-3">
           <button data-global="ambient-drift">Ambient Drift</button>
           <button data-global="ash-fall">Ash Fall</button>
@@ -293,15 +296,15 @@
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
-        <h2>Globale Animationen - Ausserhalb des Schiffs</h2>
+        <h2>Global animations - outside ship</h2>
         <div class="button-grid button-grid-2">
           <button data-global="outside-space">Outside Space</button>
         </div>
-        <p id="trigger-feedback" class="status-line" aria-live="polite">Status: bereit</p>
+        <p id="trigger-feedback" class="status-line" aria-live="polite">Status: ready</p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Allgemeine Animations-Settings</h2>
+        <h2>General animation settings</h2>
         <label>
           Globaler Speed-Faktor <span id="animation-speed-value">1.00x</span>
           <input id="animation-speed" type="range" min="0.5" max="2.5" step="0.05" value="1" />
@@ -313,10 +316,10 @@
         <h2>Audio Settings</h2>
         <label class="inline-checkbox">
           <input id="audio-enabled" type="checkbox" checked />
-          Event-Sounds aktiviert
+           Event sounds enabled
         </label>
         <label>
-          Lautstaerke <span id="audio-volume-value">70%</span>
+          Volume <span id="audio-volume-value">70%</span>
           <input id="audio-volume" type="range" min="0" max="100" step="1" value="70" />
         </label>
         <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
@@ -332,25 +335,29 @@
           Sound
           <select id="audio-mapping-sound"></select>
         </label>
-        <p id="audio-mapping-status" class="status-line" aria-live="polite">Sound-Mapping: bereit</p>
+        <p id="audio-mapping-status" class="status-line" aria-live="polite">Sound mapping: ready</p>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
-        <h2>Raum-Animation</h2>
-        <p id="room-selected" class="status-line">Ausgewaehlter Raum: bitte Hex auf dem Board anklicken</p>
+        <h2>Room animation</h2>
+        <p id="room-selected" class="status-line">Selected room: click a room polygon on the board</p>
+        <label>
+          Target
+          <select id="room-target-select"></select>
+        </label>
         <label>
           Animation
           <select id="room-animation-select">
-            <option value="kaputt">Kaputt</option>
-            <option value="feuer">Feuer</option>
-            <option value="schleim">Schleim</option>
+            <option value="kaputt">Malfunction</option>
+            <option value="feuer">Fire</option>
+            <option value="schleim">Slime</option>
             <option value="nest">Nest</option>
-            <option value="dekompression">Dekompression</option>
-            <option value="lichtflackern">Lichtflackern</option>
+            <option value="dekompression">Decompression</option>
+            <option value="lichtflackern">Light Flicker</option>
             <option value="alarm">Alarm</option>
           </select>
         </label>
-        <p class="status-line">Raumanimationen laufen standardmaessig im Hold-Modus bis Stop.</p>
+         <p class="status-line">Room animations run in hold mode by default until stopped.</p>
         <label>
           Opacity <span id="room-opacity-value">0.90</span>
           <input id="room-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
@@ -360,7 +367,7 @@
           <input id="room-playback-speed" type="range" min="0.25" max="3" step="0.05" value="1" />
         </label>
         <label>
-          Intensitaet <span id="room-intensity-value">0.80</span>
+          Intensity <span id="room-intensity-value">0.80</span>
           <input id="room-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
         </label>
         <label>
@@ -374,21 +381,20 @@
         <input id="room-duration" type="hidden" value="18" />
         <label class="inline-checkbox">
           <input id="room-hold" type="checkbox" checked disabled />
-          Anhalten bis ich stoppe
+          Hold until I stop
         </label>
-        <button id="start-room-animation" type="button">Animation fuer Raum starten</button>
+        <button id="start-room-animation" type="button">Start room animation</button>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Mobile Performance-Checks</h2>
-        <p class="status-line">Misst Trigger-Latenz und Frame-Stabilitaet fuer mobile Bedienung.</p>
+        <p class="status-line">Measures trigger latency and frame stability for mobile operation.</p>
         <button id="run-mobile-performance-check" type="button">Performance-Snapshot erstellen</button>
         <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile Performance: noch kein Snapshot
         </p>
       </section>
 
-      <footer class="hint dashboard-only" data-view="dashboard">Hinweis: Fuer echtes Beamer-Targeting im Browser
-        Fullscreen auf den Beamer-Screen schieben.</footer>
+      <footer class="hint dashboard-only" data-view="dashboard">Note: for real projector targeting, move the browser to the projector and use fullscreen.</footer>
     </aside>
   </div>
 
