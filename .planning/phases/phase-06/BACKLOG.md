@@ -9,6 +9,7 @@
 - Polygon Editor Safety + Play-Area Generalization
 - Room Editing Hotfix (Copy Parity + Keyboard + Deselection)
 - Selection Semantics + Delete Consistency Hotfix
+- Pointer Arbitration + Persistent Selection Regression Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -49,6 +50,11 @@
 - P6-S9.2 Delete-Hotkey entkoppeln: `Delete` loescht anhand persistenter Selection und nicht anhand LMB-Hold-/Drag-Zustand.
 - P6-S9.3 Regression fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard als kombinierte Pflichtmatrix nachweisen.
 - P6-S9.4 Selection-State-Hardening dokumentieren (State-Transitions, Input-Guards, Negativpfade) und in Phase-06-Artefakte synchronisieren.
+
+- P6-S10.1 Pointerdown/Click/Pointerup-Arbitration korrigieren: Click selektiert persistent, Drag bleibt separater Move-Flow.
+- P6-S10.2 Selection-Lifecycle fixen: sichtbare Room-Polygone/Handles bleiben bis expliziter Deselection oder Room-Wechsel aktiv.
+- P6-S10.3 Input-Semantik absichern: Hold ist nur fuer Drag/Move noetig, Buttons/Hotkeys arbeiten auf persistenter Selection.
+- P6-S10.4 Regression fuer Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard unter neuer Arbitration matrixbasiert nachweisen und Artefakte synchronisieren.
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -106,14 +112,24 @@
 - Story P6-S9.4.
   - Ziel: Selection-State-Hardening ist nachvollziehbar dokumentiert und in allen Phase-6-Artefakten konsistent.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF3)
+## Priorisierte Hotfix-Welle 4 (P0) - Plan 6-HF4 execute-ready
+- Story P6-S10.1.
+  - Ziel: Pointer-Arbitration trennt Selection (Click) und Drag (Hold/Move) deterministisch.
+- Story P6-S10.2.
+  - Ziel: aktive Room-Selektion bleibt nach Pointer-Up persistent sichtbar (Polygon/Handles).
+- Story P6-S10.3.
+  - Ziel: Hold ist nur Drag-relevant; Delete/Copy/Paste + Buttons funktionieren auf persistenter Selection.
+- Story P6-S10.4.
+  - Ziel: kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) ist unter neuer Arbitration artefaktbasiert PASS.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF4)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
   - Ziel: formale Hardening-/Soak-/E2E-Nachweise ohne offene P0-Luecken.
 
-## Execution Update - 6-HF3
-- P6-S9.1 erledigt: visuell selektierte Room-Polygone/Handles sind an persistente aktive Selection gebunden.
-- P6-S9.2 erledigt: Delete-Workflow ist von Hold-/Drag-Zustaenden entkoppelt und nutzt aktive Selection als Source-of-Truth.
-- P6-S9.3 erledigt: kombinierte Regression in `.planning/phases/phase-06/P6-T37-REGRESSION.md` dokumentiert.
-- P6-S9.4 erledigt: Selection-State-Hardening in Phase-6-Artefakten und globalen Tracking-Dateien synchronisiert.
+## Execution Update - 6-HF4 Completed
+- P6-S10.1 umgesetzt: Pointer-Arbitration folgt `click select` vs `hold/move drag` ohne Hold-only-Selection.
+- P6-S10.2 umgesetzt: Selection-Lifecycle bleibt nach Pointer-Up persistent sichtbar bis expliziter Deselection/Room-Wechsel.
+- P6-S10.3 umgesetzt: Hotkeys und Room-Management-Bedienpfade sind auf persistente Selection vereinheitlicht.
+- P6-S10.4 umgesetzt: kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) ist als PASS dokumentiert (`P6-T42-REGRESSION.md`).

@@ -2,7 +2,7 @@
 
 - Active: Phase 6 (`phase-06`)
 - Status: ready-for-execution
-- Next Plan: 6-3 (Hardening + operator verification)
+- Next Plan: 6-3 (hardening + operator verification)
 - Command Target: `/gsd:execute-phase 6`
 
 Execution inputs:

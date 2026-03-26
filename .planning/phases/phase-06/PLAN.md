@@ -8,6 +8,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF1 ist als verpflichtende P0-Hotfix-Welle zwischen 6-1 und 6-2 gesetzt.
 - Ziel von 6-HF1: keine deutschen Operator-Texte mehr in `Control`, `Settings` und `Final-Flow`, konsistente Doku (`README` + Phase-06-Artefakte) und artefaktbasierter Language-Sweep-Nachweis.
 
+## Hotfix Trigger (Regression nach 6-HF3)
+- Neues verpflichtendes Feedback meldet eine P0-Regression: Room-Polygone/Handles sind nur waehrend LMB-Hold sichtbar.
+- Konsequenz: Plan 6-HF4 ist als verpflichtende P0-Hotfix-Welle zwischen 6-HF3 und 6-3 gesetzt.
+- Ziel von 6-HF4: Pointerdown/Click/Pointerup-Arbitration zwischen Select vs Drag korrigieren, persistente Selection-Lifecycle stabilisieren und Buttons/Hotkeys auf persistenter Selection absichern.
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -26,6 +31,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - `Delete` orientiert sich ausschliesslich an der aktiven Room-Selektion und nicht an Pointer-Hold-/Drag-Zustaenden.
 - Klick auf leere Boardflaeche setzt die Room-Selektion deterministisch auf `none`.
 - Play-Area-Editing/-Selection bleibt von Room-Copy/Keyboard/Deselection-Flow unberuehrt.
+- Pointer-Arbitration trennt Selection und Drag strikt: Click erzeugt persistente Selection, Drag startet erst bei aktiver Move-Intention/Threshold.
+- Pointer-Up darf aktive Room-Selection nicht invalidieren; Deaktivierung erfolgt nur ueber Empty-Space-Deselect oder explizite Umschaltung auf anderen Room.
+- Room-Polygone/Handles bleiben bei aktiver Selection sichtbar, unabhaengig vom Pointer-Hold-State.
+- Room-Buttons/Hotkeys arbeiten gegen denselben persistenten Selection-State (`single source of truth`) und nicht gegen transienten Pointer-State.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -51,6 +60,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Delete-Hotkey an persistenter Selection ausrichten, unabhaengig von LMB-Hold/Drag.
 - Regression fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard als verpflichtende Hotfix-Evidenz liefern.
 - Sicherstellen, dass Play-Area-Interaktion durch Room-Copy/Keyboard/Deselection nicht regressiert.
+- Pointerdown/Click/Pointerup-Arbitration zwischen Selection und Drag korrigieren (Click != Hold-only Selection).
+- Selection-Lifecycle fixen: Single-Click selektiert persistent, Sichtbarkeit bleibt bis Deselect/Room-Wechsel bestehen.
+- Drag/Move klar entkoppeln: Hold ist nur fuer Move relevant, nicht fuer Selection-Aktivierung.
+- Regression gegen Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard unter neuer Pointer-Arbitration dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF4-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -70,7 +84,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 9. Polygon-Editor-Safety-Welle ausrollen: getrennte Vertex-Visibility-Toggles, Play-Area-Wording, no-special-room-visuals, Polygon-Template-Copy.
 10. Room-Editing-Hotfix ausrollen: full room-copy geometry parity, keyboard copy/paste/delete, empty-space deselection, play-area non-regression.
 11. Selection-Semantik-Hotfix ausrollen: persistent selected room state, delete-without-hold, copy/paste/delete+deselect+play-area regression matrix.
-12. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
+12. Pointer-Arbitration-Hotfix ausrollen: click-persist selection, hold-only-drag semantics, persistent handles/polygons.
+13. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -82,7 +97,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 7. M7 Polygon Editor Safety + Terminology Generalization: getrennte Vertex-Toggles, Play-Area-Wording, no-special-room visuals, Polygon-Template-Copy.
 8. M8 Room Editing Hotfix: Room-Copy-Paritaet, Keyboard-Editing und Empty-Space-Deselection ohne Play-Area-Regression.
 9. M9 Selection Semantics Hotfix: visuell selektiert = aktiv selektiert, Delete ohne Hold-Abhaengigkeit.
-10. M10 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+10. M10 Pointer Arbitration Hotfix: Selection bleibt persistent nach Click/Pointer-Up; Hold bleibt Drag-only.
+11. M11 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -104,6 +120,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Verify-work-6 Follow-up setzt zusaetzlich: offener P0-Blocker `English-only operator flow` muss ueber Plan 6-HF1 geschlossen werden, bevor Plan 6-2 startet.
 - Neues verpflichtendes Feedback wird als Plan 6-HF2 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Selection/Delete-Konsistenz) wird als Plan 6-HF3 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Selection nur waehrend LMB-Hold sichtbar) wird als Plan 6-HF4 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -122,13 +139,18 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Ein visuell selektierter Room (Polygon/Handles sichtbar) ist immer aktive Auswahlquelle fuer Editing-Hotkeys.
 - `Delete` loescht den aktiv selektierten Room sofort, auch ohne laufenden LMB-Hold/Drag auf dem Room.
 - Klick auf leere Boardflaeche setzt die Room-Selektion auf `none`.
+- Ein einzelner Click auf Room-Polygon aktiviert persistente Room-Selektion auch nach Pointer-Up.
+- Room-Polygone/Handles bleiben sichtbar, bis der Room aktiv deselektiert oder ein anderer Room selektiert wird.
+- Pointer-Hold ist ausschliesslich fuer Drag/Move relevant; Selection bleibt davon entkoppelt.
+- Buttons/Hotkeys (`Delete`, `CTRL+C`, `CTRL+V`) funktionieren auf persistenter Selection ohne erneuten Hold.
 - Play-Area-Selection/-Editing zeigt keine Regression durch Room-Copy/Keyboard/Deselection.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Clipping, Persistenz, Live-Sync und Final-Output.
-- Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien synchronisiert.
+- Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien (`STATE/ROADMAP/CURRENT_PHASE`) synchronisiert.
 - Language-Sweep-Regression ist als Artefakt dokumentiert und schliesst den P0-Blocker aus verify-work 6 explizit.
 
-## Execution Update - 6-HF3
-- P6-T35 umgesetzt: persistente Selection-Normalisierung verhindert Drift zwischen sichtbarer Room-Auswahl und aktivem Hotkey-Target.
-- P6-T36 umgesetzt: `Delete` nutzt persistente aktive Selection (ohne LMB-Hold-/Drag-Abhaengigkeit) bei unveraenderten Typing/Play-Area-Guards.
-- P6-T37 umgesetzt: kombinierte Regression dokumentiert in `.planning/phases/phase-06/P6-T37-REGRESSION.md`.
-- P6-T38 umgesetzt: Planungsartefakte und globale Tracking-Dateien auf HF3-Stand synchronisiert; Plan 6-3 ist entblockt.
+## Execution Update - 6-HF4 Completed
+- P0-Regression nach 6-HF3 ist geschlossen: Pointer-Arbitration trennt nun deterministisch `click => persistent selection` und `hold+move => drag`.
+- Selection-Lifecycle bleibt nach Pointer-Up stabil; Room-Polygone/Handles bleiben sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
+- Delete/Copy/Paste sowie Room-Management-Buttons lesen dieselbe persistente Selection-Quelle ohne Hold-Abhaengigkeit.
+- Kombinierte Regression ist in `.planning/phases/phase-06/P6-T42-REGRESSION.md` als PASS dokumentiert.
+- Gate fuer Plan 6-3 ist geoeffnet.

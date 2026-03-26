@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF3
+- Last Executed Plan: 6-HF4
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -332,6 +332,14 @@
 - Plan-6-HF3 execution: visuelle Room-Selektion ist als persistente aktive Selection normalisiert und verhindert Selection-/Handle-Drift nach Pointer-Up.
 - Plan-6-HF3 execution: `Delete` loescht den aktiv selektierten Room ohne Hold-/Drag-Abhaengigkeit und behaelt Typing-/Play-Area-Guards bei.
 - Plan-6-HF3 execution: kombinierte Regression fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard ist als `P6-T37-REGRESSION.md` dokumentiert.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt: persistente Room-Selection regressiert im Pointer-Arbitration-Pfad (Polygone/Handles nur waehrend LMB-Hold sichtbar).
+- Pointer-Arbitration-Regel fuer Phase 6 (Plan 6-HF4): `Click` aktiviert persistente Selection, `Hold/Move` startet Drag; Pointer-Up darf Selection nicht invalidieren.
+- Lifecycle-Regel fuer Phase 6 (Plan 6-HF4): sichtbare Room-Polygone/Handles bleiben bis Empty-Space-Deselect oder Room-Wechsel aktiv.
+- Input-Regel fuer Phase 6 (Plan 6-HF4): Delete/Copy/Paste + Buttons lesen ausschliesslich persistente Selection (kein transienter Hold-State).
+- Phase-6 Plan 6-HF4 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF4 execution: pointer arbitration now uses pending drag promotion (`click => persistent selection`, `hold+move => area drag`).
+- Plan-6-HF4 execution: pointerup keeps persistent room selection/handles visible until empty-space deselect or room switch.
+- Plan-6-HF4 execution: room keyboard/buttons resolve actions from persisted selected-room state; combined regression documented in `P6-T42-REGRESSION.md`.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

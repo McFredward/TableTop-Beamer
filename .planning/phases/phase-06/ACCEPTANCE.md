@@ -8,6 +8,7 @@
 - Edit-safety-first: Polygon-Editing muss Room-Vertices und Play-Area-Vertices getrennt steuern koennen, ohne versehentliche Cross-Edits.
 - Selection-integrity: Room-Selektion muss bei leerem Board-Klick deterministisch auf `none` gehen, ohne Play-Area-Nebenwirkungen.
 - Selection-consistency: visuell selektierter Room (sichtbares Polygon/Handles) ist immer die aktive Auswahl fuer Copy/Paste/Delete.
+- Pointer-arbitration-integrity: Selection (`Click`) und Drag (`Hold/Move`) duerfen sich nicht gegenseitig invalidieren.
 
 ## Language-Sweep Pflichtnachweis (P0)
 - Sweep Scope: `Control`, `Settings`, `Final-Flow`, operatorrelevante Statusmeldungen, Fehlermeldungen und Diagnose-Logs.
@@ -39,6 +40,10 @@
 - Keyboard-Copy-Paste-Delete-Test: bei selektiertem Raum funktionieren `CTRL+C`, `CTRL+V`, `Delete` deterministisch und kollisionsfrei.
 - Visual-Selection-Is-Active-Test: wenn Room-Polygon/Handles sichtbar selektiert sind, gilt der Room ohne LMB-Hold als aktiv selektiert.
 - Delete-Without-Hold-Test: `Delete` loescht den aktiv selektierten Room sofort auch nach Mouse-Up und ohne laufenden Drag.
+- Single-Click-Persistent-Selection-Test: einmaliger Click auf Room selektiert persistent; Selection bleibt nach Pointer-Up erhalten.
+- Handles-Visibility-Persistence-Test: selektiertes Room-Polygon/Handles bleiben sichtbar bis Empty-Space-Deselect oder explizitem Room-Wechsel.
+- Select-vs-Drag-Arbitration-Test: kurzer Click triggert nur Selection; Drag/Move startet nur mit Pointer-Move/Hold-Drag-Intent.
+- Hotkey-On-Persistent-Selection-Test: Buttons/Hotkeys (`Delete`, `CTRL+C`, `CTRL+V`) funktionieren auf persistenter Selection ohne erneuten Hold.
 - Empty-Space-Deselect-Test: Klick auf board-leere Flaeche setzt Room-Selektion auf `none`.
 - Play-Area-Non-Regression-Test: Room-Copy/Keyboard/Deselection veraendern Play-Area-Selection/-Editing nicht.
 
@@ -70,9 +75,12 @@
 - Nach P6-T33..P6-T34: Play-Area bleibt unberuehrt; Plan-6-HF2-Regression ist artefaktbasiert abgeschlossen.
 - Nach P6-T35..P6-T36: aktive Room-Selektion ist persistent visuell gebunden; `Delete` funktioniert ohne Hold-Abhaengigkeit.
 - Nach P6-T37..P6-T38: kombinierte Regression (Copy/Paste/Delete + deselect + play-area guard) ist nachgewiesen und alle Planungsartefakte sind HF3-konsistent.
+- Nach P6-T39..P6-T40: Pointer-Arbitration ist click-persistent; Room-Polygone/Handles bleiben nach Pointer-Up sichtbar bis expliziter Deselection.
+- Nach P6-T41..P6-T42: Hold ist Drag-only, Buttons/Hotkeys laufen auf persistenter Selection und kombinierte Regression bleibt PASS.
+- Nach P6-T43: alle Phase-6- und globalen Planungsartefakte sind HF4-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34 und P6-T35..P6-T38 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38 und P6-T39..P6-T43 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -87,11 +95,15 @@
 - Room-Keyboard-Editing (`CTRL+C`, `CTRL+V`, `Delete`) funktioniert fuer selektierte Raeume ohne Shortcut-Kollision.
 - Ein visuell selektierter Room (Polygon/Handles sichtbar) gilt jederzeit als aktive Selection fuer Editing-Hotkeys.
 - `Delete` loescht den aktiv selektierten Room ohne LMB-Hold-/Drag-Abhaengigkeit.
+- Einmaliger Click auf einen Room erzeugt persistente Selection; Pointer-Up darf diese Selection nicht zuruecksetzen.
+- Room-Polygone/Handles bleiben fuer aktive Selection sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
+- Pointer-Hold ist ausschliesslich fuer Drag/Move erforderlich und nicht fuer Selection-Aktivierung.
+- Room-Buttons/Hotkeys arbeiten konsistent gegen persistente Selection (kein Hold-only Verhalten).
 - Klick auf leere Boardflaeche setzt Room-Selektion auf `none`; Play-Area-Verhalten bleibt unveraendert.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
-## Evidence Update - 6-HF3
-- P6-T35/P6-T36 Implementierungsnachweis: `src/app.js` (Selection-Normalisierung + Delete-Entkopplung).
-- P6-T37 Kombinationsmatrix: `.planning/phases/phase-06/P6-T37-REGRESSION.md`.
-- Ergebnis: Selection-consistency + Delete-without-hold + Empty-space-deselect + Play-Area-guard Pflichtgates fuer HF3 sind PASS.
+## Evidence Update - 6-HF4
+- P6-T39..P6-T41 Implementierungsnachweis: `src/app.js`, `src/app/state/runtime-state.js` (pointer arbitration pending-drag flow, pointerup lifecycle persistence, persisted-selection input binding).
+- P6-T42 Kombinationsmatrix: `.planning/phases/phase-06/P6-T42-REGRESSION.md`.
+- Ergebnis: Pointer-arbitration + persistent-selection-lifecycle + delete/copy/paste + empty-space-deselect + play-area-guard Pflichtgates fuer HF4 sind PASS.

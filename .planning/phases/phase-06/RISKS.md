@@ -100,6 +100,18 @@
 - Impact: Kritisch, erwarteter Keyboard-Workflow bricht und fuehrt zu Bedienfehlern.
 - Gegenmassnahme: Delete-Guard auf persistente Selection statt Pointer-State umstellen; Regression fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard als Pflichtgate.
 
-## Risk Closure Update - 6-HF3
-- R19 Status: mitigated in HF3 via persistente Selection-Normalisierung (`src/app.js`, `syncSelectedRoomStateForBoard`).
-- R20 Status: mitigated in HF3 via Delete-Entkopplung von Pointer-Hold/Drag und Regression-Nachweis (`.planning/phases/phase-06/P6-T37-REGRESSION.md`).
+## R21 Pointer-Arbitration invalidiert persistente Click-Selection
+- Risiko: Pointerdown/Pointerup-Logik behandelt Selection weiterhin als Hold-gebunden; nach Mouse-Up verschwinden Polygone/Handles trotz Room-Click.
+- Impact: Kritisch, Kernworkflow `einmal klicken -> persistent selektiert` ist gebrochen und erzeugt Fehlbedienung.
+- Gegenmassnahme: klare Arbitration-Regel (`click => select`, `hold+move => drag`), inklusive Transition-Tests fuer pointerdown/click/pointerup ohne Selection-Reset.
+
+## R22 Hotkeys/Buttons bleiben an transienten Pointer-State gekoppelt
+- Risiko: `Delete`/`CTRL+C`/`CTRL+V` und UI-Buttons lesen weiterhin Hold-/Drag-Status statt persistenter Selection und reagieren inkonsistent.
+- Impact: Kritisch, Editing-Operationen wirken zufaellig und regressieren bestehende HF2/HF3-Gates.
+- Gegenmassnahme: einheitliche Selection-Source-of-Truth fuer alle Editing-Entry-Points und kombinierte Regression (Delete/Copy/Paste + Empty-space deselect + Play-Area-Guard) unter neuer Arbitration.
+
+## Risk Closure Update - 6-HF4 Completed
+- R19/R20 sind unter HF4 erneut verifiziert und bleiben geschlossen (persistente Selection + Delete ohne Hold weiterhin PASS).
+- R21 ist geschlossen: Pointer-Arbitration invalidiert Click-Selection nicht mehr; Selection bleibt nach Pointer-Up stabil.
+- R22 ist geschlossen: Hotkeys/Buttons lesen persistente Selection und sind nicht mehr an transienten Pointer-State gekoppelt.
+- Plan 6-3 ist aus Risikosicht freigegeben.
