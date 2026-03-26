@@ -8303,6 +8303,9 @@ roomAnimationSelect.addEventListener("change", () => {
   const selected = roomAnimationSelect.value;
   state.roomDraft.animationId = isRoomAnimationType(selected) ? selected : ROOM_ANIMATIONS[0]?.id ?? "kaputt";
   roomAnimationSelect.value = state.roomDraft.animationId;
+  if (isGifRoomAnimation(state.roomDraft.animationId)) {
+    warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[state.roomDraft.animationId], { reason: "trigger" });
+  }
   syncGifRoomControls();
 });
 
