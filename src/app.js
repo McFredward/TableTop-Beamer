@@ -5632,10 +5632,11 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     roomOpacityInput.disabled = true;
     roomPlaybackSpeedInput.disabled = true;
     if (roomTargetSelect) {
-      roomTargetSelect.disabled = true;
+      roomTargetSelect.disabled = false;
     }
+    syncRoomTargetSelect();
     if (roomStaggerStartInput) {
-      roomStaggerStartInput.disabled = true;
+      roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
     }
     syncRoomGeometryPanel();
     syncDashboardZoneVisibility();
