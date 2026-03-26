@@ -25,7 +25,7 @@ patterns-established:
   - "Board import payloads are normalized to tt-beamer.board-definition.v1 on the server before persistence."
   - "Room targeting uses targetType/targetId with cluster fanout creating one runtime animation instance per room."
 requirements-completed: []
-duration: 51min
+duration: 11min
 completed: 2026-03-26
 ---
 
@@ -35,9 +35,9 @@ completed: 2026-03-26
 
 ## Performance
 
-- **Duration:** 51 min
+- **Duration:** 11 min
 - **Started:** 2026-03-26T10:36:07Z
-- **Completed:** 2026-03-26T11:27:00Z
+- **Completed:** 2026-03-26T10:46:49Z
 - **Tasks:** 13
 - **Files modified:** 9
 
