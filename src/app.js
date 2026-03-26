@@ -4653,17 +4653,11 @@ function renderRoomOverlay() {
     if (state.selectedRoomId === room.id) {
       polygon.classList.add("is-selected");
     }
-    if (room.id.startsWith("special-")) {
-      polygon.classList.add("is-special");
-    }
     roomOverlay.append(polygon);
 
     if (outputRole !== OUTPUT_ROLE_FINAL) {
       const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
       label.classList.add("room-zone-label");
-      if (room.id.startsWith("special-")) {
-        label.classList.add("is-special");
-      }
       const labelPosition = getRoomLabelPosition(room, state.boardId);
       label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
       label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));

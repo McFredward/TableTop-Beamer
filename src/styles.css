@@ -162,28 +162,12 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   stroke: rgba(164, 255, 227, 0.95);
 }
 
-.room-zone.is-special {
-  fill: rgba(198, 128, 255, 0.08);
-  stroke: rgba(221, 166, 255, 0.72);
-}
-
-.room-zone.is-special:hover,
-.room-zone.is-special.is-selected {
-  fill: rgba(198, 128, 255, 0.2);
-  stroke: rgba(242, 219, 255, 0.95);
-}
-
 .room-zone-label {
   fill: #caf5ff;
   font-family: "Barlow Condensed", sans-serif;
   font-size: 22px;
   text-anchor: middle;
   pointer-events: none;
-}
-
-.room-zone-label.is-special {
-  fill: #f2d6ff;
-  font-size: 16px;
 }
 
 .polygon-vertex-marker {
