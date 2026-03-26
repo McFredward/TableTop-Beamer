@@ -1892,6 +1892,16 @@ function getActivePolygonRoomId(boardId = state.boardId) {
   return available[0]?.id ?? null;
 }
 
+function resolvePolygonEditingRoomId(boardId = state.boardId) {
+  const rooms = getSpecialRooms(boardId);
+  const selectedRoomId = syncSelectedRoomStateForBoard(boardId);
+  if (rooms.some((room) => room.id === selectedRoomId)) {
+    setActivePolygonRoomId(boardId, selectedRoomId);
+    return selectedRoomId;
+  }
+  return getActivePolygonRoomId(boardId);
+}
+
 function syncSelectedRoomStateForBoard(boardId = state.boardId) {
   const rooms = getSpecialRooms(boardId);
   const remembered = state.selectedRoomByBoard[boardId];
@@ -6675,8 +6685,9 @@ polygonInsertVertexButton.addEventListener("click", () => {
     triggerFeedback.textContent = "Status: Room vertices hidden - polygon edit paused";
     return;
   }
-  const roomId = getActivePolygonRoomId(state.boardId);
+  const roomId = resolvePolygonEditingRoomId(state.boardId);
   if (!roomId) {
+    triggerFeedback.textContent = "Status: No active room selected for polygon insert";
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, roomId);
