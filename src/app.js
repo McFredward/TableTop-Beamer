@@ -352,6 +352,22 @@ function recordMutationTrace(mutationId, marker, ts = Date.now()) {
   }
 }
 
+function getLiveTraceSnapshot() {
+  const traces = [...liveSync.tracesByMutationId.values()].map((entry) => ({
+    mutationId: entry.mutationId,
+    markers: entry.markers,
+  }));
+  return {
+    connected: liveSync.connected,
+    clientId: liveSync.clientId,
+    lastSessionVersion: liveSync.lastSessionVersion,
+    lastAppliedVersion: liveSync.lastAppliedVersion,
+    pendingMutationCount: liveSync.pendingMutations.size,
+    applyRejectCounters: liveSync.applyRejectCounters,
+    traces,
+  };
+}
+
 function replayPendingLiveMutations() {
   if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
@@ -8694,6 +8710,9 @@ async function initializeApplication() {
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
+  window.TT_BEAMER_LIVE_SYNC_DEBUG = {
+    getLiveTraceSnapshot,
+  };
   requestAnimationFrame(draw);
 }
 
