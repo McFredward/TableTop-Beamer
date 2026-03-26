@@ -1516,7 +1516,7 @@ function getApiHostName(base) {
 function formatGlobalDefaultsSaveError(error) {
   const code = error && typeof error === "object" && "code" in error ? error.code : "UNKNOWN";
   const endpoint =
-    error && typeof error === "object" && "endpoint" in error ? String(error.endpoint || "") : "unbekannt";
+    error && typeof error === "object" && "endpoint" in error ? String(error.endpoint || "") : "unknown";
   const method =
     error && typeof error === "object" && "method" in error ? String(error.method || "POST") : "POST";
   const status = error && typeof error === "object" && "status" in error ? error.status : null;
@@ -1531,10 +1531,10 @@ function formatGlobalDefaultsSaveError(error) {
   const hostMeta = formatResolveSnapshot(snapshot);
   if (code === "STATIC_ONLY_SERVER") {
     return {
-      statusText: `Speichern blockiert - Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}).`,
+      statusText: `Save blocked - static-only server active, save not possible (${hostMeta}; ${endpointMeta}).`,
       feedbackText:
-        `Status: Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta}). ${startHint}`,
-      diagnoseStatusText: `API Diagnose: Static-only Server aktiv, Save nicht moeglich (${hostMeta}; ${endpointMeta})`,
+        `Status: Static-only server active, save not possible (${hostMeta}; ${endpointMeta}). ${startHint}`,
+      diagnoseStatusText: `API diagnostics: static-only server active, save not possible (${hostMeta}; ${endpointMeta})`,
     };
   }
   if (
@@ -1544,33 +1544,33 @@ function formatGlobalDefaultsSaveError(error) {
     code === "API_HEALTH_FAILED"
   ) {
     return {
-      statusText: `Speichern fehlgeschlagen - API-Endpoint nicht save-faehig (${hostMeta}; ${endpointMeta}).`,
-      feedbackText: `Status: API fuer Global Defaults nicht verfuegbar (${hostMeta}; ${endpointMeta}). ${startHint}`,
-      diagnoseStatusText: `API Diagnose: API-Endpoint nicht save-faehig (${hostMeta}; ${endpointMeta})`,
+      statusText: `Save failed - API endpoint is not save-capable (${hostMeta}; ${endpointMeta}).`,
+      feedbackText: `Status: API for global defaults is not available (${hostMeta}; ${endpointMeta}). ${startHint}`,
+      diagnoseStatusText: `API diagnostics: API endpoint is not save-capable (${hostMeta}; ${endpointMeta})`,
     };
   }
   if (code === "API_SERVER_ERROR") {
     return {
-      statusText: `Speichern fehlgeschlagen - API-Serverfehler (${hostMeta}; ${endpointMeta}).`,
-      feedbackText: `Status: API-Server hat den Save-Request nicht verarbeitet (${hostMeta}; ${endpointMeta}).`,
-      diagnoseStatusText: `API Diagnose: API-Serverfehler (${hostMeta}; ${endpointMeta})`,
+      statusText: `Save failed - API server error (${hostMeta}; ${endpointMeta}).`,
+      feedbackText: `Status: API server did not process the save request (${hostMeta}; ${endpointMeta}).`,
+      diagnoseStatusText: `API diagnostics: API server error (${hostMeta}; ${endpointMeta})`,
     };
   }
   return {
-    statusText: `Speichern fehlgeschlagen - bitte Save-Setup pruefen (${hostMeta}; ${endpointMeta}).`,
-    feedbackText: `Status: Save fehlgeschlagen (${hostMeta}; ${endpointMeta}). ${startHint}`,
-    diagnoseStatusText: `API Diagnose: fehlgeschlagen (${hostMeta}; ${endpointMeta})`,
+    statusText: `Save failed - please check the save setup (${hostMeta}; ${endpointMeta}).`,
+    feedbackText: `Status: Save failed (${hostMeta}; ${endpointMeta}). ${startHint}`,
+    diagnoseStatusText: `API diagnostics: failed (${hostMeta}; ${endpointMeta})`,
   };
 }
 
 function formatResolverSourceLabel(source) {
-  return source || "unbekannt";
+  return source || "unknown";
 }
 
 function buildResolveSnapshot({ routing = null, endpoint = "", method = "POST" } = {}) {
   return {
-    uiHost: routing?.uiHost || getUiHostName() || "unbekannt",
-    apiHost: routing?.apiHost || getApiHostName(getApiBaseFromSaveEndpoint(endpoint)) || "unbekannt",
+    uiHost: routing?.uiHost || getUiHostName() || "unknown",
+    apiHost: routing?.apiHost || getApiHostName(getApiBaseFromSaveEndpoint(endpoint)) || "unknown",
     source: formatResolverSourceLabel(routing?.source),
     endpoint,
     method,
@@ -1579,15 +1579,15 @@ function buildResolveSnapshot({ routing = null, endpoint = "", method = "POST" }
 
 function formatResolveSnapshot(snapshot) {
   if (!snapshot) {
-    return "UI-Host unbekannt -> API-Host unbekannt | Quelle unbekannt | Endpoint unbekannt";
+    return "UI host unknown -> API host unknown | Source unknown | Endpoint unknown";
   }
-  return `UI-Host ${snapshot.uiHost} -> API-Host ${snapshot.apiHost} | Quelle ${snapshot.source} | Endpoint ${snapshot.method} ${snapshot.endpoint}`;
+  return `UI host ${snapshot.uiHost} -> API host ${snapshot.apiHost} | Source ${snapshot.source} | Endpoint ${snapshot.method} ${snapshot.endpoint}`;
 }
 
 function formatHostFlow(routing) {
-  const uiHost = routing?.uiHost || getUiHostName() || "unbekannt";
-  const apiHost = routing?.apiHost || "unbekannt";
-  return `UI-Host ${uiHost} -> API-Host ${apiHost}`;
+  const uiHost = routing?.uiHost || getUiHostName() || "unknown";
+  const apiHost = routing?.apiHost || "unknown";
+  return `UI host ${uiHost} -> API host ${apiHost}`;
 }
 
 function getRemoteMismatchHint(routing) {
@@ -1597,7 +1597,7 @@ function getRemoteMismatchHint(routing) {
     return null;
   }
   if (!isLocalApiHost(uiHost) && isLocalApiHost(apiHost)) {
-    return "Remote/LAN-Hinweis: Die UI laeuft remote, aber API zeigt auf localhost. Setze ?ttApiBase=http://<SERVER-IP>:4173 oder oeffne die UI direkt ueber den Server-Host.";
+    return "Remote/LAN hint: UI is running remotely, but API points to localhost. Set ?ttApiBase=http://<SERVER-IP>:4173 or open the UI directly from the server host.";
   }
   return null;
 }
@@ -1612,8 +1612,8 @@ function buildGuidedFixHint({ routing, endpoint } = {}) {
   const verifyUrl = `http://${apiHost}:${port}`;
   const uiUrl = `http://${uiHost}:${port}`;
   const baseHint =
-    `Next Steps (headless/LAN): Stoppe ggf. \`python3 -m http.server ${port}\` (Static-only) und starte \`${serverStartCmd}\` ` +
-    `(alternativ \`${envStartCmd}\`). Pruefe danach API unter ${verifyUrl}/api/health und oeffne die UI ueber ${uiUrl}.`;
+    `Next steps (headless/LAN): stop \`python3 -m http.server ${port}\` if running (static-only) and start \`${serverStartCmd}\` ` +
+    `(alternative: \`${envStartCmd}\`). Then verify API at ${verifyUrl}/api/health and open the UI at ${uiUrl}.`;
   return remoteHint ? `${baseHint} ${remoteHint}` : baseHint;
 }
 
@@ -1758,11 +1758,11 @@ async function loadAndApplyGlobalDefaults({ sourceLabel = "manual" } = {}) {
     method: "GET",
   });
   globalDefaultsStatus.textContent =
-    `Global Defaults: geladen & angewendet (${formatResolveSnapshot(snapshot)} | Quelle ${sourceLabel})`;
+    `Global Defaults: loaded & applied (${formatResolveSnapshot(snapshot)} | Source ${sourceLabel})`;
   apiDiagnoseStatus.textContent =
-    `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | GET /api/global-defaults oder config/global-defaults.json)`;
+    `API diagnostics: OK (${formatResolveSnapshot(snapshot)} | GET /api/global-defaults or config/global-defaults.json)`;
   triggerFeedback.textContent =
-    `Status: Defaults geladen & angewendet (${formatResolveSnapshot(snapshot)} | ${sourceLabel})`;
+    `Status: Defaults loaded & applied (${formatResolveSnapshot(snapshot)} | ${sourceLabel})`;
 
   return {
     snapshot,
@@ -1916,16 +1916,16 @@ function syncBoardZoomStatus() {
   const percent = Math.round(zoom.scale * 100);
   const bounds = getStagePanBounds(zoom.scale);
   const modeLabel = state.panMode.active
-    ? "PAN aktiv (ziehen)"
+    ? "PAN active (dragging)"
     : state.panMode.spacePressed
-      ? "PAN bereit (Space gedrueckt)"
-      : "Edit-Modus";
+      ? "PAN ready (Space pressed)"
+      : "Edit mode";
   boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px | Bounds ±${Math.round(bounds.maxPanX)}px/±${Math.round(bounds.maxPanY)}px`;
   if (boardPanStatus) {
     const hint = zoom.scale > 1
-      ? "Space + Drag oder mittlere Maustaste: Board verschieben"
-      : "Pan wird ab Zoom > 100% aktiv";
-    boardPanStatus.textContent = `Pan-Status: ${modeLabel} | ${hint}`;
+      ? "Space + drag or middle mouse button: move board"
+      : "Pan is available above zoom > 100%";
+    boardPanStatus.textContent = `Pan status: ${modeLabel} | ${hint}`;
   }
 }
 
@@ -1967,13 +1967,13 @@ function fitZoomToActiveSpecialRoom() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId);
   if (!room) {
-    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom auf Default gesetzt");
+    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom reset to default");
     return;
   }
 
   const points = getRoomPoints(room, state.boardId).map(([x, y]) => [x / 1000, y / 1000]);
   if (!points.length) {
-    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom auf Default gesetzt");
+    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom reset to default");
     return;
   }
 
@@ -1993,7 +1993,7 @@ function fitZoomToActiveSpecialRoom() {
   const scale = clampBoardZoomScale(targetCoverage / boxSize);
   const center = getRoomCenterForZoom(state.boardId, room.id);
   const viewport = computePanForZoomFocus(scale, center);
-  updateCurrentBoardZoom(viewport, `${room.name ?? room.label} gezoomt (${Math.round(scale * 100)}%)`);
+  updateCurrentBoardZoom(viewport, `${room.name ?? room.label} zoomed (${Math.round(scale * 100)}%)`);
 }
 
 function canStartPanModeFromEvent(event) {
@@ -2036,7 +2036,7 @@ function startPanMode(event, trigger) {
     // ignore unsupported pointer capture
   }
   setPanCursorState();
-  triggerFeedback.textContent = "Status: Pan-Modus aktiv (Board verschieben)";
+  triggerFeedback.textContent = "Status: Pan mode active (moving board)";
 }
 
 function endPanMode(event, { canceled = false } = {}) {
@@ -2052,8 +2052,8 @@ function endPanMode(event, { canceled = false } = {}) {
   state.panMode.trigger = null;
   setPanCursorState();
   triggerFeedback.textContent = canceled
-    ? "Status: Pan-Modus abgebrochen"
-    : "Status: Pan-Modus beendet";
+    ? "Status: Pan mode canceled"
+    : "Status: Pan mode ended";
 }
 
 function clampRoomIntensity(value) {
@@ -6005,7 +6005,7 @@ function draw(now) {
       renderRunningAnimationsList();
       refreshGlobalButtons();
       triggerFeedback.textContent =
-        "Status: fehlerhafte Animation isoliert, Render-Timer laeuft weiter";
+        "Status: faulty animation isolated, render timer continues";
     }
 
     if (now - lastListRenderAt > 500) {
@@ -6856,14 +6856,14 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
   const persisted = persistBoardProfiles();
   if (!persisted) {
     globalDefaultsStatus.textContent =
-      "Global Defaults: lokales Profil konnte vor Save nicht gespeichert werden";
-    triggerFeedback.textContent = "Status: Global-Defaults-Save abgebrochen (lokale Persistenz fehlgeschlagen)";
+      "Global Defaults: local profile could not be saved before save operation";
+    triggerFeedback.textContent = "Status: Global defaults save aborted (local persistence failed)";
     return;
   }
 
   saveGlobalDefaultsButton.disabled = true;
-  globalDefaultsStatus.textContent = "Global Defaults: Save laeuft ...";
-  apiDiagnoseStatus.textContent = "API Diagnose: pruefe Reachability + POST-Faehigkeit (Save-Preflight) ...";
+  globalDefaultsStatus.textContent = "Global Defaults: save in progress ...";
+  apiDiagnoseStatus.textContent = "API diagnostics: checking reachability + POST capability (save preflight) ...";
   try {
     const result = await saveGlobalDefaultsToServer();
     const snapshot = buildResolveSnapshot({
@@ -6873,11 +6873,11 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     });
     const remoteHint = getRemoteMismatchHint(result.routing);
     globalDefaultsStatus.textContent =
-      `Global Defaults: gespeichert (${result.target}, ${result.savedAt}) | ${formatResolveSnapshot(snapshot)} [${result.statusClass}]`;
+      `Global Defaults: saved (${result.target}, ${result.savedAt}) | ${formatResolveSnapshot(snapshot)} [${result.statusClass}]`;
     apiDiagnoseStatus.textContent =
-      `API Diagnose: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`;
+      `API diagnostics: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`;
     triggerFeedback.textContent =
-      `Status: Global Defaults gespeichert (${formatResolveSnapshot(snapshot)}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
+      `Status: Global Defaults saved (${formatResolveSnapshot(snapshot)}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
@@ -6890,19 +6890,19 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
 
 loadApplyGlobalDefaultsButton?.addEventListener("click", async () => {
   loadApplyGlobalDefaultsButton.disabled = true;
-  globalDefaultsStatus.textContent = "Global Defaults: Laden & Anwenden laeuft ...";
+  globalDefaultsStatus.textContent = "Global Defaults: load & apply in progress ...";
   try {
     const result = await loadAndApplyGlobalDefaults({ sourceLabel: "settings-button" });
     if (!result.persisted) {
       triggerFeedback.textContent =
-        "Status: Defaults geladen und angewendet, aber lokale Persistenz fehlgeschlagen";
+        "Status: Defaults loaded and applied, but local persistence failed";
     }
   } catch (error) {
     const saveError = formatGlobalDefaultsSaveError(error);
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
     apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
     triggerFeedback.textContent =
-      `Status: Defaults laden & anwenden fehlgeschlagen. ${saveError.feedbackText}`;
+      `Status: Load & apply defaults failed. ${saveError.feedbackText}`;
   } finally {
     loadApplyGlobalDefaultsButton.disabled = false;
   }
@@ -6912,15 +6912,15 @@ exportGlobalDefaultsButton.addEventListener("click", () => {
   const persisted = persistBoardProfiles();
   if (!persisted) {
     globalDefaultsStatus.textContent =
-      "Global Defaults: Download-Export abgebrochen (lokale Persistenz fehlgeschlagen)";
-    triggerFeedback.textContent = "Status: Download-Export konnte nicht vorbereitet werden";
+      "Global Defaults: download export aborted (local persistence failed)";
+    triggerFeedback.textContent = "Status: Download export could not be prepared";
     return;
   }
 
   const fileName = downloadGlobalDefaultsFallback();
-  globalDefaultsStatus.textContent = `Global Defaults: Download-Export heruntergeladen (${fileName})`;
+  globalDefaultsStatus.textContent = `Global Defaults: download export completed (${fileName})`;
   triggerFeedback.textContent =
-    "Status: Download-Export erstellt (sekundaerer Fallback); primaerer Weg bleibt API-Speichern";
+    "Status: Download export created (secondary fallback); primary path remains API save";
 });
 
 runMobilePerformanceCheckButton?.addEventListener("click", () => {
@@ -6939,7 +6939,7 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
   };
   const snapshot = state.mobilePerf.lastSnapshot;
   triggerFeedback.textContent =
-    `Status: Mobile-Snapshot erstellt (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
+    `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
 });
 
 const resizeObserver = new ResizeObserver((entries) => {
@@ -6958,7 +6958,7 @@ const resizeObserver = new ResizeObserver((entries) => {
   const navigationOk = runNavigationStateRegression();
   if (!layoutOk || !navigationOk) {
     triggerFeedback.textContent =
-      "Status: Resize-Guard meldet Layout-/Navigation-Drift (Scroll/Resize/View-Switch pruefen)";
+      "Status: Resize guard reported layout/navigation drift (check scroll/resize/view switch)";
   }
 });
 
@@ -7006,7 +7006,7 @@ async function initializeApplication() {
   ).length;
   if (zoneFallbackCount > 0) {
     triggerFeedback.textContent =
-      `Status: Zone-Fallback aktiv (${zoneFallbackCount} Board) - siehe Zonenquelle-Status im Settings-Panel`;
+      `Status: Zone fallback active (${zoneFallbackCount} board) - see zone-source status in Settings panel`;
   }
   if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
     state.boardId = BOARDS[0]?.id ?? "";
@@ -7053,11 +7053,11 @@ async function initializeApplication() {
       state.startupDefaultsGuard.outcome = "failed-explicit";
       state.startupDefaultsGuard.detail = "fallback-load-failed";
       globalDefaultsStatus.textContent =
-        "Global Defaults: Startup-Fallback fehlgeschlagen (kein stilles Ignorieren; Defaults muessen manuell geladen werden)";
+        "Global Defaults: startup fallback failed (no silent ignore; defaults must be loaded manually)";
       apiDiagnoseStatus.textContent =
-        "API Diagnose: Startup-Fallback fehlgeschlagen (bitte Defaults-Endpoint pruefen oder Settings-Button nutzen)";
+        "API diagnostics: startup fallback failed (check defaults endpoint or use the Settings button)";
       triggerFeedback.textContent =
-        "Status: Startup-Guard aktiv - leerer Local Storage erkannt, Global-Defaults-Ladevorgang ist explizit fehlgeschlagen";
+        "Status: Startup guard active - empty local storage detected, global-defaults load explicitly failed";
     }
   }
 
@@ -7067,11 +7067,11 @@ async function initializeApplication() {
   connectLiveSyncSocket();
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
-      `Global Defaults: automatisch geladen & angewendet (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      `Global Defaults: automatically loaded & applied (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
     triggerFeedback.textContent =
-      `Status: Startup-Defaults aktiv (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      `Status: Startup defaults active (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
     apiDiagnoseStatus.textContent =
-      `API Diagnose: Startup-Load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      `API diagnostics: startup load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
   }
   warmEventSoundAssets();
   setActiveView("dashboard");
@@ -7099,7 +7099,7 @@ async function initializeApplication() {
     !shipClipRegressionOk
   ) {
     triggerFeedback.textContent =
-      "Status: Regression fehlgeschlagen (Startup/View/Layout/Zoom-Pan/Orientation/Navigation/Projection + Outside-Isolation + Ship-Clip)";
+      "Status: Regression failed (startup/view/layout/zoom-pan/orientation/navigation/projection + outside isolation + ship clip)";
   } else {
     triggerFeedback.textContent =
       "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
