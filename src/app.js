@@ -5853,6 +5853,9 @@ function startRoomAnimationFromDraft() {
   }
 
   if (state.roomDraft.editTargetId) {
+    if (state.roomDraft.targetType === "cluster") {
+      clearRoomDraftEditTarget();
+    }
     const editIndex = state.runningAnimations.findIndex(
       (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
     );
