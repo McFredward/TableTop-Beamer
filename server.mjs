@@ -26,6 +26,9 @@ const liveSessionState = {
 };
 
 const liveClients = new Map();
+const processedMutations = new Map();
+const lastClientSequenceById = new Map();
+const MAX_PROCESSED_MUTATIONS = 4000;
 
 async function appendLiveLog(className, payload = {}) {
   const entry = {
@@ -61,6 +64,17 @@ function logErrorEvent(event, detail, context = {}) {
     detail,
     ...context,
   });
+}
+
+function rememberProcessedMutation(key, value) {
+  processedMutations.set(key, value);
+  if (processedMutations.size <= MAX_PROCESSED_MUTATIONS) {
+    return;
+  }
+  const oldestKey = processedMutations.keys().next().value;
+  if (oldestKey) {
+    processedMutations.delete(oldestKey);
+  }
 }
 
 function acceptLiveMutationType(type) {
@@ -180,7 +194,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   };
 }
 
-function applyLiveMutation({ clientId, role, mutationType, payload }) {
+function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, clientSequence }) {
   if (!acceptLiveMutationType(mutationType)) {
     logErrorEvent("invalid-mutation-type", String(mutationType ?? "unknown"), {
       clientId,
@@ -188,6 +202,33 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
     });
     return null;
   }
+
+  const normalizedMutationId = typeof mutationId === "string" && mutationId.trim() ? mutationId.trim() : null;
+  const dedupKey = normalizedMutationId ? `${clientId}:${normalizedMutationId}` : null;
+  if (dedupKey && processedMutations.has(dedupKey)) {
+    const previous = processedMutations.get(dedupKey);
+    return {
+      applied: false,
+      duplicate: true,
+      stale: false,
+      version: previous?.version ?? liveSessionState.version,
+    };
+  }
+
+  const normalizedSequence = Number.isFinite(Number(clientSequence)) ? Math.trunc(Number(clientSequence)) : null;
+  if (Number.isInteger(normalizedSequence) && normalizedSequence > 0) {
+    const lastSequence = lastClientSequenceById.get(clientId) ?? 0;
+    if (normalizedSequence <= lastSequence) {
+      return {
+        applied: false,
+        duplicate: false,
+        stale: true,
+        version: liveSessionState.version,
+      };
+    }
+    lastClientSequenceById.set(clientId, normalizedSequence);
+  }
+
   let nextSnapshotPatch = null;
   if (mutationType === "outside-update") {
     nextSnapshotPatch = applyOutsideUpdatePatch(payload);
@@ -214,7 +255,7 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
       nextSnapshotPatch.runtime.alignMode = payload.alignMode;
     }
   }
-  return mutateLiveSession({
+  const session = mutateLiveSession({
     mutation: {
       type: mutationType,
       byClientId: clientId,
@@ -223,6 +264,19 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
     },
     nextSnapshotPatch,
   });
+
+  if (dedupKey) {
+    rememberProcessedMutation(dedupKey, {
+      version: session.version,
+    });
+  }
+
+  return {
+    applied: true,
+    duplicate: false,
+    stale: false,
+    version: session.version,
+  };
 }
 
 function encodeWebSocketTextFrame(message) {
@@ -393,13 +447,15 @@ function attachLiveWebSocket(server) {
           return;
         }
         const mutationId = typeof parsed?.mutationId === "string" ? parsed.mutationId : null;
-        const session = applyLiveMutation({
+        const mutationResult = applyLiveMutation({
           clientId,
           role,
           mutationType: parsed.mutationType,
           payload: parsed.payload,
+          mutationId,
+          clientSequence: parsed?.clientSequence,
         });
-        if (!session) {
+        if (!mutationResult) {
           return;
         }
         sendLiveSocketMessage(
@@ -407,14 +463,19 @@ function attachLiveWebSocket(server) {
           buildLiveSessionEnvelope("live-ack", {
             mutationType: parsed.mutationType,
             mutationId,
-            version: session.version,
+            version: mutationResult.version,
+            applied: mutationResult.applied,
+            duplicate: mutationResult.duplicate,
+            stale: mutationResult.stale,
           }),
         );
-        broadcastLiveSession("live-session-update", {
-          mutationType: parsed.mutationType,
-          mutationId,
-          version: session.version,
-        });
+        if (mutationResult.applied) {
+          broadcastLiveSession("live-session-update", {
+            mutationType: parsed.mutationType,
+            mutationId,
+            version: mutationResult.version,
+          });
+        }
       } catch {
         logErrorEvent("malformed-ws-payload", "invalid-json", {
           clientId,
