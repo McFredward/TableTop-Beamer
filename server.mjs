@@ -38,6 +38,7 @@ const liveSessionState = {
 const liveClients = new Map();
 const processedMutations = new Map();
 const lastClientSequenceById = new Map();
+const lastBroadcastVersionByClient = new Map();
 const MAX_PROCESSED_MUTATIONS = 4000;
 const LIVE_MUTATION_TYPES = new Set([
   "trigger-global",
@@ -675,6 +676,16 @@ function broadcastLiveSession(type, extra = {}, { finalFirst = false } = {}) {
       liveClients.delete(clientId);
       continue;
     }
+    if (type === "live-session-update") {
+      const lastVersion = Number(lastBroadcastVersionByClient.get(clientId) ?? 0);
+      const nextVersion = Number(payload?.session?.version ?? 0);
+      if (Number.isFinite(nextVersion) && nextVersion <= lastVersion) {
+        continue;
+      }
+      if (Number.isFinite(nextVersion)) {
+        lastBroadcastVersionByClient.set(clientId, nextVersion);
+      }
+    }
     sendLiveSocketMessage(client.socket, payload);
   }
 }
@@ -812,6 +823,7 @@ function attachLiveWebSocket(server) {
     const role = requestUrl.searchParams.get("role") || "control";
     const clientId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
+    lastBroadcastVersionByClient.set(clientId, Number(liveSessionState.version || 0));
     upsertClientTelemetry(clientId, role);
     logSessionEvent("connect", {
       clientId,
@@ -899,6 +911,7 @@ function attachLiveWebSocket(server) {
 
     socket.on("close", () => {
       liveClients.delete(clientId);
+      lastBroadcastVersionByClient.delete(clientId);
       logSessionEvent("disconnect", {
         clientId,
         role,
@@ -907,6 +920,7 @@ function attachLiveWebSocket(server) {
     });
     socket.on("error", (error) => {
       liveClients.delete(clientId);
+      lastBroadcastVersionByClient.delete(clientId);
       logErrorEvent("socket-error", error instanceof Error ? error.message : "unknown", {
         clientId,
         role,
