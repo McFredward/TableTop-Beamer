@@ -437,8 +437,29 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   return (Array.isArray(runningAnimations) ? runningAnimations : []).map((animation) => {
     const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
     const ageMs = Math.max(0, Date.now() - startedAtEpochMs);
+    const normalizedClusterMemberRoomIds = animation?.scope === "cluster"
+      ? (() => {
+        const directRoomIds = Array.isArray(animation.memberRoomIds)
+          ? animation.memberRoomIds.map((roomId) => String(roomId || "").trim()).filter(Boolean)
+          : [];
+        if (directRoomIds.length > 0) {
+          return Array.from(new Set(directRoomIds));
+        }
+        const fallbackCluster = getClusterTargetById(animation.clusterId, animation.boardId);
+        return Array.from(new Set(
+          Array.isArray(fallbackCluster?.roomIds)
+            ? fallbackCluster.roomIds.map((roomId) => String(roomId || "").trim()).filter(Boolean)
+            : [],
+        ));
+      })()
+      : undefined;
     return {
       ...animation,
+      ...(animation?.scope === "cluster"
+        ? {
+          memberRoomIds: normalizedClusterMemberRoomIds,
+        }
+        : {}),
       startedAtEpochMs,
       startedAt: performance.now() - ageMs,
     };
