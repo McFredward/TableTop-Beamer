@@ -5604,6 +5604,25 @@ function buildClusterDispatchPlan(roomIds, { staggerStart = false } = {}) {
   }));
 }
 
+function getClusterTargetById(clusterId, boardId = state.boardId) {
+  const normalizedClusterId = String(clusterId || "").trim();
+  if (!normalizedClusterId) {
+    return null;
+  }
+  return getBoardRoomClusters(boardId).find((cluster) => cluster.clusterId === normalizedClusterId) ?? null;
+}
+
+function getClusterMemberAnimationIds(clusterAnimation) {
+  if (!clusterAnimation || clusterAnimation.scope !== "cluster") {
+    return [];
+  }
+  return Array.isArray(clusterAnimation.memberAnimationIds)
+    ? clusterAnimation.memberAnimationIds
+      .map((animationId) => String(animationId || "").trim())
+      .filter(Boolean)
+    : [];
+}
+
 function syncRoomTargetSelect() {
   if (!roomTargetSelect) {
     return;
@@ -5911,7 +5930,42 @@ function startRoomAnimationFromDraft() {
     startDelayMs,
   }));
 
+  let clusterRunAnimation = null;
+  if (state.roomDraft.targetType === "cluster") {
+    const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+    clusterRunAnimation = createAnimation({
+      type: draftPayload.type,
+      scope: "cluster",
+      roomId: null,
+      boardId: state.boardId,
+      intensity: draftPayload.intensity,
+      speed: draftPayload.speed,
+      opacity: draftPayload.opacity,
+      playbackSpeed: draftPayload.playbackSpeed,
+      soundVolume: draftPayload.soundVolume,
+      hold: true,
+      durationSec: 0,
+      startDelayMs: 0,
+    });
+    clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
+    clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
+    clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
+    clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
+    clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
+  }
+
+  if (clusterRunAnimation) {
+    state.runningAnimations.push(clusterRunAnimation);
+    emitLiveMutation("trigger-room", {
+      animationId: clusterRunAnimation.id,
+      animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
+    });
+  }
+
   for (const animation of createdAnimations) {
+    if (clusterRunAnimation) {
+      animation.parentClusterRunId = clusterRunAnimation.id;
+    }
     state.runningAnimations.push(animation);
     playSoundForAnimation(animation);
     emitLiveMutation("trigger-room", {
@@ -6157,6 +6211,9 @@ function clipToInsideShip(boardId = state.boardId) {
 
 function drawAnimation(animation, now) {
   if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
+    return;
+  }
+  if (animation.scope === "cluster") {
     return;
   }
   const runtimeSpeed = animation.scope === "room" ? clampRoomSpeed(animation.speed ?? 1) : 1;
