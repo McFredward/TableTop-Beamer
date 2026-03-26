@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15). Naechster Schritt ist Plan 7-2 Hardening.
+Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15) und Plan 7-HF1 (P7-HF1-T1..P7-HF1-T4) ist als Verification-Integrity-Hotfix geschlossen. Naechster verpflichtender Schritt ist Plan 7-2 Hardening.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.

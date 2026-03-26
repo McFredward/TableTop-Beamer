@@ -50,6 +50,12 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 7. Telemetrie-Hooks E2E integrieren (ingest, commit, fanout, receive, apply, first-frame, audio-start/stop).
 8. Regression- und latency-suite fuer 7-1 als Pflichtartefakt liefern.
 
+## Hotfix-Welle (Plan 7-HF1, execute-ready, kurz vor 7-2)
+1. Verifier-Schemafix in P7-T12: Telemetrie-Parser auf das kanonische Feld `hopsMs` umstellen (kein stilles Fallback auf `hops`).
+2. Behavior-Matrix in P7-T13 auf ausfuehrbare Non-Regression erweitern (room/cluster, align-mode, audio-role-routing, persistence je Start/Edit/Stop/Clear/Reload-Rejoin).
+3. Evidenzartefakte aktualisieren: `P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md` plus neue Debug-Ausgaben aus den Hotfix-Checks.
+4. Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` im selben Schritt konsistent halten.
+
 ## Migrationsstrategie (sichere Inkremente)
 1. Bestehenden Live-Sync-Vertrag inventarisieren und semantisch in Mutation-Klassen trennen.
 2. Serverseitige ordered commit pipeline hinter Feature-Flag einfuehren.
@@ -100,3 +106,13 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Execution Update 7-1
 - Plan 7-1 implementation completed for P7-T1..P7-T15.
 - Core outcomes: ordered mutation queue, priority stop preemption, final-output apply fast-path, GIF prewarm, and telemetry hooks (`/api/live/telemetry`).
+
+## Follow-up Update (verify-work 7)
+- verify-work 7 returned PARTIAL PASS: P7-T12 telemetry verifier reads `hops` instead of `hopsMs`; P7-T13 matrix coverage is not behavior-complete.
+- Plan 7-HF1 is now the mandatory next execute-ready wave before Plan 7-2.
+
+## Execution Update 7-HF1
+- Plan 7-HF1 completed for P7-HF1-T1..P7-HF1-T4.
+- P7-T12 verifier now enforces canonical `hopsMs` with explicit missing-field negative-path rejection.
+- P7-T13 is upgraded to an executable behavior-level matrix covering room/cluster/align/audio-role/persistence and reload-rejoin parity.
+- Evidence artifacts were regenerated (`P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md`, `debug/p7-hf1-*`) and synchronized with global planning files.

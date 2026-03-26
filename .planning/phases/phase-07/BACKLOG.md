@@ -68,8 +68,12 @@
   - Ziel: harte Regression- und non-regression Absicherung plus konsistente Artefaktlage.
 
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization.
+- Plan 7-HF1 Verification Integrity Hotfix (naechste execute-ready Welle): `hopsMs` verifier schema fix, behavior-level non-regression matrix expansion, evidence refresh, full artifact sync.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF1).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
 - Stories P7-S1..P7-S9 for the initial wave were implemented in code paths `server.mjs` and `src/app.js` with dedicated regression and report artifacts (`P7-T12..P7-T14`).
+
+## Execution Update 7-HF1
+- Verification Integrity Hotfix is closed: `hopsMs` schema verifier fix shipped, behavior-level non-regression matrix became executable, and PASS evidence artifacts were regenerated and synced.

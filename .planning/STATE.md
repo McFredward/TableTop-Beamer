@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF12
+- Last Executed Plan: 7-HF1
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-06/6-HF12-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -226,6 +226,9 @@
 - Phase-7 Plan 7-1 execution: server sync path now uses deterministic ordered queue lanes with bounded backpressure/coalescing and mutation envelopes (`mutationId`, `serverVersion`, `serverTimestamp`, class, priority).
 - Phase-7 Plan 7-1 execution: client apply path is version-aware/idempotent with receive/apply acknowledgements and final-output fast-path optimizations for lower apply overhead.
 - Phase-7 Plan 7-1 execution: telemetry/regression/report artifacts added (`/api/live/telemetry`, `p7-t12/p7-t13/p7-t14` scripts, phase evidence docs).
+- Phase-7 Plan 7-HF1 execution: P7-T12 verifier enforces canonical `hopsMs` only and rejects missing-field payloads via explicit negative-path assertion.
+- Phase-7 Plan 7-HF1 execution: P7-T13 non-regression became an executable behavior matrix for room/cluster/align/audio-role/persistence including reload/rejoin parity checks.
+- Phase-7 Plan 7-HF1 execution: evidence refreshed to PASS with `debug/p7-hf1-t12-output.json`, `debug/p7-hf1-t13-output.json`, `debug/p7-hf1-t14-output.json` and synchronized phase/global artifacts.
 - Plan-Update-3-4 Umsetzung: GIF-Renderpfad zeichnet nur Timeline-Frames (kein Erstframe-Fallback), waehrend `opacity`/`playbackSpeed` pro Instanz unveraendert isoliert bleiben.
 - Phase-4 Planung ist vorbereitet: umfassendes Refactoring fuer Wartbarkeit mit modularer Zielarchitektur statt monolithischem `src/app.js`.
 - Phase-4 Scope-Regel: Verhaltensparitaet ist verpflichtend fuer Dashboard/Settings, Room-Animationen, GIF-Playback, Persistenz, Save/API und mobile UX.

@@ -64,3 +64,7 @@
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
 - R12 mitigation is in place with telemetry endpoint and latency report script; live run evidence remains required for production SLO sign-off.
+
+## Execution Update 7-HF1
+- Verify integrity risk was closed: telemetry verifier no longer accepts non-canonical `hops` schema and now rejects missing `hopsMs` explicitly.
+- Non-regression drift risk (R11) was reduced by executable behavior-matrix checks for room/cluster/align/audio-role/persistence plus reload/rejoin parity.

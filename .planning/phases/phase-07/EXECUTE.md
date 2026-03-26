@@ -17,7 +17,13 @@
 7. P0 Abschluss: P7-T12..P7-T14 (regression matrix + non-regression + latency compliance report).
 8. P0 Abschluss: P7-T15 (vollstaendiger Artefakt-Sync inkl. globaler Tracking-Dateien).
 
-## Priority Execution - Plan 7-2 (nach 7-1)
+## Priority Execution - Plan 7-HF1 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF1-T1 (telemetry schema verifier fix `hopsMs`).
+2. P0 danach: P7-HF1-T2 (behavior-level non-regression matrix executable machen).
+3. P0 danach: P7-HF1-T3 (evidence artefacts aus Hotfix-Checks aktualisieren).
+4. P0 Abschluss: P7-HF1-T4 (phase/global artifacts konsistent synchronisieren).
+
+## Priority Execution - Plan 7-2 (nach 7-HF1)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -33,6 +39,7 @@
 - Kein Weitergehen zu P7-T9+, bevor P7-T8 priority stop-path ohne visual/audio Reste bestaetigt.
 - Kein Weitergehen zu P7-T11+, bevor P7-T10 final fast path + GIF latency improvement nachweist.
 - Kein Weitergehen zu P7-T15+, bevor P7-T14 Regression + Non-Regression + Latency-Report als PASS dokumentiert.
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF1 vollstaendig PASS ist (inkl. `hopsMs`-Schemafix und behavior-complete non-regression matrix).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -43,3 +50,11 @@
 ## Execution Update 7-1
 - P7-T1..P7-T15 completed.
 - Regression and report artifacts are available in `debug/p7-t12-*`, `debug/p7-t13-*`, `debug/p7-t14-*` and phase docs.
+
+## Follow-up Update (verify-work 7)
+- Current result is PARTIAL PASS; Plan 7-HF1 is now a mandatory blocker-closure wave before Plan 7-2.
+
+## Execution Update 7-HF1
+- P7-HF1-T1..P7-HF1-T4 completed.
+- Hotfix outputs recorded in `debug/p7-hf1-t12-output.json`, `debug/p7-hf1-t13-output.json`, `debug/p7-hf1-t14-output.json`.
+- Next executable wave: Plan 7-2.

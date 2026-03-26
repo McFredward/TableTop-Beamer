@@ -2,7 +2,7 @@
 
 - Active: Phase 7 (`phase-07`)
 - Status: in-progress
-- Next Plan: 7-2 (sync hardening wave)
+- Next Plan: 7-2 (hardening wave, unblocked by 7-HF1 closure)
 - Command Target: `/gsd:execute-phase 7`
 
 Execution inputs:

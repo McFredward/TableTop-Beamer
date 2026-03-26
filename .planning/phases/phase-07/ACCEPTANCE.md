@@ -67,3 +67,16 @@
   - `debug/p7-t12-sync-regression.mjs`
   - `debug/p7-t13-non-regression.mjs`
   - `debug/p7-t14-latency-report.mjs`
+
+## Follow-up Gate (verify-work 7)
+- verify-work 7 ist PARTIAL PASS; zwei blocker-relevante Verify-Gaps muessen vor Plan 7-2 geschlossen werden.
+- P7-T12 Gate: Verifier akzeptiert nur das kanonische Feld `hopsMs`; ein `hops`-Fallback ist nicht zulaessig.
+- P7-T13 Gate: Non-regression muss als behavior-level Matrix ausfuehrbar sein (room/cluster, align-mode, audio-role-routing, persistence jeweils Start/Edit/Stop/Clear plus Reload/Rejoin).
+- P7-T14 Gate: Latency-Report bleibt nur dann freigabefaehig, wenn P7-T12/P7-T13 Evidenz konsistent mit den Hotfix-Checks aktualisiert wurde.
+- Plan 7-HF1 ist damit die verpflichtende naechste execute-ready Welle vor Plan 7-2.
+
+## Gate Closure Update (Plan 7-HF1)
+- P7-T12 Gate: PASS (`hopsMs`-only parser + negative-path missing-field rejection).
+- P7-T13 Gate: PASS (ausfuehrbare behavior-level Matrix inkl. Reload/Rejoin-Paritaet).
+- P7-T14 Gate: PASS (Evidenz mit `debug/p7-hf1-*` aktualisiert und konsistent verlinkt).
+- Plan 7-2 ist damit wieder freigegeben.

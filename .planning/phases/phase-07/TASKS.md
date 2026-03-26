@@ -20,7 +20,13 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-T14 [P0] Plan-7-1 latency compliance report erstellen (P50/P95/P99 pro hop, target pass/fail inkl. Abweichungsanalyse).
 - [x] DONE P7-T15 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf 7-1 Stand bringen.
 
-## Plan 7-2 - Hardening Wave (nach 7-1)
+## Plan 7-HF1 - Verification Integrity Hotfix (execute-ready, naechste Welle nach 7-1)
+- [x] DONE P7-HF1-T1 [P0] P7-T12 Regression-Verifier auf kanonisches Telemetrie-Schema fixen (`hopsMs` statt `hops`) inkl. Negativfall fuer fehlendes Feld.
+- [x] DONE P7-HF1-T2 [P0] P7-T13 Non-Regression als ausfuehrbare Behavior-Matrix erweitern: room/cluster, align-mode, audio-role-routing, persistence jeweils mit Start/Edit/Stop/Clear plus Reload/Rejoin-Paritaet.
+- [x] DONE P7-HF1-T3 [P0] Evidenzartefakte neu erzeugen und aktualisieren (`P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md`, `debug/p7-hf1-*`).
+- [x] DONE P7-HF1-T4 [P0] Phase- und globale Artefakte konsistent synchronisieren (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) und Follow-up closure dokumentieren.
+
+## Plan 7-2 - Hardening Wave (nach 7-HF1)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.
