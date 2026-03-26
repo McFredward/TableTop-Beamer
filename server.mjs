@@ -1068,11 +1068,15 @@ function mergeBoardProfiles(primaryProfiles, fallbackProfiles) {
       ...fallback,
       ...primary,
       specialPolygons: mergeSpecialPolygonMap(primary.specialPolygons, fallback.specialPolygons),
-      shipPolygon: isValidPolygon(primary.shipPolygon)
-        ? primary.shipPolygon
-        : isValidPolygon(fallback.shipPolygon)
-          ? fallback.shipPolygon
-          : undefined,
+      playAreaPolygon: isValidPolygon(primary.playAreaPolygon)
+        ? primary.playAreaPolygon
+        : isValidPolygon(primary.shipPolygon)
+          ? primary.shipPolygon
+          : isValidPolygon(fallback.playAreaPolygon)
+            ? fallback.playAreaPolygon
+            : isValidPolygon(fallback.shipPolygon)
+              ? fallback.shipPolygon
+              : undefined,
     };
   }
 

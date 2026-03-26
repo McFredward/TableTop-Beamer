@@ -31,7 +31,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Plan 6-2 - Polygon Editor Safety + Play-Area Generalization (nach 6-HF1, execute-ready)
 - [x] DONE P6-T23 [P0] Polygon-Editor-Toggles aufsplitten: `Show Room Vertices` und `Show Play Area Vertices` als getrennte Controls einfuehren.
 - [x] DONE P6-T24 [P0] Hit-Test-/Selection-Guards implementieren: ausgeblendete Vertex-Gruppen sind nicht selektierbar, nicht dragbar und nicht als aktiv markierbar.
-- [ ] TODO P6-T25 [P0] UI/Model/Operator-Wording migrieren: `Ship Polygon` vollstaendig auf `Play Area` umbenennen (inkl. Labels, Settings, relevante Runtime-Texte).
+- [x] DONE P6-T25 [P0] UI/Model/Operator-Wording migrieren: `Ship Polygon` vollstaendig auf `Play Area` umbenennen (inkl. Labels, Settings, relevante Runtime-Texte).
 - [ ] TODO P6-T26 [P0] Legacy-Spezialraum-Visualisierung entfernen: ehemalige Spezialraeume folgen derselben Farbe/Markierung wie normale Raeume.
 - [ ] TODO P6-T27 [P0] Room-Creation erweitern: Option `Create room from existing polygon` (Template-Quelle waehlen, Punkte kopieren, neue `roomId` erzeugen).
 - [ ] TODO P6-T28 [P0] Persistenz-/Migration-Guard ergaenzen: Play-Area-Rename + Polygon-Template-Copy bleiben Save/Reload/Restart-stabil.

@@ -132,7 +132,12 @@
           profile.polygons ??
           legacySpecialPolygons[board.id] ??
           createDefaultSpecialPolygonMap(board.id),
-        shipPolygon: profile.shipPolygon ?? profile.shipMask ?? SHIP_POLYGON_DEFAULT,
+        playAreaPolygon:
+          profile.playAreaPolygon ??
+          profile.playArea ??
+          profile.shipPolygon ??
+          profile.shipMask ??
+          SHIP_POLYGON_DEFAULT,
         outsideFx: profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT,
       };
     }

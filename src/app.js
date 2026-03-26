@@ -964,8 +964,16 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
   for (const boardId of boardIds) {
     const primary = primaryProfiles?.[boardId] ?? {};
     const fallback = fallbackProfiles?.[boardId] ?? {};
-    const primaryShipPolygon = isValidSpecialPolygon(primary.shipPolygon) ? primary.shipPolygon : null;
-    const fallbackShipPolygon = isValidSpecialPolygon(fallback.shipPolygon) ? fallback.shipPolygon : null;
+    const primaryPlayAreaPolygon = isValidSpecialPolygon(primary.playAreaPolygon)
+      ? primary.playAreaPolygon
+      : isValidSpecialPolygon(primary.shipPolygon)
+        ? primary.shipPolygon
+        : null;
+    const fallbackPlayAreaPolygon = isValidSpecialPolygon(fallback.playAreaPolygon)
+      ? fallback.playAreaPolygon
+      : isValidSpecialPolygon(fallback.shipPolygon)
+        ? fallback.shipPolygon
+        : null;
 
     merged[boardId] = {
       ...fallback,
@@ -976,7 +984,7 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
           ? fallback.roomCatalog
           : null,
       specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
-      shipPolygon: primaryShipPolygon ?? fallbackShipPolygon ?? SHIP_POLYGON_DEFAULT,
+      playAreaPolygon: primaryPlayAreaPolygon ?? fallbackPlayAreaPolygon ?? SHIP_POLYGON_DEFAULT,
     };
   }
 
@@ -1074,7 +1082,7 @@ function createDefaultBoardProfiles() {
         roomGeometry: createDefaultRoomGeometryMap(board.id),
         roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
         specialPolygons: createDefaultSpecialPolygonMap(board.id),
-        shipPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
+        playAreaPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
         outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
       },
     ]),
@@ -1092,7 +1100,7 @@ function buildBoardProfilesFromState() {
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
         roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
         specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
-        shipPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
+        playAreaPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
         outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
       },
     ]),
@@ -1181,7 +1189,12 @@ function applyBoardProfilesToState(profiles) {
     ]),
   );
   state.shipPolygonsByBoard = Object.fromEntries(
-    BOARDS.map((board) => [board.id, normalizeShipPolygon(profiles?.[board.id]?.shipPolygon)]),
+    BOARDS.map((board) => [
+      board.id,
+      normalizeShipPolygon(
+        profiles?.[board.id]?.playAreaPolygon ?? profiles?.[board.id]?.shipPolygon ?? profiles?.[board.id]?.shipMask,
+      ),
+    ]),
   );
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
@@ -3678,14 +3691,14 @@ function syncPolygonEditorPanel() {
 function syncShipPolygonEditorStatus() {
   const points = getShipPolygonPoints(state.boardId);
   if (!arePlayAreaVerticesEditable()) {
-    shipPolygonEditorStatus.textContent = "Ship polygon editor: vertices hidden (editing disabled)";
+    shipPolygonEditorStatus.textContent = "Play Area editor: vertices hidden (editing disabled)";
     return;
   }
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
   shipPolygonEditorStatus.textContent =
-    `Ship polygon editor: ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
+    `Play Area editor: ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
 }
 
 function syncShipPolygonVertexSelect() {
@@ -3814,8 +3827,8 @@ function clearShipPolygonDragSession() {
 function commitShipPolygonDrag() {
   const persisted = persistBoardProfiles();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship polygon vertex moved"
-    : "Status: Ship polygon vertex moved (persistence failed)";
+    ? "Status: Play Area vertex moved"
+    : "Status: Play Area vertex moved (persistence failed)";
 }
 
 function cancelShipPolygonDrag() {
@@ -3825,7 +3838,7 @@ function cancelShipPolygonDrag() {
   }
   renderRoomOverlay();
   syncShipPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Ship polygon drag canceled";
+  triggerFeedback.textContent = "Status: Play Area drag canceled";
 }
 
 function finishShipPolygonVertexDrag(event, { cancel = false } = {}) {
@@ -6237,7 +6250,7 @@ polygonHandleSizeInput?.addEventListener("input", () => {
   syncPolygonEditorStatus();
   syncShipPolygonEditorStatus();
   renderRoomOverlay();
-  triggerFeedback.textContent = `Status: Polygon handle size (including ship) set to ${Math.round(handleScale * 100)}%`;
+  triggerFeedback.textContent = `Status: Polygon handle size (including Play Area) set to ${Math.round(handleScale * 100)}%`;
 });
 
 boardZoomFitButton.addEventListener("click", () => {
@@ -6437,7 +6450,7 @@ shipPolygonEdgeSelect.addEventListener("change", () => {
 
 shipPolygonInsertVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
+    triggerFeedback.textContent = "Status: Pan active - Play Area edit paused";
     return;
   }
   if (!arePlayAreaVerticesEditable()) {
@@ -6458,13 +6471,13 @@ shipPolygonInsertVertexButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship polygon vertex inserted"
-    : "Status: Ship polygon vertex inserted (persistence failed)";
+    ? "Status: Play Area vertex inserted"
+    : "Status: Play Area vertex inserted (persistence failed)";
 });
 
 shipPolygonDeleteVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
+    triggerFeedback.textContent = "Status: Pan active - Play Area edit paused";
     return;
   }
   if (!arePlayAreaVerticesEditable()) {
@@ -6473,7 +6486,7 @@ shipPolygonDeleteVertexButton.addEventListener("click", () => {
   }
   const points = getShipPolygonPoints(state.boardId);
   if (points.length <= 3) {
-    triggerFeedback.textContent = "Status: Ship polygon requires at least 3 vertices";
+    triggerFeedback.textContent = "Status: Play Area requires at least 3 vertices";
     return;
   }
   const index = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
@@ -6485,13 +6498,13 @@ shipPolygonDeleteVertexButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship polygon vertex deleted"
-    : "Status: Ship polygon vertex deleted (persistence failed)";
+    ? "Status: Play Area vertex deleted"
+    : "Status: Play Area vertex deleted (persistence failed)";
 });
 
 shipPolygonResetButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
+    triggerFeedback.textContent = "Status: Pan active - Play Area edit paused";
     return;
   }
   if (!arePlayAreaVerticesEditable()) {
@@ -6505,8 +6518,8 @@ shipPolygonResetButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship polygon reset to default"
-    : "Status: Ship polygon reset to default (persistence failed)";
+    ? "Status: Play Area polygon reset to default"
+    : "Status: Play Area polygon reset to default (persistence failed)";
 });
 
 outsideEnabledInput.addEventListener("change", () => {

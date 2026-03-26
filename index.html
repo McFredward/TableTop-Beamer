@@ -239,8 +239,8 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Ship polygon editor (outside mask)</h2>
-        <p class="status-line">Edit the ship mask; outside effects are rendered only outside this polygon.</p>
+        <h2>Play Area editor (outside mask)</h2>
+        <p class="status-line">Edit the Play Area mask; outside effects are rendered only outside this polygon.</p>
         <label class="inline-checkbox">
           <input id="show-play-area-vertices" type="checkbox" checked />
           Show Play Area Vertices
@@ -258,7 +258,7 @@
           <button id="ship-polygon-delete-vertex" type="button">Delete vertex</button>
         </div>
         <div class="button-grid button-grid-2">
-          <button id="ship-polygon-reset" type="button">Reset ship polygon to default</button>
+          <button id="ship-polygon-reset" type="button">Reset Play Area polygon to default</button>
           <label class="inline-checkbox">
             <input id="outside-enabled" type="checkbox" />
             Outside Space enabled
@@ -287,12 +287,12 @@
           </select>
         </label>
         <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
-          Ship polygon editor: ready
+          Play Area editor: ready
         </p>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
-        <h2>Global animations - inside ship</h2>
+        <h2>Global animations - inside Play Area</h2>
         <div class="button-grid button-grid-3">
           <button data-global="ambient-drift">Ambient Drift</button>
           <button data-global="ash-fall">Ash Fall</button>
@@ -304,7 +304,7 @@
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
-        <h2>Global animations - outside ship</h2>
+        <h2>Global animations - outside Play Area</h2>
         <div class="button-grid button-grid-2">
           <button data-global="outside-space">Outside Space</button>
         </div>
