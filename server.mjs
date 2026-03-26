@@ -20,6 +20,7 @@ const liveSessionState = {
   snapshot: {
     schema: LIVE_STATE_SCHEMA,
     alignMode: false,
+    outsideFxByBoard: {},
     runtime: null,
   },
 };
@@ -84,6 +85,10 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
   }
   const nextSnapshotPatch = {
     runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
+    outsideFxByBoard:
+      payload?.outsideFxByBoard ??
+      payload?.runtime?.outsideFxByBoard ??
+      liveSessionState.snapshot.outsideFxByBoard ?? {},
   };
   if (typeof payload?.alignMode === "boolean") {
     nextSnapshotPatch.alignMode = payload.alignMode;

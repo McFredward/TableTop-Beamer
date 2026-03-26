@@ -327,6 +327,9 @@ function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settin
   emitLiveMutation("outside-update", {
     outsideBoardId: boardId,
     reason,
+    outsideFxByBoard: Object.fromEntries(
+      BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
+    ),
   });
 }
 
@@ -347,19 +350,25 @@ function applyLiveRuntimeSnapshot(snapshot) {
   if (!runtime || typeof runtime !== "object") {
     return;
   }
+  const sharedOutsideFxByBoard =
+    snapshot?.outsideFxByBoard && typeof snapshot.outsideFxByBoard === "object"
+      ? snapshot.outsideFxByBoard
+      : runtime?.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object"
+        ? runtime.outsideFxByBoard
+        : null;
   state.boardId = runtime.boardId ?? state.boardId;
   state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
   state.selectedRoomByBoard =
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
       ? runtime.selectedRoomByBoard
       : state.selectedRoomByBoard;
-  if (runtime.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object") {
+  if (sharedOutsideFxByBoard) {
     state.outsideFxByBoard = {
       ...state.outsideFxByBoard,
       ...Object.fromEntries(
         BOARDS.map((board) => [
           board.id,
-          normalizeOutsideFxProfile(runtime.outsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
+          normalizeOutsideFxProfile(sharedOutsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
         ]),
       ),
     };
