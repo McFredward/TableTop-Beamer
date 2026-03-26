@@ -79,7 +79,8 @@ completed: 2026-03-26
 None - plan executed exactly as written.
 
 ## Issues Encountered
-- None.
+- `gsd-tools` state/roadmap helper commands could not parse the current `STATE.md`/`ROADMAP.md` structure in this repository snapshot.
+- Resolution: lifecycle, decision log, roadmap status, and current-phase pointer were updated manually in the corresponding planning files.
 
 ## Known Stubs
 
