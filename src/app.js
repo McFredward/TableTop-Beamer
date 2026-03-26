@@ -4806,6 +4806,7 @@ function ensureBoardRoomStateMaps(boardId) {
 
 function syncRoomManagementPanel(statusText = null) {
   const board = getBoard();
+  syncSelectedRoomStateForBoard(state.boardId);
   const selectedRoom = getSelectedRoom();
   syncRoomCreateShapeOptions(board);
   if (roomDeleteButton) {
@@ -4899,8 +4900,8 @@ function buildCopiedRoomName(board, sourceRoom) {
 }
 
 function copySelectedRoomToClipboard() {
-  syncSelectedRoomStateForBoard(state.boardId);
-  const room = getSelectedRoom();
+  const roomId = syncSelectedRoomStateForBoard(state.boardId);
+  const room = roomId ? getSelectedRoom() : null;
   if (!room) {
     syncRoomManagementPanel("Room management: copy skipped (no room selected)");
     return false;
@@ -5162,7 +5163,8 @@ function refreshPersistentRoomSelectionVisualState() {
 }
 
 function renameSelectedRoom(nextName) {
-  const room = getSelectedRoom();
+  const roomId = syncSelectedRoomStateForBoard(state.boardId);
+  const room = roomId ? getSelectedRoom() : null;
   if (!room) {
     return;
   }
