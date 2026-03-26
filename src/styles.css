@@ -137,6 +137,8 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
 
 #room-overlay.is-room-dragging {
   cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .room-zone {
