@@ -307,9 +307,46 @@ const liveSync = {
   lastAckedMutationId: null,
   lastAckedVersion: 0,
   lastSessionVersion: 0,
+  lastAppliedVersion: 0,
+  appliedMutationIds: new Set(),
   nextClientSequence: 1,
   pendingMutations: new Map(),
+  tracesByMutationId: new Map(),
 };
+
+const LIVE_APPLIED_MUTATION_LIMIT = 4000;
+
+function rememberAppliedMutationId(mutationId) {
+  if (typeof mutationId !== "string" || !mutationId) {
+    return;
+  }
+  liveSync.appliedMutationIds.add(mutationId);
+  if (liveSync.appliedMutationIds.size <= LIVE_APPLIED_MUTATION_LIMIT) {
+    return;
+  }
+  const oldest = liveSync.appliedMutationIds.values().next().value;
+  if (oldest) {
+    liveSync.appliedMutationIds.delete(oldest);
+  }
+}
+
+function recordMutationTrace(mutationId, marker, ts = Date.now()) {
+  if (typeof mutationId !== "string" || !mutationId) {
+    return;
+  }
+  const existing = liveSync.tracesByMutationId.get(mutationId) ?? {
+    mutationId,
+    markers: {},
+  };
+  existing.markers[marker] = ts;
+  liveSync.tracesByMutationId.set(mutationId, existing);
+  if (liveSync.tracesByMutationId.size > LIVE_APPLIED_MUTATION_LIMIT) {
+    const oldest = liveSync.tracesByMutationId.keys().next().value;
+    if (oldest) {
+      liveSync.tracesByMutationId.delete(oldest);
+    }
+  }
+}
 
 function replayPendingLiveMutations() {
   if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
@@ -388,6 +425,7 @@ function emitLiveMutation(mutationType, payload = {}) {
     }
   }
   const mutationId = `m-${Date.now().toString(36)}-${liveSync.nextClientSequence.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const clientTimestamp = new Date().toISOString();
   const clientSequence = liveSync.nextClientSequence;
   liveSync.nextClientSequence += 1;
   const baseVersion = liveSync.lastSessionVersion;
@@ -402,6 +440,7 @@ function emitLiveMutation(mutationType, payload = {}) {
   const wirePayload = JSON.stringify({
     type: "live-mutation",
     mutationId,
+    clientTimestamp,
     clientSequence,
     mutationType,
     payload: {
@@ -418,6 +457,7 @@ function emitLiveMutation(mutationType, payload = {}) {
     clientSequence,
     wirePayload,
   });
+  recordMutationTrace(mutationId, "client_emit");
   liveSync.socket.send(wirePayload);
 }
 
@@ -466,8 +506,45 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   });
 }
 
-function applyLiveRuntimeSnapshot(snapshot, { version = null } = {}) {
-  if (Number.isFinite(version) && Number(version) < liveSync.lastSessionVersion) {
+function isControlCriticalMutationEnvelope(envelope) {
+  return envelope?.priority === "high" || envelope?.mutationClass === "control-critical";
+}
+
+function sendLiveMutationReceiveAck(envelope) {
+  if (!envelope?.mutationId || !liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  liveSync.socket.send(JSON.stringify({
+    type: "live-receive-ack",
+    mutationEnvelope: envelope,
+    receivedAt: new Date().toISOString(),
+  }));
+}
+
+function sendLiveMutationApplyAck(envelope) {
+  if (!envelope?.mutationId || !liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  liveSync.socket.send(JSON.stringify({
+    type: "live-apply-ack",
+    mutationEnvelope: envelope,
+    appliedAt: new Date().toISOString(),
+  }));
+}
+
+function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope = null, mutationType = null } = {}) {
+  const numericVersion = Number.isFinite(version) ? Number(version) : null;
+  if (numericVersion !== null && numericVersion < liveSync.lastSessionVersion) {
+    return false;
+  }
+  const envelopeVersion = Number.isFinite(Number(mutationEnvelope?.serverVersion))
+    ? Number(mutationEnvelope.serverVersion)
+    : null;
+  const effectiveVersion = envelopeVersion ?? numericVersion;
+  if (effectiveVersion !== null && effectiveVersion < liveSync.lastAppliedVersion) {
+    return false;
+  }
+  if (mutationEnvelope?.mutationId && liveSync.appliedMutationIds.has(mutationEnvelope.mutationId)) {
     return false;
   }
   const runtime = snapshot?.runtime;
@@ -524,17 +601,39 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null } = {}) {
   } else if (typeof runtime.alignMode === "boolean") {
     state.alignMode = runtime.alignMode;
   }
+
+  if (mutationType === "clear-all" || mutationType === "stop-animation") {
+    ashParticles.length = Math.min(ashParticles.length, 0);
+  }
+
+  const isFastFinalApply = outputRole === OUTPUT_ROLE_FINAL && isControlCriticalMutationEnvelope(mutationEnvelope);
+
   enforceAudioLifecycleGuard();
   stopSoundsForInactiveAnimations();
   for (const animation of state.runningAnimations) {
     playSoundForAnimation(animation);
   }
-  syncRuntimePanelsFromState();
-  renderRunningAnimationsList();
-  refreshGlobalButtons();
+
+  if (!isFastFinalApply && outputRole !== OUTPUT_ROLE_FINAL) {
+    syncRuntimePanelsFromState();
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+  }
   renderRoomOverlay();
-  if (Number.isFinite(version)) {
-    liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, Number(version));
+  if (numericVersion !== null) {
+    liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, numericVersion);
+  }
+  if (effectiveVersion !== null) {
+    liveSync.lastAppliedVersion = Math.max(liveSync.lastAppliedVersion, effectiveVersion);
+  }
+  if (mutationEnvelope?.mutationId) {
+    rememberAppliedMutationId(mutationEnvelope.mutationId);
+    recordMutationTrace(mutationEnvelope.mutationId, "client_apply");
+    if (mutationType === "stop-animation" || mutationType === "clear-all") {
+      recordMutationTrace(mutationEnvelope.mutationId, "client_visual_clear");
+      recordMutationTrace(mutationEnvelope.mutationId, "client_audio_stop");
+    }
+    sendLiveMutationApplyAck(mutationEnvelope);
   }
   return true;
 }
@@ -575,10 +674,19 @@ function connectLiveSyncSocket() {
             liveSync.lastAckedVersion = Math.max(liveSync.lastAckedVersion, version);
             liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
           }
+          if (typeof payload?.mutationId === "string") {
+            recordMutationTrace(payload.mutationId, "server_ack");
+          }
         }
         if (payload?.type === "live-session-update") {
+          if (payload?.mutationEnvelope?.mutationId) {
+            recordMutationTrace(payload.mutationEnvelope.mutationId, "client_receive");
+          }
+          sendLiveMutationReceiveAck(payload?.mutationEnvelope);
           applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
             version: payload?.session?.version,
+            mutationEnvelope: payload?.mutationEnvelope,
+            mutationType: payload?.mutationType,
           });
         }
       } catch {
@@ -2792,6 +2900,26 @@ function resolveRoomGifRenderConfig(type, age, intensity, options = {}) {
   };
 }
 
+function warmGifAssetPath(path, { reason = "runtime" } = {}) {
+  if (!path) {
+    return;
+  }
+  const warm = () => {
+    ensureGifPlaybackReady(path);
+  };
+  if (typeof window.requestIdleCallback === "function" && reason !== "trigger") {
+    window.requestIdleCallback(() => warm(), { timeout: 450 });
+    return;
+  }
+  warm();
+}
+
+function warmRoomGifAssets({ reason = "runtime" } = {}) {
+  for (const assetPath of Object.values(ROOM_GIF_ANIMATION_ASSETS)) {
+    warmGifAssetPath(assetPath, { reason });
+  }
+}
+
 function clampRoomSpeed(value) {
   return Math.max(0.1, Math.min(2.5, Number(value) || 1));
 }
@@ -4978,6 +5106,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
   ensureBoardRoomStateMaps(board.id);
+  warmRoomGifAssets({ reason: "board-switch" });
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
@@ -5956,6 +6085,10 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stopped`;
+    emitLiveMutation("trigger-global", {
+      animationType: type,
+      action: "stop",
+    });
   } else {
     const animation = createAnimation({
       type,
@@ -5972,12 +6105,13 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     }
     playSoundForAnimation(animation);
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} started`;
+    emitLiveMutation("trigger-global", {
+      animationType: type,
+      action: "start",
+    });
   }
   renderRunningAnimationsList();
   refreshGlobalButtons();
-  emitLiveMutation("trigger-global", {
-    animationType: type,
-  });
 }
 
 function startRoomAnimationFromDraft() {
@@ -6005,6 +6139,10 @@ function startRoomAnimationFromDraft() {
   state.roomDraft.opacity = draftPayload.opacity;
   state.roomDraft.playbackSpeed = draftPayload.playbackSpeed;
   state.roomDraft.soundVolume = draftPayload.soundVolume;
+
+  if (isGifRoomAnimation(draftPayload.type)) {
+    warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[draftPayload.type], { reason: "trigger" });
+  }
 
   const targetRoomIds = resolveRoomDraftTargets();
   if (targetRoomIds.length === 0) {
@@ -8481,6 +8619,7 @@ async function initializeApplication() {
       `API diagnostics: startup load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
   }
   warmEventSoundAssets();
+  warmRoomGifAssets({ reason: "startup" });
   setActiveView("dashboard");
   setPanCursorState();
   const viewRegressionOk = runViewVisibilityRegression();

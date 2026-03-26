@@ -39,6 +39,47 @@ const liveClients = new Map();
 const processedMutations = new Map();
 const lastClientSequenceById = new Map();
 const MAX_PROCESSED_MUTATIONS = 4000;
+const LIVE_MUTATION_TYPES = new Set([
+  "trigger-global",
+  "trigger-room",
+  "edit-room",
+  "stop-animation",
+  "clear-all",
+  "align-toggle",
+  "outside-update",
+  "context-update",
+]);
+const CONTROL_CRITICAL_MUTATIONS = new Set(["stop-animation", "clear-all"]);
+const NON_COALESCING_MUTATIONS = new Set([
+  "trigger-global",
+  "trigger-room",
+  "edit-room",
+  "stop-animation",
+  "clear-all",
+  "align-toggle",
+]);
+const LIVE_QUEUE_MAX_SIZE = 512;
+const LIVE_COALESCE_CLASS_MAX_SIZE = 96;
+
+const liveMutationQueue = {
+  control: [],
+  state: [],
+  noisy: [],
+  processing: false,
+  queued: 0,
+  droppedOverflow: 0,
+  coalesced: 0,
+};
+
+const liveTelemetry = {
+  hops: {
+    ingestToCommit: [],
+    commitToClientAck: [],
+    commitToApplyAck: [],
+  },
+  perClient: new Map(),
+};
+const LIVE_TELEMETRY_SAMPLE_LIMIT = 5000;
 
 async function appendLiveLog(className, payload = {}) {
   const entry = {
@@ -88,16 +129,54 @@ function rememberProcessedMutation(key, value) {
 }
 
 function acceptLiveMutationType(type) {
-  return new Set([
-    "trigger-global",
-    "trigger-room",
-    "edit-room",
-    "stop-animation",
-    "clear-all",
-    "align-toggle",
-    "outside-update",
-    "context-update",
-  ]).has(type);
+  return LIVE_MUTATION_TYPES.has(type);
+}
+
+function classifyLiveMutationType(type, payload = null) {
+  if (CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
+    return "control-critical";
+  }
+  if (type === "outside-update" || type === "context-update") {
+    return "config-noisy";
+  }
+  return "state-sync";
+}
+
+function resolveMutationPriority(type, payload = null) {
+  if (CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
+    return "high";
+  }
+  if (type === "outside-update" || type === "context-update") {
+    return "low";
+  }
+  return "normal";
+}
+
+function recordLiveHopSample(bucket, value) {
+  if (!Array.isArray(bucket) || !Number.isFinite(value) || value < 0) {
+    return;
+  }
+  bucket.push(value);
+  if (bucket.length > LIVE_TELEMETRY_SAMPLE_LIMIT) {
+    bucket.shift();
+  }
+}
+
+function upsertClientTelemetry(clientId, role) {
+  if (!liveTelemetry.perClient.has(clientId)) {
+    liveTelemetry.perClient.set(clientId, {
+      role,
+      commitToAck: [],
+      commitToApplyAck: [],
+      lastAckAt: null,
+      lastApplyAckAt: null,
+    });
+  }
+  const current = liveTelemetry.perClient.get(clientId);
+  if (role) {
+    current.role = role;
+  }
+  return current;
 }
 
 function cloneJson(value) {
@@ -247,7 +326,86 @@ function applyContextUpdatePatch(payload) {
   };
 }
 
-function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, clientSequence }) {
+function getMutationQueueByPriority(priority) {
+  if (priority === "high") {
+    return liveMutationQueue.control;
+  }
+  if (priority === "low") {
+    return liveMutationQueue.noisy;
+  }
+  return liveMutationQueue.state;
+}
+
+function getLiveQueueSize() {
+  return liveMutationQueue.control.length + liveMutationQueue.state.length + liveMutationQueue.noisy.length;
+}
+
+function buildCoalesceKey({ mutationType, payload, clientId }) {
+  if (NON_COALESCING_MUTATIONS.has(mutationType)) {
+    return null;
+  }
+  const boardId = normalizeNonEmptyString(payload?.outsideBoardId) ?? normalizeNonEmptyString(payload?.selectedBoard) ?? "global";
+  return `${clientId}:${mutationType}:${boardId}`;
+}
+
+function maybeCoalesceQueuedMutation(nextEntry, queue) {
+  if (!nextEntry?.coalesceKey) {
+    return false;
+  }
+  let found = false;
+  let classCount = 0;
+  for (let index = queue.length - 1; index >= 0; index -= 1) {
+    const current = queue[index];
+    if (current?.mutationClass === nextEntry.mutationClass) {
+      classCount += 1;
+    }
+    if (current?.coalesceKey === nextEntry.coalesceKey) {
+      queue[index] = {
+        ...nextEntry,
+        enqueuedAt: current.enqueuedAt,
+      };
+      found = true;
+      break;
+    }
+  }
+  if (!found && classCount >= LIVE_COALESCE_CLASS_MAX_SIZE) {
+    const dropIndex = queue.findIndex((item) => item?.mutationClass === nextEntry.mutationClass);
+    if (dropIndex >= 0) {
+      queue.splice(dropIndex, 1);
+      liveMutationQueue.droppedOverflow += 1;
+    }
+  }
+  if (found) {
+    liveMutationQueue.coalesced += 1;
+  }
+  return found;
+}
+
+function dequeueNextLiveMutation() {
+  if (liveMutationQueue.control.length > 0) {
+    return liveMutationQueue.control.shift();
+  }
+  if (liveMutationQueue.state.length > 0) {
+    return liveMutationQueue.state.shift();
+  }
+  if (liveMutationQueue.noisy.length > 0) {
+    return liveMutationQueue.noisy.shift();
+  }
+  return null;
+}
+
+function applyLiveMutation({
+  clientId,
+  role,
+  mutationType,
+  payload,
+  mutationId,
+  clientSequence,
+  ingestAt,
+  clientSentAt,
+  mutationClass,
+  priority,
+}) {
   if (!acceptLiveMutationType(mutationType)) {
     logErrorEvent("invalid-mutation-type", String(mutationType ?? "unknown"), {
       clientId,
@@ -264,6 +422,10 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
       applied: false,
       duplicate: true,
       stale: false,
+      mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+      priority: priority ?? resolveMutationPriority(mutationType, payload),
+      serverTimestamp: previous?.serverTimestamp ?? new Date().toISOString(),
+      serverIngestTimestamp: previous?.serverIngestTimestamp ?? ingestAt ?? new Date().toISOString(),
       version: previous?.version ?? liveSessionState.version,
     };
   }
@@ -276,6 +438,10 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
         applied: false,
         duplicate: false,
         stale: true,
+        mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+        priority: priority ?? resolveMutationPriority(mutationType, payload),
+        serverTimestamp: new Date().toISOString(),
+        serverIngestTimestamp: ingestAt ?? new Date().toISOString(),
         version: liveSessionState.version,
       };
     }
@@ -321,26 +487,55 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
       nextSnapshotPatch.runtime.alignMode = payload.alignMode;
     }
   }
+  const serverTimestamp = new Date().toISOString();
   const session = mutateLiveSession({
     mutation: {
       type: mutationType,
+      mutationId: normalizedMutationId,
       byClientId: clientId,
       byRole: role,
-      at: new Date().toISOString(),
+      mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+      priority: priority ?? resolveMutationPriority(mutationType, payload),
+      clientSentAt: clientSentAt ?? null,
+      ingestAt: ingestAt ?? null,
+      at: serverTimestamp,
     },
     nextSnapshotPatch,
   });
 
+  const commitLatencyMs = Math.max(0, Date.now() - Date.parse(ingestAt ?? serverTimestamp));
+  recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
+
   if (dedupKey) {
     rememberProcessedMutation(dedupKey, {
       version: session.version,
+      serverTimestamp,
+      serverIngestTimestamp: ingestAt ?? serverTimestamp,
     });
   }
+
+  const envelope = {
+    mutationId: normalizedMutationId,
+    mutationType,
+    mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+    priority: priority ?? resolveMutationPriority(mutationType, payload),
+    clientId,
+    role,
+    serverVersion: session.version,
+    serverTimestamp,
+    serverIngestTimestamp: ingestAt ?? serverTimestamp,
+    clientSentTimestamp: clientSentAt ?? null,
+  };
 
   return {
     applied: true,
     duplicate: false,
     stale: false,
+    mutationClass: envelope.mutationClass,
+    priority: envelope.priority,
+    serverTimestamp: envelope.serverTimestamp,
+    serverIngestTimestamp: envelope.serverIngestTimestamp,
+    envelope,
     version: session.version,
   };
 }
@@ -437,15 +632,149 @@ function buildLiveSessionEnvelope(type, extra = {}) {
   };
 }
 
-function broadcastLiveSession(type, extra = {}) {
+function buildLiveTelemetrySnapshot() {
+  const perClient = {};
+  for (const [clientId, stats] of liveTelemetry.perClient.entries()) {
+    perClient[clientId] = {
+      role: stats.role,
+      commitToAckMs: stats.commitToAck,
+      commitToApplyAckMs: stats.commitToApplyAck,
+      lastAckAt: stats.lastAckAt,
+      lastApplyAckAt: stats.lastApplyAckAt,
+    };
+  }
+  return {
+    queue: {
+      depth: getLiveQueueSize(),
+      droppedOverflow: liveMutationQueue.droppedOverflow,
+      coalesced: liveMutationQueue.coalesced,
+    },
+    hopsMs: {
+      ingestToCommit: liveTelemetry.hops.ingestToCommit,
+      commitToClientAck: liveTelemetry.hops.commitToClientAck,
+      commitToApplyAck: liveTelemetry.hops.commitToApplyAck,
+    },
+    perClient,
+  };
+}
+
+function broadcastLiveSession(type, extra = {}, { finalFirst = false } = {}) {
   const payload = buildLiveSessionEnvelope(type, extra);
-  for (const [clientId, client] of liveClients.entries()) {
+  const clients = [...liveClients.entries()];
+  const orderedClients = finalFirst
+    ? clients.sort(([, left], [, right]) => {
+      const leftFinal = left?.role === "final-output" ? 0 : 1;
+      const rightFinal = right?.role === "final-output" ? 0 : 1;
+      return leftFinal - rightFinal;
+    })
+    : clients;
+  for (const [clientId, client] of orderedClients) {
     if (!client?.socket || client.socket.destroyed) {
       liveClients.delete(clientId);
       continue;
     }
     sendLiveSocketMessage(client.socket, payload);
   }
+}
+
+function processLiveMutationQueue() {
+  if (liveMutationQueue.processing) {
+    return;
+  }
+  liveMutationQueue.processing = true;
+
+  const step = () => {
+    const next = dequeueNextLiveMutation();
+    if (!next) {
+      liveMutationQueue.processing = false;
+      return;
+    }
+    liveMutationQueue.queued = Math.max(0, liveMutationQueue.queued - 1);
+    const mutationResult = applyLiveMutation(next);
+    if (mutationResult) {
+      const nowIso = new Date().toISOString();
+      sendLiveSocketMessage(
+        next.socket,
+        buildLiveSessionEnvelope("live-ack", {
+          mutationType: next.mutationType,
+          mutationId: next.mutationId,
+          version: mutationResult.version,
+          applied: mutationResult.applied,
+          duplicate: mutationResult.duplicate,
+          stale: mutationResult.stale,
+          mutationClass: mutationResult.mutationClass,
+          priority: mutationResult.priority,
+          serverTimestamp: mutationResult.serverTimestamp,
+          serverIngestTimestamp: mutationResult.serverIngestTimestamp,
+          queueDepth: getLiveQueueSize(),
+          ackTimestamp: nowIso,
+        }),
+      );
+      if (mutationResult.applied) {
+        broadcastLiveSession("live-session-update", {
+          mutationType: next.mutationType,
+          mutationId: next.mutationId,
+          version: mutationResult.version,
+          mutationEnvelope: mutationResult.envelope,
+        }, {
+          finalFirst: true,
+        });
+      }
+    }
+    setImmediate(step);
+  };
+
+  setImmediate(step);
+}
+
+function enqueueLiveMutation({ socket, clientId, role, mutationType, payload, mutationId, clientSequence, clientSentAt }) {
+  const mutationClass = classifyLiveMutationType(mutationType, payload);
+  const priority = resolveMutationPriority(mutationType, payload);
+  const ingestAt = new Date().toISOString();
+  const queue = getMutationQueueByPriority(priority);
+  const queueSize = getLiveQueueSize();
+  const queueEntry = {
+    socket,
+    clientId,
+    role,
+    mutationType,
+    payload,
+    mutationId,
+    clientSequence,
+    clientSentAt: normalizeNonEmptyString(clientSentAt),
+    mutationClass,
+    priority,
+    ingestAt,
+    enqueuedAt: Date.now(),
+    coalesceKey: buildCoalesceKey({ mutationType, payload, clientId }),
+  };
+
+  if (queueSize >= LIVE_QUEUE_MAX_SIZE && priority !== "high") {
+    liveMutationQueue.droppedOverflow += 1;
+    sendLiveSocketMessage(
+      socket,
+      buildLiveSessionEnvelope("live-ack", {
+        mutationType,
+        mutationId,
+        applied: false,
+        duplicate: false,
+        stale: false,
+        overflow: true,
+        queueDepth: queueSize,
+        mutationClass,
+        priority,
+        version: liveSessionState.version,
+      }),
+    );
+    return;
+  }
+
+  const coalesced = maybeCoalesceQueuedMutation(queueEntry, queue);
+  if (!coalesced) {
+    queue.push(queueEntry);
+    liveMutationQueue.queued += 1;
+  }
+  processLiveMutationQueue();
 }
 
 function attachLiveWebSocket(server) {
@@ -479,6 +808,7 @@ function attachLiveWebSocket(server) {
     const role = requestUrl.searchParams.get("role") || "control";
     const clientId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
+    upsertClientTelemetry(clientId, role);
     logSessionEvent("connect", {
       clientId,
       role,
@@ -509,39 +839,52 @@ function attachLiveWebSocket(server) {
       }
       try {
         const parsed = JSON.parse(frame.text || "{}");
+        if (parsed?.type === "live-receive-ack") {
+          const envelope = isPlainObject(parsed?.mutationEnvelope) ? parsed.mutationEnvelope : null;
+          const commitAt = Date.parse(envelope?.serverTimestamp ?? "");
+          const receiveAt = Date.parse(parsed?.receivedAt ?? "");
+          if (Number.isFinite(commitAt) && Number.isFinite(receiveAt) && receiveAt >= commitAt) {
+            const delta = receiveAt - commitAt;
+            const clientStats = upsertClientTelemetry(clientId, role);
+            clientStats.commitToAck.push(delta);
+            if (clientStats.commitToAck.length > LIVE_TELEMETRY_SAMPLE_LIMIT) {
+              clientStats.commitToAck.shift();
+            }
+            clientStats.lastAckAt = new Date(receiveAt).toISOString();
+            recordLiveHopSample(liveTelemetry.hops.commitToClientAck, delta);
+          }
+          return;
+        }
+        if (parsed?.type === "live-apply-ack") {
+          const envelope = isPlainObject(parsed?.mutationEnvelope) ? parsed.mutationEnvelope : null;
+          const commitAt = Date.parse(envelope?.serverTimestamp ?? "");
+          const applyAt = Date.parse(parsed?.appliedAt ?? "");
+          if (Number.isFinite(commitAt) && Number.isFinite(applyAt) && applyAt >= commitAt) {
+            const delta = applyAt - commitAt;
+            const clientStats = upsertClientTelemetry(clientId, role);
+            clientStats.commitToApplyAck.push(delta);
+            if (clientStats.commitToApplyAck.length > LIVE_TELEMETRY_SAMPLE_LIMIT) {
+              clientStats.commitToApplyAck.shift();
+            }
+            clientStats.lastApplyAckAt = new Date(applyAt).toISOString();
+            recordLiveHopSample(liveTelemetry.hops.commitToApplyAck, delta);
+          }
+          return;
+        }
         if (parsed?.type !== "live-mutation") {
           return;
         }
         const mutationId = typeof parsed?.mutationId === "string" ? parsed.mutationId : null;
-        const mutationResult = applyLiveMutation({
+        enqueueLiveMutation({
+          socket,
           clientId,
           role,
           mutationType: parsed.mutationType,
           payload: parsed.payload,
           mutationId,
           clientSequence: parsed?.clientSequence,
+          clientSentAt: parsed?.clientTimestamp,
         });
-        if (!mutationResult) {
-          return;
-        }
-        sendLiveSocketMessage(
-          socket,
-          buildLiveSessionEnvelope("live-ack", {
-            mutationType: parsed.mutationType,
-            mutationId,
-            version: mutationResult.version,
-            applied: mutationResult.applied,
-            duplicate: mutationResult.duplicate,
-            stale: mutationResult.stale,
-          }),
-        );
-        if (mutationResult.applied) {
-          broadcastLiveSession("live-session-update", {
-            mutationType: parsed.mutationType,
-            mutationId,
-            version: mutationResult.version,
-          });
-        }
       } catch {
         logErrorEvent("malformed-ws-payload", "invalid-json", {
           clientId,
@@ -1175,6 +1518,7 @@ const server = createServer(async (req, res) => {
         saveEndpoint: "/api/global-defaults",
         boardCatalogEndpoint: "/api/boards",
         boardImportEndpoint: "/api/boards/import",
+        liveTelemetryEndpoint: "/api/live/telemetry",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
       });
@@ -1193,6 +1537,16 @@ const server = createServer(async (req, res) => {
       sendJson(res, 200, {
         ok: true,
         session: liveSessionState,
+      });
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/live/telemetry") {
+      sendJson(res, 200, {
+        ok: true,
+        schema: "tt-beamer.live-telemetry.v1",
+        generatedAt: new Date().toISOString(),
+        telemetry: buildLiveTelemetrySnapshot(),
       });
       return;
     }
