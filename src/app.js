@@ -5150,6 +5150,17 @@ function deleteSelectedRoom({ roomId = null } = {}) {
   return persisted;
 }
 
+function refreshPersistentRoomSelectionVisualState() {
+  const selectedRoomId = syncSelectedRoomStateForBoard(state.boardId);
+  if (selectedRoomId && state.roomDraft.targetType === "room") {
+    state.roomDraft.targetId = selectedRoomId;
+  }
+  syncPolygonRoomSelection(selectedRoomId);
+  syncPolygonEditorPanel();
+  syncRoomPanelFromSelection({ preserveDraftState: true });
+  renderRoomOverlay();
+}
+
 function renameSelectedRoom(nextName) {
   const room = getSelectedRoom();
   if (!room) {
@@ -6975,10 +6986,12 @@ roomOverlay.addEventListener("pointerup", (event) => {
     state.polygonEditor.dragAreaPointerId === event.pointerId
   ) {
     finishPolygonAreaDrag(event, { cancel: false });
+    refreshPersistentRoomSelectionVisualState();
     return;
   }
   if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
     clearPendingPolygonAreaDragSession();
+    refreshPersistentRoomSelectionVisualState();
     return;
   }
   if (
