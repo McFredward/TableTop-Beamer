@@ -5682,12 +5682,10 @@ function getClusterMemberAnimationIds(clusterAnimation) {
       .map((animationId) => String(animationId || "").trim())
       .filter(Boolean)
     : [];
-  if (directMembers.length > 0) {
-    return directMembers;
-  }
-  return state.runningAnimations
+  const linkedMembers = state.runningAnimations
     .filter((entry) => entry?.scope === "room" && entry?.parentClusterRunId === clusterAnimation.id)
     .map((entry) => entry.id);
+  return Array.from(new Set([...directMembers, ...linkedMembers]));
 }
 
 function getRunningAnimationsForList() {
