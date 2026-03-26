@@ -680,6 +680,11 @@ function connectLiveSyncSocket() {
           applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
             version: payload?.session?.version,
           });
+          if (Number.isFinite(payload?.session?.version)) {
+            const helloVersion = Number(payload.session.version);
+            liveSync.lastAppliedVersion = Math.max(liveSync.lastAppliedVersion, helloVersion);
+            liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
+          }
           replayPendingLiveMutations();
         }
         if (payload?.type === "live-ack") {

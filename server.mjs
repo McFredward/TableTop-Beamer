@@ -845,7 +845,14 @@ function attachLiveWebSocket(server) {
       connectedClients: liveClients.size,
     });
 
-    sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-hello", { clientId, role }));
+    sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-hello", {
+      clientId,
+      role,
+      replay: {
+        mode: "snapshot-base-version",
+        baseVersion: liveSessionState.version,
+      },
+    }));
     logSessionEvent("join-snapshot", {
       clientId,
       role,
