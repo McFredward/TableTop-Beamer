@@ -917,6 +917,51 @@ function createDefaultRoomGeometryByBoard() {
   );
 }
 
+function normalizeRoomTombstoneIds(ids, boardId) {
+  const board = getBoard(boardId);
+  const validRoomIds = new Set((board?.rooms || []).map((room) => room.id));
+  return Array.from(
+    new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map((entry) => String(entry || "").trim())
+        .filter((roomId) => roomId && validRoomIds.has(roomId)),
+    ),
+  );
+}
+
+function createDefaultRoomTombstonesByBoard() {
+  return Object.fromEntries(BOARDS.map((board) => [board.id, []]));
+}
+
+function markRoomTombstone(boardId, roomId) {
+  if (!boardId || !roomId) {
+    return;
+  }
+  const current = state.roomTombstonesByBoard?.[boardId] ?? [];
+  const next = normalizeRoomTombstoneIds([...current, roomId], boardId);
+  if (!state.roomTombstonesByBoard) {
+    state.roomTombstonesByBoard = {};
+  }
+  state.roomTombstonesByBoard[boardId] = next;
+}
+
+function clearRoomTombstone(boardId, roomId) {
+  if (!boardId || !roomId) {
+    return;
+  }
+  const current = state.roomTombstonesByBoard?.[boardId] ?? [];
+  if (!current.includes(roomId)) {
+    return;
+  }
+  if (!state.roomTombstonesByBoard) {
+    state.roomTombstonesByBoard = {};
+  }
+  state.roomTombstonesByBoard[boardId] = normalizeRoomTombstoneIds(
+    current.filter((entry) => entry !== roomId),
+    boardId,
+  );
+}
+
 function normalizePolygonPoint(point) {
   return [
     clampRoomAbsoluteCoordinate(Number(point?.[0]) || 0.5),
@@ -1077,6 +1122,7 @@ function createDefaultBoardProfiles() {
       board.id,
       {
         roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
+        deletedRoomIds: [],
         roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
         hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
         roomGeometry: createDefaultRoomGeometryMap(board.id),
@@ -1095,6 +1141,7 @@ function buildBoardProfilesFromState() {
       board.id,
       {
         roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
+        deletedRoomIds: normalizeRoomTombstoneIds(state.roomTombstonesByBoard?.[board.id], board.id),
         roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
         hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
@@ -1151,8 +1198,12 @@ function applyPersistedRuntimeSettings(payload) {
 
 function applyBoardProfilesToState(profiles) {
   BOARDS = BOARDS.map((board) => {
+    const deletedRoomIds = normalizeRoomTombstoneIds(
+      profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
+      board.id,
+    );
     const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
-    const nextBoard = applyRoomCatalog(board, roomCatalog);
+    const nextBoard = applyRoomCatalog(board, roomCatalog, deletedRoomIds);
     nextBoard.roomClusters = Array.isArray(profiles?.[board.id]?.roomClusters)
       ? profiles[board.id].roomClusters.map((cluster) => ({ ...cluster }))
       : Array.isArray(nextBoard.roomClusters)
@@ -1160,6 +1211,15 @@ function applyBoardProfilesToState(profiles) {
         : [];
     return nextBoard;
   });
+  state.roomTombstonesByBoard = Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizeRoomTombstoneIds(
+        profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
+        board.id,
+      ),
+    ]),
+  );
   state.hitareaCalibrationByBoard = Object.fromEntries(
     BOARDS.map((board) => [
       board.id,
@@ -4833,6 +4893,7 @@ function ensureBoardRoomStateMaps(boardId) {
   const board = getBoard(boardId);
   const geometryMap = state.roomGeometryByBoard[boardId] ?? {};
   const stateMap = state.roomStateProfilesByBoard[boardId] ?? {};
+  const tombstones = state.roomTombstonesByBoard?.[boardId] ?? [];
   for (const room of board.rooms) {
     if (!geometryMap[room.id]) {
       geometryMap[room.id] = normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room, boardId);
@@ -4843,6 +4904,10 @@ function ensureBoardRoomStateMaps(boardId) {
   }
   state.roomGeometryByBoard[boardId] = geometryMap;
   state.roomStateProfilesByBoard[boardId] = stateMap;
+  if (!state.roomTombstonesByBoard) {
+    state.roomTombstonesByBoard = {};
+  }
+  state.roomTombstonesByBoard[boardId] = normalizeRoomTombstoneIds(tombstones, boardId);
 }
 
 function syncRoomManagementPanel(statusText = null) {
@@ -4984,6 +5049,7 @@ function pasteRoomFromClipboard() {
   };
   board.rooms.push(room);
   ensureBoardRoomStateMaps(state.boardId);
+  clearRoomTombstone(state.boardId, id);
   setSpecialPolygonPoints(state.boardId, id, room.polygon);
   setRoomGeometry(state.boardId, id, clipboard.geometry);
   state.selectedRoomId = id;
@@ -5120,6 +5186,7 @@ function createRoomFromSettings() {
   };
   board.rooms.push(room);
   ensureBoardRoomStateMaps(state.boardId);
+  clearRoomTombstone(state.boardId, id);
   if (copiedGeometry) {
     setRoomGeometry(state.boardId, id, copiedGeometry);
   }
@@ -5175,6 +5242,7 @@ function deleteSelectedRoom({ roomId = null } = {}) {
   if (state.specialPolygonsByBoard[state.boardId]) {
     delete state.specialPolygonsByBoard[state.boardId][room.id];
   }
+  markRoomTombstone(state.boardId, room.id);
   const fallbackRoomId = nextRooms[0]?.id ?? null;
   state.selectedRoomId = fallbackRoomId;
   state.selectedRoomByBoard[state.boardId] = fallbackRoomId;
@@ -7582,6 +7650,7 @@ async function initializeApplication() {
     state.boardId = BOARDS[0]?.id ?? "";
   }
   state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
+  state.roomTombstonesByBoard = createDefaultRoomTombstonesByBoard();
   state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
   state.roomStateProfilesByBoard = createDefaultRoomStateProfilesByBoard();
   state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();

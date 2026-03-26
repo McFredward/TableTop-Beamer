@@ -38,6 +38,7 @@
       uiView: "dashboard",
       dashboardZone: "trigger",
       hitareaCalibrationByBoard: {},
+      roomTombstonesByBoard: {},
       roomGeometryByBoard: {},
       roomStateProfilesByBoard: {},
       specialPolygonsByBoard: {},

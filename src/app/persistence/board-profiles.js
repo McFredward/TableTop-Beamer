@@ -117,6 +117,7 @@
       const profile = candidate?.[board.id] ?? {};
         migrated[board.id] = {
           roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
+          deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
           roomClusters: profile.roomClusters ?? profile.clusters ?? null,
           hitareaCalibration:
             profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[board.id] ?? HITAREA_CALIBRATION_DEFAULT,
