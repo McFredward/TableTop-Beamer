@@ -4138,8 +4138,21 @@ function beginPolygonVertexDrag(event, roomId, vertexIndex) {
   }
 }
 
-function beginPolygonAreaDrag(event, roomId) {
-  const boardId = state.boardId;
+function beginPendingPolygonAreaDrag(event, roomId) {
+  state.polygonEditor.pendingAreaPointerId = event.pointerId;
+  state.polygonEditor.pendingAreaRoomId = roomId;
+  state.polygonEditor.pendingAreaBoardId = state.boardId;
+  state.polygonEditor.pendingAreaStartPointerPoint = getNormalizedOverlayPoint(event);
+}
+
+function clearPendingPolygonAreaDragSession() {
+  state.polygonEditor.pendingAreaPointerId = null;
+  state.polygonEditor.pendingAreaRoomId = null;
+  state.polygonEditor.pendingAreaBoardId = null;
+  state.polygonEditor.pendingAreaStartPointerPoint = null;
+}
+
+function beginPolygonAreaDrag(event, roomId, { boardId = state.boardId, startPointerPoint = null } = {}) {
   const startPoints = getSpecialPolygonPoints(boardId, roomId);
   if (!Array.isArray(startPoints) || startPoints.length < 3) {
     return;
@@ -4148,8 +4161,11 @@ function beginPolygonAreaDrag(event, roomId) {
   state.polygonEditor.dragAreaRoomId = roomId;
   state.polygonEditor.dragAreaBoardId = boardId;
   state.polygonEditor.dragAreaStartPoints = startPoints;
-  state.polygonEditor.dragAreaStartPointerPoint = getNormalizedOverlayPoint(event);
+  state.polygonEditor.dragAreaStartPointerPoint = Array.isArray(startPointerPoint)
+    ? [...startPointerPoint]
+    : getNormalizedOverlayPoint(event);
   state.polygonEditor.dragAreaMoved = false;
+  clearPendingPolygonAreaDragSession();
   roomOverlay.classList.add("is-room-dragging");
   try {
     roomOverlay.setPointerCapture(event.pointerId);
@@ -4166,6 +4182,34 @@ function clearPolygonAreaDragSession() {
   state.polygonEditor.dragAreaStartPointerPoint = null;
   state.polygonEditor.dragAreaMoved = false;
   roomOverlay.classList.remove("is-room-dragging");
+}
+
+function maybePromotePendingPolygonAreaDrag(event) {
+  if (state.polygonEditor.dragAreaPointerId !== null) {
+    return;
+  }
+  const pendingPointerId = state.polygonEditor.pendingAreaPointerId;
+  if (pendingPointerId === null || pendingPointerId !== event.pointerId) {
+    return;
+  }
+  if (state.uiView !== "settings" || !areRoomVerticesEditable()) {
+    clearPendingPolygonAreaDragSession();
+    return;
+  }
+  const startPointerPoint = state.polygonEditor.pendingAreaStartPointerPoint;
+  const roomId = state.polygonEditor.pendingAreaRoomId;
+  const boardId = state.polygonEditor.pendingAreaBoardId;
+  if (!roomId || !boardId || !Array.isArray(startPointerPoint)) {
+    clearPendingPolygonAreaDragSession();
+    return;
+  }
+  const [currentX, currentY] = getNormalizedOverlayPoint(event);
+  const [startX, startY] = startPointerPoint;
+  const movedDistance = Math.hypot(currentX - startX, currentY - startY);
+  if (movedDistance < 0.0025) {
+    return;
+  }
+  beginPolygonAreaDrag(event, roomId, { boardId, startPointerPoint });
 }
 
 function clearPolygonDragSession() {
@@ -4664,8 +4708,6 @@ function renderRoomOverlay() {
       ) {
         return;
       }
-      event.stopPropagation();
-      event.preventDefault();
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
       state.roomDraft.targetType = "room";
@@ -4673,7 +4715,7 @@ function renderRoomOverlay() {
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection();
-      beginPolygonAreaDrag(event, room.id);
+      beginPendingPolygonAreaDrag(event, room.id);
       renderRoomOverlay();
     });
     if (state.selectedRoomId === room.id) {
@@ -4857,6 +4899,7 @@ function buildCopiedRoomName(board, sourceRoom) {
 }
 
 function copySelectedRoomToClipboard() {
+  syncSelectedRoomStateForBoard(state.boardId);
   const room = getSelectedRoom();
   if (!room) {
     syncRoomManagementPanel("Room management: copy skipped (no room selected)");
@@ -6860,6 +6903,7 @@ roomOverlay.addEventListener("pointermove", (event) => {
     syncShipPolygonEditorStatus();
     return;
   }
+  maybePromotePendingPolygonAreaDrag(event);
   if (state.polygonEditor.dragAreaPointerId !== null && state.uiView === "settings") {
     if (!areRoomVerticesEditable()) {
       finishPolygonAreaDrag(event, { cancel: true });
@@ -6933,6 +6977,10 @@ roomOverlay.addEventListener("pointerup", (event) => {
     finishPolygonAreaDrag(event, { cancel: false });
     return;
   }
+  if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
+    clearPendingPolygonAreaDragSession();
+    return;
+  }
   if (
     state.polygonEditor.dragVertexIndex === null ||
     state.polygonEditor.dragPointerId !== event.pointerId
@@ -6955,6 +7003,10 @@ roomOverlay.addEventListener("pointercancel", (event) => {
     finishPolygonAreaDrag(event, { cancel: true });
     return;
   }
+  if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
+    clearPendingPolygonAreaDragSession();
+    return;
+  }
   if (state.polygonEditor.dragPointerId !== event.pointerId) {
     return;
   }
@@ -6965,6 +7017,7 @@ roomOverlay.addEventListener("pointerdown", (event) => {
   if (!canStartPanModeFromEvent(event)) {
     return;
   }
+  clearPendingPolygonAreaDragSession();
   if (state.shipPolygonEditor.dragVertexIndex !== null) {
     finishShipPolygonVertexDrag(event, { cancel: true });
   }
@@ -6981,6 +7034,9 @@ roomOverlay.addEventListener("pointerdown", (event) => {
 });
 
 roomOverlay.addEventListener("click", (event) => {
+  if (performance.now() < (state.polygonEditor.suppressRoomClickUntil || 0)) {
+    return;
+  }
   if (event.target !== roomOverlay) {
     return;
   }
@@ -6990,7 +7046,8 @@ roomOverlay.addEventListener("click", (event) => {
   if (
     state.polygonEditor.dragVertexIndex !== null ||
     state.polygonEditor.dragAreaPointerId !== null ||
-    state.shipPolygonEditor.dragVertexIndex !== null
+    state.shipPolygonEditor.dragVertexIndex !== null ||
+    state.polygonEditor.pendingAreaPointerId !== null
   ) {
     return;
   }
@@ -7036,6 +7093,9 @@ document.addEventListener("keydown", (event) => {
     if (state.polygonEditor.dragAreaPointerId !== null) {
       finishPolygonAreaDrag(null, { cancel: true });
     }
+    if (state.polygonEditor.pendingAreaPointerId !== null) {
+      clearPendingPolygonAreaDragSession();
+    }
     if (state.shipPolygonEditor.dragVertexIndex !== null) {
       finishShipPolygonVertexDrag(null, { cancel: true });
     }
@@ -7076,6 +7136,9 @@ window.addEventListener("blur", () => {
   }
   if (state.polygonEditor.dragAreaPointerId !== null) {
     finishPolygonAreaDrag(null, { cancel: true });
+  }
+  if (state.polygonEditor.pendingAreaPointerId !== null) {
+    clearPendingPolygonAreaDragSession();
   }
   endPanMode(null, { canceled: true });
   resetClearAllGuard();
