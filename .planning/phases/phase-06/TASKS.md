@@ -18,7 +18,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T10 [P0] English-only Sweep fuer UI-Texte/Labels/Statusmeldungen im Operator-Flow umsetzen.
 - [x] DONE P6-T11 [P0] Relevante Logs/Errors und README-/Operator-Hinweise auf Englisch vereinheitlichen.
 
-- [ ] TODO P6-T12 [P0] Legacy-Migration implementieren: Nemesis + bestehende Polygone/Animationsconfigs in neuen Standard ueberfuehren (idempotent, verlustfrei).
+- [x] DONE P6-T12 [P0] Legacy-Migration implementieren: Nemesis + bestehende Polygone/Animationsconfigs in neuen Standard ueberfuehren (idempotent, verlustfrei).
 - [ ] TODO P6-T13 [P0] Plan-6-1-Regression dokumentieren (Import/Persistenz, Katalogauswahl, Cluster-Verhalten, Einzelraumklick, English-Flow, Migration).
 
 ## Plan 6-2 - Hardening + Operator Verification (nach 6-1)
