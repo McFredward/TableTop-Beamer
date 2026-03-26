@@ -323,6 +323,13 @@ function emitLiveMutation(mutationType, payload = {}) {
   );
 }
 
+function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settings") {
+  emitLiveMutation("outside-update", {
+    outsideBoardId: boardId,
+    reason,
+  });
+}
+
 function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   return (Array.isArray(runningAnimations) ? runningAnimations : []).map((animation) => {
     const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
@@ -6065,6 +6072,7 @@ outsideEnabledInput.addEventListener("change", () => {
   syncOutsideFxPanel();
   renderRunningAnimationsList();
   refreshGlobalButtons();
+  emitOutsideFxMutation(state.boardId, "outside-enabled-toggle");
   triggerFeedback.textContent = persisted
     ? `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"}`
     : `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"} (Persistenz fehlgeschlagen)`;
@@ -6074,6 +6082,7 @@ outsideIntensityInput.addEventListener("input", () => {
   updateOutsideFxProfile(state.boardId, { intensity: clampOutsideIntensity(outsideIntensityInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-intensity-update");
   triggerFeedback.textContent = persisted
     ? "Status: Outside-Intensitaet aktualisiert"
     : "Status: Outside-Intensitaet aktualisiert (Persistenz fehlgeschlagen)";
@@ -6083,6 +6092,7 @@ outsideSpeedInput.addEventListener("input", () => {
   updateOutsideFxProfile(state.boardId, { speed: clampOutsideSpeed(outsideSpeedInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-speed-update");
   triggerFeedback.textContent = persisted
     ? "Status: Outside-Geschwindigkeit aktualisiert"
     : "Status: Outside-Geschwindigkeit aktualisiert (Persistenz fehlgeschlagen)";
@@ -6092,6 +6102,7 @@ outsideModeInput.addEventListener("change", () => {
   updateOutsideFxProfile(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-mode-update");
   triggerFeedback.textContent = persisted
     ? `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert`
     : `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert (Persistenz fehlgeschlagen)`;
@@ -6103,6 +6114,7 @@ outsideDirectionInput.addEventListener("change", () => {
   });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-direction-update");
   triggerFeedback.textContent = persisted
     ? `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert`
     : `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert (Persistenz fehlgeschlagen)`;

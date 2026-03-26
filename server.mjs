@@ -70,6 +70,7 @@ function acceptLiveMutationType(type) {
     "stop-animation",
     "clear-all",
     "align-toggle",
+    "outside-update",
   ]).has(type);
 }
 
@@ -351,11 +352,17 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
     ...nextSnapshotPatch,
     schema: LIVE_STATE_SCHEMA,
   };
+  const outsideFxByBoard = liveSessionState.snapshot?.runtime?.outsideFxByBoard;
+  const outsideEnabledBoards =
+    outsideFxByBoard && typeof outsideFxByBoard === "object"
+      ? Object.values(outsideFxByBoard).filter((entry) => Boolean(entry?.enabled)).length
+      : 0;
   logStateChange(mutation?.type ?? "unknown", {
     version: liveSessionState.version,
     byClientId: mutation?.byClientId ?? null,
     byRole: mutation?.byRole ?? null,
     alignMode: liveSessionState.snapshot.alignMode,
+    outsideEnabledBoards,
   });
   return {
     version: liveSessionState.version,
