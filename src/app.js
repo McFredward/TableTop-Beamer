@@ -5892,6 +5892,132 @@ function startRoomAnimationFromDraft() {
 
   if (state.roomDraft.editTargetId) {
     if (state.roomDraft.targetType === "cluster") {
+      const clusterEditIndex = state.runningAnimations.findIndex(
+        (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
+      );
+      if (clusterEditIndex >= 0) {
+        const existingCluster = state.runningAnimations[clusterEditIndex];
+        const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
+        const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+        const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
+          staggerStart: shouldStaggerClusterStart,
+        });
+        const reusableMembersByRoomId = new Map();
+        for (const member of state.runningAnimations) {
+          if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+            continue;
+          }
+          const roomKey = String(member.roomId || "").trim();
+          if (!roomKey) {
+            continue;
+          }
+          if (!reusableMembersByRoomId.has(roomKey)) {
+            reusableMembersByRoomId.set(roomKey, []);
+          }
+          reusableMembersByRoomId.get(roomKey).push(member);
+        }
+        const retainedMemberIds = new Set();
+        const removedMemberIds = new Set();
+        const nextMemberAnimationIds = [];
+        const nextMemberRoomIds = [];
+
+        for (const { roomId, startDelayMs } of dispatchPlan) {
+          const reusableBucket = reusableMembersByRoomId.get(roomId) ?? [];
+          const reusableMember = reusableBucket.shift() ?? null;
+          if (reusableMember) {
+            const updatedMember = {
+              ...reusableMember,
+              ...draftPayload,
+              boardId: state.boardId,
+              roomId,
+              parentClusterRunId: existingCluster.id,
+              startedAt: performance.now() + Math.max(0, Number(startDelayMs) || 0),
+              startedAtEpochMs: Date.now() + Math.max(0, Number(startDelayMs) || 0),
+            };
+            const memberIndex = state.runningAnimations.findIndex((entry) => entry.id === reusableMember.id);
+            if (memberIndex >= 0) {
+              state.runningAnimations[memberIndex] = updatedMember;
+              playSoundForAnimation(updatedMember);
+              emitLiveMutation("edit-room", {
+                animationId: updatedMember.id,
+                animation: buildAnimationSnapshotForLiveSync(updatedMember),
+              });
+            }
+            retainedMemberIds.add(updatedMember.id);
+            nextMemberAnimationIds.push(updatedMember.id);
+            nextMemberRoomIds.push(roomId);
+          } else {
+            const createdMember = createAnimation({
+              type: draftPayload.type,
+              scope: "room",
+              roomId,
+              boardId: state.boardId,
+              intensity: draftPayload.intensity,
+              speed: draftPayload.speed,
+              opacity: draftPayload.opacity,
+              playbackSpeed: draftPayload.playbackSpeed,
+              soundVolume: draftPayload.soundVolume,
+              hold: true,
+              durationSec: 0,
+              startDelayMs,
+            });
+            createdMember.parentClusterRunId = existingCluster.id;
+            state.runningAnimations.push(createdMember);
+            playSoundForAnimation(createdMember);
+            emitLiveMutation("trigger-room", {
+              animationId: createdMember.id,
+              animation: buildAnimationSnapshotForLiveSync(createdMember),
+            });
+            retainedMemberIds.add(createdMember.id);
+            nextMemberAnimationIds.push(createdMember.id);
+            nextMemberRoomIds.push(roomId);
+          }
+        }
+
+        for (const member of state.runningAnimations) {
+          if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+            continue;
+          }
+          if (!retainedMemberIds.has(member.id)) {
+            removedMemberIds.add(member.id);
+          }
+        }
+        for (const removedId of removedMemberIds) {
+          stopAnimationSound(removedId);
+        }
+        if (removedMemberIds.size > 0) {
+          state.runningAnimations = state.runningAnimations.filter((entry) => !removedMemberIds.has(entry.id));
+        }
+
+        const updatedCluster = {
+          ...existingCluster,
+          ...draftPayload,
+          scope: "cluster",
+          roomId: null,
+          boardId: state.boardId,
+          clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
+          clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
+          clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
+          memberAnimationIds: nextMemberAnimationIds,
+          memberRoomIds: nextMemberRoomIds,
+          startedAt: performance.now(),
+          startedAtEpochMs: Date.now(),
+        };
+        state.runningAnimations[clusterEditIndex] = updatedCluster;
+        emitLiveMutation("edit-room", {
+          animationId: updatedCluster.id,
+          animation: buildAnimationSnapshotForLiveSync(updatedCluster),
+        });
+        for (const removedId of removedMemberIds) {
+          emitLiveMutation("stop-animation", {
+            animationId: removedId,
+          });
+        }
+        clearRoomDraftEditTarget();
+        triggerFeedback.textContent = `Status: ${updatedCluster.id} updated in place (cluster)`;
+        renderRunningAnimationsList();
+        return;
+      }
       clearRoomDraftEditTarget();
     }
     const editIndex = state.runningAnimations.findIndex(
@@ -6013,8 +6139,9 @@ function stopAnimation(animationId) {
     if (parentCluster) {
       parentCluster.memberAnimationIds = getClusterMemberAnimationIds(parentCluster)
         .filter((memberId) => memberId !== target.id);
-      parentCluster.memberRoomIds = (Array.isArray(parentCluster.memberRoomIds) ? parentCluster.memberRoomIds : [])
-        .filter((roomId) => roomId !== target.roomId);
+      parentCluster.memberRoomIds = parentCluster.memberAnimationIds
+        .map((memberId) => state.runningAnimations.find((entry) => entry?.id === memberId)?.roomId ?? null)
+        .filter(Boolean);
       if (parentCluster.memberAnimationIds.length === 0) {
         idsToStop.add(parentCluster.id);
       }
