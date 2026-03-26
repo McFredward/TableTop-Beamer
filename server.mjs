@@ -71,6 +71,11 @@ const liveMutationQueue = {
   droppedOverflow: 0,
   coalesced: 0,
   maxDepthObserved: 0,
+  droppedByClass: {
+    "control-critical": 0,
+    "state-sync": 0,
+    "config-noisy": 0,
+  },
 };
 
 const liveTelemetry = {
@@ -375,6 +380,9 @@ function maybeCoalesceQueuedMutation(nextEntry, queue) {
     if (dropIndex >= 0) {
       queue.splice(dropIndex, 1);
       liveMutationQueue.droppedOverflow += 1;
+      if (nextEntry.mutationClass && Object.hasOwn(liveMutationQueue.droppedByClass, nextEntry.mutationClass)) {
+        liveMutationQueue.droppedByClass[nextEntry.mutationClass] += 1;
+      }
     }
   }
   if (found) {
@@ -650,6 +658,7 @@ function buildLiveTelemetrySnapshot() {
       depth: getLiveQueueSize(),
       maxDepthObserved: liveMutationQueue.maxDepthObserved,
       droppedOverflow: liveMutationQueue.droppedOverflow,
+      droppedByClass: liveMutationQueue.droppedByClass,
       coalesced: liveMutationQueue.coalesced,
     },
     hopsMs: {
@@ -765,6 +774,9 @@ function enqueueLiveMutation({ socket, clientId, role, mutationType, payload, mu
 
   if (queueSize >= LIVE_QUEUE_MAX_SIZE && priority !== "high") {
     liveMutationQueue.droppedOverflow += 1;
+    if (Object.hasOwn(liveMutationQueue.droppedByClass, mutationClass)) {
+      liveMutationQueue.droppedByClass[mutationClass] += 1;
+    }
     sendLiveSocketMessage(
       socket,
       buildLiveSessionEnvelope("live-ack", {
