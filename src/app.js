@@ -418,7 +418,19 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null } = {}) {
       : runtime?.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object"
         ? runtime.outsideFxByBoard
         : null;
-  state.boardId = runtime.boardId ?? state.boardId;
+  const selectedBoard =
+    (typeof snapshot?.selectedBoard === "string" && snapshot.selectedBoard) ||
+    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
+    (typeof runtime.selectedBoard === "string" && runtime.selectedBoard) ||
+    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
+    (typeof runtime.boardId === "string" && runtime.boardId) ||
+    state.boardId;
+  state.boardId = selectedBoard;
+  state.selectedBoard = selectedBoard;
+  state.selectedLayout =
+    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
+    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
+    selectedBoard;
   state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
   state.selectedRoomByBoard =
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"

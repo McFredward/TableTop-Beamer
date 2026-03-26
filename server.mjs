@@ -289,6 +289,17 @@ function applyLiveMutation({ clientId, role, mutationType, payload, mutationId, 
   } else {
     nextSnapshotPatch = {
       runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
+      selectedBoard:
+        normalizeNonEmptyString(payload?.selectedBoard) ??
+        normalizeNonEmptyString(payload?.runtime?.selectedBoard) ??
+        normalizeNonEmptyString(payload?.runtime?.boardId) ??
+        normalizeNonEmptyString(liveSessionState.snapshot.selectedBoard),
+      selectedLayout:
+        normalizeNonEmptyString(payload?.selectedLayout) ??
+        normalizeNonEmptyString(payload?.runtime?.selectedLayout) ??
+        normalizeNonEmptyString(payload?.runtime?.layoutId) ??
+        normalizeNonEmptyString(payload?.runtime?.boardId) ??
+        normalizeNonEmptyString(liveSessionState.snapshot.selectedLayout),
       outsideFxByBoard:
         payload?.outsideFxByBoard ??
         payload?.runtime?.outsideFxByBoard ??
@@ -606,6 +617,8 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
     byClientId: mutation?.byClientId ?? null,
     byRole: mutation?.byRole ?? null,
     alignMode: liveSessionState.snapshot.alignMode,
+    selectedBoard: liveSessionState.snapshot.selectedBoard ?? null,
+    selectedLayout: liveSessionState.snapshot.selectedLayout ?? null,
     outsideEnabledBoards,
   });
   return {
