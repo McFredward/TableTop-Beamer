@@ -3990,11 +3990,15 @@ function syncPolygonRoomSelection(roomId) {
   if (!rooms.some((room) => room.id === roomId)) {
     return;
   }
+  const previousRoomId = getActivePolygonRoomId(state.boardId);
+  const roomChanged = previousRoomId !== roomId;
   setActivePolygonRoomId(state.boardId, roomId);
   state.selectedRoomId = roomId;
   state.selectedRoomByBoard[state.boardId] = roomId;
-  state.polygonEditor.selectedVertexIndex = 0;
-  state.polygonEditor.selectedEdgeIndex = 0;
+  if (roomChanged) {
+    state.polygonEditor.selectedVertexIndex = 0;
+    state.polygonEditor.selectedEdgeIndex = 0;
+  }
 }
 
 function renderPolygonEditorHandles() {
@@ -4095,9 +4099,19 @@ function renderPolygonEditorHandles() {
       }
       event.stopPropagation();
       event.preventDefault();
-      beginPolygonVertexDrag(event, room.id, index);
+      state.selectedRoomId = room.id;
+      state.selectedRoomByBoard[state.boardId] = room.id;
+      state.roomDraft.targetType = "room";
+      state.roomDraft.targetId = room.id;
+      setActivePolygonRoomId(state.boardId, room.id);
       state.polygonEditor.selectedVertexIndex = index;
+      state.polygonEditor.selectedEdgeIndex = index;
       syncPolygonVertexSelect(room.id);
+      syncPolygonEdgeSelect(room.id);
+      syncRoomPanelFromSelection({ preserveDraftState: true });
+      beginPolygonVertexDrag(event, room.id, index);
+      renderRoomOverlay();
+      syncPolygonEditorStatus();
     });
     marker.append(hitTarget, handle, indexLabel);
     roomOverlay.append(marker);
