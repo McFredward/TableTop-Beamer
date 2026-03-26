@@ -312,6 +312,10 @@ const liveSync = {
   nextClientSequence: 1,
   pendingMutations: new Map(),
   tracesByMutationId: new Map(),
+  applyRejectCounters: {
+    staleVersion: 0,
+    duplicateMutation: 0,
+  },
 };
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
@@ -532,9 +536,10 @@ function sendLiveMutationApplyAck(envelope) {
   }));
 }
 
-function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope = null, mutationType = null } = {}) {
+function shouldApplyMutationEnvelope(version, mutationEnvelope) {
   const numericVersion = Number.isFinite(version) ? Number(version) : null;
   if (numericVersion !== null && numericVersion < liveSync.lastSessionVersion) {
+    liveSync.applyRejectCounters.staleVersion += 1;
     return false;
   }
   const envelopeVersion = Number.isFinite(Number(mutationEnvelope?.serverVersion))
@@ -542,9 +547,23 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     : null;
   const effectiveVersion = envelopeVersion ?? numericVersion;
   if (effectiveVersion !== null && effectiveVersion < liveSync.lastAppliedVersion) {
+    liveSync.applyRejectCounters.staleVersion += 1;
     return false;
   }
   if (mutationEnvelope?.mutationId && liveSync.appliedMutationIds.has(mutationEnvelope.mutationId)) {
+    liveSync.applyRejectCounters.duplicateMutation += 1;
+    return false;
+  }
+  return true;
+}
+
+function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope = null, mutationType = null } = {}) {
+  const numericVersion = Number.isFinite(version) ? Number(version) : null;
+  const envelopeVersion = Number.isFinite(Number(mutationEnvelope?.serverVersion))
+    ? Number(mutationEnvelope.serverVersion)
+    : null;
+  const effectiveVersion = envelopeVersion ?? numericVersion;
+  if (!shouldApplyMutationEnvelope(version, mutationEnvelope)) {
     return false;
   }
   const runtime = snapshot?.runtime;
