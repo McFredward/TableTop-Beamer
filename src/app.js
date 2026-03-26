@@ -4812,6 +4812,8 @@ function createRoomFromSettings() {
   const name = normalizeRoomName(roomNameInput?.value, fallbackName);
   let templateLabel = null;
   let polygon = null;
+  let copiedGeometry = null;
+  let copiedTransform = null;
   if (createMode === "template-play-area") {
     templateLabel = "Play Area";
     polygon = getShipPolygonPoints(state.boardId).map((point) => normalizeRoomPoint(point));
@@ -4820,6 +4822,14 @@ function createRoomFromSettings() {
     const templateRoom = board.rooms.find((room) => room.id === templateRoomId);
     templateLabel = templateRoom?.name ?? templateRoom?.label ?? templateRoomId;
     polygon = getSpecialPolygonPoints(state.boardId, templateRoomId).map((point) => normalizeRoomPoint(point));
+    copiedGeometry = templateRoom ? getRoomGeometry(state.boardId, templateRoom.id) : null;
+    copiedTransform = templateRoom
+      ? {
+        x: Number.isFinite(Number(templateRoom.x)) ? Number(templateRoom.x) : null,
+        y: Number.isFinite(Number(templateRoom.y)) ? Number(templateRoom.y) : null,
+        radius: Number.isFinite(Number(templateRoom.radius)) ? Number(templateRoom.radius) : null,
+      }
+      : null;
   }
 
   if (!Array.isArray(polygon) || polygon.length < 3) {
@@ -4844,9 +4854,9 @@ function createRoomFromSettings() {
     label: name,
     polygon: polygon.map((point) => [...point]),
     points: polygon.map((point) => [...point]),
-    radius,
-    x: center.x,
-    y: center.y,
+    radius: copiedTransform?.radius ?? radius,
+    x: copiedTransform?.x ?? center.x,
+    y: copiedTransform?.y ?? center.y,
     meta: {
       schema: "tt-beamer.room.v2",
       spawnShape,
@@ -4860,6 +4870,9 @@ function createRoomFromSettings() {
   };
   board.rooms.push(room);
   ensureBoardRoomStateMaps(state.boardId);
+  if (copiedGeometry) {
+    setRoomGeometry(state.boardId, id, copiedGeometry);
+  }
   state.selectedRoomId = id;
   state.selectedRoomByBoard[state.boardId] = id;
   state.roomDraft.targetType = "room";
