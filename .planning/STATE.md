@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 5-HF2
+- Last Executed Plan: 5-HF3
 - Planned Next Execution: 5-2
-- Last Execution Summary: `.planning/phases/phase-05/5-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -282,6 +282,14 @@
 - Plan-5-HF2 Umsetzung: HF2-kritische Mutationen (`outside-update`, `trigger-room`, `edit-room`, `stop-animation`, `clear-all`) werden serverautoritativ als mutationsspezifische Patches statt Vollsnapshot-Overwrite angewendet.
 - Plan-5-HF2 Umsetzung: Live-Ack/Broadcast tragen `mutationId` + `version`; Duplicate/Stale-Mutationen werden bestaetigt, aber nicht erneut broadcast-applied.
 - Plan-5-HF2 Umsetzung: Client fuehrt `lastSessionVersion`-Guard und Pending-Replay nach `live-hello`, damit Join/Reconnect + Inflight ohne State-Drift bleiben.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Layout/ausgewaehltes Board muss ueber alle Clients synchronisiert werden.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Legacy-`Output Route` wird entfernt; dedizierter Ausgabepfad bleibt `/output/final`.
+- Hotfix-Regel fuer Phase 5 (Plan 5-HF3): Board/Layout ist ein verpflichtender Shared-State mit serverautoritiver Mutation, Ack/Version und Join/Reconnect-Paritaet.
+- Decommission-Regel fuer Phase 5 (Plan 5-HF3): `Output Route` wird aus UI/State/Runtime-Pfaden vollstaendig entfernt und per Negativtests abgesichert.
+- Phase-5 Plan 5-HF3 ist als priorisierte execute-ready P0-Welle vor Plan 5-2 gesetzt.
+- Plan-5-HF3 Umsetzung: Board/Layout-Kontext wird serverautoritativ ueber `context-update` mit Ack/Version synchronisiert und auf allen Clients repliziert.
+- Plan-5-HF3 Umsetzung: Join/Reconnect-Hydrierung uebernimmt `selectedBoard`/`selectedLayout` deterministisch aus dem Live-Snapshot ohne manuelles Nachstellen.
+- Plan-5-HF3 Umsetzung: Legacy-`Output Route` ist aus UI/Runtime/State entfernt; `/output/final` bleibt der einzige dedizierte Output-Pfad.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -640,3 +648,11 @@
   - `.planning/phases/phase-05/P5-T25-ROOT-CAUSE.md`
   - `.planning/phases/phase-05/P5-T31-SYNC-RELIABILITY-VERIFICATION.md`
   - `node debug/p5-t30-single-click-sync-regression.mjs` => `P5_T30_SINGLE_CLICK_SYNC_GUARDS=PASS`
+
+## Execution Results (Phase 5 Plan HF3)
+- Status: completed
+- Summary: `.planning/phases/phase-05/5-HF3-SUMMARY.md`
+- Task Commits: 5 atomare Commits (`e3eab15`, `9d1cb44`, `5918370`, `bba951d`, `8781189`)
+- Evidence:
+  - `.planning/phases/phase-05/P5-T36-CONTEXT-PARITY-VERIFICATION.md`
+  - `node debug/p5-t36-context-parity-regression.mjs` => `P5_T36_CONTEXT_PARITY_GUARDS=PASS`
