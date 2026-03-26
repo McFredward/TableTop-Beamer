@@ -35,7 +35,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T26 [P0] Legacy-Spezialraum-Visualisierung entfernen: ehemalige Spezialraeume folgen derselben Farbe/Markierung wie normale Raeume.
 - [x] DONE P6-T27 [P0] Room-Creation erweitern: Option `Create room from existing polygon` (Template-Quelle waehlen, Punkte kopieren, neue `roomId` erzeugen).
 - [x] DONE P6-T28 [P0] Persistenz-/Migration-Guard ergaenzen: Play-Area-Rename + Polygon-Template-Copy bleiben Save/Reload/Restart-stabil.
-- [ ] TODO P6-T29 [P0] Plan-6-2-Regression dokumentieren (Toggle-Separation, no-special-room-visuals, Play-Area-Wording, Template-Creation).
+- [x] DONE P6-T29 [P0] Plan-6-2-Regression dokumentieren (Toggle-Separation, no-special-room-visuals, Play-Area-Wording, Template-Creation).
 
 ## Plan 6-3 - Hardening + Operator Verification (nach 6-2)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
