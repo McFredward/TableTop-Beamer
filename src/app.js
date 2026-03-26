@@ -4739,6 +4739,7 @@ function ensureBoardRoomStateMaps(boardId) {
 function syncRoomManagementPanel(statusText = null) {
   const board = getBoard();
   const selectedRoom = getSelectedRoom();
+  syncRoomCreateShapeOptions(board);
   if (roomDeleteButton) {
     roomDeleteButton.disabled = board.rooms.length <= 1 || !selectedRoom;
   }
@@ -4750,33 +4751,111 @@ function syncRoomManagementPanel(statusText = null) {
   }
 }
 
+function syncRoomCreateShapeOptions(board = getBoard()) {
+  if (!roomCreateShapeSelect) {
+    return;
+  }
+  const previousValue = roomCreateShapeSelect.value;
+  const options = [
+    { value: "hexagon", label: "Hexagon (starter template)" },
+    { value: "free", label: "Free triangle (starter template)" },
+    { value: "template-play-area", label: "Create room from existing polygon: Play Area" },
+    ...board.rooms.map((room) => ({
+      value: `template-room:${room.id}`,
+      label: `Create room from existing polygon: ${room.name ?? room.label ?? room.id}`,
+    })),
+  ];
+  roomCreateShapeSelect.replaceChildren();
+  for (const entry of options) {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.textContent = entry.label;
+    roomCreateShapeSelect.append(option);
+  }
+  const hasPrevious = options.some((entry) => entry.value === previousValue);
+  roomCreateShapeSelect.value = hasPrevious ? previousValue : "hexagon";
+}
+
+function calculatePolygonCenterAndRadius(polygon, fallbackCenter = { x: 0.5, y: 0.5 }, fallbackRadius = 0.055) {
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    return {
+      center: fallbackCenter,
+      radius: fallbackRadius,
+    };
+  }
+  const center = polygon.reduce(
+    (acc, [x, y]) => ({ x: acc.x + x, y: acc.y + y }),
+    { x: 0, y: 0 },
+  );
+  const normalizedCenter = {
+    x: clampRoomAbsoluteCoordinate(center.x / polygon.length),
+    y: clampRoomAbsoluteCoordinate(center.y / polygon.length),
+  };
+  const radius = polygon.reduce(
+    (maxRadius, [x, y]) => Math.max(maxRadius, Math.hypot(x - normalizedCenter.x, y - normalizedCenter.y)),
+    fallbackRadius,
+  );
+  return {
+    center: normalizedCenter,
+    radius: Math.max(0.01, Math.min(0.25, radius)),
+  };
+}
+
 function createRoomFromSettings() {
   const board = getBoard();
   const id = createRoomId(board);
   const selectedRoom = getSelectedRoom() ?? board.rooms[0] ?? null;
   const selectedCenter = selectedRoom ? getRawRoomCenter(selectedRoom) : { x: 0.5, y: 0.5 };
-  const spawnShape = roomCreateShapeSelect?.value === "free" ? "free" : "hexagon";
+  const createMode = roomCreateShapeSelect?.value ?? "hexagon";
+  const spawnShape = createMode === "free" ? "free" : createMode === "hexagon" ? "hexagon" : "template";
   const fallbackName = `Room ${board.rooms.length + 1}`;
   const name = normalizeRoomName(roomNameInput?.value, fallbackName);
-  const polygon = spawnShape === "hexagon"
-    ? createHexagonPolygon({ x: selectedCenter.x, y: selectedCenter.y, radius: selectedRoom?.radius ?? 0.055 })
-    : [
-      normalizeRoomPoint([selectedCenter.x - 0.03, selectedCenter.y - 0.03]),
-      normalizeRoomPoint([selectedCenter.x + 0.04, selectedCenter.y]),
-      normalizeRoomPoint([selectedCenter.x - 0.02, selectedCenter.y + 0.04]),
-    ];
+  let templateLabel = null;
+  let polygon = null;
+  if (createMode === "template-play-area") {
+    templateLabel = "Play Area";
+    polygon = getShipPolygonPoints(state.boardId).map((point) => normalizeRoomPoint(point));
+  } else if (createMode.startsWith("template-room:")) {
+    const templateRoomId = createMode.slice("template-room:".length);
+    const templateRoom = board.rooms.find((room) => room.id === templateRoomId);
+    templateLabel = templateRoom?.name ?? templateRoom?.label ?? templateRoomId;
+    polygon = getSpecialPolygonPoints(state.boardId, templateRoomId).map((point) => normalizeRoomPoint(point));
+  }
+
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    polygon = spawnShape === "hexagon"
+      ? createHexagonPolygon({ x: selectedCenter.x, y: selectedCenter.y, radius: selectedRoom?.radius ?? 0.055 })
+      : [
+        normalizeRoomPoint([selectedCenter.x - 0.03, selectedCenter.y - 0.03]),
+        normalizeRoomPoint([selectedCenter.x + 0.04, selectedCenter.y]),
+        normalizeRoomPoint([selectedCenter.x - 0.02, selectedCenter.y + 0.04]),
+      ];
+    templateLabel = null;
+  }
+
+  const { center, radius } = calculatePolygonCenterAndRadius(
+    polygon,
+    selectedCenter,
+    selectedRoom?.radius ?? 0.055,
+  );
   const room = {
     id,
     name,
     label: name,
     polygon: polygon.map((point) => [...point]),
     points: polygon.map((point) => [...point]),
-    radius: selectedRoom?.radius ?? 0.055,
-    x: selectedCenter.x,
-    y: selectedCenter.y,
+    radius,
+    x: center.x,
+    y: center.y,
     meta: {
       schema: "tt-beamer.room.v2",
       spawnShape,
+      templateSource:
+        createMode === "template-play-area"
+          ? "play-area"
+          : createMode.startsWith("template-room:")
+            ? createMode.slice("template-room:".length)
+            : null,
     },
   };
   board.rooms.push(room);
@@ -4792,7 +4871,7 @@ function createRoomFromSettings() {
   renderRoomOverlay();
   syncRoomManagementPanel(
     persisted
-      ? `Room management: ${name} created (${spawnShape === "hexagon" ? "hexagon starter" : "free starter"})`
+      ? `Room management: ${name} created (${templateLabel ? `template copy from ${templateLabel}` : spawnShape === "hexagon" ? "hexagon starter" : "free starter"})`
       : `Room management: ${name} created (persistence failed)`,
   );
 }
