@@ -5052,15 +5052,17 @@ function createRoomFromSettings() {
   );
 }
 
-function deleteSelectedRoom() {
+function deleteSelectedRoom({ roomId = null } = {}) {
   const board = getBoard();
-  const room = getSelectedRoom();
+  const selectedRoomId = roomId ?? syncSelectedRoomStateForBoard(state.boardId);
+  const room = board.rooms.find((entry) => entry.id === selectedRoomId) ?? null;
   if (!room) {
-    return;
+    syncRoomManagementPanel("Room management: delete skipped (no room selected)");
+    return false;
   }
   if (board.rooms.length <= 1) {
     syncRoomManagementPanel("Room management: at least one room must remain");
-    return;
+    return false;
   }
   const nextRooms = board.rooms.filter((entry) => entry.id !== room.id);
   board.rooms = nextRooms;
@@ -5102,6 +5104,7 @@ function deleteSelectedRoom() {
       ? `Room management: ${room.name ?? room.label ?? room.id} deleted`
       : `Room management: ${room.name ?? room.label ?? room.id} deleted (persistence failed)`,
   );
+  return persisted;
 }
 
 function renameSelectedRoom(nextName) {
@@ -7010,7 +7013,13 @@ document.addEventListener("keydown", (event) => {
       pasteRoomFromClipboard();
       return;
     }
-    if (!typingTarget && !playAreaContext && !modifierPressed && !event.altKey && key === "delete") {
+    if (
+      !typingTarget &&
+      !playAreaContext &&
+      !modifierPressed &&
+      !event.altKey &&
+      (key === "delete" || event.code === "Delete")
+    ) {
       event.preventDefault();
       deleteSelectedRoom();
       return;
