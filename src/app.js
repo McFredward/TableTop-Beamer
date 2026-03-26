@@ -4054,7 +4054,15 @@ function renderPolygonEditorHandles() {
       }
       event.stopPropagation();
       event.preventDefault();
+      state.selectedRoomId = room.id;
+      state.selectedRoomByBoard[state.boardId] = room.id;
+      state.roomDraft.targetType = "room";
+      state.roomDraft.targetId = room.id;
+      syncPolygonRoomSelection(room.id);
       state.polygonEditor.selectedEdgeIndex = index;
+      state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
+      syncPolygonEditorPanel();
+      syncRoomPanelFromSelection({ preserveDraftState: true });
       polygonEdgeSelect.value = String(index);
       renderRoomOverlay();
       syncPolygonEditorStatus();
