@@ -44,7 +44,13 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T33 [P0] Play-Area-Guard-Regression nachweisen: Room-Copy/Keyboard/Deselection veraendern Play-Area-Editing und Play-Area-Selection nicht.
 - [x] DONE P6-T34 [P0] Plan-6-HF2-Regression dokumentieren (copy parity matrix, keyboard matrix, empty-space deselection, play-area non-regression).
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF2)
+## Plan 6-HF3 - Selection Semantics + Delete Consistency Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T35 [P0] Selection-Source-of-Truth fixieren: visuell selektierter Room (Polygon/Handles sichtbar) ist persistente aktive Selection, unabhaengig von Pointer-Hold.
+- [x] DONE P6-T36 [P0] Delete-Flow korrigieren: `Delete` loescht aktiv selektierten Room sofort ohne LMB-Hold/Drag-Voraussetzung und ohne Input-Fokus-Kollision.
+- [x] DONE P6-T37 [P0] Regression absichern: Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard in kombinierter Matrix verifizieren.
+- [x] DONE P6-T38 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP mit HF3-Ergebnis konsistent halten.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF3)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

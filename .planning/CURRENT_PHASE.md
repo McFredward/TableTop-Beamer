@@ -2,7 +2,7 @@
 
 - Active: Phase 6 (`phase-06`)
 - Status: ready-for-execution
-- Next Plan: 6-3 (Hardening + operator verification after HF2 regression closure)
+- Next Plan: 6-3 (Hardening + operator verification)
 - Command Target: `/gsd:execute-phase 6`
 
 Execution inputs:

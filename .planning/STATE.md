@@ -11,7 +11,7 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF2
+- Last Executed Plan: 6-HF3
 - Planned Next Execution: 6-3
 - Last Execution Summary: `.planning/phases/phase-06/6-HF2-SUMMARY.md`
 
@@ -323,6 +323,15 @@
 - Plan-6-HF2 execution: room template-copy now preserves full room geometry parity (transform fields plus roomGeometry scale/offset/absolute/stretch values).
 - Plan-6-HF2 execution: selected-room keyboard editing supports `CTRL/CMD+C`, `CTRL/CMD+V`, and `Delete` with typing/play-area conflict guards.
 - Plan-6-HF2 execution: empty-board click clears selected room deterministically while Play-Area editing/selection remains unchanged.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt: `Delete` funktioniert aktuell nur waehrend LMB-Hold auf dem Room, obwohl der Room visuell selektiert ist.
+- Selection-Regel fuer Phase 6 (Plan 6-HF3): visuell selektierter Room (Polygon/Handles sichtbar) ist kanonisch aktiv selektiert und dient als einzige Source-of-Truth fuer Room-Hotkeys.
+- Delete-Regel fuer Phase 6 (Plan 6-HF3): `Delete` loescht den aktiv selektierten Room sofort ohne Pointer-Hold-/Drag-Voraussetzung.
+- Regression-Regel fuer Phase 6 (Plan 6-HF3): kombinierte Matrix fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard ist als P0-Hotfix-Pflichtnachweis erforderlich.
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF3): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF3 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF3 execution: visuelle Room-Selektion ist als persistente aktive Selection normalisiert und verhindert Selection-/Handle-Drift nach Pointer-Up.
+- Plan-6-HF3 execution: `Delete` loescht den aktiv selektierten Room ohne Hold-/Drag-Abhaengigkeit und behaelt Typing-/Play-Area-Guards bei.
+- Plan-6-HF3 execution: kombinierte Regression fuer Copy/Paste/Delete + Empty-space deselect + Play-Area-Guard ist als `P6-T37-REGRESSION.md` dokumentiert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

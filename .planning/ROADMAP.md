@@ -130,7 +130,7 @@ Exit Criteria:
 ## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2 und Plan 6-HF2 abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` ist ueber das Language-Sweep-Artefakt geschlossen. Die Room-Editing-Hotfix-Welle liefert vollstaendige Room-Copy-Geometrieparitaet, Keyboard-Editing (`CTRL+C`/`CTRL+V`/`Delete`), Empty-Space-Deselection und artefaktbasierte Play-Area-Non-Regression (`.planning/phases/phase-06/6-HF2-SUMMARY.md`, `.planning/phases/phase-06/P6-T34-VERIFICATION.md`). Naechster Schritt ist Plan 6-3 (Hardening + Operator Verification).
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2 und Plan 6-HF3 abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` ist ueber das Language-Sweep-Artefakt geschlossen. Die Selection/Delete-Hotfix-Welle 6-HF3 normalisiert persistente aktive Room-Selektion (`visuell selektiert = aktiv selektiert`), entkoppelt `Delete` von LMB-Hold/Drag und dokumentiert die kombinierte Regression in `.planning/phases/phase-06/P6-T37-REGRESSION.md`. Naechster Schritt ist Plan 6-3 Hardening.
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -144,7 +144,8 @@ Milestones:
 9. M9 Terminology + Visual Generalization: `Ship Polygon` -> `Play Area` und Entfernung alter Spezialraum-Sondermarkierungen.
 10. M10 Room Creation Template Flow: neue Raeume koennen Polygonpunkte aus bestehender Vorlage kopieren.
 11. M11 Room Editing Completion Hotfix: full geometry copy parity + keyboard room editing + empty-space deselection bei stabiler Play-Area.
-12. M12 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+12. M12 Selection Semantics Hotfix: persistente aktive Auswahl fuer visuell selektierte Raeume und Delete ohne Hold-/Drag-Zwang.
+13. M13 Hardening: Import-/Migration-/Cluster-/Editor-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -159,6 +160,8 @@ Exit Criteria:
 - Room-Creation erlaubt Start aus bestehendem Polygon (Punkte werden als neue, unabhaengige Geometrie kopiert).
 - Room-Copy uebernimmt vollstaendig alle Room-Geometry-Properties inkl. Scale/Offset/Transform als tiefe Kopie.
 - Keyboard-Editing fuer selektierten Room funktioniert ueber `CTRL+C`, `CTRL+V` und `Delete` ohne Shortcut-Kollision.
+- Ein visuell selektierter Room (Polygon/Handles sichtbar) gilt immer als aktive Auswahlquelle fuer Room-Hotkeys.
+- `Delete` loescht aktiv selektierte Raeume sofort ohne Abhaengigkeit von LMB-Hold oder Drag.
 - Klick auf leere Boardflaeche setzt Room-Selektion deterministisch auf `none`.
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
