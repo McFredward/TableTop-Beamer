@@ -22,7 +22,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 - [x] DONE P5-T13 [P0] Persistentes Server-Logging als append-only Datei integrieren (konfigurierbarer Pfad, Rotation optional vorbereitet).
 - [x] DONE P5-T14 [P0] Strukturierte Log-Events fuer Session-Events, State-Aenderungen und Fehler schreiben.
-- [ ] TODO P5-T15 [P0] P5-1 Gate-Regression dokumentieren (3-Client Live-Sync, Align-Mode, Audio-Routing, Log-Nachweise).
+- [x] DONE P5-T15 [P0] P5-1 Gate-Regression dokumentieren (3-Client Live-Sync, Align-Mode, Audio-Routing, Log-Nachweise).
 
 ## Plan 5-2 - Diagnostics + Hardening
 - [ ] TODO P5-T16 [P1] Sichtbare Sync-/Connection-Diagnostik fuer Operator-Views ergaenzen (Rolle, verbunden, letzte Sync-Zeit).
