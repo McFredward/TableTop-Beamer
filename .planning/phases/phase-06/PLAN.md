@@ -18,6 +18,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF5 ist als verpflichtende P0-Hotfix-Welle zwischen 6-HF4 und 6-3 gesetzt.
 - Ziel von 6-HF5: `click-without-move` als persistente Selection garantieren, Pointer-Up-Sichtbarkeit stabil halten, Drag-Verhalten unveraendert erhalten und bestehende Guards regressionsfrei absichern.
 
+## Hotfix Trigger (Regression nach 6-HF5)
+- Neues verpflichtendes Feedback meldet eine P0-Regression im Vertex-Edit-Flow: Klick auf Vertex deselektiert den Room sofort; Handles verschwinden und Vertex-Auswahl ist fuer Move/Delete instabil.
+- Konsequenz: Plan 6-HF6 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF5 und 6-3 gesetzt.
+- Ziel von 6-HF6: Pointer-Arbitration Room vs Vertex sauber trennen, Vertex-Selection-Lifecycle fuer direkte Klick-Editierung stabilisieren und optionalen UX-Fix gegen Text-Selektion bei Room-Drag aufnehmen (low-risk only).
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -43,6 +48,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Click-Commit erfolgt ohne Drag-Zwang: `pointerup` nach kurzem Click ohne Move muss dieselbe persistente Room-Selection aktivieren wie ein Click mit nachfolgendem Ruhe-State.
 - Drag-Promotion bleibt threshold-basiert: nur Move-Intent startet Drag; Selection darf durch no-move Click nicht auf Drag-Pfade umgebogen werden.
 - Bestehende Guards bleiben unveraendert bindend: Empty-Space-Deselect, Play-Area-Guard sowie Copy/Paste/Delete duerfen durch Arbitration-Fix nicht regressieren.
+- Vertex-Interaktion darf aktive Room-Selektion nicht aufheben: Vertex-Click waehlt Vertex-Kontext innerhalb desselben selektierten Rooms, ohne Handles/Room-Selection zu verlieren.
+- Vertex-Move/Delete muss direkt nach Vertex-Click stabil funktionieren (Delete-Key/Panel), ohne zusaetzlichen Re-Select ueber Dropdown.
+- Pointer-Arbitration trennt Room-Drag und Vertex-Edit-Pointerpfade deterministisch; Room-Deselect ist nur ueber Empty-Space oder expliziten Room-Wechsel erlaubt.
+- Optionaler UX-Guard: waehrend aktivem Room-Drag wird Browser-Textselektion unterdrueckt, sofern dies ohne Nebenwirkungen auf Input-Felder/Keyboard-Editing bleibt.
 - Legacy-Migration ist load-time-idempotent: alte Nemesis-Schemata bleiben ladbar und werden beim Speichern vorwaerts normalisiert.
 
 ## Scope
@@ -78,6 +87,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Drag-Funktionalitaet explizit erhalten: Move-Threshold/Drag-Start und laufende Drag-Flows bleiben unveraendert nutzbar.
 - Regression fuer Empty-Space-Deselect, Play-Area-Guard sowie Copy/Paste/Delete unter HF5 erneut als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF5-Stand synchronisieren und execute-ready halten.
+- Pointer-Arbitration fuer Room vs Vertex finalisieren: Vertex-Klick darf keinen Room-Deselect/Handle-Verlust ausloesen.
+- Vertex-Selection-Lifecycle stabilisieren: direkter Vertex-Klick bleibt aktive Quelle fuer Move/Delete (Delete-Key + Panel) ohne Dropdown-Re-Select.
+- Optionalen UX-Fix fuer Room-Drag integrieren: Text-Selection waehrend Drag unterdruecken (nur low-risk, keine Input-Regression).
+- Regression fuer Vertex-Klick/Delete-Key/Panel + Empty-Space-Deselect + Play-Area-Guard + Drag-Paritaet dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF6-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -99,7 +113,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 11. Selection-Semantik-Hotfix ausrollen: persistent selected room state, delete-without-hold, copy/paste/delete+deselect+play-area regression matrix.
 12. Pointer-Arbitration-Hotfix ausrollen: click-persist selection, hold-only-drag semantics, persistent handles/polygons.
 13. Pointer-Arbitration-Regression-Hotfix ausrollen: no-move short-click persistiert Selection, Drag bleibt unveraendert.
-14. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
+14. Vertex-Selection-Hotfix ausrollen: Room-vs-Vertex-Arbitration stabilisieren, direkter Vertex-Click/Delete fixen, optional Text-Selection-Guard waehrend Room-Drag absichern.
+15. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -113,7 +128,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 9. M9 Selection Semantics Hotfix: visuell selektiert = aktiv selektiert, Delete ohne Hold-Abhaengigkeit.
 10. M10 Pointer Arbitration Hotfix: Selection bleibt persistent nach Click/Pointer-Up; Hold bleibt Drag-only.
 11. M11 Pointer Arbitration Regression Closure: no-move short-click selektiert persistent; Guards bleiben intakt.
-12. M12 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+12. M12 Vertex Selection Lifecycle Hotfix: Vertex-Click behaelt Room-Selektion/Handles persistent; direkter Vertex-Edit/Delete-Flow ist stabil.
+13. M13 Optional Drag-UX Guard: Text-Selection waehrend Room-Drag ist unterdrueckt, ohne Edit-/Input-Nebenwirkungen.
+14. M14 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -137,6 +154,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (Selection/Delete-Konsistenz) wird als Plan 6-HF3 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Selection nur waehrend LMB-Hold sichtbar) wird als Plan 6-HF4 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (kurzer Click selektiert nicht persistent ohne Move) wird als Plan 6-HF5 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Vertex-Klick deselektiert Room, Vertex-Delete instabil, Textmarkierung bei Room-Drag) wird als Plan 6-HF6 (P0/P1) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -163,14 +181,17 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Pointer-Up nach no-move Click behaelt Polygon/Handles sichtbar und active-selection-stabil.
 - Drag bleibt voll funktionsfaehig und startet weiterhin nur bei Move-Intent/Threshold.
 - Empty-space deselect, Play-Area-Guard sowie Copy/Paste/Delete bleiben unter no-move Click-Fix regressionsfrei.
+- Vertex-Click innerhalb eines selektierten Rooms behaelt Room-Selektion/Handles sichtbar; Room wird nicht durch Vertex-Interaktion deselektiert.
+- Direkter Vertex-Click setzt stabile aktive Vertex-Selektion fuer Move/Delete; Delete-Key und Delete-Panel funktionieren ohne Dropdown-Re-Select.
+- Pointer-Arbitration Room-vs-Vertex bleibt stabil: Room-Drag, Vertex-Drag und Vertex-Delete beeinflussen die persistente Room-Selektion nicht ungewollt.
+- Optionaler UX-Fix greift: waehrend Room-Drag tritt keine unbeabsichtigte Browser-Textmarkierung auf; Textinputs ausserhalb des Drags bleiben bedienbar.
 - Play-Area-Selection/-Editing zeigt keine Regression durch Room-Copy/Keyboard/Deselection.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Clipping, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien (`STATE/ROADMAP/CURRENT_PHASE`) synchronisiert.
 - Language-Sweep-Regression ist als Artefakt dokumentiert und schliesst den P0-Blocker aus verify-work 6 explizit.
 
-## Execution Update - 6-HF5 Completed (P0)
-- Follow-up-Regression aus HF4 ist geschlossen: no-move Short-Click persistiert Selection jetzt ohne Zwischen-Move.
-- Pointer-Up-Lifecycle behaelt Room-Polygon/Handles sichtbar bis Empty-Space-Deselect oder Room-Wechsel.
-- Drag-Paritaet bleibt unveraendert funktionsfaehig; Selection-Click bleibt drag-frei (`P6-T46-DRAG-PARITY.md`).
-- Matrixnachweis fuer `Delete`/`CTRL+C`/`CTRL+V`, Empty-Space-Deselect und Play-Area-Guard ist PASS (`P6-T47-REGRESSION.md`).
-- Gate fuer Plan 6-3 ist geoeffnet.
+## Execution Update - 6-HF6 Completed (P0/P1)
+- HF6 ist umgesetzt: Room-vs-Vertex arbitration bleibt deterministisch getrennt, vertex-click behaelt aktive Room-Selektion/Handles stabil.
+- Direkter Vertex-Click ist jetzt persistente Edit-Quelle fuer Move/Delete ohne Dropdown-Re-Select; Delete-Key und Delete-Panel nutzen dieselbe Vertex-Selection.
+- Optionaler low-risk UX-Fix ist aktiv: Text-Selektion waehrend Room-Drag wird unterdrueckt.
+- HF6-Regressionsevidenz liegt in `P6-T53-REGRESSION.md`; Plan-6-3-Gate ist wieder offen.

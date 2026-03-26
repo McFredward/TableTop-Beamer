@@ -53,7 +53,14 @@
 4. P0 danach: P6-T47 (Guard-Regression dokumentieren: Empty-space deselect + Play-Area-Guard + Copy/Paste/Delete unter HF5).
 5. P0 Abschluss: P6-T48 (HF5-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
-## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF5)
+## Priority Execution - Plan 6-HF6 (verbindlich, P0/P1-Hotfix vor 6-3)
+1. P0 zuerst: P6-T49 (Room-vs-Vertex Pointer-Arbitration korrigieren: Vertex-Click darf Room-Selektion/Handles nicht deselektieren).
+2. P0 danach: P6-T50..P6-T51 (stabile Vertex-Selection fuer Move/Delete + Delete-Key/Delete-Panel-Paritaet ohne Dropdown-Re-Select).
+3. P1 danach: P6-T52 (optional low-risk UX-Fix: Text-Selection waehrend Room-Drag unterdruecken ohne Input-Regression).
+4. P0 Abschluss: P6-T53 (HF6-Kombinationsmatrix dokumentieren: vertex-click persistence + delete/panel + deselect/play-area guard + drag parity).
+5. P0 Abschluss: P6-T54 (HF6-Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF6)
 1. P1 zuerst: P6-T14 (Import-Konfliktstrategie finalisieren und Operator-Feedback absichern).
 2. P1 danach: P6-T15..P6-T16 (Negativtests + Multi-Board-Soak fuer Import/Cluster/Migration).
 3. P1 Abschluss: P6-T17 (formale Operator-E2E-Abnahme im Realsetup).
@@ -80,7 +87,12 @@
 - Kein Weitergehen zu P6-T45+, bevor P6-T44 no-move Click-Selection persistent und ohne Zwischen-Move nachweist.
 - Kein Weitergehen zu P6-T46+, bevor P6-T45 die Pointer-Up-Sichtbarkeit fuer no-move Click bestaetigt.
 - Kein Weitergehen zu P6-T47+, bevor P6-T46 Drag-Paritaet (`hold/move`) ohne Regression bestaetigt.
-- Kein Weitergehen zu P6-T14+, bevor P6-T48 die Plan-6-HF5-Regression inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T49+, bevor P6-T48 die Plan-6-HF5-Regression inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T50+, bevor P6-T49 Room-vs-Vertex-Arbitration ohne Room-Deselect nachweist.
+- Kein Weitergehen zu P6-T51+, bevor P6-T50 stabile direkte Vertex-Selection fuer Move/Delete ohne Dropdown-Re-Select bestaetigt.
+- Kein Weitergehen zu P6-T53+, bevor P6-T51 Delete-Key/Delete-Panel-Paritaet auf direkter Vertex-Auswahl bestaetigt.
+- Kein Weitergehen zu P6-T54+, bevor P6-T53 die HF6-Kombinationsmatrix artefaktbasiert als PASS nachweist.
+- Kein Weitergehen zu P6-T14+, bevor P6-T54 den HF6-Artefakt-Sync abgeschlossen hat.
 - Kein Phase-6-Exit ohne Migration-Idempotenznachweis und Reload/Restart-Paritaet.
 
 ## Update Rules
@@ -88,8 +100,8 @@
 - Relevante Architekturentscheidungen in `.planning/STATE.md` Decision Log erfassen.
 - Bei Scope-Aenderungen `PLAN.md`, `BACKLOG.md` und `ACCEPTANCE.md` im selben Schritt synchronisieren.
 
-## Execution Update - 6-HF5 Completed (P0)
-- Follow-up-Regression nach HF4 ist geschlossen: no-move kurzer Click selektiert persistent ohne Drag-Zwang.
-- Pointer-Up behaelt Selection/Handles sichtbar; Drag-Paritaet bleibt unveraendert (`P6-T46-DRAG-PARITY.md`).
-- Pflichtmatrix fuer Guard-Stabilitaet ist PASS (`P6-T47-REGRESSION.md`).
-- Gate zu Plan 6-3 ist nach P6-T48 offen.
+## Execution Update - 6-HF6 Completed (P0/P1)
+- Room-vs-Vertex pointer arbitration is closed: vertex-click no longer deselects the selected room or hides handles.
+- Direct vertex selection is stable for move/delete without dropdown reselect; delete key and delete panel now resolve against the same active vertex selection.
+- Optional low-risk drag UX guard is active: browser text selection is suppressed during room-area drag.
+- HF6 regression evidence is recorded in `P6-T53-REGRESSION.md`; gate to Plan 6-3 is reopened.

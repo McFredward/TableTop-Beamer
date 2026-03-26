@@ -125,7 +125,23 @@
 - Impact: Kritisch, bereits geschlossene P0-Gates aus HF2/HF3/HF4 werden erneut geoeffnet.
 - Gegenmassnahme: verpflichtende HF5-Kombinationsmatrix fuer no-move click + guard non-regression mit expliziten Negativpfaden.
 
-## Risk Update - HF5 Closed
-- R19/R20 bleiben als Basisrisiken dokumentiert, sind fuer den aktuellen Scope aber regressionsfrei bestaetigt.
-- R21/R22 sind durch HF4+HF5 zusammen geschlossen (persistente Selection + pointer lifecycle + persisted-hotkey source).
-- R23/R24/R25 sind ueber no-move-click-Fix, Drag-Paritaetsnachweis und Guard-Matrix geschlossen; Plan 6-3 ist nicht mehr durch HF5 blockiert.
+## R26 Vertex-Click invalidiert Room-Selection
+- Risiko: Pointer-Arbitration behandelt Vertex-Interaktion als Room-Deselect, dadurch verschwinden Room-Handles sofort.
+- Impact: Kritisch, Vertex-Edit-Workflow wird faktisch unbenutzbar.
+- Gegenmassnahme: dedizierte Room-vs-Vertex-Arbitration mit persistenter Room-Selection als kanonischer Source-of-Truth.
+
+## R27 Vertex-Delete bleibt an Dropdown-Re-Select gekoppelt
+- Risiko: Delete-Key/Delete-Panel wirken nicht stabil auf den direkt geklickten Vertex und erfordern erneute Auswahl ueber Dropdown.
+- Impact: Kritisch, direkter Editor-Workflow ist nicht praktikabel und fehleranfaellig.
+- Gegenmassnahme: Vertex-Selection-Lifecycle vereinheitlichen (direct-click -> active vertex), Delete-Entry-Points an denselben Selection-State binden.
+
+## R28 Room-Drag markiert unbeabsichtigt Browser-Text
+- Risiko: waehrend Drag selektiert der Browser Text im UI, was Pointer-Flows stoert und Bedienung unpraezise macht.
+- Impact: Mittel bis hoch, UX-Qualitaet sinkt und Drag kann subjektiv "hakeln".
+- Gegenmassnahme: low-risk Text-Selection-Suppression nur im Room-Drag-Lifecycle, mit Guard gegen Input-Feld-/Keyboard-Regression.
+
+## Risk Update - HF6 Closed
+- R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
+- R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
+- R23/R24/R25 bleiben ueber HF5-Evidenz geschlossen (`P6-T46-DRAG-PARITY.md`, `P6-T47-REGRESSION.md`).
+- R28 ist als optionaler UX-Risikopfad mit low-risk Umsetzung geschlossen (Text-Selection-Suppression nur im Room-Drag-Lifecycle).

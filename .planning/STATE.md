@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF5
+- Last Executed Plan: 6-HF6
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -348,6 +348,13 @@
 - Plan-6-HF5 execution: no-move short-click persists room selection without move/drag requirement.
 - Plan-6-HF5 execution: pointer-up lifecycle keeps persistent selection visuals/handles active until explicit deselect or room switch.
 - Plan-6-HF5 execution: drag parity + guard matrix remain PASS, documented in `P6-T46-DRAG-PARITY.md` and `P6-T47-REGRESSION.md`.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (Regression nach HF5): Vertex-Click darf Room-Selektion nicht verlieren; Vertex-Auswahl fuer Move/Delete muss stabil bleiben.
+- Pointer-Arbitration-Regel fuer Phase 6 (Plan 6-HF6): Room- und Vertex-Pointerpfade sind deterministisch getrennt; Vertex-Interaktion darf persistente Room-Selektion/Handles nicht invalidieren.
+- Selection-Lifecycle-Regel fuer Phase 6 (Plan 6-HF6): direkter Vertex-Click ist primaerer Editpfad (Move/Delete/Panel/Delete-Key) ohne Re-Select ueber Dropdown.
+- UX-Guard-Regel fuer Phase 6 (Plan 6-HF6): unbeabsichtigte Text-Selektion wird waehrend Room-Drag unterdrueckt, sofern der Fix ohne Risiko fuer Input-Felder und bestehende Drag-Flows bleibt.
+- Plan-6-HF6 execution: vertex pointerup now preserves persistent room selection lifecycle and blocks same-cycle deselect races.
+- Plan-6-HF6 execution: direct vertex click remains stable as active selection for move/delete; delete key + delete panel share the same vertex selection source.
+- Plan-6-HF6 execution: room-area drag suppresses browser text selection via low-risk drag-only guard; combined HF6 regression matrix is PASS (`P6-T53-REGRESSION.md`).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

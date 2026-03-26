@@ -64,7 +64,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T47 [P0] Guard-Regression dokumentieren: Empty-space deselect + Play-Area-Guard + Copy/Paste/Delete unter HF5-Flow matrixbasiert verifizieren.
 - [x] DONE P6-T48 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF5-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF5)
+## Plan 6-HF6 - Vertex Selection Lifecycle Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T49 [P0] Pointer-Arbitration Room-vs-Vertex trennen: Vertex-Klick darf aktive Room-Selektion/Handles nicht deselektieren.
+- [x] DONE P6-T50 [P0] Vertex-Selection-Lifecycle stabilisieren: direkter Vertex-Click bleibt aktive Auswahl fuer Move/Delete ohne Re-Select ueber Dropdown.
+- [x] DONE P6-T51 [P0] Delete-Key + Delete-Panel an stabile Vertex-Auswahl binden, sodass Loeschen direkt nach Vertex-Click deterministisch funktioniert.
+- [x] DONE P6-T52 [P1] Optionalen UX-Guard implementieren: waehrend Room-Drag Browser-Text-Selektion unterdruecken (nur low-risk, keine Input-Regression).
+- [x] DONE P6-T53 [P0] HF6-Regression dokumentieren: Vertex-click persistence + delete/panel parity + empty-space deselect + play-area-guard + drag parity.
+- [x] DONE P6-T54 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF6-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF6)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

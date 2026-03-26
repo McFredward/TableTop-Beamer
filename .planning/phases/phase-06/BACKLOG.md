@@ -11,6 +11,7 @@
 - Selection Semantics + Delete Consistency Hotfix
 - Pointer Arbitration + Persistent Selection Regression Hotfix
 - Click-Without-Move Persistence Re-Regression Hotfix
+- Vertex Selection Lifecycle Regression Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -62,6 +63,12 @@
 - P6-S11.3 Drag-Paritaet absichern: Hold/Move-Drag bleibt unveraendert nutzbar, Selection-Click startet keinen erzwungenen Drag.
 - P6-S11.4 Guard-Regression verifizieren: Empty-space deselect, Play-Area-Guard und Copy/Paste/Delete bleiben unter no-move Click-Fix intakt.
 - P6-S11.5 HF5-Artefakt-Sync abschliessen (PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S12.1 Pointer-Arbitration Room-vs-Vertex korrigieren: Vertex-Klick darf aktive Room-Selektion/Handles nicht invalidieren.
+- P6-S12.2 Vertex-Selection-Lifecycle stabilisieren: direkter Vertex-Klick ist sofortige, persistente Edit-Quelle fuer Move/Delete ohne Dropdown-Re-Select.
+- P6-S12.3 Delete-Key/Delete-Panel auf stabile Vertex-Auswahl binden, ohne Room-Re-Select oder Pointer-Hold-Zwang.
+- P6-S12.4 Optionalen UX-Guard liefern: Text-Selektion waehrend Room-Drag unterdruecken (low-risk, keine Input-Regression).
+- P6-S12.5 HF6-Kombinations-Regression + Artefakt-Sync abschliessen (PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -141,14 +148,24 @@
 - Story P6-S11.5.
   - Ziel: alle Phase-6- und globalen Planungsartefakte sind HF5-konsistent und execute-ready synchronisiert.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF5)
+## Priorisierte Hotfix-Welle 6 (P0/P1) - Plan 6-HF6 execute-ready
+- Story P6-S12.1.
+  - Ziel: Vertex-Interaktion behaelt persistente Room-Selektion und sichtbare Handles stabil.
+- Story P6-S12.2 + P6-S12.3.
+  - Ziel: direkter Vertex-Click startet stabile Move/Delete-Selection inkl. Delete-Key/Panel ohne Dropdown-Re-Select.
+- Story P6-S12.4.
+  - Ziel: waehrend Room-Drag wird unbeabsichtigte Text-Selektion unterdrueckt (nur low-risk Umsetzung).
+- Story P6-S12.5.
+  - Ziel: kombinierte HF6-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF6)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
   - Ziel: formale Hardening-/Soak-/E2E-Nachweise ohne offene P0-Luecken.
 
-## Execution Update - 6-HF5 Completed (P0)
-- No-move short-click aktiviert persistente Room-Selektion deterministisch; Pointer-Up behaelt Selection/Handles sichtbar.
-- Drag-Paritaet bleibt move-threshold-basiert intakt (`P6-T46-DRAG-PARITY.md`).
-- Guard-Pflichtmatrix (Empty-space deselect, Play-Area-Guard, Copy/Paste/Delete) ist unter HF5 regressionsfrei bestaetigt (`P6-T47-REGRESSION.md`).
-- Plan 6-3 ist nach HF5-Artefakt-Sync freigegeben.
+## Execution Update - 6-HF6 Completed (P0/P1)
+- HF6 regression closure is complete: Room-vs-Vertex arbitration no longer drops persistent room selection on vertex click.
+- Vertex selection lifecycle is stable for direct click -> move/delete flows; delete key + delete panel parity is now deterministic without dropdown reselect.
+- Optional low-risk UX hardening is implemented: text selection is suppressed during room drag.
+- HF6 combined regression matrix is PASS (`P6-T53-REGRESSION.md`); backlog focus returns to Plan 6-3 hardening tasks.

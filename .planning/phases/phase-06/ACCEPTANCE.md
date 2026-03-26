@@ -10,6 +10,9 @@
 - Selection-consistency: visuell selektierter Room (sichtbares Polygon/Handles) ist immer die aktive Auswahl fuer Copy/Paste/Delete.
 - Pointer-arbitration-integrity: Selection (`Click`) und Drag (`Hold/Move`) duerfen sich nicht gegenseitig invalidieren.
 - Click-without-move-integrity: kurzer no-move Click muss persistente Selection ohne Drag-Zwang liefern.
+- Vertex-selection-integrity: Vertex-Interaktion darf persistente Room-Selektion nicht verlieren; Handles bleiben sichtbar.
+- Direct-vertex-edit-integrity: direkter Vertex-Click muss stabile Move/Delete-Aktionen (Delete-Key/Panel) ohne Dropdown-Re-Select erlauben.
+- Drag-ux-integrity: waehrend Room-Drag darf keine unbeabsichtigte Browser-Text-Selektion auftreten (low-risk Guard).
 
 ## Language-Sweep Pflichtnachweis (P0)
 - Sweep Scope: `Control`, `Settings`, `Final-Flow`, operatorrelevante Statusmeldungen, Fehlermeldungen und Diagnose-Logs.
@@ -46,6 +49,11 @@
 - Handles-Visibility-Persistence-Test: selektiertes Room-Polygon/Handles bleiben sichtbar bis Empty-Space-Deselect oder explizitem Room-Wechsel.
 - Select-vs-Drag-Arbitration-Test: kurzer Click triggert nur Selection; Drag/Move startet nur mit Pointer-Move/Hold-Drag-Intent.
 - Drag-Still-Works-Test: Room-Drag funktioniert weiterhin ueber Move-Intent/Threshold und wird durch no-move Click-Fix nicht blockiert.
+- Vertex-Click-Keeps-Room-Selection-Test: Klick auf Vertex behaelt Room-Selektion persistent; Room/Handles verschwinden nicht.
+- Vertex-Direct-Delete-Key-Test: nach direktem Vertex-Click loescht `Delete` den aktiven Vertex ohne Dropdown-Re-Select.
+- Vertex-Direct-Delete-Panel-Test: nach direktem Vertex-Click entfernt das Delete-Panel denselben aktiven Vertex ohne Re-Select.
+- Room-vs-Vertex-Arbitration-Test: Vertex-Drag/Edit und Room-Drag bleiben getrennt; Vertex-Pointerevents invalidieren Room-Selektion nicht.
+- Room-Drag-Text-Selection-Guard-Test: waehrend Room-Drag entsteht keine unbeabsichtigte Textmarkierung; Textinputs ausserhalb des Drags bleiben funktionsfaehig.
 - Hotkey-On-Persistent-Selection-Test: Buttons/Hotkeys (`Delete`, `CTRL+C`, `CTRL+V`) funktionieren auf persistenter Selection ohne erneuten Hold.
 - Empty-Space-Deselect-Test: Klick auf board-leere Flaeche setzt Room-Selektion auf `none`.
 - Play-Area-Non-Regression-Test: Room-Copy/Keyboard/Deselection veraendern Play-Area-Selection/-Editing nicht.
@@ -83,9 +91,12 @@
 - Nach P6-T44..P6-T45: no-move Short-Click selektiert persistent, Pointer-Up behaelt Handles/Polygone sichtbar ohne Zwischen-Move.
 - Nach P6-T46..P6-T47: Drag bleibt funktionsfaehig und Guard-Matrix (empty-space deselect, play-area guard, copy/paste/delete) bleibt regressionsfrei.
 - Nach P6-T48: alle Phase-6- und globalen Planungsartefakte sind HF5-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T49..P6-T50: Vertex-Click behaelt Room-Selektion persistent und stabilisiert direkten Vertex-Edit-Flow ohne Dropdown-Re-Select.
+- Nach P6-T51..P6-T52: Delete-Key/Delete-Panel laufen direkt auf Vertex-Selection; Room-Drag unterdrueckt Text-Selektion ohne Input-Regression.
+- Nach P6-T53..P6-T54: HF6-Kombinationsmatrix ist PASS, Artefakte sind HF6-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43 und P6-T44..P6-T48 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48 und P6-T49..P6-T51, P6-T53..P6-T54 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -105,11 +116,15 @@
 - Pointer-Hold ist ausschliesslich fuer Drag/Move erforderlich und nicht fuer Selection-Aktivierung.
 - Room-Buttons/Hotkeys arbeiten konsistent gegen persistente Selection (kein Hold-only Verhalten).
 - Kurzer Click ohne Move selektiert persistent; ein Drag ist nicht erforderlich, damit Selection aktiv bleibt.
+- Vertex-Interaktion (Click/Drag/Delete) behaelt persistente Room-Selektion stabil; Room-Handles bleiben sichtbar.
+- Direkter Vertex-Click aktiviert stabile Vertex-Auswahl fuer Move/Delete ueber Delete-Key und Delete-Panel ohne Dropdown-Re-Select.
+- Pointer-Arbitration trennt Room-Drag und Vertex-Edit deterministisch ohne Selection-Drift.
+- Waehrend Room-Drag ist Browser-Text-Selektion unterdrueckt, ohne Textinput-/Shortcut-Bedienung ausserhalb des Drags zu brechen.
 - Klick auf leere Boardflaeche setzt Room-Selektion auf `none`; Play-Area-Verhalten bleibt unveraendert.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
-## Evidence Update - HF5 Completed
-- HF4-Basisnachweis bleibt vorhanden: `P6-T42-REGRESSION.md` dokumentiert PASS fuer den Arbitration-Stand vor HF5.
-- Drag-Paritaet unter no-move-click-Fix ist als PASS dokumentiert: `P6-T46-DRAG-PARITY.md`.
-- Kombinierte HF5-Guard-Matrix (no-move persistence + deselect/play-area/copy/paste/delete) ist als PASS dokumentiert: `P6-T47-REGRESSION.md`.
+## Evidence Update - HF6 Completed
+- HF4/HF5-Basisnachweise bleiben gueltig (`P6-T42-REGRESSION.md`, `P6-T46-DRAG-PARITY.md`, `P6-T47-REGRESSION.md`).
+- HF6-Nachweis ist erbracht: `P6-T53-REGRESSION.md` dokumentiert PASS fuer vertex-click persistence, delete-key/delete-panel parity, empty-space deselect, play-area guard und drag parity.
+- Plan-6-3-Gate ist aus HF6-Sicht freigegeben.
