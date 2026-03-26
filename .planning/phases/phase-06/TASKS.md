@@ -7,8 +7,8 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T1 [P0] Katalogschema und kanonisches Board-Modell festlegen (`boardId`, metadata, roomCatalog, roomClusters) und Nemesis-Bestand darauf mappen.
 - [x] DONE P6-T2 [P0] Server-Storage und Import-Validator implementieren (Importformat pruefen, persistieren, sichere Dateipfade, klare Fehlercodes).
 - [x] DONE P6-T3 [P0] Board-Import-Endpunkt + Katalog-Refresh integrieren, damit importierte Boards ohne manuellen Neustart sichtbar sind.
-- [ ] TODO P6-T4 [P0] Client-Board-Auswahl auf dynamischen Katalog umstellen (kein hardcoded A/B, boardId als Source-of-Truth).
-- [ ] TODO P6-T5 [P0] Runtime-Pfade fuer Boarddaten generalisieren (Render/Selection/Profile anhand boardId aus Katalog aufloesen).
+- [x] DONE P6-T4 [P0] Client-Board-Auswahl auf dynamischen Katalog umstellen (kein hardcoded A/B, boardId als Source-of-Truth).
+- [x] DONE P6-T5 [P0] Runtime-Pfade fuer Boarddaten generalisieren (Render/Selection/Profile anhand boardId aus Katalog aufloesen).
 
 - [ ] TODO P6-T6 [P0] Room-Cluster-Domain + Persistenzmodell einfuehren (`clusterId`, `name`, `roomIds`, board-spezifisch).
 - [ ] TODO P6-T7 [P0] Dropdown-Zielliste auf `room` + `cluster` erweitern und UI-Darstellung eindeutig kennzeichnen.
