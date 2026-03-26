@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF11
+- Last Executed Plan: 6-HF12
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF11-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF12-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -398,6 +398,17 @@
 - Plan-6-HF11 execution: cluster edit/stop semantics are run-context isolated (`animation.id`/`parentClusterRunId`) with in-place cluster updates and id-scoped member reconciliation.
 - Plan-6-HF11 execution: board context sync uses reconnect-safe mutation-id dedup + stale context replay drop + socket ordering guards; first-toggle propagation is deterministic across clients incl. `/output/final`.
 - Plan-6-HF11 execution: combined regression matrix is PASS and documented in `P6-T81-REGRESSION.md`; Plan 6-3 is unblocked.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF11): Cluster-Start bleibt inkonsistent; Running zeigt teils zusaetzliche `ROOM`-Eintraege oder nur `CLUSTER` ohne sichtbare Member-Wirkung.
+- Running-Determinismus-Regel fuer Phase 6 (Plan 6-HF12): pro Cluster-Trigger existiert genau ein kanonischer Running-Eintrag `CLUSTER`; member-`ROOM`-Duplikate fuer denselben Trigger sind unzulaessig.
+- Runtime-Determinismus-Regel fuer Phase 6 (Plan 6-HF12): der dedupte `CLUSTER`-Eintrag bleibt ein wirksamer Controller und animiert weiterhin alle Cluster-Member (sync + `stagger start`).
+- Stop/Edit-Regel fuer Phase 6 (Plan 6-HF12): Aktionen auf `CLUSTER` propagieren run-kontextscharf und konsistent auf alle zugeordneten Member-Instanzen.
+- Regression-Regel fuer Phase 6 (Plan 6-HF12): `targetType=room` bleibt unveraendert funktionsstabil; room-flow ist Pflicht-Non-Regression im HF12-Gate.
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF12): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF12 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF12 execution: running projection now exposes exactly one `CLUSTER` controller row per cluster trigger without member-`ROOM` duplicates in the running list.
+- Plan-6-HF12 execution: deduped cluster controller keeps full-member runtime fanout deterministic (sync + stagger), including controller-first snapshot fallback rendering.
+- Plan-6-HF12 execution: cluster stop/edit propagation resolves members via merged `memberAnimationIds` + `parentClusterRunId` linkage; room-target flow remains non-regressed (`P6-T86-ROOM-TARGET-REGRESSION.md`).
+- Plan-6-HF12 execution: combined regression matrix is PASS in `P6-T87-REGRESSION.md`; Plan 6-3 remains unblocked.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
