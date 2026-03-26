@@ -1,4 +1,20 @@
 (() => {
+  function toRootAssetPath(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return raw;
+    }
+    if (
+      raw.startsWith("/") ||
+      raw.startsWith("http://") ||
+      raw.startsWith("https://") ||
+      raw.startsWith("data:")
+    ) {
+      return raw;
+    }
+    return `/${raw}`;
+  }
+
   const BOARDS = [
     {
       id: "nemesis-board-a",
@@ -196,6 +212,7 @@
     },
   ].map((board) => ({
     ...board,
+    src: toRootAssetPath(board.src),
     rooms: board.rooms.map((room) => {
       if (Array.isArray(room)) {
         const [id, label, x, y, radius = 0.055] = room;
@@ -219,9 +236,9 @@
   ];
 
   const ROOM_GIF_ANIMATION_ASSETS = {
-    kaputt: "resources/nemesis/animations/malfunction.gif",
-    feuer: "resources/nemesis/animations/fire.gif",
-    schleim: "resources/nemesis/animations/final.gif",
+    kaputt: toRootAssetPath("resources/nemesis/animations/malfunction.gif"),
+    feuer: toRootAssetPath("resources/nemesis/animations/fire.gif"),
+    schleim: toRootAssetPath("resources/nemesis/animations/final.gif"),
   };
 
   const ROOM_GLOBAL_EQUIVALENT_MAP = {
@@ -253,16 +270,18 @@
   const ALL_ANIMATION_TYPES = [...GLOBAL_ANIMATIONS, ...ROOM_ANIMATIONS];
   const SOUND_MAPPING_NONE = "none";
 
-  const EVENT_SOUND_ASSETS = {
-    "intruder-alert": ["resources/nemesis/sounds/alarm.mp3", "resources/nemesis/sounds/monsters/048.wav"],
-    "reactor-pulse": ["resources/nemesis/sounds/electricity.mp3"],
-    "power-outage": ["resources/nemesis/sounds/power/3.wav"],
-    "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
-    "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
-    alarm: ["resources/nemesis/sounds/alarm.mp3"],
-    lichtflackern: ["resources/nemesis/sounds/electricity.mp3"],
-    feuer: ["resources/nemesis/sounds/power/3.wav"],
-  };
+  const EVENT_SOUND_ASSETS = Object.fromEntries(
+    Object.entries({
+      "intruder-alert": ["resources/nemesis/sounds/alarm.mp3", "resources/nemesis/sounds/monsters/048.wav"],
+      "reactor-pulse": ["resources/nemesis/sounds/electricity.mp3"],
+      "power-outage": ["resources/nemesis/sounds/power/3.wav"],
+      "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
+      "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
+      alarm: ["resources/nemesis/sounds/alarm.mp3"],
+      lichtflackern: ["resources/nemesis/sounds/electricity.mp3"],
+      feuer: ["resources/nemesis/sounds/power/3.wav"],
+    }).map(([animationId, assetPaths]) => [animationId, assetPaths.map(toRootAssetPath)]),
+  );
 
   const ALL_SOUND_ASSET_PATHS = Array.from(new Set(Object.values(EVENT_SOUND_ASSETS).flat()));
 
@@ -275,7 +294,6 @@
   const API_BASE_URL_PARAM_KEYS = ["ttApiBase", "apiBase", "api_base"];
   const API_PORT_FALLBACKS = [4173, 4174, 3000, 8080];
   const API_REQUEST_TIMEOUT_MS = 3000;
-  const SESSION_REQUEST_TIMEOUT_MS = 9000;
   const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
   const ROOM_GEOMETRY_DEFAULT = {
@@ -337,7 +355,6 @@
     API_BASE_URL_PARAM_KEYS,
     API_PORT_FALLBACKS,
     API_REQUEST_TIMEOUT_MS,
-    SESSION_REQUEST_TIMEOUT_MS,
     LOCAL_API_HOSTS,
     ROOM_GEOMETRY_DEFAULT,
     BOARD_ZOOM_DEFAULT,
