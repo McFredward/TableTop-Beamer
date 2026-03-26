@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF1
-- Planned Next Execution: 6-2
-- Last Execution Summary: `.planning/phases/phase-06/6-HF1-SUMMARY.md`
+- Last Executed Plan: 6-2
+- Planned Next Execution: 6-3
+- Last Execution Summary: `.planning/phases/phase-06/6-2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -306,6 +306,15 @@
 - Plan-6-HF1 execution: Control/Settings/Final-flow operator text + status/error paths are fully English-only.
 - Plan-6-HF1 execution: README + Phase-06 workspace docs now state the English-only operator policy consistently.
 - Plan-6-HF1 execution: blocker closure documented in `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md` (PASS, no open P0 language blocker).
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt: Polygon-Editor braucht getrennte Vertex-Visibility-Toggles fuer Room-Vertices und Play-Area-Vertices.
+- Terminologie-Regel fuer Phase 6 (Plan 6-2): `Ship Polygon` wird in UI/Model/Operator-Wording auf `Play Area` generalisiert; Legacy-Bezeichner sind nur als Ladealias erlaubt.
+- Visual-Regel fuer Phase 6 (Plan 6-2): ehemalige Spezialraum-Sondermarkierungen entfallen; Spezialraeume werden visuell wie normale Raeume behandelt.
+- Creation-Regel fuer Phase 6 (Plan 6-2): neue Raeume koennen aus bestehenden Polygonvorlagen erzeugt werden; Geometriepunkte werden als Startform kopiert.
+- Phase-6 Plan 6-2 ist als priorisierte execute-ready P0-Welle gesetzt (Vertex-Split, Play-Area-Rename, no-special-room-visuals, Polygon-Template-Copy).
+- Plan-6-2 execution: Polygon editor now has independent vertex visibility toggles for room polygons vs Play Area polygons with hidden-group drag/selection guards.
+- Plan-6-2 execution: Operator-facing `Ship Polygon` wording is generalized to `Play Area`; persistence canonical key is `playAreaPolygon` with legacy ship aliases for load/merge migration.
+- Plan-6-2 execution: Special-room visual highlighting is removed and room creation can clone polygon templates from Play Area or existing rooms.
+- Plan-6-Hardening ist als Plan 6-3 nachgelagert und startet erst nach Plan-6-2-Regressionsevidenz.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
