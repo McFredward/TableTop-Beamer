@@ -1892,6 +1892,22 @@ function getActivePolygonRoomId(boardId = state.boardId) {
   return available[0]?.id ?? null;
 }
 
+function syncSelectedRoomStateForBoard(boardId = state.boardId) {
+  const rooms = getSpecialRooms(boardId);
+  const remembered = state.selectedRoomByBoard[boardId];
+  const current = boardId === state.boardId ? state.selectedRoomId : remembered;
+  const nextRoomId = rooms.some((room) => room.id === current)
+    ? current
+    : rooms.some((room) => room.id === remembered)
+      ? remembered
+      : null;
+  state.selectedRoomByBoard[boardId] = nextRoomId;
+  if (boardId === state.boardId) {
+    state.selectedRoomId = nextRoomId;
+  }
+  return nextRoomId;
+}
+
 function setActivePolygonRoomId(boardId, roomId) {
   state.polygonEditor.roomIdByBoard[boardId] = roomId;
 }
@@ -3591,7 +3607,12 @@ function runShipClipRegression() {
 }
 
 function syncPolygonEditorStatus() {
-  const roomId = getActivePolygonRoomId(state.boardId);
+  const selectedRoomId = syncSelectedRoomStateForBoard(state.boardId);
+  if (!selectedRoomId) {
+    polygonEditorStatus.textContent = "Polygon editor: no active room selected";
+    return;
+  }
+  const roomId = selectedRoomId;
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
     polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
@@ -3983,7 +4004,11 @@ function renderPolygonEditorHandles() {
   if (state.polygonEditor.roomVerticesVisible === false) {
     return;
   }
-  const roomId = getActivePolygonRoomId(state.boardId);
+  const roomId = syncSelectedRoomStateForBoard(state.boardId);
+  if (!roomId) {
+    return;
+  }
+  setActivePolygonRoomId(state.boardId, roomId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
     return;
@@ -4592,6 +4617,7 @@ function getRoomRenderMetrics(room, boardId = state.boardId) {
 
 function renderRoomOverlay() {
   const board = getBoard();
+  syncSelectedRoomStateForBoard(state.boardId);
   roomOverlay.replaceChildren();
 
   if (outputRole === OUTPUT_ROLE_FINAL && !state.alignMode) {
@@ -4901,6 +4927,7 @@ function clearSelectedRoomSelection(statusText = null) {
   }
   state.selectedRoomId = null;
   state.selectedRoomByBoard[state.boardId] = null;
+  setActivePolygonRoomId(state.boardId, null);
   if (state.roomDraft.targetType === "room") {
     state.roomDraft.targetId = null;
   }
