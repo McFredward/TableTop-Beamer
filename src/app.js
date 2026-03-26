@@ -4145,8 +4145,6 @@ function renderPolygonEditorHandles() {
       event.preventDefault();
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      state.roomDraft.targetType = "room";
-      state.roomDraft.targetId = room.id;
       syncPolygonRoomSelection(room.id);
       state.polygonEditor.selectedEdgeIndex = index;
       state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
@@ -4199,8 +4197,6 @@ function renderPolygonEditorHandles() {
       event.preventDefault();
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      state.roomDraft.targetType = "room";
-      state.roomDraft.targetId = room.id;
       setActivePolygonRoomId(state.boardId, room.id);
       state.polygonEditor.selectedVertexIndex = index;
       state.polygonEditor.selectedEdgeIndex = index;
@@ -4808,12 +4804,10 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      state.roomDraft.targetType = "room";
-      state.roomDraft.targetId = room.id;
       state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
-      syncRoomPanelFromSelection();
+      syncRoomPanelFromSelection({ preserveDraftState: true });
       renderRoomOverlay();
     });
     polygon.addEventListener("pointerdown", (event) => {
@@ -4829,12 +4823,10 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      state.roomDraft.targetType = "room";
-      state.roomDraft.targetId = room.id;
       state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
-      syncRoomPanelFromSelection();
+      syncRoomPanelFromSelection({ preserveDraftState: true });
       beginPendingPolygonAreaDrag(event, room.id);
       renderRoomOverlay();
     });
@@ -4888,8 +4880,6 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
     ? rememberedRoom
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
-  state.roomDraft.targetType = "room";
-  state.roomDraft.targetId = state.selectedRoomId;
   ensureBoardRoomStateMaps(board.id);
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();

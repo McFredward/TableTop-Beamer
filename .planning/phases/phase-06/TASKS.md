@@ -80,7 +80,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T59 [P0] HF7-Regression dokumentieren: Insert-Vertex flow (edge click -> edge active -> insert) + delete persistence (reload/restart/defaults-apply) + empty-space/play-area guards.
 - [x] DONE P6-T60 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF7-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF7)
+## Plan 6-HF8 - Draft Persistence + Cluster UX Completion Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T61 [P0] Room-Draft-Selection persistieren: zuletzt gewaehlte Room-Animation bleibt bei Room-/Target-Wechsel als aktive Voreinstellung (kein impliziter Reset auf Defaultanimation).
+- [ ] TODO P6-T62 [P0] Room-Draft-Parameter persistieren: Trigger-Parameter (`speed`, `opacity`, `soundVolume`, weitere Feldwerte) bleiben bei Room-Wechsel und nach Trigger-Start als Draft-Voreinstellung erhalten.
+- [ ] TODO P6-T63 [P0] Cluster-CRUD liefern: Cluster im Operator-Flow erstellen, bearbeiten und loeschen (beliebige Room-Mengen, board-spezifisch persistiert).
+- [ ] TODO P6-T64 [P0] Target-Flow vervollstaendigen: Cluster als `target` waehlbar und Start fanout fuer alle Cluster-Rooms ohne Einzelraumklick-Regression.
+- [ ] TODO P6-T65 [P0] Trigger-Option `stagger start` integrieren: optionaler kurzer randomisierter Startversatz je Cluster-Room; deaktiviert = synchroner Start.
+- [ ] TODO P6-T66 [P0] HF8-Regression + Artefakt-Sync dokumentieren: Draft-Persistenz + Cluster-CRUD + Sync/Stagger-Start + Guards und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF8-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF8)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).
