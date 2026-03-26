@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein und generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow und haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients mit Fokus `/output/final`.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -127,10 +127,10 @@ Exit Criteria:
 - Persistente Serverlogs enthalten Session-, State- und Error-Ereignisse mit Kontext.
 - Phase-5-Artefakte sowie globale Planungsdateien sind konsistent synchronisiert.
 
-## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
+## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (Completed)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6, Plan 6-HF7, Plan 6-HF8, Plan 6-HF9, Plan 6-HF10, Plan 6-HF11 und Plan 6-HF12 sind abgeschlossen; verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, HF6 ist mit `P6-T53-REGRESSION.md` geschlossen, HF7 ist mit `P6-T59-REGRESSION.md` geschlossen, HF8 ist mit `P6-T66-REGRESSION.md` geschlossen, HF9 ist mit `P6-T71-REGRESSION.md` geschlossen, HF10 ist mit `P6-T76-REGRESSION.md` geschlossen, HF11 ist mit `P6-T81-REGRESSION.md` geschlossen und HF12 ist mit `P6-T87-REGRESSION.md` (plus `P6-T86-ROOM-TARGET-REGRESSION.md`) geschlossen. Naechster Schritt ist Plan 6-3.
+Status: Plan 6-1, Plan 6-HF1, Plan 6-2, Plan 6-HF2, Plan 6-HF3, Plan 6-HF4, Plan 6-HF5, Plan 6-HF6, Plan 6-HF7, Plan 6-HF8, Plan 6-HF9, Plan 6-HF10, Plan 6-HF11 und Plan 6-HF12 sind abgeschlossen; verify-work-6 P0-Blocker `English-only operator flow` bleibt geschlossen, HF6 ist mit `P6-T53-REGRESSION.md` geschlossen, HF7 ist mit `P6-T59-REGRESSION.md` geschlossen, HF8 ist mit `P6-T66-REGRESSION.md` geschlossen, HF9 ist mit `P6-T71-REGRESSION.md` geschlossen, HF10 ist mit `P6-T76-REGRESSION.md` geschlossen, HF11 ist mit `P6-T81-REGRESSION.md` geschlossen und HF12 ist mit `P6-T87-REGRESSION.md` (plus `P6-T86-ROOM-TARGET-REGRESSION.md`) geschlossen. Der nachgelagerte Hardening-Track wird in Phase 7 als dedizierter Sync-Overhaul mit strengeren Latenz- und Determinismuszielen weitergefuehrt.
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -210,6 +210,30 @@ Exit Criteria:
 - Play-Area-Verhalten bleibt durch Room-Copy/Keyboard/Deselection unveraendert.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 - verify-work-6 Follow-up P0-Blocker `English-only operator flow` ist mit HF1-Regressionsevidenz explizit geschlossen.
+
+## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
+Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
+
+Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15). Naechster Schritt ist Plan 7-2 Hardening.
+
+Milestones:
+1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
+2. M2 Ordered Server Pipeline: ingest->commit->fanout deterministisch und backpressure-stabil.
+3. M3 Deterministic Client Apply: stale-drop und idempotentes apply ohne second-click Effekte.
+4. M4 Priority Stop Path: `stop/toggle-off/clear-all` preemptiv ohne visual/audio Reste.
+5. M5 Final Fast Path: `/output/final` reagiert priorisiert mit minimalem apply overhead.
+6. M6 GIF Responsiveness: room GIF trigger-to-first-frame Latenz deutlich reduziert.
+7. M7 Telemetry and Tracing: P50/P95/P99 pro Hop/Rolle mit mutation correlation.
+8. M8 Non-Regression Closure: room/cluster, align-mode, audio-role-routing, persistence bleiben stabil.
+
+Exit Criteria:
+- E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
+- Stop/Toggle-Off reagieren first-click-deterministisch ohne kurz haengende visuelle/audio Reste.
+- Event-Pipeline ist gehaertet fuer ordering, ack, dedup, backpressure und semantisch sicheres coalescing.
+- `/output/final` zeigt priorisierte low-latency Reaktion ohne UI-overhead-induzierte Verzoegerung.
+- Telemetrie/Tracing und Regression-Suite liefern reproduzierbare Evidenz fuer Latenz und Determinismus.
+- Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
+- Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

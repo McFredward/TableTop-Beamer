@@ -18,7 +18,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-T12 [P0] Sync regression suite erstellen (single-click, burst, reconnect, stale-order, stop/toggle determinism).
 - [x] DONE P7-T13 [P0] Non-regression suite ausfuehren fuer room/cluster, align-mode, audio-role-routing, persistence.
 - [x] DONE P7-T14 [P0] Plan-7-1 latency compliance report erstellen (P50/P95/P99 pro hop, target pass/fail inkl. Abweichungsanalyse).
-- [ ] TODO P7-T15 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf 7-1 Stand bringen.
+- [x] DONE P7-T15 [P0] Artefakt-Sync abschliessen: PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf 7-1 Stand bringen.
 
 ## Plan 7-2 - Hardening Wave (nach 7-1)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).

@@ -7,12 +7,12 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 6
-- Current Phase Key: phase-06
-- Last Prepared: 2026-03-26
+- Current Phase: 7
+- Current Phase Key: phase-07
+- Last Prepared: 2026-03-27
 - Execution Readiness: READY
 - Last Executed Plan: 6-HF12
-- Planned Next Execution: 6-3
+- Planned Next Execution: 7-2
 - Last Execution Summary: `.planning/phases/phase-06/6-HF12-SUMMARY.md`
 
 ## Source Inputs
@@ -223,6 +223,9 @@
 - Paritaets-Regel Plan-Update 3-4: `opacity`/`playbackSpeed` bleiben pro Instanz in nativen und fallback Pfaden konsistent.
 - Regression-Regel Plan-Update 3-4: Running-Liste 1:1, hold-by-default und raumstrenges Clipping bleiben Pflicht-Gates ohne Regression.
 - Plan-Update-3-4 Umsetzung: GIF-Playback ist decoder-agnostisch; bei fehlendem `ImageDecoder` liefert der Parser-Fallback echte Frame-Loops statt Standbild.
+- Phase-7 Plan 7-1 execution: server sync path now uses deterministic ordered queue lanes with bounded backpressure/coalescing and mutation envelopes (`mutationId`, `serverVersion`, `serverTimestamp`, class, priority).
+- Phase-7 Plan 7-1 execution: client apply path is version-aware/idempotent with receive/apply acknowledgements and final-output fast-path optimizations for lower apply overhead.
+- Phase-7 Plan 7-1 execution: telemetry/regression/report artifacts added (`/api/live/telemetry`, `p7-t12/p7-t13/p7-t14` scripts, phase evidence docs).
 - Plan-Update-3-4 Umsetzung: GIF-Renderpfad zeichnet nur Timeline-Frames (kein Erstframe-Fallback), waehrend `opacity`/`playbackSpeed` pro Instanz unveraendert isoliert bleiben.
 - Phase-4 Planung ist vorbereitet: umfassendes Refactoring fuer Wartbarkeit mit modularer Zielarchitektur statt monolithischem `src/app.js`.
 - Phase-4 Scope-Regel: Verhaltensparitaet ist verpflichtend fuer Dashboard/Settings, Room-Animationen, GIF-Playback, Persistenz, Save/API und mobile UX.
@@ -409,6 +412,13 @@
 - Plan-6-HF12 execution: deduped cluster controller keeps full-member runtime fanout deterministic (sync + stagger), including controller-first snapshot fallback rendering.
 - Plan-6-HF12 execution: cluster stop/edit propagation resolves members via merged `memberAnimationIds` + `parentClusterRunId` linkage; room-target flow remains non-regressed (`P6-T86-ROOM-TARGET-REGRESSION.md`).
 - Plan-6-HF12 execution: combined regression matrix is PASS in `P6-T87-REGRESSION.md`; Plan 6-3 remains unblocked.
+- Neues verpflichtendes Feedback nach Realtest setzt Phase-7-Fokus: Multi-Device-Sync muss fuer spuerbar low-latency first-click Verhalten umfassend umgebaut werden.
+- Architektur-Regel fuer Phase 7: Event-Pipeline wird auf deterministisches `ingest -> order -> commit -> fanout -> apply` mit `mutationId`/Version/Ack/Dedup umgestellt.
+- Prioritaets-Regel fuer Phase 7: `stop/toggle-off/clear-all` erhalten preemptiven Kontrollpfad ohne visual/audio Restartefakte.
+- Final-Output-Regel fuer Phase 7: `/output/final` ist priorisierter low-latency apply/render/audio Pfad mit minimalem UI-overhead.
+- Messbarkeits-Regel fuer Phase 7: E2E-Telemetrie und Latenz-SLOs (P50/P95/P99) sind verbindliche Abnahmebasis.
+- Non-Regression-Regel fuer Phase 7: room/cluster, align-mode, audio-role-routing und persistence bleiben verpflichtend stabil.
+- Phase-7 Plan 7-1 ist als erste execute-ready Welle gesetzt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
