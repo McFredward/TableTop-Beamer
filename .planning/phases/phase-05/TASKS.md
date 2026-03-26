@@ -46,7 +46,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T33 [P0] Board-/Layout-Mutationen serverautoritiv anwenden und mit sofortigem Broadcast/Ack auf alle Clients replizieren.
 - [x] DONE P5-T34 [P0] Join/Reconnect-Snapshot fuer Board/Layout haerten, damit spaet verbundene Clients ohne Reload im identischen Kontext landen.
 - [x] DONE P5-T35 [P0] Legacy-`Output Route` aus UI/State/Runtime-Pfaden entfernen; `/output/final` bleibt unveraendert der dedizierte Ausgabepfad.
-- [ ] TODO P5-T36 [P0] HF3-Regression dokumentieren (3-Client-Board/Layout-Paritaet + Output-Route-Negativtests + `/output/final`-Pfadstabilitaet).
+- [x] DONE P5-T36 [P0] HF3-Regression dokumentieren (3-Client-Board/Layout-Paritaet + Output-Route-Negativtests + `/output/final`-Pfadstabilitaet).
 
 ## Plan 5-2 - Diagnostics + Hardening (nach P0-Hotfixes)
 - [ ] TODO P5-T16 [P1] Sichtbare Sync-/Connection-Diagnostik fuer Operator-Views ergaenzen (Rolle, verbunden, letzte Sync-Zeit).
