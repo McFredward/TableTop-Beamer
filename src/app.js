@@ -5303,9 +5303,6 @@ function clearSelectedRoomSelection(statusText = null) {
   state.selectedRoomByBoard[state.boardId] = null;
   state.polygonEditor.vertexSelectionActive = false;
   setActivePolygonRoomId(state.boardId, null);
-  if (state.roomDraft.targetType === "room") {
-    state.roomDraft.targetId = null;
-  }
   clearRoomDraftEditTarget();
   syncRoomPanelFromSelection({ preserveDraftState: true });
   syncRoomManagementPanel(statusText ?? "Room management: selection cleared");
@@ -5494,9 +5491,6 @@ function deleteSelectedRoom({ roomId = null } = {}) {
 
 function refreshPersistentRoomSelectionVisualState() {
   const selectedRoomId = syncSelectedRoomStateForBoard(state.boardId);
-  if (selectedRoomId && state.roomDraft.targetType === "room") {
-    state.roomDraft.targetId = selectedRoomId;
-  }
   syncPolygonRoomSelection(selectedRoomId);
   syncPolygonEditorPanel();
   syncRoomPanelFromSelection({ preserveDraftState: true });
