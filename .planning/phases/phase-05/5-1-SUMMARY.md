@@ -1,117 +1,119 @@
 ---
 phase: phase-05
-plan: 5-1
-subsystem: ui-api-realtime
-tags: [roles, sse, heartbeat, final-output, alignment, audio-routing]
+plan: 1
+subsystem: [api, ui, infra]
+tags: [websocket, live-sync, final-output, audio-routing, jsonl-logging]
 requires:
   - phase: phase-04
-    provides: modular runtime baseline with board/audio/render state
+    provides: modulare Runtime-Basis fuer Rendering/State/Audio
 provides:
-  - role-aware multi-client session handshake and reconnect flow
-  - final-output animation-only projection route for beamer clients
-  - realtime trigger/edit/stop/clear-all replication contract
-affects: [phase-05, multiplayer-ops, beamer-runtime]
+  - dedizierter Final-Output unter /output/final
+  - serverautoritatives Shared-Live-State-Backbone mit WebSocket-Broadcast
+  - globaler Align-Mode mit rollenbasierter Overlay-Sichtbarkeit
+  - output-rollenbasiertes Audio-Routing (nur final-output hoerbar)
+  - persistentes strukturiertes Server-Logging (session/state/error)
+affects: [phase-05-plan-2, diagnostics, hardening]
 tech-stack:
-  added: [SSE stream endpoint, session event API]
-  patterns: [server-authoritative snapshot sync, role-gated render/audio paths]
+  added: [native node:http websocket-upgrade, jsonl append logging]
+  patterns: [server-shared-session, client-live-mutation, role-gated-render-audio]
 key-files:
-  created:
-    - .planning/phases/phase-05/P5-T8-REALTIME-AND-3-DEVICE-SCENARIO.md
-    - .planning/phases/phase-05/5-1-SUMMARY.md
-  modified:
-    - src/app.js
-    - server.mjs
-    - src/app/state/runtime-state.js
-    - index.html
-    - src/styles.css
-    - .planning/phases/phase-05/TASKS.md
+  created: [.planning/phases/phase-05/P5-T12-AUDIO-LIFECYCLE.md, .planning/phases/phase-05/P5-T15-REGRESSION.md]
+  modified: [server.mjs, src/app.js, src/app/state/runtime-state.js, src/styles.css, index.html, README.md, .planning/phases/phase-05/TASKS.md, .gitignore]
 key-decisions:
-  - "Session sync uses server snapshots + SSE events with heartbeat and stale-client pruning."
-  - "final-output role hard-gates helper overlays and board background for clean beamer output."
-  - "Audio playback is role-gated and only active for final-output clients."
+  - "Final-Output wird ueber Route-Erkennung (`/output/final`) als eigene Output-Rolle gefahren"
+  - "Live-Sync nutzt serverseitigen Session-Snapshot (versioniert) plus WebSocket-Push an alle Clients"
+  - "Align-Mode beeinflusst nur Final-Output-Overlay; Control-Polygone bleiben immer sichtbar"
+  - "Audio ist strikt output-gebunden: control hard-muted, final-output audible"
+  - "Server schreibt append-only JSONL mit Klassen session_event/state_change/error"
 patterns-established:
-  - "Role gates are centralized (render/audio/UI), not scattered per widget."
-  - "Realtime writes publish full shared runtime slice for deterministic resync."
+  - "Role Contract: outputRole steuert Render-/Overlay-/Audio-Verhalten"
+  - "Live Mutation Flow: client sendet Mutation + Runtime-Snapshot, Server versioniert und broadcastet"
 requirements-completed: []
-duration: 10min
-completed: 2026-03-25
+duration: 10m
+completed: 2026-03-26
 ---
 
-# Phase 5 Plan 1: Multi-Client Final-Output Routing Summary
+# Phase 5 Plan 1: Multi-Device Live-Sync Core Summary
 
-**Rollenbasierter Multi-Client-Livebetrieb mit serverautoritativer Session-Synchronisation, cleanem final-output Beamerpfad und final-output-only Audio-Routing.**
+**Dedizierter Final-Output, serverautoritiver Live-Sync ueber WebSocket, align-gesteuerte Overlay-Sichtbarkeit und final-only Audio mit persistentem JSONL-Serverlogging.**
 
 ## Performance
 
-- **Duration:** 10 min
-- **Started:** 2026-03-25T20:49:55Z
-- **Completed:** 2026-03-25T20:59:25Z
-- **Tasks:** 8
-- **Files modified:** 7
+- **Duration:** 10m
+- **Started:** 2026-03-25T23:50:41Z
+- **Completed:** 2026-03-26T00:01:02Z
+- **Tasks:** 15
+- **Files modified:** 10
 
 ## Accomplishments
-- Rollenmodell (`operator`/`alignment`/`final-output`) samt Session-ID/Role-Join im Client + Server etabliert.
-- Neue Session-API mit Connect/Stream/Heartbeat/Event plus Snapshot-Recover bei Reconnect umgesetzt.
-- Final-output Route auf reinen Effekt-Output gehartet (kein Board/Overlay/Labels/Settings) und Alignment-Overlay-Toggle mit Rollen-Guard integriert.
-- Trigger/Edit/Stop/Clear-All replizieren als verbindlicher Event-Contract in Echtzeit.
+- `/output/final` ist als dedizierte FX-only Route aktiv und versteckt Board/Controller im Final-Output.
+- Live-State wird serverseitig versioniert gehalten und ueber WebSocket sofort an verbundene Clients repliziert (inkl. Join-Snapshot).
+- Align-Mode, Audio-Rollenbindung und Logging-Vertrag sind inklusive Nachweisen (`P5-T12`, `P5-T15`) umgesetzt.
 
 ## Task Commits
 
-1. **P5-T1 Rollenmodell Runtime-State** - `3163336` (feat)
-2. **P5-T2 Session Handshake/Join** - `4864c86` (feat)
-3. **P5-T3 Reconnect/Heartbeat Guard** - `7902bcc` (feat)
-4. **P5-T4 Final-output Renderroute** - `a10cbf9` (feat)
-5. **P5-T5 Zentraler Render-Layer-Guard** - `ad5d69f` (fix)
-6. **P5-T6 Alignment-Mode Toggle + Persistenz/Session** - `8d56fe5` (feat)
-7. **P5-T7 Rollenregel Alignment Toggle** - `65d8f9c` (fix)
-8. **P5-T8 Realtime Event Contract + Nachweis** - `200d102` (feat)
+1. **P5-T1** - `cbc8d1e`
+2. **P5-T2** - `83242f6`
+3. **P5-T3** - `d6acd69`
+4. **P5-T4** - `3c6d2e9`
+5. **P5-T5** - `92a61dc`
+6. **P5-T6** - `f47533c`
+7. **P5-T7** - `0d22276`
+8. **P5-T8** - `0f53fca`
+9. **P5-T9** - `9d2fc38`
+10. **P5-T10** - `328e56f`
+11. **P5-T11** - `76c29c2`
+12. **P5-T12** - `f96bc9a`
+13. **P5-T13** - `93e30b9`
+14. **P5-T14** - `9ecd030`
+15. **P5-T15** - `ad02f93`
 
-Zusatzcommit (kritische Fokusanforderung):
-- `2f845ec` fix(5-1): gate audio playback to final-output role only
+Zusatzfix innerhalb der Ausfuehrung: `63ce2ee` (WebSocket Extended-Frame Support).
 
 ## Files Created/Modified
-- `server.mjs` - Session-Endpoints (`/api/session/connect|stream|heartbeat|event`), Heartbeat/Stale-Client-Cleanup, SSE Broadcast.
-- `src/app.js` - Rollenlogik, Session-Client (connect/reconnect/heartbeat/SSE), Snapshot-Apply, Trigger-Event-Emission, Final-output Render/Audioguards.
-- `index.html` - Session-ID/Role Controls, Reconnect-Button, Alignment-Overlay-Toggle, Session-Status.
-- `src/styles.css` - final-output Vollflaechen-Projektionsstil und Overlay-Guide-Hide-Modus.
-- `src/app/state/runtime-state.js` - role/session/alignmentOverlay Runtime-Felder.
-- `.planning/phases/phase-05/P5-T8-REALTIME-AND-3-DEVICE-SCENARIO.md` - API-Smoke + 3-Device-Abnahmeablauf.
+- `server.mjs` - Final-Route, Live-Session-Snapshot, WebSocket Sync, JSONL Logging.
+- `src/app.js` - Output-Rollenvertrag, Live-Mutation/Sync, Align-Mode, Audio-Rollenbindung.
+- `src/app/state/runtime-state.js` - globales `alignMode`-State-Flag.
+- `index.html` - Align-Mode Toggle + Status im Settings-Panel.
+- `src/styles.css` - Final-Output FX-only Layout + align-mode Overlay-Gating.
+- `.planning/phases/phase-05/P5-T12-AUDIO-LIFECYCLE.md` - Audio-Lifecycle-Nachweis.
+- `.planning/phases/phase-05/P5-T15-REGRESSION.md` - 3-Client Sync/Align/Logging-Gate-Nachweis.
 
 ## Decisions Made
-- SSE + serverseitiger Snapshot wurde gegen direkten Peer-Sync bevorzugt, um Rejoin/Drift deterministisch zu heilen.
-- `final-output` ist hart als helper-freie Renderrolle definiert; Overlay/Labels/Settings werden technisch blockiert.
-- Audio ist rollenbasiert kapsuliert und reagiert sofort auf Role-Switches (Hard-stop / Re-activate).
+- Final-Output wird als eigene Rolle statt zweiter App gebaut, um denselben Renderer mit Rollen-Guards zu nutzen.
+- Shared Live-State bleibt serverautoritativ und versioniert; Clients konsumieren Session-Snapshots.
+- Structured Logging verwendet bewusst JSONL append-only fuer headless Betrieb/forensische Nachvollziehbarkeit.
 
 ## Deviations from Plan
 
 ### Auto-fixed Issues
 
-**1. [Rule 2 - Missing Critical] Audio-Routing final-output only bereits in P5-T1..T8 mitgezogen**
-- **Found during:** Task 8 (Realtime contract hardening)
-- **Issue:** Nutzerfokus forderte strikt `final-output` only Audio, waehrend Plan-Taskliste dies erst in P5-T11/P5-T12 vorsah.
-- **Fix:** Audio-Gain/Playback role-gated, Role-Switch stop/start Pipeline eingefuehrt.
-- **Files modified:** `src/app.js`
-- **Verification:** `node --check src/app.js`; manuelle Rolle-Wechsel-Logik + mute gating im Statuspfad.
-- **Committed in:** `2f845ec`
+**1. [Rule 1 - Bug] WebSocket Payload >125 Bytes crashte den Broadcast-Pfad**
+- **Found during:** P5-T15 Regression (WS Smoke)
+- **Issue:** Lightweight Frame-Codec unterstuetzte nur kleine Payloads, Server konnte bei groesseren Session-Snapshots aussteigen.
+- **Fix:** Extended Length Parsing/Encoding fuer 16-bit und 64-bit Frames implementiert.
+- **Files modified:** `server.mjs`
+- **Verification:** `WS_SYNC=ok`, `SYNC_3C=ok receivers=2`
+- **Committed in:** `63ce2ee`
 
 ---
 
-**Total deviations:** 1 auto-fixed (Rule 2)
-**Impact on plan:** Fokusanforderung wurde vorgezogen und ohne Architekturbruch umgesetzt.
+**Total deviations:** 1 auto-fixed (Rule 1)
+**Impact on plan:** Kritischer Stabilitaetsfix direkt im Scope, notwendig fuer reproduzierbaren Multi-Client-Sync.
 
 ## Issues Encountered
-- Kein bestehender Realtime-Transport vorhanden; wurde als Session-API + SSE neu eingefuehrt.
+- Keine weiteren Blocker nach Extended-Frame-Fix.
 
-## Auth Gates
-None.
+## User Setup Required
+None - no external service configuration required.
 
 ## Known Stubs
 None.
 
 ## Next Phase Readiness
-- P5-T9..P5-T14 koennen direkt auf der Session-Basis aufsetzen (Running-Drift-Guard-Vertiefung, formale 3-Device Endabnahme, erweiterte Audio-Negativtests).
-- Reales 3-Device-LAN-Feldtestprotokoll ist vorbereitet in `P5-T8-REALTIME-AND-3-DEVICE-SCENARIO.md`.
+- Plan 5-2 kann auf stabiler Live-Sync-Basis mit sichtbarer Diagnostik/Hardening aufsetzen.
+- Logging, Rollenvertrag und Join/Broadcast-Pfad sind fuer weitere Soak-/LAN-Tests vorbereitet.
 
 ## Self-Check: PASSED
-- FOUND: `.planning/phases/phase-05/5-1-SUMMARY.md`
-- FOUND commits: `3163336`, `4864c86`, `7902bcc`, `a10cbf9`, `ad5d69f`, `8d56fe5`, `65d8f9c`, `200d102`, `2f845ec`
+- Summary-Datei vorhanden.
+- Alle referenzierten Task-/Fix-Commits im Git-Log verifiziert.

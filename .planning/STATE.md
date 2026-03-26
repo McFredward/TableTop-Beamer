@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 5
 - Current Phase Key: phase-05
-- Last Prepared: 2026-03-25
+- Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 5-8
-- Planned Next Execution: 5-2 Rest (P5-T21..P5-T22), danach 5-1 Rest (P5-T9..P5-T14)
-- Last Execution Summary: `.planning/phases/phase-05/5-8-SUMMARY.md`
+- Last Executed Plan: 5-1
+- Planned Next Execution: 5-2
+- Last Execution Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -257,53 +257,17 @@
 - Plan-Update-4-5 Umsetzung: Board-Profile persistieren `audio`, `animationSpeed` und `animationSoundMap`; Reload + Global-Defaults-Apply bleiben fuer Sound-Mapping konsistent.
 - Plan-Update 4-5b setzt Prioritaetsfokus: P0 Mini-Hotfix fuer Persist-on-change in Audio/Sound-Mapping-Handlern und deterministischen Direkt-Reload.
 - Plan-Update-4-5b Umsetzung: Audio-Enable/Volume und Animation-Sound-Mapping persistieren sofort; Mapping-Normalisierung schreibt ebenfalls direkt, damit Reload ohne Timing-Luecke den letzten Stand liest.
-- Phase-5 Planung ist aktiviert: Multi-Client-Betrieb mit klaren Rollen (`operator`, `alignment`, `final-output`) wird priorisiert vor weiteren Phase-4-Follow-ups.
-- Plan-5-1 setzt Prioritaetsfokus: final output route fuer Raspberry/Beamer ohne Board/Polygone/Namen, Realtime-Multi-Client-Sync, Alignment-Mode-Toggle fuer Polygon-Overlay, Audio strikt nur auf `final-output`.
-- Rollenregel Plan-5-1: `final-output` rendert ausschliesslich den finalen Effekt-Layer; Hilfsoverlays/Labels/Editor-Elemente sind dort technisch deaktiviert.
-- Sync-Regel Plan-5-1: Trigger/Edit/Stop/Clear-All und Running-Instanzen replizieren in Echtzeit ueber eine gemeinsame Session-Source-of-Truth mit Reconnect-Resync.
-- Audio-Regel Plan-5-1: Audio-Playback ist rollenbasiert auf `final-output` begrenzt und muss bei Role-Switch/Rejoin deterministisch start/stoppen.
-- Verifikationsregel Plan-5-1: 3-Device-Pflichtabnahme (Laptop Operator, Tablet Alignment, Raspberry/Beamer Final Output) ist Gate fuer den Abschluss.
-- Plan-5-1 Umsetzung: Session-Layer nutzt `/api/session/connect|stream|heartbeat|event` mit Snapshot+SSE-Eventfluss und stale-client cleanup.
-- Plan-5-1 Umsetzung: `final-output` erzwingt animation-only Renderpfad (kein Board, keine Overlays, keine Settings/Helper-Layer).
-- Plan-5-1 Umsetzung: Audio-Gate ist technisch auf `final-output` begrenzt; Role-Switch triggert sofortigen Hard-Stop/Re-Start.
-- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Overlay-Semantik muss korrigiert werden (`operator` immer sichtbar; Toggle steuert nur Final-Output-Overlay) und Session-Connect-Fehler `default-session` werden als P0-Hotfix behandelt.
-- Plan-Update 5-2 setzt Prioritaetsfokus: P0 Overlay-Semantikfix, P0 robuster Session-Verbindungspfad, P0 deutlich erweiterte UI-Diagnose (Endpoint/Status/letzte Fehlermeldung/Retry-Status), danach erst Rest von Plan 5-1.
-- Verbindliche Diagnose-Regel Plan-Update 5-2: Feldbetrieb muss ohne Devtools debugbar sein; Control-UI zeigt Endpoint-Snapshot, Connection-State, Retry-Counter und letzte Fehlerursache.
-- Reihenfolge-Regel Plan-Update 5-2: Hotfix-Paket P5-T15..P5-T22 ist Gate vor den offenen Plan-5-1-Tasks P5-T9..P5-T14.
-- Plan-Update-5-2 Umsetzung: Overlay-Semantik ist hart korrigiert (`operator` always-on; Toggle steuert nur `final-output` Overlay).
-- Plan-Update-5-2 Umsetzung: Session-Connect nutzt deterministische Endpoint-Kandidaten + Join-Fallback ohne stale `clientId`; Session-ID-Priorisierung reduziert `default-session` Fehlpfade.
-- Plan-Update-5-2 Umsetzung: Retry/Backoff laeuft mit Jitter, Retry-Counter und terminal reconnect state; Diagnosefelder zeigen Endpoint/Status/Fehler/Retry/letzten Erfolg ohne Rohfehler-Noise.
-- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Im Realbetrieb driftet Session-Connect auf `http://<host>:8080` trotz Node-Start auf `:4173`; dies wird als P0-Blocker gefuehrt.
-- Plan-Update 5-3 setzt Prioritaetsfokus: Resolver-Default strikt UI-Origin-Port (`:4173`), robustes Handling fuer stale/legacy `localStorage`-Overrides, konsistente Session-Diagnose (`resolved endpoint` + Quelle/Ursache), kurze Betriebsanleitung fuer Start/URLs.
-- Reihenfolge-Regel Plan-Update 5-3: P5-T23..P5-T28 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
-- Plan-Update-5-3 Umsetzung: Session-Resolver nutzt fuer Connect/Reconnect standardmaessig UI-Origin inkl. Port (`:4173`) und laeuft nicht mehr ueber Legacy-Portkandidaten (`:8080`-Drift entfernt).
-- Plan-Update-5-3 Umsetzung: Stale/legacy API-Base-Overrides aus `localStorage` werden nur bei Reachability genutzt; invalid/unreachable Werte werden transparent auf UI-Origin gefallbackt und als stale markiert.
-- Plan-Update-5-3 Umsetzung: Session-Diagnose fuehrt resolver-konsistent `resolved endpoint + selected via + fallback reason` in Endpoint-/Status-/Fehlerpfad.
-- Plan-Update-5-4 Umsetzung: SSE-Broadcast/Write ist crash-safe; defekte Streams werden pro Stream isoliert entfernt und verursachen keinen Prozessabbruch.
-- Plan-Update-5-4 Umsetzung: Reconnect ist gegen Kurzunterbrechungs-Loops gehaertet (connect in-flight guard + stale reconnect timer cleanup).
-- Plan-Update-5-4 Umsetzung: Session-Diagnose zeigt Heartbeat-Endpoint separat; Server-Logs liefern endpoint-spezifische Fehlercodes fuer `connect`/`stream`/`heartbeat`/`event` mit Session-/Client-Korrelation.
-- Plan-Update-5-5 Umsetzung: Session-Requests nutzen ein dediziertes Timeout-Budget (`SESSION_REQUEST_TIMEOUT_MS=9000`) statt des Global-Defaults (`API_REQUEST_TIMEOUT_MS=3000`).
-- Plan-Update-5-5 Umsetzung: Heartbeat-Eskalation startet erst nach N aufeinanderfolgenden Fehlschlaegen (default 3); Einzel-Aussetzer werden toleriert.
-- Plan-Update-5-5 Umsetzung: Retry-Transitionen sind serialisiert (Transition-IDs), terminal wird durch Success-Grace-Window gegen Kurzjitter gehaertet; Retry-Reset erfolgt erst nach stabilem Heartbeat-Erfolg.
-- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Heartbeat scheitert weiterhin als HTTP0-Loop, Connect degradiert nach kurzem Erfolg und Multi-Device-Sync bleibt dadurch unzuverlaessig.
-- Plan-Update 5-6 setzt Prioritaetsfokus: persistente Session-API-Logdatei, Heartbeat POST-primaer mit GET-Fallback, optionaler Event-GET-Fallback, methodenscharfe UI-Diagnose und erweitertes Runbook mit Testbefehlen.
-- Transport-Regel Plan-Update 5-6: Heartbeat/Event nutzen POST als Primaerweg; GET-Fallback ist nur degradationsgetrieben aktiv und muss serverseitig kompatibel + diagnostisch sichtbar sein.
-- Plan-Update-5-6 Umsetzung: Session-API schreibt persistente JSON-Logs nach `logs/session-api.log` (Methode, Endpoint, Status, Code, Session-/Client-Korrelation).
-- Plan-Update-5-6 Umsetzung: Heartbeat ist POST-primaer mit GET-Fallback in Client+Server; UI zeigt aktive Methode, Endpoint, Fallback-Ursache und letzten Methodenwechsel.
-- Plan-Update-5-6 Umsetzung: Event-GET-Fallback ist optional per Flag (`eventGetFallback`) aktivierbar und serverseitig per `eventId`-Duplicate-Guard gegen Doppelzustellung gehaertet.
-- Neues dringendes Pflichtfeedback fuer Phase 5 (dritte Eskalation) ist gesetzt: Client zeigt weiter `CONNECT_UNREACHABLE (HTTP 0)` auf `/api/session/connect`; vorhandene Logs/Fixes reichen fuer Root-Cause im Feld nicht aus.
-- Plan-Update 5-7 setzt Prioritaetsfokus: verbindliches Access-Logging fuer ALLE Session-API-Requests (`method`, `path`, `status`, `duration`, `client-ip`), robuster Connect-Transport mit `fetch`+XHR-Fallback, detaillierte UI-Fehlerdiagnose und aktiver Settings-Self-Test.
-- Harte Abnahme-Regel Plan-Update 5-7: Feldsetup muss unter normalem WLAN stabil verbinden und synchronisieren; kein terminaler Retry-Zustand im Normalbetrieb.
-- Reihenfolge-Regel Plan-Update 5-7: P5-T51..P5-T56 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
-- Plan-Update-5-7 Umsetzung: Session-Access-Logging ist fuer connect/stream/heartbeat/event per Request verpflichtend (`method`, `path`, `status`, `duration`, `client-ip`) und in `logs/session-api.log` korrelierbar.
-- Plan-Update-5-7 Umsetzung: Connect nutzt fetch-primaer mit deterministischem XHR-Fallback bei HTTP0-/Netzwerkfehlern inklusive Timeout/Abort-Haertung.
-- Plan-Update-5-7 Umsetzung: UI-Diagnose zeigt Connect-Transport, Fallback-Grund, `error.name`, `error.message`, Online-State und Endpoint; Settings bietet aktive Self-Test-Matrix fuer connect/stream/heartbeat/event.
-- Neues dringendes Pflichtfeedback fuer Phase 5 ist gesetzt: Heartbeat scheitert weiterhin mit HTTP0, waehrend Connect/Stream teilweise stabil bleiben; Session darf deshalb nicht mehr an Heartbeat allein auf `failed` eskalieren.
-- Plan-Update 5-8 setzt Prioritaetsfokus: SSE-first-Liveness (Stream hat Vorrang), getrennte Connectivity-Zustaende (`streamConnected` vs `heartbeatStatus`), reconnect nur bei Stream-Abbruch/Connect-Fehler, Sync robust trotz heartbeat degraded und erweiterte Stream-Transition-Logs.
-- Reihenfolge-Regel Plan-Update 5-8: P5-T57..P5-T62 sind execute-ready und verbindlich vor offenen Restarbeiten aus Plan 5-2/5-1.
-- Plan-Update-5-8 Umsetzung: Heartbeat-Fehler bleiben bei offenem Stream im Zustand `degraded`; Session eskaliert dabei nicht mehr auf `failed`.
-- Plan-Update-5-8 Umsetzung: Connectivity ist getrennt sichtbar und fuehrend (`streamConnected` + `heartbeatStatus` in Runtime/UI) bei stream-zentrierter Reconnect-Policy.
-- Plan-Update-5-8 Umsetzung: Emit/Sync bleiben trotz heartbeat degraded robust; Stream-Transitionen (`opened|healthy|degraded|closed|reconnecting`) werden strukturiert mit Ursache geloggt.
+- Phase-5 Planung ist vorbereitet: Multi-Device Live-Sync mit serverautoritativem Shared-State und dediziertem Final-Beamer-Output.
+- Final-Output-Regel fuer Phase 5: Serverpfad `/output/final` zeigt ausschliesslich FX/Animationen; kein Board-Bild, keine Raum-Polygone, keine Raumnamen.
+- Sync-Regel fuer Phase 5: Aenderungen eines Controllers werden sofort an alle verbundenen Clients (Handy/PC/Beamer) repliziert.
+- Align-Regel fuer Phase 5: globaler Align-Mode blendet Polygon-Overlay nur im Final-Output ein/aus; Controller-Views behalten Polygone immer sichtbar.
+- Audio-Regel fuer Phase 5: Audio ist strikt output-gebunden (`final-output` hoerbar, `control` stumm).
+- Logging-Regel fuer Phase 5: serverseitiges persistentes Dateilog erfasst Session-Events, State-Aenderungen und Fehler mit Kontext.
+- Plan-5-1 Umsetzung: `/output/final` laeuft als dedizierte Final-Output-Rolle mit FX-only-Rendervertrag.
+- Plan-5-1 Umsetzung: Shared-Live-State ist serverseitig versioniert und repliziert per WebSocket-Broadcast inklusive Join-Snapshot.
+- Plan-5-1 Umsetzung: Align-Mode ist global und wirkt nur auf Final-Output-Polygone; Control-Polygone bleiben immer sichtbar.
+- Plan-5-1 Umsetzung: Audio ist rollenbasiert hart getrennt (control muted, final-output audible).
+- Plan-5-1 Umsetzung: Persistentes JSONL-Logging schreibt `session_event`, `state_change` und `error` Eintraege.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -635,32 +599,12 @@
   - `node --check src/app.js` (Regression Syntax Check)
   - Static Nachweis: Persist-on-change Hook fuer `audio.enabled`, `audio.volume`, `animationSoundMap` + persistierte Mapping-Normalisierung (`src/app.js`)
 
-## Execution Results (Phase 5 Plan 2)
+## Execution Results (Phase 5 Plan 1)
 - Status: completed
-- Summary: `.planning/phases/phase-05/5-2-SUMMARY.md`
-- Task Commits: 6 atomare Commits (`c6dce0e`, `b7e839c`, `00aa878`, `33c2a47`, `3e29565`, `941e276`)
+- Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
+- Task Commits: 16 atomare Commits (`cbc8d1e` .. `ad02f93`, inkl. Hotfix `63ce2ee`)
 - Evidence:
-  - `.planning/phases/phase-05/P5-T20-HOTFIX-ACCEPTANCE.md`
-  - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
-  - `node --check server.mjs` (Server Syntax Check)
-
-## Execution Results (Phase 5 Plan 5)
-- Status: completed
-- Summary: `.planning/phases/phase-05/5-5-SUMMARY.md`
-- Task Commits: 6 atomare Commits (`1ef55ac`, `f9f300f`, `1c4cb48`, `1ec3512`, `4f009e5`, `07cde3f`)
-- Evidence:
-  - `.planning/phases/phase-05/P5-T43-WLAN-JITTER-REGRESSION.md`
-  - `.planning/phases/phase-05/P5-T44-SESSION-RESILIENCE-HOTFIX-VERIFICATION.md`
-  - `node debug/p5-t43-session-jitter-regression.mjs` (`JITTER_REGRESSION_GUARD=true`)
-  - `node debug/p5-t44-session-resilience-verification.mjs` (`PLAN_5_5_VERIFICATION=true`, `HEARTBEAT_GET_404=true`, `HEARTBEAT_POST_200=true`)
-
-## Execution Results (Phase 5 Plan 6)
-- Status: completed
-- Summary: `.planning/phases/phase-05/5-6-SUMMARY.md`
-- Task Commits: 6 atomare Commits (`5def0c2`, `b12997a`, `3fa9389`, `8c3f1e5`, `4da9307`, `66102a9`)
-- Evidence:
-  - `.planning/phases/phase-05/P5-T50-TRANSPORT-FALLBACK-VERIFICATION.md`
-  - `curl`-Smoke: `CONNECT=200`, `HB_POST=200`, `HB_GET=200`, `EVENT_POST=200`, `EVENT_GET=200`, `EVENT_DUP=200`
-  - `logs/session-api.log` enthaelt `SESSION_HEARTBEAT_OK` (POST+GET), `SESSION_EVENT_OK` (POST+GET), `SESSION_EVENT_DUPLICATE_IGNORED`
-  - `node --check src/app.js`, `node --check src/app/state/runtime-state.js`, `node --check server.mjs`
+  - `.planning/phases/phase-05/P5-T12-AUDIO-LIFECYCLE.md`
+  - `.planning/phases/phase-05/P5-T15-REGRESSION.md`
+  - Endpoint Smoke: `FINAL=200 LIVE=200 HEALTH=200`
+  - WebSocket Sync: `WS_SYNC=ok`, `SYNC_3C=ok receivers=2`

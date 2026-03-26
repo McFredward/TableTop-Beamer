@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), stabilisiere Runtime/Architektur in Phase 4 und fokussiere in Phase 5 den realen Mehrgeraete-Betrieb mit finalem Raspberry/Beamer-Output, Realtime-Sync und rollenbasiertem Audio.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei und fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -57,10 +57,10 @@ Exit Criteria:
 - GIF-Vorgaben fuer `kaputt`/`feuer`/`schleim` laufen als echte Loops in nativen und fallback Pfaden; `opacity`/`playbackSpeed` bleiben instanzscharf steuerbar.
 - Verifikation und Planungsartefakte konsistent abgeschlossen.
 
-## Phase 4 - Maintainability Refactor (Stabilized / Follow-up Deferred)
+## Phase 4 - Maintainability Refactor (In Progress)
 Ziel: `src/app.js` in eine modulare, wartbare Architektur ueberfuehren und gleichzeitig das Raummodell auf einen allgemeinen, datengetriebenen Standard umstellen (Room-CRUD, freie Polygone, Custom-Namen), ohne funktionale Regression in Runtime, Rendering, Persistenz, Save/API und Mobile-Bedienung.
 
-Status: 35/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5b erledigt); verbleibende Follow-up-Tasks (Plan 4-6/4-7) sind vorerst nachrangig, da Phase 5 als Betriebsprioritaet aktiviert ist.
+Status: 35/38 Tasks abgeschlossen (Plan 4-1 bis Plan 4-5b erledigt); naechster priorisierter Schritt ist Plan 4-6 (GIF/Render/UI-Isolation).
 
 Milestones:
 1. Architektur-Skeleton: `src/app/*` Struktur + kompatibler Bootstrap-Entry.
@@ -95,42 +95,28 @@ Exit Criteria:
 - Keine Regression bei Dashboard/Settings, Running-Liste, GIF-Looping (native+fallback), Clipping, Persistenz, Save/API und Mobile-UX.
 - Phase-4-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
 
-## Phase 5 - Multi-Client Final Output (In Progress)
-Ziel: Produktiver 3-Geraete-Betrieb im LAN mit klaren Rollen (`operator`, `alignment`, `final-output`), sauberem Beamer-Endbild und echtzeitfaehiger Session-Synchronisierung.
+## Phase 5 - Multi-Device Live Sync + Final Beamer Output (In Progress)
+Ziel: Gemeinsamer Live-State fuer Handy-Controller, PC-Controller und Raspberry-Pi-Beamer mit dediziertem Final-Output-Pfad, Align-Mode fuer physische Kalibrierung, strengem Audio-Routing und persistentem Server-Logging.
 
-Status: Plan 5-1 Fokuswelle P5-T1..P5-T8 ist umgesetzt (`.planning/phases/phase-05/5-1-SUMMARY.md`); Plan 5-2 Hotfix-Core P5-T15..P5-T20 ist abgeschlossen (`.planning/phases/phase-05/5-2-SUMMARY.md`); Plan 5-3 P0-Resolver-Hotfix P5-T23..P5-T28 ist abgeschlossen (`.planning/phases/phase-05/5-3-SUMMARY.md`); Plan 5-4 Session/SSE-Stabilitaets-Hotfix P5-T31..P5-T36 ist abgeschlossen (`.planning/phases/phase-05/5-4-SUMMARY.md`); Plan 5-5 Session-Resilience-Hotfix P5-T39..P5-T44 ist abgeschlossen (`.planning/phases/phase-05/5-5-SUMMARY.md`); Plan 5-6 Transport-Fallback + Logdiagnose P5-T45..P5-T50 ist abgeschlossen (`.planning/phases/phase-05/5-6-SUMMARY.md`); Plan 5-7 Root-Cause-Hotfix CONNECT_UNREACHABLE (P5-T51..P5-T56) ist abgeschlossen (`.planning/phases/phase-05/5-7-SUMMARY.md`); Plan 5-8 SSE-first-Hotfix (P5-T57..P5-T62) ist abgeschlossen (`.planning/phases/phase-05/5-8-SUMMARY.md`). Offen bleiben danach Rest-Gates P5-T21..P5-T22 sowie Plan-5-1-Rest P5-T9..P5-T14.
+Status: Plan 5-1 (P5-T1..P5-T15) ist abgeschlossen (`.planning/phases/phase-05/5-1-SUMMARY.md`); naechster Schritt ist Plan 5-2 (Diagnostics + Hardening).
 
 Milestones:
-1. Rollenmodell + Session-Handshake (`operator`/`alignment`/`final-output`) stabilisieren.
-2. Final-Output-Route fuer Raspberry/Beamer ohne Board/Polygone/Namen produktiv schalten.
-3. Overlay-Semantik korrigieren: `operator` sieht Overlay immer; Toggle steuert ausschliesslich Final-Output-Overlay.
-4. Session-Verbindungspfad robust machen (Endpoint-Resolver, Join-Fallback, Retry/Backoff) und UI-Diagnose stark ausbauen.
-5. Realbetrieb-Hotfix 5-3: Resolver nutzt standardmaessig UI-Origin-Port (`:4173`), stale Overrides werden defensiv behandelt, Diagnose bleibt endpoint-konsistent.
-6. Multi-Client-Realtime-Sync fuer Trigger/Edit/Stop/Clear-All und Running-Instanzen absichern.
-7. Audio strikt auf `final-output` begrenzen, inklusive Role-Switch/Reconnect-Faellen.
-8. Transport-Hotfix 5-6: persistentes API-Logfile plus POST-primaer/GET-fallback fuer Heartbeat (und optional Event) in Client+Server+UI-Diagnose stabilisieren.
-9. Root-Cause-Hotfix 5-7: vollstaendiges Session-Access-Logging, Connect `fetch`+XHR-Fallback, aktive Self-Tests und harte WLAN-Abnahme ohne Retry-Terminal.
-10. SSE-first-Hotfix 5-8: Heartbeat entkoppeln (kein `failed` bei aktivem Stream), Connectivity-State trennen, Reconnect stream-zentrieren, Sync trotz heartbeat degraded stabilisieren.
-11. 3-Device-Abnahme (Laptop + Tablet + Raspberry/Beamer) als Pflicht-Gate dokumentieren.
+1. Final Output Core: Serverpfad `/output/final` liefert ausschliesslich FX/Animationen.
+2. Live Sync Core: serverautoritiver Shared-State repliziert Trigger/Edit/Stop sofort auf alle Clients.
+3. Align Mode: globale Kalibrier-Option blendet Polygone nur im Final-Output ein/aus; Controller behalten Polygone immer sichtbar.
+4. Audio Routing: Sound laeuft nur auf Final-Output, Controller bleiben stumm.
+5. Logging Core: persistente Dateilogs fuer Session-Events, State-Aenderungen und Fehler.
+6. Real Setup Gate: 3-Geraete-E2E (Handy + PC + Raspberry Pi) ohne P0-Blocker.
 
 Exit Criteria:
-- Finaler Beamer-Output ist clean bei deaktiviertem Final-Overlay-Toggle (kein Board, keine Polygone, keine Namen).
-- Realtime-Sync bleibt unter 3-Device-LAN-Betrieb ohne sichtbaren Drift stabil.
-- Overlay-Semantik ist feldkonform (`operator` always-on; Toggle nur Final-Output-Overlay).
-- Session-Connect ist robust gegen `default-session`-Fehlpfad; Resolver driftet nicht auf `:8080`; Diagnoseinfos sind im UI voll sichtbar und konsistent.
-- Persistente Session-API-Logs liegen unter `logs/session-api.log` vor und enthalten endpoint-/methodenspezifische Fehlercodes fuer Feldanalyse.
-- Session-Access-Logging ist fuer ALLE Session-Requests vollstaendig (Methode, Path, Status, Duration, Client-IP; Success+Error).
-- Heartbeat (und optional Event) bleibt bei POST-Problemen ueber GET-Fallback stabil; UI zeigt die tatsaechlich verwendete Methode transparent an.
-- Connect bleibt auch in HTTP0-Umgebungen robust ueber Transport-Fallback (`fetch` primaer, XHR oder gleichwertig fallback) mit detaillierter UI-Diagnose.
-- `Settings` bietet einen aktiven Self-Test fuer `connect`/`stream`/`heartbeat`/`event` als OK/Fail-Matrix inkl. Endpoint/Methode.
-- Heartbeat ist bei aktivem Stream kein Hard-Failure-Trigger mehr; Session bleibt dabei hoechstens `degraded` statt `failed`.
-- Reconnects werden nur durch Stream-Abbruch oder explizite Connect-Fehler ausgeloest.
-- Emit/Sync bleiben unter `heartbeat degraded` funktionsfaehig, solange Stream-Verbindung aktiv ist.
-- Stream-State-Transitionen sind diagnostisch nachvollziehbar geloggt (`open`/`degraded`/`closed`/`reconnecting` mit Ursache).
-- Feldsetup verbindet und synchronisiert unter normalem WLAN stabil ohne terminalen Retry-Zustand.
-- Audio ist technisch nachweisbar `final-output` only.
-- Plan-5-Artefakte und Verifikationsnachweise sind konsistent synchronisiert.
+- Final-Output verletzt nie den FX-only-Vertrag (kein Board-Bild, keine Raum-Polygone, keine Raumnamen).
+- Aenderungen von Handy werden sofort auf PC und Beamer sichtbar (und umgekehrt fuer Controller-Aktionen).
+- Align-Mode ist global steuerbar und wirkt nur auf den Final-Output-Polygonlayer.
+- Audio ist strikt auf Final-Output begrenzt.
+- Persistente Serverlogs enthalten Session-, State- und Error-Ereignisse mit Kontext.
+- Phase-5-Artefakte sowie globale Planungsdateien sind konsistent synchronisiert.
 
-## Deferred (Post-Phase-5)
+## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
+- Cloud-/WAN-Mehrstandortbetrieb
 - Vollwertiger Effekt-Editor
