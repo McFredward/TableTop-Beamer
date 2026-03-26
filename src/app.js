@@ -3585,6 +3585,10 @@ function syncPolygonEditorStatus() {
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, room.id);
+  if (!areRoomVerticesEditable()) {
+    polygonEditorStatus.textContent = `Polygon editor (${room.name ?? room.label}): vertices hidden (editing disabled)`;
+    return;
+  }
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
@@ -3673,6 +3677,10 @@ function syncPolygonEditorPanel() {
 
 function syncShipPolygonEditorStatus() {
   const points = getShipPolygonPoints(state.boardId);
+  if (!arePlayAreaVerticesEditable()) {
+    shipPolygonEditorStatus.textContent = "Ship polygon editor: vertices hidden (editing disabled)";
+    return;
+  }
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
@@ -3727,6 +3735,14 @@ function syncShipPolygonEditorPanel() {
   syncShipPolygonVertexSelect();
   syncShipPolygonEdgeSelect();
   syncShipPolygonEditorStatus();
+}
+
+function areRoomVerticesEditable() {
+  return state.polygonEditor.roomVerticesVisible !== false;
+}
+
+function arePlayAreaVerticesEditable() {
+  return state.polygonEditor.playAreaVerticesVisible !== false;
 }
 
 function syncOutsideFxPanel() {
@@ -3873,7 +3889,7 @@ function renderShipPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0 || !arePlayAreaVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -3918,7 +3934,7 @@ function renderShipPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0 || !arePlayAreaVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -3990,7 +4006,7 @@ function renderPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -4036,7 +4052,7 @@ function renderPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0) {
+      if (isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -4599,7 +4615,7 @@ function renderRoomOverlay() {
       renderRoomOverlay();
     });
     polygon.addEventListener("pointerdown", (event) => {
-      if (state.uiView !== "settings" || isPanArbitrating() || event.button !== 0) {
+      if (state.uiView !== "settings" || isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
         return;
       }
       if (
@@ -6250,6 +6266,14 @@ polygonRoomSelect.addEventListener("change", () => {
 
 showRoomVerticesInput?.addEventListener("change", () => {
   state.polygonEditor.roomVerticesVisible = showRoomVerticesInput.checked;
+  if (!showRoomVerticesInput.checked) {
+    if (state.polygonEditor.dragVertexIndex !== null) {
+      finishPolygonVertexDrag(null, { cancel: true });
+    }
+    if (state.polygonEditor.dragAreaPointerId !== null) {
+      finishPolygonAreaDrag(null, { cancel: true });
+    }
+  }
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = `Status: Room vertices ${showRoomVerticesInput.checked ? "shown" : "hidden"}`;
@@ -6257,12 +6281,18 @@ showRoomVerticesInput?.addEventListener("change", () => {
 
 showPlayAreaVerticesInput?.addEventListener("change", () => {
   state.polygonEditor.playAreaVerticesVisible = showPlayAreaVerticesInput.checked;
+  if (!showPlayAreaVerticesInput.checked && state.shipPolygonEditor.dragVertexIndex !== null) {
+    finishShipPolygonVertexDrag(null, { cancel: true });
+  }
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = `Status: Play Area vertices ${showPlayAreaVerticesInput.checked ? "shown" : "hidden"}`;
 });
 
 polygonVertexSelect.addEventListener("change", () => {
+  if (!areRoomVerticesEditable()) {
+    return;
+  }
   state.polygonEditor.selectedVertexIndex = Math.max(0, Number(polygonVertexSelect.value) || 0);
   state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
   syncPolygonEdgeSelect(getActivePolygonRoomId(state.boardId));
@@ -6271,6 +6301,9 @@ polygonVertexSelect.addEventListener("change", () => {
 });
 
 polygonEdgeSelect.addEventListener("change", () => {
+  if (!areRoomVerticesEditable()) {
+    return;
+  }
   state.polygonEditor.selectedEdgeIndex = Math.max(0, Number(polygonEdgeSelect.value) || 0);
   renderRoomOverlay();
   syncPolygonEditorStatus();
@@ -6279,6 +6312,10 @@ polygonEdgeSelect.addEventListener("change", () => {
 polygonInsertVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
     triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
+    return;
+  }
+  if (!areRoomVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Room vertices hidden - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6308,6 +6345,10 @@ polygonDeleteVertexButton.addEventListener("click", () => {
     triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
     return;
   }
+  if (!areRoomVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Room vertices hidden - polygon edit paused";
+    return;
+  }
   const roomId = getActivePolygonRoomId(state.boardId);
   if (!roomId) {
     return;
@@ -6333,6 +6374,10 @@ polygonDeleteVertexButton.addEventListener("click", () => {
 polygonResetRoomButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
     triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
+    return;
+  }
+  if (!areRoomVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Room vertices hidden - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6371,6 +6416,9 @@ polygonFocusRoomButton.addEventListener("click", () => {
 });
 
 shipPolygonVertexSelect.addEventListener("change", () => {
+  if (!arePlayAreaVerticesEditable()) {
+    return;
+  }
   state.shipPolygonEditor.selectedVertexIndex = Math.max(0, Number(shipPolygonVertexSelect.value) || 0);
   state.shipPolygonEditor.selectedEdgeIndex = state.shipPolygonEditor.selectedVertexIndex;
   syncShipPolygonEdgeSelect();
@@ -6379,6 +6427,9 @@ shipPolygonVertexSelect.addEventListener("change", () => {
 });
 
 shipPolygonEdgeSelect.addEventListener("change", () => {
+  if (!arePlayAreaVerticesEditable()) {
+    return;
+  }
   state.shipPolygonEditor.selectedEdgeIndex = Math.max(0, Number(shipPolygonEdgeSelect.value) || 0);
   renderRoomOverlay();
   syncShipPolygonEditorStatus();
@@ -6387,6 +6438,10 @@ shipPolygonEdgeSelect.addEventListener("change", () => {
 shipPolygonInsertVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
     triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
+    return;
+  }
+  if (!arePlayAreaVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Play Area vertices hidden - polygon edit paused";
     return;
   }
   const points = getShipPolygonPoints(state.boardId);
@@ -6412,6 +6467,10 @@ shipPolygonDeleteVertexButton.addEventListener("click", () => {
     triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
     return;
   }
+  if (!arePlayAreaVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Play Area vertices hidden - polygon edit paused";
+    return;
+  }
   const points = getShipPolygonPoints(state.boardId);
   if (points.length <= 3) {
     triggerFeedback.textContent = "Status: Ship polygon requires at least 3 vertices";
@@ -6433,6 +6492,10 @@ shipPolygonDeleteVertexButton.addEventListener("click", () => {
 shipPolygonResetButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
     triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
+    return;
+  }
+  if (!arePlayAreaVerticesEditable()) {
+    triggerFeedback.textContent = "Status: Play Area vertices hidden - polygon edit paused";
     return;
   }
   setShipPolygonPoints(state.boardId, SHIP_POLYGON_DEFAULT);
@@ -6515,6 +6578,10 @@ roomOverlay.addEventListener("pointermove", (event) => {
     return;
   }
   if (state.shipPolygonEditor.dragVertexIndex !== null && state.uiView === "settings") {
+    if (!arePlayAreaVerticesEditable()) {
+      finishShipPolygonVertexDrag(event, { cancel: true });
+      return;
+    }
     if (state.shipPolygonEditor.dragPointerId !== event.pointerId) {
       return;
     }
@@ -6529,6 +6596,10 @@ roomOverlay.addEventListener("pointermove", (event) => {
     return;
   }
   if (state.polygonEditor.dragAreaPointerId !== null && state.uiView === "settings") {
+    if (!areRoomVerticesEditable()) {
+      finishPolygonAreaDrag(event, { cancel: true });
+      return;
+    }
     if (state.polygonEditor.dragAreaPointerId !== event.pointerId) {
       return;
     }
@@ -6555,6 +6626,10 @@ roomOverlay.addEventListener("pointermove", (event) => {
     return;
   }
   if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
+    return;
+  }
+  if (!areRoomVerticesEditable()) {
+    finishPolygonVertexDrag(event, { cancel: true });
     return;
   }
   if (state.polygonEditor.dragPointerId !== event.pointerId) {
