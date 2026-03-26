@@ -88,7 +88,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T65 [P0] Trigger-Option `stagger start` integrieren: optionaler kurzer randomisierter Startversatz je Cluster-Room; deaktiviert = synchroner Start.
 - [x] DONE P6-T66 [P0] HF8-Regression + Artefakt-Sync dokumentieren: Draft-Persistenz + Cluster-CRUD + Sync/Stagger-Start + Guards und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF8-Stand bringen.
 
-## Plan 6-3 - Hardening + Operator Verification (nach 6-HF8)
+## Plan 6-HF9 - Target Auto+Manual Parity Hotfix (execute-ready, vor 6-3)
+- [x] DONE P6-T67 [P0] Draft-Vertrag praezisieren und umsetzen: Animation + Parameter bleiben ueber Room-/Target-Wechsel stabil, `target` ist explizit ausgenommen.
+- [x] DONE P6-T68 [P0] Raumklick-Target-Autofill liefern: Board-Klick auf Room setzt `target` deterministisch auf den geklickten Room ohne Parameter-/Animationsreset.
+- [x] DONE P6-T69 [P0] Target-Dropdown-Availability fixen: Dropdown bleibt immer manuell bedienbar (auch ohne aktive Room-Selektion, inkl. Room/Cluster-Optionen).
+- [x] DONE P6-T70 [P0] Auto+Manual-Flow haerten: nach Autofill bleibt manueller Target-Wechsel auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
+- [x] DONE P6-T71 [P0] HF9-Regression + Artefakt-Sync dokumentieren: target exception + room-click autofill + always-manual dropdown + override parity und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF9-Stand bringen.
+
+## Plan 6-3 - Hardening + Operator Verification (nach 6-HF9)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).

@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-HF8
+- Last Executed Plan: 6-HF9
 - Planned Next Execution: 6-3
-- Last Execution Summary: `.planning/phases/phase-06/6-HF8-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF9-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -370,6 +370,14 @@
 - Trigger-Option-Regel fuer Phase 6 (Plan 6-HF8): `stagger start` ist pro Trigger schaltbar (`off` = synchron, `on` = kurzer randomisierter Room-Versatz).
 - Artefakt-Regel fuer Phase 6 (Plan 6-HF8): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
 - Phase-6 Plan 6-HF8 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Neues verpflichtendes Feedback fuer Phase 6 ist gesetzt (nach HF8): Draft-Persistenz wird praezisiert (`animation + parameter` stabil, `target` ausgenommen); Room-Klick muss `target` automatisch auf den geklickten Room setzen.
+- Target-Regel fuer Phase 6 (Plan 6-HF9): `target`-Dropdown bleibt immer manuell bedienbar, auch ohne aktive Room-Selektion; selection-basierte Deaktivierung ist unzulaessig.
+- Auto+Manual-Regel fuer Phase 6 (Plan 6-HF9): nach Room-Autofill bleibt manueller Wechsel auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
+- Artefakt-Regel fuer Phase 6 (Plan 6-HF9): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Phase-6 Plan 6-HF9 ist als priorisierte execute-ready P0-Welle vor Plan 6-3 gesetzt.
+- Plan-6-HF9 execution: Draft-Persistenz bleibt fuer Animation + Parameter stabil; `target` ist explizit aus Selection-Lifecycle-Resets ausgenommen.
+- Plan-6-HF9 execution: Board-Raumklick setzt `target` deterministisch auf den geklickten Raum; Target-Dropdown bleibt auch ohne aktive Room-Selektion manuell bedienbar.
+- Plan-6-HF9 execution: Auto+Manual-Target-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; Plan 6-3 ist freigegeben.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

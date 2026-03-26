@@ -33,6 +33,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Konsequenz: Plan 6-HF8 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF7 und 6-3 gesetzt.
 - Ziel von 6-HF8: persistente Draft-Voreinstellungen ueber Room-Wechsel sicherstellen und vollstaendige Cluster-Bedienung inkl. CRUD + Trigger-Option `stagger start` (an/aus) execute-ready liefern.
 
+## Hotfix Trigger (Neues verpflichtendes Feedback nach 6-HF8)
+- Neues verpflichtendes Feedback praezisiert den Target-/Draft-Flow als P0-Hotfix: Draft-Persistenz bleibt fuer Animation + Parameter stabil, `target` ist explizit ausgenommen und wird bei Raumklick automatisch auf den geklickten Raum gesetzt.
+- Konsequenz: Plan 6-HF9 ist als verpflichtende priorisierte Hotfix-Welle zwischen 6-HF8 und 6-3 gesetzt.
+- Ziel von 6-HF9: auto+manual Target-Paritaet execute-ready liefern (Raumklick => `target=room`, danach jederzeit manuelle Umstellung auf Room/Cluster, Dropdown nie deaktiviert - auch ohne selektierten Raum).
+
 ## Verbindliche Architekturentscheidungen
 - Board-Katalog ist kanonische Quelle fuer Board-Auswahl und Runtime-Kontext (kein hardcoded A/B-Pfad).
 - Board-Import erfolgt datengetrieben ueber ein versioniertes Importformat mit serverseitiger Validierung.
@@ -67,6 +72,10 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Room-Delete nutzt persistente Tombstones im Room-Katalog (board-spezifisch), damit geloeschte Rooms bei Global-Defaults-Merge/Overlay nicht rehydratisiert werden.
 - Defaults-Merge priorisiert Tombstones gegen Legacy/Default-Room-Quellen; Move/Update-Persistenz fuer nicht geloeschte Rooms bleibt unveraendert.
 - Room-Animation-Draft-State ist board-/sessionweit persistent und nicht an den aktuell selektierten Room gebunden: zuletzt gewaehltes Animationstemplate und Parameterwerte bleiben bei Room-Wechsel als aktive Voreinstellung erhalten.
+- Draft-Persistenz bleibt fuer Animation + Trigger-Parameter stabil; `target` ist der einzige ausgenommene Draft-Baustein und wird nicht als room-gebundene Persistenzquelle behandelt.
+- Board-Raumklick setzt `target` deterministisch auf den geklickten Room (`auto target sync`), ohne Animation-/Parameter-Drafts zu resetten.
+- `target`-Dropdown bleibt jederzeit manuell bedienbar (auch ohne aktive Room-Selektion); ein deaktivierter Zustand aufgrund fehlender Selection ist unzulaessig.
+- Auto- und Manual-Flow sind kombinierbar: nach Room-Autofill darf der Operator `target` jederzeit auf einen anderen Room oder Cluster umstellen, unabhaengig vom Selection-State.
 - Draft-Reset erfolgt nur explizit (z. B. ueber bewusstes UI-Reset) und nicht implizit durch Target-/Room-Navigation oder Trigger-Start.
 - Cluster sind als vollwertige board-spezifische Domainobjekte in der Operator-UX verwaltbar (create/edit/delete) und nicht nur passiv ladbar.
 - Trigger-Konfiguration unterstuetzt pro Ausloesung `staggerStart` als explizite Option: `off` startet alle Cluster-Raeume zeitgleich, `on` startet mit kurzem randomisiertem Versatz pro Room.
@@ -122,6 +131,11 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Trigger-Option-Hotfix liefern: pro Trigger eine Option `stagger start` integrieren (random short delay je Room, optional deaktivierbar fuer synchronen Start).
 - Regression fuer Draft-Persistenz + Cluster-CRUD + Cluster-Start (sync/staggered) + bestehende Guards als Pflichtmatrix dokumentieren.
 - Planungsartefakte inkl. globaler Tracking-Dateien auf HF8-Stand synchronisieren und execute-ready halten.
+- Target-Autofill-Hotfix liefern: Board-Raumklick setzt `target` sofort auf den geklickten Room, ohne Animation-/Parameter-Drafts zu veraendern.
+- Target-Manual-Hotfix liefern: `target`-Dropdown bleibt immer aktiv und manuell bedienbar (auch ohne Selection, inkl. Room/Cluster-Auswahl).
+- Auto+Manual-Paritaet-Hotfix liefern: manueller Target-Wechsel bleibt nach Autofill jederzeit moeglich und ist nicht an Selection-State gekoppelt.
+- Regression fuer Draft-Ausnahme `target` + Room-Click-Autofill + always-enabled manual target + cluster/room manual override als Pflichtmatrix dokumentieren.
+- Planungsartefakte inkl. globaler Tracking-Dateien auf HF9-Stand synchronisieren und execute-ready halten.
 
 ## Out of Scope
 - Mehrsprachiges i18n-System mit Laufzeit-Sprachumschaltung.
@@ -147,7 +161,8 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 15. Edge+Deletion-Hotfix ausrollen: Edge-Bubble-Selection persistent halten und Tombstone-Delete-Persistenz gegen Defaults-Rehydrate absichern.
 16. Draft-Persistenz-Hotfix ausrollen: room-unabhaengige Trigger-Drafts (Animation + Parameter) ueber Room-/Target-Wechsel stabil halten.
 17. Cluster-UX-Hotfix ausrollen: Cluster CRUD in Operator-Flow + Target-Selection + Cluster-Startoption `stagger start` integrieren.
-18. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Cluster sync/stagger) dokumentieren.
+18. Target-Flow-Paritaet-Hotfix ausrollen: Room-Click setzt `target` automatisch auf Room, `target` bleibt immer manuell editierbar (Room/Cluster, auch ohne Selection), Draft-Persistenz bleibt fuer Animation/Parameter stabil.
+19. End-to-End-Regression (Import -> Select -> Trigger -> Save/Reload/Restart, inkl. Draft-Persistenz + Target-Auto/Manual-Paritaet + Cluster sync/stagger) dokumentieren.
 
 ## Milestones (priorisiert)
 1. M1 Catalog Core: boardspiel-agnostischer Katalog mit dynamischer Board-Auswahl.
@@ -163,12 +178,14 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 11. M11 Pointer Arbitration Regression Closure: no-move short-click selektiert persistent; Guards bleiben intakt.
 12. M12 Vertex Selection Lifecycle Hotfix: Vertex-Click behaelt Room-Selektion/Handles persistent; direkter Vertex-Edit/Delete-Flow ist stabil.
 13. M13 Optional Drag-UX Guard: Text-Selection waehrend Room-Drag ist unterdrueckt, ohne Edit-/Input-Nebenwirkungen.
-14. M14 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
+14. M14 Selection Hardening Gate: HF4/HF5/HF6-Lifecycle-Regression bleibt artefaktbasiert ohne Re-Open.
 15. M15 Edge-Bubble Arbitration Hotfix: Edge-Click behaelt persistente Room-Selection und aktive Edge fuer Insert-Vertex ohne Re-Select.
 16. M16 Room Deletion Tombstone Hotfix: geloeschte Rooms bleiben ueber Save/Reload/Defaults-Merge dauerhaft geloescht.
 17. M17 Draft Persistence Hotfix: zuletzt gewaehltes Animationstemplate und Parameterwerte bleiben ueber Room-/Target-Wechsel als aktive Trigger-Voreinstellung erhalten.
 18. M18 Cluster UX Completion Hotfix: Cluster koennen erstellt/bearbeitet/geloescht werden und sind als `target` voll nutzbar.
 19. M19 Cluster Stagger Start Hotfix: Cluster-Start unterstuetzt pro Trigger `stagger start` (an/aus) fuer randomisierten Kurzversatz vs synchronen Start.
+20. M20 Target Auto+Manual Parity Hotfix: Room-Click setzt `target` automatisch auf Room; manuelle Umstellung auf Room/Cluster bleibt jederzeit verfuegbar (auch ohne Selection).
+21. M21 Hardening: Artefaktbasierte Regression ohne P0-Blocker.
 
 ## Verbindliches Feedback (Phase 6)
 - Das Produkt muss boardspiel-agnostisch werden; Nemesis-only-Hardcoding ist nicht mehr zulaessig.
@@ -195,6 +212,7 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Neues verpflichtendes Feedback (Vertex-Klick deselektiert Room, Vertex-Delete instabil, Textmarkierung bei Room-Drag) wird als Plan 6-HF6 (P0/P1) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Edge-Bubble deselect + delete persistence gegen defaults rehydrate) wird als Plan 6-HF7 (P0) vor Plan 6-3 ausgefuehrt.
 - Neues verpflichtendes Feedback (Draft-Reset bei Room-Wechsel + fehlender Cluster-UX-Flow inkl. stagger start) wird als Plan 6-HF8 (P0) vor Plan 6-3 ausgefuehrt.
+- Neues verpflichtendes Feedback (Draft-Persistenz praezisiert: alles stabil ausser `target`, Room-Click-Autofill + always-manual target dropdown) wird als Plan 6-HF9 (P0) vor Plan 6-3 ausgefuehrt.
 
 ## Definition of Done
 - Hardcoded Board A/B ist aus Auswahlpfaden entfernt; Boardliste kommt aus dem Katalog.
@@ -232,6 +250,9 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - Room-Animation-Drafts bleiben bei Room-/Target-Wechsel erhalten; Dropdown und Parameter resetten nicht implizit auf Defaultwerte.
 - Cluster koennen in der UX erstellt, bearbeitet und geloescht werden (beliebige Room-Mengen) und sind in `target` waehlbar.
 - Cluster-Start triggert in allen enthaltenen Rooms; `stagger start` aus startet zeitgleich, `stagger start` an nutzt kurzen randomisierten Startversatz pro Room.
+- `target` bleibt vom Draft-Persistenzvertrag ausgenommen: Room-Klick setzt `target` auto auf den geklickten Room, waehrend Animation + Parameter unveraendert bleiben.
+- `target`-Dropdown ist nie selection-bedingt deaktiviert und bleibt auch ohne aktive Room-Selektion manuell bedienbar.
+- Nach Auto-Set durch Room-Klick kann der Operator `target` jederzeit manuell auf Room oder Cluster umstellen, unabhaengig vom Selection-State.
 - Play-Area-Selection/-Editing zeigt keine Regression durch Room-Copy/Keyboard/Deselection.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Clipping, Persistenz, Live-Sync und Final-Output.
 - Phase-6-Artefakte (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE`) sind konsistent mit globalen Planungsdateien (`STATE/ROADMAP/CURRENT_PHASE`) synchronisiert.
@@ -260,3 +281,13 @@ Phase 6 transformiert TT Beamer von einem Nemesis-spezifischen Setup zu einer bo
 - HF8 ist umgesetzt: Room-Animation-Drafts bleiben ueber Room-/Target-Wechsel sowie nach Trigger-Start als aktive Voreinstellung erhalten.
 - Cluster-UX ist vollstaendig: create/edit/delete inkl. board-spezifischer Persistenz und room-assignment-management sind im Operator-Flow verfuegbar.
 - Trigger-Option `stagger start` ist umgesetzt (`off = synchron`, `on = kurzer randomisierter Room-Offset`) und in `P6-T66-REGRESSION.md` als PASS dokumentiert.
+
+## Plan Update - 6-HF9 Execute-Ready (P0)
+- Neues verpflichtendes Feedback nach HF8 praezisiert den Target-Flow: Draft-Persistenz bleibt fuer Animation + Parameter stabil, `target` ist ausgenommen und wird bei Room-Klick automatisch auf den geklickten Raum gesetzt.
+- Gleichzeitig bleibt `target` jederzeit manuell waehlbar (Room/Cluster), auch ohne aktive Room-Selektion; ein deaktiviertes Target-Dropdown ist nicht mehr zulaessig.
+- HF9 wird vor Plan 6-3 ausgefuehrt; Hardening startet erst nach PASS fuer Target-Autofill + always-manual Target-Selection + Draft-Non-Target-Persistenz.
+
+## Execution Update - 6-HF9 Completed (P0)
+- HF9 ist umgesetzt: Draft-Persistenz bleibt stabil fuer Animation + Parameter, waehrend `target` explizit aus dem Selection-Lifecycle-Reset ausgeschlossen ist.
+- Board-Raumklick setzt `target` deterministisch auf den geklickten Raum; Target-Dropdown bleibt auch bei `selection = none` manuell bedienbar.
+- Auto+Manual-Paritaet ist mit `P6-T71-REGRESSION.md` als PASS nachgewiesen; Plan 6-3 ist als naechste Welle freigegeben.

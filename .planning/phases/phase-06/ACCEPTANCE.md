@@ -16,6 +16,9 @@
 - Edge-selection-integrity: Edge-Bubble-Interaktion folgt Vertex-Paritaet; Room-Selektion bleibt persistent und aktive Edge bleibt editierbar.
 - Deletion-tombstone-integrity: geloeschte Rooms bleiben auch nach Defaults-Rehydrate dauerhaft geloescht.
 - Draft-persistence-integrity: Room-Animation-Draft (Animation + Parameter) bleibt bei Room-/Target-Wechsel als aktive Voreinstellung erhalten.
+- Target-auto-sync-integrity: Room-Click setzt `target` deterministisch auf den geklickten Room, ohne Animation-/Parameter-Drafts zu beeinflussen.
+- Target-manual-availability-integrity: `target`-Dropdown bleibt immer manuell bedienbar (auch ohne aktive Room-Selektion).
+- Target-auto-manual-parity-integrity: nach Room-Autofill bleibt manuelle Umstellung auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
 - Cluster-ux-integrity: Cluster sind im Operator-Flow vollstaendig CRUD-faehig und board-spezifisch persistiert.
 - Cluster-stagger-integrity: Cluster-Start bietet pro Trigger `stagger start` (an/aus) mit deterministischer On/Off-Semantik (kurzer randomisierter Versatz vs synchron).
 
@@ -72,6 +75,11 @@
 - Draft-Animation-Persistence-Test: nach Wechsel zwischen mehreren Rooms bleibt im Trigger-Dropdown die zuletzt gewaehlte Animation erhalten (kein Default-Reset).
 - Draft-Parameter-Persistence-Test: geaenderte Parameter (`speed`, `opacity`, `soundVolume`, etc.) bleiben beim Room-/Target-Wechsel als aktuelle Trigger-Voreinstellung erhalten.
 - Draft-After-Start-Persistence-Test: nach Trigger-Start bleiben Draft-Werte fuer naechste Starts erhalten, bis der Operator sie aktiv aendert.
+- Draft-Target-Exception-Test: Draft-Persistenz umfasst Animation + Parameter, aber nicht `target`; Target-Aenderungen erzeugen keinen impliziten Draft-Reset anderer Felder.
+- Room-Click-Target-Autofill-Test: Klick auf Room setzt `target` sofort auf diesen Room (auch bei zuvor anderem Room/Cluster-Target).
+- Target-Dropdown-Always-Enabled-Test: `target` bleibt bedienbar, auch wenn kein Room selektiert ist (`selection = none`).
+- Target-Manual-Override-After-Autofill-Test: nach Room-Autofill kann `target` sofort manuell auf anderen Room oder Cluster umgestellt werden.
+- Target-Manual-Override-Selection-Independent-Test: manueller Target-Wechsel bleibt moeglich, auch wenn Selection-State nicht dem aktuell eingestellten Target entspricht.
 - Cluster-CRUD-Create-Edit-Delete-Test: Cluster mit beliebigen Room-Mengen lassen sich erstellen, umbenennen/anpassen und loeschen; Persistenz ueber Save/Reload/Restart ist stabil.
 - Target-Cluster-Selection-Test: Cluster erscheinen in `target` als waehlbare Ziele neben Rooms und behalten konsistente Zielidentitaet.
 - Cluster-Start-Synchronous-Test: bei `stagger start = off` starten alle Cluster-Room-Instanzen zeitgleich.
@@ -120,10 +128,14 @@
 - Nach P6-T61..P6-T62: Room-Draft-Animation + Parameter bleiben ueber Room-/Target-Wechsel und Trigger-Starts stabil erhalten.
 - Nach P6-T63..P6-T64: Cluster-CRUD + target selection/fanout sind funktionsstabil ohne Einzelraumklick-Regression.
 - Nach P6-T65: `stagger start` ist pro Trigger stabil (off = synchron, on = kurzer randomisierter Versatz je Room).
-- Nach P6-T66: HF8-Kombinationsmatrix ist PASS, Artefakte sind HF8-konsistent und Plan 6-3 ist freigegeben.
+- Nach P6-T66: HF8-Kombinationsmatrix ist PASS und Artefakte sind HF8-konsistent; nachgelagertes Pflicht-Feedback steuert in Plan 6-HF9.
+- Nach P6-T67: Draft-Vertrag ist geschlossener definiert (`animation + parameter` persistent, `target` explizit ausgenommen).
+- Nach P6-T68..P6-T69: Room-Click-Target-Autofill ist deterministisch und Target-Dropdown bleibt auch ohne Selection manuell bedienbar.
+- Nach P6-T70: Auto+Manual-Paritaet ist stabil; manueller Target-Wechsel auf Room/Cluster bleibt jederzeit moeglich.
+- Nach P6-T71: HF9-Kombinationsmatrix ist PASS (`P6-T71-REGRESSION.md`), Artefakte sind HF9-konsistent und Plan 6-3 ist freigegeben.
 
 ## Definition of Done
-- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60 und P6-T61..P6-T66 sind abgeschlossen.
+- Alle P0-Tasks P6-T1..P6-T13, P6-T18..P6-T22, P6-T23..P6-T29, P6-T30..P6-T34, P6-T35..P6-T38, P6-T39..P6-T43, P6-T44..P6-T48, P6-T49..P6-T51, P6-T53..P6-T54, P6-T55..P6-T60, P6-T61..P6-T66 und P6-T67..P6-T71 sind abgeschlossen.
 - Dynamischer Board-Katalog ersetzt hardcoded Board-A/B-Pfade vollstaendig.
 - Eigene Boards sind importierbar, serverseitig persistent und nach Restart verfuegbar.
 - Room-Clusters sind als Dropdown-Ziele nutzbar; Gruppenstarts funktionieren ohne Einzelraumklick-Regression.
@@ -151,6 +163,10 @@
 - Klick auf leere Boardflaeche setzt Room-Selektion auf `none`; Play-Area-Verhalten bleibt unveraendert.
 - Geloeschte Rooms bleiben ueber Save/Reload/Restart/Defaults-Apply dauerhaft geloescht; Defaults-Merge rehydriert keine getombstoneten Rooms.
 - Room-Animation-Drafts bleiben ueber Room-/Target-Wechsel erhalten: zuletzt gewaehlte Animation sowie Parameterwerte resetten nicht implizit.
+- Draft-Persistenz ist praezisiert: Animation + Parameter bleiben stabil, `target` ist explizit ausgenommen.
+- Room-Klick setzt `target` automatisch auf den geklickten Room, ohne Animation-/Parameter-Drafts zu veraendern.
+- `target`-Dropdown bleibt immer manuell bedienbar (auch bei `selection = none`) und kann jederzeit auf Room/Cluster umgestellt werden.
+- Auto- und Manual-Target-Flow bleiben kombinierbar: nach Room-Autofill ist manueller Override unabhaengig vom Selection-State moeglich.
 - Cluster sind in der UX vollstaendig verwaltbar (create/edit/delete), board-spezifisch persistent und als `target` nutzbar.
 - Cluster-Start unterstuetzt pro Trigger `stagger start`: deaktiviert startet synchron, aktiviert nutzt kurzen randomisierten Startversatz je Room.
 - Keine Regression in Trigger/Edit/Stop/Clear-All, Running-Liste, Persistenz, Live-Sync und Final-Output.
@@ -167,4 +183,8 @@
 
 ## Evidence Update - HF8 Completed
 - HF8-Nachweis ist erbracht: `P6-T66-REGRESSION.md` dokumentiert PASS fuer draft animation/parameter persistence, cluster CRUD, cluster target fanout und `stagger start` on/off semantics.
-- Das HF8-Pflichtgate vor Plan 6-3 ist geschlossen; Plan 6-3 ist wieder freigegeben.
+- Das HF8-Pflichtgate war geschlossen; neues verpflichtendes Feedback oeffnet vor Plan 6-3 ein zusaetzliches HF9-Gate.
+
+## Evidence Update - HF9 Completed
+- HF9-Nachweis ist erbracht: `P6-T71-REGRESSION.md` dokumentiert PASS fuer draft-target exception, room-click target autofill, always-manual target dropdown und selection-unabhaengige manual overrides.
+- Das HF9-Pflichtgate vor Plan 6-3 ist geschlossen.

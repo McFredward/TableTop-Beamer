@@ -74,7 +74,14 @@
 4. P0 danach: P6-T65 (`stagger start` pro Trigger integrieren: off synchron, on kurzer randomisierter Versatz je Room).
 5. P0 Abschluss: P6-T66 (HF8-Kombinationsmatrix + Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
-## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF8)
+## Priority Execution - Plan 6-HF9 (verbindlich, P0-Hotfix vor 6-3)
+1. P0 zuerst: P6-T67 (Draft-Vertrag praezisieren: Animation + Parameter bleiben persistent, `target` explizit ausgenommen).
+2. P0 danach: P6-T68 (Room-Click-Autofill: Board-Raumklick setzt `target` deterministisch auf den geklickten Room ohne Draft-Reset).
+3. P0 danach: P6-T69 (Target-Dropdown always enabled: manuelle Bedienung auch ohne aktive Room-Selektion sicherstellen).
+4. P0 danach: P6-T70 (Auto+Manual-Paritaet absichern: nach Autofill jederzeit manuelle Umstellung auf Room/Cluster, selection-unabhaengig).
+5. P0 Abschluss: P6-T71 (HF9-Kombinationsmatrix + Artefakt-Sync fuer PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+## Priority Execution - Plan 6-3 (verbindlich, nach 6-HF9)
 1. P1 zuerst: P6-T14 (Import-Konfliktstrategie finalisieren und Operator-Feedback absichern).
 2. P1 danach: P6-T15..P6-T16 (Negativtests + Multi-Board-Soak fuer Import/Cluster/Migration).
 3. P1 Abschluss: P6-T17 (formale Operator-E2E-Abnahme im Realsetup).
@@ -116,7 +123,12 @@
 - Kein Weitergehen zu P6-T64+, bevor P6-T63 Cluster-CRUD mit board-spezifischer Persistenz regressionsfrei bestaetigt.
 - Kein Weitergehen zu P6-T65+, bevor P6-T64 target/fanout fuer Cluster ohne Einzelraumklick-Regression bestaetigt.
 - Kein Weitergehen zu P6-T66+, bevor P6-T65 `stagger start` on/off-Semantik (`off=sync`, `on=random short delay`) regressionsfrei bestaetigt.
-- Kein Weitergehen zu P6-T14+, bevor P6-T66 die HF8-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T67+, bevor P6-T66 die HF8-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
+- Kein Weitergehen zu P6-T68+, bevor P6-T67 den Draft-Vertrag (`target` ausgenommen) regressionsfrei nachweist.
+- Kein Weitergehen zu P6-T69+, bevor P6-T68 Room-Click-Autofill ohne Animation-/Parameter-Reset bestaetigt.
+- Kein Weitergehen zu P6-T70+, bevor P6-T69 den always-enabled Target-Dropdown auch bei `selection=none` bestaetigt.
+- Kein Weitergehen zu P6-T71+, bevor P6-T70 selection-unabhaengige Manual-Overrides nach Room-Autofill regressionsfrei bestaetigt.
+- Kein Weitergehen zu P6-T14+, bevor P6-T71 die HF9-Kombinationsmatrix inkl. Artefakt-Sync abgeschlossen hat.
 - Kein Phase-6-Exit ohne Migration-Idempotenznachweis und Reload/Restart-Paritaet.
 
 ## Update Rules
@@ -143,3 +155,13 @@
 - Draft persistence is closed: room animation draft selection + parameters remain stable across room/target switch and post-start flows.
 - Cluster UX is closed: Settings now supports cluster create/edit/delete with board-scoped persistence and refreshed room/cluster target options.
 - Cluster start semantics are closed: optional `stagger start` is implemented (`off = synchronous`, `on = short randomized offset`); combined evidence PASS in `P6-T66-REGRESSION.md`.
+
+## Plan Update - 6-HF9 Execute-Ready (P0)
+- New mandatory feedback introduces a new P0 gate before hardening: room click must auto-set `target` to the clicked room, while draft persistence explicitly excludes `target` and keeps animation/parameters stable.
+- Target dropdown must remain manually operable at all times, including when no room is selected.
+- Plan 6-3 is postponed until HF9 passes with combined regression evidence and full artifact sync.
+
+## Execution Update - 6-HF9 Completed (P0)
+- Draft contract is now explicit and stable: animation + parameter draft values stay persistent while `target` is excluded from selection-lifecycle resets.
+- Room click now auto-fills `target` to the clicked room, and target dropdown stays manually operable even when `selection = none`.
+- Manual room/cluster target override remains available after autofill and independent from selection state; combined evidence is PASS in `P6-T71-REGRESSION.md`.

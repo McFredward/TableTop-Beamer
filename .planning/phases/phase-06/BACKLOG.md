@@ -14,6 +14,7 @@
 - Vertex Selection Lifecycle Regression Hotfix
 - Edge-Bubble Arbitration + Room Deletion Tombstone Hotfix
 - Draft Persistence + Cluster UX Completion Hotfix
+- Target Auto+Manual Parity Hotfix
 - Legacy Compatibility + Migration
 - Runtime Hardening + Operator Verification
 
@@ -84,6 +85,12 @@
 - P6-S14.4 Target-Flow vervollstaendigen: Cluster als Ziel waehlbar halten und Cluster-Start fuer alle enthaltenen Rooms stabil ausfuehren.
 - P6-S14.5 Trigger-Option `stagger start` liefern: pro Trigger optional kurzer randomisierter Room-Startversatz; deaktiviert = synchroner Start.
 - P6-S14.6 HF8-Kombinations-Regression + Artefakt-Sync abschliessen (draft persistence + cluster CRUD + sync/staggered start + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
+
+- P6-S15.1 Draft-Persistenz praezisieren: Animation + Parameter bleiben ueber Room-/Target-Wechsel stabil, `target` ist explizit ausgenommen.
+- P6-S15.2 Target-Autofill erzwingen: Raumklick auf Board setzt `target` sofort auf den geklickten Room, ohne Draft-Parameter zu resetten.
+- P6-S15.3 Target-Dropdown immer manuell bedienbar machen: nie selection-bedingt deaktivieren, auch nicht bei `none`-Selection.
+- P6-S15.4 Auto+Manual-Flow absichern: nach Room-Autofill darf `target` jederzeit manuell auf Room/Cluster umgestellt werden, unabhaengig vom Selection-State.
+- P6-S15.5 HF9-Kombinations-Regression + Artefakt-Sync abschliessen (target autofill + always-manual dropdown + draft-non-target persistence + guards + PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE).
 
 - P6-S5.1 Legacy-Datenanalyse fuer Nemesis, Polygone und Animationsconfigs dokumentieren.
 - P6-S5.2 Load-time Migration in neuen Standard implementieren (idempotent, verlustfrei, rueckwaertskompatibel).
@@ -191,7 +198,17 @@
 - Story P6-S14.6.
   - Ziel: kombinierte HF8-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
 
-## P1 direkt danach (Plan 6-3, nach 6-HF8)
+## Priorisierte Hotfix-Welle 9 (P0) - Plan 6-HF9 execute-ready
+- Story P6-S15.1.
+  - Ziel: Draft-Vertrag ist praezisiert (`animation + parameter` stabil, `target` explizit ausgenommen).
+- Story P6-S15.2 + P6-S15.3.
+  - Ziel: Raumklick setzt `target` automatisch auf Room; Target-Dropdown bleibt immer aktiv/manuell bedienbar (auch ohne Selection).
+- Story P6-S15.4.
+  - Ziel: nach Autofill bleibt manueller Target-Wechsel auf Room/Cluster jederzeit moeglich, unabhaengig vom Selection-State.
+- Story P6-S15.5.
+  - Ziel: kombinierte HF9-Regression und kompletter Artefakt-Sync liefern execute-ready Gate-Closure.
+
+## P1 direkt danach (Plan 6-3, nach 6-HF9)
 - Story P6-S2.4.
   - Ziel: robuste Konfliktstrategie und Import-Hardening fuer produktive Nutzung.
 - Story P6-S5.4 + P6-S6.1 + P6-S6.2.
@@ -216,3 +233,13 @@
 - Room animation drafts are now session-persistent across room/target switches: selected animation and parameter sliders no longer reset implicitly.
 - Cluster UX is complete in Settings (create/edit/delete with board-scoped room assignment persistence), and target flow supports room/cluster selection with deterministic fanout.
 - Optional `stagger start` is active for cluster launches (`off = sync`, `on = short randomized delay`) with regression evidence in `P6-T66-REGRESSION.md`.
+
+## Plan Update - 6-HF9 inserted (P0)
+- Mandatory feedback adds a new P0 gate before hardening: room click must auto-set `target` to the clicked room, while draft persistence remains stable for animation/parameters and explicitly excludes `target`.
+- Target dropdown must remain manually operable at all times (including no active room selection), and manual override to room/cluster must stay available after auto-fill.
+- Backlog flow is updated to execute Plan 6-HF9 before Plan 6-3.
+
+## Execution Update - 6-HF9 completed (P0)
+- Draft contract is closed: animation + parameter drafts persist; `target` is now explicitly excluded from deselection/pointer refresh resets.
+- Room-click target autofill is active and deterministic, and target dropdown remains manually operable even with no active room selection.
+- Auto+manual target parity is verified: manual room/cluster override remains robust after autofill; combined evidence is PASS in `P6-T71-REGRESSION.md`.

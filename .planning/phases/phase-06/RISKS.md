@@ -175,6 +175,21 @@
 - Impact: Hoch, Operator verliert Kontrolle ueber erwartete Timing-Semantik.
 - Gegenmassnahme: explizite Option `stagger start` (on/off), begrenztes Delay-Fenster, getrennte Tests fuer `off=sync` und `on=staggered`.
 
+## R36 Target bleibt unklar Teil des Draft-Persistenzvertrags
+- Risiko: `target` wird zusammen mit Animation/Parametern persistiert oder falsch zurueckgesetzt; Room-Klick-Autofill verhaelt sich inkonsistent.
+- Impact: Kritisch, Operator verliert Kontrolle ueber Zielrouting trotz stabiler Draft-Parameter.
+- Gegenmassnahme: Draft-Vertrag explizit trennen (`animation + parameter` persistent, `target` ausgenommen) und Room-Click-Autofill in Pflichtmatrix verifizieren.
+
+## R37 Target-Dropdown ist selection-gekoppelt deaktiviert
+- Risiko: ohne aktive Room-Selektion ist `target` nicht manuell bedienbar; Cluster-/Room-Targeting wird unnoetig blockiert.
+- Impact: Kritisch, Cluster-Flow und manuelle Zielwahl werden funktional eingeschraenkt.
+- Gegenmassnahme: `target`-Dropdown entkoppeln und always-enabled betreiben, inklusive Tests fuer `selection = none`.
+
+## R38 Auto-Set und Manual-Override kollidieren
+- Risiko: Room-Klick setzt `target` zwar auto, blockiert oder ueberschreibt danach aber manuelle Auswahl auf Room/Cluster.
+- Impact: Kritisch, kombinierter Auto+Manual-Workflow ist instabil und erzeugt Fehlstarts.
+- Gegenmassnahme: klare Prioritaetslogik (`room click => auto set once`, manueller Wechsel jederzeit erlaubt) plus Regression fuer Selection-unabhaengige Overrides.
+
 ## Risk Update - HF6 Closed
 - R19/R20 bleiben als Basisrisiken dokumentiert und fuer HF5-Pfad weiter PASS, sind aber indirekt von Room-vs-Vertex-Arbitration betroffen.
 - R21/R22 bleiben fuer Room-Click/Hold-Pfade geschlossen; R26/R27 sind durch HF6-Arbitration + Vertex-Selection-Fix ebenfalls geschlossen (siehe `P6-T53-REGRESSION.md`).
@@ -190,3 +205,12 @@
 - R32 ist geschlossen: room draft selection + parameter values bleiben stabil ueber room/target switch und post-start.
 - R33/R34 sind geschlossen: cluster CRUD + target/fanout routing sind im Operator-Flow vollstaendig umgesetzt und board-spezifisch persistent.
 - R35 ist geschlossen: `stagger start` liefert klare On/Off-Semantik (`off=sync`, `on=short randomized delay`) ohne Single-Room-Regression.
+
+## Risk Update - HF9 Open (new mandatory feedback)
+- R36..R38 sind als neue P0-Risiken aktiv und blockieren Plan 6-3 bis zur HF9-Closure.
+- Pflichtnachweis fuer Schliessung: kombinierte HF9-Matrix fuer draft-target-exception, room-click target autofill, always-enabled target dropdown und selection-unabhaengige manual overrides.
+
+## Risk Update - HF9 Closed
+- R36 ist geschlossen: draft contract now excludes `target`, while animation + parameter presets remain stable across room/target navigation.
+- R37 ist geschlossen: target dropdown remains manually operable in no-selection state (`selection = none`).
+- R38 ist geschlossen: room-click autofill and manual room/cluster overrides now coexist deterministically without selection-coupled lock-in.
