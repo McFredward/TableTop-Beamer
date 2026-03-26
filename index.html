@@ -75,15 +75,6 @@
           Layout
           <select id="board-select"></select>
         </label>
-        <label>
-          Output Route
-          <select id="output-route-select">
-            <option value="auto">Auto (aktueller Screen)</option>
-            <option value="beamer-fullscreen">Beamer (Fullscreen)</option>
-            <option value="windowed-preview">Windowed Preview</option>
-          </select>
-        </label>
-        <button id="apply-output-route" type="button">Output Route anwenden</button>
         <label class="inline-checkbox">
           <input id="align-mode-toggle" type="checkbox" />
           Align-Mode (Final-Output Polygone einblenden)
@@ -95,7 +86,6 @@
         <p id="zones-status" class="status-line" aria-live="polite">
           Zonenquelle: wird beim Startup geprueft
         </p>
-        <p id="output-route-status" class="status-line" aria-live="polite">Output Route: Auto</p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: noch nicht gespeichert

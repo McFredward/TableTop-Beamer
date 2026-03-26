@@ -56,9 +56,6 @@ const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
-const outputRouteSelect = document.querySelector("#output-route-select");
-const outputRouteStatus = document.querySelector("#output-route-status");
-const applyOutputRouteButton = document.querySelector("#apply-output-route");
 const alignModeToggleInput = document.querySelector("#align-mode-toggle");
 const alignModeStatus = document.querySelector("#align-mode-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
@@ -168,8 +165,6 @@ const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="set
 const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboard-zone]"));
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
-  "output-route-select",
-  "apply-output-route",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
@@ -5101,39 +5096,6 @@ function refreshGlobalButtons() {
   });
 }
 
-function applyOutputRoute(route) {
-  const requested = route;
-  outputRouteSelect.value = requested;
-  if (requested === "beamer-fullscreen") {
-    if (!document.fullscreenEnabled) {
-      outputRouteStatus.textContent =
-        "Output Route: beamer-fullscreen angefordert, Fallback auf windowed-preview (Fullscreen nicht verfuegbar)";
-      state.outputRoute = "windowed-preview";
-      outputRouteSelect.value = state.outputRoute;
-      return;
-    }
-    stage
-      .requestFullscreen({ navigationUI: "hide" })
-      .then(() => {
-        state.outputRoute = "beamer-fullscreen";
-        outputRouteStatus.textContent = "Output Route: beamer-fullscreen aktiv";
-      })
-      .catch(() => {
-        state.outputRoute = "windowed-preview";
-        outputRouteSelect.value = state.outputRoute;
-        outputRouteStatus.textContent =
-          "Output Route: beamer-fullscreen fehlgeschlagen, Fallback auf windowed-preview";
-      });
-    return;
-  }
-
-  if (document.fullscreenElement) {
-    document.exitFullscreen().catch(() => undefined);
-  }
-  state.outputRoute = requested;
-  outputRouteStatus.textContent = requested === "auto" ? "Output Route: auto" : "Output Route: windowed-preview";
-}
-
 function clipToPolygon(polygon, { evenodd = false } = {}) {
   if (!Array.isArray(polygon) || polygon.length < 3) {
     ctx.beginPath();
@@ -6618,10 +6580,6 @@ mobileStartRoomButton?.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
 
-applyOutputRouteButton.addEventListener("click", () => {
-  applyOutputRoute(outputRouteSelect.value);
-});
-
 alignModeToggleInput?.addEventListener("change", () => {
   setAlignMode(Boolean(alignModeToggleInput.checked));
 });
@@ -6714,15 +6672,6 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
   const snapshot = state.mobilePerf.lastSnapshot;
   triggerFeedback.textContent =
     `Status: Mobile-Snapshot erstellt (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
-});
-
-document.addEventListener("fullscreenchange", () => {
-  if (state.outputRoute === "beamer-fullscreen" && !document.fullscreenElement) {
-    state.outputRoute = "windowed-preview";
-    outputRouteSelect.value = state.outputRoute;
-    outputRouteStatus.textContent =
-      "Output Route: beamer-fullscreen beendet, Fallback auf windowed-preview";
-  }
 });
 
 const resizeObserver = new ResizeObserver((entries) => {

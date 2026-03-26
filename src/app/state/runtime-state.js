@@ -14,7 +14,6 @@
       selectedLayout: defaultBoardId,
       selectedRoomId: null,
       selectedRoomByBoard: {},
-      outputRoute: "auto",
       alignMode: false,
       roomDraft: {
         editTargetId: null,
