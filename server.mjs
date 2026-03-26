@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, appendFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir, readdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -10,6 +10,14 @@ const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
+const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
+const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
+const IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
+
+const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
+const BOARD_DEFINITION_SCHEMA = "tt-beamer.board-definition.v1";
+const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
+const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 
@@ -639,6 +647,386 @@ function normalizeRoutePath(urlValue = "/") {
   }
 }
 
+function normalizeUnit(value, fallback = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(-0.2, Math.min(1.2, numeric));
+}
+
+function normalizeRadius(value, fallback = 0.055) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0.01, Math.min(0.25, numeric));
+}
+
+function isValidRoomPolygon(points) {
+  return (
+    Array.isArray(points) &&
+    points.length >= 3 &&
+    points.every((point) => Array.isArray(point) && point.length >= 2 && Number.isFinite(Number(point[0])) && Number.isFinite(Number(point[1])))
+  );
+}
+
+function normalizeRoomCatalogEntry(room, index = 0) {
+  const id = String(room?.id || "").trim() || `room-${index + 1}`;
+  const name = String(room?.name || room?.label || "").trim() || `Room ${index + 1}`;
+  const radius = normalizeRadius(room?.radius, 0.055);
+  const polygon = isValidRoomPolygon(room?.polygon)
+    ? room.polygon
+    : isValidRoomPolygon(room?.points)
+      ? room.points
+      : null;
+
+  const normalized = {
+    id,
+    name,
+    radius,
+    meta: {
+      ...(room?.meta && typeof room.meta === "object" ? room.meta : {}),
+      schema: "tt-beamer.room.v2",
+    },
+  };
+
+  if (polygon) {
+    normalized.polygon = polygon.map((point) => [normalizeUnit(point[0]), normalizeUnit(point[1])]);
+  } else {
+    normalized.x = normalizeUnit(room?.x, 0.5);
+    normalized.y = normalizeUnit(room?.y, 0.5);
+  }
+
+  return normalized;
+}
+
+function normalizeRoomClusterEntry(cluster, roomIds = new Set(), index = 0) {
+  const clusterId = String(cluster?.clusterId || cluster?.id || "").trim() || `cluster-${index + 1}`;
+  const name = String(cluster?.name || cluster?.label || "").trim() || `Cluster ${index + 1}`;
+  const uniqueRoomIds = Array.from(new Set((Array.isArray(cluster?.roomIds) ? cluster.roomIds : [])
+    .map((roomId) => String(roomId || "").trim())
+    .filter((roomId) => roomId && roomIds.has(roomId))));
+  return {
+    clusterId,
+    name,
+    roomIds: uniqueRoomIds,
+  };
+}
+
+function normalizeBoardDefinition(inputBoard, { source = "imported", imported = true } = {}) {
+  const boardId = String(inputBoard?.boardId || inputBoard?.id || "").trim();
+  const name = String(inputBoard?.metadata?.name || inputBoard?.label || "").trim();
+  const imageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
+  const roomCatalogRaw = Array.isArray(inputBoard?.roomCatalog)
+    ? inputBoard.roomCatalog
+    : Array.isArray(inputBoard?.rooms)
+      ? inputBoard.rooms
+      : [];
+  const roomCatalog = roomCatalogRaw.map((room, index) => normalizeRoomCatalogEntry(room, index));
+  const roomIdSet = new Set(roomCatalog.map((room) => room.id));
+  const roomClustersRaw = Array.isArray(inputBoard?.roomClusters)
+    ? inputBoard.roomClusters
+    : Array.isArray(inputBoard?.clusters)
+      ? inputBoard.clusters
+      : [];
+  const roomClusters = roomClustersRaw
+    .map((cluster, index) => normalizeRoomClusterEntry(cluster, roomIdSet, index))
+    .filter((cluster) => cluster.roomIds.length > 0);
+
+  const issues = [];
+  if (!boardId) {
+    issues.push("boardId is required");
+  }
+  if (!name) {
+    issues.push("metadata.name is required");
+  }
+  if (!imageSrc) {
+    issues.push("metadata.imageSrc is required");
+  }
+  if (roomCatalog.length === 0) {
+    issues.push("roomCatalog must contain at least one room");
+  }
+
+  const roomSeen = new Set();
+  for (const room of roomCatalog) {
+    if (roomSeen.has(room.id)) {
+      issues.push(`duplicate room id: ${room.id}`);
+      continue;
+    }
+    roomSeen.add(room.id);
+    if (!room.id) {
+      issues.push("room id cannot be empty");
+    }
+    if (!room.name) {
+      issues.push(`room ${room.id || "<unknown>"} requires a name`);
+    }
+    if (!isValidRoomPolygon(room.polygon) && (!Number.isFinite(Number(room.x)) || !Number.isFinite(Number(room.y)))) {
+      issues.push(`room ${room.id || "<unknown>"} requires polygon or x/y`);
+    }
+  }
+
+  const clusterSeen = new Set();
+  for (const cluster of roomClusters) {
+    if (clusterSeen.has(cluster.clusterId)) {
+      issues.push(`duplicate cluster id: ${cluster.clusterId}`);
+      continue;
+    }
+    clusterSeen.add(cluster.clusterId);
+  }
+
+  return {
+    ok: issues.length === 0,
+    issues,
+    board: {
+      schema: BOARD_DEFINITION_SCHEMA,
+      boardId,
+      metadata: {
+        name,
+        imageSrc,
+        source,
+        imported: Boolean(imported),
+      },
+      roomCatalog,
+      roomClusters,
+    },
+  };
+}
+
+function buildDefaultSpecialCluster(roomCatalog = []) {
+  const specialRoomIds = roomCatalog
+    .map((room) => String(room?.id || "").trim())
+    .filter((roomId) => roomId.startsWith("special-"));
+  if (specialRoomIds.length < 2) {
+    return [];
+  }
+  return [
+    {
+      clusterId: "cluster-special-rooms",
+      name: "Special Rooms",
+      roomIds: specialRoomIds,
+    },
+  ];
+}
+
+function toRuntimeBoard(boardDefinition) {
+  return {
+    id: boardDefinition.boardId,
+    label: boardDefinition.metadata.name,
+    src: boardDefinition.metadata.imageSrc,
+    rooms: boardDefinition.roomCatalog.map((room) => ({
+      id: room.id,
+      name: room.name,
+      label: room.name,
+      radius: normalizeRadius(room.radius, 0.055),
+      polygon: isValidRoomPolygon(room.polygon) ? room.polygon : undefined,
+      points: isValidRoomPolygon(room.polygon) ? room.polygon : undefined,
+      x: Number.isFinite(Number(room.x)) ? Number(room.x) : undefined,
+      y: Number.isFinite(Number(room.y)) ? Number(room.y) : undefined,
+      meta: {
+        ...(room.meta && typeof room.meta === "object" ? room.meta : {}),
+        schema: "tt-beamer.room.v2",
+      },
+    })),
+    roomClusters: boardDefinition.roomClusters.map((cluster) => ({
+      clusterId: cluster.clusterId,
+      name: cluster.name,
+      roomIds: [...cluster.roomIds],
+    })),
+  };
+}
+
+function sanitizeBoardFileName(boardId) {
+  const safe = String(boardId || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+  return safe.replace(/^-|-$/g, "");
+}
+
+async function loadBuiltInBoardsFromZones() {
+  let entries = [];
+  try {
+    entries = await readdir(ZONES_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const boards = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+      continue;
+    }
+    const filePath = path.join(ZONES_DIR, entry.name);
+    try {
+      const raw = await readFile(filePath, "utf8");
+      const payload = JSON.parse(raw);
+      const sourceRoomCatalog = Array.isArray(payload?.rooms)
+        ? payload.rooms.map((room) => ({
+          id: room.id,
+          name: room.name ?? room.label,
+          x: room.x,
+          y: room.y,
+          radius: room.radius,
+          polygon: room.polygon ?? room.points,
+        }))
+        : [];
+      const normalized = normalizeBoardDefinition(
+        {
+          boardId: payload?.board?.id,
+          metadata: {
+            name: payload?.board?.label,
+            imageSrc: payload?.board?.src,
+          },
+          roomCatalog: sourceRoomCatalog,
+          roomClusters: Array.isArray(payload?.roomClusters) ? payload.roomClusters : buildDefaultSpecialCluster(sourceRoomCatalog),
+        },
+        {
+          source: "builtin-zone",
+          imported: false,
+        },
+      );
+      if (!normalized.ok) {
+        continue;
+      }
+      boards.push(normalized.board);
+    } catch {
+      continue;
+    }
+  }
+
+  boards.sort((a, b) => a.boardId.localeCompare(b.boardId));
+  return boards;
+}
+
+async function loadImportedBoards() {
+  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
+  const entries = await readdir(IMPORTED_BOARDS_DIR, { withFileTypes: true });
+  const importedBoards = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+      continue;
+    }
+    const filePath = path.join(IMPORTED_BOARDS_DIR, entry.name);
+    try {
+      const raw = await readFile(filePath, "utf8");
+      const payload = JSON.parse(raw);
+      const normalized = normalizeBoardDefinition(payload?.board ?? payload, { source: "imported", imported: true });
+      if (!normalized.ok) {
+        continue;
+      }
+      importedBoards.push(normalized.board);
+    } catch {
+      continue;
+    }
+  }
+
+  importedBoards.sort((a, b) => a.boardId.localeCompare(b.boardId));
+  return importedBoards;
+}
+
+async function loadBoardCatalog() {
+  const builtInBoards = await loadBuiltInBoardsFromZones();
+  const importedBoards = await loadImportedBoards();
+  const byId = new Map();
+
+  for (const board of builtInBoards) {
+    byId.set(board.boardId, board);
+  }
+  for (const board of importedBoards) {
+    byId.set(board.boardId, board);
+  }
+
+  const boards = Array.from(byId.values()).sort((a, b) => a.boardId.localeCompare(b.boardId));
+  return {
+    schema: BOARD_CATALOG_SCHEMA,
+    generatedAt: new Date().toISOString(),
+    boardCount: boards.length,
+    boards,
+    runtimeBoards: boards.map(toRuntimeBoard),
+  };
+}
+
+async function handleBoardImport(req, res) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+    if (chunks.reduce((size, item) => size + item.length, 0) > 5 * 1024 * 1024) {
+      sendJson(res, 413, { error: "payload too large", code: "IMPORT_PAYLOAD_TOO_LARGE" });
+      return;
+    }
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8");
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    sendJson(res, 400, { error: "invalid JSON payload", code: "IMPORT_INVALID_JSON" });
+    return;
+  }
+
+  const incomingBoard = parsed?.board ?? parsed;
+  const normalized = normalizeBoardDefinition(incomingBoard, { source: "imported", imported: true });
+  if (!normalized.ok) {
+    sendJson(res, 400, {
+      error: "board import validation failed",
+      code: "IMPORT_VALIDATION_FAILED",
+      issues: normalized.issues,
+    });
+    return;
+  }
+
+  const board = normalized.board;
+  if (BUILTIN_BOARD_IDS.has(board.boardId)) {
+    sendJson(res, 409, {
+      error: "boardId conflicts with a built-in board",
+      code: "IMPORT_BOARD_ID_CONFLICT",
+      boardId: board.boardId,
+    });
+    return;
+  }
+
+  const safeFileName = sanitizeBoardFileName(board.boardId);
+  if (!safeFileName) {
+    sendJson(res, 400, {
+      error: "boardId produced an invalid file name",
+      code: "IMPORT_INVALID_BOARD_ID",
+    });
+    return;
+  }
+
+  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
+  const targetPath = path.join(IMPORTED_BOARDS_DIR, `${safeFileName}.json`);
+  try {
+    await stat(targetPath);
+    sendJson(res, 409, {
+      error: "board import already exists",
+      code: "IMPORT_ALREADY_EXISTS",
+      boardId: board.boardId,
+    });
+    return;
+  } catch {
+    // proceed
+  }
+
+  const payload = {
+    schema: BOARD_IMPORT_SCHEMA,
+    importedAt: new Date().toISOString(),
+    board,
+  };
+  await writeFile(targetPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+
+  const catalog = await loadBoardCatalog();
+  sendJson(res, 201, {
+    ok: true,
+    code: "IMPORT_OK",
+    boardId: board.boardId,
+    targetPath: `config/boards/imported/${safeFileName}.json`,
+    board,
+    catalogGeneratedAt: catalog.generatedAt,
+    boardCount: catalog.boardCount,
+  });
+}
+
 function isValidPolygon(points) {
   return (
     Array.isArray(points) &&
@@ -781,6 +1169,8 @@ const server = createServer(async (req, res) => {
         ok: true,
         service: "tt-beamer-api",
         saveEndpoint: "/api/global-defaults",
+        boardCatalogEndpoint: "/api/boards",
+        boardImportEndpoint: "/api/boards/import",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
       });
@@ -800,6 +1190,17 @@ const server = createServer(async (req, res) => {
         ok: true,
         session: liveSessionState,
       });
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/boards") {
+      const catalog = await loadBoardCatalog();
+      sendJson(res, 200, catalog);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/boards/import") {
+      await handleBoardImport(req, res);
       return;
     }
 
