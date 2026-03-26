@@ -285,6 +285,10 @@ const liveSync = {
   connected: false,
   clientId: null,
   lastAckAt: null,
+  lastAckedMutationId: null,
+  lastAckedVersion: 0,
+  nextClientSequence: 1,
+  pendingMutations: new Map(),
 };
 
 function getAnimationStartedAtEpochMs(animation) {
@@ -331,9 +335,19 @@ function emitLiveMutation(mutationType, payload = {}) {
   if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
   }
+  const mutationId = `m-${Date.now().toString(36)}-${liveSync.nextClientSequence.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const clientSequence = liveSync.nextClientSequence;
+  liveSync.nextClientSequence += 1;
+  liveSync.pendingMutations.set(mutationId, {
+    mutationType,
+    queuedAt: Date.now(),
+    clientSequence,
+  });
   liveSync.socket.send(
     JSON.stringify({
       type: "live-mutation",
+      mutationId,
+      clientSequence,
       mutationType,
       payload: {
         ...payload,
@@ -437,6 +451,13 @@ function connectLiveSyncSocket() {
         }
         if (payload?.type === "live-ack") {
           liveSync.lastAckAt = Date.now();
+          if (typeof payload?.mutationId === "string") {
+            liveSync.pendingMutations.delete(payload.mutationId);
+            liveSync.lastAckedMutationId = payload.mutationId;
+          }
+          if (Number.isFinite(payload?.version)) {
+            liveSync.lastAckedVersion = Math.max(liveSync.lastAckedVersion, Number(payload.version));
+          }
         }
         if (payload?.type === "live-session-update") {
           applyLiveRuntimeSnapshot(payload?.session?.snapshot);

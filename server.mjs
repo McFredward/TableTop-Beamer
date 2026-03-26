@@ -392,6 +392,7 @@ function attachLiveWebSocket(server) {
         if (parsed?.type !== "live-mutation") {
           return;
         }
+        const mutationId = typeof parsed?.mutationId === "string" ? parsed.mutationId : null;
         const session = applyLiveMutation({
           clientId,
           role,
@@ -401,9 +402,18 @@ function attachLiveWebSocket(server) {
         if (!session) {
           return;
         }
-        sendLiveSocketMessage(socket, buildLiveSessionEnvelope("live-ack", { mutationType: parsed.mutationType }));
+        sendLiveSocketMessage(
+          socket,
+          buildLiveSessionEnvelope("live-ack", {
+            mutationType: parsed.mutationType,
+            mutationId,
+            version: session.version,
+          }),
+        );
         broadcastLiveSession("live-session-update", {
           mutationType: parsed.mutationType,
+          mutationId,
+          version: session.version,
         });
       } catch {
         logErrorEvent("malformed-ws-payload", "invalid-json", {
