@@ -2657,15 +2657,15 @@ function formatRoomGeometryValue(value) {
 function syncRoomGeometryStatus() {
   const room = getSelectedRoom();
   if (!room) {
-    roomGeometryStatus.textContent = "Raum-Geometrie: bitte Raum auf dem Board waehlen";
+    roomGeometryStatus.textContent = "Room geometry: select a room on the board";
     return;
   }
   const geometry = getRoomGeometry(state.boardId, room.id);
   if (geometry.mode === "absolute") {
-    roomGeometryStatus.textContent = `Raum-Geometrie (${room.name ?? room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
+    roomGeometryStatus.textContent = `Room geometry (${room.name ?? room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
     return;
   }
-  roomGeometryStatus.textContent = `Raum-Geometrie (${room.name ?? room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
+  roomGeometryStatus.textContent = `Room geometry (${room.name ?? room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
 }
 
 function syncRoomGeometryPanel() {
@@ -2760,10 +2760,10 @@ function syncMobileLayoutStatus() {
   const isMobile = isMobileViewport();
   controlPanel.dataset.mobileViewport = isMobile ? "true" : "false";
   controlPanel.dataset.mobileOrientation = orientation;
-  const zoneLabel = state.dashboardZone === "manage" ? "Running managen" : "Triggern";
+  const zoneLabel = state.dashboardZone === "manage" ? "Manage running" : "Trigger";
   mobileLayoutStatus.textContent = isMobile
-    ? `Mobile (${orientation}): Fokus ${zoneLabel}`
-    : "Desktop: Trigger- und Manage-Bereiche parallel sichtbar";
+    ? `Mobile (${orientation}): focus ${zoneLabel}`
+    : "Desktop: Trigger and Manage sections visible in parallel";
 }
 
 function syncDashboardZoneVisibility() {
@@ -2834,7 +2834,7 @@ function validateViewNavigationVisibility({ silent = false, context = "runtime" 
     if (!silent) {
       console.error(`Navigation visibility violation (${context})`, issues);
       triggerFeedback.textContent =
-        "Status: Navigation-Guard meldet Ausfall (Dashboard/Settings nicht durchgaengig sichtbar)";
+        "Status: Navigation guard reported a failure (Dashboard/Settings not continuously visible)";
     }
     return false;
   }
@@ -2904,7 +2904,7 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
     if (!silent) {
       console.error(`Mobile projection visibility violation (${context})`, issues);
       triggerFeedback.textContent =
-        "Status: Mobile-Projektions-Guard meldet Overlay (Board darf nicht von Controls ueberdeckt werden)";
+        "Status: Mobile projection guard reported overlap (board must not be covered by controls)";
     }
     return false;
   }
@@ -2921,8 +2921,8 @@ function setDashboardZone(zone, { announce = false } = {}) {
   if (announce && state.uiView === "dashboard") {
     triggerFeedback.textContent =
       nextZone === "manage"
-        ? "Status: Mobile-Fokus auf Running-Management gesetzt"
-        : "Status: Mobile-Fokus auf Trigger gesetzt";
+        ? "Status: Mobile focus set to Manage running"
+        : "Status: Mobile focus set to Trigger";
   }
 }
 
@@ -2974,7 +2974,7 @@ function updateMobilePerformanceStatus() {
   const trigger = state.mobilePerf.triggerLatencySamples;
   const frames = state.mobilePerf.frameDeltaSamples;
   if (trigger.length === 0 || frames.length === 0) {
-    mobilePerformanceStatus.textContent = "Mobile Performance: noch kein Snapshot";
+    mobilePerformanceStatus.textContent = "Mobile performance: no snapshot yet";
     return;
   }
   const p95Trigger = percentile(trigger, 0.95);
@@ -3005,7 +3005,7 @@ function executeClearAll() {
   syncOutsideFxPanel();
   renderRunningAnimationsList();
   refreshGlobalButtons();
-  triggerFeedback.textContent = "Status: Clear All ausgefuehrt";
+  triggerFeedback.textContent = "Status: Clear All executed";
   emitLiveMutation("clear-all", {});
 }
 
@@ -3025,7 +3025,7 @@ function armClearAllGuard() {
   resetClearAllGuard();
   state.clearAllGuard.armedUntil = performance.now() + 2600;
   if (stopAllButton) {
-    stopAllButton.textContent = "Clear All bestaetigen";
+    stopAllButton.textContent = "Confirm Clear All";
     stopAllButton.classList.add("is-armed");
   }
   state.clearAllGuard.timeoutId = window.setTimeout(() => {
@@ -3069,7 +3069,7 @@ function validateSettingsControlOwnership({ silent = false, context = "runtime" 
     if (!silent) {
       console.error(`Settings ownership violation (${context})`, leaks);
       triggerFeedback.textContent =
-        "Status: Konfigurations-Leak erkannt (Settings-Control ausserhalb Settings gefunden)";
+        "Status: Configuration leak detected (settings control found outside Settings view)";
     }
     return false;
   }
@@ -3108,7 +3108,7 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
   if (leaks.length > 0) {
     if (!silent) {
       console.error(`View exclusivity violation (${context})`, leaks);
-      triggerFeedback.textContent = "Status: Tab-Exklusivitaet verletzt (sichtbarer Rest-Block erkannt)";
+      triggerFeedback.textContent = "Status: Tab exclusivity violated (visible leftover block detected)";
     }
     return false;
   }
@@ -3577,14 +3577,14 @@ function syncPolygonEditorStatus() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard().rooms.find((entry) => entry.id === roomId);
   if (!room) {
-    polygonEditorStatus.textContent = "Polygoneditor: keine Raeume auf diesem Board";
+    polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
     return;
   }
   const points = getSpecialPolygonPoints(state.boardId, room.id);
   const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
-  polygonEditorStatus.textContent = `Polygoneditor (${room.name ?? room.label}): ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
+  polygonEditorStatus.textContent = `Polygon editor (${room.name ?? room.label}): ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
 }
 
 function syncPolygonVertexSelect(roomId) {
@@ -3598,7 +3598,7 @@ function syncPolygonVertexSelect(roomId) {
   for (let i = 0; i < points.length; i += 1) {
     const option = document.createElement("option");
     option.value = String(i);
-    option.textContent = `Ecke ${i + 1}`;
+    option.textContent = `Vertex ${i + 1}`;
     polygonVertexSelect.append(option);
   }
   const maxIndex = Math.max(0, points.length - 1);
@@ -3621,7 +3621,7 @@ function syncPolygonEdgeSelect(roomId) {
     const option = document.createElement("option");
     const next = i === points.length - 1 ? 1 : i + 2;
     option.value = String(i);
-    option.textContent = `Kante ${i + 1} (Ecke ${i + 1} -> ${next})`;
+    option.textContent = `Edge ${i + 1} (Vertex ${i + 1} -> ${next})`;
     polygonEdgeSelect.append(option);
   }
   const maxIndex = Math.max(0, points.length - 1);
@@ -3663,7 +3663,7 @@ function syncShipPolygonEditorStatus() {
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
   shipPolygonEditorStatus.textContent =
-    `Ship-Polygoneditor: ${points.length} Ecken | aktiv Ecke ${activeVertex + 1} | Kante ${activeEdge + 1} | Handle ${handleSize}%`;
+    `Ship polygon editor: ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
 }
 
 function syncShipPolygonVertexSelect() {
@@ -3672,7 +3672,7 @@ function syncShipPolygonVertexSelect() {
   for (let i = 0; i < points.length; i += 1) {
     const option = document.createElement("option");
     option.value = String(i);
-    option.textContent = `Ecke ${i + 1}`;
+    option.textContent = `Vertex ${i + 1}`;
     shipPolygonVertexSelect.append(option);
   }
   const maxIndex = Math.max(0, points.length - 1);
@@ -3689,7 +3689,7 @@ function syncShipPolygonEdgeSelect() {
     const option = document.createElement("option");
     const next = i === points.length - 1 ? 1 : i + 2;
     option.value = String(i);
-    option.textContent = `Kante ${i + 1} (Ecke ${i + 1} -> ${next})`;
+    option.textContent = `Edge ${i + 1} (Vertex ${i + 1} -> ${next})`;
     shipPolygonEdgeSelect.append(option);
   }
   const maxIndex = Math.max(0, points.length - 1);
@@ -3772,8 +3772,8 @@ function clearShipPolygonDragSession() {
 function commitShipPolygonDrag() {
   const persisted = persistBoardProfiles();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship-Polygon-Ecke verschoben"
-    : "Status: Ship-Polygon-Ecke verschoben (Persistenz fehlgeschlagen)";
+    ? "Status: Ship polygon vertex moved"
+    : "Status: Ship polygon vertex moved (persistence failed)";
 }
 
 function cancelShipPolygonDrag() {
@@ -3783,7 +3783,7 @@ function cancelShipPolygonDrag() {
   }
   renderRoomOverlay();
   syncShipPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Ship-Polygon-Drag abgebrochen";
+  triggerFeedback.textContent = "Status: Ship polygon drag canceled";
 }
 
 function finishShipPolygonVertexDrag(event, { cancel = false } = {}) {
@@ -4094,8 +4094,8 @@ function clearPolygonDragSession() {
 function commitPolygonDrag() {
   const persisted = persistBoardProfiles();
   triggerFeedback.textContent = persisted
-    ? "Status: Polygon-Ecke verschoben"
-    : "Status: Polygon-Ecke verschoben (Persistenz fehlgeschlagen)";
+    ? "Status: Polygon vertex moved"
+    : "Status: Polygon vertex moved (persistence failed)";
 }
 
 function cancelPolygonDrag() {
@@ -4105,7 +4105,7 @@ function cancelPolygonDrag() {
   }
   renderRoomOverlay();
   syncPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Polygon-Drag abgebrochen";
+  triggerFeedback.textContent = "Status: Polygon drag canceled";
 }
 
 function cancelPolygonAreaDrag() {
@@ -4115,7 +4115,7 @@ function cancelPolygonAreaDrag() {
   }
   renderRoomOverlay();
   syncPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Raum-Flaechen-Drag abgebrochen";
+  triggerFeedback.textContent = "Status: Room area drag canceled";
 }
 
 function finishPolygonVertexDrag(event, { cancel = false } = {}) {
@@ -4144,8 +4144,8 @@ function finishPolygonAreaDrag(event, { cancel = false } = {}) {
     const persisted = persistBoardProfiles();
     state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
     triggerFeedback.textContent = persisted
-      ? "Status: Raum-Polygon als Flaeche verschoben"
-      : "Status: Raum-Polygon als Flaeche verschoben (Persistenz fehlgeschlagen)";
+      ? "Status: Room polygon moved as an area"
+      : "Status: Room polygon moved as an area (persistence failed)";
   }
   clearPolygonAreaDragSession();
 }
@@ -4155,7 +4155,7 @@ function syncAudioStatus() {
   const roleMuted = outputRole !== OUTPUT_ROLE_FINAL;
   const mode = state.audio.enabled ? "ON" : "OFF";
   audioStatus.textContent = roleMuted
-    ? `Audio: stumm in Control-View (Final-Output-only, Mapping ${mode}, ${volumePercent}%)`
+    ? `Audio: muted in Control view (final-output-only, mapping ${mode}, ${volumePercent}%)`
     : `Audio: ${mode} (${volumePercent}%)`;
 }
 
@@ -4323,7 +4323,7 @@ function playSoundForAnimation(animation) {
 function syncAudioMappingStatus() {
   const animationType = audioMappingAnimationSelect.value || ALL_ANIMATION_TYPES[0]?.id;
   if (!animationType) {
-    audioMappingStatus.textContent = "Sound-Mapping: keine Animationen verfuegbar";
+    audioMappingStatus.textContent = "Sound mapping: no animations available";
     return;
   }
   const label = getAnimationLabel(animationType);
@@ -4343,8 +4343,8 @@ function syncAudioMappingPanel() {
       option.value = animation.id;
       if (GLOBAL_ANIMATIONS.some((entry) => entry.id === animation.id)) {
         const categoryLabel = getGlobalAnimationCategory(animation.id) === "outside-ship"
-          ? "Ausserhalb des Schiffs"
-          : "Innerhalb des Schiffs";
+          ? "Outside ship"
+          : "Inside ship";
         option.textContent = `[${categoryLabel}] ${animation.label}`;
       } else {
         option.textContent = animation.label;
@@ -4364,7 +4364,7 @@ function syncAudioMappingPanel() {
   audioMappingSoundSelect.replaceChildren();
   const noneOption = document.createElement("option");
   noneOption.value = SOUND_MAPPING_NONE;
-  noneOption.textContent = "none (kein Sound)";
+  noneOption.textContent = "none (no sound)";
   audioMappingSoundSelect.append(noneOption);
 
   for (const soundPath of ALL_SOUND_ASSET_PATHS) {
@@ -4382,7 +4382,7 @@ function syncAudioMappingPanel() {
   state.animationSoundMap[selectedAnimationType] = mapped;
   if (previousMapped !== mapped) {
     persistRuntimeSoundSettingsChange(
-      "Status: Sound-Mapping normalisiert, aber Persistenz fehlgeschlagen",
+      "Status: Sound mapping normalized, but persistence failed",
     );
   }
   audioMappingSoundSelect.value = mapped;
@@ -4701,7 +4701,7 @@ function createRoomFromSettings() {
   const selectedRoom = getSelectedRoom() ?? board.rooms[0] ?? null;
   const selectedCenter = selectedRoom ? getRawRoomCenter(selectedRoom) : { x: 0.5, y: 0.5 };
   const spawnShape = roomCreateShapeSelect?.value === "free" ? "free" : "hexagon";
-  const fallbackName = `Raum ${board.rooms.length + 1}`;
+  const fallbackName = `Room ${board.rooms.length + 1}`;
   const name = normalizeRoomName(roomNameInput?.value, fallbackName);
   const polygon = spawnShape === "hexagon"
     ? createHexagonPolygon({ x: selectedCenter.x, y: selectedCenter.y, radius: selectedRoom?.radius ?? 0.055 })
@@ -4737,8 +4737,8 @@ function createRoomFromSettings() {
   renderRoomOverlay();
   syncRoomManagementPanel(
     persisted
-      ? `Raumverwaltung: ${name} angelegt (${spawnShape === "hexagon" ? "Hexagon-Startform" : "freie Startform"})`
-      : `Raumverwaltung: ${name} angelegt (Persistenz fehlgeschlagen)`,
+      ? `Room management: ${name} created (${spawnShape === "hexagon" ? "hexagon starter" : "free starter"})`
+      : `Room management: ${name} created (persistence failed)`,
   );
 }
 
@@ -4749,7 +4749,7 @@ function deleteSelectedRoom() {
     return;
   }
   if (board.rooms.length <= 1) {
-    syncRoomManagementPanel("Raumverwaltung: Mindestens ein Raum muss erhalten bleiben");
+    syncRoomManagementPanel("Room management: at least one room must remain");
     return;
   }
   const nextRooms = board.rooms.filter((entry) => entry.id !== room.id);
@@ -4789,8 +4789,8 @@ function deleteSelectedRoom() {
   renderRunningAnimationsList();
   syncRoomManagementPanel(
     persisted
-      ? `Raumverwaltung: ${room.name ?? room.label ?? room.id} geloescht`
-      : `Raumverwaltung: ${room.name ?? room.label ?? room.id} geloescht (Persistenz fehlgeschlagen)`,
+      ? `Room management: ${room.name ?? room.label ?? room.id} deleted`
+      : `Room management: ${room.name ?? room.label ?? room.id} deleted (persistence failed)`,
   );
 }
 
@@ -4808,8 +4808,8 @@ function renameSelectedRoom(nextName) {
   renderRoomOverlay();
   syncRoomManagementPanel(
     persisted
-      ? `Raumverwaltung: Name aktualisiert (${normalized})`
-      : `Raumverwaltung: Name aktualisiert (${normalized}, Persistenz fehlgeschlagen)`,
+      ? `Room management: name updated (${normalized})`
+      : `Room management: name updated (${normalized}, persistence failed)`,
   );
 }
 
@@ -6064,7 +6064,7 @@ function updateActiveBoardHitareaCalibration(partial) {
   });
   syncHitareaCalibrationPanel();
   renderRoomOverlay();
-  hitareaStatus.textContent = `${hitareaStatus.textContent} (nicht gespeichert)`;
+  hitareaStatus.textContent = `${hitareaStatus.textContent} (not saved)`;
 }
 
 hitareaOffsetXInput.addEventListener("input", () => {
@@ -6086,8 +6086,8 @@ hitareaSaveButton.addEventListener("click", () => {
   const persisted = persistHitareaCalibrationMap();
   syncHitareaCalibrationPanel();
   triggerFeedback.textContent = persisted
-    ? "Status: Board-Profil (Hitarea + Geometrie + Shapes) gespeichert"
-    : "Status: Board-Profil konnte nicht gespeichert werden";
+    ? "Status: Board profile (hit area + geometry + shapes) saved"
+    : "Status: Board profile could not be saved";
 });
 
 hitareaResetButton.addEventListener("click", () => {
@@ -6096,8 +6096,8 @@ hitareaResetButton.addEventListener("click", () => {
   syncHitareaCalibrationPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Hitarea-Kalibrierung auf Default gesetzt"
-    : "Status: Hitarea-Default gesetzt, Persistenz fehlgeschlagen";
+    ? "Status: Hit area calibration reset to default"
+    : "Status: Hit area default applied, persistence failed";
 });
 
 function updateSelectedRoomGeometry(partial, statusSuffix = "") {
@@ -6112,7 +6112,7 @@ function updateSelectedRoomGeometry(partial, statusSuffix = "") {
   if (statusSuffix) {
     triggerFeedback.textContent = persisted
       ? `Status: ${room.name ?? room.label} ${statusSuffix}`
-      : `Status: ${room.name ?? room.label} ${statusSuffix} (Persistenz fehlgeschlagen)`;
+      : `Status: ${room.name ?? room.label} ${statusSuffix} (persistence failed)`;
   }
 }
 
@@ -6127,11 +6127,11 @@ roomGeometryModeInput.addEventListener("change", () => {
   if (nextMode === "absolute") {
     const absoluteX = clampRoomAbsoluteCoordinate(baseCenter.x + current.offsetX);
     const absoluteY = clampRoomAbsoluteCoordinate(baseCenter.y + current.offsetY);
-    updateSelectedRoomGeometry({ mode: nextMode, absoluteX, absoluteY }, "auf Modus ABS gesetzt");
+    updateSelectedRoomGeometry({ mode: nextMode, absoluteX, absoluteY }, "set to ABS mode");
   } else {
     const offsetX = clampRoomRelativeOffset(current.absoluteX - baseCenter.x);
     const offsetY = clampRoomRelativeOffset(current.absoluteY - baseCenter.y);
-    updateSelectedRoomGeometry({ mode: nextMode, offsetX, offsetY }, "auf Modus REL gesetzt");
+    updateSelectedRoomGeometry({ mode: nextMode, offsetX, offsetY }, "set to REL mode");
   }
 });
 
@@ -6143,10 +6143,10 @@ roomGeometryXInput.addEventListener("input", () => {
   const geometry = getRoomGeometry(state.boardId, room.id);
   if (geometry.mode === "absolute") {
     const absoluteX = clampRoomAbsoluteCoordinate(Number(roomGeometryXInput.value));
-    updateSelectedRoomGeometry({ absoluteX }, "X kalibriert (ABS)");
+    updateSelectedRoomGeometry({ absoluteX }, "X calibrated (ABS)");
   } else {
     const offsetX = clampRoomRelativeOffset(Number(roomGeometryXInput.value));
-    updateSelectedRoomGeometry({ offsetX }, "X kalibriert (REL)");
+    updateSelectedRoomGeometry({ offsetX }, "X calibrated (REL)");
   }
 });
 
@@ -6158,27 +6158,27 @@ roomGeometryYInput.addEventListener("input", () => {
   const geometry = getRoomGeometry(state.boardId, room.id);
   if (geometry.mode === "absolute") {
     const absoluteY = clampRoomAbsoluteCoordinate(Number(roomGeometryYInput.value));
-    updateSelectedRoomGeometry({ absoluteY }, "Y kalibriert (ABS)");
+    updateSelectedRoomGeometry({ absoluteY }, "Y calibrated (ABS)");
   } else {
     const offsetY = clampRoomRelativeOffset(Number(roomGeometryYInput.value));
-    updateSelectedRoomGeometry({ offsetY }, "Y kalibriert (REL)");
+    updateSelectedRoomGeometry({ offsetY }, "Y calibrated (REL)");
   }
 });
 
 roomGeometryStretchXInput.addEventListener("input", () => {
   const stretchX = clampRoomStretch(Number(roomGeometryStretchXInput.value));
-  updateSelectedRoomGeometry({ stretchX }, "Stretch X gesetzt");
+  updateSelectedRoomGeometry({ stretchX }, "Stretch X set");
 });
 
 roomGeometryStretchYInput.addEventListener("input", () => {
   const stretchY = clampRoomStretch(Number(roomGeometryStretchYInput.value));
-  updateSelectedRoomGeometry({ stretchY }, "Stretch Y gesetzt");
+  updateSelectedRoomGeometry({ stretchY }, "Stretch Y set");
 });
 
 boardZoomRangeInput.addEventListener("input", () => {
   const scale = clampBoardZoomScale((Number(boardZoomRangeInput.value) || 100) / 100);
   const center = getRoomCenterForZoom(state.boardId);
-  updateCurrentBoardZoom(computePanForZoomFocus(scale, center), `Board-Zoom auf ${Math.round(scale * 100)}% gesetzt`);
+  updateCurrentBoardZoom(computePanForZoomFocus(scale, center), `Board zoom set to ${Math.round(scale * 100)}%`);
   setPanCursorState();
 });
 
@@ -6189,7 +6189,7 @@ polygonHandleSizeInput?.addEventListener("input", () => {
   syncPolygonEditorStatus();
   syncShipPolygonEditorStatus();
   renderRoomOverlay();
-  triggerFeedback.textContent = `Status: Polygon-Handle-Groesse (inkl. Ship) auf ${Math.round(handleScale * 100)}% gesetzt`;
+  triggerFeedback.textContent = `Status: Polygon handle size (including ship) set to ${Math.round(handleScale * 100)}%`;
 });
 
 boardZoomFitButton.addEventListener("click", () => {
@@ -6199,7 +6199,7 @@ boardZoomFitButton.addEventListener("click", () => {
 });
 
 boardZoomResetButton.addEventListener("click", () => {
-  updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Board-Zoom zurueckgesetzt");
+  updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Board zoom reset");
   endPanMode(null, { canceled: true });
   setPanCursorState();
 });
@@ -6232,7 +6232,7 @@ polygonEdgeSelect.addEventListener("change", () => {
 
 polygonInsertVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6253,13 +6253,13 @@ polygonInsertVertexButton.addEventListener("click", () => {
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Polygon-Ecke eingefuegt"
-    : "Status: Polygon-Ecke eingefuegt (Persistenz fehlgeschlagen)";
+    ? "Status: Polygon vertex inserted"
+    : "Status: Polygon vertex inserted (persistence failed)";
 });
 
 polygonDeleteVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6268,7 +6268,7 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   }
   const points = getSpecialPolygonPoints(state.boardId, roomId);
   if (points.length <= 3) {
-    triggerFeedback.textContent = "Status: Polygon braucht mindestens 3 Ecken";
+    triggerFeedback.textContent = "Status: Polygon requires at least 3 vertices";
     return;
   }
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
@@ -6280,13 +6280,13 @@ polygonDeleteVertexButton.addEventListener("click", () => {
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Polygon-Ecke geloescht"
-    : "Status: Polygon-Ecke geloescht (Persistenz fehlgeschlagen)";
+    ? "Status: Polygon vertex deleted"
+    : "Status: Polygon vertex deleted (persistence failed)";
 });
 
 polygonResetRoomButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6295,7 +6295,7 @@ polygonResetRoomButton.addEventListener("click", () => {
   }
   const fallbackPolygon = getDefaultRoomPolygon(state.boardId, roomId);
   if (!fallbackPolygon) {
-    triggerFeedback.textContent = "Status: Kein Board-Default fuer diesen Raum vorhanden";
+    triggerFeedback.textContent = "Status: No board default available for this room";
     return;
   }
   setSpecialPolygonPoints(state.boardId, roomId, fallbackPolygon);
@@ -6304,13 +6304,13 @@ polygonResetRoomButton.addEventListener("click", () => {
   syncPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Raum-Polygon auf Default gesetzt"
-    : "Status: Raum-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
+    ? "Status: Room polygon reset to default"
+    : "Status: Room polygon reset to default (persistence failed)";
 });
 
 polygonFocusRoomButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - polygon edit paused";
     return;
   }
   const roomId = getActivePolygonRoomId(state.boardId);
@@ -6321,7 +6321,7 @@ polygonFocusRoomButton.addEventListener("click", () => {
   state.selectedRoomByBoard[state.boardId] = roomId;
   syncRoomPanelFromSelection();
   renderRoomOverlay();
-  triggerFeedback.textContent = "Status: Spezialraum im Overlay fokussiert";
+  triggerFeedback.textContent = "Status: Special room focused in overlay";
 });
 
 shipPolygonVertexSelect.addEventListener("change", () => {
@@ -6340,7 +6340,7 @@ shipPolygonEdgeSelect.addEventListener("change", () => {
 
 shipPolygonInsertVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
     return;
   }
   const points = getShipPolygonPoints(state.boardId);
@@ -6357,18 +6357,18 @@ shipPolygonInsertVertexButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship-Polygon-Ecke eingefuegt"
-    : "Status: Ship-Polygon-Ecke eingefuegt (Persistenz fehlgeschlagen)";
+    ? "Status: Ship polygon vertex inserted"
+    : "Status: Ship polygon vertex inserted (persistence failed)";
 });
 
 shipPolygonDeleteVertexButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
     return;
   }
   const points = getShipPolygonPoints(state.boardId);
   if (points.length <= 3) {
-    triggerFeedback.textContent = "Status: Ship-Polygon braucht mindestens 3 Ecken";
+    triggerFeedback.textContent = "Status: Ship polygon requires at least 3 vertices";
     return;
   }
   const index = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
@@ -6380,13 +6380,13 @@ shipPolygonDeleteVertexButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship-Polygon-Ecke geloescht"
-    : "Status: Ship-Polygon-Ecke geloescht (Persistenz fehlgeschlagen)";
+    ? "Status: Ship polygon vertex deleted"
+    : "Status: Ship polygon vertex deleted (persistence failed)";
 });
 
 shipPolygonResetButton.addEventListener("click", () => {
   if (isPanArbitrating()) {
-    triggerFeedback.textContent = "Status: Pan aktiv - Ship-Polygon-Edit pausiert";
+    triggerFeedback.textContent = "Status: Pan active - ship polygon edit paused";
     return;
   }
   setShipPolygonPoints(state.boardId, SHIP_POLYGON_DEFAULT);
@@ -6396,8 +6396,8 @@ shipPolygonResetButton.addEventListener("click", () => {
   syncShipPolygonEditorPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted
-    ? "Status: Ship-Polygon auf Default gesetzt"
-    : "Status: Ship-Polygon auf Default gesetzt (Persistenz fehlgeschlagen)";
+    ? "Status: Ship polygon reset to default"
+    : "Status: Ship polygon reset to default (persistence failed)";
 });
 
 outsideEnabledInput.addEventListener("change", () => {
@@ -6409,8 +6409,8 @@ outsideEnabledInput.addEventListener("change", () => {
   refreshGlobalButtons();
   emitOutsideFxMutation(state.boardId, "outside-enabled-toggle");
   triggerFeedback.textContent = persisted
-    ? `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"}`
-    : `Status: Outside Space ${outsideEnabledInput.checked ? "aktiviert" : "deaktiviert"} (Persistenz fehlgeschlagen)`;
+    ? `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"}`
+    : `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"} (persistence failed)`;
 });
 
 outsideIntensityInput.addEventListener("input", () => {
@@ -6419,8 +6419,8 @@ outsideIntensityInput.addEventListener("input", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-intensity-update");
   triggerFeedback.textContent = persisted
-    ? "Status: Outside-Intensitaet aktualisiert"
-    : "Status: Outside-Intensitaet aktualisiert (Persistenz fehlgeschlagen)";
+      ? "Status: Outside intensity updated"
+      : "Status: Outside intensity updated (persistence failed)";
 });
 
 outsideSpeedInput.addEventListener("input", () => {
@@ -6429,8 +6429,8 @@ outsideSpeedInput.addEventListener("input", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-speed-update");
   triggerFeedback.textContent = persisted
-    ? "Status: Outside-Geschwindigkeit aktualisiert"
-    : "Status: Outside-Geschwindigkeit aktualisiert (Persistenz fehlgeschlagen)";
+      ? "Status: Outside speed updated"
+      : "Status: Outside speed updated (persistence failed)";
 });
 
 outsideModeInput.addEventListener("change", () => {
@@ -6439,8 +6439,8 @@ outsideModeInput.addEventListener("change", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-mode-update");
   triggerFeedback.textContent = persisted
-    ? `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert`
-    : `Status: Outside-Modus ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} aktiviert (Persistenz fehlgeschlagen)`;
+      ? `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled`
+      : `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled (persistence failed)`;
 });
 
 outsideDirectionInput.addEventListener("change", () => {
@@ -6451,8 +6451,8 @@ outsideDirectionInput.addEventListener("change", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-direction-update");
   triggerFeedback.textContent = persisted
-    ? `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert`
-    : `Status: Outside-Richtung ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} aktiviert (Persistenz fehlgeschlagen)`;
+      ? `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled`
+      : `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled (persistence failed)`;
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {
@@ -6660,8 +6660,8 @@ window.addEventListener("orientationchange", () => {
   const projectionOk = runMobileProjectionVisibilityGuard({ context: "orientationchange" });
   const ok = orientationOk && navigationOk && projectionOk;
   triggerFeedback.textContent = ok
-    ? "Status: Orientation gewechselt, UI-State/Navigation/Board-Sichtbarkeit stabil"
-    : "Status: Orientation-Guard meldet Drift bei State, Navigation oder Board-Sichtbarkeit";
+    ? "Status: Orientation changed, UI state/navigation/board visibility stable"
+    : "Status: Orientation guard detected drift in state, navigation, or board visibility";
 });
 
 window.addEventListener(
@@ -6672,7 +6672,7 @@ window.addEventListener(
     const projectionOk = runMobileProjectionVisibilityGuard({ silent: true, context: "scroll" });
     if (!navigationOk || !projectionOk) {
       triggerFeedback.textContent =
-        "Status: Scroll-Guard meldet Navigation/Board-Overlap-Problem im Mobile-Layout";
+        "Status: Scroll guard detected navigation/board overlap in mobile layout";
     }
   },
   { passive: true },
@@ -6698,7 +6698,7 @@ stopAllButton.addEventListener("click", () => {
   if (state.clearAllGuard.armedUntil <= now) {
     armClearAllGuard();
     setDashboardZone("manage");
-    triggerFeedback.textContent = "Status: Clear All ist bewaffnet - erneut tippen zum Bestaetigen";
+    triggerFeedback.textContent = "Status: Clear All is armed - tap again to confirm";
     return;
   }
   resetClearAllGuard();
@@ -6790,7 +6790,7 @@ audioEnabledInput.addEventListener("change", () => {
   applyAudioGain();
   enforceAudioLifecycleGuard();
   syncAudioStatus();
-  persistRuntimeSoundSettingsChange("Status: Audio-Umschaltung gesetzt, aber Persistenz fehlgeschlagen");
+  persistRuntimeSoundSettingsChange("Status: Audio toggle applied, but persistence failed");
 });
 
 audioMappingAnimationSelect.addEventListener("change", () => {
@@ -6807,12 +6807,12 @@ audioMappingSoundSelect.addEventListener("change", () => {
     audioMappingSoundSelect.value,
   );
   const persisted = persistRuntimeSoundSettingsChange(
-    `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`,
+    `Status: Sound mapping for ${getAnimationLabel(animationType)} updated (persistence failed)`,
   );
   syncAudioMappingPanel();
   triggerFeedback.textContent = persisted
-    ? `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert`
-    : `Status: Sound-Mapping fuer ${getAnimationLabel(animationType)} aktualisiert (Persistenz fehlgeschlagen)`;
+    ? `Status: Sound mapping for ${getAnimationLabel(animationType)} updated`
+    : `Status: Sound mapping for ${getAnimationLabel(animationType)} updated (persistence failed)`;
 });
 
 audioVolumeInput.addEventListener("input", () => {
@@ -6821,7 +6821,7 @@ audioVolumeInput.addEventListener("input", () => {
   audioVolumeValue.textContent = `${volumePercent}%`;
   applyAudioGain();
   syncAudioStatus();
-  persistRuntimeSoundSettingsChange("Status: Audio-Lautstaerke gesetzt, aber Persistenz fehlgeschlagen");
+  persistRuntimeSoundSettingsChange("Status: Audio volume set, but persistence failed");
 });
 
 animationSpeedInput.addEventListener("input", () => {

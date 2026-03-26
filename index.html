@@ -40,7 +40,7 @@
         </p>
       </header>
 
-      <nav class="view-switch primary-view-switch" aria-label="Seitenwechsel">
+      <nav class="view-switch primary-view-switch" aria-label="View switch">
         <button id="open-dashboard-view" type="button" class="active">Dashboard</button>
         <button id="open-settings-view" type="button">Settings</button>
       </nav>
@@ -92,7 +92,7 @@
         </p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
-          Global Defaults: noch nicht gespeichert
+          Global Defaults: not saved yet
         </p>
         <p id="api-diagnose-status" class="status-line" aria-live="polite">
           API diagnostics: checked in save preflight
@@ -103,14 +103,14 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Board-Zoom (Settings)</h2>
+        <h2>Board zoom (Settings)</h2>
         <p class="status-line">Precision zoom for room polygons with fit/reset.</p>
         <label>
           Zoom <span id="board-zoom-value">100%</span>
           <input id="board-zoom-range" type="range" min="100" max="300" step="1" value="100" />
         </label>
         <label>
-          Polygon-Handle-Groesse <span id="polygon-handle-size-value">100%</span>
+          Polygon handle size <span id="polygon-handle-size-value">100%</span>
           <input id="polygon-handle-size" type="range" min="10" max="100" step="1" value="100" />
         </label>
         <div class="button-grid button-grid-2">
@@ -151,13 +151,13 @@
         <h2>Room management</h2>
         <label>
           New room name
-          <input id="room-name-input" type="text" maxlength="64" placeholder="z. B. Brutkammer" />
+          <input id="room-name-input" type="text" maxlength="64" placeholder="e.g. Brood Chamber" />
         </label>
         <label>
-          Startform beim Anlegen
+          Initial shape on creation
           <select id="room-create-shape">
-            <option value="hexagon">Hexagon (Startvorlage)</option>
-            <option value="free">Freies Dreieck (Startvorlage)</option>
+            <option value="hexagon">Hexagon (starter template)</option>
+            <option value="free">Free triangle (starter template)</option>
           </select>
         </label>
         <div class="button-grid button-grid-2">
@@ -175,8 +175,8 @@
         <label>
           Calibration mode
           <select id="room-geometry-mode">
-            <option value="relative">Relativ (Offset)</option>
-            <option value="absolute">Absolut (Zielkoordinate)</option>
+              <option value="relative">Relative (offset)</option>
+              <option value="absolute">Absolute (target coordinate)</option>
           </select>
         </label>
         <div class="calibration-grid">
@@ -306,7 +306,7 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>General animation settings</h2>
         <label>
-          Globaler Speed-Faktor <span id="animation-speed-value">1.00x</span>
+          Global speed factor <span id="animation-speed-value">1.00x</span>
           <input id="animation-speed" type="range" min="0.5" max="2.5" step="0.05" value="1" />
         </label>
         <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
@@ -326,7 +326,7 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
-        <h2>Sound-Mapping pro Animation</h2>
+        <h2>Sound mapping per animation</h2>
         <label>
           Animation
           <select id="audio-mapping-animation"></select>
@@ -389,8 +389,8 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Mobile Performance-Checks</h2>
         <p class="status-line">Measures trigger latency and frame stability for mobile operation.</p>
-        <button id="run-mobile-performance-check" type="button">Performance-Snapshot erstellen</button>
-        <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile Performance: noch kein Snapshot
+        <button id="run-mobile-performance-check" type="button">Create performance snapshot</button>
+        <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile performance: no snapshot yet
         </p>
       </section>
 
