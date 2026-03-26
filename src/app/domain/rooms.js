@@ -22,7 +22,7 @@
     return polygon;
   }
 
-  function normalizeRoomName(value, fallback = "Raum") {
+  function normalizeRoomName(value, fallback = "Room") {
     const trimmed = String(value || "").trim();
     return trimmed || fallback;
   }
@@ -39,7 +39,7 @@
         : Number.isFinite(x) && Number.isFinite(y)
           ? createHexagonPolygon({ x, y, radius })
           : createHexagonPolygon();
-    const fallbackLabel = String(room?.label || "").trim() || `Raum ${index + 1}`;
+    const fallbackLabel = String(room?.label || "").trim() || `Room ${index + 1}`;
     const name = normalizeRoomName(room?.name ?? room?.label, fallbackLabel);
     return {
       id,
@@ -58,9 +58,29 @@
   }
 
   function normalizeBoard(board) {
+    const roomIds = new Set((board?.rooms || []).map((room) => String(room?.id || "").trim()).filter(Boolean));
+    const roomClusters = (Array.isArray(board?.roomClusters) ? board.roomClusters : [])
+      .map((cluster, index) => {
+        const clusterId = String(cluster?.clusterId || cluster?.id || "").trim() || `cluster-${index + 1}`;
+        const name = String(cluster?.name || cluster?.label || "").trim() || `Cluster ${index + 1}`;
+        const roomIdsInCluster = Array.from(
+          new Set(
+            (Array.isArray(cluster?.roomIds) ? cluster.roomIds : [])
+              .map((roomId) => String(roomId || "").trim())
+              .filter((roomId) => roomIds.has(roomId)),
+          ),
+        );
+        return {
+          clusterId,
+          name,
+          roomIds: roomIdsInCluster,
+        };
+      })
+      .filter((cluster) => cluster.roomIds.length > 0);
     return {
       ...board,
       rooms: (board?.rooms || []).map((room, index) => normalizeRoom(room, index)),
+      roomClusters,
     };
   }
 

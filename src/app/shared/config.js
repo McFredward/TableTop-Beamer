@@ -53,7 +53,7 @@
         },
         {
           id: "special-cryoschlaf",
-          label: "Cryoschlaf",
+          label: "Cryo Chamber",
           radius: 0.091,
           points: [
             [0.457, 0.505],
@@ -69,7 +69,7 @@
         },
         {
           id: "special-maschinenraum-1",
-          label: "Maschinenraum 1",
+          label: "Engine Room 1",
           radius: 0.059,
           points: [
             [0.855, 0.769],
@@ -84,7 +84,7 @@
         },
         {
           id: "special-maschinenraum-2",
-          label: "Maschinenraum 2",
+          label: "Engine Room 2",
           radius: 0.052,
           points: [
             [0.857, 0.488],
@@ -99,7 +99,7 @@
         },
         {
           id: "special-maschinenraum-3",
-          label: "Maschinenraum 3",
+          label: "Engine Room 3",
           radius: 0.055,
           points: [
             [0.855, 0.206],
@@ -110,6 +110,19 @@
             [0.95, 0.327],
             [0.888, 0.327],
             [0.855, 0.286],
+          ],
+        },
+      ],
+      roomClusters: [
+        {
+          clusterId: "cluster-special-rooms",
+          name: "Special Rooms",
+          roomIds: [
+            "special-cockpit",
+            "special-cryoschlaf",
+            "special-maschinenraum-1",
+            "special-maschinenraum-2",
+            "special-maschinenraum-3",
           ],
         },
       ],
@@ -150,7 +163,7 @@
         },
         {
           id: "special-cryoschlaf",
-          label: "Cryoschlaf",
+          label: "Cryo Chamber",
           radius: 0.09,
           points: [
             [0.261, 0.402],
@@ -165,7 +178,7 @@
         },
         {
           id: "special-maschinenraum-1",
-          label: "Maschinenraum 1",
+          label: "Engine Room 1",
           radius: 0.055,
           points: [
             [0.856, 0.587],
@@ -180,7 +193,7 @@
         },
         {
           id: "special-maschinenraum-2",
-          label: "Maschinenraum 2",
+          label: "Engine Room 2",
           radius: 0.051,
           points: [
             [0.856, 0.455],
@@ -195,7 +208,7 @@
         },
         {
           id: "special-maschinenraum-3",
-          label: "Maschinenraum 3",
+          label: "Engine Room 3",
           radius: 0.05,
           points: [
             [0.858, 0.323],
@@ -206,6 +219,19 @@
             [0.958, 0.435],
             [0.895, 0.435],
             [0.858, 0.411],
+          ],
+        },
+      ],
+      roomClusters: [
+        {
+          clusterId: "cluster-special-rooms",
+          name: "Special Rooms",
+          roomIds: [
+            "special-cockpit",
+            "special-cryoschlaf",
+            "special-maschinenraum-1",
+            "special-maschinenraum-2",
+            "special-maschinenraum-3",
           ],
         },
       ],
@@ -247,12 +273,12 @@
   };
 
   const ROOM_ANIMATIONS = [
-    { id: "kaputt", label: "Kaputt (malfunction.gif)" },
-    { id: "feuer", label: "Feuer (fire.gif)" },
-    { id: "schleim", label: "Schleim (final.gif)" },
+    { id: "kaputt", label: "Malfunction (malfunction.gif)" },
+    { id: "feuer", label: "Fire (fire.gif)" },
+    { id: "schleim", label: "Slime (final.gif)" },
     { id: "nest", label: "Nest" },
-    { id: "dekompression", label: "Dekompression" },
-    { id: "lichtflackern", label: "Lichtflackern (global hull-flicker)" },
+    { id: "dekompression", label: "Decompression" },
+    { id: "lichtflackern", label: "Light Flicker (global hull-flicker)" },
     { id: "alarm", label: "Alarm" },
   ];
 
