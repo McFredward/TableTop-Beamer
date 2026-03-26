@@ -11,9 +11,9 @@
 - Current Phase Key: phase-05
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 5-1
+- Last Executed Plan: 5-HF1
 - Planned Next Execution: 5-2
-- Last Execution Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-05/5-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -268,6 +268,12 @@
 - Plan-5-1 Umsetzung: Align-Mode ist global und wirkt nur auf Final-Output-Polygone; Control-Polygone bleiben immer sichtbar.
 - Plan-5-1 Umsetzung: Audio ist rollenbasiert hart getrennt (control muted, final-output audible).
 - Plan-5-1 Umsetzung: Persistentes JSONL-Logging schreibt `session_event`, `state_change` und `error` Eintraege.
+- Neues verpflichtendes Feedback fuer Phase 5 ist gesetzt: Outside-Space-Sync ist unvollstaendig und `/output/final` verletzt im Bugfall den FX-only-Vertrag (UI-Leaks/White-Page).
+- Hotfix-Regel fuer Phase 5: Outside-State (`enabled`, `speed`, relevante Parameter) ist als vollstaendiger Shared-State inkl. Join/Reconnect-Snapshot verpflichtend.
+- Hotfix-Regel fuer Phase 5: Final-Output muss stabil als Vollbild-FX-only booten/rendern; Slider/Settings/UI sind dort verboten, Align-Polygon-Overlay bleibt einzige Ausnahme.
+- Phase-5 Plan 5-HF1 ist als priorisierte execute-ready P0-Welle vor Plan 5-2 gesetzt.
+- Plan-5-HF1 Umsetzung: Outside-FX wird im Shared-State vollstaendig synchronisiert (`outsideFxByBoard` inkl. Toggle/Speed/Intensity/Mode/Direction) und bei Join/Reconnect ueber Snapshot hydratisiert.
+- Plan-5-HF1 Umsetzung: `/output/final` nutzt root-absolute Bootstrap-Assets und harte FX-only Guards; Align-Overlay bleibt die einzige erlaubte Sichtbarkeitsausnahme.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
