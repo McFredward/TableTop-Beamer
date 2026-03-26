@@ -7008,6 +7008,7 @@ roomOverlay.addEventListener("pointerup", (event) => {
     return;
   }
   finishPolygonVertexDrag(event, { cancel: false });
+  preserveRoomSelectionAfterPointerLifecycle();
 });
 
 roomOverlay.addEventListener("pointercancel", (event) => {
