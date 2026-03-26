@@ -127,10 +127,10 @@ Exit Criteria:
 - Persistente Serverlogs enthalten Session-, State- und Error-Ereignisse mit Kontext.
 - Phase-5-Artefakte sowie globale Planungsdateien sind konsistent synchronisiert.
 
-## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (Prepared)
+## Phase 6 - Board-Agnostic Catalog + English Operator Flow + Room Clusters (In Progress)
 Ziel: Das System von Nemesis-only auf boardspiel-agnostischen Betrieb umstellen: eigene Boards importieren und serverseitig speichern, Board-Auswahl dynamisch aus einem Katalog laden, den gesamten Operator-Flow auf Englisch vereinheitlichen und Room-Clusters als gruppierbare Triggerziele einfuehren, ohne Klickverhalten einzelner Raeume zu brechen. Bestehende Nemesis-Daten und vorhandene Polygon-/Animationskonfigurationen werden verlustfrei in einen neuen Standard migriert.
 
-Status: Plan 6-1 abgeschlossen; Plan 6-2 als naechste Hardening-Welle offen.
+Status: Plan 6-1 und Plan 6-HF1 abgeschlossen; der verify-work-6 P0-Blocker `English-only operator flow` ist ueber das Language-Sweep-Artefakt geschlossen. Naechster Schritt: Plan 6-2.
 
 Milestones:
 1. M1 Board Catalog Foundation: kanonisches Board-Schema + dynamische Katalogquelle statt hardcoded A/B.
@@ -139,7 +139,8 @@ Milestones:
 4. M4 English-Only Operator Flow: UI-Texte, Statusmeldungen, relevante Logs/Errors und Doku in durchgaengigem Englisch.
 5. M5 Room Clusters: frei definierbare Raumgruppen als Dropdown-Ziele fuer Gruppenstarts bei unveraendertem Einzelraum-Klick.
 6. M6 Compatibility Migration: Legacy Nemesis + bestehende Polygone/Animation-Configs werden in das neue Standardschema ueberfuehrt.
-7. M7 Hardening: Import-/Migration-/Cluster-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
+7. M7 HF1 Closure Gate: Language Sweep fuer Control/Settings/Final-Flow schliesst den offenen P0-Blocker artefaktbasiert.
+8. M8 Hardening: Import-/Migration-/Cluster-Regression inkl. Reload/Restart/Join-Paritaet dokumentiert.
 
 Exit Criteria:
 - Board-Auswahl basiert ausschliesslich auf dynamischem Katalog; hardcoded Board A/B ist entfernt.
@@ -149,6 +150,7 @@ Exit Criteria:
 - Klick auf einzelnen Raum auf dem Board selektiert weiterhin nur diesen Raum und startet keine Cluster-Selektion implizit.
 - Legacy-Datenmigration fuer Nemesis/Polygone/Animation-Configs ist verlustfrei, idempotent und dokumentiert.
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
+- verify-work-6 Follow-up P0-Blocker `English-only operator flow` ist mit HF1-Regressionsevidenz explizit geschlossen.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

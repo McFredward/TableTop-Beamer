@@ -11,9 +11,9 @@
 - Current Phase Key: phase-06
 - Last Prepared: 2026-03-26
 - Execution Readiness: READY
-- Last Executed Plan: 6-1
+- Last Executed Plan: 6-HF1
 - Planned Next Execution: 6-2
-- Last Execution Summary: `.planning/phases/phase-06/6-1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-06/6-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -299,6 +299,13 @@
 - Plan-6-1 execution: board catalog now loads via `/api/boards` with server-side import endpoint `/api/boards/import` and persisted storage in `config/boards/imported`.
 - Plan-6-1 execution: room target model supports `room` + `cluster`; cluster launch fans out per room while board click remains single-room only.
 - Plan-6-1 execution: operator-facing README and major board/catalog/target UI copy migrated to English for phase-6 workflows.
+- verify-work-6 follow-up re-opens a P0 blocker: `English-only operator flow` is still incomplete in operator-facing paths.
+- Hotfix-Regel fuer Phase 6 (Plan 6-HF1): keine deutschen operatorrelevanten Texte in `Control`/`Settings`/`Final-Flow`, inklusive Statusmeldungen und Fehlermeldungen.
+- Dokumentations-Regel fuer Plan 6-HF1: `README.md` und Phase-06-Artefakte muessen die English-only Operator Policy konsistent widerspiegeln.
+- Verifikations-Regel fuer Plan 6-HF1: blocker closure erfordert ein dediziertes Language-Sweep-Artefakt (`.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md`).
+- Plan-6-HF1 execution: Control/Settings/Final-flow operator text + status/error paths are fully English-only.
+- Plan-6-HF1 execution: README + Phase-06 workspace docs now state the English-only operator policy consistently.
+- Plan-6-HF1 execution: blocker closure documented in `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md` (PASS, no open P0 language blocker).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
