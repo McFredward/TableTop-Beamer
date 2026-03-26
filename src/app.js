@@ -293,6 +293,9 @@ function buildRuntimeSnapshotForLiveSync() {
     boardId: state.boardId,
     selectedRoomId: state.selectedRoomId,
     selectedRoomByBoard: state.selectedRoomByBoard,
+    outsideFxByBoard: Object.fromEntries(
+      BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
+    ),
     runningAnimations: state.runningAnimations.map((animation) => ({
       ...animation,
       startedAtEpochMs: getAnimationStartedAtEpochMs(animation),
@@ -343,6 +346,17 @@ function applyLiveRuntimeSnapshot(snapshot) {
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
       ? runtime.selectedRoomByBoard
       : state.selectedRoomByBoard;
+  if (runtime.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object") {
+    state.outsideFxByBoard = {
+      ...state.outsideFxByBoard,
+      ...Object.fromEntries(
+        BOARDS.map((board) => [
+          board.id,
+          normalizeOutsideFxProfile(runtime.outsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
+        ]),
+      ),
+    };
+  }
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(runtime.runningAnimations);
   state.roomDraft = {
     ...state.roomDraft,
