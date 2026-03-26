@@ -4801,6 +4801,110 @@ function calculatePolygonCenterAndRadius(polygon, fallbackCenter = { x: 0.5, y: 
   };
 }
 
+function cloneRoomSnapshot(room) {
+  if (!room) {
+    return null;
+  }
+  return {
+    ...room,
+    polygon: (room.polygon || room.points || []).map((point) => normalizeRoomPoint(point)),
+    points: (room.points || room.polygon || []).map((point) => normalizeRoomPoint(point)),
+    meta: {
+      ...(room.meta || {}),
+    },
+  };
+}
+
+function buildCopiedRoomName(board, sourceRoom) {
+  const baseName = `${sourceRoom?.name ?? sourceRoom?.label ?? sourceRoom?.id ?? "Room"} Copy`;
+  const existing = new Set((board.rooms || []).map((room) => String(room.name ?? room.label ?? "").trim()));
+  if (!existing.has(baseName)) {
+    return baseName;
+  }
+  let suffix = 2;
+  let candidate = `${baseName} ${suffix}`;
+  while (existing.has(candidate)) {
+    suffix += 1;
+    candidate = `${baseName} ${suffix}`;
+  }
+  return candidate;
+}
+
+function copySelectedRoomToClipboard() {
+  const room = getSelectedRoom();
+  if (!room) {
+    syncRoomManagementPanel("Room management: copy skipped (no room selected)");
+    return false;
+  }
+  state.roomClipboard = {
+    boardId: state.boardId,
+    roomId: room.id,
+    room: cloneRoomSnapshot(room),
+    geometry: {
+      ...getRoomGeometry(state.boardId, room.id),
+    },
+  };
+  syncRoomManagementPanel(`Room management: copied ${room.name ?? room.label ?? room.id}`);
+  return true;
+}
+
+function pasteRoomFromClipboard() {
+  const board = getBoard();
+  const clipboard = state.roomClipboard;
+  if (!clipboard?.room) {
+    syncRoomManagementPanel("Room management: paste skipped (clipboard empty)");
+    return false;
+  }
+  const id = createRoomId(board);
+  const sourceRoom = cloneRoomSnapshot(clipboard.room);
+  const name = buildCopiedRoomName(board, sourceRoom);
+  const room = {
+    ...sourceRoom,
+    id,
+    name,
+    label: name,
+    polygon: (sourceRoom.polygon || sourceRoom.points || []).map((point) => normalizeRoomPoint(point)),
+    points: (sourceRoom.points || sourceRoom.polygon || []).map((point) => normalizeRoomPoint(point)),
+    meta: {
+      ...(sourceRoom.meta || {}),
+      copiedFromBoardId: clipboard.boardId,
+      copiedFromRoomId: clipboard.roomId,
+    },
+  };
+  board.rooms.push(room);
+  ensureBoardRoomStateMaps(state.boardId);
+  setSpecialPolygonPoints(state.boardId, id, room.polygon);
+  setRoomGeometry(state.boardId, id, clipboard.geometry);
+  state.selectedRoomId = id;
+  state.selectedRoomByBoard[state.boardId] = id;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = id;
+  setActivePolygonRoomId(state.boardId, id);
+  const persisted = persistBoardProfiles();
+  syncRoomPanelFromSelection();
+  syncPolygonEditorPanel();
+  renderRoomOverlay();
+  syncRoomManagementPanel(
+    persisted
+      ? `Room management: ${name} pasted from clipboard`
+      : `Room management: ${name} pasted from clipboard (persistence failed)`,
+  );
+  return persisted;
+}
+
+function isTypingShortcutTarget(target) {
+  if (!target || !(target instanceof Element)) {
+    return false;
+  }
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+    return true;
+  }
+  if (target.isContentEditable) {
+    return true;
+  }
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+}
+
 function createRoomFromSettings() {
   const board = getBoard();
   const id = createRoomId(board);
@@ -6815,6 +6919,26 @@ roomOverlay.addEventListener("pointerdown", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (state.uiView === "settings" && outputRole === OUTPUT_ROLE_CONTROL && !event.defaultPrevented) {
+    const key = String(event.key || "").toLowerCase();
+    const modifierPressed = event.ctrlKey || event.metaKey;
+    const typingTarget = isTypingShortcutTarget(event.target);
+    if (!typingTarget && modifierPressed && !event.altKey && !event.shiftKey && key === "c") {
+      event.preventDefault();
+      copySelectedRoomToClipboard();
+      return;
+    }
+    if (!typingTarget && modifierPressed && !event.altKey && !event.shiftKey && key === "v") {
+      event.preventDefault();
+      pasteRoomFromClipboard();
+      return;
+    }
+    if (!typingTarget && !modifierPressed && !event.altKey && key === "delete") {
+      event.preventDefault();
+      deleteSelectedRoom();
+      return;
+    }
+  }
   if (event.code === "Space") {
     if (event.repeat) {
       return;

@@ -44,6 +44,7 @@
       shipPolygonsByBoard: {},
       outsideFxByBoard: {},
       boardZoomByBoard: {},
+      roomClipboard: null,
       polygonEditor: {
         roomIdByBoard: {},
         handleScale: 1,
