@@ -918,13 +918,12 @@ function createDefaultRoomGeometryByBoard() {
 }
 
 function normalizeRoomTombstoneIds(ids, boardId) {
-  const board = getBoard(boardId);
-  const validRoomIds = new Set((board?.rooms || []).map((room) => room.id));
+  void boardId;
   return Array.from(
     new Set(
       (Array.isArray(ids) ? ids : [])
         .map((entry) => String(entry || "").trim())
-        .filter((roomId) => roomId && validRoomIds.has(roomId)),
+        .filter(Boolean),
     ),
   );
 }
@@ -999,6 +998,17 @@ function mergeSpecialPolygonMaps(primaryMap, fallbackMap) {
   return merged;
 }
 
+function filterRoomCatalogByDeletedIds(roomCatalog, deletedRoomIds) {
+  if (!Array.isArray(roomCatalog)) {
+    return null;
+  }
+  const tombstones = new Set(normalizeRoomTombstoneIds(deletedRoomIds));
+  if (tombstones.size === 0) {
+    return roomCatalog;
+  }
+  return roomCatalog.filter((room) => !tombstones.has(String(room?.id || "").trim()));
+}
+
 function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
   const merged = {};
   const boardIds = new Set([
@@ -1019,15 +1029,24 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
       : isValidSpecialPolygon(fallback.shipPolygon)
         ? fallback.shipPolygon
         : null;
-
-    merged[boardId] = {
-      ...fallback,
-      ...primary,
-      roomCatalog: Array.isArray(primary.roomCatalog)
+    const deletedRoomIds = normalizeRoomTombstoneIds([
+      ...(Array.isArray(fallback.deletedRoomIds) ? fallback.deletedRoomIds : fallback.roomTombstones ?? []),
+      ...(Array.isArray(primary.deletedRoomIds) ? primary.deletedRoomIds : primary.roomTombstones ?? []),
+    ]);
+    const roomCatalog = filterRoomCatalogByDeletedIds(
+      Array.isArray(primary.roomCatalog)
         ? primary.roomCatalog
         : Array.isArray(fallback.roomCatalog)
           ? fallback.roomCatalog
           : null,
+      deletedRoomIds,
+    );
+
+    merged[boardId] = {
+      ...fallback,
+      ...primary,
+      roomCatalog,
+      deletedRoomIds,
       specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
       playAreaPolygon: primaryPlayAreaPolygon ?? fallbackPlayAreaPolygon ?? SHIP_POLYGON_DEFAULT,
     };
