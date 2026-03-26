@@ -24,7 +24,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P5-T14 [P0] Strukturierte Log-Events fuer Session-Events, State-Aenderungen und Fehler schreiben.
 - [x] DONE P5-T15 [P0] P5-1 Gate-Regression dokumentieren (3-Client Live-Sync, Align-Mode, Audio-Routing, Log-Nachweise).
 
-## Plan 5-2 - Diagnostics + Hardening
+## Plan 5-HF1 - Verbindlicher Bugfix-Hotfix (priorisiert, execute-ready)
+- [x] DONE P5-T19 [P0] Shared-State-Schema fuer Outside-Space vervollstaendigen (`enabled`, `speed`, relevante Outside-Parameter) und serverseitig versioniert fuehren.
+- [x] DONE P5-T20 [P0] Outside-Mutationen serverautoritiv haerten (ON/OFF, Speed, relevante Parameter) und vollstaendig an alle Clients broadcasten.
+- [x] DONE P5-T21 [P0] Join/Reconnect-Snapshot fuer Outside-State nachziehen, damit neue Clients ohne Reload den identischen Outside-Stand erhalten.
+- [x] DONE P5-T22 [P0] `/output/final` Bootstrap-/Mount-Pfad reparieren, sodass die Final-Seite nicht weiss bleibt und der FX-Renderpfad deterministisch startet.
+- [x] DONE P5-T23 [P0] Final-Output-UI-Guard verstaerken: keine Slider/Settings/UI-Elemente im Final-Render; Align-Mode ON bleibt die einzige Overlay-Ausnahme.
+- [x] DONE P5-T24 [P0] Hotfix-Regression dokumentieren (3-Client Outside-Sync + Final-Output FX-only/Align-Ausnahme + White-Page-Negativtest).
+
+## Plan 5-2 - Diagnostics + Hardening (nach Hotfix)
 - [ ] TODO P5-T16 [P1] Sichtbare Sync-/Connection-Diagnostik fuer Operator-Views ergaenzen (Rolle, verbunden, letzte Sync-Zeit).
 - [ ] TODO P5-T17 [P1] Latenz-/Burst-Soak fuer parallele Trigger aus 2 Controller-Clients dokumentieren.
 - [ ] TODO P5-T18 [P1] E2E-Abnahme im echten Setup (Handy + PC + Raspberry Pi/Beamer) als Artefakt protokollieren.
