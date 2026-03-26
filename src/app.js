@@ -4838,6 +4838,8 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
+      state.roomDraft.targetType = "room";
+      state.roomDraft.targetId = room.id;
       state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
