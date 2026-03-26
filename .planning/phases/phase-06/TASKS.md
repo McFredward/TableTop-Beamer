@@ -21,7 +21,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T12 [P0] Legacy-Migration implementieren: Nemesis + bestehende Polygone/Animationsconfigs in neuen Standard ueberfuehren (idempotent, verlustfrei).
 - [x] DONE P6-T13 [P0] Plan-6-1-Regression dokumentieren (Import/Persistenz, Katalogauswahl, Cluster-Verhalten, Einzelraumklick, English-Flow, Migration).
 
-## Plan 6-2 - Hardening + Operator Verification (nach 6-1)
+## Plan 6-HF1 - English-Only Blocker Hotfix Wave (execute-ready, vor 6-2)
+- [x] DONE P6-T18 [P0] Operator-Language-Inventur fuer `Control`/`Settings`/`Final-Flow` erstellen (UI-Texte, Statusmeldungen, Fehlermeldungen, operatorrelevante Logs/Errors).
+- [ ] TODO P6-T19 [P0] Alle deutschen UI-Texte in `Control` und `Settings` auf Englisch umstellen (inkl. Labels, Buttons, Hinweise, leere Zustaende).
+- [ ] TODO P6-T20 [P0] Final-Flow, Statusmeldungen und Fehlermeldungen auf Englisch vereinheitlichen (inkl. server/client operatorrelevanter Fehlerpfade).
+- [ ] TODO P6-T21 [P0] Dokumentationskonsistenz herstellen (`README.md` + Phase-06-Artefakte) mit expliziter English-only Operator Policy.
+- [ ] TODO P6-T22 [P0] Language-Sweep-Regression artefaktbasiert nachweisen (Pattern-Checks + manuelle Sweep-Matrix + Ergebnisprotokoll).
+
+## Plan 6-2 - Hardening + Operator Verification (nach 6-HF1)
 - [ ] TODO P6-T14 [P1] Import-Konfliktstrategie finalisieren (duplicate boardId/name, Versionierung, Operator-Feedback).
 - [ ] TODO P6-T15 [P1] Negativtests fuer fehlerhafte Boardimporte (ungueltige Polygone, fehlende Pflichtfelder, zu grosse Payloads) dokumentieren.
 - [ ] TODO P6-T16 [P1] Multi-Board-Soaktest dokumentieren (schneller Boardwechsel, Cluster-Triggerfolgen, Reload/Restart-Paritaet).
