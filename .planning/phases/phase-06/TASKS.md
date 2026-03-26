@@ -85,7 +85,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T62 [P0] Room-Draft-Parameter persistieren: Trigger-Parameter (`speed`, `opacity`, `soundVolume`, weitere Feldwerte) bleiben bei Room-Wechsel und nach Trigger-Start als Draft-Voreinstellung erhalten.
 - [x] DONE P6-T63 [P0] Cluster-CRUD liefern: Cluster im Operator-Flow erstellen, bearbeiten und loeschen (beliebige Room-Mengen, board-spezifisch persistiert).
 - [x] DONE P6-T64 [P0] Target-Flow vervollstaendigen: Cluster als `target` waehlbar und Start fanout fuer alle Cluster-Rooms ohne Einzelraumklick-Regression.
-- [ ] TODO P6-T65 [P0] Trigger-Option `stagger start` integrieren: optionaler kurzer randomisierter Startversatz je Cluster-Room; deaktiviert = synchroner Start.
+- [x] DONE P6-T65 [P0] Trigger-Option `stagger start` integrieren: optionaler kurzer randomisierter Startversatz je Cluster-Room; deaktiviert = synchroner Start.
 - [ ] TODO P6-T66 [P0] HF8-Regression + Artefakt-Sync dokumentieren: Draft-Persistenz + Cluster-CRUD + Sync/Stagger-Start + Guards und PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE auf HF8-Stand bringen.
 
 ## Plan 6-3 - Hardening + Operator Verification (nach 6-HF8)

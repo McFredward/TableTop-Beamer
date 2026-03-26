@@ -25,6 +25,7 @@
         intensity: Number(roomIntensity ?? 1),
         speed: Number(roomSpeed ?? 1),
         soundVolume: Number(roomSoundVolume ?? 100) / 100,
+        staggerStart: false,
         durationSec: 0,
         hold: true,
       },

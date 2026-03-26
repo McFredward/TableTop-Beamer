@@ -82,6 +82,7 @@ const roomSoundVolumeInput = document.querySelector("#room-sound-volume");
 const roomSoundVolumeValue = document.querySelector("#room-sound-volume-value");
 const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
+const roomStaggerStartInput = document.querySelector("#room-stagger-start");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
 const audioEnabledInput = document.querySelector("#audio-enabled");
@@ -557,6 +558,7 @@ const gifPlaybackCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
+const pendingAnimationAudioStartTimers = new Map();
 
 const {
   createDefaultAnimationSoundMap,
@@ -4501,6 +4503,11 @@ function stopAllAudioVoices() {
 }
 
 function stopAnimationSound(animationId) {
+  const pendingTimer = pendingAnimationAudioStartTimers.get(animationId);
+  if (pendingTimer) {
+    window.clearTimeout(pendingTimer);
+    pendingAnimationAudioStartTimers.delete(animationId);
+  }
   const active = activeAnimationAudioById.get(animationId);
   if (!active) {
     return;
@@ -4537,6 +4544,20 @@ function enforceAudioLifecycleGuard() {
 
 function playSoundForAnimation(animation) {
   if (!animation || !isAudioPlaybackAllowed()) {
+    return;
+  }
+  const startDelayMs = Math.max(0, Math.ceil((Number(animation.startedAt) || 0) - performance.now()));
+  if (startDelayMs > 0) {
+    stopAnimationSound(animation.id);
+    const timerId = window.setTimeout(() => {
+      pendingAnimationAudioStartTimers.delete(animation.id);
+      const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
+      if (!stillRunning) {
+        return;
+      }
+      playSoundForAnimation(animation);
+    }, startDelayMs);
+    pendingAnimationAudioStartTimers.set(animation.id, timerId);
     return;
   }
   const path = getMappedSoundPathForAnimation(animation.type);
@@ -5601,6 +5622,9 @@ function syncRoomTargetSelect() {
     state.roomDraft.targetType = parsed.targetType;
     state.roomDraft.targetId = parsed.targetId;
     roomTargetSelect.value = existing;
+    if (roomStaggerStartInput) {
+      roomStaggerStartInput.disabled = parsed.targetType !== "cluster";
+    }
   }
 }
 
@@ -5614,6 +5638,9 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     if (roomTargetSelect) {
       roomTargetSelect.disabled = true;
     }
+    if (roomStaggerStartInput) {
+      roomStaggerStartInput.disabled = true;
+    }
     syncRoomGeometryPanel();
     syncDashboardZoneVisibility();
     return;
@@ -5623,6 +5650,9 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomPlaybackSpeedInput.disabled = false;
   if (roomTargetSelect) {
     roomTargetSelect.disabled = false;
+  }
+  if (roomStaggerStartInput) {
+    roomStaggerStartInput.disabled = false;
   }
   if (!preserveDraftState) {
     state.roomDraft.animationId = ROOM_ANIMATIONS.some((entry) => entry.id === state.roomDraft.animationId)
@@ -5647,6 +5677,11 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomDurationInput.value = String(state.roomDraft.durationSec);
   syncGifRoomControls();
   roomHoldInput.checked = true;
+  state.roomDraft.staggerStart = Boolean(state.roomDraft.staggerStart);
+  if (roomStaggerStartInput) {
+    roomStaggerStartInput.checked = state.roomDraft.staggerStart;
+    roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
+  }
   if (!state.roomDraft.targetType || !state.roomDraft.targetId) {
     state.roomDraft.targetType = "room";
     state.roomDraft.targetId = room.id;
@@ -5694,7 +5729,11 @@ function createAnimation({
   soundVolume = 1,
   hold = false,
   durationSec = 15,
+  startDelayMs = 0,
 }) {
+  const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
+  const startedAt = performance.now() + normalizedStartDelayMs;
+  const startedAtEpochMs = Date.now() + normalizedStartDelayMs;
   const effectiveHold = scope === "room" ? true : hold;
   return {
     id: `anim-${animationIdCounter++}`,
@@ -5709,8 +5748,8 @@ function createAnimation({
     soundVolume: clampRoomSoundVolume(soundVolume),
     hold: effectiveHold,
     durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
-    startedAt: performance.now(),
-    startedAtEpochMs: Date.now(),
+    startedAt,
+    startedAtEpochMs,
   };
 }
 
@@ -5844,6 +5883,7 @@ function startRoomAnimationFromDraft() {
     clearRoomDraftEditTarget();
   }
 
+  const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
   const createdAnimations = targetRoomIds.map((roomId) => createAnimation({
     type: draftPayload.type,
     scope: "room",
@@ -5855,6 +5895,7 @@ function startRoomAnimationFromDraft() {
     soundVolume: draftPayload.soundVolume,
     hold: true,
     durationSec: 0,
+    startDelayMs: shouldStaggerClusterStart ? Math.floor(Math.random() * 280) + 40 : 0,
   }));
 
   for (const animation of createdAnimations) {
@@ -5871,8 +5912,9 @@ function startRoomAnimationFromDraft() {
   const targetLabel = isClusterTarget
     ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
     : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
+  const clusterStartModeLabel = shouldStaggerClusterStart ? "staggered start" : "synchronous start";
   triggerFeedback.textContent = isClusterTarget
-    ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms)`
+    ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
     : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
   renderRunningAnimationsList();
 }
@@ -6101,6 +6143,9 @@ function clipToInsideShip(boardId = state.boardId) {
 }
 
 function drawAnimation(animation, now) {
+  if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
+    return;
+  }
   const runtimeSpeed = animation.scope === "room" ? clampRoomSpeed(animation.speed ?? 1) : 1;
   const age = ((now - animation.startedAt) / 1000) * state.animationSpeed * runtimeSpeed;
   if (animation.scope === "room") {
@@ -7657,6 +7702,10 @@ roomDurationInput.addEventListener("input", () => {
 roomHoldInput.addEventListener("change", () => {
   roomHoldInput.checked = true;
   state.roomDraft.hold = true;
+});
+
+roomStaggerStartInput?.addEventListener("change", () => {
+  state.roomDraft.staggerStart = Boolean(roomStaggerStartInput.checked);
 });
 
 audioEnabledInput.addEventListener("change", () => {
