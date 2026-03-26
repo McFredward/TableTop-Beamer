@@ -17,6 +17,8 @@
       alignMode: false,
       roomDraft: {
         editTargetId: null,
+        targetType: "room",
+        targetId: null,
         animationId: defaultRoomAnimationId,
         opacity: Number(roomOpacity ?? 0.9),
         playbackSpeed: Number(roomPlaybackSpeed ?? 1),

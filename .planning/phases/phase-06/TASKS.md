@@ -10,7 +10,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P6-T4 [P0] Client-Board-Auswahl auf dynamischen Katalog umstellen (kein hardcoded A/B, boardId als Source-of-Truth).
 - [x] DONE P6-T5 [P0] Runtime-Pfade fuer Boarddaten generalisieren (Render/Selection/Profile anhand boardId aus Katalog aufloesen).
 
-- [ ] TODO P6-T6 [P0] Room-Cluster-Domain + Persistenzmodell einfuehren (`clusterId`, `name`, `roomIds`, board-spezifisch).
+- [x] DONE P6-T6 [P0] Room-Cluster-Domain + Persistenzmodell einfuehren (`clusterId`, `name`, `roomIds`, board-spezifisch).
 - [ ] TODO P6-T7 [P0] Dropdown-Zielliste auf `room` + `cluster` erweitern und UI-Darstellung eindeutig kennzeichnen.
 - [ ] TODO P6-T8 [P0] Cluster-Trigger/Edit-Fanout implementieren (Animationsstart fuer alle Cluster-Raeume, Running-Liste instanzscharf konsistent).
 - [ ] TODO P6-T9 [P0] Einzelraum-Klickguard absichern: Board-Klick selektiert weiterhin nur den einzelnen Raum ohne implizite Cluster-Selektion.

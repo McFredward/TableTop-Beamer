@@ -115,10 +115,11 @@
     const migrated = createDefaultBoardProfiles();
     for (const board of boards) {
       const profile = candidate?.[board.id] ?? {};
-      migrated[board.id] = {
-        roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
-        hitareaCalibration:
-          profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[board.id] ?? HITAREA_CALIBRATION_DEFAULT,
+        migrated[board.id] = {
+          roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
+          roomClusters: profile.roomClusters ?? profile.clusters ?? null,
+          hitareaCalibration:
+            profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[board.id] ?? HITAREA_CALIBRATION_DEFAULT,
         roomGeometry:
           profile.roomGeometry ??
           profile.geometry ??
