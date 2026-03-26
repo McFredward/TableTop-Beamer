@@ -50,4 +50,6 @@ Board-agnostic tabletop beamer overlay controller with shared live sync, final o
 
 - Room clicks always select a single room.
 - Cluster execution is available through the room target dropdown.
-- UI/operator-facing copy is English-only in Phase 6 flows.
+- Operator-facing copy must be English-only in Phase 6 flows (Control, Settings, Final flow, status, and errors).
+- Language-sweep verification artifact:
+  - `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md`
