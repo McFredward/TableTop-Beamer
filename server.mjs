@@ -75,6 +75,111 @@ function acceptLiveMutationType(type) {
   ]).has(type);
 }
 
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value ?? null));
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readRuntimeSnapshot() {
+  return isPlainObject(liveSessionState.snapshot.runtime) ? cloneJson(liveSessionState.snapshot.runtime) : {};
+}
+
+function readOutsideFxByBoard() {
+  const topLevel = isPlainObject(liveSessionState.snapshot.outsideFxByBoard)
+    ? cloneJson(liveSessionState.snapshot.outsideFxByBoard)
+    : {};
+  const runtime = readRuntimeSnapshot();
+  const runtimeOutside = isPlainObject(runtime.outsideFxByBoard) ? runtime.outsideFxByBoard : {};
+  return {
+    ...runtimeOutside,
+    ...topLevel,
+  };
+}
+
+function applyOutsideUpdatePatch(payload) {
+  const nextRuntime = readRuntimeSnapshot();
+  const outsideFxByBoard = readOutsideFxByBoard();
+
+  if (isPlainObject(payload?.outsideFxByBoard)) {
+    for (const [boardId, profile] of Object.entries(payload.outsideFxByBoard)) {
+      if (!boardId || !isPlainObject(profile)) {
+        continue;
+      }
+      outsideFxByBoard[boardId] = {
+        ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
+        ...profile,
+      };
+    }
+  }
+
+  if (typeof payload?.outsideBoardId === "string" && isPlainObject(payload?.outsideFx)) {
+    const boardId = payload.outsideBoardId;
+    outsideFxByBoard[boardId] = {
+      ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
+      ...payload.outsideFx,
+    };
+  }
+
+  nextRuntime.outsideFxByBoard = outsideFxByBoard;
+  return {
+    runtime: nextRuntime,
+    outsideFxByBoard,
+  };
+}
+
+function applyRoomMutationPatch(mutationType, payload) {
+  const nextRuntime = readRuntimeSnapshot();
+  const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
+
+  if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
+    const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
+    if (existingIndex === -1) {
+      runningAnimations.push(cloneJson(payload.animation));
+    }
+  } else if (
+    mutationType === "edit-room" &&
+    isPlainObject(payload?.animation) &&
+    typeof payload.animation.id === "string"
+  ) {
+    const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
+    if (existingIndex >= 0) {
+      runningAnimations[existingIndex] = {
+        ...runningAnimations[existingIndex],
+        ...cloneJson(payload.animation),
+      };
+    } else {
+      runningAnimations.push(cloneJson(payload.animation));
+    }
+  } else if (mutationType === "stop-animation" && typeof payload?.animationId === "string") {
+    const nextList = runningAnimations.filter((entry) => entry?.id !== payload.animationId);
+    runningAnimations.length = 0;
+    runningAnimations.push(...nextList);
+  } else if (mutationType === "clear-all") {
+    runningAnimations.length = 0;
+    const outsideFxByBoard = readOutsideFxByBoard();
+    for (const [boardId, profile] of Object.entries(outsideFxByBoard)) {
+      outsideFxByBoard[boardId] = {
+        ...(isPlainObject(profile) ? profile : {}),
+        enabled: false,
+      };
+    }
+    nextRuntime.outsideFxByBoard = outsideFxByBoard;
+    nextRuntime.runningAnimations = runningAnimations;
+    return {
+      runtime: nextRuntime,
+      outsideFxByBoard,
+    };
+  }
+
+  nextRuntime.runningAnimations = runningAnimations;
+  return {
+    runtime: nextRuntime,
+  };
+}
+
 function applyLiveMutation({ clientId, role, mutationType, payload }) {
   if (!acceptLiveMutationType(mutationType)) {
     logErrorEvent("invalid-mutation-type", String(mutationType ?? "unknown"), {
@@ -83,15 +188,31 @@ function applyLiveMutation({ clientId, role, mutationType, payload }) {
     });
     return null;
   }
-  const nextSnapshotPatch = {
-    runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
-    outsideFxByBoard:
-      payload?.outsideFxByBoard ??
-      payload?.runtime?.outsideFxByBoard ??
-      liveSessionState.snapshot.outsideFxByBoard ?? {},
-  };
+  let nextSnapshotPatch = null;
+  if (mutationType === "outside-update") {
+    nextSnapshotPatch = applyOutsideUpdatePatch(payload);
+  } else if (
+    mutationType === "trigger-room" ||
+    mutationType === "edit-room" ||
+    mutationType === "stop-animation" ||
+    mutationType === "clear-all"
+  ) {
+    nextSnapshotPatch = applyRoomMutationPatch(mutationType, payload);
+  } else {
+    nextSnapshotPatch = {
+      runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
+      outsideFxByBoard:
+        payload?.outsideFxByBoard ??
+        payload?.runtime?.outsideFxByBoard ??
+        liveSessionState.snapshot.outsideFxByBoard ?? {},
+    };
+  }
+
   if (typeof payload?.alignMode === "boolean") {
     nextSnapshotPatch.alignMode = payload.alignMode;
+    if (isPlainObject(nextSnapshotPatch.runtime)) {
+      nextSnapshotPatch.runtime.alignMode = payload.alignMode;
+    }
   }
   return mutateLiveSession({
     mutation: {

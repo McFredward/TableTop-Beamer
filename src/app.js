@@ -317,6 +317,16 @@ function buildRuntimeSnapshotForLiveSync() {
   };
 }
 
+function buildAnimationSnapshotForLiveSync(animation) {
+  if (!animation || typeof animation !== "object") {
+    return null;
+  }
+  return {
+    ...animation,
+    startedAtEpochMs: getAnimationStartedAtEpochMs(animation),
+  };
+}
+
 function emitLiveMutation(mutationType, payload = {}) {
   if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
@@ -334,12 +344,14 @@ function emitLiveMutation(mutationType, payload = {}) {
 }
 
 function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settings") {
+  const normalizedProfile = normalizeOutsideFxProfile(state.outsideFxByBoard[boardId]);
   emitLiveMutation("outside-update", {
     outsideBoardId: boardId,
     reason,
-    outsideFxByBoard: Object.fromEntries(
-      BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
-    ),
+    outsideFx: normalizedProfile,
+    outsideFxByBoard: {
+      [boardId]: normalizedProfile,
+    },
   });
 }
 
@@ -4811,6 +4823,7 @@ function startRoomAnimationFromDraft() {
       renderRunningAnimationsList();
       emitLiveMutation("edit-room", {
         animationId: updated.id,
+        animation: buildAnimationSnapshotForLiveSync(updated),
       });
       return;
     }
@@ -4836,6 +4849,7 @@ function startRoomAnimationFromDraft() {
   renderRunningAnimationsList();
   emitLiveMutation("trigger-room", {
     animationId: animation.id,
+    animation: buildAnimationSnapshotForLiveSync(animation),
   });
 }
 
