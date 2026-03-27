@@ -210,6 +210,14 @@ function normalizeNonEmptyString(value) {
   return trimmed ? trimmed : null;
 }
 
+function isBoardContextSuppressedReason(reason) {
+  const normalized = normalizeNonEmptyString(reason);
+  if (!normalized) {
+    return false;
+  }
+  return normalized === "room-draft-sync" || normalized === "align-toggle";
+}
+
 function readRuntimeSnapshot() {
   return isPlainObject(liveSessionState.snapshot.runtime) ? cloneJson(liveSessionState.snapshot.runtime) : {};
 }
@@ -487,6 +495,10 @@ function applyGlobalMutationPatch(payload) {
 function applyContextUpdatePatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
   const runtimePatch = isPlainObject(payload?.runtime) ? payload.runtime : {};
+  const reason =
+    normalizeNonEmptyString(payload?.reason)
+    ?? normalizeNonEmptyString(runtimePatch?.reason)
+    ?? null;
   const previousSelectedBoard =
     normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard) ??
     normalizeNonEmptyString(nextRuntime?.selectedBoard) ??
@@ -498,7 +510,7 @@ function applyContextUpdatePatch(payload) {
       : typeof runtimePatch?.alignMode === "boolean"
         ? runtimePatch.alignMode
         : null;
-  const selectedBoard =
+  const requestedSelectedBoard =
     normalizeNonEmptyString(payload?.selectedBoard) ??
     normalizeNonEmptyString(payload?.boardId) ??
     normalizeNonEmptyString(runtimePatch?.selectedBoard) ??
@@ -507,31 +519,37 @@ function applyContextUpdatePatch(payload) {
     normalizeNonEmptyString(nextRuntime?.selectedBoard) ??
     normalizeNonEmptyString(nextRuntime?.boardId) ??
     null;
-  const selectedLayout =
+  const requestedSelectedLayout =
     normalizeNonEmptyString(payload?.selectedLayout) ??
     normalizeNonEmptyString(payload?.layoutId) ??
     normalizeNonEmptyString(runtimePatch?.selectedLayout) ??
     normalizeNonEmptyString(runtimePatch?.layoutId) ??
-    selectedBoard;
-  const boardSwitched =
-    Boolean(selectedBoard)
-    && Boolean(previousSelectedBoard)
-    && selectedBoard !== previousSelectedBoard;
-  const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
-  const hasCrossBoardResidue =
-    Boolean(selectedBoard)
-    && runningAnimations.some((entry) => {
-      const entryBoardId = normalizeNonEmptyString(entry?.boardId);
-      return Boolean(entryBoardId) && entryBoardId !== selectedBoard;
-    });
+    requestedSelectedBoard;
   const atomicSwitchTransactionId =
     normalizeNonEmptyString(payload?.contextSwitchTransactionId)
     ?? normalizeNonEmptyString(runtimePatch?.contextSwitchTransactionId)
     ?? null;
+  const allowBoardContextMutation = Boolean(atomicSwitchTransactionId) || !isBoardContextSuppressedReason(reason);
+  const selectedBoard = allowBoardContextMutation
+    ? requestedSelectedBoard
+    : previousSelectedBoard;
+  const selectedLayout = allowBoardContextMutation
+    ? requestedSelectedLayout
+    : (
+      normalizeNonEmptyString(liveSessionState.snapshot?.selectedLayout)
+      ?? normalizeNonEmptyString(nextRuntime?.selectedLayout)
+      ?? normalizeNonEmptyString(nextRuntime?.layoutId)
+      ?? previousSelectedBoard
+      ?? null
+    );
+  const boardSwitched =
+    Boolean(selectedBoard)
+    && Boolean(previousSelectedBoard)
+    && selectedBoard !== previousSelectedBoard;
   const alreadyAppliedTransaction =
     Boolean(atomicSwitchTransactionId)
     && normalizeNonEmptyString(nextRuntime?.lastContextSwitchTransactionId) === atomicSwitchTransactionId;
-  const shouldAtomicClear = (boardSwitched || hasCrossBoardResidue) && !alreadyAppliedTransaction;
+  const shouldAtomicClear = boardSwitched && !alreadyAppliedTransaction;
 
   if (selectedBoard) {
     nextRuntime.boardId = selectedBoard;

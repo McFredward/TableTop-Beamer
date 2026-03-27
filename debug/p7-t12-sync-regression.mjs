@@ -94,10 +94,26 @@ function assertAlignPanelSyncAppliedOnSnapshot(source) {
 
 function assertBoardSwitchRunningClearInContextPatch(source) {
   assert(
-    /function applyContextUpdatePatch\(payload\)[\s\S]*const shouldAtomicClear =[\s\S]*if \(shouldAtomicClear\) \{[\s\S]*nextRuntime\.runningAnimations = \[\];/.test(source),
+    /function applyContextUpdatePatch\(payload\)[\s\S]*const shouldAtomicClear = boardSwitched && !alreadyAppliedTransaction;[\s\S]*if \(shouldAtomicClear\) \{[\s\S]*nextRuntime\.runningAnimations = \[\];/.test(source),
     "context-update patch missing board-switch running-clear guard",
   );
 }
+
+function assertContextUpdateDoesNotMutateBoardForDraftOrAlign(appSource, serverSource) {
+  assert(
+    /function emitRoomDraftSyncMutation\([\s\S]*emitLiveMutation\("context-update", \{[\s\S]*draftBoardId:[\s\S]*runtime:[\s\S]*roomDraft:[\s\S]*\}\)\.catch\(\(\) => undefined\);/.test(appSource),
+    "room-draft sync command payload missing draft-only context guard",
+  );
+  assert(
+    /function setAlignMode\(enabled, \{ emit = true \} = \{\}\) \{[\s\S]*emitLiveMutation\("context-update", \{[\s\S]*reason: "align-toggle"[\s\S]*alignMode: nextAlignMode[\s\S]*runtime:[\s\S]*alignMode: nextAlignMode/.test(appSource),
+    "align toggle context-update payload missing align-only guard",
+  );
+  assert(
+    /const allowBoardContextMutation = Boolean\(atomicSwitchTransactionId\) \|\| !isBoardContextSuppressedReason\(reason\);/.test(serverSource),
+    "server context-update reason arbitration guard missing",
+  );
+}
+
 
 function assertServerSnapshotSanitizerGuard(source) {
   assert(
@@ -258,6 +274,7 @@ async function main() {
   assertServerStopNoopAndClusterGuard(serverSource);
   assertGlobalStopSemanticsUnified(appSource, serverSource);
   assertRunningListHoverStabilityGuard(appSource, stylesSource);
+  assertContextUpdateDoesNotMutateBoardForDraftOrAlign(appSource, serverSource);
 
   console.log(JSON.stringify({
     pass: true,

@@ -282,10 +282,6 @@ function setAlignMode(enabled, { emit = true } = {}) {
   if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
     void emitLiveMutation("context-update", {
       reason: "align-toggle",
-      selectedBoard: state.boardId,
-      selectedLayout: state.selectedLayout ?? state.boardId,
-      boardId: state.boardId,
-      layoutId: state.selectedLayout ?? state.boardId,
       alignMode: nextAlignMode,
       runtime: {
         alignMode: nextAlignMode,
@@ -729,12 +725,8 @@ function emitRoomDraftSyncMutation(reason = "room-draft-sync") {
   };
   void emitLiveMutation("context-update", {
     reason,
-    selectedBoard: state.boardId,
-    selectedLayout: state.selectedLayout ?? state.boardId,
-    boardId: state.boardId,
+    draftBoardId: state.boardId,
     runtime: {
-      selectedBoard: state.boardId,
-      selectedLayout: state.selectedLayout ?? state.boardId,
       roomDraft: roomDraftPayload,
     },
   }).catch(() => undefined);

@@ -84,7 +84,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF8-T5 [P0] Regression-Matrix erweitern: all-scope stop parity (`room`, `global-inside`, `global-outside`, `cluster`) + hover behavior parity ueber 3-4 Clients inkl. `/output/final`.
 - [x] DONE P7-HF8-T6 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
-## Plan 7-2 - Hardening Wave (nach 7-HF8)
+## Plan 7-HF9 - Start-Lifecycle Determinism + Board-Switch Status Arbitration Hotfix (execute-ready, blocker vor 7-2)
+- [x] DONE P7-HF9-T1 [P0] Root-Cause-Fix umsetzen: Start-Mutationen (`trigger-room`, `trigger-global`, `trigger-cluster`) duerfen nicht unmittelbar durch nachlaufende Kontext-/Statusmutationen neutralisiert/ueberschrieben werden.
+- [ ] TODO P7-HF9-T2 [P0] Status-Arbitration korrigieren: `board switched` bleibt Kontextsignal und maskiert laufende Start-/Running-Statusereignisse nicht.
+- [ ] TODO P7-HF9-T3 [P0] Start/Stop-Paritaet fuer alle Scopes regressionsfest machen (`room`, `global-inside`, `global-outside`, `cluster`) inkl. strict stop-only semantics.
+- [ ] TODO P7-HF9-T4 [P0] Lifecycle-/Persistenz-Guard haerten: gestartete Animationen bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`; kein implizites Early-Cleanup durch Statusdrift.
+- [ ] TODO P7-HF9-T5 [P0] Deterministische Multi-Client-Sync-Paritaet inkl. `/output/final` sichern (Polling/Version/Ack/Reconnect non-regression beibehalten).
+- [ ] TODO P7-HF9-T6 [P0] Voller Funktionscheck als Pflichtmatrix ausfuehren: Start+Stop fuer room/global-inside/global-outside/cluster inkl. status arbitration checks.
+- [ ] TODO P7-HF9-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Plan 7-2 - Hardening Wave (nach 7-HF9)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.
