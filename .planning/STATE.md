@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-1
+- Last Executed Plan: 8-HF1
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -24,6 +24,14 @@
 - Plan 8-1 ist abgeschlossen: Mehrbereichs-Play-Areas laufen kanonisch ueber `playAreas[]` mit aktiver Auswahl-ID und Legacy-Ladealias.
 - Plan 8-1 Runtime-Entscheidung: Inside/Outside-Clipping nutzt denselben Union-Maskenpfad ueber alle gueltigen Play-Area-Polygone.
 - Plan 8-1 Import-Entscheidung: Board-Import akzeptiert JSON und Multipart-Bildupload; Bildboards starten mit leerem Room-Catalog fuer manuellen Polygonworkflow.
+- Neues verpflichtendes Feedback fuer Phase 8 ist gesetzt: Room-Klick-Selection regressiert, da Play-Area-Click-Selektion den Input abfaengt.
+- P0-Regel Plan 8-HF1: Play-Area-Selektion per Board-Klick wird vollstaendig entfernt; Room-Klick ist der priorisierte kanonische Selection-Pfad.
+- Neues verpflichtendes Feedback fuer Phase 8 ist gesetzt: erfolgreicher Bildimport zeigt aktuell keinen sofort sichtbaren UI-Erfolg.
+- P0-Regel Plan 8-HF1: neues Import-Board erscheint nach Success sofort im Board-Dropdown und wird direkt aktiv selektiert; leerer Polygon-Startzustand bleibt gueltig.
+- Plan-8-HF1 Umsetzung: Play-Area-Maske ist im Overlay nur noch visuell (`pointer-events: none`); Room-Klick bleibt deterministischer Selection-Source-of-Truth.
+- Plan-8-HF1 Umsetzung: Import-Success nutzt `no-store` Katalogrefresh plus Response-Upsert, damit neue Bildboards sofort im Dropdown sichtbar sind.
+- Plan-8-HF1 Umsetzung: Post-Import aktiviert das neue Board verpflichtend mit explizitem Guard; Aktivierungsfehler sind nicht mehr still.
+- Plan-8-HF1 Umsetzung: Runtime-Katalog akzeptiert importierte Boards mit leerem Room-Catalog als gueltigen manuellen Empty-Start.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
