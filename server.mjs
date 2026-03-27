@@ -417,6 +417,11 @@ function applyGlobalMutationPatch(payload) {
 function applyContextUpdatePatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
   const runtimePatch = isPlainObject(payload?.runtime) ? payload.runtime : {};
+  const previousSelectedBoard =
+    normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard) ??
+    normalizeNonEmptyString(nextRuntime?.selectedBoard) ??
+    normalizeNonEmptyString(nextRuntime?.boardId) ??
+    null;
   const alignMode =
     typeof payload?.alignMode === "boolean"
       ? payload.alignMode
@@ -438,6 +443,10 @@ function applyContextUpdatePatch(payload) {
     normalizeNonEmptyString(runtimePatch?.selectedLayout) ??
     normalizeNonEmptyString(runtimePatch?.layoutId) ??
     selectedBoard;
+  const boardSwitched =
+    Boolean(selectedBoard)
+    && Boolean(previousSelectedBoard)
+    && selectedBoard !== previousSelectedBoard;
 
   if (selectedBoard) {
     nextRuntime.boardId = selectedBoard;
@@ -451,6 +460,10 @@ function applyContextUpdatePatch(payload) {
       ...(isPlainObject(nextRuntime.roomDraft) ? nextRuntime.roomDraft : {}),
       ...cloneJson(runtimePatch.roomDraft),
     };
+  }
+
+  if (boardSwitched) {
+    nextRuntime.runningAnimations = [];
   }
 
   if (alignMode !== null) {

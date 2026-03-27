@@ -57,7 +57,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF5-T1 [P0] Align-Mode-Toggle serverautoritativ als Context-Command haerten (Ack + monotone Snapshot-Version + dedup), ohne lokalen Optimismus.
 - [x] DONE P7-HF5-T2 [P0] Align-Mode-Snapshot-Apply auf allen Rollen vereinheitlichen; `/output/final` muss denselben Version-Apply-Pfad verpflichtend nutzen.
 - [x] DONE P7-HF5-T3 [P0] Align-Mode stale/equal-version reject absichern (`incomingVersion <= appliedVersion => drop`) inkl. reconnect/replay-Paritaet.
-- [ ] TODO P7-HF5-T4 [P0] Board-Switch serverseitig atomar an Running-Clear koppeln, damit Running-Liste beim Kontextwechsel deterministisch geleert wird.
+- [x] DONE P7-HF5-T4 [P0] Board-Switch serverseitig atomar an Running-Clear koppeln, damit Running-Liste beim Kontextwechsel deterministisch geleert wird.
 - [ ] TODO P7-HF5-T5 [P0] Client-Apply fuer Board-Switch gegen boardfremde Running-Rehydrierung haerten (keine Alt-Reste nach Switch).
 - [ ] TODO P7-HF5-T6 [P0] Regression erweitern: Align-on/off Roundtrip ueber 3-4 Clients inkl. `/output/final` sowie Start->Board-Switch->Running-empty Matrix.
 - [ ] TODO P7-HF5-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
