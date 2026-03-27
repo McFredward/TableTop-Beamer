@@ -310,15 +310,33 @@ function applyRoomMutationPatch(mutationType, payload) {
 function applyGlobalMutationPatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
   const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
+  const globalTriggerRevisions = isPlainObject(nextRuntime.globalTriggerRevisions)
+    ? { ...nextRuntime.globalTriggerRevisions }
+    : {};
+  const globalStopRevisions = isPlainObject(nextRuntime.globalStopRevisions)
+    ? { ...nextRuntime.globalStopRevisions }
+    : {};
   const action = normalizeNonEmptyString(payload?.action) ?? "start";
   const animationType = normalizeNonEmptyString(payload?.animationType);
   const boardId = normalizeNonEmptyString(payload?.boardId)
     ?? normalizeNonEmptyString(payload?.animation?.boardId)
     ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
     ?? null;
+  const directTriggerKey = boardId && animationType ? `${boardId}:${animationType}` : null;
 
   if (action === "stop") {
     const stopAnimationId = normalizeNonEmptyString(payload?.animationId);
+    let inferredTriggerKey = directTriggerKey;
+    if (!inferredTriggerKey && stopAnimationId) {
+      const match = runningAnimations.find((entry) => entry?.id === stopAnimationId);
+      if (match?.boardId && match?.type) {
+        inferredTriggerKey = `${match.boardId}:${match.type}`;
+      }
+    }
+    if (inferredTriggerKey) {
+      const currentStopRevision = Number(globalStopRevisions[inferredTriggerKey]) || 0;
+      globalStopRevisions[inferredTriggerKey] = currentStopRevision + 1;
+    }
     const filtered = runningAnimations.filter((entry) => {
       if (stopAnimationId && entry?.id === stopAnimationId) {
         return false;
@@ -331,6 +349,14 @@ function applyGlobalMutationPatch(payload) {
     nextRuntime.runningAnimations = filtered;
   } else if (isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const incoming = cloneJson(payload.animation);
+    const triggerKey = normalizeNonEmptyString(incoming.triggerKey) ?? directTriggerKey;
+    if (triggerKey) {
+      const currentTriggerRevision = Number(globalTriggerRevisions[triggerKey]) || 0;
+      const nextTriggerRevision = currentTriggerRevision + 1;
+      globalTriggerRevisions[triggerKey] = nextTriggerRevision;
+      incoming.triggerKey = triggerKey;
+      incoming.triggerRevision = nextTriggerRevision;
+    }
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === incoming.id);
     if (existingIndex >= 0) {
       runningAnimations[existingIndex] = {
@@ -344,6 +370,9 @@ function applyGlobalMutationPatch(payload) {
   } else {
     nextRuntime.runningAnimations = runningAnimations;
   }
+
+  nextRuntime.globalTriggerRevisions = globalTriggerRevisions;
+  nextRuntime.globalStopRevisions = globalStopRevisions;
 
   if (animationType === "outside-space" || payload?.outsideHint === true) {
     const outsideFxByBoard = readOutsideFxByBoard();

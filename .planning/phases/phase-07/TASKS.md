@@ -35,7 +35,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF2-T6 [P0] Regression-Suite erweitern: 3-4 Clients, Burst/Toggle/Reconnect, keine Ghost-States, kein second-click-Zwang.
 - [x] DONE P7-HF2-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
-## Plan 7-2 - Hardening Wave (nach 7-HF2)
+## Plan 7-HF3 - Snapshot Trigger/Audio Consistency + Sequential Stagger Hotfix (execute-ready, verpflichtend vor 7-2)
+- [x] DONE P7-HF3-T1 [P0] Snapshot-Trigger-Revision fuer globale Effekte einziehen: pro neuer Revision auf jedem Client genau ein Vollstart (kein 1s-Kurzlauf bei Fremdtrigger).
+- [ ] TODO P7-HF3-T2 [P0] Stop-Gating haerten: laufende globale Effekte enden vorzeitig ausschliesslich bei explizitem Stop im Snapshot.
+- [ ] TODO P7-HF3-T3 [P0] Audio-Lifecycle an Snapshot koppeln: pro Trigger-Revision genau ein Start, stale/replayed Audio strikt droppen, kein Alt-Effekt-Nachlauf.
+- [ ] TODO P7-HF3-T4 [P0] Snapshot-Dedup/Idempotenz fuer Trigger-Lifecycle erweitern (Trigger-Revision-Key, reconnect-safe reapply-guard).
+- [ ] TODO P7-HF3-T5 [P0] Cluster-`stagger start` erweitern: sequenzieller Member-Start mit konfigurierbarem Offset (ms) statt randomisiertem Versatz.
+- [ ] TODO P7-HF3-T6 [P0] UI-Controls fuer Stagger praezisieren: Delay-Slider (ms) + replizierte Persistenz in Command/Snapshot.
+- [ ] TODO P7-HF3-T7 [P0] Regression + Evidenz + Artefakt-Sync liefern (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. Trigger-Dauerparitaet/Audionachlauf/Stagger-Offset-Matrix.
+
+## Plan 7-2 - Hardening Wave (nach 7-HF3)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.
