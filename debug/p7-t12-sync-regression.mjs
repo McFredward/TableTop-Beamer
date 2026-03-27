@@ -176,6 +176,44 @@ function assertServerStopNoopAndClusterGuard(serverSource) {
   );
 }
 
+function assertGlobalStopSemanticsUnified(appSource, serverSource) {
+  assert(
+    /function emitStopAnimationCommand\(animationId, \{ priorityHint = "high", targetAnimation = null \} = \{\}\)/.test(appSource),
+    "stop command helper does not accept target metadata",
+  );
+  assert(
+    /buildStopCommandTargetMeta\(animationForMeta\)/.test(appSource),
+    "stop command helper does not include scope/type/board metadata",
+  );
+  assert(
+    /if \(stopTargetScope !== "global" \|\| !stopTargetType\) \{[\s\S]*return \{[\s\S]*runtime: nextRuntime/.test(serverSource),
+    "server stop no-op fallback for non-global missing",
+  );
+  assert(
+    /const shouldFallbackGlobalTypeStop =[\s\S]*resolvedGlobalStopScope === "global"[\s\S]*\(!stopAnimationId \|\| !stoppedEntry\)/.test(serverSource),
+    "server fallback global stop semantics missing",
+  );
+  assert(
+    /resolvedGlobalStopType === "outside-space"[\s\S]*outsideFxByBoard\[outsideStopBoardId\][\s\S]*enabled: false/.test(serverSource),
+    "server global-outside stop does not disable outside profile",
+  );
+}
+
+function assertRunningListHoverStabilityGuard(appSource, stylesSource) {
+  assert(
+    /function isRunningListInteractionActive\(\)/.test(appSource),
+    "running-list hover interaction helper missing",
+  );
+  assert(
+    /outputRole !== OUTPUT_ROLE_FINAL[\s\S]*now - lastListRenderAt > 500[\s\S]*!isRunningListInteractionActive\(\)/.test(appSource),
+    "periodic running-list refresh is not interaction-guarded",
+  );
+  assert(
+    /\.running-actions button:hover,[\s\S]*\.running-actions button:focus-visible[\s\S]*transform: none;/.test(stylesSource),
+    "running actions hover/focus transform stabilization missing",
+  );
+}
+
 async function main() {
   const before = await readJson("/api/live/telemetry");
   const baselineSnapshot = await readJson("/api/live/snapshot?sinceVersion=0");
@@ -189,6 +227,7 @@ async function main() {
   const state = await readJson("/api/live/state");
   const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   const serverSource = await readFile(new URL("../server.mjs", import.meta.url), "utf8");
+  const stylesSource = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   assert(after?.ok === true, "telemetry refresh failed");
   assert(state?.ok === true, "live state endpoint unavailable");
 
@@ -217,6 +256,8 @@ async function main() {
   assertImmediateStopSnapshotApply(appSource);
   assertStopInflightUiGuard(appSource);
   assertServerStopNoopAndClusterGuard(serverSource);
+  assertGlobalStopSemanticsUnified(appSource, serverSource);
+  assertRunningListHoverStabilityGuard(appSource, stylesSource);
 
   console.log(JSON.stringify({
     pass: true,
@@ -260,6 +301,12 @@ async function main() {
       immediateStopSnapshotApplyOnLiveSessionUpdate: true,
       pendingStopInflightUiGuardActive: true,
       serverStopNoopAndClusterReconciliation: true,
+    },
+    hf8GlobalStopHoverGuards: {
+      stopCommandCarriesGlobalTargetMetadata: true,
+      serverGlobalStopSemanticsUnifiedForInsideOutside: true,
+      serverGlobalOutsideStopDisablesOutsideFx: true,
+      runningListHoverInteractionGuardActive: true,
     },
   }, null, 2));
 }

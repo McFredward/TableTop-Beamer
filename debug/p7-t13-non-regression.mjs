@@ -378,6 +378,65 @@ async function main() {
   rows.push({ area: "global", behavior: "explicit stop removes global animation and records stop revision", status: "PASS" });
   rows.push({ area: "hf7", behavior: "global stop via stop-animation keeps anim-id non-increment invariant", status: "PASS" });
 
+  const outsideAnimationId = mutationId("hf8-global-outside");
+  const outsideStartAck = await sendCommand("trigger-global", {
+    animationType: "outside-space",
+    action: "start",
+    boardId: board.id,
+    outsideHint: true,
+    animation: {
+      id: outsideAnimationId,
+      type: "outside-space",
+      scope: "global",
+      boardId: board.id,
+      hold: true,
+      durationMs: null,
+      intensity: 1,
+      speed: 1,
+      startedAtEpochMs: Date.now(),
+    },
+  });
+  await waitForAllClientsVersion(clients, outsideStartAck.version);
+  for (const client of clients) {
+    assert(findGlobalAnimation(client.snapshot?.runtime, "outside-space", board.id, outsideAnimationId), `global-outside start missing on ${client.role}`);
+  }
+  rows.push({ area: "hf8", behavior: "global-outside start is visible across all clients incl. final-output", status: "PASS" });
+
+  const outsideStopBaselineByRole = Object.fromEntries(clients.map((client) => [
+    client.role,
+    collectRunningIds(client.snapshot?.runtime),
+  ]));
+  const outsideStopAck = await sendCommand("stop-animation", {
+    animationId: outsideAnimationId,
+    priorityHint: "high",
+    targetScope: "global",
+    targetType: "outside-space",
+    boardId: board.id,
+    outsideHint: true,
+  });
+  await waitForAllClientsVersion(clients, outsideStopAck.version);
+  for (const client of clients) {
+    const outsideAnimation = findGlobalAnimation(client.snapshot?.runtime, "outside-space", board.id, outsideAnimationId);
+    assert(!outsideAnimation, `global-outside stop not visible on ${client.role}`);
+    const afterIds = collectRunningIds(client.snapshot?.runtime);
+    assertNoUnexpectedIdsAfterStop(
+      outsideStopBaselineByRole[client.role],
+      afterIds,
+      [outsideAnimationId],
+      `global-outside-stop-no-id-increment on ${client.role}`,
+    );
+  }
+  const outsideStateAfterStop = await readJson("/api/live/state");
+  const outsideProfileByBoard =
+    outsideStateAfterStop?.session?.snapshot?.outsideFxByBoard
+    ?? outsideStateAfterStop?.session?.snapshot?.runtime?.outsideFxByBoard
+    ?? {};
+  assert(
+    outsideProfileByBoard?.[board.id]?.enabled === false,
+    "global-outside stop did not disable outsideFx enabled flag",
+  );
+  rows.push({ area: "hf8", behavior: "global-outside stop is stop-only/idempotent and disables outsideFx on authoritative snapshot", status: "PASS" });
+
   const staggerOffsetMs = 260;
   const hf4ClusterDraft = {
     ...hf4DraftBaseline,
@@ -590,12 +649,20 @@ async function main() {
   rows.push({ area: "hf5", behavior: "reconnect snapshot keeps board-switch running-clear no-residue parity", status: "PASS" });
   rows.push({ area: "hf6", behavior: "switch + reconnect keeps crossBoardResidueCount = 0 across clients incl. final-output", status: "PASS" });
   rows.push({ area: "hf7", behavior: "room/global/cluster stop matrix parity holds across control + final-output clients", status: "PASS" });
+  rows.push({ area: "hf8", behavior: "all-scope stop matrix parity holds for room/global-inside/global-outside/cluster", status: "PASS" });
 
   const telemetry = await readJson("/api/live/telemetry");
   const gates = telemetry?.telemetry?.gates ?? {};
   assert(Number(gates.commandAccepted ?? 0) > 0, "telemetry.gates.commandAccepted missing");
   assert(Number(gates.snapshotVersionVisible ?? 0) > 0, "telemetry.gates.snapshotVersionVisible missing");
   rows.push({ area: "telemetry", behavior: "command/snapshot gate counters available", status: "PASS" });
+
+  const appSourceForHover = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  const stylesSource = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert(/function isRunningListInteractionActive\(\)/.test(appSourceForHover), "running-list interaction guard helper missing");
+  assert(/now - lastListRenderAt > 500[\s\S]*!isRunningListInteractionActive\(\)/.test(appSourceForHover), "periodic running-list refresh is not interaction-guarded");
+  assert(/\.running-actions button:hover,[\s\S]*\.running-actions button:focus-visible[\s\S]*transform: none;/.test(stylesSource), "running action hover/focus style stabilization missing");
+  rows.push({ area: "hf8", behavior: "running-list hover style guard is stable (no periodic hover flicker loop)", status: "PASS" });
 
   console.log(JSON.stringify({
     pass: rows.every((row) => row.status === "PASS"),

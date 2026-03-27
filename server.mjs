@@ -267,6 +267,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
   const stopTargetType = normalizeNonEmptyString(payload?.targetType);
   const stopTargetBoardId = normalizeNonEmptyString(payload?.boardId);
+  let outsideFxByBoardPatch = null;
 
   if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
@@ -357,6 +358,7 @@ function applyRoomMutationPatch(mutationType, payload) {
           ...(isPlainObject(outsideFxByBoard[outsideStopBoardId]) ? outsideFxByBoard[outsideStopBoardId] : {}),
           enabled: false,
         };
+        outsideFxByBoardPatch = outsideFxByBoard;
         nextRuntime.outsideFxByBoard = outsideFxByBoard;
       }
     }
@@ -390,6 +392,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   nextRuntime.globalStopRevisions = globalStopRevisions;
   return {
     runtime: nextRuntime,
+    ...(outsideFxByBoardPatch ? { outsideFxByBoard: outsideFxByBoardPatch } : {}),
   };
 }
 
@@ -758,6 +761,33 @@ function applyLiveMutation({
     nextSnapshotPatch.alignMode = payload.alignMode;
     if (isPlainObject(nextSnapshotPatch.runtime)) {
       nextSnapshotPatch.runtime.alignMode = payload.alignMode;
+    }
+  }
+  if (mutationType === "stop-animation") {
+    const stopTargetType = normalizeNonEmptyString(payload?.targetType);
+    const isGlobalOutsideStop = stopTargetType === "outside-space" || payload?.outsideHint === true;
+    if (isGlobalOutsideStop) {
+      const targetBoardId =
+        normalizeNonEmptyString(payload?.boardId)
+        ?? normalizeNonEmptyString(nextSnapshotPatch?.selectedBoard)
+        ?? normalizeNonEmptyString(nextSnapshotPatch?.runtime?.selectedBoard)
+        ?? normalizeNonEmptyString(nextSnapshotPatch?.runtime?.boardId)
+        ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
+        ?? null;
+      if (targetBoardId) {
+        const outsideFxByBoard = isPlainObject(nextSnapshotPatch?.outsideFxByBoard)
+          ? cloneJson(nextSnapshotPatch.outsideFxByBoard)
+          : readOutsideFxByBoard();
+        outsideFxByBoard[targetBoardId] = {
+          ...(isPlainObject(outsideFxByBoard[targetBoardId]) ? outsideFxByBoard[targetBoardId] : {}),
+          enabled: false,
+        };
+        nextSnapshotPatch.outsideFxByBoard = outsideFxByBoard;
+        if (!isPlainObject(nextSnapshotPatch.runtime)) {
+          nextSnapshotPatch.runtime = readRuntimeSnapshot();
+        }
+        nextSnapshotPatch.runtime.outsideFxByBoard = outsideFxByBoard;
+      }
     }
   }
   const serverTimestamp = new Date().toISOString();
