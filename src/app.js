@@ -83,6 +83,8 @@ const roomSoundVolumeValue = document.querySelector("#room-sound-volume-value");
 const roomDurationInput = document.querySelector("#room-duration");
 const roomHoldInput = document.querySelector("#room-hold");
 const roomStaggerStartInput = document.querySelector("#room-stagger-start");
+const roomStaggerOffsetInput = document.querySelector("#room-stagger-offset");
+const roomStaggerOffsetValue = document.querySelector("#room-stagger-offset-value");
 const startRoomAnimationButton = document.querySelector("#start-room-animation");
 const runningAnimationsList = document.querySelector("#running-animations");
 const audioEnabledInput = document.querySelector("#audio-enabled");
@@ -692,6 +694,43 @@ function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settin
       [boardId]: normalizedProfile,
     },
   });
+}
+
+let roomDraftSyncTimerId = null;
+
+function emitRoomDraftSyncMutation(reason = "room-draft-sync") {
+  if (outputRole !== OUTPUT_ROLE_CONTROL) {
+    return;
+  }
+  const roomDraftPayload = {
+    ...(state.roomDraft && typeof state.roomDraft === "object" ? state.roomDraft : {}),
+    staggerStart: Boolean(state.roomDraft.staggerStart),
+    staggerOffsetMs: clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs),
+  };
+  void emitLiveMutation("context-update", {
+    reason,
+    selectedBoard: state.boardId,
+    selectedLayout: state.selectedLayout ?? state.boardId,
+    boardId: state.boardId,
+    runtime: {
+      selectedBoard: state.boardId,
+      selectedLayout: state.selectedLayout ?? state.boardId,
+      roomDraft: roomDraftPayload,
+    },
+  }).catch(() => undefined);
+}
+
+function scheduleRoomDraftSync(reason = "room-draft-sync", delayMs = 120) {
+  if (outputRole !== OUTPUT_ROLE_CONTROL) {
+    return;
+  }
+  if (roomDraftSyncTimerId !== null) {
+    window.clearTimeout(roomDraftSyncTimerId);
+  }
+  roomDraftSyncTimerId = window.setTimeout(() => {
+    roomDraftSyncTimerId = null;
+    emitRoomDraftSyncMutation(reason);
+  }, Math.max(0, Number(delayMs) || 0));
 }
 
 function hydrateRunningAnimationStartTimestamps(runningAnimations) {
@@ -3166,6 +3205,18 @@ function clampClusterStaggerOffsetMs(value) {
     return CLUSTER_STAGGER_OFFSET_DEFAULT_MS;
   }
   return Math.max(CLUSTER_STAGGER_OFFSET_MIN_MS, Math.min(CLUSTER_STAGGER_OFFSET_MAX_MS, numeric));
+}
+
+function syncRoomStaggerOffsetControl() {
+  const offsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
+  state.roomDraft.staggerOffsetMs = offsetMs;
+  if (roomStaggerOffsetInput) {
+    roomStaggerOffsetInput.value = String(offsetMs);
+    roomStaggerOffsetInput.disabled = state.roomDraft.targetType !== "cluster";
+  }
+  if (roomStaggerOffsetValue) {
+    roomStaggerOffsetValue.textContent = `${offsetMs}ms`;
+  }
 }
 
 function clampAudioVolumePercent(value) {
@@ -6236,6 +6287,10 @@ function syncRoomTargetSelect() {
     if (roomStaggerStartInput) {
       roomStaggerStartInput.disabled = parsed.targetType !== "cluster";
     }
+    if (roomStaggerOffsetInput) {
+      roomStaggerOffsetInput.disabled = parsed.targetType !== "cluster";
+    }
+    syncRoomStaggerOffsetControl();
   }
 }
 
@@ -6253,6 +6308,10 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     if (roomStaggerStartInput) {
       roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
     }
+    if (roomStaggerOffsetInput) {
+      roomStaggerOffsetInput.disabled = state.roomDraft.targetType !== "cluster";
+    }
+    syncRoomStaggerOffsetControl();
     syncRoomGeometryPanel();
     syncDashboardZoneVisibility();
     return;
@@ -6295,6 +6354,7 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     roomStaggerStartInput.checked = state.roomDraft.staggerStart;
     roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
   }
+  syncRoomStaggerOffsetControl();
   if (!state.roomDraft.targetType || !state.roomDraft.targetId) {
     state.roomDraft.targetType = "room";
     state.roomDraft.targetId = room.id;
@@ -7102,6 +7162,7 @@ function editAnimation(animationId) {
   if (roomStaggerStartInput) {
     roomStaggerStartInput.checked = state.roomDraft.staggerStart;
   }
+  syncRoomStaggerOffsetControl();
   syncRoomDraftActionButton();
 
   syncRoomPanelFromSelection({ preserveDraftState: true });
@@ -9028,6 +9089,13 @@ roomHoldInput.addEventListener("change", () => {
 
 roomStaggerStartInput?.addEventListener("change", () => {
   state.roomDraft.staggerStart = Boolean(roomStaggerStartInput.checked);
+  scheduleRoomDraftSync("room-draft-stagger-start", 40);
+});
+
+roomStaggerOffsetInput?.addEventListener("input", () => {
+  state.roomDraft.staggerOffsetMs = clampClusterStaggerOffsetMs(roomStaggerOffsetInput.value);
+  syncRoomStaggerOffsetControl();
+  scheduleRoomDraftSync("room-draft-stagger-offset", 80);
 });
 
 audioEnabledInput.addEventListener("change", () => {

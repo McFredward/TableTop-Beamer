@@ -440,6 +440,12 @@ function applyContextUpdatePatch(payload) {
   if (selectedLayout) {
     nextRuntime.selectedLayout = selectedLayout;
   }
+  if (isPlainObject(runtimePatch?.roomDraft)) {
+    nextRuntime.roomDraft = {
+      ...(isPlainObject(nextRuntime.roomDraft) ? nextRuntime.roomDraft : {}),
+      ...cloneJson(runtimePatch.roomDraft),
+    };
+  }
 
   return {
     runtime: nextRuntime,
