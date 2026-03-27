@@ -248,7 +248,12 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   stroke: rgba(170, 191, 255, 0.9);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  pointer-events: none;
+  pointer-events: all;
+}
+
+.ship-zone-mask.is-active {
+  fill: rgba(115, 255, 219, 0.12);
+  stroke: rgba(175, 255, 233, 0.98);
 }
 
 .ship-polygon-edge-handle {

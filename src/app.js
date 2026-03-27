@@ -4473,7 +4473,8 @@ function runOutsideIsolationRegression() {
 
 function runShipClipRegression() {
   const boardId = state.boardId;
-  const previousShipPolygon = getShipPolygonPoints(boardId);
+  const previousPlayAreas = getPlayAreas(boardId).map((area) => ({ ...area, polygon: [...area.polygon] }));
+  const previousSelectedPlayAreaId = getSelectedPlayAreaId(boardId);
   const issues = [];
 
   try {
@@ -4491,10 +4492,17 @@ function runShipClipRegression() {
       issues.push("outside clip rejected valid ship polygon");
     }
 
-    state.shipPolygonsByBoard[boardId] = [
-      [0.2, 0.2],
-      [0.8, 0.8],
+    state.playAreasByBoard[boardId] = [
+      {
+        id: "invalid-area",
+        name: "Invalid",
+        polygon: [
+          [0.2, 0.2],
+          [0.8, 0.8],
+        ],
+      },
     ];
+    state.selectedPlayAreaIdByBoard[boardId] = "invalid-area";
 
     ctx.save();
     const insideInvalid = clipToInsideShip(boardId);
@@ -4512,7 +4520,7 @@ function runShipClipRegression() {
   } catch {
     issues.push("ship clip regression threw unexpectedly");
   } finally {
-    setShipPolygonPoints(boardId, previousShipPolygon);
+    setPlayAreas(boardId, previousPlayAreas, { selectedPlayAreaId: previousSelectedPlayAreaId });
   }
 
   if (issues.length > 0) {
@@ -4824,7 +4832,10 @@ function renderShipPolygonEditorHandles() {
   if (state.polygonEditor.playAreaVerticesVisible === false) {
     return;
   }
-  const points = getShipPolygonPoints(state.boardId).map(([x, y]) => [x * 1000, y * 1000]);
+  const selectedPlayAreaId = getSelectedPlayAreaId(state.boardId);
+  const allAreas = getPlayAreas(state.boardId);
+  const selectedArea = allAreas.find((entry) => entry.id === selectedPlayAreaId) ?? allAreas[0];
+  const points = normalizeShipPolygon(selectedArea?.polygon).map(([x, y]) => [x * 1000, y * 1000]);
   if (points.length < 3) {
     return;
   }
@@ -4837,10 +4848,32 @@ function renderShipPolygonEditorHandles() {
     vertexLabelSize,
   } = getPolygonEditorHandleMetrics(zoomScale, getCurrentPolygonHandleScale());
 
-  const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-  maskPolygon.classList.add("ship-zone-mask");
-  maskPolygon.setAttribute("points", points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
-  roomOverlay.append(maskPolygon);
+  for (const area of allAreas) {
+    const areaPoints = normalizeShipPolygon(area?.polygon).map(([x, y]) => [x * 1000, y * 1000]);
+    if (areaPoints.length < 3) {
+      continue;
+    }
+    const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    maskPolygon.classList.add("ship-zone-mask");
+    if (area.id === selectedPlayAreaId) {
+      maskPolygon.classList.add("is-active");
+    }
+    maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+    maskPolygon.addEventListener("click", (event) => {
+      if (isPanArbitrating()) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectedPlayAreaId(state.boardId, area.id);
+      state.shipPolygonEditor.selectedVertexIndex = 0;
+      state.shipPolygonEditor.selectedEdgeIndex = 0;
+      syncShipPolygonEditorPanel();
+      renderRoomOverlay();
+      triggerFeedback.textContent = `Status: Active Play Area set to ${area.name}`;
+    });
+    roomOverlay.append(maskPolygon);
+  }
 
   for (let index = 0; index < points.length; index += 1) {
     const [aX, aY] = points[index];
@@ -5644,6 +5677,16 @@ function getRoomPolygonPixels(room, width, height, boardId = state.boardId) {
 
 function getShipPolygonPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
   return getShipPolygonPoints(boardId).map(([x, y]) => [x * width, y * height]);
+}
+
+function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
+  const sourceAreas = Array.isArray(state.playAreasByBoard?.[boardId])
+    ? state.playAreasByBoard[boardId]
+    : getPlayAreas(boardId);
+  return sourceAreas
+    .map((area) => (Array.isArray(area?.polygon) ? area.polygon.map((point) => normalizePolygonPoint(point)) : []))
+    .filter((polygon) => polygon.length >= 3)
+    .map((polygon) => polygon.map(([x, y]) => [x * width, y * height]));
 }
 
 function getRoomRenderMetrics(room, boardId = state.boardId) {
@@ -7845,18 +7888,16 @@ function clipToRoom(room, boardId = state.boardId) {
 }
 
 function getShipClipPolygon(boardId = state.boardId) {
-  const shipPolygon = getShipPolygonPixels(canvas.width, canvas.height, boardId);
-  return shipPolygon.length >= 3 ? shipPolygon : null;
+  const selected = getShipPolygonPixels(canvas.width, canvas.height, boardId);
+  return selected.length >= 3 ? selected : null;
 }
 
-function clipToOutsideShip(boardId = state.boardId) {
-  const shipPolygon = getShipClipPolygon(boardId);
-  if (!shipPolygon) {
-    return clipToPolygon(null);
-  }
-  ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
-  shipPolygon.forEach(([x, y], index) => {
+function getPlayAreaClipPolygons(boardId = state.boardId) {
+  return getPlayAreaPolygonsPixels(canvas.width, canvas.height, boardId).filter((polygon) => polygon.length >= 3);
+}
+
+function appendPolygonPath(polygon) {
+  polygon.forEach(([x, y], index) => {
     if (index === 0) {
       ctx.moveTo(x, y);
     } else {
@@ -7864,13 +7905,33 @@ function clipToOutsideShip(boardId = state.boardId) {
     }
   });
   ctx.closePath();
+}
+
+function clipToOutsideShip(boardId = state.boardId) {
+  const playAreaPolygons = getPlayAreaClipPolygons(boardId);
+  if (playAreaPolygons.length === 0) {
+    return clipToPolygon(null);
+  }
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  for (const polygon of playAreaPolygons) {
+    appendPolygonPath(polygon);
+  }
   ctx.clip("evenodd");
   return true;
 }
 
 function clipToInsideShip(boardId = state.boardId) {
-  const shipPolygon = getShipClipPolygon(boardId);
-  return clipToPolygon(shipPolygon);
+  const playAreaPolygons = getPlayAreaClipPolygons(boardId);
+  if (playAreaPolygons.length === 0) {
+    return clipToPolygon(null);
+  }
+  ctx.beginPath();
+  for (const polygon of playAreaPolygons) {
+    appendPolygonPath(polygon);
+  }
+  ctx.clip();
+  return true;
 }
 
 function drawAnimation(animation, now) {
