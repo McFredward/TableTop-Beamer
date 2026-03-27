@@ -498,6 +498,35 @@ function applyContextUpdatePatch(payload) {
   };
 }
 
+function sanitizeLiveSnapshotForBoardContext(snapshot) {
+  const baseSnapshot = isPlainObject(snapshot) ? cloneJson(snapshot) : {};
+  const runtime = isPlainObject(baseSnapshot.runtime) ? cloneJson(baseSnapshot.runtime) : {};
+  const selectedBoard =
+    normalizeNonEmptyString(baseSnapshot.selectedBoard)
+    ?? normalizeNonEmptyString(baseSnapshot.selectedLayout)
+    ?? normalizeNonEmptyString(runtime.selectedBoard)
+    ?? normalizeNonEmptyString(runtime.boardId)
+    ?? null;
+  const runningAnimations = Array.isArray(runtime.runningAnimations) ? runtime.runningAnimations : [];
+  const sanitizedRunningAnimations =
+    selectedBoard
+      ? runningAnimations.filter((entry) => normalizeNonEmptyString(entry?.boardId) === selectedBoard)
+      : [];
+
+  runtime.runningAnimations = sanitizedRunningAnimations;
+  if (selectedBoard) {
+    runtime.selectedBoard = selectedBoard;
+    runtime.boardId = selectedBoard;
+    baseSnapshot.selectedBoard = selectedBoard;
+    baseSnapshot.selectedLayout =
+      normalizeNonEmptyString(baseSnapshot.selectedLayout)
+      ?? normalizeNonEmptyString(runtime.selectedLayout)
+      ?? selectedBoard;
+  }
+  baseSnapshot.runtime = runtime;
+  return baseSnapshot;
+}
+
 function getMutationQueueByPriority(priority) {
   if (priority === "high") {
     return liveMutationQueue.control;
@@ -1201,11 +1230,12 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
   liveSessionState.version += 1;
   liveSessionState.updatedAt = new Date().toISOString();
   liveSessionState.lastMutation = mutation;
-  liveSessionState.snapshot = {
+  const mergedSnapshot = {
     ...liveSessionState.snapshot,
     ...nextSnapshotPatch,
     schema: LIVE_STATE_SCHEMA,
   };
+  liveSessionState.snapshot = sanitizeLiveSnapshotForBoardContext(mergedSnapshot);
   const outsideFxByBoard = liveSessionState.snapshot?.runtime?.outsideFxByBoard;
   const outsideEnabledBoards =
     outsideFxByBoard && typeof outsideFxByBoard === "object"
