@@ -339,6 +339,7 @@ const liveSync = {
   },
   globalTriggerRevisionSeenByKey: new Map(),
   globalStopRevisionSeenByKey: new Map(),
+  pendingStopAnimationIds: new Set(),
 };
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
@@ -903,6 +904,7 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(primedRunningAnimations);
+  reconcileStopPendingFromSnapshot();
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {
       ...state.roomDraft,
@@ -7170,6 +7172,74 @@ function startRoomAnimationFromDraft() {
   }
 }
 
+function collectAnimationStopIds(targetAnimation, { mutateClusterMembership = false } = {}) {
+  const idsToStop = new Set();
+  if (!targetAnimation || typeof targetAnimation.id !== "string") {
+    return idsToStop;
+  }
+  idsToStop.add(targetAnimation.id);
+  if (targetAnimation.scope === "cluster") {
+    for (const memberId of getClusterMemberAnimationIds(targetAnimation)) {
+      idsToStop.add(memberId);
+    }
+  }
+  if (targetAnimation.scope === "room" && targetAnimation.parentClusterRunId) {
+    const parentCluster = state.runningAnimations.find(
+      (entry) => entry?.id === targetAnimation.parentClusterRunId && entry?.scope === "cluster",
+    );
+    if (parentCluster) {
+      const nextMemberAnimationIds = getClusterMemberAnimationIds(parentCluster)
+        .filter((memberId) => memberId !== targetAnimation.id);
+      if (mutateClusterMembership) {
+        parentCluster.memberAnimationIds = nextMemberAnimationIds;
+        parentCluster.memberRoomIds = nextMemberAnimationIds
+          .map((memberId) => state.runningAnimations.find((entry) => entry?.id === memberId)?.roomId ?? null)
+          .filter(Boolean);
+      }
+      if (nextMemberAnimationIds.length === 0) {
+        idsToStop.add(parentCluster.id);
+      }
+    }
+  }
+  return idsToStop;
+}
+
+function isStopPendingForAnimationId(animationId) {
+  return typeof animationId === "string" && liveSync.pendingStopAnimationIds.has(animationId);
+}
+
+function markStopPending(animationIds) {
+  for (const animationId of animationIds) {
+    if (typeof animationId === "string" && animationId) {
+      liveSync.pendingStopAnimationIds.add(animationId);
+    }
+  }
+}
+
+function clearStopPending(animationIds) {
+  for (const animationId of animationIds) {
+    if (typeof animationId === "string" && animationId) {
+      liveSync.pendingStopAnimationIds.delete(animationId);
+    }
+  }
+}
+
+function reconcileStopPendingFromSnapshot() {
+  if (liveSync.pendingStopAnimationIds.size === 0) {
+    return;
+  }
+  const runningIds = new Set(
+    state.runningAnimations
+      .map((animation) => (typeof animation?.id === "string" ? animation.id : null))
+      .filter(Boolean),
+  );
+  for (const pendingId of [...liveSync.pendingStopAnimationIds]) {
+    if (!runningIds.has(pendingId)) {
+      liveSync.pendingStopAnimationIds.delete(pendingId);
+    }
+  }
+}
+
 function emitStopAnimationCommand(animationId, { priorityHint = "high" } = {}) {
   if (typeof animationId !== "string" || !animationId.trim()) {
     return Promise.reject(new Error("invalid animationId for stop command"));
@@ -7185,35 +7255,27 @@ function stopAnimation(animationId) {
   if (!target) {
     return;
   }
-  const idsToStop = new Set([animationId]);
-  if (target.scope === "cluster") {
-    for (const memberId of getClusterMemberAnimationIds(target)) {
-      idsToStop.add(memberId);
-    }
-  }
-  if (target.scope === "room" && target.parentClusterRunId) {
-    const parentCluster = state.runningAnimations.find(
-      (entry) => entry?.id === target.parentClusterRunId && entry?.scope === "cluster",
-    );
-    if (parentCluster) {
-      parentCluster.memberAnimationIds = getClusterMemberAnimationIds(parentCluster)
-        .filter((memberId) => memberId !== target.id);
-      parentCluster.memberRoomIds = parentCluster.memberAnimationIds
-        .map((memberId) => state.runningAnimations.find((entry) => entry?.id === memberId)?.roomId ?? null)
-        .filter(Boolean);
-      if (parentCluster.memberAnimationIds.length === 0) {
-        idsToStop.add(parentCluster.id);
-      }
-    }
-  }
+  const idsToStop = collectAnimationStopIds(target, { mutateClusterMembership: true });
   if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const commands = [...idsToStop].map((id) => emitStopAnimationCommand(id, {
+    const idsToDispatch = [...idsToStop].filter((id) => !isStopPendingForAnimationId(id));
+    if (idsToDispatch.length === 0) {
+      triggerFeedback.textContent = `Pending: stop command for ${idsToStop.size} animation(s) already in flight`;
+      return;
+    }
+    markStopPending(idsToDispatch);
+    const commandPairs = idsToDispatch.map((id) => [id, emitStopAnimationCommand(id, {
       priorityHint: "high",
-    }));
-    void Promise.allSettled(commands).then(() => {
-      triggerFeedback.textContent = `Pending: stop command for ${idsToStop.size} animation(s) accepted (waiting for snapshot)`;
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: stop command failed";
+    })]);
+    void Promise.allSettled(commandPairs.map(([, promise]) => promise)).then((results) => {
+      const failedIds = results
+        .map((result, index) => (result.status === "rejected" ? commandPairs[index][0] : null))
+        .filter(Boolean);
+      if (failedIds.length > 0) {
+        clearStopPending(failedIds);
+        triggerFeedback.textContent = `Status: stop command failed for ${failedIds.length} animation(s)`;
+        return;
+      }
+      triggerFeedback.textContent = `Pending: stop command for ${idsToDispatch.length} animation(s) accepted (waiting for snapshot)`;
     });
     return;
   }
@@ -7368,8 +7430,14 @@ function renderRunningAnimationsList() {
     actions.className = "running-actions";
     const stopButton = document.createElement("button");
     stopButton.type = "button";
-    stopButton.textContent = "Stop";
+    const stopPending = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
+    stopButton.textContent = stopPending ? "Stopping..." : "Stop";
+    stopButton.disabled = stopPending;
     stopButton.addEventListener("click", () => {
+      const pendingAtClick = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
+      if (pendingAtClick) {
+        return;
+      }
       if (shouldSuppressRapidTap(`running-stop-${anim.id}`)) {
         return;
       }
