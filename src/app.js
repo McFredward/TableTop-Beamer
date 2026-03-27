@@ -6390,6 +6390,70 @@ function clearRoomDraftEditTarget() {
   syncRoomDraftActionButton();
 }
 
+const ROOM_DRAFT_UI_IMMUTABLE_FIELDS = [
+  "animationId",
+  "targetType",
+  "targetId",
+  "opacity",
+  "playbackSpeed",
+  "intensity",
+  "speed",
+  "soundVolume",
+  "staggerStart",
+  "staggerOffsetMs",
+  "durationSec",
+  "hold",
+];
+
+function normalizeRoomDraftUiField(field, value) {
+  switch (field) {
+    case "opacity":
+      return clampRoomOpacity(value);
+    case "playbackSpeed":
+      return clampGifPlaybackSpeed(value);
+    case "intensity":
+      return clampRoomIntensity(value);
+    case "speed":
+      return clampRoomSpeed(value);
+    case "soundVolume":
+      return clampRoomSoundVolume(value);
+    case "staggerStart":
+      return Boolean(value);
+    case "staggerOffsetMs":
+      return clampClusterStaggerOffsetMs(value);
+    case "durationSec":
+      return clampRoomDurationSec(value);
+    case "hold":
+      return Boolean(value);
+    default:
+      return value;
+  }
+}
+
+function captureRoomDraftUiSnapshot() {
+  const snapshot = {};
+  for (const field of ROOM_DRAFT_UI_IMMUTABLE_FIELDS) {
+    snapshot[field] = normalizeRoomDraftUiField(field, state.roomDraft[field]);
+  }
+  return snapshot;
+}
+
+function restoreRoomDraftUiSnapshot(snapshot, reason = "room-start") {
+  let mutated = false;
+  for (const field of ROOM_DRAFT_UI_IMMUTABLE_FIELDS) {
+    const nextValue = normalizeRoomDraftUiField(field, snapshot?.[field]);
+    const currentValue = normalizeRoomDraftUiField(field, state.roomDraft[field]);
+    if (currentValue !== nextValue) {
+      state.roomDraft[field] = nextValue;
+      mutated = true;
+    }
+  }
+  if (mutated) {
+    syncRoomPanelFromSelection({ preserveDraftState: true });
+    console.warn(`[draft-immutability] restored room draft controls after ${reason}`);
+  }
+}
+
 function createAnimation({
   type,
   scope,
@@ -6532,43 +6596,44 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
 }
 
 function startRoomAnimationFromDraft() {
+  const draftSnapshot = captureRoomDraftUiSnapshot();
   const board = getBoard();
-
-  if (!isRoomAnimationType(state.roomDraft.animationId)) {
-    triggerFeedback.textContent = "Status: select a valid room animation first";
-    return;
-  }
-
-  const draftPayload = {
-    type: state.roomDraft.animationId,
-    intensity: clampRoomIntensity(state.roomDraft.intensity),
-    speed: clampRoomSpeed(state.roomDraft.speed),
-    opacity: clampRoomOpacity(state.roomDraft.opacity),
-    playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
-    soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
-    hold: true,
-    durationMs: null,
-  };
-
-  if (isGifRoomAnimation(draftPayload.type)) {
-    warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[draftPayload.type], { reason: "trigger" });
-  }
-
-  const targetRoomIds = resolveRoomDraftTargets();
-  if (targetRoomIds.length === 0) {
-    triggerFeedback.textContent = "Status: selected target has no rooms";
-    return;
-  }
-
-  if (state.roomDraft.targetType === "room") {
-    const selectedTargetRoom = targetRoomIds[0];
-    if (!selectedTargetRoom) {
-      triggerFeedback.textContent = "Status: select a room on the board first";
+  try {
+    if (!isRoomAnimationType(state.roomDraft.animationId)) {
+      triggerFeedback.textContent = "Status: select a valid room animation first";
       return;
     }
-  }
 
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const draftPayload = {
+      type: state.roomDraft.animationId,
+      intensity: clampRoomIntensity(state.roomDraft.intensity),
+      speed: clampRoomSpeed(state.roomDraft.speed),
+      opacity: clampRoomOpacity(state.roomDraft.opacity),
+      playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
+      soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
+      hold: true,
+      durationMs: null,
+    };
+
+    if (isGifRoomAnimation(draftPayload.type)) {
+      warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[draftPayload.type], { reason: "trigger" });
+    }
+
+    const targetRoomIds = resolveRoomDraftTargets();
+    if (targetRoomIds.length === 0) {
+      triggerFeedback.textContent = "Status: selected target has no rooms";
+      return;
+    }
+
+    if (state.roomDraft.targetType === "room") {
+      const selectedTargetRoom = targetRoomIds[0];
+      if (!selectedTargetRoom) {
+        triggerFeedback.textContent = "Status: select a room on the board first";
+        return;
+      }
+    }
+
+    if (outputRole === OUTPUT_ROLE_CONTROL) {
     const pendingCommands = [];
     if (state.roomDraft.editTargetId) {
       if (state.roomDraft.targetType === "cluster") {
@@ -6787,10 +6852,10 @@ function startRoomAnimationFromDraft() {
         ? `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for cluster ${targetLabel} accepted (waiting for snapshot)`
         : `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for ${targetLabel} accepted (waiting for snapshot)`;
     });
-    return;
-  }
+      return;
+    }
 
-  if (state.roomDraft.editTargetId) {
+    if (state.roomDraft.editTargetId) {
     if (state.roomDraft.targetType === "cluster") {
       const clusterEditIndex = state.runningAnimations.findIndex(
         (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
@@ -6951,17 +7016,17 @@ function startRoomAnimationFromDraft() {
       return;
     }
     clearRoomDraftEditTarget();
-  }
+    }
 
-  const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
-  const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-  const dispatchPlan = state.roomDraft.targetType === "cluster"
+    const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
+    const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
+    const dispatchPlan = state.roomDraft.targetType === "cluster"
     ? buildClusterDispatchPlan(targetRoomIds, {
       staggerStart: shouldStaggerClusterStart,
       staggerOffsetMs,
     })
     : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
-  const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
+    const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
     type: draftPayload.type,
     scope: "room",
     roomId,
@@ -6975,8 +7040,8 @@ function startRoomAnimationFromDraft() {
     startDelayMs,
   }));
 
-  let clusterRunAnimation = null;
-  if (state.roomDraft.targetType === "cluster") {
+    let clusterRunAnimation = null;
+    if (state.roomDraft.targetType === "cluster") {
     const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
     clusterRunAnimation = createAnimation({
       type: draftPayload.type,
@@ -7001,17 +7066,17 @@ function startRoomAnimationFromDraft() {
     clusterRunAnimation.memberStartDelays = Object.fromEntries(
       dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
     );
-  }
+    }
 
-  if (clusterRunAnimation) {
+    if (clusterRunAnimation) {
     state.runningAnimations.push(clusterRunAnimation);
     emitLiveMutation("trigger-room", {
       animationId: clusterRunAnimation.id,
       animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
     });
-  }
+    }
 
-  for (const animation of createdAnimations) {
+    for (const animation of createdAnimations) {
     if (clusterRunAnimation) {
       animation.parentClusterRunId = clusterRunAnimation.id;
     }
@@ -7021,18 +7086,21 @@ function startRoomAnimationFromDraft() {
       animationId: animation.id,
       animation: buildAnimationSnapshotForLiveSync(animation),
     });
-  }
+    }
 
-  const isClusterTarget = state.roomDraft.targetType === "cluster";
-  const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
-  const targetLabel = isClusterTarget
+    const isClusterTarget = state.roomDraft.targetType === "cluster";
+    const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
+    const targetLabel = isClusterTarget
     ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
     : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
-  const clusterStartModeLabel = shouldStaggerClusterStart ? "staggered start" : "synchronous start";
-  triggerFeedback.textContent = isClusterTarget
+    const clusterStartModeLabel = shouldStaggerClusterStart ? "staggered start" : "synchronous start";
+    triggerFeedback.textContent = isClusterTarget
     ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
     : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
-  renderRunningAnimationsList();
+    renderRunningAnimationsList();
+  } finally {
+    restoreRoomDraftUiSnapshot(draftSnapshot, "room-start");
+  }
 }
 
 function stopAnimation(animationId) {

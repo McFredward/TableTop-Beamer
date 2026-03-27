@@ -46,7 +46,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 7-HF4 - Draft-UI Immutability on Start Hotfix (execute-ready, verpflichtend vor 7-2)
 - [x] DONE P7-HF4-T1 [P0] Start-Pfade fuer `targetType=room|cluster` so hardenen, dass Draft-Controls nach Start unveraendert bleiben (kein implizites Reset auf Animation/Target/Slider).
-- [ ] TODO P7-HF4-T2 [P0] Draft-State-Reducer/Setter guarden: Start darf nur runtime pending/ack/audit aktualisieren, nicht Draft-UI-Felder.
+- [x] DONE P7-HF4-T2 [P0] Draft-State-Reducer/Setter guarden: Start darf nur runtime pending/ack/audit aktualisieren, nicht Draft-UI-Felder.
 - [ ] TODO P7-HF4-T3 [P0] Room-Klick-Verhalten absichern: nur `target` auto auf geklickten Room setzen; Start selbst bleibt strikt side-effect-frei fuer Drafts.
 - [ ] TODO P7-HF4-T4 [P0] Snapshot/Polling-Apply gegen Draft-Rueckschreiben absichern, damit Runtime-Updates keine Dropdown-/Slider-Drafts ueberschreiben.
 - [ ] TODO P7-HF4-T5 [P0] Regression-Matrix erweitern: mehrfache room/cluster Starts mit gleichen Einstellungen, kein Jump auf `cluster` oder `Malfunction`, Dropdown/Slider stabil.
