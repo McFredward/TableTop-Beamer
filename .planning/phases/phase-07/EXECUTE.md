@@ -32,7 +32,16 @@
 6. P0 danach: P7-HF2-T6 (regression matrix fuer ghost-state-elimination + multi-client burst/reconnect).
 7. P0 Abschluss: P7-HF2-T7 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF2)
+## Priority Execution - Plan 7-HF3 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF3-T1 (snapshot-trigger-revision fuer globale Effekte, once-per-revision full-run auf allen Clients).
+2. P0 danach: P7-HF3-T2 (explicit-stop-only lifecycle; kein vorzeitiger Abbruch ohne Snapshot-Stop).
+3. P0 danach: P7-HF3-T3 (audio lifecycle strict an trigger revision + stale replay drop).
+4. P0 danach: P7-HF3-T4 (trigger dedup/idempotenz fuer reconnect/repoll robust machen).
+5. P0 danach: P7-HF3-T5 (cluster stagger sequenziell mit konfigurierbarem Offset statt random).
+6. P0 danach: P7-HF3-T6 (stagger delay slider in ms, repliziert/persistiert in command+snapshot).
+7. P0 Abschluss: P7-HF3-T7 (regression-evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF3)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -50,6 +59,7 @@
 - Kein Weitergehen zu P7-T15+, bevor P7-T14 Regression + Non-Regression + Latency-Report als PASS dokumentiert.
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF1 und Plan 7-HF2 vollstaendig PASS sind.
 - Kein Weitergehen zu Plan 7-2, solange Polling-Determinism-Gate nicht PASS ist (server-only truth, no optimistic state, snapshot-version-gated apply, adaptive polling, WS-hint-only).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF3 vollstaendig PASS ist (snapshot trigger full-run parity, explicit-stop-only, audio stale-replay guard, sequential stagger offset parity).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -75,3 +85,16 @@
 - Client UI applies runtime state only from snapshots; command actions remain pending until snapshot confirmation.
 - WebSocket is reduced to optional wake hint (`state-dirty`) and no longer used as correctness channel.
 - HF2 evidence recorded in `debug/p7-hf2-t12-output.json`, `debug/p7-hf2-t13-output.json`, `debug/p7-hf2-t14-output.json`.
+
+## New Mandatory Wave
+- Next executable wave: Plan 7-HF3 (P0) before Plan 7-2.
+
+## Execution Update 7-HF3
+- P7-HF3-T1..P7-HF3-T7 completed.
+- Global trigger lifecycle now uses snapshot trigger revisions for once-per-revision full-duration replay with explicit-stop-only gating (`runtime.globalTriggerRevisions` / `runtime.globalStopRevisions`).
+- Audio lifecycle is revision-aware/idempotent (no stale replay, deterministic start/stop under polling snapshots).
+- Cluster stagger start is deterministic sequential with configurable offset slider (`staggerOffsetMs`) and snapshot replication via `runtime.roomDraft` + cluster runtime metadata.
+- HF3 evidence recorded in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.
+
+## Next Wave
+- Plan 7-2 (P1 hardening) is now unblocked by HF3 gate closure.

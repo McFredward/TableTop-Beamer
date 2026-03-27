@@ -45,6 +45,13 @@
 - WS-Hint-Isolation-Test: Ausfall oder Verlust von WS-Hints darf Korrektheit nicht brechen; Polling-only bleibt korrekt.
 - Ghost-State-Elimination-Test: lokale Ghost-States treten in Burst/Reconnect-Matrix nicht auf.
 
+- Snapshot-Trigger-Full-Run-Test: globaler Trigger aus beliebigem Client startet auf allen Clients genau einmal und laeuft ohne impliziten Abbruch bis zur vorgesehenen Dauer.
+- Explicit-Stop-Only-Test: vorzeitiger Stopp globaler Effekte erfolgt ausschliesslich, wenn Snapshot explizit einen Stop enthaelt.
+- Audio-Trigger-Consistency-Test: Audio startet deterministisch mit Trigger-Revision und stoppt deterministisch mit Snapshot-Stop.
+- Audio-Stale-Replay-Guard-Test: alte Trigger-Revisionen duerfen bei spaeteren Snapshots keinen Sound nachstarten.
+- Sequential-Stagger-Offset-Test: Cluster startet Members in stabiler Reihenfolge mit konfiguriertem Offset (ms) statt randomisiertem Versatz.
+- Stagger-Offset-Replication-Test: gesetzter Offset-Sliderwert bleibt ueber Multi-Client, Reload und Reconnect konsistent repliziert.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -99,3 +106,14 @@
 - PASS: adaptive polling cadence (fast/idle + backoff/jitter/recovery) is active and verified in regression evidence.
 - PASS: WebSocket path is wake-hint-only (`state-dirty`) and not required for correctness.
 - PASS: 4-client polling regression (incl. `/output/final`) confirms deterministic start/stop/clear-all without ghost states.
+
+## New Blocking Gate (Plan 7-HF3)
+- Neues verpflichtendes Feedback oeffnet vor Plan 7-2 einen weiteren P0-Gate: globale Trigger koennen client-inkonsistent zu kurz laufen, Audio ist sporadisch/verspaetet inkonsistent, Stagger-Start benoetigt praezisen sequenziellen Offset statt Zufall.
+- Freigabevoraussetzung: Snapshot-Trigger-Determinism-Gate ist PASS (once-per-trigger full-run, explicit-stop-only, audio revision-consistency ohne stale replay, sequential stagger with replicated offset slider).
+
+## Gate Closure Update (Plan 7-HF3)
+- PASS: snapshot-trigger lifecycle uses revisioned global trigger keys with once-per-revision full-run parity across polling clients.
+- PASS: explicit-stop-only gating is enforced through snapshot stop revisions (`runtime.globalStopRevisions`) and verified as deterministic teardown signal.
+- PASS: audio lifecycle is revision-aware/idempotent; stale replays are dropped and start/stop behavior is deterministic under polling snapshots.
+- PASS: cluster stagger is sequential with deterministic offset parity (`staggerOffsetMs`) and replicated in snapshot runtime room-draft state.
+- PASS: HF3 evidence captured in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.

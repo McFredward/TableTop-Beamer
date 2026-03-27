@@ -42,7 +42,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF3-T4 [P0] Snapshot-Dedup/Idempotenz fuer Trigger-Lifecycle erweitern (Trigger-Revision-Key, reconnect-safe reapply-guard).
 - [x] DONE P7-HF3-T5 [P0] Cluster-`stagger start` erweitern: sequenzieller Member-Start mit konfigurierbarem Offset (ms) statt randomisiertem Versatz.
 - [x] DONE P7-HF3-T6 [P0] UI-Controls fuer Stagger praezisieren: Delay-Slider (ms) + replizierte Persistenz in Command/Snapshot.
-- [ ] TODO P7-HF3-T7 [P0] Regression + Evidenz + Artefakt-Sync liefern (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. Trigger-Dauerparitaet/Audionachlauf/Stagger-Offset-Matrix.
+- [x] DONE P7-HF3-T7 [P0] Regression + Evidenz + Artefakt-Sync liefern (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. Trigger-Dauerparitaet/Audionachlauf/Stagger-Offset-Matrix.
 
 ## Plan 7-2 - Hardening Wave (nach 7-HF3)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).

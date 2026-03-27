@@ -75,6 +75,21 @@
 - Impact: Hoch bis kritisch.
 - Gegenmassnahme: WS strikt als optionalen Wakeup-Hint kapseln; Snapshot-Polling bleibt alleiniger Korrektheitspfad.
 
+## R16 Snapshot-Trigger wird lokal zu frueh beendet
+- Risiko: globaler Effekt startet zwar, wird auf einzelnen Clients aber nach ~1s lokal beendet obwohl kein Stop im Snapshot steht.
+- Impact: Kritisch, client-uebergreifende Inkonsistenz.
+- Gegenmassnahme: trigger-revision-basierter Vollstart + explicit-stop-only lifecycle (kein implizites timeout/cleanup ohne Snapshot-Stop).
+
+## R17 Audio-Replay/Alt-Sound-Nachlauf
+- Risiko: Audio startet sporadisch nicht oder spaeter fuer alte Trigger-Revisionen nach und erzeugt falschen Laufzeitkontext.
+- Impact: Kritisch fuer Operatorvertrauen und Wahrnehmung.
+- Gegenmassnahme: audio dedup by trigger revision + strict stale-drop + snapshot-stop-gated teardown.
+
+## R18 Random-Stagger erzeugt nicht reproduzierbare Cluster-Latenz
+- Risiko: zufaelliger Member-Versatz macht Timing/Debugging inkonsistent und erschwert reproduzierbare Abnahme.
+- Impact: Hoch.
+- Gegenmassnahme: sequenzieller stagger mode mit konfigurierbarem Offset (ms), deterministische member-order und replizierte Persistenz.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -91,3 +106,11 @@
 - R13 mitigated: optimistic runtime apply removed from control-command path; runtime visibility now snapshot-authoritative.
 - R14 mitigated: adaptive polling cadence with recovery/backoff is active and validated in HF2 evidence.
 - R15 mitigated: WS stream now acts as optional `state-dirty` wake hint only; correctness remains polling + version-gate.
+
+## New Hotfix Risk Focus (7-HF3)
+- R16/R17/R18 sind als P0-Risiken fuer den Realbetrieb priorisiert; Plan 7-HF3 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF3
+- R16 mitigated: global snapshot triggers now run once per trigger revision with full-duration replay and no implicit pre-stop cleanup.
+- R17 mitigated: audio lifecycle is revision-aware with stale replay drop and explicit-stop-gated teardown.
+- R18 mitigated: cluster stagger start uses deterministic member order with configurable offset parity replicated in server snapshot state.

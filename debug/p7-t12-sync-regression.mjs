@@ -65,6 +65,11 @@ async function main() {
   assert(queue.droppedOverflow >= 0, "overflow metric invalid");
   assert(typeof after?.telemetry?.gates?.commandAccepted === "number", "missing telemetry.gates.commandAccepted");
   assert(typeof after?.telemetry?.gates?.snapshotVersionVisible === "number", "missing telemetry.gates.snapshotVersionVisible");
+  const runtime = state?.session?.snapshot?.runtime ?? {};
+  const triggerRevisions = runtime?.globalTriggerRevisions ?? {};
+  const stopRevisions = runtime?.globalStopRevisions ?? {};
+  assert(triggerRevisions && typeof triggerRevisions === "object", "missing runtime.globalTriggerRevisions");
+  assert(stopRevisions && typeof stopRevisions === "object", "missing runtime.globalStopRevisions");
   assertMissingHopsMsFails(after);
 
   console.log(JSON.stringify({
@@ -80,6 +85,10 @@ async function main() {
       commandAccepted: after?.telemetry?.gates?.commandAccepted ?? 0,
       snapshotVersionVisible: after?.telemetry?.gates?.snapshotVersionVisible ?? 0,
       snapshotApplied: after?.telemetry?.gates?.snapshotApplied ?? 0,
+    },
+    lifecycleMaps: {
+      globalTriggerKeys: Object.keys(triggerRevisions).length,
+      globalStopKeys: Object.keys(stopRevisions).length,
     },
     schemaGuard: {
       usesHopsMsOnly: true,

@@ -21,10 +21,10 @@
 - Polling pivot metrics now include command/snapshot gates (`commandAccepted`, `snapshotVersionVisible`, `snapshotApplied`).
 - Final target pass/fail for production SLO still requires dedicated live multi-device run capture.
 
-## Refreshed Evidence (Plan 7-HF2)
+## Refreshed Evidence (Plan 7-HF3)
 
-- `debug/p7-hf2-t12-output.json`
-- `debug/p7-hf2-t13-output.json`
-- `debug/p7-hf2-t14-output.json`
+- `debug/p7-hf3-t12-output.json`
+- `debug/p7-hf3-t13-output.json`
+- `debug/p7-hf3-t14-output.json`
 
-Hotfix closure note: HF2 confirms server-authoritative snapshot polling determinism (including `/output/final` in 4-client regression). Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.
+Hotfix closure note: HF3 confirms snapshot-trigger lifecycle determinism (trigger revision parity, explicit stop gating, stagger offset parity incl. runtime config replication) on top of HF2 polling correctness. Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.

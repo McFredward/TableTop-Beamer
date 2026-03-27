@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { setTimeout as delay } from "node:timers/promises";
+
 const baseUrl = process.env.TT_BEAMER_BASE_URL ?? "http://127.0.0.1:4173";
 
 function assert(condition, message) {
@@ -42,6 +44,16 @@ async function sendCommand(mutationType, payload, role = "control") {
 function findAnimation(runtime, animationId) {
   const list = Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
   return list.find((entry) => entry?.id === animationId) ?? null;
+}
+
+function findGlobalAnimation(runtime, type, boardId, animationId = null) {
+  const list = Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
+  return list.find((entry) => (
+    entry?.scope === "global"
+    && entry?.type === type
+    && entry?.boardId === boardId
+    && (!animationId || entry?.id === animationId)
+  )) ?? null;
 }
 
 function createPollingClient(role) {
@@ -134,6 +146,146 @@ async function main() {
     assert(!findAnimation(client.snapshot?.runtime, roomAnimationId), `stop not visible on ${client.role}`);
   }
   rows.push({ area: "room", behavior: "stop deterministic across 4 polling clients", status: "PASS" });
+
+  const globalAnimationId = mutationId("hf3-global");
+  const globalStartAck = await sendCommand("trigger-global", {
+    animationType: "alarm",
+    action: "start",
+    boardId: board.id,
+    animation: {
+      id: globalAnimationId,
+      type: "alarm",
+      scope: "global",
+      boardId: board.id,
+      hold: false,
+      durationMs: 5000,
+      intensity: 1,
+      speed: 1,
+      startedAtEpochMs: Date.now(),
+    },
+  });
+  await waitForAllClientsVersion(clients, globalStartAck.version);
+  const globalTriggerRevisions = new Set();
+  const globalTriggerKeys = new Set();
+  for (const client of clients) {
+    const globalAnimation = findGlobalAnimation(client.snapshot?.runtime, "alarm", board.id, globalAnimationId);
+    assert(globalAnimation, `global trigger missing on ${client.role}`);
+    assert(Number.isInteger(Number(globalAnimation.triggerRevision)) && Number(globalAnimation.triggerRevision) > 0, `global trigger revision missing on ${client.role}`);
+    assert(typeof globalAnimation.triggerKey === "string" && globalAnimation.triggerKey.length > 0, `global trigger key missing on ${client.role}`);
+    globalTriggerRevisions.add(Number(globalAnimation.triggerRevision));
+    globalTriggerKeys.add(globalAnimation.triggerKey);
+  }
+  assert(globalTriggerRevisions.size === 1, "global trigger revision mismatch across clients");
+  assert(globalTriggerKeys.size === 1, "global trigger key mismatch across clients");
+  rows.push({ area: "global", behavior: "snapshot trigger revision/key parity across 4 polling clients", status: "PASS" });
+
+  await delay(1300);
+  await Promise.all(clients.map((client) => pollClientOnce(client)));
+  for (const client of clients) {
+    const globalAnimation = findGlobalAnimation(client.snapshot?.runtime, "alarm", board.id, globalAnimationId);
+    assert(globalAnimation, `global trigger ended early on ${client.role}`);
+  }
+  rows.push({ area: "global", behavior: "global trigger remains active without explicit snapshot stop", status: "PASS" });
+
+  const globalStopAck = await sendCommand("trigger-global", {
+    animationType: "alarm",
+    action: "stop",
+    animationId: globalAnimationId,
+    boardId: board.id,
+    priorityHint: "high",
+  });
+  await waitForAllClientsVersion(clients, globalStopAck.version);
+  for (const client of clients) {
+    const globalAnimation = findGlobalAnimation(client.snapshot?.runtime, "alarm", board.id, globalAnimationId);
+    assert(!globalAnimation, `global stop not visible on ${client.role}`);
+  }
+  const liveStateAfterStop = await readJson("/api/live/state");
+  const stopKey = `${board.id}:alarm`;
+  const stopRevision = Number(liveStateAfterStop?.session?.snapshot?.runtime?.globalStopRevisions?.[stopKey] ?? 0);
+  assert(stopRevision > 0, "global stop revision not recorded in snapshot runtime");
+  rows.push({ area: "global", behavior: "explicit stop removes global animation and records stop revision", status: "PASS" });
+
+  const staggerOffsetMs = 260;
+  const roomDraftSyncAck = await sendCommand("context-update", {
+    selectedBoard: board.id,
+    selectedLayout: board.id,
+    boardId: board.id,
+    runtime: {
+      selectedBoard: board.id,
+      selectedLayout: board.id,
+      roomDraft: {
+        targetType: "cluster",
+        targetId: "hf3-cluster",
+        staggerStart: true,
+        staggerOffsetMs,
+      },
+    },
+  });
+  await waitForAllClientsVersion(clients, roomDraftSyncAck.version);
+  for (const client of clients) {
+    const roomDraft = client.snapshot?.runtime?.roomDraft;
+    assert(roomDraft?.targetType === "cluster", `roomDraft targetType drift on ${client.role}`);
+    assert(Boolean(roomDraft?.staggerStart) === true, `roomDraft staggerStart drift on ${client.role}`);
+    assert(Number(roomDraft?.staggerOffsetMs) === staggerOffsetMs, `roomDraft staggerOffsetMs drift on ${client.role}`);
+  }
+  rows.push({ area: "cluster", behavior: "stagger draft config replicated via snapshot runtime state", status: "PASS" });
+
+  const staggerRoomIds = board.rooms.slice(0, 3).map((entry) => entry.id);
+  assert(staggerRoomIds.length >= 3, "insufficient room count for sequential stagger regression");
+  const staggerPlan = staggerRoomIds.map((roomId, index) => ({
+    roomId,
+    startDelayMs: index * staggerOffsetMs,
+  }));
+  const clusterAnimationId = mutationId("hf3-cluster-run");
+  const memberAnimationIds = staggerPlan.map((entry) => mutationId(`hf3-member-${entry.roomId}`));
+  const clusterStartAck = await sendCommand("trigger-room", {
+    animationId: clusterAnimationId,
+    animation: {
+      id: clusterAnimationId,
+      type: "alarm",
+      scope: "cluster",
+      boardId: board.id,
+      clusterId: "hf3-cluster",
+      clusterName: "HF3 Cluster",
+      clusterStartMode: "staggered",
+      clusterStartOffsetMs: staggerOffsetMs,
+      memberRoomIds: staggerPlan.map((entry) => entry.roomId),
+      memberAnimationIds,
+      memberStartDelays: Object.fromEntries(staggerPlan.map((entry) => [entry.roomId, entry.startDelayMs])),
+      hold: true,
+      startedAtEpochMs: Date.now(),
+    },
+  });
+  const memberStartAcks = await Promise.all(staggerPlan.map((entry, index) => sendCommand("trigger-room", {
+    animationId: memberAnimationIds[index],
+    animation: {
+      id: memberAnimationIds[index],
+      type: "alarm",
+      scope: "room",
+      targetType: "room",
+      targetId: entry.roomId,
+      roomId: entry.roomId,
+      boardId: board.id,
+      parentClusterRunId: clusterAnimationId,
+      hold: true,
+      startDelayMs: entry.startDelayMs,
+      startedAtEpochMs: Date.now() + entry.startDelayMs,
+    },
+  })));
+  const staggerVersion = Math.max(
+    Number(clusterStartAck.version || 0),
+    ...memberStartAcks.map((entry) => Number(entry.version || 0)),
+  );
+  await waitForAllClientsVersion(clients, staggerVersion);
+  const expectedDelayMap = Object.fromEntries(staggerPlan.map((entry) => [entry.roomId, entry.startDelayMs]));
+  for (const client of clients) {
+    const clusterAnimation = findAnimation(client.snapshot?.runtime, clusterAnimationId);
+    assert(clusterAnimation, `cluster animation missing on ${client.role}`);
+    assert(clusterAnimation.clusterStartMode === "staggered", `cluster start mode drift on ${client.role}`);
+    assert(Number(clusterAnimation.clusterStartOffsetMs) === staggerOffsetMs, `cluster offset drift on ${client.role}`);
+    assert(JSON.stringify(clusterAnimation.memberStartDelays ?? {}) === JSON.stringify(expectedDelayMap), `cluster delay map drift on ${client.role}`);
+  }
+  rows.push({ area: "cluster", behavior: "sequential stagger member delay parity across polling clients", status: "PASS" });
 
   const burstIds = [mutationId("burst-a"), mutationId("burst-b"), mutationId("burst-c")];
   const burstAcks = await Promise.all(

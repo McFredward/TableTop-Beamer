@@ -11,6 +11,7 @@
 - Sync Regression and Soak Hardening
 - Compatibility and Non-Regression Guard
 - Snapshot Polling Determinism Pivot
+- Snapshot Trigger Determinism + Audio Consistency + Sequential Stagger
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -56,6 +57,13 @@
 - P7-S10.4 WebSocket auf optionalen Wakeup-Hint reduzieren (`state-dirty`), ohne Korrektheitsabhaengigkeit.
 - P7-S10.5 Telemetrie und Regression fuer Ghost-State-Elimination und Multi-Client-Versionstreue verpflichtend machen.
 
+- P7-S11.1 Snapshot-Trigger-Revision fuer globale Effekte verbindlich einfuehren (einmaliger Vollstart pro neuer Revision).
+- P7-S11.2 Explizites Stop-Gating umsetzen: vorzeitiger Abbruch nur bei Snapshot-Stop, keine impliziten Laufzeit-Teardowns.
+- P7-S11.3 Audio-Determinismus angleichen: start/stop strikt an Snapshot-Revision, stale/replayed Audio strikt verwerfen.
+- P7-S11.4 Telemetrie fuer Trigger-Lifecycle erweitern (`snapshotTriggerSeen`, `visualStart`, `audioStart`, `explicitStopApplied`).
+- P7-S11.5 Cluster-Stagger auf sequenziellen Modus mit konfigurierbarem Offset (Slider in ms) umstellen.
+- P7-S11.6 Non-regression fuer sequential stagger member-order + offset parity (sync/reconnect/multi-client) verpflichtend machen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -77,7 +85,8 @@
 ## Nachgelagerte Wellen (vorlaeufig)
 - Plan 7-HF1 Verification Integrity Hotfix (abgeschlossen): `hopsMs` verifier schema fix, behavior-level non-regression matrix expansion, evidence refresh, full artifact sync.
 - Plan 7-HF2 Polling Determinism Hotfix (verpflichtend vor 7-2): server snapshots + adaptive polling + no-optimistic-state + optional WS wakeup hint.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF2).
+- Plan 7-HF3 Trigger/Audio/Stagger Hotfix (verpflichtend vor 7-2): snapshot-trigger-once-full-run + explicit-stop-only + stale-audio-drop + sequential stagger offset slider.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF3).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -95,3 +104,15 @@
 - P7-S10.3 implemented: command-write path `/api/live/command` plus pending-until-snapshot UI behavior (no optimistic runtime apply).
 - P7-S10.4 implemented: WebSocket reduced to optional wake hint (`state-dirty`) with no correctness dependency.
 - P7-S10.5 implemented: telemetry gates + 4-client regression evidence refreshed (`debug/p7-hf2-*`).
+
+## New Mandatory Wave
+- Plan 7-HF3 ist als execute-ready P0-Hotfix gesetzt, um globale Trigger-Laufzeitinkonsistenz, sporadische/alte Audio-Trigger und randomisierte Stagger-Start-Drift deterministisch zu schliessen.
+
+## Execution Update 7-HF3
+- P7-S11.1 + P7-S11.2 implemented: global effects now use snapshot trigger/stop lifecycle revisions with once-per-revision replay and explicit-stop-only teardown.
+- P7-S11.3 implemented: audio start/stop is tied to trigger revision with stale replay drop guards.
+- P7-S11.5 implemented: cluster stagger now runs in deterministic sequential order with configurable offset milliseconds.
+- P7-S11.6 implemented: HF3 regression evidence confirms trigger duration parity, explicit stop parity, and stagger offset parity across 4 polling clients.
+
+## Next Wave
+- Plan 7-2 hardening remains queued and is now unblocked after HF3 gate PASS.

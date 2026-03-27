@@ -76,6 +76,24 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 - Telemetrie fuer `command->snapshot-version-visible->applied` ergaenzen und in Reports ausweisen.
 - Regression-Hardening fuer Ghost-State, Multi-Client-Burst, Reconnect und stale-version-Reject.
 
+## Entscheidungsupdate aus neuem Pflichtfeedback (Plan 7-HF3, P0-Hotfix, execute-ready)
+- Architekturentscheidung (verbindlich): fuer globale Event-Effekte ist der Snapshot-Trigger selbst das Startsignal; der Client startet den Effekt genau einmal pro neuer Trigger-Revision vollstaendig.
+- Polling-Snapshot bleibt alleinige Source of Truth; keine lokale Laufzeitannahme darf Triggerlaufzeit verkuerzen oder vorzeitig beenden.
+- Vorzeitiger Effektabbruch ist nur bei explizitem Stop im Snapshot erlaubt (kein implizites Auto-Cleanup durch lokale Timer/Heuristiken).
+- Audio folgt derselben Snapshot-Revision wie Visuals: Start genau einmal je Trigger-Revision, deterministischer Stop nur bei Snapshot-Stop.
+- Audio-Engine muss stale/replayed Trigger strikt deduplizieren, damit keine spaeten Alt-Sounds nachlaufen.
+- Cluster-Stagger-Semantik wird praezisiert: optional sequenziell mit deterministischem Member-Order und konfigurierbarem Offset (ms) statt randomisiertem Versatz.
+- UI-Regel: `stagger start` bekommt einen praezisen Delay-Slider (ms), der fuer den sequenziellen Cluster-Start serverseitig mitgespeichert und repliziert wird.
+
+## Plan 7-HF3 Scope (execute-ready)
+- Snapshot-Trigger-Lifecycle fuer globale Effekte haerten: einmaliger Vollstart pro Trigger-Revision auf allen Clients.
+- Stop-Gating umsetzen: laufende globale Effekte enden nur durch expliziten Snapshot-Stop.
+- Audio-Determinismus hardenen: trigger-consistent start/stop, stale-audio-drop, kein Alt-Effekt-Nachlauf.
+- Trigger-Revision + dedup-keys im Snapshot/Client-Apply verbindlich einfuehren, inkl. reconnect-sicherem Verhalten.
+- Cluster-Stagger auf sequenziellen Modus mit konfigurierbarem Offset erweitern und random-only Semantik abloesen.
+- Telemetrie/Gates erweitern: `snapshotTriggerSeen -> visualStart -> audioStart -> explicitStopApplied`.
+- Regression-Matrix erweitern: cross-client global trigger duration parity, audio non-replay, sequential stagger offset parity.
+
 ## Migrationsstrategie (sichere Inkremente)
 1. Bestehenden Live-Sync-Vertrag inventarisieren und semantisch in Mutation-Klassen trennen.
 2. Serverseitige ordered commit pipeline hinter Feature-Flag einfuehren.
@@ -146,3 +164,16 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 - Client runtime apply switched to adaptive polling with strict version-gate (`incomingVersion <= appliedVersion => reject`) and pending-until-snapshot UX.
 - WebSocket apply path is de-scoped to optional wake hints (`state-dirty`) and is no longer required for correctness.
 - Regression/evidence refreshed for deterministic 4-client start/stop/clear-all including `/output/final` (`debug/p7-hf2-t12-output.json`, `debug/p7-hf2-t13-output.json`, `debug/p7-hf2-t14-output.json`).
+
+## New Mandatory Wave
+- Plan 7-HF3 (Snapshot Trigger Determinism + Audio Consistency + Sequential Stagger) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF3
+- Plan 7-HF3 implementation completed for P7-HF3-T1..P7-HF3-T7.
+- Server snapshot runtime now carries trigger/stop lifecycle revisions for global effects (`globalTriggerRevisions`, `globalStopRevisions`) with authoritative revision assignment on `trigger-global` and explicit stop/clear paths.
+- Client snapshot apply now performs once-per-trigger-revision full-run priming, explicit-stop gating, reconnect-safe stale reapply drop, and revision-aware audio lifecycle dedup.
+- Cluster stagger dispatch switched from random delay to deterministic sequential offset (`staggerOffsetMs`) with replicated room-draft config in snapshot runtime.
+- Regression/evidence refreshed for HF3 gate in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF3 is PASS; Plan 7-2 is unblocked.
