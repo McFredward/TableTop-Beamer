@@ -52,6 +52,12 @@
 - Sequential-Stagger-Offset-Test: Cluster startet Members in stabiler Reihenfolge mit konfiguriertem Offset (ms) statt randomisiertem Versatz.
 - Stagger-Offset-Replication-Test: gesetzter Offset-Sliderwert bleibt ueber Multi-Client, Reload und Reconnect konsistent repliziert.
 
+- Start-Draft-Immutability-Test: Start einer Room-Animation veraendert Draft-Controls (`animation`, `target`, Slider) nicht.
+- Start-Draft-Immutability-Cluster-Test: Start einer Cluster-Animation veraendert Draft-Controls (`animation`, `target`, Slider) nicht.
+- Room-Click-Only-Target-Autofill-Test: Board-Raumklick darf ausschliesslich `target` auto setzen; Animation/Slider bleiben unveraendert.
+- Start-Does-Not-Autofill-Target-Test: Start-Handler setzt niemals auto `target`; nur Room-Klick darf dies ausloesen.
+- Multi-Start-Same-Settings-Stability-Test: mehrere Starts nacheinander mit identischen Draft-Einstellungen bleiben feldstabil ohne Jump auf `cluster`/`Malfunction`.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -117,3 +123,14 @@
 - PASS: audio lifecycle is revision-aware/idempotent; stale replays are dropped and start/stop behavior is deterministic under polling snapshots.
 - PASS: cluster stagger is sequential with deterministic offset parity (`staggerOffsetMs`) and replicated in snapshot runtime room-draft state.
 - PASS: HF3 evidence captured in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF4)
+- Neues verpflichtendes Feedback oeffnet vor Plan 7-2 einen weiteren P0-Gate: Start einer Room/Cluster-Animation mutiert derzeit unerlaubt Draft-Felder (`target`-Sprung auf `cluster`, `animation`-Sprung auf erstes Element).
+- Freigabevoraussetzung: Draft-Immutability-Gate ist PASS (Start mutiert Draft-UI nicht; Dropdowns/Slider bleiben stabil; Room-Klick setzt weiterhin ausschliesslich `target`; room+cluster Targets bleiben stabil).
+
+## Gate Closure Update (Plan 7-HF4)
+- PASS: Start path for `targetType=room|cluster` no longer mutates draft controls (`animation`, `target`, sliders) and does not reset to fallback defaults.
+- PASS: Draft immutability guard ensures start flow can only affect runtime pending/ack lifecycle, not draft control state.
+- PASS: Room-click target autofill remains target-only path; no start-side replacement of click autofill logic.
+- PASS: Snapshot/polling apply is decoupled from control draft fields (`runtime.roomDraft` no longer overwrites local dropdowns/sliders).
+- PASS: HF4 evidence captured in `debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`.

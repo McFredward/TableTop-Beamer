@@ -41,7 +41,16 @@
 6. P0 danach: P7-HF3-T6 (stagger delay slider in ms, repliziert/persistiert in command+snapshot).
 7. P0 Abschluss: P7-HF3-T7 (regression-evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF3)
+## Priority Execution - Plan 7-HF4 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF4-T1 (start path draft-immutable fuer room/cluster machen; keine auto-resets von animation/target/slidern).
+2. P0 danach: P7-HF4-T2 (draft reducer/setter guards; start darf nur runtime pending/ack updaten).
+3. P0 danach: P7-HF4-T3 (room-click-only target autofill absichern; start bleibt side-effect-frei).
+4. P0 danach: P7-HF4-T4 (snapshot/polling apply von draft-controls entkoppeln).
+5. P0 danach: P7-HF4-T5 (regression matrix fuer multi-start same settings + no jump auf `cluster`/`Malfunction`).
+6. P0 danach: P7-HF4-T6 (non-regression fuer room-click target autofill + cluster target stability).
+7. P0 Abschluss: P7-HF4-T7 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF4)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -60,6 +69,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF1 und Plan 7-HF2 vollstaendig PASS sind.
 - Kein Weitergehen zu Plan 7-2, solange Polling-Determinism-Gate nicht PASS ist (server-only truth, no optimistic state, snapshot-version-gated apply, adaptive polling, WS-hint-only).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF3 vollstaendig PASS ist (snapshot trigger full-run parity, explicit-stop-only, audio stale-replay guard, sequential stagger offset parity).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF4 vollstaendig PASS ist (start mutiert keine Draft-UI; room-click-only target autofill; room+cluster draft stability).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -97,4 +107,13 @@
 - HF3 evidence recorded in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.
 
 ## Next Wave
-- Plan 7-2 (P1 hardening) is now unblocked by HF3 gate closure.
+- Next executable wave: Plan 7-HF4 (P0) before Plan 7-2.
+
+## Execution Update 7-HF4
+- P7-HF4-T1..P7-HF4-T7 completed.
+- Room/cluster start path is draft-immutable (no start-side reset/jump of animation, target, or slider drafts).
+- Control snapshot apply no longer back-writes runtime roomDraft into local draft controls.
+- HF4 evidence recorded in `debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`.
+
+## Next Wave
+- Next executable wave: Plan 7-2 (Hardening).

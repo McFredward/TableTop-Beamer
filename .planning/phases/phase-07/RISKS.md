@@ -90,6 +90,16 @@
 - Impact: Hoch.
 - Gegenmassnahme: sequenzieller stagger mode mit konfigurierbarem Offset (ms), deterministische member-order und replizierte Persistenz.
 
+## R19 Start-Pfad mutiert Draft-UI und zerstoert Serien-Workflow
+- Risiko: Nach Start einer room/cluster Animation springen Draft-Felder (`target`, `animation`, Slider) auf unerwuenschte Werte und brechen den Workflow fuer mehrere Raeume mit gleichen Einstellungen.
+- Impact: Kritisch, P0 Operator-Blocker.
+- Gegenmassnahme: Start-Handler strikt draft-immutable machen; Start darf nur Runtime/Pending/Ack aktualisieren, nie Draft-Controls.
+
+## R20 Room-Click-Target-Autofill regressiert gegen Start-Side-Effects
+- Risiko: Korrektes Room-Klick-Autofill wird durch Start-seitige Auto-Mutationen ueberlagert oder inkonsistent.
+- Impact: Hoch bis kritisch.
+- Gegenmassnahme: klare Invarianten + Regression: nur Room-Klick setzt auto `target`, Start bleibt side-effect-frei fuer Draft-UI (room+cluster parity).
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -114,3 +124,10 @@
 - R16 mitigated: global snapshot triggers now run once per trigger revision with full-duration replay and no implicit pre-stop cleanup.
 - R17 mitigated: audio lifecycle is revision-aware with stale replay drop and explicit-stop-gated teardown.
 - R18 mitigated: cluster stagger start uses deterministic member order with configurable offset parity replicated in server snapshot state.
+
+## New Hotfix Risk Focus (7-HF4)
+- R19/R20 sind als P0-Risiken fuer den Realbetrieb priorisiert; Plan 7-HF4 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF4
+- R19 mitigated: room/cluster start no longer mutates draft UI fields; animation/target/slider controls stay stable after start.
+- R20 mitigated: control snapshot polling no longer rewrites local draft controls from runtime roomDraft, preventing post-start jump regressions.

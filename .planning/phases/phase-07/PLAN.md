@@ -176,4 +176,35 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 - Regression/evidence refreshed for HF3 gate in `debug/p7-hf3-t12-output.json`, `debug/p7-hf3-t13-output.json`, `debug/p7-hf3-t14-output.json`.
 
 ## Gate Closure
-- Plan 7-HF3 is PASS; Plan 7-2 is unblocked.
+- Plan 7-HF3 is PASS; der bis dahin blockierende Trigger/Audio/Stagger-Gate ist geschlossen.
+
+## Neues verpflichtendes Feedback (Plan 7-HF4, P0-Hotfix, execute-ready)
+- Problem aus Realbetrieb: Nach dem Start einer Room/Cluster-Animation mutiert die Draft-UI unzulaessig (`target` springt auf `cluster`, Animation springt auf erstes Element `Malfunction`), wodurch der Workflow fuer mehrere Raeume nacheinander mit gleichen Einstellungen bricht.
+- Architekturentscheidung (verbindlich): Start-Operationen sind write-only Commands und duerfen die lokalen Draft-Eingaben nicht rueckschreiben oder resetten.
+- UI-Invariante (verbindlich): `animation`, `target` und Slider-Drafts bleiben nach `Start` unveraendert; nur explizite User-Aktionen duerfen diese Felder aendern.
+- Klick-Invariante (verbindlich): Board-Raumklick darf weiterhin ausschliesslich `target=room:<clickedRoomId>` auto-setzen; kein Start-Pfad darf diese Logik ersetzen oder erweitern.
+- Scope-Invariante (verbindlich): Verhalten muss fuer `targetType=room` und `targetType=cluster` gleich stabil bleiben.
+
+## Plan 7-HF4 Scope (execute-ready)
+- Start-Handler fuer room/cluster entkoppeln von Draft-State-Mutationen (kein implizites `setDraftAnimation`, `setDraftTarget`, Slider-Reset im Startpfad).
+- Shared-Draft-Reducer/Setter mit Guard versehen: `start`-Events duerfen nur runtime pending/ack Status updaten, nicht Draft-Controls.
+- Room-Click-Autofill explizit beibehalten und gegen Start-Nebenwirkungen absichern (`click -> target` erlaubt, `start -> no draft mutation`).
+- Snapshot-/Polling-Apply gegen Draft-Rueckschreiben absichern, damit serverseitige Runtime-Updates die Draft-UI nicht ueberschreiben.
+- Regression erweitern: room- und cluster-start in Serie mit identischen Einstellungen, Dropdown-/Slider-Stabilitaet und no-jump auf `Malfunction`/`cluster`.
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF4 (Draft-UI Immutability on Start) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF4
+- Plan 7-HF4 implementation completed for P7-HF4-T1..P7-HF4-T7.
+- Start path for room/cluster now preserves draft controls (`animation`, `target`, sliders) and no longer resets to fallback defaults (`Malfunction`/`cluster`) on start.
+- Room draft start flow now uses explicit immutability guard/restore for UI fields; start-side runtime updates remain pending/ack only.
+- Snapshot polling apply no longer writes `runtime.roomDraft` onto control clients; runtime updates cannot overwrite local draft dropdown/slider selections.
+- HF4 regression/non-regression evidence refreshed (`debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`).
+
+## Gate Closure
+- Plan 7-HF4 is PASS; Draft-UI-Immutability gate is closed.
+
+## Next Wave
+- Plan 7-2 (Hardening) is unblocked as the next executable wave.

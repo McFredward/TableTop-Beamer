@@ -12,6 +12,7 @@
 - Compatibility and Non-Regression Guard
 - Snapshot Polling Determinism Pivot
 - Snapshot Trigger Determinism + Audio Consistency + Sequential Stagger
+- Draft UI Immutability on Start
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -64,6 +65,12 @@
 - P7-S11.5 Cluster-Stagger auf sequenziellen Modus mit konfigurierbarem Offset (Slider in ms) umstellen.
 - P7-S11.6 Non-regression fuer sequential stagger member-order + offset parity (sync/reconnect/multi-client) verpflichtend machen.
 
+- P7-S12.1 Start-Operationen fuer room/cluster strikt draft-immutable machen (kein Auto-Reset von Animation/Target/Parametern).
+- P7-S12.2 Room-Click-Autofill auf `target` als einzigen erlaubten Auto-Mutationspfad absichern (wie zuvor).
+- P7-S12.3 Snapshot-/Polling-Apply von Draft-Controls entkoppeln, damit Runtime-Updates keine Draft-Felder ueberschreiben.
+- P7-S12.4 Regression fuer Serienstarts mit identischen Einstellungen ergaenzen (room + cluster, Dropdown/Slider stabil).
+- P7-S12.5 Artefakt-Sync fuer HF4 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -86,7 +93,8 @@
 - Plan 7-HF1 Verification Integrity Hotfix (abgeschlossen): `hopsMs` verifier schema fix, behavior-level non-regression matrix expansion, evidence refresh, full artifact sync.
 - Plan 7-HF2 Polling Determinism Hotfix (verpflichtend vor 7-2): server snapshots + adaptive polling + no-optimistic-state + optional WS wakeup hint.
 - Plan 7-HF3 Trigger/Audio/Stagger Hotfix (verpflichtend vor 7-2): snapshot-trigger-once-full-run + explicit-stop-only + stale-audio-drop + sequential stagger offset slider.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF3).
+- Plan 7-HF4 Draft-UI-Immutability Hotfix (verpflichtend vor 7-2): start darf keine Draft-Felder mutieren; room-click target-autofill bleibt als einziger Auto-Pfad.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF4).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -115,4 +123,14 @@
 - P7-S11.6 implemented: HF3 regression evidence confirms trigger duration parity, explicit stop parity, and stagger offset parity across 4 polling clients.
 
 ## Next Wave
-- Plan 7-2 hardening remains queued and is now unblocked after HF3 gate PASS.
+- Plan 7-HF4 ist als naechste P0-Hotfix-Welle gesetzt; Plan 7-2 bleibt bis HF4-Gate PASS blockiert.
+
+## Execution Update 7-HF4
+- P7-S12.1 implemented: room/cluster start path is draft-immutable (no implicit reset of animation/target/sliders on start).
+- P7-S12.2 implemented: draft start guard restores immutable draft fields if any start-side setter drift appears.
+- P7-S12.3 implemented: room-click target autofill remains target-only (`targetType=room`, `targetId=<clickedRoomId>`), while start remains side-effect-free.
+- P7-S12.4 implemented: control snapshot apply ignores `runtime.roomDraft`, preventing polling/runtime overwrite of local draft dropdown/slider state.
+- P7-S12.5 + P7-S12.6 implemented: regression/non-regression matrices now include multi-start same-settings, no-jump checks, and room/cluster target stability evidence (`debug/p7-hf4-*`).
+
+## Gate Closure
+- Plan 7-HF4 is PASS and no longer blocks Plan 7-2.

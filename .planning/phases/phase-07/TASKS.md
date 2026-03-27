@@ -51,7 +51,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF4-T4 [P0] Snapshot/Polling-Apply gegen Draft-Rueckschreiben absichern, damit Runtime-Updates keine Dropdown-/Slider-Drafts ueberschreiben.
 - [x] DONE P7-HF4-T5 [P0] Regression-Matrix erweitern: mehrfache room/cluster Starts mit gleichen Einstellungen, kein Jump auf `cluster` oder `Malfunction`, Dropdown/Slider stabil.
 - [x] DONE P7-HF4-T6 [P0] Non-regression absichern fuer bestehende target-auto-on-room-click Paritaet und Cluster-Start-Funktion.
-- [ ] TODO P7-HF4-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+- [x] DONE P7-HF4-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Plan 7-2 - Hardening Wave (nach 7-HF4)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
