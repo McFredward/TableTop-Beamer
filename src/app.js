@@ -1924,7 +1924,7 @@ function buildPersistedRuntimeSettingsFromState() {
 
 function buildBoardProfileStoragePayload() {
   return {
-    schema: "tt-beamer.board-profiles.v2",
+    schema: "tt-beamer.board-profiles.v3",
     savedAt: new Date().toISOString(),
     boards: buildBoardProfilesFromState(),
     ...buildPersistedRuntimeSettingsFromState(),

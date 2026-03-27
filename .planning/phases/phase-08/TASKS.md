@@ -6,7 +6,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Plan 8-1 - Multi-Play-Area + Image Import Core Wave (erste Ausfuehrungswelle, execute-ready)
 - [x] DONE P8-T1 [P0] Datenmodell auf `playAreas[]` heben (IDs, Polygonstruktur, Legacy-Ladealias fuer Single-Play-Area).
 - [x] DONE P8-T2 [P0] Idempotente Migration implementieren: bestehende `playAreaPolygon`/Legacy-Ship-Daten verlustfrei in `playAreas[]` ueberfuehren.
-- [ ] TODO P8-T3 [P0] Persistenz-/Normalizer-Pfad aktualisieren: Save exportiert Mehrbereichsschema, Load akzeptiert Legacy+neu.
+- [x] DONE P8-T3 [P0] Persistenz-/Normalizer-Pfad aktualisieren: Save exportiert Mehrbereichsschema, Load akzeptiert Legacy+neu.
 - [ ] TODO P8-T4 [P0] Settings-Editor erweitern: mehrere Play-Areas anlegen/loeschen/auswaehlen (inkl. Guard fuer Loeschpfad).
 - [ ] TODO P8-T5 [P0] Editor-Interaktion haerten: aktive Play-Area steuert Vertex-/Polygonaktionen deterministisch.
 - [ ] TODO P8-T6 [P0] Union-Geometriepfad implementieren: inside/outside nutzt Vereinigung aller Play-Areas statt Single-Polygon.
