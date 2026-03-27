@@ -906,6 +906,8 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     playSoundForAnimation(animation);
   }
 
+  syncAlignModePanel();
+
   if (!isFastFinalApply && outputRole !== OUTPUT_ROLE_FINAL) {
     syncRuntimePanelsFromState();
     renderRunningAnimationsList();

@@ -55,7 +55,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 7-HF5 - Align Sync + Board-Switch Running-Clear Determinism Hotfix (execute-ready, verpflichtend vor 7-2)
 - [x] DONE P7-HF5-T1 [P0] Align-Mode-Toggle serverautoritativ als Context-Command haerten (Ack + monotone Snapshot-Version + dedup), ohne lokalen Optimismus.
-- [ ] TODO P7-HF5-T2 [P0] Align-Mode-Snapshot-Apply auf allen Rollen vereinheitlichen; `/output/final` muss denselben Version-Apply-Pfad verpflichtend nutzen.
+- [x] DONE P7-HF5-T2 [P0] Align-Mode-Snapshot-Apply auf allen Rollen vereinheitlichen; `/output/final` muss denselben Version-Apply-Pfad verpflichtend nutzen.
 - [ ] TODO P7-HF5-T3 [P0] Align-Mode stale/equal-version reject absichern (`incomingVersion <= appliedVersion => drop`) inkl. reconnect/replay-Paritaet.
 - [ ] TODO P7-HF5-T4 [P0] Board-Switch serverseitig atomar an Running-Clear koppeln, damit Running-Liste beim Kontextwechsel deterministisch geleert wird.
 - [ ] TODO P7-HF5-T5 [P0] Client-Apply fuer Board-Switch gegen boardfremde Running-Rehydrierung haerten (keine Alt-Reste nach Switch).
