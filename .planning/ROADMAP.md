@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3 und 7-HF4 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`); neues Pflichtfeedback setzt Plan 7-HF5 als P0-Hotfix vor Plan 7-2.
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5 und 7-HF6 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`); Plan 7-2 ist als naechste Hardening-Welle aktiv.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -229,6 +229,7 @@ Milestones:
 10. M10 Trigger/Audio/Stagger Consistency Hotfix: snapshot-trigger full-run parity, explicit-stop-only lifecycle, audio stale-replay guard, sequential stagger offset slider.
 11. M11 Draft Immutability Hotfix: Start mutiert keine Draft-UI; room-click bleibt einziger auto-target Pfad; room/cluster parity fuer Serienstarts.
 12. M12 Align/Board-Switch Determinism Hotfix: Align-Mode serverautoritativ ueber alle Clients inkl. `/output/final`; Board-Switch leert Running deterministisch ohne Alt-Reste.
+13. M13 Board-Context Residue Elimination Hotfix: switch-clear als authoritative atomare Transaktion, snapshot sanitize vor persist/broadcast, reconnect board-context filter mit Invariante `crossBoardResidueCount = 0`.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -245,6 +246,9 @@ Exit Criteria:
 - Workflow `mehrere Raeume nacheinander mit gleichen Einstellungen` bleibt stabil fuer room- und cluster-targets.
 - Align-Mode-Toggle ist serverautoritativ und synchron auf allen Clients inklusive `/output/final` sichtbar.
 - Board-Wechsel fuehrt deterministisch zu einer leeren Running-Liste ohne Reste vom vorherigen Board (inkl. Reload/Reconnect).
+- Board-Switch-Clear ist als atomare authoritative Transaktion sichtbar (kein Zwischenzustand mit neuem Board + alten Running-Eintraegen).
+- Persistierte und broadcastete Server-Snapshots enthalten keine cross-board Running-Reste.
+- Reconnect-Hydrierung filtert Running strikt auf den aktiven Board-Kontext; Invariante `crossBoardResidueCount = 0` bleibt in Pflichtmatrix stabil.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -271,6 +275,18 @@ Execution Update (7-HF5):
 
 Next Wave:
 - Plan 7-2 Hardening is unblocked and is now the next executable wave.
+
+New Blocking Wave (verify-work 7-HF5 follow-up):
+- Two remaining P0 blockers reopen the gate before 7-2: non-deterministic board-switch clear and reconnect cross-board residue rehydrate.
+- Plan 7-HF6 is now the next executable wave; Plan 7-2 remains blocked until HF6 PASS.
+
+Execution Update (7-HF6):
+- Board-switch clear now runs as authoritative atomic context transaction with idempotent `contextSwitchTransactionId` guard.
+- Server snapshots sanitize running entries before persist/broadcast so only `selectedBoard`-matching entries survive fanout.
+- Reconnect/join hydration applies hard board-context filtering; deterministic regression confirms `crossBoardResidueCount = 0` across 4 clients incl. `/output/final` (`debug/p7-hf6-*`).
+
+Gate Closure (7-HF6):
+- Board-context residue elimination blocker is closed; Plan 7-2 remains unblocked as next wave.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

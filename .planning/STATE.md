@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF5
+- Last Executed Plan: 7-HF6
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -446,6 +446,9 @@
 - Plan-7-HF5 execution: align snapshot apply parity now includes `/output/final`; stale/equal-version payloads are rejected deterministically in polling and reconnect replay.
 - Plan-7-HF5 execution: board-switch context update clears running atomically server-side and client snapshot apply blocks old-board running residue rehydration.
 - Plan-7-HF5 execution: HF5 regression and evidence PASS (`debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`); Plan 7-2 is unblocked.
+- Plan-7-HF6 execution: board-switch now commits as authoritative atomic context transaction with idempotent `contextSwitchTransactionId` guard and deterministic running clear.
+- Plan-7-HF6 execution: server snapshot commit path sanitizes running entries by selected board before persist/broadcast; cross-board residue is no longer serializable.
+- Plan-7-HF6 execution: reconnect/join apply hard-filters running by board context; deterministic regression/evidence confirms `crossBoardResidueCount = 0` across 4 clients incl. `/output/final` (`debug/p7-hf6-*`).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -852,3 +855,17 @@
 - Start-Operationen fuer room/cluster sind draft-immutable; Draft-UI-Felder (`animation`, `target`, Slider) duerfen durch Start nicht mutieren.
 - Snapshot-Polling schreibt `runtime.roomDraft` auf Control-Clients nicht mehr in lokale Draft-Controls zurueck.
 - Room-Klick bleibt der einzige Auto-Pfad fuer Target-Autofill (`targetType=room`, `targetId=<clickedRoomId>`).
+
+## Execution Results (Phase 7 Plan HF5)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF5-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`0a80369`, `b2cdc5e`, `e295609`, `5bdd733`, `db7b7a4`, `d39a6ae`, `2308c03`)
+- Evidence:
+  - `debug/p7-hf5-t12-output.json`
+  - `debug/p7-hf5-t13-output.json`
+  - `debug/p7-hf5-t14-output.json`
+
+## Decision Log Addendum (HF5 follow-up)
+- verify-work 7-HF5 Follow-up oeffnet zwei verbleibende P0-Blocker: nicht-deterministischer board-switch clear in Randfaellen und reconnect cross-board residue rehydrate.
+- Naechste verpflichtende Welle ist Plan 7-HF6 (Board-Context Residue Elimination), bevor Plan 7-2 gestartet werden darf.
+- Verbindliche HF6-Invariante: `switch -> reconnect` darf auf keinem Client boardfremde Running-Eintraege rehydrieren (`crossBoardResidueCount = 0`).
