@@ -5109,7 +5109,8 @@ function getOutsideAssetCandidates(assetType) {
   if (normalizedType === "coded") {
     return getOutsideCodedAssetKeys();
   }
-  return outsideResourceAssets;
+  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
 }
 
 function resolveOutsideCodedEffectType(assetRef) {
@@ -5155,10 +5156,10 @@ function syncOutsideResourcePicker(assetTypeOverride = null, selectedAssetRef = 
     candidateAssets.length > 0
       ? assetType === "coded"
         ? "Select coded renderer key…"
-        : "Select resource asset…"
+        : `Select ${assetType.toUpperCase()} resource asset…`
       : assetType === "coded"
         ? "No coded renderer keys available"
-        : "No resource assets available";
+        : `No ${assetType.toUpperCase()} resource assets available`;
   outsideResourceSelect.append(placeholder);
   for (const assetPath of candidateAssets) {
     const option = document.createElement("option");
