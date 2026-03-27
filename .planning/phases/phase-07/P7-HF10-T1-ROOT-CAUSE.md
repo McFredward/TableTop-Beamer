@@ -39,3 +39,11 @@ This explains the real symptom:
 3. Snapshot sanitization hardening: infer board context from runtime patch if top-level board fields are missing.
 4. Client snapshot apply hardening: only apply board switch from valid incoming board context (no null/drift overwrite).
 5. Status arbitration: context status (`board switched`) must not neutralize active/pending lifecycle feedback.
+
+## PASS confirmation (same reproduction after fix)
+
+Source artifact: `debug/p7-hf10-t1-pass-output.json`
+
+- Same start commands are accepted.
+- Snapshot now carries authoritative board context (`selectedBoard = nemesis-board-a`).
+- `runtime.runningAnimations` contains the started `room` + `global-inside` + `cluster` entries.

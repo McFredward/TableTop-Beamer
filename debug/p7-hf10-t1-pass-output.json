@@ -1,0 +1,64 @@
+{
+  "pass": true,
+  "phase": "pass-after-fix",
+  "selectedBoard": "nemesis-board-a",
+  "acks": {
+    "room": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-room",
+      "mutationId": "hf10-pass-room-1774604008226",
+      "version": 1,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:33:28.261Z",
+      "serverIngestTimestamp": "2026-03-27T09:33:28.260Z"
+    },
+    "globalInside": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-global",
+      "mutationId": "hf10-pass-inside-1774604008266",
+      "version": 2,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:33:28.268Z",
+      "serverIngestTimestamp": "2026-03-27T09:33:28.268Z"
+    },
+    "cluster": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-room",
+      "mutationId": "hf10-pass-cluster-1774604008269",
+      "version": 3,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:33:28.270Z",
+      "serverIngestTimestamp": "2026-03-27T09:33:28.270Z"
+    }
+  },
+  "runningAnimationIds": [
+    "hf10-pass-room",
+    "hf10-pass-global-inside",
+    "hf10-pass-cluster"
+  ],
+  "assertions": {
+    "commandsAccepted": [
+      true,
+      true,
+      true
+    ],
+    "roomPresent": true,
+    "globalInsidePresent": true,
+    "clusterPresent": true
+  }
+}

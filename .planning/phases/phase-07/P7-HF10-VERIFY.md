@@ -13,6 +13,7 @@ Observed failure:
 
 ## PASS (post-fix verification)
 
+- Root-cause parity pass: `debug/p7-hf10-t1-pass-output.json`
 - Hard smoke: `debug/p7-hf10-t6-smoke-output.json`
 - Guard/invariant verify: `debug/p7-hf10-t12-output.json`
 - Behavior matrix verify: `debug/p7-hf10-t13-output.json`
