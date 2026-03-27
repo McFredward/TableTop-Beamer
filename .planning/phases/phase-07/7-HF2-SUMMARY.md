@@ -55,6 +55,8 @@ completed: 2026-03-27
 2. **P7-HF2-T6 regression + evidence** - `3443bf1` (test)
 3. **P7-HF2-T7 artifact sync** - `d4991f2` (docs)
 
+**Plan metadata:** `347ff26` (docs)
+
 ## Files Created/Modified
 - `server.mjs` - snapshot endpoint, command endpoint, global mutation patch, telemetry gate counters, state-dirty broadcasts.
 - `src/app.js` - adaptive snapshot polling loop, command-write mutation transport, pending/snapshot UX, WS hint-only behavior.
