@@ -1621,16 +1621,23 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
   for (const boardId of boardIds) {
     const primary = primaryProfiles?.[boardId] ?? {};
     const fallback = fallbackProfiles?.[boardId] ?? {};
-    const primaryPlayAreaPolygon = isValidSpecialPolygon(primary.playAreaPolygon)
-      ? primary.playAreaPolygon
-      : isValidSpecialPolygon(primary.shipPolygon)
-        ? primary.shipPolygon
-        : null;
-    const fallbackPlayAreaPolygon = isValidSpecialPolygon(fallback.playAreaPolygon)
-      ? fallback.playAreaPolygon
-      : isValidSpecialPolygon(fallback.shipPolygon)
-        ? fallback.shipPolygon
-        : null;
+    const mergedPlayAreas = normalizePlayAreasCollection(
+      Array.isArray(primary.playAreas) && primary.playAreas.length > 0
+        ? primary.playAreas
+        : Array.isArray(fallback.playAreas)
+          ? fallback.playAreas
+          : null,
+      primary.playAreaPolygon
+      ?? primary.shipPolygon
+      ?? fallback.playAreaPolygon
+      ?? fallback.shipPolygon
+      ?? SHIP_POLYGON_DEFAULT,
+    );
+    const preferredSelectedPlayAreaId = String(primary.selectedPlayAreaId || fallback.selectedPlayAreaId || "").trim();
+    const selectedPlayAreaId = mergedPlayAreas.some((area) => area.id === preferredSelectedPlayAreaId)
+      ? preferredSelectedPlayAreaId
+      : mergedPlayAreas[0].id;
+    const selectedPlayArea = mergedPlayAreas.find((area) => area.id === selectedPlayAreaId) ?? mergedPlayAreas[0];
     const deletedRoomIds = normalizeRoomTombstoneIds([
       ...(Array.isArray(fallback.deletedRoomIds) ? fallback.deletedRoomIds : fallback.roomTombstones ?? []),
       ...(Array.isArray(primary.deletedRoomIds) ? primary.deletedRoomIds : primary.roomTombstones ?? []),
@@ -1650,7 +1657,9 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
       roomCatalog,
       deletedRoomIds,
       specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
-      playAreaPolygon: primaryPlayAreaPolygon ?? fallbackPlayAreaPolygon ?? SHIP_POLYGON_DEFAULT,
+      playAreas: mergedPlayAreas,
+      selectedPlayAreaId,
+      playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? SHIP_POLYGON_DEFAULT),
     };
   }
 
@@ -1675,16 +1684,135 @@ function normalizeShipPolygon(points) {
   return normalizeSpecialPolygon(points, SHIP_POLYGON_DEFAULT);
 }
 
-function createDefaultShipPolygonsByBoard() {
-  return Object.fromEntries(BOARDS.map((board) => [board.id, normalizeShipPolygon(SHIP_POLYGON_DEFAULT)]));
+function normalizePlayAreaId(value, fallbackIndex = 0) {
+  const raw = String(value || "").trim().toLowerCase();
+  const sanitized = raw
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (sanitized) {
+    return sanitized;
+  }
+  return `play-area-${fallbackIndex + 1}`;
+}
+
+function normalizePlayAreaEntry(entry, fallbackIndex = 0) {
+  const id = normalizePlayAreaId(entry?.id, fallbackIndex);
+  const fallbackName = `Play Area ${fallbackIndex + 1}`;
+  const name = String(entry?.name || "").trim() || fallbackName;
+  const polygon = normalizeShipPolygon(entry?.polygon ?? entry?.points ?? entry);
+  return {
+    id,
+    name,
+    polygon,
+  };
+}
+
+function normalizePlayAreasCollection(playAreas, fallbackPolygon = SHIP_POLYGON_DEFAULT) {
+  const source = Array.isArray(playAreas) ? playAreas : [];
+  const normalized = [];
+  const seenIds = new Set();
+
+  for (let index = 0; index < source.length; index += 1) {
+    const area = normalizePlayAreaEntry(source[index], index);
+    let uniqueId = area.id;
+    let suffix = 2;
+    while (seenIds.has(uniqueId)) {
+      uniqueId = `${area.id}-${suffix}`;
+      suffix += 1;
+    }
+    seenIds.add(uniqueId);
+    normalized.push({
+      ...area,
+      id: uniqueId,
+    });
+  }
+
+  if (normalized.length === 0) {
+    normalized.push({
+      id: "play-area-1",
+      name: "Play Area 1",
+      polygon: normalizeShipPolygon(fallbackPolygon),
+    });
+  }
+
+  return normalized;
+}
+
+function createDefaultPlayAreasByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [
+      board.id,
+      normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT),
+    ]),
+  );
+}
+
+function createDefaultSelectedPlayAreaIdByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => {
+      const defaults = normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT);
+      return [board.id, defaults[0].id];
+    }),
+  );
+}
+
+function getPlayAreas(boardId = state.boardId) {
+  const source = state.playAreasByBoard?.[boardId];
+  const normalized = normalizePlayAreasCollection(source, SHIP_POLYGON_DEFAULT);
+  state.playAreasByBoard[boardId] = normalized;
+  return normalized;
+}
+
+function getSelectedPlayAreaId(boardId = state.boardId) {
+  const areas = getPlayAreas(boardId);
+  const preferred = String(state.selectedPlayAreaIdByBoard?.[boardId] || "").trim();
+  if (areas.some((area) => area.id === preferred)) {
+    return preferred;
+  }
+  const fallback = areas[0]?.id ?? "play-area-1";
+  state.selectedPlayAreaIdByBoard[boardId] = fallback;
+  return fallback;
+}
+
+function setSelectedPlayAreaId(boardId, playAreaId) {
+  const areas = getPlayAreas(boardId);
+  const preferred = String(playAreaId || "").trim();
+  const next = areas.some((area) => area.id === preferred) ? preferred : areas[0]?.id;
+  if (next) {
+    state.selectedPlayAreaIdByBoard[boardId] = next;
+  }
+}
+
+function setPlayAreas(boardId, playAreas, { selectedPlayAreaId = null } = {}) {
+  const normalized = normalizePlayAreasCollection(playAreas, SHIP_POLYGON_DEFAULT);
+  state.playAreasByBoard[boardId] = normalized;
+  const preferred = String(selectedPlayAreaId || state.selectedPlayAreaIdByBoard?.[boardId] || "").trim();
+  const selected = normalized.some((area) => area.id === preferred) ? preferred : normalized[0].id;
+  state.selectedPlayAreaIdByBoard[boardId] = selected;
+  state.shipPolygonsByBoard[boardId] = normalizeShipPolygon(
+    normalized.find((area) => area.id === selected)?.polygon ?? normalized[0].polygon,
+  );
+}
+
+function getSelectedPlayArea(boardId = state.boardId) {
+  const areas = getPlayAreas(boardId);
+  const selectedId = getSelectedPlayAreaId(boardId);
+  return areas.find((area) => area.id === selectedId) ?? areas[0];
 }
 
 function getShipPolygonPoints(boardId = state.boardId) {
-  return normalizeShipPolygon(state.shipPolygonsByBoard[boardId]);
+  return normalizeShipPolygon(getSelectedPlayArea(boardId)?.polygon ?? SHIP_POLYGON_DEFAULT);
 }
 
 function setShipPolygonPoints(boardId, points) {
-  state.shipPolygonsByBoard[boardId] = normalizeShipPolygon(points);
+  const areas = getPlayAreas(boardId);
+  const selectedId = getSelectedPlayAreaId(boardId);
+  const nextPolygon = normalizeShipPolygon(points);
+  const updated = areas.map((area) => (area.id === selectedId
+    ? { ...area, polygon: nextPolygon }
+    : { ...area, polygon: normalizeShipPolygon(area.polygon) }));
+  setPlayAreas(boardId, updated, { selectedPlayAreaId: selectedId });
 }
 
 function normalizeOutsideFxProfile(profile) {
@@ -1749,6 +1877,8 @@ function createDefaultBoardProfiles() {
         roomGeometry: createDefaultRoomGeometryMap(board.id),
         roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
         specialPolygons: createDefaultSpecialPolygonMap(board.id),
+        playAreas: normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT),
+        selectedPlayAreaId: "play-area-1",
         playAreaPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
         outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
       },
@@ -1768,6 +1898,12 @@ function buildBoardProfilesFromState() {
         roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
         roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
         specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
+        playAreas: getPlayAreas(board.id).map((area) => ({
+          id: area.id,
+          name: area.name,
+          polygon: normalizeShipPolygon(area.polygon),
+        })),
+        selectedPlayAreaId: getSelectedPlayAreaId(board.id),
         playAreaPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
         outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
       },
@@ -1869,13 +2005,30 @@ function applyBoardProfilesToState(profiles) {
       ),
     ]),
   );
+  state.playAreasByBoard = Object.fromEntries(
+    BOARDS.map((board) => {
+      const profile = profiles?.[board.id] ?? {};
+      const migratedPlayAreas = normalizePlayAreasCollection(
+        profile.playAreas,
+        profile.playAreaPolygon ?? profile.shipPolygon ?? profile.shipMask ?? SHIP_POLYGON_DEFAULT,
+      );
+      return [board.id, migratedPlayAreas];
+    }),
+  );
+  state.selectedPlayAreaIdByBoard = Object.fromEntries(
+    BOARDS.map((board) => {
+      const profile = profiles?.[board.id] ?? {};
+      const areas = state.playAreasByBoard[board.id] ?? normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT);
+      const preferred = String(profile.selectedPlayAreaId || "").trim();
+      const selected = areas.some((area) => area.id === preferred) ? preferred : areas[0]?.id ?? "play-area-1";
+      return [board.id, selected];
+    }),
+  );
   state.shipPolygonsByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeShipPolygon(
-        profiles?.[board.id]?.playAreaPolygon ?? profiles?.[board.id]?.shipPolygon ?? profiles?.[board.id]?.shipMask,
-      ),
-    ]),
+    BOARDS.map((board) => {
+      const selected = getSelectedPlayArea(board.id);
+      return [board.id, normalizeShipPolygon(selected?.polygon ?? SHIP_POLYGON_DEFAULT)];
+    }),
   );
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
@@ -9673,7 +9826,11 @@ async function initializeApplication() {
   state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
   state.roomStateProfilesByBoard = createDefaultRoomStateProfilesByBoard();
   state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
-  state.shipPolygonsByBoard = createDefaultShipPolygonsByBoard();
+  state.playAreasByBoard = createDefaultPlayAreasByBoard();
+  state.selectedPlayAreaIdByBoard = createDefaultSelectedPlayAreaIdByBoard();
+  state.shipPolygonsByBoard = Object.fromEntries(
+    BOARDS.map((board) => [board.id, getShipPolygonPoints(board.id)]),
+  );
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());

@@ -45,6 +45,8 @@
       roomStateProfilesByBoard: {},
       specialPolygonsByBoard: {},
       shipPolygonsByBoard: {},
+      playAreasByBoard: {},
+      selectedPlayAreaIdByBoard: {},
       outsideFxByBoard: {},
       boardZoomByBoard: {},
       roomClipboard: null,

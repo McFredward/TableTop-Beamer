@@ -115,6 +115,21 @@
     const migrated = createDefaultBoardProfiles();
     for (const board of boards) {
       const profile = candidate?.[board.id] ?? {};
+      const legacyPolygon =
+        profile.playAreaPolygon ??
+        profile.playArea ??
+        profile.shipPolygon ??
+        profile.shipMask ??
+        SHIP_POLYGON_DEFAULT;
+      const playAreas = Array.isArray(profile.playAreas) && profile.playAreas.length > 0
+        ? profile.playAreas
+        : [
+          {
+            id: "play-area-1",
+            name: "Play Area 1",
+            polygon: legacyPolygon,
+          },
+        ];
         migrated[board.id] = {
           roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
           deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
@@ -133,12 +148,9 @@
           profile.polygons ??
           legacySpecialPolygons[board.id] ??
           createDefaultSpecialPolygonMap(board.id),
-        playAreaPolygon:
-          profile.playAreaPolygon ??
-          profile.playArea ??
-          profile.shipPolygon ??
-          profile.shipMask ??
-          SHIP_POLYGON_DEFAULT,
+        playAreas,
+        selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
+        playAreaPolygon: legacyPolygon,
         outsideFx: profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT,
       };
     }
