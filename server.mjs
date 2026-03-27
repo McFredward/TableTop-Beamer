@@ -417,6 +417,12 @@ function applyGlobalMutationPatch(payload) {
 function applyContextUpdatePatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
   const runtimePatch = isPlainObject(payload?.runtime) ? payload.runtime : {};
+  const alignMode =
+    typeof payload?.alignMode === "boolean"
+      ? payload.alignMode
+      : typeof runtimePatch?.alignMode === "boolean"
+        ? runtimePatch.alignMode
+        : null;
   const selectedBoard =
     normalizeNonEmptyString(payload?.selectedBoard) ??
     normalizeNonEmptyString(payload?.boardId) ??
@@ -447,10 +453,15 @@ function applyContextUpdatePatch(payload) {
     };
   }
 
+  if (alignMode !== null) {
+    nextRuntime.alignMode = alignMode;
+  }
+
   return {
     runtime: nextRuntime,
     selectedBoard,
     selectedLayout,
+    ...(alignMode !== null ? { alignMode } : {}),
   };
 }
 

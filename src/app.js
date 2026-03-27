@@ -280,8 +280,16 @@ function syncAlignModePanel() {
 function setAlignMode(enabled, { emit = true } = {}) {
   const nextAlignMode = Boolean(enabled);
   if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
-    void emitLiveMutation("align-toggle", {
+    void emitLiveMutation("context-update", {
+      reason: "align-toggle",
+      selectedBoard: state.boardId,
+      selectedLayout: state.selectedLayout ?? state.boardId,
+      boardId: state.boardId,
+      layoutId: state.selectedLayout ?? state.boardId,
       alignMode: nextAlignMode,
+      runtime: {
+        alignMode: nextAlignMode,
+      },
     }).then(() => {
       triggerFeedback.textContent = `Pending: align mode ${nextAlignMode ? "ON" : "OFF"} (waiting for snapshot)`;
     }).catch(() => {

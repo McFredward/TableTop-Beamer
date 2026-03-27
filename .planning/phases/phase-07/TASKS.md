@@ -53,7 +53,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF4-T6 [P0] Non-regression absichern fuer bestehende target-auto-on-room-click Paritaet und Cluster-Start-Funktion.
 - [x] DONE P7-HF4-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
-## Plan 7-2 - Hardening Wave (nach 7-HF4)
+## Plan 7-HF5 - Align Sync + Board-Switch Running-Clear Determinism Hotfix (execute-ready, verpflichtend vor 7-2)
+- [x] DONE P7-HF5-T1 [P0] Align-Mode-Toggle serverautoritativ als Context-Command haerten (Ack + monotone Snapshot-Version + dedup), ohne lokalen Optimismus.
+- [ ] TODO P7-HF5-T2 [P0] Align-Mode-Snapshot-Apply auf allen Rollen vereinheitlichen; `/output/final` muss denselben Version-Apply-Pfad verpflichtend nutzen.
+- [ ] TODO P7-HF5-T3 [P0] Align-Mode stale/equal-version reject absichern (`incomingVersion <= appliedVersion => drop`) inkl. reconnect/replay-Paritaet.
+- [ ] TODO P7-HF5-T4 [P0] Board-Switch serverseitig atomar an Running-Clear koppeln, damit Running-Liste beim Kontextwechsel deterministisch geleert wird.
+- [ ] TODO P7-HF5-T5 [P0] Client-Apply fuer Board-Switch gegen boardfremde Running-Rehydrierung haerten (keine Alt-Reste nach Switch).
+- [ ] TODO P7-HF5-T6 [P0] Regression erweitern: Align-on/off Roundtrip ueber 3-4 Clients inkl. `/output/final` sowie Start->Board-Switch->Running-empty Matrix.
+- [ ] TODO P7-HF5-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Plan 7-2 - Hardening Wave (nach 7-HF5)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.
