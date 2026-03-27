@@ -74,10 +74,21 @@ completed: 2026-03-27
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools state/*` commands incompatible with repository STATE/ROADMAP format**
+- **Found during:** Task 7 (artifact/state sync)
+- **Issue:** Automated state commands returned parse errors (`Current Plan/Progress/Decisions section not found`).
+- **Fix:** Applied equivalent manual updates in `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/CURRENT_PHASE.md` to keep execution metadata consistent.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** No scope creep; only execution-metadata synchronization path changed from tool-driven to manual due format mismatch.
 
 ## Issues Encountered
-None.
+`gsd-tools state` helper commands were not usable with the current repository STATE schema; manual synchronization was used as fallback.
 
 ## User Setup Required
 None - no external service configuration required.
