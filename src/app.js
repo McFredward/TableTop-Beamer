@@ -5094,6 +5094,29 @@ function resolveOutsideCodedEffectType(assetRef) {
   return "outside-space";
 }
 
+function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
+  const baseProfile = normalizeOutsideFxProfile(profileOverride ?? getOutsideFxProfile(boardId));
+  const selectedDefinition =
+    baseProfile.animations.find((entry) => entry.id === baseProfile.selectedAnimationId) ?? baseProfile.animations[0];
+  if (!selectedDefinition) {
+    return baseProfile;
+  }
+  const nextAnimations = baseProfile.animations.map((entry) => {
+    if (entry.id !== selectedDefinition.id) {
+      return entry;
+    }
+    return normalizeOutsideAnimationDefinition({
+      ...entry,
+      ...patch,
+    });
+  });
+  return normalizeOutsideFxProfile({
+    ...baseProfile,
+    selectedAnimationId: selectedDefinition.id,
+    animations: nextAnimations,
+  });
+}
+
 function syncOutsideResourcePicker() {
   if (!outsideResourceSelect) {
     return;
@@ -9791,11 +9814,8 @@ outsideAnimationSelect?.addEventListener("change", () => {
 
 outsideBoomerangInput?.addEventListener("change", () => {
   const boomerang = Boolean(outsideBoomerangInput.checked);
+  const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, { boomerang });
   if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      boomerang,
-    };
     void emitLiveMutation("outside-update", {
       outsideBoardId: state.boardId,
       reason: "outside-boomerang-update",
@@ -9811,7 +9831,7 @@ outsideBoomerangInput?.addEventListener("change", () => {
     });
     return;
   }
-  updateOutsideFxProfile(state.boardId, { boomerang });
+  setOutsideFxProfile(state.boardId, nextProfile);
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-boomerang-update");
@@ -9940,11 +9960,8 @@ outsideDirectionInput.addEventListener("change", () => {
 
 outsideAssetTypeInput?.addEventListener("change", () => {
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
+  const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, { assetType });
   if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      assetType,
-    };
     void emitLiveMutation("outside-update", {
       outsideBoardId: state.boardId,
       reason: "outside-asset-type-update",
@@ -9960,7 +9977,7 @@ outsideAssetTypeInput?.addEventListener("change", () => {
     });
     return;
   }
-  updateOutsideFxProfile(state.boardId, { assetType });
+  setOutsideFxProfile(state.boardId, nextProfile);
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-asset-type-update");
