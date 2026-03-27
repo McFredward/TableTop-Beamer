@@ -263,6 +263,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   const globalStopRevisions = isPlainObject(nextRuntime.globalStopRevisions)
     ? { ...nextRuntime.globalStopRevisions }
     : {};
+  const stopAnimationId = normalizeNonEmptyString(payload?.animationId);
 
   if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
@@ -283,14 +284,43 @@ function applyRoomMutationPatch(mutationType, payload) {
     } else {
       runningAnimations.push(cloneJson(payload.animation));
     }
-  } else if (mutationType === "stop-animation" && typeof payload?.animationId === "string") {
-    const stoppedEntry = runningAnimations.find((entry) => entry?.id === payload.animationId);
+  } else if (mutationType === "stop-animation") {
+    if (!stopAnimationId) {
+      nextRuntime.runningAnimations = runningAnimations;
+      nextRuntime.globalStopRevisions = globalStopRevisions;
+      return {
+        runtime: nextRuntime,
+      };
+    }
+    const stoppedEntry = runningAnimations.find((entry) => entry?.id === stopAnimationId);
     if (stoppedEntry?.scope === "global" && stoppedEntry?.boardId && stoppedEntry?.type) {
       const triggerKey = `${stoppedEntry.boardId}:${stoppedEntry.type}`;
       const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
       globalStopRevisions[triggerKey] = stopRevision + 1;
     }
-    const nextList = runningAnimations.filter((entry) => entry?.id !== payload.animationId);
+    const stopIds = new Set([stopAnimationId]);
+    if (stoppedEntry?.scope === "cluster") {
+      const linkedMemberIds = Array.isArray(stoppedEntry.memberAnimationIds)
+        ? stoppedEntry.memberAnimationIds.map((entry) => normalizeNonEmptyString(entry)).filter(Boolean)
+        : [];
+      for (const memberId of linkedMemberIds) {
+        stopIds.add(memberId);
+      }
+    }
+    if (stoppedEntry?.scope === "room" && stoppedEntry?.parentClusterRunId) {
+      const parentClusterId = normalizeNonEmptyString(stoppedEntry.parentClusterRunId);
+      if (parentClusterId) {
+        const hasOtherMembers = runningAnimations.some((entry) => (
+          entry?.id !== stopAnimationId
+          && entry?.scope === "room"
+          && normalizeNonEmptyString(entry?.parentClusterRunId) === parentClusterId
+        ));
+        if (!hasOtherMembers) {
+          stopIds.add(parentClusterId);
+        }
+      }
+    }
+    const nextList = runningAnimations.filter((entry) => !stopIds.has(normalizeNonEmptyString(entry?.id)));
     runningAnimations.length = 0;
     runningAnimations.push(...nextList);
   } else if (mutationType === "clear-all") {
