@@ -5082,6 +5082,17 @@ function inferOutsideAssetTypeFromPath(pathValue) {
   return "coded";
 }
 
+function resolveOutsideCodedEffectType(assetRef) {
+  const normalized = String(assetRef || "").trim().toLowerCase();
+  if (!normalized) {
+    return "outside-space";
+  }
+  if (["outside-space", "space", "coded-space", "coded/space"].includes(normalized)) {
+    return "outside-space";
+  }
+  return "outside-space";
+}
+
 function syncOutsideResourcePicker() {
   if (!outsideResourceSelect) {
     return;
@@ -8486,7 +8497,8 @@ function drawOutsideFxLayer(now) {
       }
       return;
     }
-    drawEffectVisual("outside-space", timeline.timeline, selectedDefinition.intensity, null, null, {
+    const codedEffectType = resolveOutsideCodedEffectType(selectedDefinition.assetRef);
+    drawEffectVisual(codedEffectType, timeline.timeline, selectedDefinition.intensity, null, null, {
       outsideMode: selectedDefinition.mode,
       outsideSpeed: selectedDefinition.speed,
       outsideDirection: effectiveDirection,

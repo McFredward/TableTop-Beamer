@@ -38,7 +38,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T33 [P0] Persistenz erweitern: Outside-Animationsdefinitionen + Settings ueber Profile/Defaults speichern/laden (inkl. Legacy-Migration/Guards).
 - [x] DONE P8-T34 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF2)
+## Plan 8-HF3 - Outside Editor Regression Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T35 [P0] `Coded/Space` Regression fixen: coded asset path/runtime mapping wiederherstellen (kein schwarzer No-Op).
+- [ ] TODO P8-T36 [P0] `Outside Sandstorm` Playback stabilisieren: Flackern/Rewind-Restartloop entfernen, kontinuierliche Wiedergabe absichern.
+- [ ] TODO P8-T37 [P0] Outside-Editor Input-Stabilitaet fixen: Boomerang-Checkbox wieder setzbar und Asset-Type-Dropdown stabil editierbar machen.
+- [ ] TODO P8-T38 [P0] UX-Absicherung liefern: `Apply changes` Button einfuehren und Type/Resource/Optionen atomar gemeinsam committen.
+- [ ] TODO P8-T39 [P0] Non-Regression + Persistenzmatrix ausfuehren: Apply/Save/Reload/Restart fuer `assetType`/`assetRef`/`boomerang`/coded key absichern.
+- [ ] TODO P8-T40 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF3 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF3)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.
