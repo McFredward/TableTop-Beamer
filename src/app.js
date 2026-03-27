@@ -950,6 +950,7 @@ const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
 const pendingAnimationAudioStartTimers = new Map();
+const startedGlobalAudioRevisionByTriggerKey = new Map();
 
 const {
   createDefaultAnimationSoundMap,
@@ -4958,6 +4959,18 @@ function stopAnimationSound(animationId) {
   activeAnimationAudioById.delete(animationId);
 }
 
+function getAnimationAudioLifecycleKey(animation) {
+  if (!animation || !animation.id) {
+    return null;
+  }
+  const triggerRevision = getGlobalTriggerRevision(animation);
+  if (animation.scope === "global" && triggerRevision !== null) {
+    return `global:${animation.id}:${triggerRevision}`;
+  }
+  const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
+  return `default:${animation.id}:${startedAtEpochMs}`;
+}
+
 function stopSoundsForInactiveAnimations() {
   const activeIds = new Set(state.runningAnimations.map((anim) => anim.id));
   for (const animationId of activeAnimationAudioById.keys()) {
@@ -4984,16 +4997,50 @@ function playSoundForAnimation(animation) {
   if (animation.scope === "cluster") {
     return;
   }
+  const lifecycleKey = getAnimationAudioLifecycleKey(animation);
+  const triggerKey = animation.scope === "global" ? getGlobalTriggerKey(animation) : null;
+  const triggerRevision = animation.scope === "global" ? getGlobalTriggerRevision(animation) : null;
+  if (triggerKey && triggerRevision !== null) {
+    const stopRevision = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
+    if (stopRevision >= triggerRevision) {
+      stopAnimationSound(animation.id);
+      return;
+    }
+    const lastStartedRevision = Number(startedGlobalAudioRevisionByTriggerKey.get(triggerKey) ?? 0);
+    if (triggerRevision < lastStartedRevision) {
+      stopAnimationSound(animation.id);
+      return;
+    }
+  }
+  const active = activeAnimationAudioById.get(animation.id);
+  if (active?.lifecycleKey && lifecycleKey && active.lifecycleKey === lifecycleKey) {
+    if (active.voice) {
+      const soundVolume = clampRoomSoundVolume(animation.soundVolume ?? active.soundVolume ?? 1);
+      const instanceVolume = isAudioPlaybackAllowed() ? state.audio.volume * soundVolume : 0;
+      active.voice.volume = instanceVolume;
+      activeAnimationAudioById.set(animation.id, {
+        ...active,
+        soundVolume,
+      });
+    }
+    return;
+  }
   const startDelayMs = Math.max(0, Math.ceil((Number(animation.startedAt) || 0) - performance.now()));
   if (startDelayMs > 0) {
     stopAnimationSound(animation.id);
+    const expectedLifecycleKey = lifecycleKey;
     const timerId = window.setTimeout(() => {
       pendingAnimationAudioStartTimers.delete(animation.id);
-      const stillRunning = state.runningAnimations.some((item) => item.id === animation.id);
+      const currentAnimation = state.runningAnimations.find((item) => item.id === animation.id) ?? null;
+      const stillRunning = Boolean(currentAnimation);
+      const currentLifecycleKey = currentAnimation ? getAnimationAudioLifecycleKey(currentAnimation) : null;
+      if (expectedLifecycleKey && currentLifecycleKey && expectedLifecycleKey !== currentLifecycleKey) {
+        return;
+      }
       if (!stillRunning) {
         return;
       }
-      playSoundForAnimation(animation);
+      playSoundForAnimation(currentAnimation);
     }, startDelayMs);
     pendingAnimationAudioStartTimers.set(animation.id, timerId);
     return;
@@ -5032,7 +5079,11 @@ function playSoundForAnimation(animation) {
     voice: reusable,
     onEnded,
     soundVolume,
+    lifecycleKey,
   });
+  if (triggerKey && triggerRevision !== null) {
+    startedGlobalAudioRevisionByTriggerKey.set(triggerKey, triggerRevision);
+  }
   reusable.play().catch(() => undefined);
 }
 
