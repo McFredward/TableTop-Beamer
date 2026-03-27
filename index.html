@@ -68,7 +68,7 @@
         <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
-      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section id="global-animation-panel" class="panel board-catalog-output-panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Board catalog + output</h2>
         <label>
           Board
@@ -100,15 +100,15 @@
         <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
         <button id="load-apply-global-defaults" type="button">Load and apply defaults</button>
         <button id="export-global-defaults" type="button">Download export (secondary)</button>
-        <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
-        <p id="zones-status" class="status-line" aria-live="polite">
+        <p id="board-status" class="status-line board-catalog-status" aria-live="polite">Active board: -</p>
+        <p id="zones-status" class="status-line board-catalog-status" aria-live="polite">
           Board source: checked at startup
         </p>
-        <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
-        <p id="global-defaults-status" class="status-line" aria-live="polite">
+        <p id="align-mode-status" class="status-line board-catalog-status" aria-live="polite">Align-Mode: OFF</p>
+        <p id="global-defaults-status" class="status-line board-catalog-status" aria-live="polite">
           Global Defaults: not saved yet
         </p>
-        <p id="api-diagnose-status" class="status-line" aria-live="polite">
+        <p id="api-diagnose-status" class="status-line board-catalog-status" aria-live="polite">
           API diagnostics: checked in save preflight
         </p>
         <p class="status-line">
