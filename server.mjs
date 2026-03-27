@@ -211,6 +211,46 @@ function normalizeNonEmptyString(value) {
   return trimmed ? trimmed : null;
 }
 
+function clampOutsideNumber(value, { min, max, fallback }) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function normalizeOutsideMode(value) {
+  return value === "immersive" || value === "duststorm" ? value : "standard";
+}
+
+function normalizeOutsideDirection(value) {
+  return value === "reverse" ? "reverse" : "forward";
+}
+
+function normalizeOutsideFxProfile(profile, baseProfile = null) {
+  const base = isPlainObject(baseProfile) ? baseProfile : {};
+  return {
+    enabled:
+      typeof profile?.enabled === "boolean"
+        ? profile.enabled
+        : typeof base.enabled === "boolean"
+          ? base.enabled
+          : false,
+    intensity: clampOutsideNumber(profile?.intensity ?? base.intensity, {
+      min: 0.2,
+      max: 1.5,
+      fallback: 0.7,
+    }),
+    speed: clampOutsideNumber(profile?.speed ?? base.speed, {
+      min: 0.3,
+      max: 2.5,
+      fallback: 1,
+    }),
+    mode: normalizeOutsideMode(profile?.mode ?? base.mode),
+    direction: normalizeOutsideDirection(profile?.direction ?? base.direction),
+  };
+}
+
 function isBoardContextSuppressedReason(reason) {
   const normalized = normalizeNonEmptyString(reason);
   if (!normalized) {
@@ -244,19 +284,15 @@ function applyOutsideUpdatePatch(payload) {
       if (!boardId || !isPlainObject(profile)) {
         continue;
       }
-      outsideFxByBoard[boardId] = {
-        ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
-        ...profile,
-      };
+      const previousProfile = isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {};
+      outsideFxByBoard[boardId] = normalizeOutsideFxProfile(profile, previousProfile);
     }
   }
 
   if (typeof payload?.outsideBoardId === "string" && isPlainObject(payload?.outsideFx)) {
     const boardId = payload.outsideBoardId;
-    outsideFxByBoard[boardId] = {
-      ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
-      ...payload.outsideFx,
-    };
+    const previousProfile = isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {};
+    outsideFxByBoard[boardId] = normalizeOutsideFxProfile(payload.outsideFx, previousProfile);
   }
 
   nextRuntime.outsideFxByBoard = outsideFxByBoard;
