@@ -56,6 +56,8 @@ completed: 2026-03-27
 6. **P7-HF5-T6** - `d39a6ae` (test)
 7. **P7-HF5-T7** - `2308c03` (docs)
 
+**Plan metadata:** `8696cde` (docs)
+
 ## Files Created/Modified
 - `src/app.js` - align command routing, stale/equal snapshot guard helper, and board-scoped running apply filter.
 - `server.mjs` - context patch support for align state + atomic running clear on board switch.
