@@ -65,20 +65,30 @@
 - Impact: Hoch.
 - Gegenmassnahme: expliziter Empty-Start-Guard ohne Zwangsdefaults; manueller Play-Area/Room-Create bleibt der erste gueltige Operator-Schritt.
 
-## R14 Langer Upload-Dateiname bricht Settings-Layout horizontal auf
-- Risiko: Dateiname streckt Import-/Settings-Leiste, erzwingt seitliches Scrollen und macht Buttons teilweise unzugaenglich.
+## R14 Outside-Sandstorm verletzt Audio-Stumm-Regel
+- Risiko: `Outside Sandstorm` erbt unbeabsichtigt globale Audio-Pfade und spielt trotz Vorgabe mit Ton.
 - Impact: Kritisch.
-- Gegenmassnahme: overflow-sicherer Dateinamen-Container mit robuster Wrap-/Truncate-Strategie und Width-Guard fuer stabile Panel-Breite ohne horizontalen Scrollbedarf.
+- Gegenmassnahme: harter mute-Guard auf Animationsebene plus Regressionstest fuer Start/Edit/Reload.
 
-## R15 `Board catalog + output` wird durch lange Board-Namen/Infozeilen horizontal gestreckt
-- Risiko: Modulbreite driftet ueber die normale Panelbreite, horizontales Scrollen wird noetig und zentrale Controls werden schlechter erreichbar.
+## R15 Boomerang-Playback erzeugt Lifecycle-Drift
+- Risiko: Rueckwaertsphase des Boomerang-Modus erzeugt Desync/Freeze oder laesst Stop/Clear nicht deterministisch greifen.
 - Impact: Kritisch.
-- Gegenmassnahme: harte Width-/Overflow-Guards auf Modul- und Zeilencontainern, verpflichtende Wrap-/Truncate-/Ellipsis-Regeln und Viewport-Regression fuer Desktop + schmale Breiten.
+- Gegenmassnahme: expliziter Playback-State-Machine-Pfad mit dedizierten Tests fuer Start/Stop/Clear/Join-Reconnect.
 
-## R16 Neue Outside-Animation `Outside Duststorm` driftet aus bestehender Outside-/Sync-Semantik
-- Risiko: Duststorm rendert in falschem Clip-Bereich oder erzeugt bei Mode-Wechseln/Join-Reconnect inkonsistente Zustandsbilder zwischen Clients.
+## R16 Settings-Refactor mischt Outside-Controls weiter in Play-Area-Editor
+- Risiko: doppelte oder verstreute Controls erzeugen inkonsistente Ownership und Fehlbedienung.
+- Impact: Hoch.
+- Gegenmassnahme: klare UI-Ownership (`Outside Animations`) mit Negativtest, dass Play-Area-Editor keine Outside-Controls mehr rendert.
+
+## R17 Asset-Mapping akzeptiert ungueltige Quellen/Typen
+- Risiko: fehlerhafte `assetRef`/`assetType` fuehren zu Laufzeitfehlern oder no-op Rendering.
+- Impact: Hoch.
+- Gegenmassnahme: strikte Typ-/Pfadvalidierung, Resource-Picker als bevorzugter Auswahlpfad, klare Fallback-Fehlermeldungen.
+
+## R18 Persistenz fuer Outside-Animationsdefinitionen ist nicht migrationsstabil
+- Risiko: bestehende Defaults/Profile verlieren Outside-Settings oder erzeugen Drift zwischen Legacy und neuem Modell.
 - Impact: Kritisch.
-- Gegenmassnahme: Integration in bestehenden Outside-Mode-Vertrag (serverautoritativ, ack/version), strikt inverse Play-Area-Union-Maskierung und verpflichtende multi-client Determinismus-Regression.
+- Gegenmassnahme: idempotente Migration, Schema-Normalizer, Save/Reload/Restart-Matrix fuer Definitionen + Settings.
 
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
@@ -94,18 +104,12 @@
 - 2026-03-27: R13 ist mitigiert; leere importierte Bildboards bleiben als gueltiger manueller Startzustand stabil (inkl. Evidence-Guard).
 
 ## Risk Review for Plan 8-HF2 (planned)
-- 2026-03-27: Neues P0-Betriebsfeedback priorisiert R14 als naechsten Hotfix-Blocker vor Plan 8-2.
-- 2026-03-27: R14 wird in derselben Welle mit verpflichtendem Layout-/Viewport-Regression-Gate abgesichert (kein horizontaler Settings-Scroll durch Dateinamen).
+- 2026-03-27: Neues verpflichtendes Mars-Featurepaket priorisiert R14-R18 als P0-Welle vor Plan 8-2.
+- 2026-03-27: Fokus liegt auf stummem Sandstorm-Default, boomerang-stabilem Lifecycle, UI-Ownership-Refactor, asset-validiertem Mapping und persistenzsicherer Migration.
 
 ## Risk Review after Plan 8-HF2
-- 2026-03-27: R14 ist mitigiert; Import-Dateinamenpfad nutzt Width-/Overflow-Guards und robustes Filename-Rendering ohne horizontalen Scrollzwang.
-- 2026-03-27: Nachweis ist als PASS in `.planning/phases/phase-08/8-HF2-VERIFICATION.md` dokumentiert.
-
-## Risk Review for Plan 8-HF3 (planned)
-- 2026-03-27: Neues P0-Betriebsfeedback priorisiert R15 als verbleibenden Layout-Blocker vor Plan 8-2.
-- 2026-03-27: R16 wird in derselben Hotfix-Welle abgesichert, damit `Outside Duststorm` nur als sync-/maskenparitaetischer Outside-Modus ausgerollt wird.
-
-## Risk Review after Plan 8-HF3
-- 2026-03-27: R15 ist mitigiert; `Board catalog + output` nutzt harte Width-/Overflow-Guards und overflow-sicheres Text-Rendering ohne horizontalen Scrollzwang.
-- 2026-03-27: R16 ist mitigiert; `Outside Duststorm` ist im Outside-Maskenpfad integriert und bleibt serverautoritativ sync-/persistenzstabil.
-- 2026-03-27: Nachweise sind als PASS in `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md` und `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md` dokumentiert.
+- 2026-03-27: R14 ist mitigiert; Outside-Sandstorm ist als mp4-Definition eingebunden und Outside-Audio wird fuer `outside-space` hart unterdrueckt.
+- 2026-03-27: R15 ist mitigiert; Boomerang-Timeline laeuft per Definition optional vorwaerts/rueckwaerts mit Start/Stop/Clear-kompatiblem Runtime-Anker.
+- 2026-03-27: R16 ist mitigiert; Outside-Controls sind in eigener Sektion `Outside Animations`, der Play-Area-Editor enthaelt keine Outside-Konfiguration mehr.
+- 2026-03-27: R17 ist mitigiert; Asset-Typ/Ref sind explizit editierbar, Resource-Picker bezieht gueltige Dateien aus `/api/resources`.
+- 2026-03-27: R18 ist mitigiert; Legacy-Aliase fuer Outside-Definitionen werden normalisiert und persistieren kanonisch ueber Profile/Defaults.

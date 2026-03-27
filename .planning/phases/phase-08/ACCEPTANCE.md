@@ -32,18 +32,17 @@
 - Settings-Play-Area-Click-Removed-Test: Board-Klick selektiert keine Play-Area mehr; Room-Selektion bleibt priorisiert.
 - Selection-Edit-NonRegression-Test: Vertex-/Room-Edit und Keyboard-Aktionen bleiben nach Selection-Arbitration-Fix stabil.
 
-- Import-Filename-No-Horizontal-Break-Test: langer Bild-Dateiname streckt die Settings-Leiste nicht horizontal.
-- Import-Filename-Render-Guard-Test: Dateiname wird robust umbrochen/abgeschnitten und ueberlaeuft weder nach links noch rechts.
-- Settings-Panel-Width-Stability-Test: Settings-Panel bleibt bei langem Dateinamen ohne horizontalen Scrollbedarf bedienbar.
-
-- Board-Catalog-Output-No-Horizontal-Break-Test: lange Board-Namen/Infozeilen strecken das Modul `Board catalog + output` nicht horizontal.
-- Board-Catalog-Output-Text-Guard-Test: Board-Namen/Infozeilen werden robust umbrochen/ellipsiert ohne links/rechts Overflow ausserhalb des Containers.
-- Board-Catalog-Output-Width-Stability-Test: Modul bleibt in stabiler Breite bedienbar ohne horizontalen Scrollbedarf (Desktop + schmale Viewports).
-
-- Outside-Duststorm-Availability-Test: `Outside Duststorm` ist als neuer Outside-Modus in der UI waehlbar und startbar/stoppbar.
-- Outside-Duststorm-Mask-Integrity-Test: Effekt rendert strikt ausserhalb der Play-Area-Union ohne Inside-Leaks.
-- Outside-Duststorm-Sync-Parity-Test: Mode-Wechsel/Start/Stop sind first-click-deterministisch auf allen Clients inkl. `/output/final` sichtbar.
-- Outside-Duststorm-Reconnect-Test: Join/Reconnect hydratisiert aktiven Duststorm-Status korrekt ohne Drift.
+- Outside-Sandstorm-Availability-Test: `Outside Sandstorm` ist als Outside-Animation auswuehlbar und an `sandstorm.mp4` gebunden.
+- Outside-Sandstorm-Muted-Test: `Outside Sandstorm` laeuft verpflichtend ohne Audio (auch bei globalen Audio-Einstellungen unveraendert stumm).
+- Outside-Boomerang-Playback-Test: aktiviertes Boomerang laeuft Ende->Rueckwaerts->Anfang->Vorwaerts ohne sichtbaren Lifecycle-Bruch.
+- Outside-Boomerang-Disabled-Test: deaktiviertes Boomerang nutzt normales Vorwaerts-Playback ohne Rueckwaertsphase.
+- Outside-Section-Ownership-Test: Outside-Animationscontrols sind ausschliesslich in `Outside Animations`; `Play Area Editor` enthaelt keine Outside-Config-Controls.
+- Outside-Animation-Dropdown-Test: Dropdown waehlt deterministisch die zu bearbeitende Outside-Animation; Settings aendern nur den aktiven Eintrag.
+- Outside-Asset-Mapping-Type-Test: pro Animation sind Asset-Typen `gif`/`mp4`/coded key validierbar und persistierbar.
+- Outside-Animation-Create-Test: UI kann neue Outside-Animation anlegen; neuer Eintrag ist direkt editierbar und triggerbar.
+- Outside-Resource-Picker-Test: vorhandene Dateien aus `resources` sind auswuehlbar und werden korrekt als `assetRef` uebernommen.
+- Outside-Persistence-Definitions-Test: Definitionen + Settings ueberleben Save/Reload/Restart und Defaults-Apply ohne Drift.
+- Outside-Legacy-Migration-Test: bestehende Legacy-Outside-Konfigurationen werden verlustfrei in das neue Definitionsmodell ueberfuehrt.
 
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
@@ -57,11 +56,9 @@
 - Nach P8-T18..P8-T20: Room-Selection-Prioritaet ist hergestellt; Play-Area-Click-Selection ist entfernt.
 - Nach P8-T21..P8-T23: Import-Success zeigt sofort Dropdown-Sichtbarkeit + Auto-Select; Empty-Start ist stabil.
 - Nach P8-T24: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
-- Nach P8-T25..P8-T27: Dateinamen-Overflow-Guard ist stabil; Settings-Panel bleibt horizontal scrollfrei.
-- Nach P8-T28: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
-- Nach P8-T29..P8-T31: `Board catalog + output` ist width-stabil; lange Texte bleiben overflow-sicher ohne Horizontal-Scroll.
-- Nach P8-T32..P8-T33: `Outside Duststorm` ist in Render/Maskenpfad + Sync/Persistenz deterministisch integriert.
-- Nach P8-T34: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T25..P8-T27: Outside-Sandstorm ist verfuegbar/stumm und Boomerang-Playback arbeitet lifecycle-stabil.
+- Nach P8-T28..P8-T32: Outside-Settings sind ausgelagert, Dropdown/Edit/Create/Asset-Picker funktionieren deterministisch.
+- Nach P8-T33..P8-T34: Persistenz/Migration fuer Outside-Animationen ist PASS und Artefakt-Sync ist abgeschlossen.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -73,13 +70,11 @@
 - Room-Klick in Settings priorisiert Selektion deterministisch; Play-Area-Selektion per Klick ist entfernt.
 - Erfolgreicher Bildupload fuehrt zu sofort sichtbarem Board im Dropdown und direkter Aktivselektion.
 - Importierte Bildboards ohne initiale Polygone sind als gueltiger Startzustand ohne Runtime-/Editorfehler bedienbar.
-- Langer Bild-Dateiname verursacht kein horizontales Layout-Breaking im Settings-Panel.
-- Dateinamen werden robust umbrochen/abgeschnitten dargestellt, ohne seitlichen Overflow.
-- Settings-Panel bleibt in stabiler Breite ohne horizontalen Scrollbedarf bedienbar.
-- Lange Board-Namen/Infozeilen verursachen im Modul `Board catalog + output` kein horizontales Layout-Breaking.
-- Board-Namen/Infozeilen sind robust umbrochen oder sinnvoll ellipsiert, ohne seitlichen Overflow.
-- `Outside Duststorm` ist als neue Outside-Animation verfuegbar und bleibt strikt ausserhalb der Play-Area-Union geclippt.
-- `Outside Duststorm` ist sync-/persistenzparitaetisch integriert (start/stop/mode inkl. join/reconnect).
+- `Outside Sandstorm` ist als neue Outside-Animation produktiv verfuegbar, nutzt `sandstorm.mp4` und bleibt ohne Audio.
+- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Start/Stop/Clear-Regression.
+- Outside-Animationseinstellungen leben in eigenstaendiger Sektion `Outside Animations`; `Play Area Editor` ist davon entkoppelt.
+- Asset-Mapping pro Outside-Animation ist in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
+- UI kann neue Outside-Animationen anlegen; Definitionen + Settings sind persistent ueber Profile/Defaults.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -98,10 +93,5 @@
 - Status: PASS
 - Evidence:
   - `.planning/phases/phase-08/8-HF2-VERIFICATION.md`
-
-## Execution Result (Plan 8-HF3)
-- Status: PASS
-- Evidence:
-  - `.planning/phases/phase-08/8-HF3-VERIFICATION.md`
-  - `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`
-  - `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`
+  - `debug/p8-hf2-api-resources.json`
+  - `debug/p8-hf2-api-health.json`

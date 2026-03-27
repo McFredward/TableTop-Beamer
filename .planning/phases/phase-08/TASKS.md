@@ -36,7 +36,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T31 [P0] Create-Flow fuer neue Outside-Animationen in UI implementieren (anlegen, direkt bearbeiten, runtime-nutzbar).
 - [x] DONE P8-T32 [P0] Resource-Asset-Picker integrieren: vorhandene Dateien aus `resources` auswaehlbar und als `assetRef` uebernehmbar.
 - [x] DONE P8-T33 [P0] Persistenz erweitern: Outside-Animationsdefinitionen + Settings ueber Profile/Defaults speichern/laden (inkl. Legacy-Migration/Guards).
-- [ ] TODO P8-T34 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
+- [x] DONE P8-T34 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
 
 ## Plan 8-2 - Hardening Wave (nach 8-HF2)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).

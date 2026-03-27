@@ -68,21 +68,26 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Verbindliche Zielregel: Erfolgreicher Bildimport fuegt das Board sofort in das Board-Dropdown ein und selektiert es direkt als aktiven Kontext.
 - Startzustand fuer importierte Bildboards ohne vorhandene Polygone ist explizit zulaessig; Play-Areas/Raeume werden danach manuell erstellt.
 
-## Neues verpflichtendes Feedback (P0 Hotfix-Welle 8-HF2)
-- Settings-UI Regression: langer Bild-Dateiname im Import-/Settings-Bereich streckt die Settings-Leiste horizontal.
-- Folge im Realbetrieb: horizontaler Scroll wird noetig; zentrale Buttons sind nicht mehr sauber erreichbar.
-- Verbindliche Zielregel: Dateiname darf kein horizontales Layout-Breaking ausloesen (weder nach links noch rechts).
-- Verbindliche Zielregel: Dateinamen-Darstellung ist robust (umbricht und/oder wird abgeschnitten), ohne Overflow ausserhalb des dafuer vorgesehenen UI-Containers.
-- Verbindliche Zielregel: Settings-Panel-Breite bleibt stabil; horizontales Scrollen ist in diesem Bereich unzulaessig.
+## Neues verpflichtendes Featurepaket (Mars, P0)
+- Neue Outside-Animation `Outside Sandstorm` wird auf Basis von `sandstorm.mp4` eingefuehrt und laeuft verpflichtend ohne Audio.
+- Outside-Playback erhaelt eine optionale Boomerang-Semantik pro Animation (vorwaerts bis Ende, rueckwaerts bis Anfang, dann erneut vorwaerts).
+- Outside-Animationseinstellungen werden aus dem `Play Area Editor` in eine eigene Settings-Sektion `Outside Animations` ausgelagert.
+- Neue Outside-Sektion bietet ein Dropdown fuer die zu bearbeitende Outside-Animation und zeigt deren animation-spezifische Parameter inkl. Boomerang-Option.
+- Animation-Asset-Mapping wird im UI editierbar: pro Outside-Animation ist die hinterlegte Quelle konfigurierbar (`gif`/`mp4`/coded animation key).
+- UI erlaubt das Anlegen neuer Outside-Animationen und die Auswahl vorhandener Dateien aus `resources` als Asset-Quelle.
+- Saemtliche Outside-Animationsdefinitionen und deren Settings werden wie bestehende Profile/Defaults persistent gespeichert und geladen.
 
-## Neues verpflichtendes Feedback (P0 Hotfix-Welle 8-HF3)
-- Layout-Bug weiterhin offen: Modul `Board catalog + output` wird durch lange Board-Namen/Infozeilen weiterhin horizontal gestreckt.
-- Folge im Realbetrieb: trotz HF2 bleibt in diesem Modul Layout-Drift mit horizontalem Overflow und Bedienungsverlust bestehen.
-- Verbindliche Zielregel: Modulbreite bleibt innerhalb normaler Panelbreite stabil; keine horizontale Streckung.
-- Verbindliche Zielregel: lange Board-Namen/Infotexte werden robust umgebrochen oder sinnvoll gekuerzt/ellipsiert.
-- Neue Outside-Animation ist verpflichtend: `Outside Duststorm`.
-- Verbindliche Zielregel: `Outside Duststorm` simuliert ausserhalb der Play-Area einen immersiven Mars-Sandsturm (sichtreduzierend, windig, lebendig).
-- Verbindliche Zielregel: `Outside Duststorm` ist voll kompatibel mit bestehender Outside-Logik, Persistenz und Sync-Pipeline.
+## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
+1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
+2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
+3. Outside-Playback-Lifecycle erweitern: optionales Boomerang-Playback robust fuer Start/Stop/Clear/Join-Reconnect.
+4. Settings-Refactor umsetzen: Outside-Animationseinstellungen aus `Play Area Editor` in separaten Bereich `Outside Animations` verlagern.
+5. Outside-Animationseditor liefern: Dropdown fuer Auswahl + parameterbezogene Bearbeitung inkl. Boomerang pro Animation.
+6. Asset-Mapping-Editor liefern: Asset-Typ (`gif`/`mp4`/coded key) und Referenz pro Animation bearbeitbar machen.
+7. UI-Create-Flow liefern: neue Outside-Animation in UI anlegen und als bearbeitbaren Eintrag registrieren.
+8. Resource-Asset-Picker liefern: vorhandene Dateien aus `resources` als Asset-Quelle auswaehlbar machen.
+9. Persistenz erweitern: Outside-Animationsdefinitionen + Settings verlustfrei speichern/laden (inkl. Legacy-Guards).
+10. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
@@ -91,22 +96,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 4. Post-Import Auto-Select erzwingen: neues Board ist unmittelbar im Dropdown sichtbar und direkt ausgewaehlt.
 5. Empty-Start fuer importierte Boards absichern: kein Pflicht-Default-Polygon, manueller Polygonworkflow startet direkt.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
-
-## Priorisierte Hotfix-Welle (Plan 8-HF2, execute-ready)
-1. Filename-Overflow fixen: lange Upload-Dateinamen brechen die Settings-Leiste nicht mehr horizontal auf.
-2. Dateinamen-Rendering haerten: robuste Wrap-/Truncate-Strategie ohne seitlichen Overflow ausserhalb des Dateinamen-Containers.
-3. Settings-Panel-Breitenstabilitaet absichern: kein horizontaler Scrollbedarf im Settings-Flow trotz langer Dateinamen.
-4. UI-Regression fuer Import-Settings dokumentieren und verifizieren (Desktop + schmale Viewports).
-5. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
-
-## Priorisierte Hotfix-Welle (Plan 8-HF3, execute-ready)
-1. Layout-Containment im Modul `Board catalog + output` haerten: lange Board-Namen/Infozeilen duerfen keine horizontale Modulstreckung ausloesen.
-2. Textdarstellung robust machen: Board-Namen/Infozeilen nutzen verpflichtende Wrap-/Truncate-/Ellipsis-Strategie ohne Overflow links/rechts.
-3. Panelstabilitaet absichern: kein horizontaler Scrollbedarf im `Board catalog + output`-Pfad (Desktop + schmale Viewports).
-4. Neue Animation `Outside Duststorm` implementieren und in Outside-Auswahl integrieren.
-5. Runtime-/Render-Guard fuer `Outside Duststorm` absichern: Effekt bleibt strikt ausserhalb der Play-Area-Union geclippt.
-6. Sync-/Persistenz-Paritaet absichern: Mode-Wechsel/Start/Stop fuer `Outside Duststorm` sind serverautoritativ, join/reconnect-stabil und first-click-deterministisch.
-7. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Definition of Done
 - Ein Board kann mehrere getrennte Play-Areas persistent speichern.
@@ -119,13 +108,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Room-Klick in Settings selektiert den Room deterministisch; Play-Area wird nicht mehr per Board-Klick selektiert.
 - Nach erfolgreichem Bildimport ist das neue Board sofort im Dropdown sichtbar und direkt aktiv selektiert.
 - Importierte Bildboards ohne vorhandene Polygone sind stabil editierbar (Play-Areas/Raeume koennen direkt manuell angelegt werden).
-- Langer Bild-Dateiname fuehrt im Settings-Bereich zu keinem horizontalen Layout-Breaking.
-- Dateiname wird robust umbrochen/abgeschnitten dargestellt; kein seitlicher Overflow links/rechts.
-- Settings-Panel bleibt in stabiler Breite bedienbar; kein horizontaler Scrollbedarf durch Dateinamen.
-- Modul `Board catalog + output` bleibt bei langen Board-Namen/Infozeilen innerhalb stabiler Breite und ohne horizontalen Overflow.
-- Board-Namen/Infozeilen werden robust umgebrochen oder sinnvoll ellipsiert, ohne Layout-Breaking.
-- `Outside Duststorm` steht als neue Outside-Animation zur Verfuegung und rendert immersiv nur ausserhalb der Play-Area-Union.
-- `Outside Duststorm` ist in bestehende Outside-Logik, Persistenz und Sync-Pipeline integriert (inkl. Join/Reconnect-Paritaet).
+- `Outside Sandstorm` ist als auswuehlbare Outside-Animation verfuegbar, nutzt `sandstorm.mp4` und bleibt stumm (kein Audio).
+- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Lifecycle-Regression bei Start/Stop/Clear.
+- Outside-Animationseinstellungen sind in einer eigenen Settings-Sektion (`Outside Animations`) gekapselt; `Play Area Editor` enthaelt diese Controls nicht mehr.
+- Dropdown-basierte Auswahl der zu editierenden Outside-Animation funktioniert deterministisch; Boomerang und weitere Parameter sind animation-spezifisch.
+- Asset-Mapping ist pro Outside-Animation in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
+- UI kann neue Outside-Animationen anlegen; neue Eintraege sind sofort editierbar und triggerbar.
+- Outside-Animationsdefinitionen + Settings sind ueber Save/Reload/Restart sowie Defaults-Apply persistent und verlustfrei.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -134,7 +123,5 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Nachweis: `.planning/phases/phase-08/8-1-VERIFICATION.md`.
 - 2026-03-27: Plan 8-HF1 wurde atomar umgesetzt (P8-T18..P8-T24).
 - Nachweise: `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/P8-T20-REGRESSION.md`, `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`.
-- 2026-03-27: Plan 8-HF2 wurde atomar umgesetzt (P8-T25..P8-T28).
-- Nachweis: `.planning/phases/phase-08/8-HF2-VERIFICATION.md`.
-- 2026-03-27: Plan 8-HF3 wurde atomar umgesetzt (P8-T29..P8-T34).
-- Nachweise: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`, `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`.
+- 2026-03-27: Plan 8-HF2 wurde atomar umgesetzt (P8-T25..P8-T34).
+- Nachweise: `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `debug/p8-hf2-api-resources.json`, `debug/p8-hf2-api-health.json`.

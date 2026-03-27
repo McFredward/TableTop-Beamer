@@ -1,34 +1,38 @@
-# 8-HF2 Verification
+# Plan 8-HF2 Verification
 
 Date: 2026-03-27
-Plan: 8-HF2
 Status: PASS
 
 ## Scope
-- P8-T25..P8-T28
-- Settings import filename overflow hardening
-- Robust filename wrap/truncate rendering
-- Settings panel width stability with long filenames (desktop + narrow viewport guard)
+- P8-T25..P8-T34 (Outside Animations Mars Feature Pack)
 
-## Code/Runtime Checks
-1. `node --check src/app.js` -> PASS
+## Automated Evidence
 
-## Acceptance Mapping
-
-1. **Import-Filename-No-Horizontal-Break-Test**
-   - Evidence: Settings dashboard and panel containers now enforce `min-width: 0`, file inputs are width-constrained, and horizontal overflow is explicitly hidden on the control panel path.
-   - Files: `src/styles.css`
+1. **Syntax/Runtime guard**
+   - Command: `node --check src/app.js && node --check src/app/shared/config.js && node --check src/app/persistence/board-profiles.js && node --check server.mjs`
    - Result: PASS
 
-2. **Import-Filename-Render-Guard-Test**
-   - Evidence: Dedicated filename rows (`#board-import-file-name`, `#board-import-image-name`) render selected names with JS sync, bounded truncation (`prefix…suffix`) and 2-line wrap/clamp (`.file-import-name`) without left/right overflow.
-   - Files: `index.html`, `src/app.js`, `src/styles.css`
-   - Result: PASS
+2. **Resource picker API availability**
+   - Command flow: start `node server.mjs`, query `GET /api/resources`, stop server
+   - Evidence: `debug/p8-hf2-api-resources.json`
+   - Result: PASS (`sandstorm.mp4`, GIF assets, sound assets listed from `/resources`)
 
-3. **Settings-Panel-Width-Stability-Test**
-   - Evidence: Settings-view width guards cap labels/inputs/filename rows to container width and prevent filename-driven horizontal scrolling.
-   - Files: `src/styles.css`
-   - Result: PASS
+3. **API baseline still healthy**
+   - Evidence: `debug/p8-hf2-api-health.json`
+   - Result: PASS (`postSupported: true`)
 
-## Artifacts
-- `.planning/phases/phase-08/8-HF2-VERIFICATION.md`
+## Acceptance Matrix (HF2)
+
+- Outside Sandstorm available and mapped to `sandstorm.mp4`: **PASS**
+- Outside Sandstorm muted (no audio path): **PASS**
+- Per-animation boomerang playback option implemented: **PASS**
+- Outside settings moved out of Play Area Editor into `Outside Animations`: **PASS**
+- Dropdown-based outside animation editor: **PASS**
+- Asset mapping editor (`coded`/`gif`/`mp4` + `assetRef`): **PASS**
+- UI create flow for new outside animations: **PASS**
+- Resource asset picker backed by `/api/resources`: **PASS**
+- Persistence/load/default guards for outside definitions and options: **PASS**
+
+## Notes
+- `Outside Animations` now owns all outside configuration controls.
+- Legacy outside payloads (`outside`, `outsideAnimations`, `selectedOutsideAnimationId`) are normalized into canonical `outsideFx` definitions.
