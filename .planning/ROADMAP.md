@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6, 7-HF7, 7-HF8 und 7-HF9 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`, `.planning/phases/phase-07/7-HF8-SUMMARY.md`, `.planning/phases/phase-07/7-HF9-SUMMARY.md`); naechste Welle ist Plan 7-2 (Hardening).
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6, 7-HF7, 7-HF8, 7-HF9 und 7-HF10 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`, `.planning/phases/phase-07/7-HF8-SUMMARY.md`, `.planning/phases/phase-07/7-HF9-SUMMARY.md`, `.planning/phases/phase-07/7-HF10-SUMMARY.md`); Plan 7-2 ist als naechste execute-ready Hardening-Welle freigegeben.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -233,6 +233,7 @@ Milestones:
 14. M14 Stop-Action Determinism Hotfix: Running-List-Stop routed strikt als stop-only command ohne create/start side-effects; serverautoritative Stop-Propagation bleibt rollenparitaetisch inkl. `/output/final`.
 15. M15 Global-Outside Stop + Hover Stability Hotfix: all-scope stop parity inkl. `global-outside`, vereinheitlichte globale stop semantics server/client und flickerfreies Running-List-hover behavior.
 16. M16 Start-Lifecycle Determinism + Status Arbitration Hotfix: Start-Mutationen duerfen nicht sofort neutralisiert werden; `board switched` bleibt nicht-maskierendes Kontextsignal; full-scope start/stop parity (`room`, `global-inside`, `global-outside`, `cluster`) bleibt deterministisch inkl. `/output/final`.
+17. M17 Root-Cause Debug + Start Dispatch/Apply Determinism Hotfix: reproduzierbare Analyse fuer `start ignored/overwritten`, gemeinsamer Fix ueber Start-Dispatch + Server-Apply + Snapshot-Apply, status-non-masking und harte Running-Smoke-Gates fuer `room`/`global-inside`/`cluster`.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -260,6 +261,10 @@ Exit Criteria:
 - Start-Mutationen bleiben nach Trigger erhalten und werden nicht durch nachlaufende Kontext-/Board-Statusmutationen neutralisiert oder ueberschrieben.
 - `board switched` maskiert laufende Start-/Running-Statusereignisse nicht; Statusprioritaet bleibt deterministisch (`start/run > context info`).
 - Alle Animationsarten (`room`, `global-inside`, `global-outside`, `cluster`) sind startbar/stoppbar mit lifecycle-paritaetisch stabilem Running-State bis Timerablauf oder explizitem Stop/Clear.
+- Root-Cause fuer `start ignored/overwritten` ist im echten Laufzeitpfad reproduzierbar dokumentiert (Dispatch -> Server-Apply -> Snapshot-Apply) und als Fix-Baseline nachweisbar.
+- `room`, `global-inside` und `cluster` erscheinen nach Start deterministisch in der Running-Liste und bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`.
+- Statusmeldungen maskieren Start-/Running-Feedback nicht; Kontextinfos bleiben sichtbar, aber nicht lifecycle-ueberschreibend.
+- Verify-Artefakte enthalten verpflichtend eine echte Reproduktion des Blockers und den anschliessenden PASS-Nachweis im selben Gate-Set.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -331,6 +336,20 @@ Execution Update (7-HF9):
 
 Gate Closure (7-HF9):
 - Start-Lifecycle Determinism + Status-Arbitration blocker ist geschlossen; Plan 7-2 ist als naechste Hardening-Welle freigegeben.
+
+New Blocking Wave (verify-work 7-HF9 follow-up):
+- Kritischer P0-Blocker bleibt im Realbetrieb bestehen: `room`/`global-inside`/`cluster` starten nicht deterministisch stabil, Status blitzt nur kurz und faellt zurueck.
+- Plan 7-HF10 ist als naechste execute-ready P0-Welle gesetzt: explizite Root-Cause-Reproduktion `start ignored/overwritten`, Fix ueber Start-Dispatch + Server-Apply + Snapshot-Apply, status-non-masking, harte Running-Smoke-Gates.
+- Plan 7-2 bleibt bis HF10-PASS blockiert.
+
+Execution Update (7-HF10):
+- FAIL->PASS closure is complete: root cause reproduced with accepted-command/empty-running evidence (`debug/p7-hf10-t1-fail-output.json`) and fixed parity repro (`debug/p7-hf10-t1-pass-output.json`).
+- Start dispatch metadata is deterministic for room/global-inside/cluster and server/client snapshot apply now preserve board-context lifecycle under missing-top-level-board edge cases.
+- Hard smoke gate confirms room/global-inside/cluster start persistence until explicit stop/clear (`debug/p7-hf10-t6-smoke-output.json`).
+- HF10 verify artifacts PASS (`debug/p7-hf10-t12-output.json`, `debug/p7-hf10-t13-output.json`, `debug/p7-hf10-t14-output.json`).
+
+Gate Closure (7-HF10):
+- Root-Cause-Dispatch/Apply blocker is closed; Plan 7-2 is unblocked as the next wave.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

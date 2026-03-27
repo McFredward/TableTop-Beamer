@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF9
+- Last Executed Plan: 7-HF10
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF9-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF10-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -467,6 +467,13 @@
 - Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (verify-work 7-HF8 follow-up): Nach HF8 neutralisieren/ueberschreiben Start-Mutationen fuer room/global-inside/cluster den Laufzeitstart; sichtbar startet teils nur `global-outside`.
 - Status-Regel fuer Plan 7-HF9: `board switched` bleibt ein Kontextsignal und darf aktive Start-/Running-Statusereignisse nicht maskieren oder unmittelbar zuruecksetzen.
 - Lifecycle-Regel fuer Plan 7-HF9: gestartete Animationen bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`; Determinismus ueber Multi-Client + `/output/final` bleibt Pflicht.
+- Kritischer Follow-up-Blocker nach HF9 bleibt offen: im Realbetrieb starten weiterhin nur `global-outside` stabil, waehrend `room`/`global-inside`/`cluster` nur kurz blitzen oder sofort verschwinden.
+- Root-Cause-Regel fuer Plan 7-HF10: der Laufzeitpfad `start command dispatch -> server apply -> snapshot apply` wird reproduzierbar traced; Ursache `start ignored/overwritten` muss als belegte Sequenz nachgewiesen werden.
+- Dispatch/Apply-Regel fuer Plan 7-HF10: Start-Dispatch, serverseitiges Apply und clientseitiges Snapshot-Apply werden gemeinsam gehaertet, damit `room`/`global-inside`/`cluster` first-click deterministisch starten und aktiv bleiben.
+- Status-Regel fuer Plan 7-HF10: Statusmeldungen (inkl. Kontextsignale) duerfen den Start-/Running-Lifecycle nicht maskieren oder vorzeitig als beendet darstellen.
+- Smoke-Gate-Regel fuer Plan 7-HF10: nach Fix muessen `room`/`global-inside`/`cluster` in der Running-Liste erscheinen und aktiv bleiben bis Timerablauf oder explizitem `stop-animation`/`clear-all`.
+- Evidenz-Regel fuer Plan 7-HF10: Test-/Verify-Artefakte enthalten verpflichtend echte Reproduktion des Blockers plus dokumentierten PASS-Nachweis fuer den Fix.
+- Phase-7 Plan 7-HF10 ist als priorisierte execute-ready P0-Blocker-Welle vor Plan 7-2 gesetzt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -913,3 +920,21 @@
 ## Decision Log Addendum (HF9)
 - `context-update` ist jetzt reason-arbitriert: `room-draft-sync` und `align-toggle` duerfen ohne explizite Context-Switch-Transaktion keinen Board-Kontext mutieren.
 - `board switched` bleibt ein reines Kontextsignal und wird bei Runtime-Panel-Sync nicht mehr emittiert, damit Start-/Running-Status nicht maskiert werden.
+
+## Execution Results (Phase 7 Plan HF10)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF10-SUMMARY.md`
+- Task Commits: 8 atomare Commits (`2702764`, `53000dd`, `b0dfd19`, `ff5d2c3`, `7fa0061`, `46dd911`, `a61eb95`, `45a966d`)
+- Evidence:
+  - `debug/p7-hf10-t1-fail-output.json`
+  - `debug/p7-hf10-t1-pass-output.json`
+  - `debug/p7-hf10-t6-smoke-output.json`
+  - `debug/p7-hf10-t12-output.json`
+  - `debug/p7-hf10-t13-output.json`
+  - `debug/p7-hf10-t14-output.json`
+
+## Decision Log Addendum (HF10)
+- Root cause fuer `start ignored/overwritten` ist reproduziert: ACK-accepted Starts wurden durch Snapshot-Sanitizer bei `selectedBoard = null` neutralisiert.
+- Start-Dispatch ist metadata-stabil (`boardId`/`targetScope`/`targetType`) bevor Commands an den serverautoritativen Commit-Pfad gehen.
+- Snapshot-Sanitizer + Client-Apply inferieren Board-Kontext aus Running-Payload, damit committed starts fuer `room`/`global-inside`/`cluster` nicht implizit gedroppt werden.
+- Kontextstatus `board switched` ist lifecycle-aware gegated und maskiert aktive/pending Start-Feedbacks nicht mehr.
