@@ -792,7 +792,7 @@ function filterRunningAnimationsForBoard(runningAnimations, boardId) {
     }
     const animationBoardId = typeof animation.boardId === "string" ? animation.boardId.trim() : "";
     if (!normalizedBoardId || !animationBoardId) {
-      return true;
+      return false;
     }
     return animationBoardId === normalizedBoardId;
   });
