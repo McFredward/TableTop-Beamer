@@ -1,11 +1,11 @@
 # P7-T13 Non-Regression Matrix
 
-- Scope: polling-deterministic room/global lifecycle with 3-4 clients, `/output/final` participation, snapshot trigger revision parity, explicit-stop gating, stagger-offset replication/parity, ghost-state elimination, command/snapshot gate visibility, plus HF4 room/cluster draft stability, HF5 align roundtrip + board-switch running-clear no-residue parity, HF6 switch+reconnect residue-zero invariant, and HF7 room/global/cluster stop parity with anim-id non-increment invariant.
+- Scope: polling-deterministic room/global lifecycle with 3-4 clients, `/output/final` participation, snapshot trigger revision parity, explicit-stop gating, stagger-offset replication/parity, ghost-state elimination, command/snapshot gate visibility, plus HF4 room/cluster draft stability, HF5 align roundtrip + board-switch running-clear no-residue parity, HF6 switch+reconnect residue-zero invariant, HF7 room/global/cluster stop parity with anim-id non-increment invariant, and HF8 global-outside parity + hover stability checks.
 - Script: `node debug/p7-t13-non-regression.mjs`
 
 ## Result
 
-- PASS (Plan 7-HF7): Deterministic room/global/cluster stop behavior remains reproducible across 4 polling clients; HF4/HF5/HF6 guards stay stable, and HF7 stop parity + anim-id non-increment invariants pass including `/output/final`.
+- PASS (Plan 7-HF8): Deterministic room/global/cluster/global-outside stop behavior remains reproducible across 4 polling clients; HF4/HF5/HF6/HF7 guards stay stable, and HF8 stop+hover parity passes including `/output/final`.
 
 ## Behavior Matrix Coverage
 
@@ -22,6 +22,8 @@
 - Global trigger remains active without explicit stop snapshot (PASS)
 - Explicit global stop removes runtime entry and records stop revision in snapshot runtime map (PASS)
 - HF7 global-stop invariant: stop via `stop-animation` keeps anim-id non-increment parity on all clients (PASS)
+- HF8 global-outside start is visible on all clients including `/output/final` (PASS)
+- HF8 global-outside stop remains stop-only/idempotent and disables authoritative `outsideFx` state (PASS)
 - Room-draft stagger config (`staggerStart`, `staggerOffsetMs`) replicated via snapshot runtime state (PASS)
 - Sequential stagger member delay map parity (`memberStartDelays`) across all polling clients (PASS)
 - HF4 cluster-start draft target stability retained (PASS)
@@ -33,13 +35,15 @@
 - HF5 reconnect snapshot parity: no stale running rehydration after board switch (PASS)
 - HF6 residue invariant: `crossBoardResidueCount = 0` after board switch + reconnect across all clients incl. final-output (PASS)
 - HF7 matrix closure: room/global/cluster stop parity holds across control + `/output/final` clients (PASS)
+- HF8 matrix closure: all-scope stop parity holds for `room/global-inside/global-outside/cluster` (PASS)
+- HF8 source-level hover guard: periodic running-list refresh is interaction-gated and hover transform flicker is suppressed (PASS)
 - Telemetry exposes command/snapshot gate counters (`commandAccepted`, `snapshotVersionVisible`) (PASS)
 
 ## Evidence
 
-- Command: `TT_BEAMER_BASE_URL=http://127.0.0.1:4318 node debug/p7-t13-non-regression.mjs`
-- Output: `debug/p7-hf7-t13-output.json`
+- Command: `TT_BEAMER_BASE_URL=http://127.0.0.1:4273 node debug/p7-t13-non-regression.mjs`
+- Output: `debug/p7-hf8-t13-output.json`
 
 ## Open Verify Gap
 
-- None for HF4/HF5/HF6/HF7 gate coverage.
+- None for HF4/HF5/HF6/HF7/HF8 gate coverage.

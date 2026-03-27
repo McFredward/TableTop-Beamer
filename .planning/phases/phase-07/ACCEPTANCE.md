@@ -73,6 +73,10 @@
 - Stop-Server-Authority-Propagation-Test: server-commiteter Stop repliziert deterministisch ueber alle Rollen inkl. `/output/final` im selben Snapshot-Versionfluss.
 - Stop-UI-Inflight-Guard-Test: Mehrfachklick/Doppeltap auf Stop erzeugt keinen Doppeldispatch und keinen ungueltigen Retry-Startpfad.
 - Stop-Room-Global-Cluster-Parity-Test: stop semantics bleiben fuer `room`, `global` und `cluster` first-click-deterministisch inklusive Reload/Reconnect.
+- Stop-Global-Outside-Route-Parity-Test: Running-List-Stop auf `GLOBAL-OUTSIDE` routed strikt stop-only und erzeugt keine Neuinstanz/ID-Erhoehung.
+- Stop-Global-Semantics-Unification-Test: `global-inside` und `global-outside` nutzen identische server/client stop semantics (ack/version/dedup/idempotent stale handling).
+- Running-List-Hover-Stability-Test: Hover auf Running-List-Buttons bleibt konstant sichtbar ohne Blink-/Loop-Flicker.
+- Running-List-Hover-Parity-Test: Hover-Highlight-Verhalten der Running-Liste entspricht stabil dem restlichen Button-System (Desktop + Touch emulation).
 
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
@@ -99,6 +103,8 @@
 - Align-Mode ist serverautoritativ und auf allen Rollen inkl. `/output/final` deterministisch synchron.
 - Board-Switch leert Running deterministisch; es bleiben keine Alt-Animationen des vorherigen Boards sichtbar.
 - Running-List-Stop bleibt stop-only deterministisch: keine Neuinstanz/ID-Erhoehung durch Stop, serverautoritative Stop-Propagation auf allen Rollen.
+- Stop-Paritaet gilt explizit fuer `room`, `global-inside`, `global-outside` und `cluster`; `global-outside` darf keine Routing-Sonderfaelle mehr haben.
+- Running-List-Hover ist visuell stabil und flickerfrei; kein loopender Hover-Animationszustand bei wiederholtem Pointer-Ein-/Austritt.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Update 7-1
@@ -186,3 +192,14 @@
 - PASS: stop/clear commits apply immediately via `live-session-update` snapshot path and stay version/dedup guarded across control + `/output/final`.
 - PASS: UI stop controls are inflight-idempotent (`pendingStopAnimationIds`, disabled `Stopping...` state) until snapshot confirms removal.
 - PASS: room/global/cluster stop parity and `anim-id` non-increment invariant verified across 4 clients (incl. `/output/final`) with evidence in `debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF8)
+- Neues verpflichtendes Feedback oeffnet vor Plan 7-2 einen weiteren P0-Gate: individueller Stop fuer `GLOBAL-OUTSIDE` bleibt inkonsistent (teils Neuinstanz/No-Op), und Running-List-Hover blinkt statt stabil zu highlighten.
+- Freigabevoraussetzung: Global-Outside-Stop-Parity-and-Hover-Stability-Gate ist PASS (all-scope stop parity inkl. `global-outside`, vereinheitlichte globale stop semantics server/client, flickerfreies Running-List-hover behavior).
+
+## Gate Closure Update (Plan 7-HF8)
+- PASS: running-list stop for `global-outside` stays on stop-only `stop-animation` command routing with no trigger/create fallback.
+- PASS: server/client global stop semantics are unified for `global-inside` + `global-outside` (ack/version/dedup parity plus idempotent stale handling).
+- PASS: authoritative outside stop convergence disables `outsideFx` without no-op drift.
+- PASS: running-list hover remains visually stable (no blink/loop flicker under periodic runtime refresh).
+- PASS: evidence captured in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.

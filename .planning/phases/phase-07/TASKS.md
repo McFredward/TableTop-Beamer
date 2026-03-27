@@ -76,7 +76,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF7-T4 [P0] UI-Action-Guard gegen versehentliche Stop-Re-Trigger einfuehren (per-run pending lock/debounce, no double-dispatch).
 - [x] DONE P7-HF7-T5 [P0] Regression + Evidenz + Artefakt-Sync liefern: room/global/cluster stop parity, anim-id non-increment invariant, multi-client parity, `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 7-2 - Hardening Wave (nach 7-HF7)
+## Plan 7-HF8 - Global-Outside Stop Parity + Running-Hover Stability Hotfix (execute-ready, blocker vor 7-2)
+- [x] DONE P7-HF8-T1 [P0] Running-List-Stop fuer Scope `global-outside` strikt stop-only routen (`stop-animation` by existing `animation.id`) und Trigger-/Create-Fallbacks ausschliessen.
+- [x] DONE P7-HF8-T2 [P0] Server-Stop-Semantik fuer globale Scopes vereinheitlichen (`global-inside` + `global-outside`) inkl. idempotent stale/unknown handling ohne no-op drift.
+- [x] DONE P7-HF8-T3 [P0] Client-Snapshot-Apply fuer globale Stops paritaetisch haerten (identische ack/version/dedup semantics fuer inside/outside).
+- [x] DONE P7-HF8-T4 [P0] Running-List-Hover-UX stabilisieren: konstanter Hover-Highlight-Zustand ohne Blink-/Loop-Flicker.
+- [x] DONE P7-HF8-T5 [P0] Regression-Matrix erweitern: all-scope stop parity (`room`, `global-inside`, `global-outside`, `cluster`) + hover behavior parity ueber 3-4 Clients inkl. `/output/final`.
+- [x] DONE P7-HF8-T6 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Plan 7-2 - Hardening Wave (nach 7-HF8)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.

@@ -135,6 +135,21 @@
 - Impact: Hoch bis kritisch.
 - Gegenmassnahme: inflight pending lock/debounce pro run-id, idempotente stop mutation semantics, no double-dispatch assertions.
 
+## R28 Global-Outside-Stop-Routing driftet gegen andere Scopes
+- Risiko: Running-Stop fuer `global-outside` landet in Sonderpfaden (start/create/no-op) statt im kanonischen stop-only Pfad.
+- Impact: Kritisch, Safety-Stop ist nicht scope-paritaetisch.
+- Gegenmassnahme: expliziter routing parity guard fuer `global-outside` plus all-scope stop regression matrix (`room/global-inside/global-outside/cluster`).
+
+## R29 Globale Stop-Semantik ist zwischen Server und Client inkonsistent
+- Risiko: `global-inside`/`global-outside` werden unterschiedlich klassifiziert oder appliziert (ack/version/dedup drift), wodurch Stop partiell oder spaet sichtbar wird.
+- Impact: Kritisch, deterministische Multi-Client-Stop-Propagation bricht.
+- Gegenmassnahme: vereinheitlichter global-scope stop contract auf server/client (idempotent stale handling + identische snapshot apply semantics).
+
+## R30 Running-List-Hover-Animation flackert unter Pointer-Interaktion
+- Risiko: Hoverzustand in der Running-Liste blinkt/loopt statt stabil zu highlighten, wodurch Bedienvertrauen sinkt und Fehlklickrisiko steigt.
+- Impact: Hoch (UX/P0 im Realbetrieb).
+- Gegenmassnahme: Hover-CSS/animation state machine stabilisieren, flicker regression fuer Pointer enter/leave/reenter in Pflichtmatrix aufnehmen.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -188,3 +203,11 @@
 - R25 mitigated: stop action routing is strict stop-only (`stop-animation`) and cannot fall through to create/start side effects.
 - R26 mitigated: server stop mutation acknowledges stale/unknown IDs idempotently and keeps cluster-linked stop lifecycle deterministic.
 - R27 mitigated: stop propagation + UI inflight guards now keep room/global/cluster stop parity and prevent anim-id increment regressions across control + `/output/final`.
+
+## New Hotfix Risk Focus (7-HF8)
+- Neues Pflichtfeedback priorisiert R28/R29/R30 als P0-Risiken; Plan 7-HF8 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Risk Closure Update (7-HF8)
+- R28 mitigated: `global-outside` stop route is now strictly stop-only and protected against start/create/no-op drift.
+- R29 mitigated: global stop semantics for `global-inside`/`global-outside` are unified server/client with versioned idempotent handling.
+- R30 mitigated: running-list hover interaction is stabilized and no longer flickers under periodic list refresh.

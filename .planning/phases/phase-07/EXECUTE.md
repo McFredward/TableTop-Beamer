@@ -71,7 +71,14 @@
 4. P0 danach: P7-HF7-T4 (UI inflight guard/debounce pro run-id gegen Re-Trigger und double-dispatch).
 5. P0 Abschluss: P7-HF7-T5 (regression-evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF7)
+## Priority Execution - Plan 7-HF8 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF8-T1 (`global-outside` stop-routing strikt stop-only machen; create/start/no-op drift ausschliessen).
+2. P0 danach: P7-HF8-T2..P7-HF8-T3 (server/client globale stop semantics fuer `global-inside` + `global-outside` vereinheitlichen, inkl. ack/version/dedup parity).
+3. P0 danach: P7-HF8-T4 (Running-List-Hover-Highlight stabilisieren; kein blink/loop-flicker bei hover).
+4. P0 danach: P7-HF8-T5 (all-scope stop parity + hover behavior regression matrix ueber 3-4 Clients inkl. `/output/final`).
+5. P0 Abschluss: P7-HF8-T6 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF8)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -94,6 +101,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF5 vollstaendig PASS ist (align-mode serverautoritativ auf allen Clients inkl. `/output/final`; board-switch running-clear ohne Alt-Reste).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF6 vollstaendig PASS ist (authoritative atomic switch-clear transaction, sanitize-before-persist/broadcast, reconnect board-context filter, residue-zero regression).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF7 vollstaendig PASS ist (stop-only routing ohne create/start side-effects, serverautoritative stop propagation inkl. `/output/final`, UI re-trigger guard, room/global/cluster stop parity).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF8 vollstaendig PASS ist (`global-outside` stop parity, global stop semantics unification, running-list hover flicker elimination).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -150,7 +158,11 @@
 - HF5 evidence recorded in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.
 
 ## Next Wave
-- Next executable wave: Plan 7-2 (P1 hardening).
+- Next executable wave: Plan 7-HF8 (P0) before Plan 7-2.
+
+## New Blocking Wave
+- Neues verpflichtendes Feedback meldet zwei P0-Blocker: Running-Stop fuer `global-outside` ist nicht paritaetsstabil und Running-List-Hover blinkt visuell.
+- Next executable wave is now Plan 7-HF8 (P0) before Plan 7-2.
 
 ## New Blocking Wave
 - Neues verpflichtendes Feedback meldet einen P0-Regression-Blocker: Running-List-Stop routed in Randfaellen als Start/Neuinstanz statt deterministic stop.
@@ -175,6 +187,16 @@
 - Stop/clear `live-session-update` snapshots now apply immediately on clients for synchronized stop behavior including `/output/final`.
 - UI stop controls use per-animation inflight locks and `Stopping...` disable state until snapshot confirms stop.
 - HF7 evidence recorded in `debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`.
+
+## Next Wave
+- Next executable wave: Plan 7-2 (P1 hardening).
+
+## Execution Update 7-HF8
+- P7-HF8-T1..P7-HF8-T6 completed.
+- Running-list stop for `global-outside` now stays on stop-only command routing with explicit target metadata (`targetScope`/`targetType`/`boardId`) and no trigger/create fallback.
+- Server/client global stop semantics for `global-inside` + `global-outside` are aligned on `stop-animation` lifecycle (ack/version/dedup/idempotent stale handling), including authoritative outside disable convergence.
+- Running-list hover remains stable under periodic runtime refresh (interaction guard + non-transform hover behavior for running action buttons).
+- HF8 evidence recorded in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.
 
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).

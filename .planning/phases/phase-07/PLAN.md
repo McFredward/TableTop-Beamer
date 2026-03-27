@@ -290,5 +290,31 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Gate Closure
 - Plan 7-HF7 is PASS; the stop-action determinism blocker is closed.
 
+## Neues verpflichtendes Feedback (Plan 7-HF8, P0-Hotfix, execute-ready)
+- P0 Regression aus Realbetrieb: Stop in der Running-Liste ist fuer `GLOBAL-OUTSIDE` weiterhin defekt; statt deterministic stop wird teils Instanzzaehlung/Neuinstanz ausgeloest oder es passiert nichts.
+- Scope-Paritaets-Regel (verbindlich): individueller Stop in der Running-Liste muss fuer alle Scopes deterministisch funktionieren (`room`, `global-inside`, `global-outside`, `cluster`); `Clear All` bleibt unveraendert stabil.
+- Semantik-Regel (verbindlich): server/client stop semantics fuer globale Scopes werden vereinheitlicht; `global-inside` und `global-outside` nutzen denselben stop-only Command-/Snapshot-Lifecycle ohne create/start side-effects.
+- UI-Regel (verbindlich): Hover-Zustand der Running-Liste bleibt visuell stabil; Buttons duerfen beim Hover nicht blinken oder in Animationsloops geraten.
+
+## Plan 7-HF8 Scope (execute-ready)
+- Stop-Routing/Parity explizit fuer `global-outside` korrigieren und gegen Trigger-/Create-Fallback absichern.
+- Server- und Client-Stop-Semantik fuer globale Scopes vereinheitlichen (identische command classification, apply/ack, stale/idempotent Verhalten).
+- Running-List-Hover-Animation stabilisieren (konstanter Highlight-Zustand, kein loop-flicker).
+- Regression-Matrix erweitern: all-scope stop parity (`room/global-inside/global-outside/cluster`) + hover behavior parity inkl. multi-client `/output/final` Non-Regression.
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF8 (Global-Outside Stop Parity + Running-Hover Stability) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
 ## Next Wave
-- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF7.
+- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF8.
+
+## Execution Update 7-HF8
+- Plan 7-HF8 implementation completed for P7-HF8-T1..P7-HF8-T6.
+- Running-list stop path for `global-outside` is now explicitly stop-only with no trigger/create side path.
+- Global stop semantics are unified across server/client for `global-inside` + `global-outside` via `stop-animation` parity (ack/version/dedup/idempotent stale handling).
+- Running-list hover behavior is stabilized under periodic runtime refresh to avoid blink/flicker loops.
+- HF8 evidence is synchronized in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF8 is PASS; the global-outside stop parity and running-hover stability blocker is closed.

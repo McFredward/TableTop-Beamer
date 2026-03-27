@@ -16,6 +16,7 @@
 - Align-Mode Sync + Board-Switch Running-Clear Determinism
 - Board-Context Residue Elimination Across Switch/Reconnect
 - Stop-Action Routing Determinism + Multi-Role Stop Propagation
+- Global-Outside Stop Parity + Running-List Hover Stability
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -94,6 +95,13 @@
 - P7-S15.5 Regression-Matrix fuer room/global/cluster stop parity + anim-id non-increment invariant ueber 3-4 Clients verpflichtend machen.
 - P7-S15.6 Evidenz + Artefakt-Sync fuer HF7 verpflichtend im selben Schritt abschliessen.
 
+- P7-S16.1 Running-List-Stop fuer `global-outside` strikt auf stop-only command routing korrigieren; create/start side-effects bleiben verboten.
+- P7-S16.2 Serverseitige globale Stop-Semantik vereinheitlichen (`global-inside`/`global-outside`) inkl. idempotent stale/unknown handling ohne no-op drift.
+- P7-S16.3 Clientseitige Snapshot-Apply-Semantik fuer globale Stops angleichen (ack/version/dedup parity fuer inside/outside).
+- P7-S16.4 Running-List-Hover-Interaktion stabilisieren: konstanter Highlight-Zustand ohne loop-flicker/blink.
+- P7-S16.5 Regression-Matrix fuer all-scope stop parity (`room`, `global-inside`, `global-outside`, `cluster`) plus hover behavior parity ueber 3-4 Clients inkl. `/output/final` erweitern.
+- P7-S16.6 Evidenz + Artefakt-Sync fuer HF8 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -120,7 +128,8 @@
 - Plan 7-HF5 Align/Board-Switch Determinism Hotfix (verpflichtend vor 7-2): align-mode serverautoritativ ueber alle Clients inkl. `/output/final`; board-switch leert Running deterministisch ohne Alt-Reste.
 - Plan 7-HF6 Board-Context Residue Elimination Hotfix (verpflichtend vor 7-2): authoritative atomic switch-clear transaction, server snapshot sanitization vor persist/broadcast, reconnect board-context filtering, residue=0 regression.
 - Plan 7-HF7 Stop Routing + Deterministic Stop Propagation Hotfix (verpflichtend vor 7-2): stop-action darf keine create/start side-effects ausloesen; stop commit ist serverautoritativ/idempotent mit multi-role parity inkl. `/output/final`.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF7).
+- Plan 7-HF8 Global-Outside Stop Parity + Running-Hover Stability Hotfix (verpflichtend vor 7-2): stop-routing/parity explizit fuer global-outside, globale stop semantics server/client angleichen, running-list hover ohne flicker stabilisieren.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF8).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -197,3 +206,12 @@
 
 ## Gate Closure
 - Plan 7-HF7 is PASS; Plan 7-2 remains the next hardening wave.
+
+## New Blocking Wave
+- Neues verpflichtendes Feedback meldet einen verbleibenden P0-Blocker: `global-outside` Stop in der Running-Liste ist nicht paritaetsstabil und Running-Hover blinkt visuell.
+- Plan 7-HF8 ist als execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis zum HF8-PASS.
+
+## Execution Update 7-HF8
+- P7-S16.1..P7-S16.6 are closed via Plan 7-HF8 PASS.
+- Global-outside stop routing is now stop-only/idempotent, global stop semantics are unified, and running-list hover flicker is eliminated.
+- Evidence artifacts are available in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.
