@@ -68,21 +68,19 @@
         <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
-      <section id="global-animation-panel" class="panel board-catalog-output-panel settings-only view-hidden" data-view="settings" hidden>
+      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Board catalog + output</h2>
         <label>
           Board
           <select id="board-select"></select>
         </label>
-        <label class="file-import-label">
+        <label>
           Import board (JSON)
           <input id="board-import-file" type="file" accept="application/json,.json" />
-          <span id="board-import-file-name" class="file-import-name" aria-live="polite">No JSON file selected</span>
         </label>
-        <label class="file-import-label">
+        <label>
           Import board image (JPG/PNG/WEBP)
           <input id="board-import-image" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
-          <span id="board-import-image-name" class="file-import-name" aria-live="polite">No image file selected</span>
         </label>
         <label>
           New image board name (optional)
@@ -100,15 +98,15 @@
         <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
         <button id="load-apply-global-defaults" type="button">Load and apply defaults</button>
         <button id="export-global-defaults" type="button">Download export (secondary)</button>
-        <p id="board-status" class="status-line board-catalog-status" aria-live="polite">Active board: -</p>
-        <p id="zones-status" class="status-line board-catalog-status" aria-live="polite">
+        <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
+        <p id="zones-status" class="status-line" aria-live="polite">
           Board source: checked at startup
         </p>
-        <p id="align-mode-status" class="status-line board-catalog-status" aria-live="polite">Align-Mode: OFF</p>
-        <p id="global-defaults-status" class="status-line board-catalog-status" aria-live="polite">
+        <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
+        <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: not saved yet
         </p>
-        <p id="api-diagnose-status" class="status-line board-catalog-status" aria-live="polite">
+        <p id="api-diagnose-status" class="status-line" aria-live="polite">
           API diagnostics: checked in save preflight
         </p>
         <p class="status-line">
@@ -308,11 +306,19 @@
         </div>
         <div class="button-grid button-grid-2">
           <button id="ship-polygon-reset" type="button">Reset Play Area polygon to default</button>
-          <label class="inline-checkbox">
-            <input id="outside-enabled" type="checkbox" />
-            Outside Space enabled
-          </label>
         </div>
+        <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
+          Play Area editor: ready
+        </p>
+      </section>
+
+      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+        <h2>Outside Animations</h2>
+        <p class="status-line">Configure outside effects and keep them isolated outside Play Area masks.</p>
+        <label class="inline-checkbox">
+          <input id="outside-enabled" type="checkbox" />
+          Outside animations enabled
+        </label>
         <label>
           Outside intensity <span id="outside-intensity-value">0.70</span>
           <input id="outside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.7" />
@@ -326,7 +332,6 @@
           <select id="outside-mode">
             <option value="standard">Standard</option>
             <option value="immersive">Immersive</option>
-            <option value="duststorm">Outside Duststorm</option>
           </select>
         </label>
         <label>
@@ -336,9 +341,6 @@
             <option value="reverse">Reverse</option>
           </select>
         </label>
-        <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
-          Play Area editor: ready
-        </p>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
