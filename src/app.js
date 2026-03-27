@@ -348,6 +348,7 @@ const LIVE_POLL_MAX_BACKOFF_MS = 2000;
 const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
 const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
+const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
 
 function rememberAppliedMutationId(mutationId) {
   if (typeof mutationId !== "string" || !mutationId) {
@@ -7150,6 +7151,16 @@ function startRoomAnimationFromDraft() {
   }
 }
 
+function emitStopAnimationCommand(animationId, { priorityHint = "high" } = {}) {
+  if (typeof animationId !== "string" || !animationId.trim()) {
+    return Promise.reject(new Error("invalid animationId for stop command"));
+  }
+  return emitLiveMutation(STOP_ANIMATION_MUTATION_TYPE, {
+    animationId,
+    priorityHint,
+  });
+}
+
 function stopAnimation(animationId) {
   const target = state.runningAnimations.find((item) => item.id === animationId) ?? null;
   if (!target) {
@@ -7177,8 +7188,7 @@ function stopAnimation(animationId) {
     }
   }
   if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const commands = [...idsToStop].map((id) => emitLiveMutation("stop-animation", {
-      animationId: id,
+    const commands = [...idsToStop].map((id) => emitStopAnimationCommand(id, {
       priorityHint: "high",
     }));
     void Promise.allSettled(commands).then(() => {
@@ -7205,8 +7215,7 @@ function stopAnimation(animationId) {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   for (const id of idsToStop) {
-    void emitLiveMutation("stop-animation", {
-      animationId: id,
+    void emitStopAnimationCommand(id, {
       priorityHint: "high",
     });
   }
