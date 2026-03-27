@@ -581,6 +581,18 @@ function resolvePendingMutationsByVersion(appliedVersion) {
   }
 }
 
+function shouldApplySnapshotVersion(incomingVersion) {
+  if (!Number.isFinite(Number(incomingVersion))) {
+    return false;
+  }
+  const normalizedIncomingVersion = Number(incomingVersion);
+  if (normalizedIncomingVersion <= liveSync.lastAppliedVersion) {
+    liveSync.applyRejectCounters.staleVersion += 1;
+    return false;
+  }
+  return true;
+}
+
 async function pollLiveSnapshotOnce() {
   if (!liveSync.pollingEnabled || liveSync.pollInFlight) {
     return;
@@ -605,9 +617,7 @@ async function pollLiveSnapshotOnce() {
     if (incomingVersion !== null) {
       liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, incomingVersion);
     }
-    if (incomingVersion !== null && incomingVersion <= liveSync.lastAppliedVersion) {
-      liveSync.applyRejectCounters.staleVersion += 1;
-    } else if (incomingVersion !== null && envelope.snapshot) {
+    if (shouldApplySnapshotVersion(incomingVersion) && envelope.snapshot) {
       const applied = applyLiveRuntimeSnapshot(envelope.snapshot, {
         version: incomingVersion,
         mutationEnvelope: null,
@@ -957,7 +967,7 @@ function connectLiveSyncSocket() {
             const helloVersion = Number(payload.session.version);
             liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
             const helloSnapshot = payload?.session?.snapshot;
-            if (helloSnapshot && helloVersion > liveSync.lastAppliedVersion) {
+            if (helloSnapshot && shouldApplySnapshotVersion(helloVersion)) {
               applyLiveRuntimeSnapshot(helloSnapshot, {
                 version: helloVersion,
                 mutationEnvelope: null,
