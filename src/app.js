@@ -3741,7 +3741,24 @@ function clampOutsideSpeed(value) {
 }
 
 function normalizeOutsideMode(value) {
-  return value === "immersive" ? "immersive" : "standard";
+  if (value === "immersive") {
+    return "immersive";
+  }
+  if (value === "duststorm") {
+    return "duststorm";
+  }
+  return "standard";
+}
+
+function getOutsideModeLabel(value) {
+  const mode = normalizeOutsideMode(value);
+  if (mode === "immersive") {
+    return "Immersive";
+  }
+  if (mode === "duststorm") {
+    return "Outside Duststorm";
+  }
+  return "Standard";
 }
 
 function normalizeOutsideDirection(value) {
@@ -8259,13 +8276,82 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
 
   if (type === "outside-space") {
-    const immersive = options.outsideMode === "immersive";
+    const outsideMode = normalizeOutsideMode(options.outsideMode);
+    const immersive = outsideMode === "immersive";
+    const duststorm = outsideMode === "duststorm";
     const speedInfluence = clampOutsideSpeed(options.outsideSpeed ?? 1);
     const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
     const directionMultiplier = options.outsideDirection === "reverse" ? -1 : 1;
 
     ctx.fillStyle = "rgba(0, 0, 0, 1)";
     ctx.fillRect(0, 0, w, h);
+
+    if (duststorm) {
+      const stormSpeedFactor = (0.86 + speedInfluence * 0.72) * (0.95 + intensity * 0.4);
+      const haze = ctx.createLinearGradient(0, 0, 0, h);
+      haze.addColorStop(0, `rgba(26, 18, 10, ${Math.min(0.95, 0.34 + intensity * 0.3)})`);
+      haze.addColorStop(0.45, `rgba(88, 56, 34, ${Math.min(0.98, 0.42 + intensity * 0.36)})`);
+      haze.addColorStop(1, `rgba(42, 24, 14, ${Math.min(0.92, 0.5 + intensity * 0.22)})`);
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, 0, w, h);
+
+      const dustLayers = [
+        { count: 90, speed: 96, size: 1.4, alpha: 0.16, drift: 0.012 },
+        { count: 130, speed: 152, size: 1.9, alpha: 0.23, drift: 0.016 },
+        { count: 170, speed: 228, size: 2.6, alpha: 0.31, drift: 0.022 },
+        { count: 210, speed: 312, size: 3.4, alpha: 0.36, drift: 0.027 },
+      ];
+
+      for (let layerIndex = 0; layerIndex < dustLayers.length; layerIndex += 1) {
+        const layer = dustLayers[layerIndex];
+        const particleCount = Math.max(40, Math.round(layer.count * (0.55 + intensity * 0.85)));
+        const layerSpeed = layer.speed * stormSpeedFactor;
+        const laneWave = h * layer.drift;
+
+        for (let i = 0; i < particleCount; i += 1) {
+          const seed = ((i * 97.31 + layerIndex * 41.9) % 1000) / 1000;
+          const seedY = ((i * 53.47 + layerIndex * 71.3) % 1000) / 1000;
+          const progressRaw = (seed * (w + 420) - age * layerSpeed * directionMultiplier) % (w + 420);
+          const x = progressRaw < -210 ? progressRaw + w + 420 : progressRaw;
+          const y = seedY * h + Math.sin(age * (0.8 + layerIndex * 0.13) + i * 0.11) * laneWave;
+          const swirl = (Math.sin(age * (3.2 + layerIndex * 0.5) + i * 0.19) + 1) / 2;
+          const alpha = Math.min(0.92, layer.alpha * (0.6 + swirl * 0.7));
+          const width = layer.size * (1 + swirl * 1.4);
+          const streakLength = 20 + layerIndex * 13 + speedInfluence * 20 + intensity * 16;
+
+          ctx.strokeStyle = `rgba(232, 190, 136, ${Math.min(0.72, alpha)})`;
+          ctx.lineWidth = Math.max(0.9, width * 0.8);
+          ctx.beginPath();
+          ctx.moveTo(x + streakLength * directionMultiplier, y - width * 0.45);
+          ctx.lineTo(x, y + width * 0.45);
+          ctx.stroke();
+
+          ctx.fillStyle = `rgba(248, 209, 152, ${Math.min(0.8, alpha * 0.95)})`;
+          ctx.fillRect(x - width * 0.25, y - width * 0.25, width, width);
+        }
+      }
+
+      const gustBands = Math.max(9, Math.round(12 + intensity * 12));
+      for (let i = 0; i < gustBands; i += 1) {
+        const laneY = (((i * 74.71) % 1000) / 1000) * h;
+        const pulse = ((age * (0.42 + i * 0.023) * stormSpeedFactor) % 1) * (w + 520);
+        const gustLength = 200 + speedInfluence * 90 + intensity * 160;
+        const gustAlpha = (0.06 + ((Math.sin(age * 3.7 + i * 0.77) + 1) / 2) * 0.18) * (0.8 + intensity * 0.35);
+
+        ctx.strokeStyle = `rgba(255, 226, 180, ${Math.min(0.5, gustAlpha)})`;
+        ctx.lineWidth = 1.5 + ((i % 4) + 1) * 0.62;
+        ctx.beginPath();
+        const gustHeadX = directionMultiplier > 0 ? w - pulse : pulse;
+        ctx.moveTo(gustHeadX + gustLength * directionMultiplier, laneY);
+        ctx.lineTo(gustHeadX, laneY);
+        ctx.stroke();
+      }
+
+      const visibilityDrop = Math.min(0.8, 0.22 + intensity * 0.36 + speedInfluence * 0.08);
+      ctx.fillStyle = `rgba(24, 12, 6, ${visibilityDrop})`;
+      ctx.fillRect(0, 0, w, h);
+      return;
+    }
 
     const parallaxLayers = immersive
       ? [
@@ -9507,9 +9593,10 @@ outsideModeInput.addEventListener("change", () => {
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-mode-update");
+  const outsideModeLabel = getOutsideModeLabel(outsideModeInput.value);
   triggerFeedback.textContent = persisted
-      ? `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled`
-      : `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled (persistence failed)`;
+      ? `Status: Outside mode ${outsideModeLabel} enabled`
+      : `Status: Outside mode ${outsideModeLabel} enabled (persistence failed)`;
 });
 
 outsideDirectionInput.addEventListener("change", () => {
