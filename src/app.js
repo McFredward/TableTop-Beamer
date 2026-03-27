@@ -6590,18 +6590,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
   const isOutside = getGlobalAnimationCategory(type) === "outside-ship";
   if (outputRole === OUTPUT_ROLE_CONTROL) {
     if (existing) {
-      void emitLiveMutation("trigger-global", {
-        animationType: type,
-        animationId: existing.id,
-        action: "stop",
-        boardId: state.boardId,
-        priorityHint: "high",
-        outsideHint: isOutside,
-      }).then(() => {
-        triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} stop accepted (waiting for snapshot)`;
-      }).catch(() => {
-        triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stop command failed`;
-      });
+      stopAnimation(existing.id);
     } else {
       const animation = createAnimation({
         type,
@@ -6634,10 +6623,9 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stopped`;
-    void emitLiveMutation("trigger-global", {
-      animationType: type,
-      action: "stop",
+    void emitStopAnimationCommand(existing.id, {
       priorityHint: "high",
+      targetAnimation: existing,
     });
   } else {
     const animation = createAnimation({
