@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-03-27T09:03:09.349Z",
+  "source": "http://127.0.0.1:4173/api/live/telemetry",
+  "hops": {
+    "ingestToCommit": {
+      "samples": 105,
+      "p50": 0,
+      "p95": 1,
+      "p99": 2
+    },
+    "commitToClientAck": {
+      "samples": 0,
+      "p50": null,
+      "p95": null,
+      "p99": null
+    },
+    "commitToApplyAck": {
+      "samples": 28,
+      "p50": 906,
+      "p95": 924,
+      "p99": 928
+    }
+  },
+  "gates": {
+    "commandAccepted": 105,
+    "snapshotVersionVisible": 105,
+    "snapshotApplied": 28,
+    "ghostStateDetections": 0,
+    "duplicateCommands": 0,
+    "staleCommands": 0
+  },
+  "queue": {
+    "depth": 0,
+    "maxDepthObserved": 3,
+    "droppedOverflow": 0,
+    "droppedByClass": {
+      "control-critical": 0,
+      "state-sync": 0,
+      "config-noisy": 0
+    },
+    "coalesced": 0
+  }
+}

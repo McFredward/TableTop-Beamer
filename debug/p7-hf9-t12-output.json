@@ -1,0 +1,60 @@
+{
+  "pass": true,
+  "queue": {
+    "depth": 0,
+    "maxDepthObserved": 3,
+    "droppedOverflow": 0,
+    "droppedByClass": {
+      "control-critical": 0,
+      "state-sync": 0,
+      "config-noisy": 0
+    },
+    "coalesced": 0
+  },
+  "sessionVersion": 82,
+  "hopSamples": {
+    "ingestToCommit": 82,
+    "commitToClientAck": 0,
+    "commitToApplyAck": 18
+  },
+  "gateSamples": {
+    "commandAccepted": 82,
+    "snapshotVersionVisible": 82,
+    "snapshotApplied": 18
+  },
+  "lifecycleMaps": {
+    "globalTriggerKeys": 5,
+    "globalStopKeys": 2
+  },
+  "schemaGuard": {
+    "usesHopsMsOnly": true,
+    "missingHopsMsRejected": true
+  },
+  "hf4DraftImmutabilityGuard": {
+    "startPathDraftMutationBlocked": true,
+    "snapshotControlDraftApplyBlocked": true
+  },
+  "hf5AlignBoardSwitchGuards": {
+    "alignToggleCommandUsesContextUpdate": true,
+    "alignSnapshotApplySynchronizesPanelsOnAllRoles": true,
+    "boardSwitchClearsRunningInContextPatch": true,
+    "staleEqualVersionRejectEnabledForPollAndReconnect": true
+  },
+  "hf6BoardResidueEliminationGuards": {
+    "boardSwitchAtomicClearTransactionGuard": true,
+    "serverSanitizeBeforePersistBroadcast": true,
+    "reconnectBoardContextFilterHardEnforced": true
+  },
+  "hf7StopDeterminismGuards": {
+    "stopRoutingUsesStopMutationOnly": true,
+    "immediateStopSnapshotApplyOnLiveSessionUpdate": true,
+    "pendingStopInflightUiGuardActive": true,
+    "serverStopNoopAndClusterReconciliation": true
+  },
+  "hf8GlobalStopHoverGuards": {
+    "stopCommandCarriesGlobalTargetMetadata": true,
+    "serverGlobalStopSemanticsUnifiedForInsideOutside": true,
+    "serverGlobalOutsideStopDisablesOutsideFx": true,
+    "runningListHoverInteractionGuardActive": true
+  }
+}
