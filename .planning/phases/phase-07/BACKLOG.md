@@ -14,6 +14,7 @@
 - Snapshot Trigger Determinism + Audio Consistency + Sequential Stagger
 - Draft UI Immutability on Start
 - Align-Mode Sync + Board-Switch Running-Clear Determinism
+- Board-Context Residue Elimination Across Switch/Reconnect
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -79,6 +80,12 @@
 - P7-S13.5 Regression fuer Align-Roundtrip und Board-Switch-no-residue (3-4 Clients inkl. `/output/final`) verpflichtend machen.
 - P7-S13.6 Artefakt-Sync fuer HF5 verpflichtend im selben Schritt abschliessen.
 
+- P7-S14.1 Board-Switch-Clear als authoritative atomare Transaktion ausfuehren (`selectedBoard` + Running-Clear in derselben Commit-Version).
+- P7-S14.2 Snapshot-Sanitizer vor Persist/Broadcast verpflichtend schalten, um boardfremde Running-Eintraege serverseitig strikt zu entfernen.
+- P7-S14.3 Reconnect-/Join-Hydrierung auf aktiven Board-Kontext filtern; cross-board Running-Rehydrate deterministisch verwerfen.
+- P7-S14.4 Deterministische Regression fuer `switch -> reconnect` mit harter Invariante `crossBoardResidueCount = 0` ueber 3-4 Clients inkl. `/output/final`.
+- P7-S14.5 Evidenz + Artefakt-Sync fuer HF6 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -103,7 +110,8 @@
 - Plan 7-HF3 Trigger/Audio/Stagger Hotfix (verpflichtend vor 7-2): snapshot-trigger-once-full-run + explicit-stop-only + stale-audio-drop + sequential stagger offset slider.
 - Plan 7-HF4 Draft-UI-Immutability Hotfix (verpflichtend vor 7-2): start darf keine Draft-Felder mutieren; room-click target-autofill bleibt als einziger Auto-Pfad.
 - Plan 7-HF5 Align/Board-Switch Determinism Hotfix (verpflichtend vor 7-2): align-mode serverautoritativ ueber alle Clients inkl. `/output/final`; board-switch leert Running deterministisch ohne Alt-Reste.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF5).
+- Plan 7-HF6 Board-Context Residue Elimination Hotfix (verpflichtend vor 7-2): authoritative atomic switch-clear transaction, server snapshot sanitization vor persist/broadcast, reconnect board-context filtering, residue=0 regression.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF6).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -152,3 +160,17 @@
 
 ## Gate Closure
 - Plan 7-HF5 is PASS; Plan 7-2 is unblocked.
+
+## New Blocking Wave
+- verify-work 7-HF5 follow-up zeigt zwei verbleibende P0-Blocker (nicht-deterministischer switch-clear, reconnect cross-board residue rehydrate).
+- Plan 7-HF6 ist als execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis zum Residue-Elimination-PASS.
+
+## Execution Update 7-HF6
+- P7-S14.1 implemented: board-switch context commits now execute as authoritative atomic switch-clear transactions with idempotent `contextSwitchTransactionId` guards.
+- P7-S14.2 implemented: server snapshot sanitizer now runs before persist/broadcast and drops all running entries outside `selectedBoard`.
+- P7-S14.3 implemented: reconnect/join hydration keeps a strict board-context running filter; foreign-board rehydrate payloads are rejected.
+- P7-S14.4 implemented: deterministic regression matrix now enforces `switch -> reconnect -> crossBoardResidueCount = 0` across 4 polling clients including `/output/final`.
+- P7-S14.5 implemented: HF6 evidence artifacts synced (`debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`).
+
+## Gate Closure
+- Plan 7-HF6 is PASS; the Board-Context Residue Elimination blocker is closed and Plan 7-2 is unblocked.

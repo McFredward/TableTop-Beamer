@@ -232,5 +232,33 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Gate Closure
 - Plan 7-HF5 is PASS; Align/Board-Switch-Determinism gate is closed.
 
+## Neues verpflichtendes Feedback (verify-work 7-HF5 follow-up, Plan 7-HF6, P0-Hotfix, execute-ready)
+- Verbleibender Blocker 1: Board-Switch-Clear ist nicht deterministisch; vereinzelt bleiben Running-Reste trotz Kontextwechsel bestehen.
+- Verbleibender Blocker 2: Reconnect-Snapshots koennen cross-board Running-Reste erneut hydratisieren.
+- Architekturentscheidung (verbindlich): Board-Kontextwechsel ist eine authoritative atomare Transaktion (`selectedBoard` + Running-Clear) ohne teilweisen Zwischenzustand.
+- Snapshotentscheidung (verbindlich): Server-Snapshot muss vor Persistenz und Broadcast boardfremde Running-Reste strikt sanitizen.
+- Reconnectentscheidung (verbindlich): Reconnect-Apply darf nur Running-Eintraege fuer den aktiven Board-Kontext uebernehmen; cross-board Rehydrate ist unzulaessig.
+
+## Plan 7-HF6 Scope (execute-ready)
+- Board-Switch-Commit als untrennbare atomare Mutation haerten (Context-Switch + Running-Clear + monotone Version).
+- Serverseitigen Snapshot-Sanitizer vor Persist/Broadcast einfuehren, der boardfremde Running-Eintraege deterministisch entfernt.
+- Reconnect-/Join-Hydrierung board-kontextgebunden filtern, damit nur `selectedBoard`-konforme Running-Eintraege angewendet werden.
+- Regression-Matrix um deterministischen Residue-Nullnachweis erweitern (`switch -> reconnect -> crossBoardResidueCount=0`) fuer 3-4 Clients inkl. `/output/final`.
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF6 (Board-Context Residue Elimination) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF6
+- P7-HF6-T1..P7-HF6-T5 completed.
+- Board switch is now committed as authoritative atomic context transaction with idempotent `contextSwitchTransactionId` guard and deterministic running clear.
+- Server snapshot state is sanitized before persist/broadcast to remove all running entries outside the selected board context.
+- Reconnect/join hydration now applies a hard board-context filter for running state (`selectedBoard` only).
+- Regression suite now enforces `switch -> reconnect -> crossBoardResidueCount = 0` for 4 polling clients including `/output/final`.
+- HF6 evidence is synchronized in `debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF6 is PASS; the board-context residue elimination blocker is closed.
+
 ## Next Wave
-- Plan 7-2 (Hardening) is now the next executable wave.
+- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF6.

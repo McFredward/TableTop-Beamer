@@ -63,6 +63,10 @@
 - Align-Mode-Stale-Reject-Test: stale/equal snapshot-Versionen duerfen Align-Status nicht rueckwaerts ueberschreiben.
 - Board-Switch-Running-Clear-Test: nach Board-Wechsel ist `runningAnimations` deterministisch leer; alte Board-Animationen duerfen nicht weiter angezeigt oder steuerbar sein.
 - Board-Switch-No-Residue-Reconnect-Test: nach Switch + Reload/Reconnect erscheinen keine Running-Reste aus dem alten Board.
+- Board-Switch-Atomic-Transaction-Test: Context-Switch und Running-Clear muessen als ein untrennbarer Commit sichtbar sein; kein Zwischenzustand mit neuem Board + alten Running-Eintraegen ist zulaessig.
+- Snapshot-Sanitize-Before-Persist-Broadcast-Test: serverseitige Persistenz/Broadcast-Snapshots enthalten keine boardfremden Running-Eintraege.
+- Reconnect-Board-Context-Filter-Test: reconnect-hydrierte Running-Liste enthaelt ausschliesslich Eintraege fuer `selectedBoard`.
+- Cross-Board-Residue-Zero-Invariant-Test: deterministische Matrix (`switch -> reconnect`) liefert `crossBoardResidueCount = 0` ueber alle Clients inkl. `/output/final`.
 
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
@@ -153,3 +157,14 @@
 - PASS: strict stale/equal-version reject is active for polling and reconnect replay (`incomingVersion <= appliedVersion => drop`).
 - PASS: board switch clears running state atomically in server context mutation and no old-board residues rehydrate on clients.
 - PASS: HF5 evidence captured in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF6)
+- verify-work 7-HF5 follow-up oeffnet erneut einen P0-Gate: board-switch clear bleibt in Randfaellen nicht deterministisch und reconnect snapshots koennen cross-board residues rehydrieren.
+- Freigabevoraussetzung: Board-Context-Residue-Elimination-Gate ist PASS (authoritative atomic switch-clear transaction, snapshot sanitize vor persist/broadcast, reconnect board-context filter, regression-invariante `crossBoardResidueCount = 0`).
+
+## Gate Closure Update (Plan 7-HF6)
+- PASS: board-switch clear now executes as authoritative atomic context transaction with idempotent `contextSwitchTransactionId` guard.
+- PASS: server-side snapshot sanitization runs before persist/broadcast and strips board-foreign running entries deterministically.
+- PASS: reconnect/join snapshot apply hard-filters running by `selectedBoard`; cross-board rehydrate payloads are dropped.
+- PASS: deterministic switch+reconnect matrix proves `crossBoardResidueCount = 0` across 4 polling clients including `/output/final`.
+- PASS: HF6 evidence captured in `debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`.

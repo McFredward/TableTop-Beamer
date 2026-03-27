@@ -67,7 +67,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF6-T2 [P0] Server-Snapshot-Sanitizer einfuehren: vor Persist/Broadcast alle boardfremden Running-Eintraege strikt droppen, damit keine cross-board Residues serialisiert werden.
 - [x] DONE P7-HF6-T3 [P0] Reconnect-Hydrierung board-kontextgebunden erzwingen: Snapshot-Apply filtert Running strikt auf `selectedBoard` und verwirft boardfremde Rehydrate-Payloads deterministisch.
 - [x] DONE P7-HF6-T4 [P0] Deterministische Regression erweitern: Switch+Reconnect-Matrix mit harter Invariante `crossBoardResidueCount = 0` ueber 3-4 Clients inkl. `/output/final`.
-- [ ] TODO P7-HF6-T5 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. HF6-Output-Artefakten.
+- [x] DONE P7-HF6-T5 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. HF6-Output-Artefakten.
 
 ## Plan 7-2 - Hardening Wave (nach 7-HF6)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).

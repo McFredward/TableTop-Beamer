@@ -110,6 +110,16 @@
 - Impact: Kritisch, deterministic context integrity bricht.
 - Gegenmassnahme: Board-Switch atomar an Running-Clear koppeln (serverseitig), clientseitig boardfremde Rehydrierung droppen, reconnect-no-residue Regression verpflichtend.
 
+## R23 Board-Switch-Clear-Transaktion ist nicht strikt atomar
+- Risiko: `selectedBoard` ist bereits umgeschaltet, waehrend Restzustand aus altem Board im selben Snapshot weiterlebt.
+- Impact: Kritisch, Kontextkonsistenz bricht und Operator sieht fachlich ungueltigen Zwischenzustand.
+- Gegenmassnahme: authoritative single-transaction commit fuer context-switch + running-clear mit idempotentem transaction guard und versionsgebundener Apply-Sichtbarkeit.
+
+## R24 Server persistiert/broadcastet unsanitized cross-board Running-Snapshots
+- Risiko: boardfremde Running-Eintraege werden serialisiert und spaeter ueber Polling/Reconnect erneut verteilt.
+- Impact: Kritisch, Residue rehydrate trotz Switch-Clear moeglich.
+- Gegenmassnahme: verpflichtender Snapshot-Sanitizer vor Persistenz/Broadcast sowie Residue-Zero-Invariant in Regression (`crossBoardResidueCount = 0`).
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -148,3 +158,10 @@
 ## Execution Update 7-HF5
 - R21 mitigated: align mode now follows a server-authoritative `context-update` snapshot lifecycle across all clients incl. `/output/final` with stale/equal-version drop guards.
 - R22 mitigated: board switch now clears running atomically server-side and client apply blocks old-board running rehydration residues.
+
+## New Hotfix Risk Focus (7-HF6)
+- verify-work 7-HF5 follow-up zeigt verbleibende P0-Risiken in R23/R24; Plan 7-HF6 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF6
+- R23 mitigated: board-switch clear now uses an authoritative atomic context transaction with idempotent transaction guard, removing non-deterministic switch residue.
+- R24 mitigated: snapshot sanitizer + reconnect board-context filtering prevent cross-board running rehydrate after switch/reconnect.

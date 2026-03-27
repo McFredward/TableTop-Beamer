@@ -12,5 +12,7 @@ Planning and execution workspace for the multi-device sync overhaul focused on d
 ## Status
 
 - Phase 7 remains active.
-- Plan 7-1 has been executed (P7-T1..P7-T15 completed) with deterministic queueing, final-output fast-path, and telemetry/regression artifacts.
+- Plan 7-1 and hotfix waves 7-HF1..7-HF6 are executed with synchronized evidence artifacts.
+- Plan 7-HF6 closes the residue-elimination blocker gate with authoritative atomic switch-clear transactions, pre-broadcast snapshot sanitization, and reconnect board-context filtering.
+- Deterministic HF6 evidence confirms `crossBoardResidueCount = 0` after switch+reconnect across 4 polling clients including `/output/final` (`debug/p7-hf6-*`).
 - Next planned wave is Plan 7-2 hardening.

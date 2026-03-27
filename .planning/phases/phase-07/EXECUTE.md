@@ -57,7 +57,14 @@
 4. P0 danach: P7-HF5-T6 (Regression-Matrix fuer Align-Roundtrip + Board-Switch-Running-empty inkl. Reload/Reconnect).
 5. P0 Abschluss: P7-HF5-T7 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF5)
+## Priority Execution - Plan 7-HF6 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF6-T1 (Board-Switch-Clear als authoritative atomare Transaktion absichern: context switch + running-clear in einem Commit).
+2. P0 danach: P7-HF6-T2 (server snapshot sanitizer vor Persist/Broadcast verpflichtend aktivieren; boardfremde Running-Eintraege droppen).
+3. P0 danach: P7-HF6-T3 (reconnect/join snapshot apply strikt auf `selectedBoard` filtern; cross-board rehydrate verwerfen).
+4. P0 danach: P7-HF6-T4 (deterministische switch+reconnect regression mit Invariante `crossBoardResidueCount = 0` fuer 3-4 Clients inkl. `/output/final`).
+5. P0 Abschluss: P7-HF6-T5 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF6)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -78,6 +85,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF3 vollstaendig PASS ist (snapshot trigger full-run parity, explicit-stop-only, audio stale-replay guard, sequential stagger offset parity).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF4 vollstaendig PASS ist (start mutiert keine Draft-UI; room-click-only target autofill; room+cluster draft stability).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF5 vollstaendig PASS ist (align-mode serverautoritativ auf allen Clients inkl. `/output/final`; board-switch running-clear ohne Alt-Reste).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF6 vollstaendig PASS ist (authoritative atomic switch-clear transaction, sanitize-before-persist/broadcast, reconnect board-context filter, residue-zero regression).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -132,6 +140,21 @@
 - Snapshot apply parity incl. `/output/final` is enforced, and stale/equal-version payloads are dropped in polling + reconnect replay.
 - Board-switch context mutation now clears running atomically; client apply blocks old-board residue rehydration.
 - HF5 evidence recorded in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.
+
+## Next Wave
+- Next executable wave: Plan 7-2 (P1 hardening).
+
+## New Blocking Wave (verify-work 7-HF5 follow-up)
+- Two P0 blockers remain open (non-deterministic board-switch clear, reconnect cross-board residue rehydrate).
+- Next executable wave is now Plan 7-HF6 (P0) before Plan 7-2.
+
+## Execution Update 7-HF6
+- P7-HF6-T1..P7-HF6-T5 completed.
+- Board switch now commits as an authoritative atomic context transaction with idempotent transaction guards (`contextSwitchTransactionId`) and deterministic running clear.
+- Server snapshot state is sanitized before persist/broadcast so only running entries matching `selectedBoard` survive serialization/fanout.
+- Reconnect/join hydration now hard-filters running entries by board context; foreign-board entries are rejected deterministically.
+- HF6 deterministic matrix now enforces `crossBoardResidueCount = 0` for switch+reconnect across 4 polling clients including `/output/final`.
+- HF6 evidence recorded in `debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`.
 
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).
