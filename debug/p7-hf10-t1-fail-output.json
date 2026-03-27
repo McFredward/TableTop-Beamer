@@ -1,0 +1,74 @@
+{
+  "pass": false,
+  "phase": "fail-repro-before-fix",
+  "baselineVersion": 39,
+  "afterVersion": 42,
+  "selectedBoard": null,
+  "acks": {
+    "room": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-room",
+      "mutationId": "hf10-fail-room-1774603387107",
+      "version": 40,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:23:07.110Z",
+      "serverIngestTimestamp": "2026-03-27T09:23:07.110Z"
+    },
+    "globalInside": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-global",
+      "mutationId": "hf10-fail-inside-1774603387111",
+      "version": 41,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:23:07.112Z",
+      "serverIngestTimestamp": "2026-03-27T09:23:07.112Z"
+    },
+    "cluster": {
+      "ok": true,
+      "commandAccepted": true,
+      "mutationType": "trigger-room",
+      "mutationId": "hf10-fail-cluster-1774603387112",
+      "version": 42,
+      "applied": true,
+      "duplicate": false,
+      "stale": false,
+      "overflow": false,
+      "queueDepth": 0,
+      "serverTimestamp": "2026-03-27T09:23:07.113Z",
+      "serverIngestTimestamp": "2026-03-27T09:23:07.113Z"
+    }
+  },
+  "runningAnimationIds": [],
+  "globalTriggerRevisions": {
+    "nemesis-board-a:outside-space": 4,
+    "nemesis-board-a:intruder-alert": 13,
+    "nemesis-board-a:power-outage": 9,
+    "nemesis-board-a:reactor-pulse": 1
+  },
+  "outsideFxByBoard": {
+    "nemesis-board-a": {
+      "enabled": true
+    }
+  },
+  "assertions": {
+    "commandsAccepted": [
+      true,
+      true,
+      true
+    ],
+    "roomMissing": true,
+    "globalInsideMissing": true,
+    "clusterMissing": true
+  },
+  "rootCauseHint": "Accepted start mutations are sanitized out because snapshot selectedBoard remains null; runningAnimations are filtered by board context and dropped."
+}
