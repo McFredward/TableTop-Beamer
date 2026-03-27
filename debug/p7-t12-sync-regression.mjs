@@ -114,6 +114,21 @@ function assertContextUpdateDoesNotMutateBoardForDraftOrAlign(appSource, serverS
   );
 }
 
+function assertBoardSwitchedStatusArbitration(appSource) {
+  assert(
+    /function switchBoard\(boardId, \{ emitLiveContext = false, reason = "board-switch", announceStatus = true \} = \{\}\)/.test(appSource),
+    "switchBoard announceStatus arbitration guard missing",
+  );
+  assert(
+    /if \(announceStatus\) \{[\s\S]*triggerFeedback\.textContent = "Status: board switched";[\s\S]*\}/.test(appSource),
+    "board switched status is not gated by announceStatus",
+  );
+  assert(
+    /function syncRuntimePanelsFromState\(\) \{[\s\S]*switchBoard\(state\.boardId, \{ announceStatus: false \}\);/.test(appSource),
+    "runtime panel sync still emits board switched status",
+  );
+}
+
 
 function assertServerSnapshotSanitizerGuard(source) {
   assert(
@@ -275,6 +290,7 @@ async function main() {
   assertGlobalStopSemanticsUnified(appSource, serverSource);
   assertRunningListHoverStabilityGuard(appSource, stylesSource);
   assertContextUpdateDoesNotMutateBoardForDraftOrAlign(appSource, serverSource);
+  assertBoardSwitchedStatusArbitration(appSource);
 
   console.log(JSON.stringify({
     pass: true,

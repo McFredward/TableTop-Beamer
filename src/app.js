@@ -5503,7 +5503,7 @@ function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board
   });
 }
 
-function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch" } = {}) {
+function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch", announceStatus = true } = {}) {
   const previousBoardId = state.boardId;
   const previousRoomId = state.selectedRoomId;
   if (previousBoardId && previousRoomId) {
@@ -5535,7 +5535,9 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   setPanCursorState();
   renderRoomOverlay();
   refreshGlobalButtons();
-  triggerFeedback.textContent = "Status: board switched";
+  if (announceStatus) {
+    triggerFeedback.textContent = "Status: board switched";
+  }
   if (emitLiveContext) {
     emitBoardLayoutContextMutation(board.id, reason);
   }
@@ -9513,7 +9515,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 resizeObserver.observe(stage);
 
 function syncRuntimePanelsFromState() {
-  switchBoard(state.boardId);
+  switchBoard(state.boardId, { announceStatus: false });
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
