@@ -644,6 +644,7 @@ async function pollLiveSnapshotOnce() {
 }
 
 async function emitLiveMutation(mutationType, payload = {}) {
+  const normalizedPayload = normalizeLiveMutationPayload(mutationType, payload);
   const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   const queuedAt = Date.now();
   if (mutationType === "context-update") {
@@ -672,7 +673,7 @@ async function emitLiveMutation(mutationType, payload = {}) {
         mutationType,
         role: outputRole,
         clientId: liveSync.clientId ?? undefined,
-        payload,
+        payload: normalizedPayload,
       }),
     });
     if (!response.ok) {
@@ -698,6 +699,86 @@ async function emitLiveMutation(mutationType, payload = {}) {
     liveSync.pendingMutations.delete(mutationId);
     throw error;
   }
+}
+
+function normalizeLiveMutationPayload(mutationType, payload = {}) {
+  const nextPayload = payload && typeof payload === "object"
+    ? structuredClone(payload)
+    : {};
+  const currentBoardId = typeof state.boardId === "string" ? state.boardId.trim() : "";
+
+  if (mutationType === "trigger-room") {
+    const animation = nextPayload.animation && typeof nextPayload.animation === "object"
+      ? nextPayload.animation
+      : null;
+    const boardId =
+      (typeof nextPayload.boardId === "string" && nextPayload.boardId.trim())
+      || (typeof animation?.boardId === "string" && animation.boardId.trim())
+      || currentBoardId
+      || null;
+    const targetScope =
+      (typeof nextPayload.targetScope === "string" && nextPayload.targetScope.trim())
+      || (typeof animation?.scope === "string" && animation.scope.trim())
+      || "room";
+    const targetType =
+      (typeof nextPayload.targetType === "string" && nextPayload.targetType.trim())
+      || (typeof animation?.type === "string" && animation.type.trim())
+      || null;
+
+    if (boardId) {
+      nextPayload.boardId = boardId;
+      if (animation && !animation.boardId) {
+        animation.boardId = boardId;
+      }
+    }
+    if (targetScope) {
+      nextPayload.targetScope = targetScope;
+    }
+    if (targetType) {
+      nextPayload.targetType = targetType;
+    }
+    if (!nextPayload.dispatchTraceId) {
+      nextPayload.dispatchTraceId = `dispatch-${mutationType}-${Date.now().toString(36)}`;
+    }
+    nextPayload.dispatchLayer = "control-client";
+    return nextPayload;
+  }
+
+  if (mutationType === "trigger-global") {
+    const animation = nextPayload.animation && typeof nextPayload.animation === "object"
+      ? nextPayload.animation
+      : null;
+    const boardId =
+      (typeof nextPayload.boardId === "string" && nextPayload.boardId.trim())
+      || (typeof animation?.boardId === "string" && animation.boardId.trim())
+      || currentBoardId
+      || null;
+    const targetType =
+      (typeof nextPayload.animationType === "string" && nextPayload.animationType.trim())
+      || (typeof animation?.type === "string" && animation.type.trim())
+      || null;
+
+    if (boardId) {
+      nextPayload.boardId = boardId;
+      if (animation && !animation.boardId) {
+        animation.boardId = boardId;
+      }
+    }
+    nextPayload.targetScope = "global";
+    if (targetType) {
+      nextPayload.targetType = targetType;
+      if (!nextPayload.animationType) {
+        nextPayload.animationType = targetType;
+      }
+    }
+    if (!nextPayload.dispatchTraceId) {
+      nextPayload.dispatchTraceId = `dispatch-${mutationType}-${Date.now().toString(36)}`;
+    }
+    nextPayload.dispatchLayer = "control-client";
+    return nextPayload;
+  }
+
+  return nextPayload;
 }
 
 function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settings") {
