@@ -15,7 +15,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T9 [P0] Upload-Speicherpfad + Board-Katalogintegration umsetzen (serverseitig persistiert, sofort auswahlbar).
 - [x] DONE P8-T10 [P0] Import-UX erweitern: JSON und Bild als gleichwertige Importoptionen; Bildimport endet im manuellen Polygon-Workflow.
 - [x] DONE P8-T11 [P0] Regression/Verifikation ausfuehren: Migration, Multi-Area-Union, Upload-Negativfaelle, Non-Regression fuer Running/Sync/Final.
-- [ ] TODO P8-T12 [P0] Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-1 Stand bringen.
+- [x] DONE P8-T12 [P0] Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-1 Stand bringen.
 
 ## Plan 8-2 - Hardening Wave (nach 8-1)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
