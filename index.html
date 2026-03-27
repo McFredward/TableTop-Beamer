@@ -315,9 +315,17 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Outside Animations</h2>
         <p class="status-line">Configure outside effects and keep them isolated outside Play Area masks.</p>
+        <label>
+          Animation
+          <select id="outside-animation-select"></select>
+        </label>
         <label class="inline-checkbox">
           <input id="outside-enabled" type="checkbox" />
           Outside animations enabled
+        </label>
+        <label class="inline-checkbox">
+          <input id="outside-boomerang" type="checkbox" />
+          Boomerang playback (forward -> reverse)
         </label>
         <label>
           Outside intensity <span id="outside-intensity-value">0.70</span>

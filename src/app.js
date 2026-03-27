@@ -169,7 +169,9 @@ const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-inse
 const shipPolygonDeleteVertexButton = document.querySelector("#ship-polygon-delete-vertex");
 const shipPolygonResetButton = document.querySelector("#ship-polygon-reset");
 const shipPolygonEditorStatus = document.querySelector("#ship-polygon-editor-status");
+const outsideAnimationSelect = document.querySelector("#outside-animation-select");
 const outsideEnabledInput = document.querySelector("#outside-enabled");
+const outsideBoomerangInput = document.querySelector("#outside-boomerang");
 const outsideIntensityInput = document.querySelector("#outside-intensity");
 const outsideIntensityValue = document.querySelector("#outside-intensity-value");
 const outsideSpeedInput = document.querySelector("#outside-speed");
@@ -245,7 +247,9 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "play-area-create",
   "play-area-delete",
   "show-play-area-vertices",
+  "outside-animation-select",
   "outside-enabled",
+  "outside-boomerang",
   "outside-intensity",
   "outside-speed",
   "outside-mode",
@@ -5025,13 +5029,32 @@ function arePlayAreaVerticesEditable() {
 
 function syncOutsideFxPanel() {
   const outside = getOutsideFxProfile(state.boardId);
+  const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
+  if (outsideAnimationSelect) {
+    outsideAnimationSelect.replaceChildren();
+    for (const definition of outside.animations) {
+      const option = document.createElement("option");
+      option.value = definition.id;
+      option.textContent = `${definition.name} (${definition.id})`;
+      outsideAnimationSelect.append(option);
+    }
+    outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";
+  }
   outsideEnabledInput.checked = outside.enabled;
-  outsideIntensityInput.value = String(outside.intensity);
-  outsideSpeedInput.value = String(outside.speed);
-  outsideModeInput.value = outside.mode;
-  outsideDirectionInput.value = outside.direction;
-  outsideIntensityValue.textContent = outside.intensity.toFixed(2);
-  outsideSpeedValue.textContent = `${outside.speed.toFixed(2)}x`;
+  const intensity = selectedDefinition?.intensity ?? outside.intensity;
+  const speed = selectedDefinition?.speed ?? outside.speed;
+  const mode = selectedDefinition?.mode ?? outside.mode;
+  const direction = selectedDefinition?.direction ?? outside.direction;
+  const boomerang = Boolean(selectedDefinition?.boomerang ?? outside.boomerang);
+  outsideIntensityInput.value = String(intensity);
+  outsideSpeedInput.value = String(speed);
+  outsideModeInput.value = mode;
+  outsideDirectionInput.value = direction;
+  if (outsideBoomerangInput) {
+    outsideBoomerangInput.checked = boomerang;
+  }
+  outsideIntensityValue.textContent = intensity.toFixed(2);
+  outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
 }
 
 function findOutsideGlobalAnimation(boardId) {
@@ -9545,6 +9568,68 @@ outsideEnabledInput.addEventListener("change", () => {
   triggerFeedback.textContent = persisted
     ? `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"}`
     : `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"} (persistence failed)`;
+});
+
+outsideAnimationSelect?.addEventListener("change", () => {
+  const selectedAnimationId = normalizeOutsideAnimationId(outsideAnimationSelect.value);
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      selectedAnimationId,
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-animation-select",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside animation selection command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside animation selection command failed";
+      syncOutsideFxPanel();
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, { selectedAnimationId });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-animation-select");
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside animation selection updated"
+    : "Status: Outside animation selection updated (persistence failed)";
+});
+
+outsideBoomerangInput?.addEventListener("change", () => {
+  const boomerang = Boolean(outsideBoomerangInput.checked);
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      boomerang,
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-boomerang-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside boomerang command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside boomerang command failed";
+      syncOutsideFxPanel();
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, { boomerang });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-boomerang-update");
+  triggerFeedback.textContent = persisted
+    ? `Status: Outside boomerang ${boomerang ? "enabled" : "disabled"}`
+    : `Status: Outside boomerang ${boomerang ? "enabled" : "disabled"} (persistence failed)`;
 });
 
 outsideIntensityInput.addEventListener("input", () => {
