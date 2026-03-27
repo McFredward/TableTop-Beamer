@@ -184,6 +184,7 @@ const outsideAssetTypeInput = document.querySelector("#outside-asset-type");
 const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
 const outsideResourceSelect = document.querySelector("#outside-resource-select");
 const outsideResourceApplyButton = document.querySelector("#outside-resource-apply");
+const outsideApplyChangesButton = document.querySelector("#outside-apply-changes");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -266,6 +267,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-asset-ref",
   "outside-resource-select",
   "outside-resource-apply",
+  "outside-apply-changes",
 ];
 
 function applyOutputRoleViewContract() {
@@ -1181,6 +1183,7 @@ const activeAnimationAudioById = new Map();
 const pendingAnimationAudioStartTimers = new Map();
 const startedGlobalAudioRevisionByTriggerKey = new Map();
 let outsideResourceAssets = [];
+const outsideEditorDraftByBoard = {};
 
 const {
   createDefaultAnimationSoundMap,
@@ -5155,9 +5158,66 @@ async function loadOutsideResourceAssets() {
   syncOutsideResourcePicker();
 }
 
+function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
+  const definition = selectedDefinition ?? getSelectedOutsideAnimationDefinition(boardId);
+  if (!definition) {
+    delete outsideEditorDraftByBoard[boardId];
+    return null;
+  }
+  const existing = outsideEditorDraftByBoard[boardId];
+  if (existing && existing.animationId === definition.id) {
+    return existing;
+  }
+  const next = {
+    animationId: definition.id,
+    boomerang: Boolean(definition.boomerang),
+    intensity: clampOutsideIntensity(definition.intensity),
+    speed: clampOutsideSpeed(definition.speed),
+    mode: normalizeOutsideMode(definition.mode),
+    direction: normalizeOutsideDirection(definition.direction),
+    assetType: normalizeOutsideAssetType(definition.assetType),
+    assetRef: String(definition.assetRef || "").trim(),
+  };
+  outsideEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
+  const base = getOutsideEditorDraft(boardId);
+  if (!base) {
+    return null;
+  }
+  const next = {
+    ...base,
+    ...partial,
+    boomerang: Boolean(partial?.boomerang ?? base.boomerang),
+    intensity: clampOutsideIntensity(partial?.intensity ?? base.intensity),
+    speed: clampOutsideSpeed(partial?.speed ?? base.speed),
+    mode: normalizeOutsideMode(partial?.mode ?? base.mode),
+    direction: normalizeOutsideDirection(partial?.direction ?? base.direction),
+    assetType: normalizeOutsideAssetType(partial?.assetType ?? base.assetType),
+    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
+  };
+  outsideEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
+  return setOutsideEditorDraft(boardId, {
+    boomerang: Boolean(outsideBoomerangInput?.checked),
+    intensity: clampOutsideIntensity(outsideIntensityInput?.value),
+    speed: clampOutsideSpeed(outsideSpeedInput?.value),
+    mode: normalizeOutsideMode(outsideModeInput?.value),
+    direction: normalizeOutsideDirection(outsideDirectionInput?.value),
+    assetType: normalizeOutsideAssetType(outsideAssetTypeInput?.value),
+    assetRef: String(outsideAssetRefInput?.value || "").trim(),
+  });
+}
+
 function syncOutsideFxPanel() {
   const outside = getOutsideFxProfile(state.boardId);
   const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
+  const draft = getOutsideEditorDraft(state.boardId, selectedDefinition);
   if (outsideAnimationSelect) {
     outsideAnimationSelect.replaceChildren();
     for (const definition of outside.animations) {
@@ -5169,20 +5229,20 @@ function syncOutsideFxPanel() {
     outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";
   }
   outsideEnabledInput.checked = outside.enabled;
-  const intensity = selectedDefinition?.intensity ?? outside.intensity;
-  const speed = selectedDefinition?.speed ?? outside.speed;
-  const mode = selectedDefinition?.mode ?? outside.mode;
-  const direction = selectedDefinition?.direction ?? outside.direction;
-  const boomerang = Boolean(selectedDefinition?.boomerang ?? outside.boomerang);
+  const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? outside.intensity;
+  const speed = draft?.speed ?? selectedDefinition?.speed ?? outside.speed;
+  const mode = draft?.mode ?? selectedDefinition?.mode ?? outside.mode;
+  const direction = draft?.direction ?? selectedDefinition?.direction ?? outside.direction;
+  const boomerang = Boolean(draft?.boomerang ?? selectedDefinition?.boomerang ?? outside.boomerang);
   outsideIntensityInput.value = String(intensity);
   outsideSpeedInput.value = String(speed);
   outsideModeInput.value = mode;
   outsideDirectionInput.value = direction;
   if (outsideAssetTypeInput) {
-    outsideAssetTypeInput.value = selectedDefinition?.assetType ?? outside.assetType;
+    outsideAssetTypeInput.value = draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType;
   }
   if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = selectedDefinition?.assetRef ?? outside.assetRef ?? "";
+    outsideAssetRefInput.value = draft?.assetRef ?? selectedDefinition?.assetRef ?? outside.assetRef ?? "";
   }
   if (outsideBoomerangInput) {
     outsideBoomerangInput.checked = boomerang;
@@ -9813,208 +9873,44 @@ outsideAnimationSelect?.addEventListener("change", () => {
 });
 
 outsideBoomerangInput?.addEventListener("change", () => {
-  const boomerang = Boolean(outsideBoomerangInput.checked);
-  const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, { boomerang });
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-boomerang-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside boomerang command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside boomerang command failed";
-      syncOutsideFxPanel();
-    });
-    return;
-  }
-  setOutsideFxProfile(state.boardId, nextProfile);
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-boomerang-update");
-  triggerFeedback.textContent = persisted
-    ? `Status: Outside boomerang ${boomerang ? "enabled" : "disabled"}`
-    : `Status: Outside boomerang ${boomerang ? "enabled" : "disabled"} (persistence failed)`;
+  setOutsideEditorDraft(state.boardId, { boomerang: Boolean(outsideBoomerangInput.checked) });
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideIntensityInput.addEventListener("input", () => {
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      intensity: clampOutsideIntensity(outsideIntensityInput.value),
-    };
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-intensity-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside intensity command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside intensity command failed";
-    });
-    return;
-  }
-  updateOutsideFxProfile(state.boardId, { intensity: clampOutsideIntensity(outsideIntensityInput.value) });
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-intensity-update");
-  triggerFeedback.textContent = persisted
-    ? "Status: Outside intensity updated"
-    : "Status: Outside intensity updated (persistence failed)";
+  const intensity = clampOutsideIntensity(outsideIntensityInput.value);
+  setOutsideEditorDraft(state.boardId, { intensity });
+  outsideIntensityValue.textContent = intensity.toFixed(2);
 });
 
 outsideSpeedInput.addEventListener("input", () => {
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      speed: clampOutsideSpeed(outsideSpeedInput.value),
-    };
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-speed-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside speed command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside speed command failed";
-    });
-    return;
-  }
-  updateOutsideFxProfile(state.boardId, { speed: clampOutsideSpeed(outsideSpeedInput.value) });
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-speed-update");
-  triggerFeedback.textContent = persisted
-    ? "Status: Outside speed updated"
-    : "Status: Outside speed updated (persistence failed)";
+  const speed = clampOutsideSpeed(outsideSpeedInput.value);
+  setOutsideEditorDraft(state.boardId, { speed });
+  outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
 });
 
 outsideModeInput.addEventListener("change", () => {
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      mode: normalizeOutsideMode(outsideModeInput.value),
-    };
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-mode-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside mode command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside mode command failed";
-    });
-    return;
-  }
-  updateOutsideFxProfile(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-mode-update");
-  triggerFeedback.textContent = persisted
-    ? `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled`
-    : `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled (persistence failed)`;
+  setOutsideEditorDraft(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideDirectionInput.addEventListener("change", () => {
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      direction: normalizeOutsideDirection(outsideDirectionInput.value),
-    };
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-direction-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside direction command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside direction command failed";
-    });
-    return;
-  }
-  updateOutsideFxProfile(state.boardId, {
+  setOutsideEditorDraft(state.boardId, {
     direction: normalizeOutsideDirection(outsideDirectionInput.value),
   });
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-direction-update");
-  triggerFeedback.textContent = persisted
-    ? `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled`
-    : `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled (persistence failed)`;
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideAssetTypeInput?.addEventListener("change", () => {
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
-  const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, { assetType });
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-asset-type-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside asset type command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside asset type command failed";
-      syncOutsideFxPanel();
-    });
-    return;
-  }
-  setOutsideFxProfile(state.boardId, nextProfile);
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-asset-type-update");
-  triggerFeedback.textContent = persisted
-    ? "Status: Outside asset type updated"
-    : "Status: Outside asset type updated (persistence failed)";
+  setOutsideEditorDraft(state.boardId, { assetType });
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideAssetRefInput?.addEventListener("change", () => {
   const assetRef = String(outsideAssetRefInput.value || "").trim();
-  if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      assetRef,
-    };
-    void emitLiveMutation("outside-update", {
-      outsideBoardId: state.boardId,
-      reason: "outside-asset-ref-update",
-      outsideFx: nextProfile,
-      outsideFxByBoard: {
-        [state.boardId]: nextProfile,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside asset reference command accepted (waiting for snapshot)";
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside asset reference command failed";
-      syncOutsideFxPanel();
-    });
-    return;
-  }
-  updateOutsideFxProfile(state.boardId, { assetRef });
-  const persisted = persistBoardProfiles();
-  syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-asset-ref-update");
-  triggerFeedback.textContent = persisted
-    ? "Status: Outside asset reference updated"
-    : "Status: Outside asset reference updated (persistence failed)";
+  setOutsideEditorDraft(state.boardId, { assetRef });
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideResourceApplyButton?.addEventListener("click", () => {
@@ -10024,36 +9920,57 @@ outsideResourceApplyButton?.addEventListener("click", () => {
     return;
   }
   const inferredAssetType = inferOutsideAssetTypeFromPath(selectedResource);
+  setOutsideEditorDraft(state.boardId, {
+    assetType: inferredAssetType,
+    assetRef: selectedResource,
+  });
+  if (outsideAssetTypeInput) {
+    outsideAssetTypeInput.value = inferredAssetType;
+  }
+  if (outsideAssetRefInput) {
+    outsideAssetRefInput.value = selectedResource;
+  }
+  triggerFeedback.textContent = "Status: Outside draft updated from resource picker - apply changes to commit";
+});
+
+outsideApplyChangesButton?.addEventListener("click", () => {
+  const draft = collectOutsideEditorDraftFromInputs(state.boardId);
+  if (!draft) {
+    triggerFeedback.textContent = "Status: Outside apply failed - no animation selected";
+    return;
+  }
+  const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, {
+    boomerang: draft.boomerang,
+    intensity: draft.intensity,
+    speed: draft.speed,
+    mode: draft.mode,
+    direction: draft.direction,
+    assetType: draft.assetType,
+    assetRef: draft.assetRef,
+  });
   if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const nextProfile = {
-      ...getOutsideFxProfile(state.boardId),
-      assetType: inferredAssetType,
-      assetRef: selectedResource,
-    };
     void emitLiveMutation("outside-update", {
       outsideBoardId: state.boardId,
-      reason: "outside-resource-asset-apply",
+      reason: "outside-apply-changes",
       outsideFx: nextProfile,
       outsideFxByBoard: {
         [state.boardId]: nextProfile,
       },
     }).then(() => {
-      triggerFeedback.textContent = "Pending: Outside resource asset command accepted (waiting for snapshot)";
+      triggerFeedback.textContent = "Pending: Outside changes applied atomically (waiting for snapshot)";
     }).catch(() => {
-      triggerFeedback.textContent = "Status: Outside resource asset command failed";
+      triggerFeedback.textContent = "Status: Outside apply command failed";
+      syncOutsideFxPanel();
     });
     return;
   }
-  updateOutsideFxProfile(state.boardId, {
-    assetType: inferredAssetType,
-    assetRef: selectedResource,
-  });
+  setOutsideFxProfile(state.boardId, nextProfile);
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
-  emitOutsideFxMutation(state.boardId, "outside-resource-asset-apply");
+  emitOutsideFxMutation(state.boardId, "outside-apply-changes");
   triggerFeedback.textContent = persisted
-    ? "Status: Outside resource asset applied"
-    : "Status: Outside resource asset applied (persistence failed)";
+    ? "Status: Outside changes applied"
+    : "Status: Outside changes applied (persistence failed)";
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {
