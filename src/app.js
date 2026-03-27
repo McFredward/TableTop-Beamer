@@ -1183,6 +1183,7 @@ const activeAnimationAudioById = new Map();
 const pendingAnimationAudioStartTimers = new Map();
 const startedGlobalAudioRevisionByTriggerKey = new Map();
 let outsideResourceAssets = [];
+const OUTSIDE_CODED_ASSET_KEY_ALIASES = ["outside-space", "space", "coded-space", "coded/space"];
 const outsideEditorDraftByBoard = {};
 
 const {
@@ -1999,7 +2000,9 @@ function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
   const name = String(definition?.name || "").trim() || fallbackDefaults.name;
   const assetType = normalizeOutsideAssetType(definition?.assetType);
   const rawAssetRef = String(definition?.assetRef || "").trim();
-  const assetRef = rawAssetRef || (assetType === "coded" ? "outside-space" : fallbackDefaults.assetRef);
+  const assetRef = assetType === "coded"
+    ? normalizeOutsideCodedAssetRef(rawAssetRef)
+    : (rawAssetRef || fallbackDefaults.assetRef);
   return {
     id,
     name,
@@ -5086,12 +5089,23 @@ function inferOutsideAssetTypeFromPath(pathValue) {
   return "coded";
 }
 
-function resolveOutsideCodedEffectType(assetRef) {
-  const normalized = String(assetRef || "").trim().toLowerCase();
-  if (!normalized) {
-    return "outside-space";
+function getOutsideCodedAssetKeys() {
+  const knownOutsideRendererIds = OUTSIDE_SHIP_GLOBAL_ANIMATIONS
+    .map((entry) => normalizeOutsideAnimationId(entry?.id, ""))
+    .filter(Boolean);
+  return Array.from(new Set(["outside-space", ...knownOutsideRendererIds, ...OUTSIDE_CODED_ASSET_KEY_ALIASES]));
+}
+
+function normalizeOutsideCodedAssetRef(assetRef) {
+  const normalizedRef = String(assetRef || "").trim().toLowerCase();
+  if (getOutsideCodedAssetKeys().includes(normalizedRef)) {
+    return normalizedRef;
   }
-  if (["outside-space", "space", "coded-space", "coded/space"].includes(normalized)) {
+  return "outside-space";
+}
+
+function resolveOutsideCodedEffectType(assetRef) {
+  if (getOutsideCodedAssetKeys().includes(normalizeOutsideCodedAssetRef(assetRef))) {
     return "outside-space";
   }
   return "outside-space";
