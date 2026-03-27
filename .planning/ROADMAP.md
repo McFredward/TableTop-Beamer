@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6 und 7-HF7 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`); naechster Schritt ist Plan 7-2 (Hardening).
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6, 7-HF7 und 7-HF8 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`, `.planning/phases/phase-07/7-HF8-SUMMARY.md`); naechste execute-ready Welle ist Plan 7-2 (Hardening).
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -231,6 +231,7 @@ Milestones:
 12. M12 Align/Board-Switch Determinism Hotfix: Align-Mode serverautoritativ ueber alle Clients inkl. `/output/final`; Board-Switch leert Running deterministisch ohne Alt-Reste.
 13. M13 Board-Context Residue Elimination Hotfix: switch-clear als authoritative atomare Transaktion, snapshot sanitize vor persist/broadcast, reconnect board-context filter mit Invariante `crossBoardResidueCount = 0`.
 14. M14 Stop-Action Determinism Hotfix: Running-List-Stop routed strikt als stop-only command ohne create/start side-effects; serverautoritative Stop-Propagation bleibt rollenparitaetisch inkl. `/output/final`.
+15. M15 Global-Outside Stop + Hover Stability Hotfix: all-scope stop parity inkl. `global-outside`, vereinheitlichte globale stop semantics server/client und flickerfreies Running-List-hover behavior.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -251,8 +252,10 @@ Exit Criteria:
 - Persistierte und broadcastete Server-Snapshots enthalten keine cross-board Running-Reste.
 - Reconnect-Hydrierung filtert Running strikt auf den aktiven Board-Kontext; Invariante `crossBoardResidueCount = 0` bleibt in Pflichtmatrix stabil.
 - Running-List-Stop darf niemals eine neue Instanz erzeugen; `stop-animation` beendet exakt die gewaehlte `animation.id` ohne create/start side-effects.
+- Running-List-Stop-Paritaet gilt explizit fuer `room`, `global-inside`, `global-outside` und `cluster`; `global-outside` hat keinen Sonder-/No-Op-Pfad.
 - Stop-Mutationen sind serverautoritativ versionsgebunden und auf allen Clients inkl. `/output/final` deterministisch sichtbar.
 - UI-Stop-Aktion ist gegen Mehrfachklick/Re-Trigger gehaertet (inflight-guard), ohne room/global/cluster stop semantics zu regressieren.
+- Running-List-Hover bleibt stabil highlightend ohne Blink-/Loop-Flicker und entspricht visuell den restlichen Button-Hover-Zustaenden.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -301,6 +304,15 @@ Execution Update (7-HF7):
 
 Gate Closure (7-HF7):
 - Stop-action determinism blocker is closed; Plan 7-2 is the next executable wave.
+
+Execution Update (7-HF8):
+- Running-list stop fuer `global-outside` ist stop-only gehaertet und bleibt frei von trigger/create/no-op drift.
+- Globale stop semantics sind server/client vereinheitlicht (`global-inside` + `global-outside`) mit ack/version/dedup parity und idempotent stale handling.
+- Running-List-Hover bleibt unter periodischem Refresh stabil (interaction guard + non-transform hover/focus path).
+- HF8 evidence PASS (`debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`).
+
+Gate Closure (7-HF8):
+- Global-outside stop parity and hover stability blocker is closed; Plan 7-2 is the next executable wave.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

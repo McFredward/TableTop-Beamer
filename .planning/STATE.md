@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF7
+- Last Executed Plan: 7-HF8
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -459,6 +459,11 @@
 - Plan-7-HF7 execution: `live-session-update` applies stop/clear snapshots immediately with version/dedup guard for synchronized parity on control + `/output/final`.
 - Plan-7-HF7 execution: per-animation pending stop locks (`Stopping...` disabled state) prevent duplicate/retrigger stop dispatch until snapshot confirmation.
 - Plan-7-HF7 execution: deterministic regression matrix PASS for room/global/cluster stop parity and anim-id non-increment invariant (`debug/p7-hf7-*`).
+- Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (nach HF7): individueller Running-Stop bleibt fuer `global-outside` inkonsistent (teils Neuinstanz/No-Op), und Running-Liste-Hover blinkt statt stabil zu highlighten.
+- Stop-Paritaets-Regel fuer Phase 7 (Plan 7-HF8): Running-Stop muss fuer alle Scopes (`room`, `global-inside`, `global-outside`, `cluster`) deterministisch stop-only bleiben; `Clear All` bleibt unveraendert stabil.
+- Semantik-Regel fuer Phase 7 (Plan 7-HF8): server/client stop semantics fuer globale Scopes werden vereinheitlicht (`global-inside`/`global-outside`), inkl. idempotent stale/unknown handling ohne create/start side-effects.
+- Hover-Regel fuer Phase 7 (Plan 7-HF8): Running-List-Hover bleibt konstant sichtbar (kein blink/loop-flicker) und visuell paritaetisch zu den restlichen Buttons.
+- Artefakt-Regel fuer Phase 7 (Plan 7-HF8): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -879,3 +884,16 @@
 - verify-work 7-HF5 Follow-up oeffnet zwei verbleibende P0-Blocker: nicht-deterministischer board-switch clear in Randfaellen und reconnect cross-board residue rehydrate.
 - Naechste verpflichtende Welle ist Plan 7-HF6 (Board-Context Residue Elimination), bevor Plan 7-2 gestartet werden darf.
 - Verbindliche HF6-Invariante: `switch -> reconnect` darf auf keinem Client boardfremde Running-Eintraege rehydrieren (`crossBoardResidueCount = 0`).
+
+## Execution Results (Phase 7 Plan HF8)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF8-SUMMARY.md`
+- Task Commits: 6 atomare Commits (`9cbd442`, `bc7182b`, `b267d9e`, `10a7001`, `356887d`, `bdb7b8d`)
+- Evidence:
+  - `debug/p7-hf8-t12-output.json`
+  - `debug/p7-hf8-t13-output.json`
+  - `debug/p7-hf8-t14-output.json`
+
+## Decision Log Addendum (HF8)
+- Global stop-off konvergiert jetzt verbindlich ueber `stop-animation` mit explizitem Ziel-Metadatenpfad (`targetScope`/`targetType`/`boardId`) statt gemischter stop-Routen.
+- Running-List-Refresh ist waehrend aktiver Hover-/Focus-Interaktion pausiert, damit Hover-Highlight ohne Blink-/Loop-Flicker stabil bleibt.
