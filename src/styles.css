@@ -248,7 +248,7 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   stroke: rgba(170, 191, 255, 0.9);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  pointer-events: all;
+  pointer-events: none;
 }
 
 .ship-zone-mask.is-active {

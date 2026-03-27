@@ -4908,19 +4908,6 @@ function renderShipPolygonEditorHandles() {
       maskPolygon.classList.add("is-active");
     }
     maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
-    maskPolygon.addEventListener("click", (event) => {
-      if (isPanArbitrating()) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      setSelectedPlayAreaId(state.boardId, area.id);
-      state.shipPolygonEditor.selectedVertexIndex = 0;
-      state.shipPolygonEditor.selectedEdgeIndex = 0;
-      syncShipPolygonEditorPanel();
-      renderRoomOverlay();
-      triggerFeedback.textContent = `Status: Active Play Area set to ${area.name}`;
-    });
     roomOverlay.append(maskPolygon);
   }
 
