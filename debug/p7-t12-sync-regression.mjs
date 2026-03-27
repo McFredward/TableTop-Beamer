@@ -120,7 +120,7 @@ function assertBoardSwitchedStatusArbitration(appSource) {
     "switchBoard announceStatus arbitration guard missing",
   );
   assert(
-    /if \(announceStatus\) \{[\s\S]*triggerFeedback\.textContent = "Status: board switched";[\s\S]*\}/.test(appSource),
+    /if \(announceStatus && !shouldPreserveLifecycleStatusFeedback\(\)\) \{[\s\S]*triggerFeedback\.textContent = "Status: board switched";[\s\S]*\}/.test(appSource),
     "board switched status is not gated by announceStatus",
   );
   assert(
@@ -143,8 +143,38 @@ function assertServerSnapshotSanitizerGuard(source) {
 
 function assertClientReconnectBoardFilter(source) {
   assert(
-    /function filterRunningAnimationsForBoard\([\s\S]*if \(!normalizedBoardId \|\| !animationBoardId\) \{[\s\S]*return false;/.test(source),
+    /function filterRunningAnimationsForBoard\([\s\S]*const inferredBoardId = normalizedBoardId \|\|/.test(source),
+    "client running board inference fallback missing",
+  );
+  assert(
+    /if \(!inferredBoardId \|\| !animationBoardId\) \{[\s\S]*return false;/.test(source),
     "client running board filter is not hard-enforced",
+  );
+}
+
+function assertStartDispatchMetadataNormalization(source) {
+  assert(
+    /const normalizedPayload = normalizeLiveMutationPayload\(mutationType, payload\);/.test(source),
+    "emitLiveMutation does not normalize start command metadata before dispatch",
+  );
+  assert(
+    /function normalizeLiveMutationPayload\(mutationType, payload = \{\}\) \{[\s\S]*mutationType === "trigger-room"/.test(source),
+    "trigger-room dispatch metadata normalizer missing",
+  );
+  assert(
+    /mutationType === "trigger-global"[\s\S]*nextPayload\.targetScope = "global"/.test(source),
+    "trigger-global dispatch metadata normalizer missing",
+  );
+}
+
+function assertSnapshotBoardInferenceGuard(serverSource) {
+  assert(
+    /const inferredBoardFromRunning = runningAnimations\.reduce\(/.test(serverSource),
+    "server snapshot sanitizer missing running-based board inference",
+  );
+  assert(
+    /\? runningAnimations\.filter\([\s\S]*: runningAnimations;/.test(serverSource),
+    "server snapshot sanitizer still drops all runs when selectedBoard is missing",
   );
 }
 
@@ -291,6 +321,8 @@ async function main() {
   assertRunningListHoverStabilityGuard(appSource, stylesSource);
   assertContextUpdateDoesNotMutateBoardForDraftOrAlign(appSource, serverSource);
   assertBoardSwitchedStatusArbitration(appSource);
+  assertStartDispatchMetadataNormalization(appSource);
+  assertSnapshotBoardInferenceGuard(serverSource);
 
   console.log(JSON.stringify({
     pass: true,

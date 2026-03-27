@@ -1,0 +1,153 @@
+{
+  "pass": true,
+  "gate": "HF10 hard smoke",
+  "boardId": "nemesis-board-a",
+  "versions": {
+    "context": 1,
+    "clearInitial": 2,
+    "roomStart": 3,
+    "globalInsideStart": 4,
+    "clusterStart": 5,
+    "clusterMemberStart": 6,
+    "stopRoom": 7,
+    "clearFinal": 8,
+    "finalSnapshot": 8
+  },
+  "assertions": {
+    "startVisibility": true,
+    "persistenceUntilStopOrClear": true,
+    "stopRoomAppliedWithoutGlobalNeutralization": true,
+    "clearAllLeavesRunningEmpty": true,
+    "selectedBoardStable": true,
+    "globalTriggerRevisionsPresent": true,
+    "globalStopRevisionsPresent": true
+  },
+  "persistenceSamples": [
+    {
+      "index": 0,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    },
+    {
+      "index": 1,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    },
+    {
+      "index": 2,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    },
+    {
+      "index": 3,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    },
+    {
+      "index": 4,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    },
+    {
+      "index": 5,
+      "version": 6,
+      "allActive": true,
+      "activeIds": [
+        "hf10-room-start-mn8p8sxf-3dtgp",
+        "hf10-global-inside-start-mn8p8sxf-hwmds",
+        "hf10-cluster-start-mn8p8sxf-c8nsd",
+        "hf10-cluster-member-mn8p8sxf-tgoxf"
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "at": "2026-03-27T09:28:54.418Z",
+      "event": "context-bootstrap-ack",
+      "version": 1
+    },
+    {
+      "at": "2026-03-27T09:28:54.421Z",
+      "event": "clear-all-initial-ack",
+      "version": 2
+    },
+    {
+      "at": "2026-03-27T09:28:54.423Z",
+      "event": "start-room-ack",
+      "version": 3,
+      "animationId": "hf10-room-start-mn8p8sxf-3dtgp"
+    },
+    {
+      "at": "2026-03-27T09:28:54.424Z",
+      "event": "start-global-inside-ack",
+      "version": 4,
+      "animationId": "hf10-global-inside-start-mn8p8sxf-hwmds"
+    },
+    {
+      "at": "2026-03-27T09:28:54.425Z",
+      "event": "start-cluster-ack",
+      "version": 5,
+      "animationId": "hf10-cluster-start-mn8p8sxf-c8nsd"
+    },
+    {
+      "at": "2026-03-27T09:28:54.426Z",
+      "event": "start-cluster-member-ack",
+      "version": 6,
+      "animationId": "hf10-cluster-member-mn8p8sxf-tgoxf"
+    },
+    {
+      "at": "2026-03-27T09:28:55.341Z",
+      "event": "persistence-window-pass",
+      "sampleCount": 6
+    },
+    {
+      "at": "2026-03-27T09:28:55.344Z",
+      "event": "stop-room-ack",
+      "version": 7
+    },
+    {
+      "at": "2026-03-27T09:28:55.345Z",
+      "event": "stop-room-visibility-pass"
+    },
+    {
+      "at": "2026-03-27T09:28:55.347Z",
+      "event": "clear-all-final-ack",
+      "version": 8
+    },
+    {
+      "at": "2026-03-27T09:28:55.347Z",
+      "event": "clear-all-visibility-pass",
+      "finalVersion": 8
+    }
+  ]
+}
