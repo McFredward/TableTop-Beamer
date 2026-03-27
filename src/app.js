@@ -861,15 +861,24 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
 
 function filterRunningAnimationsForBoard(runningAnimations, boardId) {
   const normalizedBoardId = typeof boardId === "string" ? boardId.trim() : "";
+  const inferredBoardId = normalizedBoardId || (Array.isArray(runningAnimations)
+    ? runningAnimations.reduce((first, animation) => {
+      if (first) {
+        return first;
+      }
+      const animationBoardId = typeof animation?.boardId === "string" ? animation.boardId.trim() : "";
+      return animationBoardId || "";
+    }, "")
+    : "");
   return (Array.isArray(runningAnimations) ? runningAnimations : []).filter((animation) => {
     if (!animation || typeof animation !== "object") {
       return false;
     }
     const animationBoardId = typeof animation.boardId === "string" ? animation.boardId.trim() : "";
-    if (!normalizedBoardId || !animationBoardId) {
+    if (!inferredBoardId || !animationBoardId) {
       return false;
     }
-    return animationBoardId === normalizedBoardId;
+    return animationBoardId === inferredBoardId;
   });
 }
 
@@ -945,6 +954,15 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     (typeof runtime.selectedBoard === "string" && runtime.selectedBoard) ||
     (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
     (typeof runtime.boardId === "string" && runtime.boardId) ||
+    (Array.isArray(runtime.runningAnimations)
+      ? runtime.runningAnimations.reduce((first, animation) => {
+        if (first) {
+          return first;
+        }
+        const animationBoardId = typeof animation?.boardId === "string" ? animation.boardId.trim() : "";
+        return animationBoardId || "";
+      }, "")
+      : "") ||
     state.boardId;
   state.boardId = selectedBoard;
   state.selectedBoard = selectedBoard;

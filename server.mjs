@@ -643,17 +643,24 @@ function applyContextUpdatePatch(payload) {
 function sanitizeLiveSnapshotForBoardContext(snapshot) {
   const baseSnapshot = isPlainObject(snapshot) ? cloneJson(snapshot) : {};
   const runtime = isPlainObject(baseSnapshot.runtime) ? cloneJson(baseSnapshot.runtime) : {};
+  const runningAnimations = Array.isArray(runtime.runningAnimations) ? runtime.runningAnimations : [];
+  const inferredBoardFromRunning = runningAnimations.reduce((first, entry) => {
+    if (first) {
+      return first;
+    }
+    return normalizeNonEmptyString(entry?.boardId) ?? null;
+  }, null);
   const selectedBoard =
     normalizeNonEmptyString(baseSnapshot.selectedBoard)
     ?? normalizeNonEmptyString(baseSnapshot.selectedLayout)
     ?? normalizeNonEmptyString(runtime.selectedBoard)
     ?? normalizeNonEmptyString(runtime.boardId)
+    ?? inferredBoardFromRunning
     ?? null;
-  const runningAnimations = Array.isArray(runtime.runningAnimations) ? runtime.runningAnimations : [];
   const sanitizedRunningAnimations =
     selectedBoard
       ? runningAnimations.filter((entry) => normalizeNonEmptyString(entry?.boardId) === selectedBoard)
-      : [];
+      : runningAnimations;
 
   runtime.runningAnimations = sanitizedRunningAnimations;
   if (selectedBoard) {
