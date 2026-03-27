@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -351,10 +351,10 @@ Execution Update (7-HF10):
 Gate Closure (7-HF10):
 - Root-Cause-Dispatch/Apply blocker is closed; Plan 7-2 is unblocked as the next wave.
 
-## Phase 8 - Multi-Play-Area + Board Image Import (In Progress)
-Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen.
+## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
+Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 29/34 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T28) und Plan 8-HF3 (P8-T29..P8-T34) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`). Plan 8-2 ist als naechste Welle freigegeben.
+Status: 29/34 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24) und Plan 8-HF2 (P8-T25..P8-T34) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`). Plan 8-2 folgt als Hardening.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -364,9 +364,8 @@ Milestones:
 5. M5 Image Import Pipeline: Upload (`jpg`/`jpeg`/`png`/`webp`) wird serverseitig gespeichert und als Board-Hintergrund registriert.
 6. M6 Non-Regression: Running/Save/Reload/Sync/`/output/final` bleiben stabil.
 7. M7 P0 Hotfix Closure: Room-Klick-Selection hat Prioritaet (ohne Play-Area-Click-Selection), und Bildimport aktiviert neues Board sofort im Dropdown.
-8. M8 P0 Layout Hotfix Closure: lange Upload-Dateinamen koennen das Settings-Panel nicht horizontal aufbrechen oder Scrollzwang erzeugen.
-9. M9 P0 Catalog Layout Hotfix Closure: `Board catalog + output` bleibt auch bei langen Board-Namen/Infozeilen width-stabil ohne Horizontal-Overflow.
-10. M10 P0 Outside Immersion Hotfix Closure: `Outside Duststorm` ist als neuer Outside-Modus integriert und bleibt sync-/maskenparitaetisch stabil.
+8. M8 Mars Outside Feature Pack: `Outside Sandstorm` (stumm), optionales Boomerang-Playback und neue Settings-Sektion `Outside Animations`.
+9. M9 Outside Asset Mapping + Persistence: UI-editierbares Mapping (`gif`/`mp4`/coded key), UI-Create-Flow und persistente Definitionen/Settings.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -377,13 +376,13 @@ Exit Criteria:
 - Room-Klick in Settings selektiert den Room deterministisch; Play-Area-Selektion per Board-Klick ist entfernt.
 - Erfolgreicher Bildimport macht das neue Board sofort im Dropdown sichtbar und setzt es direkt als aktive Auswahl.
 - Importierte Bildboards ohne Start-Polygone sind ein gueltiger, stabiler Startzustand fuer manuelles Play-Area/Room-Editing.
-- Lange Bild-Dateinamen verursachen kein horizontales Layout-Breaking in der Settings-Leiste.
-- Dateinamen werden robust umbrochen/abgeschnitten angezeigt, ohne Overflow nach links/rechts.
-- Das Settings-Panel bleibt in stabiler Breite bedienbar; horizontaler Scrollbedarf durch Dateinamen ist ausgeschlossen.
-- Das Modul `Board catalog + output` bleibt bei langen Board-Namen/Infozeilen in stabiler Breite ohne horizontalen Scrollzwang.
-- Board-Namen/Infozeilen sind robust umbrochen oder ellipsiert, ohne seitlichen Overflow ausserhalb ihres Containers.
-- `Outside Duststorm` ist als neuer Outside-Modus verfuegbar und rendert strikt ausserhalb der Play-Area-Union.
-- `Outside Duststorm` bleibt serverautoritativ sync-/persistenzstabil inkl. join/reconnect und `/output/final`-Paritaet.
+- `Outside Sandstorm` ist als verpflichtende neue Outside-Animation vorhanden, nutzt `sandstorm.mp4` und bleibt ohne Audio.
+- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Lifecycle-Regression in Start/Stop/Clear.
+- Outside-Animationseinstellungen sind aus dem Play-Area-Editor ausgelagert und leben in einer separaten Settings-Sektion `Outside Animations`.
+- Dropdown-basierte Bearbeitung pro Outside-Animation inkl. Boomerang-Option ist deterministisch nutzbar.
+- Asset-Mapping ist pro Outside-Animation in UI editierbar (`gif`/`mp4`/coded animation key); neue Outside-Animationen koennen in UI angelegt werden.
+- Vorhandene Dateien aus `resources` sind als Asset-Quelle auswaehlbar.
+- Outside-Animationsdefinitionen und Settings bleiben ueber Save/Reload/Restart/Defaults persistent und migrationsstabil.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -402,26 +401,16 @@ New Blocking Wave (Phase 8 follow-up):
 - Blocker B: Bildimport zeigt keinen sofort sichtbaren Success-Flow (Dropdown + Auto-Select).
 
 Gate Closure (8-HF1):
-- P0-Blocker A/B sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
+- P0-Blocker A/B sind geschlossen; Plan 8-HF2 ist als naechste Welle freigegeben.
 
-New Blocking Wave (Phase 8 follow-up 2):
-- Verbindliches P0-Betriebsfeedback setzt Plan 8-HF2 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
-- Blocker C: langer Bild-Dateiname streckt die Settings-Leiste horizontal und erzwingt seitliches Scrollen.
-- Blocker D: Dateinamen-Rendering ist bei langen Namen nicht overflow-robust; Buttons sind dadurch teilweise schwer erreichbar.
+New Blocking Wave (Phase 8 Mars feature pack):
+- Verbindliches Featurepaket fuer neues Board `Mars` wird als P0 vor Plan 8-2 priorisiert und als Plan 8-HF2 execute-ready gesetzt.
+- Pflichtumfang: neue Outside-Animation `Outside Sandstorm` auf `sandstorm.mp4` (stumm), optionale Boomerang-Wiedergabe, ausgelagerte Settings-Sektion `Outside Animations`, UI-editierbares Asset-Mapping inkl. Create-Flow und `resources`-Asset-Auswahl, persistente Definitionen/Settings.
 - Plan 8-2 bleibt bis 8-HF2-PASS blockiert.
 
 Gate Closure (8-HF2):
-- P0-Blocker C/D sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
-
-New Blocking Wave (Phase 8 follow-up 3):
-- Neues P0-Betriebsfeedback setzt Plan 8-HF3 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
-- Blocker E: Modul `Board catalog + output` streckt bei langen Board-Namen/Infozeilen weiterhin horizontal.
-- Blocker F: Neue Outside-Animation `Outside Duststorm` fehlt noch und muss Outside-/Sync-kompatibel integriert werden.
-- Plan 8-2 bleibt bis 8-HF3-PASS blockiert.
-
-Gate Closure (8-HF3):
-- P0-Blocker E/F sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
-- Evidenz: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`, `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`.
+- P0-Mars-Featurepaket ist geschlossen; Outside Sandstorm, boomerang playback, outside settings ownership, asset mapping/create/resource picker und persistence/migration guards sind PASS.
+- Plan 8-2 Hardening ist als naechste Welle freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

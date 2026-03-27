@@ -2,93 +2,122 @@
 phase: phase-08
 plan: 8-HF2
 subsystem: ui
-tags: [settings-layout, file-upload, overflow-guard, verification]
+tags: [outside-animations, boomerang, mp4, gif, persistence, resources-api]
 requires:
   - phase: phase-08
-    provides: Plan 8-HF1 board import activation and settings flow baseline
+    provides: multi-play-area core, image import flow, outside mask pipeline
 provides:
-  - Filename-safe import rendering in Settings without horizontal layout stretch
-  - Dedicated wrap/truncate filename rows for JSON/image uploads
-  - Verified no-horizontal-scroll settings panel behavior for long filenames
-affects: [phase-08, settings-ui, board-import, roadmap-tracking]
+  - Outside animation definitions with per-animation asset mapping and boomerang playback
+  - Dedicated Settings section "Outside Animations" with dropdown editor and create flow
+  - Resource asset picker backed by `/api/resources` and persistent profile/default migration guards
+affects: [phase-08, settings-ui, outside-renderer, server-api, defaults]
 tech-stack:
-  added: []
-  patterns: [container-width-guard, filename-status-row, clamp-plus-ellipsis-rendering]
+  added: [none]
+  patterns: [definition-driven outside rendering, per-animation outside settings, legacy alias normalization]
 key-files:
   created:
     - .planning/phases/phase-08/8-HF2-VERIFICATION.md
+    - debug/p8-hf2-api-resources.json
+    - debug/p8-hf2-api-health.json
   modified:
-    - index.html
     - src/app.js
-    - src/styles.css
-    - .planning/phases/phase-08/PLAN.md
-    - .planning/phases/phase-08/BACKLOG.md
-    - .planning/phases/phase-08/TASKS.md
-    - .planning/phases/phase-08/ACCEPTANCE.md
-    - .planning/phases/phase-08/RISKS.md
-    - .planning/phases/phase-08/EXECUTE.md
-    - .planning/STATE.md
-    - .planning/ROADMAP.md
-    - .planning/CURRENT_PHASE.md
+    - src/app/shared/config.js
+    - src/app/persistence/board-profiles.js
+    - index.html
+    - server.mjs
+    - .planning/phases/phase-08/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE}.md
 key-decisions:
-  - "File-input filenames are rendered in dedicated status rows instead of relying on native control text flow."
-  - "Settings containers enforce min/max width guards to keep horizontal scrolling disabled under long filenames."
+  - "Outside animation settings are definition-driven inside outsideFx (selectedAnimationId + animations[])."
+  - "Outside audio is hard-muted for outside-space lifecycle to enforce Sandstorm no-audio contract."
+  - "Resource picker sources are served by server-side `/api/resources` instead of hardcoded client manifests."
 patterns-established:
-  - "Import filename UX pattern: JS-synced status rows + CSS wrap/clamp to avoid panel stretch."
+  - "Outside renderer resolves selected definition first, then dispatches coded/gif/mp4 pipelines with shared boomerang timeline."
+  - "Legacy outside fields (`outside`, `outsideAnimations`, `selectedOutsideAnimationId`) are normalized into canonical outsideFx schema."
 requirements-completed: []
-duration: 1m
+duration: 8m
 completed: 2026-03-27
 ---
 
-# Phase 8 Plan 8-HF2: Filename Overflow Layout Hotfix Summary
+# Phase 8 Plan HF2: Outside Animations Mars Feature Pack Summary
 
-**Settings import now keeps long JSON/image filenames visually contained via wrap+truncate status rows while preserving a horizontally stable, scroll-free panel layout.**
+**Outside effects now run from persistent per-animation definitions (including Sandstorm mp4 + boomerang) with a dedicated settings editor and resource-backed asset mapping.**
 
 ## Performance
 
-- **Duration:** 1 min
-- **Started:** 2026-03-27T11:56:33Z
-- **Completed:** 2026-03-27T11:57:53Z
-- **Tasks:** 4/4
-- **Files modified:** 13
+- **Duration:** 8m
+- **Started:** 2026-03-27T17:03:58Z
+- **Completed:** 2026-03-27T17:12:13Z
+- **Tasks:** 10/10 (P8-T25..P8-T34)
+- **Files modified:** 14
 
 ## Accomplishments
-- Added hard width/overflow guards so long upload filenames no longer stretch the Settings strip horizontally.
-- Introduced dedicated filename rows for JSON/image imports with bounded wrap/truncate behavior and live sync on file change/reset.
-- Documented PASS verification evidence and synchronized phase/global planning artifacts to close 8-HF2 and unblock 8-2.
+- Introduced canonical outside animation definitions with per-animation fields (`assetType`, `assetRef`, `boomerang`, intensity/speed/mode/direction) and selected animation ownership.
+- Added `Outside Sandstorm` default on `sandstorm.mp4` and ensured outside runtime remains muted.
+- Delivered new `Outside Animations` settings section with dropdown editor, create flow, asset-type mapping, assetRef editing, and resource picker from `/api/resources`.
+- Extended persistence/default export-import to keep outside definitions stable across Save/Reload/Restart and legacy payload aliases.
 
 ## Task Commits
 
-1. **P8-T25: Overflow-safe import filename path** - `8f4a2d0` (fix)
-2. **P8-T26: Robust filename wrap/truncate rendering** - `e7d6130` (fix)
-3. **P8-T27: Settings panel width stability hardening** - `1b87d38` (fix)
-4. **P8-T28: Verification and artifact sync** - `184b64b` (chore)
+1. **P8-T25** – `e56b651` feat: outside animation profile schema
+2. **P8-T26** – `dc7c0fb` feat: Outside Sandstorm default + mute guard
+3. **P8-T27** – `edcce29` feat: boomerang outside playback lifecycle
+4. **P8-T28** – `83f7dd4` feat: move outside controls to dedicated section
+5. **P8-T29** – `00e9753` feat: dropdown + boomerang editor controls
+6. **P8-T30** – `f4ba19d` feat: per-animation asset mapping controls
+7. **P8-T31** – `6d96c90` feat: create flow for outside definitions
+8. **P8-T32** – `d9dc46d` feat: resources picker + `/api/resources`
+9. **P8-T33** – `31b3b07` fix: persistence normalization + legacy guards
+10. **P8-T34** – `0327094` test: verification evidence + artifact sync
 
 ## Files Created/Modified
-- `index.html` - Adds dedicated filename status rows for JSON/image import controls.
-- `src/app.js` - Syncs selected filenames into bounded display rows and resets them after successful import.
-- `src/styles.css` - Enforces width/overflow guards and 2-line clamp rendering for long filenames.
-- `.planning/phases/phase-08/8-HF2-VERIFICATION.md` - Acceptance mapping evidence for overflow/wrap/width stability tests.
-- `.planning/phases/phase-08/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE}.md` - Marks 8-HF2 as completed with PASS evidence.
-- `.planning/{STATE,ROADMAP,CURRENT_PHASE}.md` - Updates global tracking and next-plan readiness.
+- `src/app.js` - outside definition model, boomerang timeline, mp4/gif/coded rendering, settings handlers, resource picker integration.
+- `src/app/shared/config.js` - default outside definitions incl. Sandstorm entry and default selection.
+- `src/app/persistence/board-profiles.js` - legacy alias migration for outside definitions.
+- `index.html` - new `Outside Animations` section and controls.
+- `server.mjs` - `/api/resources` endpoint with recursive resource catalog.
+- `.planning/phases/phase-08/8-HF2-VERIFICATION.md` - HF2 acceptance evidence.
 
 ## Decisions Made
-- Use dedicated filename text rows (`aria-live`) to avoid native file-input text from controlling container width.
-- Combine CSS width guards (`min-width: 0`, `max-width: 100%`, `overflow-x: hidden`) with JS truncation for deterministic behavior across long filenames.
+- Kept global outside trigger semantic (`outside-space`) but resolved visual behavior from selected definition to keep runtime compatibility.
+- Implemented boomerang as timeline transform (forward->reverse) shared by coded/gif/mp4 renderers.
+- Used server-side resource discovery for picker reliability and to avoid stale hardcoded asset lists.
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
 
-## Issues Encountered
+**1. [Rule 2 - Missing Critical] Added resource catalog API for picker correctness**
+- **Found during:** P8-T32
+- **Issue:** UI picker needed deterministic list of real files under `resources`; static lists would drift and violate acceptance.
+- **Fix:** Added recursive `/api/resources` endpoint and wired client fetch + picker sync.
+- **Files modified:** `server.mjs`, `src/app.js`, `index.html`
+- **Committed in:** `d9dc46d`
+
+**2. [Rule 1 - Bug] Enforced no-audio guard on outside runtime**
+- **Found during:** P8-T26
+- **Issue:** Outside runtime could still inherit mapped audio lifecycle.
+- **Fix:** Added hard stop guard in `playSoundForAnimation` for global `outside-space` entries.
+- **Files modified:** `src/app.js`
+- **Committed in:** `dc7c0fb`
+
+---
+
+**Total deviations:** 2 auto-fixed (1 Rule 1, 1 Rule 2)
+**Impact on plan:** Both changes were required to satisfy acceptance deterministically; no scope creep beyond HF2 objectives.
+
+## Auth Gates
+
 None.
 
 ## Known Stubs
+
 None.
 
 ## Next Phase Readiness
-- Plan 8-HF2 acceptance gates are closed with evidence in `8-HF2-VERIFICATION.md`.
-- Plan 8-2 hardening wave is now unblocked as the next execution target.
+- Plan 8-HF2 is closed with PASS evidence and synchronized phase artifacts.
+- Plan 8-2 hardening can proceed with outside feature pack as baseline.
 
-## Self-Check
-PASSED
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/phase-08/8-HF2-SUMMARY.md`
+- FOUND commits: `e56b651`, `dc7c0fb`, `edcce29`, `83f7dd4`, `00e9753`, `f4ba19d`, `6d96c90`, `d9dc46d`, `31b3b07`, `0327094`
