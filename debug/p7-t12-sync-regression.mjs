@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { setTimeout as delay } from "node:timers/promises";
+import { readFile } from "node:fs/promises";
 
 const baseUrl = process.env.TT_BEAMER_BASE_URL ?? "http://127.0.0.1:4173";
 
@@ -44,6 +45,39 @@ function assertMissingHopsMsFails(payload) {
   assert(failed, "negative-path failed: missing hopsMs was accepted");
 }
 
+function sliceBetween(source, startMarker, endMarker) {
+  const startIndex = source.indexOf(startMarker);
+  assert(startIndex >= 0, `missing start marker: ${startMarker}`);
+  const endIndex = source.indexOf(endMarker, startIndex + startMarker.length);
+  assert(endIndex >= 0, `missing end marker: ${endMarker}`);
+  return source.slice(startIndex, endIndex);
+}
+
+function assertNoDraftMutationInStartPath(source) {
+  const startBody = sliceBetween(source, "function startRoomAnimationFromDraft()", "\nfunction stopAnimation(");
+  const forbiddenAssignments = [
+    /state\.roomDraft\.animationId\s*=(?!=)/,
+    /state\.roomDraft\.targetType\s*=(?!=)/,
+    /state\.roomDraft\.targetId\s*=(?!=)/,
+    /state\.roomDraft\.opacity\s*=(?!=)/,
+    /state\.roomDraft\.playbackSpeed\s*=(?!=)/,
+    /state\.roomDraft\.intensity\s*=(?!=)/,
+    /state\.roomDraft\.speed\s*=(?!=)/,
+    /state\.roomDraft\.soundVolume\s*=(?!=)/,
+  ];
+  for (const assignmentPattern of forbiddenAssignments) {
+    assert(!assignmentPattern.test(startBody), `draft mutation detected in start path: ${assignmentPattern}`);
+  }
+  assert(!startBody.includes("ROOM_ANIMATIONS[0]?.id ?? \"kaputt\""), "default-animation fallback reset detected in start path");
+}
+
+function assertSnapshotDraftApplyGuard(source) {
+  assert(
+    /if\s*\(outputRole\s*!==\s*OUTPUT_ROLE_CONTROL\s*&&\s*runtime\.roomDraft\s*&&\s*typeof runtime\.roomDraft === "object"\)/.test(source),
+    "snapshot draft apply guard for control role missing",
+  );
+}
+
 async function main() {
   const before = await readJson("/api/live/telemetry");
   const baselineSnapshot = await readJson("/api/live/snapshot?sinceVersion=0");
@@ -55,6 +89,7 @@ async function main() {
 
   const after = await readJson("/api/live/telemetry");
   const state = await readJson("/api/live/state");
+  const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert(after?.ok === true, "telemetry refresh failed");
   assert(state?.ok === true, "live state endpoint unavailable");
 
@@ -71,6 +106,8 @@ async function main() {
   assert(triggerRevisions && typeof triggerRevisions === "object", "missing runtime.globalTriggerRevisions");
   assert(stopRevisions && typeof stopRevisions === "object", "missing runtime.globalStopRevisions");
   assertMissingHopsMsFails(after);
+  assertNoDraftMutationInStartPath(appSource);
+  assertSnapshotDraftApplyGuard(appSource);
 
   console.log(JSON.stringify({
     pass: true,
@@ -93,6 +130,10 @@ async function main() {
     schemaGuard: {
       usesHopsMsOnly: true,
       missingHopsMsRejected: true,
+    },
+    hf4DraftImmutabilityGuard: {
+      startPathDraftMutationBlocked: true,
+      snapshotControlDraftApplyBlocked: true,
     },
   }, null, 2));
 }
