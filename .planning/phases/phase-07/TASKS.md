@@ -39,7 +39,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF3-T1 [P0] Snapshot-Trigger-Revision fuer globale Effekte einziehen: pro neuer Revision auf jedem Client genau ein Vollstart (kein 1s-Kurzlauf bei Fremdtrigger).
 - [x] DONE P7-HF3-T2 [P0] Stop-Gating haerten: laufende globale Effekte enden vorzeitig ausschliesslich bei explizitem Stop im Snapshot.
 - [x] DONE P7-HF3-T3 [P0] Audio-Lifecycle an Snapshot koppeln: pro Trigger-Revision genau ein Start, stale/replayed Audio strikt droppen, kein Alt-Effekt-Nachlauf.
-- [ ] TODO P7-HF3-T4 [P0] Snapshot-Dedup/Idempotenz fuer Trigger-Lifecycle erweitern (Trigger-Revision-Key, reconnect-safe reapply-guard).
+- [x] DONE P7-HF3-T4 [P0] Snapshot-Dedup/Idempotenz fuer Trigger-Lifecycle erweitern (Trigger-Revision-Key, reconnect-safe reapply-guard).
 - [ ] TODO P7-HF3-T5 [P0] Cluster-`stagger start` erweitern: sequenzieller Member-Start mit konfigurierbarem Offset (ms) statt randomisiertem Versatz.
 - [ ] TODO P7-HF3-T6 [P0] UI-Controls fuer Stagger praezisieren: Delay-Slider (ms) + replizierte Persistenz in Command/Snapshot.
 - [ ] TODO P7-HF3-T7 [P0] Regression + Evidenz + Artefakt-Sync liefern (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. Trigger-Dauerparitaet/Audionachlauf/Stagger-Offset-Matrix.

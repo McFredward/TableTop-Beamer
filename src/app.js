@@ -476,11 +476,7 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
           startedAt: Number(previous.startedAt) || nextNowPerf,
         };
       }
-      return {
-        ...animation,
-        triggerKey,
-        triggerRevision,
-      };
+      return null;
     }
     if (previous) {
       return {
@@ -905,8 +901,15 @@ function connectLiveSyncSocket() {
           liveSync.dirtyHintUntil = Date.now() + 1200;
           if (Number.isFinite(payload?.session?.version)) {
             const helloVersion = Number(payload.session.version);
-            liveSync.lastAppliedVersion = Math.max(liveSync.lastAppliedVersion, helloVersion);
             liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
+            const helloSnapshot = payload?.session?.snapshot;
+            if (helloSnapshot && helloVersion > liveSync.lastAppliedVersion) {
+              applyLiveRuntimeSnapshot(helloSnapshot, {
+                version: helloVersion,
+                mutationEnvelope: null,
+                mutationType: "live-hello",
+              });
+            }
           }
           scheduleNextLiveSnapshotPoll(0);
         }
