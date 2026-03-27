@@ -8648,7 +8648,9 @@ function drawOutsideFxLayer(now) {
           key: null,
           forceSeekAt: null,
           boomerangPhase: "forward",
-          reverseTimeSec: null,
+          reversePhaseAnchorSec: null,
+          reversePhaseStartedAtMs: null,
+          lastReverseSeekMs: null,
           lastTickMs: null,
         };
         const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.boomerang ? "boomerang" : selectedDefinition.direction}`;
@@ -8658,7 +8660,9 @@ function drawOutsideFxLayer(now) {
           playbackState.key = playbackKey;
           playbackState.forceSeekAt = 0;
           playbackState.boomerangPhase = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
-          playbackState.reverseTimeSec = selectedDefinition.direction === "reverse" ? durationSec : null;
+          playbackState.reversePhaseAnchorSec = selectedDefinition.direction === "reverse" ? durationSec : null;
+          playbackState.reversePhaseStartedAtMs = selectedDefinition.direction === "reverse" ? now : null;
+          playbackState.lastReverseSeekMs = null;
           playbackState.lastTickMs = now;
         }
         if (isForwardContinuous) {
@@ -8677,7 +8681,9 @@ function drawOutsideFxLayer(now) {
             playbackState.forceSeekAt = null;
           }
           playbackState.lastTickMs = now;
-          playbackState.reverseTimeSec = null;
+          playbackState.reversePhaseAnchorSec = null;
+          playbackState.reversePhaseStartedAtMs = null;
+          playbackState.lastReverseSeekMs = null;
         } else if (!selectedDefinition.boomerang && selectedDefinition.direction === "reverse") {
           video.loop = false;
           if (!video.paused) {
@@ -8688,11 +8694,11 @@ function drawOutsideFxLayer(now) {
             video.currentTime = reverseMappedTime;
           }
           playbackState.lastTickMs = now;
-          playbackState.reverseTimeSec = reverseMappedTime;
+          playbackState.reversePhaseAnchorSec = reverseMappedTime;
+          playbackState.reversePhaseStartedAtMs = now;
+          playbackState.lastReverseSeekMs = null;
         } else {
           video.loop = false;
-          const lastTickMs = Number(playbackState.lastTickMs);
-          const deltaSec = Number.isFinite(lastTickMs) ? Math.max(0, (now - lastTickMs) / 1000) : 0;
           playbackState.lastTickMs = now;
 
           if (playbackState.boomerangPhase === "forward") {
@@ -8705,7 +8711,9 @@ function drawOutsideFxLayer(now) {
             const currentTime = Number(video.currentTime) || 0;
             if (currentTime >= durationSec - 0.03 || video.ended) {
               playbackState.boomerangPhase = "reverse";
-              playbackState.reverseTimeSec = durationSec;
+              playbackState.reversePhaseAnchorSec = durationSec;
+              playbackState.reversePhaseStartedAtMs = now;
+              playbackState.lastReverseSeekMs = null;
               if (!video.paused) {
                 video.pause();
               }
@@ -8714,18 +8722,31 @@ function drawOutsideFxLayer(now) {
             if (!video.paused) {
               video.pause();
             }
-            const baseReverseTime = Number(playbackState.reverseTimeSec);
-            const reverseCursor = Number.isFinite(baseReverseTime)
-              ? baseReverseTime
+            const reverseAnchorSecRaw = Number(playbackState.reversePhaseAnchorSec);
+            const reverseAnchorSec = Number.isFinite(reverseAnchorSecRaw)
+              ? reverseAnchorSecRaw
               : Math.max(0, Math.min(durationSec, Number(video.currentTime) || durationSec));
-            const nextReverseTime = Math.max(0, reverseCursor - deltaSec * targetRate);
-            playbackState.reverseTimeSec = nextReverseTime;
-            if (Math.abs((Number(video.currentTime) || 0) - nextReverseTime) > 0.02) {
+            if (!Number.isFinite(reverseAnchorSecRaw)) {
+              playbackState.reversePhaseAnchorSec = reverseAnchorSec;
+            }
+            const reverseStartedAtRaw = Number(playbackState.reversePhaseStartedAtMs);
+            const reverseStartedAtMs = Number.isFinite(reverseStartedAtRaw) ? reverseStartedAtRaw : now;
+            if (!Number.isFinite(reverseStartedAtRaw)) {
+              playbackState.reversePhaseStartedAtMs = reverseStartedAtMs;
+            }
+            const reverseElapsedSec = Math.max(0, (now - reverseStartedAtMs) / 1000) * targetRate;
+            const nextReverseTime = Math.max(0, reverseAnchorSec - reverseElapsedSec);
+            const lastReverseSeekMsRaw = Number(playbackState.lastReverseSeekMs);
+            const canSeekReverse = !Number.isFinite(lastReverseSeekMsRaw) || now - lastReverseSeekMsRaw >= 33;
+            if (!video.seeking && canSeekReverse && Math.abs((Number(video.currentTime) || 0) - nextReverseTime) > 0.02) {
               video.currentTime = nextReverseTime;
+              playbackState.lastReverseSeekMs = now;
             }
             if (nextReverseTime <= 0.02) {
               playbackState.boomerangPhase = "forward";
-              playbackState.reverseTimeSec = null;
+              playbackState.reversePhaseAnchorSec = null;
+              playbackState.reversePhaseStartedAtMs = null;
+              playbackState.lastReverseSeekMs = null;
               if (Math.abs((Number(video.currentTime) || 0) - 0) > 0.02) {
                 video.currentTime = 0;
               }
