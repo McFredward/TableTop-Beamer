@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF8
+- Last Executed Plan: 7-HF9
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF8-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF9-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -464,6 +464,9 @@
 - Semantik-Regel fuer Phase 7 (Plan 7-HF8): server/client stop semantics fuer globale Scopes werden vereinheitlicht (`global-inside`/`global-outside`), inkl. idempotent stale/unknown handling ohne create/start side-effects.
 - Hover-Regel fuer Phase 7 (Plan 7-HF8): Running-List-Hover bleibt konstant sichtbar (kein blink/loop-flicker) und visuell paritaetisch zu den restlichen Buttons.
 - Artefakt-Regel fuer Phase 7 (Plan 7-HF8): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (verify-work 7-HF8 follow-up): Nach HF8 neutralisieren/ueberschreiben Start-Mutationen fuer room/global-inside/cluster den Laufzeitstart; sichtbar startet teils nur `global-outside`.
+- Status-Regel fuer Plan 7-HF9: `board switched` bleibt ein Kontextsignal und darf aktive Start-/Running-Statusereignisse nicht maskieren oder unmittelbar zuruecksetzen.
+- Lifecycle-Regel fuer Plan 7-HF9: gestartete Animationen bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`; Determinismus ueber Multi-Client + `/output/final` bleibt Pflicht.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -897,3 +900,16 @@
 ## Decision Log Addendum (HF8)
 - Global stop-off konvergiert jetzt verbindlich ueber `stop-animation` mit explizitem Ziel-Metadatenpfad (`targetScope`/`targetType`/`boardId`) statt gemischter stop-Routen.
 - Running-List-Refresh ist waehrend aktiver Hover-/Focus-Interaktion pausiert, damit Hover-Highlight ohne Blink-/Loop-Flicker stabil bleibt.
+
+## Execution Results (Phase 7 Plan HF9)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF9-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`e7c2e49`, `2c86d1b`, `cf3028c`, `e8ad9ed`, `1126bfb`, `be80106`, `143d81b`)
+- Evidence:
+  - `debug/p7-hf9-t12-output.json`
+  - `debug/p7-hf9-t13-output.json`
+  - `debug/p7-hf9-t14-output.json`
+
+## Decision Log Addendum (HF9)
+- `context-update` ist jetzt reason-arbitriert: `room-draft-sync` und `align-toggle` duerfen ohne explizite Context-Switch-Transaktion keinen Board-Kontext mutieren.
+- `board switched` bleibt ein reines Kontextsignal und wird bei Runtime-Panel-Sync nicht mehr emittiert, damit Start-/Running-Status nicht maskiert werden.
