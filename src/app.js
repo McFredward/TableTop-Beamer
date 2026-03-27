@@ -178,6 +178,8 @@ const outsideSpeedInput = document.querySelector("#outside-speed");
 const outsideSpeedValue = document.querySelector("#outside-speed-value");
 const outsideModeInput = document.querySelector("#outside-mode");
 const outsideDirectionInput = document.querySelector("#outside-direction");
+const outsideAssetTypeInput = document.querySelector("#outside-asset-type");
+const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -254,6 +256,8 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-speed",
   "outside-mode",
   "outside-direction",
+  "outside-asset-type",
+  "outside-asset-ref",
 ];
 
 function applyOutputRoleViewContract() {
@@ -5050,6 +5054,12 @@ function syncOutsideFxPanel() {
   outsideSpeedInput.value = String(speed);
   outsideModeInput.value = mode;
   outsideDirectionInput.value = direction;
+  if (outsideAssetTypeInput) {
+    outsideAssetTypeInput.value = selectedDefinition?.assetType ?? outside.assetType;
+  }
+  if (outsideAssetRefInput) {
+    outsideAssetRefInput.value = selectedDefinition?.assetRef ?? outside.assetRef ?? "";
+  }
   if (outsideBoomerangInput) {
     outsideBoomerangInput.checked = boomerang;
   }
@@ -9748,6 +9758,68 @@ outsideDirectionInput.addEventListener("change", () => {
   triggerFeedback.textContent = persisted
     ? `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled`
     : `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled (persistence failed)`;
+});
+
+outsideAssetTypeInput?.addEventListener("change", () => {
+  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      assetType,
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-asset-type-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside asset type command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside asset type command failed";
+      syncOutsideFxPanel();
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, { assetType });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-asset-type-update");
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside asset type updated"
+    : "Status: Outside asset type updated (persistence failed)";
+});
+
+outsideAssetRefInput?.addEventListener("change", () => {
+  const assetRef = String(outsideAssetRefInput.value || "").trim();
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      assetRef,
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-asset-ref-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside asset reference command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside asset reference command failed";
+      syncOutsideFxPanel();
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, { assetRef });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-asset-ref-update");
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside asset reference updated"
+    : "Status: Outside asset reference updated (persistence failed)";
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {

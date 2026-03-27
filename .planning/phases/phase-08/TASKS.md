@@ -32,7 +32,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T27 [P0] Optionales Boomerang-Playback fuer Outside-Animationen implementieren (vorwaerts/rueckwaerts-loop) inkl. Start/Stop/Clear-Paritaet.
 - [x] DONE P8-T28 [P0] Settings-Refactor umsetzen: Outside-Animationscontrols aus `Play Area Editor` in eigene Sektion `Outside Animations` verschieben.
 - [x] DONE P8-T29 [P0] Outside-Animation-Editor liefern: Dropdown fuer bearbeitete Animation + per-animation Boomerang/Settings.
-- [ ] TODO P8-T30 [P0] Asset-Mapping im UI editierbar machen: Quelle pro Animation als `gif`, `mp4` oder coded animation key konfigurierbar.
+- [x] DONE P8-T30 [P0] Asset-Mapping im UI editierbar machen: Quelle pro Animation als `gif`, `mp4` oder coded animation key konfigurierbar.
 - [ ] TODO P8-T31 [P0] Create-Flow fuer neue Outside-Animationen in UI implementieren (anlegen, direkt bearbeiten, runtime-nutzbar).
 - [ ] TODO P8-T32 [P0] Resource-Asset-Picker integrieren: vorhandene Dateien aus `resources` auswaehlbar und als `assetRef` uebernehmbar.
 - [ ] TODO P8-T33 [P0] Persistenz erweitern: Outside-Animationsdefinitionen + Settings ueber Profile/Defaults speichern/laden (inkl. Legacy-Migration/Guards).

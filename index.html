@@ -349,6 +349,23 @@
             <option value="reverse">Reverse</option>
           </select>
         </label>
+        <label>
+          Asset type
+          <select id="outside-asset-type">
+            <option value="coded">Coded</option>
+            <option value="gif">GIF</option>
+            <option value="mp4">MP4</option>
+          </select>
+        </label>
+        <label>
+          Asset reference
+          <input
+            id="outside-asset-ref"
+            type="text"
+            maxlength="256"
+            placeholder="outside-space or /resources/..."
+          />
+        </label>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
