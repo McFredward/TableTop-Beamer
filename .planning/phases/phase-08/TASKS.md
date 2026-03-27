@@ -32,7 +32,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T27 [P0] Settings-Panel-Breitenstabilitaet haerten: kein horizontaler Scrollbedarf durch Dateiname (inkl. schmaler Viewports).
 - [x] DONE P8-T28 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF2)
+## Plan 8-HF3 - Board Catalog Width + Outside Duststorm Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T29 [P0] `Board catalog + output` Layout-Containment haerten: lange Board-Namen/Infozeilen duerfen das Modul nicht horizontal strecken.
+- [x] DONE P8-T30 [P0] Board-Name/Info-Rendering robust machen (Wrap/Truncate/Ellipsis): kein Overflow links/rechts ausserhalb des vorgesehenen Containers.
+- [x] DONE P8-T31 [P0] Panel-Breitenstabilitaet verifizieren: kein horizontaler Scrollbedarf im `Board catalog + output`-Pfad (Desktop + schmale Viewports).
+- [x] DONE P8-T32 [P0] Neue Outside-Animation `Outside Duststorm` implementieren und in Outside-Mode-Selection integrieren.
+- [x] DONE P8-T33 [P0] `Outside Duststorm` in bestehende Outside-Logik + Sync-Pipeline integrieren (serverautoritativ, join/reconnect, first-click-deterministisch).
+- [x] DONE P8-T34 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF3 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF3)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

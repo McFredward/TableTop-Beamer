@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen.
 
-Status: 23/28 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24) und Plan 8-HF2 (P8-T25..P8-T28) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`). Plan 8-2 ist als naechste Welle freigegeben.
+Status: 29/34 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T28) und Plan 8-HF3 (P8-T29..P8-T34) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`). Plan 8-2 ist als naechste Welle freigegeben.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -365,6 +365,8 @@ Milestones:
 6. M6 Non-Regression: Running/Save/Reload/Sync/`/output/final` bleiben stabil.
 7. M7 P0 Hotfix Closure: Room-Klick-Selection hat Prioritaet (ohne Play-Area-Click-Selection), und Bildimport aktiviert neues Board sofort im Dropdown.
 8. M8 P0 Layout Hotfix Closure: lange Upload-Dateinamen koennen das Settings-Panel nicht horizontal aufbrechen oder Scrollzwang erzeugen.
+9. M9 P0 Catalog Layout Hotfix Closure: `Board catalog + output` bleibt auch bei langen Board-Namen/Infozeilen width-stabil ohne Horizontal-Overflow.
+10. M10 P0 Outside Immersion Hotfix Closure: `Outside Duststorm` ist als neuer Outside-Modus integriert und bleibt sync-/maskenparitaetisch stabil.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -378,6 +380,10 @@ Exit Criteria:
 - Lange Bild-Dateinamen verursachen kein horizontales Layout-Breaking in der Settings-Leiste.
 - Dateinamen werden robust umbrochen/abgeschnitten angezeigt, ohne Overflow nach links/rechts.
 - Das Settings-Panel bleibt in stabiler Breite bedienbar; horizontaler Scrollbedarf durch Dateinamen ist ausgeschlossen.
+- Das Modul `Board catalog + output` bleibt bei langen Board-Namen/Infozeilen in stabiler Breite ohne horizontalen Scrollzwang.
+- Board-Namen/Infozeilen sind robust umbrochen oder ellipsiert, ohne seitlichen Overflow ausserhalb ihres Containers.
+- `Outside Duststorm` ist als neuer Outside-Modus verfuegbar und rendert strikt ausserhalb der Play-Area-Union.
+- `Outside Duststorm` bleibt serverautoritativ sync-/persistenzstabil inkl. join/reconnect und `/output/final`-Paritaet.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -406,6 +412,16 @@ New Blocking Wave (Phase 8 follow-up 2):
 
 Gate Closure (8-HF2):
 - P0-Blocker C/D sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
+
+New Blocking Wave (Phase 8 follow-up 3):
+- Neues P0-Betriebsfeedback setzt Plan 8-HF3 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- Blocker E: Modul `Board catalog + output` streckt bei langen Board-Namen/Infozeilen weiterhin horizontal.
+- Blocker F: Neue Outside-Animation `Outside Duststorm` fehlt noch und muss Outside-/Sync-kompatibel integriert werden.
+- Plan 8-2 bleibt bis 8-HF3-PASS blockiert.
+
+Gate Closure (8-HF3):
+- P0-Blocker E/F sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
+- Evidenz: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`, `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

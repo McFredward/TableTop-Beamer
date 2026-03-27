@@ -36,6 +36,15 @@
 - Import-Filename-Render-Guard-Test: Dateiname wird robust umbrochen/abgeschnitten und ueberlaeuft weder nach links noch rechts.
 - Settings-Panel-Width-Stability-Test: Settings-Panel bleibt bei langem Dateinamen ohne horizontalen Scrollbedarf bedienbar.
 
+- Board-Catalog-Output-No-Horizontal-Break-Test: lange Board-Namen/Infozeilen strecken das Modul `Board catalog + output` nicht horizontal.
+- Board-Catalog-Output-Text-Guard-Test: Board-Namen/Infozeilen werden robust umbrochen/ellipsiert ohne links/rechts Overflow ausserhalb des Containers.
+- Board-Catalog-Output-Width-Stability-Test: Modul bleibt in stabiler Breite bedienbar ohne horizontalen Scrollbedarf (Desktop + schmale Viewports).
+
+- Outside-Duststorm-Availability-Test: `Outside Duststorm` ist als neuer Outside-Modus in der UI waehlbar und startbar/stoppbar.
+- Outside-Duststorm-Mask-Integrity-Test: Effekt rendert strikt ausserhalb der Play-Area-Union ohne Inside-Leaks.
+- Outside-Duststorm-Sync-Parity-Test: Mode-Wechsel/Start/Stop sind first-click-deterministisch auf allen Clients inkl. `/output/final` sichtbar.
+- Outside-Duststorm-Reconnect-Test: Join/Reconnect hydratisiert aktiven Duststorm-Status korrekt ohne Drift.
+
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
 - Non-Regression-Sync-Test: Multi-Client-Synchronisation bleibt fuer relevante Kontexte stabil.
@@ -50,6 +59,9 @@
 - Nach P8-T24: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 - Nach P8-T25..P8-T27: Dateinamen-Overflow-Guard ist stabil; Settings-Panel bleibt horizontal scrollfrei.
 - Nach P8-T28: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T29..P8-T31: `Board catalog + output` ist width-stabil; lange Texte bleiben overflow-sicher ohne Horizontal-Scroll.
+- Nach P8-T32..P8-T33: `Outside Duststorm` ist in Render/Maskenpfad + Sync/Persistenz deterministisch integriert.
+- Nach P8-T34: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -64,6 +76,10 @@
 - Langer Bild-Dateiname verursacht kein horizontales Layout-Breaking im Settings-Panel.
 - Dateinamen werden robust umbrochen/abgeschnitten dargestellt, ohne seitlichen Overflow.
 - Settings-Panel bleibt in stabiler Breite ohne horizontalen Scrollbedarf bedienbar.
+- Lange Board-Namen/Infozeilen verursachen im Modul `Board catalog + output` kein horizontales Layout-Breaking.
+- Board-Namen/Infozeilen sind robust umbrochen oder sinnvoll ellipsiert, ohne seitlichen Overflow.
+- `Outside Duststorm` ist als neue Outside-Animation verfuegbar und bleibt strikt ausserhalb der Play-Area-Union geclippt.
+- `Outside Duststorm` ist sync-/persistenzparitaetisch integriert (start/stop/mode inkl. join/reconnect).
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -82,3 +98,10 @@
 - Status: PASS
 - Evidence:
   - `.planning/phases/phase-08/8-HF2-VERIFICATION.md`
+
+## Execution Result (Plan 8-HF3)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF3-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`

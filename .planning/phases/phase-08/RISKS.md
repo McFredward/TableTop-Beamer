@@ -70,6 +70,16 @@
 - Impact: Kritisch.
 - Gegenmassnahme: overflow-sicherer Dateinamen-Container mit robuster Wrap-/Truncate-Strategie und Width-Guard fuer stabile Panel-Breite ohne horizontalen Scrollbedarf.
 
+## R15 `Board catalog + output` wird durch lange Board-Namen/Infozeilen horizontal gestreckt
+- Risiko: Modulbreite driftet ueber die normale Panelbreite, horizontales Scrollen wird noetig und zentrale Controls werden schlechter erreichbar.
+- Impact: Kritisch.
+- Gegenmassnahme: harte Width-/Overflow-Guards auf Modul- und Zeilencontainern, verpflichtende Wrap-/Truncate-/Ellipsis-Regeln und Viewport-Regression fuer Desktop + schmale Breiten.
+
+## R16 Neue Outside-Animation `Outside Duststorm` driftet aus bestehender Outside-/Sync-Semantik
+- Risiko: Duststorm rendert in falschem Clip-Bereich oder erzeugt bei Mode-Wechseln/Join-Reconnect inkonsistente Zustandsbilder zwischen Clients.
+- Impact: Kritisch.
+- Gegenmassnahme: Integration in bestehenden Outside-Mode-Vertrag (serverautoritativ, ack/version), strikt inverse Play-Area-Union-Maskierung und verpflichtende multi-client Determinismus-Regression.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -90,3 +100,12 @@
 ## Risk Review after Plan 8-HF2
 - 2026-03-27: R14 ist mitigiert; Import-Dateinamenpfad nutzt Width-/Overflow-Guards und robustes Filename-Rendering ohne horizontalen Scrollzwang.
 - 2026-03-27: Nachweis ist als PASS in `.planning/phases/phase-08/8-HF2-VERIFICATION.md` dokumentiert.
+
+## Risk Review for Plan 8-HF3 (planned)
+- 2026-03-27: Neues P0-Betriebsfeedback priorisiert R15 als verbleibenden Layout-Blocker vor Plan 8-2.
+- 2026-03-27: R16 wird in derselben Hotfix-Welle abgesichert, damit `Outside Duststorm` nur als sync-/maskenparitaetischer Outside-Modus ausgerollt wird.
+
+## Risk Review after Plan 8-HF3
+- 2026-03-27: R15 ist mitigiert; `Board catalog + output` nutzt harte Width-/Overflow-Guards und overflow-sicheres Text-Rendering ohne horizontalen Scrollzwang.
+- 2026-03-27: R16 ist mitigiert; `Outside Duststorm` ist im Outside-Maskenpfad integriert und bleibt serverautoritativ sync-/persistenzstabil.
+- 2026-03-27: Nachweise sind als PASS in `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md` und `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md` dokumentiert.

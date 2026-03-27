@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF2
+- Last Executed Plan: 8-HF3
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -38,6 +38,13 @@
 - Plan-8-HF2 Umsetzung: Settings-/Panel-/Input-Container nutzen Width-Guards (`min-width: 0`, `max-width: 100%`) und verhindern horizontales Stretching durch Dateinamen.
 - Plan-8-HF2 Umsetzung: Import-Dateien zeigen dedizierte Dateinamenzeilen mit robustem Wrap/Truncate (`2-line clamp`, JS filename sync, reset nach Erfolg).
 - Plan-8-HF2 Umsetzung: Settings-View bleibt auch bei langen Dateinamen horizontal scrollfrei; Plan 8-2 ist damit freigegeben.
+- Neues verpflichtendes Feedback fuer Phase 8 ist gesetzt: Modul `Board catalog + output` streckt bei langen Board-Namen/Infozeilen weiterhin horizontal und verletzt die Layoutbreitenregel.
+- P0-Regel Plan 8-HF3: `Board catalog + output` bleibt width-stabil; lange Board-Namen/Infozeilen werden robust umgebrochen oder sinnvoll ellipsiert, ohne horizontalen Overflow.
+- Neues verpflichtendes Feedback fuer Phase 8 ist gesetzt: neue Outside-Animation `Outside Duststorm` wird als immersive Mars-Sandsturm-Variante ausserhalb der Play-Area gefordert.
+- P0-Regel Plan 8-HF3: `Outside Duststorm` nutzt bestehenden Outside-Masken-/Mode-Vertrag und bleibt serverautoritativ sync-/persistenzkompatibel (inkl. join/reconnect).
+- Plan-8-HF3 Umsetzung: Modul `Board catalog + output` nutzt harte Width-/Overflow-Guards plus robuste Textdarstellung, damit lange Board-Namen/Infozeilen keinen horizontalen Stretch mehr ausloesen.
+- Plan-8-HF3 Umsetzung: `Outside Duststorm` ist als neuer Outside-Modus verfuegbar und rendert als sichtreduzierender Sandsturm strikt im Outside-Maskenpfad.
+- Plan-8-HF3 Umsetzung: Outside-Sync bleibt serverautoritativ; `outside-update`-Snapshots normalisieren jetzt Profile inkl. `duststorm` mode fuer join/reconnect-paritaet.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.

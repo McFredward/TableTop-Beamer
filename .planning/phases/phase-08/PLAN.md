@@ -75,6 +75,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Verbindliche Zielregel: Dateinamen-Darstellung ist robust (umbricht und/oder wird abgeschnitten), ohne Overflow ausserhalb des dafuer vorgesehenen UI-Containers.
 - Verbindliche Zielregel: Settings-Panel-Breite bleibt stabil; horizontales Scrollen ist in diesem Bereich unzulaessig.
 
+## Neues verpflichtendes Feedback (P0 Hotfix-Welle 8-HF3)
+- Layout-Bug weiterhin offen: Modul `Board catalog + output` wird durch lange Board-Namen/Infozeilen weiterhin horizontal gestreckt.
+- Folge im Realbetrieb: trotz HF2 bleibt in diesem Modul Layout-Drift mit horizontalem Overflow und Bedienungsverlust bestehen.
+- Verbindliche Zielregel: Modulbreite bleibt innerhalb normaler Panelbreite stabil; keine horizontale Streckung.
+- Verbindliche Zielregel: lange Board-Namen/Infotexte werden robust umgebrochen oder sinnvoll gekuerzt/ellipsiert.
+- Neue Outside-Animation ist verpflichtend: `Outside Duststorm`.
+- Verbindliche Zielregel: `Outside Duststorm` simuliert ausserhalb der Play-Area einen immersiven Mars-Sandsturm (sichtreduzierend, windig, lebendig).
+- Verbindliche Zielregel: `Outside Duststorm` ist voll kompatibel mit bestehender Outside-Logik, Persistenz und Sync-Pipeline.
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -90,6 +99,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 4. UI-Regression fuer Import-Settings dokumentieren und verifizieren (Desktop + schmale Viewports).
 5. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF3, execute-ready)
+1. Layout-Containment im Modul `Board catalog + output` haerten: lange Board-Namen/Infozeilen duerfen keine horizontale Modulstreckung ausloesen.
+2. Textdarstellung robust machen: Board-Namen/Infozeilen nutzen verpflichtende Wrap-/Truncate-/Ellipsis-Strategie ohne Overflow links/rechts.
+3. Panelstabilitaet absichern: kein horizontaler Scrollbedarf im `Board catalog + output`-Pfad (Desktop + schmale Viewports).
+4. Neue Animation `Outside Duststorm` implementieren und in Outside-Auswahl integrieren.
+5. Runtime-/Render-Guard fuer `Outside Duststorm` absichern: Effekt bleibt strikt ausserhalb der Play-Area-Union geclippt.
+6. Sync-/Persistenz-Paritaet absichern: Mode-Wechsel/Start/Stop fuer `Outside Duststorm` sind serverautoritativ, join/reconnect-stabil und first-click-deterministisch.
+7. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Definition of Done
 - Ein Board kann mehrere getrennte Play-Areas persistent speichern.
 - Play-Area-CRUD in Settings funktioniert robust (create/delete/select) ohne Editor-Dead-Ends.
@@ -104,6 +122,10 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Langer Bild-Dateiname fuehrt im Settings-Bereich zu keinem horizontalen Layout-Breaking.
 - Dateiname wird robust umbrochen/abgeschnitten dargestellt; kein seitlicher Overflow links/rechts.
 - Settings-Panel bleibt in stabiler Breite bedienbar; kein horizontaler Scrollbedarf durch Dateinamen.
+- Modul `Board catalog + output` bleibt bei langen Board-Namen/Infozeilen innerhalb stabiler Breite und ohne horizontalen Overflow.
+- Board-Namen/Infozeilen werden robust umgebrochen oder sinnvoll ellipsiert, ohne Layout-Breaking.
+- `Outside Duststorm` steht als neue Outside-Animation zur Verfuegung und rendert immersiv nur ausserhalb der Play-Area-Union.
+- `Outside Duststorm` ist in bestehende Outside-Logik, Persistenz und Sync-Pipeline integriert (inkl. Join/Reconnect-Paritaet).
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -114,3 +136,5 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Nachweise: `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/P8-T20-REGRESSION.md`, `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`.
 - 2026-03-27: Plan 8-HF2 wurde atomar umgesetzt (P8-T25..P8-T28).
 - Nachweis: `.planning/phases/phase-08/8-HF2-VERIFICATION.md`.
+- 2026-03-27: Plan 8-HF3 wurde atomar umgesetzt (P8-T29..P8-T34).
+- Nachweise: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T31-WIDTH-REGRESSION.md`, `.planning/phases/phase-08/P8-T33-SYNC-REGRESSION.md`.

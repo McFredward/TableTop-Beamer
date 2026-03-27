@@ -9,6 +9,7 @@
 - Import UX and Catalog Integration
 - Selection Arbitration + Import Activation Hotfix
 - Settings Filename Overflow Hotfix
+- Board Catalog Width + Outside Duststorm Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -45,6 +46,14 @@
 - P8-S9.2 Dateinamen-Darstellung nutzt robuste Wrap-/Truncate-Regeln ohne Overflow links/rechts.
 - P8-S9.3 Settings-Panel-Breite bleibt stabil; horizontales Scrollen durch Dateiname ist ausgeschlossen.
 
+- P8-S10.1 Modul `Board catalog + output` bleibt bei langen Board-Namen/Infozeilen width-stabil ohne horizontalen Stretch.
+- P8-S10.2 Board-Namen- und Infozeilen-Rendering nutzt robuste Wrap-/Truncate-/Ellipsis-Regeln ohne links/rechts Overflow.
+- P8-S10.3 Kein horizontaler Scrollbedarf im `Board catalog + output`-Pfad (Desktop + schmale Viewports).
+
+- P8-S11.1 Neue Outside-Animation `Outside Duststorm` wird als waehlbarer Modus in Outside-UX/Runtime integriert.
+- P8-S11.2 `Outside Duststorm` rendert strikt ausserhalb der Play-Area-Union (Clipping-Paritaet Render/Input/Final).
+- P8-S11.3 `Outside Duststorm` bleibt serverautoritativ sync-/persistenzkompatibel (mode/switch/start/stop, join/reconnect).
+
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
 - P8-S7.3 Vollstaendigen Artefakt-Sync mit globalen Planungsdateien abschliessen.
@@ -79,11 +88,21 @@
 - Story P8-S7.1 + P8-S7.3 (Hotfix-spezifisch erweitert).
   - Ziel: P0-Regression fuer Layout-Stabilitaet (kein horizontaler Scrollbedarf im Settings-Panel) plus konsistenter Artefakt-Sync.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF3 execute-ready
+- Story P8-S10.1 + P8-S10.2 + P8-S10.3.
+  - Ziel: `Board catalog + output` bleibt width-stabil; lange Board-Namen/Infozeilen sind ohne horizontales Layout-Breaking robust lesbar.
+- Story P8-S11.1 + P8-S11.2 + P8-S11.3.
+  - Ziel: `Outside Duststorm` erweitert Outside-Immersion, bleibt strikt ausserhalb der Play-Area-Union und ist voll sync-/persistenzkompatibel.
+- Story P8-S7.1 + P8-S7.3 (Hotfix-spezifisch erweitert).
+  - Ziel: P0-Regression fuer Layout + Outside-Mode-Paritaet plus konsistenter Artefakt-Sync.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF2): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF3): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
 - 2026-03-27: Plan 8-1 Stories P8-S1.x bis P8-S7.x umgesetzt und verifiziert (`8-1-VERIFICATION.md`).
 - 2026-03-27: Plan 8-HF1 Stories P8-S8.1..P8-S8.4 umgesetzt; Regression/Empty-Start-Evidenz ist PASS (`8-HF1-VERIFICATION.md`, `P8-T20-REGRESSION.md`, `P8-T23-EMPTY-START-VALIDATION.md`).
 - 2026-03-27: Plan 8-HF2 Stories P8-S9.1..P8-S9.3 sind umgesetzt und PASS verifiziert (`8-HF2-VERIFICATION.md`).
+- 2026-03-27: Neues P0-Betriebsfeedback priorisiert Plan 8-HF3 (P8-S10.x + P8-S11.x) als execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF3 Stories P8-S10.1..P8-S11.3 sind umgesetzt und PASS verifiziert (`8-HF3-VERIFICATION.md`, `P8-T31-WIDTH-REGRESSION.md`, `P8-T33-SYNC-REGRESSION.md`).
