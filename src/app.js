@@ -2000,9 +2000,11 @@ function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
   const name = String(definition?.name || "").trim() || fallbackDefaults.name;
   const assetType = normalizeOutsideAssetType(definition?.assetType);
   const rawAssetRef = String(definition?.assetRef || "").trim();
-  const assetRef = assetType === "coded"
-    ? normalizeOutsideCodedAssetRef(rawAssetRef)
-    : (rawAssetRef || fallbackDefaults.assetRef);
+  const fallbackAssetRef =
+    assetType === "coded"
+      ? "outside-space"
+      : normalizeOutsideAssetRefForType(assetType, fallbackDefaults.assetRef, "");
+  const assetRef = normalizeOutsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
   return {
     id,
     name,
@@ -5113,6 +5115,30 @@ function getOutsideAssetCandidates(assetType) {
   return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
 }
 
+function normalizeOutsideAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
+  const normalizedType = normalizeOutsideAssetType(assetType);
+  const rawRef = String(assetRef || "").trim();
+  if (normalizedType === "coded") {
+    return normalizeOutsideCodedAssetRef(rawRef);
+  }
+
+  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
+  if (isValidResourceRef) {
+    return rawRef;
+  }
+
+  const normalizedFallback = String(fallbackAssetRef || "").trim();
+  const fallbackValid =
+    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
+  if (fallbackValid) {
+    return normalizedFallback;
+  }
+
+  const firstCandidate = getOutsideAssetCandidates(normalizedType)[0];
+  return firstCandidate || "";
+}
+
 function resolveOutsideCodedEffectType(assetRef) {
   if (getOutsideCodedAssetKeys().includes(normalizeOutsideCodedAssetRef(assetRef))) {
     return "outside-space";
@@ -5233,14 +5259,19 @@ function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
 }
 
 function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
+  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
+  const assetRef = normalizeOutsideAssetRefForType(
+    assetType,
+    String(outsideAssetRefInput?.value || "").trim(),
+  );
   return setOutsideEditorDraft(boardId, {
     boomerang: Boolean(outsideBoomerangInput?.checked),
     intensity: clampOutsideIntensity(outsideIntensityInput?.value),
     speed: clampOutsideSpeed(outsideSpeedInput?.value),
     mode: normalizeOutsideMode(outsideModeInput?.value),
     direction: normalizeOutsideDirection(outsideDirectionInput?.value),
-    assetType: normalizeOutsideAssetType(outsideAssetTypeInput?.value),
-    assetRef: String(outsideAssetRefInput?.value || "").trim(),
+    assetType,
+    assetRef,
   });
 }
 
@@ -5264,20 +5295,29 @@ function syncOutsideFxPanel() {
   const mode = draft?.mode ?? selectedDefinition?.mode ?? outside.mode;
   const direction = draft?.direction ?? selectedDefinition?.direction ?? outside.direction;
   const boomerang = Boolean(draft?.boomerang ?? selectedDefinition?.boomerang ?? outside.boomerang);
+  const assetType = normalizeOutsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType);
+  const assetRef = normalizeOutsideAssetRefForType(
+    assetType,
+    draft?.assetRef ?? selectedDefinition?.assetRef ?? outside.assetRef ?? "",
+    selectedDefinition?.assetRef ?? outside.assetRef ?? "",
+  );
+  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
+    setOutsideEditorDraft(state.boardId, { assetType, assetRef });
+  }
   outsideIntensityInput.value = String(intensity);
   outsideSpeedInput.value = String(speed);
   outsideModeInput.value = mode;
   outsideDirectionInput.value = direction;
   if (outsideAssetTypeInput) {
-    outsideAssetTypeInput.value = draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType;
+    outsideAssetTypeInput.value = assetType;
   }
   if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = draft?.assetRef ?? selectedDefinition?.assetRef ?? outside.assetRef ?? "";
+    outsideAssetRefInput.value = assetRef;
   }
   if (outsideBoomerangInput) {
     outsideBoomerangInput.checked = boomerang;
   }
-  syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
+  syncOutsideResourcePicker(assetType, assetRef);
   outsideIntensityValue.textContent = intensity.toFixed(2);
   outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
 }
@@ -9934,14 +9974,25 @@ outsideDirectionInput.addEventListener("change", () => {
 
 outsideAssetTypeInput?.addEventListener("change", () => {
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
-  setOutsideEditorDraft(state.boardId, { assetType });
-  syncOutsideResourcePicker(assetType, String(outsideAssetRefInput?.value || "").trim());
+  const currentAssetRef = String(outsideAssetRefInput?.value || "").trim();
+  const normalizedAssetRef = normalizeOutsideAssetRefForType(assetType, currentAssetRef);
+  setOutsideEditorDraft(state.boardId, {
+    assetType,
+    assetRef: normalizedAssetRef,
+  });
+  if (outsideAssetRefInput) {
+    outsideAssetRefInput.value = normalizedAssetRef;
+  }
+  syncOutsideResourcePicker(assetType, normalizedAssetRef);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideAssetRefInput?.addEventListener("change", () => {
-  const assetRef = String(outsideAssetRefInput.value || "").trim();
+  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
+  const assetRef = normalizeOutsideAssetRefForType(assetType, String(outsideAssetRefInput.value || "").trim());
+  outsideAssetRefInput.value = assetRef;
   setOutsideEditorDraft(state.boardId, { assetRef });
+  syncOutsideResourcePicker(assetType, assetRef);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
@@ -9962,6 +10013,7 @@ outsideResourceApplyButton?.addEventListener("click", () => {
   if (outsideAssetRefInput) {
     outsideAssetRefInput.value = selectedResource;
   }
+  syncOutsideResourcePicker(inferredAssetType, selectedResource);
   triggerFeedback.textContent = "Status: Outside draft updated from resource picker - apply changes to commit";
 });
 
