@@ -2008,19 +2008,25 @@ function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null)
   if (uniqueById.length > 0) {
     return uniqueById;
   }
-  const legacySeed = {
-    id: "outside-space",
-    name: "Outside Space",
-    assetType: "coded",
-    assetRef: "outside-space",
-    boomerang: false,
-    intensity: legacyProfile?.intensity,
-    speed: legacyProfile?.speed,
-    mode: legacyProfile?.mode,
-    direction: legacyProfile?.direction,
-    soundEnabled: false,
-  };
-  return [normalizeOutsideAnimationDefinition(legacySeed, 0)];
+  const defaults = createDefaultOutsideAnimationDefinitions();
+  if (!legacyProfile || typeof legacyProfile !== "object") {
+    return defaults.map((entry, index) => normalizeOutsideAnimationDefinition(entry, index));
+  }
+  return defaults.map((entry, index) => {
+    if (index !== 0) {
+      return normalizeOutsideAnimationDefinition(entry, index);
+    }
+    return normalizeOutsideAnimationDefinition(
+      {
+        ...entry,
+        intensity: legacyProfile?.intensity,
+        speed: legacyProfile?.speed,
+        mode: legacyProfile?.mode,
+        direction: legacyProfile?.direction,
+      },
+      index,
+    );
+  });
 }
 
 function normalizeOutsideFxProfile(profile) {
@@ -5642,6 +5648,10 @@ function enforceAudioLifecycleGuard() {
 
 function playSoundForAnimation(animation) {
   if (!animation || !isAudioPlaybackAllowed()) {
+    return;
+  }
+  if (animation.scope === "global" && animation.type === "outside-space") {
+    stopAnimationSound(animation.id);
     return;
   }
   if (animation.scope === "cluster") {

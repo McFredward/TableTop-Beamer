@@ -359,12 +359,24 @@
         direction: "forward",
         soundEnabled: false,
       },
+      {
+        id: "outside-sandstorm",
+        name: "Outside Sandstorm",
+        assetType: "mp4",
+        assetRef: toRootAssetPath("resources/nemesis/animations/sandstorm.mp4"),
+        boomerang: false,
+        intensity: 0.9,
+        speed: 1,
+        mode: "standard",
+        direction: "forward",
+        soundEnabled: false,
+      },
     ];
   }
 
   const OUTSIDE_FX_DEFAULT = {
     enabled: false,
-    selectedAnimationId: "outside-space",
+    selectedAnimationId: "outside-sandstorm",
     animations: createDefaultOutsideAnimationDefinitions(),
   };
 
