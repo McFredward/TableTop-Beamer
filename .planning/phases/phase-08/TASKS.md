@@ -29,7 +29,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 ## Plan 8-HF2 - Outside Animations Mars Feature Pack (priorisierte P0-Welle, execute-ready)
 - [x] DONE P8-T25 [P0] Outside-Animationsdatenmodell erweitern: mehrere Definitionen inkl. `assetType`, `assetRef`, `boomerang`, animation-spezifischer Settings.
 - [x] DONE P8-T26 [P0] Neue verpflichtende Animation `Outside Sandstorm` auf `sandstorm.mp4` integrieren (immer stumm, kein Audio).
-- [ ] TODO P8-T27 [P0] Optionales Boomerang-Playback fuer Outside-Animationen implementieren (vorwaerts/rueckwaerts-loop) inkl. Start/Stop/Clear-Paritaet.
+- [x] DONE P8-T27 [P0] Optionales Boomerang-Playback fuer Outside-Animationen implementieren (vorwaerts/rueckwaerts-loop) inkl. Start/Stop/Clear-Paritaet.
 - [ ] TODO P8-T28 [P0] Settings-Refactor umsetzen: Outside-Animationscontrols aus `Play Area Editor` in eigene Sektion `Outside Animations` verschieben.
 - [ ] TODO P8-T29 [P0] Outside-Animation-Editor liefern: Dropdown fuer bearbeitete Animation + per-animation Boomerang/Settings.
 - [ ] TODO P8-T30 [P0] Asset-Mapping im UI editierbar machen: Quelle pro Animation als `gif`, `mp4` oder coded animation key konfigurierbar.

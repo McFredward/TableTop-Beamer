@@ -1157,6 +1157,7 @@ const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
+const outsideVideoCacheByPath = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -2085,6 +2086,30 @@ function updateOutsideFxProfile(boardId, partial) {
     selectedAnimationId: selectedDefinition.id,
     animations: updatedDefinitions,
   });
+}
+
+function getSelectedOutsideAnimationDefinition(boardId = state.boardId) {
+  const profile = getOutsideFxProfile(boardId);
+  const selectedId = normalizeOutsideAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+  return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+}
+
+function resolveOutsideTimeline(elapsedSeconds, speed, boomerang) {
+  const normalizedElapsed = Math.max(0, Number(elapsedSeconds) || 0);
+  const normalizedSpeed = clampOutsideSpeed(speed);
+  const directedTimeline = normalizedElapsed * normalizedSpeed;
+  if (!boomerang) {
+    return {
+      timeline: directedTimeline,
+      directionMultiplier: 1,
+    };
+  }
+  const cycle = directedTimeline % 2;
+  const reversePhase = cycle > 1;
+  return {
+    timeline: reversePhase ? 2 - cycle : cycle,
+    directionMultiplier: reversePhase ? -1 : 1,
+  };
 }
 
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
@@ -3735,6 +3760,41 @@ function warmRoomGifAssets({ reason = "runtime" } = {}) {
   for (const assetPath of Object.values(ROOM_GIF_ANIMATION_ASSETS)) {
     warmGifAssetPath(assetPath, { reason });
   }
+}
+
+function getOutsideVideoElement(path) {
+  const normalizedPath = String(path || "").trim();
+  if (!normalizedPath) {
+    return null;
+  }
+  if (!outsideVideoCacheByPath.has(normalizedPath)) {
+    const video = document.createElement("video");
+    video.src = normalizedPath;
+    video.crossOrigin = "anonymous";
+    video.preload = "auto";
+    video.muted = true;
+    video.loop = false;
+    video.playsInline = true;
+    outsideVideoCacheByPath.set(normalizedPath, {
+      status: "loading",
+      video,
+      durationSec: null,
+    });
+    const entry = outsideVideoCacheByPath.get(normalizedPath);
+    video.addEventListener("loadedmetadata", () => {
+      const durationSec = Number(video.duration);
+      if (entry) {
+        entry.status = Number.isFinite(durationSec) && durationSec > 0 ? "ready" : "error";
+        entry.durationSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null;
+      }
+    });
+    video.addEventListener("error", () => {
+      if (entry) {
+        entry.status = "error";
+      }
+    });
+  }
+  return outsideVideoCacheByPath.get(normalizedPath) ?? null;
 }
 
 function clampRoomSpeed(value) {
@@ -8260,6 +8320,20 @@ function drawOutsideFxLayer(now) {
   if (!outside.enabled) {
     return;
   }
+  const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
+  if (!selectedDefinition) {
+    return;
+  }
+  const runtimeEntry = findOutsideGlobalAnimation(state.boardId);
+  const startedAt = Number(runtimeEntry?.startedAt);
+  const elapsedSeconds = Number.isFinite(startedAt)
+    ? Math.max(0, (now - startedAt) / 1000) * state.animationSpeed
+    : (now / 1000) * state.animationSpeed;
+  const timeline = resolveOutsideTimeline(elapsedSeconds, selectedDefinition.speed, selectedDefinition.boomerang);
+  const timelineDirection = timeline.directionMultiplier;
+  const baseDirection = selectedDefinition.direction === "reverse" ? -1 : 1;
+  const effectiveDirection = timelineDirection * baseDirection < 0 ? "reverse" : "forward";
+
   ctx.save();
   try {
     ctx.globalCompositeOperation = "source-over";
@@ -8269,18 +8343,32 @@ function drawOutsideFxLayer(now) {
     if (!clipped) {
       return;
     }
-    drawEffectVisual(
-      "outside-space",
-      (now / 1000) * outside.speed * state.animationSpeed,
-      outside.intensity,
-      null,
-      null,
-      {
-        outsideMode: outside.mode,
-        outsideSpeed: outside.speed,
-        outsideDirection: outside.direction,
-      },
-    );
+    if (selectedDefinition.assetType === "gif") {
+      const frame = getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline);
+      if (frame) {
+        ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
+        ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+      }
+      return;
+    }
+    if (selectedDefinition.assetType === "mp4") {
+      const videoEntry = getOutsideVideoElement(selectedDefinition.assetRef);
+      const durationSec = Number(videoEntry?.durationSec);
+      if (videoEntry?.video && Number.isFinite(durationSec) && durationSec > 0) {
+        const mappedTime = ((timeline.timeline % durationSec) + durationSec) % durationSec;
+        if (Math.abs((Number(videoEntry.video.currentTime) || 0) - mappedTime) > 0.03) {
+          videoEntry.video.currentTime = mappedTime;
+        }
+        ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
+        ctx.drawImage(videoEntry.video, 0, 0, canvas.width, canvas.height);
+      }
+      return;
+    }
+    drawEffectVisual("outside-space", timeline.timeline, selectedDefinition.intensity, null, null, {
+      outsideMode: selectedDefinition.mode,
+      outsideSpeed: selectedDefinition.speed,
+      outsideDirection: effectiveDirection,
+    });
   } finally {
     ctx.restore();
   }
