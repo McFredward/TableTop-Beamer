@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2 und 7-HF3 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`); naechster Schritt ist Plan 7-2 (Hardening).
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3 und 7-HF4 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`); Plan 7-2 ist als naechste Hardening-Welle freigegeben.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -227,6 +227,7 @@ Milestones:
 8. M8 Non-Regression Closure: room/cluster, align-mode, audio-role-routing, persistence bleiben stabil.
 9. M9 Polling Determinism Pivot: server-only source of truth, snapshot-versioned polling (120-250 ms), no optimistic local states, optional WS wakeup hints.
 10. M10 Trigger/Audio/Stagger Consistency Hotfix: snapshot-trigger full-run parity, explicit-stop-only lifecycle, audio stale-replay guard, sequential stagger offset slider.
+11. M11 Draft Immutability Hotfix: Start mutiert keine Draft-UI; room-click bleibt einziger auto-target Pfad; room/cluster parity fuer Serienstarts.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -238,6 +239,9 @@ Exit Criteria:
 - Lokale optimistische Zielstates sind entfernt; WS ist optionaler Wakeup-Hint und nicht Teil der Korrektheitslogik.
 - Globale Trigger laufen client-uebergreifend vollstaendig und werden nur per explizitem Snapshot-Stop vorzeitig beendet.
 - Audio startet/stoppt revisionsstabil ohne spaete Alt-Effekte; cluster stagger ist sequenziell mit konfigurierbarem Offset repliziert.
+- Start einer room/cluster Animation mutiert Draft-Felder nicht; Dropdowns (`animation`, `target`) und Slider bleiben nach Start unveraendert.
+- Board-Raumklick bleibt als einziger erlaubter Auto-Pfad fuer `target` erhalten; Start aendert `target` nicht.
+- Workflow `mehrere Raeume nacheinander mit gleichen Einstellungen` bleibt stabil fuer room- und cluster-targets.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -250,6 +254,11 @@ Execution Update (7-HF3):
 - Global trigger lifecycle is revisioned server-side (`globalTriggerRevisions` / `globalStopRevisions`) and applied once per trigger revision on clients.
 - Explicit-stop-only global teardown and revision-aware audio dedup/stale-drop are active in snapshot apply path.
 - Cluster stagger start is deterministic sequential with replicated `staggerOffsetMs` slider config; HF3 evidence PASS (`debug/p7-hf3-*`).
+
+Execution Update (7-HF4):
+- Room/cluster start path is draft-immutable: no start-side reset/jump of `animation`, `target`, or slider drafts.
+- Control snapshot apply no longer back-writes `runtime.roomDraft` into local draft controls.
+- HF4 regression/non-regression/latency evidence is PASS (`debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

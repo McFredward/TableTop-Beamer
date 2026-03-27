@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF3
+- Last Executed Plan: 7-HF4
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -433,6 +433,11 @@
 - Plan-7-HF3 execution: Server vergibt trigger-/stop-revisions pro globalem Trigger-Key (`runtime.globalTriggerRevisions`, `runtime.globalStopRevisions`) als snapshotautoritatives Lifecycle-Signal.
 - Plan-7-HF3 execution: Client-Apply nutzt once-per-revision replay + stale-reapply-drop fuer globale Trigger und revision-aware Audio-Idempotenz (kein stale replay).
 - Plan-7-HF3 execution: Cluster-Stagger ist deterministisch sequenziell (`index * staggerOffsetMs`), Sliderwert wird ueber `runtime.roomDraft` repliziert und in Cluster-Runtime-Metadaten gespiegelt.
+- Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (nach HF3): Start einer room/cluster Animation mutiert unerlaubt Draft-Felder (`target` springt auf `cluster`, `animation` springt auf erstes Element) und bricht Serienstarts mit gleichen Einstellungen.
+- Draft-Invarianten-Regel fuer Phase 7 (Plan 7-HF4): Start-Operationen sind strikt draft-immutable; Dropdowns (`animation`, `target`) und Slider bleiben nach Start unveraendert.
+- Klick-Regel fuer Phase 7 (Plan 7-HF4): Board-Raumklick darf weiterhin ausschliesslich `target` auto auf den geklickten Raum setzen; Start selbst aendert keine Draft-Felder.
+- Scope-Regel fuer Phase 7 (Plan 7-HF4): Verhalten bleibt stabil fuer `targetType=room` und `targetType=cluster`.
+- Artefakt-Regel fuer Phase 7 (Plan 7-HF4): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
@@ -825,3 +830,17 @@
 ## Decision Log Addendum (HF2)
 - Korrektheitspfad ist serverautoritatives Snapshot-Polling; WebSocket bleibt optionaler `state-dirty`-Wakeup-Hint.
 - Control-Clients senden Mutationen write-only an den Server und zeigen Pending, bis die entsprechende Snapshot-Version sichtbar angewendet wurde.
+
+## Execution Results (Phase 7 Plan HF4)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF4-SUMMARY.md`
+- Task Commits: 7 atomare Commits (`bd3bcf4`, `24e8186`, `3ce8487`, `748d5a9`, `9d176e7`, `d64ba6e`, `35218e9`)
+- Evidence:
+  - `debug/p7-hf4-t12-output.json`
+  - `debug/p7-hf4-t13-output.json`
+  - `debug/p7-hf4-t14-output.json`
+
+## Decision Log Addendum (HF4)
+- Start-Operationen fuer room/cluster sind draft-immutable; Draft-UI-Felder (`animation`, `target`, Slider) duerfen durch Start nicht mutieren.
+- Snapshot-Polling schreibt `runtime.roomDraft` auf Control-Clients nicht mehr in lokale Draft-Controls zurueck.
+- Room-Klick bleibt der einzige Auto-Pfad fuer Target-Autofill (`targetType=room`, `targetId=<clickedRoomId>`).
