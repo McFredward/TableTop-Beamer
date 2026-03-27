@@ -90,7 +90,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF9-T3 [P0] Start/Stop-Paritaet fuer alle Scopes regressionsfest machen (`room`, `global-inside`, `global-outside`, `cluster`) inkl. strict stop-only semantics.
 - [x] DONE P7-HF9-T4 [P0] Lifecycle-/Persistenz-Guard haerten: gestartete Animationen bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`; kein implizites Early-Cleanup durch Statusdrift.
 - [x] DONE P7-HF9-T5 [P0] Deterministische Multi-Client-Sync-Paritaet inkl. `/output/final` sichern (Polling/Version/Ack/Reconnect non-regression beibehalten).
-- [ ] TODO P7-HF9-T6 [P0] Voller Funktionscheck als Pflichtmatrix ausfuehren: Start+Stop fuer room/global-inside/global-outside/cluster inkl. status arbitration checks.
+- [x] DONE P7-HF9-T6 [P0] Voller Funktionscheck als Pflichtmatrix ausfuehren: Start+Stop fuer room/global-inside/global-outside/cluster inkl. status arbitration checks.
 - [ ] TODO P7-HF9-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Plan 7-2 - Hardening Wave (nach 7-HF9)
