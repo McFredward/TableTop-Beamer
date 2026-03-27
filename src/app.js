@@ -784,6 +784,20 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   });
 }
 
+function filterRunningAnimationsForBoard(runningAnimations, boardId) {
+  const normalizedBoardId = typeof boardId === "string" ? boardId.trim() : "";
+  return (Array.isArray(runningAnimations) ? runningAnimations : []).filter((animation) => {
+    if (!animation || typeof animation !== "object") {
+      return false;
+    }
+    const animationBoardId = typeof animation.boardId === "string" ? animation.boardId.trim() : "";
+    if (!normalizedBoardId || !animationBoardId) {
+      return true;
+    }
+    return animationBoardId === normalizedBoardId;
+  });
+}
+
 function isControlCriticalMutationEnvelope(envelope) {
   return envelope?.priority === "high" || envelope?.mutationClass === "control-critical";
 }
@@ -885,7 +899,8 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       .filter((animation) => animation && typeof animation.id === "string")
       .map((animation) => [animation.id, animation]),
   );
-  const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(runtime.runningAnimations, previousAnimationsById);
+  const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
+  const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(primedRunningAnimations);
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {
