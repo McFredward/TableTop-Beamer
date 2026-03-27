@@ -5104,6 +5104,14 @@ function normalizeOutsideCodedAssetRef(assetRef) {
   return "outside-space";
 }
 
+function getOutsideAssetCandidates(assetType) {
+  const normalizedType = normalizeOutsideAssetType(assetType);
+  if (normalizedType === "coded") {
+    return getOutsideCodedAssetKeys();
+  }
+  return outsideResourceAssets;
+}
+
 function resolveOutsideCodedEffectType(assetRef) {
   if (getOutsideCodedAssetKeys().includes(normalizeOutsideCodedAssetRef(assetRef))) {
     return "outside-space";
@@ -5134,24 +5142,31 @@ function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, 
   });
 }
 
-function syncOutsideResourcePicker() {
+function syncOutsideResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
   if (!outsideResourceSelect) {
     return;
   }
+  const assetType = normalizeOutsideAssetType(assetTypeOverride ?? outsideAssetTypeInput?.value);
+  const candidateAssets = getOutsideAssetCandidates(assetType);
   outsideResourceSelect.replaceChildren();
   const placeholder = document.createElement("option");
   placeholder.value = "";
-  placeholder.textContent = outsideResourceAssets.length > 0
-    ? "Select resource asset…"
-    : "No resource assets available";
+  placeholder.textContent =
+    candidateAssets.length > 0
+      ? assetType === "coded"
+        ? "Select coded renderer key…"
+        : "Select resource asset…"
+      : assetType === "coded"
+        ? "No coded renderer keys available"
+        : "No resource assets available";
   outsideResourceSelect.append(placeholder);
-  for (const assetPath of outsideResourceAssets) {
+  for (const assetPath of candidateAssets) {
     const option = document.createElement("option");
     option.value = assetPath;
-    option.textContent = assetPath.replace(/^\//, "");
+    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
     outsideResourceSelect.append(option);
   }
-  outsideResourceSelect.value = "";
+  outsideResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
 }
 
 async function loadOutsideResourceAssets() {
@@ -5169,7 +5184,7 @@ async function loadOutsideResourceAssets() {
   } catch {
     outsideResourceAssets = [];
   }
-  syncOutsideResourcePicker();
+  syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
 }
 
 function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
@@ -5261,6 +5276,7 @@ function syncOutsideFxPanel() {
   if (outsideBoomerangInput) {
     outsideBoomerangInput.checked = boomerang;
   }
+  syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
   outsideIntensityValue.textContent = intensity.toFixed(2);
   outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
 }
@@ -9918,6 +9934,7 @@ outsideDirectionInput.addEventListener("change", () => {
 outsideAssetTypeInput?.addEventListener("change", () => {
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
   setOutsideEditorDraft(state.boardId, { assetType });
+  syncOutsideResourcePicker(assetType, String(outsideAssetRefInput?.value || "").trim());
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
