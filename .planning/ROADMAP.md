@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15), Plan 7-HF1 ist geschlossen (Verifier/Matrix-Integrity), und Plan 7-HF2 ist ebenfalls abgeschlossen (Snapshot-Polling-Korrektheit + 4-Client-Evidenz). Naechster Schritt ist Plan 7-2 Hardening.
+Status: Plan 7-1, 7-HF1, 7-HF2 und 7-HF3 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`); naechster Schritt ist Plan 7-2 (Hardening).
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -226,6 +226,7 @@ Milestones:
 7. M7 Telemetry and Tracing: P50/P95/P99 pro Hop/Rolle mit mutation correlation.
 8. M8 Non-Regression Closure: room/cluster, align-mode, audio-role-routing, persistence bleiben stabil.
 9. M9 Polling Determinism Pivot: server-only source of truth, snapshot-versioned polling (120-250 ms), no optimistic local states, optional WS wakeup hints.
+10. M10 Trigger/Audio/Stagger Consistency Hotfix: snapshot-trigger full-run parity, explicit-stop-only lifecycle, audio stale-replay guard, sequential stagger offset slider.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -235,6 +236,8 @@ Exit Criteria:
 - Telemetrie/Tracing und Regression-Suite liefern reproduzierbare Evidenz fuer Latenz und Determinismus.
 - Korrektheitspfad ist deterministisch polling-basiert: sichtbare Client-Zustaende kommen nur aus serverseitigen Snapshots mit monotoner Version.
 - Lokale optimistische Zielstates sind entfernt; WS ist optionaler Wakeup-Hint und nicht Teil der Korrektheitslogik.
+- Globale Trigger laufen client-uebergreifend vollstaendig und werden nur per explizitem Snapshot-Stop vorzeitig beendet.
+- Audio startet/stoppt revisionsstabil ohne spaete Alt-Effekte; cluster stagger ist sequenziell mit konfigurierbarem Offset repliziert.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -242,6 +245,11 @@ Execution Update (7-HF2):
 - Server exposes `/api/live/snapshot` (authoritative read) and `/api/live/command` (write-only commands).
 - Client runtime applies only versioned snapshots with adaptive polling cadence (~120ms active / ~250ms idle + backoff/jitter).
 - Deterministic 4-client regression incl. `/output/final` is PASS (`debug/p7-hf2-*`).
+
+Execution Update (7-HF3):
+- Global trigger lifecycle is revisioned server-side (`globalTriggerRevisions` / `globalStopRevisions`) and applied once per trigger revision on clients.
+- Explicit-stop-only global teardown and revision-aware audio dedup/stale-drop are active in snapshot apply path.
+- Cluster stagger start is deterministic sequential with replicated `staggerOffsetMs` slider config; HF3 evidence PASS (`debug/p7-hf3-*`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

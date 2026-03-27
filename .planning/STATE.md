@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF2
+- Last Executed Plan: 7-HF3
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -425,6 +425,14 @@
 - Messbarkeits-Regel fuer Phase 7: E2E-Telemetrie und Latenz-SLOs (P50/P95/P99) sind verbindliche Abnahmebasis.
 - Non-Regression-Regel fuer Phase 7: room/cluster, align-mode, audio-role-routing und persistence bleiben verpflichtend stabil.
 - Phase-7 Plan 7-1 ist als erste execute-ready Welle gesetzt.
+- Neues verpflichtendes Feedback fuer Phase 7 setzt Plan 7-HF3 als priorisierte P0-Welle: globale Trigger koennen client-inkonsistent zu kurz laufen, Audio ist sporadisch/verspaetet inkonsistent, Cluster-Stagger braucht deterministischen Offset statt Zufallsversatz.
+- Snapshot-Trigger-Regel fuer Phase 7 (Plan 7-HF3): Trigger im Snapshot startet globale Effekte auf allen Clients genau einmal pro Trigger-Revision und laeuft vollstaendig.
+- Stop-Regel fuer Phase 7 (Plan 7-HF3): vorzeitiger Abbruch globaler Effekte ist nur mit explizitem Snapshot-Stop zulaessig.
+- Audio-Regel fuer Phase 7 (Plan 7-HF3): Audio folgt derselben Trigger-Revision wie Visuals, mit strict stale-drop gegen Alt-Effekt-Nachlauf.
+- Stagger-Regel fuer Phase 7 (Plan 7-HF3): Cluster-Member starten sequenziell mit konfigurierbarem Offset-Slider (ms), repliziert ueber Command/Snapshot.
+- Plan-7-HF3 execution: Server vergibt trigger-/stop-revisions pro globalem Trigger-Key (`runtime.globalTriggerRevisions`, `runtime.globalStopRevisions`) als snapshotautoritatives Lifecycle-Signal.
+- Plan-7-HF3 execution: Client-Apply nutzt once-per-revision replay + stale-reapply-drop fuer globale Trigger und revision-aware Audio-Idempotenz (kein stale replay).
+- Plan-7-HF3 execution: Cluster-Stagger ist deterministisch sequenziell (`index * staggerOffsetMs`), Sliderwert wird ueber `runtime.roomDraft` repliziert und in Cluster-Runtime-Metadaten gespiegelt.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
