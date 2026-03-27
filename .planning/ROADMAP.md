@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Welle fuer Outside-Editor-Stabilitaet.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 29/34 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24) und Plan 8-HF2 (P8-T25..P8-T34) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`). Plan 8-2 folgt als Hardening.
+Status: 35/40 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34) und Plan 8-HF3 (P8-T35..P8-T40) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`). Naechste Welle: Plan 8-2.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -366,6 +366,7 @@ Milestones:
 7. M7 P0 Hotfix Closure: Room-Klick-Selection hat Prioritaet (ohne Play-Area-Click-Selection), und Bildimport aktiviert neues Board sofort im Dropdown.
 8. M8 Mars Outside Feature Pack: `Outside Sandstorm` (stumm), optionales Boomerang-Playback und neue Settings-Sektion `Outside Animations`.
 9. M9 Outside Asset Mapping + Persistence: UI-editierbares Mapping (`gif`/`mp4`/coded key), UI-Create-Flow und persistente Definitionen/Settings.
+10. M10 Outside Regression Closure: `Coded/Space` Restore, Sandstorm-Stabilisierung, stabile Editor-Inputs und atomarer `Apply changes` Commit.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -383,6 +384,10 @@ Exit Criteria:
 - Asset-Mapping ist pro Outside-Animation in UI editierbar (`gif`/`mp4`/coded animation key); neue Outside-Animationen koennen in UI angelegt werden.
 - Vorhandene Dateien aus `resources` sind als Asset-Quelle auswaehlbar.
 - Outside-Animationsdefinitionen und Settings bleiben ueber Save/Reload/Restart/Defaults persistent und migrationsstabil.
+- `Coded/Space` ist visuell wiederhergestellt und verbleibt nicht in schwarzem Fallback.
+- `Outside Sandstorm` spielt stabil ohne permanentes Restart-/Rewind-Flackern.
+- Boomerang-Checkbox und Asset-Type-Dropdown sind im Outside-Editor stabil editierbar.
+- Outside-Editor uebernimmt Type/Resource/Optionen nur ueber explizites `Apply changes` atomar im selben Commit.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -410,7 +415,18 @@ New Blocking Wave (Phase 8 Mars feature pack):
 
 Gate Closure (8-HF2):
 - P0-Mars-Featurepaket ist geschlossen; Outside Sandstorm, boomerang playback, outside settings ownership, asset mapping/create/resource picker und persistence/migration guards sind PASS.
-- Plan 8-2 Hardening ist als naechste Welle freigegeben.
+
+New Blocking Wave (Phase 8 Outside regression follow-up):
+- Verbindliches P0-Betriebsfeedback priorisiert Plan 8-HF3 als unmittelbare Hotfix-Welle vor Plan 8-2.
+- Blocker A: `Coded/Space` rendert aktuell nur schwarz statt erwarteter coded animation.
+- Blocker B: `Outside Sandstorm` flackert/rewindet als Restart-Loop und ist nicht stabil abspielbar.
+- Blocker C: Boomerang-Checkbox ist nicht setzbar; Asset-Type-Dropdown springt auf alten Wert zurueck.
+- Blocker D: Outside-Editor braucht verpflichtenden `Apply changes`-Commit fuer atomares Uebernehmen von Type/Resource/Optionen.
+- Plan 8-2 bleibt bis 8-HF3-PASS blockiert.
+
+Gate Closure (8-HF3):
+- P0-Outside-Regressionen sind geschlossen: coded restore, sandstorm stability, editor input stability und atomarer apply-path sind PASS.
+- Plan 8-2 ist als naechste Hardening-Welle freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

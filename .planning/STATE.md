@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF2
+- Last Executed Plan: 8-HF3
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -42,6 +42,13 @@
 - Plan-8-HF2 execution: `Outside Sandstorm` defaults to `sandstorm.mp4` and outside runtime audio is hard-muted.
 - Plan-8-HF2 execution: Outside configuration moved to dedicated `Outside Animations` settings section with dropdown editor, create flow, and `/api/resources` asset picker.
 - Plan-8-HF2 execution: outside definition persistence/defaults include legacy alias normalization (`outside`, `outsideAnimations`, `selectedOutsideAnimationId`).
+- Neues verpflichtendes P0-Betriebsfeedback fuer Phase 8 ist gesetzt: `Coded/Space` rendert nur schwarz, `Outside Sandstorm` flackert/rewindet, Boomerang-Checkbox ist nicht setzbar, Asset-Type-Dropdown springt zurueck.
+- UX-Pflichtregel Phase 8 HF3: Outside-Animation-Editor erhaelt `Apply changes`, damit Type/Resource/Optionen atomar zusammen committen.
+- P0-Regel Plan 8-HF3: Restore fuer `Coded/Space`, stabile Sandstorm-Wiedergabe, stabile Editor-Inputs (`boomerang`, `assetType`) und Save/Reload-Determinismus sind Blocker-Gate vor Plan 8-2.
+- Plan-8-HF3 Umsetzung: coded outside asset refs sind wieder deterministisch auf den Runtime-`outside-space` Pfad normalisiert (kein schwarzer No-Op).
+- Plan-8-HF3 Umsetzung: Sandstorm MP4 laeuft im kontinuierlichen Forward-Playback (native loop/rate) ohne frameweises Restart-Seeking.
+- Plan-8-HF3 Umsetzung: Outside-Editor nutzt Draft-Inputs mit explizitem `Apply changes`; Type/Resource/Optionen werden atomar als ein Update uebernommen.
+- Plan-8-HF3 Umsetzung: HF3 Regression/Persistenzmatrix ist PASS dokumentiert (`P8-T39-OUTSIDE-EDITOR-REGRESSION.md`, `8-HF3-VERIFICATION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
