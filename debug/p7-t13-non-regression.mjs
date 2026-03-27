@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { setTimeout as delay } from "node:timers/promises";
+import { readFile } from "node:fs/promises";
 
 const baseUrl = process.env.TT_BEAMER_BASE_URL ?? "http://127.0.0.1:4173";
 
@@ -64,6 +65,57 @@ function createPollingClient(role) {
   };
 }
 
+const HF4_ROOM_DRAFT_FIELDS = [
+  "animationId",
+  "targetType",
+  "targetId",
+  "opacity",
+  "playbackSpeed",
+  "intensity",
+  "speed",
+  "soundVolume",
+  "staggerStart",
+  "staggerOffsetMs",
+  "durationSec",
+  "hold",
+];
+
+function normalizeDraftValue(field, value) {
+  switch (field) {
+    case "opacity":
+    case "playbackSpeed":
+    case "intensity":
+    case "speed":
+    case "soundVolume":
+      return Number(value);
+    case "staggerOffsetMs":
+    case "durationSec":
+      return Math.round(Number(value));
+    case "staggerStart":
+    case "hold":
+      return Boolean(value);
+    default:
+      return value ?? null;
+  }
+}
+
+function normalizeRoomDraftForComparison(roomDraft) {
+  return Object.fromEntries(HF4_ROOM_DRAFT_FIELDS.map((field) => [
+    field,
+    normalizeDraftValue(field, roomDraft?.[field]),
+  ]));
+}
+
+function assertRoomDraftStableAcrossClients(clients, expectedDraft, messagePrefix) {
+  for (const client of clients) {
+    const runtimeDraft = normalizeRoomDraftForComparison(client.snapshot?.runtime?.roomDraft ?? {});
+    assert(
+      JSON.stringify(runtimeDraft) === JSON.stringify(expectedDraft),
+      `${messagePrefix}: roomDraft drift on ${client.role}`,
+    );
+  }
+}
+
 async function pollClientOnce(client) {
   const payload = await readJson(`/api/live/snapshot?sinceVersion=${encodeURIComponent(String(client.appliedVersion))}`);
   const version = Number(payload?.session?.version ?? 0);
@@ -113,6 +165,35 @@ async function main() {
   await waitForAllClientsVersion(clients, contextAck.version);
   rows.push({ area: "sync", behavior: "context-update visible on all clients", status: "PASS" });
 
+  const hf4DraftBaseline = {
+    animationId: "fire",
+    targetType: "room",
+    targetId: room.id,
+    opacity: 0.72,
+    playbackSpeed: 1.25,
+    intensity: 0.68,
+    speed: 1.18,
+    soundVolume: 0.63,
+    staggerStart: false,
+    staggerOffsetMs: 220,
+    durationSec: 18,
+    hold: true,
+  };
+  const hf4DraftAck = await sendCommand("context-update", {
+    selectedBoard: board.id,
+    selectedLayout: board.id,
+    boardId: board.id,
+    runtime: {
+      selectedBoard: board.id,
+      selectedLayout: board.id,
+      roomDraft: hf4DraftBaseline,
+    },
+  });
+  await waitForAllClientsVersion(clients, hf4DraftAck.version);
+  const expectedDraft = normalizeRoomDraftForComparison(hf4DraftBaseline);
+  assertRoomDraftStableAcrossClients(clients, expectedDraft, "hf4 baseline");
+  rows.push({ area: "hf4", behavior: "draft baseline replicated without drift", status: "PASS" });
+
   const roomAnimationId = mutationId("hf2-room");
   const startAck = await sendCommand("trigger-room", {
     animationId: roomAnimationId,
@@ -135,7 +216,9 @@ async function main() {
   for (const client of clients) {
     assert(findAnimation(client.snapshot?.runtime, roomAnimationId), `start not visible on ${client.role}`);
   }
+  assertRoomDraftStableAcrossClients(clients, expectedDraft, "hf4 room-start stability");
   rows.push({ area: "room", behavior: "start deterministic across 4 polling clients", status: "PASS" });
+  rows.push({ area: "hf4", behavior: "room start keeps draft animation/target/sliders stable (no jump to cluster/Malfunction)", status: "PASS" });
 
   const stopAck = await sendCommand("stop-animation", {
     animationId: roomAnimationId,
@@ -206,6 +289,13 @@ async function main() {
   rows.push({ area: "global", behavior: "explicit stop removes global animation and records stop revision", status: "PASS" });
 
   const staggerOffsetMs = 260;
+  const hf4ClusterDraft = {
+    ...hf4DraftBaseline,
+    targetType: "cluster",
+    targetId: "hf3-cluster",
+    staggerStart: true,
+    staggerOffsetMs,
+  };
   const roomDraftSyncAck = await sendCommand("context-update", {
     selectedBoard: board.id,
     selectedLayout: board.id,
@@ -213,15 +303,11 @@ async function main() {
     runtime: {
       selectedBoard: board.id,
       selectedLayout: board.id,
-      roomDraft: {
-        targetType: "cluster",
-        targetId: "hf3-cluster",
-        staggerStart: true,
-        staggerOffsetMs,
-      },
+      roomDraft: hf4ClusterDraft,
     },
   });
   await waitForAllClientsVersion(clients, roomDraftSyncAck.version);
+  const expectedClusterDraft = normalizeRoomDraftForComparison(hf4ClusterDraft);
   for (const client of clients) {
     const roomDraft = client.snapshot?.runtime?.roomDraft;
     assert(roomDraft?.targetType === "cluster", `roomDraft targetType drift on ${client.role}`);
@@ -285,7 +371,20 @@ async function main() {
     assert(Number(clusterAnimation.clusterStartOffsetMs) === staggerOffsetMs, `cluster offset drift on ${client.role}`);
     assert(JSON.stringify(clusterAnimation.memberStartDelays ?? {}) === JSON.stringify(expectedDelayMap), `cluster delay map drift on ${client.role}`);
   }
+  assertRoomDraftStableAcrossClients(clients, expectedClusterDraft, "hf4 cluster-start stability");
   rows.push({ area: "cluster", behavior: "sequential stagger member delay parity across polling clients", status: "PASS" });
+  rows.push({ area: "hf4", behavior: "cluster start keeps draft target path stable", status: "PASS" });
+
+  const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  assert(
+    /polygon\.addEventListener\("click",\s*\(\)\s*=>[\s\S]*applyRoomDraftTargetFromRoomClick\(room\.id\)/.test(appSource),
+    "room-click target autofill handler missing",
+  );
+  assert(
+    /function applyRoomDraftTargetFromRoomClick\(roomId\)[\s\S]*state\.roomDraft\.targetType = "room";[\s\S]*state\.roomDraft\.targetId = normalizedRoomId;/.test(appSource),
+    "room-click target autofill no longer target-only",
+  );
+  rows.push({ area: "hf4", behavior: "room-click target autofill remains target-only path", status: "PASS" });
 
   const burstIds = [mutationId("burst-a"), mutationId("burst-b"), mutationId("burst-c")];
   const burstAcks = await Promise.all(
