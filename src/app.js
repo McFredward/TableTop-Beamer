@@ -25,6 +25,8 @@ const {
   ROOM_GEOMETRY_DEFAULT,
   BOARD_ZOOM_DEFAULT,
   SHIP_POLYGON_DEFAULT,
+  OUTSIDE_ANIMATION_ASSET_TYPES,
+  createDefaultOutsideAnimationDefinitions,
   OUTSIDE_FX_DEFAULT,
   ROOM_STATE_DEFAULT,
 } = window.TT_BEAMER_CONFIG;
@@ -49,62 +51,6 @@ function resolveLiveWebSocketUrl() {
   return `${protocol}//${window.location.host}/api/live/ws?role=${encodeURIComponent(outputRole)}`;
 }
 
-function formatImportFilename(name) {
-  const trimmed = String(name || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  const MAX_LENGTH = 110;
-  if (trimmed.length <= MAX_LENGTH) {
-    return trimmed;
-  }
-  const prefix = trimmed.slice(0, 60).trimEnd();
-  const suffix = trimmed.slice(-36).trimStart();
-  return `${prefix}…${suffix}`;
-}
-
-function formatOverflowSafeText(value, { maxLength = 120, prefixLength = 78, suffixLength = 30 } = {}) {
-  const trimmed = String(value || "").trim();
-  if (!trimmed) {
-    return "";
-  }
-  if (trimmed.length <= maxLength) {
-    return trimmed;
-  }
-  const prefix = trimmed.slice(0, prefixLength).trimEnd();
-  const suffix = trimmed.slice(-suffixLength).trimStart();
-  return `${prefix}…${suffix}`;
-}
-
-function formatBoardLabelForSelect(label) {
-  return formatOverflowSafeText(label, {
-    maxLength: 86,
-    prefixLength: 58,
-    suffixLength: 24,
-  });
-}
-
-function formatBoardCatalogInfoLine(value) {
-  return formatOverflowSafeText(value, {
-    maxLength: 180,
-    prefixLength: 120,
-    suffixLength: 52,
-  });
-}
-
-function syncImportFilenameLabel(inputEl, labelEl, emptyText) {
-  if (!labelEl) {
-    return;
-  }
-  const file = inputEl?.files?.[0] ?? null;
-  labelEl.textContent = file ? formatImportFilename(file.name) : emptyText;
-}
-
-function syncAllImportFilenameLabels() {
-  syncImportFilenameLabel(boardImportFileInput, boardImportFileName, "No JSON file selected");
-  syncImportFilenameLabel(boardImportImageInput, boardImportImageName, "No image file selected");
-}
-
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
@@ -112,8 +58,6 @@ const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
 const boardImportImageInput = document.querySelector("#board-import-image");
-const boardImportFileName = document.querySelector("#board-import-file-name");
-const boardImportImageName = document.querySelector("#board-import-image-name");
 const boardImportNameInput = document.querySelector("#board-import-name");
 const boardImportIdInput = document.querySelector("#board-import-id");
 const boardImportButton = document.querySelector("#board-import-button");
@@ -1289,10 +1233,9 @@ function syncZoneLoaderStatus() {
   const boards = boardIds.map((boardId) => {
     const mode = state.zoneLoader.classificationByBoard[boardId] ?? "UNKNOWN";
     const fallback = state.zoneLoader.fallbackBoards[boardId] || "none";
-    return formatBoardCatalogInfoLine(`${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`);
+    return `${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
   });
   zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
-  zonesStatus.title = zonesStatus.textContent;
 }
 
 async function loadExternalBoardZones() {
@@ -1568,23 +1511,13 @@ function syncBoardSelectOptions() {
   for (const board of BOARDS) {
     const option = document.createElement("option");
     option.value = board.id;
-    option.textContent = formatBoardLabelForSelect(board.label);
-    option.title = board.label;
+    option.textContent = board.label;
     boardSelect.append(option);
   }
   if (!BOARDS.some((board) => board.id === state.boardId)) {
     state.boardId = BOARDS[0]?.id ?? "";
   }
   boardSelect.value = state.boardId;
-}
-
-function syncBoardCatalogStatus(boardLabel) {
-  if (!boardStatus) {
-    return;
-  }
-  const renderedLabel = formatBoardCatalogInfoLine(boardLabel);
-  boardStatus.textContent = `Active board: ${renderedLabel}`;
-  boardStatus.title = `Active board: ${boardLabel}`;
 }
 
 function clampBoardZoomScale(value) {
@@ -2017,13 +1950,95 @@ function setShipPolygonPoints(boardId, points) {
   setPlayAreas(boardId, updated, { selectedPlayAreaId: selectedId });
 }
 
-function normalizeOutsideFxProfile(profile) {
+function normalizeOutsideAssetType(value) {
+  return OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+}
+
+function normalizeOutsideAnimationId(value, fallback = "outside-space") {
+  const trimmed = String(value || "").trim();
+  return trimmed || fallback;
+}
+
+function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
+  const fallbackDefaults = createDefaultOutsideAnimationDefinitions()[0] ?? {
+    id: `outside-${fallbackIndex + 1}`,
+    name: `Outside Animation ${fallbackIndex + 1}`,
+    assetType: "coded",
+    assetRef: "outside-space",
+    boomerang: false,
+    intensity: 0.7,
+    speed: 1,
+    mode: "standard",
+    direction: "forward",
+    soundEnabled: false,
+  };
+  const id = normalizeOutsideAnimationId(definition?.id, fallbackDefaults.id);
+  const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+  const assetType = normalizeOutsideAssetType(definition?.assetType);
+  const rawAssetRef = String(definition?.assetRef || "").trim();
+  const assetRef = rawAssetRef || (assetType === "coded" ? "outside-space" : fallbackDefaults.assetRef);
   return {
-    enabled: Boolean(profile?.enabled),
-    intensity: clampOutsideIntensity(profile?.intensity),
-    speed: clampOutsideSpeed(profile?.speed),
-    mode: normalizeOutsideMode(profile?.mode),
-    direction: normalizeOutsideDirection(profile?.direction),
+    id,
+    name,
+    assetType,
+    assetRef,
+    boomerang: Boolean(definition?.boomerang),
+    intensity: clampOutsideIntensity(definition?.intensity),
+    speed: clampOutsideSpeed(definition?.speed),
+    mode: normalizeOutsideMode(definition?.mode),
+    direction: normalizeOutsideDirection(definition?.direction),
+    soundEnabled: Boolean(definition?.soundEnabled),
+  };
+}
+
+function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null) {
+  const incoming = Array.isArray(definitions) ? definitions : [];
+  const normalized = incoming
+    .map((entry, index) => normalizeOutsideAnimationDefinition(entry, index))
+    .filter((entry) => entry && typeof entry === "object");
+  const uniqueById = [];
+  const seen = new Set();
+  for (const entry of normalized) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+    seen.add(entry.id);
+    uniqueById.push(entry);
+  }
+  if (uniqueById.length > 0) {
+    return uniqueById;
+  }
+  const legacySeed = {
+    id: "outside-space",
+    name: "Outside Space",
+    assetType: "coded",
+    assetRef: "outside-space",
+    boomerang: false,
+    intensity: legacyProfile?.intensity,
+    speed: legacyProfile?.speed,
+    mode: legacyProfile?.mode,
+    direction: legacyProfile?.direction,
+    soundEnabled: false,
+  };
+  return [normalizeOutsideAnimationDefinition(legacySeed, 0)];
+}
+
+function normalizeOutsideFxProfile(profile) {
+  const legacyProfile = profile && typeof profile === "object" ? profile : OUTSIDE_FX_DEFAULT;
+  const animations = normalizeOutsideAnimationDefinitions(legacyProfile?.animations, legacyProfile);
+  const preferredId = normalizeOutsideAnimationId(legacyProfile?.selectedAnimationId, animations[0]?.id ?? "outside-space");
+  const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+  return {
+    enabled: Boolean(legacyProfile?.enabled),
+    selectedAnimationId: selectedAnimation.id,
+    animations,
+    intensity: selectedAnimation.intensity,
+    speed: selectedAnimation.speed,
+    mode: selectedAnimation.mode,
+    direction: selectedAnimation.direction,
+    boomerang: selectedAnimation.boomerang,
+    assetType: selectedAnimation.assetType,
+    assetRef: selectedAnimation.assetRef,
   };
 }
 
@@ -2043,7 +2058,27 @@ function setOutsideFxProfile(boardId, profile) {
 
 function updateOutsideFxProfile(boardId, partial) {
   const current = getOutsideFxProfile(boardId);
-  setOutsideFxProfile(boardId, { ...current, ...partial });
+  const merged = { ...current, ...partial };
+  const definitions = normalizeOutsideAnimationDefinitions(merged.animations, merged);
+  const selectedId = normalizeOutsideAnimationId(merged.selectedAnimationId, definitions[0]?.id);
+  const selectedDefinition = definitions.find((entry) => entry.id === selectedId) ?? definitions[0];
+  const updatedDefinitions = definitions.map((entry) => (entry.id === selectedDefinition.id
+    ? {
+      ...entry,
+      intensity: clampOutsideIntensity(merged.intensity),
+      speed: clampOutsideSpeed(merged.speed),
+      mode: normalizeOutsideMode(merged.mode),
+      direction: normalizeOutsideDirection(merged.direction),
+      boomerang: Boolean(merged.boomerang),
+      assetType: normalizeOutsideAssetType(merged.assetType),
+      assetRef: String(merged.assetRef || "").trim() || entry.assetRef,
+    }
+    : entry));
+  setOutsideFxProfile(boardId, {
+    ...merged,
+    selectedAnimationId: selectedDefinition.id,
+    animations: updatedDefinitions,
+  });
 }
 
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
@@ -3741,24 +3776,7 @@ function clampOutsideSpeed(value) {
 }
 
 function normalizeOutsideMode(value) {
-  if (value === "immersive") {
-    return "immersive";
-  }
-  if (value === "duststorm") {
-    return "duststorm";
-  }
-  return "standard";
-}
-
-function getOutsideModeLabel(value) {
-  const mode = normalizeOutsideMode(value);
-  if (mode === "immersive") {
-    return "Immersive";
-  }
-  if (mode === "duststorm") {
-    return "Outside Duststorm";
-  }
-  return "Standard";
+  return value === "immersive" ? "immersive" : "standard";
 }
 
 function normalizeOutsideDirection(value) {
@@ -6048,11 +6066,11 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
 
   const board = getBoard(boardId);
   state.boardId = board.id;
-   state.selectedBoard = board.id;
-   state.selectedLayout = board.id;
+  state.selectedBoard = board.id;
+  state.selectedLayout = board.id;
   boardImage.src = board.src;
   boardSelect.value = board.id;
-  syncBoardCatalogStatus(board.label);
+  boardStatus.textContent = `Active board: ${board.label}`;
   const rememberedRoom = state.selectedRoomByBoard[board.id];
   state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
     ? rememberedRoom
@@ -7221,13 +7239,234 @@ function startRoomAnimationFromDraft() {
     }
 
     if (outputRole === OUTPUT_ROLE_CONTROL) {
-    const pendingCommands = [];
+      const pendingCommands = [];
+      if (state.roomDraft.editTargetId) {
+        if (state.roomDraft.targetType === "cluster") {
+          const existingCluster = state.runningAnimations.find(
+            (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
+          );
+          if (existingCluster) {
+            const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
+            const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
+            const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+            const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
+              staggerStart: shouldStaggerClusterStart,
+              staggerOffsetMs,
+            });
+            const reusableMembersByRoomId = new Map();
+            for (const member of state.runningAnimations) {
+              if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+                continue;
+              }
+              const roomKey = String(member.roomId || "").trim();
+              if (!roomKey) {
+                continue;
+              }
+              if (!reusableMembersByRoomId.has(roomKey)) {
+                reusableMembersByRoomId.set(roomKey, []);
+              }
+              reusableMembersByRoomId.get(roomKey).push(member);
+            }
+            const retainedMemberIds = new Set();
+            const nextMemberAnimationIds = [];
+            const nextMemberRoomIds = [];
+
+            for (const { roomId, startDelayMs } of dispatchPlan) {
+              const reusableBucket = reusableMembersByRoomId.get(roomId) ?? [];
+              const reusableMember = reusableBucket.shift() ?? null;
+              if (reusableMember) {
+                const updatedMember = {
+                  ...reusableMember,
+                  ...draftPayload,
+                  boardId: state.boardId,
+                  roomId,
+                  parentClusterRunId: existingCluster.id,
+                  startedAt: performance.now() + Math.max(0, Number(startDelayMs) || 0),
+                  startedAtEpochMs: Date.now() + Math.max(0, Number(startDelayMs) || 0),
+                };
+                pendingCommands.push(emitLiveMutation("edit-room", {
+                  animationId: updatedMember.id,
+                  animation: buildAnimationSnapshotForLiveSync(updatedMember),
+                }));
+                retainedMemberIds.add(updatedMember.id);
+                nextMemberAnimationIds.push(updatedMember.id);
+                nextMemberRoomIds.push(roomId);
+              } else {
+                const createdMember = createAnimation({
+                  type: draftPayload.type,
+                  scope: "room",
+                  roomId,
+                  boardId: state.boardId,
+                  intensity: draftPayload.intensity,
+                  speed: draftPayload.speed,
+                  opacity: draftPayload.opacity,
+                  playbackSpeed: draftPayload.playbackSpeed,
+                  soundVolume: draftPayload.soundVolume,
+                  hold: true,
+                  durationSec: 0,
+                  startDelayMs,
+                });
+                createdMember.parentClusterRunId = existingCluster.id;
+                pendingCommands.push(emitLiveMutation("trigger-room", {
+                  animationId: createdMember.id,
+                  animation: buildAnimationSnapshotForLiveSync(createdMember),
+                }));
+                retainedMemberIds.add(createdMember.id);
+                nextMemberAnimationIds.push(createdMember.id);
+                nextMemberRoomIds.push(roomId);
+              }
+            }
+
+            for (const member of state.runningAnimations) {
+              if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+                continue;
+              }
+              if (!retainedMemberIds.has(member.id)) {
+                pendingCommands.push(emitLiveMutation("stop-animation", {
+                  animationId: member.id,
+                  priorityHint: "high",
+                }));
+              }
+            }
+
+            const updatedCluster = {
+              ...existingCluster,
+              ...draftPayload,
+              scope: "cluster",
+              roomId: null,
+              boardId: state.boardId,
+              clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
+              clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
+              clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
+              clusterStartOffsetMs: staggerOffsetMs,
+              memberAnimationIds: nextMemberAnimationIds,
+              memberRoomIds: nextMemberRoomIds,
+              memberStartDelays: Object.fromEntries(
+                dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+              ),
+              startedAt: performance.now(),
+              startedAtEpochMs: Date.now(),
+            };
+            pendingCommands.push(emitLiveMutation("edit-room", {
+              animationId: updatedCluster.id,
+              animation: buildAnimationSnapshotForLiveSync(updatedCluster),
+            }));
+            clearRoomDraftEditTarget();
+            void Promise.allSettled(pendingCommands).then(() => {
+              triggerFeedback.textContent = `Pending: ${updatedCluster.id} cluster update accepted (waiting for snapshot)`;
+            });
+            return;
+          }
+          clearRoomDraftEditTarget();
+        }
+
+        const existing = state.runningAnimations.find(
+          (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
+        );
+        if (existing) {
+          const updated = {
+            ...existing,
+            ...draftPayload,
+            roomId: targetRoomIds[0],
+            boardId: state.boardId,
+            startedAt: performance.now(),
+            startedAtEpochMs: Date.now(),
+          };
+          clearRoomDraftEditTarget();
+          void emitLiveMutation("edit-room", {
+            animationId: updated.id,
+            animation: buildAnimationSnapshotForLiveSync(updated),
+          }).then(() => {
+            triggerFeedback.textContent = `Pending: ${updated.id} update accepted (waiting for snapshot)`;
+          }).catch(() => {
+            triggerFeedback.textContent = "Status: room update command failed";
+          });
+          return;
+        }
+        clearRoomDraftEditTarget();
+      }
+
+      const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
+      const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
+      const dispatchPlan = state.roomDraft.targetType === "cluster"
+        ? buildClusterDispatchPlan(targetRoomIds, {
+          staggerStart: shouldStaggerClusterStart,
+          staggerOffsetMs,
+        })
+        : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
+      const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
+        type: draftPayload.type,
+        scope: "room",
+        roomId,
+        boardId: state.boardId,
+        intensity: draftPayload.intensity,
+        speed: draftPayload.speed,
+        opacity: draftPayload.opacity,
+        playbackSpeed: draftPayload.playbackSpeed,
+        soundVolume: draftPayload.soundVolume,
+        hold: true,
+        durationSec: 0,
+        startDelayMs,
+      }));
+      let clusterRunAnimation = null;
+      if (state.roomDraft.targetType === "cluster") {
+        const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+        clusterRunAnimation = createAnimation({
+          type: draftPayload.type,
+          scope: "cluster",
+          roomId: null,
+          boardId: state.boardId,
+          intensity: draftPayload.intensity,
+          speed: draftPayload.speed,
+          opacity: draftPayload.opacity,
+          playbackSpeed: draftPayload.playbackSpeed,
+          soundVolume: draftPayload.soundVolume,
+          hold: true,
+          durationSec: 0,
+        });
+        clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
+        clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
+        clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
+        clusterRunAnimation.clusterStartOffsetMs = staggerOffsetMs;
+        clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
+        clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
+        clusterRunAnimation.memberStartDelays = Object.fromEntries(
+          dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+        );
+        pendingCommands.push(emitLiveMutation("trigger-room", {
+          animationId: clusterRunAnimation.id,
+          animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
+        }));
+      }
+      for (const animation of createdAnimations) {
+        if (clusterRunAnimation) {
+          animation.parentClusterRunId = clusterRunAnimation.id;
+        }
+        pendingCommands.push(emitLiveMutation("trigger-room", {
+          animationId: animation.id,
+          animation: buildAnimationSnapshotForLiveSync(animation),
+        }));
+      }
+      const isClusterTarget = state.roomDraft.targetType === "cluster";
+      const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
+      const targetLabel = isClusterTarget
+        ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
+        : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
+      void Promise.allSettled(pendingCommands).then(() => {
+        triggerFeedback.textContent = isClusterTarget
+          ? `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for cluster ${targetLabel} accepted (waiting for snapshot)`
+          : `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for ${targetLabel} accepted (waiting for snapshot)`;
+      });
+      return;
+    }
+
     if (state.roomDraft.editTargetId) {
       if (state.roomDraft.targetType === "cluster") {
-        const existingCluster = state.runningAnimations.find(
+        const clusterEditIndex = state.runningAnimations.findIndex(
           (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
         );
-        if (existingCluster) {
+        if (clusterEditIndex >= 0) {
+          const existingCluster = state.runningAnimations[clusterEditIndex];
           const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
           const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
           const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
@@ -7250,6 +7489,7 @@ function startRoomAnimationFromDraft() {
             reusableMembersByRoomId.get(roomKey).push(member);
           }
           const retainedMemberIds = new Set();
+          const removedMemberIds = new Set();
           const nextMemberAnimationIds = [];
           const nextMemberRoomIds = [];
 
@@ -7266,10 +7506,15 @@ function startRoomAnimationFromDraft() {
                 startedAt: performance.now() + Math.max(0, Number(startDelayMs) || 0),
                 startedAtEpochMs: Date.now() + Math.max(0, Number(startDelayMs) || 0),
               };
-              pendingCommands.push(emitLiveMutation("edit-room", {
-                animationId: updatedMember.id,
-                animation: buildAnimationSnapshotForLiveSync(updatedMember),
-              }));
+              const memberIndex = state.runningAnimations.findIndex((entry) => entry.id === reusableMember.id);
+              if (memberIndex >= 0) {
+                state.runningAnimations[memberIndex] = updatedMember;
+                playSoundForAnimation(updatedMember);
+                emitLiveMutation("edit-room", {
+                  animationId: updatedMember.id,
+                  animation: buildAnimationSnapshotForLiveSync(updatedMember),
+                });
+              }
               retainedMemberIds.add(updatedMember.id);
               nextMemberAnimationIds.push(updatedMember.id);
               nextMemberRoomIds.push(roomId);
@@ -7289,10 +7534,12 @@ function startRoomAnimationFromDraft() {
                 startDelayMs,
               });
               createdMember.parentClusterRunId = existingCluster.id;
-              pendingCommands.push(emitLiveMutation("trigger-room", {
+              state.runningAnimations.push(createdMember);
+              playSoundForAnimation(createdMember);
+              emitLiveMutation("trigger-room", {
                 animationId: createdMember.id,
                 animation: buildAnimationSnapshotForLiveSync(createdMember),
-              }));
+              });
               retainedMemberIds.add(createdMember.id);
               nextMemberAnimationIds.push(createdMember.id);
               nextMemberRoomIds.push(roomId);
@@ -7304,11 +7551,14 @@ function startRoomAnimationFromDraft() {
               continue;
             }
             if (!retainedMemberIds.has(member.id)) {
-              pendingCommands.push(emitLiveMutation("stop-animation", {
-                animationId: member.id,
-                priorityHint: "high",
-              }));
+              removedMemberIds.add(member.id);
             }
+          }
+          for (const removedId of removedMemberIds) {
+            stopAnimationSound(removedId);
+          }
+          if (removedMemberIds.size > 0) {
+            state.runningAnimations = state.runningAnimations.filter((entry) => !removedMemberIds.has(entry.id));
           }
 
           const updatedCluster = {
@@ -7329,23 +7579,28 @@ function startRoomAnimationFromDraft() {
             startedAt: performance.now(),
             startedAtEpochMs: Date.now(),
           };
-          pendingCommands.push(emitLiveMutation("edit-room", {
+          state.runningAnimations[clusterEditIndex] = updatedCluster;
+          emitLiveMutation("edit-room", {
             animationId: updatedCluster.id,
             animation: buildAnimationSnapshotForLiveSync(updatedCluster),
-          }));
-          clearRoomDraftEditTarget();
-          void Promise.allSettled(pendingCommands).then(() => {
-            triggerFeedback.textContent = `Pending: ${updatedCluster.id} cluster update accepted (waiting for snapshot)`;
           });
+          for (const removedId of removedMemberIds) {
+            emitLiveMutation("stop-animation", {
+              animationId: removedId,
+            });
+          }
+          clearRoomDraftEditTarget();
+          triggerFeedback.textContent = `Status: ${updatedCluster.id} updated in place (cluster)`;
+          renderRunningAnimationsList();
           return;
         }
         clearRoomDraftEditTarget();
       }
-
-      const existing = state.runningAnimations.find(
+      const editIndex = state.runningAnimations.findIndex(
         (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
       );
-      if (existing) {
+      if (editIndex >= 0) {
+        const existing = state.runningAnimations[editIndex];
         const updated = {
           ...existing,
           ...draftPayload,
@@ -7354,14 +7609,14 @@ function startRoomAnimationFromDraft() {
           startedAt: performance.now(),
           startedAtEpochMs: Date.now(),
         };
+        state.runningAnimations[editIndex] = updated;
+        playSoundForAnimation(updated);
+        triggerFeedback.textContent = `Status: ${updated.id} updated in place`;
         clearRoomDraftEditTarget();
-        void emitLiveMutation("edit-room", {
+        renderRunningAnimationsList();
+        emitLiveMutation("edit-room", {
           animationId: updated.id,
           animation: buildAnimationSnapshotForLiveSync(updated),
-        }).then(() => {
-          triggerFeedback.textContent = `Pending: ${updated.id} update accepted (waiting for snapshot)`;
-        }).catch(() => {
-          triggerFeedback.textContent = "Status: room update command failed";
         });
         return;
       }
@@ -7380,7 +7635,6 @@ function startRoomAnimationFromDraft() {
       type: draftPayload.type,
       scope: "room",
       roomId,
-      boardId: state.boardId,
       intensity: draftPayload.intensity,
       speed: draftPayload.speed,
       opacity: draftPayload.opacity,
@@ -7390,6 +7644,7 @@ function startRoomAnimationFromDraft() {
       durationSec: 0,
       startDelayMs,
     }));
+
     let clusterRunAnimation = null;
     if (state.roomDraft.targetType === "cluster") {
       const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
@@ -7405,6 +7660,7 @@ function startRoomAnimationFromDraft() {
         soundVolume: draftPayload.soundVolume,
         hold: true,
         durationSec: 0,
+        startDelayMs: 0,
       });
       clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
       clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
@@ -7415,275 +7671,37 @@ function startRoomAnimationFromDraft() {
       clusterRunAnimation.memberStartDelays = Object.fromEntries(
         dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
       );
-      pendingCommands.push(emitLiveMutation("trigger-room", {
+    }
+
+    if (clusterRunAnimation) {
+      state.runningAnimations.push(clusterRunAnimation);
+      emitLiveMutation("trigger-room", {
         animationId: clusterRunAnimation.id,
         animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
-      }));
+      });
     }
+
     for (const animation of createdAnimations) {
       if (clusterRunAnimation) {
         animation.parentClusterRunId = clusterRunAnimation.id;
       }
-      pendingCommands.push(emitLiveMutation("trigger-room", {
+      state.runningAnimations.push(animation);
+      playSoundForAnimation(animation);
+      emitLiveMutation("trigger-room", {
         animationId: animation.id,
         animation: buildAnimationSnapshotForLiveSync(animation),
-      }));
+      });
     }
+
     const isClusterTarget = state.roomDraft.targetType === "cluster";
     const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
     const targetLabel = isClusterTarget
       ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
       : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
-    void Promise.allSettled(pendingCommands).then(() => {
-      triggerFeedback.textContent = isClusterTarget
-        ? `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for cluster ${targetLabel} accepted (waiting for snapshot)`
-        : `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for ${targetLabel} accepted (waiting for snapshot)`;
-    });
-      return;
-    }
-
-    if (state.roomDraft.editTargetId) {
-    if (state.roomDraft.targetType === "cluster") {
-      const clusterEditIndex = state.runningAnimations.findIndex(
-        (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
-      );
-      if (clusterEditIndex >= 0) {
-        const existingCluster = state.runningAnimations[clusterEditIndex];
-        const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
-        const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-        const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
-        const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
-          staggerStart: shouldStaggerClusterStart,
-          staggerOffsetMs,
-        });
-        const reusableMembersByRoomId = new Map();
-        for (const member of state.runningAnimations) {
-          if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
-            continue;
-          }
-          const roomKey = String(member.roomId || "").trim();
-          if (!roomKey) {
-            continue;
-          }
-          if (!reusableMembersByRoomId.has(roomKey)) {
-            reusableMembersByRoomId.set(roomKey, []);
-          }
-          reusableMembersByRoomId.get(roomKey).push(member);
-        }
-        const retainedMemberIds = new Set();
-        const removedMemberIds = new Set();
-        const nextMemberAnimationIds = [];
-        const nextMemberRoomIds = [];
-
-        for (const { roomId, startDelayMs } of dispatchPlan) {
-          const reusableBucket = reusableMembersByRoomId.get(roomId) ?? [];
-          const reusableMember = reusableBucket.shift() ?? null;
-          if (reusableMember) {
-            const updatedMember = {
-              ...reusableMember,
-              ...draftPayload,
-              boardId: state.boardId,
-              roomId,
-              parentClusterRunId: existingCluster.id,
-              startedAt: performance.now() + Math.max(0, Number(startDelayMs) || 0),
-              startedAtEpochMs: Date.now() + Math.max(0, Number(startDelayMs) || 0),
-            };
-            const memberIndex = state.runningAnimations.findIndex((entry) => entry.id === reusableMember.id);
-            if (memberIndex >= 0) {
-              state.runningAnimations[memberIndex] = updatedMember;
-              playSoundForAnimation(updatedMember);
-              emitLiveMutation("edit-room", {
-                animationId: updatedMember.id,
-                animation: buildAnimationSnapshotForLiveSync(updatedMember),
-              });
-            }
-            retainedMemberIds.add(updatedMember.id);
-            nextMemberAnimationIds.push(updatedMember.id);
-            nextMemberRoomIds.push(roomId);
-          } else {
-            const createdMember = createAnimation({
-              type: draftPayload.type,
-              scope: "room",
-              roomId,
-              boardId: state.boardId,
-              intensity: draftPayload.intensity,
-              speed: draftPayload.speed,
-              opacity: draftPayload.opacity,
-              playbackSpeed: draftPayload.playbackSpeed,
-              soundVolume: draftPayload.soundVolume,
-              hold: true,
-              durationSec: 0,
-              startDelayMs,
-            });
-            createdMember.parentClusterRunId = existingCluster.id;
-            state.runningAnimations.push(createdMember);
-            playSoundForAnimation(createdMember);
-            emitLiveMutation("trigger-room", {
-              animationId: createdMember.id,
-              animation: buildAnimationSnapshotForLiveSync(createdMember),
-            });
-            retainedMemberIds.add(createdMember.id);
-            nextMemberAnimationIds.push(createdMember.id);
-            nextMemberRoomIds.push(roomId);
-          }
-        }
-
-        for (const member of state.runningAnimations) {
-          if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
-            continue;
-          }
-          if (!retainedMemberIds.has(member.id)) {
-            removedMemberIds.add(member.id);
-          }
-        }
-        for (const removedId of removedMemberIds) {
-          stopAnimationSound(removedId);
-        }
-        if (removedMemberIds.size > 0) {
-          state.runningAnimations = state.runningAnimations.filter((entry) => !removedMemberIds.has(entry.id));
-        }
-
-        const updatedCluster = {
-          ...existingCluster,
-          ...draftPayload,
-          scope: "cluster",
-          roomId: null,
-          boardId: state.boardId,
-          clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
-          clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
-            clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
-            clusterStartOffsetMs: staggerOffsetMs,
-            memberAnimationIds: nextMemberAnimationIds,
-          memberRoomIds: nextMemberRoomIds,
-          memberStartDelays: Object.fromEntries(
-            dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
-          ),
-          startedAt: performance.now(),
-          startedAtEpochMs: Date.now(),
-        };
-        state.runningAnimations[clusterEditIndex] = updatedCluster;
-        emitLiveMutation("edit-room", {
-          animationId: updatedCluster.id,
-          animation: buildAnimationSnapshotForLiveSync(updatedCluster),
-        });
-        for (const removedId of removedMemberIds) {
-          emitLiveMutation("stop-animation", {
-            animationId: removedId,
-          });
-        }
-        clearRoomDraftEditTarget();
-        triggerFeedback.textContent = `Status: ${updatedCluster.id} updated in place (cluster)`;
-        renderRunningAnimationsList();
-        return;
-      }
-      clearRoomDraftEditTarget();
-    }
-    const editIndex = state.runningAnimations.findIndex(
-      (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
-    );
-    if (editIndex >= 0) {
-      const existing = state.runningAnimations[editIndex];
-      const updated = {
-        ...existing,
-        ...draftPayload,
-        roomId: targetRoomIds[0],
-        boardId: state.boardId,
-        startedAt: performance.now(),
-        startedAtEpochMs: Date.now(),
-      };
-      state.runningAnimations[editIndex] = updated;
-      playSoundForAnimation(updated);
-      triggerFeedback.textContent = `Status: ${updated.id} updated in place`;
-      clearRoomDraftEditTarget();
-      renderRunningAnimationsList();
-      emitLiveMutation("edit-room", {
-        animationId: updated.id,
-        animation: buildAnimationSnapshotForLiveSync(updated),
-      });
-      return;
-    }
-    clearRoomDraftEditTarget();
-    }
-
-    const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
-    const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-    const dispatchPlan = state.roomDraft.targetType === "cluster"
-    ? buildClusterDispatchPlan(targetRoomIds, {
-      staggerStart: shouldStaggerClusterStart,
-      staggerOffsetMs,
-    })
-    : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
-    const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
-    type: draftPayload.type,
-    scope: "room",
-    roomId,
-    intensity: draftPayload.intensity,
-    speed: draftPayload.speed,
-    opacity: draftPayload.opacity,
-    playbackSpeed: draftPayload.playbackSpeed,
-    soundVolume: draftPayload.soundVolume,
-    hold: true,
-    durationSec: 0,
-    startDelayMs,
-  }));
-
-    let clusterRunAnimation = null;
-    if (state.roomDraft.targetType === "cluster") {
-    const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
-    clusterRunAnimation = createAnimation({
-      type: draftPayload.type,
-      scope: "cluster",
-      roomId: null,
-      boardId: state.boardId,
-      intensity: draftPayload.intensity,
-      speed: draftPayload.speed,
-      opacity: draftPayload.opacity,
-      playbackSpeed: draftPayload.playbackSpeed,
-      soundVolume: draftPayload.soundVolume,
-      hold: true,
-      durationSec: 0,
-      startDelayMs: 0,
-    });
-    clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
-    clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
-    clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
-    clusterRunAnimation.clusterStartOffsetMs = staggerOffsetMs;
-    clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
-    clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
-    clusterRunAnimation.memberStartDelays = Object.fromEntries(
-      dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
-    );
-    }
-
-    if (clusterRunAnimation) {
-    state.runningAnimations.push(clusterRunAnimation);
-    emitLiveMutation("trigger-room", {
-      animationId: clusterRunAnimation.id,
-      animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
-    });
-    }
-
-    for (const animation of createdAnimations) {
-    if (clusterRunAnimation) {
-      animation.parentClusterRunId = clusterRunAnimation.id;
-    }
-    state.runningAnimations.push(animation);
-    playSoundForAnimation(animation);
-    emitLiveMutation("trigger-room", {
-      animationId: animation.id,
-      animation: buildAnimationSnapshotForLiveSync(animation),
-    });
-    }
-
-    const isClusterTarget = state.roomDraft.targetType === "cluster";
-    const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
-    const targetLabel = isClusterTarget
-    ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
-    : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
     const clusterStartModeLabel = shouldStaggerClusterStart ? "staggered start" : "synchronous start";
     triggerFeedback.textContent = isClusterTarget
-    ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
-    : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
+      ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
+      : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
     renderRunningAnimationsList();
   } finally {
     restoreRoomDraftUiSnapshot(draftSnapshot, "room-start");
@@ -7804,9 +7822,9 @@ function stopAnimation(animationId) {
     const commandPairs = idsToDispatch.map((id) => {
       const commandTarget = state.runningAnimations.find((entry) => entry?.id === id) ?? (id === target.id ? target : null);
       return [id, emitStopAnimationCommand(id, {
-      priorityHint: "high",
-      targetAnimation: commandTarget,
-    })];
+        priorityHint: "high",
+        targetAnimation: commandTarget,
+      })];
     });
     void Promise.allSettled(commandPairs.map(([, promise]) => promise)).then((results) => {
       const failedIds = results
@@ -7967,7 +7985,7 @@ function renderRunningAnimationsList() {
           0,
           getClusterMemberAnimationIds(anim).length,
         )} | Start: ${(anim.clusterStartMode ?? "synchronous") === "staggered" ? "staggered" : "synchronous"}${(anim.clusterStartMode ?? "synchronous") === "staggered" ? ` (${clampClusterStaggerOffsetMs(anim.clusterStartOffsetMs)}ms)` : ""}`
-      : "";
+        : "";
     meta.textContent = `Instance: ${anim.id} | Type: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Remaining: ${remaining}`;
 
     const actions = document.createElement("div");
@@ -8276,82 +8294,13 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
 
   if (type === "outside-space") {
-    const outsideMode = normalizeOutsideMode(options.outsideMode);
-    const immersive = outsideMode === "immersive";
-    const duststorm = outsideMode === "duststorm";
+    const immersive = options.outsideMode === "immersive";
     const speedInfluence = clampOutsideSpeed(options.outsideSpeed ?? 1);
     const speedFactor = (immersive ? 1.45 : 1) * (0.75 + speedInfluence * 0.45);
     const directionMultiplier = options.outsideDirection === "reverse" ? -1 : 1;
 
     ctx.fillStyle = "rgba(0, 0, 0, 1)";
     ctx.fillRect(0, 0, w, h);
-
-    if (duststorm) {
-      const stormSpeedFactor = (0.86 + speedInfluence * 0.72) * (0.95 + intensity * 0.4);
-      const haze = ctx.createLinearGradient(0, 0, 0, h);
-      haze.addColorStop(0, `rgba(26, 18, 10, ${Math.min(0.95, 0.34 + intensity * 0.3)})`);
-      haze.addColorStop(0.45, `rgba(88, 56, 34, ${Math.min(0.98, 0.42 + intensity * 0.36)})`);
-      haze.addColorStop(1, `rgba(42, 24, 14, ${Math.min(0.92, 0.5 + intensity * 0.22)})`);
-      ctx.fillStyle = haze;
-      ctx.fillRect(0, 0, w, h);
-
-      const dustLayers = [
-        { count: 90, speed: 96, size: 1.4, alpha: 0.16, drift: 0.012 },
-        { count: 130, speed: 152, size: 1.9, alpha: 0.23, drift: 0.016 },
-        { count: 170, speed: 228, size: 2.6, alpha: 0.31, drift: 0.022 },
-        { count: 210, speed: 312, size: 3.4, alpha: 0.36, drift: 0.027 },
-      ];
-
-      for (let layerIndex = 0; layerIndex < dustLayers.length; layerIndex += 1) {
-        const layer = dustLayers[layerIndex];
-        const particleCount = Math.max(40, Math.round(layer.count * (0.55 + intensity * 0.85)));
-        const layerSpeed = layer.speed * stormSpeedFactor;
-        const laneWave = h * layer.drift;
-
-        for (let i = 0; i < particleCount; i += 1) {
-          const seed = ((i * 97.31 + layerIndex * 41.9) % 1000) / 1000;
-          const seedY = ((i * 53.47 + layerIndex * 71.3) % 1000) / 1000;
-          const progressRaw = (seed * (w + 420) - age * layerSpeed * directionMultiplier) % (w + 420);
-          const x = progressRaw < -210 ? progressRaw + w + 420 : progressRaw;
-          const y = seedY * h + Math.sin(age * (0.8 + layerIndex * 0.13) + i * 0.11) * laneWave;
-          const swirl = (Math.sin(age * (3.2 + layerIndex * 0.5) + i * 0.19) + 1) / 2;
-          const alpha = Math.min(0.92, layer.alpha * (0.6 + swirl * 0.7));
-          const width = layer.size * (1 + swirl * 1.4);
-          const streakLength = 20 + layerIndex * 13 + speedInfluence * 20 + intensity * 16;
-
-          ctx.strokeStyle = `rgba(232, 190, 136, ${Math.min(0.72, alpha)})`;
-          ctx.lineWidth = Math.max(0.9, width * 0.8);
-          ctx.beginPath();
-          ctx.moveTo(x + streakLength * directionMultiplier, y - width * 0.45);
-          ctx.lineTo(x, y + width * 0.45);
-          ctx.stroke();
-
-          ctx.fillStyle = `rgba(248, 209, 152, ${Math.min(0.8, alpha * 0.95)})`;
-          ctx.fillRect(x - width * 0.25, y - width * 0.25, width, width);
-        }
-      }
-
-      const gustBands = Math.max(9, Math.round(12 + intensity * 12));
-      for (let i = 0; i < gustBands; i += 1) {
-        const laneY = (((i * 74.71) % 1000) / 1000) * h;
-        const pulse = ((age * (0.42 + i * 0.023) * stormSpeedFactor) % 1) * (w + 520);
-        const gustLength = 200 + speedInfluence * 90 + intensity * 160;
-        const gustAlpha = (0.06 + ((Math.sin(age * 3.7 + i * 0.77) + 1) / 2) * 0.18) * (0.8 + intensity * 0.35);
-
-        ctx.strokeStyle = `rgba(255, 226, 180, ${Math.min(0.5, gustAlpha)})`;
-        ctx.lineWidth = 1.5 + ((i % 4) + 1) * 0.62;
-        ctx.beginPath();
-        const gustHeadX = directionMultiplier > 0 ? w - pulse : pulse;
-        ctx.moveTo(gustHeadX + gustLength * directionMultiplier, laneY);
-        ctx.lineTo(gustHeadX, laneY);
-        ctx.stroke();
-      }
-
-      const visibilityDrop = Math.min(0.8, 0.22 + intensity * 0.36 + speedInfluence * 0.08);
-      ctx.fillStyle = `rgba(24, 12, 6, ${visibilityDrop})`;
-      ctx.fillRect(0, 0, w, h);
-      return;
-    }
 
     const parallaxLayers = immersive
       ? [
@@ -8908,16 +8857,6 @@ boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
   reason: "board-select",
 }));
 
-syncAllImportFilenameLabels();
-
-boardImportFileInput?.addEventListener("change", () => {
-  syncImportFilenameLabel(boardImportFileInput, boardImportFileName, "No JSON file selected");
-});
-
-boardImportImageInput?.addEventListener("change", () => {
-  syncImportFilenameLabel(boardImportImageInput, boardImportImageName, "No image file selected");
-});
-
 boardImportButton?.addEventListener("click", async () => {
   const jsonFile = boardImportFileInput?.files?.[0] ?? null;
   const imageFile = boardImportImageInput?.files?.[0] ?? null;
@@ -8942,7 +8881,7 @@ boardImportButton?.addEventListener("click", async () => {
     if (!imageFile) {
       triggerFeedback.textContent = `Status: board import succeeded (${importedBoardId})`;
     }
-    syncBoardCatalogStatus(getBoard().label);
+    boardStatus.textContent = `Active board: ${getBoard().label}`;
     if (boardImportFileInput) {
       boardImportFileInput.value = "";
     }
@@ -8955,7 +8894,6 @@ boardImportButton?.addEventListener("click", async () => {
     if (boardImportIdInput) {
       boardImportIdInput.value = "";
     }
-    syncAllImportFilenameLabels();
   } catch (error) {
     triggerFeedback.textContent = `Status: ${error instanceof Error ? error.message : "Board import failed"}`;
   } finally {
@@ -9536,8 +9474,8 @@ outsideIntensityInput.addEventListener("input", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-intensity-update");
   triggerFeedback.textContent = persisted
-      ? "Status: Outside intensity updated"
-      : "Status: Outside intensity updated (persistence failed)";
+    ? "Status: Outside intensity updated"
+    : "Status: Outside intensity updated (persistence failed)";
 });
 
 outsideSpeedInput.addEventListener("input", () => {
@@ -9565,8 +9503,8 @@ outsideSpeedInput.addEventListener("input", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-speed-update");
   triggerFeedback.textContent = persisted
-      ? "Status: Outside speed updated"
-      : "Status: Outside speed updated (persistence failed)";
+    ? "Status: Outside speed updated"
+    : "Status: Outside speed updated (persistence failed)";
 });
 
 outsideModeInput.addEventListener("change", () => {
@@ -9593,10 +9531,9 @@ outsideModeInput.addEventListener("change", () => {
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-mode-update");
-  const outsideModeLabel = getOutsideModeLabel(outsideModeInput.value);
   triggerFeedback.textContent = persisted
-      ? `Status: Outside mode ${outsideModeLabel} enabled`
-      : `Status: Outside mode ${outsideModeLabel} enabled (persistence failed)`;
+    ? `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled`
+    : `Status: Outside mode ${outsideModeInput.value === "immersive" ? "Immersive" : "Standard"} enabled (persistence failed)`;
 });
 
 outsideDirectionInput.addEventListener("change", () => {
@@ -9626,8 +9563,8 @@ outsideDirectionInput.addEventListener("change", () => {
   syncOutsideFxPanel();
   emitOutsideFxMutation(state.boardId, "outside-direction-update");
   triggerFeedback.textContent = persisted
-      ? `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled`
-      : `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled (persistence failed)`;
+    ? `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled`
+    : `Status: Outside direction ${outsideDirectionInput.value === "reverse" ? "Reverse" : "Forward"} enabled (persistence failed)`;
 });
 
 roomOverlay.addEventListener("pointermove", (event) => {

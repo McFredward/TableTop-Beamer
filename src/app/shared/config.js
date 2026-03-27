@@ -343,12 +343,29 @@
     [0.03, 0.5],
   ];
 
+  const OUTSIDE_ANIMATION_ASSET_TYPES = ["coded", "gif", "mp4"];
+
+  function createDefaultOutsideAnimationDefinitions() {
+    return [
+      {
+        id: "outside-space",
+        name: "Outside Space",
+        assetType: "coded",
+        assetRef: "outside-space",
+        boomerang: false,
+        intensity: 0.7,
+        speed: 1,
+        mode: "standard",
+        direction: "forward",
+        soundEnabled: false,
+      },
+    ];
+  }
+
   const OUTSIDE_FX_DEFAULT = {
     enabled: false,
-    intensity: 0.7,
-    speed: 1,
-    mode: "standard",
-    direction: "forward",
+    selectedAnimationId: "outside-space",
+    animations: createDefaultOutsideAnimationDefinitions(),
   };
 
   const ROOM_STATE_DEFAULT = {
@@ -385,6 +402,8 @@
     ROOM_GEOMETRY_DEFAULT,
     BOARD_ZOOM_DEFAULT,
     SHIP_POLYGON_DEFAULT,
+    OUTSIDE_ANIMATION_ASSET_TYPES,
+    createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
     ROOM_STATE_DEFAULT,
   };

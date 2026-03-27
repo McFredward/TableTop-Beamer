@@ -26,21 +26,19 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T23 [P0] Empty-Start-Guard validieren: importierte Bildboards ohne Start-Polygone sind editierbar und crashfrei.
 - [x] DONE P8-T24 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF1 Stand.
 
-## Plan 8-HF2 - Filename Overflow Layout Hotfix (priorisierte P0-Welle, execute-ready)
-- [x] DONE P8-T25 [P0] Settings-Import-Dateinamenpfad overflow-sicher machen: lange Dateinamen duerfen die Settings-Leiste nicht horizontal strecken.
-- [x] DONE P8-T26 [P0] Dateinamen-Darstellung robust machen (Wrap/Truncate): kein Overflow links/rechts ausserhalb des Dateinamen-Containers.
-- [x] DONE P8-T27 [P0] Settings-Panel-Breitenstabilitaet haerten: kein horizontaler Scrollbedarf durch Dateiname (inkl. schmaler Viewports).
-- [x] DONE P8-T28 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
+## Plan 8-HF2 - Outside Animations Mars Feature Pack (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T25 [P0] Outside-Animationsdatenmodell erweitern: mehrere Definitionen inkl. `assetType`, `assetRef`, `boomerang`, animation-spezifischer Settings.
+- [ ] TODO P8-T26 [P0] Neue verpflichtende Animation `Outside Sandstorm` auf `sandstorm.mp4` integrieren (immer stumm, kein Audio).
+- [ ] TODO P8-T27 [P0] Optionales Boomerang-Playback fuer Outside-Animationen implementieren (vorwaerts/rueckwaerts-loop) inkl. Start/Stop/Clear-Paritaet.
+- [ ] TODO P8-T28 [P0] Settings-Refactor umsetzen: Outside-Animationscontrols aus `Play Area Editor` in eigene Sektion `Outside Animations` verschieben.
+- [ ] TODO P8-T29 [P0] Outside-Animation-Editor liefern: Dropdown fuer bearbeitete Animation + per-animation Boomerang/Settings.
+- [ ] TODO P8-T30 [P0] Asset-Mapping im UI editierbar machen: Quelle pro Animation als `gif`, `mp4` oder coded animation key konfigurierbar.
+- [ ] TODO P8-T31 [P0] Create-Flow fuer neue Outside-Animationen in UI implementieren (anlegen, direkt bearbeiten, runtime-nutzbar).
+- [ ] TODO P8-T32 [P0] Resource-Asset-Picker integrieren: vorhandene Dateien aus `resources` auswaehlbar und als `assetRef` uebernehmbar.
+- [ ] TODO P8-T33 [P0] Persistenz erweitern: Outside-Animationsdefinitionen + Settings ueber Profile/Defaults speichern/laden (inkl. Legacy-Migration/Guards).
+- [ ] TODO P8-T34 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
 
-## Plan 8-HF3 - Board Catalog Width + Outside Duststorm Hotfix (priorisierte P0-Welle, execute-ready)
-- [x] DONE P8-T29 [P0] `Board catalog + output` Layout-Containment haerten: lange Board-Namen/Infozeilen duerfen das Modul nicht horizontal strecken.
-- [x] DONE P8-T30 [P0] Board-Name/Info-Rendering robust machen (Wrap/Truncate/Ellipsis): kein Overflow links/rechts ausserhalb des vorgesehenen Containers.
-- [x] DONE P8-T31 [P0] Panel-Breitenstabilitaet verifizieren: kein horizontaler Scrollbedarf im `Board catalog + output`-Pfad (Desktop + schmale Viewports).
-- [x] DONE P8-T32 [P0] Neue Outside-Animation `Outside Duststorm` implementieren und in Outside-Mode-Selection integrieren.
-- [x] DONE P8-T33 [P0] `Outside Duststorm` in bestehende Outside-Logik + Sync-Pipeline integrieren (serverautoritativ, join/reconnect, first-click-deterministisch).
-- [x] DONE P8-T34 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF3 Stand.
-
-## Plan 8-2 - Hardening Wave (nach 8-HF3)
+## Plan 8-2 - Hardening Wave (nach 8-HF2)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

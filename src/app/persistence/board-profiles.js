@@ -151,7 +151,13 @@
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         playAreaPolygon: legacyPolygon,
-        outsideFx: profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT,
+        outsideFx: {
+          ...(profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT),
+          ...(Array.isArray(profile.outsideAnimations) ? { animations: profile.outsideAnimations } : {}),
+          ...(profile.selectedOutsideAnimationId
+            ? { selectedAnimationId: profile.selectedOutsideAnimationId }
+            : {}),
+        },
       };
     }
     return migrated;
