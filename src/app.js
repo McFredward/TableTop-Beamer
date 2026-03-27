@@ -170,6 +170,8 @@ const shipPolygonDeleteVertexButton = document.querySelector("#ship-polygon-dele
 const shipPolygonResetButton = document.querySelector("#ship-polygon-reset");
 const shipPolygonEditorStatus = document.querySelector("#ship-polygon-editor-status");
 const outsideAnimationSelect = document.querySelector("#outside-animation-select");
+const outsideAnimationNameInput = document.querySelector("#outside-animation-name");
+const outsideAnimationCreateButton = document.querySelector("#outside-animation-create");
 const outsideEnabledInput = document.querySelector("#outside-enabled");
 const outsideBoomerangInput = document.querySelector("#outside-boomerang");
 const outsideIntensityInput = document.querySelector("#outside-intensity");
@@ -250,6 +252,8 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "play-area-delete",
   "show-play-area-vertices",
   "outside-animation-select",
+  "outside-animation-name",
+  "outside-animation-create",
   "outside-enabled",
   "outside-boomerang",
   "outside-intensity",
@@ -2118,6 +2122,30 @@ function resolveOutsideTimeline(elapsedSeconds, speed, boomerang) {
     timeline: reversePhase ? 2 - cycle : cycle,
     directionMultiplier: reversePhase ? -1 : 1,
   };
+}
+
+function createOutsideAnimationDefinition(name, existingDefinitions = []) {
+  const baseName = String(name || "").trim() || "Outside Animation";
+  const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "outside-animation";
+  let candidateId = slug;
+  const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+  let suffix = 2;
+  while (existingIds.has(candidateId)) {
+    candidateId = `${slug}-${suffix}`;
+    suffix += 1;
+  }
+  return normalizeOutsideAnimationDefinition({
+    id: candidateId,
+    name: baseName,
+    assetType: "coded",
+    assetRef: "outside-space",
+    boomerang: false,
+    intensity: 0.7,
+    speed: 1,
+    mode: "standard",
+    direction: "forward",
+    soundEnabled: false,
+  });
 }
 
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
@@ -9578,6 +9606,48 @@ outsideEnabledInput.addEventListener("change", () => {
   triggerFeedback.textContent = persisted
     ? `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"}`
     : `Status: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"} (persistence failed)`;
+});
+
+outsideAnimationCreateButton?.addEventListener("click", () => {
+  const profile = getOutsideFxProfile(state.boardId);
+  const definition = createOutsideAnimationDefinition(outsideAnimationNameInput?.value, profile.animations);
+  const nextAnimations = [...profile.animations, definition];
+  const nextProfile = {
+    ...profile,
+    animations: nextAnimations,
+    selectedAnimationId: definition.id,
+  };
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-animation-create",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      if (outsideAnimationNameInput) {
+        outsideAnimationNameInput.value = "";
+      }
+      triggerFeedback.textContent = `Pending: Outside animation ${definition.name} created (waiting for snapshot)`;
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside animation create command failed";
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, {
+    animations: nextAnimations,
+    selectedAnimationId: definition.id,
+  });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-animation-create");
+  if (outsideAnimationNameInput) {
+    outsideAnimationNameInput.value = "";
+  }
+  triggerFeedback.textContent = persisted
+    ? `Status: Outside animation ${definition.name} created`
+    : `Status: Outside animation ${definition.name} created (persistence failed)`;
 });
 
 outsideAnimationSelect?.addEventListener("change", () => {
