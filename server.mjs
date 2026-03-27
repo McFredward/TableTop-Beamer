@@ -14,6 +14,7 @@ const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
 const IMPORTED_BOARD_ASSETS_DIR = path.join(IMPORTED_BOARDS_DIR, "assets");
+const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
 const BOARD_DEFINITION_SCHEMA = "tt-beamer.board-definition.v1";
@@ -211,46 +212,6 @@ function normalizeNonEmptyString(value) {
   return trimmed ? trimmed : null;
 }
 
-function clampOutsideNumber(value, { min, max, fallback }) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
-  return Math.max(min, Math.min(max, numeric));
-}
-
-function normalizeOutsideMode(value) {
-  return value === "immersive" || value === "duststorm" ? value : "standard";
-}
-
-function normalizeOutsideDirection(value) {
-  return value === "reverse" ? "reverse" : "forward";
-}
-
-function normalizeOutsideFxProfile(profile, baseProfile = null) {
-  const base = isPlainObject(baseProfile) ? baseProfile : {};
-  return {
-    enabled:
-      typeof profile?.enabled === "boolean"
-        ? profile.enabled
-        : typeof base.enabled === "boolean"
-          ? base.enabled
-          : false,
-    intensity: clampOutsideNumber(profile?.intensity ?? base.intensity, {
-      min: 0.2,
-      max: 1.5,
-      fallback: 0.7,
-    }),
-    speed: clampOutsideNumber(profile?.speed ?? base.speed, {
-      min: 0.3,
-      max: 2.5,
-      fallback: 1,
-    }),
-    mode: normalizeOutsideMode(profile?.mode ?? base.mode),
-    direction: normalizeOutsideDirection(profile?.direction ?? base.direction),
-  };
-}
-
 function isBoardContextSuppressedReason(reason) {
   const normalized = normalizeNonEmptyString(reason);
   if (!normalized) {
@@ -284,15 +245,19 @@ function applyOutsideUpdatePatch(payload) {
       if (!boardId || !isPlainObject(profile)) {
         continue;
       }
-      const previousProfile = isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {};
-      outsideFxByBoard[boardId] = normalizeOutsideFxProfile(profile, previousProfile);
+      outsideFxByBoard[boardId] = {
+        ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
+        ...profile,
+      };
     }
   }
 
   if (typeof payload?.outsideBoardId === "string" && isPlainObject(payload?.outsideFx)) {
     const boardId = payload.outsideBoardId;
-    const previousProfile = isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {};
-    outsideFxByBoard[boardId] = normalizeOutsideFxProfile(payload.outsideFx, previousProfile);
+    outsideFxByBoard[boardId] = {
+      ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
+      ...payload.outsideFx,
+    };
   }
 
   nextRuntime.outsideFxByBoard = outsideFxByBoard;
@@ -1814,6 +1779,40 @@ async function loadBoardCatalog() {
   };
 }
 
+async function listResourceFilesRecursive(baseDir, relativeDir = "") {
+  const absoluteDir = path.join(baseDir, relativeDir);
+  let entries = [];
+  try {
+    entries = await readdir(absoluteDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const files = [];
+  for (const entry of entries) {
+    const nextRelative = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...(await listResourceFilesRecursive(baseDir, nextRelative)));
+      continue;
+    }
+    if (!entry.isFile()) {
+      continue;
+    }
+    files.push(`/${path.posix.join("resources", ...nextRelative.split(path.sep))}`);
+  }
+  return files;
+}
+
+async function loadResourceAssetCatalog() {
+  const files = await listResourceFilesRecursive(RESOURCES_DIR);
+  files.sort((a, b) => a.localeCompare(b));
+  return {
+    schema: "tt-beamer.resources.v1",
+    generatedAt: new Date().toISOString(),
+    count: files.length,
+    files,
+  };
+}
+
 const IMAGE_IMPORT_ALLOWED_MIME_TO_EXT = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -2417,6 +2416,12 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && routePath === "/api/boards") {
       const catalog = await loadBoardCatalog();
+      sendJson(res, 200, catalog);
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/resources") {
+      const catalog = await loadResourceAssetCatalog();
       sendJson(res, 200, catalog);
       return;
     }

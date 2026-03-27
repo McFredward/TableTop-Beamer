@@ -182,6 +182,8 @@ const outsideModeInput = document.querySelector("#outside-mode");
 const outsideDirectionInput = document.querySelector("#outside-direction");
 const outsideAssetTypeInput = document.querySelector("#outside-asset-type");
 const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
+const outsideResourceSelect = document.querySelector("#outside-resource-select");
+const outsideResourceApplyButton = document.querySelector("#outside-resource-apply");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -262,6 +264,8 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-direction",
   "outside-asset-type",
   "outside-asset-ref",
+  "outside-resource-select",
+  "outside-resource-apply",
 ];
 
 function applyOutputRoleViewContract() {
@@ -1175,6 +1179,7 @@ const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
 const pendingAnimationAudioStartTimers = new Map();
 const startedGlobalAudioRevisionByTriggerKey = new Map();
+let outsideResourceAssets = [];
 
 const {
   createDefaultAnimationSoundMap,
@@ -5057,6 +5062,55 @@ function areRoomVerticesEditable() {
 
 function arePlayAreaVerticesEditable() {
   return state.polygonEditor.playAreaVerticesVisible !== false;
+}
+
+function inferOutsideAssetTypeFromPath(pathValue) {
+  const value = String(pathValue || "").trim().toLowerCase();
+  if (value.endsWith(".mp4")) {
+    return "mp4";
+  }
+  if (value.endsWith(".gif")) {
+    return "gif";
+  }
+  return "coded";
+}
+
+function syncOutsideResourcePicker() {
+  if (!outsideResourceSelect) {
+    return;
+  }
+  outsideResourceSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = outsideResourceAssets.length > 0
+    ? "Select resource asset…"
+    : "No resource assets available";
+  outsideResourceSelect.append(placeholder);
+  for (const assetPath of outsideResourceAssets) {
+    const option = document.createElement("option");
+    option.value = assetPath;
+    option.textContent = assetPath.replace(/^\//, "");
+    outsideResourceSelect.append(option);
+  }
+  outsideResourceSelect.value = "";
+}
+
+async function loadOutsideResourceAssets() {
+  try {
+    const response = await fetch("/api/resources");
+    if (!response.ok) {
+      throw new Error(`resource list failed (${response.status})`);
+    }
+    const payload = await response.json();
+    const files = Array.isArray(payload?.files) ? payload.files : [];
+    outsideResourceAssets = files
+      .map((entry) => String(entry || "").trim())
+      .filter((entry) => entry.startsWith("/resources/") && /\.(gif|mp4)$/i.test(entry))
+      .sort();
+  } catch {
+    outsideResourceAssets = [];
+  }
+  syncOutsideResourcePicker();
 }
 
 function syncOutsideFxPanel() {
@@ -9892,6 +9946,45 @@ outsideAssetRefInput?.addEventListener("change", () => {
     : "Status: Outside asset reference updated (persistence failed)";
 });
 
+outsideResourceApplyButton?.addEventListener("click", () => {
+  const selectedResource = String(outsideResourceSelect?.value || "").trim();
+  if (!selectedResource) {
+    triggerFeedback.textContent = "Status: Select a resource asset first";
+    return;
+  }
+  const inferredAssetType = inferOutsideAssetTypeFromPath(selectedResource);
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      assetType: inferredAssetType,
+      assetRef: selectedResource,
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-resource-asset-apply",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside resource asset command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside resource asset command failed";
+    });
+    return;
+  }
+  updateOutsideFxProfile(state.boardId, {
+    assetType: inferredAssetType,
+    assetRef: selectedResource,
+  });
+  const persisted = persistBoardProfiles();
+  syncOutsideFxPanel();
+  emitOutsideFxMutation(state.boardId, "outside-resource-asset-apply");
+  triggerFeedback.textContent = persisted
+    ? "Status: Outside resource asset applied"
+    : "Status: Outside resource asset applied (persistence failed)";
+});
+
 roomOverlay.addEventListener("pointermove", (event) => {
   if (state.panMode.active) {
     if (state.panMode.pointerId !== event.pointerId) {
@@ -10560,6 +10653,7 @@ function syncRuntimePanelsFromState() {
 
 async function initializeApplication() {
   await loadExternalBoardZones();
+  await loadOutsideResourceAssets();
   syncBoardSelectOptions();
   const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
     (entry) => entry && entry !== "ZONE_LOADED",

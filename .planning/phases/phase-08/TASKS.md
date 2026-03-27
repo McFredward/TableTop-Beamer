@@ -34,7 +34,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T29 [P0] Outside-Animation-Editor liefern: Dropdown fuer bearbeitete Animation + per-animation Boomerang/Settings.
 - [x] DONE P8-T30 [P0] Asset-Mapping im UI editierbar machen: Quelle pro Animation als `gif`, `mp4` oder coded animation key konfigurierbar.
 - [x] DONE P8-T31 [P0] Create-Flow fuer neue Outside-Animationen in UI implementieren (anlegen, direkt bearbeiten, runtime-nutzbar).
-- [ ] TODO P8-T32 [P0] Resource-Asset-Picker integrieren: vorhandene Dateien aus `resources` auswaehlbar und als `assetRef` uebernehmbar.
+- [x] DONE P8-T32 [P0] Resource-Asset-Picker integrieren: vorhandene Dateien aus `resources` auswaehlbar und als `assetRef` uebernehmbar.
 - [ ] TODO P8-T33 [P0] Persistenz erweitern: Outside-Animationsdefinitionen + Settings ueber Profile/Defaults speichern/laden (inkl. Legacy-Migration/Guards).
 - [ ] TODO P8-T34 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
 
