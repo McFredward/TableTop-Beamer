@@ -276,14 +276,21 @@ function syncAlignModePanel() {
 }
 
 function setAlignMode(enabled, { emit = true } = {}) {
-  state.alignMode = Boolean(enabled);
+  const nextAlignMode = Boolean(enabled);
+  if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
+    void emitLiveMutation("align-toggle", {
+      alignMode: nextAlignMode,
+    }).then(() => {
+      triggerFeedback.textContent = `Pending: align mode ${nextAlignMode ? "ON" : "OFF"} (waiting for snapshot)`;
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: align-mode command failed";
+      syncAlignModePanel();
+    });
+    return;
+  }
+  state.alignMode = nextAlignMode;
   syncAlignModePanel();
   renderRoomOverlay();
-  if (emit) {
-    emitLiveMutation("align-toggle", {
-      alignMode: state.alignMode,
-    });
-  }
 }
 
 const ctx = canvas.getContext("2d");
@@ -301,16 +308,20 @@ const state = window.TT_BEAMER_STATE.createInitialState({
 const liveSync = {
   socket: null,
   socketGeneration: 0,
-  connected: false,
+  wsConnected: false,
   clientId: null,
-  lastAckAt: null,
-  lastAckedMutationId: null,
-  lastAckedVersion: 0,
+  lastCommandAcceptedAt: null,
+  lastCommandAcceptedVersion: 0,
   lastSessionVersion: 0,
   lastAppliedVersion: 0,
   appliedMutationIds: new Set(),
-  nextClientSequence: 1,
   pendingMutations: new Map(),
+  dirtyHintUntil: 0,
+  pollTimerId: null,
+  pollInFlight: false,
+  pollBackoffMs: 0,
+  pollingEnabled: true,
+  preferFastPollingUntil: 0,
   tracesByMutationId: new Map(),
   applyRejectCounters: {
     staleVersion: 0,
@@ -319,6 +330,9 @@ const liveSync = {
 };
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
+const LIVE_POLL_FAST_MS = 120;
+const LIVE_POLL_IDLE_MS = 250;
+const LIVE_POLL_MAX_BACKOFF_MS = 2000;
 
 function rememberAppliedMutationId(mutationId) {
   if (typeof mutationId !== "string" || !mutationId) {
@@ -358,7 +372,7 @@ function getLiveTraceSnapshot() {
     markers: entry.markers,
   }));
   return {
-    connected: liveSync.connected,
+    connected: liveSync.wsConnected,
     clientId: liveSync.clientId,
     lastSessionVersion: liveSync.lastSessionVersion,
     lastAppliedVersion: liveSync.lastAppliedVersion,
@@ -369,26 +383,7 @@ function getLiveTraceSnapshot() {
 }
 
 function replayPendingLiveMutations() {
-  if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
-    return;
-  }
-  const pendingEntries = [...liveSync.pendingMutations.values()].sort((a, b) => a.clientSequence - b.clientSequence);
-  for (const entry of pendingEntries) {
-    if (!entry?.wirePayload) {
-      continue;
-    }
-    if (
-      entry.mutationType === "context-update" &&
-      Number.isFinite(entry.baseVersion) &&
-      Number(entry.baseVersion) < liveSync.lastSessionVersion
-    ) {
-      if (entry.mutationId) {
-        liveSync.pendingMutations.delete(entry.mutationId);
-      }
-      continue;
-    }
-    liveSync.socket.send(entry.wirePayload);
-  }
+  // polling mode keeps pending entries until a newer snapshot version confirms them.
 }
 
 function getAnimationStartedAtEpochMs(animation) {
@@ -433,10 +428,111 @@ function buildAnimationSnapshotForLiveSync(animation) {
   };
 }
 
-function emitLiveMutation(mutationType, payload = {}) {
-  if (!liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+function getAdaptivePollingIntervalMs() {
+  const now = Date.now();
+  const documentVisible = document.visibilityState === "visible";
+  const fastMode =
+    liveSync.pendingMutations.size > 0 ||
+    liveSync.dirtyHintUntil > now ||
+    liveSync.preferFastPollingUntil > now ||
+    documentVisible;
+  return fastMode ? LIVE_POLL_FAST_MS : LIVE_POLL_IDLE_MS;
+}
+
+function scheduleNextLiveSnapshotPoll(delayOverrideMs = null) {
+  if (!liveSync.pollingEnabled) {
     return;
   }
+  if (liveSync.pollTimerId !== null) {
+    window.clearTimeout(liveSync.pollTimerId);
+    liveSync.pollTimerId = null;
+  }
+  const adaptive = getAdaptivePollingIntervalMs();
+  const backoff = Math.max(0, Number(liveSync.pollBackoffMs) || 0);
+  const delayMs = Math.max(0, Number.isFinite(delayOverrideMs) ? Number(delayOverrideMs) : Math.max(adaptive, backoff));
+  liveSync.pollTimerId = window.setTimeout(() => {
+    liveSync.pollTimerId = null;
+    void pollLiveSnapshotOnce();
+  }, delayMs);
+}
+
+function normalizeSnapshotEnvelope(payload) {
+  const session = payload?.session;
+  const version = Number.isFinite(Number(session?.version)) ? Number(session.version) : null;
+  return {
+    version,
+    snapshot: session?.snapshot ?? null,
+    changed: payload?.changed === true,
+  };
+}
+
+function resolvePendingMutationsByVersion(appliedVersion) {
+  for (const [mutationId, entry] of liveSync.pendingMutations.entries()) {
+    const acceptedVersion = Number(entry?.acceptedVersion ?? 0);
+    if (acceptedVersion > 0 && Number(appliedVersion) >= acceptedVersion) {
+      liveSync.pendingMutations.delete(mutationId);
+      recordMutationTrace(mutationId, "snapshot_applied");
+    }
+  }
+}
+
+async function pollLiveSnapshotOnce() {
+  if (!liveSync.pollingEnabled || liveSync.pollInFlight) {
+    return;
+  }
+  liveSync.pollInFlight = true;
+  try {
+    const params = new URLSearchParams({
+      sinceVersion: String(Math.max(0, Number(liveSync.lastAppliedVersion) || 0)),
+    });
+    const response = await fetch(`/api/live/snapshot?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`snapshot fetch failed (${response.status})`);
+    }
+    const payload = await response.json();
+    const envelope = normalizeSnapshotEnvelope(payload);
+    const incomingVersion = envelope.version;
+    if (incomingVersion !== null) {
+      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, incomingVersion);
+    }
+    if (incomingVersion !== null && incomingVersion <= liveSync.lastAppliedVersion) {
+      liveSync.applyRejectCounters.staleVersion += 1;
+    } else if (incomingVersion !== null && envelope.snapshot) {
+      const applied = applyLiveRuntimeSnapshot(envelope.snapshot, {
+        version: incomingVersion,
+        mutationEnvelope: null,
+        mutationType: "snapshot-poll",
+      });
+      if (applied) {
+        resolvePendingMutationsByVersion(incomingVersion);
+      }
+    }
+    liveSync.pollBackoffMs = 0;
+    const hasPending = liveSync.pendingMutations.size > 0;
+    if (!hasPending && triggerFeedback && outputRole === OUTPUT_ROLE_CONTROL) {
+      if (triggerFeedback.textContent?.includes("Pending:")) {
+        triggerFeedback.textContent = "Status: snapshot synchronized";
+      }
+    }
+    scheduleNextLiveSnapshotPoll();
+  } catch {
+    const nextBackoff = liveSync.pollBackoffMs > 0 ? Math.min(LIVE_POLL_MAX_BACKOFF_MS, Math.floor(liveSync.pollBackoffMs * 2)) : 400;
+    const jitter = Math.floor(Math.random() * 120);
+    liveSync.pollBackoffMs = Math.min(LIVE_POLL_MAX_BACKOFF_MS, nextBackoff + jitter);
+    scheduleNextLiveSnapshotPoll(liveSync.pollBackoffMs);
+  } finally {
+    liveSync.pollInFlight = false;
+  }
+}
+
+async function emitLiveMutation(mutationType, payload = {}) {
+  const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const queuedAt = Date.now();
   if (mutationType === "context-update") {
     for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
       if (entry?.mutationType === "context-update") {
@@ -444,41 +540,51 @@ function emitLiveMutation(mutationType, payload = {}) {
       }
     }
   }
-  const mutationId = `m-${Date.now().toString(36)}-${liveSync.nextClientSequence.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  const clientTimestamp = new Date().toISOString();
-  const clientSequence = liveSync.nextClientSequence;
-  liveSync.nextClientSequence += 1;
-  const baseVersion = liveSync.lastSessionVersion;
   liveSync.pendingMutations.set(mutationId, {
     mutationId,
     mutationType,
-    baseVersion,
-    queuedAt: Date.now(),
-    clientSequence,
-    wirePayload: null,
+    queuedAt,
+    acceptedVersion: null,
   });
-  const wirePayload = JSON.stringify({
-    type: "live-mutation",
-    mutationId,
-    clientTimestamp,
-    clientSequence,
-    mutationType,
-    payload: {
-      ...payload,
-      baseVersion,
-      runtime: buildRuntimeSnapshotForLiveSync(),
-    },
-  });
-  liveSync.pendingMutations.set(mutationId, {
-    mutationId,
-    mutationType,
-    baseVersion,
-    queuedAt: Date.now(),
-    clientSequence,
-    wirePayload,
-  });
-  recordMutationTrace(mutationId, "client_emit");
-  liveSync.socket.send(wirePayload);
+  recordMutationTrace(mutationId, "command_emit");
+  try {
+    const response = await fetch("/api/live/command", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({
+        mutationId,
+        mutationType,
+        role: outputRole,
+        clientId: liveSync.clientId ?? undefined,
+        payload,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`command rejected (${response.status})`);
+    }
+    const ack = await response.json();
+    liveSync.lastCommandAcceptedAt = Date.now();
+    if (Number.isFinite(Number(ack?.version))) {
+      const version = Number(ack.version);
+      liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
+      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
+      const pendingEntry = liveSync.pendingMutations.get(mutationId);
+      if (pendingEntry) {
+        pendingEntry.acceptedVersion = version;
+        liveSync.pendingMutations.set(mutationId, pendingEntry);
+      }
+    }
+    recordMutationTrace(mutationId, "command_accepted");
+    liveSync.preferFastPollingUntil = Date.now() + 2000;
+    scheduleNextLiveSnapshotPoll(0);
+    return ack;
+  } catch (error) {
+    liveSync.pendingMutations.delete(mutationId);
+    throw error;
+  }
 }
 
 function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settings") {
@@ -531,7 +637,7 @@ function isControlCriticalMutationEnvelope(envelope) {
 }
 
 function sendLiveMutationReceiveAck(envelope) {
-  if (!envelope?.mutationId || !liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+  if (!envelope?.mutationId || !liveSync.wsConnected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
   }
   liveSync.socket.send(JSON.stringify({
@@ -542,7 +648,7 @@ function sendLiveMutationReceiveAck(envelope) {
 }
 
 function sendLiveMutationApplyAck(envelope) {
-  if (!envelope?.mutationId || !liveSync.connected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
+  if (!envelope?.mutationId || !liveSync.wsConnected || !liveSync.socket || liveSync.socket.readyState !== WebSocket.OPEN) {
     return;
   }
   liveSync.socket.send(JSON.stringify({
@@ -554,7 +660,7 @@ function sendLiveMutationApplyAck(envelope) {
 
 function shouldApplyMutationEnvelope(version, mutationEnvelope) {
   const numericVersion = Number.isFinite(version) ? Number(version) : null;
-  if (numericVersion !== null && numericVersion < liveSync.lastSessionVersion) {
+  if (numericVersion !== null && numericVersion <= liveSync.lastAppliedVersion) {
     liveSync.applyRejectCounters.staleVersion += 1;
     return false;
   }
@@ -562,7 +668,7 @@ function shouldApplyMutationEnvelope(version, mutationEnvelope) {
     ? Number(mutationEnvelope.serverVersion)
     : null;
   const effectiveVersion = envelopeVersion ?? numericVersion;
-  if (effectiveVersion !== null && effectiveVersion < liveSync.lastAppliedVersion) {
+  if (effectiveVersion !== null && effectiveVersion <= liveSync.lastAppliedVersion) {
     liveSync.applyRejectCounters.staleVersion += 1;
     return false;
   }
@@ -683,7 +789,7 @@ function connectLiveSyncSocket() {
       if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
         return;
       }
-      liveSync.connected = true;
+      liveSync.wsConnected = true;
     });
     socket.addEventListener("message", (event) => {
       if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
@@ -693,41 +799,17 @@ function connectLiveSyncSocket() {
         const payload = JSON.parse(event.data);
         if (payload?.type === "live-hello") {
           liveSync.clientId = payload.clientId ?? null;
-          applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
-            version: payload?.session?.version,
-          });
+          liveSync.dirtyHintUntil = Date.now() + 1200;
           if (Number.isFinite(payload?.session?.version)) {
             const helloVersion = Number(payload.session.version);
             liveSync.lastAppliedVersion = Math.max(liveSync.lastAppliedVersion, helloVersion);
             liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
           }
-          replayPendingLiveMutations();
+          scheduleNextLiveSnapshotPoll(0);
         }
-        if (payload?.type === "live-ack") {
-          liveSync.lastAckAt = Date.now();
-          if (typeof payload?.mutationId === "string") {
-            liveSync.pendingMutations.delete(payload.mutationId);
-            liveSync.lastAckedMutationId = payload.mutationId;
-          }
-          if (Number.isFinite(payload?.version)) {
-            const version = Number(payload.version);
-            liveSync.lastAckedVersion = Math.max(liveSync.lastAckedVersion, version);
-            liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
-          }
-          if (typeof payload?.mutationId === "string") {
-            recordMutationTrace(payload.mutationId, "server_ack");
-          }
-        }
-        if (payload?.type === "live-session-update") {
-          if (payload?.mutationEnvelope?.mutationId) {
-            recordMutationTrace(payload.mutationEnvelope.mutationId, "client_receive");
-          }
-          sendLiveMutationReceiveAck(payload?.mutationEnvelope);
-          applyLiveRuntimeSnapshot(payload?.session?.snapshot, {
-            version: payload?.session?.version,
-            mutationEnvelope: payload?.mutationEnvelope,
-            mutationType: payload?.mutationType,
-          });
+        if (payload?.type === "state-dirty" || payload?.wake === true) {
+          liveSync.dirtyHintUntil = Date.now() + 1500;
+          scheduleNextLiveSnapshotPoll(0);
         }
       } catch {
         // ignore malformed live-sync payloads
@@ -737,17 +819,17 @@ function connectLiveSyncSocket() {
       if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
         return;
       }
-      liveSync.connected = false;
+      liveSync.wsConnected = false;
       window.setTimeout(connectLiveSyncSocket, 1200);
     });
     socket.addEventListener("error", () => {
       if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
         return;
       }
-      liveSync.connected = false;
+      liveSync.wsConnected = false;
     });
   } catch {
-    liveSync.connected = false;
+    liveSync.wsConnected = false;
   }
 }
 
@@ -3369,6 +3451,17 @@ function hardStopRuntimeEffects({ clearVisuals = true } = {}) {
 }
 
 function executeClearAll() {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    void emitLiveMutation("clear-all", {
+      priorityHint: "high",
+      reason: "control-clear-all",
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Clear All command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Clear All command failed";
+    });
+    return;
+  }
   hardStopRuntimeEffects({ clearVisuals: true });
   for (const board of BOARDS) {
     updateOutsideFxProfile(board.id, { enabled: false });
@@ -3380,7 +3473,7 @@ function executeClearAll() {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   triggerFeedback.textContent = "Status: Clear All executed";
-  emitLiveMutation("clear-all", {
+  void emitLiveMutation("clear-all", {
     priorityHint: "high",
   });
 }
@@ -6129,6 +6222,43 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
   );
   const isOutside = getGlobalAnimationCategory(type) === "outside-ship";
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    if (existing) {
+      void emitLiveMutation("trigger-global", {
+        animationType: type,
+        animationId: existing.id,
+        action: "stop",
+        boardId: state.boardId,
+        priorityHint: "high",
+        outsideHint: isOutside,
+      }).then(() => {
+        triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} stop accepted (waiting for snapshot)`;
+      }).catch(() => {
+        triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stop command failed`;
+      });
+    } else {
+      const animation = createAnimation({
+        type,
+        scope: "global",
+        boardId: state.boardId,
+        intensity: 1,
+        hold: defaultDurationSec === null,
+        durationSec: defaultDurationSec ?? 0,
+      });
+      void emitLiveMutation("trigger-global", {
+        animationType: type,
+        action: "start",
+        boardId: state.boardId,
+        outsideHint: isOutside,
+        animation: buildAnimationSnapshotForLiveSync(animation),
+      }).then(() => {
+        triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} start accepted (waiting for snapshot)`;
+      }).catch(() => {
+        triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} start command failed`;
+      });
+    }
+    return;
+  }
   if (existing) {
     stopAnimationSound(existing.id);
     state.runningAnimations = state.runningAnimations.filter((anim) => anim.id !== existing.id);
@@ -6138,7 +6268,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       syncOutsideFxPanel();
     }
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} stopped`;
-    emitLiveMutation("trigger-global", {
+    void emitLiveMutation("trigger-global", {
       animationType: type,
       action: "stop",
       priorityHint: "high",
@@ -6159,7 +6289,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     }
     playSoundForAnimation(animation);
     triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} started`;
-    emitLiveMutation("trigger-global", {
+    void emitLiveMutation("trigger-global", {
       animationType: type,
       action: "start",
     });
@@ -6210,6 +6340,220 @@ function startRoomAnimationFromDraft() {
       triggerFeedback.textContent = "Status: select a room on the board first";
       return;
     }
+  }
+
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const pendingCommands = [];
+    if (state.roomDraft.editTargetId) {
+      if (state.roomDraft.targetType === "cluster") {
+        const existingCluster = state.runningAnimations.find(
+          (item) => item.id === state.roomDraft.editTargetId && item.scope === "cluster",
+        );
+        if (existingCluster) {
+          const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
+          const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+          const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
+            staggerStart: shouldStaggerClusterStart,
+          });
+          const reusableMembersByRoomId = new Map();
+          for (const member of state.runningAnimations) {
+            if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+              continue;
+            }
+            const roomKey = String(member.roomId || "").trim();
+            if (!roomKey) {
+              continue;
+            }
+            if (!reusableMembersByRoomId.has(roomKey)) {
+              reusableMembersByRoomId.set(roomKey, []);
+            }
+            reusableMembersByRoomId.get(roomKey).push(member);
+          }
+          const retainedMemberIds = new Set();
+          const nextMemberAnimationIds = [];
+          const nextMemberRoomIds = [];
+
+          for (const { roomId, startDelayMs } of dispatchPlan) {
+            const reusableBucket = reusableMembersByRoomId.get(roomId) ?? [];
+            const reusableMember = reusableBucket.shift() ?? null;
+            if (reusableMember) {
+              const updatedMember = {
+                ...reusableMember,
+                ...draftPayload,
+                boardId: state.boardId,
+                roomId,
+                parentClusterRunId: existingCluster.id,
+                startedAt: performance.now() + Math.max(0, Number(startDelayMs) || 0),
+                startedAtEpochMs: Date.now() + Math.max(0, Number(startDelayMs) || 0),
+              };
+              pendingCommands.push(emitLiveMutation("edit-room", {
+                animationId: updatedMember.id,
+                animation: buildAnimationSnapshotForLiveSync(updatedMember),
+              }));
+              retainedMemberIds.add(updatedMember.id);
+              nextMemberAnimationIds.push(updatedMember.id);
+              nextMemberRoomIds.push(roomId);
+            } else {
+              const createdMember = createAnimation({
+                type: draftPayload.type,
+                scope: "room",
+                roomId,
+                boardId: state.boardId,
+                intensity: draftPayload.intensity,
+                speed: draftPayload.speed,
+                opacity: draftPayload.opacity,
+                playbackSpeed: draftPayload.playbackSpeed,
+                soundVolume: draftPayload.soundVolume,
+                hold: true,
+                durationSec: 0,
+                startDelayMs,
+              });
+              createdMember.parentClusterRunId = existingCluster.id;
+              pendingCommands.push(emitLiveMutation("trigger-room", {
+                animationId: createdMember.id,
+                animation: buildAnimationSnapshotForLiveSync(createdMember),
+              }));
+              retainedMemberIds.add(createdMember.id);
+              nextMemberAnimationIds.push(createdMember.id);
+              nextMemberRoomIds.push(roomId);
+            }
+          }
+
+          for (const member of state.runningAnimations) {
+            if (member?.scope !== "room" || member?.parentClusterRunId !== existingCluster.id) {
+              continue;
+            }
+            if (!retainedMemberIds.has(member.id)) {
+              pendingCommands.push(emitLiveMutation("stop-animation", {
+                animationId: member.id,
+                priorityHint: "high",
+              }));
+            }
+          }
+
+          const updatedCluster = {
+            ...existingCluster,
+            ...draftPayload,
+            scope: "cluster",
+            roomId: null,
+            boardId: state.boardId,
+            clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
+            clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
+            clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
+            memberAnimationIds: nextMemberAnimationIds,
+            memberRoomIds: nextMemberRoomIds,
+            memberStartDelays: Object.fromEntries(
+              dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+            ),
+            startedAt: performance.now(),
+            startedAtEpochMs: Date.now(),
+          };
+          pendingCommands.push(emitLiveMutation("edit-room", {
+            animationId: updatedCluster.id,
+            animation: buildAnimationSnapshotForLiveSync(updatedCluster),
+          }));
+          clearRoomDraftEditTarget();
+          void Promise.allSettled(pendingCommands).then(() => {
+            triggerFeedback.textContent = `Pending: ${updatedCluster.id} cluster update accepted (waiting for snapshot)`;
+          });
+          return;
+        }
+        clearRoomDraftEditTarget();
+      }
+
+      const existing = state.runningAnimations.find(
+        (item) => item.id === state.roomDraft.editTargetId && item.scope === "room",
+      );
+      if (existing) {
+        const updated = {
+          ...existing,
+          ...draftPayload,
+          roomId: targetRoomIds[0],
+          boardId: state.boardId,
+          startedAt: performance.now(),
+          startedAtEpochMs: Date.now(),
+        };
+        clearRoomDraftEditTarget();
+        void emitLiveMutation("edit-room", {
+          animationId: updated.id,
+          animation: buildAnimationSnapshotForLiveSync(updated),
+        }).then(() => {
+          triggerFeedback.textContent = `Pending: ${updated.id} update accepted (waiting for snapshot)`;
+        }).catch(() => {
+          triggerFeedback.textContent = "Status: room update command failed";
+        });
+        return;
+      }
+      clearRoomDraftEditTarget();
+    }
+
+    const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
+    const dispatchPlan = state.roomDraft.targetType === "cluster"
+      ? buildClusterDispatchPlan(targetRoomIds, { staggerStart: shouldStaggerClusterStart })
+      : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
+    const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
+      type: draftPayload.type,
+      scope: "room",
+      roomId,
+      boardId: state.boardId,
+      intensity: draftPayload.intensity,
+      speed: draftPayload.speed,
+      opacity: draftPayload.opacity,
+      playbackSpeed: draftPayload.playbackSpeed,
+      soundVolume: draftPayload.soundVolume,
+      hold: true,
+      durationSec: 0,
+      startDelayMs,
+    }));
+    let clusterRunAnimation = null;
+    if (state.roomDraft.targetType === "cluster") {
+      const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
+      clusterRunAnimation = createAnimation({
+        type: draftPayload.type,
+        scope: "cluster",
+        roomId: null,
+        boardId: state.boardId,
+        intensity: draftPayload.intensity,
+        speed: draftPayload.speed,
+        opacity: draftPayload.opacity,
+        playbackSpeed: draftPayload.playbackSpeed,
+        soundVolume: draftPayload.soundVolume,
+        hold: true,
+        durationSec: 0,
+      });
+      clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
+      clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
+      clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
+      clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
+      clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
+      clusterRunAnimation.memberStartDelays = Object.fromEntries(
+        dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
+      );
+      pendingCommands.push(emitLiveMutation("trigger-room", {
+        animationId: clusterRunAnimation.id,
+        animation: buildAnimationSnapshotForLiveSync(clusterRunAnimation),
+      }));
+    }
+    for (const animation of createdAnimations) {
+      if (clusterRunAnimation) {
+        animation.parentClusterRunId = clusterRunAnimation.id;
+      }
+      pendingCommands.push(emitLiveMutation("trigger-room", {
+        animationId: animation.id,
+        animation: buildAnimationSnapshotForLiveSync(animation),
+      }));
+    }
+    const isClusterTarget = state.roomDraft.targetType === "cluster";
+    const targetRoom = board.rooms.find((entry) => entry.id === targetRoomIds[0]) ?? null;
+    const targetLabel = isClusterTarget
+      ? getBoardRoomClusters(state.boardId).find((cluster) => cluster.clusterId === state.roomDraft.targetId)?.name || "cluster"
+      : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
+    void Promise.allSettled(pendingCommands).then(() => {
+      triggerFeedback.textContent = isClusterTarget
+        ? `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for cluster ${targetLabel} accepted (waiting for snapshot)`
+        : `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for ${targetLabel} accepted (waiting for snapshot)`;
+    });
+    return;
   }
 
   if (state.roomDraft.editTargetId) {
@@ -6475,6 +6819,18 @@ function stopAnimation(animationId) {
       }
     }
   }
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const commands = [...idsToStop].map((id) => emitLiveMutation("stop-animation", {
+      animationId: id,
+      priorityHint: "high",
+    }));
+    void Promise.allSettled(commands).then(() => {
+      triggerFeedback.textContent = `Pending: stop command for ${idsToStop.size} animation(s) accepted (waiting for snapshot)`;
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: stop command failed";
+    });
+    return;
+  }
   for (const id of idsToStop) {
     stopAnimationSound(id);
   }
@@ -6492,7 +6848,7 @@ function stopAnimation(animationId) {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   for (const id of idsToStop) {
-    emitLiveMutation("stop-animation", {
+    void emitLiveMutation("stop-animation", {
       animationId: id,
       priorityHint: "high",
     });
@@ -7896,6 +8252,26 @@ shipPolygonResetButton.addEventListener("click", () => {
 });
 
 outsideEnabledInput.addEventListener("change", () => {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      enabled: Boolean(outsideEnabledInput.checked),
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-enabled-toggle",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = `Pending: Outside Space ${outsideEnabledInput.checked ? "enabled" : "disabled"} (waiting for snapshot)`;
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside toggle command failed";
+      syncOutsideFxPanel();
+    });
+    return;
+  }
   updateOutsideFxProfile(state.boardId, { enabled: outsideEnabledInput.checked });
   const persisted = persistBoardProfiles();
   syncOutsideRuntimeMirror(state.boardId);
@@ -7909,6 +8285,25 @@ outsideEnabledInput.addEventListener("change", () => {
 });
 
 outsideIntensityInput.addEventListener("input", () => {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      intensity: clampOutsideIntensity(outsideIntensityInput.value),
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-intensity-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside intensity command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside intensity command failed";
+    });
+    return;
+  }
   updateOutsideFxProfile(state.boardId, { intensity: clampOutsideIntensity(outsideIntensityInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
@@ -7919,6 +8314,25 @@ outsideIntensityInput.addEventListener("input", () => {
 });
 
 outsideSpeedInput.addEventListener("input", () => {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      speed: clampOutsideSpeed(outsideSpeedInput.value),
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-speed-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside speed command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside speed command failed";
+    });
+    return;
+  }
   updateOutsideFxProfile(state.boardId, { speed: clampOutsideSpeed(outsideSpeedInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
@@ -7929,6 +8343,25 @@ outsideSpeedInput.addEventListener("input", () => {
 });
 
 outsideModeInput.addEventListener("change", () => {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      mode: normalizeOutsideMode(outsideModeInput.value),
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-mode-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside mode command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside mode command failed";
+    });
+    return;
+  }
   updateOutsideFxProfile(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
   const persisted = persistBoardProfiles();
   syncOutsideFxPanel();
@@ -7939,6 +8372,25 @@ outsideModeInput.addEventListener("change", () => {
 });
 
 outsideDirectionInput.addEventListener("change", () => {
+  if (outputRole === OUTPUT_ROLE_CONTROL) {
+    const nextProfile = {
+      ...getOutsideFxProfile(state.boardId),
+      direction: normalizeOutsideDirection(outsideDirectionInput.value),
+    };
+    void emitLiveMutation("outside-update", {
+      outsideBoardId: state.boardId,
+      reason: "outside-direction-update",
+      outsideFx: nextProfile,
+      outsideFxByBoard: {
+        [state.boardId]: nextProfile,
+      },
+    }).then(() => {
+      triggerFeedback.textContent = "Pending: Outside direction command accepted (waiting for snapshot)";
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: Outside direction command failed";
+    });
+    return;
+  }
   updateOutsideFxProfile(state.boardId, {
     direction: normalizeOutsideDirection(outsideDirectionInput.value),
   });
@@ -8232,6 +8684,15 @@ window.addEventListener("blur", () => {
   endPanMode(null, { canceled: true });
   resetClearAllGuard();
   setPanCursorState();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    liveSync.preferFastPollingUntil = Date.now() + 2000;
+    scheduleNextLiveSnapshotPoll(0);
+    return;
+  }
+  scheduleNextLiveSnapshotPoll();
 });
 
 window.addEventListener("orientationchange", () => {
@@ -8668,6 +9129,7 @@ async function initializeApplication() {
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
   connectLiveSyncSocket();
+  scheduleNextLiveSnapshotPoll(0);
   if (startupDefaultsSnapshot) {
     globalDefaultsStatus.textContent =
       `Global Defaults: automatically loaded & applied (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
