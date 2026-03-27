@@ -264,6 +264,18 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Play Area editor (outside mask)</h2>
         <p class="status-line">Edit the Play Area mask; outside effects are rendered only outside this polygon.</p>
+        <label>
+          Active Play Area
+          <select id="play-area-select"></select>
+        </label>
+        <label>
+          Play Area name
+          <input id="play-area-name" type="text" maxlength="64" placeholder="e.g. Board Left" />
+        </label>
+        <div class="button-grid button-grid-2">
+          <button id="play-area-create" type="button">Create Play Area</button>
+          <button id="play-area-delete" type="button">Delete Play Area</button>
+        </div>
         <label class="inline-checkbox">
           <input id="show-play-area-vertices" type="checkbox" checked />
           Show Play Area Vertices

@@ -7,8 +7,8 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T1 [P0] Datenmodell auf `playAreas[]` heben (IDs, Polygonstruktur, Legacy-Ladealias fuer Single-Play-Area).
 - [x] DONE P8-T2 [P0] Idempotente Migration implementieren: bestehende `playAreaPolygon`/Legacy-Ship-Daten verlustfrei in `playAreas[]` ueberfuehren.
 - [x] DONE P8-T3 [P0] Persistenz-/Normalizer-Pfad aktualisieren: Save exportiert Mehrbereichsschema, Load akzeptiert Legacy+neu.
-- [ ] TODO P8-T4 [P0] Settings-Editor erweitern: mehrere Play-Areas anlegen/loeschen/auswaehlen (inkl. Guard fuer Loeschpfad).
-- [ ] TODO P8-T5 [P0] Editor-Interaktion haerten: aktive Play-Area steuert Vertex-/Polygonaktionen deterministisch.
+- [x] DONE P8-T4 [P0] Settings-Editor erweitern: mehrere Play-Areas anlegen/loeschen/auswaehlen (inkl. Guard fuer Loeschpfad).
+- [x] DONE P8-T5 [P0] Editor-Interaktion haerten: aktive Play-Area steuert Vertex-/Polygonaktionen deterministisch.
 - [ ] TODO P8-T6 [P0] Union-Geometriepfad implementieren: inside/outside nutzt Vereinigung aller Play-Areas statt Single-Polygon.
 - [ ] TODO P8-T7 [P0] Render-/Clipping-/Hit-Test-Paritaet fuer Union-Maske absichern (kein Semantikdrift zwischen Render und Input).
 - [ ] TODO P8-T8 [P0] Server-API fuer Bildupload-Import implementieren (`jpg`/`jpeg`/`png`/`webp`, multipart, validiert).

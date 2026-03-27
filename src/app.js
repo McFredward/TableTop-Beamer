@@ -154,6 +154,10 @@ const clusterDeleteButton = document.querySelector("#cluster-delete");
 const clusterManagementStatus = document.querySelector("#cluster-management-status");
 const roomRenameInput = document.querySelector("#room-rename-input");
 const showPlayAreaVerticesInput = document.querySelector("#show-play-area-vertices");
+const playAreaSelect = document.querySelector("#play-area-select");
+const playAreaNameInput = document.querySelector("#play-area-name");
+const playAreaCreateButton = document.querySelector("#play-area-create");
+const playAreaDeleteButton = document.querySelector("#play-area-delete");
 const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
 const shipPolygonEdgeSelect = document.querySelector("#ship-polygon-edge-select");
 const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-insert-vertex");
@@ -228,6 +232,10 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "ship-polygon-insert-vertex",
   "ship-polygon-delete-vertex",
   "ship-polygon-reset",
+  "play-area-select",
+  "play-area-name",
+  "play-area-create",
+  "play-area-delete",
   "show-play-area-vertices",
   "outside-enabled",
   "outside-intensity",
@@ -4619,6 +4627,7 @@ function syncPolygonEditorPanel() {
 
 function syncShipPolygonEditorStatus() {
   const points = getShipPolygonPoints(state.boardId);
+  const selectedArea = getSelectedPlayArea(state.boardId);
   if (!arePlayAreaVerticesEditable()) {
     shipPolygonEditorStatus.textContent = "Play Area editor: vertices hidden (editing disabled)";
     return;
@@ -4627,7 +4636,7 @@ function syncShipPolygonEditorStatus() {
   const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
   const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
   shipPolygonEditorStatus.textContent =
-    `Play Area editor: ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
+    `Play Area editor (${selectedArea?.name ?? "n/a"}): ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
 }
 
 function syncShipPolygonVertexSelect() {
@@ -4666,6 +4675,30 @@ function syncShipPolygonEdgeSelect() {
 }
 
 function syncShipPolygonEditorPanel() {
+  const playAreas = getPlayAreas(state.boardId);
+  const selectedPlayAreaId = getSelectedPlayAreaId(state.boardId);
+  if (playAreaSelect) {
+    playAreaSelect.replaceChildren();
+    for (const area of playAreas) {
+      const option = document.createElement("option");
+      option.value = area.id;
+      option.textContent = `${area.name} (${area.id})`;
+      playAreaSelect.append(option);
+    }
+    playAreaSelect.value = selectedPlayAreaId;
+    playAreaSelect.disabled = playAreas.length === 0;
+  }
+  if (playAreaNameInput) {
+    const selectedArea = getSelectedPlayArea(state.boardId);
+    playAreaNameInput.value = selectedArea?.name ?? "";
+    playAreaNameInput.disabled = playAreas.length === 0;
+  }
+  if (playAreaDeleteButton) {
+    playAreaDeleteButton.disabled = playAreas.length <= 1;
+  }
+  if (playAreaCreateButton) {
+    playAreaCreateButton.disabled = false;
+  }
   const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
   if (showPlayAreaVerticesInput) {
     showPlayAreaVerticesInput.checked = playAreaVerticesVisible;
@@ -8895,6 +8928,93 @@ polygonFocusRoomButton.addEventListener("click", () => {
   syncRoomPanelFromSelection();
   renderRoomOverlay();
   triggerFeedback.textContent = "Status: Special room focused in overlay";
+});
+
+playAreaSelect?.addEventListener("change", () => {
+  setSelectedPlayAreaId(state.boardId, playAreaSelect.value);
+  state.shipPolygonEditor.selectedVertexIndex = 0;
+  state.shipPolygonEditor.selectedEdgeIndex = 0;
+  state.shipPolygonsByBoard[state.boardId] = getShipPolygonPoints(state.boardId);
+  persistBoardProfiles();
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = "Status: Active Play Area selected";
+});
+
+playAreaNameInput?.addEventListener("change", () => {
+  const areas = getPlayAreas(state.boardId);
+  const selectedId = getSelectedPlayAreaId(state.boardId);
+  const nextName = String(playAreaNameInput.value || "").trim();
+  const updated = areas.map((area) => (
+    area.id === selectedId
+      ? {
+        ...area,
+        name: nextName || area.name,
+      }
+      : area
+  ));
+  setPlayAreas(state.boardId, updated, { selectedPlayAreaId: selectedId });
+  const persisted = persistBoardProfiles();
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? "Status: Play Area name updated"
+    : "Status: Play Area name updated (persistence failed)";
+});
+
+playAreaCreateButton?.addEventListener("click", () => {
+  const currentAreas = getPlayAreas(state.boardId);
+  const nextIndex = currentAreas.length + 1;
+  const baseId = normalizePlayAreaId(`play-area-${nextIndex}`, nextIndex - 1);
+  const idCandidates = new Set(currentAreas.map((entry) => entry.id));
+  let nextId = baseId;
+  let suffix = 2;
+  while (idCandidates.has(nextId)) {
+    nextId = `${baseId}-${suffix}`;
+    suffix += 1;
+  }
+  const template = getSelectedPlayArea(state.boardId)?.polygon ?? SHIP_POLYGON_DEFAULT;
+  const nextArea = {
+    id: nextId,
+    name: `Play Area ${nextIndex}`,
+    polygon: normalizeShipPolygon(template),
+  };
+  setPlayAreas(state.boardId, [...currentAreas, nextArea], { selectedPlayAreaId: nextId });
+  state.shipPolygonEditor.selectedVertexIndex = 0;
+  state.shipPolygonEditor.selectedEdgeIndex = 0;
+  const persisted = persistBoardProfiles();
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? `Status: Created ${nextArea.name}`
+    : `Status: Created ${nextArea.name} (persistence failed)`;
+});
+
+playAreaDeleteButton?.addEventListener("click", () => {
+  const currentAreas = getPlayAreas(state.boardId);
+  if (currentAreas.length <= 1) {
+    triggerFeedback.textContent = "Status: At least one Play Area is required";
+    return;
+  }
+  const selectedArea = getSelectedPlayArea(state.boardId);
+  if (!selectedArea) {
+    return;
+  }
+  const confirmed = window.confirm(`Delete ${selectedArea.name}? This removes its polygon.`);
+  if (!confirmed) {
+    return;
+  }
+  const remaining = currentAreas.filter((area) => area.id !== selectedArea.id);
+  const fallbackSelectedId = remaining[0]?.id ?? "play-area-1";
+  setPlayAreas(state.boardId, remaining, { selectedPlayAreaId: fallbackSelectedId });
+  state.shipPolygonEditor.selectedVertexIndex = 0;
+  state.shipPolygonEditor.selectedEdgeIndex = 0;
+  const persisted = persistBoardProfiles();
+  syncShipPolygonEditorPanel();
+  renderRoomOverlay();
+  triggerFeedback.textContent = persisted
+    ? `Status: Deleted ${selectedArea.name}`
+    : `Status: Deleted ${selectedArea.name} (persistence failed)`;
 });
 
 shipPolygonVertexSelect.addEventListener("change", () => {
