@@ -74,13 +74,15 @@
           Board
           <select id="board-select"></select>
         </label>
-        <label>
+        <label class="file-import-label">
           Import board (JSON)
           <input id="board-import-file" type="file" accept="application/json,.json" />
+          <span id="board-import-file-name" class="file-import-name" aria-live="polite">No JSON file selected</span>
         </label>
-        <label>
+        <label class="file-import-label">
           Import board image (JPG/PNG/WEBP)
           <input id="board-import-image" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
+          <span id="board-import-image-name" class="file-import-name" aria-live="polite">No image file selected</span>
         </label>
         <label>
           New image board name (optional)

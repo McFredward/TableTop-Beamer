@@ -49,6 +49,33 @@ function resolveLiveWebSocketUrl() {
   return `${protocol}//${window.location.host}/api/live/ws?role=${encodeURIComponent(outputRole)}`;
 }
 
+function formatImportFilename(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  const MAX_LENGTH = 110;
+  if (trimmed.length <= MAX_LENGTH) {
+    return trimmed;
+  }
+  const prefix = trimmed.slice(0, 60).trimEnd();
+  const suffix = trimmed.slice(-36).trimStart();
+  return `${prefix}…${suffix}`;
+}
+
+function syncImportFilenameLabel(inputEl, labelEl, emptyText) {
+  if (!labelEl) {
+    return;
+  }
+  const file = inputEl?.files?.[0] ?? null;
+  labelEl.textContent = file ? formatImportFilename(file.name) : emptyText;
+}
+
+function syncAllImportFilenameLabels() {
+  syncImportFilenameLabel(boardImportFileInput, boardImportFileName, "No JSON file selected");
+  syncImportFilenameLabel(boardImportImageInput, boardImportImageName, "No image file selected");
+}
+
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
@@ -56,6 +83,8 @@ const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
 const boardImportImageInput = document.querySelector("#board-import-image");
+const boardImportFileName = document.querySelector("#board-import-file-name");
+const boardImportImageName = document.querySelector("#board-import-image-name");
 const boardImportNameInput = document.querySelector("#board-import-name");
 const boardImportIdInput = document.querySelector("#board-import-id");
 const boardImportButton = document.querySelector("#board-import-button");
@@ -8753,6 +8782,16 @@ boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
   reason: "board-select",
 }));
 
+syncAllImportFilenameLabels();
+
+boardImportFileInput?.addEventListener("change", () => {
+  syncImportFilenameLabel(boardImportFileInput, boardImportFileName, "No JSON file selected");
+});
+
+boardImportImageInput?.addEventListener("change", () => {
+  syncImportFilenameLabel(boardImportImageInput, boardImportImageName, "No image file selected");
+});
+
 boardImportButton?.addEventListener("click", async () => {
   const jsonFile = boardImportFileInput?.files?.[0] ?? null;
   const imageFile = boardImportImageInput?.files?.[0] ?? null;
@@ -8790,6 +8829,7 @@ boardImportButton?.addEventListener("click", async () => {
     if (boardImportIdInput) {
       boardImportIdInput.value = "";
     }
+    syncAllImportFilenameLabels();
   } catch (error) {
     triggerFeedback.textContent = `Status: ${error instanceof Error ? error.message : "Board import failed"}`;
   } finally {

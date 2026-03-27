@@ -441,6 +441,27 @@ input[type="file"] {
   min-width: 0;
 }
 
+.file-import-label {
+  min-width: 0;
+}
+
+.file-import-name {
+  display: -webkit-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-height: calc(1.22em * 2);
+  line-height: 1.22;
+  color: #c0cad8;
+}
+
 select,
 input[type="range"],
 input[type="number"] {
