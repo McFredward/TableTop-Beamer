@@ -55,6 +55,9 @@ const canvas = document.querySelector("#fx-canvas");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
+const boardImportImageInput = document.querySelector("#board-import-image");
+const boardImportNameInput = document.querySelector("#board-import-name");
+const boardImportIdInput = document.querySelector("#board-import-id");
 const boardImportButton = document.querySelector("#board-import-button");
 const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
@@ -185,6 +188,9 @@ const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboar
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "board-import-file",
+  "board-import-image",
+  "board-import-name",
+  "board-import-id",
   "board-import-button",
   "save-global-defaults",
   "load-apply-global-defaults",
@@ -1375,6 +1381,49 @@ async function importBoardFromFile(file) {
   syncBoardSelectOptions();
   if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
     switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import" });
+  }
+  return parsed;
+}
+
+async function importBoardFromImage(file, { boardName = "", boardId = "" } = {}) {
+  if (!file) {
+    throw new Error("Please select an image file first");
+  }
+  const formData = new FormData();
+  formData.append("image", file, file.name || "board-image");
+  const trimmedName = String(boardName || "").trim();
+  const trimmedId = String(boardId || "").trim();
+  if (trimmedName) {
+    formData.append("boardName", trimmedName);
+  }
+  if (trimmedId) {
+    formData.append("boardId", trimmedId);
+  }
+
+  const response = await fetchWithTimeout("/api/boards/import", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+    },
+    body: formData,
+  });
+
+  let parsed = null;
+  try {
+    parsed = await response.json();
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok) {
+    const message = parsed?.error || parsed?.code || `HTTP ${response.status}`;
+    throw new Error(`Image board import failed: ${message}`);
+  }
+
+  await loadExternalBoardZones();
+  syncBoardSelectOptions();
+  if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
+    switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import-image" });
   }
   return parsed;
 }
@@ -8640,15 +8689,41 @@ boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
 }));
 
 boardImportButton?.addEventListener("click", async () => {
-  const file = boardImportFileInput?.files?.[0] ?? null;
+  const jsonFile = boardImportFileInput?.files?.[0] ?? null;
+  const imageFile = boardImportImageInput?.files?.[0] ?? null;
   boardImportButton.disabled = true;
   try {
-    const result = await importBoardFromFile(file);
+    let result;
+    if (jsonFile) {
+      result = await importBoardFromFile(jsonFile);
+    } else if (imageFile) {
+      result = await importBoardFromImage(imageFile, {
+        boardName: boardImportNameInput?.value ?? "",
+        boardId: boardImportIdInput?.value ?? "",
+      });
+      setActiveView("settings");
+      syncShipPolygonEditorPanel();
+      triggerFeedback.textContent =
+        `Status: image board imported (${result?.boardId || "unknown"}) - start manual Play Area and room polygon drawing in Settings`;
+    } else {
+      throw new Error("Please choose either a JSON board file or an image file");
+    }
     const importedBoardId = result?.boardId || "unknown";
-    triggerFeedback.textContent = `Status: board import succeeded (${importedBoardId})`;
+    if (!imageFile) {
+      triggerFeedback.textContent = `Status: board import succeeded (${importedBoardId})`;
+    }
     boardStatus.textContent = `Active board: ${getBoard().label}`;
     if (boardImportFileInput) {
       boardImportFileInput.value = "";
+    }
+    if (boardImportImageInput) {
+      boardImportImageInput.value = "";
+    }
+    if (boardImportNameInput) {
+      boardImportNameInput.value = "";
+    }
+    if (boardImportIdInput) {
+      boardImportIdInput.value = "";
     }
   } catch (error) {
     triggerFeedback.textContent = `Status: ${error instanceof Error ? error.message : "Board import failed"}`;
