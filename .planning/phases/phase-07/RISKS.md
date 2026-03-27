@@ -165,6 +165,26 @@
 - Impact: Kritisch, nahezu keine Animation verlaesslich triggerbar.
 - Gegenmassnahme: Lifecycle-Guard auf explizite Endbedingungen beschraenken, all-scope start/stop persistence matrix inkl. `/output/final` + reconnect als Pflichtgate.
 
+## R34 Root-Cause bleibt nicht reproduzierbar und fuehrt zu Scheinfix
+- Risiko: `start ignored/overwritten` wird ohne belastbare Reproduktionskette gefixt; Defekt tritt spaeter erneut unter leicht anderer Sequenz auf.
+- Impact: Kritisch, P0-Blocker bleibt latent offen.
+- Gegenmassnahme: verpflichtende Laufzeitpfad-Reproduktion (`dispatch -> server apply -> snapshot apply`) mit timeline-korrelierter FAIL/PASS-Evidenz vor Gate-Freigabe.
+
+## R35 Dispatch/Server-Apply/Snapshot-Apply werden nur partiell gehaertet
+- Risiko: Fix in nur einer Schicht verschiebt den Fehler; andere Schicht ueberschreibt Start weiterhin.
+- Impact: Kritisch, first-click determinism bleibt instabil.
+- Gegenmassnahme: gemeinsamer End-to-End-Hardening-Plan fuer alle drei Schichten mit Konsistenz-Assertions und all-scope smoke gates.
+
+## R36 Statusmeldungen maskieren weiterhin Start-Lifecycle
+- Risiko: Kontextstatus (z. B. `board switched`) ueberschreibt Start-/Running-Feedback kurz nach Trigger und suggeriert Fehlstart.
+- Impact: Hoch bis kritisch (Operator-Fehlentscheidungen + Re-Trigger).
+- Gegenmassnahme: explizite Status-Prioritaetsregeln + regression tests fuer non-masking behavior unter Snapshot-Refresh.
+
+## R37 Smoke-Gates pruefen nur Kurzsicht statt Active-Persistence
+- Risiko: Start gilt als PASS bei kurzem Sichtblitz, obwohl Instanz sofort wieder verschwindet.
+- Impact: Kritisch, reale Laufzeitstabilitaet bleibt ungesichert.
+- Gegenmassnahme: harte Running-Persistence-Gates fuer `room`/`global-inside`/`cluster` bis Timerablauf oder explizitem Stop/Clear.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -234,3 +254,12 @@
 - R31 mitigated: start mutations are no longer neutralized by trailing context updates (`room-draft-sync`/`align-toggle` cannot mutate board context).
 - R32 mitigated: `board switched` feedback is now contextual-only and no longer masks active start/running lifecycle feedback.
 - R33 mitigated: all-scope run lifecycle persists deterministically until explicit stop/clear or timer expiry across multi-client polling and `/output/final` parity.
+
+## New Hotfix Risk Focus (7-HF10)
+- verify-work 7-HF9 follow-up priorisiert R34/R35/R36/R37 als verbleibende P0-Risiken; Plan 7-HF10 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Risk Closure Update (7-HF10)
+- R34 mitigated: start overwrite root cause is reproduced and eliminated; committed start mutations are no longer sanitized away under missing board context.
+- R35 mitigated: dispatch metadata for room/global-inside/cluster is now deterministic (`boardId`/`targetScope`/`targetType`) through server commit.
+- R36 mitigated: snapshot apply path (server + client) preserves running lifecycle with board-context inference fallback instead of null-context drops.
+- R37 mitigated: contextual `board switched` status no longer masks lifecycle/pending start feedback; hard smoke gate confirms persistence until stop/clear.

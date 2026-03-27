@@ -347,5 +347,36 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Gate Closure
 - Plan 7-HF9 is PASS; the start-neutralization and board-switched status masking blocker is closed.
 
+## Neues verpflichtendes Feedback (verify-work 7-HF9 follow-up, Plan 7-HF10, P0-Hotfix, execute-ready)
+- Kritischer Blocker bleibt bestehen: bis auf `global-outside` starten `room`, `global-inside` und `cluster` im Realbetrieb nicht deterministisch; Running-Status blitzt nur kurz.
+- Root-Cause-Pflicht: Ursache `start command ignored/overwritten` muss im echten Laufzeitpfad reproduzierbar nachgewiesen werden (`dispatch -> server apply -> snapshot apply`).
+- Dispatch/Apply-Pflicht: Start-Dispatch, serverseitiges Apply und clientseitiges Snapshot-Apply werden als gemeinsamer Lifecycle-Fix gehaertet (kein Teilfix nur in einer Schicht).
+- Status-Pflicht: Statusmeldungen sind nicht-maskierend; Kontextmeldungen duerfen Start-/Running-Feedback nicht neutralisieren.
+- Smoke-Gate-Pflicht: `room`/`global-inside`/`cluster` erscheinen nach Start deterministisch in Running und bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`.
+- Evidenz-Pflicht: Verify-Artefakte muessen echte Reproduktion des Blockers plus PASS nach dem Fix enthalten.
+
+## Plan 7-HF10 Scope (execute-ready)
+- Reproduzierbare Root-Cause-Analyse fuer `start command ignored/overwritten` aufbauen (Trace-IDs, Timeline, Driftpunkt zwischen Dispatch/Server-Apply/Snapshot-Apply).
+- Start-Dispatch fixen: Command-Routing und Metadata muessen den Startpfad eindeutig und idempotent bis zum Server-Commit transportieren.
+- Server-Apply fixen: committed Start darf nicht durch nachlaufende Kontext-/Status-Patches neutralisiert oder implizit gecleart werden.
+- Snapshot-Apply fixen: Client-Apply uebernimmt committed Starts deterministisch ohne statusgetriebene Ruecknahme; status arbitration bleibt lifecycle-priorisiert.
+- Running/Status smoke gates haerten: `room`/`global-inside`/`cluster` bleiben in Running stabil sichtbar/aktiv bis explizitem Ende (Timer/Stop/Clear).
+- Test-/Verify-Artefakte liefern: reproduzierbarer FAIL-Case vor Fix und PASS-Case nach Fix im selben Pflichtset (`t12/t13/t14` + debug outputs).
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF10 (Root-Cause Debug + Start Dispatch/Apply Determinism + Status Non-Masking) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF10
+- P7-HF10-T1..P7-HF10-T7 completed.
+- Root cause is reproduced with FAIL evidence: accepted start commands were sanitized out when `snapshot.selectedBoard` stayed `null`, causing `runningAnimations` to be dropped (`debug/p7-hf10-t1-fail-output.json`, `P7-HF10-T1-ROOT-CAUSE.md`).
+- Start dispatch is metadata-stable for `room`/`global-inside`/`cluster` via normalized board/scope/type routing and trace metadata before command send.
+- Server apply + snapshot sanitization now infer and persist authoritative board context for committed starts, preventing immediate neutralization in snapshot broadcast/apply.
+- Client snapshot apply now infers board context from running payload when needed, and status arbitration keeps lifecycle feedback from being overwritten by contextual `board switched` status.
+- HF10 smoke/verify artifacts are synchronized (`debug/p7-hf10-t6-smoke-output.json`, `debug/p7-hf10-t12-output.json`, `debug/p7-hf10-t13-output.json`, `debug/p7-hf10-t14-output.json`).
+
+## Gate Closure
+- Plan 7-HF10 is PASS; the remaining start-overwrite blocker for `room`/`global-inside`/`cluster` is closed.
+
 ## Next Wave
-- Plan 7-2 (Hardening) follows after HF9 closure.
+- Plan 7-2 (Hardening) is the next wave after HF10 closure.

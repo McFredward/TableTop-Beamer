@@ -93,7 +93,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF9-T6 [P0] Voller Funktionscheck als Pflichtmatrix ausfuehren: Start+Stop fuer room/global-inside/global-outside/cluster inkl. status arbitration checks.
 - [x] DONE P7-HF9-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
-## Plan 7-2 - Hardening Wave (nach 7-HF9)
+## Plan 7-HF10 - Root-Cause Debug + Start Dispatch/Apply Determinism + Status Non-Masking (execute-ready, blocker vor 7-2)
+- [x] DONE P7-HF10-T1 [P0] Reproduzierbare Root-Cause-Analyse aufbauen: `start command ignored/overwritten` im Pfad `dispatch -> server apply -> snapshot apply` mit eindeutiger Timeline/Trace-ID nachweisen.
+- [x] DONE P7-HF10-T2 [P0] Start-Dispatch haerten: room/global-inside/cluster Start-Commands konsistent, idempotent und metadata-stabil bis zum Server-Commit routen.
+- [x] DONE P7-HF10-T3 [P0] Server-Apply haerten: commiteter Start darf nicht durch nachlaufende Kontext-/Statuspatches neutralisiert oder implizit gecleart werden.
+- [x] DONE P7-HF10-T4 [P0] Snapshot-Apply haerten: committed Start wird clientseitig deterministisch uebernommen, ohne statusgetriebene Ruecknahme fuer room/global-inside/cluster.
+- [x] DONE P7-HF10-T5 [P0] Status-Arbitration absichern: Statusmeldungen bleiben nicht-maskierend und koennen Start-/Running-Lifecycle nicht ueberschreiben.
+- [x] DONE P7-HF10-T6 [P0] Harte Smoke-Gates ausfuehren: `room`/`global-inside`/`cluster` erscheinen in Running und bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`.
+- [x] DONE P7-HF10-T7 [P0] Verify-Evidenz + Artefakt-Sync abschliessen: reale Reproduktion (FAIL) + Fix-Nachweis (PASS) dokumentieren und `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` synchronisieren.
+
+## Plan 7-2 - Hardening Wave (nach 7-HF10)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.

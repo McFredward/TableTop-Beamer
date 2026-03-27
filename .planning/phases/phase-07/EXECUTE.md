@@ -85,7 +85,16 @@
 4. P0 danach: P7-HF9-T5..P7-HF9-T6 (multi-client deterministic parity inkl. `/output/final` + voller Funktionscheck fuer room/global-inside/global-outside/cluster).
 5. P0 Abschluss: P7-HF9-T7 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF9)
+## Priority Execution - Plan 7-HF10 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF10-T1 (reproduzierbare Root-Cause-Analyse fuer `start command ignored/overwritten` im Pfad `dispatch -> server apply -> snapshot apply`).
+2. P0 danach: P7-HF10-T2 (Start-Dispatch hardenen: idempotentes, metadata-stabiles Start-Routing fuer room/global-inside/cluster bis Commit).
+3. P0 danach: P7-HF10-T3 (Server-Apply hardenen: commiteter Start darf nicht durch Kontext-/Status-Folgepatches neutralisiert werden).
+4. P0 danach: P7-HF10-T4 (Snapshot-Apply hardenen: committed Start wird deterministisch uebernommen, ohne statusgetriebene Ruecknahme).
+5. P0 danach: P7-HF10-T5 (Status-Arbitration non-masking absichern; Kontextstatus darf Lifecycle nicht ueberschreiben).
+6. P0 danach: P7-HF10-T6 (harte Smoke-Gates: `room`/`global-inside`/`cluster` in Running sichtbar und aktiv bis Timer/Stop/Clear).
+7. P0 Abschluss: P7-HF10-T7 (FAIL+PASS Verify-Evidenz + voller Artefakt-Sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF10)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -110,6 +119,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF7 vollstaendig PASS ist (stop-only routing ohne create/start side-effects, serverautoritative stop propagation inkl. `/output/final`, UI re-trigger guard, room/global/cluster stop parity).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF8 vollstaendig PASS ist (`global-outside` stop parity, global stop semantics unification, running-list hover flicker elimination).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF9 vollstaendig PASS ist (Root-Cause-Fix gegen Start-Neutralisierung, `board switched` maskiert nicht, all-scope start/stop parity + lifecycle persistence, deterministic multi-client `/output/final` parity).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF10 vollstaendig PASS ist (reproduzierbare Root-Cause `start ignored/overwritten`, dispatch+server-apply+snapshot-apply fix, status non-masking, harte running smoke-gates fuer room/global-inside/cluster, FAIL+PASS verify artifacts).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -198,6 +208,22 @@
 
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).
+
+## New Blocking Wave (verify-work 7-HF9 follow-up)
+- Kritischer P0-Blocker bleibt: `room`/`global-inside`/`cluster` starten nicht deterministisch stabil; Statusfeedback blitzt nur kurz.
+- Next executable wave is now Plan 7-HF10 (P0) before Plan 7-2.
+
+## Execution Update 7-HF10
+- P7-HF10-T1..P7-HF10-T7 completed.
+- Root-cause FAIL timeline captured: accepted `trigger-room`/`trigger-global`/`trigger-cluster` commands were overwritten by snapshot board-context sanitization when `selectedBoard` was null (`debug/p7-hf10-t1-fail-output.json`).
+- Start dispatch is now metadata-stable (`boardId`, `targetScope`, `targetType`, trace metadata) before command commit for room/global-inside/cluster.
+- Server apply + snapshot sanitizer now infer/persist authoritative board context and no longer neutralize committed starts.
+- Client snapshot apply now uses board-context inference fallback for running payload parity; contextual `board switched` feedback no longer masks lifecycle/pending start feedback.
+- Hard smoke gate PASS: room/global-inside/cluster start and remain active until explicit stop/clear (`debug/p7-hf10-t6-smoke-output.json`).
+- Verify outputs synchronized: `debug/p7-hf10-t12-output.json`, `debug/p7-hf10-t13-output.json`, `debug/p7-hf10-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF10 is PASS; Plan 7-2 is now the next executable hardening wave.
 
 ## Execution Update 7-HF9
 - P7-HF9-T1..P7-HF9-T7 completed.

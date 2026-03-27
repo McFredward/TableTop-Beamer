@@ -18,6 +18,7 @@
 - Stop-Action Routing Determinism + Multi-Role Stop Propagation
 - Global-Outside Stop Parity + Running-List Hover Stability
 - Start-Lifecycle Determinism + Board-Switch Status Arbitration
+- Root-Cause Debug + Start Dispatch/Apply Determinism + Status Non-Masking
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -110,6 +111,14 @@
 - P7-S17.5 Deterministische Multi-Client-Sync-Paritaet inkl. `/output/final` beibehalten (Poll/Version/Ack/Reconnect non-regression).
 - P7-S17.6 Evidenz + Artefakt-Sync fuer HF9 verpflichtend im selben Schritt abschliessen.
 
+- P7-S18.1 Root-Cause-Reproduktion verpflichtend machen: `start command ignored/overwritten` muss im Laufzeitpfad `dispatch -> server apply -> snapshot apply` mit Trace-Timeline reproduzierbar nachweisbar sein.
+- P7-S18.2 Start-Dispatch hardenen: start command routing/metadata bleibt bis Commit eindeutig, idempotent und nicht durch Nachfolgemutationen entwertbar.
+- P7-S18.3 Server-Apply hardenen: commiteter Start darf durch Kontext-/Status-Folgepatches nicht neutralisiert oder implizit gecleart werden.
+- P7-S18.4 Snapshot-Apply hardenen: client apply uebernimmt commitete Starts deterministisch, ohne statusgetriebene Ruecknahme fuer `room`/`global-inside`/`cluster`.
+- P7-S18.5 Status-Non-Masking erzwingen: Kontextstatus bleibt informativ und darf Start-/Running-Lifecycle nicht maskieren.
+- P7-S18.6 Harte Smoke-Gates + Evidenz: `room`/`global-inside`/`cluster` erscheinen stabil in Running bis Timer/Stop/Clear; Pflichtartefakte enthalten FAIL-Reproduktion und PASS-Fixnachweis.
+- P7-S18.7 Evidenz + Artefakt-Sync fuer HF10 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -138,7 +147,8 @@
 - Plan 7-HF7 Stop Routing + Deterministic Stop Propagation Hotfix (verpflichtend vor 7-2): stop-action darf keine create/start side-effects ausloesen; stop commit ist serverautoritativ/idempotent mit multi-role parity inkl. `/output/final`.
 - Plan 7-HF8 Global-Outside Stop Parity + Running-Hover Stability Hotfix (verpflichtend vor 7-2): stop-routing/parity explizit fuer global-outside, globale stop semantics server/client angleichen, running-list hover ohne flicker stabilisieren.
 - Plan 7-HF9 Start-Lifecycle Determinism + Board-Switch Status Arbitration Hotfix (verpflichtend vor 7-2): Root-Cause-Fix gegen Start-Neutralisierung, Status-Arbitration (`board switched` maskiert nicht), all-scope start/stop + lifecycle persistence + multi-client `/output/final` parity.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF9).
+- Plan 7-HF10 Root-Cause Debug + Start Dispatch/Apply Determinism Hotfix (verpflichtend vor 7-2): reproduzierbare Analyse `start ignored/overwritten`, Fix ueber dispatch+server-apply+snapshot-apply, status non-masking, harte running smoke gates fuer `room`/`global-inside`/`cluster`.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF10).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -237,3 +247,17 @@
 
 ## Gate Closure
 - Plan 7-HF9 is PASS; Plan 7-2 is unblocked as the next hardening wave.
+
+## New Blocking Wave
+- verify-work 7-HF9 follow-up meldet einen verbleibenden kritischen P0-Blocker: `room`/`global-inside`/`cluster` starten weiterhin nicht deterministisch stabil; Status blitzt nur kurz.
+- Plan 7-HF10 ist als execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis zum Root-Cause-/Dispatch+Apply-Gate PASS.
+
+## Execution Update 7-HF10
+- P7-S18.1 implemented: root-cause fail path is reproducible and documented with timeline evidence (`dispatch -> server apply -> snapshot apply`) in `.planning/phases/phase-07/P7-HF10-T1-ROOT-CAUSE.md` and `debug/p7-hf10-t1-fail-output.json`.
+- P7-S18.2 implemented: start dispatch path now normalizes board/scope/type metadata for room/global-inside/cluster before command commit.
+- P7-S18.3 + P7-S18.4 implemented: server apply and snapshot sanitization infer/persist authoritative board context, preventing committed start neutralization.
+- P7-S18.5 implemented: status arbitration preserves lifecycle feedback against contextual `board switched` overwrite.
+- P7-S18.6 + P7-S18.7 implemented: hard smoke and verify artifacts PASS (`debug/p7-hf10-t6-smoke-output.json`, `debug/p7-hf10-t12-output.json`, `debug/p7-hf10-t13-output.json`, `debug/p7-hf10-t14-output.json`).
+
+## Gate Closure
+- Plan 7-HF10 is PASS; Plan 7-2 becomes the next hardening wave.

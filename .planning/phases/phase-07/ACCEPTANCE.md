@@ -84,6 +84,12 @@
 - Run-Lifecycle-Persistence-Test: aktive Animation bleibt bis Timerablauf oder explizitem `stop-animation`/`clear-all` erhalten; kein implizites Frueh-Cleanup.
 - Multi-Client-Start-Persistence-Parity-Test: Start/Lifecycle bleiben ueber 3-4 Clients inkl. `/output/final` synchron stabil (inkl. Reconnect/Polling-Version-Gates).
 
+- Start-Ignored-Overwritten-Root-Cause-Reproduction-Test: Fehlerbild ist im echten Laufzeitpfad (`dispatch -> server apply -> snapshot apply`) reproduzierbar und mit Timeline-Evidenz dokumentiert.
+- Start-Dispatch-Server-Apply-Snapshot-Apply-Determinism-Test: derselbe Start bleibt ueber alle drei Schichten konsistent und wird nicht durch Folgepatches neutralisiert.
+- Status-Non-Masking-Start-Lifecycle-Test: Statusmeldungen bleiben informational; Start-/Running-Lifecycle hat Vorrang und wird nicht durch Kontextstatus ueberschrieben.
+- Hard-Smoke-Running-Persistence-Test: nach Fix erscheinen `room`/`global-inside`/`cluster` deterministisch in Running und bleiben aktiv bis Timer/Stop/Clear.
+- HF10-Verify-Artifact-Completeness-Test: Pflichtset enthaelt echte FAIL-Reproduktion vor Fix und PASS-Nachweis nach Fix im selben Gate-Lauf.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -114,6 +120,9 @@
 - Start-Mutationen bleiben stabil erhalten und werden nicht unmittelbar durch Kontext-/Statusdrift neutralisiert.
 - `board switched` bleibt ein nicht-maskierendes Kontextsignal; laufende Start-/Running-Statusevents behalten Prioritaet.
 - Alle Animationsarten (`room`, `global-inside`, `global-outside`, `cluster`) sind sowohl startbar als auch stoppbar bei stabiler Lifecycle-Persistenz.
+- Root-Cause `start ignored/overwritten` ist im Laufzeitpfad reproduzierbar analysiert und als behobene Ursache mit Vorher/Nachher-Evidenz dokumentiert.
+- Start-Dispatch, Server-Apply und Snapshot-Apply sind gemeinsam gehaertet; `room`/`global-inside`/`cluster` bleiben deterministisch laufend bis Timer/Stop/Clear.
+- Verify-Artefakte enthalten verpflichtend FAIL-Reproduktion + PASS-Fixnachweis im selben HF10-Gate.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Update 7-1
@@ -224,3 +233,16 @@
 - PASS: run lifecycle persistence holds until explicit `stop-animation`/`clear-all` or timer end; no implicit early cleanup drift.
 - PASS: deterministic 4-client polling parity including `/output/final` and reconnect/version gates remains intact.
 - PASS: evidence captured in `debug/p7-hf9-t12-output.json`, `debug/p7-hf9-t13-output.json`, `debug/p7-hf9-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF10)
+- verify-work 7-HF9 follow-up oeffnet erneut einen kritischen P0-Gate: ausser `global-outside` starten `room`/`global-inside`/`cluster` nicht deterministisch stabil und Status blitzt nur kurz.
+- Freigabevoraussetzung: Root-Cause-Dispatch/Apply-Gate ist PASS (reproduzierbare Fehleranalyse `start ignored/overwritten`, gemeinsamer Fix fuer Start-Dispatch + Server-Apply + Snapshot-Apply, status-non-masking, harte Running-Smoke-Gates, FAIL+PASS Verify-Artefakte).
+
+## Gate Closure Update (Plan 7-HF10)
+- PASS: FAIL root-cause reproduction is documented (`dispatch -> server apply -> snapshot apply`) with accepted-command/empty-running evidence in `debug/p7-hf10-t1-fail-output.json`.
+- PASS: start dispatch metadata is stable for `room`/`global-inside`/`cluster` and carries deterministic board/scope/type routing context.
+- PASS: server apply + snapshot sanitization preserve committed start lifecycle instead of dropping running entries when board context is initially missing.
+- PASS: client snapshot apply keeps committed starts visible via board-context inference fallback; no status-driven start rollback occurs.
+- PASS: status non-masking holds (`board switched` remains contextual and does not overwrite active lifecycle/pending start feedback).
+- PASS: hard smoke gate proves `room`/`global-inside`/`cluster` stay active until timer/`stop-animation`/`clear-all` (`debug/p7-hf10-t6-smoke-output.json`).
+- PASS: verify artifact set includes FAIL and PASS evidence in same gate wave (`debug/p7-hf10-t12-output.json`, `debug/p7-hf10-t13-output.json`, `debug/p7-hf10-t14-output.json`).
