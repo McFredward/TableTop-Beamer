@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF6
+- Last Executed Plan: 7-HF7
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF6-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -449,6 +449,16 @@
 - Plan-7-HF6 execution: board-switch now commits as authoritative atomic context transaction with idempotent `contextSwitchTransactionId` guard and deterministic running clear.
 - Plan-7-HF6 execution: server snapshot commit path sanitizes running entries by selected board before persist/broadcast; cross-board residue is no longer serializable.
 - Plan-7-HF6 execution: reconnect/join apply hard-filters running by board context; deterministic regression/evidence confirms `crossBoardResidueCount = 0` across 4 clients incl. `/output/final` (`debug/p7-hf6-*`).
+- Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (nach HF6): Stop-Button in der Running-Liste routed in Randfaellen falsch und erzeugt neue Instanzen statt bestehende zu stoppen (`animation.id` increment).
+- Stop-Routing-Regel fuer Phase 7 (Plan 7-HF7): Running-List-Stop darf ausschliesslich `stop-animation` fuer die ausgewaehlte `animation.id` dispatchen; create/start side-effects sind unzulaessig.
+- Stop-Authority-Regel fuer Phase 7 (Plan 7-HF7): Stop-Mutation wird serverautoritativ committed und deterministisch auf alle Clients inkl. `/output/final` repliziert.
+- Stop-UI-Guard-Regel fuer Phase 7 (Plan 7-HF7): Stop-Aktionen sind inflight-idempotent (no re-trigger/double-dispatch), bis Ack/Snapshot den Stop bestaetigt.
+- Stop-Paritaets-Regel fuer Phase 7 (Plan 7-HF7): Regression-Gate deckt room/global/cluster stop semantics inkl. multi-client parity und no-anim-id-increment Invariante ab.
+- Plan-7-HF7 execution: running-list stop routing dispatches strictly `stop-animation` via dedicated helper; trigger/create side-effects are blocked.
+- Plan-7-HF7 execution: server stop mutation is idempotent for stale/unknown IDs and reconciles cluster-linked stop lifecycle without start side-effects.
+- Plan-7-HF7 execution: `live-session-update` applies stop/clear snapshots immediately with version/dedup guard for synchronized parity on control + `/output/final`.
+- Plan-7-HF7 execution: per-animation pending stop locks (`Stopping...` disabled state) prevent duplicate/retrigger stop dispatch until snapshot confirmation.
+- Plan-7-HF7 execution: deterministic regression matrix PASS for room/global/cluster stop parity and anim-id non-increment invariant (`debug/p7-hf7-*`).
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`

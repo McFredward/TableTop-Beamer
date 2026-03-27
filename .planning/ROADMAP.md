@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5 und 7-HF6 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`); Plan 7-2 ist als naechste Hardening-Welle aktiv.
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6 und 7-HF7 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`); naechster Schritt ist Plan 7-2 (Hardening).
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -230,6 +230,7 @@ Milestones:
 11. M11 Draft Immutability Hotfix: Start mutiert keine Draft-UI; room-click bleibt einziger auto-target Pfad; room/cluster parity fuer Serienstarts.
 12. M12 Align/Board-Switch Determinism Hotfix: Align-Mode serverautoritativ ueber alle Clients inkl. `/output/final`; Board-Switch leert Running deterministisch ohne Alt-Reste.
 13. M13 Board-Context Residue Elimination Hotfix: switch-clear als authoritative atomare Transaktion, snapshot sanitize vor persist/broadcast, reconnect board-context filter mit Invariante `crossBoardResidueCount = 0`.
+14. M14 Stop-Action Determinism Hotfix: Running-List-Stop routed strikt als stop-only command ohne create/start side-effects; serverautoritative Stop-Propagation bleibt rollenparitaetisch inkl. `/output/final`.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -249,6 +250,9 @@ Exit Criteria:
 - Board-Switch-Clear ist als atomare authoritative Transaktion sichtbar (kein Zwischenzustand mit neuem Board + alten Running-Eintraegen).
 - Persistierte und broadcastete Server-Snapshots enthalten keine cross-board Running-Reste.
 - Reconnect-Hydrierung filtert Running strikt auf den aktiven Board-Kontext; Invariante `crossBoardResidueCount = 0` bleibt in Pflichtmatrix stabil.
+- Running-List-Stop darf niemals eine neue Instanz erzeugen; `stop-animation` beendet exakt die gewaehlte `animation.id` ohne create/start side-effects.
+- Stop-Mutationen sind serverautoritativ versionsgebunden und auf allen Clients inkl. `/output/final` deterministisch sichtbar.
+- UI-Stop-Aktion ist gegen Mehrfachklick/Re-Trigger gehaertet (inflight-guard), ohne room/global/cluster stop semantics zu regressieren.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -287,6 +291,16 @@ Execution Update (7-HF6):
 
 Gate Closure (7-HF6):
 - Board-context residue elimination blocker is closed; Plan 7-2 remains unblocked as next wave.
+
+Execution Update (7-HF7):
+- Running-list stop routing is strict stop-only (`stop-animation`) and does not touch trigger/create paths.
+- Server stop mutation is idempotent for stale/unknown IDs and cluster-linked stop reconciliation.
+- Stop/clear snapshots are applied immediately from `live-session-update` with version/dedup guards across control + `/output/final`.
+- UI stop controls are inflight-locked per animation ID (`Stopping...` disabled state) until snapshot confirmation.
+- HF7 evidence PASS (`debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`).
+
+Gate Closure (7-HF7):
+- Stop-action determinism blocker is closed; Plan 7-2 is the next executable wave.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
