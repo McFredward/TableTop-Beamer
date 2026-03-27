@@ -993,6 +993,25 @@ function connectLiveSyncSocket() {
           }
           scheduleNextLiveSnapshotPoll(0);
         }
+        if (payload?.type === "live-session-update") {
+          const sessionVersion = Number(payload?.session?.version ?? 0);
+          const mutationType = typeof payload?.mutationType === "string" ? payload.mutationType : null;
+          const shouldApplyImmediateStopSnapshot =
+            mutationType === STOP_ANIMATION_MUTATION_TYPE || mutationType === "clear-all";
+          if (
+            shouldApplyImmediateStopSnapshot
+            && Number.isFinite(sessionVersion)
+            && shouldApplySnapshotVersion(sessionVersion)
+            && payload?.session?.snapshot
+          ) {
+            applyLiveRuntimeSnapshot(payload.session.snapshot, {
+              version: sessionVersion,
+              mutationEnvelope: payload?.mutationEnvelope ?? null,
+              mutationType,
+            });
+          }
+          scheduleNextLiveSnapshotPoll(0);
+        }
         if (payload?.type === "state-dirty" || payload?.wake === true) {
           liveSync.dirtyHintUntil = Date.now() + 1500;
           scheduleNextLiveSnapshotPoll(0);
