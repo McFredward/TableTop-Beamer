@@ -1891,19 +1891,41 @@ function mergeBoardProfiles(primaryProfiles, fallbackProfiles) {
   for (const boardId of boardIds) {
     const primary = primaryProfiles?.[boardId] ?? {};
     const fallback = fallbackProfiles?.[boardId] ?? {};
+    const mergedPlayAreas = Array.isArray(primary.playAreas) && primary.playAreas.length > 0
+      ? primary.playAreas
+      : Array.isArray(fallback.playAreas) && fallback.playAreas.length > 0
+        ? fallback.playAreas
+        : null;
+    const selectedPlayAreaCandidate = String(primary.selectedPlayAreaId || fallback.selectedPlayAreaId || "").trim();
+    const selectedPlayAreaId = mergedPlayAreas && mergedPlayAreas.some((entry) => String(entry?.id || "").trim() === selectedPlayAreaCandidate)
+      ? selectedPlayAreaCandidate
+      : String(mergedPlayAreas?.[0]?.id || "play-area-1");
+    const selectedPlayArea = Array.isArray(mergedPlayAreas)
+      ? mergedPlayAreas.find((entry) => String(entry?.id || "").trim() === selectedPlayAreaId) ?? mergedPlayAreas[0]
+      : null;
+    const selectedPlayAreaPolygon = isValidPolygon(selectedPlayArea?.polygon)
+      ? selectedPlayArea.polygon
+      : null;
     merged[boardId] = {
       ...fallback,
       ...primary,
       specialPolygons: mergeSpecialPolygonMap(primary.specialPolygons, fallback.specialPolygons),
+      ...(Array.isArray(mergedPlayAreas)
+        ? {
+          playAreas: mergedPlayAreas,
+          selectedPlayAreaId,
+        }
+        : {}),
       playAreaPolygon: isValidPolygon(primary.playAreaPolygon)
         ? primary.playAreaPolygon
-        : isValidPolygon(primary.shipPolygon)
-          ? primary.shipPolygon
-          : isValidPolygon(fallback.playAreaPolygon)
-            ? fallback.playAreaPolygon
-            : isValidPolygon(fallback.shipPolygon)
-              ? fallback.shipPolygon
-              : undefined,
+        : selectedPlayAreaPolygon
+          ?? (isValidPolygon(primary.shipPolygon)
+            ? primary.shipPolygon
+            : isValidPolygon(fallback.playAreaPolygon)
+              ? fallback.playAreaPolygon
+              : isValidPolygon(fallback.shipPolygon)
+                ? fallback.shipPolygon
+                : undefined),
     };
   }
 
