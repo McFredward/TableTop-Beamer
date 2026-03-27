@@ -25,6 +25,12 @@
 - Image-Upload-Validation-Test: ungueltige Typen/Groessen werden sauber mit klarer Fehlermeldung abgewiesen.
 - Image-Board-Catalog-Test: neues Bildboard erscheint nach Upload im Katalog und ist direkt waehlbar.
 - Image-Board-Manual-Polygon-Test: nach Upload ist manuelles Zeichnen von Play-Areas/Rooms sofort moeglich.
+- Image-Import-Immediate-Select-Test: nach Upload+Import ist das neue Board direkt im Dropdown sichtbar und unmittelbar aktiv selektiert.
+- Image-Import-Empty-Start-Test: importiertes Bildboard ohne vorhandene Play-Areas/Rooms startet stabil und erlaubt anschliessendes manuelles Anlegen.
+
+- Settings-Room-Click-Priority-Test: Klick auf Room selektiert den Room deterministisch, auch wenn Room innerhalb einer Play-Area liegt.
+- Settings-Play-Area-Click-Removed-Test: Board-Klick selektiert keine Play-Area mehr; Room-Selektion bleibt priorisiert.
+- Selection-Edit-NonRegression-Test: Vertex-/Room-Edit und Keyboard-Aktionen bleiben nach Selection-Arbitration-Fix stabil.
 
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
@@ -35,6 +41,9 @@
 - Nach P8-T4..P8-T7: Multi-Area-Editor + Union-Clipping sind funktional und leak-frei.
 - Nach P8-T8..P8-T10: Bild-Upload-Import ist serverseitig sicher und UX-seitig bedienbar.
 - Nach P8-T11..P8-T12: Regression ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T18..P8-T20: Room-Selection-Prioritaet ist hergestellt; Play-Area-Click-Selection ist entfernt.
+- Nach P8-T21..P8-T23: Import-Success zeigt sofort Dropdown-Sichtbarkeit + Auto-Select; Empty-Start ist stabil.
+- Nach P8-T24: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -43,9 +52,19 @@
 - Legacy-Datenmigration ist verlustfrei und idempotent nachgewiesen.
 - Board-Import per Bildupload ist funktional, validiert und serverseitig persistiert.
 - Nach Bildupload ist der manuelle Polygonworkflow sofort verfuegbar.
+- Room-Klick in Settings priorisiert Selektion deterministisch; Play-Area-Selektion per Klick ist entfernt.
+- Erfolgreicher Bildupload fuehrt zu sofort sichtbarem Board im Dropdown und direkter Aktivselektion.
+- Importierte Bildboards ohne initiale Polygone sind als gueltiger Startzustand ohne Runtime-/Editorfehler bedienbar.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Result (Plan 8-1)
 - Status: PASS
 - Evidence: `.planning/phases/phase-08/8-1-VERIFICATION.md`
+
+## Execution Result (Plan 8-HF1)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF1-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T20-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`

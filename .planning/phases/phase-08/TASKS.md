@@ -17,7 +17,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T11 [P0] Regression/Verifikation ausfuehren: Migration, Multi-Area-Union, Upload-Negativfaelle, Non-Regression fuer Running/Sync/Final.
 - [x] DONE P8-T12 [P0] Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-1 Stand bringen.
 
-## Plan 8-2 - Hardening Wave (nach 8-1)
+## Plan 8-HF1 - Selection + Import Activation Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T18 [P0] Settings-Input-Arbitration fixen: Play-Area-Selektion per Board-Klick vollstaendig entfernen.
+- [x] DONE P8-T19 [P0] Room-Klick-Selektion haerten: Room wird bei no-move Click deterministisch aktiv selektiert (ohne Hold-Requirement).
+- [x] DONE P8-T20 [P0] Non-Regression absichern: Room-Edit-Flow (Vertex/Polygon/Keyboard) bleibt nach Selection-Fix stabil.
+- [x] DONE P8-T21 [P0] Image-Import-Success-Apply fixen: erfolgreicher Import aktualisiert Board-Katalog und Dropdown sofort sichtbar.
+- [x] DONE P8-T22 [P0] Post-Import-Auto-Select implementieren: neu importiertes Board wird direkt als aktives Board gesetzt.
+- [x] DONE P8-T23 [P0] Empty-Start-Guard validieren: importierte Bildboards ohne Start-Polygone sind editierbar und crashfrei.
+- [x] DONE P8-T24 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF1 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF1)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

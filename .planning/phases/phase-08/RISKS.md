@@ -50,6 +50,30 @@
 - Impact: Hoch.
 - Gegenmassnahme: verpflichtender Vollsync in P8-T12 (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## R11 Room-Klick-Selection wird weiter von Play-Area-Input ueberlagert
+- Risiko: Room bleibt trotz Klick nicht aktiv selektiert; Editing/Keyboard-Aktionen wirken auf falschen Kontext oder gar nicht.
+- Impact: Kritisch.
+- Gegenmassnahme: Play-Area-Click-Selection komplett entfernen und Room-Klick als einzige Selection-Quelle im Board-Input priorisieren.
+
+## R12 Image-Import bleibt ohne sichtbaren Success-Apply
+- Risiko: Upload ist serverseitig erfolgreich, aber UI aktualisiert Board-Dropdown/Aktivboard nicht deterministisch.
+- Impact: Kritisch.
+- Gegenmassnahme: transaktionaler Importabschluss mit direktem Catalog-Refresh + sofortigem Active-Board-Switch im selben Success-Pfad.
+
+## R13 Empty-Start bei Bildimport triggert unbeabsichtigte Default-/Fallback-Polygone
+- Risiko: Importierter Board-Kontext ohne Polygone wird durch implizite Defaults ueberschrieben oder erzeugt Editor/Runtime-Fehler.
+- Impact: Hoch.
+- Gegenmassnahme: expliziter Empty-Start-Guard ohne Zwangsdefaults; manueller Play-Area/Room-Create bleibt der erste gueltige Operator-Schritt.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
+
+## Risk Review for Plan 8-HF1 (planned)
+- 2026-03-27: Neues P0-Betriebsfeedback priorisiert R11 und R12 als Hotfix-Blocker vor Plan 8-2.
+- 2026-03-27: R13 wird als begleitender Guard in derselben Welle abgesichert, damit Bildimport ohne Start-Polygone stabil bleibt.
+
+## Risk Review after Plan 8-HF1
+- 2026-03-27: R11 ist mitigiert; Play-Area-Board-Click-Selektion ist entfernt, Room-Klick bleibt kanonisch selektionsfuehrend.
+- 2026-03-27: R12 ist mitigiert; Import-Success aktualisiert Katalog/Dropdown deterministisch im selben Flow inkl. sofortiger Aktivselektion.
+- 2026-03-27: R13 ist mitigiert; leere importierte Bildboards bleiben als gueltiger manueller Startzustand stabil (inkl. Evidence-Guard).

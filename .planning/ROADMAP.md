@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen.
 
-Status: 12/17 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12) ist umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`).
+Status: 19/24 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12) und Plan 8-HF1 (P8-T18..P8-T24) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`). Plan 8-2 ist die naechste Hardening-Welle.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -363,6 +363,7 @@ Milestones:
 4. M4 Play-Area Editor UX: mehrere Areas koennen angelegt/geloescht/selektiert werden.
 5. M5 Image Import Pipeline: Upload (`jpg`/`jpeg`/`png`/`webp`) wird serverseitig gespeichert und als Board-Hintergrund registriert.
 6. M6 Non-Regression: Running/Save/Reload/Sync/`/output/final` bleiben stabil.
+7. M7 P0 Hotfix Closure: Room-Klick-Selection hat Prioritaet (ohne Play-Area-Click-Selection), und Bildimport aktiviert neues Board sofort im Dropdown.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -370,12 +371,28 @@ Exit Criteria:
 - Legacy-Bestaende bleiben nach Schemaanhebung erhalten und werden idempotent migriert.
 - Board-Import akzeptiert JSON und Bildupload; hochgeladene Bilder sind serverseitig gespeichert.
 - Nach Bildupload ist manueller Polygon-Workflow direkt verfuegbar.
+- Room-Klick in Settings selektiert den Room deterministisch; Play-Area-Selektion per Board-Klick ist entfernt.
+- Erfolgreicher Bildimport macht das neue Board sofort im Dropdown sichtbar und setzt es direkt als aktive Auswahl.
+- Importierte Bildboards ohne Start-Polygone sind ein gueltiger, stabiler Startzustand fuer manuelles Play-Area/Room-Editing.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
 - Board-Profile nutzen jetzt kanonisch `playAreas[]` + `selectedPlayAreaId` mit Legacy-Ladealias fuer `playAreaPolygon`/`shipPolygon`.
 - Inside/Outside-Clipping verwendet die Union aller gueltigen Play-Area-Polygone (kein Single-Polygon-Fallbackpfad).
 - `/api/boards/import` unterstuetzt neben JSON jetzt Multipart-Bildupload (`jpg`/`jpeg`/`png`/`webp`) mit serverseitiger Asset-Persistenz und sofortiger Katalogsichtbarkeit.
+
+Execution Update (8-HF1):
+- Play-Area-Selektion per Board-Klick ist entfernt; Room-Klick bleibt der kanonische Selection-Pfad im Settings-Overlay.
+- Import-Success aktualisiert den Katalog deterministisch im selben Flow (inkl. stale-catalog guard) und setzt das neue Board sofort aktiv.
+- Leere importierte Bildboards bleiben als gueltiger manueller Startzustand erhalten (kein Runtime-Ausfilterungspfad fuer empty rooms).
+
+New Blocking Wave (Phase 8 follow-up):
+- Verbindliches P0-Betriebsfeedback setzt Plan 8-HF1 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- Blocker A: Play-Area-Click-Selektion ueberlagert Room-Klick-Selektion im Settings-Board.
+- Blocker B: Bildimport zeigt keinen sofort sichtbaren Success-Flow (Dropdown + Auto-Select).
+
+Gate Closure (8-HF1):
+- P0-Blocker A/B sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
