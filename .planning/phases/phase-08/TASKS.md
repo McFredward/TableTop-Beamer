@@ -58,7 +58,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T47 [P0] Reverse-Lifecycle Root-Cause Analyse fuer `Outside Sandstorm` durchfuehren (Forward-Ende -> Reverse-Start -> Reverse-Ende) und konkrete Flicker-Ursache isolieren.
 - [x] DONE P8-T48 [P0] Boomerang-Reverse-Playback fixen: stabiler full-cycle Loop (`forward -> reverse -> repeat`) ohne sichtbares Flackern im Reverse-Abschnitt.
 - [x] DONE P8-T49 [P0] MP4-Non-Boomerang-Non-Regression absichern: normales Vorwaerts-Loop-Playback bleibt unveraendert stabil.
-- [ ] TODO P8-T50 [P0] Outside-Editor Apply/Persistenz absichern: `boomerang`/`assetType`/`assetRef` bleiben ueber `Apply changes`, Save/Reload/Restart deterministisch intakt.
+- [x] DONE P8-T50 [P0] Outside-Editor Apply/Persistenz absichern: `boomerang`/`assetType`/`assetRef` bleiben ueber `Apply changes`, Save/Reload/Restart deterministisch intakt.
 - [ ] TODO P8-T51 [P0] Regression- und Evidence-Artefakte erstellen (Root-Cause-Protokoll + Playback-Matrix + Non-Regression-Nachweis).
 - [ ] TODO P8-T52 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF5 Stand.
 
