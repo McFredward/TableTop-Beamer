@@ -1,0 +1,120 @@
+{
+  "pass": true,
+  "rows": [
+    {
+      "area": "final-output",
+      "behavior": "route-availability",
+      "status": "PASS"
+    },
+    {
+      "area": "hf5",
+      "behavior": "align ON visible via context snapshot on all clients incl. final-output",
+      "status": "PASS"
+    },
+    {
+      "area": "hf5",
+      "behavior": "align OFF roundtrip remains deterministic across all polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "sync",
+      "behavior": "context-update visible on all clients",
+      "status": "PASS"
+    },
+    {
+      "area": "hf4",
+      "behavior": "draft baseline replicated without drift",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "start deterministic across 4 polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "hf4",
+      "behavior": "room start keeps draft animation/target/sliders stable (no jump to cluster/Malfunction)",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "stop deterministic across 4 polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "global",
+      "behavior": "snapshot trigger revision/key parity across 4 polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "global",
+      "behavior": "global trigger remains active without explicit snapshot stop",
+      "status": "PASS"
+    },
+    {
+      "area": "global",
+      "behavior": "explicit stop removes global animation and records stop revision",
+      "status": "PASS"
+    },
+    {
+      "area": "cluster",
+      "behavior": "stagger draft config replicated via snapshot runtime state",
+      "status": "PASS"
+    },
+    {
+      "area": "cluster",
+      "behavior": "sequential stagger member delay parity across polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "hf4",
+      "behavior": "cluster start keeps draft target path stable",
+      "status": "PASS"
+    },
+    {
+      "area": "hf4",
+      "behavior": "room-click target autofill remains target-only path",
+      "status": "PASS"
+    },
+    {
+      "area": "ghost-state",
+      "behavior": "burst + clear-all leaves no residual animation",
+      "status": "PASS"
+    },
+    {
+      "area": "hf5",
+      "behavior": "board switch atomically clears running list on all clients",
+      "status": "PASS"
+    },
+    {
+      "area": "hf5",
+      "behavior": "reconnect snapshot keeps board-switch running-clear no-residue parity",
+      "status": "PASS"
+    },
+    {
+      "area": "telemetry",
+      "behavior": "command/snapshot gate counters available",
+      "status": "PASS"
+    }
+  ],
+  "clients": [
+    {
+      "role": "control-a",
+      "appliedVersion": 19
+    },
+    {
+      "role": "control-b",
+      "appliedVersion": 19
+    },
+    {
+      "role": "control-c",
+      "appliedVersion": 19
+    },
+    {
+      "role": "final-output",
+      "appliedVersion": 19
+    }
+  ],
+  "checkedAt": "2026-03-27T01:46:12.079Z",
+  "baseUrl": "http://127.0.0.1:4273"
+}

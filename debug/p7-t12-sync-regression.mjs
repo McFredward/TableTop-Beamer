@@ -78,6 +78,42 @@ function assertSnapshotDraftApplyGuard(source) {
   );
 }
 
+function assertAlignToggleUsesContextUpdate(source) {
+  assert(
+    /function setAlignMode\(enabled, \{ emit = true \} = \{\}\)\s*\{[\s\S]*emitLiveMutation\("context-update", \{[\s\S]*reason: "align-toggle"[\s\S]*alignMode: nextAlignMode/.test(source),
+    "align toggle is not routed through context-update command payload",
+  );
+}
+
+function assertAlignPanelSyncAppliedOnSnapshot(source) {
+  assert(
+    /function applyLiveRuntimeSnapshot\([\s\S]*syncAlignModePanel\(\);[\s\S]*if \(!isFastFinalApply && outputRole !== OUTPUT_ROLE_FINAL\)/.test(source),
+    "snapshot apply does not synchronize align panel before role-specific fast path",
+  );
+}
+
+function assertBoardSwitchRunningClearInContextPatch(source) {
+  assert(
+    /function applyContextUpdatePatch\(payload\)[\s\S]*const boardSwitched =[\s\S]*if \(boardSwitched\) \{[\s\S]*nextRuntime\.runningAnimations = \[\];/.test(source),
+    "context-update patch missing board-switch running-clear guard",
+  );
+}
+
+function assertStrictStaleEqualVersionDrop(source) {
+  assert(
+    /function shouldApplySnapshotVersion\(incomingVersion\)\s*\{[\s\S]*normalizedIncomingVersion <= liveSync\.lastAppliedVersion[\s\S]*return false;[\s\S]*\}/.test(source),
+    "strict stale/equal snapshot version drop guard is missing",
+  );
+  assert(
+    /if \(shouldApplySnapshotVersion\(incomingVersion\) && envelope\.snapshot\)/.test(source),
+    "polling path does not use strict stale/equal version guard",
+  );
+  assert(
+    /if \(helloSnapshot && shouldApplySnapshotVersion\(helloVersion\)\)/.test(source),
+    "live-hello replay path does not use strict stale/equal version guard",
+  );
+}
+
 async function main() {
   const before = await readJson("/api/live/telemetry");
   const baselineSnapshot = await readJson("/api/live/snapshot?sinceVersion=0");
@@ -90,6 +126,7 @@ async function main() {
   const after = await readJson("/api/live/telemetry");
   const state = await readJson("/api/live/state");
   const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+  const serverSource = await readFile(new URL("../server.mjs", import.meta.url), "utf8");
   assert(after?.ok === true, "telemetry refresh failed");
   assert(state?.ok === true, "live state endpoint unavailable");
 
@@ -108,6 +145,10 @@ async function main() {
   assertMissingHopsMsFails(after);
   assertNoDraftMutationInStartPath(appSource);
   assertSnapshotDraftApplyGuard(appSource);
+  assertAlignToggleUsesContextUpdate(appSource);
+  assertAlignPanelSyncAppliedOnSnapshot(appSource);
+  assertBoardSwitchRunningClearInContextPatch(serverSource);
+  assertStrictStaleEqualVersionDrop(appSource);
 
   console.log(JSON.stringify({
     pass: true,
@@ -134,6 +175,12 @@ async function main() {
     hf4DraftImmutabilityGuard: {
       startPathDraftMutationBlocked: true,
       snapshotControlDraftApplyBlocked: true,
+    },
+    hf5AlignBoardSwitchGuards: {
+      alignToggleCommandUsesContextUpdate: true,
+      alignSnapshotApplySynchronizesPanelsOnAllRoles: true,
+      boardSwitchClearsRunningInContextPatch: true,
+      staleEqualVersionRejectEnabledForPollAndReconnect: true,
     },
   }, null, 2));
 }

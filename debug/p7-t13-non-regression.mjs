@@ -57,6 +57,10 @@ function findGlobalAnimation(runtime, type, boardId, animationId = null) {
   )) ?? null;
 }
 
+function readRunningAnimations(runtime) {
+  return Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
+}
+
 function createPollingClient(role) {
   return {
     role,
@@ -153,9 +157,51 @@ async function main() {
 
   const boards = await readJson("/api/boards");
   assert(Array.isArray(boards?.runtimeBoards) && boards.runtimeBoards.length > 0, "board catalog empty");
+  assert(boards.runtimeBoards.length >= 2, "need at least two boards for board-switch residue regression");
   const board = boards.runtimeBoards[0];
+  const secondaryBoard = boards.runtimeBoards[1];
   const room = Array.isArray(board?.rooms) ? board.rooms[0] : null;
   assert(room?.id, "board seed missing room");
+
+  const alignOnAck = await sendCommand("context-update", {
+    reason: "hf5-align-on",
+    selectedBoard: board.id,
+    selectedLayout: board.id,
+    boardId: board.id,
+    alignMode: true,
+    runtime: {
+      alignMode: true,
+    },
+  });
+  await waitForAllClientsVersion(clients, alignOnAck.version);
+  for (const client of clients) {
+    const alignMode =
+      typeof client.snapshot?.alignMode === "boolean"
+        ? client.snapshot.alignMode
+        : Boolean(client.snapshot?.runtime?.alignMode);
+    assert(alignMode === true, `align ON not visible on ${client.role}`);
+  }
+  rows.push({ area: "hf5", behavior: "align ON visible via context snapshot on all clients incl. final-output", status: "PASS" });
+
+  const alignOffAck = await sendCommand("context-update", {
+    reason: "hf5-align-off",
+    selectedBoard: board.id,
+    selectedLayout: board.id,
+    boardId: board.id,
+    alignMode: false,
+    runtime: {
+      alignMode: false,
+    },
+  });
+  await waitForAllClientsVersion(clients, alignOffAck.version);
+  for (const client of clients) {
+    const alignMode =
+      typeof client.snapshot?.alignMode === "boolean"
+        ? client.snapshot.alignMode
+        : Boolean(client.snapshot?.runtime?.alignMode);
+    assert(alignMode === false, `align OFF not visible on ${client.role}`);
+  }
+  rows.push({ area: "hf5", behavior: "align OFF roundtrip remains deterministic across all polling clients", status: "PASS" });
 
   const contextAck = await sendCommand("context-update", {
     selectedBoard: board.id,
@@ -412,10 +458,60 @@ async function main() {
   });
   await waitForAllClientsVersion(clients, clearAck.version);
   for (const client of clients) {
-    const list = Array.isArray(client.snapshot?.runtime?.runningAnimations) ? client.snapshot.runtime.runningAnimations : [];
+    const list = readRunningAnimations(client.snapshot?.runtime);
     assert(list.length === 0, `ghost state remained on ${client.role}`);
   }
   rows.push({ area: "ghost-state", behavior: "burst + clear-all leaves no residual animation", status: "PASS" });
+
+  const residueAnimationId = mutationId("hf5-residue");
+  const residueStartAck = await sendCommand("trigger-room", {
+    animationId: residueAnimationId,
+    animation: {
+      id: residueAnimationId,
+      type: "fire",
+      scope: "room",
+      targetType: "room",
+      targetId: room.id,
+      roomId: room.id,
+      boardId: board.id,
+      hold: true,
+      startedAtEpochMs: Date.now(),
+    },
+  });
+  await waitForAllClientsVersion(clients, residueStartAck.version);
+  for (const client of clients) {
+    assert(findAnimation(client.snapshot?.runtime, residueAnimationId), `hf5 residue seed start missing on ${client.role}`);
+  }
+
+  const boardSwitchAck = await sendCommand("context-update", {
+    reason: "hf5-board-switch",
+    selectedBoard: secondaryBoard.id,
+    selectedLayout: secondaryBoard.id,
+    boardId: secondaryBoard.id,
+    runtime: {
+      selectedBoard: secondaryBoard.id,
+      selectedLayout: secondaryBoard.id,
+    },
+  });
+  await waitForAllClientsVersion(clients, boardSwitchAck.version);
+  for (const client of clients) {
+    const runtime = client.snapshot?.runtime;
+    const list = readRunningAnimations(runtime);
+    assert(list.length === 0, `running residue remained after board switch on ${client.role}`);
+    const selectedBoardId = client.snapshot?.selectedBoard ?? runtime?.selectedBoard ?? runtime?.boardId ?? null;
+    assert(selectedBoardId === secondaryBoard.id, `selected board drifted after board switch on ${client.role}`);
+  }
+  rows.push({ area: "hf5", behavior: "board switch atomically clears running list on all clients", status: "PASS" });
+
+  const reconnectClient = createPollingClient("reconnect-final-output");
+  await pollClientOnce(reconnectClient);
+  assert(Number(reconnectClient.appliedVersion) >= Number(boardSwitchAck.version), "reconnect client did not hydrate current board-switch version");
+  const reconnectRuntime = reconnectClient.snapshot?.runtime;
+  const reconnectList = readRunningAnimations(reconnectRuntime);
+  assert(reconnectList.length === 0, "reconnect snapshot rehydrated stale running entries after board switch");
+  const reconnectBoardId = reconnectClient.snapshot?.selectedBoard ?? reconnectRuntime?.selectedBoard ?? reconnectRuntime?.boardId ?? null;
+  assert(reconnectBoardId === secondaryBoard.id, "reconnect snapshot selected wrong board after board switch");
+  rows.push({ area: "hf5", behavior: "reconnect snapshot keeps board-switch running-clear no-residue parity", status: "PASS" });
 
   const telemetry = await readJson("/api/live/telemetry");
   const gates = telemetry?.telemetry?.gates ?? {};

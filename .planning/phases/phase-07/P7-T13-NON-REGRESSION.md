@@ -1,15 +1,17 @@
 # P7-T13 Non-Regression Matrix
 
-- Scope: polling-deterministic room/global lifecycle with 3-4 clients, `/output/final` participation, snapshot trigger revision parity, explicit-stop gating, stagger-offset replication/parity, ghost-state elimination, command/snapshot gate visibility, plus HF4 room/cluster draft stability and room-click target autofill parity.
+- Scope: polling-deterministic room/global lifecycle with 3-4 clients, `/output/final` participation, snapshot trigger revision parity, explicit-stop gating, stagger-offset replication/parity, ghost-state elimination, command/snapshot gate visibility, plus HF4 room/cluster draft stability and HF5 align roundtrip + board-switch running-clear no-residue parity.
 - Script: `node debug/p7-t13-non-regression.mjs`
 
 ## Result
 
-- PASS (Plan 7-HF4): Deterministic room/global start-stop behavior remains reproducible across 4 polling clients, and HF4 guards confirm no draft jump on room/cluster start while room-click target autofill remains target-only.
+- PASS (Plan 7-HF5): Deterministic room/global start-stop behavior remains reproducible across 4 polling clients; HF4 draft guards remain stable, and HF5 guards confirm align ON/OFF roundtrip parity plus board-switch running-clear determinism (including reconnect snapshot parity).
 
 ## Behavior Matrix Coverage
 
 - `/output/final` route availability in deterministic polling workflow (PASS)
+- HF5 align ON visible via server-authoritative `context-update` snapshot on all clients incl. `/output/final` (PASS)
+- HF5 align OFF roundtrip remains deterministic on all polling clients (PASS)
 - Shared context command visible on all polling clients (PASS)
 - HF4 draft baseline replication (`animation/target/sliders`) without drift (PASS)
 - Room animation start visible on all 4 polling clients (PASS)
@@ -23,13 +25,15 @@
 - HF4 cluster-start draft target stability retained (PASS)
 - HF4 source-level parity check: room-click target autofill remains target-only (`targetType`/`targetId`) (PASS)
 - Burst start sequence followed by `clear-all` leaves zero residual animations (ghost-state elimination, PASS)
+- HF5 board-switch atomically clears running list on all polling clients (PASS)
+- HF5 reconnect snapshot parity: no stale running rehydration after board switch (PASS)
 - Telemetry exposes command/snapshot gate counters (`commandAccepted`, `snapshotVersionVisible`) (PASS)
 
 ## Evidence
 
 - Command: `TT_BEAMER_BASE_URL=http://127.0.0.1:4173 node debug/p7-t13-non-regression.mjs`
-- Output: `debug/p7-hf4-t13-output.json`
+- Output: `debug/p7-hf5-t13-output.json`
 
 ## Open Verify Gap
 
-- None for HF4 draft stability and room-click autofill parity gate.
+- None for HF4/HF5 gate coverage.
