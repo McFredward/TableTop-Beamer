@@ -227,11 +227,17 @@ async function main() {
   rows.push({ area: "hf5", behavior: "align OFF roundtrip remains deterministic across all polling clients", status: "PASS" });
 
   const contextAck = await sendCommand("context-update", {
+    reason: "board-switch",
+    contextSwitchTransactionId: mutationId("hf9-board-anchor"),
     selectedBoard: board.id,
     selectedLayout: board.id,
     boardId: board.id,
   });
   await waitForAllClientsVersion(clients, contextAck.version);
+  for (const client of clients) {
+    const selectedBoardId = client.snapshot?.selectedBoard ?? client.snapshot?.runtime?.selectedBoard ?? client.snapshot?.runtime?.boardId ?? null;
+    assert(selectedBoardId === board.id, `context-update board anchor missing on ${client.role}`);
+  }
   rows.push({ area: "sync", behavior: "context-update visible on all clients", status: "PASS" });
 
   const hf4DraftBaseline = {
@@ -285,9 +291,33 @@ async function main() {
   for (const client of clients) {
     assert(findAnimation(client.snapshot?.runtime, roomAnimationId), `start not visible on ${client.role}`);
   }
+  await delay(420);
+  await Promise.all(clients.map((client) => pollClientOnce(client)));
+  for (const client of clients) {
+    const selectedBoardId = client.snapshot?.selectedBoard ?? client.snapshot?.runtime?.selectedBoard ?? client.snapshot?.runtime?.boardId ?? null;
+    assert(selectedBoardId === board.id, `board drifted before hf9 draft-sync check on ${client.role}`);
+    assert(findAnimation(client.snapshot?.runtime, roomAnimationId), `room start did not persist before stop on ${client.role}`);
+  }
+  const hf9DraftSyncAck = await sendCommand("context-update", {
+    reason: "room-draft-sync",
+    runtime: {
+      roomDraft: {
+        ...hf4DraftBaseline,
+        targetType: "room",
+        targetId: room.id,
+      },
+    },
+  });
+  await waitForAllClientsVersion(clients, hf9DraftSyncAck.version);
+  for (const client of clients) {
+    const selectedBoardId = client.snapshot?.selectedBoard ?? client.snapshot?.runtime?.selectedBoard ?? client.snapshot?.runtime?.boardId ?? null;
+    assert(selectedBoardId === board.id, `room-draft sync unexpectedly switched board on ${client.role} (expected ${board.id}, got ${selectedBoardId ?? "null"})`);
+    assert(findAnimation(client.snapshot?.runtime, roomAnimationId), `room start was neutralized by room-draft sync on ${client.role}`);
+  }
   assertRoomDraftStableAcrossClients(clients, expectedDraft, "hf4 room-start stability");
   rows.push({ area: "room", behavior: "start deterministic across 4 polling clients", status: "PASS" });
   rows.push({ area: "hf4", behavior: "room start keeps draft animation/target/sliders stable (no jump to cluster/Malfunction)", status: "PASS" });
+  rows.push({ area: "hf9", behavior: "room start survives trailing room-draft context mutation without board/status rollback", status: "PASS" });
 
   const roomStopBaselineByRole = Object.fromEntries(clients.map((client) => [
     client.role,
@@ -400,7 +430,13 @@ async function main() {
   for (const client of clients) {
     assert(findGlobalAnimation(client.snapshot?.runtime, "outside-space", board.id, outsideAnimationId), `global-outside start missing on ${client.role}`);
   }
+  await delay(420);
+  await Promise.all(clients.map((client) => pollClientOnce(client)));
+  for (const client of clients) {
+    assert(findGlobalAnimation(client.snapshot?.runtime, "outside-space", board.id, outsideAnimationId), `global-outside lifecycle did not persist before stop on ${client.role}`);
+  }
   rows.push({ area: "hf8", behavior: "global-outside start is visible across all clients incl. final-output", status: "PASS" });
+  rows.push({ area: "hf9", behavior: "global-outside lifecycle persists until explicit stop", status: "PASS" });
 
   const outsideStopBaselineByRole = Object.fromEntries(clients.map((client) => [
     client.role,
@@ -520,9 +556,19 @@ async function main() {
     assert(Number(clusterAnimation.clusterStartOffsetMs) === staggerOffsetMs, `cluster offset drift on ${client.role}`);
     assert(JSON.stringify(clusterAnimation.memberStartDelays ?? {}) === JSON.stringify(expectedDelayMap), `cluster delay map drift on ${client.role}`);
   }
+  await delay(420);
+  await Promise.all(clients.map((client) => pollClientOnce(client)));
+  for (const client of clients) {
+    const runtime = client.snapshot?.runtime;
+    assert(findAnimation(runtime, clusterAnimationId), `cluster run did not persist before stop on ${client.role}`);
+    for (const memberId of memberAnimationIds) {
+      assert(findAnimation(runtime, memberId), `cluster member ${memberId} ended early on ${client.role}`);
+    }
+  }
   assertRoomDraftStableAcrossClients(clients, expectedClusterDraft, "hf4 cluster-start stability");
   rows.push({ area: "cluster", behavior: "sequential stagger member delay parity across polling clients", status: "PASS" });
   rows.push({ area: "hf4", behavior: "cluster start keeps draft target path stable", status: "PASS" });
+  rows.push({ area: "hf9", behavior: "cluster lifecycle persists until explicit stop (no implicit cleanup)", status: "PASS" });
 
   const clusterStopBaselineByRole = Object.fromEntries(clients.map((client) => [
     client.role,
@@ -663,6 +709,9 @@ async function main() {
   assert(/now - lastListRenderAt > 500[\s\S]*!isRunningListInteractionActive\(\)/.test(appSourceForHover), "periodic running-list refresh is not interaction-guarded");
   assert(/\.running-actions button:hover,[\s\S]*\.running-actions button:focus-visible[\s\S]*transform: none;/.test(stylesSource), "running action hover/focus style stabilization missing");
   rows.push({ area: "hf8", behavior: "running-list hover style guard is stable (no periodic hover flicker loop)", status: "PASS" });
+  assert(/function switchBoard\(boardId, \{ emitLiveContext = false, reason = "board-switch", announceStatus = true \} = \{\}\)/.test(appSourceForHover), "switchBoard announceStatus guard missing");
+  assert(/function syncRuntimePanelsFromState\(\) \{[\s\S]*switchBoard\(state\.boardId, \{ announceStatus: false \}\);/.test(appSourceForHover), "runtime sync still emits board switched status");
+  rows.push({ area: "hf9", behavior: "board-switched status stays contextual and does not mask snapshot start lifecycle updates", status: "PASS" });
 
   console.log(JSON.stringify({
     pass: rows.every((row) => row.status === "PASS"),
