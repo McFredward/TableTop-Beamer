@@ -335,6 +335,9 @@ const LIVE_APPLIED_MUTATION_LIMIT = 4000;
 const LIVE_POLL_FAST_MS = 120;
 const LIVE_POLL_IDLE_MS = 250;
 const LIVE_POLL_MAX_BACKOFF_MS = 2000;
+const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
+const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
+const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 
 function rememberAppliedMutationId(mutationId) {
   if (typeof mutationId !== "string" || !mutationId) {
@@ -3155,6 +3158,14 @@ function clampRoomSpeed(value) {
 
 function clampRoomSoundVolume(value) {
   return Math.max(0, Math.min(1, Number(value) || 0));
+}
+
+function clampClusterStaggerOffsetMs(value) {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) {
+    return CLUSTER_STAGGER_OFFSET_DEFAULT_MS;
+  }
+  return Math.max(CLUSTER_STAGGER_OFFSET_MIN_MS, Math.min(CLUSTER_STAGGER_OFFSET_MAX_MS, numeric));
 }
 
 function clampAudioVolumePercent(value) {
@@ -6087,13 +6098,17 @@ function resolveRoomDraftTargets() {
   return [];
 }
 
-function buildClusterDispatchPlan(roomIds, { staggerStart = false } = {}) {
+function buildClusterDispatchPlan(roomIds, {
+  staggerStart = false,
+  staggerOffsetMs = CLUSTER_STAGGER_OFFSET_DEFAULT_MS,
+} = {}) {
   const normalizedRoomIds = Array.from(new Set((Array.isArray(roomIds) ? roomIds : [])
     .map((roomId) => String(roomId || "").trim())
     .filter(Boolean)));
-  return normalizedRoomIds.map((roomId) => ({
+  const effectiveOffsetMs = clampClusterStaggerOffsetMs(staggerOffsetMs);
+  return normalizedRoomIds.map((roomId, index) => ({
     roomId,
-    startDelayMs: staggerStart ? Math.floor(Math.random() * 280) + 40 : 0,
+    startDelayMs: staggerStart ? index * effectiveOffsetMs : 0,
   }));
 }
 
@@ -6275,6 +6290,7 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   syncGifRoomControls();
   roomHoldInput.checked = true;
   state.roomDraft.staggerStart = Boolean(state.roomDraft.staggerStart);
+  state.roomDraft.staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
   if (roomStaggerStartInput) {
     roomStaggerStartInput.checked = state.roomDraft.staggerStart;
     roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
@@ -6508,9 +6524,11 @@ function startRoomAnimationFromDraft() {
         );
         if (existingCluster) {
           const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
+          const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
           const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
           const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
             staggerStart: shouldStaggerClusterStart,
+            staggerOffsetMs,
           });
           const reusableMembersByRoomId = new Map();
           for (const member of state.runningAnimations) {
@@ -6597,6 +6615,7 @@ function startRoomAnimationFromDraft() {
             clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
             clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
             clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
+            clusterStartOffsetMs: staggerOffsetMs,
             memberAnimationIds: nextMemberAnimationIds,
             memberRoomIds: nextMemberRoomIds,
             memberStartDelays: Object.fromEntries(
@@ -6645,8 +6664,12 @@ function startRoomAnimationFromDraft() {
     }
 
     const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
+    const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
     const dispatchPlan = state.roomDraft.targetType === "cluster"
-      ? buildClusterDispatchPlan(targetRoomIds, { staggerStart: shouldStaggerClusterStart })
+      ? buildClusterDispatchPlan(targetRoomIds, {
+        staggerStart: shouldStaggerClusterStart,
+        staggerOffsetMs,
+      })
       : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
     const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
       type: draftPayload.type,
@@ -6681,6 +6704,7 @@ function startRoomAnimationFromDraft() {
       clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
       clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
       clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
+      clusterRunAnimation.clusterStartOffsetMs = staggerOffsetMs;
       clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
       clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
       clusterRunAnimation.memberStartDelays = Object.fromEntries(
@@ -6721,9 +6745,11 @@ function startRoomAnimationFromDraft() {
       if (clusterEditIndex >= 0) {
         const existingCluster = state.runningAnimations[clusterEditIndex];
         const shouldStaggerClusterStart = Boolean(state.roomDraft.staggerStart);
+        const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
         const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
         const dispatchPlan = buildClusterDispatchPlan(targetRoomIds, {
           staggerStart: shouldStaggerClusterStart,
+          staggerOffsetMs,
         });
         const reusableMembersByRoomId = new Map();
         for (const member of state.runningAnimations) {
@@ -6820,8 +6846,9 @@ function startRoomAnimationFromDraft() {
           boardId: state.boardId,
           clusterId: cluster?.clusterId ?? state.roomDraft.targetId,
           clusterName: cluster?.name ?? existingCluster.clusterName ?? "Cluster",
-          clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
-          memberAnimationIds: nextMemberAnimationIds,
+            clusterStartMode: shouldStaggerClusterStart ? "staggered" : "synchronous",
+            clusterStartOffsetMs: staggerOffsetMs,
+            memberAnimationIds: nextMemberAnimationIds,
           memberRoomIds: nextMemberRoomIds,
           memberStartDelays: Object.fromEntries(
             dispatchPlan.map((entry) => [entry.roomId, Math.max(0, Number(entry.startDelayMs) || 0)]),
@@ -6874,8 +6901,12 @@ function startRoomAnimationFromDraft() {
   }
 
   const shouldStaggerClusterStart = state.roomDraft.targetType === "cluster" && Boolean(state.roomDraft.staggerStart);
+  const staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
   const dispatchPlan = state.roomDraft.targetType === "cluster"
-    ? buildClusterDispatchPlan(targetRoomIds, { staggerStart: shouldStaggerClusterStart })
+    ? buildClusterDispatchPlan(targetRoomIds, {
+      staggerStart: shouldStaggerClusterStart,
+      staggerOffsetMs,
+    })
     : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
   const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
     type: draftPayload.type,
@@ -6911,6 +6942,7 @@ function startRoomAnimationFromDraft() {
     clusterRunAnimation.clusterId = cluster?.clusterId ?? state.roomDraft.targetId;
     clusterRunAnimation.clusterName = cluster?.name ?? "Cluster";
     clusterRunAnimation.clusterStartMode = shouldStaggerClusterStart ? "staggered" : "synchronous";
+    clusterRunAnimation.clusterStartOffsetMs = staggerOffsetMs;
     clusterRunAnimation.memberRoomIds = dispatchPlan.map((entry) => entry.roomId);
     clusterRunAnimation.memberAnimationIds = createdAnimations.map((entry) => entry.id);
     clusterRunAnimation.memberStartDelays = Object.fromEntries(
@@ -7049,6 +7081,9 @@ function editAnimation(animationId) {
   state.roomDraft.staggerStart = isClusterScope
     ? animation.clusterStartMode === "staggered"
     : state.roomDraft.staggerStart;
+  state.roomDraft.staggerOffsetMs = isClusterScope
+    ? clampClusterStaggerOffsetMs(animation.clusterStartOffsetMs)
+    : clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
   state.roomDraft.hold = true;
 
   roomAnimationSelect.value = state.roomDraft.animationId;
@@ -7128,7 +7163,7 @@ function renderRunningAnimationsList() {
         ? ` | Cluster: ${anim.clusterName ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name ?? anim.clusterId ?? "unknown"} | Members: ${Math.max(
           0,
           getClusterMemberAnimationIds(anim).length,
-        )} | Start: ${(anim.clusterStartMode ?? "synchronous") === "staggered" ? "staggered" : "synchronous"}`
+        )} | Start: ${(anim.clusterStartMode ?? "synchronous") === "staggered" ? "staggered" : "synchronous"}${(anim.clusterStartMode ?? "synchronous") === "staggered" ? ` (${clampClusterStaggerOffsetMs(anim.clusterStartOffsetMs)}ms)` : ""}`
       : "";
     meta.textContent = `Instance: ${anim.id} | Type: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Remaining: ${remaining}`;
 

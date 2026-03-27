@@ -26,6 +26,7 @@
         speed: Number(roomSpeed ?? 1),
         soundVolume: Number(roomSoundVolume ?? 100) / 100,
         staggerStart: false,
+        staggerOffsetMs: 140,
         durationSec: 0,
         hold: true,
       },
