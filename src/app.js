@@ -5798,13 +5798,15 @@ function renderRoomOverlay() {
         .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
         .join(" "),
     );
-    polygon.addEventListener("click", () => {
+    polygon.addEventListener("click", (event) => {
       if (performance.now() < (state.polygonEditor.suppressRoomClickUntil || 0)) {
         return;
       }
       if (isPanArbitrating()) {
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
       applyRoomDraftTargetFromRoomClick(room.id);
