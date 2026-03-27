@@ -7240,13 +7240,33 @@ function reconcileStopPendingFromSnapshot() {
   }
 }
 
-function emitStopAnimationCommand(animationId, { priorityHint = "high" } = {}) {
+function buildStopCommandTargetMeta(targetAnimation) {
+  if (!targetAnimation || typeof targetAnimation !== "object") {
+    return {};
+  }
+  const targetScope = typeof targetAnimation.scope === "string" ? targetAnimation.scope.trim() : "";
+  const targetType = typeof targetAnimation.type === "string" ? targetAnimation.type.trim() : "";
+  const boardId = typeof targetAnimation.boardId === "string" ? targetAnimation.boardId.trim() : "";
+  return {
+    ...(targetScope ? { targetScope } : {}),
+    ...(targetType ? { targetType } : {}),
+    ...(boardId ? { boardId } : {}),
+    ...(targetScope === "global" && targetType === "outside-space" ? { outsideHint: true } : {}),
+  };
+}
+
+function emitStopAnimationCommand(animationId, { priorityHint = "high", targetAnimation = null } = {}) {
   if (typeof animationId !== "string" || !animationId.trim()) {
     return Promise.reject(new Error("invalid animationId for stop command"));
   }
+  const animationForMeta =
+    targetAnimation
+    ?? state.runningAnimations.find((entry) => entry?.id === animationId)
+    ?? null;
   return emitLiveMutation(STOP_ANIMATION_MUTATION_TYPE, {
     animationId,
     priorityHint,
+    ...buildStopCommandTargetMeta(animationForMeta),
   });
 }
 
@@ -7263,9 +7283,13 @@ function stopAnimation(animationId) {
       return;
     }
     markStopPending(idsToDispatch);
-    const commandPairs = idsToDispatch.map((id) => [id, emitStopAnimationCommand(id, {
+    const commandPairs = idsToDispatch.map((id) => {
+      const commandTarget = state.runningAnimations.find((entry) => entry?.id === id) ?? (id === target.id ? target : null);
+      return [id, emitStopAnimationCommand(id, {
       priorityHint: "high",
-    })]);
+      targetAnimation: commandTarget,
+    })];
+    });
     void Promise.allSettled(commandPairs.map(([, promise]) => promise)).then((results) => {
       const failedIds = results
         .map((result, index) => (result.status === "rejected" ? commandPairs[index][0] : null))
@@ -7296,8 +7320,10 @@ function stopAnimation(animationId) {
   renderRunningAnimationsList();
   refreshGlobalButtons();
   for (const id of idsToStop) {
+    const commandTarget = state.runningAnimations.find((entry) => entry?.id === id) ?? (id === target.id ? target : null);
     void emitStopAnimationCommand(id, {
       priorityHint: "high",
+      targetAnimation: commandTarget,
     });
   }
 }
