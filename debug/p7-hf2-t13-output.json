@@ -1,0 +1,55 @@
+{
+  "pass": true,
+  "rows": [
+    {
+      "area": "final-output",
+      "behavior": "route-availability",
+      "status": "PASS"
+    },
+    {
+      "area": "sync",
+      "behavior": "context-update visible on all clients",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "start deterministic across 4 polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "room",
+      "behavior": "stop deterministic across 4 polling clients",
+      "status": "PASS"
+    },
+    {
+      "area": "ghost-state",
+      "behavior": "burst + clear-all leaves no residual animation",
+      "status": "PASS"
+    },
+    {
+      "area": "telemetry",
+      "behavior": "command/snapshot gate counters available",
+      "status": "PASS"
+    }
+  ],
+  "clients": [
+    {
+      "role": "control-a",
+      "appliedVersion": 7
+    },
+    {
+      "role": "control-b",
+      "appliedVersion": 7
+    },
+    {
+      "role": "control-c",
+      "appliedVersion": 7
+    },
+    {
+      "role": "final-output",
+      "appliedVersion": 7
+    }
+  ],
+  "checkedAt": "2026-03-27T00:17:01.960Z",
+  "baseUrl": "http://127.0.0.1:4173"
+}

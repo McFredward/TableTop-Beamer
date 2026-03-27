@@ -27,6 +27,7 @@ async function main() {
       p95: quantile(values, 0.95),
       p99: quantile(values, 0.99),
     }])),
+    gates: payload?.telemetry?.gates ?? null,
     queue: payload?.telemetry?.queue ?? null,
   };
   console.log(JSON.stringify(report, null, 2));

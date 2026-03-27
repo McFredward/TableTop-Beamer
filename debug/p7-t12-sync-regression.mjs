@@ -46,8 +46,10 @@ function assertMissingHopsMsFails(payload) {
 
 async function main() {
   const before = await readJson("/api/live/telemetry");
+  const baselineSnapshot = await readJson("/api/live/snapshot?sinceVersion=0");
   assert(before?.ok === true, "telemetry endpoint unavailable");
   assert(typeof before?.telemetry?.queue?.depth === "number", "missing queue depth metric");
+  assert(typeof baselineSnapshot?.session?.version === "number", "snapshot endpoint missing session.version");
 
   await delay(250);
 
@@ -61,6 +63,8 @@ async function main() {
   assert(queue.depth >= 0, "queue depth invalid");
   assert(queue.maxDepthObserved >= queue.depth, "max depth invariant broken");
   assert(queue.droppedOverflow >= 0, "overflow metric invalid");
+  assert(typeof after?.telemetry?.gates?.commandAccepted === "number", "missing telemetry.gates.commandAccepted");
+  assert(typeof after?.telemetry?.gates?.snapshotVersionVisible === "number", "missing telemetry.gates.snapshotVersionVisible");
   assertMissingHopsMsFails(after);
 
   console.log(JSON.stringify({
@@ -71,6 +75,11 @@ async function main() {
       ingestToCommit: hopsMs.ingestToCommit.length,
       commitToClientAck: hopsMs.commitToClientAck.length,
       commitToApplyAck: hopsMs.commitToApplyAck.length,
+    },
+    gateSamples: {
+      commandAccepted: after?.telemetry?.gates?.commandAccepted ?? 0,
+      snapshotVersionVisible: after?.telemetry?.gates?.snapshotVersionVisible ?? 0,
+      snapshotApplied: after?.telemetry?.gates?.snapshotApplied ?? 0,
     },
     schemaGuard: {
       usesHopsMsOnly: true,
