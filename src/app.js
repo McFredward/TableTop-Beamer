@@ -1174,6 +1174,7 @@ let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
+const outsideVideoPlaybackStateByBoard = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -8488,12 +8489,46 @@ function drawOutsideFxLayer(now) {
       const videoEntry = getOutsideVideoElement(selectedDefinition.assetRef);
       const durationSec = Number(videoEntry?.durationSec);
       if (videoEntry?.video && Number.isFinite(durationSec) && durationSec > 0) {
-        const mappedTime = ((timeline.timeline % durationSec) + durationSec) % durationSec;
-        if (Math.abs((Number(videoEntry.video.currentTime) || 0) - mappedTime) > 0.03) {
-          videoEntry.video.currentTime = mappedTime;
+        const video = videoEntry.video;
+        const playbackState = outsideVideoPlaybackStateByBoard.get(state.boardId) ?? {
+          key: null,
+          forceSeekAt: null,
+        };
+        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}`;
+        const isForwardContinuous = !selectedDefinition.boomerang && selectedDefinition.direction !== "reverse";
+        if (playbackState.key !== playbackKey) {
+          playbackState.key = playbackKey;
+          playbackState.forceSeekAt = 0;
         }
+        if (isForwardContinuous) {
+          video.loop = true;
+          const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
+          if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+            video.playbackRate = targetRate;
+          }
+          if (video.paused) {
+            void video.play().catch(() => undefined);
+          }
+          if (playbackState.forceSeekAt !== null) {
+            const seekTarget = ((Number(playbackState.forceSeekAt) || 0) % durationSec + durationSec) % durationSec;
+            if (Math.abs((Number(video.currentTime) || 0) - seekTarget) > 0.12) {
+              video.currentTime = seekTarget;
+            }
+            playbackState.forceSeekAt = null;
+          }
+        } else {
+          video.loop = false;
+          if (!video.paused) {
+            video.pause();
+          }
+          const mappedTime = ((timeline.timeline % durationSec) + durationSec) % durationSec;
+          if (Math.abs((Number(video.currentTime) || 0) - mappedTime) > 0.05) {
+            video.currentTime = mappedTime;
+          }
+        }
+        outsideVideoPlaybackStateByBoard.set(state.boardId, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
-        ctx.drawImage(videoEntry.video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
       return;
     }
