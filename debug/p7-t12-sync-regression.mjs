@@ -94,8 +94,26 @@ function assertAlignPanelSyncAppliedOnSnapshot(source) {
 
 function assertBoardSwitchRunningClearInContextPatch(source) {
   assert(
-    /function applyContextUpdatePatch\(payload\)[\s\S]*const boardSwitched =[\s\S]*if \(boardSwitched\) \{[\s\S]*nextRuntime\.runningAnimations = \[\];/.test(source),
+    /function applyContextUpdatePatch\(payload\)[\s\S]*const shouldAtomicClear =[\s\S]*if \(shouldAtomicClear\) \{[\s\S]*nextRuntime\.runningAnimations = \[\];/.test(source),
     "context-update patch missing board-switch running-clear guard",
+  );
+}
+
+function assertServerSnapshotSanitizerGuard(source) {
+  assert(
+    /function sanitizeLiveSnapshotForBoardContext\(snapshot\)[\s\S]*runtime\.runningAnimations = sanitizedRunningAnimations;/.test(source),
+    "server snapshot board-context sanitizer missing",
+  );
+  assert(
+    /const mergedSnapshot = \{[\s\S]*liveSessionState\.snapshot = sanitizeLiveSnapshotForBoardContext\(mergedSnapshot\);/.test(source),
+    "mutateLiveSession does not sanitize snapshot before persist/broadcast",
+  );
+}
+
+function assertClientReconnectBoardFilter(source) {
+  assert(
+    /function filterRunningAnimationsForBoard\([\s\S]*if \(!normalizedBoardId \|\| !animationBoardId\) \{[\s\S]*return false;/.test(source),
+    "client running board filter is not hard-enforced",
   );
 }
 
@@ -148,6 +166,8 @@ async function main() {
   assertAlignToggleUsesContextUpdate(appSource);
   assertAlignPanelSyncAppliedOnSnapshot(appSource);
   assertBoardSwitchRunningClearInContextPatch(serverSource);
+  assertServerSnapshotSanitizerGuard(serverSource);
+  assertClientReconnectBoardFilter(appSource);
   assertStrictStaleEqualVersionDrop(appSource);
 
   console.log(JSON.stringify({
@@ -181,6 +201,11 @@ async function main() {
       alignSnapshotApplySynchronizesPanelsOnAllRoles: true,
       boardSwitchClearsRunningInContextPatch: true,
       staleEqualVersionRejectEnabledForPollAndReconnect: true,
+    },
+    hf6BoardResidueEliminationGuards: {
+      boardSwitchAtomicClearTransactionGuard: true,
+      serverSanitizeBeforePersistBroadcast: true,
+      reconnectBoardContextFilterHardEnforced: true,
     },
   }, null, 2));
 }

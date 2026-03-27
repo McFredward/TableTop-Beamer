@@ -61,6 +61,18 @@ function readRunningAnimations(runtime) {
   return Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
 }
 
+function countCrossBoardResidue(runtime, selectedBoard) {
+  const normalizedSelectedBoard = typeof selectedBoard === "string" ? selectedBoard.trim() : "";
+  const running = readRunningAnimations(runtime);
+  if (!normalizedSelectedBoard) {
+    return running.length;
+  }
+  return running.filter((entry) => {
+    const entryBoardId = typeof entry?.boardId === "string" ? entry.boardId.trim() : "";
+    return !entryBoardId || entryBoardId !== normalizedSelectedBoard;
+  }).length;
+}
+
 function createPollingClient(role) {
   return {
     role,
@@ -485,6 +497,7 @@ async function main() {
 
   const boardSwitchAck = await sendCommand("context-update", {
     reason: "hf5-board-switch",
+    contextSwitchTransactionId: mutationId("hf6-context-switch"),
     selectedBoard: secondaryBoard.id,
     selectedLayout: secondaryBoard.id,
     boardId: secondaryBoard.id,
@@ -494,13 +507,16 @@ async function main() {
     },
   });
   await waitForAllClientsVersion(clients, boardSwitchAck.version);
+  let crossBoardResidueCount = 0;
   for (const client of clients) {
     const runtime = client.snapshot?.runtime;
     const list = readRunningAnimations(runtime);
     assert(list.length === 0, `running residue remained after board switch on ${client.role}`);
     const selectedBoardId = client.snapshot?.selectedBoard ?? runtime?.selectedBoard ?? runtime?.boardId ?? null;
     assert(selectedBoardId === secondaryBoard.id, `selected board drifted after board switch on ${client.role}`);
+    crossBoardResidueCount += countCrossBoardResidue(runtime, selectedBoardId);
   }
+  assert(crossBoardResidueCount === 0, `cross-board residue detected after board switch: ${crossBoardResidueCount}`);
   rows.push({ area: "hf5", behavior: "board switch atomically clears running list on all clients", status: "PASS" });
 
   const reconnectClient = createPollingClient("reconnect-final-output");
@@ -511,7 +527,10 @@ async function main() {
   assert(reconnectList.length === 0, "reconnect snapshot rehydrated stale running entries after board switch");
   const reconnectBoardId = reconnectClient.snapshot?.selectedBoard ?? reconnectRuntime?.selectedBoard ?? reconnectRuntime?.boardId ?? null;
   assert(reconnectBoardId === secondaryBoard.id, "reconnect snapshot selected wrong board after board switch");
+  crossBoardResidueCount += countCrossBoardResidue(reconnectRuntime, reconnectBoardId);
+  assert(crossBoardResidueCount === 0, `cross-board residue detected after reconnect hydration: ${crossBoardResidueCount}`);
   rows.push({ area: "hf5", behavior: "reconnect snapshot keeps board-switch running-clear no-residue parity", status: "PASS" });
+  rows.push({ area: "hf6", behavior: "switch + reconnect keeps crossBoardResidueCount = 0 across clients incl. final-output", status: "PASS" });
 
   const telemetry = await readJson("/api/live/telemetry");
   const gates = telemetry?.telemetry?.gates ?? {};
@@ -528,6 +547,7 @@ async function main() {
     })),
     checkedAt: new Date().toISOString(),
     baseUrl,
+    crossBoardResidueCount,
   }, null, 2));
 }
 
