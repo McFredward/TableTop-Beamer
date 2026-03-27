@@ -26,7 +26,13 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T23 [P0] Empty-Start-Guard validieren: importierte Bildboards ohne Start-Polygone sind editierbar und crashfrei.
 - [x] DONE P8-T24 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF1 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF1)
+## Plan 8-HF2 - Filename Overflow Layout Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T25 [P0] Settings-Import-Dateinamenpfad overflow-sicher machen: lange Dateinamen duerfen die Settings-Leiste nicht horizontal strecken.
+- [x] DONE P8-T26 [P0] Dateinamen-Darstellung robust machen (Wrap/Truncate): kein Overflow links/rechts ausserhalb des Dateinamen-Containers.
+- [x] DONE P8-T27 [P0] Settings-Panel-Breitenstabilitaet haerten: kein horizontaler Scrollbedarf durch Dateiname (inkl. schmaler Viewports).
+- [x] DONE P8-T28 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF2 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF2)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

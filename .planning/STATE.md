@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF1
+- Last Executed Plan: 8-HF2
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -32,6 +32,12 @@
 - Plan-8-HF1 Umsetzung: Import-Success nutzt `no-store` Katalogrefresh plus Response-Upsert, damit neue Bildboards sofort im Dropdown sichtbar sind.
 - Plan-8-HF1 Umsetzung: Post-Import aktiviert das neue Board verpflichtend mit explizitem Guard; Aktivierungsfehler sind nicht mehr still.
 - Plan-8-HF1 Umsetzung: Runtime-Katalog akzeptiert importierte Boards mit leerem Room-Catalog als gueltigen manuellen Empty-Start.
+- Neues verpflichtendes Feedback fuer Phase 8 ist gesetzt: langer Bild-Dateiname im Settings-Import streckt aktuell die Settings-Leiste horizontal.
+- P0-Regel Plan 8-HF2: Dateiname darf kein horizontales Layout-Breaking erzeugen; Darstellung ist robust (Wrap/Truncate) ohne seitlichen Overflow.
+- P0-Regel Plan 8-HF2: Settings-Panel bleibt in stabiler Breite ohne horizontalen Scrollbedarf; Plan 8-HF2 ist vor Plan 8-2 priorisiert.
+- Plan-8-HF2 Umsetzung: Settings-/Panel-/Input-Container nutzen Width-Guards (`min-width: 0`, `max-width: 100%`) und verhindern horizontales Stretching durch Dateinamen.
+- Plan-8-HF2 Umsetzung: Import-Dateien zeigen dedizierte Dateinamenzeilen mit robustem Wrap/Truncate (`2-line clamp`, JS filename sync, reset nach Erfolg).
+- Plan-8-HF2 Umsetzung: Settings-View bleibt auch bei langen Dateinamen horizontal scrollfrei; Plan 8-2 ist damit freigegeben.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.

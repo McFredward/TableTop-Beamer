@@ -68,6 +68,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Verbindliche Zielregel: Erfolgreicher Bildimport fuegt das Board sofort in das Board-Dropdown ein und selektiert es direkt als aktiven Kontext.
 - Startzustand fuer importierte Bildboards ohne vorhandene Polygone ist explizit zulaessig; Play-Areas/Raeume werden danach manuell erstellt.
 
+## Neues verpflichtendes Feedback (P0 Hotfix-Welle 8-HF2)
+- Settings-UI Regression: langer Bild-Dateiname im Import-/Settings-Bereich streckt die Settings-Leiste horizontal.
+- Folge im Realbetrieb: horizontaler Scroll wird noetig; zentrale Buttons sind nicht mehr sauber erreichbar.
+- Verbindliche Zielregel: Dateiname darf kein horizontales Layout-Breaking ausloesen (weder nach links noch rechts).
+- Verbindliche Zielregel: Dateinamen-Darstellung ist robust (umbricht und/oder wird abgeschnitten), ohne Overflow ausserhalb des dafuer vorgesehenen UI-Containers.
+- Verbindliche Zielregel: Settings-Panel-Breite bleibt stabil; horizontales Scrollen ist in diesem Bereich unzulaessig.
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -75,6 +82,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 4. Post-Import Auto-Select erzwingen: neues Board ist unmittelbar im Dropdown sichtbar und direkt ausgewaehlt.
 5. Empty-Start fuer importierte Boards absichern: kein Pflicht-Default-Polygon, manueller Polygonworkflow startet direkt.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Priorisierte Hotfix-Welle (Plan 8-HF2, execute-ready)
+1. Filename-Overflow fixen: lange Upload-Dateinamen brechen die Settings-Leiste nicht mehr horizontal auf.
+2. Dateinamen-Rendering haerten: robuste Wrap-/Truncate-Strategie ohne seitlichen Overflow ausserhalb des Dateinamen-Containers.
+3. Settings-Panel-Breitenstabilitaet absichern: kein horizontaler Scrollbedarf im Settings-Flow trotz langer Dateinamen.
+4. UI-Regression fuer Import-Settings dokumentieren und verifizieren (Desktop + schmale Viewports).
+5. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Definition of Done
 - Ein Board kann mehrere getrennte Play-Areas persistent speichern.
@@ -87,6 +101,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Room-Klick in Settings selektiert den Room deterministisch; Play-Area wird nicht mehr per Board-Klick selektiert.
 - Nach erfolgreichem Bildimport ist das neue Board sofort im Dropdown sichtbar und direkt aktiv selektiert.
 - Importierte Bildboards ohne vorhandene Polygone sind stabil editierbar (Play-Areas/Raeume koennen direkt manuell angelegt werden).
+- Langer Bild-Dateiname fuehrt im Settings-Bereich zu keinem horizontalen Layout-Breaking.
+- Dateiname wird robust umbrochen/abgeschnitten dargestellt; kein seitlicher Overflow links/rechts.
+- Settings-Panel bleibt in stabiler Breite bedienbar; kein horizontaler Scrollbedarf durch Dateinamen.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -95,3 +112,5 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Nachweis: `.planning/phases/phase-08/8-1-VERIFICATION.md`.
 - 2026-03-27: Plan 8-HF1 wurde atomar umgesetzt (P8-T18..P8-T24).
 - Nachweise: `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/P8-T20-REGRESSION.md`, `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`.
+- 2026-03-27: Plan 8-HF2 wurde atomar umgesetzt (P8-T25..P8-T28).
+- Nachweis: `.planning/phases/phase-08/8-HF2-VERIFICATION.md`.

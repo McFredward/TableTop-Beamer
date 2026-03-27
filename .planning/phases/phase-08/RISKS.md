@@ -65,6 +65,11 @@
 - Impact: Hoch.
 - Gegenmassnahme: expliziter Empty-Start-Guard ohne Zwangsdefaults; manueller Play-Area/Room-Create bleibt der erste gueltige Operator-Schritt.
 
+## R14 Langer Upload-Dateiname bricht Settings-Layout horizontal auf
+- Risiko: Dateiname streckt Import-/Settings-Leiste, erzwingt seitliches Scrollen und macht Buttons teilweise unzugaenglich.
+- Impact: Kritisch.
+- Gegenmassnahme: overflow-sicherer Dateinamen-Container mit robuster Wrap-/Truncate-Strategie und Width-Guard fuer stabile Panel-Breite ohne horizontalen Scrollbedarf.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -77,3 +82,11 @@
 - 2026-03-27: R11 ist mitigiert; Play-Area-Board-Click-Selektion ist entfernt, Room-Klick bleibt kanonisch selektionsfuehrend.
 - 2026-03-27: R12 ist mitigiert; Import-Success aktualisiert Katalog/Dropdown deterministisch im selben Flow inkl. sofortiger Aktivselektion.
 - 2026-03-27: R13 ist mitigiert; leere importierte Bildboards bleiben als gueltiger manueller Startzustand stabil (inkl. Evidence-Guard).
+
+## Risk Review for Plan 8-HF2 (planned)
+- 2026-03-27: Neues P0-Betriebsfeedback priorisiert R14 als naechsten Hotfix-Blocker vor Plan 8-2.
+- 2026-03-27: R14 wird in derselben Welle mit verpflichtendem Layout-/Viewport-Regression-Gate abgesichert (kein horizontaler Settings-Scroll durch Dateinamen).
+
+## Risk Review after Plan 8-HF2
+- 2026-03-27: R14 ist mitigiert; Import-Dateinamenpfad nutzt Width-/Overflow-Guards und robustes Filename-Rendering ohne horizontalen Scrollzwang.
+- 2026-03-27: Nachweis ist als PASS in `.planning/phases/phase-08/8-HF2-VERIFICATION.md` dokumentiert.

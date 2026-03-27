@@ -32,6 +32,10 @@
 - Settings-Play-Area-Click-Removed-Test: Board-Klick selektiert keine Play-Area mehr; Room-Selektion bleibt priorisiert.
 - Selection-Edit-NonRegression-Test: Vertex-/Room-Edit und Keyboard-Aktionen bleiben nach Selection-Arbitration-Fix stabil.
 
+- Import-Filename-No-Horizontal-Break-Test: langer Bild-Dateiname streckt die Settings-Leiste nicht horizontal.
+- Import-Filename-Render-Guard-Test: Dateiname wird robust umbrochen/abgeschnitten und ueberlaeuft weder nach links noch rechts.
+- Settings-Panel-Width-Stability-Test: Settings-Panel bleibt bei langem Dateinamen ohne horizontalen Scrollbedarf bedienbar.
+
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
 - Non-Regression-Sync-Test: Multi-Client-Synchronisation bleibt fuer relevante Kontexte stabil.
@@ -44,6 +48,8 @@
 - Nach P8-T18..P8-T20: Room-Selection-Prioritaet ist hergestellt; Play-Area-Click-Selection ist entfernt.
 - Nach P8-T21..P8-T23: Import-Success zeigt sofort Dropdown-Sichtbarkeit + Auto-Select; Empty-Start ist stabil.
 - Nach P8-T24: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T25..P8-T27: Dateinamen-Overflow-Guard ist stabil; Settings-Panel bleibt horizontal scrollfrei.
+- Nach P8-T28: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -55,6 +61,9 @@
 - Room-Klick in Settings priorisiert Selektion deterministisch; Play-Area-Selektion per Klick ist entfernt.
 - Erfolgreicher Bildupload fuehrt zu sofort sichtbarem Board im Dropdown und direkter Aktivselektion.
 - Importierte Bildboards ohne initiale Polygone sind als gueltiger Startzustand ohne Runtime-/Editorfehler bedienbar.
+- Langer Bild-Dateiname verursacht kein horizontales Layout-Breaking im Settings-Panel.
+- Dateinamen werden robust umbrochen/abgeschnitten dargestellt, ohne seitlichen Overflow.
+- Settings-Panel bleibt in stabiler Breite ohne horizontalen Scrollbedarf bedienbar.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -68,3 +77,8 @@
   - `.planning/phases/phase-08/8-HF1-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T20-REGRESSION.md`
   - `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`
+
+## Execution Result (Plan 8-HF2)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF2-VERIFICATION.md`

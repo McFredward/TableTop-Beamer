@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen.
 
-Status: 19/24 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12) und Plan 8-HF1 (P8-T18..P8-T24) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`). Plan 8-2 ist die naechste Hardening-Welle.
+Status: 23/28 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24) und Plan 8-HF2 (P8-T25..P8-T28) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`). Plan 8-2 ist als naechste Welle freigegeben.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -364,6 +364,7 @@ Milestones:
 5. M5 Image Import Pipeline: Upload (`jpg`/`jpeg`/`png`/`webp`) wird serverseitig gespeichert und als Board-Hintergrund registriert.
 6. M6 Non-Regression: Running/Save/Reload/Sync/`/output/final` bleiben stabil.
 7. M7 P0 Hotfix Closure: Room-Klick-Selection hat Prioritaet (ohne Play-Area-Click-Selection), und Bildimport aktiviert neues Board sofort im Dropdown.
+8. M8 P0 Layout Hotfix Closure: lange Upload-Dateinamen koennen das Settings-Panel nicht horizontal aufbrechen oder Scrollzwang erzeugen.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -374,6 +375,9 @@ Exit Criteria:
 - Room-Klick in Settings selektiert den Room deterministisch; Play-Area-Selektion per Board-Klick ist entfernt.
 - Erfolgreicher Bildimport macht das neue Board sofort im Dropdown sichtbar und setzt es direkt als aktive Auswahl.
 - Importierte Bildboards ohne Start-Polygone sind ein gueltiger, stabiler Startzustand fuer manuelles Play-Area/Room-Editing.
+- Lange Bild-Dateinamen verursachen kein horizontales Layout-Breaking in der Settings-Leiste.
+- Dateinamen werden robust umbrochen/abgeschnitten angezeigt, ohne Overflow nach links/rechts.
+- Das Settings-Panel bleibt in stabiler Breite bedienbar; horizontaler Scrollbedarf durch Dateinamen ist ausgeschlossen.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -393,6 +397,15 @@ New Blocking Wave (Phase 8 follow-up):
 
 Gate Closure (8-HF1):
 - P0-Blocker A/B sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
+
+New Blocking Wave (Phase 8 follow-up 2):
+- Verbindliches P0-Betriebsfeedback setzt Plan 8-HF2 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- Blocker C: langer Bild-Dateiname streckt die Settings-Leiste horizontal und erzwingt seitliches Scrollen.
+- Blocker D: Dateinamen-Rendering ist bei langen Namen nicht overflow-robust; Buttons sind dadurch teilweise schwer erreichbar.
+- Plan 8-2 bleibt bis 8-HF2-PASS blockiert.
+
+Gate Closure (8-HF2):
+- P0-Blocker C/D sind geschlossen; Plan 8-2 ist als naechste Welle freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

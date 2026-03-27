@@ -8,6 +8,7 @@
 - Board Image Upload Import Pipeline
 - Import UX and Catalog Integration
 - Selection Arbitration + Import Activation Hotfix
+- Settings Filename Overflow Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -40,6 +41,10 @@
 - P8-S8.3 Erfolgreicher Bildimport aktualisiert Board-Dropdown deterministisch im selben Flow.
 - P8-S8.4 Neu importiertes Bildboard wird unmittelbar als aktives Board selektiert (auch ohne Start-Polygone).
 
+- P8-S9.1 Dateinamen-Container im Settings-Import-Pfad wird overflow-sicher (kein Horizontal-Stretch durch lange Dateinamen).
+- P8-S9.2 Dateinamen-Darstellung nutzt robuste Wrap-/Truncate-Regeln ohne Overflow links/rechts.
+- P8-S9.3 Settings-Panel-Breite bleibt stabil; horizontales Scrollen durch Dateiname ist ausgeschlossen.
+
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
 - P8-S7.3 Vollstaendigen Artefakt-Sync mit globalen Planungsdateien abschliessen.
@@ -68,10 +73,17 @@
 - Story P8-S7.1 + P8-S7.3 (Hotfix-spezifisch erweitert).
   - Ziel: P0-Regression fuer Selection/Import plus konsistenter Artefakt-Sync.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF2 execute-ready
+- Story P8-S9.1 + P8-S9.2 + P8-S9.3.
+  - Ziel: lange Bild-Dateinamen koennen Settings-Layout nicht horizontal brechen; Dateiname bleibt robust lesbar ohne seitlichen Overflow.
+- Story P8-S7.1 + P8-S7.3 (Hotfix-spezifisch erweitert).
+  - Ziel: P0-Regression fuer Layout-Stabilitaet (kein horizontaler Scrollbedarf im Settings-Panel) plus konsistenter Artefakt-Sync.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF1): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF2): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
 - 2026-03-27: Plan 8-1 Stories P8-S1.x bis P8-S7.x umgesetzt und verifiziert (`8-1-VERIFICATION.md`).
 - 2026-03-27: Plan 8-HF1 Stories P8-S8.1..P8-S8.4 umgesetzt; Regression/Empty-Start-Evidenz ist PASS (`8-HF1-VERIFICATION.md`, `P8-T20-REGRESSION.md`, `P8-T23-EMPTY-START-VALIDATION.md`).
+- 2026-03-27: Plan 8-HF2 Stories P8-S9.1..P8-S9.3 sind umgesetzt und PASS verifiziert (`8-HF2-VERIFICATION.md`).
