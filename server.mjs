@@ -264,6 +264,9 @@ function applyRoomMutationPatch(mutationType, payload) {
     ? { ...nextRuntime.globalStopRevisions }
     : {};
   const stopAnimationId = normalizeNonEmptyString(payload?.animationId);
+  const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
+  const stopTargetType = normalizeNonEmptyString(payload?.targetType);
+  const stopTargetBoardId = normalizeNonEmptyString(payload?.boardId);
 
   if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
@@ -286,15 +289,20 @@ function applyRoomMutationPatch(mutationType, payload) {
     }
   } else if (mutationType === "stop-animation") {
     if (!stopAnimationId) {
-      nextRuntime.runningAnimations = runningAnimations;
-      nextRuntime.globalStopRevisions = globalStopRevisions;
-      return {
-        runtime: nextRuntime,
-      };
+      if (stopTargetScope !== "global" || !stopTargetType) {
+        nextRuntime.runningAnimations = runningAnimations;
+        nextRuntime.globalStopRevisions = globalStopRevisions;
+        return {
+          runtime: nextRuntime,
+        };
+      }
     }
     const stoppedEntry = runningAnimations.find((entry) => entry?.id === stopAnimationId);
-    if (stoppedEntry?.scope === "global" && stoppedEntry?.boardId && stoppedEntry?.type) {
-      const triggerKey = `${stoppedEntry.boardId}:${stoppedEntry.type}`;
+    const resolvedGlobalStopScope = stoppedEntry?.scope ?? stopTargetScope;
+    const resolvedGlobalStopType = normalizeNonEmptyString(stoppedEntry?.type) ?? stopTargetType;
+    const resolvedGlobalStopBoardId = normalizeNonEmptyString(stoppedEntry?.boardId) ?? stopTargetBoardId;
+    if (resolvedGlobalStopScope === "global" && resolvedGlobalStopBoardId && resolvedGlobalStopType) {
+      const triggerKey = `${resolvedGlobalStopBoardId}:${resolvedGlobalStopType}`;
       const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
       globalStopRevisions[triggerKey] = stopRevision + 1;
     }
@@ -320,9 +328,38 @@ function applyRoomMutationPatch(mutationType, payload) {
         }
       }
     }
+    const shouldFallbackGlobalTypeStop =
+      resolvedGlobalStopScope === "global"
+      && Boolean(resolvedGlobalStopType)
+      && (!stopAnimationId || !stoppedEntry);
     const nextList = runningAnimations.filter((entry) => !stopIds.has(normalizeNonEmptyString(entry?.id)));
     runningAnimations.length = 0;
-    runningAnimations.push(...nextList);
+    if (shouldFallbackGlobalTypeStop) {
+      runningAnimations.push(...nextList.filter((entry) => !(
+        entry?.scope === "global"
+        && normalizeNonEmptyString(entry?.type) === resolvedGlobalStopType
+        && (!resolvedGlobalStopBoardId || normalizeNonEmptyString(entry?.boardId) === resolvedGlobalStopBoardId)
+      )));
+    } else {
+      runningAnimations.push(...nextList);
+    }
+    if (
+      (resolvedGlobalStopScope === "global" && resolvedGlobalStopType === "outside-space")
+      || payload?.outsideHint === true
+    ) {
+      const outsideStopBoardId =
+        resolvedGlobalStopBoardId
+        ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
+        ?? null;
+      if (outsideStopBoardId) {
+        const outsideFxByBoard = readOutsideFxByBoard();
+        outsideFxByBoard[outsideStopBoardId] = {
+          ...(isPlainObject(outsideFxByBoard[outsideStopBoardId]) ? outsideFxByBoard[outsideStopBoardId] : {}),
+          enabled: false,
+        };
+        nextRuntime.outsideFxByBoard = outsideFxByBoard;
+      }
+    }
   } else if (mutationType === "clear-all") {
     for (const entry of runningAnimations) {
       if (entry?.scope !== "global" || !entry?.boardId || !entry?.type) {
