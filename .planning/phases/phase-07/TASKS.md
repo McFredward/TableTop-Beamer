@@ -62,7 +62,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF5-T6 [P0] Regression erweitern: Align-on/off Roundtrip ueber 3-4 Clients inkl. `/output/final` sowie Start->Board-Switch->Running-empty Matrix.
 - [x] DONE P7-HF5-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
-## Plan 7-2 - Hardening Wave (nach 7-HF5)
+## Plan 7-HF6 - Board-Context Residue Elimination Hotfix (execute-ready, blocker vor 7-2)
+- [x] DONE P7-HF6-T1 [P0] Board-Switch-Clear als authoritative Transaktion haerten: Context-Switch + Running-Clear als untrennbaren atomic commit mit idempotentem transaction guard ausfuehren.
+- [ ] TODO P7-HF6-T2 [P0] Server-Snapshot-Sanitizer einfuehren: vor Persist/Broadcast alle boardfremden Running-Eintraege strikt droppen, damit keine cross-board Residues serialisiert werden.
+- [ ] TODO P7-HF6-T3 [P0] Reconnect-Hydrierung board-kontextgebunden erzwingen: Snapshot-Apply filtert Running strikt auf `selectedBoard` und verwirft boardfremde Rehydrate-Payloads deterministisch.
+- [ ] TODO P7-HF6-T4 [P0] Deterministische Regression erweitern: Switch+Reconnect-Matrix mit harter Invariante `crossBoardResidueCount = 0` ueber 3-4 Clients inkl. `/output/final`.
+- [ ] TODO P7-HF6-T5 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. HF6-Output-Artefakten.
+
+## Plan 7-2 - Hardening Wave (nach 7-HF6)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.

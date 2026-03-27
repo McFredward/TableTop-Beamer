@@ -447,6 +447,21 @@ function applyContextUpdatePatch(payload) {
     Boolean(selectedBoard)
     && Boolean(previousSelectedBoard)
     && selectedBoard !== previousSelectedBoard;
+  const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
+  const hasCrossBoardResidue =
+    Boolean(selectedBoard)
+    && runningAnimations.some((entry) => {
+      const entryBoardId = normalizeNonEmptyString(entry?.boardId);
+      return Boolean(entryBoardId) && entryBoardId !== selectedBoard;
+    });
+  const atomicSwitchTransactionId =
+    normalizeNonEmptyString(payload?.contextSwitchTransactionId)
+    ?? normalizeNonEmptyString(runtimePatch?.contextSwitchTransactionId)
+    ?? null;
+  const alreadyAppliedTransaction =
+    Boolean(atomicSwitchTransactionId)
+    && normalizeNonEmptyString(nextRuntime?.lastContextSwitchTransactionId) === atomicSwitchTransactionId;
+  const shouldAtomicClear = (boardSwitched || hasCrossBoardResidue) && !alreadyAppliedTransaction;
 
   if (selectedBoard) {
     nextRuntime.boardId = selectedBoard;
@@ -462,8 +477,13 @@ function applyContextUpdatePatch(payload) {
     };
   }
 
-  if (boardSwitched) {
+  if (shouldAtomicClear) {
     nextRuntime.runningAnimations = [];
+  }
+
+  if (atomicSwitchTransactionId) {
+    nextRuntime.lastContextSwitchTransactionId = atomicSwitchTransactionId;
+    nextRuntime.lastContextSwitchBoardId = selectedBoard;
   }
 
   if (alignMode !== null) {

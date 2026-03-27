@@ -5478,8 +5478,10 @@ function renderRoomOverlay() {
 }
 
 function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
+  const contextSwitchTransactionId = `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   emitLiveMutation("context-update", {
     reason,
+    contextSwitchTransactionId,
     selectedBoard: boardId,
     selectedLayout: boardId,
     boardId,
