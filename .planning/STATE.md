@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF4
+- Last Executed Plan: 8-HF5
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -57,6 +57,16 @@
 - Plan-8-HF4 Umsetzung: Outside-Asset-Picker filtert strikt per `assetType` (`coded` keys, `mp4` `.mp4`, `gif` `.gif`) inkl. deterministic type-switch refresh ohne stale/revert drift.
 - Plan-8-HF4 Umsetzung: Outside-mp4 boomerang laeuft als explizite full-cycle state machine (`forward -> reverse -> repeat`) ohne sichtbaren on/off flicker oder abrupten restart-jump.
 - Plan-8-HF4 Umsetzung: HF4 Regression/Evidence ist PASS dokumentiert (`P8-T45-BOOMERANG-REGRESSION.md`, `8-HF4-VERIFICATION.md`).
+- Neues verpflichtendes P0-Betriebsfeedback fuer Phase 8 ist gesetzt: `Outside Sandstorm` zeigt starkes Flackern im Reverse-Teil des Boomerang-Playback.
+- P0-Regel Plan 8-HF5: Root-Cause liegt im Reverse-Playback-Lifecycle und wird zuerst reproduzierbar analysiert, dann gezielt behoben.
+- Playback-Regel Plan 8-HF5: Boomerang bleibt full-cycle (`forward -> smooth reverse -> repeat`) ohne sichtbares Reverse-Flicker; normaler mp4-Playback-Pfad ohne Boomerang bleibt regressionsfrei.
+- Persistenz-Regel Plan 8-HF5: `Apply changes` sowie Save/Reload/Restart fuer Outside-Settings (`boomerang`, `assetType`, `assetRef`) bleiben deterministisch intakt.
+- Gate-Regel Plan 8-HF5: Plan 8-2 bleibt blockiert bis HF5-PASS inklusive Regression-/Evidence-Artefakten und konsistentem Artefakt-Sync.
+- Plan-8-HF5 Umsetzung: Reverse-Flicker-Root-Cause wurde als seek-overlap/decoder-thrash im Boomerang-Reverse-Lifecycle isoliert und reproduzierbar dokumentiert.
+- Plan-8-HF5 Umsetzung: mp4-Boomerang-Reverse nutzt jetzt anchored reverse timing plus seek-cadence/video.seeking arbitration fuer visuell stabilen Reverse-Abschnitt.
+- Plan-8-HF5 Umsetzung: normaler mp4-Pfad ohne Boomerang bleibt regressionsfrei stabil (`P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`).
+- Plan-8-HF5 Umsetzung: `Apply changes` und Persistenz fuer `boomerang`/`assetType`/`assetRef` bleiben deterministisch intakt (`P8-T50-APPLY-PERSISTENCE-REGRESSION.md`).
+- Plan-8-HF5 Umsetzung: HF5 Regression/Evidence ist PASS dokumentiert (`8-HF5-VERIFICATION.md`, `P8-T51-HF5-REGRESSION.md`) und Plan 8-2 ist freigegeben.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
