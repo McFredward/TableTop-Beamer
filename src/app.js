@@ -1381,8 +1381,11 @@ async function importBoardFromFile(file) {
   await loadExternalBoardZones();
   ensureImportedBoardInCatalog(parsed);
   syncBoardSelectOptions();
-  if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
-    switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import" });
+  if (parsed?.boardId) {
+    const activated = activateImportedBoard(parsed.boardId, "board-import");
+    if (!activated) {
+      throw new Error(`Board import succeeded but activation failed: ${parsed.boardId}`);
+    }
   }
   return parsed;
 }
@@ -1445,6 +1448,15 @@ function ensureImportedBoardInCatalog(parsed) {
   return true;
 }
 
+function activateImportedBoard(boardId, reason) {
+  const targetId = String(boardId || "").trim();
+  if (!targetId || !BOARDS.some((board) => board.id === targetId)) {
+    return false;
+  }
+  switchBoard(targetId, { emitLiveContext: true, reason });
+  return state.boardId === targetId;
+}
+
 async function importBoardFromImage(file, { boardName = "", boardId = "" } = {}) {
   if (!file) {
     throw new Error("Please select an image file first");
@@ -1483,8 +1495,11 @@ async function importBoardFromImage(file, { boardName = "", boardId = "" } = {})
   await loadExternalBoardZones();
   ensureImportedBoardInCatalog(parsed);
   syncBoardSelectOptions();
-  if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
-    switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import-image" });
+  if (parsed?.boardId) {
+    const activated = activateImportedBoard(parsed.boardId, "board-import-image");
+    if (!activated) {
+      throw new Error(`Image import succeeded but activation failed: ${parsed.boardId}`);
+    }
   }
   return parsed;
 }
