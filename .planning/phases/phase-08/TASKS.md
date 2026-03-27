@@ -46,7 +46,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T39 [P0] Non-Regression + Persistenzmatrix ausfuehren: Apply/Save/Reload/Restart fuer `assetType`/`assetRef`/`boomerang`/coded key absichern.
 - [x] DONE P8-T40 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF3 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF3)
+## Plan 8-HF4 - Coded/Picker/Boomerang Regression Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T41 [P0] `Coded/Space` erneut auf den zuletzt funktionierenden coded Star-Space Render-/Resolverpfad zurueckfuehren (kein Black-Screen/Fallback).
+- [x] DONE P8-T42 [P0] Asset-Picker typspezifisch machen: `coded` zeigt nur coded renderer keys.
+- [x] DONE P8-T43 [P0] Asset-Picker typspezifisch machen: `mp4` zeigt nur `.mp4` Dateien aus `resources`; `gif` zeigt nur `.gif` Dateien aus `resources`.
+- [x] DONE P8-T44 [P0] Asset-Type-Wechsel haerten: Picker-Liste aktualisiert deterministisch ohne stale Optionen/Auto-Revert.
+- [x] DONE P8-T45 [P0] Boomerang-Playback als stabile Forward->Reverse-State-Machine umsetzen (vollstaendige Enden, endlose Wiederholung, kein sichtbares Flicker/Restart-Jump).
+- [x] DONE P8-T46 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF4 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF4)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

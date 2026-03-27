@@ -115,6 +115,26 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF3 inkl. Artefakt-Sync.
 
+## R24 `Coded/Space` faellt erneut auf Black-Screen zurueck
+- Risiko: Resolver-/Renderer-Pfad driftet erneut und mapped coded outside assets nicht auf den funktionierenden Star-Space Laufzeitpfad.
+- Impact: Kritisch.
+- Gegenmassnahme: Restore auf den zuletzt verifizierten coded runtime key-path plus dedizierter Regressionstest fuer Reload/Restart.
+
+## R25 Asset-Picker mischt Typen und bietet ungueltige Quellen
+- Risiko: Picker zeigt bei `assetType` falsche Kandidaten (z. B. GIFs in MP4-Modus), was zu no-op Playback, falschen Saves oder UX-Drift fuehrt.
+- Impact: Kritisch.
+- Gegenmassnahme: strikte typspezifische Filterung (`coded` keys, `mp4` nur `.mp4`, `gif` nur `.gif` aus `resources`) mit deterministischem Type-Switch-Refresh.
+
+## R26 Boomerang-Playback erzeugt sichtbaren Richtungswechsel-Flicker
+- Risiko: Forward/Reverse-Uebergang resetet Video sichtbar (on/off, jump, restart), wodurch der Boomerang-Effekt instabil wirkt.
+- Impact: Kritisch.
+- Gegenmassnahme: explizite Timeline-State-Machine (forward->reverse->forward) mit nahtlosen Phasenwechseln und Non-Flicker-Regression.
+
+## R27 Hardening-Welle startet trotz offenem HF4-Rueckfall
+- Risiko: Plan 8-2 startet nach HF3, obwohl neue P0-Rueckfaelle (`Coded/Space`, Picker-Filter, Boomerang-Flicker) noch offen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF4 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -149,3 +169,13 @@
 - 2026-03-27: R21 ist mitigiert; Boomerang-/Asset-Type-Editing bleibt im Draft stabil bis explizitem Apply.
 - 2026-03-27: R22 ist mitigiert; `Apply changes` uebernimmt Outside-Type/Resource/Optionen atomar als einzelnes Update.
 - 2026-03-27: R23 Gate ist erfuellt; HF3 ist PASS verifiziert (`8-HF3-VERIFICATION.md`).
+
+## Risk Review for Plan 8-HF4 (planned)
+- 2026-03-27: Neues verpflichtendes P0-Feedback priorisiert R24-R26 als unmittelbare Hotfix-Blocker (`Coded/Space` Rueckfall, fehlende type-spezifische Pickerfilter, Boomerang-Flicker).
+- 2026-03-27: R27 setzt den Gate-Guard, dass Plan 8-2 erst nach HF4-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF4
+- 2026-03-27: R24 ist mitigiert; coded resolver/picker normalisieren wieder deterministisch auf den funktionsfaehigen outside-space Rendererpfad.
+- 2026-03-27: R25 ist mitigiert; Asset-Picker filtert strikt pro Typ (`coded` keys, `mp4` `.mp4`, `gif` `.gif`) ohne stale Drift bei Type-Switch.
+- 2026-03-27: R26 ist mitigiert; boomerang mp4 lifecycle laeuft als full-cycle state machine (forward->reverse->repeat) ohne sichtbaren restart flicker.
+- 2026-03-27: R27 Gate ist erfuellt; HF4 ist PASS verifiziert (`8-HF4-VERIFICATION.md`).

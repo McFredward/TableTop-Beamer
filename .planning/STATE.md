@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF3
+- Last Executed Plan: 8-HF4
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -49,6 +49,14 @@
 - Plan-8-HF3 Umsetzung: Sandstorm MP4 laeuft im kontinuierlichen Forward-Playback (native loop/rate) ohne frameweises Restart-Seeking.
 - Plan-8-HF3 Umsetzung: Outside-Editor nutzt Draft-Inputs mit explizitem `Apply changes`; Type/Resource/Optionen werden atomar als ein Update uebernommen.
 - Plan-8-HF3 Umsetzung: HF3 Regression/Persistenzmatrix ist PASS dokumentiert (`P8-T39-OUTSIDE-EDITOR-REGRESSION.md`, `8-HF3-VERIFICATION.md`).
+- Neues verpflichtendes P0-Betriebsfeedback fuer Phase 8 ist gesetzt: `Coded/Space` ist erneut schwarz, Asset-Picker filtert nicht typspezifisch, Boomerang-Playback flickert/instabil.
+- P0-Regel Plan 8-HF4: Asset-Picker ist strikt type-spezifisch (`coded` keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`).
+- Playback-Regel Plan 8-HF4: Boomerang spielt vollstaendig vorwaerts bis Ende, vollstaendig rueckwaerts bis Anfang, danach Repeat ohne sichtbaren on/off Flicker oder abrupten Restart.
+- Gate-Regel Plan 8-HF4: Plan 8-2 bleibt blockiert bis HF4-PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF4 Umsetzung: coded outside asset refs/picker keys werden wieder deterministisch auf den funktionierenden `outside-space` Rendererpfad normalisiert (kein Black-Screen-Rueckfall).
+- Plan-8-HF4 Umsetzung: Outside-Asset-Picker filtert strikt per `assetType` (`coded` keys, `mp4` `.mp4`, `gif` `.gif`) inkl. deterministic type-switch refresh ohne stale/revert drift.
+- Plan-8-HF4 Umsetzung: Outside-mp4 boomerang laeuft als explizite full-cycle state machine (`forward -> reverse -> repeat`) ohne sichtbaren on/off flicker oder abrupten restart-jump.
+- Plan-8-HF4 Umsetzung: HF4 Regression/Evidence ist PASS dokumentiert (`P8-T45-BOOMERANG-REGRESSION.md`, `8-HF4-VERIFICATION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.

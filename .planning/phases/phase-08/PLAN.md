@@ -84,6 +84,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Asset-Type-Dropdown springt nach Aenderung sofort zurueck; Auswahl muss stabil im Editor verbleiben.
 - UX-Absicherung ist verpflichtend: Outside-Editor erhaelt einen expliziten Button `Apply changes`, damit Type + Resource + Optionen atomar zusammen uebernommen werden.
 
+## Neues verpflichtendes Feedback (P0 Regressionen HF4)
+- `Coded/Space` ist erneut regressiert und zeigt nur schwarzen Hintergrund; der zuvor funktionierende coded Star-Space Renderpfad muss wiederhergestellt werden.
+- Asset-Picker-Filterung ist aktuell nicht typspezifisch und muss strikt nach `assetType` arbeiten.
+- Pflichtregel Asset-Picker: bei `assetType=coded` werden ausschliesslich coded renderer keys angeboten.
+- Pflichtregel Asset-Picker: bei `assetType=mp4` werden ausschliesslich `.mp4` Dateien aus `resources` angeboten.
+- Pflichtregel Asset-Picker: bei `assetType=gif` werden ausschliesslich `.gif` Dateien aus `resources` angeboten.
+- Boomerang-Video-Playback ist instabil/flickert; Pflichtablauf ist vollstaendig vorwaerts bis Ende, vollstaendig rueckwaerts bis Anfang, danach wiederholen.
+- Zwischen Forward/Reverse-Zyklus sind sichtbare On/Off-Flicker oder abrupte Restart-Uebergaenge unzulaessig.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -102,6 +111,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 3. Editor-Input-Stability: Boomerang-Checkbox und Asset-Type-Dropdown wieder deterministisch und persistent editierbar machen.
 4. UX-Commit-Guard: `Apply changes` im Outside-Animation-Editor einfuehren, sodass Type/Resource/Optionen atomar zusammen angewendet werden.
 5. Save/Reload-Non-Regression fuer Outside-Definitionseditor inkl. `Coded/Space`, `Outside Sandstorm`, Boomerang und Asset-Type ausfuehren.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Priorisierte Hotfix-Welle (Plan 8-HF4, execute-ready)
+1. Coded-Star-Space-Restore: `Coded/Space` auf den zuletzt nachweislich funktionierenden coded renderer Pfad zurueckfuehren (kein Black-Screen-Fallback).
+2. Type-Specific-Asset-Picker: Editor-Picker strikt nach `assetType` filtern (`coded` keys, `mp4` -> nur `.mp4`, `gif` -> nur `.gif` aus `resources`).
+3. Picker-Apply-Determinismus: Type-Wechsel aktualisiert Kandidatenliste deterministisch ohne stale Optionen/Auto-Revert.
+4. Boomerang-State-Machine-Hardening: Video spielt voll vorwaerts bis Ende, dann voll rueckwaerts bis Anfang, dann wieder vorwaerts (endlos).
+5. Boomerang-Visual-Stability: keine sichtbaren on/off Flicker, keine abrupten Restart-Jumps zwischen den Phasen.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
@@ -130,11 +147,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Asset-Mapping ist pro Outside-Animation in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; neue Eintraege sind sofort editierbar und triggerbar.
 - Outside-Animationsdefinitionen + Settings sind ueber Save/Reload/Restart sowie Defaults-Apply persistent und verlustfrei.
-- `Coded/Space` ist funktional wiederhergestellt und rendert nicht mehr als schwarzer No-Op.
+- `Coded/Space` nutzt wieder den vorregressionskonformen coded Star-Space Pfad (kein Black-Screen/Fallback).
 - `Outside Sandstorm` laeuft ohne sichtbares Restart-Flackern/Rewind stabil durch.
 - Boomerang-Checkbox ist in der Outside-Editor-UI klickbar/setzbar und bleibt nach Apply + Reload stabil erhalten.
 - Asset-Type-Dropdown bleibt nach User-Auswahl stabil und springt nicht auf alte Werte zurueck.
 - Outside-Editor besitzt `Apply changes`; Type/Resource/Optionen werden erst bei explizitem Apply gemeinsam und atomar uebernommen.
+- Asset-Picker filtert strikt typspezifisch: `coded` zeigt nur coded keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`.
+- Boomerang-Playback laeuft als vollstaendiger Forward->Reverse-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -148,3 +167,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-27: Neues verpflichtendes P0-Regressionsfeedback fuer Outside-Animationseditor priorisiert Plan 8-HF3 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF3 wurde atomar umgesetzt (P8-T35..P8-T40).
 - Nachweise: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T39-OUTSIDE-EDITOR-REGRESSION.md`, `debug/p8-hf3-api-resources.json`, `debug/p8-hf3-api-health.json`.
+- 2026-03-27: Neues verpflichtendes P0-Regressionsfeedback priorisiert Plan 8-HF4 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF4 wurde atomar umgesetzt (P8-T41..P8-T46).
+- Nachweise: `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/P8-T45-BOOMERANG-REGRESSION.md`.

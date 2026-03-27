@@ -10,6 +10,7 @@
 - Selection Arbitration + Import Activation Hotfix
 - Outside Animations Mars Feature Pack
 - Outside Animation Editor Stability Hotfix
+- Outside Asset-Picker + Boomerang Stability Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -58,6 +59,12 @@
 - P8-S10.4 `Apply changes`-Commit-UX einfuehren: Type/Resource/Optionen werden atomar gemeinsam uebernommen.
 - P8-S10.5 Save/Reload-Determinismus fuer Outside-Editorwerte (`assetType`, `assetRef`, `boomerang`) inklusive Legacy-Guard absichern.
 
+- P8-S11.1 `Coded/Space` erneut auf den funktionierenden coded Star-Space Renderer zurueckfuehren (kein Black-Screen/Fallback).
+- P8-S11.2 Asset-Picker strikt typspezifisch filtern: `coded` -> nur coded keys, `mp4` -> nur `.mp4` aus `resources`, `gif` -> nur `.gif` aus `resources`.
+- P8-S11.3 Asset-Type-Wechsel ohne stale Optionsreste/reverten: Kandidatenliste aktualisiert deterministisch pro Typ.
+- P8-S11.4 Boomerang-Playback als stabile State-Machine erzwingen: voll vorwaerts bis Ende, voll rueckwaerts bis Anfang, Repeat.
+- P8-S11.5 Boomerang-Playback ohne sichtbares on/off Flicker oder abrupten Restart-Uebergang absichern (inkl. Start/Stop/Clear/Reload).
+
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
 - P8-S7.3 Vollstaendigen Artefakt-Sync mit globalen Planungsdateien abschliessen.
@@ -104,8 +111,18 @@
 - Story P8-S10.5 + P8-S7.1 + P8-S7.3.
   - Ziel: Save/Reload-Determinismus fuer Outside-Editorwerte plus belastbare P0-Evidenz und konsistenter Artefakt-Sync.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF4 execute-ready
+- Story P8-S11.1.
+  - Ziel: `Coded/Space` ist erneut auf funktionierendem coded Star-Space Verhalten ohne Black-Screen regressionssicher.
+- Story P8-S11.2 + P8-S11.3.
+  - Ziel: Asset-Picker ist streng typgebunden und zeigt nur gueltige Quellen pro `assetType` ohne stale/revert Drift.
+- Story P8-S11.4 + P8-S11.5.
+  - Ziel: Boomerang spielt stabil vollstaendig Forward->Reverse in Endlosschleife ohne sichtbares Flicker/Restart-Jump.
+- Story P8-S7.1 + P8-S7.3 (HF4-spezifisch erweitert).
+  - Ziel: P0-Regressionen sind reproduzierbar geschlossen und alle Planungsartefakte bleiben konsistent synchron.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF3): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF4): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -114,3 +131,5 @@
 - 2026-03-27: Plan 8-HF2 Stories P8-S9.1..P8-S9.9 umgesetzt; Outside-Featurepaket inkl. Sandstorm/Boomerang/Settings-Refactor/Asset-Picker/Persistenz ist PASS (`8-HF2-VERIFICATION.md`).
 - 2026-03-27: Neues P0-Feedback fuer Outside-Regressionen priorisiert Plan 8-HF3 (Stories P8-S10.1..P8-S10.5) als naechste execute-ready Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF3 Stories P8-S10.1..P8-S10.5 umgesetzt; Outside-Restore/Stability/Apply-Atomicity/Persistence-Matrix ist PASS (`8-HF3-VERIFICATION.md`, `P8-T39-OUTSIDE-EDITOR-REGRESSION.md`).
+- 2026-03-27: Neues P0-Feedback fuer Regressions-Rueckfall priorisiert Plan 8-HF4 (Stories P8-S11.1..P8-S11.5) als naechste execute-ready Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF4 Stories P8-S11.1..P8-S11.5 umgesetzt; coded restore, typspezifischer picker und boomerang full-cycle stability sind PASS (`8-HF4-VERIFICATION.md`, `P8-T45-BOOMERANG-REGRESSION.md`).

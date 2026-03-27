@@ -50,6 +50,14 @@
 - Outside-Asset-Type-Stability-Test: Asset-Type-Dropdown (`gif`/`mp4`/coded key) springt nicht zurueck und bleibt bis explizitem Apply stabil editierbar.
 - Outside-Apply-Atomicity-Test: `Apply changes` uebernimmt Type + Resource + Optionen atomar im selben Commit, ohne Teilapply bei Zwischenzustand.
 
+- Outside-Coded-StarSpace-Restore-Test: `Coded/Space` zeigt wieder den funktionierenden coded Star-Space Effekt statt schwarzem Frame/Fallback.
+- Outside-Asset-Picker-Coded-Filter-Test: bei `assetType=coded` listet der Picker ausschliesslich coded renderer keys.
+- Outside-Asset-Picker-MP4-Filter-Test: bei `assetType=mp4` listet der Picker ausschliesslich `.mp4` Assets aus `resources`.
+- Outside-Asset-Picker-GIF-Filter-Test: bei `assetType=gif` listet der Picker ausschliesslich `.gif` Assets aus `resources`.
+- Outside-Asset-Picker-Type-Switch-Test: Wechsel zwischen `coded`/`mp4`/`gif` aktualisiert die Pickerliste deterministisch ohne stale Optionen oder Auto-Revert.
+- Outside-Boomerang-Full-Cycle-Test: Playback laeuft voll vorwaerts bis Ende, dann voll rueckwaerts bis Anfang, danach wieder vorwaerts.
+- Outside-Boomerang-No-Flicker-Test: Zwischen den Richtungswechseln treten keine sichtbaren on/off Flicker und keine abrupten Restart-Jumps auf.
+
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
 - Non-Regression-Sync-Test: Multi-Client-Synchronisation bleibt fuer relevante Kontexte stabil.
@@ -68,6 +76,10 @@
 - Nach P8-T35..P8-T37: Outside-Playback-/Editor-Regressionen (`Coded/Space`, Sandstorm, Boomerang, Asset-Type) sind geschlossen.
 - Nach P8-T38..P8-T39: `Apply changes` atomisiert Outside-Edit-Commits; Save/Reload/Restart-Determinismus ist PASS.
 - Nach P8-T40: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T41: `Coded/Space` ist erneut auf funktionierendem coded Star-Space Verhalten verifiziert.
+- Nach P8-T42..P8-T44: Asset-Picker-Filterung ist pro `assetType` strikt und deterministisch ohne stale/revert Drift.
+- Nach P8-T45: Boomerang-Full-Cycle (Forward->Reverse->Repeat) ist ohne sichtbares Flicker/Restart-Jump PASS.
+- Nach P8-T46: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -84,10 +96,12 @@
 - Outside-Animationseinstellungen leben in eigenstaendiger Sektion `Outside Animations`; `Play Area Editor` ist davon entkoppelt.
 - Asset-Mapping pro Outside-Animation ist in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; Definitionen + Settings sind persistent ueber Profile/Defaults.
-- `Coded/Space` ist als Outside-Animation visuell korrekt wiederhergestellt (kein Black-Screen-Regressionszustand).
+- `Coded/Space` ist auf den zuletzt funktionierenden coded Star-Space Renderpfad zurueckgefuehrt und bleibt sichtbar stabil.
 - `Outside Sandstorm` spielt stabil ohne sichtbares Restart-/Rewind-Flackern.
 - Boomerang-Checkbox ist stabil editierbar; Asset-Type-Dropdown bleibt stabil editierbar und springt nicht zurueck.
 - `Apply changes` ist als verpflichtender Commit-Schritt im Outside-Animation-Editor vorhanden und uebernimmt Type/Resource/Optionen atomar.
+- Asset-Picker filtert strikt typspezifisch (`coded` keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`).
+- Boomerang-Playback folgt dem vollen Forward->Reverse->Repeat-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -116,3 +130,9 @@
   - `.planning/phases/phase-08/P8-T39-OUTSIDE-EDITOR-REGRESSION.md`
   - `debug/p8-hf3-api-resources.json`
   - `debug/p8-hf3-api-health.json`
+
+## Execution Result (Plan 8-HF4)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF4-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T45-BOOMERANG-REGRESSION.md`

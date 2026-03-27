@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Welle fuer Outside-Editor-Stabilitaet.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Wellen fuer Outside-Editor- und Boomerang/Picker-Stabilitaet.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 35/40 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34) und Plan 8-HF3 (P8-T35..P8-T40) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`). Naechste Welle: Plan 8-2.
+Status: 41/46 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40) und Plan 8-HF4 (P8-T41..P8-T46) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`). Naechste Welle: Plan 8-2 (Hardening).
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -367,6 +367,7 @@ Milestones:
 8. M8 Mars Outside Feature Pack: `Outside Sandstorm` (stumm), optionales Boomerang-Playback und neue Settings-Sektion `Outside Animations`.
 9. M9 Outside Asset Mapping + Persistence: UI-editierbares Mapping (`gif`/`mp4`/coded key), UI-Create-Flow und persistente Definitionen/Settings.
 10. M10 Outside Regression Closure: `Coded/Space` Restore, Sandstorm-Stabilisierung, stabile Editor-Inputs und atomarer `Apply changes` Commit.
+11. M11 Outside HF4 Regression Closure: erneuter `Coded/Space` Restore, strikt typgebundener Asset-Picker und flickerfreier Boomerang-Vollzyklus.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -384,10 +385,12 @@ Exit Criteria:
 - Asset-Mapping ist pro Outside-Animation in UI editierbar (`gif`/`mp4`/coded animation key); neue Outside-Animationen koennen in UI angelegt werden.
 - Vorhandene Dateien aus `resources` sind als Asset-Quelle auswaehlbar.
 - Outside-Animationsdefinitionen und Settings bleiben ueber Save/Reload/Restart/Defaults persistent und migrationsstabil.
-- `Coded/Space` ist visuell wiederhergestellt und verbleibt nicht in schwarzem Fallback.
+- `Coded/Space` bleibt auf dem funktionierenden coded Star-Space-Pfad stabil (kein Black-Screen-Rueckfall).
 - `Outside Sandstorm` spielt stabil ohne permanentes Restart-/Rewind-Flackern.
 - Boomerang-Checkbox und Asset-Type-Dropdown sind im Outside-Editor stabil editierbar.
 - Outside-Editor uebernimmt Type/Resource/Optionen nur ueber explizites `Apply changes` atomar im selben Commit.
+- Asset-Picker ist typstreng: `coded` zeigt nur coded keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`.
+- Boomerang-Playback laeuft als vollstaendiger Forward->Reverse->Repeat-Zyklus ohne sichtbaren on/off Flicker und ohne abrupten Restart-Jump.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -426,6 +429,17 @@ New Blocking Wave (Phase 8 Outside regression follow-up):
 
 Gate Closure (8-HF3):
 - P0-Outside-Regressionen sind geschlossen: coded restore, sandstorm stability, editor input stability und atomarer apply-path sind PASS.
+- Plan 8-2 ist als naechste Hardening-Welle freigegeben.
+
+New Blocking Wave (Phase 8 Outside regression follow-up 2):
+- Neues verpflichtendes P0-Betriebsfeedback priorisiert Plan 8-HF4 als unmittelbare Hotfix-Welle vor Plan 8-2.
+- Blocker A: `Coded/Space` ist erneut regressiert und zeigt nur Black-Screen statt coded Star-Space.
+- Blocker B: Asset-Picker filtert nicht typspezifisch (`coded`/`mp4`/`gif`) und bietet ungueltige Quellen.
+- Blocker C: Boomerang-Playback flickert/instabil, statt vollstaendig Forward->Reverse->Repeat ohne sichtbare Restart-Uebergaenge.
+- Plan 8-2 bleibt bis 8-HF4-PASS blockiert.
+
+Gate Closure (8-HF4):
+- P0-Outside-Rueckfaelle sind geschlossen: coded path restore, strikt typspezifischer picker und boomerang full-cycle stability sind PASS.
 - Plan 8-2 ist als naechste Hardening-Welle freigegeben.
 
 ## Deferred (Post-Phase-2)
