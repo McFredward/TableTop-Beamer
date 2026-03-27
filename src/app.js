@@ -5602,6 +5602,14 @@ function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board
   });
 }
 
+function shouldPreserveLifecycleStatusFeedback() {
+  const text = typeof triggerFeedback?.textContent === "string" ? triggerFeedback.textContent : "";
+  if (!text) {
+    return false;
+  }
+  return /Pending:|\bstarted\b|\baccepted\b|\bStopping\.\.\.\b/i.test(text);
+}
+
 function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch", announceStatus = true } = {}) {
   const previousBoardId = state.boardId;
   const previousRoomId = state.selectedRoomId;
@@ -5634,7 +5642,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   setPanCursorState();
   renderRoomOverlay();
   refreshGlobalButtons();
-  if (announceStatus) {
+  if (announceStatus && !shouldPreserveLifecycleStatusFeedback()) {
     triggerFeedback.textContent = "Status: board switched";
   }
   if (emitLiveContext) {
