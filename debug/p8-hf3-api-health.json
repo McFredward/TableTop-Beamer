@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "service": "tt-beamer-api",
+  "saveEndpoint": "/api/global-defaults",
+  "boardCatalogEndpoint": "/api/boards",
+  "boardImportEndpoint": "/api/boards/import",
+  "liveTelemetryEndpoint": "/api/live/telemetry",
+  "postSupported": true,
+  "liveLogPath": "/home/claw/tt-beamer/logs/live-sync.jsonl"
+}

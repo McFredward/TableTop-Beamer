@@ -43,7 +43,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T36 [P0] `Outside Sandstorm` Playback stabilisieren: Flackern/Rewind-Restartloop entfernen, kontinuierliche Wiedergabe absichern.
 - [x] DONE P8-T37 [P0] Outside-Editor Input-Stabilitaet fixen: Boomerang-Checkbox wieder setzbar und Asset-Type-Dropdown stabil editierbar machen.
 - [x] DONE P8-T38 [P0] UX-Absicherung liefern: `Apply changes` Button einfuehren und Type/Resource/Optionen atomar gemeinsam committen.
-- [ ] TODO P8-T39 [P0] Non-Regression + Persistenzmatrix ausfuehren: Apply/Save/Reload/Restart fuer `assetType`/`assetRef`/`boomerang`/coded key absichern.
+- [x] DONE P8-T39 [P0] Non-Regression + Persistenzmatrix ausfuehren: Apply/Save/Reload/Restart fuer `assetType`/`assetRef`/`boomerang`/coded key absichern.
 - [ ] TODO P8-T40 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF3 Stand.
 
 ## Plan 8-2 - Hardening Wave (nach 8-HF3)

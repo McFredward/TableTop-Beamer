@@ -1,0 +1,17 @@
+{
+  "schema": "tt-beamer.resources.v1",
+  "generatedAt": "2026-03-27T17:56:53.139Z",
+  "count": 10,
+  "files": [
+    "/resources/nemesis/animations/final.gif",
+    "/resources/nemesis/animations/fire.gif",
+    "/resources/nemesis/animations/malfunction.gif",
+    "/resources/nemesis/animations/sandstorm.mp4",
+    "/resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg",
+    "/resources/nemesis/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg",
+    "/resources/nemesis/sounds/alarm.mp3",
+    "/resources/nemesis/sounds/electricity.mp3",
+    "/resources/nemesis/sounds/monsters/048.wav",
+    "/resources/nemesis/sounds/power/3.wav"
+  ]
+}
