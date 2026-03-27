@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 7
-- Current Phase Key: phase-07
+- Current Phase: 8
+- Current Phase Key: phase-08
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF10
-- Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF10-SUMMARY.md`
+- Last Executed Plan: 8-1
+- Planned Next Execution: 8-2
+- Last Execution Summary: `.planning/phases/phase-08/8-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,9 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Plan 8-1 ist abgeschlossen: Mehrbereichs-Play-Areas laufen kanonisch ueber `playAreas[]` mit aktiver Auswahl-ID und Legacy-Ladealias.
+- Plan 8-1 Runtime-Entscheidung: Inside/Outside-Clipping nutzt denselben Union-Maskenpfad ueber alle gueltigen Play-Area-Polygone.
+- Plan 8-1 Import-Entscheidung: Board-Import akzeptiert JSON und Multipart-Bildupload; Bildboards starten mit leerem Room-Catalog fuer manuellen Polygonworkflow.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
@@ -938,3 +941,7 @@
 - Start-Dispatch ist metadata-stabil (`boardId`/`targetScope`/`targetType`) bevor Commands an den serverautoritativen Commit-Pfad gehen.
 - Snapshot-Sanitizer + Client-Apply inferieren Board-Kontext aus Running-Payload, damit committed starts fuer `room`/`global-inside`/`cluster` nicht implizit gedroppt werden.
 - Kontextstatus `board switched` ist lifecycle-aware gegated und maskiert aktive/pending Start-Feedbacks nicht mehr.
+- Phase-8 Planung ist vorbereitet: Multi-Play-Area-Support mit Union-Semantik fuer inside/outside ist als P0-Ziel gesetzt.
+- Datenregel fuer Phase 8: Kanonisches Modell nutzt `playAreas[]`; Legacy-Single-Area-Daten werden idempotent und verlustfrei migriert.
+- Importregel fuer Phase 8: Board-Import unterstuetzt neben JSON auch Bildupload (`jpg`/`jpeg`/`png`/`webp`) mit serverseitiger Speicherung als Board-Unterlage.
+- Phase-8 Plan 8-1 ist als priorisierte execute-ready erste Welle gesetzt.

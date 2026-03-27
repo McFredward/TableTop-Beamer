@@ -1,16 +1,16 @@
 # CURRENT PHASE
 
-- Active: Phase 7 (`phase-07`)
-- Status: in-progress
-- Next Plan: 7-2 (hardening wave)
-- Command Target: `/gsd:execute-phase 7`
+- Active: Phase 8 (`phase-08`)
+- Status: in-progress (Plan 8-1 completed)
+- Next Plan: 8-2 (hardening wave)
+- Command Target: `/gsd:execute-phase 8`
 
 Execution inputs:
 - `.planning/STATE.md`
 - `.planning/ROADMAP.md`
-- `.planning/phases/phase-07/PLAN.md`
-- `.planning/phases/phase-07/BACKLOG.md`
-- `.planning/phases/phase-07/TASKS.md`
-- `.planning/phases/phase-07/ACCEPTANCE.md`
-- `.planning/phases/phase-07/RISKS.md`
-- `.planning/phases/phase-07/EXECUTE.md`
+- `.planning/phases/phase-08/PLAN.md`
+- `.planning/phases/phase-08/BACKLOG.md`
+- `.planning/phases/phase-08/TASKS.md`
+- `.planning/phases/phase-08/ACCEPTANCE.md`
+- `.planning/phases/phase-08/RISKS.md`
+- `.planning/phases/phase-08/EXECUTE.md`

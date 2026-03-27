@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow und haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients mit Fokus `/output/final`.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -211,10 +211,10 @@ Exit Criteria:
 - Phase-6-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 - verify-work-6 Follow-up P0-Blocker `English-only operator flow` ist mit HF1-Regressionsevidenz explizit geschlossen.
 
-## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
+## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (Completed)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6, 7-HF7, 7-HF8, 7-HF9 und 7-HF10 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`, `.planning/phases/phase-07/7-HF8-SUMMARY.md`, `.planning/phases/phase-07/7-HF9-SUMMARY.md`, `.planning/phases/phase-07/7-HF10-SUMMARY.md`); Plan 7-2 ist als naechste execute-ready Hardening-Welle freigegeben.
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3, 7-HF4, 7-HF5, 7-HF6, 7-HF7, 7-HF8, 7-HF9 und 7-HF10 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`, `.planning/phases/phase-07/7-HF5-SUMMARY.md`, `.planning/phases/phase-07/7-HF6-SUMMARY.md`, `.planning/phases/phase-07/7-HF7-SUMMARY.md`, `.planning/phases/phase-07/7-HF8-SUMMARY.md`, `.planning/phases/phase-07/7-HF9-SUMMARY.md`, `.planning/phases/phase-07/7-HF10-SUMMARY.md`); verbleibende Hardening-Themen werden in Phase 8 weitergefuehrt.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -350,6 +350,32 @@ Execution Update (7-HF10):
 
 Gate Closure (7-HF10):
 - Root-Cause-Dispatch/Apply blocker is closed; Plan 7-2 is unblocked as the next wave.
+
+## Phase 8 - Multi-Play-Area + Board Image Import (In Progress)
+Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen.
+
+Status: 12/17 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12) ist umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`).
+
+Milestones:
+1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
+2. M2 Migration Safety: idempotente, verlustfreie Ueberfuehrung bestehender gespeicherter Daten.
+3. M3 Union Runtime Semantics: inside/outside und Clipping basieren auf Union aller Play-Areas.
+4. M4 Play-Area Editor UX: mehrere Areas koennen angelegt/geloescht/selektiert werden.
+5. M5 Image Import Pipeline: Upload (`jpg`/`jpeg`/`png`/`webp`) wird serverseitig gespeichert und als Board-Hintergrund registriert.
+6. M6 Non-Regression: Running/Save/Reload/Sync/`/output/final` bleiben stabil.
+
+Exit Criteria:
+- UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
+- Inside/Outside-Logik verwendet ausschliesslich die Vereinigung aller Play-Areas.
+- Legacy-Bestaende bleiben nach Schemaanhebung erhalten und werden idempotent migriert.
+- Board-Import akzeptiert JSON und Bildupload; hochgeladene Bilder sind serverseitig gespeichert.
+- Nach Bildupload ist manueller Polygon-Workflow direkt verfuegbar.
+- Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
+
+Execution Update (8-1):
+- Board-Profile nutzen jetzt kanonisch `playAreas[]` + `selectedPlayAreaId` mit Legacy-Ladealias fuer `playAreaPolygon`/`shipPolygon`.
+- Inside/Outside-Clipping verwendet die Union aller gueltigen Play-Area-Polygone (kein Single-Polygon-Fallbackpfad).
+- `/api/boards/import` unterstuetzt neben JSON jetzt Multipart-Bildupload (`jpg`/`jpeg`/`png`/`webp`) mit serverseitiger Asset-Persistenz und sofortiger Katalogsichtbarkeit.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
