@@ -8647,16 +8647,22 @@ function drawOutsideFxLayer(now) {
         const playbackState = outsideVideoPlaybackStateByBoard.get(state.boardId) ?? {
           key: null,
           forceSeekAt: null,
+          boomerangPhase: "forward",
+          reverseTimeSec: null,
+          lastTickMs: null,
         };
-        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}`;
+        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.boomerang ? "boomerang" : selectedDefinition.direction}`;
         const isForwardContinuous = !selectedDefinition.boomerang && selectedDefinition.direction !== "reverse";
+        const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
         if (playbackState.key !== playbackKey) {
           playbackState.key = playbackKey;
           playbackState.forceSeekAt = 0;
+          playbackState.boomerangPhase = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
+          playbackState.reverseTimeSec = selectedDefinition.direction === "reverse" ? durationSec : null;
+          playbackState.lastTickMs = now;
         }
         if (isForwardContinuous) {
           video.loop = true;
-          const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
           if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
             video.playbackRate = targetRate;
           }
@@ -8670,14 +8676,63 @@ function drawOutsideFxLayer(now) {
             }
             playbackState.forceSeekAt = null;
           }
-        } else {
+          playbackState.lastTickMs = now;
+          playbackState.reverseTimeSec = null;
+        } else if (!selectedDefinition.boomerang && selectedDefinition.direction === "reverse") {
           video.loop = false;
           if (!video.paused) {
             video.pause();
           }
-          const mappedTime = ((timeline.timeline % durationSec) + durationSec) % durationSec;
-          if (Math.abs((Number(video.currentTime) || 0) - mappedTime) > 0.05) {
-            video.currentTime = mappedTime;
+          const reverseMappedTime = durationSec - (((elapsedSeconds * clampOutsideSpeed(selectedDefinition.speed)) % durationSec) + durationSec) % durationSec;
+          if (Math.abs((Number(video.currentTime) || 0) - reverseMappedTime) > 0.03) {
+            video.currentTime = reverseMappedTime;
+          }
+          playbackState.lastTickMs = now;
+          playbackState.reverseTimeSec = reverseMappedTime;
+        } else {
+          video.loop = false;
+          const lastTickMs = Number(playbackState.lastTickMs);
+          const deltaSec = Number.isFinite(lastTickMs) ? Math.max(0, (now - lastTickMs) / 1000) : 0;
+          playbackState.lastTickMs = now;
+
+          if (playbackState.boomerangPhase === "forward") {
+            if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+              video.playbackRate = targetRate;
+            }
+            if (video.paused) {
+              void video.play().catch(() => undefined);
+            }
+            const currentTime = Number(video.currentTime) || 0;
+            if (currentTime >= durationSec - 0.03 || video.ended) {
+              playbackState.boomerangPhase = "reverse";
+              playbackState.reverseTimeSec = durationSec;
+              if (!video.paused) {
+                video.pause();
+              }
+            }
+          } else {
+            if (!video.paused) {
+              video.pause();
+            }
+            const baseReverseTime = Number(playbackState.reverseTimeSec);
+            const reverseCursor = Number.isFinite(baseReverseTime)
+              ? baseReverseTime
+              : Math.max(0, Math.min(durationSec, Number(video.currentTime) || durationSec));
+            const nextReverseTime = Math.max(0, reverseCursor - deltaSec * targetRate);
+            playbackState.reverseTimeSec = nextReverseTime;
+            if (Math.abs((Number(video.currentTime) || 0) - nextReverseTime) > 0.02) {
+              video.currentTime = nextReverseTime;
+            }
+            if (nextReverseTime <= 0.02) {
+              playbackState.boomerangPhase = "forward";
+              playbackState.reverseTimeSec = null;
+              if (Math.abs((Number(video.currentTime) || 0) - 0) > 0.02) {
+                video.currentTime = 0;
+              }
+              if (video.paused) {
+                void video.play().catch(() => undefined);
+              }
+            }
           }
         }
         outsideVideoPlaybackStateByBoard.set(state.boardId, playbackState);
