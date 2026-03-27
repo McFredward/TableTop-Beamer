@@ -78,7 +78,14 @@
 4. P0 danach: P7-HF8-T5 (all-scope stop parity + hover behavior regression matrix ueber 3-4 Clients inkl. `/output/final`).
 5. P0 Abschluss: P7-HF8-T6 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF8)
+## Priority Execution - Plan 7-HF9 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF9-T1 (Root-Cause-Fix fuer sofort neutralisierte Start-Mutationen in room/global/cluster Startpfaden).
+2. P0 danach: P7-HF9-T2 (Status-Arbitration fixieren: `board switched` darf Start-/Running-Status nicht maskieren).
+3. P0 danach: P7-HF9-T3..P7-HF9-T4 (all-scope start/stop parity + lifecycle persistence bis Timerablauf oder explizitem Stop/Clear).
+4. P0 danach: P7-HF9-T5..P7-HF9-T6 (multi-client deterministic parity inkl. `/output/final` + voller Funktionscheck fuer room/global-inside/global-outside/cluster).
+5. P0 Abschluss: P7-HF9-T7 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF9)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -102,6 +109,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF6 vollstaendig PASS ist (authoritative atomic switch-clear transaction, sanitize-before-persist/broadcast, reconnect board-context filter, residue-zero regression).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF7 vollstaendig PASS ist (stop-only routing ohne create/start side-effects, serverautoritative stop propagation inkl. `/output/final`, UI re-trigger guard, room/global/cluster stop parity).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF8 vollstaendig PASS ist (`global-outside` stop parity, global stop semantics unification, running-list hover flicker elimination).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF9 vollstaendig PASS ist (Root-Cause-Fix gegen Start-Neutralisierung, `board switched` maskiert nicht, all-scope start/stop parity + lifecycle persistence, deterministic multi-client `/output/final` parity).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -190,6 +198,21 @@
 
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).
+
+## Execution Update 7-HF9
+- P7-HF9-T1..P7-HF9-T7 completed.
+- Root-cause fix: context-update commands for draft/align no longer overwrite board context and cannot neutralize freshly started room/global/cluster runs.
+- Status arbitration fix: `board switched` is emitted only for explicit board switch flow and no longer masks start/running feedback during runtime sync.
+- Deterministic all-scope parity and lifecycle persistence are verified for `room`, `global-inside`, `global-outside`, `cluster` across 4 polling clients including `/output/final`.
+- HF9 evidence recorded in `debug/p7-hf9-t12-output.json`, `debug/p7-hf9-t13-output.json`, `debug/p7-hf9-t14-output.json`.
+
+## Next Wave
+- Next executable wave: Plan 7-2 (P1 hardening).
+
+## New Blocking Wave (verify-work 7-HF8 follow-up)
+- Kritischer P0-Regression-Blocker: Start-Mutationen werden durch nachlaufende Status-/Kontextupdates neutralisiert, wodurch room/global-inside/cluster nicht mehr stabil starten.
+- `board switched` maskiert Startstatus und ueberschreibt Running-nahe Statusmeldungen unmittelbar.
+- Next executable wave is now Plan 7-HF9 (P0) before Plan 7-2.
 
 ## Execution Update 7-HF8
 - P7-HF8-T1..P7-HF8-T6 completed.

@@ -17,6 +17,7 @@
 - Board-Context Residue Elimination Across Switch/Reconnect
 - Stop-Action Routing Determinism + Multi-Role Stop Propagation
 - Global-Outside Stop Parity + Running-List Hover Stability
+- Start-Lifecycle Determinism + Board-Switch Status Arbitration
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -102,6 +103,13 @@
 - P7-S16.5 Regression-Matrix fuer all-scope stop parity (`room`, `global-inside`, `global-outside`, `cluster`) plus hover behavior parity ueber 3-4 Clients inkl. `/output/final` erweitern.
 - P7-S16.6 Evidenz + Artefakt-Sync fuer HF8 verpflichtend im selben Schritt abschliessen.
 
+- P7-S17.1 Root-Cause-Fix: Start-Mutationen (`trigger-room`, `trigger-global`, `trigger-cluster`) gegen unmittelbares Neutralisieren/Ueberschreiben durch Kontext-/Statusmutationen haerten.
+- P7-S17.2 Status-Arbitration fixieren: `board switched` bleibt Kontextsignal und darf Start-/Running-Status nicht maskieren.
+- P7-S17.3 Full-Scope-Funktionsparitaet absichern: `room`, `global-inside`, `global-outside`, `cluster` sind alle startbar/stoppbar ohne Scope-Sonderpfade.
+- P7-S17.4 Lifecycle-Persistenz haerten: Runs bleiben aktiv bis Timerablauf oder explizitem Stop/Clear; kein implizites Cleanup durch Statusdrift.
+- P7-S17.5 Deterministische Multi-Client-Sync-Paritaet inkl. `/output/final` beibehalten (Poll/Version/Ack/Reconnect non-regression).
+- P7-S17.6 Evidenz + Artefakt-Sync fuer HF9 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -129,7 +137,8 @@
 - Plan 7-HF6 Board-Context Residue Elimination Hotfix (verpflichtend vor 7-2): authoritative atomic switch-clear transaction, server snapshot sanitization vor persist/broadcast, reconnect board-context filtering, residue=0 regression.
 - Plan 7-HF7 Stop Routing + Deterministic Stop Propagation Hotfix (verpflichtend vor 7-2): stop-action darf keine create/start side-effects ausloesen; stop commit ist serverautoritativ/idempotent mit multi-role parity inkl. `/output/final`.
 - Plan 7-HF8 Global-Outside Stop Parity + Running-Hover Stability Hotfix (verpflichtend vor 7-2): stop-routing/parity explizit fuer global-outside, globale stop semantics server/client angleichen, running-list hover ohne flicker stabilisieren.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF8).
+- Plan 7-HF9 Start-Lifecycle Determinism + Board-Switch Status Arbitration Hotfix (verpflichtend vor 7-2): Root-Cause-Fix gegen Start-Neutralisierung, Status-Arbitration (`board switched` maskiert nicht), all-scope start/stop + lifecycle persistence + multi-client `/output/final` parity.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF9).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -215,3 +224,16 @@
 - P7-S16.1..P7-S16.6 are closed via Plan 7-HF8 PASS.
 - Global-outside stop routing is now stop-only/idempotent, global stop semantics are unified, and running-list hover flicker is eliminated.
 - Evidence artifacts are available in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.
+
+## New Blocking Wave
+- verify-work 7-HF8 follow-up meldet einen kritischen P0-Regression-Blocker: Start-Mutationen werden nach Trigger durch Status-/Kontextdrift ueberschrieben; ausser `global-outside` starten Animationen nicht stabil.
+- Plan 7-HF9 ist als execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis zum HF9-PASS.
+
+## Execution Update 7-HF9
+- P7-S17.1 implemented: start mutations (`trigger-room`/`trigger-global`/`trigger-cluster`) are no longer neutralized by trailing draft/align context updates.
+- P7-S17.2 implemented: `board switched` remains contextual status and no longer masks start/running lifecycle feedback.
+- P7-S17.3 + P7-S17.4 implemented: all-scope start/stop parity and lifecycle persistence are validated for room/global-inside/global-outside/cluster until explicit stop/clear or timer end.
+- P7-S17.5 + P7-S17.6 implemented: deterministic multi-client parity evidence incl. `/output/final` and artifact synchronization refreshed (`debug/p7-hf9-*`).
+
+## Gate Closure
+- Plan 7-HF9 is PASS; Plan 7-2 is unblocked as the next hardening wave.

@@ -78,6 +78,12 @@
 - Running-List-Hover-Stability-Test: Hover auf Running-List-Buttons bleibt konstant sichtbar ohne Blink-/Loop-Flicker.
 - Running-List-Hover-Parity-Test: Hover-Highlight-Verhalten der Running-Liste entspricht stabil dem restlichen Button-System (Desktop + Touch emulation).
 
+- Start-Mutation-Not-Neutralized-Test: direkt nach Start darf keine nachfolgende Kontext-/Statusmutation den frisch gestarteten Run entfernen oder auf vorherigen Zustand zuruecksetzen.
+- Board-Switched-Status-Arbitration-Test: `board switched` darf Start-/Running-Status nicht maskieren; Startfeedback bleibt sichtbar bis regulaere Lifecycle-Events eintreten.
+- All-Scope-Start-Stop-Parity-Test: `room`, `global-inside`, `global-outside`, `cluster` sind jeweils first-click startbar und stop-only deterministisch stoppbar.
+- Run-Lifecycle-Persistence-Test: aktive Animation bleibt bis Timerablauf oder explizitem `stop-animation`/`clear-all` erhalten; kein implizites Frueh-Cleanup.
+- Multi-Client-Start-Persistence-Parity-Test: Start/Lifecycle bleiben ueber 3-4 Clients inkl. `/output/final` synchron stabil (inkl. Reconnect/Polling-Version-Gates).
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -105,6 +111,9 @@
 - Running-List-Stop bleibt stop-only deterministisch: keine Neuinstanz/ID-Erhoehung durch Stop, serverautoritative Stop-Propagation auf allen Rollen.
 - Stop-Paritaet gilt explizit fuer `room`, `global-inside`, `global-outside` und `cluster`; `global-outside` darf keine Routing-Sonderfaelle mehr haben.
 - Running-List-Hover ist visuell stabil und flickerfrei; kein loopender Hover-Animationszustand bei wiederholtem Pointer-Ein-/Austritt.
+- Start-Mutationen bleiben stabil erhalten und werden nicht unmittelbar durch Kontext-/Statusdrift neutralisiert.
+- `board switched` bleibt ein nicht-maskierendes Kontextsignal; laufende Start-/Running-Statusevents behalten Prioritaet.
+- Alle Animationsarten (`room`, `global-inside`, `global-outside`, `cluster`) sind sowohl startbar als auch stoppbar bei stabiler Lifecycle-Persistenz.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Update 7-1
@@ -203,3 +212,15 @@
 - PASS: authoritative outside stop convergence disables `outsideFx` without no-op drift.
 - PASS: running-list hover remains visually stable (no blink/loop flicker under periodic runtime refresh).
 - PASS: evidence captured in `debug/p7-hf8-t12-output.json`, `debug/p7-hf8-t13-output.json`, `debug/p7-hf8-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF9)
+- verify-work 7-HF8 follow-up oeffnet einen kritischen P0-Gate: Start-Mutationen werden nach Trigger sofort neutralisiert/ueberschrieben; ausser `global-outside` starten Animationen nicht stabil.
+- Freigabevoraussetzung: Start-Lifecycle-and-Status-Arbitration-Gate ist PASS (Root-Cause-Fix fuer Start-Neutralisierung, `board switched` maskiert keine Start-Events, all-scope start/stop parity, lifecycle persistence bis Timer/Stop/Clear, multi-client deterministic parity inkl. `/output/final`).
+
+## Gate Closure Update (Plan 7-HF9)
+- PASS: start lifecycle no longer gets neutralized by trailing context/status updates (`room-draft-sync` and `align-toggle` cannot mutate selected board context).
+- PASS: `board switched` remains contextual and does not overwrite start/running lifecycle feedback during runtime panel synchronization.
+- PASS: all-scope parity is stable (`room`, `global-inside`, `global-outside`, `cluster`) with first-click start and deterministic stop-only behavior.
+- PASS: run lifecycle persistence holds until explicit `stop-animation`/`clear-all` or timer end; no implicit early cleanup drift.
+- PASS: deterministic 4-client polling parity including `/output/final` and reconnect/version gates remains intact.
+- PASS: evidence captured in `debug/p7-hf9-t12-output.json`, `debug/p7-hf9-t13-output.json`, `debug/p7-hf9-t14-output.json`.

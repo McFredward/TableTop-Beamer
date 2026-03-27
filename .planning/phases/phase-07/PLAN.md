@@ -307,7 +307,7 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 - Plan 7-HF8 (Global-Outside Stop Parity + Running-Hover Stability) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
 
 ## Next Wave
-- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF8.
+- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF9.
 
 ## Execution Update 7-HF8
 - Plan 7-HF8 implementation completed for P7-HF8-T1..P7-HF8-T6.
@@ -318,3 +318,34 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 
 ## Gate Closure
 - Plan 7-HF8 is PASS; the global-outside stop parity and running-hover stability blocker is closed.
+
+## Neues verpflichtendes Feedback (verify-work 7-HF8 follow-up, Plan 7-HF9, P0-Hotfix, execute-ready)
+- Kritischer Regression-Blocker aus Realbetrieb: bis auf global `outside space` starten nach HF8 keine room-/anderen globalen Animationen mehr stabil.
+- Root-Cause-Hinweis: Start-Mutationen werden unmittelbar durch nachlaufende Kontext-/Status-Mutationen neutralisiert oder ueberschrieben.
+- UI-Symptom: Status springt sofort wieder auf `board switched` und maskiert den eigentlichen Start-/Running-Status.
+- Betriebsfolge: praktisch keine Animation mehr triggerbar trotz gueltigem Command-Pfad.
+- Verbindliche Leitlinie: Multi-Client-Determinismus (inkl. `/output/final`) bleibt unveraenderte Pflicht; Hotfix darf den serverautoritativen Snapshot-/Versionspfad nicht aufweichen.
+
+## Plan 7-HF9 Scope (execute-ready)
+- Start-Mutations-Lifecycle haerten: `trigger-room`, `trigger-global` und `trigger-cluster` duerfen nicht durch nachgelagerte Kontext-/Board-Statusupdates neutralisiert werden (Root-Cause-Fix).
+- Status-Arbitration korrigieren: `board switched` bleibt reines Kontextsignal und darf Start-/Running-Status nicht maskieren oder unmittelbar zuruecksetzen.
+- Full-Scope-Start/Stop-Paritaet absichern: `room`, `global-inside`, `global-outside`, `cluster` sind alle first-click startbar und stop-only deterministisch stoppbar.
+- Persistenz/Lifecycle-Gates haerten: gestartete Instanzen bleiben aktiv bis Timerablauf oder explizitem `stop-animation`/`clear-all`; kein implizites Frueh-Cleanup durch Statusdrift.
+- Multi-Client-/Final-Paritaet regressionsfest pruefen: 3-4 Clients inklusive `/output/final`, Join/Reconnect/Polling-Version-Gates unveraendert deterministisch.
+- Evidenz + Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF9 (Start-Lifecycle Determinism + Board-Switch Status Arbitration) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF9
+- P7-HF9-T1..P7-HF9-T7 completed.
+- Root-cause fix prevents `context-update` follow-up mutations (`room-draft-sync`, `align-toggle`) from mutating board context and neutralizing freshly committed start mutations.
+- `board switched` feedback is now contextual-only and no longer masks start/running lifecycle feedback during runtime panel synchronization.
+- HF9 regression matrix confirms first-click start+stop parity for `room`, `global-inside`, `global-outside`, `cluster`, plus lifecycle persistence until explicit stop/clear or timer expiry.
+- HF9 evidence is synchronized in `debug/p7-hf9-t12-output.json`, `debug/p7-hf9-t13-output.json`, `debug/p7-hf9-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF9 is PASS; the start-neutralization and board-switched status masking blocker is closed.
+
+## Next Wave
+- Plan 7-2 (Hardening) follows after HF9 closure.

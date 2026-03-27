@@ -150,6 +150,21 @@
 - Impact: Hoch (UX/P0 im Realbetrieb).
 - Gegenmassnahme: Hover-CSS/animation state machine stabilisieren, flicker regression fuer Pointer enter/leave/reenter in Pflichtmatrix aufnehmen.
 
+## R31 Start-Mutationen werden direkt nach Trigger neutralisiert
+- Risiko: Start-Commands committen zwar, werden aber unmittelbar durch nachlaufende Kontext-/Statusmutationen ueberschrieben, sodass Animationen nicht laufen.
+- Impact: Kritisch, P0 Betriebsblocker (Triggerpfad faktisch defekt).
+- Gegenmassnahme: Root-Cause-Fix im Lifecycle-/Reducer-Arbitrationspfad; Start-Mutationen erhalten Vorrang vor Kontext-Info-Status und duerfen nicht sofort zurueckgesetzt werden.
+
+## R32 `board switched` maskiert Start-/Running-Status
+- Risiko: UI springt sofort auf `board switched` und verdeckt den eigentlichen Startstatus; Operator bewertet Trigger als fehlgeschlagen bzw. verliert Zustandsklarheit.
+- Impact: Kritisch, Bedienfehler + Fehltrigger-Risiko.
+- Gegenmassnahme: Status-Prioritaetsregeln explizit machen (`start/run > board switched info`) und mit deterministischer Status-Arbitration testen.
+
+## R33 Lifecycle-Persistenz bricht fuer room/global/cluster nach Start
+- Risiko: Runs werden implizit vorzeitig entfernt (ohne Timerablauf/Stop/Clear), besonders bei Multi-Client-Snapshot-Apply und Kontextevents.
+- Impact: Kritisch, nahezu keine Animation verlaesslich triggerbar.
+- Gegenmassnahme: Lifecycle-Guard auf explizite Endbedingungen beschraenken, all-scope start/stop persistence matrix inkl. `/output/final` + reconnect als Pflichtgate.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -211,3 +226,11 @@
 - R28 mitigated: `global-outside` stop route is now strictly stop-only and protected against start/create/no-op drift.
 - R29 mitigated: global stop semantics for `global-inside`/`global-outside` are unified server/client with versioned idempotent handling.
 - R30 mitigated: running-list hover interaction is stabilized and no longer flickers under periodic list refresh.
+
+## New Hotfix Risk Focus (7-HF9)
+- Neues Pflichtfeedback priorisiert R31/R32/R33 als P0-Risiken; Plan 7-HF9 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Risk Closure Update (7-HF9)
+- R31 mitigated: start mutations are no longer neutralized by trailing context updates (`room-draft-sync`/`align-toggle` cannot mutate board context).
+- R32 mitigated: `board switched` feedback is now contextual-only and no longer masks active start/running lifecycle feedback.
+- R33 mitigated: all-scope run lifecycle persists deterministically until explicit stop/clear or timer expiry across multi-client polling and `/output/final` parity.

@@ -1,17 +1,17 @@
 # P7-T12 Sync Regression Matrix
 
-- Scope: single-click determinism, stale-drop/duplicate guards, bounded queue visibility, HF4 draft-immutability guards, HF5 align/context and board-switch running-clear source guards, HF6 board-context sanitizer/filter guards, HF7 stop-only routing/source guards, plus HF8 global-stop semantics + running-hover stability guards.
+- Scope: single-click determinism, stale-drop/duplicate guards, bounded queue visibility, HF4 draft-immutability guards, HF5 align/context and board-switch running-clear source guards, HF6 board-context sanitizer/filter guards, HF7 stop-only routing/source guards, HF8 global-stop semantics + running-hover stability guards, and HF9 start-lifecycle/root-cause + status-arbitration guards.
 - Script: `node debug/p7-t12-sync-regression.mjs`
 - Expected: JSON output with `pass: true`, non-negative queue metrics, and live-state endpoint reachable.
 
 ## Result
 
-- PASS (Plan 7-HF8): Telemetry verifier remains `hopsMs`-strict and now additionally enforces HF4/HF5/HF6/HF7 guards plus HF8 global-stop semantics/hover-stability source guards.
+- PASS (Plan 7-HF9): Telemetry verifier remains `hopsMs`-strict and now additionally enforces HF4/HF5/HF6/HF7/HF8 guards plus HF9 context-update root-cause and status-arbitration source guards.
 
 ## Evidence
 
 - Command: `TT_BEAMER_BASE_URL=http://127.0.0.1:4273 node debug/p7-t12-sync-regression.mjs`
-- Output: `debug/p7-hf8-t12-output.json`
+- Output: `debug/p7-hf9-t12-output.json`
 - Key proof:
   - `schemaGuard.usesHopsMsOnly = true`
   - `schemaGuard.missingHopsMsRejected = true`
@@ -37,4 +37,4 @@
 
 ## Open Verify Gap
 
-- None for schema integrity; retained as active regression guard for HF4+HF5+HF6+HF7+HF8 invariants.
+- None for schema integrity; retained as active regression guard for HF4+HF5+HF6+HF7+HF8+HF9 invariants.

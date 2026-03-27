@@ -21,10 +21,10 @@
 - Polling pivot metrics now include command/snapshot gates (`commandAccepted`, `snapshotVersionVisible`, `snapshotApplied`).
 - Final target pass/fail for production SLO still requires dedicated live multi-device run capture.
 
-## Refreshed Evidence (Plan 7-HF8)
+## Refreshed Evidence (Plan 7-HF9)
 
-- `debug/p7-hf8-t12-output.json`
-- `debug/p7-hf8-t13-output.json`
-- `debug/p7-hf8-t14-output.json`
+- `debug/p7-hf9-t12-output.json`
+- `debug/p7-hf9-t13-output.json`
+- `debug/p7-hf9-t14-output.json`
 
-Hotfix closure note: HF8 confirms global-outside stop parity (inkl. authoritative outside disable convergence), unified global stop semantics server/client, and running-list hover stability, in addition to previously closed HF7/HF6/HF5/HF4/HF3/HF2 gates. Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.
+Hotfix closure note: HF9 confirms start-lifecycle root-cause closure (no neutralization by trailing context updates), non-masking `board switched` status arbitration, and all-scope start/stop+lifecycle persistence parity in addition to previously closed HF8/HF7/HF6/HF5/HF4/HF3/HF2 gates. Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.
