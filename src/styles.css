@@ -348,6 +348,17 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   display: none !important;
 }
 
+#control-panel[data-active-view="settings"] {
+  overflow-x: hidden;
+}
+
+#control-panel[data-active-view="settings"] .panel,
+#control-panel[data-active-view="settings"] label,
+#control-panel[data-active-view="settings"] input,
+#control-panel[data-active-view="settings"] .file-import-name {
+  max-width: 100%;
+}
+
 .eyebrow,
 h1,
 h2 {
