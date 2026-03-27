@@ -869,10 +869,12 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   );
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(runtime.runningAnimations, previousAnimationsById);
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(primedRunningAnimations);
-  state.roomDraft = {
-    ...state.roomDraft,
-    ...(runtime.roomDraft && typeof runtime.roomDraft === "object" ? runtime.roomDraft : {}),
-  };
+  if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
+    state.roomDraft = {
+      ...state.roomDraft,
+      ...runtime.roomDraft,
+    };
+  }
   state.animationSpeed = clampAnimationSpeed(runtime.animationSpeed ?? state.animationSpeed);
   if (runtime.audio && typeof runtime.audio === "object") {
     state.audio.enabled = Boolean(runtime.audio.enabled);
