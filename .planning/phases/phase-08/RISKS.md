@@ -90,6 +90,31 @@
 - Impact: Kritisch.
 - Gegenmassnahme: idempotente Migration, Schema-Normalizer, Save/Reload/Restart-Matrix fuer Definitionen + Settings.
 
+## R19 `Coded/Space` faellt auf schwarzen Frame/Fallback
+- Risiko: coded animation key wird nicht korrekt auf Renderpfad/Asset gemappt und liefert nur Schwarzbild statt erwarteter Animation.
+- Impact: Kritisch.
+- Gegenmassnahme: Mapping-/Resolverpfad fuer coded assets auf Vorregressionsverhalten rueckfuehren und mit Restore-Regressionstest absichern.
+
+## R20 `Outside Sandstorm` restartet permanent (Flicker/Rewind-Loop)
+- Risiko: mp4-Playback wird durch Lifecycle-/Timeline-Reset laufend neu gestartet und wirkt als instabiler Restartloop.
+- Impact: Kritisch.
+- Gegenmassnahme: kontinuierlichen Playback-Pfad ohne unerwuenschte Timeline-Resets erzwingen; explizite Stability-Regression (Start/Edit/Stop/Clear/Reload).
+
+## R21 Outside-Editor Inputs sind nicht stabil editierbar
+- Risiko: Boomerang-Checkbox und Asset-Type-Dropdown verlieren User-Input durch stale re-apply oder Model/UI race.
+- Impact: Kritisch.
+- Gegenmassnahme: verbindliche Input-Arbitration zwischen Draft und persisted State, plus deterministische UI-State-Ownership im Editor.
+
+## R22 Teilweise Uebernahme von Outside-Aenderungen ohne atomaren Commit
+- Risiko: Type/Resource/Optionen werden bei Zwischen-Events inkonsistent einzeln uebernommen und fuehren zu kaputten Mischzustaenden.
+- Impact: Hoch.
+- Gegenmassnahme: expliziter `Apply changes` Commit-Pfad, der alle Outside-Editfelder atomar in einem Schritt uebernimmt.
+
+## R23 Hardening-Welle startet trotz offener P0-Outside-Regressionen
+- Risiko: Plan 8-2 beginnt zu frueh; bekannte Outside-Regressionen gelangen in Hardening/Abnahme und erzeugen Rework.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF3 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -113,3 +138,14 @@
 - 2026-03-27: R16 ist mitigiert; Outside-Controls sind in eigener Sektion `Outside Animations`, der Play-Area-Editor enthaelt keine Outside-Konfiguration mehr.
 - 2026-03-27: R17 ist mitigiert; Asset-Typ/Ref sind explizit editierbar, Resource-Picker bezieht gueltige Dateien aus `/api/resources`.
 - 2026-03-27: R18 ist mitigiert; Legacy-Aliase fuer Outside-Definitionen werden normalisiert und persistieren kanonisch ueber Profile/Defaults.
+
+## Risk Review for Plan 8-HF3 (planned)
+- 2026-03-27: Neues verpflichtendes P0-Betriebsfeedback priorisiert R19-R22 als unmittelbare Hotfix-Blocker im Outside-Editor/Playback.
+- 2026-03-27: R23 setzt den Gate-Guard, dass Plan 8-2 erst nach HF3-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF3
+- 2026-03-27: R19 ist mitigiert; coded outside key mapping ist wieder auf den erwarteten Runtime-Pfad normalisiert (kein Black no-op).
+- 2026-03-27: R20 ist mitigiert; Sandstorm-MP4 laeuft im kontinuierlichen Forward-Playback ohne frameweises Restart-Seeking.
+- 2026-03-27: R21 ist mitigiert; Boomerang-/Asset-Type-Editing bleibt im Draft stabil bis explizitem Apply.
+- 2026-03-27: R22 ist mitigiert; `Apply changes` uebernimmt Outside-Type/Resource/Optionen atomar als einzelnes Update.
+- 2026-03-27: R23 Gate ist erfuellt; HF3 ist PASS verifiziert (`8-HF3-VERIFICATION.md`).

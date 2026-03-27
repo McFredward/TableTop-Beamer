@@ -9,6 +9,7 @@
 - Import UX and Catalog Integration
 - Selection Arbitration + Import Activation Hotfix
 - Outside Animations Mars Feature Pack
+- Outside Animation Editor Stability Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -51,6 +52,12 @@
 - P8-S9.8 Resource-Picker integrieren: vorhandene Dateien aus `resources` als Asset auswaehlbar machen.
 - P8-S9.9 Persistenz fuer Outside-Animationsdefinitionen + Settings ueber Profile/Defaults absichern.
 
+- P8-S10.1 `Coded/Space` Regression fixen: coded animation key laeuft wieder wie vor der Regression statt schwarzem Frame.
+- P8-S10.2 `Outside Sandstorm` Playback stabilisieren: kein permanentes Restart/Rewind-Flackern im Livebetrieb.
+- P8-S10.3 Boomerang-Checkbox und Asset-Type-Dropdown im Outside-Editor robust editierbar machen.
+- P8-S10.4 `Apply changes`-Commit-UX einfuehren: Type/Resource/Optionen werden atomar gemeinsam uebernommen.
+- P8-S10.5 Save/Reload-Determinismus fuer Outside-Editorwerte (`assetType`, `assetRef`, `boomerang`) inklusive Legacy-Guard absichern.
+
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
 - P8-S7.3 Vollstaendigen Artefakt-Sync mit globalen Planungsdateien abschliessen.
@@ -89,11 +96,21 @@
 - Story P8-S9.9 + P8-S7.1 + P8-S7.3.
   - Ziel: persistente Definitionen/Settings, P0-Regressionsevidenz und konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF3 execute-ready
+- Story P8-S10.1 + P8-S10.2.
+  - Ziel: Outside-Playback ist wieder visuell korrekt (`Coded/Space` restore, `Outside Sandstorm` stabil ohne Restart-Loop).
+- Story P8-S10.3 + P8-S10.4.
+  - Ziel: Outside-Editor ist wieder stabil editierbar; Eingaben werden explizit ueber `Apply changes` atomar uebernommen.
+- Story P8-S10.5 + P8-S7.1 + P8-S7.3.
+  - Ziel: Save/Reload-Determinismus fuer Outside-Editorwerte plus belastbare P0-Evidenz und konsistenter Artefakt-Sync.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF2): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF3): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
 - 2026-03-27: Plan 8-1 Stories P8-S1.x bis P8-S7.x umgesetzt und verifiziert (`8-1-VERIFICATION.md`).
 - 2026-03-27: Plan 8-HF1 Stories P8-S8.1..P8-S8.4 umgesetzt; Regression/Empty-Start-Evidenz ist PASS (`8-HF1-VERIFICATION.md`, `P8-T20-REGRESSION.md`, `P8-T23-EMPTY-START-VALIDATION.md`).
 - 2026-03-27: Plan 8-HF2 Stories P8-S9.1..P8-S9.9 umgesetzt; Outside-Featurepaket inkl. Sandstorm/Boomerang/Settings-Refactor/Asset-Picker/Persistenz ist PASS (`8-HF2-VERIFICATION.md`).
+- 2026-03-27: Neues P0-Feedback fuer Outside-Regressionen priorisiert Plan 8-HF3 (Stories P8-S10.1..P8-S10.5) als naechste execute-ready Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF3 Stories P8-S10.1..P8-S10.5 umgesetzt; Outside-Restore/Stability/Apply-Atomicity/Persistence-Matrix ist PASS (`8-HF3-VERIFICATION.md`, `P8-T39-OUTSIDE-EDITOR-REGRESSION.md`).

@@ -77,6 +77,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - UI erlaubt das Anlegen neuer Outside-Animationen und die Auswahl vorhandener Dateien aus `resources` als Asset-Quelle.
 - Saemtliche Outside-Animationsdefinitionen und deren Settings werden wie bestehende Profile/Defaults persistent gespeichert und geladen.
 
+## Neues verpflichtendes Feedback (P0 Regressionen in Outside Animations)
+- `Coded/Space` rendert aktuell nur schwarz und ist funktional regressiert; erwartetes frueheres Verhalten muss wiederhergestellt werden.
+- `Outside Sandstorm` flackert bzw. rewindet als Restart-Loop; Video muss stabil und kontinuierlich abgespielt werden.
+- Boomerang-Checkbox ist in der Outside-Editor-UI derzeit nicht setzbar und muss wieder deterministisch editierbar sein.
+- Asset-Type-Dropdown springt nach Aenderung sofort zurueck; Auswahl muss stabil im Editor verbleiben.
+- UX-Absicherung ist verpflichtend: Outside-Editor erhaelt einen expliziten Button `Apply changes`, damit Type + Resource + Optionen atomar zusammen uebernommen werden.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -88,6 +95,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 8. Resource-Asset-Picker liefern: vorhandene Dateien aus `resources` als Asset-Quelle auswaehlbar machen.
 9. Persistenz erweitern: Outside-Animationsdefinitionen + Settings verlustfrei speichern/laden (inkl. Legacy-Guards).
 10. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Priorisierte Hotfix-Welle (Plan 8-HF3, execute-ready)
+1. Outside-Coded-Restore: `Coded/Space` Render-/Runtime-Mapping auf vorregressionskonformes Verhalten zurueckfuehren.
+2. Sandstorm-Playback-Stability: mp4-Timeline/Loop-Lifecycle so haerten, dass kein Restart-Flackern/Rewind auftritt.
+3. Editor-Input-Stability: Boomerang-Checkbox und Asset-Type-Dropdown wieder deterministisch und persistent editierbar machen.
+4. UX-Commit-Guard: `Apply changes` im Outside-Animation-Editor einfuehren, sodass Type/Resource/Optionen atomar zusammen angewendet werden.
+5. Save/Reload-Non-Regression fuer Outside-Definitionseditor inkl. `Coded/Space`, `Outside Sandstorm`, Boomerang und Asset-Type ausfuehren.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
@@ -115,6 +130,11 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Asset-Mapping ist pro Outside-Animation in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; neue Eintraege sind sofort editierbar und triggerbar.
 - Outside-Animationsdefinitionen + Settings sind ueber Save/Reload/Restart sowie Defaults-Apply persistent und verlustfrei.
+- `Coded/Space` ist funktional wiederhergestellt und rendert nicht mehr als schwarzer No-Op.
+- `Outside Sandstorm` laeuft ohne sichtbares Restart-Flackern/Rewind stabil durch.
+- Boomerang-Checkbox ist in der Outside-Editor-UI klickbar/setzbar und bleibt nach Apply + Reload stabil erhalten.
+- Asset-Type-Dropdown bleibt nach User-Auswahl stabil und springt nicht auf alte Werte zurueck.
+- Outside-Editor besitzt `Apply changes`; Type/Resource/Optionen werden erst bei explizitem Apply gemeinsam und atomar uebernommen.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -125,3 +145,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Nachweise: `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/P8-T20-REGRESSION.md`, `.planning/phases/phase-08/P8-T23-EMPTY-START-VALIDATION.md`.
 - 2026-03-27: Plan 8-HF2 wurde atomar umgesetzt (P8-T25..P8-T34).
 - Nachweise: `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `debug/p8-hf2-api-resources.json`, `debug/p8-hf2-api-health.json`.
+- 2026-03-27: Neues verpflichtendes P0-Regressionsfeedback fuer Outside-Animationseditor priorisiert Plan 8-HF3 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF3 wurde atomar umgesetzt (P8-T35..P8-T40).
+- Nachweise: `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/P8-T39-OUTSIDE-EDITOR-REGRESSION.md`, `debug/p8-hf3-api-resources.json`, `debug/p8-hf3-api-health.json`.

@@ -44,6 +44,12 @@
 - Outside-Persistence-Definitions-Test: Definitionen + Settings ueberleben Save/Reload/Restart und Defaults-Apply ohne Drift.
 - Outside-Legacy-Migration-Test: bestehende Legacy-Outside-Konfigurationen werden verlustfrei in das neue Definitionsmodell ueberfuehrt.
 
+- Outside-Coded-Space-Restore-Test: `Coded/Space` rendert wieder erwartungskonform und bleibt nicht auf schwarzem Frame/Fallback stehen.
+- Outside-Sandstorm-Stability-Test: `Outside Sandstorm` spielt kontinuierlich ohne permanentes Restart/Rewind-Flackern im Laufzeitbetrieb.
+- Outside-Boomerang-Checkbox-Edit-Test: Boomerang-Checkbox ist setzbar/entfernbar und bleibt nach `Apply changes` + Reload deterministisch erhalten.
+- Outside-Asset-Type-Stability-Test: Asset-Type-Dropdown (`gif`/`mp4`/coded key) springt nicht zurueck und bleibt bis explizitem Apply stabil editierbar.
+- Outside-Apply-Atomicity-Test: `Apply changes` uebernimmt Type + Resource + Optionen atomar im selben Commit, ohne Teilapply bei Zwischenzustand.
+
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
 - Non-Regression-Sync-Test: Multi-Client-Synchronisation bleibt fuer relevante Kontexte stabil.
@@ -59,6 +65,9 @@
 - Nach P8-T25..P8-T27: Outside-Sandstorm ist verfuegbar/stumm und Boomerang-Playback arbeitet lifecycle-stabil.
 - Nach P8-T28..P8-T32: Outside-Settings sind ausgelagert, Dropdown/Edit/Create/Asset-Picker funktionieren deterministisch.
 - Nach P8-T33..P8-T34: Persistenz/Migration fuer Outside-Animationen ist PASS und Artefakt-Sync ist abgeschlossen.
+- Nach P8-T35..P8-T37: Outside-Playback-/Editor-Regressionen (`Coded/Space`, Sandstorm, Boomerang, Asset-Type) sind geschlossen.
+- Nach P8-T38..P8-T39: `Apply changes` atomisiert Outside-Edit-Commits; Save/Reload/Restart-Determinismus ist PASS.
+- Nach P8-T40: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -75,6 +84,10 @@
 - Outside-Animationseinstellungen leben in eigenstaendiger Sektion `Outside Animations`; `Play Area Editor` ist davon entkoppelt.
 - Asset-Mapping pro Outside-Animation ist in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; Definitionen + Settings sind persistent ueber Profile/Defaults.
+- `Coded/Space` ist als Outside-Animation visuell korrekt wiederhergestellt (kein Black-Screen-Regressionszustand).
+- `Outside Sandstorm` spielt stabil ohne sichtbares Restart-/Rewind-Flackern.
+- Boomerang-Checkbox ist stabil editierbar; Asset-Type-Dropdown bleibt stabil editierbar und springt nicht zurueck.
+- `Apply changes` ist als verpflichtender Commit-Schritt im Outside-Animation-Editor vorhanden und uebernimmt Type/Resource/Optionen atomar.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -95,3 +108,11 @@
   - `.planning/phases/phase-08/8-HF2-VERIFICATION.md`
   - `debug/p8-hf2-api-resources.json`
   - `debug/p8-hf2-api-health.json`
+
+## Execution Result (Plan 8-HF3)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF3-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T39-OUTSIDE-EDITOR-REGRESSION.md`
+  - `debug/p8-hf3-api-resources.json`
+  - `debug/p8-hf3-api-health.json`
