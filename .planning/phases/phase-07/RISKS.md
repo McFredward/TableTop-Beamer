@@ -100,6 +100,16 @@
 - Impact: Hoch bis kritisch.
 - Gegenmassnahme: klare Invarianten + Regression: nur Room-Klick setzt auto `target`, Start bleibt side-effect-frei fuer Draft-UI (room+cluster parity).
 
+## R21 Align-Mode driftet zwischen Clients
+- Risiko: Align-Toggle wird lokal oder rolleninkonsistent angewendet; `/output/final` weicht vom Controller-Status ab.
+- Impact: Kritisch, Kalibrierung/Operatorvertrauen brechen.
+- Gegenmassnahme: Align-Mode als serverautoritative Context-Mutation mit Snapshot-Version-Gate, dedup und Cross-Client-Regression inkl. `/output/final`.
+
+## R22 Board-Switch laesst Running-Reste des alten Boards stehen
+- Risiko: Beim Kontextwechsel bleiben alte Running-Eintraege sichtbar/steuerbar und erzeugen fachlich falschen Laufzeitkontext.
+- Impact: Kritisch, deterministic context integrity bricht.
+- Gegenmassnahme: Board-Switch atomar an Running-Clear koppeln (serverseitig), clientseitig boardfremde Rehydrierung droppen, reconnect-no-residue Regression verpflichtend.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -131,3 +141,10 @@
 ## Execution Update 7-HF4
 - R19 mitigated: room/cluster start no longer mutates draft UI fields; animation/target/slider controls stay stable after start.
 - R20 mitigated: control snapshot polling no longer rewrites local draft controls from runtime roomDraft, preventing post-start jump regressions.
+
+## New Hotfix Risk Focus (7-HF5)
+- R21/R22 sind als P0-Risiken fuer den Realbetrieb priorisiert; Plan 7-HF5 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF5
+- R21 mitigated: align mode now follows a server-authoritative `context-update` snapshot lifecycle across all clients incl. `/output/final` with stale/equal-version drop guards.
+- R22 mitigated: board switch now clears running atomically server-side and client apply blocks old-board running rehydration residues.

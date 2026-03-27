@@ -50,7 +50,14 @@
 6. P0 danach: P7-HF4-T6 (non-regression fuer room-click target autofill + cluster target stability).
 7. P0 Abschluss: P7-HF4-T7 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF4)
+## Priority Execution - Plan 7-HF5 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF5-T1 (Align-Mode als serverautoritative Context-Mutation mit Ack/Version/Dedup haerten).
+2. P0 danach: P7-HF5-T2..P7-HF5-T3 (Align-Snapshot-Apply auf allen Rollen inkl. `/output/final`, strict stale/equal-version reject).
+3. P0 danach: P7-HF5-T4..P7-HF5-T5 (Board-Switch atomar mit Running-Clear verknuepfen und clientseitige no-residue Guards setzen).
+4. P0 danach: P7-HF5-T6 (Regression-Matrix fuer Align-Roundtrip + Board-Switch-Running-empty inkl. Reload/Reconnect).
+5. P0 Abschluss: P7-HF5-T7 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF5)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -70,6 +77,7 @@
 - Kein Weitergehen zu Plan 7-2, solange Polling-Determinism-Gate nicht PASS ist (server-only truth, no optimistic state, snapshot-version-gated apply, adaptive polling, WS-hint-only).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF3 vollstaendig PASS ist (snapshot trigger full-run parity, explicit-stop-only, audio stale-replay guard, sequential stagger offset parity).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF4 vollstaendig PASS ist (start mutiert keine Draft-UI; room-click-only target autofill; room+cluster draft stability).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF5 vollstaendig PASS ist (align-mode serverautoritativ auf allen Clients inkl. `/output/final`; board-switch running-clear ohne Alt-Reste).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -116,4 +124,14 @@
 - HF4 evidence recorded in `debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`.
 
 ## Next Wave
-- Next executable wave: Plan 7-2 (Hardening).
+- Next executable wave: Plan 7-HF5 (P0) before Plan 7-2.
+
+## Execution Update 7-HF5
+- P7-HF5-T1..P7-HF5-T7 completed.
+- Align toggle command path is now context-authoritative (`context-update`) with ack/version/dedup and snapshot-only UI apply.
+- Snapshot apply parity incl. `/output/final` is enforced, and stale/equal-version payloads are dropped in polling + reconnect replay.
+- Board-switch context mutation now clears running atomically; client apply blocks old-board residue rehydration.
+- HF5 evidence recorded in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.
+
+## Next Wave
+- Next executable wave: Plan 7-2 (P1 hardening).

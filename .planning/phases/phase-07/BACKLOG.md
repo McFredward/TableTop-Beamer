@@ -13,6 +13,7 @@
 - Snapshot Polling Determinism Pivot
 - Snapshot Trigger Determinism + Audio Consistency + Sequential Stagger
 - Draft UI Immutability on Start
+- Align-Mode Sync + Board-Switch Running-Clear Determinism
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -71,6 +72,13 @@
 - P7-S12.4 Regression fuer Serienstarts mit identischen Einstellungen ergaenzen (room + cluster, Dropdown/Slider stabil).
 - P7-S12.5 Artefakt-Sync fuer HF4 verpflichtend im selben Schritt abschliessen.
 
+- P7-S13.1 Align-Mode-Toggle als serverautoritative Context-Mutation mit Version/Ack/Dedup absichern (kein lokales Optimismus-Toggle).
+- P7-S13.2 Snapshot-Apply fuer Align-Mode auf allen Rollen vereinheitlichen, inklusive `/output/final` als Pflichtpfad.
+- P7-S13.3 Board-Switch atomar an Running-Clear koppeln, damit alte Board-Runs deterministisch entfernt werden.
+- P7-S13.4 Clientseitigen Board-Switch-Apply gegen Rehydrierung boardfremder Running-Eintraege haerten.
+- P7-S13.5 Regression fuer Align-Roundtrip und Board-Switch-no-residue (3-4 Clients inkl. `/output/final`) verpflichtend machen.
+- P7-S13.6 Artefakt-Sync fuer HF5 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -94,7 +102,8 @@
 - Plan 7-HF2 Polling Determinism Hotfix (verpflichtend vor 7-2): server snapshots + adaptive polling + no-optimistic-state + optional WS wakeup hint.
 - Plan 7-HF3 Trigger/Audio/Stagger Hotfix (verpflichtend vor 7-2): snapshot-trigger-once-full-run + explicit-stop-only + stale-audio-drop + sequential stagger offset slider.
 - Plan 7-HF4 Draft-UI-Immutability Hotfix (verpflichtend vor 7-2): start darf keine Draft-Felder mutieren; room-click target-autofill bleibt als einziger Auto-Pfad.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF4).
+- Plan 7-HF5 Align/Board-Switch Determinism Hotfix (verpflichtend vor 7-2): align-mode serverautoritativ ueber alle Clients inkl. `/output/final`; board-switch leert Running deterministisch ohne Alt-Reste.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF5).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -133,4 +142,13 @@
 - P7-S12.5 + P7-S12.6 implemented: regression/non-regression matrices now include multi-start same-settings, no-jump checks, and room/cluster target stability evidence (`debug/p7-hf4-*`).
 
 ## Gate Closure
-- Plan 7-HF4 is PASS and no longer blocks Plan 7-2.
+- Plan 7-HF4 is PASS; der Draft-Immutability-Blocker ist geschlossen.
+
+## Execution Update 7-HF5
+- P7-S13.1 implemented: align toggle now uses server-authoritative `context-update` command flow with ack/version/dedup and no local optimistic state.
+- P7-S13.2 + P7-S13.3 implemented: align snapshot apply parity incl. `/output/final` and strict stale/equal-version reject in poll + reconnect paths.
+- P7-S13.4 + P7-S13.5 implemented: board-switch context update clears running atomically server-side and client apply blocks old-board running rehydration.
+- P7-S13.6 implemented: regression/non-regression evidence now covers align ON/OFF roundtrip, board-switch running-empty matrix, and reconnect parity (`debug/p7-hf5-*`).
+
+## Gate Closure
+- Plan 7-HF5 is PASS; Plan 7-2 is unblocked.

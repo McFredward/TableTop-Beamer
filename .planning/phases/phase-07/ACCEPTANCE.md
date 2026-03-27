@@ -58,6 +58,12 @@
 - Start-Does-Not-Autofill-Target-Test: Start-Handler setzt niemals auto `target`; nur Room-Klick darf dies ausloesen.
 - Multi-Start-Same-Settings-Stability-Test: mehrere Starts nacheinander mit identischen Draft-Einstellungen bleiben feldstabil ohne Jump auf `cluster`/`Malfunction`.
 
+- Align-Mode-Server-Authority-Test: Align-Toggle wird ausschliesslich serverautoritativ committet und ueber Snapshot-Versionen repliziert (kein lokaler Optimismus).
+- Align-Mode-Cross-Client-Parity-Test: Align on/off bleibt ueber 3-4 Clients inkl. `/output/final` versionstreu und first-toggle-deterministisch sichtbar.
+- Align-Mode-Stale-Reject-Test: stale/equal snapshot-Versionen duerfen Align-Status nicht rueckwaerts ueberschreiben.
+- Board-Switch-Running-Clear-Test: nach Board-Wechsel ist `runningAnimations` deterministisch leer; alte Board-Animationen duerfen nicht weiter angezeigt oder steuerbar sein.
+- Board-Switch-No-Residue-Reconnect-Test: nach Switch + Reload/Reconnect erscheinen keine Running-Reste aus dem alten Board.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -80,6 +86,8 @@
 - Event-Pipeline ist robust gegen duplicate, stale, reconnect und burst pressure.
 - Client-UI/Zustand ist nicht-optimistisch: final sichtbarer Zustand kommt ausschliesslich aus serverseitigen Snapshots mit Version-Gate.
 - Keine Regression in room/cluster, align-mode, audio-role-routing, persistence.
+- Align-Mode ist serverautoritativ und auf allen Rollen inkl. `/output/final` deterministisch synchron.
+- Board-Switch leert Running deterministisch; es bleiben keine Alt-Animationen des vorherigen Boards sichtbar.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Update 7-1
@@ -134,3 +142,14 @@
 - PASS: Room-click target autofill remains target-only path; no start-side replacement of click autofill logic.
 - PASS: Snapshot/polling apply is decoupled from control draft fields (`runtime.roomDraft` no longer overwrites local dropdowns/sliders).
 - PASS: HF4 evidence captured in `debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF5)
+- Neues verpflichtendes Feedback oeffnet vor Plan 7-2 einen weiteren P0-Gate: Align-Mode ist derzeit nicht serverautoritativ ueber alle Clients synchron, und beim Board-Wechsel bleiben Running-Reste des alten Boards bestehen.
+- Freigabevoraussetzung: Align/Board-Switch-Determinism-Gate ist PASS (Align-Toggle serverautoritativ inkl. `/output/final`; Board-Switch leert Running deterministisch ohne Rehydrierungsreste).
+
+## Gate Closure Update (Plan 7-HF5)
+- PASS: Align toggle is server-authoritative via `context-update` command/ack/version flow; no local optimistic align state apply.
+- PASS: Align ON/OFF snapshot roundtrip is deterministic across 4 polling clients including `/output/final`.
+- PASS: strict stale/equal-version reject is active for polling and reconnect replay (`incomingVersion <= appliedVersion => drop`).
+- PASS: board switch clears running state atomically in server context mutation and no old-board residues rehydrate on clients.
+- PASS: HF5 evidence captured in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.

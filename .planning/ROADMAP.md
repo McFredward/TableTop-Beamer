@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3 und 7-HF4 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`); Plan 7-2 ist als naechste Hardening-Welle freigegeben.
+Status: Plan 7-1, 7-HF1, 7-HF2, 7-HF3 und 7-HF4 sind abgeschlossen (`.planning/phases/phase-07/7-1-SUMMARY.md`, `.planning/phases/phase-07/7-HF1-SUMMARY.md`, `.planning/phases/phase-07/7-HF2-SUMMARY.md`, `.planning/phases/phase-07/7-HF3-SUMMARY.md`, `.planning/phases/phase-07/7-HF4-SUMMARY.md`); neues Pflichtfeedback setzt Plan 7-HF5 als P0-Hotfix vor Plan 7-2.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -228,6 +228,7 @@ Milestones:
 9. M9 Polling Determinism Pivot: server-only source of truth, snapshot-versioned polling (120-250 ms), no optimistic local states, optional WS wakeup hints.
 10. M10 Trigger/Audio/Stagger Consistency Hotfix: snapshot-trigger full-run parity, explicit-stop-only lifecycle, audio stale-replay guard, sequential stagger offset slider.
 11. M11 Draft Immutability Hotfix: Start mutiert keine Draft-UI; room-click bleibt einziger auto-target Pfad; room/cluster parity fuer Serienstarts.
+12. M12 Align/Board-Switch Determinism Hotfix: Align-Mode serverautoritativ ueber alle Clients inkl. `/output/final`; Board-Switch leert Running deterministisch ohne Alt-Reste.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -242,6 +243,8 @@ Exit Criteria:
 - Start einer room/cluster Animation mutiert Draft-Felder nicht; Dropdowns (`animation`, `target`) und Slider bleiben nach Start unveraendert.
 - Board-Raumklick bleibt als einziger erlaubter Auto-Pfad fuer `target` erhalten; Start aendert `target` nicht.
 - Workflow `mehrere Raeume nacheinander mit gleichen Einstellungen` bleibt stabil fuer room- und cluster-targets.
+- Align-Mode-Toggle ist serverautoritativ und synchron auf allen Clients inklusive `/output/final` sichtbar.
+- Board-Wechsel fuehrt deterministisch zu einer leeren Running-Liste ohne Reste vom vorherigen Board (inkl. Reload/Reconnect).
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -259,6 +262,15 @@ Execution Update (7-HF4):
 - Room/cluster start path is draft-immutable: no start-side reset/jump of `animation`, `target`, or slider drafts.
 - Control snapshot apply no longer back-writes `runtime.roomDraft` into local draft controls.
 - HF4 regression/non-regression/latency evidence is PASS (`debug/p7-hf4-t12-output.json`, `debug/p7-hf4-t13-output.json`, `debug/p7-hf4-t14-output.json`).
+
+Execution Update (7-HF5):
+- Align toggle now flows as server-authoritative `context-update` with ack/version/dedup and snapshot-only apply across clients including `/output/final`.
+- Polling and reconnect replay enforce strict stale/equal-version reject (`incomingVersion <= appliedVersion => drop`).
+- Board switch clears running atomically in server context mutation and client apply prevents old-board residue rehydration.
+- HF5 evidence is PASS (`debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`).
+
+Next Wave:
+- Plan 7-2 Hardening is unblocked and is now the next executable wave.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

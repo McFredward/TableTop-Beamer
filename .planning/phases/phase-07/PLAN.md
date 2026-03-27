@@ -206,5 +206,31 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Gate Closure
 - Plan 7-HF4 is PASS; Draft-UI-Immutability gate is closed.
 
+## Neues verpflichtendes Feedback (Plan 7-HF5, P0-Hotfix, execute-ready)
+- Problem aus Realbetrieb: Align-Mode wird aktuell nicht deterministisch ueber alle Clients synchronisiert; insbesondere `/output/final` kann vom Controller-Status abweichen.
+- Architekturentscheidung (verbindlich): Align-Mode ist serverautoritativer Shared-State und wird ausschliesslich ueber Command->Snapshot-Versionierung repliziert; lokale Toggle-Annahmen sind unzulaessig.
+- Replikationsentscheidung (verbindlich): Align-Mode-Toggle muss auf allen Rollen inklusive `/output/final` im selben Versionsfluss mit strict stale-drop (`incomingVersion <= appliedVersion`) sichtbar werden.
+- Problem aus Realbetrieb: Beim Board-Wechsel bleiben vereinzelt alte Animationseintraege in Running bestehen.
+- Lifecycle-Entscheidung (verbindlich): Board-Switch erzwingt deterministisches Runtime-Cleanup; Running-Liste wird atomar board-kontextrein geleert (keine Reste des alten Boards).
+
+## Plan 7-HF5 Scope (execute-ready)
+- Align-Mode als explizite serverautoritative Context-Mutation haerten (Command-Ack + Snapshot-Version + dedup).
+- Snapshot-Apply fuer Align-Mode auf allen Client-Rollen vereinheitlichen und `/output/final` als Pflichtpfad in die Gate-Matrix nehmen.
+- UI-/Runtime-Guards setzen: Control-Clients zeigen Align-Status nur aus Snapshot; kein lokales Toggle ohne serverbestaetigte Version.
+- Board-Switch-Lifecycle serverseitig atomar machen: Kontextwechsel + deterministisches Running-Clear in derselben kanonischen Mutation/Version.
+- Client-Apply bei Board-Switch mit strikt board-gebundenem Running-Reset absichern, damit alte boardfremde Eintraege nicht rehydrieren.
+- Regression erweitern: Align-on/off Roundtrip ueber 3-4 Clients inkl. `/output/final` sowie Board-Switch no-residue Matrix (Start -> Switch -> Running=empty).
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Execution Update 7-HF5
+- P7-HF5-T1..P7-HF5-T7 completed.
+- Align toggle is now routed as server-authoritative `context-update` command (ack/version/dedup) with no local optimistic apply.
+- Snapshot apply now synchronizes align state across roles incl. `/output/final`, while strict stale/equal-version reject is enforced for polling and reconnect replay.
+- Board switch context mutation now clears runtime running state atomically; client apply additionally filters cross-board running residues.
+- HF5 evidence recorded in `debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF5 is PASS; Align/Board-Switch-Determinism gate is closed.
+
 ## Next Wave
-- Plan 7-2 (Hardening) is unblocked as the next executable wave.
+- Plan 7-2 (Hardening) is now the next executable wave.

@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF4
+- Last Executed Plan: 7-HF5
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -438,6 +438,14 @@
 - Klick-Regel fuer Phase 7 (Plan 7-HF4): Board-Raumklick darf weiterhin ausschliesslich `target` auto auf den geklickten Raum setzen; Start selbst aendert keine Draft-Felder.
 - Scope-Regel fuer Phase 7 (Plan 7-HF4): Verhalten bleibt stabil fuer `targetType=room` und `targetType=cluster`.
 - Artefakt-Regel fuer Phase 7 (Plan 7-HF4): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Neues verpflichtendes Feedback fuer Phase 7 ist gesetzt (nach HF4): Align-Mode sync driftet zwischen Clients und Board-Wechsel laesst Running-Reste vom alten Board stehen.
+- Align-Regel fuer Phase 7 (Plan 7-HF5): Align-Mode ist serverautoritiver Shared-State und wird nur ueber Command->Snapshot-Versionen auf alle Clients inkl. `/output/final` repliziert.
+- Board-Switch-Regel fuer Phase 7 (Plan 7-HF5): Kontextwechsel leert Running atomar und deterministisch; boardfremde Running-Eintraege duerfen nicht rehydrieren.
+- Artefakt-Regel fuer Phase 7 (Plan 7-HF5): PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE werden im selben Schritt konsistent synchronisiert.
+- Plan-7-HF5 execution: align toggle is now a server-authoritative `context-update` command with ack/version/dedup and snapshot-only apply (no local optimistic align state).
+- Plan-7-HF5 execution: align snapshot apply parity now includes `/output/final`; stale/equal-version payloads are rejected deterministically in polling and reconnect replay.
+- Plan-7-HF5 execution: board-switch context update clears running atomically server-side and client snapshot apply blocks old-board running residue rehydration.
+- Plan-7-HF5 execution: HF5 regression and evidence PASS (`debug/p7-hf5-t12-output.json`, `debug/p7-hf5-t13-output.json`, `debug/p7-hf5-t14-output.json`); Plan 7-2 is unblocked.
 
 ## Execute-Phase Contract (Phase 1)
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
