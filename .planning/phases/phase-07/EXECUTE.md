@@ -64,7 +64,14 @@
 4. P0 danach: P7-HF6-T4 (deterministische switch+reconnect regression mit Invariante `crossBoardResidueCount = 0` fuer 3-4 Clients inkl. `/output/final`).
 5. P0 Abschluss: P7-HF6-T5 (evidence + artefakt-sync komplett).
 
-## Priority Execution - Plan 7-2 (nach 7-HF6)
+## Priority Execution - Plan 7-HF7 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF7-T1 (Stop-Action-Routing strikt auf `stop-animation` fuer bestehende `animation.id` haerten; create/start side-effects verbieten).
+2. P0 danach: P7-HF7-T2 (serverautoritative/idempotente Stop-Mutation absichern; stale/unknown stop darf keinen Startpfad triggern).
+3. P0 danach: P7-HF7-T3 (stop snapshot/broadcast apply deterministisch auf allen Rollen inkl. `/output/final` versionieren).
+4. P0 danach: P7-HF7-T4 (UI inflight guard/debounce pro run-id gegen Re-Trigger und double-dispatch).
+5. P0 Abschluss: P7-HF7-T5 (regression-evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF7)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -86,6 +93,7 @@
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF4 vollstaendig PASS ist (start mutiert keine Draft-UI; room-click-only target autofill; room+cluster draft stability).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF5 vollstaendig PASS ist (align-mode serverautoritativ auf allen Clients inkl. `/output/final`; board-switch running-clear ohne Alt-Reste).
 - Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF6 vollstaendig PASS ist (authoritative atomic switch-clear transaction, sanitize-before-persist/broadcast, reconnect board-context filter, residue-zero regression).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF7 vollstaendig PASS ist (stop-only routing ohne create/start side-effects, serverautoritative stop propagation inkl. `/output/final`, UI re-trigger guard, room/global/cluster stop parity).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -144,6 +152,10 @@
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).
 
+## New Blocking Wave
+- Neues verpflichtendes Feedback meldet einen P0-Regression-Blocker: Running-List-Stop routed in Randfaellen als Start/Neuinstanz statt deterministic stop.
+- Next executable wave is now Plan 7-HF7 (P0) before Plan 7-2.
+
 ## New Blocking Wave (verify-work 7-HF5 follow-up)
 - Two P0 blockers remain open (non-deterministic board-switch clear, reconnect cross-board residue rehydrate).
 - Next executable wave is now Plan 7-HF6 (P0) before Plan 7-2.
@@ -155,6 +167,14 @@
 - Reconnect/join hydration now hard-filters running entries by board context; foreign-board entries are rejected deterministically.
 - HF6 deterministic matrix now enforces `crossBoardResidueCount = 0` for switch+reconnect across 4 polling clients including `/output/final`.
 - HF6 evidence recorded in `debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`.
+
+## Execution Update 7-HF7
+- P7-HF7-T1..P7-HF7-T5 completed.
+- Running-list stop path is hardened to stop-only dispatch (`stop-animation`) with explicit helper guard against trigger/create side effects.
+- Server `stop-animation` mutation is idempotent for stale/unknown IDs and reconciles cluster-linked stop lifecycle deterministically.
+- Stop/clear `live-session-update` snapshots now apply immediately on clients for synchronized stop behavior including `/output/final`.
+- UI stop controls use per-animation inflight locks and `Stopping...` disable state until snapshot confirms stop.
+- HF7 evidence recorded in `debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`.
 
 ## Next Wave
 - Next executable wave: Plan 7-2 (P1 hardening).

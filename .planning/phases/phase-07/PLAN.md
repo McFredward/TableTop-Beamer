@@ -260,5 +260,35 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 ## Gate Closure
 - Plan 7-HF6 is PASS; the board-context residue elimination blocker is closed.
 
+## Neues verpflichtendes Feedback (Plan 7-HF7, P0-Hotfix, execute-ready)
+- P0 Regression aus Realbetrieb: Stop-Button in der Running-Liste beendet die gewaehlte Animation nicht mehr deterministisch.
+- Symptom: Statt Stop wird teils ein neuer Startpfad ausgeloest; `animation.id` zaehlt hoch und erzeugt Side-Effects.
+- Routing-Regel (verbindlich): Stop-Aktion darf ausschliesslich als `stop-animation` Command fuer die bestehende `animation.id` verarbeitet werden; create/start-Side-Effects sind unzulaessig.
+- Autoritaets-Regel (verbindlich): Stop-Mutation wird serverautoritativ committet und versionsgebunden auf alle Clients inkl. `/output/final` repliziert.
+- UI-Guard-Regel (verbindlich): Stop-UI ist inflight-gesichert (idempotent/no-retrigger), bis Ack/Snapshot den Stop final bestaetigt.
+- Paritaets-Regel (verbindlich): Stop-Verhalten bleibt deterministisch fuer `room`, `global` und `cluster` inkl. Multi-Client-Reconnect/Polling-Paritaet.
+
+## Plan 7-HF7 Scope (execute-ready)
+- Stop-Action-Routing haerten: Running-List-Stop dispatcht nur `stop-animation` fuer die ausgewaehlte Instanz, ohne impliziten Trigger-/Create-Fallback.
+- Server-Mutationspfad absichern: `stop-animation` wird idempotent und authoritative auf bestehende Runs angewandt; unknown/stale IDs erzeugen keine Start-Nebenwirkung.
+- Snapshot/Broadcast determinisieren: Stop-Commit propagiert versionsstabil auf alle Rollen inkl. `/output/final` und verhindert Rehydrate alter Run-Eintraege.
+- UI-Action-Guard einfuehren: pro `animation.id` Stop-Button waehrend pending sperren/debouncen; Doppelklick/Retry erzeugt keine zweite Mutation.
+- Regression erweitern: room/global/cluster stop path, anim-id non-increment invariant und 3-4 Client parity (control + `/output/final`) als Pflichtmatrix.
+- Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` plus `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`.
+
+## Neue verpflichtende Welle
+- Plan 7-HF7 (Stop-Action Routing + Deterministic Stop Propagation) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF7
+- P7-HF7-T1..P7-HF7-T5 completed.
+- Running-list stop routing now uses a strict stop-only command helper (`stop-animation` only), preventing accidental trigger/create side paths.
+- Server `stop-animation` patch is idempotent for unknown/stale IDs and reconciles cluster-linked stop semantics without any start-side mutation.
+- `live-session-update` now applies stop/clear snapshots immediately on clients, keeping control and `/output/final` synchronized under version/dedup guards.
+- UI stop actions are inflight-locked per animation (`pendingStopAnimationIds`) with disabled `Stopping...` controls until snapshot confirms stop.
+- HF7 evidence is synchronized in `debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`.
+
+## Gate Closure
+- Plan 7-HF7 is PASS; the stop-action determinism blocker is closed.
+
 ## Next Wave
-- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF6.
+- Plan 7-2 (Hardening) folgt erst nach abgeschlossenem Plan 7-HF7.

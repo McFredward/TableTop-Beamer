@@ -21,10 +21,10 @@
 - Polling pivot metrics now include command/snapshot gates (`commandAccepted`, `snapshotVersionVisible`, `snapshotApplied`).
 - Final target pass/fail for production SLO still requires dedicated live multi-device run capture.
 
-## Refreshed Evidence (Plan 7-HF5)
+## Refreshed Evidence (Plan 7-HF7)
 
-- `debug/p7-hf5-t12-output.json`
-- `debug/p7-hf5-t13-output.json`
-- `debug/p7-hf5-t14-output.json`
+- `debug/p7-hf7-t12-output.json`
+- `debug/p7-hf7-t13-output.json`
+- `debug/p7-hf7-t14-output.json`
 
-Hotfix closure note: HF5 confirms align/context snapshot parity and board-switch running-clear determinism on top of HF4 draft-immutability, HF3 trigger/audio/stagger determinism, and HF2 polling correctness. Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.
+Hotfix closure note: HF7 confirms stop-only routing, idempotent server stop semantics, immediate stop snapshot propagation, and room/global/cluster stop parity (incl. anim-id non-increment) on top of HF6 residue elimination, HF5 align/context determinism, HF4 draft-immutability, HF3 trigger/audio/stagger determinism, and HF2 polling correctness. Production SLO sign-off for Phase 7 still requires dedicated live multi-device latency capture.

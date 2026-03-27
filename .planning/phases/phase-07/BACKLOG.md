@@ -15,6 +15,7 @@
 - Draft UI Immutability on Start
 - Align-Mode Sync + Board-Switch Running-Clear Determinism
 - Board-Context Residue Elimination Across Switch/Reconnect
+- Stop-Action Routing Determinism + Multi-Role Stop Propagation
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -86,6 +87,13 @@
 - P7-S14.4 Deterministische Regression fuer `switch -> reconnect` mit harter Invariante `crossBoardResidueCount = 0` ueber 3-4 Clients inkl. `/output/final`.
 - P7-S14.5 Evidenz + Artefakt-Sync fuer HF6 verpflichtend im selben Schritt abschliessen.
 
+- P7-S15.1 Running-List-Stop strikt auf `stop-animation` fuer die bestehende `animation.id` routen; create/start-Side-Effects sind verboten.
+- P7-S15.2 Serverseitigen Stop-Mutationspfad idempotent haerten: unknown/stale stop darf keinen Startpfad ausloesen.
+- P7-S15.3 Snapshot/Broadcast-Propagation fuer Stop serverautoritativ versionieren und auf alle Rollen inkl. `/output/final` deterministisch replizieren.
+- P7-S15.4 UI-Stop-Action-Guard einziehen: per-run pending lock/debounce gegen versehentliche Re-Trigger und Doppeldispatch.
+- P7-S15.5 Regression-Matrix fuer room/global/cluster stop parity + anim-id non-increment invariant ueber 3-4 Clients verpflichtend machen.
+- P7-S15.6 Evidenz + Artefakt-Sync fuer HF7 verpflichtend im selben Schritt abschliessen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -111,7 +119,8 @@
 - Plan 7-HF4 Draft-UI-Immutability Hotfix (verpflichtend vor 7-2): start darf keine Draft-Felder mutieren; room-click target-autofill bleibt als einziger Auto-Pfad.
 - Plan 7-HF5 Align/Board-Switch Determinism Hotfix (verpflichtend vor 7-2): align-mode serverautoritativ ueber alle Clients inkl. `/output/final`; board-switch leert Running deterministisch ohne Alt-Reste.
 - Plan 7-HF6 Board-Context Residue Elimination Hotfix (verpflichtend vor 7-2): authoritative atomic switch-clear transaction, server snapshot sanitization vor persist/broadcast, reconnect board-context filtering, residue=0 regression.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF6).
+- Plan 7-HF7 Stop Routing + Deterministic Stop Propagation Hotfix (verpflichtend vor 7-2): stop-action darf keine create/start side-effects ausloesen; stop commit ist serverautoritativ/idempotent mit multi-role parity inkl. `/output/final`.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF7).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -174,3 +183,17 @@
 
 ## Gate Closure
 - Plan 7-HF6 is PASS; the Board-Context Residue Elimination blocker is closed and Plan 7-2 is unblocked.
+
+## New Blocking Wave
+- Neues verpflichtendes Feedback meldet einen P0-Regression-Blocker: Running-List-Stop triggert in Randfaellen neue Instanzen (`animation.id` increment) statt bestehende Runs zu stoppen.
+- Plan 7-HF7 ist als execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis zum Stop-Determinism-PASS.
+
+## Execution Update 7-HF7
+- P7-S15.1 implemented: running-list stop routing is strict `stop-animation` only with no trigger/create side-effects.
+- P7-S15.2 implemented: server stop mutation is idempotent for stale/unknown IDs and reconciles cluster-linked stop semantics safely.
+- P7-S15.3 implemented: stop/clear `live-session-update` snapshots are applied immediately for deterministic multi-client parity including `/output/final`.
+- P7-S15.4 implemented: UI inflight guard adds per-animation pending locks and disables stop controls while stop is awaiting snapshot confirmation.
+- P7-S15.5 + P7-S15.6 implemented: regression/evidence matrix confirms room/global/cluster stop parity with anim-id non-increment invariant (`debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`).
+
+## Gate Closure
+- Plan 7-HF7 is PASS; Plan 7-2 remains the next hardening wave.

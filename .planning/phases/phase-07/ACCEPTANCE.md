@@ -68,6 +68,12 @@
 - Reconnect-Board-Context-Filter-Test: reconnect-hydrierte Running-Liste enthaelt ausschliesslich Eintraege fuer `selectedBoard`.
 - Cross-Board-Residue-Zero-Invariant-Test: deterministische Matrix (`switch -> reconnect`) liefert `crossBoardResidueCount = 0` ueber alle Clients inkl. `/output/final`.
 
+- Stop-Route-No-Start-Side-Effect-Test: Running-List-Stop erzeugt ausschliesslich `stop-animation` fuer die bestehende `animation.id`; kein create/start command darf als Side-Effect auftreten.
+- Stop-AnimId-NonIncrement-Invariant-Test: bei Stop bleibt die Instanz-ID stabil (kein neuer Running-Eintrag, keine `animation.id`-Erhoehung durch Stop).
+- Stop-Server-Authority-Propagation-Test: server-commiteter Stop repliziert deterministisch ueber alle Rollen inkl. `/output/final` im selben Snapshot-Versionfluss.
+- Stop-UI-Inflight-Guard-Test: Mehrfachklick/Doppeltap auf Stop erzeugt keinen Doppeldispatch und keinen ungueltigen Retry-Startpfad.
+- Stop-Room-Global-Cluster-Parity-Test: stop semantics bleiben fuer `room`, `global` und `cluster` first-click-deterministisch inklusive Reload/Reconnect.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -92,6 +98,7 @@
 - Keine Regression in room/cluster, align-mode, audio-role-routing, persistence.
 - Align-Mode ist serverautoritativ und auf allen Rollen inkl. `/output/final` deterministisch synchron.
 - Board-Switch leert Running deterministisch; es bleiben keine Alt-Animationen des vorherigen Boards sichtbar.
+- Running-List-Stop bleibt stop-only deterministisch: keine Neuinstanz/ID-Erhoehung durch Stop, serverautoritative Stop-Propagation auf allen Rollen.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
 ## Execution Update 7-1
@@ -168,3 +175,14 @@
 - PASS: reconnect/join snapshot apply hard-filters running by `selectedBoard`; cross-board rehydrate payloads are dropped.
 - PASS: deterministic switch+reconnect matrix proves `crossBoardResidueCount = 0` across 4 polling clients including `/output/final`.
 - PASS: HF6 evidence captured in `debug/p7-hf6-t12-output.json`, `debug/p7-hf6-t13-output.json`, `debug/p7-hf6-t14-output.json`.
+
+## New Blocking Gate (Plan 7-HF7)
+- Neues verpflichtendes Feedback oeffnet vor Plan 7-2 einen weiteren P0-Gate: Running-List-Stop erzeugt in Randfaellen neue Instanzen statt die bestehende Animation zu stoppen.
+- Freigabevoraussetzung: Stop-Action-Determinism-Gate ist PASS (strict stop-only routing ohne create/start side-effects, serverautoritatives stop apply auf allen Clients inkl. `/output/final`, UI re-trigger guard, room/global/cluster parity).
+
+## Gate Closure Update (Plan 7-HF7)
+- PASS: Running-list stop routing now dispatches only `stop-animation` via a dedicated stop helper; create/start side paths are blocked.
+- PASS: Server stop mutation is idempotent and authoritative for stale/unknown IDs and cluster-linked stop reconciliation without start side-effects.
+- PASS: stop/clear commits apply immediately via `live-session-update` snapshot path and stay version/dedup guarded across control + `/output/final`.
+- PASS: UI stop controls are inflight-idempotent (`pendingStopAnimationIds`, disabled `Stopping...` state) until snapshot confirms removal.
+- PASS: room/global/cluster stop parity and `anim-id` non-increment invariant verified across 4 clients (incl. `/output/final`) with evidence in `debug/p7-hf7-t12-output.json`, `debug/p7-hf7-t13-output.json`, `debug/p7-hf7-t14-output.json`.

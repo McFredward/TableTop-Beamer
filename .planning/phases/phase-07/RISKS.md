@@ -120,6 +120,21 @@
 - Impact: Kritisch, Residue rehydrate trotz Switch-Clear moeglich.
 - Gegenmassnahme: verpflichtender Snapshot-Sanitizer vor Persistenz/Broadcast sowie Residue-Zero-Invariant in Regression (`crossBoardResidueCount = 0`).
 
+## R25 Stop-Action-Routing triggert Start-Side-Effects
+- Risiko: Stop aus Running-Liste wird falsch geroutet und startet implizit eine neue Instanz (`animation.id` increment) statt bestehende zu beenden.
+- Impact: Kritisch, P0 Regression im Safety-Pfad.
+- Gegenmassnahme: strict stop-only routing (`stop-animation` by existing `animation.id`), serverseitiger Command-Classifier-Guard gegen create/start Side-Effects.
+
+## R26 Stop-Propagation ist rolleninkonsistent
+- Risiko: Stop ist lokal sichtbar, aber auf anderen Clients oder `/output/final` nicht deterministisch/appliziert.
+- Impact: Kritisch, Multi-Client-Vertrauen und Bedienkonsistenz brechen.
+- Gegenmassnahme: serverautoritativer stop commit mit versionsgebundenem Snapshot/Broadcast und obligatorischer multi-role parity regression.
+
+## R27 Stop-UI erzeugt Doppel-Dispatch bei Mehrfachklick
+- Risiko: schnelle Mehrfachklicks auf Stop senden redundante Commands, triggern Race-Conditions oder unerwuenschte Re-Trigger.
+- Impact: Hoch bis kritisch.
+- Gegenmassnahme: inflight pending lock/debounce pro run-id, idempotente stop mutation semantics, no double-dispatch assertions.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -165,3 +180,11 @@
 ## Execution Update 7-HF6
 - R23 mitigated: board-switch clear now uses an authoritative atomic context transaction with idempotent transaction guard, removing non-deterministic switch residue.
 - R24 mitigated: snapshot sanitizer + reconnect board-context filtering prevent cross-board running rehydrate after switch/reconnect.
+
+## New Hotfix Risk Focus (7-HF7)
+- Neues Pflichtfeedback priorisiert R25/R26/R27 als P0-Risiken; Plan 7-HF7 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF7
+- R25 mitigated: stop action routing is strict stop-only (`stop-animation`) and cannot fall through to create/start side effects.
+- R26 mitigated: server stop mutation acknowledges stale/unknown IDs idempotently and keeps cluster-linked stop lifecycle deterministic.
+- R27 mitigated: stop propagation + UI inflight guards now keep room/global/cluster stop parity and prevent anim-id increment regressions across control + `/output/final`.

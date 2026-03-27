@@ -73,6 +73,17 @@ function countCrossBoardResidue(runtime, selectedBoard) {
   }).length;
 }
 
+function collectRunningIds(runtime) {
+  return new Set(readRunningAnimations(runtime).map((entry) => entry?.id).filter(Boolean));
+}
+
+function assertNoUnexpectedIdsAfterStop(beforeIds, afterIds, removedIds, messagePrefix) {
+  const removedSet = new Set(removedIds.filter(Boolean));
+  const expectedAfter = new Set([...beforeIds].filter((id) => !removedSet.has(id)));
+  const unexpected = [...afterIds].filter((id) => !expectedAfter.has(id));
+  assert(unexpected.length === 0, `${messagePrefix}: unexpected animation IDs after stop (${unexpected.join(",")})`);
+}
+
 function createPollingClient(role) {
   return {
     role,
@@ -278,6 +289,10 @@ async function main() {
   rows.push({ area: "room", behavior: "start deterministic across 4 polling clients", status: "PASS" });
   rows.push({ area: "hf4", behavior: "room start keeps draft animation/target/sliders stable (no jump to cluster/Malfunction)", status: "PASS" });
 
+  const roomStopBaselineByRole = Object.fromEntries(clients.map((client) => [
+    client.role,
+    collectRunningIds(client.snapshot?.runtime),
+  ]));
   const stopAck = await sendCommand("stop-animation", {
     animationId: roomAnimationId,
     priorityHint: "high",
@@ -285,8 +300,16 @@ async function main() {
   await waitForAllClientsVersion(clients, stopAck.version);
   for (const client of clients) {
     assert(!findAnimation(client.snapshot?.runtime, roomAnimationId), `stop not visible on ${client.role}`);
+    const afterIds = collectRunningIds(client.snapshot?.runtime);
+    assertNoUnexpectedIdsAfterStop(
+      roomStopBaselineByRole[client.role],
+      afterIds,
+      [roomAnimationId],
+      `room-stop-no-id-increment on ${client.role}`,
+    );
   }
   rows.push({ area: "room", behavior: "stop deterministic across 4 polling clients", status: "PASS" });
+  rows.push({ area: "hf7", behavior: "room stop keeps anim-id set monotonic (no increment/retrigger)", status: "PASS" });
 
   const globalAnimationId = mutationId("hf3-global");
   const globalStartAck = await sendCommand("trigger-global", {
@@ -328,23 +351,32 @@ async function main() {
   }
   rows.push({ area: "global", behavior: "global trigger remains active without explicit snapshot stop", status: "PASS" });
 
-  const globalStopAck = await sendCommand("trigger-global", {
-    animationType: "alarm",
-    action: "stop",
+  const globalStopBaselineByRole = Object.fromEntries(clients.map((client) => [
+    client.role,
+    collectRunningIds(client.snapshot?.runtime),
+  ]));
+  const globalStopAck = await sendCommand("stop-animation", {
     animationId: globalAnimationId,
-    boardId: board.id,
     priorityHint: "high",
   });
   await waitForAllClientsVersion(clients, globalStopAck.version);
   for (const client of clients) {
     const globalAnimation = findGlobalAnimation(client.snapshot?.runtime, "alarm", board.id, globalAnimationId);
     assert(!globalAnimation, `global stop not visible on ${client.role}`);
+    const afterIds = collectRunningIds(client.snapshot?.runtime);
+    assertNoUnexpectedIdsAfterStop(
+      globalStopBaselineByRole[client.role],
+      afterIds,
+      [globalAnimationId],
+      `global-stop-no-id-increment on ${client.role}`,
+    );
   }
   const liveStateAfterStop = await readJson("/api/live/state");
   const stopKey = `${board.id}:alarm`;
   const stopRevision = Number(liveStateAfterStop?.session?.snapshot?.runtime?.globalStopRevisions?.[stopKey] ?? 0);
   assert(stopRevision > 0, "global stop revision not recorded in snapshot runtime");
   rows.push({ area: "global", behavior: "explicit stop removes global animation and records stop revision", status: "PASS" });
+  rows.push({ area: "hf7", behavior: "global stop via stop-animation keeps anim-id non-increment invariant", status: "PASS" });
 
   const staggerOffsetMs = 260;
   const hf4ClusterDraft = {
@@ -432,6 +464,32 @@ async function main() {
   assertRoomDraftStableAcrossClients(clients, expectedClusterDraft, "hf4 cluster-start stability");
   rows.push({ area: "cluster", behavior: "sequential stagger member delay parity across polling clients", status: "PASS" });
   rows.push({ area: "hf4", behavior: "cluster start keeps draft target path stable", status: "PASS" });
+
+  const clusterStopBaselineByRole = Object.fromEntries(clients.map((client) => [
+    client.role,
+    collectRunningIds(client.snapshot?.runtime),
+  ]));
+  const clusterStopAck = await sendCommand("stop-animation", {
+    animationId: clusterAnimationId,
+    priorityHint: "high",
+  });
+  await waitForAllClientsVersion(clients, clusterStopAck.version);
+  for (const client of clients) {
+    const runtime = client.snapshot?.runtime;
+    assert(!findAnimation(runtime, clusterAnimationId), `cluster controller stop not visible on ${client.role}`);
+    for (const memberId of memberAnimationIds) {
+      assert(!findAnimation(runtime, memberId), `cluster member ${memberId} still running on ${client.role}`);
+    }
+    const afterIds = collectRunningIds(runtime);
+    assertNoUnexpectedIdsAfterStop(
+      clusterStopBaselineByRole[client.role],
+      afterIds,
+      [clusterAnimationId, ...memberAnimationIds],
+      `cluster-stop-no-id-increment on ${client.role}`,
+    );
+  }
+  rows.push({ area: "cluster", behavior: "cluster stop propagates to all members on all clients incl. final-output", status: "PASS" });
+  rows.push({ area: "hf7", behavior: "cluster stop keeps anim-id non-increment invariant", status: "PASS" });
 
   const appSource = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert(
@@ -531,6 +589,7 @@ async function main() {
   assert(crossBoardResidueCount === 0, `cross-board residue detected after reconnect hydration: ${crossBoardResidueCount}`);
   rows.push({ area: "hf5", behavior: "reconnect snapshot keeps board-switch running-clear no-residue parity", status: "PASS" });
   rows.push({ area: "hf6", behavior: "switch + reconnect keeps crossBoardResidueCount = 0 across clients incl. final-output", status: "PASS" });
+  rows.push({ area: "hf7", behavior: "room/global/cluster stop matrix parity holds across control + final-output clients", status: "PASS" });
 
   const telemetry = await readJson("/api/live/telemetry");
   const gates = telemetry?.telemetry?.gates ?? {};

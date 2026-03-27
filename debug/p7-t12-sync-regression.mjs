@@ -132,6 +132,50 @@ function assertStrictStaleEqualVersionDrop(source) {
   );
 }
 
+function assertStopRoutingIsStopOnly(appSource) {
+  const stopBody = sliceBetween(appSource, "function stopAnimation(animationId)", "\nfunction editAnimation(");
+  assert(/emitStopAnimationCommand\(/.test(stopBody), "stopAnimation does not use stop-only command helper");
+  assert(!/emitLiveMutation\("trigger-room"/.test(stopBody), "stopAnimation routes through trigger-room side path");
+  assert(!/emitLiveMutation\("trigger-global"/.test(stopBody), "stopAnimation routes through trigger-global side path");
+}
+
+function assertStopInflightUiGuard(appSource) {
+  assert(
+    /pendingStopAnimationIds:\s*new Set\(\)/.test(appSource),
+    "pending stop animation set missing from liveSync state",
+  );
+  assert(
+    /function reconcileStopPendingFromSnapshot\(\)/.test(appSource),
+    "snapshot reconcile for pending stop IDs missing",
+  );
+  assert(
+    /stopButton\.textContent = stopPending \? "Stopping\.\.\." : "Stop";/.test(appSource),
+    "running-list stop button pending label guard missing",
+  );
+  assert(
+    /stopButton\.disabled = stopPending;/.test(appSource),
+    "running-list stop button disable guard missing",
+  );
+}
+
+function assertImmediateStopSnapshotApply(appSource) {
+  assert(
+    /if \(payload\?\.type === "live-session-update"\) \{[\s\S]*mutationType === STOP_ANIMATION_MUTATION_TYPE \|\| mutationType === "clear-all"[\s\S]*applyLiveRuntimeSnapshot\(payload\.session\.snapshot/.test(appSource),
+    "live-session-update immediate stop/clear snapshot apply missing",
+  );
+}
+
+function assertServerStopNoopAndClusterGuard(serverSource) {
+  assert(
+    /if \(mutationType === "stop-animation"\) \{[\s\S]*if \(!stopAnimationId\) \{[\s\S]*return \{[\s\S]*runtime: nextRuntime/.test(serverSource),
+    "server stop no-op ack guard for invalid IDs missing",
+  );
+  assert(
+    /if \(stoppedEntry\?\.scope === "cluster"\) \{[\s\S]*stopIds\.add\(memberId\);/.test(serverSource),
+    "server cluster stop reconciliation missing",
+  );
+}
+
 async function main() {
   const before = await readJson("/api/live/telemetry");
   const baselineSnapshot = await readJson("/api/live/snapshot?sinceVersion=0");
@@ -169,6 +213,10 @@ async function main() {
   assertServerSnapshotSanitizerGuard(serverSource);
   assertClientReconnectBoardFilter(appSource);
   assertStrictStaleEqualVersionDrop(appSource);
+  assertStopRoutingIsStopOnly(appSource);
+  assertImmediateStopSnapshotApply(appSource);
+  assertStopInflightUiGuard(appSource);
+  assertServerStopNoopAndClusterGuard(serverSource);
 
   console.log(JSON.stringify({
     pass: true,
@@ -206,6 +254,12 @@ async function main() {
       boardSwitchAtomicClearTransactionGuard: true,
       serverSanitizeBeforePersistBroadcast: true,
       reconnectBoardContextFilterHardEnforced: true,
+    },
+    hf7StopDeterminismGuards: {
+      stopRoutingUsesStopMutationOnly: true,
+      immediateStopSnapshotApplyOnLiveSessionUpdate: true,
+      pendingStopInflightUiGuardActive: true,
+      serverStopNoopAndClusterReconciliation: true,
     },
   }, null, 2));
 }

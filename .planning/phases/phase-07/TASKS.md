@@ -69,7 +69,14 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF6-T4 [P0] Deterministische Regression erweitern: Switch+Reconnect-Matrix mit harter Invariante `crossBoardResidueCount = 0` ueber 3-4 Clients inkl. `/output/final`.
 - [x] DONE P7-HF6-T5 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. HF6-Output-Artefakten.
 
-## Plan 7-2 - Hardening Wave (nach 7-HF6)
+## Plan 7-HF7 - Stop-Action Routing + Deterministic Stop Propagation Hotfix (execute-ready, blocker vor 7-2)
+- [x] DONE P7-HF7-T1 [P0] Stop-Action-Routing fuer Running-Liste haerten: dispatch ausschliesslich `stop-animation` fuer bestehende `animation.id`; keine create/start side-effects.
+- [x] DONE P7-HF7-T2 [P0] Server-Stop-Mutation idempotent/serverautoritativ absichern: stale/unknown stop IDs werden ohne Start-Nebenwirkung verworfen oder sauber bestaetigt.
+- [x] DONE P7-HF7-T3 [P0] Snapshot/Broadcast-Apply fuer Stop auf allen Rollen deterministisch machen (control + `/output/final`) inkl. strict version/dedup guard.
+- [x] DONE P7-HF7-T4 [P0] UI-Action-Guard gegen versehentliche Stop-Re-Trigger einfuehren (per-run pending lock/debounce, no double-dispatch).
+- [x] DONE P7-HF7-T5 [P0] Regression + Evidenz + Artefakt-Sync liefern: room/global/cluster stop parity, anim-id non-increment invariant, multi-client parity, `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
+## Plan 7-2 - Hardening Wave (nach 7-HF7)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.
