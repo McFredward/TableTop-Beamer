@@ -37,7 +37,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 
 ## Plan 7-HF3 - Snapshot Trigger/Audio Consistency + Sequential Stagger Hotfix (execute-ready, verpflichtend vor 7-2)
 - [x] DONE P7-HF3-T1 [P0] Snapshot-Trigger-Revision fuer globale Effekte einziehen: pro neuer Revision auf jedem Client genau ein Vollstart (kein 1s-Kurzlauf bei Fremdtrigger).
-- [ ] TODO P7-HF3-T2 [P0] Stop-Gating haerten: laufende globale Effekte enden vorzeitig ausschliesslich bei explizitem Stop im Snapshot.
+- [x] DONE P7-HF3-T2 [P0] Stop-Gating haerten: laufende globale Effekte enden vorzeitig ausschliesslich bei explizitem Stop im Snapshot.
 - [ ] TODO P7-HF3-T3 [P0] Audio-Lifecycle an Snapshot koppeln: pro Trigger-Revision genau ein Start, stale/replayed Audio strikt droppen, kein Alt-Effekt-Nachlauf.
 - [ ] TODO P7-HF3-T4 [P0] Snapshot-Dedup/Idempotenz fuer Trigger-Lifecycle erweitern (Trigger-Revision-Key, reconnect-safe reapply-guard).
 - [ ] TODO P7-HF3-T5 [P0] Cluster-`stagger start` erweitern: sequenzieller Member-Start mit konfigurierbarem Offset (ms) statt randomisiertem Versatz.

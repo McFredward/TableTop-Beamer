@@ -260,6 +260,9 @@ function applyOutsideUpdatePatch(payload) {
 function applyRoomMutationPatch(mutationType, payload) {
   const nextRuntime = readRuntimeSnapshot();
   const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
+  const globalStopRevisions = isPlainObject(nextRuntime.globalStopRevisions)
+    ? { ...nextRuntime.globalStopRevisions }
+    : {};
 
   if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
@@ -281,10 +284,24 @@ function applyRoomMutationPatch(mutationType, payload) {
       runningAnimations.push(cloneJson(payload.animation));
     }
   } else if (mutationType === "stop-animation" && typeof payload?.animationId === "string") {
+    const stoppedEntry = runningAnimations.find((entry) => entry?.id === payload.animationId);
+    if (stoppedEntry?.scope === "global" && stoppedEntry?.boardId && stoppedEntry?.type) {
+      const triggerKey = `${stoppedEntry.boardId}:${stoppedEntry.type}`;
+      const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
+      globalStopRevisions[triggerKey] = stopRevision + 1;
+    }
     const nextList = runningAnimations.filter((entry) => entry?.id !== payload.animationId);
     runningAnimations.length = 0;
     runningAnimations.push(...nextList);
   } else if (mutationType === "clear-all") {
+    for (const entry of runningAnimations) {
+      if (entry?.scope !== "global" || !entry?.boardId || !entry?.type) {
+        continue;
+      }
+      const triggerKey = `${entry.boardId}:${entry.type}`;
+      const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
+      globalStopRevisions[triggerKey] = stopRevision + 1;
+    }
     runningAnimations.length = 0;
     const outsideFxByBoard = readOutsideFxByBoard();
     for (const [boardId, profile] of Object.entries(outsideFxByBoard)) {
@@ -295,6 +312,7 @@ function applyRoomMutationPatch(mutationType, payload) {
     }
     nextRuntime.outsideFxByBoard = outsideFxByBoard;
     nextRuntime.runningAnimations = runningAnimations;
+    nextRuntime.globalStopRevisions = globalStopRevisions;
     return {
       runtime: nextRuntime,
       outsideFxByBoard,
@@ -302,6 +320,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   }
 
   nextRuntime.runningAnimations = runningAnimations;
+  nextRuntime.globalStopRevisions = globalStopRevisions;
   return {
     runtime: nextRuntime,
   };

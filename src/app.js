@@ -328,6 +328,7 @@ const liveSync = {
     duplicateMutation: 0,
   },
   globalTriggerRevisionSeenByKey: new Map(),
+  globalStopRevisionSeenByKey: new Map(),
 };
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
@@ -416,6 +417,26 @@ function getGlobalTriggerRevision(animation) {
   return Number.isInteger(revision) && revision > 0 ? revision : null;
 }
 
+function observeGlobalStopRevisions(runtime) {
+  const stopRevisions = runtime?.globalStopRevisions;
+  if (!stopRevisions || typeof stopRevisions !== "object") {
+    return;
+  }
+  for (const [triggerKey, rawRevision] of Object.entries(stopRevisions)) {
+    if (!triggerKey) {
+      continue;
+    }
+    const revision = Number(rawRevision);
+    if (!Number.isInteger(revision) || revision <= 0) {
+      continue;
+    }
+    const previous = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
+    if (revision > previous) {
+      liveSync.globalStopRevisionSeenByKey.set(triggerKey, revision);
+    }
+  }
+}
+
 function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimationsById = new Map()) {
   const nextNowEpoch = Date.now();
   const nextNowPerf = performance.now();
@@ -427,6 +448,10 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
     const triggerRevision = getGlobalTriggerRevision(animation);
     const previous = previousAnimationsById.get(animation.id);
     if (triggerKey && triggerRevision !== null) {
+      const stopRevision = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
+      if (stopRevision >= triggerRevision) {
+        return null;
+      }
       const highestSeenRevision = Number(liveSync.globalTriggerRevisionSeenByKey.get(triggerKey) ?? 0);
       const previousRevision = getGlobalTriggerRevision(previous);
       const isSameRevisionAsCurrent = previous && previousRevision === triggerRevision;
@@ -465,7 +490,7 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
       };
     }
     return animation;
-  });
+  }).filter(Boolean);
 }
 
 function buildRuntimeSnapshotForLiveSync() {
@@ -798,6 +823,7 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       ),
     };
   }
+  observeGlobalStopRevisions(runtime);
   const previousAnimationsById = new Map(
     state.runningAnimations
       .filter((animation) => animation && typeof animation.id === "string")
