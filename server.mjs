@@ -13,6 +13,7 @@ const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR,
 const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
+const IMPORTED_BOARD_ASSETS_DIR = path.join(IMPORTED_BOARDS_DIR, "assets");
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
 const BOARD_DEFINITION_SCHEMA = "tt-beamer.board-definition.v1";
@@ -1355,6 +1356,7 @@ const MIME_TYPES = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
+  ".webp": "image/webp",
   ".wav": "audio/wav",
   ".mp3": "audio/mpeg",
   ".svg": "image/svg+xml",
@@ -1541,7 +1543,7 @@ function normalizeRoomClusterEntry(cluster, roomIds = new Set(), index = 0) {
   };
 }
 
-function normalizeBoardDefinition(inputBoard, { source = "imported", imported = true } = {}) {
+function normalizeBoardDefinition(inputBoard, { source = "imported", imported = true, allowEmptyRoomCatalog = false } = {}) {
   const boardId = String(inputBoard?.boardId || inputBoard?.id || "").trim();
   const name = String(inputBoard?.metadata?.name || inputBoard?.label || "").trim();
   const imageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
@@ -1571,7 +1573,7 @@ function normalizeBoardDefinition(inputBoard, { source = "imported", imported = 
   if (!imageSrc) {
     issues.push("metadata.imageSrc is required");
   }
-  if (roomCatalog.length === 0) {
+  if (roomCatalog.length === 0 && !allowEmptyRoomCatalog) {
     issues.push("roomCatalog must contain at least one room");
   }
 
@@ -1736,7 +1738,11 @@ async function loadImportedBoards() {
     try {
       const raw = await readFile(filePath, "utf8");
       const payload = JSON.parse(raw);
-      const normalized = normalizeBoardDefinition(payload?.board ?? payload, { source: "imported", imported: true });
+      const normalized = normalizeBoardDefinition(payload?.board ?? payload, {
+        source: "imported",
+        imported: true,
+        allowEmptyRoomCatalog: true,
+      });
       if (!normalized.ok) {
         continue;
       }
@@ -1772,7 +1778,252 @@ async function loadBoardCatalog() {
   };
 }
 
+const IMAGE_IMPORT_ALLOWED_MIME_TO_EXT = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+const IMAGE_IMPORT_ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+const IMAGE_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+
+function parseMultipartBoundary(contentType = "") {
+  const match = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(String(contentType));
+  const rawBoundary = (match?.[1] ?? match?.[2] ?? "").trim();
+  return rawBoundary || null;
+}
+
+function parseContentDispositionParams(headerValue = "") {
+  const params = {};
+  const parts = String(headerValue).split(";").map((entry) => entry.trim());
+  for (const part of parts.slice(1)) {
+    const [rawKey, ...rest] = part.split("=");
+    const key = String(rawKey || "").trim().toLowerCase();
+    const rawValue = rest.join("=").trim();
+    if (!key) {
+      continue;
+    }
+    params[key] = rawValue.replace(/^"|"$/g, "");
+  }
+  return params;
+}
+
+async function parseMultipartFormData(req, { maxBytes = IMAGE_IMPORT_MAX_BYTES } = {}) {
+  const contentType = String(req.headers["content-type"] || "");
+  const boundary = parseMultipartBoundary(contentType);
+  if (!boundary) {
+    throw Object.assign(new Error("missing multipart boundary"), { code: "IMPORT_MULTIPART_BOUNDARY_MISSING" });
+  }
+
+  const chunks = [];
+  let totalSize = 0;
+  for await (const chunk of req) {
+    totalSize += chunk.length;
+    if (totalSize > maxBytes) {
+      throw Object.assign(new Error("multipart payload too large"), { code: "IMPORT_PAYLOAD_TOO_LARGE" });
+    }
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString("binary");
+  const marker = `--${boundary}`;
+  const segments = raw.split(marker);
+  const parts = [];
+
+  for (let segment of segments) {
+    if (!segment || segment === "--" || segment === "--\r\n") {
+      continue;
+    }
+    if (segment.startsWith("\r\n")) {
+      segment = segment.slice(2);
+    }
+    if (segment.endsWith("\r\n")) {
+      segment = segment.slice(0, -2);
+    }
+    if (segment.endsWith("--")) {
+      segment = segment.slice(0, -2);
+    }
+    const separatorIndex = segment.indexOf("\r\n\r\n");
+    if (separatorIndex < 0) {
+      continue;
+    }
+    const headerBlock = segment.slice(0, separatorIndex);
+    const bodyBinary = segment.slice(separatorIndex + 4);
+    const headers = {};
+    for (const line of headerBlock.split("\r\n")) {
+      const colonIndex = line.indexOf(":");
+      if (colonIndex <= 0) {
+        continue;
+      }
+      const key = line.slice(0, colonIndex).trim().toLowerCase();
+      const value = line.slice(colonIndex + 1).trim();
+      headers[key] = value;
+    }
+    const disposition = parseContentDispositionParams(headers["content-disposition"] || "");
+    const part = {
+      headers,
+      name: disposition.name || null,
+      filename: disposition.filename || null,
+      contentType: String(headers["content-type"] || "").toLowerCase(),
+      data: Buffer.from(bodyBinary, "binary"),
+    };
+    parts.push(part);
+  }
+
+  return parts;
+}
+
+function resolveImageImportExtension(filePart) {
+  const mimeExt = IMAGE_IMPORT_ALLOWED_MIME_TO_EXT[filePart.contentType] ?? null;
+  if (mimeExt) {
+    return mimeExt;
+  }
+  const filename = String(filePart.filename || "").toLowerCase();
+  const ext = path.extname(filename).replace(/^\./, "");
+  if (IMAGE_IMPORT_ALLOWED_EXTENSIONS.has(ext)) {
+    return ext === "jpeg" ? "jpg" : ext;
+  }
+  return null;
+}
+
+async function handleImageBoardImport(req, res) {
+  let parts;
+  try {
+    parts = await parseMultipartFormData(req, { maxBytes: IMAGE_IMPORT_MAX_BYTES });
+  } catch (error) {
+    const code = String(error?.code || "");
+    if (code === "IMPORT_PAYLOAD_TOO_LARGE") {
+      sendJson(res, 413, { error: "payload too large", code });
+      return;
+    }
+    sendJson(res, 400, { error: "invalid multipart payload", code: code || "IMPORT_MULTIPART_INVALID" });
+    return;
+  }
+
+  const textFieldMap = new Map();
+  let imagePart = null;
+  for (const part of parts) {
+    if (part.filename && part.name === "image" && !imagePart) {
+      imagePart = part;
+      continue;
+    }
+    if (part.name && !part.filename) {
+      textFieldMap.set(part.name, part.data.toString("utf8").trim());
+    }
+  }
+
+  if (!imagePart) {
+    sendJson(res, 400, {
+      error: "missing image file field 'image'",
+      code: "IMPORT_IMAGE_MISSING_FILE",
+    });
+    return;
+  }
+
+  if (!imagePart.data || imagePart.data.length === 0) {
+    sendJson(res, 400, {
+      error: "uploaded image is empty",
+      code: "IMPORT_IMAGE_EMPTY",
+    });
+    return;
+  }
+
+  const extension = resolveImageImportExtension(imagePart);
+  if (!extension) {
+    sendJson(res, 400, {
+      error: "unsupported image type; allowed: jpg, jpeg, png, webp",
+      code: "IMPORT_IMAGE_INVALID_TYPE",
+    });
+    return;
+  }
+
+  const requestedBoardId = String(textFieldMap.get("boardId") || "").trim();
+  const requestedBoardName = String(textFieldMap.get("boardName") || textFieldMap.get("name") || "").trim();
+  const filenameStem = path.basename(String(imagePart.filename || "upload"), path.extname(String(imagePart.filename || "upload")));
+  const boardIdSeed = requestedBoardId || filenameStem || `board-${Date.now().toString(36)}`;
+  const safeBoardId = sanitizeBoardFileName(boardIdSeed);
+  if (!safeBoardId) {
+    sendJson(res, 400, {
+      error: "boardId is invalid after normalization",
+      code: "IMPORT_INVALID_BOARD_ID",
+    });
+    return;
+  }
+  if (BUILTIN_BOARD_IDS.has(safeBoardId)) {
+    sendJson(res, 409, {
+      error: "boardId conflicts with a built-in board",
+      code: "IMPORT_BOARD_ID_CONFLICT",
+      boardId: safeBoardId,
+    });
+    return;
+  }
+
+  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
+  await mkdir(IMPORTED_BOARD_ASSETS_DIR, { recursive: true });
+  const boardJsonPath = path.join(IMPORTED_BOARDS_DIR, `${safeBoardId}.json`);
+  try {
+    await stat(boardJsonPath);
+    sendJson(res, 409, {
+      error: "board import already exists",
+      code: "IMPORT_ALREADY_EXISTS",
+      boardId: safeBoardId,
+    });
+    return;
+  } catch {
+    // proceed
+  }
+
+  const imageFileName = `${safeBoardId}-${Date.now().toString(36)}.${extension}`;
+  const imageFilePath = path.join(IMPORTED_BOARD_ASSETS_DIR, imageFileName);
+  await writeFile(imageFilePath, imagePart.data);
+
+  const imageSrc = `/config/boards/imported/assets/${imageFileName}`;
+  const normalized = normalizeBoardDefinition({
+    boardId: safeBoardId,
+    metadata: {
+      name: requestedBoardName || safeBoardId,
+      imageSrc,
+    },
+    roomCatalog: [],
+    roomClusters: [],
+  }, {
+    source: "imported-image",
+    imported: true,
+    allowEmptyRoomCatalog: true,
+  });
+  if (!normalized.ok) {
+    sendJson(res, 400, {
+      error: "board image import validation failed",
+      code: "IMPORT_IMAGE_VALIDATION_FAILED",
+      issues: normalized.issues,
+    });
+    return;
+  }
+
+  const payload = {
+    schema: BOARD_IMPORT_SCHEMA,
+    importedAt: new Date().toISOString(),
+    board: normalized.board,
+  };
+  await writeFile(boardJsonPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  const catalog = await loadBoardCatalog();
+  sendJson(res, 201, {
+    ok: true,
+    code: "IMPORT_IMAGE_OK",
+    boardId: safeBoardId,
+    board: normalized.board,
+    imagePath: `config/boards/imported/assets/${imageFileName}`,
+    targetPath: `config/boards/imported/${safeBoardId}.json`,
+    boardCount: catalog.boardCount,
+    catalogGeneratedAt: catalog.generatedAt,
+  });
+}
+
 async function handleBoardImport(req, res) {
+  const contentType = String(req.headers["content-type"] || "").toLowerCase();
+  if (contentType.startsWith("multipart/form-data")) {
+    await handleImageBoardImport(req, res);
+    return;
+  }
   const chunks = [];
   for await (const chunk of req) {
     chunks.push(chunk);
