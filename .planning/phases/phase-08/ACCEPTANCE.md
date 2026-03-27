@@ -57,6 +57,10 @@
 - Outside-Asset-Picker-Type-Switch-Test: Wechsel zwischen `coded`/`mp4`/`gif` aktualisiert die Pickerliste deterministisch ohne stale Optionen oder Auto-Revert.
 - Outside-Boomerang-Full-Cycle-Test: Playback laeuft voll vorwaerts bis Ende, dann voll rueckwaerts bis Anfang, danach wieder vorwaerts.
 - Outside-Boomerang-No-Flicker-Test: Zwischen den Richtungswechseln treten keine sichtbaren on/off Flicker und keine abrupten Restart-Jumps auf.
+- Outside-Sandstorm-Reverse-Lifecycle-RootCause-Test: Reverse-Phase-Flicker ist reproduzierbar analysiert (Forward-Ende, Reverse-Umschaltung, Reverse-Lauf) und mit eindeutigem Fix-Pfad belegt.
+- Outside-Sandstorm-Reverse-Visual-Stability-Test: Reverse-Abschnitt laeuft kontinuierlich ohne starkes Flackern; Boomerang-Zyklus bleibt nahtlos.
+- Outside-MP4-NonBoomerang-NonRegression-Test: deaktiviertes Boomerang behaelt stabilen normalen mp4-Vorwaerts-Loop ohne Lifecycle-Regressionsartefakte.
+- Outside-Apply-Persistence-Intact-Test: `Apply changes` sowie Save/Reload/Restart halten `boomerang`/`assetType`/`assetRef` nach HF5 unveraendert deterministisch.
 
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
@@ -80,6 +84,10 @@
 - Nach P8-T42..P8-T44: Asset-Picker-Filterung ist pro `assetType` strikt und deterministisch ohne stale/revert Drift.
 - Nach P8-T45: Boomerang-Full-Cycle (Forward->Reverse->Repeat) ist ohne sichtbares Flicker/Restart-Jump PASS.
 - Nach P8-T46: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T47: Root-Cause fuer Reverse-Flicker ist reproduzierbar dokumentiert und fix-gerichtet isoliert.
+- Nach P8-T48..P8-T49: Sandstorm-Boomerang-Reverse ist visuell stabil; normaler mp4-Non-Boomerang-Pfad bleibt regressionsfrei PASS.
+- Nach P8-T50..P8-T51: Apply/Persistenz-Paritaet bleibt intakt; Regression- und Evidence-Matrix ist vollstaendig dokumentiert.
+- Nach P8-T52: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -102,6 +110,9 @@
 - `Apply changes` ist als verpflichtender Commit-Schritt im Outside-Animation-Editor vorhanden und uebernimmt Type/Resource/Optionen atomar.
 - Asset-Picker filtert strikt typspezifisch (`coded` keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`).
 - Boomerang-Playback folgt dem vollen Forward->Reverse->Repeat-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
+- Sandstorm-Boomerang ist im Reverse-Abschnitt visuell stabil (kein starkes Reverse-Flicker) und bleibt ueber mehrere Zyklen nahtlos.
+- Normales mp4-Playback ohne Boomerang bleibt nach dem HF5-Fix unveraendert stabil (keine neue Lifecycle-Regression).
+- `Apply changes` und Persistenz (`Save/Reload/Restart`) bleiben fuer Outside-Definitionen voll funktionsfaehig und deterministisch.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -136,3 +147,12 @@
 - Evidence:
   - `.planning/phases/phase-08/8-HF4-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T45-BOOMERANG-REGRESSION.md`
+
+## Execution Result (Plan 8-HF5)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF5-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T47-REVERSE-ROOT-CAUSE.md`
+  - `.planning/phases/phase-08/P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T50-APPLY-PERSISTENCE-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T51-HF5-REGRESSION.md`

@@ -93,6 +93,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Boomerang-Video-Playback ist instabil/flickert; Pflichtablauf ist vollstaendig vorwaerts bis Ende, vollstaendig rueckwaerts bis Anfang, danach wiederholen.
 - Zwischen Forward/Reverse-Zyklus sind sichtbare On/Off-Flicker oder abrupte Restart-Uebergaenge unzulaessig.
 
+## Neues verpflichtendes P0-Feedback
+- Sandstorm Boomerang: Forward bis Ende ist stabil, aber im Reverse-Abschnitt flackert das Video stark.
+- Root-Cause-Hinweis: Ursache liegt im Reverse-Playback-Lifecycle, nicht im normalen Forward-Playback.
+- Pflichtziel: stabiler Boomerang-Loop (`forward -> smooth reverse -> repeat`) ohne sichtbares Flackern.
+- Pflichtziel: normales mp4-Playback ohne Boomerang bleibt regressionsfrei unveraendert.
+- Pflichtziel: persistente Settings inkl. `Apply changes` bleiben intakt.
+- Pflichtziel: Regression- und Evidence-Artefakte dokumentieren Root-Cause, Fix und Non-Regression nachvollziehbar.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -119,6 +127,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 3. Picker-Apply-Determinismus: Type-Wechsel aktualisiert Kandidatenliste deterministisch ohne stale Optionen/Auto-Revert.
 4. Boomerang-State-Machine-Hardening: Video spielt voll vorwaerts bis Ende, dann voll rueckwaerts bis Anfang, dann wieder vorwaerts (endlos).
 5. Boomerang-Visual-Stability: keine sichtbaren on/off Flicker, keine abrupten Restart-Jumps zwischen den Phasen.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Priorisierte Hotfix-Welle (Plan 8-HF5, execute-ready)
+1. Root-Cause Analyse fuer Reverse-Lifecycle/Flicker im Sandstorm-Boomerang reproduzierbar durchfuehren.
+2. Reverse-Playback-Lifecycle fixen, damit Boomerang als full-cycle (`forward -> reverse -> repeat`) ohne sichtbares Flickern laeuft.
+3. Non-Regression fuer normalen mp4-Playback-Pfad ohne Boomerang absichern.
+4. `Apply changes` + Persistenzpfade (`Save/Reload/Restart`) fuer Outside-Settings unveraendert stabil halten.
+5. Regression-/Evidence-Artefakte erstellen (Root-Cause-Protokoll, Playback-Matrix, Non-Regression).
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
@@ -154,6 +170,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Outside-Editor besitzt `Apply changes`; Type/Resource/Optionen werden erst bei explizitem Apply gemeinsam und atomar uebernommen.
 - Asset-Picker filtert strikt typspezifisch: `coded` zeigt nur coded keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`.
 - Boomerang-Playback laeuft als vollstaendiger Forward->Reverse-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
+- Sandstorm-Boomerang zeigt auch im Reverse-Abschnitt keinen sichtbaren Flicker; Richtungswechsel bleibt nahtlos.
+- MP4-Playback ohne aktiviertes Boomerang bleibt auf dem stabilen Vorwaerts-Loop-Pfad ohne neue Regression.
+- `Apply changes` bleibt der atomare Commit-Pfad; Outside-Settings bleiben ueber Save/Reload/Restart persistent deterministisch.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -170,3 +189,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-27: Neues verpflichtendes P0-Regressionsfeedback priorisiert Plan 8-HF4 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF4 wurde atomar umgesetzt (P8-T41..P8-T46).
 - Nachweise: `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/P8-T45-BOOMERANG-REGRESSION.md`.
+- 2026-03-27: Neues verpflichtendes P0-Feedback (Sandstorm Reverse-Flicker) priorisiert Plan 8-HF5 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF5 wurde atomar umgesetzt (P8-T47..P8-T52).
+- Nachweise: `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/P8-T47-REVERSE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T51-HF5-REGRESSION.md`.

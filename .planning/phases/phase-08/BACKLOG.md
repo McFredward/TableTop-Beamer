@@ -11,6 +11,7 @@
 - Outside Animations Mars Feature Pack
 - Outside Animation Editor Stability Hotfix
 - Outside Asset-Picker + Boomerang Stability Hotfix
+- Sandstorm Reverse-Lifecycle Flicker Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -64,6 +65,12 @@
 - P8-S11.3 Asset-Type-Wechsel ohne stale Optionsreste/reverten: Kandidatenliste aktualisiert deterministisch pro Typ.
 - P8-S11.4 Boomerang-Playback als stabile State-Machine erzwingen: voll vorwaerts bis Ende, voll rueckwaerts bis Anfang, Repeat.
 - P8-S11.5 Boomerang-Playback ohne sichtbares on/off Flicker oder abrupten Restart-Uebergang absichern (inkl. Start/Stop/Clear/Reload).
+
+- P8-S12.1 Root-Cause fuer Sandstorm-Boomerang-Flicker im Reverse-Abschnitt reproduzierbar analysieren und lifecycle-genau isolieren.
+- P8-S12.2 Boomerang-Playback-Fix liefern: Forward-Ende -> nahtloses Reverse ohne Flackern -> Reverse-Ende -> Repeat.
+- P8-S12.3 Non-Regression absichern: normales mp4-Playback ohne Boomerang bleibt stabil und unveraendert.
+- P8-S12.4 Persistenz-/Apply-Paritaet sichern: `Apply changes`, Save/Reload/Restart behalten `boomerang`/`assetType`/`assetRef` deterministisch.
+- P8-S12.5 Regression-/Evidence-Artefakte fuer Root-Cause, Fix und Non-Regression erstellen und dokumentieren.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -121,8 +128,16 @@
 - Story P8-S7.1 + P8-S7.3 (HF4-spezifisch erweitert).
   - Ziel: P0-Regressionen sind reproduzierbar geschlossen und alle Planungsartefakte bleiben konsistent synchron.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF5 execute-ready
+- Story P8-S12.1 + P8-S12.2.
+  - Ziel: Reverse-Lifecycle-Flicker in `Outside Sandstorm` ist root-cause-basiert geschlossen; Boomerang laeuft full-cycle ohne sichtbare Reverse-Flackerphase.
+- Story P8-S12.3 + P8-S12.4.
+  - Ziel: normales mp4-Playback ohne Boomerang bleibt regressionsfrei; `Apply changes` und Persistenzpfade bleiben deterministisch intakt.
+- Story P8-S12.5 + P8-S7.3.
+  - Ziel: belastbare Evidence-Artefakte plus konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF4): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF5): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -133,3 +148,5 @@
 - 2026-03-27: Plan 8-HF3 Stories P8-S10.1..P8-S10.5 umgesetzt; Outside-Restore/Stability/Apply-Atomicity/Persistence-Matrix ist PASS (`8-HF3-VERIFICATION.md`, `P8-T39-OUTSIDE-EDITOR-REGRESSION.md`).
 - 2026-03-27: Neues P0-Feedback fuer Regressions-Rueckfall priorisiert Plan 8-HF4 (Stories P8-S11.1..P8-S11.5) als naechste execute-ready Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF4 Stories P8-S11.1..P8-S11.5 umgesetzt; coded restore, typspezifischer picker und boomerang full-cycle stability sind PASS (`8-HF4-VERIFICATION.md`, `P8-T45-BOOMERANG-REGRESSION.md`).
+- 2026-03-27: Neues verpflichtendes P0-Feedback (Sandstorm Reverse-Flicker) priorisiert Plan 8-HF5 (Stories P8-S12.1..P8-S12.5) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-27: Plan 8-HF5 Stories P8-S12.1..P8-S12.5 umgesetzt; Reverse-Lifecycle-Root-Cause/Fix, mp4 Non-Boomerang Guard und Apply/Persistenz-Determinismus sind PASS (`8-HF5-VERIFICATION.md`, `P8-T47-REVERSE-ROOT-CAUSE.md`, `P8-T51-HF5-REGRESSION.md`).

@@ -135,6 +135,31 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF4 inkl. Artefakt-Sync.
 
+## R28 Sandstorm-Reverse-Lifecycle bleibt flickernd trotz teilweisem Boomerang-Fix
+- Risiko: Forward-Playback bleibt stabil, aber der Reverse-Abschnitt zeigt weiterhin starkes Flackern durch fehlerhafte Richtungswechsel-/Timeline-Steuerung.
+- Impact: Kritisch.
+- Gegenmassnahme: dedizierte Root-Cause-Analyse fuer den Reverse-Lifecycle (Switch bei Video-Ende, Reverse-Framefortschritt, Phase-Transition) und gezielter Lifecycle-Fix.
+
+## R29 HF5-Fix regressiert normalen mp4-Playback-Pfad ohne Boomerang
+- Risiko: Anpassungen am Boomerang-State-Machine-Pfad beeinflussen unbeabsichtigt den Standard-Vorwaerts-Loop und erzeugen neue mp4-Regressionen.
+- Impact: Kritisch.
+- Gegenmassnahme: explizite Non-Boomerang-Regressionstests und strikte Pfadtrennung zwischen boomerang/non-boomerang lifecycle.
+
+## R30 Apply-/Persistenzpfad driftet nach Reverse-Hotfix
+- Risiko: Boomerang-/Asset-Einstellungen werden durch HF5 nur teilweise oder inkonsistent ueber `Apply changes`, Save/Reload/Restart uebernommen.
+- Impact: Hoch.
+- Gegenmassnahme: verpflichtende Apply+Persistenz-Matrix fuer `boomerang`, `assetType`, `assetRef` mit Reload/Restart-Nachweis.
+
+## R31 Evidence-Luecke verdeckt verbleibende Reverse-Flackerfaelle
+- Risiko: Fix wirkt lokal, aber ohne reproduzierbare Artefakte bleiben Randfaelle (mehrere Zyklen, Start/Stop/Clear/Reload) unentdeckt.
+- Impact: Hoch.
+- Gegenmassnahme: verpflichtende Evidence-Artefakte (Root-Cause-Protokoll, Playback-Matrix, Non-Regression-Report) als Gate fuer Wellenabschluss.
+
+## R32 Hardening-Welle startet trotz offenem HF5-Blocker
+- Risiko: Plan 8-2 startet, obwohl Reverse-Flicker/Non-Regression/Persistenz fuer Sandstorm-Boomerang nicht final verifiziert sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF5 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -179,3 +204,16 @@
 - 2026-03-27: R25 ist mitigiert; Asset-Picker filtert strikt pro Typ (`coded` keys, `mp4` `.mp4`, `gif` `.gif`) ohne stale Drift bei Type-Switch.
 - 2026-03-27: R26 ist mitigiert; boomerang mp4 lifecycle laeuft als full-cycle state machine (forward->reverse->repeat) ohne sichtbaren restart flicker.
 - 2026-03-27: R27 Gate ist erfuellt; HF4 ist PASS verifiziert (`8-HF4-VERIFICATION.md`).
+
+## Risk Review for Plan 8-HF5 (planned)
+- 2026-03-27: Neues verpflichtendes P0-Betriebsfeedback priorisiert R28 als unmittelbaren Hotfix-Blocker (starkes Sandstorm-Flicker im Reverse-Abschnitt).
+- 2026-03-27: R29 und R30 sind verpflichtende Guard-Risiken fuer HF5, damit Boomerang-Fix den normalen mp4-Pfad und Apply/Persistenz nicht regressiert.
+- 2026-03-27: R31 fordert reproduzierbare Evidence-Artefakte als Wellenabschluss-Pflicht.
+- 2026-03-27: R32 setzt den Gate-Guard, dass Plan 8-2 erst nach HF5-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF5
+- 2026-03-27: R28 ist mitigiert; Reverse-Flicker-Root-Cause wurde reproduzierbar isoliert und der mp4-Boomerang-Reverse-Lifecycle mit seek-arbitration stabilisiert.
+- 2026-03-27: R29 ist mitigiert; normaler mp4-Pfad ohne Boomerang bleibt regressionsfrei (`P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`).
+- 2026-03-27: R30 ist mitigiert; `Apply changes` + Save/Reload/Restart fuer `boomerang`/`assetType`/`assetRef` bleiben deterministisch (`P8-T50-APPLY-PERSISTENCE-REGRESSION.md`).
+- 2026-03-27: R31 ist mitigiert; Evidence-Bundle fuer Root-Cause/Fix/Non-Regression ist vollstaendig (`P8-T47-REVERSE-ROOT-CAUSE.md`, `P8-T51-HF5-REGRESSION.md`).
+- 2026-03-27: R32 Gate ist erfuellt; Plan 8-HF5 ist PASS verifiziert (`8-HF5-VERIFICATION.md`) und Plan 8-2 ist freigegeben.
