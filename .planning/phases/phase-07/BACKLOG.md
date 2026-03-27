@@ -10,6 +10,7 @@
 - End-to-End Telemetry and Tracing
 - Sync Regression and Soak Hardening
 - Compatibility and Non-Regression Guard
+- Snapshot Polling Determinism Pivot
 
 ## Story Mapping
 - P7-S1.1 Mutation envelope standardisieren (`mutationId`, `serverVersion`, `serverTimestamp`, `kind`, `scope`).
@@ -49,6 +50,12 @@
 - P7-S9.2 Rollout-Flag und safe fallback fuer stufenweise Aktivierung bereitstellen.
 - P7-S9.3 Artefakt-Sync mit globalen Planungsdateien nach jeder Welle sicherstellen.
 
+- P7-S10.1 Server-Snapshot-API mit monotoner `serverVersion` als kanonische Read-Quelle etablieren.
+- P7-S10.2 Client-Sync auf adaptives Polling (120-250 ms) mit strict version-gated apply umstellen.
+- P7-S10.3 Optimistische lokale Zielstates entfernen; UI zeigt nur serverbestaetigten Zustand plus optional pending-Indikator.
+- P7-S10.4 WebSocket auf optionalen Wakeup-Hint reduzieren (`state-dirty`), ohne Korrektheitsabhaengigkeit.
+- P7-S10.5 Telemetrie und Regression fuer Ghost-State-Elimination und Multi-Client-Versionstreue verpflichtend machen.
+
 ## Priorisierte erste Ausfuehrungswelle (P0) - Plan 7-1 execute-ready
 - Story P7-S1.1 + P7-S1.2 + P7-S1.3.
   - Ziel: ein deterministischer, messbarer und idempotenter Event-Vertrag als gemeinsame Basis.
@@ -68,8 +75,9 @@
   - Ziel: harte Regression- und non-regression Absicherung plus konsistente Artefaktlage.
 
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 7-HF1 Verification Integrity Hotfix (naechste execute-ready Welle): `hopsMs` verifier schema fix, behavior-level non-regression matrix expansion, evidence refresh, full artifact sync.
-- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF1).
+- Plan 7-HF1 Verification Integrity Hotfix (abgeschlossen): `hopsMs` verifier schema fix, behavior-level non-regression matrix expansion, evidence refresh, full artifact sync.
+- Plan 7-HF2 Polling Determinism Hotfix (verpflichtend vor 7-2): server snapshots + adaptive polling + no-optimistic-state + optional WS wakeup hint.
+- Plan 7-2 Hardening: adaptive coalescing tuning, fairness tuning, long-run soak stabilization (nach 7-HF2).
 - Plan 7-3 Production Gate: stricter SLO compliance window, operator sign-off im Realsetup.
 
 ## Execution Update 7-1
@@ -77,3 +85,13 @@
 
 ## Execution Update 7-HF1
 - Verification Integrity Hotfix is closed: `hopsMs` schema verifier fix shipped, behavior-level non-regression matrix became executable, and PASS evidence artifacts were regenerated and synced.
+
+## New Mandatory Wave
+- Plan 7-HF2 ist als execute-ready P0-Hotfix gesetzt, um Realbetriebsprobleme (sporadische Aktionen, Ghost-States) ueber serverautoritative Snapshot-Polling-Semantik deterministisch zu schliessen.
+
+## Execution Update 7-HF2
+- P7-S10.1 implemented: canonical snapshot-read endpoint `/api/live/snapshot` with monotonic version/timestamp semantics.
+- P7-S10.2 implemented: client sync loop now uses adaptive polling (fast ~120ms, idle ~250ms, error backoff with jitter + recovery).
+- P7-S10.3 implemented: command-write path `/api/live/command` plus pending-until-snapshot UI behavior (no optimistic runtime apply).
+- P7-S10.4 implemented: WebSocket reduced to optional wake hint (`state-dirty`) with no correctness dependency.
+- P7-S10.5 implemented: telemetry gates + 4-client regression evidence refreshed (`debug/p7-hf2-*`).

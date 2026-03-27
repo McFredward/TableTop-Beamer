@@ -60,6 +60,21 @@
 - Impact: Hoch, keine sichere Abnahme.
 - Gegenmassnahme: bindender latency compliance report (P50/P95/P99 pro Hop/Rolle).
 
+## R13 Optimistische Client-States erzeugen Ghost-States
+- Risiko: UI zeigt lokal angenommene Endzustaende, die serverseitig nie committed wurden.
+- Impact: Kritisch, fachlich falsches Verhalten und Vertrauensverlust.
+- Gegenmassnahme: optimistic apply entfernen; sichtbarer Zustand kommt nur aus serverseitigem Snapshot mit Version-Gate.
+
+## R14 Polling-Intervall ist falsch kalibriert
+- Risiko: zu langsam wirkt laggy, zu schnell erzeugt unnoetige Last/Jitter.
+- Impact: Hoch.
+- Gegenmassnahme: adaptives Polling 120-250 ms, visibility-aware cadence, Backoff/Jitter bei Fehlern, Telemetriegestuetztes Tuning.
+
+## R15 WebSocket wird versehentlich wieder Korrektheitsquelle
+- Risiko: Hint-Pfad und Korrektheits-Pfad vermischen sich, wodurch Ausfaelle wieder Inkonsistenzen erzeugen.
+- Impact: Hoch bis kritisch.
+- Gegenmassnahme: WS strikt als optionalen Wakeup-Hint kapseln; Snapshot-Polling bleibt alleiniger Korrektheitspfad.
+
 ## Execution Update 7-1
 - R3/R4/R5 mitigations were implemented via bounded multi-lane queue + controlled coalescing.
 - R6/R7 mitigations were implemented via final-first fanout and priority stop teardown paths.
@@ -68,3 +83,11 @@
 ## Execution Update 7-HF1
 - Verify integrity risk was closed: telemetry verifier no longer accepts non-canonical `hops` schema and now rejects missing `hopsMs` explicitly.
 - Non-regression drift risk (R11) was reduced by executable behavior-matrix checks for room/cluster/align/audio-role/persistence plus reload/rejoin parity.
+
+## New Hotfix Risk Focus (7-HF2)
+- R13/R14/R15 sind als P0-Risiken fuer den Realbetrieb priorisiert; Plan 7-HF2 mitigiert diese vor Plan 7-2 verbindlich.
+
+## Execution Update 7-HF2
+- R13 mitigated: optimistic runtime apply removed from control-command path; runtime visibility now snapshot-authoritative.
+- R14 mitigated: adaptive polling cadence with recovery/backoff is active and validated in HF2 evidence.
+- R15 mitigated: WS stream now acts as optional `state-dirty` wake hint only; correctness remains polling + version-gate.

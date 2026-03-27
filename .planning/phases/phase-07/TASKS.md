@@ -26,7 +26,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF1-T3 [P0] Evidenzartefakte neu erzeugen und aktualisieren (`P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md`, `debug/p7-hf1-*`).
 - [x] DONE P7-HF1-T4 [P0] Phase- und globale Artefakte konsistent synchronisieren (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) und Follow-up closure dokumentieren.
 
-## Plan 7-2 - Hardening Wave (nach 7-HF1)
+## Plan 7-HF2 - Polling Determinism Hotfix (execute-ready, verpflichtend vor 7-2)
+- [x] DONE P7-HF2-T1 [P0] Architektur-Pivot umsetzen: Server-Snapshot als einzige kanonische Read-Quelle (`serverVersion` monoton, `serverTimestamp` vorhanden).
+- [x] DONE P7-HF2-T2 [P0] Client-Optimismus entfernen: keine lokalen Zielstates; Mutationen nur Command-Write mit pending/ack-Indikator.
+- [x] DONE P7-HF2-T3 [P0] Adaptiven Polling-Loop implementieren (120-250 ms, visibility-aware, backoff+jitter+recover) mit strict stale-drop.
+- [x] DONE P7-HF2-T4 [P0] Optionalen WebSocket nur als Wakeup-Hint (`state-dirty`) kapseln; Snapshot-Polling bleibt alleinige Korrektheitsquelle.
+- [x] DONE P7-HF2-T5 [P0] Telemetrie/Gates erweitern: `commandAccepted`, `snapshotVersionVisible`, `snapshotApplied` inkl. Ghost-State-Detektor.
+- [x] DONE P7-HF2-T6 [P0] Regression-Suite erweitern: 3-4 Clients, Burst/Toggle/Reconnect, keine Ghost-States, kein second-click-Zwang.
+- [x] DONE P7-HF2-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Plan 7-2 - Hardening Wave (nach 7-HF2)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.

@@ -23,7 +23,16 @@
 3. P0 danach: P7-HF1-T3 (evidence artefacts aus Hotfix-Checks aktualisieren).
 4. P0 Abschluss: P7-HF1-T4 (phase/global artifacts konsistent synchronisieren).
 
-## Priority Execution - Plan 7-2 (nach 7-HF1)
+## Priority Execution - Plan 7-HF2 (verbindlich vor 7-2)
+1. P0 zuerst: P7-HF2-T1 (server snapshot als kanonische Read-Quelle mit monotoner Version).
+2. P0 danach: P7-HF2-T2 (optimistische Client-States entfernen; command-write only).
+3. P0 danach: P7-HF2-T3 (adaptiver Polling-Loop 120-250 ms + stale-drop/version-gate).
+4. P0 danach: P7-HF2-T4 (WS nur als optionalen wakeup hint kapseln).
+5. P0 danach: P7-HF2-T5 (telemetrie-gates `commandAccepted -> snapshotVisible -> applied`).
+6. P0 danach: P7-HF2-T6 (regression matrix fuer ghost-state-elimination + multi-client burst/reconnect).
+7. P0 Abschluss: P7-HF2-T7 (evidence + artefakt-sync komplett).
+
+## Priority Execution - Plan 7-2 (nach 7-HF2)
 1. P1 zuerst: P7-T16 (adaptive coalescing tuning).
 2. P1 danach: P7-T17 (queue fairness/starvation hardening).
 3. P1 Abschluss: P7-T18 (long-run soak + jitter trend report).
@@ -39,7 +48,8 @@
 - Kein Weitergehen zu P7-T9+, bevor P7-T8 priority stop-path ohne visual/audio Reste bestaetigt.
 - Kein Weitergehen zu P7-T11+, bevor P7-T10 final fast path + GIF latency improvement nachweist.
 - Kein Weitergehen zu P7-T15+, bevor P7-T14 Regression + Non-Regression + Latency-Report als PASS dokumentiert.
-- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF1 vollstaendig PASS ist (inkl. `hopsMs`-Schemafix und behavior-complete non-regression matrix).
+- Kein Weitergehen zu Plan 7-2, bevor Plan 7-HF1 und Plan 7-HF2 vollstaendig PASS sind.
+- Kein Weitergehen zu Plan 7-2, solange Polling-Determinism-Gate nicht PASS ist (server-only truth, no optimistic state, snapshot-version-gated apply, adaptive polling, WS-hint-only).
 - Kein Phase-7-Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -57,4 +67,11 @@
 ## Execution Update 7-HF1
 - P7-HF1-T1..P7-HF1-T4 completed.
 - Hotfix outputs recorded in `debug/p7-hf1-t12-output.json`, `debug/p7-hf1-t13-output.json`, `debug/p7-hf1-t14-output.json`.
-- Next executable wave: Plan 7-2.
+- Next executable wave: Plan 7-HF2.
+
+## Execution Update 7-HF2
+- P7-HF2-T1..P7-HF2-T7 completed.
+- Live correctness now follows server-authoritative snapshot polling (`/api/live/snapshot` + version gate) and command-write endpoint (`/api/live/command`).
+- Client UI applies runtime state only from snapshots; command actions remain pending until snapshot confirmation.
+- WebSocket is reduced to optional wake hint (`state-dirty`) and no longer used as correctness channel.
+- HF2 evidence recorded in `debug/p7-hf2-t12-output.json`, `debug/p7-hf2-t13-output.json`, `debug/p7-hf2-t14-output.json`.

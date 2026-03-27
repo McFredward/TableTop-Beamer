@@ -7,6 +7,7 @@
 - Stop-integrity-first: `stop/toggle-off/clear-all` duerfen keine visuellen oder audio Reste hinterlassen.
 - Evidence-first: jedes Latenz-/Determinismusziel benoetigt reproduzierbare Telemetrie/Trace-Evidenz.
 - Non-regression-duty: room/cluster, align-mode, audio-role-routing, persistence bleiben stabil.
+- Snapshot-authority-first: sichtbarer Client-Status darf nur aus serverseitigem Snapshot stammen (keine optimistischen Zielstates).
 
 ## Zielwerte (SLO fuer Phase 7)
 - E2E input-to-final-apply: P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms.
@@ -38,6 +39,12 @@
 - Telemetry-Correlation-Test: pro Mutation ist Timeline ingest->commit->fanout->receive->apply->render/audio nachverfolgbar.
 - Latency-Report-Completeness-Test: P50/P95/P99 sind pro Hop und pro Rolle auswertbar.
 
+- Snapshot-Version-Gate-Test: Client uebernimmt nur `serverVersion > appliedVersion`; stale/equal-Version wird strikt verworfen.
+- No-Optimistic-State-Test: UI darf bis Snapshot-Eingang hoechstens pending zeigen, aber keinen lokal angenommenen Endzustand.
+- Polling-Cadence-Test: adaptives Intervall liegt im Zielband (aktiv ca. 120 ms, idle ca. 250 ms) und bleibt unter 3-4 Clients stabil.
+- WS-Hint-Isolation-Test: Ausfall oder Verlust von WS-Hints darf Korrektheit nicht brechen; Polling-only bleibt korrekt.
+- Ghost-State-Elimination-Test: lokale Ghost-States treten in Burst/Reconnect-Matrix nicht auf.
+
 - Room-Cluster-Non-Regression-Test: Cluster fanout/edit/stop bleiben deterministisch und konsistent.
 - Align-Mode-Non-Regression-Test: Align-Overlay-Verhalten bleibt unveraendert korrekt.
 - Audio-Role-Routing-Non-Regression-Test: audio-role-routing bleibt strikt (`final-output` hoerbar, control stumm).
@@ -58,6 +65,7 @@
 - Deterministisches first-click Verhalten gilt fuer apply/start/stop auf allen Rollen.
 - `/output/final` reagiert priorisiert und zeigt keine stop/toggle Reste.
 - Event-Pipeline ist robust gegen duplicate, stale, reconnect und burst pressure.
+- Client-UI/Zustand ist nicht-optimistisch: final sichtbarer Zustand kommt ausschliesslich aus serverseitigen Snapshots mit Version-Gate.
 - Keine Regression in room/cluster, align-mode, audio-role-routing, persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -79,4 +87,15 @@
 - P7-T12 Gate: PASS (`hopsMs`-only parser + negative-path missing-field rejection).
 - P7-T13 Gate: PASS (ausfuehrbare behavior-level Matrix inkl. Reload/Rejoin-Paritaet).
 - P7-T14 Gate: PASS (Evidenz mit `debug/p7-hf1-*` aktualisiert und konsistent verlinkt).
-- Plan 7-2 ist damit wieder freigegeben.
+- Plan 7-2 war damit initial freigegeben.
+
+## New Blocking Gate (Plan 7-HF2)
+- Reales Betriebsfeedback oeffnet vor Plan 7-2 einen neuen P0-Gate: sporadische Aktionen und spaet verschwindende Ghost-States sind blocker.
+- Freigabevoraussetzung: Polling-Determinism-Pivot ist PASS (server-only truth, no optimistic state, snapshot-version-gated apply, adaptive polling, optional WS-hint-only).
+
+## Gate Closure Update (Plan 7-HF2)
+- PASS: server-authoritative snapshot endpoint (`/api/live/snapshot`) is the canonical read channel with strict client version-gate stale-drop.
+- PASS: mutations are command-write-only via `/api/live/command`; UI uses pending status until snapshot-confirmed apply.
+- PASS: adaptive polling cadence (fast/idle + backoff/jitter/recovery) is active and verified in regression evidence.
+- PASS: WebSocket path is wake-hint-only (`state-dirty`) and not required for correctness.
+- PASS: 4-client polling regression (incl. `/output/final`) confirms deterministic start/stop/clear-all without ghost states.

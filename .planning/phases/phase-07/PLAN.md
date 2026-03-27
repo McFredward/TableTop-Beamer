@@ -56,6 +56,26 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 3. Evidenzartefakte aktualisieren: `P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md` plus neue Debug-Ausgaben aus den Hotfix-Checks.
 4. Artefakt-Sync als Pflichtabschluss: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE` sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` im selben Schritt konsistent halten.
 
+## Entscheidungsupdate aus Realbetrieb (Plan 7-HF2, P0-Hotfix, execute-ready)
+- Architekturentscheidung (verbindlich): fuer Korrektheit wird auf snapshot-basierten Polling-Sync mit Versionskontrolle gepivotet; WebSocket ist optionaler Wakeup-Hint, aber nicht mehr Korrektheitsquelle.
+- Server ist einzige Source of Truth fuer Live-Zustand; Clients fuehren keine optimistischen lokalen Zielzustaende mehr.
+- Mutationen laufen write-only zum Server (Command-API), der den kanonischen Snapshot mit monotoner `serverVersion` bereitstellt.
+- Clients uebernehmen Zustand ausschliesslich aus serverseitigen Snapshots (`GET /api/live/snapshot?sinceVersion=...`), inklusive strict stale-drop (`incomingVersion <= appliedVersion => reject`).
+- Polling ist adaptiv: aktiv 120 ms bei frischen Aenderungen oder Fokus, sonst 250 ms; bei Fehlern exponential backoff mit schnellem recovery.
+- Ack-Semantik wird aufgeteilt in `commandAccepted` (Mutation angenommen) und `snapshotApplied` (Version sichtbar/applied), um Ghost-States auszuschliessen.
+- WS-Hint (optional): `state-dirty`/`wake` reduziert mittlere Wartezeit bis naechster Poll, darf aber nie Snapshot-Versionslogik umgehen.
+- Prioritaetskontrollen (`stop/toggle-off/clear-all`) bleiben P0 und muessen spaetestens mit naechstem Snapshot deterministisch sichtbar sein.
+- Zielkonflikt ist explizit aufgeloest: deterministische Korrektheit hat Vorrang vor maximaler Reaktivitaet; 3-4 Clients erlauben moderates Polling ohne Infrastrukturstress.
+
+## Plan 7-HF2 Scope (execute-ready)
+- Serverseitiger Snapshot-Read-Pfad mit kanonischem Live-State + monotoner `serverVersion` + `serverTimestamp`.
+- Command-Write-Pfad haertet Mutationen serverautoritativ; Client zeigt nur ack-pending, aber keinen optimistischen Zielzustand.
+- Client-Sync-Loop von eventgetriebenem apply auf polling+version-gated snapshot apply umstellen.
+- Adaptive Polling-Strategie (120-250 ms) inkl. Backoff/Jitter/Retry fuer stabile Lastprofile.
+- Optionalen WS-Wakeup als Beschleuniger integrieren, ohne Korrektheitsabhaengigkeit.
+- Telemetrie fuer `command->snapshot-version-visible->applied` ergaenzen und in Reports ausweisen.
+- Regression-Hardening fuer Ghost-State, Multi-Client-Burst, Reconnect und stale-version-Reject.
+
 ## Migrationsstrategie (sichere Inkremente)
 1. Bestehenden Live-Sync-Vertrag inventarisieren und semantisch in Mutation-Klassen trennen.
 2. Serverseitige ordered commit pipeline hinter Feature-Flag einfuehren.
@@ -116,3 +136,13 @@ Phase 7 fokussiert einen umfassenden Umbau der Multi-Device-Synchronisation auf 
 - P7-T12 verifier now enforces canonical `hopsMs` with explicit missing-field negative-path rejection.
 - P7-T13 is upgraded to an executable behavior-level matrix covering room/cluster/align/audio-role/persistence and reload-rejoin parity.
 - Evidence artifacts were regenerated (`P7-T12-REGRESSION.md`, `P7-T13-NON-REGRESSION.md`, `P7-T14-LATENCY-REPORT.md`, `debug/p7-hf1-*`) and synchronized with global planning files.
+
+## New Mandatory Wave
+- Plan 7-HF2 (Polling Determinism Hotfix) ist als naechste execute-ready P0-Welle gesetzt und blockiert Plan 7-2 bis Gate-PASS.
+
+## Execution Update 7-HF2
+- Plan 7-HF2 implementation completed for P7-HF2-T1..P7-HF2-T7.
+- Server now exposes snapshot-authoritative read path (`GET /api/live/snapshot?sinceVersion=...`) and command-write mutation path (`POST /api/live/command`).
+- Client runtime apply switched to adaptive polling with strict version-gate (`incomingVersion <= appliedVersion => reject`) and pending-until-snapshot UX.
+- WebSocket apply path is de-scoped to optional wake hints (`state-dirty`) and is no longer required for correctness.
+- Regression/evidence refreshed for deterministic 4-client start/stop/clear-all including `/output/final` (`debug/p7-hf2-t12-output.json`, `debug/p7-hf2-t13-output.json`, `debug/p7-hf2-t14-output.json`).
