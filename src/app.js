@@ -1240,6 +1240,7 @@ async function loadExternalBoardZones() {
   try {
     const response = await fetchWithTimeout("/api/boards", {
       method: "GET",
+      cache: "no-store",
       headers: {
         accept: "application/json",
       },
@@ -1259,7 +1260,7 @@ async function loadExternalBoardZones() {
           : [];
       const normalizedBoards = runtimeBoards
         .map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board))
-        .filter((board) => board?.id && Array.isArray(board.rooms) && board.rooms.length > 0);
+        .filter((board) => board?.id && Array.isArray(board.rooms));
       if (normalizedBoards.length > 0) {
         BOARDS = normalizedBoards;
         for (const board of BOARDS) {
@@ -1378,11 +1379,70 @@ async function importBoardFromFile(file) {
   }
 
   await loadExternalBoardZones();
+  ensureImportedBoardInCatalog(parsed);
   syncBoardSelectOptions();
   if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
     switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import" });
   }
   return parsed;
+}
+
+function normalizeImportedBoardFromResponse(parsed) {
+  if (!parsed || typeof parsed !== "object") {
+    return null;
+  }
+  const boardId = String(parsed?.boardId || parsed?.board?.boardId || parsed?.board?.id || "").trim();
+  if (!boardId) {
+    return null;
+  }
+  const boardPayload = parsed?.board;
+  const roomCatalog = Array.isArray(boardPayload?.roomCatalog)
+    ? boardPayload.roomCatalog
+    : Array.isArray(boardPayload?.rooms)
+      ? boardPayload.rooms
+      : [];
+  const roomClusters = Array.isArray(boardPayload?.roomClusters)
+    ? boardPayload.roomClusters
+    : Array.isArray(boardPayload?.clusters)
+      ? boardPayload.clusters
+      : [];
+  const fallbackImagePath = String(parsed?.imagePath || "").trim();
+  const fallbackImageSrc = fallbackImagePath ? `/${fallbackImagePath.replace(/^\/+/, "")}` : "";
+  const runtimeCandidate = {
+    id: boardId,
+    label: String(boardPayload?.metadata?.name || boardPayload?.label || boardPayload?.name || boardId).trim() || boardId,
+    src: String(boardPayload?.metadata?.imageSrc || boardPayload?.src || fallbackImageSrc).trim(),
+    rooms: roomCatalog.map((room) => ({
+      id: room?.id,
+      name: room?.name,
+      label: room?.name ?? room?.label,
+      polygon: room?.polygon ?? room?.points,
+      points: room?.polygon ?? room?.points,
+      x: room?.x,
+      y: room?.y,
+      radius: room?.radius,
+      meta: room?.meta,
+    })),
+    roomClusters,
+  };
+  if (!runtimeCandidate.src) {
+    return null;
+  }
+  return window.TT_BEAMER_ROOMS.normalizeBoard(runtimeCandidate);
+}
+
+function ensureImportedBoardInCatalog(parsed) {
+  const board = normalizeImportedBoardFromResponse(parsed);
+  if (!board?.id || BOARDS.some((entry) => entry.id === board.id)) {
+    return false;
+  }
+  BOARDS = [...BOARDS, board];
+  state.zoneLoader.loadedBoards[board.id] = "import-response";
+  state.zoneLoader.fallbackBoards[board.id] = "none";
+  state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
+  state.zoneLoader.detailByBoard[board.id] = "import-response";
+  syncZoneLoaderStatus();
+  return true;
 }
 
 async function importBoardFromImage(file, { boardName = "", boardId = "" } = {}) {
@@ -1421,6 +1481,7 @@ async function importBoardFromImage(file, { boardName = "", boardId = "" } = {})
   }
 
   await loadExternalBoardZones();
+  ensureImportedBoardInCatalog(parsed);
   syncBoardSelectOptions();
   if (parsed?.boardId && BOARDS.some((board) => board.id === parsed.boardId)) {
     switchBoard(parsed.boardId, { emitLiveContext: true, reason: "board-import-image" });
