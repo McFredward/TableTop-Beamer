@@ -63,6 +63,35 @@ function formatImportFilename(name) {
   return `${prefix}…${suffix}`;
 }
 
+function formatOverflowSafeText(value, { maxLength = 120, prefixLength = 78, suffixLength = 30 } = {}) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+  const prefix = trimmed.slice(0, prefixLength).trimEnd();
+  const suffix = trimmed.slice(-suffixLength).trimStart();
+  return `${prefix}…${suffix}`;
+}
+
+function formatBoardLabelForSelect(label) {
+  return formatOverflowSafeText(label, {
+    maxLength: 86,
+    prefixLength: 58,
+    suffixLength: 24,
+  });
+}
+
+function formatBoardCatalogInfoLine(value) {
+  return formatOverflowSafeText(value, {
+    maxLength: 180,
+    prefixLength: 120,
+    suffixLength: 52,
+  });
+}
+
 function syncImportFilenameLabel(inputEl, labelEl, emptyText) {
   if (!labelEl) {
     return;
@@ -1260,9 +1289,10 @@ function syncZoneLoaderStatus() {
   const boards = boardIds.map((boardId) => {
     const mode = state.zoneLoader.classificationByBoard[boardId] ?? "UNKNOWN";
     const fallback = state.zoneLoader.fallbackBoards[boardId] || "none";
-    return `${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
+    return formatBoardCatalogInfoLine(`${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`);
   });
   zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
+  zonesStatus.title = zonesStatus.textContent;
 }
 
 async function loadExternalBoardZones() {
@@ -1538,13 +1568,23 @@ function syncBoardSelectOptions() {
   for (const board of BOARDS) {
     const option = document.createElement("option");
     option.value = board.id;
-    option.textContent = board.label;
+    option.textContent = formatBoardLabelForSelect(board.label);
+    option.title = board.label;
     boardSelect.append(option);
   }
   if (!BOARDS.some((board) => board.id === state.boardId)) {
     state.boardId = BOARDS[0]?.id ?? "";
   }
   boardSelect.value = state.boardId;
+}
+
+function syncBoardCatalogStatus(boardLabel) {
+  if (!boardStatus) {
+    return;
+  }
+  const renderedLabel = formatBoardCatalogInfoLine(boardLabel);
+  boardStatus.textContent = `Active board: ${renderedLabel}`;
+  boardStatus.title = `Active board: ${boardLabel}`;
 }
 
 function clampBoardZoomScale(value) {
@@ -5995,7 +6035,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
    state.selectedLayout = board.id;
   boardImage.src = board.src;
   boardSelect.value = board.id;
-  boardStatus.textContent = `Active board: ${board.label}`;
+  syncBoardCatalogStatus(board.label);
   const rememberedRoom = state.selectedRoomByBoard[board.id];
   state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
     ? rememberedRoom
@@ -8816,7 +8856,7 @@ boardImportButton?.addEventListener("click", async () => {
     if (!imageFile) {
       triggerFeedback.textContent = `Status: board import succeeded (${importedBoardId})`;
     }
-    boardStatus.textContent = `Active board: ${getBoard().label}`;
+    syncBoardCatalogStatus(getBoard().label);
     if (boardImportFileInput) {
       boardImportFileInput.value = "";
     }

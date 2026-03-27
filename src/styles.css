@@ -418,10 +418,22 @@ h1 {
   max-width: 100%;
 }
 
+.board-catalog-output-panel select,
+.board-catalog-output-panel input[type="text"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .board-catalog-output-panel button {
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.board-catalog-status {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .running-overview-panel {
