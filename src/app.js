@@ -7483,6 +7483,17 @@ function renderRunningAnimationsList() {
   }
 }
 
+function isRunningListInteractionActive() {
+  if (!runningAnimationsList) {
+    return false;
+  }
+  if (runningAnimationsList.matches(":hover") || runningAnimationsList.matches(":focus-within")) {
+    return true;
+  }
+  const activeElement = document.activeElement;
+  return Boolean(activeElement && runningAnimationsList.contains(activeElement));
+}
+
 function validateRunningListParity() {
   const seenIds = new Set();
   const activeClusterIds = new Set();
@@ -8261,7 +8272,11 @@ function draw(now) {
         "Status: faulty animation isolated, render timer continues";
     }
 
-    if (outputRole !== OUTPUT_ROLE_FINAL && now - lastListRenderAt > 500) {
+    if (
+      outputRole !== OUTPUT_ROLE_FINAL
+      && now - lastListRenderAt > 500
+      && !isRunningListInteractionActive()
+    ) {
       renderRunningAnimationsList();
       lastListRenderAt = now;
     }

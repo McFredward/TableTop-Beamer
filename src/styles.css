@@ -526,6 +526,15 @@ input[type="number"] {
   gap: 0.4rem;
 }
 
+.running-actions button {
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.running-actions button:hover,
+.running-actions button:focus-visible {
+  transform: none;
+}
+
 .running-empty {
   border: 1px dashed rgba(129, 152, 182, 0.5);
   color: #8ea3c2;
