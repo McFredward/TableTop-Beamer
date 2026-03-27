@@ -5392,8 +5392,7 @@ function renderRoomOverlay() {
       }
       state.selectedRoomId = room.id;
       state.selectedRoomByBoard[state.boardId] = room.id;
-      state.roomDraft.targetType = "room";
-      state.roomDraft.targetId = room.id;
+      applyRoomDraftTargetFromRoomClick(room.id);
       state.polygonEditor.vertexSelectionActive = false;
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
@@ -6388,6 +6387,15 @@ function syncGifRoomControls() {
 function clearRoomDraftEditTarget() {
   state.roomDraft.editTargetId = null;
   syncRoomDraftActionButton();
+}
+
+function applyRoomDraftTargetFromRoomClick(roomId) {
+  const normalizedRoomId = typeof roomId === "string" ? roomId.trim() : "";
+  if (!normalizedRoomId) {
+    return;
+  }
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = normalizedRoomId;
 }
 
 const ROOM_DRAFT_UI_IMMUTABLE_FIELDS = [
