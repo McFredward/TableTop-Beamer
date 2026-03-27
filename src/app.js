@@ -1813,6 +1813,7 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
       playAreas: mergedPlayAreas,
       selectedPlayAreaId,
       playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? SHIP_POLYGON_DEFAULT),
+      outsideFx: normalizeOutsideFxProfile(primary.outsideFx ?? fallback.outsideFx),
     };
   }
 
@@ -2049,8 +2050,14 @@ function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null)
 
 function normalizeOutsideFxProfile(profile) {
   const legacyProfile = profile && typeof profile === "object" ? profile : OUTSIDE_FX_DEFAULT;
-  const animations = normalizeOutsideAnimationDefinitions(legacyProfile?.animations, legacyProfile);
-  const preferredId = normalizeOutsideAnimationId(legacyProfile?.selectedAnimationId, animations[0]?.id ?? "outside-space");
+  const animations = normalizeOutsideAnimationDefinitions(
+    legacyProfile?.animations ?? legacyProfile?.outsideAnimations,
+    legacyProfile,
+  );
+  const preferredId = normalizeOutsideAnimationId(
+    legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedOutsideAnimationId,
+    animations[0]?.id ?? "outside-space",
+  );
   const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
   return {
     enabled: Boolean(legacyProfile?.enabled),
