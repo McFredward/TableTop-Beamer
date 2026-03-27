@@ -275,7 +275,26 @@ function applyRoomMutationPatch(mutationType, payload) {
   const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
   const stopTargetType = normalizeNonEmptyString(payload?.targetType);
   const stopTargetBoardId = normalizeNonEmptyString(payload?.boardId);
+  const payloadBoardId =
+    normalizeNonEmptyString(payload?.boardId)
+    ?? normalizeNonEmptyString(payload?.animation?.boardId)
+    ?? normalizeNonEmptyString(payload?.runtime?.selectedBoard)
+    ?? normalizeNonEmptyString(payload?.runtime?.boardId)
+    ?? null;
+  const inferredRunningBoardId = normalizeNonEmptyString(runningAnimations[0]?.boardId) ?? null;
+  const authoritativeBoardId =
+    payloadBoardId
+    ?? inferredRunningBoardId
+    ?? normalizeNonEmptyString(nextRuntime?.selectedBoard)
+    ?? normalizeNonEmptyString(nextRuntime?.boardId)
+    ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
+    ?? null;
   let outsideFxByBoardPatch = null;
+
+  if (authoritativeBoardId) {
+    nextRuntime.selectedBoard = authoritativeBoardId;
+    nextRuntime.boardId = authoritativeBoardId;
+  }
 
   if (mutationType === "trigger-room" && isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const existingIndex = runningAnimations.findIndex((entry) => entry?.id === payload.animation.id);
@@ -303,6 +322,12 @@ function applyRoomMutationPatch(mutationType, payload) {
         nextRuntime.globalStopRevisions = globalStopRevisions;
         return {
           runtime: nextRuntime,
+          ...(authoritativeBoardId
+            ? {
+              selectedBoard: authoritativeBoardId,
+              selectedLayout: authoritativeBoardId,
+            }
+            : {}),
         };
       }
     }
@@ -393,6 +418,12 @@ function applyRoomMutationPatch(mutationType, payload) {
     return {
       runtime: nextRuntime,
       outsideFxByBoard,
+      ...(authoritativeBoardId
+        ? {
+          selectedBoard: authoritativeBoardId,
+          selectedLayout: authoritativeBoardId,
+        }
+        : {}),
     };
   }
 
@@ -400,6 +431,12 @@ function applyRoomMutationPatch(mutationType, payload) {
   nextRuntime.globalStopRevisions = globalStopRevisions;
   return {
     runtime: nextRuntime,
+    ...(authoritativeBoardId
+      ? {
+        selectedBoard: authoritativeBoardId,
+        selectedLayout: authoritativeBoardId,
+      }
+      : {}),
     ...(outsideFxByBoardPatch ? { outsideFxByBoard: outsideFxByBoardPatch } : {}),
   };
 }
@@ -420,6 +457,11 @@ function applyGlobalMutationPatch(payload) {
     ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
     ?? null;
   const directTriggerKey = boardId && animationType ? `${boardId}:${animationType}` : null;
+
+  if (boardId) {
+    nextRuntime.selectedBoard = boardId;
+    nextRuntime.boardId = boardId;
+  }
 
   if (action === "stop") {
     const stopAnimationId = normalizeNonEmptyString(payload?.animationId);
@@ -483,12 +525,24 @@ function applyGlobalMutationPatch(payload) {
       return {
         runtime: nextRuntime,
         outsideFxByBoard,
+        ...(boardId
+          ? {
+            selectedBoard: boardId,
+            selectedLayout: boardId,
+          }
+          : {}),
       };
     }
   }
 
   return {
     runtime: nextRuntime,
+    ...(boardId
+      ? {
+        selectedBoard: boardId,
+        selectedLayout: boardId,
+      }
+      : {}),
   };
 }
 
