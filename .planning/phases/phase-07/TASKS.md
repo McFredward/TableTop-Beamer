@@ -44,7 +44,16 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P7-HF3-T6 [P0] UI-Controls fuer Stagger praezisieren: Delay-Slider (ms) + replizierte Persistenz in Command/Snapshot.
 - [x] DONE P7-HF3-T7 [P0] Regression + Evidenz + Artefakt-Sync liefern (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) inkl. Trigger-Dauerparitaet/Audionachlauf/Stagger-Offset-Matrix.
 
-## Plan 7-2 - Hardening Wave (nach 7-HF3)
+## Plan 7-HF4 - Draft-UI Immutability on Start Hotfix (execute-ready, verpflichtend vor 7-2)
+- [x] DONE P7-HF4-T1 [P0] Start-Pfade fuer `targetType=room|cluster` so hardenen, dass Draft-Controls nach Start unveraendert bleiben (kein implizites Reset auf Animation/Target/Slider).
+- [ ] TODO P7-HF4-T2 [P0] Draft-State-Reducer/Setter guarden: Start darf nur runtime pending/ack/audit aktualisieren, nicht Draft-UI-Felder.
+- [ ] TODO P7-HF4-T3 [P0] Room-Klick-Verhalten absichern: nur `target` auto auf geklickten Room setzen; Start selbst bleibt strikt side-effect-frei fuer Drafts.
+- [ ] TODO P7-HF4-T4 [P0] Snapshot/Polling-Apply gegen Draft-Rueckschreiben absichern, damit Runtime-Updates keine Dropdown-/Slider-Drafts ueberschreiben.
+- [ ] TODO P7-HF4-T5 [P0] Regression-Matrix erweitern: mehrfache room/cluster Starts mit gleichen Einstellungen, kein Jump auf `cluster` oder `Malfunction`, Dropdown/Slider stabil.
+- [ ] TODO P7-HF4-T6 [P0] Non-regression absichern fuer bestehende target-auto-on-room-click Paritaet und Cluster-Start-Funktion.
+- [ ] TODO P7-HF4-T7 [P0] Evidenz + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Plan 7-2 - Hardening Wave (nach 7-HF4)
 - [ ] TODO P7-T16 [P1] Adaptive coalescing tuning unter Last validieren (no critical-event merge).
 - [ ] TODO P7-T17 [P1] Queue fairness und starvation guards fuer mixed load (control-critical vs noisy config updates) absichern.
 - [ ] TODO P7-T18 [P1] Long-run soak und jitter trend analysis dokumentieren.

@@ -6535,8 +6535,8 @@ function startRoomAnimationFromDraft() {
   const board = getBoard();
 
   if (!isRoomAnimationType(state.roomDraft.animationId)) {
-    state.roomDraft.animationId = ROOM_ANIMATIONS[0]?.id ?? "kaputt";
-    roomAnimationSelect.value = state.roomDraft.animationId;
+    triggerFeedback.textContent = "Status: select a valid room animation first";
+    return;
   }
 
   const draftPayload = {
@@ -6549,13 +6549,6 @@ function startRoomAnimationFromDraft() {
     hold: true,
     durationMs: null,
   };
-
-  state.roomDraft.animationId = draftPayload.type;
-  state.roomDraft.intensity = draftPayload.intensity;
-  state.roomDraft.speed = draftPayload.speed;
-  state.roomDraft.opacity = draftPayload.opacity;
-  state.roomDraft.playbackSpeed = draftPayload.playbackSpeed;
-  state.roomDraft.soundVolume = draftPayload.soundVolume;
 
   if (isGifRoomAnimation(draftPayload.type)) {
     warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[draftPayload.type], { reason: "trigger" });
