@@ -11,9 +11,9 @@
 - Current Phase Key: phase-07
 - Last Prepared: 2026-03-27
 - Execution Readiness: READY
-- Last Executed Plan: 7-HF1
+- Last Executed Plan: 7-HF2
 - Planned Next Execution: 7-2
-- Last Execution Summary: `.planning/phases/phase-07/7-HF1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-07/7-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -229,6 +229,9 @@
 - Phase-7 Plan 7-HF1 execution: P7-T12 verifier enforces canonical `hopsMs` only and rejects missing-field payloads via explicit negative-path assertion.
 - Phase-7 Plan 7-HF1 execution: P7-T13 non-regression became an executable behavior matrix for room/cluster/align/audio-role/persistence including reload/rejoin parity checks.
 - Phase-7 Plan 7-HF1 execution: evidence refreshed to PASS with `debug/p7-hf1-t12-output.json`, `debug/p7-hf1-t13-output.json`, `debug/p7-hf1-t14-output.json` and synchronized phase/global artifacts.
+- Phase-7 Entscheidungsauftrag (Realbetrieb): Sync-Architektur pivotet auf serverautoritative Snapshot-Polling-Semantik mit Versionsnummern als verbindlichem Korrektheitspfad.
+- Phase-7 Architekturregel (Plan 7-HF2): Clients schreiben nur Commands an den Server und uebernehmen sichtbaren Zustand ausschliesslich aus serverseitigen Snapshots; optimistische lokale Zielstates sind verboten.
+- Phase-7 Taktregel (Plan 7-HF2): adaptives Polling 120-250 ms fuer 3-4 Clients ist akzeptierter Betriebsstandard; WebSocket bleibt optionaler Wakeup-Hint ohne Korrektheitsrolle.
 - Plan-Update-3-4 Umsetzung: GIF-Renderpfad zeichnet nur Timeline-Frames (kein Erstframe-Fallback), waehrend `opacity`/`playbackSpeed` pro Instanz unveraendert isoliert bleiben.
 - Phase-4 Planung ist vorbereitet: umfassendes Refactoring fuer Wartbarkeit mit modularer Zielarchitektur statt monolithischem `src/app.js`.
 - Phase-4 Scope-Regel: Verhaltensparitaet ist verpflichtend fuer Dashboard/Settings, Room-Animationen, GIF-Playback, Persistenz, Save/API und mobile UX.
@@ -801,3 +804,16 @@
 ## Decision Log Addendum (HF8)
 - Room/vertex/edge selection darf `roomDraft.targetType/targetId` nicht implizit ueberschreiben; Target-Auswahl bleibt operator-owned.
 - Cluster-Startmodus `stagger start` ist cluster-only mit kurzem randomisiertem Versatz; `off` bleibt deterministisch synchron.
+
+## Execution Results (Phase 7 Plan HF2)
+- Status: completed
+- Summary: `.planning/phases/phase-07/7-HF2-SUMMARY.md`
+- Task Commits: 3 commits (`162b589`, `3443bf1`, `d4991f2`)
+- Evidence:
+  - `debug/p7-hf2-t12-output.json`
+  - `debug/p7-hf2-t13-output.json`
+  - `debug/p7-hf2-t14-output.json`
+
+## Decision Log Addendum (HF2)
+- Korrektheitspfad ist serverautoritatives Snapshot-Polling; WebSocket bleibt optionaler `state-dirty`-Wakeup-Hint.
+- Control-Clients senden Mutationen write-only an den Server und zeigen Pending, bis die entsprechende Snapshot-Version sichtbar angewendet wurde.

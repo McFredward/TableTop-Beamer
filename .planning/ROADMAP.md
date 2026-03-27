@@ -214,7 +214,7 @@ Exit Criteria:
 ## Phase 7 - Multi-Device Sync Determinism + Low-Latency Final Output (In Progress)
 Ziel: End-to-end Sync-Latenz spuerbar reduzieren und deterministisches first-click Apply/Stop ueber alle Clients erreichen, mit priorisiertem low-latency Pfad fuer `/output/final`, robuster Event-Pipeline (ordering/ack/dedup/backpressure) sowie messbarer Telemetrie und Regression-Absicherung.
 
-Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15) und Plan 7-HF1 (P7-HF1-T1..P7-HF1-T4) ist als Verification-Integrity-Hotfix geschlossen. Naechster verpflichtender Schritt ist Plan 7-2 Hardening.
+Status: Plan 7-1 ist abgeschlossen (P7-T1..P7-T15), Plan 7-HF1 ist geschlossen (Verifier/Matrix-Integrity), und Plan 7-HF2 ist ebenfalls abgeschlossen (Snapshot-Polling-Korrektheit + 4-Client-Evidenz). Naechster Schritt ist Plan 7-2 Hardening.
 
 Milestones:
 1. M1 Deterministic Event Contract: mutation envelope mit ordering-/ack-/dedup-Regeln.
@@ -225,6 +225,7 @@ Milestones:
 6. M6 GIF Responsiveness: room GIF trigger-to-first-frame Latenz deutlich reduziert.
 7. M7 Telemetry and Tracing: P50/P95/P99 pro Hop/Rolle mit mutation correlation.
 8. M8 Non-Regression Closure: room/cluster, align-mode, audio-role-routing, persistence bleiben stabil.
+9. M9 Polling Determinism Pivot: server-only source of truth, snapshot-versioned polling (120-250 ms), no optimistic local states, optional WS wakeup hints.
 
 Exit Criteria:
 - E2E input-to-final-apply erreicht Zielwerte (P50 <= 90 ms, P95 <= 180 ms, P99 <= 280 ms) oder dokumentierte akzeptierte Restabweichung.
@@ -232,8 +233,15 @@ Exit Criteria:
 - Event-Pipeline ist gehaertet fuer ordering, ack, dedup, backpressure und semantisch sicheres coalescing.
 - `/output/final` zeigt priorisierte low-latency Reaktion ohne UI-overhead-induzierte Verzoegerung.
 - Telemetrie/Tracing und Regression-Suite liefern reproduzierbare Evidenz fuer Latenz und Determinismus.
+- Korrektheitspfad ist deterministisch polling-basiert: sichtbare Client-Zustaende kommen nur aus serverseitigen Snapshots mit monotoner Version.
+- Lokale optimistische Zielstates sind entfernt; WS ist optionaler Wakeup-Hint und nicht Teil der Korrektheitslogik.
 - Keine Regression in room/cluster, align-mode, audio-role-routing und persistence.
 - Phase-7-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md` und `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
+
+Execution Update (7-HF2):
+- Server exposes `/api/live/snapshot` (authoritative read) and `/api/live/command` (write-only commands).
+- Client runtime applies only versioned snapshots with adaptive polling cadence (~120ms active / ~250ms idle + backoff/jitter).
+- Deterministic 4-client regression incl. `/output/final` is PASS (`debug/p7-hf2-*`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
