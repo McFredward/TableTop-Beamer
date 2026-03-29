@@ -12,6 +12,7 @@
 - Outside Animation Editor Stability Hotfix
 - Outside Asset-Picker + Boomerang Stability Hotfix
 - Sandstorm Reverse-Lifecycle Flicker Hotfix
+- Final Output Fullscreen Fit Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -71,6 +72,12 @@
 - P8-S12.3 Non-Regression absichern: normales mp4-Playback ohne Boomerang bleibt stabil und unveraendert.
 - P8-S12.4 Persistenz-/Apply-Paritaet sichern: `Apply changes`, Save/Reload/Restart behalten `boomerang`/`assetType`/`assetRef` deterministisch.
 - P8-S12.5 Regression-/Evidence-Artefakte fuer Root-Cause, Fix und Non-Regression erstellen und dokumentieren.
+
+- P8-S13.1 Root-Cause fuer `/output/final` Fullscreen-Missfit (Top-Left-Offset/zu kleiner Renderbereich) reproduzierbar isolieren.
+- P8-S13.2 Stage-/Canvas-Resize-Strategie vereinheitlichen: CSS-Pixel, Backbuffer-Pixel und devicePixelRatio deterministisch koppeln.
+- P8-S13.3 Fullscreen-/Resize-Events (`resize`, `orientationchange`, `fullscreenchange`, DPR-Wechsel) als verpflichtende Recompute-Trigger anbinden.
+- P8-S13.4 Fullscreen-Fit ohne Letterbox-/Offset-Bug absichern: finaler Renderbereich nutzt die verfuegbare Flaeche vollstaendig.
+- P8-S13.5 Non-Regression fuer Rendering/Coords/Clip unter dynamischem Reflow und unterschiedlichen Display-Aufloesungen dokumentieren.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -136,8 +143,16 @@
 - Story P8-S12.5 + P8-S7.3.
   - Ziel: belastbare Evidence-Artefakte plus konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF6 execute-ready
+- Story P8-S13.1 + P8-S13.2.
+  - Ziel: Fullscreen-Root-Cause ist isoliert; Stage/Canvas rechnen viewport- und DPR-korrekt statt Top-Left-Teilausschnitt.
+- Story P8-S13.3 + P8-S13.4.
+  - Ziel: `/output/final` passt sich bei Resize/Orientation/Fullscreen deterministisch an und fuellt den vorgesehenen Bereich ohne Letterbox-/Offset-Bug.
+- Story P8-S13.5 + P8-S7.3.
+  - Ziel: Rendering/Coords/Clip bleiben regressionsfrei; evidenzbasierter P0-Abschluss mit konsistentem Artefakt-Sync.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF5): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF6): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -150,3 +165,5 @@
 - 2026-03-27: Plan 8-HF4 Stories P8-S11.1..P8-S11.5 umgesetzt; coded restore, typspezifischer picker und boomerang full-cycle stability sind PASS (`8-HF4-VERIFICATION.md`, `P8-T45-BOOMERANG-REGRESSION.md`).
 - 2026-03-27: Neues verpflichtendes P0-Feedback (Sandstorm Reverse-Flicker) priorisiert Plan 8-HF5 (Stories P8-S12.1..P8-S12.5) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF5 Stories P8-S12.1..P8-S12.5 umgesetzt; Reverse-Lifecycle-Root-Cause/Fix, mp4 Non-Boomerang Guard und Apply/Persistenz-Determinismus sind PASS (`8-HF5-VERIFICATION.md`, `P8-T47-REVERSE-ROOT-CAUSE.md`, `P8-T51-HF5-REGRESSION.md`).
+- 2026-03-29: Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 (Stories P8-S13.1..P8-S13.5) als naechste execute-ready Hotfix-Welle vor Plan 8-2; Fokus ist `/output/final` Fullscreen-Fit inkl. Resize/Orientation/Fullscreen/DPR-Recompute.
+- 2026-03-29: Plan 8-HF6 Stories P8-S13.1..P8-S13.5 umgesetzt; Fullscreen-Fit inklusive Resize/Orientation/Fullscreen/DPR-Recompute und Reflow-Non-Regression ist PASS (`8-HF6-VERIFICATION.md`, `P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`).

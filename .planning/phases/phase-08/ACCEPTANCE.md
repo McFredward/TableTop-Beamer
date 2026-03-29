@@ -62,6 +62,13 @@
 - Outside-MP4-NonBoomerang-NonRegression-Test: deaktiviertes Boomerang behaelt stabilen normalen mp4-Vorwaerts-Loop ohne Lifecycle-Regressionsartefakte.
 - Outside-Apply-Persistence-Intact-Test: `Apply changes` sowie Save/Reload/Restart halten `boomerang`/`assetType`/`assetRef` nach HF5 unveraendert deterministisch.
 
+- Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
+- Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
+- Final-Output-Orientation-Recompute-Test: Orientation-Wechsel recalculiert Geometrie/Viewport korrekt ohne Clipping-/Coords-Drift.
+- Final-Output-Fullscreenchange-Recompute-Test: Eintritt/Austritt Browser-Fullscreen triggern konsistenten Reflow ohne Letterbox-/Offset-Artefakte.
+- Final-Output-DPR-Recompute-Test: Device-Pixel-Ratio-Aenderung (Display-Switch/Zoom) aktualisiert Backbuffer sauber ohne unscharfen oder versetzten Ausschnitt.
+- Final-Output-Render-Coord-Clip-NonRegression-Test: inside/outside Masken, Room-Clips und globale Renderer bleiben unter Reflow/Fit semantisch korrekt.
+
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
 - Non-Regression-Sync-Test: Multi-Client-Synchronisation bleibt fuer relevante Kontexte stabil.
@@ -88,6 +95,10 @@
 - Nach P8-T48..P8-T49: Sandstorm-Boomerang-Reverse ist visuell stabil; normaler mp4-Non-Boomerang-Pfad bleibt regressionsfrei PASS.
 - Nach P8-T50..P8-T51: Apply/Persistenz-Paritaet bleibt intakt; Regression- und Evidence-Matrix ist vollstaendig dokumentiert.
 - Nach P8-T52: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T53..P8-T54: Fullscreen-Root-Cause ist isoliert; Stage/Canvas-Recompute ist viewport- und DPR-korrekt umgesetzt.
+- Nach P8-T55..P8-T56: Resize/Orientation/Fullscreen/DPR-Events fuehren deterministisch zu vollem `/output/final`-Fit ohne Top-Left-Offset/Letterbox.
+- Nach P8-T57: Rendering/Coords/Clip bleiben unter dynamischem Reflow regressionsfrei PASS.
+- Nach P8-T58: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -113,6 +124,9 @@
 - Sandstorm-Boomerang ist im Reverse-Abschnitt visuell stabil (kein starkes Reverse-Flicker) und bleibt ueber mehrere Zyklen nahtlos.
 - Normales mp4-Playback ohne Boomerang bleibt nach dem HF5-Fix unveraendert stabil (keine neue Lifecycle-Regression).
 - `Apply changes` und Persistenz (`Save/Reload/Restart`) bleiben fuer Outside-Definitionen voll funktionsfaehig und deterministisch.
+- `/output/final` passt im Browser-Fullscreen auf jede Display-Aufloesung ohne Top-Left-Teilausschnitt, Offset oder Letterbox-Bug.
+- Canvas/Stage werden bei Resize, Orientation, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung deterministisch neu berechnet.
+- Rendering-, Koordinaten- und Clipping-Pfade bleiben unter Reflow/Fit stabil; keine Masken- oder Coords-Regression.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -156,3 +170,10 @@
   - `.planning/phases/phase-08/P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`
   - `.planning/phases/phase-08/P8-T50-APPLY-PERSISTENCE-REGRESSION.md`
   - `.planning/phases/phase-08/P8-T51-HF5-REGRESSION.md`
+
+## Execution Result (Plan 8-HF6)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF6-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`
+  - `.planning/phases/phase-08/P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`

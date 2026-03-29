@@ -101,6 +101,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Pflichtziel: persistente Settings inkl. `Apply changes` bleiben intakt.
 - Pflichtziel: Regression- und Evidence-Artefakte dokumentieren Root-Cause, Fix und Non-Regression nachvollziehbar.
 
+## Neues verpflichtendes P0-Problem (Fullscreen-Fit `/output/final`)
+- `/output/final` skaliert im Browser-Fullscreen aktuell nicht auf die Display-Aufloesung; sichtbar ist nur ein kleiner Bereich oben links.
+- Zielregel: Final-Output muss auf jede Aufloesung responsiv fullscreen-fitten (ohne Letterbox-/Offset-Bug oben links).
+- Zielregel: Canvas/Stage werden bei Resize, Orientation-Wechsel, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung korrekt neu berechnet.
+- Zielregel: Rendering-, Koordinaten-, Clipping- und Maskenpfade bleiben unter dynamischem Reflow regressionsfrei intakt.
+- Priorisierung: Boomerang-Thema ist fuer diese Welle nachrangig; Fullscreen-Fit ist unmittelbarer P0-Blocker.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -135,6 +142,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 3. Non-Regression fuer normalen mp4-Playback-Pfad ohne Boomerang absichern.
 4. `Apply changes` + Persistenzpfade (`Save/Reload/Restart`) fuer Outside-Settings unveraendert stabil halten.
 5. Regression-/Evidence-Artefakte erstellen (Root-Cause-Protokoll, Playback-Matrix, Non-Regression).
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
+## Priorisierte Hotfix-Welle (Plan 8-HF6, execute-ready)
+1. Fullscreen-Root-Cause isolieren: `/output/final` Resize-/Fullscreen-/DPR-Lifecycle inklusive Stage-Viewport-Berechnung reproduzierbar analysieren.
+2. Stage-/Canvas-Resize-Pipeline haerten: Display- und CSS-Pixel kohaerent berechnen, inkl. devicePixelRatio-sicherem Reinitialisieren.
+3. Event-Handling vervollstaendigen: `resize`, `orientationchange`, `fullscreenchange` und DPR-Wechsel triggern deterministisches Reflow/Repaint.
+4. Fullscreen-Fit erzwingen: Final-Output nutzt den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Offset oder Letterbox-Artefakte.
+5. Rendering-/Coords-/Clip-Non-Regression sichern: Inside/Outside/Room/Global-Pfade bleiben unter Resize/Fit semantisch korrekt.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
@@ -173,6 +188,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Sandstorm-Boomerang zeigt auch im Reverse-Abschnitt keinen sichtbaren Flicker; Richtungswechsel bleibt nahtlos.
 - MP4-Playback ohne aktiviertes Boomerang bleibt auf dem stabilen Vorwaerts-Loop-Pfad ohne neue Regression.
 - `Apply changes` bleibt der atomare Commit-Pfad; Outside-Settings bleiben ueber Save/Reload/Restart persistent deterministisch.
+- `/output/final` skaliert im Browser-Fullscreen responsiv auf die echte Display-Aufloesung ohne Top-Left-Offset oder Letterbox-Drift.
+- Canvas/Stage berechnen bei Resize, Orientation, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung deterministisch neu.
+- Rendering-, Koordinaten- und Clipping-Semantik bleibt unter Reflow/Fit stabil (kein Masken-/Coords-Bruch).
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -192,3 +210,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-27: Neues verpflichtendes P0-Feedback (Sandstorm Reverse-Flicker) priorisiert Plan 8-HF5 als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-27: Plan 8-HF5 wurde atomar umgesetzt (P8-T47..P8-T52).
 - Nachweise: `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/P8-T47-REVERSE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T51-HF5-REGRESSION.md`.
+- 2026-03-29: Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 als naechste execute-ready Hotfix-Welle vor Plan 8-2: `/output/final` muss in Browser-Fullscreen auf jede Aufloesung korrekt fitten (Resize/Orientation/Fullscreen/DPR inklusive).
+- 2026-03-29: Plan 8-HF6 wurde atomar umgesetzt (P8-T53..P8-T58).
+- Nachweise: `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`.

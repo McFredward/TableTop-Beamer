@@ -49,7 +49,14 @@
 4. P0 danach: P8-T50..P8-T51 (`Apply changes`/Persistenz-Paritaet verifizieren und Evidence-Artefakte vervollstaendigen).
 5. P0 Abschluss: P8-T52 (Hotfix-Verifikation + Artefakt-Sync inkl. globaler Tracking-Dateien).
 
-## Priority Execution - Plan 8-2 (nach 8-HF5)
+## Priority Execution - Plan 8-HF6 (verbindlich, priorisierte P0-Hotfix-Welle)
+1. P0 zuerst: P8-T53 (Root-Cause fuer `/output/final` Fullscreen-Missfit reproduzierbar isolieren).
+2. P0 danach: P8-T54..P8-T55 (Stage/Canvas-Recompute fuer Viewport + DPR haerten und alle Resize/Orientation/Fullscreen/DPR-Trigger anbinden).
+3. P0 danach: P8-T56 (Fullscreen-Fit fixen: kein Top-Left-Offset, kein Letterbox-Drift, volle Flaechennutzung).
+4. P0 danach: P8-T57 (Rendering/Coords/Clip-Non-Regression unter dynamischem Reflow absichern).
+5. P0 Abschluss: P8-T58 (Hotfix-Verifikation + Artefakt-Sync inkl. globaler Tracking-Dateien).
+
+## Priority Execution - Plan 8-2 (nach 8-HF6)
 1. P1 zuerst: P8-T13 (Multi-Area UX-Polish).
 2. P1 danach: P8-T14 (Migration/Import Soak unter wiederholten Zyklen).
 3. P1 Abschluss: P8-T15 (Union-Performance Hardening/Report).
@@ -67,7 +74,8 @@
 - Kein Weitergehen zu Plan 8-HF3, bevor Plan 8-HF2 vollstaendig PASS ist.
 - Kein Weitergehen zu Plan 8-HF4, bevor Plan 8-HF3 vollstaendig PASS ist.
 - Kein Weitergehen zu Plan 8-HF5, bevor Plan 8-HF4 vollstaendig PASS ist.
-- Kein Weitergehen zu Plan 8-2, bevor Plan 8-HF5 vollstaendig PASS ist.
+- Kein Weitergehen zu Plan 8-HF6, bevor Plan 8-HF5 vollstaendig PASS ist.
+- Kein Weitergehen zu Plan 8-2, bevor Plan 8-HF6 vollstaendig PASS ist.
 - Kein Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -91,3 +99,6 @@
 - 2026-03-27: Neues verpflichtendes P0-Feedback (Sandstorm Reverse-Flicker) priorisiert Plan 8-HF5 als naechste execute-ready Welle (P8-T47..P8-T52 TODO) vor Plan 8-2.
 - 2026-03-27: Plan 8-HF5 abgeschlossen (P8-T47..P8-T52 done).
 - Verify-Artefakte: `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/P8-T47-REVERSE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T51-HF5-REGRESSION.md`.
+- 2026-03-29: Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 als naechste execute-ready Welle (P8-T53..P8-T58 TODO) vor Plan 8-2.
+- 2026-03-29: Plan 8-HF6 abgeschlossen (P8-T53..P8-T58 done).
+- Verify-Artefakte: `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`.

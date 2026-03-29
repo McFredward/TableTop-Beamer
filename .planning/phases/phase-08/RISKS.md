@@ -160,6 +160,26 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF5 inkl. Artefakt-Sync.
 
+## R33 `/output/final` rendert im Fullscreen nur Top-Left-Teilausschnitt
+- Risiko: Stage-/Canvas-Dimensionen bleiben auf alter/generischer Groesse; im Browser-Fullscreen wird nur ein kleiner Bereich oben links gezeigt.
+- Impact: Kritisch.
+- Gegenmassnahme: verbindliche Fullscreen-Fit-Recompute-Pipeline (Viewport + Backbuffer + DPR) fuer `/output/final`.
+
+## R34 Resize-/Orientation-/Fullscreen-/DPR-Events triggern keinen konsistenten Reflow
+- Risiko: Aufloesungs- oder Moduswechsel werden nur teilweise verarbeitet; Offset/Letterbox/Unschraefe und inkonsistente Koordinaten entstehen.
+- Impact: Kritisch.
+- Gegenmassnahme: zentraler, deterministischer Recompute-Handler fuer `resize`, `orientationchange`, `fullscreenchange` und DPR-Aenderungen.
+
+## R35 Fullscreen-Fix bricht Rendering-, Koordinaten- oder Clipping-Semantik
+- Risiko: Korrektur des Viewport-Fits verschiebt Masken/Koordinaten und erzeugt inside/outside bzw. clip-Regressionsfehler.
+- Impact: Kritisch.
+- Gegenmassnahme: verpflichtende Non-Regression-Matrix fuer Render/Coords/Clip unter dynamischem Reflow.
+
+## R36 Hardening-Welle startet trotz offenem HF6-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl `/output/final` Fullscreen-Fit auf Real-Displays noch nicht stabil ist.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF6 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -216,4 +236,15 @@
 - 2026-03-27: R29 ist mitigiert; normaler mp4-Pfad ohne Boomerang bleibt regressionsfrei (`P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`).
 - 2026-03-27: R30 ist mitigiert; `Apply changes` + Save/Reload/Restart fuer `boomerang`/`assetType`/`assetRef` bleiben deterministisch (`P8-T50-APPLY-PERSISTENCE-REGRESSION.md`).
 - 2026-03-27: R31 ist mitigiert; Evidence-Bundle fuer Root-Cause/Fix/Non-Regression ist vollstaendig (`P8-T47-REVERSE-ROOT-CAUSE.md`, `P8-T51-HF5-REGRESSION.md`).
-- 2026-03-27: R32 Gate ist erfuellt; Plan 8-HF5 ist PASS verifiziert (`8-HF5-VERIFICATION.md`) und Plan 8-2 ist freigegeben.
+- 2026-03-27: R32 Gate ist erfuellt; Plan 8-HF5 ist PASS verifiziert (`8-HF5-VERIFICATION.md`) (durch spaeteres neues P0-Feedback wurde Plan 8-2 erneut blockiert).
+
+## Risk Review for Plan 8-HF6 (planned)
+- 2026-03-29: Neues verpflichtendes P0-Problem priorisiert R33 als unmittelbaren Hotfix-Blocker (`/output/final` Fullscreen zeigt nur Top-Left-Teilausschnitt).
+- 2026-03-29: R34 und R35 sind verpflichtende Guard-Risiken fuer eventvollstaendige Recompute-Pfade und Render/Coords/Clip-Non-Regression.
+- 2026-03-29: R36 setzt den Gate-Guard, dass Plan 8-2 erst nach HF6-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF6
+- 2026-03-29: R33 ist mitigiert; Fullscreen-Missfit-Root-Cause ist reproduzierbar dokumentiert und der Fit-Pfad stabilisiert (`P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`).
+- 2026-03-29: R34 ist mitigiert; Stage/Canvas-Recompute nutzt einen einheitlichen Lifecycle fuer resize/orientation/fullscreen/DPR inkl. RAF-Coalescing.
+- 2026-03-29: R35 ist mitigiert; Rendering-/Coords-/Clip-Non-Regression unter dynamischem Reflow ist PASS (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`).
+- 2026-03-29: R36 Gate ist erfuellt; Plan 8-HF6 ist PASS verifiziert (`8-HF6-VERIFICATION.md`).

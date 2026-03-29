@@ -62,7 +62,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T51 [P0] Regression- und Evidence-Artefakte erstellen (Root-Cause-Protokoll + Playback-Matrix + Non-Regression-Nachweis).
 - [x] DONE P8-T52 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF5 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF5)
+## Plan 8-HF6 - Final Output Fullscreen Fit Hotfix (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T53 [P0] Root-Cause fuer `/output/final` Fullscreen-Missfit isolieren: Top-Left-Offset, Teilausschnitt und Stage-Viewport-Drift reproduzierbar dokumentieren.
+- [x] DONE P8-T54 [P0] Stage-/Canvas-Resize-Lifecycle haerten: CSS-Viewport, Backbuffer und devicePixelRatio deterministisch neu berechnen.
+- [x] DONE P8-T55 [P0] Reflow-Trigger vervollstaendigen: `resize`, `orientationchange`, `fullscreenchange` und DPR-Aenderung binden und entprellt anwenden.
+- [x] DONE P8-T56 [P0] Fullscreen-Fit fixen: `/output/final` fuellt den vorgesehenen Bereich auf allen Display-Aufloesungen ohne Letterbox-/Offset-Bug.
+- [x] DONE P8-T57 [P0] Non-Regression absichern: Rendering/Coords/Clip bleiben unter Resize/Fullscreen/Orientation stabil und semantisch korrekt.
+- [x] DONE P8-T58 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF6 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF6)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.
