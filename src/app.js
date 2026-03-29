@@ -335,6 +335,120 @@ function setAlignMode(enabled, { emit = true } = {}) {
 
 const ctx = canvas.getContext("2d");
 
+const stageViewport = {
+  rafId: null,
+  pendingReasons: new Set(),
+  lastCssWidth: 0,
+  lastCssHeight: 0,
+  lastPixelWidth: 0,
+  lastPixelHeight: 0,
+  lastDpr: 0,
+  dprMediaQuery: null,
+};
+
+function collectStageViewportMetrics() {
+  const stageRect = stage?.getBoundingClientRect();
+  const fallbackRect = projectionArea?.getBoundingClientRect();
+  const rawWidth = stageRect?.width || fallbackRect?.width || window.innerWidth || 1;
+  const rawHeight = stageRect?.height || fallbackRect?.height || window.innerHeight || 1;
+  const cssWidth = Math.max(1, Math.round(rawWidth));
+  const cssHeight = Math.max(1, Math.round(rawHeight));
+  const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+  const pixelWidth = Math.max(1, Math.round(cssWidth * dpr));
+  const pixelHeight = Math.max(1, Math.round(cssHeight * dpr));
+  return {
+    cssWidth,
+    cssHeight,
+    dpr,
+    pixelWidth,
+    pixelHeight,
+  };
+}
+
+function applyStageViewportRecompute(reason = "unknown") {
+  const metrics = collectStageViewportMetrics();
+  const cssChanged =
+    metrics.cssWidth !== stageViewport.lastCssWidth || metrics.cssHeight !== stageViewport.lastCssHeight;
+  const dprChanged = metrics.dpr !== stageViewport.lastDpr;
+  const pixelChanged =
+    metrics.pixelWidth !== stageViewport.lastPixelWidth ||
+    metrics.pixelHeight !== stageViewport.lastPixelHeight;
+  if (!cssChanged && !dprChanged && !pixelChanged) {
+    return false;
+  }
+
+  canvas.style.width = `${metrics.cssWidth}px`;
+  canvas.style.height = `${metrics.cssHeight}px`;
+  canvas.width = metrics.pixelWidth;
+  canvas.height = metrics.pixelHeight;
+
+  stageViewport.lastCssWidth = metrics.cssWidth;
+  stageViewport.lastCssHeight = metrics.cssHeight;
+  stageViewport.lastPixelWidth = metrics.pixelWidth;
+  stageViewport.lastPixelHeight = metrics.pixelHeight;
+  stageViewport.lastDpr = metrics.dpr;
+
+  const reasonSuffix = reason ? ` (${reason})` : "";
+  stage.dataset.viewport = `${metrics.cssWidth}x${metrics.cssHeight}@${metrics.dpr.toFixed(2)}${reasonSuffix}`;
+  return true;
+}
+
+function runStageViewportLifecycle(reason = "unknown") {
+  const changed = applyStageViewportRecompute(reason);
+  if (!changed) {
+    return;
+  }
+  updateCurrentBoardZoom(getBoardZoom(state.boardId));
+  setPanCursorState();
+  syncDashboardZoneVisibility();
+  syncMobileStickyOffsets();
+  updateMobilePerformanceStatus();
+  validateViewExclusivity(state.uiView, { context: "resize-guard" });
+  validateViewNavigationVisibility({ context: "resize-guard" });
+  runMobileProjectionVisibilityGuard({ context: "resize-guard" });
+  const layoutOk = runLayoutScrollRegression();
+  const navigationOk = runNavigationStateRegression();
+  if (!layoutOk || !navigationOk) {
+    triggerFeedback.textContent =
+      "Status: Resize guard reported layout/navigation drift (check scroll/resize/view switch)";
+  }
+}
+
+function scheduleStageViewportLifecycle(reason = "unknown") {
+  stageViewport.pendingReasons.add(reason);
+  if (stageViewport.rafId !== null) {
+    return;
+  }
+  stageViewport.rafId = requestAnimationFrame(() => {
+    const reasons = Array.from(stageViewport.pendingReasons).join(", ");
+    stageViewport.pendingReasons.clear();
+    stageViewport.rafId = null;
+    runStageViewportLifecycle(reasons || "scheduled");
+  });
+}
+
+function handleDevicePixelRatioChange() {
+  bindDevicePixelRatioWatcher();
+  scheduleStageViewportLifecycle("dpr-change");
+}
+
+function bindDevicePixelRatioWatcher() {
+  const mediaQuery = stageViewport.dprMediaQuery;
+  if (mediaQuery) {
+    if (typeof mediaQuery.removeEventListener === "function") {
+      mediaQuery.removeEventListener("change", handleDevicePixelRatioChange);
+    } else if (typeof mediaQuery.removeListener === "function") {
+      mediaQuery.removeListener(handleDevicePixelRatioChange);
+    }
+  }
+  stageViewport.dprMediaQuery = window.matchMedia(`(resolution: ${Math.max(1, Number(window.devicePixelRatio) || 1)}dppx)`);
+  if (typeof stageViewport.dprMediaQuery.addEventListener === "function") {
+    stageViewport.dprMediaQuery.addEventListener("change", handleDevicePixelRatioChange);
+  } else if (typeof stageViewport.dprMediaQuery.addListener === "function") {
+    stageViewport.dprMediaQuery.addListener(handleDevicePixelRatioChange);
+  }
+}
+
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
   defaultRoomAnimationId: ROOM_ANIMATIONS[0].id,
@@ -8650,22 +8764,39 @@ function drawOutsideFxLayer(now) {
           boomerangPhase: "forward",
           reversePhaseAnchorSec: null,
           reversePhaseStartedAtMs: null,
-          lastReverseSeekMs: null,
+          // Replaces lastReverseSeekMs + the old !video.seeking gate.
+          // true  → ready to issue the next reverse seek
+          // false → waiting for the current seek to resolve (seeked event)
+          reverseSeekedReady: false,
+          // The "seeked" listener currently attached to the video element, or null.
+          // Stored so we can removeEventListener cleanly on phase/key transitions.
+          seekedHandler: null,
           lastTickMs: null,
         };
         const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.boomerang ? "boomerang" : selectedDefinition.direction}`;
         const isForwardContinuous = !selectedDefinition.boomerang && selectedDefinition.direction !== "reverse";
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
+
+        // ── Key change: tear down any live reverse-seek listener ────────────
         if (playbackState.key !== playbackKey) {
+          if (playbackState.seekedHandler) {
+            video.removeEventListener("seeked", playbackState.seekedHandler);
+            playbackState.seekedHandler = null;
+          }
           playbackState.key = playbackKey;
           playbackState.forceSeekAt = 0;
           playbackState.boomerangPhase = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
           playbackState.reversePhaseAnchorSec = selectedDefinition.direction === "reverse" ? durationSec : null;
           playbackState.reversePhaseStartedAtMs = selectedDefinition.direction === "reverse" ? now : null;
-          playbackState.lastReverseSeekMs = null;
+          playbackState.reverseSeekedReady = false;
           playbackState.lastTickMs = now;
         }
+
         if (isForwardContinuous) {
+          if (playbackState.seekedHandler) {
+            video.removeEventListener("seeked", playbackState.seekedHandler);
+            playbackState.seekedHandler = null;
+          }
           video.loop = true;
           if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
             video.playbackRate = targetRate;
@@ -8683,8 +8814,12 @@ function drawOutsideFxLayer(now) {
           playbackState.lastTickMs = now;
           playbackState.reversePhaseAnchorSec = null;
           playbackState.reversePhaseStartedAtMs = null;
-          playbackState.lastReverseSeekMs = null;
+          playbackState.reverseSeekedReady = false;
         } else if (!selectedDefinition.boomerang && selectedDefinition.direction === "reverse") {
+          if (playbackState.seekedHandler) {
+            video.removeEventListener("seeked", playbackState.seekedHandler);
+            playbackState.seekedHandler = null;
+          }
           video.loop = false;
           if (!video.paused) {
             video.pause();
@@ -8696,12 +8831,15 @@ function drawOutsideFxLayer(now) {
           playbackState.lastTickMs = now;
           playbackState.reversePhaseAnchorSec = reverseMappedTime;
           playbackState.reversePhaseStartedAtMs = now;
-          playbackState.lastReverseSeekMs = null;
+          playbackState.reverseSeekedReady = false;
         } else {
-          video.loop = false;
+          // ── Boomerang mode ─────────────────────────────────────────────────
           playbackState.lastTickMs = now;
 
           if (playbackState.boomerangPhase === "forward") {
+            // loop=true prevents the browser ever reaching "ended" state,
+            // which is what resets the frame buffer and causes the flicker.
+            video.loop = true;
             if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
               video.playbackRate = targetRate;
             }
@@ -8709,51 +8847,88 @@ function drawOutsideFxLayer(now) {
               void video.play().catch(() => undefined);
             }
             const currentTime = Number(video.currentTime) || 0;
-            if (currentTime >= durationSec - 0.03 || video.ended) {
-              playbackState.boomerangPhase = "reverse";
-              playbackState.reversePhaseAnchorSec = durationSec;
-              playbackState.reversePhaseStartedAtMs = now;
-              playbackState.lastReverseSeekMs = null;
-              if (!video.paused) {
-                video.pause();
+            // Intercept 0.2 s before the loop point — enough margin for any browser.
+            if (currentTime >= durationSec - 0.2) {
+              if (playbackState.seekedHandler) {
+                video.removeEventListener("seeked", playbackState.seekedHandler);
+                playbackState.seekedHandler = null;
               }
+              video.loop = false;
+              video.pause();
+              playbackState.boomerangPhase = "reverse";
+              // Anchor to actual paused currentTime, not durationSec.
+              // Using durationSec made the first reverse seek a no-op and caused
+              // Chrome to show a static image for the whole reverse phase.
+              playbackState.reversePhaseAnchorSec = currentTime;
+              playbackState.reversePhaseStartedAtMs = now;
+              // Mark ready immediately so the very first reverse seek fires on the
+              // next tick without waiting for a spurious "seeked" event.
+              playbackState.reverseSeekedReady = true;
             }
           } else {
+            // ── Reverse phase ────────────────────────────────────────────────
+            //
+            // We pace seeks using the "seeked" event rather than a wall-clock
+            // timer. In Chrome, ctx.drawImage(video) only composites a new frame
+            // once the browser has fully resolved a seek — if we fire the next
+            // seek before that happens, Chrome keeps drawing the previous frame,
+            // which appears as a static frozen image during the entire reverse
+            // phase.
+            video.loop = false;
             if (!video.paused) {
               video.pause();
             }
-            const reverseAnchorSecRaw = Number(playbackState.reversePhaseAnchorSec);
-            const reverseAnchorSec = Number.isFinite(reverseAnchorSecRaw)
-              ? reverseAnchorSecRaw
-              : Math.max(0, Math.min(durationSec, Number(video.currentTime) || durationSec));
-            if (!Number.isFinite(reverseAnchorSecRaw)) {
-              playbackState.reversePhaseAnchorSec = reverseAnchorSec;
+
+            // Attach the seeked listener exactly once per reverse phase.
+            if (!playbackState.seekedHandler) {
+              const handler = () => {
+                playbackState.reverseSeekedReady = true;
+              };
+              playbackState.seekedHandler = handler;
+              video.addEventListener("seeked", handler);
             }
-            const reverseStartedAtRaw = Number(playbackState.reversePhaseStartedAtMs);
-            const reverseStartedAtMs = Number.isFinite(reverseStartedAtRaw) ? reverseStartedAtRaw : now;
-            if (!Number.isFinite(reverseStartedAtRaw)) {
-              playbackState.reversePhaseStartedAtMs = reverseStartedAtMs;
-            }
-            const reverseElapsedSec = Math.max(0, (now - reverseStartedAtMs) / 1000) * targetRate;
-            const nextReverseTime = Math.max(0, reverseAnchorSec - reverseElapsedSec);
-            const lastReverseSeekMsRaw = Number(playbackState.lastReverseSeekMs);
-            const canSeekReverse = !Number.isFinite(lastReverseSeekMsRaw) || now - lastReverseSeekMsRaw >= 33;
-            if (!video.seeking && canSeekReverse && Math.abs((Number(video.currentTime) || 0) - nextReverseTime) > 0.02) {
-              video.currentTime = nextReverseTime;
-              playbackState.lastReverseSeekMs = now;
-            }
-            if (nextReverseTime <= 0.02) {
-              playbackState.boomerangPhase = "forward";
-              playbackState.reversePhaseAnchorSec = null;
-              playbackState.reversePhaseStartedAtMs = null;
-              playbackState.lastReverseSeekMs = null;
-              if (Math.abs((Number(video.currentTime) || 0) - 0) > 0.02) {
+
+            if (playbackState.reverseSeekedReady) {
+              playbackState.reverseSeekedReady = false;
+
+              const reverseAnchorSecRaw = Number(playbackState.reversePhaseAnchorSec);
+              const reverseAnchorSec = Number.isFinite(reverseAnchorSecRaw)
+                ? reverseAnchorSecRaw
+                : Math.max(0, Math.min(durationSec, Number(video.currentTime) || durationSec));
+              if (!Number.isFinite(reverseAnchorSecRaw)) {
+                playbackState.reversePhaseAnchorSec = reverseAnchorSec;
+              }
+
+              const reverseStartedAtRaw = Number(playbackState.reversePhaseStartedAtMs);
+              const reverseStartedAtMs = Number.isFinite(reverseStartedAtRaw) ? reverseStartedAtRaw : now;
+              if (!Number.isFinite(reverseStartedAtRaw)) {
+                playbackState.reversePhaseStartedAtMs = reverseStartedAtMs;
+              }
+
+              // Compute target from elapsed wall-clock so the reverse plays at
+              // the same apparent speed as the forward phase regardless of how
+              // long individual seeks take.
+              const reverseElapsedSec = Math.max(0, (now - reverseStartedAtMs) / 1000) * targetRate;
+              const nextReverseTime = Math.max(0, reverseAnchorSec - reverseElapsedSec);
+
+              if (nextReverseTime <= 0.02) {
+                // Reverse complete — back to forward.
+                video.removeEventListener("seeked", playbackState.seekedHandler);
+                playbackState.seekedHandler = null;
+                playbackState.reverseSeekedReady = false;
+                playbackState.boomerangPhase = "forward";
+                playbackState.reversePhaseAnchorSec = null;
+                playbackState.reversePhaseStartedAtMs = null;
                 video.currentTime = 0;
-              }
-              if (video.paused) {
+                video.loop = true;
                 void video.play().catch(() => undefined);
+              } else {
+                video.currentTime = nextReverseTime;
+                // reverseSeekedReady stays false until the seeked handler fires.
               }
             }
+            // If !reverseSeekedReady we simply fall through to drawImage below,
+            // which redraws the last composited frame — correct, no stale seek.
           }
         }
         outsideVideoPlaybackStateByBoard.set(state.boardId, playbackState);
@@ -10427,6 +10602,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 window.addEventListener("orientationchange", () => {
+  scheduleStageViewportLifecycle("orientationchange");
   syncDashboardZoneVisibility();
   syncMobileStickyOffsets();
   const orientationOk = runOrientationStateRegression();
@@ -10436,6 +10612,14 @@ window.addEventListener("orientationchange", () => {
   triggerFeedback.textContent = ok
     ? "Status: Orientation changed, UI state/navigation/board visibility stable"
     : "Status: Orientation guard detected drift in state, navigation, or board visibility";
+});
+
+window.addEventListener("resize", () => {
+  scheduleStageViewportLifecycle("window-resize");
+});
+
+document.addEventListener("fullscreenchange", () => {
+  scheduleStageViewportLifecycle("fullscreenchange");
 });
 
 window.addEventListener(
@@ -10744,26 +10928,16 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
 });
 
 const resizeObserver = new ResizeObserver((entries) => {
-  const size = entries[0].contentRect;
-  canvas.width = Math.max(1, Math.floor(size.width));
-  canvas.height = Math.max(1, Math.floor(size.height));
-  updateCurrentBoardZoom(getBoardZoom(state.boardId));
-  setPanCursorState();
-  syncDashboardZoneVisibility();
-  syncMobileStickyOffsets();
-  updateMobilePerformanceStatus();
-  validateViewExclusivity(state.uiView, { context: "resize-guard" });
-  validateViewNavigationVisibility({ context: "resize-guard" });
-  runMobileProjectionVisibilityGuard({ context: "resize-guard" });
-  const layoutOk = runLayoutScrollRegression();
-  const navigationOk = runNavigationStateRegression();
-  if (!layoutOk || !navigationOk) {
-    triggerFeedback.textContent =
-      "Status: Resize guard reported layout/navigation drift (check scroll/resize/view switch)";
-  }
+  void entries;
+  scheduleStageViewportLifecycle("resize-observer");
 });
 
 resizeObserver.observe(stage);
+if (projectionArea) {
+  resizeObserver.observe(projectionArea);
+}
+bindDevicePixelRatioWatcher();
+scheduleStageViewportLifecycle("startup-bind");
 
 function syncRuntimePanelsFromState() {
   switchBoard(state.boardId, { announceStatus: false });
