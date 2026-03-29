@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Wellen fuer Outside-Editor-, Boomerang/Picker- und Sandstorm-Reverse-Lifecycle-Stabilitaet.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Wellen fuer Outside-Editor-, Boomerang/Picker-, Sandstorm-Reverse-Lifecycle- und Final-Output-Fullscreen-Fit-Stabilitaet.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 47/52 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46) und Plan 8-HF5 (P8-T47..P8-T52) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`). Naechste Welle: Plan 8-2 (Hardening Wave).
+Status: 53/58 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46), Plan 8-HF5 (P8-T47..P8-T52) und Plan 8-HF6 (P8-T53..P8-T58) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/8-HF6-VERIFICATION.md`). Naechste Welle: Plan 8-2 (Hardening Wave).
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -369,6 +369,7 @@ Milestones:
 10. M10 Outside Regression Closure: `Coded/Space` Restore, Sandstorm-Stabilisierung, stabile Editor-Inputs und atomarer `Apply changes` Commit.
 11. M11 Outside HF4 Regression Closure: erneuter `Coded/Space` Restore, strikt typgebundener Asset-Picker und flickerfreier Boomerang-Vollzyklus.
 12. M12 Outside HF5 Reverse Stability Closure: Root-Cause-basierter Fix fuer Sandstorm-Reverse-Flicker bei voller Boomerang-Zyklusparitaet ohne mp4-/Persistenz-Regression.
+13. M13 Final Output Fullscreen Fit Closure: `/output/final` passt sich robust an Display-Aufloesung, Resize/Orientation/Fullscreen und DPR an.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -395,6 +396,9 @@ Exit Criteria:
 - Sandstorm-Boomerang bleibt auch im Reverse-Abschnitt stabil ohne sichtbares Flackern.
 - Normales mp4-Playback ohne Boomerang bleibt nach dem Reverse-Fix unveraendert regressionsfrei.
 - `Apply changes` sowie Save/Reload/Restart bleiben fuer Outside-Einstellungen intakt und deterministisch.
+- `/output/final` skaliert im Browser-Fullscreen auf jede Display-Aufloesung ohne Top-Left-Offset oder Letterbox-Bug.
+- Canvas/Stage werden bei Resize, Orientation, Browser-Fullscreen und Device-Pixel-Ratio-Aenderung deterministisch neu berechnet.
+- Rendering/Koordinaten/Clipping bleiben unter dynamischem Reflow/Fit regressionsfrei intakt.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -455,7 +459,17 @@ New Blocking Wave (Phase 8 Outside reverse-lifecycle follow-up):
 Gate Closure (8-HF5):
 - Reverse-Flicker-Blocker ist geschlossen: Root-Cause isoliert, Reverse-Lifecycle fix geliefert, full-cycle Boomerang laeuft stabil.
 - Non-Boomerang mp4 und Apply/Persistenz bleiben regressionsfrei verifiziert (`P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`, `P8-T50-APPLY-PERSISTENCE-REGRESSION.md`).
-- Plan 8-2 ist nach HF5 PASS freigegeben.
+
+New Blocking Wave (Phase 8 final-output fullscreen follow-up):
+- Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 als unmittelbare Hotfix-Welle vor Plan 8-2.
+- Blocker A: `/output/final` skaliert im Browser-Fullscreen nicht auf Display-Aufloesung und zeigt nur einen kleinen Top-Left-Bereich.
+- Blocker B: Stage/Canvas-Recompute bei Resize/Orientation/Fullscreen/DPR ist nicht deterministisch; Offset-/Letterbox-Drift entsteht.
+- Blocker C: Fullscreen-Fit-Fix darf Rendering/Coords/Clip nicht regressieren.
+- Plan 8-2 bleibt bis 8-HF6-PASS blockiert.
+
+Gate Closure (8-HF6):
+- Fullscreen-Fit-Blocker ist geschlossen: `/output/final` nutzt robustes viewport+dpr Recompute fuer resize/orientation/fullscreen/DPR und fuellt den Zielbereich ohne Top-Left-Offset.
+- Rendering/Coords/Clip bleiben unter dynamischem Reflow regressionsfrei (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`, `8-HF6-VERIFICATION.md`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

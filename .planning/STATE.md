@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 8
 - Current Phase Key: phase-08
-- Last Prepared: 2026-03-27
+- Last Prepared: 2026-03-29
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF5
+- Last Executed Plan: 8-HF6
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -66,7 +66,15 @@
 - Plan-8-HF5 Umsetzung: mp4-Boomerang-Reverse nutzt jetzt anchored reverse timing plus seek-cadence/video.seeking arbitration fuer visuell stabilen Reverse-Abschnitt.
 - Plan-8-HF5 Umsetzung: normaler mp4-Pfad ohne Boomerang bleibt regressionsfrei stabil (`P8-T49-MP4-NON-BOOMERANG-REGRESSION.md`).
 - Plan-8-HF5 Umsetzung: `Apply changes` und Persistenz fuer `boomerang`/`assetType`/`assetRef` bleiben deterministisch intakt (`P8-T50-APPLY-PERSISTENCE-REGRESSION.md`).
-- Plan-8-HF5 Umsetzung: HF5 Regression/Evidence ist PASS dokumentiert (`8-HF5-VERIFICATION.md`, `P8-T51-HF5-REGRESSION.md`) und Plan 8-2 ist freigegeben.
+- Plan-8-HF5 Umsetzung: HF5 Regression/Evidence ist PASS dokumentiert (`8-HF5-VERIFICATION.md`, `P8-T51-HF5-REGRESSION.md`).
+- Neues verpflichtendes P0-Problem fuer Phase 8 ist gesetzt: `/output/final` skaliert im Browser-Fullscreen nicht auf Display-Aufloesung und zeigt nur einen Top-Left-Teilausschnitt.
+- P0-Regel Plan 8-HF6: Fullscreen-Fit fuer `/output/final` ist blockierend und priorisiert vor Plan 8-2; Boomerang-Thema ist in dieser Welle nachrangig.
+- Recompute-Regel Plan 8-HF6: Canvas/Stage muessen bei Resize, Orientation, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung deterministisch neu berechnet werden.
+- Non-Regression-Regel Plan 8-HF6: Rendering-, Koordinaten- und Clipping-Pfade bleiben unter Reflow/Fit stabil ohne Letterbox-/Offset-Bug.
+- Gate-Regel Plan 8-HF6: Plan 8-2 bleibt blockiert bis HF6 PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF6 Umsetzung: `/output/final` nutzt jetzt einen einheitlichen viewport+dpr Recompute-Lifecycle fuer `resize`/`orientationchange`/`fullscreenchange`/DPR-Wechsel.
+- Plan-8-HF6 Umsetzung: Final-Output-Fit erzwingt transformfreien Full-Area-Stage-Pfad ohne Top-Left-Offset oder Letterbox-Drift.
+- Plan-8-HF6 Umsetzung: Reflow-Regression fuer Rendering/Coords/Clip ist PASS dokumentiert (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`, `8-HF6-VERIFICATION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
