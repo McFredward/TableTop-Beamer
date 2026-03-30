@@ -199,6 +199,7 @@ const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
 const outsideModeFieldMount = createConditionalFieldMountSlot(outsideModeField, "outside-mode");
 const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirectionField, "outside-direction");
+const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? null;
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
@@ -5545,6 +5546,9 @@ function syncOutsideModeDirectionVisibility(definition) {
   const visible = isOutsideModeDirectionApplicable(definition);
   setConditionalFieldMounted(outsideModeFieldMount, visible);
   setConditionalFieldMounted(outsideDirectionFieldMount, visible);
+  if (outsideAnimationsPanel) {
+    outsideAnimationsPanel.dataset.outsideModeDirectionVisible = visible ? "true" : "false";
+  }
   if (outsideModeField) {
     outsideModeField.hidden = false;
     outsideModeField.setAttribute("aria-hidden", "false");
@@ -5554,9 +5558,15 @@ function syncOutsideModeDirectionVisibility(definition) {
     outsideDirectionField.setAttribute("aria-hidden", "false");
   }
   if (outsideModeInput) {
+    if (!visible) {
+      outsideModeInput.value = "standard";
+    }
     outsideModeInput.disabled = !visible;
   }
   if (outsideDirectionInput) {
+    if (!visible) {
+      outsideDirectionInput.value = "forward";
+    }
     outsideDirectionInput.disabled = !visible;
   }
 }

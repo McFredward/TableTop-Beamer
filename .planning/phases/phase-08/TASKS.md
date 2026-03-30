@@ -90,7 +90,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T71 [P0] Outside-mp4-Root-Cause-Follow-up reproduzierbar isolieren: Rueckfallpfad ueber Start/Stop/Re-Start und Save/Reload/Restart dokumentieren.
 - [x] DONE P8-T72 [P0] Outside-mp4-Lifecycle fixen: deterministischer Start/Stop/Re-Start ohne Black-Frame/no-op/frozen-first-frame.
 - [x] DONE P8-T73 [P0] MP4-Regression-Guard erweitern: gif/coded + bestehende Apply-/Persistenzpfade bleiben unveraendert stabil.
-- [ ] TODO P8-T74 [P0] Strict conditional rendering umsetzen: nicht-applicable `outside mode`/`outside direction` vollstaendig unmounten (kein disabled-only Restzustand).
+- [x] DONE P8-T74 [P0] Strict conditional rendering umsetzen: nicht-applicable `outside mode`/`outside direction` vollstaendig unmounten (kein disabled-only Restzustand).
 - [ ] TODO P8-T75 [P0] Visibility-Transition-Regression absichern: Type-/Asset-Wechsel toggeln Controls deterministisch ohne stale UI-Reste/Reappear-Drift.
 - [ ] TODO P8-T76 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF9 Stand.
 
