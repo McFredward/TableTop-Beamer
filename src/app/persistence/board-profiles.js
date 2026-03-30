@@ -110,6 +110,7 @@
     createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
+    createDefaultInsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
   }) {
     const migrated = createDefaultBoardProfiles();
@@ -151,6 +152,19 @@
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         playAreaPolygon: legacyPolygon,
+        insideFx: {
+          animations:
+            profile.insideFx?.animations ??
+            profile.inside?.animations ??
+            profile.insideAnimations ??
+            createDefaultInsideAnimationDefinitions(),
+          selectedAnimationId:
+            profile.insideFx?.selectedAnimationId ??
+            profile.inside?.selectedAnimationId ??
+            profile.selectedInsideAnimationId ??
+            createDefaultInsideAnimationDefinitions()[0]?.id ??
+            "ambient-drift",
+        },
         outsideFx: {
           ...(profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT),
           ...(Array.isArray(profile.outsideAnimations) ? { animations: profile.outsideAnimations } : {}),

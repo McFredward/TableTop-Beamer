@@ -677,6 +677,9 @@ function buildRuntimeSnapshotForLiveSync() {
     selectedLayout: state.selectedLayout ?? state.boardId,
     selectedRoomId: state.selectedRoomId,
     selectedRoomByBoard: state.selectedRoomByBoard,
+    insideFxByBoard: Object.fromEntries(
+      BOARDS.map((board) => [board.id, normalizeInsideFxProfile(state.insideFxByBoard[board.id])]),
+    ),
     outsideFxByBoard: Object.fromEntries(
       BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
     ),
@@ -1118,6 +1121,12 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       : runtime?.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object"
         ? runtime.outsideFxByBoard
         : null;
+  const sharedInsideFxByBoard =
+    snapshot?.insideFxByBoard && typeof snapshot.insideFxByBoard === "object"
+      ? snapshot.insideFxByBoard
+      : runtime?.insideFxByBoard && typeof runtime.insideFxByBoard === "object"
+        ? runtime.insideFxByBoard
+        : null;
   const selectedBoard =
     (typeof snapshot?.selectedBoard === "string" && snapshot.selectedBoard) ||
     (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
@@ -1152,6 +1161,17 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
         BOARDS.map((board) => [
           board.id,
           normalizeOutsideFxProfile(sharedOutsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
+        ]),
+      ),
+    };
+  }
+  if (sharedInsideFxByBoard) {
+    state.insideFxByBoard = {
+      ...state.insideFxByBoard,
+      ...Object.fromEntries(
+        BOARDS.map((board) => [
+          board.id,
+          normalizeInsideFxProfile(sharedInsideFxByBoard[board.id] ?? state.insideFxByBoard[board.id]),
         ]),
       ),
     };
@@ -2441,6 +2461,7 @@ function createDefaultBoardProfiles() {
         playAreas: normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT),
         selectedPlayAreaId: "play-area-1",
         playAreaPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
+        insideFx: normalizeInsideFxProfile({ animations: createDefaultInsideAnimationDefinitions() }),
         outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
       },
     ]),
@@ -2466,6 +2487,7 @@ function buildBoardProfilesFromState() {
         })),
         selectedPlayAreaId: getSelectedPlayAreaId(board.id),
         playAreaPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
+        insideFx: normalizeInsideFxProfile(state.insideFxByBoard[board.id]),
         outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
       },
     ]),
@@ -2594,6 +2616,9 @@ function applyBoardProfilesToState(profiles) {
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
   );
+  state.insideFxByBoard = Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeInsideFxProfile(profiles?.[board.id]?.insideFx)]),
+  );
 }
 
 function extractBoardProfilesCandidate(raw) {
@@ -2633,6 +2658,7 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
     createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
+    createDefaultInsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
   });
 }
