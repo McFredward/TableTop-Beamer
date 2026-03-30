@@ -2096,6 +2096,8 @@ function normalizeOutsideAnimationId(value, fallback = "outside-space") {
 }
 
 function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
+  // Legacy payloads may still contain boomerang-related keys.
+  // We intentionally ignore them so load stays backward-compatible as a no-op.
   const fallbackDefaults = createDefaultOutsideAnimationDefinitions()[0] ?? {
     id: `outside-${fallbackIndex + 1}`,
     name: `Outside Animation ${fallbackIndex + 1}`,
