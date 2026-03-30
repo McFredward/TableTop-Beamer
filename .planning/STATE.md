@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-30
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF7
+- Last Executed Plan: 8-HF8
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -84,6 +84,13 @@
 - Plan-8-HF7 Umsetzung: Outside boomerang ist aus aktiver UI/Runtime/Persistenznutzung entfernt; Legacy-boomerang-Felder bleiben als no-op-load kompatibel.
 - Plan-8-HF7 Umsetzung: `Inside Animations` liefert Outside-Paritaet inkl. Create/Dropdown, typed asset mapping (`coded`/`gif`/`mp4`) und atomarem `Apply changes`.
 - Plan-8-HF7 Umsetzung: Inside-Definitionsmodell ist ueber Save/Reload/Restart/Defaults sowie Live-Snapshot-Hydration migrationsstabil (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).
+- Neues verpflichtendes P0-Feedback fuer Phase 8 ist gesetzt: Outside-mp4-Playback ist regressiert (gif/coded ok), muss root-cause-basiert wiederhergestellt werden.
+- Conditional-Visibility-Regel Plan 8-HF8: `outside mode`/`outside direction` sind nur in fachlich anwendbaren Kontexten sichtbar (z. B. `coded` + `outside-space`) und fuer `gif`/`mp4` bzw. nicht-applicable coded renderer ausgeblendet.
+- UX-Regel Plan 8-HF8: redundante `Use selected resource asset`-Buttons werden entfernt; `Apply changes` bleibt der einzige Commitpfad.
+- Gate-Regel Plan 8-HF8: Plan 8-2 bleibt blockiert bis HF8 PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF8 Umsetzung: Outside-mp4 ist auf stabilem non-boomerang Forward-Loop-Pfad wiederhergestellt (`P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`).
+- Plan-8-HF8 Umsetzung: `outside mode`/`outside direction` sind strikt kontextsensitiv (nur coded `outside-space`) und fuer `gif`/`mp4` ausgeblendet.
+- Plan-8-HF8 Umsetzung: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` bleibt alleiniger Commit-CTA.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
