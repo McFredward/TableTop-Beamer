@@ -210,6 +210,26 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF7 inkl. Artefakt-Sync.
 
+## R43 Outside-mp4-Playback bleibt regressiert
+- Risiko: Outside-Animationen mit `assetType=mp4` bleiben no-op/schwarz, waehrend gif/coded laufen; Outside-Videopfade sind damit produktiv unbrauchbar.
+- Impact: Kritisch.
+- Gegenmassnahme: reproduzierbare Root-Cause-Isolation fuer den mp4-Lifecycle/Resolver und Restore auf stabilen non-boomerang Playbackpfad inkl. Regressionstest.
+
+## R44 Conditional-Visibility driftet im Outside-Editor
+- Risiko: `outside mode`/`outside direction` bleiben in nicht-applicablen Kontexten sichtbar (oder fehlen in gueltigen Kontexten) und erzeugen Fehlbedienung/inkonsistente Persistenz.
+- Impact: Hoch.
+- Gegenmassnahme: harte Kontext-Regeln fuer Sichtbarkeit (z. B. nur `coded` + `outside-space`) plus Negativtests fuer `gif`/`mp4` und nicht-applicable coded renderer.
+
+## R45 Redundante Asset-Commit-Buttons erzeugen UX-Mehrdeutigkeit
+- Risiko: parallele CTAs (`Use selected resource asset` vs `Apply changes`) fuehren zu Teilupdates, Bedienirrtum und inkonsistentem Erwartungsmodell.
+- Impact: Mittel bis hoch.
+- Gegenmassnahme: Apply-only UX mit einem eindeutigen Commit-CTA; redundante Asset-Buttons entfernen.
+
+## R46 Hardening-Welle startet trotz offenem HF8-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl Outside-mp4-Restore, conditional visibility und Apply-only UX-Cleanup nicht abgeschlossen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF8 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -292,3 +312,14 @@
 - 2026-03-30: R39 und R40 sind mitigiert; `Inside Animations` bietet Dropdown/Create, typspezifischen Asset-Picker (`coded`/`gif`/`mp4`) und atomaren `Apply changes`.
 - 2026-03-30: R41 ist mitigiert; Inside-/Outside-Animationseintraege sind definitionsgetrieben erweiterbar, inklusive inside save/load/defaults persistence.
 - 2026-03-30: R42 Gate ist erfuellt; Plan 8-HF7 ist PASS verifiziert (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).
+
+## Risk Review for Plan 8-HF8 (planned)
+- 2026-03-30: Neues verpflichtendes P0-Feedback priorisiert R43 als unmittelbaren Hotfix-Blocker (Outside-mp4 spielt nicht mehr).
+- 2026-03-30: R44 und R45 sind verpflichtende Guard-Risiken fuer kontextsensitive Outside-Controls und Apply-only UX ohne redundante Commit-CTAs.
+- 2026-03-30: R46 setzt den Gate-Guard, dass Plan 8-2 erst nach HF8-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF8
+- 2026-03-30: R43 ist mitigiert; Outside-mp4 nutzt wieder einen stabilen non-boomerang Forward-Loop-Pfad (`P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`).
+- 2026-03-30: R44 ist mitigiert; `outside mode`/`outside direction` sind strikt kontextsensitiv und fuer `gif`/`mp4` ausgeblendet.
+- 2026-03-30: R45 ist mitigiert; redundante `Use selected resource asset`-CTAs sind entfernt, `Apply changes` bleibt der einzige Commitpfad.
+- 2026-03-30: R46 Gate ist erfuellt; Plan 8-HF8 ist PASS verifiziert (`8-HF8-VERIFICATION.md`, `P8-T66-MP4-NON-REGRESSION.md`).

@@ -14,6 +14,7 @@
 - Sandstorm Reverse-Lifecycle Flicker Hotfix
 - Final Output Fullscreen Fit Hotfix
 - Boomerang Removal + Inside Animation Parity Feature Pack
+- Outside MP4 Restore + Conditional Visibility + Apply-Only UX Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -89,6 +90,14 @@
 - P8-S14.7 Inside-Editor mit explizitem `Apply changes` ausstatten, damit Type/Resource/Optionen atomar uebernommen werden.
 - P8-S14.8 Persistenz fuer Inside-Definitionsmodell ueber Save/Reload/Restart/Defaults inkl. Legacy-Guards absichern.
 - P8-S14.9 Zielbild-Guard verankern: neue Inside/Outside-Animationen sind definitionsgetrieben in UI hinzufuegbar, ohne Codeaenderung pro neuer Animation.
+
+- P8-S15.1 Outside-mp4-Regression reproduzierbar analysieren und den non-boomerang mp4-Playbackpfad fuer Outside wiederherstellen.
+- P8-S15.2 MP4-Restore ohne Nebenwirkungen absichern: gif/coded und bestehende stabile Playbackpfade bleiben unveraendert regressionsfrei.
+- P8-S15.3 Conditional Visibility fuer `outside mode`/`outside direction` implementieren: Controls nur bei fachlich passenden Kontexten anzeigen (z. B. `coded` + `outside-space`).
+- P8-S15.4 Non-Applicable-Kontexte absichern: `outside mode`/`outside direction` fuer `gif`/`mp4` und sonstige nicht-applicable coded renderer ausblenden.
+- P8-S15.5 UX-Cleanup durchziehen: redundante Buttons `Use selected resource asset` entfernen.
+- P8-S15.6 Apply-Only-Commit-Regel absichern: `Apply changes` bleibt der einzige explizite Commitpfad fuer Asset-/Optionsaenderungen.
+- P8-S15.7 HF8-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -172,8 +181,18 @@
 - Story P8-S14.9 + P8-S7.3.
   - Ziel: definitionsgetriebenes Zielbild (neue Inside/Outside ohne Codeaenderung) plus konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF8 execute-ready
+- Story P8-S15.1 + P8-S15.2.
+  - Ziel: Outside-mp4 ist wieder stabil abspielbar; gif/coded und weitere Playbackpfade bleiben regressionsfrei.
+- Story P8-S15.3 + P8-S15.4.
+  - Ziel: `outside mode`/`outside direction` werden nur in passenden Kontexten angezeigt und fuer nicht-applicable Kontexte strikt ausgeblendet.
+- Story P8-S15.5 + P8-S15.6.
+  - Ziel: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` bleibt der einzige Commitpfad.
+- Story P8-S15.7 + P8-S7.3.
+  - Ziel: reproduzierbare P0-Evidenz und konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF7): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF8): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -190,3 +209,5 @@
 - 2026-03-29: Plan 8-HF6 Stories P8-S13.1..P8-S13.5 umgesetzt; Fullscreen-Fit inklusive Resize/Orientation/Fullscreen/DPR-Recompute und Reflow-Non-Regression ist PASS (`8-HF6-VERIFICATION.md`, `P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`).
 - 2026-03-30: Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert Plan 8-HF7 (Stories P8-S14.1..P8-S14.9) als naechste execute-ready Welle vor Plan 8-2.
 - 2026-03-30: Plan 8-HF7 Stories P8-S14.1..P8-S14.9 umgesetzt; Boomerang-Decommission, Inside-Editor-Paritaet inkl. typed asset mapping/apply und persistentes Inside-Definitionsmodell sind PASS (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).
+- 2026-03-30: Neues verpflichtendes P0-Feedback priorisiert Plan 8-HF8 (Stories P8-S15.1..P8-S15.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-30: Plan 8-HF8 Stories P8-S15.1..P8-S15.7 umgesetzt; Outside-mp4-Restore, kontextsensitive Outside-Controls und Apply-only UX-Cleanup sind PASS (`8-HF8-VERIFICATION.md`, `P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`, `P8-T66-MP4-NON-REGRESSION.md`).

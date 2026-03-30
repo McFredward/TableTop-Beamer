@@ -53,6 +53,11 @@
 - Outside-Asset-Picker-GIF-Filter-Test: bei `assetType=gif` listet der Picker ausschliesslich `.gif` Assets aus `resources`.
 - Outside-Asset-Picker-Type-Switch-Test: Wechsel zwischen `coded`/`mp4`/`gif` aktualisiert die Pickerliste deterministisch ohne stale Optionen oder Auto-Revert.
 - Outside-Historical-HF5-Closure-Reference: HF5-Evidenz bleibt als abgeschlossene Historie dokumentiert (`P8-T47`..`P8-T51`), ist aber kein aktiver Zielpfad mehr nach Boomerang-Decommission.
+- Outside-MP4-Restore-Test: Outside-Animationen mit `assetType=mp4` spielen wieder stabil (Forward-Loop, non-boomerang) statt no-op/Black-Frame.
+- Outside-MP4-Root-Cause-Evidence-Test: HF8 dokumentiert reproduzierbar Ursache und fixierten Lifecycle fuer den mp4-Ausfall im Outside-Pfad.
+- Outside-Conditional-Mode-Direction-Visible-Test: `outside mode` und `outside direction` erscheinen nur bei kontextfaehigen Kombinationen (z. B. `coded` + `outside-space`).
+- Outside-Conditional-Mode-Direction-Hidden-Test: bei `gif`/`mp4` und nicht-applicable coded renderern sind `outside mode`/`outside direction` konsequent ausgeblendet.
+- Outside-Editor-Apply-Only-UX-Test: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige sichtbare Commit-CTA fuer Asset-/Optionsaenderungen.
 
 - Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
 - Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
@@ -108,6 +113,10 @@
 - Nach P8-T61..P8-T62: `Inside Animations` ist Outside-paritaetisch lieferbar (Create/Dropdown/Type-Filter/Apply-Atomicity).
 - Nach P8-T63: Inside-Definitionsmodell ist ueber Save/Reload/Restart/Defaults migrationsstabil PASS.
 - Nach P8-T64: P0-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T65..P8-T66: Outside-mp4-Playback ist wiederhergestellt und bleibt gegen Regression auf gif/coded/non-boomerang Pfade abgesichert.
+- Nach P8-T67..P8-T68: `outside mode`/`outside direction` folgen strikt der kontextsensitiven Visibility-Regel (sichtbar nur wenn applicable, sonst hidden).
+- Nach P8-T69: UI ist auf Apply-only Commit bereinigt; redundante `Use selected resource asset`-Buttons sind entfernt.
+- Nach P8-T70: HF8-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -136,6 +145,9 @@
 - `Inside Animations` bietet Outside-paritaetischen Editor inkl. Create-Flow, `assetType` (`coded`/`gif`/`mp4`), typspezifischem Asset-Picker und `Apply changes`.
 - Inside-Animationsdefinitionen + Settings bleiben ueber Save/Reload/Restart/Defaults deterministisch und migrationsstabil.
 - Neue Inside-/Outside-Animationen sind definitionsgetrieben hinzufuegbar, ohne Codeaenderung pro neuem Animationseintrag.
+- Outside-mp4-Playback funktioniert wieder stabil fuer non-boomerang Betrieb und bleibt in Save/Reload/Restart regressionsfrei.
+- `outside mode`/`outside direction` sind kontextsensitiv sichtbar und fuer `gif`/`mp4` sowie nicht-applicable coded renderer nicht sichtbar.
+- Redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige explizite Commit-Button.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -192,3 +204,10 @@
 - Evidence:
   - `.planning/phases/phase-08/8-HF7-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T64-HF7-REGRESSION.md`
+
+## Execution Result (Plan 8-HF8)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF8-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`
+  - `.planning/phases/phase-08/P8-T66-MP4-NON-REGRESSION.md`

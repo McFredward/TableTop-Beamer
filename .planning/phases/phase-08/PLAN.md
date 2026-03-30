@@ -117,6 +117,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Persistenz fuer Inside-Animationsdefinitionen (save/load/defaults) folgt demselben Muster wie Outside.
 - Zielbild: Neue Inside-/Outside-Animationen sind zukuenftig definitionsgetrieben in UI hinzufuegbar, ohne weitere Codeaenderung pro Animationstyp.
 
+## Neues verpflichtendes P0-Feedback (HF8)
+- Outside-mp4-Playback ist regressiert: mp4-Assets ausserhalb laufen aktuell nicht mehr, waehrend gif/coded weiterhin funktionieren.
+- Root-Cause fuer den mp4-Ausfall muss reproduzierbar isoliert und der stabile non-boomerang mp4-Playbackpfad wiederhergestellt werden.
+- Conditional-Visibility-Regel im `Outside Animations`-Editor: `outside mode` und `outside direction` werden nur angezeigt, wenn der aktuell gewaehlte Kontext sie fachlich unterstuetzt (z. B. `assetType=coded` mit `outside-space` Renderer).
+- `outside mode`/`outside direction` werden fuer `gif`/`mp4` und sonstige nicht-applicable coded renderer strikt ausgeblendet.
+- UX-Cleanup ist verpflichtend: redundante Buttons `Use selected resource asset` werden entfernt.
+- Verbindlicher Commitpfad bleibt ausschliesslich `Apply changes`.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -171,6 +179,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 7. Persistenz fuer Inside-Definitionsmodell ueber Save/Reload/Restart/Defaults inklusive Legacy-Guards absichern.
 8. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF8, execute-ready)
+1. Outside-MP4-Restore: Root-Cause fuer ausgefallenes Outside-mp4 reproduzierbar isolieren und stabilen Playbackpfad wiederherstellen.
+2. MP4-Non-Regression-Guard: sicherstellen, dass gif/coded und bereits stabile non-boomerang Pfade unveraendert korrekt bleiben.
+3. Conditional-Visibility-Refactor: `outside mode`/`outside direction` nur fuer unterstuetzte Kontexte rendern (z. B. `coded` + `outside-space`).
+4. Non-Applicable-Hide-Guard: Controls fuer `gif`/`mp4` und nicht-applicable coded renderer konsequent ausblenden.
+5. UX-Cleanup: redundante Buttons `Use selected resource asset` entfernen; `Apply changes` als einziger Commitpfad verbleibt.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -211,6 +227,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Neue Inside-Animationen sind in UI anlegbar; pro Eintrag sind `assetType` (`coded`/`gif`/`mp4`) und typspezifisch gefilterte `assetRef` aus `resources` waehlbar.
 - Inside-Animationsdefinitionen + Settings bleiben ueber Save/Reload/Restart/Defaults persistenzstabil und migrationssicher.
 - Neue Inside-/Outside-Animationseintraege sind definitionsgetrieben in UI hinzufuegbar, ohne codegebundene Einzelintegration pro Animation.
+- Outside-mp4-Playback ist fuer nicht-boomerang Betrieb wiederhergestellt und laeuft regressionsfrei stabil.
+- `outside mode` und `outside direction` sind kontextsensitiv sichtbar und werden fuer nicht-applicable Kontexte (insb. `gif`/`mp4`) nicht angezeigt.
+- Redundante Buttons `Use selected resource asset` sind entfernt; `Apply changes` bleibt der einzige explizite Commitpfad in den Animationseditoren.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -236,3 +255,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-30: Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert Plan 8-HF7 als naechste execute-ready Welle vor Plan 8-2 (Boomerang-Entfernung + Inside-Animations-Editor-Paritaet + definitionsgetriebenes Zielbild).
 - 2026-03-30: Plan 8-HF7 wurde atomar umgesetzt (P8-T59..P8-T64).
 - Nachweise: `.planning/phases/phase-08/8-HF7-VERIFICATION.md`, `.planning/phases/phase-08/P8-T64-HF7-REGRESSION.md`.
+- 2026-03-30: Neues verpflichtendes P0-Feedback priorisiert Plan 8-HF8 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4-Restore + conditional visibility fuer outside controls + Apply-only UX-Cleanup).
+- 2026-03-30: Plan 8-HF8 wurde atomar umgesetzt (P8-T65..P8-T70).
+- Nachweise: `.planning/phases/phase-08/8-HF8-VERIFICATION.md`, `.planning/phases/phase-08/P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T66-MP4-NON-REGRESSION.md`.

@@ -78,7 +78,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T63 [P0] Persistenz fuer Inside-Definitionsmodell absichern: Save/Reload/Restart/Defaults inkl. Legacy-Guards und Paritaet zu Outside.
 - [x] DONE P8-T64 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF7 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF7)
+## Plan 8-HF8 - Outside MP4 + Conditional Visibility + Apply-Only UX Cleanup (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T65 [P0] Root-Cause fuer ausgefallenes Outside-mp4-Playback reproduzierbar isolieren und den stabilen non-boomerang Playbackpfad wiederherstellen.
+- [x] DONE P8-T66 [P0] MP4-Non-Regression absichern: gif/coded sowie bestehende stabile Outside-Playbackpfade bleiben funktional unveraendert.
+- [x] DONE P8-T67 [P0] Conditional Visibility umsetzen: `outside mode`/`outside direction` nur fuer unterstuetzte Kontexte rendern (z. B. `assetType=coded` mit `outside-space`).
+- [x] DONE P8-T68 [P0] Non-Applicable-Hide-Guard liefern: `outside mode`/`outside direction` fuer `gif`/`mp4` und andere nicht-applicable coded renderer ausblenden.
+- [x] DONE P8-T69 [P0] UX-Cleanup liefern: alle redundanten `Use selected resource asset`-Buttons entfernen; `Apply changes` als einzigen Commitpfad behalten.
+- [x] DONE P8-T70 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF8 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF8)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.
