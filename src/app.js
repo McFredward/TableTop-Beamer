@@ -183,7 +183,6 @@ const outsideDirectionInput = document.querySelector("#outside-direction");
 const outsideAssetTypeInput = document.querySelector("#outside-asset-type");
 const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
 const outsideResourceSelect = document.querySelector("#outside-resource-select");
-const outsideResourceApplyButton = document.querySelector("#outside-resource-apply");
 const outsideApplyChangesButton = document.querySelector("#outside-apply-changes");
 const insideAnimationSelect = document.querySelector("#inside-animation-select");
 const insideAnimationNameInput = document.querySelector("#inside-animation-name");
@@ -195,7 +194,6 @@ const insideSpeedValue = document.querySelector("#inside-speed-value");
 const insideAssetTypeInput = document.querySelector("#inside-asset-type");
 const insideAssetRefInput = document.querySelector("#inside-asset-ref");
 const insideResourceSelect = document.querySelector("#inside-resource-select");
-const insideResourceApplyButton = document.querySelector("#inside-resource-apply");
 const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
@@ -280,7 +278,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-asset-type",
   "outside-asset-ref",
   "outside-resource-select",
-  "outside-resource-apply",
   "outside-apply-changes",
   "inside-animation-select",
   "inside-animation-name",
@@ -290,7 +287,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-type",
   "inside-asset-ref",
   "inside-resource-select",
-  "inside-resource-apply",
   "inside-apply-changes",
 ];
 
@@ -5341,17 +5337,6 @@ function areRoomVerticesEditable() {
 
 function arePlayAreaVerticesEditable() {
   return state.polygonEditor.playAreaVerticesVisible !== false;
-}
-
-function inferOutsideAssetTypeFromPath(pathValue) {
-  const value = String(pathValue || "").trim().toLowerCase();
-  if (value.endsWith(".mp4")) {
-    return "mp4";
-  }
-  if (value.endsWith(".gif")) {
-    return "gif";
-  }
-  return "coded";
 }
 
 function getOutsideCodedAssetKeys() {
@@ -10423,27 +10408,6 @@ insideAssetRefInput?.addEventListener("change", () => {
   triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
 });
 
-insideResourceApplyButton?.addEventListener("click", () => {
-  const selectedResource = String(insideResourceSelect?.value || "").trim();
-  if (!selectedResource) {
-    triggerFeedback.textContent = "Status: Select a resource asset first";
-    return;
-  }
-  const inferredAssetType = inferOutsideAssetTypeFromPath(selectedResource);
-  setInsideEditorDraft(state.boardId, {
-    assetType: inferredAssetType,
-    assetRef: selectedResource,
-  });
-  if (insideAssetTypeInput) {
-    insideAssetTypeInput.value = inferredAssetType;
-  }
-  if (insideAssetRefInput) {
-    insideAssetRefInput.value = selectedResource;
-  }
-  syncInsideResourcePicker(inferredAssetType, selectedResource);
-  triggerFeedback.textContent = "Status: Inside draft updated from resource picker - apply changes to commit";
-});
-
 insideApplyChangesButton?.addEventListener("click", () => {
   const draft = collectInsideEditorDraftFromInputs(state.boardId);
   if (!draft) {
@@ -10622,27 +10586,6 @@ outsideAssetRefInput?.addEventListener("change", () => {
   setOutsideEditorDraft(state.boardId, { assetRef });
   syncOutsideResourcePicker(assetType, assetRef);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
-});
-
-outsideResourceApplyButton?.addEventListener("click", () => {
-  const selectedResource = String(outsideResourceSelect?.value || "").trim();
-  if (!selectedResource) {
-    triggerFeedback.textContent = "Status: Select a resource asset first";
-    return;
-  }
-  const inferredAssetType = inferOutsideAssetTypeFromPath(selectedResource);
-  setOutsideEditorDraft(state.boardId, {
-    assetType: inferredAssetType,
-    assetRef: selectedResource,
-  });
-  if (outsideAssetTypeInput) {
-    outsideAssetTypeInput.value = inferredAssetType;
-  }
-  if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = selectedResource;
-  }
-  syncOutsideResourcePicker(inferredAssetType, selectedResource);
-  triggerFeedback.textContent = "Status: Outside draft updated from resource picker - apply changes to commit";
 });
 
 outsideApplyChangesButton?.addEventListener("click", () => {
