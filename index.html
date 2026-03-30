@@ -313,6 +313,28 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
+        <h2>Inside Animations</h2>
+        <p class="status-line">Configure inside effects with definition-based entries and create flow.</p>
+        <label>
+          Animation
+          <select id="inside-animation-select"></select>
+        </label>
+        <div class="button-grid button-grid-2">
+          <input id="inside-animation-name" type="text" maxlength="64" placeholder="New inside animation name" />
+          <button id="inside-animation-create" type="button">Create Inside Animation</button>
+        </div>
+        <label>
+          Inside intensity <span id="inside-intensity-value">1.00</span>
+          <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
+        </label>
+        <label>
+          Inside speed <span id="inside-speed-value">1.00x</span>
+          <input id="inside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
+        </label>
+        <p class="status-line">Inside editor: mapping + apply workflow follows below tasks.</p>
+      </section>
+
+      <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Outside Animations</h2>
         <p class="status-line">Configure outside effects and keep them isolated outside Play Area masks.</p>
         <label>
@@ -376,14 +398,7 @@
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Global animations - inside Play Area</h2>
-        <div class="button-grid button-grid-3">
-          <button data-global="ambient-drift">Ambient Drift</button>
-          <button data-global="ash-fall">Ash Fall</button>
-          <button data-global="hull-flicker">Hull Flicker</button>
-          <button data-global="intruder-alert">Intruder Alert</button>
-          <button data-global="reactor-pulse">Reactor Pulse</button>
-          <button data-global="power-outage">Power Outage</button>
-        </div>
+        <div id="inside-global-buttons" class="button-grid button-grid-3"></div>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">

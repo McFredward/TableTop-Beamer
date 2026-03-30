@@ -47,6 +47,7 @@
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},
+      insideFxByBoard: {},
       outsideFxByBoard: {},
       boardZoomByBoard: {},
       roomClipboard: null,

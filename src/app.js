@@ -26,6 +26,7 @@ const {
   BOARD_ZOOM_DEFAULT,
   SHIP_POLYGON_DEFAULT,
   OUTSIDE_ANIMATION_ASSET_TYPES,
+  createDefaultInsideAnimationDefinitions,
   createDefaultOutsideAnimationDefinitions,
   OUTSIDE_FX_DEFAULT,
   ROOM_STATE_DEFAULT,
@@ -184,6 +185,14 @@ const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
 const outsideResourceSelect = document.querySelector("#outside-resource-select");
 const outsideResourceApplyButton = document.querySelector("#outside-resource-apply");
 const outsideApplyChangesButton = document.querySelector("#outside-apply-changes");
+const insideAnimationSelect = document.querySelector("#inside-animation-select");
+const insideAnimationNameInput = document.querySelector("#inside-animation-name");
+const insideAnimationCreateButton = document.querySelector("#inside-animation-create");
+const insideIntensityInput = document.querySelector("#inside-intensity");
+const insideIntensityValue = document.querySelector("#inside-intensity-value");
+const insideSpeedInput = document.querySelector("#inside-speed");
+const insideSpeedValue = document.querySelector("#inside-speed-value");
+const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -266,6 +275,11 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-resource-select",
   "outside-resource-apply",
   "outside-apply-changes",
+  "inside-animation-select",
+  "inside-animation-name",
+  "inside-animation-create",
+  "inside-intensity",
+  "inside-speed",
 ];
 
 function applyOutputRoleViewContract() {
@@ -1297,6 +1311,7 @@ const startedGlobalAudioRevisionByTriggerKey = new Map();
 let outsideResourceAssets = [];
 const OUTSIDE_CODED_ASSET_KEY_ALIASES = ["outside-space", "space", "coded-space", "coded/space"];
 const outsideEditorDraftByBoard = {};
+const insideEditorDraftByBoard = {};
 
 const {
   createDefaultAnimationSoundMap,
@@ -2084,6 +2099,118 @@ function setShipPolygonPoints(boardId, points) {
     ? { ...area, polygon: nextPolygon }
     : { ...area, polygon: normalizeShipPolygon(area.polygon) }));
   setPlayAreas(boardId, updated, { selectedPlayAreaId: selectedId });
+}
+
+function normalizeInsideAssetType(value) {
+  return OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+}
+
+function normalizeInsideAnimationId(value, fallback = "ambient-drift") {
+  const trimmed = String(value || "").trim();
+  return trimmed || fallback;
+}
+
+function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
+  const fallbackDefaults = createDefaultInsideAnimationDefinitions()[0] ?? {
+    id: `inside-${fallbackIndex + 1}`,
+    name: `Inside Animation ${fallbackIndex + 1}`,
+    assetType: "coded",
+    assetRef: "ambient-drift",
+    intensity: 1,
+    speed: 1,
+  };
+  const id = normalizeInsideAnimationId(definition?.id, fallbackDefaults.id);
+  const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+  const assetType = normalizeInsideAssetType(definition?.assetType);
+  const rawAssetRef = String(definition?.assetRef || "").trim();
+  const fallbackAssetRef = assetType === "coded" ? id : "";
+  const assetRef = normalizeInsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+  return {
+    id,
+    name,
+    assetType,
+    assetRef,
+    intensity: clampOutsideIntensity(definition?.intensity),
+    speed: clampOutsideSpeed(definition?.speed),
+  };
+}
+
+function normalizeInsideAnimationDefinitions(definitions) {
+  const incoming = Array.isArray(definitions) ? definitions : [];
+  const normalized = incoming
+    .map((entry, index) => normalizeInsideAnimationDefinition(entry, index))
+    .filter((entry) => entry && typeof entry === "object");
+  const uniqueById = [];
+  const seen = new Set();
+  for (const entry of normalized) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+    seen.add(entry.id);
+    uniqueById.push(entry);
+  }
+  if (uniqueById.length > 0) {
+    return uniqueById;
+  }
+  return createDefaultInsideAnimationDefinitions().map((entry, index) => normalizeInsideAnimationDefinition(entry, index));
+}
+
+function normalizeInsideFxProfile(profile) {
+  const legacyProfile = profile && typeof profile === "object" ? profile : {};
+  const animations = normalizeInsideAnimationDefinitions(legacyProfile?.animations ?? legacyProfile?.insideAnimations);
+  const preferredId = normalizeInsideAnimationId(
+    legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedInsideAnimationId,
+    animations[0]?.id ?? "ambient-drift",
+  );
+  const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+  return {
+    selectedAnimationId: selectedAnimation.id,
+    animations,
+    intensity: selectedAnimation.intensity,
+    speed: selectedAnimation.speed,
+    assetType: selectedAnimation.assetType,
+    assetRef: selectedAnimation.assetRef,
+  };
+}
+
+function createDefaultInsideFxByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeInsideFxProfile({ animations: createDefaultInsideAnimationDefinitions() })]),
+  );
+}
+
+function getInsideFxProfile(boardId = state.boardId) {
+  return normalizeInsideFxProfile(state.insideFxByBoard?.[boardId]);
+}
+
+function setInsideFxProfile(boardId, profile) {
+  state.insideFxByBoard[boardId] = normalizeInsideFxProfile(profile);
+}
+
+function getSelectedInsideAnimationDefinition(boardId = state.boardId) {
+  const profile = getInsideFxProfile(boardId);
+  const selectedId = normalizeInsideAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+  return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+}
+
+function createInsideAnimationDefinition(name, existingDefinitions = []) {
+  const baseName = String(name || "").trim() || "Inside Animation";
+  const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "inside-animation";
+  let candidateId = slug;
+  const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+  let suffix = 2;
+  while (existingIds.has(candidateId)) {
+    candidateId = `${slug}-${suffix}`;
+    suffix += 1;
+  }
+  return normalizeInsideAnimationDefinition({
+    id: candidateId,
+    name: baseName,
+    assetType: "coded",
+    assetRef: "ambient-drift",
+    intensity: 1,
+    speed: 1,
+  });
 }
 
 function normalizeOutsideAssetType(value) {
@@ -5197,6 +5324,63 @@ function getOutsideCodedAssetKeys() {
   return Array.from(new Set(["outside-space", ...knownOutsideRendererIds, ...OUTSIDE_CODED_ASSET_KEY_ALIASES]));
 }
 
+function getInsideCodedAssetKeys() {
+  const knownInsideRendererIds = createDefaultInsideAnimationDefinitions()
+    .map((entry) => normalizeInsideAnimationId(entry?.id, ""))
+    .filter(Boolean);
+  return Array.from(new Set(knownInsideRendererIds));
+}
+
+function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "ambient-drift") {
+  const normalizedRef = String(assetRef || "").trim().toLowerCase();
+  if (getInsideCodedAssetKeys().includes(normalizedRef)) {
+    return normalizedRef;
+  }
+  const normalizedFallback = String(fallbackAssetRef || "").trim().toLowerCase();
+  if (getInsideCodedAssetKeys().includes(normalizedFallback)) {
+    return normalizedFallback;
+  }
+  return getInsideCodedAssetKeys()[0] ?? "ambient-drift";
+}
+
+function getInsideAssetCandidates(assetType) {
+  const normalizedType = normalizeInsideAssetType(assetType);
+  if (normalizedType === "coded") {
+    return getInsideCodedAssetKeys();
+  }
+  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
+}
+
+function normalizeInsideAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
+  const normalizedType = normalizeInsideAssetType(assetType);
+  const rawRef = String(assetRef || "").trim();
+  if (normalizedType === "coded") {
+    return normalizeInsideCodedAssetRef(rawRef, fallbackAssetRef);
+  }
+
+  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
+  if (isValidResourceRef) {
+    return rawRef;
+  }
+
+  const normalizedFallback = String(fallbackAssetRef || "").trim();
+  const fallbackValid =
+    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
+  if (fallbackValid) {
+    return normalizedFallback;
+  }
+
+  const firstCandidate = getInsideAssetCandidates(normalizedType)[0];
+  return firstCandidate || "";
+}
+
+function resolveInsideCodedEffectType(assetRef) {
+  const normalized = normalizeInsideCodedAssetRef(assetRef);
+  return getInsideCodedAssetKeys().includes(normalized) ? normalized : "ambient-drift";
+}
+
 function normalizeOutsideCodedAssetRef(assetRef) {
   const normalizedRef = String(assetRef || "").trim().toLowerCase();
   if (getOutsideCodedAssetKeys().includes(normalizedRef)) {
@@ -5243,6 +5427,66 @@ function resolveOutsideCodedEffectType(assetRef) {
     return "outside-space";
   }
   return "outside-space";
+}
+
+function buildInsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
+  const baseProfile = normalizeInsideFxProfile(profileOverride ?? getInsideFxProfile(boardId));
+  const selectedDefinition =
+    baseProfile.animations.find((entry) => entry.id === baseProfile.selectedAnimationId) ?? baseProfile.animations[0];
+  if (!selectedDefinition) {
+    return baseProfile;
+  }
+  const nextAnimations = baseProfile.animations.map((entry) => {
+    if (entry.id !== selectedDefinition.id) {
+      return entry;
+    }
+    return normalizeInsideAnimationDefinition({
+      ...entry,
+      ...patch,
+    });
+  });
+  return normalizeInsideFxProfile({
+    ...baseProfile,
+    selectedAnimationId: selectedDefinition.id,
+    animations: nextAnimations,
+  });
+}
+
+function syncInsideFxPanel() {
+  const inside = getInsideFxProfile(state.boardId);
+  const selectedDefinition = getSelectedInsideAnimationDefinition(state.boardId);
+  if (insideAnimationSelect) {
+    insideAnimationSelect.replaceChildren();
+    for (const definition of inside.animations) {
+      const option = document.createElement("option");
+      option.value = definition.id;
+      option.textContent = `${definition.name} (${definition.id})`;
+      insideAnimationSelect.append(option);
+    }
+    insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
+  }
+  const intensity = selectedDefinition?.intensity ?? inside.intensity;
+  const speed = selectedDefinition?.speed ?? inside.speed;
+  insideIntensityInput.value = String(intensity);
+  insideSpeedInput.value = String(speed);
+  insideIntensityValue.textContent = intensity.toFixed(2);
+  insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+  renderInsideGlobalButtons();
+}
+
+function renderInsideGlobalButtons() {
+  if (!insideGlobalButtons) {
+    return;
+  }
+  const inside = getInsideFxProfile(state.boardId);
+  insideGlobalButtons.replaceChildren();
+  for (const definition of inside.animations) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.global = definition.id;
+    button.textContent = definition.name;
+    insideGlobalButtons.append(button);
+  }
 }
 
 function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
@@ -6533,6 +6777,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
+  syncInsideFxPanel();
   syncOutsideFxPanel();
   syncOutsideRuntimeMirror(board.id);
   syncBoardZoomPanel();
@@ -8602,6 +8847,45 @@ function clipToInsideShip(boardId = state.boardId) {
   return true;
 }
 
+function drawInsideGlobalVisual(animation, age) {
+  const boardId = animation.boardId ?? state.boardId;
+  const profile = getInsideFxProfile(boardId);
+  const definition = profile.animations.find((entry) => entry.id === animation.type) ?? null;
+  const intensity = clampOutsideIntensity(definition?.intensity ?? animation.intensity ?? 1);
+  const speed = clampOutsideSpeed(definition?.speed ?? 1);
+  const timeline = age * speed;
+
+  if (definition?.assetType === "gif") {
+    const frame = getGifPlaybackFrame(definition.assetRef, timeline);
+    if (frame) {
+      ctx.globalAlpha = intensity;
+      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    }
+    return;
+  }
+
+  if (definition?.assetType === "mp4") {
+    const videoEntry = getOutsideVideoElement(definition.assetRef);
+    if (videoEntry?.video) {
+      const video = videoEntry.video;
+      const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
+      video.loop = true;
+      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
+        video.playbackRate = playbackRate;
+      }
+      if (video.paused) {
+        void video.play().catch(() => undefined);
+      }
+      ctx.globalAlpha = intensity;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return;
+    }
+  }
+
+  const codedEffectType = resolveInsideCodedEffectType(definition?.assetRef ?? animation.type);
+  drawEffectVisual(codedEffectType, timeline, intensity, null);
+}
+
 function drawAnimation(animation, now) {
   if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
     return;
@@ -8679,7 +8963,7 @@ function drawAnimation(animation, now) {
     if (!clipped) {
       return;
     }
-    drawEffectVisual(animation.type, age, animation.intensity, null);
+    drawInsideGlobalVisual(animation, age);
   } finally {
     ctx.restore();
   }
@@ -9916,6 +10200,57 @@ shipPolygonResetButton.addEventListener("click", () => {
     : "Status: Play Area polygon reset to default (persistence failed)";
 });
 
+insideAnimationCreateButton?.addEventListener("click", () => {
+  const profile = getInsideFxProfile(state.boardId);
+  const definition = createInsideAnimationDefinition(insideAnimationNameInput?.value, profile.animations);
+  const nextProfile = {
+    ...profile,
+    animations: [...profile.animations, definition],
+    selectedAnimationId: definition.id,
+  };
+  setInsideFxProfile(state.boardId, nextProfile);
+  const persisted = persistBoardProfiles();
+  syncInsideFxPanel();
+  renderRunningAnimationsList();
+  refreshGlobalButtons();
+  if (insideAnimationNameInput) {
+    insideAnimationNameInput.value = "";
+  }
+  triggerFeedback.textContent = persisted
+    ? `Status: Inside animation ${definition.name} created`
+    : `Status: Inside animation ${definition.name} created (persistence failed)`;
+});
+
+insideAnimationSelect?.addEventListener("change", () => {
+  const selectedAnimationId = normalizeInsideAnimationId(insideAnimationSelect.value);
+  const profile = getInsideFxProfile(state.boardId);
+  setInsideFxProfile(state.boardId, {
+    ...profile,
+    selectedAnimationId,
+  });
+  const persisted = persistBoardProfiles();
+  syncInsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Inside animation selection updated"
+    : "Status: Inside animation selection updated (persistence failed)";
+});
+
+insideIntensityInput?.addEventListener("input", () => {
+  const intensity = clampOutsideIntensity(insideIntensityInput.value);
+  const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, { intensity });
+  setInsideFxProfile(state.boardId, nextProfile);
+  insideIntensityValue.textContent = intensity.toFixed(2);
+  persistBoardProfiles();
+});
+
+insideSpeedInput?.addEventListener("input", () => {
+  const speed = clampOutsideSpeed(insideSpeedInput.value);
+  const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, { speed });
+  setInsideFxProfile(state.boardId, nextProfile);
+  insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+  persistBoardProfiles();
+});
+
 outsideEnabledInput.addEventListener("change", () => {
   if (outputRole === OUTPUT_ROLE_CONTROL) {
     const nextProfile = {
@@ -10458,19 +10793,21 @@ window.addEventListener(
   { passive: true },
 );
 
-document.querySelectorAll("button[data-global]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const type = button.dataset.global;
-    if (shouldSuppressRapidTap(`global-${type}`)) {
-      return;
-    }
-    recordTriggerIntent();
-    setDashboardZone("trigger");
-    const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space"
-      ? null
-      : 6;
-    upsertGlobalAnimation(type, mode);
-  });
+document.addEventListener("click", (event) => {
+  const button = event.target instanceof Element ? event.target.closest("button[data-global]") : null;
+  if (!button) {
+    return;
+  }
+  const type = button.dataset.global;
+  if (shouldSuppressRapidTap(`global-${type}`)) {
+    return;
+  }
+  recordTriggerIntent();
+  setDashboardZone("trigger");
+  const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space"
+    ? null
+    : 6;
+  upsertGlobalAnimation(type, mode);
 });
 
 stopAllButton.addEventListener("click", () => {
@@ -10819,6 +11156,7 @@ async function initializeApplication() {
   state.shipPolygonsByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, getShipPolygonPoints(board.id)]),
   );
+  state.insideFxByBoard = createDefaultInsideFxByBoard();
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());

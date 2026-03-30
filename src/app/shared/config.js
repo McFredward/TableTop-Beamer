@@ -282,14 +282,22 @@
     { id: "alarm", label: "Alarm" },
   ];
 
-  const INSIDE_SHIP_GLOBAL_ANIMATIONS = [
-    { id: "ambient-drift", label: "Ambient Drift", category: "inside-ship" },
-    { id: "ash-fall", label: "Ash Fall", category: "inside-ship" },
-    { id: "hull-flicker", label: "Hull Flicker", category: "inside-ship" },
-    { id: "intruder-alert", label: "Intruder Alert", category: "inside-ship" },
-    { id: "reactor-pulse", label: "Reactor Pulse", category: "inside-ship" },
-    { id: "power-outage", label: "Power Outage", category: "inside-ship" },
-  ];
+  function createDefaultInsideAnimationDefinitions() {
+    return [
+      { id: "ambient-drift", name: "Ambient Drift", assetType: "coded", assetRef: "ambient-drift", intensity: 1, speed: 1 },
+      { id: "ash-fall", name: "Ash Fall", assetType: "coded", assetRef: "ash-fall", intensity: 1, speed: 1 },
+      { id: "hull-flicker", name: "Hull Flicker", assetType: "coded", assetRef: "hull-flicker", intensity: 1, speed: 1 },
+      { id: "intruder-alert", name: "Intruder Alert", assetType: "coded", assetRef: "intruder-alert", intensity: 1, speed: 1 },
+      { id: "reactor-pulse", name: "Reactor Pulse", assetType: "coded", assetRef: "reactor-pulse", intensity: 1, speed: 1 },
+      { id: "power-outage", name: "Power Outage", assetType: "coded", assetRef: "power-outage", intensity: 1, speed: 1 },
+    ];
+  }
+
+  const INSIDE_SHIP_GLOBAL_ANIMATIONS = createDefaultInsideAnimationDefinitions().map((entry) => ({
+    id: entry.id,
+    label: entry.name,
+    category: "inside-ship",
+  }));
 
   const OUTSIDE_SHIP_GLOBAL_ANIMATIONS = [{ id: "outside-space", label: "Outside Space", category: "outside-ship" }];
   const GLOBAL_ANIMATIONS = [...INSIDE_SHIP_GLOBAL_ANIMATIONS, ...OUTSIDE_SHIP_GLOBAL_ANIMATIONS];
@@ -413,6 +421,7 @@
     BOARD_ZOOM_DEFAULT,
     SHIP_POLYGON_DEFAULT,
     OUTSIDE_ANIMATION_ASSET_TYPES,
+    createDefaultInsideAnimationDefinitions,
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
     ROOM_STATE_DEFAULT,
