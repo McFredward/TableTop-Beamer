@@ -5855,6 +5855,20 @@ function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
   });
 }
 
+function syncOutsideDraftVisibilityFromInputs(boardId = state.boardId) {
+  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
+  const assetRef = normalizeOutsideAssetRefForType(assetType, String(outsideAssetRefInput?.value || "").trim());
+  setOutsideEditorDraft(boardId, {
+    assetType,
+    assetRef,
+  });
+  if (outsideAssetRefInput) {
+    outsideAssetRefInput.value = assetRef;
+  }
+  syncOutsideModeDirectionVisibility({ assetType, assetRef });
+  syncOutsideResourcePicker(assetType, assetRef);
+}
+
 function syncOutsideFxPanel() {
   const outside = getOutsideFxProfile(state.boardId);
   const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
@@ -10668,28 +10682,17 @@ outsideDirectionInput.addEventListener("change", () => {
 });
 
 outsideAssetTypeInput?.addEventListener("change", () => {
-  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput.value);
-  const currentAssetRef = String(outsideAssetRefInput?.value || "").trim();
-  const normalizedAssetRef = normalizeOutsideAssetRefForType(assetType, currentAssetRef);
-  setOutsideEditorDraft(state.boardId, {
-    assetType,
-    assetRef: normalizedAssetRef,
-  });
-  if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = normalizedAssetRef;
-  }
-  syncOutsideModeDirectionVisibility({ assetType, assetRef: normalizedAssetRef });
-  syncOutsideResourcePicker(assetType, normalizedAssetRef);
+  syncOutsideDraftVisibilityFromInputs(state.boardId);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideAssetRefInput?.addEventListener("change", () => {
-  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
-  const assetRef = normalizeOutsideAssetRefForType(assetType, String(outsideAssetRefInput.value || "").trim());
-  outsideAssetRefInput.value = assetRef;
-  setOutsideEditorDraft(state.boardId, { assetRef });
-  syncOutsideModeDirectionVisibility({ assetType, assetRef });
-  syncOutsideResourcePicker(assetType, assetRef);
+  syncOutsideDraftVisibilityFromInputs(state.boardId);
+  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+});
+
+outsideAssetRefInput?.addEventListener("input", () => {
+  syncOutsideDraftVisibilityFromInputs(state.boardId);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
