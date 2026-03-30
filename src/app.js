@@ -197,6 +197,8 @@ const insideResourceSelect = document.querySelector("#inside-resource-select");
 const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
+const outsideModeFieldMount = createConditionalFieldMountSlot(outsideModeField, "outside-mode");
+const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirectionField, "outside-direction");
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
@@ -1330,6 +1332,7 @@ let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
+const outsideMp4PlaybackStateByBoard = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -4113,6 +4116,54 @@ function getOutsideVideoElement(path) {
   return outsideVideoCacheByPath.get(normalizedPath) ?? null;
 }
 
+function clearOutsideMp4PlaybackState(boardId = state.boardId) {
+  outsideMp4PlaybackStateByBoard.delete(boardId);
+}
+
+function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", assetRef = "", targetRate = 1 } = {}) {
+  if (!video) {
+    return;
+  }
+  const normalizedRunId = String(runId || "").trim();
+  const normalizedAssetRef = String(assetRef || "").trim();
+  const previous = outsideMp4PlaybackStateByBoard.get(boardId) ?? null;
+  const didLifecycleChange =
+    !previous
+    || previous.runId !== normalizedRunId
+    || previous.assetRef !== normalizedAssetRef;
+
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+
+  if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
+    video.defaultPlaybackRate = targetRate;
+  }
+  if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+    video.playbackRate = targetRate;
+  }
+
+  if (didLifecycleChange) {
+    const durationSec = Number(video.duration);
+    if (Number.isFinite(durationSec) && durationSec > 0) {
+      try {
+        video.currentTime = 0;
+      } catch {
+        // ignore transient seek errors until media is ready
+      }
+    }
+  }
+
+  if (video.paused || didLifecycleChange) {
+    void video.play().catch(() => undefined);
+  }
+
+  outsideMp4PlaybackStateByBoard.set(boardId, {
+    runId: normalizedRunId,
+    assetRef: normalizedAssetRef,
+  });
+}
+
 function clampRoomSpeed(value) {
   return Math.max(0.1, Math.min(2.5, Number(value) || 1));
 }
@@ -5461,15 +5512,46 @@ function isOutsideModeDirectionApplicable(definition) {
   return resolveOutsideCodedEffectType(definition.assetRef) === "outside-space";
 }
 
+function createConditionalFieldMountSlot(field, anchorName) {
+  if (!field || !field.parentElement) {
+    return null;
+  }
+  const parent = field.parentElement;
+  const anchor = document.createComment(`${anchorName}-mount-anchor`);
+  parent.insertBefore(anchor, field.nextSibling);
+  return {
+    field,
+    parent,
+    anchor,
+  };
+}
+
+function setConditionalFieldMounted(slot, mounted) {
+  if (!slot?.field || !slot.parent || !slot.anchor) {
+    return;
+  }
+  if (mounted) {
+    if (!slot.field.isConnected) {
+      slot.parent.insertBefore(slot.field, slot.anchor);
+    }
+    return;
+  }
+  if (slot.field.isConnected) {
+    slot.field.remove();
+  }
+}
+
 function syncOutsideModeDirectionVisibility(definition) {
   const visible = isOutsideModeDirectionApplicable(definition);
+  setConditionalFieldMounted(outsideModeFieldMount, visible);
+  setConditionalFieldMounted(outsideDirectionFieldMount, visible);
   if (outsideModeField) {
-    outsideModeField.hidden = !visible;
-    outsideModeField.setAttribute("aria-hidden", visible ? "false" : "true");
+    outsideModeField.hidden = false;
+    outsideModeField.setAttribute("aria-hidden", "false");
   }
   if (outsideDirectionField) {
-    outsideDirectionField.hidden = !visible;
-    outsideDirectionField.setAttribute("aria-hidden", visible ? "false" : "true");
+    outsideDirectionField.hidden = false;
+    outsideDirectionField.setAttribute("aria-hidden", "false");
   }
   if (outsideModeInput) {
     outsideModeInput.disabled = !visible;
@@ -5747,13 +5829,12 @@ function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
 }
 
 function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
-  const selectedDefinition = getSelectedOutsideAnimationDefinition(boardId);
-  const allowModeDirection = isOutsideModeDirectionApplicable(selectedDefinition);
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
   const assetRef = normalizeOutsideAssetRefForType(
     assetType,
     String(outsideAssetRefInput?.value || "").trim(),
   );
+  const allowModeDirection = isOutsideModeDirectionApplicable({ assetType, assetRef });
   return setOutsideEditorDraft(boardId, {
     intensity: clampOutsideIntensity(outsideIntensityInput?.value),
     speed: clampOutsideSpeed(outsideSpeedInput?.value),
@@ -5806,7 +5887,11 @@ function syncOutsideFxPanel() {
   if (outsideAssetRefInput) {
     outsideAssetRefInput.value = assetRef;
   }
-  syncOutsideModeDirectionVisibility(selectedDefinition);
+  syncOutsideModeDirectionVisibility({
+    ...selectedDefinition,
+    assetType,
+    assetRef,
+  });
   syncOutsideResourcePicker(assetType, assetRef);
   outsideIntensityValue.textContent = intensity.toFixed(2);
   outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
@@ -5840,6 +5925,7 @@ function syncOutsideRuntimeMirror(boardId = state.boardId) {
   if (!outsideEnabled && existing) {
     stopAnimationSound(existing.id);
     state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
+    clearOutsideMp4PlaybackState(boardId);
     return true;
   }
 
@@ -9136,10 +9222,12 @@ function drawAnimationSafely(animation, now) {
 function drawOutsideFxLayer(now) {
   const outside = getOutsideFxProfile(state.boardId);
   if (!outside.enabled) {
+    clearOutsideMp4PlaybackState(state.boardId);
     return;
   }
   const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
   if (!selectedDefinition) {
+    clearOutsideMp4PlaybackState(state.boardId);
     return;
   }
   const runtimeEntry = findOutsideGlobalAnimation(state.boardId);
@@ -9160,6 +9248,7 @@ function drawOutsideFxLayer(now) {
       return;
     }
     if (selectedDefinition.assetType === "gif") {
+      clearOutsideMp4PlaybackState(state.boardId);
       const frame = getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline);
       if (frame) {
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
@@ -9172,18 +9261,22 @@ function drawOutsideFxLayer(now) {
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
-        video.loop = true;
-        if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
-          video.playbackRate = targetRate;
-        }
-        if (video.paused) {
-          void video.play().catch(() => undefined);
-        }
+        ensureOutsideMp4Playback(video, {
+          boardId: state.boardId,
+          runId: runtimeEntry?.id,
+          assetRef: selectedDefinition.assetRef,
+          targetRate,
+        });
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+      } else {
+        clearOutsideMp4PlaybackState(state.boardId);
       }
       return;
     }
+    clearOutsideMp4PlaybackState(state.boardId);
     const codedEffectType = resolveOutsideCodedEffectType(selectedDefinition.assetRef);
     drawEffectVisual(codedEffectType, timeline.timeline, selectedDefinition.intensity, null, null, {
       outsideMode: selectedDefinition.mode,
@@ -10575,6 +10668,7 @@ outsideAssetTypeInput?.addEventListener("change", () => {
   if (outsideAssetRefInput) {
     outsideAssetRefInput.value = normalizedAssetRef;
   }
+  syncOutsideModeDirectionVisibility({ assetType, assetRef: normalizedAssetRef });
   syncOutsideResourcePicker(assetType, normalizedAssetRef);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
@@ -10584,6 +10678,7 @@ outsideAssetRefInput?.addEventListener("change", () => {
   const assetRef = normalizeOutsideAssetRefForType(assetType, String(outsideAssetRefInput.value || "").trim());
   outsideAssetRefInput.value = assetRef;
   setOutsideEditorDraft(state.boardId, { assetRef });
+  syncOutsideModeDirectionVisibility({ assetType, assetRef });
   syncOutsideResourcePicker(assetType, assetRef);
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
