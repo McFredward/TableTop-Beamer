@@ -173,7 +173,6 @@ const outsideAnimationSelect = document.querySelector("#outside-animation-select
 const outsideAnimationNameInput = document.querySelector("#outside-animation-name");
 const outsideAnimationCreateButton = document.querySelector("#outside-animation-create");
 const outsideEnabledInput = document.querySelector("#outside-enabled");
-const outsideBoomerangInput = document.querySelector("#outside-boomerang");
 const outsideIntensityInput = document.querySelector("#outside-intensity");
 const outsideIntensityValue = document.querySelector("#outside-intensity-value");
 const outsideSpeedInput = document.querySelector("#outside-speed");
@@ -258,7 +257,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-animation-name",
   "outside-animation-create",
   "outside-enabled",
-  "outside-boomerang",
   "outside-intensity",
   "outside-speed",
   "outside-mode",
@@ -2103,7 +2101,6 @@ function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
     name: `Outside Animation ${fallbackIndex + 1}`,
     assetType: "coded",
     assetRef: "outside-space",
-    boomerang: false,
     intensity: 0.7,
     speed: 1,
     mode: "standard",
@@ -2124,7 +2121,6 @@ function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
     name,
     assetType,
     assetRef,
-    boomerang: Boolean(definition?.boomerang),
     intensity: clampOutsideIntensity(definition?.intensity),
     speed: clampOutsideSpeed(definition?.speed),
     mode: normalizeOutsideMode(definition?.mode),
@@ -2190,7 +2186,6 @@ function normalizeOutsideFxProfile(profile) {
     speed: selectedAnimation.speed,
     mode: selectedAnimation.mode,
     direction: selectedAnimation.direction,
-    boomerang: selectedAnimation.boomerang,
     assetType: selectedAnimation.assetType,
     assetRef: selectedAnimation.assetRef,
   };
@@ -2223,7 +2218,6 @@ function updateOutsideFxProfile(boardId, partial) {
       speed: clampOutsideSpeed(merged.speed),
       mode: normalizeOutsideMode(merged.mode),
       direction: normalizeOutsideDirection(merged.direction),
-      boomerang: Boolean(merged.boomerang),
       assetType: normalizeOutsideAssetType(merged.assetType),
       assetRef: String(merged.assetRef || "").trim() || entry.assetRef,
     }
@@ -2241,21 +2235,11 @@ function getSelectedOutsideAnimationDefinition(boardId = state.boardId) {
   return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
 }
 
-function resolveOutsideTimeline(elapsedSeconds, speed, boomerang) {
+function resolveOutsideTimeline(elapsedSeconds, speed) {
   const normalizedElapsed = Math.max(0, Number(elapsedSeconds) || 0);
   const normalizedSpeed = clampOutsideSpeed(speed);
-  const directedTimeline = normalizedElapsed * normalizedSpeed;
-  if (!boomerang) {
-    return {
-      timeline: directedTimeline,
-      directionMultiplier: 1,
-    };
-  }
-  const cycle = directedTimeline % 2;
-  const reversePhase = cycle > 1;
   return {
-    timeline: reversePhase ? 2 - cycle : cycle,
-    directionMultiplier: reversePhase ? -1 : 1,
+    timeline: normalizedElapsed * normalizedSpeed,
   };
 }
 
@@ -2274,7 +2258,6 @@ function createOutsideAnimationDefinition(name, existingDefinitions = []) {
     name: baseName,
     assetType: "coded",
     assetRef: "outside-space",
-    boomerang: false,
     intensity: 0.7,
     speed: 1,
     mode: "standard",
@@ -5340,7 +5323,6 @@ function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = nul
   }
   const next = {
     animationId: definition.id,
-    boomerang: Boolean(definition.boomerang),
     intensity: clampOutsideIntensity(definition.intensity),
     speed: clampOutsideSpeed(definition.speed),
     mode: normalizeOutsideMode(definition.mode),
@@ -5360,7 +5342,6 @@ function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
   const next = {
     ...base,
     ...partial,
-    boomerang: Boolean(partial?.boomerang ?? base.boomerang),
     intensity: clampOutsideIntensity(partial?.intensity ?? base.intensity),
     speed: clampOutsideSpeed(partial?.speed ?? base.speed),
     mode: normalizeOutsideMode(partial?.mode ?? base.mode),
@@ -5379,7 +5360,6 @@ function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
     String(outsideAssetRefInput?.value || "").trim(),
   );
   return setOutsideEditorDraft(boardId, {
-    boomerang: Boolean(outsideBoomerangInput?.checked),
     intensity: clampOutsideIntensity(outsideIntensityInput?.value),
     speed: clampOutsideSpeed(outsideSpeedInput?.value),
     mode: normalizeOutsideMode(outsideModeInput?.value),
@@ -5408,7 +5388,6 @@ function syncOutsideFxPanel() {
   const speed = draft?.speed ?? selectedDefinition?.speed ?? outside.speed;
   const mode = draft?.mode ?? selectedDefinition?.mode ?? outside.mode;
   const direction = draft?.direction ?? selectedDefinition?.direction ?? outside.direction;
-  const boomerang = Boolean(draft?.boomerang ?? selectedDefinition?.boomerang ?? outside.boomerang);
   const assetType = normalizeOutsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType);
   const assetRef = normalizeOutsideAssetRefForType(
     assetType,
@@ -5427,9 +5406,6 @@ function syncOutsideFxPanel() {
   }
   if (outsideAssetRefInput) {
     outsideAssetRefInput.value = assetRef;
-  }
-  if (outsideBoomerangInput) {
-    outsideBoomerangInput.checked = boomerang;
   }
   syncOutsideResourcePicker(assetType, assetRef);
   outsideIntensityValue.textContent = intensity.toFixed(2);
@@ -8731,10 +8707,8 @@ function drawOutsideFxLayer(now) {
   const elapsedSeconds = Number.isFinite(startedAt)
     ? Math.max(0, (now - startedAt) / 1000) * state.animationSpeed
     : (now / 1000) * state.animationSpeed;
-  const timeline = resolveOutsideTimeline(elapsedSeconds, selectedDefinition.speed, selectedDefinition.boomerang);
-  const timelineDirection = timeline.directionMultiplier;
-  const baseDirection = selectedDefinition.direction === "reverse" ? -1 : 1;
-  const effectiveDirection = timelineDirection * baseDirection < 0 ? "reverse" : "forward";
+  const timeline = resolveOutsideTimeline(elapsedSeconds, selectedDefinition.speed);
+  const effectiveDirection = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
 
   ctx.save();
   try {
@@ -8758,45 +8732,14 @@ function drawOutsideFxLayer(now) {
       const durationSec = Number(videoEntry?.durationSec);
       if (videoEntry?.video && Number.isFinite(durationSec) && durationSec > 0) {
         const video = videoEntry.video;
-        const playbackState = outsideVideoPlaybackStateByBoard.get(state.boardId) ?? {
-          key: null,
-          forceSeekAt: null,
-          boomerangPhase: "forward",
-          reversePhaseAnchorSec: null,
-          reversePhaseStartedAtMs: null,
-          // Replaces lastReverseSeekMs + the old !video.seeking gate.
-          // true  → ready to issue the next reverse seek
-          // false → waiting for the current seek to resolve (seeked event)
-          reverseSeekedReady: false,
-          // The "seeked" listener currently attached to the video element, or null.
-          // Stored so we can removeEventListener cleanly on phase/key transitions.
-          seekedHandler: null,
-          lastTickMs: null,
-        };
-        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.boomerang ? "boomerang" : selectedDefinition.direction}`;
-        const isForwardContinuous = !selectedDefinition.boomerang && selectedDefinition.direction !== "reverse";
+        const playbackState = outsideVideoPlaybackStateByBoard.get(state.boardId) ?? { key: null };
+        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.direction}`;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
-
-        // ── Key change: tear down any live reverse-seek listener ────────────
         if (playbackState.key !== playbackKey) {
-          if (playbackState.seekedHandler) {
-            video.removeEventListener("seeked", playbackState.seekedHandler);
-            playbackState.seekedHandler = null;
-          }
           playbackState.key = playbackKey;
-          playbackState.forceSeekAt = 0;
-          playbackState.boomerangPhase = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
-          playbackState.reversePhaseAnchorSec = selectedDefinition.direction === "reverse" ? durationSec : null;
-          playbackState.reversePhaseStartedAtMs = selectedDefinition.direction === "reverse" ? now : null;
-          playbackState.reverseSeekedReady = false;
-          playbackState.lastTickMs = now;
         }
 
-        if (isForwardContinuous) {
-          if (playbackState.seekedHandler) {
-            video.removeEventListener("seeked", playbackState.seekedHandler);
-            playbackState.seekedHandler = null;
-          }
+        if (selectedDefinition.direction !== "reverse") {
           video.loop = true;
           if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
             video.playbackRate = targetRate;
@@ -8804,22 +8747,7 @@ function drawOutsideFxLayer(now) {
           if (video.paused) {
             void video.play().catch(() => undefined);
           }
-          if (playbackState.forceSeekAt !== null) {
-            const seekTarget = ((Number(playbackState.forceSeekAt) || 0) % durationSec + durationSec) % durationSec;
-            if (Math.abs((Number(video.currentTime) || 0) - seekTarget) > 0.12) {
-              video.currentTime = seekTarget;
-            }
-            playbackState.forceSeekAt = null;
-          }
-          playbackState.lastTickMs = now;
-          playbackState.reversePhaseAnchorSec = null;
-          playbackState.reversePhaseStartedAtMs = null;
-          playbackState.reverseSeekedReady = false;
-        } else if (!selectedDefinition.boomerang && selectedDefinition.direction === "reverse") {
-          if (playbackState.seekedHandler) {
-            video.removeEventListener("seeked", playbackState.seekedHandler);
-            playbackState.seekedHandler = null;
-          }
+        } else {
           video.loop = false;
           if (!video.paused) {
             video.pause();
@@ -8827,108 +8755,6 @@ function drawOutsideFxLayer(now) {
           const reverseMappedTime = durationSec - (((elapsedSeconds * clampOutsideSpeed(selectedDefinition.speed)) % durationSec) + durationSec) % durationSec;
           if (Math.abs((Number(video.currentTime) || 0) - reverseMappedTime) > 0.03) {
             video.currentTime = reverseMappedTime;
-          }
-          playbackState.lastTickMs = now;
-          playbackState.reversePhaseAnchorSec = reverseMappedTime;
-          playbackState.reversePhaseStartedAtMs = now;
-          playbackState.reverseSeekedReady = false;
-        } else {
-          // ── Boomerang mode ─────────────────────────────────────────────────
-          playbackState.lastTickMs = now;
-
-          if (playbackState.boomerangPhase === "forward") {
-            // loop=true prevents the browser ever reaching "ended" state,
-            // which is what resets the frame buffer and causes the flicker.
-            video.loop = true;
-            if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
-              video.playbackRate = targetRate;
-            }
-            if (video.paused) {
-              void video.play().catch(() => undefined);
-            }
-            const currentTime = Number(video.currentTime) || 0;
-            // Intercept 0.2 s before the loop point — enough margin for any browser.
-            if (currentTime >= durationSec - 0.2) {
-              if (playbackState.seekedHandler) {
-                video.removeEventListener("seeked", playbackState.seekedHandler);
-                playbackState.seekedHandler = null;
-              }
-              video.loop = false;
-              video.pause();
-              playbackState.boomerangPhase = "reverse";
-              // Anchor to actual paused currentTime, not durationSec.
-              // Using durationSec made the first reverse seek a no-op and caused
-              // Chrome to show a static image for the whole reverse phase.
-              playbackState.reversePhaseAnchorSec = currentTime;
-              playbackState.reversePhaseStartedAtMs = now;
-              // Mark ready immediately so the very first reverse seek fires on the
-              // next tick without waiting for a spurious "seeked" event.
-              playbackState.reverseSeekedReady = true;
-            }
-          } else {
-            // ── Reverse phase ────────────────────────────────────────────────
-            //
-            // We pace seeks using the "seeked" event rather than a wall-clock
-            // timer. In Chrome, ctx.drawImage(video) only composites a new frame
-            // once the browser has fully resolved a seek — if we fire the next
-            // seek before that happens, Chrome keeps drawing the previous frame,
-            // which appears as a static frozen image during the entire reverse
-            // phase.
-            video.loop = false;
-            if (!video.paused) {
-              video.pause();
-            }
-
-            // Attach the seeked listener exactly once per reverse phase.
-            if (!playbackState.seekedHandler) {
-              const handler = () => {
-                playbackState.reverseSeekedReady = true;
-              };
-              playbackState.seekedHandler = handler;
-              video.addEventListener("seeked", handler);
-            }
-
-            if (playbackState.reverseSeekedReady) {
-              playbackState.reverseSeekedReady = false;
-
-              const reverseAnchorSecRaw = Number(playbackState.reversePhaseAnchorSec);
-              const reverseAnchorSec = Number.isFinite(reverseAnchorSecRaw)
-                ? reverseAnchorSecRaw
-                : Math.max(0, Math.min(durationSec, Number(video.currentTime) || durationSec));
-              if (!Number.isFinite(reverseAnchorSecRaw)) {
-                playbackState.reversePhaseAnchorSec = reverseAnchorSec;
-              }
-
-              const reverseStartedAtRaw = Number(playbackState.reversePhaseStartedAtMs);
-              const reverseStartedAtMs = Number.isFinite(reverseStartedAtRaw) ? reverseStartedAtRaw : now;
-              if (!Number.isFinite(reverseStartedAtRaw)) {
-                playbackState.reversePhaseStartedAtMs = reverseStartedAtMs;
-              }
-
-              // Compute target from elapsed wall-clock so the reverse plays at
-              // the same apparent speed as the forward phase regardless of how
-              // long individual seeks take.
-              const reverseElapsedSec = Math.max(0, (now - reverseStartedAtMs) / 1000) * targetRate;
-              const nextReverseTime = Math.max(0, reverseAnchorSec - reverseElapsedSec);
-
-              if (nextReverseTime <= 0.02) {
-                // Reverse complete — back to forward.
-                video.removeEventListener("seeked", playbackState.seekedHandler);
-                playbackState.seekedHandler = null;
-                playbackState.reverseSeekedReady = false;
-                playbackState.boomerangPhase = "forward";
-                playbackState.reversePhaseAnchorSec = null;
-                playbackState.reversePhaseStartedAtMs = null;
-                video.currentTime = 0;
-                video.loop = true;
-                void video.play().catch(() => undefined);
-              } else {
-                video.currentTime = nextReverseTime;
-                // reverseSeekedReady stays false until the seeked handler fires.
-              }
-            }
-            // If !reverseSeekedReady we simply fall through to drawImage below,
-            // which redraws the last composited frame — correct, no stale seek.
           }
         }
         outsideVideoPlaybackStateByBoard.set(state.boardId, playbackState);
@@ -10194,11 +10020,6 @@ outsideAnimationSelect?.addEventListener("change", () => {
     : "Status: Outside animation selection updated (persistence failed)";
 });
 
-outsideBoomerangInput?.addEventListener("change", () => {
-  setOutsideEditorDraft(state.boardId, { boomerang: Boolean(outsideBoomerangInput.checked) });
-  triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
-});
-
 outsideIntensityInput.addEventListener("input", () => {
   const intensity = clampOutsideIntensity(outsideIntensityInput.value);
   setOutsideEditorDraft(state.boardId, { intensity });
@@ -10275,7 +10096,6 @@ outsideApplyChangesButton?.addEventListener("click", () => {
     return;
   }
   const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, {
-    boomerang: draft.boomerang,
     intensity: draft.intensity,
     speed: draft.speed,
     mode: draft.mode,
