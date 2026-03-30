@@ -86,7 +86,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T69 [P0] UX-Cleanup liefern: alle redundanten `Use selected resource asset`-Buttons entfernen; `Apply changes` als einzigen Commitpfad behalten.
 - [x] DONE P8-T70 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF8 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF8)
+## Plan 8-HF9 - Outside MP4 Follow-up + Strict Conditional Unmounting (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T71 [P0] Outside-mp4-Root-Cause-Follow-up reproduzierbar isolieren: Rueckfallpfad ueber Start/Stop/Re-Start und Save/Reload/Restart dokumentieren.
+- [ ] TODO P8-T72 [P0] Outside-mp4-Lifecycle fixen: deterministischer Start/Stop/Re-Start ohne Black-Frame/no-op/frozen-first-frame.
+- [ ] TODO P8-T73 [P0] MP4-Regression-Guard erweitern: gif/coded + bestehende Apply-/Persistenzpfade bleiben unveraendert stabil.
+- [ ] TODO P8-T74 [P0] Strict conditional rendering umsetzen: nicht-applicable `outside mode`/`outside direction` vollstaendig unmounten (kein disabled-only Restzustand).
+- [ ] TODO P8-T75 [P0] Visibility-Transition-Regression absichern: Type-/Asset-Wechsel toggeln Controls deterministisch ohne stale UI-Reste/Reappear-Drift.
+- [ ] TODO P8-T76 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF9 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF9)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.
