@@ -1332,7 +1332,6 @@ let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
-const outsideVideoPlaybackStateByBoard = new Map();
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -9148,35 +9147,16 @@ function drawOutsideFxLayer(now) {
     }
     if (selectedDefinition.assetType === "mp4") {
       const videoEntry = getOutsideVideoElement(selectedDefinition.assetRef);
-      const durationSec = Number(videoEntry?.durationSec);
-      if (videoEntry?.video && Number.isFinite(durationSec) && durationSec > 0) {
+      if (videoEntry?.video) {
         const video = videoEntry.video;
-        const playbackState = outsideVideoPlaybackStateByBoard.get(state.boardId) ?? { key: null };
-        const playbackKey = `${selectedDefinition.id}::${selectedDefinition.assetRef}::${selectedDefinition.direction}`;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
-        if (playbackState.key !== playbackKey) {
-          playbackState.key = playbackKey;
+        video.loop = true;
+        if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+          video.playbackRate = targetRate;
         }
-
-        if (selectedDefinition.direction !== "reverse") {
-          video.loop = true;
-          if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
-            video.playbackRate = targetRate;
-          }
-          if (video.paused) {
-            void video.play().catch(() => undefined);
-          }
-        } else {
-          video.loop = false;
-          if (!video.paused) {
-            video.pause();
-          }
-          const reverseMappedTime = durationSec - (((elapsedSeconds * clampOutsideSpeed(selectedDefinition.speed)) % durationSec) + durationSec) % durationSec;
-          if (Math.abs((Number(video.currentTime) || 0) - reverseMappedTime) > 0.03) {
-            video.currentTime = reverseMappedTime;
-          }
+        if (video.paused) {
+          void video.play().catch(() => undefined);
         }
-        outsideVideoPlaybackStateByBoard.set(state.boardId, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
