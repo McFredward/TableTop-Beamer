@@ -197,6 +197,8 @@ const insideAssetRefInput = document.querySelector("#inside-asset-ref");
 const insideResourceSelect = document.querySelector("#inside-resource-select");
 const insideResourceApplyButton = document.querySelector("#inside-resource-apply");
 const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
+const outsideModeField = outsideModeInput?.closest("label") ?? null;
+const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
@@ -5464,6 +5466,34 @@ function resolveOutsideCodedEffectType(assetRef) {
   return "outside-space";
 }
 
+function isOutsideModeDirectionApplicable(definition) {
+  if (!definition) {
+    return false;
+  }
+  if (normalizeOutsideAssetType(definition.assetType) !== "coded") {
+    return false;
+  }
+  return resolveOutsideCodedEffectType(definition.assetRef) === "outside-space";
+}
+
+function syncOutsideModeDirectionVisibility(definition) {
+  const visible = isOutsideModeDirectionApplicable(definition);
+  if (outsideModeField) {
+    outsideModeField.hidden = !visible;
+    outsideModeField.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+  if (outsideDirectionField) {
+    outsideDirectionField.hidden = !visible;
+    outsideDirectionField.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+  if (outsideModeInput) {
+    outsideModeInput.disabled = !visible;
+  }
+  if (outsideDirectionInput) {
+    outsideDirectionInput.disabled = !visible;
+  }
+}
+
 function buildInsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
   const baseProfile = normalizeInsideFxProfile(profileOverride ?? getInsideFxProfile(boardId));
   const selectedDefinition =
@@ -5732,6 +5762,8 @@ function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
 }
 
 function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
+  const selectedDefinition = getSelectedOutsideAnimationDefinition(boardId);
+  const allowModeDirection = isOutsideModeDirectionApplicable(selectedDefinition);
   const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
   const assetRef = normalizeOutsideAssetRefForType(
     assetType,
@@ -5740,8 +5772,8 @@ function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
   return setOutsideEditorDraft(boardId, {
     intensity: clampOutsideIntensity(outsideIntensityInput?.value),
     speed: clampOutsideSpeed(outsideSpeedInput?.value),
-    mode: normalizeOutsideMode(outsideModeInput?.value),
-    direction: normalizeOutsideDirection(outsideDirectionInput?.value),
+    mode: allowModeDirection ? normalizeOutsideMode(outsideModeInput?.value) : "standard",
+    direction: allowModeDirection ? normalizeOutsideDirection(outsideDirectionInput?.value) : "forward",
     assetType,
     assetRef,
   });
@@ -5764,8 +5796,12 @@ function syncOutsideFxPanel() {
   outsideEnabledInput.checked = outside.enabled;
   const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? outside.intensity;
   const speed = draft?.speed ?? selectedDefinition?.speed ?? outside.speed;
-  const mode = draft?.mode ?? selectedDefinition?.mode ?? outside.mode;
-  const direction = draft?.direction ?? selectedDefinition?.direction ?? outside.direction;
+  const mode = isOutsideModeDirectionApplicable(selectedDefinition)
+    ? draft?.mode ?? selectedDefinition?.mode ?? outside.mode
+    : "standard";
+  const direction = isOutsideModeDirectionApplicable(selectedDefinition)
+    ? draft?.direction ?? selectedDefinition?.direction ?? outside.direction
+    : "forward";
   const assetType = normalizeOutsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType);
   const assetRef = normalizeOutsideAssetRefForType(
     assetType,
@@ -5785,6 +5821,7 @@ function syncOutsideFxPanel() {
   if (outsideAssetRefInput) {
     outsideAssetRefInput.value = assetRef;
   }
+  syncOutsideModeDirectionVisibility(selectedDefinition);
   syncOutsideResourcePicker(assetType, assetRef);
   outsideIntensityValue.textContent = intensity.toFixed(2);
   outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
@@ -10546,11 +10583,17 @@ outsideSpeedInput.addEventListener("input", () => {
 });
 
 outsideModeInput.addEventListener("change", () => {
+  if (outsideModeInput.disabled) {
+    return;
+  }
   setOutsideEditorDraft(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
   triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
 });
 
 outsideDirectionInput.addEventListener("change", () => {
+  if (outsideDirectionInput.disabled) {
+    return;
+  }
   setOutsideEditorDraft(state.boardId, {
     direction: normalizeOutsideDirection(outsideDirectionInput.value),
   });
