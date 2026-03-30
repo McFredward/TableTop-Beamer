@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 8
 - Current Phase Key: phase-08
-- Last Prepared: 2026-03-29
+- Last Prepared: 2026-03-30
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF6
+- Last Executed Plan: 8-HF7
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF6-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -75,6 +75,15 @@
 - Plan-8-HF6 Umsetzung: `/output/final` nutzt jetzt einen einheitlichen viewport+dpr Recompute-Lifecycle fuer `resize`/`orientationchange`/`fullscreenchange`/DPR-Wechsel.
 - Plan-8-HF6 Umsetzung: Final-Output-Fit erzwingt transformfreien Full-Area-Stage-Pfad ohne Top-Left-Offset oder Letterbox-Drift.
 - Plan-8-HF6 Umsetzung: Reflow-Regression fuer Rendering/Coords/Clip ist PASS dokumentiert (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`, `8-HF6-VERIFICATION.md`).
+- Neues verpflichtendes P0-Feature-/Cleanup-Paket fuer Phase 8 ist gesetzt: Boomerang wird vollstaendig entfernt (UI/Runtime/Persistenznutzung), Legacy-Read bleibt als no-op-kompatibler Guard erlaubt.
+- Paritaets-Regel Plan 8-HF7: `Inside Animations` wird Outside-paritaetisch als eigene Settings-Sektion mit Dropdown-Editor, Create-Flow und atomarem `Apply changes` geliefert.
+- Mapping-Regel Plan 8-HF7: Inside-Animationen erhalten pro Eintrag `assetType` (`coded`/`gif`/`mp4`) sowie typspezifisch gefilterte `assetRef` aus `resources`.
+- Persistenz-Regel Plan 8-HF7: Inside-Definitionsmodell bleibt ueber Save/Reload/Restart/Defaults migrationsstabil; boomerang-bezogene Felder bleiben beim Legacy-Load tolerant, aber aktiv wirkungslos.
+- Zielbild-Regel Plan 8-HF7: neue Inside-/Outside-Animationen sind definitionsgetrieben in UI hinzufuegbar, ohne Codeaenderung pro neuem Animationseintrag.
+- Gate-Regel Plan 8-HF7: Plan 8-2 bleibt blockiert bis HF7 PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF7 Umsetzung: Outside boomerang ist aus aktiver UI/Runtime/Persistenznutzung entfernt; Legacy-boomerang-Felder bleiben als no-op-load kompatibel.
+- Plan-8-HF7 Umsetzung: `Inside Animations` liefert Outside-Paritaet inkl. Create/Dropdown, typed asset mapping (`coded`/`gif`/`mp4`) und atomarem `Apply changes`.
+- Plan-8-HF7 Umsetzung: Inside-Definitionsmodell ist ueber Save/Reload/Restart/Defaults sowie Live-Snapshot-Hydration migrationsstabil (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
