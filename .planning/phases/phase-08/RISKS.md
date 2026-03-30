@@ -180,6 +180,36 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF6 inkl. Artefakt-Sync.
 
+## R37 Boomerang-Reste bleiben aktiv in UI/Runtime/Persistenz
+- Risiko: Teilpfade behalten Boomerang-Controls oder Reverse-Lifecycle, wodurch unerwartete Playback-Semantik und Bedieninkonsistenz bestehen bleiben.
+- Impact: Kritisch.
+- Gegenmassnahme: vollstaendige Decommission ueber UI, Runtime und Persistenzpfad mit Negativtests auf nicht mehr vorhandene Boomerang-Aktivierung.
+
+## R38 Persistenzbereinigung bricht Legacy-Ladekompatibilitaet
+- Risiko: alte Payloads mit boomerang-bezogenen Feldern lassen sich nicht mehr laden oder fuehren zu Fehlern im Normalizer.
+- Impact: Hoch.
+- Gegenmassnahme: Legacy-Felder tolerant lesen (no-op), kanonisch ohne Boomerang speichern, dedizierte Legacy-Load-Regression.
+
+## R39 Inside-Editor-Paritaet driftet gegen Outside-Editor
+- Risiko: Inside-Animationssektion nutzt abweichende Bedienlogik ohne Dropdown/Create/Apply-Paritaet; Operator-Flow wird inkonsistent.
+- Impact: Hoch.
+- Gegenmassnahme: gemeinsame Editor-Patterns/State-Ownership fuer Inside/Outside und parity-basierte Akzeptanzmatrix.
+
+## R40 Inside-Asset-Picker filtert Typen nicht strikt
+- Risiko: bei `assetType` werden ungueltige Quellen angeboten (z. B. mp4 im gif-Modus), was no-op Rendering oder fehlerhafte Persistenz erzeugt.
+- Impact: Kritisch.
+- Gegenmassnahme: strikte typspezifische Filterung (`coded` keys, `mp4` `.mp4`, `gif` `.gif` aus `resources`) plus deterministic type-switch refresh.
+
+## R41 Zielbild verfehlt: neue Animationen bleiben codegebunden
+- Risiko: neue Inside/Outside-Animationen erfordern weiterhin Codeaenderungen statt rein definitionsgetriebener UI-/Persistenzintegration.
+- Impact: Hoch.
+- Gegenmassnahme: kanonisches definitionsgetriebenes Modell fuer Inside/Outside mit Create-Flow und persistenter Registry statt harter Einzelverdrahtung.
+
+## R42 Hardening-Welle startet trotz offenem HF7-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl Boomerang-Decommission und Inside-Editor-Paritaet noch offen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF7 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -248,3 +278,17 @@
 - 2026-03-29: R34 ist mitigiert; Stage/Canvas-Recompute nutzt einen einheitlichen Lifecycle fuer resize/orientation/fullscreen/DPR inkl. RAF-Coalescing.
 - 2026-03-29: R35 ist mitigiert; Rendering-/Coords-/Clip-Non-Regression unter dynamischem Reflow ist PASS (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`).
 - 2026-03-29: R36 Gate ist erfuellt; Plan 8-HF6 ist PASS verifiziert (`8-HF6-VERIFICATION.md`).
+
+## Risk Review for Plan 8-HF7 (planned)
+- 2026-03-30: Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert R37 als unmittelbaren Blocker (Boomerang muss vollstaendig entfernt werden).
+- 2026-03-30: R38 ist verpflichtender Guard fuer rueckwaertskompatibles Legacy-Lesen bei gleichzeitiger Persistenzbereinigung.
+- 2026-03-30: R39 und R40 sind verpflichtende Guards fuer Outside-paritaetischen Inside-Editor mit streng typspezifischem Asset-Picker + Apply-Atomicity.
+- 2026-03-30: R41 verankert das Zielbild definitionsgetriebener Erweiterbarkeit ohne Codeaenderung pro neuer Animation.
+- 2026-03-30: R42 setzt den Gate-Guard, dass Plan 8-2 erst nach HF7-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF7
+- 2026-03-30: R37 ist mitigiert; Boomerang ist aus Outside-UI und Runtime-Lifecycle entfernt, aktive Playback-Pfade nutzen keine Boomerang-State-Machine mehr.
+- 2026-03-30: R38 ist mitigiert; boomerang-bezogene Legacy-Felder bleiben ladbar, werden aber als no-op ignoriert und nicht mehr aktiv persistiert.
+- 2026-03-30: R39 und R40 sind mitigiert; `Inside Animations` bietet Dropdown/Create, typspezifischen Asset-Picker (`coded`/`gif`/`mp4`) und atomaren `Apply changes`.
+- 2026-03-30: R41 ist mitigiert; Inside-/Outside-Animationseintraege sind definitionsgetrieben erweiterbar, inklusive inside save/load/defaults persistence.
+- 2026-03-30: R42 Gate ist erfuellt; Plan 8-HF7 ist PASS verifiziert (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).

@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-Animationspaket fuer Mars inklusive priorisierter P0-Regression-Hotfix-Wellen fuer Outside-Editor-, Boomerang/Picker-, Sandstorm-Reverse-Lifecycle- und Final-Output-Fullscreen-Fit-Stabilitaet.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit und abschliessender Boomerang-Entfernung mit Inside-Editor-Paritaet.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 53/58 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46), Plan 8-HF5 (P8-T47..P8-T52) und Plan 8-HF6 (P8-T53..P8-T58) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/8-HF6-VERIFICATION.md`). Naechste Welle: Plan 8-2 (Hardening Wave).
+Status: 59/64 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46), Plan 8-HF5 (P8-T47..P8-T52), Plan 8-HF6 (P8-T53..P8-T58) und Plan 8-HF7 (P8-T59..P8-T64) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/8-HF7-VERIFICATION.md`). Naechste Welle: Plan 8-2 (Hardening Wave).
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -370,6 +370,7 @@ Milestones:
 11. M11 Outside HF4 Regression Closure: erneuter `Coded/Space` Restore, strikt typgebundener Asset-Picker und flickerfreier Boomerang-Vollzyklus.
 12. M12 Outside HF5 Reverse Stability Closure: Root-Cause-basierter Fix fuer Sandstorm-Reverse-Flicker bei voller Boomerang-Zyklusparitaet ohne mp4-/Persistenz-Regression.
 13. M13 Final Output Fullscreen Fit Closure: `/output/final` passt sich robust an Display-Aufloesung, Resize/Orientation/Fullscreen und DPR an.
+14. M14 Boomerang Removal + Inside Parity Closure: Boomerang ist decommissioned; `Inside Animations` erreicht Outside-Paritaet mit definitionsgetriebenem Erweiterungsziel.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -381,24 +382,23 @@ Exit Criteria:
 - Erfolgreicher Bildimport macht das neue Board sofort im Dropdown sichtbar und setzt es direkt als aktive Auswahl.
 - Importierte Bildboards ohne Start-Polygone sind ein gueltiger, stabiler Startzustand fuer manuelles Play-Area/Room-Editing.
 - `Outside Sandstorm` ist als verpflichtende neue Outside-Animation vorhanden, nutzt `sandstorm.mp4` und bleibt ohne Audio.
-- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Lifecycle-Regression in Start/Stop/Clear.
 - Outside-Animationseinstellungen sind aus dem Play-Area-Editor ausgelagert und leben in einer separaten Settings-Sektion `Outside Animations`.
-- Dropdown-basierte Bearbeitung pro Outside-Animation inkl. Boomerang-Option ist deterministisch nutzbar.
+- Dropdown-basierte Bearbeitung pro Outside-Animation ist deterministisch nutzbar.
 - Asset-Mapping ist pro Outside-Animation in UI editierbar (`gif`/`mp4`/coded animation key); neue Outside-Animationen koennen in UI angelegt werden.
 - Vorhandene Dateien aus `resources` sind als Asset-Quelle auswaehlbar.
 - Outside-Animationsdefinitionen und Settings bleiben ueber Save/Reload/Restart/Defaults persistent und migrationsstabil.
 - `Coded/Space` bleibt auf dem funktionierenden coded Star-Space-Pfad stabil (kein Black-Screen-Rueckfall).
 - `Outside Sandstorm` spielt stabil ohne permanentes Restart-/Rewind-Flackern.
-- Boomerang-Checkbox und Asset-Type-Dropdown sind im Outside-Editor stabil editierbar.
 - Outside-Editor uebernimmt Type/Resource/Optionen nur ueber explizites `Apply changes` atomar im selben Commit.
 - Asset-Picker ist typstreng: `coded` zeigt nur coded keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`.
-- Boomerang-Playback laeuft als vollstaendiger Forward->Reverse->Repeat-Zyklus ohne sichtbaren on/off Flicker und ohne abrupten Restart-Jump.
-- Sandstorm-Boomerang bleibt auch im Reverse-Abschnitt stabil ohne sichtbares Flackern.
-- Normales mp4-Playback ohne Boomerang bleibt nach dem Reverse-Fix unveraendert regressionsfrei.
 - `Apply changes` sowie Save/Reload/Restart bleiben fuer Outside-Einstellungen intakt und deterministisch.
 - `/output/final` skaliert im Browser-Fullscreen auf jede Display-Aufloesung ohne Top-Left-Offset oder Letterbox-Bug.
 - Canvas/Stage werden bei Resize, Orientation, Browser-Fullscreen und Device-Pixel-Ratio-Aenderung deterministisch neu berechnet.
 - Rendering/Koordinaten/Clipping bleiben unter dynamischem Reflow/Fit regressionsfrei intakt.
+- Boomerang ist vollstaendig entfernt (UI/Runtime/Persistenznutzung); Legacy-Lesen alter boomerang-Felder bleibt tolerant als no-op.
+- `Inside Animations` ist Outside-paritaetisch verfuegbar (Dropdown/Create/Apply/Type-Filter/Persistenz).
+- Pro Inside-Animation sind `assetType` (`coded`/`gif`/`mp4`) und typspezifisch gefilterte `assetRef` aus `resources` editierbar.
+- Neue Inside-/Outside-Animationen sind definitionsgetrieben ueber UI hinzufuegbar, ohne Codeaenderung pro neuem Eintrag.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
 Execution Update (8-1):
@@ -470,6 +470,18 @@ New Blocking Wave (Phase 8 final-output fullscreen follow-up):
 Gate Closure (8-HF6):
 - Fullscreen-Fit-Blocker ist geschlossen: `/output/final` nutzt robustes viewport+dpr Recompute fuer resize/orientation/fullscreen/DPR und fuellt den Zielbereich ohne Top-Left-Offset.
 - Rendering/Coords/Clip bleiben unter dynamischem Reflow regressionsfrei (`P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`, `8-HF6-VERIFICATION.md`).
+
+New Blocking Wave (Phase 8 boomerang-removal + inside-parity follow-up):
+- Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert Plan 8-HF7 als unmittelbare Welle vor Plan 8-2.
+- Blocker A: Boomerang muss vollstaendig entfernt werden (UI, Runtime, Persistenznutzung), Legacy-Lesen bleibt nur als no-op-Kompatibilitaet.
+- Blocker B: Inside-Animation-Editor braucht Outside-Paritaet (eigene Sektion, Dropdown/Create, assetType `coded`/`gif`/`mp4`, typspezifischer Picker, `Apply changes`).
+- Blocker C: Persistenz fuer Inside-Definitionsmodell (save/load/defaults) muss Outside-paritaetisch robust sein.
+- Blocker D: Zielbild fordert definitionsgetriebene Erweiterbarkeit fuer neue Inside/Outside-Animationen ohne Codeaenderung.
+- Plan 8-2 bleibt bis 8-HF7-PASS blockiert.
+
+Gate Closure (8-HF7):
+- Boomerang-Decommission ist geschlossen; UI/Runtime/Persistenzpfad verwenden kein aktives Boomerang-Feature mehr.
+- Inside-Animationsparitaet ist geliefert: eigene Sektion, Create/Dropdown, typed mapping + Apply-Atomicity und persistentes Definitionsmodell sind PASS.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

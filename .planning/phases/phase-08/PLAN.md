@@ -108,6 +108,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Zielregel: Rendering-, Koordinaten-, Clipping- und Maskenpfade bleiben unter dynamischem Reflow regressionsfrei intakt.
 - Priorisierung: Boomerang-Thema ist fuer diese Welle nachrangig; Fullscreen-Fit ist unmittelbarer P0-Blocker.
 
+## Neues verpflichtendes Feature-/Cleanup-Paket (P0)
+- Boomerang-Feature wird vollstaendig entfernt: UI-Controls, Runtime-Logik und aktive Nutzbarkeit im Produkt.
+- Persistenz wird bereinigt: Boomerang-Felder werden nicht mehr aktiv geschrieben/genutzt; rueckwaertskompatibles Lesen alter Daten darf als no-op-Importpfad bestehen.
+- Inside-Animation-Editor erhaelt Paritaet zur Outside-Animationssektion (eigene Einstellungssektion, dropdownbasierte Bearbeitung, Create-Flow).
+- Neue Inside-Animationen sind in der UI anlegbar und pro Animation ist `assetType` waehlbar (`coded`/`gif`/`mp4`).
+- Asset-Referenz wird aus `resources` typspezifisch gefiltert ausgewaehlt und erst ueber expliziten Apply-Flow atomar uebernommen.
+- Persistenz fuer Inside-Animationsdefinitionen (save/load/defaults) folgt demselben Muster wie Outside.
+- Zielbild: Neue Inside-/Outside-Animationen sind zukuenftig definitionsgetrieben in UI hinzufuegbar, ohne weitere Codeaenderung pro Animationstyp.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -152,6 +161,16 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 5. Rendering-/Coords-/Clip-Non-Regression sichern: Inside/Outside/Room/Global-Pfade bleiben unter Resize/Fit semantisch korrekt.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Feature-/Cleanup-Welle (Plan 8-HF7, execute-ready)
+1. Boomerang-Decommission umsetzen: Outside-Editor-Controls, Runtime-State-Machine und aktive Playback-Pfade entfernen.
+2. Persistenz-/Migrationsbereinigung umsetzen: boomerang-bezogene Felder nicht mehr schreiben/verwenden; Legacy-Read als toleranter no-op bleibt erhalten.
+3. Inside-Animationsmodell auf definitionsgetriebenes Schema erweitern (Paritaet zu Outside inkl. `selectedAnimationId` + `animations[]`).
+4. Neue Settings-Sektion `Inside Animations` mit Dropdown-Editor + Create-Flow fuer neue Inside-Animationen liefern.
+5. Pro Inside-Animation Asset-Mapping liefern: `assetType` (`coded`/`gif`/`mp4`) + typspezifisch gefilterte `assetRef` aus `resources`.
+6. Expliziten `Apply changes`-Commitpfad fuer Inside-Editor liefern, damit Type/Resource/Optionen atomar uebernommen werden.
+7. Persistenz fuer Inside-Definitionsmodell ueber Save/Reload/Restart/Defaults inklusive Legacy-Guards absichern.
+8. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -172,25 +191,26 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Nach erfolgreichem Bildimport ist das neue Board sofort im Dropdown sichtbar und direkt aktiv selektiert.
 - Importierte Bildboards ohne vorhandene Polygone sind stabil editierbar (Play-Areas/Raeume koennen direkt manuell angelegt werden).
 - `Outside Sandstorm` ist als auswuehlbare Outside-Animation verfuegbar, nutzt `sandstorm.mp4` und bleibt stumm (kein Audio).
-- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Lifecycle-Regression bei Start/Stop/Clear.
 - Outside-Animationseinstellungen sind in einer eigenen Settings-Sektion (`Outside Animations`) gekapselt; `Play Area Editor` enthaelt diese Controls nicht mehr.
-- Dropdown-basierte Auswahl der zu editierenden Outside-Animation funktioniert deterministisch; Boomerang und weitere Parameter sind animation-spezifisch.
+- Dropdown-basierte Auswahl der zu editierenden Outside-Animation funktioniert deterministisch und bleibt animation-spezifisch.
 - Asset-Mapping ist pro Outside-Animation in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; neue Eintraege sind sofort editierbar und triggerbar.
 - Outside-Animationsdefinitionen + Settings sind ueber Save/Reload/Restart sowie Defaults-Apply persistent und verlustfrei.
 - `Coded/Space` nutzt wieder den vorregressionskonformen coded Star-Space Pfad (kein Black-Screen/Fallback).
 - `Outside Sandstorm` laeuft ohne sichtbares Restart-Flackern/Rewind stabil durch.
-- Boomerang-Checkbox ist in der Outside-Editor-UI klickbar/setzbar und bleibt nach Apply + Reload stabil erhalten.
 - Asset-Type-Dropdown bleibt nach User-Auswahl stabil und springt nicht auf alte Werte zurueck.
 - Outside-Editor besitzt `Apply changes`; Type/Resource/Optionen werden erst bei explizitem Apply gemeinsam und atomar uebernommen.
 - Asset-Picker filtert strikt typspezifisch: `coded` zeigt nur coded keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`.
-- Boomerang-Playback laeuft als vollstaendiger Forward->Reverse-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
-- Sandstorm-Boomerang zeigt auch im Reverse-Abschnitt keinen sichtbaren Flicker; Richtungswechsel bleibt nahtlos.
-- MP4-Playback ohne aktiviertes Boomerang bleibt auf dem stabilen Vorwaerts-Loop-Pfad ohne neue Regression.
 - `Apply changes` bleibt der atomare Commit-Pfad; Outside-Settings bleiben ueber Save/Reload/Restart persistent deterministisch.
 - `/output/final` skaliert im Browser-Fullscreen responsiv auf die echte Display-Aufloesung ohne Top-Left-Offset oder Letterbox-Drift.
 - Canvas/Stage berechnen bei Resize, Orientation, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung deterministisch neu.
 - Rendering-, Koordinaten- und Clipping-Semantik bleibt unter Reflow/Fit stabil (kein Masken-/Coords-Bruch).
+- Boomerang ist vollstaendig entfernt: keine UI-Option, keine Runtime-Ausfuehrung, keine aktive Persistenznutzung.
+- Legacy-Payloads mit boomerang-bezogenen Feldern bleiben ladbar, aktivieren aber kein Boomerang-Verhalten und werden kanonisch ohne Boomerang gespeichert.
+- `Inside Animations` bietet Outside-paritaetischen Editor mit Dropdown, Create-Flow und `Apply changes`.
+- Neue Inside-Animationen sind in UI anlegbar; pro Eintrag sind `assetType` (`coded`/`gif`/`mp4`) und typspezifisch gefilterte `assetRef` aus `resources` waehlbar.
+- Inside-Animationsdefinitionen + Settings bleiben ueber Save/Reload/Restart/Defaults persistenzstabil und migrationssicher.
+- Neue Inside-/Outside-Animationseintraege sind definitionsgetrieben in UI hinzufuegbar, ohne codegebundene Einzelintegration pro Animation.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -213,3 +233,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-29: Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 als naechste execute-ready Hotfix-Welle vor Plan 8-2: `/output/final` muss in Browser-Fullscreen auf jede Aufloesung korrekt fitten (Resize/Orientation/Fullscreen/DPR inklusive).
 - 2026-03-29: Plan 8-HF6 wurde atomar umgesetzt (P8-T53..P8-T58).
 - Nachweise: `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`.
+- 2026-03-30: Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert Plan 8-HF7 als naechste execute-ready Welle vor Plan 8-2 (Boomerang-Entfernung + Inside-Animations-Editor-Paritaet + definitionsgetriebenes Zielbild).
+- 2026-03-30: Plan 8-HF7 wurde atomar umgesetzt (P8-T59..P8-T64).
+- Nachweise: `.planning/phases/phase-08/8-HF7-VERIFICATION.md`, `.planning/phases/phase-08/P8-T64-HF7-REGRESSION.md`.

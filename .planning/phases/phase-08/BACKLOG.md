@@ -13,6 +13,7 @@
 - Outside Asset-Picker + Boomerang Stability Hotfix
 - Sandstorm Reverse-Lifecycle Flicker Hotfix
 - Final Output Fullscreen Fit Hotfix
+- Boomerang Removal + Inside Animation Parity Feature Pack
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -78,6 +79,16 @@
 - P8-S13.3 Fullscreen-/Resize-Events (`resize`, `orientationchange`, `fullscreenchange`, DPR-Wechsel) als verpflichtende Recompute-Trigger anbinden.
 - P8-S13.4 Fullscreen-Fit ohne Letterbox-/Offset-Bug absichern: finaler Renderbereich nutzt die verfuegbare Flaeche vollstaendig.
 - P8-S13.5 Non-Regression fuer Rendering/Coords/Clip unter dynamischem Reflow und unterschiedlichen Display-Aufloesungen dokumentieren.
+
+- P8-S14.1 Boomerang-Feature vollstaendig decommissionen: UI-Controls, Runtime-Boomerang-Lifecycle und aktive Triggerpfade entfernen.
+- P8-S14.2 Persistenzschema bereinigen: boomerang-bezogene Felder nicht mehr aktiv schreiben; Legacy-Lesen alter Felder als no-op-kompatibler Load-Guard erhalten.
+- P8-S14.3 Inside-Animationsmodell auf Outside-paritaetisches Definitionsschema erweitern (`selectedAnimationId`, `animations[]`, per-entry settings).
+- P8-S14.4 Settings-Sektion `Inside Animations` mit Dropdown-basierter Bearbeitung analog Outside liefern.
+- P8-S14.5 UI-Create-Flow fuer neue Inside-Animationen bereitstellen (direkt editierbar und runtime-nutzbar).
+- P8-S14.6 Pro Inside-Animation `assetType`-Auswahl (`coded`/`gif`/`mp4`) plus typspezifisch gefilterte `assetRef`-Auswahl aus `resources` umsetzen.
+- P8-S14.7 Inside-Editor mit explizitem `Apply changes` ausstatten, damit Type/Resource/Optionen atomar uebernommen werden.
+- P8-S14.8 Persistenz fuer Inside-Definitionsmodell ueber Save/Reload/Restart/Defaults inkl. Legacy-Guards absichern.
+- P8-S14.9 Zielbild-Guard verankern: neue Inside/Outside-Animationen sind definitionsgetrieben in UI hinzufuegbar, ohne Codeaenderung pro neuer Animation.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -151,8 +162,18 @@
 - Story P8-S13.5 + P8-S7.3.
   - Ziel: Rendering/Coords/Clip bleiben regressionsfrei; evidenzbasierter P0-Abschluss mit konsistentem Artefakt-Sync.
 
+## Priorisierte Feature-/Cleanup-Welle (P0) - Plan 8-HF7 execute-ready
+- Story P8-S14.1 + P8-S14.2.
+  - Ziel: Boomerang ist funktionsseitig entfernt (UI/Runtime/Persistenz), Legacy-Daten bleiben ladbar ohne aktive Boomerang-Nutzung.
+- Story P8-S14.3 + P8-S14.4 + P8-S14.5.
+  - Ziel: Inside-Animationseditor erreicht Outside-Paritaet mit eigener Sektion, Dropdown-Bearbeitung und Create-Flow.
+- Story P8-S14.6 + P8-S14.7 + P8-S14.8.
+  - Ziel: typspezifisches Inside-Asset-Mapping mit atomarem `Apply changes` und persistenter Save/Load/Defaults-Paritaet.
+- Story P8-S14.9 + P8-S7.3.
+  - Ziel: definitionsgetriebenes Zielbild (neue Inside/Outside ohne Codeaenderung) plus konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF6): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF7): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -167,3 +188,5 @@
 - 2026-03-27: Plan 8-HF5 Stories P8-S12.1..P8-S12.5 umgesetzt; Reverse-Lifecycle-Root-Cause/Fix, mp4 Non-Boomerang Guard und Apply/Persistenz-Determinismus sind PASS (`8-HF5-VERIFICATION.md`, `P8-T47-REVERSE-ROOT-CAUSE.md`, `P8-T51-HF5-REGRESSION.md`).
 - 2026-03-29: Neues verpflichtendes P0-Problem priorisiert Plan 8-HF6 (Stories P8-S13.1..P8-S13.5) als naechste execute-ready Hotfix-Welle vor Plan 8-2; Fokus ist `/output/final` Fullscreen-Fit inkl. Resize/Orientation/Fullscreen/DPR-Recompute.
 - 2026-03-29: Plan 8-HF6 Stories P8-S13.1..P8-S13.5 umgesetzt; Fullscreen-Fit inklusive Resize/Orientation/Fullscreen/DPR-Recompute und Reflow-Non-Regression ist PASS (`8-HF6-VERIFICATION.md`, `P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`, `P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`).
+- 2026-03-30: Neues verpflichtendes P0-Feature-/Cleanup-Paket priorisiert Plan 8-HF7 (Stories P8-S14.1..P8-S14.9) als naechste execute-ready Welle vor Plan 8-2.
+- 2026-03-30: Plan 8-HF7 Stories P8-S14.1..P8-S14.9 umgesetzt; Boomerang-Decommission, Inside-Editor-Paritaet inkl. typed asset mapping/apply und persistentes Inside-Definitionsmodell sind PASS (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).

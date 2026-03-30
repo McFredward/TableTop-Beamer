@@ -34,8 +34,6 @@
 
 - Outside-Sandstorm-Availability-Test: `Outside Sandstorm` ist als Outside-Animation auswuehlbar und an `sandstorm.mp4` gebunden.
 - Outside-Sandstorm-Muted-Test: `Outside Sandstorm` laeuft verpflichtend ohne Audio (auch bei globalen Audio-Einstellungen unveraendert stumm).
-- Outside-Boomerang-Playback-Test: aktiviertes Boomerang laeuft Ende->Rueckwaerts->Anfang->Vorwaerts ohne sichtbaren Lifecycle-Bruch.
-- Outside-Boomerang-Disabled-Test: deaktiviertes Boomerang nutzt normales Vorwaerts-Playback ohne Rueckwaertsphase.
 - Outside-Section-Ownership-Test: Outside-Animationscontrols sind ausschliesslich in `Outside Animations`; `Play Area Editor` enthaelt keine Outside-Config-Controls.
 - Outside-Animation-Dropdown-Test: Dropdown waehlt deterministisch die zu bearbeitende Outside-Animation; Settings aendern nur den aktiven Eintrag.
 - Outside-Asset-Mapping-Type-Test: pro Animation sind Asset-Typen `gif`/`mp4`/coded key validierbar und persistierbar.
@@ -46,7 +44,6 @@
 
 - Outside-Coded-Space-Restore-Test: `Coded/Space` rendert wieder erwartungskonform und bleibt nicht auf schwarzem Frame/Fallback stehen.
 - Outside-Sandstorm-Stability-Test: `Outside Sandstorm` spielt kontinuierlich ohne permanentes Restart/Rewind-Flackern im Laufzeitbetrieb.
-- Outside-Boomerang-Checkbox-Edit-Test: Boomerang-Checkbox ist setzbar/entfernbar und bleibt nach `Apply changes` + Reload deterministisch erhalten.
 - Outside-Asset-Type-Stability-Test: Asset-Type-Dropdown (`gif`/`mp4`/coded key) springt nicht zurueck und bleibt bis explizitem Apply stabil editierbar.
 - Outside-Apply-Atomicity-Test: `Apply changes` uebernimmt Type + Resource + Optionen atomar im selben Commit, ohne Teilapply bei Zwischenzustand.
 
@@ -55,12 +52,7 @@
 - Outside-Asset-Picker-MP4-Filter-Test: bei `assetType=mp4` listet der Picker ausschliesslich `.mp4` Assets aus `resources`.
 - Outside-Asset-Picker-GIF-Filter-Test: bei `assetType=gif` listet der Picker ausschliesslich `.gif` Assets aus `resources`.
 - Outside-Asset-Picker-Type-Switch-Test: Wechsel zwischen `coded`/`mp4`/`gif` aktualisiert die Pickerliste deterministisch ohne stale Optionen oder Auto-Revert.
-- Outside-Boomerang-Full-Cycle-Test: Playback laeuft voll vorwaerts bis Ende, dann voll rueckwaerts bis Anfang, danach wieder vorwaerts.
-- Outside-Boomerang-No-Flicker-Test: Zwischen den Richtungswechseln treten keine sichtbaren on/off Flicker und keine abrupten Restart-Jumps auf.
-- Outside-Sandstorm-Reverse-Lifecycle-RootCause-Test: Reverse-Phase-Flicker ist reproduzierbar analysiert (Forward-Ende, Reverse-Umschaltung, Reverse-Lauf) und mit eindeutigem Fix-Pfad belegt.
-- Outside-Sandstorm-Reverse-Visual-Stability-Test: Reverse-Abschnitt laeuft kontinuierlich ohne starkes Flackern; Boomerang-Zyklus bleibt nahtlos.
-- Outside-MP4-NonBoomerang-NonRegression-Test: deaktiviertes Boomerang behaelt stabilen normalen mp4-Vorwaerts-Loop ohne Lifecycle-Regressionsartefakte.
-- Outside-Apply-Persistence-Intact-Test: `Apply changes` sowie Save/Reload/Restart halten `boomerang`/`assetType`/`assetRef` nach HF5 unveraendert deterministisch.
+- Outside-Historical-HF5-Closure-Reference: HF5-Evidenz bleibt als abgeschlossene Historie dokumentiert (`P8-T47`..`P8-T51`), ist aber kein aktiver Zielpfad mehr nach Boomerang-Decommission.
 
 - Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
 - Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
@@ -68,6 +60,19 @@
 - Final-Output-Fullscreenchange-Recompute-Test: Eintritt/Austritt Browser-Fullscreen triggern konsistenten Reflow ohne Letterbox-/Offset-Artefakte.
 - Final-Output-DPR-Recompute-Test: Device-Pixel-Ratio-Aenderung (Display-Switch/Zoom) aktualisiert Backbuffer sauber ohne unscharfen oder versetzten Ausschnitt.
 - Final-Output-Render-Coord-Clip-NonRegression-Test: inside/outside Masken, Room-Clips und globale Renderer bleiben unter Reflow/Fit semantisch korrekt.
+
+- Boomerang-Removed-UI-Test: Outside-Editor zeigt keine Boomerang-Controls mehr; Nutzer kann Boomerang nicht mehr aktiv setzen.
+- Boomerang-Removed-Runtime-Test: Outside-MP4-Playback nutzt keinen Forward/Reverse-Boomerang-Zyklus mehr; normaler Playback-Pfad bleibt stabil.
+- Boomerang-Removed-Persistence-Test: Save schreibt keine aktive Boomerang-Konfiguration; Legacy-Input mit boomerang-Feld bleibt ladbar ohne Aktivierung.
+- Inside-Section-Parity-Test: `Inside Animations` existiert als eigene Settings-Sektion mit Outside-paritaetischer Struktur.
+- Inside-Animation-Create-Test: neue Inside-Animation ist in UI anlegbar, sofort editierbar und runtime-nutzbar.
+- Inside-Asset-Type-Selection-Test: pro Inside-Animation ist `assetType` als `coded`/`gif`/`mp4` deterministisch waehlbar.
+- Inside-Asset-Picker-Coded-Filter-Test: bei `assetType=coded` listet der Picker ausschliesslich coded renderer keys.
+- Inside-Asset-Picker-MP4-Filter-Test: bei `assetType=mp4` listet der Picker ausschliesslich `.mp4` Assets aus `resources`.
+- Inside-Asset-Picker-GIF-Filter-Test: bei `assetType=gif` listet der Picker ausschliesslich `.gif` Assets aus `resources`.
+- Inside-Apply-Atomicity-Test: `Apply changes` uebernimmt `assetType` + `assetRef` + Optionen atomar ohne Teilapply.
+- Inside-Persistence-Definitions-Test: Inside-Definitionsmodell bleibt ueber Save/Reload/Restart/Defaults deterministisch erhalten.
+- Definition-Driven-Extensibility-Test: neue Inside/Outside-Animationseintraege sind ueber Definitionsdaten/UI hinzufuegbar, ohne codegebundene Sonderintegration pro neuem Eintrag.
 
 - Non-Regression-Running-Test: Start/Edit/Stop/Clear verhalten sich unveraendert stabil.
 - Non-Regression-Final-Output-Test: `/output/final` bleibt funktional und zeigt korrekte inside/outside Separation.
@@ -99,6 +104,10 @@
 - Nach P8-T55..P8-T56: Resize/Orientation/Fullscreen/DPR-Events fuehren deterministisch zu vollem `/output/final`-Fit ohne Top-Left-Offset/Letterbox.
 - Nach P8-T57: Rendering/Coords/Clip bleiben unter dynamischem Reflow regressionsfrei PASS.
 - Nach P8-T58: Hotfix-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T59..P8-T60: Boomerang ist aus UI/Runtime/Persistenz entfernt; Legacy-Ladekompatibilitaet bleibt als no-op-Guard erhalten.
+- Nach P8-T61..P8-T62: `Inside Animations` ist Outside-paritaetisch lieferbar (Create/Dropdown/Type-Filter/Apply-Atomicity).
+- Nach P8-T63: Inside-Definitionsmodell ist ueber Save/Reload/Restart/Defaults migrationsstabil PASS.
+- Nach P8-T64: P0-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -111,22 +120,22 @@
 - Erfolgreicher Bildupload fuehrt zu sofort sichtbarem Board im Dropdown und direkter Aktivselektion.
 - Importierte Bildboards ohne initiale Polygone sind als gueltiger Startzustand ohne Runtime-/Editorfehler bedienbar.
 - `Outside Sandstorm` ist als neue Outside-Animation produktiv verfuegbar, nutzt `sandstorm.mp4` und bleibt ohne Audio.
-- Outside-Animationen unterstuetzen optionales Boomerang-Playback pro Animation ohne Start/Stop/Clear-Regression.
 - Outside-Animationseinstellungen leben in eigenstaendiger Sektion `Outside Animations`; `Play Area Editor` ist davon entkoppelt.
 - Asset-Mapping pro Outside-Animation ist in UI bearbeitbar (`gif`/`mp4`/coded key) inkl. Auswahl vorhandener `resources`-Dateien.
 - UI kann neue Outside-Animationen anlegen; Definitionen + Settings sind persistent ueber Profile/Defaults.
 - `Coded/Space` ist auf den zuletzt funktionierenden coded Star-Space Renderpfad zurueckgefuehrt und bleibt sichtbar stabil.
 - `Outside Sandstorm` spielt stabil ohne sichtbares Restart-/Rewind-Flackern.
-- Boomerang-Checkbox ist stabil editierbar; Asset-Type-Dropdown bleibt stabil editierbar und springt nicht zurueck.
 - `Apply changes` ist als verpflichtender Commit-Schritt im Outside-Animation-Editor vorhanden und uebernimmt Type/Resource/Optionen atomar.
 - Asset-Picker filtert strikt typspezifisch (`coded` keys, `mp4` nur `.mp4` aus `resources`, `gif` nur `.gif` aus `resources`).
-- Boomerang-Playback folgt dem vollen Forward->Reverse->Repeat-Zyklus ohne sichtbaren on/off Flicker oder abrupten Restart-Uebergang.
-- Sandstorm-Boomerang ist im Reverse-Abschnitt visuell stabil (kein starkes Reverse-Flicker) und bleibt ueber mehrere Zyklen nahtlos.
-- Normales mp4-Playback ohne Boomerang bleibt nach dem HF5-Fix unveraendert stabil (keine neue Lifecycle-Regression).
 - `Apply changes` und Persistenz (`Save/Reload/Restart`) bleiben fuer Outside-Definitionen voll funktionsfaehig und deterministisch.
 - `/output/final` passt im Browser-Fullscreen auf jede Display-Aufloesung ohne Top-Left-Teilausschnitt, Offset oder Letterbox-Bug.
 - Canvas/Stage werden bei Resize, Orientation, Browser-Fullscreen-Wechsel und Device-Pixel-Ratio-Aenderung deterministisch neu berechnet.
 - Rendering-, Koordinaten- und Clipping-Pfade bleiben unter Reflow/Fit stabil; keine Masken- oder Coords-Regression.
+- Boomerang ist vollstaendig entfernt (keine UI-Bedienung, keine Runtime-Ausfuehrung, keine aktive Persistenznutzung).
+- Legacy-Daten mit Boomerang-Feldern bleiben ladbar, werden aber ohne Boomerang-Semantik normalisiert.
+- `Inside Animations` bietet Outside-paritaetischen Editor inkl. Create-Flow, `assetType` (`coded`/`gif`/`mp4`), typspezifischem Asset-Picker und `Apply changes`.
+- Inside-Animationsdefinitionen + Settings bleiben ueber Save/Reload/Restart/Defaults deterministisch und migrationsstabil.
+- Neue Inside-/Outside-Animationen sind definitionsgetrieben hinzufuegbar, ohne Codeaenderung pro neuem Animationseintrag.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -177,3 +186,9 @@
   - `.planning/phases/phase-08/8-HF6-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T53-FINAL-OUTPUT-FULLSCREEN-ROOT-CAUSE.md`
   - `.planning/phases/phase-08/P8-T57-FINAL-OUTPUT-REFLOW-REGRESSION.md`
+
+## Execution Result (Plan 8-HF7)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF7-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T64-HF7-REGRESSION.md`

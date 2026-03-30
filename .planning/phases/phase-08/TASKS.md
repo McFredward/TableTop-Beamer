@@ -70,7 +70,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T57 [P0] Non-Regression absichern: Rendering/Coords/Clip bleiben unter Resize/Fullscreen/Orientation stabil und semantisch korrekt.
 - [x] DONE P8-T58 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF6 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF6)
+## Plan 8-HF7 - Boomerang Removal + Inside Animation Parity (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T59 [P0] Boomerang vollstaendig entfernen: Outside-UI-Control, Runtime-Boomerang-Lifecycle und aktive Nutzpfade decommissionen.
+- [x] DONE P8-T60 [P0] Persistenz bereinigen: boomerang-bezogene Felder nicht mehr aktiv schreiben/nutzen; Legacy-Load kompatibel als no-op behalten.
+- [x] DONE P8-T61 [P0] Inside-Animationseditor auf Outside-Paritaet bringen: eigene Sektion `Inside Animations`, Dropdown-Bearbeitung und Create-Flow fuer neue Eintraege.
+- [x] DONE P8-T62 [P0] Inside-Asset-Mapping liefern: `assetType` (`coded`/`gif`/`mp4`) pro Animation, typspezifisch gefilterte `assetRef` aus `resources`, atomarer `Apply changes`-Flow.
+- [x] DONE P8-T63 [P0] Persistenz fuer Inside-Definitionsmodell absichern: Save/Reload/Restart/Defaults inkl. Legacy-Guards und Paritaet zu Outside.
+- [x] DONE P8-T64 [P0] P0-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF7 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF7)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.
