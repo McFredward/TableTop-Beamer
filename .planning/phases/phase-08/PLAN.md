@@ -125,6 +125,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - UX-Cleanup ist verpflichtend: redundante Buttons `Use selected resource asset` werden entfernt.
 - Verbindlicher Commitpfad bleibt ausschliesslich `Apply changes`.
 
+## Neues verpflichtendes P0-Follow-up (HF9)
+- Outside-mp4 ist im Realbetrieb weiterhin regressiert; der HF8-Restore ist nicht stabil reproduzierbar und muss root-cause-basiert erneut gehaertet werden.
+- Root-Cause-Fix fuer Outside-mp4 muss den kompletten Lifecycle (Start, Stop, Re-Start, Save/Reload/Restart) abdecken statt nur Initialstart.
+- Conditional-Rendering-Regel wird verschaerft: nicht-applicable Controls sind nicht nur disabled, sondern muessen vollstaendig aus dem DOM verschwinden.
+- `outside mode` und `outside direction` duerfen nur bei fachlich gueltigem Kontext sichtbar sein (coded `outside-space`), fuer `gif`/`mp4` und andere coded Varianten strikt hidden.
+- Regression-Guard ist verpflichtend: mp4 Start/Stop-Zyklen sowie UI-Sichtbarkeitswechsel bei Asset-Type-/Asset-Ref-Kontextwechseln werden als eigene Evidenzmatrix nachgewiesen.
+- Gate-Regel Plan 8-HF9: Plan 8-2 bleibt blockiert bis HF9 PASS inklusive konsistentem Artefakt-Sync.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -187,6 +195,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 5. UX-Cleanup: redundante Buttons `Use selected resource asset` entfernen; `Apply changes` als einziger Commitpfad verbleibt.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF9, execute-ready)
+1. Outside-MP4-Root-Cause-Redo: verbleibenden Ausfallpfad reproduzierbar isolieren (inkl. Start/Stop/Re-Start und Reload-Kontext), dann stabilen Outside-mp4-Lifecycle fixen.
+2. MP4-Lifecycle-Hardening: Outside-mp4 muss deterministisch starten, stoppen und erneut starten ohne Black-Frame/no-op/frozen-first-frame Rueckfall.
+3. Strict-Conditional-Rendering: nicht-applicable Controls (`outside mode`/`outside direction`) konsequent unmounten statt nur disabled zu schalten.
+4. Visibility-Transition-Guard: Asset-Type-/Asset-Ref-Wechsel aktualisiert Control-Sichtbarkeit deterministisch ohne stale UI-Reste oder Reappear-Drift.
+5. Regression-Coverage erweitern: dedizierte Nachweise fuer mp4 start/stop/restart sowie UI show/hide transitions erstellen.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -229,6 +245,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Neue Inside-/Outside-Animationseintraege sind definitionsgetrieben in UI hinzufuegbar, ohne codegebundene Einzelintegration pro Animation.
 - Outside-mp4-Playback ist fuer nicht-boomerang Betrieb wiederhergestellt und laeuft regressionsfrei stabil.
 - `outside mode` und `outside direction` sind kontextsensitiv sichtbar und werden fuer nicht-applicable Kontexte (insb. `gif`/`mp4`) nicht angezeigt.
+- Outside-mp4 bleibt auch ueber Start/Stop/Re-Start sowie Save/Reload/Restart deterministisch stabil (kein no-op/black/frozen frame Rueckfall).
+- Nicht-applicable Outside-Controls sind strikt verborgen (unmounted) statt disabled; es bleiben keine versteckten Placeholder/disabled Artefakte sichtbar.
+- UI-Sichtbarkeit fuer kontextabhaengige Controls aktualisiert bei Type/Asset-Wechsel deterministisch ohne stale Reappear-Drift.
 - Redundante Buttons `Use selected resource asset` sind entfernt; `Apply changes` bleibt der einzige explizite Commitpfad in den Animationseditoren.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
@@ -258,3 +277,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-30: Neues verpflichtendes P0-Feedback priorisiert Plan 8-HF8 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4-Restore + conditional visibility fuer outside controls + Apply-only UX-Cleanup).
 - 2026-03-30: Plan 8-HF8 wurde atomar umgesetzt (P8-T65..P8-T70).
 - Nachweise: `.planning/phases/phase-08/8-HF8-VERIFICATION.md`, `.planning/phases/phase-08/P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T66-MP4-NON-REGRESSION.md`.
+- 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert Plan 8-HF9 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4 lifecycle restore + strict conditional unmounting + transition regression coverage).
+- 2026-03-30: Plan 8-HF9 wurde atomar umgesetzt (P8-T71..P8-T76).
+- Nachweise: `.planning/phases/phase-08/8-HF9-VERIFICATION.md`, `.planning/phases/phase-08/P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T73-MP4-REGRESSION-GUARD.md`, `.planning/phases/phase-08/P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `.planning/phases/phase-08/P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`.

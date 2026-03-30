@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-03-30
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF8
+- Last Executed Plan: 8-HF9
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF8-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF9-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -91,6 +91,15 @@
 - Plan-8-HF8 Umsetzung: Outside-mp4 ist auf stabilem non-boomerang Forward-Loop-Pfad wiederhergestellt (`P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`).
 - Plan-8-HF8 Umsetzung: `outside mode`/`outside direction` sind strikt kontextsensitiv (nur coded `outside-space`) und fuer `gif`/`mp4` ausgeblendet.
 - Plan-8-HF8 Umsetzung: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` bleibt alleiniger Commit-CTA.
+- Neues verpflichtendes P0-Follow-up fuer Phase 8 ist gesetzt: Outside-mp4 bleibt im Realbetrieb regressiert; HF8-Restore ist lifecycle-seitig nicht stabil genug.
+- P0-Regel Plan 8-HF9: Root-Cause-Fix fuer Outside-mp4 muss Start/Stop/Re-Start sowie Save/Reload/Restart robust abdecken.
+- Visibility-Regel Plan 8-HF9: nicht-applicable Controls (`outside mode`/`outside direction`) muessen vollstaendig verschwinden (unmount), disabled-only ist unzulaessig.
+- Regression-Regel Plan 8-HF9: verpflichtende Evidenz fuer mp4 Start/Stop-Reihen und UI show/hide transitions bei Type-/Asset-Kontextwechseln.
+- Gate-Regel Plan 8-HF9: Plan 8-2 bleibt blockiert bis HF9 PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF9 Umsetzung: Outside-mp4-Lifecycle nutzt run-gebundenes Playback-Hardening (re-prime bei Start/Stop/Re-Start, draw-ready guard) fuer robusten non-boomerang Betrieb.
+- Plan-8-HF9 Umsetzung: Nicht-applicable `outside mode`/`outside direction` werden strikt unmounted; disabled-only Restzustaende sind entfernt.
+- Plan-8-HF9 Umsetzung: Type-/Asset-Transitions triggern unmittelbare deterministic visibility sync (`input`+`change`) ohne stale reappear drift.
+- Plan-8-HF9 Umsetzung: HF9 Regression/Evidence ist PASS dokumentiert (`8-HF9-VERIFICATION.md`, `P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`, `P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.

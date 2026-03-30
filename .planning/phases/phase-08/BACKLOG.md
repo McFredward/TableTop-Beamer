@@ -15,6 +15,7 @@
 - Final Output Fullscreen Fit Hotfix
 - Boomerang Removal + Inside Animation Parity Feature Pack
 - Outside MP4 Restore + Conditional Visibility + Apply-Only UX Hotfix
+- Outside MP4 Follow-up + Strict Conditional Unmounting Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -98,6 +99,14 @@
 - P8-S15.5 UX-Cleanup durchziehen: redundante Buttons `Use selected resource asset` entfernen.
 - P8-S15.6 Apply-Only-Commit-Regel absichern: `Apply changes` bleibt der einzige explizite Commitpfad fuer Asset-/Optionsaenderungen.
 - P8-S15.7 HF8-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
+
+- P8-S16.1 Outside-mp4-Rueckfall reproduzierbar isolieren (inkl. Start/Stop/Re-Start und Save/Reload/Restart), um den instabilen Lifecycle-Weg eindeutig zu identifizieren.
+- P8-S16.2 Outside-mp4 Root-Cause-Fix liefern: deterministischer Start/Stop/Re-Start ohne Black-Frame/no-op/frozen-first-frame Rueckfall.
+- P8-S16.3 MP4-Non-Regression erweitern: gif/coded und bestehende Apply-/Persistenzpfade bleiben unveraendert stabil.
+- P8-S16.4 Strict conditional rendering fuer `outside mode`/`outside direction`: nicht-applicable Controls werden vollstaendig unmounted statt nur disabled.
+- P8-S16.5 Visibility-Transition-Guard liefern: Type-/Asset-Kontextwechsel zeigen/verbergen Controls deterministisch ohne stale UI-Reste.
+- P8-S16.6 Regression-Coverage erweitern: eigene Evidenz fuer mp4 start/stop/restart und UI visibility transitions erstellen.
+- P8-S16.7 HF9-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -191,8 +200,18 @@
 - Story P8-S15.7 + P8-S7.3.
   - Ziel: reproduzierbare P0-Evidenz und konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF9 execute-ready
+- Story P8-S16.1 + P8-S16.2.
+  - Ziel: Outside-mp4-Lifecycle ist root-cause-basiert stabil fuer Start/Stop/Re-Start und bleibt reloadstabil.
+- Story P8-S16.3 + P8-S16.6.
+  - Ziel: mp4-Regressionen sind ueber Start/Stop-Zyklen abgesichert, ohne Nebenwirkung auf gif/coded und Persistenzpfade.
+- Story P8-S16.4 + P8-S16.5.
+  - Ziel: nicht-applicable Outside-Controls werden strikt hidden/unmounted; Visibility-Transitions bleiben deterministic ohne disabled-Reste.
+- Story P8-S16.7 + P8-S7.3.
+  - Ziel: reproduzierbare P0-Evidenz und konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF8): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF9): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -211,3 +230,5 @@
 - 2026-03-30: Plan 8-HF7 Stories P8-S14.1..P8-S14.9 umgesetzt; Boomerang-Decommission, Inside-Editor-Paritaet inkl. typed asset mapping/apply und persistentes Inside-Definitionsmodell sind PASS (`8-HF7-VERIFICATION.md`, `P8-T64-HF7-REGRESSION.md`).
 - 2026-03-30: Neues verpflichtendes P0-Feedback priorisiert Plan 8-HF8 (Stories P8-S15.1..P8-S15.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-30: Plan 8-HF8 Stories P8-S15.1..P8-S15.7 umgesetzt; Outside-mp4-Restore, kontextsensitive Outside-Controls und Apply-only UX-Cleanup sind PASS (`8-HF8-VERIFICATION.md`, `P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`, `P8-T66-MP4-NON-REGRESSION.md`).
+- 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert Plan 8-HF9 (Stories P8-S16.1..P8-S16.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
+- 2026-03-30: Plan 8-HF9 Stories P8-S16.1..P8-S16.7 umgesetzt; Outside-mp4-Lifecycle ist start/stop/restart-stabil, strict unmounting + visibility transition guards sind PASS (`8-HF9-VERIFICATION.md`, `P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`, `P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).

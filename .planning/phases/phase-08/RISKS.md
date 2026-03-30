@@ -230,6 +230,26 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF8 inkl. Artefakt-Sync.
 
+## R47 Outside-mp4-Playback bleibt im Lifecycle regressionsanfaellig
+- Risiko: mp4 laeuft ggf. beim Erststart, faellt aber bei Stop/Re-Start oder nach Reload auf no-op/Black/Frozen Frame zurueck.
+- Impact: Kritisch.
+- Gegenmassnahme: Root-Cause-Fix auf gesamten Lifecycle (Start/Stop/Re-Start/Reload/Restart) ausrichten und mit dedizierter Zyklus-Matrix absichern.
+
+## R48 Conditional Controls werden nur disabled statt entfernt
+- Risiko: nicht-applicable Controls bleiben sichtbar (disabled) und verletzen die strengere UX-Regel `hide statt disable`.
+- Impact: Hoch.
+- Gegenmassnahme: strikt bedingtes Rendering mit Unmount-Guard fuer `outside mode`/`outside direction` in nicht-gueltigen Kontexten.
+
+## R49 Visibility-Transitions zeigen stale UI-Reste
+- Risiko: bei Type-/Asset-Wechseln bleiben alte Controls kurz sichtbar oder tauchen inkonsistent wieder auf.
+- Impact: Hoch.
+- Gegenmassnahme: deterministische Sichtbarkeitsberechnung aus aktuellem Draft-Kontext plus Transition-Regressionstests.
+
+## R50 Hardening-Welle startet trotz offenem HF9-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl Outside-mp4-Lifecycle und strict conditional unmounting noch offen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF9 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -323,3 +343,14 @@
 - 2026-03-30: R44 ist mitigiert; `outside mode`/`outside direction` sind strikt kontextsensitiv und fuer `gif`/`mp4` ausgeblendet.
 - 2026-03-30: R45 ist mitigiert; redundante `Use selected resource asset`-CTAs sind entfernt, `Apply changes` bleibt der einzige Commitpfad.
 - 2026-03-30: R46 Gate ist erfuellt; Plan 8-HF8 ist PASS verifiziert (`8-HF8-VERIFICATION.md`, `P8-T66-MP4-NON-REGRESSION.md`).
+
+## Risk Review for Plan 8-HF9 (planned)
+- 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert R47 als unmittelbaren Hotfix-Blocker (Outside-mp4 bleibt im Realbetrieb regressiert).
+- 2026-03-30: R48 und R49 sind verpflichtende Guard-Risiken fuer strict conditional unmounting und deterministic visibility transitions.
+- 2026-03-30: R50 setzt den Gate-Guard, dass Plan 8-2 erst nach HF9-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF9
+- 2026-03-30: R47 ist mitigiert; Outside-mp4-Lifecycle ist ueber run-bound playback hardening stabil fuer Start/Stop/Re-Start sowie reload-sensitive Kontexte (`P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`).
+- 2026-03-30: R48 ist mitigiert; `outside mode`/`outside direction` werden in nicht-applicable Kontexten strikt unmounted statt disabled-only gehalten (`P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`).
+- 2026-03-30: R49 ist mitigiert; Type-/Asset-Transitions aktualisieren die Visibility deterministisch auf `input`+`change` ohne stale reappear drift (`P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
+- 2026-03-30: R50 Gate ist erfuellt; Plan 8-HF9 ist PASS verifiziert (`8-HF9-VERIFICATION.md`).

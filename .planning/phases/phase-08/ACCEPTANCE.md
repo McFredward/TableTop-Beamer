@@ -57,7 +57,11 @@
 - Outside-MP4-Root-Cause-Evidence-Test: HF8 dokumentiert reproduzierbar Ursache und fixierten Lifecycle fuer den mp4-Ausfall im Outside-Pfad.
 - Outside-Conditional-Mode-Direction-Visible-Test: `outside mode` und `outside direction` erscheinen nur bei kontextfaehigen Kombinationen (z. B. `coded` + `outside-space`).
 - Outside-Conditional-Mode-Direction-Hidden-Test: bei `gif`/`mp4` und nicht-applicable coded renderern sind `outside mode`/`outside direction` konsequent ausgeblendet.
+- Outside-Conditional-Strict-Unmount-Test: nicht-applicable `outside mode`/`outside direction` sind nicht nur disabled, sondern vollstaendig aus dem DOM entfernt.
+- Outside-Visibility-Transition-Test: Wechsel zwischen `coded`/`gif`/`mp4` sowie coded-non-applicable `assetRef` toggelt die Sichtbarkeit deterministisch ohne stale UI-Reste.
 - Outside-Editor-Apply-Only-UX-Test: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige sichtbare Commit-CTA fuer Asset-/Optionsaenderungen.
+- Outside-MP4-Start-Stop-Restart-Test: Outside-mp4 startet, stoppt und startet erneut deterministisch ohne Black-Frame/no-op/frozen-first-frame.
+- Outside-MP4-Reload-Restart-Stability-Test: Save/Reload/Restart behaelt funktionales Outside-mp4-Playback ohne Rueckfall.
 
 - Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
 - Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
@@ -117,6 +121,10 @@
 - Nach P8-T67..P8-T68: `outside mode`/`outside direction` folgen strikt der kontextsensitiven Visibility-Regel (sichtbar nur wenn applicable, sonst hidden).
 - Nach P8-T69: UI ist auf Apply-only Commit bereinigt; redundante `Use selected resource asset`-Buttons sind entfernt.
 - Nach P8-T70: HF8-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T71..P8-T72: Outside-mp4-Rueckfallpfad ist root-cause-basiert geschlossen; Start/Stop/Re-Start bleibt stabil.
+- Nach P8-T73: gif/coded und Persistenz-/Apply-Pfade bleiben nach mp4-Fix regressionsfrei PASS.
+- Nach P8-T74..P8-T75: nicht-applicable Controls sind strikt unmounted; Visibility-Transitions bleiben deterministic ohne disabled-only Restzustand.
+- Nach P8-T76: HF9-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -147,6 +155,8 @@
 - Neue Inside-/Outside-Animationen sind definitionsgetrieben hinzufuegbar, ohne Codeaenderung pro neuem Animationseintrag.
 - Outside-mp4-Playback funktioniert wieder stabil fuer non-boomerang Betrieb und bleibt in Save/Reload/Restart regressionsfrei.
 - `outside mode`/`outside direction` sind kontextsensitiv sichtbar und fuer `gif`/`mp4` sowie nicht-applicable coded renderer nicht sichtbar.
+- Nicht-applicable `outside mode`/`outside direction` sind strikt unmounted (kein disabled-only Platzhalter/Rest-Element sichtbar).
+- Outside-mp4 bleibt ueber Start/Stop/Re-Start sowie Save/Reload/Restart deterministisch stabil ohne Black/no-op/frozen Rueckfall.
 - Redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige explizite Commit-Button.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
@@ -211,3 +221,12 @@
   - `.planning/phases/phase-08/8-HF8-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`
   - `.planning/phases/phase-08/P8-T66-MP4-NON-REGRESSION.md`
+
+## Execution Result (Plan 8-HF9)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF9-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`
+  - `.planning/phases/phase-08/P8-T73-MP4-REGRESSION-GUARD.md`
+  - `.planning/phases/phase-08/P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`
+  - `.planning/phases/phase-08/P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`

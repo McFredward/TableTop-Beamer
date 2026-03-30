@@ -92,7 +92,7 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T73 [P0] MP4-Regression-Guard erweitern: gif/coded + bestehende Apply-/Persistenzpfade bleiben unveraendert stabil.
 - [x] DONE P8-T74 [P0] Strict conditional rendering umsetzen: nicht-applicable `outside mode`/`outside direction` vollstaendig unmounten (kein disabled-only Restzustand).
 - [x] DONE P8-T75 [P0] Visibility-Transition-Regression absichern: Type-/Asset-Wechsel toggeln Controls deterministisch ohne stale UI-Reste/Reappear-Drift.
-- [ ] TODO P8-T76 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF9 Stand.
+- [x] DONE P8-T76 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF9 Stand.
 
 ## Plan 8-2 - Hardening Wave (nach 8-HF9)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
