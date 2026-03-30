@@ -192,6 +192,11 @@ const insideIntensityInput = document.querySelector("#inside-intensity");
 const insideIntensityValue = document.querySelector("#inside-intensity-value");
 const insideSpeedInput = document.querySelector("#inside-speed");
 const insideSpeedValue = document.querySelector("#inside-speed-value");
+const insideAssetTypeInput = document.querySelector("#inside-asset-type");
+const insideAssetRefInput = document.querySelector("#inside-asset-ref");
+const insideResourceSelect = document.querySelector("#inside-resource-select");
+const insideResourceApplyButton = document.querySelector("#inside-resource-apply");
+const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
@@ -280,6 +285,11 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-animation-create",
   "inside-intensity",
   "inside-speed",
+  "inside-asset-type",
+  "inside-asset-ref",
+  "inside-resource-select",
+  "inside-resource-apply",
+  "inside-apply-changes",
 ];
 
 function applyOutputRoleViewContract() {
@@ -5452,9 +5462,89 @@ function buildInsideProfileWithSelectedAnimationPatch(boardId = state.boardId, p
   });
 }
 
+function syncInsideResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
+  if (!insideResourceSelect) {
+    return;
+  }
+  const assetType = normalizeInsideAssetType(assetTypeOverride ?? insideAssetTypeInput?.value);
+  const candidateAssets = getInsideAssetCandidates(assetType);
+  insideResourceSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent =
+    candidateAssets.length > 0
+      ? assetType === "coded"
+        ? "Select coded renderer key…"
+        : `Select ${assetType.toUpperCase()} resource asset…`
+      : assetType === "coded"
+        ? "No coded renderer keys available"
+        : `No ${assetType.toUpperCase()} resource assets available`;
+  insideResourceSelect.append(placeholder);
+  for (const assetPath of candidateAssets) {
+    const option = document.createElement("option");
+    option.value = assetPath;
+    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
+    insideResourceSelect.append(option);
+  }
+  insideResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
+}
+
+function getInsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
+  const definition = selectedDefinition ?? getSelectedInsideAnimationDefinition(boardId);
+  if (!definition) {
+    delete insideEditorDraftByBoard[boardId];
+    return null;
+  }
+  const existing = insideEditorDraftByBoard[boardId];
+  if (existing && existing.animationId === definition.id) {
+    return existing;
+  }
+  const next = {
+    animationId: definition.id,
+    intensity: clampOutsideIntensity(definition.intensity),
+    speed: clampOutsideSpeed(definition.speed),
+    assetType: normalizeInsideAssetType(definition.assetType),
+    assetRef: String(definition.assetRef || "").trim(),
+  };
+  insideEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function setInsideEditorDraft(boardId = state.boardId, partial = {}) {
+  const base = getInsideEditorDraft(boardId);
+  if (!base) {
+    return null;
+  }
+  const next = {
+    ...base,
+    ...partial,
+    intensity: clampOutsideIntensity(partial?.intensity ?? base.intensity),
+    speed: clampOutsideSpeed(partial?.speed ?? base.speed),
+    assetType: normalizeInsideAssetType(partial?.assetType ?? base.assetType),
+    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
+  };
+  insideEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function collectInsideEditorDraftFromInputs(boardId = state.boardId) {
+  const assetType = normalizeInsideAssetType(insideAssetTypeInput?.value);
+  const assetRef = normalizeInsideAssetRefForType(
+    assetType,
+    String(insideAssetRefInput?.value || "").trim(),
+  );
+  return setInsideEditorDraft(boardId, {
+    intensity: clampOutsideIntensity(insideIntensityInput?.value),
+    speed: clampOutsideSpeed(insideSpeedInput?.value),
+    assetType,
+    assetRef,
+  });
+}
+
 function syncInsideFxPanel() {
   const inside = getInsideFxProfile(state.boardId);
   const selectedDefinition = getSelectedInsideAnimationDefinition(state.boardId);
+  const draft = getInsideEditorDraft(state.boardId, selectedDefinition);
   if (insideAnimationSelect) {
     insideAnimationSelect.replaceChildren();
     for (const definition of inside.animations) {
@@ -5465,10 +5555,26 @@ function syncInsideFxPanel() {
     }
     insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
   }
-  const intensity = selectedDefinition?.intensity ?? inside.intensity;
-  const speed = selectedDefinition?.speed ?? inside.speed;
+  const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? inside.intensity;
+  const speed = draft?.speed ?? selectedDefinition?.speed ?? inside.speed;
+  const assetType = normalizeInsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? inside.assetType);
+  const assetRef = normalizeInsideAssetRefForType(
+    assetType,
+    draft?.assetRef ?? selectedDefinition?.assetRef ?? inside.assetRef ?? "",
+    selectedDefinition?.assetRef ?? inside.assetRef ?? "",
+  );
+  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
+    setInsideEditorDraft(state.boardId, { assetType, assetRef });
+  }
   insideIntensityInput.value = String(intensity);
   insideSpeedInput.value = String(speed);
+  if (insideAssetTypeInput) {
+    insideAssetTypeInput.value = assetType;
+  }
+  if (insideAssetRefInput) {
+    insideAssetRefInput.value = assetRef;
+  }
+  syncInsideResourcePicker(assetType, assetRef);
   insideIntensityValue.textContent = intensity.toFixed(2);
   insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
   renderInsideGlobalButtons();
@@ -5555,6 +5661,7 @@ async function loadOutsideResourceAssets() {
     outsideResourceAssets = [];
   }
   syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
+  syncInsideResourcePicker(insideAssetTypeInput?.value, String(insideAssetRefInput?.value || "").trim());
 }
 
 function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
@@ -10216,6 +10323,7 @@ insideAnimationCreateButton?.addEventListener("click", () => {
   if (insideAnimationNameInput) {
     insideAnimationNameInput.value = "";
   }
+  delete insideEditorDraftByBoard[state.boardId];
   triggerFeedback.textContent = persisted
     ? `Status: Inside animation ${definition.name} created`
     : `Status: Inside animation ${definition.name} created (persistence failed)`;
@@ -10229,6 +10337,7 @@ insideAnimationSelect?.addEventListener("change", () => {
     selectedAnimationId,
   });
   const persisted = persistBoardProfiles();
+  delete insideEditorDraftByBoard[state.boardId];
   syncInsideFxPanel();
   triggerFeedback.textContent = persisted
     ? "Status: Inside animation selection updated"
@@ -10237,18 +10346,79 @@ insideAnimationSelect?.addEventListener("change", () => {
 
 insideIntensityInput?.addEventListener("input", () => {
   const intensity = clampOutsideIntensity(insideIntensityInput.value);
-  const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, { intensity });
-  setInsideFxProfile(state.boardId, nextProfile);
+  setInsideEditorDraft(state.boardId, { intensity });
   insideIntensityValue.textContent = intensity.toFixed(2);
-  persistBoardProfiles();
 });
 
 insideSpeedInput?.addEventListener("input", () => {
   const speed = clampOutsideSpeed(insideSpeedInput.value);
-  const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, { speed });
-  setInsideFxProfile(state.boardId, nextProfile);
+  setInsideEditorDraft(state.boardId, { speed });
   insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
-  persistBoardProfiles();
+});
+
+insideAssetTypeInput?.addEventListener("change", () => {
+  const assetType = normalizeInsideAssetType(insideAssetTypeInput.value);
+  const currentAssetRef = String(insideAssetRefInput?.value || "").trim();
+  const normalizedAssetRef = normalizeInsideAssetRefForType(assetType, currentAssetRef);
+  setInsideEditorDraft(state.boardId, {
+    assetType,
+    assetRef: normalizedAssetRef,
+  });
+  if (insideAssetRefInput) {
+    insideAssetRefInput.value = normalizedAssetRef;
+  }
+  syncInsideResourcePicker(assetType, normalizedAssetRef);
+  triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+});
+
+insideAssetRefInput?.addEventListener("change", () => {
+  const assetType = normalizeInsideAssetType(insideAssetTypeInput?.value);
+  const assetRef = normalizeInsideAssetRefForType(assetType, String(insideAssetRefInput.value || "").trim());
+  insideAssetRefInput.value = assetRef;
+  setInsideEditorDraft(state.boardId, { assetRef });
+  syncInsideResourcePicker(assetType, assetRef);
+  triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+});
+
+insideResourceApplyButton?.addEventListener("click", () => {
+  const selectedResource = String(insideResourceSelect?.value || "").trim();
+  if (!selectedResource) {
+    triggerFeedback.textContent = "Status: Select a resource asset first";
+    return;
+  }
+  const inferredAssetType = inferOutsideAssetTypeFromPath(selectedResource);
+  setInsideEditorDraft(state.boardId, {
+    assetType: inferredAssetType,
+    assetRef: selectedResource,
+  });
+  if (insideAssetTypeInput) {
+    insideAssetTypeInput.value = inferredAssetType;
+  }
+  if (insideAssetRefInput) {
+    insideAssetRefInput.value = selectedResource;
+  }
+  syncInsideResourcePicker(inferredAssetType, selectedResource);
+  triggerFeedback.textContent = "Status: Inside draft updated from resource picker - apply changes to commit";
+});
+
+insideApplyChangesButton?.addEventListener("click", () => {
+  const draft = collectInsideEditorDraftFromInputs(state.boardId);
+  if (!draft) {
+    triggerFeedback.textContent = "Status: Inside apply failed - no animation selected";
+    return;
+  }
+  const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, {
+    intensity: draft.intensity,
+    speed: draft.speed,
+    assetType: draft.assetType,
+    assetRef: draft.assetRef,
+  });
+  setInsideFxProfile(state.boardId, nextProfile);
+  const persisted = persistBoardProfiles();
+  syncInsideFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Inside changes applied"
+    : "Status: Inside changes applied (persistence failed)";
 });
 
 outsideEnabledInput.addEventListener("change", () => {

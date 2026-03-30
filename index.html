@@ -331,7 +331,29 @@
           Inside speed <span id="inside-speed-value">1.00x</span>
           <input id="inside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
         </label>
-        <p class="status-line">Inside editor: mapping + apply workflow follows below tasks.</p>
+        <label>
+          Asset type
+          <select id="inside-asset-type">
+            <option value="coded">Coded</option>
+            <option value="gif">GIF</option>
+            <option value="mp4">MP4</option>
+          </select>
+        </label>
+        <label>
+          Asset reference
+          <input
+            id="inside-asset-ref"
+            type="text"
+            maxlength="256"
+            placeholder="ambient-drift or /resources/..."
+          />
+        </label>
+        <label>
+          Resource asset picker
+          <select id="inside-resource-select"></select>
+        </label>
+        <button id="inside-resource-apply" type="button">Use selected resource asset</button>
+        <button id="inside-apply-changes" type="button">Apply changes</button>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
