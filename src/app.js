@@ -1334,6 +1334,8 @@ const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
+const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
+const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 350;
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -4121,9 +4123,63 @@ function clearOutsideMp4PlaybackState(boardId = state.boardId) {
   outsideMp4PlaybackStateByBoard.delete(boardId);
 }
 
+function getOutsideMp4LoopStartTime(durationSec) {
+  const duration = Number(durationSec);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return 0;
+  }
+  return Math.min(Math.max(0.01, OUTSIDE_MP4_LOOP_START_OFFSET_SEC), Math.max(0, duration - 0.02));
+}
+
+function ensureOutsideMp4FallbackCanvas(playbackState) {
+  if (!playbackState) {
+    return null;
+  }
+  if (!playbackState.fallbackCanvas || !playbackState.fallbackCtx) {
+    const fallbackCanvas = document.createElement("canvas");
+    const fallbackCtx = fallbackCanvas.getContext("2d", { alpha: true });
+    if (!fallbackCtx) {
+      return null;
+    }
+    playbackState.fallbackCanvas = fallbackCanvas;
+    playbackState.fallbackCtx = fallbackCtx;
+  }
+  if (playbackState.fallbackCanvas.width !== canvas.width || playbackState.fallbackCanvas.height !== canvas.height) {
+    playbackState.fallbackCanvas.width = canvas.width;
+    playbackState.fallbackCanvas.height = canvas.height;
+  }
+  return playbackState;
+}
+
+function captureOutsideMp4FallbackFrame(playbackState, video) {
+  if (!playbackState || !video) {
+    return;
+  }
+  const fallbackState = ensureOutsideMp4FallbackCanvas(playbackState);
+  if (!fallbackState?.fallbackCtx) {
+    return;
+  }
+  fallbackState.fallbackCtx.clearRect(0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
+  fallbackState.fallbackCtx.drawImage(video, 0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
+  fallbackState.lastVisibleFrameAtMs = performance.now();
+  fallbackState.hasVisibleFrame = true;
+}
+
+function drawOutsideMp4FallbackFrame(playbackState) {
+  if (!playbackState?.fallbackCanvas || !playbackState.hasVisibleFrame) {
+    return false;
+  }
+  const ageMs = performance.now() - Number(playbackState.lastVisibleFrameAtMs || 0);
+  if (!Number.isFinite(ageMs) || ageMs > OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS) {
+    return false;
+  }
+  ctx.drawImage(playbackState.fallbackCanvas, 0, 0, canvas.width, canvas.height);
+  return true;
+}
+
 function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", assetRef = "", targetRate = 1 } = {}) {
   if (!video) {
-    return;
+    return null;
   }
   const normalizedRunId = String(runId || "").trim();
   const normalizedAssetRef = String(assetRef || "").trim();
@@ -4148,7 +4204,7 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     const durationSec = Number(video.duration);
     if (Number.isFinite(durationSec) && durationSec > 0) {
       try {
-        video.currentTime = 0;
+        video.currentTime = getOutsideMp4LoopStartTime(durationSec);
       } catch {
         // ignore transient seek errors until media is ready
       }
@@ -4159,10 +4215,19 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     void video.play().catch(() => undefined);
   }
 
-  outsideMp4PlaybackStateByBoard.set(boardId, {
+  const previousHasVisibleFrame = previous?.assetRef === normalizedAssetRef
+    ? Boolean(previous?.hasVisibleFrame)
+    : false;
+  const playbackState = {
     runId: normalizedRunId,
     assetRef: normalizedAssetRef,
-  });
+    fallbackCanvas: previous?.fallbackCanvas ?? null,
+    fallbackCtx: previous?.fallbackCtx ?? null,
+    lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
+    hasVisibleFrame: previousHasVisibleFrame,
+  };
+  outsideMp4PlaybackStateByBoard.set(boardId, playbackState);
+  return playbackState;
 }
 
 function clampRoomSpeed(value) {
@@ -9285,7 +9350,7 @@ function drawOutsideFxLayer(now) {
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
-        ensureOutsideMp4Playback(video, {
+        const playbackState = ensureOutsideMp4Playback(video, {
           boardId: state.boardId,
           runId: runtimeEntry?.id,
           assetRef: selectedDefinition.assetRef,
@@ -9294,6 +9359,9 @@ function drawOutsideFxLayer(now) {
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
         if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          captureOutsideMp4FallbackFrame(playbackState, video);
+        } else {
+          drawOutsideMp4FallbackFrame(playbackState);
         }
       } else {
         clearOutsideMp4PlaybackState(state.boardId);
