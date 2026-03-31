@@ -16,6 +16,7 @@
 - Boomerang Removal + Inside Animation Parity Feature Pack
 - Outside MP4 Restore + Conditional Visibility + Apply-Only UX Hotfix
 - Outside MP4 Follow-up + Strict Conditional Unmounting Hotfix
+- Outside MP4 Visibility + Seamless Loop Continuity Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -107,6 +108,14 @@
 - P8-S16.5 Visibility-Transition-Guard liefern: Type-/Asset-Kontextwechsel zeigen/verbergen Controls deterministisch ohne stale UI-Reste.
 - P8-S16.6 Regression-Coverage erweitern: eigene Evidenz fuer mp4 start/stop/restart und UI visibility transitions erstellen.
 - P8-S16.7 HF9-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
+
+- P8-S17.1 Outside-mp4-Nicht-Sichtbarkeit reproduzierbar isolieren (inkl. Trigger-Start, Stop/Re-Start, Save/Reload/Restart), um den verbleibenden Render-Lifecycle-Fehlpfad eindeutig zu identifizieren.
+- P8-S17.2 Deterministischen Outside-mp4-Renderstart wiederherstellen: mp4 ist auf der Outside-Layer bei jedem gueltigen Startpfad sichtbar (kein hidden/no-op/first-frame-black).
+- P8-S17.3 Nahtlosen Loop-Playbackpfad liefern: ohne Replay-Break, ohne Black-Frame und ohne Restart-Gap/Flicker.
+- P8-S17.4 Runtime-Lifecycle-Hardening erweitern: Sichtbarkeit und Loop-Kontinuitaet bleiben ueber Start/Stop/Re-Start sowie Save/Reload/Restart stabil.
+- P8-S17.5 Apply-/Persistenz-Non-Regression absichern: `Apply changes` bleibt atomarer Commitpfad, bestehende Save/Load-Logik bleibt unveraendert stabil.
+- P8-S17.6 Runtime-Evidence-Matrix erstellen: dedizierte Nachweise fuer Visibility-Continuity + Seamless-Loop-Continuity (mehrzyklisch, no-black-frame/no-gap Guards).
+- P8-S17.7 HF10-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -210,8 +219,18 @@
 - Story P8-S16.7 + P8-S7.3.
   - Ziel: reproduzierbare P0-Evidenz und konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF10 execute-ready
+- Story P8-S17.1 + P8-S17.2.
+  - Ziel: Outside-mp4 ist wieder deterministisch sichtbar und startet reproduzierbar im Outside-Renderpfad.
+- Story P8-S17.3 + P8-S17.4.
+  - Ziel: Outside-mp4 loopt nahtlos ohne replay break/black frame/restart gap und bleibt ueber Start/Stop/Re-Start/Reload stabil.
+- Story P8-S17.5 + P8-S17.6.
+  - Ziel: `Apply changes` + Persistenz bleiben regressionsfrei, waehrend runtime-fokussierte Evidence fuer Visibility- und Loop-Continuity vorliegt.
+- Story P8-S17.7 + P8-S7.3.
+  - Ziel: reproduzierbare HF10-Evidenz und konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF9): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF10): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -232,3 +251,5 @@
 - 2026-03-30: Plan 8-HF8 Stories P8-S15.1..P8-S15.7 umgesetzt; Outside-mp4-Restore, kontextsensitive Outside-Controls und Apply-only UX-Cleanup sind PASS (`8-HF8-VERIFICATION.md`, `P8-T65-OUTSIDE-MP4-ROOT-CAUSE.md`, `P8-T66-MP4-NON-REGRESSION.md`).
 - 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert Plan 8-HF9 (Stories P8-S16.1..P8-S16.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2.
 - 2026-03-30: Plan 8-HF9 Stories P8-S16.1..P8-S16.7 umgesetzt; Outside-mp4-Lifecycle ist start/stop/restart-stabil, strict unmounting + visibility transition guards sind PASS (`8-HF9-VERIFICATION.md`, `P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`, `P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
+- 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 (Stories P8-S17.1..P8-S17.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4 deterministic visibility + seamless loop continuity + runtime-focused evidence).
+- 2026-03-31: Plan 8-HF10 Stories P8-S17.1..P8-S17.7 umgesetzt; Outside-mp4 ist sichtbar deterministisch, looped nahtlos und bleibt ueber lifecycle + apply/persistenz regressionsfrei PASS (`8-HF10-VERIFICATION.md`, `P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`).

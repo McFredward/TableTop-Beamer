@@ -250,6 +250,31 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF9 inkl. Artefakt-Sync.
 
+## R51 Outside-mp4 bleibt intermittierend unsichtbar trotz Lifecycle-Fix
+- Risiko: mp4 wird in Outside-Layer nicht deterministisch sichtbar (hidden/no-op/first-frame-black), insbesondere in Restart-/Reload-Pfaden.
+- Impact: Kritisch.
+- Gegenmassnahme: reproduzierbare Root-Cause-Isolation fuer Visibility-Lifecycle und deterministischer Renderstart-Guard inkl. mehrzyklischer Runtime-Evidenz.
+
+## R52 MP4-Loop zeigt sichtbaren Replay-Bruch
+- Risiko: Loop-Neustart erzeugt Black-Frame, Restart-Gap oder sichtbaren Replay-Sprung/Flicker und wirkt im Betrieb nicht nahtlos.
+- Impact: Kritisch.
+- Gegenmassnahme: explizite seamless-loop Strategie mit no-black-frame/no-gap Guards und Laufzeitmatrix ueber mehrere Zyklen.
+
+## R53 HF10-Fix regressiert Apply-/Persistenzpfade
+- Risiko: Runtime-Fix fuer Sichtbarkeit/Loop bricht `Apply changes`, Save/Reload/Restart oder erzeugt Drift in Animationsdefinitionen.
+- Impact: Hoch.
+- Gegenmassnahme: dedizierte Non-Regression-Matrix fuer Apply + Persistenz mit unveraendertem atomaren Commitpfad.
+
+## R54 Evidence bleibt auf Initialstart beschraenkt
+- Risiko: kurzfristiger PASS beim Erststart verdeckt intermittierende Visibility-/Loop-Ausfaelle unter laengerer Runtime.
+- Impact: Hoch.
+- Gegenmassnahme: runtime-fokussierte Mehrzyklus-Evidenz fuer Sichtbarkeit und Loop-Kontinuitaet als Pflicht-Gate.
+
+## R55 Hardening-Welle startet trotz offenem HF10-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl Outside-mp4-Visibility und seamless-loop Kontinuitaet im Realbetrieb nicht geschlossen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF10 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -354,3 +379,15 @@
 - 2026-03-30: R48 ist mitigiert; `outside mode`/`outside direction` werden in nicht-applicable Kontexten strikt unmounted statt disabled-only gehalten (`P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`).
 - 2026-03-30: R49 ist mitigiert; Type-/Asset-Transitions aktualisieren die Visibility deterministisch auf `input`+`change` ohne stale reappear drift (`P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
 - 2026-03-30: R50 Gate ist erfuellt; Plan 8-HF9 ist PASS verifiziert (`8-HF9-VERIFICATION.md`).
+
+## Risk Review for Plan 8-HF10 (planned)
+- 2026-03-31: Kritisches P0-Follow-up priorisiert R51 als unmittelbaren Hotfix-Blocker (Outside-mp4 ist im Feldbetrieb erneut nicht deterministisch sichtbar).
+- 2026-03-31: R52 ist verpflichtender Guard fuer nahtlosen mp4-Loop ohne Replay-Break/Black-Frame/Restart-Gap.
+- 2026-03-31: R53 und R54 sind verpflichtende Guard-Risiken fuer Apply-/Persistenz-Non-Regression und runtime-fokussierte Mehrzyklus-Evidenz.
+- 2026-03-31: R55 setzt den Gate-Guard, dass Plan 8-2 erst nach HF10-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF10
+- 2026-03-31: R51 ist mitigiert; Outside-mp4-Visibility-Restore ist deterministisch abgesichert (inkl. start/stop/restart + reload-sensitive Pfade) (`P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`).
+- 2026-03-31: R52 ist mitigiert; mp4-Loop nutzt seamless continuity guards ohne replay break/black frame/restart gap (`P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`).
+- 2026-03-31: R53 und R54 sind mitigiert; `Apply changes` + Persistenzpfade bleiben regressionsfrei und runtime-fokussiert evidenzgestuetzt (`P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`, `8-HF10-VERIFICATION.md`).
+- 2026-03-31: R55 Gate ist erfuellt; Plan 8-HF10 ist PASS verifiziert (`8-HF10-VERIFICATION.md`).

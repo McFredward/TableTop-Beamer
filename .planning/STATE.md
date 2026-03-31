@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 8
 - Current Phase Key: phase-08
-- Last Prepared: 2026-03-30
+- Last Prepared: 2026-03-31
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF9
+- Last Executed Plan: 8-HF10
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF9-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF10-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -100,6 +100,16 @@
 - Plan-8-HF9 Umsetzung: Nicht-applicable `outside mode`/`outside direction` werden strikt unmounted; disabled-only Restzustaende sind entfernt.
 - Plan-8-HF9 Umsetzung: Type-/Asset-Transitions triggern unmittelbare deterministic visibility sync (`input`+`change`) ohne stale reappear drift.
 - Plan-8-HF9 Umsetzung: HF9 Regression/Evidence ist PASS dokumentiert (`8-HF9-VERIFICATION.md`, `P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`, `P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
+- Kritisches P0-Follow-up fuer Phase 8 ist gesetzt: Outside-mp4 ist erneut nicht deterministisch sichtbar im Realbetrieb und benoetigt einen erneuten root-cause-basierten Restore.
+- P0-Regel Plan 8-HF10: Outside-mp4 muss im Outside-Layer deterministisch sichtbar rendern (inkl. Start/Stop/Re-Start und Save/Reload/Restart), ohne hidden/no-op/first-frame-black Rueckfall.
+- Playback-Regel Plan 8-HF10: mp4-Loop laeuft nahtlos ohne sichtbaren Replay-Break, Black-Frame oder Restart-Gap/Flicker.
+- Non-Regression-Regel Plan 8-HF10: bestehender `Apply changes`-Commitpfad sowie Persistenz ueber Save/Reload/Restart bleiben unveraendert intakt.
+- Evidence-Regel Plan 8-HF10: runtime-fokussierte Mehrzyklus-Evidenz fuer Visibility- und Loop-Kontinuitaet ist verpflichtend als Gate.
+- Gate-Regel Plan 8-HF10: Plan 8-2 bleibt blockiert bis HF10 PASS inklusive konsistentem Artefakt-Sync.
+- Plan-8-HF10 Umsetzung: Outside-mp4 nutzt deterministische Visible-Start-Primes plus short-gap fallback-frame continuity gegen no-op/first-frame-black Rueckfall.
+- Plan-8-HF10 Umsetzung: Outside-mp4-Loop nutzt seamless boundary wrap guards ohne replay break/black frame/restart gap flicker.
+- Plan-8-HF10 Umsetzung: Apply-/Persistenzpfade bleiben unveraendert stabil und sind als Non-Regression evidenzbasiert PASS (`P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`).
+- Plan-8-HF10 Umsetzung: HF10 Runtime-Evidence ist PASS dokumentiert (`8-HF10-VERIFICATION.md`, `P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.

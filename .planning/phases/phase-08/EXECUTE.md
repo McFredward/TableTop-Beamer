@@ -77,7 +77,14 @@
 4. P0 danach: P8-T74..P8-T75 (strict conditional rendering: nicht-applicable Controls unmounten und Visibility-Transitions deterministic haerten).
 5. P0 Abschluss: P8-T76 (Hotfix-Verifikation + Artefakt-Sync inkl. globaler Tracking-Dateien).
 
-## Priority Execution - Plan 8-2 (nach 8-HF9)
+## Priority Execution - Plan 8-HF10 (verbindlich, priorisierte P0-Hotfix-Welle)
+1. P0 zuerst: P8-T77 (Outside-mp4-Nicht-Sichtbarkeit reproduzierbar isolieren, inkl. Start/Stop/Re-Start und Save/Reload/Restart-Kontext).
+2. P0 danach: P8-T78..P8-T79 (deterministischen Visible-Start im Outside-Renderpfad wiederherstellen und nahtlosen Loop ohne replay break/black frame/restart gap implementieren).
+3. P0 danach: P8-T80 (Lifecycle-Hardening: visibility + seamless-loop continuity ueber Start/Stop/Re-Start sowie Save/Reload/Restart absichern).
+4. P0 danach: P8-T81 (Apply-/Persistenz-Non-Regression absichern; `Apply changes` bleibt atomarer Commitpfad).
+5. P0 Abschluss: P8-T82 (Hotfix-Verifikation + Artefakt-Sync inkl. runtime-fokussierter Evidence-Matrix fuer visibility/loop continuity).
+
+## Priority Execution - Plan 8-2 (nach 8-HF10)
 1. P1 zuerst: P8-T13 (Multi-Area UX-Polish).
 2. P1 danach: P8-T14 (Migration/Import Soak unter wiederholten Zyklen).
 3. P1 Abschluss: P8-T15 (Union-Performance Hardening/Report).
@@ -99,7 +106,8 @@
 - Kein Weitergehen zu Plan 8-HF7, bevor Plan 8-HF6 vollstaendig PASS ist.
 - Kein Weitergehen zu Plan 8-HF8, bevor Plan 8-HF7 vollstaendig PASS ist.
 - Kein Weitergehen zu Plan 8-HF9, bevor Plan 8-HF8 vollstaendig PASS ist.
-- Kein Weitergehen zu Plan 8-2, bevor Plan 8-HF9 vollstaendig PASS ist.
+- Kein Weitergehen zu Plan 8-HF10, bevor Plan 8-HF9 vollstaendig PASS ist.
+- Kein Weitergehen zu Plan 8-2, bevor Plan 8-HF10 vollstaendig PASS ist.
 - Kein Wellenabschluss ohne konsistenten Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -135,3 +143,6 @@
 - 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert Plan 8-HF9 als naechste execute-ready Hotfix-Welle (P8-T71..P8-T76 TODO) vor Plan 8-2.
 - 2026-03-30: Plan 8-HF9 abgeschlossen (P8-T71..P8-T76 done).
 - Verify-Artefakte: `.planning/phases/phase-08/8-HF9-VERIFICATION.md`, `.planning/phases/phase-08/P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T73-MP4-REGRESSION-GUARD.md`, `.planning/phases/phase-08/P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `.planning/phases/phase-08/P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`.
+- 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 als naechste execute-ready Hotfix-Welle (P8-T77..P8-T82 TODO) vor Plan 8-2.
+- 2026-03-31: Plan 8-HF10 abgeschlossen (P8-T77..P8-T82 done).
+- Verify-Artefakte: `.planning/phases/phase-08/8-HF10-VERIFICATION.md`, `.planning/phases/phase-08/P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `.planning/phases/phase-08/P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`.

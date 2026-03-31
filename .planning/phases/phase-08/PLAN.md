@@ -133,6 +133,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Regression-Guard ist verpflichtend: mp4 Start/Stop-Zyklen sowie UI-Sichtbarkeitswechsel bei Asset-Type-/Asset-Ref-Kontextwechseln werden als eigene Evidenzmatrix nachgewiesen.
 - Gate-Regel Plan 8-HF9: Plan 8-2 bleibt blockiert bis HF9 PASS inklusive konsistentem Artefakt-Sync.
 
+## Neues verpflichtendes P0-Follow-up (HF10)
+- Outside-mp4 ist erneut im Feldbetrieb nicht sichtbar; Rendering startet nicht deterministisch auf der Outside-Layer trotz HF9-Abschluss.
+- Pflichtziel Sichtbarkeit: Outside-mp4 muss bei jedem Start/Restart/Reload deterministisch sichtbar rendern (kein hidden/no-op/first-frame-black Zustand).
+- Pflichtziel Loop-Kontinuitaet: mp4 muss nahtlos im Loop laufen, ohne sichtbaren Replay-Break, Black-Frame oder Restart-Gap/Flicker.
+- Persistenz-/UX-Guard: bestehender `Apply changes`-Commitpfad sowie Save/Reload/Restart-Verhalten bleiben unveraendert regressionsfrei.
+- Evidence-Guard: runtime-fokussierte Regressionsevidenz fuer Sichtbarkeit + Loop-Kontinuitaet ist verpflichtend (mehrzyklische Laufzeitbeobachtung statt nur Initialstart).
+- Gate-Regel Plan 8-HF10: Plan 8-2 bleibt blockiert bis HF10 PASS inklusive konsistentem Artefakt-Sync.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -203,6 +211,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 5. Regression-Coverage erweitern: dedizierte Nachweise fuer mp4 start/stop/restart sowie UI show/hide transitions erstellen.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF10, execute-ready)
+1. Outside-MP4-Visibility-Restore: verbleibenden Nicht-Sichtbarkeits-/Nicht-Renderpfad reproduzierbar isolieren und deterministischen Renderstart der Outside-mp4-Layer wiederherstellen.
+2. Seamless-Loop-Strategy umsetzen: mp4-Loop ohne sichtbaren Replay-Break, ohne Black-Frame und ohne Restart-Gap/Flicker erzwingen.
+3. Lifecycle-Hardening erweitern: Sichtbarkeit + nahtloses Looping bleiben stabil ueber Start/Stop/Re-Start sowie Save/Reload/Restart.
+4. Apply-/Persistenz-Non-Regression absichern: bestehende Editor-Controls, `Apply changes` und gespeicherte Definitionen bleiben funktional unveraendert.
+5. Runtime-Evidence-Matrix liefern: mehrzyklische Nachweise fuer `visibility continuity` und `seamless loop continuity` inkl. no-black-frame/no-gap Guards.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -246,9 +262,12 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Outside-mp4-Playback ist fuer nicht-boomerang Betrieb wiederhergestellt und laeuft regressionsfrei stabil.
 - `outside mode` und `outside direction` sind kontextsensitiv sichtbar und werden fuer nicht-applicable Kontexte (insb. `gif`/`mp4`) nicht angezeigt.
 - Outside-mp4 bleibt auch ueber Start/Stop/Re-Start sowie Save/Reload/Restart deterministisch stabil (kein no-op/black/frozen frame Rueckfall).
+- Outside-mp4 ist in jedem Startpfad deterministisch sichtbar auf der Outside-Layer (kein hidden/no-op/first-frame-black).
+- Outside-mp4 looped nahtlos ohne sichtbaren Replay-Break, ohne Black-Frame und ohne Restart-Gap/Flicker.
 - Nicht-applicable Outside-Controls sind strikt verborgen (unmounted) statt disabled; es bleiben keine versteckten Placeholder/disabled Artefakte sichtbar.
 - UI-Sichtbarkeit fuer kontextabhaengige Controls aktualisiert bei Type/Asset-Wechsel deterministisch ohne stale Reappear-Drift.
 - Redundante Buttons `Use selected resource asset` sind entfernt; `Apply changes` bleibt der einzige explizite Commitpfad in den Animationseditoren.
+- Runtime-fokussierte Regressionsevidenz dokumentiert Sichtbarkeitskontinuitaet und Loop-Kontinuitaet ueber mehrere Laufzeitzyklen nachvollziehbar.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -280,3 +299,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-30: Neues verpflichtendes P0-Follow-up priorisiert Plan 8-HF9 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4 lifecycle restore + strict conditional unmounting + transition regression coverage).
 - 2026-03-30: Plan 8-HF9 wurde atomar umgesetzt (P8-T71..P8-T76).
 - Nachweise: `.planning/phases/phase-08/8-HF9-VERIFICATION.md`, `.planning/phases/phase-08/P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T73-MP4-REGRESSION-GUARD.md`, `.planning/phases/phase-08/P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `.planning/phases/phase-08/P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`.
+- 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (deterministischer Outside-mp4-Visibility-Restore + seamless loop continuity ohne replay break/black frame/gap + runtime-focused evidence matrix).
+- 2026-03-31: Plan 8-HF10 wurde atomar umgesetzt (P8-T77..P8-T82).
+- Nachweise: `.planning/phases/phase-08/8-HF10-VERIFICATION.md`, `.planning/phases/phase-08/P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `.planning/phases/phase-08/P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`.

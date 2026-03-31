@@ -94,7 +94,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T75 [P0] Visibility-Transition-Regression absichern: Type-/Asset-Wechsel toggeln Controls deterministisch ohne stale UI-Reste/Reappear-Drift.
 - [x] DONE P8-T76 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF9 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF9)
+## Plan 8-HF10 - Outside MP4 Deterministic Visibility + Seamless Loop Continuity (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T77 [P0] Root-Cause-Follow-up fuer Outside-mp4-Nicht-Sichtbarkeit reproduzierbar isolieren (inkl. Start/Stop/Re-Start sowie Save/Reload/Restart).
+- [x] DONE P8-T78 [P0] Deterministischen Outside-mp4-Renderstart fixen: Outside-Layer zeigt mp4 in jedem gueltigen Startpfad sichtbar (kein hidden/no-op/first-frame-black).
+- [x] DONE P8-T79 [P0] Seamless-Loop-Playback implementieren: no replay break, no black frame, no restart gap/flicker.
+- [x] DONE P8-T80 [P0] Lifecycle-Regression-Guard erweitern: Sichtbarkeit + Loop-Kontinuitaet bleiben ueber Start/Stop/Re-Start und Save/Reload/Restart stabil.
+- [x] DONE P8-T81 [P0] Apply-/Persistenz-Non-Regression absichern: `Apply changes` und bestehende Save/Load-Pfade bleiben unveraendert deterministisch.
+- [x] DONE P8-T82 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen inkl. runtime-fokussierter Evidence-Matrix fuer visibility/loop continuity.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF10)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

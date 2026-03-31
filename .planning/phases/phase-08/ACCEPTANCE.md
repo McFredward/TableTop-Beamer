@@ -62,6 +62,11 @@
 - Outside-Editor-Apply-Only-UX-Test: redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige sichtbare Commit-CTA fuer Asset-/Optionsaenderungen.
 - Outside-MP4-Start-Stop-Restart-Test: Outside-mp4 startet, stoppt und startet erneut deterministisch ohne Black-Frame/no-op/frozen-first-frame.
 - Outside-MP4-Reload-Restart-Stability-Test: Save/Reload/Restart behaelt funktionales Outside-mp4-Playback ohne Rueckfall.
+- Outside-MP4-Deterministic-Visibility-Test: Outside-mp4 ist bei jedem Triggerstart sichtbar auf der Outside-Layer (kein hidden/no-op/first-frame-black).
+- Outside-MP4-Seamless-Loop-Continuity-Test: mindestens N aufeinanderfolgende Loop-Zyklen laufen ohne sichtbaren Replay-Break, Black-Frame oder Restart-Gap/Flicker.
+- Outside-MP4-Visibility-Lifecycle-Continuity-Test: Sichtbarkeit bleibt ueber Start/Stop/Re-Start sowie Save/Reload/Restart ohne intermittierenden Visibility-Verlust stabil.
+- Outside-MP4-Apply-Persistence-NonRegression-Test: `Apply changes`, Save/Reload/Restart und bestehende Editor-Persistenz bleiben nach Visibility/Loop-Fix unveraendert deterministisch.
+- Outside-MP4-Runtime-Evidence-Matrix-Test: runtime-fokussierte Evidenz dokumentiert Visibility- und Loop-Kontinuitaet reproduzierbar ueber Mehrzykluslauf.
 
 - Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
 - Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
@@ -125,6 +130,10 @@
 - Nach P8-T73: gif/coded und Persistenz-/Apply-Pfade bleiben nach mp4-Fix regressionsfrei PASS.
 - Nach P8-T74..P8-T75: nicht-applicable Controls sind strikt unmounted; Visibility-Transitions bleiben deterministic ohne disabled-only Restzustand.
 - Nach P8-T76: HF9-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T77..P8-T78: Outside-mp4-Nicht-Sichtbarkeitsursache ist reproduzierbar isoliert und deterministischer Visible-Start ist hergestellt.
+- Nach P8-T79..P8-T80: Outside-mp4 looped nahtlos ohne replay break/black frame/gap und bleibt lifecycle-stabil ueber Start/Stop/Re-Start/Reload.
+- Nach P8-T81: `Apply changes` und Persistenzpfade bleiben nach HF10-Fix regressionsfrei PASS.
+- Nach P8-T82: HF10-Verifikation inkl. runtime-fokussierter Visibility/Loop-Evidence ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -157,7 +166,10 @@
 - `outside mode`/`outside direction` sind kontextsensitiv sichtbar und fuer `gif`/`mp4` sowie nicht-applicable coded renderer nicht sichtbar.
 - Nicht-applicable `outside mode`/`outside direction` sind strikt unmounted (kein disabled-only Platzhalter/Rest-Element sichtbar).
 - Outside-mp4 bleibt ueber Start/Stop/Re-Start sowie Save/Reload/Restart deterministisch stabil ohne Black/no-op/frozen Rueckfall.
+- Outside-mp4 ist in jedem gueltigen Startpfad deterministisch sichtbar auf der Outside-Layer (kein hidden/no-op/first-frame-black).
+- Outside-mp4 looped nahtlos ohne sichtbaren Replay-Break, Black-Frame oder Restart-Gap/Flicker.
 - Redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige explizite Commit-Button.
+- Runtime-fokussierte Evidence-Matrix fuer Outside-mp4 dokumentiert Visibility-Continuity + Seamless-Loop-Continuity reproduzierbar ueber Mehrzykluslaeufe.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -230,3 +242,11 @@
   - `.planning/phases/phase-08/P8-T73-MP4-REGRESSION-GUARD.md`
   - `.planning/phases/phase-08/P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`
   - `.planning/phases/phase-08/P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`
+
+## Execution Result (Plan 8-HF10)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF10-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`
+  - `.planning/phases/phase-08/P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`
