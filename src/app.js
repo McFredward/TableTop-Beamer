@@ -1335,6 +1335,8 @@ const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
+const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
+const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
 const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 350;
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
@@ -4177,6 +4179,38 @@ function drawOutsideMp4FallbackFrame(playbackState) {
   return true;
 }
 
+function maybeWrapOutsideMp4Loop(video, playbackState) {
+  if (!video || !playbackState || video.seeking) {
+    return;
+  }
+  const durationSec = Number(video.duration);
+  const currentTime = Number(video.currentTime);
+  if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(currentTime)) {
+    return;
+  }
+  const loopStartSec = getOutsideMp4LoopStartTime(durationSec);
+  const loopLeadSec = Math.min(
+    Math.max(0.03, OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC),
+    Math.max(0.04, durationSec * 0.25),
+  );
+  if (durationSec <= loopStartSec + loopLeadSec) {
+    return;
+  }
+  const nowMs = performance.now();
+  if (nowMs - Number(playbackState.lastLoopWrapAtMs || 0) < OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS) {
+    return;
+  }
+  if (currentTime < durationSec - loopLeadSec) {
+    return;
+  }
+  try {
+    video.currentTime = loopStartSec;
+    playbackState.lastLoopWrapAtMs = nowMs;
+  } catch {
+    // ignore transient seek errors near loop boundaries
+  }
+}
+
 function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", assetRef = "", targetRate = 1 } = {}) {
   if (!video) {
     return null;
@@ -4224,6 +4258,7 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     fallbackCanvas: previous?.fallbackCanvas ?? null,
     fallbackCtx: previous?.fallbackCtx ?? null,
     lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
+    lastLoopWrapAtMs: previous?.lastLoopWrapAtMs ?? 0,
     hasVisibleFrame: previousHasVisibleFrame,
   };
   outsideMp4PlaybackStateByBoard.set(boardId, playbackState);
@@ -9356,6 +9391,7 @@ function drawOutsideFxLayer(now) {
           assetRef: selectedDefinition.assetRef,
           targetRate,
         });
+        maybeWrapOutsideMp4Loop(video, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
         if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
