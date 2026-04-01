@@ -102,7 +102,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T81 [P0] Apply-/Persistenz-Non-Regression absichern: `Apply changes` und bestehende Save/Load-Pfade bleiben unveraendert deterministisch.
 - [x] DONE P8-T82 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen inkl. runtime-fokussierter Evidence-Matrix fuer visibility/loop continuity.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF10)
+## Plan 8-HF11 - All-Type Editable Animations + First-Start Default-Autoload (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T83 [P0] Room-Animationsmodell auf definitionsgetriebenes CRUD erweitern (`selectedAnimationId` + `animations[]`) mit UI-Create/Edit/Delete analog outside/effects.
+- [x] DONE P8-T84 [P0] Room-Animation-Asset-Mapping typisieren: `assetType` (`coded`/`mp4`/`gif`) und typspezifische `assetRef`-Auswahl/Persistenz fuer room-scope liefern.
+- [x] DONE P8-T85 [P0] Runtime-Integration haerten: definitionsgetriebene Room-Animationen sind ohne codegebundene Einzelverdrahtung start/edit/stop-faehig und laufen scope-paritaetisch stabil.
+- [x] DONE P8-T86 [P0] First-start Bootstrap fixen: bei leerem lokalen Browserzustand serverseitige Defaults automatisch laden und sofort anwenden.
+- [x] DONE P8-T87 [P0] Reset-Semantik absichern: `Load and apply defaults` bleibt als expliziter Wiederherstellen-Flow fuer spaetere Session-Aenderungen unveraendert verfuegbar.
+- [x] DONE P8-T88 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF11 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF11)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

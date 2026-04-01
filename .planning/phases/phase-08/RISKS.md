@@ -275,6 +275,31 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF10 inkl. Artefakt-Sync.
 
+## R56 Room-Animationen bleiben teilweise codegebunden statt definitionsgetrieben
+- Risiko: Room-Animationen lassen sich nicht wie outside/effects per create/edit/delete erweitern; neue Eintraege benoetigen weiterhin Codeaenderungen.
+- Impact: Kritisch.
+- Gegenmassnahme: kanonisches definitionsgetriebenes Room-Animationsmodell mit CRUD-Editor und runtime-seitiger dynamischer Nutzung ohne Einzelverdrahtung.
+
+## R57 Room-Asset-Mapping ist nicht typstreng (`coded`/`mp4`/`gif`)
+- Risiko: Room-Animationen verwenden ungueltige Asset-Kombinationen, was no-op Rendering, fehlerhafte Persistenz oder inkonsistente Editierpfade erzeugt.
+- Impact: Hoch.
+- Gegenmassnahme: typspezifische Picker-/Validator-Regeln fuer Room-Animationen analog Outside/Inside inkl. Persistenz-Non-Regression.
+
+## R58 First-start Defaults werden ohne lokale Daten nicht automatisch angewendet
+- Risiko: neue Browser/Geraete starten weiterhin ohne wirksame Defaults und benoetigen manuellen Eingriff, wodurch der Operator-Startflow regressiert.
+- Impact: Kritisch.
+- Gegenmassnahme: expliziter first-start bootstrap guard (empty-local-state -> server-defaults load+apply) mit deterministic startup evidence.
+
+## R59 `Load and apply defaults` verliert Reset-/Wiederherstellen-Semantik
+- Risiko: durch Autoload-Aenderungen wird der bestehende Button semantisch unklar oder funktional eingeschraenkt.
+- Impact: Hoch.
+- Gegenmassnahme: klare Trennung zwischen automatisch erstem Bootstrap und explizitem spaeteren Reset-Flow inklusive UX- und Regressionstest.
+
+## R60 Hardening-Welle startet trotz offenem HF11-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl all-type editable room animations und first-start default-autoload nicht abgeschlossen sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF11 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -391,3 +416,15 @@
 - 2026-03-31: R52 ist mitigiert; mp4-Loop nutzt seamless continuity guards ohne replay break/black frame/restart gap (`P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`).
 - 2026-03-31: R53 und R54 sind mitigiert; `Apply changes` + Persistenzpfade bleiben regressionsfrei und runtime-fokussiert evidenzgestuetzt (`P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`, `8-HF10-VERIFICATION.md`).
 - 2026-03-31: R55 Gate ist erfuellt; Plan 8-HF10 ist PASS verifiziert (`8-HF10-VERIFICATION.md`).
+
+## Risk Review for Plan 8-HF11 (planned)
+- 2026-04-01: Neues verpflichtendes P0-Featurepaket priorisiert R56 und R58 als unmittelbare Blocker (all-type editable room animations + first-start default-autoload).
+- 2026-04-01: R57 und R59 sind verpflichtende Guard-Risiken fuer typed room assets und klare Reset-Semantik des Buttons `Load and apply defaults`.
+- 2026-04-01: R60 setzt den Gate-Guard, dass Plan 8-2 erst nach HF11-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF11
+- 2026-04-01: R56 ist mitigiert; Room-Animationen sind definitionsgetrieben CRUD-faehig in einer eigenen Settings-Sektion inklusive create/edit/delete und Dashboard-Paritaet.
+- 2026-04-01: R57 ist mitigiert; typed room assets (`coded`/`gif`/`mp4`) sind ueber typspezifischen Picker + Persistenz deterministisch normalisiert.
+- 2026-04-01: R58 ist mitigiert; Runtime-Start/Edit/Stop nutzt definitionsgetriebene Room-Assets ohne neue codegebundene Einzelverdrahtung.
+- 2026-04-01: R59 ist mitigiert; first-start Startup-Guard erzwingt Defaults-Autoload bei leerem Local-Storage, waehrend der manuelle Reset-Button unveraendert bleibt.
+- 2026-04-01: R60 Gate ist erfuellt; Plan 8-HF11 ist PASS verifiziert (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`).

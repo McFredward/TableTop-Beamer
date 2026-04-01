@@ -17,6 +17,7 @@
 - Outside MP4 Restore + Conditional Visibility + Apply-Only UX Hotfix
 - Outside MP4 Follow-up + Strict Conditional Unmounting Hotfix
 - Outside MP4 Visibility + Seamless Loop Continuity Hotfix
+- All-Type Editable Room Animations + First-Start Default-Autoload Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -116,6 +117,18 @@
 - P8-S17.5 Apply-/Persistenz-Non-Regression absichern: `Apply changes` bleibt atomarer Commitpfad, bestehende Save/Load-Logik bleibt unveraendert stabil.
 - P8-S17.6 Runtime-Evidence-Matrix erstellen: dedizierte Nachweise fuer Visibility-Continuity + Seamless-Loop-Continuity (mehrzyklisch, no-black-frame/no-gap Guards).
 - P8-S17.7 HF10-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
+
+- P8-S18.1 Room-Animationen auf definitionsgetriebenes Modell anheben (`selectedAnimationId`, `animations[]`) mit UI-CRUD analog outside/effects.
+- P8-S18.2 Room-Animationseditor erlaubt Create/Edit/Delete deterministisch fuer alle room-scope Definitionen.
+- P8-S18.3 Room-Animation-Asset-Typisierung liefern: `assetType` als `coded`/`mp4`/`gif` und typspezifisches `assetRef`-Mapping.
+- P8-S18.4 Runtime/Startpfade auf definitionsgetriebene Room-Animationen umstellen, damit neue Room-Animationen ohne Codeaenderung start/edit/stop-faehig bleiben.
+- P8-S18.5 First-start ohne lokale Browserdaten automatisch auf serverseitige Defaults bootstrapen (load + apply im Initialpfad).
+- P8-S18.6 Button `Load and apply defaults` als expliziten spaeteren Reset-/Wiederherstellen-Flow unveraendert erhalten.
+- P8-S18.7 HF11-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
+
+### Execution update (8-HF11)
+- Status: PASS
+- Nachweise: `.planning/phases/phase-08/8-HF11-VERIFICATION.md`, `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`
 
 - P8-S7.1 Regression-Matrix fuer Multi-Play-Area + Image-Import erstellen.
 - P8-S7.2 Negativtests fuer Upload-Validierung und Migrationssicherheit liefern.
@@ -229,8 +242,18 @@
 - Story P8-S17.7 + P8-S7.3.
   - Ziel: reproduzierbare HF10-Evidenz und konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF11 execute-ready
+- Story P8-S18.1 + P8-S18.2 + P8-S18.3.
+  - Ziel: Room-Animationen erreichen Outside/Effects-Paritaet als definitionsgetriebener CRUD-Editor mit typed assets (`coded`/`mp4`/`gif`).
+- Story P8-S18.4.
+  - Ziel: neue Room-Animationen sind ohne Codeaenderung runtime-nutzbar (start/edit/stop) und bleiben persistenzstabil.
+- Story P8-S18.5 + P8-S18.6.
+  - Ziel: first-start ohne lokale Daten laedt/anwendet serverseitige Defaults automatisch; `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow erhalten.
+- Story P8-S18.7 + P8-S7.3.
+  - Ziel: reproduzierbare HF11-Evidenz und konsistenter Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF10): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF11): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -253,3 +276,4 @@
 - 2026-03-30: Plan 8-HF9 Stories P8-S16.1..P8-S16.7 umgesetzt; Outside-mp4-Lifecycle ist start/stop/restart-stabil, strict unmounting + visibility transition guards sind PASS (`8-HF9-VERIFICATION.md`, `P8-T71-OUTSIDE-MP4-LIFECYCLE-ROOT-CAUSE.md`, `P8-T73-MP4-REGRESSION-GUARD.md`, `P8-T74-STRICT-CONDITIONAL-UNMOUNT.md`, `P8-T75-VISIBILITY-TRANSITION-REGRESSION.md`).
 - 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 (Stories P8-S17.1..P8-S17.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4 deterministic visibility + seamless loop continuity + runtime-focused evidence).
 - 2026-03-31: Plan 8-HF10 Stories P8-S17.1..P8-S17.7 umgesetzt; Outside-mp4 ist sichtbar deterministisch, looped nahtlos und bleibt ueber lifecycle + apply/persistenz regressionsfrei PASS (`8-HF10-VERIFICATION.md`, `P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`).
+- 2026-04-01: Neues verpflichtendes P0-Featurepaket priorisiert Plan 8-HF11 (Stories P8-S18.1..P8-S18.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (all-type editable room animations + first-start default-autoload bei erhaltener Reset-Button-Semantik).

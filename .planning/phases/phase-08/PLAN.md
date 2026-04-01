@@ -141,6 +141,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Evidence-Guard: runtime-fokussierte Regressionsevidenz fuer Sichtbarkeit + Loop-Kontinuitaet ist verpflichtend (mehrzyklische Laufzeitbeobachtung statt nur Initialstart).
 - Gate-Regel Plan 8-HF10: Plan 8-2 bleibt blockiert bis HF10 PASS inklusive konsistentem Artefakt-Sync.
 
+## Neues verpflichtendes Featurepaket (P0, HF11)
+- Frei editierbare Animationen werden auf alle Animationstypen ausgeweitet, inklusive room-scope Animationen.
+- Room-Animationen muessen wie outside/effects definitionsgetrieben in UI create/edit/delete-faehig sein.
+- Asset-Typen fuer Room-Animationen sind verpflichtend `coded`, `mp4` und `gif` mit typspezifischem Mapping.
+- Zielregel: neue Room-Animationen muessen ohne Codeaenderung in der UI hinzugefuegt und produktiv gestartet werden koennen.
+- Default-Load-Verhalten wird erweitert: bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und angewendet.
+- Der Button `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow fuer spaetere Session-Aenderungen erhalten.
+- Gate-Regel Plan 8-HF11: Plan 8-2 bleibt blockiert bis HF11 PASS inklusive konsistentem Artefakt-Sync.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -219,6 +228,15 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 5. Runtime-Evidence-Matrix liefern: mehrzyklische Nachweise fuer `visibility continuity` und `seamless loop continuity` inkl. no-black-frame/no-gap Guards.
 6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF11, execute-ready)
+1. Room-Animationsmodell auf definitionsgetriebenen CRUD-Standard anheben (`selectedAnimationId` + `animations[]`) analog outside/effects.
+2. Room-Animationseditor liefern: create/edit/delete deterministisch mit typspezifischem Asset-Mapping.
+3. Room-Asset-Typen absichern: `coded`, `mp4`, `gif` inklusive passender Picker-/Persistenzregeln.
+4. Runtime-Paritaet herstellen: definitionsgetriebene Room-Animationen bleiben start/edit/stop-faehig ohne codegebundene Einzelverdrahtung.
+5. First-start-Defaults-Autoload umsetzen: bei leerem lokalen Browserzustand serverseitige Defaults automatisch laden/anwenden.
+6. Reset-Semantik stabil halten: `Load and apply defaults` bleibt fuer spaetere Session-Aenderungen expliziter Wiederherstellen-Flow.
+7. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -268,6 +286,10 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - UI-Sichtbarkeit fuer kontextabhaengige Controls aktualisiert bei Type/Asset-Wechsel deterministisch ohne stale Reappear-Drift.
 - Redundante Buttons `Use selected resource asset` sind entfernt; `Apply changes` bleibt der einzige explizite Commitpfad in den Animationseditoren.
 - Runtime-fokussierte Regressionsevidenz dokumentiert Sichtbarkeitskontinuitaet und Loop-Kontinuitaet ueber mehrere Laufzeitzyklen nachvollziehbar.
+- Room-Animationen sind definitionsgetrieben wie outside/effects in UI create/edit/delete-bar und unterstuetzen `assetType` `coded`/`mp4`/`gif` mit persistenter Zuordnung.
+- Neue Room-Animationen sind ohne Codeaenderung hinzufuegbar und unmittelbar start/edit/stop-faehig.
+- Bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und direkt angewendet.
+- `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Button fuer spaetere Session-Aenderungen erhalten.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
 
@@ -302,3 +324,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (deterministischer Outside-mp4-Visibility-Restore + seamless loop continuity ohne replay break/black frame/gap + runtime-focused evidence matrix).
 - 2026-03-31: Plan 8-HF10 wurde atomar umgesetzt (P8-T77..P8-T82).
 - Nachweise: `.planning/phases/phase-08/8-HF10-VERIFICATION.md`, `.planning/phases/phase-08/P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `.planning/phases/phase-08/P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `.planning/phases/phase-08/P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`.
+- 2026-04-01: Neues verpflichtendes P0-Featurepaket priorisiert Plan 8-HF11 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (all-type editable room animations + first-start default-autoload bei erhaltener Reset-Button-Semantik).
+- 2026-04-01: Plan 8-HF11 wurde atomar umgesetzt (P8-T83..P8-T88).
+- Nachweise: `.planning/phases/phase-08/8-HF11-VERIFICATION.md`, `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`.

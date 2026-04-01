@@ -68,6 +68,12 @@
 - Outside-MP4-Apply-Persistence-NonRegression-Test: `Apply changes`, Save/Reload/Restart und bestehende Editor-Persistenz bleiben nach Visibility/Loop-Fix unveraendert deterministisch.
 - Outside-MP4-Runtime-Evidence-Matrix-Test: runtime-fokussierte Evidenz dokumentiert Visibility- und Loop-Kontinuitaet reproduzierbar ueber Mehrzykluslauf.
 
+- Room-Animations-Definition-CRUD-Parity-Test: Room-Animationen sind wie outside/effects per create/edit/delete im UI verwaltbar.
+- Room-Animations-AssetType-Parity-Test: Room-Animationen unterstuetzen `assetType` `coded`/`mp4`/`gif` inkl. typspezifischem Asset-Mapping.
+- Room-Animations-No-Code-Extension-Test: neu angelegte Room-Animation ist ohne Codeaenderung sofort triggerbar/start-edit-stop-faehig und bleibt nach Save/Reload erhalten.
+- First-Start-Defaults-Autoload-Test: bei leerem lokalen Browserzustand werden serverseitige Defaults automatisch geladen und angewendet.
+- Defaults-Button-Reset-Semantics-Test: `Load and apply defaults` bleibt in spaeteren Sessions ein expliziter Reset-/Wiederherstellen-Flow und funktioniert deterministisch.
+
 - Final-Output-Fullscreen-Fit-Test: `/output/final` fuellt im Browser-Fullscreen den vorgesehenen Renderbereich vollstaendig ohne Top-Left-Teilausschnitt.
 - Final-Output-Resize-Recompute-Test: Stage/Canvas passen sich bei Window-Resize deterministisch auf neue Aufloesung an (kein stale viewport).
 - Final-Output-Orientation-Recompute-Test: Orientation-Wechsel recalculiert Geometrie/Viewport korrekt ohne Clipping-/Coords-Drift.
@@ -134,6 +140,9 @@
 - Nach P8-T79..P8-T80: Outside-mp4 looped nahtlos ohne replay break/black frame/gap und bleibt lifecycle-stabil ueber Start/Stop/Re-Start/Reload.
 - Nach P8-T81: `Apply changes` und Persistenzpfade bleiben nach HF10-Fix regressionsfrei PASS.
 - Nach P8-T82: HF10-Verifikation inkl. runtime-fokussierter Visibility/Loop-Evidence ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T83..P8-T85: Room-Animationen sind definitionsgetrieben CRUD-faehig mit typed assets (`coded`/`mp4`/`gif`) und ohne codegebundene Einzelintegration runtime-stabil.
+- Nach P8-T86..P8-T87: first-start ohne lokale Daten autoloaded server defaults; `Load and apply defaults` bleibt als expliziter spaeterer Reset-Flow erhalten.
+- Nach P8-T88: HF11-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -170,6 +179,10 @@
 - Outside-mp4 looped nahtlos ohne sichtbaren Replay-Break, Black-Frame oder Restart-Gap/Flicker.
 - Redundante `Use selected resource asset`-Buttons sind entfernt; `Apply changes` ist der einzige explizite Commit-Button.
 - Runtime-fokussierte Evidence-Matrix fuer Outside-mp4 dokumentiert Visibility-Continuity + Seamless-Loop-Continuity reproduzierbar ueber Mehrzykluslaeufe.
+- Room-Animationen folgen demselben definitionsgetriebenen Editiermodell wie outside/effects (create/edit/delete) und unterstuetzen `coded`/`mp4`/`gif`.
+- Neue Room-Animationen koennen ohne Codeaenderung angelegt, gestartet, bearbeitet, gestoppt und persistent gespeichert werden.
+- Bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und angewendet.
+- `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow fuer spaetere Session-Aenderungen erhalten.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent aktualisiert.
 
@@ -250,3 +263,9 @@
   - `.planning/phases/phase-08/P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`
   - `.planning/phases/phase-08/P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`
   - `.planning/phases/phase-08/P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`
+
+## Execution Result (Plan 8-HF11)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF11-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`
