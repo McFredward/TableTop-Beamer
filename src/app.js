@@ -87,8 +87,6 @@ const roomResourceSelect = document.querySelector("#room-resource-select");
 const roomApplyChangesButton = document.querySelector("#room-apply-changes");
 const roomOpacityInput = document.querySelector("#room-opacity");
 const roomOpacityValue = document.querySelector("#room-opacity-value");
-const roomPlaybackSpeedInput = document.querySelector("#room-playback-speed");
-const roomPlaybackSpeedValue = document.querySelector("#room-playback-speed-value");
 const roomIntensityInput = document.querySelector("#room-intensity");
 const roomIntensityValue = document.querySelector("#room-intensity-value");
 const roomSpeedInput = document.querySelector("#room-speed");
@@ -493,7 +491,6 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
   defaultRoomAnimationId: createDefaultRoomAnimationDefinitions()[0]?.id ?? ROOM_ANIMATIONS[0].id,
   roomOpacity: roomOpacityInput?.value,
-  roomPlaybackSpeed: roomPlaybackSpeedInput?.value,
   roomIntensity: roomIntensityInput?.value,
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
@@ -3742,14 +3739,6 @@ function setRoomStateProfile(boardId, roomId, profile) {
   state.roomStateProfilesByBoard[boardId][roomId] = normalizeRoomStateProfile(profile);
 }
 
-function isGifRoomAnimation(type) {
-  const definition = getRoomAnimationDefinitionById(type, state.boardId);
-  if (definition) {
-    return normalizeRoomAssetType(definition.assetType) === "gif";
-  }
-  return Boolean(ROOM_GIF_ANIMATION_ASSETS[type]);
-}
-
 function isRoomAnimationType(type) {
   return Boolean(getRoomAnimationDefinitionById(type, state.boardId));
 }
@@ -6201,7 +6190,6 @@ function syncRoomFxPanel() {
     roomAnimationSettingsDeleteButton.disabled = roomFx.animations.length <= 1;
   }
   syncRoomResourcePicker(assetType, assetRef);
-  syncGifRoomControls();
 }
 
 function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
@@ -8346,7 +8334,6 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     roomSelected.textContent = "Selected room: click a room polygon on the board";
     startRoomAnimationButton.disabled = true;
     roomOpacityInput.disabled = true;
-    roomPlaybackSpeedInput.disabled = true;
     if (roomTargetSelect) {
       roomTargetSelect.disabled = false;
     }
@@ -8364,7 +8351,6 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   }
   startRoomAnimationButton.disabled = false;
   roomOpacityInput.disabled = false;
-  roomPlaybackSpeedInput.disabled = false;
   if (roomTargetSelect) {
     roomTargetSelect.disabled = false;
   }
@@ -8380,8 +8366,6 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
-  roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
-  roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
   state.roomDraft.intensity = clampRoomIntensity(state.roomDraft.intensity);
   state.roomDraft.speed = clampRoomSpeed(state.roomDraft.speed);
   state.roomDraft.soundVolume = clampRoomSoundVolume(state.roomDraft.soundVolume);
@@ -8393,7 +8377,6 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
-  syncGifRoomControls();
   roomHoldInput.checked = true;
   state.roomDraft.staggerStart = Boolean(state.roomDraft.staggerStart);
   state.roomDraft.staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
@@ -8426,12 +8409,6 @@ function syncRoomDraftActionButton() {
     : "Start room animation";
 }
 
-function syncGifRoomControls() {
-  const isGif = isGifRoomAnimation(state.roomDraft.animationId);
-  roomOpacityInput.disabled = !isGif;
-  roomPlaybackSpeedInput.disabled = !isGif;
-}
-
 function clearRoomDraftEditTarget() {
   state.roomDraft.editTargetId = null;
   syncRoomDraftActionButton();
@@ -8451,7 +8428,6 @@ const ROOM_DRAFT_UI_IMMUTABLE_FIELDS = [
   "targetType",
   "targetId",
   "opacity",
-  "playbackSpeed",
   "intensity",
   "speed",
   "soundVolume",
@@ -8465,8 +8441,6 @@ function normalizeRoomDraftUiField(field, value) {
   switch (field) {
     case "opacity":
       return clampRoomOpacity(value);
-    case "playbackSpeed":
-      return clampGifPlaybackSpeed(value);
     case "intensity":
       return clampRoomIntensity(value);
     case "speed":
@@ -8521,7 +8495,6 @@ function createAnimation({
   intensity = 0.8,
   speed = 1,
   opacity = 0.9,
-  playbackSpeed = 1,
   soundVolume = 1,
   hold = false,
   durationSec = 15,
@@ -8543,7 +8516,7 @@ function createAnimation({
     intensity,
     speed: clampRoomSpeed(speed),
     opacity: clampRoomOpacity(opacity),
-    playbackSpeed: clampGifPlaybackSpeed(playbackSpeed),
+    playbackSpeed: clampRoomSpeed(speed),
     soundVolume: clampRoomSoundVolume(soundVolume),
     hold: effectiveHold,
     durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
@@ -8560,7 +8533,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     const gifRenderConfig = resolveRoomGifRenderConfig(animation.type, age, animation.intensity, {
       gifAssetPath: assetRef,
       gifTimelineAgeSec: age,
-      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
+      gifPlaybackSpeed: clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1),
       opacity: clampRoomOpacity(animation.opacity),
     });
     if (gifRenderConfig.frame) {
@@ -8596,8 +8569,8 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
   }
 
   const effectType = resolveRoomCodedEffectType(assetRef || animation.type);
-  const playbackSpeed = clampGifPlaybackSpeed(animation.playbackSpeed ?? 1);
-  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  const playbackSpeed = clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
+  const playbackAge = age * clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
   drawEffectVisual(
     effectType,
     playbackAge,
@@ -8705,7 +8678,6 @@ function startRoomAnimationFromDraft() {
       intensity: clampRoomIntensity(state.roomDraft.intensity),
       speed: clampRoomSpeed(state.roomDraft.speed),
       opacity: clampRoomOpacity(state.roomDraft.opacity),
-      playbackSpeed: clampGifPlaybackSpeed(state.roomDraft.playbackSpeed),
       soundVolume: clampRoomSoundVolume(state.roomDraft.soundVolume),
       hold: true,
       durationMs: null,
@@ -8794,7 +8766,7 @@ function startRoomAnimationFromDraft() {
                   intensity: draftPayload.intensity,
                   speed: draftPayload.speed,
                   opacity: draftPayload.opacity,
-                  playbackSpeed: draftPayload.playbackSpeed,
+                  playbackSpeed: draftPayload.speed,
                   soundVolume: draftPayload.soundVolume,
                   hold: true,
                   durationSec: 0,
@@ -8899,7 +8871,7 @@ function startRoomAnimationFromDraft() {
         intensity: draftPayload.intensity,
         speed: draftPayload.speed,
         opacity: draftPayload.opacity,
-        playbackSpeed: draftPayload.playbackSpeed,
+        playbackSpeed: draftPayload.speed,
         soundVolume: draftPayload.soundVolume,
         hold: true,
         durationSec: 0,
@@ -8919,7 +8891,7 @@ function startRoomAnimationFromDraft() {
           intensity: draftPayload.intensity,
           speed: draftPayload.speed,
           opacity: draftPayload.opacity,
-          playbackSpeed: draftPayload.playbackSpeed,
+          playbackSpeed: draftPayload.speed,
           soundVolume: draftPayload.soundVolume,
           hold: true,
           durationSec: 0,
@@ -9030,7 +9002,7 @@ function startRoomAnimationFromDraft() {
                 intensity: draftPayload.intensity,
                 speed: draftPayload.speed,
                 opacity: draftPayload.opacity,
-                playbackSpeed: draftPayload.playbackSpeed,
+                playbackSpeed: draftPayload.speed,
                 soundVolume: draftPayload.soundVolume,
                 hold: true,
                 durationSec: 0,
@@ -9144,7 +9116,7 @@ function startRoomAnimationFromDraft() {
       intensity: draftPayload.intensity,
       speed: draftPayload.speed,
       opacity: draftPayload.opacity,
-      playbackSpeed: draftPayload.playbackSpeed,
+      playbackSpeed: draftPayload.speed,
       soundVolume: draftPayload.soundVolume,
       hold: true,
       durationSec: 0,
@@ -9165,7 +9137,7 @@ function startRoomAnimationFromDraft() {
         intensity: draftPayload.intensity,
         speed: draftPayload.speed,
         opacity: draftPayload.opacity,
-        playbackSpeed: draftPayload.playbackSpeed,
+        playbackSpeed: draftPayload.speed,
         soundVolume: draftPayload.soundVolume,
         hold: true,
         durationSec: 0,
@@ -9409,7 +9381,6 @@ function editAnimation(animationId) {
   state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.opacity = clampRoomOpacity(animation.opacity ?? 0.9);
-  state.roomDraft.playbackSpeed = clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
   state.roomDraft.intensity = clampRoomIntensity(animation.intensity);
   state.roomDraft.speed = clampRoomSpeed(animation.speed ?? 1);
   state.roomDraft.soundVolume = clampRoomSoundVolume(animation.soundVolume ?? 1);
@@ -9432,8 +9403,6 @@ function editAnimation(animationId) {
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(state.roomDraft.opacity);
   roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
-  roomPlaybackSpeedInput.value = String(state.roomDraft.playbackSpeed);
-  roomPlaybackSpeedValue.textContent = `${state.roomDraft.playbackSpeed.toFixed(2)}x`;
   roomIntensityInput.value = String(state.roomDraft.intensity);
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
   roomSpeedInput.value = String(state.roomDraft.speed);
@@ -9504,7 +9473,7 @@ function renderRunningAnimationsList() {
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
     const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.boardId) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.boardId)}` : ""}${getRoomEquivalentType(anim.type, anim.boardId) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, anim.boardId)}` : ""} | Sound: ${Math.round(
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Speed: ${clampRoomSpeed(anim.speed ?? anim.playbackSpeed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.boardId) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.boardId)}` : ""}${getRoomEquivalentType(anim.type, anim.boardId) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, anim.boardId)}` : ""} | Sound: ${Math.round(
         clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
       )}%`
       : anim.scope === "cluster"
@@ -11833,7 +11802,6 @@ roomAnimationSelect.addEventListener("change", () => {
   if (normalizeRoomAssetType(selectedDefinition?.assetType) === "gif") {
     warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });
   }
-  syncGifRoomControls();
 });
 
 roomTargetSelect?.addEventListener("change", () => {
@@ -11852,11 +11820,6 @@ roomTargetSelect?.addEventListener("change", () => {
 roomOpacityInput.addEventListener("input", () => {
   state.roomDraft.opacity = clampRoomOpacity(roomOpacityInput.value);
   roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
-});
-
-roomPlaybackSpeedInput.addEventListener("input", () => {
-  state.roomDraft.playbackSpeed = clampGifPlaybackSpeed(roomPlaybackSpeedInput.value);
-  roomPlaybackSpeedValue.textContent = `${state.roomDraft.playbackSpeed.toFixed(2)}x`;
 });
 
 roomIntensityInput.addEventListener("input", () => {
@@ -12079,9 +12042,6 @@ function syncRuntimePanelsFromState() {
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
   roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
-  roomPlaybackSpeedInput.value = String(clampGifPlaybackSpeed(state.roomDraft.playbackSpeed));
-  roomPlaybackSpeedValue.textContent = `${clampGifPlaybackSpeed(state.roomDraft.playbackSpeed).toFixed(2)}x`;
-  syncGifRoomControls();
   roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
   roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
   roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
