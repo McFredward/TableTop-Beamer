@@ -110,7 +110,15 @@ Prioritaetslabel: [P0] kritisch | [P1] hoch | [P2] mittel
 - [x] DONE P8-T87 [P0] Reset-Semantik absichern: `Load and apply defaults` bleibt als expliziter Wiederherstellen-Flow fuer spaetere Session-Aenderungen unveraendert verfuegbar.
 - [x] DONE P8-T88 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF11 Stand.
 
-## Plan 8-2 - Hardening Wave (nach 8-HF11)
+## Plan 8-HF12 - Room Unified Speed + Opacity Parity (priorisierte P0-Welle, execute-ready)
+- [x] DONE P8-T89 [P0] Room-Editor-UI bereinigen: dedizierten `GIF Playback speed`-Slider vollstaendig entfernen.
+- [x] DONE P8-T90 [P0] Einheitliche Room-Speed-Steuerung umsetzen: ein gemeinsamer `Speed`-Slider fuer `coded`/`gif`/`mp4`.
+- [x] DONE P8-T91 [P0] Opacity-Paritaet herstellen: `Opacity` fuer `mp4` aktivierbar halten (kein disable/hide fuer mp4).
+- [x] DONE P8-T92 [P0] Apply-/Persistenzpfad absichern: `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch.
+- [x] DONE P8-T93 [P0] Room-Animations-Non-Regression ausfuehren: create/edit/delete + typed asset mapping bleiben funktional unveraendert.
+- [x] DONE P8-T94 [P0] Hotfix-Verifikation + Artefakt-Sync abschliessen: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` auf 8-HF12 Stand.
+
+## Plan 8-2 - Hardening Wave (nach 8-HF12)
 - [ ] TODO P8-T13 [P1] Multi-Area UX-Polish (z. B. area naming, visibility toggles, duplicate/clone shortcuts).
 - [ ] TODO P8-T14 [P1] Migration/Import Soak-Tests unter wiederholten Save/Reload/Restart-Zyklen dokumentieren.
 - [ ] TODO P8-T15 [P1] Performance-Hardening fuer Union-Berechnung bei vielen Areas/Vertices validieren.

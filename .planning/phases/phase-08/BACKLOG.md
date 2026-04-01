@@ -18,6 +18,7 @@
 - Outside MP4 Follow-up + Strict Conditional Unmounting Hotfix
 - Outside MP4 Visibility + Seamless Loop Continuity Hotfix
 - All-Type Editable Room Animations + First-Start Default-Autoload Hotfix
+- Room Animation Unified Speed + Opacity Parity Hotfix
 - Regression and Evidence Hardening
 
 ## Story Mapping
@@ -125,6 +126,12 @@
 - P8-S18.5 First-start ohne lokale Browserdaten automatisch auf serverseitige Defaults bootstrapen (load + apply im Initialpfad).
 - P8-S18.6 Button `Load and apply defaults` als expliziten spaeteren Reset-/Wiederherstellen-Flow unveraendert erhalten.
 - P8-S18.7 HF11-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
+
+- P8-S19.1 Room-Editor-Cleanup: dedizierten `GIF Playback speed`-Slider entfernen.
+- P8-S19.2 Unified-Control-Regel: ein gemeinsamer `Speed`-Slider steuert Room-Animationen fuer `coded`/`gif`/`mp4`.
+- P8-S19.3 Opacity-Paritaet-Regel: `Opacity` bleibt fuer alle Room-Assettypen editierbar, inklusive `mp4`.
+- P8-S19.4 Apply-/Persistenz-Guard: `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch stabil.
+- P8-S19.5 HF12-Regression/Evidence-Artefakte erstellen und Vollsync der Planungsartefakte abschliessen.
 
 ### Execution update (8-HF11)
 - Status: PASS
@@ -252,8 +259,16 @@
 - Story P8-S18.7 + P8-S7.3.
   - Ziel: reproduzierbare HF11-Evidenz und konsistenter Vollsync aller Planungsartefakte.
 
+## Priorisierte Hotfix-Welle (P0) - Plan 8-HF12 execute-ready
+- Story P8-S19.1 + P8-S19.2.
+  - Ziel: Room-Editor fuehrt nur noch einen einheitlichen `Speed`-Slider fuer alle Assettypen; dedizierte GIF-Speed-Control ist entfernt.
+- Story P8-S19.3.
+  - Ziel: `Opacity` bleibt fuer alle Room-Animationstypen konfigurierbar, inklusive `mp4` ohne disable/hide.
+- Story P8-S19.4 + P8-S19.5 + P8-S7.3.
+  - Ziel: `Apply changes`-/Persistenzdeterminismus und reproduzierbare HF12-Evidenz bei konsistentem Vollsync aller Planungsartefakte.
+
 ## Nachgelagerte Wellen (vorlaeufig)
-- Plan 8-2 Hardening (nach 8-HF11): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
+- Plan 8-2 Hardening (nach 8-HF12): UX-Polish fuer Multi-Area-Editing (z. B. area-rename, visibility toggles, quick duplicate).
 - Plan 8-3 Production Gate: Realsetup-Abnahme (mehrere Clients + `/output/final`) mit Import/Migration-Soak.
 
 ## Execution Status
@@ -277,3 +292,5 @@
 - 2026-03-31: Kritisches P0-Follow-up priorisiert Plan 8-HF10 (Stories P8-S17.1..P8-S17.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Outside-mp4 deterministic visibility + seamless loop continuity + runtime-focused evidence).
 - 2026-03-31: Plan 8-HF10 Stories P8-S17.1..P8-S17.7 umgesetzt; Outside-mp4 ist sichtbar deterministisch, looped nahtlos und bleibt ueber lifecycle + apply/persistenz regressionsfrei PASS (`8-HF10-VERIFICATION.md`, `P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`, `P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`).
 - 2026-04-01: Neues verpflichtendes P0-Featurepaket priorisiert Plan 8-HF11 (Stories P8-S18.1..P8-S18.7) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (all-type editable room animations + first-start default-autoload bei erhaltener Reset-Button-Semantik).
+- 2026-04-01: Neues verpflichtendes P0-Refinement priorisiert Plan 8-HF12 (Stories P8-S19.1..P8-S19.5) als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Unified `Speed`, kein dedizierter GIF-Speed-Slider, `Opacity`-Paritaet inkl. mp4).
+- 2026-04-01: Plan 8-HF12 Stories P8-S19.1..P8-S19.5 umgesetzt; Unified `Speed`, mp4-Opacity-Paritaet sowie Persistenz-/CRUD-Non-Regression sind PASS (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).

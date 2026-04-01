@@ -150,6 +150,13 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Der Button `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow fuer spaetere Session-Aenderungen erhalten.
 - Gate-Regel Plan 8-HF11: Plan 8-2 bleibt blockiert bis HF11 PASS inklusive konsistentem Artefakt-Sync.
 
+## Neues verpflichtendes P0-Refinement (HF12)
+- Room-Animationseditor darf keinen separaten `GIF Playback speed`-Slider mehr enthalten.
+- Pflichtregel Speed-UX: ein einheitlicher Slider `Speed` steuert alle Room-Animation-Assettypen (`coded`/`gif`/`mp4`).
+- Pflichtregel Opacity-Paritaet: `Opacity` bleibt fuer alle Room-Animation-Assettypen editierbar, inklusive `mp4` (kein Disable/Hide fuer mp4).
+- Persistenzregel HF12: einheitlicher `Speed`-Wert und `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart sowie Defaults-Load deterministisch erhalten.
+- Gate-Regel Plan 8-HF12: Plan 8-2 bleibt blockiert bis HF12 PASS inklusive konsistentem Artefakt-Sync.
+
 ## Priorisierte Feature-Welle (Plan 8-HF2, execute-ready)
 1. Outside-Animationsmodell erweitern: Definitionen (`id`, `name`, `assetType`, `assetRef`, `boomerang`, weitere Settings) kanonisch abbilden.
 2. `Outside Sandstorm` als verpflichtenden Default-Eintrag auf `sandstorm.mp4` einbinden (Audio aus).
@@ -237,6 +244,14 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 6. Reset-Semantik stabil halten: `Load and apply defaults` bleibt fuer spaetere Session-Aenderungen expliziter Wiederherstellen-Flow.
 7. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
+## Priorisierte Hotfix-Welle (Plan 8-HF12, execute-ready)
+1. UI-Cleanup Room-Editor: dedizierten `GIF Playback speed`-Slider entfernen.
+2. Unified-Speed-Control liefern: ein gemeinsamer `Speed`-Slider fuer alle Room-Assettypen (`coded`/`gif`/`mp4`).
+3. Opacity-Paritaet herstellen: `Opacity` fuer `mp4` wieder aktiv editierbar machen (keine type-spezifische Deaktivierung).
+4. Apply-/Persistenz-Guard absichern: `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load stabil.
+5. Room-UI-Non-Regression ausfuehren: create/edit/delete sowie typed asset mapping bleiben funktional unveraendert.
+6. P0-Verifikation + Artefakt-Sync abschliessen (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+
 ## Priorisierte Hotfix-Welle (Plan 8-HF1, execute-ready)
 1. Input-Arbitration korrigieren: Room-Klick bleibt kanonischer Selection-Pfad, Play-Area-Click-Selection wird entfernt.
 2. Settings-Selection Non-Regression absichern: Vertex/Room-Editing bleibt mit persistenter Room-Selektion stabil.
@@ -288,6 +303,9 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - Runtime-fokussierte Regressionsevidenz dokumentiert Sichtbarkeitskontinuitaet und Loop-Kontinuitaet ueber mehrere Laufzeitzyklen nachvollziehbar.
 - Room-Animationen sind definitionsgetrieben wie outside/effects in UI create/edit/delete-bar und unterstuetzen `assetType` `coded`/`mp4`/`gif` mit persistenter Zuordnung.
 - Neue Room-Animationen sind ohne Codeaenderung hinzufuegbar und unmittelbar start/edit/stop-faehig.
+- Room-Animationen nutzen einen einheitlichen `Speed`-Slider fuer `coded`/`gif`/`mp4`; dedizierte GIF-Speed-Controls sind entfernt.
+- `Opacity` bleibt fuer alle Room-Animation-Assettypen inklusive `mp4` editierbar (kein disable/hide fuer mp4).
+- `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch persistenzstabil.
 - Bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und direkt angewendet.
 - `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Button fuer spaetere Session-Aenderungen erhalten.
 - Keine Regression in Trigger/Edit/Stop/Clear, Running-Liste, Save/Reload/Restart und `/output/final`.
@@ -327,3 +345,6 @@ Phase 8 erweitert den Board-Workflow um zwei verbindliche Kernfaehigkeiten: erst
 - 2026-04-01: Neues verpflichtendes P0-Featurepaket priorisiert Plan 8-HF11 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (all-type editable room animations + first-start default-autoload bei erhaltener Reset-Button-Semantik).
 - 2026-04-01: Plan 8-HF11 wurde atomar umgesetzt (P8-T83..P8-T88).
 - Nachweise: `.planning/phases/phase-08/8-HF11-VERIFICATION.md`, `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`.
+- 2026-04-01: Neues verpflichtendes P0-Refinement priorisiert Plan 8-HF12 als naechste execute-ready Hotfix-Welle vor Plan 8-2 (Unified `Speed` fuer Room-Animationen, Entfernung dedizierter GIF-Speed-Control, `Opacity`-Paritaet inkl. mp4).
+- 2026-04-01: Plan 8-HF12 wurde atomar umgesetzt (P8-T89..P8-T94).
+- Nachweise: `.planning/phases/phase-08/8-HF12-VERIFICATION.md`, `.planning/phases/phase-08/P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `.planning/phases/phase-08/P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`.

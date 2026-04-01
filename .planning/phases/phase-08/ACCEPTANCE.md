@@ -71,6 +71,10 @@
 - Room-Animations-Definition-CRUD-Parity-Test: Room-Animationen sind wie outside/effects per create/edit/delete im UI verwaltbar.
 - Room-Animations-AssetType-Parity-Test: Room-Animationen unterstuetzen `assetType` `coded`/`mp4`/`gif` inkl. typspezifischem Asset-Mapping.
 - Room-Animations-No-Code-Extension-Test: neu angelegte Room-Animation ist ohne Codeaenderung sofort triggerbar/start-edit-stop-faehig und bleibt nach Save/Reload erhalten.
+- Room-Animations-Unified-Speed-Control-Test: Room-Editor zeigt genau einen gemeinsamen `Speed`-Slider fuer `coded`/`gif`/`mp4`.
+- Room-Animations-No-Dedicated-GIF-Speed-Test: dedizierter `GIF Playback speed`-Slider ist im Room-Editor nicht mehr vorhanden.
+- Room-Animations-Opacity-MP4-Parity-Test: `Opacity` bleibt fuer `assetType=mp4` editierbar und wird nicht disabled/hidden.
+- Room-Animations-Speed-Opacity-Persistence-Test: `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch erhalten.
 - First-Start-Defaults-Autoload-Test: bei leerem lokalen Browserzustand werden serverseitige Defaults automatisch geladen und angewendet.
 - Defaults-Button-Reset-Semantics-Test: `Load and apply defaults` bleibt in spaeteren Sessions ein expliziter Reset-/Wiederherstellen-Flow und funktioniert deterministisch.
 
@@ -143,6 +147,9 @@
 - Nach P8-T83..P8-T85: Room-Animationen sind definitionsgetrieben CRUD-faehig mit typed assets (`coded`/`mp4`/`gif`) und ohne codegebundene Einzelintegration runtime-stabil.
 - Nach P8-T86..P8-T87: first-start ohne lokale Daten autoloaded server defaults; `Load and apply defaults` bleibt als expliziter spaeterer Reset-Flow erhalten.
 - Nach P8-T88: HF11-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
+- Nach P8-T89..P8-T91: Room-Editor nutzt einen einheitlichen `Speed`-Slider fuer alle Assettypen; dedizierter GIF-Speed-Slider ist entfernt; `Opacity` bleibt fuer mp4 editierbar.
+- Nach P8-T92..P8-T93: `Apply changes` sowie Save/Reload/Restart/Defaults halten `Speed` + `Opacity` deterministisch ohne Room-CRUD-/Typed-Asset-Regression.
+- Nach P8-T94: HF12-Verifikation ist PASS und alle Artefakte/globalen Tracking-Dateien sind synchron.
 
 ## Definition of Done
 - Plan 8-1 P0-Tasks P8-T1..P8-T12 sind abgeschlossen.
@@ -181,6 +188,9 @@
 - Runtime-fokussierte Evidence-Matrix fuer Outside-mp4 dokumentiert Visibility-Continuity + Seamless-Loop-Continuity reproduzierbar ueber Mehrzykluslaeufe.
 - Room-Animationen folgen demselben definitionsgetriebenen Editiermodell wie outside/effects (create/edit/delete) und unterstuetzen `coded`/`mp4`/`gif`.
 - Neue Room-Animationen koennen ohne Codeaenderung angelegt, gestartet, bearbeitet, gestoppt und persistent gespeichert werden.
+- Room-Animationseditor nutzt einen einheitlichen `Speed`-Slider fuer alle Assettypen (`coded`/`gif`/`mp4`); ein dedizierter `GIF Playback speed`-Slider existiert nicht mehr.
+- `Opacity` ist fuer alle Room-Assettypen inklusive `mp4` editierbar; keine type-spezifische Deaktivierung fuer mp4.
+- `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load persistenzstabil und deterministisch.
 - Bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und angewendet.
 - `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow fuer spaetere Session-Aenderungen erhalten.
 - Keine Regression in Running, Save/Reload/Restart, Sync und `/output/final`.
@@ -269,3 +279,10 @@
 - Evidence:
   - `.planning/phases/phase-08/8-HF11-VERIFICATION.md`
   - `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`
+
+## Execution Result (Plan 8-HF12)
+- Status: PASS
+- Evidence:
+  - `.planning/phases/phase-08/8-HF12-VERIFICATION.md`
+  - `.planning/phases/phase-08/P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`
+  - `.planning/phases/phase-08/P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`

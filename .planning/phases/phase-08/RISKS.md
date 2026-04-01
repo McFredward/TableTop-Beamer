@@ -300,6 +300,26 @@
 - Impact: Hoch.
 - Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF11 inkl. Artefakt-Sync.
 
+## R61 Doppelter Speed-Control-Pfad erzeugt Room-Editor-Drift
+- Risiko: dedizierter `GIF Playback speed` plus allgemeiner `Speed` fuehren zu konkurrierenden Werten und inkonsistenter Runtime-/Persistenzsemantik.
+- Impact: Hoch.
+- Gegenmassnahme: dedizierten GIF-Speed-Control entfernen und einen einzigen `Speed`-Pfad fuer alle Room-Assettypen erzwingen.
+
+## R62 Unified-Speed-Refactor regressiert Room-Assettypen
+- Risiko: Vereinheitlichung von `Speed` bricht `coded`/`gif`/`mp4`-Paritaet oder erzeugt type-spezifische no-op/Drift-Pfade.
+- Impact: Kritisch.
+- Gegenmassnahme: typspezifische Regression-Matrix fuer Room-Animationen mit einheitlichem `Speed` ueber Start/Edit/Save/Reload/Restart.
+
+## R63 Opacity bleibt fuer mp4 unbedienbar
+- Risiko: `Opacity` ist fuer `assetType=mp4` weiterhin disabled/hidden und verletzt die geforderte Cross-Type-Paritaet.
+- Impact: Kritisch.
+- Gegenmassnahme: expliziter UI-Guard auf immer editierbare `Opacity` fuer alle Room-Assettypen inklusive mp4.
+
+## R64 Hardening-Welle startet trotz offenem HF12-P0-Blocker
+- Risiko: Plan 8-2 startet, obwohl Unified-Speed und Opacity-Paritaet fuer Room-Animationen nicht abgeschlossen/verifiziert sind.
+- Impact: Hoch.
+- Gegenmassnahme: Gate-Regel: kein Plan 8-2 vor PASS von Plan 8-HF12 inkl. Artefakt-Sync.
+
 ## Risk Review after Plan 8-1
 - 2026-03-27: R1-R4, R6-R8 wurden in 8-1 implementierungsseitig mitigiert (Union-Maskenpfad, Migration, Delete-Guard, Upload-Validierung, UX-Hinweise).
 - Verbleibende Beobachtung: R5 (Performance bei vielen Areas/Vertices) bleibt als Hardening-Thema fuer Plan 8-2.
@@ -428,3 +448,14 @@
 - 2026-04-01: R58 ist mitigiert; Runtime-Start/Edit/Stop nutzt definitionsgetriebene Room-Assets ohne neue codegebundene Einzelverdrahtung.
 - 2026-04-01: R59 ist mitigiert; first-start Startup-Guard erzwingt Defaults-Autoload bei leerem Local-Storage, waehrend der manuelle Reset-Button unveraendert bleibt.
 - 2026-04-01: R60 Gate ist erfuellt; Plan 8-HF11 ist PASS verifiziert (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`).
+
+## Risk Review for Plan 8-HF12 (planned)
+- 2026-04-01: Neues verpflichtendes P0-Refinement priorisiert R61 und R63 als unmittelbare Blocker (dedizierter GIF-Speed-Slider muss weg; `Opacity` fuer mp4 muss editierbar bleiben).
+- 2026-04-01: R62 ist verpflichtender Guard fuer typparitaetischen Unified-Speed-Refactor ohne `coded`/`gif`/`mp4`-Regression.
+- 2026-04-01: R64 setzt den Gate-Guard, dass Plan 8-2 erst nach HF12-PASS und Vollsync startet.
+
+## Risk Review after Plan 8-HF12
+- 2026-04-01: R61 ist mitigiert; dedizierter GIF-Speed-Slider wurde aus dem Room-Editor entfernt, ein einheitlicher `Speed`-Control ist kanonisch.
+- 2026-04-01: R62 ist mitigiert; Room-Speed wiring ist typparitaetisch (`coded`/`gif`/`mp4`) und bleibt legacy-kompatibel ueber `playbackSpeed`-Mirror aus `speed`.
+- 2026-04-01: R63 ist mitigiert; `Opacity` bleibt fuer `assetType=mp4` aktiv editierbar ohne type-spezifische Disable-/Hide-Pfade.
+- 2026-04-01: R64 Gate ist erfuellt; Plan 8-HF12 ist PASS verifiziert (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).
