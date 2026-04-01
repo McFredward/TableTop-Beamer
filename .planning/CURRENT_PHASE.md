@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 8 (`phase-08`)
-- Status: in-progress (Plan 8-1 + 8-HF1 + 8-HF2 + 8-HF3 + 8-HF4 + 8-HF5 + 8-HF6 + 8-HF7 + 8-HF8 + 8-HF9 + 8-HF10 completed; Plan 8-2 is the next queued wave)
-- Next Plan: 8-2 (hardening wave after HF10 gate closure)
+- Status: in-progress (Plan 8-1 + 8-HF1 + 8-HF2 + 8-HF3 + 8-HF4 + 8-HF5 + 8-HF6 + 8-HF7 + 8-HF8 + 8-HF9 + 8-HF10 + 8-HF11 completed; Plan 8-2 is now unblocked)
+- Next Plan: 8-2 (hardening wave)
 - Command Target: `/gsd:execute-phase 8`
 
 Execution inputs:

@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 8
 - Current Phase Key: phase-08
-- Last Prepared: 2026-03-31
+- Last Prepared: 2026-04-01
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF10
+- Last Executed Plan: 8-HF11
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF10-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF11-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -110,6 +110,14 @@
 - Plan-8-HF10 Umsetzung: Outside-mp4-Loop nutzt seamless boundary wrap guards ohne replay break/black frame/restart gap flicker.
 - Plan-8-HF10 Umsetzung: Apply-/Persistenzpfade bleiben unveraendert stabil und sind als Non-Regression evidenzbasiert PASS (`P8-T81-APPLY-PERSISTENCE-NON-REGRESSION.md`).
 - Plan-8-HF10 Umsetzung: HF10 Runtime-Evidence ist PASS dokumentiert (`8-HF10-VERIFICATION.md`, `P8-T77-OUTSIDE-MP4-VISIBILITY-ROOT-CAUSE.md`, `P8-T80-VISIBILITY-LOOP-LIFECYCLE-REGRESSION.md`).
+- Neues verpflichtendes Featurepaket fuer Phase 8 ist gesetzt: frei editierbare Animationen werden auf alle Animationstypen ausgeweitet, inklusive raumbezogener Animationen mit create/edit/delete im selben definitionsgetriebenen Editor-Ansatz wie outside/effects.
+- Modellregel Plan 8-HF11: Room-Animationen werden definitionsgetrieben mit `assetType` (`coded`/`mp4`/`gif`) und editierbarem Asset-Mapping gefuehrt, damit neue Room-Animationen ohne Codeaenderung in UI angelegt werden koennen.
+- Bootstrap-Regel Plan 8-HF11: bei erstem Browserstart ohne lokale Daten werden serverseitige Defaults automatisch geladen und angewendet; der Button `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Pfad fuer spaetere Session-Aenderungen erhalten.
+- Gate-Regel Plan 8-HF11: Plan 8-2 bleibt blockiert bis HF11 PASS inklusive konsistentem Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+- Plan-8-HF11 Umsetzung: Room-Animationen laufen jetzt als per-board `roomFx`-Definitionen (`selectedAnimationId` + `animations[]`) mit Settings-CRUD und typed asset mapping (`coded`/`gif`/`mp4`) inkl. typspezifischem Picker.
+- Plan-8-HF11 Umsetzung: Room runtime/render/start/edit/stop ist definitionsgetrieben (inkl. GIF/MP4/coded assets) und nicht mehr auf starre statische Room-Animationstabellen beschraenkt.
+- Plan-8-HF11 Umsetzung: Startup-Guard erzwingt first-start Defaults-Autoload bei leerem Local-Storage deterministisch; manueller Button `Load and apply defaults` bleibt unveraendert als spaeterer Reset-Flow erhalten.
+- Plan-8-HF11 Umsetzung: HF11 Regression/Evidence ist PASS dokumentiert (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`); Plan 8-2 ist entsperrt.
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
