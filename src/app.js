@@ -3321,8 +3321,8 @@ function applyGlobalDefaultsPayloadToState(payload) {
   }
 }
 
-async function autoLoadGlobalDefaultsForFreshDevice() {
-  if (hasStoredBoardProfilesInLocalStorage()) {
+async function autoLoadGlobalDefaultsForFreshDevice({ force = false } = {}) {
+  if (!force && hasStoredBoardProfilesInLocalStorage()) {
     return {
       attempted: false,
       applied: false,
@@ -12152,7 +12152,9 @@ async function initializeApplication() {
   let startupDefaultsSnapshot = null;
 
   try {
-    const bootstrap = await autoLoadGlobalDefaultsForFreshDevice();
+    const bootstrap = await autoLoadGlobalDefaultsForFreshDevice({
+      force: state.startupDefaultsGuard.fallbackRequired === true,
+    });
     state.startupDefaultsGuard.attempted = Boolean(bootstrap.attempted);
     state.startupDefaultsGuard.applied = Boolean(bootstrap.applied);
     state.startupDefaultsGuard.outcome = bootstrap.applied ? "applied" : bootstrap.reason ?? "skipped";
