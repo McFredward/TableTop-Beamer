@@ -282,6 +282,53 @@
     { id: "alarm", label: "Alarm" },
   ];
 
+  function createDefaultRoomAnimationDefinitions() {
+    return [
+      {
+        id: "kaputt",
+        name: "Malfunction",
+        assetType: "gif",
+        assetRef: toRootAssetPath("resources/nemesis/animations/malfunction.gif"),
+      },
+      {
+        id: "feuer",
+        name: "Fire",
+        assetType: "gif",
+        assetRef: toRootAssetPath("resources/nemesis/animations/fire.gif"),
+      },
+      {
+        id: "schleim",
+        name: "Slime",
+        assetType: "gif",
+        assetRef: toRootAssetPath("resources/nemesis/animations/final.gif"),
+      },
+      {
+        id: "nest",
+        name: "Nest",
+        assetType: "coded",
+        assetRef: "special-nest",
+      },
+      {
+        id: "dekompression",
+        name: "Decompression",
+        assetType: "coded",
+        assetRef: "special-decompression",
+      },
+      {
+        id: "lichtflackern",
+        name: "Light Flicker",
+        assetType: "coded",
+        assetRef: "hull-flicker",
+      },
+      {
+        id: "alarm",
+        name: "Alarm",
+        assetType: "coded",
+        assetRef: "intruder-alert",
+      },
+    ];
+  }
+
   function createDefaultInsideAnimationDefinitions() {
     return [
       { id: "ambient-drift", name: "Ambient Drift", assetType: "coded", assetRef: "ambient-drift", intensity: 1, speed: 1 },
@@ -421,6 +468,7 @@
     BOARD_ZOOM_DEFAULT,
     SHIP_POLYGON_DEFAULT,
     OUTSIDE_ANIMATION_ASSET_TYPES,
+    createDefaultRoomAnimationDefinitions,
     createDefaultInsideAnimationDefinitions,
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,

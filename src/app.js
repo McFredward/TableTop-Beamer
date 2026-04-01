@@ -26,6 +26,7 @@ const {
   BOARD_ZOOM_DEFAULT,
   SHIP_POLYGON_DEFAULT,
   OUTSIDE_ANIMATION_ASSET_TYPES,
+  createDefaultRoomAnimationDefinitions,
   createDefaultInsideAnimationDefinitions,
   createDefaultOutsideAnimationDefinitions,
   OUTSIDE_FX_DEFAULT,
@@ -76,6 +77,14 @@ const stopAllButton = document.querySelector("#stop-all");
 const roomSelected = document.querySelector("#room-selected");
 const roomTargetSelect = document.querySelector("#room-target-select");
 const roomAnimationSelect = document.querySelector("#room-animation-select");
+const roomAnimationSettingsSelect = document.querySelector("#room-animation-settings-select");
+const roomAnimationSettingsNameInput = document.querySelector("#room-animation-settings-name");
+const roomAnimationSettingsCreateButton = document.querySelector("#room-animation-settings-create");
+const roomAnimationSettingsDeleteButton = document.querySelector("#room-animation-settings-delete");
+const roomAssetTypeInput = document.querySelector("#room-asset-type");
+const roomAssetRefInput = document.querySelector("#room-asset-ref");
+const roomResourceSelect = document.querySelector("#room-resource-select");
+const roomApplyChangesButton = document.querySelector("#room-apply-changes");
 const roomOpacityInput = document.querySelector("#room-opacity");
 const roomOpacityValue = document.querySelector("#room-opacity-value");
 const roomPlaybackSpeedInput = document.querySelector("#room-playback-speed");
@@ -291,6 +300,14 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-ref",
   "inside-resource-select",
   "inside-apply-changes",
+  "room-animation-settings-select",
+  "room-animation-settings-name",
+  "room-animation-settings-create",
+  "room-animation-settings-delete",
+  "room-asset-type",
+  "room-asset-ref",
+  "room-resource-select",
+  "room-apply-changes",
 ];
 
 function applyOutputRoleViewContract() {
@@ -474,7 +491,7 @@ function bindDevicePixelRatioWatcher() {
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
-  defaultRoomAnimationId: ROOM_ANIMATIONS[0].id,
+  defaultRoomAnimationId: createDefaultRoomAnimationDefinitions()[0]?.id ?? ROOM_ANIMATIONS[0].id,
   roomOpacity: roomOpacityInput?.value,
   roomPlaybackSpeed: roomPlaybackSpeedInput?.value,
   roomIntensity: roomIntensityInput?.value,
@@ -680,6 +697,9 @@ function buildRuntimeSnapshotForLiveSync() {
     selectedRoomByBoard: state.selectedRoomByBoard,
     insideFxByBoard: Object.fromEntries(
       BOARDS.map((board) => [board.id, normalizeInsideFxProfile(state.insideFxByBoard[board.id])]),
+    ),
+    roomFxByBoard: Object.fromEntries(
+      BOARDS.map((board) => [board.id, normalizeRoomFxProfile(state.roomFxByBoard?.[board.id])]),
     ),
     outsideFxByBoard: Object.fromEntries(
       BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
@@ -1128,6 +1148,12 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       : runtime?.insideFxByBoard && typeof runtime.insideFxByBoard === "object"
         ? runtime.insideFxByBoard
         : null;
+  const sharedRoomFxByBoard =
+    snapshot?.roomFxByBoard && typeof snapshot.roomFxByBoard === "object"
+      ? snapshot.roomFxByBoard
+      : runtime?.roomFxByBoard && typeof runtime.roomFxByBoard === "object"
+        ? runtime.roomFxByBoard
+        : null;
   const selectedBoard =
     (typeof snapshot?.selectedBoard === "string" && snapshot.selectedBoard) ||
     (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
@@ -1173,6 +1199,17 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
         BOARDS.map((board) => [
           board.id,
           normalizeInsideFxProfile(sharedInsideFxByBoard[board.id] ?? state.insideFxByBoard[board.id]),
+        ]),
+      ),
+    };
+  }
+  if (sharedRoomFxByBoard) {
+    state.roomFxByBoard = {
+      ...state.roomFxByBoard,
+      ...Object.fromEntries(
+        BOARDS.map((board) => [
+          board.id,
+          normalizeRoomFxProfile(sharedRoomFxByBoard[board.id] ?? state.roomFxByBoard?.[board.id]),
         ]),
       ),
     };
@@ -1347,6 +1384,7 @@ let outsideResourceAssets = [];
 const OUTSIDE_CODED_ASSET_KEY_ALIASES = ["outside-space", "space", "coded-space", "coded/space"];
 const outsideEditorDraftByBoard = {};
 const insideEditorDraftByBoard = {};
+const roomEditorDraftByBoard = {};
 
 const {
   createDefaultAnimationSoundMap,
@@ -1980,6 +2018,8 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
       playAreas: mergedPlayAreas,
       selectedPlayAreaId,
       playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? SHIP_POLYGON_DEFAULT),
+      roomFx: normalizeRoomFxProfile(primary.roomFx ?? fallback.roomFx),
+      insideFx: normalizeInsideFxProfile(primary.insideFx ?? fallback.insideFx),
       outsideFx: normalizeOutsideFxProfile(primary.outsideFx ?? fallback.outsideFx),
     };
   }
@@ -2430,6 +2470,116 @@ function createOutsideAnimationDefinition(name, existingDefinitions = []) {
   });
 }
 
+function normalizeRoomAssetType(value) {
+  return OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+}
+
+function normalizeRoomAnimationId(value, fallback = "kaputt") {
+  const trimmed = String(value || "").trim();
+  return trimmed || fallback;
+}
+
+function normalizeRoomAnimationDefinition(definition, fallbackIndex = 0) {
+  const fallbackDefaults = createDefaultRoomAnimationDefinitions()[0] ?? {
+    id: `room-animation-${fallbackIndex + 1}`,
+    name: `Room Animation ${fallbackIndex + 1}`,
+    assetType: "coded",
+    assetRef: "intruder-alert",
+  };
+  const id = normalizeRoomAnimationId(definition?.id, fallbackDefaults.id);
+  const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+  const assetType = normalizeRoomAssetType(definition?.assetType);
+  const rawAssetRef = String(definition?.assetRef || "").trim();
+  const fallbackAssetRef = normalizeRoomAssetRefForType(assetType, fallbackDefaults.assetRef, "");
+  const assetRef = normalizeRoomAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+  return {
+    id,
+    name,
+    assetType,
+    assetRef,
+  };
+}
+
+function normalizeRoomAnimationDefinitions(definitions) {
+  const incoming = Array.isArray(definitions) ? definitions : [];
+  const normalized = incoming
+    .map((entry, index) => normalizeRoomAnimationDefinition(entry, index))
+    .filter((entry) => entry && typeof entry === "object");
+  const uniqueById = [];
+  const seen = new Set();
+  for (const entry of normalized) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+    seen.add(entry.id);
+    uniqueById.push(entry);
+  }
+  if (uniqueById.length > 0) {
+    return uniqueById;
+  }
+  return createDefaultRoomAnimationDefinitions().map((entry, index) => normalizeRoomAnimationDefinition(entry, index));
+}
+
+function normalizeRoomFxProfile(profile) {
+  const legacyProfile = profile && typeof profile === "object" ? profile : {};
+  const animations = normalizeRoomAnimationDefinitions(
+    legacyProfile?.animations ?? legacyProfile?.roomAnimations,
+  );
+  const preferredId = normalizeRoomAnimationId(
+    legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedRoomAnimationId,
+    animations[0]?.id ?? "kaputt",
+  );
+  const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+  return {
+    selectedAnimationId: selectedAnimation.id,
+    animations,
+  };
+}
+
+function createDefaultRoomFxByBoard() {
+  return Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeRoomFxProfile({ animations: createDefaultRoomAnimationDefinitions() })]),
+  );
+}
+
+function getRoomFxProfile(boardId = state.boardId) {
+  return normalizeRoomFxProfile(state.roomFxByBoard?.[boardId]);
+}
+
+function setRoomFxProfile(boardId, profile) {
+  state.roomFxByBoard[boardId] = normalizeRoomFxProfile(profile);
+}
+
+function getSelectedRoomAnimationDefinition(boardId = state.boardId) {
+  const profile = getRoomFxProfile(boardId);
+  const selectedId = normalizeRoomAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+  return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+}
+
+function getRoomAnimationDefinitionById(animationId, boardId = state.boardId) {
+  const profile = getRoomFxProfile(boardId);
+  const normalizedId = normalizeRoomAnimationId(animationId, profile.animations[0]?.id ?? "kaputt");
+  return profile.animations.find((entry) => entry.id === normalizedId) ?? null;
+}
+
+function createRoomAnimationDefinition(name, existingDefinitions = []) {
+  const baseName = String(name || "").trim() || "Room Animation";
+  const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "room-animation";
+  let candidateId = slug;
+  const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+  let suffix = 2;
+  while (existingIds.has(candidateId)) {
+    candidateId = `${slug}-${suffix}`;
+    suffix += 1;
+  }
+  return normalizeRoomAnimationDefinition({
+    id: candidateId,
+    name: baseName,
+    assetType: "coded",
+    assetRef: "intruder-alert",
+  });
+}
+
 function normalizeRoomGeometryMap(roomGeometry, boardId) {
   const defaults = createDefaultRoomGeometryMap(boardId);
   for (const room of getBoard(boardId).rooms) {
@@ -2466,6 +2616,7 @@ function createDefaultBoardProfiles() {
         playAreas: normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT),
         selectedPlayAreaId: "play-area-1",
         playAreaPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
+        roomFx: normalizeRoomFxProfile({ animations: createDefaultRoomAnimationDefinitions() }),
         insideFx: normalizeInsideFxProfile({ animations: createDefaultInsideAnimationDefinitions() }),
         outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
       },
@@ -2492,6 +2643,7 @@ function buildBoardProfilesFromState() {
         })),
         selectedPlayAreaId: getSelectedPlayAreaId(board.id),
         playAreaPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
+        roomFx: normalizeRoomFxProfile(state.roomFxByBoard?.[board.id]),
         insideFx: normalizeInsideFxProfile(state.insideFxByBoard[board.id]),
         outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
       },
@@ -2621,6 +2773,9 @@ function applyBoardProfilesToState(profiles) {
   state.outsideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
   );
+  state.roomFxByBoard = Object.fromEntries(
+    BOARDS.map((board) => [board.id, normalizeRoomFxProfile(profiles?.[board.id]?.roomFx)]),
+  );
   state.insideFxByBoard = Object.fromEntries(
     BOARDS.map((board) => [board.id, normalizeInsideFxProfile(profiles?.[board.id]?.insideFx)]),
   );
@@ -2663,6 +2818,7 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
     createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
+    createDefaultRoomAnimationDefinitions,
     createDefaultInsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
   });
@@ -3587,18 +3743,26 @@ function setRoomStateProfile(boardId, roomId, profile) {
 }
 
 function isGifRoomAnimation(type) {
+  const definition = getRoomAnimationDefinitionById(type, state.boardId);
+  if (definition) {
+    return normalizeRoomAssetType(definition.assetType) === "gif";
+  }
   return Boolean(ROOM_GIF_ANIMATION_ASSETS[type]);
 }
 
 function isRoomAnimationType(type) {
-  return ROOM_ANIMATIONS.some((entry) => entry.id === type);
+  return Boolean(getRoomAnimationDefinitionById(type, state.boardId));
 }
 
 function isRoomGlobalEquivalent(type) {
-  return Boolean(ROOM_GLOBAL_EQUIVALENT_MAP[type]);
+  return Boolean(getRoomEquivalentType(type, state.boardId));
 }
 
-function resolveRoomAnimationEffectType(type) {
+function resolveRoomAnimationEffectType(type, boardId = state.boardId) {
+  const definition = getRoomAnimationDefinitionById(type, boardId);
+  if (definition && normalizeRoomAssetType(definition.assetType) === "coded") {
+    return resolveRoomCodedEffectType(definition.assetRef);
+  }
   if (type === "nest") {
     return "special-nest";
   }
@@ -3608,12 +3772,23 @@ function resolveRoomAnimationEffectType(type) {
   return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
 }
 
-function getRoomEquivalentType(type) {
+function getRoomEquivalentType(type, boardId = state.boardId) {
+  const definition = getRoomAnimationDefinitionById(type, boardId);
+  if (definition && normalizeRoomAssetType(definition.assetType) === "coded") {
+    const resolved = resolveRoomCodedEffectType(definition.assetRef);
+    if (resolved === "intruder-alert" || resolved === "hull-flicker") {
+      return resolved;
+    }
+    return null;
+  }
   return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? null;
 }
 
-function getRoomGifAssetFileName(type) {
-  const path = ROOM_GIF_ANIMATION_ASSETS[type];
+function getRoomGifAssetFileName(type, boardId = state.boardId) {
+  const definition = getRoomAnimationDefinitionById(type, boardId);
+  const path = definition && normalizeRoomAssetType(definition.assetType) === "gif"
+    ? definition.assetRef
+    : ROOM_GIF_ANIMATION_ASSETS[type];
   return path ? path.split("/").pop() ?? path : null;
 }
 
@@ -5505,6 +5680,70 @@ function getInsideCodedAssetKeys() {
   return Array.from(new Set(knownInsideRendererIds));
 }
 
+function getRoomCodedAssetKeys() {
+  const knownDefaultRefs = createDefaultRoomAnimationDefinitions()
+    .filter((entry) => normalizeRoomAssetType(entry?.assetType) === "coded")
+    .map((entry) => String(entry?.assetRef || "").trim().toLowerCase())
+    .filter(Boolean);
+  const knownInsideRendererIds = getInsideCodedAssetKeys();
+  return Array.from(new Set([
+    ...knownInsideRendererIds,
+    ...knownDefaultRefs,
+    "special-nest",
+    "special-slime",
+    "special-decompression",
+  ]));
+}
+
+function normalizeRoomCodedAssetRef(assetRef, fallbackAssetRef = "intruder-alert") {
+  const normalizedRef = String(assetRef || "").trim().toLowerCase();
+  if (getRoomCodedAssetKeys().includes(normalizedRef)) {
+    return normalizedRef;
+  }
+  const normalizedFallback = String(fallbackAssetRef || "").trim().toLowerCase();
+  if (getRoomCodedAssetKeys().includes(normalizedFallback)) {
+    return normalizedFallback;
+  }
+  return getRoomCodedAssetKeys()[0] ?? "intruder-alert";
+}
+
+function getRoomAssetCandidates(assetType) {
+  const normalizedType = normalizeRoomAssetType(assetType);
+  if (normalizedType === "coded") {
+    return getRoomCodedAssetKeys();
+  }
+  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
+}
+
+function normalizeRoomAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
+  const normalizedType = normalizeRoomAssetType(assetType);
+  const rawRef = String(assetRef || "").trim();
+  if (normalizedType === "coded") {
+    return normalizeRoomCodedAssetRef(rawRef, fallbackAssetRef);
+  }
+
+  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
+  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
+  if (isValidResourceRef) {
+    return rawRef;
+  }
+
+  const normalizedFallback = String(fallbackAssetRef || "").trim();
+  const fallbackValid =
+    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
+  if (fallbackValid) {
+    return normalizedFallback;
+  }
+
+  const firstCandidate = getRoomAssetCandidates(normalizedType)[0];
+  return firstCandidate || "";
+}
+
+function resolveRoomCodedEffectType(assetRef) {
+  return normalizeRoomCodedAssetRef(assetRef);
+}
+
 function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "ambient-drift") {
   const normalizedRef = String(assetRef || "").trim().toLowerCase();
   if (getInsideCodedAssetKeys().includes(normalizedRef)) {
@@ -5827,6 +6066,144 @@ function renderInsideGlobalButtons() {
   }
 }
 
+function getRoomAnimationLabelById(animationId, boardId = state.boardId) {
+  const definition = getRoomAnimationDefinitionById(animationId, boardId);
+  if (definition?.name) {
+    return definition.name;
+  }
+  return ROOM_ANIMATIONS.find((item) => item.id === animationId)?.label ?? animationId;
+}
+
+function syncRoomResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
+  if (!roomResourceSelect) {
+    return;
+  }
+  const assetType = normalizeRoomAssetType(assetTypeOverride ?? roomAssetTypeInput?.value);
+  const candidateAssets = getRoomAssetCandidates(assetType);
+  roomResourceSelect.replaceChildren();
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent =
+    candidateAssets.length > 0
+      ? assetType === "coded"
+        ? "Select coded renderer key…"
+        : `Select ${assetType.toUpperCase()} resource asset…`
+      : assetType === "coded"
+        ? "No coded renderer keys available"
+        : `No ${assetType.toUpperCase()} resource assets available`;
+  roomResourceSelect.append(placeholder);
+  for (const assetPath of candidateAssets) {
+    const option = document.createElement("option");
+    option.value = assetPath;
+    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
+    roomResourceSelect.append(option);
+  }
+  roomResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
+}
+
+function getRoomEditorDraft(boardId = state.boardId, selectedDefinition = null) {
+  const definition = selectedDefinition ?? getSelectedRoomAnimationDefinition(boardId);
+  if (!definition) {
+    delete roomEditorDraftByBoard[boardId];
+    return null;
+  }
+  const existing = roomEditorDraftByBoard[boardId];
+  if (existing && existing.animationId === definition.id) {
+    return existing;
+  }
+  const next = {
+    animationId: definition.id,
+    assetType: normalizeRoomAssetType(definition.assetType),
+    assetRef: String(definition.assetRef || "").trim(),
+  };
+  roomEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function setRoomEditorDraft(boardId = state.boardId, partial = {}) {
+  const base = getRoomEditorDraft(boardId);
+  if (!base) {
+    return null;
+  }
+  const next = {
+    ...base,
+    ...partial,
+    assetType: normalizeRoomAssetType(partial?.assetType ?? base.assetType),
+    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
+  };
+  roomEditorDraftByBoard[boardId] = next;
+  return next;
+}
+
+function collectRoomEditorDraftFromInputs(boardId = state.boardId) {
+  const assetType = normalizeRoomAssetType(roomAssetTypeInput?.value);
+  const assetRef = normalizeRoomAssetRefForType(
+    assetType,
+    String(roomAssetRefInput?.value || "").trim(),
+  );
+  return setRoomEditorDraft(boardId, {
+    assetType,
+    assetRef,
+  });
+}
+
+function syncRoomFxPanel() {
+  const roomFx = getRoomFxProfile(state.boardId);
+  const selectedDefinition = getSelectedRoomAnimationDefinition(state.boardId);
+  const draft = getRoomEditorDraft(state.boardId, selectedDefinition);
+
+  if (roomAnimationSettingsSelect) {
+    roomAnimationSettingsSelect.replaceChildren();
+    for (const definition of roomFx.animations) {
+      const option = document.createElement("option");
+      option.value = definition.id;
+      option.textContent = `${definition.name} (${definition.id})`;
+      roomAnimationSettingsSelect.append(option);
+    }
+    roomAnimationSettingsSelect.value = selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "";
+  }
+
+  if (roomAnimationSelect) {
+    roomAnimationSelect.replaceChildren();
+    for (const definition of roomFx.animations) {
+      const option = document.createElement("option");
+      option.value = definition.id;
+      option.textContent = definition.name;
+      roomAnimationSelect.append(option);
+    }
+    const selectedDraftId = normalizeRoomAnimationId(
+      state.roomDraft.animationId,
+      selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "kaputt",
+    );
+    const validSelectedDraftId = roomFx.animations.some((entry) => entry.id === selectedDraftId)
+      ? selectedDraftId
+      : roomFx.animations[0]?.id ?? "kaputt";
+    state.roomDraft.animationId = validSelectedDraftId;
+    roomAnimationSelect.value = validSelectedDraftId;
+  }
+
+  const assetType = normalizeRoomAssetType(draft?.assetType ?? selectedDefinition?.assetType);
+  const assetRef = normalizeRoomAssetRefForType(
+    assetType,
+    draft?.assetRef ?? selectedDefinition?.assetRef ?? "",
+    selectedDefinition?.assetRef ?? "",
+  );
+  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
+    setRoomEditorDraft(state.boardId, { assetType, assetRef });
+  }
+  if (roomAssetTypeInput) {
+    roomAssetTypeInput.value = assetType;
+  }
+  if (roomAssetRefInput) {
+    roomAssetRefInput.value = assetRef;
+  }
+  if (roomAnimationSettingsDeleteButton) {
+    roomAnimationSettingsDeleteButton.disabled = roomFx.animations.length <= 1;
+  }
+  syncRoomResourcePicker(assetType, assetRef);
+  syncGifRoomControls();
+}
+
 function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
   const baseProfile = normalizeOutsideFxProfile(profileOverride ?? getOutsideFxProfile(boardId));
   const selectedDefinition =
@@ -5894,6 +6271,7 @@ async function loadOutsideResourceAssets() {
   }
   syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
   syncInsideResourcePicker(insideAssetTypeInput?.value, String(insideAssetRefInput?.value || "").trim());
+  syncRoomResourcePicker(roomAssetTypeInput?.value, String(roomAssetRefInput?.value || "").trim());
 }
 
 function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
@@ -7141,6 +7519,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
+  syncRoomFxPanel();
   syncInsideFxPanel();
   syncOutsideFxPanel();
   syncOutsideRuntimeMirror(board.id);
@@ -7993,9 +8372,10 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
     roomStaggerStartInput.disabled = false;
   }
   if (!preserveDraftState) {
-    state.roomDraft.animationId = ROOM_ANIMATIONS.some((entry) => entry.id === state.roomDraft.animationId)
+    const roomFx = getRoomFxProfile(state.boardId);
+    state.roomDraft.animationId = roomFx.animations.some((entry) => entry.id === state.roomDraft.animationId)
       ? state.roomDraft.animationId
-      : ROOM_ANIMATIONS[0].id;
+      : roomFx.animations[0]?.id ?? "kaputt";
   }
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
@@ -8132,6 +8512,9 @@ function restoreRoomDraftUiSnapshot(snapshot, reason = "room-start") {
 
 function createAnimation({
   type,
+  animationName = "",
+  roomAssetType = "",
+  roomAssetRef = "",
   scope,
   boardId = state.boardId,
   roomId = null,
@@ -8152,6 +8535,9 @@ function createAnimation({
     id: `anim-${animationIdCounter++}`,
     boardId,
     type,
+    animationName: String(animationName || "").trim() || undefined,
+    roomAssetType: String(roomAssetType || "").trim() || undefined,
+    roomAssetRef: String(roomAssetRef || "").trim() || undefined,
     scope,
     roomId,
     intensity,
@@ -8168,11 +8554,50 @@ function createAnimation({
 
 function drawRoomComposition(animation, age, room, roomMetrics) {
   const qualityScale = getRuntimeQualityScale();
-  const effectType = resolveRoomAnimationEffectType(animation.type);
+  const assetType = normalizeRoomAssetType(animation.roomAssetType);
+  const assetRef = normalizeRoomAssetRefForType(assetType, animation.roomAssetRef, "");
+  if (assetType === "gif") {
+    const gifRenderConfig = resolveRoomGifRenderConfig(animation.type, age, animation.intensity, {
+      gifAssetPath: assetRef,
+      gifTimelineAgeSec: age,
+      gifPlaybackSpeed: clampGifPlaybackSpeed(animation.playbackSpeed ?? 1),
+      opacity: clampRoomOpacity(animation.opacity),
+    });
+    if (gifRenderConfig.frame) {
+      ctx.save();
+      ctx.globalAlpha = gifRenderConfig.opacity;
+      ctx.drawImage(gifRenderConfig.frame, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+      ctx.restore();
+    }
+    return;
+  }
+  if (assetType === "mp4") {
+    const videoEntry = getOutsideVideoElement(assetRef);
+    const video = videoEntry?.video;
+    if (video) {
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
+      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
+        video.playbackRate = playbackRate;
+      }
+      if (video.paused) {
+        void video.play().catch(() => undefined);
+      }
+      if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+        ctx.save();
+        ctx.globalAlpha = clampRoomOpacity(animation.opacity);
+        ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+        ctx.restore();
+      }
+    }
+    return;
+  }
+
+  const effectType = resolveRoomCodedEffectType(assetRef || animation.type);
   const playbackSpeed = clampGifPlaybackSpeed(animation.playbackSpeed ?? 1);
-  const playbackAge = isGifRoomAnimation(animation.type)
-    ? age
-    : age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
+  const playbackAge = age * clampGifPlaybackSpeed(animation.playbackSpeed ?? animation.speed ?? 1);
   drawEffectVisual(
     effectType,
     playbackAge,
@@ -8182,7 +8607,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     {
       densityFactor: qualityScale,
       opacity: clampRoomOpacity(animation.opacity),
-      gifAssetPath: ROOM_GIF_ANIMATION_ASSETS[animation.type],
+      gifAssetPath: assetRef || ROOM_GIF_ANIMATION_ASSETS[animation.type],
       gifTimelineAgeSec: age,
       gifPlaybackSpeed: playbackSpeed,
       roomAnimationType: animation.type,
@@ -8263,13 +8688,20 @@ function startRoomAnimationFromDraft() {
   const draftSnapshot = captureRoomDraftUiSnapshot();
   const board = getBoard();
   try {
-    if (!isRoomAnimationType(state.roomDraft.animationId)) {
+    const selectedDefinition = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
+    if (!selectedDefinition) {
       triggerFeedback.textContent = "Status: select a valid room animation first";
       return;
     }
 
+    const selectedAssetType = normalizeRoomAssetType(selectedDefinition.assetType);
+    const selectedAssetRef = normalizeRoomAssetRefForType(selectedAssetType, selectedDefinition.assetRef);
+
     const draftPayload = {
       type: state.roomDraft.animationId,
+      animationName: selectedDefinition.name,
+      roomAssetType: selectedAssetType,
+      roomAssetRef: selectedAssetRef,
       intensity: clampRoomIntensity(state.roomDraft.intensity),
       speed: clampRoomSpeed(state.roomDraft.speed),
       opacity: clampRoomOpacity(state.roomDraft.opacity),
@@ -8279,8 +8711,8 @@ function startRoomAnimationFromDraft() {
       durationMs: null,
     };
 
-    if (isGifRoomAnimation(draftPayload.type)) {
-      warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[draftPayload.type], { reason: "trigger" });
+    if (selectedAssetType === "gif") {
+      warmGifAssetPath(selectedAssetRef, { reason: "trigger" });
     }
 
     const targetRoomIds = resolveRoomDraftTargets();
@@ -8353,6 +8785,9 @@ function startRoomAnimationFromDraft() {
               } else {
                 const createdMember = createAnimation({
                   type: draftPayload.type,
+                  animationName: draftPayload.animationName,
+                  roomAssetType: draftPayload.roomAssetType,
+                  roomAssetRef: draftPayload.roomAssetRef,
                   scope: "room",
                   roomId,
                   boardId: state.boardId,
@@ -8455,6 +8890,9 @@ function startRoomAnimationFromDraft() {
         : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
       const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
         type: draftPayload.type,
+        animationName: draftPayload.animationName,
+        roomAssetType: draftPayload.roomAssetType,
+        roomAssetRef: draftPayload.roomAssetRef,
         scope: "room",
         roomId,
         boardId: state.boardId,
@@ -8472,6 +8910,9 @@ function startRoomAnimationFromDraft() {
         const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
         clusterRunAnimation = createAnimation({
           type: draftPayload.type,
+          animationName: draftPayload.animationName,
+          roomAssetType: draftPayload.roomAssetType,
+          roomAssetRef: draftPayload.roomAssetRef,
           scope: "cluster",
           roomId: null,
           boardId: state.boardId,
@@ -8513,8 +8954,8 @@ function startRoomAnimationFromDraft() {
         : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
       void Promise.allSettled(pendingCommands).then(() => {
         triggerFeedback.textContent = isClusterTarget
-          ? `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for cluster ${targetLabel} accepted (waiting for snapshot)`
-          : `Pending: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} for ${targetLabel} accepted (waiting for snapshot)`;
+          ? `Pending: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} for cluster ${targetLabel} accepted (waiting for snapshot)`
+          : `Pending: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} for ${targetLabel} accepted (waiting for snapshot)`;
       });
       return;
     }
@@ -8580,6 +9021,9 @@ function startRoomAnimationFromDraft() {
             } else {
               const createdMember = createAnimation({
                 type: draftPayload.type,
+                animationName: draftPayload.animationName,
+                roomAssetType: draftPayload.roomAssetType,
+                roomAssetRef: draftPayload.roomAssetRef,
                 scope: "room",
                 roomId,
                 boardId: state.boardId,
@@ -8692,6 +9136,9 @@ function startRoomAnimationFromDraft() {
       : targetRoomIds.map((roomId) => ({ roomId, startDelayMs: 0 }));
     const createdAnimations = dispatchPlan.map(({ roomId, startDelayMs }) => createAnimation({
       type: draftPayload.type,
+      animationName: draftPayload.animationName,
+      roomAssetType: draftPayload.roomAssetType,
+      roomAssetRef: draftPayload.roomAssetRef,
       scope: "room",
       roomId,
       intensity: draftPayload.intensity,
@@ -8709,6 +9156,9 @@ function startRoomAnimationFromDraft() {
       const cluster = getClusterTargetById(state.roomDraft.targetId, state.boardId);
       clusterRunAnimation = createAnimation({
         type: draftPayload.type,
+        animationName: draftPayload.animationName,
+        roomAssetType: draftPayload.roomAssetType,
+        roomAssetRef: draftPayload.roomAssetRef,
         scope: "cluster",
         roomId: null,
         boardId: state.boardId,
@@ -8759,8 +9209,8 @@ function startRoomAnimationFromDraft() {
       : targetRoom?.name ?? targetRoom?.label ?? targetRoomIds[0];
     const clusterStartModeLabel = shouldStaggerClusterStart ? "staggered start" : "synchronous start";
     triggerFeedback.textContent = isClusterTarget
-      ? `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
-      : `Status: ${ROOM_ANIMATIONS.find((item) => item.id === draftPayload.type)?.label ?? draftPayload.type} started for ${targetLabel}`;
+      ? `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
+      : `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for ${targetLabel}`;
     renderRunningAnimationsList();
   } finally {
     restoreRoomDraftUiSnapshot(draftSnapshot, "room-start");
@@ -8947,6 +9397,15 @@ function editAnimation(animationId) {
   state.roomDraft.targetId = isClusterScope
     ? (clusterTarget?.clusterId ?? animation.clusterId ?? null)
     : animation.roomId;
+  const roomDefinition = getRoomAnimationDefinitionById(animation.type, animation.boardId);
+  const definitionAssetType = normalizeRoomAssetType(
+    animation.roomAssetType ?? roomDefinition?.assetType,
+  );
+  const definitionAssetRef = normalizeRoomAssetRefForType(
+    definitionAssetType,
+    animation.roomAssetRef ?? roomDefinition?.assetRef,
+    roomDefinition?.assetRef,
+  );
   state.roomDraft.editTargetId = animation.id;
   state.roomDraft.animationId = animation.type;
   state.roomDraft.opacity = clampRoomOpacity(animation.opacity ?? 0.9);
@@ -8964,6 +9423,11 @@ function editAnimation(animationId) {
     ? clampClusterStaggerOffsetMs(animation.clusterStartOffsetMs)
     : clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
   state.roomDraft.hold = true;
+
+  if (!animation.roomAssetType || !animation.roomAssetRef) {
+    animation.roomAssetType = definitionAssetType;
+    animation.roomAssetRef = definitionAssetRef;
+  }
 
   roomAnimationSelect.value = state.roomDraft.animationId;
   roomOpacityInput.value = String(state.roomDraft.opacity);
@@ -9013,7 +9477,11 @@ function renderRunningAnimationsList() {
     li.className = "running-item";
     const title = document.createElement("div");
     title.className = "running-title";
-    const effectLabel = ROOM_ANIMATIONS.find((item) => item.id === anim.type)?.label ?? anim.type;
+    const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
+      ? anim.animationName
+      : anim.scope === "room" || anim.scope === "cluster"
+      ? getRoomAnimationLabelById(anim.type, anim.boardId)
+      : getAnimationLabel(anim.type);
     const animationBoard = getBoard(anim.boardId);
     const roomLabel = anim.scope === "room"
       ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
@@ -9036,7 +9504,7 @@ function renderRunningAnimationsList() {
       ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
       : "hold";
     const roomMeta = anim.scope === "room"
-      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type) ? ` | GIF: ${getRoomGifAssetFileName(anim.type)}` : ""}${getRoomEquivalentType(anim.type) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type)}` : ""} | Sound: ${Math.round(
+      ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Playback: ${clampGifPlaybackSpeed(anim.playbackSpeed ?? 1).toFixed(2)}x | Speed: ${clampRoomSpeed(anim.speed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.boardId) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.boardId)}` : ""}${getRoomEquivalentType(anim.type, anim.boardId) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, anim.boardId)}` : ""} | Sound: ${Math.round(
         clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
       )}%`
       : anim.scope === "cluster"
@@ -10556,6 +11024,136 @@ shipPolygonResetButton.addEventListener("click", () => {
     : "Status: Play Area polygon reset to default (persistence failed)";
 });
 
+roomAnimationSettingsCreateButton?.addEventListener("click", () => {
+  const profile = getRoomFxProfile(state.boardId);
+  const definition = createRoomAnimationDefinition(roomAnimationSettingsNameInput?.value, profile.animations);
+  const nextProfile = {
+    ...profile,
+    animations: [...profile.animations, definition],
+    selectedAnimationId: definition.id,
+  };
+  setRoomFxProfile(state.boardId, nextProfile);
+  const persisted = persistBoardProfiles();
+  delete roomEditorDraftByBoard[state.boardId];
+  if (roomAnimationSettingsNameInput) {
+    roomAnimationSettingsNameInput.value = "";
+  }
+  syncRoomFxPanel();
+  triggerFeedback.textContent = persisted
+    ? `Status: Room animation ${definition.name} created`
+    : `Status: Room animation ${definition.name} created (persistence failed)`;
+});
+
+roomAnimationSettingsSelect?.addEventListener("change", () => {
+  const selectedAnimationId = normalizeRoomAnimationId(roomAnimationSettingsSelect.value);
+  const profile = getRoomFxProfile(state.boardId);
+  setRoomFxProfile(state.boardId, {
+    ...profile,
+    selectedAnimationId,
+  });
+  const persisted = persistBoardProfiles();
+  delete roomEditorDraftByBoard[state.boardId];
+  syncRoomFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Room animation selection updated"
+    : "Status: Room animation selection updated (persistence failed)";
+});
+
+roomAnimationSettingsDeleteButton?.addEventListener("click", () => {
+  const profile = getRoomFxProfile(state.boardId);
+  if (profile.animations.length <= 1) {
+    triggerFeedback.textContent = "Status: Keep at least one room animation definition";
+    return;
+  }
+  const selectedId = normalizeRoomAnimationId(profile.selectedAnimationId, profile.animations[0]?.id ?? "kaputt");
+  const selectedDefinition = profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0];
+  const nextAnimations = profile.animations.filter((entry) => entry.id !== selectedDefinition.id);
+  const nextSelected = nextAnimations[0]?.id ?? "kaputt";
+  setRoomFxProfile(state.boardId, {
+    ...profile,
+    animations: nextAnimations,
+    selectedAnimationId: nextSelected,
+  });
+  if (state.roomDraft.animationId === selectedDefinition.id) {
+    state.roomDraft.animationId = nextSelected;
+  }
+  delete roomEditorDraftByBoard[state.boardId];
+  const persisted = persistBoardProfiles();
+  syncRoomFxPanel();
+  triggerFeedback.textContent = persisted
+    ? `Status: Room animation ${selectedDefinition.name} deleted`
+    : `Status: Room animation ${selectedDefinition.name} deleted (persistence failed)`;
+});
+
+roomAssetTypeInput?.addEventListener("change", () => {
+  const assetType = normalizeRoomAssetType(roomAssetTypeInput.value);
+  const currentAssetRef = String(roomAssetRefInput?.value || "").trim();
+  const normalizedAssetRef = normalizeRoomAssetRefForType(assetType, currentAssetRef);
+  setRoomEditorDraft(state.boardId, {
+    assetType,
+    assetRef: normalizedAssetRef,
+  });
+  if (roomAssetRefInput) {
+    roomAssetRefInput.value = normalizedAssetRef;
+  }
+  syncRoomResourcePicker(assetType, normalizedAssetRef);
+  triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+});
+
+roomAssetRefInput?.addEventListener("change", () => {
+  const assetType = normalizeRoomAssetType(roomAssetTypeInput?.value);
+  const assetRef = normalizeRoomAssetRefForType(assetType, String(roomAssetRefInput.value || "").trim());
+  roomAssetRefInput.value = assetRef;
+  setRoomEditorDraft(state.boardId, { assetRef });
+  syncRoomResourcePicker(assetType, assetRef);
+  triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+});
+
+roomAssetRefInput?.addEventListener("input", () => {
+  const assetType = normalizeRoomAssetType(roomAssetTypeInput?.value);
+  const assetRef = normalizeRoomAssetRefForType(assetType, String(roomAssetRefInput.value || "").trim());
+  setRoomEditorDraft(state.boardId, { assetRef });
+  syncRoomResourcePicker(assetType, assetRef);
+});
+
+roomResourceSelect?.addEventListener("change", () => {
+  const selectedAsset = String(roomResourceSelect.value || "").trim();
+  if (!selectedAsset) {
+    return;
+  }
+  if (roomAssetRefInput) {
+    roomAssetRefInput.value = selectedAsset;
+  }
+  setRoomEditorDraft(state.boardId, { assetRef: selectedAsset });
+  triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+});
+
+roomApplyChangesButton?.addEventListener("click", () => {
+  const draft = collectRoomEditorDraftFromInputs(state.boardId);
+  if (!draft) {
+    triggerFeedback.textContent = "Status: Room apply failed - no animation selected";
+    return;
+  }
+  const profile = getRoomFxProfile(state.boardId);
+  const selectedDefinition = profile.animations.find((entry) => entry.id === profile.selectedAnimationId) ?? profile.animations[0];
+  const nextProfile = normalizeRoomFxProfile({
+    ...profile,
+    animations: profile.animations.map((entry) => (entry.id === selectedDefinition.id
+      ? {
+        ...entry,
+        assetType: draft.assetType,
+        assetRef: draft.assetRef,
+      }
+      : entry)),
+  });
+  setRoomFxProfile(state.boardId, nextProfile);
+  const persisted = persistBoardProfiles();
+  syncRoomFxPanel();
+  triggerFeedback.textContent = persisted
+    ? "Status: Room changes applied"
+    : "Status: Room changes applied (persistence failed)";
+});
+
 insideAnimationCreateButton?.addEventListener("click", () => {
   const profile = getInsideFxProfile(state.boardId);
   const definition = createInsideAnimationDefinition(insideAnimationNameInput?.value, profile.animations);
@@ -11226,10 +11824,14 @@ roomRenameInput?.addEventListener("input", () => {
 
 roomAnimationSelect.addEventListener("change", () => {
   const selected = roomAnimationSelect.value;
-  state.roomDraft.animationId = isRoomAnimationType(selected) ? selected : ROOM_ANIMATIONS[0]?.id ?? "kaputt";
+  const roomFx = getRoomFxProfile(state.boardId);
+  state.roomDraft.animationId = roomFx.animations.some((entry) => entry.id === selected)
+    ? selected
+    : roomFx.animations[0]?.id ?? "kaputt";
   roomAnimationSelect.value = state.roomDraft.animationId;
-  if (isGifRoomAnimation(state.roomDraft.animationId)) {
-    warmGifAssetPath(ROOM_GIF_ANIMATION_ASSETS[state.roomDraft.animationId], { reason: "trigger" });
+  const selectedDefinition = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
+  if (normalizeRoomAssetType(selectedDefinition?.assetType) === "gif") {
+    warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });
   }
   syncGifRoomControls();
 });
@@ -11499,6 +12101,7 @@ function syncRuntimePanelsFromState() {
   syncRoomGeometryPanel();
   syncPolygonEditorPanel();
   syncShipPolygonEditorPanel();
+  syncRoomFxPanel();
   syncOutsideFxPanel();
   syncAlignModePanel();
   syncBoardZoomPanel();
@@ -11531,6 +12134,7 @@ async function initializeApplication() {
     BOARDS.map((board) => [board.id, getShipPolygonPoints(board.id)]),
   );
   state.insideFxByBoard = createDefaultInsideFxByBoard();
+  state.roomFxByBoard = createDefaultRoomFxByBoard();
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());

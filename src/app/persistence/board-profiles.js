@@ -110,6 +110,7 @@
     createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
+    createDefaultRoomAnimationDefinitions,
     createDefaultInsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
   }) {
@@ -152,6 +153,19 @@
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         playAreaPolygon: legacyPolygon,
+        roomFx: {
+          animations:
+            profile.roomFx?.animations
+            ?? profile.room?.animations
+            ?? profile.roomAnimations
+            ?? createDefaultRoomAnimationDefinitions(),
+          selectedAnimationId:
+            profile.roomFx?.selectedAnimationId
+            ?? profile.room?.selectedAnimationId
+            ?? profile.selectedRoomAnimationId
+            ?? createDefaultRoomAnimationDefinitions()[0]?.id
+            ?? "kaputt",
+        },
         insideFx: {
           animations:
             profile.insideFx?.animations ??

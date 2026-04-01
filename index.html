@@ -416,6 +416,47 @@
         <button id="outside-apply-changes" type="button">Apply changes</button>
       </section>
 
+      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+        <h2>Room Animations</h2>
+        <p class="status-line">Configure room-scope definitions with create/edit/delete and typed assets.</p>
+        <label>
+          Animation
+          <select id="room-animation-settings-select"></select>
+        </label>
+        <div class="button-grid button-grid-2">
+          <input
+            id="room-animation-settings-name"
+            type="text"
+            maxlength="64"
+            placeholder="New room animation name"
+          />
+          <button id="room-animation-settings-create" type="button">Create Room Animation</button>
+        </div>
+        <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
+        <label>
+          Asset type
+          <select id="room-asset-type">
+            <option value="coded">Coded</option>
+            <option value="gif">GIF</option>
+            <option value="mp4">MP4</option>
+          </select>
+        </label>
+        <label>
+          Asset reference
+          <input
+            id="room-asset-ref"
+            type="text"
+            maxlength="256"
+            placeholder="intruder-alert or /resources/..."
+          />
+        </label>
+        <label>
+          Resource asset picker
+          <select id="room-resource-select"></select>
+        </label>
+        <button id="room-apply-changes" type="button">Apply changes</button>
+      </section>
+
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Global animations - inside Play Area</h2>
         <div id="inside-global-buttons" class="button-grid button-grid-3"></div>
@@ -473,15 +514,7 @@
         </label>
         <label>
           Animation
-          <select id="room-animation-select">
-            <option value="kaputt">Malfunction</option>
-            <option value="feuer">Fire</option>
-            <option value="schleim">Slime</option>
-            <option value="nest">Nest</option>
-            <option value="dekompression">Decompression</option>
-            <option value="lichtflackern">Light Flicker</option>
-            <option value="alarm">Alarm</option>
-          </select>
+          <select id="room-animation-select"></select>
         </label>
          <p class="status-line">Room animations run in hold mode by default until stopped.</p>
         <label>
