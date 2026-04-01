@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap) und HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow).
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4).
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -354,7 +354,7 @@ Gate Closure (7-HF10):
 ## Phase 8 - Multi-Play-Area + Board Image Import + Mars Outside Animations (In Progress)
 Ziel: Mehrere getrennte Play-Areas pro Board produktiv nutzbar machen und inside/outside strikt auf die Vereinigungsflaeche aller Play-Areas umstellen; zusaetzlich Board-Import um einfachen Bildupload erweitern, damit neue Boards ohne JSON-Authoring erstellt und danach manuell polygonisiert werden koennen, sowie ein verpflichtendes Outside-Animationspaket fuer Mars mit Sandstorm-Video, Boomerang-Option, UI-Asset-Mapping und persistenter Definitionsverwaltung liefern.
 
-Status: 88/88 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46), Plan 8-HF5 (P8-T47..P8-T52), Plan 8-HF6 (P8-T53..P8-T58), Plan 8-HF7 (P8-T59..P8-T64), Plan 8-HF8 (P8-T65..P8-T70), Plan 8-HF9 (P8-T71..P8-T76), Plan 8-HF10 (P8-T77..P8-T82) und Plan 8-HF11 (P8-T83..P8-T88) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/8-HF7-VERIFICATION.md`, `.planning/phases/phase-08/8-HF8-VERIFICATION.md`, `.planning/phases/phase-08/8-HF9-VERIFICATION.md`, `.planning/phases/phase-08/8-HF10-VERIFICATION.md`, `.planning/phases/phase-08/8-HF11-VERIFICATION.md`). Plan 8-2 Hardening ist damit entsperrt.
+Status: 94/94 Tasks abgeschlossen; Plan 8-1 (P8-T1..P8-T12), Plan 8-HF1 (P8-T18..P8-T24), Plan 8-HF2 (P8-T25..P8-T34), Plan 8-HF3 (P8-T35..P8-T40), Plan 8-HF4 (P8-T41..P8-T46), Plan 8-HF5 (P8-T47..P8-T52), Plan 8-HF6 (P8-T53..P8-T58), Plan 8-HF7 (P8-T59..P8-T64), Plan 8-HF8 (P8-T65..P8-T70), Plan 8-HF9 (P8-T71..P8-T76), Plan 8-HF10 (P8-T77..P8-T82), Plan 8-HF11 (P8-T83..P8-T88) und Plan 8-HF12 (P8-T89..P8-T94) sind umgesetzt und verifiziert (`.planning/phases/phase-08/8-1-SUMMARY.md`, `.planning/phases/phase-08/8-1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF1-SUMMARY.md`, `.planning/phases/phase-08/8-HF1-VERIFICATION.md`, `.planning/phases/phase-08/8-HF2-SUMMARY.md`, `.planning/phases/phase-08/8-HF2-VERIFICATION.md`, `.planning/phases/phase-08/8-HF3-SUMMARY.md`, `.planning/phases/phase-08/8-HF3-VERIFICATION.md`, `.planning/phases/phase-08/8-HF4-VERIFICATION.md`, `.planning/phases/phase-08/8-HF5-VERIFICATION.md`, `.planning/phases/phase-08/8-HF6-VERIFICATION.md`, `.planning/phases/phase-08/8-HF7-VERIFICATION.md`, `.planning/phases/phase-08/8-HF8-VERIFICATION.md`, `.planning/phases/phase-08/8-HF9-VERIFICATION.md`, `.planning/phases/phase-08/8-HF10-VERIFICATION.md`, `.planning/phases/phase-08/8-HF11-VERIFICATION.md`, `.planning/phases/phase-08/8-HF12-VERIFICATION.md`). Plan 8-2 ist als naechste Hardening-Welle freigegeben.
 
 Milestones:
 1. M1 Multi-Play-Area Model: kanonisches `playAreas[]` mit Legacy-Ladealias fuer Single-Area-Daten.
@@ -375,6 +375,7 @@ Milestones:
 16. M16 HF9 Outside MP4 Lifecycle + Strict Conditional Unmounting Closure: Outside-mp4 bleibt ueber Start/Stop/Re-Start reloadstabil und nicht-applicable Controls sind strikt unmounted statt disabled.
 17. M17 HF10 Outside MP4 Deterministic Visibility + Seamless Loop Closure: Outside-mp4 bleibt sichtbar deterministisch und looped ohne replay break/black frame/restart gap bei stabilen Apply-/Persistenzpfaden.
 18. M18 HF11 All-Type Editable Animation Parity + First-Start Defaults Autoload Closure: Room-Animationen sind definitionsgetrieben wie outside/effects per CRUD + typed assets (`coded`/`mp4`/`gif`) editierbar, und first-start ohne lokale Daten laedt/anwendet serverseitige Defaults automatisch bei weiterhin explizitem Reset-Button `Load and apply defaults`.
+19. M19 HF12 Room Unified Speed + Opacity Parity Closure: Room-Editor fuehrt einen einzigen `Speed`-Control fuer `coded`/`gif`/`mp4`, dedizierte GIF-Speed-UI ist entfernt und `Opacity` bleibt inklusive `mp4` editierbar mit stabiler Apply-/Persistenzparitaet.
 
 Exit Criteria:
 - UI erlaubt mehrere getrennte Play-Areas pro Board inkl. persistenter CRUD-Bedienung.
@@ -413,6 +414,9 @@ Exit Criteria:
 - Runtime-fokussierte Evidenz belegt Visibility- und Loop-Kontinuitaet ueber Mehrzykluslauf reproduzierbar.
 - Room-Animationen sind definitionsgetrieben wie outside/effects per create/edit/delete im UI verwaltbar; neue Room-Animationen koennen ohne Codeaenderung hinzugefuegt werden.
 - Room-Animation-Asset-Typen unterstuetzen `coded`, `mp4` und `gif` mit typspezifischem Mapping/Persistenzpfad.
+- Room-Editor verwendet einen einheitlichen `Speed`-Slider fuer `coded`/`gif`/`mp4`; ein dedizierter `GIF Playback speed`-Slider ist entfernt.
+- `Opacity` bleibt fuer alle Room-Assettypen inklusive `mp4` editierbar (kein disable/hide fuer mp4).
+- `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch persistenzstabil.
 - Bei first-start ohne lokale Browserdaten werden serverseitige Defaults automatisch geladen und angewendet (kein manueller Initial-Button-Zwang).
 - `Load and apply defaults` bleibt als expliziter Reset-/Wiederherstellen-Flow fuer spaetere Session-Aenderungen erhalten.
 - Phase-8-Artefakte sowie `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md` sind konsistent synchronisiert.
@@ -545,6 +549,20 @@ New Blocking Wave (Phase 8 room-animation parity + default-autoload follow-up):
 - Blocker D: Button `Load and apply defaults` bleibt fuer spaetere Session-Aenderungen als expliziter Reset-/Wiederherstellen-Flow bestehen.
 - Plan 8-2 bleibt bis 8-HF11-PASS blockiert.
 - 2026-04-01: Plan 8-HF11 ist PASS abgeschlossen (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`); Blocker fuer Plan 8-2 ist aufgehoben.
+
+New Blocking Wave (Phase 8 room speed/opacity refinement follow-up):
+- Neues verpflichtendes P0-Refinement priorisiert Plan 8-HF12 als unmittelbare execute-ready Hotfix-Welle vor Plan 8-2.
+- Blocker A: dedizierter `GIF Playback speed`-Slider muss entfernt werden; Room-Editor darf nur einen einheitlichen `Speed`-Control haben.
+- Blocker B: `Speed` muss fuer alle Room-Assettypen (`coded`/`gif`/`mp4`) ueber denselben Control steuerbar sein.
+- Blocker C: `Opacity` muss fuer alle Room-Assettypen editierbar bleiben, inklusive `mp4` (kein disable/hide).
+- Blocker D: `Apply changes`-/Persistenzparitaet fuer `Speed` + `Opacity` muss ueber Save/Reload/Restart/Defaults erhalten bleiben.
+- Plan 8-2 bleibt bis 8-HF12-PASS blockiert.
+
+Gate Closure (8-HF12):
+- Room-Editor ist auf einen einheitlichen `Speed`-Control ohne dedizierte GIF-Speed-UI geschlossen.
+- `Opacity` bleibt fuer alle Room-Assettypen inklusive `mp4` aktiv editierbar.
+- Persistenz-/Non-Regression-Evidenz ist PASS (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).
+- Plan 8-2 ist wieder freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

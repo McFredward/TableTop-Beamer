@@ -11,9 +11,9 @@
 - Current Phase Key: phase-08
 - Last Prepared: 2026-04-01
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF11
+- Last Executed Plan: 8-HF12
 - Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF11-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-08/8-HF12-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -117,7 +117,15 @@
 - Plan-8-HF11 Umsetzung: Room-Animationen laufen jetzt als per-board `roomFx`-Definitionen (`selectedAnimationId` + `animations[]`) mit Settings-CRUD und typed asset mapping (`coded`/`gif`/`mp4`) inkl. typspezifischem Picker.
 - Plan-8-HF11 Umsetzung: Room runtime/render/start/edit/stop ist definitionsgetrieben (inkl. GIF/MP4/coded assets) und nicht mehr auf starre statische Room-Animationstabellen beschraenkt.
 - Plan-8-HF11 Umsetzung: Startup-Guard erzwingt first-start Defaults-Autoload bei leerem Local-Storage deterministisch; manueller Button `Load and apply defaults` bleibt unveraendert als spaeterer Reset-Flow erhalten.
-- Plan-8-HF11 Umsetzung: HF11 Regression/Evidence ist PASS dokumentiert (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`); Plan 8-2 ist entsperrt.
+- Plan-8-HF11 Umsetzung: HF11 Regression/Evidence ist PASS dokumentiert (`8-HF11-VERIFICATION.md`, `P8-T88-HF11-REGRESSION.md`).
+- Neues verpflichtendes P0-Refinement fuer Phase 8 ist gesetzt: dedizierter `GIF Playback speed`-Slider im Room-Editor wird entfernt zugunsten eines einheitlichen `Speed`-Sliders fuer alle Room-Assettypen (`coded`/`gif`/`mp4`).
+- Opacity-Regel Plan 8-HF12: `Opacity` muss fuer alle Room-Animationstypen editierbar bleiben, inklusive `mp4` (kein disable/hide fuer mp4).
+- Persistenz-Regel Plan 8-HF12: `Speed` + `Opacity` bleiben ueber `Apply changes`, Save/Reload/Restart und Defaults-Load deterministisch stabil.
+- Gate-Regel Plan 8-HF12: Plan 8-2 bleibt blockiert bis HF12 PASS inklusive konsistentem Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+- Plan-8-HF12 Umsetzung: Room-Editor fuehrt nur noch einen einheitlichen `Speed`-Control; dedizierter GIF-Speed-Slider ist vollstaendig entfernt.
+- Plan-8-HF12 Umsetzung: Room-Speed ist typparitaetisch kanonisiert (`coded`/`gif`/`mp4` ueber `speed`), Legacy-`playbackSpeed` bleibt als kompatibler Mirror erhalten.
+- Plan-8-HF12 Umsetzung: `Opacity` bleibt fuer alle Room-Assettypen aktiv editierbar, inklusive `mp4` (kein type-specific disable/hide Pfad).
+- Plan-8-HF12 Umsetzung: HF12 Regression/Evidence ist PASS dokumentiert (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).
 - Preview-vs-Live bleibt fuer Phase 1 out of scope (laut Plan), wird in Phase 2 vorbereitet.
 - Dashboard bleibt manuell mit Triggern, Preview erst ab Phase 2.
 - Safety-Pfad (`Clear All`) hat prioritaere Umsetzung in Phase 1.
