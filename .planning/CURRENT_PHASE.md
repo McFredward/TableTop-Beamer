@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 9 (`phase-09`)
-- Status: in-progress (Plan 9-1 executed; summary + global state sync finalized)
-- Next Plan: 9-2 (adapter cleanup + dependency graph hardening)
+- Status: in-progress (Plan 9-HF1 completed and accepted for phase progression)
+- Next Plan: 9-2 (adapter cleanup + dependency hardening)
 - Command Target: `/gsd:execute-phase 9`
 
 Execution inputs:

@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
 - Execution Readiness: READY
-- Last Executed Plan: 9-1
+- Last Executed Plan: 9-HF1 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,13 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Acceptance correction is binding: Plan 9-1 is not accepted and cannot be used as closure baseline.
+- Plan-9-HF1 Umsetzung: hard gate is PASS with `src/app.js` reduced from 12163 to 28 lines and runtime moved to `src/app/runtime/runtime-orchestration.js`.
+- Plan-9-HF1 Umsetzung: mandatory domain seams are present for editor/sync/settings/media with thin bootstrap ownership in `src/app.js`.
+- New mandatory wave is Plan 9-HF1 with hard gates focused on significant `src/app.js` shrink and domain extraction completeness.
+- Hard objective for 9-HF1: reduce `src/app.js` from 12163 lines to <= 4200 lines (>= 65% reduction) while preserving behavior.
+- Extraction completeness gate for 9-HF1 is explicit: editor flows, animation runtime orchestration, sync command handlers, settings controllers, and media handlers must leave `src/app.js`.
+- Regression policy for 9-HF1 is strict: targeted parity per extraction slice plus full matrix PASS before closure.
 - Neues verpflichtendes Ziel fuer Phase 9 ist gesetzt: `src/app.js` wird umfassend in eine klare modulare Struktur mit duennen Bootstrap-Einstieg, stabilen Domain-Grenzen und shared utility layer zerlegt.
 - Dokumentationsregel Phase 9: sinnvolle englische Kommentare sind verpflichtend fuer nicht offensichtliche Logik (State-Transitions, Render-/Sync-Lifecycle, Integrationsgrenzen), ohne Kommentarrauschen.
 - Observability-Regel Phase 9: Runtime-Diagnostik wird ueber strukturierte, kontextsensitive und low-noise Logs erweitert (Scope/Event/IDs/Level), statt unstrukturierter Ad-hoc-Ausgaben.

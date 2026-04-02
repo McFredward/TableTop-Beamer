@@ -567,7 +567,7 @@ Gate Closure (8-HF12):
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
 Ziel: Den verbleibenden Monolithen `src/app.js` in eine klar strukturierte, konventionelle Modularchitektur ueberfuehren (duenner Bootstrap, klare Domain-Grenzen, stabile Integrationsschichten), gezielte englische Kommentare fuer nicht offensichtliche Logik hinzufuegen und eine strukturierte, low-noise Logging-Strategie fuer bessere Runtime-Diagnose etablieren.
 
-Status: Plan 9-1 ist abgeschlossen (`.planning/phases/phase-09/9-1-SUMMARY.md`, `.planning/phases/phase-09/9-1-VERIFICATION.md`); naechster priorisierter Schritt ist Plan 9-2 (Adapter-Cleanup + Import-Graph-Haertung).
+Status: Plan 9-HF1 ist abgeschlossen (Hard-Gate PASS: `src/app.js` 12163 -> 28 Zeilen, Boundary-Map + Regression-Evidence dokumentiert); naechster Schritt ist Plan 9-2.
 
 Milestones:
 1. M1 Extraction Blueprint: verbindliche Boundary-Map `src/app.js -> src/app/*` mit sicherer Inkrementreihenfolge.
@@ -585,7 +585,15 @@ Exit Criteria:
 - Sinnvolle englische Kommentare decken nicht offensichtliche State-/Render-/Sync-/Integrationslogik ab.
 - Strukturierte Runtime-Logs sind zentralisiert, kontextreich und ohne uebermaessiges Rauschen.
 - Keine Regression in Operator-Flow, Persistenz/API-Save, Multi-Client-Sync und `/output/final`.
+- Messbarer Pflichtgate ist erfuellt: `src/app.js` schrumpft von 12163 auf <= 4200 Zeilen (>= 65% Reduktion).
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
+
+9-HF1 Closure Notes:
+- Plan 9-1 bleibt historisch dokumentiert, aber nicht als Akzeptanzbasis verwendbar.
+- Plan 9-HF1 liefert den verpflichtenden Hard-Gate-Reset fuer Phase 9 (domain extraction + measurable shrink).
+- Pflicht-Domaenen fuer HF1 sind als dedizierte Module verdrahtet (`editor`, `sync`, `settings`, `media`, `runtime`).
+- Hard Gate ist PASS (`src/app.js` <= 4200; erreicht: 28).
+- Plan 9-2 ist fuer den nachgelagerten Hardening-Track freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
