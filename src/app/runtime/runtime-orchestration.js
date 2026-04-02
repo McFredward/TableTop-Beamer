@@ -5093,6 +5093,54 @@ function applyRuntimePressureCaps(pressureLevel) {
   state.runtimePerf.controlFrameBudgetMs = 11.5;
 }
 
+function resolvePressureCandidate(p90, targetMs) {
+  if (!Number.isFinite(p90) || !Number.isFinite(targetMs) || targetMs <= 0) {
+    return 0;
+  }
+  if (p90 > targetMs * 1.9) {
+    return 2;
+  }
+  if (p90 > targetMs * 1.35) {
+    return 1;
+  }
+  return 0;
+}
+
+function updatePressureLevelWithHysteresis({ candidateLevel, p90, targetMs }) {
+  const perfState = state.runtimePerf;
+  const currentLevel = Math.max(0, Math.min(2, Number(perfState.pressureLevel) || 0));
+  const nextCandidate = Math.max(0, Math.min(2, Number(candidateLevel) || 0));
+  const escalationFramesRequired = nextCandidate >= 2 ? 6 : 8;
+  const recoveryFramesRequired = 75;
+  if (nextCandidate > currentLevel) {
+    perfState.pressureEscalationFrames = Math.max(0, Number(perfState.pressureEscalationFrames) || 0) + 1;
+    perfState.pressureRecoveryFrames = 0;
+    if (perfState.pressureEscalationFrames >= escalationFramesRequired) {
+      perfState.pressureLevel = nextCandidate;
+      perfState.lastPressureChangeAtMs = performance.now();
+      perfState.pressureEscalationFrames = 0;
+    }
+    return;
+  }
+  if (nextCandidate < currentLevel) {
+    const strictRecoveryTarget = currentLevel >= 2 ? targetMs * 1.2 : targetMs * 1.05;
+    if (p90 <= strictRecoveryTarget) {
+      perfState.pressureRecoveryFrames = Math.max(0, Number(perfState.pressureRecoveryFrames) || 0) + 1;
+    } else {
+      perfState.pressureRecoveryFrames = 0;
+    }
+    perfState.pressureEscalationFrames = 0;
+    if (perfState.pressureRecoveryFrames >= recoveryFramesRequired) {
+      perfState.pressureLevel = Math.max(0, currentLevel - 1);
+      perfState.lastPressureChangeAtMs = performance.now();
+      perfState.pressureRecoveryFrames = 0;
+    }
+    return;
+  }
+  perfState.pressureEscalationFrames = 0;
+  perfState.pressureRecoveryFrames = 0;
+}
+
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -5109,13 +5157,12 @@ function recordRuntimeFrameCost(frameCostMs) {
   } else if (p90 < targetMs * 0.92) {
     state.runtimePerf.qualityScale = Math.min(1, getRuntimeQualityScale() + 0.015);
   }
-  if (p90 > targetMs * 1.9) {
-    state.runtimePerf.pressureLevel = 2;
-  } else if (p90 > targetMs * 1.35) {
-    state.runtimePerf.pressureLevel = 1;
-  } else {
-    state.runtimePerf.pressureLevel = 0;
-  }
+  const candidateLevel = resolvePressureCandidate(p90, targetMs);
+  updatePressureLevelWithHysteresis({
+    candidateLevel,
+    p90,
+    targetMs,
+  });
   applyRuntimePressureCaps(state.runtimePerf.pressureLevel);
 }
 

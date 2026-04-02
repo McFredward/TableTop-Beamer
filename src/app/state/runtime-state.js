@@ -125,6 +125,9 @@
         finalOutputPriorityActive: false,
         controlFrameBudgetMs: 11.5,
         controlFrameYieldCount: 0,
+        pressureEscalationFrames: 0,
+        pressureRecoveryFrames: 0,
+        lastPressureChangeAtMs: 0,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,
