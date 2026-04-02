@@ -45,6 +45,11 @@ const {
 const outputRole = resolveOutputRoleFromLocation(window.location);
 document.body.dataset.outputRole = outputRole;
 
+const logBootstrap = window.TT_BEAMER_LOGGER.createLogger("bootstrap", { source: outputRole });
+const logRender = window.TT_BEAMER_LOGGER.createLogger("render", { source: outputRole });
+const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole });
+const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: outputRole });
+
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
@@ -4084,7 +4089,12 @@ function ensureGifPlaybackReady(path) {
   entry.status = "loading";
   entry.promise = decodeGifPlaybackFrames(path, entry)
     .catch((error) => {
-      console.warn(`GIF decode failed for ${path}`, error);
+      logRender.warn("gif_decode_failed", {
+        event: "gif-decode-failed",
+        boardId: state.boardId,
+        path,
+        error: String(error?.message || error),
+      });
       entry.status = "fallback";
       entry.error = error;
     })
@@ -4574,7 +4584,11 @@ function validateViewNavigationVisibility({ silent = false, context = "runtime" 
 
   if (issues.length > 0) {
     if (!silent) {
-      console.error(`Navigation visibility violation (${context})`, issues);
+      logUi.error("navigation_visibility_violation", {
+        event: "navigation-visibility-violation",
+        context,
+        issues,
+      });
       triggerFeedback.textContent =
         "Status: Navigation guard reported a failure (Dashboard/Settings not continuously visible)";
     }
@@ -4644,7 +4658,11 @@ function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime
 
   if (issues.length > 0) {
     if (!silent) {
-      console.error(`Mobile projection visibility violation (${context})`, issues);
+      logUi.error("mobile_projection_visibility_violation", {
+        event: "mobile-projection-visibility-violation",
+        context,
+        issues,
+      });
       triggerFeedback.textContent =
         "Status: Mobile projection guard reported overlap (board must not be covered by controls)";
     }
@@ -4831,7 +4849,11 @@ function validateSettingsControlOwnership({ silent = false, context = "runtime" 
 
   if (leaks.length > 0) {
     if (!silent) {
-      console.error(`Settings ownership violation (${context})`, leaks);
+      logUi.error("settings_ownership_violation", {
+        event: "settings-ownership-violation",
+        context,
+        leaks,
+      });
       triggerFeedback.textContent =
         "Status: Configuration leak detected (settings control found outside Settings view)";
     }
@@ -4871,7 +4893,11 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 
   if (leaks.length > 0) {
     if (!silent) {
-      console.error(`View exclusivity violation (${context})`, leaks);
+      logUi.error("view_exclusivity_violation", {
+        event: "view-exclusivity-violation",
+        context,
+        leaks,
+      });
       triggerFeedback.textContent = "Status: Tab exclusivity violated (visible leftover block detected)";
     }
     return false;
@@ -5025,7 +5051,10 @@ function runLayoutScrollRegression() {
   }
 
   if (issues.length > 0) {
-    console.error("Layout regression violation", issues);
+    logUi.error("layout_regression_violation", {
+      event: "layout-regression-violation",
+      issues,
+    });
     return false;
   }
   return true;
@@ -5039,7 +5068,8 @@ function runStartupDefaultsGuardRegression() {
   const attempted = guard.attempted === true;
   const explicitOutcome = guard.outcome === "applied" || guard.outcome === "failed-explicit";
   if (!attempted || !explicitOutcome) {
-    console.error("Startup defaults guard violation", {
+    logRuntime.error("startup_defaults_guard_violation", {
+      event: "startup-defaults-guard-violation",
       fallbackRequired: guard.fallbackRequired,
       attempted: guard.attempted,
       outcome: guard.outcome,
@@ -5100,7 +5130,10 @@ function runZoomPanEditRegression() {
   }
 
   if (issues.length > 0) {
-    console.error("Zoom+Pan+Edit regression violation", issues);
+    logUi.error("zoom_pan_edit_regression_violation", {
+      event: "zoom-pan-edit-regression-violation",
+      issues,
+    });
     return false;
   }
   return true;
@@ -5146,7 +5179,10 @@ function runPanPointerCaptureRegression() {
   }
 
   if (issues.length > 0) {
-    console.error("Pan pointer regression violation", issues);
+    logUi.error("pan_pointer_regression_violation", {
+      event: "pan-pointer-regression-violation",
+      issues,
+    });
     return false;
   }
   return true;
@@ -5180,7 +5216,11 @@ function runOrientationStateRegression() {
     before.dashboardZone === after.dashboardZone &&
     before.runningIds === after.runningIds;
   if (!same) {
-    console.error("Orientation regression violation", { before, after });
+    logUi.error("orientation_regression_violation", {
+      event: "orientation-regression-violation",
+      before,
+      after,
+    });
   }
   return same;
 }
@@ -5235,7 +5275,8 @@ function runNavigationStateRegression() {
   }
 
   if (!ok) {
-    console.error("Navigation regression violation", {
+    logUi.error("navigation_regression_violation", {
+      event: "navigation-regression-violation",
       view: state.uiView,
       zone: state.dashboardZone,
     });
@@ -5280,7 +5321,10 @@ function runOutsideIsolationRegression() {
   }
 
   if (issues.length > 0) {
-    console.error("Outside isolation regression violation", issues);
+    logRender.error("outside_isolation_regression_violation", {
+      event: "outside-isolation-regression-violation",
+      issues,
+    });
     return false;
   }
   return true;
@@ -5339,7 +5383,10 @@ function runShipClipRegression() {
   }
 
   if (issues.length > 0) {
-    console.error("Ship clip regression violation", issues);
+    logRender.error("ship_clip_regression_violation", {
+      event: "ship-clip-regression-violation",
+      issues,
+    });
     return false;
   }
   return true;
@@ -8368,7 +8415,11 @@ function restoreRoomDraftUiSnapshot(snapshot, reason = "room-start") {
   }
   if (mutated) {
     syncRoomPanelFromSelection({ preserveDraftState: true });
-    console.warn(`[draft-immutability] restored room draft controls after ${reason}`);
+    logRuntime.warn("draft_immutability_restore", {
+      event: "draft-immutability-restore",
+      reason,
+      boardId: state.boardId,
+    });
   }
 }
 
@@ -9663,7 +9714,12 @@ function drawAnimationSafely(animation, now) {
     drawAnimation(animation, now);
     return true;
   } catch (error) {
-    console.error(`Animation ${animation.id} failed`, error);
+    logRender.error("animation_render_failed", {
+      event: "animation-render-failed",
+      animationId: animation.id,
+      boardId: state.boardId,
+      error: String(error?.message || error),
+    });
     return false;
   }
 }
@@ -11963,6 +12019,7 @@ function syncRuntimePanelsFromState() {
 }
 
 async function initializeApplication() {
+  logBootstrap.info("init_start", { event: "init-start" });
   await loadExternalBoardZones();
   await loadOutsideResourceAssets();
   syncBoardSelectOptions();
@@ -12086,6 +12143,11 @@ async function initializeApplication() {
   window.TT_BEAMER_LIVE_SYNC_DEBUG = {
     getLiveTraceSnapshot,
   };
+  logBootstrap.info("init_ready", {
+    event: "init-ready",
+    boardId: state.boardId,
+    version: liveSync.lastAppliedVersion,
+  });
   requestAnimationFrame(draw);
 }
 
@@ -12093,6 +12155,9 @@ void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({
   initializer: initializeApplication,
   onError: (error) => {
     triggerFeedback.textContent = "Status: Bootstrap failed (see console diagnostics)";
-    console.error("Application bootstrap failed", error);
+    logBootstrap.error("init_fail", {
+      event: "init-fail",
+      error: String(error?.message || error),
+    });
   },
 });
