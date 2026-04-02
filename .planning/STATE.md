@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF1 (completed)
+- Last Executed Plan: 9-HF2 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,10 +21,17 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes Stabilitaets-Feedback aus Langzeittest ist bindend: expired one-shot events duerfen nach Reload/Reconnect nicht erneut abgespielt werden.
+- Plan 9-HF2 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Lifecycle-Regel fuer 9-HF2: rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed (no replay).
+- Runtime-Regel fuer 9-HF2: low-end load hardening ist verpflichtend (frame-budget shedding, particle caps, coalescing) ohne Sync-Determinismus-Regression.
+- Plan-9-HF2 Umsetzung: snapshot hydration/rejoin reconciles finite-duration elapsed events as terminal/completed and suppresses replay across reload/reconnect.
+- Plan-9-HF2 Umsetzung: runtime hardening ladder applies frame-budget pressure levels with bounded non-critical coalescing and visual caps for low-end stability.
+- Plan-9-HF2 Umsetzung: deterministic sync invariants remain PASS under hardening (`P9-HF2-T6-SYNC-INVARIANTS.md`); long-run and low-end matrices are PASS (`P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
 - Acceptance correction is binding: Plan 9-1 is not accepted and cannot be used as closure baseline.
 - Plan-9-HF1 Umsetzung: hard gate is PASS with `src/app.js` reduced from 12163 to 28 lines and runtime moved to `src/app/runtime/runtime-orchestration.js`.
 - Plan-9-HF1 Umsetzung: mandatory domain seams are present for editor/sync/settings/media with thin bootstrap ownership in `src/app.js`.
-- New mandatory wave is Plan 9-HF1 with hard gates focused on significant `src/app.js` shrink and domain extraction completeness.
+- Plan 9-HF1 bleibt als abgeschlossene Modularisierungsbasis gueltig; Phase-9-Abschluss haengt nun an 9-HF2 Stabilitaetsgates.
 - Hard objective for 9-HF1: reduce `src/app.js` from 12163 lines to <= 4200 lines (>= 65% reduction) while preserving behavior.
 - Extraction completeness gate for 9-HF1 is explicit: editor flows, animation runtime orchestration, sync command handlers, settings controllers, and media handlers must leave `src/app.js`.
 - Regression policy for 9-HF1 is strict: targeted parity per extraction slice plus full matrix PASS before closure.

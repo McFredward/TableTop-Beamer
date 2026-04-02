@@ -2,59 +2,69 @@
 
 ## Acceptance Correction
 - Binding correction: Plan 9-1 is not accepted.
-- New mandatory closure target is Plan 9-HF1 with hard gates below.
+- Plan 9-HF1 is completed baseline, but not final closure.
+- New mandatory closure target is Plan 9-HF2 with hard gates below.
 
 ## Regression and Verification Strategy
-- Safety-first extraction: behavior parity is mandatory at each modularization slice.
-- Interface-first: each module boundary must have explicit ownership and dependency direction.
-- Comment-quality-first: comments explain intent/invariants, not obvious code mechanics.
-- Diagnostics-first: logs must improve operability with structured context and low noise.
-- Evidence-first: every P0 extraction step requires smoke or regression evidence.
+- Lifecycle-first: event terminal/expiry semantics must survive reload/reconnect deterministically.
+- No-replay-first: expired one-shot events are never replayed after rehydrate/rejoin.
+- Stability-first: low-end device load hardening must reduce runtime collapse under sustained pressure.
+- Determinism-first: sync ordering/version/idempotent apply invariants remain unchanged.
+- Evidence-first: every P0 hotfix item requires reproducible long-run and mobile evidence.
 
-## Hard Gates (Plan 9-HF1, mandatory)
-- G1 Mandatory-Domain-Extraction-Gate: `src/app.js` no longer contains large inlined feature blocks for editor flows, animation runtime orchestration, sync command handlers, settings controllers, or media handlers.
-- G2 Thin-Bootstrap-Gate: `src/app.js` contains bootstrap/composition/orchestration only; feature decisions, controllers, and runtime handlers live in dedicated modules.
-- G3 Strict-Regression-Gate: full matrix below must be PASS with evidence.
-- G4 Measurable-Reduction-Gate: `src/app.js` must shrink from baseline 12163 lines to <= 4200 lines (`wc -l src/app.js`), equivalent to >= 65% reduction.
+## Hard Gates (Plan 9-HF2, mandatory)
+- G1 Rehydrate-Lifecycle-Correctness-Gate: elapsed events (especially one-shot) rehydrate as terminal/completed and are not treated as pending.
+- G2 No-Replay-Expired-OneShot-Gate: expired one-shot events never replay on browser reload or reconnect.
+- G3 Frame-Budget-Hardening-Gate: runtime engages deterministic load shedding/caps/coalescing on low-end pressure without crash/freeze escalation.
+- G4 Deterministic-Sync-Integrity-Gate: ordering/version/idempotent apply behavior remains intact under HF2 hardening paths.
+- G5 Strict-Regression-Gate: full long-run + mobile matrix below must be PASS with evidence.
 
-## Strict Regression Matrix (Plan 9-HF1)
-- Boundary-Ownership-Test: extraction ownership map is current and maps all mandatory domains to concrete modules.
-- Thin-Bootstrap-Test: startup still initializes all app flows while `src/app.js` remains orchestration-only.
-- Editor-Flow-Parity-Test: selection, polygon edit, apply/save triggers, and settings panel flows remain deterministic.
-- Runtime-Orchestration-Parity-Test: animation start/edit/stop/clear, lifecycle guards, and running list semantics remain unchanged.
-- Sync-Command-Parity-Test: command dispatch/apply/ack behavior stays deterministic across clients.
-- Settings-Controller-Parity-Test: dashboard/settings controls remain synchronized with runtime state.
-- Media-Handler-Parity-Test: GIF/mp4/coded playback lifecycle remains stable.
-- Persistence-Parity-Test: save/reload/restart/defaults and migrations remain deterministic.
-- API-Save-Parity-Test: preflight/endpoint resolution/save diagnostics remain functionally equivalent.
-- Render-Lifecycle-Parity-Test: control view and `/output/final` remain visually and lifecycle stable.
-- Comment-Coverage-Quality-Test: only non-obvious logic receives meaningful English comments.
-- Structured-Logging-Contract-Test: scoped structured logs remain centralized and low-noise by default.
-- Non-Regression-Full-Matrix-Test: core operator runtime behavior remains stable end-to-end.
+## Strict Regression Matrix (Plan 9-HF2)
+- Expired-OneShot-Reload-Test: trigger one-shot, wait past expiry, reload, assert no replay and terminal state restored.
+- Expired-OneShot-Reconnect-Test: disconnect/reconnect after expiry, assert no replay and deterministic terminal lifecycle.
+- Rehydrate-Age-Boundary-Test: verify behavior at pre-expiry, exact-expiry, and post-expiry checkpoints.
+- Long-Run-Soak-Lifecycle-Test: sustained trigger/start/stop/clear/reload loops keep lifecycle stable with no replay drift.
+- Low-End-Mobile-Frame-Budget-Test: constrained profile stays responsive via hardening ladder (no runaway frame collapse).
+- Particle-Cap-Coalescing-Test: caps/coalescing activate under pressure and recover correctly when pressure drops.
+- Deterministic-Sync-Under-Load-Test: multi-client ordering/version/apply invariants remain stable under stress.
+- Persistence-Parity-Test: save/reload/restart/defaults preserve corrected terminal lifecycle semantics.
+- Final-Output-Non-Regression-Test: `/output/final` shows no replay artifacts for expired one-shot events.
+- Non-Regression-Full-Matrix-Test: core operator workflows remain functionally equivalent.
 
 ## Incremental Mandatory Gates
-- After P9-HF1-T1: mandatory-domain extraction map and rollback sequence are approved.
-- After P9-HF1-T2..T6: each extracted domain passes targeted parity checks before next domain extraction.
-- After P9-HF1-T7: `src/app.js` ownership is bootstrap-only with no residual major feature blocks.
-- After P9-HF1-T8: strict regression matrix is PASS.
-- After P9-HF1-T9: measurable reduction gate is PASS (`src/app.js` <= 4200 lines).
-- After P9-HF1-T10: all phase/global planning artifacts are synchronized.
+- After P9-HF2-T1..T2: lifecycle reconciliation and no-replay guards are validated on reload/reconnect.
+- After P9-HF2-T3: deterministic lifecycle parity is validated across local and synced paths.
+- After P9-HF2-T4..T5: low-end hardening ladder and caps/coalescing are validated under stress.
+- After P9-HF2-T6: deterministic sync invariants are PASS under hardening conditions.
+- After P9-HF2-T7..T8: long-run and mobile stress matrices are PASS with evidence.
+- After P9-HF2-T9: all phase/global planning artifacts are synchronized.
 
 ## Definition of Done
-- `src/app.js` is no longer a feature monolith and acts as a thin bootstrap entry.
-- Module layout under `src/app/*` is coherent, predictable, and aligned to boundary ownership.
-- Non-obvious lifecycle and integration logic is documented with meaningful English comments.
-- Structured logging is centralized, contextual, and operationally useful without excessive noise.
-- No regression in runtime behavior, persistence/migration, API save flow, or `/output/final`.
-- `src/app.js` meets measurable shrink gate: <= 4200 lines from 12163 baseline (>= 65% reduction).
+- Expired one-shot events are never replayed after reload/reconnect.
+- Rehydrate/rejoin treat elapsed events as terminal/completed deterministically.
+- Runtime remains stable under sustained load on weak mobile devices via controlled hardening.
+- Deterministic sync remains intact under load and hardening paths.
+- Long-run + mobile evidence matrix is PASS and documented.
 - Phase-09 artifacts and global tracking files are synchronized.
 
 ## Plan 9-1 Closure Note
 
 - 9-1 evidence remains documented in `9-1-VERIFICATION.md`.
-- Acceptance status is corrected to NOT ACCEPTED; closure now depends on Plan 9-HF1 hard gates.
+- Acceptance status is corrected to NOT ACCEPTED; closure now depends on Plan 9-HF2 hard gates.
 
 ## Plan 9-HF1 Closure Note
 
 - Hard reduction gate achieved: `src/app.js` reduced from 12163 to 28 lines.
 - Mandatory extraction artifacts are documented in `9-HF1-BOUNDARY-MAP.md` and `9-HF1-VERIFICATION.md`.
+
+## Plan 9-HF2 Closure Target
+
+- Closure requires explicit PASS evidence for no-replay expired one-shot behavior and low-end stability hardening.
+
+## Plan 9-HF2 Gate Result
+
+- G1..G5 are PASS.
+- Evidence artifacts:
+  - `.planning/phases/phase-09/P9-HF2-T6-SYNC-INVARIANTS.md`
+  - `.planning/phases/phase-09/P9-HF2-T7-LONG-RUN-SOAK.md`
+  - `.planning/phases/phase-09/P9-HF2-T8-LOW-END-STRESS.md`

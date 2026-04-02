@@ -1,69 +1,65 @@
 # Phase 9 Risks
 
 ## Acceptance Correction Context
-- 9-1 is not accepted; 9-HF1 introduces hard gates with measurable `src/app.js` reduction.
+- 9-1 is not accepted; 9-HF1 is completed foundation.
+- 9-HF2 is the binding stability wave for lifecycle correctness and low-end hardening.
 
-## R1 Extraction order causes hidden coupling regressions
-- Risk: moving blocks from `src/app.js` in wrong sequence breaks implicit dependencies.
+## R1 Rehydrate misclassifies elapsed events as active
+- Risk: reload/reconnect rebuilds expired one-shot events as pending/active.
 - Impact: Critical.
-- Mitigation: enforce boundary map + branch-by-abstraction sequence with parity checks per slice.
+- Mitigation: canonical terminal-state reconciliation during rehydrate before schedule/apply.
 
-## R2 Thin bootstrap still keeps feature logic
-- Risk: `src/app.js` remains partially monolithic after incomplete extraction.
+## R2 Missing replay guard on reconnect path
+- Risk: reload is fixed but reconnect/rejoin still replays expired one-shot events.
+- Impact: Critical.
+- Mitigation: enforce no-replay checks in all hydration/apply entry points with shared guard utility.
+
+## R3 Clock/version boundary drift at expiry edge
+- Risk: near-expiry timing drift causes inconsistent terminal vs active decisions.
+- Impact: Critical.
+- Mitigation: evaluate expiry against deterministic lifecycle contract with version/time guard and boundary tests.
+
+## R4 Over-aggressive load shedding causes visible feature loss
+- Risk: hardening drops too much visual behavior and looks broken.
+- Impact: Critical.
+- Mitigation: bounded degradation ladder with defined floors and non-critical-only shedding.
+
+## R5 Under-shedding still allows runtime collapse on weak mobile
+- Risk: caps/coalescing insufficient under sustained pressure.
+- Impact: Critical.
+- Mitigation: frame-budget-driven escalation with recovery hysteresis and stress validation.
+
+## R6 Hardening introduces non-deterministic cross-client behavior
+- Risk: adaptive paths diverge across clients and break sync determinism.
+- Impact: Critical.
+- Mitigation: keep adaptive logic local to rendering cost control only; lifecycle/sync semantics remain authoritative and versioned.
+
+## R7 Recovery path fails to return from degraded mode
+- Risk: once degraded, quality never recovers after load drops.
 - Impact: High.
-- Mitigation: strict bootstrap ownership gate in 9-HF1 + mandatory domain extraction checklist.
+- Mitigation: explicit recovery thresholds and soak tests with load ramp-up/ramp-down.
 
-## R2b app.js reduction is marginal instead of significant
-- Risk: extraction exists but file-size reduction is too small to improve maintainability.
+## R8 `/output/final` parity regression during hardening
+- Risk: final output diverges from control runtime behavior under capped/coalesced paths.
 - Impact: Critical.
-- Mitigation: hard acceptance gate `wc -l src/app.js <= 4200` from baseline 12163 (>= 65% reduction).
+- Mitigation: dedicated final-output regression checks in long-run and mobile matrices.
 
-## R3 State transition drift during extraction
-- Risk: start/stop/clear/board-switch semantics change subtly.
-- Impact: Critical.
-- Mitigation: extract with compatibility wrappers and run lifecycle parity matrix after each state/domain slice.
-
-## R4 UI and input arbitration regressions
-- Risk: pointer/keyboard/touch guards regress due to split event ownership.
-- Impact: Critical.
-- Mitigation: isolate input module contracts and execute deterministic interaction regression tests.
-
-## R5 Render lifecycle regressions in `/output/final`
-- Risk: render pipeline extraction introduces visual or timing drift in final output.
-- Impact: Critical.
-- Mitigation: keep render extraction late in 9-1 and gate with dedicated `/output/final` parity checks.
-
-## R6 Persistence/API behavior drifts while moving code
-- Risk: save/load/migration or API preflight behavior changes unintentionally.
-- Impact: Critical.
-- Mitigation: preserve existing contracts; run persistence and API parity tests before each merge slice.
-
-## R7 Comment uplift becomes noise instead of clarity
-- Risk: comments duplicate code and reduce readability.
-- Impact: Medium.
-- Mitigation: enforce comment policy: only non-obvious intent, invariants, and lifecycle boundaries.
-
-## R8 Structured logs become too noisy
-- Risk: logging expansion floods console and obscures useful diagnostics.
+## R9 Diagnostics overhead worsens low-end performance
+- Risk: added telemetry/logging for hardening consumes scarce frame budget.
 - Impact: High.
-- Mitigation: centralized logger with level gates, scoped events, and explicit hot-path suppression.
-
-## R9 Temporary adapters become permanent debt
-- Risk: compatibility shims stay after extraction and increase complexity.
-- Impact: High.
-- Mitigation: mark each adapter with removal criteria and close with Plan 9-2 cleanup tasks.
+- Mitigation: keep diagnostics sampled/gated; no hot-loop verbose logging in production mode.
 
 ## R10 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF1-T10.
+- Mitigation: mandatory full artifact sync in P9-HF2-T9.
 
-## R11 Regression escape during mandatory domain extractions
-- Risk: editor/runtime/sync/settings/media extraction introduces hidden behavior drift.
+## R11 Regression escape in long-run/mobile edge conditions
+- Risk: short smoke tests pass but long-run or low-end constraints still fail in field.
 - Impact: Critical.
-- Mitigation: strict regression matrix after each domain slice and full-matrix rerun before closure.
+- Mitigation: mandatory soak + mobile evidence matrix as closure gate.
 
 ## Execution Notes
 
-- 9-1 evidence exists but acceptance remains open due to unmet mandatory reduction objective.
-- 9-HF1 hard-gate wave executed with measurable monolith shrink PASS (`src/app.js` now 28 lines).
+- 9-HF1 baseline is complete and remains valid for modular ownership.
+- 9-HF2 is completed; R1-R8 mitigations are implemented and validated through HF2 evidence artifacts.

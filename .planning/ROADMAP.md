@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, zielgerichtete englische Codekommentare und strukturierte Laufzeitdiagnostik mit regressionssicherer Inkrementmigration.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen und anschliessend die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening bei unveraendert deterministischem Sync.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -565,27 +565,25 @@ Gate Closure (8-HF12):
 - Plan 8-2 ist wieder freigegeben.
 
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
-Ziel: Den verbleibenden Monolithen `src/app.js` in eine klar strukturierte, konventionelle Modularchitektur ueberfuehren (duenner Bootstrap, klare Domain-Grenzen, stabile Integrationsschichten), gezielte englische Kommentare fuer nicht offensichtliche Logik hinzufuegen und eine strukturierte, low-noise Logging-Strategie fuer bessere Runtime-Diagnose etablieren.
+Ziel: Auf der abgeschlossenen HF1-Modularisierungsbasis die Runtime-Stabilitaet abschliessen: event lifecycle correctness ueber reload/reconnect sicherstellen (keine Replay-Regression fuer expired one-shot events) und low-end/mobile Last-Haertung mit deterministischem Sync-Verhalten liefern.
 
-Status: Plan 9-HF1 ist abgeschlossen (Hard-Gate PASS: `src/app.js` 12163 -> 28 Zeilen, Boundary-Map + Regression-Evidence dokumentiert); naechster Schritt ist Plan 9-2.
+Status: Plan 9-HF1 und Plan 9-HF2 sind abgeschlossen; HF2 liefert PASS fuer lifecycle no-replay, deterministic sync non-regression und low-end load hardening (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`). Naechster Schritt ist Plan 9-2.
 
 Milestones:
-1. M1 Extraction Blueprint: verbindliche Boundary-Map `src/app.js -> src/app/*` mit sicherer Inkrementreihenfolge.
-2. M2 Thin Bootstrap: `src/app.js` wird auf Orchestrierung/Composition reduziert.
-3. M3 State/Domain Isolation: zentrale State-Transitions und Fachlogik werden aus dem Monolithen extrahiert.
-4. M4 UI/Input Isolation: Controller-Bindings und Pointer-/Keyboard-/Touch-Arbitration werden modularisiert.
-5. M5 Render/Media Isolation: Render-/Playback-Lifecycle laeuft ueber dedizierte Module ohne `/output/final`-Regression.
-6. M6 Comment Uplift: nicht offensichtliche Logik ist mit sinnvollen englischen Intents/Invariant-Kommentaren dokumentiert.
-7. M7 Observability Uplift: strukturierte Logs (Scope/Event/Context/Level) liefern mehr Diagnosewert bei kontrollierter Lautstaerke.
-8. M8 Regression Closure: sichere branch-by-abstraction Migration ist evidenzbasiert PASS und artefaktseitig synchronisiert.
+1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
+2. M2 Rehydrate Correctness: elapsed events werden bei reload/reconnect deterministisch als terminal restauriert.
+3. M3 No-Replay Enforcement: expired one-shot events (z. B. `Intruder Alert`, `Power Outage`) werden nie erneut abgespielt.
+4. M4 Low-End Hardening: frame-budget aware shedding, particle caps und update coalescing stabilisieren schwache Mobilgeraete.
+5. M5 Deterministic Sync Preservation: ordering/version/idempotent apply bleibt unter Last-Hardening unveraendert.
+6. M6 Evidence Closure: long-run soak + mobile stress matrix PASS mit konsistentem Artefakt-Sync.
 
 Exit Criteria:
-- `src/app.js` ist ein duennes Bootstrap-Entry ohne monolithische Featurelogik.
-- Modulstruktur folgt klaren Domain-Grenzen (`boot`, `state`, `domain`, `render`, `ui`, `input`, `persistence`, `api`, `gif`, `shared`).
-- Sinnvolle englische Kommentare decken nicht offensichtliche State-/Render-/Sync-/Integrationslogik ab.
-- Strukturierte Runtime-Logs sind zentralisiert, kontextreich und ohne uebermaessiges Rauschen.
-- Keine Regression in Operator-Flow, Persistenz/API-Save, Multi-Client-Sync und `/output/final`.
-- Messbarer Pflichtgate ist erfuellt: `src/app.js` schrumpft von 12163 auf <= 4200 Zeilen (>= 65% Reduktion).
+- Expired one-shot events werden nach reload/reconnect nicht erneut abgespielt.
+- Rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed.
+- Runtime bleibt unter Langzeitlast auf low-end Mobilgeraeten stabil durch budget-aware Hardening.
+- Deterministic sync bleibt unter Hardening unveraendert (ordering/version/idempotent apply).
+- Keine Regression in Operator-Flow, Persistenz/API-Save und `/output/final`.
+- Long-run + mobile Evidence-Matrix ist PASS dokumentiert.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 9-HF1 Closure Notes:
@@ -593,7 +591,13 @@ Exit Criteria:
 - Plan 9-HF1 liefert den verpflichtenden Hard-Gate-Reset fuer Phase 9 (domain extraction + measurable shrink).
 - Pflicht-Domaenen fuer HF1 sind als dedizierte Module verdrahtet (`editor`, `sync`, `settings`, `media`, `runtime`).
 - Hard Gate ist PASS (`src/app.js` <= 4200; erreicht: 28).
-- Plan 9-2 ist fuer den nachgelagerten Hardening-Track freigegeben.
+
+HF2 Closure (Phase 9 lifecycle + low-end stability follow-up):
+- Lifecycle-Rehydrate korrigiert: elapsed one-shot events werden terminal/completed reconciled.
+- Reload/Reconnect no-replay guard aktiv fuer expired finite-duration global events.
+- Runtime hardening aktiv: frame-budget ladder, particle caps, non-critical coalescing mit bounded degradation.
+- Deterministic sync invariants unter hardening validiert (ordering/version/idempotent apply PASS).
+- Plan 9-2 ist freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
