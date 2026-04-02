@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TT Beamer Final Output</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    body {
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+    }
+
+    .final-video {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      object-fit: fill;
+      background: #000;
+    }
+  </style>
+</head>
+
+<body>
+  <img class="final-video" src="/api/final-stream/video" alt="Final output stream" />
+</body>
+
+</html>
