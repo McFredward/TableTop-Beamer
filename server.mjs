@@ -47,6 +47,7 @@ const finalStreamComposerState = {
   lastFrameAt: null,
   lastSourceVersion: 0,
   latestFrame: null,
+  latestVideoFrame: null,
 };
 
 const finalStreamProducerState = {
@@ -72,8 +73,10 @@ const boardCatalogCache = {
 };
 
 const finalStreamClients = new Map();
+const finalVideoClients = new Map();
 const FINAL_STREAM_PUSH_INTERVAL_MS = 250;
 const FINAL_STREAM_WATCHDOG_INTERVAL_MS = 1500;
+const FINAL_VIDEO_MULTIPART_BOUNDARY = "tt-beamer-final-video-boundary";
 
 function writeFinalStreamHeartbeat(res) {
   writeSseEvent(res, "heartbeat", {
@@ -100,6 +103,43 @@ function broadcastFinalStreamFrame(frame) {
     }
     entry.lastVersion = Number(frame?.sourceVersion ?? entry.lastVersion ?? 0);
     writeSseEvent(entry.res, "frame", frame);
+  }
+}
+
+function writeFinalVideoMultipartFrame(res, svgFrame) {
+  if (!res || res.writableEnded) {
+    return;
+  }
+  const payload = Buffer.from(svgFrame, "utf8");
+  res.write(`--${FINAL_VIDEO_MULTIPART_BOUNDARY}\r\n`);
+  res.write("Content-Type: image/svg+xml; charset=utf-8\r\n");
+  res.write(`Content-Length: ${payload.length}\r\n\r\n`);
+  res.write(payload);
+  res.write("\r\n");
+}
+
+function removeFinalVideoClient(clientId) {
+  const entry = finalVideoClients.get(clientId);
+  if (!entry) {
+    return;
+  }
+  try {
+    entry.res.end();
+  } catch {
+    // ignore close race
+  }
+  finalVideoClients.delete(clientId);
+}
+
+function broadcastFinalVideoFrame(frame) {
+  const svgFrame = buildFinalVideoSvgFrame(frame);
+  finalStreamComposerState.latestVideoFrame = svgFrame;
+  for (const [clientId, entry] of finalVideoClients.entries()) {
+    if (!entry || entry.closed || entry.res.writableEnded) {
+      removeFinalVideoClient(clientId);
+      continue;
+    }
+    writeFinalVideoMultipartFrame(entry.res, svgFrame);
   }
 }
 
@@ -144,6 +184,7 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
       finalStreamProducerState.latestComposeError = null;
       finalStreamProducerState.latestComposeErrorAt = null;
       broadcastFinalStreamFrame(frame);
+      broadcastFinalVideoFrame(frame);
       return;
     }
     broadcastFinalStreamHeartbeat();
@@ -1721,6 +1762,44 @@ function attachFinalStreamClient(req, res) {
   req.on("aborted", closeHandler);
 }
 
+function attachFinalVideoClient(req, res) {
+  ensureFinalStreamProducerRunning();
+  const clientId = `video-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  res.writeHead(200, {
+    "content-type": `multipart/x-mixed-replace; boundary=${FINAL_VIDEO_MULTIPART_BOUNDARY}`,
+    "cache-control": "no-cache, no-store, must-revalidate, no-transform",
+    pragma: "no-cache",
+    expires: "0",
+    connection: "keep-alive",
+    "x-accel-buffering": "no",
+  });
+
+  const entry = {
+    clientId,
+    req,
+    res,
+    closed: false,
+  };
+  finalVideoClients.set(clientId, entry);
+
+  const latestVideoFrame = normalizeNonEmptyString(finalStreamComposerState.latestVideoFrame);
+  if (latestVideoFrame) {
+    writeFinalVideoMultipartFrame(res, latestVideoFrame);
+  } else {
+    requestFinalStreamCompose("video-client-attach", {
+      snapshot: liveSessionState.snapshot,
+      sourceVersion: liveSessionState.version,
+    });
+  }
+
+  const closeHandler = () => {
+    entry.closed = true;
+    removeFinalVideoClient(clientId);
+  };
+  req.on("close", closeHandler);
+  req.on("aborted", closeHandler);
+}
+
 function buildFinalStreamHealthSnapshot() {
   const now = Date.now();
   const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
@@ -1729,6 +1808,7 @@ function buildFinalStreamHealthSnapshot() {
     schema: "tt-beamer.final-stream-health.v1",
     generatedAt: new Date().toISOString(),
     connectedClients: finalStreamClients.size,
+    connectedVideoClients: finalVideoClients.size,
     producer: {
       running: finalStreamProducerState.running,
       watchdogActive: Boolean(finalStreamProducerState.watchdogId),
@@ -2221,6 +2301,119 @@ async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot, { s
   };
   finalStreamComposerState.latestFrame = sanitizeFinalStreamFrame(nextFrame);
   return finalStreamComposerState.latestFrame;
+}
+
+function escapeXmlText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function polygonCentroid(polygon) {
+  if (!Array.isArray(polygon) || polygon.length === 0) {
+    return { x: 500, y: 500 };
+  }
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const point of polygon) {
+    const px = Number(point?.x);
+    const py = Number(point?.y);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) {
+      continue;
+    }
+    x += px;
+    y += py;
+    count += 1;
+  }
+  if (count <= 0) {
+    return { x: 500, y: 500 };
+  }
+  return {
+    x: x / count,
+    y: y / count,
+  };
+}
+
+function normalizePolygonPoints(polygon) {
+  if (!Array.isArray(polygon)) {
+    return [];
+  }
+  return polygon
+    .map((point) => {
+      const x = Number(point?.x);
+      const y = Number(point?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+      }
+      return { x, y };
+    })
+    .filter(Boolean);
+}
+
+function buildFinalVideoSvgFrame(frame) {
+  const visual = isPlainObject(frame?.visual) ? frame.visual : {};
+  const board = isPlainObject(visual.board) ? visual.board : null;
+  const rooms = Array.isArray(board?.rooms) ? board.rooms : [];
+  const runningAnimations = Array.isArray(visual.runningAnimations) ? visual.runningAnimations : [];
+  const sourceVersion = Number.isFinite(Number(frame?.sourceVersion)) ? Number(frame.sourceVersion) : 0;
+  const frameId = Number.isFinite(Number(frame?.frameId)) ? Number(frame.frameId) : 0;
+
+  const roomLookup = new Map();
+  for (const room of rooms) {
+    const roomId = normalizeNonEmptyString(room?.id);
+    if (!roomId) {
+      continue;
+    }
+    roomLookup.set(roomId, normalizePolygonPoints(room?.polygon));
+  }
+
+  const boardImageSrc = normalizeNonEmptyString(board?.imageSrc);
+  const boardLayer = boardImageSrc
+    ? `<image href="${escapeXmlText(boardImageSrc)}" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" />`
+    : "<rect x=\"0\" y=\"0\" width=\"1000\" height=\"1000\" fill=\"#000\" />";
+
+  const alignMode = Boolean(frame?.alignMode ?? visual?.alignMode);
+  const alignLayer = alignMode
+    ? rooms
+      .map((room) => {
+        const points = normalizePolygonPoints(room?.polygon)
+          .map((point) => `${point.x},${point.y}`)
+          .join(" ");
+        if (!points) {
+          return "";
+        }
+        return `<polygon points="${points}" fill="none" stroke="rgba(0,255,255,0.9)" stroke-width="2" />`;
+      })
+      .filter(Boolean)
+      .join("")
+    : "";
+
+  const animationPulse = ((frameId % 18) + 1) / 18;
+  const animationLayer = runningAnimations
+    .map((entry, index) => {
+      const roomId = normalizeNonEmptyString(entry?.roomId);
+      const polygon = roomId ? roomLookup.get(roomId) : null;
+      const centroid = polygonCentroid(polygon);
+      const opacity = normalizeUnitInterval(entry?.opacity, 0.85);
+      const intensity = normalizePositiveNumber(entry?.intensity, 1);
+      const radius = Math.max(12, Math.min(70, 18 + intensity * 12 + animationPulse * 10));
+      const hue = 210 + ((index * 57) % 120);
+      return `<circle cx="${centroid.x.toFixed(2)}" cy="${centroid.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="hsla(${hue}, 100%, 60%, ${(opacity * 0.65).toFixed(3)})" />`;
+    })
+    .join("");
+
+  return [
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" data-source-version="${sourceVersion}" data-frame-id="${frameId}">`,
+    boardLayer,
+    animationLayer,
+    alignLayer,
+    "</svg>",
+  ].join("");
 }
 
 function sanitizeFinalStreamFrame(frame) {
@@ -2801,6 +2994,7 @@ const server = createServer(async (req, res) => {
         boardImportEndpoint: "/api/boards/import",
         liveTelemetryEndpoint: "/api/live/telemetry",
         finalStreamEndpoint: "/api/final-stream/events",
+        finalStreamVideoEndpoint: "/api/final-stream/video",
         finalStreamHealthEndpoint: "/api/final-stream/health",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
@@ -2818,6 +3012,11 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && routePath === "/api/final-stream/events") {
       attachFinalStreamClient(req, res);
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/final-stream/video") {
+      attachFinalVideoClient(req, res);
       return;
     }
 
