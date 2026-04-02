@@ -1345,10 +1345,17 @@ const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
+const videoSchedulerStateByKey = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
 const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
 const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
 const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 350;
+const VIDEO_OP_COST = {
+  play: 2,
+  seek: 3,
+  rate: 1,
+  loop: 0.2,
+};
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -4232,6 +4239,82 @@ function warmRoomGifAssets({ reason = "runtime" } = {}) {
   }
 }
 
+function beginVideoSchedulingFrame() {
+  const runtimePerf = state.runtimePerf;
+  const pressureLevel = Math.max(0, Math.min(2, Number(runtimePerf.pressureLevel) || 0));
+  const roleBaseBudget = outputRole === OUTPUT_ROLE_FINAL ? 10 : 5;
+  const pressurePenalty = pressureLevel >= 2 ? 3 : pressureLevel === 1 ? 1 : 0;
+  runtimePerf.videoOpsBudgetPerFrame = Math.max(2, roleBaseBudget - pressurePenalty);
+  runtimePerf.videoOpsUsedThisFrame = 0;
+  runtimePerf.videoOpsDeferredThisFrame = 0;
+}
+
+function canConsumeVideoOps(cost = 1, { key = "", priority = "normal" } = {}) {
+  const runtimePerf = state.runtimePerf;
+  const numericCost = Math.max(0.1, Number(cost) || 1);
+  const budget = Math.max(1, Number(runtimePerf.videoOpsBudgetPerFrame) || 1);
+  const used = Math.max(0, Number(runtimePerf.videoOpsUsedThisFrame) || 0);
+  const overBudget = used + numericCost > budget;
+  if (overBudget && priority !== "critical") {
+    runtimePerf.videoOpsDeferredThisFrame = Math.max(0, Number(runtimePerf.videoOpsDeferredThisFrame) || 0) + 1;
+    if (key) {
+      const schedulerState = videoSchedulerStateByKey.get(key) ?? { deferredOps: 0, appliedOps: 0 };
+      schedulerState.deferredOps += 1;
+      videoSchedulerStateByKey.set(key, schedulerState);
+    }
+    return false;
+  }
+  runtimePerf.videoOpsUsedThisFrame = used + numericCost;
+  if (key) {
+    const schedulerState = videoSchedulerStateByKey.get(key) ?? { deferredOps: 0, appliedOps: 0 };
+    schedulerState.appliedOps += 1;
+    videoSchedulerStateByKey.set(key, schedulerState);
+  }
+  return true;
+}
+
+function applyVideoPlaybackPlan(video, {
+  key = "",
+  targetRate = 1,
+  seekToSec = null,
+  priority = "normal",
+} = {}) {
+  if (!video) {
+    return;
+  }
+  if (canConsumeVideoOps(VIDEO_OP_COST.loop, { key, priority: "critical" })) {
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+  }
+  if (
+    Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01
+    && canConsumeVideoOps(VIDEO_OP_COST.rate, { key, priority })
+  ) {
+    video.defaultPlaybackRate = targetRate;
+  }
+  if (
+    Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01
+    && canConsumeVideoOps(VIDEO_OP_COST.rate, { key, priority })
+  ) {
+    video.playbackRate = targetRate;
+  }
+  if (
+    Number.isFinite(Number(seekToSec))
+    && !video.seeking
+    && canConsumeVideoOps(VIDEO_OP_COST.seek, { key, priority })
+  ) {
+    try {
+      video.currentTime = Number(seekToSec);
+    } catch {
+      // ignore transient seek errors until media is fully ready
+    }
+  }
+  if ((video.paused || video.readyState < 2) && canConsumeVideoOps(VIDEO_OP_COST.play, { key, priority })) {
+    void video.play().catch(() => undefined);
+  }
+}
+
 function getOutsideVideoElement(path) {
   const normalizedPath = String(path || "").trim();
   if (!normalizedPath) {
@@ -4369,31 +4452,25 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     || previous.runId !== normalizedRunId
     || previous.assetRef !== normalizedAssetRef;
 
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-
-  if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
-    video.defaultPlaybackRate = targetRate;
-  }
-  if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
-    video.playbackRate = targetRate;
-  }
+  const schedulerKey = `outside:${boardId}:${normalizedAssetRef}`;
 
   if (didLifecycleChange) {
     const durationSec = Number(video.duration);
     if (Number.isFinite(durationSec) && durationSec > 0) {
-      try {
-        video.currentTime = getOutsideMp4LoopStartTime(durationSec);
-      } catch {
-        // ignore transient seek errors until media is ready
-      }
+      applyVideoPlaybackPlan(video, {
+        key: schedulerKey,
+        targetRate,
+        seekToSec: getOutsideMp4LoopStartTime(durationSec),
+        priority: "critical",
+      });
     }
   }
 
-  if (video.paused || didLifecycleChange) {
-    void video.play().catch(() => undefined);
-  }
+  applyVideoPlaybackPlan(video, {
+    key: schedulerKey,
+    targetRate,
+    priority: "critical",
+  });
 
   const previousHasVisibleFrame = previous?.assetRef === normalizedAssetRef
     ? Boolean(previous?.hasVisibleFrame)
@@ -8641,16 +8718,12 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     const videoEntry = getOutsideVideoElement(assetRef);
     const video = videoEntry?.video;
     if (video) {
-      video.loop = true;
-      video.muted = true;
-      video.playsInline = true;
       const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
-      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
-        video.playbackRate = playbackRate;
-      }
-      if (video.paused) {
-        void video.play().catch(() => undefined);
-      }
+      applyVideoPlaybackPlan(video, {
+        key: `room:${animation.id}:${assetRef}`,
+        targetRate: playbackRate,
+        priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
+      });
       if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
         ctx.save();
         ctx.globalAlpha = clampRoomOpacity(animation.opacity);
@@ -9763,13 +9836,11 @@ function drawInsideGlobalVisual(animation, age) {
     if (videoEntry?.video) {
       const video = videoEntry.video;
       const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
-      video.loop = true;
-      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
-        video.playbackRate = playbackRate;
-      }
-      if (video.paused) {
-        void video.play().catch(() => undefined);
-      }
+      applyVideoPlaybackPlan(video, {
+        key: `inside:${animation.id}:${definition.assetRef}`,
+        targetRate: playbackRate,
+        priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
+      });
       ctx.globalAlpha = intensity;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       return;
@@ -10484,6 +10555,7 @@ function draw(now) {
   const frameStart = performance.now();
   try {
     state.runtimePerf.frameIndex = (Number(state.runtimePerf.frameIndex) || 0) + 1;
+    beginVideoSchedulingFrame();
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
       if (Number.isFinite(frameDelta) && frameDelta > 0 && frameDelta < 1000) {

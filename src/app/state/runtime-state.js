@@ -117,6 +117,10 @@
         maxAshParticles: 240,
         maxOutsideStarsPerLayer: 110,
         frameIndex: 0,
+        videoOpsBudgetPerFrame: 6,
+        videoOpsUsedThisFrame: 0,
+        videoOpsDeferredThisFrame: 0,
+        videoDecodeStride: 1,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,
