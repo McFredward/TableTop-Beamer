@@ -1,18 +1,18 @@
 {
   "schema": "tt-beamer.p9-hf7-t7-hf5-hf6-non-regression.v1",
-  "measuredAt": "2026-04-02T23:25:54.691Z",
+  "measuredAt": "2026-04-02T23:26:56.401Z",
   "baseUrl": "http://127.0.0.1:4173",
   "hf5": {
-    "inspectedFrames": 2,
+    "inspectedFrames": 3,
     "purityViolations": 0
   },
   "hf6": {
-    "startAckMs": 12,
+    "startAckMs": 11,
     "stopAckMs": 3,
     "startStreamMs": 1,
     "stopStreamMs": 0,
-    "startVersion": 58,
-    "stopVersion": 59
+    "startVersion": 101,
+    "stopVersion": 102
   },
   "pass": true
 }

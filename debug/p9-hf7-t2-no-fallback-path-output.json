@@ -1,26 +1,26 @@
 {
   "schema": "tt-beamer.p9-hf7-t2-no-fallback-path.v1",
-  "measuredAt": "2026-04-02T23:22:41.557Z",
+  "measuredAt": "2026-04-02T23:26:52.513Z",
   "baseUrl": "http://127.0.0.1:4173",
   "attempts": [
     {
       "attempted": "auto",
       "applied": true,
-      "version": 17,
+      "version": 60,
       "runtimeMode": "stream",
       "persistedAsStream": true
     },
     {
       "attempted": "client",
       "applied": true,
-      "version": 18,
+      "version": 61,
       "runtimeMode": "stream",
       "persistedAsStream": true
     },
     {
       "attempted": "stream",
       "applied": true,
-      "version": 19,
+      "version": 62,
       "runtimeMode": "stream",
       "persistedAsStream": true
     }

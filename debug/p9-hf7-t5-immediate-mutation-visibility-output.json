@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.p9-hf7-t5-immediate-mutation-visibility.v1",
-  "measuredAt": "2026-04-02T23:24:37.552Z",
+  "measuredAt": "2026-04-02T23:26:53.169Z",
   "baseUrl": "http://127.0.0.1:4173",
   "frameTimeoutMs": 2500,
   "samples": [
@@ -8,36 +8,36 @@
       "mutation": "start",
       "ackMs": 5,
       "streamMs": 0,
-      "version": 22
+      "version": 65
     },
     {
       "mutation": "align-on",
       "ackMs": 2,
-      "streamMs": 1,
-      "version": 23
+      "streamMs": 0,
+      "version": 66
     },
     {
       "mutation": "board-switch",
-      "ackMs": 1,
+      "ackMs": 2,
       "streamMs": 0,
-      "version": 24
+      "version": 67
     },
     {
       "mutation": "stop",
       "ackMs": 1,
-      "streamMs": 1,
-      "version": 25
+      "streamMs": 0,
+      "version": 68
     },
     {
       "mutation": "align-off",
       "ackMs": 1,
       "streamMs": 0,
-      "version": 26
+      "version": 69
     }
   ],
   "summary": {
     "ackMaxMs": 5,
-    "streamMaxMs": 1
+    "streamMaxMs": 0
   },
   "pass": true
 }
