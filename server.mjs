@@ -23,6 +23,7 @@ const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 const FINAL_STREAM_SCHEMA = "tt-beamer.final-stream-frame.v1";
+const FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA = "tt-beamer.final-stream-visual-payload.v1";
 const FINAL_STREAM_MODE_AUTO = "auto";
 const FINAL_STREAM_MODE_STREAM = "stream";
 const FINAL_STREAM_MODE_CLIENT = "client";
@@ -2164,7 +2165,6 @@ async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot) {
         type: normalizeNonEmptyString(entry?.type) ?? "unknown",
         boardId: selectedBoardId,
         roomId,
-        roomLabel: roomId ? roomLookup[roomId]?.label ?? roomId : null,
         opacity: normalizeUnitInterval(entry?.opacity, 1),
         intensity: normalizePositiveNumber(entry?.intensity, 1),
         speed: normalizePositiveNumber(entry?.speed, 1),
@@ -2174,27 +2174,80 @@ async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot) {
       };
     });
 
-  finalStreamComposerState.frameId += 1;
-  finalStreamComposerState.lastFrameAt = new Date().toISOString();
-  finalStreamComposerState.lastSourceVersion = Number(liveSessionState.version ?? 0);
-  finalStreamComposerState.latestFrame = {
-    schema: FINAL_STREAM_SCHEMA,
-    frameId: finalStreamComposerState.frameId,
-    generatedAt: finalStreamComposerState.lastFrameAt,
-    sourceVersion: finalStreamComposerState.lastSourceVersion,
-    mode: normalizeFinalStreamMode(runtime?.finalOutputMode, FINAL_STREAM_MODE_AUTO),
+  const visualPayload = {
+    schema: FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA,
     alignMode: Boolean(snapshot?.alignMode ?? runtime?.alignMode),
     board: activeBoard
       ? {
         id: activeBoard.id,
-        label: normalizeNonEmptyString(activeBoard.label) ?? activeBoard.id,
         imageSrc: normalizeNonEmptyString(activeBoard.src),
-        rooms: Object.values(roomLookup),
+        rooms: Object.values(roomLookup).map((room) => ({
+          id: normalizeNonEmptyString(room?.id),
+          polygon: Array.isArray(room?.polygon) ? cloneJson(room.polygon) : [],
+        })),
       }
       : null,
     runningAnimations: boardAnimations,
   };
+
+  finalStreamComposerState.frameId += 1;
+  finalStreamComposerState.lastFrameAt = new Date().toISOString();
+  finalStreamComposerState.lastSourceVersion = Number(liveSessionState.version ?? 0);
+  const nextFrame = {
+    schema: FINAL_STREAM_SCHEMA,
+    frameId: finalStreamComposerState.frameId,
+    generatedAt: finalStreamComposerState.lastFrameAt,
+    sourceVersion: finalStreamComposerState.lastSourceVersion,
+    alignMode: visualPayload.alignMode,
+    visual: visualPayload,
+  };
+  finalStreamComposerState.latestFrame = sanitizeFinalStreamFrame(nextFrame);
   return finalStreamComposerState.latestFrame;
+}
+
+function sanitizeFinalStreamFrame(frame) {
+  const visual = isPlainObject(frame?.visual) ? frame.visual : {};
+  const board = isPlainObject(visual.board) ? visual.board : null;
+  const rooms = Array.isArray(board?.rooms)
+    ? board.rooms.map((room) => ({
+      id: normalizeNonEmptyString(room?.id),
+      polygon: Array.isArray(room?.polygon) ? cloneJson(room.polygon) : [],
+    }))
+    : [];
+  const runningAnimations = Array.isArray(visual.runningAnimations)
+    ? visual.runningAnimations.map((entry, index) => ({
+      id: normalizeNonEmptyString(entry?.id) ?? `runtime-${index + 1}`,
+      scope: normalizeNonEmptyString(entry?.scope) ?? "room",
+      type: normalizeNonEmptyString(entry?.type) ?? "unknown",
+      boardId: normalizeNonEmptyString(entry?.boardId),
+      roomId: normalizeNonEmptyString(entry?.roomId),
+      opacity: normalizeUnitInterval(entry?.opacity, 1),
+      intensity: normalizePositiveNumber(entry?.intensity, 1),
+      speed: normalizePositiveNumber(entry?.speed, 1),
+      hold: entry?.hold === true,
+      durationMs: Number.isFinite(Number(entry?.durationMs)) ? Number(entry.durationMs) : null,
+      startedAtEpochMs: Number.isFinite(Number(entry?.startedAtEpochMs)) ? Number(entry.startedAtEpochMs) : null,
+    }))
+    : [];
+  return {
+    schema: FINAL_STREAM_SCHEMA,
+    frameId: Number.isFinite(Number(frame?.frameId)) ? Number(frame.frameId) : 0,
+    generatedAt: normalizeNonEmptyString(frame?.generatedAt) ?? new Date().toISOString(),
+    sourceVersion: Number.isFinite(Number(frame?.sourceVersion)) ? Number(frame.sourceVersion) : 0,
+    alignMode: Boolean(frame?.alignMode ?? visual?.alignMode),
+    visual: {
+      schema: FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA,
+      alignMode: Boolean(frame?.alignMode ?? visual?.alignMode),
+      board: board
+        ? {
+          id: normalizeNonEmptyString(board.id),
+          imageSrc: normalizeNonEmptyString(board.imageSrc),
+          rooms,
+        }
+        : null,
+      runningAnimations,
+    },
+  };
 }
 
 async function listResourceFilesRecursive(baseDir, relativeDir = "") {

@@ -54,8 +54,6 @@ const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
 const finalStreamLayer = document.querySelector("#final-stream-layer");
-const finalStreamMeta = document.querySelector("#final-stream-meta");
-const finalStreamRunning = document.querySelector("#final-stream-running");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
@@ -328,6 +326,9 @@ function applyOutputRoleViewContract() {
   if (projectionArea) {
     projectionArea.setAttribute("aria-label", "Final Output FX-only");
   }
+  if (finalStreamLayer) {
+    finalStreamLayer.replaceChildren();
+  }
   triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
 }
 
@@ -353,31 +354,16 @@ function syncAlignModePanel() {
 }
 
 function renderFinalStreamFrame(frame) {
-  if (!finalStreamLayer || outputRole !== OUTPUT_ROLE_FINAL) {
+  if (outputRole !== OUTPUT_ROLE_FINAL) {
     return;
   }
-  finalStreamLayer.hidden = false;
-  finalStreamLayer.setAttribute("aria-hidden", "false");
-  const boardLabel = frame?.board?.label || frame?.board?.id || "-";
-  const version = Number(frame?.sourceVersion || 0);
-  const mode = String(frame?.mode || "auto");
   const align = Boolean(frame?.alignMode);
   state.alignMode = align;
   document.body.classList.toggle("align-mode-active", align);
-  const running = Array.isArray(frame?.runningAnimations) ? frame.runningAnimations : [];
-  if (finalStreamMeta) {
-    finalStreamMeta.textContent = `Mode ${mode.toUpperCase()} | Align ${align ? "ON" : "OFF"} | Board ${boardLabel} | v${version} | running ${running.length}`;
-  }
-  if (finalStreamRunning) {
-    finalStreamRunning.replaceChildren();
-    running.slice(0, 12).forEach((entry) => {
-      const item = document.createElement("li");
-      const scope = String(entry?.scope || "room").toUpperCase();
-      const type = String(entry?.type || "unknown");
-      const roomLabel = entry?.roomLabel ? ` @ ${entry.roomLabel}` : "";
-      item.textContent = `${scope} • ${type}${roomLabel}`;
-      finalStreamRunning.appendChild(item);
-    });
+  if (finalStreamLayer) {
+    finalStreamLayer.hidden = false;
+    finalStreamLayer.setAttribute("aria-hidden", "false");
+    finalStreamLayer.replaceChildren();
   }
   finalStreamRuntime.lastFrameAt = Date.now();
 }

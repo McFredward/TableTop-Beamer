@@ -131,44 +131,10 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   position: absolute;
   inset: 0;
   z-index: 2;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 0.4rem;
-  padding: 0.9rem;
-  color: #d5eefc;
-  background: radial-gradient(120% 120% at 50% 0%, rgba(14, 40, 58, 0.18) 0%, rgba(0, 0, 0, 0.58) 100%);
-  pointer-events: none;
-}
-
-.final-stream-headline {
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.15rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  opacity: 0.9;
-}
-
-.final-stream-meta {
-  font-size: 0.85rem;
-  color: #a9cce3;
-}
-
-.final-stream-running {
-  margin: 0;
+  display: block;
   padding: 0;
-  list-style: none;
-  display: grid;
-  align-content: start;
-  gap: 0.35rem;
-  max-width: min(42vw, 480px);
-}
-
-.final-stream-running li {
-  padding: 0.3rem 0.45rem;
-  border: 1px solid rgba(89, 167, 211, 0.35);
-  border-radius: 0.35rem;
-  background: rgba(4, 18, 29, 0.44);
-  font-size: 0.78rem;
+  background: transparent;
+  pointer-events: none;
 }
 
 body[data-output-role="final-output"] .final-stream-layer[hidden] {
