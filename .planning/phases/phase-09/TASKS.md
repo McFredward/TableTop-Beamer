@@ -26,6 +26,18 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF2-T8 [P0] Execute low-end mobile stress matrix for frame stability, memory pressure tolerance, and graceful degradation behavior.
 - [x] DONE P9-HF2-T9 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF3 - Mandatory video-performance hotfix wave (execute-ready, hard-gated)
+- [x] DONE P9-HF3-T1 [P0] Build reproducible video-heavy profiling baseline on mobile and Raspberry Pi (`/output/final` + control views) and record bottleneck traces.
+- [ ] TODO P9-HF3-T2 [P0] Optimize video decode/render scheduling to prevent frame-budget starvation during concurrent animation playback.
+- [ ] TODO P9-HF3-T3 [P0] Implement deterministic video buffering/warmup path to reduce startup/seek hitching and avoid decoder thrash.
+- [ ] TODO P9-HF3-T4 [P0] Improve video draw strategy (cadence, batching, overdraw reduction) for smooth frame pacing under load.
+- [ ] TODO P9-HF3-T5 [P0] Add final-output-first runtime prioritization so `/output/final` remains fluid under mixed workload contention.
+- [ ] TODO P9-HF3-T6 [P0] Preserve control-view responsiveness (mobile/PC) while final-output priority policy is active.
+- [ ] TODO P9-HF3-T7 [P0] Implement adaptive weak-device quality/load-shedding ladder with deterministic pressure levels and recovery hysteresis.
+- [ ] TODO P9-HF3-T8 [P0] Execute hard video-heavy performance regression suite with measurable thresholds for Raspberry/mobile and document PASS/FAIL evidence.
+- [ ] TODO P9-HF3-T9 [P0] Validate non-regression for sync ordering/version/idempotent apply, lifecycle no-replay semantics, and stop determinism under HF3 hardening.
+- [ ] TODO P9-HF3-T10 [P0] Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after HF3 PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -41,7 +53,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF2 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF3 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
