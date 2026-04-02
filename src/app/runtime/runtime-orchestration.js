@@ -4789,6 +4789,46 @@ function getRuntimeQualityScale() {
   return Math.max(0.68, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
 }
 
+function computeAnimationCoalesceSeed(animation) {
+  const id = typeof animation?.id === "string" ? animation.id : "";
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 33 + id.charCodeAt(index)) % 997;
+  }
+  return hash;
+}
+
+function isRenderCriticalAnimation(animation) {
+  if (!animation || typeof animation !== "object") {
+    return false;
+  }
+  if (animation.scope === "cluster" || animation.scope === "room") {
+    return true;
+  }
+  if (animation.scope === "global") {
+    const durationMs = Number(animation.durationMs);
+    if (Number.isFinite(durationMs) && durationMs > 0) {
+      return true;
+    }
+    const type = typeof animation.type === "string" ? animation.type : "";
+    return type === "outside-space";
+  }
+  return false;
+}
+
+function shouldCoalesceNonCriticalAnimation(animation) {
+  if (isRenderCriticalAnimation(animation)) {
+    return false;
+  }
+  const stride = Math.max(1, Number(state.runtimePerf.nonCriticalCoalesceStride) || 1);
+  if (stride <= 1) {
+    return false;
+  }
+  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
+  const seed = computeAnimationCoalesceSeed(animation);
+  return (frameIndex + seed) % stride !== 0;
+}
+
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -4799,11 +4839,30 @@ function recordRuntimeFrameCost(frameCostMs) {
     samples.shift();
   }
   const p90 = percentile(samples, 0.9);
-  const targetMs = 16.7;
+  const targetMs = Number(state.runtimePerf.frameBudgetMs) || 16.7;
   if (p90 > targetMs * 1.25) {
     state.runtimePerf.qualityScale = Math.max(0.68, getRuntimeQualityScale() - 0.03);
   } else if (p90 < targetMs * 0.92) {
     state.runtimePerf.qualityScale = Math.min(1, getRuntimeQualityScale() + 0.015);
+  }
+  if (p90 > targetMs * 1.9) {
+    state.runtimePerf.pressureLevel = 2;
+    state.runtimePerf.nonCriticalCoalesceStride = 3;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 28;
+    state.runtimePerf.maxAshParticles = 80;
+    state.runtimePerf.maxOutsideStarsPerLayer = 34;
+  } else if (p90 > targetMs * 1.35) {
+    state.runtimePerf.pressureLevel = 1;
+    state.runtimePerf.nonCriticalCoalesceStride = 2;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 56;
+    state.runtimePerf.maxAshParticles = 150;
+    state.runtimePerf.maxOutsideStarsPerLayer = 64;
+  } else {
+    state.runtimePerf.pressureLevel = 0;
+    state.runtimePerf.nonCriticalCoalesceStride = 1;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 96;
+    state.runtimePerf.maxAshParticles = 240;
+    state.runtimePerf.maxOutsideStarsPerLayer = 110;
   }
 }
 
@@ -10397,6 +10456,7 @@ function pruneFinishedAnimations(now) {
 function draw(now) {
   const frameStart = performance.now();
   try {
+    state.runtimePerf.frameIndex = (Number(state.runtimePerf.frameIndex) || 0) + 1;
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
       if (Number.isFinite(frameDelta) && frameDelta > 0 && frameDelta < 1000) {
@@ -10424,8 +10484,17 @@ function draw(now) {
     drawOutsideFxLayer(now);
 
     const failedAnimationIds = [];
+    let renderedCount = 0;
+    const maxRenderAnimationsPerFrame = Math.max(1, Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96);
     for (const anim of state.runningAnimations) {
+      if (shouldCoalesceNonCriticalAnimation(anim)) {
+        continue;
+      }
+      if (!isRenderCriticalAnimation(anim) && renderedCount >= maxRenderAnimationsPerFrame) {
+        continue;
+      }
       const ok = drawAnimationSafely(anim, now);
+      renderedCount += 1;
       if (!ok) {
         failedAnimationIds.push(anim.id);
       }

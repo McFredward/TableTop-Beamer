@@ -110,6 +110,13 @@
       runtimePerf: {
         frameCostSamples: [],
         qualityScale: 1,
+        frameBudgetMs: 16.7,
+        pressureLevel: 0,
+        nonCriticalCoalesceStride: 1,
+        maxRenderAnimationsPerFrame: 96,
+        maxAshParticles: 240,
+        maxOutsideStarsPerLayer: 110,
+        frameIndex: 0,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,
