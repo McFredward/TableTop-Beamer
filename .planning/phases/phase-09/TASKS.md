@@ -10,7 +10,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF1-T4 [P0] Extract sync command handlers out of `src/app.js` into dedicated sync/api modules with deterministic routing.
 - [x] DONE P9-HF1-T5 [P0] Extract settings controllers out of `src/app.js` into dedicated UI controller modules.
 - [x] DONE P9-HF1-T6 [P0] Extract media handlers out of `src/app.js` into `src/app/gif/*` or media-focused modules with unchanged behavior.
-- [ ] TODO P9-HF1-T7 [P0] Enforce thin-bootstrap ownership in `src/app.js` and remove remaining large feature blocks.
+- [x] DONE P9-HF1-T7 [P0] Enforce thin-bootstrap ownership in `src/app.js` and remove remaining large feature blocks.
 - [ ] TODO P9-HF1-T8 [P0] Pass strict regression matrix: runtime lifecycle, editor flows, sync commands, settings sync, media playback, persistence, API save flow, `/output/final`.
 - [ ] TODO P9-HF1-T9 [P0] Enforce measurable gate: `wc -l src/app.js` must report <= 4200 lines (baseline 12163, >= 65% reduction).
 - [ ] TODO P9-HF1-T10 [P0] Sync all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after PASS evidence.
