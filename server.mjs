@@ -224,7 +224,7 @@ const LIVE_MUTATION_TYPES = new Set([
   "outside-update",
   "context-update",
 ]);
-const CONTROL_CRITICAL_MUTATIONS = new Set(["stop-animation", "clear-all"]);
+const CONTROL_CRITICAL_MUTATIONS = new Set(["trigger-room", "trigger-global", "stop-animation", "clear-all"]);
 const NON_COALESCING_MUTATIONS = new Set([
   "trigger-global",
   "trigger-room",
