@@ -394,21 +394,18 @@ function connectFinalOutputStream() {
   eventSource.addEventListener("error", () => {
     finalStreamRuntime.connected = false;
     finalStreamRuntime.fallbackReason = "stream-error";
-    document.body.dataset.finalOutputPath = "client";
+    document.body.dataset.finalOutputPath = "stream";
   });
   eventSource.addEventListener("stream-fault", () => {
     finalStreamRuntime.connected = false;
     finalStreamRuntime.fallbackReason = "stream-fault";
-    document.body.dataset.finalOutputPath = "client";
+    document.body.dataset.finalOutputPath = "stream";
   });
 }
 
 function normalizeFinalOutputMode(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "stream" || normalized === "client") {
-    return normalized;
-  }
-  return "auto";
+  void value;
+  return "stream";
 }
 
 function syncFinalOutputModePanel() {
@@ -429,7 +426,7 @@ function setFinalOutputMode(nextMode, { emit = true } = {}) {
     void emitLiveMutation("context-update", {
       reason: "final-output-mode",
       runtime: {
-        finalOutputMode: normalized,
+        finalOutputMode: "stream",
       },
     }).catch(() => {
       triggerFeedback.textContent = "Status: final output mode command failed";
@@ -445,17 +442,7 @@ function isFinalStreamHealthy() {
 }
 
 function shouldUseServerStreamPath() {
-  if (outputRole !== OUTPUT_ROLE_FINAL) {
-    return false;
-  }
-  const mode = normalizeFinalOutputMode(state.finalOutputMode);
-  if (mode === "client") {
-    return false;
-  }
-  if (mode === "stream") {
-    return isFinalStreamHealthy();
-  }
-  return isFinalStreamHealthy();
+  return outputRole === OUTPUT_ROLE_FINAL;
 }
 
 function syncFinalOutputRenderPath() {
@@ -463,13 +450,13 @@ function syncFinalOutputRenderPath() {
     return;
   }
   const streamActive = shouldUseServerStreamPath();
-  document.body.dataset.finalOutputPath = streamActive ? "stream" : "client";
+  document.body.dataset.finalOutputPath = "stream";
   if (finalStreamLayer) {
     finalStreamLayer.hidden = !streamActive;
     finalStreamLayer.setAttribute("aria-hidden", streamActive ? "false" : "true");
   }
-  if (!streamActive && isFinalStreamHealthy() === false && !finalStreamRuntime.fallbackReason) {
-    finalStreamRuntime.fallbackReason = "stream-timeout";
+  if (streamActive && isFinalStreamHealthy() === false && !finalStreamRuntime.fallbackReason) {
+    finalStreamRuntime.fallbackReason = "stream-degraded";
   }
 }
 
@@ -12217,8 +12204,8 @@ mobileStartRoomButton?.addEventListener("click", () => {
 });
 
 finalOutputModeSelect?.addEventListener("change", () => {
-  setFinalOutputMode(finalOutputModeSelect.value, { emit: true });
-  triggerFeedback.textContent = `Status: Final output mode set to ${normalizeFinalOutputMode(finalOutputModeSelect.value).toUpperCase()}`;
+  setFinalOutputMode("stream", { emit: true });
+  triggerFeedback.textContent = "Status: Final output mode is enforced to STREAM";
 });
 
 alignModeToggleInput?.addEventListener("change", () => {

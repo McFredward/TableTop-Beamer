@@ -72,7 +72,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 9-HF7 - Critical `/output/final` strict stream-authority + stale-frame closure wave (execute-ready, hard-gated)
 - [x] DONE P9-HF7-T1 [P0] Build deterministic reproduction harness for stale/fallback `/output/final` behavior (new mutations not reflected immediately) and capture pre-fix traces.
-- [ ] TODO P9-HF7-T2 [P0] Remove `/output/final` client-render fallback runtime paths entirely (no auto/manual fallback path, no active client mode downgrade path).
+- [x] DONE P9-HF7-T2 [P0] Remove `/output/final` client-render fallback runtime paths entirely (no auto/manual fallback path, no active client mode downgrade path).
 - [ ] TODO P9-HF7-T3 [P0] Enforce always-authoritative server stream producer compose independent of subscriber count/churn and subscriber presence.
 - [ ] TODO P9-HF7-T4 [P0] Bind stream producer compose source to current full authoritative state revision; close stale-frame/cache reuse paths.
 - [ ] TODO P9-HF7-T5 [P0] Guarantee immediate mutation-to-output propagation for accepted state mutations (start/stop/board/align/etc.) without page refresh.

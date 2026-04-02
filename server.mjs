@@ -24,14 +24,8 @@ const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 const FINAL_STREAM_SCHEMA = "tt-beamer.final-stream-frame.v1";
 const FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA = "tt-beamer.final-stream-visual-payload.v1";
-const FINAL_STREAM_MODE_AUTO = "auto";
 const FINAL_STREAM_MODE_STREAM = "stream";
-const FINAL_STREAM_MODE_CLIENT = "client";
-const FINAL_STREAM_MODE_VALUES = new Set([
-  FINAL_STREAM_MODE_AUTO,
-  FINAL_STREAM_MODE_STREAM,
-  FINAL_STREAM_MODE_CLIENT,
-]);
+const FINAL_STREAM_MODE_VALUES = new Set([FINAL_STREAM_MODE_STREAM]);
 
 const liveSessionState = {
   version: 0,
@@ -43,7 +37,7 @@ const liveSessionState = {
     selectedBoard: null,
     selectedLayout: null,
     outsideFxByBoard: {},
-    finalOutputMode: FINAL_STREAM_MODE_AUTO,
+    finalOutputMode: FINAL_STREAM_MODE_STREAM,
     runtime: null,
   },
 };
@@ -67,6 +61,8 @@ const finalStreamProducerState = {
   recoveries: 0,
   ticks: 0,
   lastTickAt: null,
+  pendingSnapshot: null,
+  pendingSourceVersion: 0,
 };
 
 const boardCatalogCache = {
@@ -129,12 +125,22 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
   finalStreamProducerState.ticks += 1;
   finalStreamProducerState.lastTickAt = new Date().toISOString();
   try {
+    const snapshotFromRequest = finalStreamProducerState.pendingSnapshot;
+    finalStreamProducerState.pendingSnapshot = null;
+    const requestedSourceVersion = Number(finalStreamProducerState.pendingSourceVersion ?? 0);
+    finalStreamProducerState.pendingSourceVersion = 0;
+    const snapshot = snapshotFromRequest ?? liveSessionState.snapshot;
     const currentVersion = Number(liveSessionState.version ?? 0);
+    const snapshotVersion = Math.max(requestedSourceVersion, currentVersion);
     const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
-    const needsCompose = force || currentVersion > latestFrameVersion || !finalStreamComposerState.latestFrame;
+    const needsCompose =
+      force ||
+      snapshotVersion > latestFrameVersion ||
+      !finalStreamComposerState.latestFrame ||
+      Boolean(snapshotFromRequest);
     if (needsCompose) {
-      const frame = await composeFinalStreamFrame(liveSessionState.snapshot);
-      finalStreamProducerState.latestBroadcastVersion = Number(frame?.sourceVersion ?? currentVersion);
+      const frame = await composeFinalStreamFrame(snapshot, { sourceVersion: snapshotVersion });
+      finalStreamProducerState.latestBroadcastVersion = Number(frame?.sourceVersion ?? snapshotVersion);
       finalStreamProducerState.latestComposeError = null;
       finalStreamProducerState.latestComposeErrorAt = null;
       broadcastFinalStreamFrame(frame);
@@ -174,7 +180,7 @@ function ensureFinalStreamProducerWatchdog() {
         void composeAndBroadcastFinalStreamFrame();
       }, FINAL_STREAM_PUSH_INTERVAL_MS);
     }
-    if (finalStreamClients.size <= 0 || finalStreamProducerState.composing) {
+    if (finalStreamProducerState.composing) {
       return;
     }
     const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
@@ -201,8 +207,11 @@ function ensureFinalStreamProducerRunning() {
   }, FINAL_STREAM_PUSH_INTERVAL_MS);
 }
 
-function requestFinalStreamCompose(reason = "mutation") {
+function requestFinalStreamCompose(reason = "mutation", { snapshot = null, sourceVersion = null } = {}) {
   void reason;
+  const nextSnapshot = snapshot ? cloneJson(snapshot) : cloneJson(liveSessionState.snapshot);
+  finalStreamProducerState.pendingSnapshot = nextSnapshot;
+  finalStreamProducerState.pendingSourceVersion = Number(sourceVersion ?? liveSessionState.version ?? 0);
   ensureFinalStreamProducerRunning();
   setImmediate(() => {
     void composeAndBroadcastFinalStreamFrame({ force: true });
@@ -384,12 +393,12 @@ function normalizeNonEmptyString(value) {
   return trimmed ? trimmed : null;
 }
 
-function normalizeFinalStreamMode(value, fallback = FINAL_STREAM_MODE_AUTO) {
+function normalizeFinalStreamMode(value, fallback = FINAL_STREAM_MODE_STREAM) {
   const normalized = normalizeNonEmptyString(value)?.toLowerCase() ?? "";
   if (FINAL_STREAM_MODE_VALUES.has(normalized)) {
     return normalized;
   }
-  return fallback;
+  return FINAL_STREAM_MODE_STREAM;
 }
 
 function normalizeUnitInterval(value, fallback = 1) {
@@ -819,7 +828,7 @@ function applyContextUpdatePatch(payload) {
         : null;
   const finalOutputMode = normalizeFinalStreamMode(
     payload?.finalOutputMode ?? runtimePatch?.finalOutputMode,
-    normalizeFinalStreamMode(nextRuntime?.finalOutputMode, FINAL_STREAM_MODE_AUTO),
+    normalizeFinalStreamMode(nextRuntime?.finalOutputMode, FINAL_STREAM_MODE_STREAM),
   );
   const requestedSelectedBoard =
     normalizeNonEmptyString(payload?.selectedBoard) ??
@@ -1147,7 +1156,10 @@ function applyLiveMutation({
   recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
   finalStreamComposerState.lastSourceVersion = Number(session.version ?? 0);
   finalStreamComposerState.latestFrame = null;
-  requestFinalStreamCompose("mutation-applied");
+  requestFinalStreamCompose("mutation-applied", {
+    snapshot: session.snapshot,
+    sourceVersion: session.version,
+  });
 
   if (dedupKey) {
     rememberProcessedMutation(dedupKey, {
@@ -1688,12 +1700,17 @@ function attachFinalStreamClient(req, res) {
   finalStreamClients.set(clientId, entry);
 
   const cachedFrame = finalStreamComposerState.latestFrame;
-  if (cachedFrame) {
+  const latestVersion = Number(liveSessionState.version ?? 0);
+  const cachedVersion = Number(cachedFrame?.sourceVersion ?? 0);
+  if (cachedFrame && cachedVersion >= latestVersion) {
     entry.lastVersion = Number(cachedFrame?.sourceVersion ?? 0);
     writeSseEvent(entry.res, "frame", cachedFrame);
   } else {
     writeFinalStreamHeartbeat(entry.res);
-    requestFinalStreamCompose("client-attach");
+    requestFinalStreamCompose("client-attach", {
+      snapshot: liveSessionState.snapshot,
+      sourceVersion: liveSessionState.version,
+    });
   }
 
   const closeHandler = () => {
@@ -2142,7 +2159,7 @@ async function getCachedRuntimeBoards({ force = false } = {}) {
   return boardCatalogCache.runtimeBoards;
 }
 
-async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot) {
+async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot, { sourceVersion = null } = {}) {
   const runtimeBoards = await getCachedRuntimeBoards();
   const runtime = isPlainObject(snapshot?.runtime) ? snapshot.runtime : {};
   const selectedBoardId =
@@ -2193,7 +2210,7 @@ async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot) {
 
   finalStreamComposerState.frameId += 1;
   finalStreamComposerState.lastFrameAt = new Date().toISOString();
-  finalStreamComposerState.lastSourceVersion = Number(liveSessionState.version ?? 0);
+  finalStreamComposerState.lastSourceVersion = Number(sourceVersion ?? liveSessionState.version ?? 0);
   const nextFrame = {
     schema: FINAL_STREAM_SCHEMA,
     frameId: finalStreamComposerState.frameId,
@@ -2958,6 +2975,8 @@ const server = createServer(async (req, res) => {
 attachLiveWebSocket(server);
 
 server.listen(PORT, HOST, () => {
+  ensureFinalStreamProducerRunning();
+  requestFinalStreamCompose("server-start");
   logSessionEvent("server-start", {
     host: HOST,
     port: PORT,

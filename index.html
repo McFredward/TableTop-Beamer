@@ -98,10 +98,8 @@
         </label>
         <label>
           Final output mode
-          <select id="final-output-mode-select">
-            <option value="auto">Auto (prefer stream, fallback on health fail)</option>
-            <option value="stream">Force stream</option>
-            <option value="client">Force client fallback</option>
+          <select id="final-output-mode-select" disabled>
+            <option value="stream">Stream only (server authoritative)</option>
           </select>
         </label>
         <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
@@ -112,7 +110,7 @@
           Board source: checked at startup
         </p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
-        <p id="final-output-mode-status" class="status-line" aria-live="polite">Final output mode: AUTO</p>
+        <p id="final-output-mode-status" class="status-line" aria-live="polite">Final output mode: STREAM</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: not saved yet
         </p>
