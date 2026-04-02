@@ -4679,13 +4679,11 @@ function setDashboardZone(zone, { announce = false } = {}) {
 }
 
 function shouldSuppressRapidTap(actionKey, thresholdMs = 320) {
-  const now = performance.now();
-  const lastAt = state.touchActionGuard[actionKey] ?? 0;
-  if (now - lastAt < thresholdMs) {
-    return true;
-  }
-  state.touchActionGuard[actionKey] = now;
-  return false;
+  return window.TT_BEAMER_INPUT_GUARDS.shouldSuppressRapidTap({
+    state,
+    actionKey,
+    thresholdMs,
+  });
 }
 
 function percentile(values, p) {
@@ -4740,7 +4738,7 @@ function updateMobilePerformanceStatus() {
 }
 
 function recordTriggerIntent() {
-  state.mobilePerf.pendingTriggerAt = performance.now();
+  window.TT_BEAMER_INPUT_GUARDS.recordTriggerIntent(state);
 }
 
 function hardStopRuntimeEffects({ clearVisuals = true } = {}) {
