@@ -5,7 +5,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 9-HF1 - Mandatory app.js decomposition recovery wave (execute-ready, hard-gated)
 - [x] DONE P9-HF1-T1 [P0] Create the HF1 extraction map for mandatory domains: editor flows, animation runtime orchestration, sync command handlers, settings controllers, media handlers.
-- [ ] TODO P9-HF1-T2 [P0] Extract editor flows out of `src/app.js` into dedicated modules and keep call contracts stable.
+- [x] DONE P9-HF1-T2 [P0] Extract editor flows out of `src/app.js` into dedicated modules and keep call contracts stable.
 - [ ] TODO P9-HF1-T3 [P0] Extract animation runtime orchestration out of `src/app.js` into dedicated runtime/render modules.
 - [ ] TODO P9-HF1-T4 [P0] Extract sync command handlers out of `src/app.js` into dedicated sync/api modules with deterministic routing.
 - [ ] TODO P9-HF1-T5 [P0] Extract settings controllers out of `src/app.js` into dedicated UI controller modules.
