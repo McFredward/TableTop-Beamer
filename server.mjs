@@ -54,6 +54,18 @@ const finalStreamComposerState = {
   latestFrame: null,
 };
 
+const finalStreamProducerState = {
+  timerId: null,
+  running: false,
+  composing: false,
+  pendingCompose: false,
+  latestBroadcastVersion: 0,
+  latestComposeError: null,
+  latestComposeErrorAt: null,
+  recoveries: 0,
+  ticks: 0,
+};
+
 const boardCatalogCache = {
   loadedAt: 0,
   ttlMs: 10_000,
@@ -62,6 +74,106 @@ const boardCatalogCache = {
 
 const finalStreamClients = new Map();
 const FINAL_STREAM_PUSH_INTERVAL_MS = 250;
+
+function writeFinalStreamHeartbeat(res) {
+  writeSseEvent(res, "heartbeat", {
+    ts: new Date().toISOString(),
+    version: Number(liveSessionState.version ?? 0),
+  });
+}
+
+function broadcastFinalStreamHeartbeat() {
+  for (const [clientId, entry] of finalStreamClients.entries()) {
+    if (!entry || entry.closed || entry.res.writableEnded) {
+      removeFinalStreamClient(clientId);
+      continue;
+    }
+    writeFinalStreamHeartbeat(entry.res);
+  }
+}
+
+function broadcastFinalStreamFrame(frame) {
+  for (const [clientId, entry] of finalStreamClients.entries()) {
+    if (!entry || entry.closed || entry.res.writableEnded) {
+      removeFinalStreamClient(clientId);
+      continue;
+    }
+    entry.lastVersion = Number(frame?.sourceVersion ?? entry.lastVersion ?? 0);
+    writeSseEvent(entry.res, "frame", frame);
+  }
+}
+
+function broadcastFinalStreamFault(message) {
+  for (const [clientId, entry] of finalStreamClients.entries()) {
+    if (!entry || entry.closed || entry.res.writableEnded) {
+      removeFinalStreamClient(clientId);
+      continue;
+    }
+    writeSseEvent(entry.res, "stream-fault", {
+      ts: new Date().toISOString(),
+      message,
+    });
+  }
+}
+
+async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
+  if (finalStreamProducerState.composing) {
+    finalStreamProducerState.pendingCompose = true;
+    return;
+  }
+  finalStreamProducerState.composing = true;
+  finalStreamProducerState.ticks += 1;
+  try {
+    const currentVersion = Number(liveSessionState.version ?? 0);
+    const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
+    const needsCompose = force || currentVersion > latestFrameVersion || !finalStreamComposerState.latestFrame;
+    if (needsCompose) {
+      const frame = await composeFinalStreamFrame(liveSessionState.snapshot);
+      finalStreamProducerState.latestBroadcastVersion = Number(frame?.sourceVersion ?? currentVersion);
+      finalStreamProducerState.latestComposeError = null;
+      finalStreamProducerState.latestComposeErrorAt = null;
+      broadcastFinalStreamFrame(frame);
+      return;
+    }
+    broadcastFinalStreamHeartbeat();
+  } catch (error) {
+    finalStreamProducerState.latestComposeError = error instanceof Error ? error.message : "compose-failed";
+    finalStreamProducerState.latestComposeErrorAt = new Date().toISOString();
+    finalStreamProducerState.recoveries += 1;
+    logErrorEvent("final-stream-compose-error", finalStreamProducerState.latestComposeError, {
+      clients: finalStreamClients.size,
+      version: Number(liveSessionState.version ?? 0),
+      recoveries: finalStreamProducerState.recoveries,
+    });
+    broadcastFinalStreamFault(finalStreamProducerState.latestComposeError);
+  } finally {
+    finalStreamProducerState.composing = false;
+    if (finalStreamProducerState.pendingCompose) {
+      finalStreamProducerState.pendingCompose = false;
+      setImmediate(() => {
+        void composeAndBroadcastFinalStreamFrame({ force: true });
+      });
+    }
+  }
+}
+
+function ensureFinalStreamProducerRunning() {
+  if (finalStreamProducerState.running) {
+    return;
+  }
+  finalStreamProducerState.running = true;
+  finalStreamProducerState.timerId = setInterval(() => {
+    void composeAndBroadcastFinalStreamFrame();
+  }, FINAL_STREAM_PUSH_INTERVAL_MS);
+}
+
+function requestFinalStreamCompose(reason = "mutation") {
+  void reason;
+  ensureFinalStreamProducerRunning();
+  setImmediate(() => {
+    void composeAndBroadcastFinalStreamFrame({ force: true });
+  });
+}
 
 const liveClients = new Map();
 const processedMutations = new Map();
@@ -1001,6 +1113,7 @@ function applyLiveMutation({
   recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
   finalStreamComposerState.lastSourceVersion = Number(session.version ?? 0);
   finalStreamComposerState.latestFrame = null;
+  requestFinalStreamCompose("mutation-applied");
 
   if (dedupKey) {
     rememberProcessedMutation(dedupKey, {
@@ -1513,9 +1626,6 @@ function removeFinalStreamClient(clientId) {
   if (!entry) {
     return;
   }
-  if (entry.timerId) {
-    clearInterval(entry.timerId);
-  }
   try {
     entry.res.end();
   } catch {
@@ -1524,26 +1634,8 @@ function removeFinalStreamClient(clientId) {
   finalStreamClients.delete(clientId);
 }
 
-async function pushFinalStreamFrame(clientId, { force = false } = {}) {
-  const entry = finalStreamClients.get(clientId);
-  if (!entry || entry.res.writableEnded || entry.closed) {
-    removeFinalStreamClient(clientId);
-    return;
-  }
-  const currentVersion = Number(liveSessionState.version ?? 0);
-  if (!force && currentVersion <= Number(entry.lastVersion ?? 0)) {
-    writeSseEvent(entry.res, "heartbeat", {
-      ts: new Date().toISOString(),
-      version: currentVersion,
-    });
-    return;
-  }
-  const frame = await composeFinalStreamFrame(liveSessionState.snapshot);
-  entry.lastVersion = Number(frame.sourceVersion ?? currentVersion);
-  writeSseEvent(entry.res, "frame", frame);
-}
-
 function attachFinalStreamClient(req, res) {
+  ensureFinalStreamProducerRunning();
   const clientId = `stream-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   res.writeHead(200, {
     "content-type": "text/event-stream; charset=utf-8",
@@ -1558,14 +1650,17 @@ function attachFinalStreamClient(req, res) {
     res,
     closed: false,
     lastVersion: 0,
-    timerId: null,
   };
   finalStreamClients.set(clientId, entry);
 
-  entry.timerId = setInterval(() => {
-    void pushFinalStreamFrame(clientId);
-  }, FINAL_STREAM_PUSH_INTERVAL_MS);
-  void pushFinalStreamFrame(clientId, { force: true });
+  const cachedFrame = finalStreamComposerState.latestFrame;
+  if (cachedFrame) {
+    entry.lastVersion = Number(cachedFrame?.sourceVersion ?? 0);
+    writeSseEvent(entry.res, "frame", cachedFrame);
+  } else {
+    writeFinalStreamHeartbeat(entry.res);
+    requestFinalStreamCompose("client-attach");
+  }
 
   const closeHandler = () => {
     entry.closed = true;
@@ -1583,11 +1678,23 @@ function buildFinalStreamHealthSnapshot() {
     schema: "tt-beamer.final-stream-health.v1",
     generatedAt: new Date().toISOString(),
     connectedClients: finalStreamClients.size,
+    producer: {
+      running: finalStreamProducerState.running,
+      composing: finalStreamProducerState.composing,
+      ticks: finalStreamProducerState.ticks,
+      recoveries: finalStreamProducerState.recoveries,
+      latestBroadcastVersion: finalStreamProducerState.latestBroadcastVersion,
+      latestComposeError: finalStreamProducerState.latestComposeError,
+      latestComposeErrorAt: finalStreamProducerState.latestComposeErrorAt,
+    },
     lastFrameAt: finalStreamComposerState.lastFrameAt,
     sourceVersion: finalStreamComposerState.lastSourceVersion,
     frameId: finalStreamComposerState.frameId,
     msSinceLastFrame,
-    healthy: finalStreamClients.size > 0 && msSinceLastFrame !== null && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
+    healthy:
+      finalStreamProducerState.running
+      && msSinceLastFrame !== null
+      && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
   };
 }
 
