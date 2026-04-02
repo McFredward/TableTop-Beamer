@@ -42,6 +42,7 @@
     run,
     reason = "unknown",
   }) {
+    // Coalesce resize/orientation/fullscreen bursts into one frame-bound recompute.
     stageViewport.pendingReasons.add(reason);
     if (stageViewport.rafId !== null) {
       return;

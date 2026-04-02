@@ -12,7 +12,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T6 [P0] Extract UI controllers/bindings (dashboard/settings sync) into `src/app/ui/*` using explicit interface contracts.
 - [x] DONE P9-T7 [P0] Extract input arbitration (pointer/keyboard/touch/pan guards) into `src/app/input/*` and keep deterministic interactions.
 - [x] DONE P9-T8 [P0] Extract render and media lifecycle blocks into `src/app/render/*` and `src/app/gif/*` without `/output/final` regressions.
-- [ ] TODO P9-T9 [P0] Add meaningful English comments at non-obvious lifecycle/state/render/integration hotspots across extracted modules.
+- [x] DONE P9-T9 [P0] Add meaningful English comments at non-obvious lifecycle/state/render/integration hotspots across extracted modules.
 - [ ] TODO P9-T10 [P0] Implement centralized structured logging utility and migrate high-value diagnostics checkpoints.
 - [ ] TODO P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [ ] TODO P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.

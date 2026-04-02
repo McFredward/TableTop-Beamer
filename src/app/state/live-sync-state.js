@@ -53,6 +53,7 @@
       };
       existing.markers[marker] = ts;
       liveSync.tracesByMutationId.set(mutationId, existing);
+      // Keep trace memory bounded so diagnostics stay useful without unbounded growth.
       if (liveSync.tracesByMutationId.size > mutationLimit) {
         const oldest = liveSync.tracesByMutationId.keys().next().value;
         if (oldest) {

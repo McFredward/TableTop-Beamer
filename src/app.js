@@ -542,6 +542,7 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
     const triggerRevision = getGlobalTriggerRevision(animation);
     const previous = previousAnimationsById.get(animation.id);
     if (triggerKey && triggerRevision !== null) {
+      // Global triggers are revision-driven: a stop with same/higher revision must win over stale starts.
       const stopRevision = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
       if (stopRevision >= triggerRevision) {
         return null;
@@ -663,6 +664,7 @@ function shouldApplySnapshotVersion(incomingVersion) {
     return false;
   }
   const normalizedIncomingVersion = Number(incomingVersion);
+  // Snapshot polling is strictly monotonic; stale snapshots are ignored to avoid visual rollback.
   if (normalizedIncomingVersion <= liveSync.lastAppliedVersion) {
     liveSync.applyRejectCounters.staleVersion += 1;
     return false;
@@ -11999,6 +12001,7 @@ async function initializeApplication() {
   state.startupDefaultsGuard.detail = state.startupDefaultsGuard.fallbackRequired
     ? "fresh-device-fallback-required"
     : "local-profiles-detected";
+  // Local profiles are always loaded first; startup defaults are a guarded fallback for fresh devices.
   loadBoardProfiles();
   let startupDefaultsSnapshot = null;
 
