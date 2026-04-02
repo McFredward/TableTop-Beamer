@@ -75,7 +75,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF7-T2 [P0] Remove `/output/final` client-render fallback runtime paths entirely (no auto/manual fallback path, no active client mode downgrade path).
 - [x] DONE P9-HF7-T3 [P0] Enforce always-authoritative server stream producer compose independent of subscriber count/churn and subscriber presence.
 - [x] DONE P9-HF7-T4 [P0] Bind stream producer compose source to current full authoritative state revision; close stale-frame/cache reuse paths.
-- [ ] TODO P9-HF7-T5 [P0] Guarantee immediate mutation-to-output propagation for accepted state mutations (start/stop/board/align/etc.) without page refresh.
+- [x] DONE P9-HF7-T5 [P0] Guarantee immediate mutation-to-output propagation for accepted state mutations (start/stop/board/align/etc.) without page refresh.
 - [ ] TODO P9-HF7-T6 [P0] Execute strict deterministic control-view regression matrix while `/output/final` is stream-only authoritative (multi-client parity, no command nondeterminism).
 - [ ] TODO P9-HF7-T7 [P0] Execute HF5/HF6 non-regression matrices (visual-only purity + transport/apply/ack parity) with HF7 fixes active.
 - [ ] TODO P9-HF7-T8 [P0] Record HF7 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
