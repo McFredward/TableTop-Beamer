@@ -12195,4 +12195,10 @@ async function initializeApplication() {
   requestAnimationFrame(draw);
 }
 
-void window.TT_BEAMER_BOOT.run(initializeApplication);
+void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({
+  initializer: initializeApplication,
+  onError: (error) => {
+    triggerFeedback.textContent = "Status: Bootstrap failed (see console diagnostics)";
+    console.error("Application bootstrap failed", error);
+  },
+});
