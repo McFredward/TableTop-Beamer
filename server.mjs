@@ -66,6 +66,15 @@ const finalStreamProducerState = {
   pendingSourceVersion: 0,
 };
 
+const finalStreamLatencyGateState = {
+  pendingByVersion: new Map(),
+  samplesMs: [],
+  hardLimitMs: 1200,
+  lastResolvedAt: null,
+  lastResolvedVersion: 0,
+  maxObservedMs: 0,
+};
+
 const boardCatalogCache = {
   loadedAt: 0,
   ttlMs: 10_000,
@@ -187,6 +196,7 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
       finalStreamProducerState.latestComposeErrorAt = null;
       broadcastFinalStreamFrame(frame);
       broadcastFinalVideoFrame(frame);
+      resolveMutationLatencyGate(Number(frame?.sourceVersion ?? snapshotVersion));
       return;
     }
     broadcastFinalStreamHeartbeat();
@@ -400,6 +410,35 @@ function recordLiveHopSample(bucket, value) {
   bucket.push(value);
   if (bucket.length > LIVE_TELEMETRY_SAMPLE_LIMIT) {
     bucket.shift();
+  }
+}
+
+function markMutationLatencyGate(version) {
+  const normalizedVersion = Number(version);
+  if (!Number.isFinite(normalizedVersion) || normalizedVersion <= 0) {
+    return;
+  }
+  finalStreamLatencyGateState.pendingByVersion.set(normalizedVersion, Date.now());
+}
+
+function resolveMutationLatencyGate(sourceVersion) {
+  const normalizedVersion = Number(sourceVersion);
+  if (!Number.isFinite(normalizedVersion) || normalizedVersion <= 0) {
+    return;
+  }
+  const now = Date.now();
+  for (const [pendingVersion, acceptedAt] of finalStreamLatencyGateState.pendingByVersion.entries()) {
+    if (pendingVersion > normalizedVersion) {
+      continue;
+    }
+    const latencyMs = Math.max(0, now - acceptedAt);
+    finalStreamLatencyGateState.pendingByVersion.delete(pendingVersion);
+    recordLiveHopSample(finalStreamLatencyGateState.samplesMs, latencyMs);
+    finalStreamLatencyGateState.lastResolvedAt = new Date(now).toISOString();
+    finalStreamLatencyGateState.lastResolvedVersion = pendingVersion;
+    if (latencyMs > finalStreamLatencyGateState.maxObservedMs) {
+      finalStreamLatencyGateState.maxObservedMs = latencyMs;
+    }
   }
 }
 
@@ -1197,6 +1236,7 @@ function applyLiveMutation({
 
   const commitLatencyMs = Math.max(0, Date.now() - Date.parse(ingestAt ?? serverTimestamp));
   recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
+  markMutationLatencyGate(session.version);
   finalStreamComposerState.lastSourceVersion = Number(session.version ?? 0);
   finalStreamComposerState.latestFrame = null;
   requestFinalStreamCompose("mutation-applied", {
@@ -1830,6 +1870,14 @@ function buildFinalStreamHealthSnapshot() {
       finalStreamProducerState.running
       && msSinceLastFrame !== null
       && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
+    latencyGate: {
+      hardLimitMs: finalStreamLatencyGateState.hardLimitMs,
+      maxObservedMs: finalStreamLatencyGateState.maxObservedMs,
+      pendingMutations: finalStreamLatencyGateState.pendingByVersion.size,
+      pass: finalStreamLatencyGateState.maxObservedMs <= finalStreamLatencyGateState.hardLimitMs,
+      lastResolvedAt: finalStreamLatencyGateState.lastResolvedAt,
+      lastResolvedVersion: finalStreamLatencyGateState.lastResolvedVersion,
+    },
   };
 }
 
