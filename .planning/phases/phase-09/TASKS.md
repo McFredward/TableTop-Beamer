@@ -38,6 +38,18 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T9 [P0] Execute weak-hardware evidence matrix (Raspberry Pi class) for smooth playback, quality floor, and fallback recovery.
 - [x] DONE P9-HF3-T10 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF4 - Critical stream/control decoupling + black-stream hotfix wave (execute-ready, hard-gated)
+- [x] DONE P9-HF4-T1 [P0] Create deterministic reproduction harness for stream-enabled control freeze (start/stop, board switch, align toggle, command apply latency) and capture root-cause traces.
+- [x] DONE P9-HF4-T2 [P0] Decouple stream consumer lifecycle from command ingest/apply path so subscriber join/leave/failure cannot block control commands.
+- [x] DONE P9-HF4-T3 [P0] Remove global lock and queue-starvation hazards between stream workloads and command processing with bounded backpressure isolation.
+- [x] DONE P9-HF4-T4 [P0] Harden authoritative stream producer scheduling to remain server-driven and independent of client render/subscriber health.
+- [x] DONE P9-HF4-T5 [P0] Fix black-stream root causes across board profiles/assets (explicitly including sandstorm board path) with deterministic fallback-safe guards.
+- [x] DONE P9-HF4-T6 [P0] Implement restart-free recovery for stream fault paths (producer error, subscriber churn, reconnect) without server restart requirement.
+- [x] DONE P9-HF4-T7 [P0] Validate deterministic sync and align-mode invariants remain unchanged after isolation/refactor.
+- [x] DONE P9-HF4-T8 [P0] Execute hard control responsiveness matrix with stream on/off and multi-subscriber churn; commands must stay operational.
+- [x] DONE P9-HF4-T9 [P0] Execute output parity + black-stream regression matrix across board profiles/assets under stream mode.
+- [x] DONE P9-HF4-T10 [P0] Record HF4 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -53,7 +65,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF3 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF4 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).

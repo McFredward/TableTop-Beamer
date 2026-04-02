@@ -1,83 +1,80 @@
-# Phase 9 Plan (Replanned after mandatory final-output performance direction)
+# Phase 9 Plan (Replanned after critical P0 stream/control blocker)
 
-## Acceptance Correction
+## Baseline and Correction Context
 - User correction remains binding: Plan 9-1 is executed but not accepted.
-- Plan 9-HF1 remains completed as foundation (monolith reduction + modular seams).
-- Plan 9-HF2 remains completed (lifecycle no-replay + low-end hardening baseline).
-- New mandatory execution wave is Plan 9-HF3 and supersedes 9-2 as immediate next step.
+- Plan 9-HF1 remains completed foundation (monolith reduction + modular seams).
+- Plan 9-HF2 remains completed baseline (lifecycle no-replay + low-end hardening).
+- Plan 9-HF3 remains completed baseline (server stream + fallback + parity evidence).
+- New mandatory execution wave is Plan 9-HF4 and supersedes 9-2 as immediate next step.
 
-## Mandatory Performance Direction (binding)
-1. `/output/final` on weak hardware (for example Raspberry Pi class devices) must prioritize smooth playback.
-2. Evaluate and, if viable, move `/output/final` from client-side polling/render to server-side composed video stream delivery.
-3. Control views stay interactive and continue to use canonical sync behavior.
-4. Deterministic sync contracts and align-mode behavior remain unchanged.
+## Critical P0 Blocker from Real Usage (binding)
+1. Enabling `/output/final` stream mode from any device can make control clients non-responsive.
+2. Controls impacted include start/stop, board switch, align toggle, and related command actions.
+3. Some board profiles/assets show black stream output (observed example: sandstorm board).
+4. Recovery can require server restart, which is unacceptable for live operation.
+
+## Mandatory Objectives for 9-HF4 (hard requirements)
+1. Decouple stream consumer lifecycle from control command path (no global lock, queue starvation, or shared-state freeze).
+2. Ensure command ingest/apply remains fully operational regardless of stream subscribers.
+3. Fix black-stream cases across board profiles/assets.
+4. Guarantee stream producer is server-side authoritative and independent of client render health.
+5. Add hard regression tests: stream on/off control parity, restart-free recovery, and output parity.
 
 ## Target State
-Phase 9 closes with deterministic lifecycle/sync correctness already established by HF2 and a new final-output delivery path optimized for weak playback devices. `/output/final` can consume a server-composed stream for smooth decode on constrained clients, while control clients remain responsive and authoritative mutation flow stays unchanged.
+Phase 9 closes with HF1/HF2/HF3 guarantees preserved and HF4 removing the remaining operational blocker: stream subscribers can join/leave/fail without impacting command ingest/apply, black-stream paths are closed across board profiles, and `/output/final` remains available without requiring server restart.
 
-## Architecture Decision (HF3 ADR)
-### Feasibility and Tradeoffs
-- Latency: server-composed stream is viable when kept low-latency (target sub-second glass-to-glass); it can be slightly slower than direct local render but acceptable for display-only final output.
-- Quality: encoded stream introduces compression artifacts risk, but stable frame pacing on weak hardware is expected to improve perceived quality.
-- CPU load shift: final client CPU/GPU cost drops significantly; compose/encode load shifts to server and must be capacity planned.
-- Complexity: introduces renderer service + encoder + stream transport + health/fallback orchestration.
-- Deployment: requires ffmpeg/media pipeline support, codec availability, and network bandwidth budgeting.
-
-### Decision
-- Adopt server-composed stream for `/output/final` as primary path when stream health is PASS.
-- Keep existing client render path as mandatory fallback and operator override.
-- Keep deterministic state/sync as source-of-truth; stream path is a presentation layer only.
-- Keep align-mode semantics identical: align overlay visibility in stream follows the same global authoritative flag.
-
-## Scope (9-HF3)
-- Add server-side final-output compositor that renders from authoritative state snapshots.
-- Add streaming endpoint(s) and `/output/final` player path with health monitoring.
-- Add automatic and manual fallback to existing client render when stream is unavailable/degraded.
-- Preserve deterministic sync contract and align-mode parity across stream and fallback paths.
-- Keep control views polling/render behavior optimized for interaction latency.
-- Produce weak-hardware evidence matrix comparing stream vs fallback behavior.
+## Scope (9-HF4)
+- Isolate stream subscriber/session lifecycle from the command intake and authoritative apply pipeline.
+- Split or re-prioritize queues/locks so control commands cannot be blocked by stream backpressure.
+- Harden stream producer and frame composition lifecycle as server-authoritative service.
+- Add board/profile/asset-safe rendering guards to prevent black frame pipelines.
+- Add watchdog and self-healing recovery so stream faults recover without process restart.
+- Add deterministic regression matrix for command responsiveness with stream on/off and multi-subscriber churn.
 
 ## Out of Scope
-- Replacing control-view rendering with server stream.
-- Redesigning mutation protocol or changing version/idempotency rules.
-- Non-deterministic per-client behavior changes.
-- New operator UX unrelated to final-output performance.
+- New UX features unrelated to stream/control stability.
+- Mutation protocol redesign beyond required isolation hardening.
+- Changes to existing deterministic ordering/version/idempotency contracts.
 
-## Prioritized Next Execution Wave (Plan 9-HF3, execute-ready, hard-gated)
-1. Implement ADR-backed spike for server compositor + transport and capture latency/CPU/quality baseline.
-2. Build production path: server-composed stream endpoint and `/output/final` stream player integration.
-3. Implement stream health checks with deterministic auto-fallback to current client render.
-4. Enforce align-mode and lifecycle parity between stream output and fallback output.
-5. Verify deterministic sync invariants remain unchanged because stream is presentation-only.
-6. Execute Raspberry-Pi/weak-hardware matrix and close only after artifact synchronization + PASS.
+## Prioritized Next Execution Wave (Plan 9-HF4, execute-ready, hard-gated)
+1. Reproduce and instrument P0 freeze + black-stream failures with trace points across ingest/apply/stream lifecycle.
+2. Refactor runtime boundaries so stream lifecycle cannot block command ingest/apply.
+3. Implement independent authoritative stream producer scheduling and bounded subscriber isolation.
+4. Fix board/profile/asset black-stream root causes (including sandstorm path) with compatibility guards.
+5. Implement restart-free fault recovery (subscriber drop/reconnect, producer error, encode hiccups).
+6. Execute hard regression matrix (stream on/off parity, no control freeze, no restart requirement, output parity) and close only after artifact synchronization + PASS.
 
 ## Milestones
-1. M1 HF2 Baseline Lock: lifecycle no-replay and low-end hardening remain intact.
-2. M2 Stream Feasibility Closure: latency/quality/capacity tradeoffs are measured and decision is confirmed viable.
-3. M3 Server Stream Delivery: `/output/final` receives server-composed video stream with stable playback.
-4. M4 Fallback Reliability: stream health degradation switches to deterministic fallback without operator disruption.
-5. M5 Contract Preservation: deterministic sync + align-mode parity hold across stream and fallback modes.
-6. M6 Evidence Closure: weak-hardware matrix and regression evidence are PASS.
+1. M1 HF3 Baseline Lock: stream/fallback/sync/align contracts remain intact.
+2. M2 Repro + Root Cause Closure: freeze and black-stream failures are deterministically reproduced and isolated.
+3. M3 Command-Path Isolation: control command ingest/apply is independent from stream subscriber lifecycle.
+4. M4 Producer Authority Hardening: stream producer remains authoritative and resilient to client render/subscriber health.
+5. M5 Black-Stream Closure: board/profile/asset black output cases are resolved.
+6. M6 Recovery Closure: no operational path requires server restart.
+7. M7 Evidence Closure: hard regression matrix is PASS and artifacts are synchronized.
 
-## Regression/Evidence Matrix Policy
-- Stream feasibility: measure end-to-end latency, encoded quality stability, and server resource envelope.
-- Weak hardware playback: verify smooth frame pacing on Raspberry Pi class final client.
-- Fallback safety: force stream failure and assert seamless switch to existing render path.
-- Deterministic sync: ordering/version/idempotent apply parity between control views and final output modes.
-- Align-mode parity: ON/OFF transitions are identical in stream and fallback outputs.
-- Lifecycle parity: no expired one-shot replay artifacts in either output mode.
+## Regression/Evidence Matrix Policy (9-HF4)
+- Stream-On Control Responsiveness Test: commands remain responsive under active stream subscribers.
+- Stream-Off Control Responsiveness Test: parity baseline remains unchanged.
+- Subscriber Churn Isolation Test: rapid join/leave/fail subscribers do not starve command path.
+- Queue/Lock Starvation Guard Test: ingest/apply throughput remains bounded during stream stress.
+- Black-Stream Board Matrix Test: all board profiles/assets (including sandstorm) render non-black output.
+- Producer Authority Test: stream output remains driven by server authoritative state independent of client render health.
+- Restart-Free Recovery Test: injected stream faults recover without server restart.
+- Output Parity Test: stream output remains semantically aligned with canonical `/output/final` rendering contract.
 
 ## Definition of Done
-- HF2 lifecycle/no-replay guarantees remain intact with no regression.
-- `/output/final` stream mode is operational and default-ready for weak hardware.
-- Automatic/manual fallback to client render is reliable and deterministic.
-- Control views remain interactive and unaffected by final-output stream workload.
-- Deterministic sync and align-mode contracts remain unchanged.
-- Evidence matrix is PASS and phase/global planning artifacts are synchronized.
+- HF1/HF2/HF3 guarantees remain intact with no regression.
+- Command ingest/apply stays fully operational with stream on, off, degraded, and subscriber churn.
+- Black-stream cases are closed across board profiles/assets.
+- Stream producer is server-authoritative and independent from client render health.
+- Fault recovery is restart-free in tested failure paths.
+- Hard regression matrix is PASS and phase/global planning artifacts are synchronized.
 
 ## Execution Update
 
 - Plan 9-1 remains documented but not accepted.
 - Plan 9-HF1 remains completed foundation (`src/app.js`: 12163 -> 28 lines).
 - Plan 9-HF2 remains completed with PASS evidence (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
-- Plan 9-HF3 is completed with PASS evidence and synchronized artifacts; Plan 9-2 becomes the next wave.
+- Plan 9-HF3 remains completed with PASS evidence (`P9-HF3-T1-STREAM-ADR.md`, `P9-HF3-T6-ALIGN-PARITY.md`, `P9-HF3-T7-SYNC-INVARIANTS.md`, `P9-HF3-T8-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`).
+- Plan 9-HF4 completed PASS: stream producer is decoupled from command ingest/apply lifecycle, black-stream paths are closed, restart-free recovery is verified, and hard control/output parity matrices are recorded.

@@ -2,52 +2,52 @@
 
 ## Acceptance Correction Context
 - 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
-- 9-HF3 is the binding performance wave for server-composed `/output/final` stream delivery with fallback.
+- 9-HF3 is completed baseline; 9-HF4 is the binding P0 stabilization wave.
 
-## R1 Server encoder overload under concurrent sessions
-- Risk: compose/encode pipeline saturates server CPU and increases latency.
+## R1 Hidden coupling still exists between stream lifecycle and command path
+- Risk: a residual shared lock/state path still allows stream subscriber events to freeze command ingest/apply.
 - Impact: Critical.
-- Mitigation: define capacity envelope, cap stream profiles, and keep deterministic fallback path always available.
+- Mitigation: explicit ownership boundaries, lock-domain split, and regression tests with churn/fault injection.
 
-## R2 Stream transport jitter causes visible stutter on weak clients
-- Risk: network jitter or buffering instability reduces playback smoothness despite offload.
+## R2 Queue starvation under burst subscribers or stream pressure
+- Risk: stream workload monopolizes scheduler/queue and starves control commands.
 - Impact: Critical.
-- Mitigation: low-latency buffering policy, jitter tolerance tuning, and weak-hardware playback matrix.
+- Mitigation: bounded queue budgets, priority class separation, and latency SLO checks for command path.
 
-## R3 Compression profile degrades visual readability
-- Risk: aggressive bitrate/codec settings produce artifacts that hurt operator visibility.
+## R3 Black-stream root cause is multi-factor and partially hidden
+- Risk: only one board/profile is fixed while other asset/pipeline variants remain black.
 - Impact: High.
-- Mitigation: quality floor thresholds and profile presets validated in evidence matrix.
+- Mitigation: board/profile/asset matrix coverage with shared render guards and explicit fail-closed diagnostics.
 
-## R4 Fallback transition is non-deterministic
-- Risk: stream failure causes blank output, duplicate output, or delayed failover.
+## R4 Stream producer unintentionally depends on client render health
+- Risk: client-side failures feed back into producer timing/state causing output stalls.
 - Impact: Critical.
-- Mitigation: health probes with explicit state machine and tested auto/manual fallback transitions.
+- Mitigation: server-authoritative producer ownership with one-way consumer boundaries.
 
-## R5 Align-mode parity regression in stream path
-- Risk: align overlay differs between stream and fallback outputs.
+## R5 Restart requirement persists in certain fault paths
+- Risk: rare producer/subscriber fault leaves system unrecoverable without server restart.
 - Impact: Critical.
-- Mitigation: shared align visibility contract with parity tests for ON/OFF transitions.
+- Mitigation: watchdog recovery, circuit-breaker resets, and restart-free fault injection tests.
 
-## R6 Stream path leaks into sync/mutation semantics
+## R6 Isolation fix regresses deterministic sync/align contracts
 - Risk: implementation accidentally changes ordering/version/idempotent apply behavior.
 - Impact: Critical.
 - Mitigation: enforce presentation-only boundary and run deterministic sync regression with stream enabled.
 
-## R7 Control-view responsiveness degrades due to stream workload
-- Risk: control clients lose interactivity because resources are coupled with final output path.
+## R7 Control command responsiveness degrades under mixed stream/load states
+- Risk: controls pass in steady state but regress under subscriber churn or partial outages.
 - Impact: Critical.
-- Mitigation: isolate stream workload from control-view loops and validate interaction latency gates.
+- Mitigation: mandatory stream on/off + churn matrices with command latency and success-rate gates.
 
-## R8 Deployment complexity blocks reproducible rollout
-- Risk: codec/ffmpeg/runtime dependencies differ across environments.
+## R8 Observability gap slows root-cause closure
+- Risk: missing lifecycle/queue metrics obscures post-fix regressions.
 - Impact: High.
-- Mitigation: explicit deployment prerequisites, startup checks, and fallback-safe boot behavior.
+- Mitigation: structured traces for queue depth, lock wait, producer health, and command ingest/apply timings.
 
-## R9 Weak-hardware decoder incompatibility
-- Risk: Raspberry Pi class devices cannot decode chosen stream profile reliably.
+## R9 Broad fix accidentally over-couples fallback path
+- Risk: stabilization changes break deterministic fallback or output parity behavior.
 - Impact: Critical.
-- Mitigation: hardware-compatible codec/profile matrix and tested profile fallback.
+- Mitigation: keep fallback contract tests in mandatory matrix; validate both stream and fallback in every gate.
 
 ## R10 Lifecycle/no-replay regression reintroduced indirectly
 - Risk: stream integration bypasses HF2 lifecycle guards and shows stale replay artifacts.
@@ -57,10 +57,10 @@
 ## R11 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF3-T10.
+- Mitigation: mandatory full artifact sync in P9-HF4-T10.
 
 ## Execution Notes
 
 - 9-HF1 and 9-HF2 baselines remain valid and are treated as non-regression gates.
-- 9-HF3 risk focus shifts to stream delivery viability, fallback reliability, and contract preservation.
-- 9-HF3 closure: fallback and parity gates are validated; residual risk is operational tuning (capacity + profile calibration) for production rollout.
+- 9-HF3 closure remains valid for stream viability/fallback/parity baseline.
+- 9-HF4 closures are implemented and verified; residual Phase 9 risk focus shifts to 9-2 adapter/dependency cleanup without regressing HF4 gates.

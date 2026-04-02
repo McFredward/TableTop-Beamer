@@ -2,52 +2,54 @@
 
 ## Acceptance Correction
 - Binding correction: Plan 9-1 is not accepted.
-- Plan 9-HF1 and Plan 9-HF2 are completed baselines.
-- New mandatory closure target is Plan 9-HF3 with hard gates below.
+- Plan 9-HF1, Plan 9-HF2, and Plan 9-HF3 are completed baselines.
+- New mandatory closure target is Plan 9-HF4 with hard gates below.
 
 ## Regression and Verification Strategy
 - Contract-first: deterministic sync invariants remain authoritative and unchanged.
-- Final-output-first: `/output/final` prioritizes smooth playback on weak hardware via server-composed stream path.
-- Fallback-first: stream degradation must fail over deterministically to existing client render path.
-- Parity-first: align-mode and lifecycle semantics are identical in stream and fallback modes.
-- Interaction-first: control views stay interactive and low-latency.
-- Evidence-first: every P0 HF3 item requires reproducible weak-hardware evidence.
+- Isolation-first: stream subscriber lifecycle cannot block or starve command ingest/apply.
+- Availability-first: control commands stay operational with stream on/off and under subscriber churn/faults.
+- Output-integrity-first: black-stream failures are closed across board profiles/assets.
+- Authority-first: stream producer remains server-authoritative and independent of client render health.
+- Recovery-first: stream fault handling must be restart-free.
+- Evidence-first: every P0 HF4 item requires reproducible evidence.
 
-## Hard Gates (Plan 9-HF3, mandatory)
-- G1 Stream-Feasibility-Gate: architecture decision with measured latency/quality/capacity tradeoffs is documented and approved as viable.
-- G2 Server-Stream-Delivery-Gate: `/output/final` receives server-composed stream in normal operation.
-- G3 Fallback-Reliability-Gate: health-triggered auto-fallback and explicit manual override both work deterministically.
-- G4 Align-Mode-Parity-Gate: align ON/OFF behavior is identical across stream and fallback outputs.
-- G5 Deterministic-Sync-Integrity-Gate: ordering/version/idempotent apply invariants are unchanged.
-- G6 Control-Interactivity-Gate: control views remain responsive while stream mode is active.
-- G7 Strict-Regression-Gate: full weak-hardware + parity matrix below is PASS with evidence.
+## Hard Gates (Plan 9-HF4, mandatory)
+- G1 Freeze-Repro-and-Fix-Gate: stream-enabled control freeze is reproducibly demonstrated pre-fix and closed post-fix with traces.
+- G2 Command-Path-Isolation-Gate: stream consumers cannot block, lock, or starve command ingest/apply.
+- G3 Control-Availability-Gate: start/stop, board switch, align toggle, and command apply stay responsive with stream on/off.
+- G4 Black-Stream-Closure-Gate: no black-stream output across board profiles/assets (including sandstorm).
+- G5 Producer-Authority-Gate: stream producer remains server-authoritative and independent from client render health.
+- G6 Restart-Free-Recovery-Gate: stream fault paths recover without mandatory server restart.
+- G7 Deterministic-Contract-Gate: ordering/version/idempotent apply and align semantics remain unchanged.
+- G8 Strict-Regression-Gate: full control availability + parity matrix below is PASS with evidence.
 
-## Strict Regression Matrix (Plan 9-HF3)
-- Stream-Latency-Baseline-Test: capture glass-to-glass latency and jitter envelope for stream mode.
-- Stream-Quality-Stability-Test: verify visual quality floor and frame pacing stability under sustained playback.
-- Weak-Hardware-Smoothness-Test: Raspberry Pi class final client remains smooth without sustained frame collapse.
-- Stream-Failure-AutoFallback-Test: simulate stream outage and assert deterministic switch to client render.
-- Manual-Override-Fallback-Test: operator can force fallback/stream mode without unstable intermediate states.
-- Align-Mode-Parity-Test: align overlay transitions match exactly in stream and fallback outputs.
-- Lifecycle-Parity-Test: expired one-shot events remain no-replay in both output modes.
-- Deterministic-Sync-Under-Stream-Test: multi-client ordering/version/apply invariants remain stable with stream enabled.
-- Control-View-Responsiveness-Test: control actions keep expected responsiveness while stream pipeline is active.
-- Non-Regression-Full-Matrix-Test: core operator workflows and persistence/API flows remain functionally equivalent.
+## Strict Regression Matrix (Plan 9-HF4)
+- Stream-On-Command-Availability-Test: full command suite remains operational under active stream subscribers.
+- Stream-Off-Command-Parity-Test: command behavior matches baseline when stream is disabled.
+- Subscriber-Churn-Isolation-Test: rapid subscriber join/leave/failure does not stall command ingest/apply.
+- Lock-and-Queue-Starvation-Test: no global lock contention or queue starvation in command path under stream stress.
+- Black-Stream-Board-Asset-Matrix-Test: stream output stays visible across all board profiles/assets, including sandstorm.
+- Producer-Authority-Independence-Test: stream producer continues authoritative output despite client render degradation.
+- Restart-Free-Recovery-Test: injected stream faults recover without server restart.
+- Align-and-Sync-Parity-Test: align behavior and deterministic sync invariants remain unchanged.
+- Output-Parity-Test: stream output remains semantically aligned with canonical final-output contract.
+- Non-Regression-Full-Matrix-Test: operator workflows, persistence, and API flows remain equivalent.
 
 ## Incremental Mandatory Gates
-- After P9-HF3-T1: feasibility ADR is complete and explicitly marks go/no-go criteria.
-- After P9-HF3-T2..T3: server stream delivery works end-to-end for `/output/final`.
-- After P9-HF3-T4..T5: fallback and manual override are deterministic and operator-safe.
-- After P9-HF3-T6..T7: align-mode parity and deterministic sync invariants are PASS.
-- After P9-HF3-T8..T9: control responsiveness and weak-hardware matrix are PASS.
-- After P9-HF3-T10: all phase/global planning artifacts are synchronized.
+- After P9-HF4-T1: freeze/black-stream reproductions and traces are complete.
+- After P9-HF4-T2..T3: command-path isolation and starvation guards are active.
+- After P9-HF4-T4..T6: producer authority and restart-free recovery are PASS.
+- After P9-HF4-T5..T9: black-stream closure + output/control parity matrices are PASS.
+- After P9-HF4-T10: all phase/global planning artifacts are synchronized.
 
 ## Definition of Done
-- `/output/final` stream mode is available and optimized for weak hardware playback.
-- Deterministic fallback keeps final output available under stream degradation.
+- Control commands remain fully operational independent of stream subscribers.
+- Black-stream cases are closed across board profiles/assets.
+- Stream producer remains server-authoritative independent of client render health.
+- Recovery from stream faults is restart-free.
 - Deterministic sync contracts remain unchanged and validated.
-- Align-mode behavior is parity-correct across stream and fallback outputs.
-- Control views remain interactive during stream operation.
+- Align-mode behavior remains parity-correct.
 - Evidence matrix is PASS and phase/global tracking files are synchronized.
 
 ## Plan 9 Baseline Notes
@@ -64,3 +66,4 @@
   - `.planning/phases/phase-09/P9-HF3-T7-SYNC-INVARIANTS.md`
   - `.planning/phases/phase-09/P9-HF3-T8-CONTROL-RESPONSIVENESS.md`
   - `.planning/phases/phase-09/P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`
+- 9-HF4 is completed PASS with evidence artifacts and closes the critical stream/control blocker; Plan 9-2 can proceed.
