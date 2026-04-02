@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF2 (completed)
+- Last Executed Plan: 9-HF3 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,14 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes P0-Problem fuer Phase 9 ist bindend: video-basierte Animationen verursachen starke Haenger auf Handy und Raspberry Pi (Beamer) und muessen umfassend behoben werden.
+- Prioritaetsregel Plan 9-HF3: `/output/final` bleibt unter video-lastiger Laufzeit stabil fluessig und erhaelt harte Render-/Decode-Priorisierung gegenueber Control-Views.
+- Runtime-Regel Plan 9-HF3: Video-Renderpfad wird mit decode/render scheduling, buffering/warmup und draw-strategy-Hardening auf weak devices deterministisch stabilisiert.
+- Adaptive-Regel Plan 9-HF3: load-shedding/quality-ladder ist verpflichtend fuer Raspberry/Handy inklusive messbarer video-heavy Grenzwerte und ohne Sync/Lifecycle/Stop-Determinismus-Regression.
+- Gate-Regel Plan 9-HF3: Plan 9-2 bleibt blockiert bis HF3 PASS inklusive Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+- Plan-9-HF3 Umsetzung: video lifecycle mutations laufen budgetiert/role-aware (scheduler + draw cadence + warmup guards), wodurch decode/render starvation in video-heavy paths begrenzt bleibt.
+- Plan-9-HF3 Umsetzung: `/output/final` nutzt final-output-first pressure caps und bleibt unter Last priorisiert stabil; control views behalten Responsive-Floor via frame-yield budget guards.
+- Plan-9-HF3 Umsetzung: adaptive ladder ist hysteresis-basiert deterministisch (escalation/recovery counters) und Performance-/Determinismus-Gates sind PASS (`P9-HF3-T8-VIDEO-PERFORMANCE-SUITE.md`, `P9-HF3-T9-DETERMINISM-REGRESSION.md`).
 - Neues verpflichtendes Stabilitaets-Feedback aus Langzeittest ist bindend: expired one-shot events duerfen nach Reload/Reconnect nicht erneut abgespielt werden.
 - Plan 9-HF2 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
 - Lifecycle-Regel fuer 9-HF2: rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed (no replay).

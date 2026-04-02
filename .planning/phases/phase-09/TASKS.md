@@ -36,7 +36,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T7 [P0] Implement adaptive weak-device quality/load-shedding ladder with deterministic pressure levels and recovery hysteresis.
 - [x] DONE P9-HF3-T8 [P0] Execute hard video-heavy performance regression suite with measurable thresholds for Raspberry/mobile and document PASS/FAIL evidence.
 - [x] DONE P9-HF3-T9 [P0] Validate non-regression for sync ordering/version/idempotent apply, lifecycle no-replay semantics, and stop determinism under HF3 hardening.
-- [ ] TODO P9-HF3-T10 [P0] Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after HF3 PASS.
+- [x] DONE P9-HF3-T10 [P0] Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after HF3 PASS.
 
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.

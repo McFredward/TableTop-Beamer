@@ -2,64 +2,71 @@
 
 ## Acceptance Correction Context
 - 9-1 is not accepted; 9-HF1 is completed foundation.
-- 9-HF2 is the binding stability wave for lifecycle correctness and low-end hardening.
+- 9-HF2 is completed lifecycle/no-replay baseline.
+- 9-HF3 is the binding P0 wave for video-performance stability on mobile + Raspberry Pi.
 
-## R1 Rehydrate misclassifies elapsed events as active
-- Risk: reload/reconnect rebuilds expired one-shot events as pending/active.
+## R1 Video decode/render contention still starves frame budget
+- Risk: decode bursts and draw work contend on the same budget, causing visible stalls.
 - Impact: Critical.
-- Mitigation: canonical terminal-state reconciliation during rehydrate before schedule/apply.
+- Mitigation: explicit decode/render scheduling, bounded decode cadence, and frame-budget arbitration.
 
-## R2 Missing replay guard on reconnect path
-- Risk: reload is fixed but reconnect/rejoin still replays expired one-shot events.
+## R2 Warmup/startup path causes hitch spikes
+- Risk: first-frame/start/seek path triggers blocking warmup and decoder thrash.
 - Impact: Critical.
-- Mitigation: enforce no-replay checks in all hydration/apply entry points with shared guard utility.
+- Mitigation: deterministic prebuffer/warmup pipeline, readiness guards, and staged start strategy.
 
-## R3 Clock/version boundary drift at expiry edge
-- Risk: near-expiry timing drift causes inconsistent terminal vs active decisions.
+## R3 Overdraw/compositing path overloads weak GPUs
+- Risk: layered video draws and clipping produce excessive per-frame cost on Raspberry/mobile GPUs.
 - Impact: Critical.
-- Mitigation: evaluate expiry against deterministic lifecycle contract with version/time guard and boundary tests.
+- Mitigation: draw strategy optimization, batching/cadence tuning, and bounded quality levels.
 
-## R4 Over-aggressive load shedding causes visible feature loss
-- Risk: hardening drops too much visual behavior and looks broken.
+## R4 Final-output priority not enforced under mixed load
+- Risk: control-view spikes steal budget from `/output/final`, causing beamer jitter.
 - Impact: Critical.
-- Mitigation: bounded degradation ladder with defined floors and non-critical-only shedding.
+- Mitigation: explicit final-output-first priority policy with protected render budget.
 
-## R5 Under-shedding still allows runtime collapse on weak mobile
-- Risk: caps/coalescing insufficient under sustained pressure.
+## R5 Control views become sluggish when final-output priority is active
+- Risk: aggressive prioritization keeps final smooth but degrades controls to unusable state.
 - Impact: Critical.
-- Mitigation: frame-budget-driven escalation with recovery hysteresis and stress validation.
+- Mitigation: minimum responsiveness floor for control-path updates and interaction latency guardrails.
 
-## R6 Hardening introduces non-deterministic cross-client behavior
-- Risk: adaptive paths diverge across clients and break sync determinism.
-- Impact: Critical.
-- Mitigation: keep adaptive logic local to rendering cost control only; lifecycle/sync semantics remain authoritative and versioned.
-
-## R7 Recovery path fails to return from degraded mode
-- Risk: once degraded, quality never recovers after load drops.
+## R6 Adaptive ladder too aggressive (visible quality collapse)
+- Risk: load shedding drops quality too fast and appears broken.
 - Impact: High.
-- Mitigation: explicit recovery thresholds and soak tests with load ramp-up/ramp-down.
+- Mitigation: bounded degradation levels, non-critical-only shedding, and recovery hysteresis.
 
-## R8 `/output/final` parity regression during hardening
-- Risk: final output diverges from control runtime behavior under capped/coalesced paths.
+## R7 Adaptive ladder too weak (runtime still collapses)
+- Risk: load shedding fails to prevent stalls on weak devices.
 - Impact: Critical.
-- Mitigation: dedicated final-output regression checks in long-run and mobile matrices.
+- Mitigation: pressure-level escalation tuned against Raspberry/mobile stress matrix.
 
-## R9 Diagnostics overhead worsens low-end performance
-- Risk: added telemetry/logging for hardening consumes scarce frame budget.
+## R8 Recovery path sticks in degraded mode
+- Risk: after pressure drops, quality does not recover and remains unnecessarily degraded.
 - Impact: High.
-- Mitigation: keep diagnostics sampled/gated; no hot-loop verbose logging in production mode.
+- Mitigation: explicit recovery thresholds and timed recovery checks in soak tests.
 
-## R10 Artifact drift across phase/global trackers
-- Risk: phase files and global tracking files become inconsistent.
+## R9 Performance instrumentation overhead distorts results
+- Risk: telemetry itself adds enough overhead to hide or create regressions.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF2-T9.
+- Mitigation: sampled/low-noise instrumentation and strict separation of profiling vs production logging modes.
 
-## R11 Regression escape in long-run/mobile edge conditions
-- Risk: short smoke tests pass but long-run or low-end constraints still fail in field.
+## R10 Deterministic sync/lifecycle regressions under performance hardening
+- Risk: adaptive paths accidentally alter ordering/version/lifecycle behavior.
 - Impact: Critical.
-- Mitigation: mandatory soak + mobile evidence matrix as closure gate.
+- Mitigation: keep adaptation visual-only; run mandatory sync/lifecycle/stop determinism regression gates.
+
+## R11 Stop determinism regresses in video-heavy paths
+- Risk: stop/clear under high load lags or becomes non-deterministic.
+- Impact: Critical.
+- Mitigation: explicit stop-path stress matrix under video load with hard latency assertions.
+
+## R12 Artifact drift across phase/global trackers
+- Risk: phase files and global tracking files diverge during fast hotfix execution.
+- Impact: High.
+- Mitigation: mandatory full artifact sync in P9-HF3-T10.
 
 ## Execution Notes
 
-- 9-HF1 baseline is complete and remains valid for modular ownership.
-- 9-HF2 is completed; R1-R8 mitigations are implemented and validated through HF2 evidence artifacts.
+- 9-HF1 baseline remains valid for modular ownership.
+- 9-HF2 baseline remains valid for lifecycle no-replay and low-end runtime hardening.
+- 9-HF3 risk-closure wave is completed: decode/render starvation, warmup hitching, overdraw contention, final-output budget contention, control responsiveness, adaptive recovery, and determinism regressions are closed with PASS evidence across T1..T9 artifacts.

@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen und anschliessend die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening bei unveraendert deterministischem Sync.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach die umfassende Refaktorierung von `src/app.js`, HF2 lifecycle/no-replay plus low-end hardening und als bindenden P0-Follow-up HF3 fuer video-heavy Smoothness mit final-output-first Priorisierung auf Raspberry/mobile bei unveraendert deterministischem Sync/Lifecycle/Stop-Verhalten.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -564,10 +564,10 @@ Gate Closure (8-HF12):
 - Persistenz-/Non-Regression-Evidenz ist PASS (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).
 - Plan 8-2 ist wieder freigegeben.
 
-## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
-Ziel: Auf der abgeschlossenen HF1-Modularisierungsbasis die Runtime-Stabilitaet abschliessen: event lifecycle correctness ueber reload/reconnect sicherstellen (keine Replay-Regression fuer expired one-shot events) und low-end/mobile Last-Haertung mit deterministischem Sync-Verhalten liefern.
+## Phase 9 - Comprehensive Refactor + Runtime Stability Hotfix Waves (In Progress)
+Ziel: Auf der abgeschlossenen HF1-Modularisierungsbasis die Runtime-Stabilitaet final schliessen: lifecycle no-replay aus HF2 bleibt bindend, und als neues P0 wird video-heavy Performance auf Handy + Raspberry Pi umfassend gehaertet, mit final-output-first Priorisierung bei unveraendert deterministischem Sync/Lifecycle/Stop-Verhalten.
 
-Status: Plan 9-HF1 und Plan 9-HF2 sind abgeschlossen; HF2 liefert PASS fuer lifecycle no-replay, deterministic sync non-regression und low-end load hardening (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`). Naechster Schritt ist Plan 9-2.
+Status: Plan 9-HF1, Plan 9-HF2 und Plan 9-HF3 sind abgeschlossen; HF3 liefert PASS fuer video profiling baseline, decode/render scheduler hardening, deterministic warmup+draw strategy, final-output-first priority, control responsiveness, adaptive ladder hysteresis, strict threshold suite und sync/lifecycle/stop non-regression (`P9-HF3-T1-VIDEO-PROFILING-BASELINE.md`, `P9-HF3-T2-VIDEO-SCHEDULER.md`, `P9-HF3-T3-VIDEO-WARMUP.md`, `P9-HF3-T4-VIDEO-DRAW-STRATEGY.md`, `P9-HF3-T5-FINAL-OUTPUT-PRIORITY.md`, `P9-HF3-T6-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T7-ADAPTIVE-LADDER.md`, `P9-HF3-T8-VIDEO-PERFORMANCE-SUITE.md`, `P9-HF3-T9-DETERMINISM-REGRESSION.md`). Naechster Schritt ist Plan 9-2.
 
 Milestones:
 1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
@@ -575,13 +575,20 @@ Milestones:
 3. M3 No-Replay Enforcement: expired one-shot events (z. B. `Intruder Alert`, `Power Outage`) werden nie erneut abgespielt.
 4. M4 Low-End Hardening: frame-budget aware shedding, particle caps und update coalescing stabilisieren schwache Mobilgeraete.
 5. M5 Deterministic Sync Preservation: ordering/version/idempotent apply bleibt unter Last-Hardening unveraendert.
-6. M6 Evidence Closure: long-run soak + mobile stress matrix PASS mit konsistentem Artefakt-Sync.
+6. M6 Evidence Closure (HF2): long-run soak + mobile stress matrix PASS mit konsistentem Artefakt-Sync.
+7. M7 Video Render Path Hardening (HF3): decode/render scheduling, warmup/buffering und draw strategy sind video-heavy stabilisiert.
+8. M8 Final-Output Priority Stability (HF3): `/output/final` bleibt unter Last priorisiert fluessig.
+9. M9 Weak-Device Adaptive Stability (HF3): Raspberry/mobile quality/load ladder ist deterministisch und recoverable.
+10. M10 HF3 Performance Gate Closure: video-heavy Threshold-Matrix + sync/lifecycle/stop non-regression sind PASS.
 
 Exit Criteria:
 - Expired one-shot events werden nach reload/reconnect nicht erneut abgespielt.
 - Rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed.
 - Runtime bleibt unter Langzeitlast auf low-end Mobilgeraeten stabil durch budget-aware Hardening.
 - Deterministic sync bleibt unter Hardening unveraendert (ordering/version/idempotent apply).
+- Video-basierte Animationen verursachen auf Handy/Raspberry keine starken Haenger mehr; der Video-Renderpfad ist messbar gehaertet.
+- `/output/final` bleibt als priorisierter Pfad unter video-heavy Last stabil fluessig.
+- Control-Views (Handy/PC) bleiben bei aktiven Videos bedienbar fluessig.
 - Keine Regression in Operator-Flow, Persistenz/API-Save und `/output/final`.
 - Long-run + mobile Evidence-Matrix ist PASS dokumentiert.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
@@ -597,7 +604,14 @@ HF2 Closure (Phase 9 lifecycle + low-end stability follow-up):
 - Reload/Reconnect no-replay guard aktiv fuer expired finite-duration global events.
 - Runtime hardening aktiv: frame-budget ladder, particle caps, non-critical coalescing mit bounded degradation.
 - Deterministic sync invariants unter hardening validiert (ordering/version/idempotent apply PASS).
-- Plan 9-2 ist freigegeben.
+
+New Blocking Wave (Phase 9 video-heavy smoothness follow-up):
+- Neues verpflichtendes P0-Problem priorisiert Plan 9-HF3 als unmittelbare execute-ready Hotfix-Welle vor Plan 9-2.
+- Blocker A: Video-basierte Animationen haengen stark auf Handy und Raspberry Pi; decode/render contention muss root-cause-basiert gehaertet werden.
+- Blocker B: `/output/final` muss unter video-heavy Last priorisiert stabil fluessig bleiben.
+- Blocker C: Control-Views muessen trotz final-output Priorisierung weiter fluessig und reaktionsfaehig bleiben.
+- Blocker D: Adaptive weak-device quality/load-shedding muss deterministisch greifen (inkl. messbarer Threshold-Gates) ohne Sync/Lifecycle/Stop-Regression.
+- Plan 9-2 ist nach 9-HF3-PASS freigegeben.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
