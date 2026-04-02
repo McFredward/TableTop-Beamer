@@ -33,6 +33,15 @@
         expiresAtEpochMs: null,
       };
     }
+    const hasExplicitStart = Number.isFinite(Number(animation?.startedAtEpochMs)) || Number.isFinite(Number(animation?.startedAt));
+    if (!hasExplicitStart) {
+      return {
+        active: false,
+        reason: "missing-start-timestamp",
+        startedAtEpochMs: nowEpochMs,
+        expiresAtEpochMs: nowEpochMs,
+      };
+    }
     const startedAtEpochMs = resolveAnimationStartEpochMs(animation, nowEpochMs);
     const expiresAtEpochMs = startedAtEpochMs + durationMs;
     if (expiresAtEpochMs <= nowEpochMs) {

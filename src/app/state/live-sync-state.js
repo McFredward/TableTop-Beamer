@@ -24,6 +24,8 @@
       },
       globalTriggerRevisionSeenByKey: new Map(),
       globalStopRevisionSeenByKey: new Map(),
+      terminalOneShotRevisionByKey: new Map(),
+      terminalOneShotFingerprints: new Map(),
       pendingStopAnimationIds: new Set(),
     };
   }

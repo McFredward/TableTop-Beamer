@@ -547,6 +547,9 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
     if (!animation || animation.scope !== "global") {
       return animation;
     }
+    if (shouldSuppressTerminalOneShotReplay(animation)) {
+      return null;
+    }
     const triggerKey = getGlobalTriggerKey(animation);
     const triggerRevision = getGlobalTriggerRevision(animation);
     const previous = previousAnimationsById.get(animation.id);
@@ -951,6 +954,10 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
 
 function reconcileHydratedAnimations(runningAnimations) {
   const reconciled = reconcileHydratedRunningAnimations(runningAnimations, Date.now());
+  for (const terminalAnimation of reconciled?.terminalAnimations ?? []) {
+    rememberTerminalOneShotReplay(terminalAnimation);
+  }
+  const activeAnimations = (reconciled?.activeAnimations ?? []).filter((animation) => !shouldSuppressTerminalOneShotReplay(animation));
   if (Array.isArray(reconciled?.terminalAnimations) && reconciled.terminalAnimations.length > 0) {
     logRuntime.info("rehydrate_terminal_events", {
       event: "rehydrate-terminal-events",
@@ -958,7 +965,65 @@ function reconcileHydratedAnimations(runningAnimations) {
       boardId: state.boardId,
     });
   }
-  return Array.isArray(reconciled?.activeAnimations) ? reconciled.activeAnimations : [];
+  return activeAnimations;
+}
+
+function isFiniteDurationGlobalAnimation(animation) {
+  if (!animation || animation.scope !== "global") {
+    return false;
+  }
+  if (animation.hold === true) {
+    return false;
+  }
+  const durationMs = Number(animation.durationMs);
+  return Number.isFinite(durationMs) && durationMs > 0;
+}
+
+function buildTerminalOneShotFingerprint(animation) {
+  const scope = typeof animation?.scope === "string" ? animation.scope : "unknown";
+  const boardId = typeof animation?.boardId === "string" ? animation.boardId : "unknown";
+  const type = typeof animation?.type === "string" ? animation.type : "unknown";
+  const startedAtEpochMs = Math.trunc(getAnimationStartedAtEpochMs(animation));
+  const durationMs = Math.trunc(Number(animation?.durationMs) || 0);
+  return `${scope}|${boardId}|${type}|${startedAtEpochMs}|${durationMs}`;
+}
+
+function rememberTerminalOneShotReplay(animation) {
+  if (!isFiniteDurationGlobalAnimation(animation)) {
+    return;
+  }
+  const triggerKey = getGlobalTriggerKey(animation);
+  const triggerRevision = Number(animation?.triggerRevision);
+  if (triggerKey && Number.isInteger(triggerRevision) && triggerRevision > 0) {
+    const previous = Number(liveSync.terminalOneShotRevisionByKey.get(triggerKey) ?? 0);
+    if (triggerRevision > previous) {
+      liveSync.terminalOneShotRevisionByKey.set(triggerKey, triggerRevision);
+    }
+  }
+  const fingerprint = buildTerminalOneShotFingerprint(animation);
+  liveSync.terminalOneShotFingerprints.set(fingerprint, Date.now());
+  if (liveSync.terminalOneShotFingerprints.size > 1800) {
+    const oldestKey = liveSync.terminalOneShotFingerprints.keys().next().value;
+    if (oldestKey) {
+      liveSync.terminalOneShotFingerprints.delete(oldestKey);
+    }
+  }
+}
+
+function shouldSuppressTerminalOneShotReplay(animation) {
+  if (!isFiniteDurationGlobalAnimation(animation)) {
+    return false;
+  }
+  const triggerKey = getGlobalTriggerKey(animation);
+  const triggerRevision = Number(animation?.triggerRevision);
+  if (triggerKey && Number.isInteger(triggerRevision) && triggerRevision > 0) {
+    const terminalRevision = Number(liveSync.terminalOneShotRevisionByKey.get(triggerKey) ?? 0);
+    if (terminalRevision >= triggerRevision) {
+      return true;
+    }
+  }
+  const fingerprint = buildTerminalOneShotFingerprint(animation);
+  return liveSync.terminalOneShotFingerprints.has(fingerprint);
 }
 
 function filterRunningAnimationsForBoard(runningAnimations, boardId) {
