@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4).
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, zielgerichtete englische Codekommentare und strukturierte Laufzeitdiagnostik mit regressionssicherer Inkrementmigration.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -563,6 +563,29 @@ Gate Closure (8-HF12):
 - `Opacity` bleibt fuer alle Room-Assettypen inklusive `mp4` aktiv editierbar.
 - Persistenz-/Non-Regression-Evidenz ist PASS (`8-HF12-VERIFICATION.md`, `P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md`, `P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md`).
 - Plan 8-2 ist wieder freigegeben.
+
+## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
+Ziel: Den verbleibenden Monolithen `src/app.js` in eine klar strukturierte, konventionelle Modularchitektur ueberfuehren (duenner Bootstrap, klare Domain-Grenzen, stabile Integrationsschichten), gezielte englische Kommentare fuer nicht offensichtliche Logik hinzufuegen und eine strukturierte, low-noise Logging-Strategie fuer bessere Runtime-Diagnose etablieren.
+
+Status: Plan 9-1 ist abgeschlossen (`.planning/phases/phase-09/9-1-SUMMARY.md`, `.planning/phases/phase-09/9-1-VERIFICATION.md`); naechster priorisierter Schritt ist Plan 9-2 (Adapter-Cleanup + Import-Graph-Haertung).
+
+Milestones:
+1. M1 Extraction Blueprint: verbindliche Boundary-Map `src/app.js -> src/app/*` mit sicherer Inkrementreihenfolge.
+2. M2 Thin Bootstrap: `src/app.js` wird auf Orchestrierung/Composition reduziert.
+3. M3 State/Domain Isolation: zentrale State-Transitions und Fachlogik werden aus dem Monolithen extrahiert.
+4. M4 UI/Input Isolation: Controller-Bindings und Pointer-/Keyboard-/Touch-Arbitration werden modularisiert.
+5. M5 Render/Media Isolation: Render-/Playback-Lifecycle laeuft ueber dedizierte Module ohne `/output/final`-Regression.
+6. M6 Comment Uplift: nicht offensichtliche Logik ist mit sinnvollen englischen Intents/Invariant-Kommentaren dokumentiert.
+7. M7 Observability Uplift: strukturierte Logs (Scope/Event/Context/Level) liefern mehr Diagnosewert bei kontrollierter Lautstaerke.
+8. M8 Regression Closure: sichere branch-by-abstraction Migration ist evidenzbasiert PASS und artefaktseitig synchronisiert.
+
+Exit Criteria:
+- `src/app.js` ist ein duennes Bootstrap-Entry ohne monolithische Featurelogik.
+- Modulstruktur folgt klaren Domain-Grenzen (`boot`, `state`, `domain`, `render`, `ui`, `input`, `persistence`, `api`, `gif`, `shared`).
+- Sinnvolle englische Kommentare decken nicht offensichtliche State-/Render-/Sync-/Integrationslogik ab.
+- Strukturierte Runtime-Logs sind zentralisiert, kontextreich und ohne uebermaessiges Rauschen.
+- Keine Regression in Operator-Flow, Persistenz/API-Save, Multi-Client-Sync und `/output/final`.
+- Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

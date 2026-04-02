@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 8
-- Current Phase Key: phase-08
-- Last Prepared: 2026-04-01
+- Current Phase: 9
+- Current Phase Key: phase-09
+- Last Prepared: 2026-04-02
 - Execution Readiness: READY
-- Last Executed Plan: 8-HF12
-- Planned Next Execution: 8-2
-- Last Execution Summary: `.planning/phases/phase-08/8-HF12-SUMMARY.md`
+- Last Executed Plan: 9-1
+- Planned Next Execution: 9-2
+- Last Execution Summary: `.planning/phases/phase-09/9-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,13 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes Ziel fuer Phase 9 ist gesetzt: `src/app.js` wird umfassend in eine klare modulare Struktur mit duennen Bootstrap-Einstieg, stabilen Domain-Grenzen und shared utility layer zerlegt.
+- Dokumentationsregel Phase 9: sinnvolle englische Kommentare sind verpflichtend fuer nicht offensichtliche Logik (State-Transitions, Render-/Sync-Lifecycle, Integrationsgrenzen), ohne Kommentarrauschen.
+- Observability-Regel Phase 9: Runtime-Diagnostik wird ueber strukturierte, kontextsensitive und low-noise Logs erweitert (Scope/Event/IDs/Level), statt unstrukturierter Ad-hoc-Ausgaben.
+- Ausfuehrungsregel Plan 9-1: sichere inkrementelle Migration mit branch-by-abstraction und verpflichtendem Regression-Guard nach jedem Extraktionsslice ist das priorisierte erste execute-ready Wellenpaket.
+- Plan-9-1 Umsetzung: `src/app.js` nutzt jetzt modulare Adapter-Seams fuer boot/shared/state/domain/ui/input/render bei unveraenderten Laufzeitvertrags-Signaturen.
+- Plan-9-1 Umsetzung: zentrale strukturierte Logger-Kontrakte (`scope`/`event`/Kontextfelder + Level-Gating) ersetzen kritische Ad-hoc-Console-Diagnostik.
+- Plan-9-1 Umsetzung: Regressionsevidenz ist PASS in `.planning/phases/phase-09/9-1-VERIFICATION.md` dokumentiert.
 - Plan 8-1 ist abgeschlossen: Mehrbereichs-Play-Areas laufen kanonisch ueber `playAreas[]` mit aktiver Auswahl-ID und Legacy-Ladealias.
 - Plan 8-1 Runtime-Entscheidung: Inside/Outside-Clipping nutzt denselben Union-Maskenpfad ueber alle gueltigen Play-Area-Polygone.
 - Plan 8-1 Import-Entscheidung: Board-Import akzeptiert JSON und Multipart-Bildupload; Bildboards starten mit leerem Room-Catalog fuer manuellen Polygonworkflow.
@@ -1047,3 +1054,12 @@
 - Datenregel fuer Phase 8: Kanonisches Modell nutzt `playAreas[]`; Legacy-Single-Area-Daten werden idempotent und verlustfrei migriert.
 - Importregel fuer Phase 8: Board-Import unterstuetzt neben JSON auch Bildupload (`jpg`/`jpeg`/`png`/`webp`) mit serverseitiger Speicherung als Board-Unterlage.
 - Phase-8 Plan 8-1 ist als priorisierte execute-ready erste Welle gesetzt.
+
+## Execution Results (Phase 9 Plan 1)
+- Status: completed
+- Summary: `.planning/phases/phase-09/9-1-SUMMARY.md`
+- Task Commits: 12 atomare Commits (`b3aeba0`, `ba4ca92`, `88e5cc8`, `715d9db`, `7d89057`, `9689adf`, `5b287d6`, `c19467b`, `b1b1e94`, `d8e4646`, `073317f`, `da26e3d`)
+- Evidence:
+  - `.planning/phases/phase-09/9-1-BOUNDARY-MAP.md`
+  - `.planning/phases/phase-09/9-1-VERIFICATION.md`
+  - `node --check src/app.js` => PASS
