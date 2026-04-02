@@ -507,6 +507,10 @@ const {
   buildAnimationSnapshotForLiveSync,
 } = window.TT_BEAMER_LIVE_SYNC_DOMAIN;
 
+const {
+  reconcileHydratedRunningAnimations,
+} = window.TT_BEAMER_EVENT_LIFECYCLE;
+
 function replayPendingLiveMutations() {
   // polling mode keeps pending entries until a newer snapshot version confirms them.
 }
@@ -945,6 +949,18 @@ function hydrateRunningAnimationStartTimestamps(runningAnimations) {
   });
 }
 
+function reconcileHydratedAnimations(runningAnimations) {
+  const reconciled = reconcileHydratedRunningAnimations(runningAnimations, Date.now());
+  if (Array.isArray(reconciled?.terminalAnimations) && reconciled.terminalAnimations.length > 0) {
+    logRuntime.info("rehydrate_terminal_events", {
+      event: "rehydrate-terminal-events",
+      droppedCount: reconciled.terminalAnimations.length,
+      boardId: state.boardId,
+    });
+  }
+  return Array.isArray(reconciled?.activeAnimations) ? reconciled.activeAnimations : [];
+}
+
 function filterRunningAnimationsForBoard(runningAnimations, boardId) {
   const normalizedBoardId = typeof boardId === "string" ? boardId.trim() : "";
   const inferredBoardId = normalizedBoardId || (Array.isArray(runningAnimations)
@@ -1114,7 +1130,8 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   );
   const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
-  state.runningAnimations = hydrateRunningAnimationStartTimestamps(primedRunningAnimations);
+  const reconciledRunningAnimations = reconcileHydratedAnimations(primedRunningAnimations);
+  state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);
   reconcileStopPendingFromSnapshot();
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {

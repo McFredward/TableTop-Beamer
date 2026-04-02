@@ -15,6 +15,17 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF1-T9 [P0] Enforce measurable gate: `wc -l src/app.js` must report <= 4200 lines (baseline 12163, >= 65% reduction).
 - [x] DONE P9-HF1-T10 [P0] Sync all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after PASS evidence.
 
+## Plan 9-HF2 - Mandatory stability hotfix wave (execute-ready, hard-gated)
+- [x] DONE P9-HF2-T1 [P0] Implement lifecycle rehydrate reconciliation so elapsed one-shot events are restored as terminal/completed states.
+- [ ] TODO P9-HF2-T2 [P0] Add strict no-replay guard for expired one-shot events (`Intruder Alert`, `Power Outage`, and same class) across reload/reconnect.
+- [ ] TODO P9-HF2-T3 [P0] Enforce deterministic lifecycle parity between local rehydrate and synced reconnect/join apply paths.
+- [ ] TODO P9-HF2-T4 [P0] Introduce frame-budget aware runtime hardening for weak/mobile devices (load shedding ladder + bounded degradation).
+- [ ] TODO P9-HF2-T5 [P0] Add particle/effect caps and non-critical update coalescing under pressure without semantic event loss.
+- [ ] TODO P9-HF2-T6 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under hardening logic.
+- [ ] TODO P9-HF2-T7 [P0] Execute long-run soak matrix with reload/reconnect checkpoints and expired-event replay assertions.
+- [ ] TODO P9-HF2-T8 [P0] Execute low-end mobile stress matrix for frame stability, memory pressure tolerance, and graceful degradation behavior.
+- [ ] TODO P9-HF2-T9 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -30,7 +41,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF1 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF2 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
