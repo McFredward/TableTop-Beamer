@@ -212,6 +212,42 @@ function normalizeNonEmptyString(value) {
   return trimmed ? trimmed : null;
 }
 
+function resolveAnimationStartEpochMs(animation, nowEpochMs = Date.now()) {
+  const directEpoch = Number(animation?.startedAtEpochMs);
+  if (Number.isFinite(directEpoch)) {
+    return directEpoch;
+  }
+  const startedAtPerf = Number(animation?.startedAt);
+  if (!Number.isFinite(startedAtPerf)) {
+    return nowEpochMs;
+  }
+  return nowEpochMs;
+}
+
+function isAnimationActiveForSnapshot(animation, nowEpochMs = Date.now()) {
+  if (!isPlainObject(animation)) {
+    return false;
+  }
+  if (animation.hold === true) {
+    return true;
+  }
+  const durationMs = Number(animation.durationMs);
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return true;
+  }
+  const hasExplicitStart = Number.isFinite(Number(animation?.startedAtEpochMs)) || Number.isFinite(Number(animation?.startedAt));
+  if (!hasExplicitStart) {
+    return false;
+  }
+  const startedAtEpochMs = resolveAnimationStartEpochMs(animation, nowEpochMs);
+  return startedAtEpochMs + durationMs > nowEpochMs;
+}
+
+function reconcileSnapshotRunningAnimations(runningAnimations, nowEpochMs = Date.now()) {
+  return (Array.isArray(runningAnimations) ? runningAnimations : [])
+    .filter((animation) => isAnimationActiveForSnapshot(animation, nowEpochMs));
+}
+
 function isBoardContextSuppressedReason(reason) {
   const normalized = normalizeNonEmptyString(reason);
   if (!normalized) {
@@ -645,7 +681,7 @@ function applyContextUpdatePatch(payload) {
 function sanitizeLiveSnapshotForBoardContext(snapshot) {
   const baseSnapshot = isPlainObject(snapshot) ? cloneJson(snapshot) : {};
   const runtime = isPlainObject(baseSnapshot.runtime) ? cloneJson(baseSnapshot.runtime) : {};
-  const runningAnimations = Array.isArray(runtime.runningAnimations) ? runtime.runningAnimations : [];
+  const runningAnimations = reconcileSnapshotRunningAnimations(runtime.runningAnimations, Date.now());
   const inferredBoardFromRunning = runningAnimations.reduce((first, entry) => {
     if (first) {
       return first;

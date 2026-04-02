@@ -18,7 +18,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 9-HF2 - Mandatory stability hotfix wave (execute-ready, hard-gated)
 - [x] DONE P9-HF2-T1 [P0] Implement lifecycle rehydrate reconciliation so elapsed one-shot events are restored as terminal/completed states.
 - [x] DONE P9-HF2-T2 [P0] Add strict no-replay guard for expired one-shot events (`Intruder Alert`, `Power Outage`, and same class) across reload/reconnect.
-- [ ] TODO P9-HF2-T3 [P0] Enforce deterministic lifecycle parity between local rehydrate and synced reconnect/join apply paths.
+- [x] DONE P9-HF2-T3 [P0] Enforce deterministic lifecycle parity between local rehydrate and synced reconnect/join apply paths.
 - [ ] TODO P9-HF2-T4 [P0] Introduce frame-budget aware runtime hardening for weak/mobile devices (load shedding ladder + bounded degradation).
 - [ ] TODO P9-HF2-T5 [P0] Add particle/effect caps and non-critical update coalescing under pressure without semantic event loss.
 - [ ] TODO P9-HF2-T6 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under hardening logic.
