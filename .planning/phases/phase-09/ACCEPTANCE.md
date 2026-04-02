@@ -1,74 +1,63 @@
 # Phase 9 Acceptance
 
-## Acceptance Correction
-- Binding correction: Plan 9-1 is not accepted.
-- Plan 9-HF1 is completed baseline, but not final closure.
-- Plan 9-HF2 is completed baseline, but not final closure.
-- New mandatory closure target is Plan 9-HF3 with hard gates below.
+## Reopen context
+- Binding correction remains: Plan 9-1 is not accepted.
+- HF1 and HF2 remain valid foundational baselines.
+- HF3 closure is revoked by critical runtime regressions.
+- New mandatory closure target is Plan 9-HF4 (reliability-first stabilization).
 
-## Regression and Verification Strategy
-- Video-performance-first: video-heavy workloads must remain smooth on Raspberry Pi and mobile.
-- Final-output-first: `/output/final` fluidity has strict priority under load contention.
-- Control-responsiveness-first: mobile/PC control views remain responsive while videos run.
-- Determinism-first: sync ordering/version/idempotent apply and lifecycle/stop semantics remain unchanged.
-- Evidence-first: every P0 HF3 item requires reproducible measurements and threshold-based PASS.
+## Verification strategy
+- Core-function-first: recover start/stop determinism, board switch parity, and `/output/final` load reliability before advanced optimization.
+- Simplification-first: runtime path complexity must be reduced and bounded.
+- Invariant-first: startup must not create phantom runs or duplicate outside runs.
+- Determinism-first: server-authoritative sync semantics remain unchanged.
+- Evidence-first: each blocker requires explicit FAIL->PASS reproduction and runtime smoke proof.
 
-## Hard Gates (Plan 9-HF3, mandatory)
-- G1 Video-RenderPath-Optimization-Gate: decode/render scheduling, warmup buffering, and draw strategy are optimized and validated in video-heavy scenarios.
-- G2 Final-Output-Priority-Gate: `/output/final` preserves continuous fluid playback under mixed workload pressure.
-- G3 Control-View-Responsiveness-Gate: control views remain operationally smooth while final-output priority is enforced.
-- G4 Adaptive-WeakDevice-Gate: deterministic quality/load-shedding ladder stabilizes Raspberry/mobile under sustained pressure and recovers when pressure drops.
-- G5 Deterministic-NonRegression-Gate: HF2 lifecycle no-replay semantics, sync determinism, and stop determinism remain PASS.
-- G6 Strict-Performance-Matrix-Gate: full video-heavy matrix below is PASS with measured thresholds and evidence artifacts.
+## Hard gates (Plan 9-HF4, mandatory)
+- G1 StartStop-Determinism-Gate: start/stop is first-action deterministic in repeated cycles.
+- G2 Startup-Invariant-Gate: zero phantom running entries and zero duplicate outside runs after startup/hydration.
+- G3 BoardSwitch-Parity-Gate: board image and polygons switch atomically and stay in sync across controller and `/output/final`.
+- G4 FinalOutput-Load-Reliability-Gate: `/output/final` reliably loads/rehydrates without intermittent blank or stuck states.
+- G5 Simplification-Safety-Gate: destabilizing scheduler branches are removed/gated; retained low-end protections are bounded and deterministic.
+- G6 FeatureFlag-Failsafe-Gate: runtime profiles (`safe`, `balanced`, `aggressive`) exist with safe fallback and emergency disable capability.
+- G7 ServerAuthoritative-Determinism-Gate: ordering/version/idempotent apply and stop determinism remain PASS under HF4 changes.
+- G8 FailPass-Evidence-Gate: mandatory FAIL->PASS and core-journey smoke evidence is complete and reproducible.
 
-## Strict Performance Thresholds (HF3)
-- Final Output Frame Stability (Raspberry + low-end mobile profile):
-  - p95 frame time <= 33.3 ms in video-heavy soak.
-  - no frame stall > 150 ms.
-  - no sustained collapse below 24 FPS for > 3 seconds.
-- Control View Responsiveness (mobile + PC controllers while videos active):
-  - p95 input-to-visible-feedback <= 120 ms.
-  - no interaction freeze window > 250 ms.
-- Recovery behavior:
-  - after pressure drop, quality ladder returns at least one level within 5 seconds.
+## Mandatory thresholds (HF4)
+- Start/Stop reliability:
+  - 100 consecutive start/stop cycles per target scenario complete with 0 lost starts and 0 missed stops.
+- Startup invariant reliability:
+  - 50 startup/reload/reconnect cycles produce 0 phantom running entries and 0 duplicate outside runs.
+- Board-switch parity:
+  - 30 sequential board switches across mobile->pc->pi path show 0 image/polygon mismatch events.
+- `/output/final` load reliability:
+  - 30 open/reload/reconnect attempts complete with 30/30 successful render-ready state.
+- Sync reliability (mobile->pi authoritative path):
+  - 0 stale-apply violations, 0 ordering breaks, 0 idempotency failures in mandatory matrix.
 
-## Strict Regression Matrix (Plan 9-HF3)
-- Video-Heavy-Final-Soak-Test: sustained concurrent video animations on `/output/final` with frame pacing capture.
-- Video-Decode-Contention-Test: simultaneous starts/seeks/restarts validate scheduling and warmup stability.
-- Final-vs-Control-Priority-Test: control interaction bursts cannot destabilize final output pacing.
-- Weak-Device-Adaptive-Ladder-Test: escalation/recovery of load-shedding levels is deterministic and bounded.
-- Control-Responsiveness-Under-Video-Test: trigger/edit/stop controls stay responsive during active video playback.
-- HF2-NoReplay-Regression-Test: expired one-shot events remain terminal on reload/reconnect (no replay).
-- Deterministic-Sync-Under-Video-Load-Test: ordering/version/idempotent apply remains stable during video stress.
-- Stop-Determinism-Regression-Test: explicit stop/clear pathways remain first-click deterministic.
-- Persistence-Parity-Test: save/reload/restart/defaults preserve updated video-performance behavior and lifecycle invariants.
-- Final-Output-Non-Regression-Test: `/output/final` keeps FX-only contract and no lifecycle replay artifacts.
+## Strict regression matrix (Plan 9-HF4)
+- R1 StartStop-Core-Repro-Test: reproduce current failure, apply fix, and prove PASS in the same script.
+- R2 Startup-DuplicateOutside-Repro-Test: capture duplicate outside run failure and PASS with invariant guard.
+- R3 Startup-PhantomRunning-Repro-Test: capture phantom running entry and PASS with clean startup state.
+- R4 BoardSwitch-ImagePolygon-Parity-Test: reproduce split update (polygon-only) and PASS with atomic switch.
+- R5 FinalOutput-Load-Repro-Test: reproduce intermittent `/output/final` load fail and PASS with reliable bootstrap.
+- R6 Runtime-Simplification-NonRegression-Test: removed/gated complex branches do not regress low-end smoothness baseline.
+- R7 Profile-Flag-Failsafe-Test: switch profiles at runtime and verify safe fallback behavior.
+- R8 Sync-Determinism-Regression-Test: ordering/version/idempotent apply and stop semantics remain deterministic.
+- R9 Core-Journey-Smoke-Test: operator journeys pass on mobile controller + PC controller + Raspberry Pi `/output/final`.
 
-## Incremental Mandatory Gates
-- After P9-HF3-T1: profiling baseline and hotspot evidence are captured and reproducible.
-- After P9-HF3-T2..T4: render-path optimization is validated against video-heavy contention tests.
-- After P9-HF3-T5..T6: final-output priority and control responsiveness are validated concurrently.
-- After P9-HF3-T7: adaptive ladder escalation/recovery is PASS on weak-device stress.
-- After P9-HF3-T8: strict threshold matrix is PASS with artifacted metrics.
-- After P9-HF3-T9: deterministic non-regression suite is PASS.
-- After P9-HF3-T10: all phase/global planning artifacts are synchronized.
+## Runtime smoke journeys (must pass)
+- Journey A: cold start -> trigger room/global -> stop -> clear all -> restart.
+- Journey B: startup with persisted state -> no phantom runs -> trigger outside once -> no duplicate run.
+- Journey C: board A->B->A switching while active and idle -> image/polygon parity intact.
+- Journey D: open `/output/final` fresh, reload, reconnect -> render-ready each time.
+- Journey E: mobile trigger/edit/stop observed on pi output with deterministic authoritative apply.
 
-## Definition of Done
-- Video-based animation playback is smooth across Raspberry Pi beamer and mobile/PC control devices.
-- `/output/final` remains the most stable/fluessige output path under contention.
-- Control views remain fluid and responsive while videos are active.
-- Adaptive load-shedding for weak devices works deterministically with bounded quality degradation.
-- HF2 no-replay lifecycle correctness remains intact.
-- Sync ordering/version/idempotent apply and stop determinism remain intact.
-- Video-heavy regression matrix and thresholds are PASS and documented.
-- Phase-09 artifacts and global tracking files are synchronized.
+## Definition of done
+- All G1..G8 gates are PASS.
+- FAIL->PASS reproduction evidence exists for each reported critical regression.
+- Core runtime journeys are stable on mobile/PC/pi and reproducible.
+- Planning artifacts are fully synchronized.
 
-## Plan 9-HF1/HF2 Closure Notes
-
-- 9-1 evidence remains documented in `9-1-VERIFICATION.md` but stays NOT ACCEPTED.
-- HF1 hard reduction gate remains PASS (`src/app.js`: 12163 -> 28).
-- HF2 lifecycle no-replay + low-end hardening evidence remains PASS (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
-
-## Plan 9-HF3 Closure Result
-
-- PASS: closure evidence is documented in `P9-HF3-T1-VIDEO-PROFILING-BASELINE.md`, `P9-HF3-T2-VIDEO-SCHEDULER.md`, `P9-HF3-T3-VIDEO-WARMUP.md`, `P9-HF3-T4-VIDEO-DRAW-STRATEGY.md`, `P9-HF3-T5-FINAL-OUTPUT-PRIORITY.md`, `P9-HF3-T6-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T7-ADAPTIVE-LADDER.md`, `P9-HF3-T8-VIDEO-PERFORMANCE-SUITE.md`, and `P9-HF3-T9-DETERMINISM-REGRESSION.md`.
+## Current gate status
+- HF4 verification artifacts were added for FAIL->PASS reproduction and runtime smoke evidence.

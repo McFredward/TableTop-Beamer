@@ -1,54 +1,50 @@
-# Phase 9 Backlog (Replanned after mandatory video-performance P0 feedback)
+# Phase 9 Backlog (HF4 reliability stabilization wave)
 
-## Acceptance Correction
+## Reopen context
 - 9-1 execution exists, but 9-1 is not accepted.
-- 9-HF1 is completed baseline, but not final closure.
-- 9-HF2 is completed baseline, but not final closure.
-- New priority wave: 9-HF3 (mandatory video performance and final-output stability).
+- 9-HF1 and 9-HF2 remain valid foundations.
+- 9-HF3 introduced critical regressions in real operation; closure is revoked.
+- New priority wave: 9-HF4 reliability-first stabilization with controlled simplification.
 
 ## Epics
-- 9-HF3 Mandatory Video Performance Hotfix Wave
-- Video Render Path Optimization (decode/render scheduling, warmup, draw arbitration)
-- Final-Output-First Load Prioritization
-- Adaptive Weak-Device Quality and Load Shedding (Raspberry/mobile)
-- Video-Heavy Performance Regression and Threshold Enforcement
-- Deterministic Sync/Lifecycle/Stop Non-Regression Guard
+- 9-HF4 Core Function Recovery (start/stop, board switch parity, `/output/final` load)
+- 9-HF4 Runtime Simplification and Scheduling Path Reduction
+- 9-HF4 Startup Invariant Enforcement (no phantom running, no duplicate outside runs)
+- 9-HF4 Deterministic Server-Authoritative Sync Preservation (mobile->pi primary)
+- 9-HF4 Feature Flags and Runtime Profiles (`safe`/`balanced`/`aggressive`)
+- 9-HF4 FAIL->PASS Reproduction and Core Journey Smoke Evidence
 
-## Story Mapping
-- P9-HF3-S1 Build reproducible video-heavy profiling baseline for mobile + Raspberry Pi bottlenecks.
-- P9-HF3-S2 Optimize video decode/render scheduling to avoid frame-budget starvation.
-- P9-HF3-S3 Add deterministic buffering/warmup strategy to remove start/seek hitch spikes.
-- P9-HF3-S4 Optimize draw strategy for video layers to reduce main-thread contention and overdraw.
-- P9-HF3-S5 Enforce final-output-first scheduling and budget protection under load contention.
-- P9-HF3-S6 Keep control-view responsiveness stable while final-output priority is active.
-- P9-HF3-S7 Implement adaptive quality/load-shedding ladder for weak devices with bounded degradation + recovery hysteresis.
-- P9-HF3-S8 Add hard performance regression suite for video-heavy scenarios with measurable thresholds.
-- P9-HF3-S9 Prove no regression for sync ordering/version/idempotent apply, lifecycle no-replay, and stop determinism.
-- P9-HF3-S10 Synchronize all phase/global planning artifacts after HF3 closure.
+## Story mapping
+- P9-HF4-S1 Capture deterministic FAIL reproductions for all reported regressions.
+- P9-HF4-S2 Unify start/stop control flow and remove destabilizing alternate runtime paths.
+- P9-HF4-S3 Enforce startup hydration/run-list invariants to eliminate phantom and duplicate entries.
+- P9-HF4-S4 Implement atomic board-switch context apply to guarantee board image + polygon parity.
+- P9-HF4-S5 Harden `/output/final` bootstrap and reconnect loading reliability.
+- P9-HF4-S6 Keep only required low-end smoothness guards after simplification.
+- P9-HF4-S7 Add fail-safe runtime profiles and kill-switch flags for aggressive optimizations.
+- P9-HF4-S8 Validate sync determinism and mobile->pi reliability under simplified runtime.
+- P9-HF4-S9 Execute FAIL->PASS and runtime smoke matrices with measurable PASS criteria.
+- P9-HF4-S10 Synchronize phase/global planning artifacts after gate closure.
 
-## Prioritized Execution Wave (P0) - Plan 9-HF3 execute-ready
-- Story P9-HF3-S1.
-  - Goal: deterministic bottleneck baseline for video-heavy workloads.
-- Story P9-HF3-S2 + P9-HF3-S3 + P9-HF3-S4.
-  - Goal: stable decode/render path with reduced stalls and smoother playback.
-- Story P9-HF3-S5.
-  - Goal: `/output/final` remains fluid and prioritized under contention.
-- Story P9-HF3-S6 + P9-HF3-S7.
-  - Goal: control views stay responsive and weak devices degrade gracefully.
-- Story P9-HF3-S8.
-  - Goal: measurable video-heavy performance gates are PASS with evidence.
-- Story P9-HF3-S9.
-  - Goal: no regression in sync/lifecycle/stop determinism.
-- Story P9-HF3-S10.
-  - Goal: phase + global artifacts are fully synchronized.
+## Prioritized execution wave (P0) - Plan 9-HF4 execute-ready
+- Story P9-HF4-S1.
+  - Goal: stable, reproducible FAIL baseline for each blocker.
+- Story P9-HF4-S2 + P9-HF4-S3.
+  - Goal: deterministic lifecycle control and clean startup.
+- Story P9-HF4-S4 + P9-HF4-S5.
+  - Goal: board switch parity and reliable `/output/final` loading.
+- Story P9-HF4-S6 + P9-HF4-S7.
+  - Goal: reliability-first simplification with safe runtime profile fallback.
+- Story P9-HF4-S8.
+  - Goal: preserve server-authoritative sync and mobile->pi consistency.
+- Story P9-HF4-S9.
+  - Goal: explicit FAIL->PASS plus smoke evidence for core journeys.
+- Story P9-HF4-S10.
+  - Goal: full artifact synchronization.
 
-## Follow-up Waves
-- Plan 9-2 (after HF3 PASS): adapter cleanup, dependency hardening, optional diagnostics refinements.
-- Plan 9-3 (after 9-2): production gate sweep and final sign-off.
+## Follow-up waves
+- Plan 9-2 (after HF4 PASS): adapter cleanup, dependency hardening, focused diagnostics.
+- Plan 9-3 (after 9-2): production gate sweep and final phase sign-off.
 
-## Execution Status Update
-
-- Plan 9-1 executed and documented, but rejected by acceptance correction.
-- Plan 9-HF1 completed and remains accepted as modularization baseline.
-- Plan 9-HF2 completed and remains accepted as lifecycle/no-replay + low-end hardening baseline.
-- Plan 9-HF3 is completed with PASS evidence (`P9-HF3-T1-VIDEO-PROFILING-BASELINE.md` .. `P9-HF3-T9-DETERMINISM-REGRESSION.md`); Plan 9-2 is now unblocked as next wave.
+## Wave status
+- HF4 reliability wave executed; next queued waves remain 9-2 then 9-3.

@@ -1,81 +1,74 @@
-# Phase 9 Plan (Replanned after mandatory video-performance P0 feedback)
+# Phase 9 Plan (HF4 reliability stabilization wave)
 
-## Acceptance Correction
-- User correction remains binding: Plan 9-1 is executed but not accepted.
-- Plan 9-HF1 remains completed as foundation (monolith reduction + modular seams).
-- Plan 9-HF2 remains completed (lifecycle no-replay + low-end hardening baseline).
-- New mandatory execution wave is Plan 9-HF3 and supersedes 9-2 as immediate next step.
+## Acceptance correction and reopen context
+- Plan 9-1 remains executed but not accepted.
+- Plan 9-HF1 remains valid as modular foundation.
+- Plan 9-HF2 remains valid as lifecycle/no-replay baseline.
+- Plan 9-HF3 execution exists, but closure is revoked due to critical regressions reported in real runtime.
+- New mandatory execution wave is Plan 9-HF4 (P0 stabilization, reliability-first, simplification-first).
 
-## Mandatory P0 Feedback (binding)
-1. Video-based animations currently cause severe stalls on mobile and Raspberry Pi (`/output/final` beamer path included).
-2. Smooth animation continuity must hold while videos are active.
-3. `/output/final` fluidity is top priority and must be protected under load.
-4. Control views (mobile/PC) must remain responsive without lifecycle/sync regressions.
+## Mandatory P0 feedback (binding)
+1. Recover core functionality first: reliable start/stop, board switching, and `/output/final` loading.
+2. Re-evaluate and remove destabilizing runtime complexity; keep only mechanisms required for low-end smoothness.
+3. Enforce clean startup invariants: no phantom running entries and no duplicate outside runs.
+4. Keep deterministic server-authoritative sync and mobile->pi reliability as primary goal.
+5. Add fail-safe feature flags/profile levels so aggressive optimization can be disabled safely.
+6. Provide explicit FAIL->PASS reproduction and runtime smoke evidence for core user journeys.
 
-## Target State
-Phase 9 now closes only when video-heavy workloads run smoothly and deterministically across Raspberry Pi beamer and controller devices. The runtime must optimize decode/render scheduling, buffering warmup, and draw strategy while prioritizing `/output/final`, applying adaptive quality/load shedding on weak hardware, and preserving sync/lifecycle/stop determinism.
+## Target state
+Phase 9 closes only when runtime behavior is boringly reliable under normal and stressed operation: starts and stops are deterministic, board switch updates image plus polygons atomically on all clients, `/output/final` boots and renders reliably, startup is clean, and sync remains server-authoritative across mobile/PC/pi. Performance tuning remains subordinate to correctness and only uses simplified, testable paths.
 
-## Binding Architecture Decisions
-- Preserve HF1 module boundaries; performance fixes land in runtime/media/sync modules, not in `src/app.js`.
-- Preserve HF2 lifecycle correctness and no-replay semantics as non-negotiable invariants.
-- Introduce explicit video pipeline ownership: preload/warmup -> decode cadence -> draw arbitration -> teardown.
-- Prioritize `/output/final` render budget over non-critical control-view visuals when pressure is detected.
-- Adaptive degradation must be deterministic, bounded, and limited to visual quality knobs (never sync/lifecycle semantics).
-- Hard performance gates are measured with reproducible video-heavy scenarios and fixed thresholds.
+## Binding architecture decisions (HF4)
+- Establish one canonical runtime control path for start/stop/apply; remove or gate parallel scheduling paths.
+- Keep scheduler complexity minimal: retain only low-end safeguards that demonstrate measurable benefit.
+- Make startup idempotent with explicit invariant checks before first render and before first sync apply.
+- Make board switch an atomic context transaction (board image, polygons, running-state cleanup, and final-output refresh in one deterministic sequence).
+- Make `/output/final` load resilient: guarded bootstrap, retry-safe attach, deterministic fallback state.
+- Preserve server-authoritative sync contract (ordering/version/idempotent apply) as non-negotiable.
+- Introduce feature-flagged runtime profiles: `safe`, `balanced`, `aggressive`; default to `safe` on weak devices until aggressive path is proven.
 
-## Scope (9-HF3)
-- Optimize video render path (decode/render scheduling, buffering/warmup, draw strategy) for mobile + Raspberry Pi.
-- Add load-priority arbitration that protects `/output/final` frame continuity under contention.
-- Add adaptive quality/load-shedding ladder for weak devices (resolution/effect caps/update cadence controls).
-- Keep control views responsive while final-output priority is enforced.
-- Add strict video-heavy performance regression suite with measurable limits.
-- Verify no regression for sync ordering/version/idempotency, lifecycle semantics, and stop determinism.
+## Scope (Plan 9-HF4)
+- Restore deterministic start/stop lifecycle under repeated trigger/edit/stop cycles.
+- Fix startup hydration to prevent phantom running entries and duplicate outside runs.
+- Fix board switch parity so board image and polygons always switch together.
+- Fix `/output/final` load reliability and reconnect behavior.
+- Simplify runtime scheduling by removing destabilizing branches and preserving only necessary low-end guards.
+- Add runtime profile flags and hard kill-switches for aggressive optimizations.
+- Run explicit FAIL->PASS reproductions plus smoke matrix on mobile, PC controller, and Raspberry Pi output.
 
-## Out of Scope
-- New operator-facing features or UI redesign.
-- Protocol redesign beyond what is required for deterministic priority signaling.
-- Non-measurable cosmetic tuning without performance impact.
-- Relaxing deterministic guarantees to gain temporary FPS.
+## Out of scope
+- New user-facing feature additions.
+- Further optimization experiments before core reliability gates are PASS.
+- Protocol redesign beyond what is required for deterministic authoritative sync.
 
-## Prioritized Next Execution Wave (Plan 9-HF3, execute-ready, hard-gated)
-1. Instrument and profile current video-heavy bottlenecks on Raspberry/mobile and isolate decode/render contention hotspots.
-2. Implement video pipeline optimization (decode scheduling, warmup buffering, draw cadence arbitration).
-3. Implement final-output-first load prioritization and protect `/output/final` against controller-side spikes.
-4. Add adaptive quality/load-shedding policy for weak devices with deterministic pressure levels + recovery hysteresis.
-5. Validate control-view responsiveness parity under active video playback.
-6. Run hard regression matrix (video-heavy stress/soak) with explicit thresholds and PASS evidence.
-7. Confirm no regression in HF2 lifecycle/no-replay, sync determinism, and stop semantics.
-8. Close only after full artifact synchronization and explicit gate PASS.
+## Prioritized next execution wave (Plan 9-HF4, execute-ready, hard-gated)
+1. Capture reproducible FAIL baselines for each critical regression (start/stop, startup duplicates, board switch, `/output/final` load).
+2. Introduce runtime simplification patch set: disable/remove non-essential scheduler branches and unify start/stop path.
+3. Enforce startup invariants and idempotent hydration guards.
+4. Implement atomic board-context switch pipeline with mandatory image+polygon parity checks.
+5. Harden `/output/final` bootstrap/load/reconnect path.
+6. Add feature flags/profile levels with safe default and runtime override.
+7. Validate deterministic sync invariants and mobile->pi propagation under the simplified runtime.
+8. Execute FAIL->PASS verification set plus runtime smoke journeys; publish evidence artifacts.
+9. Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Milestones
-1. M1 Video Hotspot Baseline: deterministic profiling identifies bottlenecks for decode/render path.
-2. M2 Video Render Path Hardening: scheduling, warmup, and draw strategy reduce stall frequency and magnitude.
-3. M3 Final-Output Priority: `/output/final` remains fluid under mixed device load.
-4. M4 Adaptive Weak-Device Stability: Raspberry/mobile quality ladder prevents collapse and recovers cleanly.
-5. M5 Control-View Responsiveness: mobile/PC controls remain fluid during video-heavy playback.
-6. M6 Determinism Preservation: sync/lifecycle/stop invariants remain PASS under all hardening paths.
-7. M7 Evidence Closure: video-heavy regression matrix is PASS with reproducible artifacts.
+1. M1 Regression reproduction baseline captured (FAIL state is deterministic and documented).
+2. M2 Core control recovery (start/stop and startup invariants pass).
+3. M3 Context parity recovery (board switch image+polygon parity pass across clients).
+4. M4 Final output reliability recovery (`/output/final` load/reconnect pass).
+5. M5 Simplification and profile safety (`safe/balanced/aggressive` flags operational, safe default enforced).
+6. M6 Determinism preservation (server-authoritative sync and stop semantics remain PASS).
+7. M7 Evidence closure (FAIL->PASS and smoke matrix fully PASS, artifacts synchronized).
 
-## Regression/Evidence Matrix Policy
-- Video-heavy final soak: sustained mixed triggers with multiple active video animations on Raspberry Pi beamer path.
-- Mobile control stress: concurrent control interactions while final output runs video-heavy scenes.
-- Render contention matrix: decode spikes, seek/restart cycles, and simultaneous start/stop bursts.
-- Load-shedding ladder matrix: pressure-level escalation + recovery behavior is deterministic and bounded.
-- HF2 non-regression matrix: expired one-shot no-replay and terminal lifecycle semantics remain PASS.
-- Sync/stop matrix: ordering/version/idempotent apply and explicit stop determinism remain PASS.
+## Definition of done
+- Start/stop is first-action deterministic across repeated cycles (no lost start, no missed stop).
+- Startup has zero phantom running entries and zero duplicate outside runs.
+- Board switch updates board image and polygons together, with no split-brain visuals.
+- `/output/final` loads and resumes reliably after reload/reconnect.
+- Simplified runtime path is the default stable path; aggressive path is optional and safely disableable.
+- Server-authoritative sync determinism and mobile->pi reliability remain PASS.
+- FAIL->PASS reproductions and runtime smoke evidence are documented and reproducible.
 
-## Definition of Done
-- Video-based animation playback is smooth and stable on target weak devices (mobile + Raspberry Pi).
-- `/output/final` remains continuously fluid under video-heavy stress and has strict priority under contention.
-- Control views remain responsive during active video playback.
-- Adaptive load-shedding engages/recoveries deterministically without visible lifecycle/sync drift.
-- HF2 lifecycle/no-replay behavior remains intact with no regressions.
-- Deterministic sync and stop semantics remain intact.
-- Regression/evidence matrix is PASS and phase/global planning artifacts are synchronized.
-
-## Execution Update
-
-- Plan 9-1 remains documented but not accepted.
-- Plan 9-HF1 remains completed foundation (`src/app.js`: 12163 -> 28 lines).
-- Plan 9-HF2 remains completed baseline for lifecycle no-replay and low-end hardening.
-- Plan 9-HF3 is completed with explicit PASS evidence (T1..T9 artifacts); Plan 9-2 is unblocked as next execution wave.
+## Execution status
+- Plan 9-HF4 implementation is completed with reliability-first runtime guards, profile toggles, and FAIL->PASS artifacts.
