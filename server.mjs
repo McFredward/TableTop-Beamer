@@ -56,6 +56,7 @@ const finalStreamComposerState = {
 
 const finalStreamProducerState = {
   timerId: null,
+  watchdogId: null,
   running: false,
   composing: false,
   pendingCompose: false,
@@ -64,6 +65,7 @@ const finalStreamProducerState = {
   latestComposeErrorAt: null,
   recoveries: 0,
   ticks: 0,
+  lastTickAt: null,
 };
 
 const boardCatalogCache = {
@@ -74,6 +76,7 @@ const boardCatalogCache = {
 
 const finalStreamClients = new Map();
 const FINAL_STREAM_PUSH_INTERVAL_MS = 250;
+const FINAL_STREAM_WATCHDOG_INTERVAL_MS = 1500;
 
 function writeFinalStreamHeartbeat(res) {
   writeSseEvent(res, "heartbeat", {
@@ -123,6 +126,7 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
   }
   finalStreamProducerState.composing = true;
   finalStreamProducerState.ticks += 1;
+  finalStreamProducerState.lastTickAt = new Date().toISOString();
   try {
     const currentVersion = Number(liveSessionState.version ?? 0);
     const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
@@ -157,11 +161,40 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
   }
 }
 
+function ensureFinalStreamProducerWatchdog() {
+  if (finalStreamProducerState.watchdogId) {
+    return;
+  }
+  finalStreamProducerState.watchdogId = setInterval(() => {
+    const timerMissing = finalStreamProducerState.running && !finalStreamProducerState.timerId;
+    if (timerMissing) {
+      finalStreamProducerState.recoveries += 1;
+      finalStreamProducerState.timerId = setInterval(() => {
+        void composeAndBroadcastFinalStreamFrame();
+      }, FINAL_STREAM_PUSH_INTERVAL_MS);
+    }
+    if (finalStreamClients.size <= 0 || finalStreamProducerState.composing) {
+      return;
+    }
+    const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
+    if (lastFrameAtMs <= 0) {
+      void composeAndBroadcastFinalStreamFrame({ force: true });
+      return;
+    }
+    const silentWindow = Date.now() - lastFrameAtMs;
+    if (silentWindow > FINAL_STREAM_PUSH_INTERVAL_MS * 6) {
+      finalStreamProducerState.recoveries += 1;
+      void composeAndBroadcastFinalStreamFrame({ force: true });
+    }
+  }, FINAL_STREAM_WATCHDOG_INTERVAL_MS);
+}
+
 function ensureFinalStreamProducerRunning() {
   if (finalStreamProducerState.running) {
     return;
   }
   finalStreamProducerState.running = true;
+  ensureFinalStreamProducerWatchdog();
   finalStreamProducerState.timerId = setInterval(() => {
     void composeAndBroadcastFinalStreamFrame();
   }, FINAL_STREAM_PUSH_INTERVAL_MS);
@@ -1680,8 +1713,10 @@ function buildFinalStreamHealthSnapshot() {
     connectedClients: finalStreamClients.size,
     producer: {
       running: finalStreamProducerState.running,
+      watchdogActive: Boolean(finalStreamProducerState.watchdogId),
       composing: finalStreamProducerState.composing,
       ticks: finalStreamProducerState.ticks,
+      lastTickAt: finalStreamProducerState.lastTickAt,
       recoveries: finalStreamProducerState.recoveries,
       latestBroadcastVersion: finalStreamProducerState.latestBroadcastVersion,
       latestComposeError: finalStreamProducerState.latestComposeError,

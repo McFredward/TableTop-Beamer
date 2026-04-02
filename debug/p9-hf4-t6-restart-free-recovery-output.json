@@ -1,0 +1,65 @@
+{
+  "schema": "tt-beamer.p9-hf4-t6-restart-free-recovery.v1",
+  "measuredAt": "2026-04-02T21:42:14.958Z",
+  "baseUrl": "http://127.0.0.1:4174",
+  "beforeDrop": {
+    "schema": "tt-beamer.final-stream-health.v1",
+    "generatedAt": "2026-04-02T21:42:14.130Z",
+    "connectedClients": 1,
+    "producer": {
+      "running": true,
+      "watchdogActive": true,
+      "composing": false,
+      "ticks": 22,
+      "lastTickAt": "2026-04-02T21:42:13.995Z",
+      "recoveries": 0,
+      "latestBroadcastVersion": 20,
+      "latestComposeError": null,
+      "latestComposeErrorAt": null
+    },
+    "lastFrameAt": "2026-04-02T21:42:13.778Z",
+    "sourceVersion": 20,
+    "frameId": 21,
+    "msSinceLastFrame": 352,
+    "healthy": true
+  },
+  "afterReconnect": {
+    "schema": "tt-beamer.final-stream-health.v1",
+    "generatedAt": "2026-04-02T21:42:14.956Z",
+    "connectedClients": 1,
+    "producer": {
+      "running": true,
+      "watchdogActive": true,
+      "composing": false,
+      "ticks": 45,
+      "lastTickAt": "2026-04-02T21:42:14.746Z",
+      "recoveries": 0,
+      "latestBroadcastVersion": 40,
+      "latestComposeError": null,
+      "latestComposeErrorAt": null
+    },
+    "lastFrameAt": "2026-04-02T21:42:14.505Z",
+    "sourceVersion": 40,
+    "frameId": 42,
+    "msSinceLastFrame": 451,
+    "healthy": true
+  },
+  "queue": {
+    "depth": 0,
+    "maxDepthObserved": 1,
+    "droppedOverflow": 0,
+    "droppedByClass": {
+      "control-critical": 0,
+      "state-sync": 0,
+      "config-noisy": 0
+    },
+    "coalesced": 0
+  },
+  "assertions": {
+    "producerRunningAfterReconnect": true,
+    "streamHealthyAfterReconnect": true,
+    "sourceVersionAdvanced": true,
+    "queueBounded": true
+  },
+  "pass": true
+}
