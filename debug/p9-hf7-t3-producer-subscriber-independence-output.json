@@ -1,0 +1,113 @@
+{
+  "schema": "tt-beamer.p9-hf7-t3-producer-subscriber-independence.v1",
+  "measuredAt": "2026-04-02T23:23:26.815Z",
+  "baseUrl": "http://127.0.0.1:4173",
+  "snapshots": {
+    "before": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-02T23:23:26.397Z",
+      "connectedClients": 1,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 3855,
+        "lastTickAt": "2026-04-02T23:23:26.338Z",
+        "recoveries": 318,
+        "latestBroadcastVersion": 19,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-02T23:23:26.338Z",
+      "sourceVersion": 19,
+      "frameId": 338,
+      "msSinceLastFrame": 59,
+      "healthy": true
+    },
+    "withSubscriber": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-02T23:23:26.404Z",
+      "connectedClients": 2,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 3855,
+        "lastTickAt": "2026-04-02T23:23:26.338Z",
+        "recoveries": 318,
+        "latestBroadcastVersion": 19,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-02T23:23:26.338Z",
+      "sourceVersion": 19,
+      "frameId": 338,
+      "msSinceLastFrame": 66,
+      "healthy": true
+    },
+    "afterDetach": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-02T23:23:26.608Z",
+      "connectedClients": 1,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 3856,
+        "lastTickAt": "2026-04-02T23:23:26.481Z",
+        "recoveries": 318,
+        "latestBroadcastVersion": 19,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-02T23:23:26.338Z",
+      "sourceVersion": 19,
+      "frameId": 338,
+      "msSinceLastFrame": 270,
+      "healthy": true
+    },
+    "afterReconnect": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-02T23:23:26.611Z",
+      "connectedClients": 2,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 3856,
+        "lastTickAt": "2026-04-02T23:23:26.481Z",
+        "recoveries": 318,
+        "latestBroadcastVersion": 19,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-02T23:23:26.338Z",
+      "sourceVersion": 19,
+      "frameId": 338,
+      "msSinceLastFrame": 273,
+      "healthy": true
+    },
+    "afterAllClosed": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-02T23:23:26.813Z",
+      "connectedClients": 1,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 3857,
+        "lastTickAt": "2026-04-02T23:23:26.732Z",
+        "recoveries": 318,
+        "latestBroadcastVersion": 19,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-02T23:23:26.338Z",
+      "sourceVersion": 19,
+      "frameId": 338,
+      "msSinceLastFrame": 475,
+      "healthy": true
+    }
+  },
+  "pass": true
+}
