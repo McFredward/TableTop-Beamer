@@ -390,6 +390,7 @@ function connectFinalOutputStream() {
       const frame = JSON.parse(event.data || "{}");
       renderFinalStreamFrame(frame);
       finalStreamRuntime.connected = true;
+      finalStreamRuntime.fallbackReason = null;
       document.body.dataset.finalOutputPath = "stream";
     } catch {
       // ignore malformed stream frame
@@ -400,8 +401,53 @@ function connectFinalOutputStream() {
   });
   eventSource.addEventListener("error", () => {
     finalStreamRuntime.connected = false;
+    finalStreamRuntime.fallbackReason = "stream-error";
     document.body.dataset.finalOutputPath = "client";
   });
+}
+
+function normalizeFinalOutputMode(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "stream" || normalized === "client") {
+    return normalized;
+  }
+  return "auto";
+}
+
+function isFinalStreamHealthy() {
+  if (!finalStreamRuntime.connected || finalStreamRuntime.lastFrameAt <= 0) {
+    return false;
+  }
+  return Date.now() - finalStreamRuntime.lastFrameAt <= finalStreamRuntime.healthTimeoutMs;
+}
+
+function shouldUseServerStreamPath() {
+  if (outputRole !== OUTPUT_ROLE_FINAL) {
+    return false;
+  }
+  const mode = normalizeFinalOutputMode(state.finalOutputMode);
+  if (mode === "client") {
+    return false;
+  }
+  if (mode === "stream") {
+    return isFinalStreamHealthy();
+  }
+  return isFinalStreamHealthy();
+}
+
+function syncFinalOutputRenderPath() {
+  if (outputRole !== OUTPUT_ROLE_FINAL) {
+    return;
+  }
+  const streamActive = shouldUseServerStreamPath();
+  document.body.dataset.finalOutputPath = streamActive ? "stream" : "client";
+  if (finalStreamLayer) {
+    finalStreamLayer.hidden = !streamActive;
+    finalStreamLayer.setAttribute("aria-hidden", streamActive ? "false" : "true");
+  }
+  if (!streamActive && isFinalStreamHealthy() === false && !finalStreamRuntime.fallbackReason) {
+    finalStreamRuntime.fallbackReason = "stream-timeout";
+  }
 }
 
 function setAlignMode(enabled, { emit = true } = {}) {
@@ -432,6 +478,8 @@ const finalStreamRuntime = {
   eventSource: null,
   connected: false,
   lastFrameAt: 0,
+  healthTimeoutMs: 2500,
+  fallbackReason: null,
 };
 
 const stageViewport = {
@@ -1278,6 +1326,7 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   } else if (typeof runtime.alignMode === "boolean") {
     state.alignMode = runtime.alignMode;
   }
+  state.finalOutputMode = normalizeFinalOutputMode(runtime.finalOutputMode ?? state.finalOutputMode);
 
   if (mutationType === "clear-all" || mutationType === "stop-animation") {
     hardStopRuntimeEffects({ clearVisuals: true });
@@ -10568,6 +10617,13 @@ function draw(now) {
         }
       }
       state.mobilePerf.pendingTriggerAt = null;
+    }
+
+    syncFinalOutputRenderPath();
+    if (outputRole === OUTPUT_ROLE_FINAL && shouldUseServerStreamPath()) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      recordRuntimeFrameCost(performance.now() - frameStart);
+      return;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);

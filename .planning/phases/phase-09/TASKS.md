@@ -30,7 +30,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T1 [P0] Produce architecture decision record for `/output/final` server-composed stream feasibility (latency, quality, CPU shift, complexity, deployment).
 - [x] DONE P9-HF3-T2 [P0] Implement server-side compositor pipeline fed by authoritative state snapshots without changing mutation/sync contracts.
 - [x] DONE P9-HF3-T3 [P0] Expose stream delivery endpoint for `/output/final` and integrate final-output playback client path.
-- [ ] TODO P9-HF3-T4 [P0] Add stream health monitoring and deterministic auto-fallback to existing client render path on stream degradation.
+- [x] DONE P9-HF3-T4 [P0] Add stream health monitoring and deterministic auto-fallback to existing client render path on stream degradation.
 - [ ] TODO P9-HF3-T5 [P0] Add explicit operator override toggle for stream mode vs fallback mode to support rollout safety.
 - [ ] TODO P9-HF3-T6 [P0] Preserve align-mode behavior parity across stream and fallback outputs (global authoritative ON/OFF semantics unchanged).
 - [ ] TODO P9-HF3-T7 [P0] Validate deterministic sync invariants remain unchanged (ordering/version/idempotent apply) with stream mode enabled.

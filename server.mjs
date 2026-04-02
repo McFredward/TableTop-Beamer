@@ -1569,6 +1569,22 @@ function attachFinalStreamClient(req, res) {
   req.on("aborted", closeHandler);
 }
 
+function buildFinalStreamHealthSnapshot() {
+  const now = Date.now();
+  const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
+  const msSinceLastFrame = lastFrameAtMs > 0 ? Math.max(0, now - lastFrameAtMs) : null;
+  return {
+    schema: "tt-beamer.final-stream-health.v1",
+    generatedAt: new Date().toISOString(),
+    connectedClients: finalStreamClients.size,
+    lastFrameAt: finalStreamComposerState.lastFrameAt,
+    sourceVersion: finalStreamComposerState.lastSourceVersion,
+    frameId: finalStreamComposerState.frameId,
+    msSinceLastFrame,
+    healthy: finalStreamClients.size > 0 && msSinceLastFrame !== null && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
+  };
+}
+
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   const chunks = [];
   let totalSize = 0;
@@ -2566,8 +2582,17 @@ const server = createServer(async (req, res) => {
         boardImportEndpoint: "/api/boards/import",
         liveTelemetryEndpoint: "/api/live/telemetry",
         finalStreamEndpoint: "/api/final-stream/events",
+        finalStreamHealthEndpoint: "/api/final-stream/health",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
+      });
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/final-stream/health") {
+      sendJson(res, 200, {
+        ok: true,
+        health: buildFinalStreamHealthSnapshot(),
       });
       return;
     }
