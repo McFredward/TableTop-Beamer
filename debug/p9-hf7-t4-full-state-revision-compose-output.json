@@ -1,0 +1,24 @@
+{
+  "schema": "tt-beamer.p9-hf7-t4-full-state-revision-compose.v1",
+  "measuredAt": "2026-04-02T23:24:01.127Z",
+  "baseUrl": "http://127.0.0.1:4173",
+  "versions": {
+    "startAck": 20,
+    "startFrame": 20,
+    "stopAck": 21,
+    "stopFrame": 21,
+    "latestSnapshot": 21,
+    "lateSubscriberFrame": 21
+  },
+  "timingsMs": {
+    "startFrame": 0,
+    "stopFrame": 0,
+    "lateSubscriberFrame": 0
+  },
+  "staleChecks": {
+    "startFrameIncludesAnimation": true,
+    "stopFrameExcludesAnimation": true,
+    "lateSubscriberNotStale": true
+  },
+  "pass": true
+}
