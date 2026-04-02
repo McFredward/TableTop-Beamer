@@ -53,6 +53,9 @@ const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: out
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
+const finalStreamLayer = document.querySelector("#final-stream-layer");
+const finalStreamMeta = document.querySelector("#final-stream-meta");
+const finalStreamRunning = document.querySelector("#final-stream-running");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
@@ -141,8 +144,6 @@ const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
 const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
-const runtimeProfileSelect = document.querySelector("#runtime-profile-select");
-const runtimeProfileStatus = document.querySelector("#runtime-profile-status");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const showRoomVerticesInput = document.querySelector("#show-room-vertices");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
@@ -297,7 +298,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-ref",
   "inside-resource-select",
   "inside-apply-changes",
-  "runtime-profile-select",
   "room-animation-settings-select",
   "room-animation-settings-name",
   "room-animation-settings-create",
@@ -307,12 +307,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-resource-select",
   "room-apply-changes",
 ];
-
-const RUNTIME_PROFILE_STORAGE_KEY = "tt-beamer.runtime-profile.v1";
-const RUNTIME_PROFILE_SAFE = "safe";
-const RUNTIME_PROFILE_BALANCED = "balanced";
-const RUNTIME_PROFILE_AGGRESSIVE = "aggressive";
-const RUNTIME_PROFILE_VALUES = [RUNTIME_PROFILE_SAFE, RUNTIME_PROFILE_BALANCED, RUNTIME_PROFILE_AGGRESSIVE];
 
 function applyOutputRoleViewContract() {
   if (outputRole !== OUTPUT_ROLE_FINAL) {
@@ -355,76 +349,59 @@ function syncAlignModePanel() {
   }
 }
 
-function normalizeRuntimeProfile(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (RUNTIME_PROFILE_VALUES.includes(normalized)) {
-    return normalized;
+function renderFinalStreamFrame(frame) {
+  if (!finalStreamLayer || outputRole !== OUTPUT_ROLE_FINAL) {
+    return;
   }
-  return RUNTIME_PROFILE_BALANCED;
+  finalStreamLayer.hidden = false;
+  finalStreamLayer.setAttribute("aria-hidden", "false");
+  const boardLabel = frame?.board?.label || frame?.board?.id || "-";
+  const version = Number(frame?.sourceVersion || 0);
+  const mode = String(frame?.mode || "auto");
+  const running = Array.isArray(frame?.runningAnimations) ? frame.runningAnimations : [];
+  if (finalStreamMeta) {
+    finalStreamMeta.textContent = `Mode ${mode.toUpperCase()} | Board ${boardLabel} | v${version} | running ${running.length}`;
+  }
+  if (finalStreamRunning) {
+    finalStreamRunning.replaceChildren();
+    running.slice(0, 12).forEach((entry) => {
+      const item = document.createElement("li");
+      const scope = String(entry?.scope || "room").toUpperCase();
+      const type = String(entry?.type || "unknown");
+      const roomLabel = entry?.roomLabel ? ` @ ${entry.roomLabel}` : "";
+      item.textContent = `${scope} • ${type}${roomLabel}`;
+      finalStreamRunning.appendChild(item);
+    });
+  }
+  finalStreamRuntime.lastFrameAt = Date.now();
 }
 
-function isWeakRuntimeDevice() {
-  const cores = Number(window.navigator?.hardwareConcurrency || 0);
-  const memoryGiB = Number(window.navigator?.deviceMemory || 0);
-  return (Number.isFinite(cores) && cores > 0 && cores <= 4)
-    || (Number.isFinite(memoryGiB) && memoryGiB > 0 && memoryGiB <= 4);
-}
-
-function resolveInitialRuntimeProfile() {
-  const urlProfile = normalizeRuntimeProfile(new URLSearchParams(window.location.search).get("runtimeProfile"));
-  if (urlProfile !== RUNTIME_PROFILE_BALANCED) {
-    return urlProfile;
+function connectFinalOutputStream() {
+  if (outputRole !== OUTPUT_ROLE_FINAL || typeof window.EventSource !== "function") {
+    return;
   }
-  try {
-    const stored = normalizeRuntimeProfile(window.localStorage.getItem(RUNTIME_PROFILE_STORAGE_KEY));
-    if (stored !== RUNTIME_PROFILE_BALANCED) {
-      return stored;
-    }
-  } catch {
-    // localStorage may be unavailable in strict browser contexts.
+  if (finalStreamRuntime.eventSource) {
+    return;
   }
-  return isWeakRuntimeDevice() ? RUNTIME_PROFILE_SAFE : RUNTIME_PROFILE_BALANCED;
-}
-
-function applyRuntimeProfile(profile, { persist = true, announce = false, reason = "runtime-profile" } = {}) {
-  const nextProfile = normalizeRuntimeProfile(profile);
-  state.runtimePerf.runtimeProfile = nextProfile;
-  state.runtimePerf.aggressiveOptimizationsEnabled = nextProfile === RUNTIME_PROFILE_AGGRESSIVE;
-  if (runtimeProfileSelect) {
-    runtimeProfileSelect.value = nextProfile;
-  }
-  if (runtimeProfileStatus) {
-    const modeDescription =
-      nextProfile === RUNTIME_PROFILE_SAFE
-        ? "conservative scheduling (deterministic first)"
-        : nextProfile === RUNTIME_PROFILE_BALANCED
-          ? "balanced runtime guards"
-          : "aggressive optimization path";
-    runtimeProfileStatus.textContent = `Runtime profile: ${nextProfile} (${modeDescription})`;
-  }
-  applyRuntimePressureCaps(state.runtimePerf.pressureLevel);
-  if (persist) {
+  const eventSource = new window.EventSource("/api/final-stream/events");
+  finalStreamRuntime.eventSource = eventSource;
+  eventSource.addEventListener("frame", (event) => {
     try {
-      window.localStorage.setItem(RUNTIME_PROFILE_STORAGE_KEY, nextProfile);
+      const frame = JSON.parse(event.data || "{}");
+      renderFinalStreamFrame(frame);
+      finalStreamRuntime.connected = true;
+      document.body.dataset.finalOutputPath = "stream";
     } catch {
-      // no-op
+      // ignore malformed stream frame
     }
-  }
-  if (announce) {
-    triggerFeedback.textContent = `Status: runtime profile set to ${nextProfile} (${reason})`;
-  }
-}
-
-function getRuntimeProfile() {
-  return normalizeRuntimeProfile(state.runtimePerf.runtimeProfile);
-}
-
-function isAggressiveRuntimeProfile() {
-  return getRuntimeProfile() === RUNTIME_PROFILE_AGGRESSIVE;
-}
-
-function isConservativeRuntimeProfile() {
-  return getRuntimeProfile() === RUNTIME_PROFILE_SAFE;
+  });
+  eventSource.addEventListener("heartbeat", () => {
+    finalStreamRuntime.connected = true;
+  });
+  eventSource.addEventListener("error", () => {
+    finalStreamRuntime.connected = false;
+    document.body.dataset.finalOutputPath = "client";
+  });
 }
 
 function setAlignMode(enabled, { emit = true } = {}) {
@@ -450,6 +427,12 @@ function setAlignMode(enabled, { emit = true } = {}) {
 }
 
 const ctx = canvas.getContext("2d");
+
+const finalStreamRuntime = {
+  eventSource: null,
+  connected: false,
+  lastFrameAt: 0,
+};
 
 const stageViewport = {
   rafId: null,
@@ -968,64 +951,6 @@ function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settin
 }
 
 let roomDraftSyncTimerId = null;
-let boardSwitchGuard = {
-  pending: false,
-  transactionId: null,
-  targetBoardId: null,
-  timerId: null,
-};
-
-function normalizeRunningAnimationsForInvariants(runningAnimations, boardId = state.boardId) {
-  const selectedBoardId = typeof boardId === "string" && boardId.trim() ? boardId.trim() : null;
-  const seenAnimationIds = new Set();
-  const outsideByBoard = new Map();
-  const normalized = [];
-
-  const sortedEntries = (Array.isArray(runningAnimations) ? runningAnimations : [])
-    .filter((entry) => entry && typeof entry === "object")
-    .sort((a, b) => Number(b?.startedAtEpochMs || 0) - Number(a?.startedAtEpochMs || 0));
-
-  for (const animation of sortedEntries) {
-    const id = typeof animation.id === "string" ? animation.id.trim() : "";
-    const scope = typeof animation.scope === "string" ? animation.scope.trim() : "";
-    const animationBoardId = typeof animation.boardId === "string" ? animation.boardId.trim() : "";
-    if (!id || !scope || !animationBoardId) {
-      continue;
-    }
-    if (selectedBoardId && animationBoardId !== selectedBoardId) {
-      continue;
-    }
-    if (seenAnimationIds.has(id)) {
-      continue;
-    }
-    if (scope === "global" && animation.type === "outside-space") {
-      if (outsideByBoard.has(animationBoardId)) {
-        continue;
-      }
-      outsideByBoard.set(animationBoardId, id);
-    }
-    seenAnimationIds.add(id);
-    normalized.push(animation);
-  }
-
-  return normalized.reverse();
-}
-
-function enforceRunningAnimationInvariants(reason = "runtime") {
-  const beforeCount = Array.isArray(state.runningAnimations) ? state.runningAnimations.length : 0;
-  state.runningAnimations = normalizeRunningAnimationsForInvariants(state.runningAnimations, state.boardId);
-  reconcileStopPendingFromSnapshot();
-  const afterCount = state.runningAnimations.length;
-  if (afterCount !== beforeCount) {
-    logRuntime.warn("running_invariants_normalized", {
-      event: "running-invariants-normalized",
-      reason,
-      beforeCount,
-      afterCount,
-      boardId: state.boardId,
-    });
-  }
-}
 
 function emitRoomDraftSyncMutation(reason = "room-draft-sync") {
   if (outputRole !== OUTPUT_ROLE_CONTROL) {
@@ -1282,20 +1207,12 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       }, "")
       : "") ||
     state.boardId;
-  const previousBoardId = state.boardId;
-  if (selectedBoard !== previousBoardId) {
-    switchBoard(selectedBoard, {
-      emitLiveContext: false,
-      reason: "live-snapshot-context",
-      announceStatus: false,
-    });
-  } else {
-    state.selectedBoard = selectedBoard;
-    state.selectedLayout =
-      (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
-      (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
-      selectedBoard;
-  }
+  state.boardId = selectedBoard;
+  state.selectedBoard = selectedBoard;
+  state.selectedLayout =
+    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
+    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
+    selectedBoard;
   state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
   state.selectedRoomByBoard =
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
@@ -1344,7 +1261,6 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
   const reconciledRunningAnimations = reconcileHydratedAnimations(primedRunningAnimations);
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);
-  enforceRunningAnimationInvariants("live-snapshot");
   reconcileStopPendingFromSnapshot();
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {
@@ -1402,9 +1318,6 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
 }
 
 function connectLiveSyncSocket() {
-  if (liveSync.socket && (liveSync.socket.readyState === WebSocket.OPEN || liveSync.socket.readyState === WebSocket.CONNECTING)) {
-    return;
-  }
   try {
     const socket = new WebSocket(resolveLiveWebSocketUrl());
     const socketGeneration = liveSync.socketGeneration + 1;
@@ -1496,18 +1409,10 @@ const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
-const videoSchedulerStateByKey = new Map();
-const videoFrameCacheByKey = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
 const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
 const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
 const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 350;
-const VIDEO_OP_COST = {
-  play: 2,
-  seek: 3,
-  rate: 1,
-  loop: 0.2,
-};
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -4391,109 +4296,6 @@ function warmRoomGifAssets({ reason = "runtime" } = {}) {
   }
 }
 
-function beginVideoSchedulingFrame() {
-  const runtimePerf = state.runtimePerf;
-  if (isConservativeRuntimeProfile()) {
-    runtimePerf.videoOpsBudgetPerFrame = 100;
-    runtimePerf.videoOpsUsedThisFrame = 0;
-    runtimePerf.videoOpsDeferredThisFrame = 0;
-    return;
-  }
-  const pressureLevel = Math.max(0, Math.min(2, Number(runtimePerf.pressureLevel) || 0));
-  const roleBaseBudget = outputRole === OUTPUT_ROLE_FINAL ? 10 : 5;
-  const pressurePenalty = pressureLevel >= 2 ? 3 : pressureLevel === 1 ? 1 : 0;
-  runtimePerf.videoOpsBudgetPerFrame = Math.max(2, roleBaseBudget - pressurePenalty);
-  runtimePerf.videoOpsUsedThisFrame = 0;
-  runtimePerf.videoOpsDeferredThisFrame = 0;
-}
-
-function canConsumeVideoOps(cost = 1, { key = "", priority = "normal" } = {}) {
-  if (!isAggressiveRuntimeProfile()) {
-    return true;
-  }
-  const runtimePerf = state.runtimePerf;
-  const numericCost = Math.max(0.1, Number(cost) || 1);
-  const budget = Math.max(1, Number(runtimePerf.videoOpsBudgetPerFrame) || 1);
-  const used = Math.max(0, Number(runtimePerf.videoOpsUsedThisFrame) || 0);
-  const overBudget = used + numericCost > budget;
-  if (overBudget && priority !== "critical") {
-    runtimePerf.videoOpsDeferredThisFrame = Math.max(0, Number(runtimePerf.videoOpsDeferredThisFrame) || 0) + 1;
-    if (key) {
-      const schedulerState = videoSchedulerStateByKey.get(key) ?? { deferredOps: 0, appliedOps: 0 };
-      schedulerState.deferredOps += 1;
-      videoSchedulerStateByKey.set(key, schedulerState);
-    }
-    return false;
-  }
-  runtimePerf.videoOpsUsedThisFrame = used + numericCost;
-  if (key) {
-    const schedulerState = videoSchedulerStateByKey.get(key) ?? { deferredOps: 0, appliedOps: 0 };
-    schedulerState.appliedOps += 1;
-    videoSchedulerStateByKey.set(key, schedulerState);
-  }
-  return true;
-}
-
-function shouldApplyDecodeOpThisFrame(key, { priority = "normal" } = {}) {
-  if (!isAggressiveRuntimeProfile()) {
-    return true;
-  }
-  const stride = Math.max(1, Number(state.runtimePerf.videoDecodeStride) || 1);
-  if (stride <= 1 || priority === "critical") {
-    return true;
-  }
-  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
-  const seed = computeAnimationCoalesceSeed({ id: key });
-  return (frameIndex + seed) % stride === 0;
-}
-
-function applyVideoPlaybackPlan(video, {
-  key = "",
-  targetRate = 1,
-  seekToSec = null,
-  priority = "normal",
-} = {}) {
-  if (!video) {
-    return;
-  }
-  if (canConsumeVideoOps(VIDEO_OP_COST.loop, { key, priority: "critical" })) {
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-  }
-  if (
-    Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01
-    && canConsumeVideoOps(VIDEO_OP_COST.rate, { key, priority })
-  ) {
-    video.defaultPlaybackRate = targetRate;
-  }
-  if (
-    Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01
-    && canConsumeVideoOps(VIDEO_OP_COST.rate, { key, priority })
-  ) {
-    video.playbackRate = targetRate;
-  }
-  if (
-    Number.isFinite(Number(seekToSec))
-    && !video.seeking
-    && shouldApplyDecodeOpThisFrame(key, { priority })
-    && canConsumeVideoOps(VIDEO_OP_COST.seek, { key, priority })
-  ) {
-    try {
-      video.currentTime = Number(seekToSec);
-    } catch {
-      // ignore transient seek errors until media is fully ready
-    }
-  }
-  if (
-    (video.paused || video.readyState < 2)
-    && shouldApplyDecodeOpThisFrame(key, { priority })
-    && canConsumeVideoOps(VIDEO_OP_COST.play, { key, priority })
-  ) {
-    void video.play().catch(() => undefined);
-  }
-}
-
 function getOutsideVideoElement(path) {
   const normalizedPath = String(path || "").trim();
   if (!normalizedPath) {
@@ -4511,23 +4313,13 @@ function getOutsideVideoElement(path) {
       status: "loading",
       video,
       durationSec: null,
-      warmup: {
-        requestedAtMs: 0,
-        stableSinceMs: 0,
-        primedAtMs: 0,
-      },
     });
     const entry = outsideVideoCacheByPath.get(normalizedPath);
     video.addEventListener("loadedmetadata", () => {
       const durationSec = Number(video.duration);
       if (entry) {
-        entry.status = Number.isFinite(durationSec) && durationSec > 0 ? "metadata" : "error";
+        entry.status = Number.isFinite(durationSec) && durationSec > 0 ? "ready" : "error";
         entry.durationSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null;
-      }
-    });
-    video.addEventListener("canplay", () => {
-      if (entry?.status !== "error") {
-        entry.status = "ready";
       }
     });
     video.addEventListener("error", () => {
@@ -4537,123 +4329,6 @@ function getOutsideVideoElement(path) {
     });
   }
   return outsideVideoCacheByPath.get(normalizedPath) ?? null;
-}
-
-function ensureVideoWarmupReady(videoEntry, { key = "", priority = "normal", targetRate = 1 } = {}) {
-  const video = videoEntry?.video;
-  if (!video) {
-    return false;
-  }
-  const warmup = videoEntry.warmup ?? {
-    requestedAtMs: 0,
-    stableSinceMs: 0,
-    primedAtMs: 0,
-  };
-  videoEntry.warmup = warmup;
-  const nowMs = performance.now();
-  if (!warmup.requestedAtMs) {
-    warmup.requestedAtMs = nowMs;
-  }
-  if (video.readyState < 2) {
-    warmup.stableSinceMs = 0;
-    applyVideoPlaybackPlan(video, {
-      key,
-      targetRate,
-      priority,
-    });
-    return false;
-  }
-  if (!warmup.stableSinceMs) {
-    warmup.stableSinceMs = nowMs;
-  }
-  const warmupStableMs = nowMs - warmup.stableSinceMs;
-  if (warmupStableMs < 90) {
-    applyVideoPlaybackPlan(video, {
-      key,
-      targetRate,
-      priority,
-    });
-    return false;
-  }
-  if (!warmup.primedAtMs || nowMs - warmup.primedAtMs > 1400) {
-    applyVideoPlaybackPlan(video, {
-      key,
-      targetRate,
-      priority,
-    });
-    warmup.primedAtMs = nowMs;
-  }
-  return true;
-}
-
-function computeDrawCadenceSeed(key) {
-  const value = String(key || "");
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) % 8191;
-  }
-  return hash;
-}
-
-function getVideoDrawStride(priority = "normal") {
-  if (!isAggressiveRuntimeProfile()) {
-    return 1;
-  }
-  const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
-  if (outputRole === OUTPUT_ROLE_FINAL) {
-    return 1;
-  }
-  const base = pressureLevel >= 2 ? 3 : pressureLevel === 1 ? 2 : 1;
-  return priority === "critical" ? Math.max(1, base - 1) : base;
-}
-
-function shouldDrawVideoFrameThisTick(key, { priority = "normal" } = {}) {
-  const stride = Math.max(1, getVideoDrawStride(priority));
-  state.runtimePerf.videoDrawStride = stride;
-  if (stride <= 1) {
-    return true;
-  }
-  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
-  const seed = computeDrawCadenceSeed(key);
-  return (frameIndex + seed) % stride === 0;
-}
-
-function ensureVideoFrameCacheForKey(key) {
-  if (!videoFrameCacheByKey.has(key)) {
-    const fallbackCanvas = document.createElement("canvas");
-    const fallbackCtx = fallbackCanvas.getContext("2d", { alpha: true });
-    videoFrameCacheByKey.set(key, {
-      fallbackCanvas,
-      fallbackCtx,
-      hasFrame: false,
-      lastUpdatedAtMs: 0,
-    });
-  }
-  return videoFrameCacheByKey.get(key);
-}
-
-function captureVideoFrameCache(key, video, width, height) {
-  const cache = ensureVideoFrameCacheForKey(key);
-  if (!cache?.fallbackCtx || !video) {
-    return;
-  }
-  if (cache.fallbackCanvas.width !== width || cache.fallbackCanvas.height !== height) {
-    cache.fallbackCanvas.width = width;
-    cache.fallbackCanvas.height = height;
-  }
-  cache.fallbackCtx.clearRect(0, 0, width, height);
-  cache.fallbackCtx.drawImage(video, 0, 0, width, height);
-  cache.lastUpdatedAtMs = performance.now();
-  cache.hasFrame = true;
-}
-
-function drawVideoFrameCache(key, x, y, width, height) {
-  const cache = videoFrameCacheByKey.get(key);
-  if (!cache?.hasFrame || !cache?.fallbackCanvas) {
-    return false;
-  }
-  ctx.drawImage(cache.fallbackCanvas, x, y, width, height);
-  return true;
 }
 
 function clearOutsideMp4PlaybackState(boardId = state.boardId) {
@@ -4758,28 +4433,31 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     || previous.runId !== normalizedRunId
     || previous.assetRef !== normalizedAssetRef;
 
-  const schedulerKey = `outside:${boardId}:${normalizedAssetRef}`;
+  video.loop = true;
+  video.muted = true;
+  video.playsInline = true;
+
+  if (Math.abs((Number(video.defaultPlaybackRate) || 1) - targetRate) > 0.01) {
+    video.defaultPlaybackRate = targetRate;
+  }
+  if (Math.abs((Number(video.playbackRate) || 1) - targetRate) > 0.01) {
+    video.playbackRate = targetRate;
+  }
 
   if (didLifecycleChange) {
     const durationSec = Number(video.duration);
     if (Number.isFinite(durationSec) && durationSec > 0) {
-      const nowMs = performance.now();
-      const lastLifecyclePrimeAtMs = Number(previous?.lastLifecyclePrimeAtMs || 0);
-      const allowLifecycleSeek = nowMs - lastLifecyclePrimeAtMs >= 180;
-      applyVideoPlaybackPlan(video, {
-        key: schedulerKey,
-        targetRate,
-        seekToSec: allowLifecycleSeek ? getOutsideMp4LoopStartTime(durationSec) : null,
-        priority: "critical",
-      });
+      try {
+        video.currentTime = getOutsideMp4LoopStartTime(durationSec);
+      } catch {
+        // ignore transient seek errors until media is ready
+      }
     }
   }
 
-  applyVideoPlaybackPlan(video, {
-    key: schedulerKey,
-    targetRate,
-    priority: "critical",
-  });
+  if (video.paused || didLifecycleChange) {
+    void video.play().catch(() => undefined);
+  }
 
   const previousHasVisibleFrame = previous?.assetRef === normalizedAssetRef
     ? Boolean(previous?.hasVisibleFrame)
@@ -4791,7 +4469,6 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     fallbackCtx: previous?.fallbackCtx ?? null,
     lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
     lastLoopWrapAtMs: previous?.lastLoopWrapAtMs ?? 0,
-    lastLifecyclePrimeAtMs: didLifecycleChange ? performance.now() : Number(previous?.lastLifecyclePrimeAtMs || 0),
     hasVisibleFrame: previousHasVisibleFrame,
   };
   outsideMp4PlaybackStateByBoard.set(boardId, playbackState);
@@ -5229,94 +4906,6 @@ function getRuntimeVisualCaps() {
   };
 }
 
-function applyRuntimePressureCaps(pressureLevel) {
-  if (isConservativeRuntimeProfile()) {
-    state.runtimePerf.finalOutputPriorityActive = outputRole === OUTPUT_ROLE_FINAL;
-    state.runtimePerf.nonCriticalCoalesceStride = 1;
-    state.runtimePerf.maxRenderAnimationsPerFrame = outputRole === OUTPUT_ROLE_FINAL ? 96 : 84;
-    state.runtimePerf.maxAshParticles = outputRole === OUTPUT_ROLE_FINAL ? 220 : 180;
-    state.runtimePerf.maxOutsideStarsPerLayer = outputRole === OUTPUT_ROLE_FINAL ? 96 : 82;
-    state.runtimePerf.videoDecodeStride = 1;
-    state.runtimePerf.controlFrameBudgetMs = outputRole === OUTPUT_ROLE_FINAL ? 12.5 : 11.5;
-    return;
-  }
-  const level = Math.max(0, Math.min(2, Number(pressureLevel) || 0));
-  const finalOutputPriority = outputRole === OUTPUT_ROLE_FINAL;
-  state.runtimePerf.finalOutputPriorityActive = finalOutputPriority;
-  if (level >= 2) {
-    state.runtimePerf.nonCriticalCoalesceStride = finalOutputPriority ? 2 : 4;
-    state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 48 : 18;
-    state.runtimePerf.maxAshParticles = finalOutputPriority ? 120 : 56;
-    state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 48 : 24;
-    state.runtimePerf.videoDecodeStride = finalOutputPriority ? 1 : 2;
-    state.runtimePerf.controlFrameBudgetMs = finalOutputPriority ? 14 : 9;
-    return;
-  }
-  if (level === 1) {
-    state.runtimePerf.nonCriticalCoalesceStride = finalOutputPriority ? 1 : 2;
-    state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 72 : 40;
-    state.runtimePerf.maxAshParticles = finalOutputPriority ? 180 : 120;
-    state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 78 : 52;
-    state.runtimePerf.videoDecodeStride = 1;
-    state.runtimePerf.controlFrameBudgetMs = finalOutputPriority ? 13 : 10.5;
-    return;
-  }
-  state.runtimePerf.nonCriticalCoalesceStride = 1;
-  state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 96 : 84;
-  state.runtimePerf.maxAshParticles = finalOutputPriority ? 240 : 210;
-  state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 110 : 92;
-  state.runtimePerf.videoDecodeStride = 1;
-  state.runtimePerf.controlFrameBudgetMs = 11.5;
-}
-
-function resolvePressureCandidate(p90, targetMs) {
-  if (!Number.isFinite(p90) || !Number.isFinite(targetMs) || targetMs <= 0) {
-    return 0;
-  }
-  if (p90 > targetMs * 1.9) {
-    return 2;
-  }
-  if (p90 > targetMs * 1.35) {
-    return 1;
-  }
-  return 0;
-}
-
-function updatePressureLevelWithHysteresis({ candidateLevel, p90, targetMs }) {
-  const perfState = state.runtimePerf;
-  const currentLevel = Math.max(0, Math.min(2, Number(perfState.pressureLevel) || 0));
-  const nextCandidate = Math.max(0, Math.min(2, Number(candidateLevel) || 0));
-  const escalationFramesRequired = nextCandidate >= 2 ? 6 : 8;
-  const recoveryFramesRequired = 75;
-  if (nextCandidate > currentLevel) {
-    perfState.pressureEscalationFrames = Math.max(0, Number(perfState.pressureEscalationFrames) || 0) + 1;
-    perfState.pressureRecoveryFrames = 0;
-    if (perfState.pressureEscalationFrames >= escalationFramesRequired) {
-      perfState.pressureLevel = nextCandidate;
-      perfState.lastPressureChangeAtMs = performance.now();
-      perfState.pressureEscalationFrames = 0;
-    }
-    return;
-  }
-  if (nextCandidate < currentLevel) {
-    const strictRecoveryTarget = currentLevel >= 2 ? targetMs * 1.2 : targetMs * 1.05;
-    if (p90 <= strictRecoveryTarget) {
-      perfState.pressureRecoveryFrames = Math.max(0, Number(perfState.pressureRecoveryFrames) || 0) + 1;
-    } else {
-      perfState.pressureRecoveryFrames = 0;
-    }
-    perfState.pressureEscalationFrames = 0;
-    if (perfState.pressureRecoveryFrames >= recoveryFramesRequired) {
-      perfState.pressureLevel = Math.max(0, currentLevel - 1);
-      perfState.lastPressureChangeAtMs = performance.now();
-      perfState.pressureRecoveryFrames = 0;
-    }
-    return;
-  }
-  perfState.pressureEscalationFrames = 0;
-  perfState.pressureRecoveryFrames = 0;
-}
-
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -5328,24 +4917,30 @@ function recordRuntimeFrameCost(frameCostMs) {
   }
   const p90 = percentile(samples, 0.9);
   const targetMs = Number(state.runtimePerf.frameBudgetMs) || 16.7;
-  if (isConservativeRuntimeProfile()) {
-    state.runtimePerf.qualityScale = 1;
-    state.runtimePerf.pressureLevel = 0;
-    applyRuntimePressureCaps(0);
-    return;
-  }
   if (p90 > targetMs * 1.25) {
     state.runtimePerf.qualityScale = Math.max(0.68, getRuntimeQualityScale() - 0.03);
   } else if (p90 < targetMs * 0.92) {
     state.runtimePerf.qualityScale = Math.min(1, getRuntimeQualityScale() + 0.015);
   }
-  const candidateLevel = resolvePressureCandidate(p90, targetMs);
-  updatePressureLevelWithHysteresis({
-    candidateLevel,
-    p90,
-    targetMs,
-  });
-  applyRuntimePressureCaps(state.runtimePerf.pressureLevel);
+  if (p90 > targetMs * 1.9) {
+    state.runtimePerf.pressureLevel = 2;
+    state.runtimePerf.nonCriticalCoalesceStride = 3;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 28;
+    state.runtimePerf.maxAshParticles = 80;
+    state.runtimePerf.maxOutsideStarsPerLayer = 34;
+  } else if (p90 > targetMs * 1.35) {
+    state.runtimePerf.pressureLevel = 1;
+    state.runtimePerf.nonCriticalCoalesceStride = 2;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 56;
+    state.runtimePerf.maxAshParticles = 150;
+    state.runtimePerf.maxOutsideStarsPerLayer = 64;
+  } else {
+    state.runtimePerf.pressureLevel = 0;
+    state.runtimePerf.nonCriticalCoalesceStride = 1;
+    state.runtimePerf.maxRenderAnimationsPerFrame = 96;
+    state.runtimePerf.maxAshParticles = 240;
+    state.runtimePerf.maxOutsideStarsPerLayer = 110;
+  }
 }
 
 function updateMobilePerformanceStatus() {
@@ -7939,10 +7534,6 @@ function getRoomRenderMetrics(room, boardId = state.boardId) {
 }
 
 function renderRoomOverlay() {
-  if (boardSwitchGuard.pending) {
-    roomOverlay.replaceChildren();
-    return;
-  }
   const board = getBoard();
   syncSelectedRoomStateForBoard(state.boardId);
   roomOverlay.replaceChildren();
@@ -8023,22 +7614,16 @@ function renderRoomOverlay() {
   renderShipPolygonEditorHandles();
 }
 
-function emitBoardLayoutContextMutation(
-  boardId = state.boardId,
-  reason = "board-select",
-  { contextSwitchTransactionId = null } = {},
-) {
-  const transactionId = contextSwitchTransactionId
-    || `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
+  const contextSwitchTransactionId = `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   emitLiveMutation("context-update", {
     reason,
-    contextSwitchTransactionId: transactionId,
+    contextSwitchTransactionId,
     selectedBoard: boardId,
     selectedLayout: boardId,
     boardId,
     layoutId: boardId,
   });
-  return transactionId;
 }
 
 function shouldPreserveLifecycleStatusFeedback() {
@@ -8057,44 +7642,10 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   }
 
   const board = getBoard(boardId);
-  const contextSwitchTransactionId = `context-switch-${board.id}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  if (boardSwitchGuard.timerId !== null) {
-    window.clearTimeout(boardSwitchGuard.timerId);
-  }
-  boardSwitchGuard = {
-    pending: true,
-    transactionId: contextSwitchTransactionId,
-    targetBoardId: board.id,
-    timerId: null,
-  };
   state.boardId = board.id;
   state.selectedBoard = board.id;
   state.selectedLayout = board.id;
   boardImage.src = board.src;
-  const completeBoardSwitchGuard = (source = "load") => {
-    if (boardSwitchGuard.transactionId !== contextSwitchTransactionId) {
-      return;
-    }
-    if (boardSwitchGuard.timerId !== null) {
-      window.clearTimeout(boardSwitchGuard.timerId);
-    }
-    boardSwitchGuard.pending = false;
-    boardSwitchGuard.timerId = null;
-    renderRoomOverlay();
-    logRuntime.info("board_switch_guard_complete", {
-      event: "board-switch-guard-complete",
-      source,
-      boardId: board.id,
-      transactionId: contextSwitchTransactionId,
-    });
-  };
-  const onBoardReady = () => completeBoardSwitchGuard("image-load");
-  const onBoardError = () => completeBoardSwitchGuard("image-error");
-  boardImage.addEventListener("load", onBoardReady, { once: true });
-  boardImage.addEventListener("error", onBoardError, { once: true });
-  boardSwitchGuard.timerId = window.setTimeout(() => {
-    completeBoardSwitchGuard("timeout-fallback");
-  }, 1400);
   boardSelect.value = board.id;
   boardStatus.textContent = `Active board: ${board.label}`;
   const rememberedRoom = state.selectedRoomByBoard[board.id];
@@ -8121,7 +7672,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
     triggerFeedback.textContent = "Status: board switched";
   }
   if (emitLiveContext) {
-    emitBoardLayoutContextMutation(board.id, reason, { contextSwitchTransactionId });
+    emitBoardLayoutContextMutation(board.id, reason);
   }
 }
 
@@ -9154,27 +8705,21 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     const videoEntry = getOutsideVideoElement(assetRef);
     const video = videoEntry?.video;
     if (video) {
-      const videoKey = `room:${animation.id}:${assetRef}`;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
       const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
-      const warmReady = ensureVideoWarmupReady(videoEntry, {
-        key: videoKey,
-        targetRate: playbackRate,
-        priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
-      });
-      const shouldDrawVideo = shouldDrawVideoFrameThisTick(videoKey, { priority: "normal" });
-      if (!shouldDrawVideo) {
-        ctx.save();
-        ctx.globalAlpha = clampRoomOpacity(animation.opacity);
-        drawVideoFrameCache(videoKey, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
-        ctx.restore();
-        return;
+      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
+        video.playbackRate = playbackRate;
       }
-      if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+      if (video.paused) {
+        void video.play().catch(() => undefined);
+      }
+      if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
         ctx.save();
         ctx.globalAlpha = clampRoomOpacity(animation.opacity);
         ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
         ctx.restore();
-        captureVideoFrameCache(videoKey, video, roomMetrics.width, roomMetrics.height);
       }
     }
     return;
@@ -10282,23 +9827,15 @@ function drawInsideGlobalVisual(animation, age) {
     if (videoEntry?.video) {
       const video = videoEntry.video;
       const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
-      const videoKey = `inside:${animation.id}:${definition.assetRef}`;
-      const warmReady = ensureVideoWarmupReady(videoEntry, {
-        key: videoKey,
-        targetRate: playbackRate,
-        priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
-      });
-      if (!warmReady) {
-        return;
+      video.loop = true;
+      if (Math.abs((Number(video.playbackRate) || 1) - playbackRate) > 0.01) {
+        video.playbackRate = playbackRate;
       }
-      if (!shouldDrawVideoFrameThisTick(videoKey, { priority: "normal" })) {
-        if (drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height)) {
-          return;
-        }
+      if (video.paused) {
+        void video.play().catch(() => undefined);
       }
       ctx.globalAlpha = intensity;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      captureVideoFrameCache(videoKey, video, canvas.width, canvas.height);
       return;
     }
   }
@@ -10447,12 +9984,6 @@ function drawOutsideFxLayer(now) {
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
-        const videoKey = `outside:${state.boardId}:${selectedDefinition.assetRef}`;
-        const warmReady = ensureVideoWarmupReady(videoEntry, {
-          key: videoKey,
-          targetRate,
-          priority: "critical",
-        });
         const playbackState = ensureOutsideMp4Playback(video, {
           boardId: state.boardId,
           runId: runtimeEntry?.id,
@@ -10461,21 +9992,11 @@ function drawOutsideFxLayer(now) {
         });
         maybeWrapOutsideMp4Loop(video, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
-        const shouldDrawVideo = shouldDrawVideoFrameThisTick(videoKey, { priority: "critical" });
-        if (!shouldDrawVideo) {
-          if (!drawOutsideMp4FallbackFrame(playbackState)) {
-            drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height);
-          }
-          return;
-        }
-        if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+        if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           captureOutsideMp4FallbackFrame(playbackState, video);
-          captureVideoFrameCache(videoKey, video, canvas.width, canvas.height);
         } else {
-          if (!drawOutsideMp4FallbackFrame(playbackState)) {
-            drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height);
-          }
+          drawOutsideMp4FallbackFrame(playbackState);
         }
       } else {
         clearOutsideMp4PlaybackState(state.boardId);
@@ -11027,7 +10548,6 @@ function draw(now) {
   const frameStart = performance.now();
   try {
     state.runtimePerf.frameIndex = (Number(state.runtimePerf.frameIndex) || 0) + 1;
-    beginVideoSchedulingFrame();
     if (state.mobilePerf.lastFrameAt !== null) {
       const frameDelta = now - state.mobilePerf.lastFrameAt;
       if (Number.isFinite(frameDelta) && frameDelta > 0 && frameDelta < 1000) {
@@ -11057,16 +10577,7 @@ function draw(now) {
     const failedAnimationIds = [];
     let renderedCount = 0;
     const maxRenderAnimationsPerFrame = Math.max(1, Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96);
-    const controlFrameBudgetMs = Math.max(6, Number(state.runtimePerf.controlFrameBudgetMs) || 11.5);
     for (const anim of state.runningAnimations) {
-      if (
-        outputRole !== OUTPUT_ROLE_FINAL
-        && !isRenderCriticalAnimation(anim)
-        && performance.now() - frameStart >= controlFrameBudgetMs
-      ) {
-        state.runtimePerf.controlFrameYieldCount = Math.max(0, Number(state.runtimePerf.controlFrameYieldCount) || 0) + 1;
-        continue;
-      }
       if (shouldCoalesceNonCriticalAnimation(anim)) {
         continue;
       }
@@ -12700,15 +12211,6 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
     `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
 });
 
-runtimeProfileSelect?.addEventListener("change", () => {
-  const nextProfile = normalizeRuntimeProfile(runtimeProfileSelect.value);
-  applyRuntimeProfile(nextProfile, {
-    persist: true,
-    announce: true,
-    reason: "settings-selector",
-  });
-});
-
 const resizeObserver = new ResizeObserver((entries) => {
   void entries;
   scheduleStageViewportLifecycle("resize-observer");
@@ -12758,13 +12260,7 @@ function syncRuntimePanelsFromState() {
   });
 }
 
-let initializeApplicationPromise = null;
-
 async function initializeApplication() {
-  if (initializeApplicationPromise) {
-    return initializeApplicationPromise;
-  }
-  initializeApplicationPromise = (async () => {
   logBootstrap.info("init_start", { event: "init-start" });
   await loadExternalBoardZones();
   await loadOutsideResourceAssets();
@@ -12795,11 +12291,6 @@ async function initializeApplication() {
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
-  applyRuntimeProfile(resolveInitialRuntimeProfile(), {
-    persist: false,
-    announce: false,
-    reason: "startup-default",
-  });
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
   state.startupDefaultsGuard.applied = false;
@@ -12811,7 +12302,6 @@ async function initializeApplication() {
     : "local-profiles-detected";
   // Local profiles are always loaded first; startup defaults are a guarded fallback for fresh devices.
   loadBoardProfiles();
-  enforceRunningAnimationInvariants("startup-load-board-profiles");
   let startupDefaultsSnapshot = null;
 
   try {
@@ -12848,6 +12338,7 @@ async function initializeApplication() {
   syncRuntimePanelsFromState();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
+  connectFinalOutputStream();
   connectLiveSyncSocket();
   scheduleNextLiveSnapshotPoll(0);
   if (startupDefaultsSnapshot) {
@@ -12901,8 +12392,6 @@ async function initializeApplication() {
     version: liveSync.lastAppliedVersion,
   });
   requestAnimationFrame(draw);
-  })();
-  return initializeApplicationPromise;
 }
 
 void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({

@@ -59,6 +59,9 @@ const boardCatalogCache = {
   runtimeBoards: [],
 };
 
+const finalStreamClients = new Map();
+const FINAL_STREAM_PUSH_INTERVAL_MS = 250;
+
 const liveClients = new Map();
 const processedMutations = new Map();
 const lastClientSequenceById = new Map();
@@ -1491,6 +1494,81 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
+function writeSseEvent(res, event, payload) {
+  if (!res || res.writableEnded) {
+    return;
+  }
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function removeFinalStreamClient(clientId) {
+  const entry = finalStreamClients.get(clientId);
+  if (!entry) {
+    return;
+  }
+  if (entry.timerId) {
+    clearInterval(entry.timerId);
+  }
+  try {
+    entry.res.end();
+  } catch {
+    // ignore close race
+  }
+  finalStreamClients.delete(clientId);
+}
+
+async function pushFinalStreamFrame(clientId, { force = false } = {}) {
+  const entry = finalStreamClients.get(clientId);
+  if (!entry || entry.res.writableEnded || entry.closed) {
+    removeFinalStreamClient(clientId);
+    return;
+  }
+  const currentVersion = Number(liveSessionState.version ?? 0);
+  if (!force && currentVersion <= Number(entry.lastVersion ?? 0)) {
+    writeSseEvent(entry.res, "heartbeat", {
+      ts: new Date().toISOString(),
+      version: currentVersion,
+    });
+    return;
+  }
+  const frame = await composeFinalStreamFrame(liveSessionState.snapshot);
+  entry.lastVersion = Number(frame.sourceVersion ?? currentVersion);
+  writeSseEvent(entry.res, "frame", frame);
+}
+
+function attachFinalStreamClient(req, res) {
+  const clientId = `stream-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  res.writeHead(200, {
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+    "x-accel-buffering": "no",
+  });
+  res.write(`: final-stream ${clientId}\n\n`);
+  const entry = {
+    clientId,
+    req,
+    res,
+    closed: false,
+    lastVersion: 0,
+    timerId: null,
+  };
+  finalStreamClients.set(clientId, entry);
+
+  entry.timerId = setInterval(() => {
+    void pushFinalStreamFrame(clientId);
+  }, FINAL_STREAM_PUSH_INTERVAL_MS);
+  void pushFinalStreamFrame(clientId, { force: true });
+
+  const closeHandler = () => {
+    entry.closed = true;
+    removeFinalStreamClient(clientId);
+  };
+  req.on("close", closeHandler);
+  req.on("aborted", closeHandler);
+}
+
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   const chunks = [];
   let totalSize = 0;
@@ -2487,9 +2565,15 @@ const server = createServer(async (req, res) => {
         boardCatalogEndpoint: "/api/boards",
         boardImportEndpoint: "/api/boards/import",
         liveTelemetryEndpoint: "/api/live/telemetry",
+        finalStreamEndpoint: "/api/final-stream/events",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
       });
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/final-stream/events") {
+      attachFinalStreamClient(req, res);
       return;
     }
 
