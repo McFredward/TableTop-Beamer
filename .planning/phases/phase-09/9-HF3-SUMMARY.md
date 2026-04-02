@@ -82,11 +82,18 @@ completed: 2026-04-02
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state automation incompatible with current STATE/ROADMAP schema**
+- **Found during:** Post-task state update step
+- **Issue:** `state advance-plan`, `state update-progress`, and related commands returned parse/section errors for this repository's customized planning files.
+- **Fix:** Applied mandatory tracker synchronization manually in T10 across `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- **Verification:** Planning artifacts now consistently show HF3 PASS and 9-2 unblocked.
+- **Committed in:** `de880d9`
 
 ## Issues Encountered
 
-None.
+- `gsd-tools` state/roadmap mutation commands failed due schema mismatch with repository planning files; manual artifact synchronization was used as deterministic fallback.
 
 ## User Setup Required
 
