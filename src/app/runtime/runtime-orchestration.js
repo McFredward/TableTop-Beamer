@@ -4274,6 +4274,16 @@ function canConsumeVideoOps(cost = 1, { key = "", priority = "normal" } = {}) {
   return true;
 }
 
+function shouldApplyDecodeOpThisFrame(key, { priority = "normal" } = {}) {
+  const stride = Math.max(1, Number(state.runtimePerf.videoDecodeStride) || 1);
+  if (stride <= 1 || priority === "critical") {
+    return true;
+  }
+  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
+  const seed = computeAnimationCoalesceSeed({ id: key });
+  return (frameIndex + seed) % stride === 0;
+}
+
 function applyVideoPlaybackPlan(video, {
   key = "",
   targetRate = 1,
@@ -4303,6 +4313,7 @@ function applyVideoPlaybackPlan(video, {
   if (
     Number.isFinite(Number(seekToSec))
     && !video.seeking
+    && shouldApplyDecodeOpThisFrame(key, { priority })
     && canConsumeVideoOps(VIDEO_OP_COST.seek, { key, priority })
   ) {
     try {
@@ -4311,7 +4322,11 @@ function applyVideoPlaybackPlan(video, {
       // ignore transient seek errors until media is fully ready
     }
   }
-  if ((video.paused || video.readyState < 2) && canConsumeVideoOps(VIDEO_OP_COST.play, { key, priority })) {
+  if (
+    (video.paused || video.readyState < 2)
+    && shouldApplyDecodeOpThisFrame(key, { priority })
+    && canConsumeVideoOps(VIDEO_OP_COST.play, { key, priority })
+  ) {
     void video.play().catch(() => undefined);
   }
 }
@@ -5048,6 +5063,33 @@ function getRuntimeVisualCaps() {
   };
 }
 
+function applyRuntimePressureCaps(pressureLevel) {
+  const level = Math.max(0, Math.min(2, Number(pressureLevel) || 0));
+  const finalOutputPriority = outputRole === OUTPUT_ROLE_FINAL;
+  state.runtimePerf.finalOutputPriorityActive = finalOutputPriority;
+  if (level >= 2) {
+    state.runtimePerf.nonCriticalCoalesceStride = finalOutputPriority ? 2 : 4;
+    state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 48 : 18;
+    state.runtimePerf.maxAshParticles = finalOutputPriority ? 120 : 56;
+    state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 48 : 24;
+    state.runtimePerf.videoDecodeStride = finalOutputPriority ? 1 : 2;
+    return;
+  }
+  if (level === 1) {
+    state.runtimePerf.nonCriticalCoalesceStride = finalOutputPriority ? 1 : 2;
+    state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 72 : 40;
+    state.runtimePerf.maxAshParticles = finalOutputPriority ? 180 : 120;
+    state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 78 : 52;
+    state.runtimePerf.videoDecodeStride = 1;
+    return;
+  }
+  state.runtimePerf.nonCriticalCoalesceStride = 1;
+  state.runtimePerf.maxRenderAnimationsPerFrame = finalOutputPriority ? 96 : 84;
+  state.runtimePerf.maxAshParticles = finalOutputPriority ? 240 : 210;
+  state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 110 : 92;
+  state.runtimePerf.videoDecodeStride = 1;
+}
+
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -5066,23 +5108,12 @@ function recordRuntimeFrameCost(frameCostMs) {
   }
   if (p90 > targetMs * 1.9) {
     state.runtimePerf.pressureLevel = 2;
-    state.runtimePerf.nonCriticalCoalesceStride = 3;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 28;
-    state.runtimePerf.maxAshParticles = 80;
-    state.runtimePerf.maxOutsideStarsPerLayer = 34;
   } else if (p90 > targetMs * 1.35) {
     state.runtimePerf.pressureLevel = 1;
-    state.runtimePerf.nonCriticalCoalesceStride = 2;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 56;
-    state.runtimePerf.maxAshParticles = 150;
-    state.runtimePerf.maxOutsideStarsPerLayer = 64;
   } else {
     state.runtimePerf.pressureLevel = 0;
-    state.runtimePerf.nonCriticalCoalesceStride = 1;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 96;
-    state.runtimePerf.maxAshParticles = 240;
-    state.runtimePerf.maxOutsideStarsPerLayer = 110;
   }
+  applyRuntimePressureCaps(state.runtimePerf.pressureLevel);
 }
 
 function updateMobilePerformanceStatus() {

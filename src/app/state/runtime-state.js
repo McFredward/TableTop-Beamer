@@ -122,6 +122,7 @@
         videoOpsDeferredThisFrame: 0,
         videoDecodeStride: 1,
         videoDrawStride: 1,
+        finalOutputPriorityActive: false,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,
