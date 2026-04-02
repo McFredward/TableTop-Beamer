@@ -35,23 +35,15 @@ const {
 
 let BOARDS = CONFIG_BOARDS.map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board));
 
-const OUTPUT_ROLE_CONTROL = "control";
-const OUTPUT_ROLE_FINAL = "final-output";
+const {
+  OUTPUT_ROLE_CONTROL,
+  OUTPUT_ROLE_FINAL,
+  resolveOutputRoleFromLocation,
+  resolveLiveWebSocketUrl,
+} = window.TT_BEAMER_RUNTIME_ENV;
 
-function resolveOutputRoleFromLocation() {
-  const pathname = window.location.pathname || "/";
-  return pathname === "/output/final" || pathname.startsWith("/output/final/")
-    ? OUTPUT_ROLE_FINAL
-    : OUTPUT_ROLE_CONTROL;
-}
-
-const outputRole = resolveOutputRoleFromLocation();
+const outputRole = resolveOutputRoleFromLocation(window.location);
 document.body.dataset.outputRole = outputRole;
-
-function resolveLiveWebSocketUrl() {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/api/live/ws?role=${encodeURIComponent(outputRole)}`;
-}
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
