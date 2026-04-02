@@ -75,7 +75,19 @@ completed: 2026-04-03
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state updater incompatible with current STATE.md schema**
+- **Found during:** Post-task state update step
+- **Issue:** Automated `state advance-plan/update-progress/record-metric` commands failed because expected sections/fields are absent in repository STATE format.
+- **Fix:** Applied manual lifecycle + decision-log updates directly in `.planning/STATE.md` and phase status updates in `.planning/ROADMAP.md`.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Summary self-check + git diff confirms lifecycle/decision and roadmap status reflect HF5 completion.
+
+---
+
+**Total deviations:** 1 auto-fixed (Rule 3)
+**Impact on plan:** No scope change; only execution bookkeeping path switched from tool-assisted to manual updates.
 
 ## Issues Encountered
 - Existing local server on port 4173 caused initial evidence run conflicts (`EADDRINUSE`). Resolved by running isolated evidence server on `PORT=4174`.
