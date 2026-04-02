@@ -1,58 +1,66 @@
 # Phase 9 Risks
 
-## Reopen context
-- HF3 introduced critical regressions in field behavior.
-- HF4 is now the binding P0 stabilization wave with reliability-first simplification.
+## Acceptance Correction Context
+- 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
+- 9-HF3 is the binding performance wave for server-composed `/output/final` stream delivery with fallback.
 
-## R1 Start/stop remains non-deterministic after partial fixes
-- Risk: mixed lifecycle paths still race and produce lost starts/missed stops.
+## R1 Server encoder overload under concurrent sessions
+- Risk: compose/encode pipeline saturates server CPU and increases latency.
 - Impact: Critical.
-- Mitigation: single canonical control path, remove ambiguous alternate dispatch/apply branches, hard cycle tests.
+- Mitigation: define capacity envelope, cap stream profiles, and keep deterministic fallback path always available.
 
-## R2 Startup hydration still creates phantom/duplicate runs
-- Risk: bootstrap and hydration phases apply stale or repeated run entries.
+## R2 Stream transport jitter causes visible stutter on weak clients
+- Risk: network jitter or buffering instability reduces playback smoothness despite offload.
 - Impact: Critical.
-- Mitigation: startup idempotency guards, run-list dedup invariants, strict boot ordering.
+- Mitigation: low-latency buffering policy, jitter tolerance tuning, and weak-hardware playback matrix.
 
-## R3 Board switch parity still broken
-- Risk: polygon context updates before board image or vice versa, causing split visuals.
-- Impact: Critical.
-- Mitigation: atomic board-context transaction with explicit image+polygon parity checks and rollback-safe apply.
-
-## R4 `/output/final` intermittently fails to become render-ready
-- Risk: bootstrap race/reconnect drift leaves final output blank/stuck.
-- Impact: Critical.
-- Mitigation: deterministic bootstrap readiness state machine and retry-safe attach flow.
-
-## R5 Over-simplification regresses low-end smoothness
-- Risk: removing complex scheduling may reintroduce weak-device stutter.
+## R3 Compression profile degrades visual readability
+- Risk: aggressive bitrate/codec settings produce artifacts that hurt operator visibility.
 - Impact: High.
-- Mitigation: retain only proven low-end guards, validate against bounded smoothness baseline before closure.
+- Mitigation: quality floor thresholds and profile presets validated in evidence matrix.
 
-## R6 Aggressive optimizations cannot be safely disabled
-- Risk: problematic runtime path remains always-on in field.
+## R4 Fallback transition is non-deterministic
+- Risk: stream failure causes blank output, duplicate output, or delayed failover.
 - Impact: Critical.
-- Mitigation: runtime profiles (`safe`/`balanced`/`aggressive`) with safe default and emergency disable switch.
+- Mitigation: health probes with explicit state machine and tested auto/manual fallback transitions.
 
-## R7 Sync determinism regresses while fixing runtime logic
-- Risk: reliability fixes accidentally change authoritative ordering/version/idempotent semantics.
+## R5 Align-mode parity regression in stream path
+- Risk: align overlay differs between stream and fallback outputs.
 - Impact: Critical.
-- Mitigation: mandatory determinism regression suite and invariant assertions in each gate step.
+- Mitigation: shared align visibility contract with parity tests for ON/OFF transitions.
 
-## R8 Mobile->pi propagation becomes inconsistent under stabilization changes
-- Risk: controller actions apply differently across devices under reconnect/load.
+## R6 Stream path leaks into sync/mutation semantics
+- Risk: implementation accidentally changes ordering/version/idempotent apply behavior.
 - Impact: Critical.
-- Mitigation: cross-role smoke matrix (mobile/pc/pi) with deterministic convergence and stop parity checks.
+- Mitigation: enforce presentation-only boundary and run deterministic sync regression with stream enabled.
 
-## R9 FAIL->PASS evidence quality is weak or non-reproducible
-- Risk: closures rely on ad hoc PASS logs without confirmed original failure reproduction.
+## R7 Control-view responsiveness degrades due to stream workload
+- Risk: control clients lose interactivity because resources are coupled with final output path.
+- Impact: Critical.
+- Mitigation: isolate stream workload from control-view loops and validate interaction latency gates.
+
+## R8 Deployment complexity blocks reproducible rollout
+- Risk: codec/ffmpeg/runtime dependencies differ across environments.
 - Impact: High.
-- Mitigation: each blocker requires scripted FAIL capture plus post-fix PASS in same evidence bundle.
+- Mitigation: explicit deployment prerequisites, startup checks, and fallback-safe boot behavior.
 
-## R10 Artifact drift across phase/global trackers
-- Risk: plan updates diverge across phase docs and global state files.
+## R9 Weak-hardware decoder incompatibility
+- Risk: Raspberry Pi class devices cannot decode chosen stream profile reliably.
+- Impact: Critical.
+- Mitigation: hardware-compatible codec/profile matrix and tested profile fallback.
+
+## R10 Lifecycle/no-replay regression reintroduced indirectly
+- Risk: stream integration bypasses HF2 lifecycle guards and shows stale replay artifacts.
+- Impact: Critical.
+- Mitigation: keep stream fed from authoritative post-reconcile state and re-run no-replay regression.
+
+## R11 Artifact drift across phase/global trackers
+- Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory final sync task covering `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- Mitigation: mandatory full artifact sync in P9-HF3-T10.
 
-## HF4 execution note
-- Reliability-first mitigations were implemented with startup invariants, atomic board switching, idempotent bootstrap, and runtime profile fail-safes.
+## Execution Notes
+
+- 9-HF1 and 9-HF2 baselines remain valid and are treated as non-regression gates.
+- 9-HF3 risk focus shifts to stream delivery viability, fallback reliability, and contract preservation.
+- 9-HF3 closure: fallback and parity gates are validated; residual risk is operational tuning (capacity + profile calibration) for production rollout.

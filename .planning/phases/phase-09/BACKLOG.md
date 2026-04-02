@@ -1,50 +1,52 @@
-# Phase 9 Backlog (HF4 reliability stabilization wave)
+# Phase 9 Backlog (Replanned after mandatory final-output performance direction)
 
-## Reopen context
+## Acceptance Correction
 - 9-1 execution exists, but 9-1 is not accepted.
-- 9-HF1 and 9-HF2 remain valid foundations.
-- 9-HF3 introduced critical regressions in real operation; closure is revoked.
-- New priority wave: 9-HF4 reliability-first stabilization with controlled simplification.
+- 9-HF1 is completed baseline.
+- 9-HF2 is completed baseline.
+- New priority wave: 9-HF3 (mandatory server-composed `/output/final` stream path with fallback).
 
 ## Epics
-- 9-HF4 Core Function Recovery (start/stop, board switch parity, `/output/final` load)
-- 9-HF4 Runtime Simplification and Scheduling Path Reduction
-- 9-HF4 Startup Invariant Enforcement (no phantom running, no duplicate outside runs)
-- 9-HF4 Deterministic Server-Authoritative Sync Preservation (mobile->pi primary)
-- 9-HF4 Feature Flags and Runtime Profiles (`safe`/`balanced`/`aggressive`)
-- 9-HF4 FAIL->PASS Reproduction and Core Journey Smoke Evidence
+- 9-HF3 Final-Output Stream Architecture Wave
+- Server-Composed `/output/final` Delivery
+- Stream Health and Deterministic Fallback
+- Deterministic Sync + Align-Mode Contract Preservation
+- Weak-Hardware Smooth Playback Validation
+- Phase/Global Artifact Sync Closure
 
-## Story mapping
-- P9-HF4-S1 Capture deterministic FAIL reproductions for all reported regressions.
-- P9-HF4-S2 Unify start/stop control flow and remove destabilizing alternate runtime paths.
-- P9-HF4-S3 Enforce startup hydration/run-list invariants to eliminate phantom and duplicate entries.
-- P9-HF4-S4 Implement atomic board-switch context apply to guarantee board image + polygon parity.
-- P9-HF4-S5 Harden `/output/final` bootstrap and reconnect loading reliability.
-- P9-HF4-S6 Keep only required low-end smoothness guards after simplification.
-- P9-HF4-S7 Add fail-safe runtime profiles and kill-switch flags for aggressive optimizations.
-- P9-HF4-S8 Validate sync determinism and mobile->pi reliability under simplified runtime.
-- P9-HF4-S9 Execute FAIL->PASS and runtime smoke matrices with measurable PASS criteria.
-- P9-HF4-S10 Synchronize phase/global planning artifacts after gate closure.
+## Story Mapping
+- P9-HF3-S1 Evaluate server-side composition feasibility and capture latency/quality/capacity tradeoffs.
+- P9-HF3-S2 Implement server compositor pipeline driven by authoritative session snapshots.
+- P9-HF3-S3 Deliver stream transport endpoint and `/output/final` playback integration.
+- P9-HF3-S4 Add stream health probes with deterministic auto-fallback to existing client render.
+- P9-HF3-S5 Add explicit operator override for stream-vs-fallback mode to de-risk deployment.
+- P9-HF3-S6 Guarantee align-mode parity across stream and fallback output paths.
+- P9-HF3-S7 Validate deterministic sync invariants remain unchanged (presentation-only stream path).
+- P9-HF3-S8 Keep control views interactive and low-latency during stream operation.
+- P9-HF3-S9 Execute weak-hardware evidence matrix (Raspberry Pi class) for smooth playback and fallback resilience.
+- P9-HF3-S10 Synchronize all phase/global planning artifacts after HF3 closure.
 
-## Prioritized execution wave (P0) - Plan 9-HF4 execute-ready
-- Story P9-HF4-S1.
-  - Goal: stable, reproducible FAIL baseline for each blocker.
-- Story P9-HF4-S2 + P9-HF4-S3.
-  - Goal: deterministic lifecycle control and clean startup.
-- Story P9-HF4-S4 + P9-HF4-S5.
-  - Goal: board switch parity and reliable `/output/final` loading.
-- Story P9-HF4-S6 + P9-HF4-S7.
-  - Goal: reliability-first simplification with safe runtime profile fallback.
-- Story P9-HF4-S8.
-  - Goal: preserve server-authoritative sync and mobile->pi consistency.
-- Story P9-HF4-S9.
-  - Goal: explicit FAIL->PASS plus smoke evidence for core journeys.
-- Story P9-HF4-S10.
-  - Goal: full artifact synchronization.
+## Prioritized Execution Wave (P0) - Plan 9-HF3 execute-ready
+- Story P9-HF3-S1.
+  - Goal: architecture decision closure with measured feasibility and explicit go/no-go guardrails.
+- Story P9-HF3-S2 + P9-HF3-S3.
+  - Goal: operational server-composed stream path for `/output/final`.
+- Story P9-HF3-S4 + P9-HF3-S5.
+  - Goal: safe rollout via health-based auto-fallback and manual operator override.
+- Story P9-HF3-S6 + P9-HF3-S7.
+  - Goal: align-mode and deterministic sync contracts remain unchanged.
+- Story P9-HF3-S8 + P9-HF3-S9.
+  - Goal: interactive control views plus smooth weak-hardware playback proven by evidence.
+- Story P9-HF3-S10.
+  - Goal: phase + global artifacts are fully synchronized.
 
-## Follow-up waves
-- Plan 9-2 (after HF4 PASS): adapter cleanup, dependency hardening, focused diagnostics.
-- Plan 9-3 (after 9-2): production gate sweep and final phase sign-off.
+## Follow-up Waves
+- Plan 9-2 (after HF3 PASS): adapter cleanup, dependency hardening, optional diagnostics refinements.
+- Plan 9-3 (after 9-2): production gate sweep and final sign-off.
 
-## Wave status
-- HF4 reliability wave executed; next queued waves remain 9-2 then 9-3.
+## Execution Status Update
+
+- Plan 9-1 executed and documented, but rejected by acceptance correction.
+- Plan 9-HF1 completed and remains accepted as modularization baseline.
+- Plan 9-HF2 completed with PASS evidence.
+- Plan 9-HF3 completed with PASS evidence; next prioritized wave is Plan 9-2.

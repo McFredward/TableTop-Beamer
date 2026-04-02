@@ -1,74 +1,83 @@
-# Phase 9 Plan (HF4 reliability stabilization wave)
+# Phase 9 Plan (Replanned after mandatory final-output performance direction)
 
-## Acceptance correction and reopen context
-- Plan 9-1 remains executed but not accepted.
-- Plan 9-HF1 remains valid as modular foundation.
-- Plan 9-HF2 remains valid as lifecycle/no-replay baseline.
-- Plan 9-HF3 execution exists, but closure is revoked due to critical regressions reported in real runtime.
-- New mandatory execution wave is Plan 9-HF4 (P0 stabilization, reliability-first, simplification-first).
+## Acceptance Correction
+- User correction remains binding: Plan 9-1 is executed but not accepted.
+- Plan 9-HF1 remains completed as foundation (monolith reduction + modular seams).
+- Plan 9-HF2 remains completed (lifecycle no-replay + low-end hardening baseline).
+- New mandatory execution wave is Plan 9-HF3 and supersedes 9-2 as immediate next step.
 
-## Mandatory P0 feedback (binding)
-1. Recover core functionality first: reliable start/stop, board switching, and `/output/final` loading.
-2. Re-evaluate and remove destabilizing runtime complexity; keep only mechanisms required for low-end smoothness.
-3. Enforce clean startup invariants: no phantom running entries and no duplicate outside runs.
-4. Keep deterministic server-authoritative sync and mobile->pi reliability as primary goal.
-5. Add fail-safe feature flags/profile levels so aggressive optimization can be disabled safely.
-6. Provide explicit FAIL->PASS reproduction and runtime smoke evidence for core user journeys.
+## Mandatory Performance Direction (binding)
+1. `/output/final` on weak hardware (for example Raspberry Pi class devices) must prioritize smooth playback.
+2. Evaluate and, if viable, move `/output/final` from client-side polling/render to server-side composed video stream delivery.
+3. Control views stay interactive and continue to use canonical sync behavior.
+4. Deterministic sync contracts and align-mode behavior remain unchanged.
 
-## Target state
-Phase 9 closes only when runtime behavior is boringly reliable under normal and stressed operation: starts and stops are deterministic, board switch updates image plus polygons atomically on all clients, `/output/final` boots and renders reliably, startup is clean, and sync remains server-authoritative across mobile/PC/pi. Performance tuning remains subordinate to correctness and only uses simplified, testable paths.
+## Target State
+Phase 9 closes with deterministic lifecycle/sync correctness already established by HF2 and a new final-output delivery path optimized for weak playback devices. `/output/final` can consume a server-composed stream for smooth decode on constrained clients, while control clients remain responsive and authoritative mutation flow stays unchanged.
 
-## Binding architecture decisions (HF4)
-- Establish one canonical runtime control path for start/stop/apply; remove or gate parallel scheduling paths.
-- Keep scheduler complexity minimal: retain only low-end safeguards that demonstrate measurable benefit.
-- Make startup idempotent with explicit invariant checks before first render and before first sync apply.
-- Make board switch an atomic context transaction (board image, polygons, running-state cleanup, and final-output refresh in one deterministic sequence).
-- Make `/output/final` load resilient: guarded bootstrap, retry-safe attach, deterministic fallback state.
-- Preserve server-authoritative sync contract (ordering/version/idempotent apply) as non-negotiable.
-- Introduce feature-flagged runtime profiles: `safe`, `balanced`, `aggressive`; default to `safe` on weak devices until aggressive path is proven.
+## Architecture Decision (HF3 ADR)
+### Feasibility and Tradeoffs
+- Latency: server-composed stream is viable when kept low-latency (target sub-second glass-to-glass); it can be slightly slower than direct local render but acceptable for display-only final output.
+- Quality: encoded stream introduces compression artifacts risk, but stable frame pacing on weak hardware is expected to improve perceived quality.
+- CPU load shift: final client CPU/GPU cost drops significantly; compose/encode load shifts to server and must be capacity planned.
+- Complexity: introduces renderer service + encoder + stream transport + health/fallback orchestration.
+- Deployment: requires ffmpeg/media pipeline support, codec availability, and network bandwidth budgeting.
 
-## Scope (Plan 9-HF4)
-- Restore deterministic start/stop lifecycle under repeated trigger/edit/stop cycles.
-- Fix startup hydration to prevent phantom running entries and duplicate outside runs.
-- Fix board switch parity so board image and polygons always switch together.
-- Fix `/output/final` load reliability and reconnect behavior.
-- Simplify runtime scheduling by removing destabilizing branches and preserving only necessary low-end guards.
-- Add runtime profile flags and hard kill-switches for aggressive optimizations.
-- Run explicit FAIL->PASS reproductions plus smoke matrix on mobile, PC controller, and Raspberry Pi output.
+### Decision
+- Adopt server-composed stream for `/output/final` as primary path when stream health is PASS.
+- Keep existing client render path as mandatory fallback and operator override.
+- Keep deterministic state/sync as source-of-truth; stream path is a presentation layer only.
+- Keep align-mode semantics identical: align overlay visibility in stream follows the same global authoritative flag.
 
-## Out of scope
-- New user-facing feature additions.
-- Further optimization experiments before core reliability gates are PASS.
-- Protocol redesign beyond what is required for deterministic authoritative sync.
+## Scope (9-HF3)
+- Add server-side final-output compositor that renders from authoritative state snapshots.
+- Add streaming endpoint(s) and `/output/final` player path with health monitoring.
+- Add automatic and manual fallback to existing client render when stream is unavailable/degraded.
+- Preserve deterministic sync contract and align-mode parity across stream and fallback paths.
+- Keep control views polling/render behavior optimized for interaction latency.
+- Produce weak-hardware evidence matrix comparing stream vs fallback behavior.
 
-## Prioritized next execution wave (Plan 9-HF4, execute-ready, hard-gated)
-1. Capture reproducible FAIL baselines for each critical regression (start/stop, startup duplicates, board switch, `/output/final` load).
-2. Introduce runtime simplification patch set: disable/remove non-essential scheduler branches and unify start/stop path.
-3. Enforce startup invariants and idempotent hydration guards.
-4. Implement atomic board-context switch pipeline with mandatory image+polygon parity checks.
-5. Harden `/output/final` bootstrap/load/reconnect path.
-6. Add feature flags/profile levels with safe default and runtime override.
-7. Validate deterministic sync invariants and mobile->pi propagation under the simplified runtime.
-8. Execute FAIL->PASS verification set plus runtime smoke journeys; publish evidence artifacts.
-9. Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
+## Out of Scope
+- Replacing control-view rendering with server stream.
+- Redesigning mutation protocol or changing version/idempotency rules.
+- Non-deterministic per-client behavior changes.
+- New operator UX unrelated to final-output performance.
+
+## Prioritized Next Execution Wave (Plan 9-HF3, execute-ready, hard-gated)
+1. Implement ADR-backed spike for server compositor + transport and capture latency/CPU/quality baseline.
+2. Build production path: server-composed stream endpoint and `/output/final` stream player integration.
+3. Implement stream health checks with deterministic auto-fallback to current client render.
+4. Enforce align-mode and lifecycle parity between stream output and fallback output.
+5. Verify deterministic sync invariants remain unchanged because stream is presentation-only.
+6. Execute Raspberry-Pi/weak-hardware matrix and close only after artifact synchronization + PASS.
 
 ## Milestones
-1. M1 Regression reproduction baseline captured (FAIL state is deterministic and documented).
-2. M2 Core control recovery (start/stop and startup invariants pass).
-3. M3 Context parity recovery (board switch image+polygon parity pass across clients).
-4. M4 Final output reliability recovery (`/output/final` load/reconnect pass).
-5. M5 Simplification and profile safety (`safe/balanced/aggressive` flags operational, safe default enforced).
-6. M6 Determinism preservation (server-authoritative sync and stop semantics remain PASS).
-7. M7 Evidence closure (FAIL->PASS and smoke matrix fully PASS, artifacts synchronized).
+1. M1 HF2 Baseline Lock: lifecycle no-replay and low-end hardening remain intact.
+2. M2 Stream Feasibility Closure: latency/quality/capacity tradeoffs are measured and decision is confirmed viable.
+3. M3 Server Stream Delivery: `/output/final` receives server-composed video stream with stable playback.
+4. M4 Fallback Reliability: stream health degradation switches to deterministic fallback without operator disruption.
+5. M5 Contract Preservation: deterministic sync + align-mode parity hold across stream and fallback modes.
+6. M6 Evidence Closure: weak-hardware matrix and regression evidence are PASS.
 
-## Definition of done
-- Start/stop is first-action deterministic across repeated cycles (no lost start, no missed stop).
-- Startup has zero phantom running entries and zero duplicate outside runs.
-- Board switch updates board image and polygons together, with no split-brain visuals.
-- `/output/final` loads and resumes reliably after reload/reconnect.
-- Simplified runtime path is the default stable path; aggressive path is optional and safely disableable.
-- Server-authoritative sync determinism and mobile->pi reliability remain PASS.
-- FAIL->PASS reproductions and runtime smoke evidence are documented and reproducible.
+## Regression/Evidence Matrix Policy
+- Stream feasibility: measure end-to-end latency, encoded quality stability, and server resource envelope.
+- Weak hardware playback: verify smooth frame pacing on Raspberry Pi class final client.
+- Fallback safety: force stream failure and assert seamless switch to existing render path.
+- Deterministic sync: ordering/version/idempotent apply parity between control views and final output modes.
+- Align-mode parity: ON/OFF transitions are identical in stream and fallback outputs.
+- Lifecycle parity: no expired one-shot replay artifacts in either output mode.
 
-## Execution status
-- Plan 9-HF4 implementation is completed with reliability-first runtime guards, profile toggles, and FAIL->PASS artifacts.
+## Definition of Done
+- HF2 lifecycle/no-replay guarantees remain intact with no regression.
+- `/output/final` stream mode is operational and default-ready for weak hardware.
+- Automatic/manual fallback to client render is reliable and deterministic.
+- Control views remain interactive and unaffected by final-output stream workload.
+- Deterministic sync and align-mode contracts remain unchanged.
+- Evidence matrix is PASS and phase/global planning artifacts are synchronized.
+
+## Execution Update
+
+- Plan 9-1 remains documented but not accepted.
+- Plan 9-HF1 remains completed foundation (`src/app.js`: 12163 -> 28 lines).
+- Plan 9-HF2 remains completed with PASS evidence (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
+- Plan 9-HF3 is completed with PASS evidence and synchronized artifacts; Plan 9-2 becomes the next wave.
