@@ -35,7 +35,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T6 [P0] Preserve control-view responsiveness (mobile/PC) while final-output priority policy is active.
 - [x] DONE P9-HF3-T7 [P0] Implement adaptive weak-device quality/load-shedding ladder with deterministic pressure levels and recovery hysteresis.
 - [x] DONE P9-HF3-T8 [P0] Execute hard video-heavy performance regression suite with measurable thresholds for Raspberry/mobile and document PASS/FAIL evidence.
-- [ ] TODO P9-HF3-T9 [P0] Validate non-regression for sync ordering/version/idempotent apply, lifecycle no-replay semantics, and stop determinism under HF3 hardening.
+- [x] DONE P9-HF3-T9 [P0] Validate non-regression for sync ordering/version/idempotent apply, lifecycle no-replay semantics, and stop determinism under HF3 hardening.
 - [ ] TODO P9-HF3-T10 [P0] Synchronize all planning artifacts (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`) after HF3 PASS.
 
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
