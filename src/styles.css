@@ -61,7 +61,6 @@ body[data-output-role="final-output"] .stage {
   transform: none !important;
 }
 
-body[data-output-role="final-output"] #board-image,
 body[data-output-role="final-output"] #control-panel,
 body[data-output-role="final-output"] #room-overlay {
   display: none !important;

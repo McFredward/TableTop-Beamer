@@ -410,6 +410,11 @@ function connectFinalOutputStream() {
     finalStreamRuntime.fallbackReason = "stream-error";
     document.body.dataset.finalOutputPath = "client";
   });
+  eventSource.addEventListener("stream-fault", () => {
+    finalStreamRuntime.connected = false;
+    finalStreamRuntime.fallbackReason = "stream-fault";
+    document.body.dataset.finalOutputPath = "client";
+  });
 }
 
 function normalizeFinalOutputMode(value) {
@@ -10653,11 +10658,6 @@ function draw(now) {
     }
 
     syncFinalOutputRenderPath();
-    if (outputRole === OUTPUT_ROLE_FINAL && shouldUseServerStreamPath()) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      recordRuntimeFrameCost(performance.now() - frameStart);
-      return;
-    }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
