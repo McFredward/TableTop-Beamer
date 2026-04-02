@@ -488,32 +488,7 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
 
-const liveSync = {
-  socket: null,
-  socketGeneration: 0,
-  wsConnected: false,
-  clientId: null,
-  lastCommandAcceptedAt: null,
-  lastCommandAcceptedVersion: 0,
-  lastSessionVersion: 0,
-  lastAppliedVersion: 0,
-  appliedMutationIds: new Set(),
-  pendingMutations: new Map(),
-  dirtyHintUntil: 0,
-  pollTimerId: null,
-  pollInFlight: false,
-  pollBackoffMs: 0,
-  pollingEnabled: true,
-  preferFastPollingUntil: 0,
-  tracesByMutationId: new Map(),
-  applyRejectCounters: {
-    staleVersion: 0,
-    duplicateMutation: 0,
-  },
-  globalTriggerRevisionSeenByKey: new Map(),
-  globalStopRevisionSeenByKey: new Map(),
-  pendingStopAnimationIds: new Set(),
-};
+const liveSync = window.TT_BEAMER_LIVE_SYNC_STATE.createLiveSyncState();
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
 const LIVE_POLL_FAST_MS = 120;
@@ -524,53 +499,14 @@ const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
 
-function rememberAppliedMutationId(mutationId) {
-  if (typeof mutationId !== "string" || !mutationId) {
-    return;
-  }
-  liveSync.appliedMutationIds.add(mutationId);
-  if (liveSync.appliedMutationIds.size <= LIVE_APPLIED_MUTATION_LIMIT) {
-    return;
-  }
-  const oldest = liveSync.appliedMutationIds.values().next().value;
-  if (oldest) {
-    liveSync.appliedMutationIds.delete(oldest);
-  }
-}
-
-function recordMutationTrace(mutationId, marker, ts = Date.now()) {
-  if (typeof mutationId !== "string" || !mutationId) {
-    return;
-  }
-  const existing = liveSync.tracesByMutationId.get(mutationId) ?? {
-    mutationId,
-    markers: {},
-  };
-  existing.markers[marker] = ts;
-  liveSync.tracesByMutationId.set(mutationId, existing);
-  if (liveSync.tracesByMutationId.size > LIVE_APPLIED_MUTATION_LIMIT) {
-    const oldest = liveSync.tracesByMutationId.keys().next().value;
-    if (oldest) {
-      liveSync.tracesByMutationId.delete(oldest);
-    }
-  }
-}
-
-function getLiveTraceSnapshot() {
-  const traces = [...liveSync.tracesByMutationId.values()].map((entry) => ({
-    mutationId: entry.mutationId,
-    markers: entry.markers,
-  }));
-  return {
-    connected: liveSync.wsConnected,
-    clientId: liveSync.clientId,
-    lastSessionVersion: liveSync.lastSessionVersion,
-    lastAppliedVersion: liveSync.lastAppliedVersion,
-    pendingMutationCount: liveSync.pendingMutations.size,
-    applyRejectCounters: liveSync.applyRejectCounters,
-    traces,
-  };
-}
+const {
+  rememberAppliedMutationId,
+  recordMutationTrace,
+  getLiveTraceSnapshot,
+} = window.TT_BEAMER_LIVE_SYNC_STATE.createLiveSyncHelpers({
+  liveSync,
+  mutationLimit: LIVE_APPLIED_MUTATION_LIMIT,
+});
 
 function replayPendingLiveMutations() {
   // polling mode keeps pending entries until a newer snapshot version confirms them.

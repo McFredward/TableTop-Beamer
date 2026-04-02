@@ -7,7 +7,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
 - [x] DONE P9-T2 [P0] Introduce thin bootstrap contract in `src/app.js` and move composition wiring to `src/app/boot/*` with parity adapters.
 - [x] DONE P9-T3 [P0] Extract pure/shared helper blocks first into `src/app/shared/*` and replace inline duplicates with imports.
-- [ ] TODO P9-T4 [P0] Extract state transition/selectors/runtime lifecycle helpers into `src/app/state/*` while preserving current state schema.
+- [x] DONE P9-T4 [P0] Extract state transition/selectors/runtime lifecycle helpers into `src/app/state/*` while preserving current state schema.
 - [ ] TODO P9-T5 [P0] Extract domain operations (room/play-area/animation business rules) into `src/app/domain/*` with unchanged behavior.
 - [ ] TODO P9-T6 [P0] Extract UI controllers/bindings (dashboard/settings sync) into `src/app/ui/*` using explicit interface contracts.
 - [ ] TODO P9-T7 [P0] Extract input arbitration (pointer/keyboard/touch/pan guards) into `src/app/input/*` and keep deterministic interactions.
