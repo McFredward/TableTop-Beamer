@@ -1,0 +1,54 @@
+{
+  "schema": "tt-beamer.p9-hf4-t9-output-parity-matrix.v1",
+  "measuredAt": "2026-04-02T21:45:23.440Z",
+  "baseUrl": "http://127.0.0.1:4174",
+  "boardCount": 3,
+  "matrix": [
+    {
+      "boardId": "nemesis-board-a",
+      "selectedBoard": "nemesis-board-a",
+      "versionAdvanced": true,
+      "boardMatch": true,
+      "hasBoardImage": true,
+      "hasOutsideAnimation": true
+    },
+    {
+      "boardId": "nemesis-board-b",
+      "selectedBoard": "nemesis-board-b",
+      "versionAdvanced": true,
+      "boardMatch": true,
+      "hasBoardImage": true,
+      "hasOutsideAnimation": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "selectedBoard": "nemesis-lockdown-a",
+      "versionAdvanced": true,
+      "boardMatch": true,
+      "hasBoardImage": true,
+      "hasOutsideAnimation": true
+    }
+  ],
+  "streamHealth": {
+    "schema": "tt-beamer.final-stream-health.v1",
+    "generatedAt": "2026-04-02T21:45:23.439Z",
+    "connectedClients": 0,
+    "producer": {
+      "running": true,
+      "watchdogActive": true,
+      "composing": false,
+      "ticks": 10,
+      "lastTickAt": "2026-04-02T21:45:23.439Z",
+      "recoveries": 0,
+      "latestBroadcastVersion": 9,
+      "latestComposeError": null,
+      "latestComposeErrorAt": null
+    },
+    "lastFrameAt": "2026-04-02T21:45:23.439Z",
+    "sourceVersion": 9,
+    "frameId": 9,
+    "msSinceLastFrame": 0,
+    "healthy": true
+  },
+  "pass": true
+}
