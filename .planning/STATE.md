@@ -10,10 +10,10 @@
 - Current Phase: 9
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
-- Execution Readiness: READY (HF4 executed, 9-2 next)
-- Last Executed Plan: 9-HF4 (executed)
+- Execution Readiness: READY
+- Last Executed Plan: 9-HF3 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,23 +21,13 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
-- Kritisches Rollback-/Rethink-Feedback ist bindend: HF3 hat reale Regressionen verursacht (unzuverlaessiges Start/Stop, Startup-Duplikate/Phantome, Board-Switch-Paritaetsbruch, `/output/final` Load-Unzuverlaessigkeit).
-- Plan-9-HF4 Umsetzung: startup running-list normalization erzwingt idempotente Invarianten (keine phantom entries, keine duplicate outside runs).
-- Plan-9-HF4 Umsetzung: board-switch context nutzt transaction-gebundenen overlay hold bis image-ready/timeout fuer image+polygon parity.
-- Plan-9-HF4 Umsetzung: runtime profiles (`safe`/`balanced`/`aggressive`) gate'n aggressive scheduler complexity; weak devices defaulten auf `safe`.
-- Neue P0-Welle Plan 9-HF4 ist bindend und execute-ready: Reliability-first vor Performance-Optimierung, Core-Funktion zuerst wiederherstellen.
-- Architekturregel 9-HF4: destabilisierende Scheduler-Komplexitaet wird entfernt oder hinter failsafe Profil-Flags (`safe`/`balanced`/`aggressive`) strikt kontrolliert; `safe` ist Default auf weak devices.
-- Invarianzregel 9-HF4: Startup muss idempotent clean sein (keine phantom running entries, keine duplicate outside runs).
-- Sync-Regel 9-HF4: serverautoritatives Ordering/Version/Idempotenz und mobile->pi Zuverlaessigkeit bleiben non-negotiable Primaerziele.
-- Evidenzregel 9-HF4: jeder kritische Blocker braucht explizite FAIL->PASS Reproduktion plus Runtime-Smoke-Nachweis auf Kern-Journeys.
-- Neues verpflichtendes P0-Problem fuer Phase 9 ist bindend: video-basierte Animationen verursachen starke Haenger auf Handy und Raspberry Pi (Beamer) und muessen umfassend behoben werden.
-- Prioritaetsregel Plan 9-HF3: `/output/final` bleibt unter video-lastiger Laufzeit stabil fluessig und erhaelt harte Render-/Decode-Priorisierung gegenueber Control-Views.
-- Runtime-Regel Plan 9-HF3: Video-Renderpfad wird mit decode/render scheduling, buffering/warmup und draw-strategy-Hardening auf weak devices deterministisch stabilisiert.
-- Adaptive-Regel Plan 9-HF3: load-shedding/quality-ladder ist verpflichtend fuer Raspberry/Handy inklusive messbarer video-heavy Grenzwerte und ohne Sync/Lifecycle/Stop-Determinismus-Regression.
-- Gate-Regel Plan 9-HF3: Plan 9-2 bleibt blockiert bis HF3 PASS inklusive Artefakt-Sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
-- Plan-9-HF3 Umsetzung: video lifecycle mutations laufen budgetiert/role-aware (scheduler + draw cadence + warmup guards), wodurch decode/render starvation in video-heavy paths begrenzt bleibt.
-- Plan-9-HF3 Umsetzung: `/output/final` nutzt final-output-first pressure caps und bleibt unter Last priorisiert stabil; control views behalten Responsive-Floor via frame-yield budget guards.
-- Plan-9-HF3 Umsetzung: adaptive ladder ist hysteresis-basiert deterministisch (escalation/recovery counters) und Performance-/Determinismus-Gates sind PASS (`P9-HF3-T8-VIDEO-PERFORMANCE-SUITE.md`, `P9-HF3-T9-DETERMINISM-REGRESSION.md`).
+- Plan-9-HF3 Umsetzung: `/api/final-stream/events` liefert server-composed frame stream fuer `/output/final` mit presentation-only contract.
+- Plan-9-HF3 Umsetzung: final-output mode ist autoritativ (`auto`/`stream`/`client`) und faellt bei stream-timeout/error deterministisch auf client-render zurueck.
+- Plan-9-HF3 Umsetzung: Align-mode- und deterministic-sync-Paritaet sind mit HF3-Evidenz PASS (`P9-HF3-T6-ALIGN-PARITY.md`, `P9-HF3-T7-SYNC-INVARIANTS.md`, `P9-HF3-T8-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`).
+- Neues verpflichtendes Performance-Ziel fuer Phase 9 ist bindend: `/output/final` wird fuer weak hardware (z. B. Raspberry Pi) auf server-composed stream delivery evaluiert und priorisiert umgesetzt, falls viable.
+- Architekturentscheidung Phase 9 HF3: server-composed stream ist als primary final-output path mit deterministischem fallback auf den bestehenden client-render path festgelegt; Sync-/Mutation-Vertrag bleibt unveraendert.
+- Contract-Regel Phase 9 HF3: deterministic sync invariants (ordering/version/idempotent apply) und align-mode semantics bleiben identisch; stream path ist presentation-only.
+- UX-Regel Phase 9 HF3: Control-Views bleiben interaktiv/low-latency; Optimierungsschwerpunkt liegt exklusiv auf smooth playback von `/output/final`.
 - Neues verpflichtendes Stabilitaets-Feedback aus Langzeittest ist bindend: expired one-shot events duerfen nach Reload/Reconnect nicht erneut abgespielt werden.
 - Plan 9-HF2 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
 - Lifecycle-Regel fuer 9-HF2: rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed (no replay).
