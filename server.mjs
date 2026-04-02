@@ -1785,6 +1785,7 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
 
 async function acceptCommandMutation({ mutationType, payload, mutationId = null, role = "control", clientId = "http-command" }) {
   return new Promise((resolve) => {
+    const ackTimeoutMs = 30_000;
     const fallbackTimeout = setTimeout(() => {
       resolve(buildLiveSessionEnvelope("live-ack", {
         mutationType,
@@ -1795,7 +1796,7 @@ async function acceptCommandMutation({ mutationType, payload, mutationId = null,
         timeout: true,
         version: liveSessionState.version,
       }));
-    }, 3500);
+    }, ackTimeoutMs);
     enqueueLiveMutation({
       socket: null,
       clientId,

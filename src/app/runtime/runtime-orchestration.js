@@ -874,60 +874,84 @@ async function pollLiveSnapshotOnce() {
 
 async function emitLiveMutation(mutationType, payload = {}) {
   const normalizedPayload = normalizeLiveMutationPayload(mutationType, payload);
-  const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  const queuedAt = Date.now();
-  if (mutationType === "context-update") {
-    for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
-      if (entry?.mutationType === "context-update") {
-        liveSync.pendingMutations.delete(pendingMutationId);
+  const shouldRetryControlMutation = mutationType === "trigger-global"
+    || mutationType === "trigger-room"
+    || mutationType === STOP_ANIMATION_MUTATION_TYPE
+    || mutationType === "clear-all";
+  const maxAttempts = shouldRetryControlMutation ? 2 : 1;
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}-a${attempt}`;
+    const queuedAt = Date.now();
+
+    if (mutationType === "context-update") {
+      for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
+        if (entry?.mutationType === "context-update") {
+          liveSync.pendingMutations.delete(pendingMutationId);
+        }
       }
     }
-  }
-  liveSync.pendingMutations.set(mutationId, {
-    mutationId,
-    mutationType,
-    queuedAt,
-    acceptedVersion: null,
-  });
-  recordMutationTrace(mutationId, "command_emit");
-  try {
-    const response = await fetch("/api/live/command", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json",
-      },
-      body: JSON.stringify({
-        mutationId,
-        mutationType,
-        role: outputRole,
-        clientId: liveSync.clientId ?? undefined,
-        payload: normalizedPayload,
-      }),
+    liveSync.pendingMutations.set(mutationId, {
+      mutationId,
+      mutationType,
+      queuedAt,
+      acceptedVersion: null,
     });
-    if (!response.ok) {
-      throw new Error(`command rejected (${response.status})`);
-    }
-    const ack = await response.json();
-    liveSync.lastCommandAcceptedAt = Date.now();
-    if (Number.isFinite(Number(ack?.version))) {
-      const version = Number(ack.version);
-      liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
-      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
-      const pendingEntry = liveSync.pendingMutations.get(mutationId);
-      if (pendingEntry) {
-        pendingEntry.acceptedVersion = version;
-        liveSync.pendingMutations.set(mutationId, pendingEntry);
+    recordMutationTrace(mutationId, "command_emit");
+
+    try {
+      const response = await fetch("/api/live/command", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+        },
+        body: JSON.stringify({
+          mutationId,
+          mutationType,
+          role: outputRole,
+          clientId: liveSync.clientId ?? undefined,
+          payload: normalizedPayload,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`command rejected (${response.status})`);
+      }
+      const ack = await response.json();
+      if (ack?.applied !== true || ack?.overflow === true || ack?.timeout === true || ack?.stale === true || ack?.duplicate === true) {
+        const reason = ack?.overflow ? "overflow" : ack?.timeout ? "timeout" : ack?.stale ? "stale" : ack?.duplicate ? "duplicate" : "not-applied";
+        throw new Error(`command not applied (${reason})`);
+      }
+
+      liveSync.lastCommandAcceptedAt = Date.now();
+      if (Number.isFinite(Number(ack?.version))) {
+        const version = Number(ack.version);
+        liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
+        liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
+        const pendingEntry = liveSync.pendingMutations.get(mutationId);
+        if (pendingEntry) {
+          pendingEntry.acceptedVersion = version;
+          liveSync.pendingMutations.set(mutationId, pendingEntry);
+        }
+      }
+      recordMutationTrace(mutationId, "command_accepted");
+      liveSync.preferFastPollingUntil = Date.now() + 2000;
+      scheduleNextLiveSnapshotPoll(0);
+      return ack;
+    } catch (error) {
+      liveSync.pendingMutations.delete(mutationId);
+      lastError = error;
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 20);
+        });
+        continue;
       }
     }
-    recordMutationTrace(mutationId, "command_accepted");
-    liveSync.preferFastPollingUntil = Date.now() + 2000;
-    scheduleNextLiveSnapshotPoll(0);
-    return ack;
-  } catch (error) {
-    liveSync.pendingMutations.delete(mutationId);
-    throw error;
   }
+
+  throw lastError ?? new Error("command mutation failed");
 }
 
 function normalizeLiveMutationPayload(mutationType, payload = {}) {
