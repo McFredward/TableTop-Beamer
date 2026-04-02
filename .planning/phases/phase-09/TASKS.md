@@ -11,7 +11,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T5 [P0] Extract domain operations (room/play-area/animation business rules) into `src/app/domain/*` with unchanged behavior.
 - [x] DONE P9-T6 [P0] Extract UI controllers/bindings (dashboard/settings sync) into `src/app/ui/*` using explicit interface contracts.
 - [x] DONE P9-T7 [P0] Extract input arbitration (pointer/keyboard/touch/pan guards) into `src/app/input/*` and keep deterministic interactions.
-- [ ] TODO P9-T8 [P0] Extract render and media lifecycle blocks into `src/app/render/*` and `src/app/gif/*` without `/output/final` regressions.
+- [x] DONE P9-T8 [P0] Extract render and media lifecycle blocks into `src/app/render/*` and `src/app/gif/*` without `/output/final` regressions.
 - [ ] TODO P9-T9 [P0] Add meaningful English comments at non-obvious lifecycle/state/render/integration hotspots across extracted modules.
 - [ ] TODO P9-T10 [P0] Implement centralized structured logging utility and migrate high-value diagnostics checkpoints.
 - [ ] TODO P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.

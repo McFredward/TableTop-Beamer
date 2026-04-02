@@ -424,36 +424,33 @@ function applyStageViewportRecompute(reason = "unknown") {
 }
 
 function runStageViewportLifecycle(reason = "unknown") {
-  const changed = applyStageViewportRecompute(reason);
-  if (!changed) {
-    return;
-  }
-  updateCurrentBoardZoom(getBoardZoom(state.boardId));
-  setPanCursorState();
-  syncDashboardZoneVisibility();
-  syncMobileStickyOffsets();
-  updateMobilePerformanceStatus();
-  validateViewExclusivity(state.uiView, { context: "resize-guard" });
-  validateViewNavigationVisibility({ context: "resize-guard" });
-  runMobileProjectionVisibilityGuard({ context: "resize-guard" });
-  const layoutOk = runLayoutScrollRegression();
-  const navigationOk = runNavigationStateRegression();
-  if (!layoutOk || !navigationOk) {
-    triggerFeedback.textContent =
-      "Status: Resize guard reported layout/navigation drift (check scroll/resize/view switch)";
-  }
+  window.TT_BEAMER_RENDER_VIEWPORT.runStageViewportLifecycle({
+    applyStageViewportRecompute,
+    getBoardZoom,
+    state,
+    updateCurrentBoardZoom,
+    setPanCursorState,
+    syncDashboardZoneVisibility,
+    syncMobileStickyOffsets,
+    updateMobilePerformanceStatus,
+    validateViewExclusivity,
+    validateViewNavigationVisibility,
+    runMobileProjectionVisibilityGuard,
+    runLayoutScrollRegression,
+    runNavigationStateRegression,
+    triggerFeedback,
+    reason,
+  });
 }
 
 function scheduleStageViewportLifecycle(reason = "unknown") {
-  stageViewport.pendingReasons.add(reason);
-  if (stageViewport.rafId !== null) {
-    return;
-  }
-  stageViewport.rafId = requestAnimationFrame(() => {
-    const reasons = Array.from(stageViewport.pendingReasons).join(", ");
-    stageViewport.pendingReasons.clear();
-    stageViewport.rafId = null;
-    runStageViewportLifecycle(reasons || "scheduled");
+  window.TT_BEAMER_RENDER_VIEWPORT.scheduleStageViewportLifecycle({
+    stageViewport,
+    requestAnimationFrame,
+    run: (scheduledReason) => {
+      runStageViewportLifecycle(scheduledReason);
+    },
+    reason,
   });
 }
 
@@ -463,20 +460,11 @@ function handleDevicePixelRatioChange() {
 }
 
 function bindDevicePixelRatioWatcher() {
-  const mediaQuery = stageViewport.dprMediaQuery;
-  if (mediaQuery) {
-    if (typeof mediaQuery.removeEventListener === "function") {
-      mediaQuery.removeEventListener("change", handleDevicePixelRatioChange);
-    } else if (typeof mediaQuery.removeListener === "function") {
-      mediaQuery.removeListener(handleDevicePixelRatioChange);
-    }
-  }
-  stageViewport.dprMediaQuery = window.matchMedia(`(resolution: ${Math.max(1, Number(window.devicePixelRatio) || 1)}dppx)`);
-  if (typeof stageViewport.dprMediaQuery.addEventListener === "function") {
-    stageViewport.dprMediaQuery.addEventListener("change", handleDevicePixelRatioChange);
-  } else if (typeof stageViewport.dprMediaQuery.addListener === "function") {
-    stageViewport.dprMediaQuery.addListener(handleDevicePixelRatioChange);
-  }
+  window.TT_BEAMER_RENDER_VIEWPORT.bindDevicePixelRatioWatcher({
+    stageViewport,
+    windowLike: window,
+    onDprChange: handleDevicePixelRatioChange,
+  });
 }
 
 const state = window.TT_BEAMER_STATE.createInitialState({
