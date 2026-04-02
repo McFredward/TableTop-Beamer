@@ -169,7 +169,7 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
     finalStreamProducerState.pendingSnapshot = null;
     const requestedSourceVersion = Number(finalStreamProducerState.pendingSourceVersion ?? 0);
     finalStreamProducerState.pendingSourceVersion = 0;
-    const snapshot = snapshotFromRequest ?? liveSessionState.snapshot;
+    const snapshot = snapshotFromRequest ?? cloneJson(liveSessionState.snapshot);
     const currentVersion = Number(liveSessionState.version ?? 0);
     const snapshotVersion = Math.max(requestedSourceVersion, currentVersion);
     const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
