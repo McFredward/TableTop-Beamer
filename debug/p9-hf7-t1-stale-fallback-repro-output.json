@@ -1,0 +1,18 @@
+{
+  "schema": "tt-beamer.p9-hf7-t1-stale-fallback-repro.v1",
+  "measuredAt": "2026-04-02T23:20:57.941Z",
+  "baselineRef": "afceb3e",
+  "runtimeFallbackBranches": {
+    "clientPathAssignments": 2,
+    "clientModeBranch": 1,
+    "autoModeReturn": 1,
+    "healthGatedFallback": 1
+  },
+  "serverFallbackBranches": {
+    "modeAutoConstant": 5,
+    "modeClientConstant": 2,
+    "acceptedModeValues": 2,
+    "contextPatchUsesIncomingFinalMode": 1
+  },
+  "prefxFallbackPathPresent": true
+}

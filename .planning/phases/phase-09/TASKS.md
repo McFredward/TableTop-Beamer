@@ -70,6 +70,16 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF6-T7 [P0] Execute HF5 non-regression matrix to confirm visual-only stream purity remains intact (no recurring overlays) while HF6 fixes are active.
 - [x] DONE P9-HF6-T8 [P0] Record HF6 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF7 - Critical `/output/final` strict stream-authority + stale-frame closure wave (execute-ready, hard-gated)
+- [x] DONE P9-HF7-T1 [P0] Build deterministic reproduction harness for stale/fallback `/output/final` behavior (new mutations not reflected immediately) and capture pre-fix traces.
+- [ ] TODO P9-HF7-T2 [P0] Remove `/output/final` client-render fallback runtime paths entirely (no auto/manual fallback path, no active client mode downgrade path).
+- [ ] TODO P9-HF7-T3 [P0] Enforce always-authoritative server stream producer compose independent of subscriber count/churn and subscriber presence.
+- [ ] TODO P9-HF7-T4 [P0] Bind stream producer compose source to current full authoritative state revision; close stale-frame/cache reuse paths.
+- [ ] TODO P9-HF7-T5 [P0] Guarantee immediate mutation-to-output propagation for accepted state mutations (start/stop/board/align/etc.) without page refresh.
+- [ ] TODO P9-HF7-T6 [P0] Execute strict deterministic control-view regression matrix while `/output/final` is stream-only authoritative (multi-client parity, no command nondeterminism).
+- [ ] TODO P9-HF7-T7 [P0] Execute HF5/HF6 non-regression matrices (visual-only purity + transport/apply/ack parity) with HF7 fixes active.
+- [ ] TODO P9-HF7-T8 [P0] Record HF7 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -85,7 +95,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF6 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF7 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
