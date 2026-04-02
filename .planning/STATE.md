@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF3 (completed)
+- Last Executed Plan: 9-HF4 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,15 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Plan-9-HF4 Umsetzung: final-stream compose ist von per-subscriber Timern auf single-producer fan-out umgestellt; command ingest/apply bleibt subscriber-unabhaengig.
+- Plan-9-HF4 Umsetzung: final-output stream-mode erzwingt keinen draw-short-circuit mehr; black-stream durch cleared-canvas/hidden-board Pfad ist geschlossen.
+- Plan-9-HF4 Umsetzung: producer watchdog + recovery guards halten stream fault/reconnect restart-frei stabil; HF4 matrix evidence ist PASS.
+- Kritisches P0-Produktionsfeedback nach HF3 ist bindend: wenn ein Device `/output/final` im stream mode aktiviert, werden Control-Clients non-responsive (start/stop, board switch, align toggle blockiert) und Recovery erfordert teils Server-Restart.
+- Plan 9-HF4 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Architekturregel Plan 9-HF4: Stream-Consumer-Lifecycle wird strikt vom Control-Command-Pfad entkoppelt (kein global lock, keine queue starvation, kein shared-state freeze).
+- Runtime-Regel Plan 9-HF4: Command ingest/apply bleibt auch bei aktiven/degradierten Stream-Subscriber deterministisch voll funktionsfaehig.
+- Output-Regel Plan 9-HF4: Black-stream-Faelle (z. B. sandstorm board/assets) werden profiluebergreifend behoben; Stream-Producer bleibt server-side authoritative und client-render-health-unabhaengig.
+- Gate-Regel Plan 9-HF4: harte Regressionstests mit stream on/off muessen durchgaengige Control-Paritaet, restart-freie Recovery und Output-Paritaet nachweisen.
 - Plan-9-HF3 Umsetzung: `/api/final-stream/events` liefert server-composed frame stream fuer `/output/final` mit presentation-only contract.
 - Plan-9-HF3 Umsetzung: final-output mode ist autoritativ (`auto`/`stream`/`client`) und faellt bei stream-timeout/error deterministisch auf client-render zurueck.
 - Plan-9-HF3 Umsetzung: Align-mode- und deterministic-sync-Paritaet sind mit HF3-Evidenz PASS (`P9-HF3-T6-ALIGN-PARITY.md`, `P9-HF3-T7-SYNC-INVARIANTS.md`, `P9-HF3-T8-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`).
