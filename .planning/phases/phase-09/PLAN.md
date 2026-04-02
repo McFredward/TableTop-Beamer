@@ -1,4 +1,4 @@
-# Phase 9 Plan (Replanned after critical P0 control-command transport blocker)
+# Phase 9 Plan (Replanned after critical P0 `/output/final` authority/staleness blocker)
 
 ## Baseline and Correction Context
 - User correction remains binding: Plan 9-1 is executed but not accepted.
@@ -7,74 +7,76 @@
 - Plan 9-HF3 remains completed baseline (server stream + fallback + parity evidence).
 - Plan 9-HF4 remains completed baseline (stream/control decoupling + black-stream closure).
 - Plan 9-HF5 remains completed baseline (visual-only stream purity, no recurring overlays).
-- New mandatory execution wave is Plan 9-HF6 and supersedes 9-2 as immediate next step.
+- Plan 9-HF6 remains completed baseline (command transport/apply/ack recovery under stream mode).
+- Plan 9-HF7 is completed baseline and 9-2 is restored as immediate next step.
 
-## New Critical P0 Blocker from Real Usage (binding)
-1. After recent stream-purity changes, control actions (especially room start/stop) no longer trigger reliably from clients.
-2. Under active stream mode, command transport can drop or no-op before reaching the authoritative server command path.
-3. Requirement is strict: client actions must immediately reach server command ingest/apply path.
-4. Server must update stream state and snapshot state immediately, with immediate acknowledgement, even when stream mode is active.
-5. Stream-purity guarantees from HF5 must remain intact while control functionality is restored.
+## New Critical P0 Blocker from Production Behavior (binding)
+1. `/output/final` still exhibits fallback/stale behavior (new room animations are not reflected immediately).
+2. `/output/final` must be true server-composed stream only; any client-render fallback path is disallowed.
+3. Stream composition authority must stay server-side continuously and must not depend on subscriber count.
+4. Any accepted mutation (start/stop/board/align/etc.) must update composed output immediately without refresh.
+5. Stream producer must always compose from current full authoritative state; stale frame reuse is forbidden.
 
-## Mandatory Objectives for 9-HF6 (hard requirements)
-1. Produce deterministic root-cause analysis for dropped/no-op control commands under active stream mode.
-2. Fix command transport from client action to server command ingest so stream mode cannot suppress delivery.
-3. Fix server apply path so command apply, stream-state update, snapshot update, and ack are immediate and authoritative.
-4. Preserve HF5 visual-only stream purity contract with no text/info/diagnostic overlay regression.
-5. Execute strict start/stop regression matrix for stream on/off across multiple control clients and `/output/final`.
+## Mandatory Objectives for 9-HF7 (hard requirements)
+1. Remove client-render fallback for `/output/final` entirely (no auto/manual fallback path there).
+2. Enforce always-authoritative, continuously composed server stream independent of subscriber count.
+3. Guarantee immediate output update after every accepted authoritative mutation (start/stop/board/align/etc.).
+4. Guarantee producer composes from current full state revision, not stale frame/cache snapshots.
+5. Preserve deterministic, responsive control views while stream authority is made strict.
 
 ## Target State
-Phase 9 remains on HF1/HF2/HF3/HF4/HF5 baselines and closes HF6 by restoring deterministic control command responsiveness under active stream mode: client actions immediately reach server command path, server apply emits immediate ack and snapshot/stream propagation, and `/output/final` stays visual-only with no overlay regression.
+Phase 9 remains on HF1/HF2/HF3/HF4/HF5/HF6 baselines and closes HF7 by enforcing strict authoritative streaming on `/output/final`: no client fallback, continuous server composition independent of subscribers, immediate mutation-to-output propagation from full current state, and deterministic control-view behavior.
 
-## Scope (9-HF6)
-- Reproduce and isolate command drop/no-op path introduced after stream-purity changes.
-- Repair client-to-server command transport for start/stop and related control actions under stream mode.
-- Repair server command apply scheduling/ordering so stream mode does not delay or bypass authoritative mutation + snapshot propagation.
-- Enforce immediate server acknowledgement semantics for accepted commands.
-- Keep HF5 stream-purity guardrails active and verified.
-- Add strict multi-client regression evidence for stream on/off parity including `/output/final`.
+## Scope (9-HF7)
+- Remove `/output/final` client fallback code paths, toggles, and mode switches (`auto`/`client`) from active runtime behavior.
+- Ensure stream producer lifecycle is always-on authoritative compose and does not pause/degrade due to zero or changing subscribers.
+- Bind composed frame source to current authoritative full state revision for every mutation cycle.
+- Ensure start/stop/board/align and related control mutations are reflected immediately in composed stream output.
+- Preserve control-plane determinism and responsiveness while tightening stream authority guarantees.
+- Add strict evidence matrix for no-fallback authority, stale-frame prevention, and mutation immediacy.
 
 ## Out of Scope
 - New UX feature development unrelated to control-command reliability.
-- Protocol redesign beyond targeted transport/apply/ack correctness fixes.
+- Protocol redesign beyond targeted stream-authority/compose freshness correctness fixes.
 - Reintroduction of diagnostic/text overlays into `/output/final` stream output.
+- Reintroduction of any `/output/final` client-render fallback path.
 
-## Prioritized Next Execution Wave (Plan 9-HF6, execute-ready, hard-gated)
-1. Reproduce and trace dropped/no-op control commands with stream mode active (start/stop first).
-2. Isolate root cause in command transport path (client dispatch -> request envelope -> server ingest).
-3. Repair transport so client actions are always delivered to server command ingest independent of stream mode.
-4. Repair server apply path so accepted commands immediately mutate authoritative stream+snapshot state and emit ack.
-5. Verify snapshot propagation and `/output/final` visibility update latency parity under stream on/off.
-6. Run strict regression matrix across start/stop, multi-client control surfaces, stream mode on/off, and `/output/final`.
-7. Verify HF5 stream-purity non-regression (no recurring overlays, visual-only contract maintained).
+## Prioritized Next Execution Wave (Plan 9-HF7, execute-ready, hard-gated)
+1. Reproduce and trace stale/fallback behavior in `/output/final` under active mutation churn.
+2. Remove all `/output/final` fallback code paths (auto/manual/client mode branches) from runtime path.
+3. Enforce always-on server producer compose independent of subscriber count and subscriber lifecycle.
+4. Bind producer compose to current authoritative full state revision (no stale frame/cache reuse path).
+5. Validate immediate mutation-to-output propagation for start/stop/board/align and related commands.
+6. Run strict multi-client control determinism regression while `/output/final` remains stream-only authoritative.
+7. Verify HF5 visual-only purity and HF6 transport/apply/ack guarantees remain PASS.
 8. Close wave only after full artifact synchronization + PASS.
 
 ## Milestones
 1. M1 HF1-HF5 Baseline Lock: completed guarantees remain non-regression constraints.
-2. M2 HF6 Root-Cause Closure: command drop/no-op path under stream mode is reproducibly isolated.
-3. M3 HF6 Transport Closure: client command actions deterministically reach server ingest in all stream modes.
-4. M4 HF6 Apply/Ack Closure: server apply is immediate, authoritative, and acknowledgement is immediate.
-5. M5 HF6 Snapshot Propagation Closure: stream + snapshot state updates propagate immediately across clients and `/output/final`.
-6. M6 HF6 Purity Preservation: HF5 visual-only stream contract remains intact.
-7. M7 HF6 Evidence Closure: strict regression matrix PASS with synchronized artifacts.
+2. M2 HF7 Fallback Elimination Closure: `/output/final` has no active client fallback path.
+3. M3 HF7 Producer Authority Closure: producer compose remains active and authoritative independent of subscribers.
+4. M4 HF7 Fresh-State Compose Closure: composed frames are generated from current full authoritative state revisions.
+5. M5 HF7 Immediate Mutation Visibility Closure: accepted mutations are visible immediately on `/output/final`.
+6. M6 HF7 Control Determinism Preservation: control views remain deterministic/responsive with stream-only final output.
+7. M7 HF7 Evidence Closure: strict regression matrix PASS with synchronized artifacts.
 
-## Regression/Evidence Matrix Policy (9-HF6)
-- HF6-Root-Cause-Repro-Test: deterministic pre-fix repro for dropped/no-op commands with stream mode active.
-- Stream-On-Start-Stop-Transport-Test: start/stop commands always reach server command ingest with stream mode enabled.
-- Stream-Off-Start-Stop-Baseline-Test: start/stop behavior remains parity-correct when stream mode is disabled.
-- Immediate-Ack-Test: accepted commands return immediate server acknowledgement under stream on/off.
-- Immediate-Apply-and-Snapshot-Test: accepted commands immediately update authoritative state and snapshot revisions.
-- Multi-Client-Propagation-Test: changes propagate deterministically across multiple control clients and `/output/final`.
-- Churn-and-Reconnect-Non-Drop-Test: join/leave/reconnect churn does not cause transport drop/no-op.
-- HF5-Stream-Purity-Non-Regression-Test: `/output/final` stream remains visual-only with no text/info/diagnostic overlays.
+## Regression/Evidence Matrix Policy (9-HF7)
+- HF7-PreFix-Stale-Or-Fallback-Repro-Test: deterministic pre-fix evidence of stale/fallback behavior.
+- No-Fallback-Path-Test: `/output/final` runs without auto/manual fallback branches or mode downgrade.
+- Producer-Subscriber-Independence-Test: compose loop stays authoritative with 0/1/N subscribers and churn.
+- Full-State-Revision-Compose-Test: each output frame references current authoritative full state revision.
+- Immediate-Mutation-Visibility-Test: start/stop/board/align mutations appear immediately on `/output/final`.
+- Multi-Client-Control-Determinism-Test: control views remain deterministic and responsive under strict stream-only output.
+- HF6-Transport-Apply-Ack-Non-Regression-Test: command transport/apply/ack guarantees remain PASS.
+- HF5-Stream-Purity-Non-Regression-Test: `/output/final` remains visual-only with no text/info/diagnostic overlays.
 - Full-Workflow-Non-Regression-Test: align/sync invariants, persistence, and operator workflow remain stable.
 
 ## Definition of Done
-- Root cause of dropped/no-op commands is documented with deterministic repro and closure evidence.
-- Client control actions immediately reach server command path with stream mode on and off.
-- Server apply path is immediate and authoritative; stream state and snapshot state update in the same mutation cycle.
-- Immediate server acknowledgement is present for accepted commands.
-- Start/stop behavior is deterministic across multiple clients and `/output/final`.
+- `/output/final` has no client-render fallback path in active runtime.
+- Server stream producer remains continuously authoritative independent of subscriber count.
+- Accepted mutations are immediately reflected in composed `/output/final` output without refresh.
+- Producer composes from current full authoritative state (no stale frame path).
+- Control views remain deterministic/responsive; HF6 transport/apply/ack behavior remains intact.
 - HF5 visual-only stream purity remains intact (no recurring overlays).
 - Hard regression matrix is PASS and phase/global planning artifacts are synchronized.
 
@@ -87,4 +89,5 @@ Phase 9 remains on HF1/HF2/HF3/HF4/HF5 baselines and closes HF6 by restoring det
 - Plan 9-HF4 is completed PASS: stream producer is decoupled from command ingest/apply lifecycle, black-stream paths are closed, restart-free recovery is verified, and hard control/output parity matrices are recorded.
 - Plan 9-HF5 is completed PASS: recurring overlays are removed, visual-only payload contract is enforced, and HF4 stability/parity gates remain PASS.
 - Plan 9-HF6 is completed PASS with deterministic repro/root-cause closure, transport/apply/ack fixes, strict start/stop parity evidence, and HF5 stream-purity non-regression.
-- Plan 9-2 is unblocked and remains the next hardening wave after HF6 closure.
+- Plan 9-HF7 is completed PASS with strict stream-only authority, stale-frame closure, and immediate mutation visibility on `/output/final` (`9-HF7-VERIFICATION.md`).
+- Plan 9-2 is unblocked and ready after HF7 closure PASS.

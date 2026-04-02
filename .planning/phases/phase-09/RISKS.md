@@ -3,44 +3,45 @@
 ## Acceptance Correction Context
 - 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
 - 9-HF3, 9-HF4, and 9-HF5 are completed baselines.
-- 9-HF6 is the binding P0 blocker wave for control-command transport/apply/ack recovery under stream mode.
+- 9-HF6 is completed baseline for control-command transport/apply/ack recovery under stream mode.
+- 9-HF7 is completed baseline for strict `/output/final` stream authority and stale-frame closure.
 
-## R1 Hidden coupling still exists between stream lifecycle and command path
-- Risk: a residual shared lock/state path still allows stream subscriber events to freeze command ingest/apply.
+## R1 Residual fallback branch still active for `/output/final`
+- Risk: auto/manual client fallback code path still exists and can activate under transient stream conditions.
 - Impact: Critical.
-- Mitigation: explicit ownership boundaries, lock-domain split, and regression tests with churn/fault injection.
+- Mitigation: remove fallback branches from active runtime path and add explicit no-fallback gate tests.
 
-## R2 Queue starvation under burst subscribers or stream pressure
-- Risk: stream workload monopolizes scheduler/queue and starves control commands.
+## R2 Producer lifecycle still coupled to subscriber count
+- Risk: compose loop pauses/degrades when subscriber count drops to zero or churns rapidly.
 - Impact: Critical.
-- Mitigation: bounded queue budgets, priority class separation, and latency SLO checks for command path.
+- Mitigation: enforce always-on producer lifecycle independent of subscriber presence and churn matrix checks.
 
-## R3 Transport gating regression from stream-purity changes
-- Risk: stream-mode conditionals introduced for purity accidentally short-circuit control command transport.
+## R3 Stale frame/cache reuse in stream compose path
+- Risk: producer emits previously composed frames or partial state views instead of current full state revision.
 - Impact: Critical.
-- Mitigation: command transport path audit from client dispatch to server ingress with explicit no-stream-gate invariant.
+- Mitigation: revision-bound compose assertions and explicit stale-frame regression tests.
 
-## R4 Server apply is deferred behind stream producer timing
-- Risk: accepted control commands are not applied immediately because apply is indirectly tied to stream producer cadence.
+## R4 Mutation visibility lag despite accepted command
+- Risk: mutation is accepted/applied but `/output/final` composition does not update immediately.
 - Impact: Critical.
-- Mitigation: decouple command apply from producer tick; enforce immediate authoritative apply path and ack timing assertions.
+- Mitigation: enforce apply-to-compose immediacy checks for start/stop/board/align across churn scenarios.
 
-## R5 Ack appears successful while apply/snapshot propagation is stale
-- Risk: client sees ack but command effect is delayed or absent in snapshot and `/output/final`.
+## R5 Strict stream-only enforcement regresses control determinism
+- Risk: removal of fallback paths accidentally introduces nondeterministic control behavior.
 - Impact: Critical.
-- Mitigation: verify ack/apply/snapshot linkage and require immediate revision/projection propagation checks in matrix.
+- Mitigation: preserve HF6 contracts and run mandatory multi-client control determinism matrix.
 
-## R6 Multi-client race reintroduces start/stop no-op behavior
-- Risk: fixes pass single-client but regress under concurrent controllers or reconnect churn.
+## R6 Legacy mode toggles leak through config/UI paths
+- Risk: hidden mode switches (`auto`/`client`) remain reachable and silently reactivate non-authoritative behavior.
 - Impact: Critical.
-- Mitigation: mandatory multi-client start/stop matrix including churn and `/output/final` observer parity.
+- Mitigation: sanitize mode config surface and enforce single authoritative stream mode for `/output/final`.
 
-## R7 Purity regression while restoring command reliability
-- Risk: command-path fixes accidentally re-enable stream overlays/diagnostics text in `/output/final`.
+## R7 Purity regression while tightening producer authority
+- Risk: authority-path fixes accidentally re-enable stream overlays/diagnostics text in `/output/final`.
 - Impact: Critical.
-- Mitigation: keep HF5 visual-only assertions as mandatory non-regression gates in HF6.
+- Mitigation: keep HF5 visual-only assertions as mandatory non-regression gates in HF7.
 
-## R8 Isolation fix regresses deterministic sync/align contracts
+## R8 Authority/staleness fix regresses deterministic sync/align contracts
 - Risk: implementation accidentally changes ordering/version/idempotent apply behavior.
 - Impact: Critical.
 - Mitigation: enforce presentation-only boundary and run deterministic sync regression with stream enabled.
@@ -48,12 +49,12 @@
 ## R9 Observability gap slows root-cause closure
 - Risk: missing lifecycle/queue/ack/apply timing metrics obscures post-fix regressions.
 - Impact: High.
-- Mitigation: structured traces for command dispatch, ingress, apply, ack, snapshot revision, and fanout latency.
+- Mitigation: structured traces for mutation revision, compose revision, fanout timestamp, and output visibility latency.
 
 ## R10 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF6-T8.
+- Mitigation: mandatory full artifact sync in P9-HF7-T8.
 
 ## Execution Notes
 
@@ -61,5 +62,5 @@
 - 9-HF3 closure remains valid for stream viability/fallback/parity baseline.
 - 9-HF4 closure remains valid for stream/control decoupling baseline.
 - 9-HF5 closure remains valid for stream visual-only purity baseline.
-- HF6 closure reduces primary transport/apply/ack blocker risk with strict parity evidence and stream-purity non-regression PASS.
-- Residual Phase 9 risk focus moves to post-HF6 hardening scope in Plan 9-2.
+- HF6 closure remains mandatory non-regression baseline for transport/apply/ack correctness.
+- HF7 authority/staleness closure is complete; current risk focus moves to Plan 9-2 hardening follow-ups.
