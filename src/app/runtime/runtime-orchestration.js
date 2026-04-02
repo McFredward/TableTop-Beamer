@@ -361,9 +361,12 @@ function renderFinalStreamFrame(frame) {
   const boardLabel = frame?.board?.label || frame?.board?.id || "-";
   const version = Number(frame?.sourceVersion || 0);
   const mode = String(frame?.mode || "auto");
+  const align = Boolean(frame?.alignMode);
+  state.alignMode = align;
+  document.body.classList.toggle("align-mode-active", align);
   const running = Array.isArray(frame?.runningAnimations) ? frame.runningAnimations : [];
   if (finalStreamMeta) {
-    finalStreamMeta.textContent = `Mode ${mode.toUpperCase()} | Board ${boardLabel} | v${version} | running ${running.length}`;
+    finalStreamMeta.textContent = `Mode ${mode.toUpperCase()} | Align ${align ? "ON" : "OFF"} | Board ${boardLabel} | v${version} | running ${running.length}`;
   }
   if (finalStreamRunning) {
     finalStreamRunning.replaceChildren();

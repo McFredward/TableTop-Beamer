@@ -32,7 +32,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T3 [P0] Expose stream delivery endpoint for `/output/final` and integrate final-output playback client path.
 - [x] DONE P9-HF3-T4 [P0] Add stream health monitoring and deterministic auto-fallback to existing client render path on stream degradation.
 - [x] DONE P9-HF3-T5 [P0] Add explicit operator override toggle for stream mode vs fallback mode to support rollout safety.
-- [ ] TODO P9-HF3-T6 [P0] Preserve align-mode behavior parity across stream and fallback outputs (global authoritative ON/OFF semantics unchanged).
+- [x] DONE P9-HF3-T6 [P0] Preserve align-mode behavior parity across stream and fallback outputs (global authoritative ON/OFF semantics unchanged).
 - [ ] TODO P9-HF3-T7 [P0] Validate deterministic sync invariants remain unchanged (ordering/version/idempotent apply) with stream mode enabled.
 - [ ] TODO P9-HF3-T8 [P0] Validate control views remain interactive and responsive while final output uses server stream.
 - [ ] TODO P9-HF3-T9 [P0] Execute weak-hardware evidence matrix (Raspberry Pi class) for smooth playback, quality floor, and fallback recovery.
