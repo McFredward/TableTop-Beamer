@@ -89,7 +89,20 @@ completed: 2026-04-02
 
 ## Deviations from Plan
 
-None - plan executed as incremental extraction slices with parity guards.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state update commands were incompatible with current `STATE.md` format**
+- **Found during:** post-task state synchronization
+- **Issue:** `state advance-plan/update-progress/record-metric/add-decision/record-session` returned parsing/section errors.
+- **Fix:** applied equivalent tracker updates manually in `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/CURRENT_PHASE.md`.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`
+- **Verification:** final metadata commit includes updated tracker files and references new 9-1 summary.
+- **Committed in:** `3d56d77`
+
+---
+
+**Total deviations:** 1 auto-fixed (Rule 3 - blocking)
+**Impact on plan:** No scope creep; only tracker synchronization path changed due tool/format mismatch.
 
 ## Issues Encountered
 
