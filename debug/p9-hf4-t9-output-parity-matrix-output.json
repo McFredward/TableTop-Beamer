@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.p9-hf4-t9-output-parity-matrix.v1",
-  "measuredAt": "2026-04-02T21:45:23.440Z",
+  "measuredAt": "2026-04-02T22:37:10.789Z",
   "baseUrl": "http://127.0.0.1:4174",
   "boardCount": 3,
   "matrix": [
@@ -31,23 +31,23 @@
   ],
   "streamHealth": {
     "schema": "tt-beamer.final-stream-health.v1",
-    "generatedAt": "2026-04-02T21:45:23.439Z",
+    "generatedAt": "2026-04-02T22:37:10.788Z",
     "connectedClients": 0,
     "producer": {
       "running": true,
       "watchdogActive": true,
       "composing": false,
-      "ticks": 10,
-      "lastTickAt": "2026-04-02T21:45:23.439Z",
+      "ticks": 93,
+      "lastTickAt": "2026-04-02T22:37:10.787Z",
       "recoveries": 0,
-      "latestBroadcastVersion": 9,
+      "latestBroadcastVersion": 89,
       "latestComposeError": null,
       "latestComposeErrorAt": null
     },
-    "lastFrameAt": "2026-04-02T21:45:23.439Z",
-    "sourceVersion": 9,
-    "frameId": 9,
-    "msSinceLastFrame": 0,
+    "lastFrameAt": "2026-04-02T22:37:10.787Z",
+    "sourceVersion": 89,
+    "frameId": 91,
+    "msSinceLastFrame": 1,
     "healthy": true
   },
   "pass": true
