@@ -4332,13 +4332,23 @@ function getOutsideVideoElement(path) {
       status: "loading",
       video,
       durationSec: null,
+      warmup: {
+        requestedAtMs: 0,
+        stableSinceMs: 0,
+        primedAtMs: 0,
+      },
     });
     const entry = outsideVideoCacheByPath.get(normalizedPath);
     video.addEventListener("loadedmetadata", () => {
       const durationSec = Number(video.duration);
       if (entry) {
-        entry.status = Number.isFinite(durationSec) && durationSec > 0 ? "ready" : "error";
+        entry.status = Number.isFinite(durationSec) && durationSec > 0 ? "metadata" : "error";
         entry.durationSec = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : null;
+      }
+    });
+    video.addEventListener("canplay", () => {
+      if (entry?.status !== "error") {
+        entry.status = "ready";
       }
     });
     video.addEventListener("error", () => {
@@ -4348,6 +4358,53 @@ function getOutsideVideoElement(path) {
     });
   }
   return outsideVideoCacheByPath.get(normalizedPath) ?? null;
+}
+
+function ensureVideoWarmupReady(videoEntry, { key = "", priority = "normal", targetRate = 1 } = {}) {
+  const video = videoEntry?.video;
+  if (!video) {
+    return false;
+  }
+  const warmup = videoEntry.warmup ?? {
+    requestedAtMs: 0,
+    stableSinceMs: 0,
+    primedAtMs: 0,
+  };
+  videoEntry.warmup = warmup;
+  const nowMs = performance.now();
+  if (!warmup.requestedAtMs) {
+    warmup.requestedAtMs = nowMs;
+  }
+  if (video.readyState < 2) {
+    warmup.stableSinceMs = 0;
+    applyVideoPlaybackPlan(video, {
+      key,
+      targetRate,
+      priority,
+    });
+    return false;
+  }
+  if (!warmup.stableSinceMs) {
+    warmup.stableSinceMs = nowMs;
+  }
+  const warmupStableMs = nowMs - warmup.stableSinceMs;
+  if (warmupStableMs < 90) {
+    applyVideoPlaybackPlan(video, {
+      key,
+      targetRate,
+      priority,
+    });
+    return false;
+  }
+  if (!warmup.primedAtMs || nowMs - warmup.primedAtMs > 1400) {
+    applyVideoPlaybackPlan(video, {
+      key,
+      targetRate,
+      priority,
+    });
+    warmup.primedAtMs = nowMs;
+  }
+  return true;
 }
 
 function clearOutsideMp4PlaybackState(boardId = state.boardId) {
@@ -4457,10 +4514,13 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
   if (didLifecycleChange) {
     const durationSec = Number(video.duration);
     if (Number.isFinite(durationSec) && durationSec > 0) {
+      const nowMs = performance.now();
+      const lastLifecyclePrimeAtMs = Number(previous?.lastLifecyclePrimeAtMs || 0);
+      const allowLifecycleSeek = nowMs - lastLifecyclePrimeAtMs >= 180;
       applyVideoPlaybackPlan(video, {
         key: schedulerKey,
         targetRate,
-        seekToSec: getOutsideMp4LoopStartTime(durationSec),
+        seekToSec: allowLifecycleSeek ? getOutsideMp4LoopStartTime(durationSec) : null,
         priority: "critical",
       });
     }
@@ -4482,6 +4542,7 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     fallbackCtx: previous?.fallbackCtx ?? null,
     lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
     lastLoopWrapAtMs: previous?.lastLoopWrapAtMs ?? 0,
+    lastLifecyclePrimeAtMs: didLifecycleChange ? performance.now() : Number(previous?.lastLifecyclePrimeAtMs || 0),
     hasVisibleFrame: previousHasVisibleFrame,
   };
   outsideMp4PlaybackStateByBoard.set(boardId, playbackState);
@@ -8719,12 +8780,12 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     const video = videoEntry?.video;
     if (video) {
       const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
-      applyVideoPlaybackPlan(video, {
+      const warmReady = ensureVideoWarmupReady(videoEntry, {
         key: `room:${animation.id}:${assetRef}`,
         targetRate: playbackRate,
         priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
       });
-      if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+      if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
         ctx.save();
         ctx.globalAlpha = clampRoomOpacity(animation.opacity);
         ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
@@ -9836,11 +9897,14 @@ function drawInsideGlobalVisual(animation, age) {
     if (videoEntry?.video) {
       const video = videoEntry.video;
       const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
-      applyVideoPlaybackPlan(video, {
+      const warmReady = ensureVideoWarmupReady(videoEntry, {
         key: `inside:${animation.id}:${definition.assetRef}`,
         targetRate: playbackRate,
         priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
       });
+      if (!warmReady) {
+        return;
+      }
       ctx.globalAlpha = intensity;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       return;
@@ -9991,6 +10055,11 @@ function drawOutsideFxLayer(now) {
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
+        const warmReady = ensureVideoWarmupReady(videoEntry, {
+          key: `outside:${state.boardId}:${selectedDefinition.assetRef}`,
+          targetRate,
+          priority: "critical",
+        });
         const playbackState = ensureOutsideMp4Playback(video, {
           boardId: state.boardId,
           runId: runtimeEntry?.id,
@@ -9999,7 +10068,7 @@ function drawOutsideFxLayer(now) {
         });
         maybeWrapOutsideMp4Loop(video, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
-        if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+        if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           captureOutsideMp4FallbackFrame(playbackState, video);
         } else {
