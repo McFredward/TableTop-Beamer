@@ -22,7 +22,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF2-T4 [P0] Introduce frame-budget aware runtime hardening for weak/mobile devices (load shedding ladder + bounded degradation).
 - [x] DONE P9-HF2-T5 [P0] Add particle/effect caps and non-critical update coalescing under pressure without semantic event loss.
 - [x] DONE P9-HF2-T6 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under hardening logic.
-- [ ] TODO P9-HF2-T7 [P0] Execute long-run soak matrix with reload/reconnect checkpoints and expired-event replay assertions.
+- [x] DONE P9-HF2-T7 [P0] Execute long-run soak matrix with reload/reconnect checkpoints and expired-event replay assertions.
 - [ ] TODO P9-HF2-T8 [P0] Execute low-end mobile stress matrix for frame stability, memory pressure tolerance, and graceful degradation behavior.
 - [ ] TODO P9-HF2-T9 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
