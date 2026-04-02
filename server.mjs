@@ -22,6 +22,15 @@ const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
 const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
+const FINAL_STREAM_SCHEMA = "tt-beamer.final-stream-frame.v1";
+const FINAL_STREAM_MODE_AUTO = "auto";
+const FINAL_STREAM_MODE_STREAM = "stream";
+const FINAL_STREAM_MODE_CLIENT = "client";
+const FINAL_STREAM_MODE_VALUES = new Set([
+  FINAL_STREAM_MODE_AUTO,
+  FINAL_STREAM_MODE_STREAM,
+  FINAL_STREAM_MODE_CLIENT,
+]);
 
 const liveSessionState = {
   version: 0,
@@ -35,6 +44,19 @@ const liveSessionState = {
     outsideFxByBoard: {},
     runtime: null,
   },
+};
+
+const finalStreamComposerState = {
+  frameId: 0,
+  lastFrameAt: null,
+  lastSourceVersion: 0,
+  latestFrame: null,
+};
+
+const boardCatalogCache = {
+  loadedAt: 0,
+  ttlMs: 10_000,
+  runtimeBoards: [],
 };
 
 const liveClients = new Map();
@@ -210,6 +232,49 @@ function normalizeNonEmptyString(value) {
   }
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeFinalStreamMode(value, fallback = FINAL_STREAM_MODE_AUTO) {
+  const normalized = normalizeNonEmptyString(value)?.toLowerCase() ?? "";
+  if (FINAL_STREAM_MODE_VALUES.has(normalized)) {
+    return normalized;
+  }
+  return fallback;
+}
+
+function normalizeUnitInterval(value, fallback = 1) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1, numeric));
+}
+
+function normalizePositiveNumber(value, fallback = 1) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return fallback;
+  }
+  return numeric;
+}
+
+function toRoomLookup(board) {
+  const roomLookup = {};
+  if (!Array.isArray(board?.rooms)) {
+    return roomLookup;
+  }
+  for (const room of board.rooms) {
+    const roomId = normalizeNonEmptyString(room?.id);
+    if (!roomId) {
+      continue;
+    }
+    roomLookup[roomId] = {
+      id: roomId,
+      label: normalizeNonEmptyString(room?.name) ?? normalizeNonEmptyString(room?.label) ?? roomId,
+      polygon: Array.isArray(room?.points) ? cloneJson(room.points) : null,
+    };
+  }
+  return roomLookup;
 }
 
 function resolveAnimationStartEpochMs(animation, nowEpochMs = Date.now()) {
@@ -925,6 +990,8 @@ function applyLiveMutation({
 
   const commitLatencyMs = Math.max(0, Date.now() - Date.parse(ingestAt ?? serverTimestamp));
   recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
+  finalStreamComposerState.lastSourceVersion = Number(session.version ?? 0);
+  finalStreamComposerState.latestFrame = null;
 
   if (dedupKey) {
     rememberProcessedMutation(dedupKey, {
@@ -1813,6 +1880,79 @@ async function loadBoardCatalog() {
     boards,
     runtimeBoards: boards.map(toRuntimeBoard),
   };
+}
+
+async function getCachedRuntimeBoards({ force = false } = {}) {
+  const now = Date.now();
+  if (
+    !force
+    && Array.isArray(boardCatalogCache.runtimeBoards)
+    && boardCatalogCache.runtimeBoards.length > 0
+    && now - boardCatalogCache.loadedAt < boardCatalogCache.ttlMs
+  ) {
+    return boardCatalogCache.runtimeBoards;
+  }
+  const catalog = await loadBoardCatalog();
+  boardCatalogCache.runtimeBoards = Array.isArray(catalog?.runtimeBoards) ? cloneJson(catalog.runtimeBoards) : [];
+  boardCatalogCache.loadedAt = now;
+  return boardCatalogCache.runtimeBoards;
+}
+
+async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot) {
+  const runtimeBoards = await getCachedRuntimeBoards();
+  const runtime = isPlainObject(snapshot?.runtime) ? snapshot.runtime : {};
+  const selectedBoardId =
+    normalizeNonEmptyString(snapshot?.selectedBoard)
+    ?? normalizeNonEmptyString(snapshot?.selectedLayout)
+    ?? normalizeNonEmptyString(runtime?.selectedBoard)
+    ?? normalizeNonEmptyString(runtime?.boardId)
+    ?? normalizeNonEmptyString(runtimeBoards?.[0]?.id)
+    ?? null;
+
+  const activeBoard = runtimeBoards.find((entry) => normalizeNonEmptyString(entry?.id) === selectedBoardId) ?? null;
+  const roomLookup = toRoomLookup(activeBoard);
+  const runningAnimations = Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
+  const boardAnimations = runningAnimations
+    .filter((entry) => normalizeNonEmptyString(entry?.boardId) === selectedBoardId)
+    .map((entry, index) => {
+      const roomId = normalizeNonEmptyString(entry?.roomId);
+      return {
+        id: normalizeNonEmptyString(entry?.id) ?? `runtime-${index + 1}`,
+        scope: normalizeNonEmptyString(entry?.scope) ?? "room",
+        type: normalizeNonEmptyString(entry?.type) ?? "unknown",
+        boardId: selectedBoardId,
+        roomId,
+        roomLabel: roomId ? roomLookup[roomId]?.label ?? roomId : null,
+        opacity: normalizeUnitInterval(entry?.opacity, 1),
+        intensity: normalizePositiveNumber(entry?.intensity, 1),
+        speed: normalizePositiveNumber(entry?.speed, 1),
+        hold: entry?.hold === true,
+        durationMs: Number.isFinite(Number(entry?.durationMs)) ? Number(entry.durationMs) : null,
+        startedAtEpochMs: Number.isFinite(Number(entry?.startedAtEpochMs)) ? Number(entry.startedAtEpochMs) : null,
+      };
+    });
+
+  finalStreamComposerState.frameId += 1;
+  finalStreamComposerState.lastFrameAt = new Date().toISOString();
+  finalStreamComposerState.lastSourceVersion = Number(liveSessionState.version ?? 0);
+  finalStreamComposerState.latestFrame = {
+    schema: FINAL_STREAM_SCHEMA,
+    frameId: finalStreamComposerState.frameId,
+    generatedAt: finalStreamComposerState.lastFrameAt,
+    sourceVersion: finalStreamComposerState.lastSourceVersion,
+    mode: normalizeFinalStreamMode(runtime?.finalOutputMode, FINAL_STREAM_MODE_AUTO),
+    alignMode: Boolean(snapshot?.alignMode ?? runtime?.alignMode),
+    board: activeBoard
+      ? {
+        id: activeBoard.id,
+        label: normalizeNonEmptyString(activeBoard.label) ?? activeBoard.id,
+        imageSrc: normalizeNonEmptyString(activeBoard.src),
+        rooms: Object.values(roomLookup),
+      }
+      : null,
+    runningAnimations: boardAnimations,
+  };
+  return finalStreamComposerState.latestFrame;
 }
 
 async function listResourceFilesRecursive(baseDir, relativeDir = "") {
