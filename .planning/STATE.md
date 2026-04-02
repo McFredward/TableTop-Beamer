@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 9
 - Current Phase Key: phase-09
-- Last Prepared: 2026-04-02
+- Last Prepared: 2026-04-03
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF4 (completed)
+- Last Executed Plan: 9-HF5 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,12 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes P0-Refinement fuer Phase 9 ist bindend: recurring overlays im `/output/final` stream (u. a. `SERVER STREAM ACTIVE` + aktive Animationsliste) sind vollstaendig zu entfernen.
+- Reinheits-Regel Plan 9-HF5: stream output darf ausschliesslich visuelle Stream-Inhalte enthalten; Text-/Info-/Diagnostik-Overlays sind im Streampfad unzulaessig.
+- Gate-Regel Plan 9-HF5: Plan 9-2 bleibt blockiert bis overlay-freie Stream-Ausgabe ueber Stream-On/Off und Reconnect-Churn evidenzbasiert PASS ist.
+- Plan-9-HF5 Umsetzung: `/output/final` stream overlays (`SERVER STREAM ACTIVE`, running diagnostics list) sind aus Markup/CSS/runtime-render Pfaden entfernt.
+- Plan-9-HF5 Umsetzung: final-stream SSE payload ist visual-only contract-sanitized (`visual` block, keine `mode`/`board.label`/`roomLabel` diagnostics).
+- Plan-9-HF5 Umsetzung: HF4 non-regression + stream-purity + no-overlay parity matrices sind PASS (`P9-HF5-T5-HF4-NON-REGRESSION.md`, `P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
 - Plan-9-HF4 Umsetzung: final-stream compose ist von per-subscriber Timern auf single-producer fan-out umgestellt; command ingest/apply bleibt subscriber-unabhaengig.
 - Plan-9-HF4 Umsetzung: final-output stream-mode erzwingt keinen draw-short-circuit mehr; black-stream durch cleared-canvas/hidden-board Pfad ist geschlossen.
 - Plan-9-HF4 Umsetzung: producer watchdog + recovery guards halten stream fault/reconnect restart-frei stabil; HF4 matrix evidence ist PASS.
