@@ -67,6 +67,8 @@ const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
 const alignModeToggleInput = document.querySelector("#align-mode-toggle");
 const alignModeStatus = document.querySelector("#align-mode-status");
+const finalOutputModeSelect = document.querySelector("#final-output-mode-select");
+const finalOutputModeStatus = document.querySelector("#final-output-mode-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -226,6 +228,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-import-name",
   "board-import-id",
   "board-import-button",
+  "final-output-mode-select",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
@@ -414,6 +417,32 @@ function normalizeFinalOutputMode(value) {
   return "auto";
 }
 
+function syncFinalOutputModePanel() {
+  const normalized = normalizeFinalOutputMode(state.finalOutputMode);
+  if (finalOutputModeSelect) {
+    finalOutputModeSelect.value = normalized;
+  }
+  if (finalOutputModeStatus) {
+    finalOutputModeStatus.textContent = `Final output mode: ${normalized.toUpperCase()}`;
+  }
+}
+
+function setFinalOutputMode(nextMode, { emit = true } = {}) {
+  const normalized = normalizeFinalOutputMode(nextMode);
+  state.finalOutputMode = normalized;
+  syncFinalOutputModePanel();
+  if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
+    void emitLiveMutation("context-update", {
+      reason: "final-output-mode",
+      runtime: {
+        finalOutputMode: normalized,
+      },
+    }).catch(() => {
+      triggerFeedback.textContent = "Status: final output mode command failed";
+    });
+  }
+}
+
 function isFinalStreamHealthy() {
   if (!finalStreamRuntime.connected || finalStreamRuntime.lastFrameAt <= 0) {
     return false;
@@ -469,6 +498,7 @@ function setAlignMode(enabled, { emit = true } = {}) {
   }
   state.alignMode = nextAlignMode;
   syncAlignModePanel();
+  syncFinalOutputModePanel();
   renderRoomOverlay();
 }
 
@@ -12173,6 +12203,11 @@ mobileStartRoomButton?.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
 
+finalOutputModeSelect?.addEventListener("change", () => {
+  setFinalOutputMode(finalOutputModeSelect.value, { emit: true });
+  triggerFeedback.textContent = `Status: Final output mode set to ${normalizeFinalOutputMode(finalOutputModeSelect.value).toUpperCase()}`;
+});
+
 alignModeToggleInput?.addEventListener("change", () => {
   setAlignMode(Boolean(alignModeToggleInput.checked));
 });
@@ -12392,6 +12427,7 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
+  syncFinalOutputModePanel();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
   connectFinalOutputStream();

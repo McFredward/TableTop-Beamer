@@ -42,6 +42,7 @@ const liveSessionState = {
     selectedBoard: null,
     selectedLayout: null,
     outsideFxByBoard: {},
+    finalOutputMode: FINAL_STREAM_MODE_AUTO,
     runtime: null,
   },
 };
@@ -670,6 +671,10 @@ function applyContextUpdatePatch(payload) {
       : typeof runtimePatch?.alignMode === "boolean"
         ? runtimePatch.alignMode
         : null;
+  const finalOutputMode = normalizeFinalStreamMode(
+    payload?.finalOutputMode ?? runtimePatch?.finalOutputMode,
+    normalizeFinalStreamMode(nextRuntime?.finalOutputMode, FINAL_STREAM_MODE_AUTO),
+  );
   const requestedSelectedBoard =
     normalizeNonEmptyString(payload?.selectedBoard) ??
     normalizeNonEmptyString(payload?.boardId) ??
@@ -737,6 +742,7 @@ function applyContextUpdatePatch(payload) {
   if (alignMode !== null) {
     nextRuntime.alignMode = alignMode;
   }
+  nextRuntime.finalOutputMode = finalOutputMode;
 
   return {
     runtime: nextRuntime,
