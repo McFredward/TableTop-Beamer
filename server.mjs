@@ -173,8 +173,10 @@ async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
     const currentVersion = Number(liveSessionState.version ?? 0);
     const snapshotVersion = Math.max(requestedSourceVersion, currentVersion);
     const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
+    const subscriberCount = finalStreamClients.size + finalVideoClients.size;
     const needsCompose =
       force ||
+      subscriberCount === 0 ||
       snapshotVersion > latestFrameVersion ||
       !finalStreamComposerState.latestFrame ||
       Boolean(snapshotFromRequest);
