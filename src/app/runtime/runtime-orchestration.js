@@ -4829,6 +4829,19 @@ function shouldCoalesceNonCriticalAnimation(animation) {
   return (frameIndex + seed) % stride !== 0;
 }
 
+function getRuntimeVisualCaps() {
+  const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
+  const outsideStarsPerLayer = Math.max(18, Number(state.runtimePerf.maxOutsideStarsPerLayer) || 110);
+  const ashParticlesCap = Math.max(32, Number(state.runtimePerf.maxAshParticles) || 240);
+  const nonCriticalDensityScale = pressureLevel >= 2 ? 0.54 : pressureLevel === 1 ? 0.74 : 1;
+  return {
+    pressureLevel,
+    outsideStarsPerLayer,
+    ashParticlesCap,
+    nonCriticalDensityScale,
+  };
+}
+
 function recordRuntimeFrameCost(frameCostMs) {
   if (!Number.isFinite(frameCostMs) || frameCostMs <= 0) {
     return;
@@ -9954,6 +9967,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   const roomHeight = roomMetrics?.height ?? roomRadius * 2;
   const roomMinX = roomMetrics?.minX ?? roomX - roomWidth / 2;
   const roomMinY = roomMetrics?.minY ?? roomY - roomHeight / 2;
+  const visualCaps = getRuntimeVisualCaps();
 
   if (type === "outside-space") {
     const immersive = options.outsideMode === "immersive";
@@ -9979,7 +9993,13 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
     for (let layerIndex = 0; layerIndex < parallaxLayers.length; layerIndex += 1) {
       const layer = parallaxLayers[layerIndex];
-      const starCount = Math.max(24, Math.round(layer.density * intensity));
+      const starCount = Math.max(
+        16,
+        Math.min(
+          visualCaps.outsideStarsPerLayer,
+          Math.round(layer.density * intensity * visualCaps.nonCriticalDensityScale),
+        ),
+      );
       const layerSpeed = layer.speed * (0.8 + intensity * 0.75) * speedFactor;
       const layerWave = h * layer.wave;
 
@@ -10008,7 +10028,10 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       }
     }
 
-    const expressLanes = Math.max(6, Math.round((immersive ? 14 : 9) * intensity));
+    const expressLanes = Math.max(
+      4,
+      Math.min(22, Math.round((immersive ? 14 : 9) * intensity * visualCaps.nonCriticalDensityScale)),
+    );
     for (let i = 0; i < expressLanes; i += 1) {
       const laneY = (((i * 63.17) % 1000) / 1000) * h;
       const pulse = ((age * (0.82 + i * 0.045)) % 1) * (w + 210);
@@ -10036,7 +10059,8 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "ash-fall") {
-    if (Math.random() > 0.72) {
+    const spawnThreshold = visualCaps.pressureLevel >= 2 ? 0.9 : visualCaps.pressureLevel === 1 ? 0.82 : 0.72;
+    if (ashParticles.length < visualCaps.ashParticlesCap && Math.random() > spawnThreshold) {
       ashParticles.push({
         x: Math.random() * w,
         y: -8,
@@ -10045,6 +10069,9 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
         vx: (Math.random() - 0.5) * 0.4,
         vy: 0.3 + Math.random() * 0.7,
       });
+    }
+    if (ashParticles.length > visualCaps.ashParticlesCap) {
+      ashParticles.splice(0, ashParticles.length - visualCaps.ashParticlesCap);
     }
     for (let i = ashParticles.length - 1; i >= 0; i -= 1) {
       const p = ashParticles[i];
@@ -10084,7 +10111,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     }
 
     if (sparkSeed > 0.68) {
-      const sparkCount = 2 + Math.floor(sparkSeed * 6);
+      const sparkCount = Math.max(1, Math.round((2 + Math.floor(sparkSeed * 6)) * visualCaps.nonCriticalDensityScale));
       for (let i = 0; i < sparkCount; i += 1) {
         const sparkX = flickerNoise(step * 2.31 + i * 13.7) * w;
         const sparkY = flickerNoise(step * 3.11 + i * 7.3) * h;
@@ -10143,7 +10170,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "special-nest") {
     const densityFactor = Number(options.densityFactor) || 1;
-    const cells = Math.max(10, Math.round(22 * intensity * densityFactor));
+    const cells = Math.max(6, Math.round(22 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
     for (let i = 0; i < cells; i += 1) {
       const seed = ((i * 71.97) % 1000) / 1000;
       const seedB = ((i * 33.41 + 17) % 1000) / 1000;
@@ -10165,7 +10192,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "special-slime") {
     const densityFactor = Number(options.densityFactor) || 1;
-    const bands = Math.max(5, Math.round(9 * intensity * densityFactor));
+    const bands = Math.max(3, Math.round(9 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
     for (let i = 0; i < bands; i += 1) {
       const wave = Math.sin(age * 1.8 + i * 0.9);
       const y = roomMinY + roomHeight * (0.14 + (i / Math.max(1, bands - 1)) * 0.72);
@@ -10197,7 +10224,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "special-decompression") {
     const densityFactor = Number(options.densityFactor) || 1;
-    const rings = Math.max(4, Math.round(7 * intensity * densityFactor));
+    const rings = Math.max(3, Math.round(7 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
     const maxRadius = Math.max(roomWidth, roomHeight) * 0.72;
     for (let i = 0; i < rings; i += 1) {
       const progress = ((age * 0.9 + i / rings) % 1);
@@ -10209,7 +10236,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.arc(roomX, roomY, radius, 0, Math.PI * 2);
       ctx.stroke();
     }
-    const streaks = 14;
+    const streaks = Math.max(6, Math.round(14 * visualCaps.nonCriticalDensityScale));
     for (let i = 0; i < streaks; i += 1) {
       const angle = (Math.PI * 2 * i) / streaks + age * 1.2;
       const inner = Math.max(10, Math.min(roomWidth, roomHeight) * 0.1);
@@ -10252,7 +10279,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "state-broken") {
     const densityFactor = Number(options.densityFactor) || 1;
-    const crackCount = Math.max(4, Math.round(6 * densityFactor));
+    const crackCount = Math.max(3, Math.round(6 * densityFactor * visualCaps.nonCriticalDensityScale));
     ctx.strokeStyle = `rgba(186, 210, 226, ${0.58 * intensity})`;
     ctx.lineWidth = Math.max(1.2, Math.min(roomWidth, roomHeight) * 0.012);
     for (let i = 0; i < crackCount; i += 1) {
@@ -10269,7 +10296,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
 
   if (type === "state-burning") {
     const densityFactor = Number(options.densityFactor) || 1;
-    const flames = Math.max(8, Math.round(11 * densityFactor));
+    const flames = Math.max(5, Math.round(11 * densityFactor * visualCaps.nonCriticalDensityScale));
     for (let i = 0; i < flames; i += 1) {
       const phase = (age * 1.7 + i * 0.17) % 1;
       const x = roomMinX + roomWidth * (((i * 0.41) % 1) * 0.92 + 0.04);
