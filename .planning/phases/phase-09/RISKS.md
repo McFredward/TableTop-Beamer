@@ -1,5 +1,8 @@
 # Phase 9 Risks
 
+## Acceptance Correction Context
+- 9-1 is not accepted; 9-HF1 introduces hard gates with measurable `src/app.js` reduction.
+
 ## R1 Extraction order causes hidden coupling regressions
 - Risk: moving blocks from `src/app.js` in wrong sequence breaks implicit dependencies.
 - Impact: Critical.
@@ -8,7 +11,12 @@
 ## R2 Thin bootstrap still keeps feature logic
 - Risk: `src/app.js` remains partially monolithic after incomplete extraction.
 - Impact: High.
-- Mitigation: strict bootstrap ownership gate before closing 9-1.
+- Mitigation: strict bootstrap ownership gate in 9-HF1 + mandatory domain extraction checklist.
+
+## R2b app.js reduction is marginal instead of significant
+- Risk: extraction exists but file-size reduction is too small to improve maintainability.
+- Impact: Critical.
+- Mitigation: hard acceptance gate `wc -l src/app.js <= 4200` from baseline 12163 (>= 65% reduction).
 
 ## R3 State transition drift during extraction
 - Risk: start/stop/clear/board-switch semantics change subtly.
@@ -48,9 +56,14 @@
 ## R10 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-T12.
+- Mitigation: mandatory full artifact sync in P9-HF1-T10.
+
+## R11 Regression escape during mandatory domain extractions
+- Risk: editor/runtime/sync/settings/media extraction introduces hidden behavior drift.
+- Impact: Critical.
+- Mitigation: strict regression matrix after each domain slice and full-matrix rerun before closure.
 
 ## Execution Notes
 
-- R3/R4/R5 mitigated in 9-1 via adapter-preserving extraction and regression guard evidence.
-- R8 mitigated in 9-1 by introducing scoped, level-gated structured logger (`warn` default).
+- 9-1 evidence exists but acceptance remains open due to unmet mandatory reduction objective.
+- 9-HF1 hard-gate wave executed with measurable monolith shrink PASS (`src/app.js` now 28 lines).

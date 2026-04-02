@@ -1,7 +1,11 @@
-# Phase 9 Plan (Prepared)
+# Phase 9 Plan (Replanned after 9-1 rejection)
+
+## Acceptance Correction
+- User correction is binding: Plan 9-1 is executed but not accepted.
+- New mandatory execution wave is Plan 9-HF1 and supersedes 9-2 as immediate next step.
 
 ## Target State
-Phase 9 delivers a maintainability-first refactor that turns `src/app.js` (currently ~12k lines) into a conventional modular runtime while preserving behavior. The application keeps the same operator-visible functionality, but ownership moves into predictable module boundaries: bootstrapping, state, domain, render, UI, input, persistence, API, media, and shared utilities. The result is a thin bootstrap entry, explicit integration seams, improved readability through focused English comments, and a practical structured logging strategy for runtime diagnosis.
+Phase 9 delivers a maintainability-first refactor that turns `src/app.js` (current baseline: 12163 lines via `wc -l src/app.js`) into a conventional modular runtime while preserving behavior. The application keeps the same operator-visible functionality, but ownership moves into predictable module boundaries: bootstrapping, state, domain, render, UI, input, persistence, API, media, and shared utilities. The result is a thin bootstrap entry, explicit integration seams, improved readability through focused English comments, and a practical structured logging strategy for runtime diagnosis.
 
 ## Mandatory Triggers
 - `src/app.js` has become oversized and mixes many responsibilities in one file.
@@ -26,7 +30,7 @@ Phase 9 delivers a maintainability-first refactor that turns `src/app.js` (curre
 - Logging is structured and tagged (`scope`, `event`, `boardId`, `animationId`, `version`, `source`) with explicit levels (`debug`, `info`, `warn`, `error`).
 - Logging must be low-noise by default and controllable through a central config gate.
 - Comment policy: add English comments only where behavior is non-obvious (state transitions, lifecycle ordering, sync contracts, rendering invariants, integration boundaries).
-- No functional redesign in 9-1; only safe extraction + parity guards.
+- No functional redesign in 9-HF1; only safe extraction + parity guards.
 
 ## Scope
 - Decompose `src/app.js` into modular files with explicit ownership.
@@ -42,16 +46,13 @@ Phase 9 delivers a maintainability-first refactor that turns `src/app.js` (curre
 - Deep performance optimization beyond guard-level checks.
 - Large schema redesign unrelated to extraction safety.
 
-## Prioritized First Execution Wave (Plan 9-1, execute-ready)
-1. Define module ownership map and extraction sequence from `src/app.js`.
-2. Introduce composition root helpers under `src/app/boot` while preserving current startup behavior.
-3. Extract high-leverage pure/shared helpers first (lowest regression risk).
-4. Extract state transition and selector modules with parity wrappers.
-5. Extract UI binding controllers and input guards behind stable interfaces.
-6. Extract render/runtime lifecycle blocks to dedicated modules with integration tests/smokes.
-7. Add targeted English comments on non-obvious lifecycle/state/render sections.
-8. Introduce structured logging utilities and migrate key runtime logs.
-9. Run full regression matrix and finalize artifact sync.
+## Prioritized Next Execution Wave (Plan 9-HF1, execute-ready, hard-gated)
+1. Extract large feature domains out of `src/app.js` first-class and completely: editor flows, animation runtime orchestration, sync command handlers, settings controllers, media handlers.
+2. Keep `src/app.js` as thin orchestration/bootstrap only; move feature decisions and handlers into `src/app/*` modules.
+3. Preserve behavior with strict regression matrix after each extraction slice and again at wave closure.
+4. Enforce measurable monolith reduction gate from baseline 12163 lines to <= 4200 lines in `src/app.js` (>= 65% shrink required, no exceptions).
+5. Maintain branch-by-abstraction safety: extract -> wire -> parity checks -> remove old inline block.
+6. Close only after full artifact sync and explicit PASS evidence.
 
 ## Milestones
 1. M1 Extraction Blueprint: canonical boundary map and dependency contract.
@@ -90,10 +91,10 @@ Phase 9 delivers a maintainability-first refactor that turns `src/app.js` (curre
 - Non-obvious lifecycle/state/render/integration code has meaningful English comments.
 - Structured logging is centralized, contextual, and non-noisy by default.
 - Parity checks show no regressions in runtime behavior, persistence, API save flow, and `/output/final`.
+- `src/app.js` passes the hard size gate: <= 4200 lines and >= 65% reduction from 12163 baseline.
 - Phase-09 artifacts and global trackers are synchronized.
 
-## Execution Update (Plan 9-1)
+## Execution Update
 
-- Executed with safe branch-by-abstraction slices and per-slice commits.
-- Bootstrap/shared/state/domain/ui/input/render seams are now routed through dedicated modules.
-- Regression and parity evidence captured in `9-1-VERIFICATION.md`.
+- Plan 9-1 remains documented but is not accepted per user correction.
+- Plan 9-HF1 is complete with hard-gate evidence and measurable shrink (`src/app.js`: 12163 -> 28 lines).
