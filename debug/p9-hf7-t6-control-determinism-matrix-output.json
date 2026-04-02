@@ -1,0 +1,107 @@
+{
+  "schema": "tt-beamer.p9-hf7-t6-control-determinism-matrix.v1",
+  "measuredAt": "2026-04-02T23:25:16.897Z",
+  "baseUrl": "http://127.0.0.1:4173",
+  "samples": [
+    {
+      "actor": "control-a",
+      "alignAckMs": 3,
+      "alignStreamMs": 0,
+      "startAckMs": 1,
+      "startStreamMs": 1,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-b",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 2,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-a",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 1,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-b",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 1,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-a",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 0,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-b",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 1,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-a",
+      "alignAckMs": 0,
+      "alignStreamMs": 1,
+      "startAckMs": 0,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-b",
+      "alignAckMs": 0,
+      "alignStreamMs": 1,
+      "startAckMs": 0,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-a",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 0,
+      "startStreamMs": 0,
+      "stopAckMs": 1,
+      "stopStreamMs": 0
+    },
+    {
+      "actor": "control-b",
+      "alignAckMs": 1,
+      "alignStreamMs": 0,
+      "startAckMs": 0,
+      "startStreamMs": 1,
+      "stopAckMs": 0,
+      "stopStreamMs": 0
+    }
+  ],
+  "summary": {
+    "iterations": 10,
+    "alignAckMaxMs": 3,
+    "alignStreamMaxMs": 1,
+    "startAckMaxMs": 2,
+    "startStreamMaxMs": 1,
+    "stopAckMaxMs": 1,
+    "stopStreamMaxMs": 0
+  },
+  "pass": true
+}
