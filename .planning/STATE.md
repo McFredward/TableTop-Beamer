@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-03
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF6 (completed)
+- Last Executed Plan: 9-HF7 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF6-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,16 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritische P0-Produktionsdirektive ist bindend: `/output/final` muss strict server-composed stream-only laufen; client fallback (auto/manual) ist dort unzulaessig.
+- Autoritaetsregel Plan 9-HF7: Stream-Compose fuer `/output/final` bleibt kontinuierlich serverseitig aktiv und ist subscriber-count-unabhaengig (0/1/N).
+- Frische-Regel Plan 9-HF7: Producer composes from current full authoritative state revision; stale-frame/cache-reuse path ist unzulaessig.
+- Immediacy-Regel Plan 9-HF7: jede akzeptierte Mutation (start/stop/board/align/etc.) muss ohne Refresh sofort in `/output/final` sichtbar sein.
+- Determinismus-Regel Plan 9-HF7: Control-Views bleiben funktional/deterministisch; HF6 transport/apply/ack und HF5 visual-only purity bleiben harte Non-Regression-Gates.
+- Plan 9-HF7 ist als priorisierte execute-ready Blocker-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Plan-9-HF7 Umsetzung: `/output/final` ist jetzt strict stream-only; auto/client fallback requests werden server- und runtime-seitig auf `stream` normalisiert.
+- Plan-9-HF7 Umsetzung: final-stream producer ist immer aktiv, subscriber-count-unabhaengig und startet serverseitig ohne Client-Abhaengigkeit.
+- Plan-9-HF7 Umsetzung: compose ist revision-bound auf autoritative Full-State-Snapshots; stale cached attach frame path ist geschlossen.
+- Plan-9-HF7 Umsetzung: mutation-to-output immediacy (start/stop/board/align) sowie control determinism und HF5/HF6 non-regression sind PASS (`9-HF7-VERIFICATION.md`).
 - Kritischer P0-Blocker nach Stream-Purity-Aenderungen ist bindend: Control-Buttons (insb. room start/stop) laufen im Client teils ins Leere, sobald stream mode aktiv ist.
 - Plan 9-HF6 ist als priorisierte execute-ready Blocker-Welle gesetzt und blockiert Plan 9-2 bis PASS.
 - Architekturregel Plan 9-HF6: Client-Aktionen muessen den Server-Command-Ingest-Pfad sofort erreichen; stream mode darf keinen transportseitigen No-Op- oder Drop-Pfad aktivieren.
@@ -30,7 +40,7 @@
 - Plan-9-HF6 Umsetzung: start/stop Transport ist control-critical priorisiert; drop/no-op Overflow-Pfad fuer Control-Kommandos ist geschlossen (`P9-HF6-T3-TRANSPORT-FIX.md`).
 - Plan-9-HF6 Umsetzung: immediate apply + snapshot + stream propagation sowie ack-parity stream on/off sind PASS (`P9-HF6-T4-APPLY-SNAPSHOT-STREAM.md`, `P9-HF6-T5-IMMEDIATE-ACK.md`).
 - Plan-9-HF6 Umsetzung: strikte start/stop multi-client parity + HF5 purity non-regression sind PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`, `P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
-- Plan 9-2 ist nach HF6-PASS wieder freigegeben.
+- Plan 9-2 war nach HF6-PASS kurzzeitig freigegeben, ist durch bindenden HF7-Blocker wieder blockiert.
 - Neues verpflichtendes P0-Refinement fuer Phase 9 ist bindend: recurring overlays im `/output/final` stream (u. a. `SERVER STREAM ACTIVE` + aktive Animationsliste) sind vollstaendig zu entfernen.
 - Reinheits-Regel Plan 9-HF5: stream output darf ausschliesslich visuelle Stream-Inhalte enthalten; Text-/Info-/Diagnostik-Overlays sind im Streampfad unzulaessig.
 - Gate-Regel Plan 9-HF5: Plan 9-2 bleibt blockiert bis overlay-freie Stream-Ausgabe ueber Stream-On/Off und Reconnect-Churn evidenzbasiert PASS ist.
