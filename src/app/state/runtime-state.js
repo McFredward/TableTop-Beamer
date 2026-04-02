@@ -123,6 +123,8 @@
         videoDecodeStride: 1,
         videoDrawStride: 1,
         finalOutputPriorityActive: false,
+        controlFrameBudgetMs: 11.5,
+        controlFrameYieldCount: 0,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,

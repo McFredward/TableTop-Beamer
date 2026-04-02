@@ -5073,6 +5073,7 @@ function applyRuntimePressureCaps(pressureLevel) {
     state.runtimePerf.maxAshParticles = finalOutputPriority ? 120 : 56;
     state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 48 : 24;
     state.runtimePerf.videoDecodeStride = finalOutputPriority ? 1 : 2;
+    state.runtimePerf.controlFrameBudgetMs = finalOutputPriority ? 14 : 9;
     return;
   }
   if (level === 1) {
@@ -5081,6 +5082,7 @@ function applyRuntimePressureCaps(pressureLevel) {
     state.runtimePerf.maxAshParticles = finalOutputPriority ? 180 : 120;
     state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 78 : 52;
     state.runtimePerf.videoDecodeStride = 1;
+    state.runtimePerf.controlFrameBudgetMs = finalOutputPriority ? 13 : 10.5;
     return;
   }
   state.runtimePerf.nonCriticalCoalesceStride = 1;
@@ -5088,6 +5090,7 @@ function applyRuntimePressureCaps(pressureLevel) {
   state.runtimePerf.maxAshParticles = finalOutputPriority ? 240 : 210;
   state.runtimePerf.maxOutsideStarsPerLayer = finalOutputPriority ? 110 : 92;
   state.runtimePerf.videoDecodeStride = 1;
+  state.runtimePerf.controlFrameBudgetMs = 11.5;
 }
 
 function recordRuntimeFrameCost(frameCostMs) {
@@ -10781,7 +10784,16 @@ function draw(now) {
     const failedAnimationIds = [];
     let renderedCount = 0;
     const maxRenderAnimationsPerFrame = Math.max(1, Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96);
+    const controlFrameBudgetMs = Math.max(6, Number(state.runtimePerf.controlFrameBudgetMs) || 11.5);
     for (const anim of state.runningAnimations) {
+      if (
+        outputRole !== OUTPUT_ROLE_FINAL
+        && !isRenderCriticalAnimation(anim)
+        && performance.now() - frameStart >= controlFrameBudgetMs
+      ) {
+        state.runtimePerf.controlFrameYieldCount = Math.max(0, Number(state.runtimePerf.controlFrameYieldCount) || 0) + 1;
+        continue;
+      }
       if (shouldCoalesceNonCriticalAnimation(anim)) {
         continue;
       }
