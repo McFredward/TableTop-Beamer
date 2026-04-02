@@ -10,10 +10,10 @@
 - Current Phase: 9
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-02
-- Execution Readiness: READY
-- Last Executed Plan: 9-HF3 (completed)
+- Execution Readiness: READY (HF4 executed, 9-2 next)
+- Last Executed Plan: 9-HF4 (executed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,15 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritisches Rollback-/Rethink-Feedback ist bindend: HF3 hat reale Regressionen verursacht (unzuverlaessiges Start/Stop, Startup-Duplikate/Phantome, Board-Switch-Paritaetsbruch, `/output/final` Load-Unzuverlaessigkeit).
+- Plan-9-HF4 Umsetzung: startup running-list normalization erzwingt idempotente Invarianten (keine phantom entries, keine duplicate outside runs).
+- Plan-9-HF4 Umsetzung: board-switch context nutzt transaction-gebundenen overlay hold bis image-ready/timeout fuer image+polygon parity.
+- Plan-9-HF4 Umsetzung: runtime profiles (`safe`/`balanced`/`aggressive`) gate'n aggressive scheduler complexity; weak devices defaulten auf `safe`.
+- Neue P0-Welle Plan 9-HF4 ist bindend und execute-ready: Reliability-first vor Performance-Optimierung, Core-Funktion zuerst wiederherstellen.
+- Architekturregel 9-HF4: destabilisierende Scheduler-Komplexitaet wird entfernt oder hinter failsafe Profil-Flags (`safe`/`balanced`/`aggressive`) strikt kontrolliert; `safe` ist Default auf weak devices.
+- Invarianzregel 9-HF4: Startup muss idempotent clean sein (keine phantom running entries, keine duplicate outside runs).
+- Sync-Regel 9-HF4: serverautoritatives Ordering/Version/Idempotenz und mobile->pi Zuverlaessigkeit bleiben non-negotiable Primaerziele.
+- Evidenzregel 9-HF4: jeder kritische Blocker braucht explizite FAIL->PASS Reproduktion plus Runtime-Smoke-Nachweis auf Kern-Journeys.
 - Neues verpflichtendes P0-Problem fuer Phase 9 ist bindend: video-basierte Animationen verursachen starke Haenger auf Handy und Raspberry Pi (Beamer) und muessen umfassend behoben werden.
 - Prioritaetsregel Plan 9-HF3: `/output/final` bleibt unter video-lastiger Laufzeit stabil fluessig und erhaelt harte Render-/Decode-Priorisierung gegenueber Control-Views.
 - Runtime-Regel Plan 9-HF3: Video-Renderpfad wird mit decode/render scheduling, buffering/warmup und draw-strategy-Hardening auf weak devices deterministisch stabilisiert.
