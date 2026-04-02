@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-03
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF5 (completed)
+- Last Executed Plan: 9-HF6 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,16 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritischer P0-Blocker nach Stream-Purity-Aenderungen ist bindend: Control-Buttons (insb. room start/stop) laufen im Client teils ins Leere, sobald stream mode aktiv ist.
+- Plan 9-HF6 ist als priorisierte execute-ready Blocker-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Architekturregel Plan 9-HF6: Client-Aktionen muessen den Server-Command-Ingest-Pfad sofort erreichen; stream mode darf keinen transportseitigen No-Op- oder Drop-Pfad aktivieren.
+- Runtime-Regel Plan 9-HF6: Server apply verarbeitet Commands auch bei aktivem stream mode sofort, aktualisiert stream state + snapshot state in derselben autoritativen Mutation und emittiert unmittelbares Ack.
+- Gate-Regel Plan 9-HF6: strikte Start/Stop-Regressionen fuer stream on/off ueber mehrere Clients inkl. `/output/final` muessen PASS sein; HF5 stream-purity bleibt unveraendert verpflichtend.
+- Plan-9-HF6 Umsetzung: deterministic pre-fix repro + root-cause closure ist dokumentiert (`P9-HF6-T1-REPRO-TRACE.md`, `P9-HF6-T2-ROOT-CAUSE.md`).
+- Plan-9-HF6 Umsetzung: start/stop Transport ist control-critical priorisiert; drop/no-op Overflow-Pfad fuer Control-Kommandos ist geschlossen (`P9-HF6-T3-TRANSPORT-FIX.md`).
+- Plan-9-HF6 Umsetzung: immediate apply + snapshot + stream propagation sowie ack-parity stream on/off sind PASS (`P9-HF6-T4-APPLY-SNAPSHOT-STREAM.md`, `P9-HF6-T5-IMMEDIATE-ACK.md`).
+- Plan-9-HF6 Umsetzung: strikte start/stop multi-client parity + HF5 purity non-regression sind PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`, `P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
+- Plan 9-2 ist nach HF6-PASS wieder freigegeben.
 - Neues verpflichtendes P0-Refinement fuer Phase 9 ist bindend: recurring overlays im `/output/final` stream (u. a. `SERVER STREAM ACTIVE` + aktive Animationsliste) sind vollstaendig zu entfernen.
 - Reinheits-Regel Plan 9-HF5: stream output darf ausschliesslich visuelle Stream-Inhalte enthalten; Text-/Info-/Diagnostik-Overlays sind im Streampfad unzulaessig.
 - Gate-Regel Plan 9-HF5: Plan 9-2 bleibt blockiert bis overlay-freie Stream-Ausgabe ueber Stream-On/Off und Reconnect-Churn evidenzbasiert PASS ist.

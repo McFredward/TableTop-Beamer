@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 9 (`phase-09`)
-- Status: in-progress (Plan 9-HF1, 9-HF2, 9-HF3, 9-HF4, and 9-HF5 completed)
-- Next Plan: 9-2 (post-HF5 hardening wave)
+- Status: in-progress (Plan 9-HF1, 9-HF2, 9-HF3, 9-HF4, 9-HF5, and 9-HF6 completed)
+- Next Plan: 9-2 (post-HF6 hardening wave)
 - Command Target: `/gsd:execute-phase 9`
 
 Execution inputs:

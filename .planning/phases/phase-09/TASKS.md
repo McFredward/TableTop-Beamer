@@ -60,6 +60,16 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF5-T7 [P0] Execute output parity verification to confirm visual content parity without textual/diagnostic overlays.
 - [x] DONE P9-HF5-T8 [P0] Record HF5 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF6 - Critical control-command transport + immediate apply/ack recovery wave (execute-ready, hard-gated)
+- [x] DONE P9-HF6-T1 [P0] Build deterministic reproduction harness for dropped/no-op control commands under active stream mode (start/stop first) and capture pre-fix traces.
+- [x] DONE P9-HF6-T2 [P0] Isolate root cause in client->server command transport path (dispatch/envelope/routing) introduced after stream-purity changes.
+- [x] DONE P9-HF6-T3 [P0] Fix command transport so client control actions always reach server command ingest regardless of stream mode state.
+- [x] DONE P9-HF6-T4 [P0] Fix server apply path to process accepted commands immediately under stream mode and update authoritative stream+snapshot state in same mutation cycle.
+- [x] DONE P9-HF6-T5 [P0] Enforce immediate server acknowledgement semantics for accepted control commands with no stream-mode-dependent delay/no-op path.
+- [x] DONE P9-HF6-T6 [P0] Execute strict start/stop regression matrix for stream on/off across multiple control clients and `/output/final`, including propagation latency checks.
+- [x] DONE P9-HF6-T7 [P0] Execute HF5 non-regression matrix to confirm visual-only stream purity remains intact (no recurring overlays) while HF6 fixes are active.
+- [x] DONE P9-HF6-T8 [P0] Record HF6 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -75,7 +85,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF5 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF6 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).

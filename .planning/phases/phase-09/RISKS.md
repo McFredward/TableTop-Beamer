@@ -2,7 +2,8 @@
 
 ## Acceptance Correction Context
 - 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
-- 9-HF3 and 9-HF4 are completed baselines; 9-HF5 is the binding P0 stream-purity wave.
+- 9-HF3, 9-HF4, and 9-HF5 are completed baselines.
+- 9-HF6 is the binding P0 blocker wave for control-command transport/apply/ack recovery under stream mode.
 
 ## R1 Hidden coupling still exists between stream lifecycle and command path
 - Risk: a residual shared lock/state path still allows stream subscriber events to freeze command ingest/apply.
@@ -14,70 +15,51 @@
 - Impact: Critical.
 - Mitigation: bounded queue budgets, priority class separation, and latency SLO checks for command path.
 
-## R3 Black-stream root cause is multi-factor and partially hidden
-- Risk: only one board/profile is fixed while other asset/pipeline variants remain black.
-- Impact: High.
-- Mitigation: board/profile/asset matrix coverage with shared render guards and explicit fail-closed diagnostics.
-
-## R4 Stream producer unintentionally depends on client render health
-- Risk: client-side failures feed back into producer timing/state causing output stalls.
+## R3 Transport gating regression from stream-purity changes
+- Risk: stream-mode conditionals introduced for purity accidentally short-circuit control command transport.
 - Impact: Critical.
-- Mitigation: server-authoritative producer ownership with one-way consumer boundaries.
+- Mitigation: command transport path audit from client dispatch to server ingress with explicit no-stream-gate invariant.
 
-## R5 Restart requirement persists in certain fault paths
-- Risk: rare producer/subscriber fault leaves system unrecoverable without server restart.
+## R4 Server apply is deferred behind stream producer timing
+- Risk: accepted control commands are not applied immediately because apply is indirectly tied to stream producer cadence.
 - Impact: Critical.
-- Mitigation: watchdog recovery, circuit-breaker resets, and restart-free fault injection tests.
+- Mitigation: decouple command apply from producer tick; enforce immediate authoritative apply path and ack timing assertions.
 
-## R6 Isolation fix regresses deterministic sync/align contracts
+## R5 Ack appears successful while apply/snapshot propagation is stale
+- Risk: client sees ack but command effect is delayed or absent in snapshot and `/output/final`.
+- Impact: Critical.
+- Mitigation: verify ack/apply/snapshot linkage and require immediate revision/projection propagation checks in matrix.
+
+## R6 Multi-client race reintroduces start/stop no-op behavior
+- Risk: fixes pass single-client but regress under concurrent controllers or reconnect churn.
+- Impact: Critical.
+- Mitigation: mandatory multi-client start/stop matrix including churn and `/output/final` observer parity.
+
+## R7 Purity regression while restoring command reliability
+- Risk: command-path fixes accidentally re-enable stream overlays/diagnostics text in `/output/final`.
+- Impact: Critical.
+- Mitigation: keep HF5 visual-only assertions as mandatory non-regression gates in HF6.
+
+## R8 Isolation fix regresses deterministic sync/align contracts
 - Risk: implementation accidentally changes ordering/version/idempotent apply behavior.
 - Impact: Critical.
 - Mitigation: enforce presentation-only boundary and run deterministic sync regression with stream enabled.
 
-## R7 Control command responsiveness degrades under mixed stream/load states
-- Risk: controls pass in steady state but regress under subscriber churn or partial outages.
-- Impact: Critical.
-- Mitigation: mandatory stream on/off + churn matrices with command latency and success-rate gates.
-
-## R8 Observability gap slows root-cause closure
-- Risk: missing lifecycle/queue metrics obscures post-fix regressions.
+## R9 Observability gap slows root-cause closure
+- Risk: missing lifecycle/queue/ack/apply timing metrics obscures post-fix regressions.
 - Impact: High.
-- Mitigation: structured traces for queue depth, lock wait, producer health, and command ingest/apply timings.
+- Mitigation: structured traces for command dispatch, ingress, apply, ack, snapshot revision, and fanout latency.
 
-## R9 Broad fix accidentally over-couples fallback path
-- Risk: stabilization changes break deterministic fallback or output parity behavior.
-- Impact: Critical.
-- Mitigation: keep fallback contract tests in mandatory matrix; validate both stream and fallback in every gate.
-
-## R10 Lifecycle/no-replay regression reintroduced indirectly
-- Risk: stream integration bypasses HF2 lifecycle guards and shows stale replay artifacts.
-- Impact: Critical.
-- Mitigation: keep stream fed from authoritative post-reconcile state and re-run no-replay regression.
-
-## R11 Artifact drift across phase/global trackers
+## R10 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF5-T8.
-
-## R12 Overlay source is duplicated across compose/debug paths
-- Risk: overlay text removal in one path leaves secondary compose/debug injection path active.
-- Impact: Critical.
-- Mitigation: remove overlays at authoritative compose source and enforce single-stream purity guard.
-
-## R13 Diagnostics overlay can re-enter via fallback/reconnect lifecycle
-- Risk: reconnect or fallback transitions re-enable debug overlay state in stream frames.
-- Impact: Critical.
-- Mitigation: lifecycle tests for reconnect/churn plus explicit no-overlay assertions on each stream mode transition.
-
-## R14 Overlay removal accidentally regresses HF4 stability guarantees
-- Risk: stream purity fix touches producer/command boundaries and reintroduces responsiveness or recovery regressions.
-- Impact: Critical.
-- Mitigation: mandatory HF4 non-regression matrix is part of HF5 gate before any wave closure.
+- Mitigation: mandatory full artifact sync in P9-HF6-T8.
 
 ## Execution Notes
 
 - 9-HF1 and 9-HF2 baselines remain valid and are treated as non-regression gates.
 - 9-HF3 closure remains valid for stream viability/fallback/parity baseline.
-- 9-HF4 closures are implemented and verified and remain mandatory non-regression gates for HF5.
-- HF5 stream-output purity risks are closed with evidence (`P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
-- Residual Phase 9 risk focus shifts to 9-2 adapter/dependency cleanup.
+- 9-HF4 closure remains valid for stream/control decoupling baseline.
+- 9-HF5 closure remains valid for stream visual-only purity baseline.
+- HF6 closure reduces primary transport/apply/ack blocker risk with strict parity evidence and stream-purity non-regression PASS.
+- Residual Phase 9 risk focus moves to post-HF6 hardening scope in Plan 9-2.
