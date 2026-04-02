@@ -1346,6 +1346,7 @@ const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
 const videoSchedulerStateByKey = new Map();
+const videoFrameCacheByKey = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
 const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
 const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
@@ -4404,6 +4405,73 @@ function ensureVideoWarmupReady(videoEntry, { key = "", priority = "normal", tar
     });
     warmup.primedAtMs = nowMs;
   }
+  return true;
+}
+
+function computeDrawCadenceSeed(key) {
+  const value = String(key || "");
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) % 8191;
+  }
+  return hash;
+}
+
+function getVideoDrawStride(priority = "normal") {
+  const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
+  if (outputRole === OUTPUT_ROLE_FINAL) {
+    return 1;
+  }
+  const base = pressureLevel >= 2 ? 3 : pressureLevel === 1 ? 2 : 1;
+  return priority === "critical" ? Math.max(1, base - 1) : base;
+}
+
+function shouldDrawVideoFrameThisTick(key, { priority = "normal" } = {}) {
+  const stride = Math.max(1, getVideoDrawStride(priority));
+  state.runtimePerf.videoDrawStride = stride;
+  if (stride <= 1) {
+    return true;
+  }
+  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
+  const seed = computeDrawCadenceSeed(key);
+  return (frameIndex + seed) % stride === 0;
+}
+
+function ensureVideoFrameCacheForKey(key) {
+  if (!videoFrameCacheByKey.has(key)) {
+    const fallbackCanvas = document.createElement("canvas");
+    const fallbackCtx = fallbackCanvas.getContext("2d", { alpha: true });
+    videoFrameCacheByKey.set(key, {
+      fallbackCanvas,
+      fallbackCtx,
+      hasFrame: false,
+      lastUpdatedAtMs: 0,
+    });
+  }
+  return videoFrameCacheByKey.get(key);
+}
+
+function captureVideoFrameCache(key, video, width, height) {
+  const cache = ensureVideoFrameCacheForKey(key);
+  if (!cache?.fallbackCtx || !video) {
+    return;
+  }
+  if (cache.fallbackCanvas.width !== width || cache.fallbackCanvas.height !== height) {
+    cache.fallbackCanvas.width = width;
+    cache.fallbackCanvas.height = height;
+  }
+  cache.fallbackCtx.clearRect(0, 0, width, height);
+  cache.fallbackCtx.drawImage(video, 0, 0, width, height);
+  cache.lastUpdatedAtMs = performance.now();
+  cache.hasFrame = true;
+}
+
+function drawVideoFrameCache(key, x, y, width, height) {
+  const cache = videoFrameCacheByKey.get(key);
+  if (!cache?.hasFrame || !cache?.fallbackCanvas) {
+    return false;
+  }
+  ctx.drawImage(cache.fallbackCanvas, x, y, width, height);
   return true;
 }
 
@@ -8779,17 +8847,27 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     const videoEntry = getOutsideVideoElement(assetRef);
     const video = videoEntry?.video;
     if (video) {
+      const videoKey = `room:${animation.id}:${assetRef}`;
       const playbackRate = Math.max(0.3, Math.min(2.5, Number(animation.speed) || 1));
       const warmReady = ensureVideoWarmupReady(videoEntry, {
-        key: `room:${animation.id}:${assetRef}`,
+        key: videoKey,
         targetRate: playbackRate,
         priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
       });
+      const shouldDrawVideo = shouldDrawVideoFrameThisTick(videoKey, { priority: "normal" });
+      if (!shouldDrawVideo) {
+        ctx.save();
+        ctx.globalAlpha = clampRoomOpacity(animation.opacity);
+        drawVideoFrameCache(videoKey, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+        ctx.restore();
+        return;
+      }
       if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
         ctx.save();
         ctx.globalAlpha = clampRoomOpacity(animation.opacity);
         ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
         ctx.restore();
+        captureVideoFrameCache(videoKey, video, roomMetrics.width, roomMetrics.height);
       }
     }
     return;
@@ -9897,16 +9975,23 @@ function drawInsideGlobalVisual(animation, age) {
     if (videoEntry?.video) {
       const video = videoEntry.video;
       const playbackRate = Math.max(0.15, Math.min(4, speed * state.animationSpeed));
+      const videoKey = `inside:${animation.id}:${definition.assetRef}`;
       const warmReady = ensureVideoWarmupReady(videoEntry, {
-        key: `inside:${animation.id}:${definition.assetRef}`,
+        key: videoKey,
         targetRate: playbackRate,
         priority: outputRole === OUTPUT_ROLE_FINAL ? "critical" : "normal",
       });
       if (!warmReady) {
         return;
       }
+      if (!shouldDrawVideoFrameThisTick(videoKey, { priority: "normal" })) {
+        if (drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height)) {
+          return;
+        }
+      }
       ctx.globalAlpha = intensity;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      captureVideoFrameCache(videoKey, video, canvas.width, canvas.height);
       return;
     }
   }
@@ -10055,8 +10140,9 @@ function drawOutsideFxLayer(now) {
       if (videoEntry?.video) {
         const video = videoEntry.video;
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
+        const videoKey = `outside:${state.boardId}:${selectedDefinition.assetRef}`;
         const warmReady = ensureVideoWarmupReady(videoEntry, {
-          key: `outside:${state.boardId}:${selectedDefinition.assetRef}`,
+          key: videoKey,
           targetRate,
           priority: "critical",
         });
@@ -10068,11 +10154,21 @@ function drawOutsideFxLayer(now) {
         });
         maybeWrapOutsideMp4Loop(video, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
+        const shouldDrawVideo = shouldDrawVideoFrameThisTick(videoKey, { priority: "critical" });
+        if (!shouldDrawVideo) {
+          if (!drawOutsideMp4FallbackFrame(playbackState)) {
+            drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height);
+          }
+          return;
+        }
         if (warmReady && video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           captureOutsideMp4FallbackFrame(playbackState, video);
+          captureVideoFrameCache(videoKey, video, canvas.width, canvas.height);
         } else {
-          drawOutsideMp4FallbackFrame(playbackState);
+          if (!drawOutsideMp4FallbackFrame(playbackState)) {
+            drawVideoFrameCache(videoKey, 0, 0, canvas.width, canvas.height);
+          }
         }
       } else {
         clearOutsideMp4PlaybackState(state.boardId);

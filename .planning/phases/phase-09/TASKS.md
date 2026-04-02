@@ -30,7 +30,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T1 [P0] Build reproducible video-heavy profiling baseline on mobile and Raspberry Pi (`/output/final` + control views) and record bottleneck traces.
 - [x] DONE P9-HF3-T2 [P0] Optimize video decode/render scheduling to prevent frame-budget starvation during concurrent animation playback.
 - [x] DONE P9-HF3-T3 [P0] Implement deterministic video buffering/warmup path to reduce startup/seek hitching and avoid decoder thrash.
-- [ ] TODO P9-HF3-T4 [P0] Improve video draw strategy (cadence, batching, overdraw reduction) for smooth frame pacing under load.
+- [x] DONE P9-HF3-T4 [P0] Improve video draw strategy (cadence, batching, overdraw reduction) for smooth frame pacing under load.
 - [ ] TODO P9-HF3-T5 [P0] Add final-output-first runtime prioritization so `/output/final` remains fluid under mixed workload contention.
 - [ ] TODO P9-HF3-T6 [P0] Preserve control-view responsiveness (mobile/PC) while final-output priority policy is active.
 - [ ] TODO P9-HF3-T7 [P0] Implement adaptive weak-device quality/load-shedding ladder with deterministic pressure levels and recovery hysteresis.

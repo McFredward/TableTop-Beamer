@@ -121,6 +121,7 @@
         videoOpsUsedThisFrame: 0,
         videoOpsDeferredThisFrame: 0,
         videoDecodeStride: 1,
+        videoDrawStride: 1,
       },
       startupDefaultsGuard: {
         fallbackRequired: false,
