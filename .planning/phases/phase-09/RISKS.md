@@ -2,7 +2,7 @@
 
 ## Acceptance Correction Context
 - 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
-- 9-HF3 is completed baseline; 9-HF4 is the binding P0 stabilization wave.
+- 9-HF3 and 9-HF4 are completed baselines; 9-HF5 is the binding P0 stream-purity wave.
 
 ## R1 Hidden coupling still exists between stream lifecycle and command path
 - Risk: a residual shared lock/state path still allows stream subscriber events to freeze command ingest/apply.
@@ -57,10 +57,27 @@
 ## R11 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF4-T10.
+- Mitigation: mandatory full artifact sync in P9-HF5-T8.
+
+## R12 Overlay source is duplicated across compose/debug paths
+- Risk: overlay text removal in one path leaves secondary compose/debug injection path active.
+- Impact: Critical.
+- Mitigation: remove overlays at authoritative compose source and enforce single-stream purity guard.
+
+## R13 Diagnostics overlay can re-enter via fallback/reconnect lifecycle
+- Risk: reconnect or fallback transitions re-enable debug overlay state in stream frames.
+- Impact: Critical.
+- Mitigation: lifecycle tests for reconnect/churn plus explicit no-overlay assertions on each stream mode transition.
+
+## R14 Overlay removal accidentally regresses HF4 stability guarantees
+- Risk: stream purity fix touches producer/command boundaries and reintroduces responsiveness or recovery regressions.
+- Impact: Critical.
+- Mitigation: mandatory HF4 non-regression matrix is part of HF5 gate before any wave closure.
 
 ## Execution Notes
 
 - 9-HF1 and 9-HF2 baselines remain valid and are treated as non-regression gates.
 - 9-HF3 closure remains valid for stream viability/fallback/parity baseline.
-- 9-HF4 closures are implemented and verified; residual Phase 9 risk focus shifts to 9-2 adapter/dependency cleanup without regressing HF4 gates.
+- 9-HF4 closures are implemented and verified and remain mandatory non-regression gates for HF5.
+- HF5 stream-output purity risks are closed with evidence (`P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
+- Residual Phase 9 risk focus shifts to 9-2 adapter/dependency cleanup.
