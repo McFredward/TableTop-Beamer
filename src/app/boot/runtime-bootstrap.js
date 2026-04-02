@@ -1,11 +1,16 @@
 (() => {
   function createRuntimeBootstrap() {
+    let activeRun = null;
     return {
       run(initializer) {
         if (typeof initializer !== "function") {
           throw new Error("Runtime bootstrap requires an initializer function");
         }
-        return initializer();
+        if (activeRun) {
+          return activeRun;
+        }
+        activeRun = Promise.resolve().then(() => initializer());
+        return activeRun;
       },
     };
   }

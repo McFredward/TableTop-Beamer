@@ -552,6 +552,15 @@
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <h2>Mobile Performance-Checks</h2>
         <p class="status-line">Measures trigger latency and frame stability for mobile operation.</p>
+        <label>
+          Runtime profile
+          <select id="runtime-profile-select">
+            <option value="safe">Safe (conservative)</option>
+            <option value="balanced">Balanced</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </label>
+        <p id="runtime-profile-status" class="status-line" aria-live="polite">Runtime profile: balanced</p>
         <button id="run-mobile-performance-check" type="button">Create performance snapshot</button>
         <p id="mobile-performance-status" class="status-line" aria-live="polite">Mobile performance: no snapshot yet
         </p>

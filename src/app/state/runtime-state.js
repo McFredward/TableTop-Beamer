@@ -108,6 +108,8 @@
         lastSnapshot: null,
       },
       runtimePerf: {
+        runtimeProfile: "balanced",
+        aggressiveOptimizationsEnabled: true,
         frameCostSamples: [],
         qualityScale: 1,
         frameBudgetMs: 16.7,

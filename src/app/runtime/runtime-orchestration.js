@@ -141,6 +141,8 @@ const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
 const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
+const runtimeProfileSelect = document.querySelector("#runtime-profile-select");
+const runtimeProfileStatus = document.querySelector("#runtime-profile-status");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const showRoomVerticesInput = document.querySelector("#show-room-vertices");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
@@ -295,6 +297,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-ref",
   "inside-resource-select",
   "inside-apply-changes",
+  "runtime-profile-select",
   "room-animation-settings-select",
   "room-animation-settings-name",
   "room-animation-settings-create",
@@ -304,6 +307,12 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-resource-select",
   "room-apply-changes",
 ];
+
+const RUNTIME_PROFILE_STORAGE_KEY = "tt-beamer.runtime-profile.v1";
+const RUNTIME_PROFILE_SAFE = "safe";
+const RUNTIME_PROFILE_BALANCED = "balanced";
+const RUNTIME_PROFILE_AGGRESSIVE = "aggressive";
+const RUNTIME_PROFILE_VALUES = [RUNTIME_PROFILE_SAFE, RUNTIME_PROFILE_BALANCED, RUNTIME_PROFILE_AGGRESSIVE];
 
 function applyOutputRoleViewContract() {
   if (outputRole !== OUTPUT_ROLE_FINAL) {
@@ -344,6 +353,78 @@ function syncAlignModePanel() {
     roomOverlay.style.display = hiddenInFinal ? "none" : "block";
     roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
   }
+}
+
+function normalizeRuntimeProfile(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (RUNTIME_PROFILE_VALUES.includes(normalized)) {
+    return normalized;
+  }
+  return RUNTIME_PROFILE_BALANCED;
+}
+
+function isWeakRuntimeDevice() {
+  const cores = Number(window.navigator?.hardwareConcurrency || 0);
+  const memoryGiB = Number(window.navigator?.deviceMemory || 0);
+  return (Number.isFinite(cores) && cores > 0 && cores <= 4)
+    || (Number.isFinite(memoryGiB) && memoryGiB > 0 && memoryGiB <= 4);
+}
+
+function resolveInitialRuntimeProfile() {
+  const urlProfile = normalizeRuntimeProfile(new URLSearchParams(window.location.search).get("runtimeProfile"));
+  if (urlProfile !== RUNTIME_PROFILE_BALANCED) {
+    return urlProfile;
+  }
+  try {
+    const stored = normalizeRuntimeProfile(window.localStorage.getItem(RUNTIME_PROFILE_STORAGE_KEY));
+    if (stored !== RUNTIME_PROFILE_BALANCED) {
+      return stored;
+    }
+  } catch {
+    // localStorage may be unavailable in strict browser contexts.
+  }
+  return isWeakRuntimeDevice() ? RUNTIME_PROFILE_SAFE : RUNTIME_PROFILE_BALANCED;
+}
+
+function applyRuntimeProfile(profile, { persist = true, announce = false, reason = "runtime-profile" } = {}) {
+  const nextProfile = normalizeRuntimeProfile(profile);
+  state.runtimePerf.runtimeProfile = nextProfile;
+  state.runtimePerf.aggressiveOptimizationsEnabled = nextProfile === RUNTIME_PROFILE_AGGRESSIVE;
+  if (runtimeProfileSelect) {
+    runtimeProfileSelect.value = nextProfile;
+  }
+  if (runtimeProfileStatus) {
+    const modeDescription =
+      nextProfile === RUNTIME_PROFILE_SAFE
+        ? "conservative scheduling (deterministic first)"
+        : nextProfile === RUNTIME_PROFILE_BALANCED
+          ? "balanced runtime guards"
+          : "aggressive optimization path";
+    runtimeProfileStatus.textContent = `Runtime profile: ${nextProfile} (${modeDescription})`;
+  }
+  applyRuntimePressureCaps(state.runtimePerf.pressureLevel);
+  if (persist) {
+    try {
+      window.localStorage.setItem(RUNTIME_PROFILE_STORAGE_KEY, nextProfile);
+    } catch {
+      // no-op
+    }
+  }
+  if (announce) {
+    triggerFeedback.textContent = `Status: runtime profile set to ${nextProfile} (${reason})`;
+  }
+}
+
+function getRuntimeProfile() {
+  return normalizeRuntimeProfile(state.runtimePerf.runtimeProfile);
+}
+
+function isAggressiveRuntimeProfile() {
+  return getRuntimeProfile() === RUNTIME_PROFILE_AGGRESSIVE;
+}
+
+function isConservativeRuntimeProfile() {
+  return getRuntimeProfile() === RUNTIME_PROFILE_SAFE;
 }
 
 function setAlignMode(enabled, { emit = true } = {}) {
@@ -887,6 +968,64 @@ function emitOutsideFxMutation(boardId = state.boardId, reason = "outside-settin
 }
 
 let roomDraftSyncTimerId = null;
+let boardSwitchGuard = {
+  pending: false,
+  transactionId: null,
+  targetBoardId: null,
+  timerId: null,
+};
+
+function normalizeRunningAnimationsForInvariants(runningAnimations, boardId = state.boardId) {
+  const selectedBoardId = typeof boardId === "string" && boardId.trim() ? boardId.trim() : null;
+  const seenAnimationIds = new Set();
+  const outsideByBoard = new Map();
+  const normalized = [];
+
+  const sortedEntries = (Array.isArray(runningAnimations) ? runningAnimations : [])
+    .filter((entry) => entry && typeof entry === "object")
+    .sort((a, b) => Number(b?.startedAtEpochMs || 0) - Number(a?.startedAtEpochMs || 0));
+
+  for (const animation of sortedEntries) {
+    const id = typeof animation.id === "string" ? animation.id.trim() : "";
+    const scope = typeof animation.scope === "string" ? animation.scope.trim() : "";
+    const animationBoardId = typeof animation.boardId === "string" ? animation.boardId.trim() : "";
+    if (!id || !scope || !animationBoardId) {
+      continue;
+    }
+    if (selectedBoardId && animationBoardId !== selectedBoardId) {
+      continue;
+    }
+    if (seenAnimationIds.has(id)) {
+      continue;
+    }
+    if (scope === "global" && animation.type === "outside-space") {
+      if (outsideByBoard.has(animationBoardId)) {
+        continue;
+      }
+      outsideByBoard.set(animationBoardId, id);
+    }
+    seenAnimationIds.add(id);
+    normalized.push(animation);
+  }
+
+  return normalized.reverse();
+}
+
+function enforceRunningAnimationInvariants(reason = "runtime") {
+  const beforeCount = Array.isArray(state.runningAnimations) ? state.runningAnimations.length : 0;
+  state.runningAnimations = normalizeRunningAnimationsForInvariants(state.runningAnimations, state.boardId);
+  reconcileStopPendingFromSnapshot();
+  const afterCount = state.runningAnimations.length;
+  if (afterCount !== beforeCount) {
+    logRuntime.warn("running_invariants_normalized", {
+      event: "running-invariants-normalized",
+      reason,
+      beforeCount,
+      afterCount,
+      boardId: state.boardId,
+    });
+  }
+}
 
 function emitRoomDraftSyncMutation(reason = "room-draft-sync") {
   if (outputRole !== OUTPUT_ROLE_CONTROL) {
@@ -1143,12 +1282,20 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
       }, "")
       : "") ||
     state.boardId;
-  state.boardId = selectedBoard;
-  state.selectedBoard = selectedBoard;
-  state.selectedLayout =
-    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
-    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
-    selectedBoard;
+  const previousBoardId = state.boardId;
+  if (selectedBoard !== previousBoardId) {
+    switchBoard(selectedBoard, {
+      emitLiveContext: false,
+      reason: "live-snapshot-context",
+      announceStatus: false,
+    });
+  } else {
+    state.selectedBoard = selectedBoard;
+    state.selectedLayout =
+      (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
+      (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
+      selectedBoard;
+  }
   state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
   state.selectedRoomByBoard =
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
@@ -1197,6 +1344,7 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
   const reconciledRunningAnimations = reconcileHydratedAnimations(primedRunningAnimations);
   state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);
+  enforceRunningAnimationInvariants("live-snapshot");
   reconcileStopPendingFromSnapshot();
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {
@@ -1254,6 +1402,9 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
 }
 
 function connectLiveSyncSocket() {
+  if (liveSync.socket && (liveSync.socket.readyState === WebSocket.OPEN || liveSync.socket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
   try {
     const socket = new WebSocket(resolveLiveWebSocketUrl());
     const socketGeneration = liveSync.socketGeneration + 1;
@@ -4242,6 +4393,12 @@ function warmRoomGifAssets({ reason = "runtime" } = {}) {
 
 function beginVideoSchedulingFrame() {
   const runtimePerf = state.runtimePerf;
+  if (isConservativeRuntimeProfile()) {
+    runtimePerf.videoOpsBudgetPerFrame = 100;
+    runtimePerf.videoOpsUsedThisFrame = 0;
+    runtimePerf.videoOpsDeferredThisFrame = 0;
+    return;
+  }
   const pressureLevel = Math.max(0, Math.min(2, Number(runtimePerf.pressureLevel) || 0));
   const roleBaseBudget = outputRole === OUTPUT_ROLE_FINAL ? 10 : 5;
   const pressurePenalty = pressureLevel >= 2 ? 3 : pressureLevel === 1 ? 1 : 0;
@@ -4251,6 +4408,9 @@ function beginVideoSchedulingFrame() {
 }
 
 function canConsumeVideoOps(cost = 1, { key = "", priority = "normal" } = {}) {
+  if (!isAggressiveRuntimeProfile()) {
+    return true;
+  }
   const runtimePerf = state.runtimePerf;
   const numericCost = Math.max(0.1, Number(cost) || 1);
   const budget = Math.max(1, Number(runtimePerf.videoOpsBudgetPerFrame) || 1);
@@ -4275,6 +4435,9 @@ function canConsumeVideoOps(cost = 1, { key = "", priority = "normal" } = {}) {
 }
 
 function shouldApplyDecodeOpThisFrame(key, { priority = "normal" } = {}) {
+  if (!isAggressiveRuntimeProfile()) {
+    return true;
+  }
   const stride = Math.max(1, Number(state.runtimePerf.videoDecodeStride) || 1);
   if (stride <= 1 || priority === "critical") {
     return true;
@@ -4433,6 +4596,9 @@ function computeDrawCadenceSeed(key) {
 }
 
 function getVideoDrawStride(priority = "normal") {
+  if (!isAggressiveRuntimeProfile()) {
+    return 1;
+  }
   const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
   if (outputRole === OUTPUT_ROLE_FINAL) {
     return 1;
@@ -5064,6 +5230,16 @@ function getRuntimeVisualCaps() {
 }
 
 function applyRuntimePressureCaps(pressureLevel) {
+  if (isConservativeRuntimeProfile()) {
+    state.runtimePerf.finalOutputPriorityActive = outputRole === OUTPUT_ROLE_FINAL;
+    state.runtimePerf.nonCriticalCoalesceStride = 1;
+    state.runtimePerf.maxRenderAnimationsPerFrame = outputRole === OUTPUT_ROLE_FINAL ? 96 : 84;
+    state.runtimePerf.maxAshParticles = outputRole === OUTPUT_ROLE_FINAL ? 220 : 180;
+    state.runtimePerf.maxOutsideStarsPerLayer = outputRole === OUTPUT_ROLE_FINAL ? 96 : 82;
+    state.runtimePerf.videoDecodeStride = 1;
+    state.runtimePerf.controlFrameBudgetMs = outputRole === OUTPUT_ROLE_FINAL ? 12.5 : 11.5;
+    return;
+  }
   const level = Math.max(0, Math.min(2, Number(pressureLevel) || 0));
   const finalOutputPriority = outputRole === OUTPUT_ROLE_FINAL;
   state.runtimePerf.finalOutputPriorityActive = finalOutputPriority;
@@ -5152,6 +5328,12 @@ function recordRuntimeFrameCost(frameCostMs) {
   }
   const p90 = percentile(samples, 0.9);
   const targetMs = Number(state.runtimePerf.frameBudgetMs) || 16.7;
+  if (isConservativeRuntimeProfile()) {
+    state.runtimePerf.qualityScale = 1;
+    state.runtimePerf.pressureLevel = 0;
+    applyRuntimePressureCaps(0);
+    return;
+  }
   if (p90 > targetMs * 1.25) {
     state.runtimePerf.qualityScale = Math.max(0.68, getRuntimeQualityScale() - 0.03);
   } else if (p90 < targetMs * 0.92) {
@@ -7757,6 +7939,10 @@ function getRoomRenderMetrics(room, boardId = state.boardId) {
 }
 
 function renderRoomOverlay() {
+  if (boardSwitchGuard.pending) {
+    roomOverlay.replaceChildren();
+    return;
+  }
   const board = getBoard();
   syncSelectedRoomStateForBoard(state.boardId);
   roomOverlay.replaceChildren();
@@ -7837,16 +8023,22 @@ function renderRoomOverlay() {
   renderShipPolygonEditorHandles();
 }
 
-function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
-  const contextSwitchTransactionId = `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function emitBoardLayoutContextMutation(
+  boardId = state.boardId,
+  reason = "board-select",
+  { contextSwitchTransactionId = null } = {},
+) {
+  const transactionId = contextSwitchTransactionId
+    || `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   emitLiveMutation("context-update", {
     reason,
-    contextSwitchTransactionId,
+    contextSwitchTransactionId: transactionId,
     selectedBoard: boardId,
     selectedLayout: boardId,
     boardId,
     layoutId: boardId,
   });
+  return transactionId;
 }
 
 function shouldPreserveLifecycleStatusFeedback() {
@@ -7865,10 +8057,44 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   }
 
   const board = getBoard(boardId);
+  const contextSwitchTransactionId = `context-switch-${board.id}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  if (boardSwitchGuard.timerId !== null) {
+    window.clearTimeout(boardSwitchGuard.timerId);
+  }
+  boardSwitchGuard = {
+    pending: true,
+    transactionId: contextSwitchTransactionId,
+    targetBoardId: board.id,
+    timerId: null,
+  };
   state.boardId = board.id;
   state.selectedBoard = board.id;
   state.selectedLayout = board.id;
   boardImage.src = board.src;
+  const completeBoardSwitchGuard = (source = "load") => {
+    if (boardSwitchGuard.transactionId !== contextSwitchTransactionId) {
+      return;
+    }
+    if (boardSwitchGuard.timerId !== null) {
+      window.clearTimeout(boardSwitchGuard.timerId);
+    }
+    boardSwitchGuard.pending = false;
+    boardSwitchGuard.timerId = null;
+    renderRoomOverlay();
+    logRuntime.info("board_switch_guard_complete", {
+      event: "board-switch-guard-complete",
+      source,
+      boardId: board.id,
+      transactionId: contextSwitchTransactionId,
+    });
+  };
+  const onBoardReady = () => completeBoardSwitchGuard("image-load");
+  const onBoardError = () => completeBoardSwitchGuard("image-error");
+  boardImage.addEventListener("load", onBoardReady, { once: true });
+  boardImage.addEventListener("error", onBoardError, { once: true });
+  boardSwitchGuard.timerId = window.setTimeout(() => {
+    completeBoardSwitchGuard("timeout-fallback");
+  }, 1400);
   boardSelect.value = board.id;
   boardStatus.textContent = `Active board: ${board.label}`;
   const rememberedRoom = state.selectedRoomByBoard[board.id];
@@ -7895,7 +8121,7 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
     triggerFeedback.textContent = "Status: board switched";
   }
   if (emitLiveContext) {
-    emitBoardLayoutContextMutation(board.id, reason);
+    emitBoardLayoutContextMutation(board.id, reason, { contextSwitchTransactionId });
   }
 }
 
@@ -12474,6 +12700,15 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
     `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
 });
 
+runtimeProfileSelect?.addEventListener("change", () => {
+  const nextProfile = normalizeRuntimeProfile(runtimeProfileSelect.value);
+  applyRuntimeProfile(nextProfile, {
+    persist: true,
+    announce: true,
+    reason: "settings-selector",
+  });
+});
+
 const resizeObserver = new ResizeObserver((entries) => {
   void entries;
   scheduleStageViewportLifecycle("resize-observer");
@@ -12523,7 +12758,13 @@ function syncRuntimePanelsFromState() {
   });
 }
 
+let initializeApplicationPromise = null;
+
 async function initializeApplication() {
+  if (initializeApplicationPromise) {
+    return initializeApplicationPromise;
+  }
+  initializeApplicationPromise = (async () => {
   logBootstrap.info("init_start", { event: "init-start" });
   await loadExternalBoardZones();
   await loadOutsideResourceAssets();
@@ -12554,6 +12795,11 @@ async function initializeApplication() {
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
+  applyRuntimeProfile(resolveInitialRuntimeProfile(), {
+    persist: false,
+    announce: false,
+    reason: "startup-default",
+  });
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
   state.startupDefaultsGuard.attempted = false;
   state.startupDefaultsGuard.applied = false;
@@ -12565,6 +12811,7 @@ async function initializeApplication() {
     : "local-profiles-detected";
   // Local profiles are always loaded first; startup defaults are a guarded fallback for fresh devices.
   loadBoardProfiles();
+  enforceRunningAnimationInvariants("startup-load-board-profiles");
   let startupDefaultsSnapshot = null;
 
   try {
@@ -12654,6 +12901,8 @@ async function initializeApplication() {
     version: liveSync.lastAppliedVersion,
   });
   requestAnimationFrame(draw);
+  })();
+  return initializeApplicationPromise;
 }
 
 void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({
