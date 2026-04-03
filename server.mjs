@@ -1825,9 +1825,14 @@ function attachFinalVideoClient(req, res) {
   finalVideoClients.set(clientId, entry);
 
   const latestVideoFrame = normalizeNonEmptyString(finalStreamComposerState.latestVideoFrame);
-  if (latestVideoFrame) {
+  const latestVersion = Number(liveSessionState.version ?? 0);
+  const cachedVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
+  if (latestVideoFrame && cachedVersion >= latestVersion) {
     writeFinalVideoMultipartFrame(res, latestVideoFrame);
   } else {
+    if (latestVideoFrame) {
+      writeFinalVideoMultipartFrame(res, latestVideoFrame);
+    }
     requestFinalStreamCompose("video-client-attach", {
       snapshot: liveSessionState.snapshot,
       sourceVersion: liveSessionState.version,
@@ -2411,6 +2416,8 @@ function buildFinalVideoSvgFrame(frame) {
   const runningAnimations = Array.isArray(visual.runningAnimations) ? visual.runningAnimations : [];
   const sourceVersion = Number.isFinite(Number(frame?.sourceVersion)) ? Number(frame.sourceVersion) : 0;
   const frameId = Number.isFinite(Number(frame?.frameId)) ? Number(frame.frameId) : 0;
+  const boardId = normalizeNonEmptyString(board?.id) ?? "";
+  const alignMode = Boolean(frame?.alignMode ?? visual?.alignMode);
 
   const roomLookup = new Map();
   for (const room of rooms) {
@@ -2426,7 +2433,6 @@ function buildFinalVideoSvgFrame(frame) {
     ? `<image href="${escapeXmlText(boardImageSrc)}" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" />`
     : "<rect x=\"0\" y=\"0\" width=\"1000\" height=\"1000\" fill=\"#000\" />";
 
-  const alignMode = Boolean(frame?.alignMode ?? visual?.alignMode);
   const alignLayer = alignMode
     ? rooms
       .map((room) => {
@@ -2458,7 +2464,7 @@ function buildFinalVideoSvgFrame(frame) {
 
   return [
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" data-source-version="${sourceVersion}" data-frame-id="${frameId}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" data-source-version="${sourceVersion}" data-frame-id="${frameId}" data-board-id="${escapeXmlText(boardId)}" data-align-mode="${alignMode ? "true" : "false"}">`,
     boardLayer,
     animationLayer,
     alignLayer,

@@ -1,0 +1,60 @@
+{
+  "schema": "tt-beamer.p9-hf8-t7-parity-matrix.v1",
+  "measuredAt": "2026-04-03T00:02:15.596Z",
+  "baseUrl": "http://127.0.0.1:4211",
+  "checks": {
+    "videoEndpointAdvertised": true,
+    "finalPageStatus": 200,
+    "finalPageHasNoScripts": true,
+    "finalPageHasVideoImg": true,
+    "compositorAlwaysOn": true,
+    "videoStreamProducesFrames": true,
+    "purityNoDiagnosticsOverlay": true
+  },
+  "mutationSamples": [
+    {
+      "mutation": "start",
+      "ackMs": 7,
+      "streamMs": 0,
+      "version": 1
+    },
+    {
+      "mutation": "board-switch",
+      "ackMs": 2,
+      "streamMs": 1,
+      "version": 2
+    },
+    {
+      "mutation": "align-on",
+      "ackMs": 1,
+      "streamMs": 1,
+      "version": 3
+    },
+    {
+      "mutation": "stop",
+      "ackMs": 1,
+      "streamMs": 0,
+      "version": 4
+    },
+    {
+      "mutation": "align-off",
+      "ackMs": 1,
+      "streamMs": 1,
+      "version": 5
+    }
+  ],
+  "summary": {
+    "ackMaxMs": 7,
+    "streamMaxMs": 1,
+    "hardLimitMs": 1200,
+    "latencyGate": {
+      "hardLimitMs": 1200,
+      "maxObservedMs": 1,
+      "pendingMutations": 0,
+      "pass": true,
+      "lastResolvedAt": "2026-04-03T00:02:15.595Z",
+      "lastResolvedVersion": 5
+    }
+  },
+  "pass": true
+}
