@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 9 (`phase-09`)
-- Status: in-progress (Plan 9-HF1..9-HF8 completed; next wave is Plan 9-2 hardening)
-- Next Plan: 9-2 (post-HF8 hardening wave)
+- Status: in-progress (Plan 9-HF1..9-HF9 completed; HF9 closed always-on lifecycle blocker with full parity PASS)
+- Next Plan: 9-2 (adapter cleanup + dependency hardening)
 - Command Target: `/gsd:execute-phase 9`
 
 Execution inputs:

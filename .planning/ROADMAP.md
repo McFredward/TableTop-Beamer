@@ -567,7 +567,13 @@ Gate Closure (8-HF12):
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
 Ziel: Auf der abgeschlossenen HF1..HF7-Basis den bindenden Architektur-Pivot schliessen: `/output/final` wird als reine fullscreen Video-Stream-Receiver-Seite betrieben, waehrend ein serverseitiger compositor kontinuierlich und subscriber-unabhaengig aus global autoritativem State komponiert.
 
-Status: Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6, Plan 9-HF7 und Plan 9-HF8 sind abgeschlossen (`.planning/phases/phase-09/9-HF1-SUMMARY.md`, `.planning/phases/phase-09/9-HF2-SUMMARY.md`, `.planning/phases/phase-09/9-HF3-SUMMARY.md`, `.planning/phases/phase-09/9-HF4-SUMMARY.md`, `.planning/phases/phase-09/9-HF5-SUMMARY.md`, `.planning/phases/phase-09/9-HF6-VERIFICATION.md`, `.planning/phases/phase-09/9-HF7-VERIFICATION.md`, `.planning/phases/phase-09/9-HF8-VERIFICATION.md`); Plan 9-2 ist nach HF8-PASS freigegeben.
+Status: Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6, Plan 9-HF7, Plan 9-HF8 und Plan 9-HF9 sind abgeschlossen (`.planning/phases/phase-09/9-HF1-SUMMARY.md`, `.planning/phases/phase-09/9-HF2-SUMMARY.md`, `.planning/phases/phase-09/9-HF3-SUMMARY.md`, `.planning/phases/phase-09/9-HF4-SUMMARY.md`, `.planning/phases/phase-09/9-HF5-SUMMARY.md`, `.planning/phases/phase-09/9-HF6-VERIFICATION.md`, `.planning/phases/phase-09/9-HF7-VERIFICATION.md`, `.planning/phases/phase-09/9-HF8-VERIFICATION.md`, `.planning/phases/phase-09/9-HF9-VERIFICATION.md`); der HF8-Follow-up-Blocker (`compositorAlwaysOn=false`) ist in HF9 geschlossen und Plan 9-2 ist wieder freigegeben.
+
+New Blocking Wave (Phase 9 HF8 verification follow-up):
+- Verbindlicher P0-Blocker Plan 9-HF9 schliesst die always-on compositor lifecycle Luecke (`compositorAlwaysOn=true` unter allen normalen Startup/Runtime-Sequenzen).
+- Vollstaendige Parity/Acceptance-Matrix muss ohne partial pass wieder PASS sein.
+- Stream-only final client + no-polling/no-orchestration guarantees bleiben unveraendert verpflichtend.
+- PASS-Evidenzartefakte werden aktualisiert; Plan 9-2 bleibt bis zur HF9-Closure gesperrt.
 
 Milestones:
 1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
@@ -586,6 +592,7 @@ Milestones:
 14. M14 HF6 Command Transport + Immediate Apply/Ack Closure: Start/Stop-Commands erreichen unter stream on/off deterministisch sofort den Serverpfad und propagieren unmittelbar ueber Snapshot + `/output/final`.
 15. M15 HF7 Strict Stream Authority Closure: `/output/final` ist stream-only ohne auto/client fallback, producer bleibt subscriber-unabhaengig, stale-frame path ist geschlossen und mutation visibility bleibt immediate.
 16. M16 HF8 True Video Receiver Pivot Closure: `/output/final` ist player-only/fullscreen ohne Polling/Orchestration; server compositor streamt kontinuierlich als einzige Autoritaet.
+17. M17 HF9 Always-On Definitive Closure: `compositorAlwaysOn` ist in Normalbetrieb/Churn/Reconnect stabil PASS und Parity-Matrix schliesst vollstaendig.
 
 Exit Criteria:
 - Expired one-shot events werden nach reload/reconnect nicht erneut abgespielt.
@@ -605,7 +612,9 @@ Exit Criteria:
 - Server-Apply aktualisiert bei akzeptierten Commands sofort autoritativen Stream- und Snapshot-State inklusive immediate ack.
 - Start/Stop-Paritaet bleibt ueber stream on/off, mehrere Control-Clients und `/output/final` deterministisch stabil.
 - Server compositor bleibt bei 0/1/N Subscriber kontinuierlich aktiv und komponiert aus global autoritativem Full-State.
+- Health/Parity-Gate `compositorAlwaysOn` ist unter allen normalen Startup/Runtime-Sequenzen explizit `true`.
 - Mutation->Stream-Latenz-Gates fuer start/stop/board/align sind PASS ohne Browser-Refresh.
+- Parity-Schluss erfolgt nur bei voller PASS-Matrix; partial pass ist als Closure unzulaessig.
 - Long-run + weak-hardware + parity Evidence-Matrix ist PASS dokumentiert.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
@@ -636,7 +645,9 @@ HF6 Closure (Phase 9 control-command transport follow-up):
 - Immediate-Ack-Semantik und stream on/off Ack-Paritaet sind PASS (`P9-HF6-T5-IMMEDIATE-ACK.md`).
 - Strikte Start/Stop-Paritaetsmatrix ueber multi-client + `/output/final` ist PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`).
 - HF5 visual-only stream purity bleibt als Non-Regression PASS (`P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
-- Plan 9-2 ist nach HF8 closure erneut freigegeben und bildet die naechste Ausfuehrungswelle.
+- HF8 Follow-up mismatch (`compositorAlwaysOn=false`) ist reproduziert, root-cause-isoliert und in HF9 lifecycle-aware geschlossen.
+- Plan 9-HF9 liefert volle PASS-Evidenz fuer always-on lifecycle gate, parity matrix und HF5/HF6 non-regression (`9-HF9-VERIFICATION.md`).
+- Plan 9-2 ist nach HF9-PASS wieder unblocked.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
