@@ -1,0 +1,140 @@
+{
+  "schema": "tt-beamer.p9-hf9-t1-compositor-gate-repro.v1",
+  "measuredAt": "2026-04-03T00:12:32.885Z",
+  "baseUrl": "http://127.0.0.1:4211",
+  "shortWindow": {
+    "sampleMs": 120,
+    "before": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-03T00:12:31.853Z",
+      "connectedClients": 0,
+      "connectedVideoClients": 0,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 5,
+        "lastTickAt": "2026-04-03T00:12:31.821Z",
+        "recoveries": 0,
+        "latestBroadcastVersion": 0,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-03T00:12:31.821Z",
+      "sourceVersion": 0,
+      "frameId": 5,
+      "msSinceLastFrame": 32,
+      "healthy": true,
+      "latencyGate": {
+        "hardLimitMs": 1200,
+        "maxObservedMs": 0,
+        "pendingMutations": 0,
+        "pass": true,
+        "lastResolvedAt": null,
+        "lastResolvedVersion": 0
+      }
+    },
+    "after": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-03T00:12:31.977Z",
+      "connectedClients": 0,
+      "connectedVideoClients": 0,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 5,
+        "lastTickAt": "2026-04-03T00:12:31.821Z",
+        "recoveries": 0,
+        "latestBroadcastVersion": 0,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-03T00:12:31.821Z",
+      "sourceVersion": 0,
+      "frameId": 5,
+      "msSinceLastFrame": 155,
+      "healthy": true,
+      "latencyGate": {
+        "hardLimitMs": 1200,
+        "maxObservedMs": 0,
+        "pendingMutations": 0,
+        "pass": true,
+        "lastResolvedAt": null,
+        "lastResolvedVersion": 0
+      }
+    },
+    "strictGate": false
+  },
+  "normalWindow": {
+    "sampleMs": 900,
+    "before": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-03T00:12:31.980Z",
+      "connectedClients": 0,
+      "connectedVideoClients": 0,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 5,
+        "lastTickAt": "2026-04-03T00:12:31.821Z",
+        "recoveries": 0,
+        "latestBroadcastVersion": 0,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-03T00:12:31.821Z",
+      "sourceVersion": 0,
+      "frameId": 5,
+      "msSinceLastFrame": 159,
+      "healthy": true,
+      "latencyGate": {
+        "hardLimitMs": 1200,
+        "maxObservedMs": 0,
+        "pendingMutations": 0,
+        "pass": true,
+        "lastResolvedAt": null,
+        "lastResolvedVersion": 0
+      }
+    },
+    "after": {
+      "schema": "tt-beamer.final-stream-health.v1",
+      "generatedAt": "2026-04-03T00:12:32.883Z",
+      "connectedClients": 0,
+      "connectedVideoClients": 0,
+      "producer": {
+        "running": true,
+        "watchdogActive": true,
+        "composing": false,
+        "ticks": 9,
+        "lastTickAt": "2026-04-03T00:12:32.821Z",
+        "recoveries": 0,
+        "latestBroadcastVersion": 0,
+        "latestComposeError": null,
+        "latestComposeErrorAt": null
+      },
+      "lastFrameAt": "2026-04-03T00:12:32.821Z",
+      "sourceVersion": 0,
+      "frameId": 9,
+      "msSinceLastFrame": 62,
+      "healthy": true,
+      "latencyGate": {
+        "hardLimitMs": 1200,
+        "maxObservedMs": 0,
+        "pendingMutations": 0,
+        "pass": true,
+        "lastResolvedAt": null,
+        "lastResolvedVersion": 0
+      }
+    },
+    "strictGate": true
+  },
+  "observations": {
+    "producerRunningDuringShortWindow": true,
+    "healthHealthyDuringShortWindow": true,
+    "strictGateFalseDuringShortWindow": true,
+    "strictGateTrueDuringNormalWindow": true
+  },
+  "pass": true
+}
