@@ -14,7 +14,6 @@
       selectedRoomId: null,
       selectedRoomByBoard: {},
       alignMode: false,
-      finalOutputMode: "auto",
       roomDraft: {
         editTargetId: null,
         targetType: "room",
@@ -118,6 +117,13 @@
         maxAshParticles: 240,
         maxOutsideStarsPerLayer: 110,
         frameIndex: 0,
+        mp4Controls: {
+          tier: "balanced",
+          renderCap: 48,
+          qualityFloor: 0.68,
+          degradeThreshold: 1.35,
+          recoverThreshold: 0.92,
+        },
       },
       startupDefaultsGuard: {
         fallbackRequired: false,

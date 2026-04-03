@@ -53,7 +53,6 @@ const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: out
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
 const canvas = document.querySelector("#fx-canvas");
-const finalStreamLayer = document.querySelector("#final-stream-layer");
 const roomOverlay = document.querySelector("#room-overlay");
 const boardSelect = document.querySelector("#board-select");
 const boardImportFileInput = document.querySelector("#board-import-file");
@@ -65,8 +64,6 @@ const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
 const alignModeToggleInput = document.querySelector("#align-mode-toggle");
 const alignModeStatus = document.querySelector("#align-mode-status");
-const finalOutputModeSelect = document.querySelector("#final-output-mode-select");
-const finalOutputModeStatus = document.querySelector("#final-output-mode-status");
 const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
 const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
@@ -144,6 +141,17 @@ const runningOverviewPanel = document.querySelector("#running-overview-panel");
 const globalAnimationPanel = document.querySelector("#global-animation-panel");
 const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
 const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
+const mp4PerformanceTierInput = document.querySelector("#mp4-performance-tier");
+const mp4RenderCapInput = document.querySelector("#mp4-render-cap");
+const mp4RenderCapValue = document.querySelector("#mp4-render-cap-value");
+const mp4QualityFloorInput = document.querySelector("#mp4-quality-floor");
+const mp4QualityFloorValue = document.querySelector("#mp4-quality-floor-value");
+const mp4DegradeThresholdInput = document.querySelector("#mp4-degrade-threshold");
+const mp4DegradeThresholdValue = document.querySelector("#mp4-degrade-threshold-value");
+const mp4RecoverThresholdInput = document.querySelector("#mp4-recover-threshold");
+const mp4RecoverThresholdValue = document.querySelector("#mp4-recover-threshold-value");
+const mp4PerformanceStatus = document.querySelector("#mp4-performance-status");
+const toastStack = document.querySelector("#toast-stack");
 const polygonRoomSelect = document.querySelector("#polygon-room-select");
 const showRoomVerticesInput = document.querySelector("#show-room-vertices");
 const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
@@ -226,10 +234,14 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-import-name",
   "board-import-id",
   "board-import-button",
-  "final-output-mode-select",
   "save-global-defaults",
   "load-apply-global-defaults",
   "export-global-defaults",
+  "mp4-performance-tier",
+  "mp4-render-cap",
+  "mp4-quality-floor",
+  "mp4-degrade-threshold",
+  "mp4-recover-threshold",
   "animation-speed",
   "audio-enabled",
   "audio-volume",
@@ -326,9 +338,6 @@ function applyOutputRoleViewContract() {
   if (projectionArea) {
     projectionArea.setAttribute("aria-label", "Final Output FX-only");
   }
-  if (finalStreamLayer) {
-    finalStreamLayer.replaceChildren();
-  }
   triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
 }
 
@@ -353,113 +362,6 @@ function syncAlignModePanel() {
   }
 }
 
-function renderFinalStreamFrame(frame) {
-  if (outputRole !== OUTPUT_ROLE_FINAL) {
-    return;
-  }
-  const align = Boolean(frame?.alignMode);
-  state.alignMode = align;
-  document.body.classList.toggle("align-mode-active", align);
-  if (finalStreamLayer) {
-    finalStreamLayer.hidden = false;
-    finalStreamLayer.setAttribute("aria-hidden", "false");
-    finalStreamLayer.replaceChildren();
-  }
-  finalStreamRuntime.lastFrameAt = Date.now();
-}
-
-function connectFinalOutputStream() {
-  if (outputRole !== OUTPUT_ROLE_FINAL || typeof window.EventSource !== "function") {
-    return;
-  }
-  if (finalStreamRuntime.eventSource) {
-    return;
-  }
-  const eventSource = new window.EventSource("/api/final-stream/events");
-  finalStreamRuntime.eventSource = eventSource;
-  eventSource.addEventListener("frame", (event) => {
-    try {
-      const frame = JSON.parse(event.data || "{}");
-      renderFinalStreamFrame(frame);
-      finalStreamRuntime.connected = true;
-      finalStreamRuntime.fallbackReason = null;
-      document.body.dataset.finalOutputPath = "stream";
-    } catch {
-      // ignore malformed stream frame
-    }
-  });
-  eventSource.addEventListener("heartbeat", () => {
-    finalStreamRuntime.connected = true;
-  });
-  eventSource.addEventListener("error", () => {
-    finalStreamRuntime.connected = false;
-    finalStreamRuntime.fallbackReason = "stream-error";
-    document.body.dataset.finalOutputPath = "stream";
-  });
-  eventSource.addEventListener("stream-fault", () => {
-    finalStreamRuntime.connected = false;
-    finalStreamRuntime.fallbackReason = "stream-fault";
-    document.body.dataset.finalOutputPath = "stream";
-  });
-}
-
-function normalizeFinalOutputMode(value) {
-  void value;
-  return "stream";
-}
-
-function syncFinalOutputModePanel() {
-  const normalized = normalizeFinalOutputMode(state.finalOutputMode);
-  if (finalOutputModeSelect) {
-    finalOutputModeSelect.value = normalized;
-  }
-  if (finalOutputModeStatus) {
-    finalOutputModeStatus.textContent = `Final output mode: ${normalized.toUpperCase()}`;
-  }
-}
-
-function setFinalOutputMode(nextMode, { emit = true } = {}) {
-  const normalized = normalizeFinalOutputMode(nextMode);
-  state.finalOutputMode = normalized;
-  syncFinalOutputModePanel();
-  if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
-    void emitLiveMutation("context-update", {
-      reason: "final-output-mode",
-      runtime: {
-        finalOutputMode: "stream",
-      },
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: final output mode command failed";
-    });
-  }
-}
-
-function isFinalStreamHealthy() {
-  if (!finalStreamRuntime.connected || finalStreamRuntime.lastFrameAt <= 0) {
-    return false;
-  }
-  return Date.now() - finalStreamRuntime.lastFrameAt <= finalStreamRuntime.healthTimeoutMs;
-}
-
-function shouldUseServerStreamPath() {
-  return outputRole === OUTPUT_ROLE_FINAL;
-}
-
-function syncFinalOutputRenderPath() {
-  if (outputRole !== OUTPUT_ROLE_FINAL) {
-    return;
-  }
-  const streamActive = shouldUseServerStreamPath();
-  document.body.dataset.finalOutputPath = "stream";
-  if (finalStreamLayer) {
-    finalStreamLayer.hidden = !streamActive;
-    finalStreamLayer.setAttribute("aria-hidden", streamActive ? "false" : "true");
-  }
-  if (streamActive && isFinalStreamHealthy() === false && !finalStreamRuntime.fallbackReason) {
-    finalStreamRuntime.fallbackReason = "stream-degraded";
-  }
-}
-
 function setAlignMode(enabled, { emit = true } = {}) {
   const nextAlignMode = Boolean(enabled);
   if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
@@ -479,19 +381,10 @@ function setAlignMode(enabled, { emit = true } = {}) {
   }
   state.alignMode = nextAlignMode;
   syncAlignModePanel();
-  syncFinalOutputModePanel();
   renderRoomOverlay();
 }
 
 const ctx = canvas.getContext("2d");
-
-const finalStreamRuntime = {
-  eventSource: null,
-  connected: false,
-  lastFrameAt: 0,
-  healthTimeoutMs: 2500,
-  fallbackReason: null,
-};
 
 const stageViewport = {
   rafId: null,
@@ -521,6 +414,40 @@ function collectStageViewportMetrics() {
     pixelWidth,
     pixelHeight,
   };
+}
+
+function getCanonicalViewportRect() {
+  const stageRect = stage?.getBoundingClientRect?.();
+  if (stageRect && stageRect.width > 0 && stageRect.height > 0) {
+    return stageRect;
+  }
+  const fallbackRect = projectionArea?.getBoundingClientRect?.();
+  if (fallbackRect && fallbackRect.width > 0 && fallbackRect.height > 0) {
+    return fallbackRect;
+  }
+  return {
+    left: 0,
+    top: 0,
+    width: Math.max(1, Number(window.innerWidth) || 1),
+    height: Math.max(1, Number(window.innerHeight) || 1),
+  };
+}
+
+function mapClientPointToNormalized(clientX, clientY) {
+  const rect = getCanonicalViewportRect();
+  const normalizedX = (Number(clientX) - rect.left) / Math.max(1, rect.width);
+  const normalizedY = (Number(clientY) - rect.top) / Math.max(1, rect.height);
+  return [
+    clampRoomAbsoluteCoordinate(normalizedX),
+    clampRoomAbsoluteCoordinate(normalizedY),
+  ];
+}
+
+function mapNormalizedPointToPixels(normalizedX, normalizedY, width, height) {
+  return [
+    clampRoomAbsoluteCoordinate(normalizedX) * Math.max(1, Number(width) || 1),
+    clampRoomAbsoluteCoordinate(normalizedY) * Math.max(1, Number(height) || 1),
+  ];
 }
 
 function applyStageViewportRecompute(reason = "unknown") {
@@ -610,6 +537,10 @@ const LIVE_APPLIED_MUTATION_LIMIT = 4000;
 const LIVE_POLL_FAST_MS = 120;
 const LIVE_POLL_IDLE_MS = 250;
 const LIVE_POLL_MAX_BACKOFF_MS = 2000;
+const LIVE_COMMAND_TIMEOUT_MS = 6500;
+const TOAST_MAX_ENTRIES = 4;
+const TOAST_DEDUPE_COOLDOWN_MS = 2200;
+const TOAST_DEFAULT_TIMEOUT_MS = 5000;
 const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
 const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
@@ -743,6 +674,7 @@ function buildRuntimeSnapshotForLiveSync() {
     animationSpeed: state.animationSpeed,
     audio: state.audio,
     alignMode: state.alignMode,
+    mp4Performance: getMp4PerformanceControls(),
   };
 }
 
@@ -772,6 +704,43 @@ function scheduleNextLiveSnapshotPoll(delayOverrideMs = null) {
     liveSync.pollTimerId = null;
     void pollLiveSnapshotOnce();
   }, delayMs);
+}
+
+const toastDedupByKey = new Map();
+
+function showToast(message, { kind = "error", timeoutMs = TOAST_DEFAULT_TIMEOUT_MS, dedupeKey = "" } = {}) {
+  if (!toastStack || !message || outputRole === OUTPUT_ROLE_FINAL) {
+    return;
+  }
+  const key = String(dedupeKey || message).trim();
+  const now = Date.now();
+  if (key) {
+    const previousAt = Number(toastDedupByKey.get(key) || 0);
+    if (now - previousAt < TOAST_DEDUPE_COOLDOWN_MS) {
+      return;
+    }
+    toastDedupByKey.set(key, now);
+  }
+  const node = document.createElement("div");
+  node.className = `toast toast-${kind}`;
+  node.textContent = String(message);
+  toastStack.prepend(node);
+  while (toastStack.childElementCount > TOAST_MAX_ENTRIES) {
+    toastStack.lastElementChild?.remove();
+  }
+  window.setTimeout(() => {
+    node.remove();
+  }, Math.max(1200, Number(timeoutMs) || TOAST_DEFAULT_TIMEOUT_MS));
+}
+
+function reportActionError(statusText, {
+  toastText = statusText,
+  dedupeKey = "runtime-action-error",
+} = {}) {
+  if (triggerFeedback) {
+    triggerFeedback.textContent = statusText.startsWith("Status:") ? statusText : `Status: ${statusText}`;
+  }
+  showToast(toastText, { kind: "error", dedupeKey });
 }
 
 function normalizeSnapshotEnvelope(payload) {
@@ -861,84 +830,81 @@ async function pollLiveSnapshotOnce() {
 
 async function emitLiveMutation(mutationType, payload = {}) {
   const normalizedPayload = normalizeLiveMutationPayload(mutationType, payload);
-  const shouldRetryControlMutation = mutationType === "trigger-global"
-    || mutationType === "trigger-room"
-    || mutationType === STOP_ANIMATION_MUTATION_TYPE
-    || mutationType === "clear-all";
-  const maxAttempts = shouldRetryControlMutation ? 2 : 1;
-
-  let lastError = null;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}-a${attempt}`;
-    const queuedAt = Date.now();
-
-    if (mutationType === "context-update") {
-      for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
-        if (entry?.mutationType === "context-update") {
-          liveSync.pendingMutations.delete(pendingMutationId);
-        }
-      }
-    }
-    liveSync.pendingMutations.set(mutationId, {
-      mutationId,
-      mutationType,
-      queuedAt,
-      acceptedVersion: null,
-    });
-    recordMutationTrace(mutationId, "command_emit");
-
-    try {
-      const response = await fetch("/api/live/command", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-        },
-        body: JSON.stringify({
-          mutationId,
-          mutationType,
-          role: outputRole,
-          clientId: liveSync.clientId ?? undefined,
-          payload: normalizedPayload,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`command rejected (${response.status})`);
-      }
-      const ack = await response.json();
-      if (ack?.applied !== true || ack?.overflow === true || ack?.timeout === true || ack?.stale === true || ack?.duplicate === true) {
-        const reason = ack?.overflow ? "overflow" : ack?.timeout ? "timeout" : ack?.stale ? "stale" : ack?.duplicate ? "duplicate" : "not-applied";
-        throw new Error(`command not applied (${reason})`);
-      }
-
-      liveSync.lastCommandAcceptedAt = Date.now();
-      if (Number.isFinite(Number(ack?.version))) {
-        const version = Number(ack.version);
-        liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
-        liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
-        const pendingEntry = liveSync.pendingMutations.get(mutationId);
-        if (pendingEntry) {
-          pendingEntry.acceptedVersion = version;
-          liveSync.pendingMutations.set(mutationId, pendingEntry);
-        }
-      }
-      recordMutationTrace(mutationId, "command_accepted");
-      liveSync.preferFastPollingUntil = Date.now() + 2000;
-      scheduleNextLiveSnapshotPoll(0);
-      return ack;
-    } catch (error) {
-      liveSync.pendingMutations.delete(mutationId);
-      lastError = error;
-      if (attempt < maxAttempts) {
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, 20);
-        });
-        continue;
+  const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const queuedAt = Date.now();
+  if (mutationType === "context-update") {
+    for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
+      if (entry?.mutationType === "context-update") {
+        liveSync.pendingMutations.delete(pendingMutationId);
       }
     }
   }
-
-  throw lastError ?? new Error("command mutation failed");
+  liveSync.pendingMutations.set(mutationId, {
+    mutationId,
+    mutationType,
+    queuedAt,
+    acceptedVersion: null,
+  });
+  recordMutationTrace(mutationId, "command_emit");
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort();
+  }, LIVE_COMMAND_TIMEOUT_MS);
+  try {
+    const response = await fetch("/api/live/command", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        mutationId,
+        mutationType,
+        role: outputRole,
+        clientId: liveSync.clientId ?? undefined,
+        payload: normalizedPayload,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`command rejected (${response.status})`);
+    }
+    const ack = await response.json();
+    liveSync.lastCommandAcceptedAt = Date.now();
+    if (Number.isFinite(Number(ack?.version))) {
+      const version = Number(ack.version);
+      liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
+      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
+      const pendingEntry = liveSync.pendingMutations.get(mutationId);
+      if (pendingEntry) {
+        pendingEntry.acceptedVersion = version;
+        liveSync.pendingMutations.set(mutationId, pendingEntry);
+      }
+    }
+    recordMutationTrace(mutationId, "command_accepted");
+    liveSync.preferFastPollingUntil = Date.now() + 2000;
+    scheduleNextLiveSnapshotPoll(0);
+    return ack;
+  } catch (error) {
+    const timeoutLike = error instanceof DOMException && error.name === "AbortError";
+    const statusDetail = timeoutLike
+      ? `Status: ${mutationType} command timed out after ${LIVE_COMMAND_TIMEOUT_MS}ms`
+      : `Status: ${mutationType} command failed`;
+    const backgroundContextSync = mutationType === "context-update"
+      && String(payload?.reason || "").includes("room-draft-sync");
+    if (outputRole === OUTPUT_ROLE_CONTROL && !backgroundContextSync) {
+      reportActionError(statusDetail, {
+        toastText: timeoutLike
+          ? `Command timeout: ${mutationType} did not respond`
+          : `Command failed: ${mutationType}`,
+        dedupeKey: `command-${mutationType}-${timeoutLike ? "timeout" : "failed"}`,
+      });
+    }
+    liveSync.pendingMutations.delete(mutationId);
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 function normalizeLiveMutationPayload(mutationType, payload = {}) {
@@ -1356,12 +1322,15 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     state.audio.enabled = Boolean(runtime.audio.enabled);
     state.audio.volume = clampAudioVolumePercent(Math.round(Number(runtime.audio.volume ?? state.audio.volume) * 100)) / 100;
   }
+  if (runtime.mp4Performance && typeof runtime.mp4Performance === "object") {
+    state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls(runtime.mp4Performance);
+    syncMp4PerformanceControlsPanel();
+  }
   if (typeof snapshot?.alignMode === "boolean") {
     state.alignMode = snapshot.alignMode;
   } else if (typeof runtime.alignMode === "boolean") {
     state.alignMode = runtime.alignMode;
   }
-  state.finalOutputMode = normalizeFinalOutputMode(runtime.finalOutputMode ?? state.finalOutputMode);
 
   if (mutationType === "clear-all" || mutationType === "stop-animation") {
     hardStopRuntimeEffects({ clearVisuals: true });
@@ -1492,6 +1461,7 @@ let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
 const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
+const roomVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
 const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
@@ -2774,6 +2744,7 @@ function buildBoardProfilesFromState() {
 }
 
 function buildPersistedRuntimeSettingsFromState() {
+  const mp4Controls = getMp4PerformanceControls();
   return {
     audio: {
       enabled: Boolean(state.audio.enabled),
@@ -2781,6 +2752,13 @@ function buildPersistedRuntimeSettingsFromState() {
     },
     animationSpeed: clampAnimationSpeed(state.animationSpeed),
     animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
+    mp4Performance: {
+      tier: mp4Controls.tier,
+      renderCap: mp4Controls.renderCap,
+      qualityFloor: mp4Controls.qualityFloor,
+      degradeThreshold: mp4Controls.degradeThreshold,
+      recoverThreshold: mp4Controls.recoverThreshold,
+    },
   };
 }
 
@@ -2812,6 +2790,10 @@ function applyPersistedRuntimeSettings(payload) {
 
   if (Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
     state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, "mp4Performance")) {
+    state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls(payload.mp4Performance);
   }
 }
 
@@ -4380,12 +4362,12 @@ function warmRoomGifAssets({ reason = "runtime" } = {}) {
   }
 }
 
-function getOutsideVideoElement(path) {
+function getMediaVideoElement(cacheMap, path) {
   const normalizedPath = String(path || "").trim();
   if (!normalizedPath) {
     return null;
   }
-  if (!outsideVideoCacheByPath.has(normalizedPath)) {
+  if (!cacheMap.has(normalizedPath)) {
     const video = document.createElement("video");
     video.src = normalizedPath;
     video.crossOrigin = "anonymous";
@@ -4393,12 +4375,12 @@ function getOutsideVideoElement(path) {
     video.muted = true;
     video.loop = false;
     video.playsInline = true;
-    outsideVideoCacheByPath.set(normalizedPath, {
+    cacheMap.set(normalizedPath, {
       status: "loading",
       video,
       durationSec: null,
     });
-    const entry = outsideVideoCacheByPath.get(normalizedPath);
+    const entry = cacheMap.get(normalizedPath);
     video.addEventListener("loadedmetadata", () => {
       const durationSec = Number(video.duration);
       if (entry) {
@@ -4412,7 +4394,15 @@ function getOutsideVideoElement(path) {
       }
     });
   }
-  return outsideVideoCacheByPath.get(normalizedPath) ?? null;
+  return cacheMap.get(normalizedPath) ?? null;
+}
+
+function getOutsideVideoElement(path) {
+  return getMediaVideoElement(outsideVideoCacheByPath, path);
+}
+
+function getRoomVideoElement(path) {
+  return getMediaVideoElement(roomVideoCacheByPath, path);
 }
 
 function clearOutsideMp4PlaybackState(boardId = state.boardId) {
@@ -4934,7 +4924,60 @@ function percentile(values, p) {
 }
 
 function getRuntimeQualityScale() {
-  return Math.max(0.68, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
+  const controls = getMp4PerformanceControls();
+  return Math.max(controls.qualityFloor, Math.min(1, Number(state.runtimePerf.qualityScale) || 1));
+}
+
+function normalizeMp4PerformanceTier(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "quality" || normalized === "performance") {
+    return normalized;
+  }
+  return "balanced";
+}
+
+function getMp4TierDefaults(tier) {
+  if (tier === "quality") {
+    return {
+      renderCap: 72,
+      qualityFloor: 0.78,
+      degradeThreshold: 1.55,
+      recoverThreshold: 0.9,
+    };
+  }
+  if (tier === "performance") {
+    return {
+      renderCap: 32,
+      qualityFloor: 0.55,
+      degradeThreshold: 1.2,
+      recoverThreshold: 0.8,
+    };
+  }
+  return {
+    renderCap: 48,
+    qualityFloor: 0.68,
+    degradeThreshold: 1.35,
+    recoverThreshold: 0.92,
+  };
+}
+
+function normalizeMp4PerformanceControls(raw = {}) {
+  const tier = normalizeMp4PerformanceTier(raw.tier);
+  const defaults = getMp4TierDefaults(tier);
+  const degradeThreshold = Math.max(1.05, Math.min(2, Number(raw.degradeThreshold) || defaults.degradeThreshold));
+  const recoverThreshold = Math.max(0.55, Math.min(1.2, Number(raw.recoverThreshold) || defaults.recoverThreshold));
+  return {
+    tier,
+    renderCap: Math.max(8, Math.min(96, Math.round(Number(raw.renderCap) || defaults.renderCap))),
+    qualityFloor: Math.max(0.45, Math.min(1, Number(raw.qualityFloor) || defaults.qualityFloor)),
+    degradeThreshold,
+    recoverThreshold: Math.min(degradeThreshold - 0.05, recoverThreshold),
+  };
+}
+
+function getMp4PerformanceControls() {
+  state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls(state.runtimePerf.mp4Controls);
+  return state.runtimePerf.mp4Controls;
 }
 
 function computeAnimationCoalesceSeed(animation) {
@@ -4977,6 +5020,25 @@ function shouldCoalesceNonCriticalAnimation(animation) {
   return (frameIndex + seed) % stride !== 0;
 }
 
+function shouldSkipRoomMp4Frame(animation) {
+  const controls = getMp4PerformanceControls();
+  const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
+  if (pressureLevel <= 0 && controls.tier !== "performance") {
+    return false;
+  }
+  const stride = controls.tier === "performance"
+    ? (pressureLevel >= 2 ? 3 : 2)
+    : pressureLevel >= 2
+      ? 2
+      : 1;
+  if (stride <= 1) {
+    return false;
+  }
+  const frameIndex = Number(state.runtimePerf.frameIndex) || 0;
+  const seed = computeAnimationCoalesceSeed(animation);
+  return (frameIndex + seed) % stride !== 0;
+}
+
 function getRuntimeVisualCaps() {
   const pressureLevel = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
   const outsideStarsPerLayer = Math.max(18, Number(state.runtimePerf.maxOutsideStarsPerLayer) || 110);
@@ -5001,27 +5063,37 @@ function recordRuntimeFrameCost(frameCostMs) {
   }
   const p90 = percentile(samples, 0.9);
   const targetMs = Number(state.runtimePerf.frameBudgetMs) || 16.7;
-  if (p90 > targetMs * 1.25) {
-    state.runtimePerf.qualityScale = Math.max(0.68, getRuntimeQualityScale() - 0.03);
-  } else if (p90 < targetMs * 0.92) {
+  const controls = getMp4PerformanceControls();
+  const mp4LoadCount = state.runningAnimations.filter((animation) => {
+    if (!animation || animation.scope !== "room" || animation.boardId !== state.boardId) {
+      return false;
+    }
+    return normalizeRoomAssetType(animation.roomAssetType) === "mp4";
+  }).length;
+  const loadPenalty = mp4LoadCount >= 12 ? 0.18 : mp4LoadCount >= 8 ? 0.1 : mp4LoadCount >= 4 ? 0.04 : 0;
+  const degradeThreshold = Math.max(1.05, controls.degradeThreshold - loadPenalty);
+  const recoverThreshold = Math.max(0.55, Math.min(degradeThreshold - 0.05, controls.recoverThreshold));
+  if (p90 > targetMs * degradeThreshold) {
+    state.runtimePerf.qualityScale = Math.max(controls.qualityFloor, getRuntimeQualityScale() - 0.03);
+  } else if (p90 < targetMs * recoverThreshold) {
     state.runtimePerf.qualityScale = Math.min(1, getRuntimeQualityScale() + 0.015);
   }
   if (p90 > targetMs * 1.9) {
     state.runtimePerf.pressureLevel = 2;
     state.runtimePerf.nonCriticalCoalesceStride = 3;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 28;
+    state.runtimePerf.maxRenderAnimationsPerFrame = Math.min(controls.renderCap, 28);
     state.runtimePerf.maxAshParticles = 80;
     state.runtimePerf.maxOutsideStarsPerLayer = 34;
   } else if (p90 > targetMs * 1.35) {
     state.runtimePerf.pressureLevel = 1;
     state.runtimePerf.nonCriticalCoalesceStride = 2;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 56;
+    state.runtimePerf.maxRenderAnimationsPerFrame = Math.min(controls.renderCap, 56);
     state.runtimePerf.maxAshParticles = 150;
     state.runtimePerf.maxOutsideStarsPerLayer = 64;
   } else {
     state.runtimePerf.pressureLevel = 0;
     state.runtimePerf.nonCriticalCoalesceStride = 1;
-    state.runtimePerf.maxRenderAnimationsPerFrame = 96;
+    state.runtimePerf.maxRenderAnimationsPerFrame = Math.min(controls.renderCap, 96);
     state.runtimePerf.maxAshParticles = 240;
     state.runtimePerf.maxOutsideStarsPerLayer = 110;
   }
@@ -5045,6 +5117,64 @@ function updateMobilePerformanceStatus() {
   const quality = Math.round(getRuntimeQualityScale() * 100);
   mobilePerformanceStatus.textContent =
     `Mobile Performance: Trigger p95 ${p95Trigger.toFixed(1)}ms | Frame p95 ${p95Frame.toFixed(1)}ms (~${approxFps} FPS) | Jank>=40ms ${jankRate.toFixed(1)}% | Quality ${quality}%`;
+}
+
+function syncMp4PerformanceControlsPanel() {
+  const controls = getMp4PerformanceControls();
+  state.runtimePerf.maxRenderAnimationsPerFrame = Math.min(
+    Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96,
+    controls.renderCap,
+  );
+  if (mp4PerformanceTierInput) {
+    mp4PerformanceTierInput.value = controls.tier;
+  }
+  if (mp4RenderCapInput) {
+    mp4RenderCapInput.value = String(controls.renderCap);
+  }
+  if (mp4RenderCapValue) {
+    mp4RenderCapValue.textContent = String(controls.renderCap);
+  }
+  if (mp4QualityFloorInput) {
+    mp4QualityFloorInput.value = controls.qualityFloor.toFixed(2);
+  }
+  if (mp4QualityFloorValue) {
+    mp4QualityFloorValue.textContent = controls.qualityFloor.toFixed(2);
+  }
+  if (mp4DegradeThresholdInput) {
+    mp4DegradeThresholdInput.value = controls.degradeThreshold.toFixed(2);
+  }
+  if (mp4DegradeThresholdValue) {
+    mp4DegradeThresholdValue.textContent = controls.degradeThreshold.toFixed(2);
+  }
+  if (mp4RecoverThresholdInput) {
+    mp4RecoverThresholdInput.value = controls.recoverThreshold.toFixed(2);
+  }
+  if (mp4RecoverThresholdValue) {
+    mp4RecoverThresholdValue.textContent = controls.recoverThreshold.toFixed(2);
+  }
+  if (mp4PerformanceStatus) {
+    const pressure = Math.max(0, Math.min(2, Number(state.runtimePerf.pressureLevel) || 0));
+    mp4PerformanceStatus.textContent =
+      `MP4 controls: ${controls.tier} | cap ${controls.renderCap}/frame | floor ${controls.qualityFloor.toFixed(2)} | pressure ${pressure}`;
+  }
+}
+
+function updateMp4PerformanceControls(partial, { announce = true } = {}) {
+  state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls({
+    ...getMp4PerformanceControls(),
+    ...partial,
+  });
+  state.runtimePerf.maxRenderAnimationsPerFrame = Math.min(
+    Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96,
+    state.runtimePerf.mp4Controls.renderCap,
+  );
+  syncMp4PerformanceControlsPanel();
+  persistRuntimeSoundSettingsChange("Status: MP4 controls updated, but persistence failed");
+  if (announce) {
+    const controls = getMp4PerformanceControls();
+    triggerFeedback.textContent =
+      `Status: MP4 controls updated (${controls.tier}, cap ${controls.renderCap}/frame, floor ${controls.qualityFloor.toFixed(2)})`;
+  }
 }
 
 function recordTriggerIntent() {
@@ -6972,23 +7102,7 @@ function renderPolygonEditorHandles() {
 }
 
 function getNormalizedOverlayPoint(event) {
-  if (typeof roomOverlay.createSVGPoint === "function") {
-    const svgPoint = roomOverlay.createSVGPoint();
-    svgPoint.x = event.clientX;
-    svgPoint.y = event.clientY;
-    const ctm = roomOverlay.getScreenCTM();
-    if (ctm && typeof ctm.inverse === "function") {
-      const local = svgPoint.matrixTransform(ctm.inverse());
-      return [
-        clampRoomAbsoluteCoordinate(local.x / 1000),
-        clampRoomAbsoluteCoordinate(local.y / 1000),
-      ];
-    }
-  }
-  const rect = roomOverlay.getBoundingClientRect();
-  const rawX = (event.clientX - rect.left) / rect.width;
-  const rawY = (event.clientY - rect.top) / rect.height;
-  return [clampRoomAbsoluteCoordinate(rawX), clampRoomAbsoluteCoordinate(rawY)];
+  return mapClientPointToNormalized(event.clientX, event.clientY);
 }
 
 function beginPolygonVertexDrag(event, roomId, vertexIndex) {
@@ -7546,14 +7660,11 @@ function getRoomLabelPosition(room, boardId = state.boardId) {
 }
 
 function getRoomPolygonPixels(room, width, height, boardId = state.boardId) {
-  return getRoomPoints(room, boardId).map(([x, y]) => [
-    (x / 1000) * width,
-    (y / 1000) * height,
-  ]);
+  return getRoomPoints(room, boardId).map(([x, y]) => mapNormalizedPointToPixels(x / 1000, y / 1000, width, height));
 }
 
 function getShipPolygonPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
-  return getShipPolygonPoints(boardId).map(([x, y]) => [x * width, y * height]);
+  return getShipPolygonPoints(boardId).map(([x, y]) => mapNormalizedPointToPixels(x, y, width, height));
 }
 
 function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
@@ -7563,7 +7674,7 @@ function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height,
   return sourceAreas
     .map((area) => (Array.isArray(area?.polygon) ? area.polygon.map((point) => normalizePolygonPoint(point)) : []))
     .filter((polygon) => polygon.length >= 3)
-    .map((polygon) => polygon.map(([x, y]) => [x * width, y * height]));
+    .map((polygon) => polygon.map(([x, y]) => mapNormalizedPointToPixels(x, y, width, height)));
 }
 
 function getRoomRenderMetrics(room, boardId = state.boardId) {
@@ -8786,7 +8897,10 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
     return;
   }
   if (assetType === "mp4") {
-    const videoEntry = getOutsideVideoElement(assetRef);
+    if (shouldSkipRoomMp4Frame(animation)) {
+      return;
+    }
+    const videoEntry = getRoomVideoElement(assetRef);
     const video = videoEntry?.video;
     if (video) {
       video.loop = true;
@@ -8800,10 +8914,14 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
         void video.play().catch(() => undefined);
       }
       if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
-        ctx.save();
-        ctx.globalAlpha = clampRoomOpacity(animation.opacity);
-        ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
-        ctx.restore();
+        try {
+          ctx.save();
+          ctx.globalAlpha = clampRoomOpacity(animation.opacity);
+          ctx.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+          ctx.restore();
+        } catch {
+          ctx.restore();
+        }
       }
     }
     return;
@@ -10654,8 +10772,6 @@ function draw(now) {
       state.mobilePerf.pendingTriggerAt = null;
     }
 
-    syncFinalOutputRenderPath();
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
     drawOutsideFxLayer(now);
@@ -10744,7 +10860,11 @@ boardImportButton?.addEventListener("click", async () => {
       boardImportIdInput.value = "";
     }
   } catch (error) {
-    triggerFeedback.textContent = `Status: ${error instanceof Error ? error.message : "Board import failed"}`;
+    const message = error instanceof Error ? error.message : "Board import failed";
+    reportActionError(`Status: ${message}`, {
+      toastText: `Board import failed: ${message}`,
+      dedupeKey: "board-import-failed",
+    });
   } finally {
     boardImportButton.disabled = false;
   }
@@ -12203,11 +12323,6 @@ mobileStartRoomButton?.addEventListener("click", () => {
   startRoomAnimationFromDraft();
 });
 
-finalOutputModeSelect?.addEventListener("change", () => {
-  setFinalOutputMode("stream", { emit: true });
-  triggerFeedback.textContent = "Status: Final output mode is enforced to STREAM";
-});
-
 alignModeToggleInput?.addEventListener("change", () => {
   setAlignMode(Boolean(alignModeToggleInput.checked));
 });
@@ -12243,6 +12358,10 @@ saveGlobalDefaultsButton.addEventListener("click", async () => {
     globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
     apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
     triggerFeedback.textContent = saveError.feedbackText;
+    showToast(saveError.statusText, {
+      kind: "error",
+      dedupeKey: "global-defaults-save-failed",
+    });
   } finally {
     saveGlobalDefaultsButton.disabled = false;
   }
@@ -12263,6 +12382,10 @@ loadApplyGlobalDefaultsButton?.addEventListener("click", async () => {
     apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
     triggerFeedback.textContent =
       `Status: Load & apply defaults failed. ${saveError.feedbackText}`;
+    showToast(saveError.statusText, {
+      kind: "error",
+      dedupeKey: "global-defaults-load-failed",
+    });
   } finally {
     loadApplyGlobalDefaultsButton.disabled = false;
   }
@@ -12300,6 +12423,28 @@ runMobilePerformanceCheckButton?.addEventListener("click", () => {
   const snapshot = state.mobilePerf.lastSnapshot;
   triggerFeedback.textContent =
     `Status: Mobile snapshot created (Trigger p95 ${snapshot.triggerP95Ms.toFixed(1)}ms, Frame p95 ${snapshot.frameP95Ms.toFixed(1)}ms, Jank ${snapshot.jankRatePct.toFixed(1)}%)`;
+});
+
+mp4PerformanceTierInput?.addEventListener("change", () => {
+  const tier = normalizeMp4PerformanceTier(mp4PerformanceTierInput.value);
+  const defaults = getMp4TierDefaults(tier);
+  updateMp4PerformanceControls({ tier, ...defaults });
+});
+
+mp4RenderCapInput?.addEventListener("input", () => {
+  updateMp4PerformanceControls({ renderCap: Number(mp4RenderCapInput.value) }, { announce: false });
+});
+
+mp4QualityFloorInput?.addEventListener("input", () => {
+  updateMp4PerformanceControls({ qualityFloor: Number(mp4QualityFloorInput.value) }, { announce: false });
+});
+
+mp4DegradeThresholdInput?.addEventListener("input", () => {
+  updateMp4PerformanceControls({ degradeThreshold: Number(mp4DegradeThresholdInput.value) }, { announce: false });
+});
+
+mp4RecoverThresholdInput?.addEventListener("input", () => {
+  updateMp4PerformanceControls({ recoverThreshold: Number(mp4RecoverThresholdInput.value) }, { announce: false });
 });
 
 const resizeObserver = new ResizeObserver((entries) => {
@@ -12348,7 +12493,9 @@ function syncRuntimePanelsFromState() {
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
     updateMobilePerformanceStatus,
+    syncMp4PerformanceControlsPanel,
   });
+  syncMp4PerformanceControlsPanel();
 }
 
 async function initializeApplication() {
@@ -12427,10 +12574,8 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
-  syncFinalOutputModePanel();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
-  connectFinalOutputStream();
   connectLiveSyncSocket();
   scheduleNextLiveSnapshotPoll(0);
   if (startupDefaultsSnapshot) {

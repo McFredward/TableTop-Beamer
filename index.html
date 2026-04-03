@@ -19,7 +19,6 @@
       <div id="stage" class="stage">
         <img id="board-image" alt="Board" />
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
-        <div id="final-stream-layer" class="final-stream-layer" aria-hidden="true" hidden></div>
         <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
       </div>
     </main>
@@ -96,12 +95,6 @@
           <input id="align-mode-toggle" type="checkbox" />
           Align mode (show polygons on final output)
         </label>
-        <label>
-          Final output mode
-          <select id="final-output-mode-select" disabled>
-            <option value="stream">Stream only (server authoritative)</option>
-          </select>
-        </label>
         <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
         <button id="load-apply-global-defaults" type="button">Load and apply defaults</button>
         <button id="export-global-defaults" type="button">Download export (secondary)</button>
@@ -110,7 +103,6 @@
           Board source: checked at startup
         </p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
-        <p id="final-output-mode-status" class="status-line" aria-live="polite">Final output mode: STREAM</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: not saved yet
         </p>
@@ -565,9 +557,40 @@
         </p>
       </section>
 
+      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+        <h2>MP4 performance controls</h2>
+        <p class="status-line">Deterministic quality/performance policy for weak hardware and concurrent MP4 load.</p>
+        <label>
+          Profile
+          <select id="mp4-performance-tier">
+            <option value="quality">Quality first</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="performance">Performance first</option>
+          </select>
+        </label>
+        <label>
+          MP4 render cap per frame <span id="mp4-render-cap-value">48</span>
+          <input id="mp4-render-cap" type="range" min="8" max="96" step="1" value="48" />
+        </label>
+        <label>
+          Quality floor <span id="mp4-quality-floor-value">0.68</span>
+          <input id="mp4-quality-floor" type="range" min="0.45" max="1" step="0.01" value="0.68" />
+        </label>
+        <label>
+          Degrade threshold <span id="mp4-degrade-threshold-value">1.35</span>x frame budget
+          <input id="mp4-degrade-threshold" type="range" min="1.05" max="2" step="0.05" value="1.35" />
+        </label>
+        <label>
+          Recover threshold <span id="mp4-recover-threshold-value">0.92</span>x frame budget
+          <input id="mp4-recover-threshold" type="range" min="0.55" max="1.2" step="0.01" value="0.92" />
+        </label>
+        <p id="mp4-performance-status" class="status-line" aria-live="polite">MP4 controls: balanced profile</p>
+      </section>
+
       <footer class="hint dashboard-only" data-view="dashboard">Note: for real projector targeting, move the browser to the projector and use fullscreen.</footer>
     </aside>
   </div>
+  <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
 
   <script src="/src/app/shared/config.js" defer></script>
   <script src="/src/app/shared/runtime-env.js" defer></script>
