@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 9 (`phase-09`)
-- Status: in-progress (Plan 9-HF1, 9-HF2, and 9-HF3 completed; hardening wave 9-2 is next)
-- Next Plan: 9-2 (post-HF3 hardening: adapter cleanup + dependency direction + optional diagnostics refinement)
+- Status: in-progress (Plan 9-HF1, 9-HF2, 9-HF3 and 9-HF4 completed; next wave is Plan 9-2 hardening)
+- Next Plan: 9-2 (adapter cleanup, dependency hardening, diagnostics refinements)
 - Command Target: `/gsd:execute-phase 9`
 
 Execution inputs:

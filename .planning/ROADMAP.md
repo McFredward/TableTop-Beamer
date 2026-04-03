@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, dann die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening, gefolgt von einem neuen verpflichtenden P0-Hotfixpaket fuer cross-browser Polygon-Mapping, `/output/final` mixed-media lifecycle integrity, weak-hardware `mp4` performance controls und explizites Fehlerfeedback ohne silent no-op.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, dann die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening, gefolgt von einem verpflichtenden P0-Hotfixpaket fuer cross-browser Polygon-Mapping, `/output/final` mixed-media lifecycle integrity, weak-hardware `mp4` performance controls und explizites Fehlerfeedback ohne silent no-op, plus einem neuen verpflichtenden P0-Follow-up fuer strict outside-sandstorm lifecycle independence ohne restart durch room/cluster/global starts.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -565,9 +565,9 @@ Gate Closure (8-HF12):
 - Plan 8-2 ist wieder freigegeben.
 
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
-Ziel: Auf der abgeschlossenen HF1/HF2-Basis die Runtime-Stabilitaet final schliessen: cross-browser-deterministisches Polygon-Mapping, `/output/final` mixed-media lifecycle integrity (room `mp4` + room GIF), weak-hardware `mp4` quality/performance controls und explizites Fehlerfeedback auf command/API fail/timeout Pfaden.
+Ziel: Auf der abgeschlossenen HF1/HF2/HF3-Basis die Runtime-Stabilitaet final schliessen, inklusive neuem bindendem Follow-up: outside sandstorm playback lifecycle bleibt strikt unabhaengig von room/cluster/global start-stop Ereignissen bei unveraenderten stop/clear Semantiken.
 
-Status: Plan 9-HF1, 9-HF2 und 9-HF3 sind abgeschlossen. HF3 liefert die verpflichtende Runtime-Closure fuer canonical coordinate mapping, mixed-media `/output/final` lifecycle isolation, deterministic weak-hardware mp4 controls und explizites fail/timeout feedback (`9-HF3-SUMMARY.md`, `P9-HF3-REGRESSION-EVIDENCE.md`). Plan 9-2 ist als naechste Wave freigegeben.
+Status: Plan 9-HF1, 9-HF2, 9-HF3 und 9-HF4 sind abgeschlossen (`9-HF3-SUMMARY.md`, `P9-HF3-REGRESSION-EVIDENCE.md`, `9-HF4-SUMMARY.md`, `9-HF4-VERIFICATION.md`). Plan 9-2 ist nach HF4-PASS freigegeben.
 
 Milestones:
 1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
@@ -577,7 +577,9 @@ Milestones:
 5. M5 Weak-Hardware Stability Controls Closure: configurable degrade/recover tiers halten viele parallele `mp4` streams stabil.
 6. M6 Explicit Error Feedback Closure: command/API fail/timeout Pfade zeigen immer explizite user-facing Fehler.
 7. M7 Deterministic Sync Preservation: ordering/version/idempotent apply bleibt unter HF3 unveraendert.
-8. M8 Evidence Closure: browser/final-output/weak-hardware/feedback matrix PASS mit konsistentem Artefakt-Sync.
+8. M8 Outside Lifecycle Independence Closure: outside sandstorm restartet/rewindet nicht bei room/cluster/global-inside Starts.
+9. M9 Outside Cache Reset Guard Closure: outside media cache reset wird nicht mehr von unrelatierten Starts ausgeloest.
+10. M10 Semantics + Evidence Closure: stop/clear semantics bleiben unveraendert deterministisch; HF4-Evidenzmatrix PASS mit konsistentem Artefakt-Sync.
 
 Exit Criteria:
 - Polygon-Overlay bleibt in allen Zielbrowsern unter resize/orientation/fullscreen/DPR deterministisch ausgerichtet.
@@ -585,8 +587,11 @@ Exit Criteria:
 - Runtime bleibt unter hoher paralleler `mp4`-Last auf weak hardware stabil via konfigurierbare quality/performance controls.
 - Command/API fail- und timeout-Pfade zeigen immer explizites user-facing Fehlerfeedback; keine silent no-op Pfade.
 - Deterministic sync bleibt unter HF3-Hotfixpfaden unveraendert (ordering/version/idempotent apply).
+- Outside sandstorm Playback bleibt bei wiederholten room/cluster/global-inside Starts kontinuierlich ohne Restart/Rewind.
+- Outside media cache reset wird nur durch outside-spezifische Lifecycle-Events ausgeloest, nie durch unrelatierte Starts.
+- Bestehende `stop outside`- und `clear all`-Semantik bleibt unveraendert deterministisch.
 - Keine Regression in Operator-Flow, Persistenz/API-Save und `/output/final`.
-- Browser/final-output/weak-hardware/feedback Evidence-Matrix ist PASS dokumentiert.
+- Browser/final-output/weak-hardware/feedback Evidence-Matrix bleibt PASS dokumentiert; zusaetzlich ist HF4 no-restart/cross-scope/stop-clear Matrix PASS.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 9-HF1 Closure Notes:
@@ -608,6 +613,12 @@ HF3 Closure (runtime testing package):
 - Weak-hardware concurrent `mp4` quality/performance controls with deterministic degrade/recover behavior are a hard gate.
 - Explicit command/API fail and timeout feedback (toast/error, no silent no-op) is a hard gate.
 - Gate status: PASS (see `9-HF3-SUMMARY.md` and `P9-HF3-REGRESSION-EVIDENCE.md`).
+
+HF4 Binding Follow-up (outside lifecycle independence package):
+- Triggering room animations must not restart active outside sandstorm playback from the beginning.
+- Outside playback state and media cache are isolated from room/cluster/global-inside lifecycle triggers.
+- Existing `stop outside` and `clear all` semantics remain deterministic and unchanged.
+- Gate status: PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

@@ -1,97 +1,110 @@
 ---
 phase: phase-09
 plan: 9-HF4
-subsystem: api
-tags: [stream, sse, live-sync, recovery, regression]
+subsystem: runtime
+tags: [outside-lifecycle, mp4-playback, sync-determinism, regression]
 requires:
   - phase: phase-09
-    provides: HF3 stream baseline and deterministic live-sync contracts
+    provides: HF3 runtime baseline (mapping/mixed-media/sync safety)
 provides:
-  - Single producer scheduler for final stream with subscriber decoupling
-  - Black-stream closure by keeping canonical render path active in final output
-  - Restart-free stream recovery watchdog and regression evidence matrix
-affects: [phase-09, output-final, live-command-path]
+  - Outside playback lifecycle is decoupled from room/cluster/global-inside trigger churn
+  - Outside MP4 restart is blocked on unrelated room starts
+  - Stop outside and clear-all semantics preserved with deterministic reset behavior
+affects: [phase-09-plan-9-2, runtime-stability, final-output]
 tech-stack:
   added: []
-  patterns: [single-producer-fanout, watchdog-self-heal, command-path-isolation]
+  patterns: [board-scoped outside lifecycle key, outside timeline ownership isolation]
 key-files:
   created:
-    - debug/p9-hf4-t1-repro-trace.mjs
-    - debug/p9-hf4-t8-control-matrix.mjs
-    - debug/p9-hf4-t9-output-parity-matrix.mjs
+    - .planning/phases/phase-09/P9-HF4-T1-REPRO-TRACE.md
+    - .planning/phases/phase-09/P9-HF4-T2-LIFECYCLE-ISOLATION.md
+    - .planning/phases/phase-09/P9-HF4-T3-CACHE-RESET-GUARD.md
+    - .planning/phases/phase-09/P9-HF4-T4-STOP-CLEAR-NON-REGRESSION.md
+    - .planning/phases/phase-09/P9-HF4-T5-SYNC-INVARIANTS.md
+    - .planning/phases/phase-09/P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md
     - .planning/phases/phase-09/9-HF4-VERIFICATION.md
+    - debug/p9-hf4-repeated-room-start-regression.mjs
+    - debug/p9-hf4-repeated-room-start-regression-output.json
   modified:
-    - server.mjs
     - src/app/runtime/runtime-orchestration.js
-    - src/styles.css
+    - .planning/phases/phase-09/PLAN.md
+    - .planning/phases/phase-09/BACKLOG.md
     - .planning/phases/phase-09/TASKS.md
+    - .planning/phases/phase-09/ACCEPTANCE.md
+    - .planning/phases/phase-09/EXECUTE.md
+    - .planning/phases/phase-09/RISKS.md
 key-decisions:
-  - "Replace per-client stream compose timers with one server-side producer and frame fan-out broadcast."
-  - "Keep canonical render loop active in final-output while stream metadata is connected to prevent black-stream output."
-  - "Add watchdog-driven restart-free stream recovery independent of client sessions."
+  - "Outside playback lifecycle identity is definition-scoped (outside config), not runtime run-id scoped"
+  - "Unrelated room/cluster/global-inside starts are non-reset events for outside playback cursor/cache"
 patterns-established:
-  - "Producer/consumer decoupling: subscriber count never scales compose work linearly."
-  - "Verification-first hotfixes: every P0 gate has runnable debug script plus captured JSON artifact."
+  - "Outside lifecycle isolation: derive lifecycle key from outside definition + board scope"
+  - "Outside non-regression: stop outside and clear-all keep deterministic teardown"
 requirements-completed: []
-duration: 10min
-completed: 2026-04-02
+duration: 24min
+completed: 2026-04-03
 ---
 
-# Phase 9 Plan 9-HF4: Stream/Control Decoupling Hotfix Summary
+# Phase 9 Plan 9-HF4: Outside Lifecycle Independence Summary
 
-**Final-output stream now uses a single authoritative producer with restart-free recovery while control commands stay responsive and black-stream regressions are closed across board/asset parity checks.**
+**Outside sandstorm playback now uses a stable outside-definition lifecycle key so repeated room starts cannot restart/rewind outside media while stop/clear semantics remain deterministic.**
 
 ## Performance
 
-- **Duration:** 10min
-- **Started:** 2026-04-02T21:37:07Z
-- **Completed:** 2026-04-02T21:46:00Z
-- **Tasks:** 10
-- **Files modified:** 25
+- **Duration:** 24 min
+- **Started:** 2026-04-03T22:31:00Z
+- **Completed:** 2026-04-03T22:55:00Z
+- **Tasks:** 7
+- **Files modified:** 17
 
 ## Accomplishments
-- Replaced per-subscriber compose timers with one producer scheduler and non-blocking mutation-triggered compose requests.
-- Removed stream-mode black-frame behavior by keeping final-output render path active and handling stream faults with explicit fallback.
-- Added HF4 evidence matrix scripts/artifacts for repro tracing, starvation guard, producer lifecycle, restart-free recovery, sync/align parity, control matrix, and board/asset output parity.
+- Isolated outside timeline ownership from room/cluster/global-inside trigger lifecycle churn.
+- Re-keyed outside MP4 playback lifecycle to outside config identity, removing run-id coupling.
+- Added executable regression evidence proving repeated room starts do not restart outside sandstorm.
+- Preserved and verified existing `stop outside` and `clear all` deterministic reset semantics.
+- Revalidated deterministic sync invariants and synchronized phase planning artifacts to PASS.
 
 ## Task Commits
 
-1. **Task 1: deterministic repro + trace harness** - `9b53bc9` (test)
-2. **Task 2: stream subscriber lifecycle decoupling** - `614ea4b` (feat)
-3. **Task 3: queue starvation guard evidence** - `1eb2af7` (test)
-4. **Task 4: producer lifecycle independence evidence** - `9100337` (test)
-5. **Task 5: black-stream fix including sandstorm path** - `84a5778` (fix)
-6. **Task 6: restart-free recovery watchdog + evidence** - `cb9399e` (fix)
-7. **Task 7: sync + align parity evidence** - `7b241cf` (test)
-8. **Task 8: control responsiveness matrix (stream on/off)** - `e5ab6f6` (test)
-9. **Task 9: board/asset output parity matrix** - `c09d94b` (test)
-10. **Task 10: planning artifact synchronization** - `d5d45bd` (docs)
+1. **Task 1: Reproduce/root-cause coupling** - `2e5fc81` (fix)
+2. **Task 2: Isolate outside lifecycle ownership** - `88f11b0` (feat)
+3. **Task 3: Guard outside cache/reset paths** - `bf0ca58` (fix)
+4. **Task 4: Preserve stop/clear semantics** - `c7cffda` (test)
+5. **Task 5: Validate sync invariants** - `71fee5b` (test)
+6. **Task 6: Repeated room-start regression evidence** - `591a4f9` (test)
+7. **Task 7: Artifact synchronization** - `b29e851` (docs)
 
 ## Files Created/Modified
-- `server.mjs` - Single stream producer scheduler, broadcast fan-out, health telemetry, watchdog recovery.
-- `src/app/runtime/runtime-orchestration.js` - Stream-fault event handling and removal of stream-mode render short-circuit.
-- `src/styles.css` - Final-output board visibility fix to avoid black output collapse.
-- `debug/p9-hf4-t*-*.mjs` - Regression harnesses for all mandatory HF4 gates.
-- `.planning/phases/phase-09/P9-HF4-T*-*.md` - Per-task evidence docs.
+- `src/app/runtime/runtime-orchestration.js` - decouples outside timeline + MP4 lifecycle key from volatile runtime run IDs.
+- `debug/p9-hf4-repeated-room-start-regression.mjs` - executable regression for no-restart repeated room starts.
+- `debug/p9-hf4-repeated-room-start-regression-output.json` - recorded PASS evidence output.
+- `.planning/phases/phase-09/P9-HF4-T1-REPRO-TRACE.md` - root-cause trace.
+- `.planning/phases/phase-09/P9-HF4-T2-LIFECYCLE-ISOLATION.md` - lifecycle isolation notes.
+- `.planning/phases/phase-09/P9-HF4-T3-CACHE-RESET-GUARD.md` - reset guard boundaries.
+- `.planning/phases/phase-09/P9-HF4-T4-STOP-CLEAR-NON-REGRESSION.md` - stop/clear non-regression.
+- `.planning/phases/phase-09/P9-HF4-T5-SYNC-INVARIANTS.md` - sync invariant validation.
+- `.planning/phases/phase-09/P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md` - repeated-start regression evidence.
+- `.planning/phases/phase-09/9-HF4-VERIFICATION.md` - consolidated HF4 verification result.
 
 ## Decisions Made
-- Use producer fan-out architecture to eliminate subscriber-induced compose amplification.
-- Keep command ingest/apply path independent from stream subscriber churn by only scheduling compose asynchronously.
-- Treat stream overlay as metadata channel while preserving canonical render semantics for output parity and black-stream safety.
+- Outside playback reset authority is now outside-scoped lifecycle/config changes only.
+- Room/cluster/global-inside trigger churn is explicitly non-authoritative for outside playback lifecycle.
 
 ## Deviations from Plan
-
 None - plan executed exactly as written.
 
 ## Issues Encountered
-- Initial stream-frame parsing in T9 matrix was flaky under SSE chunk timing; switched the parity matrix to deterministic live-state assertions plus board-catalog image checks.
+None.
 
 ## User Setup Required
-
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Plan 9-HF4 hard gates are PASS and documented.
-- Plan 9-2 is unblocked for adapter/dependency cleanup.
+- HF4 hard gates are PASS with reproducible artifacts.
+- Plan 9-2 can proceed without outside-lifecycle coupling blockers.
+
+## Known Stubs
+None.
 
 ## Self-Check: PASSED
+- FOUND: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
+- FOUND: task commit hashes (`2e5fc81`, `88f11b0`, `bf0ca58`, `c7cffda`, `71fee5b`, `591a4f9`, `b29e851`)

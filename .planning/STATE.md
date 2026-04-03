@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF3 (completed)
+- Last Executed Plan: 9-HF4 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,13 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Plan-9-HF4 Umsetzung: outside playback lifecycle now uses a board-scoped outside-definition lifecycle key and timeline ownership that is decoupled from room/cluster/global-inside trigger churn.
+- Plan-9-HF4 Umsetzung: repeated room starts no longer restart/rewind outside sandstorm playback; stop outside and clear-all semantics remain deterministic PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
+- Neues verpflichtendes P0-Runtime-Bugfix vor Phase-9-Close ist bindend: Start einer neuen Room-Animation darf Outside Sandstorm niemals von Beginn an neu starten.
+- Lifecycle-Regel Plan 9-HF4: Outside-Playback-State ist strikt scope-isoliert und unabhaengig von room/cluster/global-inside start/stop Events.
+- Cache-Regel Plan 9-HF4: Outside-Media-Cache-Reset ist bei unrelatierten Starts verboten; Reset ist nur fuer outside-spezifische Lifecycle-Events erlaubt.
+- Non-Regression-Regel Plan 9-HF4: bestehende `stop outside`/`clear all` Semantik bleibt unveraendert deterministisch; Sync-Invarianten (ordering/version/idempotent apply) bleiben unveraendert.
+- Evidenz-Regel Plan 9-HF4: verpflichtende Repeated-Room-Start-Regression mit Nachweis, dass aktive Outside-Sandstorm-Playback-Position nicht restartet/rewindet.
 - Plan-9-HF3 Umsetzung: canonical coordinate mapping now uses a shared stage-rect normalization + normalized-to-pixel contract for overlay and render paths (browser/DPR/fullscreen deterministic).
 - Plan-9-HF3 Umsetzung: room mp4 playback lifecycle is isolated from outside/global video caches; room `malfunction` mp4 no longer cross-starves GIF room rendering on `/output/final`.
 - Plan-9-HF3 Umsetzung: configurable deterministic mp4 weak-hardware controls are active (`tier`/`renderCap`/`qualityFloor`/`degradeThreshold`/`recoverThreshold`) and synchronized via runtime snapshots.
