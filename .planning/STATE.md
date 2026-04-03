@@ -12,7 +12,7 @@
 - Last Prepared: 2026-04-03
 - Execution Readiness: READY
 - Last Executed Plan: 9-HF8 (completed)
-- Planned Next Execution: 9-2
+- Planned Next Execution: 9-HF9
 - Last Execution Summary: `.planning/phases/phase-09/9-HF8-SUMMARY.md`
 
 ## Source Inputs
@@ -26,10 +26,16 @@
 - Lifecycle-Regel Plan 9-HF8: final compositor laeuft kontinuierlich serverseitig und subscriber-unabhaengig (0/1/N), auch ohne aktive Clients.
 - Latenz-Regel Plan 9-HF8: akzeptierte Mutationen muessen ohne Browser-Refresh unmittelbar im final stream sichtbar sein (mutation->stream immediacy gate).
 - UI-Regel Plan 9-HF8: `/output/final` zeigt fullscreen stream only; runtime orchestration/polling branches sind aus dem aktiven Pfad zu entfernen.
-- Gate-Regel Plan 9-HF8: Plan 9-2 bleibt blockiert bis HF8 Parity/Acceptance-Matrix PASS und Artefakt-Sync abgeschlossen sind.
+- Follow-up Befund nach HF8-Verifikation: ein Blocking-Gate ist fehlgeschlagen (`compositorAlwaysOn=false`), obwohl der Stream-Pfad funktioniert.
+- Gate-Regel Plan 9-HF9 (bindend): Plan 9-2 bleibt blockiert bis always-on lifecycle closure + volle Parity/Acceptance-Matrix PASS + Artefakt-Sync abgeschlossen sind.
+- Nicht-Regressions-Regel Plan 9-HF9: stream-only final client und no-polling/no-orchestration Guarantees bleiben unveraendert verpflichtend.
 - Plan-9-HF8 Umsetzung: `/api/final-stream/video` ist der kanonische serverseitig komponierte final-output stream endpoint; `/output/final` konsumiert ihn als receiver-only fullscreen player ohne Polling/Runtime-Orchestrierung.
-- Plan-9-HF8 Umsetzung: compositor compose laeuft subscriber-unabhaengig (0/1/N) kontinuierlich; health `latencyGate` verifiziert mutation->stream immediacy und ist PASS (`P9-HF8-T7-PARITY-ACCEPTANCE-MATRIX.md`).
-- Plan-9-HF8 Umsetzung: HF5/HF6 non-regression bleibt PASS; 9-2 ist nach HF8 Closure wieder freigegeben (`9-HF8-VERIFICATION.md`).
+- Plan-9-HF8 Umsetzung: stream endpoint + receiver-only client bleiben Baseline; lifecycle gate wird durch HF9 definitiv nachgeschaerft.
+- Plan-9-HF9 Ziel: `compositorAlwaysOn=true` unter allen normalen Startup/Runtime-Sequenzen erzwingen und evidenzbasiert verifizieren.
+- Plan-9-HF9 Ziel: Parity-Matrix muss vollstaendig PASS sein (keine partial pass closure), inklusive aktualisierter PASS-Artefakte.
+- Plan-9-HF9 Umsetzung: health/reporting exportiert jetzt ein lifecycle-aware `compositorAlwaysOn`-Signal (running + watchdog + timer + tick/frame freshness) statt brittle short-window frame-delta-only Bewertung.
+- Plan-9-HF9 Umsetzung: `/output/final` contract bleibt strikt stream-only/fullscreen receiver ohne Polling/Client-Orchestrierung (`P9-HF9-T4-RECEIVER-CONTRACT.md`).
+- Plan-9-HF9 Umsetzung: volle HF9 Parity/Acceptance-Matrix sowie HF5/HF6 Non-Regression sind PASS (`P9-HF9-T5-PARITY-ACCEPTANCE-MATRIX.md`, `P9-HF9-T6-HF5-HF6-NON-REGRESSION.md`, `9-HF9-VERIFICATION.md`).
 - Kritische P0-Produktionsdirektive ist bindend: `/output/final` muss strict server-composed stream-only laufen; client fallback (auto/manual) ist dort unzulaessig.
 - Autoritaetsregel Plan 9-HF7: Stream-Compose fuer `/output/final` bleibt kontinuierlich serverseitig aktiv und ist subscriber-count-unabhaengig (0/1/N).
 - Frische-Regel Plan 9-HF7: Producer composes from current full authoritative state revision; stale-frame/cache-reuse path ist unzulaessig.

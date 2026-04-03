@@ -3,7 +3,8 @@
 ## Acceptance Correction
 - Binding correction: Plan 9-1 is not accepted.
 - Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6, and Plan 9-HF7 are completed baselines.
-- Binding clarification introduces Plan 9-HF8 as the active acceptance gate before Plan 9-2.
+- Plan 9-HF8 remains the architecture baseline, but follow-up verification found a blocking gate failure (`compositorAlwaysOn=false`).
+- Binding clarification introduces Plan 9-HF9 as the active acceptance gate before Plan 9-2.
 
 ## Regression and Verification Strategy
 - Video-authority-first: `/output/final` consumes canonical server-composed video stream only.
@@ -13,24 +14,25 @@
 - Mutation-immediacy-first: accepted mutations are visible immediately on `/output/final` without refresh.
 - Control-determinism-first: control views remain deterministic/responsive while receiver-only final page is enforced.
 - Purity-preservation-first: HF5 visual-only stream contract and HF6 transport/apply/ack guarantees remain intact.
+- Definitive-closure-first: parity matrix closure is valid only with full PASS; partial gate success is not accepted.
 
-## Hard Gates (Plan 9-HF8, mandatory)
+## Hard Gates (Plan 9-HF9, mandatory)
 - G1 True-Server-Video-Endpoint-Gate: canonical server-composed video stream endpoint is the authority path for `/output/final`.
 - G2 Receiver-Only-Client-Gate: `/output/final` has no polling and no animation/state orchestration runtime branch.
 - G3 Fullscreen-Only-UI-Gate: `/output/final` renders fullscreen stream output only.
-- G4 Compositor-Independence-Gate: compositor lifecycle remains active and authoritative with 0/1/N subscribers and churn.
+- G4 Compositor-Independence-Gate: compositor lifecycle remains active and authoritative with 0/1/N subscribers and churn, and health parity reports `compositorAlwaysOn=true`.
 - G5 Fresh-Full-State-Compose-Gate: composed output is derived from current global authoritative full state revisions.
 - G6 Immediate-Mutation-Visibility-Gate: accepted start/stop/board/align mutations appear immediately on `/output/final`.
 - G7 Control-Determinism-Gate: control views remain deterministic/responsive while final page is receiver-only.
 - G8 HF6-Non-Regression-Gate: transport/apply/ack guarantees remain intact under HF8 changes.
 - G9 Stream-Purity-Non-Regression-Gate: no text/info/diagnostic overlays reappear in `/output/final` stream output.
-- G10 Strict-Regression-Gate: full matrix below is PASS with synchronized evidence.
+- G10 Strict-Regression-Gate: full matrix below is PASS with synchronized evidence; no partial pass closure is allowed.
 
-## Strict Regression Matrix (Plan 9-HF8)
+## Strict Regression Matrix (Plan 9-HF9)
 - True-Server-Video-Stream-Endpoint-Test: `/output/final` consumes canonical server-composed video stream endpoint.
 - Receiver-Only-Client-Contract-Test: no polling and no animation/state orchestration code path is active on `/output/final`.
 - Fullscreen-Stream-Only-UI-Test: final page displays stream fullscreen only.
-- Compositor-Subscriber-Independence-Test: compose authority remains active under 0/1/N subscribers and churn.
+- Compositor-Subscriber-Independence-Test: compose authority remains active under 0/1/N subscribers and churn and reports `compositorAlwaysOn=true`.
 - Full-State-Revision-Compose-Test: composed output tracks current authoritative full state revision without stale reuse.
 - Immediate-Mutation-Visibility-Test: start/stop/board/align mutations appear immediately on `/output/final`.
 - Multi-Client-Control-Determinism-Test: control effects remain deterministic across clients while final output is receiver-only.
@@ -39,15 +41,15 @@
 - HF5-Visual-Only-Stream-Non-Regression-Test: no recurring overlays (`SERVER STREAM ACTIVE`, active animation list, diagnostics text) in stream output.
 
 ## Incremental Mandatory Gates
-- After P9-HF8-T1..T3: server video endpoint + receiver-only client contract + fullscreen-only UI are complete.
-- After P9-HF8-T4..T6: compositor always-on independence + fresh-state compose + immediate mutation visibility are PASS.
-- After P9-HF8-T7: parity matrix PASS and HF5/HF6 non-regression PASS.
-- After P9-HF8-T8: all phase/global planning artifacts are synchronized.
+- After P9-HF9-T1..T3: deterministic repro + root-cause closure + always-on compositor fix are complete.
+- After P9-HF9-T4: receiver-only/no-polling/no-orchestration contract remains PASS.
+- After P9-HF9-T5..T6: full parity matrix PASS and HF5/HF6 non-regression PASS.
+- After P9-HF9-T7: all phase/global planning artifacts and refreshed evidence artifacts are synchronized.
 
 ## Definition of Done
 - `/output/final` is pure fullscreen video-stream receiver page only.
 - `/output/final` contains no polling and no animation/state orchestration runtime logic.
-- Server compositor composes continuously as authoritative source independent of subscriber count.
+- Server compositor composes continuously as authoritative source independent of subscriber count and reports `compositorAlwaysOn=true`.
 - Accepted mutations are visible on `/output/final` immediately without refresh.
 - Composed output is generated from current global authoritative full state revisions.
 - Control views remain deterministic/responsive and HF6 transport/apply/ack behavior remains intact.
@@ -72,5 +74,6 @@
 - 9-HF5 is completed PASS with stream-purity gates closed.
 - 9-HF6 hard gates are closed PASS with deterministic evidence artifacts (`P9-HF6-T1`..`P9-HF6-T7`).
 - 9-HF7 is completed PASS for strict stream-only authority and stale-frame elimination on `/output/final` (`9-HF7-VERIFICATION.md`).
-- 9-HF8 is completed PASS with strict server-video authority, receiver-only `/output/final`, compositor independence, and immediate mutation visibility evidence (`P9-HF8-T7-PARITY-ACCEPTANCE-MATRIX.md`, `9-HF8-VERIFICATION.md`).
-- Plan 9-2 is unblocked after 9-HF8 PASS.
+- 9-HF8 stream-authority pivot remains baseline; follow-up mismatch is closed by HF9 lifecycle/reporting hardening.
+- 9-HF9 is completed PASS with refreshed evidence (`9-HF9-VERIFICATION.md`, `P9-HF9-T1-REPRO-TRACE.md`, `P9-HF9-T3-LIFECYCLE-FIX.md`, `P9-HF9-T5-PARITY-ACCEPTANCE-MATRIX.md`, `P9-HF9-T6-HF5-HF6-NON-REGRESSION.md`).
+- Plan 9-2 is unblocked after 9-HF9 full PASS closure.

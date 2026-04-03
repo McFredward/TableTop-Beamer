@@ -90,6 +90,15 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF8-T7 [P0] Execute parity/acceptance regression matrix (receiver-only final page, continuous compose, freshness, determinism, HF5/HF6 non-regression).
 - [x] DONE P9-HF8-T8 [P0] Record HF8 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF9 - P0 blocker closure for always-on compositor gate (execute-ready, hard-gated)
+- [x] DONE P9-HF9-T1 [P0] Create deterministic follow-up repro trace for HF8 verification mismatch where stream path works but `compositorAlwaysOn=false`.
+- [x] DONE P9-HF9-T2 [P0] Isolate lifecycle/reporting root cause so compositor always-on state can fail under normal startup/runtime sequences.
+- [x] DONE P9-HF9-T3 [P0] Fix compositor lifecycle/reporting to keep `compositorAlwaysOn=true` across normal startup/runtime flows (boot, zero-subscriber idle, first attach, churn, reconnect).
+- [x] DONE P9-HF9-T4 [P0] Re-verify strict `/output/final` receiver-only contract remains unchanged (stream-only fullscreen, no polling, no client orchestration).
+- [x] DONE P9-HF9-T5 [P0] Execute full parity/acceptance matrix and require full PASS including explicit always-on gate PASS.
+- [x] DONE P9-HF9-T6 [P0] Execute HF5/HF6 non-regression matrices under HF9 fixes and confirm transport/apply/ack + visual-only purity remain PASS.
+- [x] DONE P9-HF9-T7 [P0] Refresh evidence artifacts with PASS outputs (`P9-HF9-*` docs + debug outputs) and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -105,7 +114,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF8 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF9 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
