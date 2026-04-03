@@ -37,6 +37,15 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF3-T8 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under HF3 fixes.
 - [x] DONE P9-HF3-T9 [P0] Execute browser + mixed-media final-output + weak-hardware + failure-feedback matrix and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
+## Plan 9-HF4 - Mandatory outside lifecycle independence hotfix wave (execute-ready, hard-gated)
+- [x] DONE P9-HF4-T1 [P0] Reproduce and root-cause coupling where room animation start restarts outside sandstorm playback.
+- [x] DONE P9-HF4-T2 [P0] Isolate outside playback state ownership from room/cluster/global-inside trigger lifecycle.
+- [x] DONE P9-HF4-T3 [P0] Prevent outside media cache reset/rewind on unrelated animation starts.
+- [x] DONE P9-HF4-T4 [P0] Preserve existing outside stop/clear semantics (`stop outside`, `clear all`) with deterministic teardown behavior.
+- [x] DONE P9-HF4-T5 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under HF4 changes.
+- [x] DONE P9-HF4-T6 [P0] Execute repeated room-start regression matrix proving no outside restart while outside is active.
+- [x] DONE P9-HF4-T7 [P0] Record HF4 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
+
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
@@ -52,7 +61,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF3 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF4 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
