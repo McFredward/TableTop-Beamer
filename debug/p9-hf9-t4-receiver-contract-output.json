@@ -1,0 +1,14 @@
+{
+  "schema": "tt-beamer.p9-hf9-t4-receiver-contract.v1",
+  "measuredAt": "2026-04-03T00:14:07.857Z",
+  "baseUrl": "http://127.0.0.1:4211",
+  "checks": {
+    "finalStatus200": true,
+    "noScriptTags": true,
+    "noPollingKeywords": true,
+    "fullscreenShellPresent": true,
+    "streamImgPresent": true,
+    "canonicalVideoEndpointAdvertised": true
+  },
+  "pass": true
+}
