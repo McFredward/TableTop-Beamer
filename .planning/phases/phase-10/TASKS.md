@@ -7,7 +7,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF1-T1 [P0] Reproduce and root-cause `/output/final` black-screen regression on board `Nemesis Lockdown A` with outside `sandstorm.mp4`.
 - [x] DONE P10-HF1-T2 [P0] Fix board/media-specific render short-circuit so final-output composition path cannot collapse to black.
 - [x] DONE P10-HF1-T3 [P0] Enforce guaranteed co-render contract on `/output/final`: active room animations and active outside animations both render.
-- [ ] TODO P10-HF1-T4 [P0] Preserve sync determinism and existing controls (`stop outside`, `clear all`, global toggles, ordering/version/idempotent apply).
+- [x] DONE P10-HF1-T4 [P0] Preserve sync determinism and existing controls (`stop outside`, `clear all`, global toggles, ordering/version/idempotent apply).
 - [ ] TODO P10-HF1-T5 [P0] Execute full board regression matrix including mp4 outside-background boards and non-mp4 boards with PASS evidence.
 - [ ] TODO P10-HF1-T6 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF1 PASS.
 
