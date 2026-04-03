@@ -9969,9 +9969,6 @@ function refreshGlobalButtons() {
 
 function clipToPolygon(polygon, { evenodd = false } = {}) {
   if (!Array.isArray(polygon) || polygon.length < 3) {
-    ctx.beginPath();
-    ctx.rect(0, 0, 0, 0);
-    ctx.clip();
     return false;
   }
   ctx.beginPath();
@@ -9991,8 +9988,44 @@ function clipToPolygon(polygon, { evenodd = false } = {}) {
   return true;
 }
 
+function isFiniteCanvasPoint(point) {
+  return Array.isArray(point)
+    && point.length >= 2
+    && Number.isFinite(Number(point[0]))
+    && Number.isFinite(Number(point[1]));
+}
+
+function getPolygonSignedArea(polygon) {
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    return 0;
+  }
+  let area = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index];
+    const next = polygon[(index + 1) % polygon.length];
+    if (!isFiniteCanvasPoint(current) || !isFiniteCanvasPoint(next)) {
+      return 0;
+    }
+    area += Number(current[0]) * Number(next[1]) - Number(next[0]) * Number(current[1]);
+  }
+  return area / 2;
+}
+
+function isRenderableCanvasPolygon(polygon, { minArea = 8 } = {}) {
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    return false;
+  }
+  if (!polygon.every((point) => isFiniteCanvasPoint(point))) {
+    return false;
+  }
+  return Math.abs(getPolygonSignedArea(polygon)) >= minArea;
+}
+
 function clipToRoom(room, boardId = state.boardId) {
   const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height, boardId);
+  if (!isRenderableCanvasPolygon(polygon)) {
+    return true;
+  }
   return clipToPolygon(polygon);
 }
 
@@ -10002,7 +10035,8 @@ function getShipClipPolygon(boardId = state.boardId) {
 }
 
 function getPlayAreaClipPolygons(boardId = state.boardId) {
-  return getPlayAreaPolygonsPixels(canvas.width, canvas.height, boardId).filter((polygon) => polygon.length >= 3);
+  return getPlayAreaPolygonsPixels(canvas.width, canvas.height, boardId)
+    .filter((polygon) => isRenderableCanvasPolygon(polygon));
 }
 
 function appendPolygonPath(polygon) {
@@ -10019,7 +10053,7 @@ function appendPolygonPath(polygon) {
 function clipToOutsideShip(boardId = state.boardId) {
   const playAreaPolygons = getPlayAreaClipPolygons(boardId);
   if (playAreaPolygons.length === 0) {
-    return clipToPolygon(null);
+    return true;
   }
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
@@ -10033,7 +10067,7 @@ function clipToOutsideShip(boardId = state.boardId) {
 function clipToInsideShip(boardId = state.boardId) {
   const playAreaPolygons = getPlayAreaClipPolygons(boardId);
   if (playAreaPolygons.length === 0) {
-    return clipToPolygon(null);
+    return true;
   }
   ctx.beginPath();
   for (const polygon of playAreaPolygons) {
