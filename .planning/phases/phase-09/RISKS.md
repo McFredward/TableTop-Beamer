@@ -1,68 +1,72 @@
 # Phase 9 Risks
 
 ## Acceptance Correction Context
-- 9-1 is not accepted; 9-HF1 and 9-HF2 are completed baselines.
-- 9-HF3, 9-HF4, and 9-HF5 are completed baselines.
-- 9-HF6 is completed baseline for control-command transport/apply/ack recovery under stream mode.
-- 9-HF7 is completed baseline for strict `/output/final` stream authority and stale-frame closure.
-- New binding clarification introduces 9-HF8 architecture pivot (true server video endpoint + receiver-only `/output/final`).
+- 9-1 is not accepted; 9-HF1 is completed foundation.
+- 9-HF2 is completed baseline.
+- 9-HF3 is the binding runtime bugfix wave for coordinate determinism, mixed-media lifecycle, weak-hardware controls, and explicit error feedback.
 
-## R1 `/output/final` still contains runtime orchestration or polling logic
-- Risk: receiver page keeps client-side polling/animation/state branches and violates pure receiver contract.
+## R1 Cross-browser coordinate transform drift remains
+- Risk: overlay mapping still differs across browser engines, fullscreen state, or DPR transitions.
 - Impact: Critical.
-- Mitigation: hard-remove/dead-path runtime orchestration and add explicit receiver-only contract tests.
+- Mitigation: one canonical mapping pipeline with deterministic recompute on resize/orientation/fullscreen/DPR changes.
 
-## R2 Canonical final-output stream endpoint not strictly server-authoritative
-- Risk: multiple paths or compatibility branches allow non-canonical rendering behavior.
+## R2 Partial mapping fix only covers one surface
+- Risk: control view and `/output/final` use divergent coordinate transforms and drift apart.
 - Impact: Critical.
-- Mitigation: enforce single canonical server-composed video stream endpoint for `/output/final`.
+- Mitigation: shared transform contract consumed by both render surfaces with parity regression checks.
 
-## R3 Compositor lifecycle still coupled to subscriber count
-- Risk: compose loop pauses/degrades when subscriber count drops to zero or churns rapidly.
+## R3 Mixed-media lifecycle coupling regresses GIF path on final output
+- Risk: starting room `mp4` (`malfunction`) tears down or starves room GIF renderer lifecycle on `/output/final`.
 - Impact: Critical.
-- Mitigation: enforce always-on compositor lifecycle independent of subscriber presence and churn matrix checks.
+- Mitigation: isolate renderer ownership/lifecycle per media type and add mixed-media start/stop/restart regression matrix.
 
-## R4 Stale frame/cache reuse in compose path
-- Risk: producer emits previously composed frames or partial state views instead of current full authoritative revision.
+## R4 HF3 fix becomes sequence-specific and flaky
+- Risk: bug appears fixed in one start order but fails in repeated mixed-media sequences.
 - Impact: Critical.
-- Mitigation: revision-bound compose assertions and explicit stale-frame regression tests.
+- Mitigation: mandatory repeated-sequence tests (`mp4` then GIF, GIF then `mp4`, stop/restart loops) on `/output/final`.
 
-## R5 Mutation visibility lag despite accepted command
-- Risk: mutation is accepted/applied but stream output does not update immediately.
+## R5 Performance controls under-shed and weak hardware still collapses
+- Risk: default quality/caps are too weak to prevent lag/freeze with many concurrent `mp4` streams.
 - Impact: Critical.
-- Mitigation: enforce mutation->stream latency gates for start/stop/board/align across churn scenarios.
+- Mitigation: deterministic degradation ladder with explicit tiers, pressure thresholds, and weak-hardware stress validation.
 
-## R6 Receiver-only enforcement regresses control determinism
-- Risk: final-page simplification accidentally introduces nondeterministic control behavior.
+## R6 Performance controls over-shed and produce unacceptable visual loss
+- Risk: aggressive degradation keeps FPS but creates unacceptable playback quality or semantic loss.
 - Impact: Critical.
-- Mitigation: preserve HF6 contracts and run mandatory multi-client control determinism matrix.
+- Mitigation: bounded floor, non-critical-only degradation, and explicit quality acceptance thresholds.
 
-## R7 Fullscreen-only output contract drifts
-- Risk: extra UI layers/debug/status text reappear on `/output/final`.
-- Impact: Critical.
-- Mitigation: enforce fullscreen stream-only rendering and keep HF5 purity checks mandatory.
-
-## R8 Authority pivot regresses deterministic sync/align contracts
-- Risk: implementation accidentally changes ordering/version/idempotent apply behavior.
-- Impact: Critical.
-- Mitigation: enforce presentation-only boundary and run deterministic sync regression with stream enabled.
-
-## R9 Observability gap slows latency/root-cause closure
-- Risk: missing lifecycle/queue/ack/apply timing metrics obscures post-fix regressions.
+## R7 Degrade recovery oscillates or never restores quality
+- Risk: runtime flips quality tiers rapidly or gets stuck in degraded mode after load drops.
 - Impact: High.
-- Mitigation: structured traces for mutation revision, compose revision, fanout timestamp, and output visibility latency.
+- Mitigation: explicit recovery thresholds and soak tests with load ramp-up/ramp-down.
 
-## R10 Artifact drift across phase/global trackers
+## R8 Error feedback is incomplete and silent failures remain
+- Risk: some command/API failure and timeout branches still fail silently.
+- Impact: Critical.
+- Mitigation: central error-surface utility and forced-failure test matrix for command and API layers.
+
+## R9 Error feedback causes noisy UX or duplicate toasts
+- Risk: repeated retries flood operator with duplicate/non-actionable errors.
+- Impact: High.
+- Mitigation: dedup/throttle and actionable copy rules for feedback events.
+
+## R10 Hardening introduces non-deterministic cross-client behavior
+- Risk: performance/degrade logic diverges across clients and breaks sync determinism.
+- Impact: Critical.
+- Mitigation: keep adaptive logic local to rendering cost control only; sync/lifecycle semantics remain authoritative and versioned.
+
+## R11 Artifact drift across phase/global trackers
 - Risk: phase files and global tracking files become inconsistent.
 - Impact: High.
-- Mitigation: mandatory full artifact sync in P9-HF8-T8.
+- Mitigation: mandatory full artifact sync in P9-HF3-T9.
+
+## R12 Regression escape in browser/final-output/weak-hardware edge conditions
+- Risk: short smoke tests pass but field combinations still fail.
+- Impact: Critical.
+- Mitigation: mandatory browser matrix + mixed-media final-output regression + weak-hardware stress as closure gate.
 
 ## Execution Notes
 
-- 9-HF1 and 9-HF2 baselines remain valid and are treated as non-regression gates.
-- 9-HF3 closure remains valid for stream viability/fallback/parity baseline.
-- 9-HF4 closure remains valid for stream/control decoupling baseline.
-- 9-HF5 closure remains valid for stream visual-only purity baseline.
-- HF6 closure remains mandatory non-regression baseline for transport/apply/ack correctness.
-- HF7 authority/staleness closure remains baseline; HF8 architecture-pivot risk matrix is now closed PASS.
-- Plan 9-2 is unblocked following HF8 PASS evidence closure.
+- 9-HF1 baseline is complete and remains valid for modular ownership.
+- 9-HF2 is completed and remains valid baseline for lifecycle no-replay and low-end hardening.
+- 9-HF3 is completed; R1-R12 remain tracked for subsequent Plan 9-2/9-3 closure waves.

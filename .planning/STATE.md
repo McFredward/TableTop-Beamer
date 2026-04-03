@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 9
 - Current Phase Key: phase-09
-- Last Prepared: 2026-04-03
+- Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF8 (completed)
-- Planned Next Execution: 9-HF9
-- Last Execution Summary: `.planning/phases/phase-09/9-HF8-SUMMARY.md`
+- Last Executed Plan: 9-HF3 (completed)
+- Planned Next Execution: 9-2
+- Last Execution Summary: `.planning/phases/phase-09/9-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,65 +21,16 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
-- Kritische Nutzerpraezisierung (bindend): `/output/final` ist ausschliesslich eine pure Video-Stream-Receiver-Seite; kein Polling und keine clientseitige Animation-/State-Orchestrierung sind dort zulaessig.
-- Architektur-Pivot Plan 9-HF8 (bindend): Server stellt einen echten serverseitig komponierten Video-Stream-Endpunkt als einzigen final-output authority path bereit.
-- Lifecycle-Regel Plan 9-HF8: final compositor laeuft kontinuierlich serverseitig und subscriber-unabhaengig (0/1/N), auch ohne aktive Clients.
-- Latenz-Regel Plan 9-HF8: akzeptierte Mutationen muessen ohne Browser-Refresh unmittelbar im final stream sichtbar sein (mutation->stream immediacy gate).
-- UI-Regel Plan 9-HF8: `/output/final` zeigt fullscreen stream only; runtime orchestration/polling branches sind aus dem aktiven Pfad zu entfernen.
-- Follow-up Befund nach HF8-Verifikation: ein Blocking-Gate ist fehlgeschlagen (`compositorAlwaysOn=false`), obwohl der Stream-Pfad funktioniert.
-- Gate-Regel Plan 9-HF9 (bindend): Plan 9-2 bleibt blockiert bis always-on lifecycle closure + volle Parity/Acceptance-Matrix PASS + Artefakt-Sync abgeschlossen sind.
-- Nicht-Regressions-Regel Plan 9-HF9: stream-only final client und no-polling/no-orchestration Guarantees bleiben unveraendert verpflichtend.
-- Plan-9-HF8 Umsetzung: `/api/final-stream/video` ist der kanonische serverseitig komponierte final-output stream endpoint; `/output/final` konsumiert ihn als receiver-only fullscreen player ohne Polling/Runtime-Orchestrierung.
-- Plan-9-HF8 Umsetzung: stream endpoint + receiver-only client bleiben Baseline; lifecycle gate wird durch HF9 definitiv nachgeschaerft.
-- Plan-9-HF9 Ziel: `compositorAlwaysOn=true` unter allen normalen Startup/Runtime-Sequenzen erzwingen und evidenzbasiert verifizieren.
-- Plan-9-HF9 Ziel: Parity-Matrix muss vollstaendig PASS sein (keine partial pass closure), inklusive aktualisierter PASS-Artefakte.
-- Plan-9-HF9 Umsetzung: health/reporting exportiert jetzt ein lifecycle-aware `compositorAlwaysOn`-Signal (running + watchdog + timer + tick/frame freshness) statt brittle short-window frame-delta-only Bewertung.
-- Plan-9-HF9 Umsetzung: `/output/final` contract bleibt strikt stream-only/fullscreen receiver ohne Polling/Client-Orchestrierung (`P9-HF9-T4-RECEIVER-CONTRACT.md`).
-- Plan-9-HF9 Umsetzung: volle HF9 Parity/Acceptance-Matrix sowie HF5/HF6 Non-Regression sind PASS (`P9-HF9-T5-PARITY-ACCEPTANCE-MATRIX.md`, `P9-HF9-T6-HF5-HF6-NON-REGRESSION.md`, `9-HF9-VERIFICATION.md`).
-- Kritische P0-Produktionsdirektive ist bindend: `/output/final` muss strict server-composed stream-only laufen; client fallback (auto/manual) ist dort unzulaessig.
-- Autoritaetsregel Plan 9-HF7: Stream-Compose fuer `/output/final` bleibt kontinuierlich serverseitig aktiv und ist subscriber-count-unabhaengig (0/1/N).
-- Frische-Regel Plan 9-HF7: Producer composes from current full authoritative state revision; stale-frame/cache-reuse path ist unzulaessig.
-- Immediacy-Regel Plan 9-HF7: jede akzeptierte Mutation (start/stop/board/align/etc.) muss ohne Refresh sofort in `/output/final` sichtbar sein.
-- Determinismus-Regel Plan 9-HF7: Control-Views bleiben funktional/deterministisch; HF6 transport/apply/ack und HF5 visual-only purity bleiben harte Non-Regression-Gates.
-- Plan 9-HF7 war als priorisierte execute-ready Blocker-Welle gesetzt; aktuell ist dieser Blocker geschlossen und durch HF8-Folgeblocker ersetzt.
-- Plan-9-HF7 Umsetzung: `/output/final` ist jetzt strict stream-only; auto/client fallback requests werden server- und runtime-seitig auf `stream` normalisiert.
-- Plan-9-HF7 Umsetzung: final-stream producer ist immer aktiv, subscriber-count-unabhaengig und startet serverseitig ohne Client-Abhaengigkeit.
-- Plan-9-HF7 Umsetzung: compose ist revision-bound auf autoritative Full-State-Snapshots; stale cached attach frame path ist geschlossen.
-- Plan-9-HF7 Umsetzung: mutation-to-output immediacy (start/stop/board/align) sowie control determinism und HF5/HF6 non-regression sind PASS (`9-HF7-VERIFICATION.md`).
-- Kritischer P0-Blocker nach Stream-Purity-Aenderungen ist bindend: Control-Buttons (insb. room start/stop) laufen im Client teils ins Leere, sobald stream mode aktiv ist.
-- Plan 9-HF6 ist als priorisierte execute-ready Blocker-Welle gesetzt und blockiert Plan 9-2 bis PASS.
-- Architekturregel Plan 9-HF6: Client-Aktionen muessen den Server-Command-Ingest-Pfad sofort erreichen; stream mode darf keinen transportseitigen No-Op- oder Drop-Pfad aktivieren.
-- Runtime-Regel Plan 9-HF6: Server apply verarbeitet Commands auch bei aktivem stream mode sofort, aktualisiert stream state + snapshot state in derselben autoritativen Mutation und emittiert unmittelbares Ack.
-- Gate-Regel Plan 9-HF6: strikte Start/Stop-Regressionen fuer stream on/off ueber mehrere Clients inkl. `/output/final` muessen PASS sein; HF5 stream-purity bleibt unveraendert verpflichtend.
-- Plan-9-HF6 Umsetzung: deterministic pre-fix repro + root-cause closure ist dokumentiert (`P9-HF6-T1-REPRO-TRACE.md`, `P9-HF6-T2-ROOT-CAUSE.md`).
-- Plan-9-HF6 Umsetzung: start/stop Transport ist control-critical priorisiert; drop/no-op Overflow-Pfad fuer Control-Kommandos ist geschlossen (`P9-HF6-T3-TRANSPORT-FIX.md`).
-- Plan-9-HF6 Umsetzung: immediate apply + snapshot + stream propagation sowie ack-parity stream on/off sind PASS (`P9-HF6-T4-APPLY-SNAPSHOT-STREAM.md`, `P9-HF6-T5-IMMEDIATE-ACK.md`).
-- Plan-9-HF6 Umsetzung: strikte start/stop multi-client parity + HF5 purity non-regression sind PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`, `P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
-- Plan 9-2 war nach HF6-PASS kurzzeitig freigegeben, ist durch bindenden HF7-Blocker wieder blockiert.
-- Neues verpflichtendes P0-Refinement fuer Phase 9 ist bindend: recurring overlays im `/output/final` stream (u. a. `SERVER STREAM ACTIVE` + aktive Animationsliste) sind vollstaendig zu entfernen.
-- Reinheits-Regel Plan 9-HF5: stream output darf ausschliesslich visuelle Stream-Inhalte enthalten; Text-/Info-/Diagnostik-Overlays sind im Streampfad unzulaessig.
-- Gate-Regel Plan 9-HF5: Plan 9-2 bleibt blockiert bis overlay-freie Stream-Ausgabe ueber Stream-On/Off und Reconnect-Churn evidenzbasiert PASS ist.
-- Plan-9-HF5 Umsetzung: `/output/final` stream overlays (`SERVER STREAM ACTIVE`, running diagnostics list) sind aus Markup/CSS/runtime-render Pfaden entfernt.
-- Plan-9-HF5 Umsetzung: final-stream SSE payload ist visual-only contract-sanitized (`visual` block, keine `mode`/`board.label`/`roomLabel` diagnostics).
-- Plan-9-HF5 Umsetzung: HF4 non-regression + stream-purity + no-overlay parity matrices sind PASS (`P9-HF5-T5-HF4-NON-REGRESSION.md`, `P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
-- Plan-9-HF4 Umsetzung: final-stream compose ist von per-subscriber Timern auf single-producer fan-out umgestellt; command ingest/apply bleibt subscriber-unabhaengig.
-- Plan-9-HF4 Umsetzung: final-output stream-mode erzwingt keinen draw-short-circuit mehr; black-stream durch cleared-canvas/hidden-board Pfad ist geschlossen.
-- Plan-9-HF4 Umsetzung: producer watchdog + recovery guards halten stream fault/reconnect restart-frei stabil; HF4 matrix evidence ist PASS.
-- Kritisches P0-Produktionsfeedback nach HF3 ist bindend: wenn ein Device `/output/final` im stream mode aktiviert, werden Control-Clients non-responsive (start/stop, board switch, align toggle blockiert) und Recovery erfordert teils Server-Restart.
-- Plan 9-HF4 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
-- Architekturregel Plan 9-HF4: Stream-Consumer-Lifecycle wird strikt vom Control-Command-Pfad entkoppelt (kein global lock, keine queue starvation, kein shared-state freeze).
-- Runtime-Regel Plan 9-HF4: Command ingest/apply bleibt auch bei aktiven/degradierten Stream-Subscriber deterministisch voll funktionsfaehig.
-- Output-Regel Plan 9-HF4: Black-stream-Faelle (z. B. sandstorm board/assets) werden profiluebergreifend behoben; Stream-Producer bleibt server-side authoritative und client-render-health-unabhaengig.
-- Gate-Regel Plan 9-HF4: harte Regressionstests mit stream on/off muessen durchgaengige Control-Paritaet, restart-freie Recovery und Output-Paritaet nachweisen.
-- Plan-9-HF3 Umsetzung: `/api/final-stream/events` liefert server-composed frame stream fuer `/output/final` mit presentation-only contract.
-- Plan-9-HF3 Umsetzung: final-output mode ist autoritativ (`auto`/`stream`/`client`) und faellt bei stream-timeout/error deterministisch auf client-render zurueck.
-- Plan-9-HF3 Umsetzung: Align-mode- und deterministic-sync-Paritaet sind mit HF3-Evidenz PASS (`P9-HF3-T6-ALIGN-PARITY.md`, `P9-HF3-T7-SYNC-INVARIANTS.md`, `P9-HF3-T8-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`).
-- Neues verpflichtendes Performance-Ziel fuer Phase 9 ist bindend: `/output/final` wird fuer weak hardware (z. B. Raspberry Pi) auf server-composed stream delivery evaluiert und priorisiert umgesetzt, falls viable.
-- Architekturentscheidung Phase 9 HF3: server-composed stream ist als primary final-output path mit deterministischem fallback auf den bestehenden client-render path festgelegt; Sync-/Mutation-Vertrag bleibt unveraendert.
-- Contract-Regel Phase 9 HF3: deterministic sync invariants (ordering/version/idempotent apply) und align-mode semantics bleiben identisch; stream path ist presentation-only.
-- UX-Regel Phase 9 HF3: Control-Views bleiben interaktiv/low-latency; Optimierungsschwerpunkt liegt exklusiv auf smooth playback von `/output/final`.
+- Plan-9-HF3 Umsetzung: canonical coordinate mapping now uses a shared stage-rect normalization + normalized-to-pixel contract for overlay and render paths (browser/DPR/fullscreen deterministic).
+- Plan-9-HF3 Umsetzung: room mp4 playback lifecycle is isolated from outside/global video caches; room `malfunction` mp4 no longer cross-starves GIF room rendering on `/output/final`.
+- Plan-9-HF3 Umsetzung: configurable deterministic mp4 weak-hardware controls are active (`tier`/`renderCap`/`qualityFloor`/`degradeThreshold`/`recoverThreshold`) and synchronized via runtime snapshots.
+- Plan-9-HF3 Umsetzung: command/API failure + timeout paths now emit explicit operator-visible feedback via status + deduplicated toast surface (no silent no-op).
+- Neues verpflichtendes P0-Runtime-Bugfixpaket aus Runtime-Testing ist bindend fuer Phase 9: Browser-Offset bei Polygon-Overlay, `/output/final` Mixed-Media-Lifecycle-Bug (`malfunction` mp4 stoppt GIF-Rendering), weak-hardware `mp4`-Lag und fehlende explizite Fehlerfeedbacks.
+- Plan 9-HF3 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Koordinaten-Regel fuer 9-HF3: ein kanonischer Mapping-Pfad muss browser-/DPR-/fullscreen-deterministisch bleiben und fuer Control + `/output/final` identisch gelten.
+- Feedback-Regel fuer 9-HF3: command/API fail- und timeout-Pfade duerfen nie still sein; explizite user-facing Fehleranzeige ist Pflichtgate.
 - Neues verpflichtendes Stabilitaets-Feedback aus Langzeittest ist bindend: expired one-shot events duerfen nach Reload/Reconnect nicht erneut abgespielt werden.
-- Plan 9-HF2 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Plan 9-HF2 war als priorisierte execute-ready Hotfix-Welle gesetzt, ist abgeschlossen und bleibt als Baseline gueltig.
 - Lifecycle-Regel fuer 9-HF2: rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed (no replay).
 - Runtime-Regel fuer 9-HF2: low-end load hardening ist verpflichtend (frame-budget shedding, particle caps, coalescing) ohne Sync-Determinismus-Regression.
 - Plan-9-HF2 Umsetzung: snapshot hydration/rejoin reconciles finite-duration elapsed events as terminal/completed and suppresses replay across reload/reconnect.
@@ -88,7 +39,7 @@
 - Acceptance correction is binding: Plan 9-1 is not accepted and cannot be used as closure baseline.
 - Plan-9-HF1 Umsetzung: hard gate is PASS with `src/app.js` reduced from 12163 to 28 lines and runtime moved to `src/app/runtime/runtime-orchestration.js`.
 - Plan-9-HF1 Umsetzung: mandatory domain seams are present for editor/sync/settings/media with thin bootstrap ownership in `src/app.js`.
-- Plan 9-HF1 bleibt als abgeschlossene Modularisierungsbasis gueltig; Phase-9-Abschluss haengt nun an 9-HF2 Stabilitaetsgates.
+- Plan 9-HF1 bleibt als abgeschlossene Modularisierungsbasis gueltig; Phase-9-Abschluss haengt nun an 9-HF3 Runtime-Bugfix-Gates.
 - Hard objective for 9-HF1: reduce `src/app.js` from 12163 lines to <= 4200 lines (>= 65% reduction) while preserving behavior.
 - Extraction completeness gate for 9-HF1 is explicit: editor flows, animation runtime orchestration, sync command handlers, settings controllers, and media handlers must leave `src/app.js`.
 - Regression policy for 9-HF1 is strict: targeted parity per extraction slice plus full matrix PASS before closure.

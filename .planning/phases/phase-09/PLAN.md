@@ -1,89 +1,78 @@
-# Phase 9 Plan (Replanned after HF8 follow-up gate failure)
+# Phase 9 Plan (Replanned after runtime P0 bugfix package)
 
-## Baseline and Correction Context
+## Acceptance Correction
 - User correction remains binding: Plan 9-1 is executed but not accepted.
-- Plan 9-HF1 remains completed foundation (monolith reduction + modular seams).
-- Plan 9-HF2 remains completed baseline (lifecycle no-replay + low-end hardening).
-- Plan 9-HF3 remains completed baseline (initial server stream rollout).
-- Plan 9-HF4 remains completed baseline (stream/control decoupling + black-stream closure).
-- Plan 9-HF5 remains completed baseline (visual-only stream purity).
-- Plan 9-HF6 remains completed baseline (command transport/apply/ack recovery).
-- Plan 9-HF7 remains completed baseline.
-- Plan 9-HF8 delivered the stream-authority pivot baseline, but follow-up verification reported one blocking gate failure (`compositorAlwaysOn=false`).
-- Plan 9-2 is re-blocked until a dedicated P0 closure wave resolves the lifecycle gate and re-closes full parity.
+- Plan 9-HF1 and 9-HF2 remain completed as foundations.
+- New mandatory execution wave is Plan 9-HF3 and supersedes 9-2 as immediate next step.
 
-## Critical Clarification (binding, implement exactly)
-1. `/output/final` must be a pure video-stream receiver page only.
-2. `/output/final` client must have no polling and no animation/state runtime orchestration logic.
-3. Server must continuously compose the final output from global authoritative state and stream as video.
-4. Stream composition lifecycle must run regardless of subscriber presence.
-5. `/output/final` UI must be fullscreen stream display only.
-6. Accepted state mutations must appear immediately without browser refresh.
-7. HF8 follow-up blocker is explicit: `compositorAlwaysOn` must be true under all normal startup/runtime sequences.
-
-## Mandatory Objectives for 9-HF9 (P0 blocker closure wave)
-1. Fix always-on compositor lifecycle so `compositorAlwaysOn=true` under all normal startup/runtime sequences.
-2. Re-run and close the full parity/acceptance matrix with no partial pass state.
-3. Preserve unchanged guarantees: `/output/final` remains stream-only receiver, fullscreen-only, and no-polling/no-orchestration.
-4. Refresh evidence artifacts with PASS outputs and synchronized planning/global trackers.
+## New Mandatory Runtime Feedback (binding)
+1. Polygon overlay alignment is offset in some browsers; deterministic coordinate mapping is required across browser/DPR/fullscreen states.
+2. Critical `/output/final` render bug: after starting room `malfunction` (`mp4`), room GIF animations stop rendering in final output while still rendering in control view.
+3. Weak hardware lags with many concurrent `mp4` streams; configurable quality/performance controls are mandatory to keep stable playback.
+4. Action feedback gap: command/API failures and timeouts must always surface explicit user-facing errors (no silent no-op).
 
 ## Target State
-Phase 9 closes HF9 by proving the HF8 architecture pivot is lifecycle-stable: `/output/final` stays strict receiver-only, server compositor is truly always-on in practice, parity matrix is fully PASS, and evidence is refreshed consistently.
+Phase 9 now closes with browser-deterministic overlay coordinates, lifecycle-correct mixed media rendering on `/output/final`, weak-hardware performance controls for concurrent `mp4` load, and explicit operator-visible error feedback on command/API failure paths.
 
-## Scope (9-HF9)
-- Harden compositor startup/runtime lifecycle transitions that can currently report `compositorAlwaysOn=false`.
-- Verify always-on behavior across normal boot, zero-subscriber idle, first subscriber attach, churn, and reconnect sequences.
-- Preserve strict receiver-only `/output/final` page contract (no polling, no client orchestration).
-- Re-run parity and non-regression matrix (HF5/HF6 baselines included) and require full PASS.
-- Regenerate evidence artifacts and synchronize all planning/global tracking files in one closure step.
+## Binding Architecture Decisions
+- Preserve HF1 module boundaries; stability fixes land in dedicated lifecycle/runtime modules, not as new monolith blocks.
+- Coordinate mapping ownership is explicit: one canonical viewport->stage->overlay transform shared by control and final render surfaces.
+- Fullscreen, resize, and DPR transitions must recompute mapping deterministically without browser-specific drift.
+- Mixed media lifecycle is explicit: `mp4` and GIF renderer lifecycles are isolated so one room start cannot starve/tear down unrelated renderers.
+- Performance hardening uses deterministic degradation ladders (quality tiers/compression/defer) and must not alter sync correctness.
+- Operator feedback contract is explicit: every failed/timeout command path emits actionable UI error feedback.
+- Deterministic sync contract stays binding: idempotent apply, version monotonicity, no optimistic drift.
+
+## Scope (9-HF3)
+- Fix polygon overlay offset with deterministic coordinate mapping across browsers, DPR changes, and fullscreen transitions.
+- Root-cause and fix mixed-media `/output/final` lifecycle bug where room `mp4` start (`malfunction`) suppresses room GIF rendering.
+- Add configurable quality/performance profile controls for concurrent `mp4` pressure with deterministic degradation/recovery strategy.
+- Add explicit toast/error feedback for failed or timed-out command/API actions; remove silent failures.
+- Preserve deterministic multi-client sync and final-output parity under all hotfix paths.
+- Produce cross-browser and weak-hardware evidence matrix with reproducible PASS criteria.
 
 ## Out of Scope
-- New feature work unrelated to final-output authority path correctness.
-- Protocol redesign beyond targeted compositor lifecycle closure and parity evidence refresh.
-- Reintroduction of `/output/final` client-render fallback, polling, or orchestration branches.
+- New operator-facing features or UI redesign.
+- Protocol redesign or non-essential server API changes.
+- Non-deterministic adaptive behavior that can diverge across clients.
+- Cosmetic tuning without measurable stability impact.
 
-## Prioritized Next Execution Wave (Plan 9-HF9, execute-ready, hard-gated)
-1. Reproduce and isolate the `compositorAlwaysOn=false` lifecycle failure path with deterministic trace evidence.
-2. Fix compositor lifecycle so health/reporting and real runtime behavior stay always-on across normal startup/runtime sequences.
-3. Re-validate strict stream-only `/output/final` receiver contract (no polling/no orchestration regressions).
-4. Execute full parity/acceptance matrix with explicit `compositorAlwaysOn=true` PASS gate.
-5. Re-run HF5/HF6 non-regression matrix under HF9 changes.
-6. Close wave only after PASS evidence refresh and full artifact synchronization.
+## Prioritized Next Execution Wave (Plan 9-HF3, execute-ready, hard-gated)
+1. Implement canonical coordinate mapping and fullscreen/DPR recompute path to remove polygon overlay drift.
+2. Fix mixed-media renderer lifecycle on `/output/final` so room GIF playback remains active after room `mp4` starts.
+3. Add configurable quality/performance controls with deterministic `mp4` degrade strategy for weak hardware.
+4. Add explicit toast/error surface for command/API failure and timeout outcomes (no silent no-op path).
+5. Keep deterministic sync invariant intact (ordering/version/idempotent apply unchanged).
+6. Execute browser matrix + final-output mixed-media regression + weak-hardware stress evidence.
+7. Close only after full artifact synchronization and explicit gate PASS.
 
 ## Milestones
-1. M1 HF1-HF7 Baseline Lock: previously completed guarantees remain non-regression constraints.
-2. M2 HF8 Stream Endpoint Closure: canonical server-composed video stream endpoint is authoritative.
-3. M3 HF8 Receiver-Only Client Closure: `/output/final` is fullscreen player-only with no runtime orchestration/polling.
-4. M4 HF8 Continuous Compositor Closure: compositor lifecycle remains active with 0/1/N subscribers.
-5. M5 HF8 Mutation Latency Closure: accepted mutations appear immediately on streamed output.
-6. M6 HF8 Parity/Acceptance Closure: full matrix PASS with synchronized phase/global artifacts.
-7. M7 HF9 Always-On Lifecycle Closure: `compositorAlwaysOn` gate is PASS across normal startup/runtime sequences.
-8. M8 HF9 Definitive Evidence Refresh: parity matrix and non-regression artifacts are reissued as full PASS.
+1. M1 Coordinate Determinism: polygon overlay maps identically across browser/DPR/fullscreen states.
+2. M2 Mixed Media Lifecycle Fix: `/output/final` renders room GIF and room `mp4` animations without cross-type starvation.
+3. M3 Performance Controls: quality tiers and degrade/recover strategy keep weak hardware stable under concurrent `mp4` load.
+4. M4 Action Feedback Reliability: command/API failures and timeouts are always visible to operators.
+5. M5 Determinism Preservation: sync behavior remains version-stable and idempotent under hotfix logic.
+6. M6 Evidence Closure: browser/final-output/weak-hardware matrix passes with documented traces.
 
-## Regression/Evidence Matrix Policy (9-HF9)
-- True-Server-Video-Stream-Endpoint-Test: `/output/final` consumes canonical server-composed video stream.
-- Final-Client-Receiver-Only-Test: client has no polling and no animation/state orchestration runtime path.
-- Fullscreen-Only-Output-Test: final page renders fullscreen stream only.
-- Compositor-Always-On-Subscriber-Independence-Test: compose loop remains active with 0/1/N subscribers and churn and reports `compositorAlwaysOn=true`.
-- Authoritative-Full-State-Compose-Test: composed output tracks latest global authoritative state revision.
-- Mutation-To-Stream-Latency-Gate-Test: start/stop/board/align accepted mutations become visible immediately.
-- Multi-Client-Control-Determinism-Test: control clients remain deterministic/responsive with receiver-only final page.
-- HF6-Transport-Apply-Ack-Non-Regression-Test: command transport/apply/ack guarantees remain PASS.
-- HF5-Visual-Only-Stream-Non-Regression-Test: no text/info/diagnostic overlays re-enter stream output.
+## Regression/Evidence Matrix Policy
+- Browser mapping matrix: Chrome/Firefox/Safari-equivalent paths validate overlay coordinate parity with resize/fullscreen/DPR transitions.
+- Mixed-media final-output lifecycle: start `malfunction` (`mp4`) then run room GIF flows; `/output/final` must keep GIF rendering parity with control view.
+- Weak-hardware stress: concurrent `mp4` runs validate tiered degradation and stable playback without freeze/crash.
+- Error feedback matrix: forced command/API failure and timeout paths must show explicit operator-visible error feedback.
+- Deterministic sync: cross-client parity checks for ordering/version/idempotent apply under pressure.
 
 ## Definition of Done
-- `/output/final` is pure receiver-only fullscreen stream player.
-- `/output/final` has no polling and no animation/state orchestration logic in active runtime.
-- Server compositor continuously composes authoritative output independent of subscribers and health gate reports `compositorAlwaysOn=true`.
-- Accepted mutations are immediately visible on stream output without browser refresh.
-- Compose source is current global authoritative full state revision (no stale frame path).
-- Control determinism, HF6 transport/apply/ack, and HF5 stream purity remain PASS.
-- Hard regression matrix is PASS and phase/global planning artifacts are synchronized.
+- Polygon overlay alignment is deterministic across supported browsers and viewport/DPR/fullscreen transitions.
+- `/output/final` mixed-media rendering remains stable: room `mp4` start does not suppress room GIF rendering.
+- Runtime remains stable under concurrent `mp4` pressure on weak hardware via configurable quality/performance controls.
+- Command/API failures and timeouts always produce explicit user-facing errors.
+- Deterministic sync invariants remain intact with no ordering/version regressions.
+- Regression/evidence matrix is PASS for browser mapping, mixed-media final-output, weak-hardware stress, and failure feedback.
+- Phase-09 and global planning artifacts are synchronized.
 
 ## Execution Update
 
 - Plan 9-1 remains documented but not accepted.
-- Plan 9-HF1 through Plan 9-HF7 remain completed baselines with existing evidence.
-- Plan 9-HF8 stream-path closure remains baseline, but follow-up verification found one blocking gate failure: `compositorAlwaysOn=false`.
-- Plan 9-HF9 completed PASS and closed the blocking lifecycle gate with refreshed parity/non-regression evidence (`9-HF9-VERIFICATION.md`).
-- Plan 9-2 is unblocked after HF9 full PASS closure.
+- Plan 9-HF1 remains completed foundation (`src/app.js`: 12163 -> 28 lines).
+- Plan 9-HF2 is completed with lifecycle no-replay reconciliation, frame-budget hardening, and PASS evidence (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
+- Plan 9-HF3 is completed with PASS evidence (`9-HF3-SUMMARY.md`, `P9-HF3-REGRESSION-EVIDENCE.md`) and unlocks Plan 9-2.

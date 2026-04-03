@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach die umfassende Refaktorierung von `src/app.js`, die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events, die server-composed `/output/final` Performance-Welle, den bindenden P0-Hotfix 9-HF4 zur Entkopplung von Stream-Consumer und Control-Command-Pfad inklusive Black-Stream-Closure ohne Restart-Abhaengigkeit, das bindende P0-Refinement 9-HF5 fuer strikt overlay-freien visual-only Stream-Output auf `/output/final`, den P0-Blocker 9-HF6 fuer sofortige client->server Command-Transport-/Apply-/Ack-Paritaet unter aktivem stream mode sowie den neuen bindenden P0-Blocker 9-HF7 fuer strikt serverautoritativen stream-only `/output/final`-Betrieb ohne Fallback, subscriber-unabhaengige Dauerkomposition und stale-frame-freie Sofortsichtbarkeit aller Mutationen.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, dann die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening, gefolgt von einem neuen verpflichtenden P0-Hotfixpaket fuer cross-browser Polygon-Mapping, `/output/final` mixed-media lifecycle integrity, weak-hardware `mp4` performance controls und explizites Fehlerfeedback ohne silent no-op.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -565,57 +565,28 @@ Gate Closure (8-HF12):
 - Plan 8-2 ist wieder freigegeben.
 
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
-Ziel: Auf der abgeschlossenen HF1..HF7-Basis den bindenden Architektur-Pivot schliessen: `/output/final` wird als reine fullscreen Video-Stream-Receiver-Seite betrieben, waehrend ein serverseitiger compositor kontinuierlich und subscriber-unabhaengig aus global autoritativem State komponiert.
+Ziel: Auf der abgeschlossenen HF1/HF2-Basis die Runtime-Stabilitaet final schliessen: cross-browser-deterministisches Polygon-Mapping, `/output/final` mixed-media lifecycle integrity (room `mp4` + room GIF), weak-hardware `mp4` quality/performance controls und explizites Fehlerfeedback auf command/API fail/timeout Pfaden.
 
-Status: Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6, Plan 9-HF7, Plan 9-HF8 und Plan 9-HF9 sind abgeschlossen (`.planning/phases/phase-09/9-HF1-SUMMARY.md`, `.planning/phases/phase-09/9-HF2-SUMMARY.md`, `.planning/phases/phase-09/9-HF3-SUMMARY.md`, `.planning/phases/phase-09/9-HF4-SUMMARY.md`, `.planning/phases/phase-09/9-HF5-SUMMARY.md`, `.planning/phases/phase-09/9-HF6-VERIFICATION.md`, `.planning/phases/phase-09/9-HF7-VERIFICATION.md`, `.planning/phases/phase-09/9-HF8-VERIFICATION.md`, `.planning/phases/phase-09/9-HF9-VERIFICATION.md`); der HF8-Follow-up-Blocker (`compositorAlwaysOn=false`) ist in HF9 geschlossen und Plan 9-2 ist wieder freigegeben.
-
-New Blocking Wave (Phase 9 HF8 verification follow-up):
-- Verbindlicher P0-Blocker Plan 9-HF9 schliesst die always-on compositor lifecycle Luecke (`compositorAlwaysOn=true` unter allen normalen Startup/Runtime-Sequenzen).
-- Vollstaendige Parity/Acceptance-Matrix muss ohne partial pass wieder PASS sein.
-- Stream-only final client + no-polling/no-orchestration guarantees bleiben unveraendert verpflichtend.
-- PASS-Evidenzartefakte werden aktualisiert; Plan 9-2 bleibt bis zur HF9-Closure gesperrt.
+Status: Plan 9-HF1, 9-HF2 und 9-HF3 sind abgeschlossen. HF3 liefert die verpflichtende Runtime-Closure fuer canonical coordinate mapping, mixed-media `/output/final` lifecycle isolation, deterministic weak-hardware mp4 controls und explizites fail/timeout feedback (`9-HF3-SUMMARY.md`, `P9-HF3-REGRESSION-EVIDENCE.md`). Plan 9-2 ist als naechste Wave freigegeben.
 
 Milestones:
 1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
-2. M2 Rehydrate Correctness: elapsed events werden bei reload/reconnect deterministisch als terminal restauriert.
-3. M3 No-Replay Enforcement: expired one-shot events (z. B. `Intruder Alert`, `Power Outage`) werden nie erneut abgespielt.
-4. M4 Low-End Hardening: frame-budget aware shedding, particle caps und update coalescing stabilisieren schwache Mobilgeraete.
-5. M5 Deterministic Sync Preservation: ordering/version/idempotent apply bleibt unter Last-Hardening unveraendert.
-6. M6 HF3 Stream Decision: server-composed final stream feasibility/tradeoffs (latency/quality/capacity/deploy) sind messbar bewertet und als viable beschlossen.
-7. M7 HF3 Stream Delivery + Fallback: `/output/final` stream path laeuft stabil, auto/manual fallback ist deterministisch verfuegbar.
-8. M8 HF3 Contract Parity: align-mode + deterministic sync bleiben unveraendert, control-views bleiben interaktiv.
-9. M9 Evidence Closure: weak-hardware smoothness + fallback + parity matrix PASS mit konsistentem Artefakt-Sync.
-10. M10 HF4 Command-Path Isolation: stream subscribers beeinflussen command ingest/apply nicht (kein lock/queue starvation/shared-state freeze).
-11. M11 HF4 Black-Stream Closure: board-/asset-spezifische black-stream-Faelle (inkl. sandstorm) sind reproduzierbar geschlossen.
-12. M12 HF4 Authoritative Producer + Recovery: stream producer bleibt server-side authoritative; output/control Recovery funktioniert ohne Server-Restart.
-13. M13 HF5 Stream Purity Closure: `/output/final` stream frames enthalten nur visuelle Stream-Inhalte ohne Text-/Info-/Diagnostik-Overlays.
-14. M14 HF6 Command Transport + Immediate Apply/Ack Closure: Start/Stop-Commands erreichen unter stream on/off deterministisch sofort den Serverpfad und propagieren unmittelbar ueber Snapshot + `/output/final`.
-15. M15 HF7 Strict Stream Authority Closure: `/output/final` ist stream-only ohne auto/client fallback, producer bleibt subscriber-unabhaengig, stale-frame path ist geschlossen und mutation visibility bleibt immediate.
-16. M16 HF8 True Video Receiver Pivot Closure: `/output/final` ist player-only/fullscreen ohne Polling/Orchestration; server compositor streamt kontinuierlich als einzige Autoritaet.
-17. M17 HF9 Always-On Definitive Closure: `compositorAlwaysOn` ist in Normalbetrieb/Churn/Reconnect stabil PASS und Parity-Matrix schliesst vollstaendig.
+2. M2 HF2 Lifecycle Closure: rehydrate/no-replay expired one-shot semantics und low-end hardening sind PASS.
+3. M3 Coordinate Determinism Closure: overlay mapping bleibt stabil ueber browser/DPR/fullscreen transitions.
+4. M4 Mixed-Media Final-Output Closure: room `mp4` start (`malfunction`) stoppt room GIF rendering nicht mehr auf `/output/final`.
+5. M5 Weak-Hardware Stability Controls Closure: configurable degrade/recover tiers halten viele parallele `mp4` streams stabil.
+6. M6 Explicit Error Feedback Closure: command/API fail/timeout Pfade zeigen immer explizite user-facing Fehler.
+7. M7 Deterministic Sync Preservation: ordering/version/idempotent apply bleibt unter HF3 unveraendert.
+8. M8 Evidence Closure: browser/final-output/weak-hardware/feedback matrix PASS mit konsistentem Artefakt-Sync.
 
 Exit Criteria:
-- Expired one-shot events werden nach reload/reconnect nicht erneut abgespielt.
-- Rehydrate/rejoin behandelt abgelaufene Events deterministisch als terminal/completed.
-- Runtime bleibt unter Langzeitlast auf low-end Mobilgeraeten stabil durch budget-aware Hardening.
-- Deterministic sync bleibt unter Hardening unveraendert (ordering/version/idempotent apply).
-- `/output/final` bietet server-composed stream mode mit smooth playback auf weak hardware.
-- `/output/final` bleibt strikt receiver-only; client-render fallback und clientseitige orchestration/polling Pfade sind nicht aktiv.
-- Align-mode-Verhalten und lifecycle no-replay bleiben unter dem serverseitigen Stream-Pfad unveraendert.
-- Control-views bleiben interaktiv; keine Regression in Operator-Flow, Persistenz/API-Save.
-- Aktivierte Stream-Subscriber duerfen Control-Kommandos niemals blockieren (Start/Stop, Board-Switch, Align, Toggle).
-- Black-stream ist boardprofil-/assetuebergreifend geschlossen (inkl. sandstorm board).
-- Stream producer bleibt serverautoritativ und funktioniert unabhaengig vom Zustand einzelner Client-Renderer.
-- Fehler-/Reconnect-Pfade erholen sich ohne verpflichtenden Server-Restart.
-- `/output/final` stream output bleibt strikt visual-only; recurring overlays wie `SERVER STREAM ACTIVE` und aktive Animationslisten sind vollstaendig entfernt.
-- Client-Control-Aktionen erreichen unter aktivem stream mode den Server-Command-Pfad sofort und werden nicht gedroppt/no-op.
-- Server-Apply aktualisiert bei akzeptierten Commands sofort autoritativen Stream- und Snapshot-State inklusive immediate ack.
-- Start/Stop-Paritaet bleibt ueber stream on/off, mehrere Control-Clients und `/output/final` deterministisch stabil.
-- Server compositor bleibt bei 0/1/N Subscriber kontinuierlich aktiv und komponiert aus global autoritativem Full-State.
-- Health/Parity-Gate `compositorAlwaysOn` ist unter allen normalen Startup/Runtime-Sequenzen explizit `true`.
-- Mutation->Stream-Latenz-Gates fuer start/stop/board/align sind PASS ohne Browser-Refresh.
-- Parity-Schluss erfolgt nur bei voller PASS-Matrix; partial pass ist als Closure unzulaessig.
-- Long-run + weak-hardware + parity Evidence-Matrix ist PASS dokumentiert.
+- Polygon-Overlay bleibt in allen Zielbrowsern unter resize/orientation/fullscreen/DPR deterministisch ausgerichtet.
+- `/output/final` mixed-media lifecycle bleibt stabil; room GIF rendering bleibt nach room `mp4` (`malfunction`) Start sichtbar.
+- Runtime bleibt unter hoher paralleler `mp4`-Last auf weak hardware stabil via konfigurierbare quality/performance controls.
+- Command/API fail- und timeout-Pfade zeigen immer explizites user-facing Fehlerfeedback; keine silent no-op Pfade.
+- Deterministic sync bleibt unter HF3-Hotfixpfaden unveraendert (ordering/version/idempotent apply).
+- Keine Regression in Operator-Flow, Persistenz/API-Save und `/output/final`.
+- Browser/final-output/weak-hardware/feedback Evidence-Matrix ist PASS dokumentiert.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 9-HF1 Closure Notes:
@@ -629,25 +600,14 @@ HF2 Closure (Phase 9 lifecycle + low-end stability follow-up):
 - Reload/Reconnect no-replay guard aktiv fuer expired finite-duration global events.
 - Runtime hardening aktiv: frame-budget ladder, particle caps, non-critical coalescing mit bounded degradation.
 - Deterministic sync invariants unter hardening validiert (ordering/version/idempotent apply PASS).
-- Plan 9-HF4 ist PASS abgeschlossen; command-path isolation, black-stream closure, producer authority und restart-freie recovery sind evidenzbasiert verifiziert.
+- Plan 9-HF3 ist abgeschlossen; die P0-Hotfix-Gates fuer Mapping/Mixed-Media/Weak-Hardware/Feedback sind geschlossen.
 
-HF5 Closure (Phase 9 stream-output purity follow-up):
-- Recurring overlays (`SERVER STREAM ACTIVE` + aktive Animationsliste) sind aus `/output/final` stream path entfernt.
-- Stream payload ist visual-only kontraktiert und serverseitig sanitisiert; diagnostics koennen nicht re-entern.
-- HF4-Stabilitaetsgarantien bleiben PASS als Non-Regression (`P9-HF5-T5-HF4-NON-REGRESSION.md`).
-- Stream-purity + no-overlay parity Evidence ist PASS (`P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
-- Plan 9-2 war kurzzeitig freigegeben und ist durch nachgelagerte HF7/HF8-Blocker wieder gesperrt.
-
-HF6 Closure (Phase 9 control-command transport follow-up):
-- Deterministischer pre-fix command-drop/no-op Repro ist dokumentiert (`P9-HF6-T1-REPRO-TRACE.md`) und Root-Cause ist isoliert (`P9-HF6-T2-ROOT-CAUSE.md`).
-- Transportpfad ist auf control-critical Priorisierung fuer Start/Stop geschlossen; Overflow/no-op Pfad ist evidenzbasiert entfernt (`P9-HF6-T3-TRANSPORT-FIX.md`).
-- Apply-, Snapshot- und Stream-Propagation sind immediate/version-aligned verifiziert (`P9-HF6-T4-APPLY-SNAPSHOT-STREAM.md`).
-- Immediate-Ack-Semantik und stream on/off Ack-Paritaet sind PASS (`P9-HF6-T5-IMMEDIATE-ACK.md`).
-- Strikte Start/Stop-Paritaetsmatrix ueber multi-client + `/output/final` ist PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`).
-- HF5 visual-only stream purity bleibt als Non-Regression PASS (`P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
-- HF8 Follow-up mismatch (`compositorAlwaysOn=false`) ist reproduziert, root-cause-isoliert und in HF9 lifecycle-aware geschlossen.
-- Plan 9-HF9 liefert volle PASS-Evidenz fuer always-on lifecycle gate, parity matrix und HF5/HF6 non-regression (`9-HF9-VERIFICATION.md`).
-- Plan 9-2 ist nach HF9-PASS wieder unblocked.
+HF3 Closure (runtime testing package):
+- Cross-browser/dpr/fullscreen coordinate mapping determinism for polygon overlays is a hard gate.
+- `/output/final` mixed-media lifecycle bug (`malfunction` mp4 suppresses GIF room rendering) is a hard gate.
+- Weak-hardware concurrent `mp4` quality/performance controls with deterministic degrade/recover behavior are a hard gate.
+- Explicit command/API fail and timeout feedback (toast/error, no silent no-op) is a hard gate.
+- Gate status: PASS (see `9-HF3-SUMMARY.md` and `P9-HF3-REGRESSION-EVIDENCE.md`).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
