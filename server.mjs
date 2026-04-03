@@ -1849,8 +1849,21 @@ function attachFinalVideoClient(req, res) {
 
 function buildFinalStreamHealthSnapshot() {
   const now = Date.now();
+  const watchdogActive = Boolean(finalStreamProducerState.watchdogId);
+  const timerActive = Boolean(finalStreamProducerState.timerId);
+  const lastTickAtMs = Date.parse(finalStreamProducerState.lastTickAt ?? "") || 0;
+  const msSinceLastTick = lastTickAtMs > 0 ? Math.max(0, now - lastTickAtMs) : null;
   const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
   const msSinceLastFrame = lastFrameAtMs > 0 ? Math.max(0, now - lastFrameAtMs) : null;
+  const activeWindowMs = FINAL_STREAM_PUSH_INTERVAL_MS * 6;
+  const tickFresh = msSinceLastTick !== null ? msSinceLastTick <= activeWindowMs : finalStreamProducerState.ticks > 0;
+  const frameFresh = msSinceLastFrame !== null ? msSinceLastFrame <= activeWindowMs : finalStreamProducerState.ticks > 0;
+  const compositorAlwaysOn =
+    finalStreamProducerState.running
+    && watchdogActive
+    && timerActive
+    && tickFresh
+    && frameFresh;
   return {
     schema: "tt-beamer.final-stream-health.v1",
     generatedAt: new Date().toISOString(),
@@ -1858,10 +1871,12 @@ function buildFinalStreamHealthSnapshot() {
     connectedVideoClients: finalVideoClients.size,
     producer: {
       running: finalStreamProducerState.running,
-      watchdogActive: Boolean(finalStreamProducerState.watchdogId),
+      watchdogActive,
+      timerActive,
       composing: finalStreamProducerState.composing,
       ticks: finalStreamProducerState.ticks,
       lastTickAt: finalStreamProducerState.lastTickAt,
+      msSinceLastTick,
       recoveries: finalStreamProducerState.recoveries,
       latestBroadcastVersion: finalStreamProducerState.latestBroadcastVersion,
       latestComposeError: finalStreamProducerState.latestComposeError,
@@ -1875,6 +1890,7 @@ function buildFinalStreamHealthSnapshot() {
       finalStreamProducerState.running
       && msSinceLastFrame !== null
       && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
+    compositorAlwaysOn,
     latencyGate: {
       hardLimitMs: finalStreamLatencyGateState.hardLimitMs,
       maxObservedMs: finalStreamLatencyGateState.maxObservedMs,
