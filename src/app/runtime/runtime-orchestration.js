@@ -1463,6 +1463,7 @@ const gifPlaybackCacheByPath = new Map();
 const outsideVideoCacheByPath = new Map();
 const roomVideoCacheByPath = new Map();
 const outsideMp4PlaybackStateByBoard = new Map();
+const outsideTimelineStateByBoard = new Map();
 const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
 const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
 const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
@@ -4409,6 +4410,40 @@ function clearOutsideMp4PlaybackState(boardId = state.boardId) {
   outsideMp4PlaybackStateByBoard.delete(boardId);
 }
 
+function clearOutsideTimelineState(boardId = state.boardId) {
+  outsideTimelineStateByBoard.delete(boardId);
+}
+
+function buildOutsideLifecycleKey(boardId, definition) {
+  if (!definition || typeof definition !== "object") {
+    return `${boardId}:outside:missing-definition`;
+  }
+  return [
+    String(boardId || "global").trim() || "global",
+    String(definition.id || "outside").trim() || "outside",
+    String(definition.assetType || "coded").trim() || "coded",
+    String(definition.assetRef || "outside-space").trim() || "outside-space",
+    String(definition.mode || "standard").trim() || "standard",
+    String(definition.direction || "forward").trim() || "forward",
+    Number(definition.speed || 1).toFixed(3),
+    Number(definition.intensity || 1).toFixed(3),
+  ].join("|");
+}
+
+function resolveOutsideElapsedSeconds(now, { boardId = state.boardId, lifecycleKey = "" } = {}) {
+  const normalizedLifecycleKey = String(lifecycleKey || "").trim() || `${boardId}:outside:default`;
+  const existing = outsideTimelineStateByBoard.get(boardId) ?? null;
+  if (!existing || existing.lifecycleKey !== normalizedLifecycleKey) {
+    outsideTimelineStateByBoard.set(boardId, {
+      lifecycleKey: normalizedLifecycleKey,
+      startedAt: Number(now) || performance.now(),
+    });
+    return 0;
+  }
+  const elapsedMs = Math.max(0, (Number(now) || 0) - Number(existing.startedAt || 0));
+  return elapsedMs / 1000;
+}
+
 function getOutsideMp4LoopStartTime(durationSec) {
   const duration = Number(durationSec);
   if (!Number.isFinite(duration) || duration <= 0) {
@@ -4495,16 +4530,16 @@ function maybeWrapOutsideMp4Loop(video, playbackState) {
   }
 }
 
-function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", assetRef = "", targetRate = 1 } = {}) {
+function ensureOutsideMp4Playback(video, { boardId = state.boardId, lifecycleKey = "", assetRef = "", targetRate = 1 } = {}) {
   if (!video) {
     return null;
   }
-  const normalizedRunId = String(runId || "").trim();
+  const normalizedLifecycleKey = String(lifecycleKey || "").trim();
   const normalizedAssetRef = String(assetRef || "").trim();
   const previous = outsideMp4PlaybackStateByBoard.get(boardId) ?? null;
   const didLifecycleChange =
     !previous
-    || previous.runId !== normalizedRunId
+    || previous.lifecycleKey !== normalizedLifecycleKey
     || previous.assetRef !== normalizedAssetRef;
 
   video.loop = true;
@@ -4537,7 +4572,7 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, runId = "", 
     ? Boolean(previous?.hasVisibleFrame)
     : false;
   const playbackState = {
-    runId: normalizedRunId,
+    lifecycleKey: normalizedLifecycleKey,
     assetRef: normalizedAssetRef,
     fallbackCanvas: previous?.fallbackCanvas ?? null,
     fallbackCtx: previous?.fallbackCtx ?? null,
@@ -6783,6 +6818,7 @@ function syncOutsideRuntimeMirror(boardId = state.boardId) {
     stopAnimationSound(existing.id);
     state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
     clearOutsideMp4PlaybackState(boardId);
+    clearOutsideTimelineState(boardId);
     return true;
   }
 
@@ -10148,18 +10184,20 @@ function drawOutsideFxLayer(now) {
   const outside = getOutsideFxProfile(state.boardId);
   if (!outside.enabled) {
     clearOutsideMp4PlaybackState(state.boardId);
+    clearOutsideTimelineState(state.boardId);
     return;
   }
   const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
   if (!selectedDefinition) {
     clearOutsideMp4PlaybackState(state.boardId);
+    clearOutsideTimelineState(state.boardId);
     return;
   }
-  const runtimeEntry = findOutsideGlobalAnimation(state.boardId);
-  const startedAt = Number(runtimeEntry?.startedAt);
-  const elapsedSeconds = Number.isFinite(startedAt)
-    ? Math.max(0, (now - startedAt) / 1000) * state.animationSpeed
-    : (now / 1000) * state.animationSpeed;
+  const outsideLifecycleKey = buildOutsideLifecycleKey(state.boardId, selectedDefinition);
+  const elapsedSeconds = resolveOutsideElapsedSeconds(now, {
+    boardId: state.boardId,
+    lifecycleKey: outsideLifecycleKey,
+  }) * state.animationSpeed;
   const timeline = resolveOutsideTimeline(elapsedSeconds, selectedDefinition.speed);
   const effectiveDirection = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
 
@@ -10188,7 +10226,7 @@ function drawOutsideFxLayer(now) {
         const targetRate = Math.max(0.15, Math.min(4, clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
         const playbackState = ensureOutsideMp4Playback(video, {
           boardId: state.boardId,
-          runId: runtimeEntry?.id,
+          lifecycleKey: outsideLifecycleKey,
           assetRef: selectedDefinition.assetRef,
           targetRate,
         });
