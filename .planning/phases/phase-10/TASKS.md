@@ -9,7 +9,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF1-T3 [P0] Enforce guaranteed co-render contract on `/output/final`: active room animations and active outside animations both render.
 - [x] DONE P10-HF1-T4 [P0] Preserve sync determinism and existing controls (`stop outside`, `clear all`, global toggles, ordering/version/idempotent apply).
 - [x] DONE P10-HF1-T5 [P0] Execute full board regression matrix including mp4 outside-background boards and non-mp4 boards with PASS evidence.
-- [ ] TODO P10-HF1-T6 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF1 PASS.
+- [x] DONE P10-HF1-T6 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF1 PASS.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready, hard-gated)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).

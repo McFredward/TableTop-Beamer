@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Direction
-Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, dann die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening, gefolgt von einem verpflichtenden P0-Hotfixpaket fuer cross-browser Polygon-Mapping, `/output/final` mixed-media lifecycle integrity, weak-hardware `mp4` performance controls und explizites Fehlerfeedback ohne silent no-op, plus einem neuen verpflichtenden P0-Follow-up fuer strict outside-sandstorm lifecycle independence ohne restart durch room/cluster/global starts.
+Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweitere danach auf wiederholbaren Session-Betrieb mit Profilen und Datenzonen (Phase 2), halte den Runtime-Operator-Flow in Phase 4 bewusst preview-frei, fuehre in Phase 5 einen serverautoritativen Multi-Device-Livebetrieb mit dediziertem Final-Beamer-Output ein, generalisiere in Phase 6 auf boardspiel-agnostischen Betrieb mit englischem Operator-Flow, haerte in Phase 7 die Multi-Device-Synchronisation fuer deterministisches Low-Latency-Verhalten auf allen Clients und fokussiere in Phase 8 Multi-Play-Area-Support plus boardseitigen Bildupload-Import sowie ein verpflichtendes Outside-/Inside-Animationspaket inklusive priorisierter P0-Wellen fuer Outside-Regressionen, Final-Output-Fullscreen-Fit, Boomerang-Entfernung mit Inside-Editor-Paritaet, HF8 (Outside-mp4-Restore/conditional-visibility/Apply-only-UX), HF9 (lifecycle-stabiles Outside-mp4 + strict conditional unmounting), HF10 (deterministische mp4-Sichtbarkeit plus nahtloser Loopbetrieb ohne Replay-Break/Black-Frame/Gap), HF11 (definitionsgetriebene Room-Animationen fuer alle Typen + first-start Default-Autoload mit explizitem Reset-Button-Flow) und HF12 (Room-Editor Unified-Speed-Refinement ohne dedizierten GIF-Speed-Slider sowie Opacity-Paritaet inkl. mp4); Phase 9 priorisiert danach erst die umfassende Refaktorierung von `src/app.js` in modulare Domaenengrenzen, dann die verpflichtende Stabilitaets-Hotfix-Welle fuer lifecycle-correct rehydrate/no-replay expired events und low-end load hardening, gefolgt von einem verpflichtenden P0-Hotfixpaket fuer cross-browser Polygon-Mapping, `/output/final` mixed-media lifecycle integrity, weak-hardware `mp4` performance controls und explizites Fehlerfeedback ohne silent no-op, plus einem neuen verpflichtenden P0-Follow-up fuer strict outside-sandstorm lifecycle independence ohne restart durch room/cluster/global starts; Phase 10 fokussiert anschliessend einen speed-first Operator-UX-Track mit Settings-Subtabs, Quick-Activation/Deactivation/Clear-Modi und mobilem one-handed Rapid-Response-Flow.
 
 ## Phase 1 - Vertical Slice + Priority Add-on inkl. Plan-Update-19 (Completed)
 Ziel: Operator kann Board waehlen, kalibrieren, Effekte triggern und jederzeit sicher stoppen.
@@ -619,6 +619,40 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 - Outside playback state and media cache are isolated from room/cluster/global-inside lifecycle triggers.
 - Existing `stop outside` and `clear all` semantics remain deterministic and unchanged.
 - Gate status: PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
+
+## Phase 10 - Operator Speed UI/UX + Mobile One-Hand Reaction (In Progress)
+Ziel: Bediengeschwindigkeit im Livebetrieb deutlich steigern durch logisch gruppierte Settings-Subtabs und explizite Quick-Action-Modi fuer sequenzielle Room-Clicks (activate/deactivate/clear), inklusive mobiler one-handed Optimierung.
+
+Status: Plan 10-HF1 ist abgeschlossen (PASS) und entblockt Plan 10-1; board-spezifischer `/output/final` Blackout auf `Nemesis Lockdown A` (outside `sandstorm.mp4`) ist mit fail-open compositor hardening + all-board Evidence geschlossen (`.planning/phases/phase-10/P10-HF1-T1-REPRO-TRACE.md`, `.planning/phases/phase-10/P10-HF1-T5-ALL-BOARD-REGRESSION.md`).
+
+Milestones:
+1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
+2. M0 HF1 Render-Path Closure: finaler Compositor bleibt auf allen Boards aktiv (inkl. mp4 outside-background Boards).
+3. M0 HF1 Co-Render Closure: room + outside Animationen rendern gleichzeitig auf `/output/final` fuer alle Boards.
+4. M0 HF1 Non-Regression Closure: sync/control semantics bleiben unveraendert (ordering/version/idempotent apply, stop/clear/global).
+5. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
+6. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+7. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
+8. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
+9. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
+10. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
+11. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+
+Exit Criteria:
+- `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
+- mp4 outside-background Boards behalten funktionierende Final-Komposition ohne Black-Screen-Regression.
+- Room- und Outside-Animationen rendern auf `/output/final` parallel und deterministisch.
+- Sync-/Control-Verhalten bleibt unveraendert (stop/clear/global + ordering/version/idempotent apply).
+- Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
+- Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
+- Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
+- Status-/Fehlerfeedback fuer Quick-Mode-Aktionen ist explizit; kein silent no-op.
+- Sync-Invarianten (ordering/version/idempotent apply) bleiben unter Burst-Eingaben stabil.
+- Keine Regression in stop/clear-all/global behavior, Persistenz/API-Save und `/output/final`.
+- Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
+
+Next Wave (Phase 10):
+- Plan 10-1 execute-ready Core-Welle: Settings-Subtabs + Quick-Modes + Mobile one-handed Speed Flow.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

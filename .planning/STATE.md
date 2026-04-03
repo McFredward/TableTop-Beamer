@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 9
-- Current Phase Key: phase-09
+- Current Phase: 10
+- Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF4 (completed)
-- Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF4-SUMMARY.md`
+- Last Executed Plan: 10-HF1 (completed)
+- Planned Next Execution: 10-1
+- Last Execution Summary: `.planning/phases/phase-10/10-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,18 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes P0-Runtime-Hotfix fuer Phase 10 ist bindend: `/output/final` wird auf `Nemesis Lockdown A` (outside `sandstorm.mp4`) schwarz und muss board-spezifisch root-cause-basiert behoben werden.
+- Plan-10-HF1 Umsetzung: root-cause fuer board-spezifischen Final-Blackout war fail-closed Clip-Geometrie; outside/room Layer konnten bei degenerierten Polygonen gleichzeitig ausfallen.
+- Plan-10-HF1 Umsetzung: Final-Compositor clipping ist fail-open gehaertet (invalid/degenerate room/play-area polygons blockieren Rendering nicht mehr).
+- Plan-10-HF1 Umsetzung: all-board Regression inkl. mp4 outside board `nemesis-lockdown-a` (`sandstorm.mp4`) ist PASS (`P10-HF1-T5-ALL-BOARD-REGRESSION.md`).
+- Phase-10 Gate-Regel Update: Plan 10-HF1 blockiert Plan 10-1 bis PASS (Final-Render-Path aktiv auf allen Boards, room+outside co-render parity, sync/control non-regression).
+- Render-Vertragsregel Phase 10 HF1: board/media-spezifische Outside-Pfade duerfen den finalen Compositor nie fail-closed abbrechen; bei Outside-readiness Fehlern gilt fail-open (frame skip, kein Blackout).
+- Evidenz-Regel Phase 10 HF1: all-board Regression inkl. mp4-outside-background Boards ist Pflichtnachweis vor weiterer Phase-10-Featurearbeit.
+- Phase-10 Planning Entscheidung: naechste Welle ist planning-only und fokussiert schnelle Operator-Bedienung auf Desktop + Mobile (kein Execute in diesem Schritt).
+- Phase-10 IA-Regel: Settings werden in logisch gruppierte Sub-Tabs zerlegt, damit Navigation und Scan-Zeit im Livebetrieb sinken.
+- Phase-10 Runtime-Regel: drei explizite Quick-Modi (`activate`/`deactivate`/`clear`) werden als sequenzieller Room-Click-Flow mit klarer Mode-Sichtbarkeit priorisiert.
+- Phase-10 Mobile-Regel: one-handed Reaktionspfad ist Pflichtgate (sticky Action-Rail, grosse Tap-Ziele, stabile Board-Uebersicht waehrend Burst-Operationen).
+- Phase-10 Gate-Regel: Plan 10-1 ist execute-ready und bindet Determinismus-/Non-Regression-Matrix fuer schnelle Mehrfach-Clicks auf Desktop/Mobile.
 - Plan-9-HF4 Umsetzung: outside playback lifecycle now uses a board-scoped outside-definition lifecycle key and timeline ownership that is decoupled from room/cluster/global-inside trigger churn.
 - Plan-9-HF4 Umsetzung: repeated room starts no longer restart/rewind outside sandstorm playback; stop outside and clear-all semantics remain deterministic PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
 - Neues verpflichtendes P0-Runtime-Bugfix vor Phase-9-Close ist bindend: Start einer neuen Room-Animation darf Outside Sandstorm niemals von Beginn an neu starten.
