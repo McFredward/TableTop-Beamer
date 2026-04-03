@@ -565,9 +565,9 @@ Gate Closure (8-HF12):
 - Plan 8-2 ist wieder freigegeben.
 
 ## Phase 9 - Comprehensive Refactor + Maintainability Uplift (In Progress)
-Ziel: Auf der abgeschlossenen HF1/HF2/HF3-Basis den kritischen Realbetriebs-Blocker schliessen: Stream-Consumer-Lifecycle und Control-Command-Pfad werden strikt entkoppelt, Black-stream-Faelle ueber Board-Profile behoben und `/output/final` bleibt server-side authoritative ohne Restart-Zwang bei Stoerungen.
+Ziel: Auf der abgeschlossenen HF1..HF7-Basis den bindenden Architektur-Pivot schliessen: `/output/final` wird als reine fullscreen Video-Stream-Receiver-Seite betrieben, waehrend ein serverseitiger compositor kontinuierlich und subscriber-unabhaengig aus global autoritativem State komponiert.
 
-Status: Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6 und Plan 9-HF7 sind abgeschlossen (`.planning/phases/phase-09/9-HF1-SUMMARY.md`, `.planning/phases/phase-09/9-HF2-SUMMARY.md`, `.planning/phases/phase-09/9-HF3-SUMMARY.md`, `.planning/phases/phase-09/9-HF4-SUMMARY.md`, `.planning/phases/phase-09/9-HF5-SUMMARY.md`, `.planning/phases/phase-09/9-HF6-VERIFICATION.md`, `.planning/phases/phase-09/9-HF7-VERIFICATION.md`); Plan 9-2 ist als naechste Hardening-Welle freigegeben.
+Status: Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, Plan 9-HF6, Plan 9-HF7 und Plan 9-HF8 sind abgeschlossen (`.planning/phases/phase-09/9-HF1-SUMMARY.md`, `.planning/phases/phase-09/9-HF2-SUMMARY.md`, `.planning/phases/phase-09/9-HF3-SUMMARY.md`, `.planning/phases/phase-09/9-HF4-SUMMARY.md`, `.planning/phases/phase-09/9-HF5-SUMMARY.md`, `.planning/phases/phase-09/9-HF6-VERIFICATION.md`, `.planning/phases/phase-09/9-HF7-VERIFICATION.md`, `.planning/phases/phase-09/9-HF8-VERIFICATION.md`); Plan 9-2 ist nach HF8-PASS freigegeben.
 
 Milestones:
 1. M1 HF1 Foundation Closure: Modularisierung, thin bootstrap und strukturierte Logging-Basis sind PASS.
@@ -585,6 +585,7 @@ Milestones:
 13. M13 HF5 Stream Purity Closure: `/output/final` stream frames enthalten nur visuelle Stream-Inhalte ohne Text-/Info-/Diagnostik-Overlays.
 14. M14 HF6 Command Transport + Immediate Apply/Ack Closure: Start/Stop-Commands erreichen unter stream on/off deterministisch sofort den Serverpfad und propagieren unmittelbar ueber Snapshot + `/output/final`.
 15. M15 HF7 Strict Stream Authority Closure: `/output/final` ist stream-only ohne auto/client fallback, producer bleibt subscriber-unabhaengig, stale-frame path ist geschlossen und mutation visibility bleibt immediate.
+16. M16 HF8 True Video Receiver Pivot Closure: `/output/final` ist player-only/fullscreen ohne Polling/Orchestration; server compositor streamt kontinuierlich als einzige Autoritaet.
 
 Exit Criteria:
 - Expired one-shot events werden nach reload/reconnect nicht erneut abgespielt.
@@ -592,8 +593,8 @@ Exit Criteria:
 - Runtime bleibt unter Langzeitlast auf low-end Mobilgeraeten stabil durch budget-aware Hardening.
 - Deterministic sync bleibt unter Hardening unveraendert (ordering/version/idempotent apply).
 - `/output/final` bietet server-composed stream mode mit smooth playback auf weak hardware.
-- Stream-Degradation schaltet deterministisch auf client-render fallback ohne Output-Ausfall.
-- Align-mode-Verhalten und lifecycle no-replay bleiben in stream + fallback identisch.
+- `/output/final` bleibt strikt receiver-only; client-render fallback und clientseitige orchestration/polling Pfade sind nicht aktiv.
+- Align-mode-Verhalten und lifecycle no-replay bleiben unter dem serverseitigen Stream-Pfad unveraendert.
 - Control-views bleiben interaktiv; keine Regression in Operator-Flow, Persistenz/API-Save.
 - Aktivierte Stream-Subscriber duerfen Control-Kommandos niemals blockieren (Start/Stop, Board-Switch, Align, Toggle).
 - Black-stream ist boardprofil-/assetuebergreifend geschlossen (inkl. sandstorm board).
@@ -603,7 +604,9 @@ Exit Criteria:
 - Client-Control-Aktionen erreichen unter aktivem stream mode den Server-Command-Pfad sofort und werden nicht gedroppt/no-op.
 - Server-Apply aktualisiert bei akzeptierten Commands sofort autoritativen Stream- und Snapshot-State inklusive immediate ack.
 - Start/Stop-Paritaet bleibt ueber stream on/off, mehrere Control-Clients und `/output/final` deterministisch stabil.
-- Long-run + weak-hardware + fallback/parity Evidence-Matrix ist PASS dokumentiert.
+- Server compositor bleibt bei 0/1/N Subscriber kontinuierlich aktiv und komponiert aus global autoritativem Full-State.
+- Mutation->Stream-Latenz-Gates fuer start/stop/board/align sind PASS ohne Browser-Refresh.
+- Long-run + weak-hardware + parity Evidence-Matrix ist PASS dokumentiert.
 - Phase-09-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 9-HF1 Closure Notes:
@@ -624,7 +627,7 @@ HF5 Closure (Phase 9 stream-output purity follow-up):
 - Stream payload ist visual-only kontraktiert und serverseitig sanitisiert; diagnostics koennen nicht re-entern.
 - HF4-Stabilitaetsgarantien bleiben PASS als Non-Regression (`P9-HF5-T5-HF4-NON-REGRESSION.md`).
 - Stream-purity + no-overlay parity Evidence ist PASS (`P9-HF5-T6-STREAM-PURITY-MATRIX.md`, `P9-HF5-T7-OUTPUT-PARITY-NO-OVERLAY.md`).
-- Plan 9-2 war kurzzeitig freigegeben.
+- Plan 9-2 war kurzzeitig freigegeben und ist durch nachgelagerte HF7/HF8-Blocker wieder gesperrt.
 
 HF6 Closure (Phase 9 control-command transport follow-up):
 - Deterministischer pre-fix command-drop/no-op Repro ist dokumentiert (`P9-HF6-T1-REPRO-TRACE.md`) und Root-Cause ist isoliert (`P9-HF6-T2-ROOT-CAUSE.md`).
@@ -633,7 +636,7 @@ HF6 Closure (Phase 9 control-command transport follow-up):
 - Immediate-Ack-Semantik und stream on/off Ack-Paritaet sind PASS (`P9-HF6-T5-IMMEDIATE-ACK.md`).
 - Strikte Start/Stop-Paritaetsmatrix ueber multi-client + `/output/final` ist PASS (`P9-HF6-T6-START-STOP-PARITY-MATRIX.md`).
 - HF5 visual-only stream purity bleibt als Non-Regression PASS (`P9-HF6-T7-HF5-PURITY-NON-REGRESSION.md`).
-- Plan 9-2 ist nach HF6 closure wieder freigegeben.
+- Plan 9-2 ist nach HF8 closure erneut freigegeben und bildet die naechste Ausfuehrungswelle.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

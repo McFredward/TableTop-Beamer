@@ -11,9 +11,9 @@
 - Current Phase Key: phase-09
 - Last Prepared: 2026-04-03
 - Execution Readiness: READY
-- Last Executed Plan: 9-HF7 (completed)
+- Last Executed Plan: 9-HF8 (completed)
 - Planned Next Execution: 9-2
-- Last Execution Summary: `.planning/phases/phase-09/9-HF7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-09/9-HF8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,12 +21,21 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritische Nutzerpraezisierung (bindend): `/output/final` ist ausschliesslich eine pure Video-Stream-Receiver-Seite; kein Polling und keine clientseitige Animation-/State-Orchestrierung sind dort zulaessig.
+- Architektur-Pivot Plan 9-HF8 (bindend): Server stellt einen echten serverseitig komponierten Video-Stream-Endpunkt als einzigen final-output authority path bereit.
+- Lifecycle-Regel Plan 9-HF8: final compositor laeuft kontinuierlich serverseitig und subscriber-unabhaengig (0/1/N), auch ohne aktive Clients.
+- Latenz-Regel Plan 9-HF8: akzeptierte Mutationen muessen ohne Browser-Refresh unmittelbar im final stream sichtbar sein (mutation->stream immediacy gate).
+- UI-Regel Plan 9-HF8: `/output/final` zeigt fullscreen stream only; runtime orchestration/polling branches sind aus dem aktiven Pfad zu entfernen.
+- Gate-Regel Plan 9-HF8: Plan 9-2 bleibt blockiert bis HF8 Parity/Acceptance-Matrix PASS und Artefakt-Sync abgeschlossen sind.
+- Plan-9-HF8 Umsetzung: `/api/final-stream/video` ist der kanonische serverseitig komponierte final-output stream endpoint; `/output/final` konsumiert ihn als receiver-only fullscreen player ohne Polling/Runtime-Orchestrierung.
+- Plan-9-HF8 Umsetzung: compositor compose laeuft subscriber-unabhaengig (0/1/N) kontinuierlich; health `latencyGate` verifiziert mutation->stream immediacy und ist PASS (`P9-HF8-T7-PARITY-ACCEPTANCE-MATRIX.md`).
+- Plan-9-HF8 Umsetzung: HF5/HF6 non-regression bleibt PASS; 9-2 ist nach HF8 Closure wieder freigegeben (`9-HF8-VERIFICATION.md`).
 - Kritische P0-Produktionsdirektive ist bindend: `/output/final` muss strict server-composed stream-only laufen; client fallback (auto/manual) ist dort unzulaessig.
 - Autoritaetsregel Plan 9-HF7: Stream-Compose fuer `/output/final` bleibt kontinuierlich serverseitig aktiv und ist subscriber-count-unabhaengig (0/1/N).
 - Frische-Regel Plan 9-HF7: Producer composes from current full authoritative state revision; stale-frame/cache-reuse path ist unzulaessig.
 - Immediacy-Regel Plan 9-HF7: jede akzeptierte Mutation (start/stop/board/align/etc.) muss ohne Refresh sofort in `/output/final` sichtbar sein.
 - Determinismus-Regel Plan 9-HF7: Control-Views bleiben funktional/deterministisch; HF6 transport/apply/ack und HF5 visual-only purity bleiben harte Non-Regression-Gates.
-- Plan 9-HF7 ist als priorisierte execute-ready Blocker-Welle gesetzt und blockiert Plan 9-2 bis PASS.
+- Plan 9-HF7 war als priorisierte execute-ready Blocker-Welle gesetzt; aktuell ist dieser Blocker geschlossen und durch HF8-Folgeblocker ersetzt.
 - Plan-9-HF7 Umsetzung: `/output/final` ist jetzt strict stream-only; auto/client fallback requests werden server- und runtime-seitig auf `stream` normalisiert.
 - Plan-9-HF7 Umsetzung: final-stream producer ist immer aktiv, subscriber-count-unabhaengig und startet serverseitig ohne Client-Abhaengigkeit.
 - Plan-9-HF7 Umsetzung: compose ist revision-bound auf autoritative Full-State-Snapshots; stale cached attach frame path ist geschlossen.
