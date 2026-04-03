@@ -1,93 +1,85 @@
-# Phase 9 Plan (Replanned after critical P0 `/output/final` authority/staleness blocker)
+# Phase 9 Plan (Replanned after binding architecture pivot for `/output/final`)
 
 ## Baseline and Correction Context
 - User correction remains binding: Plan 9-1 is executed but not accepted.
 - Plan 9-HF1 remains completed foundation (monolith reduction + modular seams).
 - Plan 9-HF2 remains completed baseline (lifecycle no-replay + low-end hardening).
-- Plan 9-HF3 remains completed baseline (server stream + fallback + parity evidence).
+- Plan 9-HF3 remains completed baseline (initial server stream rollout).
 - Plan 9-HF4 remains completed baseline (stream/control decoupling + black-stream closure).
-- Plan 9-HF5 remains completed baseline (visual-only stream purity, no recurring overlays).
-- Plan 9-HF6 remains completed baseline (command transport/apply/ack recovery under stream mode).
-- Plan 9-HF7 is completed baseline and 9-2 is restored as immediate next step.
+- Plan 9-HF5 remains completed baseline (visual-only stream purity).
+- Plan 9-HF6 remains completed baseline (command transport/apply/ack recovery).
+- Plan 9-HF7 remains completed baseline, but a new clarified P0 architecture pivot is now binding before 9-2.
 
-## New Critical P0 Blocker from Production Behavior (binding)
-1. `/output/final` still exhibits fallback/stale behavior (new room animations are not reflected immediately).
-2. `/output/final` must be true server-composed stream only; any client-render fallback path is disallowed.
-3. Stream composition authority must stay server-side continuously and must not depend on subscriber count.
-4. Any accepted mutation (start/stop/board/align/etc.) must update composed output immediately without refresh.
-5. Stream producer must always compose from current full authoritative state; stale frame reuse is forbidden.
+## Critical Clarification (binding, implement exactly)
+1. `/output/final` must be a pure video-stream receiver page only.
+2. `/output/final` client must have no polling and no animation/state runtime orchestration logic.
+3. Server must continuously compose the final output from global authoritative state and stream as video.
+4. Stream composition lifecycle must run regardless of subscriber presence.
+5. `/output/final` UI must be fullscreen stream display only.
+6. Accepted state mutations must appear immediately without browser refresh.
 
-## Mandatory Objectives for 9-HF7 (hard requirements)
-1. Remove client-render fallback for `/output/final` entirely (no auto/manual fallback path there).
-2. Enforce always-authoritative, continuously composed server stream independent of subscriber count.
-3. Guarantee immediate output update after every accepted authoritative mutation (start/stop/board/align/etc.).
-4. Guarantee producer composes from current full state revision, not stale frame/cache snapshots.
-5. Preserve deterministic, responsive control views while stream authority is made strict.
+## Mandatory Objectives for 9-HF8 (architecture pivot wave)
+1. Deliver a true server-side composed video stream endpoint as the only final-output source.
+2. Reduce `/output/final` to a minimal player-only client with zero runtime orchestration/polling branches.
+3. Enforce continuous compositor lifecycle independent of subscriber count (0/1/N always-on behavior).
+4. Gate mutation-to-stream latency so accepted mutations are visible immediately.
+5. Close with parity and acceptance regression matrix proving no fallback/no stale/no refresh requirements.
 
 ## Target State
-Phase 9 remains on HF1/HF2/HF3/HF4/HF5/HF6 baselines and closes HF7 by enforcing strict authoritative streaming on `/output/final`: no client fallback, continuous server composition independent of subscribers, immediate mutation-to-output propagation from full current state, and deterministic control-view behavior.
+Phase 9 closes HF8 by pivoting `/output/final` to strict receiver-only behavior: server-side always-on compositor produces the authoritative video stream continuously, client only plays fullscreen stream, and accepted mutations are visible immediately without refresh.
 
-## Scope (9-HF7)
-- Remove `/output/final` client fallback code paths, toggles, and mode switches (`auto`/`client`) from active runtime behavior.
-- Ensure stream producer lifecycle is always-on authoritative compose and does not pause/degrade due to zero or changing subscribers.
-- Bind composed frame source to current authoritative full state revision for every mutation cycle.
-- Ensure start/stop/board/align and related control mutations are reflected immediately in composed stream output.
-- Preserve control-plane determinism and responsiveness while tightening stream authority guarantees.
-- Add strict evidence matrix for no-fallback authority, stale-frame prevention, and mutation immediacy.
+## Scope (9-HF8)
+- Implement/verify one canonical server-composed video stream endpoint for final output delivery.
+- Remove active `/output/final` client polling, animation loop, and state orchestration code paths from runtime.
+- Keep server compositor alive continuously independent of subscriber lifecycle and churn.
+- Ensure compose source always uses current global authoritative state revisions.
+- Enforce immediate mutation visibility for start/stop/board/align and related commands.
+- Validate parity and regression coverage across control determinism, stream purity, and sync invariants.
 
 ## Out of Scope
-- New UX feature development unrelated to control-command reliability.
-- Protocol redesign beyond targeted stream-authority/compose freshness correctness fixes.
-- Reintroduction of diagnostic/text overlays into `/output/final` stream output.
-- Reintroduction of any `/output/final` client-render fallback path.
+- New feature work unrelated to final-output authority path correctness.
+- Protocol redesign beyond targeted server-compositor and receiver-only client pivot.
+- Reintroduction of `/output/final` client-render fallback, polling, or orchestration branches.
 
-## Prioritized Next Execution Wave (Plan 9-HF7, execute-ready, hard-gated)
-1. Reproduce and trace stale/fallback behavior in `/output/final` under active mutation churn.
-2. Remove all `/output/final` fallback code paths (auto/manual/client mode branches) from runtime path.
-3. Enforce always-on server producer compose independent of subscriber count and subscriber lifecycle.
-4. Bind producer compose to current authoritative full state revision (no stale frame/cache reuse path).
-5. Validate immediate mutation-to-output propagation for start/stop/board/align and related commands.
-6. Run strict multi-client control determinism regression while `/output/final` remains stream-only authoritative.
-7. Verify HF5 visual-only purity and HF6 transport/apply/ack guarantees remain PASS.
-8. Close wave only after full artifact synchronization + PASS.
+## Prioritized Next Execution Wave (Plan 9-HF8, execute-ready, hard-gated)
+1. Build/lock true server-side composed video stream endpoint contract for `/output/final`.
+2. Strip `/output/final` to minimal fullscreen player-only receiver (no polling/orchestration branch).
+3. Enforce continuous server compositor lifecycle independent of subscribers.
+4. Add and enforce mutation->stream update latency gates for accepted mutations.
+5. Run strict parity/acceptance regression matrix for authority, freshness, determinism, and purity.
+6. Close wave only after full artifact synchronization + PASS.
 
 ## Milestones
-1. M1 HF1-HF5 Baseline Lock: completed guarantees remain non-regression constraints.
-2. M2 HF7 Fallback Elimination Closure: `/output/final` has no active client fallback path.
-3. M3 HF7 Producer Authority Closure: producer compose remains active and authoritative independent of subscribers.
-4. M4 HF7 Fresh-State Compose Closure: composed frames are generated from current full authoritative state revisions.
-5. M5 HF7 Immediate Mutation Visibility Closure: accepted mutations are visible immediately on `/output/final`.
-6. M6 HF7 Control Determinism Preservation: control views remain deterministic/responsive with stream-only final output.
-7. M7 HF7 Evidence Closure: strict regression matrix PASS with synchronized artifacts.
+1. M1 HF1-HF7 Baseline Lock: previously completed guarantees remain non-regression constraints.
+2. M2 HF8 Stream Endpoint Closure: canonical server-composed video stream endpoint is authoritative.
+3. M3 HF8 Receiver-Only Client Closure: `/output/final` is fullscreen player-only with no runtime orchestration/polling.
+4. M4 HF8 Continuous Compositor Closure: compositor lifecycle remains active with 0/1/N subscribers.
+5. M5 HF8 Mutation Latency Closure: accepted mutations appear immediately on streamed output.
+6. M6 HF8 Parity/Acceptance Closure: full matrix PASS with synchronized phase/global artifacts.
 
-## Regression/Evidence Matrix Policy (9-HF7)
-- HF7-PreFix-Stale-Or-Fallback-Repro-Test: deterministic pre-fix evidence of stale/fallback behavior.
-- No-Fallback-Path-Test: `/output/final` runs without auto/manual fallback branches or mode downgrade.
-- Producer-Subscriber-Independence-Test: compose loop stays authoritative with 0/1/N subscribers and churn.
-- Full-State-Revision-Compose-Test: each output frame references current authoritative full state revision.
-- Immediate-Mutation-Visibility-Test: start/stop/board/align mutations appear immediately on `/output/final`.
-- Multi-Client-Control-Determinism-Test: control views remain deterministic and responsive under strict stream-only output.
+## Regression/Evidence Matrix Policy (9-HF8)
+- True-Server-Video-Stream-Endpoint-Test: `/output/final` consumes canonical server-composed video stream.
+- Final-Client-Receiver-Only-Test: client has no polling and no animation/state orchestration runtime path.
+- Fullscreen-Only-Output-Test: final page renders fullscreen stream only.
+- Compositor-Always-On-Subscriber-Independence-Test: compose loop remains active with 0/1/N subscribers and churn.
+- Authoritative-Full-State-Compose-Test: composed output tracks latest global authoritative state revision.
+- Mutation-To-Stream-Latency-Gate-Test: start/stop/board/align accepted mutations become visible immediately.
+- Multi-Client-Control-Determinism-Test: control clients remain deterministic/responsive with receiver-only final page.
 - HF6-Transport-Apply-Ack-Non-Regression-Test: command transport/apply/ack guarantees remain PASS.
-- HF5-Stream-Purity-Non-Regression-Test: `/output/final` remains visual-only with no text/info/diagnostic overlays.
-- Full-Workflow-Non-Regression-Test: align/sync invariants, persistence, and operator workflow remain stable.
+- HF5-Visual-Only-Stream-Non-Regression-Test: no text/info/diagnostic overlays re-enter stream output.
 
 ## Definition of Done
-- `/output/final` has no client-render fallback path in active runtime.
-- Server stream producer remains continuously authoritative independent of subscriber count.
-- Accepted mutations are immediately reflected in composed `/output/final` output without refresh.
-- Producer composes from current full authoritative state (no stale frame path).
-- Control views remain deterministic/responsive; HF6 transport/apply/ack behavior remains intact.
-- HF5 visual-only stream purity remains intact (no recurring overlays).
+- `/output/final` is pure receiver-only fullscreen stream player.
+- `/output/final` has no polling and no animation/state orchestration logic in active runtime.
+- Server compositor continuously composes authoritative output independent of subscribers.
+- Accepted mutations are immediately visible on stream output without browser refresh.
+- Compose source is current global authoritative full state revision (no stale frame path).
+- Control determinism, HF6 transport/apply/ack, and HF5 stream purity remain PASS.
 - Hard regression matrix is PASS and phase/global planning artifacts are synchronized.
 
 ## Execution Update
 
 - Plan 9-1 remains documented but not accepted.
-- Plan 9-HF1 remains completed foundation (`src/app.js`: 12163 -> 28 lines).
-- Plan 9-HF2 remains completed with PASS evidence (`P9-HF2-T6-SYNC-INVARIANTS.md`, `P9-HF2-T7-LONG-RUN-SOAK.md`, `P9-HF2-T8-LOW-END-STRESS.md`).
-- Plan 9-HF3 remains completed with PASS evidence (`P9-HF3-T1-STREAM-ADR.md`, `P9-HF3-T6-ALIGN-PARITY.md`, `P9-HF3-T7-SYNC-INVARIANTS.md`, `P9-HF3-T8-CONTROL-RESPONSIVENESS.md`, `P9-HF3-T9-WEAK-HARDWARE-MATRIX.md`).
-- Plan 9-HF4 is completed PASS: stream producer is decoupled from command ingest/apply lifecycle, black-stream paths are closed, restart-free recovery is verified, and hard control/output parity matrices are recorded.
-- Plan 9-HF5 is completed PASS: recurring overlays are removed, visual-only payload contract is enforced, and HF4 stability/parity gates remain PASS.
-- Plan 9-HF6 is completed PASS with deterministic repro/root-cause closure, transport/apply/ack fixes, strict start/stop parity evidence, and HF5 stream-purity non-regression.
-- Plan 9-HF7 is completed PASS with strict stream-only authority, stale-frame closure, and immediate mutation visibility on `/output/final` (`9-HF7-VERIFICATION.md`).
-- Plan 9-2 is unblocked and ready after HF7 closure PASS.
+- Plan 9-HF1 through Plan 9-HF7 remain completed baselines with existing evidence.
+- Plan 9-HF8 is completed PASS with canonical server-video endpoint and receiver-only `/output/final` closure.
+- Plan 9-2 is unblocked after HF8 closure PASS.

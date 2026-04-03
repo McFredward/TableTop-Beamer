@@ -3,7 +3,7 @@
 ## Acceptance Correction
 - Plan 9-1 execution is documented but not accepted.
 - Plan 9-HF1, Plan 9-HF2, Plan 9-HF3, Plan 9-HF4, Plan 9-HF5, and Plan 9-HF6 are completed baselines.
-- Plan 9-HF7 is now the binding next wave.
+- Plan 9-HF7 is completed baseline; Plan 9-HF8 is now the binding next wave.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -12,17 +12,17 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 9-HF7 (binding, hard-gated wave)
-1. P0 first: P9-HF7-T1 (deterministic repro + traces for stale/fallback `/output/final` behavior).
-2. P0 next: P9-HF7-T2 (remove client fallback runtime paths for `/output/final` entirely).
-3. P0 next: P9-HF7-T3 (enforce always-on authoritative producer independent of subscriber count/churn).
-4. P0 next: P9-HF7-T4 (bind compose to current full authoritative state revision; close stale-frame path).
-5. P0 next: P9-HF7-T5 (guarantee immediate mutation-to-output visibility for start/stop/board/align/etc.).
-6. P0 closure: P9-HF7-T6 (strict control determinism matrix with stream-only `/output/final`).
-7. P0 closure: P9-HF7-T7 (HF5/HF6 non-regression matrices: visual purity + transport/apply/ack).
-8. P0 closure: P9-HF7-T8 (full artifact sync including global tracking files).
+## Priority Execution - Plan 9-HF8 (binding, hard-gated wave)
+1. P0 first: P9-HF8-T1 (true server-side composed video stream endpoint for `/output/final`).
+2. P0 next: P9-HF8-T2 (minimal player-only `/output/final` client; no polling/orchestration).
+3. P0 next: P9-HF8-T3 (remove all `/output/final` runtime polling/orchestration branches).
+4. P0 next: P9-HF8-T4 (continuous compositor lifecycle independent of subscribers).
+5. P0 next: P9-HF8-T5 (authoritative full-state revision compose on every cycle).
+6. P0 next: P9-HF8-T6 (mutation->stream immediate visibility latency gates).
+7. P0 closure: P9-HF8-T7 (parity/acceptance matrix + HF5/HF6 non-regression).
+8. P0 closure: P9-HF8-T8 (full artifact sync including global tracking files).
 
-## Priority Execution - Plan 9-2 (after 9-HF7 PASS)
+## Priority Execution - Plan 9-2 (after 9-HF8 PASS)
 1. P1 first: P9-T13 (remove temporary adapters with proven parity).
 2. P1 next: P9-T14 (tighten dependency direction and import graph hygiene).
 3. P1 closure: P9-T15 (optional advanced diagnostics behind config gates).
@@ -32,9 +32,9 @@
 2. P1 closure: P9-T17 (final sign-off and closure checklist).
 
 ## Gate Rules
-- No progress to P9-HF7-T3+ before P9-HF7-T1..T2 capture deterministic repro and fallback-path removal closure.
-- No progress to P9-HF7-T6+ before P9-HF7-T3..T5 producer authority/fresh-state/immediate-visibility fixes are PASS.
-- No Plan 9-2 before full PASS of Plan 9-HF7 strict stream-only authority matrix plus HF5/HF6 non-regression checks.
+- No progress to P9-HF8-T4+ before P9-HF8-T1..T3 close canonical endpoint + receiver-only client + no-polling/orchestration path removal.
+- No progress to P9-HF8-T7+ before P9-HF8-T4..T6 compositor independence/fresh-state/immediate-visibility gates are PASS.
+- No Plan 9-2 before full PASS of Plan 9-HF8 matrix plus HF5/HF6 non-regression checks.
 - No wave closure without full artifact sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -52,4 +52,5 @@
 - Plan 9-HF5: completed PASS with overlay-free `/output/final` stream output, visual-only payload contract, HF4 non-regression, and synchronized HF5 evidence artifacts.
 - Plan 9-HF6: completed PASS with deterministic pre-fix repro + root-cause isolation, transport/apply/ack fixes, strict stream on/off start-stop parity matrix, and HF5 purity non-regression evidence (`9-HF6-VERIFICATION.md`).
 - Plan 9-HF7: completed PASS for strict stream-only `/output/final`, subscriber-independent compose authority, fresh full-state frames, and immediate mutation visibility (`9-HF7-VERIFICATION.md`).
-- Plan 9-2: unblocked after HF7 closure PASS.
+- Plan 9-HF8: completed PASS with canonical `/api/final-stream/video`, strict receiver-only `output-final.html`, always-on compositor independence, mutation-latency gate telemetry, and parity matrix evidence (`P9-HF8-T7-PARITY-ACCEPTANCE-MATRIX.md`, `9-HF8-VERIFICATION.md`).
+- Plan 9-2: unblocked after HF8 closure PASS.
