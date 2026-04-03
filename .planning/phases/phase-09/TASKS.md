@@ -26,78 +26,16 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-HF2-T8 [P0] Execute low-end mobile stress matrix for frame stability, memory pressure tolerance, and graceful degradation behavior.
 - [x] DONE P9-HF2-T9 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
-## Plan 9-HF3 - Mandatory `/output/final` server-composed stream wave (execute-ready, hard-gated)
-- [x] DONE P9-HF3-T1 [P0] Produce architecture decision record for `/output/final` server-composed stream feasibility (latency, quality, CPU shift, complexity, deployment).
-- [x] DONE P9-HF3-T2 [P0] Implement server-side compositor pipeline fed by authoritative state snapshots without changing mutation/sync contracts.
-- [x] DONE P9-HF3-T3 [P0] Expose stream delivery endpoint for `/output/final` and integrate final-output playback client path.
-- [x] DONE P9-HF3-T4 [P0] Add stream health monitoring and deterministic auto-fallback to existing client render path on stream degradation.
-- [x] DONE P9-HF3-T5 [P0] Add explicit operator override toggle for stream mode vs fallback mode to support rollout safety.
-- [x] DONE P9-HF3-T6 [P0] Preserve align-mode behavior parity across stream and fallback outputs (global authoritative ON/OFF semantics unchanged).
-- [x] DONE P9-HF3-T7 [P0] Validate deterministic sync invariants remain unchanged (ordering/version/idempotent apply) with stream mode enabled.
-- [x] DONE P9-HF3-T8 [P0] Validate control views remain interactive and responsive while final output uses server stream.
-- [x] DONE P9-HF3-T9 [P0] Execute weak-hardware evidence matrix (Raspberry Pi class) for smooth playback, quality floor, and fallback recovery.
-- [x] DONE P9-HF3-T10 [P0] Record evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF4 - Critical stream/control decoupling + black-stream hotfix wave (execute-ready, hard-gated)
-- [x] DONE P9-HF4-T1 [P0] Create deterministic reproduction harness for stream-enabled control freeze (start/stop, board switch, align toggle, command apply latency) and capture root-cause traces.
-- [x] DONE P9-HF4-T2 [P0] Decouple stream consumer lifecycle from command ingest/apply path so subscriber join/leave/failure cannot block control commands.
-- [x] DONE P9-HF4-T3 [P0] Remove global lock and queue-starvation hazards between stream workloads and command processing with bounded backpressure isolation.
-- [x] DONE P9-HF4-T4 [P0] Harden authoritative stream producer scheduling to remain server-driven and independent of client render/subscriber health.
-- [x] DONE P9-HF4-T5 [P0] Fix black-stream root causes across board profiles/assets (explicitly including sandstorm board path) with deterministic fallback-safe guards.
-- [x] DONE P9-HF4-T6 [P0] Implement restart-free recovery for stream fault paths (producer error, subscriber churn, reconnect) without server restart requirement.
-- [x] DONE P9-HF4-T7 [P0] Validate deterministic sync and align-mode invariants remain unchanged after isolation/refactor.
-- [x] DONE P9-HF4-T8 [P0] Execute hard control responsiveness matrix with stream on/off and multi-subscriber churn; commands must stay operational.
-- [x] DONE P9-HF4-T9 [P0] Execute output parity + black-stream regression matrix across board profiles/assets under stream mode.
-- [x] DONE P9-HF4-T10 [P0] Record HF4 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF5 - Mandatory stream-output purity hotfix wave (execute-ready, hard-gated)
-- [x] DONE P9-HF5-T1 [P0] Reproduce recurring overlay injection in `/output/final` stream (`SERVER STREAM ACTIVE` and active animation list) and capture deterministic trace evidence.
-- [x] DONE P9-HF5-T2 [P0] Remove recurring stream overlay emission from server stream compose path at source.
-- [x] DONE P9-HF5-T3 [P0] Enforce visual-only stream contract for `/output/final` so stream frames contain no text/info/diagnostic overlays.
-- [x] DONE P9-HF5-T4 [P0] Add anti-regression guard in stream pipeline to prevent diagnostics overlays from re-entering final stream output.
-- [x] DONE P9-HF5-T5 [P0] Validate HF4 non-regression: command ingest/apply isolation, control responsiveness, producer authority, black-stream closure, restart-free recovery.
-- [x] DONE P9-HF5-T6 [P0] Execute stream-purity regression matrix across stream on/off modes, reconnect/subscriber churn, and board/profile output coverage.
-- [x] DONE P9-HF5-T7 [P0] Execute output parity verification to confirm visual content parity without textual/diagnostic overlays.
-- [x] DONE P9-HF5-T8 [P0] Record HF5 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF6 - Critical control-command transport + immediate apply/ack recovery wave (execute-ready, hard-gated)
-- [x] DONE P9-HF6-T1 [P0] Build deterministic reproduction harness for dropped/no-op control commands under active stream mode (start/stop first) and capture pre-fix traces.
-- [x] DONE P9-HF6-T2 [P0] Isolate root cause in client->server command transport path (dispatch/envelope/routing) introduced after stream-purity changes.
-- [x] DONE P9-HF6-T3 [P0] Fix command transport so client control actions always reach server command ingest regardless of stream mode state.
-- [x] DONE P9-HF6-T4 [P0] Fix server apply path to process accepted commands immediately under stream mode and update authoritative stream+snapshot state in same mutation cycle.
-- [x] DONE P9-HF6-T5 [P0] Enforce immediate server acknowledgement semantics for accepted control commands with no stream-mode-dependent delay/no-op path.
-- [x] DONE P9-HF6-T6 [P0] Execute strict start/stop regression matrix for stream on/off across multiple control clients and `/output/final`, including propagation latency checks.
-- [x] DONE P9-HF6-T7 [P0] Execute HF5 non-regression matrix to confirm visual-only stream purity remains intact (no recurring overlays) while HF6 fixes are active.
-- [x] DONE P9-HF6-T8 [P0] Record HF6 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF7 - Critical `/output/final` strict stream-authority + stale-frame closure wave (execute-ready, hard-gated)
-- [x] DONE P9-HF7-T1 [P0] Build deterministic reproduction harness for stale/fallback `/output/final` behavior (new mutations not reflected immediately) and capture pre-fix traces.
-- [x] DONE P9-HF7-T2 [P0] Remove `/output/final` client-render fallback runtime paths entirely (no auto/manual fallback path, no active client mode downgrade path).
-- [x] DONE P9-HF7-T3 [P0] Enforce always-authoritative server stream producer compose independent of subscriber count/churn and subscriber presence.
-- [x] DONE P9-HF7-T4 [P0] Bind stream producer compose source to current full authoritative state revision; close stale-frame/cache reuse paths.
-- [x] DONE P9-HF7-T5 [P0] Guarantee immediate mutation-to-output propagation for accepted state mutations (start/stop/board/align/etc.) without page refresh.
-- [x] DONE P9-HF7-T6 [P0] Execute strict deterministic control-view regression matrix while `/output/final` is stream-only authoritative (multi-client parity, no command nondeterminism).
-- [x] DONE P9-HF7-T7 [P0] Execute HF5/HF6 non-regression matrices (visual-only purity + transport/apply/ack parity) with HF7 fixes active.
-- [x] DONE P9-HF7-T8 [P0] Record HF7 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF8 - Critical true server-video authority pivot for `/output/final` (execute-ready, hard-gated)
-- [x] DONE P9-HF8-T1 [P0] Deliver true server-side composed video stream endpoint for `/output/final` as canonical authority path.
-- [x] DONE P9-HF8-T2 [P0] Convert `/output/final` to minimal fullscreen stream player-only client (no polling, no client animation/state orchestration logic).
-- [x] DONE P9-HF8-T3 [P0] Remove/dead-path all runtime `/output/final` orchestration/polling branches so receiver page cannot switch into client render logic.
-- [x] DONE P9-HF8-T4 [P0] Enforce continuous server compositor lifecycle independent of subscribers (compose runs at 0/1/N subscribers).
-- [x] DONE P9-HF8-T5 [P0] Bind compositor output to current global authoritative full state revision for every mutation cycle.
-- [x] DONE P9-HF8-T6 [P0] Add hard mutation->stream latency gates so accepted start/stop/board/align updates appear immediately without refresh.
-- [x] DONE P9-HF8-T7 [P0] Execute parity/acceptance regression matrix (receiver-only final page, continuous compose, freshness, determinism, HF5/HF6 non-regression).
-- [x] DONE P9-HF8-T8 [P0] Record HF8 evidence artifacts and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
-
-## Plan 9-HF9 - P0 blocker closure for always-on compositor gate (execute-ready, hard-gated)
-- [x] DONE P9-HF9-T1 [P0] Create deterministic follow-up repro trace for HF8 verification mismatch where stream path works but `compositorAlwaysOn=false`.
-- [x] DONE P9-HF9-T2 [P0] Isolate lifecycle/reporting root cause so compositor always-on state can fail under normal startup/runtime sequences.
-- [x] DONE P9-HF9-T3 [P0] Fix compositor lifecycle/reporting to keep `compositorAlwaysOn=true` across normal startup/runtime flows (boot, zero-subscriber idle, first attach, churn, reconnect).
-- [x] DONE P9-HF9-T4 [P0] Re-verify strict `/output/final` receiver-only contract remains unchanged (stream-only fullscreen, no polling, no client orchestration).
-- [x] DONE P9-HF9-T5 [P0] Execute full parity/acceptance matrix and require full PASS including explicit always-on gate PASS.
-- [x] DONE P9-HF9-T6 [P0] Execute HF5/HF6 non-regression matrices under HF9 fixes and confirm transport/apply/ack + visual-only purity remain PASS.
-- [x] DONE P9-HF9-T7 [P0] Refresh evidence artifacts with PASS outputs (`P9-HF9-*` docs + debug outputs) and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+## Plan 9-HF3 - Mandatory runtime bugfix hotfix wave (execute-ready, hard-gated)
+- [x] DONE P9-HF3-T1 [P0] Implement canonical coordinate mapping contract shared by control and `/output/final` render pipelines.
+- [x] DONE P9-HF3-T2 [P0] Fix browser/DPR/fullscreen overlay alignment drift with deterministic recompute across resize/orientation/fullscreen transitions.
+- [x] DONE P9-HF3-T3 [P0] Reproduce and root-cause `/output/final` mixed-media render bug: starting room `malfunction` (`mp4`) suppresses room GIF rendering.
+- [x] DONE P9-HF3-T4 [P0] Fix mixed-media renderer lifecycle so room GIF and room `mp4` can run without cross-type teardown/starvation in final output.
+- [x] DONE P9-HF3-T5 [P0] Add configurable quality/performance controls for concurrent `mp4` pressure (quality tier, caps, degrade/recover thresholds).
+- [x] DONE P9-HF3-T6 [P0] Implement deterministic degrade strategy (compression/defer/skip) with bounded floor and recovery hysteresis for weak hardware.
+- [x] DONE P9-HF3-T7 [P0] Add explicit user-facing error feedback (toast) for command/API failure and timeout paths; remove silent no-op behavior.
+- [x] DONE P9-HF3-T8 [P0] Validate deterministic sync invariants remain intact (ordering/version/idempotent apply) under HF3 fixes.
+- [x] DONE P9-HF3-T9 [P0] Execute browser + mixed-media final-output + weak-hardware + failure-feedback matrix and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after PASS.
 
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
@@ -114,7 +52,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.
 - [x] DONE P9-T12 [P0] Complete artifact sync: `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 9-2 - Hardening Wave (after 9-HF9 PASS)
+## Plan 9-2 - Hardening Wave (after 9-HF3 PASS)
 - [ ] TODO P9-T13 [P1] Remove temporary compatibility adapters no longer needed after validated extraction parity.
 - [ ] TODO P9-T14 [P1] Refine module dependency graph and enforce import direction checks.
 - [ ] TODO P9-T15 [P1] Expand diagnostics with focused debug traces for rare field issues (behind config gates).
