@@ -1,0 +1,38 @@
+{
+  "suite": "p10-hf1-all-board-final-render-regression",
+  "executedAt": "2026-04-03T23:15:00.232Z",
+  "boardCount": 3,
+  "mp4OutsideBoards": [
+    "nemesis-lockdown-a"
+  ],
+  "result": "PASS",
+  "checks": [
+    "all-board outside clip path never blocks final compositor",
+    "nemesis-lockdown-a mp4 sandstorm outside profile covered",
+    "degenerate play-area input fail-opens",
+    "degenerate room polygon input fail-opens"
+  ],
+  "boards": [
+    {
+      "boardId": "nemesis-board-a",
+      "outsideClipStatus": "clip-evenodd",
+      "selectedOutsideId": "outside-space",
+      "selectedOutsideAssetType": "coded",
+      "selectedOutsideAssetRef": "outside-space"
+    },
+    {
+      "boardId": "nemesis-board-b",
+      "outsideClipStatus": "clip-evenodd",
+      "selectedOutsideId": "outside-space",
+      "selectedOutsideAssetType": "coded",
+      "selectedOutsideAssetRef": "outside-space"
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "outsideClipStatus": "clip-evenodd",
+      "selectedOutsideId": "outside-sandstorm",
+      "selectedOutsideAssetType": "mp4",
+      "selectedOutsideAssetRef": "/resources/nemesis/animations/sandstorm.mp4"
+    }
+  ]
+}
