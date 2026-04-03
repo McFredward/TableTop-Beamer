@@ -1,24 +1,22 @@
-# P9-HF4-T1 - Stream Freeze/Black-Stream Reproduction and Root-Cause Trace
+# P9-HF4-T1 Repro & Root-Cause Trace
 
-## Method
+## Scope
+- Bug: Starting unrelated room animations can rewind/restart active outside sandstorm playback.
+- Expected: Outside playback lifecycle is isolated from room/cluster/global-inside triggers.
 
-- Start isolated server (`PORT=4174 node server.mjs`).
-- Open 8 concurrent stream subscribers (`GET /api/final-stream/events`).
-- Dispatch 80 mixed control mutations (`context-update`, `align-toggle`, `clear-all`).
-- Capture command ACK latency, queue depth telemetry, and final-stream producer health.
+## Root Cause
+Outside playback continuity was keyed by a volatile runtime run identity (`runtimeEntry.id`) from the global running-animation list.
 
-## Evidence
+When unrelated lifecycle churn occurs (room/cluster trigger flows, snapshot hydration, list reshaping), that run identity can change or disappear transiently even though outside config (`outsideFx.enabled + selected outside definition`) did not change. The MP4 path treated this as lifecycle replacement and sought to loop-start again.
 
-- Script: `debug/p9-hf4-t1-repro-trace.mjs`
-- Output: `debug/p9-hf4-t1-repro-trace-output.json`
+## Failure Path
+1. Outside sandstorm is active.
+2. Room start mutations update runtime animation snapshots.
+3. Outside runtime-entry identity can drift from the renderer's perspective.
+4. MP4 playback state detects lifecycle change and seeks to loop start.
+5. Operator observes rewind/restart of outside sandstorm during unrelated room starts.
 
-## Root Cause Isolation
-
-- Legacy hazard: per-subscriber stream timers each performed independent compose work.
-- Impact path: fan-out compose pressure could starve event-loop time for command ingest/apply ACKs.
-- Isolation target for HF4: single producer scheduler composes once per tick and broadcasts cached frames, decoupled from subscriber count.
-
-## Result
-
-- Reproduction harness and telemetry capture are in place.
-- Trace output confirms command-path latency and queue depth can be measured under subscriber churn pressure.
+## Boundaries for Fix
+- Lifecycle ownership must be board+outside-definition scoped, not room/cluster trigger scoped.
+- Reset remains valid only for explicit outside stop/clear or outside definition mutation.
+- Deterministic sync semantics remain unchanged.
