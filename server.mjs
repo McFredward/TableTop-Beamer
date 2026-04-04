@@ -504,6 +504,7 @@ function applyRoomMutationPatch(mutationType, payload) {
 
 function applyGlobalMutationPatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
+  const serverNowEpochMs = Date.now();
   const runningAnimations = Array.isArray(nextRuntime.runningAnimations) ? cloneJson(nextRuntime.runningAnimations) : [];
   const globalTriggerRevisions = isPlainObject(nextRuntime.globalTriggerRevisions)
     ? { ...nextRuntime.globalTriggerRevisions }
@@ -549,6 +550,7 @@ function applyGlobalMutationPatch(payload) {
     nextRuntime.runningAnimations = filtered;
   } else if (isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
     const incoming = cloneJson(payload.animation);
+    incoming.startedAtEpochMs = serverNowEpochMs;
     const triggerKey = normalizeNonEmptyString(incoming.triggerKey) ?? directTriggerKey;
     if (triggerKey) {
       const currentTriggerRevision = Number(globalTriggerRevisions[triggerKey]) || 0;

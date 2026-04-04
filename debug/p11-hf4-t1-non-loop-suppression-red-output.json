@@ -1,24 +1,24 @@
 {
   "suite": "P11-HF4-T1-non-loop-final-suppression-red",
   "phase": "RED",
-  "observed": "FAIL",
+  "observed": "PASS",
   "expected": "FAIL",
   "checks": [
     {
       "id": "server-authoritative-global-start-epoch-rebase",
-      "pass": false,
+      "pass": true,
       "expected": false
     },
     {
       "id": "one-shot-active-on-final-under-clock-skew",
-      "pass": false,
+      "pass": true,
       "expected": false,
       "meta": {
         "controlStartEpochMs": 1700000000000,
         "serverReceiveEpochMs": 1700000009000,
         "finalRenderEpochMs": 1700000009120,
         "globalOneShotDurationMs": 4000,
-        "authoritativeStartEpochMs": 1700000000000
+        "authoritativeStartEpochMs": 1700000009000
       }
     },
     {

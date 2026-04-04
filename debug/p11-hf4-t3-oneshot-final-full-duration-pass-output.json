@@ -1,0 +1,37 @@
+{
+  "suite": "P11-HF4-T3-one-shot-full-duration-pass",
+  "observed": "PASS",
+  "hasAuthoritativeStartRebase": true,
+  "durationMs": 4000,
+  "observedActiveByOffset": [
+    {
+      "offsetMs": 0,
+      "active": true
+    },
+    {
+      "offsetMs": 1000,
+      "active": true
+    },
+    {
+      "offsetMs": 3900,
+      "active": true
+    },
+    {
+      "offsetMs": 4100,
+      "active": false
+    },
+    {
+      "offsetMs": 5000,
+      "active": false
+    }
+  ],
+  "expectedActiveByOffset": [
+    true,
+    true,
+    true,
+    false,
+    false
+  ],
+  "exactlyOnce": true,
+  "error": null
+}

@@ -24,7 +24,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 11-HF4 - Critical non-loop global suppression on `/output/final` (execute-ready, hard-gated)
 - [x] DONE P11-HF4-T1 [P0] Build deterministic RED repro: non-loop global triggers are suppressed on `/output/final` while loop globals remain visible.
 - [x] DONE P11-HF4-T2 [P0] Isolate root-cause lifecycle/trigger path divergence causing one-shot final-output suppression.
-- [ ] TODO P11-HF4-T3 [P0] Implement fix so one-shot globals render on `/output/final` and run full intended duration exactly once.
+- [x] DONE P11-HF4-T3 [P0] Implement fix so one-shot globals render on `/output/final` and run full intended duration exactly once.
 - [ ] TODO P11-HF4-T4 [P0] Execute loop-mode non-regression matrix (start, sustain, stop) to confirm no regression.
 - [ ] TODO P11-HF4-T5 [P0] Execute explicit stop/clear non-regression matrix under mixed one-shot + loop sequences.
 - [ ] TODO P11-HF4-T6 [P0] Capture FAIL->PASS evidence for `/output/final` one-shot duration parity versus control.
