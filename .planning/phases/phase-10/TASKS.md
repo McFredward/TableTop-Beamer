@@ -79,6 +79,18 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF7-T7 [P0] Execute browser parity + imported/multi-area strict non-regression matrix with clean-start coverage.
 - [x] DONE P10-HF7-T8 [P0] Capture explicit FAIL->PASS evidence for T1..T7 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
+## Plan 10-HF8 - All-board canonical play-area recovery blocker wave (execute-ready, hard-gated)
+- [x] DONE P10-HF8-T1 [P0] Create deterministic RED repro proving all boards currently apply default fallback polygon instead of canonical saved play-areas.
+- [ ] TODO P10-HF8-T2 [P0] Create deterministic RED repro proving `Load global defaults` does not restore board-specific canonical play-areas.
+- [ ] TODO P10-HF8-T3 [P0] Add executable diagnostics for canonical source lineage and defaults-reapply decisions across startup/reload/default-apply/board-switch.
+- [ ] TODO P10-HF8-T4 [P0] Create deterministic RED repro proving canonical polygon load/apply failures are silently masked without explicit user-visible error.
+- [ ] TODO P10-HF8-T5 [P0] Implement generic canonical-load recovery fix so all boards load/apply play-areas from canonical saved sources deterministically.
+- [ ] TODO P10-HF8-T6 [P0] Implement defaults-reapply recovery fix so `Load global defaults` re-applies board-specific canonical play-areas.
+- [ ] TODO P10-HF8-T7 [P0] Enforce explicit error-surface contract (toast/status with board/source context) for canonical load/apply failures; no silent fallback masking.
+- [ ] TODO P10-HF8-T8 [P0] Enforce strict control-view vs `/output/final` parity for canonical play-area set, `areaCount`, and `areaIdSet`.
+- [ ] TODO P10-HF8-T9 [P0] Execute all-board regression matrix (single-area + multi-area + imported) across startup/reload/default-apply/board-switch/final-output on Chrome/Firefox/mobile-class.
+- [ ] TODO P10-HF8-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.

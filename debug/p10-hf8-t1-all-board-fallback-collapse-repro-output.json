@@ -1,0 +1,46 @@
+{
+  "suite": "p10-hf8-t1-all-board-fallback-collapse-repro",
+  "phase": "RED",
+  "legacyPath": "applyGlobalDefaultsPayloadToState -> applyPolygonPrecedence(migratedProfiles, localProfiles)",
+  "boardResults": [
+    {
+      "boardId": "nemesis-board-a",
+      "expectedSelected": "single-a",
+      "observedSelected": "play-area-1",
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "observedAreaIdSet": [
+        "play-area-1"
+      ],
+      "collapsedToFallback": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "expectedSelected": "bunker",
+      "observedSelected": "play-area-1",
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "observedAreaIdSet": [
+        "play-area-1"
+      ],
+      "collapsedToFallback": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "expectedSelected": "cargo",
+      "observedSelected": "play-area-1",
+      "expectedAreaIdSet": [
+        "cargo",
+        "play-area-1"
+      ],
+      "observedAreaIdSet": [
+        "play-area-1"
+      ],
+      "collapsedToFallback": true
+    }
+  ],
+  "result": "FAIL"
+}
