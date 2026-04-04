@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 11 (`phase-11`)
-- Status: active execution (Plan 11-1 PASS completed; readiness for follow-up wave)
-- Next Plan: 11-2 (UX acceleration refinement wave)
+- Status: active execution (Plan 11-1 + 11-HF1 remain historical PASS baselines; critical global-runtime regression requires immediate HF2 recovery wave)
+- Next Plan: 11-HF2 (mandatory global animation runtime recovery + dashboard per-trigger loop toggle wave)
 - Command Target: `/gsd:execute-phase 11`
 
 Execution inputs:

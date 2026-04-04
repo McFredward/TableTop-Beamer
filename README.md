@@ -1,6 +1,21 @@
-# TT Beamer Prototype
+# tt-beamer
 
-Board-agnostic tabletop beamer overlay controller with shared live sync, final output rendering, and server-backed defaults.
+TableTop beamer overlay controller with shared live sync, final output rendering, and server-backed defaults.
+
+<p align="center">
+  <img src="tt-beamer-readme.png" width="50%" height="50%">
+</p>
+
+## Set-Up
+
+This project uses `xrandr` for transforming the image to perfectly fit to the corresponding table. To be able to use `xrandr` on RasberryPiOS, you need to switch from LightDM to X11.
+
+```bash
+sudo cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.bak # backup
+sudo sed -i 's/user-session=.*/user-session=rpd-x/' /etc/lightdm/lightdm.conf
+sudo sed -i 's/autologin-session=.*/autologin-session=rpd-x/' /etc/lightdm/lightdm.conf
+sudo systemctl restart lightdm # or full restart
+```
 
 ## Start
 
@@ -53,3 +68,27 @@ Board-agnostic tabletop beamer overlay controller with shared live sync, final o
 - Operator-facing copy must be English-only in Phase 6 flows (Control, Settings, Final flow, status, and errors).
 - Language-sweep verification artifact:
   - `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md`
+
+## Loop videos
+
+```bash
+ffmpeg -i input.mp4 -filter_complex "
+[0:v]split=2[vA][vB];
+[0:a]asplit=2[aA][aB];
+[vA]trim=0:duration/2,setpts=PTS-STARTPTS[v1];
+[vB]trim=start=duration/2,setpts=PTS-STARTPTS[v2];
+[aA]atrim=0:duration/2,asetpts=PTS-STARTPTS[a1];
+[aB]atrim=start=duration/2,asetpts=PTS-STARTPTS[a2];
+[v2][v1]xfade=transition=fade:duration=5:offset=(duration/2-5)[v];
+[a2][a1]acrossfade=d=5[a]
+" -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart output.mp4
+
+ffmpeg -i input.mp4 -filter_complex "
+[0:v]trim=0:10,setpts=PTS-STARTPTS[v1];
+[0:v]trim=10:20,setpts=PTS-STARTPTS[v2];
+[0:a]atrim=0:10,asetpts=PTS-STARTPTS[a1];
+[0:a]atrim=10:20,asetpts=PTS-STARTPTS[a2];
+[v2][v1]xfade=transition=fade:duration=5:offset=5[v];
+[a2][a1]acrossfade=d=5[a]
+" -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow output.mp4
+```

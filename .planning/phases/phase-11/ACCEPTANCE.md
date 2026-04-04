@@ -1,54 +1,51 @@
 # Phase 11 Acceptance
 
 ## Verification Strategy
-- Speed first: operators can chain room actions rapidly without reopening settings.
-- Clarity first: active mode is always visible and explicit.
-- Safety first: mode conflicts and inflight overlaps are deterministic.
-- Mobile first: one-handed path is practical under live usage constraints.
-- Non-regression first: sync/render/stop-clear behavior remains unchanged.
+- Recovery first: broken global runtime behavior is restored immediately (start path deterministic again).
+- Operator-speed first: loop choice is available where trigger happens (Dashboard global controls).
+- UX contract first: per-trigger loop mode does not require editing animation definitions.
+- Safety first: existing `stop`/`clear` behavior remains unchanged and deterministic.
+- Evidence first: FAIL->PASS proof demonstrates global start/stop correctness on control + `/output/final` + peers.
 
-## Hard Gates (Plan 11-1, mandatory)
-- G11-1 Settings-SubTab-IA-Gate: settings sub-tabs are logically grouped and navigable with stable tab state.
-- G11-2 Quick-Activate-Gate: selected animation is applied correctly via sequential room taps/clicks.
-- G11-3 Quick-Deactivate-Gate: selected animation is removed correctly via sequential room taps/clicks.
-- G11-4 Quick-Clear-Gate: all animations are removed from tapped rooms in clear mode.
-- G11-5 Mode-Conflict-Guard-Gate: rapid mode switching/inflight overlaps are deterministic and safe.
-- G11-6 Feedback-Visibility-Gate: action success/failure/timeout is explicitly surfaced (status/toast), no silent no-op.
-- G11-7 Mobile-OneHand-Gate: sticky action rail and tap ergonomics are usable one-handed in portrait/landscape.
-- G11-8 Mobile-Board-Overview-Gate: board context remains visible/stable while operating quickly.
-- G11-9 Sync-Determinism-NonRegression-Gate: ordering/version/idempotent apply remains PASS.
-- G11-10 Render-Correctness-NonRegression-Gate: control/final parity remains PASS.
-- G11-11 Stop-Clear-Safety-NonRegression-Gate: safety controls remain first-click deterministic.
-- G11-12 Artifact-Sync-Gate: phase and global planning artifacts are fully synchronized.
+## Hard Gates (Plan 11-HF2, mandatory)
+- G11-HF2-1 Global-Start-Recovery-Gate: global animations start/run deterministically again after rollback/fix.
+- G11-HF2-2 Global-Start-Visibility-Gate: recovered global runs are visible on control + `/output/final` + peers without extra operator retries.
+- G11-HF2-3 Dashboard-Loop-Toggle-Gate: `Loop until stopped` exists directly in Dashboard global controls.
+- G11-HF2-4 PerTrigger-Loop-Semantics-Gate: loop choice applies per trigger invocation (`one-shot` vs `until explicit stop`).
+- G11-HF2-5 No-Definition-Edit-Required-Gate: operator can choose loop mode without entering animation definition editor.
+- G11-HF2-6 Global-Stop-NonRegression-Gate: explicit stop behavior remains deterministic and unchanged.
+- G11-HF2-7 Global-Clear-NonRegression-Gate: clear-all behavior remains deterministic and unchanged.
+- G11-HF2-8 Control-Final-Parity-Gate: global start/stop parity remains PASS between control and `/output/final`.
+- G11-HF2-9 Artifact-Sync-Gate: phase and global planning artifacts are fully synchronized.
 
 ## Strict Regression Matrix
-- P11-Settings-SubTab-Navigation-Test
-- P11-QuickMode-Activate-Sequential-Taps-Test
-- P11-QuickMode-Deactivate-Sequential-Taps-Test
-- P11-QuickMode-Clear-Sequential-Taps-Test
-- P11-QuickMode-ModeSwitch-Conflict-Guard-Test
-- P11-QuickMode-Feedback-Visibility-Test
-- P11-Mobile-OneHand-ActionRail-Ergonomics-Test
-- P11-Mobile-Board-Overview-Stability-Test
-- P11-Sync-Determinism-NonRegression-Test
-- P11-Render-Correctness-NonRegression-Test
-- P11-Stop-Clear-Safety-NonRegression-Test
+- P11-HF2-Global-Start-Regression-RED-Test
+- P11-HF2-Global-Start-Recovery-PASS-Test
+- P11-HF2-Dashboard-Loop-Toggle-PerTrigger-Test
+- P11-HF2-PerTrigger-Loop-NoDefinitionEdit-Test
+- P11-HF2-Global-Loop-Stop-Behavior-Test
+- P11-HF2-Global-OneShot-Completion-Behavior-Test
+- P11-HF2-Global-Stop-NonRegression-Test
+- P11-HF2-Global-Clear-NonRegression-Test
+- P11-HF2-Control-Final-StartStop-Parity-Test
+- P11-HF2-CrossClient-Trigger-Parity-Test
 
 ## Incremental Mandatory Gates
-- After P11-T1..T2: settings IA sub-tabs are implemented and state retention is verified.
-- After P11-T3..T6: quick modes operate correctly for activate/deactivate/clear sequential flows.
-- After P11-T7..T8: mode conflict guards and explicit feedback are verified.
-- After P11-T9..T10: mobile one-hand and board-overview gates are verified.
-- After P11-T11..T12: full matrix PASS and artifact sync closure are complete.
+- After P11-HF2-T1..T2: global runtime regression is reproduced then closed via recovery patch.
+- After P11-HF2-T3..T4: dashboard per-trigger loop choice is closed without definition-edit dependency.
+- After P11-HF2-T5: stop/clear safety semantics are confirmed non-regressed.
+- After P11-HF2-T6..T7: full FAIL->PASS matrix and parity evidence are complete.
+- After P11-HF2-T8: artifact sync closure is complete.
 
 ## Definition of Done
-- All hard gates G11-1..G11-12 are PASS.
-- Quick modes are explicit, deterministic, and fast across desktop/mobile.
-- Settings IA is measurably faster to navigate without losing edits.
-- Mobile one-handed operation supports rapid live reactions.
-- No regressions in sync determinism, render correctness, and safety stop/clear behavior.
+- All hard gates G11-HF2-1..G11-HF2-9 are PASS.
+- Global animations start/stop correctly again after recovery.
+- Loop mode is selected per trigger from dashboard global controls.
+- Operator does not need to edit animation definitions to choose loop behavior.
+- Stop/clear semantics remain deterministic and unchanged.
+- No regressions in control/final parity for global lifecycle behavior.
 - Phase and global trackers are fully synchronized.
 
-## Plan 11-1 Evidence Reference
-- Verification report: `.planning/phases/phase-11/11-1-VERIFICATION.md`
-- Static regression artifact: `debug/p11-1-acceptance-regression-output.json`
+## Plan 11-HF2 Evidence Reference
+- Verification report: `.planning/phases/phase-11/11-HF2-VERIFICATION.md`
+- Static regression artifact: `debug/p11-hf2-acceptance-regression-output.json`

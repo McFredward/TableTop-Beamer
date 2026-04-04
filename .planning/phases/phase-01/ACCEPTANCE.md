@@ -62,12 +62,16 @@
 - Priority-Test P0az: Optionaler Export-/Download-Fallback ist bei API-Ausfall verfuegbar, bleibt klar sekundaer und ersetzt nicht den primaeren Server-Save.
 - Priority-Test P0ba: Save zeigt den konkret verwendeten API-Endpunkt (inkl. Port) und die Methode an; Fehlgrund ist endpoint-bezogen nachvollziehbar.
 - Priority-Test P0bb: API-Base-Konfiguration + Port-Fallback funktionieren im statischen Frontend-Hosting reproduzierbar (kein stilles Routing auf nicht-POST-faehige Hosts).
-- Priority-Test P0bc: One-Click `API Diagnose` prueft Erreichbarkeit und POST-Faehigkeit und liefert pro Check klare naechste Schritte.
+- Priority-Test P0bc: Der Diagnosepfad im Save-/Settings-Flow prueft Erreichbarkeit und POST-Faehigkeit und liefert pro Check klare naechste Schritte.
 - Priority-Test P0bd: Bei laufendem API-Server ist `Speichern` in mindestens 5 aufeinanderfolgenden Versuchen erfolgreich (inkl. Reload/Restart-Roundtrip).
 - Priority-Test P0be: Bei UI-Aufruf ueber LAN-IP (`http://192.168.x.x:4173`) nutzt Save als Default den UI-Host als API-Host und faellt nicht auf Client-`localhost` zurueck.
 - Priority-Test P0bf: Expliziter API-Override bleibt wirksam; Save/Diagnose zeigen Quelle des Overrides und den final verwendeten Host transparent an.
 - Priority-Test P0bg: Save- und Diagnose-Meldungen zeigen explizit `UI-Host` und `API-Host`; bei Remote-Mismatch enthalten sie konkrete LAN-Hinweise.
 - Priority-Test P0bh: LAN-Repro besteht aus mindestens 5 erfolgreichen Saves von einem zweiten Geraet im LAN plus Reload/Restart ohne Host-Drift.
+- Priority-Test P0bi: Bei aktivem `python3 -m http.server 4173` erkennt Diagnose/Save den Endpoint explizit als `static-only` (Health-404 + Static-Signatur) und meldet klar `Static-only Server aktiv, Save nicht moeglich`.
+- Priority-Test P0bj: Guided-Fix-UX zeigt im Static-only-Fall host-korrekte Headless/LAN-Next-Steps inklusive `node server.mjs --host 0.0.0.0 --port 4173`.
+- Priority-Test P0bk: Save und Diagnose zeigen denselben Resolve-Snapshot (`UI-Host`, `API-Host`, Endpoint, Quelle) ohne widerspruechliche oder verwirrende `localhost`-Fallback-Anzeige im Remote-IP-Setup.
+- Priority-Test P0bl: Pflicht-Roundtrip besteht aus echtem Negativtest (Python-Static aktiv) und direkt folgendem Positivtest (Node-API aktiv) auf demselben Host/Port.
 - Priority-Test P1f: Allgemeiner Speed-Regler aendert die Animationsgeschwindigkeit live, ohne Laufzeitliste, Stop/Edit oder Clip-Verhalten zu brechen.
 - Priority-Test P1g: Outside-Alternativanimation ist per UI-Option umschaltbar und bleibt strikt auf die Outside-Maske begrenzt.
 - Priority-Test P1e: Ship-Polygon + Outside-Effekt-Settings sind pro Board persistent (Save/Reload/Restart/Boardwechsel ohne Vermischung).
@@ -120,15 +124,19 @@
 - API-Method-Check: Save auf vorgesehenem Node-Setup ausfuehren und bestaetigen, dass POST erfolgreich verarbeitet wird (kein `501 Unsupported method POST`).
 - API-Offline-UX-Check: Save bei rein statischem Hosting ohne API triggern; UI zeigt kurze Handlungsanweisung mit konkretem Server-Startkommando statt HTML-Rohantwort.
 - Start-Flow-Doku-Check: README/Startanleitung pruefen, dass POST-Anforderung und Startreihenfolge (API + Frontend) klar, kurz und konsistent beschrieben sind.
-- Optional-Fallback-Check: bei API-Ausfall optionalen Export/Download pruefen; Hinweistext markiert ihn als Notfallpfad, Server-Save bleibt primaerer Weg.
+- Optional-Fallback-Check: bei API-Ausfall optionalen Export/Download pruefen; Hinweistext markiert ihn als sekundaeren Fallback, Server-Save bleibt primaerer Weg.
 - Endpoint-Transparenz-Check: Save-Erfolg/-Fehler zeigt finalen API-Endpunkt + Methode; angezeigter Endpoint muss mit realer Konfiguration/Request uebereinstimmen.
 - API-Base-Fallback-Check: statisches Frontend mit mindestens zwei API-Port-Szenarien pruefen (ein falscher, ein korrekter Port); Diagnose und Save muessen den korrekten Endpunkt reproduzierbar nutzen oder klar ablehnen.
-- Diagnose-One-Click-Check: `API Diagnose` fuehrt Health + POST-Check aus und zeigt fuer jede Fehllage konkrete Handlungsanweisung ohne Roh-HTML.
+- Diagnosepfad-Check: Save-/Settings-Diagnose fuehrt Health + POST-Check aus und zeigt fuer jede Fehllage konkrete Handlungsanweisung ohne Roh-HTML.
 - Save-Repro-Check: bei korrekt laufendem API-Server 5x Save hintereinander plus Reload/Restart pruefen; kein intermittierender 4xx/5xx-Fehler.
 - Remote-LAN-Default-Check: UI von zweitem Geraet via `http://192.168.x.x:4173` oeffnen und Save pruefen; genutzter API-Host muss dem UI-Host entsprechen, kein Client-`localhost`.
 - Override-Precedence-Check: expliziten API-Override setzen und bestaetigen, dass Resolver diesen weiterhin priorisiert; Save-/Diagnose-Text nennt Override-Quelle und finalen Endpoint.
 - Host-Transparenz-Check: Save-/Diagnose-Fehlertexte enthalten `UI-Host -> API-Host` und geben bei Mismatch konkrete Remote/LAN-Hinweise statt generischer Fehltexte.
 - LAN-Save-Repro-Check: im LAN-Szenario mindestens 5x Save plus Reload/Restart durchfuehren; Endpoint-Auswahl bleibt stabil ohne Host-Drift.
+- Python-Static-Detection-Check: `python3 -m http.server 4173` aktivieren und Save/Diagnose ausfuehren; Ergebnis muss explizit `Static-only Server aktiv, Save nicht moeglich` inkl. Static-Signatur-Klassifizierung zeigen.
+- Guided-Fix-Command-Check: im Static-only-Fehlerfall werden konkrete headless/LAN-Kommandos angezeigt (`node server.mjs --host 0.0.0.0 --port 4173`), nicht nur generische API-Hinweise.
+- Host-Trace-Consistency-Check: Diagnose und Save nacheinander ausfuehren; `UI-Host`, `API-Host`, Resolver-Quelle und Endpoint muessen identisch/konfliktfrei angezeigt werden.
+- Static-Negative-Node-Positive-Check: nach Python-Static-Negativtest auf Node-API wechseln und unmittelbar erfolgreichen Save nachweisen (inkl. sichtbarer Zustandswechsel der Diagnose).
 - Outside-Direction-Check: waehrend laufendem Outside-Effekt zwischen `forward` und `reverse` wechseln; Bewegungsrichtung muss sofort sichtbar invertieren.
 - Outside-Black-Base-Check: bei mehreren Intensity-/Speed-Stufen pruefen, dass der Outside-Hintergrund tiefschwarz bleibt und kein blauer Fill erscheint.
 - Room-Instance-Param-Check: zwei gleichartige Room-Animationen parallel mit unterschiedlichen `Speed`/`Intensity`/`Sound Volume` starten; Werte duerfen sich nicht gegenseitig ueberschreiben.
@@ -187,12 +195,16 @@
 - Der Start-Flow ist dokumentiert: fuer POST ist ein API-Server erforderlich (z. B. `node server.mjs`), statischer Server allein reicht nicht.
 - Ein optionaler Export-/Download-Fallback darf angeboten werden, bleibt aber klar sekundaer gegenueber dem primaeren Server-Save.
 - Save-Feedback zeigt den genutzten API-Endpunkt transparent an und erklaert Fehler endpoint-bezogen mit klaren naechsten Schritten.
-- `Settings` bietet eine One-Click-API-Diagnose (Reachability + POST-Faehigkeit) mit eindeutiger Operator-Hilfe.
+- `Settings` bietet eine klare API-Diagnose im Save-Kontext (Reachability + POST-Faehigkeit) mit eindeutiger Operator-Hilfe, ohne separaten Diagnose-Button.
 - API-Base-Konfiguration und Port-Fallback sind fuer statisches Frontend-Hosting robust; bei korrekt laufender API funktioniert Global-Save reproduzierbar.
 - Save-Default fuer headless/remote Setup nutzt den Host der aufgerufenen UI (LAN/IP/Hostname) statt `localhost` des Client-Geraets.
 - Explizite API-Overrides bleiben verfuegbar und behalten Vorrang, ohne den LAN-sicheren Default-Pfad zu brechen.
 - Save-/Diagnose-Feedback zeigt explizit `UI-Host` und `API-Host` mit konkreter Remote/LAN-Hilfe bei Fehlrouting.
 - Save ueber IP-Aufruf der UI ist reproduzierbar verifiziert (Mehrfach-Save + Reload/Restart ohne Endpoint-Drift).
+- Static-only-Server (insb. Python `http.server`) wird im Save-Preflight explizit erkannt und als blocker-kritische Fehlkonfiguration klassifiziert.
+- Bei erkannter Static-only-Fehlkonfiguration zeigt die UI eindeutig `Static-only Server aktiv, Save nicht moeglich` inkl. konkreter headless/LAN-Startanweisung fuer den Node-API-Server.
+- Save und Diagnose verwenden denselben host-transparenten Resolve-Snapshot; im Remote-IP-Betrieb erscheinen keine verwirrenden localhost-Fallback-Meldungen.
+- Pflichtabnahme enthaelt verbindlich den Sequenztest `python-static negativ -> node-api positiv` auf gleichem Host/Port.
 - Outside-Richtung ist als UI-Option verfuegbar und wirkt zur Laufzeit stabil auf Sterne/Motion-Streaks.
 - Outside-Hintergrund bleibt tiefschwarz; blauer Background ist entfernt.
 - Per-Room-Animationen haben instanzscharfe Parameter fuer `Speed`, `Intensity` und `Sound Volume` im Runtime-Modell.
@@ -256,12 +268,16 @@
 - Optional-Fallback-Protokoll (Download/Export) mit Nachweis, dass der Fallback nur sekundaer angeboten wird und den Server-Save nicht ersetzt.
 - Endpoint-Transparenz-Protokoll mit Save-Logs/UI-Nachweis, dass genutzter Endpoint (Host/Port/Pfad) und Methode angezeigt werden.
 - API-Base-Fallback-Protokoll fuer statisches Frontend-Hosting (Konfigurationswert, Fallback-Reihenfolge, Ergebnis pro Endpoint-Kandidat).
-- One-Click-Diagnose-Protokoll mit Ergebnissen fuer Reachability + POST-Check und den jeweils ausgegebenen naechsten Schritten.
+- Diagnose-Protokoll im Save-/Settings-Kontext mit Ergebnissen fuer Reachability + POST-Check und den jeweils ausgegebenen naechsten Schritten.
 - Save-Reproduzierbarkeits-Protokoll mit mindestens 5 erfolgreichen Save-Vorgaengen bei laufendem API-Server sowie Reload/Restart-Nachweis.
 - Remote-LAN-Host-Resolution-Protokoll mit Nachweis `UI-Host -> API-Host` bei Aufruf ueber `http://192.168.x.x:4173` von einem zweiten Geraet (kein Rueckfall auf Client-`localhost`).
 - Override-Prioritaets-Protokoll mit mindestens einem expliziten API-Override und dokumentierter Resolver-Entscheidungsquelle.
 - Host-Transparenz-Protokoll fuer Save/Diagnose-Fehler mit expliziten Hostwerten und konkretem Remote/LAN-Hinweis.
 - LAN-Save-Repro-Protokoll mit mindestens 5 erfolgreichen Saves plus Reload/Restart im IP-Szenario.
+- Static-only-Detection-Protokoll mit aktivem `python3 -m http.server 4173` (Health-404 + Signatur), klassifiziertem Fehler `Static-only Server aktiv, Save nicht moeglich` und blockiertem POST-Save.
+- Guided-Fix-Protokoll mit Screenshot/Notiz der konkreten headless/LAN-Next-Steps (`node server.mjs --host 0.0.0.0 --port 4173`) aus Save-/Diagnose-UX.
+- Resolve-Snapshot-Konsistenz-Protokoll (Diagnose vs Save) mit identischen Angaben fuer `UI-Host`, `API-Host`, Resolver-Quelle, Endpoint und Methode.
+- Negativ-Positiv-Roundtrip-Protokoll: zuerst Python-Static-Negativtest, danach Node-API-Positivtest auf demselben Host/Port inkl. erfolgreichem Save-Nachweis.
 - Outside-Direction-Protokoll mit Sequenznachweis `forward` <-> `reverse` (sichtbare Richtungsinversion der Sterne/Streaks ohne Nebenwirkung auf Inside).
 - Outside-Black-Background-Protokoll mit Screenshot/Video-Notiz bei mehreren Intensitaets-/Speed-Stufen (kein blauer Fill).
 - Room-Instance-Parameter-Protokoll mit mindestens zwei parallelen Room-Instanzen gleicher Animationsart und unterschiedlichen `speed`/`intensity`/`soundVolume`-Werten.
@@ -383,7 +399,7 @@
 - Save-Endpunkt wird fuer statisches Frontend-Hosting robust aufgeloest (konfigurierbare API-Base + Port-Fallback) und bleibt fuer den Operator nachvollziehbar.
 - Save-Flow fuehrt einen klaren API-Preflight (Reachability/Health + POST-Faehigkeit) aus und scheitert bei Fehlern kontrolliert mit handlungsorientierter Meldung.
 - Save-Feedback zeigt den konkret verwendeten Endpoint, Methode und Fehlerklasse statt technischer Rohantworten.
-- `Settings` bietet eine One-Click-`API Diagnose`, die API-Erreichbarkeit und POST-Erlaubnis prueft und klare Next Steps liefert.
+- `Settings` bietet API-Diagnose im Save-Kontext (ohne separaten Button), die API-Erreichbarkeit und POST-Erlaubnis prueft und klare Next Steps liefert.
 - Bei korrekt laufendem API-Server funktioniert `Speichern` reproduzierbar in Mehrfachdurchlaeufen inkl. Reload/Restart.
 - Pflichtprotokoll liegt in `.planning/phases/phase-01/P1-T106-VERIFICATION.md`.
 
@@ -393,3 +409,17 @@
 - Save- und Diagnose-UX zeigen explizit `UI-Host`, `API-Host`, finalen Endpoint und Methode sowie konkrete Remote/LAN-Hinweise bei Host-Mismatch.
 - Save via UI-IP-Aufruf (`http://192.168.x.x:4173`) ist von einem zweiten Geraet aus reproduzierbar erfolgreich (mindestens 5x Save plus Reload/Restart ohne Host-Drift).
 - Pflichtprotokolle liegen in `.planning/phases/phase-01/P1-T110-VERIFICATION.md` (Regression) und `.planning/phases/phase-01/P1-T111-VERIFICATION.md` (Abnahme + Doku-Sync).
+
+## Plan Update 18 - Pflichtabnahme (P1-T112..P1-T116)
+- Bei aktivem `python3 -m http.server 4173` erkennt Save/Diagnose den Endpoint als `static-only` (Health-404 + Static-Signatur) und blockiert Save mit klarer Meldung `Static-only Server aktiv, Save nicht moeglich`.
+- Guided-Fix-UX liefert konkrete, host-korrekte Headless/LAN-Next-Steps (inkl. `node server.mjs --host 0.0.0.0 --port 4173`) statt generischer Fehlertexte.
+- Save und Diagnose teilen einen identischen Resolve-Snapshot (`UI-Host`, `API-Host`, Resolver-Quelle, Endpoint, Methode) ohne widerspruechliche localhost-Hinweise im Remote-IP-Flow.
+- Verbindlicher Roundtrip-Test: Python-Static-Negativtest gefolgt von Node-API-Positivtest auf demselben Host/Port mit erfolgreichem Save.
+- Pflichtprotokoll liegt in `.planning/phases/phase-01/P1-T116-VERIFICATION.md`.
+
+## Plan Update 19 - Pflichtabnahme (P1-T117..P1-T121)
+- Der dedizierte Button `API Diagnose` ist im Settings-Bereich nicht mehr sichtbar.
+- API-Diagnose bleibt ueber Save-Preflight und Save-/Settings-Feedback reproduzierbar verfuegbar (Reachability + POST-Faehigkeit + Next Steps).
+- Download-Fallback nutzt neutrales Wording (kein `Notfall`-Label) in Button, Hinweis und Statusmeldungen.
+- Save-Flow bleibt primaer; Download/Export bleibt klar sekundaer gekennzeichnet.
+- Pflichtprotokoll liegt in `.planning/phases/phase-01/P1-T121-VERIFICATION.md`.

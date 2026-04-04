@@ -1,9 +1,0 @@
-{
-  "suite": "p9-hf4-runtime-smoke",
-  "result": "PASS",
-  "checks": [
-    "bootstrap-idempotency",
-    "runtime-profile-default-safe-on-weak",
-    "runtime-profile-override-paths"
-  ]
-}

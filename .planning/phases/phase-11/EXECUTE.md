@@ -1,8 +1,10 @@
 # Execute Phase 11
 
 ## Priority
-- Start Plan 11-1 immediately.
-- Plan 11-1 is execute-ready and unblocked.
+- Plan 11-1 remains completed PASS baseline.
+- Plan 11-HF1 remains historical PASS but is field-corrected by new critical feedback.
+- Execute Plan 11-HF2 immediately as mandatory P0 recovery wave.
+- Plan 11-2 stays queued until 11-HF2 PASS.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -11,20 +13,20 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 11-1 (binding)
-1. P0 first: P11-T1 + P11-T2 (settings IA sub-tabs + draft-state retention).
-2. P0 next: P11-T3 (shared quick-mode state machine + visible mode contract).
-3. P0 next: P11-T4 + P11-T5 + P11-T6 (rapid activate/deactivate/clear sequential room flows).
-4. P0 next: P11-T7 (mode-switch/inflight conflict guards).
-5. P0 next: P11-T8 (explicit success/failure/timeout feedback).
-6. P0 next: P11-T9 + P11-T10 (mobile one-hand rail + board-overview safeguards).
-7. P0 closure: P11-T11 + P11-T12 (full matrix PASS + full artifact sync).
+## Priority Execution - Plan 11-HF2 (binding)
+1. P0 first: P11-HF2-T1 + P11-HF2-T2 (global runtime failure RED + rollback-first recovery).
+2. P0 next: P11-HF2-T3 + P11-HF2-T4 (dashboard quick loop checkbox + per-trigger loop semantics).
+3. P0 next: P11-HF2-T5 (preserve stop/clear semantics unchanged).
+4. P0 closure: P11-HF2-T6 + P11-HF2-T7 (strict regression parity + FAIL->PASS evidence).
+5. P0 final closure: P11-HF2-T8 (full artifact sync).
 
 ## Gate Rules
-- Do not ship quick-mode flows without explicit visible mode indicator.
-- Do not close wave without desktop + mobile matrix PASS for activate/deactivate/clear.
-- Do not close wave without sync/render/safety non-regression PASS.
-- No closure without full planning tracker synchronization (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/README/STATE/ROADMAP/CURRENT_PHASE`).
+- Do not close HF2 without deterministic PASS proving global animations start/run again.
+- Do not close HF2 without dashboard-level per-trigger loop toggle PASS.
+- Do not close HF2 if loop behavior requires definition editing (hard fail).
+- Do not close HF2 without explicit stop/clear non-regression PASS.
+- Do not close wave without control/final parity PASS for global start/stop lifecycle.
+- No closure without full planning tracker synchronization (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
 - Update task status in `TASKS.md` after each completed item.
@@ -36,3 +38,13 @@
 - First execution wave is Plan 11-1 (operator UX acceleration core package).
 - Plan 11-1 implementation completed with quick-mode tap flows (`activate`/`deactivate`/`clear`), settings sub-tabs, and mobile one-hand rail safeguards.
 - Verification evidence captured in `11-1-VERIFICATION.md` and `debug/p11-1-acceptance-regression-output.json`.
+- New mandatory Phase-11 P0 package activates Plan 11-HF1 before 11-2:
+  - Bugfix A: outside mode sync requires second apply click.
+  - Bugfix B: expired global one-shot events replay on reload/reconnect.
+  - Feature C: per-global-animation loop option (`until explicit stop`).
+  - Feature D: room animation hold simplification (always hold; remove checkbox).
+  - Feature E: board model/storage unification (remove imported/non-imported split).
+- Critical correction after HF1 activates Plan 11-HF2 before 11-2:
+  - Recovery A: global animations are currently broken and must be restored immediately via rollback/fix.
+  - UX correction B: `Loop until stopped` is a dashboard global trigger checkbox (per trigger), not a definition-edit requirement.
+  - Safety C: existing global `stop`/`clear` behavior must remain unchanged and proven by regression evidence.

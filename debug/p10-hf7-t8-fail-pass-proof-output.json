@@ -1,6 +1,6 @@
 {
   "suite": "p10-hf7-t8-fail-pass-proof",
-  "executedAt": "2026-04-04T11:39:04.430Z",
+  "executedAt": "2026-04-04T11:42:53.224Z",
   "failEvidence": [
     {
       "path": ".planning/phases/phase-10/P10-HF7-T1-CLEAN-START-PROFILE-LOSS-REPRO.md",

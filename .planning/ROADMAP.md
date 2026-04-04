@@ -718,28 +718,29 @@ Exit Criteria:
 Next Wave (Phase 10):
 - Plan 10-HF9 remains closure baseline for runtime reliability/performance hardening.
 - UX-Acceleration scope moved to Phase 11 for immediate execution as Plan 11-1.
-- Plan 11-HF1 is now completed PASS; next execution target is 11-2 refinement wave.
+- Plan 11-HF1 remains historical PASS baseline, but a critical global-runtime correction reopens Phase 11.
+- Plan 11-HF2 is now the next execution target before 11-2.
 
-## Phase 11 - UX Acceleration + Mandatory HF1 (In Progress)
-Ziel: Plan 11-1 bleibt die abgeschlossene UX-Basis; danach schliesst ein verpflichtendes HF1-Paket die neuen P0-Bugs (outside first-apply sync, one-shot replay on reload) und liefert drei angeforderte Feature-/Model-Refinements (global loop option, room always-hold simplification, canonical board model unification).
+## Phase 11 - UX Acceleration + Mandatory HF2 Recovery (In Progress)
+Ziel: Plan 11-1 bleibt die abgeschlossene UX-Basis und 11-HF1 bleibt historische PASS-Evidenz; verpflichtendes HF2 stellt die regressierte globale Runtime sofort wieder her und liefert die UX-Klarstellung fuer per-trigger Loop-Wahl direkt im Dashboard (ohne Definitionsbearbeitung), bei unveraenderter stop/clear-Semantik.
 
-Status: Plan 11-1 ist PASS abgeschlossen (`.planning/phases/phase-11/11-1-SUMMARY.md`, `.planning/phases/phase-11/11-1-VERIFICATION.md`) und Plan 11-HF1 ist PASS geschlossen (`.planning/phases/phase-11/11-HF1-SUMMARY.md`, `.planning/phases/phase-11/11-HF1-VERIFICATION.md`). Plan 11-2 ist als naechste Welle freigegeben.
+Status: Plan 11-1 ist PASS abgeschlossen (`.planning/phases/phase-11/11-1-SUMMARY.md`, `.planning/phases/phase-11/11-1-VERIFICATION.md`) und Plan 11-HF1 ist historisch PASS dokumentiert (`.planning/phases/phase-11/11-HF1-SUMMARY.md`, `.planning/phases/phase-11/11-HF1-VERIFICATION.md`), aber fuer global-runtime behavior field-corrected. Plan 11-HF2 ist execute-ready und blockiert 11-2 bis FAIL->PASS closure.
 
 Milestones:
 1. M1 Baseline Closure: 11-1 UX acceleration bleibt PASS-Basis.
-2. M2 Outside First-Apply Sync Closure: Outside-Mode propagiert deterministisch beim ersten validen Apply/Snapshot.
-3. M3 Global One-Shot No-Replay Closure: abgelaufene one-shot Globals replayen nicht mehr nach Reload/Reconnect.
-4. M4 Global Loop Option Closure: per-global `Loop until stopped` ist UI+Runtime+Persistenz-stabil.
-5. M5 Room Always-Hold Closure: Hold-Checkbox entfernt; Room-Lifecycle ist vereinheitlicht.
-6. M6 Canonical Board Model Closure: imported/non-imported Split ist entfernt; ein Modell fuer Catalog/Storage/Runtime.
-7. M7 Non-Regression + Artifact Sync Closure: sync/render gates und Tracker-Sync sind PASS.
+2. M2 HF1 Historical Closure: outside sync, one-shot no-replay, room always-hold und board model bleiben dokumentierte Baselines.
+3. M3 Global Runtime Recovery Closure: globale Trigger starten/laufen wieder deterministisch (rollback/fix).
+4. M4 Dashboard Per-Trigger Loop Toggle Closure: `Loop until stopped` ist direkt im Dashboard global trigger flow verfuegbar.
+5. M5 Stop/Clear Non-Regression Closure: bestehende stop/clear Semantik bleibt unveraendert PASS.
+6. M6 Global Start/Stop Parity Evidence Closure: control/peers/`/output/final` sind lifecycle-paritaetisch PASS.
+7. M7 Artifact Sync Closure: Tracker-Sync ist PASS.
 
 Exit Criteria:
-- Outside-Mode-Aenderungen erscheinen auf `/output/final` und Peers beim ersten validen Apply ohne zweiten Klick.
-- Expired one-shot globale Events replayen nie auf Reload/Reconnect.
-- Global-Animationen unterstuetzen pro Eintrag `Loop until stopped` mit explizitem Stop-Verhalten.
-- Room-Animationen laufen immer hold-until-stop; `Hold until I stop` existiert nicht mehr als Steuerfeld.
-- Board-Catalog/Storage/Codepfade behandeln alle Boards einheitlich ohne imported/non-imported Sonderfall.
+- Globale Animationen starten/laufen wieder deterministisch im Livebetrieb (kein post-HF no-start Verhalten).
+- Dashboard Global Controls enthalten eine schnelle per-trigger Checkbox `Loop until stopped`.
+- Loop-Wahl erfordert keine Bearbeitung von Animationsdefinitionen.
+- Bestehende globale `stop`/`clear` Semantik bleibt unveraendert und deterministisch.
+- Control, Peers und `/output/final` zeigen identische Global-Start/Stop-Lifecycle-Ergebnisse.
 - Keine Regression bei Sync-Invarianten und Render-Paritaet.
 - Phase-11-Artefakte sowie globale Tracker sind konsistent synchronisiert.
 

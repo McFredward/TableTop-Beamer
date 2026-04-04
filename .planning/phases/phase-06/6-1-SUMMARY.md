@@ -11,7 +11,7 @@ provides:
   - dynamic client board selection from catalog
   - room+cluster target model with cluster fanout execution
   - English operator docs and updated control labels
-affects: [phase-06-plan-2, operator-verification, import-hardening]
+affects: [phase-06-hf1, phase-06-plan-2, operator-verification, import-hardening]
 tech-stack:
   added: [none]
   patterns: [catalog-first board loading, server-validated board import payloads, room-target fanout]
@@ -92,7 +92,8 @@ None.
 
 ## Next Phase Readiness
 
-- Ready for Plan 6-2 hardening (duplicate import conflict strategy finalization, negative import matrix, soak/E2E operator verification).
+- verify-work-6 follow-up re-opened a P0 blocker on English-only operator flow; Plan 6-HF1 is now the immediate next execute-ready wave.
+- Plan 6-2 hardening remains queued after HF1 closure (duplicate import conflict strategy finalization, negative import matrix, soak/E2E operator verification).
 - Server-side import persistence path and catalog bootstrap are in place for deeper validation.
 
 ## Self-Check: PASSED

@@ -5,7 +5,7 @@
   "findings": [
     {
       "id": "global-start-path-still-definition-bound",
-      "observed": true,
+      "observed": false,
       "expected": false,
       "impact": "Global runtime start behavior is tied to animation-definition edits instead of trigger-time operator intent."
     },
@@ -23,12 +23,6 @@
     }
   ],
   "failedChecks": [
-    {
-      "id": "global-start-path-still-definition-bound",
-      "observed": true,
-      "expected": false,
-      "impact": "Global runtime start behavior is tied to animation-definition edits instead of trigger-time operator intent."
-    },
     {
       "id": "dashboard-loop-toggle-missing",
       "observed": false,

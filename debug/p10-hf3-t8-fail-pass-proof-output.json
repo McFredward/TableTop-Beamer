@@ -1,6 +1,6 @@
 {
   "suite": "p10-hf3-t8-fail-pass-proof",
-  "executedAt": "2026-04-04T09:09:53.022Z",
+  "executedAt": "2026-04-04T09:14:13.672Z",
   "failEvidence": [
     {
       "path": ".planning/phases/phase-10/P10-HF3-T1-REPRO-TRACE.md",

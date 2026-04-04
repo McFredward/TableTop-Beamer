@@ -102,7 +102,8 @@ None detected in files touched by this plan.
 ## Next Phase Readiness
 
 - Plan 4-5 Acceptance-Hotfixes sind umgesetzt und dokumentiert.
-- Phase 4 Plan 6 (GIF/Render/UI-Isolation) kann auf stabiler 4-5-Basis starten.
+- Verify-Follow-up identifiziert Rest-Gap fuer Persist-on-change in Audio-/Sound-Mapping-Handlern; als P0 Mini-Hotfix in Plan 4-5b (P4-T39..P4-T41) execute-ready vorgezogen.
+- Nach Abschluss von Plan 4-5b kann Phase 4 Plan 6 (GIF/Render/UI-Isolation) auf stabiler Basis starten.
 
 ## Self-Check: PASSED
 

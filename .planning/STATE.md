@@ -12,7 +12,7 @@
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
 - Last Executed Plan: 11-HF1 (PASS)
-- Planned Next Execution: 11-2
+- Planned Next Execution: 11-HF2
 - Last Execution Summary: `.planning/phases/phase-11/11-HF1-SUMMARY.md`
 
 ## Source Inputs
@@ -39,6 +39,11 @@
 - Plan-11-HF1 Umsetzung: globale one-shot hydration behaelt authoritative `startedAtEpochMs`; abgelaufene Events replayen nach reload/reconnect nicht mehr.
 - Plan-11-HF1 Umsetzung: per-global `Loop until stopped` ist als Inside-Definition-Option persistiert; room runtime bleibt strikt always-hold ohne hold-checkbox UI.
 - Plan-11-HF1 Umsetzung: Board storage/catalog wurde auf kanonische `config/boards` + `config/boards/assets` Pfade vereinheitlicht inkl. idempotenter Legacy-Migration von `config/boards/imported`.
+- Kritische Korrektur nach HF1 ist bindend: globale Animationen sind im Runtime-Betrieb regressiert und muessen per sofortiger Recovery-Welle wieder deterministisch start-/sichtbar sein.
+- Verbindliche UX-Korrektur fuer Phase 11: Loop-Steuerung fuer globale Trigger liegt als schneller Dashboard-Checkbox-Entscheid pro Trigger (`one-shot` vs `loop until stopped`) und darf keine Definitionsbearbeitung erfordern.
+- Plan 11-HF2 ist als verpflichtende execute-ready Recovery-Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure mit expliziter Global-Start/Stop-Evidenz.
+- HF2-Sicherheitsregel: bestehende globale `stop`/`clear` Semantik bleibt unveraendert deterministisch und wird als Non-Regression-Hard-Gate geprueft.
+- HF2-Klarstellung: die in HF1 eingefuehrte definitionsgebundene Loop-Steuerung gilt als field-invalidated Bedienpfad; kanonischer Operator-Pfad ist per-trigger Dashboard-Loop-Auswahl.
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.

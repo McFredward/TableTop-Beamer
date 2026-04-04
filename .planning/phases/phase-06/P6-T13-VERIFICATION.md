@@ -41,4 +41,6 @@ Date: 2026-03-26
 
 ## Result
 
-Plan 6-1 P0 regression gate prepared with no blocking syntax/runtime contract violations detected in modified files.
+Plan 6-1 P0 regression evidence was prepared, but verify-work-6 follow-up re-opened a blocker: `English-only operator flow` is still considered incomplete.
+
+Follow-up handling is now tracked as Plan 6-HF1 (P6-T18..P6-T22) with a dedicated language-sweep closure artifact.

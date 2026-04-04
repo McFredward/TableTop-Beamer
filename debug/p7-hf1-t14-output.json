@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-03-26T23:21:13.438Z",
+  "generatedAt": "2026-03-26T23:44:06.406Z",
   "source": "http://127.0.0.1:4273/api/live/telemetry",
   "hops": {
     "ingestToCommit": {
-      "samples": 11,
+      "samples": 12,
       "p50": 0,
-      "p95": 1,
+      "p95": 0,
       "p99": 1
     },
     "commitToClientAck": {
@@ -16,9 +16,9 @@
     },
     "commitToApplyAck": {
       "samples": 2,
-      "p50": 0,
-      "p95": 0,
-      "p99": 0
+      "p50": 1,
+      "p95": 1,
+      "p99": 1
     }
   },
   "queue": {
