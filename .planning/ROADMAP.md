@@ -623,7 +623,7 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 ## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
 Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
 
-Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist PASS abgeschlossen; Plan 10-1 ist als naechste execute-ready Welle freigegeben.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist historische PASS-Evidenz, aber clean-start field-invalidated (board-profile key drop nach local-storage-clean); Plan 10-HF7 ist PASS abgeschlossen mit FAIL->PASS closure, Plan 10-1 ist damit wieder freigegeben.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -651,13 +651,18 @@ Milestones:
 23. M0 HF6 Browser-Parity Closure: `areaCount` + `areaIdSet` pro Board sind auf Chrome/Firefox/mobile-class identisch.
 24. M0 HF6 Surface-Parity Closure: control-view und `/output/final` nutzen identische canonical play-area sets.
 25. M0 HF6 FAIL->PASS Closure: identischer HF6-Testsatz ist pre-fix FAIL und post-fix PASS dokumentiert.
-26. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
-27. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
-28. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
-29. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
-30. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
-31. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
-32. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+26. M0 HF7 Clean-Start Repro Closure: deterministic RED fuer missing play-area entries/default fallback nach clean local storage ist vorhanden.
+27. M0 HF7 Extraction/Migration Closure: board-profile extraction ist loaded-list-unabhaengig und migration behaelt unknown board keys.
+28. M0 HF7 Lifecycle Closure: startup/default-apply/reload behalten multi-play-area profiles deterministisch.
+29. M0 HF7 Parity Closure: area-count/id-set sowie control-vs-final set parity bleiben browserneutral PASS.
+30. M0 HF7 FAIL->PASS Closure: identischer HF7-Testsatz ist pre-fix FAIL und post-fix PASS dokumentiert.
+31. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
+32. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+33. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
+34. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
+35. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
+36. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
+37. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
 
 Exit Criteria:
 - `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
@@ -682,6 +687,7 @@ Exit Criteria:
 - Per Board sind `areaCount` und `areaIdSet` auf Chrome/Firefox/mobile-class identisch.
 - Control-view und `/output/final` bleiben fuer dieselbe Board-State identisch in der angewendeten canonical play-area set.
 - Imported boards plus bestehende multi-area boards bleiben unter HF6-Fix regressionsfrei.
+- Clean-start Profilextraktion/-migration verliert keine unknown board keys; imported/multi-area profiles bleiben erhalten.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -692,6 +698,7 @@ Exit Criteria:
 
 Next Wave (Phase 10):
 - Plan 10-1 execute-ready: operator speed core wave (Settings-Subtabs, quick modes, mobile one-hand flow).
+- Plan 10-2 pending: refinement wave after 10-1 PASS.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

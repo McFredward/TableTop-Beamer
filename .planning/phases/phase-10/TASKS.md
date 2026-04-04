@@ -77,9 +77,9 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF7-T5 [P0] Implement migration hardening to retain unknown board keys without fallback-loss side effects.
 - [x] DONE P10-HF7-T6 [P0] Add deterministic lifecycle assertions for multi-play-area retention across startup/default-apply/reload.
 - [x] DONE P10-HF7-T7 [P0] Execute browser parity + imported/multi-area strict non-regression matrix with clean-start coverage.
-- [ ] TODO P10-HF7-T8 [P0] Capture explicit FAIL->PASS evidence for T1..T7 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- [x] DONE P10-HF7-T8 [P0] Capture explicit FAIL->PASS evidence for T1..T7 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF7 PASS)
+## Plan 10-1 - Operator Speed Core Wave (execute-ready)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.

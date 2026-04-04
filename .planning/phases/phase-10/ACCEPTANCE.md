@@ -1,11 +1,12 @@
 # Phase 10 Acceptance
 
 ## Planning Mode Note
-- This file defines execute gates only; no implementation is executed yet.
+- This file tracks execute gates and execution closure evidence.
 - Field feedback invalidated prior HF2 closure; HF3 has now closed with PASS evidence.
 - HF4 is closed PASS and remains baseline-valid.
 - HF5 historical PASS is field-invalidated by new concrete browser repro.
-- New critical multi-area retention blocker opens HF6 as mandatory blocker before Plan 10-1.
+- HF6 historical PASS is field-invalidated by clean-local-storage profile-loss repro.
+- HF7 blocker is closed PASS with deterministic FAIL->PASS evidence; Plan 10-1 can proceed.
 
 ## HF3 Closure Status
 - H3-1..H3-10: PASS (see `P10-HF3-T1-REPRO-TRACE.md`, `P10-HF3-T2-DEFAULTS-OVERRIDE-REPRO.md`, `P10-HF3-T3-FINAL-BLACK-REPRO.md`, `P10-HF3-T4-LIFECYCLE-DIAGNOSTICS.md`, `P10-HF3-T5-BOARD-SWITCH-FINAL-CONTRACT.md`, `P10-HF3-T6-CANONICAL-SOURCE-SELECTION.md`, `P10-HF3-T7-ROOT-CAUSE-FIX.md`, `P10-HF3-T8-FAIL-PASS-PROOF.md`, `P10-HF3-T9-BROWSER-IMPORTED-REGRESSION.md`).
@@ -18,6 +19,9 @@
 
 ## HF6 Execution Status
 - H6-1..H6-9: PASS (`P10-HF6-T1-LOCKDOWNA-AREA-DROP-REPRO.md`, `P10-HF6-T2-MERGE-LINEAGE-DIAGNOSTICS.md`, `P10-HF6-T3-FALLBACK-SUBSET-REPLACEMENT-REPRO.md`, `P10-HF6-T4-AREA-COUNT-PARITY.md`, `P10-HF6-T5-AREA-ID-SET-PARITY.md`, `P10-HF6-T6-CONTROL-FINAL-SET-PARITY.md`, `P10-HF6-T7-ROOT-CAUSE-FIX.md`, `P10-HF6-T8-FALLBACK-GUARD.md`, `P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`, `P10-HF6-T10-FAIL-PASS-PROOF.md`).
+
+## HF7 Execution Status
+- H7-1..H7-8: PASS (`P10-HF7-T1-CLEAN-START-PROFILE-LOSS-REPRO.md`, `P10-HF7-T2-EXTRACTION-COUPLING-DIAGNOSTICS.md`, `P10-HF7-T3-UNKNOWN-KEY-MIGRATION-DROP-REPRO.md`, `P10-HF7-T4-CATALOG-INDEPENDENT-EXTRACTION.md`, `P10-HF7-T5-UNKNOWN-KEY-RETENTION.md`, `P10-HF7-T6-LIFECYCLE-MULTIAREA-RETENTION.md`, `P10-HF7-T7-BROWSER-IMPORTED-CLEANSTART-REGRESSION.md`, `P10-HF7-T8-FAIL-PASS-PROOF.md`).
 
 ## Verification Strategy
 - Final-output continuity first: no board-specific black-screen path is allowed on `/output/final`.
@@ -32,7 +36,17 @@
 - Mobile-first practicality: one-handed operation is feasible under real gameplay tempo.
 - Safety-first controls: quick modes are explicit and reversible; no hidden destructive path.
 
-## Hard Gates (Plan 10-HF6, mandatory before 10-1)
+## Hard Gates (Plan 10-HF7, mandatory before 10-1)
+- H7-1 CleanStorage-Repro-Gate: deterministic failing test reproduces missing play-area entries/default-play-area fallback after clean local storage startup.
+- H7-2 Extraction-Independence-Diagnostics-Gate: executable diagnostics prove board-profile candidate extraction is independent of loaded board catalog IDs.
+- H7-3 Unknown-Key-Retention-Repro-Gate: deterministic failing test reproduces migration drop of unknown board keys before fix.
+- H7-4 Extraction-Fix-Gate: extraction path is catalog-independent and retains board-profile candidates deterministically.
+- H7-5 Migration-Retention-Gate: migration retains unknown/imported board keys and their play-area data.
+- H7-6 Lifecycle-Retention-Gate: startup/default-apply/reload keeps deterministic multi-play-area profile retention.
+- H7-7 Browser-and-Import-Matrix-Gate: browser parity and imported/multi-area strict regression matrix PASS includes clean-start lane coverage.
+- H7-8 Fail-To-Pass-Proof-Gate: evidence contains explicit pre-fix FAIL and post-fix PASS for all HF7 repro/diagnostic tests.
+
+## Hard Gates (Plan 10-HF6, historical baseline)
 - H6-1 LockdownA-AreaDrop-Repro-Gate: deterministic failing test reproduces browser-specific drop (`Play Area 1` + `Bunker` in Chrome vs `Play Area 1` only in Firefox/mobile-class).
 - H6-2 Merge-Lineage-Diagnostics-Gate: executable diagnostics trace canonical source merge lineage (`saved profile`, `defaults`, `imported payload`) and identify first-drop origin.
 - H6-3 Fallback-Replacement-Repro-Gate: deterministic failing test reproduces fallback/default replacement of valid multi-area subset states.
@@ -91,15 +105,15 @@
 - G7 Non-Regression-Gate: stop/clear-all/global flows and `/output/final` behavior remain unchanged.
 
 ## Strict Regression Matrix
-- HF6-LockdownA-AreaDrop-Repro-Test: deterministic pre-fix FAIL captures `Bunker` drop on Firefox/mobile-class while Chrome keeps both areas.
-- HF6-Merge-Lineage-Diagnostics-Test: executable trace verifies canonical source merge retains all valid areas and pinpoints first-drop failure when broken.
-- HF6-Fallback-Replacement-Repro-Test: deterministic pre-fix FAIL captures default/fallback area replacing valid multi-area subset payloads.
-- HF6-AreaCount-Parity-Test: per-board `areaCount` is identical on Chrome/Firefox/mobile-class Chrome.
-- HF6-AreaIdSet-Parity-Test: per-board canonical `areaIdSet` is identical on Chrome/Firefox/mobile-class Chrome.
-- HF6-Control-Final-Set-Parity-Test: control-view and `/output/final` consume identical canonical play-area sets under identical lifecycle state.
-- HF6-Lifecycle-Parity-Test: startup/reload/default-apply/board-switch keep deterministic canonical set retention.
-- HF6-Imported-MultiArea-Regression-Test: imported boards + multi-area boards stay stable across save/reload/default-apply/board-switch/final-output.
-- HF6-Fail-To-Pass-Proof-Test: identical HF6 suite captured as FAIL pre-fix and PASS post-fix.
+- HF7-CleanStorage-Missing-PlayArea-Repro-Test: deterministic pre-fix FAIL captures profile-loss/default fallback after clean local storage startup.
+- HF7-Extraction-Independent-From-Loaded-Boards-Test: executable diagnostics prove extraction path is independent from currently loaded board IDs.
+- HF7-Migration-Retains-Unknown-Board-Keys-Test: deterministic pre-fix FAIL captures migration dropping unknown/imported board keys.
+- HF7-Lifecycle-MultiArea-Retention-Test: startup/default-apply/reload keep deterministic canonical multi-area profile retention.
+- HF7-AreaCount-Parity-Test: per-board `areaCount` is identical on Chrome/Firefox/mobile-class Chrome.
+- HF7-AreaIdSet-Parity-Test: per-board canonical `areaIdSet` is identical on Chrome/Firefox/mobile-class Chrome.
+- HF7-Control-Final-Set-Parity-Test: control-view and `/output/final` consume identical canonical play-area sets under identical lifecycle state.
+- HF7-Imported-MultiArea-Regression-Test: imported boards + multi-area boards stay stable across clean-start/save/reload/default-apply/board-switch/final-output.
+- HF7-Fail-To-Pass-Proof-Test: identical HF7 suite captured as FAIL pre-fix and PASS post-fix.
 - HF3-Symptom-Repro-LockdownA-FirefoxMobile-Test: deterministic pre-fix FAIL reproduces Lockdown A polygon-apply mismatch in Firefox/mobile-class path.
 - HF3-Symptom-Repro-Defaults-Override-Test: deterministic pre-fix FAIL reproduces unexpected default polygons after defaults-apply.
 - HF3-Symptom-Repro-Final-Black-Or-Rectangle-Test: deterministic pre-fix FAIL reproduces black/fallback rectangle on `/output/final` with valid polygons.
@@ -139,10 +153,9 @@
 - After P10-HF4-T1..T4: runtime panel exposure + ownership unmount violations are reproducible and diagnostics are active.
 - After P10-HF4-T5..T7: ownership applicability and ship-clip validity parity fixes are merged with deterministic checks.
 - After P10-HF4-T8..T10: Firefox/Chrome parity plus canonical no-invalid-default fallback gates are PASS with full artifact sync.
-- After P10-HF6-T1..T3: area-drop and fallback-replacement repros are RED; merge-lineage diagnostics are active.
-- After P10-HF6-T4..T6: area-count/id-set browser parity and control/final set parity assertions are active and enforceable.
-- After P10-HF6-T7..T8: generic root-cause + fallback-guard fix is merged and deterministic multi-area retention is stable.
-- After P10-HF6-T9..T10: browser parity plus imported/multi-area matrices are PASS with explicit FAIL->PASS proof and full artifact sync.
+- After P10-HF7-T1..T3: clean-start profile-loss and unknown-key migration-drop repros are RED; extraction diagnostics are active.
+- After P10-HF7-T4..T6: extraction/migration hardening is merged and lifecycle multi-area retention is deterministic.
+- After P10-HF7-T7..T8: browser parity plus imported/multi-area matrices (with clean-start lanes) are PASS with explicit FAIL->PASS proof and full artifact sync.
 - After P10-HF1-T1..T3: blackout root-cause and final-render continuity/co-render fix are stable.
 - After P10-HF1-T4..T6: all-board non-regression PASS and full artifact sync are complete.
 - After P10-T1..T2: Settings sub-tab IA and navigation shell are functionally stable.
@@ -153,7 +166,7 @@
 ## Definition of Done
 - P10-HF3 hard gates are PASS: exact field symptom set is reproduced pre-fix and closed post-fix.
 - P10-HF4 hard gates are PASS: runtime module exposure, ownership applicability checks, ship-clip validity parity, browser parity, and canonical no-invalid-default fallback are closed with FAIL->PASS proof.
-- P10-HF6 hard gates are PASS: browser-specific area-drop/fallback-replacement drift is reproduced pre-fix and closed post-fix with area-count/id-set parity, control/final set parity, and imported/multi-area matrix closure.
+- P10-HF7 hard gates are PASS: clean-start profile-loss/key-drop drift is reproduced pre-fix and closed post-fix with extraction/migration hardening, lifecycle retention, area-count/id-set parity, control/final set parity, and imported/multi-area matrix closure.
 - Executable diagnostics (not static-only checks) enforce lifecycle, board-switch/final-contract, and canonical source selection assertions.
 - Executable diagnostics (not static-only checks) enforce runtime-panel exposure, ownership applicability, ship-clip validity, and Firefox/Chrome parity assertions.
 - Executable diagnostics (not static-only checks) enforce Firefox headless + Chrome/mobile parity traces for source-merge lineage, area-count/id-set parity, and fallback decisions.

@@ -5,10 +5,11 @@
 - Plan 10-HF3 execution wave is complete and PASS.
 - Plan 10-HF4 execution wave is complete and PASS.
 - Plan 10-HF5 historical PASS is field-invalidated by concrete follow-up repro.
-- Plan 10-HF6 mandatory P0 hotfix wave is completed PASS.
+- Plan 10-HF6 historical PASS is field-invalidated by clean-local-storage profile-loss repro.
+- Plan 10-HF7 execution wave is complete and PASS.
 
 ## Critical Priority Override
-- HF6 closure is complete; Plan 10-1 may proceed.
+- Plan 10-1 is unblocked after HF7 PASS closure.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -17,21 +18,19 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 10-HF6 (binding, hard-gated wave)
-1. P0 first: P10-HF6-T1 (deterministic RED repro for `Nemesis Lockdown Board A` area drop: Chrome `Play Area 1` + `Bunker` vs Firefox/mobile-class `Play Area 1` only).
-2. P0 next: P10-HF6-T2 (executable merge-lineage diagnostics for `saved profile`/`defaults`/`imported payload` source path).
-3. P0 next: P10-HF6-T3 (deterministic RED repro for fallback/default replacement over valid multi-area subset payloads).
-4. P0 next: P10-HF6-T4 + P10-HF6-T5 (explicit browser parity assertions for per-board `areaCount` and `areaIdSet`).
-5. P0 next: P10-HF6-T6 (explicit set parity assertions between control-view and `/output/final`).
-6. P0 next: P10-HF6-T7 (generic root-cause fix in merge/resolver path; no board-specific branch).
-7. P0 next: P10-HF6-T8 (fallback guard: default area cannot replace valid subset multi-area data).
-8. P0 next: P10-HF6-T9 (Firefox/Chrome/mobile-class parity matrix + imported-board/multi-area strict non-regression matrix).
-9. P0 closure: P10-HF6-T10 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
+## Priority Execution - Plan 10-HF7 (binding, hard-gated wave)
+1. P0 first: P10-HF7-T1 (deterministic RED repro for clean-local-storage startup profile-loss/default-play-area fallback).
+2. P0 next: P10-HF7-T2 (executable diagnostics for extraction coupling to loaded board IDs).
+3. P0 next: P10-HF7-T3 (deterministic RED repro for unknown-board-key drop in migration).
+4. P0 next: P10-HF7-T4 + P10-HF7-T5 (catalog-independent extraction and migration retention fix for unknown/imported keys).
+5. P0 next: P10-HF7-T6 (lifecycle assertions for deterministic multi-area retention across startup/default-apply/reload).
+6. P0 next: P10-HF7-T7 (Firefox/Chrome/mobile-class parity matrix + imported-board/multi-area strict non-regression matrix with clean-start lanes).
+7. P0 closure: P10-HF7-T8 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
 
 ## Previously Closed Execution - Plan 10-HF1
 1. P10-HF1-T1..T6 are complete and PASS (board-specific blackout closure baseline remains valid).
 
-## Priority Execution - Plan 10-1 (after 10-HF6 PASS)
+## Priority Execution - Plan 10-1
 1. P0 first: P10-T1 (define Settings IA/sub-tab grouping and ownership map).
 2. P0 next: P10-T2 (implement Settings sub-tab navigation shell with stable state retention).
 3. P0 next: P10-T3 (implement shared quick-mode state machine with explicit active-mode UX).
@@ -54,9 +53,9 @@
 2. P2 closure: P10-T17 (preset safety hardening and deterministic behavior checks).
 
 ## Gate Rules
-- Do not start Plan 10-1 before full PASS of Plan 10-HF6 repro, merge-lineage diagnostics, root-cause-fix, fallback-guard, browser/surface parity, imported+multi-area regression, and FAIL->PASS proof gates.
-- Do not start P10-HF6-T7/P10-HF6-T8 before corresponding RED repro + diagnostics gates are closed.
-- Do not close Plan 10-HF6 without explicit FAIL->PASS evidence for the same tests.
+- Do not start Plan 10-1 before full PASS of Plan 10-HF7 clean-start repro, extraction diagnostics, migration-retention fix, lifecycle retention gates, browser/surface parity, imported+multi-area regression, and FAIL->PASS proof gates.
+- Do not start P10-HF7-T4/P10-HF7-T5 before corresponding RED repro + diagnostics gates are closed.
+- Do not close Plan 10-HF7 without explicit FAIL->PASS evidence for the same tests.
 - Do not start P10-T4..T7 before P10-T1..T3 stabilize IA + mode-state ownership.
 - Do not start P10-T11 before P10-T8..T10 close mobile ergonomics + explicit feedback gates.
 - Do not progress to 10-2 before full PASS of activation/deactivation/clear burst matrices and sync integrity checks.
@@ -101,3 +100,12 @@
   - Fallback guard blocks default replacement when valid subset/multi-area canonical data exists.
   - Browser + imported/multi-area lifecycle matrix is PASS (`P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`).
   - FAIL->PASS proof is closed (`P10-HF6-T10-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.
+- HF6 field-invalidated follow-up (new blocker for HF7):
+  - Root cause confirmed: board-profile extraction/migration depended on currently loaded board catalog IDs.
+  - If a board profile key is not in that loaded list yet (for example imported/multi-area boards), migration can drop that key and force default play-area fallback.
+  - Plan 10-1 is re-blocked until HF7 closes with extraction/migration hardening, lifecycle determinism, and FAIL->PASS evidence.
+- Plan 10-HF7 completed with PASS closure evidence:
+  - RED repros for clean-start profile-loss, extraction coupling and unknown-key migration drop were captured first.
+  - Extraction is now catalog-independent and migration retains unknown/imported board keys with multi-area selections.
+  - Startup/default-apply/reload lifecycle retention is deterministic and browser/imported clean-start parity matrix is PASS.
+  - FAIL->PASS proof is closed (`P10-HF7-T8-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.

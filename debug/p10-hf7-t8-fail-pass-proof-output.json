@@ -1,0 +1,41 @@
+{
+  "suite": "p10-hf7-t8-fail-pass-proof",
+  "executedAt": "2026-04-04T11:39:04.430Z",
+  "failEvidence": [
+    {
+      "path": ".planning/phases/phase-10/P10-HF7-T1-CLEAN-START-PROFILE-LOSS-REPRO.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF7-T2-EXTRACTION-COUPLING-DIAGNOSTICS.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF7-T3-UNKNOWN-KEY-MIGRATION-DROP-REPRO.md",
+      "hasFailMarker": true
+    }
+  ],
+  "passEvidence": [
+    {
+      "path": "debug/p10-hf7-t4-catalog-independent-extraction-output.json",
+      "suite": "p10-hf7-t4-catalog-independent-extraction",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf7-t5-unknown-key-retention-output.json",
+      "suite": "p10-hf7-t5-unknown-key-retention",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf7-t6-lifecycle-multiarea-retention-output.json",
+      "suite": "p10-hf7-t6-lifecycle-multiarea-retention",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf7-t7-browser-imported-cleanstart-regression-output.json",
+      "suite": "p10-hf7-t7-browser-imported-cleanstart-regression",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS"
+}

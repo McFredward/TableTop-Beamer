@@ -100,6 +100,11 @@
 - Impact: Critical.
 - Mitigation: shared canonical set resolver plus executable control-vs-final set parity assertions.
 
+## R0x Board-profile extraction/migration coupled to loaded board IDs
+- Risk: board-profile candidate extraction and migration depend on currently loaded board catalog IDs; unknown keys are dropped before their board is loaded.
+- Impact: Critical.
+- Mitigation: extract candidates independent of loaded catalog IDs, retain unknown keys in migration, and enforce clean-start lifecycle retention tests for startup/default-apply/reload.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -164,3 +169,4 @@
 - R0k/R0l/R0m/R0n/R0o are mitigated in HF4 via executable diagnostics + root-cause fixes (`P10-HF4-T1..T10`).
 - R0p/R0q/R0r/R0s were provisionally mitigated in HF5 but are reopened by concrete field repro; closure is reassigned to HF6.
 - R0t/R0u/R0v/R0w are mitigated in HF6 via deterministic RED->GREEN evidence (area-drop repro, merge-lineage diagnostics, fallback-guard fix, browser/surface parity matrix).
+- R0x is mitigated in HF7 via catalog-independent extraction, unknown-key migration retention, lifecycle assertions, and FAIL->PASS closure evidence.
