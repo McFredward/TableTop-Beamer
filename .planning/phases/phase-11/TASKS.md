@@ -21,5 +21,14 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF3-T6 [P0] Capture FAIL->PASS evidence proving global animations play fully and audio toggle works correctly.
 - [x] DONE P11-HF3-T7 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
+## Plan 11-HF4 - Critical non-loop global suppression on `/output/final` (execute-ready, hard-gated)
+- [x] DONE P11-HF4-T1 [P0] Build deterministic RED repro: non-loop global triggers are suppressed on `/output/final` while loop globals remain visible.
+- [ ] TODO P11-HF4-T2 [P0] Isolate root-cause lifecycle/trigger path divergence causing one-shot final-output suppression.
+- [ ] TODO P11-HF4-T3 [P0] Implement fix so one-shot globals render on `/output/final` and run full intended duration exactly once.
+- [ ] TODO P11-HF4-T4 [P0] Execute loop-mode non-regression matrix (start, sustain, stop) to confirm no regression.
+- [ ] TODO P11-HF4-T5 [P0] Execute explicit stop/clear non-regression matrix under mixed one-shot + loop sequences.
+- [ ] TODO P11-HF4-T6 [P0] Capture FAIL->PASS evidence for `/output/final` one-shot duration parity versus control.
+- [ ] TODO P11-HF4-T7 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Next wave placeholder
-- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF3 live sessions and prepare 11-2 refinement shortlist.
+- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF4 live sessions and prepare 11-2 refinement shortlist.
