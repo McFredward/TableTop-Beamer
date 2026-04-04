@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF7 (PASS)
+- Last Executed Plan: 10-HF8 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF7-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF8-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,18 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
+- Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
+- Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.
+- HF8-Determinismusregel: play-area loading/apply muss fuer ALLE Boards strikt aus kanonischen gespeicherten Quellen erfolgen, inklusive startup/reload/defaults-apply und ohne board-spezifische Sonderpfade.
+- HF8-Defaultsregel: `Load global defaults` muss board-spezifische kanonische play-areas wieder anwenden (kein global-default-only Overshadow, kein silent fallback rectangle).
+- HF8-Fehlerfeedbackregel: canonical polygon load/apply failures duerfen nie still maskiert werden; UI muss expliziten user-visible Fehler (toast/status) mit board/area/source Kontext zeigen.
+- HF8-Fallbackregel: default fallback polygon ist nur als explizit gemeldeter degraded path erlaubt; silent fallback ohne Operator-Hinweis ist unzulaessig.
+- HF8-Paritaetsregel: control-view und `/output/final` bleiben auf demselben canonical play-area resolver Vertrag mit identischer area-id-set-Ausgabe.
+- Plan-10-HF8 Umsetzung: `Load global defaults` nutzt canonical-first apply; lokale fallback-Polygone ueberschreiben geladene board-spezifische canonical play-areas nicht mehr.
+- Plan-10-HF8 Umsetzung: canonical load/apply degradations erzeugen explizite issue-Signale mit board/source Kontext und werden via status/toast sichtbar statt still maskiert.
+- Plan-10-HF8 Umsetzung: control-view vs `/output/final` parity (`set`, `areaCount`, `areaIdSet`) sowie all-board lifecycle/browser matrix sind PASS (`P10-HF8-T8`, `P10-HF8-T9`).
+- Plan-10-HF8 Umsetzung: FAIL->PASS closure ist dokumentiert (`P10-HF8-T10-FAIL-PASS-PROOF.md`); Plan 10-1 ist erneut freigegeben.
 - Neues P0-Root-Cause-Feedback fuer Phase 10 ist bindend: fehlende Play-Area-Eintraege nach clean local storage entstehen, weil board-profile candidate extraction/migration von aktuell geladenen board-catalog IDs abhaengt.
 - Wenn ein Board-Key (z. B. imported/multi-area board) zu diesem Zeitpunkt nicht in der geladenen Liste ist, kann Migration den Profil-Key verwerfen und auf default play area zurueckfallen.
 - Plan 10-HF6 bleibt historische PASS-Evidenz, ist fuer clean-start Pfade jedoch field-invalidated; Plan 10-HF7 blockiert Plan 10-1 erneut bis FAIL->PASS closure.
