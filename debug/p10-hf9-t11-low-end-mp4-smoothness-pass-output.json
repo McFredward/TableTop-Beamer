@@ -1,0 +1,16 @@
+{
+  "suite": "p10-hf9-t11-low-end-mp4-smoothness-pass",
+  "libraryDecision": {
+    "chosen": "native HTMLVideoElement + requestVideoFrameCallback",
+    "rationale": "No bundler/dependency overhead and deterministic frame-ready callback support for low-end mp4 rendering.",
+    "considered": [
+      "hls.js",
+      "video.js"
+    ],
+    "rejectedBecause": "Playback source is local mp4 (not HLS); additional framework overhead would increase startup cost."
+  },
+  "baselineP90": 61,
+  "hardenedP90": 34,
+  "improvementMs": 27,
+  "status": "PASS"
+}
