@@ -1,0 +1,46 @@
+{
+  "suite": "p10-hf8-t5-canonical-load-recovery",
+  "matrix": [
+    {
+      "boardId": "nemesis-board-a",
+      "expectedSelected": "single-a",
+      "observedSelected": "single-a",
+      "expectedAreaIds": [
+        "single-a"
+      ],
+      "observedAreaIds": [
+        "single-a"
+      ],
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "expectedSelected": "bunker",
+      "observedSelected": "bunker",
+      "expectedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "observedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "expectedSelected": "cargo",
+      "observedSelected": "cargo",
+      "expectedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "observedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "pass": true
+    }
+  ],
+  "result": "PASS"
+}

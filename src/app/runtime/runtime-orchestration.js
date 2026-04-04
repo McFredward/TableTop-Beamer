@@ -744,6 +744,57 @@ function reportActionError(statusText, {
   showToast(toastText, { kind: "error", dedupeKey });
 }
 
+function collectCanonicalPlayAreaIssuesFromProfiles(boardProfilesById, { sourceLabel = "unknown" } = {}) {
+  const issues = [];
+  if (!boardProfilesById || typeof boardProfilesById !== "object") {
+    return issues;
+  }
+  for (const [boardId, profile] of Object.entries(boardProfilesById)) {
+    const sourcePlayAreas = Array.isArray(profile?.playAreas) ? profile.playAreas : [];
+    if (sourcePlayAreas.length === 0) {
+      continue;
+    }
+    const renderable = polygonContract?.extractRenderablePlayAreaPolygons
+      ? polygonContract.extractRenderablePlayAreaPolygons(sourcePlayAreas, {
+        fallbackPolygon: SHIP_POLYGON_DEFAULT,
+        allowDefaultFallbackWhenEmpty: false,
+      })
+      : [];
+    if (!Array.isArray(renderable) || renderable.length === 0) {
+      issues.push({
+        code: "canonical-play-areas-invalid",
+        boardId,
+        source: sourceLabel,
+        detail: "No renderable canonical play-area polygon found in source payload",
+      });
+    }
+  }
+  return issues;
+}
+
+function reportCanonicalPolygonIssues(issues, { sourceLabel = "runtime" } = {}) {
+  if (!Array.isArray(issues) || issues.length === 0) {
+    return;
+  }
+  const first = issues[0] ?? {};
+  const boardId = String(first.boardId || state.boardId || "unknown-board");
+  const source = String(first.source || sourceLabel || "unknown-source");
+  const detail = String(first.detail || first.code || "canonical load/apply failed");
+  const statusText = `Status: Canonical polygon load/apply warning (${boardId} | source=${source}) - ${detail}`;
+  if (triggerFeedback) {
+    triggerFeedback.textContent = statusText;
+  }
+  for (const issue of issues) {
+    const issueBoard = String(issue?.boardId || boardId);
+    const issueSource = String(issue?.source || source);
+    const issueDetail = String(issue?.detail || issue?.code || detail);
+    showToast(`Canonical polygon issue: ${issueBoard} (${issueSource}) - ${issueDetail}`, {
+      kind: "error",
+      dedupeKey: `canonical-polygon-issue:${issueBoard}:${issueSource}:${issue?.code || "unknown"}`,
+    });
+  }
+}
+
 function normalizeSnapshotEnvelope(payload) {
   const session = payload?.session;
   const version = Number.isFinite(Number(session?.version)) ? Number(session.version) : null;
@@ -1279,6 +1330,9 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     if (polygonHydration && typeof polygonHydration === "object") {
       state.playAreasByBoard = polygonHydration.playAreasByBoard ?? state.playAreasByBoard;
       state.selectedPlayAreaIdByBoard = polygonHydration.selectedPlayAreaIdByBoard ?? state.selectedPlayAreaIdByBoard;
+      reportCanonicalPolygonIssues(polygonHydration.issues, {
+        sourceLabel: "live-snapshot",
+      });
       state.shipPolygonsByBoard = Object.fromEntries(
         BOARDS.map((board) => [board.id, normalizeShipPolygon(getSelectedPlayArea(board.id)?.polygon ?? SHIP_POLYGON_DEFAULT)]),
       );
@@ -3517,15 +3571,19 @@ async function fetchGlobalDefaultsPayload() {
 function applyGlobalDefaultsPayloadToState(payload) {
   const boardCandidate = extractBoardProfilesCandidate(payload);
   if (boardCandidate) {
-    const localProfiles = buildBoardProfilesFromState();
     const migratedProfiles = buildMigratedBoardProfiles(
       boardCandidate,
       state.hitareaCalibrationByBoard,
       state.roomGeometryByBoard,
       state.specialPolygonsByBoard,
     );
-    const mergedWithPolygonPrecedence = applyPolygonPrecedence(migratedProfiles, localProfiles);
-    applyBoardProfilesToState(mergedWithPolygonPrecedence);
+    const canonicalIssues = collectCanonicalPlayAreaIssuesFromProfiles(boardCandidate, {
+      sourceLabel: "global-defaults",
+    });
+    applyBoardProfilesToState(migratedProfiles);
+    reportCanonicalPolygonIssues(canonicalIssues, {
+      sourceLabel: "global-defaults",
+    });
   }
 
   if (payload?.audio && typeof payload.audio === "object") {
