@@ -454,6 +454,20 @@ h1 {
   background: linear-gradient(180deg, rgba(20, 38, 54, 0.98), rgba(12, 23, 34, 0.98));
 }
 
+.quick-mode-panel {
+  border-color: rgba(124, 224, 198, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(124, 224, 198, 0.2);
+}
+
+.quick-mode-buttons button {
+  min-height: 3rem;
+  font-weight: 600;
+}
+
+.quick-mode-panel.is-busy {
+  box-shadow: inset 0 0 0 1px rgba(124, 224, 198, 0.25), 0 0 0.75rem rgba(93, 230, 199, 0.22);
+}
+
 #running-animations {
   max-height: min(36vh, 24rem);
   overflow-y: auto;
@@ -781,6 +795,25 @@ button.danger.is-armed {
     position: static;
     top: auto;
     contain: none;
+  }
+
+  #control-panel[data-active-view="dashboard"] .quick-mode-panel {
+    position: sticky;
+    bottom: 0.35rem;
+    z-index: 10;
+    margin: 0 -0.08rem;
+    background: linear-gradient(180deg, rgba(14, 30, 42, 0.98), rgba(10, 23, 34, 0.98));
+    border-color: rgba(124, 224, 198, 0.65);
+  }
+
+  .quick-mode-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .quick-mode-buttons button {
+    min-height: 3.35rem;
+    font-size: 0.95rem;
   }
 
   #running-animations {

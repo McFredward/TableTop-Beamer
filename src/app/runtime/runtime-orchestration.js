@@ -5040,12 +5040,39 @@ function isElementRendered(element) {
   return rect.width > 0 && rect.height > 0;
 }
 
+function measureRenderedHeight(element) {
+  if (!isElementRendered(element)) {
+    return 0;
+  }
+  return Math.max(0, Math.round(element.getBoundingClientRect().height));
+}
+
 function syncMobileStickyOffsets() {
   if (!controlPanel) {
     return;
   }
-  controlPanel.style.setProperty("--mobile-projection-offset", "0px");
-  controlPanel.style.setProperty("--mobile-nav-offset", "0px");
+  let navOffset = 0;
+  if (isMobileViewport() && state.uiView === "dashboard") {
+    navOffset += measureRenderedHeight(primaryViewSwitch);
+    navOffset += measureRenderedHeight(dashboardStickyShell);
+  }
+  controlPanel.style.setProperty("--mobile-projection-offset", `${navOffset}px`);
+  controlPanel.style.setProperty("--mobile-nav-offset", `${navOffset}px`);
+  if (projectionArea) {
+    projectionArea.style.scrollMarginTop = `${Math.max(0, navOffset) + 8}px`;
+  }
+}
+
+function preserveMobileBoardOverview(context = "quick-mode") {
+  if (!isMobileViewport() || state.uiView !== "dashboard") {
+    return;
+  }
+  setDashboardZone("trigger");
+  syncMobileStickyOffsets();
+  const projectionOk = runMobileProjectionVisibilityGuard({ silent: true, context });
+  if (!projectionOk) {
+    triggerFeedback.textContent = "Status: Mobile board overview guard detected control overlap";
+  }
 }
 
 function ensurePrimaryNavigationVisible() {
@@ -5887,6 +5914,7 @@ function reportQuickModeTapOutcome(mode, outcome, roomId) {
 
 function handleQuickModeRoomTap(roomId) {
   const mode = normalizeQuickMode(state.quickMode?.mode);
+  preserveMobileBoardOverview("quick-mode-room-tap");
   if (!markQuickModeRoomInflight(roomId)) {
     triggerFeedback.textContent = "Status: Quick mode room action already in flight";
     return;
