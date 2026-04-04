@@ -223,6 +223,7 @@ const outsideModeFieldMount = createConditionalFieldMountSlot(outsideModeField, 
 const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirectionField, "outside-direction");
 const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? null;
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
+const dashboardGlobalLoopUntilStopInput = document.querySelector("#dashboard-global-loop-until-stop");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -602,6 +603,7 @@ const QUICK_MODE_LABELS = {
   deactivate: "DEACTIVATE",
   clear: "CLEAR",
 };
+const GLOBAL_ONE_SHOT_DURATION_SEC = 6;
 
 const {
   rememberAppliedMutationId,
@@ -12981,10 +12983,13 @@ document.addEventListener("click", (event) => {
   }
   recordTriggerIntent();
   setDashboardZone("trigger");
-  const mode = type === "ambient-drift" || type === "ash-fall" || type === "hull-flicker" || type === "outside-space"
-    ? null
-    : 6;
-  upsertGlobalAnimation(type, mode);
+  const loopUntilStopped = Boolean(dashboardGlobalLoopUntilStopInput?.checked);
+  upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped });
+});
+
+dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
+  const modeLabel = dashboardGlobalLoopUntilStopInput.checked ? "loop until stop" : "one-shot";
+  triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel}`;
 });
 
 stopAllButton.addEventListener("click", () => {
