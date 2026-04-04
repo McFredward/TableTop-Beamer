@@ -1,0 +1,30 @@
+{
+  "suite": "p10-hf9-t9-fairness-no-drop-pass",
+  "firstNoisyIndex": 4,
+  "noDrop": true,
+  "order": [
+    "stop-1",
+    "clear-1",
+    "trigger-1",
+    "trigger-2",
+    "context-1",
+    "trigger-3",
+    "trigger-4",
+    "context-2",
+    "trigger-5",
+    "trigger-6",
+    "context-3",
+    "trigger-7",
+    "trigger-8",
+    "context-4",
+    "trigger-9",
+    "trigger-10",
+    "context-5",
+    "trigger-11",
+    "trigger-12",
+    "context-6",
+    "context-7",
+    "context-8"
+  ],
+  "status": "PASS"
+}

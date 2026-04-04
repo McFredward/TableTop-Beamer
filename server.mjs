@@ -4,6 +4,11 @@ import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  createFairQueueState,
+  dequeueFairMutation,
+  createApplySliceController,
+} from "./src/live/hf9-command-pipeline.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -22,10 +27,6 @@ const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
 const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
-const FINAL_STREAM_SCHEMA = "tt-beamer.final-stream-frame.v1";
-const FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA = "tt-beamer.final-stream-visual-payload.v1";
-const FINAL_STREAM_MODE_STREAM = "stream";
-const FINAL_STREAM_MODE_VALUES = new Set([FINAL_STREAM_MODE_STREAM]);
 
 const liveSessionState = {
   version: 0,
@@ -37,239 +38,9 @@ const liveSessionState = {
     selectedBoard: null,
     selectedLayout: null,
     outsideFxByBoard: {},
-    finalOutputMode: FINAL_STREAM_MODE_STREAM,
     runtime: null,
   },
 };
-
-const finalStreamComposerState = {
-  frameId: 0,
-  lastFrameAt: null,
-  lastSourceVersion: 0,
-  latestFrame: null,
-  latestVideoFrame: null,
-};
-
-const finalStreamProducerState = {
-  timerId: null,
-  watchdogId: null,
-  running: false,
-  composing: false,
-  pendingCompose: false,
-  latestBroadcastVersion: 0,
-  latestComposeError: null,
-  latestComposeErrorAt: null,
-  recoveries: 0,
-  ticks: 0,
-  lastTickAt: null,
-  pendingSnapshot: null,
-  pendingSourceVersion: 0,
-};
-
-const finalStreamLatencyGateState = {
-  pendingByVersion: new Map(),
-  samplesMs: [],
-  hardLimitMs: 1200,
-  lastResolvedAt: null,
-  lastResolvedVersion: 0,
-  maxObservedMs: 0,
-};
-
-const boardCatalogCache = {
-  loadedAt: 0,
-  ttlMs: 10_000,
-  runtimeBoards: [],
-};
-
-const finalStreamClients = new Map();
-const finalVideoClients = new Map();
-const FINAL_STREAM_PUSH_INTERVAL_MS = 250;
-const FINAL_STREAM_WATCHDOG_INTERVAL_MS = 1500;
-const FINAL_VIDEO_MULTIPART_BOUNDARY = "tt-beamer-final-video-boundary";
-
-function writeFinalStreamHeartbeat(res) {
-  writeSseEvent(res, "heartbeat", {
-    ts: new Date().toISOString(),
-    version: Number(liveSessionState.version ?? 0),
-  });
-}
-
-function broadcastFinalStreamHeartbeat() {
-  for (const [clientId, entry] of finalStreamClients.entries()) {
-    if (!entry || entry.closed || entry.res.writableEnded) {
-      removeFinalStreamClient(clientId);
-      continue;
-    }
-    writeFinalStreamHeartbeat(entry.res);
-  }
-}
-
-function broadcastFinalStreamFrame(frame) {
-  for (const [clientId, entry] of finalStreamClients.entries()) {
-    if (!entry || entry.closed || entry.res.writableEnded) {
-      removeFinalStreamClient(clientId);
-      continue;
-    }
-    entry.lastVersion = Number(frame?.sourceVersion ?? entry.lastVersion ?? 0);
-    writeSseEvent(entry.res, "frame", frame);
-  }
-}
-
-function writeFinalVideoMultipartFrame(res, svgFrame) {
-  if (!res || res.writableEnded) {
-    return;
-  }
-  const payload = Buffer.from(svgFrame, "utf8");
-  res.write(`--${FINAL_VIDEO_MULTIPART_BOUNDARY}\r\n`);
-  res.write("Content-Type: image/svg+xml; charset=utf-8\r\n");
-  res.write(`Content-Length: ${payload.length}\r\n\r\n`);
-  res.write(payload);
-  res.write("\r\n");
-}
-
-function removeFinalVideoClient(clientId) {
-  const entry = finalVideoClients.get(clientId);
-  if (!entry) {
-    return;
-  }
-  try {
-    entry.res.end();
-  } catch {
-    // ignore close race
-  }
-  finalVideoClients.delete(clientId);
-}
-
-function broadcastFinalVideoFrame(frame) {
-  const svgFrame = buildFinalVideoSvgFrame(frame);
-  finalStreamComposerState.latestVideoFrame = svgFrame;
-  for (const [clientId, entry] of finalVideoClients.entries()) {
-    if (!entry || entry.closed || entry.res.writableEnded) {
-      removeFinalVideoClient(clientId);
-      continue;
-    }
-    writeFinalVideoMultipartFrame(entry.res, svgFrame);
-  }
-}
-
-function broadcastFinalStreamFault(message) {
-  for (const [clientId, entry] of finalStreamClients.entries()) {
-    if (!entry || entry.closed || entry.res.writableEnded) {
-      removeFinalStreamClient(clientId);
-      continue;
-    }
-    writeSseEvent(entry.res, "stream-fault", {
-      ts: new Date().toISOString(),
-      message,
-    });
-  }
-}
-
-async function composeAndBroadcastFinalStreamFrame({ force = false } = {}) {
-  if (finalStreamProducerState.composing) {
-    finalStreamProducerState.pendingCompose = true;
-    return;
-  }
-  finalStreamProducerState.composing = true;
-  finalStreamProducerState.ticks += 1;
-  finalStreamProducerState.lastTickAt = new Date().toISOString();
-  try {
-    const snapshotFromRequest = finalStreamProducerState.pendingSnapshot;
-    finalStreamProducerState.pendingSnapshot = null;
-    const requestedSourceVersion = Number(finalStreamProducerState.pendingSourceVersion ?? 0);
-    finalStreamProducerState.pendingSourceVersion = 0;
-    const snapshot = snapshotFromRequest ?? cloneJson(liveSessionState.snapshot);
-    const currentVersion = Number(liveSessionState.version ?? 0);
-    const snapshotVersion = Math.max(requestedSourceVersion, currentVersion);
-    const latestFrameVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
-    const subscriberCount = finalStreamClients.size + finalVideoClients.size;
-    const needsCompose =
-      force ||
-      subscriberCount === 0 ||
-      snapshotVersion > latestFrameVersion ||
-      !finalStreamComposerState.latestFrame ||
-      Boolean(snapshotFromRequest);
-    if (needsCompose) {
-      const frame = await composeFinalStreamFrame(snapshot, { sourceVersion: snapshotVersion });
-      finalStreamProducerState.latestBroadcastVersion = Number(frame?.sourceVersion ?? snapshotVersion);
-      finalStreamProducerState.latestComposeError = null;
-      finalStreamProducerState.latestComposeErrorAt = null;
-      broadcastFinalStreamFrame(frame);
-      broadcastFinalVideoFrame(frame);
-      resolveMutationLatencyGate(Number(frame?.sourceVersion ?? snapshotVersion));
-      return;
-    }
-    broadcastFinalStreamHeartbeat();
-  } catch (error) {
-    finalStreamProducerState.latestComposeError = error instanceof Error ? error.message : "compose-failed";
-    finalStreamProducerState.latestComposeErrorAt = new Date().toISOString();
-    finalStreamProducerState.recoveries += 1;
-    logErrorEvent("final-stream-compose-error", finalStreamProducerState.latestComposeError, {
-      clients: finalStreamClients.size,
-      version: Number(liveSessionState.version ?? 0),
-      recoveries: finalStreamProducerState.recoveries,
-    });
-    broadcastFinalStreamFault(finalStreamProducerState.latestComposeError);
-  } finally {
-    finalStreamProducerState.composing = false;
-    if (finalStreamProducerState.pendingCompose) {
-      finalStreamProducerState.pendingCompose = false;
-      setImmediate(() => {
-        void composeAndBroadcastFinalStreamFrame({ force: true });
-      });
-    }
-  }
-}
-
-function ensureFinalStreamProducerWatchdog() {
-  if (finalStreamProducerState.watchdogId) {
-    return;
-  }
-  finalStreamProducerState.watchdogId = setInterval(() => {
-    const timerMissing = finalStreamProducerState.running && !finalStreamProducerState.timerId;
-    if (timerMissing) {
-      finalStreamProducerState.recoveries += 1;
-      finalStreamProducerState.timerId = setInterval(() => {
-        void composeAndBroadcastFinalStreamFrame();
-      }, FINAL_STREAM_PUSH_INTERVAL_MS);
-    }
-    if (finalStreamProducerState.composing) {
-      return;
-    }
-    const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
-    if (lastFrameAtMs <= 0) {
-      void composeAndBroadcastFinalStreamFrame({ force: true });
-      return;
-    }
-    const silentWindow = Date.now() - lastFrameAtMs;
-    if (silentWindow > FINAL_STREAM_PUSH_INTERVAL_MS * 6) {
-      finalStreamProducerState.recoveries += 1;
-      void composeAndBroadcastFinalStreamFrame({ force: true });
-    }
-  }, FINAL_STREAM_WATCHDOG_INTERVAL_MS);
-}
-
-function ensureFinalStreamProducerRunning() {
-  if (finalStreamProducerState.running) {
-    return;
-  }
-  finalStreamProducerState.running = true;
-  ensureFinalStreamProducerWatchdog();
-  finalStreamProducerState.timerId = setInterval(() => {
-    void composeAndBroadcastFinalStreamFrame();
-  }, FINAL_STREAM_PUSH_INTERVAL_MS);
-}
-
-function requestFinalStreamCompose(reason = "mutation", { snapshot = null, sourceVersion = null } = {}) {
-  void reason;
-  const nextSnapshot = snapshot ? cloneJson(snapshot) : cloneJson(liveSessionState.snapshot);
-  finalStreamProducerState.pendingSnapshot = nextSnapshot;
-  finalStreamProducerState.pendingSourceVersion = Number(sourceVersion ?? liveSessionState.version ?? 0);
-  ensureFinalStreamProducerRunning();
-  setImmediate(() => {
-    void composeAndBroadcastFinalStreamFrame({ force: true });
-  });
-}
 
 const liveClients = new Map();
 const processedMutations = new Map();
@@ -286,7 +57,7 @@ const LIVE_MUTATION_TYPES = new Set([
   "outside-update",
   "context-update",
 ]);
-const CONTROL_CRITICAL_MUTATIONS = new Set(["trigger-room", "trigger-global", "stop-animation", "clear-all"]);
+const CONTROL_CRITICAL_MUTATIONS = new Set(["stop-animation", "clear-all"]);
 const NON_COALESCING_MUTATIONS = new Set([
   "trigger-global",
   "trigger-room",
@@ -297,6 +68,7 @@ const NON_COALESCING_MUTATIONS = new Set([
 ]);
 const LIVE_QUEUE_MAX_SIZE = 512;
 const LIVE_COALESCE_CLASS_MAX_SIZE = 96;
+const LIVE_APPLY_SLICE_BUDGET_MS = 8;
 
 const liveMutationQueue = {
   control: [],
@@ -313,6 +85,11 @@ const liveMutationQueue = {
     "config-noisy": 0,
   },
 };
+const liveFairQueueState = createFairQueueState();
+const liveApplySliceController = createApplySliceController({
+  budgetMs: LIVE_APPLY_SLICE_BUDGET_MS,
+  now: () => Date.now(),
+});
 
 const liveTelemetry = {
   hops: {
@@ -413,35 +190,6 @@ function recordLiveHopSample(bucket, value) {
   }
 }
 
-function markMutationLatencyGate(version) {
-  const normalizedVersion = Number(version);
-  if (!Number.isFinite(normalizedVersion) || normalizedVersion <= 0) {
-    return;
-  }
-  finalStreamLatencyGateState.pendingByVersion.set(normalizedVersion, Date.now());
-}
-
-function resolveMutationLatencyGate(sourceVersion) {
-  const normalizedVersion = Number(sourceVersion);
-  if (!Number.isFinite(normalizedVersion) || normalizedVersion <= 0) {
-    return;
-  }
-  const now = Date.now();
-  for (const [pendingVersion, acceptedAt] of finalStreamLatencyGateState.pendingByVersion.entries()) {
-    if (pendingVersion > normalizedVersion) {
-      continue;
-    }
-    const latencyMs = Math.max(0, now - acceptedAt);
-    finalStreamLatencyGateState.pendingByVersion.delete(pendingVersion);
-    recordLiveHopSample(finalStreamLatencyGateState.samplesMs, latencyMs);
-    finalStreamLatencyGateState.lastResolvedAt = new Date(now).toISOString();
-    finalStreamLatencyGateState.lastResolvedVersion = pendingVersion;
-    if (latencyMs > finalStreamLatencyGateState.maxObservedMs) {
-      finalStreamLatencyGateState.maxObservedMs = latencyMs;
-    }
-  }
-}
-
 function upsertClientTelemetry(clientId, role) {
   if (!liveTelemetry.perClient.has(clientId)) {
     liveTelemetry.perClient.set(clientId, {
@@ -473,49 +221,6 @@ function normalizeNonEmptyString(value) {
   }
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-}
-
-function normalizeFinalStreamMode(value, fallback = FINAL_STREAM_MODE_STREAM) {
-  const normalized = normalizeNonEmptyString(value)?.toLowerCase() ?? "";
-  if (FINAL_STREAM_MODE_VALUES.has(normalized)) {
-    return normalized;
-  }
-  return FINAL_STREAM_MODE_STREAM;
-}
-
-function normalizeUnitInterval(value, fallback = 1) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
-  return Math.max(0, Math.min(1, numeric));
-}
-
-function normalizePositiveNumber(value, fallback = 1) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return fallback;
-  }
-  return numeric;
-}
-
-function toRoomLookup(board) {
-  const roomLookup = {};
-  if (!Array.isArray(board?.rooms)) {
-    return roomLookup;
-  }
-  for (const room of board.rooms) {
-    const roomId = normalizeNonEmptyString(room?.id);
-    if (!roomId) {
-      continue;
-    }
-    roomLookup[roomId] = {
-      id: roomId,
-      label: normalizeNonEmptyString(room?.name) ?? normalizeNonEmptyString(room?.label) ?? roomId,
-      polygon: Array.isArray(room?.points) ? cloneJson(room.points) : null,
-    };
-  }
-  return roomLookup;
 }
 
 function resolveAnimationStartEpochMs(animation, nowEpochMs = Date.now()) {
@@ -908,10 +613,6 @@ function applyContextUpdatePatch(payload) {
       : typeof runtimePatch?.alignMode === "boolean"
         ? runtimePatch.alignMode
         : null;
-  const finalOutputMode = normalizeFinalStreamMode(
-    payload?.finalOutputMode ?? runtimePatch?.finalOutputMode,
-    normalizeFinalStreamMode(nextRuntime?.finalOutputMode, FINAL_STREAM_MODE_STREAM),
-  );
   const requestedSelectedBoard =
     normalizeNonEmptyString(payload?.selectedBoard) ??
     normalizeNonEmptyString(payload?.boardId) ??
@@ -979,7 +680,6 @@ function applyContextUpdatePatch(payload) {
   if (alignMode !== null) {
     nextRuntime.alignMode = alignMode;
   }
-  nextRuntime.finalOutputMode = finalOutputMode;
 
   return {
     runtime: nextRuntime,
@@ -1084,16 +784,11 @@ function maybeCoalesceQueuedMutation(nextEntry, queue) {
 }
 
 function dequeueNextLiveMutation() {
-  if (liveMutationQueue.control.length > 0) {
-    return liveMutationQueue.control.shift();
-  }
-  if (liveMutationQueue.state.length > 0) {
-    return liveMutationQueue.state.shift();
-  }
-  if (liveMutationQueue.noisy.length > 0) {
-    return liveMutationQueue.noisy.shift();
-  }
-  return null;
+  return dequeueFairMutation(liveFairQueueState, {
+    control: liveMutationQueue.control,
+    state: liveMutationQueue.state,
+    noisy: liveMutationQueue.noisy,
+  });
 }
 
 function applyLiveMutation({
@@ -1236,13 +931,6 @@ function applyLiveMutation({
 
   const commitLatencyMs = Math.max(0, Date.now() - Date.parse(ingestAt ?? serverTimestamp));
   recordLiveHopSample(liveTelemetry.hops.ingestToCommit, commitLatencyMs);
-  markMutationLatencyGate(session.version);
-  finalStreamComposerState.lastSourceVersion = Number(session.version ?? 0);
-  finalStreamComposerState.latestFrame = null;
-  requestFinalStreamCompose("mutation-applied", {
-    snapshot: session.snapshot,
-    sourceVersion: session.version,
-  });
 
   if (dedupKey) {
     rememberProcessedMutation(dedupKey, {
@@ -1437,14 +1125,18 @@ function processLiveMutationQueue() {
   liveMutationQueue.processing = true;
 
   const step = () => {
-    const next = dequeueNextLiveMutation();
-    if (!next) {
-      liveMutationQueue.processing = false;
-      return;
-    }
-    liveMutationQueue.queued = Math.max(0, liveMutationQueue.queued - 1);
-    const mutationResult = applyLiveMutation(next);
-    if (mutationResult) {
+    const sliceStartedAt = Date.now();
+    while (liveApplySliceController.shouldContinue(sliceStartedAt)) {
+      const next = dequeueNextLiveMutation();
+      if (!next) {
+        liveMutationQueue.processing = false;
+        return;
+      }
+      liveMutationQueue.queued = Math.max(0, liveMutationQueue.queued - 1);
+      const mutationResult = applyLiveMutation(next);
+      if (!mutationResult) {
+        continue;
+      }
       liveTelemetry.gates.commandAccepted += 1;
       if (mutationResult.duplicate) {
         liveTelemetry.gates.duplicateCommands += 1;
@@ -1524,29 +1216,13 @@ function enqueueLiveMutation({ socket = null, clientId, role, mutationType, payl
   };
 
   if (queueSize >= LIVE_QUEUE_MAX_SIZE && priority !== "high") {
-    liveMutationQueue.droppedOverflow += 1;
-    if (Object.hasOwn(liveMutationQueue.droppedByClass, mutationClass)) {
-      liveMutationQueue.droppedByClass[mutationClass] += 1;
-    }
-    const overflowAck = buildLiveSessionEnvelope("live-ack", {
-      mutationType,
-      mutationId,
-      applied: false,
-      duplicate: false,
-      stale: false,
-      overflow: true,
+    logSessionEvent("queue-backpressure", {
       queueDepth: queueSize,
+      mutationType,
       mutationClass,
       priority,
-      version: liveSessionState.version,
+      policy: "no-drop",
     });
-    if (socket) {
-      sendLiveSocketMessage(socket, overflowAck);
-    }
-    if (typeof resolveAck === "function") {
-      resolveAck(overflowAck);
-    }
-    return;
   }
 
   const coalesced = maybeCoalesceQueuedMutation(queueEntry, queue);
@@ -1742,166 +1418,6 @@ function sendJson(res, statusCode, body) {
   res.end(payload);
 }
 
-function writeSseEvent(res, event, payload) {
-  if (!res || res.writableEnded) {
-    return;
-  }
-  res.write(`event: ${event}\n`);
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function removeFinalStreamClient(clientId) {
-  const entry = finalStreamClients.get(clientId);
-  if (!entry) {
-    return;
-  }
-  try {
-    entry.res.end();
-  } catch {
-    // ignore close race
-  }
-  finalStreamClients.delete(clientId);
-}
-
-function attachFinalStreamClient(req, res) {
-  ensureFinalStreamProducerRunning();
-  const clientId = `stream-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  res.writeHead(200, {
-    "content-type": "text/event-stream; charset=utf-8",
-    "cache-control": "no-cache, no-transform",
-    connection: "keep-alive",
-    "x-accel-buffering": "no",
-  });
-  res.write(`: final-stream ${clientId}\n\n`);
-  const entry = {
-    clientId,
-    req,
-    res,
-    closed: false,
-    lastVersion: 0,
-  };
-  finalStreamClients.set(clientId, entry);
-
-  const cachedFrame = finalStreamComposerState.latestFrame;
-  const latestVersion = Number(liveSessionState.version ?? 0);
-  const cachedVersion = Number(cachedFrame?.sourceVersion ?? 0);
-  if (cachedFrame && cachedVersion >= latestVersion) {
-    entry.lastVersion = Number(cachedFrame?.sourceVersion ?? 0);
-    writeSseEvent(entry.res, "frame", cachedFrame);
-  } else {
-    writeFinalStreamHeartbeat(entry.res);
-    requestFinalStreamCompose("client-attach", {
-      snapshot: liveSessionState.snapshot,
-      sourceVersion: liveSessionState.version,
-    });
-  }
-
-  const closeHandler = () => {
-    entry.closed = true;
-    removeFinalStreamClient(clientId);
-  };
-  req.on("close", closeHandler);
-  req.on("aborted", closeHandler);
-}
-
-function attachFinalVideoClient(req, res) {
-  ensureFinalStreamProducerRunning();
-  const clientId = `video-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  res.writeHead(200, {
-    "content-type": `multipart/x-mixed-replace; boundary=${FINAL_VIDEO_MULTIPART_BOUNDARY}`,
-    "cache-control": "no-cache, no-store, must-revalidate, no-transform",
-    pragma: "no-cache",
-    expires: "0",
-    connection: "keep-alive",
-    "x-accel-buffering": "no",
-  });
-
-  const entry = {
-    clientId,
-    req,
-    res,
-    closed: false,
-  };
-  finalVideoClients.set(clientId, entry);
-
-  const latestVideoFrame = normalizeNonEmptyString(finalStreamComposerState.latestVideoFrame);
-  const latestVersion = Number(liveSessionState.version ?? 0);
-  const cachedVersion = Number(finalStreamComposerState.latestFrame?.sourceVersion ?? 0);
-  if (latestVideoFrame && cachedVersion >= latestVersion) {
-    writeFinalVideoMultipartFrame(res, latestVideoFrame);
-  } else {
-    if (latestVideoFrame) {
-      writeFinalVideoMultipartFrame(res, latestVideoFrame);
-    }
-    requestFinalStreamCompose("video-client-attach", {
-      snapshot: liveSessionState.snapshot,
-      sourceVersion: liveSessionState.version,
-    });
-  }
-
-  const closeHandler = () => {
-    entry.closed = true;
-    removeFinalVideoClient(clientId);
-  };
-  req.on("close", closeHandler);
-  req.on("aborted", closeHandler);
-}
-
-function buildFinalStreamHealthSnapshot() {
-  const now = Date.now();
-  const watchdogActive = Boolean(finalStreamProducerState.watchdogId);
-  const timerActive = Boolean(finalStreamProducerState.timerId);
-  const lastTickAtMs = Date.parse(finalStreamProducerState.lastTickAt ?? "") || 0;
-  const msSinceLastTick = lastTickAtMs > 0 ? Math.max(0, now - lastTickAtMs) : null;
-  const lastFrameAtMs = Date.parse(finalStreamComposerState.lastFrameAt ?? "") || 0;
-  const msSinceLastFrame = lastFrameAtMs > 0 ? Math.max(0, now - lastFrameAtMs) : null;
-  const activeWindowMs = FINAL_STREAM_PUSH_INTERVAL_MS * 6;
-  const tickFresh = msSinceLastTick !== null ? msSinceLastTick <= activeWindowMs : finalStreamProducerState.ticks > 0;
-  const frameFresh = msSinceLastFrame !== null ? msSinceLastFrame <= activeWindowMs : finalStreamProducerState.ticks > 0;
-  const compositorAlwaysOn =
-    finalStreamProducerState.running
-    && watchdogActive
-    && timerActive
-    && tickFresh
-    && frameFresh;
-  return {
-    schema: "tt-beamer.final-stream-health.v1",
-    generatedAt: new Date().toISOString(),
-    connectedClients: finalStreamClients.size,
-    connectedVideoClients: finalVideoClients.size,
-    producer: {
-      running: finalStreamProducerState.running,
-      watchdogActive,
-      timerActive,
-      composing: finalStreamProducerState.composing,
-      ticks: finalStreamProducerState.ticks,
-      lastTickAt: finalStreamProducerState.lastTickAt,
-      msSinceLastTick,
-      recoveries: finalStreamProducerState.recoveries,
-      latestBroadcastVersion: finalStreamProducerState.latestBroadcastVersion,
-      latestComposeError: finalStreamProducerState.latestComposeError,
-      latestComposeErrorAt: finalStreamProducerState.latestComposeErrorAt,
-    },
-    lastFrameAt: finalStreamComposerState.lastFrameAt,
-    sourceVersion: finalStreamComposerState.lastSourceVersion,
-    frameId: finalStreamComposerState.frameId,
-    msSinceLastFrame,
-    healthy:
-      finalStreamProducerState.running
-      && msSinceLastFrame !== null
-      && msSinceLastFrame <= FINAL_STREAM_PUSH_INTERVAL_MS * 4,
-    compositorAlwaysOn,
-    latencyGate: {
-      hardLimitMs: finalStreamLatencyGateState.hardLimitMs,
-      maxObservedMs: finalStreamLatencyGateState.maxObservedMs,
-      pendingMutations: finalStreamLatencyGateState.pendingByVersion.size,
-      pass: finalStreamLatencyGateState.maxObservedMs <= finalStreamLatencyGateState.hardLimitMs,
-      lastResolvedAt: finalStreamLatencyGateState.lastResolvedAt,
-      lastResolvedVersion: finalStreamLatencyGateState.lastResolvedVersion,
-    },
-  };
-}
-
 async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   const chunks = [];
   let totalSize = 0;
@@ -1953,7 +1469,6 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
 
 async function acceptCommandMutation({ mutationType, payload, mutationId = null, role = "control", clientId = "http-command" }) {
   return new Promise((resolve) => {
-    const ackTimeoutMs = 30_000;
     const fallbackTimeout = setTimeout(() => {
       resolve(buildLiveSessionEnvelope("live-ack", {
         mutationType,
@@ -1964,7 +1479,7 @@ async function acceptCommandMutation({ mutationType, payload, mutationId = null,
         timeout: true,
         version: liveSessionState.version,
       }));
-    }, ackTimeoutMs);
+    }, 3500);
     enqueueLiveMutation({
       socket: null,
       clientId,
@@ -2291,245 +1806,6 @@ async function loadBoardCatalog() {
     boardCount: boards.length,
     boards,
     runtimeBoards: boards.map(toRuntimeBoard),
-  };
-}
-
-async function getCachedRuntimeBoards({ force = false } = {}) {
-  const now = Date.now();
-  if (
-    !force
-    && Array.isArray(boardCatalogCache.runtimeBoards)
-    && boardCatalogCache.runtimeBoards.length > 0
-    && now - boardCatalogCache.loadedAt < boardCatalogCache.ttlMs
-  ) {
-    return boardCatalogCache.runtimeBoards;
-  }
-  const catalog = await loadBoardCatalog();
-  boardCatalogCache.runtimeBoards = Array.isArray(catalog?.runtimeBoards) ? cloneJson(catalog.runtimeBoards) : [];
-  boardCatalogCache.loadedAt = now;
-  return boardCatalogCache.runtimeBoards;
-}
-
-async function composeFinalStreamFrame(snapshot = liveSessionState.snapshot, { sourceVersion = null } = {}) {
-  const runtimeBoards = await getCachedRuntimeBoards();
-  const runtime = isPlainObject(snapshot?.runtime) ? snapshot.runtime : {};
-  const selectedBoardId =
-    normalizeNonEmptyString(snapshot?.selectedBoard)
-    ?? normalizeNonEmptyString(snapshot?.selectedLayout)
-    ?? normalizeNonEmptyString(runtime?.selectedBoard)
-    ?? normalizeNonEmptyString(runtime?.boardId)
-    ?? normalizeNonEmptyString(runtimeBoards?.[0]?.id)
-    ?? null;
-
-  const activeBoard = runtimeBoards.find((entry) => normalizeNonEmptyString(entry?.id) === selectedBoardId) ?? null;
-  const roomLookup = toRoomLookup(activeBoard);
-  const runningAnimations = Array.isArray(runtime?.runningAnimations) ? runtime.runningAnimations : [];
-  const boardAnimations = runningAnimations
-    .filter((entry) => normalizeNonEmptyString(entry?.boardId) === selectedBoardId)
-    .map((entry, index) => {
-      const roomId = normalizeNonEmptyString(entry?.roomId);
-      return {
-        id: normalizeNonEmptyString(entry?.id) ?? `runtime-${index + 1}`,
-        scope: normalizeNonEmptyString(entry?.scope) ?? "room",
-        type: normalizeNonEmptyString(entry?.type) ?? "unknown",
-        boardId: selectedBoardId,
-        roomId,
-        opacity: normalizeUnitInterval(entry?.opacity, 1),
-        intensity: normalizePositiveNumber(entry?.intensity, 1),
-        speed: normalizePositiveNumber(entry?.speed, 1),
-        hold: entry?.hold === true,
-        durationMs: Number.isFinite(Number(entry?.durationMs)) ? Number(entry.durationMs) : null,
-        startedAtEpochMs: Number.isFinite(Number(entry?.startedAtEpochMs)) ? Number(entry.startedAtEpochMs) : null,
-      };
-    });
-
-  const visualPayload = {
-    schema: FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA,
-    alignMode: Boolean(snapshot?.alignMode ?? runtime?.alignMode),
-    board: activeBoard
-      ? {
-        id: activeBoard.id,
-        imageSrc: normalizeNonEmptyString(activeBoard.src),
-        rooms: Object.values(roomLookup).map((room) => ({
-          id: normalizeNonEmptyString(room?.id),
-          polygon: Array.isArray(room?.polygon) ? cloneJson(room.polygon) : [],
-        })),
-      }
-      : null,
-    runningAnimations: boardAnimations,
-  };
-
-  finalStreamComposerState.frameId += 1;
-  finalStreamComposerState.lastFrameAt = new Date().toISOString();
-  finalStreamComposerState.lastSourceVersion = Number(sourceVersion ?? liveSessionState.version ?? 0);
-  const nextFrame = {
-    schema: FINAL_STREAM_SCHEMA,
-    frameId: finalStreamComposerState.frameId,
-    generatedAt: finalStreamComposerState.lastFrameAt,
-    sourceVersion: finalStreamComposerState.lastSourceVersion,
-    alignMode: visualPayload.alignMode,
-    visual: visualPayload,
-  };
-  finalStreamComposerState.latestFrame = sanitizeFinalStreamFrame(nextFrame);
-  return finalStreamComposerState.latestFrame;
-}
-
-function escapeXmlText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
-
-function polygonCentroid(polygon) {
-  if (!Array.isArray(polygon) || polygon.length === 0) {
-    return { x: 500, y: 500 };
-  }
-  let x = 0;
-  let y = 0;
-  let count = 0;
-  for (const point of polygon) {
-    const px = Number(point?.x);
-    const py = Number(point?.y);
-    if (!Number.isFinite(px) || !Number.isFinite(py)) {
-      continue;
-    }
-    x += px;
-    y += py;
-    count += 1;
-  }
-  if (count <= 0) {
-    return { x: 500, y: 500 };
-  }
-  return {
-    x: x / count,
-    y: y / count,
-  };
-}
-
-function normalizePolygonPoints(polygon) {
-  if (!Array.isArray(polygon)) {
-    return [];
-  }
-  return polygon
-    .map((point) => {
-      const x = Number(point?.x);
-      const y = Number(point?.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return null;
-      }
-      return { x, y };
-    })
-    .filter(Boolean);
-}
-
-function buildFinalVideoSvgFrame(frame) {
-  const visual = isPlainObject(frame?.visual) ? frame.visual : {};
-  const board = isPlainObject(visual.board) ? visual.board : null;
-  const rooms = Array.isArray(board?.rooms) ? board.rooms : [];
-  const runningAnimations = Array.isArray(visual.runningAnimations) ? visual.runningAnimations : [];
-  const sourceVersion = Number.isFinite(Number(frame?.sourceVersion)) ? Number(frame.sourceVersion) : 0;
-  const frameId = Number.isFinite(Number(frame?.frameId)) ? Number(frame.frameId) : 0;
-  const boardId = normalizeNonEmptyString(board?.id) ?? "";
-  const alignMode = Boolean(frame?.alignMode ?? visual?.alignMode);
-
-  const roomLookup = new Map();
-  for (const room of rooms) {
-    const roomId = normalizeNonEmptyString(room?.id);
-    if (!roomId) {
-      continue;
-    }
-    roomLookup.set(roomId, normalizePolygonPoints(room?.polygon));
-  }
-
-  const boardImageSrc = normalizeNonEmptyString(board?.imageSrc);
-  const boardLayer = boardImageSrc
-    ? `<image href="${escapeXmlText(boardImageSrc)}" x="0" y="0" width="1000" height="1000" preserveAspectRatio="none" />`
-    : "<rect x=\"0\" y=\"0\" width=\"1000\" height=\"1000\" fill=\"#000\" />";
-
-  const alignLayer = alignMode
-    ? rooms
-      .map((room) => {
-        const points = normalizePolygonPoints(room?.polygon)
-          .map((point) => `${point.x},${point.y}`)
-          .join(" ");
-        if (!points) {
-          return "";
-        }
-        return `<polygon points="${points}" fill="none" stroke="rgba(0,255,255,0.9)" stroke-width="2" />`;
-      })
-      .filter(Boolean)
-      .join("")
-    : "";
-
-  const animationPulse = ((frameId % 18) + 1) / 18;
-  const animationLayer = runningAnimations
-    .map((entry, index) => {
-      const roomId = normalizeNonEmptyString(entry?.roomId);
-      const polygon = roomId ? roomLookup.get(roomId) : null;
-      const centroid = polygonCentroid(polygon);
-      const opacity = normalizeUnitInterval(entry?.opacity, 0.85);
-      const intensity = normalizePositiveNumber(entry?.intensity, 1);
-      const radius = Math.max(12, Math.min(70, 18 + intensity * 12 + animationPulse * 10));
-      const hue = 210 + ((index * 57) % 120);
-      return `<circle cx="${centroid.x.toFixed(2)}" cy="${centroid.y.toFixed(2)}" r="${radius.toFixed(2)}" fill="hsla(${hue}, 100%, 60%, ${(opacity * 0.65).toFixed(3)})" />`;
-    })
-    .join("");
-
-  return [
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" preserveAspectRatio="none" data-source-version="${sourceVersion}" data-frame-id="${frameId}" data-board-id="${escapeXmlText(boardId)}" data-align-mode="${alignMode ? "true" : "false"}">`,
-    boardLayer,
-    animationLayer,
-    alignLayer,
-    "</svg>",
-  ].join("");
-}
-
-function sanitizeFinalStreamFrame(frame) {
-  const visual = isPlainObject(frame?.visual) ? frame.visual : {};
-  const board = isPlainObject(visual.board) ? visual.board : null;
-  const rooms = Array.isArray(board?.rooms)
-    ? board.rooms.map((room) => ({
-      id: normalizeNonEmptyString(room?.id),
-      polygon: Array.isArray(room?.polygon) ? cloneJson(room.polygon) : [],
-    }))
-    : [];
-  const runningAnimations = Array.isArray(visual.runningAnimations)
-    ? visual.runningAnimations.map((entry, index) => ({
-      id: normalizeNonEmptyString(entry?.id) ?? `runtime-${index + 1}`,
-      scope: normalizeNonEmptyString(entry?.scope) ?? "room",
-      type: normalizeNonEmptyString(entry?.type) ?? "unknown",
-      boardId: normalizeNonEmptyString(entry?.boardId),
-      roomId: normalizeNonEmptyString(entry?.roomId),
-      opacity: normalizeUnitInterval(entry?.opacity, 1),
-      intensity: normalizePositiveNumber(entry?.intensity, 1),
-      speed: normalizePositiveNumber(entry?.speed, 1),
-      hold: entry?.hold === true,
-      durationMs: Number.isFinite(Number(entry?.durationMs)) ? Number(entry.durationMs) : null,
-      startedAtEpochMs: Number.isFinite(Number(entry?.startedAtEpochMs)) ? Number(entry.startedAtEpochMs) : null,
-    }))
-    : [];
-  return {
-    schema: FINAL_STREAM_SCHEMA,
-    frameId: Number.isFinite(Number(frame?.frameId)) ? Number(frame.frameId) : 0,
-    generatedAt: normalizeNonEmptyString(frame?.generatedAt) ?? new Date().toISOString(),
-    sourceVersion: Number.isFinite(Number(frame?.sourceVersion)) ? Number(frame.sourceVersion) : 0,
-    alignMode: Boolean(frame?.alignMode ?? visual?.alignMode),
-    visual: {
-      schema: FINAL_STREAM_VISUAL_PAYLOAD_SCHEMA,
-      alignMode: Boolean(frame?.alignMode ?? visual?.alignMode),
-      board: board
-        ? {
-          id: normalizeNonEmptyString(board.id),
-          imageSrc: normalizeNonEmptyString(board.imageSrc),
-          rooms,
-        }
-        : null,
-      runningAnimations,
-    },
   };
 }
 
@@ -3024,7 +2300,7 @@ async function handleGlobalDefaultsSave(req, res) {
 
 function resolveStaticPath(urlValue, routePath) {
   if (routePath === "/output/final") {
-    return path.join(ROOT_DIR, "output-final.html");
+    return path.join(ROOT_DIR, "index.html");
   }
   return toSafePath(urlValue || "/");
 }
@@ -3065,30 +2341,9 @@ const server = createServer(async (req, res) => {
         boardCatalogEndpoint: "/api/boards",
         boardImportEndpoint: "/api/boards/import",
         liveTelemetryEndpoint: "/api/live/telemetry",
-        finalStreamEndpoint: "/api/final-stream/events",
-        finalStreamVideoEndpoint: "/api/final-stream/video",
-        finalStreamHealthEndpoint: "/api/final-stream/health",
         postSupported: true,
         liveLogPath: LIVE_LOG_PATH,
       });
-      return;
-    }
-
-    if (req.method === "GET" && routePath === "/api/final-stream/health") {
-      sendJson(res, 200, {
-        ok: true,
-        health: buildFinalStreamHealthSnapshot(),
-      });
-      return;
-    }
-
-    if (req.method === "GET" && routePath === "/api/final-stream/events") {
-      attachFinalStreamClient(req, res);
-      return;
-    }
-
-    if (req.method === "GET" && routePath === "/api/final-stream/video") {
-      attachFinalVideoClient(req, res);
       return;
     }
 
@@ -3246,8 +2501,6 @@ const server = createServer(async (req, res) => {
 attachLiveWebSocket(server);
 
 server.listen(PORT, HOST, () => {
-  ensureFinalStreamProducerRunning();
-  requestFinalStreamCompose("server-start");
   logSessionEvent("server-start", {
     host: HOST,
     port: PORT,
