@@ -1,0 +1,52 @@
+{
+  "suite": "P11-HF5-T7-multiclient-one-shot-fail-pass-proof",
+  "observed": "PASS",
+  "hasNoLocalOptimisticStart": true,
+  "hasServerAuthoritativePayload": true,
+  "beforePass": false,
+  "afterPass": true,
+  "beforeFixRows": [
+    {
+      "client": "initiator",
+      "oneShotVisible": true,
+      "fullDurationMs": 4000,
+      "startsObserved": 1
+    },
+    {
+      "client": "peer",
+      "oneShotVisible": false,
+      "fullDurationMs": 0,
+      "startsObserved": 0
+    },
+    {
+      "client": "/output/final",
+      "oneShotVisible": false,
+      "fullDurationMs": 0,
+      "startsObserved": 0
+    }
+  ],
+  "afterFixRows": [
+    {
+      "client": "initiator",
+      "oneShotVisible": true,
+      "fullDurationMs": 4000,
+      "startsObserved": 1,
+      "authoritativeContractPresent": true
+    },
+    {
+      "client": "peer",
+      "oneShotVisible": true,
+      "fullDurationMs": 4000,
+      "startsObserved": 1,
+      "authoritativeContractPresent": true
+    },
+    {
+      "client": "/output/final",
+      "oneShotVisible": true,
+      "fullDurationMs": 4000,
+      "startsObserved": 1,
+      "authoritativeContractPresent": true
+    }
+  ],
+  "error": null
+}
