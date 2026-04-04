@@ -1,0 +1,13 @@
+{
+  "suite": "p11-hf3-t4-pass",
+  "phase": "PASS",
+  "observed": "PASS",
+  "findings": [
+    {
+      "id": "global-trigger-payload-sync",
+      "observed": true,
+      "expected": true
+    }
+  ],
+  "failedChecks": []
+}

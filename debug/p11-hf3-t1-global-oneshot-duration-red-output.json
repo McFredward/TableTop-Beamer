@@ -1,0 +1,19 @@
+{
+  "suite": "p11-hf3-t1-red",
+  "phase": "RED",
+  "observed": "FAIL",
+  "findings": [
+    {
+      "id": "global-trigger-missing-audio-toggle",
+      "observed": false,
+      "expected": true
+    }
+  ],
+  "failedChecks": [
+    {
+      "id": "global-trigger-missing-audio-toggle",
+      "observed": false,
+      "expected": true
+    }
+  ]
+}

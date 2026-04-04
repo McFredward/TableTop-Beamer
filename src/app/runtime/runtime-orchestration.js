@@ -224,6 +224,7 @@ const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirect
 const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? null;
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const dashboardGlobalLoopUntilStopInput = document.querySelector("#dashboard-global-loop-until-stop");
+const dashboardGlobalPlaySoundInput = document.querySelector("#dashboard-global-play-sound");
 const boardZoomRangeInput = document.querySelector("#board-zoom-range");
 const boardZoomValue = document.querySelector("#board-zoom-value");
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
@@ -603,7 +604,7 @@ const QUICK_MODE_LABELS = {
   deactivate: "DEACTIVATE",
   clear: "CLEAR",
 };
-const GLOBAL_ONE_SHOT_DURATION_SEC = 6;
+const GLOBAL_ONE_SHOT_DURATION_SEC = 4;
 
 const {
   rememberAppliedMutationId,
@@ -9707,7 +9708,7 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
   );
 }
 
-function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false } = {}) {
+function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false, playSound = true } = {}) {
   const existing = state.runningAnimations.find(
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
   );
@@ -9727,6 +9728,7 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
         scope: "global",
         boardId: state.boardId,
         intensity: 1,
+        soundVolume: playSound ? 1 : 0,
         hold: effectiveDefaultDurationSec === null,
         durationSec: effectiveDefaultDurationSec ?? 0,
       });
@@ -9736,6 +9738,7 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
         boardId: state.boardId,
         outsideHint: isOutside,
         loopUntilStopped: effectiveDefaultDurationSec === null,
+        playSound,
         animation: buildAnimationSnapshotForLiveSync(animation),
       }).then(() => {
         triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} start accepted (waiting for snapshot)`;
@@ -9763,6 +9766,7 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
       type,
       scope: "global",
       intensity: 1,
+      soundVolume: playSound ? 1 : 0,
       hold: effectiveDefaultDurationSec === null,
       durationSec: effectiveDefaultDurationSec ?? 0,
     });
@@ -9780,6 +9784,7 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
       boardId: state.boardId,
       outsideHint: isOutside,
       loopUntilStopped: effectiveDefaultDurationSec === null,
+      playSound,
       animation: buildAnimationSnapshotForLiveSync(animation),
     });
   }
@@ -12977,12 +12982,20 @@ document.addEventListener("click", (event) => {
   recordTriggerIntent();
   setDashboardZone("trigger");
   const loopUntilStopped = Boolean(dashboardGlobalLoopUntilStopInput?.checked);
-  upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped });
+  const playSound = dashboardGlobalPlaySoundInput ? dashboardGlobalPlaySoundInput.checked : true;
+  upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped, playSound });
 });
 
 dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
   const modeLabel = dashboardGlobalLoopUntilStopInput.checked ? "loop until stop" : "one-shot";
-  triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel}`;
+  const soundLabel = dashboardGlobalPlaySoundInput?.checked ? "with sound" : "muted";
+  triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
+});
+
+dashboardGlobalPlaySoundInput?.addEventListener("change", () => {
+  const modeLabel = dashboardGlobalLoopUntilStopInput?.checked ? "loop until stop" : "one-shot";
+  const soundLabel = dashboardGlobalPlaySoundInput.checked ? "with sound" : "muted";
+  triggerFeedback.textContent = `Status: global trigger mode set to ${modeLabel} (${soundLabel})`;
 });
 
 stopAllButton.addEventListener("click", () => {
