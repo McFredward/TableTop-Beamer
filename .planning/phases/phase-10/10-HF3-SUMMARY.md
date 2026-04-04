@@ -88,7 +88,21 @@ completed: 2026-04-04
 - HF3 gate closure requires executable diagnostics with committed RED baselines and GREEN reruns for the same suite IDs.
 
 ## Deviations from Plan
-None - plan executed exactly as written.
+
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state/roadmap update commands were incompatible with current tracker file shape**
+- **Found during:** Post-task metadata synchronization
+- **Issue:** `state advance-plan`, metric, decision, and roadmap updater commands returned parser/section errors and could not persist closure metadata automatically.
+- **Fix:** Performed equivalent manual synchronization in `.planning/STATE.md` and `.planning/ROADMAP.md` while preserving HF3 closure facts and next-wave handoff.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`
+- **Verification:** Manual readback confirmed HF3 PASS closure entries and 10-1 unblocked status.
+- **Committed in:** `7debca9`
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** No scope drift; only metadata update mechanism changed from automated CLI to manual edits.
 
 ## Issues Encountered
 - Repository had broad unrelated dirty state; all task commits were scoped strictly to HF3 files only.
