@@ -1,0 +1,7 @@
+{
+  "suite": "p10-hf4-t9-final-output-canonical",
+  "canonicalPreferredCount": 1,
+  "invalidProvidedCount": 0,
+  "emptySourceFallbackCount": 1,
+  "result": "PASS"
+}
