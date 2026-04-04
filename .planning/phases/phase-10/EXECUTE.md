@@ -1,16 +1,13 @@
 # Execute Phase 10
 
 ## Planning Mode Note
-- Plan 10-HF2 closure is reopened by critical field feedback.
-- Plan 10-HF3 execution wave is complete and PASS.
-- Plan 10-HF4 execution wave is complete and PASS.
-- Plan 10-HF5 historical PASS is field-invalidated by concrete follow-up repro.
-- Plan 10-HF6 historical PASS is field-invalidated by clean-local-storage profile-loss repro.
-- Plan 10-HF7 execution wave is complete and PASS, but field-invalidated by all-board canonical-load/defaults-reapply regression.
-- Plan 10-HF8 execution wave is complete and PASS.
+- HF1..HF8 are complete and remain recorded baseline.
+- New mandatory P0 feedback activates HF9 as blocker wave.
+- Plan 10-1 is blocked until HF9 PASS.
 
 ## Critical Priority Override
-- Plan 10-1 is re-blocked until HF8 PASS closure.
+- Execute Plan 10-HF9 first.
+- Do not execute Plan 10-1 before HF9 FAIL->PASS closure.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -19,107 +16,36 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 10-HF8 (binding, hard-gated wave)
-1. P0 first: P10-HF8-T1 (deterministic RED repro for all-board fallback polygon apply despite canonical saved play-areas).
-2. P0 next: P10-HF8-T2 (deterministic RED repro for broken `Load global defaults` board-specific reapply).
-3. P0 next: P10-HF8-T3 (executable diagnostics for canonical source lineage + defaults-reapply decisions).
-4. P0 next: P10-HF8-T4 (deterministic RED repro for silent canonical load/apply failure masking without explicit user-visible error).
-5. P0 next: P10-HF8-T5 + P10-HF8-T6 (canonical-load recovery + defaults-reapply recovery, generic and board-agnostic).
-6. P0 next: P10-HF8-T7 (explicit toast/status error-surface contract with board/source context; no silent fallback masking).
-7. P0 next: P10-HF8-T8 (strict control-view vs `/output/final` parity assertions for canonical set/areaCount/areaIdSet).
-8. P0 next: P10-HF8-T9 (all-board browser matrix: single-area/multi-area/imported across startup/reload/default-apply/board-switch/final-output).
-9. P0 closure: P10-HF8-T10 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
+## Priority Execution - Plan 10-HF9 (binding, hard-gated)
+1. P0 first: P10-HF9-T1 + P10-HF9-T2 (deterministic RED for mobile timeout on `trigger-room` and `stop`).
+2. P0 next: P10-HF9-T3 + P10-HF9-T4 (ack/resend instability repro).
+3. P0 next: P10-HF9-T5 + P10-HF9-T6 (queue fairness/no-drop RED repro).
+4. P0 next: P10-HF9-T7 (executable command pipeline diagnostics with timing/retry assertions).
+5. P0 next: P10-HF9-T8 (timeout/resend/ack hardening with deterministic closure and idempotent apply).
+6. P0 next: P10-HF9-T9 (fairness scheduler + safety fast-lane + no-drop invariants).
+7. P0 next: P10-HF9-T10 (low-latency apply hardening under load).
+8. P0 next: P10-HF9-T11 (low-end `sandstorm.mp4` smoothness package via adaptive profile + buffering/prewarm safeguards).
+9. P0 next: P10-HF9-T12 (board-switch latency reduction + stale residue cleanup).
+10. P0 closure: P10-HF9-T13 + P10-HF9-T14 + P10-HF9-T15 (strict matrix PASS, FAIL->PASS proof, full artifact sync).
 
-## Previously Closed Execution - Plan 10-HF1
-1. P10-HF1-T1..T6 are complete and PASS (board-specific blackout closure baseline remains valid).
-
-## Priority Execution - Plan 10-1
-1. P0 first: P10-T1 (define Settings IA/sub-tab grouping and ownership map).
-2. P0 next: P10-T2 (implement Settings sub-tab navigation shell with stable state retention).
-3. P0 next: P10-T3 (implement shared quick-mode state machine with explicit active-mode UX).
-4. P0 next: P10-T4 (implement sequential room quick activation from selected animation).
-5. P0 next: P10-T5 (implement sequential room quick deactivation for selected animation).
-6. P0 next: P10-T6 (implement sequential room quick clear-all per clicked room).
-7. P0 next: P10-T7 (add race/conflict guards for burst taps and inflight overlap).
-8. P0 next: P10-T8 + P10-T9 (mobile one-handed rail + improved overview behavior).
-9. P0 next: P10-T10 (explicit operator feedback for action success/fail/timeout).
-10. P0 closure: P10-T11 (run desktop/mobile rapid-operation matrix + sync determinism checks).
-11. P0 closure: P10-T12 (full artifact synchronization including global trackers).
-
-## Priority Execution - Plan 10-2 (after 10-1 PASS)
-1. P1 first: P10-T13 (UX polish informed by first live cycle).
-2. P1 next: P10-T14 (performance micro-optimizations for sustained burst operation).
-3. P1 closure: P10-T15 (config-gated diagnostics for rare race reports).
-
-## Priority Execution - Plan 10-3 (after 10-2)
-1. P2 first: P10-T16 (evaluate optional quick-mode presets).
-2. P2 closure: P10-T17 (preset safety hardening and deterministic behavior checks).
+## Deferred Execution - Plan 10-1 (blocked)
+1. P10-T1..P10-T12 execute only after HF9 PASS.
 
 ## Gate Rules
-- Do not start Plan 10-1 before full PASS of Plan 10-HF8 all-board canonical-load repro/defaults-reapply repro/diagnostics/no-silent-fallback gates, control/final parity, all-board matrix, and FAIL->PASS proof gates.
-- Do not start P10-HF8-T5/P10-HF8-T6 before corresponding RED repro + diagnostics gates are closed.
-- Do not close Plan 10-HF8 without explicit FAIL->PASS evidence for the same tests.
-- Do not start P10-T4..T7 before P10-T1..T3 stabilize IA + mode-state ownership.
-- Do not start P10-T11 before P10-T8..T10 close mobile ergonomics + explicit feedback gates.
-- Do not progress to 10-2 before full PASS of activation/deactivation/clear burst matrices and sync integrity checks.
+- Do not start HF9 fixes (T8+) before RED repro gates (T1..T6) and diagnostics gate (T7) are in place.
+- Do not close HF9 without explicit FAIL->PASS evidence for the same gate set.
+- Do not start Plan 10-1 before full HF9 PASS.
 - No wave closure without full artifact sync (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
 - Update task status in `TASKS.md` after each completed item.
-- Capture architecture/runtime decisions in `.planning/STATE.md` decision log.
-- When scope changes, sync `PLAN.md`, `BACKLOG.md`, and `ACCEPTANCE.md` together.
+- Capture decisions and binding runtime rules in `.planning/STATE.md`.
+- Keep `PLAN.md`, `BACKLOG.md`, `ACCEPTANCE.md`, and `RISKS.md` synchronized when scope changes.
 
 ## Execution Record
-- Plan 10-HF1 completed (P10-HF1-T1..T6):
-  - Root cause locked: fail-closed clip geometry path could suppress outside/room rendering and collapse `/output/final` to persistent black.
-  - Fix shipped: final compositor clipping now fail-opens on invalid/degenerate play-area and room polygons.
-  - Evidence shipped: all-board regression PASS including mp4 outside board `nemesis-lockdown-a` (`sandstorm.mp4`).
-  - Non-regression recorded: sync/control semantics unchanged.
-- Plan 10-HF2 was previously marked PASS but is reopened by field failure evidence:
-  - Symptom set remains active in real-world runtime (`Nemesis Lockdown A` Firefox/mobile-class apply drift, defaults-apply override, `/output/final` black/fallback rectangle).
-  - Resolution path is promoted to Plan 10-HF3 with mandatory test-driven repro + executable diagnostics + root-cause first closure.
-- Plan 10-HF3 completed (P10-HF3-T1..T10):
-  - Repro diagnostics T1..T6 captured deterministic RED failures for the exact field symptom set.
-  - Root cause fixed generically in canonical snapshot polygon hydration path (no board-specific branching).
-  - FAIL->PASS proof and imported-board/browser matrix are PASS (`P10-HF3-T8-FAIL-PASS-PROOF.md`, `P10-HF3-T9-BROWSER-IMPORTED-REGRESSION.md`).
-- Plan 10-HF4 completed with PASS closure evidence:
-  - Runtime panel module exposure/load-order is deterministic for `TT_BEAMER_RUNTIME_PANELS`.
-  - Settings ownership checks are applicability-aware for conditional unmount controls.
-  - Ship-clip validity semantics reject invalid polygons and accept valid canonical/multi-play-area/legacy states.
-  - Browser parity + final-output canonical-no-invalid-default fallback diagnostics are PASS.
-- Plan 10-HF5 completed with PASS closure evidence:
-  - RED repros captured and preserved for multi-vs-single mismatch and Lockdown fallback-hex visibility.
-  - Generic canonical resolver fix now rejects invalid multi-area entries and preserves valid canonical area precedence.
-  - Control-view and `/output/final` share the same canonical play-area resolver contract and lifecycle behavior.
-  - Firefox/Chrome/mobile-class parity plus imported-board/multi-area regression matrices are PASS.
-  - FAIL->PASS proof is closed (`P10-HF5-T10-FAIL-PASS-PROOF.md`).
-- HF5 field-invalidated follow-up (new blocker for HF6):
-  - Concrete repro is mandatory baseline: `Nemesis Lockdown Board A` shows two areas in Chrome (`Play Area 1` + `Bunker`) but only one in Firefox/mobile-class (`Play Area 1`).
-  - Root-cause focus is updated to deterministic multi-source merge retention and fallback replacement prevention.
-  - Plan 10-1 is re-blocked until HF6 area-count/id-set/browser/surface parity gates are PASS.
-- Plan 10-HF6 completed with PASS closure evidence:
-  - RED repros for area-drop, merge-lineage, fallback replacement, area-count parity, area-id-set parity and control/final set parity were captured first.
-  - Canonical merge now retains full valid multi-area sets when snapshot payloads are subsets and selection remains canonical-first.
-  - Fallback guard blocks default replacement when valid subset/multi-area canonical data exists.
-  - Browser + imported/multi-area lifecycle matrix is PASS (`P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`).
-  - FAIL->PASS proof is closed (`P10-HF6-T10-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.
-- HF6 field-invalidated follow-up (new blocker for HF7):
-  - Root cause confirmed: board-profile extraction/migration depended on currently loaded board catalog IDs.
-  - If a board profile key is not in that loaded list yet (for example imported/multi-area boards), migration can drop that key and force default play-area fallback.
-  - Plan 10-1 is re-blocked until HF7 closes with extraction/migration hardening, lifecycle determinism, and FAIL->PASS evidence.
-- Plan 10-HF7 completed with PASS closure evidence:
-  - RED repros for clean-start profile-loss, extraction coupling and unknown-key migration drop were captured first.
-  - Extraction is now catalog-independent and migration retains unknown/imported board keys with multi-area selections.
-  - Startup/default-apply/reload lifecycle retention is deterministic and browser/imported clean-start parity matrix is PASS.
-  - FAIL->PASS proof is closed (`P10-HF7-T8-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.
-- HF7 post-close field invalidation (new blocker for HF8):
-  - Critical repro is mandatory baseline: all boards currently apply default fallback polygon instead of canonical saved play-areas.
-  - `Load global defaults` does not restore board-specific play-areas and can keep fallback/default geometry.
-  - Silent fallback masking is forbidden: canonical load/apply failure paths must emit explicit user-visible toast/status context.
-  - Plan 10-1 is re-blocked until HF8 closes with deterministic FAIL->PASS evidence and all-board regression matrix PASS.
-- Plan 10-HF8 completed with PASS closure evidence:
-  - RED repros for all-board fallback collapse, defaults-reapply failure, and silent fallback masking are captured (`P10-HF8-T1`, `P10-HF8-T2`, `P10-HF8-T4`).
-  - Canonical-load/defaults-reapply recovery is fixed generically and validated with deterministic PASS guards (`P10-HF8-T5`, `P10-HF8-T6`).
-  - Canonical failure paths now emit explicit issue metadata and runtime status/toast context (`P10-HF8-T7`).
-  - Control-vs-final parity plus all-board browser/imported/multi-area lifecycle matrix are PASS (`P10-HF8-T8`, `P10-HF8-T9`).
-  - FAIL->PASS closure is recorded (`P10-HF8-T10-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked again.
+- HF1..HF8: completed PASS (historical baseline retained).
+- HF9 kickoff: mandatory blocker set from field runtime.
+  - Problem A: mobile command timeouts (`trigger-room`, `stop`) under load.
+  - Problem B: poor Lockdown board performance on phone/Raspberry Pi (load/switch latency and `sandstorm.mp4` stutter).
+  - Binding closure target: deterministic command pipeline + low-latency apply + low-end smooth mp4 + board-switch latency reduction + strict non-regression.
+- HF9 closure: PASS (`P10-HF9-T1..T14` artifacts + FAIL->PASS matrix) and full artifact synchronization complete.

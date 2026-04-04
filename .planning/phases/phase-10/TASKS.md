@@ -28,7 +28,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF9-T12 [P0] Implement board-switch latency reduction and stale-frame/context cleanup for control + `/output/final`.
 - [x] DONE P10-HF9-T13 [P0] Execute strict matrix on desktop/mobile/low-end (phone + Raspberry-Pi-class profile) for FAIL->PASS closure.
 - [x] DONE P10-HF9-T14 [P0] Execute strict non-regression gates for sync determinism and render correctness.
-- [ ] TODO P10-HF9-T15 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF9 PASS.
+- [x] DONE P10-HF9-T15 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF9 PASS.
 
 ## Plan 10-1 - Operator Speed Core Wave (queued, blocked by HF9)
 - [ ] TODO P10-T1 [P1] Define Settings IA and sub-tab grouping map.
