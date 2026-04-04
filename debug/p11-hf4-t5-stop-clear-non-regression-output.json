@@ -1,0 +1,11 @@
+{
+  "suite": "P11-HF4-T5-stop-clear-non-regression",
+  "observed": "PASS",
+  "checks": {
+    "stopRemovesOnlyTarget": true,
+    "clearRemovesAll": true,
+    "clearAllBranchPresent": true,
+    "clearGlobalStopRevisionPathPresent": true
+  },
+  "error": null
+}
