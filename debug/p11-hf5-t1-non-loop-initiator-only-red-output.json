@@ -1,0 +1,28 @@
+{
+  "suite": "P11-HF5-T1-non-loop-initiator-only-red",
+  "phase": "RED",
+  "observed": "FAIL",
+  "expected": "FAIL",
+  "checks": [
+    {
+      "id": "non-control-optimistic-global-start-path-present",
+      "pass": true,
+      "expected": true
+    },
+    {
+      "id": "initiator-only-one-shot-visible",
+      "pass": true,
+      "expected": true,
+      "meta": {
+        "initiatorOneShotVisible": true,
+        "peerOneShotVisible": false,
+        "finalOneShotVisible": false
+      }
+    },
+    {
+      "id": "loop-path-remains-synchronized-baseline",
+      "pass": true,
+      "expected": true
+    }
+  ]
+}
