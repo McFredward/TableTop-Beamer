@@ -1,0 +1,22 @@
+{
+  "suite": "P11-HF6-T2-root-cause-branch-isolation",
+  "observed": "PASS",
+  "hasServerAuthoritativeTriggerRevisionPath": true,
+  "hasSnapshotReconcileOverwritePath": true,
+  "lacksExplicitSeenOnceLock": true,
+  "branchIsolation": {
+    "commandEmissionBranch": {
+      "isolatedAsRootCause": false,
+      "note": "HF5 already removed local optimistic non-loop start masking from initiator path"
+    },
+    "serverApplyBranch": {
+      "isolatedAsRootCause": false,
+      "note": "server still issues authoritative triggerRevision + startedAtEpochMs payload",
+      "pass": true
+    },
+    "pollingHydrationReconcileBranch": {
+      "isolatedAsRootCause": true,
+      "note": "snapshot apply can replace local active one-shot without explicit stop/clear revision gate"
+    }
+  }
+}
