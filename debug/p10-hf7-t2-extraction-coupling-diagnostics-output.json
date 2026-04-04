@@ -1,0 +1,14 @@
+{
+  "suite": "p10-hf7-t2-extraction-coupling-diagnostics",
+  "phase": "RED",
+  "loadedBoardIds": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "unknownBoardId": "imported-lockdown-multi",
+  "extractionOutcome": {
+    "withLoadedBoardsOnly": "dropped",
+    "withUnknownBoardInLoadedList": "retained"
+  },
+  "result": "FAIL"
+}

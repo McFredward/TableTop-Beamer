@@ -71,7 +71,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 10-HF7 - Clean-start board-profile retention blocker wave (execute-ready, hard-gated)
 - [x] DONE P10-HF7-T1 [P0] Create deterministic RED repro for clean local storage startup where valid multi-area board profile entries are missing and default play area is applied.
-- [ ] TODO P10-HF7-T2 [P0] Add executable diagnostics proving board-profile candidate extraction currently depends on loaded board catalog IDs.
+- [x] DONE P10-HF7-T2 [P0] Add executable diagnostics proving board-profile candidate extraction currently depends on loaded board catalog IDs.
 - [ ] TODO P10-HF7-T3 [P0] Create deterministic RED repro where migration drops unknown board keys (including imported/multi-area boards) when key set is not loaded yet.
 - [ ] TODO P10-HF7-T4 [P0] Implement root-cause fix: board-profile candidate extraction independent from loaded board list.
 - [ ] TODO P10-HF7-T5 [P0] Implement migration hardening to retain unknown board keys without fallback-loss side effects.
