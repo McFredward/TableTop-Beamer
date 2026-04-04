@@ -620,10 +620,10 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 - Existing `stop outside` and `clear all` semantics remain deterministic and unchanged.
 - Gate status: PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
 
-## Phase 10 - Operator Speed UI/UX + Runtime Reliability/Performance Hardening (In Progress)
+## Phase 10 - Operator Speed UI/UX + Runtime Reliability/Performance Hardening (Completed)
 Ziel: Nach geschlossener Polygon-Hydration-Baseline priorisiert Phase 10 jetzt eine verpflichtende P0-Runtime-Welle fuer command pipeline hardening und low-end Lockdown-Performance (mobile/Raspberry Pi), bevor die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi fortgesetzt wird.
 
-Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist historische PASS-Evidenz, aber clean-start field-invalidated (board-profile key drop nach local-storage-clean). Plan 10-HF7 ist historische PASS-Evidenz, aber nachgelagert field-invalidated durch neues P0-Repro (alle Boards fallen auf default fallback polygon; `Load global defaults` reapplied board play-areas nicht deterministisch). Plan 10-HF8 ist PASS geschlossen (deterministische FAIL->PASS closure + all-board matrix). Plan 10-HF9 ist PASS geschlossen (T1..T15 mit FAIL->PASS matrix, fairness/no-drop hardening, low-end mp4 + board-switch recovery); Plan 10-1 ist damit wieder freigegeben.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist historische PASS-Evidenz, aber clean-start field-invalidated (board-profile key drop nach local-storage-clean). Plan 10-HF7 ist historische PASS-Evidenz, aber nachgelagert field-invalidated durch neues P0-Repro (alle Boards fallen auf default fallback polygon; `Load global defaults` reapplied board play-areas nicht deterministisch). Plan 10-HF8 ist PASS geschlossen (deterministische FAIL->PASS closure + all-board matrix). Plan 10-HF9 ist PASS geschlossen (T1..T15 mit FAIL->PASS matrix, fairness/no-drop hardening, low-end mp4 + board-switch recovery). Die zuvor verschobene UX-Acceleration-Welle wird als Phase 11 fortgesetzt.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -716,9 +716,30 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready (Settings-Subtabs, quick modes, mobile one-hand flow).
 - Plan 10-HF9 remains closure baseline for runtime reliability/performance hardening.
-- Plan 10-2 pending: refinement wave after 10-1 PASS.
+- UX-Acceleration scope moved to Phase 11 for immediate execution as Plan 11-1.
+
+## Phase 11 - UX Acceleration (In Progress)
+Ziel: Die in Phase 10 aufgeschobene speed-first Operator-UX wird jetzt direkt umgesetzt: Settings in logische Sub-Tabs aufteilen, schnelle sequenzielle Quick-Modi fuer `activate`/`deactivate`/`clear` liefern und mobile one-handed Bedienung fuer Live-Reaktion priorisieren.
+
+Status: Plan 11-1 ist PASS abgeschlossen (`.planning/phases/phase-11/11-1-SUMMARY.md`, `.planning/phases/phase-11/11-1-VERIFICATION.md`). Settings-IA-Subtabs, Quick-Modi (`activate`/`deactivate`/`clear`) per sequenziellen Room-Taps, mobile one-hand rail + board-overview guards sowie acceptance/non-regression matrix sind geliefert.
+
+Milestones:
+1. M1 Settings IA Split: logische Sub-Tabs reduzieren Scan-/Navigationszeit.
+2. M2 Quick Mode Engine: expliziter Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+3. M3 Rapid Activate/Deactivate/Clear: sequenzielle Room-Tap-Flows sind robust und deterministic.
+4. M4 Mobile One-Hand Closure: sticky Action-Rail und ergonomische Tap-Ziele sind praxisfest.
+5. M5 Feedback + Safety Closure: success/failure/timeout ist explizit sichtbar, kein silent no-op.
+6. M6 Non-Regression Closure: sync determinism, render correctness und stop/clear safety bleiben PASS.
+
+Exit Criteria:
+- Settings sind in logisch benannte Sub-Tabs gegliedert und bleiben draft-stabil beim Wechsel.
+- Quick Activation/Deactivation/Clear funktionieren deterministisch per sequenziellen Room-Taps.
+- `clear` entfernt alle Animationen der getappten Raeume ohne Scope-Drift.
+- Mobile one-handed Bedienung ist in Portrait/Landscape schnell und stabil nutzbar.
+- Quick-Mode-Aktionen liefern immer explizites operator-visible Feedback.
+- Keine Regression bei Sync-Invarianten, Render-Paritaet und Safety-Aktionen.
+- Phase-11-Artefakte sowie globale Tracker sind konsistent synchronisiert.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

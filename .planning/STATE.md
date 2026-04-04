@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 10
-- Current Phase Key: phase-10
+- Current Phase: 11
+- Current Phase Key: phase-11
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF9 (PASS)
-- Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF9-SUMMARY.md`
+- Last Executed Plan: 11-1 (PASS)
+- Planned Next Execution: 11-2
+- Last Execution Summary: `.planning/phases/phase-11/11-1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,14 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Phase-10 closure baseline ist PASS und bindend: Plan 10-HF9 schliesst command reliability/performance hardening inklusive FAIL->PASS Matrix.
+- Phase-11 Startregel ist bindend: unmittelbar nach Phase-10 closure startet ein execute-ready UX-Acceleration-Wave (Plan 11-1).
+- Phase-11 Scope-Regel ist bindend: Settings-Subtabs + Quick-Modi (`activate`/`deactivate`/`clear`) fuer sequenzielle Room-Taps sind primaere Ziele.
+- Phase-11 Mobile-Regel ist bindend: one-handed fast operation (sticky action rail, grosse Tap-Ziele, stabile Board-Uebersicht) ist Pflichtgate.
+- Phase-11 Safety-Regel ist bindend: Quick-Mode-Status ist immer explizit sichtbar; action success/failure/timeout darf nie still bleiben.
+- Plan-11-1 Umsetzung: Settings-Workspace ist in drei Subtabs gegliedert (`Board & Geometry`, `Animations`, `System & Performance`) mit stabiler Tab-Memory.
+- Plan-11-1 Umsetzung: Quick-Mode-Engine (`off`/`activate`/`deactivate`/`clear`) ist room-tap-gesteuert, explizit sichtbar und mode-switch/inflight-guarded.
+- Plan-11-1 Umsetzung: Mobile one-handed UX nutzt sticky Quick-Action-Rail + Board-Overview-Guard; Acceptance-Matrix ist PASS (`11-1-VERIFICATION.md`).
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.
