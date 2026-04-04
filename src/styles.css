@@ -349,6 +349,29 @@ body[data-output-role="final-output"] .toast-stack {
   z-index: 7;
 }
 
+.settings-subtab-shell {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  background: linear-gradient(180deg, rgba(19, 31, 47, 0.95), rgba(12, 22, 36, 0.92));
+  border: 1px solid rgba(105, 130, 158, 0.32);
+  border-radius: 0.7rem;
+}
+
+.settings-subtab-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.settings-subtab-switch button {
+  min-height: 2.55rem;
+  font-size: 0.8rem;
+  padding: 0.35rem;
+}
+
+.settings-subtab-hidden {
+  display: none !important;
+}
+
 .dashboard-sticky-shell {
   display: grid;
   gap: 0.65rem;
@@ -769,6 +792,21 @@ button.danger.is-armed {
   .button-grid,
   .running-actions {
     gap: 0.62rem;
+  }
+
+  .settings-subtab-shell {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+
+  .settings-subtab-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-subtab-switch button {
+    min-height: 3rem;
+    font-size: 0.92rem;
   }
 
   h2 {

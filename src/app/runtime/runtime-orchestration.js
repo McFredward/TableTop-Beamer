@@ -228,6 +228,15 @@ const boardPanStatus = document.querySelector("#board-pan-status");
 const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
 const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
 const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboard-zone]"));
+const settingsSubtabButtons = Array.from(document.querySelectorAll("[data-settings-subtab]"));
+const settingsSubtabStatus = document.querySelector("#settings-subtab-status");
+const settingsTabbedSections = Array.from(document.querySelectorAll('[data-view="settings"][data-settings-tab]'));
+const SETTINGS_SUBTAB_STORAGE_KEY = "tt-beamer.settings-subtab.v1";
+const SETTINGS_SUBTAB_LABELS = {
+  board: "Board & Geometry",
+  animations: "Animations",
+  system: "System & Performance",
+};
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "board-import-file",
@@ -5560,6 +5569,62 @@ function armClearAllGuard() {
   }, 2700);
 }
 
+function normalizeSettingsSubtab(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "animations" || normalized === "system") {
+    return normalized;
+  }
+  return "board";
+}
+
+function persistSettingsSubtab(nextSubtab) {
+  try {
+    window.localStorage.setItem(SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);
+  } catch {
+    // Best-effort only.
+  }
+}
+
+function syncSettingsSubtabVisibility() {
+  const activeSubtab = normalizeSettingsSubtab(state.settingsSubtab);
+  for (const button of settingsSubtabButtons) {
+    const tabId = normalizeSettingsSubtab(button.dataset.settingsSubtab);
+    const isActive = tabId === activeSubtab;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+  for (const section of settingsTabbedSections) {
+    const tabId = normalizeSettingsSubtab(section.dataset.settingsTab);
+    const isActive = tabId === activeSubtab;
+    section.classList.toggle("settings-subtab-hidden", !isActive);
+    section.setAttribute("aria-hidden", isActive ? "false" : "true");
+    if ("inert" in section) {
+      section.inert = !isActive;
+    }
+  }
+  if (settingsSubtabStatus) {
+    settingsSubtabStatus.textContent = `Settings focus: ${SETTINGS_SUBTAB_LABELS[activeSubtab] ?? SETTINGS_SUBTAB_LABELS.board}`;
+  }
+}
+
+function setSettingsSubtab(nextSubtab, { persist = true } = {}) {
+  state.settingsSubtab = normalizeSettingsSubtab(nextSubtab);
+  syncSettingsSubtabVisibility();
+  if (persist) {
+    persistSettingsSubtab(state.settingsSubtab);
+  }
+}
+
+function restoreSettingsSubtabPreference() {
+  let stored = "";
+  try {
+    stored = window.localStorage.getItem(SETTINGS_SUBTAB_STORAGE_KEY) || "";
+  } catch {
+    stored = "";
+  }
+  setSettingsSubtab(stored || state.settingsSubtab || "board", { persist: false });
+}
+
 function setViewGroupVisibility(groups, visible) {
   for (const entry of groups) {
     const shouldHide = !visible;
@@ -5673,6 +5738,7 @@ function setActiveView(view, { skipGuard = false } = {}) {
   openSettingsViewButton.classList.toggle("active", showSettings);
   openDashboardViewButton.setAttribute("aria-pressed", showSettings ? "false" : "true");
   openSettingsViewButton.setAttribute("aria-pressed", showSettings ? "true" : "false");
+  syncSettingsSubtabVisibility();
   if (showSettings) {
     resetClearAllGuard();
     syncPolygonEditorPanel();
@@ -11247,6 +11313,17 @@ openSettingsViewButton.addEventListener("click", () => {
   setActiveView("settings");
 });
 
+for (const button of settingsSubtabButtons) {
+  button.addEventListener("click", () => {
+    const nextTab = normalizeSettingsSubtab(button.dataset.settingsSubtab);
+    if (nextTab === normalizeSettingsSubtab(state.settingsSubtab)) {
+      return;
+    }
+    setSettingsSubtab(nextTab);
+    triggerFeedback.textContent = `Status: Settings tab switched to ${SETTINGS_SUBTAB_LABELS[nextTab] ?? SETTINGS_SUBTAB_LABELS.board}`;
+  });
+}
+
 openTriggerZoneButton?.addEventListener("click", () => {
   setDashboardZone("trigger", { announce: true });
 });
@@ -12959,6 +13036,7 @@ async function initializeApplication() {
   }
 
   syncRuntimePanelsFromState();
+  restoreSettingsSubtabPreference();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
   connectLiveSyncSocket();

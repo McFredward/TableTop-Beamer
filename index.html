@@ -45,6 +45,15 @@
         <button id="open-settings-view" type="button">Settings</button>
       </nav>
 
+      <section class="settings-subtab-shell settings-only view-hidden" data-view="settings" hidden>
+        <nav class="view-switch settings-subtab-switch" aria-label="Settings groups">
+          <button id="settings-subtab-board" type="button" data-settings-subtab="board" class="active">Board &amp; Geometry</button>
+          <button id="settings-subtab-animations" type="button" data-settings-subtab="animations">Animations</button>
+          <button id="settings-subtab-system" type="button" data-settings-subtab="system">System &amp; Performance</button>
+        </nav>
+        <p id="settings-subtab-status" class="status-line" aria-live="polite">Settings focus: Board &amp; Geometry</p>
+      </section>
+
       <div class="dashboard-sticky-shell dashboard-only" data-view="dashboard">
 
         <nav id="mobile-zone-switch" class="mobile-zone-switch dashboard-only" data-view="dashboard"
@@ -68,7 +77,7 @@
         <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
-      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Board catalog + output</h2>
         <label>
           Board
@@ -114,7 +123,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Board zoom (Settings)</h2>
         <p class="status-line">Precision zoom for room polygons with fit/reset.</p>
         <label>
@@ -135,7 +144,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Hitarea Calibration</h2>
         <p class="status-line">Manual fine tuning for hit test and overlay (per active board).</p>
         <div class="calibration-grid">
@@ -159,7 +168,7 @@
         <p id="hitarea-status" class="status-line" aria-live="polite">Hitarea: Default</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room management</h2>
         <label>
           New room name
@@ -182,7 +191,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room geometry</h2>
         <p class="status-line">Calibrate per-room position as relative offset or absolute target position.</p>
         <label>
@@ -215,7 +224,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Cluster management</h2>
         <label>
           Cluster
@@ -237,7 +246,7 @@
         <p id="cluster-management-status" class="status-line" aria-live="polite">Cluster management: ready</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room polygon editor</h2>
         <p class="status-line">Drag vertices on the overlay or insert/delete using buttons.</p>
         <label class="inline-checkbox">
@@ -273,7 +282,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Play Area editor (outside mask)</h2>
         <p class="status-line">Edit the Play Area mask; outside effects are rendered only outside this polygon.</p>
         <label>
@@ -312,7 +321,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Inside Animations</h2>
         <p class="status-line">Configure inside effects with definition-based entries and create flow.</p>
         <label>
@@ -355,7 +364,7 @@
         <button id="inside-apply-changes" type="button">Apply changes</button>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Outside Animations</h2>
         <p class="status-line">Configure outside effects and keep them isolated outside Play Area masks.</p>
         <label>
@@ -416,7 +425,7 @@
         <button id="outside-apply-changes" type="button">Apply changes</button>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Room Animations</h2>
         <p class="status-line">Configure room-scope definitions with create/edit/delete and typed assets.</p>
         <label>
@@ -470,7 +479,7 @@
         <p id="trigger-feedback" class="status-line" aria-live="polite">Status: ready</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>General animation settings</h2>
         <label>
           Global speed factor <span id="animation-speed-value">1.00x</span>
@@ -479,7 +488,7 @@
         <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Audio Settings</h2>
         <label class="inline-checkbox">
           <input id="audio-enabled" type="checkbox" checked />
@@ -492,7 +501,7 @@
         <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Sound mapping per animation</h2>
         <label>
           Animation
@@ -549,7 +558,7 @@
         <button id="start-room-animation" type="button">Start room animation</button>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Mobile Performance-Checks</h2>
         <p class="status-line">Measures trigger latency and frame stability for mobile operation.</p>
         <button id="run-mobile-performance-check" type="button">Create performance snapshot</button>

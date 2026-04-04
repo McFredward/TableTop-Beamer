@@ -36,6 +36,7 @@
       animationSpeed: 1,
       animationSoundMap: {},
       uiView: "dashboard",
+      settingsSubtab: "board",
       dashboardZone: "trigger",
       hitareaCalibrationByBoard: {},
       roomTombstonesByBoard: {},
