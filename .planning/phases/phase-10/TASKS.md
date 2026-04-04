@@ -49,7 +49,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF5-T1 [P0] Create deterministic failing repro tests that contrast multi-play-area boards vs single-play-area boards under startup/reload/default-apply.
 - [x] DONE P10-HF5-T2 [P0] Create deterministic failing repro for `Nemesis Lockdown A` showing default play area/fallback hex visibility despite valid canonical saved play-areas.
 - [x] DONE P10-HF5-T3 [P0] Add Firefox-specific headless/automation diagnostics with parity traces against Chrome desktop and mobile-class Chrome.
-- [ ] TODO P10-HF5-T4 [P0] Add executable canonical source-selection + fallback-decision diagnostics for control-view and `/output/final`.
+- [x] DONE P10-HF5-T4 [P0] Add executable canonical source-selection + fallback-decision diagnostics for control-view and `/output/final`.
 - [ ] TODO P10-HF5-T5 [P0] Implement generic root-cause fix for wrong fallback to default play area on multi-area canonical payloads (no board-specific branch).
 - [ ] TODO P10-HF5-T6 [P0] Enforce one shared canonical play-area resolver contract across control-view and `/output/final`.
 - [ ] TODO P10-HF5-T7 [P0] Add lifecycle assertions for startup/reload/default-apply/board-switch parity with canonical saved play-areas.
