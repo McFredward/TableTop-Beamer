@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF3 (PASS)
+- Last Executed Plan: 10-HF4 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF3-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,11 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues kritisches P0-Follow-up fuer Phase 10 ist bindend: `domain-modules-missing` meldet fehlende Runtime-Panel-Exposition (`TT_BEAMER_RUNTIME_PANELS`) im Firefox-Debug.
+- HF4-Root-Cause-Regel: Runtime-Panel-Modulpfad wird testgetrieben auf Load-Order/Global-Exposure analysiert und browserneutral gehaertet (keine board-spezifischen Sonderpfade).
+- HF4-Ownership-Regel: Settings-Ownership-Checks sind applicability-aware; conditionally unmounted Controls (`#outside-mode`, `#outside-direction`) gelten als korrekt, sofern fachlich nicht anwendbar.
+- HF4-Clip-Regel: Ship-Clip-Regression-Checker muss invalid polygons deterministisch verwerfen und valide canonical/multi-play-area/legacy States browserneutral akzeptieren.
+- HF4-Final-Path-Regel: `/output/final` darf bei vorhandenen kanonisch-validen Polygonen nicht auf invalid-default Fallback kippen; Firefox/Chrome-Parity wird ueber executable diagnostics geprueft.
 - Kritisches Follow-up fuer Phase 10 ist bindend: vorherige HF2-Massnahmen schliessen den Realbetrieb nicht; neue Welle 10-HF3 ist P0-Blocker vor 10-1.
 - Test-First-Regel Plan 10-HF3: zuerst drei reproduzierbare FAIL-Tests fuer exakten Symptom-Satz (Lockdown A Firefox/mobile-class apply drift, defaults-apply override, final-output black/fallback rectangle trotz valider Polygone).
 - Diagnose-Regel Plan 10-HF3: nur direkt ausfuehrbare Lifecycle-/Board-Switch-/Canonical-Source-Assertions zaehlen; statische Checks allein sind nicht gate-faehig.
@@ -1120,3 +1125,18 @@
   - `.planning/phases/phase-09/9-1-BOUNDARY-MAP.md`
   - `.planning/phases/phase-09/9-1-VERIFICATION.md`
   - `node --check src/app.js` => PASS
+
+## Execution Results (Phase 10 Plan HF4)
+- Status: completed
+- Summary: `.planning/phases/phase-10/10-HF4-SUMMARY.md`
+- Task Commits: 10 atomare Commits (`4263002`, `70f5587`, `cbd99b9`, `26dd678`, `74c0c2e`, `f5134bf`, `1905e01`, `98e0886`, `b160209`, `6ead064`)
+- Evidence:
+  - `.planning/phases/phase-10/P10-HF4-T1-REPRO-TRACE.md`
+  - `.planning/phases/phase-10/P10-HF4-T2-RUNTIME-PANEL-DIAGNOSTICS.md`
+  - `.planning/phases/phase-10/P10-HF4-T10-FAIL-PASS-PROOF.md`
+  - `debug/p10-hf4-t8-browser-parity-output.json`
+
+## Decision Log Addendum (HF4)
+- Runtime panel API wird unter `TT_BEAMER_RUNTIME_PANELS` und `TT_BEAMER_UI_RUNTIME_PANELS` konsistent exponiert, damit browser-/load-order Drift keinen Missing-Domain-Fehler ausloest.
+- Settings-Ownership-Checks sind applicability-aware: unmounted `#outside-mode` und `#outside-direction` sind korrekt, wenn ausserhalb des fachlich anwendbaren Kontextes.
+- Ship-/Play-Area-Clipquellen akzeptieren nur renderbare kanonische/legacy Polygone; invalid provided polygons werden deterministisch verworfen statt auf invalid-default zu kippen.

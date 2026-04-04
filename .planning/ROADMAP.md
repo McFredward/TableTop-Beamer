@@ -623,7 +623,7 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 ## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
 Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
 
-Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 ist PASS abgeschlossen (deterministic FAIL->PASS + imported/browser matrix). Plan 10-1 ist jetzt unblocked und naechste Welle.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen (deterministic FAIL->PASS + browser/imported-board parity + runtime-panel/ownership/ship-clip/final-canonical closure). Plan 10-1 ist als naechste execute-ready Welle freigegeben.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -640,13 +640,18 @@ Milestones:
 12. M0 HF3 Diagnostics Closure: ausfuehrbare Lifecycle-/Board-Switch-/Canonical-Source-Assertions sind aktiv.
 13. M0 HF3 Root-Cause Closure: generischer Fix schliesst Ursachen ohne board-spezifische Sonderzweige.
 14. M0 HF3 FAIL->PASS Closure: identischer Testsatz dokumentiert pre-fix FAIL und post-fix PASS.
-15. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
-16. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
-17. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
-18. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
-19. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
-20. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
-21. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+15. M0 HF4 Runtime-Panel Exposure Closure: `TT_BEAMER_RUNTIME_PANELS` ist load-order-stabil exponiert und bindbar.
+16. M0 HF4 Ownership Applicability Closure: ownership checks akzeptieren legitime conditional-unmount-Zustaende.
+17. M0 HF4 Ship-Clip Validity Closure: checker ist browserneutral fuer canonical/multi-play-area/legacy valid/invalid States.
+18. M0 HF4 Browser Parity Closure: executable diagnostics sind auf Firefox und Chrome PASS.
+19. M0 HF4 Final-Output Canonical Closure: canonical valide Polygondaten verhindern invalid-default fallback.
+20. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
+21. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+22. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
+23. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
+24. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
+25. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
+26. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
 
 Exit Criteria:
 - `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
@@ -661,6 +666,11 @@ Exit Criteria:
 - Browsermatrix ist PASS fuer Chrome/Firefox desktop + mobile-class emulation where possible.
 - Exakter Feld-Symptom-Satz ist testgetrieben reproduziert (pre-fix FAIL) und root-cause-basiert geschlossen (post-fix PASS).
 - Ausfuehrbare Diagnostik deckt startup/load/apply-defaults/reload, board-switch/final-output contract und canonical source selection verbindlich ab.
+- Runtime panel module exposure/load-order contract (`TT_BEAMER_RUNTIME_PANELS`) ist browserneutral stabil und diagnostisch nachgewiesen.
+- Settings ownership checks sind applicability-aware fuer conditionally unmounted Controls (`#outside-mode`, `#outside-direction`).
+- Ship-clip regression checker bewertet canonical/multi-play-area/legacy states browserneutral korrekt (valid accepted, invalid rejected).
+- Firefox/Chrome parity ist ueber executable diagnostics fuer HF4-Szenarien PASS.
+- `/output/final` faellt bei vorhandenen canonical valid polygons nicht auf invalid-default fallback zurueck.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -670,7 +680,7 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready (unblocked): speed-first operator UX with settings sub-tabs and quick activation/deactivation/clear flows.
+- Plan 10-1 execute-ready: speed-first operator UX wave (Settings sub-tabs + quick activate/deactivate/clear flows + mobile one-hand guardrails).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
