@@ -30,7 +30,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF9-T14 [P0] Execute strict non-regression gates for sync determinism and render correctness.
 - [x] DONE P10-HF9-T15 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF9 PASS.
 
-## Plan 10-1 - Operator Speed Core Wave (queued, blocked by HF9)
+## Plan 10-1 - Operator Speed Core Wave (queued, unblocked)
 - [ ] TODO P10-T1 [P1] Define Settings IA and sub-tab grouping map.
 - [ ] TODO P10-T2 [P1] Implement Settings sub-tab UI shell with preserved draft state.
 - [ ] TODO P10-T3 [P1] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`).

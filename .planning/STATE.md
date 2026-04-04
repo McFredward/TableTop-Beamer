@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF8 (PASS)
+- Last Executed Plan: 10-HF9 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF8-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF9-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -33,6 +33,18 @@
 - Plan-10-HF8 Umsetzung: canonical load/apply degradations erzeugen explizite issue-Signale mit board/source Kontext und werden via status/toast sichtbar statt still maskiert.
 - Plan-10-HF8 Umsetzung: control-view vs `/output/final` parity (`set`, `areaCount`, `areaIdSet`) sowie all-board lifecycle/browser matrix sind PASS (`P10-HF8-T8`, `P10-HF8-T9`).
 - Plan-10-HF8 Umsetzung: FAIL->PASS closure ist dokumentiert (`P10-HF8-T10-FAIL-PASS-PROOF.md`); Plan 10-1 ist erneut freigegeben.
+- Neues verpflichtendes P0-Problem fuer Phase 10 ist bindend: mobile/low-end Clients sehen wiederholt Command-Timeouts (`trigger-room` und `stop`) unter Last; Command-Verarbeitung muss deterministisch, unmittelbar und no-drop sein.
+- Neues verpflichtendes P0-Problem fuer Phase 10 ist bindend: Performance auf `Nemesis Lockdown Board A` ist auf Handy/Raspberry Pi unzureichend (langes Laden, ruckeliges `sandstorm.mp4`, board-switch latency).
+- Plan 10-HF9 ist als priorisierte execute-ready Hotfix-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure.
+- HF9-Command-Regel: command pipeline wird ack/timeout/resend-path gehaertet, mit fairer Queue-Scheduling-Strategie und no-drop Semantik auch unter Burst-Last.
+- HF9-Low-Latency-Regel: command apply bleibt unter Last low-latency (priorisierte stop/clear Pfade, bounded apply slices, no starvation).
+- HF9-MP4-Performance-Regel: low-end decode/render Strategie fuer `sandstorm.mp4` nutzt adaptive perf profile, prewarm/buffering guards und deterministic degrade/recover ohne Sync-Drift.
+- HF9-Board-Switch-Regel: board-switch muss in control + `/output/final` deutlich geringere Latenz haben und darf kein stale frame residue erzeugen.
+- HF9-Non-Regression-Regel: sync determinism (ordering/version/idempotent apply) und render correctness (control/final parity, canonical clip correctness) bleiben strikt unveraendert.
+- Plan-10-HF9 Umsetzung: RED-Repros T1..T6 dokumentieren Timeout/Ack/Resend/Fairness/No-drop Failures deterministisch vor Hardening.
+- Plan-10-HF9 Umsetzung: command pipeline nutzt deterministische max-3 retry closure (stabile mutation IDs), weighted fairness scheduler und no-drop backpressure semantics.
+- Plan-10-HF9 Umsetzung: low-end `sandstorm.mp4` nutzt native frame-ready callback strategy (`requestVideoFrameCallback`) plus prewarm/draw-cadence guards; board-switch latency/stale-residue gates sind PASS.
+- Plan-10-HF9 Umsetzung: FAIL->PASS closure + sync/render non-regression sind PASS (`P10-HF9-T13`, `P10-HF9-T14`); Plan 10-1 ist wieder freigegeben.
 - Neues P0-Root-Cause-Feedback fuer Phase 10 ist bindend: fehlende Play-Area-Eintraege nach clean local storage entstehen, weil board-profile candidate extraction/migration von aktuell geladenen board-catalog IDs abhaengt.
 - Wenn ein Board-Key (z. B. imported/multi-area board) zu diesem Zeitpunkt nicht in der geladenen Liste ist, kann Migration den Profil-Key verwerfen und auf default play area zurueckfallen.
 - Plan 10-HF6 bleibt historische PASS-Evidenz, ist fuer clean-start Pfade jedoch field-invalidated; Plan 10-HF7 blockiert Plan 10-1 erneut bis FAIL->PASS closure.

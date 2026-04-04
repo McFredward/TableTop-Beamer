@@ -620,10 +620,10 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 - Existing `stop outside` and `clear all` semantics remain deterministic and unchanged.
 - Gate status: PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
 
-## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
-Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
+## Phase 10 - Operator Speed UI/UX + Runtime Reliability/Performance Hardening (In Progress)
+Ziel: Nach geschlossener Polygon-Hydration-Baseline priorisiert Phase 10 jetzt eine verpflichtende P0-Runtime-Welle fuer command pipeline hardening und low-end Lockdown-Performance (mobile/Raspberry Pi), bevor die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi fortgesetzt wird.
 
-Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist historische PASS-Evidenz, aber clean-start field-invalidated (board-profile key drop nach local-storage-clean). Plan 10-HF7 ist historische PASS-Evidenz, aber nachgelagert field-invalidated durch neues P0-Repro (alle Boards fallen auf default fallback polygon; `Load global defaults` reapplied board play-areas nicht deterministisch). Plan 10-HF8 ist PASS geschlossen (deterministische FAIL->PASS closure + all-board matrix); Plan 10-1 ist wieder freigegeben.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist historische PASS-Evidenz, aber clean-start field-invalidated (board-profile key drop nach local-storage-clean). Plan 10-HF7 ist historische PASS-Evidenz, aber nachgelagert field-invalidated durch neues P0-Repro (alle Boards fallen auf default fallback polygon; `Load global defaults` reapplied board play-areas nicht deterministisch). Plan 10-HF8 ist PASS geschlossen (deterministische FAIL->PASS closure + all-board matrix). Plan 10-HF9 ist PASS geschlossen (T1..T15 mit FAIL->PASS matrix, fairness/no-drop hardening, low-end mp4 + board-switch recovery); Plan 10-1 ist damit wieder freigegeben.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -668,6 +668,13 @@ Milestones:
 40. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
 41. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
 42. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+43. M0 HF9 Timeout/Ack/Resend Closure: command pipeline failures sind deterministisch reproduziert und mit ausfuehrbarer Diagnostik abgesichert.
+44. M0 HF9 Queue Fairness + No-Drop Closure: mixed command bursts sind fair und no-drop unter Last.
+45. M0 HF9 Low-Latency Apply Closure: command apply bleibt unter Last unmittelbar und deterministic.
+46. M0 HF9 Low-End MP4 Closure: `sandstorm.mp4` laeuft fluessig auf weak-hardware Profilen (mobile/Raspberry-Pi-class).
+47. M0 HF9 Board-Switch Latency Closure: board-switch ist beschleunigt und ohne stale frame residue.
+48. M0 HF9 Sync/Render Non-Regression Closure: determinismus und render correctness bleiben PASS.
+49. M0 HF9 FAIL->PASS Closure: identischer HF9-Gatesatz ist pre-fix FAIL und post-fix PASS dokumentiert.
 
 Exit Criteria:
 - `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
@@ -696,6 +703,10 @@ Exit Criteria:
 - Alle Boards laden play-areas deterministisch aus canonical saved sources statt default fallback polygon.
 - `Load global defaults` reapplied board-spezifische play-areas deterministisch fuer alle Boards.
 - Canonical load/apply failure paths erzeugen explizite operator-visible Fehler (toast/status mit Kontext); silent fallback masking ist ausgeschlossen.
+- Command pipeline bleibt unter Last deterministic (ack/timeout/resend closure), fair und no-drop fuer `trigger`/`stop`/`clear`.
+- `stop`/`clear` bleiben low-latency first-click wirksam, auch bei Burst-Last.
+- `sandstorm.mp4` Wiedergabe ist auf low-end mobile/Raspberry-Pi-class fluessig mit adaptive perf profile und prewarm/buffering safeguards.
+- Board-switch-Latenz ist reduziert; control + `/output/final` zeigen keine stale frame/context residues.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -705,7 +716,8 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready: operator speed core wave (Settings-Subtabs, quick modes, mobile one-hand flow).
+- Plan 10-1 execute-ready (Settings-Subtabs, quick modes, mobile one-hand flow).
+- Plan 10-HF9 remains closure baseline for runtime reliability/performance hardening.
 - Plan 10-2 pending: refinement wave after 10-1 PASS.
 
 ## Deferred (Post-Phase-2)
