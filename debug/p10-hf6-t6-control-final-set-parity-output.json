@@ -1,0 +1,67 @@
+{
+  "suite": "p10-hf6-t6-control-final-set-parity",
+  "boardId": "nemesis-lockdown-a",
+  "expectedAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "lanes": [
+    {
+      "browser": "chrome",
+      "control": {
+        "surface": "control",
+        "browser": "chrome",
+        "areaIdSet": [
+          "bunker",
+          "play-area-1"
+        ]
+      },
+      "finalOutput": {
+        "surface": "output/final",
+        "browser": "chrome",
+        "areaIdSet": [
+          "bunker",
+          "play-area-1"
+        ]
+      },
+      "parity": true
+    },
+    {
+      "browser": "firefox",
+      "control": {
+        "surface": "control",
+        "browser": "firefox",
+        "areaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "finalOutput": {
+        "surface": "output/final",
+        "browser": "firefox",
+        "areaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "parity": true
+    },
+    {
+      "browser": "mobile-chrome",
+      "control": {
+        "surface": "control",
+        "browser": "mobile-chrome",
+        "areaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "finalOutput": {
+        "surface": "output/final",
+        "browser": "mobile-chrome",
+        "areaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "parity": true
+    }
+  ],
+  "result": "FAIL"
+}

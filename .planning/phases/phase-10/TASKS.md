@@ -63,7 +63,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF6-T3 [P0] Create deterministic RED repro where fallback/default area replaces valid multi-area subset payloads.
 - [x] DONE P10-HF6-T4 [P0] Add explicit cross-browser assertions for per-board `areaCount` parity (Chrome/Firefox/mobile-class Chrome).
 - [x] DONE P10-HF6-T5 [P0] Add explicit cross-browser assertions for per-board canonical `areaIdSet` parity.
-- [ ] TODO P10-HF6-T6 [P0] Add explicit surface parity assertions that control-view and `/output/final` consume identical canonical play-area sets.
+- [x] DONE P10-HF6-T6 [P0] Add explicit surface parity assertions that control-view and `/output/final` consume identical canonical play-area sets.
 - [ ] TODO P10-HF6-T7 [P0] Implement generic root-cause fix in merge/resolver path to retain valid multi-area entries deterministically (no board-specific branch).
 - [ ] TODO P10-HF6-T8 [P0] Enforce fallback guard so default area only fills truly missing/invalid data and never replaces valid subset multi-area data.
 - [ ] TODO P10-HF6-T9 [P0] Execute browser parity matrix + imported-board/multi-area strict non-regression matrix (startup/reload/default-apply/board-switch/final-output).
