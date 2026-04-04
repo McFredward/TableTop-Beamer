@@ -5643,8 +5643,61 @@ function normalizeQuickMode(mode) {
   return QUICK_MODE_VALUES.has(normalized) ? normalized : "off";
 }
 
+function getQuickModeInflightMap() {
+  if (!state.quickMode || typeof state.quickMode !== "object") {
+    state.quickMode = { mode: "off", inflightByRoom: {} };
+  }
+  if (!state.quickMode.inflightByRoom || typeof state.quickMode.inflightByRoom !== "object") {
+    state.quickMode.inflightByRoom = {};
+  }
+  return state.quickMode.inflightByRoom;
+}
+
+function getQuickModeInflightCount() {
+  return Object.keys(getQuickModeInflightMap()).length;
+}
+
+function markQuickModeRoomInflight(roomId, holdMs = 520) {
+  const normalizedRoomId = String(roomId || "").trim();
+  if (!normalizedRoomId) {
+    return false;
+  }
+  const inflightMap = getQuickModeInflightMap();
+  if (inflightMap[normalizedRoomId]) {
+    return false;
+  }
+  const timeoutId = window.setTimeout(() => {
+    clearQuickModeRoomInflight(normalizedRoomId);
+  }, Math.max(180, Number(holdMs) || 520));
+  inflightMap[normalizedRoomId] = timeoutId;
+  syncQuickModePanel();
+  return true;
+}
+
+function clearQuickModeRoomInflight(roomId) {
+  const normalizedRoomId = String(roomId || "").trim();
+  if (!normalizedRoomId) {
+    return;
+  }
+  const inflightMap = getQuickModeInflightMap();
+  const timeoutId = inflightMap[normalizedRoomId];
+  if (timeoutId) {
+    window.clearTimeout(timeoutId);
+  }
+  delete inflightMap[normalizedRoomId];
+  syncQuickModePanel();
+}
+
+function clearAllQuickModeInflight() {
+  const inflightMap = getQuickModeInflightMap();
+  for (const roomId of Object.keys(inflightMap)) {
+    clearQuickModeRoomInflight(roomId);
+  }
+}
+
 function syncQuickModePanel() {
   const mode = normalizeQuickMode(state.quickMode?.mode);
+  const inflightCount = getQuickModeInflightCount();
   const buttonMap = {
     off: quickModeOffButton,
     activate: quickModeActivateButton,
@@ -5660,15 +5713,34 @@ function syncQuickModePanel() {
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
   }
   if (quickModeStatus) {
-    quickModeStatus.textContent = `Quick mode: ${QUICK_MODE_LABELS[mode] ?? QUICK_MODE_LABELS.off}`;
+    quickModeStatus.textContent = inflightCount > 0
+      ? `Quick mode: ${QUICK_MODE_LABELS[mode] ?? QUICK_MODE_LABELS.off} | busy: ${inflightCount}`
+      : `Quick mode: ${QUICK_MODE_LABELS[mode] ?? QUICK_MODE_LABELS.off}`;
   }
   if (quickModePanel) {
     quickModePanel.dataset.mode = mode;
+    quickModePanel.classList.toggle("is-busy", inflightCount > 0);
   }
 }
 
 function setQuickMode(nextMode, { announce = true } = {}) {
   const normalizedMode = normalizeQuickMode(nextMode);
+  const currentMode = normalizeQuickMode(state.quickMode?.mode);
+  const inflightCount = getQuickModeInflightCount();
+  if (
+    normalizedMode !== currentMode
+    && normalizedMode !== "off"
+    && currentMode !== "off"
+    && inflightCount > 0
+  ) {
+    triggerFeedback.textContent = "Status: Quick mode switch blocked while room actions are in flight";
+    showToast("Quick mode switch blocked until in-flight room actions settle", {
+      kind: "error",
+      dedupeKey: "quick-mode-switch-blocked",
+    });
+    syncQuickModePanel();
+    return;
+  }
   state.quickMode.mode = normalizedMode;
   syncQuickModePanel();
   if (announce) {
@@ -5755,6 +5827,10 @@ function clearRoomAnimationsByQuickTap(roomId) {
 
 function handleQuickModeRoomTap(roomId) {
   const mode = normalizeQuickMode(state.quickMode?.mode);
+  if (!markQuickModeRoomInflight(roomId)) {
+    triggerFeedback.textContent = "Status: Quick mode room action already in flight";
+    return;
+  }
   if (mode === "activate") {
     activateRoomAnimationByQuickTap(roomId);
     return;
@@ -5767,6 +5843,7 @@ function handleQuickModeRoomTap(roomId) {
     clearRoomAnimationsByQuickTap(roomId);
     return;
   }
+  clearQuickModeRoomInflight(roomId);
   triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[mode] ?? mode} is OFF`;
 }
 
@@ -12692,6 +12769,7 @@ window.addEventListener("blur", () => {
   }
   endPanMode(null, { canceled: true });
   resetClearAllGuard();
+  clearAllQuickModeInflight();
   setPanCursorState();
 });
 
