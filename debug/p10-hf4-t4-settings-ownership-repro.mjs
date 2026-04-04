@@ -15,6 +15,13 @@ const diagnostics = [];
 
 const context = vm.createContext({
   SETTINGS_EXCLUSIVE_CONTROL_IDS: ["board-select", "outside-mode", "outside-direction"],
+  state: { boardId: "board-a" },
+  getSelectedOutsideAnimationDefinition() {
+    return { assetType: "gif", assetRef: "/resources/example.gif" };
+  },
+  isOutsideModeDirectionApplicable() {
+    return false;
+  },
   document: {
     getElementById(id) {
       if (id === "outside-mode" || id === "outside-direction") {

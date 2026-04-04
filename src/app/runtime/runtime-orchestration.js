@@ -5417,10 +5417,15 @@ function isViewGroupVisible(entry) {
 }
 
 function validateSettingsControlOwnership({ silent = false, context = "runtime" } = {}) {
+  const outsideDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
+  const outsideModeDirectionApplicable = isOutsideModeDirectionApplicable(outsideDefinition);
   const leaks = [];
   for (const id of SETTINGS_EXCLUSIVE_CONTROL_IDS) {
     const element = document.getElementById(id);
     if (!element) {
+      if ((id === "outside-mode" || id === "outside-direction") && !outsideModeDirectionApplicable) {
+        continue;
+      }
       leaks.push(`missing control: #${id}`);
       continue;
     }

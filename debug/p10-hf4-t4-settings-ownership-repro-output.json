@@ -2,18 +2,6 @@
   "suite": "p10-hf4-t4-settings-ownership-repro",
   "outsideModeMounted": false,
   "outsideDirectionMounted": false,
-  "diagnostics": [
-    {
-      "eventName": "settings_ownership_violation",
-      "payload": {
-        "event": "settings-ownership-violation",
-        "context": "hf4-t4",
-        "leaks": [
-          "missing control: #outside-mode",
-          "missing control: #outside-direction"
-        ]
-      }
-    }
-  ],
-  "result": "FAIL"
+  "diagnostics": [],
+  "result": "PASS"
 }
