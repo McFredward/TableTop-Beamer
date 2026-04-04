@@ -5752,6 +5752,10 @@ function isQuickModeActive() {
   return normalizeQuickMode(state.quickMode?.mode) !== "off";
 }
 
+function getQuickModeRoomLabel(roomId) {
+  return getBoard(state.boardId).rooms.find((entry) => entry.id === roomId)?.name ?? roomId;
+}
+
 function activateRoomAnimationByQuickTap(roomId) {
   const normalizedRoomId = String(roomId || "").trim();
   if (!normalizedRoomId) {
@@ -5768,6 +5772,11 @@ function activateRoomAnimationByQuickTap(roomId) {
   state.roomDraft.targetId = previousTargetId;
   state.roomDraft.editTargetId = previousEditTargetId;
   syncRoomTargetSelect();
+  return {
+    ok: true,
+    action: "activate",
+    roomLabel: getQuickModeRoomLabel(normalizedRoomId),
+  };
 }
 
 function collectQuickTapRoomAnimationIds(roomId, { onlyType = null } = {}) {
@@ -5799,30 +5808,81 @@ function collectQuickTapRoomAnimationIds(roomId, { onlyType = null } = {}) {
 function deactivateRoomAnimationByQuickTap(roomId) {
   const selectedAnimationType = String(state.roomDraft.animationId || "").trim();
   if (!selectedAnimationType) {
-    triggerFeedback.textContent = "Status: Quick deactivate needs a selected animation";
-    return;
+    return {
+      ok: false,
+      action: "deactivate",
+      roomLabel: getQuickModeRoomLabel(roomId),
+      reason: "missing-animation-selection",
+      message: "Quick deactivate needs a selected animation",
+    };
   }
   const targetIds = collectQuickTapRoomAnimationIds(roomId, { onlyType: selectedAnimationType });
   if (targetIds.length === 0) {
-    const roomLabel = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId)?.name ?? roomId;
-    triggerFeedback.textContent = `Status: No ${getRoomAnimationLabelById(selectedAnimationType, state.boardId)} running in ${roomLabel}`;
-    return;
+    const roomLabel = getQuickModeRoomLabel(roomId);
+    return {
+      ok: false,
+      action: "deactivate",
+      roomLabel,
+      reason: "no-target",
+      message: `No ${getRoomAnimationLabelById(selectedAnimationType, state.boardId)} running in ${roomLabel}`,
+    };
   }
   for (const animationId of targetIds) {
     stopAnimation(animationId);
   }
+  return {
+    ok: true,
+    action: "deactivate",
+    roomLabel: getQuickModeRoomLabel(roomId),
+    count: targetIds.length,
+  };
 }
 
 function clearRoomAnimationsByQuickTap(roomId) {
   const targetIds = collectQuickTapRoomAnimationIds(roomId);
   if (targetIds.length === 0) {
-    const roomLabel = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId)?.name ?? roomId;
-    triggerFeedback.textContent = `Status: Clear mode found no running room animations in ${roomLabel}`;
-    return;
+    const roomLabel = getQuickModeRoomLabel(roomId);
+    return {
+      ok: false,
+      action: "clear",
+      roomLabel,
+      reason: "no-target",
+      message: `Clear mode found no running room animations in ${roomLabel}`,
+    };
   }
   for (const animationId of targetIds) {
     stopAnimation(animationId);
   }
+  return {
+    ok: true,
+    action: "clear",
+    roomLabel: getQuickModeRoomLabel(roomId),
+    count: targetIds.length,
+  };
+}
+
+function reportQuickModeTapOutcome(mode, outcome, roomId) {
+  if (!outcome) {
+    return;
+  }
+  const roomLabel = outcome.roomLabel ?? getQuickModeRoomLabel(roomId);
+  if (!outcome.ok) {
+    const message = outcome.message || `Quick ${mode} had no effect in ${roomLabel}`;
+    triggerFeedback.textContent = `Status: ${message}`;
+    showToast(`Quick ${mode}: ${message}`, {
+      kind: "error",
+      dedupeKey: `quick-${mode}-${outcome.reason || "no-effect"}`,
+      timeoutMs: 3200,
+    });
+    return;
+  }
+  const countSuffix = Number(outcome.count) > 0 ? ` (${outcome.count})` : "";
+  triggerFeedback.textContent = `Pending: quick ${mode} accepted for ${roomLabel}${countSuffix}`;
+  showToast(`Quick ${mode}: ${roomLabel}${countSuffix}`, {
+    kind: "success",
+    dedupeKey: `quick-${mode}-ok-${roomId}`,
+    timeoutMs: 2200,
+  });
 }
 
 function handleQuickModeRoomTap(roomId) {
@@ -5832,15 +5892,18 @@ function handleQuickModeRoomTap(roomId) {
     return;
   }
   if (mode === "activate") {
-    activateRoomAnimationByQuickTap(roomId);
+    const outcome = activateRoomAnimationByQuickTap(roomId);
+    reportQuickModeTapOutcome(mode, outcome, roomId);
     return;
   }
   if (mode === "deactivate") {
-    deactivateRoomAnimationByQuickTap(roomId);
+    const outcome = deactivateRoomAnimationByQuickTap(roomId);
+    reportQuickModeTapOutcome(mode, outcome, roomId);
     return;
   }
   if (mode === "clear") {
-    clearRoomAnimationsByQuickTap(roomId);
+    const outcome = clearRoomAnimationsByQuickTap(roomId);
+    reportQuickModeTapOutcome(mode, outcome, roomId);
     return;
   }
   clearQuickModeRoomInflight(roomId);
