@@ -11,9 +11,9 @@
 - Current Phase Key: phase-11
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 11-1 (PASS)
+- Last Executed Plan: 11-HF1 (PASS)
 - Planned Next Execution: 11-2
-- Last Execution Summary: `.planning/phases/phase-11/11-1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-11/11-HF1-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -29,6 +29,16 @@
 - Plan-11-1 Umsetzung: Settings-Workspace ist in drei Subtabs gegliedert (`Board & Geometry`, `Animations`, `System & Performance`) mit stabiler Tab-Memory.
 - Plan-11-1 Umsetzung: Quick-Mode-Engine (`off`/`activate`/`deactivate`/`clear`) ist room-tap-gesteuert, explizit sichtbar und mode-switch/inflight-guarded.
 - Plan-11-1 Umsetzung: Mobile one-handed UX nutzt sticky Quick-Action-Rail + Board-Overview-Guard; Acceptance-Matrix ist PASS (`11-1-VERIFICATION.md`).
+- Neues verpflichtendes Phase-11 P0-Paket ist bindend: Outside-Mode-Sync darf keinen zweiten `Apply changes`-Click benoetigen; erster valider Apply/Snapshot ist deterministisch fuer alle Clients inkl. `/output/final`.
+- Neues verpflichtendes Phase-11 P0-Paket ist bindend: abgelaufene one-shot globale Events duerfen nach Reload/Reconnect nie replayen (terminal lifecycle persistence/hydration).
+- Neues verpflichtendes Phase-11 Featurepaket ist bindend: globale Animationen erhalten pro Eintrag `Loop until stopped` als explizite Laufzeitoption.
+- Neues verpflichtendes Phase-11 UX-Simplification-Paket ist bindend: Room-Animationen entfernen `Hold until I stop`; Runtime-Verhalten ist immer hold-until-stop.
+- Neues verpflichtendes Phase-11 Model-Paket ist bindend: imported-vs-non-imported Board-Split wird entfernt; ein kanonisches Board-Catalog/Storage-Modell gilt fuer alle Boards.
+- Plan 11-HF1 ist als execute-ready Prioritaetswelle gesetzt und blockiert Plan 11-2 bis PASS closure mit Matrix-Evidenz und Artefakt-Sync.
+- Plan-11-HF1 Umsetzung: `outside-apply-changes` wird als deterministische state-sync Mutation priorisiert und nicht mehr koalesziert; first-apply propagated snapshot closes without second click.
+- Plan-11-HF1 Umsetzung: globale one-shot hydration behaelt authoritative `startedAtEpochMs`; abgelaufene Events replayen nach reload/reconnect nicht mehr.
+- Plan-11-HF1 Umsetzung: per-global `Loop until stopped` ist als Inside-Definition-Option persistiert; room runtime bleibt strikt always-hold ohne hold-checkbox UI.
+- Plan-11-HF1 Umsetzung: Board storage/catalog wurde auf kanonische `config/boards` + `config/boards/assets` Pfade vereinheitlicht inkl. idempotenter Legacy-Migration von `config/boards/imported`.
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.

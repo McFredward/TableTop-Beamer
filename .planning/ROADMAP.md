@@ -718,27 +718,29 @@ Exit Criteria:
 Next Wave (Phase 10):
 - Plan 10-HF9 remains closure baseline for runtime reliability/performance hardening.
 - UX-Acceleration scope moved to Phase 11 for immediate execution as Plan 11-1.
+- Plan 11-HF1 is now completed PASS; next execution target is 11-2 refinement wave.
 
-## Phase 11 - UX Acceleration (In Progress)
-Ziel: Die in Phase 10 aufgeschobene speed-first Operator-UX wird jetzt direkt umgesetzt: Settings in logische Sub-Tabs aufteilen, schnelle sequenzielle Quick-Modi fuer `activate`/`deactivate`/`clear` liefern und mobile one-handed Bedienung fuer Live-Reaktion priorisieren.
+## Phase 11 - UX Acceleration + Mandatory HF1 (In Progress)
+Ziel: Plan 11-1 bleibt die abgeschlossene UX-Basis; danach schliesst ein verpflichtendes HF1-Paket die neuen P0-Bugs (outside first-apply sync, one-shot replay on reload) und liefert drei angeforderte Feature-/Model-Refinements (global loop option, room always-hold simplification, canonical board model unification).
 
-Status: Plan 11-1 ist PASS abgeschlossen (`.planning/phases/phase-11/11-1-SUMMARY.md`, `.planning/phases/phase-11/11-1-VERIFICATION.md`). Settings-IA-Subtabs, Quick-Modi (`activate`/`deactivate`/`clear`) per sequenziellen Room-Taps, mobile one-hand rail + board-overview guards sowie acceptance/non-regression matrix sind geliefert.
+Status: Plan 11-1 ist PASS abgeschlossen (`.planning/phases/phase-11/11-1-SUMMARY.md`, `.planning/phases/phase-11/11-1-VERIFICATION.md`) und Plan 11-HF1 ist PASS geschlossen (`.planning/phases/phase-11/11-HF1-SUMMARY.md`, `.planning/phases/phase-11/11-HF1-VERIFICATION.md`). Plan 11-2 ist als naechste Welle freigegeben.
 
 Milestones:
-1. M1 Settings IA Split: logische Sub-Tabs reduzieren Scan-/Navigationszeit.
-2. M2 Quick Mode Engine: expliziter Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
-3. M3 Rapid Activate/Deactivate/Clear: sequenzielle Room-Tap-Flows sind robust und deterministic.
-4. M4 Mobile One-Hand Closure: sticky Action-Rail und ergonomische Tap-Ziele sind praxisfest.
-5. M5 Feedback + Safety Closure: success/failure/timeout ist explizit sichtbar, kein silent no-op.
-6. M6 Non-Regression Closure: sync determinism, render correctness und stop/clear safety bleiben PASS.
+1. M1 Baseline Closure: 11-1 UX acceleration bleibt PASS-Basis.
+2. M2 Outside First-Apply Sync Closure: Outside-Mode propagiert deterministisch beim ersten validen Apply/Snapshot.
+3. M3 Global One-Shot No-Replay Closure: abgelaufene one-shot Globals replayen nicht mehr nach Reload/Reconnect.
+4. M4 Global Loop Option Closure: per-global `Loop until stopped` ist UI+Runtime+Persistenz-stabil.
+5. M5 Room Always-Hold Closure: Hold-Checkbox entfernt; Room-Lifecycle ist vereinheitlicht.
+6. M6 Canonical Board Model Closure: imported/non-imported Split ist entfernt; ein Modell fuer Catalog/Storage/Runtime.
+7. M7 Non-Regression + Artifact Sync Closure: sync/render gates und Tracker-Sync sind PASS.
 
 Exit Criteria:
-- Settings sind in logisch benannte Sub-Tabs gegliedert und bleiben draft-stabil beim Wechsel.
-- Quick Activation/Deactivation/Clear funktionieren deterministisch per sequenziellen Room-Taps.
-- `clear` entfernt alle Animationen der getappten Raeume ohne Scope-Drift.
-- Mobile one-handed Bedienung ist in Portrait/Landscape schnell und stabil nutzbar.
-- Quick-Mode-Aktionen liefern immer explizites operator-visible Feedback.
-- Keine Regression bei Sync-Invarianten, Render-Paritaet und Safety-Aktionen.
+- Outside-Mode-Aenderungen erscheinen auf `/output/final` und Peers beim ersten validen Apply ohne zweiten Klick.
+- Expired one-shot globale Events replayen nie auf Reload/Reconnect.
+- Global-Animationen unterstuetzen pro Eintrag `Loop until stopped` mit explizitem Stop-Verhalten.
+- Room-Animationen laufen immer hold-until-stop; `Hold until I stop` existiert nicht mehr als Steuerfeld.
+- Board-Catalog/Storage/Codepfade behandeln alle Boards einheitlich ohne imported/non-imported Sonderfall.
+- Keine Regression bei Sync-Invarianten und Render-Paritaet.
 - Phase-11-Artefakte sowie globale Tracker sind konsistent synchronisiert.
 
 ## Deferred (Post-Phase-2)
