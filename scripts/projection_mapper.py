@@ -205,7 +205,7 @@ def verify_homography(T: np.ndarray, screen_w: int, screen_h: int, dst_pts):
 
 def apply_xrandr_transform(T: np.ndarray, output: str, W: int, H: int) -> bool:
     matrix_str = format_matrix_arg(T)
-    cmd_str = f"xrandr --output {output} --fb {W}x{H} --transform {matrix_str}"
+    cmd_str = f"xrandr --output {output} --fb {W}x{H} --transform {matrix_str} --panning {W}x{H}"
 
     xinput_note = (
         "  # Fix mouse jitter — find your pointer id with: xinput list\n"
@@ -227,7 +227,7 @@ def apply_xrandr_transform(T: np.ndarray, output: str, W: int, H: int) -> bool:
 
     try:
         subprocess.run(
-            ["xrandr", "--output", output, "--fb", f"{W}x{H}", "--transform", matrix_str],
+            ["xrandr", "--output", output, "--fb", f"{W}x{H}", "--transform", matrix_str, "--panning", f"{W}x{H}"],
             check=True, capture_output=True, text=True
         )
         print("[xrandr] Transform applied successfully.")
