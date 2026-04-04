@@ -11,7 +11,17 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF1-T5 [P0] Execute full board regression matrix including mp4 outside-background boards and non-mp4 boards with PASS evidence.
 - [x] DONE P10-HF1-T6 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF1 PASS.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, hard-gated)
+## Plan 10-HF2 - Generic polygon hydration/apply hardening wave (execute-ready, hard-gated)
+- [x] DONE P10-HF2-T1 [P0] Reproduce cross-browser polygon load/apply failures (`inside`/`outside` + `playAreas`) on startup/reload/default-apply (Chrome/Firefox desktop + mobile-class emulation where possible).
+- [x] DONE P10-HF2-T2 [P0] Implement canonical polygon schema normalization for persisted payloads and defaults (legacy aliases -> canonical contract).
+- [x] DONE P10-HF2-T3 [P0] Add deterministic validation + fallback contract that never silently overwrites valid persisted board polygons.
+- [x] DONE P10-HF2-T4 [P0] Enforce `apply global defaults` precedence rules so board-specific polygons survive defaults apply unless explicit reset path is requested.
+- [x] DONE P10-HF2-T5 [P0] Harden `/output/final` hydration/render path to use canonical polygons browser-neutrally (no default-rectangle clipping drift).
+- [x] DONE P10-HF2-T6 [P0] Eliminate valid-polygon black-screen path outside Chrome by fail-open hydration guards and canonical clip-source wiring.
+- [x] DONE P10-HF2-T7 [P0] Run strict imported-board non-regression + all-browser regression matrix with PASS evidence.
+- [ ] TODO P10-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF2 PASS.
+
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF2)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.
