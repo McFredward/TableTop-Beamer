@@ -1,0 +1,11 @@
+{
+  "suite": "p10-hf9-t2-stop-timeout-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "attempts": 1,
+    "ackAvailableAtAttempt": 3,
+    "accepted": false,
+    "status": "FAIL"
+  }
+}
