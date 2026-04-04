@@ -1,0 +1,69 @@
+{
+  "suite": "p10-hf7-t6-lifecycle-multiarea-retention",
+  "unknownBoardId": "imported-lockdown-multi",
+  "lanes": [
+    {
+      "step": "startup",
+      "loadedBoardIds": [
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "extractedKeys": [
+        "imported-lockdown-multi"
+      ],
+      "migratedKeys": [
+        "imported-lockdown-multi",
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "unknownAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker"
+    },
+    {
+      "step": "default-apply",
+      "loadedBoardIds": [
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "extractedKeys": [
+        "imported-lockdown-multi",
+        "nemesis-lockdown-a"
+      ],
+      "migratedKeys": [
+        "imported-lockdown-multi",
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "unknownAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker"
+    },
+    {
+      "step": "reload",
+      "loadedBoardIds": [
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "extractedKeys": [
+        "imported-lockdown-multi",
+        "nemesis-lockdown-a"
+      ],
+      "migratedKeys": [
+        "imported-lockdown-multi",
+        "nemesis-lockdown-a",
+        "nemesis-lockdown-b"
+      ],
+      "unknownAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker"
+    }
+  ],
+  "result": "PASS"
+}
