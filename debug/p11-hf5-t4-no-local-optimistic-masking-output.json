@@ -1,0 +1,9 @@
+{
+  "suite": "P11-HF5-T4-no-local-optimistic-masking",
+  "observed": "PASS",
+  "hasRemovedLocalOptimisticStart": true,
+  "hasGlobalStartMutationEmit": true,
+  "hasPendingSnapshotStatus": true,
+  "hasStartFailureStatus": true,
+  "error": null
+}

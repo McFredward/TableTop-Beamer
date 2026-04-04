@@ -9770,14 +9770,7 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
       hold: effectiveDefaultDurationSec === null,
       durationSec: effectiveDefaultDurationSec ?? 0,
     });
-    state.runningAnimations.push(animation);
-    if (isOutside) {
-      updateOutsideFxProfile(animation.boardId, { enabled: true });
-      persistBoardProfiles();
-      syncOutsideFxPanel();
-    }
-    playSoundForAnimation(animation);
-    triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} started`;
+    triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} start accepted (waiting for snapshot)`;
     void emitLiveMutation("trigger-global", {
       animationType: type,
       action: "start",
@@ -9786,6 +9779,8 @@ function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = fa
       loopUntilStopped: effectiveDefaultDurationSec === null,
       playSound,
       animation: buildAnimationSnapshotForLiveSync(animation),
+    }).catch(() => {
+      triggerFeedback.textContent = `Status: ${getAnimationLabel(type)} start command failed`;
     });
   }
   renderRunningAnimationsList();
