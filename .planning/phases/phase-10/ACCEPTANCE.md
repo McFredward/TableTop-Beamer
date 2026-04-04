@@ -3,9 +3,13 @@
 ## Planning Mode Note
 - This file defines execute gates only; no implementation is executed yet.
 - Field feedback invalidated prior HF2 closure; HF3 has now closed with PASS evidence.
+- New critical Firefox/debug follow-up opens HF4 as mandatory blocker before Plan 10-1.
 
 ## HF3 Closure Status
 - H3-1..H3-10: PASS (see `P10-HF3-T1-REPRO-TRACE.md`, `P10-HF3-T2-DEFAULTS-OVERRIDE-REPRO.md`, `P10-HF3-T3-FINAL-BLACK-REPRO.md`, `P10-HF3-T4-LIFECYCLE-DIAGNOSTICS.md`, `P10-HF3-T5-BOARD-SWITCH-FINAL-CONTRACT.md`, `P10-HF3-T6-CANONICAL-SOURCE-SELECTION.md`, `P10-HF3-T7-ROOT-CAUSE-FIX.md`, `P10-HF3-T8-FAIL-PASS-PROOF.md`, `P10-HF3-T9-BROWSER-IMPORTED-REGRESSION.md`).
+
+## HF4 Closure Status
+- H4-1..H4-9: PASS (see `P10-HF4-T1-REPRO-TRACE.md`, `P10-HF4-T2-RUNTIME-PANEL-DIAGNOSTICS.md`, `P10-HF4-T3-ROOT-CAUSE-FIX.md`, `P10-HF4-T4-OWNERSHIP-REPRO.md`, `P10-HF4-T5-OWNERSHIP-FIX.md`, `P10-HF4-T6-SHIP-CLIP-REPRO.md`, `P10-HF4-T7-SHIP-CLIP-FIX.md`, `P10-HF4-T8-BROWSER-PARITY.md`, `P10-HF4-T9-FINAL-OUTPUT-CANONICAL.md`, `P10-HF4-T10-FAIL-PASS-PROOF.md`).
 
 ## Verification Strategy
 - Final-output continuity first: no board-specific black-screen path is allowed on `/output/final`.
@@ -18,7 +22,18 @@
 - Mobile-first practicality: one-handed operation is feasible under real gameplay tempo.
 - Safety-first controls: quick modes are explicit and reversible; no hidden destructive path.
 
-## Hard Gates (Plan 10-HF3, mandatory before 10-1)
+## Hard Gates (Plan 10-HF4, mandatory before 10-1)
+- H4-1 Domain-Modules-Missing-Repro-Gate: deterministic failing test reproduces missing `TT_BEAMER_RUNTIME_PANELS` runtime-panel module exposure/load-order failure.
+- H4-2 Runtime-Panel-Exposure-Diagnostics-Gate: executable lifecycle diagnostics enforce module load-order and global exposure contract.
+- H4-3 Settings-Ownership-Conditional-Unmount-Repro-Gate: deterministic failing test reproduces false ownership violation when `#outside-mode`/`#outside-direction` are non-applicable and unmounted.
+- H4-4 Settings-Ownership-Applicability-Gate: ownership checks pass when controls are correctly unmounted and fail only when applicable required controls are missing.
+- H4-5 Ship-Clip-Regression-Repro-Gate: deterministic failing test reproduces invalid acceptance/rejection in ship-clip checker across canonical/legacy states.
+- H4-6 Ship-Clip-Validity-Parity-Gate: ship-clip checker accepts valid multi-play-area/legacy states and rejects invalid polygons browser-neutrally.
+- H4-7 Firefox-Chrome-Parity-Gate: executable diagnostics for HF4 scenarios are PASS on Firefox and Chrome.
+- H4-8 Final-Output-Canonical-NoInvalidDefault-Gate: `/output/final` does not enter invalid-default fallback path when canonical valid polygons exist.
+- H4-9 Fail-To-Pass-Proof-Gate: evidence contains explicit pre-fix FAIL and post-fix PASS for all HF4 repro/diagnostic tests.
+
+## Hard Gates (Plan 10-HF3, mandatory baseline)
 - H3-1 Symptom-Repro-Gate-A: deterministic failing test reproduces Lockdown A polygon-apply failure in Firefox/mobile-class path.
 - H3-2 Symptom-Repro-Gate-B: deterministic failing test reproduces `apply global defaults` unexpected default-polygon takeover.
 - H3-3 Symptom-Repro-Gate-C: deterministic failing test reproduces `/output/final` black/fallback rectangle with valid polygons.
@@ -31,7 +46,7 @@
 - H3-10 Browser-Matrix-Gate: all-browser matrix PASS is documented (Chrome/Firefox desktop + mobile-class emulation where possible).
 - H3-11 Sync-Control-NonRegression-Gate: ordering/version/idempotent apply plus stop/clear/global controls remain unchanged.
 
-## Hard Gates (Plan 10-HF1, mandatory before 10-1)
+## Hard Gates (Plan 10-HF1, mandatory baseline)
 - H1 Blackout-Root-Cause-Gate: board-specific blackout on `Nemesis Lockdown A` is reproduced and root cause is explicitly documented.
 - H2 Final-Render-Path-Gate: `/output/final` render composition path remains active for all boards (including mp4 outside-background boards).
 - H3 Room-Outside-CoRender-Gate: room and outside animations both render on final output whenever both are active.
@@ -65,6 +80,13 @@
 - HF3-Imported-Board-Regression-Test: imported boards keep polygon behavior stable under save/reload/default-apply/restart.
 - HF3-All-Browser-Matrix-Test: Chrome/Firefox desktop + mobile-class emulation matrix PASS.
 - HF3-Sync-Control-NonRegression-Test: sync invariants and stop/clear/global semantics unchanged under HF3 flows.
+- HF4-Domain-Modules-Missing-Repro-Test: deterministic RED for missing `TT_BEAMER_RUNTIME_PANELS` exposure/load-order behavior.
+- HF4-Runtime-Panel-Exposure-Diagnostics-Test: executable assertions verify module exposure and binding lifecycle contract.
+- HF4-Settings-Ownership-Conditional-Unmount-Test: ownership checks correctly accept unmounted non-applicable controls.
+- HF4-Ship-Clip-Regression-Validity-Test: canonical/multi-play-area/legacy valid states PASS and invalid states FAIL deterministically.
+- HF4-Firefox-Chrome-Parity-Test: same HF4 diagnostic scenarios produce same verdicts in Firefox and Chrome.
+- HF4-Final-Output-Canonical-NoInvalidDefault-Fallback-Test: canonical valid polygons prevent invalid-default fallback render path.
+- HF4-Fail-To-Pass-Proof-Test: identical HF4 test set is captured as FAIL pre-fix and PASS post-fix.
 - HF1-Blackout-Reproduction-Test: deterministic reproduction trace for black `/output/final` on `Nemesis Lockdown A` + outside `sandstorm.mp4`.
 - HF1-All-Boards-Render-Continuity-Test: no board can force final output into persistent black frame.
 - HF1-CoRender-Parity-Test: room + outside concurrent rendering remains visible for all boards/media types.
@@ -84,6 +106,9 @@
 - After P10-HF3-T4..T6: executable diagnostics are active for lifecycle/final-contract/canonical-source assertions.
 - After P10-HF3-T7..T8: root-cause fix is merged with explicit FAIL->PASS proof.
 - After P10-HF3-T9..T10: imported-board/browser matrix PASS and full artifact sync are complete.
+- After P10-HF4-T1..T4: runtime panel exposure + ownership unmount violations are reproducible and diagnostics are active.
+- After P10-HF4-T5..T7: ownership applicability and ship-clip validity parity fixes are merged with deterministic checks.
+- After P10-HF4-T8..T10: Firefox/Chrome parity plus canonical no-invalid-default fallback gates are PASS with full artifact sync.
 - After P10-HF1-T1..T3: blackout root-cause and final-render continuity/co-render fix are stable.
 - After P10-HF1-T4..T6: all-board non-regression PASS and full artifact sync are complete.
 - After P10-T1..T2: Settings sub-tab IA and navigation shell are functionally stable.
@@ -93,7 +118,9 @@
 
 ## Definition of Done
 - P10-HF3 hard gates are PASS: exact field symptom set is reproduced pre-fix and closed post-fix.
+- P10-HF4 hard gates are PASS: runtime module exposure, ownership applicability checks, ship-clip validity parity, browser parity, and canonical no-invalid-default fallback are closed with FAIL->PASS proof.
 - Executable diagnostics (not static-only checks) enforce lifecycle, board-switch/final-contract, and canonical source selection assertions.
+- Executable diagnostics (not static-only checks) enforce runtime-panel exposure, ownership applicability, ship-clip validity, and Firefox/Chrome parity assertions.
 - Root-cause fix is generic across all imported boards and browsers.
 - Valid persisted board polygons are never silently overridden by defaults in startup/reload/default-apply paths.
 - `/output/final` uses board-specific canonical polygons cross-browser with no valid-polygon black-screen path.

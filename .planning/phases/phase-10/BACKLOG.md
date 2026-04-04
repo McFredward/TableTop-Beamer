@@ -4,13 +4,15 @@
 - Plan 10-HF1 execution is PASS with evidence artifacts committed.
 - Plan 10-HF2 closure is reopened: field runtime confirms the real-world symptom set is still active.
 - Plan 10-HF3 is completed PASS (test-driven repro -> root-cause fix -> FAIL/PASS closure).
-- Plan 10-1 remains queued and is now unblocked for next execution.
+- Plan 10-HF4 is completed PASS with deterministic RED->GREEN evidence.
+- Plan 10-1 is now queued as the next execute-ready wave.
 
 ## Epics
 - Generic Polygon Hydration/Apply Reliability (Cross-Browser P0)
 - Final Output Hydration/Render Browser Neutrality (P0)
 - Imported Board Non-Regression Hardening (P0)
 - HF3 Root-Cause Recovery via Failing Tests + Executable Diagnostics (P0)
+- HF4 Runtime Module/Ownership/Ship-Clip Parity Hardening (P0)
 - Settings Information Architecture Sub-Tabs
 - Quick Room Action Modes (Activate / Deactivate / Clear)
 - Mobile One-Handed Speed Operations
@@ -41,6 +43,16 @@
 - P10-HF3-S8 Re-run full suite and capture explicit FAIL->PASS evidence.
 - P10-HF3-S9 Validate imported-board and browser-matrix non-regression remains PASS after fix.
 - P10-HF3-S10 Synchronize all phase/global planning artifacts after HF3 PASS.
+- P10-HF4-S1 Reproduce `domain-modules-missing` as deterministic failing tests for `TT_BEAMER_RUNTIME_PANELS` global exposure/load-order.
+- P10-HF4-S2 Add executable diagnostics for runtime panel module binding lifecycle and global exposure contract.
+- P10-HF4-S3 Root-cause and fix runtime panel exposure/load-order path generically (browser-neutral, no board-specific branch).
+- P10-HF4-S4 Reproduce `settings-ownership-violation` when controls `#outside-mode`/`#outside-direction` are conditionally unmounted.
+- P10-HF4-S5 Harden settings ownership checks to be applicability-aware (mounted+required only) while preserving strict enforcement.
+- P10-HF4-S6 Reproduce `ship-clip-regression-violation` cases (invalid polygons accepted + valid multi-play-area/legacy states rejected).
+- P10-HF4-S7 Correct ship-clip regression checker for canonical+legacy browser-neutral validation parity.
+- P10-HF4-S8 Add Firefox/Chrome executable diagnostics and parity matrix for HF4 scenarios.
+- P10-HF4-S9 Enforce canonical-data-first final-output path: no invalid-default fallback when valid canonical polygons exist.
+- P10-HF4-S10 Capture explicit FAIL->PASS evidence and synchronize all phase/global planning artifacts after HF4 PASS.
 - P10-S1 Define Settings sub-tab taxonomy and group existing controls by operator intent.
 - P10-S2 Implement Settings sub-tab navigation with stable state retention across tab switches.
 - P10-S3 Add shared quick-mode state machine with explicit status, cancel path, and conflict guards.
@@ -54,17 +66,17 @@
 - P10-S11 Run full non-regression for stop/clear-all/global behavior and `/output/final` stability.
 - P10-S12 Synchronize all phase/global planning artifacts after verification PASS.
 
-## Prioritized Execution Wave (P0) - Plan 10-HF3 execute-ready
-- Story P10-HF3-S1 + P10-HF3-S2 + P10-HF3-S3.
-  - Goal: deterministic failing tests for the exact real-world symptom set.
-- Story P10-HF3-S4 + P10-HF3-S5 + P10-HF3-S6.
-  - Goal: direct executable diagnostics enforce lifecycle, final contract, and canonical source selection behavior.
-- Story P10-HF3-S7.
-  - Goal: generic root-cause fix (all boards, all browsers, imported boards included).
-- Story P10-HF3-S8 + P10-HF3-S9.
-  - Goal: explicit FAIL->PASS proof plus strict imported-board/browser non-regression evidence.
-- Story P10-HF3-S10.
-  - Goal: phase/global trackers are synchronized at wave closure.
+## Prioritized Execution Wave (P0) - Plan 10-HF4 execute-ready
+- Story P10-HF4-S1 + P10-HF4-S2 + P10-HF4-S3.
+  - Goal: deterministic runtime-panel RED repro plus root-cause closure for `TT_BEAMER_RUNTIME_PANELS` exposure/load-order.
+- Story P10-HF4-S4 + P10-HF4-S5.
+  - Goal: applicability-aware settings ownership checks for conditionally unmounted controls.
+- Story P10-HF4-S6 + P10-HF4-S7.
+  - Goal: ship-clip checker accepts valid canonical/legacy multi-play-area states and rejects invalid polygons browser-neutrally.
+- Story P10-HF4-S8 + P10-HF4-S9.
+  - Goal: Firefox/Chrome executable parity and canonical no-invalid-default fallback enforcement for final-output.
+- Story P10-HF4-S10.
+  - Goal: explicit FAIL->PASS proof and synchronized phase/global trackers.
 
 ## Previously Closed Wave (P0) - Plan 10-HF1
 - Story P10-HF1-S1.
@@ -80,7 +92,7 @@
 - Story P10-HF2-S1..P10-HF2-S8.
   - Outcome: provisional PASS evidence exists, but real-world runtime disproves closure and mandates HF3.
 
-## Prioritized Execution Wave (P0) - Plan 10-1 execute-ready
+## Prioritized Execution Wave (P0) - Plan 10-1 (blocked until HF4 PASS)
 - Story P10-S1 + P10-S2.
   - Goal: Settings sub-tabs are logically grouped and fast to navigate.
 - Story P10-S3.
@@ -95,6 +107,6 @@
   - Goal: phase and global trackers are synchronized at closure.
 
 ## Follow-up Waves
-- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF3 PASS.
+- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF4 PASS.
 - Plan 10-2: UX polish and performance micro-optimizations from field feedback.
 - Plan 10-3: optional operator presets for quick-mode templates if needed after live validation.

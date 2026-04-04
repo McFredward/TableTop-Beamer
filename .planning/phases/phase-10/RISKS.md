@@ -35,6 +35,31 @@
 - Impact: Critical.
 - Mitigation: shared canonical source resolver contract with executable source-selection assertions across control and final-output.
 
+## R0k Runtime panel module not exposed deterministically
+- Risk: `TT_BEAMER_RUNTIME_PANELS` is absent due to browser-dependent load-order/global exposure drift.
+- Impact: Critical.
+- Mitigation: explicit runtime module exposure contract with executable load-order diagnostics and deterministic binding guards.
+
+## R0l Ownership checker false-positive on conditional unmount
+- Risk: settings ownership validation flags missing controls that are intentionally unmounted (`#outside-mode`, `#outside-direction`).
+- Impact: Critical.
+- Mitigation: applicability-aware ownership checks (mounted+required only) plus transition diagnostics for conditional UI mount/unmount.
+
+## R0m Ship-clip regression checker semantic drift
+- Risk: checker accepts invalid ship polygons or rejects valid canonical/multi-play-area/legacy states.
+- Impact: Critical.
+- Mitigation: canonical+legacy validation contract with deterministic fixtures and Firefox/Chrome parity diagnostics.
+
+## R0n Firefox/Chrome diagnostic parity gap
+- Risk: same runtime scenario yields divergent verdicts across Firefox and Chrome.
+- Impact: Critical.
+- Mitigation: executable parity matrix with shared scenario harness and enforced cross-browser equal-result gate.
+
+## R0o Final-output invalid-default fallback despite canonical polygons
+- Risk: `/output/final` drops to invalid-default clip/render fallback while valid canonical polygon data exists.
+- Impact: Critical.
+- Mitigation: canonical-data-first resolver and explicit guard that blocks fallback when canonical validity is true.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -96,3 +121,4 @@
 - R0c mitigated in HF1: sync/control semantics remained unchanged (see T4 non-regression artifact).
 - R0d/R0e/R0f/R0g/R0h mitigated in HF3 via canonical snapshot polygon hydration and executable diagnostics.
 - R0i/R0j mitigated in HF3 via deterministic FAIL->PASS diagnostics and control/final canonical-source parity checks.
+- R0k/R0l/R0m/R0n/R0o are mitigated in HF4 via executable diagnostics + root-cause fixes (`P10-HF4-T1..T10`).
