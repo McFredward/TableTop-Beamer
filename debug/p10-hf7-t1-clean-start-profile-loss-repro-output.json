@@ -1,0 +1,15 @@
+{
+  "suite": "p10-hf7-t1-clean-start-profile-loss-repro",
+  "phase": "RED",
+  "loadedBoardIds": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "expectedUnknownBoardId": "imported-lockdown-multi",
+  "observed": {
+    "extractedCandidateIsNull": true,
+    "unknownProfileExistsAfterMigration": false,
+    "fallbackSelectedPlayAreaId": "play-area-1"
+  },
+  "result": "FAIL"
+}

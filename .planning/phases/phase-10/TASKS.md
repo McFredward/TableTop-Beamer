@@ -69,7 +69,17 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF6-T9 [P0] Execute browser parity matrix + imported-board/multi-area strict non-regression matrix (startup/reload/default-apply/board-switch/final-output).
 - [x] DONE P10-HF6-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF6 PASS)
+## Plan 10-HF7 - Clean-start board-profile retention blocker wave (execute-ready, hard-gated)
+- [x] DONE P10-HF7-T1 [P0] Create deterministic RED repro for clean local storage startup where valid multi-area board profile entries are missing and default play area is applied.
+- [ ] TODO P10-HF7-T2 [P0] Add executable diagnostics proving board-profile candidate extraction currently depends on loaded board catalog IDs.
+- [ ] TODO P10-HF7-T3 [P0] Create deterministic RED repro where migration drops unknown board keys (including imported/multi-area boards) when key set is not loaded yet.
+- [ ] TODO P10-HF7-T4 [P0] Implement root-cause fix: board-profile candidate extraction independent from loaded board list.
+- [ ] TODO P10-HF7-T5 [P0] Implement migration hardening to retain unknown board keys without fallback-loss side effects.
+- [ ] TODO P10-HF7-T6 [P0] Add deterministic lifecycle assertions for multi-play-area retention across startup/default-apply/reload.
+- [ ] TODO P10-HF7-T7 [P0] Execute browser parity + imported/multi-area strict non-regression matrix with clean-start coverage.
+- [ ] TODO P10-HF7-T8 [P0] Capture explicit FAIL->PASS evidence for T1..T7 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF7 PASS)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.
