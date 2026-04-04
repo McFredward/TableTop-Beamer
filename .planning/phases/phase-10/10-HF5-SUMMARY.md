@@ -88,11 +88,23 @@ completed: 2026-04-04
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] Manual state/roadmap sync fallback**
+- **Found during:** Post-task state update
+- **Issue:** `gsd-tools state/roadmap` commands could not parse the repository's STATE/ROADMAP format (`Current Plan`/`Progress`/`Phase` parser mismatch).
+- **Fix:** Updated `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/CURRENT_PHASE.md` manually to reflect HF5 PASS closure and next execution target.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`
+- **Verification:** Final docs commit `f776897` includes these synchronized files.
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** No scope creep; synchronization completed manually because automation helpers were incompatible with current planning file schema.
 
 ## Issues Encountered
 
-None.
+- `gsd-tools` state/roadmap helpers reported format-parse errors on this repository; manual sync was used for closure metadata.
 
 ## Next Phase Readiness
 
