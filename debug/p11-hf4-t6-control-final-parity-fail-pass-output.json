@@ -1,0 +1,48 @@
+{
+  "suite": "P11-HF4-T6-control-final-one-shot-parity-fail-pass",
+  "observed": "PASS",
+  "hasAuthoritativeStartRebase": true,
+  "beforeFixRows": [
+    {
+      "offsetMs": 120,
+      "controlActive": true,
+      "finalActive": false,
+      "parity": false
+    },
+    {
+      "offsetMs": 3900,
+      "controlActive": false,
+      "finalActive": false,
+      "parity": true
+    },
+    {
+      "offsetMs": 4100,
+      "controlActive": false,
+      "finalActive": false,
+      "parity": true
+    }
+  ],
+  "afterFixRows": [
+    {
+      "offsetMs": 120,
+      "controlActive": true,
+      "finalActive": true,
+      "parity": true
+    },
+    {
+      "offsetMs": 3900,
+      "controlActive": true,
+      "finalActive": true,
+      "parity": true
+    },
+    {
+      "offsetMs": 4100,
+      "controlActive": false,
+      "finalActive": false,
+      "parity": true
+    }
+  ],
+  "beforeParityPass": false,
+  "afterParityPass": true,
+  "error": null
+}
