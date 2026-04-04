@@ -24,7 +24,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 10-HF3 - Mandatory P0 recovery wave (execute-ready, hard-gated)
 - [x] DONE P10-HF3-T1 [P0] Create deterministic failing test for symptom A: `Nemesis Lockdown A` polygons are not applied in Firefox/mobile-class behavior path.
 - [x] DONE P10-HF3-T2 [P0] Create deterministic failing test for symptom B: `apply global defaults` unexpectedly shows default polygons over valid board polygons.
-- [ ] TODO P10-HF3-T3 [P0] Create deterministic failing test for symptom C: `/output/final` renders black or fallback rectangle when valid polygons exist.
+- [x] DONE P10-HF3-T3 [P0] Create deterministic failing test for symptom C: `/output/final` renders black or fallback rectangle when valid polygons exist.
 - [ ] TODO P10-HF3-T4 [P0] Add executable lifecycle diagnostics with assertions for startup/load/apply-defaults/reload polygon ownership and apply order.
 - [ ] TODO P10-HF3-T5 [P0] Add board-switch + `/output/final` render contract assertions (canonical polygon clip source must remain board-specific).
 - [ ] TODO P10-HF3-T6 [P0] Add canonical polygon source selection assertions for control + final-output paths.
