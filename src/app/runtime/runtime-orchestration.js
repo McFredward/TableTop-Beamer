@@ -5680,6 +5680,33 @@ function isQuickModeActive() {
   return normalizeQuickMode(state.quickMode?.mode) !== "off";
 }
 
+function activateRoomAnimationByQuickTap(roomId) {
+  const normalizedRoomId = String(roomId || "").trim();
+  if (!normalizedRoomId) {
+    return;
+  }
+  const previousTargetType = state.roomDraft.targetType;
+  const previousTargetId = state.roomDraft.targetId;
+  const previousEditTargetId = state.roomDraft.editTargetId;
+  state.roomDraft.targetType = "room";
+  state.roomDraft.targetId = normalizedRoomId;
+  state.roomDraft.editTargetId = null;
+  startRoomAnimationFromDraft();
+  state.roomDraft.targetType = previousTargetType;
+  state.roomDraft.targetId = previousTargetId;
+  state.roomDraft.editTargetId = previousEditTargetId;
+  syncRoomTargetSelect();
+}
+
+function handleQuickModeRoomTap(roomId) {
+  const mode = normalizeQuickMode(state.quickMode?.mode);
+  if (mode === "activate") {
+    activateRoomAnimationByQuickTap(roomId);
+    return;
+  }
+  triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[mode] ?? mode} not yet active for room taps`;
+}
+
 function setViewGroupVisibility(groups, visible) {
   for (const entry of groups) {
     const shouldHide = !visible;
@@ -8199,6 +8226,12 @@ function renderRoomOverlay() {
         return;
       }
       if (isPanArbitrating()) {
+        return;
+      }
+      if (outputRole === OUTPUT_ROLE_CONTROL && state.uiView === "dashboard" && isQuickModeActive()) {
+        event.preventDefault();
+        event.stopPropagation();
+        handleQuickModeRoomTap(room.id);
         return;
       }
       event.preventDefault();

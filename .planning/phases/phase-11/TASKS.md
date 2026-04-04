@@ -7,7 +7,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-T1 [P0] Define settings sub-tab IA map and logical grouping taxonomy.
 - [x] DONE P11-T2 [P0] Implement settings sub-tab shell and preserve draft state across tab switches.
 - [x] DONE P11-T3 [P0] Implement shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit visible mode indicator.
-- [ ] TODO P11-T4 [P0] Implement rapid activation mode: apply selected animation by sequential room taps/clicks.
+- [x] DONE P11-T4 [P0] Implement rapid activation mode: apply selected animation by sequential room taps/clicks.
 - [ ] TODO P11-T5 [P0] Implement rapid deactivation mode: remove selected animation by sequential room taps/clicks.
 - [ ] TODO P11-T6 [P0] Implement rapid clear mode: remove all animations from tapped rooms.
 - [ ] TODO P11-T7 [P0] Add mode-switch/inflight conflict guards and deterministic arbitration.
