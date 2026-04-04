@@ -1,0 +1,1105 @@
+{
+  "suite": "p10-hf8-t9-all-board-regression-matrix",
+  "lifecycle": [
+    "startup",
+    "reload",
+    "apply-defaults",
+    "board-switch"
+  ],
+  "surfaces": [
+    "control",
+    "output/final"
+  ],
+  "browsers": [
+    "chrome",
+    "firefox",
+    "mobile-chrome"
+  ],
+  "scenarios": [
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "expectedSelected": "single-a",
+      "expectedAreaIds": [
+        "single-a"
+      ]
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "expectedSelected": "bunker",
+      "expectedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ]
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "expectedSelected": "cargo",
+      "expectedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ]
+    }
+  ],
+  "matrix": [
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "single-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 1,
+      "areaIds": [
+        "single-a"
+      ],
+      "selected": "single-a",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selected": "bunker",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "control",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "startup",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "reload",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "apply-defaults",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    },
+    {
+      "boardId": "imported-lockdown-multi",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "surface": "output/final",
+      "lifecycle": "board-switch",
+      "areaCount": 2,
+      "areaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "selected": "cargo",
+      "issueCount": 0,
+      "pass": true
+    }
+  ],
+  "result": "PASS"
+}
