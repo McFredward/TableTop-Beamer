@@ -25,7 +25,7 @@
 
     <aside id="control-panel" class="dashboard" data-active-view="dashboard" aria-label="Effect control panel">
       <header class="dashboard-only" data-view="dashboard">
-        <p class="eyebrow">Nemesis Operator Deck</p>
+        <p class="eyebrow">TableTop Beamer</p>
         <h1>Atmosphere Controller</h1>
         <p class="lead">
           Click a room polygon on the board, pick an animation, and start it for the selected target.
@@ -36,7 +36,8 @@
         <p class="eyebrow">Nemesis Operator Deck</p>
         <h1>Settings Workspace</h1>
         <p class="lead">
-          Calibrate hit areas and room geometry separately from the trigger dashboard. Dashboard controls stay hidden here.
+          Calibrate hit areas and room geometry separately from the trigger dashboard. Dashboard controls stay hidden
+          here.
         </p>
       </header>
 
@@ -45,11 +46,13 @@
         <button id="open-settings-view" type="button">Settings</button>
       </nav>
 
-      <section class="settings-subtab-shell settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <nav class="view-switch settings-subtab-switch" aria-label="Settings groups">
-          <button id="settings-subtab-board" type="button" data-settings-subtab="board" class="active">Board &amp; Geometry</button>
+          <button id="settings-subtab-board" type="button" data-settings-subtab="board" class="active">Board &amp;
+            Geometry</button>
           <button id="settings-subtab-animations" type="button" data-settings-subtab="animations">Animations</button>
-          <button id="settings-subtab-system" type="button" data-settings-subtab="system">System &amp; Performance</button>
+          <button id="settings-subtab-system" type="button" data-settings-subtab="system">System &amp;
+            Performance</button>
         </nav>
         <p id="settings-subtab-status" class="status-line" aria-live="polite">Settings focus: Board &amp; Geometry</p>
       </section>
@@ -66,18 +69,18 @@
           aria-live="polite">
           Mobile focus: Trigger
         </p>
-
-        <section id="quick-mode-panel" class="panel quick-mode-panel dashboard-only" data-view="dashboard">
-          <h2>Quick room mode</h2>
-          <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
-            <button id="quick-mode-off" type="button" class="active">Off</button>
-            <button id="quick-mode-activate" type="button">Activate</button>
-            <button id="quick-mode-deactivate" type="button">Deactivate</button>
-            <button id="quick-mode-clear" type="button" class="danger">Clear room</button>
-          </div>
-          <p id="quick-mode-status" class="status-line" aria-live="polite">Quick mode: OFF</p>
-        </section>
       </div>
+
+      <section id="quick-mode-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard">
+        <h2>Quick room mode</h2>
+        <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
+          <button id="quick-mode-off" type="button" class="active">Off</button>
+          <button id="quick-mode-activate" type="button">Activate</button>
+          <button id="quick-mode-deactivate" type="button">Deactivate</button>
+          <button id="quick-mode-clear" type="button" class="danger">Clear room</button>
+        </div>
+        <p id="quick-mode-status" class="status-line" aria-live="polite">Quick mode: OFF</p>
+      </section>
 
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
         data-dashboard-zone="manage">
@@ -88,7 +91,8 @@
         <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
-      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
+      <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings"
+        data-settings-tab="board" hidden>
         <h2>Board catalog + output</h2>
         <label>
           Board
@@ -208,8 +212,8 @@
         <label>
           Calibration mode
           <select id="room-geometry-mode">
-              <option value="relative">Relative (offset)</option>
-              <option value="absolute">Absolute (target coordinate)</option>
+            <option value="relative">Relative (offset)</option>
+            <option value="absolute">Absolute (target coordinate)</option>
           </select>
         </label>
         <div class="calibration-grid">
@@ -351,6 +355,10 @@
           Inside speed <span id="inside-speed-value">1.00x</span>
           <input id="inside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
         </label>
+        <label class="inline-checkbox">
+          <input id="inside-loop-until-stop" type="checkbox" />
+          Loop until stopped
+        </label>
         <label>
           Asset type
           <select id="inside-asset-type">
@@ -361,12 +369,7 @@
         </label>
         <label>
           Asset reference
-          <input
-            id="inside-asset-ref"
-            type="text"
-            maxlength="256"
-            placeholder="ambient-drift or /resources/..."
-          />
+          <input id="inside-asset-ref" type="text" maxlength="256" placeholder="ambient-drift or /resources/..." />
         </label>
         <label>
           Resource asset picker
@@ -422,12 +425,7 @@
         </label>
         <label>
           Asset reference
-          <input
-            id="outside-asset-ref"
-            type="text"
-            maxlength="256"
-            placeholder="outside-space or /resources/..."
-          />
+          <input id="outside-asset-ref" type="text" maxlength="256" placeholder="outside-space or /resources/..." />
         </label>
         <label>
           Resource asset picker
@@ -444,12 +442,7 @@
           <select id="room-animation-settings-select"></select>
         </label>
         <div class="button-grid button-grid-2">
-          <input
-            id="room-animation-settings-name"
-            type="text"
-            maxlength="64"
-            placeholder="New room animation name"
-          />
+          <input id="room-animation-settings-name" type="text" maxlength="64" placeholder="New room animation name" />
           <button id="room-animation-settings-create" type="button">Create Room Animation</button>
         </div>
         <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
@@ -463,12 +456,7 @@
         </label>
         <label>
           Asset reference
-          <input
-            id="room-asset-ref"
-            type="text"
-            maxlength="256"
-            placeholder="intruder-alert or /resources/..."
-          />
+          <input id="room-asset-ref" type="text" maxlength="256" placeholder="intruder-alert or /resources/..." />
         </label>
         <label>
           Resource asset picker
@@ -479,6 +467,10 @@
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Global animations - inside Play Area</h2>
+        <label class="inline-checkbox">
+          <input id="dashboard-global-loop-until-stop" type="checkbox" />
+          Loop until stopped
+        </label>
         <div id="inside-global-buttons" class="button-grid button-grid-3"></div>
       </section>
 
@@ -503,7 +495,7 @@
         <h2>Audio Settings</h2>
         <label class="inline-checkbox">
           <input id="audio-enabled" type="checkbox" checked />
-           Event sounds enabled
+          Event sounds enabled
         </label>
         <label>
           Volume <span id="audio-volume-value">70%</span>
@@ -536,7 +528,7 @@
           Animation
           <select id="room-animation-select"></select>
         </label>
-         <p class="status-line">Room animations run in hold mode by default until stopped.</p>
+        <p class="status-line">Room animations run in hold mode by default until stopped.</p>
         <label>
           Opacity <span id="room-opacity-value">0.90</span>
           <input id="room-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
@@ -554,10 +546,6 @@
           <input id="room-sound-volume" type="range" min="0" max="100" step="1" value="100" />
         </label>
         <input id="room-duration" type="hidden" value="18" />
-        <label class="inline-checkbox">
-          <input id="room-hold" type="checkbox" checked disabled />
-          Hold until I stop
-        </label>
         <label class="inline-checkbox">
           <input id="room-stagger-start" type="checkbox" />
           Stagger start (cluster only)
@@ -607,7 +595,8 @@
         <p id="mp4-performance-status" class="status-line" aria-live="polite">MP4 controls: balanced profile</p>
       </section>
 
-      <footer class="hint dashboard-only" data-view="dashboard">Note: for real projector targeting, move the browser to the projector and use fullscreen.</footer>
+      <footer class="hint dashboard-only" data-view="dashboard">Note: for real projector targeting, move the browser to
+        the projector and use fullscreen.</footer>
     </aside>
   </div>
   <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
