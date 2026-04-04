@@ -7827,11 +7827,17 @@ function getShipPolygonPixels(width = canvas.width, height = canvas.height, boar
 }
 
 function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
-  const sourceAreas = getPlayAreas(boardId);
-  return sourceAreas
-    .map((area) => (Array.isArray(area?.polygon) ? area.polygon.map((point) => normalizePolygonPoint(point)) : []))
-    .filter((polygon) => polygon.length >= 3)
-    .map((polygon) => polygon.map(([x, y]) => mapNormalizedPointToPixels(x, y, width, height)));
+  const sourceAreas = Array.isArray(state.playAreasByBoard?.[boardId]) ? state.playAreasByBoard[boardId] : [];
+  const normalizedPolygons = polygonContract?.extractRenderablePlayAreaPolygons
+    ? polygonContract.extractRenderablePlayAreaPolygons(sourceAreas, {
+      fallbackPolygon: SHIP_POLYGON_DEFAULT,
+      allowDefaultFallbackWhenEmpty: true,
+    })
+    : sourceAreas
+      .map((area) => (Array.isArray(area?.polygon) ? area.polygon.map((point) => normalizePolygonPoint(point)) : []))
+      .filter((polygon) => isRenderableNormalizedPolygon(polygon));
+
+  return normalizedPolygons.map((polygon) => polygon.map(([x, y]) => mapNormalizedPointToPixels(x, y, width, height)));
 }
 
 function getRoomRenderMetrics(room, boardId = state.boardId) {
@@ -10174,7 +10180,7 @@ function appendPolygonPath(polygon) {
 function clipToOutsideShip(boardId = state.boardId) {
   const playAreaPolygons = getPlayAreaClipPolygons(boardId);
   if (playAreaPolygons.length === 0) {
-    return true;
+    return false;
   }
   ctx.beginPath();
   ctx.rect(0, 0, canvas.width, canvas.height);
@@ -10188,7 +10194,7 @@ function clipToOutsideShip(boardId = state.boardId) {
 function clipToInsideShip(boardId = state.boardId) {
   const playAreaPolygons = getPlayAreaClipPolygons(boardId);
   if (playAreaPolygons.length === 0) {
-    return true;
+    return false;
   }
   ctx.beginPath();
   for (const polygon of playAreaPolygons) {

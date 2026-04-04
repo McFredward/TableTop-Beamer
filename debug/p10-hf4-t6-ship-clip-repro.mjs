@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const {
+  extractRenderablePlayAreaPolygons,
   normalizePlayAreasCollection,
   resolveProfilePolygonContract,
   isRenderableNormalizedPolygon,
@@ -19,8 +20,11 @@ const invalidInput = [
   },
 ];
 
-const invalidNormalized = normalizePlayAreasCollection(invalidInput, fallbackPolygon);
-const invalidAccepted = invalidNormalized.some((entry) => isRenderableNormalizedPolygon(entry.polygon));
+const invalidNormalized = extractRenderablePlayAreaPolygons(invalidInput, {
+  fallbackPolygon,
+  allowDefaultFallbackWhenEmpty: true,
+});
+const invalidAccepted = invalidNormalized.length > 0;
 
 const canonicalMultiArea = normalizePlayAreasCollection([
   {

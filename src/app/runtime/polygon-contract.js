@@ -116,6 +116,35 @@
     return normalized;
   }
 
+  function extractRenderablePlayAreaPolygons(
+    playAreas,
+    { fallbackPolygon = [], allowDefaultFallbackWhenEmpty = true } = {},
+  ) {
+    const source = Array.isArray(playAreas) ? playAreas : [];
+    const renderable = source
+      .map((entry) => {
+        const points = entry?.polygon ?? entry?.points ?? entry;
+        if (!Array.isArray(points)) {
+          return null;
+        }
+        const normalized = points.map((point) => normalizePolygonPoint(point));
+        return isRenderableNormalizedPolygon(normalized) ? normalized : null;
+      })
+      .filter((polygon) => Array.isArray(polygon));
+
+    if (renderable.length > 0) {
+      return renderable;
+    }
+    if (source.length > 0) {
+      return [];
+    }
+    if (!allowDefaultFallbackWhenEmpty) {
+      return [];
+    }
+    const fallback = normalizeSpecialPolygon(fallbackPolygon, []);
+    return isRenderableNormalizedPolygon(fallback) ? [fallback] : [];
+  }
+
   function resolveProfilePolygonContract(profile = {}, fallbackProfile = {}, shipPolygonDefault = []) {
     const profilePlayAreas = Array.isArray(profile.playAreas) ? profile.playAreas : null;
     const fallbackPlayAreas = Array.isArray(fallbackProfile.playAreas) ? fallbackProfile.playAreas : null;
@@ -244,6 +273,7 @@
     isRenderableNormalizedPolygon,
     normalizeSpecialPolygon,
     normalizePlayAreasCollection,
+    extractRenderablePlayAreaPolygons,
     resolveProfilePolygonContract,
     applySnapshotPolygonState,
   };
