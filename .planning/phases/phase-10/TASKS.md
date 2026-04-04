@@ -61,7 +61,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF6-T1 [P0] Create deterministic RED repro for `Nemesis Lockdown Board A` proving area-drop in Firefox/mobile-class (`Play Area 1` only) versus Chrome (`Play Area 1` + `Bunker`).
 - [x] DONE P10-HF6-T2 [P0] Add executable diagnostics to trace canonical source merge lineage (`saved profile`, `defaults`, `imported board payload`) and isolate first drop point.
 - [x] DONE P10-HF6-T3 [P0] Create deterministic RED repro where fallback/default area replaces valid multi-area subset payloads.
-- [ ] TODO P10-HF6-T4 [P0] Add explicit cross-browser assertions for per-board `areaCount` parity (Chrome/Firefox/mobile-class Chrome).
+- [x] DONE P10-HF6-T4 [P0] Add explicit cross-browser assertions for per-board `areaCount` parity (Chrome/Firefox/mobile-class Chrome).
 - [ ] TODO P10-HF6-T5 [P0] Add explicit cross-browser assertions for per-board canonical `areaIdSet` parity.
 - [ ] TODO P10-HF6-T6 [P0] Add explicit surface parity assertions that control-view and `/output/final` consume identical canonical play-area sets.
 - [ ] TODO P10-HF6-T7 [P0] Implement generic root-cause fix in merge/resolver path to retain valid multi-area entries deterministically (no board-specific branch).

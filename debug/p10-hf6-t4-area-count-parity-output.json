@@ -1,0 +1,20 @@
+{
+  "suite": "p10-hf6-t4-area-count-parity",
+  "boardId": "nemesis-lockdown-a",
+  "expectedAreaCount": 2,
+  "lanes": [
+    {
+      "browser": "chrome",
+      "areaCount": 2
+    },
+    {
+      "browser": "firefox",
+      "areaCount": 1
+    },
+    {
+      "browser": "mobile-chrome",
+      "areaCount": 1
+    }
+  ],
+  "result": "FAIL"
+}
