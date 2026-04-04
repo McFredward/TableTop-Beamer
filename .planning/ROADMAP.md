@@ -620,29 +620,41 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 - Existing `stop outside` and `clear all` semantics remain deterministic and unchanged.
 - Gate status: PASS (`9-HF4-VERIFICATION.md`, `P9-HF4-T6-REPEATED-ROOM-START-REGRESSION.md`).
 
-## Phase 10 - Operator Speed UI/UX + Mobile One-Hand Reaction (In Progress)
-Ziel: Bediengeschwindigkeit im Livebetrieb deutlich steigern durch logisch gruppierte Settings-Subtabs und explizite Quick-Action-Modi fuer sequenzielle Room-Clicks (activate/deactivate/clear), inklusive mobiler one-handed Optimierung.
+## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
+Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
 
-Status: Plan 10-HF1 ist abgeschlossen (PASS) und entblockt Plan 10-1; board-spezifischer `/output/final` Blackout auf `Nemesis Lockdown A` (outside `sandstorm.mp4`) ist mit fail-open compositor hardening + all-board Evidence geschlossen (`.planning/phases/phase-10/P10-HF1-T1-REPRO-TRACE.md`, `.planning/phases/phase-10/P10-HF1-T5-ALL-BOARD-REGRESSION.md`).
+Status: Plan 10-HF2 ist abgeschlossen (PASS): canonical polygon normalization + precedence hardening + final-output hydration fix + imported-board/browser matrix evidence liegen vor. Plan 10-1 ist damit entblockt.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
 2. M0 HF1 Render-Path Closure: finaler Compositor bleibt auf allen Boards aktiv (inkl. mp4 outside-background Boards).
 3. M0 HF1 Co-Render Closure: room + outside Animationen rendern gleichzeitig auf `/output/final` fuer alle Boards.
 4. M0 HF1 Non-Regression Closure: sync/control semantics bleiben unveraendert (ordering/version/idempotent apply, stop/clear/global).
-5. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
-6. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
-7. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
-8. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
-9. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
-10. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
-11. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+5. M0 HF2 Cross-Browser Repro Closure: polygon-load/apply failures auf Firefox/Chrome desktop + mobile-class sind reproduziert und eingegrenzt.
+6. M0 HF2 Canonical Schema Closure: `inside`/`outside`/`playAreas` werden in einem generischen canonical contract normalisiert.
+7. M0 HF2 Precedence Closure: valide persistierte Board-Polygone werden durch `apply global defaults` nicht still ueberschrieben.
+8. M0 HF2 Final-Hydration Closure: `/output/final` rendert browser-neutral gegen kanonische Board-Polygone (kein default-rectangle drift, kein valid-polygon black screen).
+9. M0 HF2 Imported-Board Closure: strict non-regression fuer aktuelle und zukuenftige importierte Boards ist PASS.
+10. M0 HF2 Browser-Matrix Closure: Chrome/Firefox desktop + mobile-class emulation matrix ist PASS.
+11. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
+12. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+13. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
+14. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
+15. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
+16. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
+17. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
 
 Exit Criteria:
 - `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
 - mp4 outside-background Boards behalten funktionierende Final-Komposition ohne Black-Screen-Regression.
 - Room- und Outside-Animationen rendern auf `/output/final` parallel und deterministisch.
 - Sync-/Control-Verhalten bleibt unveraendert (stop/clear/global + ordering/version/idempotent apply).
+- Canonical polygon hydration/apply (`inside`/`outside`/`playAreas`) ist browser-neutral stabil fuer startup/reload/default-apply.
+- `apply global defaults` ueberschreibt valide persistierte Board-Polygone nicht still.
+- `/output/final` clippt browser-neutral gegen board-spezifische kanonische Polygone statt Default-Rechteck.
+- Valide Polygone fuehren ausserhalb Chrome nicht zu Black-Screen in `/output/final`.
+- Imported boards (existing + new) bleiben unter schema hardening strikt regressionsfrei.
+- Browsermatrix ist PASS fuer Chrome/Firefox desktop + mobile-class emulation where possible.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -652,7 +664,7 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready Core-Welle: Settings-Subtabs + Quick-Modes + Mobile one-handed Speed Flow.
+- Plan 10-1 execute-ready: speed-first operator UX wave (Settings sub-tabs, quick activate/deactivate/clear, mobile one-handed flow).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

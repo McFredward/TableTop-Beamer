@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF1 (completed)
+- Last Executed Plan: 10-HF2 (completed)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF1-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF2-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,15 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues verpflichtendes P0-Feedback fuer Phase 10 ist bindend: gespeicherte inside/outside polygons + playAreas werden auf Firefox/Chrome mobile-class teils nicht deterministisch geladen/angewendet (startup/reload/default-apply).
+- P0-Regel Plan 10-HF2: Fix ist generisch schema-/pipeline-basiert fuer alle aktuellen und zukuenftigen importierten Boards; board-spezifische Sonderpfade sind unzulaessig.
+- Precedence-Regel Plan 10-HF2: `apply global defaults` darf valide persistierte Board-Polygone nicht still durch Standard-Polygone ueberschreiben.
+- Final-Hydration-Regel Plan 10-HF2: `/output/final` muss browser-neutral aus kanonischen Board-Polygonen hydrieren/rendern; valides Polygonmaterial darf ausserhalb Chrome keinen Black-Screen erzeugen.
+- Gate-Regel Plan 10-HF2: Plan 10-1 bleibt blockiert bis Canonical-Schema-/Fallback-/Imported-Board-Non-Regression + all-browser Matrix (Chrome/Firefox desktop + mobile-class emulation where possible) PASS sind.
+- Plan-10-HF2 Umsetzung: polygon hydration normalisiert jetzt alias-Felder (`inside`/`outside` polygon aliases + object-point payloads) in den kanonischen `playAreas` Vertrag.
+- Plan-10-HF2 Umsetzung: defaults-apply respektiert Polygon-Precedence (persistierte valide Board-Polygone bleiben erhalten, kein stilles Override durch Defaults).
+- Plan-10-HF2 Umsetzung: final-output Clipquellen laufen ueber kanonisches `getPlayAreas` + area-validierte Polygon-Normalisierung, wodurch valid-polygon Black-Screen-Pfade eliminiert sind.
+- Plan-10-HF2 Umsetzung: cross-browser + imported-board Regressionsevidenz ist PASS dokumentiert (`P10-HF2-T7-BROWSER-REGRESSION.md`).
 - Neues verpflichtendes P0-Runtime-Hotfix fuer Phase 10 ist bindend: `/output/final` wird auf `Nemesis Lockdown A` (outside `sandstorm.mp4`) schwarz und muss board-spezifisch root-cause-basiert behoben werden.
 - Plan-10-HF1 Umsetzung: root-cause fuer board-spezifischen Final-Blackout war fail-closed Clip-Geometrie; outside/room Layer konnten bei degenerierten Polygonen gleichzeitig ausfallen.
 - Plan-10-HF1 Umsetzung: Final-Compositor clipping ist fail-open gehaertet (invalid/degenerate room/play-area polygons blockieren Rendering nicht mehr).
