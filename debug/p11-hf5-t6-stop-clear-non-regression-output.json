@@ -1,0 +1,23 @@
+{
+  "suite": "P11-HF5-T6-stop-clear-non-regression",
+  "observed": "PASS",
+  "matrix": [
+    {
+      "step": "global-stop-revision",
+      "pass": true
+    },
+    {
+      "step": "global-stop-type-fallback",
+      "pass": true
+    },
+    {
+      "step": "clear-all-runtime-flush",
+      "pass": true
+    },
+    {
+      "step": "outside-disable-on-stop-clear",
+      "pass": true
+    }
+  ],
+  "error": null
+}
