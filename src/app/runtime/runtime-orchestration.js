@@ -5741,6 +5741,18 @@ function deactivateRoomAnimationByQuickTap(roomId) {
   }
 }
 
+function clearRoomAnimationsByQuickTap(roomId) {
+  const targetIds = collectQuickTapRoomAnimationIds(roomId);
+  if (targetIds.length === 0) {
+    const roomLabel = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId)?.name ?? roomId;
+    triggerFeedback.textContent = `Status: Clear mode found no running room animations in ${roomLabel}`;
+    return;
+  }
+  for (const animationId of targetIds) {
+    stopAnimation(animationId);
+  }
+}
+
 function handleQuickModeRoomTap(roomId) {
   const mode = normalizeQuickMode(state.quickMode?.mode);
   if (mode === "activate") {
@@ -5751,7 +5763,11 @@ function handleQuickModeRoomTap(roomId) {
     deactivateRoomAnimationByQuickTap(roomId);
     return;
   }
-  triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[mode] ?? mode} not yet active for room taps`;
+  if (mode === "clear") {
+    clearRoomAnimationsByQuickTap(roomId);
+    return;
+  }
+  triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[mode] ?? mode} is OFF`;
 }
 
 function setViewGroupVisibility(groups, visible) {
