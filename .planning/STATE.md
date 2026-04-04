@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF2 (completed)
+- Last Executed Plan: 10-HF3 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF2-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF3-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,13 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritisches Follow-up fuer Phase 10 ist bindend: vorherige HF2-Massnahmen schliessen den Realbetrieb nicht; neue Welle 10-HF3 ist P0-Blocker vor 10-1.
+- Test-First-Regel Plan 10-HF3: zuerst drei reproduzierbare FAIL-Tests fuer exakten Symptom-Satz (Lockdown A Firefox/mobile-class apply drift, defaults-apply override, final-output black/fallback rectangle trotz valider Polygone).
+- Diagnose-Regel Plan 10-HF3: nur direkt ausfuehrbare Lifecycle-/Board-Switch-/Canonical-Source-Assertions zaehlen; statische Checks allein sind nicht gate-faehig.
+- Root-Cause-Regel Plan 10-HF3: Fix wird erst nach FAIL-Reproduktion und Diagnose gesetzt und bleibt strikt generisch fuer alle importierten Boards/Browser.
+- Evidenz-Regel Plan 10-HF3: Wave-Close erfordert explizites FAIL->PASS im selben Testsatz plus Browser-/Import-Matrix und Artefakt-Sync.
+- Plan-10-HF3 Umsetzung: Root cause war fehlende Snapshot-Hydration fuer `playAreasByBoard` und `selectedPlayAreaIdByBoard`; final/control konnten stale fallback polygons behalten.
+- Plan-10-HF3 Umsetzung: Shared polygon-contract snapshot hydration wurde generisch verdrahtet (keine board-spezifischen branches) und mit T1..T6 FAIL->PASS + imported/browser matrix geschlossen.
 - Neues verpflichtendes P0-Feedback fuer Phase 10 ist bindend: gespeicherte inside/outside polygons + playAreas werden auf Firefox/Chrome mobile-class teils nicht deterministisch geladen/angewendet (startup/reload/default-apply).
 - P0-Regel Plan 10-HF2: Fix ist generisch schema-/pipeline-basiert fuer alle aktuellen und zukuenftigen importierten Boards; board-spezifische Sonderpfade sind unzulaessig.
 - Precedence-Regel Plan 10-HF2: `apply global defaults` darf valide persistierte Board-Polygone nicht still durch Standard-Polygone ueberschreiben.

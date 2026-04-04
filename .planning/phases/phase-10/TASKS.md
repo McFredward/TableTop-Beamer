@@ -33,7 +33,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF3-T9 [P0] Run imported-board and browser matrix non-regression after fix (Chrome/Firefox desktop + mobile-class emulation where possible).
 - [x] DONE P10-HF3-T10 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF3 PASS.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF3)
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, unblocked after HF3 PASS)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.

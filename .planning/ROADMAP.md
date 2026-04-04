@@ -623,7 +623,7 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 ## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
 Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
 
-Status: Plan 10-HF2 ist abgeschlossen (PASS): canonical polygon normalization + precedence hardening + final-output hydration fix + imported-board/browser matrix evidence liegen vor. Plan 10-1 ist damit entblockt.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 ist PASS abgeschlossen (deterministic FAIL->PASS + imported/browser matrix). Plan 10-1 ist jetzt unblocked und naechste Welle.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -636,13 +636,17 @@ Milestones:
 8. M0 HF2 Final-Hydration Closure: `/output/final` rendert browser-neutral gegen kanonische Board-Polygone (kein default-rectangle drift, kein valid-polygon black screen).
 9. M0 HF2 Imported-Board Closure: strict non-regression fuer aktuelle und zukuenftige importierte Boards ist PASS.
 10. M0 HF2 Browser-Matrix Closure: Chrome/Firefox desktop + mobile-class emulation matrix ist PASS.
-11. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
-12. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
-13. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
-14. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
-15. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
-16. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
-17. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
+11. M0 HF3 Symptom-Repro Closure: exakter Feld-Symptom-Satz ist als deterministische FAIL-Tests reproduziert.
+12. M0 HF3 Diagnostics Closure: ausfuehrbare Lifecycle-/Board-Switch-/Canonical-Source-Assertions sind aktiv.
+13. M0 HF3 Root-Cause Closure: generischer Fix schliesst Ursachen ohne board-spezifische Sonderzweige.
+14. M0 HF3 FAIL->PASS Closure: identischer Testsatz dokumentiert pre-fix FAIL und post-fix PASS.
+15. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
+16. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
+17. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
+18. M4 Deactivation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell aus vielen Raeumen entfernt.
+19. M5 Clear Sprint Flow: Room-Click entfernt im Clear-Modus alle Room-Animationen des Zielraums.
+20. M6 Mobile One-Hand Closure: sticky Action-Rail + ergonomische Tap-Zonen verbessern Reaktionszeit auf Smartphone.
+21. M7 Determinism + Non-Regression Closure: Burst-Click-Matrix auf Desktop/Mobile ist PASS ohne Lifecycle-/Sync-Regression.
 
 Exit Criteria:
 - `/output/final` bleibt fuer alle Boards renderaktiv; board-spezifischer Blackout ist geschlossen.
@@ -655,6 +659,8 @@ Exit Criteria:
 - Valide Polygone fuehren ausserhalb Chrome nicht zu Black-Screen in `/output/final`.
 - Imported boards (existing + new) bleiben unter schema hardening strikt regressionsfrei.
 - Browsermatrix ist PASS fuer Chrome/Firefox desktop + mobile-class emulation where possible.
+- Exakter Feld-Symptom-Satz ist testgetrieben reproduziert (pre-fix FAIL) und root-cause-basiert geschlossen (post-fix PASS).
+- Ausfuehrbare Diagnostik deckt startup/load/apply-defaults/reload, board-switch/final-output contract und canonical source selection verbindlich ab.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -664,7 +670,7 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready: speed-first operator UX wave (Settings sub-tabs, quick activate/deactivate/clear, mobile one-handed flow).
+- Plan 10-1 execute-ready (unblocked): speed-first operator UX with settings sub-tabs and quick activation/deactivation/clear flows.
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung
