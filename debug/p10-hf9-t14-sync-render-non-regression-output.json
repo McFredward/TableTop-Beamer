@@ -1,0 +1,14 @@
+{
+  "suite": "p10-hf9-t14-sync-render-non-regression",
+  "controlSelected": "bunker",
+  "finalSelected": "bunker",
+  "controlIds": [
+    "bunker",
+    "play-area-1"
+  ],
+  "finalIds": [
+    "bunker",
+    "play-area-1"
+  ],
+  "status": "PASS"
+}
