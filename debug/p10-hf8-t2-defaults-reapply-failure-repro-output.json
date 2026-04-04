@@ -1,0 +1,16 @@
+{
+  "suite": "p10-hf8-t2-defaults-reapply-failure-repro",
+  "phase": "RED",
+  "boardId": "nemesis-lockdown-a",
+  "expectedSelected": "bunker",
+  "observedSelected": "play-area-1",
+  "expectedAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "observedAreaIdSet": [
+    "play-area-1"
+  ],
+  "legacyDecision": "local runtime polygons override loaded defaults polygons",
+  "result": "FAIL"
+}
