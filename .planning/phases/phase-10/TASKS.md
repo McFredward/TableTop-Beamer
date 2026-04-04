@@ -55,9 +55,9 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF5-T7 [P0] Add lifecycle assertions for startup/reload/default-apply/board-switch parity with canonical saved play-areas.
 - [x] DONE P10-HF5-T8 [P0] Execute Firefox/Chrome/mobile-class browser parity matrix for single-area + multi-area scenarios.
 - [x] DONE P10-HF5-T9 [P0] Execute strict regression matrix for imported boards + multi-play-area boards.
-- [ ] TODO P10-HF5-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- [x] DONE P10-HF5-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF5 PASS)
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, unblocked)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.

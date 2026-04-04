@@ -1,0 +1,135 @@
+{
+  "suite": "p10-hf5-t9-imported-multiarea-regression",
+  "importedBoardId": "nemesis-lockdown-a",
+  "matrix": [
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "startup",
+      "surface": "control",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "reload",
+      "surface": "control",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "expectedSelected": "valid-beta",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "startup",
+      "surface": "control",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "reload",
+      "surface": "control",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "expectedSelected": "single-a",
+      "selectedPlayAreaId": "single-a",
+      "fellBackToDefaultHex": false
+    }
+  ],
+  "result": "PASS"
+}

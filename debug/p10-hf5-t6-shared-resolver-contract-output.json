@@ -1,0 +1,13 @@
+{
+  "suite": "p10-hf5-t6-shared-resolver-contract",
+  "controlAreaIds": [
+    "valid-beta",
+    "valid-gamma"
+  ],
+  "finalRenderablePolygonCount": 2,
+  "expectedValidAreas": [
+    "valid-beta",
+    "valid-gamma"
+  ],
+  "result": "PASS"
+}

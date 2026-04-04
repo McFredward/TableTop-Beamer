@@ -1,0 +1,21 @@
+{
+  "suite": "p10-hf5-t2-lockdown-fallback-repro",
+  "boardId": "nemesis-lockdown-a",
+  "lanes": [
+    {
+      "browserLane": "firefox",
+      "selectedPlayAreaId": "lockdown-canonical-a",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false,
+      "expectedSelectedPlayAreaId": "lockdown-canonical-a"
+    },
+    {
+      "browserLane": "mobile-chrome",
+      "selectedPlayAreaId": "lockdown-canonical-a",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false,
+      "expectedSelectedPlayAreaId": "lockdown-canonical-a"
+    }
+  ],
+  "result": "PASS"
+}

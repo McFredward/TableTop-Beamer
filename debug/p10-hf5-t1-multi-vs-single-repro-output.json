@@ -1,0 +1,55 @@
+{
+  "suite": "p10-hf5-t1-multi-vs-single-repro",
+  "singleBoard": [
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    }
+  ],
+  "multiBoard": [
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta",
+      "selectedPolygonVertexCount": 4,
+      "fellBackToDefaultHex": false
+    }
+  ],
+  "expected": {
+    "singleBoardSelected": "single-a",
+    "multiBoardSelected": "valid-beta",
+    "noDefaultHexFallbackWhenValidExists": true
+  },
+  "result": "PASS"
+}

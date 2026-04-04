@@ -1,0 +1,60 @@
+{
+  "suite": "p10-hf5-t7-lifecycle-parity",
+  "singleLifecycle": [
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a"
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a"
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a"
+    }
+  ],
+  "multiLifecycle": [
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta"
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta"
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta"
+    }
+  ],
+  "boardSwitch": [
+    {
+      "lifecycle": "board-switch:to-single",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a"
+    },
+    {
+      "lifecycle": "board-switch:to-multi",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta"
+    },
+    {
+      "lifecycle": "board-switch:back-single",
+      "boardId": "nemesis-board-a",
+      "selectedPlayAreaId": "single-a"
+    },
+    {
+      "lifecycle": "board-switch:back-multi",
+      "boardId": "nemesis-lockdown-a",
+      "selectedPlayAreaId": "valid-beta"
+    }
+  ],
+  "result": "PASS"
+}

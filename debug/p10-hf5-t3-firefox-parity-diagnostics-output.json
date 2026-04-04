@@ -1,0 +1,80 @@
+{
+  "suite": "p10-hf5-t3-firefox-parity-diagnostics",
+  "boardId": "nemesis-lockdown-a",
+  "lifecycle": [
+    "startup",
+    "reload",
+    "apply-defaults"
+  ],
+  "traces": [
+    {
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    },
+    {
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "selectedPlayAreaId": "valid-beta",
+      "fellBackToDefaultHex": false,
+      "selectedPolygonVertexCount": 4
+    }
+  ],
+  "parity": {
+    "firefox": true,
+    "chrome": true,
+    "mobile-chrome": true
+  },
+  "result": "PASS"
+}

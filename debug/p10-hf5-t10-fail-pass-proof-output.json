@@ -1,0 +1,61 @@
+{
+  "suite": "p10-hf5-t10-fail-pass-proof",
+  "executedAt": "2026-04-04T10:36:12.729Z",
+  "failEvidence": [
+    {
+      "path": ".planning/phases/phase-10/P10-HF5-T1-REPRO-MULTI-VS-SINGLE.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF5-T2-LOCKDOWN-FALLBACK-REPRO.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF5-T4-CANONICAL-SOURCE-DIAGNOSTICS.md",
+      "hasFailMarker": true
+    }
+  ],
+  "passEvidence": [
+    {
+      "path": "debug/p10-hf5-t1-multi-vs-single-repro-output.json",
+      "suite": "p10-hf5-t1-multi-vs-single-repro",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t2-lockdown-fallback-repro-output.json",
+      "suite": "p10-hf5-t2-lockdown-fallback-repro",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t3-firefox-parity-diagnostics-output.json",
+      "suite": "p10-hf5-t3-firefox-parity-diagnostics",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t4-canonical-source-diagnostics-output.json",
+      "suite": "p10-hf5-t4-canonical-source-diagnostics",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t6-shared-resolver-contract-output.json",
+      "suite": "p10-hf5-t6-shared-resolver-contract",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t7-lifecycle-parity-output.json",
+      "suite": "p10-hf5-t7-lifecycle-parity",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t8-browser-parity-output.json",
+      "suite": "p10-hf5-t8-browser-parity",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf5-t9-imported-multiarea-regression-output.json",
+      "suite": "p10-hf5-t9-imported-multiarea-regression",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS"
+}

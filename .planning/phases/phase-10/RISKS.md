@@ -60,6 +60,26 @@
 - Impact: Critical.
 - Mitigation: canonical-data-first resolver and explicit guard that blocks fallback when canonical validity is true.
 
+## R0p Multi-play-area resolver drift vs single-area path
+- Risk: canonical resolver behaves differently for multi-play-area boards (disconnected areas) than for single-area boards and can show default play area/fallback hex.
+- Impact: Critical.
+- Mitigation: explicit multi-vs-single RED repros, shared resolver path, and deterministic fixture coverage for both board classes.
+
+## R0q Firefox/mobile-class canonical apply mismatch
+- Risk: Firefox or mobile-class Chrome applies persisted canonical play-areas differently than Chrome desktop during startup/reload/default-apply.
+- Impact: Critical.
+- Mitigation: Firefox headless automation diagnostics plus Chrome/mobile parity traces with equal-verdict gate.
+
+## R0r Control-view and final-output source divergence
+- Risk: control-view and `/output/final` resolve different play-area sources under the same board state.
+- Impact: Critical.
+- Mitigation: single shared canonical source resolver contract with executable parity assertions across both surfaces.
+
+## R0s Imported/multi-area regression spillover
+- Risk: fix for Lockdown A accidentally regresses imported boards or existing multi-area boards.
+- Impact: Critical.
+- Mitigation: mandatory imported + multi-area regression matrix (save/reload/default-apply/board-switch/final-output) before closure.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -122,3 +142,4 @@
 - R0d/R0e/R0f/R0g/R0h mitigated in HF3 via canonical snapshot polygon hydration and executable diagnostics.
 - R0i/R0j mitigated in HF3 via deterministic FAIL->PASS diagnostics and control/final canonical-source parity checks.
 - R0k/R0l/R0m/R0n/R0o are mitigated in HF4 via executable diagnostics + root-cause fixes (`P10-HF4-T1..T10`).
+- R0p/R0q/R0r/R0s are mitigated in HF5 via canonical multi-area fallback hardening, shared control/final resolver contract, browser parity matrix, and FAIL->PASS proof (`P10-HF5-T1..T10`).

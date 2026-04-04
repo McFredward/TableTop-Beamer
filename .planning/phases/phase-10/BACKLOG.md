@@ -5,7 +5,8 @@
 - Plan 10-HF2 closure is reopened: field runtime confirms the real-world symptom set is still active.
 - Plan 10-HF3 is completed PASS (test-driven repro -> root-cause fix -> FAIL/PASS closure).
 - Plan 10-HF4 is completed PASS with deterministic RED->GREEN evidence.
-- Plan 10-1 is now queued as the next execute-ready wave.
+- New mandatory P0 blocker opens Plan 10-HF5 as execute-ready wave.
+- Plan 10-1 remains queued but blocked until HF5 PASS.
 
 ## Epics
 - Generic Polygon Hydration/Apply Reliability (Cross-Browser P0)
@@ -13,6 +14,7 @@
 - Imported Board Non-Regression Hardening (P0)
 - HF3 Root-Cause Recovery via Failing Tests + Executable Diagnostics (P0)
 - HF4 Runtime Module/Ownership/Ship-Clip Parity Hardening (P0)
+- HF5 Multi-Play-Area Canonical Fallback Hardening (P0)
 - Settings Information Architecture Sub-Tabs
 - Quick Room Action Modes (Activate / Deactivate / Clear)
 - Mobile One-Handed Speed Operations
@@ -53,6 +55,15 @@
 - P10-HF4-S8 Add Firefox/Chrome executable diagnostics and parity matrix for HF4 scenarios.
 - P10-HF4-S9 Enforce canonical-data-first final-output path: no invalid-default fallback when valid canonical polygons exist.
 - P10-HF4-S10 Capture explicit FAIL->PASS evidence and synchronize all phase/global planning artifacts after HF4 PASS.
+- P10-HF5-S1 Build explicit RED repros for multi-play-area boards vs single-play-area boards under startup/reload/default-apply.
+- P10-HF5-S2 Add Firefox-specific headless/automation diagnostics with parity traces against Chrome and mobile-class Chrome.
+- P10-HF5-S3 Reproduce deterministic wrong-fallback path where default play area/fallback hex appears despite valid canonical saved play-areas.
+- P10-HF5-S4 Implement generic root-cause fix for canonical play-area resolver/fallback decision path (no board-specific branches).
+- P10-HF5-S5 Enforce shared canonical source contract between control-view and `/output/final`.
+- P10-HF5-S6 Add lifecycle diagnostics for startup/reload/default-apply/board-switch parity in both surfaces.
+- P10-HF5-S7 Execute browser parity matrix for Firefox + Chrome desktop + mobile-class Chrome on single/multi-area boards.
+- P10-HF5-S8 Execute imported-board + multi-area strict non-regression matrix.
+- P10-HF5-S9 Capture explicit FAIL->PASS evidence and synchronize all phase/global planning artifacts after HF5 PASS.
 - P10-S1 Define Settings sub-tab taxonomy and group existing controls by operator intent.
 - P10-S2 Implement Settings sub-tab navigation with stable state retention across tab switches.
 - P10-S3 Add shared quick-mode state machine with explicit status, cancel path, and conflict guards.
@@ -66,17 +77,23 @@
 - P10-S11 Run full non-regression for stop/clear-all/global behavior and `/output/final` stability.
 - P10-S12 Synchronize all phase/global planning artifacts after verification PASS.
 
-## Prioritized Execution Wave (P0) - Plan 10-HF4 execute-ready
-- Story P10-HF4-S1 + P10-HF4-S2 + P10-HF4-S3.
-  - Goal: deterministic runtime-panel RED repro plus root-cause closure for `TT_BEAMER_RUNTIME_PANELS` exposure/load-order.
-- Story P10-HF4-S4 + P10-HF4-S5.
-  - Goal: applicability-aware settings ownership checks for conditionally unmounted controls.
-- Story P10-HF4-S6 + P10-HF4-S7.
-  - Goal: ship-clip checker accepts valid canonical/legacy multi-play-area states and rejects invalid polygons browser-neutrally.
-- Story P10-HF4-S8 + P10-HF4-S9.
-  - Goal: Firefox/Chrome executable parity and canonical no-invalid-default fallback enforcement for final-output.
-- Story P10-HF4-S10.
+## Prioritized Execution Wave (P0) - Plan 10-HF5 execute-ready
+- Story P10-HF5-S1 + P10-HF5-S2 + P10-HF5-S3.
+  - Goal: deterministic RED repro + Firefox/mobile-class diagnostics for multi-area fallback mismatch.
+- Story P10-HF5-S4 + P10-HF5-S5 + P10-HF5-S6.
+  - Goal: canonical resolver root-cause fix and guaranteed control/final parity through lifecycle transitions.
+- Story P10-HF5-S7 + P10-HF5-S8.
+  - Goal: all-browser parity and imported/multi-area strict non-regression PASS.
+- Story P10-HF5-S9.
   - Goal: explicit FAIL->PASS proof and synchronized phase/global trackers.
+
+## Closed Wave (P0) - Plan 10-HF5
+- Story P10-HF5-S1..P10-HF5-S9.
+  - Outcome: PASS; multi-area canonical fallback drift is closed with Firefox/mobile-class parity and imported-board regression evidence.
+
+## Previously Closed Wave (P0) - Plan 10-HF4
+- Story P10-HF4-S1..P10-HF4-S10.
+  - Outcome: PASS; remains baseline-valid but does not close new multi-play-area blocker.
 
 ## Previously Closed Wave (P0) - Plan 10-HF1
 - Story P10-HF1-S1.
@@ -92,7 +109,7 @@
 - Story P10-HF2-S1..P10-HF2-S8.
   - Outcome: provisional PASS evidence exists, but real-world runtime disproves closure and mandates HF3.
 
-## Prioritized Execution Wave (P0) - Plan 10-1 (blocked until HF4 PASS)
+## Prioritized Execution Wave (P0) - Plan 10-1 (blocked until HF5 PASS)
 - Story P10-S1 + P10-S2.
   - Goal: Settings sub-tabs are logically grouped and fast to navigate.
 - Story P10-S3.
@@ -107,6 +124,6 @@
   - Goal: phase and global trackers are synchronized at closure.
 
 ## Follow-up Waves
-- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF4 PASS.
+- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF5 PASS.
 - Plan 10-2: UX polish and performance micro-optimizations from field feedback.
 - Plan 10-3: optional operator presets for quick-mode templates if needed after live validation.

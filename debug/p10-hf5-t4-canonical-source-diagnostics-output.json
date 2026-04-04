@@ -1,0 +1,21 @@
+{
+  "suite": "p10-hf5-t4-canonical-source-diagnostics",
+  "boardId": "nemesis-lockdown-a",
+  "expectedCanonical": "valid-beta",
+  "control": {
+    "surface": "control",
+    "selectedPlayAreaId": "valid-beta",
+    "selectedFallsBack": false,
+    "renderablePolygonCount": 1,
+    "fallbackDecision": "canonical-selected"
+  },
+  "finalOutput": {
+    "surface": "output/final",
+    "selectedPlayAreaId": "valid-beta",
+    "selectedFallsBack": false,
+    "renderablePolygonCount": 1,
+    "fallbackDecision": "canonical-selected"
+  },
+  "sourceParity": true,
+  "result": "PASS"
+}

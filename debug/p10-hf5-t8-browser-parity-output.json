@@ -1,0 +1,131 @@
+{
+  "suite": "p10-hf5-t8-browser-parity",
+  "result": "PASS",
+  "browsers": [
+    "chrome",
+    "firefox",
+    "mobile-chrome"
+  ],
+  "parity": [
+    {
+      "suite": "multi-vs-single-repro",
+      "entries": [
+        {
+          "suite": "multi-vs-single-repro",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "multi-vs-single-repro",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "multi-vs-single-repro",
+          "browser": "mobile-chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "lockdown-fallback-repro",
+      "entries": [
+        {
+          "suite": "lockdown-fallback-repro",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "lockdown-fallback-repro",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "lockdown-fallback-repro",
+          "browser": "mobile-chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "firefox-parity-diagnostics",
+      "entries": [
+        {
+          "suite": "firefox-parity-diagnostics",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "firefox-parity-diagnostics",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "firefox-parity-diagnostics",
+          "browser": "mobile-chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "canonical-source-diagnostics",
+      "entries": [
+        {
+          "suite": "canonical-source-diagnostics",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "canonical-source-diagnostics",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "canonical-source-diagnostics",
+          "browser": "mobile-chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "lifecycle-parity",
+      "entries": [
+        {
+          "suite": "lifecycle-parity",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "lifecycle-parity",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "lifecycle-parity",
+          "browser": "mobile-chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    }
+  ]
+}
