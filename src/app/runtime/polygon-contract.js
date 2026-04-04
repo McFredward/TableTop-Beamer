@@ -157,6 +157,7 @@
       return {
         playAreas: normalizePlayAreasCollection([], fallbackPolygon),
         strictSubsetFromSnapshot: false,
+        preferCanonicalSelection: false,
       };
     }
 
@@ -164,6 +165,7 @@
       return {
         playAreas: canonicalValid,
         strictSubsetFromSnapshot: false,
+        preferCanonicalSelection: true,
       };
     }
 
@@ -171,6 +173,7 @@
       return {
         playAreas: snapshotValid,
         strictSubsetFromSnapshot: false,
+        preferCanonicalSelection: false,
       };
     }
 
@@ -208,6 +211,7 @@
     return {
       playAreas: ordered,
       strictSubsetFromSnapshot,
+      preferCanonicalSelection: strictSubsetFromSnapshot,
     };
   }
 
@@ -347,7 +351,7 @@
 
       const snapshotSelected = String(snapshotSelectedByBoard?.[boardId] || "").trim();
       const contractedSelected = String(contracted.selectedPlayAreaId || "").trim();
-      const preferredSelected = mergedSource.strictSubsetFromSnapshot
+      const preferredSelected = mergedSource.preferCanonicalSelection
         ? contractedSelected || snapshotSelected || stateSelectedId
         : snapshotSelected || contractedSelected || stateSelectedId;
       const selectedPlayAreaId = normalizedPlayAreas.some((entry) => entry.id === preferredSelected)

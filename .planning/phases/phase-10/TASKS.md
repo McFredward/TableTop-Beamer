@@ -65,7 +65,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF6-T5 [P0] Add explicit cross-browser assertions for per-board canonical `areaIdSet` parity.
 - [x] DONE P10-HF6-T6 [P0] Add explicit surface parity assertions that control-view and `/output/final` consume identical canonical play-area sets.
 - [x] DONE P10-HF6-T7 [P0] Implement generic root-cause fix in merge/resolver path to retain valid multi-area entries deterministically (no board-specific branch).
-- [ ] TODO P10-HF6-T8 [P0] Enforce fallback guard so default area only fills truly missing/invalid data and never replaces valid subset multi-area data.
+- [x] DONE P10-HF6-T8 [P0] Enforce fallback guard so default area only fills truly missing/invalid data and never replaces valid subset multi-area data.
 - [ ] TODO P10-HF6-T9 [P0] Execute browser parity matrix + imported-board/multi-area strict non-regression matrix (startup/reload/default-apply/board-switch/final-output).
 - [ ] TODO P10-HF6-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 

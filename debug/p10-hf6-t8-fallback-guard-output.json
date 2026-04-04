@@ -1,0 +1,37 @@
+{
+  "suite": "p10-hf6-t8-fallback-guard",
+  "boardId": "nemesis-lockdown-a",
+  "scenarios": [
+    {
+      "scenario": "subset-default-only",
+      "mergedAreaCount": 2,
+      "mergedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
+    },
+    {
+      "scenario": "subset-invalid-only",
+      "mergedAreaCount": 2,
+      "mergedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
+    },
+    {
+      "scenario": "empty-array",
+      "mergedAreaCount": 2,
+      "mergedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
+    }
+  ],
+  "result": "PASS"
+}
