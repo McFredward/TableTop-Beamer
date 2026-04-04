@@ -37,7 +37,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF2-T3 [P0] Add `Loop until stopped` quick checkbox directly in Dashboard global controls (trigger-level control surface).
 - [x] DONE P11-HF2-T4 [P0] Wire per-trigger loop semantics into global trigger payload/runtime (`one-shot` vs `until explicit stop`) without editing animation definitions.
 - [x] DONE P11-HF2-T5 [P0] Preserve explicit `stop` and `clear` semantics unchanged for both per-trigger loop modes.
-- [ ] TODO P11-HF2-T6 [P0] Execute regression matrix proving global start/stop/clear correctness on control + peers + `/output/final`.
+- [x] DONE P11-HF2-T6 [P0] Execute regression matrix proving global start/stop/clear correctness on control + peers + `/output/final`.
 - [ ] TODO P11-HF2-T7 [P0] Capture FAIL->PASS evidence that global animations start/stop correctly again after recovery patch.
 - [ ] TODO P11-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
