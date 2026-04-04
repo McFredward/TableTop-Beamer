@@ -1,0 +1,1584 @@
+{
+  "suite": "p10-hf6-t9-browser-imported-multiarea-regression",
+  "importedBoardId": "nemesis-lockdown-a",
+  "lifecycle": [
+    "startup",
+    "reload",
+    "apply-defaults",
+    "board-switch"
+  ],
+  "surfaces": [
+    "control",
+    "output/final"
+  ],
+  "browsers": [
+    "chrome",
+    "firefox",
+    "mobile-chrome"
+  ],
+  "matrix": [
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "expectedAreaCount": 2,
+      "expectedAreaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "expectedSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "firefox",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "browser": "mobile-chrome",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "areaCount": 1,
+      "areaIdSet": [
+        "single-a"
+      ],
+      "selectedPlayAreaId": "single-a",
+      "expectedAreaCount": 1,
+      "expectedAreaIdSet": [
+        "single-a"
+      ],
+      "expectedSelected": "single-a",
+      "pass": true
+    }
+  ],
+  "parityByScenarioLifecycleSurface": [
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "startup",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "reload",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "builtin-multi-area",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "startup",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "reload",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "kind": "imported-multi-area",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "startup",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "startup",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "reload",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "reload",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "apply-defaults",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "apply-defaults",
+      "surface": "output/final",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "board-switch",
+      "surface": "control",
+      "parityPass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "kind": "builtin-single-area",
+      "lifecycle": "board-switch",
+      "surface": "output/final",
+      "parityPass": true
+    }
+  ],
+  "result": "PASS"
+}
