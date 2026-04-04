@@ -76,7 +76,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF7-T4 [P0] Implement root-cause fix: board-profile candidate extraction independent from loaded board list.
 - [x] DONE P10-HF7-T5 [P0] Implement migration hardening to retain unknown board keys without fallback-loss side effects.
 - [x] DONE P10-HF7-T6 [P0] Add deterministic lifecycle assertions for multi-play-area retention across startup/default-apply/reload.
-- [ ] TODO P10-HF7-T7 [P0] Execute browser parity + imported/multi-area strict non-regression matrix with clean-start coverage.
+- [x] DONE P10-HF7-T7 [P0] Execute browser parity + imported/multi-area strict non-regression matrix with clean-start coverage.
 - [ ] TODO P10-HF7-T8 [P0] Capture explicit FAIL->PASS evidence for T1..T7 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF7 PASS)

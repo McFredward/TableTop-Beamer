@@ -1,0 +1,41 @@
+{
+  "suite": "p10-hf7-t7-browser-imported-cleanstart-regression",
+  "unknownBoardId": "imported-lockdown-multi",
+  "expectedAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "lanes": [
+    {
+      "browser": "chrome",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "controlFinalSetParity": true
+    },
+    {
+      "browser": "firefox",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "controlFinalSetParity": true
+    },
+    {
+      "browser": "mobile-chrome",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker",
+      "controlFinalSetParity": true
+    }
+  ],
+  "result": "PASS"
+}
