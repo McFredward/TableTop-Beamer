@@ -33,7 +33,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 11-HF2 - Critical global runtime recovery + dashboard loop UX correction (execute-ready, hard-gated)
 - [x] DONE P11-HF2-T1 [P0] Create deterministic RED repro showing post-HF global animation start/runtime failure.
-- [ ] TODO P11-HF2-T2 [P0] Implement rollback-first recovery so global animations start/run deterministically again immediately.
+- [x] DONE P11-HF2-T2 [P0] Implement rollback-first recovery so global animations start/run deterministically again immediately.
 - [ ] TODO P11-HF2-T3 [P0] Add `Loop until stopped` quick checkbox directly in Dashboard global controls (trigger-level control surface).
 - [ ] TODO P11-HF2-T4 [P0] Wire per-trigger loop semantics into global trigger payload/runtime (`one-shot` vs `until explicit stop`) without editing animation definitions.
 - [ ] TODO P11-HF2-T5 [P0] Preserve explicit `stop` and `clear` semantics unchanged for both per-trigger loop modes.

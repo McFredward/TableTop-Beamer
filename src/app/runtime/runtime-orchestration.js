@@ -9706,15 +9706,17 @@ function drawRoomComposition(animation, age, room, roomMetrics) {
   );
 }
 
-function upsertGlobalAnimation(type, defaultDurationSec) {
+function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false } = {}) {
   const existing = state.runningAnimations.find(
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
   );
   const isOutside = getGlobalAnimationCategory(type) === "outside-ship";
-  const insideDefinition = getInsideAnimationDefinitionById(type, state.boardId);
-  const effectiveDefaultDurationSec = insideDefinition?.loopUntilStopped
+  const normalizedDefaultDurationSec = Number(defaultDurationSec);
+  const effectiveDefaultDurationSec = loopUntilStopped
     ? null
-    : defaultDurationSec;
+    : (Number.isFinite(normalizedDefaultDurationSec) && normalizedDefaultDurationSec > 0
+      ? normalizedDefaultDurationSec
+      : null);
   if (outputRole === OUTPUT_ROLE_CONTROL) {
     if (existing) {
       stopAnimation(existing.id);
@@ -9732,6 +9734,7 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
         action: "start",
         boardId: state.boardId,
         outsideHint: isOutside,
+        loopUntilStopped: effectiveDefaultDurationSec === null,
         animation: buildAnimationSnapshotForLiveSync(animation),
       }).then(() => {
         triggerFeedback.textContent = `Pending: ${getAnimationLabel(type)} start accepted (waiting for snapshot)`;
@@ -9773,6 +9776,10 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     void emitLiveMutation("trigger-global", {
       animationType: type,
       action: "start",
+      boardId: state.boardId,
+      outsideHint: isOutside,
+      loopUntilStopped: effectiveDefaultDurationSec === null,
+      animation: buildAnimationSnapshotForLiveSync(animation),
     });
   }
   renderRunningAnimationsList();
