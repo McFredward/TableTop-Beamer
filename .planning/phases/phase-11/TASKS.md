@@ -14,7 +14,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-T8 [P0] Add explicit operator feedback for quick-mode action success/failure/timeout.
 - [x] DONE P11-T9 [P0] Implement mobile-first one-handed action rail (sticky placement, thumb reach, large taps).
 - [x] DONE P11-T10 [P0] Preserve mobile board overview during rapid operations (no control occlusion drift).
-- [ ] TODO P11-T11 [P0] Execute rapid-operation acceptance and non-regression matrix on desktop + mobile.
+- [x] DONE P11-T11 [P0] Execute rapid-operation acceptance and non-regression matrix on desktop + mobile.
 - [ ] TODO P11-T12 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/README/STATE/ROADMAP/CURRENT_PHASE`.
 
 ## Next wave placeholder

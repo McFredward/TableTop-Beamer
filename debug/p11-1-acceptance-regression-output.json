@@ -1,0 +1,47 @@
+{
+  "generatedAt": "2026-04-04T14:15:01.821Z",
+  "checks": [
+    {
+      "id": "settings-subtabs",
+      "ok": true
+    },
+    {
+      "id": "quick-mode-buttons",
+      "ok": true
+    },
+    {
+      "id": "quick-mode-state-machine",
+      "ok": true
+    },
+    {
+      "id": "quick-activate-tap",
+      "ok": true
+    },
+    {
+      "id": "quick-deactivate-tap",
+      "ok": true
+    },
+    {
+      "id": "quick-clear-tap",
+      "ok": true
+    },
+    {
+      "id": "mode-conflict-guards",
+      "ok": true
+    },
+    {
+      "id": "feedback-surface",
+      "ok": true
+    },
+    {
+      "id": "mobile-one-hand-rail",
+      "ok": true
+    },
+    {
+      "id": "mobile-overview-guard",
+      "ok": true
+    }
+  ],
+  "pass": true,
+  "failed": []
+}
