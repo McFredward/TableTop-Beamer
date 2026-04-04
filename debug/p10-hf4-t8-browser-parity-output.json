@@ -1,0 +1,82 @@
+{
+  "suite": "p10-hf4-t8-browser-parity",
+  "result": "PASS",
+  "browsers": [
+    "chrome",
+    "firefox"
+  ],
+  "parity": [
+    {
+      "suite": "runtime-panels-repro",
+      "entries": [
+        {
+          "suite": "runtime-panels-repro",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "runtime-panels-repro",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "runtime-panels-diagnostics",
+      "entries": [
+        {
+          "suite": "runtime-panels-diagnostics",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "runtime-panels-diagnostics",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "settings-ownership",
+      "entries": [
+        {
+          "suite": "settings-ownership",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "settings-ownership",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    },
+    {
+      "suite": "ship-clip-regression",
+      "entries": [
+        {
+          "suite": "ship-clip-regression",
+          "browser": "chrome",
+          "exitCode": 0,
+          "result": "PASS"
+        },
+        {
+          "suite": "ship-clip-regression",
+          "browser": "firefox",
+          "exitCode": 0,
+          "result": "PASS"
+        }
+      ],
+      "parityPass": true
+    }
+  ]
+}
