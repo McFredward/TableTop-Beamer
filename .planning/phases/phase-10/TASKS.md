@@ -82,7 +82,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 10-HF8 - All-board canonical play-area recovery blocker wave (execute-ready, hard-gated)
 - [x] DONE P10-HF8-T1 [P0] Create deterministic RED repro proving all boards currently apply default fallback polygon instead of canonical saved play-areas.
 - [x] DONE P10-HF8-T2 [P0] Create deterministic RED repro proving `Load global defaults` does not restore board-specific canonical play-areas.
-- [ ] TODO P10-HF8-T3 [P0] Add executable diagnostics for canonical source lineage and defaults-reapply decisions across startup/reload/default-apply/board-switch.
+- [x] DONE P10-HF8-T3 [P0] Add executable diagnostics for canonical source lineage and defaults-reapply decisions across startup/reload/default-apply/board-switch.
 - [ ] TODO P10-HF8-T4 [P0] Create deterministic RED repro proving canonical polygon load/apply failures are silently masked without explicit user-visible error.
 - [ ] TODO P10-HF8-T5 [P0] Implement generic canonical-load recovery fix so all boards load/apply play-areas from canonical saved sources deterministically.
 - [ ] TODO P10-HF8-T6 [P0] Implement defaults-reapply recovery fix so `Load global defaults` re-applies board-specific canonical play-areas.

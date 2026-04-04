@@ -1,0 +1,233 @@
+{
+  "suite": "p10-hf8-t3-canonical-lineage-diagnostics",
+  "lifecycle": [
+    "startup",
+    "reload",
+    "apply-defaults",
+    "board-switch"
+  ],
+  "matrix": [
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-board-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "single-a",
+      "canonicalSelected": "single-a",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "single-a"
+      ],
+      "canonicalAreaIds": [
+        "single-a"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "startup",
+      "boardId": "nemesis-lockdown-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "bunker",
+      "canonicalSelected": "bunker",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "startup",
+      "boardId": "imported-lockdown-multi",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "cargo",
+      "canonicalSelected": "cargo",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-board-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "single-a",
+      "canonicalSelected": "single-a",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "single-a"
+      ],
+      "canonicalAreaIds": [
+        "single-a"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "nemesis-lockdown-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "bunker",
+      "canonicalSelected": "bunker",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "reload",
+      "boardId": "imported-lockdown-multi",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "cargo",
+      "canonicalSelected": "cargo",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-board-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "single-a",
+      "canonicalSelected": "single-a",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "single-a"
+      ],
+      "canonicalAreaIds": [
+        "single-a"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "nemesis-lockdown-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "bunker",
+      "canonicalSelected": "bunker",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "apply-defaults",
+      "boardId": "imported-lockdown-multi",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "cargo",
+      "canonicalSelected": "cargo",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "board-switch",
+      "boardId": "nemesis-board-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "single-a",
+      "canonicalSelected": "single-a",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "single-a"
+      ],
+      "canonicalAreaIds": [
+        "single-a"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "board-switch",
+      "boardId": "nemesis-lockdown-a",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "bunker",
+      "canonicalSelected": "bunker",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "bunker",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    },
+    {
+      "lifecycle": "board-switch",
+      "boardId": "imported-lockdown-multi",
+      "legacySelected": "play-area-1",
+      "fixedSelected": "cargo",
+      "canonicalSelected": "cargo",
+      "legacyAreaIds": [
+        "play-area-1"
+      ],
+      "fixedAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "canonicalAreaIds": [
+        "cargo",
+        "play-area-1"
+      ],
+      "legacyOverridesCanonical": true
+    }
+  ],
+  "legacyOverrideCount": 12,
+  "result": "PASS"
+}
