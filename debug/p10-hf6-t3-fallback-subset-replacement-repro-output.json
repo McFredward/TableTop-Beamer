@@ -1,0 +1,34 @@
+{
+  "suite": "p10-hf6-t3-fallback-subset-replacement-repro",
+  "boardId": "nemesis-lockdown-a",
+  "lanes": [
+    {
+      "browser": "chrome",
+      "mergedAreaCount": 1,
+      "mergedAreaIdSet": [
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "play-area-1",
+      "selectedIsDefaultFallbackHex": true
+    },
+    {
+      "browser": "firefox",
+      "mergedAreaCount": 1,
+      "mergedAreaIdSet": [
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "play-area-1",
+      "selectedIsDefaultFallbackHex": true
+    },
+    {
+      "browser": "mobile-chrome",
+      "mergedAreaCount": 1,
+      "mergedAreaIdSet": [
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "play-area-1",
+      "selectedIsDefaultFallbackHex": true
+    }
+  ],
+  "result": "FAIL"
+}
