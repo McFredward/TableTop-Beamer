@@ -1,0 +1,72 @@
+{
+  "suite": "p10-hf3-t9-imported-browser-matrix",
+  "importedBoardId": "nemesis-lockdown-a",
+  "matrixSize": 8,
+  "result": "PASS",
+  "matrix": [
+    {
+      "browser": "chrome-desktop",
+      "boardId": "nemesis",
+      "expectedId": "nemesis-canonical",
+      "actualId": "nemesis-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "chrome-desktop",
+      "boardId": "nemesis-lockdown-a",
+      "expectedId": "nemesis-lockdown-a-canonical",
+      "actualId": "nemesis-lockdown-a-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "firefox-desktop",
+      "boardId": "nemesis",
+      "expectedId": "nemesis-canonical",
+      "actualId": "nemesis-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "firefox-desktop",
+      "boardId": "nemesis-lockdown-a",
+      "expectedId": "nemesis-lockdown-a-canonical",
+      "actualId": "nemesis-lockdown-a-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "chrome-mobile-class",
+      "boardId": "nemesis",
+      "expectedId": "nemesis-canonical",
+      "actualId": "nemesis-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "chrome-mobile-class",
+      "boardId": "nemesis-lockdown-a",
+      "expectedId": "nemesis-lockdown-a-canonical",
+      "actualId": "nemesis-lockdown-a-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "firefox-mobile-class",
+      "boardId": "nemesis",
+      "expectedId": "nemesis-canonical",
+      "actualId": "nemesis-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    },
+    {
+      "browser": "firefox-mobile-class",
+      "boardId": "nemesis-lockdown-a",
+      "expectedId": "nemesis-lockdown-a-canonical",
+      "actualId": "nemesis-lockdown-a-canonical",
+      "area": 0.6242,
+      "result": "PASS"
+    }
+  ]
+}
