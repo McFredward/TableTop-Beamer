@@ -1,28 +1,28 @@
 {
   "suite": "p10-hf3-t4-lifecycle-diagnostics",
   "boardId": "nemesis-lockdown-a",
-  "result": "FAIL",
+  "result": "PASS",
   "steps": [
     {
       "step": "startup-load",
       "expectedSelectedId": "startup-area",
-      "actualSelectedId": "play-area-1",
-      "appliedFromSnapshot": false,
-      "pass": false
+      "actualSelectedId": "startup-area",
+      "appliedFromSnapshot": true,
+      "pass": true
     },
     {
       "step": "apply-defaults",
       "expectedSelectedId": "persisted-area-after-defaults",
-      "actualSelectedId": "play-area-1",
-      "appliedFromSnapshot": false,
-      "pass": false
+      "actualSelectedId": "persisted-area-after-defaults",
+      "appliedFromSnapshot": true,
+      "pass": true
     },
     {
       "step": "reload",
       "expectedSelectedId": "persisted-area-after-defaults",
-      "actualSelectedId": "play-area-1",
-      "appliedFromSnapshot": false,
-      "pass": false
+      "actualSelectedId": "persisted-area-after-defaults",
+      "appliedFromSnapshot": true,
+      "pass": true
     }
   ]
 }

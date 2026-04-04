@@ -1,20 +1,20 @@
 {
   "suite": "p10-hf3-t5-board-switch-final-contract",
-  "result": "FAIL",
+  "result": "PASS",
   "checks": [
     {
       "boardId": "nemesis",
       "expectedSelectedPlayAreaId": "nemesis-canonical",
-      "actualSelectedPlayAreaId": "play-area-1",
+      "actualSelectedPlayAreaId": "nemesis-canonical",
       "clipContract": "canonical",
-      "pass": false
+      "pass": true
     },
     {
       "boardId": "nemesis-lockdown-a",
       "expectedSelectedPlayAreaId": "lockdown-canonical",
-      "actualSelectedPlayAreaId": "play-area-1",
+      "actualSelectedPlayAreaId": "lockdown-canonical",
       "clipContract": "canonical",
-      "pass": false
+      "pass": true
     }
   ]
 }

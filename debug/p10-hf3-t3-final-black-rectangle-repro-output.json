@@ -4,6 +4,6 @@
   "expectedClipStatus": "canonical-polygon",
   "actualClipStatus": "canonical-polygon",
   "expectedSelectedPlayAreaId": "valid-render-area",
-  "actualSelectedPlayAreaId": "play-area-1",
-  "result": "FAIL"
+  "actualSelectedPlayAreaId": "valid-render-area",
+  "result": "PASS"
 }

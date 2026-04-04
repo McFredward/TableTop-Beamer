@@ -2,8 +2,8 @@
   "suite": "p10-hf3-t6-canonical-source-selection",
   "boardId": "nemesis-lockdown-a",
   "expectedSelectedPlayAreaId": "canonical-source-area",
-  "controlSelectedPlayAreaId": "play-area-1",
-  "finalSelectedPlayAreaId": "play-area-1",
+  "controlSelectedPlayAreaId": "canonical-source-area",
+  "finalSelectedPlayAreaId": "canonical-source-area",
   "sourceParity": true,
-  "result": "FAIL"
+  "result": "PASS"
 }

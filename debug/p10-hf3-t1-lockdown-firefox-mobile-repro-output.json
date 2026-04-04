@@ -2,7 +2,7 @@
   "suite": "p10-hf3-t1-lockdown-firefox-mobile-repro",
   "boardId": "nemesis-lockdown-a",
   "expectedSelectedPlayAreaId": "lockdown-outside",
-  "actualSelectedPlayAreaId": "play-area-1",
-  "appliedFromSnapshot": false,
-  "result": "FAIL"
+  "actualSelectedPlayAreaId": "lockdown-outside",
+  "appliedFromSnapshot": true,
+  "result": "PASS"
 }
