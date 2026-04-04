@@ -1,0 +1,86 @@
+{
+  "suite": "p10-hf6-t2-merge-lineage-diagnostics",
+  "boardId": "nemesis-lockdown-a",
+  "expectedAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "lanes": [
+    {
+      "browser": "chrome",
+      "lineage": {
+        "savedProfileAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "defaultsAreaIdSet": [
+          "play-area-1"
+        ],
+        "importedPayloadAreaIdSet": [],
+        "contractedAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "mergedAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ]
+      },
+      "missingFromMerge": [],
+      "firstDropPoint": null
+    },
+    {
+      "browser": "firefox",
+      "lineage": {
+        "savedProfileAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "defaultsAreaIdSet": [
+          "play-area-1"
+        ],
+        "importedPayloadAreaIdSet": [
+          "play-area-1"
+        ],
+        "contractedAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "mergedAreaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "missingFromMerge": [
+        "bunker"
+      ],
+      "firstDropPoint": "snapshot-playAreasByBoard-precedence"
+    },
+    {
+      "browser": "mobile-chrome",
+      "lineage": {
+        "savedProfileAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "defaultsAreaIdSet": [
+          "play-area-1"
+        ],
+        "importedPayloadAreaIdSet": [
+          "play-area-1"
+        ],
+        "contractedAreaIdSet": [
+          "bunker",
+          "play-area-1"
+        ],
+        "mergedAreaIdSet": [
+          "play-area-1"
+        ]
+      },
+      "missingFromMerge": [
+        "bunker"
+      ],
+      "firstDropPoint": "snapshot-playAreasByBoard-precedence"
+    }
+  ],
+  "result": "FAIL"
+}

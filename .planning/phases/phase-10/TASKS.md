@@ -59,7 +59,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 10-HF6 - Multi-area retention parity blocker wave (execute-ready, hard-gated)
 - [x] DONE P10-HF6-T1 [P0] Create deterministic RED repro for `Nemesis Lockdown Board A` proving area-drop in Firefox/mobile-class (`Play Area 1` only) versus Chrome (`Play Area 1` + `Bunker`).
-- [ ] TODO P10-HF6-T2 [P0] Add executable diagnostics to trace canonical source merge lineage (`saved profile`, `defaults`, `imported board payload`) and isolate first drop point.
+- [x] DONE P10-HF6-T2 [P0] Add executable diagnostics to trace canonical source merge lineage (`saved profile`, `defaults`, `imported board payload`) and isolate first drop point.
 - [ ] TODO P10-HF6-T3 [P0] Create deterministic RED repro where fallback/default area replaces valid multi-area subset payloads.
 - [ ] TODO P10-HF6-T4 [P0] Add explicit cross-browser assertions for per-board `areaCount` parity (Chrome/Firefox/mobile-class Chrome).
 - [ ] TODO P10-HF6-T5 [P0] Add explicit cross-browser assertions for per-board canonical `areaIdSet` parity.
