@@ -1,0 +1,11 @@
+{
+  "suite": "p10-hf9-t6-no-drop-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "queueMax": 12,
+    "incoming": 48,
+    "dropped": 36,
+    "status": "FAIL"
+  }
+}
