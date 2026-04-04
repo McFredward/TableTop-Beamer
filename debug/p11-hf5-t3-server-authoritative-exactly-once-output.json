@@ -1,0 +1,33 @@
+{
+  "suite": "P11-HF5-T3-server-authoritative-exactly-once-replication",
+  "observed": "PASS",
+  "hasServerAuthoritativeGlobalPayload": true,
+  "hasServerStartEpochOwnership": true,
+  "fanoutRows": [
+    {
+      "clientId": "initiator",
+      "versionApplied": 4205,
+      "runId": "global-nemesis-board-a-outside-space-8",
+      "triggerRevision": 8,
+      "startsObserved": 1,
+      "durationMs": 4000
+    },
+    {
+      "clientId": "peer",
+      "versionApplied": 4205,
+      "runId": "global-nemesis-board-a-outside-space-8",
+      "triggerRevision": 8,
+      "startsObserved": 1,
+      "durationMs": 4000
+    },
+    {
+      "clientId": "/output/final",
+      "versionApplied": 4205,
+      "runId": "global-nemesis-board-a-outside-space-8",
+      "triggerRevision": 8,
+      "startsObserved": 1,
+      "durationMs": 4000
+    }
+  ],
+  "error": null
+}

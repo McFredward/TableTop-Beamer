@@ -69,6 +69,7 @@ const NON_COALESCING_MUTATIONS = new Set([
 const LIVE_QUEUE_MAX_SIZE = 512;
 const LIVE_COALESCE_CLASS_MAX_SIZE = 96;
 const LIVE_APPLY_SLICE_BUDGET_MS = 8;
+const GLOBAL_ONE_SHOT_DEFAULT_DURATION_MS = 4_000;
 
 const liveMutationQueue = {
   control: [],
@@ -513,7 +514,8 @@ function applyGlobalMutationPatch(payload) {
     ? { ...nextRuntime.globalStopRevisions }
     : {};
   const action = normalizeNonEmptyString(payload?.action) ?? "start";
-  const animationType = normalizeNonEmptyString(payload?.animationType);
+  const animationType = normalizeNonEmptyString(payload?.animationType)
+    ?? normalizeNonEmptyString(payload?.animation?.type);
   const boardId = normalizeNonEmptyString(payload?.boardId)
     ?? normalizeNonEmptyString(payload?.animation?.boardId)
     ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard)
@@ -548,27 +550,52 @@ function applyGlobalMutationPatch(payload) {
       return true;
     });
     nextRuntime.runningAnimations = filtered;
-  } else if (isPlainObject(payload?.animation) && typeof payload.animation.id === "string") {
-    const incoming = cloneJson(payload.animation);
-    incoming.startedAtEpochMs = serverNowEpochMs;
-    const triggerKey = normalizeNonEmptyString(incoming.triggerKey) ?? directTriggerKey;
+  } else if (action === "start" && boardId && animationType) {
+    const incomingAnimation = isPlainObject(payload?.animation) ? payload.animation : {};
+    const triggerKey = normalizeNonEmptyString(incomingAnimation.triggerKey) ?? directTriggerKey;
+    const requestedLoopUntilStopped =
+      typeof payload?.loopUntilStopped === "boolean"
+        ? payload.loopUntilStopped
+        : incomingAnimation?.hold === true;
+    const requestedDurationMs = Number(incomingAnimation?.durationMs);
+    const requestedSoundVolume = Number(incomingAnimation?.soundVolume);
+    const soundEnabled =
+      typeof payload?.playSound === "boolean"
+        ? payload.playSound
+        : !(Number.isFinite(requestedSoundVolume) && requestedSoundVolume <= 0);
+    const authoritativeAnimation = {
+      id: "",
+      scope: "global",
+      boardId,
+      type: animationType,
+      intensity: Number.isFinite(Number(incomingAnimation?.intensity)) ? Number(incomingAnimation.intensity) : 1,
+      hold: requestedLoopUntilStopped,
+      durationMs: requestedLoopUntilStopped
+        ? null
+        : (Number.isFinite(requestedDurationMs) && requestedDurationMs > 0
+          ? Math.max(1000, Math.trunc(requestedDurationMs))
+          : GLOBAL_ONE_SHOT_DEFAULT_DURATION_MS),
+      soundVolume: soundEnabled ? 1 : 0,
+      startedAtEpochMs: serverNowEpochMs,
+    };
     if (triggerKey) {
       const currentTriggerRevision = Number(globalTriggerRevisions[triggerKey]) || 0;
       const nextTriggerRevision = currentTriggerRevision + 1;
       globalTriggerRevisions[triggerKey] = nextTriggerRevision;
-      incoming.triggerKey = triggerKey;
-      incoming.triggerRevision = nextTriggerRevision;
+      authoritativeAnimation.triggerKey = triggerKey;
+      authoritativeAnimation.triggerRevision = nextTriggerRevision;
+      authoritativeAnimation.id = `global-${triggerKey}-${nextTriggerRevision}`;
     }
-    const existingIndex = runningAnimations.findIndex((entry) => entry?.id === incoming.id);
-    if (existingIndex >= 0) {
-      runningAnimations[existingIndex] = {
-        ...runningAnimations[existingIndex],
-        ...incoming,
-      };
-    } else {
-      runningAnimations.push(incoming);
+    if (!authoritativeAnimation.id) {
+      authoritativeAnimation.id = `global-${boardId}-${animationType}-${serverNowEpochMs}`;
     }
-    nextRuntime.runningAnimations = runningAnimations;
+    const retained = runningAnimations.filter((entry) => !(
+      entry?.scope === "global"
+      && normalizeNonEmptyString(entry?.boardId) === boardId
+      && normalizeNonEmptyString(entry?.type) === animationType
+    ));
+    retained.push(authoritativeAnimation);
+    nextRuntime.runningAnimations = retained;
   } else {
     nextRuntime.runningAnimations = runningAnimations;
   }
