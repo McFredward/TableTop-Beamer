@@ -74,14 +74,20 @@
   }
 
   function normalizePlayAreaEntry(entry, fallbackIndex = 0) {
+    const points = entry?.polygon ?? entry?.points ?? entry;
+    const normalizedPolygon = Array.isArray(points)
+      ? points.map((point) => normalizePolygonPoint(point))
+      : null;
+    if (!isRenderableNormalizedPolygon(normalizedPolygon)) {
+      return null;
+    }
     const id = normalizePlayAreaId(entry?.id, fallbackIndex);
     const fallbackName = `Play Area ${fallbackIndex + 1}`;
     const name = String(entry?.name || "").trim() || fallbackName;
-    const polygon = normalizeSpecialPolygon(entry?.polygon ?? entry?.points ?? entry);
     return {
       id,
       name,
-      polygon,
+      polygon: normalizedPolygon,
     };
   }
 
@@ -92,6 +98,9 @@
 
     for (let index = 0; index < source.length; index += 1) {
       const area = normalizePlayAreaEntry(source[index], index);
+      if (!area) {
+        continue;
+      }
       let uniqueId = area.id;
       let suffix = 2;
       while (seenIds.has(uniqueId)) {
