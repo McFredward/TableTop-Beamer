@@ -47,7 +47,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 10-HF5 - Multi-play-area canonical fallback blocker wave (execute-ready, hard-gated)
 - [x] DONE P10-HF5-T1 [P0] Create deterministic failing repro tests that contrast multi-play-area boards vs single-play-area boards under startup/reload/default-apply.
-- [ ] TODO P10-HF5-T2 [P0] Create deterministic failing repro for `Nemesis Lockdown A` showing default play area/fallback hex visibility despite valid canonical saved play-areas.
+- [x] DONE P10-HF5-T2 [P0] Create deterministic failing repro for `Nemesis Lockdown A` showing default play area/fallback hex visibility despite valid canonical saved play-areas.
 - [ ] TODO P10-HF5-T3 [P0] Add Firefox-specific headless/automation diagnostics with parity traces against Chrome desktop and mobile-class Chrome.
 - [ ] TODO P10-HF5-T4 [P0] Add executable canonical source-selection + fallback-decision diagnostics for control-view and `/output/final`.
 - [ ] TODO P10-HF5-T5 [P0] Implement generic root-cause fix for wrong fallback to default play area on multi-area canonical payloads (no board-specific branch).
