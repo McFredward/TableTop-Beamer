@@ -1,0 +1,10 @@
+{
+  "suite": "p10-hf4-t6-ship-clip-repro",
+  "invalidInputVertexCount": 2,
+  "invalidAccepted": true,
+  "canonicalMultiAreaCount": 2,
+  "canonicalMultiAreaRenderableCount": 2,
+  "legacySelectedPlayAreaId": "play-area-1",
+  "legacyRenderableCount": 1,
+  "result": "FAIL"
+}

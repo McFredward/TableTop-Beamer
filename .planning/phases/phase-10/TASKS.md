@@ -39,7 +39,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF4-T3 [P0] Implement root-cause fix for runtime panel module exposure/load-order path (browser-neutral, no board-specific branch).
 - [x] DONE P10-HF4-T4 [P0] Create deterministic failing tests for `settings-ownership-violation` when `#outside-mode`/`#outside-direction` are conditionally unmounted.
 - [x] DONE P10-HF4-T5 [P0] Harden settings ownership checks to validate only applicable mounted controls while preserving strict ownership for required controls.
-- [ ] TODO P10-HF4-T6 [P0] Create deterministic failing tests for `ship-clip-regression-violation` (invalid polygon accepted + valid multi-play-area/legacy states rejected).
+- [x] DONE P10-HF4-T6 [P0] Create deterministic failing tests for `ship-clip-regression-violation` (invalid polygon accepted + valid multi-play-area/legacy states rejected).
 - [ ] TODO P10-HF4-T7 [P0] Correct ship-clip regression checker for canonical+legacy validity semantics and browser-neutral evaluation.
 - [ ] TODO P10-HF4-T8 [P0] Add Firefox/Chrome executable parity diagnostics and run matrix for HF4 scenarios.
 - [ ] TODO P10-HF4-T9 [P0] Enforce canonical-data-first `/output/final` render path so invalid-default fallback never wins when valid canonical polygons exist.
