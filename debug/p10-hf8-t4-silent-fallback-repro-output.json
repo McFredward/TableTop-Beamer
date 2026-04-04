@@ -1,0 +1,11 @@
+{
+  "suite": "p10-hf8-t4-silent-fallback-repro",
+  "phase": "RED",
+  "boardId": "nemesis-lockdown-a",
+  "observedAreaIds": [
+    "play-area-1"
+  ],
+  "observedSelected": "play-area-1",
+  "hasIssueSurface": false,
+  "result": "FAIL"
+}
