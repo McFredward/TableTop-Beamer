@@ -1,0 +1,134 @@
+{
+  "suite": "p10-hf8-t8-control-final-parity",
+  "matrix": [
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "startup",
+      "controlAreaCount": 1,
+      "finalAreaCount": 1,
+      "controlIdSet": [
+        "single-a"
+      ],
+      "finalIdSet": [
+        "single-a"
+      ],
+      "controlSelected": "single-a",
+      "finalSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "reload",
+      "controlAreaCount": 1,
+      "finalAreaCount": 1,
+      "controlIdSet": [
+        "single-a"
+      ],
+      "finalIdSet": [
+        "single-a"
+      ],
+      "controlSelected": "single-a",
+      "finalSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "apply-defaults",
+      "controlAreaCount": 1,
+      "finalAreaCount": 1,
+      "controlIdSet": [
+        "single-a"
+      ],
+      "finalIdSet": [
+        "single-a"
+      ],
+      "controlSelected": "single-a",
+      "finalSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-board-a",
+      "lifecycle": "board-switch",
+      "controlAreaCount": 1,
+      "finalAreaCount": 1,
+      "controlIdSet": [
+        "single-a"
+      ],
+      "finalIdSet": [
+        "single-a"
+      ],
+      "controlSelected": "single-a",
+      "finalSelected": "single-a",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "startup",
+      "controlAreaCount": 2,
+      "finalAreaCount": 2,
+      "controlIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "finalIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "controlSelected": "bunker",
+      "finalSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "reload",
+      "controlAreaCount": 2,
+      "finalAreaCount": 2,
+      "controlIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "finalIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "controlSelected": "bunker",
+      "finalSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "apply-defaults",
+      "controlAreaCount": 2,
+      "finalAreaCount": 2,
+      "controlIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "finalIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "controlSelected": "bunker",
+      "finalSelected": "bunker",
+      "pass": true
+    },
+    {
+      "boardId": "nemesis-lockdown-a",
+      "lifecycle": "board-switch",
+      "controlAreaCount": 2,
+      "finalAreaCount": 2,
+      "controlIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "finalIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "controlSelected": "bunker",
+      "finalSelected": "bunker",
+      "pass": true
+    }
+  ],
+  "result": "PASS"
+}
