@@ -1,0 +1,16 @@
+{
+  "schema": "tt-beamer.board-import.v1",
+  "importedAt": "2026-03-27T11:05:12.236Z",
+  "board": {
+    "schema": "tt-beamer.board-definition.v1",
+    "boardId": "nemesis-lockdown-a",
+    "metadata": {
+      "name": "Nemesis Lockdown A",
+      "imageSrc": "/config/boards/imported/assets/httpssteamusercontentaakamaihdnetugc2023851270019933596941cadc8d91fb2c43fa92bb0214cc72eb9230652-mn8son54.png",
+      "source": "imported-image",
+      "imported": true
+    },
+    "roomCatalog": [],
+    "roomClusters": []
+  }
+}
