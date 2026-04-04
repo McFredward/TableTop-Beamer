@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, appendFile, mkdir, readdir } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -17,8 +17,8 @@ const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
-const IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
-const IMPORTED_BOARD_ASSETS_DIR = path.join(IMPORTED_BOARDS_DIR, "assets");
+const LEGACY_IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
+const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
@@ -164,6 +164,9 @@ function classifyLiveMutationType(type, payload = null) {
   if (payload?.priorityHint === "high" || CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
     return "control-critical";
   }
+  if (type === "outside-update" && normalizeNonEmptyString(payload?.reason) === "outside-apply-changes") {
+    return "state-sync";
+  }
   if (type === "outside-update" || type === "context-update") {
     return "config-noisy";
   }
@@ -173,6 +176,9 @@ function classifyLiveMutationType(type, payload = null) {
 function resolveMutationPriority(type, payload = null) {
   if (payload?.priorityHint === "high" || CONTROL_CRITICAL_MUTATIONS.has(type) || (type === "trigger-global" && payload?.action === "stop")) {
     return "high";
+  }
+  if (type === "outside-update" && normalizeNonEmptyString(payload?.reason) === "outside-apply-changes") {
+    return "normal";
   }
   if (type === "outside-update" || type === "context-update") {
     return "low";
@@ -286,6 +292,7 @@ function readOutsideFxByBoard() {
 function applyOutsideUpdatePatch(payload) {
   const nextRuntime = readRuntimeSnapshot();
   const outsideFxByBoard = readOutsideFxByBoard();
+  const targetBoardId = normalizeNonEmptyString(payload?.outsideBoardId) ?? null;
 
   if (isPlainObject(payload?.outsideFxByBoard)) {
     for (const [boardId, profile] of Object.entries(payload.outsideFxByBoard)) {
@@ -299,10 +306,9 @@ function applyOutsideUpdatePatch(payload) {
     }
   }
 
-  if (typeof payload?.outsideBoardId === "string" && isPlainObject(payload?.outsideFx)) {
-    const boardId = payload.outsideBoardId;
-    outsideFxByBoard[boardId] = {
-      ...(isPlainObject(outsideFxByBoard[boardId]) ? outsideFxByBoard[boardId] : {}),
+  if (targetBoardId && isPlainObject(payload?.outsideFx)) {
+    outsideFxByBoard[targetBoardId] = {
+      ...(isPlainObject(outsideFxByBoard[targetBoardId]) ? outsideFxByBoard[targetBoardId] : {}),
       ...payload.outsideFx,
     };
   }
@@ -311,6 +317,12 @@ function applyOutsideUpdatePatch(payload) {
   return {
     runtime: nextRuntime,
     outsideFxByBoard,
+    ...(targetBoardId
+      ? {
+        selectedBoard: targetBoardId,
+        selectedLayout: targetBoardId,
+      }
+      : {}),
   };
 }
 
@@ -740,6 +752,9 @@ function getLiveQueueSize() {
 }
 
 function buildCoalesceKey({ mutationType, payload, clientId }) {
+  if (mutationType === "outside-update" && normalizeNonEmptyString(payload?.reason) === "outside-apply-changes") {
+    return null;
+  }
   if (NON_COALESCING_MUTATIONS.has(mutationType)) {
     return null;
   }
@@ -1574,10 +1589,11 @@ function normalizeRoomClusterEntry(cluster, roomIds = new Set(), index = 0) {
   };
 }
 
-function normalizeBoardDefinition(inputBoard, { source = "imported", imported = true, allowEmptyRoomCatalog = false } = {}) {
+function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRoomCatalog = false } = {}) {
   const boardId = String(inputBoard?.boardId || inputBoard?.id || "").trim();
   const name = String(inputBoard?.metadata?.name || inputBoard?.label || "").trim();
-  const imageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
+  const rawImageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
+  const imageSrc = rawImageSrc.replace("/config/boards/imported/assets/", "/config/boards/assets/");
   const roomCatalogRaw = Array.isArray(inputBoard?.roomCatalog)
     ? inputBoard.roomCatalog
     : Array.isArray(inputBoard?.rooms)
@@ -1645,7 +1661,6 @@ function normalizeBoardDefinition(inputBoard, { source = "imported", imported = 
         name,
         imageSrc,
         source,
-        imported: Boolean(imported),
       },
       roomCatalog,
       roomClusters,
@@ -1701,6 +1716,57 @@ function sanitizeBoardFileName(boardId) {
   return safe.replace(/^-|-$/g, "");
 }
 
+async function migrateLegacyImportedBoardStorage() {
+  await mkdir(BOARD_STORAGE_DIR, { recursive: true });
+  await mkdir(BOARD_ASSETS_DIR, { recursive: true });
+  let legacyEntries = [];
+  try {
+    legacyEntries = await readdir(LEGACY_IMPORTED_BOARDS_DIR, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of legacyEntries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+      continue;
+    }
+    const legacyPath = path.join(LEGACY_IMPORTED_BOARDS_DIR, entry.name);
+    const canonicalPath = path.join(BOARD_STORAGE_DIR, entry.name);
+    try {
+      await stat(canonicalPath);
+    } catch {
+      try {
+        await rename(legacyPath, canonicalPath);
+      } catch {
+        // leave legacy file in place if migration move fails
+      }
+    }
+  }
+
+  const legacyAssetsDir = path.join(LEGACY_IMPORTED_BOARDS_DIR, "assets");
+  let legacyAssetEntries = [];
+  try {
+    legacyAssetEntries = await readdir(legacyAssetsDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of legacyAssetEntries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const legacyPath = path.join(legacyAssetsDir, entry.name);
+    const canonicalPath = path.join(BOARD_ASSETS_DIR, entry.name);
+    try {
+      await stat(canonicalPath);
+    } catch {
+      try {
+        await rename(legacyPath, canonicalPath);
+      } catch {
+        // leave legacy file in place if migration move fails
+      }
+    }
+  }
+}
+
 async function loadBuiltInBoardsFromZones() {
   let entries = [];
   try {
@@ -1740,7 +1806,6 @@ async function loadBuiltInBoardsFromZones() {
         },
         {
           source: "builtin-zone",
-          imported: false,
         },
       );
       if (!normalized.ok) {
@@ -1756,46 +1821,46 @@ async function loadBuiltInBoardsFromZones() {
   return boards;
 }
 
-async function loadImportedBoards() {
-  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
-  const entries = await readdir(IMPORTED_BOARDS_DIR, { withFileTypes: true });
-  const importedBoards = [];
+async function loadCanonicalBoardsFromStorage() {
+  await migrateLegacyImportedBoardStorage();
+  await mkdir(BOARD_STORAGE_DIR, { recursive: true });
+  const entries = await readdir(BOARD_STORAGE_DIR, { withFileTypes: true });
+  const catalogBoards = [];
 
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+    if (!entry.isFile() || !entry.name.endsWith(".json") || entry.name.startsWith(".")) {
       continue;
     }
-    const filePath = path.join(IMPORTED_BOARDS_DIR, entry.name);
+    const filePath = path.join(BOARD_STORAGE_DIR, entry.name);
     try {
       const raw = await readFile(filePath, "utf8");
       const payload = JSON.parse(raw);
       const normalized = normalizeBoardDefinition(payload?.board ?? payload, {
-        source: "imported",
-        imported: true,
+        source: "catalog-storage",
         allowEmptyRoomCatalog: true,
       });
       if (!normalized.ok) {
         continue;
       }
-      importedBoards.push(normalized.board);
+      catalogBoards.push(normalized.board);
     } catch {
       continue;
     }
   }
 
-  importedBoards.sort((a, b) => a.boardId.localeCompare(b.boardId));
-  return importedBoards;
+  catalogBoards.sort((a, b) => a.boardId.localeCompare(b.boardId));
+  return catalogBoards;
 }
 
 async function loadBoardCatalog() {
   const builtInBoards = await loadBuiltInBoardsFromZones();
-  const importedBoards = await loadImportedBoards();
+  const storedBoards = await loadCanonicalBoardsFromStorage();
   const byId = new Map();
 
   for (const board of builtInBoards) {
     byId.set(board.boardId, board);
   }
-  for (const board of importedBoards) {
+  for (const board of storedBoards) {
     byId.set(board.boardId, board);
   }
 
@@ -2022,9 +2087,10 @@ async function handleImageBoardImport(req, res) {
     return;
   }
 
-  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
-  await mkdir(IMPORTED_BOARD_ASSETS_DIR, { recursive: true });
-  const boardJsonPath = path.join(IMPORTED_BOARDS_DIR, `${safeBoardId}.json`);
+  await migrateLegacyImportedBoardStorage();
+  await mkdir(BOARD_STORAGE_DIR, { recursive: true });
+  await mkdir(BOARD_ASSETS_DIR, { recursive: true });
+  const boardJsonPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
   try {
     await stat(boardJsonPath);
     sendJson(res, 409, {
@@ -2038,10 +2104,10 @@ async function handleImageBoardImport(req, res) {
   }
 
   const imageFileName = `${safeBoardId}-${Date.now().toString(36)}.${extension}`;
-  const imageFilePath = path.join(IMPORTED_BOARD_ASSETS_DIR, imageFileName);
+  const imageFilePath = path.join(BOARD_ASSETS_DIR, imageFileName);
   await writeFile(imageFilePath, imagePart.data);
 
-  const imageSrc = `/config/boards/imported/assets/${imageFileName}`;
+  const imageSrc = `/config/boards/assets/${imageFileName}`;
   const normalized = normalizeBoardDefinition({
     boardId: safeBoardId,
     metadata: {
@@ -2051,8 +2117,7 @@ async function handleImageBoardImport(req, res) {
     roomCatalog: [],
     roomClusters: [],
   }, {
-    source: "imported-image",
-    imported: true,
+    source: "catalog-image",
     allowEmptyRoomCatalog: true,
   });
   if (!normalized.ok) {
@@ -2076,8 +2141,8 @@ async function handleImageBoardImport(req, res) {
     code: "IMPORT_IMAGE_OK",
     boardId: safeBoardId,
     board: normalized.board,
-    imagePath: `config/boards/imported/assets/${imageFileName}`,
-    targetPath: `config/boards/imported/${safeBoardId}.json`,
+    imagePath: `config/boards/assets/${imageFileName}`,
+    targetPath: `config/boards/${safeBoardId}.json`,
     boardCount: catalog.boardCount,
     catalogGeneratedAt: catalog.generatedAt,
   });
@@ -2108,7 +2173,7 @@ async function handleBoardImport(req, res) {
   }
 
   const incomingBoard = parsed?.board ?? parsed;
-  const normalized = normalizeBoardDefinition(incomingBoard, { source: "imported", imported: true });
+  const normalized = normalizeBoardDefinition(incomingBoard, { source: "catalog-import" });
   if (!normalized.ok) {
     sendJson(res, 400, {
       error: "board import validation failed",
@@ -2137,8 +2202,9 @@ async function handleBoardImport(req, res) {
     return;
   }
 
-  await mkdir(IMPORTED_BOARDS_DIR, { recursive: true });
-  const targetPath = path.join(IMPORTED_BOARDS_DIR, `${safeFileName}.json`);
+  await migrateLegacyImportedBoardStorage();
+  await mkdir(BOARD_STORAGE_DIR, { recursive: true });
+  const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
   try {
     await stat(targetPath);
     sendJson(res, 409, {
@@ -2163,7 +2229,7 @@ async function handleBoardImport(req, res) {
     ok: true,
     code: "IMPORT_OK",
     boardId: board.boardId,
-    targetPath: `config/boards/imported/${safeFileName}.json`,
+    targetPath: `config/boards/${safeFileName}.json`,
     board,
     catalogGeneratedAt: catalog.generatedAt,
     boardCount: catalog.boardCount,
