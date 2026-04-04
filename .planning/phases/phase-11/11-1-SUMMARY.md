@@ -95,7 +95,7 @@ completed: 2026-04-04
 - **Impact:** No scope increase; both tasks completed and evidenced.
 
 ## Issues Encountered
-- None.
+- `gsd-tools state/roadmap` update commands could not parse the repository's legacy `STATE.md`/`ROADMAP.md` format, so lifecycle/roadmap fields were synchronized manually in this plan.
 
 ## User Setup Required
 - None - no external service configuration required.
