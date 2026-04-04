@@ -1,0 +1,55 @@
+{
+  "suite": "p10-hf4-t10-fail-pass-proof",
+  "executedAt": "2026-04-04T09:53:49.799Z",
+  "failEvidence": [
+    {
+      "path": ".planning/phases/phase-10/P10-HF4-T1-REPRO-TRACE.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF4-T2-RUNTIME-PANEL-DIAGNOSTICS.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF4-T4-OWNERSHIP-REPRO.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF4-T6-SHIP-CLIP-REPRO.md",
+      "hasFailMarker": true
+    }
+  ],
+  "passEvidence": [
+    {
+      "path": "debug/p10-hf4-t1-runtime-panels-repro-output.json",
+      "suite": "p10-hf4-t1-runtime-panels-repro",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf4-t2-runtime-panels-diagnostics-output.json",
+      "suite": "p10-hf4-t2-runtime-panels-diagnostics",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf4-t4-settings-ownership-repro-output.json",
+      "suite": "p10-hf4-t4-settings-ownership-repro",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf4-t6-ship-clip-repro-output.json",
+      "suite": "p10-hf4-t6-ship-clip-repro",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf4-t8-browser-parity-output.json",
+      "suite": "p10-hf4-t8-browser-parity",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf4-t9-final-output-canonical-output.json",
+      "suite": "p10-hf4-t9-final-output-canonical",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS"
+}

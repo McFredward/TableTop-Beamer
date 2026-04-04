@@ -43,7 +43,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF4-T7 [P0] Correct ship-clip regression checker for canonical+legacy validity semantics and browser-neutral evaluation.
 - [x] DONE P10-HF4-T8 [P0] Add Firefox/Chrome executable parity diagnostics and run matrix for HF4 scenarios.
 - [x] DONE P10-HF4-T9 [P0] Enforce canonical-data-first `/output/final` render path so invalid-default fallback never wins when valid canonical polygons exist.
-- [ ] TODO P10-HF4-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- [x] DONE P10-HF4-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF4 PASS)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
