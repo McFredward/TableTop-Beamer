@@ -116,16 +116,125 @@
     return normalized;
   }
 
-  function applySnapshotPolygonState({ state, snapshot, runtime, boardIds = [], shipPolygonDefault = [] }) {
-    void snapshot;
-    void runtime;
-    void boardIds;
-    void shipPolygonDefault;
-    // HF3-RED baseline (intentional): current runtime snapshot path does not hydrate polygon maps.
+  function resolveProfilePolygonContract(profile = {}, fallbackProfile = {}, shipPolygonDefault = []) {
+    const profilePlayAreas = Array.isArray(profile.playAreas) ? profile.playAreas : null;
+    const fallbackPlayAreas = Array.isArray(fallbackProfile.playAreas) ? fallbackProfile.playAreas : null;
+    const candidatePlayAreas = Array.isArray(profilePlayAreas) && profilePlayAreas.length > 0
+      ? profilePlayAreas
+      : Array.isArray(fallbackPlayAreas) && fallbackPlayAreas.length > 0
+        ? fallbackPlayAreas
+        : null;
+    const candidateFallbackPolygon =
+      profile.playAreaPolygon
+      ?? profile.shipPolygon
+      ?? profile.shipMask
+      ?? profile.insidePolygon
+      ?? profile.outsidePolygon
+      ?? profile.inside?.polygon
+      ?? profile.inside?.playAreaPolygon
+      ?? profile.outside?.polygon
+      ?? profile.outside?.playAreaPolygon
+      ?? fallbackProfile.playAreaPolygon
+      ?? fallbackProfile.shipPolygon
+      ?? fallbackProfile.shipMask
+      ?? fallbackProfile.insidePolygon
+      ?? fallbackProfile.outsidePolygon
+      ?? fallbackProfile.inside?.polygon
+      ?? fallbackProfile.inside?.playAreaPolygon
+      ?? fallbackProfile.outside?.polygon
+      ?? fallbackProfile.outside?.playAreaPolygon
+      ?? shipPolygonDefault;
+    const playAreas = normalizePlayAreasCollection(candidatePlayAreas, candidateFallbackPolygon);
+    const preferredSelectedId = String(profile.selectedPlayAreaId || fallbackProfile.selectedPlayAreaId || "").trim();
+    const selectedPlayAreaId = playAreas.some((entry) => entry.id === preferredSelectedId)
+      ? preferredSelectedId
+      : playAreas[0]?.id ?? "play-area-1";
     return {
-      playAreasByBoard: { ...(state?.playAreasByBoard ?? {}) },
-      selectedPlayAreaIdByBoard: { ...(state?.selectedPlayAreaIdByBoard ?? {}) },
-      appliedFromSnapshot: false,
+      playAreas,
+      selectedPlayAreaId,
+    };
+  }
+
+  function extractBoardProfiles(snapshot, runtime) {
+    if (snapshot?.boardProfiles && typeof snapshot.boardProfiles === "object") {
+      return snapshot.boardProfiles;
+    }
+    if (runtime?.boardProfiles && typeof runtime.boardProfiles === "object") {
+      return runtime.boardProfiles;
+    }
+    return null;
+  }
+
+  function applySnapshotPolygonState({ state, snapshot, runtime, boardIds = [], shipPolygonDefault = [] }) {
+    const snapshotPlayAreasByBoard =
+      snapshot?.playAreasByBoard && typeof snapshot.playAreasByBoard === "object"
+        ? snapshot.playAreasByBoard
+        : runtime?.playAreasByBoard && typeof runtime.playAreasByBoard === "object"
+          ? runtime.playAreasByBoard
+          : null;
+    const snapshotSelectedByBoard =
+      snapshot?.selectedPlayAreaIdByBoard && typeof snapshot.selectedPlayAreaIdByBoard === "object"
+        ? snapshot.selectedPlayAreaIdByBoard
+        : runtime?.selectedPlayAreaIdByBoard && typeof runtime.selectedPlayAreaIdByBoard === "object"
+          ? runtime.selectedPlayAreaIdByBoard
+          : null;
+    const snapshotBoardProfiles = extractBoardProfiles(snapshot, runtime);
+
+    const hasSnapshotPolygonData = Boolean(snapshotPlayAreasByBoard || snapshotSelectedByBoard || snapshotBoardProfiles);
+    if (!hasSnapshotPolygonData) {
+      return {
+        playAreasByBoard: { ...(state?.playAreasByBoard ?? {}) },
+        selectedPlayAreaIdByBoard: { ...(state?.selectedPlayAreaIdByBoard ?? {}) },
+        appliedFromSnapshot: false,
+      };
+    }
+
+    const candidateBoardIds = new Set([
+      ...boardIds,
+      ...Object.keys(state?.playAreasByBoard ?? {}),
+      ...Object.keys(snapshotPlayAreasByBoard ?? {}),
+      ...Object.keys(snapshotSelectedByBoard ?? {}),
+      ...Object.keys(snapshotBoardProfiles ?? {}),
+    ]);
+
+    const nextPlayAreasByBoard = {};
+    const nextSelectedPlayAreaIdByBoard = {};
+
+    for (const boardId of candidateBoardIds) {
+      const statePlayAreas = state?.playAreasByBoard?.[boardId];
+      const stateSelectedId = String(state?.selectedPlayAreaIdByBoard?.[boardId] || "").trim();
+      const profile = snapshotBoardProfiles?.[boardId] ?? null;
+
+      const fallbackPolygon =
+        (Array.isArray(statePlayAreas) && statePlayAreas[0]?.polygon)
+        ?? profile?.playAreaPolygon
+        ?? profile?.shipPolygon
+        ?? profile?.insidePolygon
+        ?? profile?.outsidePolygon
+        ?? shipPolygonDefault;
+
+      const contracted = resolveProfilePolygonContract(profile ?? {}, { playAreas: statePlayAreas ?? null, selectedPlayAreaId: stateSelectedId }, fallbackPolygon);
+      const contractedPlayAreas = contracted.playAreas;
+      const sourcePlayAreas = Array.isArray(snapshotPlayAreasByBoard?.[boardId])
+        ? snapshotPlayAreasByBoard[boardId]
+        : contractedPlayAreas;
+      const normalizedPlayAreas = normalizePlayAreasCollection(sourcePlayAreas, fallbackPolygon);
+
+      const snapshotSelected = String(snapshotSelectedByBoard?.[boardId] || "").trim();
+      const contractedSelected = String(contracted.selectedPlayAreaId || "").trim();
+      const preferredSelected = snapshotSelected || contractedSelected || stateSelectedId;
+      const selectedPlayAreaId = normalizedPlayAreas.some((entry) => entry.id === preferredSelected)
+        ? preferredSelected
+        : normalizedPlayAreas[0]?.id ?? "play-area-1";
+
+      nextPlayAreasByBoard[boardId] = normalizedPlayAreas;
+      nextSelectedPlayAreaIdByBoard[boardId] = selectedPlayAreaId;
+    }
+
+    return {
+      playAreasByBoard: nextPlayAreasByBoard,
+      selectedPlayAreaIdByBoard: nextSelectedPlayAreaIdByBoard,
+      appliedFromSnapshot: true,
     };
   }
 
@@ -135,6 +244,7 @@
     isRenderableNormalizedPolygon,
     normalizeSpecialPolygon,
     normalizePlayAreasCollection,
+    resolveProfilePolygonContract,
     applySnapshotPolygonState,
   };
 

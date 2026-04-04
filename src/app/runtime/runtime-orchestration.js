@@ -49,6 +49,7 @@ const logBootstrap = window.TT_BEAMER_LOGGER.createLogger("bootstrap", { source:
 const logRender = window.TT_BEAMER_LOGGER.createLogger("render", { source: outputRole });
 const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole });
 const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: outputRole });
+const polygonContract = window.TT_BEAMER_POLYGON_CONTRACT ?? null;
 
 const stage = document.querySelector("#stage");
 const boardImage = document.querySelector("#board-image");
@@ -1267,6 +1268,22 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
       ? runtime.selectedRoomByBoard
       : state.selectedRoomByBoard;
+  if (polygonContract?.applySnapshotPolygonState) {
+    const polygonHydration = polygonContract.applySnapshotPolygonState({
+      state,
+      snapshot,
+      runtime,
+      boardIds: BOARDS.map((board) => board.id),
+      shipPolygonDefault: SHIP_POLYGON_DEFAULT,
+    });
+    if (polygonHydration && typeof polygonHydration === "object") {
+      state.playAreasByBoard = polygonHydration.playAreasByBoard ?? state.playAreasByBoard;
+      state.selectedPlayAreaIdByBoard = polygonHydration.selectedPlayAreaIdByBoard ?? state.selectedPlayAreaIdByBoard;
+      state.shipPolygonsByBoard = Object.fromEntries(
+        BOARDS.map((board) => [board.id, normalizeShipPolygon(getSelectedPlayArea(board.id)?.polygon ?? SHIP_POLYGON_DEFAULT)]),
+      );
+    }
+  }
   if (sharedOutsideFxByBoard) {
     state.outsideFxByBoard = {
       ...state.outsideFxByBoard,
