@@ -1,0 +1,22 @@
+{
+  "suite": "p11-hf2-t5-stop-clear-non-regression-pass",
+  "phase": "PASS",
+  "observed": "PASS",
+  "checks": [
+    {
+      "id": "runtime-clear-all-hard-stop-still-present",
+      "ok": true,
+      "detail": "Clear-all still enforces immediate runtime hard-stop + live mutation broadcast."
+    },
+    {
+      "id": "runtime-stop-animation-flow-still-present",
+      "ok": true,
+      "detail": "Stop path remains explicit and deterministic in runtime apply + command flow."
+    },
+    {
+      "id": "server-clear-all-global-stop-revisions-preserved",
+      "ok": true,
+      "detail": "Server clear-all still advances global stop revisions and clears running animations atomically."
+    }
+  ]
+}
