@@ -1,0 +1,11 @@
+{
+  "suite": "p10-hf9-t1-trigger-timeout-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "attempts": 1,
+    "ackAvailableAtAttempt": 2,
+    "accepted": false,
+    "status": "FAIL"
+  }
+}
