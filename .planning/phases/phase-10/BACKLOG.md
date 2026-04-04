@@ -2,13 +2,15 @@
 
 ## Planning Mode Note
 - Plan 10-HF1 execution is PASS with evidence artifacts committed.
-- Plan 10-HF2 execution is PASS with canonical polygon hydration/precedence/final-output hardening evidence committed.
-- Plan 10-1 remains queued as the next execute-ready wave (no longer blocked by HF2).
+- Plan 10-HF2 closure is reopened: field runtime confirms the real-world symptom set is still active.
+- Plan 10-HF3 is completed PASS (test-driven repro -> root-cause fix -> FAIL/PASS closure).
+- Plan 10-1 remains queued and is now unblocked for next execution.
 
 ## Epics
 - Generic Polygon Hydration/Apply Reliability (Cross-Browser P0)
 - Final Output Hydration/Render Browser Neutrality (P0)
 - Imported Board Non-Regression Hardening (P0)
+- HF3 Root-Cause Recovery via Failing Tests + Executable Diagnostics (P0)
 - Settings Information Architecture Sub-Tabs
 - Quick Room Action Modes (Activate / Deactivate / Clear)
 - Mobile One-Handed Speed Operations
@@ -29,6 +31,16 @@
 - P10-HF2-S6 Prove strict non-regression for imported boards (existing + newly imported sample boards).
 - P10-HF2-S7 Execute all-browser regression matrix and capture PASS evidence.
 - P10-HF2-S8 Synchronize all phase/global planning artifacts after HF2 PASS.
+- P10-HF3-S1 Build reproducible failing tests for symptom A: Lockdown A polygons not applied in Firefox/mobile-class path.
+- P10-HF3-S2 Build reproducible failing tests for symptom B: `apply global defaults` unexpectedly shows default polygons.
+- P10-HF3-S3 Build reproducible failing tests for symptom C: `/output/final` black/fallback rectangle despite valid polygons.
+- P10-HF3-S4 Add executable lifecycle diagnostics for startup/load/apply-defaults/reload assertions.
+- P10-HF3-S5 Add board-switch + final-output render contract assertions.
+- P10-HF3-S6 Add canonical polygon source-selection assertions.
+- P10-HF3-S7 Implement generic root-cause fix driven by failing tests and diagnostics.
+- P10-HF3-S8 Re-run full suite and capture explicit FAIL->PASS evidence.
+- P10-HF3-S9 Validate imported-board and browser-matrix non-regression remains PASS after fix.
+- P10-HF3-S10 Synchronize all phase/global planning artifacts after HF3 PASS.
 - P10-S1 Define Settings sub-tab taxonomy and group existing controls by operator intent.
 - P10-S2 Implement Settings sub-tab navigation with stable state retention across tab switches.
 - P10-S3 Add shared quick-mode state machine with explicit status, cancel path, and conflict guards.
@@ -42,16 +54,16 @@
 - P10-S11 Run full non-regression for stop/clear-all/global behavior and `/output/final` stability.
 - P10-S12 Synchronize all phase/global planning artifacts after verification PASS.
 
-## Prioritized Execution Wave (P0) - Plan 10-HF2 execute-ready
-- Story P10-HF2-S1.
-  - Goal: deterministic root-cause trace for browser-specific polygon hydration/apply failures.
-- Story P10-HF2-S2 + P10-HF2-S3.
-  - Goal: canonical schema normalization + strict precedence without silent default override.
-- Story P10-HF2-S4 + P10-HF2-S5.
-  - Goal: browser-neutral final-output hydration/render using board polygons (no default-rectangle drift, no valid-polygon black screen).
-- Story P10-HF2-S6 + P10-HF2-S7.
-  - Goal: imported-board and browser matrix PASS with explicit desktop/mobile-class evidence.
-- Story P10-HF2-S8.
+## Prioritized Execution Wave (P0) - Plan 10-HF3 execute-ready
+- Story P10-HF3-S1 + P10-HF3-S2 + P10-HF3-S3.
+  - Goal: deterministic failing tests for the exact real-world symptom set.
+- Story P10-HF3-S4 + P10-HF3-S5 + P10-HF3-S6.
+  - Goal: direct executable diagnostics enforce lifecycle, final contract, and canonical source selection behavior.
+- Story P10-HF3-S7.
+  - Goal: generic root-cause fix (all boards, all browsers, imported boards included).
+- Story P10-HF3-S8 + P10-HF3-S9.
+  - Goal: explicit FAIL->PASS proof plus strict imported-board/browser non-regression evidence.
+- Story P10-HF3-S10.
   - Goal: phase/global trackers are synchronized at wave closure.
 
 ## Previously Closed Wave (P0) - Plan 10-HF1
@@ -63,6 +75,10 @@
   - Goal: sync/control non-regression and all-board PASS evidence.
 - Story P10-HF1-S6.
   - Goal: phase/global trackers are synchronized at wave closure.
+
+## Reopened Wave (P0) - Plan 10-HF2 (field-invalidated)
+- Story P10-HF2-S1..P10-HF2-S8.
+  - Outcome: provisional PASS evidence exists, but real-world runtime disproves closure and mandates HF3.
 
 ## Prioritized Execution Wave (P0) - Plan 10-1 execute-ready
 - Story P10-S1 + P10-S2.
@@ -79,6 +95,6 @@
   - Goal: phase and global trackers are synchronized at closure.
 
 ## Follow-up Waves
-- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF2 PASS.
+- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF3 PASS.
 - Plan 10-2: UX polish and performance micro-optimizations from field feedback.
 - Plan 10-3: optional operator presets for quick-mode templates if needed after live validation.

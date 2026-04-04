@@ -1,5 +1,40 @@
 # Phase 10 Risks
 
+## R0d Cross-browser polygon hydration drift
+- Risk: `inside`/`outside`/`playAreas` payload resolves differently across Chrome/Firefox and mobile-class runtimes.
+- Impact: Critical.
+- Mitigation: canonical schema normalization before apply/hydration and shared validation contract for all browsers.
+
+## R0e Silent default override of persisted board polygons
+- Risk: startup/reload or `apply global defaults` replaces valid board polygons with defaults without explicit operator intent.
+- Impact: Critical.
+- Mitigation: explicit precedence rules (persisted board polygons first), explicit fallback diagnostics, and regression guards.
+
+## R0f Final-output clips against fallback rectangle
+- Risk: `/output/final` hydration consumes non-canonical polygon fallback and effects render against default rectangle.
+- Impact: Critical.
+- Mitigation: final-output clip source must be canonical board polygons only, with fail-open guards for invalid-only cases.
+
+## R0g Non-Chrome black screen despite valid polygons
+- Risk: browser-specific hydration/render order causes black final frame outside Chrome when polygon data is valid.
+- Impact: Critical.
+- Mitigation: browser-neutral hydration sequencing and no-black guard when canonical polygon validity is true.
+
+## R0h Imported-board regression from schema hardening
+- Risk: canonicalization breaks existing/imported board payloads or future imports.
+- Impact: Critical.
+- Mitigation: legacy alias normalization, fixture-based import matrix, strict non-regression over save/reload/default-apply/final-output.
+
+## R0i False-pass closure caused by non-executable diagnostics
+- Risk: static checks or shallow smoke tests pass while lifecycle/browser-path regressions still fail in real usage.
+- Impact: Critical.
+- Mitigation: enforce executable assertions with deterministic pre-fix FAIL and post-fix PASS evidence for startup/load/apply-defaults/reload + final-output contract paths.
+
+## R0j Canonical source drift between control and final-output
+- Risk: control path and `/output/final` choose different polygon sources after board switch/defaults apply.
+- Impact: Critical.
+- Mitigation: shared canonical source resolver contract with executable source-selection assertions across control and final-output.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -59,3 +94,5 @@
 - R0 mitigated in HF1: final compositor clip guards now fail-open on invalid/degenerate polygon inputs.
 - R0b mitigated in HF1: room/outside layer clipping edge-cases no longer fail-close to black-frame collapse.
 - R0c mitigated in HF1: sync/control semantics remained unchanged (see T4 non-regression artifact).
+- R0d/R0e/R0f/R0g/R0h mitigated in HF3 via canonical snapshot polygon hydration and executable diagnostics.
+- R0i/R0j mitigated in HF3 via deterministic FAIL->PASS diagnostics and control/final canonical-source parity checks.

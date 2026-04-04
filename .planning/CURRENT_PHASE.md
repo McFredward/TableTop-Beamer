@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 10 (`phase-10`)
-- Status: active execution (Plan 10-HF1 PASS; Plan 10-1 unlocked)
-- Next Plan: 10-1 (settings sub-tabs + quick activate/deactivate/clear + mobile one-handed speed flow)
+- Status: active execution (Plan 10-HF1 PASS; Plan 10-HF2 field-invalidated; Plan 10-HF3 PASS closed)
+- Next Plan: 10-1 (speed-first operator UX wave, unblocked after HF3 closure)
 - Command Target: `/gsd:execute-phase 10`
 
 Execution inputs:

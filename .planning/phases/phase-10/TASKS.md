@@ -31,7 +31,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF3-T7 [P0] Implement generic root-cause fix based on failing tests/diagnostics (no board-specific conditions).
 - [x] DONE P10-HF3-T8 [P0] Re-run tests and capture explicit FAIL->PASS evidence for T1..T6.
 - [x] DONE P10-HF3-T9 [P0] Run imported-board and browser matrix non-regression after fix (Chrome/Firefox desktop + mobile-class emulation where possible).
-- [ ] TODO P10-HF3-T10 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF3 PASS.
+- [x] DONE P10-HF3-T10 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF3 PASS.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF3)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
