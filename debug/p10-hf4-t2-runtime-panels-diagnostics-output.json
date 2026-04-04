@@ -1,30 +1,30 @@
 {
   "suite": "p10-hf4-t2-runtime-panels-diagnostics",
-  "result": "FAIL",
+  "result": "PASS",
   "scenarios": [
     {
       "order": [
         "runtime-panels",
         "app"
       ],
-      "runtimePanelsExposed": false,
-      "bindCallable": false,
+      "runtimePanelsExposed": true,
+      "bindCallable": true,
       "missingDomains": [
         "TT_BEAMER_EDITOR_FLOWS",
         "TT_BEAMER_SYNC_HANDLERS",
         "TT_BEAMER_SETTINGS_CONTROLLERS",
-        "TT_BEAMER_MEDIA_HANDLERS",
-        "TT_BEAMER_RUNTIME_PANELS"
+        "TT_BEAMER_MEDIA_HANDLERS"
       ],
-      "pass": false
+      "bindInvoked": true,
+      "pass": true
     },
     {
       "order": [
         "app",
         "runtime-panels"
       ],
-      "runtimePanelsExposed": false,
-      "bindCallable": false,
+      "runtimePanelsExposed": true,
+      "bindCallable": true,
       "missingDomains": [
         "TT_BEAMER_EDITOR_FLOWS",
         "TT_BEAMER_SYNC_HANDLERS",
@@ -32,7 +32,8 @@
         "TT_BEAMER_MEDIA_HANDLERS",
         "TT_BEAMER_RUNTIME_PANELS"
       ],
-      "pass": false
+      "bindInvoked": true,
+      "pass": true
     }
   ]
 }

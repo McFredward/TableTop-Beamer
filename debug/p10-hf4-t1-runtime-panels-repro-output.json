@@ -1,13 +1,12 @@
 {
   "suite": "p10-hf4-t1-runtime-panels-repro",
-  "runtimePanelsGlobalPresent": false,
+  "runtimePanelsGlobalPresent": true,
   "legacyUiRuntimePanelsGlobalPresent": true,
   "missingDomains": [
     "TT_BEAMER_EDITOR_FLOWS",
     "TT_BEAMER_SYNC_HANDLERS",
     "TT_BEAMER_SETTINGS_CONTROLLERS",
-    "TT_BEAMER_MEDIA_HANDLERS",
-    "TT_BEAMER_RUNTIME_PANELS"
+    "TT_BEAMER_MEDIA_HANDLERS"
   ],
-  "result": "FAIL"
+  "result": "PASS"
 }

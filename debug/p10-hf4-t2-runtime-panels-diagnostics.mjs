@@ -26,8 +26,42 @@ function executeOrder(order) {
 
   const api = context.window.TT_BEAMER_RUNTIME_PANELS;
   const bindCallable = typeof api?.syncRuntimePanelsFromState === "function";
+  let bindInvoked = false;
   if (bindCallable) {
-    api.syncRuntimePanelsFromState({});
+    api.syncRuntimePanelsFromState({
+      state: { boardId: "board-a", roomDraft: { animationId: "room-a", opacity: 1, intensity: 1, speed: 1, soundVolume: 1 }, audio: { enabled: true, volume: 0.5 } },
+      switchBoard: () => { bindInvoked = true; },
+      roomAnimationSelect: { value: "" },
+      roomOpacityInput: { value: "" },
+      roomOpacityValue: { textContent: "" },
+      clampRoomOpacity: (value) => Number(value),
+      roomIntensityValue: { textContent: "" },
+      roomSpeedValue: { textContent: "" },
+      clampRoomSpeed: (value) => Number(value),
+      roomSoundVolumeValue: { textContent: "" },
+      clampRoomSoundVolume: (value) => Number(value),
+      roomHoldInput: { checked: false },
+      roomDurationInput: { value: "", disabled: false },
+      syncRoomDraftActionButton: () => {},
+      audioEnabledInput: { checked: false },
+      audioVolumeInput: { value: "" },
+      audioVolumeValue: { textContent: "" },
+      applyAudioGain: () => {},
+      enforceAudioLifecycleGuard: () => {},
+      syncAudioStatus: () => {},
+      syncAudioMappingPanel: () => {},
+      syncAnimationSpeedPanel: () => {},
+      syncHitareaCalibrationPanel: () => {},
+      syncRoomGeometryPanel: () => {},
+      syncPolygonEditorPanel: () => {},
+      syncShipPolygonEditorPanel: () => {},
+      syncRoomFxPanel: () => {},
+      syncOutsideFxPanel: () => {},
+      syncAlignModePanel: () => {},
+      syncBoardZoomPanel: () => {},
+      syncDashboardZoneVisibility: () => {},
+      updateMobilePerformanceStatus: () => {},
+    });
   }
 
   const missingWarning = logs.find((entry) => entry.level === "warn" && entry.args?.[0] === "domain-modules-missing");
@@ -38,7 +72,8 @@ function executeOrder(order) {
     runtimePanelsExposed: Boolean(api),
     bindCallable,
     missingDomains,
-    pass: Boolean(api) && bindCallable,
+    bindInvoked,
+    pass: Boolean(api) && bindCallable && bindInvoked,
   };
 }
 

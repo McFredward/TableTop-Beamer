@@ -12648,7 +12648,23 @@ bindDevicePixelRatioWatcher();
 scheduleStageViewportLifecycle("startup-bind");
 
 function syncRuntimePanelsFromState() {
-  window.TT_BEAMER_UI_RUNTIME_PANELS.syncRuntimePanelsFromState({
+  const runtimePanelsApi = window.TT_BEAMER_RUNTIME_PANELS ?? window.TT_BEAMER_UI_RUNTIME_PANELS ?? null;
+  if (!runtimePanelsApi || typeof runtimePanelsApi.syncRuntimePanelsFromState !== "function") {
+    logBootstrap.warn("runtime_panels_missing", {
+      event: "runtime-panels-missing",
+      hasCanonical: Boolean(window.TT_BEAMER_RUNTIME_PANELS),
+      hasLegacy: Boolean(window.TT_BEAMER_UI_RUNTIME_PANELS),
+    });
+    return;
+  }
+  if (!window.TT_BEAMER_RUNTIME_PANELS) {
+    window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
+  }
+  if (!window.TT_BEAMER_UI_RUNTIME_PANELS) {
+    window.TT_BEAMER_UI_RUNTIME_PANELS = runtimePanelsApi;
+  }
+
+  runtimePanelsApi.syncRuntimePanelsFromState({
     state,
     switchBoard,
     roomAnimationSelect,

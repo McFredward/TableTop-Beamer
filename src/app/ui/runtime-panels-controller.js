@@ -64,7 +64,12 @@
     updateMobilePerformanceStatus();
   }
 
-  window.TT_BEAMER_UI_RUNTIME_PANELS = {
+  const runtimePanelsApi = {
     syncRuntimePanelsFromState,
   };
+
+  // Keep the canonical runtime key and the legacy UI key in sync so
+  // bootstrap/load-order checks remain deterministic across browsers.
+  window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
+  window.TT_BEAMER_UI_RUNTIME_PANELS = runtimePanelsApi;
 })();
