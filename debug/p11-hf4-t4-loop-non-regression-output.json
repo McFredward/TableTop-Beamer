@@ -1,0 +1,10 @@
+{
+  "suite": "P11-HF4-T4-loop-non-regression",
+  "observed": "PASS",
+  "checks": {
+    "startVisible": true,
+    "sustainVisibleAfter30s": true,
+    "stopRevisionPathPresent": true
+  },
+  "error": null
+}
