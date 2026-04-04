@@ -125,6 +125,92 @@
     return normalized;
   }
 
+  function collectValidPlayAreasWithoutImplicitFallback(playAreas) {
+    const source = Array.isArray(playAreas) ? playAreas : [];
+    const normalized = [];
+    const seenIds = new Set();
+    for (let index = 0; index < source.length; index += 1) {
+      const area = normalizePlayAreaEntry(source[index], index);
+      if (!area) {
+        continue;
+      }
+      let uniqueId = area.id;
+      let suffix = 2;
+      while (seenIds.has(uniqueId)) {
+        uniqueId = `${area.id}-${suffix}`;
+        suffix += 1;
+      }
+      seenIds.add(uniqueId);
+      normalized.push({
+        ...area,
+        id: uniqueId,
+      });
+    }
+    return normalized;
+  }
+
+  function mergeSnapshotAndCanonicalPlayAreas(snapshotPlayAreas, canonicalPlayAreas, fallbackPolygon) {
+    const snapshotValid = collectValidPlayAreasWithoutImplicitFallback(snapshotPlayAreas);
+    const canonicalValid = collectValidPlayAreasWithoutImplicitFallback(canonicalPlayAreas);
+
+    if (snapshotValid.length === 0 && canonicalValid.length === 0) {
+      return {
+        playAreas: normalizePlayAreasCollection([], fallbackPolygon),
+        strictSubsetFromSnapshot: false,
+      };
+    }
+
+    if (snapshotValid.length === 0) {
+      return {
+        playAreas: canonicalValid,
+        strictSubsetFromSnapshot: false,
+      };
+    }
+
+    if (canonicalValid.length === 0) {
+      return {
+        playAreas: snapshotValid,
+        strictSubsetFromSnapshot: false,
+      };
+    }
+
+    const snapshotIdSet = new Set(snapshotValid.map((entry) => entry.id));
+    const canonicalIdSet = new Set(canonicalValid.map((entry) => entry.id));
+    const strictSubsetFromSnapshot =
+      snapshotValid.length < canonicalValid.length
+      && snapshotValid.every((entry) => canonicalIdSet.has(entry.id));
+
+    const mergedById = new Map(canonicalValid.map((entry) => [entry.id, entry]));
+    for (const snapshotArea of snapshotValid) {
+      if (strictSubsetFromSnapshot && mergedById.has(snapshotArea.id)) {
+        continue;
+      }
+      mergedById.set(snapshotArea.id, snapshotArea);
+    }
+
+    const ordered = [];
+    const emitted = new Set();
+    for (const entry of canonicalValid) {
+      const next = mergedById.get(entry.id);
+      if (next && !emitted.has(next.id)) {
+        ordered.push(next);
+        emitted.add(next.id);
+      }
+    }
+    for (const entry of snapshotValid) {
+      const next = mergedById.get(entry.id);
+      if (next && !emitted.has(next.id)) {
+        ordered.push(next);
+        emitted.add(next.id);
+      }
+    }
+
+    return {
+      playAreas: ordered,
+      strictSubsetFromSnapshot,
+    };
+  }
+
   function extractRenderablePlayAreaPolygons(
     playAreas,
     { fallbackPolygon = [], allowDefaultFallbackWhenEmpty = true } = {},
@@ -253,14 +339,17 @@
 
       const contracted = resolveProfilePolygonContract(profile ?? {}, { playAreas: statePlayAreas ?? null, selectedPlayAreaId: stateSelectedId }, fallbackPolygon);
       const contractedPlayAreas = contracted.playAreas;
-      const sourcePlayAreas = Array.isArray(snapshotPlayAreasByBoard?.[boardId])
+      const snapshotPlayAreas = Array.isArray(snapshotPlayAreasByBoard?.[boardId])
         ? snapshotPlayAreasByBoard[boardId]
-        : contractedPlayAreas;
-      const normalizedPlayAreas = normalizePlayAreasCollection(sourcePlayAreas, fallbackPolygon);
+        : null;
+      const mergedSource = mergeSnapshotAndCanonicalPlayAreas(snapshotPlayAreas, contractedPlayAreas, fallbackPolygon);
+      const normalizedPlayAreas = normalizePlayAreasCollection(mergedSource.playAreas, fallbackPolygon);
 
       const snapshotSelected = String(snapshotSelectedByBoard?.[boardId] || "").trim();
       const contractedSelected = String(contracted.selectedPlayAreaId || "").trim();
-      const preferredSelected = snapshotSelected || contractedSelected || stateSelectedId;
+      const preferredSelected = mergedSource.strictSubsetFromSnapshot
+        ? contractedSelected || snapshotSelected || stateSelectedId
+        : snapshotSelected || contractedSelected || stateSelectedId;
       const selectedPlayAreaId = normalizedPlayAreas.some((entry) => entry.id === preferredSelected)
         ? preferredSelected
         : normalizedPlayAreas[0]?.id ?? "play-area-1";
