@@ -17,5 +17,19 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-T11 [P0] Execute rapid-operation acceptance and non-regression matrix on desktop + mobile.
 - [x] DONE P11-T12 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/README/STATE/ROADMAP/CURRENT_PHASE`.
 
+## Plan 11-HF1 - Mandatory bugfix/feature package (execute-ready, hard-gated)
+- [x] DONE P11-HF1-T1 [P0] Create deterministic RED repro for outside mode first-apply sync lag (`Apply changes` required twice).
+- [x] DONE P11-HF1-T2 [P0] Implement deterministic first-apply outside snapshot/apply propagation to `/output/final` and all connected clients.
+- [x] DONE P11-HF1-T3 [P0] Create deterministic RED repro for expired one-shot global replay after reload/reconnect.
+- [x] DONE P11-HF1-T4 [P0] Implement terminal lifecycle persistence/hydration guard so expired one-shot globals never replay.
+- [x] DONE P11-HF1-T5 [P0] Add per-global-animation checkbox `Loop until stopped` in settings/editor with deterministic draft/apply semantics.
+- [x] DONE P11-HF1-T6 [P0] Implement global runtime loop behavior for checked animations and explicit stop closure semantics.
+- [x] DONE P11-HF1-T7 [P0] Remove room animation `Hold until I stop` checkbox from UI and settings schema usage.
+- [x] DONE P11-HF1-T8 [P0] Enforce room animations as always-hold until stop and migrate legacy hold fields compatibly.
+- [x] DONE P11-HF1-T9 [P0] Refactor board model/storage to remove imported-vs-non-imported split in folder structure and runtime paths.
+- [x] DONE P11-HF1-T10 [P0] Add deterministic migration/compatibility path from legacy board storage layout to canonical catalog model.
+- [x] DONE P11-HF1-T11 [P0] Execute strict acceptance and non-regression matrix for sync lifecycle, reload no-replay, loop/stop, room hold, and board model unification.
+- [x] DONE P11-HF1-T12 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Next wave placeholder
-- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from first live sessions and prepare 11-2 refinement shortlist.
+- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF1 live sessions and prepare 11-2 refinement shortlist.

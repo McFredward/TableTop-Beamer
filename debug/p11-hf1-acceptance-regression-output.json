@@ -1,0 +1,55 @@
+{
+  "suite": "p11-hf1-acceptance-regression",
+  "generatedAt": "2026-04-04T19:08:00.106Z",
+  "allPass": true,
+  "checks": [
+    {
+      "id": "P11-HF1-Outside-FirstApply-Sync-Determinism-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Outside-Snapshot-Propagation-FirstApply-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Global-OneShot-Reload-NoReplay-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Global-OneShot-Reconnect-NoReplay-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Global-Loop-Until-Stop-Lifecycle-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Global-Loop-Checkbox-Persistence-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Room-AlwaysHold-UI-Removal-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Room-AlwaysHold-Runtime-NonRegression-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Board-Model-Canonical-Unification-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Board-Migration-Reload-Restart-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Sync-Determinism-NonRegression-Test",
+      "pass": true
+    },
+    {
+      "id": "P11-HF1-Render-Correctness-NonRegression-Test",
+      "pass": true
+    }
+  ]
+}
