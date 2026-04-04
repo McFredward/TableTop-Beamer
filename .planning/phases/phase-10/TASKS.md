@@ -35,7 +35,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 
 ## Plan 10-HF4 - Critical runtime diagnostics follow-up wave (execute-ready, hard-gated)
 - [x] DONE P10-HF4-T1 [P0] Create deterministic failing tests for `domain-modules-missing` covering `TT_BEAMER_RUNTIME_PANELS` load-order and global exposure failure modes.
-- [ ] TODO P10-HF4-T2 [P0] Add executable diagnostics for runtime panel module binding lifecycle and required global exposure contract.
+- [x] DONE P10-HF4-T2 [P0] Add executable diagnostics for runtime panel module binding lifecycle and required global exposure contract.
 - [ ] TODO P10-HF4-T3 [P0] Implement root-cause fix for runtime panel module exposure/load-order path (browser-neutral, no board-specific branch).
 - [ ] TODO P10-HF4-T4 [P0] Create deterministic failing tests for `settings-ownership-violation` when `#outside-mode`/`#outside-direction` are conditionally unmounted.
 - [ ] TODO P10-HF4-T5 [P0] Harden settings ownership checks to validate only applicable mounted controls while preserving strict ownership for required controls.
