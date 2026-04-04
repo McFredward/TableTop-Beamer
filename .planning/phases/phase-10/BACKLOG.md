@@ -7,8 +7,9 @@
 - Plan 10-HF4 is completed PASS with deterministic RED->GREEN evidence.
 - Plan 10-HF5 is field-invalidated by concrete browser repro and remains historical context only.
 - Plan 10-HF6 is historical PASS but field-invalidated by clean-local-storage profile-loss repro.
-- Plan 10-HF7 is completed PASS with synchronized FAIL->PASS evidence.
-- Plan 10-1 remains queued as next execute-ready wave.
+- Plan 10-HF7 is completed PASS with synchronized FAIL->PASS evidence but field-invalidated by new all-board canonical-load regression.
+- Plan 10-HF8 is completed PASS with deterministic FAIL->PASS closure and all-board matrix evidence.
+- Plan 10-1 remains queued behind HF8 closure.
 
 ## Epics
 - Generic Polygon Hydration/Apply Reliability (Cross-Browser P0)
@@ -19,6 +20,7 @@
 - HF5 Multi-Play-Area Canonical Fallback Hardening (P0, field-invalidated)
 - HF6 Multi-Area Retention + Browser/Surface Parity Hardening (P0)
 - HF7 Clean-Start Board-Profile Retention Hardening (P0)
+- HF8 All-Board Canonical Play-Area Recovery + Explicit Failure Visibility (P0)
 - Settings Information Architecture Sub-Tabs
 - Quick Room Action Modes (Activate / Deactivate / Clear)
 - Mobile One-Handed Speed Operations
@@ -77,6 +79,16 @@
 - P10-HF7-S6 Add lifecycle assertions for deterministic multi-play-area retention across startup/default-apply/reload.
 - P10-HF7-S7 Execute browser parity + imported/multi-area strict regression matrix including clean-start lanes.
 - P10-HF7-S8 Capture explicit FAIL->PASS evidence and synchronize all phase/global planning artifacts after HF7 PASS.
+- P10-HF8-S1 Build deterministic RED repro: all boards apply default fallback polygon instead of canonical saved play-areas.
+- P10-HF8-S2 Build deterministic RED repro: `Load global defaults` does not reapply board-specific canonical play-areas.
+- P10-HF8-S3 Add executable diagnostics for canonical source lineage + defaults-reapply decision path across startup/reload/default-apply/board-switch.
+- P10-HF8-S4 Build deterministic RED repro: canonical load/apply failure is silently masked (no explicit user-visible error context).
+- P10-HF8-S5 Implement generic canonical-load recovery fix so all boards load/apply play-areas from canonical saved sources deterministically.
+- P10-HF8-S6 Implement defaults-reapply recovery fix so `Load global defaults` restores board-specific play-areas.
+- P10-HF8-S7 Enforce explicit error surface contract (toast/status with board/source context) for canonical load/apply failures; remove silent fallback masking.
+- P10-HF8-S8 Enforce control-view and `/output/final` parity on canonical play-area set, `areaCount`, and `areaIdSet`.
+- P10-HF8-S9 Execute all-board regression matrix (single-area + multi-area + imported) across startup/reload/default-apply/board-switch/final-output and browser parity lanes.
+- P10-HF8-S10 Capture explicit FAIL->PASS evidence and synchronize all phase/global planning artifacts after HF8 PASS.
 - P10-S1 Define Settings sub-tab taxonomy and group existing controls by operator intent.
 - P10-S2 Implement Settings sub-tab navigation with stable state retention across tab switches.
 - P10-S3 Add shared quick-mode state machine with explicit status, cancel path, and conflict guards.
@@ -90,14 +102,14 @@
 - P10-S11 Run full non-regression for stop/clear-all/global behavior and `/output/final` stability.
 - P10-S12 Synchronize all phase/global planning artifacts after verification PASS.
 
-## Prioritized Execution Wave (P0) - Plan 10-HF7 execute-ready
-- Story P10-HF7-S1 + P10-HF7-S2 + P10-HF7-S3.
-  - Goal: deterministic RED repro + diagnostics for clean-start profile-loss and migration key-drop root cause.
-- Story P10-HF7-S4 + P10-HF7-S5 + P10-HF7-S6.
-  - Goal: extraction/migration hardening with deterministic multi-area lifecycle retention.
-- Story P10-HF7-S7.
-  - Goal: all-browser parity and imported/multi-area strict non-regression PASS with clean-start coverage.
-- Story P10-HF7-S8.
+## Prioritized Execution Wave (P0) - Plan 10-HF8 execute-ready
+- Story P10-HF8-S1 + P10-HF8-S2 + P10-HF8-S3 + P10-HF8-S4.
+  - Goal: deterministic RED repro + diagnostics for all-board canonical-load regression, defaults-reapply failure, and silent fallback masking.
+- Story P10-HF8-S5 + P10-HF8-S6 + P10-HF8-S7 + P10-HF8-S8.
+  - Goal: canonical-load/defaults-reapply recovery with explicit user-visible error contract and strict control/final parity.
+- Story P10-HF8-S9.
+  - Goal: all-board browser/imported/multi-area matrix PASS across lifecycle and surface lanes.
+- Story P10-HF8-S10.
   - Goal: explicit FAIL->PASS proof and synchronized phase/global trackers.
 
 ## Field-Invalidated Wave (P0) - Plan 10-HF5
@@ -137,6 +149,6 @@
   - Goal: phase and global trackers are synchronized at closure.
 
 ## Follow-up Waves
-- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF7 PASS.
+- Plan 10-1: speed-first operator UX baseline (sub-tabs + quick activation/deactivation/clear + mobile one-hand flow) after HF8 PASS.
 - Plan 10-2: UX polish and performance micro-optimizations from field feedback.
 - Plan 10-3: optional operator presets for quick-mode templates if needed after live validation.

@@ -105,6 +105,21 @@
 - Impact: Critical.
 - Mitigation: extract candidates independent of loaded catalog IDs, retain unknown keys in migration, and enforce clean-start lifecycle retention tests for startup/default-apply/reload.
 
+## R0y All-board canonical play-area load collapse to fallback polygon
+- Risk: canonical saved board play-areas are ignored and all boards resolve to default fallback polygon.
+- Impact: Critical.
+- Mitigation: canonical-first resolver assertions for every board plus deterministic RED->GREEN recovery tests across startup/reload/default-apply.
+
+## R0z `Load global defaults` fails board-specific play-area reapply
+- Risk: applying global defaults restores generic fallback/default geometry instead of board-specific canonical play-areas.
+- Impact: Critical.
+- Mitigation: explicit defaults-reapply contract tests with per-board area-id-set assertions and regression matrix coverage.
+
+## R0aa Silent fallback masks canonical load/apply failures
+- Risk: canonical polygon load/apply failures are hidden by silent fallback behavior, leaving operator without actionable error context.
+- Impact: Critical.
+- Mitigation: mandatory user-visible toast/status error surface with board/source context and dedicated no-silent-fallback regression gates.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -169,4 +184,5 @@
 - R0k/R0l/R0m/R0n/R0o are mitigated in HF4 via executable diagnostics + root-cause fixes (`P10-HF4-T1..T10`).
 - R0p/R0q/R0r/R0s were provisionally mitigated in HF5 but are reopened by concrete field repro; closure is reassigned to HF6.
 - R0t/R0u/R0v/R0w are mitigated in HF6 via deterministic RED->GREEN evidence (area-drop repro, merge-lineage diagnostics, fallback-guard fix, browser/surface parity matrix).
-- R0x is mitigated in HF7 via catalog-independent extraction, unknown-key migration retention, lifecycle assertions, and FAIL->PASS closure evidence.
+- R0x was mitigated in HF7 evidence, but HF8 follow-up is now mandatory because new all-board canonical-load/defaults-reapply regression reopened fallback behavior risk at runtime.
+- R0y/R0z/R0aa are mitigated in HF8 via canonical-load/defaults-reapply recovery, explicit error surfacing, and all-board lifecycle/browser matrix PASS (`P10-HF8-T1..T10`).

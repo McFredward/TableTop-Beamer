@@ -89,7 +89,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF8-T7 [P0] Enforce explicit error-surface contract (toast/status with board/source context) for canonical load/apply failures; no silent fallback masking.
 - [x] DONE P10-HF8-T8 [P0] Enforce strict control-view vs `/output/final` parity for canonical play-area set, `areaCount`, and `areaIdSet`.
 - [x] DONE P10-HF8-T9 [P0] Execute all-board regression matrix (single-area + multi-area + imported) across startup/reload/default-apply/board-switch/final-output on Chrome/Firefox/mobile-class.
-- [ ] TODO P10-HF8-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- [x] DONE P10-HF8-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).

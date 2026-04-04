@@ -1,0 +1,51 @@
+{
+  "suite": "p10-hf8-t10-fail-pass-proof",
+  "executedAt": "2026-04-04T12:31:18.563Z",
+  "failEvidence": [
+    {
+      "path": ".planning/phases/phase-10/P10-HF8-T1-ALL-BOARD-FALLBACK-REPRO.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF8-T2-DEFAULTS-REAPPLY-REPRO.md",
+      "hasFailMarker": true
+    },
+    {
+      "path": ".planning/phases/phase-10/P10-HF8-T4-SILENT-FALLBACK-REPRO.md",
+      "hasFailMarker": true
+    }
+  ],
+  "passEvidence": [
+    {
+      "path": "debug/p10-hf8-t3-canonical-lineage-diagnostics-output.json",
+      "suite": "p10-hf8-t3-canonical-lineage-diagnostics",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf8-t5-canonical-load-recovery-output.json",
+      "suite": "p10-hf8-t5-canonical-load-recovery",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf8-t6-defaults-reapply-recovery-output.json",
+      "suite": "p10-hf8-t6-defaults-reapply-recovery",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf8-t7-explicit-error-surface-contract-output.json",
+      "suite": "p10-hf8-t7-explicit-error-surface-contract",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf8-t8-control-final-parity-output.json",
+      "suite": "p10-hf8-t8-control-final-parity",
+      "result": "PASS"
+    },
+    {
+      "path": "debug/p10-hf8-t9-all-board-regression-matrix-output.json",
+      "suite": "p10-hf8-t9-all-board-regression-matrix",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS"
+}

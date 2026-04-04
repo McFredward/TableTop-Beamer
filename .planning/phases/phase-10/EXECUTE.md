@@ -6,10 +6,11 @@
 - Plan 10-HF4 execution wave is complete and PASS.
 - Plan 10-HF5 historical PASS is field-invalidated by concrete follow-up repro.
 - Plan 10-HF6 historical PASS is field-invalidated by clean-local-storage profile-loss repro.
-- Plan 10-HF7 execution wave is complete and PASS.
+- Plan 10-HF7 execution wave is complete and PASS, but field-invalidated by all-board canonical-load/defaults-reapply regression.
+- Plan 10-HF8 execution wave is complete and PASS.
 
 ## Critical Priority Override
-- Plan 10-1 is unblocked after HF7 PASS closure.
+- Plan 10-1 is re-blocked until HF8 PASS closure.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -18,14 +19,16 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 10-HF7 (binding, hard-gated wave)
-1. P0 first: P10-HF7-T1 (deterministic RED repro for clean-local-storage startup profile-loss/default-play-area fallback).
-2. P0 next: P10-HF7-T2 (executable diagnostics for extraction coupling to loaded board IDs).
-3. P0 next: P10-HF7-T3 (deterministic RED repro for unknown-board-key drop in migration).
-4. P0 next: P10-HF7-T4 + P10-HF7-T5 (catalog-independent extraction and migration retention fix for unknown/imported keys).
-5. P0 next: P10-HF7-T6 (lifecycle assertions for deterministic multi-area retention across startup/default-apply/reload).
-6. P0 next: P10-HF7-T7 (Firefox/Chrome/mobile-class parity matrix + imported-board/multi-area strict non-regression matrix with clean-start lanes).
-7. P0 closure: P10-HF7-T8 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
+## Priority Execution - Plan 10-HF8 (binding, hard-gated wave)
+1. P0 first: P10-HF8-T1 (deterministic RED repro for all-board fallback polygon apply despite canonical saved play-areas).
+2. P0 next: P10-HF8-T2 (deterministic RED repro for broken `Load global defaults` board-specific reapply).
+3. P0 next: P10-HF8-T3 (executable diagnostics for canonical source lineage + defaults-reapply decisions).
+4. P0 next: P10-HF8-T4 (deterministic RED repro for silent canonical load/apply failure masking without explicit user-visible error).
+5. P0 next: P10-HF8-T5 + P10-HF8-T6 (canonical-load recovery + defaults-reapply recovery, generic and board-agnostic).
+6. P0 next: P10-HF8-T7 (explicit toast/status error-surface contract with board/source context; no silent fallback masking).
+7. P0 next: P10-HF8-T8 (strict control-view vs `/output/final` parity assertions for canonical set/areaCount/areaIdSet).
+8. P0 next: P10-HF8-T9 (all-board browser matrix: single-area/multi-area/imported across startup/reload/default-apply/board-switch/final-output).
+9. P0 closure: P10-HF8-T10 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
 
 ## Previously Closed Execution - Plan 10-HF1
 1. P10-HF1-T1..T6 are complete and PASS (board-specific blackout closure baseline remains valid).
@@ -53,9 +56,9 @@
 2. P2 closure: P10-T17 (preset safety hardening and deterministic behavior checks).
 
 ## Gate Rules
-- Do not start Plan 10-1 before full PASS of Plan 10-HF7 clean-start repro, extraction diagnostics, migration-retention fix, lifecycle retention gates, browser/surface parity, imported+multi-area regression, and FAIL->PASS proof gates.
-- Do not start P10-HF7-T4/P10-HF7-T5 before corresponding RED repro + diagnostics gates are closed.
-- Do not close Plan 10-HF7 without explicit FAIL->PASS evidence for the same tests.
+- Do not start Plan 10-1 before full PASS of Plan 10-HF8 all-board canonical-load repro/defaults-reapply repro/diagnostics/no-silent-fallback gates, control/final parity, all-board matrix, and FAIL->PASS proof gates.
+- Do not start P10-HF8-T5/P10-HF8-T6 before corresponding RED repro + diagnostics gates are closed.
+- Do not close Plan 10-HF8 without explicit FAIL->PASS evidence for the same tests.
 - Do not start P10-T4..T7 before P10-T1..T3 stabilize IA + mode-state ownership.
 - Do not start P10-T11 before P10-T8..T10 close mobile ergonomics + explicit feedback gates.
 - Do not progress to 10-2 before full PASS of activation/deactivation/clear burst matrices and sync integrity checks.
@@ -109,3 +112,14 @@
   - Extraction is now catalog-independent and migration retains unknown/imported board keys with multi-area selections.
   - Startup/default-apply/reload lifecycle retention is deterministic and browser/imported clean-start parity matrix is PASS.
   - FAIL->PASS proof is closed (`P10-HF7-T8-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.
+- HF7 post-close field invalidation (new blocker for HF8):
+  - Critical repro is mandatory baseline: all boards currently apply default fallback polygon instead of canonical saved play-areas.
+  - `Load global defaults` does not restore board-specific play-areas and can keep fallback/default geometry.
+  - Silent fallback masking is forbidden: canonical load/apply failure paths must emit explicit user-visible toast/status context.
+  - Plan 10-1 is re-blocked until HF8 closes with deterministic FAIL->PASS evidence and all-board regression matrix PASS.
+- Plan 10-HF8 completed with PASS closure evidence:
+  - RED repros for all-board fallback collapse, defaults-reapply failure, and silent fallback masking are captured (`P10-HF8-T1`, `P10-HF8-T2`, `P10-HF8-T4`).
+  - Canonical-load/defaults-reapply recovery is fixed generically and validated with deterministic PASS guards (`P10-HF8-T5`, `P10-HF8-T6`).
+  - Canonical failure paths now emit explicit issue metadata and runtime status/toast context (`P10-HF8-T7`).
+  - Control-vs-final parity plus all-board browser/imported/multi-area lifecycle matrix are PASS (`P10-HF8-T8`, `P10-HF8-T9`).
+  - FAIL->PASS closure is recorded (`P10-HF8-T10-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked again.
