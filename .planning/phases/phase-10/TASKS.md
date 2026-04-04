@@ -37,7 +37,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF4-T1 [P0] Create deterministic failing tests for `domain-modules-missing` covering `TT_BEAMER_RUNTIME_PANELS` load-order and global exposure failure modes.
 - [x] DONE P10-HF4-T2 [P0] Add executable diagnostics for runtime panel module binding lifecycle and required global exposure contract.
 - [x] DONE P10-HF4-T3 [P0] Implement root-cause fix for runtime panel module exposure/load-order path (browser-neutral, no board-specific branch).
-- [ ] TODO P10-HF4-T4 [P0] Create deterministic failing tests for `settings-ownership-violation` when `#outside-mode`/`#outside-direction` are conditionally unmounted.
+- [x] DONE P10-HF4-T4 [P0] Create deterministic failing tests for `settings-ownership-violation` when `#outside-mode`/`#outside-direction` are conditionally unmounted.
 - [ ] TODO P10-HF4-T5 [P0] Harden settings ownership checks to validate only applicable mounted controls while preserving strict ownership for required controls.
 - [ ] TODO P10-HF4-T6 [P0] Create deterministic failing tests for `ship-clip-regression-violation` (invalid polygon accepted + valid multi-play-area/legacy states rejected).
 - [ ] TODO P10-HF4-T7 [P0] Correct ship-clip regression checker for canonical+legacy validity semantics and browser-neutral evaluation.
