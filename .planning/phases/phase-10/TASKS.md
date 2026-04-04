@@ -21,7 +21,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF9-T5 [P0] Create deterministic RED repro for queue unfairness/starvation under mixed `trigger` + `stop` + `clear` command bursts.
 - [x] DONE P10-HF9-T6 [P0] Create deterministic RED repro for no-drop contract violations (accepted command never applied/acknowledged).
 - [x] DONE P10-HF9-T7 [P0] Add executable command-pipeline diagnostics (`ingest -> queue -> dispatch -> ack -> resend -> apply`) with per-command latency and retry telemetry.
-- [ ] TODO P10-HF9-T8 [P0] Implement command timeout/ack/resend hardening with deterministic closure semantics and idempotent dedup-safe apply.
+- [x] DONE P10-HF9-T8 [P0] Implement command timeout/ack/resend hardening with deterministic closure semantics and idempotent dedup-safe apply.
 - [ ] TODO P10-HF9-T9 [P0] Implement queue fairness scheduler with explicit safety fast-lane (`stop`, `clear-all`, `stop outside`) and no-drop guarantees.
 - [ ] TODO P10-HF9-T10 [P0] Implement low-latency apply hardening under load (bounded apply budget, backpressure guard, non-blocking command progression).
 - [ ] TODO P10-HF9-T11 [P0] Implement low-end `sandstorm.mp4` smoothness package (adaptive profile, decode/render strategy, prewarm/buffering safeguards).

@@ -1,0 +1,15 @@
+{
+  "suite": "p10-hf9-t8-command-hardening-pass",
+  "retries": [
+    true,
+    true,
+    false,
+    false
+  ],
+  "delays": [
+    180,
+    360,
+    720
+  ],
+  "status": "PASS"
+}

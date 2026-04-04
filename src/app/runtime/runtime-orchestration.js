@@ -539,6 +539,8 @@ const LIVE_POLL_FAST_MS = 120;
 const LIVE_POLL_IDLE_MS = 250;
 const LIVE_POLL_MAX_BACKOFF_MS = 2000;
 const LIVE_COMMAND_TIMEOUT_MS = 6500;
+const LIVE_COMMAND_RETRY_MAX_ATTEMPTS = 3;
+const LIVE_COMMAND_RETRY_BASE_DELAY_MS = 180;
 const TOAST_MAX_ENTRIES = 4;
 const TOAST_DEDUPE_COOLDOWN_MS = 2200;
 const TOAST_DEFAULT_TIMEOUT_MS = 5000;
@@ -898,30 +900,59 @@ async function emitLiveMutation(mutationType, payload = {}) {
     acceptedVersion: null,
   });
   recordMutationTrace(mutationId, "command_emit");
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => {
-    controller.abort();
-  }, LIVE_COMMAND_TIMEOUT_MS);
   try {
-    const response = await fetch("/api/live/command", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        accept: "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        mutationId,
-        mutationType,
-        role: outputRole,
-        clientId: liveSync.clientId ?? undefined,
-        payload: normalizedPayload,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error(`command rejected (${response.status})`);
+    let ack = null;
+    for (let attempt = 1; attempt <= LIVE_COMMAND_RETRY_MAX_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        controller.abort();
+      }, LIVE_COMMAND_TIMEOUT_MS);
+      try {
+        const response = await fetch("/api/live/command", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            accept: "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            mutationId,
+            mutationType,
+            role: outputRole,
+            clientId: liveSync.clientId ?? undefined,
+            payload: {
+              ...normalizedPayload,
+              retryAttempt: attempt,
+              retryMaxAttempts: LIVE_COMMAND_RETRY_MAX_ATTEMPTS,
+            },
+          }),
+        });
+        if (!response.ok) {
+          const serverError = new Error(`command rejected (${response.status})`);
+          serverError.status = response.status;
+          throw serverError;
+        }
+        ack = await response.json();
+        break;
+      } catch (error) {
+        const timeoutLike = error instanceof DOMException && error.name === "AbortError";
+        const status = Number(error?.status);
+        const retryable = timeoutLike || (Number.isFinite(status) && status >= 500);
+        if (!retryable || attempt >= LIVE_COMMAND_RETRY_MAX_ATTEMPTS) {
+          throw error;
+        }
+        const backoffMs = Math.min(1200, Math.round(LIVE_COMMAND_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1))));
+        recordMutationTrace(mutationId, `command_retry_${attempt}`);
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, backoffMs);
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
     }
-    const ack = await response.json();
+    if (!ack) {
+      throw new Error("command acknowledgement missing");
+    }
     liveSync.lastCommandAcceptedAt = Date.now();
     if (Number.isFinite(Number(ack?.version))) {
       const version = Number(ack.version);
@@ -954,8 +985,6 @@ async function emitLiveMutation(mutationType, payload = {}) {
     }
     liveSync.pendingMutations.delete(mutationId);
     throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
 }
 
@@ -4579,6 +4608,38 @@ function getOutsideVideoElement(path) {
   return getMediaVideoElement(outsideVideoCacheByPath, path);
 }
 
+function prewarmBoardOutsideMp4Asset(boardId, { reason = "board-switch" } = {}) {
+  const definition = getSelectedOutsideAnimationDefinition(boardId);
+  if (!definition || definition.assetType !== "mp4") {
+    return;
+  }
+  const videoEntry = getOutsideVideoElement(definition.assetRef);
+  const video = videoEntry?.video;
+  if (!video) {
+    return;
+  }
+  video.preload = "auto";
+  if (video.readyState >= 2) {
+    return;
+  }
+  const prime = () => {
+    void video.play()
+      .then(() => {
+        video.pause();
+      })
+      .catch(() => undefined);
+  };
+  if (reason === "startup") {
+    prime();
+    return;
+  }
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(() => prime(), { timeout: 400 });
+    return;
+  }
+  window.setTimeout(() => prime(), 40);
+}
+
 function getRoomVideoElement(path) {
   return getMediaVideoElement(roomVideoCacheByPath, path);
 }
@@ -4660,6 +4721,7 @@ function captureOutsideMp4FallbackFrame(playbackState, video) {
   fallbackState.fallbackCtx.clearRect(0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
   fallbackState.fallbackCtx.drawImage(video, 0, 0, fallbackState.fallbackCanvas.width, fallbackState.fallbackCanvas.height);
   fallbackState.lastVisibleFrameAtMs = performance.now();
+  fallbackState.lastDecodedFrameAtMs = fallbackState.lastVisibleFrameAtMs;
   fallbackState.hasVisibleFrame = true;
 }
 
@@ -4705,6 +4767,41 @@ function maybeWrapOutsideMp4Loop(video, playbackState) {
   } catch {
     // ignore transient seek errors near loop boundaries
   }
+}
+
+function bindOutsideMp4FrameCallback(video, playbackState) {
+  if (!video || !playbackState || playbackState.videoFrameCallbackBound) {
+    return;
+  }
+  if (typeof video.requestVideoFrameCallback !== "function") {
+    return;
+  }
+  playbackState.videoFrameCallbackBound = true;
+  const onVideoFrame = () => {
+    playbackState.lastDecodedFrameAtMs = performance.now();
+    playbackState.hasVisibleFrame = true;
+    video.requestVideoFrameCallback(onVideoFrame);
+  };
+  video.requestVideoFrameCallback(onVideoFrame);
+}
+
+function shouldDrawOutsideMp4Now(playbackState) {
+  if (!playbackState) {
+    return true;
+  }
+  const controls = getMp4PerformanceControls();
+  const targetFrameMs = controls.tier === "performance"
+    ? 33
+    : controls.tier === "balanced"
+      ? 22
+      : 16;
+  const nowMs = performance.now();
+  const elapsed = nowMs - Number(playbackState.lastDrawAtMs || 0);
+  if (!Number.isFinite(elapsed) || elapsed >= targetFrameMs) {
+    playbackState.lastDrawAtMs = nowMs;
+    return true;
+  }
+  return false;
 }
 
 function ensureOutsideMp4Playback(video, { boardId = state.boardId, lifecycleKey = "", assetRef = "", targetRate = 1 } = {}) {
@@ -4754,9 +4851,13 @@ function ensureOutsideMp4Playback(video, { boardId = state.boardId, lifecycleKey
     fallbackCanvas: previous?.fallbackCanvas ?? null,
     fallbackCtx: previous?.fallbackCtx ?? null,
     lastVisibleFrameAtMs: previous?.lastVisibleFrameAtMs ?? 0,
+    lastDecodedFrameAtMs: previous?.lastDecodedFrameAtMs ?? 0,
     lastLoopWrapAtMs: previous?.lastLoopWrapAtMs ?? 0,
+    lastDrawAtMs: previous?.lastDrawAtMs ?? 0,
+    videoFrameCallbackBound: previous?.videoFrameCallbackBound ?? false,
     hasVisibleFrame: previousHasVisibleFrame,
   };
+  bindOutsideMp4FrameCallback(video, playbackState);
   outsideMp4PlaybackStateByBoard.set(boardId, playbackState);
   return playbackState;
 }
@@ -8052,6 +8153,7 @@ function shouldPreserveLifecycleStatusFeedback() {
 }
 
 function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch", announceStatus = true } = {}) {
+  const switchStartedAt = performance.now();
   const previousBoardId = state.boardId;
   const previousRoomId = state.selectedRoomId;
   if (previousBoardId && previousRoomId) {
@@ -8071,7 +8173,10 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
     : board.rooms[0]?.id ?? null;
   state.selectedRoomByBoard[board.id] = state.selectedRoomId;
   ensureBoardRoomStateMaps(board.id);
+  clearOutsideMp4PlaybackState(previousBoardId);
+  clearOutsideTimelineState(previousBoardId);
   warmRoomGifAssets({ reason: "board-switch" });
+  prewarmBoardOutsideMp4Asset(board.id, { reason });
   syncRoomPanelFromSelection();
   syncHitareaCalibrationPanel();
   syncRoomGeometryPanel();
@@ -8083,10 +8188,12 @@ function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch"
   syncOutsideRuntimeMirror(board.id);
   syncBoardZoomPanel();
   setPanCursorState();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   renderRoomOverlay();
   refreshGlobalButtons();
   if (announceStatus && !shouldPreserveLifecycleStatusFeedback()) {
-    triggerFeedback.textContent = "Status: board switched";
+    const durationMs = Math.round(Math.max(0, performance.now() - switchStartedAt));
+    triggerFeedback.textContent = `Status: board switched (${durationMs}ms)`;
   }
   if (emitLiveContext) {
     emitBoardLayoutContextMutation(board.id, reason);
@@ -10453,8 +10560,12 @@ function drawOutsideFxLayer(now) {
         maybeWrapOutsideMp4Loop(video, playbackState);
         ctx.globalAlpha = clampOutsideIntensity(selectedDefinition.intensity);
         if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          captureOutsideMp4FallbackFrame(playbackState, video);
+          if (shouldDrawOutsideMp4Now(playbackState)) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            captureOutsideMp4FallbackFrame(playbackState, video);
+          } else {
+            drawOutsideMp4FallbackFrame(playbackState);
+          }
         } else {
           drawOutsideMp4FallbackFrame(playbackState);
         }
@@ -12862,6 +12973,7 @@ async function initializeApplication() {
   }
   warmEventSoundAssets();
   warmRoomGifAssets({ reason: "startup" });
+  prewarmBoardOutsideMp4Asset(state.boardId, { reason: "startup" });
   setActiveView("dashboard");
   setPanCursorState();
   const viewRegressionOk = runViewVisibilityRegression();
