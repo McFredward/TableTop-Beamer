@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF4 (PASS)
+- Last Executed Plan: 10-HF5 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,16 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Plan-10-HF5 Umsetzung: invalid multi-area play-area entries werden vor Canonical-Selection verworfen; valide kanonische Areas behalten Vorrang vor default fallback hex.
+- Plan-10-HF5 Umsetzung: Control-View und `/output/final` nutzen einen gemeinsamen kanonischen Play-Area-Resolver-Vertrag.
+- Plan-10-HF5 Umsetzung: Firefox/Chrome/mobile-class Parity + imported-board/multi-area Regression sind PASS; FAIL->PASS Proof ist geschlossen (`P10-HF5-T10-FAIL-PASS-PROOF.md`).
+- Neues verpflichtendes P0-Blocker-Feedback fuer Phase 10 ist bindend: in Firefox und mobile-Chrome werden fuer `Nemesis Lockdown A` weiterhin falsche Polygone geladen (Default-Play-Area/Fallback-Hex sichtbar).
+- Root-Cause-Verdacht fuer Plan 10-HF5 ist bindend: Fehlerbild haengt wahrscheinlich an Multi-Play-Area-Boards (mehrere getrennte Areas) im Vergleich zu Single-Play-Area-Boards.
+- Test-First-Regel Plan 10-HF5: zuerst explizite RED-Repros fuer Multi-Play-Area vs Single-Play-Area, danach erst Diagnose/Fix.
+- Firefox-Diagnostik-Regel Plan 10-HF5: headless/automation traces plus Firefox-vs-Chrome parity traces sind Pflichtgate, statische Checks allein sind unzulaessig.
+- Fallback-Regel Plan 10-HF5: valid canonical gespeicherte Play-Areas duerfen nie durch default play area/fallback hex ersetzt werden, weder im Control-View noch in `/output/final`.
+- Browser-Paritaets-Regel Plan 10-HF5: canonical gespeicherte Play-Areas muessen auf allen Browsern identisch angewendet werden (inkl. mobile-class Chrome).
+- Gate-Regel Plan 10-HF5: Plan 10-1 bleibt blockiert bis HF5 FAIL->PASS Evidenz plus imported-board/multi-area Regression-Matrix PASS sind.
 - Neues kritisches P0-Follow-up fuer Phase 10 ist bindend: `domain-modules-missing` meldet fehlende Runtime-Panel-Exposition (`TT_BEAMER_RUNTIME_PANELS`) im Firefox-Debug.
 - HF4-Root-Cause-Regel: Runtime-Panel-Modulpfad wird testgetrieben auf Load-Order/Global-Exposure analysiert und browserneutral gehaertet (keine board-spezifischen Sonderpfade).
 - HF4-Ownership-Regel: Settings-Ownership-Checks sind applicability-aware; conditionally unmounted Controls (`#outside-mode`, `#outside-direction`) gelten als korrekt, sofern fachlich nicht anwendbar.
