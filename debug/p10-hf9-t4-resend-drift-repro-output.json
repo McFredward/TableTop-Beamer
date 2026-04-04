@@ -1,0 +1,16 @@
+{
+  "suite": "p10-hf9-t4-resend-drift-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "deterministicWindowMs": 220,
+    "jitterMs": [
+      80,
+      420,
+      40,
+      510,
+      90
+    ],
+    "violations": 2
+  }
+}
