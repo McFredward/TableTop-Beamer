@@ -1,0 +1,56 @@
+{
+  "suite": "p10-hf9-t13-fail-pass-matrix",
+  "redResults": [
+    {
+      "id": "t1",
+      "status": "FAIL"
+    },
+    {
+      "id": "t2",
+      "status": "FAIL"
+    },
+    {
+      "id": "t3",
+      "status": "FAIL"
+    },
+    {
+      "id": "t4",
+      "status": "FAIL"
+    },
+    {
+      "id": "t5",
+      "status": "FAIL"
+    },
+    {
+      "id": "t6",
+      "status": "FAIL"
+    }
+  ],
+  "passResults": [
+    {
+      "id": "t7",
+      "status": "PASS"
+    },
+    {
+      "id": "t8",
+      "status": "PASS"
+    },
+    {
+      "id": "t9",
+      "status": "PASS"
+    },
+    {
+      "id": "t10",
+      "status": "PASS"
+    },
+    {
+      "id": "t11",
+      "status": "PASS"
+    },
+    {
+      "id": "t12",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}
