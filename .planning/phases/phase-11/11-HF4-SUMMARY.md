@@ -78,7 +78,21 @@ completed: 2026-04-04
 - HF4 evidence is enforced via per-gate artifacts plus a consolidated acceptance regression JSON.
 
 ## Deviations from Plan
-None - plan executed exactly as written.
+
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] `gsd-tools` state/roadmap automation incompatible with repository STATE format**
+- **Found during:** Post-task state update step
+- **Issue:** `state advance-plan`, `state update-progress`, `state record-metric`, `state add-decision`, and `roadmap update-plan-progress` returned schema/section parse errors.
+- **Fix:** Applied equivalent updates manually in `.planning/STATE.md`, `.planning/ROADMAP.md`, and `.planning/CURRENT_PHASE.md` to preserve required execution bookkeeping.
+- **Files modified:** `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`
+- **Verification:** final metadata commit `7325690` includes synchronized planning state files.
+- **Committed in:** `7325690`
+
+---
+
+**Total deviations:** 1 auto-fixed (1 blocking)
+**Impact on plan:** No scope creep; only execution bookkeeping path changed due tooling/schema mismatch.
 
 ## Issues Encountered
 - Existing repo had unrelated modified/untracked files (`README.md`, `TableTopBeamerPreview.mp4`, legacy debug artifacts). Left untouched.
