@@ -11,7 +11,6 @@
     clampRoomSpeed,
     roomSoundVolumeValue,
     clampRoomSoundVolume,
-    roomHoldInput,
     roomDurationInput,
     syncRoomDraftActionButton,
     audioEnabledInput,
@@ -40,7 +39,6 @@
     roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
     roomSpeedValue.textContent = `${clampRoomSpeed(state.roomDraft.speed).toFixed(2)}x`;
     roomSoundVolumeValue.textContent = `${Math.round(clampRoomSoundVolume(state.roomDraft.soundVolume) * 100)}%`;
-    roomHoldInput.checked = true;
     roomDurationInput.value = "0";
     roomDurationInput.disabled = true;
     syncRoomDraftActionButton();

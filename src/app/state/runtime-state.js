@@ -26,7 +26,6 @@
         staggerStart: false,
         staggerOffsetMs: 140,
         durationSec: 0,
-        hold: true,
       },
       runningAnimations: [],
       audio: {

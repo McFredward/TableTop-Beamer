@@ -92,7 +92,6 @@ const roomSpeedValue = document.querySelector("#room-speed-value");
 const roomSoundVolumeInput = document.querySelector("#room-sound-volume");
 const roomSoundVolumeValue = document.querySelector("#room-sound-volume-value");
 const roomDurationInput = document.querySelector("#room-duration");
-const roomHoldInput = document.querySelector("#room-hold");
 const roomStaggerStartInput = document.querySelector("#room-stagger-start");
 const roomStaggerOffsetInput = document.querySelector("#room-stagger-offset");
 const roomStaggerOffsetValue = document.querySelector("#room-stagger-offset-value");
@@ -216,6 +215,7 @@ const insideSpeedValue = document.querySelector("#inside-speed-value");
 const insideAssetTypeInput = document.querySelector("#inside-asset-type");
 const insideAssetRefInput = document.querySelector("#inside-asset-ref");
 const insideResourceSelect = document.querySelector("#inside-resource-select");
+let insideLoopUntilStopInput = document.querySelector("#inside-loop-until-stop");
 const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
@@ -243,6 +243,37 @@ const SETTINGS_SUBTAB_LABELS = {
   animations: "Animations",
   system: "System & Performance",
 };
+
+function ensureInsideLoopUntilStopControl() {
+  if (insideLoopUntilStopInput) {
+    return;
+  }
+  const panel = insideApplyChangesButton?.closest("section") ?? null;
+  if (!panel) {
+    return;
+  }
+  const label = document.createElement("label");
+  label.className = "inline-checkbox";
+  const input = document.createElement("input");
+  input.id = "inside-loop-until-stop";
+  input.type = "checkbox";
+  label.append(input, "Loop until stopped");
+  const anchor = insideAssetTypeInput?.closest("label") ?? insideApplyChangesButton;
+  if (anchor && anchor.parentElement === panel) {
+    panel.insertBefore(label, anchor);
+  } else {
+    panel.append(label);
+  }
+  insideLoopUntilStopInput = input;
+}
+
+function removeLegacyRoomHoldControl() {
+  const roomHoldLabel = document.querySelector("#room-hold")?.closest("label") ?? null;
+  roomHoldLabel?.remove();
+}
+
+ensureInsideLoopUntilStopControl();
+removeLegacyRoomHoldControl();
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "board-import-file",
@@ -326,6 +357,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-type",
   "inside-asset-ref",
   "inside-resource-select",
+  "inside-loop-until-stop",
   "inside-apply-changes",
   "room-animation-settings-select",
   "room-animation-settings-name",
@@ -644,12 +676,14 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
       if (triggerRevision > highestSeenRevision) {
         liveSync.globalTriggerRevisionSeenByKey.set(triggerKey, triggerRevision);
         if (!isSameRevisionAsCurrent) {
+          const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
+          const ageMs = Math.max(0, nextNowEpoch - startedAtEpochMs);
           return {
             ...animation,
             triggerKey,
             triggerRevision,
-            startedAtEpochMs: nextNowEpoch,
-            startedAt: nextNowPerf,
+            startedAtEpochMs,
+            startedAt: nextNowPerf - ageMs,
           };
         }
       }
@@ -2522,6 +2556,7 @@ function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
     assetRef,
     intensity: clampOutsideIntensity(definition?.intensity),
     speed: clampOutsideSpeed(definition?.speed),
+    loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
   };
 }
 
@@ -2560,6 +2595,7 @@ function normalizeInsideFxProfile(profile) {
     speed: selectedAnimation.speed,
     assetType: selectedAnimation.assetType,
     assetRef: selectedAnimation.assetRef,
+    loopUntilStopped: Boolean(selectedAnimation.loopUntilStopped),
   };
 }
 
@@ -7029,6 +7065,7 @@ function getInsideEditorDraft(boardId = state.boardId, selectedDefinition = null
     speed: clampOutsideSpeed(definition.speed),
     assetType: normalizeInsideAssetType(definition.assetType),
     assetRef: String(definition.assetRef || "").trim(),
+    loopUntilStopped: Boolean(definition.loopUntilStopped),
   };
   insideEditorDraftByBoard[boardId] = next;
   return next;
@@ -7046,6 +7083,7 @@ function setInsideEditorDraft(boardId = state.boardId, partial = {}) {
     speed: clampOutsideSpeed(partial?.speed ?? base.speed),
     assetType: normalizeInsideAssetType(partial?.assetType ?? base.assetType),
     assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
+    loopUntilStopped: Boolean(partial?.loopUntilStopped ?? base.loopUntilStopped),
   };
   insideEditorDraftByBoard[boardId] = next;
   return next;
@@ -7062,6 +7100,7 @@ function collectInsideEditorDraftFromInputs(boardId = state.boardId) {
     speed: clampOutsideSpeed(insideSpeedInput?.value),
     assetType,
     assetRef,
+    loopUntilStopped: Boolean(insideLoopUntilStopInput?.checked),
   });
 }
 
@@ -7097,6 +7136,13 @@ function syncInsideFxPanel() {
   }
   if (insideAssetRefInput) {
     insideAssetRefInput.value = assetRef;
+  }
+  if (insideLoopUntilStopInput) {
+    insideLoopUntilStopInput.checked = Boolean(
+      draft?.loopUntilStopped
+      ?? selectedDefinition?.loopUntilStopped
+      ?? inside.loopUntilStopped,
+    );
   }
   syncInsideResourcePicker(assetType, assetRef);
   insideIntensityValue.textContent = intensity.toFixed(2);
@@ -9439,7 +9485,6 @@ function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
   roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
-  roomHoldInput.checked = true;
   state.roomDraft.staggerStart = Boolean(state.roomDraft.staggerStart);
   state.roomDraft.staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
   if (roomStaggerStartInput) {
@@ -9666,6 +9711,10 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
     (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
   );
   const isOutside = getGlobalAnimationCategory(type) === "outside-ship";
+  const insideDefinition = getInsideAnimationDefinitionById(type, state.boardId);
+  const effectiveDefaultDurationSec = insideDefinition?.loopUntilStopped
+    ? null
+    : defaultDurationSec;
   if (outputRole === OUTPUT_ROLE_CONTROL) {
     if (existing) {
       stopAnimation(existing.id);
@@ -9675,8 +9724,8 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
         scope: "global",
         boardId: state.boardId,
         intensity: 1,
-        hold: defaultDurationSec === null,
-        durationSec: defaultDurationSec ?? 0,
+        hold: effectiveDefaultDurationSec === null,
+        durationSec: effectiveDefaultDurationSec ?? 0,
       });
       void emitLiveMutation("trigger-global", {
         animationType: type,
@@ -9710,8 +9759,8 @@ function upsertGlobalAnimation(type, defaultDurationSec) {
       type,
       scope: "global",
       intensity: 1,
-      hold: defaultDurationSec === null,
-      durationSec: defaultDurationSec ?? 0,
+      hold: effectiveDefaultDurationSec === null,
+      durationSec: effectiveDefaultDurationSec ?? 0,
     });
     state.runningAnimations.push(animation);
     if (isOutside) {
@@ -10466,7 +10515,6 @@ function editAnimation(animationId) {
   state.roomDraft.staggerOffsetMs = isClusterScope
     ? clampClusterStaggerOffsetMs(animation.clusterStartOffsetMs)
     : clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-  state.roomDraft.hold = true;
 
   if (!animation.roomAssetType || !animation.roomAssetRef) {
     animation.roomAssetType = definitionAssetType;
@@ -10483,7 +10531,6 @@ function editAnimation(animationId) {
   roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
   roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
   roomDurationInput.value = String(state.roomDraft.durationSec);
-  roomHoldInput.checked = true;
   if (roomStaggerStartInput) {
     roomStaggerStartInput.checked = state.roomDraft.staggerStart;
   }
@@ -12369,6 +12416,13 @@ insideAssetRefInput?.addEventListener("change", () => {
   triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
 });
 
+insideLoopUntilStopInput?.addEventListener("change", () => {
+  setInsideEditorDraft(state.boardId, {
+    loopUntilStopped: Boolean(insideLoopUntilStopInput.checked),
+  });
+  triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+});
+
 insideApplyChangesButton?.addEventListener("click", () => {
   const draft = collectInsideEditorDraftFromInputs(state.boardId);
   if (!draft) {
@@ -12380,6 +12434,7 @@ insideApplyChangesButton?.addEventListener("click", () => {
     speed: draft.speed,
     assetType: draft.assetType,
     assetRef: draft.assetRef,
+    loopUntilStopped: Boolean(draft.loopUntilStopped),
   });
   setInsideFxProfile(state.boardId, nextProfile);
   const persisted = persistBoardProfiles();
@@ -13016,11 +13071,6 @@ roomDurationInput.addEventListener("input", () => {
   state.roomDraft.durationSec = clampRoomDurationSec(Number(roomDurationInput.value) || 1);
 });
 
-roomHoldInput.addEventListener("change", () => {
-  roomHoldInput.checked = true;
-  state.roomDraft.hold = true;
-});
-
 roomStaggerStartInput?.addEventListener("change", () => {
   state.roomDraft.staggerStart = Boolean(roomStaggerStartInput.checked);
   scheduleRoomDraftSync("room-draft-stagger-start", 40);
@@ -13270,7 +13320,6 @@ function syncRuntimePanelsFromState() {
     clampRoomSpeed,
     roomSoundVolumeValue,
     clampRoomSoundVolume,
-    roomHoldInput,
     roomDurationInput,
     syncRoomDraftActionButton,
     audioEnabledInput,

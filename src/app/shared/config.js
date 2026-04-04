@@ -331,12 +331,12 @@
 
   function createDefaultInsideAnimationDefinitions() {
     return [
-      { id: "ambient-drift", name: "Ambient Drift", assetType: "coded", assetRef: "ambient-drift", intensity: 1, speed: 1 },
-      { id: "ash-fall", name: "Ash Fall", assetType: "coded", assetRef: "ash-fall", intensity: 1, speed: 1 },
-      { id: "hull-flicker", name: "Hull Flicker", assetType: "coded", assetRef: "hull-flicker", intensity: 1, speed: 1 },
-      { id: "intruder-alert", name: "Intruder Alert", assetType: "coded", assetRef: "intruder-alert", intensity: 1, speed: 1 },
-      { id: "reactor-pulse", name: "Reactor Pulse", assetType: "coded", assetRef: "reactor-pulse", intensity: 1, speed: 1 },
-      { id: "power-outage", name: "Power Outage", assetType: "coded", assetRef: "power-outage", intensity: 1, speed: 1 },
+      { id: "ambient-drift", name: "Ambient Drift", assetType: "coded", assetRef: "ambient-drift", intensity: 1, speed: 1, loopUntilStopped: true },
+      { id: "ash-fall", name: "Ash Fall", assetType: "coded", assetRef: "ash-fall", intensity: 1, speed: 1, loopUntilStopped: true },
+      { id: "hull-flicker", name: "Hull Flicker", assetType: "coded", assetRef: "hull-flicker", intensity: 1, speed: 1, loopUntilStopped: true },
+      { id: "intruder-alert", name: "Intruder Alert", assetType: "coded", assetRef: "intruder-alert", intensity: 1, speed: 1, loopUntilStopped: false },
+      { id: "reactor-pulse", name: "Reactor Pulse", assetType: "coded", assetRef: "reactor-pulse", intensity: 1, speed: 1, loopUntilStopped: false },
+      { id: "power-outage", name: "Power Outage", assetType: "coded", assetRef: "power-outage", intensity: 1, speed: 1, loopUntilStopped: false },
     ];
   }
 
