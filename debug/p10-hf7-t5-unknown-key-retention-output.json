@@ -1,0 +1,19 @@
+{
+  "suite": "p10-hf7-t5-unknown-key-retention",
+  "loadedBoardIds": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "migratedKeys": [
+    "imported-lockdown-multi",
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "unknownKeyRetained": true,
+  "unknownAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "selectedPlayAreaId": "bunker",
+  "result": "PASS"
+}

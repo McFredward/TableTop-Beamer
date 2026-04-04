@@ -136,8 +136,10 @@
     OUTSIDE_FX_DEFAULT,
   }) {
     const migrated = createDefaultBoardProfiles();
-    for (const board of boards) {
-      const profile = candidate?.[board.id] ?? {};
+    const boardIdSet = new Set([...(boards || []).map((board) => board.id), ...Object.keys(candidate || {})]);
+    for (const boardId of boardIdSet) {
+      const board = boards.find((entry) => entry.id === boardId) ?? { id: boardId };
+      const profile = candidate?.[boardId] ?? {};
       const legacyPolygon =
         profile.playAreaPolygon ??
         profile.playArea ??
@@ -159,24 +161,24 @@
             polygon: legacyPolygon,
           },
         ];
-        migrated[board.id] = {
+        migrated[boardId] = {
           roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
           deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
           roomClusters: profile.roomClusters ?? profile.clusters ?? null,
           hitareaCalibration:
-            profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[board.id] ?? HITAREA_CALIBRATION_DEFAULT,
+            profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[boardId] ?? HITAREA_CALIBRATION_DEFAULT,
         roomGeometry:
           profile.roomGeometry ??
           profile.geometry ??
-          legacyRoomGeometry[board.id] ??
-          createDefaultRoomGeometryMap(board.id),
+          legacyRoomGeometry[boardId] ??
+          createDefaultRoomGeometryMap(boardId),
         roomStateProfiles:
-          profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(board.id),
+          profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(boardId),
         specialPolygons:
           profile.specialPolygons ??
           profile.polygons ??
-          legacySpecialPolygons[board.id] ??
-          createDefaultSpecialPolygonMap(board.id),
+          legacySpecialPolygons[boardId] ??
+          createDefaultSpecialPolygonMap(boardId),
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         playAreaPolygon: legacyPolygon,
