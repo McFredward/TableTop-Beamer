@@ -1,0 +1,8 @@
+{
+  "suite": "p10-hf3-t2-defaults-override-repro",
+  "boardId": "nemesis",
+  "expectedSelectedPlayAreaId": "persisted-board-area",
+  "actualSelectedPlayAreaId": "play-area-1",
+  "appliedFromSnapshot": false,
+  "result": "FAIL"
+}
