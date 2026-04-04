@@ -1,0 +1,16 @@
+{
+  "suite": "p10-hf7-t3-unknown-key-migration-drop-repro",
+  "phase": "RED",
+  "loadedBoardIds": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "unknownBoardId": "imported-lockdown-multi",
+  "observedKeysAfterMigration": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "unknownKeyRetained": false,
+  "unknownAreaIdSet": [],
+  "result": "FAIL"
+}
