@@ -1,0 +1,7 @@
+{
+  "suite": "p10-hf9-t10-apply-latency-pass",
+  "processed": 7,
+  "elapsedMs": 8.4,
+  "budgetMs": 8,
+  "status": "PASS"
+}
