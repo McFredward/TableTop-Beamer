@@ -11,9 +11,9 @@
 - Current Phase Key: phase-11
 - Last Prepared: 2026-04-05
 - Execution Readiness: READY
-- Last Executed Plan: 11-HF4 (implemented with PASS closure)
+- Last Executed Plan: 11-HF5 (implemented with PASS closure)
 - Planned Next Execution: 11-2
-- Last Execution Summary: `.planning/phases/phase-11/11-HF4-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-11/11-HF5-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -51,6 +51,16 @@
 - HF4-Evidenzregel: Wave-Close erfordert explizites FAIL->PASS fuer `/output/final` one-shot duration parity gegen Control.
 - Plan-11-HF4 Umsetzung: `trigger-global` starts werden server-authoritativ mit `startedAtEpochMs` rebased; non-loop globals sind auf `/output/final` wieder sichtbar und laufen volle 4s exakt einmal.
 - Plan-11-HF4 Umsetzung: Loop-Mode sowie globale `stop`/`clear` Semantik bleiben non-regressed PASS; control-vs-final one-shot FAIL->PASS parity ist geschlossen (`11-HF4-VERIFICATION.md`, `P11-HF4-T6-FAIL-PASS-PROOF.md`).
+- Kritisches P0-Follow-up nach HF4 ist bindend: non-loop globale Trigger laufen aktuell nur auf dem initiierenden Client; Peers und `/output/final` sind nicht deterministisch synchronisiert.
+- Plan 11-HF5 ist als verpflichtende execute-ready Recovery-Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure.
+- HF5-Root-Cause-Regel: initiator-only Fehlerpfad wird verbindlich entlang command emission vs server apply vs snapshot/event fanout isoliert und geschlossen.
+- HF5-Authoritative-Regel: non-loop globale Trigger sind server-authoritativ und replizieren exakt einmal an Initiator, Peers und `/output/final`.
+- HF5-Optimistic-Guard-Regel: lokale optimistic one-shot Renderpfade duerfen keine distributed-sync Fehler maskieren (remove/guard verpflichtend).
+- HF5-Non-Regression-Regel: loop mode sowie bestehende globale `stop`/`clear` Semantik bleiben unveraendert deterministisch PASS.
+- HF5-Evidenzregel: Wave-Close erfordert strikte multi-client FAIL->PASS one-shot duration parity (Initiator + Peers + `/output/final`).
+- Plan-11-HF5 Umsetzung: non-loop globals fanouten server-authoritativ mit kanonischem run-id/trigger-revision Vertrag; initiator/peer/`/output/final` erhalten exakt einen Run.
+- Plan-11-HF5 Umsetzung: lokale optimistic non-loop global-start Maskierung ist entfernt; Runtime wartet auf Snapshot-Fanout und meldet pending/failure explizit.
+- Plan-11-HF5 Umsetzung: loop + stop/clear Non-Regression sowie strict multi-client FAIL->PASS parity sind PASS (`11-HF5-VERIFICATION.md`, `P11-HF5-T7-FAIL-PASS-PROOF.md`).
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.

@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 11 (`phase-11`)
-- Status: active execution (Plan 11-HF4 completed with PASS verification and FAIL->PASS parity evidence)
-- Next Plan: 11-2 (queued after HF4 closure)
+- Status: active execution (Plan 11-HF5 closed PASS; phase remains active for next plan)
+- Next Plan: 11-2
 - Command Target: `/gsd:execute-phase 11`
 
 Execution inputs:

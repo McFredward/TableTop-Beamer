@@ -1,0 +1,55 @@
+{
+  "suite": "p11-hf5-acceptance-regression",
+  "observed": "PASS",
+  "gates": [
+    {
+      "id": "P11-HF5-T1",
+      "artifact": "debug/p11-hf5-t1-non-loop-initiator-only-red-output.json",
+      "expected": "FAIL",
+      "observed": "FAIL",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T2",
+      "artifact": "debug/p11-hf5-t2-root-cause-branch-isolation-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T3",
+      "artifact": "debug/p11-hf5-t3-server-authoritative-exactly-once-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T4",
+      "artifact": "debug/p11-hf5-t4-no-local-optimistic-masking-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T5",
+      "artifact": "debug/p11-hf5-t5-loop-non-regression-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T6",
+      "artifact": "debug/p11-hf5-t6-stop-clear-non-regression-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF5-T7",
+      "artifact": "debug/p11-hf5-t7-multiclient-fail-pass-proof-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    }
+  ]
+}

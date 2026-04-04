@@ -30,5 +30,15 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF4-T6 [P0] Capture FAIL->PASS evidence for `/output/final` one-shot duration parity versus control.
 - [x] DONE P11-HF4-T7 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
+## Plan 11-HF5 - Critical non-loop initiator-only sync regression (execute-ready, hard-gated)
+- [x] DONE P11-HF5-T1 [P0] Build deterministic RED repro: non-loop global triggers run only on initiator while peers + `/output/final` miss the event; loop mode remains synchronized.
+- [x] DONE P11-HF5-T2 [P0] Isolate root-cause branch for one-shot desync (command emission vs server apply vs snapshot/event fanout).
+- [x] DONE P11-HF5-T3 [P0] Implement server-authoritative non-loop trigger replication so initiator + peers + `/output/final` receive exactly one run each.
+- [x] DONE P11-HF5-T4 [P0] Remove/guard local optimistic one-shot render path so local success cannot mask missing distributed sync.
+- [x] DONE P11-HF5-T5 [P0] Execute loop-mode non-regression matrix (start, sustain, stop) to confirm behavior remains unchanged.
+- [x] DONE P11-HF5-T6 [P0] Execute explicit stop/clear non-regression matrix under mixed one-shot + loop sequences.
+- [x] DONE P11-HF5-T7 [P0] Capture strict FAIL->PASS evidence proving non-loop full-duration parity across initiator + peers + `/output/final`.
+- [x] DONE P11-HF5-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Next wave placeholder
-- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF4 live sessions and prepare 11-2 refinement shortlist.
+- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF5 live sessions and prepare 11-2 refinement shortlist.
