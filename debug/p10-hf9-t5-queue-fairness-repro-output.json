@@ -1,0 +1,10 @@
+{
+  "suite": "p10-hf9-t5-queue-fairness-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "firstNoisyIndex": 42,
+    "firstNoisyWithinFairBudget": false,
+    "status": "FAIL"
+  }
+}
