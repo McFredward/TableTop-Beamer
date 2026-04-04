@@ -327,6 +327,7 @@
 
     const nextPlayAreasByBoard = {};
     const nextSelectedPlayAreaIdByBoard = {};
+    const issues = [];
 
     for (const boardId of candidateBoardIds) {
       const statePlayAreas = state?.playAreasByBoard?.[boardId];
@@ -346,6 +347,25 @@
       const snapshotPlayAreas = Array.isArray(snapshotPlayAreasByBoard?.[boardId])
         ? snapshotPlayAreasByBoard[boardId]
         : null;
+      const canonicalSourcePlayAreas = Array.isArray(profile?.playAreas) ? profile.playAreas : [];
+      const canonicalValid = collectValidPlayAreasWithoutImplicitFallback(canonicalSourcePlayAreas);
+      const snapshotValid = collectValidPlayAreasWithoutImplicitFallback(snapshotPlayAreas);
+      if (canonicalSourcePlayAreas.length > 0 && canonicalValid.length === 0) {
+        issues.push({
+          code: "canonical-play-areas-invalid",
+          boardId,
+          source: "boardProfiles",
+          detail: "Canonical board profile playAreas are present but invalid",
+        });
+      }
+      if (Array.isArray(snapshotPlayAreas) && snapshotPlayAreas.length > 0 && snapshotValid.length === 0) {
+        issues.push({
+          code: "snapshot-play-areas-invalid",
+          boardId,
+          source: "snapshot",
+          detail: "Snapshot playAreas are present but invalid",
+        });
+      }
       const mergedSource = mergeSnapshotAndCanonicalPlayAreas(snapshotPlayAreas, contractedPlayAreas, fallbackPolygon);
       const normalizedPlayAreas = normalizePlayAreasCollection(mergedSource.playAreas, fallbackPolygon);
 
@@ -360,12 +380,29 @@
 
       nextPlayAreasByBoard[boardId] = normalizedPlayAreas;
       nextSelectedPlayAreaIdByBoard[boardId] = selectedPlayAreaId;
+
+      if (
+        normalizedPlayAreas.length === 1
+        && normalizedPlayAreas[0]?.id === "play-area-1"
+        && (canonicalSourcePlayAreas.length > 0 || (Array.isArray(snapshotPlayAreas) && snapshotPlayAreas.length > 0))
+      ) {
+        const hasAnyValid = canonicalValid.length > 0 || snapshotValid.length > 0;
+        if (!hasAnyValid) {
+          issues.push({
+            code: "canonical-fallback-applied",
+            boardId,
+            source: canonicalSourcePlayAreas.length > 0 ? "boardProfiles" : "snapshot",
+            detail: "Fallback play-area-1 was applied because canonical sources were invalid",
+          });
+        }
+      }
     }
 
     return {
       playAreasByBoard: nextPlayAreasByBoard,
       selectedPlayAreaIdByBoard: nextSelectedPlayAreaIdByBoard,
       appliedFromSnapshot: true,
+      issues,
     };
   }
 

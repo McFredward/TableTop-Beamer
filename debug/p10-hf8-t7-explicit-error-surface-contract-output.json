@@ -1,0 +1,27 @@
+{
+  "suite": "p10-hf8-t7-explicit-error-surface-contract",
+  "invalidScenario": {
+    "boardId": "nemesis-lockdown-a",
+    "selected": "play-area-1",
+    "issues": [
+      {
+        "code": "canonical-play-areas-invalid",
+        "boardId": "nemesis-lockdown-a",
+        "source": "boardProfiles",
+        "detail": "Canonical board profile playAreas are present but invalid"
+      },
+      {
+        "code": "canonical-fallback-applied",
+        "boardId": "nemesis-lockdown-a",
+        "source": "boardProfiles",
+        "detail": "Fallback play-area-1 was applied because canonical sources were invalid"
+      }
+    ]
+  },
+  "validScenario": {
+    "boardId": "nemesis-board-a",
+    "selected": "single-a",
+    "issues": []
+  },
+  "result": "PASS"
+}
