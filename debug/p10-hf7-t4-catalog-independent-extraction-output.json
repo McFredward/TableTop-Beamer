@@ -1,0 +1,11 @@
+{
+  "suite": "p10-hf7-t4-catalog-independent-extraction",
+  "loadedBoardIds": [
+    "nemesis-lockdown-a",
+    "nemesis-lockdown-b"
+  ],
+  "extractedKeys": [
+    "imported-lockdown-multi"
+  ],
+  "result": "PASS"
+}

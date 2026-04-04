@@ -59,6 +59,27 @@
       return raw;
     }
 
+    const looksLikeBoardProfileMap = Object.entries(raw).some(([key, value]) => {
+      if (!key || typeof value !== "object" || Array.isArray(value) || !value) {
+        return false;
+      }
+      return Boolean(
+        value.playAreas
+        || value.playAreaPolygon
+        || value.roomCatalog
+        || value.roomGeometry
+        || value.roomStateProfiles
+        || value.specialPolygons
+        || value.outsideFx
+        || value.roomFx
+        || value.insideFx,
+      );
+    });
+
+    if (looksLikeBoardProfileMap) {
+      return raw;
+    }
+
     return null;
   }
 
