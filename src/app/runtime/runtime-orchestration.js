@@ -5698,10 +5698,57 @@ function activateRoomAnimationByQuickTap(roomId) {
   syncRoomTargetSelect();
 }
 
+function collectQuickTapRoomAnimationIds(roomId, { onlyType = null } = {}) {
+  const normalizedRoomId = String(roomId || "").trim();
+  const normalizedType = typeof onlyType === "string" ? onlyType.trim() : "";
+  if (!normalizedRoomId) {
+    return [];
+  }
+  return state.runningAnimations
+    .filter((animation) => {
+      if (animation?.scope !== "room") {
+        return false;
+      }
+      if (String(animation.roomId || "").trim() !== normalizedRoomId) {
+        return false;
+      }
+      if (String(animation.boardId || "").trim() !== String(state.boardId || "").trim()) {
+        return false;
+      }
+      if (!normalizedType) {
+        return true;
+      }
+      return String(animation.type || "").trim() === normalizedType;
+    })
+    .map((animation) => animation.id)
+    .filter(Boolean);
+}
+
+function deactivateRoomAnimationByQuickTap(roomId) {
+  const selectedAnimationType = String(state.roomDraft.animationId || "").trim();
+  if (!selectedAnimationType) {
+    triggerFeedback.textContent = "Status: Quick deactivate needs a selected animation";
+    return;
+  }
+  const targetIds = collectQuickTapRoomAnimationIds(roomId, { onlyType: selectedAnimationType });
+  if (targetIds.length === 0) {
+    const roomLabel = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId)?.name ?? roomId;
+    triggerFeedback.textContent = `Status: No ${getRoomAnimationLabelById(selectedAnimationType, state.boardId)} running in ${roomLabel}`;
+    return;
+  }
+  for (const animationId of targetIds) {
+    stopAnimation(animationId);
+  }
+}
+
 function handleQuickModeRoomTap(roomId) {
   const mode = normalizeQuickMode(state.quickMode?.mode);
   if (mode === "activate") {
     activateRoomAnimationByQuickTap(roomId);
+    return;
+  }
+  if (mode === "deactivate") {
+    deactivateRoomAnimationByQuickTap(roomId);
     return;
   }
   triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[mode] ?? mode} not yet active for room taps`;
