@@ -21,7 +21,19 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF2-T7 [P0] Run strict imported-board non-regression + all-browser regression matrix with PASS evidence.
 - [x] DONE P10-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF2 PASS.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF2)
+## Plan 10-HF3 - Mandatory P0 recovery wave (execute-ready, hard-gated)
+- [x] DONE P10-HF3-T1 [P0] Create deterministic failing test for symptom A: `Nemesis Lockdown A` polygons are not applied in Firefox/mobile-class behavior path.
+- [ ] TODO P10-HF3-T2 [P0] Create deterministic failing test for symptom B: `apply global defaults` unexpectedly shows default polygons over valid board polygons.
+- [ ] TODO P10-HF3-T3 [P0] Create deterministic failing test for symptom C: `/output/final` renders black or fallback rectangle when valid polygons exist.
+- [ ] TODO P10-HF3-T4 [P0] Add executable lifecycle diagnostics with assertions for startup/load/apply-defaults/reload polygon ownership and apply order.
+- [ ] TODO P10-HF3-T5 [P0] Add board-switch + `/output/final` render contract assertions (canonical polygon clip source must remain board-specific).
+- [ ] TODO P10-HF3-T6 [P0] Add canonical polygon source selection assertions for control + final-output paths.
+- [ ] TODO P10-HF3-T7 [P0] Implement generic root-cause fix based on failing tests/diagnostics (no board-specific conditions).
+- [ ] TODO P10-HF3-T8 [P0] Re-run tests and capture explicit FAIL->PASS evidence for T1..T6.
+- [ ] TODO P10-HF3-T9 [P0] Run imported-board and browser matrix non-regression after fix (Chrome/Firefox desktop + mobile-class emulation where possible).
+- [ ] TODO P10-HF3-T10 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF3 PASS.
+
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF3)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.
