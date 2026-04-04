@@ -57,7 +57,19 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF5-T9 [P0] Execute strict regression matrix for imported boards + multi-play-area boards.
 - [x] DONE P10-HF5-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 10-1 - Operator Speed Core Wave (execute-ready, unblocked)
+## Plan 10-HF6 - Multi-area retention parity blocker wave (execute-ready, hard-gated)
+- [x] DONE P10-HF6-T1 [P0] Create deterministic RED repro for `Nemesis Lockdown Board A` proving area-drop in Firefox/mobile-class (`Play Area 1` only) versus Chrome (`Play Area 1` + `Bunker`).
+- [ ] TODO P10-HF6-T2 [P0] Add executable diagnostics to trace canonical source merge lineage (`saved profile`, `defaults`, `imported board payload`) and isolate first drop point.
+- [ ] TODO P10-HF6-T3 [P0] Create deterministic RED repro where fallback/default area replaces valid multi-area subset payloads.
+- [ ] TODO P10-HF6-T4 [P0] Add explicit cross-browser assertions for per-board `areaCount` parity (Chrome/Firefox/mobile-class Chrome).
+- [ ] TODO P10-HF6-T5 [P0] Add explicit cross-browser assertions for per-board canonical `areaIdSet` parity.
+- [ ] TODO P10-HF6-T6 [P0] Add explicit surface parity assertions that control-view and `/output/final` consume identical canonical play-area sets.
+- [ ] TODO P10-HF6-T7 [P0] Implement generic root-cause fix in merge/resolver path to retain valid multi-area entries deterministically (no board-specific branch).
+- [ ] TODO P10-HF6-T8 [P0] Enforce fallback guard so default area only fills truly missing/invalid data and never replaces valid subset multi-area data.
+- [ ] TODO P10-HF6-T9 [P0] Execute browser parity matrix + imported-board/multi-area strict non-regression matrix (startup/reload/default-apply/board-switch/final-output).
+- [ ] TODO P10-HF6-T10 [P0] Capture explicit FAIL->PASS evidence for T1..T9 and synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
+## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked until HF6 PASS)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
 - [ ] TODO P10-T2 [P0] Implement Settings sub-tab UI shell with sticky, low-friction switching and preserved form state.
 - [ ] TODO P10-T3 [P0] Introduce shared quick-mode state machine (`off`/`activate`/`deactivate`/`clear`) with explicit mode indicator.

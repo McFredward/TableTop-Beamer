@@ -1,0 +1,40 @@
+{
+  "suite": "p10-hf6-t1-lockdown-a-area-drop-repro",
+  "boardId": "nemesis-lockdown-a",
+  "expected": {
+    "areaCount": 2,
+    "areaIdSet": [
+      "bunker",
+      "play-area-1"
+    ],
+    "selectedPlayAreaId": "bunker"
+  },
+  "lanes": [
+    {
+      "browser": "chrome",
+      "areaCount": 2,
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "bunker"
+    },
+    {
+      "browser": "firefox",
+      "areaCount": 1,
+      "areaIdSet": [
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "play-area-1"
+    },
+    {
+      "browser": "mobile-chrome",
+      "areaCount": 1,
+      "areaIdSet": [
+        "play-area-1"
+      ],
+      "selectedPlayAreaId": "play-area-1"
+    }
+  ],
+  "result": "FAIL"
+}
