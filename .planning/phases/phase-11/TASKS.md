@@ -28,7 +28,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF4-T4 [P0] Execute loop-mode non-regression matrix (start, sustain, stop) to confirm no regression.
 - [x] DONE P11-HF4-T5 [P0] Execute explicit stop/clear non-regression matrix under mixed one-shot + loop sequences.
 - [x] DONE P11-HF4-T6 [P0] Capture FAIL->PASS evidence for `/output/final` one-shot duration parity versus control.
-- [ ] TODO P11-HF4-T7 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+- [x] DONE P11-HF4-T7 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
 ## Next wave placeholder
 - [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF4 live sessions and prepare 11-2 refinement shortlist.

@@ -1,10 +1,9 @@
 # Execute Phase 11
 
 ## Priority
-- Plan 11-1 remains completed PASS baseline.
-- Plan 11-HF1 remains historical PASS but is field-corrected by new critical feedback.
-- Execute Plan 11-HF2 immediately as mandatory P0 recovery wave.
-- Plan 11-2 stays queued until 11-HF2 PASS.
+- Plan 11-1, 11-HF1, 11-HF2, and 11-HF3 remain historical implementation baselines but are field-corrected by new critical feedback.
+- Execute Plan 11-HF4 immediately as mandatory P0 recovery wave.
+- Plan 11-2 stays queued until 11-HF4 PASS.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -13,19 +12,17 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 11-HF2 (binding)
-1. P0 first: P11-HF2-T1 + P11-HF2-T2 (global runtime failure RED + rollback-first recovery).
-2. P0 next: P11-HF2-T3 + P11-HF2-T4 (dashboard quick loop checkbox + per-trigger loop semantics).
-3. P0 next: P11-HF2-T5 (preserve stop/clear semantics unchanged).
-4. P0 closure: P11-HF2-T6 + P11-HF2-T7 (strict regression parity + FAIL->PASS evidence).
-5. P0 final closure: P11-HF2-T8 (full artifact sync).
+## Priority Execution - Plan 11-HF4 (binding)
+1. P0 first: P11-HF4-T1 + P11-HF4-T2 (non-loop suppression RED + root-cause isolation).
+2. P0 next: P11-HF4-T3 (one-shot final-output visibility + full-duration exactly-once fix).
+3. P0 closure: P11-HF4-T4 + P11-HF4-T5 + P11-HF4-T6 (loop/stop/clear non-regression + FAIL->PASS parity evidence).
+4. P0 final closure: P11-HF4-T7 (full artifact sync).
 
 ## Gate Rules
-- Do not close HF2 without deterministic PASS proving global animations start/run again.
-- Do not close HF2 without dashboard-level per-trigger loop toggle PASS.
-- Do not close HF2 if loop behavior requires definition editing (hard fail).
-- Do not close HF2 without explicit stop/clear non-regression PASS.
-- Do not close wave without control/final parity PASS for global start/stop lifecycle.
+- Do not close HF4 without deterministic PASS proving non-loop globals render on `/output/final` and complete full intended duration exactly once.
+- Do not close HF4 without explicit loop-mode non-regression PASS.
+- Do not close HF4 without explicit stop/clear non-regression PASS.
+- Do not close wave without control/final parity PASS for one-shot duration completion.
 - No closure without full planning tracker synchronization (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -48,3 +45,9 @@
   - Recovery A: global animations are currently broken and must be restored immediately via rollback/fix.
   - UX correction B: `Loop until stopped` is a dashboard global trigger checkbox (per trigger), not a definition-edit requirement.
   - Safety C: existing global `stop`/`clear` behavior must remain unchanged and proven by regression evidence.
+- Critical correction after HF2 activates Plan 11-HF3 before 11-2:
+  - Recovery A: global one-shot animations cancel after 1s on `/output/final`.
+  - Feature B: `Play sound` dashboard checkbox for global trigger audio toggle.
+- Critical correction after HF3 activates Plan 11-HF4 before 11-2:
+  - Recovery A: global loop animations still work, but non-loop globals are suppressed on `/output/final`.
+  - Recovery B: non-loop globals must render on `/output/final` for full intended duration exactly once.

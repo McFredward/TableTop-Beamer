@@ -1,51 +1,46 @@
 # Phase 11 Acceptance
 
 ## Verification Strategy
-- Recovery first: broken global runtime behavior is restored immediately (start path deterministic again).
-- Operator-speed first: loop choice is available where trigger happens (Dashboard global controls).
-- UX contract first: per-trigger loop mode does not require editing animation definitions.
+- Recovery first: non-loop global suppression on `/output/final` is root-caused and fixed.
+- Runtime integrity first: one-shot global trigger is visible on `/output/final` and runs full intended duration exactly once.
+- Non-regression first: loop mode behavior remains unchanged.
 - Safety first: existing `stop`/`clear` behavior remains unchanged and deterministic.
-- Evidence first: FAIL->PASS proof demonstrates global start/stop correctness on control + `/output/final` + peers.
+- Evidence first: FAIL->PASS proof demonstrates one-shot duration parity on control + `/output/final`.
 
-## Hard Gates (Plan 11-HF2, mandatory)
-- G11-HF2-1 Global-Start-Recovery-Gate: global animations start/run deterministically again after rollback/fix.
-- G11-HF2-2 Global-Start-Visibility-Gate: recovered global runs are visible on control + `/output/final` + peers without extra operator retries.
-- G11-HF2-3 Dashboard-Loop-Toggle-Gate: `Loop until stopped` exists directly in Dashboard global controls.
-- G11-HF2-4 PerTrigger-Loop-Semantics-Gate: loop choice applies per trigger invocation (`one-shot` vs `until explicit stop`).
-- G11-HF2-5 No-Definition-Edit-Required-Gate: operator can choose loop mode without entering animation definition editor.
-- G11-HF2-6 Global-Stop-NonRegression-Gate: explicit stop behavior remains deterministic and unchanged.
-- G11-HF2-7 Global-Clear-NonRegression-Gate: clear-all behavior remains deterministic and unchanged.
-- G11-HF2-8 Control-Final-Parity-Gate: global start/stop parity remains PASS between control and `/output/final`.
-- G11-HF2-9 Artifact-Sync-Gate: phase and global planning artifacts are fully synchronized.
+## Hard Gates (Plan 11-HF4, mandatory)
+- G11-HF4-1 NonLoop-Final-Suppression-RootCause-Gate: root cause for one-shot suppression on `/output/final` is isolated and documented.
+- G11-HF4-2 NonLoop-Final-Visibility-Recovery-Gate: non-loop globals render on `/output/final` after trigger.
+- G11-HF4-3 NonLoop-FullDuration-ExactlyOnce-Gate: one-shot globals complete full intended duration exactly once on `/output/final`.
+- G11-HF4-4 Loop-Mode-NonRegression-Gate: loop path remains behaviorally unchanged.
+- G11-HF4-5 Global-Stop-NonRegression-Gate: explicit stop behavior remains deterministic and unchanged.
+- G11-HF4-6 Global-Clear-NonRegression-Gate: clear-all behavior remains deterministic and unchanged.
+- G11-HF4-7 Control-Final-OneShot-Parity-Gate: one-shot duration parity remains PASS between control and `/output/final`.
+- G11-HF4-8 Artifact-Sync-Gate: phase and global planning artifacts are fully synchronized.
 
 ## Strict Regression Matrix
-- P11-HF2-Global-Start-Regression-RED-Test
-- P11-HF2-Global-Start-Recovery-PASS-Test
-- P11-HF2-Dashboard-Loop-Toggle-PerTrigger-Test
-- P11-HF2-PerTrigger-Loop-NoDefinitionEdit-Test
-- P11-HF2-Global-Loop-Stop-Behavior-Test
-- P11-HF2-Global-OneShot-Completion-Behavior-Test
-- P11-HF2-Global-Stop-NonRegression-Test
-- P11-HF2-Global-Clear-NonRegression-Test
-- P11-HF2-Control-Final-StartStop-Parity-Test
-- P11-HF2-CrossClient-Trigger-Parity-Test
+- P11-HF4-NonLoop-Final-Suppression-RED-Test
+- P11-HF4-NonLoop-Final-Visibility-Recovery-PASS-Test
+- P11-HF4-NonLoop-Final-FullDuration-ExactlyOnce-Test
+- P11-HF4-Loop-Mode-NonRegression-Test
+- P11-HF4-Global-Stop-NonRegression-Test
+- P11-HF4-Global-Clear-NonRegression-Test
+- P11-HF4-Control-Final-OneShot-Duration-Parity-FAIL-PASS-Test
 
 ## Incremental Mandatory Gates
-- After P11-HF2-T1..T2: global runtime regression is reproduced then closed via recovery patch.
-- After P11-HF2-T3..T4: dashboard per-trigger loop choice is closed without definition-edit dependency.
-- After P11-HF2-T5: stop/clear safety semantics are confirmed non-regressed.
-- After P11-HF2-T6..T7: full FAIL->PASS matrix and parity evidence are complete.
-- After P11-HF2-T8: artifact sync closure is complete.
+- After P11-HF4-T1..T2: one-shot suppression regression is reproduced and root-cause isolated.
+- After P11-HF4-T3: one-shot final-output visibility + full-duration exactly-once recovery is PASS.
+- After P11-HF4-T4..T5: loop and stop/clear safety semantics are confirmed non-regressed.
+- After P11-HF4-T6: FAIL->PASS parity evidence is complete.
+- After P11-HF4-T7: artifact sync closure is complete.
 
 ## Definition of Done
-- All hard gates G11-HF2-1..G11-HF2-9 are PASS.
-- Global animations start/stop correctly again after recovery.
-- Loop mode is selected per trigger from dashboard global controls.
-- Operator does not need to edit animation definitions to choose loop behavior.
+- All hard gates G11-HF4-1..G11-HF4-8 are PASS.
+- Non-loop global animations render on `/output/final` and complete full intended duration exactly once.
+- Loop mode remains non-regressed.
 - Stop/clear semantics remain deterministic and unchanged.
-- No regressions in control/final parity for global lifecycle behavior.
+- No regressions in control/final parity for one-shot full-duration playback.
 - Phase and global trackers are fully synchronized.
 
-## Plan 11-HF2 Evidence Reference
-- Verification report: `.planning/phases/phase-11/11-HF2-VERIFICATION.md`
-- Static regression artifact: `debug/p11-hf2-acceptance-regression-output.json`
+## Plan 11-HF4 Evidence Reference
+- Verification report: `.planning/phases/phase-11/11-HF4-VERIFICATION.md`
+- Static regression artifact: `debug/p11-hf4-acceptance-regression-output.json`

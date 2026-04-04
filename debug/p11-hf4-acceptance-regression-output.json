@@ -1,0 +1,36 @@
+{
+  "suite": "P11-HF4-acceptance-regression",
+  "observed": "PASS",
+  "rows": [
+    {
+      "fileName": "p11-hf4-t1-non-loop-suppression-red-output.json",
+      "suite": "P11-HF4-T1-non-loop-final-suppression-red",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "fileName": "p11-hf4-t3-oneshot-final-full-duration-pass-output.json",
+      "suite": "P11-HF4-T3-one-shot-full-duration-pass",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "fileName": "p11-hf4-t4-loop-non-regression-output.json",
+      "suite": "P11-HF4-T4-loop-non-regression",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "fileName": "p11-hf4-t5-stop-clear-non-regression-output.json",
+      "suite": "P11-HF4-T5-stop-clear-non-regression",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "fileName": "p11-hf4-t6-control-final-parity-fail-pass-output.json",
+      "suite": "P11-HF4-T6-control-final-one-shot-parity-fail-pass",
+      "observed": "PASS",
+      "pass": true
+    }
+  ]
+}

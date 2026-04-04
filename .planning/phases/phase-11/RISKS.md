@@ -1,46 +1,41 @@
 # Phase 11 Risks
 
-## R0a Global runtime recovery misses root-cause path
-- Risk: hotfix restores only partial global start paths, leaving intermittent global no-start behavior.
+## R0a Non-loop final-output suppression fix misses root-cause
+- Risk: fix only patches a symptom and non-loop globals still fail to render on `/output/final` in specific lifecycle sequences.
 - Impact: Critical.
-- Mitigation: deterministic RED repro before fix, rollback-first recovery, and cross-scope start smoke gate.
+- Mitigation: deterministic RED repro before fix, with explicit lifecycle-branch tracing for one-shot vs loop runtime path.
 
-## R0b Rollback introduces hidden lifecycle drift
-- Risk: rollback/fix may reintroduce stale lifecycle assumptions and cause silent run/stop inconsistencies.
+## R0b One-shot recovery regresses loop mode
+- Risk: changes for non-loop visibility accidentally alter loop start/sustain/stop semantics.
 - Impact: Critical.
-- Mitigation: start/stop/clear non-regression matrix plus control-vs-final parity checks.
+- Mitigation: dedicated loop non-regression gate with start/sustain/stop matrix.
 
-## R0c Dashboard loop toggle wired to definition state accidentally
-- Risk: quick loop checkbox mutates persisted animation definitions, violating per-trigger UX contract.
+## R0c Duration fix introduces repeat/retrigger drift
+- Risk: one-shot globals become visible again but replay more than once or terminate before full intended duration.
 - Impact: Critical.
-- Mitigation: explicit payload contract separating trigger-time loop mode from definition config; persistence non-mutation test.
+- Mitigation: exactly-once completion assertions with run-id/lifecycle guards in acceptance tests.
 
-## R0d Per-trigger loop mode not propagated to all clients
-- Risk: control UI shows chosen loop mode but `/output/final` or peers apply mismatched one-shot/loop behavior.
+## R0d Control/final one-shot parity remains broken
+- Risk: control view shows one-shot correctly but `/output/final` still suppresses or short-runs.
 - Impact: Critical.
-- Mitigation: versioned command payload assertions + cross-client parity gate.
+- Mitigation: strict control-vs-final duration parity matrix with FAIL->PASS evidence closure.
 
 ## R0e Stop/Clear semantic regression
-- Risk: new loop choice path alters existing stop or clear behavior (late stop, partial clear, or stuck run).
+- Risk: one-shot lifecycle fix alters existing stop or clear behavior (late stop, partial clear, or stuck run).
 - Impact: Critical.
-- Mitigation: explicit stop/clear regression suite across one-shot and looping global runs.
+- Mitigation: explicit stop/clear regression suite across all global runs.
 
-## R0f Operator ambiguity in dashboard controls
-- Risk: loop checkbox wording/state is unclear and operators accidentally trigger wrong lifecycle mode.
-- Impact: Critical.
-- Mitigation: clear label (`Loop until stopped`) and deterministic default (`off` => one-shot) with visible immediate state.
-
-## R0g HF2 changes regress sync determinism
-- Risk: recovery and trigger-mode wiring introduce ordering/idempotency drift.
+## R0f One-shot fix regresses sync determinism
+- Risk: lifecycle corrections introduce ordering/idempotency drift in trigger/stop application.
 - Impact: Critical.
 - Mitigation: mandatory sync determinism non-regression matrix.
 
-## R0h HF2 changes regress render correctness
-- Risk: global lifecycle recovery changes produce control/final mismatch.
+## R0g HF4 changes regress render correctness
+- Risk: global lifecycle recovery changes produce new control/final mismatch.
 - Impact: Critical.
 - Mitigation: control-vs-final parity checks under lifecycle and board-switch scenarios.
 
 ## R1 Artifact drift across planning trackers
 - Risk: phase documents and global trackers diverge during hotfix execution.
 - Impact: High.
-- Mitigation: explicit artifact sync task (P11-HF2-T8) and closure gate.
+- Mitigation: explicit artifact sync task (P11-HF4-T7) and closure gate.

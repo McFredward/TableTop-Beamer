@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 11 (`phase-11`)
-- Status: active execution (Plan 11-1 + 11-HF1 remain historical PASS baselines; critical global-runtime regression requires immediate HF2 recovery wave)
-- Next Plan: 11-HF2 (mandatory global animation runtime recovery + dashboard per-trigger loop toggle wave)
+- Status: active execution (Plan 11-1, 11-HF1, 11-HF2, 11-HF3 remain historical implementation baselines; new P0 regression requires immediate HF4 priority wave)
+- Next Plan: 11-HF4 (mandatory non-loop global suppression recovery on `/output/final` with one-shot full-duration exactly-once parity)
 - Command Target: `/gsd:execute-phase 11`
 
 Execution inputs:
