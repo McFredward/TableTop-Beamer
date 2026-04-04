@@ -6,18 +6,21 @@ Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweiter
 ## Phase 11 - UX Operation Acceleration + Mobile Parity (In Progress)
 Ziel: Schneller Operator-Betrieb auf Desktop + Mobile durch tap-gesteuerte Raumanimationen (Quick-Modes), strukturierte Settings-Gliederung, gesicherte Einhandbedienung sowie deterministische first-apply Sync-Pfade und per-trigger Loop/Audio-Steuerung.
 
-Status: Plan 11-1 (12/12 Tasks), Plan 11-HF1 (12/12 Tasks) und Plan 11-HF2 (8/8 Tasks) sind abgeschlossen. Naechster priorisierter Schritt ist Plan 11-HF3 (Global 1s-Cancellation Regression Fix + Dashboard Audio Toggle).
+Status: Plan 11-1 (12/12 Tasks), Plan 11-HF1 (12/12 Tasks), Plan 11-HF2 (8/8 Tasks), Plan 11-HF3 (7/7 Tasks) und Plan 11-HF4 (7/7 Tasks) sind implementiert. Plan 11-2 ist nach HF4 closure freigegeben.
 
 Milestones:
 1. M1 UX Operation Flow: tabellarische Settings + mobile one-handed rails + tap-gesteuerte Quick-Modes.
 2. M2 HF1 Recovery Package: outside sync first-click, loop-checkbox in globals, expired-event replay guard, room hold unification, board storage consolidation.
 3. M3 HF2 Recovery Package: global animations runtime fix, per-trigger loop choice in dashboard.
 4. M4 HF3 Recovery Package: global one-shot full-duration fix (~4s), per-trigger audio choice in dashboard.
+5. M5 HF4 Recovery Package: non-loop global final-output suppression root-cause fix with one-shot full-duration exactly-once parity.
 
 Exit Criteria:
-- Global animations (one-shot) play fully for ~4s on `/output/final`.
-- Audio can be toggled per global trigger in the Dashboard.
+- Non-loop global triggers render on `/output/final` and complete full intended duration exactly once.
+- Loop-mode behavior plus global stop/clear semantics remain non-regressed.
+- `/output/final` one-shot duration parity has explicit FAIL->PASS evidence.
 - All artifact and regression matrices are PASS.
 
-Execution Update (11-HF3):
-- Pending implementation.
+Execution Update (11-HF4):
+- Completed: non-loop global suppression on `/output/final` closed via server-authoritative one-shot epoch rebasing.
+- Verification PASS: `.planning/phases/phase-11/11-HF4-VERIFICATION.md` + `debug/p11-hf4-acceptance-regression-output.json`.

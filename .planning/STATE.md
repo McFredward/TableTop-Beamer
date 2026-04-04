@@ -9,11 +9,11 @@
 - Planning Mode: active
 - Current Phase: 11
 - Current Phase Key: phase-11
-- Last Prepared: 2026-04-04
+- Last Prepared: 2026-04-05
 - Execution Readiness: READY
-- Last Executed Plan: 11-HF1 (PASS)
-- Planned Next Execution: 11-HF2
-- Last Execution Summary: `.planning/phases/phase-11/11-HF1-SUMMARY.md`
+- Last Executed Plan: 11-HF4 (implemented with PASS closure)
+- Planned Next Execution: 11-2
+- Last Execution Summary: `.planning/phases/phase-11/11-HF4-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -44,6 +44,13 @@
 - Plan 11-HF2 ist als verpflichtende execute-ready Recovery-Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure mit expliziter Global-Start/Stop-Evidenz.
 - HF2-Sicherheitsregel: bestehende globale `stop`/`clear` Semantik bleibt unveraendert deterministisch und wird als Non-Regression-Hard-Gate geprueft.
 - HF2-Klarstellung: die in HF1 eingefuehrte definitionsgebundene Loop-Steuerung gilt als field-invalidated Bedienpfad; kanonischer Operator-Pfad ist per-trigger Dashboard-Loop-Auswahl.
+- Kritisches P0-Feedback nach HF3 ist bindend: globale Loop-Animationen laufen weiterhin, aber non-loop globale Trigger erscheinen nicht mehr auf `/output/final`.
+- Plan 11-HF4 ist als verpflichtende execute-ready Recovery-Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure.
+- HF4-Renderregel: non-loop globale Trigger muessen auf `/output/final` deterministisch sichtbar sein und exakt einmal fuer die volle Soll-Dauer laufen.
+- HF4-Non-Regression-Regel: loop mode bleibt unveraendert PASS; bestehende globale `stop`/`clear` Semantik bleibt unveraendert deterministisch.
+- HF4-Evidenzregel: Wave-Close erfordert explizites FAIL->PASS fuer `/output/final` one-shot duration parity gegen Control.
+- Plan-11-HF4 Umsetzung: `trigger-global` starts werden server-authoritativ mit `startedAtEpochMs` rebased; non-loop globals sind auf `/output/final` wieder sichtbar und laufen volle 4s exakt einmal.
+- Plan-11-HF4 Umsetzung: Loop-Mode sowie globale `stop`/`clear` Semantik bleiben non-regressed PASS; control-vs-final one-shot FAIL->PASS parity ist geschlossen (`11-HF4-VERIFICATION.md`, `P11-HF4-T6-FAIL-PASS-PROOF.md`).
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.

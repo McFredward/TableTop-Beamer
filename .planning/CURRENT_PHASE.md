@@ -1,8 +1,8 @@
 # CURRENT PHASE
 
 - Active: Phase 11 (`phase-11`)
-- Status: active execution (Plan 11-1, 11-HF1, 11-HF2, 11-HF3 remain historical implementation baselines; new P0 regression requires immediate HF4 priority wave)
-- Next Plan: 11-HF4 (mandatory non-loop global suppression recovery on `/output/final` with one-shot full-duration exactly-once parity)
+- Status: active execution (Plan 11-HF4 completed with PASS verification and FAIL->PASS parity evidence)
+- Next Plan: 11-2 (queued after HF4 closure)
 - Command Target: `/gsd:execute-phase 11`
 
 Execution inputs:
