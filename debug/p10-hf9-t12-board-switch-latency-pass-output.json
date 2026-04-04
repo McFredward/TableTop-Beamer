@@ -1,0 +1,8 @@
+{
+  "suite": "p10-hf9-t12-board-switch-latency-pass",
+  "baselineAvg": 316,
+  "hardenedAvg": 161.4,
+  "reductionMs": 154.6,
+  "staleFrameResidueDetected": false,
+  "status": "PASS"
+}
