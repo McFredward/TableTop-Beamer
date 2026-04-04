@@ -1,0 +1,29 @@
+{
+  "suite": "P11-HF6-T1-polling-premature-cancel-red",
+  "phase": "RED",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "checks": [
+    {
+      "id": "snapshot-overwrite-applies-running-list",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "seen-once-local-retention-guard-missing",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "polling-can-cancel-started-one-shot-without-explicit-stop-clear",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "triggerRevisionSeenOnPeer": true,
+        "configuredDurationMs": 4000,
+        "pollingSnapshotHasNoRunningEntry": true,
+        "explicitStopOrClearRevisionObserved": false
+      }
+    }
+  ]
+}
