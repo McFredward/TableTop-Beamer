@@ -1,0 +1,30 @@
+{
+  "suite": "p10-hf6-t5-area-id-set-parity",
+  "boardId": "nemesis-lockdown-a",
+  "expectedAreaIdSet": [
+    "bunker",
+    "play-area-1"
+  ],
+  "lanes": [
+    {
+      "browser": "chrome",
+      "areaIdSet": [
+        "bunker",
+        "play-area-1"
+      ]
+    },
+    {
+      "browser": "firefox",
+      "areaIdSet": [
+        "play-area-1"
+      ]
+    },
+    {
+      "browser": "mobile-chrome",
+      "areaIdSet": [
+        "play-area-1"
+      ]
+    }
+  ],
+  "result": "FAIL"
+}
