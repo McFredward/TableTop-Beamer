@@ -2015,17 +2015,54 @@ function clearRoomTombstone(boardId, roomId) {
 }
 
 function normalizePolygonPoint(point) {
+  const objectLikePoint = point && typeof point === "object" && !Array.isArray(point)
+    ? point
+    : null;
+  const rawX = Array.isArray(point)
+    ? point[0]
+    : objectLikePoint?.x ?? objectLikePoint?.[0];
+  const rawY = Array.isArray(point)
+    ? point[1]
+    : objectLikePoint?.y ?? objectLikePoint?.[1];
   return [
-    clampRoomAbsoluteCoordinate(Number(point?.[0]) || 0.5),
-    clampRoomAbsoluteCoordinate(Number(point?.[1]) || 0.5),
+    clampRoomAbsoluteCoordinate(Number(rawX) || 0.5),
+    clampRoomAbsoluteCoordinate(Number(rawY) || 0.5),
   ];
+}
+
+function getNormalizedPolygonArea(points) {
+  if (!Array.isArray(points) || points.length < 3) {
+    return 0;
+  }
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    if (!Array.isArray(current) || !Array.isArray(next)) {
+      return 0;
+    }
+    area += Number(current[0]) * Number(next[1]) - Number(next[0]) * Number(current[1]);
+  }
+  return Math.abs(area / 2);
+}
+
+function isRenderableNormalizedPolygon(points, { minArea = 0.00003 } = {}) {
+  if (!Array.isArray(points) || points.length < 3) {
+    return false;
+  }
+  return getNormalizedPolygonArea(points) >= minArea;
 }
 
 function normalizeSpecialPolygon(points, fallbackPoints = []) {
   const source = Array.isArray(points) && points.length >= 3 ? points : fallbackPoints;
   const normalized = source.map((entry) => normalizePolygonPoint(entry));
-  if (normalized.length >= 3) {
+  if (isRenderableNormalizedPolygon(normalized)) {
     return normalized;
+  }
+  const normalizedFallback = (Array.isArray(fallbackPoints) ? fallbackPoints : [])
+    .map((entry) => normalizePolygonPoint(entry));
+  if (isRenderableNormalizedPolygon(normalizedFallback)) {
+    return normalizedFallback;
   }
   return [
     [0.45, 0.45],
@@ -2114,6 +2151,68 @@ function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
       roomFx: normalizeRoomFxProfile(primary.roomFx ?? fallback.roomFx),
       insideFx: normalizeInsideFxProfile(primary.insideFx ?? fallback.insideFx),
       outsideFx: normalizeOutsideFxProfile(primary.outsideFx ?? fallback.outsideFx),
+    };
+  }
+
+  return merged;
+}
+
+function resolveProfilePolygonContract(profile = {}, fallbackProfile = {}) {
+  const profilePlayAreas = Array.isArray(profile.playAreas) ? profile.playAreas : null;
+  const fallbackPlayAreas = Array.isArray(fallbackProfile.playAreas) ? fallbackProfile.playAreas : null;
+  const candidatePlayAreas = Array.isArray(profilePlayAreas) && profilePlayAreas.length > 0
+    ? profilePlayAreas
+    : Array.isArray(fallbackPlayAreas) && fallbackPlayAreas.length > 0
+      ? fallbackPlayAreas
+      : null;
+  const candidateFallbackPolygon =
+    profile.playAreaPolygon
+    ?? profile.shipPolygon
+    ?? profile.shipMask
+    ?? profile.insidePolygon
+    ?? profile.outsidePolygon
+    ?? profile.inside?.polygon
+    ?? profile.inside?.playAreaPolygon
+    ?? profile.outside?.polygon
+    ?? profile.outside?.playAreaPolygon
+    ?? fallbackProfile.playAreaPolygon
+    ?? fallbackProfile.shipPolygon
+    ?? fallbackProfile.shipMask
+    ?? fallbackProfile.insidePolygon
+    ?? fallbackProfile.outsidePolygon
+    ?? fallbackProfile.inside?.polygon
+    ?? fallbackProfile.inside?.playAreaPolygon
+    ?? fallbackProfile.outside?.polygon
+    ?? fallbackProfile.outside?.playAreaPolygon
+    ?? SHIP_POLYGON_DEFAULT;
+  const playAreas = normalizePlayAreasCollection(candidatePlayAreas, candidateFallbackPolygon);
+  const preferredSelectedId = String(profile.selectedPlayAreaId || fallbackProfile.selectedPlayAreaId || "").trim();
+  const selectedPlayAreaId = playAreas.some((entry) => entry.id === preferredSelectedId)
+    ? preferredSelectedId
+    : playAreas[0]?.id ?? "play-area-1";
+  const selectedPlayArea = playAreas.find((entry) => entry.id === selectedPlayAreaId) ?? playAreas[0];
+  return {
+    playAreas,
+    selectedPlayAreaId,
+    playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? candidateFallbackPolygon ?? SHIP_POLYGON_DEFAULT),
+  };
+}
+
+function applyPolygonPrecedence(baseProfiles = {}, polygonOwnerProfiles = {}) {
+  const merged = {};
+  const boardIds = new Set([
+    ...Object.keys(baseProfiles ?? {}),
+    ...Object.keys(polygonOwnerProfiles ?? {}),
+    ...BOARDS.map((board) => board.id),
+  ]);
+
+  for (const boardId of boardIds) {
+    const baseProfile = baseProfiles?.[boardId] ?? {};
+    const polygonOwnerProfile = polygonOwnerProfiles?.[boardId] ?? {};
+    const polygonContract = resolveProfilePolygonContract(polygonOwnerProfile, baseProfile);
+    merged[boardId] = {
+      ...baseProfile,
+      ...polygonContract,
     };
   }
 
@@ -3400,13 +3499,15 @@ async function fetchGlobalDefaultsPayload() {
 function applyGlobalDefaultsPayloadToState(payload) {
   const boardCandidate = extractBoardProfilesCandidate(payload);
   if (boardCandidate) {
+    const localProfiles = buildBoardProfilesFromState();
     const migratedProfiles = buildMigratedBoardProfiles(
       boardCandidate,
       state.hitareaCalibrationByBoard,
       state.roomGeometryByBoard,
       state.specialPolygonsByBoard,
     );
-    applyBoardProfilesToState(migratedProfiles);
+    const mergedWithPolygonPrecedence = applyPolygonPrecedence(migratedProfiles, localProfiles);
+    applyBoardProfilesToState(mergedWithPolygonPrecedence);
   }
 
   if (payload?.audio && typeof payload.audio === "object") {
@@ -7704,9 +7805,7 @@ function getShipPolygonPixels(width = canvas.width, height = canvas.height, boar
 }
 
 function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
-  const sourceAreas = Array.isArray(state.playAreasByBoard?.[boardId])
-    ? state.playAreasByBoard[boardId]
-    : getPlayAreas(boardId);
+  const sourceAreas = getPlayAreas(boardId);
   return sourceAreas
     .map((area) => (Array.isArray(area?.polygon) ? area.polygon.map((point) => normalizePolygonPoint(point)) : []))
     .filter((polygon) => polygon.length >= 3)

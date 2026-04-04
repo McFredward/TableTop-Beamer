@@ -122,6 +122,12 @@
         profile.playArea ??
         profile.shipPolygon ??
         profile.shipMask ??
+        profile.insidePolygon ??
+        profile.outsidePolygon ??
+        profile.inside?.polygon ??
+        profile.inside?.playAreaPolygon ??
+        profile.outside?.polygon ??
+        profile.outside?.playAreaPolygon ??
         SHIP_POLYGON_DEFAULT;
       const playAreas = Array.isArray(profile.playAreas) && profile.playAreas.length > 0
         ? profile.playAreas
