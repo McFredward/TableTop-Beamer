@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF6 (PASS)
+- Last Executed Plan: 10-HF7 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF6-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF7-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,14 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Neues P0-Root-Cause-Feedback fuer Phase 10 ist bindend: fehlende Play-Area-Eintraege nach clean local storage entstehen, weil board-profile candidate extraction/migration von aktuell geladenen board-catalog IDs abhaengt.
+- Wenn ein Board-Key (z. B. imported/multi-area board) zu diesem Zeitpunkt nicht in der geladenen Liste ist, kann Migration den Profil-Key verwerfen und auf default play area zurueckfallen.
+- Plan 10-HF6 bleibt historische PASS-Evidenz, ist fuer clean-start Pfade jedoch field-invalidated; Plan 10-HF7 blockiert Plan 10-1 erneut bis FAIL->PASS closure.
+- HF7 Scope ist bindend: (1) extraction unabhaengig von loaded board list, (2) migration behaelt unknown board keys, (3) deterministische multi-play-area retention ueber startup/default-apply/reload, (4) artefakt-sync ueber gesamte HF-wave.
+- Plan-10-HF7 Umsetzung: RED repros fuer clean-start profile-loss, extraction coupling und unknown-key migration drop sind deterministisch dokumentiert (`P10-HF7-T1..T3`).
+- Plan-10-HF7 Umsetzung: extraction ist loaded-list-unabhaengig und migration behaelt unknown/imported board keys inkl. multi-area selection (`P10-HF7-T4`, `P10-HF7-T5`).
+- Plan-10-HF7 Umsetzung: startup/default-apply/reload retention sowie Chrome/Firefox/mobile clean-start parity sind PASS (`P10-HF7-T6`, `P10-HF7-T7`).
+- Plan-10-HF7 Umsetzung: FAIL->PASS closure ist dokumentiert (`P10-HF7-T8-FAIL-PASS-PROOF.md`); Plan 10-1 ist wieder freigegeben.
 - Kritisches Follow-up fuer Phase 10 ist bindend: fuer `Nemesis Lockdown Board A` zeigt Chrome zwei Play-Areas (`Play Area 1` + `Bunker`), waehrend Firefox und mobile-class Chrome nur `Play Area 1` laden (`Bunker` fehlt).
 - Plan 10-HF6 ist als verpflichtende P0-Hotfix-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS Closure.
 - Merge-Pfad-Regel Plan 10-HF6: canonical Source-Merge (saved profile vs defaults vs imported board payload) wird end-to-end tracebar gemacht und muss Multi-Area-Daten deterministisch vollstaendig behalten.
