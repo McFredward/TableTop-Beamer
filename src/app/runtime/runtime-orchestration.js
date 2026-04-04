@@ -2329,7 +2329,8 @@ function createDefaultSelectedPlayAreaIdByBoard() {
 
 function getPlayAreas(boardId = state.boardId) {
   const source = state.playAreasByBoard?.[boardId];
-  const normalized = normalizePlayAreasCollection(source, SHIP_POLYGON_DEFAULT);
+  const normalizeCollection = polygonContract?.normalizePlayAreasCollection ?? normalizePlayAreasCollection;
+  const normalized = normalizeCollection(source, SHIP_POLYGON_DEFAULT);
   state.playAreasByBoard[boardId] = normalized;
   return normalized;
 }
@@ -7827,7 +7828,7 @@ function getShipPolygonPixels(width = canvas.width, height = canvas.height, boar
 }
 
 function getPlayAreaPolygonsPixels(width = canvas.width, height = canvas.height, boardId = state.boardId) {
-  const sourceAreas = Array.isArray(state.playAreasByBoard?.[boardId]) ? state.playAreasByBoard[boardId] : [];
+  const sourceAreas = getPlayAreas(boardId);
   const normalizedPolygons = polygonContract?.extractRenderablePlayAreaPolygons
     ? polygonContract.extractRenderablePlayAreaPolygons(sourceAreas, {
       fallbackPolygon: SHIP_POLYGON_DEFAULT,
