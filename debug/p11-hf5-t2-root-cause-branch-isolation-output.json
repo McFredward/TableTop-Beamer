@@ -1,0 +1,15 @@
+{
+  "suite": "P11-HF5-T2-root-cause-branch-isolation",
+  "observed": "PASS",
+  "branchChecks": {
+    "commandEmission": true,
+    "serverApply": true,
+    "snapshotFanout": true
+  },
+  "isolatedRootCause": {
+    "branch": "command emission",
+    "reason": "non-control global start applies optimistic local one-shot before authoritative snapshot fanout confirmation",
+    "maskingRisk": "initiator can look PASS while peers/final miss event"
+  },
+  "error": null
+}
