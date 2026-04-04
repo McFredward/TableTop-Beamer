@@ -27,7 +27,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF3-T3 [P0] Create deterministic failing test for symptom C: `/output/final` renders black or fallback rectangle when valid polygons exist.
 - [x] DONE P10-HF3-T4 [P0] Add executable lifecycle diagnostics with assertions for startup/load/apply-defaults/reload polygon ownership and apply order.
 - [x] DONE P10-HF3-T5 [P0] Add board-switch + `/output/final` render contract assertions (canonical polygon clip source must remain board-specific).
-- [ ] TODO P10-HF3-T6 [P0] Add canonical polygon source selection assertions for control + final-output paths.
+- [x] DONE P10-HF3-T6 [P0] Add canonical polygon source selection assertions for control + final-output paths.
 - [ ] TODO P10-HF3-T7 [P0] Implement generic root-cause fix based on failing tests/diagnostics (no board-specific conditions).
 - [ ] TODO P10-HF3-T8 [P0] Re-run tests and capture explicit FAIL->PASS evidence for T1..T6.
 - [ ] TODO P10-HF3-T9 [P0] Run imported-board and browser matrix non-regression after fix (Chrome/Firefox desktop + mobile-class emulation where possible).
