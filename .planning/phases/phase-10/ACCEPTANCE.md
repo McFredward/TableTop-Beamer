@@ -4,7 +4,8 @@
 - This file defines execute gates only; no implementation is executed yet.
 - Field feedback invalidated prior HF2 closure; HF3 has now closed with PASS evidence.
 - HF4 is closed PASS and remains baseline-valid.
-- New critical multi-play-area blocker opens HF5 as mandatory blocker before Plan 10-1.
+- HF5 historical PASS is field-invalidated by new concrete browser repro.
+- New critical multi-area retention blocker opens HF6 as mandatory blocker before Plan 10-1.
 
 ## HF3 Closure Status
 - H3-1..H3-10: PASS (see `P10-HF3-T1-REPRO-TRACE.md`, `P10-HF3-T2-DEFAULTS-OVERRIDE-REPRO.md`, `P10-HF3-T3-FINAL-BLACK-REPRO.md`, `P10-HF3-T4-LIFECYCLE-DIAGNOSTICS.md`, `P10-HF3-T5-BOARD-SWITCH-FINAL-CONTRACT.md`, `P10-HF3-T6-CANONICAL-SOURCE-SELECTION.md`, `P10-HF3-T7-ROOT-CAUSE-FIX.md`, `P10-HF3-T8-FAIL-PASS-PROOF.md`, `P10-HF3-T9-BROWSER-IMPORTED-REGRESSION.md`).
@@ -13,7 +14,10 @@
 - H4-1..H4-9: PASS (see `P10-HF4-T1-REPRO-TRACE.md`, `P10-HF4-T2-RUNTIME-PANEL-DIAGNOSTICS.md`, `P10-HF4-T3-ROOT-CAUSE-FIX.md`, `P10-HF4-T4-OWNERSHIP-REPRO.md`, `P10-HF4-T5-OWNERSHIP-FIX.md`, `P10-HF4-T6-SHIP-CLIP-REPRO.md`, `P10-HF4-T7-SHIP-CLIP-FIX.md`, `P10-HF4-T8-BROWSER-PARITY.md`, `P10-HF4-T9-FINAL-OUTPUT-CANONICAL.md`, `P10-HF4-T10-FAIL-PASS-PROOF.md`).
 
 ## HF5 Execution Status
-- H5-1..H5-9: PASS (see `P10-HF5-T1-REPRO-MULTI-VS-SINGLE.md`, `P10-HF5-T2-LOCKDOWN-FALLBACK-REPRO.md`, `P10-HF5-T3-FIREFOX-PARITY-TRACE.md`, `P10-HF5-T4-CANONICAL-SOURCE-DIAGNOSTICS.md`, `P10-HF5-T6-SHARED-CANONICAL-CONTRACT.md`, `P10-HF5-T7-LIFECYCLE-PARITY.md`, `P10-HF5-T8-BROWSER-PARITY.md`, `P10-HF5-T9-IMPORTED-MULTIAREA-REGRESSION.md`, `P10-HF5-T10-FAIL-PASS-PROOF.md`).
+- H5-1..H5-9: historical PASS evidence exists, but closure is field-invalidated by follow-up repro (`Nemesis Lockdown Board A`: Chrome shows `Play Area 1` + `Bunker`; Firefox/mobile-class shows only `Play Area 1`).
+
+## HF6 Execution Status
+- H6-1..H6-9: PASS (`P10-HF6-T1-LOCKDOWNA-AREA-DROP-REPRO.md`, `P10-HF6-T2-MERGE-LINEAGE-DIAGNOSTICS.md`, `P10-HF6-T3-FALLBACK-SUBSET-REPLACEMENT-REPRO.md`, `P10-HF6-T4-AREA-COUNT-PARITY.md`, `P10-HF6-T5-AREA-ID-SET-PARITY.md`, `P10-HF6-T6-CONTROL-FINAL-SET-PARITY.md`, `P10-HF6-T7-ROOT-CAUSE-FIX.md`, `P10-HF6-T8-FALLBACK-GUARD.md`, `P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`, `P10-HF6-T10-FAIL-PASS-PROOF.md`).
 
 ## Verification Strategy
 - Final-output continuity first: no board-specific black-screen path is allowed on `/output/final`.
@@ -28,16 +32,16 @@
 - Mobile-first practicality: one-handed operation is feasible under real gameplay tempo.
 - Safety-first controls: quick modes are explicit and reversible; no hidden destructive path.
 
-## Hard Gates (Plan 10-HF5, mandatory before 10-1)
-- H5-1 Multi-vs-Single-Repro-Gate: deterministic failing tests reproduce mismatch on multi-play-area boards while single-play-area control case stays stable.
-- H5-2 LockdownA-Fallback-Repro-Gate: deterministic failing test reproduces default play area/fallback hex visibility on `Nemesis Lockdown A` despite valid canonical saved play-areas.
-- H5-3 Firefox-Headless-Diagnostics-Gate: executable Firefox automation traces assert canonical source and fallback decision path.
-- H5-4 Chrome-Mobile-Parity-Trace-Gate: same scenarios produce equivalent canonical/fallback verdicts on Chrome desktop and mobile-class Chrome.
-- H5-5 Root-Cause-Fix-Gate: fix is generic and eliminates wrong default fallback behavior without board-specific branching.
-- H5-6 Canonical-Apply-Parity-Gate: canonical saved play-areas are applied identically across browsers in startup/reload/default-apply flows.
-- H5-7 Control-vs-Final-Parity-Gate: control-view and `/output/final` use the same canonical play-area source and produce matching polygons.
-- H5-8 Imported-and-MultiArea-Regression-Gate: imported boards and multi-area boards pass strict save/reload/default-apply/board-switch/final-output matrix.
-- H5-9 Fail-To-Pass-Proof-Gate: evidence contains explicit pre-fix FAIL and post-fix PASS for all HF5 repro/diagnostic tests.
+## Hard Gates (Plan 10-HF6, mandatory before 10-1)
+- H6-1 LockdownA-AreaDrop-Repro-Gate: deterministic failing test reproduces browser-specific drop (`Play Area 1` + `Bunker` in Chrome vs `Play Area 1` only in Firefox/mobile-class).
+- H6-2 Merge-Lineage-Diagnostics-Gate: executable diagnostics trace canonical source merge lineage (`saved profile`, `defaults`, `imported payload`) and identify first-drop origin.
+- H6-3 Fallback-Replacement-Repro-Gate: deterministic failing test reproduces fallback/default replacement of valid multi-area subset states.
+- H6-4 AreaCount-Parity-Gate: explicit assertions enforce identical per-board `areaCount` across Chrome/Firefox/mobile-class Chrome.
+- H6-5 AreaIdSet-Parity-Gate: explicit assertions enforce identical per-board canonical `areaIdSet` across Chrome/Firefox/mobile-class Chrome.
+- H6-6 Control-vs-Final-Set-Parity-Gate: control-view and `/output/final` consume identical canonical play-area sets for the same board state.
+- H6-7 Root-Cause-Fix-Gate: fix is generic and retains valid multi-area entries while blocking fallback replacement (no board-specific branch).
+- H6-8 Imported-and-MultiArea-Regression-Gate: imported boards and multi-area boards pass strict save/reload/default-apply/board-switch/final-output matrix.
+- H6-9 Fail-To-Pass-Proof-Gate: evidence contains explicit pre-fix FAIL and post-fix PASS for all HF6 repro/diagnostic tests.
 
 ## Hard Gates (Plan 10-HF4, mandatory before 10-1)
 - H4-1 Domain-Modules-Missing-Repro-Gate: deterministic failing test reproduces missing `TT_BEAMER_RUNTIME_PANELS` runtime-panel module exposure/load-order failure.
@@ -87,14 +91,15 @@
 - G7 Non-Regression-Gate: stop/clear-all/global flows and `/output/final` behavior remain unchanged.
 
 ## Strict Regression Matrix
-- HF5-Multi-vs-Single-Repro-Test: deterministic pre-fix FAIL isolates multi-play-area fallback mismatch against single-area control boards.
-- HF5-LockdownA-Default-Fallback-Repro-Test: deterministic pre-fix FAIL captures default play area/fallback hex visibility with valid canonical saved play-areas.
-- HF5-Firefox-Headless-Canonical-Trace-Test: executable Firefox trace asserts canonical source selection and fallback decision path.
-- HF5-Chrome-Mobile-Parity-Trace-Test: same scenarios yield parity verdicts on Chrome desktop and mobile-class Chrome.
-- HF5-Control-Final-Canonical-Parity-Test: control-view and `/output/final` apply identical canonical play-areas in same lifecycle state.
-- HF5-Startup-Reload-Defaults-Parity-Test: startup/reload/default-apply remain canonical-first and no invalid default fallback occurs.
-- HF5-Imported-MultiArea-Regression-Test: imported boards + multi-area boards stay stable across save/reload/default-apply/board-switch/final-output.
-- HF5-Fail-To-Pass-Proof-Test: identical HF5 suite captured as FAIL pre-fix and PASS post-fix.
+- HF6-LockdownA-AreaDrop-Repro-Test: deterministic pre-fix FAIL captures `Bunker` drop on Firefox/mobile-class while Chrome keeps both areas.
+- HF6-Merge-Lineage-Diagnostics-Test: executable trace verifies canonical source merge retains all valid areas and pinpoints first-drop failure when broken.
+- HF6-Fallback-Replacement-Repro-Test: deterministic pre-fix FAIL captures default/fallback area replacing valid multi-area subset payloads.
+- HF6-AreaCount-Parity-Test: per-board `areaCount` is identical on Chrome/Firefox/mobile-class Chrome.
+- HF6-AreaIdSet-Parity-Test: per-board canonical `areaIdSet` is identical on Chrome/Firefox/mobile-class Chrome.
+- HF6-Control-Final-Set-Parity-Test: control-view and `/output/final` consume identical canonical play-area sets under identical lifecycle state.
+- HF6-Lifecycle-Parity-Test: startup/reload/default-apply/board-switch keep deterministic canonical set retention.
+- HF6-Imported-MultiArea-Regression-Test: imported boards + multi-area boards stay stable across save/reload/default-apply/board-switch/final-output.
+- HF6-Fail-To-Pass-Proof-Test: identical HF6 suite captured as FAIL pre-fix and PASS post-fix.
 - HF3-Symptom-Repro-LockdownA-FirefoxMobile-Test: deterministic pre-fix FAIL reproduces Lockdown A polygon-apply mismatch in Firefox/mobile-class path.
 - HF3-Symptom-Repro-Defaults-Override-Test: deterministic pre-fix FAIL reproduces unexpected default polygons after defaults-apply.
 - HF3-Symptom-Repro-Final-Black-Or-Rectangle-Test: deterministic pre-fix FAIL reproduces black/fallback rectangle on `/output/final` with valid polygons.
@@ -134,9 +139,10 @@
 - After P10-HF4-T1..T4: runtime panel exposure + ownership unmount violations are reproducible and diagnostics are active.
 - After P10-HF4-T5..T7: ownership applicability and ship-clip validity parity fixes are merged with deterministic checks.
 - After P10-HF4-T8..T10: Firefox/Chrome parity plus canonical no-invalid-default fallback gates are PASS with full artifact sync.
-- After P10-HF5-T1..T4: multi-vs-single and LockdownA wrong-fallback repros are RED; Firefox diagnostics + canonical/fallback traces are active.
-- After P10-HF5-T5..T7: generic root-cause fix is merged and canonical apply parity across lifecycle + surfaces is stable.
-- After P10-HF5-T8..T10: browser parity plus imported/multi-area matrices are PASS with explicit FAIL->PASS proof and full artifact sync.
+- After P10-HF6-T1..T3: area-drop and fallback-replacement repros are RED; merge-lineage diagnostics are active.
+- After P10-HF6-T4..T6: area-count/id-set browser parity and control/final set parity assertions are active and enforceable.
+- After P10-HF6-T7..T8: generic root-cause + fallback-guard fix is merged and deterministic multi-area retention is stable.
+- After P10-HF6-T9..T10: browser parity plus imported/multi-area matrices are PASS with explicit FAIL->PASS proof and full artifact sync.
 - After P10-HF1-T1..T3: blackout root-cause and final-render continuity/co-render fix are stable.
 - After P10-HF1-T4..T6: all-board non-regression PASS and full artifact sync are complete.
 - After P10-T1..T2: Settings sub-tab IA and navigation shell are functionally stable.
@@ -147,14 +153,16 @@
 ## Definition of Done
 - P10-HF3 hard gates are PASS: exact field symptom set is reproduced pre-fix and closed post-fix.
 - P10-HF4 hard gates are PASS: runtime module exposure, ownership applicability checks, ship-clip validity parity, browser parity, and canonical no-invalid-default fallback are closed with FAIL->PASS proof.
-- P10-HF5 hard gates are PASS: multi-play-area fallback drift is reproduced pre-fix and closed post-fix with browser/surface parity and imported/multi-area matrix closure.
+- P10-HF6 hard gates are PASS: browser-specific area-drop/fallback-replacement drift is reproduced pre-fix and closed post-fix with area-count/id-set parity, control/final set parity, and imported/multi-area matrix closure.
 - Executable diagnostics (not static-only checks) enforce lifecycle, board-switch/final-contract, and canonical source selection assertions.
 - Executable diagnostics (not static-only checks) enforce runtime-panel exposure, ownership applicability, ship-clip validity, and Firefox/Chrome parity assertions.
-- Executable diagnostics (not static-only checks) enforce Firefox headless + Chrome/mobile parity traces for canonical source/fallback decisions.
+- Executable diagnostics (not static-only checks) enforce Firefox headless + Chrome/mobile parity traces for source-merge lineage, area-count/id-set parity, and fallback decisions.
 - Root-cause fix is generic across all imported boards and browsers.
 - Valid persisted board polygons are never silently overridden by defaults in startup/reload/default-apply paths.
 - `/output/final` uses board-specific canonical polygons cross-browser with no valid-polygon black-screen path.
 - Imported board non-regression matrix and all-browser matrix are PASS with evidence.
+- Area-count and area-id-set parity per board are PASS across Chrome/Firefox/mobile-class Chrome.
+- Control-view and `/output/final` consume identical canonical play-area sets under the same board state.
 - P10-HF1 hard gates are PASS: no board-specific final-output blackout, and room+outside co-render parity is verified.
 - All mandatory goals for Settings sub-tabs and quick modes are implemented and verified.
 - Mobile one-handed operation and overview speed improvements are validated.

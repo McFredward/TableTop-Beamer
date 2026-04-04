@@ -4,31 +4,34 @@
   "lanes": [
     {
       "browser": "chrome",
-      "mergedAreaCount": 1,
+      "mergedAreaCount": 2,
       "mergedAreaIdSet": [
+        "bunker",
         "play-area-1"
       ],
-      "selectedPlayAreaId": "play-area-1",
-      "selectedIsDefaultFallbackHex": true
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
     },
     {
       "browser": "firefox",
-      "mergedAreaCount": 1,
+      "mergedAreaCount": 2,
       "mergedAreaIdSet": [
+        "bunker",
         "play-area-1"
       ],
-      "selectedPlayAreaId": "play-area-1",
-      "selectedIsDefaultFallbackHex": true
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
     },
     {
       "browser": "mobile-chrome",
-      "mergedAreaCount": 1,
+      "mergedAreaCount": 2,
       "mergedAreaIdSet": [
+        "bunker",
         "play-area-1"
       ],
-      "selectedPlayAreaId": "play-area-1",
-      "selectedIsDefaultFallbackHex": true
+      "selectedPlayAreaId": "bunker",
+      "selectedIsDefaultFallbackHex": false
     }
   ],
-  "result": "FAIL"
+  "result": "PASS"
 }

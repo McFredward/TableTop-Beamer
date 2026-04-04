@@ -4,10 +4,11 @@
 - Plan 10-HF2 closure is reopened by critical field feedback.
 - Plan 10-HF3 execution wave is complete and PASS.
 - Plan 10-HF4 execution wave is complete and PASS.
-- New multi-play-area blocker opens Plan 10-HF5 as mandatory P0 hotfix wave.
+- Plan 10-HF5 historical PASS is field-invalidated by concrete follow-up repro.
+- Plan 10-HF6 mandatory P0 hotfix wave is completed PASS.
 
 ## Critical Priority Override
-- HF5 is now the active P0 blocker; Plan 10-1 remains blocked until HF5 PASS.
+- HF6 closure is complete; Plan 10-1 may proceed.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -16,22 +17,21 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 10-HF5 (binding, hard-gated wave)
-1. P0 first: P10-HF5-T1 (deterministic RED repro split multi-play-area vs single-play-area behavior).
-2. P0 next: P10-HF5-T2 (deterministic RED repro for Lockdown A default play area/fallback hex visibility despite valid canonical saved play-areas).
-3. P0 next: P10-HF5-T3 (Firefox headless/automation diagnostics + parity traces versus Chrome and mobile-class Chrome).
-4. P0 next: P10-HF5-T4 (executable canonical source/fallback decision diagnostics for control-view and `/output/final`).
-5. P0 next: P10-HF5-T5 (generic root-cause fix in canonical resolver/fallback path; no board-specific branch).
-6. P0 next: P10-HF5-T6 (shared canonical play-area resolver contract across control-view and `/output/final`).
-7. P0 next: P10-HF5-T7 (lifecycle assertions for startup/reload/default-apply/board-switch parity).
-8. P0 next: P10-HF5-T8 (Firefox/Chrome/mobile-class parity matrix for single-area + multi-area scenarios).
-9. P0 next: P10-HF5-T9 (imported-board + multi-area strict regression matrix).
-10. P0 closure: P10-HF5-T10 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
+## Priority Execution - Plan 10-HF6 (binding, hard-gated wave)
+1. P0 first: P10-HF6-T1 (deterministic RED repro for `Nemesis Lockdown Board A` area drop: Chrome `Play Area 1` + `Bunker` vs Firefox/mobile-class `Play Area 1` only).
+2. P0 next: P10-HF6-T2 (executable merge-lineage diagnostics for `saved profile`/`defaults`/`imported payload` source path).
+3. P0 next: P10-HF6-T3 (deterministic RED repro for fallback/default replacement over valid multi-area subset payloads).
+4. P0 next: P10-HF6-T4 + P10-HF6-T5 (explicit browser parity assertions for per-board `areaCount` and `areaIdSet`).
+5. P0 next: P10-HF6-T6 (explicit set parity assertions between control-view and `/output/final`).
+6. P0 next: P10-HF6-T7 (generic root-cause fix in merge/resolver path; no board-specific branch).
+7. P0 next: P10-HF6-T8 (fallback guard: default area cannot replace valid subset multi-area data).
+8. P0 next: P10-HF6-T9 (Firefox/Chrome/mobile-class parity matrix + imported-board/multi-area strict non-regression matrix).
+9. P0 closure: P10-HF6-T10 (explicit FAIL->PASS evidence and synchronized planning/global artifacts).
 
 ## Previously Closed Execution - Plan 10-HF1
 1. P10-HF1-T1..T6 are complete and PASS (board-specific blackout closure baseline remains valid).
 
-## Priority Execution - Plan 10-1 (after 10-HF5 PASS)
+## Priority Execution - Plan 10-1 (after 10-HF6 PASS)
 1. P0 first: P10-T1 (define Settings IA/sub-tab grouping and ownership map).
 2. P0 next: P10-T2 (implement Settings sub-tab navigation shell with stable state retention).
 3. P0 next: P10-T3 (implement shared quick-mode state machine with explicit active-mode UX).
@@ -54,9 +54,9 @@
 2. P2 closure: P10-T17 (preset safety hardening and deterministic behavior checks).
 
 ## Gate Rules
-- Do not start Plan 10-1 before full PASS of Plan 10-HF5 repro, executable-diagnostics, root-cause-fix, browser/surface parity, imported+multi-area regression, and FAIL->PASS proof gates.
-- Do not start P10-HF5-T5/P10-HF5-T6 before corresponding RED repro + diagnostics gates are closed.
-- Do not close Plan 10-HF5 without explicit FAIL->PASS evidence for the same tests.
+- Do not start Plan 10-1 before full PASS of Plan 10-HF6 repro, merge-lineage diagnostics, root-cause-fix, fallback-guard, browser/surface parity, imported+multi-area regression, and FAIL->PASS proof gates.
+- Do not start P10-HF6-T7/P10-HF6-T8 before corresponding RED repro + diagnostics gates are closed.
+- Do not close Plan 10-HF6 without explicit FAIL->PASS evidence for the same tests.
 - Do not start P10-T4..T7 before P10-T1..T3 stabilize IA + mode-state ownership.
 - Do not start P10-T11 before P10-T8..T10 close mobile ergonomics + explicit feedback gates.
 - Do not progress to 10-2 before full PASS of activation/deactivation/clear burst matrices and sync integrity checks.
@@ -91,3 +91,13 @@
   - Control-view and `/output/final` share the same canonical play-area resolver contract and lifecycle behavior.
   - Firefox/Chrome/mobile-class parity plus imported-board/multi-area regression matrices are PASS.
   - FAIL->PASS proof is closed (`P10-HF5-T10-FAIL-PASS-PROOF.md`).
+- HF5 field-invalidated follow-up (new blocker for HF6):
+  - Concrete repro is mandatory baseline: `Nemesis Lockdown Board A` shows two areas in Chrome (`Play Area 1` + `Bunker`) but only one in Firefox/mobile-class (`Play Area 1`).
+  - Root-cause focus is updated to deterministic multi-source merge retention and fallback replacement prevention.
+  - Plan 10-1 is re-blocked until HF6 area-count/id-set/browser/surface parity gates are PASS.
+- Plan 10-HF6 completed with PASS closure evidence:
+  - RED repros for area-drop, merge-lineage, fallback replacement, area-count parity, area-id-set parity and control/final set parity were captured first.
+  - Canonical merge now retains full valid multi-area sets when snapshot payloads are subsets and selection remains canonical-first.
+  - Fallback guard blocks default replacement when valid subset/multi-area canonical data exists.
+  - Browser + imported/multi-area lifecycle matrix is PASS (`P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`).
+  - FAIL->PASS proof is closed (`P10-HF6-T10-FAIL-PASS-PROOF.md`); Plan 10-1 is unblocked.

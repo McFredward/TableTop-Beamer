@@ -623,7 +623,7 @@ HF4 Binding Follow-up (outside lifecycle independence package):
 ## Phase 10 - Operator Speed UI/UX + Generic Polygon Hydration Hardening (In Progress)
 Ziel: Zuerst browser-neutrale, generische Polygon-Hydration/-Apply-Stabilitaet fuer `inside`/`outside`/`playAreas` ueber startup/reload/default-apply und `/output/final` sichern (inkl. imported-board Non-Regression), danach die speed-first UX-Welle mit Settings-Subtabs und Quick-Action-Modi liefern.
 
-Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3, Plan 10-HF4 und Plan 10-HF5 sind PASS abgeschlossen (deterministic FAIL->PASS, Firefox/Chrome/mobile-class parity, control/final canonical contract parity, imported-board/multi-area matrix closure). Plan 10-1 ist damit entblockt und naechste execute-ready Welle.
+Status: Plan 10-HF2 bleibt als field-invalidated Historie dokumentiert. Plan 10-HF3 und Plan 10-HF4 sind PASS abgeschlossen. Plan 10-HF5 bleibt historisch PASS, ist aber durch konkretes Follow-up field-invalidated (`Nemesis Lockdown Board A`: Chrome zeigt `Play Area 1` + `Bunker`, Firefox/mobile-class nur `Play Area 1`). Plan 10-HF6 ist PASS abgeschlossen; Plan 10-1 ist als naechste execute-ready Welle freigegeben.
 
 Milestones:
 1. M0 HF1 Root-Cause Closure: board-spezifischer final-output Blackout ist reproduziert und technisch eingegrenzt.
@@ -645,12 +645,12 @@ Milestones:
 17. M0 HF4 Ship-Clip Validity Closure: checker ist browserneutral fuer canonical/multi-play-area/legacy valid/invalid States.
 18. M0 HF4 Browser Parity Closure: executable diagnostics sind auf Firefox und Chrome PASS.
 19. M0 HF4 Final-Output Canonical Closure: canonical valide Polygondaten verhindern invalid-default fallback.
-20. M0 HF5 Multi-vs-Single Repro Closure: deterministische RED-Repros isolieren Multi-Play-Area vs Single-Area Verhalten.
-21. M0 HF5 Firefox/Mobile Diagnostics Closure: headless Firefox + Chrome/mobile-class parity traces sind ausfuehrbar und stabil.
-22. M0 HF5 Root-Cause Closure: canonical play-area resolver/fallback drift ist generisch behoben.
-23. M0 HF5 Surface-Parity Closure: control-view und `/output/final` nutzen identische canonical source selection.
-24. M0 HF5 Regression Closure: imported-board + multi-area matrix ist PASS.
-25. M0 HF5 FAIL->PASS Closure: identischer HF5-Testsatz ist pre-fix FAIL und post-fix PASS dokumentiert.
+20. M0 HF6 Area-Drop Repro Closure: deterministische RED-Repro zeigt `Bunker`-Drop auf Firefox/mobile-class gegen Chrome-Baseline.
+21. M0 HF6 Merge-Lineage Closure: source-merge Diagnostik (`saved/default/imported`) ist ausfuehrbar und identifiziert first-drop Ursachen.
+22. M0 HF6 Fallback-Guard Closure: default area ersetzt keine validen multi-area subset Daten mehr.
+23. M0 HF6 Browser-Parity Closure: `areaCount` + `areaIdSet` pro Board sind auf Chrome/Firefox/mobile-class identisch.
+24. M0 HF6 Surface-Parity Closure: control-view und `/output/final` nutzen identische canonical play-area sets.
+25. M0 HF6 FAIL->PASS Closure: identischer HF6-Testsatz ist pre-fix FAIL und post-fix PASS dokumentiert.
 26. M1 Settings IA Split: klare Subtab-Gruppierung reduziert Such- und Wechselzeit in Settings.
 27. M2 Quick-Mode Engine: gemeinsamer Moduszustand (`off`/`activate`/`deactivate`/`clear`) mit sichtbarem Guard.
 28. M3 Activation Sprint Flow: eine gewaehlte Animation wird per Room-Click sequentiell auf viele Raeume angewendet.
@@ -677,10 +677,11 @@ Exit Criteria:
 - Ship-clip regression checker bewertet canonical/multi-play-area/legacy states browserneutral korrekt (valid accepted, invalid rejected).
 - Firefox/Chrome parity ist ueber executable diagnostics fuer HF4-Szenarien PASS.
 - `/output/final` faellt bei vorhandenen canonical valid polygons nicht auf invalid-default fallback zurueck.
-- Multi-play-area und single-area Boards liefern im selben Lifecycle dieselbe canonical apply Semantik ohne default play area/fallback hex drift.
-- Firefox headless diagnostics und Chrome/mobile-class parity traces zeigen identische canonical source/fallback verdicts.
-- Control-view und `/output/final` bleiben fuer dieselbe Board-State identisch in der angewendeten canonical play-area.
-- Imported boards plus bestehende multi-area boards bleiben unter HF5-Fix regressionsfrei.
+- Multi-play-area und single-area Boards liefern im selben Lifecycle dieselbe canonical apply Semantik ohne area-drop drift.
+- Firefox headless diagnostics und Chrome/mobile-class parity traces zeigen identische source-merge/fallback verdicts.
+- Per Board sind `areaCount` und `areaIdSet` auf Chrome/Firefox/mobile-class identisch.
+- Control-view und `/output/final` bleiben fuer dieselbe Board-State identisch in der angewendeten canonical play-area set.
+- Imported boards plus bestehende multi-area boards bleiben unter HF6-Fix regressionsfrei.
 - Settings ist in logisch benannte Subtabs gegliedert und schnell navigierbar.
 - Quick Activation/Deactivation/Clear funktionieren als robuste sequentielle Room-Click-Flows.
 - Mobile one-handed Bedienung ist in Portrait/Landscape praxisfest verbessert.
@@ -690,8 +691,7 @@ Exit Criteria:
 - Phase-10-Artefakte sowie globale Tracking-Dateien sind konsistent synchronisiert.
 
 Next Wave (Phase 10):
-- Plan 10-1 execute-ready: speed-first operator UX wave (sub-tabs + quick activate/deactivate/clear + mobile one-hand flow).
-- Plan 10-1 bleibt danach execute-ready queued und wird erst nach HF5 PASS gestartet.
+- Plan 10-1 execute-ready: operator speed core wave (Settings-Subtabs, quick modes, mobile one-hand flow).
 
 ## Deferred (Post-Phase-2)
 - Kamera/CV-Ausrichtung

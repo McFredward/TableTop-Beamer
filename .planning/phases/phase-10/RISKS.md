@@ -80,6 +80,26 @@
 - Impact: Critical.
 - Mitigation: mandatory imported + multi-area regression matrix (save/reload/default-apply/board-switch/final-output) before closure.
 
+## R0t Browser-path area entry drop (subset retention failure)
+- Risk: Firefox/mobile-class path drops one valid play-area entry from canonical set (e.g. `Bunker`) while Chrome retains full set.
+- Impact: Critical.
+- Mitigation: deterministic RED repro + merge-lineage diagnostics and explicit area-count/id-set parity assertions across browsers.
+
+## R0u Non-deterministic canonical source merge precedence
+- Risk: merge between `saved profile`, `defaults`, and `imported payload` is order- or shape-sensitive and loses valid multi-area entries.
+- Impact: Critical.
+- Mitigation: single deterministic merge contract with per-source lineage tracing and fixture coverage for partial/subset payloads.
+
+## R0v Fallback replacement over valid multi-area subset
+- Risk: default/fallback area replaces valid subset multi-area data instead of only filling truly missing/invalid geometry.
+- Impact: Critical.
+- Mitigation: explicit fallback guard rule plus failing tests for subset-preservation semantics.
+
+## R0w Control/final play-area set divergence under same board state
+- Risk: control-view and `/output/final` consume different canonical play-area sets even when board/context is identical.
+- Impact: Critical.
+- Mitigation: shared canonical set resolver plus executable control-vs-final set parity assertions.
+
 ## R0 Board-specific final-output blackout recurrence
 - Risk: board/media-specific branch (`Nemesis Lockdown A` + outside mp4) short-circuits final render path to black.
 - Impact: Critical.
@@ -142,4 +162,5 @@
 - R0d/R0e/R0f/R0g/R0h mitigated in HF3 via canonical snapshot polygon hydration and executable diagnostics.
 - R0i/R0j mitigated in HF3 via deterministic FAIL->PASS diagnostics and control/final canonical-source parity checks.
 - R0k/R0l/R0m/R0n/R0o are mitigated in HF4 via executable diagnostics + root-cause fixes (`P10-HF4-T1..T10`).
-- R0p/R0q/R0r/R0s are mitigated in HF5 via canonical multi-area fallback hardening, shared control/final resolver contract, browser parity matrix, and FAIL->PASS proof (`P10-HF5-T1..T10`).
+- R0p/R0q/R0r/R0s were provisionally mitigated in HF5 but are reopened by concrete field repro; closure is reassigned to HF6.
+- R0t/R0u/R0v/R0w are mitigated in HF6 via deterministic RED->GREEN evidence (area-drop repro, merge-lineage diagnostics, fallback-guard fix, browser/surface parity matrix).

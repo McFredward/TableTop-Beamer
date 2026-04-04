@@ -21,20 +21,22 @@
     },
     {
       "browser": "firefox",
-      "areaCount": 1,
+      "areaCount": 2,
       "areaIdSet": [
+        "bunker",
         "play-area-1"
       ],
-      "selectedPlayAreaId": "play-area-1"
+      "selectedPlayAreaId": "bunker"
     },
     {
       "browser": "mobile-chrome",
-      "areaCount": 1,
+      "areaCount": 2,
       "areaIdSet": [
+        "bunker",
         "play-area-1"
       ],
-      "selectedPlayAreaId": "play-area-1"
+      "selectedPlayAreaId": "bunker"
     }
   ],
-  "result": "FAIL"
+  "result": "PASS"
 }

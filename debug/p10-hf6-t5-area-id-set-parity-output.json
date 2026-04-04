@@ -16,15 +16,17 @@
     {
       "browser": "firefox",
       "areaIdSet": [
+        "bunker",
         "play-area-1"
       ]
     },
     {
       "browser": "mobile-chrome",
       "areaIdSet": [
+        "bunker",
         "play-area-1"
       ]
     }
   ],
-  "result": "FAIL"
+  "result": "PASS"
 }

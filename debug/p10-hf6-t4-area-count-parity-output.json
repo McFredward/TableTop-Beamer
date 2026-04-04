@@ -9,12 +9,12 @@
     },
     {
       "browser": "firefox",
-      "areaCount": 1
+      "areaCount": 2
     },
     {
       "browser": "mobile-chrome",
-      "areaCount": 1
+      "areaCount": 2
     }
   ],
-  "result": "FAIL"
+  "result": "PASS"
 }

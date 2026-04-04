@@ -11,9 +11,9 @@
 - Current Phase Key: phase-10
 - Last Prepared: 2026-04-04
 - Execution Readiness: READY
-- Last Executed Plan: 10-HF5 (PASS)
+- Last Executed Plan: 10-HF6 (PASS)
 - Planned Next Execution: 10-1
-- Last Execution Summary: `.planning/phases/phase-10/10-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-10/10-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -21,6 +21,15 @@
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+- Kritisches Follow-up fuer Phase 10 ist bindend: fuer `Nemesis Lockdown Board A` zeigt Chrome zwei Play-Areas (`Play Area 1` + `Bunker`), waehrend Firefox und mobile-class Chrome nur `Play Area 1` laden (`Bunker` fehlt).
+- Plan 10-HF6 ist als verpflichtende P0-Hotfix-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS Closure.
+- Merge-Pfad-Regel Plan 10-HF6: canonical Source-Merge (saved profile vs defaults vs imported board payload) wird end-to-end tracebar gemacht und muss Multi-Area-Daten deterministisch vollstaendig behalten.
+- Fallback-Regel Plan 10-HF6: fallback/default area darf valide Multi-Area-Daten nie ersetzen, auch nicht wenn nur ein Teil-Set im Payload vorhanden ist.
+- Paritaets-Regel Plan 10-HF6: area-count und area-id-set pro Board muessen browserneutral identisch sein (Chrome/Firefox/mobile-class) und zwischen control-view und `/output/final` 1:1 uebereinstimmen.
+- Plan-10-HF6 Umsetzung: Canonical Merge behält valide Multi-Area-Profile deterministisch und verwirft subset-basierte Snapshot-Prioritaet als Ersatzquelle.
+- Plan-10-HF6 Umsetzung: Fallback/default area ersetzt keine valide subset-/multi-area Canonical-Daten mehr; Selection bleibt canonical-first.
+- Plan-10-HF6 Umsetzung: Browser-Paritaet (`areaCount` + `areaIdSet`) sowie Control-vs-`/output/final` Set-Paritaet sind PASS (`P10-HF6-T9-BROWSER-IMPORTED-MULTIAREA-REGRESSION.md`).
+- Plan-10-HF6 Umsetzung: FAIL->PASS Closure ist dokumentiert (`P10-HF6-T10-FAIL-PASS-PROOF.md`).
 - Plan-10-HF5 Umsetzung: invalid multi-area play-area entries werden vor Canonical-Selection verworfen; valide kanonische Areas behalten Vorrang vor default fallback hex.
 - Plan-10-HF5 Umsetzung: Control-View und `/output/final` nutzen einen gemeinsamen kanonischen Play-Area-Resolver-Vertrag.
 - Plan-10-HF5 Umsetzung: Firefox/Chrome/mobile-class Parity + imported-board/multi-area Regression sind PASS; FAIL->PASS Proof ist geschlossen (`P10-HF5-T10-FAIL-PASS-PROOF.md`).
