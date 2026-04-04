@@ -598,7 +598,7 @@ const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
 const QUICK_MODE_VALUES = new Set(["off", "activate", "deactivate", "clear"]);
 const QUICK_MODE_LABELS = {
-  off: "OFF",
+  off: "SELECT",
   activate: "ACTIVATE",
   deactivate: "DEACTIVATE",
   clear: "CLEAR",
@@ -1632,7 +1632,6 @@ const activeAnimationAudioById = new Map();
 const pendingAnimationAudioStartTimers = new Map();
 const startedGlobalAudioRevisionByTriggerKey = new Map();
 let outsideResourceAssets = [];
-const OUTSIDE_CODED_ASSET_KEY_ALIASES = ["outside-space", "space", "coded-space", "coded/space"];
 const outsideEditorDraftByBoard = {};
 const insideEditorDraftByBoard = {};
 const roomEditorDraftByBoard = {};
@@ -6761,7 +6760,7 @@ function getOutsideCodedAssetKeys() {
   const knownOutsideRendererIds = OUTSIDE_SHIP_GLOBAL_ANIMATIONS
     .map((entry) => normalizeOutsideAnimationId(entry?.id, ""))
     .filter(Boolean);
-  return Array.from(new Set(["outside-space", ...knownOutsideRendererIds, ...OUTSIDE_CODED_ASSET_KEY_ALIASES]));
+  return Array.from(new Set(["outside-space", ...knownOutsideRendererIds]));
 }
 
 function getInsideCodedAssetKeys() {
@@ -10578,8 +10577,8 @@ function renderRunningAnimationsList() {
     const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
       ? anim.animationName
       : anim.scope === "room" || anim.scope === "cluster"
-      ? getRoomAnimationLabelById(anim.type, anim.boardId)
-      : getAnimationLabel(anim.type);
+        ? getRoomAnimationLabelById(anim.type, anim.boardId)
+        : getAnimationLabel(anim.type);
     const animationBoard = getBoard(anim.boardId);
     const roomLabel = anim.scope === "room"
       ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
@@ -11165,41 +11164,35 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   }
 
   if (type === "hull-flicker") {
-    const timeline = age * (1.2 + intensity * 1.1);
-    const step = Math.floor(timeline * 26);
-    const burstSeed = flickerNoise(step + 17.13);
-    const colorSeed = flickerNoise(step * 0.87 + 91.4);
-    const sparkSeed = flickerNoise(step * 1.47 + 211.8);
+    const timeline = age * (1.6 + intensity * 0.5);  // Noch langsamer für Pausen
+    const step = Math.floor(timeline * 6);  // Weniger Schritte = längere Zyklen
 
-    const ambientAlpha = (0.02 + flickerNoise(step * 0.23 + 8.1) * 0.035) * intensity;
-    const burstAlpha = burstSeed > 0.86 ? (0.14 + burstSeed * 0.26) * intensity : 0;
-    const dipAlpha = burstSeed < 0.12 ? 0.18 + (0.12 - burstSeed) * 0.9 : 0;
+    // Gate-Control: Entscheidet, ob Lampe "versucht an" zu gehen (intermittent)
+    const gate = flickerNoise(step * 0.08 + 3.9);  // Langsame Periode (Pausen 70-80%)
+    const isOnPeriod = gate > 0.72;  // Nur 28% der Zeit "aktiv" – lange Pausen
 
-    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.72, dipAlpha)})`;
+    let flickerIntensity = 0;
+    if (isOnPeriod) {
+      // Innerhalb "on"-Phase: Subtiles, random Flackern (wie instabile Röhre)
+      const baseFlicker = (flickerNoise(step * 0.22 + 7.4) * 0.55 +
+        flickerNoise(step * 0.55 + 15.2) * 0.35 +
+        flickerNoise(step * 1.1 + 28.6) * 0.1);
+      flickerIntensity = (0.4 + baseFlicker * 0.6) * intensity;  // 0.4-1.0, nie full hell
+    }
+
+    // Nur minimale Dips in "on"-Phasen, sonst nichts
+    const dipAlpha = isOnPeriod && flickerIntensity < 0.35 ? (0.35 - flickerIntensity) * 0.5 * intensity : 0;
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.3, dipAlpha)})`;
     ctx.fillRect(0, 0, w, h);
 
-    const cool = colorSeed > 0.58;
-    const overlayColor = cool ? "122, 246, 228" : "255, 232, 182";
-    const overlayAlpha = Math.min(0.38, ambientAlpha + burstAlpha);
-    if (overlayAlpha > 0.008) {
-      ctx.fillStyle = `rgba(${overlayColor}, ${overlayAlpha})`;
+    // Overlay nur in "on"-Phasen
+    const tubeColor = "240, 235, 190";  // Leicht gelblich-weiß
+    const overlayAlpha = Math.min(0.4, flickerIntensity);
+    if (overlayAlpha > 0.015 && isOnPeriod) {  // Höhere Schwelle gegen minimale Leaks
+      ctx.fillStyle = `rgba(${tubeColor}, ${overlayAlpha})`;
       ctx.fillRect(0, 0, w, h);
     }
 
-    if (sparkSeed > 0.68) {
-      const sparkCount = Math.max(1, Math.round((2 + Math.floor(sparkSeed * 6)) * visualCaps.nonCriticalDensityScale));
-      for (let i = 0; i < sparkCount; i += 1) {
-        const sparkX = flickerNoise(step * 2.31 + i * 13.7) * w;
-        const sparkY = flickerNoise(step * 3.11 + i * 7.3) * h;
-        const sparkSize = 12 + flickerNoise(step * 5.1 + i) * 48;
-        const sparkAlpha = (0.03 + flickerNoise(step * 4.7 + i * 0.5) * 0.12) * intensity;
-        const gradient = ctx.createRadialGradient(sparkX, sparkY, 0, sparkX, sparkY, sparkSize);
-        gradient.addColorStop(0, `rgba(${overlayColor}, ${Math.min(0.28, sparkAlpha)})`);
-        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(sparkX - sparkSize, sparkY - sparkSize, sparkSize * 2, sparkSize * 2);
-      }
-    }
     return;
   }
 

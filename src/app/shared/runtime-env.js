@@ -1,11 +1,12 @@
 (() => {
   const OUTPUT_ROLE_CONTROL = "control";
-  // `/output/final` is now served by output-final.html and never boots this runtime.
-  // Keep the legacy constant as an inert alias to avoid breaking older imports.
-  const OUTPUT_ROLE_FINAL = "control";
+  const OUTPUT_ROLE_FINAL = "final-output";
 
-  function resolveOutputRoleFromLocation() {
-    return OUTPUT_ROLE_CONTROL;
+  function resolveOutputRoleFromLocation(locationLike = window.location) {
+    const pathname = locationLike?.pathname || "/";
+    return pathname === "/output/final" || pathname.startsWith("/output/final/")
+      ? OUTPUT_ROLE_FINAL
+      : OUTPUT_ROLE_CONTROL;
   }
 
   function resolveLiveWebSocketUrl({ outputRole, locationLike = window.location } = {}) {

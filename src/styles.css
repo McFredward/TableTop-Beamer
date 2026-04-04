@@ -349,15 +349,6 @@ body[data-output-role="final-output"] .toast-stack {
   z-index: 7;
 }
 
-.settings-subtab-shell {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.65rem;
-  background: linear-gradient(180deg, rgba(19, 31, 47, 0.95), rgba(12, 22, 36, 0.92));
-  border: 1px solid rgba(105, 130, 158, 0.32);
-  border-radius: 0.7rem;
-}
-
 .settings-subtab-switch {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -454,18 +445,10 @@ h1 {
   background: linear-gradient(180deg, rgba(20, 38, 54, 0.98), rgba(12, 23, 34, 0.98));
 }
 
-.quick-mode-panel {
-  border-color: rgba(124, 224, 198, 0.58);
-  box-shadow: inset 0 0 0 1px rgba(124, 224, 198, 0.2);
-}
 
 .quick-mode-buttons button {
   min-height: 3rem;
   font-weight: 600;
-}
-
-.quick-mode-panel.is-busy {
-  box-shadow: inset 0 0 0 1px rgba(124, 224, 198, 0.25), 0 0 0.75rem rgba(93, 230, 199, 0.22);
 }
 
 #running-animations {
@@ -672,6 +655,29 @@ button.danger.is-armed {
   line-height: 1.4;
 }
 
+#room-options {
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  padding: 0.5em 0.5em 0;
+  margin: 1em 0;
+}
+
+#room-options summary {
+  font-weight: bold;
+  margin: -0.5em -0.5em 0;
+  padding: 0.5em;
+  cursor: pointer;
+}
+
+#room-options[open] {
+  padding: 0.5em;
+}
+
+#room-options[open] summary {
+  border-bottom: 1px solid #aaa;
+  margin-bottom: 0.5em;
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     grid-template-columns: minmax(0, 1fr) 340px;
@@ -797,15 +803,6 @@ button.danger.is-armed {
     contain: none;
   }
 
-  #control-panel[data-active-view="dashboard"] .quick-mode-panel {
-    position: sticky;
-    bottom: 0.35rem;
-    z-index: 10;
-    margin: 0 -0.08rem;
-    background: linear-gradient(180deg, rgba(14, 30, 42, 0.98), rgba(10, 23, 34, 0.98));
-    border-color: rgba(124, 224, 198, 0.65);
-  }
-
   .quick-mode-buttons {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.55rem;
@@ -825,12 +822,6 @@ button.danger.is-armed {
   .button-grid,
   .running-actions {
     gap: 0.62rem;
-  }
-
-  .settings-subtab-shell {
-    position: sticky;
-    top: 0;
-    z-index: 6;
   }
 
   .settings-subtab-switch {
@@ -881,8 +872,8 @@ button.danger.is-armed {
   #control-panel[data-active-view="dashboard"] .view-switch,
   #control-panel[data-active-view="dashboard"] .mobile-zone-switch,
   #control-panel[data-active-view="dashboard"] .mobile-layout-status,
-  #control-panel[data-active-view="dashboard"] > header,
-  #control-panel[data-active-view="dashboard"] > footer {
+  #control-panel[data-active-view="dashboard"]>header,
+  #control-panel[data-active-view="dashboard"]>footer {
     grid-column: 1 / -1;
   }
 
