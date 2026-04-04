@@ -1,0 +1,15 @@
+{
+  "suite": "p10-hf8-t6-defaults-reapply-recovery",
+  "boardId": "nemesis-lockdown-a",
+  "expectedSelected": "bunker",
+  "observedSelected": "bunker",
+  "expectedAreaIds": [
+    "bunker",
+    "play-area-1"
+  ],
+  "observedAreaIds": [
+    "bunker",
+    "play-area-1"
+  ],
+  "result": "PASS"
+}
