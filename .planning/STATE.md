@@ -1214,3 +1214,8 @@
 - Runtime panel API wird unter `TT_BEAMER_RUNTIME_PANELS` und `TT_BEAMER_UI_RUNTIME_PANELS` konsistent exponiert, damit browser-/load-order Drift keinen Missing-Domain-Fehler ausloest.
 - Settings-Ownership-Checks sind applicability-aware: unmounted `#outside-mode` und `#outside-direction` sind korrekt, wenn ausserhalb des fachlich anwendbaren Kontextes.
 - Ship-/Play-Area-Clipquellen akzeptieren nur renderbare kanonische/legacy Polygone; invalid provided polygons werden deterministisch verworfen statt auf invalid-default zu kippen.
+- Plan 11-HF3 ist als verpflichtende execute-ready Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure.
+- HF3-1s-Cancel-Regel: Global animations muessen als one-shot ihre volle Laenge (~4s) auf `/output/final` abspielen. Die 1s-Abbruch-Regression ist P0.
+- HF3-Audio-Toggle-Regel: Dashboard erhaelt eine `Play sound` Checkbox direkt unter der Loop-Checkbox, die das Audio fuer globale Trigger steuert.
+- HF3-Sync-Regel: Loop- und Audio-Auswahl muessen deterministisch zusammen im Trigger-Payload uebertragen und angewendet werden.
+- HF3-Non-Regression-Regel: Stop/Clear und die volle Abspielzeit muessen cross-client und final-output paritaetisch gesichert sein.
