@@ -16,7 +16,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 10-HF9 - Command reliability + low-end performance blocker wave (execute-ready, hard-gated)
 - [x] DONE P10-HF9-T1 [P0] Create deterministic RED repro for mobile `trigger-room` command timeout under burst and sustained mixed load.
 - [x] DONE P10-HF9-T2 [P0] Create deterministic RED repro for `stop` timeout under load and verify immediate-apply expectation fails pre-fix.
-- [ ] TODO P10-HF9-T3 [P0] Create deterministic RED repro for ack-path instability (missing/late ack causing false timeout or duplicate resend side effects).
+- [x] DONE P10-HF9-T3 [P0] Create deterministic RED repro for ack-path instability (missing/late ack causing false timeout or duplicate resend side effects).
 - [ ] TODO P10-HF9-T4 [P0] Create deterministic RED repro for resend-path drift (retry cadence/jitter causing non-deterministic command completion).
 - [ ] TODO P10-HF9-T5 [P0] Create deterministic RED repro for queue unfairness/starvation under mixed `trigger` + `stop` + `clear` command bursts.
 - [ ] TODO P10-HF9-T6 [P0] Create deterministic RED repro for no-drop contract violations (accepted command never applied/acknowledged).

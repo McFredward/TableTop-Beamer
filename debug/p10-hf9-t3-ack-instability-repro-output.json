@@ -1,0 +1,12 @@
+{
+  "suite": "p10-hf9-t3-ack-instability-repro",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "details": {
+    "reason": "missing ack closure with no retry causes false timeout",
+    "attempts": 1,
+    "ackAvailableAtAttempt": 2,
+    "accepted": false,
+    "status": "FAIL"
+  }
+}
