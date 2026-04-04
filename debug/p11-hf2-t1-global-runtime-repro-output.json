@@ -1,0 +1,45 @@
+{
+  "suite": "p11-hf2-t1-global-runtime-repro",
+  "phase": "RED",
+  "observed": "FAIL",
+  "findings": [
+    {
+      "id": "global-start-path-still-definition-bound",
+      "observed": true,
+      "expected": false,
+      "impact": "Global runtime start behavior is tied to animation-definition edits instead of trigger-time operator intent."
+    },
+    {
+      "id": "dashboard-loop-toggle-missing",
+      "observed": false,
+      "expected": true,
+      "impact": "Operator cannot choose one-shot vs loop-until-stop directly from the dashboard trigger surface."
+    },
+    {
+      "id": "click-path-missing-dashboard-loop-semantics",
+      "observed": false,
+      "expected": true,
+      "impact": "Per-trigger loop semantics are not wired into the global trigger runtime path."
+    }
+  ],
+  "failedChecks": [
+    {
+      "id": "global-start-path-still-definition-bound",
+      "observed": true,
+      "expected": false,
+      "impact": "Global runtime start behavior is tied to animation-definition edits instead of trigger-time operator intent."
+    },
+    {
+      "id": "dashboard-loop-toggle-missing",
+      "observed": false,
+      "expected": true,
+      "impact": "Operator cannot choose one-shot vs loop-until-stop directly from the dashboard trigger surface."
+    },
+    {
+      "id": "click-path-missing-dashboard-loop-semantics",
+      "observed": false,
+      "expected": true,
+      "impact": "Per-trigger loop semantics are not wired into the global trigger runtime path."
+    }
+  ]
+}

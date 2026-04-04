@@ -31,5 +31,15 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF1-T11 [P0] Execute strict acceptance and non-regression matrix for sync lifecycle, reload no-replay, loop/stop, room hold, and board model unification.
 - [x] DONE P11-HF1-T12 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
+## Plan 11-HF2 - Critical global runtime recovery + dashboard loop UX correction (execute-ready, hard-gated)
+- [x] DONE P11-HF2-T1 [P0] Create deterministic RED repro showing post-HF global animation start/runtime failure.
+- [ ] TODO P11-HF2-T2 [P0] Implement rollback-first recovery so global animations start/run deterministically again immediately.
+- [ ] TODO P11-HF2-T3 [P0] Add `Loop until stopped` quick checkbox directly in Dashboard global controls (trigger-level control surface).
+- [ ] TODO P11-HF2-T4 [P0] Wire per-trigger loop semantics into global trigger payload/runtime (`one-shot` vs `until explicit stop`) without editing animation definitions.
+- [ ] TODO P11-HF2-T5 [P0] Preserve explicit `stop` and `clear` semantics unchanged for both per-trigger loop modes.
+- [ ] TODO P11-HF2-T6 [P0] Execute regression matrix proving global start/stop/clear correctness on control + peers + `/output/final`.
+- [ ] TODO P11-HF2-T7 [P0] Capture FAIL->PASS evidence that global animations start/stop correctly again after recovery patch.
+- [ ] TODO P11-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
+
 ## Next wave placeholder
-- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF1 live sessions and prepare 11-2 refinement shortlist.
+- [ ] TODO P11-T13 [P1] Collect field telemetry/feedback from HF2 live sessions and prepare 11-2 refinement shortlist.
