@@ -1,0 +1,97 @@
+{
+  "suite": "p10-hf9-t7-command-pipeline-diagnostics",
+  "status": "PASS",
+  "dispatch": [
+    {
+      "id": "stop-1",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "clear-1",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-1",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-2",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "context-1",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-3",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-4",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "context-2",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-5",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "trigger-6",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    },
+    {
+      "id": "context-3",
+      "ingestToQueueMs": 2,
+      "queueToDispatchMs": 3,
+      "dispatchToAckMs": 3,
+      "ackToApplyMs": 3
+    }
+  ],
+  "telemetry": {
+    "dispatchCount": 11,
+    "firstThreeDispatchIds": [
+      "stop-1",
+      "clear-1",
+      "trigger-1"
+    ],
+    "retryDelays": [
+      140,
+      280,
+      560
+    ],
+    "p95QueueToDispatchMs": 3
+  }
+}
