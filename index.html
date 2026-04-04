@@ -66,6 +66,17 @@
           aria-live="polite">
           Mobile focus: Trigger
         </p>
+
+        <section id="quick-mode-panel" class="panel quick-mode-panel dashboard-only" data-view="dashboard">
+          <h2>Quick room mode</h2>
+          <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
+            <button id="quick-mode-off" type="button" class="active">Off</button>
+            <button id="quick-mode-activate" type="button">Activate</button>
+            <button id="quick-mode-deactivate" type="button">Deactivate</button>
+            <button id="quick-mode-clear" type="button" class="danger">Clear room</button>
+          </div>
+          <p id="quick-mode-status" class="status-line" aria-live="polite">Quick mode: OFF</p>
+        </section>
       </div>
 
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"

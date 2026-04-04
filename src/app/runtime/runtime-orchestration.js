@@ -133,6 +133,12 @@ const openTriggerZoneButton = document.querySelector("#open-trigger-zone");
 const openManageZoneButton = document.querySelector("#open-manage-zone");
 const mobileStartRoomButton = document.querySelector("#mobile-start-room");
 const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
+const quickModePanel = document.querySelector("#quick-mode-panel");
+const quickModeStatus = document.querySelector("#quick-mode-status");
+const quickModeOffButton = document.querySelector("#quick-mode-off");
+const quickModeActivateButton = document.querySelector("#quick-mode-activate");
+const quickModeDeactivateButton = document.querySelector("#quick-mode-deactivate");
+const quickModeClearButton = document.querySelector("#quick-mode-clear");
 const controlPanel = document.querySelector("#control-panel");
 const projectionArea = document.querySelector(".projection-area");
 const primaryViewSwitch = document.querySelector(".primary-view-switch");
@@ -557,6 +563,13 @@ const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
 const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
+const QUICK_MODE_VALUES = new Set(["off", "activate", "deactivate", "clear"]);
+const QUICK_MODE_LABELS = {
+  off: "OFF",
+  activate: "ACTIVATE",
+  deactivate: "DEACTIVATE",
+  clear: "CLEAR",
+};
 
 const {
   rememberAppliedMutationId,
@@ -5623,6 +5636,48 @@ function restoreSettingsSubtabPreference() {
     stored = "";
   }
   setSettingsSubtab(stored || state.settingsSubtab || "board", { persist: false });
+}
+
+function normalizeQuickMode(mode) {
+  const normalized = String(mode || "").trim().toLowerCase();
+  return QUICK_MODE_VALUES.has(normalized) ? normalized : "off";
+}
+
+function syncQuickModePanel() {
+  const mode = normalizeQuickMode(state.quickMode?.mode);
+  const buttonMap = {
+    off: quickModeOffButton,
+    activate: quickModeActivateButton,
+    deactivate: quickModeDeactivateButton,
+    clear: quickModeClearButton,
+  };
+  for (const [value, button] of Object.entries(buttonMap)) {
+    if (!button) {
+      continue;
+    }
+    const isActive = mode === value;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+  if (quickModeStatus) {
+    quickModeStatus.textContent = `Quick mode: ${QUICK_MODE_LABELS[mode] ?? QUICK_MODE_LABELS.off}`;
+  }
+  if (quickModePanel) {
+    quickModePanel.dataset.mode = mode;
+  }
+}
+
+function setQuickMode(nextMode, { announce = true } = {}) {
+  const normalizedMode = normalizeQuickMode(nextMode);
+  state.quickMode.mode = normalizedMode;
+  syncQuickModePanel();
+  if (announce) {
+    triggerFeedback.textContent = `Status: Quick mode ${QUICK_MODE_LABELS[normalizedMode] ?? QUICK_MODE_LABELS.off}`;
+  }
+}
+
+function isQuickModeActive() {
+  return normalizeQuickMode(state.quickMode?.mode) !== "off";
 }
 
 function setViewGroupVisibility(groups, visible) {
@@ -11324,6 +11379,22 @@ for (const button of settingsSubtabButtons) {
   });
 }
 
+quickModeOffButton?.addEventListener("click", () => {
+  setQuickMode("off");
+});
+
+quickModeActivateButton?.addEventListener("click", () => {
+  setQuickMode("activate");
+});
+
+quickModeDeactivateButton?.addEventListener("click", () => {
+  setQuickMode("deactivate");
+});
+
+quickModeClearButton?.addEventListener("click", () => {
+  setQuickMode("clear");
+});
+
 openTriggerZoneButton?.addEventListener("click", () => {
   setDashboardZone("trigger", { announce: true });
 });
@@ -12989,6 +13060,12 @@ async function initializeApplication() {
   state.roomFxByBoard = createDefaultRoomFxByBoard();
   state.outsideFxByBoard = createDefaultOutsideFxByBoard();
   state.boardZoomByBoard = createDefaultBoardZoomByBoard();
+  state.quickMode = {
+    mode: normalizeQuickMode(state.quickMode?.mode),
+    inflightByRoom: state.quickMode?.inflightByRoom && typeof state.quickMode.inflightByRoom === "object"
+      ? state.quickMode.inflightByRoom
+      : {},
+  };
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
   state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
@@ -13037,6 +13114,7 @@ async function initializeApplication() {
 
   syncRuntimePanelsFromState();
   restoreSettingsSubtabPreference();
+  syncQuickModePanel();
   syncMobileStickyOffsets();
   applyOutputRoleViewContract();
   connectLiveSyncSocket();

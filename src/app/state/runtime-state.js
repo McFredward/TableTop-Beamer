@@ -38,6 +38,10 @@
       uiView: "dashboard",
       settingsSubtab: "board",
       dashboardZone: "trigger",
+      quickMode: {
+        mode: "off",
+        inflightByRoom: {},
+      },
       hitareaCalibrationByBoard: {},
       roomTombstonesByBoard: {},
       roomGeometryByBoard: {},
