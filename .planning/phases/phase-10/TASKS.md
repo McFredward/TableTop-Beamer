@@ -19,7 +19,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P10-HF2-T5 [P0] Harden `/output/final` hydration/render path to use canonical polygons browser-neutrally (no default-rectangle clipping drift).
 - [x] DONE P10-HF2-T6 [P0] Eliminate valid-polygon black-screen path outside Chrome by fail-open hydration guards and canonical clip-source wiring.
 - [x] DONE P10-HF2-T7 [P0] Run strict imported-board non-regression + all-browser regression matrix with PASS evidence.
-- [ ] TODO P10-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF2 PASS.
+- [x] DONE P10-HF2-T8 [P0] Synchronize `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE` after HF2 PASS.
 
 ## Plan 10-1 - Operator Speed Core Wave (execute-ready, blocked by HF2)
 - [ ] TODO P10-T1 [P0] Define Settings IA and sub-tab grouping map (navigation model + ownership of each existing control).
