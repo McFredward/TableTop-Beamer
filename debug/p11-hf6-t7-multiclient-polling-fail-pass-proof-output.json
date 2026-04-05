@@ -1,0 +1,58 @@
+{
+  "suite": "P11-HF6-T7-multiclient-polling-fail-pass-proof",
+  "observed": "PASS",
+  "hasSeenRevisionRetentionContract": true,
+  "hasExplicitCancelOnlyGuard": true,
+  "beforePass": false,
+  "afterPass": true,
+  "beforeFixRows": [
+    {
+      "client": "initiator",
+      "seenRevision": true,
+      "fullLocalDurationMs": 4000,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": false
+    },
+    {
+      "client": "peer",
+      "seenRevision": true,
+      "fullLocalDurationMs": 900,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": true
+    },
+    {
+      "client": "/output/final",
+      "seenRevision": true,
+      "fullLocalDurationMs": 1100,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": true
+    }
+  ],
+  "afterFixRows": [
+    {
+      "client": "initiator",
+      "seenRevision": true,
+      "fullLocalDurationMs": 4000,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": false,
+      "contractPresent": true
+    },
+    {
+      "client": "peer",
+      "seenRevision": true,
+      "fullLocalDurationMs": 4000,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": false,
+      "contractPresent": true
+    },
+    {
+      "client": "/output/final",
+      "seenRevision": true,
+      "fullLocalDurationMs": 4000,
+      "startsObserved": 1,
+      "canceledByPollingWithoutExplicitStopClear": false,
+      "contractPresent": true
+    }
+  ],
+  "error": null
+}
