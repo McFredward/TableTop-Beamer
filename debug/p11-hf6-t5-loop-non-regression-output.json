@@ -1,0 +1,23 @@
+{
+  "suite": "P11-HF6-T5-loop-non-regression",
+  "observed": "PASS",
+  "loopMatrix": [
+    {
+      "step": "start-loop",
+      "pass": true
+    },
+    {
+      "step": "sustain-loop",
+      "pass": true
+    },
+    {
+      "step": "stop-loop",
+      "pass": true
+    },
+    {
+      "step": "finite-only-seen-lock",
+      "pass": true
+    }
+  ],
+  "error": null
+}
