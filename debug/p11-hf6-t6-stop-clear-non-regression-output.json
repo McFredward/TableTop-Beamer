@@ -1,0 +1,23 @@
+{
+  "suite": "P11-HF6-T6-stop-clear-non-regression",
+  "observed": "PASS",
+  "matrix": [
+    {
+      "step": "global-stop-revision-authority",
+      "pass": true
+    },
+    {
+      "step": "seen-one-shot-stop-guard",
+      "pass": true
+    },
+    {
+      "step": "clear-all-revision-authority",
+      "pass": true
+    },
+    {
+      "step": "client-clear-apply-immediate",
+      "pass": true
+    }
+  ],
+  "error": null
+}
