@@ -6,7 +6,7 @@ Liefere zuerst einen stabilen Vertical Slice fuer OG-Nemesis (Phase 1), erweiter
 ## Phase 11 - UX Operation Acceleration + Mobile Parity (In Progress)
 Ziel: Schneller Operator-Betrieb auf Desktop + Mobile durch tap-gesteuerte Raumanimationen (Quick-Modes), strukturierte Settings-Gliederung, gesicherte Einhandbedienung sowie deterministische first-apply Sync-Pfade und per-trigger Loop/Audio-Steuerung.
 
-Status: Plan 11-1 (12/12 Tasks), Plan 11-HF1 (12/12 Tasks), Plan 11-HF2 (8/8 Tasks), Plan 11-HF3 (7/7 Tasks), Plan 11-HF4 (7/7 Tasks) und Plan 11-HF5 (8/8 Tasks) sind implementiert. Plan 11-2 ist nach HF5-PASS wieder freigegeben.
+Status: Plan 11-1 (12/12 Tasks), Plan 11-HF1 (12/12 Tasks), Plan 11-HF2 (8/8 Tasks), Plan 11-HF3 (7/7 Tasks), Plan 11-HF4 (7/7 Tasks), Plan 11-HF5 (8/8 Tasks) und Plan 11-HF6 (8/8 Tasks) sind implementiert. Plan 11-2 ist nach HF6 PASS wieder freigegeben.
 
 Milestones:
 1. M1 UX Operation Flow: tabellarische Settings + mobile one-handed rails + tap-gesteuerte Quick-Modes.
@@ -15,12 +15,13 @@ Milestones:
 4. M4 HF3 Recovery Package: global one-shot full-duration fix (~4s), per-trigger audio choice in dashboard.
 5. M5 HF4 Recovery Package: non-loop global final-output suppression root-cause fix with one-shot full-duration exactly-once parity.
 6. M6 HF5 Recovery Package: non-loop global initiator-only desync closure via server-authoritative exactly-once multi-client replication.
+7. M7 HF6 Recovery Package: polling/hydration-safe seen-once full-duration one-shot playback contract with explicit-cancel-only guard.
 
 Exit Criteria:
-- Non-loop global triggers are server-authoritative and replicate exactly once to initiator + peers + `/output/final` with full intended duration parity.
-- Local optimistic one-shot rendering cannot mask distributed sync failures.
+- Any client that sees a non-loop trigger revision completes exactly one full-duration local playback.
+- Polling snapshots do not prematurely cancel started one-shot playback without explicit stop/clear revision.
 - Loop-mode behavior plus global stop/clear semantics remain non-regressed.
-- Multi-client one-shot duration parity (initiator + peers + `/output/final`) has explicit FAIL->PASS evidence.
+- Deterministic multi-client polling seen-once full-playback parity (initiator + peers + `/output/final`) has explicit FAIL->PASS evidence.
 - All artifact and regression matrices are PASS.
 
 Execution Update (11-HF4):
@@ -30,3 +31,8 @@ Execution Update (11-HF4):
 Execution Update (11-HF5):
 - Completed: initiator-only non-loop desync is closed through server-authoritative fanout payloads and optimistic-path guard removal.
 - Verification PASS: `.planning/phases/phase-11/11-HF5-VERIFICATION.md` + `debug/p11-hf5-acceptance-regression-output.json`.
+
+Execution Update (11-HF6):
+- Completed: seen non-loop trigger revisions now enforce local full-duration exactly-once playback with revision-key retention.
+- Completed: polling snapshots cannot cancel started one-shots without explicit stop/clear revision authority.
+- Verification PASS: `.planning/phases/phase-11/11-HF6-VERIFICATION.md` + `debug/p11-hf6-acceptance-regression-output.json`.

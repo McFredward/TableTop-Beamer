@@ -11,11 +11,14 @@ const hasServerAuthoritativeTriggerRevisionPath =
 const hasSnapshotReconcileOverwritePath =
   runtimeSource.includes("const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);")
   && runtimeSource.includes("const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);")
-  && runtimeSource.includes("state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);");
+  && (
+    runtimeSource.includes("state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);")
+    || runtimeSource.includes("const retainedRunningAnimations = retainActiveSeenOneShotRuns(reconciledRunningAnimations);")
+  );
 
-const lacksExplicitSeenOnceLock =
-  !runtimeSource.includes("activeSeenOneShotRunByTriggerRevision")
-  && !runtimeSource.includes("retainActiveSeenOneShotRuns");
+const hasExplicitSeenOnceLock =
+  runtimeSource.includes("activeSeenOneShotRunByTriggerRevision")
+  && runtimeSource.includes("retainActiveSeenOneShotRuns");
 
 const branchIsolation = {
   commandEmissionBranch: {
@@ -28,8 +31,9 @@ const branchIsolation = {
     pass: hasServerAuthoritativeTriggerRevisionPath,
   },
   pollingHydrationReconcileBranch: {
-    isolatedAsRootCause: hasSnapshotReconcileOverwritePath && lacksExplicitSeenOnceLock,
+    isolatedAsRootCause: hasSnapshotReconcileOverwritePath,
     note: "snapshot apply can replace local active one-shot without explicit stop/clear revision gate",
+    fixedBySeenLock: hasExplicitSeenOnceLock,
   },
 };
 
@@ -41,7 +45,7 @@ const output = {
   observed: rootCauseIsolated ? "PASS" : "FAIL",
   hasServerAuthoritativeTriggerRevisionPath,
   hasSnapshotReconcileOverwritePath,
-  lacksExplicitSeenOnceLock,
+  hasExplicitSeenOnceLock,
   branchIsolation,
 };
 

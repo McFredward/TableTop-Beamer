@@ -3,7 +3,7 @@
   "observed": "PASS",
   "hasServerAuthoritativeTriggerRevisionPath": true,
   "hasSnapshotReconcileOverwritePath": true,
-  "lacksExplicitSeenOnceLock": true,
+  "hasExplicitSeenOnceLock": true,
   "branchIsolation": {
     "commandEmissionBranch": {
       "isolatedAsRootCause": false,
@@ -16,7 +16,8 @@
     },
     "pollingHydrationReconcileBranch": {
       "isolatedAsRootCause": true,
-      "note": "snapshot apply can replace local active one-shot without explicit stop/clear revision gate"
+      "note": "snapshot apply can replace local active one-shot without explicit stop/clear revision gate",
+      "fixedBySeenLock": true
     }
   }
 }

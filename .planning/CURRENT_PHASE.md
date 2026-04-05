@@ -1,7 +1,7 @@
 # CURRENT PHASE
 
 - Active: Phase 11 (`phase-11`)
-- Status: active execution (Plan 11-HF5 closed PASS; phase remains active for next plan)
+- Status: active execution (Plan 11-HF6 closed PASS; handoff to 11-2)
 - Next Plan: 11-2
 - Command Target: `/gsd:execute-phase 11`
 

@@ -2,8 +2,9 @@
 
 ## Priority
 - Plan 11-1, 11-HF1, 11-HF2, 11-HF3, and 11-HF4 remain historical implementation baselines but are field-corrected by new critical feedback.
-- Execute Plan 11-HF5 immediately as mandatory P0 recovery wave.
-- Plan 11-2 stays queued until 11-HF5 PASS.
+- Plan 11-HF5 remains implemented but is field-invalidated under polling/hydration behavior.
+- Execute Plan 11-HF6 immediately as mandatory P0 recovery wave.
+- Plan 11-2 stays queued until 11-HF6 PASS.
 
 ## Input Pack
 - Plan: `PLAN.md`
@@ -12,18 +13,18 @@
 - Quality Gate: `ACCEPTANCE.md`
 - Risk Guide: `RISKS.md`
 
-## Priority Execution - Plan 11-HF5 (binding)
-1. P0 first: P11-HF5-T1 + P11-HF5-T2 (initiator-only RED + root-cause isolation across emit/apply/fanout).
-2. P0 next: P11-HF5-T3 + P11-HF5-T4 (server-authoritative exactly-once replication + optimistic-path guard/removal).
-3. P0 closure: P11-HF5-T5 + P11-HF5-T6 + P11-HF5-T7 (loop/stop/clear non-regression + strict multi-client FAIL->PASS parity evidence).
-4. P0 final closure: P11-HF5-T8 (full artifact sync).
+## Priority Execution - Plan 11-HF6 (binding)
+1. P0 first: P11-HF6-T1 + P11-HF6-T2 (polling/hydration RED + root-cause isolation).
+2. P0 next: P11-HF6-T3 + P11-HF6-T4 (seen-revision full-playback contract + explicit-cancel-only guard).
+3. P0 closure: P11-HF6-T5 + P11-HF6-T6 + P11-HF6-T7 (loop/stop/clear non-regression + deterministic multi-client polling FAIL->PASS evidence).
+4. P0 final closure: P11-HF6-T8 (full artifact sync).
 
 ## Gate Rules
-- Do not close HF5 without deterministic PASS proving non-loop globals are server-authoritative and replicated exactly once to initiator + peers + `/output/final`.
-- Do not close HF5 while any local optimistic one-shot path can mask missing distributed sync.
-- Do not close HF5 without explicit loop-mode non-regression PASS.
-- Do not close HF5 without explicit stop/clear non-regression PASS.
-- Do not close wave without strict multi-client parity PASS for one-shot duration completion.
+- Do not close HF6 without deterministic PASS proving seen non-loop revisions complete exactly one full-duration local playback per client.
+- Do not close HF6 while polling/hydration snapshots can cancel started one-shots without explicit stop/clear revision.
+- Do not close HF6 without explicit loop-mode non-regression PASS.
+- Do not close HF6 without explicit stop/clear immediate-authority non-regression PASS.
+- Do not close wave without strict deterministic multi-client polling parity PASS (initiator + peers + `/output/final`).
 - No closure without full planning tracker synchronization (`PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`).
 
 ## Update Rules
@@ -60,3 +61,13 @@
   - Completed A: non-loop global start fanout is server-authoritative with canonical trigger revision/id payload.
   - Completed B: local optimistic global one-shot masking path is removed; runtime waits for distributed snapshot confirmation.
   - Completed C: strict multi-client FAIL->PASS parity is documented in `11-HF5-VERIFICATION.md` and `P11-HF5-T7-FAIL-PASS-PROOF.md`.
+- Critical P0 follow-up after HF5 activates Plan 11-HF6 before 11-2:
+  - Recovery A: non-loop globals seen on peer clients or `/output/final` still do not visibly complete due to polling/hydration premature cancellation.
+  - Recovery B: once a non-loop trigger revision is seen, local playback must run exactly once for full configured duration.
+  - Recovery C: polling snapshots must never cancel started one-shots unless explicit stop/clear revision is observed.
+  - Recovery D: loop behavior stays unchanged; stop/clear remains authoritative and immediate.
+- HF6 execution closure:
+  - Completed A: seen non-loop trigger revisions now lock local one-shot playback exactly once for full configured duration.
+  - Completed B: polling snapshot reconciliation no longer cancels started one-shots without explicit stop/clear authority.
+  - Completed C: loop and stop/clear non-regression are PASS, including explicit clear revision authority under polling.
+  - Completed D: deterministic multi-client FAIL->PASS parity is documented in `11-HF6-VERIFICATION.md` and `P11-HF6-T7-FAIL-PASS-PROOF.md`.

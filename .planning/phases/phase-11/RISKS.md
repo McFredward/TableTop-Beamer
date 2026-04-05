@@ -25,6 +25,16 @@
 - Impact: Critical.
 - Mitigation: strict full-duration parity assertions across initiator + peers + `/output/final` with wall-clock tolerance bounds.
 
+## R0l Polling hydration cancels active one-shot without explicit stop/clear
+- Risk: periodic snapshot reconciliation terminates active non-loop run even though no explicit stop/clear revision exists.
+- Impact: Critical.
+- Mitigation: revision-aware cancellation guard with deterministic tests proving no premature cancel under polling.
+
+## R0m Seen-revision contract drifts across clients
+- Risk: one client completes full one-shot playback while another client that saw the same revision exits early.
+- Impact: Critical.
+- Mitigation: multi-client deterministic polling suite with seen-once -> full local playback assertions for initiator + peers + `/output/final`.
+
 ## R0b One-shot sync recovery regresses loop mode
 - Risk: changes for non-loop replication accidentally alter loop start/sustain/stop semantics.
 - Impact: Critical.
@@ -58,7 +68,8 @@
 ## R1 Artifact drift across planning trackers
 - Risk: phase documents and global trackers diverge during hotfix execution.
 - Impact: High.
-- Mitigation: explicit artifact sync task (P11-HF5-T8) and closure gate.
+- Mitigation: explicit artifact sync task (P11-HF6-T8) and closure gate.
 
-## HF5 Risk Closure Snapshot
-- R0h/R0i/R0j/R0k are closed by HF5 PASS evidence (`11-HF5-VERIFICATION.md`, `P11-HF5-T7-FAIL-PASS-PROOF.md`).
+## HF6 Risk Activation Snapshot
+- HF5 implementation remains in place but is field-invalidated for polling/hydration premature-cancel behavior.
+- R0l/R0m closure is PASS with deterministic evidence gates (`11-HF6-VERIFICATION.md`, `debug/p11-hf6-acceptance-regression-output.json`).

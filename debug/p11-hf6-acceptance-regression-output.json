@@ -1,0 +1,56 @@
+{
+  "suite": "p11-hf6-acceptance-regression",
+  "observed": "PASS",
+  "gates": [
+    {
+      "id": "P11-HF6-T1",
+      "artifact": "debug/p11-hf6-t1-polling-premature-cancel-red-output.json",
+      "expected": "FAIL",
+      "observed": "FAIL",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T2",
+      "artifact": "debug/p11-hf6-t2-root-cause-branch-isolation-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T3",
+      "artifact": "debug/p11-hf6-t3-seen-revision-full-duration-exactly-once-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T4",
+      "artifact": "debug/p11-hf6-t4-no-premature-snapshot-cancel-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T5",
+      "artifact": "debug/p11-hf6-t5-loop-non-regression-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T6",
+      "artifact": "debug/p11-hf6-t6-stop-clear-non-regression-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P11-HF6-T7",
+      "artifact": "debug/p11-hf6-t7-multiclient-polling-fail-pass-proof-output.json",
+      "expected": "PASS",
+      "observed": "PASS",
+      "pass": true
+    }
+  ],
+  "error": null
+}
