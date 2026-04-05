@@ -11,9 +11,9 @@
 - Current Phase Key: phase-11
 - Last Prepared: 2026-04-05
 - Execution Readiness: READY
-- Last Executed Plan: 11-HF5 (implemented with PASS closure)
+- Last Executed Plan: 11-HF6 (PASS, polling/hydration seen-once full-playback contract closed)
 - Planned Next Execution: 11-2
-- Last Execution Summary: `.planning/phases/phase-11/11-HF5-SUMMARY.md`
+- Last Execution Summary: `.planning/phases/phase-11/11-HF6-SUMMARY.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -61,6 +61,15 @@
 - Plan-11-HF5 Umsetzung: non-loop globals fanouten server-authoritativ mit kanonischem run-id/trigger-revision Vertrag; initiator/peer/`/output/final` erhalten exakt einen Run.
 - Plan-11-HF5 Umsetzung: lokale optimistic non-loop global-start Maskierung ist entfernt; Runtime wartet auf Snapshot-Fanout und meldet pending/failure explizit.
 - Plan-11-HF5 Umsetzung: loop + stop/clear Non-Regression sowie strict multi-client FAIL->PASS parity sind PASS (`11-HF5-VERIFICATION.md`, `P11-HF5-T7-FAIL-PASS-PROOF.md`).
+- Kritisches P0-Follow-up nach HF5 ist bindend: non-loop globale Trigger werden auf Peers und `/output/final` teils gesehen, aber durch polling/hydration vor sichtbarer Voll-Dauer vorzeitig beendet.
+- Plan 11-HF6 ist als verpflichtende execute-ready Recovery-Welle gesetzt und blockiert Plan 11-2 bis FAIL->PASS closure.
+- HF6-Seen-Once-Regel: sobald ein Client eine non-loop trigger revision sieht, muss die lokale Wiedergabe exakt einmal fuer die volle konfigurierte Dauer laufen.
+- HF6-Polling-Regel: Polling-Snapshots duerfen gestartete one-shot Runs nie vorzeitig beenden, ausser eine explizite stop/clear revision liegt vor.
+- HF6-Non-Regression-Regel: loop mode bleibt unveraendert; bestehende globale `stop`/`clear` Semantik bleibt autoritativ und unmittelbar.
+- HF6-Evidenzregel: Wave-Close erfordert deterministische multi-client Tests fuer `seen-once -> full local playback` unter Polling (Initiator + Peers + `/output/final`).
+- Plan-11-HF6 Umsetzung: seen non-loop trigger revisions werden lokal revisionsgebunden retained und laufen exakt einmal fuer volle Soll-Dauer ab dem lokalen Seen-Zeitpunkt.
+- Plan-11-HF6 Umsetzung: polling/hydration snapshots beenden aktive one-shots nicht mehr ohne explizite stop/clear Autoritaet; `globalClearRevision` deckt clear-authority fuer polling-only Clients ab.
+- Plan-11-HF6 Umsetzung: loop + stop/clear Non-Regression sowie deterministic multi-client polling FAIL->PASS parity sind PASS (`11-HF6-VERIFICATION.md`, `P11-HF6-T7-FAIL-PASS-PROOF.md`).
 - Kritisches P0-Feedback nach HF7 ist bindend: aktuell laden alle Boards nur noch das default fallback polygon; kanonisch gespeicherte board play-areas werden nicht angewendet.
 - Kritisches P0-Feedback nach HF7 ist bindend: `Load global defaults` stellt board-spezifische play-areas derzeit nicht korrekt wieder her.
 - Plan 10-HF8 ist als verpflichtende Recovery-Welle gesetzt und blockiert Plan 10-1 erneut bis FAIL->PASS closure mit all-board Matrix.
