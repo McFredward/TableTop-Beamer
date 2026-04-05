@@ -654,6 +654,131 @@ function observeGlobalStopRevisions(runtime) {
   }
 }
 
+function buildSeenOneShotRunRevisionKey(triggerKey, triggerRevision) {
+  if (!triggerKey) {
+    return null;
+  }
+  const normalizedRevision = Number(triggerRevision);
+  if (!Number.isInteger(normalizedRevision) || normalizedRevision <= 0) {
+    return null;
+  }
+  return `${triggerKey}#${triggerRevision}`;
+}
+
+function rememberSeenOneShotRun(animation, {
+  triggerKey,
+  triggerRevision,
+  nowEpochMs,
+  nowPerfMs,
+} = {}) {
+  if (!isFiniteDurationGlobalAnimation(animation)) {
+    return null;
+  }
+  const revisionKey = buildSeenOneShotRunRevisionKey(triggerKey, triggerRevision);
+  if (!revisionKey) {
+    return null;
+  }
+  const stopRevision = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
+  if (stopRevision >= triggerRevision) {
+    liveSync.activeSeenOneShotRunByTriggerRevision.delete(revisionKey);
+    return null;
+  }
+  const existing = liveSync.activeSeenOneShotRunByTriggerRevision.get(revisionKey) ?? null;
+  const durationMs = Math.max(1, Math.trunc(Number(animation.durationMs) || 0));
+  if (existing) {
+    const merged = {
+      ...existing,
+      id: String(animation.id || existing.id || ""),
+      durationMs: durationMs > 0 ? durationMs : existing.durationMs,
+      animationTemplate: {
+        ...existing.animationTemplate,
+        ...animation,
+        triggerKey,
+        triggerRevision,
+      },
+    };
+    liveSync.activeSeenOneShotRunByTriggerRevision.set(revisionKey, merged);
+    return merged;
+  }
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return null;
+  }
+  const record = {
+    revisionKey,
+    triggerKey,
+    triggerRevision,
+    id: String(animation.id || ""),
+    durationMs,
+    startedAtEpochMs: nowEpochMs,
+    startedAt: nowPerfMs,
+    animationTemplate: {
+      ...animation,
+      triggerKey,
+      triggerRevision,
+      startedAtEpochMs: nowEpochMs,
+      startedAt: nowPerfMs,
+      durationMs,
+    },
+  };
+  liveSync.activeSeenOneShotRunByTriggerRevision.set(revisionKey, record);
+  return record;
+}
+
+function retainActiveSeenOneShotRuns(runningAnimations, { nowEpochMs = Date.now(), nowPerfMs = performance.now() } = {}) {
+  const nextAnimations = Array.isArray(runningAnimations) ? [...runningAnimations] : [];
+  const seenRevisionKeys = new Set();
+  for (const animation of nextAnimations) {
+    const triggerKey = getGlobalTriggerKey(animation);
+    const triggerRevision = getGlobalTriggerRevision(animation);
+    const revisionKey = buildSeenOneShotRunRevisionKey(triggerKey, triggerRevision);
+    if (!revisionKey) {
+      continue;
+    }
+    seenRevisionKeys.add(revisionKey);
+  }
+
+  for (const [revisionKey, record] of liveSync.activeSeenOneShotRunByTriggerRevision.entries()) {
+    const triggerKey = record?.triggerKey ?? null;
+    const triggerRevision = Number(record?.triggerRevision);
+    const stopRevision = Number(triggerKey ? liveSync.globalStopRevisionSeenByKey.get(triggerKey) : 0);
+    const durationMs = Math.max(0, Number(record?.durationMs) || 0);
+    const startedAtEpochMs = Number(record?.startedAtEpochMs);
+    const finished = !Number.isFinite(startedAtEpochMs)
+      || !Number.isFinite(durationMs)
+      || durationMs <= 0
+      || nowEpochMs - startedAtEpochMs >= durationMs;
+    if (
+      !triggerKey
+      || !Number.isInteger(triggerRevision)
+      || triggerRevision <= 0
+      || stopRevision >= triggerRevision
+      || finished
+    ) {
+      liveSync.activeSeenOneShotRunByTriggerRevision.delete(revisionKey);
+      continue;
+    }
+    if (seenRevisionKeys.has(revisionKey)) {
+      continue;
+    }
+    const template = record?.animationTemplate;
+    if (!template || !String(template.id || "").trim()) {
+      continue;
+    }
+    nextAnimations.push({
+      ...template,
+      id: record.id,
+      hold: false,
+      durationMs,
+      triggerKey,
+      triggerRevision,
+      startedAtEpochMs,
+      startedAt: Number.isFinite(Number(record?.startedAt)) ? Number(record.startedAt) : nowPerfMs,
+    });
+  }
+
+  return nextAnimations;
+}
+
 function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimationsById = new Map()) {
   const nextNowEpoch = Date.now();
   const nextNowPerf = performance.now();
@@ -671,6 +796,10 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
       // Global triggers are revision-driven: a stop with same/higher revision must win over stale starts.
       const stopRevision = Number(liveSync.globalStopRevisionSeenByKey.get(triggerKey) ?? 0);
       if (stopRevision >= triggerRevision) {
+        const revisionKey = buildSeenOneShotRunRevisionKey(triggerKey, triggerRevision);
+        if (revisionKey) {
+          liveSync.activeSeenOneShotRunByTriggerRevision.delete(revisionKey);
+        }
         return null;
       }
       const highestSeenRevision = Number(liveSync.globalTriggerRevisionSeenByKey.get(triggerKey) ?? 0);
@@ -678,6 +807,22 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
       const isSameRevisionAsCurrent = previous && previousRevision === triggerRevision;
       if (triggerRevision > highestSeenRevision) {
         liveSync.globalTriggerRevisionSeenByKey.set(triggerKey, triggerRevision);
+        const seenOneShotRun = rememberSeenOneShotRun(animation, {
+          triggerKey,
+          triggerRevision,
+          nowEpochMs: nextNowEpoch,
+          nowPerfMs: nextNowPerf,
+        });
+        if (seenOneShotRun) {
+          return {
+            ...animation,
+            triggerKey,
+            triggerRevision,
+            startedAtEpochMs: seenOneShotRun.startedAtEpochMs,
+            startedAt: seenOneShotRun.startedAt,
+            durationMs: seenOneShotRun.durationMs,
+          };
+        }
         if (!isSameRevisionAsCurrent) {
           const startedAtEpochMs = getAnimationStartedAtEpochMs(animation);
           const ageMs = Math.max(0, nextNowEpoch - startedAtEpochMs);
@@ -691,6 +836,22 @@ function primeGlobalTriggerRuntimeTimestamps(runningAnimations, previousAnimatio
         }
       }
       if (isSameRevisionAsCurrent) {
+        const seenOneShotRun = rememberSeenOneShotRun(animation, {
+          triggerKey,
+          triggerRevision,
+          nowEpochMs: nextNowEpoch,
+          nowPerfMs: nextNowPerf,
+        });
+        if (seenOneShotRun) {
+          return {
+            ...animation,
+            triggerKey,
+            triggerRevision,
+            startedAtEpochMs: seenOneShotRun.startedAtEpochMs,
+            startedAt: seenOneShotRun.startedAt,
+            durationMs: seenOneShotRun.durationMs,
+          };
+        }
         return {
           ...animation,
           triggerKey,
@@ -1468,7 +1629,8 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
   const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
   const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
   const reconciledRunningAnimations = reconcileHydratedAnimations(primedRunningAnimations);
-  state.runningAnimations = hydrateRunningAnimationStartTimestamps(reconciledRunningAnimations);
+  const retainedRunningAnimations = retainActiveSeenOneShotRuns(reconciledRunningAnimations);
+  state.runningAnimations = hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
   reconcileStopPendingFromSnapshot();
   if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
     state.roomDraft = {

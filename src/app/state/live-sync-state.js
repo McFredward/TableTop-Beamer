@@ -24,8 +24,10 @@
       },
       globalTriggerRevisionSeenByKey: new Map(),
       globalStopRevisionSeenByKey: new Map(),
+      activeSeenOneShotRunByTriggerRevision: new Map(),
       terminalOneShotRevisionByKey: new Map(),
       terminalOneShotFingerprints: new Map(),
+      lastObservedGlobalClearRevision: 0,
       pendingStopAnimationIds: new Set(),
     };
   }

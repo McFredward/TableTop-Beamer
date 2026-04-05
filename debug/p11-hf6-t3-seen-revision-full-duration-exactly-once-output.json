@@ -1,0 +1,53 @@
+{
+  "suite": "P11-HF6-T3-seen-revision-full-duration-exactly-once",
+  "observed": "PASS",
+  "hasSeenRunRegistryState": true,
+  "hasSeenRunRetentionHelpers": true,
+  "hasLocalFullDurationStartFromSeenMoment": true,
+  "hasExactlyOnceKeying": true,
+  "beforePass": false,
+  "afterPass": true,
+  "beforeFixRows": [
+    {
+      "client": "initiator",
+      "seenRevision": true,
+      "playsFullDurationLocally": true,
+      "startsObserved": 1
+    },
+    {
+      "client": "peer",
+      "seenRevision": true,
+      "playsFullDurationLocally": false,
+      "startsObserved": 1
+    },
+    {
+      "client": "/output/final",
+      "seenRevision": true,
+      "playsFullDurationLocally": false,
+      "startsObserved": 1
+    }
+  ],
+  "afterFixRows": [
+    {
+      "client": "initiator",
+      "seenRevision": true,
+      "playsFullDurationLocally": true,
+      "startsObserved": 1,
+      "contractPresent": true
+    },
+    {
+      "client": "peer",
+      "seenRevision": true,
+      "playsFullDurationLocally": true,
+      "startsObserved": 1,
+      "contractPresent": true
+    },
+    {
+      "client": "/output/final",
+      "seenRevision": true,
+      "playsFullDurationLocally": true,
+      "startsObserved": 1,
+      "contractPresent": true
+    }
+  ]
+}
