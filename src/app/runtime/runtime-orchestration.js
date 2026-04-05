@@ -654,6 +654,18 @@ function observeGlobalStopRevisions(runtime) {
   }
 }
 
+function observeGlobalClearRevision(runtime) {
+  const revision = Number(runtime?.globalClearRevision);
+  if (!Number.isInteger(revision) || revision <= 0) {
+    return;
+  }
+  if (revision <= liveSync.lastObservedGlobalClearRevision) {
+    return;
+  }
+  liveSync.lastObservedGlobalClearRevision = revision;
+  liveSync.activeSeenOneShotRunByTriggerRevision.clear();
+}
+
 function buildSeenOneShotRunRevisionKey(triggerKey, triggerRevision) {
   if (!triggerKey) {
     return null;
@@ -1621,6 +1633,14 @@ function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope =
     };
   }
   observeGlobalStopRevisions(runtime);
+  observeGlobalClearRevision(runtime);
+  if (mutationType === "clear-all") {
+    liveSync.activeSeenOneShotRunByTriggerRevision.clear();
+    liveSync.lastObservedGlobalClearRevision = Math.max(
+      Number(liveSync.lastObservedGlobalClearRevision) || 0,
+      1,
+    );
+  }
   const previousAnimationsById = new Map(
     state.runningAnimations
       .filter((animation) => animation && typeof animation.id === "string")

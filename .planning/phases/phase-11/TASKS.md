@@ -44,7 +44,7 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 - [x] DONE P11-HF6-T1 [P0] Build deterministic RED repro: clients see non-loop trigger revision but polling/hydration cancels local playback before full visible duration.
 - [x] DONE P11-HF6-T2 [P0] Isolate root-cause ordering between trigger-revision observation and polling snapshot reconciliation/cancellation.
 - [x] DONE P11-HF6-T3 [P0] Implement seen-revision local playback contract: once started, non-loop one-shot plays exactly once for full configured duration.
-- [ ] TODO P11-HF6-T4 [P0] Guard snapshot cancellation path so active one-shot is not canceled unless explicit stop/clear revision is observed.
+- [x] DONE P11-HF6-T4 [P0] Guard snapshot cancellation path so active one-shot is not canceled unless explicit stop/clear revision is observed.
 - [ ] TODO P11-HF6-T5 [P0] Execute loop-mode non-regression matrix (start, sustain, stop) to confirm unchanged behavior.
 - [ ] TODO P11-HF6-T6 [P0] Execute explicit stop/clear immediate-authority non-regression matrix under mixed one-shot + loop sequences.
 - [ ] TODO P11-HF6-T7 [P0] Add and run deterministic multi-client polling tests for seen-once -> full local playback parity across initiator + peers + `/output/final`.

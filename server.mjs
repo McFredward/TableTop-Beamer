@@ -333,6 +333,7 @@ function applyRoomMutationPatch(mutationType, payload) {
   const globalStopRevisions = isPlainObject(nextRuntime.globalStopRevisions)
     ? { ...nextRuntime.globalStopRevisions }
     : {};
+  let globalClearRevision = Number(nextRuntime.globalClearRevision) || 0;
   const stopAnimationId = normalizeNonEmptyString(payload?.animationId);
   const stopTargetScope = normalizeNonEmptyString(payload?.targetScope);
   const stopTargetType = normalizeNonEmptyString(payload?.targetType);
@@ -382,6 +383,7 @@ function applyRoomMutationPatch(mutationType, payload) {
       if (stopTargetScope !== "global" || !stopTargetType) {
         nextRuntime.runningAnimations = runningAnimations;
         nextRuntime.globalStopRevisions = globalStopRevisions;
+        nextRuntime.globalClearRevision = globalClearRevision;
         return {
           runtime: nextRuntime,
           ...(authoritativeBoardId
@@ -477,6 +479,8 @@ function applyRoomMutationPatch(mutationType, payload) {
     nextRuntime.outsideFxByBoard = outsideFxByBoard;
     nextRuntime.runningAnimations = runningAnimations;
     nextRuntime.globalStopRevisions = globalStopRevisions;
+    globalClearRevision += 1;
+    nextRuntime.globalClearRevision = globalClearRevision;
     return {
       runtime: nextRuntime,
       outsideFxByBoard,
@@ -491,6 +495,7 @@ function applyRoomMutationPatch(mutationType, payload) {
 
   nextRuntime.runningAnimations = runningAnimations;
   nextRuntime.globalStopRevisions = globalStopRevisions;
+  nextRuntime.globalClearRevision = globalClearRevision;
   return {
     runtime: nextRuntime,
     ...(authoritativeBoardId

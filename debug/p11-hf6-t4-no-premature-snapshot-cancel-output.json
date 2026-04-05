@@ -1,0 +1,46 @@
+{
+  "suite": "P11-HF6-T4-non-loop-polling-snapshot-no-premature-cancel",
+  "observed": "PASS",
+  "hasClientClearRevisionObserver": true,
+  "hasRetentionCancellationGuard": true,
+  "hasServerClearRevisionIncrement": true,
+  "beforePass": false,
+  "afterPass": true,
+  "beforeFixRows": [
+    {
+      "case": "polling-miss-without-stop",
+      "canceled": true,
+      "explicitCancelSeen": false
+    },
+    {
+      "case": "explicit-stop-revision",
+      "canceled": true,
+      "explicitCancelSeen": true
+    },
+    {
+      "case": "explicit-clear-revision",
+      "canceled": true,
+      "explicitCancelSeen": true
+    }
+  ],
+  "afterFixRows": [
+    {
+      "case": "polling-miss-without-stop",
+      "canceled": false,
+      "explicitCancelSeen": false,
+      "guardPresent": true
+    },
+    {
+      "case": "explicit-stop-revision",
+      "canceled": true,
+      "explicitCancelSeen": true,
+      "guardPresent": true
+    },
+    {
+      "case": "explicit-clear-revision",
+      "canceled": true,
+      "explicitCancelSeen": true,
+      "guardPresent": true
+    }
+  ]
+}
