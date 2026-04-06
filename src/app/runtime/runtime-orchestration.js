@@ -4308,11 +4308,8 @@ function resolveRoomAnimationEffectType(type, boardId = state.boardId) {
   if (definition && normalizeRoomAssetType(definition.assetType) === "coded") {
     return resolveRoomCodedEffectType(definition.assetRef);
   }
-  if (type === "nest") {
-    return "special-nest";
-  }
-  if (type === "dekompression") {
-    return "special-decompression";
+  if (type === "scanning") {
+    return "special-scanning";
   }
   return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
 }
@@ -6962,9 +6959,8 @@ function getRoomCodedAssetKeys() {
   return Array.from(new Set([
     ...knownInsideRendererIds,
     ...knownDefaultRefs,
-    "special-nest",
     "special-slime",
-    "special-decompression",
+    "special-scanning",
   ]));
 }
 
@@ -11419,28 +11415,6 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === "special-nest") {
-    const densityFactor = Number(options.densityFactor) || 1;
-    const cells = Math.max(6, Math.round(22 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
-    for (let i = 0; i < cells; i += 1) {
-      const seed = ((i * 71.97) % 1000) / 1000;
-      const seedB = ((i * 33.41 + 17) % 1000) / 1000;
-      const pulse = (Math.sin(age * 4.3 + i * 1.11) + 1) / 2;
-      const x = roomMinX + roomWidth * (0.08 + seed * 0.84);
-      const y = roomMinY + roomHeight * (0.1 + seedB * 0.8);
-      const rx = Math.max(4, roomWidth * (0.04 + (seed * 0.03)));
-      const ry = rx * (0.75 + pulse * 0.28);
-      ctx.fillStyle = `rgba(152, 205, 88, ${(0.2 + pulse * 0.22) * intensity})`;
-      ctx.beginPath();
-      ctx.ellipse(x, y, rx, ry, pulse * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(222, 255, 188, ${(0.18 + pulse * 0.2) * intensity})`;
-      ctx.lineWidth = Math.max(1, rx * 0.12);
-      ctx.stroke();
-    }
-    return;
-  }
-
   if (type === "special-slime") {
     const densityFactor = Number(options.densityFactor) || 1;
     const bands = Math.max(3, Math.round(9 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
@@ -11473,7 +11447,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === "special-decompression") {
+  if (type === "special-scanning") {
     const densityFactor = Number(options.densityFactor) || 1;
     const rings = Math.max(3, Math.round(7 * intensity * densityFactor * visualCaps.nonCriticalDensityScale));
     const maxRadius = Math.max(roomWidth, roomHeight) * 0.72;
@@ -11515,7 +11489,7 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === "feuer" || type === "schleim") {
+  if (type === "fire" || type === "slime") {
     const gifRenderConfig = resolveRoomGifRenderConfig(type, age, intensity, options);
     if (!gifRenderConfig.frame) {
       return;

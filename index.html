@@ -129,15 +129,6 @@
         <button id="start-room-animation" type="button">Start room animation</button>
       </section>
 
-      <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
-        data-dashboard-zone="manage">
-        <h2>Active animations</h2>
-        <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
-        <ul id="running-animations" class="running-list" aria-live="polite"></ul>
-        <button id="stop-all" class="danger" type="button">Clear All</button>
-        <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
-      </section>
-
       <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings"
         data-settings-tab="board" hidden>
         <h2>Board catalog + output</h2>
@@ -542,6 +533,15 @@
         <p id="animation-speed-status" class="status-line" aria-live="polite">Animation Speed: 1.00x</p>
       </section>
 
+      <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
+        data-dashboard-zone="manage">
+        <h2>Active animations</h2>
+        <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
+        <ul id="running-animations" class="running-list" aria-live="polite"></ul>
+        <button id="stop-all" class="danger" type="button">Clear All</button>
+        <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
+      </section>
+
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Audio Settings</h2>
         <label class="inline-checkbox">
@@ -576,7 +576,7 @@
         </p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" hidden>
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>MP4 performance controls</h2>
         <p class="status-line">Deterministic quality/performance policy for weak hardware and concurrent MP4 load.</p>
         <label>

@@ -263,22 +263,21 @@
 
   const ROOM_GIF_ANIMATION_ASSETS = {
     kaputt: toRootAssetPath("resources/nemesis/animations/malfunction.gif"),
-    feuer: toRootAssetPath("resources/nemesis/animations/fire.gif"),
-    schleim: toRootAssetPath("resources/nemesis/animations/final.gif"),
+    fire: toRootAssetPath("resources/nemesis/animations/fire.gif"),
+    slime: toRootAssetPath("resources/nemesis/animations/slime.gif"),
   };
 
   const ROOM_GLOBAL_EQUIVALENT_MAP = {
     alarm: "intruder-alert",
-    lichtflackern: "hull-flicker",
+    flicker: "hull-flicker",
   };
 
   const ROOM_ANIMATIONS = [
     { id: "kaputt", label: "Malfunction (malfunction.gif)" },
-    { id: "feuer", label: "Fire (fire.gif)" },
-    { id: "schleim", label: "Slime (final.gif)" },
-    { id: "nest", label: "Nest" },
-    { id: "dekompression", label: "Decompression" },
-    { id: "lichtflackern", label: "Light Flicker (global hull-flicker)" },
+    { id: "fire", label: "Fire (fire.gif)" },
+    { id: "slime", label: "Slime (slime.gif)" },
+    { id: "scanning", label: "Scanning" },
+    { id: "flicker", label: "Light Flicker (global hull-flicker)" },
     { id: "alarm", label: "Alarm" },
   ];
 
@@ -291,31 +290,25 @@
         assetRef: toRootAssetPath("resources/nemesis/animations/malfunction.gif"),
       },
       {
-        id: "feuer",
+        id: "fire",
         name: "Fire",
         assetType: "gif",
         assetRef: toRootAssetPath("resources/nemesis/animations/fire.gif"),
       },
       {
-        id: "schleim",
+        id: "slime",
         name: "Slime",
         assetType: "gif",
-        assetRef: toRootAssetPath("resources/nemesis/animations/final.gif"),
+        assetRef: toRootAssetPath("resources/nemesis/animations/slime.gif"),
       },
       {
-        id: "nest",
-        name: "Nest",
+        id: "scanning",
+        name: "Scanning",
         assetType: "coded",
-        assetRef: "special-nest",
+        assetRef: "special-scanning",
       },
       {
-        id: "dekompression",
-        name: "Decompression",
-        assetType: "coded",
-        assetRef: "special-decompression",
-      },
-      {
-        id: "lichtflackern",
+        id: "flicker",
         name: "Light Flicker",
         assetType: "coded",
         assetRef: "hull-flicker",
@@ -359,8 +352,8 @@
       "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
       "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],
       alarm: ["resources/nemesis/sounds/alarm.mp3"],
-      lichtflackern: ["resources/nemesis/sounds/electricity.mp3"],
-      feuer: ["resources/nemesis/sounds/power/3.wav"],
+      flicker: ["resources/nemesis/sounds/electricity.mp3"],
+      fire: ["resources/nemesis/sounds/power/3.wav"],
     }).map(([animationId, assetPaths]) => [animationId, assetPaths.map(toRootAssetPath)]),
   );
 
