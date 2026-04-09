@@ -47,6 +47,8 @@ A tabletop projector overlay controller designed to enhance board games with imm
 
 - Preshipped with **OG Nemesis** (both boards) and **Nemesis Lockdown** (both boards).
 
+- Alignment mode, where you show the outlines of all Rooms/Areas to perfectly fit the physical board.
+
 
 ## Requirements
 
@@ -184,3 +186,7 @@ ffmpeg -i input.mp4 -filter_complex "
 [a2][a1]acrossfade=d=5[a]
 " -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart output.mp4
 ```
+
+---
+
+If you have any suggestions, feel free to open an Issue. Or contact me (McFredward) in via Discord.
