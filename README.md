@@ -1,132 +1,176 @@
 # TABLETOP BEAMER | Atmosphere Controller
 
-TableTop beamer overlay controller designed to enhance board games with animations to boost the immersion.
+A tabletop projector overlay controller designed to enhance board games with immersive animations.
+
+> NOTE: This is more of an hobby project build for myself than a stable piece of software. Expect bugs 🕷️. AI was heavily used here. 
 
 <p align="center">
 <table>
 <tr>
-  <td><img src="readme-assets/tt-beamer-readme.png" width="350"></td>
-  <td width="20"></td>
-  <td><video src="readme-assets/TableTopBeamerPreview.mp4" controls width="400" height="250"></video></td>
+  <td><video src="readme-assets/demo.mp4" controls width="400" height="250"></video></td>
+  <td><video src="readme-assets/demo2.mp4" controls width="400" height="250"></video></td>
 </tr>
 </table>
+<img src="readme-assets/tt-beamer-readme.png" width="350">
 </p>
 
 ## Features
-- Quickly start and stop Room-Animations:
-<img src="readme-assets/tt-beamer_start_animations.gif" alt="Demo of the app's login flow" width="500" height="300"> 
-- Optimzed for controll usage on a mobile Browser.
-- Extra output path for animation output of the beamer:
-<img src="readme-assets/tt-beamer_output.gif" alt="Demo of the app's login flow" width="500" height="300"> 
-- Controll each animation: Adapt speed and opacity to your liking.
-- Add your own Animations based on a gif or mp4.
-- Pre-coded animations: Space-travel (outside), Alarm, Scanning, 
-- Shipped with some mpf4/gif animations: 
-- Add/Remove and draw your own areas/rooms for animations: Tow kind of areas: rooms (inner areas), and play-areas for controlling "outside" animations like space:
-<img src="readme-assets/tt-beamer_polygons.gif" alt="Demo of the app's login flow" width="500" height="300">  
-- 
 
-## What you need
+- Quickly start and stop room animations  
+<img src="readme-assets/tt-beamer_start_animations.gif" width="500" height="300">
 
-- **Short-throw ceiling-mounted projector** to display the image directly on your table.
-  > This is my exact setup (German Amazon links):  
-  > **Projector**: [BenQ TH671ST](https://www.amazon.de/dp/B075JH2J42?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1)  
-  > **Ceiling Mount**: [ONKRON Projector Ceiling Holder](https://www.amazon.de/dp/B0CGVGS7SN?ref=ppx_yo2ov_dt_b_fed_asin_title)  
-  > **Raspberry Pi**: [Raspberry Pi 5 8GB Starter Kit](https://www.amazon.de/dp/B0CRPF47RG?th=1)  
-  > *Make sure the beamer image covers your whole table before you mount the beamer on the ceiling. Its okay if the image is bigger and does not fit perfectly - for that we use an xrandr script on the pi later.* 
+- Optimized for mobile browser control
 
-- **Raspberry Pi** (or comparable Linux mini-PC) connected to the projector.
+- Dedicated output path for projector animation rendering  
+<img src="readme-assets/tt-beamer_output.gif" width="500" height="300">
 
-- **Computer** running the server software.
+- Fine-grained animation control (speed, opacity, etc.)
 
-- **Mobile phone** with a web browser for quick animation control during sessions.
+- Built-in animations:
+  - [Coded] Space travel (outside view)
+  - [MP4] Sandstorm (outside view)
+  - [Coded] Alarm
+  - [Coded] Scanning
+  - [GIF] Slime
+  - [GIF] Malfunction
 
-## Set-Up
-### Rasberry Pi (Mini-PC connected with the Beamer)
+- Support for custom animations (GIF or MP4)
 
-This project uses `xrandr` for transforming the image to perfectly fit to the corresponding table. To be able to use `xrandr` on RasberryPiOS, you need to switch from labwc (Wayland-based GUI) to X11.
+- Create, edit, and manage custom areas:
+  - **Rooms** (indoor areas)
+  - **Play areas** (for “outside” effects like space)  
+<img src="readme-assets/tt-beamer_polygons.gif" width="500" height="300">
+
+- Group multiple Rooms/Areas to "Clusters", so you can start an animation for the whole cluster.
+
+- Set up custom sounds to specific animations.
+
+- Preshipped with **OG Nemesis** (both boards) and **Nemesis Lockdown** (both boards).
+
+
+## Requirements
+
+- **Short-throw, ceiling-mounted projector**  
+  Ensure the projection fully covers your table.
+
+  Example setup (Amazon Germany):
+  - Projector: BenQ TH671ST  
+  - Ceiling Mount: ONKRON Projector Ceiling Holder  
+  - Raspberry Pi: Raspberry Pi 5 (8GB Starter Kit)
+
+  > It’s fine if the image is larger than the table, you will correct this later using `xrandr`.
+
+- **Raspberry Pi** (or similar Linux-based mini PC) connected to the projector
+
+- **Computer** running the server
+
+- **Mobile phone** with a browser for controlling animations
+
+
+## Setup
+### Raspberry Pi (Projector Device)
+
+This project uses `xrandr` to transform the projected image so it perfectly fits the board of the game you want to play.
+
+To enable `xrandr` on Raspberry Pi OS, switch from Wayland (labwc) to X11:
 
 ```bash
-sudo cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.bak # backup
+sudo cp /etc/lightdm/lightdm.conf /etc/lightdm/lightdm.conf.bak
 sudo sed -i 's/user-session=.*/user-session=rpd-x/' /etc/lightdm/lightdm.conf
 sudo sed -i 's/autologin-session=.*/autologin-session=rpd-x/' /etc/lightdm/lightdm.conf
-sudo systemctl restart lightdm # or full restart
+sudo systemctl restart lightdm
 ```
 
-To be able to use the `xrandr` script in that repo, you need to install Python with some PyPI libraries. For that we use a virtual environment (`venv`):
+#### Install dependencies
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv
+
 cd ~
 git clone https://github.com/McFredward/tt-beamer
 cd tt-beamer/scripts
+
 python3 -m venv venv
 ./venv/bin/pip install pygame numpy
 ```
 
-After that you can always start the script with:
+#### Run the mapping tool
 
 ```bash
 ~/tt-beamer/scripts/venv/bin/python map.py
 ```
 
-This script will show you a rectangle. You can drag the edge vertices with the mouse to fit the rectangle to the game board (or tge whole table for DnD battlemaps, etc.). If you click on a vertex, you can use the arrow keys to fine‑tune its position. Pressing Enter maps the entire projector output to that area using `xrandr` transform. Pressing ESC exits the mapping procedure and closes the script.
+This tool allows you to:
 
+- Adjust a rectangle to match your table or board
+- Drag vertices with the mouse
+- Fine-tune using arrow keys
+- Press **Enter** to apply the transformation
+- Press **ESC** to exit
 
-## Start
+### PC / Server
 
-1. Start API + frontend:
-   - `node server.mjs`
-2. Open control UI:
-   - `http://localhost:4173`
-3. Optional final output (FX only):
-   - `http://localhost:4173/output/final`
+Run the backend server on a separate machine:
 
-## Save flow
+```bash
+sudo apt update
+sudo apt install -y nodejs npm
 
-- `Save (local -> global defaults)` sends `POST /api/global-defaults`.
-- Requires the Node API server (`node server.mjs`).
-- Static hosting only (for example `python3 -m http.server`) cannot save defaults.
+git clone https://github.com/McFredward/tt-beamer
+cd tt-beamer
 
-## Board catalog and import
-
-- Catalog endpoint: `GET /api/boards`
-- Import endpoint: `POST /api/boards/import`
-- Imported boards are persisted in:
-  - `config/boards/imported/*.json`
-- Built-in boards are loaded from:
-  - `config/zones/*.json`
-
-### Import format (`tt-beamer.board-definition.v1`)
-
-```json
-{
-  "board": {
-    "boardId": "my-board-id",
-    "metadata": {
-      "name": "My Board",
-      "imageSrc": "/resources/my-board.png"
-    },
-    "roomCatalog": [
-      { "id": "r-1", "name": "Bridge", "x": 0.2, "y": 0.3, "radius": 0.06 }
-    ],
-    "roomClusters": [
-      { "clusterId": "cluster-top", "name": "Top Side", "roomIds": ["r-1"] }
-    ]
-  }
-}
+node server.mjs --host 0.0.0.0 --port 4173
 ```
 
-## Notes
+Windows users:  
+Follow this guide to install Node.js:  
+https://learn.microsoft.com/windows/dev-environment/javascript/nodejs-on-windows
 
-- Room clicks always select a single room.
-- Cluster execution is available through the room target dropdown.
-- Operator-facing copy must be English-only in Phase 6 flows (Control, Settings, Final flow, status, and errors).
-- Language-sweep verification artifact:
-  - `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md`
+## Getting Started
 
-## Loop videos
+1. Start the server:
+   ```bash
+   node server.mjs --host 0.0.0.0 --port 4173
+   ```
+
+2. Open the control interface on your phone:
+   ```
+   http://<SERVER-IP>:4173
+   ```
+
+3. On the Raspberry Pi, open the output view (**/output/final**):
+   ```
+   http://<SERVER-IP>:4173/output/final
+   ```
+
+4. Run the mapping script onf your Pi:
+   ```bash
+   ~/tt-beamer/scripts/venv/bin/python map.py
+   ```
+
+5. (Optional) Enable alignment mode from your phone to fine-tune room placement
+
+6. You're ready—start controlling animations and enjoy your game!
+
+---
+
+## Known Issues
+
+- MP4 playback can be demanding on the Raspberry Pi  
+  → Prefer GIF animations for better performance
+- Sound issues global Animations which are not looped (if you wish to have sound for those Animations, for now check "loop until stopped" and stop them manually)
+- Sometimes some GIF-Animations are played on the pi but not on the phone.
+
+## Future plans
+
+- Add more of my favourite Board games like `Frostpunk the Board game`, `Twilight Imperium IV`, `This War of Mine`, ...
+- **Train Computer-Vision Models for local inference for some board games for automatic animations instead of pure manual control.**
+
+## Useful stuff
+### Looping Videos (FFmpeg)
+
+I used this command to create looped versions of video animations which are not looped. Does not work with everything, but so far my best attempt without using AI models to interpolate or animate.
 
 ```bash
 ffmpeg -i input.mp4 -filter_complex "
@@ -139,13 +183,4 @@ ffmpeg -i input.mp4 -filter_complex "
 [v2][v1]xfade=transition=fade:duration=5:offset=(duration/2-5)[v];
 [a2][a1]acrossfade=d=5[a]
 " -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart output.mp4
-
-ffmpeg -i input.mp4 -filter_complex "
-[0:v]trim=0:10,setpts=PTS-STARTPTS[v1];
-[0:v]trim=10:20,setpts=PTS-STARTPTS[v2];
-[0:a]atrim=0:10,asetpts=PTS-STARTPTS[a1];
-[0:a]atrim=10:20,asetpts=PTS-STARTPTS[a2];
-[v2][v1]xfade=transition=fade:duration=5:offset=5[v];
-[a2][a1]acrossfade=d=5[a]
-" -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow output.mp4
 ```
