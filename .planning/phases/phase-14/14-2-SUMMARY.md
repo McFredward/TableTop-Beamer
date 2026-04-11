@@ -1,7 +1,7 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — seven modules extracted)
 
-Status: **PARTIAL PASS — pilot extractions landed, pattern validated, remaining work scoped for follow-up**
-Commits: `8c78f06` → `2bc89af` → `e6649a9`
+Status: **PARTIAL PASS — seven extractions landed, 1505 LOC relocated out of the monolith, remaining high-coupling domains scoped for follow-up**
+Commits: `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 
 ## What was achieved
 
@@ -15,12 +15,30 @@ every commit.
 | 1 | `8c78f06` | `runtime-polygon-drag-support.js` | −234 | +287 |
 | 2 | `2bc89af` | `runtime-room-geometry.js` | −147 | +235 |
 | 3 | `e6649a9` | `runtime-polygon-normalizers.js` | −51 | +88 |
+| 4 | `6ee21ad` | `runtime-gif-decoder.js` | −348 | +372 |
+| 5 | `167dd22` | `runtime-outside-mp4.js` | −270 | +352 |
+| 6 | `e029b43` | `runtime-gif-playback.js` | −100 | +153 |
+| 7 | `c886005` | `runtime-audio.js` | −271 | +389 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 14 142** (−516 LOC, −3.5%).
-- 3 new runtime modules: **+610 LOC**.
-- Net: +94 LOC from module wrappers and init plumbing — a controlled
-  investment in structure.
+- `runtime-orchestration.js`: **14 658 → 13 153** (−1505 LOC, −10.3%).
+- 7 new runtime modules: **+1876 LOC**.
+- Net: +371 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 7 extractions.
+
+Final runtime/ layout:
+```
+LOC   File
+13153 src/app/runtime/runtime-orchestration.js  (thinned entry + remaining domains)
+  427 src/app/runtime/polygon-contract.js       (pre-existing)
+  389 src/app/runtime/runtime-audio.js          (HF7)
+  372 src/app/runtime/runtime-gif-decoder.js    (HF4)
+  352 src/app/runtime/runtime-outside-mp4.js    (HF5)
+  287 src/app/runtime/runtime-polygon-drag-support.js (HF1)
+  235 src/app/runtime/runtime-room-geometry.js  (HF2)
+  153 src/app/runtime/runtime-gif-playback.js   (HF6)
+   88 src/app/runtime/runtime-polygon-normalizers.js (HF3)
+```
 
 ## What was NOT achieved
 
