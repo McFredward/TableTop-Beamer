@@ -2,7 +2,7 @@
   "suite": "P12-T1-room-animation-order-dependent-occlusion-red",
   "phase": "RED",
   "expected": "FAIL",
-  "observed": "FAIL",
+  "observed": "INCONCLUSIVE",
   "checks": [
     {
       "id": "render-loop-iterates-insertion-order-without-layering-guard",
@@ -12,12 +12,12 @@
     {
       "id": "coded-power-outage-uses-near-opaque-full-clip-fill",
       "expected": true,
-      "pass": true
+      "pass": false
     },
     {
       "id": "coded-intruder-alert-uses-full-clip-red-fill",
       "expected": true,
-      "pass": true
+      "pass": false
     },
     {
       "id": "no-room-concurrency-map-in-draw-loop",

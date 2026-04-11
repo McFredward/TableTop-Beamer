@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
-const runtimeSource = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: runtime modules now split across src/app/runtime/*.js.
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
+const runtimeSource = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .sort()
+  .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))
+  .join("\n");
 
 // --- Static code assertions: fix is present ------------------------------
 const hasConcurrencyMapBuild = runtimeSource.includes(
@@ -12,8 +15,12 @@ const hasConcurrencyMapBuild = runtimeSource.includes(
 const hasConcurrencyExposure = runtimeSource.includes(
   "state.runtimePerf.roomConcurrencyByKey = roomConcurrencyByKey;",
 );
-const hasRoomGuardSite = runtimeSource.includes(
-  'ctx.globalCompositeOperation = "lighter";',
+// Phase 14-2: draw loop lives in runtime-draw-loop.js where the
+// 2D canvas context is named `c`. Accept both the legacy (`ctx.`)
+// and extracted (`c.`) form of the additive-layering guard.
+const hasRoomGuardSite = (
+  runtimeSource.includes('ctx.globalCompositeOperation = "lighter";')
+  || runtimeSource.includes('c.globalCompositeOperation = "lighter";')
 )
   && /const\s+roomConcurrency\s*=\s*state\.runtimePerf\.roomConcurrencyByKey/.test(runtimeSource);
 const hasClusterMemberGuardSite = /const\s+memberConcurrency\s*=\s*state\.runtimePerf\.roomConcurrencyByKey/.test(

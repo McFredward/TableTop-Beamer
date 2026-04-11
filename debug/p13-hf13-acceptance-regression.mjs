@@ -121,9 +121,15 @@ const nr_hf7 =
   runtimeSrc.includes("function isHeavyInteractionActive()")
   && runtimeSrc.includes("let touchGestureActive = false;");
 
+// Phase 14-2: draw loop module renamed the 2D canvas context to `c`.
+// Accept both legacy (`ctx.`) and extracted (`c.`) forms of the
+// additive-layering guard.
 const nr_phase12 =
   runtimeSrc.includes("const roomConcurrencyByKey = new Map();")
-  && runtimeSrc.includes('ctx.globalCompositeOperation = "lighter";');
+  && (
+    runtimeSrc.includes('ctx.globalCompositeOperation = "lighter";')
+    || runtimeSrc.includes('c.globalCompositeOperation = "lighter";')
+  );
 
 const nr_phase13_1 = runtimeSrc.includes("markLocalConfigDirty(");
 

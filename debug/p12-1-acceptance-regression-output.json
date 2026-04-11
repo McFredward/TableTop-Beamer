@@ -20,7 +20,7 @@
       "file": "debug/p12-t1-order-occlusion-red.mjs",
       "stdout": "FROZEN - P12-T4 fix detected in runtime; RED baseline preserved. Use debug/p12-t7-order-invariance-fail-pass-proof.mjs for post-fix evidence.",
       "error": null,
-      "observed": "FAIL",
+      "observed": "INCONCLUSIVE",
       "expected": "FAIL",
       "pass": true
     },

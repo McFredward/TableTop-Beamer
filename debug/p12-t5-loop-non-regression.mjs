@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
-const runtimeSource = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: runtime modules now split across src/app/runtime/*.js.
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
+const runtimeSource = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .sort()
+  .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))
+  .join("\n");
 
 // Guard 1: The new additive layering guard is strictly gated on
 // concurrency >= 2. A single-animation room MUST continue using the

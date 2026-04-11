@@ -1,9 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
-const runtimeSource = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: runtime modules now split across src/app/runtime/*.js.
+// Concat all .js files so location-pinned greps still resolve moved
+// symbols.
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
+const runtimeSource = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .sort()
+  .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))
+  .join("\n");
 
 // --- Static code checks ---------------------------------------------------
 
@@ -27,13 +32,20 @@ const intruderAlertFullFill =
 
 // 3. No per-room concurrency detection / no additive composite switch in the
 //    main draw loop yet.
+//
+// Phase 14-2: fix-detection relaxed — the draw loop now lives in
+// runtime-draw-loop.js where the 2D canvas context is named `c`, and
+// the P12-T4 fix ships as `roomConcurrencyByKey`. Recognise both the
+// legacy and extracted forms.
 const hasRoomConcurrencyMap =
   runtimeSource.includes("roomConcurrencyMap")
-  || runtimeSource.includes("roomAnimationConcurrencyByRoom");
+  || runtimeSource.includes("roomAnimationConcurrencyByRoom")
+  || runtimeSource.includes("roomConcurrencyByKey");
 
 const hasAdditiveLayeringGuard =
   runtimeSource.includes('ctx.globalCompositeOperation = "lighter"')
-  || runtimeSource.includes("ctx.globalCompositeOperation = 'lighter'");
+  || runtimeSource.includes("ctx.globalCompositeOperation = 'lighter'")
+  || runtimeSource.includes('c.globalCompositeOperation = "lighter"');
 
 // --- Simulation of order-dependent alpha blending -------------------------
 // Models the `drawRoomComposition` path for two stacked room animations.
