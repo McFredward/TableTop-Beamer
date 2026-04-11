@@ -65,8 +65,9 @@ const boardStatus = document.querySelector("#board-status");
 const zonesStatus = document.querySelector("#zones-status");
 const alignModeToggleInput = document.querySelector("#align-mode-toggle");
 const alignModeStatus = document.querySelector("#align-mode-status");
-const saveGlobalDefaultsButton = document.querySelector("#save-global-defaults");
-const loadApplyGlobalDefaultsButton = document.querySelector("#load-apply-global-defaults");
+// Phase 13-1: Save-to-global and Load-and-apply buttons removed from DOM.
+// Export-to-file retained; Import-from-file added (wired via
+// wireImportGlobalDefaultsButton() below).
 const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
 const globalDefaultsStatus = document.querySelector("#global-defaults-status");
 const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
@@ -283,9 +284,9 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-import-name",
   "board-import-id",
   "board-import-button",
-  "save-global-defaults",
-  "load-apply-global-defaults",
+  // Phase 13-1: save-global-defaults + load-apply-global-defaults removed.
   "export-global-defaults",
+  "import-global-defaults",
   "mp4-performance-tier",
   "mp4-render-cap",
   "mp4-quality-floor",
@@ -1768,6 +1769,29 @@ function connectLiveSyncSocket() {
         if (payload?.type === "state-dirty" || payload?.wake === true) {
           liveSync.dirtyHintUntil = Date.now() + 1500;
           scheduleNextLiveSnapshotPoll(0);
+        }
+        // Phase 13-1: server broadcasts `global-config-update` after every
+        // successful POST /api/global-defaults. Refetch and apply so every
+        // connected client picks up cross-device mutations immediately.
+        if (payload?.type === "global-config-update") {
+          void (async () => {
+            try {
+              const loaded = await fetchGlobalDefaultsPayload();
+              applyGlobalDefaultsPayloadToState(loaded.payload);
+              syncRuntimePanelsFromState();
+              renderRunningAnimationsList();
+              refreshGlobalButtons();
+              if (globalDefaultsStatus) {
+                globalDefaultsStatus.textContent =
+                  `Global config: updated from peer (${loaded.endpoint || "server"})`;
+              }
+            } catch (refetchError) {
+              console.warn(
+                "[global-config] broadcast refetch failed:",
+                refetchError?.message || refetchError,
+              );
+            }
+          })();
         }
       } catch {
         // ignore malformed live-sync payloads
@@ -3332,24 +3356,15 @@ function extractBoardProfilesCandidate(raw) {
   return extractBoardProfilesCandidateFromPersistence(raw, BOARDS);
 }
 
+// Phase 13-1: legacy localStorage readers are disabled. The server-stored
+// global config is the only persistent source. These stubs return defaults
+// so the migration path into buildMigratedBoardProfiles still works.
 function loadLegacyRoomGeometryByBoard() {
-  return loadLegacyRoomGeometryByBoardFromPersistence({
-    storage: window.localStorage,
-    key: ROOM_GEOMETRY_STORAGE_KEY,
-    boards: BOARDS,
-    createDefault: createDefaultRoomGeometryByBoard,
-    normalizeMap: normalizeRoomGeometryMap,
-  });
+  return createDefaultRoomGeometryByBoard();
 }
 
 function loadLegacySpecialPolygonsByBoard() {
-  return loadLegacySpecialPolygonsByBoardFromPersistence({
-    storage: window.localStorage,
-    key: SPECIAL_POLYGON_STORAGE_KEY,
-    boards: BOARDS,
-    createDefault: createDefaultSpecialPolygonsByBoard,
-    normalizeMap: normalizeSpecialPolygonMap,
-  });
+  return createDefaultSpecialPolygonsByBoard();
 }
 
 function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry, legacySpecialPolygons) {
@@ -3371,31 +3386,30 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
   });
 }
 
+// Phase 13-1: localStorage hydration is replaced. The startup path calls
+// `hydrateFromBootstrapGlobalConfig` with the payload already fetched from
+// the server. If no payload is available, we apply defaults so the runtime
+// still has valid state (the blocking error overlay handles user-visible
+// messaging separately).
 function loadBoardProfiles() {
   const legacyHitarea = loadHitareaCalibrationMap();
   const legacyRoomGeometry = loadLegacyRoomGeometryByBoard();
   const legacySpecialPolygons = loadLegacySpecialPolygonsByBoard();
 
-  try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const candidate = extractBoardProfilesCandidate(parsed);
-      if (candidate) {
-        const migratedProfiles = buildMigratedBoardProfiles(
-          candidate,
-          legacyHitarea,
-          legacyRoomGeometry,
-          legacySpecialPolygons,
-        );
-        applyBoardProfilesToState(migratedProfiles);
-        applyPersistedRuntimeSettings(parsed);
-        persistBoardProfiles();
-        return;
-      }
+  const bootstrapPayload = window.__TT_BEAMER_BOOTSTRAP_CONFIG__ || null;
+  if (bootstrapPayload && typeof bootstrapPayload === "object") {
+    const candidate = extractBoardProfilesCandidate(bootstrapPayload);
+    if (candidate) {
+      const migratedProfiles = buildMigratedBoardProfiles(
+        candidate,
+        legacyHitarea,
+        legacyRoomGeometry,
+        legacySpecialPolygons,
+      );
+      applyBoardProfilesToState(migratedProfiles);
+      applyPersistedRuntimeSettings(bootstrapPayload);
+      return;
     }
-  } catch {
-    // ignore and continue with fallback/defaults
   }
 
   const migratedLegacyProfiles = buildMigratedBoardProfiles(
@@ -3405,41 +3419,142 @@ function loadBoardProfiles() {
     legacySpecialPolygons,
   );
   applyBoardProfilesToState(migratedLegacyProfiles);
-  persistBoardProfiles();
 }
 
+// Phase 13-1: persistence now debounces a POST to the server instead of
+// writing to localStorage. Local state is authoritative between the
+// mutation and the trailing server write (optimistic update). The server
+// broadcasts `global-config-update` on successful write so every other
+// connected client refetches and applies.
+let pendingGlobalConfigWriteTimerId = null;
+const GLOBAL_CONFIG_WRITE_DEBOUNCE_MS = 200;
+
 function persistBoardProfiles() {
-  return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfileStoragePayload());
+  scheduleGlobalConfigWrite("board-profiles-mutated");
+  return { ok: true, target: "server", routing: "debounced" };
+}
+
+function scheduleGlobalConfigWrite(reason) {
+  if (pendingGlobalConfigWriteTimerId !== null) {
+    window.clearTimeout(pendingGlobalConfigWriteTimerId);
+  }
+  pendingGlobalConfigWriteTimerId = window.setTimeout(() => {
+    pendingGlobalConfigWriteTimerId = null;
+    void flushGlobalConfigWrite(reason);
+  }, GLOBAL_CONFIG_WRITE_DEBOUNCE_MS);
+}
+
+async function flushGlobalConfigWrite(reason) {
+  try {
+    await saveGlobalDefaultsToServer();
+    if (globalDefaultsStatus) {
+      globalDefaultsStatus.textContent =
+        `Global config: synced (reason: ${reason || "mutation"})`;
+    }
+  } catch (error) {
+    const message = String(error?.message || error || "unknown");
+    console.warn("[global-config] debounced write failed:", message);
+    if (globalDefaultsStatus) {
+      globalDefaultsStatus.textContent = `Global config: sync failed (${message})`;
+    }
+  }
+}
+
+// Phase 13-1: blocking error overlay shown when the server is unreachable
+// at startup. User sees "Server nicht erreichbar — Retry". Clicking Retry
+// re-attempts the hydration; on success the overlay disappears.
+function renderServerUnreachableOverlay(error) {
+  const existing = document.getElementById("tt-beamer-server-unreachable-overlay");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "tt-beamer-server-unreachable-overlay";
+  overlay.setAttribute("role", "alertdialog");
+  overlay.setAttribute("aria-live", "assertive");
+  Object.assign(overlay.style, {
+    position: "fixed",
+    inset: "0",
+    background: "rgba(10, 12, 18, 0.94)",
+    color: "#f4f7ff",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "18px",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: "16px",
+    zIndex: "99999",
+    padding: "32px",
+    textAlign: "center",
+  });
+
+  const title = document.createElement("h1");
+  title.textContent = "Server nicht erreichbar";
+  title.style.fontSize = "24px";
+  title.style.margin = "0";
+  overlay.append(title);
+
+  const detail = document.createElement("p");
+  detail.textContent = String(error?.message || error || "Unknown error");
+  detail.style.margin = "0";
+  detail.style.maxWidth = "640px";
+  detail.style.opacity = "0.85";
+  overlay.append(detail);
+
+  const info = document.createElement("p");
+  info.textContent =
+    "Die globale Config wird ausschließlich vom Server geladen. "
+    + "Starte den Server und klicke Retry, um die App zu laden.";
+  info.style.margin = "0";
+  info.style.maxWidth = "640px";
+  info.style.opacity = "0.75";
+  overlay.append(info);
+
+  const retryButton = document.createElement("button");
+  retryButton.textContent = "Retry";
+  retryButton.type = "button";
+  Object.assign(retryButton.style, {
+    padding: "10px 24px",
+    fontSize: "16px",
+    background: "#4c8bff",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  });
+  retryButton.addEventListener("click", async () => {
+    retryButton.disabled = true;
+    retryButton.textContent = "Retrying...";
+    try {
+      const loaded = await fetchGlobalDefaultsPayload();
+      window.__TT_BEAMER_BOOTSTRAP_CONFIG__ = loaded.payload;
+      applyGlobalDefaultsPayloadToState(loaded.payload);
+      syncRuntimePanelsFromState();
+      overlay.remove();
+      if (globalDefaultsStatus) {
+        globalDefaultsStatus.textContent =
+          `Global config: recovered after retry (${loaded.endpoint || "server-config"})`;
+      }
+    } catch (retryError) {
+      retryButton.disabled = false;
+      retryButton.textContent = "Retry";
+      detail.textContent = String(retryError?.message || retryError || "Unknown error");
+    }
+  });
+  overlay.append(retryButton);
+
+  document.body.append(overlay);
 }
 
 function buildGlobalDefaultsPayload() {
-  let localStorageProfiles = null;
-  try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const candidate = extractBoardProfilesCandidate(parsed);
-      if (candidate) {
-        localStorageProfiles = buildMigratedBoardProfiles(
-          candidate,
-          state.hitareaCalibrationByBoard,
-          state.roomGeometryByBoard,
-          state.specialPolygonsByBoard,
-        );
-      }
-    }
-  } catch {
-    localStorageProfiles = null;
-  }
-
+  // Phase 13-1: state is the single source of truth. No localStorage merge.
   const stateProfiles = buildBoardProfilesFromState();
-  const mergedProfiles = mergeBoardProfilesForGlobalExport(stateProfiles, localStorageProfiles);
 
   return {
     schema: "tt-beamer.global-defaults.v1",
     savedAt: new Date().toISOString(),
-    source: "browser-local-state",
-    boardProfiles: mergedProfiles,
+    source: "runtime-state",
+    boardProfiles: stateProfiles,
     ...buildPersistedRuntimeSettingsFromState(),
   };
 }
@@ -3479,14 +3594,13 @@ function getGlobalDefaultsApiFacade() {
     return globalDefaultsApiFacade;
   }
   globalDefaultsApiFacade = window.TT_BEAMER_API.createGlobalDefaultsApiFacade({
-    apiBaseStorageKey: API_BASE_STORAGE_KEY,
+    // Phase 13-1: apiBase override no longer consults localStorage.
     apiBaseUrlParamKeys: API_BASE_URL_PARAM_KEYS,
     apiPortFallbacks: API_PORT_FALLBACKS,
     localApiHosts: LOCAL_API_HOSTS,
     requestTimeoutMs: API_REQUEST_TIMEOUT_MS,
     fetchWithTimeout,
     location: window.location,
-    localStorage: window.localStorage,
   });
   return globalDefaultsApiFacade;
 }
@@ -3526,18 +3640,7 @@ function readConfiguredApiBase() {
     return queryBase;
   }
 
-  try {
-    const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));
-    if (localBase) {
-      return {
-        base: localBase,
-        source: `override:localStorage(${API_BASE_STORAGE_KEY})`,
-      };
-    }
-  } catch {
-    // ignore localStorage failures
-  }
-
+  // Phase 13-1: no localStorage fallback. Window global or URL query only.
   return null;
 }
 
@@ -3794,20 +3897,10 @@ function downloadGlobalDefaultsFallback() {
 }
 
 function hasStoredBoardProfilesInLocalStorage() {
-  try {
-    const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);
-    if (!raw) {
-      return false;
-    }
-    const parsed = JSON.parse(raw);
-    const candidate = extractBoardProfilesCandidate(parsed);
-    if (!candidate || typeof candidate !== "object") {
-      return false;
-    }
-    return BOARDS.some((board) => candidate[board.id] && typeof candidate[board.id] === "object");
-  } catch {
-    return false;
-  }
+  // Phase 13-1: localStorage board-profile persistence was removed. The
+  // function name is kept for ABI stability of downstream callers but it
+  // now always returns false — the server is the only persistent source.
+  return false;
 }
 
 function listGlobalDefaultsLoadCandidates() {
@@ -3931,13 +4024,10 @@ function createDefaultHitareaCalibrationMap() {
 }
 
 function loadHitareaCalibrationMap() {
-  return loadHitareaCalibrationMapFromPersistence({
-    storage: window.localStorage,
-    key: HITAREA_CALIBRATION_STORAGE_KEY,
-    boards: BOARDS,
-    createDefault: createDefaultHitareaCalibrationMap,
-    normalize: normalizeHitareaCalibration,
-  });
+  // Phase 13-1: localStorage persistence removed; defaults only. Per-board
+  // calibration now flows through the server-backed global-defaults payload
+  // (boardProfiles[*].hitareaCalibration).
+  return createDefaultHitareaCalibrationMap();
 }
 
 function persistHitareaCalibrationMap() {
@@ -5835,8 +5925,10 @@ function normalizeSettingsSubtab(value) {
 }
 
 function persistSettingsSubtab(nextSubtab) {
+  // Phase 13-1: subtab memory is ephemeral per browser-tab session. No
+  // persistent storage. sessionStorage is cleared when the tab closes.
   try {
-    window.localStorage.setItem(SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);
+    window.sessionStorage.setItem(SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);
   } catch {
     // Best-effort only.
   }
@@ -5873,9 +5965,10 @@ function setSettingsSubtab(nextSubtab, { persist = true } = {}) {
 }
 
 function restoreSettingsSubtabPreference() {
+  // Phase 13-1: ephemeral sessionStorage memory (per browser tab).
   let stored = "";
   try {
-    stored = window.localStorage.getItem(SETTINGS_SUBTAB_STORAGE_KEY) || "";
+    stored = window.sessionStorage.getItem(SETTINGS_SUBTAB_STORAGE_KEY) || "";
   } catch {
     stored = "";
   }
@@ -13128,84 +13221,69 @@ alignModeToggleInput?.addEventListener("change", () => {
   setAlignMode(Boolean(alignModeToggleInput.checked));
 });
 
-saveGlobalDefaultsButton.addEventListener("click", async () => {
-  const persisted = persistBoardProfiles();
-  if (!persisted) {
-    globalDefaultsStatus.textContent =
-      "Global Defaults: local profile could not be saved before save operation";
-    triggerFeedback.textContent = "Status: Global defaults save aborted (local persistence failed)";
-    return;
-  }
+// Phase 13-1: Save-to-global and Load-and-apply buttons removed. Every
+// mutation already writes to the server via debounced persistBoardProfiles,
+// so explicit save is redundant. Load-and-apply is subsumed by the blocking
+// startup hydration and the live-sync `global-config-update` broadcast
+// refetch. Export download is preserved. Import-from-file is new.
 
-  saveGlobalDefaultsButton.disabled = true;
-  globalDefaultsStatus.textContent = "Global Defaults: save in progress ...";
-  apiDiagnoseStatus.textContent = "API diagnostics: checking reachability + POST capability (save preflight) ...";
-  try {
-    const result = await saveGlobalDefaultsToServer();
-    const snapshot = buildResolveSnapshot({
-      routing: result.routing,
-      endpoint: result.endpoint,
-      method: result.method,
-    });
-    const remoteHint = getRemoteMismatchHint(result.routing);
-    globalDefaultsStatus.textContent =
-      `Global Defaults: saved (${result.target}, ${result.savedAt}) | ${formatResolveSnapshot(snapshot)} [${result.statusClass}]`;
-    apiDiagnoseStatus.textContent =
-      `API diagnostics: OK (${formatResolveSnapshot(snapshot)} | Preflight GET /api/health + OPTIONS /api/global-defaults)`;
-    triggerFeedback.textContent =
-      `Status: Global Defaults saved (${formatResolveSnapshot(snapshot)}; Status ${result.status}/${result.statusClass})${remoteHint ? ` ${remoteHint}` : ""}`;
-  } catch (error) {
-    const saveError = formatGlobalDefaultsSaveError(error);
-    globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
-    apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
-    triggerFeedback.textContent = saveError.feedbackText;
-    showToast(saveError.statusText, {
-      kind: "error",
-      dedupeKey: "global-defaults-save-failed",
-    });
-  } finally {
-    saveGlobalDefaultsButton.disabled = false;
-  }
-});
-
-loadApplyGlobalDefaultsButton?.addEventListener("click", async () => {
-  loadApplyGlobalDefaultsButton.disabled = true;
-  globalDefaultsStatus.textContent = "Global Defaults: load & apply in progress ...";
-  try {
-    const result = await loadAndApplyGlobalDefaults({ sourceLabel: "settings-button" });
-    if (!result.persisted) {
-      triggerFeedback.textContent =
-        "Status: Defaults loaded and applied, but local persistence failed";
-    }
-  } catch (error) {
-    const saveError = formatGlobalDefaultsSaveError(error);
-    globalDefaultsStatus.textContent = `Global Defaults: ${saveError.statusText}`;
-    apiDiagnoseStatus.textContent = saveError.diagnoseStatusText;
-    triggerFeedback.textContent =
-      `Status: Load & apply defaults failed. ${saveError.feedbackText}`;
-    showToast(saveError.statusText, {
-      kind: "error",
-      dedupeKey: "global-defaults-load-failed",
-    });
-  } finally {
-    loadApplyGlobalDefaultsButton.disabled = false;
-  }
-});
-
-exportGlobalDefaultsButton.addEventListener("click", () => {
-  const persisted = persistBoardProfiles();
-  if (!persisted) {
-    globalDefaultsStatus.textContent =
-      "Global Defaults: download export aborted (local persistence failed)";
-    triggerFeedback.textContent = "Status: Download export could not be prepared";
-    return;
-  }
-
+exportGlobalDefaultsButton?.addEventListener("click", () => {
   const fileName = downloadGlobalDefaultsFallback();
-  globalDefaultsStatus.textContent = `Global Defaults: download export completed (${fileName})`;
-  triggerFeedback.textContent =
-    "Status: Download export created (secondary fallback); primary path remains API save";
+  if (globalDefaultsStatus) {
+    globalDefaultsStatus.textContent = `Global config: exported (${fileName})`;
+  }
+  triggerFeedback.textContent = `Status: Config exported to ${fileName}`;
 });
+
+// Phase 13-1: Import-from-file. User picks a JSON backup, client POSTs it
+// to /api/global-defaults (overwrites server config atomically), server
+// broadcasts, all clients (including this one) refetch and apply.
+function wireImportGlobalDefaultsButton() {
+  const importButton = document.querySelector("#import-global-defaults");
+  if (!importButton) return;
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.accept = "application/json,.json";
+  fileInput.style.display = "none";
+  document.body.append(fileInput);
+
+  importButton.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object") {
+        throw new Error("JSON payload must be an object");
+      }
+      importButton.disabled = true;
+      if (globalDefaultsStatus) {
+        globalDefaultsStatus.textContent = "Global config: import in progress ...";
+      }
+      await getGlobalDefaultsApiFacade().saveGlobalDefaults(parsed);
+      if (globalDefaultsStatus) {
+        globalDefaultsStatus.textContent =
+          `Global config: imported (${file.name}) — broadcast to all clients`;
+      }
+      triggerFeedback.textContent =
+        `Status: Imported ${file.name}; server broadcast will update all connected clients`;
+    } catch (error) {
+      const message = String(error?.message || error || "unknown");
+      if (globalDefaultsStatus) {
+        globalDefaultsStatus.textContent = `Global config: import failed (${message})`;
+      }
+      triggerFeedback.textContent = `Status: Import failed — ${message}`;
+    } finally {
+      importButton.disabled = false;
+    }
+  });
+}
+wireImportGlobalDefaultsButton();
 
 runMobilePerformanceCheckButton?.addEventListener("click", () => {
   updateMobilePerformanceStatus();
@@ -13351,47 +13429,45 @@ async function initializeApplication() {
   };
   state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
   state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
-  state.startupDefaultsGuard.fallbackRequired = !hasStoredBoardProfilesInLocalStorage();
+
+  // Phase 13-1: server is the single source of truth. Block startup on a
+  // successful GET /api/global-defaults. On failure, render the blocking
+  // error overlay and stop further hydration until the user clicks Retry.
+  state.startupDefaultsGuard.fallbackRequired = true;
   state.startupDefaultsGuard.attempted = false;
   state.startupDefaultsGuard.applied = false;
-  state.startupDefaultsGuard.outcome = state.startupDefaultsGuard.fallbackRequired
-    ? "pending"
-    : "local-storage-present";
-  state.startupDefaultsGuard.detail = state.startupDefaultsGuard.fallbackRequired
-    ? "fresh-device-fallback-required"
-    : "local-profiles-detected";
-  // Local profiles are always loaded first; startup defaults are a guarded fallback for fresh devices.
-  loadBoardProfiles();
+  state.startupDefaultsGuard.outcome = "pending";
+  state.startupDefaultsGuard.detail = "server-first-hydration-required";
+
   let startupDefaultsSnapshot = null;
+  let bootstrapError = null;
 
   try {
-    const bootstrap = await autoLoadGlobalDefaultsForFreshDevice({
-      force: state.startupDefaultsGuard.fallbackRequired === true,
+    const loaded = await fetchGlobalDefaultsPayload();
+    window.__TT_BEAMER_BOOTSTRAP_CONFIG__ = loaded.payload;
+    loadBoardProfiles();
+    state.startupDefaultsGuard.attempted = true;
+    state.startupDefaultsGuard.applied = true;
+    state.startupDefaultsGuard.outcome = "applied";
+    state.startupDefaultsGuard.detail = loaded.endpoint || "server-config";
+    startupDefaultsSnapshot = buildResolveSnapshot({
+      routing: loaded.routing,
+      endpoint: loaded.endpoint,
+      method: "GET",
     });
-    state.startupDefaultsGuard.attempted = Boolean(bootstrap.attempted);
-    state.startupDefaultsGuard.applied = Boolean(bootstrap.applied);
-    state.startupDefaultsGuard.outcome = bootstrap.applied ? "applied" : bootstrap.reason ?? "skipped";
-    state.startupDefaultsGuard.detail = bootstrap.endpoint || bootstrap.reason || "n/a";
-    if (bootstrap.applied) {
-      syncRuntimePanelsFromState();
-      startupDefaultsSnapshot = buildResolveSnapshot({
-        routing: bootstrap.routing,
-        endpoint: bootstrap.endpoint,
-        method: "GET",
-      });
-    }
-  } catch {
-    if (state.startupDefaultsGuard.fallbackRequired) {
-      state.startupDefaultsGuard.attempted = true;
-      state.startupDefaultsGuard.applied = false;
-      state.startupDefaultsGuard.outcome = "failed-explicit";
-      state.startupDefaultsGuard.detail = "fallback-load-failed";
+  } catch (error) {
+    bootstrapError = error;
+    state.startupDefaultsGuard.attempted = true;
+    state.startupDefaultsGuard.applied = false;
+    state.startupDefaultsGuard.outcome = "failed-explicit";
+    state.startupDefaultsGuard.detail = String(error?.message || error || "server-unreachable");
+    // Apply in-memory defaults so the UI doesn't crash while the overlay
+    // is visible; the user can still click Retry.
+    loadBoardProfiles();
+    renderServerUnreachableOverlay(error);
+    if (globalDefaultsStatus) {
       globalDefaultsStatus.textContent =
-        "Global Defaults: startup fallback failed (no silent ignore; defaults must be loaded manually)";
-      apiDiagnoseStatus.textContent =
-        "API diagnostics: startup fallback failed (check defaults endpoint or use the Settings button)";
-      triggerFeedback.textContent =
-        "Status: Startup guard active - empty local storage detected, global-defaults load explicitly failed";
+        "Global config: server not reachable — no local fallback. Click Retry to try again.";
     }
   }
 

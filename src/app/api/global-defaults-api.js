@@ -1,14 +1,15 @@
 (() => {
   function createGlobalDefaultsApiFacade({
-    apiBaseStorageKey,
     apiBaseUrlParamKeys,
     apiPortFallbacks,
     localApiHosts,
     requestTimeoutMs,
     fetchWithTimeout,
     location,
-    localStorage,
   }) {
+    // Phase 13-1: localStorage-backed apiBase override removed. Overrides
+    // are now resolved from `window.__TT_BEAMER_API_BASE__` or a URL query
+    // parameter only — no browser persistent storage.
     function classifyHttpStatus(status) {
       if (!Number.isFinite(Number(status))) {
         return "n/a";
@@ -104,17 +105,8 @@
         return queryBase;
       }
 
-      try {
-        const localBase = normalizeApiBase(localStorage.getItem(apiBaseStorageKey));
-        if (localBase) {
-          return {
-            base: localBase,
-            source: `override:localStorage(${apiBaseStorageKey})`,
-          };
-        }
-      } catch {
-        return null;
-      }
+      // Phase 13-1: no localStorage fallback. If no window global or URL
+      // query param is set, we fall through to the UI origin.
       return null;
     }
 

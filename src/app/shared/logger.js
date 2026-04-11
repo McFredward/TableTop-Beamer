@@ -11,13 +11,15 @@
     if (LEVELS[explicit]) {
       return explicit;
     }
+    // Phase 13-1: log level override moved from localStorage to URL query param.
     try {
-      const stored = String(localStorage.getItem("tt-beamer.log-level") || "").trim().toLowerCase();
-      if (LEVELS[stored]) {
-        return stored;
+      const params = new URLSearchParams(window.location?.search || "");
+      const queryLevel = String(params.get("logLevel") || "").trim().toLowerCase();
+      if (LEVELS[queryLevel]) {
+        return queryLevel;
       }
     } catch {
-      // ignore storage read failures
+      // ignore URL parse failures
     }
     return "warn";
   }

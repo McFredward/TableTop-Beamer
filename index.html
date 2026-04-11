@@ -157,9 +157,11 @@
           <input id="align-mode-toggle" type="checkbox" />
           Align mode (show polygons on final output)
         </label>
-        <button id="save-global-defaults" type="button">Save (local -&gt; global defaults)</button>
-        <button id="load-apply-global-defaults" type="button">Load and apply defaults</button>
-        <button id="export-global-defaults" type="button">Download export (secondary)</button>
+        <!-- Phase 13-1: Save (local -&gt; global defaults) and Load and apply defaults buttons removed.
+             The server is the single source of truth and every mutation writes debounced.
+             Export download stays; Import-from-file is new (overwrites the server config). -->
+        <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
+        <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
         <p id="zones-status" class="status-line" aria-live="polite">
           Board source: checked at startup
