@@ -51,193 +51,62 @@ const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole })
 const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: outputRole });
 const polygonContract = window.TT_BEAMER_POLYGON_CONTRACT ?? null;
 
-const stage = document.querySelector("#stage");
-const boardImage = document.querySelector("#board-image");
-const canvas = document.querySelector("#fx-canvas");
-const roomOverlay = document.querySelector("#room-overlay");
-const boardSelect = document.querySelector("#board-select");
-const boardImportFileInput = document.querySelector("#board-import-file");
-const boardImportImageInput = document.querySelector("#board-import-image");
-const boardImportNameInput = document.querySelector("#board-import-name");
-const boardImportIdInput = document.querySelector("#board-import-id");
-const boardImportButton = document.querySelector("#board-import-button");
-const boardStatus = document.querySelector("#board-status");
-const zonesStatus = document.querySelector("#zones-status");
-const alignModeToggleInput = document.querySelector("#align-mode-toggle");
-const alignModeStatus = document.querySelector("#align-mode-status");
-// Phase 13-1: Save-to-global and Load-and-apply buttons removed from DOM.
-// Export-to-file retained; Import-from-file added (wired via
-// wireImportGlobalDefaultsButton() below).
-const exportGlobalDefaultsButton = document.querySelector("#export-global-defaults");
-const globalDefaultsStatus = document.querySelector("#global-defaults-status");
-const apiDiagnoseStatus = document.querySelector("#api-diagnose-status");
-const triggerFeedback = document.querySelector("#trigger-feedback");
-const stopAllButton = document.querySelector("#stop-all");
-const roomSelected = document.querySelector("#room-selected");
-const roomTargetSelect = document.querySelector("#room-target-select");
-const roomAnimationSelect = document.querySelector("#room-animation-select");
-const roomAnimationSettingsSelect = document.querySelector("#room-animation-settings-select");
-const roomAnimationSettingsNameInput = document.querySelector("#room-animation-settings-name");
-const roomAnimationSettingsCreateButton = document.querySelector("#room-animation-settings-create");
-const roomAnimationSettingsDeleteButton = document.querySelector("#room-animation-settings-delete");
-const roomAssetTypeInput = document.querySelector("#room-asset-type");
-const roomAssetRefInput = document.querySelector("#room-asset-ref");
-const roomResourceSelect = document.querySelector("#room-resource-select");
-const roomApplyChangesButton = document.querySelector("#room-apply-changes");
-const roomOpacityInput = document.querySelector("#room-opacity");
-const roomOpacityValue = document.querySelector("#room-opacity-value");
-const roomIntensityInput = document.querySelector("#room-intensity");
-const roomIntensityValue = document.querySelector("#room-intensity-value");
-const roomSpeedInput = document.querySelector("#room-speed");
-const roomSpeedValue = document.querySelector("#room-speed-value");
-const roomSoundVolumeInput = document.querySelector("#room-sound-volume");
-const roomSoundVolumeValue = document.querySelector("#room-sound-volume-value");
-const roomDurationInput = document.querySelector("#room-duration");
-const roomStaggerStartInput = document.querySelector("#room-stagger-start");
-const roomStaggerOffsetInput = document.querySelector("#room-stagger-offset");
-const roomStaggerOffsetValue = document.querySelector("#room-stagger-offset-value");
-const startRoomAnimationButton = document.querySelector("#start-room-animation");
-const runningAnimationsList = document.querySelector("#running-animations");
-const audioEnabledInput = document.querySelector("#audio-enabled");
-const audioVolumeInput = document.querySelector("#audio-volume");
-const audioVolumeValue = document.querySelector("#audio-volume-value");
-const audioStatus = document.querySelector("#audio-status");
-const audioMappingAnimationSelect = document.querySelector("#audio-mapping-animation");
-const audioMappingSoundSelect = document.querySelector("#audio-mapping-sound");
-const audioMappingStatus = document.querySelector("#audio-mapping-status");
-const animationSpeedInput = document.querySelector("#animation-speed");
-const animationSpeedValue = document.querySelector("#animation-speed-value");
-const animationSpeedStatus = document.querySelector("#animation-speed-status");
-const hitareaOffsetXInput = document.querySelector("#hitarea-offset-x");
-const hitareaOffsetXValue = document.querySelector("#hitarea-offset-x-value");
-const hitareaOffsetYInput = document.querySelector("#hitarea-offset-y");
-const hitareaOffsetYValue = document.querySelector("#hitarea-offset-y-value");
-const hitareaScaleInput = document.querySelector("#hitarea-scale");
-const hitareaScaleValue = document.querySelector("#hitarea-scale-value");
-const hitareaSaveButton = document.querySelector("#hitarea-save");
-const hitareaResetButton = document.querySelector("#hitarea-reset");
-const hitareaStatus = document.querySelector("#hitarea-status");
-const roomGeometryModeInput = document.querySelector("#room-geometry-mode");
-const roomGeometryXInput = document.querySelector("#room-geometry-x");
-const roomGeometryXValue = document.querySelector("#room-geometry-x-value");
-const roomGeometryYInput = document.querySelector("#room-geometry-y");
-const roomGeometryYValue = document.querySelector("#room-geometry-y-value");
-const roomGeometryStretchXInput = document.querySelector("#room-geometry-stretch-x");
-const roomGeometryStretchXValue = document.querySelector("#room-geometry-stretch-x-value");
-const roomGeometryStretchYInput = document.querySelector("#room-geometry-stretch-y");
-const roomGeometryStretchYValue = document.querySelector("#room-geometry-stretch-y-value");
-const roomGeometryStatus = document.querySelector("#room-geometry-status");
-const openDashboardViewButton = document.querySelector("#open-dashboard-view");
-const openSettingsViewButton = document.querySelector("#open-settings-view");
-const openTriggerZoneButton = document.querySelector("#open-trigger-zone");
-const openManageZoneButton = document.querySelector("#open-manage-zone");
-const mobileStartRoomButton = document.querySelector("#mobile-start-room");
-const mobileLayoutStatus = document.querySelector("#mobile-layout-status");
-const quickModePanel = document.querySelector("#quick-mode-panel");
-const quickModeStatus = document.querySelector("#quick-mode-status");
-const quickModeOffButton = document.querySelector("#quick-mode-off");
-const quickModeActivateButton = document.querySelector("#quick-mode-activate");
-const quickModeDeactivateButton = document.querySelector("#quick-mode-deactivate");
-const quickModeClearButton = document.querySelector("#quick-mode-clear");
-const controlPanel = document.querySelector("#control-panel");
-const projectionArea = document.querySelector(".projection-area");
-const primaryViewSwitch = document.querySelector(".primary-view-switch");
-const dashboardStickyShell = document.querySelector(".dashboard-sticky-shell");
-const mobileZoneSwitch = document.querySelector("#mobile-zone-switch");
-const runningOverviewPanel = document.querySelector("#running-overview-panel");
-const globalAnimationPanel = document.querySelector("#global-animation-panel");
-const runMobilePerformanceCheckButton = document.querySelector("#run-mobile-performance-check");
-const mobilePerformanceStatus = document.querySelector("#mobile-performance-status");
-const mp4PerformanceTierInput = document.querySelector("#mp4-performance-tier");
-const mp4RenderCapInput = document.querySelector("#mp4-render-cap");
-const mp4RenderCapValue = document.querySelector("#mp4-render-cap-value");
-const mp4QualityFloorInput = document.querySelector("#mp4-quality-floor");
-const mp4QualityFloorValue = document.querySelector("#mp4-quality-floor-value");
-const mp4DegradeThresholdInput = document.querySelector("#mp4-degrade-threshold");
-const mp4DegradeThresholdValue = document.querySelector("#mp4-degrade-threshold-value");
-const mp4RecoverThresholdInput = document.querySelector("#mp4-recover-threshold");
-const mp4RecoverThresholdValue = document.querySelector("#mp4-recover-threshold-value");
-const mp4PerformanceStatus = document.querySelector("#mp4-performance-status");
-const toastStack = document.querySelector("#toast-stack");
-const polygonRoomSelect = document.querySelector("#polygon-room-select");
-const showRoomVerticesInput = document.querySelector("#show-room-vertices");
-const polygonVertexSelect = document.querySelector("#polygon-vertex-select");
-const polygonEdgeSelect = document.querySelector("#polygon-edge-select");
-const polygonInsertVertexButton = document.querySelector("#polygon-insert-vertex");
-const polygonDeleteVertexButton = document.querySelector("#polygon-delete-vertex");
-const polygonResetRoomButton = document.querySelector("#polygon-reset-room");
-const polygonFocusRoomButton = document.querySelector("#polygon-focus-room");
-const polygonEditorStatus = document.querySelector("#polygon-editor-status");
-const roomNameInput = document.querySelector("#room-name-input");
-const roomCreateShapeSelect = document.querySelector("#room-create-shape");
-const roomCreateButton = document.querySelector("#room-create");
-const roomDeleteButton = document.querySelector("#room-delete");
-const roomManagementStatus = document.querySelector("#room-management-status");
-const clusterSelect = document.querySelector("#cluster-select");
-const clusterNameInput = document.querySelector("#cluster-name-input");
-const clusterRoomIdsSelect = document.querySelector("#cluster-room-ids");
-const clusterCreateButton = document.querySelector("#cluster-create");
-const clusterSaveButton = document.querySelector("#cluster-save");
-const clusterDeleteButton = document.querySelector("#cluster-delete");
-const clusterManagementStatus = document.querySelector("#cluster-management-status");
-const roomRenameInput = document.querySelector("#room-rename-input");
-const showPlayAreaVerticesInput = document.querySelector("#show-play-area-vertices");
-const playAreaSelect = document.querySelector("#play-area-select");
-const playAreaNameInput = document.querySelector("#play-area-name");
-const playAreaCreateButton = document.querySelector("#play-area-create");
-const playAreaDeleteButton = document.querySelector("#play-area-delete");
-const shipPolygonVertexSelect = document.querySelector("#ship-polygon-vertex-select");
-const shipPolygonEdgeSelect = document.querySelector("#ship-polygon-edge-select");
-const shipPolygonInsertVertexButton = document.querySelector("#ship-polygon-insert-vertex");
-const shipPolygonDeleteVertexButton = document.querySelector("#ship-polygon-delete-vertex");
-const shipPolygonResetButton = document.querySelector("#ship-polygon-reset");
-const shipPolygonEditorStatus = document.querySelector("#ship-polygon-editor-status");
-const outsideAnimationSelect = document.querySelector("#outside-animation-select");
-const outsideAnimationNameInput = document.querySelector("#outside-animation-name");
-const outsideAnimationCreateButton = document.querySelector("#outside-animation-create");
-const outsideEnabledInput = document.querySelector("#outside-enabled");
-const outsideIntensityInput = document.querySelector("#outside-intensity");
-const outsideIntensityValue = document.querySelector("#outside-intensity-value");
-const outsideSpeedInput = document.querySelector("#outside-speed");
-const outsideSpeedValue = document.querySelector("#outside-speed-value");
-const outsideModeInput = document.querySelector("#outside-mode");
-const outsideDirectionInput = document.querySelector("#outside-direction");
-const outsideAssetTypeInput = document.querySelector("#outside-asset-type");
-const outsideAssetRefInput = document.querySelector("#outside-asset-ref");
-const outsideResourceSelect = document.querySelector("#outside-resource-select");
-const outsideApplyChangesButton = document.querySelector("#outside-apply-changes");
-const insideAnimationSelect = document.querySelector("#inside-animation-select");
-const insideAnimationNameInput = document.querySelector("#inside-animation-name");
-const insideAnimationCreateButton = document.querySelector("#inside-animation-create");
-const insideIntensityInput = document.querySelector("#inside-intensity");
-const insideIntensityValue = document.querySelector("#inside-intensity-value");
-const insideSpeedInput = document.querySelector("#inside-speed");
-const insideSpeedValue = document.querySelector("#inside-speed-value");
-const insideAssetTypeInput = document.querySelector("#inside-asset-type");
-const insideAssetRefInput = document.querySelector("#inside-asset-ref");
-const insideResourceSelect = document.querySelector("#inside-resource-select");
-const insideLoopUntilStopInput = document.querySelector("#inside-loop-until-stop");
-const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
+const {
+  stage, boardImage, canvas, roomOverlay, boardSelect, boardImportFileInput,
+  boardImportImageInput, boardImportNameInput, boardImportIdInput, boardImportButton,
+  boardStatus, zonesStatus, alignModeToggleInput, alignModeStatus,
+  exportGlobalDefaultsButton, globalDefaultsStatus, apiDiagnoseStatus, triggerFeedback,
+  stopAllButton, roomSelected, roomTargetSelect, roomAnimationSelect,
+  roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
+  roomAnimationSettingsCreateButton, roomAnimationSettingsDeleteButton,
+  roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomApplyChangesButton,
+  roomOpacityInput, roomOpacityValue, roomIntensityInput, roomIntensityValue,
+  roomSpeedInput, roomSpeedValue, roomSoundVolumeInput, roomSoundVolumeValue,
+  roomDurationInput, roomStaggerStartInput, roomStaggerOffsetInput, roomStaggerOffsetValue,
+  startRoomAnimationButton, runningAnimationsList, audioEnabledInput, audioVolumeInput,
+  audioVolumeValue, audioStatus, audioMappingAnimationSelect, audioMappingSoundSelect,
+  audioMappingStatus, animationSpeedInput, animationSpeedValue, animationSpeedStatus,
+  hitareaOffsetXInput, hitareaOffsetXValue, hitareaOffsetYInput, hitareaOffsetYValue,
+  hitareaScaleInput, hitareaScaleValue, hitareaSaveButton, hitareaResetButton, hitareaStatus,
+  roomGeometryModeInput, roomGeometryXInput, roomGeometryXValue, roomGeometryYInput,
+  roomGeometryYValue, roomGeometryStretchXInput, roomGeometryStretchXValue,
+  roomGeometryStretchYInput, roomGeometryStretchYValue, roomGeometryStatus,
+  openDashboardViewButton, openSettingsViewButton, openTriggerZoneButton, openManageZoneButton,
+  mobileStartRoomButton, mobileLayoutStatus, quickModePanel, quickModeStatus,
+  quickModeOffButton, quickModeActivateButton, quickModeDeactivateButton, quickModeClearButton,
+  controlPanel, projectionArea, primaryViewSwitch, dashboardStickyShell, mobileZoneSwitch,
+  runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
+  mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
+  mp4QualityFloorValue, mp4DegradeThresholdInput, mp4DegradeThresholdValue,
+  mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus, toastStack,
+  polygonRoomSelect, showRoomVerticesInput, polygonVertexSelect, polygonEdgeSelect,
+  polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
+  polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
+  roomCreateButton, roomDeleteButton, roomManagementStatus, clusterSelect, clusterNameInput,
+  clusterRoomIdsSelect, clusterCreateButton, clusterSaveButton, clusterDeleteButton,
+  clusterManagementStatus, roomRenameInput, showPlayAreaVerticesInput, playAreaSelect,
+  playAreaNameInput, playAreaCreateButton, playAreaDeleteButton, shipPolygonVertexSelect,
+  shipPolygonEdgeSelect, shipPolygonInsertVertexButton, shipPolygonDeleteVertexButton,
+  shipPolygonResetButton, shipPolygonEditorStatus, outsideAnimationSelect,
+  outsideAnimationNameInput, outsideAnimationCreateButton, outsideEnabledInput,
+  outsideIntensityInput, outsideIntensityValue, outsideSpeedInput, outsideSpeedValue,
+  outsideModeInput, outsideDirectionInput, outsideAssetTypeInput, outsideAssetRefInput,
+  outsideResourceSelect, outsideApplyChangesButton, insideAnimationSelect,
+  insideAnimationNameInput, insideAnimationCreateButton, insideIntensityInput,
+  insideIntensityValue, insideSpeedInput, insideSpeedValue, insideAssetTypeInput,
+  insideAssetRefInput, insideResourceSelect, insideLoopUntilStopInput, insideApplyChangesButton,
+  insideGlobalButtons, dashboardGlobalLoopUntilStopInput, dashboardGlobalPlaySoundInput,
+  polygonHandleSizeInput, polygonHandleSizeValue, boardZoomFitButton, boardZoomResetButton,
+  boardZoomStatus, boardPanStatus, settingsSubtabStatus,
+  dashboardViewGroups, settingsViewGroups, dashboardZoneGroups, settingsSubtabButtons,
+  settingsTabbedSections,
+} = window.TT_BEAMER_RUNTIME_DOM_REFS.collectDomRefs();
+
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
 const outsideModeFieldMount = createConditionalFieldMountSlot(outsideModeField, "outside-mode");
 const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirectionField, "outside-direction");
 const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? null;
-const insideGlobalButtons = document.querySelector("#inside-global-buttons");
-const dashboardGlobalLoopUntilStopInput = document.querySelector("#dashboard-global-loop-until-stop");
-const dashboardGlobalPlaySoundInput = document.querySelector("#dashboard-global-play-sound");
-const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
-const polygonHandleSizeValue = document.querySelector("#polygon-handle-size-value");
-const boardZoomFitButton = document.querySelector("#board-zoom-fit");
-const boardZoomResetButton = document.querySelector("#board-zoom-reset");
-const boardZoomStatus = document.querySelector("#board-zoom-status");
-const boardPanStatus = document.querySelector("#board-pan-status");
-const dashboardViewGroups = Array.from(document.querySelectorAll('[data-view="dashboard"]'));
-const settingsViewGroups = Array.from(document.querySelectorAll('[data-view="settings"]'));
-const dashboardZoneGroups = Array.from(document.querySelectorAll("[data-dashboard-zone]"));
-const settingsSubtabButtons = Array.from(document.querySelectorAll("[data-settings-subtab]"));
-const settingsSubtabStatus = document.querySelector("#settings-subtab-status");
-const settingsTabbedSections = Array.from(document.querySelectorAll('[data-view="settings"][data-settings-tab]'));
 const SETTINGS_SUBTAB_STORAGE_KEY = "tt-beamer.settings-subtab.v1";
 const SETTINGS_SUBTAB_LABELS = {
   board: "Board & Geometry",
