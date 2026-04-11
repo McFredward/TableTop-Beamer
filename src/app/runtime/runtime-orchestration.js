@@ -1059,137 +1059,55 @@ const {
   ensureOutsideMp4Playback,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
-function clampRoomSpeed(value) {
-  return Math.max(0.1, Math.min(2.5, Number(value) || 1));
-}
-
-function clampRoomSoundVolume(value) {
-  return Math.max(0, Math.min(1, Number(value) || 0));
-}
-
-function clampClusterStaggerOffsetMs(value) {
-  const numeric = Math.round(Number(value));
-  if (!Number.isFinite(numeric)) {
-    return CLUSTER_STAGGER_OFFSET_DEFAULT_MS;
-  }
-  return Math.max(CLUSTER_STAGGER_OFFSET_MIN_MS, Math.min(CLUSTER_STAGGER_OFFSET_MAX_MS, numeric));
-}
-
-function syncRoomStaggerOffsetControl() {
-  const offsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-  state.roomDraft.staggerOffsetMs = offsetMs;
-  if (roomStaggerOffsetInput) {
-    roomStaggerOffsetInput.value = String(offsetMs);
-    roomStaggerOffsetInput.disabled = state.roomDraft.targetType !== "cluster";
-  }
-  if (roomStaggerOffsetValue) {
-    roomStaggerOffsetValue.textContent = `${offsetMs}ms`;
-  }
-}
-
-function clampAudioVolumePercent(value) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function clampAnimationSpeed(value) {
-  return Math.max(0.5, Math.min(2.5, Number(value) || 1));
-}
-
-function clampOutsideIntensity(value) {
-  return Math.max(0.2, Math.min(1.5, Number(value) || OUTSIDE_FX_DEFAULT.intensity));
-}
-
-function clampOutsideSpeed(value) {
-  return Math.max(0.3, Math.min(2.5, Number(value) || OUTSIDE_FX_DEFAULT.speed));
-}
-
-function normalizeOutsideMode(value) {
-  return value === "immersive" ? "immersive" : "standard";
-}
-
-function normalizeOutsideDirection(value) {
-  return value === "reverse" ? "reverse" : "forward";
-}
-
-function formatHitareaValue(value) {
-  const numeric = Number(value) || 0;
-  return numeric.toFixed(3);
-}
-
-function syncHitareaStatus() {
-  const calibration = getHitareaCalibration();
-  hitareaStatus.textContent = `Hitarea: X ${formatHitareaValue(calibration.offsetX)}, Y ${formatHitareaValue(calibration.offsetY)}, Scale ${formatHitareaValue(calibration.scale)}`;
-}
-
-function syncHitareaCalibrationPanel() {
-  const calibration = getHitareaCalibration();
-  hitareaOffsetXInput.value = String(calibration.offsetX);
-  hitareaOffsetYInput.value = String(calibration.offsetY);
-  hitareaScaleInput.value = String(calibration.scale);
-  hitareaOffsetXValue.textContent = formatHitareaValue(calibration.offsetX);
-  hitareaOffsetYValue.textContent = formatHitareaValue(calibration.offsetY);
-  hitareaScaleValue.textContent = formatHitareaValue(calibration.scale);
-  syncHitareaStatus();
-}
-
-function formatRoomGeometryValue(value) {
-  return (Number(value) || 0).toFixed(3);
-}
-
-function syncRoomGeometryStatus() {
-  const room = getSelectedRoom();
-  if (!room) {
-    roomGeometryStatus.textContent = "Room geometry: select a room on the board";
-    return;
-  }
-  const geometry = getRoomGeometry(state.boardId, room.id);
-  if (geometry.mode === "absolute") {
-    roomGeometryStatus.textContent = `Room geometry (${room.name ?? room.label}): ABS X ${formatRoomGeometryValue(geometry.absoluteX)}, Y ${formatRoomGeometryValue(geometry.absoluteY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
-    return;
-  }
-  roomGeometryStatus.textContent = `Room geometry (${room.name ?? room.label}): REL dX ${formatRoomGeometryValue(geometry.offsetX)}, dY ${formatRoomGeometryValue(geometry.offsetY)} | Stretch ${formatRoomGeometryValue(geometry.stretchX)}:${formatRoomGeometryValue(geometry.stretchY)}`;
-}
-
-function syncRoomGeometryPanel() {
-  const room = getSelectedRoom();
-  const disabled = !room;
-  roomGeometryModeInput.disabled = disabled;
-  roomGeometryXInput.disabled = disabled;
-  roomGeometryYInput.disabled = disabled;
-  roomGeometryStretchXInput.disabled = disabled;
-  roomGeometryStretchYInput.disabled = disabled;
-  if (!room) {
-    roomGeometryModeInput.value = "relative";
-    roomGeometryXInput.value = "0";
-    roomGeometryYInput.value = "0";
-    roomGeometryXValue.textContent = "0.000";
-    roomGeometryYValue.textContent = "0.000";
-    roomGeometryStretchXInput.value = "1";
-    roomGeometryStretchYInput.value = "1";
-    roomGeometryStretchXValue.textContent = "1.000";
-    roomGeometryStretchYValue.textContent = "1.000";
-    syncRoomGeometryStatus();
-    return;
-  }
-  const geometry = getRoomGeometry(state.boardId, room.id);
-  roomGeometryModeInput.value = geometry.mode;
-  const usesAbsolute = geometry.mode === "absolute";
-  roomGeometryXInput.min = usesAbsolute ? "-0.2" : "-0.25";
-  roomGeometryXInput.max = usesAbsolute ? "1.2" : "0.25";
-  roomGeometryYInput.min = usesAbsolute ? "-0.2" : "-0.25";
-  roomGeometryYInput.max = usesAbsolute ? "1.2" : "0.25";
-  const xValue = usesAbsolute ? geometry.absoluteX : geometry.offsetX;
-  const yValue = usesAbsolute ? geometry.absoluteY : geometry.offsetY;
-  roomGeometryXInput.value = String(xValue);
-  roomGeometryYInput.value = String(yValue);
-  roomGeometryXValue.textContent = formatRoomGeometryValue(xValue);
-  roomGeometryYValue.textContent = formatRoomGeometryValue(yValue);
-  roomGeometryStretchXInput.value = String(geometry.stretchX);
-  roomGeometryStretchYInput.value = String(geometry.stretchY);
-  roomGeometryStretchXValue.textContent = formatRoomGeometryValue(geometry.stretchX);
-  roomGeometryStretchYValue.textContent = formatRoomGeometryValue(geometry.stretchY);
-  syncRoomGeometryStatus();
-}
+// Phase 14-2: clamp helpers + hitarea/room-geometry panel syncs
+// moved to src/app/runtime/runtime-clamp-sync-panels.js.
+window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
+  state,
+  OUTSIDE_FX_DEFAULT,
+  CLUSTER_STAGGER_OFFSET_MIN_MS,
+  CLUSTER_STAGGER_OFFSET_MAX_MS,
+  CLUSTER_STAGGER_OFFSET_DEFAULT_MS,
+  hitareaOffsetXInput,
+  hitareaOffsetYInput,
+  hitareaScaleInput,
+  hitareaOffsetXValue,
+  hitareaOffsetYValue,
+  hitareaScaleValue,
+  hitareaStatus,
+  roomStaggerOffsetInput,
+  roomStaggerOffsetValue,
+  roomGeometryModeInput,
+  roomGeometryXInput,
+  roomGeometryYInput,
+  roomGeometryXValue,
+  roomGeometryYValue,
+  roomGeometryStretchXInput,
+  roomGeometryStretchYInput,
+  roomGeometryStretchXValue,
+  roomGeometryStretchYValue,
+  roomGeometryStatus,
+  getHitareaCalibration: (boardId) => getHitareaCalibration(boardId),
+  getSelectedRoom: () => getSelectedRoom(),
+  getRoomGeometry: (boardId, roomId) => getRoomGeometry(boardId, roomId),
+});
+const {
+  clampRoomSpeed,
+  clampRoomSoundVolume,
+  clampClusterStaggerOffsetMs,
+  syncRoomStaggerOffsetControl,
+  clampAudioVolumePercent,
+  clampAnimationSpeed,
+  clampOutsideIntensity,
+  clampOutsideSpeed,
+  normalizeOutsideMode,
+  normalizeOutsideDirection,
+  formatHitareaValue,
+  syncHitareaStatus,
+  syncHitareaCalibrationPanel,
+  formatRoomGeometryValue,
+  syncRoomGeometryStatus,
+  syncRoomGeometryPanel,
+} = window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS;
 
 // Phase 14-2: mobile layout + view visibility + setDashboardZone
 // (~250 LOC) moved to src/app/runtime/runtime-mobile-layout.js.
