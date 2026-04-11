@@ -226,12 +226,6 @@ const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? 
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const dashboardGlobalLoopUntilStopInput = document.querySelector("#dashboard-global-loop-until-stop");
 const dashboardGlobalPlaySoundInput = document.querySelector("#dashboard-global-play-sound");
-// Phase 13-2: zoom slider removed — wheel + pinch gestures replace it.
-// The two DOM constants below (boardZoomRangeInput, boardZoomValue) are
-// no longer read. Leaving placeholders at null preserves any optional
-// downstream access via `?.` patterns without exception.
-const boardZoomRangeInput = null;
-const boardZoomValue = null;
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
 const polygonHandleSizeValue = document.querySelector("#polygon-handle-size-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
