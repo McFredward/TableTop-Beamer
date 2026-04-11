@@ -4645,257 +4645,44 @@ function syncRoomGeometryPanel() {
   syncRoomGeometryStatus();
 }
 
-function isMobileViewport() {
-  return window.matchMedia("(max-width: 920px)").matches;
-}
-
-function isMobilePortraitViewport() {
-  return window.matchMedia("(max-width: 920px) and (orientation: portrait)").matches;
-}
-
-function getMobileOrientationLabel() {
-  return window.matchMedia("(orientation: portrait)").matches ? "portrait" : "landscape";
-}
-
-function isElementRendered(element) {
-  if (!element || element.hidden) {
-    return false;
-  }
-  const style = window.getComputedStyle(element);
-  if (style.display === "none" || style.visibility === "hidden") {
-    return false;
-  }
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
-}
-
-function measureRenderedHeight(element) {
-  if (!isElementRendered(element)) {
-    return 0;
-  }
-  return Math.max(0, Math.round(element.getBoundingClientRect().height));
-}
-
-function syncMobileStickyOffsets() {
-  if (!controlPanel) {
-    return;
-  }
-  let navOffset = 0;
-  if (isMobileViewport() && state.uiView === "dashboard") {
-    navOffset += measureRenderedHeight(primaryViewSwitch);
-    navOffset += measureRenderedHeight(dashboardStickyShell);
-  }
-  controlPanel.style.setProperty("--mobile-projection-offset", `${navOffset}px`);
-  controlPanel.style.setProperty("--mobile-nav-offset", `${navOffset}px`);
-  if (projectionArea) {
-    projectionArea.style.scrollMarginTop = `${Math.max(0, navOffset) + 8}px`;
-  }
-}
-
-function preserveMobileBoardOverview(context = "quick-mode") {
-  if (!isMobileViewport() || state.uiView !== "dashboard") {
-    return;
-  }
-  setDashboardZone("trigger");
-  syncMobileStickyOffsets();
-  const projectionOk = runMobileProjectionVisibilityGuard({ silent: true, context });
-  if (!projectionOk) {
-    triggerFeedback.textContent = "Status: Mobile board overview guard detected control overlap";
-  }
-}
-
-function ensurePrimaryNavigationVisible() {
-  if (!primaryViewSwitch) {
-    return;
-  }
-  primaryViewSwitch.toggleAttribute("hidden", false);
-  primaryViewSwitch.setAttribute("aria-hidden", "false");
-  if ("inert" in primaryViewSwitch) {
-    primaryViewSwitch.inert = false;
-  }
-}
-
-function syncMobileLayoutStatus() {
-  if (!controlPanel || !mobileLayoutStatus) {
-    return;
-  }
-  const orientation = getMobileOrientationLabel();
-  const isMobile = isMobileViewport();
-  controlPanel.dataset.mobileViewport = isMobile ? "true" : "false";
-  controlPanel.dataset.mobileOrientation = orientation;
-  const zoneLabel = state.dashboardZone === "manage" ? "Manage running" : "Trigger";
-  mobileLayoutStatus.textContent = isMobile
-    ? `Mobile (${orientation}): focus ${zoneLabel}`
-    : "Desktop: Trigger and Manage sections visible in parallel";
-}
-
-function syncDashboardZoneVisibility() {
-  ensurePrimaryNavigationVisible();
-  const mobilePortrait = isMobilePortraitViewport();
-  for (const entry of dashboardZoneGroups) {
-    const zone = entry.dataset.dashboardZone;
-    const shouldHide = mobilePortrait && zone && zone !== state.dashboardZone;
-    entry.classList.toggle("dashboard-zone-hidden", shouldHide);
-  }
-
-  if (openTriggerZoneButton && openManageZoneButton) {
-    const showSwitch = isMobileViewport() && state.uiView === "dashboard";
-    openTriggerZoneButton.parentElement?.classList.toggle("mobile-zone-switch-hidden", !showSwitch);
-    openTriggerZoneButton.classList.toggle("active", state.dashboardZone === "trigger");
-    openManageZoneButton.classList.toggle("active", state.dashboardZone === "manage");
-    openTriggerZoneButton.setAttribute("aria-pressed", state.dashboardZone === "trigger" ? "true" : "false");
-    openManageZoneButton.setAttribute("aria-pressed", state.dashboardZone === "manage" ? "true" : "false");
-  }
-
-  if (mobileStartRoomButton) {
-    const roomSelectedNow = Boolean(getSelectedRoom());
-    const showStart = isMobileViewport() && state.uiView === "dashboard";
-    mobileStartRoomButton.toggleAttribute("hidden", !showStart);
-    mobileStartRoomButton.disabled = !roomSelectedNow;
-  }
-
-  syncMobileStickyOffsets();
-  syncMobileLayoutStatus();
-}
-
-function validateViewNavigationVisibility({ silent = false, context = "runtime" } = {}) {
-  const issues = [];
-  const navButtons = [
-    ["dashboard", openDashboardViewButton],
-    ["settings", openSettingsViewButton],
-  ];
-
-  for (const [key, button] of navButtons) {
-    if (!button) {
-      issues.push(`missing navigation button: ${key}`);
-      continue;
-    }
-    const style = window.getComputedStyle(button);
-    const rect = button.getBoundingClientRect();
-    if (
-      button.hidden ||
-      button.disabled ||
-      style.display === "none" ||
-      style.visibility === "hidden" ||
-      style.pointerEvents === "none" ||
-      rect.width < 1 ||
-      rect.height < 1
-    ) {
-      issues.push(`navigation button unreachable: ${key}`);
-    }
-  }
-
-  if (!isElementRendered(primaryViewSwitch)) {
-    issues.push("navigation container hidden");
-  }
-
-  if (controlPanel?.dataset.activeView !== state.uiView) {
-    issues.push(`navigation state drift: dataset=${controlPanel?.dataset.activeView} state=${state.uiView}`);
-  }
-
-  if (issues.length > 0) {
-    if (!silent) {
-      logUi.error("navigation_visibility_violation", {
-        event: "navigation-visibility-violation",
-        context,
-        issues,
-      });
-      triggerFeedback.textContent =
-        "Status: Navigation guard reported a failure (Dashboard/Settings not continuously visible)";
-    }
-    return false;
-  }
-  return true;
-}
-
-function runMobileProjectionVisibilityGuard({ silent = false, context = "runtime" } = {}) {
-  if (!isMobileViewport() || !projectionArea) {
-    return true;
-  }
-
-  const issues = [];
-  const projectionRect = projectionArea.getBoundingClientRect();
-  if (projectionRect.width < 1 || projectionRect.height < 1) {
-    return true;
-  }
-
-  const blockers = [
-    primaryViewSwitch,
-    state.uiView === "dashboard" ? dashboardStickyShell : null,
-    state.uiView === "dashboard" ? mobileZoneSwitch : null,
-    state.uiView === "dashboard" ? runningOverviewPanel : null,
-  ].filter(Boolean);
-  for (const blocker of blockers) {
-    if (!isElementRendered(blocker)) {
-      continue;
-    }
-    const blockerStyle = window.getComputedStyle(blocker);
-    if (blockerStyle.position === "sticky" || blockerStyle.position === "fixed") {
-      issues.push(`mobile control uses sticky/fixed: ${blocker.className || blocker.id || blocker.tagName}`);
-    }
-    const rect = blocker.getBoundingClientRect();
-    const probeX = projectionRect.left + projectionRect.width * 0.5;
-    const probeY = projectionRect.top + projectionRect.height * 0.5;
-    const intersectsProbe =
-      probeX >= rect.left && probeX <= rect.right && probeY >= rect.top && probeY <= rect.bottom;
-    if (intersectsProbe) {
-      const probeTarget = document.elementFromPoint(probeX, probeY);
-      if (probeTarget && !projectionArea.contains(probeTarget) && probeTarget !== projectionArea) {
-        issues.push(`projection overlap by ${blocker.className || blocker.id || blocker.tagName}`);
-      }
-    }
-  }
-
-  const projectionStyle = window.getComputedStyle(projectionArea);
-  if (projectionStyle.pointerEvents === "none") {
-    issues.push("projection pointer-events disabled");
-  }
-
-  const probePoints = [
-    [projectionRect.left + projectionRect.width * 0.5, projectionRect.top + projectionRect.height * 0.5],
-    [projectionRect.left + projectionRect.width * 0.2, projectionRect.top + projectionRect.height * 0.35],
-    [projectionRect.left + projectionRect.width * 0.8, projectionRect.top + projectionRect.height * 0.65],
-  ];
-  for (const [probeX, probeY] of probePoints) {
-    if (!Number.isFinite(probeX) || !Number.isFinite(probeY)) {
-      continue;
-    }
-    const probeTarget = document.elementFromPoint(probeX, probeY);
-    if (probeTarget && !projectionArea.contains(probeTarget) && probeTarget !== projectionArea) {
-      issues.push(`projection pointer path blocked by ${probeTarget.className || probeTarget.id || probeTarget.tagName}`);
-      break;
-    }
-  }
-
-  if (issues.length > 0) {
-    if (!silent) {
-      logUi.error("mobile_projection_visibility_violation", {
-        event: "mobile-projection-visibility-violation",
-        context,
-        issues,
-      });
-      triggerFeedback.textContent =
-        "Status: Mobile projection guard reported overlap (board must not be covered by controls)";
-    }
-    return false;
-  }
-  return true;
-}
-
-function setDashboardZone(zone, { announce = false } = {}) {
-  const nextZone = zone === "manage" ? "manage" : "trigger";
-  if (nextZone !== "manage") {
-    resetClearAllGuard();
-  }
-  state.dashboardZone = nextZone;
-  syncDashboardZoneVisibility();
-  if (announce && state.uiView === "dashboard") {
-    triggerFeedback.textContent =
-      nextZone === "manage"
-        ? "Status: Mobile focus set to Manage running"
-        : "Status: Mobile focus set to Trigger";
-  }
-}
+// Phase 14-2: mobile layout + view visibility + setDashboardZone
+// (~250 LOC) moved to src/app/runtime/runtime-mobile-layout.js.
+// Init + destructure so existing call sites resolve the same names.
+window.TT_BEAMER_RUNTIME_MOBILE_LAYOUT.init({
+  state,
+  controlPanel,
+  primaryViewSwitch,
+  dashboardStickyShell,
+  projectionArea,
+  mobileLayoutStatus,
+  dashboardZoneGroups,
+  openTriggerZoneButton,
+  openManageZoneButton,
+  mobileStartRoomButton,
+  mobileZoneSwitch,
+  runningOverviewPanel,
+  openDashboardViewButton,
+  openSettingsViewButton,
+  triggerFeedback,
+  logUi,
+  getSelectedRoom: () => getSelectedRoom(),
+  resetClearAllGuard: () => resetClearAllGuard(),
+});
+const {
+  isMobileViewport,
+  isMobilePortraitViewport,
+  getMobileOrientationLabel,
+  isElementRendered,
+  measureRenderedHeight,
+  syncMobileStickyOffsets,
+  preserveMobileBoardOverview,
+  ensurePrimaryNavigationVisible,
+  syncMobileLayoutStatus,
+  syncDashboardZoneVisibility,
+  validateViewNavigationVisibility,
+  runMobileProjectionVisibilityGuard,
+  setDashboardZone,
+} = window.TT_BEAMER_RUNTIME_MOBILE_LAYOUT;
 
 function shouldSuppressRapidTap(actionKey, thresholdMs = 320) {
   return window.TT_BEAMER_INPUT_GUARDS.shouldSuppressRapidTap({
