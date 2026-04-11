@@ -1322,3 +1322,14 @@
 - All three plans closed PASS (static guards).
 - Cross-plan non-regression verified: Phase 11 HF6 seen-once retention and Phase 12 additive layering remain statically present and functional.
 - In-browser verification is the remaining gate before merge. Specifically: multi-device config sync, server-offline error overlay + retry, wheel + pinch zoom centered on the gesture anchor, touch-drag of polygon vertices on a real touchscreen.
+
+## Phase 13 HF Wave Closure (2026-04-11)
+- HF1..HF13 ausgeliefert (commits `dad3e8c` .. `71f72cb`). Cumulative Scope: cursor-zoom correctness, touch UX state machine, opt-in save flow, Apply bar UX, mobile perf (GPU hints, stage-rect cache, rAF coalescing), polygon drag pipeline (incremental SVG renderer, vertex offset, stale-refs reorder, transform preservation).
+- HF13 ist die strukturelle Loesung der vertex-drift Regression: `state.roomStretchAnchorCache` haelt pro `${boardId}::${roomId}` den stabilen Stretch-Anchor session-weit fest; `getRoomTransform`/`getRoomPoints` lesen daraus statt aus der Live-Centroid-Berechnung.
+- Sieben HF Acceptance-Harnesses sind GREEN (`debug/p13-hf7..hf13-acceptance-regression-output.json`); jede enthaelt HF7/HF8/HF9/HF10/HF11/Phase-11/Phase-12/Phase-13-1 non-regression gates.
+- Phase 13 ist CLOSED PASS; Closure-Dokument: `.planning/phases/phase-13/CLOSURE.md`.
+
+## Phase 14 Kickoff (2026-04-11)
+- Phase 14 ist ein Refactoring-Track: dead code removal + modulare Aufteilung der grossen Runtime-Datei.
+- Primaeres Ziel: `src/app/runtime/runtime-orchestration.js` (~14.5k LOC) in sinnvolle Domaenen-Module splitten; redundante/ungenutzte Pfade entfernen; Dateigroesse pro Modul unter ein akzeptables Niveau bringen.
+- Nicht-funktionale Phase: Keine neuen Features, keine Verhaltensaenderungen. Jede Extraction muss existing behavior preservieren und saemtliche Phase-13 Acceptance-Harnesses muessen unveraendert PASS bleiben.

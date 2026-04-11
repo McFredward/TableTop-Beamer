@@ -32,8 +32,14 @@
 
 ## phase-13
 - Number: 13
-- Status: active-ready
+- Status: closed-pass
 - Execute Entry: `.planning/phases/phase-13/EXECUTE.md`
+- Closure: `.planning/phases/phase-13/CLOSURE.md`
+
+## phase-14
+- Number: 14
+- Status: planned
+- Planning Entry: `.planning/phases/phase-14/PLAN.md`
 
 ## Compatibility
 Fuer Tools mit abweichender Benennung existiert zusaetzlich `.planning/phases/phase-1/` als Alias fuer Phase 1.

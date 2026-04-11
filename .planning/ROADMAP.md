@@ -116,3 +116,34 @@ Execution Update (13-3):
 - Verification PASS: `.planning/phases/phase-13/13-3-VERIFICATION.md`, `debug/p13-3-acceptance-regression-output.json`.
 
 Phase 13 Closure: all three plans PASS static guards. In-browser verification by the user is the remaining gate before merge (multi-device config sync, server-offline overlay + retry, wheel + pinch zoom centered on anchor, touch polygon drag on a real touchscreen).
+
+Execution Update (HF Wave 13-HF1..13-HF13):
+- HF1..HF6 closed interactive UX regressions on desktop zoom anchoring and mobile pan/zoom lag (`dad3e8c`..`dca8cf4`).
+- HF7 isolated + fixed residual mobile pan/zoom lag via GPU layer promotion, cached stage geometry, and draw/poll pause (`67fef9d`).
+- HF8 applied the HF7 pause pattern + rAF render coalescer to polygon drag (`a71ea57`).
+- HF9 replaced the full-overlay rebuild with an incremental SVG drag renderer + vertex grab offset (`6f66cda`).
+- HF10 fixed HF9 stale-refs regression by rendering before `begin*Drag` in every call site (`44e1688`).
+- HF11 restored the room transform pipeline inside the incremental renderer (`3ad41e0`).
+- HF12 added display-space grab-offset capture and `[0, 1]` edge clamp for vertex drag (`e56085a`).
+- HF13 replaced HF12's drag-time freeze with a session-stable stretch anchor in `getRoomTransform`/`getRoomPoints` — the structural root-cause fix (`71f72cb`).
+- Seven HF acceptance-regression harnesses GREEN with explicit non-regression gates for every prior HF/phase.
+
+Phase 13 Final Closure: CLOSED PASS. See `.planning/phases/phase-13/CLOSURE.md`.
+
+## Phase 14 - Refactoring + Module Split (PLANNING)
+Ziel: Nicht-funktionale Konsolidierung nach dem grossen HF-Wave. Redundanter bzw. nicht genutzter alter Code wird vollstaendig entfernt, und Dateien mit 2k+ Zeilen (primaer `src/app/runtime/runtime-orchestration.js` mit ~14.5k LOC) werden in Domaenen-Module aufgeteilt.
+
+Status: Scaffolding in `.planning/phases/phase-14/`. Kein Feature-Scope; reine Struktur/Cleanup Phase.
+
+Milestones:
+1. M1 Inventory: gemessene File-Size-Matrix, Liste der toten Pfade, dokumentierte Modulgrenzen.
+2. M2 Dead-Code Purge: Entfernung unbenutzter Exports, legacy-Persistenzreste, commented-out Blocks.
+3. M3 Runtime Module Split: `runtime-orchestration.js` in thematische Submodule (draw loop, room rendering, polygon editor, live-sync glue, settings UI binding, touch gesture machine, zoom, startup/hydrate) zerlegt.
+4. M4 Non-Regression Hold: saemtliche Phase-11/12/13 Acceptance-Harnesses unveraendert PASS.
+
+Exit Criteria:
+- `src/app/runtime/runtime-orchestration.js` existiert nicht mehr als >2k LOC Monolith (oder ist als schlanker Entry-Point verbleibend, der Domaenenmodule orchestriert).
+- Jede produktive Datei in `src/app/**` ist unter einem klar motivierten Zeilenbudget (target: < ~1500 LOC pro Modul, soft cap).
+- `grep -r "// removed"` / `grep -r "// legacy"` / ausgekommentete Code-Bloecke verifiziert entfernt.
+- Keine regressiven Aenderungen in Phase 11/12/13 Acceptance-Harnesses — alle GREEN.
+- Build + Startup unveraendert; in-browser smoke unveraendert.
