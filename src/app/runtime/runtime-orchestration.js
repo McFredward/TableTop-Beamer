@@ -216,7 +216,7 @@ const insideSpeedValue = document.querySelector("#inside-speed-value");
 const insideAssetTypeInput = document.querySelector("#inside-asset-type");
 const insideAssetRefInput = document.querySelector("#inside-asset-ref");
 const insideResourceSelect = document.querySelector("#inside-resource-select");
-let insideLoopUntilStopInput = document.querySelector("#inside-loop-until-stop");
+const insideLoopUntilStopInput = document.querySelector("#inside-loop-until-stop");
 const insideApplyChangesButton = document.querySelector("#inside-apply-changes");
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
@@ -251,36 +251,6 @@ const SETTINGS_SUBTAB_LABELS = {
   system: "System & Performance",
 };
 
-function ensureInsideLoopUntilStopControl() {
-  if (insideLoopUntilStopInput) {
-    return;
-  }
-  const panel = insideApplyChangesButton?.closest("section") ?? null;
-  if (!panel) {
-    return;
-  }
-  const label = document.createElement("label");
-  label.className = "inline-checkbox";
-  const input = document.createElement("input");
-  input.id = "inside-loop-until-stop";
-  input.type = "checkbox";
-  label.append(input, "Loop until stopped");
-  const anchor = insideAssetTypeInput?.closest("label") ?? insideApplyChangesButton;
-  if (anchor && anchor.parentElement === panel) {
-    panel.insertBefore(label, anchor);
-  } else {
-    panel.append(label);
-  }
-  insideLoopUntilStopInput = input;
-}
-
-function removeLegacyRoomHoldControl() {
-  const roomHoldLabel = document.querySelector("#room-hold")?.closest("label") ?? null;
-  roomHoldLabel?.remove();
-}
-
-ensureInsideLoopUntilStopControl();
-removeLegacyRoomHoldControl();
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "board-import-file",
