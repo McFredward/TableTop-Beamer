@@ -2391,6 +2391,21 @@ async function handleGlobalDefaultsSave(req, res) {
   };
 
   await writeFile(GLOBAL_DEFAULTS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+
+  // Phase 13-1: broadcast a config-update notification to every connected
+  // client so they refetch and apply the new global config immediately.
+  // We reuse the existing live-session WebSocket fan-out.
+  try {
+    broadcastLiveSession("global-config-update", {
+      target: "config/global-defaults.json",
+      savedAt: next.savedAt,
+      source: next.source,
+    });
+  } catch (error) {
+    // Broadcast failures must not break the file write response.
+    console.warn("[global-defaults] broadcast failed:", error?.message || error);
+  }
+
   sendJson(res, 200, {
     ok: true,
     target: "config/global-defaults.json",
