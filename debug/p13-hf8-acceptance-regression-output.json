@@ -1,0 +1,18 @@
+{
+  "suite": "P13-HF8-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF8-1-polygonDragActive-flag-and-isHeavyInteractionActive": true,
+    "G13-HF8-2-scheduleRoomOverlayRender-helper": true,
+    "G13-HF8-3-begin-end-polygon-drag-interaction-helpers": true,
+    "G13-HF8-4-all-begin-helpers-enter-interaction": true,
+    "G13-HF8-5-all-clear-helpers-exit-interaction": true,
+    "G13-HF8-6-draw-and-poll-gate-on-isHeavyInteractionActive": true,
+    "G13-HF8-7-drag-pointermove-uses-scheduleRoomOverlayRender": true,
+    "G13-HF8-8-HF7-NonRegression-touchGestureActive-intact": true,
+    "G13-HF8-non-regression-Phase-11-HF6": true,
+    "G13-HF8-non-regression-Phase-12": true,
+    "G13-HF8-non-regression-Phase-13-1": true
+  }
+}

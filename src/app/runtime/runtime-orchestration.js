@@ -945,7 +945,8 @@ function scheduleNextLiveSnapshotPoll(delayOverrideMs = null) {
   // applyLiveRuntimeSnapshot iterates boards + rehydrates polygon
   // state, ~10–30 ms per call on mobile, which starves the gesture
   // rAF path. Resumed when the gesture ends.
-  if (touchGestureActive) {
+  // Phase 13-HF8: also pause during polygon drag (same rationale).
+  if (isHeavyInteractionActive()) {
     if (liveSync.pollTimerId !== null) {
       window.clearTimeout(liveSync.pollTimerId);
       liveSync.pollTimerId = null;
@@ -7998,6 +7999,9 @@ function beginShipPolygonVertexDrag(event, vertexIndex) {
   state.shipPolygonEditor.dragBoardId = state.boardId;
   state.shipPolygonEditor.dragStartPoints = getShipPolygonPoints(state.boardId);
   state.shipPolygonEditor.dragMoved = false;
+  // Phase 13-HF8: enter heavy-interaction mode. Pauses draw() + polling
+  // + arms the renderRoomOverlay rAF coalescer for the drag duration.
+  beginPolygonDragInteraction();
   try {
     roomOverlay.setPointerCapture(event.pointerId);
   } catch {
@@ -8011,6 +8015,7 @@ function clearShipPolygonDragSession() {
   state.shipPolygonEditor.dragBoardId = null;
   state.shipPolygonEditor.dragStartPoints = null;
   state.shipPolygonEditor.dragMoved = false;
+  endPolygonDragInteraction();
 }
 
 function commitShipPolygonDrag() {
@@ -8318,6 +8323,8 @@ function beginPolygonVertexDrag(event, roomId, vertexIndex) {
   state.polygonEditor.dragBoardId = state.boardId;
   state.polygonEditor.dragStartPoints = getSpecialPolygonPoints(state.boardId, roomId);
   state.polygonEditor.dragMoved = false;
+  // Phase 13-HF8: heavy-interaction gate.
+  beginPolygonDragInteraction();
   try {
     roomOverlay.setPointerCapture(event.pointerId);
   } catch {
@@ -8330,6 +8337,9 @@ function beginPendingPolygonAreaDrag(event, roomId) {
   state.polygonEditor.pendingAreaRoomId = roomId;
   state.polygonEditor.pendingAreaBoardId = state.boardId;
   state.polygonEditor.pendingAreaStartPointerPoint = getNormalizedOverlayPoint(event);
+  // Phase 13-HF8: heavy-interaction gate — pending area drag is still
+  // active mouse/touch state and needs the same pauses.
+  beginPolygonDragInteraction();
 }
 
 function clearPendingPolygonAreaDragSession() {
@@ -8337,6 +8347,7 @@ function clearPendingPolygonAreaDragSession() {
   state.polygonEditor.pendingAreaRoomId = null;
   state.polygonEditor.pendingAreaBoardId = null;
   state.polygonEditor.pendingAreaStartPointerPoint = null;
+  endPolygonDragInteraction();
 }
 
 function preserveRoomSelectionAfterPointerLifecycle() {
@@ -8358,6 +8369,10 @@ function beginPolygonAreaDrag(event, roomId, { boardId = state.boardId, startPoi
     : getNormalizedOverlayPoint(event);
   state.polygonEditor.dragAreaMoved = false;
   clearPendingPolygonAreaDragSession();
+  // Phase 13-HF8: heavy-interaction gate. clearPendingPolygonAreaDragSession
+  // above would clear pending state and might early-exit the end path,
+  // so we re-enter heavy interaction here.
+  beginPolygonDragInteraction();
   roomOverlay.classList.add("is-room-dragging");
   try {
     roomOverlay.setPointerCapture(event.pointerId);
@@ -8374,6 +8389,7 @@ function clearPolygonAreaDragSession() {
   state.polygonEditor.dragAreaStartPointerPoint = null;
   state.polygonEditor.dragAreaMoved = false;
   roomOverlay.classList.remove("is-room-dragging");
+  endPolygonDragInteraction();
 }
 
 function maybePromotePendingPolygonAreaDrag(event) {
@@ -8411,6 +8427,7 @@ function clearPolygonDragSession() {
   state.polygonEditor.dragBoardId = null;
   state.polygonEditor.dragStartPoints = null;
   state.polygonEditor.dragMoved = false;
+  endPolygonDragInteraction();
 }
 
 function commitPolygonDrag() {
@@ -11805,9 +11822,11 @@ function draw(now) {
     // under 2 s) and the user is actively interacting, not staring at
     // background animations. Skipping the outside-fx layer + the
     // drawAnimationSafely loop recovers 20–40 ms of main-thread time
-    // per frame on mobile, which is the dominant mobile pan/zoom lag
-    // source that survived HF5 + HF6.
-    if (touchGestureActive) {
+    // per frame on mobile.
+    // Phase 13-HF8: also pause during polygon drag. Same rationale —
+    // the user is editing, not watching — and drag lag was the
+    // remaining symptom after HF7.
+    if (isHeavyInteractionActive()) {
       recordRuntimeFrameCost(performance.now() - frameStart);
       return;
     }
@@ -12093,6 +12112,72 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // The flag is set/cleared by the touch gesture state machine and a
 // gesture-end handler refreshes the UI once.
 let touchGestureActive = false;
+
+// Phase 13-HF8: "polygon drag in progress" flag. Set whenever any
+// polygon drag lifecycle function (ship vertex, room vertex, room
+// area, or pending area) starts, cleared by the finish/cancel/clear
+// counterpart. Used to pause draw() + live-sync polling + coalesce
+// renderRoomOverlay calls during the drag, same pattern as HF7 for
+// touch pan/zoom.
+let polygonDragActive = false;
+function isHeavyInteractionActive() {
+  return touchGestureActive || polygonDragActive;
+}
+
+// Phase 13-HF8: rAF-coalesced wrapper around renderRoomOverlay().
+// Multiple same-frame drag pointermove events collapse into one
+// SVG rebuild per animation frame instead of one per event.
+// finish*Drag helpers call renderRoomOverlay() directly to flush.
+let pendingRoomOverlayRenderHandle = null;
+function scheduleRoomOverlayRender() {
+  if (pendingRoomOverlayRenderHandle !== null) return;
+  pendingRoomOverlayRenderHandle = window.requestAnimationFrame(() => {
+    pendingRoomOverlayRenderHandle = null;
+    renderRoomOverlay();
+  });
+}
+function flushPendingRoomOverlayRender() {
+  if (pendingRoomOverlayRenderHandle !== null) {
+    window.cancelAnimationFrame(pendingRoomOverlayRenderHandle);
+    pendingRoomOverlayRenderHandle = null;
+  }
+}
+
+// Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
+// drag types. begin* called from each begin*Drag helper. end* called
+// from each finish*/cancel*/clearPending* helper. Idempotent: multiple
+// begins/ends collapse. Kills any in-flight live-sync poll on begin,
+// resumes polling and flushes the pending overlay render on end.
+function beginPolygonDragInteraction() {
+  if (polygonDragActive) return;
+  polygonDragActive = true;
+  try {
+    if (liveSync?.pollTimerId !== null && liveSync?.pollTimerId !== undefined) {
+      window.clearTimeout(liveSync.pollTimerId);
+      liveSync.pollTimerId = null;
+    }
+  } catch { /* best effort */ }
+}
+function endPolygonDragInteraction() {
+  if (!polygonDragActive) return;
+  // Only clear the flag once all drag-state fields are released. A
+  // ship-vertex, room-vertex, area, and pending-area drag could in
+  // theory be active simultaneously; wait for all of them to finish.
+  if (
+    state.shipPolygonEditor.dragVertexIndex !== null
+    || state.polygonEditor.dragVertexIndex !== null
+    || state.polygonEditor.dragAreaPointerId !== null
+    || state.polygonEditor.pendingAreaPointerId !== null
+  ) {
+    return;
+  }
+  polygonDragActive = false;
+  // Flush any pending overlay render synchronously so the final drag
+  // frame is visible immediately after release.
+  flushPendingRoomOverlayRender();
+  renderRoomOverlay();
+  try { scheduleNextLiveSnapshotPoll(0); } catch { /* best effort */ }
+}
 
 // Phase 13-HF6: cached stage geometry to avoid forced reflows during
 // high-frequency touch gestures on mobile. `stage.getBoundingClientRect()`
@@ -13369,7 +13454,8 @@ roomOverlay.addEventListener("pointermove", (event) => {
     points[state.shipPolygonEditor.dragVertexIndex] = [x, y];
     setShipPolygonPoints(boardId, points);
     state.shipPolygonEditor.dragMoved = true;
-    renderRoomOverlay();
+    // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
+    scheduleRoomOverlayRender();
     syncShipPolygonEditorStatus();
     return;
   }
@@ -13400,7 +13486,8 @@ roomOverlay.addEventListener("pointermove", (event) => {
     ]);
     setSpecialPolygonPoints(boardId, roomId, shifted);
     state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
-    renderRoomOverlay();
+    // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
+    scheduleRoomOverlayRender();
     syncPolygonEditorStatus();
     return;
   }
@@ -13424,7 +13511,8 @@ roomOverlay.addEventListener("pointermove", (event) => {
   points[state.polygonEditor.dragVertexIndex] = [x, y];
   setSpecialPolygonPoints(boardId, roomId, points);
   state.polygonEditor.dragMoved = true;
-  renderRoomOverlay();
+  // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
+  scheduleRoomOverlayRender();
   syncPolygonEditorStatus();
 });
 
