@@ -598,7 +598,6 @@ const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelector
   getState: () => state,
 });
 
-let animationIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 // Phase 14-2: audio pools + timers moved to runtime-audio.js
@@ -668,6 +667,31 @@ const {
   getCoarsePointerHitMultiplier,
   getPolygonEditorHandleMetrics,
 } = window.TT_BEAMER_RUNTIME_POLYGON_METRICS;
+
+// Phase 14-2: animation factory + flickerNoise + hitarea/geometry
+// update helpers moved to src/app/runtime/runtime-animation-factory.js.
+window.TT_BEAMER_RUNTIME_ANIMATION_FACTORY.init({
+  state,
+  hitareaStatus,
+  triggerFeedback,
+  clampRoomSpeed: (v) => clampRoomSpeed(v),
+  clampRoomOpacity: (v) => clampRoomOpacity(v),
+  clampRoomSoundVolume: (v) => clampRoomSoundVolume(v),
+  setHitareaCalibration: (boardId, calibration) => setHitareaCalibration(boardId, calibration),
+  getHitareaCalibration: (boardId) => getHitareaCalibration(boardId),
+  syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  getSelectedRoom: () => getSelectedRoom(),
+  updateRoomGeometry: (boardId, roomId, partial) => updateRoomGeometry(boardId, roomId, partial),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  syncRoomGeometryPanel: () => syncRoomGeometryPanel(),
+});
+const {
+  createAnimation,
+  flickerNoise,
+  updateActiveBoardHitareaCalibration,
+  updateSelectedRoomGeometry,
+} = window.TT_BEAMER_RUNTIME_ANIMATION_FACTORY;
 
 const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
 
@@ -1870,46 +1894,6 @@ const {
   restoreRoomDraftUiSnapshot,
 } = window.TT_BEAMER_RUNTIME_ROOM_DRAFT;
 
-function createAnimation({
-  type,
-  animationName = "",
-  roomAssetType = "",
-  roomAssetRef = "",
-  scope,
-  boardId = state.boardId,
-  roomId = null,
-  intensity = 0.8,
-  speed = 1,
-  opacity = 0.9,
-  soundVolume = 1,
-  hold = false,
-  durationSec = 15,
-  startDelayMs = 0,
-}) {
-  const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
-  const startedAt = performance.now() + normalizedStartDelayMs;
-  const startedAtEpochMs = Date.now() + normalizedStartDelayMs;
-  const effectiveHold = scope === "room" || scope === "cluster" ? true : hold;
-  return {
-    id: `anim-${animationIdCounter++}`,
-    boardId,
-    type,
-    animationName: String(animationName || "").trim() || undefined,
-    roomAssetType: String(roomAssetType || "").trim() || undefined,
-    roomAssetRef: String(roomAssetRef || "").trim() || undefined,
-    scope,
-    roomId,
-    intensity,
-    speed: clampRoomSpeed(speed),
-    opacity: clampRoomOpacity(opacity),
-    playbackSpeed: clampRoomSpeed(speed),
-    soundVolume: clampRoomSoundVolume(soundVolume),
-    hold: effectiveHold,
-    durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
-    startedAt,
-    startedAtEpochMs,
-  };
-}
 
 // Phase 14-2: drawRoomComposition now lives in runtime-draw-loop.js
 // along with the rest of the draw pipeline. Init + destructure is
@@ -2049,10 +2033,6 @@ const {
   clipToInsideShip,
 } = window.TT_BEAMER_RUNTIME_CANVAS_CLIP;
 
-function flickerNoise(seed) {
-  const raw = Math.sin(seed * 127.1) * 43758.5453123;
-  return raw - Math.floor(raw);
-}
 
 // Phase 14-2: drawEffectVisual lives in
 // src/app/runtime/runtime-effect-visuals.js. Init + destructure so
@@ -2173,31 +2153,7 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
   setDashboardZone: (zone, opts) => setDashboardZone(zone, opts),
 });
 
-function updateActiveBoardHitareaCalibration(partial) {
-  setHitareaCalibration(state.boardId, {
-    ...getHitareaCalibration(state.boardId),
-    ...partial,
-  });
-  syncHitareaCalibrationPanel();
-  renderRoomOverlay();
-  hitareaStatus.textContent = `${hitareaStatus.textContent} (not saved)`;
-}
 
-function updateSelectedRoomGeometry(partial, statusSuffix = "") {
-  const room = getSelectedRoom();
-  if (!room) {
-    return;
-  }
-  updateRoomGeometry(state.boardId, room.id, partial);
-  const persisted = persistBoardProfiles();
-  renderRoomOverlay();
-  syncRoomGeometryPanel();
-  if (statusSuffix) {
-    triggerFeedback.textContent = persisted
-      ? `Status: ${room.name ?? room.label} ${statusSuffix}`
-      : `Status: ${room.name ?? room.label} ${statusSuffix} (persistence failed)`;
-  }
-}
 
 
 // Phase 14-2: hitarea + room geometry event binders moved to
