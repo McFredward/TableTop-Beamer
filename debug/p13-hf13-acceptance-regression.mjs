@@ -108,9 +108,17 @@ const nr_hf10 =
   /renderRoomOverlay\(\);\s*beginPolygonVertexDrag\(event, room\.id, index\);/.test(runtimeSrc)
   && /renderRoomOverlay\(\);\s*beginPendingPolygonAreaDrag\(event, room\.id\);/.test(runtimeSrc);
 
+// Phase 14-2: polygon-editor module calls through ctx.cacheRoomPolygonDragDomRefs;
+// legacy monolith called it directly. Accept both forms.
 const nr_hf9_refs =
-  runtimeSrc.includes("state.polygonEditor.dragDomRefs = cacheRoomPolygonDragDomRefs(roomId);")
-  && runtimeSrc.includes("state.polygonEditor.dragAreaDomRefs = cacheRoomPolygonDragDomRefs(roomId);");
+  (
+    runtimeSrc.includes("state.polygonEditor.dragDomRefs = cacheRoomPolygonDragDomRefs(roomId);")
+    || runtimeSrc.includes("state.polygonEditor.dragDomRefs = ctx.cacheRoomPolygonDragDomRefs(roomId);")
+  )
+  && (
+    runtimeSrc.includes("state.polygonEditor.dragAreaDomRefs = cacheRoomPolygonDragDomRefs(roomId);")
+    || runtimeSrc.includes("state.polygonEditor.dragAreaDomRefs = ctx.cacheRoomPolygonDragDomRefs(roomId);")
+  );
 
 const nr_hf8 =
   runtimeSrc.includes("function beginPolygonDragInteraction()")

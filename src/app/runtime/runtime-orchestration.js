@@ -4164,714 +4164,84 @@ const {
   syncOutsideRuntimeMirror,
 } = window.TT_BEAMER_RUNTIME_FX_PANELS;
 
-function beginShipPolygonVertexDrag(event, vertexIndex) {
-  state.shipPolygonEditor.dragVertexIndex = vertexIndex;
-  state.shipPolygonEditor.dragPointerId = event.pointerId;
-  state.shipPolygonEditor.dragBoardId = state.boardId;
-  const startPoints = getShipPolygonPoints(state.boardId);
-  state.shipPolygonEditor.dragStartPoints = startPoints;
-  state.shipPolygonEditor.dragMoved = false;
-  // Phase 13-HF9: capture the offset from the pointer to the vertex's
-  // current position so subsequent pointermove updates keep the vertex
-  // exactly under the finger/cursor. Without this the vertex "jumps"
-  // to the raw pointer coords on the first move.
-  const initialVertex = startPoints[vertexIndex] || [0, 0];
-  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-  state.shipPolygonEditor.dragVertexOffsetX = initialVertex[0] - pointerX;
-  state.shipPolygonEditor.dragVertexOffsetY = initialVertex[1] - pointerY;
-  // Phase 13-HF9: cache DOM refs for the incremental drag renderer so
-  // pointermove never re-queries the DOM and never rebuilds the SVG.
-  state.shipPolygonEditor.dragDomRefs = cacheShipPolygonDragDomRefs();
-  // Phase 13-HF8: enter heavy-interaction mode. Pauses draw() + polling
-  // + arms the renderRoomOverlay rAF coalescer for the drag duration.
-  beginPolygonDragInteraction();
-  try {
-    roomOverlay.setPointerCapture(event.pointerId);
-  } catch {
-    // pointer capture can fail on unsupported devices; drag still continues
-  }
-}
-
-function clearShipPolygonDragSession() {
-  state.shipPolygonEditor.dragVertexIndex = null;
-  state.shipPolygonEditor.dragPointerId = null;
-  state.shipPolygonEditor.dragBoardId = null;
-  state.shipPolygonEditor.dragStartPoints = null;
-  state.shipPolygonEditor.dragMoved = false;
-  state.shipPolygonEditor.dragVertexOffsetX = 0;
-  state.shipPolygonEditor.dragVertexOffsetY = 0;
-  state.shipPolygonEditor.dragDomRefs = null;
-  endPolygonDragInteraction();
-}
-
-function commitShipPolygonDrag() {
-  const persisted = persistBoardProfiles();
-  triggerFeedback.textContent = persisted
-    ? "Status: Play Area vertex moved"
-    : "Status: Play Area vertex moved (persistence failed)";
-}
-
-function cancelShipPolygonDrag() {
-  const { dragBoardId, dragStartPoints } = state.shipPolygonEditor;
-  if (dragBoardId && Array.isArray(dragStartPoints)) {
-    setShipPolygonPoints(dragBoardId, dragStartPoints);
-  }
-  renderRoomOverlay();
-  syncShipPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Play Area drag canceled";
-}
-
-function finishShipPolygonVertexDrag(event, { cancel = false } = {}) {
-  const pointerId = state.shipPolygonEditor.dragPointerId;
-  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
-    roomOverlay.releasePointerCapture(pointerId);
-  }
-  const moved = state.shipPolygonEditor.dragMoved;
-  if (cancel) {
-    cancelShipPolygonDrag();
-  } else if (moved) {
-    commitShipPolygonDrag();
-  }
-  clearShipPolygonDragSession();
-}
-
-function renderShipPolygonEditorHandles() {
-  if (state.uiView !== "settings") {
-    return;
-  }
-  if (state.polygonEditor.playAreaVerticesVisible === false) {
-    return;
-  }
-  const selectedPlayAreaId = getSelectedPlayAreaId(state.boardId);
-  const allAreas = getPlayAreas(state.boardId);
-  const selectedArea = allAreas.find((entry) => entry.id === selectedPlayAreaId) ?? allAreas[0];
-  const points = normalizeShipPolygon(selectedArea?.polygon).map(([x, y]) => [x * 1000, y * 1000]);
-  if (points.length < 3) {
-    return;
-  }
-  const zoomScale = getBoardZoom(state.boardId).scale;
-  const {
-    edgeHitRadius,
-    edgeHandleRadius,
-    vertexHitRadius,
-    vertexHandleRadius,
-    vertexLabelSize,
-  } = getPolygonEditorHandleMetrics(zoomScale, getCurrentPolygonHandleScale());
-
-  for (const area of allAreas) {
-    const areaPoints = normalizeShipPolygon(area?.polygon).map(([x, y]) => [x * 1000, y * 1000]);
-    if (areaPoints.length < 3) {
-      continue;
-    }
-    const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    maskPolygon.classList.add("ship-zone-mask");
-    if (area.id === selectedPlayAreaId) {
-      maskPolygon.classList.add("is-active");
-    }
-    maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
-    roomOverlay.append(maskPolygon);
-  }
-
-  for (let index = 0; index < points.length; index += 1) {
-    const [aX, aY] = points[index];
-    const [bX, bY] = points[(index + 1) % points.length];
-    const edgeMarker = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    edgeMarker.classList.add("polygon-edge-marker", "ship-polygon-edge-marker");
-    const edgeHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    edgeHitTarget.classList.add("polygon-edge-hit-target", "ship-polygon-edge-hit-target");
-    const edgeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    edgeHandle.classList.add("polygon-edge-handle", "ship-polygon-edge-handle");
-    if (index === state.shipPolygonEditor.selectedEdgeIndex) {
-      edgeHandle.classList.add("is-active");
-      edgeHitTarget.classList.add("is-active");
-    }
-    const centerX = ((aX + bX) / 2).toFixed(1);
-    const centerY = ((aY + bY) / 2).toFixed(1);
-    edgeHitTarget.setAttribute("cx", centerX);
-    edgeHitTarget.setAttribute("cy", centerY);
-    edgeHitTarget.setAttribute("r", edgeHitRadius.toFixed(2));
-    edgeHandle.setAttribute("cx", centerX);
-    edgeHandle.setAttribute("cy", centerY);
-    edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
-    edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !arePlayAreaVerticesEditable()) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      state.shipPolygonEditor.selectedEdgeIndex = index;
-      shipPolygonEdgeSelect.value = String(index);
-      renderRoomOverlay();
-      syncShipPolygonEditorStatus();
-    });
-    edgeMarker.append(edgeHitTarget, edgeHandle);
-    roomOverlay.append(edgeMarker);
-  }
-
-  points.forEach(([x, y], index) => {
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    marker.classList.add("polygon-vertex-marker", "ship-polygon-vertex-marker");
-    const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    hitTarget.classList.add("polygon-vertex-hit-target", "ship-polygon-vertex-hit-target");
-    const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    handle.classList.add("polygon-vertex-handle", "ship-polygon-vertex-handle");
-    if (index === state.shipPolygonEditor.selectedVertexIndex) {
-      handle.classList.add("is-active");
-      marker.classList.add("is-active");
-      hitTarget.classList.add("is-active");
-    }
-    hitTarget.dataset.vertexIndex = String(index);
-    hitTarget.setAttribute("cx", x.toFixed(1));
-    hitTarget.setAttribute("cy", y.toFixed(1));
-    hitTarget.setAttribute("r", vertexHitRadius.toFixed(2));
-    handle.setAttribute("cx", x.toFixed(1));
-    handle.setAttribute("cy", y.toFixed(1));
-    handle.setAttribute("r", vertexHandleRadius.toFixed(2));
-
-    const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    indexLabel.classList.add("polygon-vertex-index", "ship-polygon-vertex-index");
-    if (index === state.shipPolygonEditor.selectedVertexIndex) {
-      indexLabel.classList.add("is-active");
-    }
-    indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
-    indexLabel.setAttribute("x", x.toFixed(1));
-    indexLabel.setAttribute("y", (y + 3).toFixed(1));
-    indexLabel.textContent = String(index + 1);
-
-    hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !arePlayAreaVerticesEditable()) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      beginShipPolygonVertexDrag(event, index);
-      state.shipPolygonEditor.selectedVertexIndex = index;
-      syncShipPolygonVertexSelect();
-    });
-    marker.append(hitTarget, handle, indexLabel);
-    roomOverlay.append(marker);
-  });
-}
-
-function syncPolygonRoomSelection(roomId) {
-  if (!roomId) {
-    return;
-  }
-  const rooms = getSpecialRooms(state.boardId);
-  if (!rooms.some((room) => room.id === roomId)) {
-    return;
-  }
-  const previousRoomId = getActivePolygonRoomId(state.boardId);
-  const roomChanged = previousRoomId !== roomId;
-  setActivePolygonRoomId(state.boardId, roomId);
-  state.selectedRoomId = roomId;
-  state.selectedRoomByBoard[state.boardId] = roomId;
-  if (roomChanged) {
-    state.polygonEditor.selectedVertexIndex = 0;
-    state.polygonEditor.selectedEdgeIndex = 0;
-    state.polygonEditor.vertexSelectionActive = false;
-  }
-}
-
-function renderPolygonEditorHandles() {
-  if (state.uiView !== "settings") {
-    return;
-  }
-  if (state.polygonEditor.roomVerticesVisible === false) {
-    return;
-  }
-  const roomId = syncSelectedRoomStateForBoard(state.boardId);
-  if (!roomId) {
-    return;
-  }
-  setActivePolygonRoomId(state.boardId, roomId);
-  const room = getBoard().rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    return;
-  }
-  const points = getRoomPoints(room, state.boardId);
-  const zoomScale = getBoardZoom(state.boardId).scale;
-  const {
-    edgeHitRadius,
-    edgeHandleRadius,
-    vertexHitRadius,
-    vertexHandleRadius,
-    vertexLabelSize,
-  } = getPolygonEditorHandleMetrics(zoomScale, getCurrentPolygonHandleScale());
-  for (let index = 0; index < points.length; index += 1) {
-    const [aX, aY] = points[index];
-    const [bX, bY] = points[(index + 1) % points.length];
-    const edgeMarker = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    edgeMarker.classList.add("polygon-edge-marker");
-    const edgeHitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    edgeHitTarget.classList.add("polygon-edge-hit-target");
-    const edgeHandle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    edgeHandle.classList.add("polygon-edge-handle");
-    if (index === state.polygonEditor.selectedEdgeIndex) {
-      edgeHandle.classList.add("is-active");
-      edgeHitTarget.classList.add("is-active");
-    }
-    const centerX = ((aX + bX) / 2).toFixed(1);
-    const centerY = ((aY + bY) / 2).toFixed(1);
-    edgeHitTarget.setAttribute("cx", centerX);
-    edgeHitTarget.setAttribute("cy", centerY);
-    edgeHitTarget.setAttribute("r", edgeHitRadius.toFixed(2));
-    edgeHandle.setAttribute("cx", centerX);
-    edgeHandle.setAttribute("cy", centerY);
-    edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
-    edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      state.selectedRoomId = room.id;
-      state.selectedRoomByBoard[state.boardId] = room.id;
-      syncPolygonRoomSelection(room.id);
-      state.polygonEditor.selectedEdgeIndex = index;
-      state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
-      syncPolygonEditorPanel();
-      syncRoomPanelFromSelection({ preserveDraftState: true });
-      polygonEdgeSelect.value = String(index);
-      renderRoomOverlay();
-      syncPolygonEditorStatus();
-    });
-    edgeMarker.append(edgeHitTarget, edgeHandle);
-    roomOverlay.append(edgeMarker);
-  }
-
-  points.forEach(([x, y], index) => {
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    marker.classList.add("polygon-vertex-marker");
-    const hitTarget = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    hitTarget.classList.add("polygon-vertex-hit-target");
-    const handle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    handle.classList.add("polygon-vertex-handle");
-    if (index === state.polygonEditor.selectedVertexIndex) {
-      handle.classList.add("is-active");
-      marker.classList.add("is-active");
-      hitTarget.classList.add("is-active");
-    }
-    handle.dataset.vertexIndex = String(index);
-    hitTarget.dataset.vertexIndex = String(index);
-    // Phase 13-HF4: expose roomId so the central touch gesture manager
-    // can look up which room this vertex belongs to.
-    hitTarget.dataset.roomId = room.id;
-    hitTarget.setAttribute("cx", x.toFixed(1));
-    hitTarget.setAttribute("cy", y.toFixed(1));
-    hitTarget.setAttribute("r", vertexHitRadius.toFixed(2));
-    handle.setAttribute("cx", x.toFixed(1));
-    handle.setAttribute("cy", y.toFixed(1));
-    handle.setAttribute("r", vertexHandleRadius.toFixed(2));
-
-    const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    indexLabel.classList.add("polygon-vertex-index");
-    if (index === state.polygonEditor.selectedVertexIndex) {
-      indexLabel.classList.add("is-active");
-    }
-    indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
-    indexLabel.setAttribute("x", x.toFixed(1));
-    indexLabel.setAttribute("y", (y + 3).toFixed(1));
-    indexLabel.textContent = String(index + 1);
-
-    hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      state.selectedRoomId = room.id;
-      state.selectedRoomByBoard[state.boardId] = room.id;
-      setActivePolygonRoomId(state.boardId, room.id);
-      state.polygonEditor.selectedVertexIndex = index;
-      state.polygonEditor.selectedEdgeIndex = index;
-      state.polygonEditor.vertexSelectionActive = true;
-      syncPolygonVertexSelect(room.id);
-      syncPolygonEdgeSelect(room.id);
-      syncRoomPanelFromSelection({ preserveDraftState: true });
-      // Phase 13-HF10: render BEFORE beginDrag so HF9 cached DOM refs
-      // point at the freshly-rendered nodes, not detached orphans.
-      renderRoomOverlay();
-      beginPolygonVertexDrag(event, room.id, index);
-      syncPolygonEditorStatus();
-    });
-    marker.append(hitTarget, handle, indexLabel);
-    roomOverlay.append(marker);
-  });
-}
-
-function getNormalizedOverlayPoint(event) {
-  return mapClientPointToNormalized(event.clientX, event.clientY);
-}
-
-function beginPolygonVertexDrag(event, roomId, vertexIndex) {
-  state.polygonEditor.dragVertexIndex = vertexIndex;
-  state.polygonEditor.dragPointerId = event.pointerId;
-  state.polygonEditor.dragRoomId = roomId;
-  state.polygonEditor.dragBoardId = state.boardId;
-  const startPoints = getSpecialPolygonPoints(state.boardId, roomId);
-  state.polygonEditor.dragStartPoints = startPoints;
-  state.polygonEditor.dragMoved = false;
-  // Phase 13-HF13: capture the grab-offset in DISPLAY space so the
-  // vertex stays glued to the cursor regardless of roomGeometry. The
-  // session-stable stretch anchor (HF13) keeps getRoomPoints stable
-  // under vertex edits, so we can use the live transform pipeline
-  // without any drag-time freeze — see P13-HF13-T2.
-  const board = getBoard(state.boardId);
-  const room = board?.rooms?.find((entry) => entry.id === roomId);
-  const initialVertexOverlay = room
-    ? getRoomPoints(room, state.boardId)[vertexIndex]
-    : [(startPoints[vertexIndex]?.[0] || 0) * 1000, (startPoints[vertexIndex]?.[1] || 0) * 1000];
-  const initialVertexDisplayX = (initialVertexOverlay?.[0] || 0) / 1000;
-  const initialVertexDisplayY = (initialVertexOverlay?.[1] || 0) / 1000;
-  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-  state.polygonEditor.dragVertexOffsetX = initialVertexDisplayX - pointerX;
-  state.polygonEditor.dragVertexOffsetY = initialVertexDisplayY - pointerY;
-  state.polygonEditor.dragDomRefs = cacheRoomPolygonDragDomRefs(roomId);
-  // Phase 13-HF8: heavy-interaction gate.
-  beginPolygonDragInteraction();
-  try {
-    roomOverlay.setPointerCapture(event.pointerId);
-  } catch {
-    // pointer capture can fail on unsupported devices; drag still continues
-  }
-}
-
-function beginPendingPolygonAreaDrag(event, roomId) {
-  state.polygonEditor.pendingAreaPointerId = event.pointerId;
-  state.polygonEditor.pendingAreaRoomId = roomId;
-  state.polygonEditor.pendingAreaBoardId = state.boardId;
-  state.polygonEditor.pendingAreaStartPointerPoint = getNormalizedOverlayPoint(event);
-  // Phase 13-HF8: heavy-interaction gate — pending area drag is still
-  // active mouse/touch state and needs the same pauses.
-  beginPolygonDragInteraction();
-}
-
-function clearPendingPolygonAreaDragSession() {
-  state.polygonEditor.pendingAreaPointerId = null;
-  state.polygonEditor.pendingAreaRoomId = null;
-  state.polygonEditor.pendingAreaBoardId = null;
-  state.polygonEditor.pendingAreaStartPointerPoint = null;
-  endPolygonDragInteraction();
-}
-
-function preserveRoomSelectionAfterPointerLifecycle() {
-  state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
-  refreshPersistentRoomSelectionVisualState();
-}
-
-function beginPolygonAreaDrag(event, roomId, { boardId = state.boardId, startPointerPoint = null } = {}) {
-  const startPoints = getSpecialPolygonPoints(boardId, roomId);
-  if (!Array.isArray(startPoints) || startPoints.length < 3) {
-    return;
-  }
-  state.polygonEditor.dragAreaPointerId = event.pointerId;
-  state.polygonEditor.dragAreaRoomId = roomId;
-  state.polygonEditor.dragAreaBoardId = boardId;
-  state.polygonEditor.dragAreaStartPoints = startPoints;
-  state.polygonEditor.dragAreaStartPointerPoint = Array.isArray(startPointerPoint)
-    ? [...startPointerPoint]
-    : getNormalizedOverlayPoint(event);
-  state.polygonEditor.dragAreaMoved = false;
-  clearPendingPolygonAreaDragSession();
-  // Phase 13-HF9: cache DOM refs for incremental renderer.
-  state.polygonEditor.dragAreaDomRefs = cacheRoomPolygonDragDomRefs(roomId);
-  // Phase 13-HF8: heavy-interaction gate. clearPendingPolygonAreaDragSession
-  // above would clear pending state and might early-exit the end path,
-  // so we re-enter heavy interaction here.
-  beginPolygonDragInteraction();
-  roomOverlay.classList.add("is-room-dragging");
-  try {
-    roomOverlay.setPointerCapture(event.pointerId);
-  } catch {
-    // pointer capture can fail on unsupported devices; drag still continues
-  }
-}
-
-function clearPolygonAreaDragSession() {
-  state.polygonEditor.dragAreaPointerId = null;
-  state.polygonEditor.dragAreaRoomId = null;
-  state.polygonEditor.dragAreaBoardId = null;
-  state.polygonEditor.dragAreaStartPoints = null;
-  state.polygonEditor.dragAreaStartPointerPoint = null;
-  state.polygonEditor.dragAreaMoved = false;
-  state.polygonEditor.dragAreaDomRefs = null;
-  roomOverlay.classList.remove("is-room-dragging");
-  endPolygonDragInteraction();
-}
-
-function maybePromotePendingPolygonAreaDrag(event) {
-  if (state.polygonEditor.dragAreaPointerId !== null) {
-    return;
-  }
-  const pendingPointerId = state.polygonEditor.pendingAreaPointerId;
-  if (pendingPointerId === null || pendingPointerId !== event.pointerId) {
-    return;
-  }
-  if (state.uiView !== "settings" || !areRoomVerticesEditable()) {
-    clearPendingPolygonAreaDragSession();
-    return;
-  }
-  const startPointerPoint = state.polygonEditor.pendingAreaStartPointerPoint;
-  const roomId = state.polygonEditor.pendingAreaRoomId;
-  const boardId = state.polygonEditor.pendingAreaBoardId;
-  if (!roomId || !boardId || !Array.isArray(startPointerPoint)) {
-    clearPendingPolygonAreaDragSession();
-    return;
-  }
-  const [currentX, currentY] = getNormalizedOverlayPoint(event);
-  const [startX, startY] = startPointerPoint;
-  const movedDistance = Math.hypot(currentX - startX, currentY - startY);
-  if (movedDistance < 0.0025) {
-    return;
-  }
-  beginPolygonAreaDrag(event, roomId, { boardId, startPointerPoint });
-}
-
-function clearPolygonDragSession() {
-  state.polygonEditor.dragVertexIndex = null;
-  state.polygonEditor.dragPointerId = null;
-  state.polygonEditor.dragRoomId = null;
-  state.polygonEditor.dragBoardId = null;
-  state.polygonEditor.dragStartPoints = null;
-  state.polygonEditor.dragMoved = false;
-  state.polygonEditor.dragVertexOffsetX = 0;
-  state.polygonEditor.dragVertexOffsetY = 0;
-  state.polygonEditor.dragDomRefs = null;
-  endPolygonDragInteraction();
-}
-
-function commitPolygonDrag() {
-  const persisted = persistBoardProfiles();
-  triggerFeedback.textContent = persisted
-    ? "Status: Polygon vertex moved"
-    : "Status: Polygon vertex moved (persistence failed)";
-}
-
-function cancelPolygonDrag() {
-  const { dragBoardId, dragRoomId, dragStartPoints } = state.polygonEditor;
-  if (dragBoardId && dragRoomId && Array.isArray(dragStartPoints)) {
-    setSpecialPolygonPoints(dragBoardId, dragRoomId, dragStartPoints);
-  }
-  renderRoomOverlay();
-  syncPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Polygon drag canceled";
-}
-
-function cancelPolygonAreaDrag() {
-  const { dragAreaBoardId, dragAreaRoomId, dragAreaStartPoints } = state.polygonEditor;
-  if (dragAreaBoardId && dragAreaRoomId && Array.isArray(dragAreaStartPoints)) {
-    setSpecialPolygonPoints(dragAreaBoardId, dragAreaRoomId, dragAreaStartPoints);
-  }
-  renderRoomOverlay();
-  syncPolygonEditorStatus();
-  triggerFeedback.textContent = "Status: Room area drag canceled";
-}
-
-function finishPolygonVertexDrag(event, { cancel = false } = {}) {
-  const pointerId = state.polygonEditor.dragPointerId;
-  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
-    roomOverlay.releasePointerCapture(pointerId);
-  }
-  const moved = state.polygonEditor.dragMoved;
-  if (cancel) {
-    cancelPolygonDrag();
-  } else if (moved) {
-    commitPolygonDrag();
-  }
-  clearPolygonDragSession();
-}
-
-function finishPolygonAreaDrag(event, { cancel = false } = {}) {
-  const pointerId = state.polygonEditor.dragAreaPointerId;
-  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
-    roomOverlay.releasePointerCapture(pointerId);
-  }
-  const moved = state.polygonEditor.dragAreaMoved;
-  if (cancel) {
-    cancelPolygonAreaDrag();
-  } else if (moved) {
-    const persisted = persistBoardProfiles();
-    state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
-    triggerFeedback.textContent = persisted
-      ? "Status: Room polygon moved as an area"
-      : "Status: Room polygon moved as an area (persistence failed)";
-  }
-  clearPolygonAreaDragSession();
-}
-
-// Phase 14-2: audio pipeline + mapping UI live in runtime-audio.js.
-// Init + destructure so the existing 30+ call sites resolve the same
-// names they did before the extraction.
-window.TT_BEAMER_RUNTIME_AUDIO.init({
+// Phase 14-2: polygon editor drag/render + renderRoomOverlay moved to
+// src/app/runtime/runtime-polygon-editor.js. Init + destructure so
+// existing call sites resolve the same names. All cross-module deps
+// are injected via ctx arrows so downstream destructures (room-geometry,
+// room-management, room-draft, viewport-zoom) can land later without TDZ.
+window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   state,
-  liveSync,
+  roomOverlay,
+  triggerFeedback,
+  shipPolygonEdgeSelect,
+  polygonEdgeSelect,
   outputRole,
   OUTPUT_ROLE_FINAL,
-  audioStatus,
-  triggerFeedback,
-  animationSpeedInput,
-  animationSpeedValue,
-  animationSpeedStatus,
-  audioMappingAnimationSelect,
-  audioMappingStatus,
-  audioMappingSoundSelect,
-  ALL_SOUND_ASSET_PATHS,
-  ALL_ANIMATION_TYPES,
-  GLOBAL_ANIMATIONS,
-  SOUND_MAPPING_NONE,
-  persistBoardProfiles: () => persistBoardProfiles(),
-  clampAnimationSpeed: (v) => clampAnimationSpeed(v),
-  clampRoomSoundVolume: (v) => clampRoomSoundVolume(v),
-  getGlobalTriggerRevision: (a) => getGlobalTriggerRevision(a),
-  getGlobalTriggerKey: (a) => getGlobalTriggerKey(a),
-  getAnimationStartedAtEpochMs: (a) => getAnimationStartedAtEpochMs(a),
-  getMappedSoundPathForAnimation: (t) => getMappedSoundPathForAnimation(t),
-  getAnimationLabel: (t) => getAnimationLabel(t),
-  normalizeAnimationSoundPath: (type, path) => normalizeAnimationSoundPath(type, path),
-  getGlobalAnimationCategory: (t) => getGlobalAnimationCategory(t),
-});
-const {
-  syncAudioStatus,
-  isOutputAudibleRole,
-  isAudioPlaybackAllowed,
-  persistRuntimeSoundSettingsChange,
-  syncAnimationSpeedPanel,
-  createAudioAssetVoice,
-  getAudioAssetPool,
-  warmEventSoundAssets,
-  applyAudioGain,
-  stopAllAudioVoices,
-  stopAnimationSound,
-  getAnimationAudioLifecycleKey,
-  stopSoundsForInactiveAnimations,
-  enforceAudioLifecycleGuard,
-  playSoundForAnimation,
-  syncAudioMappingStatus,
-  syncAudioMappingPanel,
-  clearAllActiveAnimationAudio,
-} = window.TT_BEAMER_RUNTIME_AUDIO;
-
-// Phase 14-2: room-geometry helpers (applyHitareaCalibration,
-// getRoomCenterFromPoints, stable stretch anchor cache, transform,
-// display points, ship / play-area / room polygon pixel helpers,
-// renderMetrics) now live in runtime-room-geometry.js.
-window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY.init({
-  state,
-  canvas,
-  polygonContract,
-  SHIP_POLYGON_DEFAULT,
-  getRoomSourcePoints: (room, boardId) => getRoomSourcePoints(room, boardId),
-  getRawRoomCenter: (room, boardId) => getRawRoomCenter(room, boardId),
-  getRoomGeometry: (boardId, roomId) => getRoomGeometry(boardId, roomId),
-  getHitareaCalibration: (boardId) => getHitareaCalibration(boardId),
+  OUTPUT_ROLE_CONTROL,
+  mapClientPointToNormalized: (x, y) => mapClientPointToNormalized(x, y),
   getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
+  setShipPolygonPoints: (boardId, points) => setShipPolygonPoints(boardId, points),
+  getSelectedPlayAreaId: (boardId) => getSelectedPlayAreaId(boardId),
   getPlayAreas: (boardId) => getPlayAreas(boardId),
-  mapNormalizedPointToPixels: (x, y, w, h) => mapNormalizedPointToPixels(x, y, w, h),
-  normalizePolygonPoint: (p) => normalizePolygonPoint(p),
-  isRenderableNormalizedPolygon: (p) => isRenderableNormalizedPolygon(p),
+  normalizeShipPolygon: (points) => normalizeShipPolygon(points),
+  getBoardZoom: (boardId) => getBoardZoom(boardId),
+  getPolygonEditorHandleMetrics: (scale, handleScale) => getPolygonEditorHandleMetrics(scale, handleScale),
+  getCurrentPolygonHandleScale: () => getCurrentPolygonHandleScale(),
+  syncShipPolygonEditorStatus: () => syncShipPolygonEditorStatus(),
+  syncShipPolygonVertexSelect: () => syncShipPolygonVertexSelect(),
+  isPanArbitrating: () => isPanArbitrating(),
+  isAcceptablePolygonPointerEvent: (event) => isAcceptablePolygonPointerEvent(event),
+  arePlayAreaVerticesEditable: () => arePlayAreaVerticesEditable(),
+  areRoomVerticesEditable: () => areRoomVerticesEditable(),
+  cacheShipPolygonDragDomRefs: () => cacheShipPolygonDragDomRefs(),
+  cacheRoomPolygonDragDomRefs: (roomId) => cacheRoomPolygonDragDomRefs(roomId),
+  beginPolygonDragInteraction: () => beginPolygonDragInteraction(),
+  endPolygonDragInteraction: () => endPolygonDragInteraction(),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getBoard: (boardId) => getBoard(boardId),
+  getRoomPoints: (room, boardId) => getRoomPoints(room, boardId),
+  getRoomLabelPosition: (room, boardId) => getRoomLabelPosition(room, boardId),
+  getSpecialRooms: (boardId) => getSpecialRooms(boardId),
+  getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
+  setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
+  refreshPersistentRoomSelectionVisualState: () => refreshPersistentRoomSelectionVisualState(),
+  syncPolygonVertexSelect: (roomId) => syncPolygonVertexSelect(roomId),
+  syncPolygonEdgeSelect: (roomId) => syncPolygonEdgeSelect(roomId),
+  syncPolygonEditorStatus: () => syncPolygonEditorStatus(),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
+  syncSelectedRoomStateForBoard: (boardId) => syncSelectedRoomStateForBoard(boardId),
+  isQuickModeActive: () => isQuickModeActive(),
+  handleQuickModeRoomTap: (roomId) => handleQuickModeRoomTap(roomId),
+  applyRoomDraftTargetFromRoomClick: (roomId) => applyRoomDraftTargetFromRoomClick(roomId),
 });
 const {
-  applyHitareaCalibration,
-  getRoomCenterFromPoints,
-  getStableRoomStretchAnchor,
-  getRoomTransform,
-  getRoomPoints,
-  getRoomLabelPosition,
-  getRoomPolygonPixels,
-  getShipPolygonPixels,
-  getPlayAreaPolygonsPixels,
-  getRoomRenderMetrics,
-} = window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY;
-
-function renderRoomOverlay() {
-  const board = getBoard();
-  syncSelectedRoomStateForBoard(state.boardId);
-  roomOverlay.replaceChildren();
-
-  if (outputRole === OUTPUT_ROLE_FINAL && !state.alignMode) {
-    return;
-  }
-
-  for (const room of board.rooms) {
-    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    polygon.classList.add("room-zone");
-    if (state.uiView === "settings") {
-      polygon.classList.add("is-draggable");
-    }
-    polygon.dataset.roomId = room.id;
-    polygon.setAttribute(
-      "points",
-      getRoomPoints(room, state.boardId)
-        .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
-        .join(" "),
-    );
-    polygon.addEventListener("click", (event) => {
-      if (performance.now() < (state.polygonEditor.suppressRoomClickUntil || 0)) {
-        return;
-      }
-      if (isPanArbitrating()) {
-        return;
-      }
-      if (outputRole === OUTPUT_ROLE_CONTROL && state.uiView === "dashboard" && isQuickModeActive()) {
-        event.preventDefault();
-        event.stopPropagation();
-        handleQuickModeRoomTap(room.id);
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      state.selectedRoomId = room.id;
-      state.selectedRoomByBoard[state.boardId] = room.id;
-      applyRoomDraftTargetFromRoomClick(room.id);
-      state.polygonEditor.vertexSelectionActive = false;
-      syncPolygonRoomSelection(room.id);
-      syncPolygonEditorPanel();
-      syncRoomPanelFromSelection({ preserveDraftState: true });
-      renderRoomOverlay();
-    });
-    polygon.addEventListener("pointerdown", (event) => {
-      if (state.uiView !== "settings" || isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
-        return;
-      }
-      if (
-        state.polygonEditor.dragVertexIndex !== null ||
-        state.shipPolygonEditor.dragVertexIndex !== null ||
-        state.polygonEditor.dragAreaPointerId !== null
-      ) {
-        return;
-      }
-      state.selectedRoomId = room.id;
-      state.selectedRoomByBoard[state.boardId] = room.id;
-      state.polygonEditor.vertexSelectionActive = false;
-      syncPolygonRoomSelection(room.id);
-      syncPolygonEditorPanel();
-      syncRoomPanelFromSelection({ preserveDraftState: true });
-      // Phase 13-HF10: render BEFORE begin so HF9 refs (cached later
-      // when pending promotes to active area drag) point to fresh DOM.
-      renderRoomOverlay();
-      beginPendingPolygonAreaDrag(event, room.id);
-    });
-    if (state.selectedRoomId === room.id) {
-      polygon.classList.add("is-selected");
-    }
-    roomOverlay.append(polygon);
-
-    if (outputRole !== OUTPUT_ROLE_FINAL) {
-      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.classList.add("room-zone-label");
-      const labelPosition = getRoomLabelPosition(room, state.boardId);
-      label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
-      label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
-      const roomName = room.name ?? room.label;
-      label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
-      roomOverlay.append(label);
-    }
-  }
-
-  renderPolygonEditorHandles();
-  renderShipPolygonEditorHandles();
-}
+  getNormalizedOverlayPoint,
+  beginShipPolygonVertexDrag,
+  clearShipPolygonDragSession,
+  commitShipPolygonDrag,
+  cancelShipPolygonDrag,
+  finishShipPolygonVertexDrag,
+  renderShipPolygonEditorHandles,
+  syncPolygonRoomSelection,
+  renderPolygonEditorHandles,
+  beginPolygonVertexDrag,
+  beginPendingPolygonAreaDrag,
+  clearPendingPolygonAreaDragSession,
+  preserveRoomSelectionAfterPointerLifecycle,
+  beginPolygonAreaDrag,
+  clearPolygonAreaDragSession,
+  maybePromotePendingPolygonAreaDrag,
+  clearPolygonDragSession,
+  commitPolygonDrag,
+  cancelPolygonDrag,
+  cancelPolygonAreaDrag,
+  finishPolygonVertexDrag,
+  finishPolygonAreaDrag,
+  renderRoomOverlay,
+} = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR;
 
 function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
   const contextSwitchTransactionId = `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
