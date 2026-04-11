@@ -4310,6 +4310,13 @@ function canStartPanModeFromEvent(event) {
   if (zoom.scale <= 1) {
     return false;
   }
+  // Phase 13-HF2: single-finger pan on touch/pen is equivalent to
+  // middle-mouse pan on desktop — as long as scale > 1 and the touch is
+  // not hitting a polygon/vertex/room edit element (overlay event order
+  // guarantees that because those elements stop propagation).
+  if (event.pointerType === "touch" || event.pointerType === "pen") {
+    return true;
+  }
   return event.button === 1 || state.panMode.spacePressed;
 }
 
@@ -12013,33 +12020,33 @@ if (stage) {
 
   function shouldCaptureForPinch(event) {
     // Only respond to touch/pen inputs; mouse uses the wheel handler.
-    if (event.pointerType !== "touch" && event.pointerType !== "pen") {
-      return false;
-    }
-    // Phase 13-3 arbitration: if a polygon vertex/area drag is active,
-    // pinch must not steal its pointer. The drag handlers own their own
-    // pointer ids; we bail out of pinch capture entirely while any drag
-    // is mid-flight so users never see the board zoom out from under a
-    // vertex they are trying to move.
-    if (
-      state?.polygonEditor?.dragPointerId !== null
-      && state?.polygonEditor?.dragPointerId !== undefined
-    ) {
-      return false;
-    }
-    if (
-      state?.polygonEditor?.dragAreaPointerId !== null
-      && state?.polygonEditor?.dragAreaPointerId !== undefined
-    ) {
-      return false;
-    }
-    if (
-      state?.shipPolygonEditor?.dragPointerId !== null
-      && state?.shipPolygonEditor?.dragPointerId !== undefined
-    ) {
-      return false;
-    }
-    return true;
+    return event.pointerType === "touch" || event.pointerType === "pen";
+  }
+
+  // Phase 13-HF2: when a second touch pointer arrives on stage, any
+  // single-finger drag in flight (vertex, area, ship vertex, or pan) is
+  // cancelled so the user can pinch without fighting an accidental drag.
+  function cancelActiveSingleFingerDragsForPinchTakeover() {
+    try {
+      if (state?.shipPolygonEditor?.dragVertexIndex !== null) {
+        finishShipPolygonVertexDrag(null, { cancel: true });
+      }
+    } catch { /* best effort */ }
+    try {
+      if (state?.polygonEditor?.dragAreaPointerId !== null) {
+        finishPolygonAreaDrag(null, { cancel: true });
+      }
+    } catch { /* best effort */ }
+    try {
+      if (state?.polygonEditor?.dragVertexIndex !== null) {
+        finishPolygonVertexDrag(null, { cancel: true });
+      }
+    } catch { /* best effort */ }
+    try {
+      if (state?.panMode?.active === true) {
+        endPanMode(null, { canceled: true });
+      }
+    } catch { /* best effort */ }
   }
 
   stage.addEventListener("pointerdown", (event) => {
@@ -12049,6 +12056,10 @@ if (stage) {
       clientY: event.clientY,
     });
     if (pinchState.pointers.size === 2) {
+      // Phase 13-HF2: a second finger arrived. Cancel any in-flight
+      // single-finger drag (vertex, area, ship vertex, or pan) so the
+      // user can pinch without fighting an accidental drag.
+      cancelActiveSingleFingerDragsForPinchTakeover();
       const [a, b] = [...pinchState.pointers.values()];
       pinchState.lastDistance = pinchDistance(a, b);
       pinchState.lastMidpointClient = pinchMidpoint(a, b);
@@ -13039,6 +13050,12 @@ roomOverlay.addEventListener("pointerdown", (event) => {
   if (!canStartPanModeFromEvent(event)) {
     return;
   }
+  // Phase 13-HF2: single-finger touch pan only takes over when the touch
+  // landed on the empty overlay — not on a vertex/edge/area hit target.
+  // Those hit elements stop propagation during their own pointerdown, so
+  // if this listener receives the event, it's a safe empty-area touch.
+  const pointerType = String(event.pointerType || "").toLowerCase();
+  const isTouchPointer = pointerType === "touch" || pointerType === "pen";
   clearPendingPolygonAreaDragSession();
   if (state.shipPolygonEditor.dragVertexIndex !== null) {
     finishShipPolygonVertexDrag(event, { cancel: true });
@@ -13051,7 +13068,11 @@ roomOverlay.addEventListener("pointerdown", (event) => {
   }
   event.preventDefault();
   event.stopPropagation();
-  const trigger = event.button === 1 ? "middle" : "space";
+  const trigger = isTouchPointer
+    ? "touch"
+    : event.button === 1
+      ? "middle"
+      : "space";
   startPanMode(event, trigger);
 });
 
