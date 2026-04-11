@@ -1,0 +1,460 @@
+// Phase 14-2: inside/outside/room FX profile normalizer module.
+//
+// Owns the normalize/create/get/set helpers for FX profiles across
+// the three scopes (inside, outside, room). All cross-dependencies
+// (BOARDS, state, asset-ref normalizers, clamp helpers) are injected
+// via ctx.
+(() => {
+  let ctx = null;
+
+  function init(dependencies) {
+    ctx = dependencies;
+  }
+
+  // ========= INSIDE =========
+
+  function normalizeInsideAssetType(value) {
+    return ctx.OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+  }
+
+  function normalizeInsideAnimationId(value, fallback = "hull-flicker") {
+    const trimmed = String(value || "").trim();
+    return trimmed || fallback;
+  }
+
+  function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
+    const fallbackDefaults = ctx.createDefaultInsideAnimationDefinitions()[0] ?? {
+      id: `inside-${fallbackIndex + 1}`,
+      name: `Inside Animation ${fallbackIndex + 1}`,
+      assetType: "coded",
+      assetRef: "hull-flicker",
+      intensity: 1,
+      speed: 1,
+    };
+    const id = normalizeInsideAnimationId(definition?.id, fallbackDefaults.id);
+    const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+    const assetType = normalizeInsideAssetType(definition?.assetType);
+    const rawAssetRef = String(definition?.assetRef || "").trim();
+    const fallbackAssetRef = assetType === "coded" ? id : "";
+    const assetRef = ctx.normalizeInsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    return {
+      id,
+      name,
+      assetType,
+      assetRef,
+      intensity: ctx.clampOutsideIntensity(definition?.intensity),
+      speed: ctx.clampOutsideSpeed(definition?.speed),
+      loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
+    };
+  }
+
+  function normalizeInsideAnimationDefinitions(definitions) {
+    const incoming = Array.isArray(definitions) ? definitions : [];
+    const normalized = incoming
+      .map((entry, index) => normalizeInsideAnimationDefinition(entry, index))
+      .filter((entry) => entry && typeof entry === "object");
+    const uniqueById = [];
+    const seen = new Set();
+    for (const entry of normalized) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+      seen.add(entry.id);
+      uniqueById.push(entry);
+    }
+    if (uniqueById.length > 0) {
+      return uniqueById;
+    }
+    return ctx.createDefaultInsideAnimationDefinitions().map((entry, index) => normalizeInsideAnimationDefinition(entry, index));
+  }
+
+  function normalizeInsideFxProfile(profile) {
+    const legacyProfile = profile && typeof profile === "object" ? profile : {};
+    const animations = normalizeInsideAnimationDefinitions(legacyProfile?.animations ?? legacyProfile?.insideAnimations);
+    const preferredId = normalizeInsideAnimationId(
+      legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedInsideAnimationId,
+      animations[0]?.id ?? "hull-flicker",
+    );
+    const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+    return {
+      selectedAnimationId: selectedAnimation.id,
+      animations,
+      intensity: selectedAnimation.intensity,
+      speed: selectedAnimation.speed,
+      assetType: selectedAnimation.assetType,
+      assetRef: selectedAnimation.assetRef,
+      loopUntilStopped: Boolean(selectedAnimation.loopUntilStopped),
+    };
+  }
+
+  function createDefaultInsideFxByBoard() {
+    return Object.fromEntries(
+      ctx.getBoards().map((board) => [board.id, normalizeInsideFxProfile({ animations: ctx.createDefaultInsideAnimationDefinitions() })]),
+    );
+  }
+
+  function getInsideFxProfile(boardId = ctx.state.boardId) {
+    return normalizeInsideFxProfile(ctx.state.insideFxByBoard?.[boardId]);
+  }
+
+  function setInsideFxProfile(boardId, profile) {
+    ctx.state.insideFxByBoard[boardId] = normalizeInsideFxProfile(profile);
+  }
+
+  function getSelectedInsideAnimationDefinition(boardId = ctx.state.boardId) {
+    const profile = getInsideFxProfile(boardId);
+    const selectedId = normalizeInsideAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+    return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+  }
+
+  function createInsideAnimationDefinition(name, existingDefinitions = []) {
+    const baseName = String(name || "").trim() || "Inside Animation";
+    const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "inside-animation";
+    let candidateId = slug;
+    const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+    let suffix = 2;
+    while (existingIds.has(candidateId)) {
+      candidateId = `${slug}-${suffix}`;
+      suffix += 1;
+    }
+    return normalizeInsideAnimationDefinition({
+      id: candidateId,
+      name: baseName,
+      assetType: "coded",
+      assetRef: "hull-flicker",
+      intensity: 1,
+      speed: 1,
+    });
+  }
+
+  // ========= OUTSIDE =========
+
+  function normalizeOutsideAssetType(value) {
+    return ctx.OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+  }
+
+  function normalizeOutsideAnimationId(value, fallback = "outside-space") {
+    const trimmed = String(value || "").trim();
+    return trimmed || fallback;
+  }
+
+  function normalizeOutsideAnimationDefinition(definition, fallbackIndex = 0) {
+    const fallbackDefaults = ctx.createDefaultOutsideAnimationDefinitions()[0] ?? {
+      id: `outside-${fallbackIndex + 1}`,
+      name: `Outside Animation ${fallbackIndex + 1}`,
+      assetType: "coded",
+      assetRef: "outside-space",
+      intensity: 0.7,
+      speed: 1,
+      mode: "standard",
+      direction: "forward",
+      soundEnabled: false,
+    };
+    const id = normalizeOutsideAnimationId(definition?.id, fallbackDefaults.id);
+    const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+    const assetType = normalizeOutsideAssetType(definition?.assetType);
+    const rawAssetRef = String(definition?.assetRef || "").trim();
+    const fallbackAssetRef =
+      assetType === "coded"
+        ? "outside-space"
+        : ctx.normalizeOutsideAssetRefForType(assetType, fallbackDefaults.assetRef, "");
+    const assetRef = ctx.normalizeOutsideAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    return {
+      id,
+      name,
+      assetType,
+      assetRef,
+      intensity: ctx.clampOutsideIntensity(definition?.intensity),
+      speed: ctx.clampOutsideSpeed(definition?.speed),
+      mode: ctx.normalizeOutsideMode(definition?.mode),
+      direction: ctx.normalizeOutsideDirection(definition?.direction),
+      soundEnabled: Boolean(definition?.soundEnabled),
+    };
+  }
+
+  function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null) {
+    const incoming = Array.isArray(definitions) ? definitions : [];
+    const normalized = incoming
+      .map((entry, index) => normalizeOutsideAnimationDefinition(entry, index))
+      .filter((entry) => entry && typeof entry === "object");
+    const uniqueById = [];
+    const seen = new Set();
+    for (const entry of normalized) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+      seen.add(entry.id);
+      uniqueById.push(entry);
+    }
+    if (uniqueById.length > 0) {
+      return uniqueById;
+    }
+    const defaults = ctx.createDefaultOutsideAnimationDefinitions();
+    if (!legacyProfile || typeof legacyProfile !== "object") {
+      return defaults.map((entry, index) => normalizeOutsideAnimationDefinition(entry, index));
+    }
+    return defaults.map((entry, index) => {
+      if (index !== 0) {
+        return normalizeOutsideAnimationDefinition(entry, index);
+      }
+      return normalizeOutsideAnimationDefinition(
+        {
+          ...entry,
+          intensity: legacyProfile?.intensity,
+          speed: legacyProfile?.speed,
+          mode: legacyProfile?.mode,
+          direction: legacyProfile?.direction,
+        },
+        index,
+      );
+    });
+  }
+
+  function normalizeOutsideFxProfile(profile) {
+    const legacyProfile = profile && typeof profile === "object" ? profile : ctx.OUTSIDE_FX_DEFAULT;
+    const animations = normalizeOutsideAnimationDefinitions(
+      legacyProfile?.animations ?? legacyProfile?.outsideAnimations,
+      legacyProfile,
+    );
+    const preferredId = normalizeOutsideAnimationId(
+      legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedOutsideAnimationId,
+      animations[0]?.id ?? "outside-space",
+    );
+    const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+    return {
+      enabled: Boolean(legacyProfile?.enabled),
+      selectedAnimationId: selectedAnimation.id,
+      animations,
+      intensity: selectedAnimation.intensity,
+      speed: selectedAnimation.speed,
+      mode: selectedAnimation.mode,
+      direction: selectedAnimation.direction,
+      assetType: selectedAnimation.assetType,
+      assetRef: selectedAnimation.assetRef,
+    };
+  }
+
+  function createDefaultOutsideFxByBoard() {
+    return Object.fromEntries(
+      ctx.getBoards().map((board) => [board.id, normalizeOutsideFxProfile(ctx.OUTSIDE_FX_DEFAULT)]),
+    );
+  }
+
+  function getOutsideFxProfile(boardId = ctx.state.boardId) {
+    return normalizeOutsideFxProfile(ctx.state.outsideFxByBoard[boardId]);
+  }
+
+  function setOutsideFxProfile(boardId, profile) {
+    ctx.state.outsideFxByBoard[boardId] = normalizeOutsideFxProfile(profile);
+  }
+
+  function updateOutsideFxProfile(boardId, partial) {
+    const current = getOutsideFxProfile(boardId);
+    const merged = { ...current, ...partial };
+    const definitions = normalizeOutsideAnimationDefinitions(merged.animations, merged);
+    const selectedId = normalizeOutsideAnimationId(merged.selectedAnimationId, definitions[0]?.id);
+    const selectedDefinition = definitions.find((entry) => entry.id === selectedId) ?? definitions[0];
+    const updatedDefinitions = definitions.map((entry) => (entry.id === selectedDefinition.id
+      ? {
+        ...entry,
+        intensity: ctx.clampOutsideIntensity(merged.intensity),
+        speed: ctx.clampOutsideSpeed(merged.speed),
+        mode: ctx.normalizeOutsideMode(merged.mode),
+        direction: ctx.normalizeOutsideDirection(merged.direction),
+        assetType: normalizeOutsideAssetType(merged.assetType),
+        assetRef: String(merged.assetRef || "").trim() || entry.assetRef,
+      }
+      : entry));
+    setOutsideFxProfile(boardId, {
+      ...merged,
+      selectedAnimationId: selectedDefinition.id,
+      animations: updatedDefinitions,
+    });
+  }
+
+  function getSelectedOutsideAnimationDefinition(boardId = ctx.state.boardId) {
+    const profile = getOutsideFxProfile(boardId);
+    const selectedId = normalizeOutsideAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+    return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+  }
+
+  function resolveOutsideTimeline(elapsedSeconds, speed) {
+    const normalizedElapsed = Math.max(0, Number(elapsedSeconds) || 0);
+    const normalizedSpeed = ctx.clampOutsideSpeed(speed);
+    return {
+      timeline: normalizedElapsed * normalizedSpeed,
+    };
+  }
+
+  function createOutsideAnimationDefinition(name, existingDefinitions = []) {
+    const baseName = String(name || "").trim() || "Outside Animation";
+    const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "outside-animation";
+    let candidateId = slug;
+    const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+    let suffix = 2;
+    while (existingIds.has(candidateId)) {
+      candidateId = `${slug}-${suffix}`;
+      suffix += 1;
+    }
+    return normalizeOutsideAnimationDefinition({
+      id: candidateId,
+      name: baseName,
+      assetType: "coded",
+      assetRef: "outside-space",
+      intensity: 0.7,
+      speed: 1,
+      mode: "standard",
+      direction: "forward",
+      soundEnabled: false,
+    });
+  }
+
+  // ========= ROOM =========
+
+  function normalizeRoomAssetType(value) {
+    return ctx.OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
+  }
+
+  function normalizeRoomAnimationId(value, fallback = "kaputt") {
+    const trimmed = String(value || "").trim();
+    return trimmed || fallback;
+  }
+
+  function normalizeRoomAnimationDefinition(definition, fallbackIndex = 0) {
+    const fallbackDefaults = ctx.createDefaultRoomAnimationDefinitions()[0] ?? {
+      id: `room-animation-${fallbackIndex + 1}`,
+      name: `Room Animation ${fallbackIndex + 1}`,
+      assetType: "coded",
+      assetRef: "intruder-alert",
+    };
+    const id = normalizeRoomAnimationId(definition?.id, fallbackDefaults.id);
+    const name = String(definition?.name || "").trim() || fallbackDefaults.name;
+    const assetType = normalizeRoomAssetType(definition?.assetType);
+    const rawAssetRef = String(definition?.assetRef || "").trim();
+    const fallbackAssetRef = ctx.normalizeRoomAssetRefForType(assetType, fallbackDefaults.assetRef, "");
+    const assetRef = ctx.normalizeRoomAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    return {
+      id,
+      name,
+      assetType,
+      assetRef,
+    };
+  }
+
+  function normalizeRoomAnimationDefinitions(definitions) {
+    const incoming = Array.isArray(definitions) ? definitions : [];
+    const normalized = incoming
+      .map((entry, index) => normalizeRoomAnimationDefinition(entry, index))
+      .filter((entry) => entry && typeof entry === "object");
+    const uniqueById = [];
+    const seen = new Set();
+    for (const entry of normalized) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+      seen.add(entry.id);
+      uniqueById.push(entry);
+    }
+    if (uniqueById.length > 0) {
+      return uniqueById;
+    }
+    return ctx.createDefaultRoomAnimationDefinitions().map((entry, index) => normalizeRoomAnimationDefinition(entry, index));
+  }
+
+  function normalizeRoomFxProfile(profile) {
+    const legacyProfile = profile && typeof profile === "object" ? profile : {};
+    const animations = normalizeRoomAnimationDefinitions(
+      legacyProfile?.animations ?? legacyProfile?.roomAnimations,
+    );
+    const preferredId = normalizeRoomAnimationId(
+      legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedRoomAnimationId,
+      animations[0]?.id ?? "kaputt",
+    );
+    const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
+    return {
+      selectedAnimationId: selectedAnimation.id,
+      animations,
+    };
+  }
+
+  function createDefaultRoomFxByBoard() {
+    return Object.fromEntries(
+      ctx.getBoards().map((board) => [board.id, normalizeRoomFxProfile({ animations: ctx.createDefaultRoomAnimationDefinitions() })]),
+    );
+  }
+
+  function getRoomFxProfile(boardId = ctx.state.boardId) {
+    return normalizeRoomFxProfile(ctx.state.roomFxByBoard?.[boardId]);
+  }
+
+  function setRoomFxProfile(boardId, profile) {
+    ctx.state.roomFxByBoard[boardId] = normalizeRoomFxProfile(profile);
+  }
+
+  function getSelectedRoomAnimationDefinition(boardId = ctx.state.boardId) {
+    const profile = getRoomFxProfile(boardId);
+    const selectedId = normalizeRoomAnimationId(profile.selectedAnimationId, profile.animations[0]?.id);
+    return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
+  }
+
+  function getRoomAnimationDefinitionById(animationId, boardId = ctx.state.boardId) {
+    const profile = getRoomFxProfile(boardId);
+    const normalizedId = normalizeRoomAnimationId(animationId, profile.animations[0]?.id ?? "kaputt");
+    return profile.animations.find((entry) => entry.id === normalizedId) ?? null;
+  }
+
+  function createRoomAnimationDefinition(name, existingDefinitions = []) {
+    const baseName = String(name || "").trim() || "Room Animation";
+    const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "room-animation";
+    let candidateId = slug;
+    const existingIds = new Set(existingDefinitions.map((entry) => String(entry.id || "").trim()));
+    let suffix = 2;
+    while (existingIds.has(candidateId)) {
+      candidateId = `${slug}-${suffix}`;
+      suffix += 1;
+    }
+    return normalizeRoomAnimationDefinition({
+      id: candidateId,
+      name: baseName,
+      assetType: "coded",
+      assetRef: "intruder-alert",
+    });
+  }
+
+  window.TT_BEAMER_RUNTIME_FX_NORMALIZERS = {
+    init,
+    normalizeInsideAssetType,
+    normalizeInsideAnimationId,
+    normalizeInsideAnimationDefinition,
+    normalizeInsideAnimationDefinitions,
+    normalizeInsideFxProfile,
+    createDefaultInsideFxByBoard,
+    getInsideFxProfile,
+    setInsideFxProfile,
+    getSelectedInsideAnimationDefinition,
+    createInsideAnimationDefinition,
+    normalizeOutsideAssetType,
+    normalizeOutsideAnimationId,
+    normalizeOutsideAnimationDefinition,
+    normalizeOutsideAnimationDefinitions,
+    normalizeOutsideFxProfile,
+    createDefaultOutsideFxByBoard,
+    getOutsideFxProfile,
+    setOutsideFxProfile,
+    updateOutsideFxProfile,
+    getSelectedOutsideAnimationDefinition,
+    resolveOutsideTimeline,
+    createOutsideAnimationDefinition,
+    normalizeRoomAssetType,
+    normalizeRoomAnimationId,
+    normalizeRoomAnimationDefinition,
+    normalizeRoomAnimationDefinitions,
+    normalizeRoomFxProfile,
+    createDefaultRoomFxByBoard,
+    getRoomFxProfile,
+    setRoomFxProfile,
+    getSelectedRoomAnimationDefinition,
+    getRoomAnimationDefinitionById,
+    createRoomAnimationDefinition,
+  };
+})();
