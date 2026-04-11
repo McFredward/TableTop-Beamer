@@ -226,8 +226,12 @@ const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? 
 const insideGlobalButtons = document.querySelector("#inside-global-buttons");
 const dashboardGlobalLoopUntilStopInput = document.querySelector("#dashboard-global-loop-until-stop");
 const dashboardGlobalPlaySoundInput = document.querySelector("#dashboard-global-play-sound");
-const boardZoomRangeInput = document.querySelector("#board-zoom-range");
-const boardZoomValue = document.querySelector("#board-zoom-value");
+// Phase 13-2: zoom slider removed — wheel + pinch gestures replace it.
+// The two DOM constants below (boardZoomRangeInput, boardZoomValue) are
+// no longer read. Leaving placeholders at null preserves any optional
+// downstream access via `?.` patterns without exception.
+const boardZoomRangeInput = null;
+const boardZoomValue = null;
 const polygonHandleSizeInput = document.querySelector("#polygon-handle-size");
 const polygonHandleSizeValue = document.querySelector("#polygon-handle-size-value");
 const boardZoomFitButton = document.querySelector("#board-zoom-fit");
@@ -297,7 +301,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "audio-volume",
   "audio-mapping-animation",
   "audio-mapping-sound",
-  "board-zoom-range",
+  // Phase 13-2: board-zoom-range slider removed in favor of wheel + pinch.
   "polygon-handle-size",
   "board-zoom-fit",
   "board-zoom-reset",
@@ -2200,8 +2204,16 @@ function syncBoardSelectOptions() {
   boardSelect.value = state.boardId;
 }
 
+// Phase 13-2: zoom range extended to [0.25, 4.0]. Wheel + pinch gestures
+// replace the zoom slider; pan clamping still keeps the board visible at
+// extreme zoom-outs.
+const BOARD_ZOOM_SCALE_MIN = 0.25;
+const BOARD_ZOOM_SCALE_MAX = 4.0;
+
 function clampBoardZoomScale(value) {
-  return Math.max(1, Math.min(3, value));
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(BOARD_ZOOM_SCALE_MIN, Math.min(BOARD_ZOOM_SCALE_MAX, numeric));
 }
 
 function normalizeBoardZoomProfile(profile) {
@@ -4188,7 +4200,7 @@ function syncBoardZoomStatus() {
     : state.panMode.spacePressed
       ? "PAN ready (Space pressed)"
       : "Edit mode";
-  boardZoomStatus.textContent = `Zoom: ${percent}% (Min 100%, Max 300%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px | Bounds ±${Math.round(bounds.maxPanX)}px/±${Math.round(bounds.maxPanY)}px`;
+  boardZoomStatus.textContent = `Zoom: ${percent}% (Min ${Math.round(BOARD_ZOOM_SCALE_MIN * 100)}%, Max ${Math.round(BOARD_ZOOM_SCALE_MAX * 100)}%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px | Bounds ±${Math.round(bounds.maxPanX)}px/±${Math.round(bounds.maxPanY)}px`;
   if (boardPanStatus) {
     const hint = zoom.scale > 1
       ? "Space + drag or middle mouse button: move board"
@@ -4198,10 +4210,9 @@ function syncBoardZoomStatus() {
 }
 
 function syncBoardZoomPanel() {
-  const zoom = getBoardZoom(state.boardId);
-  const percent = Math.round(zoom.scale * 100);
-  boardZoomRangeInput.value = String(percent);
-  boardZoomValue.textContent = `${percent}%`;
+  // Phase 13-2: zoom slider removed. This function is kept for ABI stability
+  // of the ~20 call sites that use it — it still refreshes the status line
+  // and the stage transform, it just no longer writes to a slider/label.
   syncPolygonHandleSizePanel();
   syncBoardZoomStatus();
   syncStageZoomTransform();
@@ -11883,12 +11894,142 @@ roomGeometryStretchYInput.addEventListener("input", () => {
   updateSelectedRoomGeometry({ stretchY }, "Stretch Y set");
 });
 
-boardZoomRangeInput.addEventListener("input", () => {
-  const scale = clampBoardZoomScale((Number(boardZoomRangeInput.value) || 100) / 100);
-  const center = getRoomCenterForZoom(state.boardId);
-  updateCurrentBoardZoom(computePanForZoomFocus(scale, center), `Board zoom set to ${Math.round(scale * 100)}%`);
+// Phase 13-2: zoom slider removed. Wheel + pinch gestures below replace it.
+// Mouse wheel over the stage: exponential scale delta, cursor-anchored.
+// Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
+
+function computeZoomFocusFromClientPoint(clientX, clientY) {
+  const rect = stage?.getBoundingClientRect();
+  if (!rect || rect.width === 0 || rect.height === 0) {
+    return { x: 0.5, y: 0.5 };
+  }
+  const x = (clientX - rect.left) / rect.width;
+  const y = (clientY - rect.top) / rect.height;
+  return {
+    x: Math.max(0, Math.min(1, x)),
+    y: Math.max(0, Math.min(1, y)),
+  };
+}
+
+function applyZoomScaleFromGesture(nextScale, focus, reason) {
+  const current = getBoardZoom(state.boardId);
+  const clampedNext = clampBoardZoomScale(nextScale);
+  // Preserve pan around the anchor so the focus point stays visually fixed.
+  const width = stage?.clientWidth || 0;
+  const height = stage?.clientHeight || 0;
+  const anchorX = (focus?.x ?? 0.5) * width;
+  const anchorY = (focus?.y ?? 0.5) * height;
+  const ratio = clampedNext / (current.scale || 1);
+  const rawPanX = anchorX - (anchorX - current.panX) * ratio;
+  const rawPanY = anchorY - (anchorY - current.panY) * ratio;
+  const clamped = clampPanToBounds({
+    scale: clampedNext,
+    panX: rawPanX,
+    panY: rawPanY,
+  });
+  updateCurrentBoardZoom(clamped, reason || `Board zoom set to ${Math.round(clampedNext * 100)}%`);
   setPanCursorState();
-});
+}
+
+if (stage) {
+  stage.addEventListener(
+    "wheel",
+    (event) => {
+      if (!event.target || !stage.contains(event.target)) return;
+      event.preventDefault();
+      const current = getBoardZoom(state.boardId);
+      const step = Math.exp(-event.deltaY * 0.0018);
+      const nextScale = current.scale * step;
+      const focus = computeZoomFocusFromClientPoint(event.clientX, event.clientY);
+      applyZoomScaleFromGesture(
+        nextScale,
+        focus,
+        `Board zoom wheel -> ${Math.round(clampBoardZoomScale(nextScale) * 100)}%`,
+      );
+    },
+    { passive: false },
+  );
+
+  // Two-finger pinch zoom via pointer events. We track at most two active
+  // pointers. When both pointers are down we read their current distance
+  // and compare against the previous one to derive a scale ratio.
+  const pinchState = {
+    pointers: new Map(),
+    lastDistance: 0,
+    lastMidpointClient: null,
+  };
+
+  function pinchDistance(a, b) {
+    const dx = a.clientX - b.clientX;
+    const dy = a.clientY - b.clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  function pinchMidpoint(a, b) {
+    return {
+      clientX: (a.clientX + b.clientX) / 2,
+      clientY: (a.clientY + b.clientY) / 2,
+    };
+  }
+
+  function shouldCaptureForPinch(event) {
+    // Only respond to touch/pen inputs; mouse uses the wheel handler.
+    return event.pointerType === "touch" || event.pointerType === "pen";
+  }
+
+  stage.addEventListener("pointerdown", (event) => {
+    if (!shouldCaptureForPinch(event)) return;
+    pinchState.pointers.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+    if (pinchState.pointers.size === 2) {
+      const [a, b] = [...pinchState.pointers.values()];
+      pinchState.lastDistance = pinchDistance(a, b);
+      pinchState.lastMidpointClient = pinchMidpoint(a, b);
+    }
+  });
+
+  stage.addEventListener("pointermove", (event) => {
+    if (!shouldCaptureForPinch(event)) return;
+    if (!pinchState.pointers.has(event.pointerId)) return;
+    pinchState.pointers.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+    if (pinchState.pointers.size !== 2) return;
+    const [a, b] = [...pinchState.pointers.values()];
+    const distance = pinchDistance(a, b);
+    if (pinchState.lastDistance <= 0) {
+      pinchState.lastDistance = distance;
+      return;
+    }
+    const ratio = distance / pinchState.lastDistance;
+    if (!Number.isFinite(ratio) || ratio <= 0) return;
+    pinchState.lastDistance = distance;
+    const midpoint = pinchMidpoint(a, b);
+    pinchState.lastMidpointClient = midpoint;
+    const focus = computeZoomFocusFromClientPoint(midpoint.clientX, midpoint.clientY);
+    const current = getBoardZoom(state.boardId);
+    applyZoomScaleFromGesture(
+      current.scale * ratio,
+      focus,
+      `Board zoom pinch -> ${Math.round(clampBoardZoomScale(current.scale * ratio) * 100)}%`,
+    );
+  });
+
+  function endPinchTracking(event) {
+    if (!shouldCaptureForPinch(event)) return;
+    pinchState.pointers.delete(event.pointerId);
+    if (pinchState.pointers.size < 2) {
+      pinchState.lastDistance = 0;
+      pinchState.lastMidpointClient = null;
+    }
+  }
+  stage.addEventListener("pointerup", endPinchTracking);
+  stage.addEventListener("pointercancel", endPinchTracking);
+  stage.addEventListener("pointerleave", endPinchTracking);
+}
 
 polygonHandleSizeInput?.addEventListener("input", () => {
   const handleScale = clampPolygonHandleScale((Number(polygonHandleSizeInput.value) || 100) / 100);

@@ -18,13 +18,16 @@ Closure evidence: `.planning/phases/phase-13/13-1-VERIFICATION.md`, `debug/p13-1
 - [x] DONE P13-1-T9 [P0] `API_BASE_STORAGE_KEY` retired: parse from `?apiBase=` URL query parameter on startup only; remove `localStorage.setItem/getItem` for this key.
 - [x] DONE P13-1-T10 [P0] FAIL→PASS verification: static harness assert zero `localStorage`/`indexedDB` references in `src/app/**` and `src/live/**`; export/import round-trip; create `13-1-VERIFICATION.md`; sync `PLAN/BACKLOG/TASKS/ACCEPTANCE/RISKS/EXECUTE/STATE/ROADMAP/CURRENT_PHASE`.
 
-## Plan 13-2 - Gesture-Based Zoom (blocked on 13-1 PASS)
-- [ ] TODO P13-2-T1 [P0] Remove `#board-zoom-range` slider and `#board-zoom-value` label from `index.html`; remove their handlers in `runtime-orchestration.js`.
-- [ ] TODO P13-2-T2 [P0] Extend zoom range to `[0.25, 4.0]` — update `clampBoardZoomScale` and all clamp/fit call sites.
-- [ ] TODO P13-2-T3 [P0] Mouse wheel handler on stage (desktop): cursor-anchored focus, exponential scale step, preventDefault, calls `updateCurrentBoardZoom` with debounced server write.
-- [ ] TODO P13-2-T4 [P0] Two-pointer pinch handler (mobile/tablet): tracks two PointerEvents, midpoint focus, distance-ratio scale delta.
-- [ ] TODO P13-2-T5 [P0] CSS: disable stage transition during wheel/pinch gesture (reuse `.is-panning` or new class); preserve existing pan behavior.
-- [ ] TODO P13-2-T6 [P0] Verification: static harness asserting slider removed + wheel/pinch handlers present + range extended + pan non-regression; create `13-2-VERIFICATION.md`; artifact sync.
+## Plan 13-2 - Gesture-Based Zoom (CLOSED PASS — static guards)
+
+Closure evidence: `.planning/phases/phase-13/13-2-VERIFICATION.md`, `debug/p13-2-acceptance-regression-output.json`. In-browser verification requested.
+
+- [x] DONE P13-2-T1 [P0] Remove `#board-zoom-range` slider and `#board-zoom-value` label from `index.html`; remove their handlers in `runtime-orchestration.js`.
+- [x] DONE P13-2-T2 [P0] Extend zoom range to `[0.25, 4.0]` — update `clampBoardZoomScale` and all clamp/fit call sites.
+- [x] DONE P13-2-T3 [P0] Mouse wheel handler on stage (desktop): cursor-anchored focus, exponential scale step, preventDefault, calls `updateCurrentBoardZoom` with debounced server write.
+- [x] DONE P13-2-T4 [P0] Two-pointer pinch handler (mobile/tablet): tracks two PointerEvents, midpoint focus, distance-ratio scale delta.
+- [x] DONE P13-2-T5 [P0] CSS: disable stage transition during wheel/pinch gesture (reuse `.is-panning` or new class); preserve existing pan behavior.
+- [x] DONE P13-2-T6 [P0] Verification: static harness asserting slider removed + wheel/pinch handlers present + range extended + pan non-regression; create `13-2-VERIFICATION.md`; artifact sync.
 
 ## Plan 13-3 - Touch Polygon Editing (blocked on 13-2 PASS)
 - [ ] TODO P13-3-T1 [P0] Relax `event.button !== 0` check in polygon vertex `pointerdown` handlers: accept `button === 0 || event.pointerType === "touch"` (touch events sometimes report `button === -1`).
