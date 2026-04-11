@@ -2565,199 +2565,102 @@ if (projectionArea) {
 bindDevicePixelRatioWatcher();
 scheduleStageViewportLifecycle("startup-bind");
 
-function syncRuntimePanelsFromState() {
-  const runtimePanelsApi = window.TT_BEAMER_RUNTIME_PANELS ?? window.TT_BEAMER_UI_RUNTIME_PANELS ?? null;
-  if (!runtimePanelsApi || typeof runtimePanelsApi.syncRuntimePanelsFromState !== "function") {
-    logBootstrap.warn("runtime_panels_missing", {
-      event: "runtime-panels-missing",
-      hasCanonical: Boolean(window.TT_BEAMER_RUNTIME_PANELS),
-      hasLegacy: Boolean(window.TT_BEAMER_UI_RUNTIME_PANELS),
-    });
-    return;
-  }
-  if (!window.TT_BEAMER_RUNTIME_PANELS) {
-    window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
-  }
-  if (!window.TT_BEAMER_UI_RUNTIME_PANELS) {
-    window.TT_BEAMER_UI_RUNTIME_PANELS = runtimePanelsApi;
-  }
-
-  runtimePanelsApi.syncRuntimePanelsFromState({
-    state,
-    switchBoard,
-    roomAnimationSelect,
-    roomOpacityInput,
-    roomOpacityValue,
-    clampRoomOpacity,
-    roomIntensityValue,
-    roomSpeedValue,
-    clampRoomSpeed,
-    roomSoundVolumeValue,
-    clampRoomSoundVolume,
-    roomDurationInput,
-    syncRoomDraftActionButton,
-    audioEnabledInput,
-    audioVolumeInput,
-    audioVolumeValue,
-    applyAudioGain,
-    enforceAudioLifecycleGuard,
-    syncAudioStatus,
-    syncAudioMappingPanel,
-    syncAnimationSpeedPanel,
-    syncHitareaCalibrationPanel,
-    syncRoomGeometryPanel,
-    syncPolygonEditorPanel,
-    syncShipPolygonEditorPanel,
-    syncRoomFxPanel,
-    syncOutsideFxPanel,
-    syncAlignModePanel,
-    syncBoardZoomPanel,
-    syncDashboardZoneVisibility,
-    updateMobilePerformanceStatus,
-    syncMp4PerformanceControlsPanel,
-  });
-  syncMp4PerformanceControlsPanel();
-}
-
-async function initializeApplication() {
-  logBootstrap.info("init_start", { event: "init-start" });
-  await loadExternalBoardZones();
-  await loadOutsideResourceAssets();
-  syncBoardSelectOptions();
-  const zoneFallbackCount = Object.values(state.zoneLoader.classificationByBoard).filter(
-    (entry) => entry && entry !== "ZONE_LOADED",
-  ).length;
-  if (zoneFallbackCount > 0) {
-    triggerFeedback.textContent =
-      `Status: Zone fallback active (${zoneFallbackCount} board) - see zone-source status in Settings panel`;
-  }
-  if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
-    state.boardId = BOARDS[0]?.id ?? "";
-  }
-  state.hitareaCalibrationByBoard = createDefaultHitareaCalibrationMap();
-  state.roomTombstonesByBoard = createDefaultRoomTombstonesByBoard();
-  state.roomGeometryByBoard = createDefaultRoomGeometryByBoard();
-  state.roomStateProfilesByBoard = createDefaultRoomStateProfilesByBoard();
-  state.specialPolygonsByBoard = createDefaultSpecialPolygonsByBoard();
-  state.playAreasByBoard = createDefaultPlayAreasByBoard();
-  state.selectedPlayAreaIdByBoard = createDefaultSelectedPlayAreaIdByBoard();
-  state.shipPolygonsByBoard = Object.fromEntries(
-    BOARDS.map((board) => [board.id, getShipPolygonPoints(board.id)]),
-  );
-  state.insideFxByBoard = createDefaultInsideFxByBoard();
-  state.roomFxByBoard = createDefaultRoomFxByBoard();
-  state.outsideFxByBoard = createDefaultOutsideFxByBoard();
-  state.boardZoomByBoard = createDefaultBoardZoomByBoard();
-  state.quickMode = {
-    mode: normalizeQuickMode(state.quickMode?.mode),
-    inflightByRoom: state.quickMode?.inflightByRoom && typeof state.quickMode.inflightByRoom === "object"
-      ? state.quickMode.inflightByRoom
-      : {},
-  };
-  state.animationSoundMap = normalizeAnimationSoundMap(createDefaultAnimationSoundMap());
-  state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
-
-  // Phase 13-1: server is the single source of truth. Block startup on a
-  // successful GET /api/global-defaults. On failure, render the blocking
-  // error overlay and stop further hydration until the user clicks Retry.
-  state.startupDefaultsGuard.fallbackRequired = true;
-  state.startupDefaultsGuard.attempted = false;
-  state.startupDefaultsGuard.applied = false;
-  state.startupDefaultsGuard.outcome = "pending";
-  state.startupDefaultsGuard.detail = "server-first-hydration-required";
-
-  let startupDefaultsSnapshot = null;
-  let bootstrapError = null;
-
-  try {
-    const loaded = await fetchGlobalDefaultsPayload();
-    window.__TT_BEAMER_BOOTSTRAP_CONFIG__ = loaded.payload;
-    loadBoardProfiles();
-    state.startupDefaultsGuard.attempted = true;
-    state.startupDefaultsGuard.applied = true;
-    state.startupDefaultsGuard.outcome = "applied";
-    state.startupDefaultsGuard.detail = loaded.endpoint || "server-config";
-    startupDefaultsSnapshot = buildResolveSnapshot({
-      routing: loaded.routing,
-      endpoint: loaded.endpoint,
-      method: "GET",
-    });
-  } catch (error) {
-    bootstrapError = error;
-    state.startupDefaultsGuard.attempted = true;
-    state.startupDefaultsGuard.applied = false;
-    state.startupDefaultsGuard.outcome = "failed-explicit";
-    state.startupDefaultsGuard.detail = String(error?.message || error || "server-unreachable");
-    // Apply in-memory defaults so the UI doesn't crash while the overlay
-    // is visible; the user can still click Retry.
-    loadBoardProfiles();
-    renderServerUnreachableOverlay(error);
-    if (globalDefaultsStatus) {
-      globalDefaultsStatus.textContent =
-        "Global config: server not reachable — no local fallback. Click Retry to try again.";
-    }
-  }
-
-  syncRuntimePanelsFromState();
-  restoreSettingsSubtabPreference();
-  syncQuickModePanel();
-  syncMobileStickyOffsets();
-  applyOutputRoleViewContract();
-  connectLiveSyncSocket();
-  scheduleNextLiveSnapshotPoll(0);
-  if (startupDefaultsSnapshot) {
-    globalDefaultsStatus.textContent =
-      `Global Defaults: automatically loaded & applied (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
-    triggerFeedback.textContent =
-      `Status: Startup defaults active (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
-    apiDiagnoseStatus.textContent =
-      `API diagnostics: startup load OK (${formatResolveSnapshot(startupDefaultsSnapshot)})`;
-  }
-  warmEventSoundAssets();
-  warmRoomGifAssets({ reason: "startup" });
-  prewarmBoardOutsideMp4Asset(state.boardId, { reason: "startup" });
-  setActiveView("dashboard");
-  setPanCursorState();
-  const viewRegressionOk = runViewVisibilityRegression();
-  const layoutRegressionOk = runLayoutScrollRegression();
-  const startupGuardRegressionOk = runStartupDefaultsGuardRegression();
-  const zoomPanRegressionOk = runZoomPanEditRegression();
-  const panPointerRegressionOk = runPanPointerCaptureRegression();
-  const orientationRegressionOk = runOrientationStateRegression();
-  const navigationRegressionOk = runNavigationStateRegression();
-  const projectionVisibilityOk = runMobileProjectionVisibilityGuard({ silent: true, context: "startup" });
-  const outsideIsolationRegressionOk = runOutsideIsolationRegression();
-  const shipClipRegressionOk = runShipClipRegression();
-  if (
-    !viewRegressionOk ||
-    !layoutRegressionOk ||
-    !startupGuardRegressionOk ||
-    !zoomPanRegressionOk ||
-    !panPointerRegressionOk ||
-    !orientationRegressionOk ||
-    !navigationRegressionOk ||
-    !projectionVisibilityOk ||
-    !outsideIsolationRegressionOk ||
-    !shipClipRegressionOk
-  ) {
-    triggerFeedback.textContent =
-      "Status: Regression failed (startup/view/layout/zoom-pan/orientation/navigation/projection + outside isolation + ship clip)";
-  } else {
-    triggerFeedback.textContent =
-      "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
-  }
-  renderRunningAnimationsList();
-  refreshGlobalButtons();
-  window.TT_BEAMER_LIVE_SYNC_DEBUG = {
-    getLiveTraceSnapshot,
-  };
-  logBootstrap.info("init_ready", {
-    event: "init-ready",
-    boardId: state.boardId,
-    version: liveSync.lastAppliedVersion,
-  });
-  requestAnimationFrame(draw);
-}
+// Phase 14-2: syncRuntimePanelsFromState + initializeApplication
+// moved to src/app/runtime/runtime-bootstrap.js.
+window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
+  state,
+  liveSync,
+  logBootstrap,
+  triggerFeedback,
+  globalDefaultsStatus,
+  apiDiagnoseStatus,
+  animationSpeedInput,
+  roomAnimationSelect,
+  roomOpacityInput,
+  roomOpacityValue,
+  roomIntensityValue,
+  roomSpeedValue,
+  roomSoundVolumeValue,
+  roomDurationInput,
+  audioEnabledInput,
+  audioVolumeInput,
+  audioVolumeValue,
+  getBoards: () => BOARDS,
+  switchBoard: (boardId, opts) => switchBoard(boardId, opts),
+  clampRoomOpacity: (v) => clampRoomOpacity(v),
+  clampRoomSpeed: (v) => clampRoomSpeed(v),
+  clampRoomSoundVolume: (v) => clampRoomSoundVolume(v),
+  clampAnimationSpeed: (v) => clampAnimationSpeed(v),
+  syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
+  applyAudioGain: () => applyAudioGain(),
+  enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
+  syncAudioStatus: () => syncAudioStatus(),
+  syncAudioMappingPanel: () => syncAudioMappingPanel(),
+  syncAnimationSpeedPanel: () => syncAnimationSpeedPanel(),
+  syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
+  syncRoomGeometryPanel: () => syncRoomGeometryPanel(),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncShipPolygonEditorPanel: () => syncShipPolygonEditorPanel(),
+  syncRoomFxPanel: () => syncRoomFxPanel(),
+  syncOutsideFxPanel: () => syncOutsideFxPanel(),
+  syncAlignModePanel: () => syncAlignModePanel(),
+  syncBoardZoomPanel: () => syncBoardZoomPanel(),
+  syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
+  updateMobilePerformanceStatus: () => updateMobilePerformanceStatus(),
+  syncMp4PerformanceControlsPanel: () => syncMp4PerformanceControlsPanel(),
+  loadExternalBoardZones: () => loadExternalBoardZones(),
+  loadOutsideResourceAssets: () => loadOutsideResourceAssets(),
+  syncBoardSelectOptions: () => syncBoardSelectOptions(),
+  createDefaultHitareaCalibrationMap: () => createDefaultHitareaCalibrationMap(),
+  createDefaultRoomTombstonesByBoard: () => createDefaultRoomTombstonesByBoard(),
+  createDefaultRoomGeometryByBoard: () => createDefaultRoomGeometryByBoard(),
+  createDefaultRoomStateProfilesByBoard: () => createDefaultRoomStateProfilesByBoard(),
+  createDefaultSpecialPolygonsByBoard: () => createDefaultSpecialPolygonsByBoard(),
+  createDefaultPlayAreasByBoard: () => createDefaultPlayAreasByBoard(),
+  createDefaultSelectedPlayAreaIdByBoard: () => createDefaultSelectedPlayAreaIdByBoard(),
+  createDefaultInsideFxByBoard: () => createDefaultInsideFxByBoard(),
+  createDefaultRoomFxByBoard: () => createDefaultRoomFxByBoard(),
+  createDefaultOutsideFxByBoard: () => createDefaultOutsideFxByBoard(),
+  createDefaultBoardZoomByBoard: () => createDefaultBoardZoomByBoard(),
+  createDefaultAnimationSoundMap,
+  getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
+  normalizeQuickMode: (mode) => normalizeQuickMode(mode),
+  normalizeAnimationSoundMap,
+  fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
+  loadBoardProfiles: () => loadBoardProfiles(),
+  buildResolveSnapshot: (opts) => buildResolveSnapshot(opts),
+  formatResolveSnapshot: (snapshot) => formatResolveSnapshot(snapshot),
+  renderServerUnreachableOverlay: (error) => renderServerUnreachableOverlay(error),
+  restoreSettingsSubtabPreference: () => restoreSettingsSubtabPreference(),
+  syncQuickModePanel: () => syncQuickModePanel(),
+  syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
+  applyOutputRoleViewContract: () => applyOutputRoleViewContract(),
+  connectLiveSyncSocket: () => connectLiveSyncSocket(),
+  scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
+  warmEventSoundAssets: () => warmEventSoundAssets(),
+  warmRoomGifAssets: (opts) => warmRoomGifAssets(opts),
+  prewarmBoardOutsideMp4Asset: (boardId, opts) => prewarmBoardOutsideMp4Asset(boardId, opts),
+  setActiveView: (view, opts) => setActiveView(view, opts),
+  setPanCursorState: () => setPanCursorState(),
+  runViewVisibilityRegression: () => runViewVisibilityRegression(),
+  runLayoutScrollRegression: () => runLayoutScrollRegression(),
+  runStartupDefaultsGuardRegression: () => runStartupDefaultsGuardRegression(),
+  runZoomPanEditRegression: () => runZoomPanEditRegression(),
+  runPanPointerCaptureRegression: () => runPanPointerCaptureRegression(),
+  runOrientationStateRegression: () => runOrientationStateRegression(),
+  runNavigationStateRegression: () => runNavigationStateRegression(),
+  runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
+  runOutsideIsolationRegression: () => runOutsideIsolationRegression(),
+  runShipClipRegression: () => runShipClipRegression(),
+  renderRunningAnimationsList: () => renderRunningAnimationsList(),
+  refreshGlobalButtons: () => refreshGlobalButtons(),
+  getLiveTraceSnapshot,
+  draw: (timestamp) => draw(timestamp),
+});
+const {
+  syncRuntimePanelsFromState,
+  initializeApplication,
+} = window.TT_BEAMER_RUNTIME_BOOTSTRAP;
 
 void window.TT_BEAMER_BOOT_COMPOSITION.runApplicationBootstrap({
   initializer: initializeApplication,
