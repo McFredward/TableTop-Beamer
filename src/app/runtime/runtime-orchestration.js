@@ -9761,115 +9761,29 @@ function refreshGlobalButtons() {
   });
 }
 
-function clipToPolygon(polygon, { evenodd = false } = {}) {
-  if (!Array.isArray(polygon) || polygon.length < 3) {
-    return false;
-  }
-  ctx.beginPath();
-  polygon.forEach(([x, y], index) => {
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
-  if (evenodd) {
-    ctx.clip("evenodd");
-  } else {
-    ctx.clip();
-  }
-  return true;
-}
-
-function isFiniteCanvasPoint(point) {
-  return Array.isArray(point)
-    && point.length >= 2
-    && Number.isFinite(Number(point[0]))
-    && Number.isFinite(Number(point[1]));
-}
-
-function getPolygonSignedArea(polygon) {
-  if (!Array.isArray(polygon) || polygon.length < 3) {
-    return 0;
-  }
-  let area = 0;
-  for (let index = 0; index < polygon.length; index += 1) {
-    const current = polygon[index];
-    const next = polygon[(index + 1) % polygon.length];
-    if (!isFiniteCanvasPoint(current) || !isFiniteCanvasPoint(next)) {
-      return 0;
-    }
-    area += Number(current[0]) * Number(next[1]) - Number(next[0]) * Number(current[1]);
-  }
-  return area / 2;
-}
-
-function isRenderableCanvasPolygon(polygon, { minArea = 8 } = {}) {
-  if (!Array.isArray(polygon) || polygon.length < 3) {
-    return false;
-  }
-  if (!polygon.every((point) => isFiniteCanvasPoint(point))) {
-    return false;
-  }
-  return Math.abs(getPolygonSignedArea(polygon)) >= minArea;
-}
-
-function clipToRoom(room, boardId = state.boardId) {
-  const polygon = getRoomPolygonPixels(room, canvas.width, canvas.height, boardId);
-  if (!isRenderableCanvasPolygon(polygon)) {
-    return true;
-  }
-  return clipToPolygon(polygon);
-}
-
-function getShipClipPolygon(boardId = state.boardId) {
-  const selected = getShipPolygonPixels(canvas.width, canvas.height, boardId);
-  return selected.length >= 3 ? selected : null;
-}
-
-function getPlayAreaClipPolygons(boardId = state.boardId) {
-  return getPlayAreaPolygonsPixels(canvas.width, canvas.height, boardId)
-    .filter((polygon) => isRenderableCanvasPolygon(polygon));
-}
-
-function appendPolygonPath(polygon) {
-  polygon.forEach(([x, y], index) => {
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
-}
-
-function clipToOutsideShip(boardId = state.boardId) {
-  const playAreaPolygons = getPlayAreaClipPolygons(boardId);
-  if (playAreaPolygons.length === 0) {
-    return false;
-  }
-  ctx.beginPath();
-  ctx.rect(0, 0, canvas.width, canvas.height);
-  for (const polygon of playAreaPolygons) {
-    appendPolygonPath(polygon);
-  }
-  ctx.clip("evenodd");
-  return true;
-}
-
-function clipToInsideShip(boardId = state.boardId) {
-  const playAreaPolygons = getPlayAreaClipPolygons(boardId);
-  if (playAreaPolygons.length === 0) {
-    return false;
-  }
-  ctx.beginPath();
-  for (const polygon of playAreaPolygons) {
-    appendPolygonPath(polygon);
-  }
-  ctx.clip();
-  return true;
-}
+// Phase 14-2: canvas clip helpers live in
+// src/app/runtime/runtime-canvas-clip.js. Init + destructure so
+// existing call sites resolve the same names.
+window.TT_BEAMER_RUNTIME_CANVAS_CLIP.init({
+  state,
+  canvas,
+  canvasCtx: ctx,
+  getRoomPolygonPixels: (room, w, h, boardId) => getRoomPolygonPixels(room, w, h, boardId),
+  getShipPolygonPixels: (w, h, boardId) => getShipPolygonPixels(w, h, boardId),
+  getPlayAreaPolygonsPixels: (w, h, boardId) => getPlayAreaPolygonsPixels(w, h, boardId),
+});
+const {
+  clipToPolygon,
+  isFiniteCanvasPoint,
+  getPolygonSignedArea,
+  isRenderableCanvasPolygon,
+  clipToRoom,
+  getShipClipPolygon,
+  getPlayAreaClipPolygons,
+  appendPolygonPath,
+  clipToOutsideShip,
+  clipToInsideShip,
+} = window.TT_BEAMER_RUNTIME_CANVAS_CLIP;
 
 function drawInsideGlobalVisual(animation, age) {
   const boardId = animation.boardId ?? state.boardId;
