@@ -1,9 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
-const runtimeSource = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: startRoomAnimationFromDraft now lives in
+// runtime-room-dispatch.js. Concatenate every runtime/*.js so the
+// brace-balance scan still finds the function body.
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
+const runtimeSource = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .sort()
+  .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))
+  .join("\n");
 
 // Locate startRoomAnimationFromDraft body via simple brace balance scan.
 const startSignature = "function startRoomAnimationFromDraft() {";
