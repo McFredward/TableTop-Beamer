@@ -1,0 +1,270 @@
+{
+  "suite": "P13-1-T1-browser-storage-inventory",
+  "phase": "RED",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "summary": {
+    "totalReferences": 32,
+    "referencesByFile": {
+      "src/app/api/global-defaults-api.js": 3,
+      "src/app/runtime/runtime-orchestration.js": 28,
+      "src/app/shared/logger.js": 1
+    },
+    "referencesByPattern": {
+      "localStorage": 21,
+      "window.localStorage": 11
+    },
+    "storageKeys": [
+      {
+        "constant": "HITAREA_CALIBRATION_STORAGE_KEY",
+        "value": "tt-beamer.hitarea-calibration.v1"
+      },
+      {
+        "constant": "BOARD_PROFILE_STORAGE_KEY",
+        "value": "tt-beamer.board-profiles.v1"
+      },
+      {
+        "constant": "ROOM_GEOMETRY_STORAGE_KEY",
+        "value": "tt-beamer.room-geometry.v1"
+      },
+      {
+        "constant": "SPECIAL_POLYGON_STORAGE_KEY",
+        "value": "tt-beamer.special-polygons.v1"
+      },
+      {
+        "constant": "API_BASE_STORAGE_KEY",
+        "value": "tt-beamer.api-base.v1"
+      }
+    ],
+    "persistBoardProfilesCallSites": 44,
+    "hasSaveButtonHandler": true,
+    "hasLoadButtonHandler": true,
+    "hasSettingsSubtabLocalStorage": true
+  },
+  "checks": [
+    {
+      "id": "baseline-has-localStorage-references",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "baseline-declares-storage-keys-in-shared-config",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "baseline-has-many-persistBoardProfiles-call-sites",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "baseline-save-button-handler-present",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "baseline-load-button-handler-present",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "baseline-settings-subtab-localStorage-reference-present",
+      "expected": true,
+      "pass": true
+    }
+  ],
+  "referenceSites": [
+    {
+      "file": "src/app/api/global-defaults-api.js",
+      "line": 10,
+      "pattern": "localStorage",
+      "content": "localStorage,"
+    },
+    {
+      "file": "src/app/api/global-defaults-api.js",
+      "line": 108,
+      "pattern": "localStorage",
+      "content": "const localBase = normalizeApiBase(localStorage.getItem(apiBaseStorageKey));"
+    },
+    {
+      "file": "src/app/api/global-defaults-api.js",
+      "line": 112,
+      "pattern": "localStorage",
+      "content": "source: `override:localStorage(${apiBaseStorageKey})`,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3337,
+      "pattern": "localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3337,
+      "pattern": "window.localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3347,
+      "pattern": "localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3347,
+      "pattern": "window.localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3380,
+      "pattern": "localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3380,
+      "pattern": "window.localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3412,
+      "pattern": "localStorage",
+      "content": "return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfileStoragePayload());"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3412,
+      "pattern": "window.localStorage",
+      "content": "return writePersistenceJson(window.localStorage, BOARD_PROFILE_STORAGE_KEY, buildBoardProfileStoragePayload());"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3416,
+      "pattern": "localStorage",
+      "content": "let localStorageProfiles = null;"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3418,
+      "pattern": "localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3418,
+      "pattern": "window.localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3423,
+      "pattern": "localStorage",
+      "content": "localStorageProfiles = buildMigratedBoardProfiles("
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3432,
+      "pattern": "localStorage",
+      "content": "localStorageProfiles = null;"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3436,
+      "pattern": "localStorage",
+      "content": "const mergedProfiles = mergeBoardProfilesForGlobalExport(stateProfiles, localStorageProfiles);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3489,
+      "pattern": "localStorage",
+      "content": "localStorage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3489,
+      "pattern": "window.localStorage",
+      "content": "localStorage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3530,
+      "pattern": "localStorage",
+      "content": "const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3530,
+      "pattern": "window.localStorage",
+      "content": "const localBase = normalizeApiBase(window.localStorage.getItem(API_BASE_STORAGE_KEY));"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3534,
+      "pattern": "localStorage",
+      "content": "source: `override:localStorage(${API_BASE_STORAGE_KEY})`,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3538,
+      "pattern": "localStorage",
+      "content": "// ignore localStorage failures"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3798,
+      "pattern": "localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3798,
+      "pattern": "window.localStorage",
+      "content": "const raw = window.localStorage.getItem(BOARD_PROFILE_STORAGE_KEY);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3935,
+      "pattern": "localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 3935,
+      "pattern": "window.localStorage",
+      "content": "storage: window.localStorage,"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 5839,
+      "pattern": "localStorage",
+      "content": "window.localStorage.setItem(SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 5839,
+      "pattern": "window.localStorage",
+      "content": "window.localStorage.setItem(SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 5878,
+      "pattern": "localStorage",
+      "content": "stored = window.localStorage.getItem(SETTINGS_SUBTAB_STORAGE_KEY) || \"\";"
+    },
+    {
+      "file": "src/app/runtime/runtime-orchestration.js",
+      "line": 5878,
+      "pattern": "window.localStorage",
+      "content": "stored = window.localStorage.getItem(SETTINGS_SUBTAB_STORAGE_KEY) || \"\";"
+    },
+    {
+      "file": "src/app/shared/logger.js",
+      "line": 15,
+      "pattern": "localStorage",
+      "content": "const stored = String(localStorage.getItem(\"tt-beamer.log-level\") || \"\").trim().toLowerCase();"
+    }
+  ]
+}
