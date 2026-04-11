@@ -1,6 +1,6 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — thirty-one modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — thirty-seven modules extracted)
 
-Status: **PARTIAL PASS — thirty-one extractions landed, 8699 LOC relocated out of the monolith, main file now at 5959 LOC (−59.4% from 14658)**
+Status: **PARTIAL PASS — thirty-seven extractions landed, 9999 LOC relocated out of the monolith, main file now at 4659 LOC (−68.2% from 14658)**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
@@ -8,6 +8,7 @@ Commits (chronological):
 - Round 3 (T13..T17): `bf0ec89` → `3367c79` → `db8f218` → `66fec32` → `ac9f150`
 - Round 4 (T18..T25): `ce3a9ac` → `ba7ce56` → `0a93e5c` → `cb743c8` → `f981c74` → `1a3fdc1` → `d602be1` → `3a7c98d`
 - Round 5 (T26..T31): `e2a1d1d` → `0b3356c` → `7136ccc` → `cb0d8e6` → `57941c8` → `fabfe4d`
+- Round 6 (T32..T37 — event binders): `2534f04` → `ac0dc47` → `54ccb73` → `b1c47ef` → `f610588` → `d63cb9d`
 
 ## What was achieved
 
@@ -49,12 +50,23 @@ every commit.
 | 29 | `cb0d8e6` | `runtime-fx-normalizers.js` | −348 | +460 |
 | 30 | `57941c8` | `runtime-board-profiles.js` | −185 | +261 |
 | 31 | `fabfe4d` | `runtime-global-defaults.js` | −406 | +505 |
+| 32 | `2534f04` | `runtime-wire-calibration-binders.js` | −58 | +141 |
+| 33 | `ac0dc47` | `runtime-wire-polygon-editor-binders.js` | −269 | +428 |
+| 34 | `54ccb73` | `runtime-wire-fx-panel-binders.js` | −336 | +492 |
+| 35 | `b1c47ef` | `runtime-wire-overlay-window-binders.js` | −343 | +466 |
+| 36 | `f610588` | `runtime-wire-room-audio-binders.js` | −233 | +443 |
+| 37 | `d63cb9d` | `runtime-wire-navigation-binders.js` | −61 | +147 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 5 959** (−8699 LOC, −59.4%).
-- 31 new runtime modules: **+11235 LOC**.
-- Net: +2536 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 31 extractions.
+- `runtime-orchestration.js`: **14 658 → 4 659** (−9999 LOC, −68.2%).
+- 37 new runtime modules: **+13352 LOC**.
+- Net: +3353 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 37 extractions.
+
+Round 6 introduces the **wire*Binders(ctx)** pattern: each event-binder
+module exposes a single function that takes a ctx bag of DOM refs +
+callbacks and attaches its cluster of addEventListener calls inside.
+orchestration.js just calls it once, dramatically flattening the file.
 
 Final runtime/ layout:
 ```
