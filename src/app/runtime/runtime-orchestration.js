@@ -4346,6 +4346,27 @@ function updateCurrentBoardZoom(partial, statusText = null) {
   }
 }
 
+// Phase 13-HF5: rAF-coalesced zoom/pan writer. Called from high-frequency
+// pan/zoom pointermove paths (touch pan, mouse wheel, pinch). Collapses
+// many same-frame calls into a single updateCurrentBoardZoom() + DOM
+// write per animation frame, which eliminates the mobile lag seen in
+// HF4 touch pan.
+let pendingZoomUpdate = null;
+let pendingZoomFrameHandle = null;
+function scheduleZoomUpdate(partial, statusText = null) {
+  pendingZoomUpdate = pendingZoomUpdate
+    ? { ...pendingZoomUpdate, ...partial, statusText: statusText ?? pendingZoomUpdate.statusText }
+    : { ...partial, statusText };
+  if (pendingZoomFrameHandle !== null) return;
+  pendingZoomFrameHandle = window.requestAnimationFrame(() => {
+    pendingZoomFrameHandle = null;
+    const payload = pendingZoomUpdate || {};
+    pendingZoomUpdate = null;
+    const { statusText: pendingStatus, ...rest } = payload;
+    updateCurrentBoardZoom(rest, pendingStatus ?? null);
+  });
+}
+
 function fitZoomToActiveSpecialRoom() {
   const roomId = getActivePolygonRoomId(state.boardId);
   const room = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId);
@@ -12075,7 +12096,9 @@ function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
   const newPanX = current.panX + (layoutWidth / 2 - stageLocalX) * scaleDelta;
   const newPanY = current.panY + (layoutHeight / 2 - stageLocalY) * scaleDelta;
 
-  updateCurrentBoardZoom(
+  // Phase 13-HF5: rAF-throttle zoom writes too. Mouse wheel + pinch
+  // both call this function at high frequency.
+  scheduleZoomUpdate(
     clampPanToBounds({ scale: clamped, panX: newPanX, panY: newPanY }),
     reason || `Board zoom -> ${Math.round(clamped * 100)}%`,
   );
@@ -12413,7 +12436,18 @@ if (stage) {
   }
   stage.addEventListener("pointerup", endTouchGestureForPointer, { capture: true });
   stage.addEventListener("pointercancel", endTouchGestureForPointer, { capture: true });
-  stage.addEventListener("pointerleave", endTouchGestureForPointer, { capture: true });
+  // Phase 13-HF5: do NOT end gestures on pointerleave. On mobile the
+  // browser can briefly fire pointerleave when the finger crosses the
+  // stage bounds while panning, and the previous behaviour cancelled
+  // the pan after a few pixels. Pointer capture keeps pointermove
+  // events coming regardless, so leaving the hit box is safe.
+
+  // Phase 13-HF5: long-press on a mobile browser fires a contextmenu
+  // event for images; blocking it prevents the native "image options"
+  // popup from taking over the press-and-hold room-selection gesture.
+  stage.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
 }
 
 polygonHandleSizeInput?.addEventListener("input", () => {
@@ -13218,7 +13252,9 @@ roomOverlay.addEventListener("pointermove", (event) => {
     }
     const deltaX = event.clientX - state.panMode.startClientX;
     const deltaY = event.clientY - state.panMode.startClientY;
-    updateCurrentBoardZoom({
+    // Phase 13-HF5: rAF-throttle. Coalesces many same-frame pointermove
+    // updates into one DOM write per animation frame on mobile.
+    scheduleZoomUpdate({
       panX: state.panMode.startPanX + deltaX,
       panY: state.panMode.startPanY + deltaY,
     });

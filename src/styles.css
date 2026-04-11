@@ -103,6 +103,28 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   transform: translate(var(--stage-pan-x), var(--stage-pan-y)) scale(var(--stage-zoom-scale));
   transform-origin: 50% 50%;
   transition: transform 120ms ease;
+  /* Phase 13-HF5: disable native touch behaviors on the stage so the
+     browser cannot steal touches for native scroll / pinch-zoom /
+     long-press image menus. The touch gesture state machine owns all
+     touch input once a finger lands inside .stage. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.stage img,
+.stage svg {
+  /* Prevent the browser's long-press image context menu and drag ghost
+     on mobile. */
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+.stage #room-overlay {
+  /* The room overlay still needs to receive pointer events because the
+     polygon hit targets live inside it. */
+  pointer-events: auto;
 }
 
 .stage.is-panning {
@@ -137,7 +159,11 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   backdrop-filter: blur(4px);
   align-items: center;
 }
+/* Phase 13-HF5: hide the Apply bar completely when there is nothing
+   to save. Visible only when local edits are pending or a remote
+   update is awaiting resolution. */
 .apply-config-bar-global {
+  display: none;
   position: sticky;
   top: 0;
   z-index: 40;
@@ -145,6 +171,7 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   border-radius: 0 0 8px 8px;
 }
 .apply-config-bar.is-dirty {
+  display: flex;
   background: rgba(52, 36, 10, 0.95);
   border-color: rgba(255, 200, 80, 0.7);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
