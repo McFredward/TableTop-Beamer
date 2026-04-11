@@ -11925,36 +11925,46 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // Mouse wheel over the stage: exponential scale delta, cursor-anchored.
 // Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
 
-function computeZoomFocusFromClientPoint(clientX, clientY) {
-  const rect = stage?.getBoundingClientRect();
-  if (!rect || rect.width === 0 || rect.height === 0) {
-    return { x: 0.5, y: 0.5 };
-  }
-  const x = (clientX - rect.left) / rect.width;
-  const y = (clientY - rect.top) / rect.height;
+// Phase 13-HF1: cursor-accurate zoom-around-anchor math.
+//
+// The stage itself is CSS-transformed (`translate(panX, panY) scale(scale)`),
+// so `stage.getBoundingClientRect()` returns the TRANSFORMED rect and cannot
+// be mixed with `stage.clientWidth` (untransformed). Use the stage's parent
+// rect as a fixed screen reference; the stage's untransformed top-left sits
+// at `parentRect.left + stage.offsetLeft` (ditto for y). Given the current
+// scale + pan, a cursor at `(clientX, clientY)` maps to an untransformed
+// stage point `(stageX, stageY)`. After rescaling to `nextScale` we solve
+// for a new pan such that `(stageX, stageY)` stays under the cursor.
+function resolveStageScreenAnchor() {
+  if (!stage) return null;
+  const parent = stage.parentElement;
+  if (!parent) return null;
+  const parentRect = parent.getBoundingClientRect();
   return {
-    x: Math.max(0, Math.min(1, x)),
-    y: Math.max(0, Math.min(1, y)),
+    screenStageLeft: parentRect.left + stage.offsetLeft,
+    screenStageTop: parentRect.top + stage.offsetTop,
   };
 }
 
-function applyZoomScaleFromGesture(nextScale, focus, reason) {
+function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
+  const anchor = resolveStageScreenAnchor();
+  if (!anchor) return;
   const current = getBoardZoom(state.boardId);
-  const clampedNext = clampBoardZoomScale(nextScale);
-  // Preserve pan around the anchor so the focus point stays visually fixed.
-  const width = stage?.clientWidth || 0;
-  const height = stage?.clientHeight || 0;
-  const anchorX = (focus?.x ?? 0.5) * width;
-  const anchorY = (focus?.y ?? 0.5) * height;
-  const ratio = clampedNext / (current.scale || 1);
-  const rawPanX = anchorX - (anchorX - current.panX) * ratio;
-  const rawPanY = anchorY - (anchorY - current.panY) * ratio;
-  const clamped = clampPanToBounds({
-    scale: clampedNext,
-    panX: rawPanX,
-    panY: rawPanY,
-  });
-  updateCurrentBoardZoom(clamped, reason || `Board zoom set to ${Math.round(clampedNext * 100)}%`);
+  const currentScale = Math.max(0.0001, Number(current.scale) || 1);
+  const clamped = clampBoardZoomScale(nextScale);
+
+  // Untransformed stage-local point currently under the cursor.
+  const stageX = (clientX - anchor.screenStageLeft - current.panX) / currentScale;
+  const stageY = (clientY - anchor.screenStageTop - current.panY) / currentScale;
+
+  // Pan that keeps that same point under the cursor after rescaling.
+  const newPanX = clientX - anchor.screenStageLeft - stageX * clamped;
+  const newPanY = clientY - anchor.screenStageTop - stageY * clamped;
+
+  updateCurrentBoardZoom(
+    clampPanToBounds({ scale: clamped, panX: newPanX, panY: newPanY }),
+    reason || `Board zoom -> ${Math.round(clamped * 100)}%`,
+  );
   setPanCursorState();
 }
 
@@ -11965,12 +11975,14 @@ if (stage) {
       if (!event.target || !stage.contains(event.target)) return;
       event.preventDefault();
       const current = getBoardZoom(state.boardId);
-      const step = Math.exp(-event.deltaY * 0.0018);
+      // Phase 13-HF1: halve the per-tick zoom step. A typical deltaY of 100
+      // at 0.0009 gives exp(-0.09) ≈ 0.914 ≈ ~9% per tick.
+      const step = Math.exp(-event.deltaY * 0.0009);
       const nextScale = current.scale * step;
-      const focus = computeZoomFocusFromClientPoint(event.clientX, event.clientY);
-      applyZoomScaleFromGesture(
+      applyZoomScaleAroundClientPoint(
         nextScale,
-        focus,
+        event.clientX,
+        event.clientY,
         `Board zoom wheel -> ${Math.round(clampBoardZoomScale(nextScale) * 100)}%`,
       );
     },
@@ -12062,11 +12074,11 @@ if (stage) {
     pinchState.lastDistance = distance;
     const midpoint = pinchMidpoint(a, b);
     pinchState.lastMidpointClient = midpoint;
-    const focus = computeZoomFocusFromClientPoint(midpoint.clientX, midpoint.clientY);
     const current = getBoardZoom(state.boardId);
-    applyZoomScaleFromGesture(
+    applyZoomScaleAroundClientPoint(
       current.scale * ratio,
-      focus,
+      midpoint.clientX,
+      midpoint.clientY,
       `Board zoom pinch -> ${Math.round(clampBoardZoomScale(current.scale * ratio) * 100)}%`,
     );
   });
