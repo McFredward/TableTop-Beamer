@@ -8341,12 +8341,23 @@ function beginPolygonVertexDrag(event, roomId, vertexIndex) {
   const startPoints = getSpecialPolygonPoints(state.boardId, roomId);
   state.polygonEditor.dragStartPoints = startPoints;
   state.polygonEditor.dragMoved = false;
-  // Phase 13-HF9: capture offset for jump-free drag + cache DOM refs
-  // for the incremental renderer.
-  const initialVertex = startPoints[vertexIndex] || [0, 0];
+  // Phase 13-HF12: freeze the room transform at drag start so non-
+  // dragged vertices stop drifting when stretch != 1. See P13-HF12-T2.
+  const frozen = createFrozenRoomTransform(roomId, state.boardId);
+  state.polygonEditor.dragFrozenTransform = frozen;
+  // Phase 13-HF12: capture the grab-offset in DISPLAY space so the
+  // vertex stays glued to the cursor regardless of roomGeometry.
+  const initialVertexRaw = startPoints[vertexIndex] || [0, 0];
+  const initialVertexOverlay = frozen
+    ? projectRawToDisplayWithFrozenTransform(
+      initialVertexRaw[0], initialVertexRaw[1], frozen,
+    )
+    : [initialVertexRaw[0] * 1000, initialVertexRaw[1] * 1000];
+  const initialVertexDisplayX = initialVertexOverlay[0] / 1000;
+  const initialVertexDisplayY = initialVertexOverlay[1] / 1000;
   const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-  state.polygonEditor.dragVertexOffsetX = initialVertex[0] - pointerX;
-  state.polygonEditor.dragVertexOffsetY = initialVertex[1] - pointerY;
+  state.polygonEditor.dragVertexOffsetX = initialVertexDisplayX - pointerX;
+  state.polygonEditor.dragVertexOffsetY = initialVertexDisplayY - pointerY;
   state.polygonEditor.dragDomRefs = cacheRoomPolygonDragDomRefs(roomId);
   // Phase 13-HF8: heavy-interaction gate.
   beginPolygonDragInteraction();
@@ -8458,6 +8469,9 @@ function clearPolygonDragSession() {
   state.polygonEditor.dragVertexOffsetX = 0;
   state.polygonEditor.dragVertexOffsetY = 0;
   state.polygonEditor.dragDomRefs = null;
+  // Phase 13-HF12: release the frozen transform so subsequent drags
+  // start with a fresh capture.
+  state.polygonEditor.dragFrozenTransform = null;
   endPolygonDragInteraction();
 }
 
@@ -12303,29 +12317,83 @@ function applyIncrementalVertexHandlesToDom(refs, points) {
   }
 }
 
-// Phase 13-HF11: compute the room's display-space points via getRoomPoints
-// (which already applies transform + calibration + ×1000) and hand those
-// to the shared writer. setSpecialPolygonPoints has already mutated
-// room.polygon, so getRoomPoints reflects the in-progress drag.
-function applyIncrementalRoomDrag(refs, roomId, boardId = state.boardId) {
+// Phase 13-HF12: apply already-computed display-space overlay points
+// (0..1000) to the cached DOM nodes. Callers decide how to compute
+// those points — vertex drag uses a frozen room transform (so non-
+// dragged vertices don't drift when stretch != 1), area drag uses
+// getRoomPoints (so the whole polygon recomposes against the live
+// centroid), ship drag multiplies by 1000 (ship polygon has no
+// transform).
+function applyIncrementalRoomDrag(refs, overlayPoints) {
   if (!refs) return;
-  const board = getBoard(boardId);
-  const room = board?.rooms?.find((entry) => entry.id === roomId);
-  if (!room) return;
-  const overlayPoints = getRoomPoints(room, boardId);
   applyIncrementalPolygonPointsToDom(refs.polygon, overlayPoints);
   applyIncrementalVertexHandlesToDom(refs, overlayPoints);
 }
 
-// Phase 13-HF11: ship polygon has no transform today, so display ==
-// raw × 1000. We still fetch via getShipPolygonPoints to stay a single
-// source of truth for the mask and the handles.
-function applyIncrementalShipDrag(refs, boardId = state.boardId) {
+function applyIncrementalShipDrag(refs, overlayPoints) {
   if (!refs) return;
-  const rawPoints = getShipPolygonPoints(boardId);
-  const overlayPoints = rawPoints.map(([x, y]) => [x * 1000, y * 1000]);
   applyIncrementalPolygonPointsToDom(refs.mask, overlayPoints);
   applyIncrementalVertexHandlesToDom(refs, overlayPoints);
+}
+
+// Phase 13-HF12: freeze the room transform at drag start. Using a
+// frozen baseCenter for the duration of the drag makes the dragged-
+// vertex path independent of the live centroid, so non-dragged
+// vertices stay exactly where they were when the user grabbed. See
+// P13-HF12-T2 for the drift proof.
+function createFrozenRoomTransform(roomId, boardId = state.boardId) {
+  const board = getBoard(boardId);
+  const room = board?.rooms?.find((entry) => entry.id === roomId);
+  if (!room) return null;
+  const geometry = getRoomGeometry(boardId, roomId);
+  const baseCenter = getRawRoomCenter(room, boardId);
+  const centerX = geometry.mode === "absolute"
+    ? geometry.absoluteX
+    : baseCenter.x + geometry.offsetX;
+  const centerY = geometry.mode === "absolute"
+    ? geometry.absoluteY
+    : baseCenter.y + geometry.offsetY;
+  return {
+    baseCenterX: baseCenter.x,
+    baseCenterY: baseCenter.y,
+    centerX,
+    centerY,
+    stretchX: geometry.stretchX || 1,
+    stretchY: geometry.stretchY || 1,
+    calibration: { ...getHitareaCalibration(boardId) },
+  };
+}
+
+function projectRawToDisplayWithFrozenTransform(x, y, frozen) {
+  const tx = frozen.centerX + (x - frozen.baseCenterX) * frozen.stretchX;
+  const ty = frozen.centerY + (y - frozen.baseCenterY) * frozen.stretchY;
+  const [cx, cy] = applyHitareaCalibration(tx, ty, frozen.calibration);
+  return [cx * 1000, cy * 1000];
+}
+
+function projectDisplayToRawWithFrozenTransform(displayNormalizedX, displayNormalizedY, frozen) {
+  // Inverse of applyHitareaCalibration:
+  //   scaled = (raw - 0.5) * scale + 0.5 + offset
+  //   raw    = ((scaled - 0.5 - offset) / scale) + 0.5
+  const scale = frozen.calibration.scale || 1;
+  const preCalibX = ((displayNormalizedX - 0.5 - frozen.calibration.offsetX) / scale) + 0.5;
+  const preCalibY = ((displayNormalizedY - 0.5 - frozen.calibration.offsetY) / scale) + 0.5;
+  // Inverse of getRoomTransform:
+  //   tx = centerX + (rx - baseCenterX) * stretchX
+  //   rx = baseCenterX + (tx - centerX) / stretchX
+  const rawX = frozen.baseCenterX + (preCalibX - frozen.centerX) / (frozen.stretchX || 1);
+  const rawY = frozen.baseCenterY + (preCalibY - frozen.centerY) / (frozen.stretchY || 1);
+  return [rawX, rawY];
+}
+
+function computeRoomDisplayOverlayPointsFrozen(rawPoints, frozen) {
+  return rawPoints.map(([x, y]) =>
+    projectRawToDisplayWithFrozenTransform(x, y, frozen),
+  );
+}
+
+function clampDisplayNormalizedCoordinate(value) {
+  return Math.max(0, Math.min(1, Number(value) || 0));
 }
 
 // Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
@@ -13654,16 +13722,23 @@ roomOverlay.addEventListener("pointermove", (event) => {
     const boardId = state.shipPolygonEditor.dragBoardId;
     const points = getShipPolygonPoints(boardId);
     const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-    // Phase 13-HF9: apply the grab-offset so the vertex stays
-    // exactly under the finger/cursor, no snap on first move.
-    const nextX = pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0);
-    const nextY = pointerY + (state.shipPolygonEditor.dragVertexOffsetY || 0);
+    // Phase 13-HF12: clamp to visible board edge [0, 1] so the ship
+    // vertex cannot escape the rendered area. Ship polygon has no
+    // transform today, so display == raw.
+    const nextX = clampDisplayNormalizedCoordinate(
+      pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0),
+    );
+    const nextY = clampDisplayNormalizedCoordinate(
+      pointerY + (state.shipPolygonEditor.dragVertexOffsetY || 0),
+    );
     points[state.shipPolygonEditor.dragVertexIndex] = [nextX, nextY];
     setShipPolygonPoints(boardId, points);
     state.shipPolygonEditor.dragMoved = true;
-    // Phase 13-HF11: incremental DOM update — reads overlay-space points
-    // from getShipPolygonPoints internally, so we only pass refs + boardId.
-    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, boardId);
+    // Phase 13-HF12: ship polygon has no transform, so display == raw
+    // × 1000. Compute once inline and pass to the writer.
+    const shipRaw = getShipPolygonPoints(boardId);
+    const shipOverlay = shipRaw.map(([x, y]) => [x * 1000, y * 1000]);
+    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, shipOverlay);
     syncShipPolygonEditorStatus();
     return;
   }
@@ -13694,13 +13769,18 @@ roomOverlay.addEventListener("pointermove", (event) => {
     ]);
     setSpecialPolygonPoints(boardId, roomId, shifted);
     state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
-    // Phase 13-HF11: incremental DOM update — the helper re-reads
-    // getRoomPoints(room) for display-space coords so the transform
-    // pipeline (roomGeometry offset/stretch + hitareaCalibration) is
-    // preserved throughout the drag. Before HF11, passing `shifted`
-    // (raw normalized) caused the polygon to visibly jump by the
-    // transform offset on the first pointermove.
-    applyIncrementalRoomDrag(state.polygonEditor.dragAreaDomRefs, roomId, boardId);
+    // Phase 13-HF12: area drag recomposes all points by the same delta,
+    // so the live centroid shifts by the same delta and getRoomPoints
+    // produces `old + delta` for every vertex. No frozen transform
+    // needed — just recompute from the mutated room state.
+    const areaBoard = getBoard(boardId);
+    const areaRoom = areaBoard?.rooms?.find((entry) => entry.id === roomId);
+    if (areaRoom) {
+      applyIncrementalRoomDrag(
+        state.polygonEditor.dragAreaDomRefs,
+        getRoomPoints(areaRoom, boardId),
+      );
+    }
     syncPolygonEditorStatus();
     return;
   }
@@ -13719,18 +13799,35 @@ roomOverlay.addEventListener("pointermove", (event) => {
   if (!roomId) {
     return;
   }
-  const points = getSpecialPolygonPoints(boardId, roomId);
+  const frozen = state.polygonEditor.dragFrozenTransform;
   const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-  // Phase 13-HF9: apply grab-offset so the vertex stays under the
-  // cursor/finger, no first-move snap.
-  const nextX = pointerX + (state.polygonEditor.dragVertexOffsetX || 0);
-  const nextY = pointerY + (state.polygonEditor.dragVertexOffsetY || 0);
-  points[state.polygonEditor.dragVertexIndex] = [nextX, nextY];
+  // Phase 13-HF12: next display position = pointer + grab-offset,
+  // clamped to visible board [0, 1]. Vertex stops at the board edge
+  // instead of escaping via clampRoomAbsoluteCoordinate([-0.2, 1.2]).
+  const nextDisplayX = clampDisplayNormalizedCoordinate(
+    pointerX + (state.polygonEditor.dragVertexOffsetX || 0),
+  );
+  const nextDisplayY = clampDisplayNormalizedCoordinate(
+    pointerY + (state.polygonEditor.dragVertexOffsetY || 0),
+  );
+  // Phase 13-HF12: invert the frozen transform so the raw point we
+  // write produces exactly the clamped display position, even for
+  // stretched or calibrated rooms.
+  const [rawNextX, rawNextY] = frozen
+    ? projectDisplayToRawWithFrozenTransform(nextDisplayX, nextDisplayY, frozen)
+    : [nextDisplayX, nextDisplayY];
+  const points = getSpecialPolygonPoints(boardId, roomId);
+  points[state.polygonEditor.dragVertexIndex] = [rawNextX, rawNextY];
   setSpecialPolygonPoints(boardId, roomId, points);
   state.polygonEditor.dragMoved = true;
-  // Phase 13-HF11: incremental DOM update — helper reads display-space
-  // coords via getRoomPoints internally (see the HF11 root cause doc).
-  applyIncrementalRoomDrag(state.polygonEditor.dragDomRefs, roomId, boardId);
+  // Phase 13-HF12: render via the FROZEN transform so only the
+  // dragged vertex's display position changes. Non-dragged vertices
+  // remain glued to their drag-start positions even with stretch != 1.
+  const currentRaw = getSpecialPolygonPoints(boardId, roomId);
+  const overlayPoints = frozen
+    ? computeRoomDisplayOverlayPointsFrozen(currentRaw, frozen)
+    : currentRaw.map(([x, y]) => [x * 1000, y * 1000]);
+  applyIncrementalRoomDrag(state.polygonEditor.dragDomRefs, overlayPoints);
   syncPolygonEditorStatus();
 });
 

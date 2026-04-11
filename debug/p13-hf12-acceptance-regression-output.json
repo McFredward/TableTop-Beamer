@@ -1,0 +1,24 @@
+{
+  "suite": "P13-HF12-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF12-1-frozen-transform-helpers-defined": true,
+    "G13-HF12-2-createFrozenRoomTransform-captures-baseCenter-stretch-calibration": true,
+    "G13-HF12-3-beginPolygonVertexDrag-captures-frozen-transform-and-display-offset": true,
+    "G13-HF12-4-room-vertex-pointermove-clamps-and-inverts-through-frozen": true,
+    "G13-HF12-5-room-vertex-render-uses-frozen-transform": true,
+    "G13-HF12-6-area-drag-still-uses-live-getRoomPoints": true,
+    "G13-HF12-7-ship-vertex-pointermove-clamps-to-0-1": true,
+    "G13-HF12-8-ship-drag-renders-from-local-overlay-points": true,
+    "G13-HF12-9-applyIncremental-dragsigs-back-to-overlayPoints": true,
+    "G13-HF12-10-clearPolygonDragSession-nils-frozen-transform": true,
+    "G13-HF12-11-display-clamp-is-0-1-not-minus-0.2-1.2": true,
+    "G13-HF12-NR-HF10-render-before-begin": true,
+    "G13-HF12-NR-HF9-cached-refs": true,
+    "G13-HF12-NR-HF8-drag-interaction-gate": true,
+    "G13-HF12-NR-HF7-heavy-interaction-gate": true,
+    "G13-HF12-NR-Phase-12": true,
+    "G13-HF12-NR-Phase-13-1": true
+  }
+}
