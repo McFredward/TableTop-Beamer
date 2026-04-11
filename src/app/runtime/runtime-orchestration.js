@@ -4337,411 +4337,68 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   emitOutsideFxMutation: (boardId, reason) => emitOutsideFxMutation(boardId, reason),
 });
 
-roomOverlay.addEventListener("pointermove", (event) => {
-  if (state.panMode.active) {
-    if (state.panMode.pointerId !== event.pointerId) {
-      return;
-    }
-    const deltaX = event.clientX - state.panMode.startClientX;
-    const deltaY = event.clientY - state.panMode.startClientY;
-    // Phase 13-HF5: rAF-throttle. Coalesces many same-frame pointermove
-    // updates into one DOM write per animation frame on mobile.
-    scheduleZoomUpdate({
-      panX: state.panMode.startPanX + deltaX,
-      panY: state.panMode.startPanY + deltaY,
-    });
-    return;
-  }
-  if (state.shipPolygonEditor.dragVertexIndex !== null && state.uiView === "settings") {
-    if (!arePlayAreaVerticesEditable()) {
-      finishShipPolygonVertexDrag(event, { cancel: true });
-      return;
-    }
-    if (state.shipPolygonEditor.dragPointerId !== event.pointerId) {
-      return;
-    }
-    const boardId = state.shipPolygonEditor.dragBoardId;
-    const points = getShipPolygonPoints(boardId);
-    const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-    // Phase 13-HF12: clamp to visible board edge [0, 1] so the ship
-    // vertex cannot escape the rendered area. Ship polygon has no
-    // transform today, so display == raw.
-    const nextX = clampDisplayNormalizedCoordinate(
-      pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0),
-    );
-    const nextY = clampDisplayNormalizedCoordinate(
-      pointerY + (state.shipPolygonEditor.dragVertexOffsetY || 0),
-    );
-    points[state.shipPolygonEditor.dragVertexIndex] = [nextX, nextY];
-    setShipPolygonPoints(boardId, points);
-    state.shipPolygonEditor.dragMoved = true;
-    // Phase 13-HF12: ship polygon has no transform, so display == raw
-    // × 1000. Compute once inline and pass to the writer.
-    const shipRaw = getShipPolygonPoints(boardId);
-    const shipOverlay = shipRaw.map(([x, y]) => [x * 1000, y * 1000]);
-    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, shipOverlay);
-    syncShipPolygonEditorStatus();
-    return;
-  }
-  maybePromotePendingPolygonAreaDrag(event);
-  if (state.polygonEditor.dragAreaPointerId !== null && state.uiView === "settings") {
-    if (!areRoomVerticesEditable()) {
-      finishPolygonAreaDrag(event, { cancel: true });
-      return;
-    }
-    if (state.polygonEditor.dragAreaPointerId !== event.pointerId) {
-      return;
-    }
-    const roomId = state.polygonEditor.dragAreaRoomId;
-    const boardId = state.polygonEditor.dragAreaBoardId;
-    const startPoints = state.polygonEditor.dragAreaStartPoints;
-    const startPointer = state.polygonEditor.dragAreaStartPointerPoint;
-    if (!roomId || !boardId || !Array.isArray(startPoints) || !Array.isArray(startPointer)) {
-      return;
-    }
-    const [currentX, currentY] = getNormalizedOverlayPoint(event);
-    const [startX, startY] = startPointer;
-    const deltaX = currentX - startX;
-    const deltaY = currentY - startY;
-    const moved = Math.hypot(deltaX, deltaY) >= 0.0005;
-    const shifted = startPoints.map(([x, y]) => [
-      clampRoomAbsoluteCoordinate(x + deltaX),
-      clampRoomAbsoluteCoordinate(y + deltaY),
-    ]);
-    setSpecialPolygonPoints(boardId, roomId, shifted);
-    state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
-    // Phase 13-HF12: area drag recomposes all points by the same delta,
-    // so the live centroid shifts by the same delta and getRoomPoints
-    // produces `old + delta` for every vertex. No frozen transform
-    // needed — just recompute from the mutated room state.
-    const areaBoard = getBoard(boardId);
-    const areaRoom = areaBoard?.rooms?.find((entry) => entry.id === roomId);
-    if (areaRoom) {
-      applyIncrementalRoomDrag(
-        state.polygonEditor.dragAreaDomRefs,
-        getRoomPoints(areaRoom, boardId),
-      );
-    }
-    syncPolygonEditorStatus();
-    return;
-  }
-  if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
-    return;
-  }
-  if (!areRoomVerticesEditable()) {
-    finishPolygonVertexDrag(event, { cancel: true });
-    return;
-  }
-  if (state.polygonEditor.dragPointerId !== event.pointerId) {
-    return;
-  }
-  const roomId = state.polygonEditor.dragRoomId;
-  const boardId = state.polygonEditor.dragBoardId;
-  if (!roomId) {
-    return;
-  }
-  const vertexBoard = getBoard(boardId);
-  const vertexRoom = vertexBoard?.rooms?.find((entry) => entry.id === roomId);
-  if (!vertexRoom) {
-    return;
-  }
-  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
-  // Phase 13-HF13: next display position = pointer + grab-offset,
-  // clamped to visible board [0, 1]. Vertex stops at the board edge
-  // instead of escaping via clampRoomAbsoluteCoordinate([-0.2, 1.2]).
-  const nextDisplayX = clampDisplayNormalizedCoordinate(
-    pointerX + (state.polygonEditor.dragVertexOffsetX || 0),
-  );
-  const nextDisplayY = clampDisplayNormalizedCoordinate(
-    pointerY + (state.polygonEditor.dragVertexOffsetY || 0),
-  );
-  // Phase 13-HF13: invert the live (stable, anchored) room transform
-  // to produce the raw value that renders to exactly nextDisplay.
-  const [rawNextX, rawNextY] = projectDisplayNormalizedToRoomRaw(
-    nextDisplayX, nextDisplayY, vertexRoom, boardId,
-  );
-  const points = getSpecialPolygonPoints(boardId, roomId);
-  points[state.polygonEditor.dragVertexIndex] = [rawNextX, rawNextY];
-  setSpecialPolygonPoints(boardId, roomId, points);
-  state.polygonEditor.dragMoved = true;
-  // Phase 13-HF13: render via the live transform pipeline. Because
-  // the stretch anchor (inside getRoomTransform) is session-stable,
-  // non-dragged vertices map to the same display position they had
-  // at drag start on every frame — no frozen snapshot needed.
-  applyIncrementalRoomDrag(
-    state.polygonEditor.dragDomRefs,
-    getRoomPoints(vertexRoom, boardId),
-  );
-  syncPolygonEditorStatus();
-});
-
-roomOverlay.addEventListener("pointerup", (event) => {
-  if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
-    endPanMode(event, { canceled: false });
-    return;
-  }
-  if (
-    state.shipPolygonEditor.dragVertexIndex !== null &&
-    state.shipPolygonEditor.dragPointerId === event.pointerId
-  ) {
-    finishShipPolygonVertexDrag(event, { cancel: false });
-    return;
-  }
-  if (
-    state.polygonEditor.dragAreaPointerId !== null &&
-    state.polygonEditor.dragAreaPointerId === event.pointerId
-  ) {
-    finishPolygonAreaDrag(event, { cancel: false });
-    preserveRoomSelectionAfterPointerLifecycle();
-    return;
-  }
-  if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
-    clearPendingPolygonAreaDragSession();
-    preserveRoomSelectionAfterPointerLifecycle();
-    return;
-  }
-  if (
-    state.polygonEditor.dragVertexIndex === null ||
-    state.polygonEditor.dragPointerId !== event.pointerId
-  ) {
-    return;
-  }
-  finishPolygonVertexDrag(event, { cancel: false });
-  preserveRoomSelectionAfterPointerLifecycle();
-});
-
-roomOverlay.addEventListener("pointercancel", (event) => {
-  if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
-    endPanMode(event, { canceled: true });
-    return;
-  }
-  if (state.shipPolygonEditor.dragPointerId === event.pointerId) {
-    finishShipPolygonVertexDrag(event, { cancel: true });
-    return;
-  }
-  if (state.polygonEditor.dragAreaPointerId === event.pointerId) {
-    finishPolygonAreaDrag(event, { cancel: true });
-    return;
-  }
-  if (state.polygonEditor.pendingAreaPointerId === event.pointerId) {
-    clearPendingPolygonAreaDragSession();
-    return;
-  }
-  if (state.polygonEditor.dragPointerId !== event.pointerId) {
-    return;
-  }
-  finishPolygonVertexDrag(event, { cancel: true });
-});
-
-roomOverlay.addEventListener("pointerdown", (event) => {
-  if (!canStartPanModeFromEvent(event)) {
-    return;
-  }
-  // Phase 13-HF2: single-finger touch pan only takes over when the touch
-  // landed on the empty overlay — not on a vertex/edge/area hit target.
-  // Those hit elements stop propagation during their own pointerdown, so
-  // if this listener receives the event, it's a safe empty-area touch.
-  const pointerType = String(event.pointerType || "").toLowerCase();
-  const isTouchPointer = pointerType === "touch" || pointerType === "pen";
-  clearPendingPolygonAreaDragSession();
-  if (state.shipPolygonEditor.dragVertexIndex !== null) {
-    finishShipPolygonVertexDrag(event, { cancel: true });
-  }
-  if (state.polygonEditor.dragAreaPointerId !== null) {
-    finishPolygonAreaDrag(event, { cancel: true });
-  }
-  if (state.polygonEditor.dragVertexIndex !== null) {
-    finishPolygonVertexDrag(event, { cancel: true });
-  }
-  event.preventDefault();
-  event.stopPropagation();
-  const trigger = isTouchPointer
-    ? "touch"
-    : event.button === 1
-      ? "middle"
-      : "space";
-  startPanMode(event, trigger);
-});
-
-roomOverlay.addEventListener("click", (event) => {
-  if (performance.now() < (state.polygonEditor.suppressRoomClickUntil || 0)) {
-    return;
-  }
-  if (event.target !== roomOverlay) {
-    return;
-  }
-  if (isPanArbitrating()) {
-    return;
-  }
-  if (
-    state.polygonEditor.dragVertexIndex !== null ||
-    state.polygonEditor.dragAreaPointerId !== null ||
-    state.shipPolygonEditor.dragVertexIndex !== null ||
-    state.polygonEditor.pendingAreaPointerId !== null
-  ) {
-    return;
-  }
-  clearSelectedRoomSelection("Room management: selection cleared (empty board click)");
-});
-
-document.addEventListener("keydown", (event) => {
-  if (state.uiView === "settings" && outputRole === OUTPUT_ROLE_CONTROL && !event.defaultPrevented) {
-    const key = String(event.key || "").toLowerCase();
-    const modifierPressed = event.ctrlKey || event.metaKey;
-    const typingTarget = isTypingShortcutTarget(event.target);
-    const playAreaContext = isPlayAreaShortcutContext(event.target);
-    if (!typingTarget && !playAreaContext && modifierPressed && !event.altKey && !event.shiftKey && key === "c") {
-      event.preventDefault();
-      copySelectedRoomToClipboard();
-      return;
-    }
-    if (!typingTarget && !playAreaContext && modifierPressed && !event.altKey && !event.shiftKey && key === "v") {
-      event.preventDefault();
-      pasteRoomFromClipboard();
-      return;
-    }
-    if (
-      !typingTarget &&
-      !playAreaContext &&
-      !modifierPressed &&
-      !event.altKey &&
-      (key === "delete" || event.code === "Delete")
-    ) {
-      event.preventDefault();
-      const shouldDeleteVertex =
-        state.polygonEditor.vertexSelectionActive &&
-        areRoomVerticesEditable() &&
-        Boolean(getActivePolygonRoomId(state.boardId));
-      if (shouldDeleteVertex) {
-        deleteSelectedPolygonVertex();
-      } else {
-        deleteSelectedRoom();
-      }
-      return;
-    }
-  }
-  if (event.code === "Space") {
-    if (event.repeat) {
-      return;
-    }
-    state.panMode.spacePressed = true;
-    if (state.polygonEditor.dragVertexIndex !== null) {
-      finishPolygonVertexDrag(null, { cancel: true });
-    }
-    if (state.polygonEditor.dragAreaPointerId !== null) {
-      finishPolygonAreaDrag(null, { cancel: true });
-    }
-    if (state.polygonEditor.pendingAreaPointerId !== null) {
-      clearPendingPolygonAreaDragSession();
-    }
-    if (state.shipPolygonEditor.dragVertexIndex !== null) {
-      finishShipPolygonVertexDrag(null, { cancel: true });
-    }
-    setPanCursorState();
-    return;
-  }
-  if (event.key === "Escape") {
-    if (state.polygonEditor.dragVertexIndex !== null) {
-      finishPolygonVertexDrag(null, { cancel: true });
-      return;
-    }
-    if (state.polygonEditor.dragAreaPointerId !== null) {
-      finishPolygonAreaDrag(null, { cancel: true });
-      return;
-    }
-    if (state.shipPolygonEditor.dragVertexIndex !== null) {
-      finishShipPolygonVertexDrag(null, { cancel: true });
-    }
-  }
-});
-
-document.addEventListener("keyup", (event) => {
-  if (event.code !== "Space") {
-    return;
-  }
-  state.panMode.spacePressed = false;
-  if (state.panMode.active && state.panMode.trigger === "space") {
-    endPanMode(null, { canceled: false });
-  } else {
-    setPanCursorState();
-  }
-});
-
-window.addEventListener("blur", () => {
-  state.panMode.spacePressed = false;
-  if (state.shipPolygonEditor.dragVertexIndex !== null) {
-    finishShipPolygonVertexDrag(null, { cancel: true });
-  }
-  if (state.polygonEditor.dragAreaPointerId !== null) {
-    finishPolygonAreaDrag(null, { cancel: true });
-  }
-  if (state.polygonEditor.pendingAreaPointerId !== null) {
-    clearPendingPolygonAreaDragSession();
-  }
-  endPanMode(null, { canceled: true });
-  resetClearAllGuard();
-  clearAllQuickModeInflight();
-  setPanCursorState();
-});
-
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    liveSync.preferFastPollingUntil = Date.now() + 2000;
-    scheduleNextLiveSnapshotPoll(0);
-    return;
-  }
-  scheduleNextLiveSnapshotPoll();
-});
-
-window.addEventListener("orientationchange", () => {
-  scheduleStageViewportLifecycle("orientationchange");
-  syncDashboardZoneVisibility();
-  syncMobileStickyOffsets();
-  const orientationOk = runOrientationStateRegression();
-  const navigationOk = runNavigationStateRegression();
-  const projectionOk = runMobileProjectionVisibilityGuard({ context: "orientationchange" });
-  const ok = orientationOk && navigationOk && projectionOk;
-  triggerFeedback.textContent = ok
-    ? "Status: Orientation changed, UI state/navigation/board visibility stable"
-    : "Status: Orientation guard detected drift in state, navigation, or board visibility";
-});
-
-window.addEventListener("resize", () => {
-  scheduleStageViewportLifecycle("window-resize");
-});
-
-document.addEventListener("fullscreenchange", () => {
-  scheduleStageViewportLifecycle("fullscreenchange");
-});
-
-window.addEventListener(
-  "scroll",
-  () => {
-    syncMobileStickyOffsets();
-    const navigationOk = validateViewNavigationVisibility({ silent: true, context: "scroll" });
-    const projectionOk = runMobileProjectionVisibilityGuard({ silent: true, context: "scroll" });
-    if (!navigationOk || !projectionOk) {
-      triggerFeedback.textContent =
-        "Status: Scroll guard detected navigation/board overlap in mobile layout";
-    }
-  },
-  { passive: true },
-);
-
-document.addEventListener("click", (event) => {
-  const button = event.target instanceof Element ? event.target.closest("button[data-global]") : null;
-  if (!button) {
-    return;
-  }
-  const type = button.dataset.global;
-  if (shouldSuppressRapidTap(`global-${type}`)) {
-    return;
-  }
-  recordTriggerIntent();
-  setDashboardZone("trigger");
-  const loopUntilStopped = Boolean(dashboardGlobalLoopUntilStopInput?.checked);
-  const playSound = dashboardGlobalPlaySoundInput ? dashboardGlobalPlaySoundInput.checked : true;
-  upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped, playSound });
+// Phase 14-2: roomOverlay pointer + document keyboard + window-level
+// event binders moved to src/app/runtime/runtime-wire-overlay-window-binders.js.
+window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
+  state,
+  liveSync,
+  roomOverlay,
+  triggerFeedback,
+  dashboardGlobalLoopUntilStopInput,
+  dashboardGlobalPlaySoundInput,
+  outputRole,
+  OUTPUT_ROLE_CONTROL,
+  GLOBAL_ONE_SHOT_DURATION_SEC,
+  arePlayAreaVerticesEditable: () => arePlayAreaVerticesEditable(),
+  areRoomVerticesEditable: () => areRoomVerticesEditable(),
+  getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
+  setShipPolygonPoints: (boardId, points) => setShipPolygonPoints(boardId, points),
+  getNormalizedOverlayPoint: (event) => getNormalizedOverlayPoint(event),
+  clampDisplayNormalizedCoordinate: (v) => clampDisplayNormalizedCoordinate(v),
+  applyIncrementalShipDrag: (refs, points) => applyIncrementalShipDrag(refs, points),
+  applyIncrementalRoomDrag: (refs, points) => applyIncrementalRoomDrag(refs, points),
+  syncShipPolygonEditorStatus: () => syncShipPolygonEditorStatus(),
+  syncPolygonEditorStatus: () => syncPolygonEditorStatus(),
+  maybePromotePendingPolygonAreaDrag: (event) => maybePromotePendingPolygonAreaDrag(event),
+  clampRoomAbsoluteCoordinate: (v) => clampRoomAbsoluteCoordinate(v),
+  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  getBoard: (boardId) => getBoard(boardId),
+  getRoomPoints: (room, boardId) => getRoomPoints(room, boardId),
+  projectDisplayNormalizedToRoomRaw: (x, y, room, boardId) => projectDisplayNormalizedToRoomRaw(x, y, room, boardId),
+  finishShipPolygonVertexDrag: (event, opts) => finishShipPolygonVertexDrag(event, opts),
+  finishPolygonAreaDrag: (event, opts) => finishPolygonAreaDrag(event, opts),
+  finishPolygonVertexDrag: (event, opts) => finishPolygonVertexDrag(event, opts),
+  preserveRoomSelectionAfterPointerLifecycle: () => preserveRoomSelectionAfterPointerLifecycle(),
+  clearPendingPolygonAreaDragSession: () => clearPendingPolygonAreaDragSession(),
+  canStartPanModeFromEvent: (event) => canStartPanModeFromEvent(event),
+  startPanMode: (event, trigger) => startPanMode(event, trigger),
+  endPanMode: (event, opts) => endPanMode(event, opts),
+  isPanArbitrating: () => isPanArbitrating(),
+  scheduleZoomUpdate: (update) => scheduleZoomUpdate(update),
+  setPanCursorState: () => setPanCursorState(),
+  clearSelectedRoomSelection: (reason) => clearSelectedRoomSelection(reason),
+  isTypingShortcutTarget: (target) => isTypingShortcutTarget(target),
+  isPlayAreaShortcutContext: (target) => isPlayAreaShortcutContext(target),
+  copySelectedRoomToClipboard: () => copySelectedRoomToClipboard(),
+  pasteRoomFromClipboard: () => pasteRoomFromClipboard(),
+  deleteSelectedPolygonVertex: () => deleteSelectedPolygonVertex(),
+  deleteSelectedRoom: () => deleteSelectedRoom(),
+  getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
+  resetClearAllGuard: () => resetClearAllGuard(),
+  clearAllQuickModeInflight: () => clearAllQuickModeInflight(),
+  scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
+  scheduleStageViewportLifecycle: (reason) => scheduleStageViewportLifecycle(reason),
+  syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
+  syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
+  runOrientationStateRegression: () => runOrientationStateRegression(),
+  runNavigationStateRegression: () => runNavigationStateRegression(),
+  runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
+  validateViewNavigationVisibility: (opts) => validateViewNavigationVisibility(opts),
+  shouldSuppressRapidTap: (key) => shouldSuppressRapidTap(key),
+  recordTriggerIntent: () => recordTriggerIntent(),
+  setDashboardZone: (zone) => setDashboardZone(zone),
+  upsertGlobalAnimation: (type, duration, opts) => upsertGlobalAnimation(type, duration, opts),
 });
 
 dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
