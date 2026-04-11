@@ -1697,94 +1697,47 @@ const {
   renderRoomOverlay,
 } = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR;
 
-function emitBoardLayoutContextMutation(boardId = state.boardId, reason = "board-select") {
-  const contextSwitchTransactionId = `context-switch-${boardId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  emitLiveMutation("context-update", {
-    reason,
-    contextSwitchTransactionId,
-    selectedBoard: boardId,
-    selectedLayout: boardId,
-    boardId,
-    layoutId: boardId,
-  });
-}
-
-function shouldPreserveLifecycleStatusFeedback() {
-  const text = typeof triggerFeedback?.textContent === "string" ? triggerFeedback.textContent : "";
-  if (!text) {
-    return false;
-  }
-  return /Pending:|\bstarted\b|\baccepted\b|\bStopping\.\.\.\b/i.test(text);
-}
-
-function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch", announceStatus = true } = {}) {
-  const switchStartedAt = performance.now();
-  const previousBoardId = state.boardId;
-  const previousRoomId = state.selectedRoomId;
-  if (previousBoardId && previousRoomId) {
-    state.selectedRoomByBoard[previousBoardId] = previousRoomId;
-  }
-
-  const board = getBoard(boardId);
-  state.boardId = board.id;
-  state.selectedBoard = board.id;
-  state.selectedLayout = board.id;
-  boardImage.src = board.src;
-  boardSelect.value = board.id;
-  boardStatus.textContent = `Active board: ${board.label}`;
-  const rememberedRoom = state.selectedRoomByBoard[board.id];
-  state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
-    ? rememberedRoom
-    : board.rooms[0]?.id ?? null;
-  state.selectedRoomByBoard[board.id] = state.selectedRoomId;
-  ensureBoardRoomStateMaps(board.id);
-  clearOutsideMp4PlaybackState(previousBoardId);
-  clearOutsideTimelineState(previousBoardId);
-  warmRoomGifAssets({ reason: "board-switch" });
-  prewarmBoardOutsideMp4Asset(board.id, { reason });
-  syncRoomPanelFromSelection();
-  syncHitareaCalibrationPanel();
-  syncRoomGeometryPanel();
-  syncPolygonEditorPanel();
-  syncShipPolygonEditorPanel();
-  syncRoomFxPanel();
-  syncInsideFxPanel();
-  syncOutsideFxPanel();
-  syncOutsideRuntimeMirror(board.id);
-  syncBoardZoomPanel();
-  setPanCursorState();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  renderRoomOverlay();
-  refreshGlobalButtons();
-  if (announceStatus && !shouldPreserveLifecycleStatusFeedback()) {
-    const durationMs = Math.round(Math.max(0, performance.now() - switchStartedAt));
-    triggerFeedback.textContent = `Status: board switched (${durationMs}ms)`;
-  }
-  if (emitLiveContext) {
-    emitBoardLayoutContextMutation(board.id, reason);
-  }
-}
-
-function ensureBoardRoomStateMaps(boardId) {
-  const board = getBoard(boardId);
-  const geometryMap = state.roomGeometryByBoard[boardId] ?? {};
-  const stateMap = state.roomStateProfilesByBoard[boardId] ?? {};
-  const tombstones = state.roomTombstonesByBoard?.[boardId] ?? [];
-  for (const room of board.rooms) {
-    if (!geometryMap[room.id]) {
-      geometryMap[room.id] = normalizeRoomGeometry(ROOM_GEOMETRY_DEFAULT, room, boardId);
-    }
-    if (!stateMap[room.id]) {
-      stateMap[room.id] = normalizeRoomStateProfile(ROOM_STATE_DEFAULT);
-    }
-  }
-  state.roomGeometryByBoard[boardId] = geometryMap;
-  state.roomStateProfilesByBoard[boardId] = stateMap;
-  if (!state.roomTombstonesByBoard) {
-    state.roomTombstonesByBoard = {};
-  }
-  state.roomTombstonesByBoard[boardId] = normalizeRoomTombstoneIds(tombstones, boardId);
-}
+// Phase 14-2: board switch cluster moved to
+// src/app/runtime/runtime-board-switch.js.
+window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
+  state,
+  ROOM_GEOMETRY_DEFAULT,
+  ROOM_STATE_DEFAULT,
+  canvas,
+  canvasCtx: ctx,
+  boardImage,
+  boardSelect,
+  boardStatus,
+  triggerFeedback,
+  getBoard: (boardId) => getBoard(boardId),
+  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  clearOutsideMp4PlaybackState: (boardId) => clearOutsideMp4PlaybackState(boardId),
+  clearOutsideTimelineState: (boardId) => clearOutsideTimelineState(boardId),
+  warmRoomGifAssets: (opts) => warmRoomGifAssets(opts),
+  prewarmBoardOutsideMp4Asset: (boardId, opts) => prewarmBoardOutsideMp4Asset(boardId, opts),
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
+  syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
+  syncRoomGeometryPanel: () => syncRoomGeometryPanel(),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncShipPolygonEditorPanel: () => syncShipPolygonEditorPanel(),
+  syncRoomFxPanel: () => syncRoomFxPanel(),
+  syncInsideFxPanel: () => syncInsideFxPanel(),
+  syncOutsideFxPanel: () => syncOutsideFxPanel(),
+  syncOutsideRuntimeMirror: (boardId) => syncOutsideRuntimeMirror(boardId),
+  syncBoardZoomPanel: () => syncBoardZoomPanel(),
+  setPanCursorState: () => setPanCursorState(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  refreshGlobalButtons: () => refreshGlobalButtons(),
+  normalizeRoomGeometry: (geometry, room, boardId) => normalizeRoomGeometry(geometry, room, boardId),
+  normalizeRoomStateProfile: (profile) => normalizeRoomStateProfile(profile),
+  normalizeRoomTombstoneIds: (ids, boardId) => normalizeRoomTombstoneIds(ids, boardId),
+});
+const {
+  emitBoardLayoutContextMutation,
+  shouldPreserveLifecycleStatusFeedback,
+  switchBoard,
+  ensureBoardRoomStateMaps,
+} = window.TT_BEAMER_RUNTIME_BOARD_SWITCH;
 
 // Phase 14-2: room + cluster management (~615 LOC) moved to
 // src/app/runtime/runtime-room-management.js. Init + destructure
