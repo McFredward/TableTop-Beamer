@@ -1,0 +1,26 @@
+{
+  "suite": "P13-HF13-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF13-1-state-roomStretchAnchorCache-declared": true,
+    "G13-HF13-2-getStableRoomStretchAnchor-defined-and-lazy": true,
+    "G13-HF13-3-getRoomTransform-uses-stable-anchor-not-raw-center": true,
+    "G13-HF13-4-getRoomPoints-reads-baseCenter-from-transform": true,
+    "G13-HF13-5-hydration-clears-stretch-anchor-cache": true,
+    "G13-HF13-6-HF12-frozen-transform-helpers-removed": true,
+    "G13-HF13-7-projectDisplayNormalizedToRoomRaw-uses-live-transform": true,
+    "G13-HF13-8-clampDisplayNormalizedCoordinate-0-1-preserved": true,
+    "G13-HF13-9-beginPolygonVertexDrag-captures-display-space-offset": true,
+    "G13-HF13-10-vertex-drag-pointermove-live-pipeline": true,
+    "G13-HF13-11-area-drag-pointermove-still-live-getRoomPoints": true,
+    "G13-HF13-12-clearPolygonDragSession-no-frozen-ref": true,
+    "G13-HF13-NR-HF11-incremental-drag-signature": true,
+    "G13-HF13-NR-HF10-render-before-begin": true,
+    "G13-HF13-NR-HF9-cached-dom-refs": true,
+    "G13-HF13-NR-HF8-heavy-interaction-gate": true,
+    "G13-HF13-NR-HF7-touchGestureActive": true,
+    "G13-HF13-NR-Phase-12-additive-layering": true,
+    "G13-HF13-NR-Phase-13-1-dirty-flag": true
+  }
+}
