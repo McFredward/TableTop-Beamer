@@ -1,0 +1,284 @@
+{
+  "suite": "P12-T7-order-invariance-fail-pass-proof",
+  "phase": "FAIL-PASS",
+  "expected": "PASS",
+  "observed": "PASS",
+  "redBaseline": {
+    "source": "debug/p12-t1-order-occlusion-red-output.json",
+    "alarmThenMalfunction": {
+      "r": 3.996
+    },
+    "malfunctionThenAlarm": {
+      "r": 87.228
+    },
+    "orderInvariant": false
+  },
+  "greenEvidence": {
+    "alarmThenMalfunction": {
+      "r": 106.7,
+      "g": 37.3,
+      "b": 45.3,
+      "a": 1
+    },
+    "malfunctionThenAlarm": {
+      "r": 106.7,
+      "g": 37.3,
+      "b": 45.3,
+      "a": 1
+    },
+    "orderInvariant": true,
+    "tripleResults": [
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      },
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      },
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      },
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      },
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      },
+      {
+        "r": 255,
+        "g": 107.6,
+        "b": 112.5,
+        "a": 1
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "fix-concurrency-map-build-present",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "fix-concurrency-map-exposed-on-runtime-perf",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "fix-room-branch-guard-site-present",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "fix-cluster-member-branch-guard-site-present",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "order-invariance-coded-alarm-plus-coded-malfunction",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 106.7,
+          "g": 37.3,
+          "b": 45.3,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 106.7,
+          "g": 37.3,
+          "b": 45.3,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-mp4-alarm-plus-mp4-malfunction",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 228.8,
+          "g": 59.8,
+          "b": 73.2,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 228.8,
+          "g": 59.8,
+          "b": 73.2,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-gif-alarm-plus-gif-malfunction",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 230.8,
+          "g": 90,
+          "b": 94.6,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 230.8,
+          "g": 90,
+          "b": 94.6,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-mixed-coded-vs-mp4",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 117.5,
+          "g": 48.099999999999994,
+          "b": 61.5,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 117.5,
+          "g": 48.099999999999994,
+          "b": 61.5,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-mixed-gif-vs-coded",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 224,
+          "g": 81.5,
+          "b": 81,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 224,
+          "g": 81.5,
+          "b": 81,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-mixed-mp4-vs-gif",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "abThenBa": {
+          "r": 224.8,
+          "g": 57.5,
+          "b": 70.6,
+          "a": 1
+        },
+        "baThenAb": {
+          "r": 224.8,
+          "g": 57.5,
+          "b": 70.6,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "triple-permutation-order-invariance-coded-mp4-gif",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "tripleResults": [
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          },
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          },
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          },
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          },
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          },
+          {
+            "r": 255,
+            "g": 107.6,
+            "b": 112.5,
+            "a": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-animation-room-keeps-source-over-blend",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "singleMalfunction": {
+          "r": 0.8000000000000007,
+          "g": 0.8800000000000008,
+          "b": 1.200000000000001,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "alarm-visible-regardless-of-order",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "fixedAlarmOrderResult": {
+          "r": 106.7,
+          "g": 37.3,
+          "b": 45.3,
+          "a": 1
+        },
+        "fixedMalfunctionOrderResult": {
+          "r": 106.7,
+          "g": 37.3,
+          "b": 45.3,
+          "a": 1
+        },
+        "preFixAlarmOrderR": 3.996,
+        "preFixMalfunctionOrderR": 87.228
+      }
+    }
+  ]
+}
