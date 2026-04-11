@@ -15,29 +15,36 @@ const g13_hf13_1 =
   runtimeSrc.includes("state.roomStretchAnchorCache = new Map();");
 
 // G13-HF13-2: getStableRoomStretchAnchor populates the cache lazily.
+// Phase 14-2: the helper now lives in runtime-room-geometry.js. The
+// `boardId = state.boardId` default became an inside-the-body
+// `effectiveBoardId` fallback because the module no longer has
+// direct lexical access to the runtime `state` binding.
 const g13_hf13_2 =
-  runtimeSrc.includes("function getStableRoomStretchAnchor(room, boardId = state.boardId)")
-  && /const key = `\$\{boardId\}::\$\{room\.id\}`;[\s\S]*?const cached = state\.roomStretchAnchorCache\.get\(key\);[\s\S]*?if \(cached\) return cached;/.test(runtimeSrc)
+  /function getStableRoomStretchAnchor\(room, boardId[^)]*\) \{/.test(runtimeSrc)
+  && /const cached = state\.roomStretchAnchorCache\.get\(key\);[\s\S]*?if \(cached\) return cached;/.test(runtimeSrc)
   && runtimeSrc.includes("state.roomStretchAnchorCache.set(key, anchor);");
 
 // G13-HF13-3: getRoomTransform reads the stable anchor and exposes it
 // on the returned transform (so getRoomPoints can reuse the same point).
-const getRoomTransformBody = runtimeSrc.slice(
-  runtimeSrc.indexOf("function getRoomTransform(room, boardId = state.boardId)"),
-  runtimeSrc.indexOf("function getRoomPoints(room, boardId = state.boardId)"),
-);
+// Phase 14-2: body moved to the extracted module; we match the relaxed
+// signature and scan the body for the stable-anchor call + exposed
+// baseCenter fields.
+const getRoomTransformStart = runtimeSrc.search(/function getRoomTransform\(room, boardId[^)]*\) \{/);
+const getRoomTransformBody = getRoomTransformStart >= 0
+  ? runtimeSrc.slice(getRoomTransformStart, getRoomTransformStart + 800)
+  : "";
 const g13_hf13_3 =
-  getRoomTransformBody.includes("const baseCenter = getStableRoomStretchAnchor(room, boardId);")
+  /const baseCenter = getStableRoomStretchAnchor\(room,/.test(getRoomTransformBody)
   && getRoomTransformBody.includes("baseCenterX: baseCenter.x,")
   && getRoomTransformBody.includes("baseCenterY: baseCenter.y,")
   && !getRoomTransformBody.includes("getRawRoomCenter");
 
 // G13-HF13-4: getRoomPoints's stretch origin comes from the transform
 // (stable anchor) — the old call to getRoomCenterFromPoints is gone.
-const getRoomPointsBody = runtimeSrc.slice(
-  runtimeSrc.indexOf("function getRoomPoints(room, boardId = state.boardId)"),
-  runtimeSrc.indexOf("function getRoomPoints(room, boardId = state.boardId)") + 1500,
-);
+const getRoomPointsStart = runtimeSrc.search(/function getRoomPoints\(room, boardId[^)]*\) \{/);
+const getRoomPointsBody = getRoomPointsStart >= 0
+  ? runtimeSrc.slice(getRoomPointsStart, getRoomPointsStart + 1800)
+  : "";
 const g13_hf13_4 =
   getRoomPointsBody.includes("const baseCenter = { x: transform.baseCenterX, y: transform.baseCenterY };")
   && !getRoomPointsBody.includes("getRoomCenterFromPoints(sourcePoints)");
