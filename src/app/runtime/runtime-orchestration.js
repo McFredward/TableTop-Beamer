@@ -3597,39 +3597,6 @@ function updateActiveBoardHitareaCalibration(partial) {
   hitareaStatus.textContent = `${hitareaStatus.textContent} (not saved)`;
 }
 
-hitareaOffsetXInput.addEventListener("input", () => {
-  const offsetX = clampHitareaOffset(Number(hitareaOffsetXInput.value));
-  updateActiveBoardHitareaCalibration({ offsetX });
-});
-
-hitareaOffsetYInput.addEventListener("input", () => {
-  const offsetY = clampHitareaOffset(Number(hitareaOffsetYInput.value));
-  updateActiveBoardHitareaCalibration({ offsetY });
-});
-
-hitareaScaleInput.addEventListener("input", () => {
-  const scale = clampHitareaScale(Number(hitareaScaleInput.value));
-  updateActiveBoardHitareaCalibration({ scale });
-});
-
-hitareaSaveButton.addEventListener("click", () => {
-  const persisted = persistBoardProfiles();
-  syncHitareaCalibrationPanel();
-  triggerFeedback.textContent = persisted
-    ? "Status: Board profile (hit area + geometry + shapes) saved"
-    : "Status: Board profile could not be saved";
-});
-
-hitareaResetButton.addEventListener("click", () => {
-  setHitareaCalibration(state.boardId, HITAREA_CALIBRATION_DEFAULT);
-  const persisted = persistBoardProfiles();
-  syncHitareaCalibrationPanel();
-  renderRoomOverlay();
-  triggerFeedback.textContent = persisted
-    ? "Status: Hit area calibration reset to default"
-    : "Status: Hit area default applied, persistence failed";
-});
-
 function updateSelectedRoomGeometry(partial, statusSuffix = "") {
   const room = getSelectedRoom();
   if (!room) {
@@ -3646,63 +3613,38 @@ function updateSelectedRoomGeometry(partial, statusSuffix = "") {
   }
 }
 
-roomGeometryModeInput.addEventListener("change", () => {
-  const room = getSelectedRoom();
-  if (!room) {
-    return;
-  }
-  const current = getRoomGeometry(state.boardId, room.id);
-  const baseCenter = getRawRoomCenter(room);
-  const nextMode = normalizeRoomGeometryMode(roomGeometryModeInput.value);
-  if (nextMode === "absolute") {
-    const absoluteX = clampRoomAbsoluteCoordinate(baseCenter.x + current.offsetX);
-    const absoluteY = clampRoomAbsoluteCoordinate(baseCenter.y + current.offsetY);
-    updateSelectedRoomGeometry({ mode: nextMode, absoluteX, absoluteY }, "set to ABS mode");
-  } else {
-    const offsetX = clampRoomRelativeOffset(current.absoluteX - baseCenter.x);
-    const offsetY = clampRoomRelativeOffset(current.absoluteY - baseCenter.y);
-    updateSelectedRoomGeometry({ mode: nextMode, offsetX, offsetY }, "set to REL mode");
-  }
-});
 
-roomGeometryXInput.addEventListener("input", () => {
-  const room = getSelectedRoom();
-  if (!room) {
-    return;
-  }
-  const geometry = getRoomGeometry(state.boardId, room.id);
-  if (geometry.mode === "absolute") {
-    const absoluteX = clampRoomAbsoluteCoordinate(Number(roomGeometryXInput.value));
-    updateSelectedRoomGeometry({ absoluteX }, "X calibrated (ABS)");
-  } else {
-    const offsetX = clampRoomRelativeOffset(Number(roomGeometryXInput.value));
-    updateSelectedRoomGeometry({ offsetX }, "X calibrated (REL)");
-  }
-});
-
-roomGeometryYInput.addEventListener("input", () => {
-  const room = getSelectedRoom();
-  if (!room) {
-    return;
-  }
-  const geometry = getRoomGeometry(state.boardId, room.id);
-  if (geometry.mode === "absolute") {
-    const absoluteY = clampRoomAbsoluteCoordinate(Number(roomGeometryYInput.value));
-    updateSelectedRoomGeometry({ absoluteY }, "Y calibrated (ABS)");
-  } else {
-    const offsetY = clampRoomRelativeOffset(Number(roomGeometryYInput.value));
-    updateSelectedRoomGeometry({ offsetY }, "Y calibrated (REL)");
-  }
-});
-
-roomGeometryStretchXInput.addEventListener("input", () => {
-  const stretchX = clampRoomStretch(Number(roomGeometryStretchXInput.value));
-  updateSelectedRoomGeometry({ stretchX }, "Stretch X set");
-});
-
-roomGeometryStretchYInput.addEventListener("input", () => {
-  const stretchY = clampRoomStretch(Number(roomGeometryStretchYInput.value));
-  updateSelectedRoomGeometry({ stretchY }, "Stretch Y set");
+// Phase 14-2: hitarea + room geometry event binders moved to
+// src/app/runtime/runtime-wire-calibration-binders.js.
+window.TT_BEAMER_RUNTIME_WIRE_CALIBRATION_BINDERS.wireCalibrationBinders({
+  state,
+  hitareaOffsetXInput,
+  hitareaOffsetYInput,
+  hitareaScaleInput,
+  hitareaSaveButton,
+  hitareaResetButton,
+  roomGeometryModeInput,
+  roomGeometryXInput,
+  roomGeometryYInput,
+  roomGeometryStretchXInput,
+  roomGeometryStretchYInput,
+  HITAREA_CALIBRATION_DEFAULT,
+  clampHitareaOffset,
+  clampHitareaScale,
+  clampRoomAbsoluteCoordinate,
+  clampRoomRelativeOffset,
+  clampRoomStretch: (v) => clampRoomStretch(v),
+  updateActiveBoardHitareaCalibration: (partial) => updateActiveBoardHitareaCalibration(partial),
+  setHitareaCalibration: (boardId, calibration) => setHitareaCalibration(boardId, calibration),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  triggerFeedback,
+  getSelectedRoom: () => getSelectedRoom(),
+  getRoomGeometry: (boardId, roomId) => getRoomGeometry(boardId, roomId),
+  getRawRoomCenter: (room, boardId) => getRawRoomCenter(room, boardId),
+  normalizeRoomGeometryMode: (mode) => normalizeRoomGeometryMode(mode),
+  updateSelectedRoomGeometry: (partial, suffix) => updateSelectedRoomGeometry(partial, suffix),
 });
 
 // Phase 13-2: zoom slider removed. Wheel + pinch gestures below replace it.
