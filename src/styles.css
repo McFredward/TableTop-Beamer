@@ -112,6 +112,17 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  /* Phase 13-HF7: force GPU layer promotion so CSS transform updates
+     do not re-rasterize the stage subtree on the main thread. Without
+     this hint, every --stage-pan-x / --stage-pan-y update forces the
+     compositor to re-paint the board image + canvas + SVG overlay on
+     the CPU — the dominant cause of mobile pan/zoom lag after HF6.
+     will-change promotes the element to its own compositor layer;
+     contain: paint isolates paint invalidations so the rest of the
+     page does not force stage repaints. */
+  will-change: transform;
+  contain: paint;
+  backface-visibility: hidden;
 }
 .stage img,
 .stage svg {

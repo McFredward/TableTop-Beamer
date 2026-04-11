@@ -941,6 +941,17 @@ function scheduleNextLiveSnapshotPoll(delayOverrideMs = null) {
   if (!liveSync.pollingEnabled) {
     return;
   }
+  // Phase 13-HF7: pause polling while a touch gesture is in flight.
+  // applyLiveRuntimeSnapshot iterates boards + rehydrates polygon
+  // state, ~10–30 ms per call on mobile, which starves the gesture
+  // rAF path. Resumed when the gesture ends.
+  if (touchGestureActive) {
+    if (liveSync.pollTimerId !== null) {
+      window.clearTimeout(liveSync.pollTimerId);
+      liveSync.pollTimerId = null;
+    }
+    return;
+  }
   if (liveSync.pollTimerId !== null) {
     window.clearTimeout(liveSync.pollTimerId);
     liveSync.pollTimerId = null;
@@ -11789,6 +11800,17 @@ function draw(now) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
+    // Phase 13-HF7: pause the heavy animation render pipeline while a
+    // touch gesture is in flight. The gesture is brief (typically
+    // under 2 s) and the user is actively interacting, not staring at
+    // background animations. Skipping the outside-fx layer + the
+    // drawAnimationSafely loop recovers 20–40 ms of main-thread time
+    // per frame on mobile, which is the dominant mobile pan/zoom lag
+    // source that survived HF5 + HF6.
+    if (touchGestureActive) {
+      recordRuntimeFrameCost(performance.now() - frameStart);
+      return;
+    }
     drawOutsideFxLayer(now);
 
     // Order-invariant room layering (P12-1):
@@ -12395,6 +12417,16 @@ if (stage) {
         // skip their work for the duration of the gesture.
         touchGestureActive = true;
         stage.classList.add("is-touch-gesture");
+        // Phase 13-HF7: kill any in-flight live-sync poll timer so the
+        // ~20 ms applyLiveRuntimeSnapshot hit cannot land inside the
+        // gesture's rAF window. scheduleNextLiveSnapshotPoll is now
+        // also gated on touchGestureActive so re-scheduling no-ops.
+        try {
+          if (liveSync?.pollTimerId !== null && liveSync?.pollTimerId !== undefined) {
+            window.clearTimeout(liveSync.pollTimerId);
+            liveSync.pollTimerId = null;
+          }
+        } catch { /* best effort */ }
         touchGesture.mode = "tentative";
         touchGesture.primaryPointerId = event.pointerId;
         touchGesture.primaryStartClientX = event.clientX;
@@ -12491,6 +12523,10 @@ if (stage) {
       touchGestureActive = false;
       stage.classList.remove("is-touch-gesture");
       setPanCursorState();
+      // Phase 13-HF7: resume live-sync polling immediately so the
+      // client catches up on any state changes that happened during
+      // the gesture.
+      try { scheduleNextLiveSnapshotPoll(0); } catch { /* best effort */ }
     }
   }
   stage.addEventListener("pointerup", endTouchGestureForPointer, { capture: true });

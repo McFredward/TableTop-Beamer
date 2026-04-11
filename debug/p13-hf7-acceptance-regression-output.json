@@ -1,0 +1,16 @@
+{
+  "suite": "P13-HF7-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF7-1-GPU-Layer-Promotion": true,
+    "G13-HF7-2-Draw-Loop-Paused-During-Gesture": true,
+    "G13-HF7-3-Poll-Gated-On-TouchGestureActive": true,
+    "G13-HF7-4-Gesture-Start-Aborts-In-Flight-Poll": true,
+    "G13-HF7-5-Gesture-End-Resumes-Poll": true,
+    "G13-HF7-6-HF6-Guards-NonRegression": true,
+    "G13-HF7-non-regression-Phase-11-HF6": true,
+    "G13-HF7-non-regression-Phase-12": true,
+    "G13-HF7-non-regression-Phase-13-1": true
+  }
+}
