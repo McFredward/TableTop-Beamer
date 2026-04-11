@@ -2276,17 +2276,44 @@ function getCurrentPolygonHandleScale() {
   return clampPolygonHandleScale(state.polygonEditor.handleScale);
 }
 
+// Phase 13-3: coarse-pointer detection — touch/pen primary devices get
+// ~1.8x larger hit targets so fingertips can reliably grab polygon
+// vertices and edges. Re-evaluated on each call so `matchMedia` changes
+// (dock/undock, external pointer connect) reflect immediately.
+function getCoarsePointerHitMultiplier() {
+  try {
+    if (typeof window.matchMedia === "function") {
+      if (window.matchMedia("(pointer: coarse)").matches) return 1.8;
+      if (window.matchMedia("(any-pointer: coarse)").matches) return 1.5;
+    }
+  } catch {
+    // fall through to default
+  }
+  return 1;
+}
+
 function getPolygonEditorHandleMetrics(zoomScale, handleScale = 1) {
   const safeZoomScale = Math.max(0.1, Number(zoomScale) || 1);
   const inverseZoom = 1 / safeZoomScale;
   const normalizedHandleScale = clampPolygonHandleScale(handleScale);
+  const coarse = getCoarsePointerHitMultiplier();
   return {
-    edgeHitRadius: Math.max(8, 12 * inverseZoom) * normalizedHandleScale,
+    edgeHitRadius: Math.max(8, 12 * inverseZoom) * normalizedHandleScale * coarse,
     edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale,
-    vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale,
+    vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale * coarse,
     vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale,
     vertexLabelSize: Math.max(9, 11 * inverseZoom) * Math.max(0.9, normalizedHandleScale * 0.95),
   };
+}
+
+// Phase 13-3: shared guard for polygon vertex/edge pointerdown handlers.
+// Accepts touch pointers (which may report button === -1 on some browsers)
+// while still rejecting right-click / middle-click mouse events.
+function isAcceptablePolygonPointerEvent(event) {
+  if (!event) return false;
+  const pointerType = String(event.pointerType || "").toLowerCase();
+  if (pointerType === "touch" || pointerType === "pen") return true;
+  return event.button === 0;
 }
 
 function normalizeRoomGeometryMode(mode) {
@@ -7928,7 +7955,7 @@ function renderShipPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0 || !arePlayAreaVerticesEditable()) {
+      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !arePlayAreaVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -7973,7 +8000,7 @@ function renderShipPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0 || !arePlayAreaVerticesEditable()) {
+      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !arePlayAreaVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -8054,7 +8081,7 @@ function renderPolygonEditorHandles() {
     edgeHandle.setAttribute("cy", centerY);
     edgeHandle.setAttribute("r", edgeHandleRadius.toFixed(2));
     edgeHitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
+      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -8106,7 +8133,7 @@ function renderPolygonEditorHandles() {
     indexLabel.textContent = String(index + 1);
 
     hitTarget.addEventListener("pointerdown", (event) => {
-      if (isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
+      if (isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
         return;
       }
       event.stopPropagation();
@@ -8807,7 +8834,7 @@ function renderRoomOverlay() {
       renderRoomOverlay();
     });
     polygon.addEventListener("pointerdown", (event) => {
-      if (state.uiView !== "settings" || isPanArbitrating() || event.button !== 0 || !areRoomVerticesEditable()) {
+      if (state.uiView !== "settings" || isPanArbitrating() || !isAcceptablePolygonPointerEvent(event) || !areRoomVerticesEditable()) {
         return;
       }
       if (
@@ -11974,7 +12001,33 @@ if (stage) {
 
   function shouldCaptureForPinch(event) {
     // Only respond to touch/pen inputs; mouse uses the wheel handler.
-    return event.pointerType === "touch" || event.pointerType === "pen";
+    if (event.pointerType !== "touch" && event.pointerType !== "pen") {
+      return false;
+    }
+    // Phase 13-3 arbitration: if a polygon vertex/area drag is active,
+    // pinch must not steal its pointer. The drag handlers own their own
+    // pointer ids; we bail out of pinch capture entirely while any drag
+    // is mid-flight so users never see the board zoom out from under a
+    // vertex they are trying to move.
+    if (
+      state?.polygonEditor?.dragPointerId !== null
+      && state?.polygonEditor?.dragPointerId !== undefined
+    ) {
+      return false;
+    }
+    if (
+      state?.polygonEditor?.dragAreaPointerId !== null
+      && state?.polygonEditor?.dragAreaPointerId !== undefined
+    ) {
+      return false;
+    }
+    if (
+      state?.shipPolygonEditor?.dragPointerId !== null
+      && state?.shipPolygonEditor?.dragPointerId !== undefined
+    ) {
+      return false;
+    }
+    return true;
   }
 
   stage.addEventListener("pointerdown", (event) => {

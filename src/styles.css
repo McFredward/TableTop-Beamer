@@ -116,6 +116,11 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   inset: 0;
   width: 100%;
   height: 100%;
+  /* Phase 13-3: touch polygon editing. Disable the browser's native
+     touch gestures (native pan / pinch) on the overlay so single-finger
+     drag lands as a pointer event on the vertex hit target. Zoom
+     gestures live on the parent #stage and remain available. */
+  touch-action: none;
 }
 
 #board-image {

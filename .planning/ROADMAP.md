@@ -68,7 +68,7 @@ Exit Criteria:
 - A->B vs. B->A Trigger-Reihenfolge produziert identisches visuelles Endergebnis, wenn beide Animationen gleichzeitig laufen.
 - Loop-Mode, Global-Trigger und bestehende Regression-Matrix sind unveraendert PASS.
 
-## Phase 13 - Server-Authoritative Config + Gesture Zoom + Touch Polygon Editing (Active)
+## Phase 13 - Server-Authoritative Config + Gesture Zoom + Touch Polygon Editing (Plans 13-1/13-2/13-3 CLOSED PASS — static guards)
 Ziel: Browser-Persistenz komplett entfernen (single source of truth = Server-Config), Zoom-Slider durch Mausrad/Pinch-Gesten ersetzen, Polygon-Vertex-Editing auf Touch zuverlaessig machen.
 
 Status: Plan 13-1 execute-ready und aktiv. 13-2 und 13-3 blockiert auf 13-1 PASS.
@@ -92,3 +92,27 @@ User Decisions (2026-04-11):
 - Write cadence -> 200ms debounce.
 - Zoom range -> 25% bis 400%.
 - Subtab memory -> sessionStorage (ephemer).
+
+Execution Update (13-1):
+- Completed: Server-authoritative config pivot. 32 browser-storage references removed from runtime (zero `localStorage`/`indexedDB` function calls remain in `src/app/**` and `src/live/**`, only documentation comments).
+- Completed: `persistBoardProfiles()` body replaced with 200ms-debounced `scheduleGlobalConfigWrite()`; 44 call sites unchanged.
+- Completed: Blocking startup with full-screen "Server nicht erreichbar" overlay + Retry button.
+- Completed: Server broadcasts `global-config-update` after every write; clients refetch + apply via existing WebSocket.
+- Completed: Save-to-global / Load-and-apply buttons removed; Import-from-file button added.
+- Completed: Settings subtab -> sessionStorage; API base + log level -> URL query params.
+- Verification PASS: `.planning/phases/phase-13/13-1-VERIFICATION.md`, `debug/p13-1-acceptance-regression-output.json`.
+
+Execution Update (13-2):
+- Completed: Zoom slider removed from DOM + JS; wheel handler (cursor-anchored) + two-finger pinch handler (midpoint-anchored) on `#stage`.
+- Completed: Zoom range extended to `[0.25, 4.0]` via new `BOARD_ZOOM_SCALE_MIN`/`MAX` constants.
+- Completed: Pan mode, fit-to-room, reset-zoom buttons unchanged.
+- Verification PASS: `.planning/phases/phase-13/13-2-VERIFICATION.md`, `debug/p13-2-acceptance-regression-output.json`.
+
+Execution Update (13-3):
+- Completed: `isAcceptablePolygonPointerEvent` accepts touch/pen pointers; 5 `event.button !== 0` sites replaced.
+- Completed: `getCoarsePointerHitMultiplier` scales vertex + edge hit radii by 1.8x on `(pointer: coarse)` devices; visual handles unchanged.
+- Completed: `#room-overlay { touch-action: none; }` in `src/styles.css`.
+- Completed: Pinch gesture arbitration — active polygon drags block pinch capture.
+- Verification PASS: `.planning/phases/phase-13/13-3-VERIFICATION.md`, `debug/p13-3-acceptance-regression-output.json`.
+
+Phase 13 Closure: all three plans PASS static guards. In-browser verification by the user is the remaining gate before merge (multi-device config sync, server-offline overlay + retry, wheel + pinch zoom centered on anchor, touch polygon drag on a real touchscreen).

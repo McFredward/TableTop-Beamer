@@ -10,11 +10,11 @@
 - Current Phase: 13
 - Current Phase Key: phase-13
 - Last Prepared: 2026-04-11
-- Execution Readiness: READY (Plan 13-1 execute-ready)
+- Execution Readiness: READY (Plans 13-1 / 13-2 / 13-3 closed, awaiting in-browser user verification)
 - Previous Phase: 12 (CLOSED PASS at 12-1)
-- Last Executed Plan: 12-1 (PASS, order-invariant additive room animation layering closed)
-- Planned Next Execution: 13-1
-- Last Execution Summary: `.planning/phases/phase-12/12-1-VERIFICATION.md`
+- Last Executed Plan: 13-3 (PASS static guards, touch polygon editing closed)
+- Planned Next Execution: (awaiting user direction or HF wave after in-browser verification)
+- Last Execution Summary: `.planning/phases/phase-13/13-3-VERIFICATION.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -1282,3 +1282,43 @@
 - Bindende Zoom-Regel: Zoom-Slider entfaellt. Desktop = Mausrad (cursor-anchored). Mobile = Zwei-Finger-Pinch (midpoint-anchored). Range 25% bis 400%. Fit/Reset-Buttons bleiben.
 - Bindende Touch-Regel: Polygon-Vertex-Drag muss auf Mobile zuverlaessig funktionieren. Coarse-Pointer Hit-Radius >= 22px CSS, `touch-action: none` auf Overlay, `pointerType`-basierte Button-Gate, Pinch/Vertex-Drag-Arbitration.
 - Non-Regression-Regel: Phase 11 HF6 seen-once retention und Phase 12 additive layering bleiben statisch PASS.
+
+## Plan 13-1 Closure (static guards)
+- Plan 13-1 (Server-Authoritative Config) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
+- Server is single source of truth: POST /api/global-defaults writes atomically and broadcasts `global-config-update` via `broadcastLiveSession`.
+- Client `persistBoardProfiles()` body replaced with 200ms-debounced `scheduleGlobalConfigWrite()` which POSTs via the existing API facade. All 44 call sites unchanged.
+- Blocking startup hydration: `fetchGlobalDefaultsPayload()` at startup; on failure `renderServerUnreachableOverlay(error)` paints a full-screen error dialog with a Retry button.
+- Live-sync WebSocket handles `global-config-update` by refetching and applying.
+- Save-to-global and Load-and-apply buttons removed from DOM and handlers. Import-from-file button added.
+- Settings subtab memory migrated from localStorage to sessionStorage (ephemeral per browser tab).
+- API base override migrated from localStorage to URL query param (`?apiBase=...`).
+- Logger log-level migrated from localStorage to URL query param (`?logLevel=...`).
+- Global-defaults API facade no longer accepts localStorage argument.
+- 13 hard gates PASS (`debug/p13-1-acceptance-regression-output.json`, `.planning/phases/phase-13/13-1-VERIFICATION.md`).
+- User browser verification required before merge.
+
+## Plan 13-2 Closure (static guards)
+- Plan 13-2 (Gesture-Based Zoom) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
+- Zoom slider `#board-zoom-range` / `#board-zoom-value` removed from DOM and JS.
+- Zoom range extended to `[0.25, 4.0]` via `BOARD_ZOOM_SCALE_MIN` / `BOARD_ZOOM_SCALE_MAX` constants.
+- Mouse wheel handler on `#stage`: `passive: false` + `preventDefault`, exponential step (0.0018 damping), cursor-anchored focus.
+- Two-finger pinch handler on `#stage`: tracks PointerEvents with `pointerType === "touch"`/`"pen"`, computes distance ratio between samples, midpoint-anchored focus.
+- `applyZoomScaleFromGesture(nextScale, focus, reason)` helper preserves the focus anchor via `pan = anchor - (anchor - pan) * ratio`.
+- `syncBoardZoomPanel()` body trimmed — no more slider DOM writes — but ABI preserved for the ~20 call sites.
+- Fit-to-room and reset-zoom buttons preserved. Pan mode (space + drag / middle-mouse) unchanged.
+- 8 hard gates PASS (`debug/p13-2-acceptance-regression-output.json`, `.planning/phases/phase-13/13-2-VERIFICATION.md`).
+- User browser verification required.
+
+## Plan 13-3 Closure (static guards)
+- Plan 13-3 (Touch Polygon Editing) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
+- `isAcceptablePolygonPointerEvent(event)` helper accepts `pointerType === "touch"`/`"pen"` regardless of `event.button`, still requires `button === 0` for mouse. Replaces `event.button !== 0` in 5 vertex/edge/area pointerdown handlers.
+- `getCoarsePointerHitMultiplier()` helper checks `matchMedia("(pointer: coarse)")` (1.8x) and `(any-pointer: coarse)` (1.5x); `vertexHitRadius` and `edgeHitRadius` multiplied by coarse factor. Visual handle radii unchanged.
+- `#room-overlay { touch-action: none; }` in `src/styles.css` so single-finger drag lands on vertex hit targets instead of browser native pan.
+- Pinch gesture arbitration: `shouldCaptureForPinch` bails out when any polygon drag pointer id is set (`state.polygonEditor.dragPointerId`, `state.polygonEditor.dragAreaPointerId`, `state.shipPolygonEditor.dragPointerId`), preventing pinch from stealing an active finger drag.
+- 6 hard gates PASS (`debug/p13-3-acceptance-regression-output.json`, `.planning/phases/phase-13/13-3-VERIFICATION.md`).
+- In-browser touch verification on a real phone/tablet required before merge.
+
+## Phase 13 Exit State
+- All three plans closed PASS (static guards).
+- Cross-plan non-regression verified: Phase 11 HF6 seen-once retention and Phase 12 additive layering remain statically present and functional.
+- In-browser verification is the remaining gate before merge. Specifically: multi-device config sync, server-offline error overlay + retry, wheel + pinch zoom centered on the gesture anchor, touch-drag of polygon vertices on a real touchscreen.

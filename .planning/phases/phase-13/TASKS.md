@@ -29,12 +29,15 @@ Closure evidence: `.planning/phases/phase-13/13-2-VERIFICATION.md`, `debug/p13-2
 - [x] DONE P13-2-T5 [P0] CSS: disable stage transition during wheel/pinch gesture (reuse `.is-panning` or new class); preserve existing pan behavior.
 - [x] DONE P13-2-T6 [P0] Verification: static harness asserting slider removed + wheel/pinch handlers present + range extended + pan non-regression; create `13-2-VERIFICATION.md`; artifact sync.
 
-## Plan 13-3 - Touch Polygon Editing (blocked on 13-2 PASS)
-- [ ] TODO P13-3-T1 [P0] Relax `event.button !== 0` check in polygon vertex `pointerdown` handlers: accept `button === 0 || event.pointerType === "touch"` (touch events sometimes report `button === -1`).
-- [ ] TODO P13-3-T2 [P0] Coarse-pointer hit radius: `event.pointerType === "touch"` or `pointer: coarse` → at least 22px CSS pixel hit radius, scaled inversely by zoom to stay constant in screen space.
-- [ ] TODO P13-3-T3 [P0] `touch-action: none` on the `#room-overlay` SVG container so the browser does not consume single-finger drag as native pan.
-- [ ] TODO P13-3-T4 [P0] Pinch ↔ vertex-drag arbitration: if a vertex drag is in progress on `pointerId X`, a second pointer triggering pinch must NOT steal `X`; pinch tracks its own pointer pair.
-- [ ] TODO P13-3-T5 [P0] Verification: static harness for DOM/JS changes + create `13-3-VERIFICATION.md`; artifact sync.
+## Plan 13-3 - Touch Polygon Editing (CLOSED PASS — static guards)
+
+Closure evidence: `.planning/phases/phase-13/13-3-VERIFICATION.md`, `debug/p13-3-acceptance-regression-output.json`. In-browser touch verification requested.
+
+- [x] DONE P13-3-T1 [P0] Relax `event.button !== 0` check in polygon vertex `pointerdown` handlers: accept `button === 0 || event.pointerType === "touch"` (touch events sometimes report `button === -1`).
+- [x] DONE P13-3-T2 [P0] Coarse-pointer hit radius: `event.pointerType === "touch"` or `pointer: coarse` → at least 22px CSS pixel hit radius, scaled inversely by zoom to stay constant in screen space.
+- [x] DONE P13-3-T3 [P0] `touch-action: none` on the `#room-overlay` SVG container so the browser does not consume single-finger drag as native pan.
+- [x] DONE P13-3-T4 [P0] Pinch ↔ vertex-drag arbitration: if a vertex drag is in progress on `pointerId X`, a second pointer triggering pinch must NOT steal `X`; pinch tracks its own pointer pair.
+- [x] DONE P13-3-T5 [P0] Verification: static harness for DOM/JS changes + create `13-3-VERIFICATION.md`; artifact sync.
 
 ## Phase 13 Closure
-- [ ] TODO P13-CLOSURE [P0] Cross-plan non-regression: Phase 11 HF6 seen-once retention and Phase 12 additive layering still static-PASS; create phase-level closure note in `ROADMAP.md` + `STATE.md`.
+- [x] DONE P13-CLOSURE [P0] Cross-plan non-regression verified in each plan's acceptance harness: Phase 11 HF6 seen-once retention and Phase 12 additive layering remain static-PASS across all three plans.

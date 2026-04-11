@@ -1,10 +1,10 @@
 # CURRENT PHASE
 
 - Active: Phase 13 (`phase-13`)
-- Status: execute-ready (Plan 13-1 queued)
+- Status: Plans 13-1, 13-2, 13-3 CLOSED PASS (static guards) — phase exit criteria met pending in-browser verification
 - Previous Phase: Phase 12 closed PASS at Plan 12-1
-- Next Plan: 13-1
-- Command Target: `/gsd:execute-phase 13`
+- Next Plan: (awaiting new direction or user verification feedback)
+- Command Target: user verification, then `/gsd:new-phase` or follow-up hotfix wave
 
 Execution inputs:
 - `.planning/STATE.md`
