@@ -1048,513 +1048,75 @@ function resolvePendingMutationsByVersion(appliedVersion) {
   }
 }
 
-function shouldApplySnapshotVersion(incomingVersion) {
-  if (!Number.isFinite(Number(incomingVersion))) {
-    return false;
-  }
-  const normalizedIncomingVersion = Number(incomingVersion);
-  // Snapshot polling is strictly monotonic; stale snapshots are ignored to avoid visual rollback.
-  if (normalizedIncomingVersion <= liveSync.lastAppliedVersion) {
-    liveSync.applyRejectCounters.staleVersion += 1;
-    return false;
-  }
-  return true;
-}
-
-async function pollLiveSnapshotOnce() {
-  if (!liveSync.pollingEnabled || liveSync.pollInFlight) {
-    return;
-  }
-  liveSync.pollInFlight = true;
-  try {
-    const params = new URLSearchParams({
-      sinceVersion: String(Math.max(0, Number(liveSync.lastAppliedVersion) || 0)),
-    });
-    const response = await fetch(`/api/live/snapshot?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`snapshot fetch failed (${response.status})`);
-    }
-    const payload = await response.json();
-    const envelope = normalizeSnapshotEnvelope(payload);
-    const incomingVersion = envelope.version;
-    if (incomingVersion !== null) {
-      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, incomingVersion);
-    }
-    if (shouldApplySnapshotVersion(incomingVersion) && envelope.snapshot) {
-      const applied = applyLiveRuntimeSnapshot(envelope.snapshot, {
-        version: incomingVersion,
-        mutationEnvelope: null,
-        mutationType: "snapshot-poll",
-      });
-      if (applied) {
-        resolvePendingMutationsByVersion(incomingVersion);
-      }
-    }
-    liveSync.pollBackoffMs = 0;
-    const hasPending = liveSync.pendingMutations.size > 0;
-    if (!hasPending && triggerFeedback && outputRole === OUTPUT_ROLE_CONTROL) {
-      if (triggerFeedback.textContent?.includes("Pending:")) {
-        triggerFeedback.textContent = "Status: snapshot synchronized";
-      }
-    }
-    scheduleNextLiveSnapshotPoll();
-  } catch {
-    const nextBackoff = liveSync.pollBackoffMs > 0 ? Math.min(LIVE_POLL_MAX_BACKOFF_MS, Math.floor(liveSync.pollBackoffMs * 2)) : 400;
-    const jitter = Math.floor(Math.random() * 120);
-    liveSync.pollBackoffMs = Math.min(LIVE_POLL_MAX_BACKOFF_MS, nextBackoff + jitter);
-    scheduleNextLiveSnapshotPoll(liveSync.pollBackoffMs);
-  } finally {
-    liveSync.pollInFlight = false;
-  }
-}
-
-async function emitLiveMutation(mutationType, payload = {}) {
-  const normalizedPayload = normalizeLiveMutationPayload(mutationType, payload);
-  const mutationId = `cmd-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  const queuedAt = Date.now();
-  if (mutationType === "context-update") {
-    for (const [pendingMutationId, entry] of liveSync.pendingMutations.entries()) {
-      if (entry?.mutationType === "context-update") {
-        liveSync.pendingMutations.delete(pendingMutationId);
-      }
-    }
-  }
-  liveSync.pendingMutations.set(mutationId, {
-    mutationId,
-    mutationType,
-    queuedAt,
-    acceptedVersion: null,
-  });
-  recordMutationTrace(mutationId, "command_emit");
-  try {
-    let ack = null;
-    for (let attempt = 1; attempt <= LIVE_COMMAND_RETRY_MAX_ATTEMPTS; attempt += 1) {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => {
-        controller.abort();
-      }, LIVE_COMMAND_TIMEOUT_MS);
-      try {
-        const response = await fetch("/api/live/command", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            accept: "application/json",
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            mutationId,
-            mutationType,
-            role: outputRole,
-            clientId: liveSync.clientId ?? undefined,
-            payload: {
-              ...normalizedPayload,
-              retryAttempt: attempt,
-              retryMaxAttempts: LIVE_COMMAND_RETRY_MAX_ATTEMPTS,
-            },
-          }),
-        });
-        if (!response.ok) {
-          const serverError = new Error(`command rejected (${response.status})`);
-          serverError.status = response.status;
-          throw serverError;
-        }
-        ack = await response.json();
-        break;
-      } catch (error) {
-        const timeoutLike = error instanceof DOMException && error.name === "AbortError";
-        const status = Number(error?.status);
-        const retryable = timeoutLike || (Number.isFinite(status) && status >= 500);
-        if (!retryable || attempt >= LIVE_COMMAND_RETRY_MAX_ATTEMPTS) {
-          throw error;
-        }
-        const backoffMs = Math.min(1200, Math.round(LIVE_COMMAND_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1))));
-        recordMutationTrace(mutationId, `command_retry_${attempt}`);
-        await new Promise((resolve) => {
-          window.setTimeout(resolve, backoffMs);
-        });
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
-    }
-    if (!ack) {
-      throw new Error("command acknowledgement missing");
-    }
-    liveSync.lastCommandAcceptedAt = Date.now();
-    if (Number.isFinite(Number(ack?.version))) {
-      const version = Number(ack.version);
-      liveSync.lastCommandAcceptedVersion = Math.max(liveSync.lastCommandAcceptedVersion, version);
-      liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, version);
-      const pendingEntry = liveSync.pendingMutations.get(mutationId);
-      if (pendingEntry) {
-        pendingEntry.acceptedVersion = version;
-        liveSync.pendingMutations.set(mutationId, pendingEntry);
-      }
-    }
-    recordMutationTrace(mutationId, "command_accepted");
-    liveSync.preferFastPollingUntil = Date.now() + 2000;
-    scheduleNextLiveSnapshotPoll(0);
-    return ack;
-  } catch (error) {
-    const timeoutLike = error instanceof DOMException && error.name === "AbortError";
-    const statusDetail = timeoutLike
-      ? `Status: ${mutationType} command timed out after ${LIVE_COMMAND_TIMEOUT_MS}ms`
-      : `Status: ${mutationType} command failed`;
-    const backgroundContextSync = mutationType === "context-update"
-      && String(payload?.reason || "").includes("room-draft-sync");
-    if (outputRole === OUTPUT_ROLE_CONTROL && !backgroundContextSync) {
-      reportActionError(statusDetail, {
-        toastText: timeoutLike
-          ? `Command timeout: ${mutationType} did not respond`
-          : `Command failed: ${mutationType}`,
-        dedupeKey: `command-${mutationType}-${timeoutLike ? "timeout" : "failed"}`,
-      });
-    }
-    liveSync.pendingMutations.delete(mutationId);
-    throw error;
-  }
-}
-
-// Phase 14-2: live-sync helpers (normalizeLiveMutationPayload,
-// emitOutsideFxMutation, emitRoomDraftSyncMutation/scheduleRoomDraftSync,
-// hydrate/reconcile, terminal one-shot replay guards,
-// filterRunningAnimationsForBoard, ACK helpers, shouldApplyMutationEnvelope)
-// moved to src/app/runtime/runtime-live-sync-helpers.js.
-window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS.init({
+// Phase 14-2: live-sync core (shouldApplySnapshotVersion,
+// pollLiveSnapshotOnce, emitLiveMutation, applyLiveRuntimeSnapshot,
+// connectLiveSyncSocket — ~510 LOC) moved to
+// src/app/runtime/runtime-live-sync-core.js.
+window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   state,
   liveSync,
+  polygonContract,
+  triggerFeedback,
+  globalDefaultsStatus,
   OUTPUT_ROLE_CONTROL,
+  OUTPUT_ROLE_FINAL,
+  STOP_ANIMATION_MUTATION_TYPE,
+  SHIP_POLYGON_DEFAULT,
+  LIVE_POLL_MAX_BACKOFF_MS,
+  LIVE_COMMAND_TIMEOUT_MS,
+  LIVE_COMMAND_RETRY_MAX_ATTEMPTS,
+  LIVE_COMMAND_RETRY_BASE_DELAY_MS,
   getOutputRole: () => outputRole,
-  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  getBoards: () => BOARDS,
+  normalizeSnapshotEnvelope: (payload) => normalizeSnapshotEnvelope(payload),
+  normalizeLiveMutationPayload: (type, payload) => normalizeLiveMutationPayload(type, payload),
+  resolvePendingMutationsByVersion: (version) => resolvePendingMutationsByVersion(version),
+  scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
+  recordMutationTrace: (mutationId, event) => recordMutationTrace(mutationId, event),
+  reportActionError: (text, opts) => reportActionError(text, opts),
+  shouldApplyMutationEnvelope: (version, envelope) => shouldApplyMutationEnvelope(version, envelope),
+  reportCanonicalPolygonIssues: (issues, opts) => reportCanonicalPolygonIssues(issues, opts),
+  normalizeShipPolygon: (polygon) => normalizeShipPolygon(polygon),
+  getSelectedPlayArea: (boardId) => getSelectedPlayArea(boardId),
   normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
-  clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
-  getAnimationStartedAtEpochMs: (animation) => getAnimationStartedAtEpochMs(animation),
-  getClusterTargetById: (id, boardId) => getClusterTargetById(id, boardId),
-  reconcileHydratedRunningAnimations: (runningAnimations, now) => reconcileHydratedRunningAnimations(runningAnimations, now),
-  logRuntime,
-  getGlobalTriggerKey: (animation) => getGlobalTriggerKey(animation),
+  normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
+  normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
+  observeGlobalStopRevisions: (runtime) => observeGlobalStopRevisions(runtime),
+  observeGlobalClearRevision: (runtime) => observeGlobalClearRevision(runtime),
+  filterRunningAnimationsForBoard: (running, boardId) => filterRunningAnimationsForBoard(running, boardId),
+  primeGlobalTriggerRuntimeTimestamps: (running, prev) => primeGlobalTriggerRuntimeTimestamps(running, prev),
+  reconcileHydratedAnimations: (running) => reconcileHydratedAnimations(running),
+  retainActiveSeenOneShotRuns: (running) => retainActiveSeenOneShotRuns(running),
+  hydrateRunningAnimationStartTimestamps: (running) => hydrateRunningAnimationStartTimestamps(running),
+  reconcileStopPendingFromSnapshot: () => reconcileStopPendingFromSnapshot(),
+  clampAnimationSpeed: (value) => clampAnimationSpeed(value),
+  clampAudioVolumePercent: (value) => clampAudioVolumePercent(value),
+  normalizeMp4PerformanceControls: (raw) => normalizeMp4PerformanceControls(raw),
+  syncMp4PerformanceControlsPanel: () => syncMp4PerformanceControlsPanel(),
+  hardStopRuntimeEffects: (opts) => hardStopRuntimeEffects(opts),
+  isControlCriticalMutationEnvelope: (envelope) => isControlCriticalMutationEnvelope(envelope),
+  enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
+  stopSoundsForInactiveAnimations: () => stopSoundsForInactiveAnimations(),
+  playSoundForAnimation: (animation) => playSoundForAnimation(animation),
+  syncAlignModePanel: () => syncAlignModePanel(),
+  syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
+  renderRunningAnimationsList: () => renderRunningAnimationsList(),
+  refreshGlobalButtons: () => refreshGlobalButtons(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  rememberAppliedMutationId: (id) => rememberAppliedMutationId(id),
+  sendLiveMutationApplyAck: (envelope) => sendLiveMutationApplyAck(envelope),
+  resolveLiveWebSocketUrl: () => resolveLiveWebSocketUrl(),
+  refreshApplyDiscardButtonsUi: () => refreshApplyDiscardButtonsUi(),
+  fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
+  applyGlobalDefaultsPayloadToState: (payload) => applyGlobalDefaultsPayloadToState(payload),
 });
 const {
-  normalizeLiveMutationPayload,
-  emitOutsideFxMutation,
-  emitRoomDraftSyncMutation,
-  scheduleRoomDraftSync,
-  hydrateRunningAnimationStartTimestamps,
-  reconcileHydratedAnimations,
-  isFiniteDurationGlobalAnimation,
-  buildTerminalOneShotFingerprint,
-  rememberTerminalOneShotReplay,
-  shouldSuppressTerminalOneShotReplay,
-  filterRunningAnimationsForBoard,
-  isControlCriticalMutationEnvelope,
-  sendLiveMutationReceiveAck,
-  sendLiveMutationApplyAck,
-  shouldApplyMutationEnvelope,
-} = window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS;
-
-function applyLiveRuntimeSnapshot(snapshot, { version = null, mutationEnvelope = null, mutationType = null } = {}) {
-  const numericVersion = Number.isFinite(version) ? Number(version) : null;
-  const envelopeVersion = Number.isFinite(Number(mutationEnvelope?.serverVersion))
-    ? Number(mutationEnvelope.serverVersion)
-    : null;
-  const effectiveVersion = envelopeVersion ?? numericVersion;
-  if (!shouldApplyMutationEnvelope(version, mutationEnvelope)) {
-    return false;
-  }
-  const runtime = snapshot?.runtime;
-  if (!runtime || typeof runtime !== "object") {
-    return false;
-  }
-  const sharedOutsideFxByBoard =
-    snapshot?.outsideFxByBoard && typeof snapshot.outsideFxByBoard === "object"
-      ? snapshot.outsideFxByBoard
-      : runtime?.outsideFxByBoard && typeof runtime.outsideFxByBoard === "object"
-        ? runtime.outsideFxByBoard
-        : null;
-  const sharedInsideFxByBoard =
-    snapshot?.insideFxByBoard && typeof snapshot.insideFxByBoard === "object"
-      ? snapshot.insideFxByBoard
-      : runtime?.insideFxByBoard && typeof runtime.insideFxByBoard === "object"
-        ? runtime.insideFxByBoard
-        : null;
-  const sharedRoomFxByBoard =
-    snapshot?.roomFxByBoard && typeof snapshot.roomFxByBoard === "object"
-      ? snapshot.roomFxByBoard
-      : runtime?.roomFxByBoard && typeof runtime.roomFxByBoard === "object"
-        ? runtime.roomFxByBoard
-        : null;
-  const selectedBoard =
-    (typeof snapshot?.selectedBoard === "string" && snapshot.selectedBoard) ||
-    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
-    (typeof runtime.selectedBoard === "string" && runtime.selectedBoard) ||
-    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
-    (typeof runtime.boardId === "string" && runtime.boardId) ||
-    (Array.isArray(runtime.runningAnimations)
-      ? runtime.runningAnimations.reduce((first, animation) => {
-        if (first) {
-          return first;
-        }
-        const animationBoardId = typeof animation?.boardId === "string" ? animation.boardId.trim() : "";
-        return animationBoardId || "";
-      }, "")
-      : "") ||
-    state.boardId;
-  state.boardId = selectedBoard;
-  state.selectedBoard = selectedBoard;
-  state.selectedLayout =
-    (typeof snapshot?.selectedLayout === "string" && snapshot.selectedLayout) ||
-    (typeof runtime.selectedLayout === "string" && runtime.selectedLayout) ||
-    selectedBoard;
-  state.selectedRoomId = runtime.selectedRoomId ?? state.selectedRoomId;
-  state.selectedRoomByBoard =
-    runtime.selectedRoomByBoard && typeof runtime.selectedRoomByBoard === "object"
-      ? runtime.selectedRoomByBoard
-      : state.selectedRoomByBoard;
-  if (polygonContract?.applySnapshotPolygonState) {
-    const polygonHydration = polygonContract.applySnapshotPolygonState({
-      state,
-      snapshot,
-      runtime,
-      boardIds: BOARDS.map((board) => board.id),
-      shipPolygonDefault: SHIP_POLYGON_DEFAULT,
-    });
-    if (polygonHydration && typeof polygonHydration === "object") {
-      state.playAreasByBoard = polygonHydration.playAreasByBoard ?? state.playAreasByBoard;
-      state.selectedPlayAreaIdByBoard = polygonHydration.selectedPlayAreaIdByBoard ?? state.selectedPlayAreaIdByBoard;
-      reportCanonicalPolygonIssues(polygonHydration.issues, {
-        sourceLabel: "live-snapshot",
-      });
-      state.shipPolygonsByBoard = Object.fromEntries(
-        BOARDS.map((board) => [board.id, normalizeShipPolygon(getSelectedPlayArea(board.id)?.polygon ?? SHIP_POLYGON_DEFAULT)]),
-      );
-    }
-  }
-  if (sharedOutsideFxByBoard) {
-    state.outsideFxByBoard = {
-      ...state.outsideFxByBoard,
-      ...Object.fromEntries(
-        BOARDS.map((board) => [
-          board.id,
-          normalizeOutsideFxProfile(sharedOutsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
-        ]),
-      ),
-    };
-  }
-  if (sharedInsideFxByBoard) {
-    state.insideFxByBoard = {
-      ...state.insideFxByBoard,
-      ...Object.fromEntries(
-        BOARDS.map((board) => [
-          board.id,
-          normalizeInsideFxProfile(sharedInsideFxByBoard[board.id] ?? state.insideFxByBoard[board.id]),
-        ]),
-      ),
-    };
-  }
-  if (sharedRoomFxByBoard) {
-    state.roomFxByBoard = {
-      ...state.roomFxByBoard,
-      ...Object.fromEntries(
-        BOARDS.map((board) => [
-          board.id,
-          normalizeRoomFxProfile(sharedRoomFxByBoard[board.id] ?? state.roomFxByBoard?.[board.id]),
-        ]),
-      ),
-    };
-  }
-  observeGlobalStopRevisions(runtime);
-  observeGlobalClearRevision(runtime);
-  if (mutationType === "clear-all") {
-    liveSync.activeSeenOneShotRunByTriggerRevision.clear();
-    liveSync.lastObservedGlobalClearRevision = Math.max(
-      Number(liveSync.lastObservedGlobalClearRevision) || 0,
-      1,
-    );
-  }
-  const previousAnimationsById = new Map(
-    state.runningAnimations
-      .filter((animation) => animation && typeof animation.id === "string")
-      .map((animation) => [animation.id, animation]),
-  );
-  const boardBoundRunningAnimations = filterRunningAnimationsForBoard(runtime.runningAnimations, selectedBoard);
-  const primedRunningAnimations = primeGlobalTriggerRuntimeTimestamps(boardBoundRunningAnimations, previousAnimationsById);
-  const reconciledRunningAnimations = reconcileHydratedAnimations(primedRunningAnimations);
-  const retainedRunningAnimations = retainActiveSeenOneShotRuns(reconciledRunningAnimations);
-  state.runningAnimations = hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
-  reconcileStopPendingFromSnapshot();
-  if (outputRole !== OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
-    state.roomDraft = {
-      ...state.roomDraft,
-      ...runtime.roomDraft,
-    };
-  }
-  state.animationSpeed = clampAnimationSpeed(runtime.animationSpeed ?? state.animationSpeed);
-  if (runtime.audio && typeof runtime.audio === "object") {
-    state.audio.enabled = Boolean(runtime.audio.enabled);
-    state.audio.volume = clampAudioVolumePercent(Math.round(Number(runtime.audio.volume ?? state.audio.volume) * 100)) / 100;
-  }
-  if (runtime.mp4Performance && typeof runtime.mp4Performance === "object") {
-    state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls(runtime.mp4Performance);
-    syncMp4PerformanceControlsPanel();
-  }
-  if (typeof snapshot?.alignMode === "boolean") {
-    state.alignMode = snapshot.alignMode;
-  } else if (typeof runtime.alignMode === "boolean") {
-    state.alignMode = runtime.alignMode;
-  }
-
-  if (mutationType === "clear-all" || mutationType === "stop-animation") {
-    hardStopRuntimeEffects({ clearVisuals: true });
-  }
-
-  const isFastFinalApply = outputRole === OUTPUT_ROLE_FINAL && isControlCriticalMutationEnvelope(mutationEnvelope);
-
-  enforceAudioLifecycleGuard();
-  stopSoundsForInactiveAnimations();
-  for (const animation of state.runningAnimations) {
-    playSoundForAnimation(animation);
-  }
-
-  syncAlignModePanel();
-
-  if (!isFastFinalApply && outputRole !== OUTPUT_ROLE_FINAL) {
-    syncRuntimePanelsFromState();
-    renderRunningAnimationsList();
-    refreshGlobalButtons();
-  }
-  renderRoomOverlay();
-  if (numericVersion !== null) {
-    liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, numericVersion);
-  }
-  if (effectiveVersion !== null) {
-    liveSync.lastAppliedVersion = Math.max(liveSync.lastAppliedVersion, effectiveVersion);
-  }
-  if (mutationEnvelope?.mutationId) {
-    rememberAppliedMutationId(mutationEnvelope.mutationId);
-    recordMutationTrace(mutationEnvelope.mutationId, "client_apply");
-    if (mutationType === "stop-animation" || mutationType === "clear-all") {
-      recordMutationTrace(mutationEnvelope.mutationId, "client_visual_clear");
-      recordMutationTrace(mutationEnvelope.mutationId, "client_audio_stop");
-    }
-    sendLiveMutationApplyAck(mutationEnvelope);
-  }
-  return true;
-}
-
-function connectLiveSyncSocket() {
-  try {
-    const socket = new WebSocket(resolveLiveWebSocketUrl());
-    const socketGeneration = liveSync.socketGeneration + 1;
-    liveSync.socketGeneration = socketGeneration;
-    liveSync.socket = socket;
-    socket.addEventListener("open", () => {
-      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
-        return;
-      }
-      liveSync.wsConnected = true;
-    });
-    socket.addEventListener("message", (event) => {
-      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
-        return;
-      }
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload?.type === "live-hello") {
-          liveSync.clientId = payload.clientId ?? null;
-          liveSync.dirtyHintUntil = Date.now() + 1200;
-          if (Number.isFinite(payload?.session?.version)) {
-            const helloVersion = Number(payload.session.version);
-            liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
-            const helloSnapshot = payload?.session?.snapshot;
-            if (helloSnapshot && shouldApplySnapshotVersion(helloVersion)) {
-              applyLiveRuntimeSnapshot(helloSnapshot, {
-                version: helloVersion,
-                mutationEnvelope: null,
-                mutationType: "live-hello",
-              });
-            }
-          }
-          scheduleNextLiveSnapshotPoll(0);
-        }
-        if (payload?.type === "live-session-update") {
-          const sessionVersion = Number(payload?.session?.version ?? 0);
-          const mutationType = typeof payload?.mutationType === "string" ? payload.mutationType : null;
-          const shouldApplyImmediateStopSnapshot =
-            mutationType === STOP_ANIMATION_MUTATION_TYPE || mutationType === "clear-all";
-          if (
-            shouldApplyImmediateStopSnapshot
-            && Number.isFinite(sessionVersion)
-            && shouldApplySnapshotVersion(sessionVersion)
-            && payload?.session?.snapshot
-          ) {
-            applyLiveRuntimeSnapshot(payload.session.snapshot, {
-              version: sessionVersion,
-              mutationEnvelope: payload?.mutationEnvelope ?? null,
-              mutationType,
-            });
-          }
-          scheduleNextLiveSnapshotPoll(0);
-        }
-        if (payload?.type === "state-dirty" || payload?.wake === true) {
-          liveSync.dirtyHintUntil = Date.now() + 1500;
-          scheduleNextLiveSnapshotPoll(0);
-        }
-        // Phase 13-1: server broadcasts `global-config-update` after every
-        // successful POST /api/global-defaults.
-        // Phase 13-HF3: if local config is dirty, suppress the refetch.
-        // The user's unsaved edits win until they explicitly Apply or
-        // Discard. We set `remoteConfigUpdateAwaiting` so the UI shows a
-        // banner and the Apply / Discard buttons both mention the remote.
-        if (payload?.type === "global-config-update") {
-          if (state.localConfigDirty) {
-            state.remoteConfigUpdateAwaiting = true;
-            refreshApplyDiscardButtonsUi();
-          } else {
-            void (async () => {
-              try {
-                const loaded = await fetchGlobalDefaultsPayload();
-                applyGlobalDefaultsPayloadToState(loaded.payload);
-                syncRuntimePanelsFromState();
-                renderRunningAnimationsList();
-                refreshGlobalButtons();
-                if (globalDefaultsStatus) {
-                  globalDefaultsStatus.textContent =
-                    `Global config: updated from peer (${loaded.endpoint || "server"})`;
-                }
-              } catch (refetchError) {
-                console.warn(
-                  "[global-config] broadcast refetch failed:",
-                  refetchError?.message || refetchError,
-                );
-              }
-            })();
-          }
-        }
-      } catch {
-        // ignore malformed live-sync payloads
-      }
-    });
-    socket.addEventListener("close", () => {
-      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
-        return;
-      }
-      liveSync.wsConnected = false;
-      window.setTimeout(connectLiveSyncSocket, 1200);
-    });
-    socket.addEventListener("error", () => {
-      if (liveSync.socket !== socket || liveSync.socketGeneration !== socketGeneration) {
-        return;
-      }
-      liveSync.wsConnected = false;
-    });
-  } catch {
-    liveSync.wsConnected = false;
-  }
-}
+  shouldApplySnapshotVersion,
+  pollLiveSnapshotOnce,
+  emitLiveMutation,
+  applyLiveRuntimeSnapshot,
+  connectLiveSyncSocket,
+} = window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
 
 const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelectors({
   getBoards: () => BOARDS,
