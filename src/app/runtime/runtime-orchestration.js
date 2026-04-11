@@ -632,181 +632,44 @@ const {
   primeGlobalTriggerRuntimeTimestamps,
 } = window.TT_BEAMER_RUNTIME_GLOBAL_TRIGGER_TRACKER;
 
-function buildRuntimeSnapshotForLiveSync() {
-  return {
-    boardId: state.boardId,
-    selectedBoard: state.selectedBoard ?? state.boardId,
-    selectedLayout: state.selectedLayout ?? state.boardId,
-    selectedRoomId: state.selectedRoomId,
-    selectedRoomByBoard: state.selectedRoomByBoard,
-    insideFxByBoard: Object.fromEntries(
-      BOARDS.map((board) => [board.id, normalizeInsideFxProfile(state.insideFxByBoard[board.id])]),
-    ),
-    roomFxByBoard: Object.fromEntries(
-      BOARDS.map((board) => [board.id, normalizeRoomFxProfile(state.roomFxByBoard?.[board.id])]),
-    ),
-    outsideFxByBoard: Object.fromEntries(
-      BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(state.outsideFxByBoard[board.id])]),
-    ),
-    runningAnimations: state.runningAnimations.map((animation) => ({
-      ...animation,
-      startedAtEpochMs: getAnimationStartedAtEpochMs(animation),
-    })),
-    roomDraft: state.roomDraft,
-    animationSpeed: state.animationSpeed,
-    audio: state.audio,
-    alignMode: state.alignMode,
-    mp4Performance: getMp4PerformanceControls(),
-  };
-}
-
-function getAdaptivePollingIntervalMs() {
-  const now = Date.now();
-  const documentVisible = document.visibilityState === "visible";
-  const fastMode =
-    liveSync.pendingMutations.size > 0 ||
-    liveSync.dirtyHintUntil > now ||
-    liveSync.preferFastPollingUntil > now ||
-    documentVisible;
-  return fastMode ? LIVE_POLL_FAST_MS : LIVE_POLL_IDLE_MS;
-}
-
-function scheduleNextLiveSnapshotPoll(delayOverrideMs = null) {
-  if (!liveSync.pollingEnabled) {
-    return;
-  }
-  // Phase 13-HF7: pause polling while a touch gesture is in flight.
-  // applyLiveRuntimeSnapshot iterates boards + rehydrates polygon
-  // state, ~10–30 ms per call on mobile, which starves the gesture
-  // rAF path. Resumed when the gesture ends.
-  // Phase 13-HF8: also pause during polygon drag (same rationale).
-  if (isHeavyInteractionActive()) {
-    if (liveSync.pollTimerId !== null) {
-      window.clearTimeout(liveSync.pollTimerId);
-      liveSync.pollTimerId = null;
-    }
-    return;
-  }
-  if (liveSync.pollTimerId !== null) {
-    window.clearTimeout(liveSync.pollTimerId);
-    liveSync.pollTimerId = null;
-  }
-  const adaptive = getAdaptivePollingIntervalMs();
-  const backoff = Math.max(0, Number(liveSync.pollBackoffMs) || 0);
-  const delayMs = Math.max(0, Number.isFinite(delayOverrideMs) ? Number(delayOverrideMs) : Math.max(adaptive, backoff));
-  liveSync.pollTimerId = window.setTimeout(() => {
-    liveSync.pollTimerId = null;
-    void pollLiveSnapshotOnce();
-  }, delayMs);
-}
-
-const toastDedupByKey = new Map();
-
-function showToast(message, { kind = "error", timeoutMs = TOAST_DEFAULT_TIMEOUT_MS, dedupeKey = "" } = {}) {
-  if (!toastStack || !message || outputRole === OUTPUT_ROLE_FINAL) {
-    return;
-  }
-  const key = String(dedupeKey || message).trim();
-  const now = Date.now();
-  if (key) {
-    const previousAt = Number(toastDedupByKey.get(key) || 0);
-    if (now - previousAt < TOAST_DEDUPE_COOLDOWN_MS) {
-      return;
-    }
-    toastDedupByKey.set(key, now);
-  }
-  const node = document.createElement("div");
-  node.className = `toast toast-${kind}`;
-  node.textContent = String(message);
-  toastStack.prepend(node);
-  while (toastStack.childElementCount > TOAST_MAX_ENTRIES) {
-    toastStack.lastElementChild?.remove();
-  }
-  window.setTimeout(() => {
-    node.remove();
-  }, Math.max(1200, Number(timeoutMs) || TOAST_DEFAULT_TIMEOUT_MS));
-}
-
-function reportActionError(statusText, {
-  toastText = statusText,
-  dedupeKey = "runtime-action-error",
-} = {}) {
-  if (triggerFeedback) {
-    triggerFeedback.textContent = statusText.startsWith("Status:") ? statusText : `Status: ${statusText}`;
-  }
-  showToast(toastText, { kind: "error", dedupeKey });
-}
-
-function collectCanonicalPlayAreaIssuesFromProfiles(boardProfilesById, { sourceLabel = "unknown" } = {}) {
-  const issues = [];
-  if (!boardProfilesById || typeof boardProfilesById !== "object") {
-    return issues;
-  }
-  for (const [boardId, profile] of Object.entries(boardProfilesById)) {
-    const sourcePlayAreas = Array.isArray(profile?.playAreas) ? profile.playAreas : [];
-    if (sourcePlayAreas.length === 0) {
-      continue;
-    }
-    const renderable = polygonContract?.extractRenderablePlayAreaPolygons
-      ? polygonContract.extractRenderablePlayAreaPolygons(sourcePlayAreas, {
-        fallbackPolygon: SHIP_POLYGON_DEFAULT,
-        allowDefaultFallbackWhenEmpty: false,
-      })
-      : [];
-    if (!Array.isArray(renderable) || renderable.length === 0) {
-      issues.push({
-        code: "canonical-play-areas-invalid",
-        boardId,
-        source: sourceLabel,
-        detail: "No renderable canonical play-area polygon found in source payload",
-      });
-    }
-  }
-  return issues;
-}
-
-function reportCanonicalPolygonIssues(issues, { sourceLabel = "runtime" } = {}) {
-  if (!Array.isArray(issues) || issues.length === 0) {
-    return;
-  }
-  const first = issues[0] ?? {};
-  const boardId = String(first.boardId || state.boardId || "unknown-board");
-  const source = String(first.source || sourceLabel || "unknown-source");
-  const detail = String(first.detail || first.code || "canonical load/apply failed");
-  const statusText = `Status: Canonical polygon load/apply warning (${boardId} | source=${source}) - ${detail}`;
-  if (triggerFeedback) {
-    triggerFeedback.textContent = statusText;
-  }
-  for (const issue of issues) {
-    const issueBoard = String(issue?.boardId || boardId);
-    const issueSource = String(issue?.source || source);
-    const issueDetail = String(issue?.detail || issue?.code || detail);
-    showToast(`Canonical polygon issue: ${issueBoard} (${issueSource}) - ${issueDetail}`, {
-      kind: "error",
-      dedupeKey: `canonical-polygon-issue:${issueBoard}:${issueSource}:${issue?.code || "unknown"}`,
-    });
-  }
-}
-
-function normalizeSnapshotEnvelope(payload) {
-  const session = payload?.session;
-  const version = Number.isFinite(Number(session?.version)) ? Number(session.version) : null;
-  return {
-    version,
-    snapshot: session?.snapshot ?? null,
-    changed: payload?.changed === true,
-  };
-}
-
-function resolvePendingMutationsByVersion(appliedVersion) {
-  for (const [mutationId, entry] of liveSync.pendingMutations.entries()) {
-    const acceptedVersion = Number(entry?.acceptedVersion ?? 0);
-    if (acceptedVersion > 0 && Number(appliedVersion) >= acceptedVersion) {
-      liveSync.pendingMutations.delete(mutationId);
-      recordMutationTrace(mutationId, "snapshot_applied");
-    }
-  }
-}
+// Phase 14-2: snapshot builder + polling scheduler + toast/error
+// + canonical-polygon issue helpers moved to
+// src/app/runtime/runtime-snapshot-helpers.js.
+window.TT_BEAMER_RUNTIME_SNAPSHOT_HELPERS.init({
+  state,
+  liveSync,
+  polygonContract,
+  triggerFeedback,
+  toastStack,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
+  SHIP_POLYGON_DEFAULT,
+  TOAST_DEFAULT_TIMEOUT_MS,
+  TOAST_DEDUPE_COOLDOWN_MS,
+  TOAST_MAX_ENTRIES,
+  LIVE_POLL_FAST_MS,
+  LIVE_POLL_IDLE_MS,
+  getBoards: () => BOARDS,
+  normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
+  normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
+  normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
+  getAnimationStartedAtEpochMs: (a) => getAnimationStartedAtEpochMs(a),
+  getMp4PerformanceControls: () => getMp4PerformanceControls(),
+  isHeavyInteractionActive: () => isHeavyInteractionActive(),
+  pollLiveSnapshotOnce: () => pollLiveSnapshotOnce(),
+  recordMutationTrace: (id, stage) => recordMutationTrace(id, stage),
+});
+const {
+  buildRuntimeSnapshotForLiveSync,
+  getAdaptivePollingIntervalMs,
+  scheduleNextLiveSnapshotPoll,
+  showToast,
+  reportActionError,
+  collectCanonicalPlayAreaIssuesFromProfiles,
+  reportCanonicalPolygonIssues,
+  normalizeSnapshotEnvelope,
+  resolvePendingMutationsByVersion,
+} = window.TT_BEAMER_RUNTIME_SNAPSHOT_HELPERS;
 
 // Phase 14-2: live-sync core (shouldApplySnapshotVersion,
 // pollLiveSnapshotOnce, emitLiveMutation, applyLiveRuntimeSnapshot,
