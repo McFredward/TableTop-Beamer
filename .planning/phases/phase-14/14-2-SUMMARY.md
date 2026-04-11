@@ -1,12 +1,12 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — nineteen modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — twenty modules extracted)
 
-Status: **PARTIAL PASS — nineteen extractions landed, 5317 LOC relocated out of the monolith, main file now at 9341 LOC**
+Status: **PARTIAL PASS — twenty extractions landed, 5479 LOC relocated out of the monolith, main file now at 9179 LOC**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 - Round 2 (T8..T12): `7dfbac9` → `7e498f9` → `169c9e9` → `b51745e` → `83ebdf6`
 - Round 3 (T13..T17): `bf0ec89` → `3367c79` → `db8f218` → `66fec32` → `ac9f150`
-- Round 4 (T18..T19): `ce3a9ac` → `ba7ce56`
+- Round 4 (T18..T20): `ce3a9ac` → `ba7ce56` → `0a93e5c`
 
 ## What was achieved
 
@@ -36,12 +36,13 @@ every commit.
 | 17 | `ac9f150` | `runtime-mobile-layout.js` | −213 | +289 |
 | 18 | `ce3a9ac` | `runtime-viewport-zoom.js` | −241 | +351 |
 | 19 | `ba7ce56` | `runtime-room-draft.js` | −270 | +377 |
+| 20 | `0a93e5c` | `runtime-config-sync.js` | −162 | +209 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 9 341** (−5317 LOC, −36.3%).
-- 19 new runtime modules: **+6960 LOC**.
-- Net: +1643 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 19 extractions.
+- `runtime-orchestration.js`: **14 658 → 9 179** (−5479 LOC, −37.4%).
+- 20 new runtime modules: **+7169 LOC**.
+- Net: +1690 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 20 extractions.
 
 Final runtime/ layout:
 ```
