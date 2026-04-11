@@ -1,12 +1,13 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — twenty-five modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — thirty-one modules extracted)
 
-Status: **PARTIAL PASS — twenty-five extractions landed, 6829 LOC relocated out of the monolith, main file now at 7829 LOC**
+Status: **PARTIAL PASS — thirty-one extractions landed, 8699 LOC relocated out of the monolith, main file now at 5959 LOC (−59.4% from 14658)**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 - Round 2 (T8..T12): `7dfbac9` → `7e498f9` → `169c9e9` → `b51745e` → `83ebdf6`
 - Round 3 (T13..T17): `bf0ec89` → `3367c79` → `db8f218` → `66fec32` → `ac9f150`
 - Round 4 (T18..T25): `ce3a9ac` → `ba7ce56` → `0a93e5c` → `cb743c8` → `f981c74` → `1a3fdc1` → `d602be1` → `3a7c98d`
+- Round 5 (T26..T31): `e2a1d1d` → `0b3356c` → `7136ccc` → `cb0d8e6` → `57941c8` → `fabfe4d`
 
 ## What was achieved
 
@@ -42,12 +43,18 @@ every commit.
 | 23 | `1a3fdc1` | `runtime-perf.js` | −225 | +307 |
 | 24 | `d602be1` | `runtime-live-sync-core.js` | −438 | +499 |
 | 25 | `3a7c98d` | `runtime-zone-loader.js` | −266 | +331 |
+| 26 | `e2a1d1d` | `runtime-polygon-editor.js` | −630 | +661 |
+| 27 | `0b3356c` | `runtime-asset-refs.js` | −153 | +218 |
+| 28 | `7136ccc` | `runtime-polygon-editor-panels.js` | −148 | +234 |
+| 29 | `cb0d8e6` | `runtime-fx-normalizers.js` | −348 | +460 |
+| 30 | `57941c8` | `runtime-board-profiles.js` | −185 | +261 |
+| 31 | `fabfe4d` | `runtime-global-defaults.js` | −406 | +505 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 7 829** (−6829 LOC, −46.6%).
-- 25 new runtime modules: **+8896 LOC**.
-- Net: +2067 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 25 extractions.
+- `runtime-orchestration.js`: **14 658 → 5 959** (−8699 LOC, −59.4%).
+- 31 new runtime modules: **+11235 LOC**.
+- Net: +2536 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 31 extractions.
 
 Final runtime/ layout:
 ```
