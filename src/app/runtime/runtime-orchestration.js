@@ -3846,190 +3846,37 @@ function arePlayAreaVerticesEditable() {
   return state.polygonEditor.playAreaVerticesVisible !== false;
 }
 
-function getOutsideCodedAssetKeys() {
-  const knownOutsideRendererIds = OUTSIDE_SHIP_GLOBAL_ANIMATIONS
-    .map((entry) => normalizeOutsideAnimationId(entry?.id, ""))
-    .filter(Boolean);
-  return Array.from(new Set(["outside-space", ...knownOutsideRendererIds]));
-}
-
-function getInsideCodedAssetKeys() {
-  const knownInsideRendererIds = createDefaultInsideAnimationDefinitions()
-    .map((entry) => normalizeInsideAnimationId(entry?.id, ""))
-    .filter(Boolean);
-  return Array.from(new Set(knownInsideRendererIds));
-}
-
-function getRoomCodedAssetKeys() {
-  const knownDefaultRefs = createDefaultRoomAnimationDefinitions()
-    .filter((entry) => normalizeRoomAssetType(entry?.assetType) === "coded")
-    .map((entry) => String(entry?.assetRef || "").trim().toLowerCase())
-    .filter(Boolean);
-  const knownInsideRendererIds = getInsideCodedAssetKeys();
-  return Array.from(new Set([
-    ...knownInsideRendererIds,
-    ...knownDefaultRefs,
-    "special-slime",
-    "special-scanning",
-  ]));
-}
-
-function normalizeRoomCodedAssetRef(assetRef, fallbackAssetRef = "intruder-alert") {
-  const normalizedRef = String(assetRef || "").trim().toLowerCase();
-  if (getRoomCodedAssetKeys().includes(normalizedRef)) {
-    return normalizedRef;
-  }
-  const normalizedFallback = String(fallbackAssetRef || "").trim().toLowerCase();
-  if (getRoomCodedAssetKeys().includes(normalizedFallback)) {
-    return normalizedFallback;
-  }
-  return getRoomCodedAssetKeys()[0] ?? "intruder-alert";
-}
-
-function getRoomAssetCandidates(assetType) {
-  const normalizedType = normalizeRoomAssetType(assetType);
-  if (normalizedType === "coded") {
-    return getRoomCodedAssetKeys();
-  }
-  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
-}
-
-function normalizeRoomAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
-  const normalizedType = normalizeRoomAssetType(assetType);
-  const rawRef = String(assetRef || "").trim();
-  if (normalizedType === "coded") {
-    return normalizeRoomCodedAssetRef(rawRef, fallbackAssetRef);
-  }
-
-  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
-  if (isValidResourceRef) {
-    return rawRef;
-  }
-
-  const normalizedFallback = String(fallbackAssetRef || "").trim();
-  const fallbackValid =
-    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
-  if (fallbackValid) {
-    return normalizedFallback;
-  }
-
-  const firstCandidate = getRoomAssetCandidates(normalizedType)[0];
-  return firstCandidate || "";
-}
-
-function resolveRoomCodedEffectType(assetRef) {
-  return normalizeRoomCodedAssetRef(assetRef);
-}
-
-function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "hull-flicker") {
-  const normalizedRef = String(assetRef || "").trim().toLowerCase();
-  if (getInsideCodedAssetKeys().includes(normalizedRef)) {
-    return normalizedRef;
-  }
-  const normalizedFallback = String(fallbackAssetRef || "").trim().toLowerCase();
-  if (getInsideCodedAssetKeys().includes(normalizedFallback)) {
-    return normalizedFallback;
-  }
-  return getInsideCodedAssetKeys()[0] ?? "hull-flicker";
-}
-
-function getInsideAssetCandidates(assetType) {
-  const normalizedType = normalizeInsideAssetType(assetType);
-  if (normalizedType === "coded") {
-    return getInsideCodedAssetKeys();
-  }
-  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
-}
-
-function normalizeInsideAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
-  const normalizedType = normalizeInsideAssetType(assetType);
-  const rawRef = String(assetRef || "").trim();
-  if (normalizedType === "coded") {
-    return normalizeInsideCodedAssetRef(rawRef, fallbackAssetRef);
-  }
-
-  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
-  if (isValidResourceRef) {
-    return rawRef;
-  }
-
-  const normalizedFallback = String(fallbackAssetRef || "").trim();
-  const fallbackValid =
-    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
-  if (fallbackValid) {
-    return normalizedFallback;
-  }
-
-  const firstCandidate = getInsideAssetCandidates(normalizedType)[0];
-  return firstCandidate || "";
-}
-
-function resolveInsideCodedEffectType(assetRef) {
-  const normalized = normalizeInsideCodedAssetRef(assetRef);
-  return getInsideCodedAssetKeys().includes(normalized) ? normalized : "hull-flicker";
-}
-
-function normalizeOutsideCodedAssetRef(assetRef) {
-  const normalizedRef = String(assetRef || "").trim().toLowerCase();
-  if (getOutsideCodedAssetKeys().includes(normalizedRef)) {
-    return normalizedRef;
-  }
-  return "outside-space";
-}
-
-function getOutsideAssetCandidates(assetType) {
-  const normalizedType = normalizeOutsideAssetType(assetType);
-  if (normalizedType === "coded") {
-    return getOutsideCodedAssetKeys();
-  }
-  const extension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  return outsideResourceAssets.filter((entry) => entry.toLowerCase().endsWith(extension));
-}
-
-function normalizeOutsideAssetRefForType(assetType, assetRef, fallbackAssetRef = "") {
-  const normalizedType = normalizeOutsideAssetType(assetType);
-  const rawRef = String(assetRef || "").trim();
-  if (normalizedType === "coded") {
-    return normalizeOutsideCodedAssetRef(rawRef);
-  }
-
-  const expectedExtension = normalizedType === "mp4" ? ".mp4" : ".gif";
-  const isValidResourceRef = rawRef.startsWith("/resources/") && rawRef.toLowerCase().endsWith(expectedExtension);
-  if (isValidResourceRef) {
-    return rawRef;
-  }
-
-  const normalizedFallback = String(fallbackAssetRef || "").trim();
-  const fallbackValid =
-    normalizedFallback.startsWith("/resources/") && normalizedFallback.toLowerCase().endsWith(expectedExtension);
-  if (fallbackValid) {
-    return normalizedFallback;
-  }
-
-  const firstCandidate = getOutsideAssetCandidates(normalizedType)[0];
-  return firstCandidate || "";
-}
-
-function resolveOutsideCodedEffectType(assetRef) {
-  if (getOutsideCodedAssetKeys().includes(normalizeOutsideCodedAssetRef(assetRef))) {
-    return "outside-space";
-  }
-  return "outside-space";
-}
-
-function isOutsideModeDirectionApplicable(definition) {
-  if (!definition) {
-    return false;
-  }
-  if (normalizeOutsideAssetType(definition.assetType) !== "coded") {
-    return false;
-  }
-  return resolveOutsideCodedEffectType(definition.assetRef) === "outside-space";
-}
+// Phase 14-2: asset-ref normalizers moved to
+// src/app/runtime/runtime-asset-refs.js.
+window.TT_BEAMER_RUNTIME_ASSET_REFS.init({
+  OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
+  normalizeOutsideAnimationId: (id, fallback) => normalizeOutsideAnimationId(id, fallback),
+  normalizeInsideAnimationId: (id, fallback) => normalizeInsideAnimationId(id, fallback),
+  createDefaultInsideAnimationDefinitions: () => createDefaultInsideAnimationDefinitions(),
+  createDefaultRoomAnimationDefinitions: () => createDefaultRoomAnimationDefinitions(),
+  normalizeRoomAssetType: (v) => normalizeRoomAssetType(v),
+  normalizeInsideAssetType: (v) => normalizeInsideAssetType(v),
+  normalizeOutsideAssetType: (v) => normalizeOutsideAssetType(v),
+  getOutsideResourceAssets: () => outsideResourceAssets,
+});
+const {
+  getOutsideCodedAssetKeys,
+  getInsideCodedAssetKeys,
+  getRoomCodedAssetKeys,
+  normalizeRoomCodedAssetRef,
+  getRoomAssetCandidates,
+  normalizeRoomAssetRefForType,
+  resolveRoomCodedEffectType,
+  normalizeInsideCodedAssetRef,
+  getInsideAssetCandidates,
+  normalizeInsideAssetRefForType,
+  resolveInsideCodedEffectType,
+  normalizeOutsideCodedAssetRef,
+  getOutsideAssetCandidates,
+  normalizeOutsideAssetRefForType,
+  resolveOutsideCodedEffectType,
+  isOutsideModeDirectionApplicable,
+} = window.TT_BEAMER_RUNTIME_ASSET_REFS;
 
 function createConditionalFieldMountSlot(field, anchorName) {
   if (!field || !field.parentElement) {
