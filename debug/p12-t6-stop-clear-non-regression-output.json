@@ -1,0 +1,44 @@
+{
+  "suite": "P12-T6-stop-clear-immediate-authority-non-regression",
+  "phase": "GREEN-STATIC",
+  "expected": "PASS",
+  "observed": "PASS",
+  "checks": [
+    {
+      "id": "stopAnimation-authoritative-filter-path-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "clear-all-snapshot-branch-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "prune-finished-animations-contract-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "draw-loop-only-expected-runningAnimations-mutations",
+      "expected": false,
+      "actual": false,
+      "pass": true
+    },
+    {
+      "id": "concurrency-counter-loop-does-not-stop-animations",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    },
+    {
+      "id": "global-stop-clear-revision-observers-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true
+    }
+  ]
+}
