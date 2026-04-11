@@ -1,0 +1,43 @@
+{
+  "suite": "P12-T5-loop-mode-non-regression",
+  "phase": "GREEN-STATIC",
+  "expected": "PASS",
+  "observed": "PASS",
+  "checks": [
+    {
+      "id": "concurrency-guard-gated-on-count-ge-2",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Single-animation rooms keep source-over; loop visuals unaffected when alone."
+    },
+    {
+      "id": "guard-does-not-touch-loop-lifecycle-fields",
+      "expected": false,
+      "actual": false,
+      "pass": true,
+      "note": "No loopUntilStopped/hold/durationMs reference inside composite-op switch."
+    },
+    {
+      "id": "prune-finished-animations-preserves-loop-predicate",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Loop termination rule (hold/durationMs) is untouched."
+    },
+    {
+      "id": "upsert-global-loop-branch-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Global upsert loop semantics (loopUntilStopped flag) remain intact."
+    },
+    {
+      "id": "concurrency-map-build-is-read-only",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Concurrency count build does not mutate runningAnimations or entries."
+    }
+  ]
+}
