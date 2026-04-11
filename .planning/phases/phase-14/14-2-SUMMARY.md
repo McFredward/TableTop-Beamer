@@ -1,12 +1,12 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — twenty-four modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — twenty-five modules extracted)
 
-Status: **PARTIAL PASS — twenty-four extractions landed, 6563 LOC relocated out of the monolith, main file now at 8095 LOC**
+Status: **PARTIAL PASS — twenty-five extractions landed, 6829 LOC relocated out of the monolith, main file now at 7829 LOC**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 - Round 2 (T8..T12): `7dfbac9` → `7e498f9` → `169c9e9` → `b51745e` → `83ebdf6`
 - Round 3 (T13..T17): `bf0ec89` → `3367c79` → `db8f218` → `66fec32` → `ac9f150`
-- Round 4 (T18..T24): `ce3a9ac` → `ba7ce56` → `0a93e5c` → `cb743c8` → `f981c74` → `1a3fdc1` → `d602be1`
+- Round 4 (T18..T25): `ce3a9ac` → `ba7ce56` → `0a93e5c` → `cb743c8` → `f981c74` → `1a3fdc1` → `d602be1` → `3a7c98d`
 
 ## What was achieved
 
@@ -41,12 +41,13 @@ every commit.
 | 22 | `f981c74` | `runtime-live-sync-helpers.js` | −265 | +347 |
 | 23 | `1a3fdc1` | `runtime-perf.js` | −225 | +307 |
 | 24 | `d602be1` | `runtime-live-sync-core.js` | −438 | +499 |
+| 25 | `3a7c98d` | `runtime-zone-loader.js` | −266 | +331 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 8 095** (−6563 LOC, −44.8%).
-- 24 new runtime modules: **+8565 LOC**.
-- Net: +2002 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 24 extractions.
+- `runtime-orchestration.js`: **14 658 → 7 829** (−6829 LOC, −46.6%).
+- 25 new runtime modules: **+8896 LOC**.
+- Net: +2067 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 25 extractions.
 
 Final runtime/ layout:
 ```
@@ -78,8 +79,8 @@ LOC   File
 
 The Phase 14-2 exit criterion of `runtime-orchestration.js < 1500 LOC`
 (with a soft cap of 1500 LOC per module, hard cap 2000 LOC) was
-**not met**. The main file still sits at 8 095 LOC, about 5.4x
-the original hard target (but 44.8% smaller than the 14 658 LOC
+**not met**. The main file still sits at 7 829 LOC, about 5.2x
+the original hard target (but 46.6% smaller than the 14 658 LOC
 starting point).
 
 Reaching the target requires several more extractions of sizes 300
@@ -143,9 +144,9 @@ additional splits inside the settings panels and live-sync glue
 
 | Gate | Target | Actual |
 |---|---|---|
-| `runtime-orchestration.js` size | < 1500 LOC | **8 095 LOC** ❌ |
+| `runtime-orchestration.js` size | < 1500 LOC | **7 829 LOC** ❌ |
 | Every `src/app/**` file < 1500 LOC soft cap | ✓ | all new modules within bound; monolith above ❌ |
-| 8+ modules under `src/app/runtime/**` | 8 required | 24 shipped (+1 pre-existing = 25 total) ✅ |
+| 8+ modules under `src/app/runtime/**` | 8 required | 25 shipped (+1 pre-existing = 26 total) ✅ |
 | `runtime-orchestration.js` is thin entry | no | still monolith ❌ |
 | No circular imports | ✓ | ✓ |
 | All live harnesses PASS | ✓ | p11-hf4 ✓, p11-hf6 ✓, p12-1 ✓, p13-hf13 ✓ |
