@@ -1,19 +1,9 @@
 # CURRENT PHASE
 
-- Active: Phase 14 (`phase-14`) — Refactoring + Module Split
-- Status: PLANNING (just scaffolded)
+- Active: none (Phase 14 closed partial; waiting for new direction)
+- Status: Phase 14 CLOSED — Plan 14-1 PASS, Plan 14-2 PARTIAL (3 of ~10 extractions)
 - Previous Phase: Phase 13 CLOSED PASS (Plans 13-1/13-2/13-3 + HF1..HF13)
-- Next Plan: Plan 14-1 (inventory + module split of `src/app/runtime/runtime-orchestration.js`)
-- Command Target: begin Phase 14 execution
+- Next Plan: (resume Phase 14-2 extraction sequence from `MODULE-BOUNDARIES.md` OR open a new phase)
 
-Execution inputs:
-- `.planning/STATE.md`
-- `.planning/ROADMAP.md`
-- `.planning/phases/phase-14/PLAN.md`
-- `.planning/phases/phase-14/BACKLOG.md`
-- `.planning/phases/phase-14/TASKS.md`
-- `.planning/phases/phase-14/ACCEPTANCE.md`
-- `.planning/phases/phase-14/RISKS.md`
-- `.planning/phases/phase-14/EXECUTE.md`
-
+Phase 14 closure: `.planning/phases/phase-14/14-2-SUMMARY.md`
 Phase 13 closure: `.planning/phases/phase-13/CLOSURE.md`
