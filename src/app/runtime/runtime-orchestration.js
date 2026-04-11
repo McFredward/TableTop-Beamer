@@ -5966,568 +5966,109 @@ function setConditionalFieldMounted(slot, mounted) {
   }
 }
 
-function syncOutsideModeDirectionVisibility(definition) {
-  const visible = isOutsideModeDirectionApplicable(definition);
-  setConditionalFieldMounted(outsideModeFieldMount, visible);
-  setConditionalFieldMounted(outsideDirectionFieldMount, visible);
-  if (outsideAnimationsPanel) {
-    outsideAnimationsPanel.dataset.outsideModeDirectionVisible = visible ? "true" : "false";
-  }
-  if (outsideModeField) {
-    outsideModeField.hidden = false;
-    outsideModeField.setAttribute("aria-hidden", "false");
-  }
-  if (outsideDirectionField) {
-    outsideDirectionField.hidden = false;
-    outsideDirectionField.setAttribute("aria-hidden", "false");
-  }
-  if (outsideModeInput) {
-    if (!visible) {
-      outsideModeInput.value = "standard";
-    }
-    outsideModeInput.disabled = !visible;
-  }
-  if (outsideDirectionInput) {
-    if (!visible) {
-      outsideDirectionInput.value = "forward";
-    }
-    outsideDirectionInput.disabled = !visible;
-  }
-}
-
-function buildInsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
-  const baseProfile = normalizeInsideFxProfile(profileOverride ?? getInsideFxProfile(boardId));
-  const selectedDefinition =
-    baseProfile.animations.find((entry) => entry.id === baseProfile.selectedAnimationId) ?? baseProfile.animations[0];
-  if (!selectedDefinition) {
-    return baseProfile;
-  }
-  const nextAnimations = baseProfile.animations.map((entry) => {
-    if (entry.id !== selectedDefinition.id) {
-      return entry;
-    }
-    return normalizeInsideAnimationDefinition({
-      ...entry,
-      ...patch,
-    });
-  });
-  return normalizeInsideFxProfile({
-    ...baseProfile,
-    selectedAnimationId: selectedDefinition.id,
-    animations: nextAnimations,
-  });
-}
-
-function syncInsideResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
-  if (!insideResourceSelect) {
-    return;
-  }
-  const assetType = normalizeInsideAssetType(assetTypeOverride ?? insideAssetTypeInput?.value);
-  const candidateAssets = getInsideAssetCandidates(assetType);
-  insideResourceSelect.replaceChildren();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent =
-    candidateAssets.length > 0
-      ? assetType === "coded"
-        ? "Select coded renderer key…"
-        : `Select ${assetType.toUpperCase()} resource asset…`
-      : assetType === "coded"
-        ? "No coded renderer keys available"
-        : `No ${assetType.toUpperCase()} resource assets available`;
-  insideResourceSelect.append(placeholder);
-  for (const assetPath of candidateAssets) {
-    const option = document.createElement("option");
-    option.value = assetPath;
-    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
-    insideResourceSelect.append(option);
-  }
-  insideResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
-}
-
-function getInsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
-  const definition = selectedDefinition ?? getSelectedInsideAnimationDefinition(boardId);
-  if (!definition) {
-    delete insideEditorDraftByBoard[boardId];
-    return null;
-  }
-  const existing = insideEditorDraftByBoard[boardId];
-  if (existing && existing.animationId === definition.id) {
-    return existing;
-  }
-  const next = {
-    animationId: definition.id,
-    intensity: clampOutsideIntensity(definition.intensity),
-    speed: clampOutsideSpeed(definition.speed),
-    assetType: normalizeInsideAssetType(definition.assetType),
-    assetRef: String(definition.assetRef || "").trim(),
-    loopUntilStopped: Boolean(definition.loopUntilStopped),
-  };
-  insideEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function setInsideEditorDraft(boardId = state.boardId, partial = {}) {
-  const base = getInsideEditorDraft(boardId);
-  if (!base) {
-    return null;
-  }
-  const next = {
-    ...base,
-    ...partial,
-    intensity: clampOutsideIntensity(partial?.intensity ?? base.intensity),
-    speed: clampOutsideSpeed(partial?.speed ?? base.speed),
-    assetType: normalizeInsideAssetType(partial?.assetType ?? base.assetType),
-    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
-    loopUntilStopped: Boolean(partial?.loopUntilStopped ?? base.loopUntilStopped),
-  };
-  insideEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function collectInsideEditorDraftFromInputs(boardId = state.boardId) {
-  const assetType = normalizeInsideAssetType(insideAssetTypeInput?.value);
-  const assetRef = normalizeInsideAssetRefForType(
-    assetType,
-    String(insideAssetRefInput?.value || "").trim(),
-  );
-  return setInsideEditorDraft(boardId, {
-    intensity: clampOutsideIntensity(insideIntensityInput?.value),
-    speed: clampOutsideSpeed(insideSpeedInput?.value),
-    assetType,
-    assetRef,
-    loopUntilStopped: Boolean(insideLoopUntilStopInput?.checked),
-  });
-}
-
-function syncInsideFxPanel() {
-  const inside = getInsideFxProfile(state.boardId);
-  const selectedDefinition = getSelectedInsideAnimationDefinition(state.boardId);
-  const draft = getInsideEditorDraft(state.boardId, selectedDefinition);
-  if (insideAnimationSelect) {
-    insideAnimationSelect.replaceChildren();
-    for (const definition of inside.animations) {
-      const option = document.createElement("option");
-      option.value = definition.id;
-      option.textContent = `${definition.name} (${definition.id})`;
-      insideAnimationSelect.append(option);
-    }
-    insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
-  }
-  const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? inside.intensity;
-  const speed = draft?.speed ?? selectedDefinition?.speed ?? inside.speed;
-  const assetType = normalizeInsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? inside.assetType);
-  const assetRef = normalizeInsideAssetRefForType(
-    assetType,
-    draft?.assetRef ?? selectedDefinition?.assetRef ?? inside.assetRef ?? "",
-    selectedDefinition?.assetRef ?? inside.assetRef ?? "",
-  );
-  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
-    setInsideEditorDraft(state.boardId, { assetType, assetRef });
-  }
-  insideIntensityInput.value = String(intensity);
-  insideSpeedInput.value = String(speed);
-  if (insideAssetTypeInput) {
-    insideAssetTypeInput.value = assetType;
-  }
-  if (insideAssetRefInput) {
-    insideAssetRefInput.value = assetRef;
-  }
-  if (insideLoopUntilStopInput) {
-    insideLoopUntilStopInput.checked = Boolean(
-      draft?.loopUntilStopped
-      ?? selectedDefinition?.loopUntilStopped
-      ?? inside.loopUntilStopped,
-    );
-  }
-  syncInsideResourcePicker(assetType, assetRef);
-  insideIntensityValue.textContent = intensity.toFixed(2);
-  insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
-  renderInsideGlobalButtons();
-}
-
-function renderInsideGlobalButtons() {
-  if (!insideGlobalButtons) {
-    return;
-  }
-  const inside = getInsideFxProfile(state.boardId);
-  insideGlobalButtons.replaceChildren();
-  for (const definition of inside.animations) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.global = definition.id;
-    button.textContent = definition.name;
-    insideGlobalButtons.append(button);
-  }
-}
-
-function getRoomAnimationLabelById(animationId, boardId = state.boardId) {
-  const definition = getRoomAnimationDefinitionById(animationId, boardId);
-  if (definition?.name) {
-    return definition.name;
-  }
-  return ROOM_ANIMATIONS.find((item) => item.id === animationId)?.label ?? animationId;
-}
-
-function syncRoomResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
-  if (!roomResourceSelect) {
-    return;
-  }
-  const assetType = normalizeRoomAssetType(assetTypeOverride ?? roomAssetTypeInput?.value);
-  const candidateAssets = getRoomAssetCandidates(assetType);
-  roomResourceSelect.replaceChildren();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent =
-    candidateAssets.length > 0
-      ? assetType === "coded"
-        ? "Select coded renderer key…"
-        : `Select ${assetType.toUpperCase()} resource asset…`
-      : assetType === "coded"
-        ? "No coded renderer keys available"
-        : `No ${assetType.toUpperCase()} resource assets available`;
-  roomResourceSelect.append(placeholder);
-  for (const assetPath of candidateAssets) {
-    const option = document.createElement("option");
-    option.value = assetPath;
-    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
-    roomResourceSelect.append(option);
-  }
-  roomResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
-}
-
-function getRoomEditorDraft(boardId = state.boardId, selectedDefinition = null) {
-  const definition = selectedDefinition ?? getSelectedRoomAnimationDefinition(boardId);
-  if (!definition) {
-    delete roomEditorDraftByBoard[boardId];
-    return null;
-  }
-  const existing = roomEditorDraftByBoard[boardId];
-  if (existing && existing.animationId === definition.id) {
-    return existing;
-  }
-  const next = {
-    animationId: definition.id,
-    assetType: normalizeRoomAssetType(definition.assetType),
-    assetRef: String(definition.assetRef || "").trim(),
-  };
-  roomEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function setRoomEditorDraft(boardId = state.boardId, partial = {}) {
-  const base = getRoomEditorDraft(boardId);
-  if (!base) {
-    return null;
-  }
-  const next = {
-    ...base,
-    ...partial,
-    assetType: normalizeRoomAssetType(partial?.assetType ?? base.assetType),
-    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
-  };
-  roomEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function collectRoomEditorDraftFromInputs(boardId = state.boardId) {
-  const assetType = normalizeRoomAssetType(roomAssetTypeInput?.value);
-  const assetRef = normalizeRoomAssetRefForType(
-    assetType,
-    String(roomAssetRefInput?.value || "").trim(),
-  );
-  return setRoomEditorDraft(boardId, {
-    assetType,
-    assetRef,
-  });
-}
-
-function syncRoomFxPanel() {
-  const roomFx = getRoomFxProfile(state.boardId);
-  const selectedDefinition = getSelectedRoomAnimationDefinition(state.boardId);
-  const draft = getRoomEditorDraft(state.boardId, selectedDefinition);
-
-  if (roomAnimationSettingsSelect) {
-    roomAnimationSettingsSelect.replaceChildren();
-    for (const definition of roomFx.animations) {
-      const option = document.createElement("option");
-      option.value = definition.id;
-      option.textContent = `${definition.name} (${definition.id})`;
-      roomAnimationSettingsSelect.append(option);
-    }
-    roomAnimationSettingsSelect.value = selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "";
-  }
-
-  if (roomAnimationSelect) {
-    roomAnimationSelect.replaceChildren();
-    for (const definition of roomFx.animations) {
-      const option = document.createElement("option");
-      option.value = definition.id;
-      option.textContent = definition.name;
-      roomAnimationSelect.append(option);
-    }
-    const selectedDraftId = normalizeRoomAnimationId(
-      state.roomDraft.animationId,
-      selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "kaputt",
-    );
-    const validSelectedDraftId = roomFx.animations.some((entry) => entry.id === selectedDraftId)
-      ? selectedDraftId
-      : roomFx.animations[0]?.id ?? "kaputt";
-    state.roomDraft.animationId = validSelectedDraftId;
-    roomAnimationSelect.value = validSelectedDraftId;
-  }
-
-  const assetType = normalizeRoomAssetType(draft?.assetType ?? selectedDefinition?.assetType);
-  const assetRef = normalizeRoomAssetRefForType(
-    assetType,
-    draft?.assetRef ?? selectedDefinition?.assetRef ?? "",
-    selectedDefinition?.assetRef ?? "",
-  );
-  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
-    setRoomEditorDraft(state.boardId, { assetType, assetRef });
-  }
-  if (roomAssetTypeInput) {
-    roomAssetTypeInput.value = assetType;
-  }
-  if (roomAssetRefInput) {
-    roomAssetRefInput.value = assetRef;
-  }
-  if (roomAnimationSettingsDeleteButton) {
-    roomAnimationSettingsDeleteButton.disabled = roomFx.animations.length <= 1;
-  }
-  syncRoomResourcePicker(assetType, assetRef);
-}
-
-function buildOutsideProfileWithSelectedAnimationPatch(boardId = state.boardId, patch = {}, profileOverride = null) {
-  const baseProfile = normalizeOutsideFxProfile(profileOverride ?? getOutsideFxProfile(boardId));
-  const selectedDefinition =
-    baseProfile.animations.find((entry) => entry.id === baseProfile.selectedAnimationId) ?? baseProfile.animations[0];
-  if (!selectedDefinition) {
-    return baseProfile;
-  }
-  const nextAnimations = baseProfile.animations.map((entry) => {
-    if (entry.id !== selectedDefinition.id) {
-      return entry;
-    }
-    return normalizeOutsideAnimationDefinition({
-      ...entry,
-      ...patch,
-    });
-  });
-  return normalizeOutsideFxProfile({
-    ...baseProfile,
-    selectedAnimationId: selectedDefinition.id,
-    animations: nextAnimations,
-  });
-}
-
-function syncOutsideResourcePicker(assetTypeOverride = null, selectedAssetRef = "") {
-  if (!outsideResourceSelect) {
-    return;
-  }
-  const assetType = normalizeOutsideAssetType(assetTypeOverride ?? outsideAssetTypeInput?.value);
-  const candidateAssets = getOutsideAssetCandidates(assetType);
-  outsideResourceSelect.replaceChildren();
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent =
-    candidateAssets.length > 0
-      ? assetType === "coded"
-        ? "Select coded renderer key…"
-        : `Select ${assetType.toUpperCase()} resource asset…`
-      : assetType === "coded"
-        ? "No coded renderer keys available"
-        : `No ${assetType.toUpperCase()} resource assets available`;
-  outsideResourceSelect.append(placeholder);
-  for (const assetPath of candidateAssets) {
-    const option = document.createElement("option");
-    option.value = assetPath;
-    option.textContent = assetType === "coded" ? assetPath : assetPath.replace(/^\//, "");
-    outsideResourceSelect.append(option);
-  }
-  outsideResourceSelect.value = candidateAssets.includes(selectedAssetRef) ? selectedAssetRef : "";
-}
-
-async function loadOutsideResourceAssets() {
-  try {
-    const response = await fetch("/api/resources");
-    if (!response.ok) {
-      throw new Error(`resource list failed (${response.status})`);
-    }
-    const payload = await response.json();
-    const files = Array.isArray(payload?.files) ? payload.files : [];
-    outsideResourceAssets = files
-      .map((entry) => String(entry || "").trim())
-      .filter((entry) => entry.startsWith("/resources/") && /\.(gif|mp4)$/i.test(entry))
-      .sort();
-  } catch {
-    outsideResourceAssets = [];
-  }
-  syncOutsideResourcePicker(outsideAssetTypeInput?.value, String(outsideAssetRefInput?.value || "").trim());
-  syncInsideResourcePicker(insideAssetTypeInput?.value, String(insideAssetRefInput?.value || "").trim());
-  syncRoomResourcePicker(roomAssetTypeInput?.value, String(roomAssetRefInput?.value || "").trim());
-}
-
-function getOutsideEditorDraft(boardId = state.boardId, selectedDefinition = null) {
-  const definition = selectedDefinition ?? getSelectedOutsideAnimationDefinition(boardId);
-  if (!definition) {
-    delete outsideEditorDraftByBoard[boardId];
-    return null;
-  }
-  const existing = outsideEditorDraftByBoard[boardId];
-  if (existing && existing.animationId === definition.id) {
-    return existing;
-  }
-  const next = {
-    animationId: definition.id,
-    intensity: clampOutsideIntensity(definition.intensity),
-    speed: clampOutsideSpeed(definition.speed),
-    mode: normalizeOutsideMode(definition.mode),
-    direction: normalizeOutsideDirection(definition.direction),
-    assetType: normalizeOutsideAssetType(definition.assetType),
-    assetRef: String(definition.assetRef || "").trim(),
-  };
-  outsideEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function setOutsideEditorDraft(boardId = state.boardId, partial = {}) {
-  const base = getOutsideEditorDraft(boardId);
-  if (!base) {
-    return null;
-  }
-  const next = {
-    ...base,
-    ...partial,
-    intensity: clampOutsideIntensity(partial?.intensity ?? base.intensity),
-    speed: clampOutsideSpeed(partial?.speed ?? base.speed),
-    mode: normalizeOutsideMode(partial?.mode ?? base.mode),
-    direction: normalizeOutsideDirection(partial?.direction ?? base.direction),
-    assetType: normalizeOutsideAssetType(partial?.assetType ?? base.assetType),
-    assetRef: String(partial?.assetRef ?? base.assetRef ?? "").trim(),
-  };
-  outsideEditorDraftByBoard[boardId] = next;
-  return next;
-}
-
-function collectOutsideEditorDraftFromInputs(boardId = state.boardId) {
-  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
-  const assetRef = normalizeOutsideAssetRefForType(
-    assetType,
-    String(outsideAssetRefInput?.value || "").trim(),
-  );
-  const allowModeDirection = isOutsideModeDirectionApplicable({ assetType, assetRef });
-  return setOutsideEditorDraft(boardId, {
-    intensity: clampOutsideIntensity(outsideIntensityInput?.value),
-    speed: clampOutsideSpeed(outsideSpeedInput?.value),
-    mode: allowModeDirection ? normalizeOutsideMode(outsideModeInput?.value) : "standard",
-    direction: allowModeDirection ? normalizeOutsideDirection(outsideDirectionInput?.value) : "forward",
-    assetType,
-    assetRef,
-  });
-}
-
-function syncOutsideDraftVisibilityFromInputs(boardId = state.boardId) {
-  const assetType = normalizeOutsideAssetType(outsideAssetTypeInput?.value);
-  const assetRef = normalizeOutsideAssetRefForType(assetType, String(outsideAssetRefInput?.value || "").trim());
-  setOutsideEditorDraft(boardId, {
-    assetType,
-    assetRef,
-  });
-  if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = assetRef;
-  }
-  syncOutsideModeDirectionVisibility({ assetType, assetRef });
-  syncOutsideResourcePicker(assetType, assetRef);
-}
-
-function syncOutsideFxPanel() {
-  const outside = getOutsideFxProfile(state.boardId);
-  const selectedDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
-  const draft = getOutsideEditorDraft(state.boardId, selectedDefinition);
-  if (outsideAnimationSelect) {
-    outsideAnimationSelect.replaceChildren();
-    for (const definition of outside.animations) {
-      const option = document.createElement("option");
-      option.value = definition.id;
-      option.textContent = `${definition.name} (${definition.id})`;
-      outsideAnimationSelect.append(option);
-    }
-    outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";
-  }
-  outsideEnabledInput.checked = outside.enabled;
-  const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? outside.intensity;
-  const speed = draft?.speed ?? selectedDefinition?.speed ?? outside.speed;
-  const mode = isOutsideModeDirectionApplicable(selectedDefinition)
-    ? draft?.mode ?? selectedDefinition?.mode ?? outside.mode
-    : "standard";
-  const direction = isOutsideModeDirectionApplicable(selectedDefinition)
-    ? draft?.direction ?? selectedDefinition?.direction ?? outside.direction
-    : "forward";
-  const assetType = normalizeOutsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? outside.assetType);
-  const assetRef = normalizeOutsideAssetRefForType(
-    assetType,
-    draft?.assetRef ?? selectedDefinition?.assetRef ?? outside.assetRef ?? "",
-    selectedDefinition?.assetRef ?? outside.assetRef ?? "",
-  );
-  if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
-    setOutsideEditorDraft(state.boardId, { assetType, assetRef });
-  }
-  outsideIntensityInput.value = String(intensity);
-  outsideSpeedInput.value = String(speed);
-  outsideModeInput.value = mode;
-  outsideDirectionInput.value = direction;
-  if (outsideAssetTypeInput) {
-    outsideAssetTypeInput.value = assetType;
-  }
-  if (outsideAssetRefInput) {
-    outsideAssetRefInput.value = assetRef;
-  }
-  syncOutsideModeDirectionVisibility({
-    ...selectedDefinition,
-    assetType,
-    assetRef,
-  });
-  syncOutsideResourcePicker(assetType, assetRef);
-  outsideIntensityValue.textContent = intensity.toFixed(2);
-  outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
-}
-
-function findOutsideGlobalAnimation(boardId) {
-  return state.runningAnimations.find(
-    (animation) =>
-      animation.scope === "global" && animation.type === "outside-space" && animation.boardId === boardId,
-  );
-}
-
-function syncOutsideRuntimeMirror(boardId = state.boardId) {
-  const outsideEnabled = getOutsideFxProfile(boardId).enabled;
-  const existing = findOutsideGlobalAnimation(boardId);
-
-  if (outsideEnabled && !existing) {
-    const outsideAnimation = createAnimation({
-      boardId,
-      type: "outside-space",
-      scope: "global",
-      intensity: 1,
-      hold: true,
-      durationSec: 0,
-    });
-    state.runningAnimations.push(outsideAnimation);
-    playSoundForAnimation(outsideAnimation);
-    return true;
-  }
-
-  if (!outsideEnabled && existing) {
-    stopAnimationSound(existing.id);
-    state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
-    clearOutsideMp4PlaybackState(boardId);
-    clearOutsideTimelineState(boardId);
-    return true;
-  }
-
-  return false;
-}
+// Phase 14-2: FX panel syncs (~560 LOC) moved to
+// src/app/runtime/runtime-fx-panels.js. Init + destructure so
+// existing call sites resolve the same names. Editor draft storage
+// and outsideResourceAssets remain in orchestration scope (passed
+// by reference) — mutations to the objects propagate naturally.
+window.TT_BEAMER_RUNTIME_FX_PANELS.init({
+  state,
+  ROOM_ANIMATIONS,
+  insideEditorDraftByBoard,
+  roomEditorDraftByBoard,
+  outsideEditorDraftByBoard,
+  setOutsideResourceAssets: (files) => { outsideResourceAssets = files; },
+  insideResourceSelect,
+  insideAssetTypeInput,
+  insideAssetRefInput,
+  insideAnimationSelect,
+  insideIntensityInput,
+  insideSpeedInput,
+  insideIntensityValue,
+  insideSpeedValue,
+  insideLoopUntilStopInput,
+  insideGlobalButtons,
+  roomResourceSelect,
+  roomAssetTypeInput,
+  roomAssetRefInput,
+  roomAnimationSelect,
+  roomAnimationSettingsSelect,
+  roomAnimationSettingsDeleteButton,
+  outsideResourceSelect,
+  outsideAssetTypeInput,
+  outsideAssetRefInput,
+  outsideAnimationSelect,
+  outsideEnabledInput,
+  outsideIntensityInput,
+  outsideSpeedInput,
+  outsideIntensityValue,
+  outsideSpeedValue,
+  outsideModeFieldMount,
+  outsideDirectionFieldMount,
+  outsideAnimationsPanel,
+  outsideModeField,
+  outsideDirectionField,
+  outsideModeInput,
+  outsideDirectionInput,
+  isOutsideModeDirectionApplicable: (definition) => isOutsideModeDirectionApplicable(definition),
+  setConditionalFieldMounted: (mount, visible) => setConditionalFieldMounted(mount, visible),
+  normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
+  normalizeInsideAnimationDefinition: (entry) => normalizeInsideAnimationDefinition(entry),
+  normalizeInsideAssetType: (assetType) => normalizeInsideAssetType(assetType),
+  normalizeInsideAssetRefForType: (assetType, ref, fallback) => normalizeInsideAssetRefForType(assetType, ref, fallback),
+  getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
+  getInsideAssetCandidates: (assetType) => getInsideAssetCandidates(assetType),
+  getSelectedInsideAnimationDefinition: (boardId) => getSelectedInsideAnimationDefinition(boardId),
+  normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
+  normalizeRoomAssetRefForType: (assetType, ref, fallback) => normalizeRoomAssetRefForType(assetType, ref, fallback),
+  normalizeRoomAnimationId: (id, fallback) => normalizeRoomAnimationId(id, fallback),
+  getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
+  getRoomAssetCandidates: (assetType) => getRoomAssetCandidates(assetType),
+  getSelectedRoomAnimationDefinition: (boardId) => getSelectedRoomAnimationDefinition(boardId),
+  getRoomAnimationDefinitionById: (type, boardId) => getRoomAnimationDefinitionById(type, boardId),
+  normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
+  normalizeOutsideAnimationDefinition: (entry) => normalizeOutsideAnimationDefinition(entry),
+  normalizeOutsideAssetType: (assetType) => normalizeOutsideAssetType(assetType),
+  normalizeOutsideAssetRefForType: (assetType, ref, fallback) => normalizeOutsideAssetRefForType(assetType, ref, fallback),
+  normalizeOutsideMode: (mode) => normalizeOutsideMode(mode),
+  normalizeOutsideDirection: (direction) => normalizeOutsideDirection(direction),
+  getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
+  getOutsideAssetCandidates: (assetType) => getOutsideAssetCandidates(assetType),
+  getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
+  clampOutsideIntensity: (value) => clampOutsideIntensity(value),
+  clampOutsideSpeed: (value) => clampOutsideSpeed(value),
+  createAnimation: (opts) => createAnimation(opts),
+  playSoundForAnimation: (animation) => playSoundForAnimation(animation),
+  stopAnimationSound: (animationId) => stopAnimationSound(animationId),
+  clearOutsideMp4PlaybackState: (boardId) => clearOutsideMp4PlaybackState(boardId),
+  clearOutsideTimelineState: (boardId) => clearOutsideTimelineState(boardId),
+});
+const {
+  syncOutsideModeDirectionVisibility,
+  buildInsideProfileWithSelectedAnimationPatch,
+  syncInsideResourcePicker,
+  getInsideEditorDraft,
+  setInsideEditorDraft,
+  collectInsideEditorDraftFromInputs,
+  syncInsideFxPanel,
+  renderInsideGlobalButtons,
+  getRoomAnimationLabelById,
+  syncRoomResourcePicker,
+  getRoomEditorDraft,
+  setRoomEditorDraft,
+  collectRoomEditorDraftFromInputs,
+  syncRoomFxPanel,
+  buildOutsideProfileWithSelectedAnimationPatch,
+  syncOutsideResourcePicker,
+  loadOutsideResourceAssets,
+  getOutsideEditorDraft,
+  setOutsideEditorDraft,
+  collectOutsideEditorDraftFromInputs,
+  syncOutsideDraftVisibilityFromInputs,
+  syncOutsideFxPanel,
+  findOutsideGlobalAnimation,
+  syncOutsideRuntimeMirror,
+} = window.TT_BEAMER_RUNTIME_FX_PANELS;
 
 function beginShipPolygonVertexDrag(event, vertexIndex) {
   state.shipPolygonEditor.dragVertexIndex = vertexIndex;
