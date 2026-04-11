@@ -3504,11 +3504,15 @@ function clearLocalConfigDirty(reasonText) {
 }
 
 function refreshApplyDiscardButtonsUi() {
+  const bar = document.getElementById("apply-global-config-bar");
   const applyButton = document.getElementById("apply-global-config");
   const discardButton = document.getElementById("discard-global-config");
   const indicator = document.getElementById("apply-global-config-indicator");
   const dirty = Boolean(state.localConfigDirty);
   const remoteAwaiting = Boolean(state.remoteConfigUpdateAwaiting);
+  if (bar) {
+    bar.classList.toggle("is-dirty", dirty || remoteAwaiting);
+  }
   if (applyButton) {
     applyButton.disabled = !dirty;
     applyButton.textContent = dirty
@@ -4383,13 +4387,9 @@ function canStartPanModeFromEvent(event) {
   if (zoom.scale <= 1) {
     return false;
   }
-  // Phase 13-HF2: single-finger pan on touch/pen is equivalent to
-  // middle-mouse pan on desktop — as long as scale > 1 and the touch is
-  // not hitting a polygon/vertex/room edit element (overlay event order
-  // guarantees that because those elements stop propagation).
-  if (event.pointerType === "touch" || event.pointerType === "pen") {
-    return true;
-  }
+  // Phase 13-HF4: touch gestures are routed through the central touch
+  // gesture manager (see `touchGesture` state machine below). Mouse pan
+  // still uses middle-click or space-drag.
   return event.button === 1 || state.panMode.spacePressed;
 }
 
@@ -6463,6 +6463,31 @@ function validateViewExclusivity(expectedView, { silent = false, context = "runt
 
 function setActiveView(view, { skipGuard = false } = {}) {
   const nextView = view === "settings" ? "settings" : "dashboard";
+  // Phase 13-HF4: block the Dashboard switch while local config edits are
+  // unsaved. User must Apply or Discard first. Settings → Dashboard is
+  // the only direction blocked (Dashboard → Settings is always allowed,
+  // since edits only live in Settings).
+  if (
+    !skipGuard
+    && nextView === "dashboard"
+    && state.uiView === "settings"
+    && state.localConfigDirty
+  ) {
+    const accepted = window.confirm(
+      "Du hast ungespeicherte lokale Aenderungen.\n\n"
+      + "OK  = Apply (auf Server pushen und dann zum Dashboard wechseln)\n"
+      + "Abbrechen = im Settings bleiben (Discard-Button benutzen um zu verwerfen)",
+    );
+    if (!accepted) {
+      return;
+    }
+    void applyLocalConfigToServer().then((result) => {
+      if (result.ok) {
+        setActiveView("dashboard", { skipGuard: true });
+      }
+    });
+    return;
+  }
   if (nextView !== "settings") {
     state.panMode.spacePressed = false;
     endPanMode(null, { canceled: true });
@@ -8195,6 +8220,9 @@ function renderPolygonEditorHandles() {
     }
     handle.dataset.vertexIndex = String(index);
     hitTarget.dataset.vertexIndex = String(index);
+    // Phase 13-HF4: expose roomId so the central touch gesture manager
+    // can look up which room this vertex belongs to.
+    hitTarget.dataset.roomId = room.id;
     hitTarget.setAttribute("cx", x.toFixed(1));
     hitTarget.setAttribute("cy", y.toFixed(1));
     hitTarget.setAttribute("r", vertexHitRadius.toFixed(2));
@@ -12005,41 +12033,47 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // Mouse wheel over the stage: exponential scale delta, cursor-anchored.
 // Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
 
-// Phase 13-HF1: cursor-accurate zoom-around-anchor math.
+// Phase 13-HF4: cursor-accurate zoom-around-anchor math for the stage's
+// CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
+// offsetLeft which implicitly assumes `transform-origin: 0 0` and
+// produced the wrong anchor on every zoom.
 //
-// The stage itself is CSS-transformed (`translate(panX, panY) scale(scale)`),
-// so `stage.getBoundingClientRect()` returns the TRANSFORMED rect and cannot
-// be mixed with `stage.clientWidth` (untransformed). Use the stage's parent
-// rect as a fixed screen reference; the stage's untransformed top-left sits
-// at `parentRect.left + stage.offsetLeft` (ditto for y). Given the current
-// scale + pan, a cursor at `(clientX, clientY)` maps to an untransformed
-// stage point `(stageX, stageY)`. After rescaling to `nextScale` we solve
-// for a new pan such that `(stageX, stageY)` stays under the cursor.
-function resolveStageScreenAnchor() {
-  if (!stage) return null;
-  const parent = stage.parentElement;
-  if (!parent) return null;
-  const parentRect = parent.getBoundingClientRect();
-  return {
-    screenStageLeft: parentRect.left + stage.offsetLeft,
-    screenStageTop: parentRect.top + stage.offsetTop,
-  };
-}
-
+// Derivation (transform-origin 50% 50%):
+//   visualX = layoutCenterX + panX + (stageLocalX - layoutWidth/2) * scale
+//
+// Given a cursor at (clientX, clientY) we read fracX/fracY from the
+// TRANSFORMED getBoundingClientRect(), which gives the cursor's position
+// as a 0..1 fraction inside the visible stage. That fraction equals the
+// same fraction in UNTRANSFORMED stage-local coordinates:
+//   stageLocalX = fracX * stage.clientWidth
+//
+// To keep the stage-local point under the cursor after rescaling, we need
+//   clientX = layoutCenterX + newPanX + (stageLocalX - layoutWidth/2) * newScale
+// Subtracting the current equation and solving for newPanX:
+//   newPanX = panX + (layoutWidth/2 - stageLocalX) * (newScale - scale)
+//
+// No layoutLeft / layoutCenterX required — the math is differential.
 function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
-  const anchor = resolveStageScreenAnchor();
-  if (!anchor) return;
+  if (!stage) return;
+  const rect = stage.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  const layoutWidth = stage.clientWidth || 0;
+  const layoutHeight = stage.clientHeight || 0;
+  if (layoutWidth <= 0 || layoutHeight <= 0) return;
+
   const current = getBoardZoom(state.boardId);
   const currentScale = Math.max(0.0001, Number(current.scale) || 1);
   const clamped = clampBoardZoomScale(nextScale);
+  if (!Number.isFinite(clamped) || clamped <= 0) return;
 
-  // Untransformed stage-local point currently under the cursor.
-  const stageX = (clientX - anchor.screenStageLeft - current.panX) / currentScale;
-  const stageY = (clientY - anchor.screenStageTop - current.panY) / currentScale;
+  const fracX = (clientX - rect.left) / rect.width;
+  const fracY = (clientY - rect.top) / rect.height;
+  const stageLocalX = fracX * layoutWidth;
+  const stageLocalY = fracY * layoutHeight;
 
-  // Pan that keeps that same point under the cursor after rescaling.
-  const newPanX = clientX - anchor.screenStageLeft - stageX * clamped;
-  const newPanY = clientY - anchor.screenStageTop - stageY * clamped;
+  const scaleDelta = clamped - currentScale;
+  const newPanX = current.panX + (layoutWidth / 2 - stageLocalX) * scaleDelta;
+  const newPanY = current.panY + (layoutHeight / 2 - stageLocalY) * scaleDelta;
 
   updateCurrentBoardZoom(
     clampPanToBounds({ scale: clamped, panX: newPanX, panY: newPanY }),
@@ -12069,36 +12103,67 @@ if (stage) {
     { passive: false },
   );
 
-  // Two-finger pinch zoom via pointer events. We track at most two active
-  // pointers. When both pointers are down we read their current distance
-  // and compare against the previous one to derive a scale ratio.
-  const pinchState = {
-    pointers: new Map(),
-    lastDistance: 0,
-    lastMidpointClient: null,
+  // Phase 13-HF4: centralised touch gesture state machine.
+  //
+  // The stage intercepts touch/pen pointerdowns at CAPTURE phase so it
+  // runs BEFORE the polygon/vertex/edge/room-area element handlers. It
+  // arbitrates between pan, pinch, and press-and-hold drag. Mouse events
+  // are untouched and still flow through the existing pointerdown
+  // listeners on the polygon elements and the overlay pan handler.
+  //
+  // States:
+  //   idle        -> no touch tracked
+  //   tentative   -> one touch down, waiting to determine intent
+  //   panning     -> committed single-finger pan
+  //   pinching    -> two touches down, zoom
+  //   drag        -> press-and-hold expired, polygon/vertex/room drag
+  //                  committed through the existing drag handlers
+  const TOUCH_HOLD_MS = 350;
+  const TOUCH_MOVE_THRESHOLD_PX = 12;
+
+  const touchGesture = {
+    mode: "idle",
+    primaryPointerId: null,
+    primaryStartClientX: 0,
+    primaryStartClientY: 0,
+    primaryHitKind: "empty",
+    primaryHitNode: null,
+    primaryHitIndex: -1,
+    primaryHitRoomId: null,
+    holdTimerId: null,
+    pinchPointers: new Map(),
+    pinchLastDistance: 0,
   };
 
-  function pinchDistance(a, b) {
-    const dx = a.clientX - b.clientX;
-    const dy = a.clientY - b.clientY;
-    return Math.hypot(dx, dy);
+  function classifyTouchHitTarget(target) {
+    if (!target?.closest) return { kind: "empty", node: null, index: -1, roomId: null };
+    const node = target.closest(
+      ".ship-polygon-vertex-hit-target, .ship-polygon-edge-hit-target, "
+      + ".polygon-vertex-hit-target, .polygon-edge-hit-target, "
+      + "polygon.room-zone",
+    );
+    if (!node) return { kind: "empty", node: null, index: -1, roomId: null };
+    const indexAttr = Number(node.dataset?.vertexIndex ?? node.dataset?.edgeIndex);
+    const index = Number.isFinite(indexAttr) ? indexAttr : -1;
+    const roomId = node.dataset?.roomId ?? null;
+    if (node.classList.contains("ship-polygon-vertex-hit-target")) {
+      return { kind: "ship-vertex", node, index, roomId: null };
+    }
+    if (node.classList.contains("ship-polygon-edge-hit-target")) {
+      return { kind: "ship-edge", node, index, roomId: null };
+    }
+    if (node.classList.contains("polygon-vertex-hit-target")) {
+      return { kind: "room-vertex", node, index, roomId };
+    }
+    if (node.classList.contains("polygon-edge-hit-target")) {
+      return { kind: "room-edge", node, index, roomId };
+    }
+    if (node.tagName === "polygon" && node.classList.contains("room-zone")) {
+      return { kind: "room-area", node, index: -1, roomId: node.dataset?.roomId ?? null };
+    }
+    return { kind: "empty", node: null, index: -1, roomId: null };
   }
 
-  function pinchMidpoint(a, b) {
-    return {
-      clientX: (a.clientX + b.clientX) / 2,
-      clientY: (a.clientY + b.clientY) / 2,
-    };
-  }
-
-  function shouldCaptureForPinch(event) {
-    // Only respond to touch/pen inputs; mouse uses the wheel handler.
-    return event.pointerType === "touch" || event.pointerType === "pen";
-  }
-
-  // Phase 13-HF2: when a second touch pointer arrives on stage, any
-  // single-finger drag in flight (vertex, area, ship vertex, or pan) is
-  // cancelled so the user can pinch without fighting an accidental drag.
   function cancelActiveSingleFingerDragsForPinchTakeover() {
     try {
       if (state?.shipPolygonEditor?.dragVertexIndex !== null) {
@@ -12122,62 +12187,233 @@ if (stage) {
     } catch { /* best effort */ }
   }
 
-  stage.addEventListener("pointerdown", (event) => {
-    if (!shouldCaptureForPinch(event)) return;
-    pinchState.pointers.set(event.pointerId, {
-      clientX: event.clientX,
-      clientY: event.clientY,
-    });
-    if (pinchState.pointers.size === 2) {
-      // Phase 13-HF2: a second finger arrived. Cancel any in-flight
-      // single-finger drag (vertex, area, ship vertex, or pan) so the
-      // user can pinch without fighting an accidental drag.
-      cancelActiveSingleFingerDragsForPinchTakeover();
-      const [a, b] = [...pinchState.pointers.values()];
-      pinchState.lastDistance = pinchDistance(a, b);
-      pinchState.lastMidpointClient = pinchMidpoint(a, b);
-    }
-  });
+  function touchGesturePinchDistance() {
+    const pts = [...touchGesture.pinchPointers.values()];
+    if (pts.length !== 2) return 0;
+    return Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY);
+  }
+  function touchGesturePinchMidpoint() {
+    const pts = [...touchGesture.pinchPointers.values()];
+    if (pts.length !== 2) return { clientX: 0, clientY: 0 };
+    return {
+      clientX: (pts[0].clientX + pts[1].clientX) / 2,
+      clientY: (pts[0].clientY + pts[1].clientY) / 2,
+    };
+  }
 
-  stage.addEventListener("pointermove", (event) => {
-    if (!shouldCaptureForPinch(event)) return;
-    if (!pinchState.pointers.has(event.pointerId)) return;
-    pinchState.pointers.set(event.pointerId, {
-      clientX: event.clientX,
-      clientY: event.clientY,
-    });
-    if (pinchState.pointers.size !== 2) return;
-    const [a, b] = [...pinchState.pointers.values()];
-    const distance = pinchDistance(a, b);
-    if (pinchState.lastDistance <= 0) {
-      pinchState.lastDistance = distance;
-      return;
-    }
-    const ratio = distance / pinchState.lastDistance;
-    if (!Number.isFinite(ratio) || ratio <= 0) return;
-    pinchState.lastDistance = distance;
-    const midpoint = pinchMidpoint(a, b);
-    pinchState.lastMidpointClient = midpoint;
-    const current = getBoardZoom(state.boardId);
-    applyZoomScaleAroundClientPoint(
-      current.scale * ratio,
-      midpoint.clientX,
-      midpoint.clientY,
-      `Board zoom pinch -> ${Math.round(clampBoardZoomScale(current.scale * ratio) * 100)}%`,
-    );
-  });
-
-  function endPinchTracking(event) {
-    if (!shouldCaptureForPinch(event)) return;
-    pinchState.pointers.delete(event.pointerId);
-    if (pinchState.pointers.size < 2) {
-      pinchState.lastDistance = 0;
-      pinchState.lastMidpointClient = null;
+  function clearTouchHoldTimer() {
+    if (touchGesture.holdTimerId !== null) {
+      window.clearTimeout(touchGesture.holdTimerId);
+      touchGesture.holdTimerId = null;
     }
   }
-  stage.addEventListener("pointerup", endPinchTracking);
-  stage.addEventListener("pointercancel", endPinchTracking);
-  stage.addEventListener("pointerleave", endPinchTracking);
+
+  function resetTouchGestureToIdle() {
+    clearTouchHoldTimer();
+    touchGesture.mode = "idle";
+    touchGesture.primaryPointerId = null;
+    touchGesture.primaryHitKind = "empty";
+    touchGesture.primaryHitNode = null;
+    touchGesture.primaryHitIndex = -1;
+    touchGesture.primaryHitRoomId = null;
+    touchGesture.pinchPointers.clear();
+    touchGesture.pinchLastDistance = 0;
+  }
+
+  function startTouchPanFromPrimary() {
+    if (touchGesture.mode === "panning") return;
+    const zoom = getBoardZoom(state.boardId);
+    if (zoom.scale <= 1 && state.uiView !== "settings") {
+      // Settings view is a pre-condition for pan; outside settings we
+      // still go to 'panning' but startPanMode will bail — harmless.
+    }
+    // Use a synthetic event object. startPanMode uses only clientX/Y,
+    // pointerId, and pointerCapture.
+    const syntheticEvent = {
+      clientX: touchGesture.primaryStartClientX,
+      clientY: touchGesture.primaryStartClientY,
+      pointerId: touchGesture.primaryPointerId,
+      pointerType: "touch",
+      button: 0,
+    };
+    // startPanMode requires the pan pre-conditions be met. If scale<=1
+    // it will no-op visually, but that's acceptable: mode flips but no
+    // pan math runs until scale > 1. Users who touch-drag at scale 1
+    // simply see no board movement.
+    if (canStartPanModeFromEvent({ button: 1, pointerType: "touch" })) {
+      try { roomOverlay.setPointerCapture(touchGesture.primaryPointerId); } catch { /* best effort */ }
+      startPanMode(syntheticEvent, "touch");
+    }
+    touchGesture.mode = "panning";
+  }
+
+  function commitTouchHoldDrag() {
+    // Hold timer fired without cancellation — activate polygon editing
+    // on the primary hit target. Relies on the existing drag handlers'
+    // state machinery. For room-area: the polygon pointerdown handler
+    // was blocked at capture, so we call beginPendingPolygonAreaDrag
+    // with a synthetic event.
+    const kind = touchGesture.primaryHitKind;
+    if (kind === "empty") {
+      // Nothing to do — hold on empty just becomes a pan.
+      startTouchPanFromPrimary();
+      return;
+    }
+    const syntheticEvent = {
+      clientX: touchGesture.primaryStartClientX,
+      clientY: touchGesture.primaryStartClientY,
+      pointerId: touchGesture.primaryPointerId,
+      pointerType: "touch",
+      button: 0,
+      preventDefault() {},
+      stopPropagation() {},
+    };
+    try {
+      if (kind === "ship-vertex" && touchGesture.primaryHitIndex >= 0) {
+        beginShipPolygonVertexDrag(syntheticEvent, touchGesture.primaryHitIndex);
+      } else if (kind === "room-vertex" && touchGesture.primaryHitIndex >= 0 && touchGesture.primaryHitRoomId) {
+        beginPolygonVertexDrag(syntheticEvent, touchGesture.primaryHitRoomId, touchGesture.primaryHitIndex);
+      } else if (kind === "room-area" && touchGesture.primaryHitRoomId) {
+        // Select the room first (so the polygon-area drag has context).
+        state.selectedRoomId = touchGesture.primaryHitRoomId;
+        state.selectedRoomByBoard[state.boardId] = touchGesture.primaryHitRoomId;
+        syncPolygonRoomSelection(touchGesture.primaryHitRoomId);
+        syncPolygonEditorPanel();
+        syncRoomPanelFromSelection({ preserveDraftState: true });
+        beginPendingPolygonAreaDrag(syntheticEvent, touchGesture.primaryHitRoomId);
+        renderRoomOverlay();
+      } else {
+        // Unknown kind (ship-edge, room-edge) - fall back to pan.
+        startTouchPanFromPrimary();
+        return;
+      }
+      touchGesture.mode = "drag";
+    } catch (error) {
+      console.warn("[touch-gesture] commit drag failed:", error?.message || error);
+      startTouchPanFromPrimary();
+    }
+  }
+
+  stage.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+      // Stop the existing polygon/room/overlay pointerdown handlers from
+      // reacting to this touch — we route everything through this state
+      // machine so press-and-hold semantics are consistent.
+      event.stopImmediatePropagation();
+      event.preventDefault?.();
+
+      // Second pointer — enter pinch no matter the previous state.
+      if (touchGesture.pinchPointers.size === 1 && touchGesture.primaryPointerId !== event.pointerId) {
+        clearTouchHoldTimer();
+        cancelActiveSingleFingerDragsForPinchTakeover();
+        touchGesture.pinchPointers.set(event.pointerId, {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        touchGesture.pinchLastDistance = touchGesturePinchDistance();
+        touchGesture.mode = "pinching";
+        return;
+      }
+
+      // First pointer — enter tentative state.
+      if (touchGesture.mode === "idle" || touchGesture.mode === "panning") {
+        resetTouchGestureToIdle();
+        touchGesture.mode = "tentative";
+        touchGesture.primaryPointerId = event.pointerId;
+        touchGesture.primaryStartClientX = event.clientX;
+        touchGesture.primaryStartClientY = event.clientY;
+        const hit = classifyTouchHitTarget(event.target);
+        touchGesture.primaryHitKind = hit.kind;
+        touchGesture.primaryHitNode = hit.node;
+        touchGesture.primaryHitIndex = hit.index;
+        touchGesture.primaryHitRoomId = hit.roomId;
+        touchGesture.pinchPointers.set(event.pointerId, {
+          clientX: event.clientX,
+          clientY: event.clientY,
+        });
+        touchGesture.holdTimerId = window.setTimeout(() => {
+          touchGesture.holdTimerId = null;
+          if (touchGesture.mode !== "tentative") return;
+          commitTouchHoldDrag();
+        }, TOUCH_HOLD_MS);
+      }
+    },
+    { capture: true },
+  );
+
+  stage.addEventListener(
+    "pointermove",
+    (event) => {
+      if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+      if (!touchGesture.pinchPointers.has(event.pointerId)) return;
+      touchGesture.pinchPointers.set(event.pointerId, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+
+      if (touchGesture.mode === "pinching" && touchGesture.pinchPointers.size === 2) {
+        const distance = touchGesturePinchDistance();
+        if (touchGesture.pinchLastDistance <= 0) {
+          touchGesture.pinchLastDistance = distance;
+          return;
+        }
+        const ratio = distance / touchGesture.pinchLastDistance;
+        if (!Number.isFinite(ratio) || ratio <= 0) return;
+        touchGesture.pinchLastDistance = distance;
+        const midpoint = touchGesturePinchMidpoint();
+        const current = getBoardZoom(state.boardId);
+        applyZoomScaleAroundClientPoint(
+          current.scale * ratio,
+          midpoint.clientX,
+          midpoint.clientY,
+          `Board zoom pinch -> ${Math.round(clampBoardZoomScale(current.scale * ratio) * 100)}%`,
+        );
+        return;
+      }
+
+      if (touchGesture.mode === "tentative" && event.pointerId === touchGesture.primaryPointerId) {
+        const dx = event.clientX - touchGesture.primaryStartClientX;
+        const dy = event.clientY - touchGesture.primaryStartClientY;
+        if (Math.hypot(dx, dy) > TOUCH_MOVE_THRESHOLD_PX) {
+          clearTouchHoldTimer();
+          startTouchPanFromPrimary();
+        }
+      }
+    },
+    { capture: true },
+  );
+
+  function endTouchGestureForPointer(event) {
+    if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+    touchGesture.pinchPointers.delete(event.pointerId);
+
+    if (event.pointerId === touchGesture.primaryPointerId) {
+      clearTouchHoldTimer();
+      if (touchGesture.mode === "panning") {
+        try { endPanMode(null, { canceled: false }); } catch { /* best effort */ }
+      }
+      if (touchGesture.mode === "drag") {
+        // Existing drag finish handlers (on the overlay) capture pointerup
+        // on the captured pointer. Here we just drop state so this stage
+        // state machine returns to idle.
+      }
+      touchGesture.primaryPointerId = null;
+    }
+
+    if (touchGesture.mode === "pinching" && touchGesture.pinchPointers.size < 2) {
+      touchGesture.mode = "idle";
+      touchGesture.pinchLastDistance = 0;
+      touchGesture.pinchPointers.clear();
+    }
+    if (touchGesture.pinchPointers.size === 0) {
+      resetTouchGestureToIdle();
+    }
+  }
+  stage.addEventListener("pointerup", endTouchGestureForPointer, { capture: true });
+  stage.addEventListener("pointercancel", endTouchGestureForPointer, { capture: true });
+  stage.addEventListener("pointerleave", endTouchGestureForPointer, { capture: true });
 }
 
 polygonHandleSizeInput?.addEventListener("input", () => {

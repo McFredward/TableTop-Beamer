@@ -24,6 +24,15 @@
     </main>
 
     <aside id="control-panel" class="dashboard" data-active-view="dashboard" aria-label="Effect control panel">
+      <!-- Phase 13-HF4: Apply/Discard bar lives at the very top of the control
+           panel so unsaved-state warnings are always visible regardless of
+           which view is active. -->
+      <div class="apply-config-bar apply-config-bar-global" id="apply-global-config-bar">
+        <button id="apply-global-config" type="button" disabled>Apply changes (no pending edits)</button>
+        <button id="discard-global-config" type="button" disabled>Discard local changes</button>
+        <p id="apply-global-config-indicator" class="status-line" aria-live="polite" style="display: none"></p>
+      </div>
+
       <header class="dashboard-only" data-view="dashboard">
         <p class="eyebrow">TableTop Beamer</p>
         <h1>Atmosphere Controller</h1>
@@ -157,14 +166,8 @@
           <input id="align-mode-toggle" type="checkbox" />
           Align mode (show polygons on final output)
         </label>
-        <!-- Phase 13-HF3: Apply / Discard buttons replace the Phase 13-1 auto-save.
-             Local edits stay local until the user clicks Apply. Discard reloads
-             the current server config and throws away the pending edits. -->
-        <div class="apply-config-bar" id="apply-global-config-bar">
-          <button id="apply-global-config" type="button" disabled>Apply changes (no pending edits)</button>
-          <button id="discard-global-config" type="button" disabled>Discard local changes</button>
-          <p id="apply-global-config-indicator" class="status-line" aria-live="polite" style="display: none"></p>
-        </div>
+        <!-- Phase 13-HF4: Apply/Discard bar moved to the control-panel top.
+             Export/Import remain in the settings-specific area. -->
         <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
         <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>

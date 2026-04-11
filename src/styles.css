@@ -123,11 +123,9 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   touch-action: none;
 }
 
-/* Phase 13-HF3: Apply / Discard bar for opt-in save. */
+/* Phase 13-HF3: Apply / Discard bar for opt-in save.
+   Phase 13-HF4: promoted to the control-panel top and always visible. */
 .apply-config-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -138,6 +136,18 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   border-radius: 6px;
   backdrop-filter: blur(4px);
   align-items: center;
+}
+.apply-config-bar-global {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  margin: 0 0 12px;
+  border-radius: 0 0 8px 8px;
+}
+.apply-config-bar.is-dirty {
+  background: rgba(52, 36, 10, 0.95);
+  border-color: rgba(255, 200, 80, 0.7);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 .apply-config-bar #apply-global-config.has-unsaved {
   background: #4c8bff;
