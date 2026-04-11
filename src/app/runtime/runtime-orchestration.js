@@ -1886,11 +1886,7 @@ const {
 const { syncRoomSelect } = window.TT_BEAMER_UI_SETTINGS_ROOMS;
 
 const {
-  writeJson: writePersistenceJson,
   extractBoardProfilesCandidate: extractBoardProfilesCandidateFromPersistence,
-  loadLegacyRoomGeometryByBoard: loadLegacyRoomGeometryByBoardFromPersistence,
-  loadLegacySpecialPolygonsByBoard: loadLegacySpecialPolygonsByBoardFromPersistence,
-  loadHitareaCalibrationMap: loadHitareaCalibrationMapFromPersistence,
   buildMigratedBoardProfiles: buildMigratedBoardProfilesFromPersistence,
 } = window.TT_BEAMER_PERSISTENCE;
 
@@ -3410,24 +3406,10 @@ function extractBoardProfilesCandidate(raw) {
   return extractBoardProfilesCandidateFromPersistence(raw, BOARDS);
 }
 
-// Phase 13-1: legacy localStorage readers are disabled. The server-stored
-// global config is the only persistent source. These stubs return defaults
-// so the migration path into buildMigratedBoardProfiles still works.
-function loadLegacyRoomGeometryByBoard() {
-  return createDefaultRoomGeometryByBoard();
-}
-
-function loadLegacySpecialPolygonsByBoard() {
-  return createDefaultSpecialPolygonsByBoard();
-}
-
-function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry, legacySpecialPolygons) {
+function buildMigratedBoardProfiles(candidate) {
   return buildMigratedBoardProfilesFromPersistence({
     boards: BOARDS,
     candidate,
-    legacyHitarea,
-    legacyRoomGeometry,
-    legacySpecialPolygons,
     createDefaultBoardProfiles,
     createDefaultRoomGeometryMap,
     createDefaultRoomStateProfileMap,
@@ -3440,39 +3422,20 @@ function buildMigratedBoardProfiles(candidate, legacyHitarea, legacyRoomGeometry
   });
 }
 
-// Phase 13-1: localStorage hydration is replaced. The startup path calls
-// `hydrateFromBootstrapGlobalConfig` with the payload already fetched from
-// the server. If no payload is available, we apply defaults so the runtime
-// still has valid state (the blocking error overlay handles user-visible
-// messaging separately).
+// Phase 13-1: hydrate from the server-supplied bootstrap payload. If none
+// is available, apply defaults so the runtime still has valid state (the
+// blocking error overlay handles user-visible messaging separately).
 function loadBoardProfiles() {
-  const legacyHitarea = loadHitareaCalibrationMap();
-  const legacyRoomGeometry = loadLegacyRoomGeometryByBoard();
-  const legacySpecialPolygons = loadLegacySpecialPolygonsByBoard();
-
   const bootstrapPayload = window.__TT_BEAMER_BOOTSTRAP_CONFIG__ || null;
   if (bootstrapPayload && typeof bootstrapPayload === "object") {
     const candidate = extractBoardProfilesCandidate(bootstrapPayload);
     if (candidate) {
-      const migratedProfiles = buildMigratedBoardProfiles(
-        candidate,
-        legacyHitarea,
-        legacyRoomGeometry,
-        legacySpecialPolygons,
-      );
-      applyBoardProfilesToState(migratedProfiles);
+      applyBoardProfilesToState(buildMigratedBoardProfiles(candidate));
       applyPersistedRuntimeSettings(bootstrapPayload);
       return;
     }
   }
-
-  const migratedLegacyProfiles = buildMigratedBoardProfiles(
-    null,
-    legacyHitarea,
-    legacyRoomGeometry,
-    legacySpecialPolygons,
-  );
-  applyBoardProfilesToState(migratedLegacyProfiles);
+  applyBoardProfilesToState(buildMigratedBoardProfiles(null));
 }
 
 // Phase 13-HF3: opt-in save. Every mutation flips the local dirty flag.
@@ -4136,17 +4099,6 @@ function createDefaultHitareaCalibrationMap() {
   return Object.fromEntries(
     BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
   );
-}
-
-function loadHitareaCalibrationMap() {
-  // Phase 13-1: localStorage persistence removed; defaults only. Per-board
-  // calibration now flows through the server-backed global-defaults payload
-  // (boardProfiles[*].hitareaCalibration).
-  return createDefaultHitareaCalibrationMap();
-}
-
-function persistHitareaCalibrationMap() {
-  return persistBoardProfiles();
 }
 
 function getHitareaCalibration(boardId = state.boardId) {
@@ -12067,7 +12019,7 @@ hitareaScaleInput.addEventListener("input", () => {
 });
 
 hitareaSaveButton.addEventListener("click", () => {
-  const persisted = persistHitareaCalibrationMap();
+  const persisted = persistBoardProfiles();
   syncHitareaCalibrationPanel();
   triggerFeedback.textContent = persisted
     ? "Status: Board profile (hit area + geometry + shapes) saved"
@@ -12076,7 +12028,7 @@ hitareaSaveButton.addEventListener("click", () => {
 
 hitareaResetButton.addEventListener("click", () => {
   setHitareaCalibration(state.boardId, HITAREA_CALIBRATION_DEFAULT);
-  const persisted = persistHitareaCalibrationMap();
+  const persisted = persistBoardProfiles();
   syncHitareaCalibrationPanel();
   renderRoomOverlay();
   triggerFeedback.textContent = persisted

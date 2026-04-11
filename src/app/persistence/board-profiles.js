@@ -83,48 +83,9 @@
     return null;
   }
 
-  function loadLegacyRoomGeometryByBoard({ storage, key, boards, createDefault, normalizeMap }) {
-    const defaults = createDefault();
-    const parsed = readJson(storage, key);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of boards) {
-      defaults[board.id] = normalizeMap(parsed[board.id], board.id);
-    }
-    return defaults;
-  }
-
-  function loadLegacySpecialPolygonsByBoard({ storage, key, boards, createDefault, normalizeMap }) {
-    const defaults = createDefault();
-    const parsed = readJson(storage, key);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of boards) {
-      defaults[board.id] = normalizeMap(parsed[board.id], board.id);
-    }
-    return defaults;
-  }
-
-  function loadHitareaCalibrationMap({ storage, key, boards, createDefault, normalize }) {
-    const defaults = createDefault();
-    const parsed = readJson(storage, key);
-    if (!parsed || typeof parsed !== "object") {
-      return defaults;
-    }
-    for (const board of boards) {
-      defaults[board.id] = normalize(parsed[board.id]);
-    }
-    return defaults;
-  }
-
   function buildMigratedBoardProfiles({
     boards,
     candidate,
-    legacyHitarea,
-    legacyRoomGeometry,
-    legacySpecialPolygons,
     createDefaultBoardProfiles,
     createDefaultRoomGeometryMap,
     createDefaultRoomStateProfileMap,
@@ -166,18 +127,16 @@
         deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
         roomClusters: profile.roomClusters ?? profile.clusters ?? null,
         hitareaCalibration:
-          profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[boardId] ?? HITAREA_CALIBRATION_DEFAULT,
+          profile.hitareaCalibration ?? profile.hitarea ?? HITAREA_CALIBRATION_DEFAULT,
         roomGeometry:
           profile.roomGeometry ??
           profile.geometry ??
-          legacyRoomGeometry[boardId] ??
           createDefaultRoomGeometryMap(boardId),
         roomStateProfiles:
           profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(boardId),
         specialPolygons:
           profile.specialPolygons ??
           profile.polygons ??
-          legacySpecialPolygons[boardId] ??
           createDefaultSpecialPolygonMap(boardId),
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
@@ -224,9 +183,6 @@
     readJson,
     writeJson,
     extractBoardProfilesCandidate,
-    loadLegacyRoomGeometryByBoard,
-    loadLegacySpecialPolygonsByBoard,
-    loadHitareaCalibrationMap,
     buildMigratedBoardProfiles,
   };
 })();
