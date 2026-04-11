@@ -6467,334 +6467,64 @@ const {
   parseRoomTargetValue,
 } = window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT;
 
-function resolveRoomDraftTargets() {
-  const board = getBoard();
-  const room = getSelectedRoom();
-  const fallbackRoomId = room?.id ?? board.rooms[0]?.id ?? null;
-  const clusters = getBoardRoomClusters(state.boardId);
-  const clusterById = new Map(clusters.map((cluster) => [cluster.clusterId, cluster]));
-  const hasRoom = (roomId) => board.rooms.some((entry) => entry.id === roomId);
-
-  if (state.roomDraft.targetType === "cluster") {
-    const cluster = clusterById.get(state.roomDraft.targetId);
-    if (cluster && cluster.roomIds.length > 0) {
-      return cluster.roomIds;
-    }
-  }
-
-  const selectedRoomId = state.roomDraft.targetType === "room" ? state.roomDraft.targetId : fallbackRoomId;
-  if (selectedRoomId && hasRoom(selectedRoomId)) {
-    return [selectedRoomId];
-  }
-  if (fallbackRoomId && hasRoom(fallbackRoomId)) {
-    return [fallbackRoomId];
-  }
-  return [];
-}
-
-function buildClusterDispatchPlan(roomIds, {
-  staggerStart = false,
-  staggerOffsetMs = CLUSTER_STAGGER_OFFSET_DEFAULT_MS,
-} = {}) {
-  const normalizedRoomIds = Array.from(new Set((Array.isArray(roomIds) ? roomIds : [])
-    .map((roomId) => String(roomId || "").trim())
-    .filter(Boolean)));
-  const effectiveOffsetMs = clampClusterStaggerOffsetMs(staggerOffsetMs);
-  return normalizedRoomIds.map((roomId, index) => ({
-    roomId,
-    startDelayMs: staggerStart ? index * effectiveOffsetMs : 0,
-  }));
-}
-
-function getClusterTargetById(clusterId, boardId = state.boardId) {
-  const normalizedClusterId = String(clusterId || "").trim();
-  if (!normalizedClusterId) {
-    return null;
-  }
-  return getBoardRoomClusters(boardId).find((cluster) => cluster.clusterId === normalizedClusterId) ?? null;
-}
-
-function getClusterMemberAnimationIds(clusterAnimation) {
-  if (!clusterAnimation || clusterAnimation.scope !== "cluster") {
-    return [];
-  }
-  const directMembers = Array.isArray(clusterAnimation.memberAnimationIds)
-    ? clusterAnimation.memberAnimationIds
-      .map((animationId) => String(animationId || "").trim())
-      .filter(Boolean)
-    : [];
-  const linkedMembers = state.runningAnimations
-    .filter((entry) => entry?.scope === "room" && entry?.parentClusterRunId === clusterAnimation.id)
-    .map((entry) => entry.id);
-  return Array.from(new Set([...directMembers, ...linkedMembers]));
-}
-
-function getRunningAnimationsForList() {
-  const activeClusterIds = new Set(
-    state.runningAnimations
-      .filter((entry) => entry?.scope === "cluster" && typeof entry?.id === "string")
-      .map((entry) => entry.id),
-  );
-  return state.runningAnimations.filter((entry) => !(
-    entry?.scope === "room"
-    && entry?.parentClusterRunId
-    && activeClusterIds.has(entry.parentClusterRunId)
-  ));
-}
-
-function resolveClusterMemberFallbackDelayMs(clusterAnimation, roomId) {
-  if (!clusterAnimation || typeof roomId !== "string") {
-    return 0;
-  }
-  const delayMap = clusterAnimation.memberStartDelays;
-  if (!delayMap || typeof delayMap !== "object") {
-    return 0;
-  }
-  const delay = Number(delayMap[roomId]);
-  return Number.isFinite(delay) && delay > 0 ? delay : 0;
-}
-
-function buildClusterMemberRuntimeViews(clusterAnimation) {
-  if (!clusterAnimation || clusterAnimation.scope !== "cluster") {
-    return [];
-  }
-  const memberByRoomId = new Map();
-  for (const member of state.runningAnimations) {
-    if (member?.scope !== "room" || member?.parentClusterRunId !== clusterAnimation.id) {
-      continue;
-    }
-    const roomId = String(member.roomId || "").trim();
-    if (!roomId || memberByRoomId.has(roomId)) {
-      continue;
-    }
-    memberByRoomId.set(roomId, member);
-  }
-  const memberRoomIds = Array.isArray(clusterAnimation.memberRoomIds)
-    ? clusterAnimation.memberRoomIds.map((roomId) => String(roomId || "").trim()).filter(Boolean)
-    : [];
-  const orderedRoomIds = memberRoomIds.length > 0
-    ? memberRoomIds
-    : Array.from(memberByRoomId.keys());
-  return orderedRoomIds.map((roomId) => {
-    const linkedMember = memberByRoomId.get(roomId) ?? null;
-    if (linkedMember) {
-      return {
-        roomId,
-        animation: linkedMember,
-      };
-    }
-    const baseStartedAt = Number.isFinite(Number(clusterAnimation.startedAt))
-      ? Number(clusterAnimation.startedAt)
-      : performance.now();
-    const baseStartedAtEpochMs = Number.isFinite(Number(clusterAnimation.startedAtEpochMs))
-      ? Number(clusterAnimation.startedAtEpochMs)
-      : Date.now();
-    const fallbackDelayMs = resolveClusterMemberFallbackDelayMs(clusterAnimation, roomId);
-    return {
-      roomId,
-      animation: {
-        ...clusterAnimation,
-        scope: "room",
-        roomId,
-        startedAt: baseStartedAt + fallbackDelayMs,
-        startedAtEpochMs: baseStartedAtEpochMs + fallbackDelayMs,
-      },
-    };
-  });
-}
-
-function syncRoomTargetSelect() {
-  if (!roomTargetSelect) {
-    return;
-  }
-  const options = getRoomTargetOptions(state.boardId);
-  roomTargetSelect.replaceChildren();
-  for (const optionEntry of options) {
-    const option = document.createElement("option");
-    option.value = optionEntry.value;
-    option.textContent = optionEntry.label;
-    roomTargetSelect.append(option);
-  }
-
-  const room = getSelectedRoom();
-  const fallbackValue = room ? `room:${room.id}` : options[0]?.value ?? "";
-  const currentValue = state.roomDraft.targetType && state.roomDraft.targetId
-    ? `${state.roomDraft.targetType}:${state.roomDraft.targetId}`
-    : fallbackValue;
-  const existing = options.some((entry) => entry.value === currentValue) ? currentValue : fallbackValue;
-  const parsed = parseRoomTargetValue(existing);
-  if (parsed) {
-    state.roomDraft.targetType = parsed.targetType;
-    state.roomDraft.targetId = parsed.targetId;
-    roomTargetSelect.value = existing;
-    if (roomStaggerStartInput) {
-      roomStaggerStartInput.disabled = parsed.targetType !== "cluster";
-    }
-    if (roomStaggerOffsetInput) {
-      roomStaggerOffsetInput.disabled = parsed.targetType !== "cluster";
-    }
-    syncRoomStaggerOffsetControl();
-  }
-}
-
-function syncRoomPanelFromSelection({ preserveDraftState = false } = {}) {
-  const room = getSelectedRoom();
-  if (!room) {
-    roomSelected.textContent = "Selected room: click a room polygon on the board";
-    startRoomAnimationButton.disabled = true;
-    roomOpacityInput.disabled = true;
-    if (roomTargetSelect) {
-      roomTargetSelect.disabled = false;
-    }
-    syncRoomTargetSelect();
-    if (roomStaggerStartInput) {
-      roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
-    }
-    if (roomStaggerOffsetInput) {
-      roomStaggerOffsetInput.disabled = state.roomDraft.targetType !== "cluster";
-    }
-    syncRoomStaggerOffsetControl();
-    syncRoomGeometryPanel();
-    syncDashboardZoneVisibility();
-    return;
-  }
-  startRoomAnimationButton.disabled = false;
-  roomOpacityInput.disabled = false;
-  if (roomTargetSelect) {
-    roomTargetSelect.disabled = false;
-  }
-  if (roomStaggerStartInput) {
-    roomStaggerStartInput.disabled = false;
-  }
-  if (!preserveDraftState) {
-    const roomFx = getRoomFxProfile(state.boardId);
-    state.roomDraft.animationId = roomFx.animations.some((entry) => entry.id === state.roomDraft.animationId)
-      ? state.roomDraft.animationId
-      : roomFx.animations[0]?.id ?? "kaputt";
-  }
-  roomAnimationSelect.value = state.roomDraft.animationId;
-  roomOpacityInput.value = String(clampRoomOpacity(state.roomDraft.opacity));
-  roomOpacityValue.textContent = clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
-  state.roomDraft.intensity = clampRoomIntensity(state.roomDraft.intensity);
-  state.roomDraft.speed = clampRoomSpeed(state.roomDraft.speed);
-  state.roomDraft.soundVolume = clampRoomSoundVolume(state.roomDraft.soundVolume);
-  state.roomDraft.durationSec = clampRoomDurationSec(state.roomDraft.durationSec);
-  roomIntensityInput.value = String(state.roomDraft.intensity);
-  roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
-  roomSpeedInput.value = String(state.roomDraft.speed);
-  roomSpeedValue.textContent = `${state.roomDraft.speed.toFixed(2)}x`;
-  roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
-  roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
-  roomDurationInput.value = String(state.roomDraft.durationSec);
-  state.roomDraft.staggerStart = Boolean(state.roomDraft.staggerStart);
-  state.roomDraft.staggerOffsetMs = clampClusterStaggerOffsetMs(state.roomDraft.staggerOffsetMs);
-  if (roomStaggerStartInput) {
-    roomStaggerStartInput.checked = state.roomDraft.staggerStart;
-    roomStaggerStartInput.disabled = state.roomDraft.targetType !== "cluster";
-  }
-  syncRoomStaggerOffsetControl();
-  if (!state.roomDraft.targetType || !state.roomDraft.targetId) {
-    state.roomDraft.targetType = "room";
-    state.roomDraft.targetId = room.id;
-  }
-  syncRoomTargetSelect();
-  roomSelected.textContent = `Selected room: ${room.name ?? room.label}`;
-  if (roomRenameInput) {
-    roomRenameInput.value = room.name ?? room.label ?? "";
-  }
-  if (roomNameInput) {
-    roomNameInput.value = room.name ?? room.label ?? "";
-  }
-  syncRoomGeometryPanel();
-  syncRoomManagementPanel();
-  syncDashboardZoneVisibility();
-}
-
-function syncRoomDraftActionButton() {
-  const isEditMode = Boolean(state.roomDraft.editTargetId);
-  startRoomAnimationButton.textContent = isEditMode
-    ? "Update running instance"
-    : "Start room animation";
-}
-
-function clearRoomDraftEditTarget() {
-  state.roomDraft.editTargetId = null;
-  syncRoomDraftActionButton();
-}
-
-function applyRoomDraftTargetFromRoomClick(roomId) {
-  const normalizedRoomId = typeof roomId === "string" ? roomId.trim() : "";
-  if (!normalizedRoomId) {
-    return;
-  }
-  state.roomDraft.targetType = "room";
-  state.roomDraft.targetId = normalizedRoomId;
-}
-
-const ROOM_DRAFT_UI_IMMUTABLE_FIELDS = [
-  "animationId",
-  "targetType",
-  "targetId",
-  "opacity",
-  "intensity",
-  "speed",
-  "soundVolume",
-  "staggerStart",
-  "staggerOffsetMs",
-  "durationSec",
-  "hold",
-];
-
-function normalizeRoomDraftUiField(field, value) {
-  switch (field) {
-    case "opacity":
-      return clampRoomOpacity(value);
-    case "intensity":
-      return clampRoomIntensity(value);
-    case "speed":
-      return clampRoomSpeed(value);
-    case "soundVolume":
-      return clampRoomSoundVolume(value);
-    case "staggerStart":
-      return Boolean(value);
-    case "staggerOffsetMs":
-      return clampClusterStaggerOffsetMs(value);
-    case "durationSec":
-      return clampRoomDurationSec(value);
-    case "hold":
-      return Boolean(value);
-    default:
-      return value;
-  }
-}
-
-function captureRoomDraftUiSnapshot() {
-  const snapshot = {};
-  for (const field of ROOM_DRAFT_UI_IMMUTABLE_FIELDS) {
-    snapshot[field] = normalizeRoomDraftUiField(field, state.roomDraft[field]);
-  }
-  return snapshot;
-}
-
-function restoreRoomDraftUiSnapshot(snapshot, reason = "room-start") {
-  let mutated = false;
-  for (const field of ROOM_DRAFT_UI_IMMUTABLE_FIELDS) {
-    const nextValue = normalizeRoomDraftUiField(field, snapshot?.[field]);
-    const currentValue = normalizeRoomDraftUiField(field, state.roomDraft[field]);
-    if (currentValue !== nextValue) {
-      state.roomDraft[field] = nextValue;
-      mutated = true;
-    }
-  }
-  if (mutated) {
-    syncRoomPanelFromSelection({ preserveDraftState: true });
-    logRuntime.warn("draft_immutability_restore", {
-      event: "draft-immutability-restore",
-      reason,
-      boardId: state.boardId,
-    });
-  }
-}
+// Phase 14-2: room draft UI state + cluster runtime helpers
+// (~330 LOC) moved to src/app/runtime/runtime-room-draft.js.
+// Init + destructure so existing call sites resolve the same names.
+window.TT_BEAMER_RUNTIME_ROOM_DRAFT.init({
+  state,
+  CLUSTER_STAGGER_OFFSET_DEFAULT_MS,
+  roomTargetSelect,
+  roomSelected,
+  startRoomAnimationButton,
+  roomOpacityInput,
+  roomOpacityValue,
+  roomAnimationSelect,
+  roomIntensityInput,
+  roomIntensityValue,
+  roomSpeedInput,
+  roomSpeedValue,
+  roomSoundVolumeInput,
+  roomSoundVolumeValue,
+  roomDurationInput,
+  roomStaggerStartInput,
+  roomStaggerOffsetInput,
+  roomRenameInput,
+  roomNameInput,
+  logRuntime,
+  getBoard: (boardId) => getBoard(boardId),
+  getSelectedRoom: () => getSelectedRoom(),
+  getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
+  getRoomTargetOptions: (boardId) => getRoomTargetOptions(boardId),
+  parseRoomTargetValue: (value) => parseRoomTargetValue(value),
+  getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
+  clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
+  clampRoomOpacity: (value) => clampRoomOpacity(value),
+  clampRoomIntensity: (value) => clampRoomIntensity(value),
+  clampRoomSpeed: (value) => clampRoomSpeed(value),
+  clampRoomSoundVolume: (value) => clampRoomSoundVolume(value),
+  clampRoomDurationSec: (value) => clampRoomDurationSec(value),
+  syncRoomStaggerOffsetControl: () => syncRoomStaggerOffsetControl(),
+  syncRoomGeometryPanel: () => syncRoomGeometryPanel(),
+  syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
+  syncRoomManagementPanel: (statusText) => syncRoomManagementPanel(statusText),
+});
+const {
+  resolveRoomDraftTargets,
+  buildClusterDispatchPlan,
+  getClusterTargetById,
+  getClusterMemberAnimationIds,
+  getRunningAnimationsForList,
+  resolveClusterMemberFallbackDelayMs,
+  buildClusterMemberRuntimeViews,
+  syncRoomTargetSelect,
+  syncRoomPanelFromSelection,
+  syncRoomDraftActionButton,
+  clearRoomDraftEditTarget,
+  applyRoomDraftTargetFromRoomClick,
+  normalizeRoomDraftUiField,
+  captureRoomDraftUiSnapshot,
+  restoreRoomDraftUiSnapshot,
+} = window.TT_BEAMER_RUNTIME_ROOM_DRAFT;
 
 function createAnimation({
   type,
