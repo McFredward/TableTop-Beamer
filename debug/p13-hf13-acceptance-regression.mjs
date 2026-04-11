@@ -1,9 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 
-const runtimeSrc = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: HF13 guards now read every file under src/app/runtime/**
+// so module-split extractions don't false-FAIL gates that were
+// originally pinned to a single monolith. The concatenated blob is
+// the source of truth for every HF13 signature check below.
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url).pathname;
+const runtimeSrc = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .map((name) => readFileSync(`${runtimeDir}${name}`, "utf8"))
+  .join("\n");
 
 // G13-HF13-1: session-stable stretch-anchor cache declared on state.
 const g13_hf13_1 =
@@ -51,9 +56,13 @@ const g13_hf13_6 =
   && !runtimeSrc.includes("dragFrozenTransform");
 
 // G13-HF13-7: the HF13 display→raw inverter using live getRoomTransform.
+// Phase 14-2: signature changed when the helper moved into
+// runtime-polygon-drag-support.js — the `state.boardId` default now
+// lives inside the body as `effectiveBoardId`, since the module no
+// longer has direct lexical access to the runtime `state` binding.
 const g13_hf13_7 =
-  runtimeSrc.includes("function projectDisplayNormalizedToRoomRaw(displayNormalizedX, displayNormalizedY, room, boardId = state.boardId)")
-  && runtimeSrc.includes("const transform = getRoomTransform(room, boardId);")
+  /function projectDisplayNormalizedToRoomRaw\(displayNormalizedX, displayNormalizedY, room, boardId[^)]*\) \{/.test(runtimeSrc)
+  && /const transform = ctx\.getRoomTransform\(room, effectiveBoardId\)|const transform = getRoomTransform\(room, boardId\)/.test(runtimeSrc)
   && runtimeSrc.includes("const rawX = transform.baseCenterX + (preCalibX - transform.centerX) / (transform.stretchX || 1);");
 
 // G13-HF13-8: clampDisplayNormalizedCoordinate preserved — [0, 1] clamp.

@@ -12110,273 +12110,39 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
 
 // Phase 13-HF6: global "touch gesture in progress" flag. When true,
-// heavy DOM-read paths (syncBoardZoomStatus, setPanCursorState) skip
-// their work to keep the rAF path pure writes — no forced reflows.
-// The flag is set/cleared by the touch gesture state machine and a
-// gesture-end handler refreshes the UI once.
+// heavy DOM-read paths skip their work to keep the rAF path pure
+// writes — no forced reflows. Set by the touch gesture state machine.
 let touchGestureActive = false;
 
-// Phase 13-HF8: "polygon drag in progress" flag. Set whenever any
-// polygon drag lifecycle function (ship vertex, room vertex, room
-// area, or pending area) starts, cleared by the finish/cancel/clear
-// counterpart. Used to pause draw() + live-sync polling + coalesce
-// renderRoomOverlay calls during the drag, same pattern as HF7 for
-// touch pan/zoom.
-let polygonDragActive = false;
-function isHeavyInteractionActive() {
-  return touchGestureActive || polygonDragActive;
-}
-
-// Phase 13-HF8: rAF-coalesced wrapper around renderRoomOverlay().
-// Multiple same-frame drag pointermove events collapse into one
-// SVG rebuild per animation frame instead of one per event.
-// finish*Drag helpers call renderRoomOverlay() directly to flush.
-let pendingRoomOverlayRenderHandle = null;
-function scheduleRoomOverlayRender() {
-  if (pendingRoomOverlayRenderHandle !== null) return;
-  pendingRoomOverlayRenderHandle = window.requestAnimationFrame(() => {
-    pendingRoomOverlayRenderHandle = null;
-    renderRoomOverlay();
-  });
-}
-function flushPendingRoomOverlayRender() {
-  if (pendingRoomOverlayRenderHandle !== null) {
-    window.cancelAnimationFrame(pendingRoomOverlayRenderHandle);
-    pendingRoomOverlayRenderHandle = null;
-  }
-}
-
-// Phase 13-HF9: incremental SVG drag renderer. On drag start we cache
-// references to the exact DOM nodes that represent the dragged
-// polygon + its handles; per-event updates then set attributes on
-// those cached nodes directly, without rebuilding the whole overlay.
-// renderRoomOverlay is only called once at drag end to resync
-// everything (class toggles, selection state, etc).
-function cacheRoomPolygonDragDomRefs(roomId) {
-  if (!roomOverlay) return null;
-  const polygon = roomOverlay.querySelector(
-    `polygon.room-zone[data-room-id="${roomId}"]`,
-  );
-  // The editor handles (vertex + edge) are only rendered for the
-  // currently selected room, which is the room being dragged. They are
-  // top-level children of roomOverlay in vertex-index / edge-index
-  // order, so we can index by position directly.
-  const vertexHitTargets = Array.from(
-    roomOverlay.querySelectorAll(
-      ".polygon-vertex-hit-target:not(.ship-polygon-vertex-hit-target)",
-    ),
-  );
-  const vertexHandles = Array.from(
-    roomOverlay.querySelectorAll(
-      ".polygon-vertex-handle:not(.ship-polygon-vertex-handle)",
-    ),
-  );
-  const vertexLabels = Array.from(
-    roomOverlay.querySelectorAll(
-      ".polygon-vertex-index:not(.ship-polygon-vertex-index)",
-    ),
-  );
-  const edgeHitTargets = Array.from(
-    roomOverlay.querySelectorAll(
-      ".polygon-edge-hit-target:not(.ship-polygon-edge-hit-target)",
-    ),
-  );
-  const edgeHandles = Array.from(
-    roomOverlay.querySelectorAll(
-      ".polygon-edge-handle:not(.ship-polygon-edge-handle)",
-    ),
-  );
-  return { polygon, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
-}
-
-function cacheShipPolygonDragDomRefs() {
-  if (!roomOverlay) return null;
-  const mask = roomOverlay.querySelector("polygon.ship-zone-mask.is-active");
-  const vertexHitTargets = Array.from(
-    roomOverlay.querySelectorAll(".ship-polygon-vertex-hit-target"),
-  );
-  const vertexHandles = Array.from(
-    roomOverlay.querySelectorAll(".ship-polygon-vertex-handle"),
-  );
-  const vertexLabels = Array.from(
-    roomOverlay.querySelectorAll(".ship-polygon-vertex-index"),
-  );
-  const edgeHitTargets = Array.from(
-    roomOverlay.querySelectorAll(".ship-polygon-edge-hit-target"),
-  );
-  const edgeHandles = Array.from(
-    roomOverlay.querySelectorAll(".ship-polygon-edge-handle"),
-  );
-  return { mask, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
-}
-
-// Phase 13-HF11: the incremental drag renderer consumes points already in
-// SVG viewBox units (0..1000 per axis) — the same space `getRoomPoints`
-// returns. Previously HF9 passed raw normalized (0..1) points and
-// multiplied by 1000 inside these helpers, silently dropping the room
-// transform (offsetX/offsetY/stretchX/stretchY + hitareaCalibration) that
-// `getRoomPoints` applies. For any room with non-identity roomGeometry
-// that made the polygon jump by the transform offset on the first
-// pointermove and snap back on release.
-function applyIncrementalPolygonPointsToDom(polygonNode, points) {
-  if (!polygonNode) return;
-  const value = points
-    .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
-    .join(" ");
-  polygonNode.setAttribute("points", value);
-}
-
-function applyIncrementalVertexHandlesToDom(refs, points) {
-  if (!refs) return;
-  const n = points.length;
-  for (let i = 0; i < n; i += 1) {
-    const ux = points[i][0];
-    const uy = points[i][1];
-    const xStr = ux.toFixed(1);
-    const yStr = uy.toFixed(1);
-    const hit = refs.vertexHitTargets?.[i];
-    if (hit) {
-      hit.setAttribute("cx", xStr);
-      hit.setAttribute("cy", yStr);
-    }
-    const handle = refs.vertexHandles?.[i];
-    if (handle) {
-      handle.setAttribute("cx", xStr);
-      handle.setAttribute("cy", yStr);
-    }
-    const label = refs.vertexLabels?.[i];
-    if (label) {
-      label.setAttribute("x", xStr);
-      label.setAttribute("y", (uy + 3).toFixed(1));
-    }
-  }
-  // Edges sit at the midpoint between vertex[i] and vertex[(i+1)%n].
-  if (Array.isArray(refs.edgeHitTargets) && refs.edgeHitTargets.length > 0) {
-    for (let i = 0; i < n; i += 1) {
-      const ax = points[i][0];
-      const ay = points[i][1];
-      const bx = points[(i + 1) % n][0];
-      const by = points[(i + 1) % n][1];
-      const cx = ((ax + bx) / 2).toFixed(1);
-      const cy = ((ay + by) / 2).toFixed(1);
-      const hit = refs.edgeHitTargets[i];
-      if (hit) {
-        hit.setAttribute("cx", cx);
-        hit.setAttribute("cy", cy);
-      }
-      const handle = refs.edgeHandles?.[i];
-      if (handle) {
-        handle.setAttribute("cx", cx);
-        handle.setAttribute("cy", cy);
-      }
-    }
-  }
-}
-
-// Phase 13-HF12: apply already-computed display-space overlay points
-// (0..1000) to the cached DOM nodes. Callers decide how to compute
-// those points — vertex drag uses a frozen room transform (so non-
-// dragged vertices don't drift when stretch != 1), area drag uses
-// getRoomPoints (so the whole polygon recomposes against the live
-// centroid), ship drag multiplies by 1000 (ship polygon has no
-// transform).
-function applyIncrementalRoomDrag(refs, overlayPoints) {
-  if (!refs) return;
-  applyIncrementalPolygonPointsToDom(refs.polygon, overlayPoints);
-  applyIncrementalVertexHandlesToDom(refs, overlayPoints);
-}
-
-function applyIncrementalShipDrag(refs, overlayPoints) {
-  if (!refs) return;
-  applyIncrementalPolygonPointsToDom(refs.mask, overlayPoints);
-  applyIncrementalVertexHandlesToDom(refs, overlayPoints);
-}
-
-// Phase 13-HF13: invert the live, session-stable room transform so a
-// pointer position expressed in display-normalized [0, 1] space can be
-// written back to raw storage. Since HF13 the transform no longer
-// drifts with polygon edits, so the live getRoomTransform + live
-// hitareaCalibration are a fixed point for the duration of the drag.
-function projectDisplayNormalizedToRoomRaw(displayNormalizedX, displayNormalizedY, room, boardId = state.boardId) {
-  const transform = getRoomTransform(room, boardId);
-  const calibration = getHitareaCalibration(boardId);
-  const scale = calibration.scale || 1;
-  const preCalibX = ((displayNormalizedX - 0.5 - (calibration.offsetX || 0)) / scale) + 0.5;
-  const preCalibY = ((displayNormalizedY - 0.5 - (calibration.offsetY || 0)) / scale) + 0.5;
-  const rawX = transform.baseCenterX + (preCalibX - transform.centerX) / (transform.stretchX || 1);
-  const rawY = transform.baseCenterY + (preCalibY - transform.centerY) / (transform.stretchY || 1);
-  return [rawX, rawY];
-}
-
-// Clamp a display-space coordinate to the visible board [0, 1]. Used
-// by the vertex drag path so vertices stick to the edge instead of
-// escaping via the permissive [-0.2, 1.2] raw-coordinate clamp.
-function clampDisplayNormalizedCoordinate(value) {
-  return Math.max(0, Math.min(1, Number(value) || 0));
-}
-
-// Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
-// drag types. begin* called from each begin*Drag helper. end* called
-// from each finish*/cancel*/clearPending* helper. Idempotent: multiple
-// begins/ends collapse. Kills any in-flight live-sync poll on begin,
-// resumes polling and flushes the pending overlay render on end.
-function beginPolygonDragInteraction() {
-  if (polygonDragActive) return;
-  polygonDragActive = true;
-  try {
-    if (liveSync?.pollTimerId !== null && liveSync?.pollTimerId !== undefined) {
-      window.clearTimeout(liveSync.pollTimerId);
-      liveSync.pollTimerId = null;
-    }
-  } catch { /* best effort */ }
-}
-function endPolygonDragInteraction() {
-  if (!polygonDragActive) return;
-  // Only clear the flag once all drag-state fields are released. A
-  // ship-vertex, room-vertex, area, and pending-area drag could in
-  // theory be active simultaneously; wait for all of them to finish.
-  if (
-    state.shipPolygonEditor.dragVertexIndex !== null
-    || state.polygonEditor.dragVertexIndex !== null
-    || state.polygonEditor.dragAreaPointerId !== null
-    || state.polygonEditor.pendingAreaPointerId !== null
-  ) {
-    return;
-  }
-  polygonDragActive = false;
-  // Flush any pending overlay render synchronously so the final drag
-  // frame is visible immediately after release.
-  flushPendingRoomOverlayRender();
-  renderRoomOverlay();
-  try { scheduleNextLiveSnapshotPoll(0); } catch { /* best effort */ }
-}
-
-// Phase 13-HF6: cached stage geometry to avoid forced reflows during
-// high-frequency touch gestures on mobile. `stage.getBoundingClientRect()`
-// and `stage.clientWidth/clientHeight` force synchronous layout when
-// read after a CSS variable write, which is exactly what the old
-// per-pointermove zoom math did. Now we cache the rect + layout size
-// on gesture start and refresh on window resize only.
-const stageGeometryCache = {
-  rect: null,
-  layoutWidth: 0,
-  layoutHeight: 0,
-};
-function refreshStageGeometryCache() {
-  if (!stage) return;
-  stageGeometryCache.rect = stage.getBoundingClientRect();
-  stageGeometryCache.layoutWidth = stage.clientWidth || 0;
-  stageGeometryCache.layoutHeight = stage.clientHeight || 0;
-}
-window.addEventListener("resize", () => {
-  stageGeometryCache.rect = null;
+// Phase 14-2: polygon-drag support module (polygon drag flag, rAF
+// overlay render coalescer, cached drag DOM refs, incremental SVG
+// writer, heavy-interaction lifecycle, cached stage geometry).
+window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT.init({
+  state,
+  liveSync,
+  stage,
+  roomOverlay,
+  getTouchGestureActive: () => touchGestureActive,
+  getRoomTransform: (room, boardId) => getRoomTransform(room, boardId),
+  getHitareaCalibration: (boardId) => getHitareaCalibration(boardId),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
 });
-function getCachedStageGeometry() {
-  if (!stageGeometryCache.rect || stageGeometryCache.layoutWidth <= 0) {
-    refreshStageGeometryCache();
-  }
-  return stageGeometryCache;
-}
+const {
+  isHeavyInteractionActive,
+  scheduleRoomOverlayRender,
+  flushPendingRoomOverlayRender,
+  cacheRoomPolygonDragDomRefs,
+  cacheShipPolygonDragDomRefs,
+  applyIncrementalRoomDrag,
+  applyIncrementalShipDrag,
+  projectDisplayNormalizedToRoomRaw,
+  clampDisplayNormalizedCoordinate,
+  beginPolygonDragInteraction,
+  endPolygonDragInteraction,
+  refreshStageGeometryCache,
+  getCachedStageGeometry,
+} = window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT;
 
 // Phase 13-HF4: cursor-accurate zoom-around-anchor math for the stage's
 // CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
