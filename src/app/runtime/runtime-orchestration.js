@@ -1194,300 +1194,34 @@ function cloneBoardEntry(board) {
 const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
 
 
-function syncZoneLoaderStatus() {
-  if (!zonesStatus) {
-    return;
-  }
-  const boardIds = BOARDS.map((board) => board.id);
-  const boards = boardIds.map((boardId) => {
-    const mode = state.zoneLoader.classificationByBoard[boardId] ?? "UNKNOWN";
-    const fallback = state.zoneLoader.fallbackBoards[boardId] || "none";
-    return `${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
-  });
-  zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
-}
-
-async function loadExternalBoardZones() {
-  try {
-    const response = await fetchWithTimeout("/api/boards", {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        accept: "application/json",
-      },
-    });
-    if (response.ok) {
-      const payload = await response.json();
-      const runtimeBoards = Array.isArray(payload?.runtimeBoards)
-        ? payload.runtimeBoards
-        : Array.isArray(payload?.boards)
-          ? payload.boards.map((entry) => ({
-            id: entry?.boardId,
-            label: entry?.metadata?.name,
-            src: entry?.metadata?.imageSrc,
-            rooms: entry?.roomCatalog,
-            roomClusters: entry?.roomClusters,
-          }))
-          : [];
-      const normalizedBoards = runtimeBoards
-        .map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board))
-        .filter((board) => board?.id && Array.isArray(board.rooms));
-      if (normalizedBoards.length > 0) {
-        BOARDS = normalizedBoards;
-        for (const board of BOARDS) {
-          state.zoneLoader.loadedBoards[board.id] = "/api/boards";
-          state.zoneLoader.fallbackBoards[board.id] = "none";
-          state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
-          state.zoneLoader.detailByBoard[board.id] = "ok";
-        }
-        syncZoneLoaderStatus();
-        return;
-      }
-    }
-  } catch {
-    // fall back to static zone files below
-  }
-
-  const loadedByBoardId = new Map();
-  const loadedBoards = {};
-  const fallbackBoards = {};
-  const classificationByBoard = {};
-  const detailByBoard = {};
-
-  for (const source of ZONE_CONFIG_SOURCES) {
-    const fallbackInline = INLINE_FALLBACK_BOARDS.find((board) => board.id === source.boardId);
-    const fallbackLastKnown = lastKnownGoodBoardById.get(source.boardId) ?? fallbackInline;
-    let responseStatus = null;
-    try {
-      const response = await fetchWithTimeout(source.endpoint, {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-        },
-      });
-      responseStatus = response.status;
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      let payload;
-      try {
-        payload = await response.json();
-      } catch {
-        throw Object.assign(new Error("malformed JSON"), { zoneCode: "ZONE_MALFORMED_JSON" });
-      }
-
-      const requiredRoomIds = (fallbackInline?.rooms ?? []).map((room) => room.id);
-      const validated = validateZonePayload(payload, source.boardId, requiredRoomIds);
-      if (!validated.ok || !validated.normalizedBoard) {
-        throw Object.assign(new Error(validated.issues.join("; ")), {
-          zoneCode: validated.code,
-        });
-      }
-
-      const board = cloneBoardEntry(validated.normalizedBoard);
-      loadedByBoardId.set(source.boardId, board);
-      lastKnownGoodBoardById.set(source.boardId, cloneBoardEntry(board));
-      loadedBoards[source.boardId] = source.endpoint;
-      fallbackBoards[source.boardId] = "none";
-      classificationByBoard[source.boardId] = "ZONE_LOADED";
-      detailByBoard[source.boardId] = "ok";
-    } catch (error) {
-      const zoneCode =
-        error && typeof error === "object" && "zoneCode" in error ? String(error.zoneCode || "") : "";
-      const classification = classifyZoneFallback(responseStatus, zoneCode);
-      const fallbackType = lastKnownGoodBoardById.has(source.boardId) ? "fallback:last-known-good" : "fallback:inline";
-      loadedByBoardId.set(source.boardId, cloneBoardEntry(fallbackLastKnown));
-      loadedBoards[source.boardId] = "fallback";
-      fallbackBoards[source.boardId] = fallbackType;
-      classificationByBoard[source.boardId] = classification;
-      detailByBoard[source.boardId] =
-        error instanceof Error ? error.message : zoneCode || `status=${responseStatus ?? "n/a"}`;
-    }
-  }
-
-  BOARDS = INLINE_FALLBACK_BOARDS.map(
-    (fallbackBoard) => cloneBoardEntry(loadedByBoardId.get(fallbackBoard.id) ?? fallbackBoard),
-  );
-  state.zoneLoader.loadedBoards = loadedBoards;
-  state.zoneLoader.fallbackBoards = fallbackBoards;
-  state.zoneLoader.classificationByBoard = classificationByBoard;
-  state.zoneLoader.detailByBoard = detailByBoard;
-  syncZoneLoaderStatus();
-}
-
-async function importBoardFromFile(file) {
-  if (!file) {
-    throw new Error("Please select a JSON file first");
-  }
-  const text = await file.text();
-  let payload;
-  try {
-    payload = JSON.parse(text);
-  } catch {
-    throw new Error("Selected file is not valid JSON");
-  }
-
-  const response = await fetchWithTimeout("/api/boards/import", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let parsed = null;
-  try {
-    parsed = await response.json();
-  } catch {
-    parsed = null;
-  }
-
-  if (!response.ok) {
-    const message = parsed?.error || parsed?.code || `HTTP ${response.status}`;
-    throw new Error(`Board import failed: ${message}`);
-  }
-
-  await loadExternalBoardZones();
-  ensureImportedBoardInCatalog(parsed);
-  syncBoardSelectOptions();
-  if (parsed?.boardId) {
-    const activated = activateImportedBoard(parsed.boardId, "board-import");
-    if (!activated) {
-      throw new Error(`Board import succeeded but activation failed: ${parsed.boardId}`);
-    }
-  }
-  return parsed;
-}
-
-function normalizeImportedBoardFromResponse(parsed) {
-  if (!parsed || typeof parsed !== "object") {
-    return null;
-  }
-  const boardId = String(parsed?.boardId || parsed?.board?.boardId || parsed?.board?.id || "").trim();
-  if (!boardId) {
-    return null;
-  }
-  const boardPayload = parsed?.board;
-  const roomCatalog = Array.isArray(boardPayload?.roomCatalog)
-    ? boardPayload.roomCatalog
-    : Array.isArray(boardPayload?.rooms)
-      ? boardPayload.rooms
-      : [];
-  const roomClusters = Array.isArray(boardPayload?.roomClusters)
-    ? boardPayload.roomClusters
-    : Array.isArray(boardPayload?.clusters)
-      ? boardPayload.clusters
-      : [];
-  const fallbackImagePath = String(parsed?.imagePath || "").trim();
-  const fallbackImageSrc = fallbackImagePath ? `/${fallbackImagePath.replace(/^\/+/, "")}` : "";
-  const runtimeCandidate = {
-    id: boardId,
-    label: String(boardPayload?.metadata?.name || boardPayload?.label || boardPayload?.name || boardId).trim() || boardId,
-    src: String(boardPayload?.metadata?.imageSrc || boardPayload?.src || fallbackImageSrc).trim(),
-    rooms: roomCatalog.map((room) => ({
-      id: room?.id,
-      name: room?.name,
-      label: room?.name ?? room?.label,
-      polygon: room?.polygon ?? room?.points,
-      points: room?.polygon ?? room?.points,
-      x: room?.x,
-      y: room?.y,
-      radius: room?.radius,
-      meta: room?.meta,
-    })),
-    roomClusters,
-  };
-  if (!runtimeCandidate.src) {
-    return null;
-  }
-  return window.TT_BEAMER_ROOMS.normalizeBoard(runtimeCandidate);
-}
-
-function ensureImportedBoardInCatalog(parsed) {
-  const board = normalizeImportedBoardFromResponse(parsed);
-  if (!board?.id || BOARDS.some((entry) => entry.id === board.id)) {
-    return false;
-  }
-  BOARDS = [...BOARDS, board];
-  state.zoneLoader.loadedBoards[board.id] = "import-response";
-  state.zoneLoader.fallbackBoards[board.id] = "none";
-  state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
-  state.zoneLoader.detailByBoard[board.id] = "import-response";
-  syncZoneLoaderStatus();
-  return true;
-}
-
-function activateImportedBoard(boardId, reason) {
-  const targetId = String(boardId || "").trim();
-  if (!targetId || !BOARDS.some((board) => board.id === targetId)) {
-    return false;
-  }
-  switchBoard(targetId, { emitLiveContext: true, reason });
-  return state.boardId === targetId;
-}
-
-async function importBoardFromImage(file, { boardName = "", boardId = "" } = {}) {
-  if (!file) {
-    throw new Error("Please select an image file first");
-  }
-  const formData = new FormData();
-  formData.append("image", file, file.name || "board-image");
-  const trimmedName = String(boardName || "").trim();
-  const trimmedId = String(boardId || "").trim();
-  if (trimmedName) {
-    formData.append("boardName", trimmedName);
-  }
-  if (trimmedId) {
-    formData.append("boardId", trimmedId);
-  }
-
-  const response = await fetchWithTimeout("/api/boards/import", {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-    },
-    body: formData,
-  });
-
-  let parsed = null;
-  try {
-    parsed = await response.json();
-  } catch {
-    parsed = null;
-  }
-
-  if (!response.ok) {
-    const message = parsed?.error || parsed?.code || `HTTP ${response.status}`;
-    throw new Error(`Image board import failed: ${message}`);
-  }
-
-  await loadExternalBoardZones();
-  ensureImportedBoardInCatalog(parsed);
-  syncBoardSelectOptions();
-  if (parsed?.boardId) {
-    const activated = activateImportedBoard(parsed.boardId, "board-import-image");
-    if (!activated) {
-      throw new Error(`Image import succeeded but activation failed: ${parsed.boardId}`);
-    }
-  }
-  return parsed;
-}
-
-function syncBoardSelectOptions() {
-  boardSelect.replaceChildren();
-  for (const board of BOARDS) {
-    const option = document.createElement("option");
-    option.value = board.id;
-    option.textContent = board.label;
-    boardSelect.append(option);
-  }
-  if (!BOARDS.some((board) => board.id === state.boardId)) {
-    state.boardId = BOARDS[0]?.id ?? "";
-  }
-  boardSelect.value = state.boardId;
-}
+// Phase 14-2: zone loader + board import (~295 LOC) moved to
+// src/app/runtime/runtime-zone-loader.js. BOARDS is reassigned via
+// the setBoards callback since the module cannot mutate the outer
+// let directly.
+window.TT_BEAMER_RUNTIME_ZONE_LOADER.init({
+  state,
+  zonesStatus,
+  boardSelect,
+  ZONE_CONFIG_SOURCES,
+  INLINE_FALLBACK_BOARDS,
+  getBoards: () => BOARDS,
+  setBoards: (next) => { BOARDS = next; },
+  fetchWithTimeout: (url, options) => fetchWithTimeout(url, options),
+  cloneBoardEntry: (board) => cloneBoardEntry(board),
+  validateZonePayload: (payload, boardId, requiredRoomIds) => validateZonePayload(payload, boardId, requiredRoomIds),
+  classifyZoneFallback: (status, code) => classifyZoneFallback(status, code),
+  switchBoard: (boardId, opts) => switchBoard(boardId, opts),
+});
+const {
+  syncZoneLoaderStatus,
+  loadExternalBoardZones,
+  importBoardFromFile,
+  normalizeImportedBoardFromResponse,
+  ensureImportedBoardInCatalog,
+  activateImportedBoard,
+  importBoardFromImage,
+  syncBoardSelectOptions,
+} = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
 
 // Phase 13-2: zoom range extended to [0.25, 4.0]. Wheel + pinch gestures
 // replace the zoom slider; pan clamping still keeps the board visible at
