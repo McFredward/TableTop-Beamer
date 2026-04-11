@@ -324,11 +324,8 @@
 
   function createDefaultInsideAnimationDefinitions() {
     return [
-      { id: "ambient-drift", name: "Ambient Drift", assetType: "coded", assetRef: "ambient-drift", intensity: 1, speed: 1, loopUntilStopped: true },
-      { id: "ash-fall", name: "Ash Fall", assetType: "coded", assetRef: "ash-fall", intensity: 1, speed: 1, loopUntilStopped: true },
       { id: "hull-flicker", name: "Hull Flicker", assetType: "coded", assetRef: "hull-flicker", intensity: 1, speed: 1, loopUntilStopped: true },
       { id: "intruder-alert", name: "Intruder Alert", assetType: "coded", assetRef: "intruder-alert", intensity: 1, speed: 1, loopUntilStopped: false },
-      { id: "reactor-pulse", name: "Reactor Pulse", assetType: "coded", assetRef: "reactor-pulse", intensity: 1, speed: 1, loopUntilStopped: false },
       { id: "power-outage", name: "Power Outage", assetType: "coded", assetRef: "power-outage", intensity: 1, speed: 1, loopUntilStopped: false },
     ];
   }
@@ -347,7 +344,6 @@
   const EVENT_SOUND_ASSETS = Object.fromEntries(
     Object.entries({
       "intruder-alert": ["resources/nemesis/sounds/alarm.mp3", "resources/nemesis/sounds/monsters/048.wav"],
-      "reactor-pulse": ["resources/nemesis/sounds/electricity.mp3"],
       "power-outage": ["resources/nemesis/sounds/power/3.wav"],
       "alarm-beacon": ["resources/nemesis/sounds/alarm.mp3"],
       "electrical-arc": ["resources/nemesis/sounds/electricity.mp3"],

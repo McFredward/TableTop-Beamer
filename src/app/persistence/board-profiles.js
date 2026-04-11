@@ -161,12 +161,12 @@
             polygon: legacyPolygon,
           },
         ];
-        migrated[boardId] = {
-          roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
-          deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
-          roomClusters: profile.roomClusters ?? profile.clusters ?? null,
-          hitareaCalibration:
-            profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[boardId] ?? HITAREA_CALIBRATION_DEFAULT,
+      migrated[boardId] = {
+        roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
+        deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
+        roomClusters: profile.roomClusters ?? profile.clusters ?? null,
+        hitareaCalibration:
+          profile.hitareaCalibration ?? profile.hitarea ?? legacyHitarea[boardId] ?? HITAREA_CALIBRATION_DEFAULT,
         roomGeometry:
           profile.roomGeometry ??
           profile.geometry ??
@@ -206,7 +206,7 @@
             profile.inside?.selectedAnimationId ??
             profile.selectedInsideAnimationId ??
             createDefaultInsideAnimationDefinitions()[0]?.id ??
-            "ambient-drift",
+            "hull-flicker",
         },
         outsideFx: {
           ...(profile.outsideFx ?? profile.outside ?? OUTSIDE_FX_DEFAULT),

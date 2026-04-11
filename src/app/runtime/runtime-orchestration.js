@@ -2713,7 +2713,7 @@ function normalizeInsideAssetType(value) {
   return OUTSIDE_ANIMATION_ASSET_TYPES.includes(value) ? value : "coded";
 }
 
-function normalizeInsideAnimationId(value, fallback = "ambient-drift") {
+function normalizeInsideAnimationId(value, fallback = "hull-flicker") {
   const trimmed = String(value || "").trim();
   return trimmed || fallback;
 }
@@ -2723,7 +2723,7 @@ function normalizeInsideAnimationDefinition(definition, fallbackIndex = 0) {
     id: `inside-${fallbackIndex + 1}`,
     name: `Inside Animation ${fallbackIndex + 1}`,
     assetType: "coded",
-    assetRef: "ambient-drift",
+    assetRef: "hull-flicker",
     intensity: 1,
     speed: 1,
   };
@@ -2769,7 +2769,7 @@ function normalizeInsideFxProfile(profile) {
   const animations = normalizeInsideAnimationDefinitions(legacyProfile?.animations ?? legacyProfile?.insideAnimations);
   const preferredId = normalizeInsideAnimationId(
     legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedInsideAnimationId,
-    animations[0]?.id ?? "ambient-drift",
+    animations[0]?.id ?? "hull-flicker",
   );
   const selectedAnimation = animations.find((entry) => entry.id === preferredId) ?? animations[0];
   return {
@@ -2817,7 +2817,7 @@ function createInsideAnimationDefinition(name, existingDefinitions = []) {
     id: candidateId,
     name: baseName,
     assetType: "coded",
-    assetRef: "ambient-drift",
+    assetRef: "hull-flicker",
     intensity: 1,
     speed: 1,
   });
@@ -7013,7 +7013,7 @@ function resolveRoomCodedEffectType(assetRef) {
   return normalizeRoomCodedAssetRef(assetRef);
 }
 
-function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "ambient-drift") {
+function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "hull-flicker") {
   const normalizedRef = String(assetRef || "").trim().toLowerCase();
   if (getInsideCodedAssetKeys().includes(normalizedRef)) {
     return normalizedRef;
@@ -7022,7 +7022,7 @@ function normalizeInsideCodedAssetRef(assetRef, fallbackAssetRef = "ambient-drif
   if (getInsideCodedAssetKeys().includes(normalizedFallback)) {
     return normalizedFallback;
   }
-  return getInsideCodedAssetKeys()[0] ?? "ambient-drift";
+  return getInsideCodedAssetKeys()[0] ?? "hull-flicker";
 }
 
 function getInsideAssetCandidates(assetType) {
@@ -7060,7 +7060,7 @@ function normalizeInsideAssetRefForType(assetType, assetRef, fallbackAssetRef = 
 
 function resolveInsideCodedEffectType(assetRef) {
   const normalized = normalizeInsideCodedAssetRef(assetRef);
-  return getInsideCodedAssetKeys().includes(normalized) ? normalized : "ambient-drift";
+  return getInsideCodedAssetKeys().includes(normalized) ? normalized : "hull-flicker";
 }
 
 function normalizeOutsideCodedAssetRef(assetRef) {
@@ -11301,72 +11301,28 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
     return;
   }
 
-  if (type === "ambient-drift") {
-    const alpha = (0.07 + Math.sin(age * 1.4) * 0.03) * intensity;
-    const g = ctx.createRadialGradient(w * 0.52, h * 0.56, h * 0.03, w * 0.52, h * 0.56, h * 0.9);
-    g.addColorStop(0, `rgba(95, 145, 180, ${alpha})`);
-    g.addColorStop(1, "rgba(0, 0, 0, 0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    return;
-  }
-
-  if (type === "ash-fall") {
-    const spawnThreshold = visualCaps.pressureLevel >= 2 ? 0.9 : visualCaps.pressureLevel === 1 ? 0.82 : 0.72;
-    if (ashParticles.length < visualCaps.ashParticlesCap && Math.random() > spawnThreshold) {
-      ashParticles.push({
-        x: Math.random() * w,
-        y: -8,
-        life: 1,
-        size: 0.8 + Math.random() * 2.2,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: 0.3 + Math.random() * 0.7,
-      });
-    }
-    if (ashParticles.length > visualCaps.ashParticlesCap) {
-      ashParticles.splice(0, ashParticles.length - visualCaps.ashParticlesCap);
-    }
-    for (let i = ashParticles.length - 1; i >= 0; i -= 1) {
-      const p = ashParticles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 0.006;
-      if (p.life <= 0) {
-        ashParticles.splice(i, 1);
-        continue;
-      }
-      ctx.fillStyle = `rgba(204, 221, 239, ${p.life * 0.42 * intensity})`;
-      ctx.fillRect(p.x, p.y, p.size, p.size);
-    }
-    return;
-  }
-
   if (type === "hull-flicker") {
-    const timeline = age * (1.6 + intensity * 0.5);  // Noch langsamer für Pausen
-    const step = Math.floor(timeline * 6);  // Weniger Schritte = längere Zyklen
+    const timeline = age * (1.6 + intensity * 0.5);
+    const step = Math.floor(timeline * 6);
 
-    // Gate-Control: Entscheidet, ob Lampe "versucht an" zu gehen (intermittent)
-    const gate = flickerNoise(step * 0.08 + 3.9);  // Langsame Periode (Pausen 70-80%)
-    const isOnPeriod = gate > 0.72;  // Nur 28% der Zeit "aktiv" – lange Pausen
+    const gate = flickerNoise(step * 0.08 + 3.9);
+    const isOnPeriod = gate > 0.72;
 
     let flickerIntensity = 0;
     if (isOnPeriod) {
-      // Innerhalb "on"-Phase: Subtiles, random Flackern (wie instabile Röhre)
       const baseFlicker = (flickerNoise(step * 0.22 + 7.4) * 0.55 +
         flickerNoise(step * 0.55 + 15.2) * 0.35 +
         flickerNoise(step * 1.1 + 28.6) * 0.1);
-      flickerIntensity = (0.4 + baseFlicker * 0.6) * intensity;  // 0.4-1.0, nie full hell
+      flickerIntensity = (0.4 + baseFlicker * 0.6) * intensity;
     }
 
-    // Nur minimale Dips in "on"-Phasen, sonst nichts
     const dipAlpha = isOnPeriod && flickerIntensity < 0.35 ? (0.35 - flickerIntensity) * 0.5 * intensity : 0;
     ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.3, dipAlpha)})`;
     ctx.fillRect(0, 0, w, h);
 
-    // Overlay nur in "on"-Phasen
-    const tubeColor = "240, 235, 190";  // Leicht gelblich-weiß
+    const tubeColor = "240, 235, 190";
     const overlayAlpha = Math.min(0.4, flickerIntensity);
-    if (overlayAlpha > 0.015 && isOnPeriod) {  // Höhere Schwelle gegen minimale Leaks
+    if (overlayAlpha > 0.015 && isOnPeriod) {
       ctx.fillStyle = `rgba(${tubeColor}, ${overlayAlpha})`;
       ctx.fillRect(0, 0, w, h);
     }
@@ -11377,16 +11333,6 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
   if (type === "intruder-alert") {
     const pulse = (Math.sin(age * 9) + 1) / 2;
     ctx.fillStyle = `rgba(255, 45, 45, ${(0.1 + pulse * 0.24) * intensity})`;
-    ctx.fillRect(0, 0, w, h);
-    return;
-  }
-
-  if (type === "reactor-pulse") {
-    const radius = (0.12 + (age % 3) * 0.22) * Math.max(w, h);
-    const g = ctx.createRadialGradient(w * 0.5, h * 0.5, radius * 0.08, w * 0.5, h * 0.5, radius);
-    g.addColorStop(0, `rgba(255, 157, 55, ${0.35 * intensity})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
     return;
   }
@@ -11474,181 +11420,6 @@ function drawEffectVisual(type, age, intensity, room, roomMetrics = null, option
       ctx.stroke();
     }
     return;
-  }
-
-  if (type === "kaputt") {
-    const gifRenderConfig = resolveRoomGifRenderConfig(type, age, intensity, options);
-    if (!gifRenderConfig.frame) {
-      return;
-    }
-
-    ctx.save();
-    ctx.globalAlpha = gifRenderConfig.opacity;
-    ctx.drawImage(gifRenderConfig.frame, roomMinX, roomMinY, roomWidth, roomHeight);
-    ctx.restore();
-    return;
-  }
-
-  if (type === "fire" || type === "slime") {
-    const gifRenderConfig = resolveRoomGifRenderConfig(type, age, intensity, options);
-    if (!gifRenderConfig.frame) {
-      return;
-    }
-
-    ctx.save();
-    ctx.globalAlpha = gifRenderConfig.opacity;
-    ctx.drawImage(gifRenderConfig.frame, roomMinX, roomMinY, roomWidth, roomHeight);
-    ctx.restore();
-    return;
-  }
-
-  if (type === "state-broken") {
-    const densityFactor = Number(options.densityFactor) || 1;
-    const crackCount = Math.max(3, Math.round(6 * densityFactor * visualCaps.nonCriticalDensityScale));
-    ctx.strokeStyle = `rgba(186, 210, 226, ${0.58 * intensity})`;
-    ctx.lineWidth = Math.max(1.2, Math.min(roomWidth, roomHeight) * 0.012);
-    for (let i = 0; i < crackCount; i += 1) {
-      const px = roomMinX + roomWidth * ((i + 1) / (crackCount + 1));
-      const phase = Math.sin(age * 1.6 + i * 0.9) * roomHeight * 0.08;
-      ctx.beginPath();
-      ctx.moveTo(px - roomWidth * 0.1, roomY + phase - roomHeight * 0.18);
-      ctx.lineTo(px + roomWidth * 0.03, roomY + phase);
-      ctx.lineTo(px - roomWidth * 0.07, roomY + phase + roomHeight * 0.2);
-      ctx.stroke();
-    }
-    return;
-  }
-
-  if (type === "state-burning") {
-    const densityFactor = Number(options.densityFactor) || 1;
-    const flames = Math.max(5, Math.round(11 * densityFactor * visualCaps.nonCriticalDensityScale));
-    for (let i = 0; i < flames; i += 1) {
-      const phase = (age * 1.7 + i * 0.17) % 1;
-      const x = roomMinX + roomWidth * (((i * 0.41) % 1) * 0.92 + 0.04);
-      const y = roomMinY + roomHeight * (0.9 - phase * 0.82);
-      const radius = Math.max(5, roomWidth * (0.04 + ((i % 3) * 0.01)));
-      const alpha = (0.18 + (1 - phase) * 0.28) * intensity;
-      ctx.fillStyle = `rgba(255, 132, 49, ${alpha})`;
-      ctx.beginPath();
-      ctx.ellipse(x, y, radius, radius * 0.6, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    return;
-  }
-
-  if (type === "state-corpse") {
-    const markerW = Math.max(8, roomWidth * 0.16);
-    const markerH = Math.max(5, roomHeight * 0.08);
-    const markerX = roomX - markerW * 0.5;
-    const markerY = roomY + roomHeight * 0.2;
-    ctx.fillStyle = `rgba(192, 71, 71, ${0.5 * intensity})`;
-    ctx.fillRect(markerX, markerY, markerW, markerH);
-    ctx.strokeStyle = `rgba(255, 216, 216, ${0.75 * intensity})`;
-    ctx.lineWidth = Math.max(1, markerH * 0.16);
-    ctx.beginPath();
-    ctx.moveTo(markerX, markerY);
-    ctx.lineTo(markerX + markerW, markerY + markerH);
-    ctx.moveTo(markerX + markerW, markerY);
-    ctx.lineTo(markerX, markerY + markerH);
-    ctx.stroke();
-    return;
-  }
-
-  if (type === "state-aliens") {
-    const count = clampAlienCount(options.alienCount ?? options.roomState?.alienCount ?? 0);
-    const densityFactor = Number(options.densityFactor) || 1;
-    for (let i = 0; i < count; i += 1) {
-      const offset = (i - (count - 1) / 2) * roomWidth * 0.22;
-      const pulse = (Math.sin(age * 5 + i * 1.9) + 1) / 2;
-      const x = roomX + offset;
-      const y = roomY - roomHeight * 0.1;
-      const r = Math.max(8, Math.min(roomWidth, roomHeight) * 0.12 * densityFactor);
-      ctx.fillStyle = `rgba(153, 255, 102, ${(0.22 + pulse * 0.2) * intensity})`;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = `rgba(32, 53, 23, ${(0.5 + pulse * 0.25) * intensity})`;
-      ctx.beginPath();
-      ctx.arc(x - r * 0.25, y - r * 0.1, Math.max(2, r * 0.17), 0, Math.PI * 2);
-      ctx.arc(x + r * 0.25, y - r * 0.1, Math.max(2, r * 0.17), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    return;
-  }
-
-  if (type === "scanner-sweep") {
-    const r = Math.max(roomRadius * 1.35, Math.max(roomWidth, roomHeight) * 0.75);
-    const angle = age * 1.9;
-    ctx.fillStyle = `rgba(84, 255, 218, ${0.2 * intensity})`;
-    ctx.beginPath();
-    ctx.moveTo(roomX, roomY);
-    ctx.arc(roomX, roomY, r, angle, angle + Math.PI / 3);
-    ctx.closePath();
-    ctx.fill();
-    return;
-  }
-
-  if (type === "steam-vent") {
-    const columns = 6;
-    const plumeTravel = roomHeight * 1.2;
-    for (let i = 0; i < columns; i += 1) {
-      const columnOffset = (i / (columns - 1 || 1)) * roomWidth;
-      const phase = (age * 0.9 + i * 0.19) % 1;
-      const rise = roomMinY + roomHeight - phase * plumeTravel;
-      const radius = Math.max(7, roomWidth * 0.06 + ((age * 16 + i * 7) % (roomWidth * 0.08)));
-      const sway = Math.sin(age * 2 + i) * roomWidth * 0.04;
-      ctx.fillStyle = `rgba(225, 236, 255, ${0.085 * intensity})`;
-      ctx.beginPath();
-      ctx.arc(roomMinX + columnOffset + sway, rise, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    return;
-  }
-
-  if (type === "contamination") {
-    const alpha = (0.1 + Math.sin(age * 2.6) * 0.04) * intensity;
-    const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.72);
-    g.addColorStop(0, `rgba(96, 232, 142, ${alpha})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(roomMinX - roomWidth * 0.35, roomMinY - roomHeight * 0.35, roomWidth * 1.7, roomHeight * 1.7);
-    return;
-  }
-
-  if (type === "electrical-arc") {
-    ctx.strokeStyle = `rgba(120, 200, 255, ${0.8 * intensity})`;
-    ctx.lineWidth = Math.max(2, Math.min(roomWidth, roomHeight) * 0.015);
-    ctx.beginPath();
-    for (let i = 0; i < 9; i += 1) {
-      const px = roomMinX + roomWidth * (0.08 + Math.random() * 0.84);
-      const py = roomMinY + roomHeight * (0.08 + Math.random() * 0.84);
-      if (i === 0) {
-        ctx.moveTo(px, py);
-      } else {
-        ctx.lineTo(px, py);
-      }
-    }
-    ctx.stroke();
-    return;
-  }
-
-  if (type === "fire-pocket") {
-    const alpha = (0.2 + Math.sin(age * 12) * 0.1) * intensity;
-    const g = ctx.createRadialGradient(roomX, roomY, 6, roomX, roomY, Math.max(roomWidth, roomHeight) * 0.68);
-    g.addColorStop(0, `rgba(255, 123, 61, ${alpha})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(roomMinX - roomWidth * 0.25, roomMinY - roomHeight * 0.25, roomWidth * 1.5, roomHeight * 1.5);
-    return;
-  }
-
-  if (type === "alarm-beacon") {
-    const pulse = (Math.sin(age * 8) + 1) / 2;
-    const g = ctx.createRadialGradient(roomX, roomY, 4, roomX, roomY, Math.max(roomWidth, roomHeight) * (0.55 + pulse * 0.12));
-    g.addColorStop(0, `rgba(255, 60, 60, ${(0.12 + pulse * 0.18) * intensity})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(roomMinX - roomWidth * 0.35, roomMinY - roomHeight * 0.35, roomWidth * 1.7, roomHeight * 1.7);
   }
 }
 
