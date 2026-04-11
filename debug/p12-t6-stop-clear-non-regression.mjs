@@ -1,9 +1,15 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
-const runtimeSource = readFileSync(
-  new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url),
-  "utf8",
-);
+// Phase 14-2: after the runtime module split, the runtime lives across
+// multiple files under src/app/runtime/. Concatenate every .js file in
+// that directory so location-pinned greps still find the moved symbols
+// (stopAnimation now lives in runtime-animation-lifecycle.js, etc.).
+const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
+const runtimeSource = readdirSync(runtimeDir)
+  .filter((name) => name.endsWith(".js"))
+  .sort()
+  .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))
+  .join("\n");
 
 // Guard 1: stopAnimation() remains the authoritative single-animation
 // termination path. It must still filter runningAnimations by id set and
