@@ -123,6 +123,33 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   touch-action: none;
 }
 
+/* Phase 13-HF3: Apply / Discard bar for opt-in save. */
+.apply-config-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: rgba(20, 24, 34, 0.88);
+  border: 1px solid rgba(128, 160, 240, 0.4);
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  align-items: center;
+}
+.apply-config-bar #apply-global-config.has-unsaved {
+  background: #4c8bff;
+  color: #ffffff;
+  font-weight: 600;
+}
+.apply-config-bar #apply-global-config-indicator {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  color: #ffd780;
+}
+
 #board-image {
   object-fit: cover;
   filter: saturate(0.95) contrast(1.04);

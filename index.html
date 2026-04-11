@@ -157,9 +157,14 @@
           <input id="align-mode-toggle" type="checkbox" />
           Align mode (show polygons on final output)
         </label>
-        <!-- Phase 13-1: Save (local -&gt; global defaults) and Load and apply defaults buttons removed.
-             The server is the single source of truth and every mutation writes debounced.
-             Export download stays; Import-from-file is new (overwrites the server config). -->
+        <!-- Phase 13-HF3: Apply / Discard buttons replace the Phase 13-1 auto-save.
+             Local edits stay local until the user clicks Apply. Discard reloads
+             the current server config and throws away the pending edits. -->
+        <div class="apply-config-bar" id="apply-global-config-bar">
+          <button id="apply-global-config" type="button" disabled>Apply changes (no pending edits)</button>
+          <button id="discard-global-config" type="button" disabled>Discard local changes</button>
+          <p id="apply-global-config-indicator" class="status-line" aria-live="polite" style="display: none"></p>
+        </div>
         <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
         <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>

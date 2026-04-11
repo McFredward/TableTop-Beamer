@@ -586,6 +586,14 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
 
+// Phase 13-HF3: opt-in save. Local config edits stay local (dirty) until
+// the user clicks the Apply button. `localConfigDirty` is the dirty flag.
+// `remoteConfigUpdateAwaiting` is set when a peer pushed a new config
+// while we were dirty — the refetch is suppressed until the user either
+// applies (our changes win) or discards (peer's changes win).
+state.localConfigDirty = false;
+state.remoteConfigUpdateAwaiting = false;
+
 const liveSync = window.TT_BEAMER_LIVE_SYNC_STATE.createLiveSyncState();
 
 const LIVE_APPLIED_MUTATION_LIMIT = 4000;
@@ -1775,27 +1783,35 @@ function connectLiveSyncSocket() {
           scheduleNextLiveSnapshotPoll(0);
         }
         // Phase 13-1: server broadcasts `global-config-update` after every
-        // successful POST /api/global-defaults. Refetch and apply so every
-        // connected client picks up cross-device mutations immediately.
+        // successful POST /api/global-defaults.
+        // Phase 13-HF3: if local config is dirty, suppress the refetch.
+        // The user's unsaved edits win until they explicitly Apply or
+        // Discard. We set `remoteConfigUpdateAwaiting` so the UI shows a
+        // banner and the Apply / Discard buttons both mention the remote.
         if (payload?.type === "global-config-update") {
-          void (async () => {
-            try {
-              const loaded = await fetchGlobalDefaultsPayload();
-              applyGlobalDefaultsPayloadToState(loaded.payload);
-              syncRuntimePanelsFromState();
-              renderRunningAnimationsList();
-              refreshGlobalButtons();
-              if (globalDefaultsStatus) {
-                globalDefaultsStatus.textContent =
-                  `Global config: updated from peer (${loaded.endpoint || "server"})`;
+          if (state.localConfigDirty) {
+            state.remoteConfigUpdateAwaiting = true;
+            refreshApplyDiscardButtonsUi();
+          } else {
+            void (async () => {
+              try {
+                const loaded = await fetchGlobalDefaultsPayload();
+                applyGlobalDefaultsPayloadToState(loaded.payload);
+                syncRuntimePanelsFromState();
+                renderRunningAnimationsList();
+                refreshGlobalButtons();
+                if (globalDefaultsStatus) {
+                  globalDefaultsStatus.textContent =
+                    `Global config: updated from peer (${loaded.endpoint || "server"})`;
+                }
+              } catch (refetchError) {
+                console.warn(
+                  "[global-config] broadcast refetch failed:",
+                  refetchError?.message || refetchError,
+                );
               }
-            } catch (refetchError) {
-              console.warn(
-                "[global-config] broadcast refetch failed:",
-                refetchError?.message || refetchError,
-              );
-            }
-          })();
+            })();
+          }
         }
       } catch {
         // ignore malformed live-sync payloads
@@ -3460,42 +3476,99 @@ function loadBoardProfiles() {
   applyBoardProfilesToState(migratedLegacyProfiles);
 }
 
-// Phase 13-1: persistence now debounces a POST to the server instead of
-// writing to localStorage. Local state is authoritative between the
-// mutation and the trailing server write (optimistic update). The server
-// broadcasts `global-config-update` on successful write so every other
-// connected client refetches and applies.
-let pendingGlobalConfigWriteTimerId = null;
-const GLOBAL_CONFIG_WRITE_DEBOUNCE_MS = 200;
-
+// Phase 13-HF3: opt-in save. Every mutation flips the local dirty flag.
+// No server traffic until the user clicks the Apply button. This is a
+// direct reversal of Phase 13-1's debounced auto-save, per user feedback:
+// they want fewer accidental config changes to reach the global state.
 function persistBoardProfiles() {
-  scheduleGlobalConfigWrite("board-profiles-mutated");
-  return { ok: true, target: "server", routing: "debounced" };
+  markLocalConfigDirty("board-profiles-mutated");
+  return { ok: true, target: "local-dirty", routing: "opt-in" };
 }
 
-function scheduleGlobalConfigWrite(reason) {
-  if (pendingGlobalConfigWriteTimerId !== null) {
-    window.clearTimeout(pendingGlobalConfigWriteTimerId);
+function markLocalConfigDirty(reason) {
+  state.localConfigDirty = true;
+  refreshApplyDiscardButtonsUi();
+  if (globalDefaultsStatus) {
+    globalDefaultsStatus.textContent =
+      `Local config: unsaved changes (${reason || "mutation"}). Click Apply to push to server.`;
   }
-  pendingGlobalConfigWriteTimerId = window.setTimeout(() => {
-    pendingGlobalConfigWriteTimerId = null;
-    void flushGlobalConfigWrite(reason);
-  }, GLOBAL_CONFIG_WRITE_DEBOUNCE_MS);
 }
 
-async function flushGlobalConfigWrite(reason) {
+function clearLocalConfigDirty(reasonText) {
+  state.localConfigDirty = false;
+  state.remoteConfigUpdateAwaiting = false;
+  refreshApplyDiscardButtonsUi();
+  if (globalDefaultsStatus) {
+    globalDefaultsStatus.textContent = reasonText || "Global config: synced";
+  }
+}
+
+function refreshApplyDiscardButtonsUi() {
+  const applyButton = document.getElementById("apply-global-config");
+  const discardButton = document.getElementById("discard-global-config");
+  const indicator = document.getElementById("apply-global-config-indicator");
+  const dirty = Boolean(state.localConfigDirty);
+  const remoteAwaiting = Boolean(state.remoteConfigUpdateAwaiting);
+  if (applyButton) {
+    applyButton.disabled = !dirty;
+    applyButton.textContent = dirty
+      ? `Apply changes (unsaved)${remoteAwaiting ? " - overrides remote" : ""}`
+      : "Apply changes (no pending edits)";
+    applyButton.classList.toggle("has-unsaved", dirty);
+  }
+  if (discardButton) {
+    discardButton.disabled = !(dirty || remoteAwaiting);
+    discardButton.textContent = remoteAwaiting
+      ? "Discard (load server version)"
+      : "Discard local changes";
+  }
+  if (indicator) {
+    if (remoteAwaiting) {
+      indicator.textContent =
+        "Server-Config wurde von einem anderen Client geaendert. Apply ueberschreibt die Serverversion, Discard laedt sie.";
+      indicator.style.display = "";
+    } else if (dirty) {
+      indicator.textContent = "Lokale Aenderungen sind nicht gespeichert.";
+      indicator.style.display = "";
+    } else {
+      indicator.textContent = "";
+      indicator.style.display = "none";
+    }
+  }
+}
+
+async function applyLocalConfigToServer() {
+  if (!state.localConfigDirty) return { ok: true, nothingToDo: true };
   try {
     await saveGlobalDefaultsToServer();
-    if (globalDefaultsStatus) {
-      globalDefaultsStatus.textContent =
-        `Global config: synced (reason: ${reason || "mutation"})`;
-    }
+    clearLocalConfigDirty("Global config: pushed local changes to server");
+    return { ok: true };
   } catch (error) {
     const message = String(error?.message || error || "unknown");
-    console.warn("[global-config] debounced write failed:", message);
+    console.warn("[global-config] apply failed:", message);
     if (globalDefaultsStatus) {
-      globalDefaultsStatus.textContent = `Global config: sync failed (${message})`;
+      globalDefaultsStatus.textContent = `Global config: apply failed (${message})`;
     }
+    return { ok: false, error: message };
+  }
+}
+
+async function discardLocalConfigAndReloadFromServer() {
+  try {
+    const loaded = await fetchGlobalDefaultsPayload();
+    applyGlobalDefaultsPayloadToState(loaded.payload);
+    syncRuntimePanelsFromState();
+    renderRunningAnimationsList();
+    refreshGlobalButtons();
+    clearLocalConfigDirty("Global config: discarded local changes, reloaded from server");
+    return { ok: true };
+  } catch (error) {
+    const message = String(error?.message || error || "unknown");
+    console.warn("[global-config] discard reload failed:", message);
+    if (globalDefaultsStatus) {
+      globalDefaultsStatus.textContent = `Global config: discard reload failed (${message})`;
+    }
+    return { ok: false, error: message };
   }
 }
 
@@ -13511,6 +13584,44 @@ function wireImportGlobalDefaultsButton() {
   });
 }
 wireImportGlobalDefaultsButton();
+
+// Phase 13-HF3: Apply / Discard buttons and beforeunload guard.
+function wireApplyDiscardGlobalConfigButtons() {
+  const applyButton = document.getElementById("apply-global-config");
+  const discardButton = document.getElementById("discard-global-config");
+  if (applyButton) {
+    applyButton.addEventListener("click", async () => {
+      applyButton.disabled = true;
+      const result = await applyLocalConfigToServer();
+      if (!result.ok) {
+        // Re-enable so the user can retry.
+        refreshApplyDiscardButtonsUi();
+      }
+    });
+  }
+  if (discardButton) {
+    discardButton.addEventListener("click", async () => {
+      discardButton.disabled = true;
+      const result = await discardLocalConfigAndReloadFromServer();
+      if (!result.ok) {
+        refreshApplyDiscardButtonsUi();
+      }
+    });
+  }
+  refreshApplyDiscardButtonsUi();
+}
+wireApplyDiscardGlobalConfigButtons();
+
+// Phase 13-HF3: browser-native "Leave site?" prompt when local changes
+// are unsaved. Modern browsers show a generic, non-customizable dialog.
+window.addEventListener("beforeunload", (event) => {
+  if (!state.localConfigDirty) return undefined;
+  event.preventDefault();
+  // Legacy browsers honor the returnValue string. Modern browsers show a
+  // generic "Leave site? Changes you made may not be saved." prompt.
+  event.returnValue = "Lokale Aenderungen sind nicht gespeichert.";
+  return event.returnValue;
+});
 
 runMobilePerformanceCheckButton?.addEventListener("click", () => {
   updateMobilePerformanceStatus();
