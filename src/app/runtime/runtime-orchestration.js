@@ -1475,224 +1475,60 @@ const {
   loadAndApplyGlobalDefaults,
 } = window.TT_BEAMER_RUNTIME_GLOBAL_DEFAULTS;
 
-function createDefaultHitareaCalibrationMap() {
-  return Object.fromEntries(
-    BOARDS.map((board) => [board.id, { ...HITAREA_CALIBRATION_DEFAULT }]),
-  );
-}
-
-function getHitareaCalibration(boardId = state.boardId) {
-  return (
-    state.hitareaCalibrationByBoard[boardId] ?? {
-      ...HITAREA_CALIBRATION_DEFAULT,
-    }
-  );
-}
-
-function setHitareaCalibration(boardId, calibration) {
-  state.hitareaCalibrationByBoard[boardId] = normalizeHitareaCalibration(calibration);
-}
-
-function getRoomGeometry(boardId, roomId) {
-  const boardGeometry = state.roomGeometryByBoard[boardId] ?? {};
-  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  return normalizeRoomGeometry(boardGeometry[roomId], room, boardId);
-}
-
-function setRoomGeometry(boardId, roomId, geometry) {
-  if (!state.roomGeometryByBoard[boardId]) {
-    state.roomGeometryByBoard[boardId] = createDefaultRoomGeometryMap(boardId);
-  }
-  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  state.roomGeometryByBoard[boardId][roomId] = normalizeRoomGeometry(geometry, room, boardId);
-}
-
-function updateRoomGeometry(boardId, roomId, partial) {
-  const previous = getRoomGeometry(boardId, roomId);
-  setRoomGeometry(boardId, roomId, { ...previous, ...partial });
-}
-
-function getSpecialPolygonPoints(boardId, roomId) {
-  const boardPolygons = state.specialPolygonsByBoard[boardId] ?? {};
-  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  return normalizeSpecialPolygon(boardPolygons[roomId], room?.polygon ?? room?.points ?? []);
-}
-
-function setSpecialPolygonPoints(boardId, roomId, points) {
-  if (!state.specialPolygonsByBoard[boardId]) {
-    state.specialPolygonsByBoard[boardId] = createDefaultSpecialPolygonMap(boardId);
-  }
-  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  const normalized = normalizeSpecialPolygon(points, room?.polygon ?? room?.points ?? []);
-  state.specialPolygonsByBoard[boardId][roomId] = normalized;
-  if (room) {
-    room.polygon = normalized.map((point) => [...point]);
-    room.points = normalized.map((point) => [...point]);
-  }
-}
-
-function getDefaultRoomPolygon(boardId, roomId) {
-  const fallbackBoard = INLINE_FALLBACK_BOARDS.find((board) => board.id === boardId);
-  const fallbackRoom = fallbackBoard?.rooms?.find((room) => room.id === roomId);
-  const normalizedRoom = fallbackRoom ? window.TT_BEAMER_ROOMS.normalizeRoom(fallbackRoom) : null;
-  if (normalizedRoom?.polygon?.length >= 3) {
-    return normalizedRoom.polygon;
-  }
-  return null;
-}
-
-function getRoomSourcePoints(room, boardId = state.boardId) {
-  if (Array.isArray(room?.polygon) && room.polygon.length >= 3) {
-    return room.polygon;
-  }
-  if (Array.isArray(room?.points) && room.points.length >= 3) {
-    return room.points;
-  }
-  return [];
-}
-
-function getSpecialRooms(boardId = state.boardId) {
-  return getBoard(boardId).rooms;
-}
-
-function getActivePolygonRoomId(boardId = state.boardId) {
-  const available = getSpecialRooms(boardId);
-  const preferred = state.polygonEditor.roomIdByBoard[boardId];
-  if (available.some((room) => room.id === preferred)) {
-    return preferred;
-  }
-  return available[0]?.id ?? null;
-}
-
-function resolvePolygonEditingRoomId(boardId = state.boardId) {
-  const rooms = getSpecialRooms(boardId);
-  const selectedRoomId = syncSelectedRoomStateForBoard(boardId);
-  if (rooms.some((room) => room.id === selectedRoomId)) {
-    setActivePolygonRoomId(boardId, selectedRoomId);
-    return selectedRoomId;
-  }
-  return getActivePolygonRoomId(boardId);
-}
-
-function syncSelectedRoomStateForBoard(boardId = state.boardId) {
-  const rooms = getSpecialRooms(boardId);
-  const remembered = state.selectedRoomByBoard[boardId];
-  const current = boardId === state.boardId ? state.selectedRoomId : remembered;
-  const nextRoomId = rooms.some((room) => room.id === current)
-    ? current
-    : rooms.some((room) => room.id === remembered)
-      ? remembered
-      : null;
-  state.selectedRoomByBoard[boardId] = nextRoomId;
-  if (boardId === state.boardId) {
-    state.selectedRoomId = nextRoomId;
-  }
-  return nextRoomId;
-}
-
-function setActivePolygonRoomId(boardId, roomId) {
-  state.polygonEditor.roomIdByBoard[boardId] = roomId;
-}
-
-function clampRoomIntensity(value) {
-  return Math.max(0.2, Math.min(1.5, value));
-}
-
-function clampRoomOpacity(value) {
-  return Math.max(0.1, Math.min(1, Number(value) || 1));
-}
-
-function clampGifPlaybackSpeed(value) {
-  return Math.max(0.25, Math.min(3, Number(value) || 1));
-}
-
-function clampRoomDurationSec(value) {
-  return Math.max(1, Math.min(180, value));
-}
-
-function clampAlienCount(value) {
-  return Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
-}
-
-function normalizeRoomStateProfile(profile) {
-  return {
-    broken: Boolean(profile?.broken),
-    burning: Boolean(profile?.burning),
-    alienCount: clampAlienCount(profile?.alienCount),
-    corpse: Boolean(profile?.corpse),
-  };
-}
-
-function createDefaultRoomStateProfileMap(boardId) {
-  const board = getBoard(boardId);
-  return Object.fromEntries(
-    board.rooms.map((room) => [room.id, normalizeRoomStateProfile(ROOM_STATE_DEFAULT)]),
-  );
-}
-
-function createDefaultRoomStateProfilesByBoard() {
-  return Object.fromEntries(
-    BOARDS.map((board) => [board.id, createDefaultRoomStateProfileMap(board.id)]),
-  );
-}
-
-function normalizeRoomStateProfileMap(profiles, boardId) {
-  const defaults = createDefaultRoomStateProfileMap(boardId);
-  for (const room of getBoard(boardId).rooms) {
-    defaults[room.id] = normalizeRoomStateProfile(profiles?.[room.id]);
-  }
-  return defaults;
-}
-
-function getRoomStateProfile(boardId, roomId) {
-  return normalizeRoomStateProfile(state.roomStateProfilesByBoard?.[boardId]?.[roomId]);
-}
-
-function setRoomStateProfile(boardId, roomId, profile) {
-  if (!state.roomStateProfilesByBoard[boardId]) {
-    state.roomStateProfilesByBoard[boardId] = createDefaultRoomStateProfileMap(boardId);
-  }
-  state.roomStateProfilesByBoard[boardId][roomId] = normalizeRoomStateProfile(profile);
-}
-
-function isRoomAnimationType(type) {
-  return Boolean(getRoomAnimationDefinitionById(type, state.boardId));
-}
-
-function isRoomGlobalEquivalent(type) {
-  return Boolean(getRoomEquivalentType(type, state.boardId));
-}
-
-function resolveRoomAnimationEffectType(type, boardId = state.boardId) {
-  const definition = getRoomAnimationDefinitionById(type, boardId);
-  if (definition && normalizeRoomAssetType(definition.assetType) === "coded") {
-    return resolveRoomCodedEffectType(definition.assetRef);
-  }
-  if (type === "scanning") {
-    return "special-scanning";
-  }
-  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? type;
-}
-
-function getRoomEquivalentType(type, boardId = state.boardId) {
-  const definition = getRoomAnimationDefinitionById(type, boardId);
-  if (definition && normalizeRoomAssetType(definition.assetType) === "coded") {
-    const resolved = resolveRoomCodedEffectType(definition.assetRef);
-    if (resolved === "intruder-alert" || resolved === "hull-flicker") {
-      return resolved;
-    }
-    return null;
-  }
-  return ROOM_GLOBAL_EQUIVALENT_MAP[type] ?? null;
-}
-
-function getRoomGifAssetFileName(type, boardId = state.boardId) {
-  const definition = getRoomAnimationDefinitionById(type, boardId);
-  const path = definition && normalizeRoomAssetType(definition.assetType) === "gif"
-    ? definition.assetRef
-    : ROOM_GIF_ANIMATION_ASSETS[type];
-  return path ? path.split("/").pop() ?? path : null;
-}
+// Phase 14-2: per-board state accessors (hitarea, geometry,
+// special polygons, room state profiles, clamp helpers, room type
+// predicates) moved to src/app/runtime/runtime-board-state-accessors.js.
+window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS.init({
+  state,
+  HITAREA_CALIBRATION_DEFAULT,
+  INLINE_FALLBACK_BOARDS,
+  ROOM_STATE_DEFAULT,
+  ROOM_GLOBAL_EQUIVALENT_MAP,
+  ROOM_GIF_ANIMATION_ASSETS,
+  getBoard: (boardId) => getBoard(boardId),
+  getBoards: () => BOARDS,
+  normalizeHitareaCalibration,
+  normalizeRoomGeometry: (geometry, room, boardId) => normalizeRoomGeometry(geometry, room, boardId),
+  normalizeSpecialPolygon,
+  createDefaultRoomGeometryMap: (boardId) => createDefaultRoomGeometryMap(boardId),
+  createDefaultSpecialPolygonMap: (boardId) => createDefaultSpecialPolygonMap(boardId),
+  getRoomAnimationDefinitionById: (id, boardId) => getRoomAnimationDefinitionById(id, boardId),
+  normalizeRoomAssetType: (v) => normalizeRoomAssetType(v),
+  resolveRoomCodedEffectType: (ref) => resolveRoomCodedEffectType(ref),
+});
+const {
+  createDefaultHitareaCalibrationMap,
+  getHitareaCalibration,
+  setHitareaCalibration,
+  getRoomGeometry,
+  setRoomGeometry,
+  updateRoomGeometry,
+  getSpecialPolygonPoints,
+  setSpecialPolygonPoints,
+  getDefaultRoomPolygon,
+  getRoomSourcePoints,
+  getSpecialRooms,
+  getActivePolygonRoomId,
+  resolvePolygonEditingRoomId,
+  syncSelectedRoomStateForBoard,
+  setActivePolygonRoomId,
+  clampRoomIntensity,
+  clampRoomOpacity,
+  clampGifPlaybackSpeed,
+  clampRoomDurationSec,
+  clampAlienCount,
+  normalizeRoomStateProfile,
+  createDefaultRoomStateProfileMap,
+  createDefaultRoomStateProfilesByBoard,
+  normalizeRoomStateProfileMap,
+  getRoomStateProfile,
+  setRoomStateProfile,
+  isRoomAnimationType,
+  isRoomGlobalEquivalent,
+  resolveRoomAnimationEffectType,
+  getRoomEquivalentType,
+  getRoomGifAssetFileName,
+} = window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS;
 
 // Phase 14-2: GIF decoder moved to runtime-gif-decoder.js.
 const {
