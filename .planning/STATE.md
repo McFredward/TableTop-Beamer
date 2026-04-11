@@ -7,13 +7,13 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 12
-- Current Phase Key: phase-12
+- Current Phase: 13
+- Current Phase Key: phase-13
 - Last Prepared: 2026-04-11
-- Execution Readiness: READY (awaiting next plan direction)
-- Previous Phase: 11 (CLOSED PASS at 11-HF6)
+- Execution Readiness: READY (Plan 13-1 execute-ready)
+- Previous Phase: 12 (CLOSED PASS at 12-1)
 - Last Executed Plan: 12-1 (PASS, order-invariant additive room animation layering closed)
-- Planned Next Execution: (pending)
+- Planned Next Execution: 13-1
 - Last Execution Summary: `.planning/phases/phase-12/12-1-VERIFICATION.md`
 
 ## Source Inputs
@@ -1270,4 +1270,15 @@
 - Plan-12-1 Design-Tradeoff (dokumentiert): mit >=2 concurrent animations im selben Raum verlieren darkening-Effekte ihre darkening-Kontribution (schwarz additiv = 0); ihre helleren Sekundaerelemente (flashes, stroke lines) bleiben sichtbar. Das ist die direkte Konsequenz der Anforderung "alle sichtbar unabhaengig von Reihenfolge".
 - Plan-12-1 Non-Regression: Loop-Mode (`hold`, `durationMs`, `loopUntilStopped`) unveraendert, Stop/Clear (`stopAnimation`, `clear-all` snapshot branch, `pruneFinishedAnimations`) unveraendert, Phase-11 HF6 seen-once retention (`activeSeenOneShotRunByTriggerRevision`) und global stop/clear revision observers unveraendert wired.
 - Plan-12-1 Control/Final-Paritaet: architektonischer Invariant — `draw()` und `drawAnimation()` sind die einzigen Renderpfade fuer beide `OUTPUT_ROLE_CONTROL` und `OUTPUT_ROLE_FINAL`; der Guard applies uniformly auf beide roles.
-- Phase 12 exit criteria erfuellt. Naechster Plan wartet auf neue Direction.
+- Phase 12 exit criteria erfuellt. Phase 13 aktiviert.
+
+## Phase 13 Activation
+- Phase 13 (Server-Authoritative Config + Gesture Zoom + Touch Polygon Editing) ist ab 2026-04-11 aktiv.
+- Plan 13-1 (Server-Authoritative Config) ist execute-ready und blockiert 13-2/13-3 bis PASS-Closure.
+- Bindende Storage-Regel: nichts persistent im Browser. Einzige Persistenz ist die globale Server-Config `config/global-defaults.json`. `sessionStorage` nur fuer ephemere UI-Praeferenz (Settings-Subtab-Memory).
+- Bindende Write-Regel: jede Config-Mutation (Slider, Toggle, Polygon, Zoom, Room-Edit, Animation-Def-Edit) wird mit 200ms Debounce zum Server geschrieben. Optimistic local Apply + trailing Server Write.
+- Bindende Offline-Regel: Server beim Start nicht erreichbar → harter Block mit expliziter Fehler-UI ("Server nicht erreichbar — Retry"). Kein Static-File-Fallback, kein In-Memory-Degraded-Modus.
+- Bindende UX-Regel: "Save to global defaults" und "Load and apply defaults" Buttons werden entfernt. Export-to-File bleibt. Import-from-File wird neu hinzugefuegt (ueberschreibt Server-Config und broadcastet).
+- Bindende Zoom-Regel: Zoom-Slider entfaellt. Desktop = Mausrad (cursor-anchored). Mobile = Zwei-Finger-Pinch (midpoint-anchored). Range 25% bis 400%. Fit/Reset-Buttons bleiben.
+- Bindende Touch-Regel: Polygon-Vertex-Drag muss auf Mobile zuverlaessig funktionieren. Coarse-Pointer Hit-Radius >= 22px CSS, `touch-action: none` auf Overlay, `pointerType`-basierte Button-Gate, Pinch/Vertex-Drag-Arbitration.
+- Non-Regression-Regel: Phase 11 HF6 seen-once retention und Phase 12 additive layering bleiben statisch PASS.

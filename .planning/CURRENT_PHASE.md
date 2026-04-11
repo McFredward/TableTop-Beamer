@@ -1,10 +1,20 @@
 # CURRENT PHASE
 
-- Active: Phase 12 (`phase-12`)
-- Status: Plan 12-1 CLOSED PASS — phase exit criteria met
-- Previous Phase: Phase 11 closed PASS (HF6 final closure)
-- Next Plan: (awaiting new direction)
-- Command Target: `/gsd:new-phase` or continue Phase 12 with follow-up plan
+- Active: Phase 13 (`phase-13`)
+- Status: execute-ready (Plan 13-1 queued)
+- Previous Phase: Phase 12 closed PASS at Plan 12-1
+- Next Plan: 13-1
+- Command Target: `/gsd:execute-phase 13`
+
+Execution inputs:
+- `.planning/STATE.md`
+- `.planning/ROADMAP.md`
+- `.planning/phases/phase-13/PLAN.md`
+- `.planning/phases/phase-13/BACKLOG.md`
+- `.planning/phases/phase-13/TASKS.md`
+- `.planning/phases/phase-13/ACCEPTANCE.md`
+- `.planning/phases/phase-13/RISKS.md`
+- `.planning/phases/phase-13/EXECUTE.md`
 
 Execution inputs:
 - `.planning/STATE.md`

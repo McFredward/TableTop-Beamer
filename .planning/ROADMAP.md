@@ -67,3 +67,28 @@ Exit Criteria:
 - Stop/Clear und Ende-des-Loops bleiben die einzigen Wege, eine laufende Animation zu beenden.
 - A->B vs. B->A Trigger-Reihenfolge produziert identisches visuelles Endergebnis, wenn beide Animationen gleichzeitig laufen.
 - Loop-Mode, Global-Trigger und bestehende Regression-Matrix sind unveraendert PASS.
+
+## Phase 13 - Server-Authoritative Config + Gesture Zoom + Touch Polygon Editing (Active)
+Ziel: Browser-Persistenz komplett entfernen (single source of truth = Server-Config), Zoom-Slider durch Mausrad/Pinch-Gesten ersetzen, Polygon-Vertex-Editing auf Touch zuverlaessig machen.
+
+Status: Plan 13-1 execute-ready und aktiv. 13-2 und 13-3 blockiert auf 13-1 PASS.
+
+Milestones:
+1. M1 Plan 13-1 Server-Authoritative Config Closure.
+2. M2 Plan 13-2 Gesture Zoom Closure.
+3. M3 Plan 13-3 Touch Polygon Editing Closure.
+4. M4 Phase 13 Exit: keine Browser-Persistenz mehr, Gesture-Zoom live, Touch-Polygon-Drag zuverlaessig.
+
+Exit Criteria:
+- Null `localStorage`/`indexedDB` Referenzen in `src/app/**` und `src/live/**` Runtime-Code.
+- Jede Config-Mutation roundtripped durch den Server und wird innerhalb ~200ms + Live-Sync-Latenz auf allen Clients sichtbar.
+- Server-Unreachable blockiert den App-Start mit expliziter Error-UI + Retry-Button.
+- Zoom-Slider entfernt; Wheel/Pinch-Gesten produzieren identische Zoom-Semantik im Range 25%-400% mit korrektem Cursor/Midpoint-Anchoring.
+- User kann Polygon-Vertices auf Mobile mit dem Finger zuverlaessig verschieben.
+- Phase 11 HF6 und Phase 12 Contracts unveraendert PASS.
+
+User Decisions (2026-04-11):
+- Server offline -> harter Block mit Error + Retry.
+- Write cadence -> 200ms debounce.
+- Zoom range -> 25% bis 400%.
+- Subtab memory -> sessionStorage (ephemer).
