@@ -22,7 +22,7 @@ key-files:
     - .planning/phases/phase-10/P10-HF8-T10-FAIL-PASS-PROOF.md
   modified:
     - src/app/runtime/runtime-orchestration.js
-    - src/app/runtime/polygon-contract.js
+    - src/app/runtime/core/polygon-contract.js
     - .planning/phases/phase-10/TASKS.md
 key-decisions:
   - "Global defaults apply must treat loaded payload as polygon owner; local fallback polygons must not override canonical defaults."
@@ -66,7 +66,7 @@ completed: 2026-04-04
 
 ## Files Created/Modified
 - `src/app/runtime/runtime-orchestration.js` - canonical-first defaults apply and runtime canonical issue reporting (toast/status context)
-- `src/app/runtime/polygon-contract.js` - issue metadata emission for invalid canonical/snapshot play-area payloads
+- `src/app/runtime/core/polygon-contract.js` - issue metadata emission for invalid canonical/snapshot play-area payloads
 - `debug/p10-hf8-t*.mjs` - RED/PASS executable diagnostics, parity checks, matrix tests, and fail-pass proof script
 - `.planning/phases/phase-10/P10-HF8-T*.md` - HF8 task evidence artifacts
 

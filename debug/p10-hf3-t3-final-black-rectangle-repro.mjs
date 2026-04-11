@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const {
   applySnapshotPolygonState,
   getNormalizedPolygonArea,
-} = require("../src/app/runtime/polygon-contract.js");
+} = require("../src/app/runtime/core/polygon-contract.js");
 
 const BOARD_ID = "nemesis-lockdown-a";
 

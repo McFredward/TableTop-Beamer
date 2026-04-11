@@ -16,7 +16,7 @@ tech-stack:
   patterns: [executable-fail-pass-diagnostics, canonical-snapshot-polygon-hydration, control-final-source-parity]
 key-files:
   created:
-    - src/app/runtime/polygon-contract.js
+    - src/app/runtime/core/polygon-contract.js
     - debug/p10-hf3-t1-lockdown-firefox-mobile-repro.mjs
     - debug/p10-hf3-t2-defaults-override-repro.mjs
     - debug/p10-hf3-t3-final-black-rectangle-repro.mjs
@@ -77,7 +77,7 @@ completed: 2026-04-04
 10. **Task 10: Artifact sync** - `7860917` (chore)
 
 ## Files Created/Modified
-- `src/app/runtime/polygon-contract.js` - shared polygon normalization + snapshot hydration contract used by diagnostics and runtime.
+- `src/app/runtime/core/polygon-contract.js` - shared polygon normalization + snapshot hydration contract used by diagnostics and runtime.
 - `src/app/runtime/runtime-orchestration.js` - snapshot apply path now hydrates canonical polygon maps and refreshes selected ship polygons.
 - `index.html` - ensures polygon contract helper loads before runtime orchestration.
 - `debug/p10-hf3-t*-*.mjs` + `*-output.json` - deterministic repro/diagnostic/matrix evidence artifacts.
@@ -113,6 +113,6 @@ completed: 2026-04-04
 
 ## Self-Check: PASSED
 - FOUND: `.planning/phases/phase-10/10-HF3-SUMMARY.md`
-- FOUND: `src/app/runtime/polygon-contract.js`
+- FOUND: `src/app/runtime/core/polygon-contract.js`
 - FOUND: `debug/p10-hf3-t8-fail-pass-proof-output.json`
 - FOUND commits: `4614b60`, `2634f6b`, `da12dd0`, `77c9904`, `2797b39`, `ca217a0`, `907cbab`, `ea664b5`, `b8f87bd`, `7860917`

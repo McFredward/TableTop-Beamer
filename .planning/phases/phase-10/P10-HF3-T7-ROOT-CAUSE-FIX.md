@@ -7,7 +7,7 @@ As a result, clients (especially `/output/final` and browser-specific runtime pa
 
 ## Generic fix (no board-specific branching)
 
-1. Added shared polygon contract module: `src/app/runtime/polygon-contract.js`
+1. Added shared polygon contract module: `src/app/runtime/core/polygon-contract.js`
 2. Implemented `applySnapshotPolygonState(...)` to hydrate polygon ownership from:
    - `snapshot.playAreasByBoard` / `runtime.playAreasByBoard`
    - `snapshot.selectedPlayAreaIdByBoard` / `runtime.selectedPlayAreaIdByBoard`
@@ -17,7 +17,7 @@ As a result, clients (especially `/output/final` and browser-specific runtime pa
 
 ## Verification executed
 
-- `node --check src/app/runtime/polygon-contract.js`
+- `node --check src/app/runtime/core/polygon-contract.js`
 - `node --check src/app/runtime/runtime-orchestration.js`
 
 Both commands completed successfully.

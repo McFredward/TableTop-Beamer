@@ -8,7 +8,7 @@ const {
   normalizePlayAreasCollection,
   resolveProfilePolygonContract,
   isRenderableNormalizedPolygon,
-} = require("../src/app/runtime/polygon-contract.js");
+} = require("../src/app/runtime/core/polygon-contract.js");
 
 const fallbackPolygon = [[0.45, 0.45], [0.55, 0.45], [0.5, 0.55]];
 

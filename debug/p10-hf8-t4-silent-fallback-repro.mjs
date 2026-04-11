@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { applySnapshotPolygonState } = require("../src/app/runtime/polygon-contract.js");
+const { applySnapshotPolygonState } = require("../src/app/runtime/core/polygon-contract.js");
 
 const boardId = "nemesis-lockdown-a";
 const fallbackTriangle = [[0.45, 0.45], [0.55, 0.45], [0.5, 0.55]];

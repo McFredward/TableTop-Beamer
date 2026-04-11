@@ -1,13 +1,13 @@
 {
   "suite": "P13-3-acceptance-regression",
   "phase": "GREEN",
-  "observed": "PASS",
+  "observed": "FAIL",
   "hardGates": {
     "G13-3-1-Pointer-Button-Guard-Relaxed": true,
     "G13-3-2-Coarse-Pointer-Hit-Radius": true,
     "G13-3-3-Touch-Action-None": true,
-    "G13-3-4-Pinch-Vertex-Arbitration": true,
+    "G13-3-4-Pinch-Vertex-Arbitration": false,
     "G13-3-5-Area-Drag-Symmetric": true,
-    "G13-3-extra-Phase-12-13-1-13-2-NonRegression": true
+    "G13-3-extra-Phase-12-13-1-13-2-NonRegression": false
   }
 }

@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { resolveProfilePolygonContract } = require("../src/app/runtime/polygon-contract.js");
+const { resolveProfilePolygonContract } = require("../src/app/runtime/core/polygon-contract.js");
 
 const fallback = [[0.45, 0.45], [0.55, 0.45], [0.5, 0.55]];
 

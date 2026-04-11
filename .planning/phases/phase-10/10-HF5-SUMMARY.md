@@ -28,7 +28,7 @@ key-files:
     - debug/p10-hf5-t10-fail-pass-proof.mjs
     - .planning/phases/phase-10/P10-HF5-T10-FAIL-PASS-PROOF.md
   modified:
-    - src/app/runtime/polygon-contract.js
+    - src/app/runtime/core/polygon-contract.js
     - src/app/runtime/runtime-orchestration.js
     - .planning/phases/phase-10/TASKS.md
     - .planning/phases/phase-10/ACCEPTANCE.md
@@ -77,7 +77,7 @@ completed: 2026-04-04
 10. **Task 10: FAIL->PASS proof + artifact sync** - `84b8e76` (test)
 
 ## Files Created/Modified
-- `src/app/runtime/polygon-contract.js` - Filters invalid play-area entries from canonical normalization.
+- `src/app/runtime/core/polygon-contract.js` - Filters invalid play-area entries from canonical normalization.
 - `src/app/runtime/runtime-orchestration.js` - Uses shared canonical normalizer and shared play-area source for final rendering.
 - `debug/p10-hf5-t1..t10-*.mjs` - HF5 reproducible diagnostics, parity matrices, and fail-pass proof harness.
 - `.planning/phases/phase-10/P10-HF5-T1..T10*.md` - RED and PASS evidence narratives.

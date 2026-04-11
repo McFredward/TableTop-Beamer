@@ -1,15 +1,15 @@
 {
   "suite": "P13-2-acceptance-regression",
   "phase": "GREEN",
-  "observed": "PASS",
+  "observed": "FAIL",
   "hardGates": {
     "G13-2-1-Slider-Removed": true,
     "G13-2-2-Zoom-Range-25-400": true,
-    "G13-2-3-Wheel-Handler": true,
-    "G13-2-4-Pinch-Handler": true,
+    "G13-2-3-Wheel-Handler": false,
+    "G13-2-4-Pinch-Handler": false,
     "G13-2-5-Pan-NonRegression": true,
     "G13-2-6-Fit-Reset-Preserved": true,
-    "G13-2-extra-Phase-13-1-NonRegression": true,
+    "G13-2-extra-Phase-13-1-NonRegression": false,
     "G13-2-extra-Phase-12-NonRegression": true
   }
 }

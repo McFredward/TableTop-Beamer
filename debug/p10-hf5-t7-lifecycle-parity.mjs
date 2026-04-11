@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
-const { applySnapshotPolygonState } = require("../src/app/runtime/polygon-contract.js");
+const { applySnapshotPolygonState } = require("../src/app/runtime/core/polygon-contract.js");
 
 const SHIP_FALLBACK = [[0.45, 0.45], [0.55, 0.45], [0.5, 0.55]];
 const BOARDS = {

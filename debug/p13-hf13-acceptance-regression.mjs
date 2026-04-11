@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 // originally pinned to a single monolith. The concatenated blob is
 // the source of truth for every HF13 signature check below.
 const runtimeDir = new URL("../src/app/runtime/", import.meta.url).pathname;
-const runtimeSrc = readdirSync(runtimeDir)
+const runtimeSrc = readdirSync(runtimeDir, { recursive: true, withFileTypes: false })
   .filter((name) => name.endsWith(".js"))
   .map((name) => readFileSync(`${runtimeDir}${name}`, "utf8"))
   .join("\n");

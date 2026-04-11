@@ -27,7 +27,7 @@ export function createMigratorDeps() {
     createDefaultRoomStateProfileMap: () => ({}),
     createDefaultSpecialPolygonMap: () => ({}),
     createDefaultRoomAnimationDefinitions: () => [{ id: "kaputt" }],
-    createDefaultInsideAnimationDefinitions: () => [{ id: "ambient-drift" }],
+    createDefaultInsideAnimationDefinitions: () => [{ id: "hull-flicker" }],
     HITAREA_CALIBRATION_DEFAULT: { offsetX: 0, offsetY: 0, scale: 1 },
     SHIP_POLYGON_DEFAULT: [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]],
     OUTSIDE_FX_DEFAULT: { enabled: false },

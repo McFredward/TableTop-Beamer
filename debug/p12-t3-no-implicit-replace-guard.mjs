@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 // runtime-room-dispatch.js. Concatenate every runtime/*.js so the
 // brace-balance scan still finds the function body.
 const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
-const runtimeSource = readdirSync(runtimeDir)
+const runtimeSource = readdirSync(runtimeDir, { recursive: true, withFileTypes: false })
   .filter((name) => name.endsWith(".js"))
   .sort()
   .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))

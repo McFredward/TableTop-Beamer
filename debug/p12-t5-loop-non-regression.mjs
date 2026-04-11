@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 
 // Phase 14-2: runtime modules now split across src/app/runtime/*.js.
 const runtimeDir = new URL("../src/app/runtime/", import.meta.url);
-const runtimeSource = readdirSync(runtimeDir)
+const runtimeSource = readdirSync(runtimeDir, { recursive: true, withFileTypes: false })
   .filter((name) => name.endsWith(".js"))
   .sort()
   .map((name) => readFileSync(new URL(name, runtimeDir), "utf8"))

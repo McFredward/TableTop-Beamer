@@ -69,7 +69,7 @@ Verification results for candidates D1..D10 from `INVENTORY.md`.
 - Already removed in HF11. No code change.
 
 ### D9 — Duplicate polygon normalization helpers
-- Inventory flagged `normalizePolygonPoint` / `normalizeSpecialPolygon` / `isRenderableNormalizedPolygon` / `getNormalizedPolygonArea` as duplicates between `runtime-orchestration.js` and `src/app/runtime/polygon-contract.js`.
+- Inventory flagged `normalizePolygonPoint` / `normalizeSpecialPolygon` / `isRenderableNormalizedPolygon` / `getNormalizedPolygonArea` as duplicates between `runtime-orchestration.js` and `src/app/runtime/core/polygon-contract.js`.
 - **Not a duplicate**: the runtime version uses `clampRoomAbsoluteCoordinate` with range `[-0.2, 1.2]` (allowing off-board vertices), while the polygon-contract version uses `clampNormalizedCoordinate` with range `[0, 1]` (strict board bounds). Different semantics, intentional.
 - **Action**: leave as-is. Annotate inline comments to explain the difference if Plan 14-2 extracts them into a module.
 

@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { resolveProfilePolygonContract } = require("../src/app/runtime/polygon-contract.js");
+const { resolveProfilePolygonContract } = require("../src/app/runtime/core/polygon-contract.js");
 
 const boards = ["nemesis-board-a", "nemesis-lockdown-a", "imported-lockdown-multi"];
 const lifecycle = ["startup", "reload", "apply-defaults", "board-switch"];

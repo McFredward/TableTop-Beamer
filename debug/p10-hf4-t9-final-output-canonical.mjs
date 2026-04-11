@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
-const { extractRenderablePlayAreaPolygons } = require("../src/app/runtime/polygon-contract.js");
+const { extractRenderablePlayAreaPolygons } = require("../src/app/runtime/core/polygon-contract.js");
 
 const fallbackPolygon = [[0.45, 0.45], [0.55, 0.45], [0.5, 0.55]];
 const canonicalPolygon = [[0.1, 0.1], [0.9, 0.1], [0.85, 0.9], [0.12, 0.88]];

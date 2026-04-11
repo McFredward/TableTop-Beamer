@@ -28,7 +28,7 @@ key-files:
     - debug/p10-hf6-t10-fail-pass-proof.mjs
     - .planning/phases/phase-10/P10-HF6-T10-FAIL-PASS-PROOF.md
   modified:
-    - src/app/runtime/polygon-contract.js
+    - src/app/runtime/core/polygon-contract.js
     - .planning/phases/phase-10/TASKS.md
     - .planning/phases/phase-10/PLAN.md
     - .planning/phases/phase-10/BACKLOG.md
@@ -70,7 +70,7 @@ completed: 2026-04-04
 - **Found during:** Task 8
 - **Issue:** After subset-merge hardening, invalid/empty snapshot lanes could still keep `snapshotSelected` over canonical `contractedSelected`.
 - **Fix:** Added `preferCanonicalSelection` guard in merge result to enforce canonical selected-area precedence when snapshot contributes no valid entries.
-- **Files modified:** `src/app/runtime/polygon-contract.js`
+- **Files modified:** `src/app/runtime/core/polygon-contract.js`
 - **Commit:** `02ad2c3`
 
 ## Known Stubs

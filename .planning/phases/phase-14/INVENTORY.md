@@ -9,7 +9,7 @@ LOC   File
 14658 src/app/runtime/runtime-orchestration.js   ← the monster
   479 src/app/api/global-defaults-api.js
   466 src/app/shared/config.js
-  427 src/app/runtime/polygon-contract.js
+  427 src/app/runtime/core/polygon-contract.js
   246 src/app/shared/normalizers.js
   232 src/app/persistence/board-profiles.js
   178 src/app/domain/rooms.js
@@ -102,7 +102,7 @@ These are symbols that look dead by inspection. Each must be verified by a cross
 
 ## Non-monolith file observations
 
-- `src/app/runtime/polygon-contract.js` (427 LOC) already defines `normalizePolygonPoint` / `normalizeSpecialPolygon` / `isRenderableNormalizedPolygon` / `getNormalizedPolygonArea`. `runtime-orchestration.js` at 2464, 2480, 2487 declares **duplicate** copies of the same functions. Candidate for dedup in Plan 14-2.
+- `src/app/runtime/core/polygon-contract.js` (427 LOC) already defines `normalizePolygonPoint` / `normalizeSpecialPolygon` / `isRenderableNormalizedPolygon` / `getNormalizedPolygonArea`. `runtime-orchestration.js` at 2464, 2480, 2487 declares **duplicate** copies of the same functions. Candidate for dedup in Plan 14-2.
 - `src/app/state/runtime-state.js` (168 LOC) already exports `createInitialState`. The stretch-anchor cache added in HF13 lives on the state as `state.roomStretchAnchorCache = new Map()` assigned after `createInitialState`. Plan 14-2 T2 can fold that into the state factory.
 - `src/app/persistence/board-profiles.js` (232 LOC) owns `buildMigratedBoardProfiles` etc. Runtime file currently has a thin wrapper forwarding to it — so the wrapper plus `legacy*` stubs disappear together once D1–D3 are verified dead.
 

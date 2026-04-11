@@ -27,7 +27,7 @@ key-files:
   modified:
     - src/app/ui/runtime-panels-controller.js
     - src/app/runtime/runtime-orchestration.js
-    - src/app/runtime/polygon-contract.js
+    - src/app/runtime/core/polygon-contract.js
     - .planning/phases/phase-10/TASKS.md
 key-decisions:
   - "Expose runtime panel API on both canonical and legacy globals to remove load-order key drift."
