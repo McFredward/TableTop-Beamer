@@ -1,11 +1,12 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — seventeen modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — nineteen modules extracted)
 
-Status: **PARTIAL PASS — seventeen extractions landed, 4806 LOC relocated out of the monolith, main file drops below 10k LOC for the first time**
+Status: **PARTIAL PASS — nineteen extractions landed, 5317 LOC relocated out of the monolith, main file now at 9341 LOC**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 - Round 2 (T8..T12): `7dfbac9` → `7e498f9` → `169c9e9` → `b51745e` → `83ebdf6`
 - Round 3 (T13..T17): `bf0ec89` → `3367c79` → `db8f218` → `66fec32` → `ac9f150`
+- Round 4 (T18..T19): `ce3a9ac` → `ba7ce56`
 
 ## What was achieved
 
@@ -33,43 +34,47 @@ every commit.
 | 15 | `db8f218` | `runtime-fx-panels.js` | −459 | +630 |
 | 16 | `66fec32` | `runtime-room-management.js` | −542 | +671 |
 | 17 | `ac9f150` | `runtime-mobile-layout.js` | −213 | +289 |
+| 18 | `ce3a9ac` | `runtime-viewport-zoom.js` | −241 | +351 |
+| 19 | `ba7ce56` | `runtime-room-draft.js` | −270 | +377 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 9 852** (−4806 LOC, −32.8%).
-- 17 new runtime modules: **+6232 LOC**.
-- Net: +1426 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 17 extractions.
+- `runtime-orchestration.js`: **14 658 → 9 341** (−5317 LOC, −36.3%).
+- 19 new runtime modules: **+6960 LOC**.
+- Net: +1643 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 19 extractions.
 
 Final runtime/ layout:
 ```
 LOC   File
- 9852 src/app/runtime/runtime-orchestration.js  (thinned entry + remaining domains)
-  671 src/app/runtime/runtime-room-management.js    (T16)
-  630 src/app/runtime/runtime-fx-panels.js          (T15)
-  568 src/app/runtime/runtime-room-dispatch.js      (T14)
-  517 src/app/runtime/runtime-regression-tests.js   (T11)
-  501 src/app/runtime/runtime-draw-loop.js          (T13)
-  449 src/app/runtime/runtime-animation-lifecycle.js (T12)
-  427 src/app/runtime/polygon-contract.js           (pre-existing)
-  389 src/app/runtime/runtime-audio.js              (T7)
-  372 src/app/runtime/runtime-gif-decoder.js        (T4)
-  352 src/app/runtime/runtime-outside-mp4.js        (T5)
-  321 src/app/runtime/runtime-quick-mode.js         (T8)
-  289 src/app/runtime/runtime-mobile-layout.js      (T17)
+ 9341 src/app/runtime/runtime-orchestration.js  (thinned entry + remaining domains)
+  671 src/app/runtime/runtime-room-management.js      (T16)
+  630 src/app/runtime/runtime-fx-panels.js            (T15)
+  568 src/app/runtime/runtime-room-dispatch.js        (T14)
+  517 src/app/runtime/runtime-regression-tests.js     (T11)
+  501 src/app/runtime/runtime-draw-loop.js            (T13)
+  449 src/app/runtime/runtime-animation-lifecycle.js  (T12)
+  427 src/app/runtime/polygon-contract.js             (pre-existing)
+  389 src/app/runtime/runtime-audio.js                (T7)
+  377 src/app/runtime/runtime-room-draft.js           (T19)
+  372 src/app/runtime/runtime-gif-decoder.js          (T4)
+  352 src/app/runtime/runtime-outside-mp4.js          (T5)
+  351 src/app/runtime/runtime-viewport-zoom.js        (T18)
+  321 src/app/runtime/runtime-quick-mode.js           (T8)
+  289 src/app/runtime/runtime-mobile-layout.js        (T17)
   287 src/app/runtime/runtime-polygon-drag-support.js (T1)
-  257 src/app/runtime/runtime-effect-visuals.js     (T10)
-  235 src/app/runtime/runtime-room-geometry.js      (T2)
-  153 src/app/runtime/runtime-canvas-clip.js        (T9)
-  153 src/app/runtime/runtime-gif-playback.js       (T6)
-   88 src/app/runtime/runtime-polygon-normalizers.js (T3)
+  257 src/app/runtime/runtime-effect-visuals.js       (T10)
+  235 src/app/runtime/runtime-room-geometry.js        (T2)
+  153 src/app/runtime/runtime-canvas-clip.js          (T9)
+  153 src/app/runtime/runtime-gif-playback.js         (T6)
+   88 src/app/runtime/runtime-polygon-normalizers.js  (T3)
 ```
 
 ## What was NOT achieved
 
 The Phase 14-2 exit criterion of `runtime-orchestration.js < 1500 LOC`
 (with a soft cap of 1500 LOC per module, hard cap 2000 LOC) was
-**not met**. The main file still sits at 9 852 LOC, about 6.5x
-the original hard target (but 32.8% smaller than the 14 658 LOC
+**not met**. The main file still sits at 9 341 LOC, about 6.2x
+the original hard target (but 36.3% smaller than the 14 658 LOC
 starting point).
 
 Reaching the target requires several more extractions of sizes 300
