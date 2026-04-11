@@ -12240,17 +12240,18 @@ function cacheShipPolygonDragDomRefs() {
   return { mask, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
 }
 
-// Convert a normalized (0..1) point into the SVG viewBox-space used by
-// all overlay elements (which is 0..1000 per axis). The room polygons
-// store points in 0..1 space but render at (x*1000, y*1000).
-function toOverlayUnits(x, y) {
-  return [x * 1000, y * 1000];
-}
-
+// Phase 13-HF11: the incremental drag renderer consumes points already in
+// SVG viewBox units (0..1000 per axis) — the same space `getRoomPoints`
+// returns. Previously HF9 passed raw normalized (0..1) points and
+// multiplied by 1000 inside these helpers, silently dropping the room
+// transform (offsetX/offsetY/stretchX/stretchY + hitareaCalibration) that
+// `getRoomPoints` applies. For any room with non-identity roomGeometry
+// that made the polygon jump by the transform offset on the first
+// pointermove and snap back on release.
 function applyIncrementalPolygonPointsToDom(polygonNode, points) {
   if (!polygonNode) return;
   const value = points
-    .map(([x, y]) => `${(x * 1000).toFixed(1)},${(y * 1000).toFixed(1)}`)
+    .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
     .join(" ");
   polygonNode.setAttribute("points", value);
 }
@@ -12259,7 +12260,8 @@ function applyIncrementalVertexHandlesToDom(refs, points) {
   if (!refs) return;
   const n = points.length;
   for (let i = 0; i < n; i += 1) {
-    const [ux, uy] = toOverlayUnits(points[i][0], points[i][1]);
+    const ux = points[i][0];
+    const uy = points[i][1];
     const xStr = ux.toFixed(1);
     const yStr = uy.toFixed(1);
     const hit = refs.vertexHitTargets?.[i];
@@ -12281,8 +12283,10 @@ function applyIncrementalVertexHandlesToDom(refs, points) {
   // Edges sit at the midpoint between vertex[i] and vertex[(i+1)%n].
   if (Array.isArray(refs.edgeHitTargets) && refs.edgeHitTargets.length > 0) {
     for (let i = 0; i < n; i += 1) {
-      const [ax, ay] = toOverlayUnits(points[i][0], points[i][1]);
-      const [bx, by] = toOverlayUnits(points[(i + 1) % n][0], points[(i + 1) % n][1]);
+      const ax = points[i][0];
+      const ay = points[i][1];
+      const bx = points[(i + 1) % n][0];
+      const by = points[(i + 1) % n][1];
       const cx = ((ax + bx) / 2).toFixed(1);
       const cy = ((ay + by) / 2).toFixed(1);
       const hit = refs.edgeHitTargets[i];
@@ -12299,16 +12303,29 @@ function applyIncrementalVertexHandlesToDom(refs, points) {
   }
 }
 
-function applyIncrementalRoomDrag(refs, points) {
+// Phase 13-HF11: compute the room's display-space points via getRoomPoints
+// (which already applies transform + calibration + ×1000) and hand those
+// to the shared writer. setSpecialPolygonPoints has already mutated
+// room.polygon, so getRoomPoints reflects the in-progress drag.
+function applyIncrementalRoomDrag(refs, roomId, boardId = state.boardId) {
   if (!refs) return;
-  applyIncrementalPolygonPointsToDom(refs.polygon, points);
-  applyIncrementalVertexHandlesToDom(refs, points);
+  const board = getBoard(boardId);
+  const room = board?.rooms?.find((entry) => entry.id === roomId);
+  if (!room) return;
+  const overlayPoints = getRoomPoints(room, boardId);
+  applyIncrementalPolygonPointsToDom(refs.polygon, overlayPoints);
+  applyIncrementalVertexHandlesToDom(refs, overlayPoints);
 }
 
-function applyIncrementalShipDrag(refs, points) {
+// Phase 13-HF11: ship polygon has no transform today, so display ==
+// raw × 1000. We still fetch via getShipPolygonPoints to stay a single
+// source of truth for the mask and the handles.
+function applyIncrementalShipDrag(refs, boardId = state.boardId) {
   if (!refs) return;
-  applyIncrementalPolygonPointsToDom(refs.mask, points);
-  applyIncrementalVertexHandlesToDom(refs, points);
+  const rawPoints = getShipPolygonPoints(boardId);
+  const overlayPoints = rawPoints.map(([x, y]) => [x * 1000, y * 1000]);
+  applyIncrementalPolygonPointsToDom(refs.mask, overlayPoints);
+  applyIncrementalVertexHandlesToDom(refs, overlayPoints);
 }
 
 // Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
@@ -13644,9 +13661,9 @@ roomOverlay.addEventListener("pointermove", (event) => {
     points[state.shipPolygonEditor.dragVertexIndex] = [nextX, nextY];
     setShipPolygonPoints(boardId, points);
     state.shipPolygonEditor.dragMoved = true;
-    // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
-    // Targets only the cached ship polygon mask + vertex/edge handles.
-    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, getShipPolygonPoints(boardId));
+    // Phase 13-HF11: incremental DOM update — reads overlay-space points
+    // from getShipPolygonPoints internally, so we only pass refs + boardId.
+    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, boardId);
     syncShipPolygonEditorStatus();
     return;
   }
@@ -13677,10 +13694,13 @@ roomOverlay.addEventListener("pointermove", (event) => {
     ]);
     setSpecialPolygonPoints(boardId, roomId, shifted);
     state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
-    // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
-    // Updates the dragged room polygon's points attribute plus every
-    // vertex + edge marker (they all shift by the same delta).
-    applyIncrementalRoomDrag(state.polygonEditor.dragAreaDomRefs, shifted);
+    // Phase 13-HF11: incremental DOM update — the helper re-reads
+    // getRoomPoints(room) for display-space coords so the transform
+    // pipeline (roomGeometry offset/stretch + hitareaCalibration) is
+    // preserved throughout the drag. Before HF11, passing `shifted`
+    // (raw normalized) caused the polygon to visibly jump by the
+    // transform offset on the first pointermove.
+    applyIncrementalRoomDrag(state.polygonEditor.dragAreaDomRefs, roomId, boardId);
     syncPolygonEditorStatus();
     return;
   }
@@ -13708,8 +13728,9 @@ roomOverlay.addEventListener("pointermove", (event) => {
   points[state.polygonEditor.dragVertexIndex] = [nextX, nextY];
   setSpecialPolygonPoints(boardId, roomId, points);
   state.polygonEditor.dragMoved = true;
-  // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
-  applyIncrementalRoomDrag(state.polygonEditor.dragDomRefs, getSpecialPolygonPoints(boardId, roomId));
+  // Phase 13-HF11: incremental DOM update — helper reads display-space
+  // coords via getRoomPoints internally (see the HF11 root cause doc).
+  applyIncrementalRoomDrag(state.polygonEditor.dragDomRefs, roomId, boardId);
   syncPolygonEditorStatus();
 });
 

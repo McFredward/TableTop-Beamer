@@ -1,0 +1,21 @@
+{
+  "suite": "P13-HF11-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF11-1-applyIncrementalRoomDrag-uses-getRoomPoints": true,
+    "G13-HF11-2-applyIncrementalShipDrag-uses-getShipPolygonPoints": true,
+    "G13-HF11-3-polygon-writer-no-1000-multiply": true,
+    "G13-HF11-4-handles-writer-no-1000-multiply": true,
+    "G13-HF11-5-vertex-drag-caller-new-signature": true,
+    "G13-HF11-6-area-drag-caller-new-signature": true,
+    "G13-HF11-7-ship-drag-caller-new-signature": true,
+    "G13-HF11-8-old-raw-signatures-removed": true,
+    "G13-HF11-NR-HF10-render-before-begin": true,
+    "G13-HF11-NR-HF9-offset-and-refs": true,
+    "G13-HF11-NR-HF8-drag-interaction-gate": true,
+    "G13-HF11-NR-HF7-heavy-interaction-gate": true,
+    "G13-HF11-NR-Phase-12-additive-layering": true,
+    "G13-HF11-NR-Phase-13-1-dirty-flag": true
+  }
+}
