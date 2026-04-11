@@ -20,5 +20,15 @@
 - Status: active-ready
 - Execute Entry: `.planning/phases/phase-04/EXECUTE.md`
 
+## phase-11
+- Number: 11
+- Status: closed-pass
+- Execute Entry: `.planning/phases/phase-11/EXECUTE.md`
+
+## phase-12
+- Number: 12
+- Status: active-ready
+- Execute Entry: `.planning/phases/phase-12/EXECUTE.md`
+
 ## Compatibility
 Fuer Tools mit abweichender Benennung existiert zusaetzlich `.planning/phases/phase-1/` als Alias fuer Phase 1.

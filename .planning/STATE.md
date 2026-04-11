@@ -7,13 +7,14 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 11
-- Current Phase Key: phase-11
-- Last Prepared: 2026-04-05
-- Execution Readiness: READY
-- Last Executed Plan: 11-HF6 (PASS, polling/hydration seen-once full-playback contract closed)
-- Planned Next Execution: 11-2
-- Last Execution Summary: `.planning/phases/phase-11/11-HF6-SUMMARY.md`
+- Current Phase: 12
+- Current Phase Key: phase-12
+- Last Prepared: 2026-04-11
+- Execution Readiness: READY (awaiting next plan direction)
+- Previous Phase: 11 (CLOSED PASS at 11-HF6)
+- Last Executed Plan: 12-1 (PASS, order-invariant additive room animation layering closed)
+- Planned Next Execution: (pending)
+- Last Execution Summary: `.planning/phases/phase-12/12-1-VERIFICATION.md`
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
@@ -1245,3 +1246,28 @@
 - HF3-Audio-Toggle-Regel: Dashboard erhaelt eine `Play sound` Checkbox direkt unter der Loop-Checkbox, die das Audio fuer globale Trigger steuert.
 - HF3-Sync-Regel: Loop- und Audio-Auswahl muessen deterministisch zusammen im Trigger-Payload uebertragen und angewendet werden.
 - HF3-Non-Regression-Regel: Stop/Clear und die volle Abspielzeit muessen cross-client und final-output paritaetisch gesichert sein.
+
+## Phase 11 Closure
+- Phase 11 ist als CLOSED PASS markiert nach Plan 11-HF6.
+- Alle verpflichtenden Wellen (11-1, 11-HF1..11-HF6) sind implementiert, verifiziert und mit FAIL->PASS Evidenz geschlossen.
+- Follow-up Telemetrie-Item `P11-T13` ist als optional in Phase-12 Discovery-Scope ueberfuehrt.
+- Handoff: Phase 12 beginnt unmittelbar mit Plan 12-1 (Concurrent Room Animation Layering).
+
+## Phase 12 Activation
+- Phase 12 (Concurrent Room Animation Layering) ist ab 2026-04-11 aktiv.
+- Bindende Zielregel: mehrere gleichzeitige Raumanimationen im selben Raum muessen voll sichtbar additiv uebereinandergelegt werden, unabhaengig von Trigger-Reihenfolge und Animationstyp (coded, mp4, gif).
+- Bindende Lifecycle-Regel: der Start einer neuen Raumanimation darf eine bestehende laufende Raumanimation niemals implizit verdraengen, ueberschreiben oder verstecken; nur explizites `stop`/`clear` oder das natuerliche Ende einer Animation beenden sie.
+- Bindende Generalitaetsregel: die Layering-Implementierung ist typ-unabhaengig und gilt fuer coded/mp4/gif gleichermassen; keine typ-spezifischen Sonderpfade, die implizites Ersetzen einfuehren.
+- Bindende Non-Regression-Regel: Loop-Mode, Global-Trigger, Stop/Clear und `/output/final` Paritaet bleiben unveraendert.
+- Bindende Reihenfolgen-Invarianz-Regel: A->B und B->A Trigger-Sequenzen produzieren identisches stabiles Endbild, wenn beide Animationen gleichzeitig laufen.
+
+## Plan 12-1 Closure
+- Plan 12-1 (Concurrent Room Animation Layering) ist CLOSED PASS am 2026-04-11.
+- Root-Cause-Isolation: Render-Loop iterierte `state.runningAnimations` in Insertion-Order unter default `source-over`; Room-Scope Coded-Effekte (`power-outage`, `intruder-alert`), mp4 `drawImage(video)` und gif `drawImage(frame)` paintete near-opaque Pixel in die geteilte Room-Clip-Region. Whichever animation draw last wann deckte frühere ab.
+- Fix-Umsetzung: `draw()` baut pro Frame eine `roomConcurrencyByKey`-Map und exponiert sie auf `state.runtimePerf`. `drawAnimation()` room branch + cluster-member branch schalten `ctx.globalCompositeOperation = "lighter"` innerhalb der `ctx.save()/clipToRoom/restore`-Scope, wenn die Konkurrenzanzahl fuer diesen Raum >= 2 ist. Single-animation Rooms bleiben auf `source-over` (keine visuelle Regression fuer Einzel-Effekte).
+- Plan-12-1 Generalitaet: Der Composite-Op-Switch applies uniformly auf coded/mp4/gif weil alle drei ueber `drawRoomComposition` in der gleichen `ctx.save()`-Scope laufen. Keine typ-spezifischen Sonderpfade.
+- Plan-12-1 Evidenz: `.planning/phases/phase-12/12-1-VERIFICATION.md`, `debug/p12-1-acceptance-regression-output.json`, RED baseline `debug/p12-t1-order-occlusion-red-output.json` (alarm->malfunction r=3.996 vs. malfunction->alarm r=87.228), GREEN proof `debug/p12-t7-order-invariance-fail-pass-proof-output.json` (identisches r=106.7 fuer beide Orderings + triple permutation invariance).
+- Plan-12-1 Design-Tradeoff (dokumentiert): mit >=2 concurrent animations im selben Raum verlieren darkening-Effekte ihre darkening-Kontribution (schwarz additiv = 0); ihre helleren Sekundaerelemente (flashes, stroke lines) bleiben sichtbar. Das ist die direkte Konsequenz der Anforderung "alle sichtbar unabhaengig von Reihenfolge".
+- Plan-12-1 Non-Regression: Loop-Mode (`hold`, `durationMs`, `loopUntilStopped`) unveraendert, Stop/Clear (`stopAnimation`, `clear-all` snapshot branch, `pruneFinishedAnimations`) unveraendert, Phase-11 HF6 seen-once retention (`activeSeenOneShotRunByTriggerRevision`) und global stop/clear revision observers unveraendert wired.
+- Plan-12-1 Control/Final-Paritaet: architektonischer Invariant — `draw()` und `drawAnimation()` sind die einzigen Renderpfade fuer beide `OUTPUT_ROLE_CONTROL` und `OUTPUT_ROLE_FINAL`; der Guard applies uniformly auf beide roles.
+- Phase 12 exit criteria erfuellt. Naechster Plan wartet auf neue Direction.

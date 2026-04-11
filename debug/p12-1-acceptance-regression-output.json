@@ -1,0 +1,64 @@
+{
+  "suite": "P12-1-acceptance-regression",
+  "phase": "CLOSURE",
+  "observed": "PASS",
+  "expected": "PASS",
+  "hardGates": {
+    "G12-1-order-dependent-occlusion-red": true,
+    "G12-2-root-cause-isolation-document": true,
+    "G12-3-no-implicit-replace": true,
+    "G12-4-generic-additive-layering": true,
+    "G12-5-loop-mode-non-regression": true,
+    "G12-6-stop-clear-immediate-authority": true,
+    "G12-7-order-invariance": true,
+    "G12-8-control-final-parity": true,
+    "G12-9-artifact-sync": true
+  },
+  "results": [
+    {
+      "id": "P12-T1-order-occlusion-red",
+      "file": "debug/p12-t1-order-occlusion-red.mjs",
+      "stdout": "FROZEN - P12-T4 fix detected in runtime; RED baseline preserved. Use debug/p12-t7-order-invariance-fail-pass-proof.mjs for post-fix evidence.",
+      "error": null,
+      "observed": "FAIL",
+      "expected": "FAIL",
+      "pass": true
+    },
+    {
+      "id": "P12-T3-no-implicit-replace-guard",
+      "file": "debug/p12-t3-no-implicit-replace-guard.mjs",
+      "stdout": "PASS - start path contains no implicit replacement for room-scope animations",
+      "error": null,
+      "observed": "PASS",
+      "expected": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P12-T5-loop-non-regression",
+      "file": "debug/p12-t5-loop-non-regression.mjs",
+      "stdout": "PASS - loop-mode lifecycle untouched by P12-T4 additive layering guard",
+      "error": null,
+      "observed": "PASS",
+      "expected": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P12-T6-stop-clear-non-regression",
+      "file": "debug/p12-t6-stop-clear-non-regression.mjs",
+      "stdout": "PASS - stop/clear immediate-authority semantics non-regressed",
+      "error": null,
+      "observed": "PASS",
+      "expected": "PASS",
+      "pass": true
+    },
+    {
+      "id": "P12-T7-order-invariance-fail-pass-proof",
+      "file": "debug/p12-t7-order-invariance-fail-pass-proof.mjs",
+      "stdout": "PASS - order invariance proven across coded/mp4/gif and mixed triples; single-animation source-over preserved",
+      "error": null,
+      "observed": "PASS",
+      "expected": "PASS",
+      "pass": true
+    }
+  ]
+}
