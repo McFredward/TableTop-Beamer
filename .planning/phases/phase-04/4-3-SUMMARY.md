@@ -20,7 +20,7 @@ key-files:
   modified:
     - src/styles.css
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - index.html
     - server.mjs
     - .planning/phases/phase-04/TASKS.md

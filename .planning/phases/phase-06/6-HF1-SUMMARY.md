@@ -16,7 +16,7 @@ tech-stack:
   patterns: [english-only operator messaging, artifact-backed language regression checks]
 key-files:
   created: [.planning/phases/phase-06/6-HF1-SUMMARY.md, .planning/phases/phase-06/README.md]
-  modified: [index.html, src/app.js, src/app/api/global-defaults-api.js, README.md, .planning/phases/phase-06/TASKS.md, .planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md]
+  modified: [index.html, src/app.js, src/app/lib/api/global-defaults-api.js, README.md, .planning/phases/phase-06/TASKS.md, .planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md]
 key-decisions:
   - "Treat save/preflight/startup diagnostics as operator-facing and enforce English wording there too."
   - "Use a dedicated language-sweep artifact with pattern checks + manual matrix as blocker-closure evidence."
@@ -57,7 +57,7 @@ completed: 2026-03-26
 ## Files Created/Modified
 - `index.html` - translated remaining Control/Settings labels and empty-state text.
 - `src/app.js` - translated operator-facing status, diagnostics, startup/save feedback, and guard messages.
-- `src/app/api/global-defaults-api.js` - removed residual German save-error strings.
+- `src/app/lib/api/global-defaults-api.js` - removed residual German save-error strings.
 - `README.md` - clarified English-only operator policy + language-sweep artifact pointer.
 - `.planning/phases/phase-06/README.md` - rewritten in English with HF1 blocker context.
 - `.planning/phases/phase-06/P6-HF1-LANGUAGE-SWEEP.md` - finalized regression matrix and closure verdict.
@@ -73,10 +73,10 @@ completed: 2026-03-26
 
 **1. [Rule 1 - Bug] Residual German API error strings in save facade**
 - **Found during:** Task 22 (language-sweep regression)
-- **Issue:** `src/app/api/global-defaults-api.js` still emitted `Global Defaults Save fehlgeschlagen` errors.
+- **Issue:** `src/app/lib/api/global-defaults-api.js` still emitted `Global Defaults Save fehlgeschlagen` errors.
 - **Fix:** Converted remaining error strings to English (`Global Defaults save failed`).
-- **Files modified:** `src/app/api/global-defaults-api.js`
-- **Verification:** `node --check src/app/api/global-defaults-api.js` and post-sweep token scan.
+- **Files modified:** `src/app/lib/api/global-defaults-api.js`
+- **Verification:** `node --check src/app/lib/api/global-defaults-api.js` and post-sweep token scan.
 - **Committed in:** `ca5773f`
 
 ---

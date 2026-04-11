@@ -67,7 +67,7 @@ async function withServer(port, run) {
 async function main() {
   const appJs = await readFile(path.join(ROOT, "src/app.js"), "utf8");
   const serverJs = await readFile(path.join(ROOT, "server.mjs"), "utf8");
-  const runtimeStateJs = await readFile(path.join(ROOT, "src/app/state/runtime-state.js"), "utf8");
+  const runtimeStateJs = await readFile(path.join(ROOT, "src/app/lib/state/runtime-state.js"), "utf8");
   const indexHtml = await readFile(path.join(ROOT, "index.html"), "utf8");
 
   expect(appJs.includes('emitLiveMutation("context-update"'), "context-update emitter missing in app");

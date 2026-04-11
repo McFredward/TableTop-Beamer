@@ -17,7 +17,7 @@ tech-stack:
   patterns: [terminal-event-reconciliation, replay-fingerprint-guard, bounded-render-degradation]
 key-files:
   created:
-    - src/app/domain/event-lifecycle.js
+    - src/app/lib/domain/event-lifecycle.js
     - debug/p9-hf2-sync-invariants.mjs
     - debug/p9-hf2-long-run-soak.mjs
     - debug/p9-hf2-low-end-stress.mjs
@@ -26,8 +26,8 @@ key-files:
     - .planning/phases/phase-09/P9-HF2-T8-LOW-END-STRESS.md
   modified:
     - src/app/runtime/runtime-orchestration.js
-    - src/app/state/live-sync-state.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/live-sync-state.js
+    - src/app/lib/state/runtime-state.js
     - server.mjs
     - index.html
     - .planning/phases/phase-09/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE}.md
@@ -75,11 +75,11 @@ completed: 2026-04-02
 9. **Task 9: artifact synchronization** - `90317a1` (docs)
 
 ## Files Created/Modified
-- `src/app/domain/event-lifecycle.js` - shared lifecycle state resolution for hydrate/rejoin reconciliation.
+- `src/app/lib/domain/event-lifecycle.js` - shared lifecycle state resolution for hydrate/rejoin reconciliation.
 - `src/app/runtime/runtime-orchestration.js` - no-replay guards, active-only hydration, pressure ladder, render coalescing/caps.
 - `server.mjs` - snapshot sanitation removes non-active finite-duration entries before broadcast/poll.
-- `src/app/state/live-sync-state.js` - terminal replay guard state maps.
-- `src/app/state/runtime-state.js` - runtime hardening profile state.
+- `src/app/lib/state/live-sync-state.js` - terminal replay guard state maps.
+- `src/app/lib/state/runtime-state.js` - runtime hardening profile state.
 - `debug/p9-hf2-*.mjs` - executable regression harnesses.
 - `.planning/phases/phase-09/P9-HF2-T{6,7,8}-*.md` - evidence artifacts.
 

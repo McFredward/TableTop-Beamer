@@ -14,7 +14,7 @@ change; harnesses remain GREEN throughout.
 | File | Before | After | Δ |
 |---|---:|---:|---:|
 | `src/app/runtime/runtime-orchestration.js` | 14 658 | 14 574 | **−84** |
-| `src/app/persistence/board-profiles.js` | 232 | 188 | **−44** |
+| `src/app/lib/persistence/board-profiles.js` | 232 | 188 | **−44** |
 | **Total** | **14 890** | **14 762** | **−128** |
 
 Matches inventory projection of 100–300 LOC removed.

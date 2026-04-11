@@ -5,7 +5,7 @@ subsystem: runtime/render/sync
 tags: [hotfix, final-output, mixed-media, performance, feedback]
 requires: [9-HF2]
 provides: [canonical-mapping-contract, mixed-media-isolation, mp4-performance-controls, explicit-failure-feedback]
-affects: [index.html, src/styles.css, src/app/runtime/runtime-orchestration.js, src/app/state/runtime-state.js, .planning/phases/phase-09/TASKS.md]
+affects: [index.html, src/styles.css, src/app/runtime/runtime-orchestration.js, src/app/lib/state/runtime-state.js, .planning/phases/phase-09/TASKS.md]
 tech_stack:
   added: []
   patterns: [deterministic-frame-shedding, timeout-guarded-commands, deduped-toast-feedback, canonical-coordinate-mapping]
@@ -15,7 +15,7 @@ key_files_modified:
   - index.html
   - src/styles.css
   - src/app/runtime/runtime-orchestration.js
-  - src/app/state/runtime-state.js
+  - src/app/lib/state/runtime-state.js
   - .planning/phases/phase-09/TASKS.md
 decisions:
   - Replaced SVG CTM-dependent pointer normalization with canonical stage-rect mapping to avoid cross-browser drift.

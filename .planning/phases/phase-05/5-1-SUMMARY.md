@@ -18,7 +18,7 @@ tech-stack:
   patterns: [server-shared-session, client-live-mutation, role-gated-render-audio]
 key-files:
   created: [.planning/phases/phase-05/P5-T12-AUDIO-LIFECYCLE.md, .planning/phases/phase-05/P5-T15-REGRESSION.md]
-  modified: [server.mjs, src/app.js, src/app/state/runtime-state.js, src/styles.css, index.html, README.md, .planning/phases/phase-05/TASKS.md, .gitignore]
+  modified: [server.mjs, src/app.js, src/app/lib/state/runtime-state.js, src/styles.css, index.html, README.md, .planning/phases/phase-05/TASKS.md, .gitignore]
 key-decisions:
   - "Final-Output wird ueber Route-Erkennung (`/output/final`) als eigene Output-Rolle gefahren"
   - "Live-Sync nutzt serverseitigen Session-Snapshot (versioniert) plus WebSocket-Push an alle Clients"
@@ -73,7 +73,7 @@ Zusatzfix innerhalb der Ausfuehrung: `63ce2ee` (WebSocket Extended-Frame Support
 ## Files Created/Modified
 - `server.mjs` - Final-Route, Live-Session-Snapshot, WebSocket Sync, JSONL Logging.
 - `src/app.js` - Output-Rollenvertrag, Live-Mutation/Sync, Align-Mode, Audio-Rollenbindung.
-- `src/app/state/runtime-state.js` - globales `alignMode`-State-Flag.
+- `src/app/lib/state/runtime-state.js` - globales `alignMode`-State-Flag.
 - `index.html` - Align-Mode Toggle + Status im Settings-Panel.
 - `src/styles.css` - Final-Output FX-only Layout + align-mode Overlay-Gating.
 - `.planning/phases/phase-05/P5-T12-AUDIO-LIFECYCLE.md` - Audio-Lifecycle-Nachweis.

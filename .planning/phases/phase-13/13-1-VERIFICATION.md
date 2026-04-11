@@ -28,12 +28,12 @@ All persistent config was stored in the browser via `localStorage`. Mutations on
 - Import button wired via new `wireImportGlobalDefaultsButton()` function: creates a hidden `<input type="file">`, reads the chosen JSON, POSTs it through `saveGlobalDefaults`. Server overwrites + broadcasts, every client refetches.
 - `SETTINGS_EXCLUSIVE_CONTROL_IDS` updated to drop the removed button IDs and add `"import-global-defaults"`.
 
-### Client API facade (`src/app/api/global-defaults-api.js`)
+### Client API facade (`src/app/lib/api/global-defaults-api.js`)
 - `createGlobalDefaultsApiFacade` no longer accepts a `localStorage` argument.
 - `apiBaseStorageKey` argument removed (unused after localStorage fallback is gone).
 - `readConfiguredApiBase()` returns `null` when no window global or URL query param is present (no localStorage fallback).
 
-### Logger (`src/app/shared/logger.js`)
+### Logger (`src/app/lib/shared/logger.js`)
 - `resolveMinLevel()` moves log-level override from `localStorage.getItem("tt-beamer.log-level")` to `?logLevel=...` URL query parameter.
 
 ### DOM (`index.html`)

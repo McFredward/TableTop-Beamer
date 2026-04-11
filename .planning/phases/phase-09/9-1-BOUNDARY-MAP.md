@@ -4,16 +4,16 @@
 
 | Responsibility Group | Current Anchor in `src/app.js` | Target Module Ownership |
 | --- | --- | --- |
-| Startup orchestration, boot lifecycle | `initializeApplication`, final bootstrap call | `src/app/boot/*` |
-| Runtime state creation/selectors and sync caches | `state`, `liveSync`, mutation tracking helpers | `src/app/state/*` |
-| Board/room/play-area business rules | room/play-area target resolution and animation-domain helpers | `src/app/domain/*` |
-| Viewport, clip/mask and draw lifecycle | stage viewport lifecycle, render guards, draw loop | `src/app/render/*` |
-| Dashboard/settings panel synchronization | runtime-to-control sync and panel refresh contracts | `src/app/ui/*` |
-| Input arbitration and gesture guards | pan/touch arbitration, anti-double-tap, interaction guards | `src/app/input/*` |
-| Persistence and migration flows | board-profile save/load/migration adapters | `src/app/persistence/*` |
-| API endpoint resolve/preflight/save | global-defaults endpoint diagnostics and save/load transport | `src/app/api/*` |
+| Startup orchestration, boot lifecycle | `initializeApplication`, final bootstrap call | `src/app/lib/boot/*` |
+| Runtime state creation/selectors and sync caches | `state`, `liveSync`, mutation tracking helpers | `src/app/lib/state/*` |
+| Board/room/play-area business rules | room/play-area target resolution and animation-domain helpers | `src/app/lib/domain/*` |
+| Viewport, clip/mask and draw lifecycle | stage viewport lifecycle, render guards, draw loop | `src/app/lib/render/*` |
+| Dashboard/settings panel synchronization | runtime-to-control sync and panel refresh contracts | `src/app/lib/ui/*` |
+| Input arbitration and gesture guards | pan/touch arbitration, anti-double-tap, interaction guards | `src/app/lib/input/*` |
+| Persistence and migration flows | board-profile save/load/migration adapters | `src/app/lib/persistence/*` |
+| API endpoint resolve/preflight/save | global-defaults endpoint diagnostics and save/load transport | `src/app/lib/api/*` |
 | GIF/media lifecycle | GIF warm/decode/playback primitives | `src/app/gif/*` |
-| Pure/shared helpers and logging | env/runtime metadata, logger, reusable pure utilities | `src/app/shared/*` |
+| Pure/shared helpers and logging | env/runtime metadata, logger, reusable pure utilities | `src/app/lib/shared/*` |
 
 ## Incremental Extraction Sequence (branch-by-abstraction)
 

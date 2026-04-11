@@ -22,7 +22,7 @@ key-files:
     - .planning/phases/phase-06/6-HF2-SUMMARY.md
   modified:
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - .planning/phases/phase-06/TASKS.md
 key-decisions:
   - "Room template-copy now inherits both room transform fields and roomGeometry map values to avoid partial-copy drift."
@@ -64,7 +64,7 @@ completed: 2026-03-26
 
 ## Files Created/Modified
 - `src/app.js` - room copy parity, room clipboard workflow, keyboard shortcut guards, empty-space deselection, play-area safety guard.
-- `src/app/state/runtime-state.js` - runtime room clipboard state container.
+- `src/app/lib/state/runtime-state.js` - runtime room clipboard state container.
 - `.planning/phases/phase-06/P6-T33-PLAY-AREA-GUARD.md` - non-regression guard verification notes.
 - `.planning/phases/phase-06/P6-T34-VERIFICATION.md` - final HF2 regression and acceptance mapping.
 - `.planning/phases/phase-06/TASKS.md` - marked P6-T30..P6-T34 as DONE.

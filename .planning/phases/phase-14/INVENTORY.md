@@ -7,28 +7,28 @@ Snapshot taken 2026-04-11 at commit `9accd14` (just after Phase 13 closure).
 ```
 LOC   File
 14658 src/app/runtime/runtime-orchestration.js   ← the monster
-  479 src/app/api/global-defaults-api.js
-  466 src/app/shared/config.js
+  479 src/app/lib/api/global-defaults-api.js
+  466 src/app/lib/shared/config.js
   427 src/app/runtime/core/polygon-contract.js
-  246 src/app/shared/normalizers.js
-  232 src/app/persistence/board-profiles.js
-  178 src/app/domain/rooms.js
-  168 src/app/state/runtime-state.js
-   98 src/app/domain/event-lifecycle.js
-   96 src/app/state/live-sync-state.js
-   86 src/app/render/viewport-lifecycle.js
-   81 src/app/shared/logger.js
-   73 src/app/ui/runtime-panels-controller.js
-   41 src/app/domain/live-sync-domain.js
-   33 src/app/ui/settings/rooms.js
-   25 src/app/shared/runtime-env.js
-   25 src/app/boot/app-composition.js
+  246 src/app/lib/shared/normalizers.js
+  232 src/app/lib/persistence/board-profiles.js
+  178 src/app/lib/domain/rooms.js
+  168 src/app/lib/state/runtime-state.js
+   98 src/app/lib/domain/event-lifecycle.js
+   96 src/app/lib/state/live-sync-state.js
+   86 src/app/lib/render/viewport-lifecycle.js
+   81 src/app/lib/shared/logger.js
+   73 src/app/lib/ui/runtime-panels-controller.js
+   41 src/app/lib/domain/live-sync-domain.js
+   33 src/app/lib/ui/settings/rooms.js
+   25 src/app/lib/shared/runtime-env.js
+   25 src/app/lib/boot/app-composition.js
    20 src/app/sync/sync-handlers.js
    20 src/app/settings/settings-controllers.js
    20 src/app/media/media-handlers.js
-   20 src/app/input/interaction-guards.js
+   20 src/app/lib/input/interaction-guards.js
    20 src/app/editor/editor-flows.js
-   14 src/app/boot/runtime-bootstrap.js
+   14 src/app/lib/boot/runtime-bootstrap.js
 ```
 
 Total: **17 526** LOC across 23 files. `runtime-orchestration.js` alone is **83.6%** of the codebase and has **549** top-level `function` declarations plus ~260 other top-level `const`/`let` bindings (812 declarations total).
@@ -103,8 +103,8 @@ These are symbols that look dead by inspection. Each must be verified by a cross
 ## Non-monolith file observations
 
 - `src/app/runtime/core/polygon-contract.js` (427 LOC) already defines `normalizePolygonPoint` / `normalizeSpecialPolygon` / `isRenderableNormalizedPolygon` / `getNormalizedPolygonArea`. `runtime-orchestration.js` at 2464, 2480, 2487 declares **duplicate** copies of the same functions. Candidate for dedup in Plan 14-2.
-- `src/app/state/runtime-state.js` (168 LOC) already exports `createInitialState`. The stretch-anchor cache added in HF13 lives on the state as `state.roomStretchAnchorCache = new Map()` assigned after `createInitialState`. Plan 14-2 T2 can fold that into the state factory.
-- `src/app/persistence/board-profiles.js` (232 LOC) owns `buildMigratedBoardProfiles` etc. Runtime file currently has a thin wrapper forwarding to it — so the wrapper plus `legacy*` stubs disappear together once D1–D3 are verified dead.
+- `src/app/lib/state/runtime-state.js` (168 LOC) already exports `createInitialState`. The stretch-anchor cache added in HF13 lives on the state as `state.roomStretchAnchorCache = new Map()` assigned after `createInitialState`. Plan 14-2 T2 can fold that into the state factory.
+- `src/app/lib/persistence/board-profiles.js` (232 LOC) owns `buildMigratedBoardProfiles` etc. Runtime file currently has a thin wrapper forwarding to it — so the wrapper plus `legacy*` stubs disappear together once D1–D3 are verified dead.
 
 ## Plan 14-1 exit from this inventory
 

@@ -7,9 +7,9 @@ Scope: P6-T23 .. P6-T28
 
 1. Syntax checks
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
-   - `node --check src/app/domain/rooms.js`
-   - `node --check src/app/persistence/board-profiles.js`
+   - `node --check src/app/lib/state/runtime-state.js`
+   - `node --check src/app/lib/domain/rooms.js`
+   - `node --check src/app/lib/persistence/board-profiles.js`
    - `node --check server.mjs`
    - Result: PASS
 
@@ -32,7 +32,7 @@ Scope: P6-T23 .. P6-T28
    - Play Area labels/status now used in editor heading, reset action, and trigger feedback.
    - Model migration alias coverage:
      - `src/app.js` loads `playAreaPolygon` with fallback to legacy `shipPolygon`/`shipMask`.
-     - `src/app/persistence/board-profiles.js` migration maps legacy aliases -> `playAreaPolygon`.
+     - `src/app/lib/persistence/board-profiles.js` migration maps legacy aliases -> `playAreaPolygon`.
      - `server.mjs` merge path persists `playAreaPolygon` while accepting legacy aliases.
    - Result: PASS
 
@@ -51,7 +51,7 @@ Scope: P6-T23 .. P6-T28
    - Result: PASS
 
 7. Template/persistence stability guard
-   - `src/app/domain/rooms.js` preserves `meta.templateSource` through room normalization/catalog export.
+   - `src/app/lib/domain/rooms.js` preserves `meta.templateSource` through room normalization/catalog export.
    - Combined with board-profile persistence flow, template-created rooms remain stable on save/reload/restart.
    - Result: PASS
 

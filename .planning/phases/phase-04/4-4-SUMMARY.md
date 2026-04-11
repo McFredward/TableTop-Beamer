@@ -23,7 +23,7 @@ key-files:
   modified:
     - index.html
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - src/styles.css
     - .planning/phases/phase-04/TASKS.md
 key-decisions:
@@ -67,7 +67,7 @@ completed: 2026-03-25
 
 ## Files Created/Modified
 - `index.html` - Handle-Size-Slider im Board-Zoom-Panel ergaenzt.
-- `src/app/state/runtime-state.js` - Polygon-Editor-Handle-Scale + Area-Drag-Sessionstate hinzugefuegt.
+- `src/app/lib/state/runtime-state.js` - Polygon-Editor-Handle-Scale + Area-Drag-Sessionstate hinzugefuegt.
 - `src/app.js` - Handle-Scale-Sync, variable Handle/Hit-Radii, Random-Flicker-Logik, Room-Area-Drag-Flow.
 - `src/styles.css` - Cursor-/Draggable-Styles fuer Room-Flaechen-Drag.
 - `.planning/phases/phase-04/TASKS.md` - P4-T28..P4-T32 auf DONE gesetzt.

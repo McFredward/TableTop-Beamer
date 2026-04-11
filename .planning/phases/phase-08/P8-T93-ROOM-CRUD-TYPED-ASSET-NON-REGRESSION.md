@@ -20,4 +20,4 @@ Date: 2026-04-01
 
 - Room editor CRUD and typed mapping functions were left on existing normalization/update paths (`normalizeRoomFxProfile`, `syncRoomFxPanel`, room apply handlers) with no schema change.
 - `rg -n "playbackSpeed: draftPayload\.speed" src/app.js` shows legacy compatibility field now mirrors canonical speed instead of a separate UI control.
-- `node --check src/app.js && node --check src/app/state/runtime-state.js` passes after refactor.
+- `node --check src/app.js && node --check src/app/lib/state/runtime-state.js` passes after refactor.

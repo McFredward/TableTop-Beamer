@@ -3,7 +3,7 @@
 ## Root cause
 
 - `src/app.js` enforces global domain presence for `TT_BEAMER_RUNTIME_PANELS`.
-- `src/app/ui/runtime-panels-controller.js` exposed only `TT_BEAMER_UI_RUNTIME_PANELS`, leaving the required canonical key unset.
+- `src/app/lib/ui/runtime-panels-controller.js` exposed only `TT_BEAMER_UI_RUNTIME_PANELS`, leaving the required canonical key unset.
 - Runtime panel binding in orchestration also referenced only the legacy key, making exposure/load-order behavior brittle.
 
 ## Fix

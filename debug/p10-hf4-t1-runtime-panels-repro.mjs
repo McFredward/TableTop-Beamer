@@ -16,7 +16,7 @@ const context = vm.createContext({
   },
 });
 
-const runtimePanelsSource = readFileSync(new URL("../src/app/ui/runtime-panels-controller.js", import.meta.url), "utf8");
+const runtimePanelsSource = readFileSync(new URL("../src/app/lib/ui/runtime-panels-controller.js", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
 vm.runInContext(runtimePanelsSource, context, { filename: "runtime-panels-controller.js" });

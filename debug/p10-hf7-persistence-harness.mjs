@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const BOARD_PROFILES_PATH = new URL("../src/app/persistence/board-profiles.js", import.meta.url);
+const BOARD_PROFILES_PATH = new URL("../src/app/lib/persistence/board-profiles.js", import.meta.url);
 
 export function loadPersistenceApi() {
   const source = readFileSync(BOARD_PROFILES_PATH, "utf8");

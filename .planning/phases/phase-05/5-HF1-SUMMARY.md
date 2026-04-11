@@ -23,7 +23,7 @@ key-files:
     - src/app.js
     - server.mjs
     - index.html
-    - src/app/shared/config.js
+    - src/app/lib/shared/config.js
     - src/styles.css
     - .planning/phases/phase-05/TASKS.md
 key-decisions:
@@ -68,7 +68,7 @@ completed: 2026-03-26
 - `src/app.js` - outside snapshot hydration + outside-update emit path + stricter final-output runtime guard
 - `server.mjs` - outside-update allowlist + outside snapshot persistence in live session envelope
 - `index.html` - root-absolute script/style paths for `/output/final` bootstrap correctness
-- `src/app/shared/config.js` - root-absolute asset normalization for board/gif/sound assets
+- `src/app/lib/shared/config.js` - root-absolute asset normalization for board/gif/sound assets
 - `src/styles.css` - stronger FX-only CSS guard and align overlay exception
 - `.planning/phases/phase-05/P5-T24-HOTFIX-REGRESSION.md` - acceptance evidence artifact
 - `debug/p5-t24-final-output-contract-check.mjs` - final-output contract check

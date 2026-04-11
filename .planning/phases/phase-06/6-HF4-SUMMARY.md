@@ -22,7 +22,7 @@ key-files:
     - .planning/phases/phase-06/6-HF4-SUMMARY.md
   modified:
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - .planning/phases/phase-06/TASKS.md
     - .planning/phases/phase-06/PLAN.md
     - .planning/phases/phase-06/BACKLOG.md
@@ -72,7 +72,7 @@ completed: 2026-03-26
 
 ## Files Created/Modified
 - `src/app.js` - pending-drag arbitration, pointerup selection refresh, persisted-selection input consistency.
-- `src/app/state/runtime-state.js` - pending room-area drag session state fields.
+- `src/app/lib/state/runtime-state.js` - pending room-area drag session state fields.
 - `.planning/phases/phase-06/P6-T42-REGRESSION.md` - HF4 combined regression matrix.
 - `.planning/phases/phase-06/{TASKS,PLAN,BACKLOG,ACCEPTANCE,RISKS,EXECUTE}.md` - HF4 completion and gate status sync.
 - `.planning/{STATE,ROADMAP,CURRENT_PHASE}.md` - lifecycle/decision/next-plan progression to post-HF4.

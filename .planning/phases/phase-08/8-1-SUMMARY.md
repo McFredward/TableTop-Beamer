@@ -18,7 +18,7 @@ tech-stack:
   patterns: [multi-area canonical schema with legacy aliases, unified union mask path for inside/outside, multipart upload validation]
 key-files:
   created: [.planning/phases/phase-08/8-1-VERIFICATION.md, .planning/phases/phase-08/8-1-SUMMARY.md]
-  modified: [src/app.js, server.mjs, index.html, src/app/persistence/board-profiles.js, src/app/state/runtime-state.js, src/styles.css]
+  modified: [src/app.js, server.mjs, index.html, src/app/lib/persistence/board-profiles.js, src/app/lib/state/runtime-state.js, src/styles.css]
 key-decisions:
   - "Canonical board profile data is `playAreas[]` with `selectedPlayAreaId`; legacy single-polygon fields remain load aliases only."
   - "Inside/outside clip logic now consumes one union geometry source built from all valid play-area polygons."
@@ -69,8 +69,8 @@ completed: 2026-03-27
 - `src/app.js` - multi-area state model, selection CRUD flow, union clip path, image import UX wiring.
 - `server.mjs` - multipart image import parser/validator, image asset persistence, catalog-compatible import path.
 - `index.html` - JSON/image import controls and play-area CRUD controls.
-- `src/app/persistence/board-profiles.js` - migration bridge from legacy single polygon to canonical `playAreas[]`.
-- `src/app/state/runtime-state.js` - runtime state slots for `playAreasByBoard` + `selectedPlayAreaIdByBoard`.
+- `src/app/lib/persistence/board-profiles.js` - migration bridge from legacy single polygon to canonical `playAreas[]`.
+- `src/app/lib/state/runtime-state.js` - runtime state slots for `playAreasByBoard` + `selectedPlayAreaIdByBoard`.
 - `src/styles.css` - active play-area mask styling in settings overlay.
 - `.planning/phases/phase-08/8-1-VERIFICATION.md` - acceptance-aligned evidence report.
 

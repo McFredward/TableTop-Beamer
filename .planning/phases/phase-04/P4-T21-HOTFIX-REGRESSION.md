@@ -10,7 +10,7 @@
 ### Syntax Gate
 ```bash
 node --check src/app.js
-node --check src/app/state/runtime-state.js
+node --check src/app/lib/state/runtime-state.js
 node --check server.mjs
 ```
 

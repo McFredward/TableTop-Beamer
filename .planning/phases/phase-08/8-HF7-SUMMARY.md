@@ -21,9 +21,9 @@ key-files:
   modified:
     - index.html
     - src/app.js
-    - src/app/shared/config.js
-    - src/app/persistence/board-profiles.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/shared/config.js
+    - src/app/lib/persistence/board-profiles.js
+    - src/app/lib/state/runtime-state.js
 key-decisions:
   - "Boomerang remains legacy-load tolerant only and is ignored as runtime no-op"
   - "Inside editor uses the same draft/apply atomic pattern as outside"
@@ -66,9 +66,9 @@ completed: 2026-03-30
 ## Files Created/Modified
 - `index.html` - Removed outside boomerang UI and added complete inside editor controls.
 - `src/app.js` - Added inside definition model/editor/runtime/persistence hooks; removed boomerang runtime/editor logic.
-- `src/app/shared/config.js` - Added default inside definition factory; removed boomerang from outside defaults.
-- `src/app/persistence/board-profiles.js` - Migrates/loads inside definition payloads in board profiles.
-- `src/app/state/runtime-state.js` - Added `insideFxByBoard` state slot.
+- `src/app/lib/shared/config.js` - Added default inside definition factory; removed boomerang from outside defaults.
+- `src/app/lib/persistence/board-profiles.js` - Migrates/loads inside definition payloads in board profiles.
+- `src/app/lib/state/runtime-state.js` - Added `insideFxByBoard` state slot.
 - `.planning/phases/phase-08/8-HF7-VERIFICATION.md` - HF7 verification result.
 - `.planning/phases/phase-08/P8-T64-HF7-REGRESSION.md` - HF7 regression evidence matrix.
 
@@ -93,7 +93,7 @@ completed: 2026-03-30
 - **Found during:** Task P8-T63
 - **Issue:** Without snapshot payload/hydration for inside definitions, remote/final clients could drift from control-side inside config.
 - **Fix:** Added `insideFxByBoard` to snapshot build/apply pipelines and board-profile hydration paths.
-- **Files modified:** `src/app.js`, `src/app/persistence/board-profiles.js`
+- **Files modified:** `src/app.js`, `src/app/lib/persistence/board-profiles.js`
 - **Verification:** Snapshot/apply codepaths now normalize inside profiles identically to outside profiles.
 - **Committed in:** `2ebcaa2`
 

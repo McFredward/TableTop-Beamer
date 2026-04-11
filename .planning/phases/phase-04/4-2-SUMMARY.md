@@ -16,13 +16,13 @@ tech-stack:
   patterns: [domain-room-module, settings-room-ui-facade, roomCatalog-persistence]
 key-files:
   created:
-    - src/app/domain/rooms.js
-    - src/app/ui/settings/rooms.js
+    - src/app/lib/domain/rooms.js
+    - src/app/lib/ui/settings/rooms.js
     - .planning/phases/phase-04/P4-T16-ROOM-MODEL-REGRESSION.md
   modified:
     - src/app.js
-    - src/app/persistence/board-profiles.js
-    - src/app/shared/normalizers.js
+    - src/app/lib/persistence/board-profiles.js
+    - src/app/lib/shared/normalizers.js
     - index.html
     - .planning/phases/phase-04/TASKS.md
 key-decisions:
@@ -57,11 +57,11 @@ completed: 2026-03-25
 2. **P4-T16 (Regression evidence documentation)** - `c22879b` (test)
 
 ## Files Created/Modified
-- `src/app/domain/rooms.js` - canonical room normalization, hex start-shape generation, room catalog helpers
-- `src/app/ui/settings/rooms.js` - reusable settings select synchronization for room lists
+- `src/app/lib/domain/rooms.js` - canonical room normalization, hex start-shape generation, room catalog helpers
+- `src/app/lib/ui/settings/rooms.js` - reusable settings select synchronization for room lists
 - `src/app.js` - room CRUD handlers, all-room polygon editor wiring, custom-name sync, roomCatalog persistence integration
-- `src/app/persistence/board-profiles.js` - migration/extraction support for `roomCatalog` and legacy aliases
-- `src/app/shared/normalizers.js` - zone normalization now accepts new `name/polygon` room structures and legacy payloads
+- `src/app/lib/persistence/board-profiles.js` - migration/extraction support for `roomCatalog` and legacy aliases
+- `src/app/lib/shared/normalizers.js` - zone normalization now accepts new `name/polygon` room structures and legacy payloads
 - `index.html` - settings controls for room create/delete/name and generalized polygon editor labels
 - `.planning/phases/phase-04/P4-T16-ROOM-MODEL-REGRESSION.md` - acceptance-oriented regression checklist and evidence
 
@@ -85,7 +85,7 @@ completed: 2026-03-25
 - **Found during:** P4-T14/P4-T15
 - **Issue:** Existing profile merge/migration logic did not explicitly carry room catalog aliases.
 - **Fix:** Extended persistence extractor/migrator and profile builders to include `roomCatalog` and legacy aliases.
-- **Files modified:** `src/app.js`, `src/app/persistence/board-profiles.js`
+- **Files modified:** `src/app.js`, `src/app/lib/persistence/board-profiles.js`
 - **Verification:** Syntax checks + static migration checks in P4-T16 evidence doc
 - **Committed in:** `b061adf`
 

@@ -19,9 +19,9 @@ key-files:
     - .planning/phases/phase-06/P6-T59-REGRESSION.md
   modified:
     - src/app.js
-    - src/app/domain/rooms.js
-    - src/app/state/runtime-state.js
-    - src/app/persistence/board-profiles.js
+    - src/app/lib/domain/rooms.js
+    - src/app/lib/state/runtime-state.js
+    - src/app/lib/persistence/board-profiles.js
     - .planning/phases/phase-06/TASKS.md
     - .planning/phases/phase-06/PLAN.md
     - .planning/phases/phase-06/ACCEPTANCE.md
@@ -70,9 +70,9 @@ completed: 2026-03-26
 
 ## Files Created/Modified
 - `src/app.js` - edge-click lifecycle parity, insert flow room resolution, tombstone state/persistence/export guards.
-- `src/app/domain/rooms.js` - room catalog application now filters by tombstoned room IDs.
-- `src/app/state/runtime-state.js` - added runtime storage for board-scoped room tombstones.
-- `src/app/persistence/board-profiles.js` - migration alias support for `deletedRoomIds`/`roomTombstones`.
+- `src/app/lib/domain/rooms.js` - room catalog application now filters by tombstoned room IDs.
+- `src/app/lib/state/runtime-state.js` - added runtime storage for board-scoped room tombstones.
+- `src/app/lib/persistence/board-profiles.js` - migration alias support for `deletedRoomIds`/`roomTombstones`.
 - `.planning/phases/phase-06/P6-T59-REGRESSION.md` - HF7 regression matrix (edge lifecycle + deletion persistence + guards).
 - `.planning/phases/phase-06/{TASKS,PLAN,ACCEPTANCE,BACKLOG,RISKS,EXECUTE}.md` - HF7 completion status and evidence synchronization.
 - `.planning/{STATE,ROADMAP}.md` - global tracking updated to HF7-complete and 6-3 ready.

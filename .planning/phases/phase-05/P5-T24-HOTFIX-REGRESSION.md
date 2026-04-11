@@ -14,7 +14,7 @@ Datum: 2026-03-26
 ```bash
 node --check src/app.js
 node --check server.mjs
-node --check src/app/shared/config.js
+node --check src/app/lib/shared/config.js
 ```
 Ergebnis: PASS
 

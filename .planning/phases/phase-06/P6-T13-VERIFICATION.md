@@ -17,10 +17,10 @@ Date: 2026-03-26
 1. **Syntax checks passed**
    - `node --check server.mjs`
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
-   - `node --check src/app/domain/rooms.js`
-   - `node --check src/app/persistence/board-profiles.js`
-   - `node --check src/app/shared/config.js`
+   - `node --check src/app/lib/state/runtime-state.js`
+   - `node --check src/app/lib/domain/rooms.js`
+   - `node --check src/app/lib/persistence/board-profiles.js`
+   - `node --check src/app/lib/shared/config.js`
 
 2. **Server catalog + import endpoints implemented**
    - `GET /api/boards` returns `tt-beamer.board-catalog.v1`

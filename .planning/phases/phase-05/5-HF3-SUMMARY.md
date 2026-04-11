@@ -21,7 +21,7 @@ key-files:
   modified:
     - server.mjs
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - index.html
     - .planning/phases/phase-05/TASKS.md
 key-decisions:
@@ -63,7 +63,7 @@ completed: 2026-03-26
 ## Files Created/Modified
 - `server.mjs` - Added context mutation apply path and snapshot fields for board/layout context.
 - `src/app.js` - Emits context updates and hydrates board/layout from authoritative live snapshots.
-- `src/app/state/runtime-state.js` - Added selected board/layout state; removed deprecated outputRoute state.
+- `src/app/lib/state/runtime-state.js` - Added selected board/layout state; removed deprecated outputRoute state.
 - `index.html` - Removed Output Route controls/status from Settings UI.
 - `debug/p5-t36-context-parity-regression.mjs` - Guard suite for HF3 contracts and `/output/final` compatibility.
 - `.planning/phases/phase-05/P5-T36-CONTEXT-PARITY-VERIFICATION.md` - Acceptance evidence for HF3 scope.

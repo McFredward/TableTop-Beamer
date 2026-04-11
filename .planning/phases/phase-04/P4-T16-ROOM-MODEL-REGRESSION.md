@@ -11,10 +11,10 @@
 ### Syntax Gate
 ```bash
 node --check src/app.js
-node --check src/app/domain/rooms.js
-node --check src/app/ui/settings/rooms.js
-node --check src/app/persistence/board-profiles.js
-node --check src/app/shared/normalizers.js
+node --check src/app/lib/domain/rooms.js
+node --check src/app/lib/ui/settings/rooms.js
+node --check src/app/lib/persistence/board-profiles.js
+node --check src/app/lib/shared/normalizers.js
 ```
 
 Result: ✅ alle Checks erfolgreich (kein Syntaxfehler).

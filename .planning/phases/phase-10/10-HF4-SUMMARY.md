@@ -25,7 +25,7 @@ key-files:
     - debug/p10-hf4-t9-final-output-canonical.mjs
     - debug/p10-hf4-t10-fail-pass-proof.mjs
   modified:
-    - src/app/ui/runtime-panels-controller.js
+    - src/app/lib/ui/runtime-panels-controller.js
     - src/app/runtime/runtime-orchestration.js
     - src/app/runtime/core/polygon-contract.js
     - .planning/phases/phase-10/TASKS.md

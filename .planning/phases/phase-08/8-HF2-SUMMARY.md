@@ -21,8 +21,8 @@ key-files:
     - debug/p8-hf2-api-health.json
   modified:
     - src/app.js
-    - src/app/shared/config.js
-    - src/app/persistence/board-profiles.js
+    - src/app/lib/shared/config.js
+    - src/app/lib/persistence/board-profiles.js
     - index.html
     - server.mjs
     - .planning/phases/phase-08/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE}.md
@@ -71,8 +71,8 @@ completed: 2026-03-27
 
 ## Files Created/Modified
 - `src/app.js` - outside definition model, boomerang timeline, mp4/gif/coded rendering, settings handlers, resource picker integration.
-- `src/app/shared/config.js` - default outside definitions incl. Sandstorm entry and default selection.
-- `src/app/persistence/board-profiles.js` - legacy alias migration for outside definitions.
+- `src/app/lib/shared/config.js` - default outside definitions incl. Sandstorm entry and default selection.
+- `src/app/lib/persistence/board-profiles.js` - legacy alias migration for outside definitions.
 - `index.html` - new `Outside Animations` section and controls.
 - `server.mjs` - `/api/resources` endpoint with recursive resource catalog.
 - `.planning/phases/phase-08/8-HF2-VERIFICATION.md` - HF2 acceptance evidence.

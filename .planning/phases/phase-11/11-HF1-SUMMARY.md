@@ -24,9 +24,9 @@ key-files:
   modified:
     - server.mjs
     - src/app/runtime/runtime-orchestration.js
-    - src/app/shared/config.js
-    - src/app/state/runtime-state.js
-    - src/app/ui/runtime-panels-controller.js
+    - src/app/lib/shared/config.js
+    - src/app/lib/state/runtime-state.js
+    - src/app/lib/ui/runtime-panels-controller.js
     - .planning/phases/phase-11/TASKS.md
 key-decisions:
   - "outside-apply-changes mutations are treated as deterministic state-sync events and are not coalesced."

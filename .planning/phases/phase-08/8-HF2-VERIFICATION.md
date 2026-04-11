@@ -9,7 +9,7 @@ Status: PASS
 ## Automated Evidence
 
 1. **Syntax/Runtime guard**
-   - Command: `node --check src/app.js && node --check src/app/shared/config.js && node --check src/app/persistence/board-profiles.js && node --check server.mjs`
+   - Command: `node --check src/app.js && node --check src/app/lib/shared/config.js && node --check src/app/lib/persistence/board-profiles.js && node --check server.mjs`
    - Result: PASS
 
 2. **Resource picker API availability**

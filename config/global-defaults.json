@@ -1,7 +1,7 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-04-06T13:25:55.935Z",
-  "source": "browser-local-state",
+  "savedAt": "2026-04-11T13:04:56.747Z",
+  "source": "runtime-state",
   "boardProfiles": {
     "nemesis-board-a": {
       "roomCatalog": [
@@ -7685,26 +7685,8 @@
       ],
       "selectedPlayAreaId": "play-area-1",
       "insideFx": {
-        "selectedAnimationId": "ambient-drift",
+        "selectedAnimationId": "hull-flicker",
         "animations": [
-          {
-            "id": "ambient-drift",
-            "name": "Ambient Drift",
-            "assetType": "coded",
-            "assetRef": "ambient-drift",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
-            "id": "ash-fall",
-            "name": "Ash Fall",
-            "assetType": "coded",
-            "assetRef": "ash-fall",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
           {
             "id": "hull-flicker",
             "name": "Hull Flicker",
@@ -7724,15 +7706,6 @@
             "loopUntilStopped": false
           },
           {
-            "id": "reactor-pulse",
-            "name": "Reactor Pulse",
-            "assetType": "coded",
-            "assetRef": "reactor-pulse",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
             "id": "power-outage",
             "name": "Power Outage",
             "assetType": "coded",
@@ -7745,7 +7718,7 @@
         "intensity": 1,
         "speed": 1,
         "assetType": "coded",
-        "assetRef": "ambient-drift",
+        "assetRef": "hull-flicker",
         "loopUntilStopped": false
       },
       "roomFx": {
@@ -7758,25 +7731,19 @@
             "assetRef": "/resources/nemesis/animations/malfunction2.mp4"
           },
           {
-            "id": "fire",
+            "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
             "assetRef": "/resources/nemesis/animations/fire.gif"
           },
           {
-            "id": "slime",
+            "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/slime.gif"
+            "assetRef": "/resources/nemesis/animations/final.gif"
           },
           {
-            "id": "scanning",
-            "name": "Scanning",
-            "assetType": "coded",
-            "assetRef": "special-scanning"
-          },
-          {
-            "id": "flicker",
+            "id": "lichtflackern",
             "name": "Light Flicker",
             "assetType": "coded",
             "assetRef": "hull-flicker"
@@ -8402,28 +8369,28 @@
           "name": "010",
           "polygon": [
             [
-              0.5709976654052734,
-              0.21668168640136728
+              0.5723103074534236,
+              0.21907643169291952
             ],
             [
-              0.5414976654052736,
-              0.26777718522464916
+              0.5379064868122866,
+              0.27007638651443017
             ],
             [
-              0.4824976654052734,
-              0.26777718522464916
+              0.48381030745342357,
+              0.27017193051620136
             ],
             [
-              0.4529976654052734,
-              0.21668168640136728
+              0.4543103074534236,
+              0.21907643169291952
             ],
             [
-              0.4824976654052734,
-              0.16558618757808538
+              0.48381030745342357,
+              0.1679809328696376
             ],
             [
-              0.5414976654052733,
-              0.16558618757808535
+              0.5428103074534235,
+              0.16798093286963756
             ]
           ],
           "meta": {
@@ -9103,52 +9070,52 @@
           "name": "008-010",
           "polygon": [
             [
-              0.38223785400390625,
-              0.3506736145019531
+              0.3845453492223456,
+              0.35094995465869355
             ],
             [
-              0.3808033142089844,
-              0.34323114013671874
+              0.3831108094274237,
+              0.3435074802934592
             ],
             [
-              0.3793807067871094,
-              0.33390252685546873
+              0.38168820200554876,
+              0.33417886701220917
             ],
             [
-              0.40282852172851563,
-              0.315975830078125
+              0.4051360169469549,
+              0.31625217023486546
             ],
             [
-              0.47396240234375,
-              0.3161685791015625
+              0.4762698975621893,
+              0.3164449192583029
             ],
             [
-              0.4825248107910156,
-              0.3044102478027344
+              0.4848323060094549,
+              0.30468658795947484
             ],
             [
-              0.48239306640625,
-              0.2866763000488281
+              0.48470056162468933,
+              0.28695264020556854
             ],
             [
-              0.51980419921875,
-              0.28648355102539064
+              0.5221116944371893,
+              0.2867598911821311
             ],
             [
-              0.51980419921875,
-              0.35067263793945314
+              0.5221116944371893,
+              0.3509489780961936
             ],
             [
-              0.5009128723144531,
-              0.37261932373046874
+              0.5032203675328925,
+              0.3728956638872092
             ],
             [
-              0.4152321166992187,
-              0.37414599609375
+              0.417539611917658,
+              0.37442233625049043
             ],
             [
-              0.401408447265625,
-              0.3836876220703125
+              0.4037159424840644,
+              0.3839639622270529
             ]
           ],
           "meta": {
@@ -9872,44 +9839,44 @@
           "name": "014-015",
           "polygon": [
             [
-              0.7772034301757812,
-              0.42148495483398435
+              0.776920189338569,
+              0.4186918882783106
             ],
             [
-              0.746510498046875,
-              0.4222559814453125
+              0.7462272572096628,
+              0.41946291488963877
             ],
             [
-              0.7420316772460938,
-              0.41242523193359376
+              0.7417484364088816,
+              0.40963216537792
             ],
             [
-              0.74255859375,
-              0.32452667236328125
+              0.7422753529127878,
+              0.3217336058076075
             ],
             [
-              0.712656005859375,
-              0.2580244445800781
+              0.7123727650221628,
+              0.2552313780244044
             ],
             [
-              0.744666259765625,
-              0.25763894653320313
+              0.7443830189284127,
+              0.2548458799775294
             ],
             [
-              0.745851806640625,
-              0.24279641723632814
+              0.7455685658034128,
+              0.2400033506806544
             ],
             [
-              0.7499354248046874,
-              0.24279641723632814
+              0.7496521839674752,
+              0.2400033506806544
             ],
             [
-              0.7815504760742188,
-              0.30794931030273437
+              0.7812672352370066,
+              0.30515624374706063
             ],
             [
-              0.7816821899414063,
-              0.4157021484375
+              0.781398949104194,
+              0.41290908188182623
             ]
           ],
           "meta": {
@@ -11643,28 +11610,28 @@
         ],
         "room-11": [
           [
-            0.5709976654052734,
-            0.21668168640136728
+            0.5723103074534236,
+            0.21907643169291952
           ],
           [
-            0.5414976654052736,
-            0.26777718522464916
+            0.5379064868122866,
+            0.27007638651443017
           ],
           [
-            0.4824976654052734,
-            0.26777718522464916
+            0.48381030745342357,
+            0.27017193051620136
           ],
           [
-            0.4529976654052734,
-            0.21668168640136728
+            0.4543103074534236,
+            0.21907643169291952
           ],
           [
-            0.4824976654052734,
-            0.16558618757808538
+            0.48381030745342357,
+            0.1679809328696376
           ],
           [
-            0.5414976654052733,
-            0.16558618757808535
+            0.5428103074534235,
+            0.16798093286963756
           ]
         ],
         "room-12": [
@@ -12173,52 +12140,52 @@
         ],
         "room-30": [
           [
-            0.38223785400390625,
-            0.3506736145019531
+            0.3845453492223456,
+            0.35094995465869355
           ],
           [
-            0.3808033142089844,
-            0.34323114013671874
+            0.3831108094274237,
+            0.3435074802934592
           ],
           [
-            0.3793807067871094,
-            0.33390252685546873
+            0.38168820200554876,
+            0.33417886701220917
           ],
           [
-            0.40282852172851563,
-            0.315975830078125
+            0.4051360169469549,
+            0.31625217023486546
           ],
           [
-            0.47396240234375,
-            0.3161685791015625
+            0.4762698975621893,
+            0.3164449192583029
           ],
           [
-            0.4825248107910156,
-            0.3044102478027344
+            0.4848323060094549,
+            0.30468658795947484
           ],
           [
-            0.48239306640625,
-            0.2866763000488281
+            0.48470056162468933,
+            0.28695264020556854
           ],
           [
-            0.51980419921875,
-            0.28648355102539064
+            0.5221116944371893,
+            0.2867598911821311
           ],
           [
-            0.51980419921875,
-            0.35067263793945314
+            0.5221116944371893,
+            0.3509489780961936
           ],
           [
-            0.5009128723144531,
-            0.37261932373046874
+            0.5032203675328925,
+            0.3728956638872092
           ],
           [
-            0.4152321166992187,
-            0.37414599609375
+            0.417539611917658,
+            0.37442233625049043
           ],
           [
-            0.401408447265625,
-            0.3836876220703125
+            0.4037159424840644,
+            0.3839639622270529
           ]
         ],
         "room-31": [
@@ -12807,44 +12774,44 @@
         ],
         "room-46": [
           [
-            0.7772034301757812,
-            0.42148495483398435
+            0.776920189338569,
+            0.4186918882783106
           ],
           [
-            0.746510498046875,
-            0.4222559814453125
+            0.7462272572096628,
+            0.41946291488963877
           ],
           [
-            0.7420316772460938,
-            0.41242523193359376
+            0.7417484364088816,
+            0.40963216537792
           ],
           [
-            0.74255859375,
-            0.32452667236328125
+            0.7422753529127878,
+            0.3217336058076075
           ],
           [
-            0.712656005859375,
-            0.2580244445800781
+            0.7123727650221628,
+            0.2552313780244044
           ],
           [
-            0.744666259765625,
-            0.25763894653320313
+            0.7443830189284127,
+            0.2548458799775294
           ],
           [
-            0.745851806640625,
-            0.24279641723632814
+            0.7455685658034128,
+            0.2400033506806544
           ],
           [
-            0.7499354248046874,
-            0.24279641723632814
+            0.7496521839674752,
+            0.2400033506806544
           ],
           [
-            0.7815504760742188,
-            0.30794931030273437
+            0.7812672352370066,
+            0.30515624374706063
           ],
           [
-            0.7816821899414063,
-            0.4157021484375
+            0.781398949104194,
+            0.41290908188182623
           ]
         ],
         "room-47": [
@@ -13378,8 +13345,8 @@
           0.07167662811279298
         ],
         [
-          0.6544078979492187,
-          0.07740160369873048
+          0.6949771419160929,
+          0.10621079526609686
         ],
         [
           0.7377412719726563,
@@ -13803,9 +13770,9 @@
             "name": "Outside Space",
             "assetType": "coded",
             "assetRef": "outside-space",
-            "intensity": 0.7,
-            "speed": 1,
-            "mode": "standard",
+            "intensity": 1,
+            "speed": 0.65,
+            "mode": "immersive",
             "direction": "reverse",
             "soundEnabled": false
           },
@@ -13821,9 +13788,9 @@
             "soundEnabled": false
           }
         ],
-        "intensity": 0.7,
-        "speed": 1,
-        "mode": "standard",
+        "intensity": 1,
+        "speed": 0.65,
+        "mode": "immersive",
         "direction": "reverse",
         "assetType": "coded",
         "assetRef": "outside-space"
@@ -14030,8 +13997,8 @@
               0.07167662811279298
             ],
             [
-              0.6544078979492187,
-              0.07740160369873048
+              0.6949771419160929,
+              0.10621079526609686
             ],
             [
               0.7377412719726563,
@@ -14453,24 +14420,6 @@
         "selectedAnimationId": "hull-flicker",
         "animations": [
           {
-            "id": "ambient-drift",
-            "name": "Ambient Drift",
-            "assetType": "coded",
-            "assetRef": "ambient-drift",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
-            "id": "ash-fall",
-            "name": "Ash Fall",
-            "assetType": "coded",
-            "assetRef": "ash-fall",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
             "id": "hull-flicker",
             "name": "Hull Flicker",
             "assetType": "coded",
@@ -14484,15 +14433,6 @@
             "name": "Intruder Alert",
             "assetType": "coded",
             "assetRef": "intruder-alert",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
-            "id": "reactor-pulse",
-            "name": "Reactor Pulse",
-            "assetType": "coded",
-            "assetRef": "reactor-pulse",
             "intensity": 1,
             "speed": 1,
             "loopUntilStopped": false
@@ -14523,25 +14463,19 @@
             "assetRef": "/resources/nemesis/animations/malfunction.gif"
           },
           {
-            "id": "fire",
+            "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
             "assetRef": "/resources/nemesis/animations/fire.gif"
           },
           {
-            "id": "slime",
+            "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/slime.gif"
+            "assetRef": "/resources/nemesis/animations/final.gif"
           },
           {
-            "id": "scanning",
-            "name": "Scanning",
-            "assetType": "coded",
-            "assetRef": "special-scanning"
-          },
-          {
-            "id": "flicker",
+            "id": "lichtflackern",
             "name": "Light Flicker",
             "assetType": "coded",
             "assetRef": "hull-flicker"
@@ -16667,26 +16601,8 @@
         "assetRef": "/resources/nemesis/animations/sandstorm.mp4"
       },
       "insideFx": {
-        "selectedAnimationId": "ambient-drift",
+        "selectedAnimationId": "hull-flicker",
         "animations": [
-          {
-            "id": "ambient-drift",
-            "name": "Ambient Drift",
-            "assetType": "coded",
-            "assetRef": "ambient-drift",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
-            "id": "ash-fall",
-            "name": "Ash Fall",
-            "assetType": "coded",
-            "assetRef": "ash-fall",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
           {
             "id": "hull-flicker",
             "name": "Hull Flicker",
@@ -16706,15 +16622,6 @@
             "loopUntilStopped": false
           },
           {
-            "id": "reactor-pulse",
-            "name": "Reactor Pulse",
-            "assetType": "coded",
-            "assetRef": "reactor-pulse",
-            "intensity": 1,
-            "speed": 1,
-            "loopUntilStopped": false
-          },
-          {
             "id": "power-outage",
             "name": "Power Outage",
             "assetType": "coded",
@@ -16727,7 +16634,7 @@
         "intensity": 1,
         "speed": 1,
         "assetType": "coded",
-        "assetRef": "ambient-drift",
+        "assetRef": "hull-flicker",
         "loopUntilStopped": false
       },
       "roomFx": {
@@ -16736,29 +16643,23 @@
           {
             "id": "kaputt",
             "name": "Malfunction",
-            "assetType": "mp4",
-            "assetRef": "/resources/nemesis/animations/malfunction2.mp4"
+            "assetType": "gif",
+            "assetRef": "/resources/nemesis/animations/malfunction.gif"
           },
           {
-            "id": "fire",
+            "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
             "assetRef": "/resources/nemesis/animations/fire.gif"
           },
           {
-            "id": "slime",
+            "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/slime.gif"
+            "assetRef": "/resources/nemesis/animations/final.gif"
           },
           {
-            "id": "scanning",
-            "name": "Scanning",
-            "assetType": "coded",
-            "assetRef": "special-scanning"
-          },
-          {
-            "id": "flicker",
+            "id": "lichtflackern",
             "name": "Light Flicker",
             "assetType": "coded",
             "assetRef": "hull-flicker"
@@ -16775,19 +16676,16 @@
   },
   "audio": {
     "enabled": true,
-    "volume": 0.8
+    "volume": 1
   },
   "animationSpeed": 1,
   "animationSoundMap": {
-    "ambient-drift": "none",
-    "ash-fall": "none",
     "hull-flicker": "none",
     "intruder-alert": "/resources/nemesis/sounds/alarm.mp3",
-    "reactor-pulse": "/resources/nemesis/sounds/electricity.mp3",
     "power-outage": "/resources/nemesis/sounds/power/3.wav",
     "outside-space": "none",
     "kaputt": "none",
-    "fire": "none",
+    "fire": "/resources/nemesis/sounds/power/3.wav",
     "slime": "none",
     "scanning": "none",
     "flicker": "none",

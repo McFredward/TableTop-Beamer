@@ -43,9 +43,9 @@ human_verification:
 | --- | --- | --- | --- |
 | `src/app.js` | Play-area CRUD, union clipping, import activation, outside/inside/room editor wiring | ✓ VERIFIED | Exists, substantive, and actively wired to DOM handlers/render/runtime paths |
 | `server.mjs` | `/api/boards/import` JSON+multipart handling, validation, storage, response payload | ✓ VERIFIED | Exists, substantive, wired in route table (`2429-2431`) and import handlers (`1923-2079`) |
-| `src/app/persistence/board-profiles.js` | Legacy -> canonical migration to `playAreas[]` and selected id | ✓ VERIFIED | Migrates `playAreaPolygon`/legacy aliases to `playAreas` (`120-135`) and preserves selected id (`154`) |
+| `src/app/lib/persistence/board-profiles.js` | Legacy -> canonical migration to `playAreas[]` and selected id | ✓ VERIFIED | Migrates `playAreaPolygon`/legacy aliases to `playAreas` (`120-135`) and preserves selected id (`154`) |
 | `index.html` | Settings UI sections and controls (Outside/Inside/Room, Apply buttons, speed/opacity) | ✓ VERIFIED | Outside/Inside sections and Apply controls present (`320-417`), room Speed/Opacity present (`521-531`) |
-| `src/app/shared/config.js` | Default outside definitions include `outside-sandstorm` mp4 | ✓ VERIFIED | Default outside definitions include mp4 sandstorm and selected default id (`417-434`) |
+| `src/app/lib/shared/config.js` | Default outside definitions include `outside-sandstorm` mp4 | ✓ VERIFIED | Default outside definitions include mp4 sandstorm and selected default id (`417-434`) |
 
 ### Key Link Verification
 

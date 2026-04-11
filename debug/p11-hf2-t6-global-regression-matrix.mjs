@@ -8,7 +8,7 @@ function readObserved(path) {
 
 const runtimeSource = readFileSync(new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url), "utf8");
 const serverSource = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
-const runtimeEnvSource = readFileSync(new URL("../src/app/shared/runtime-env.js", import.meta.url), "utf8");
+const runtimeEnvSource = readFileSync(new URL("../src/app/lib/shared/runtime-env.js", import.meta.url), "utf8");
 
 const matrix = [
   {

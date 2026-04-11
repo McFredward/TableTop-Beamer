@@ -125,7 +125,7 @@ const g13_1_10 =
 
 // Logger URL param migration
 const loggerSrc = readFileSync(
-  join(projectRoot, "src/app/shared/logger.js"),
+  join(projectRoot, "src/app/lib/shared/logger.js"),
   "utf8",
 );
 const loggerUrlParam =
@@ -134,7 +134,7 @@ const loggerUrlParam =
 
 // global-defaults-api.js facade no longer accepts localStorage argument
 const facadeSrc = readFileSync(
-  join(projectRoot, "src/app/api/global-defaults-api.js"),
+  join(projectRoot, "src/app/lib/api/global-defaults-api.js"),
   "utf8",
 );
 const facadeNoLocalStorageArg =

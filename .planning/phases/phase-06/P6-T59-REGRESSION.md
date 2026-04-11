@@ -7,9 +7,9 @@ Scope: P6-T55 .. P6-T59
 
 1. Syntax checks
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
-   - `node --check src/app/domain/rooms.js`
-   - `node --check src/app/persistence/board-profiles.js`
+   - `node --check src/app/lib/state/runtime-state.js`
+   - `node --check src/app/lib/domain/rooms.js`
+   - `node --check src/app/lib/persistence/board-profiles.js`
    - Result: PASS
 
 2. Edge bubble pointer lifecycle hardening

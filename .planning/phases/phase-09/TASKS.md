@@ -49,13 +49,13 @@ Priority labels: [P0] critical | [P1] high | [P2] medium
 ## Plan 9-1 - Modular Refactor + Maintainability Uplift Core Wave (executed, not accepted)
 - [x] REJECTED P9-1-GATE [P0] Acceptance gate status: not accepted by user correction; superseded by Plan 9-HF1 hard-gate recovery.
 - [x] DONE P9-T1 [P0] Create and commit the extraction boundary map from `src/app.js` to `src/app/{boot,state,domain,render,ui,input,persistence,api,gif,shared}`.
-- [x] DONE P9-T2 [P0] Introduce thin bootstrap contract in `src/app.js` and move composition wiring to `src/app/boot/*` with parity adapters.
-- [x] DONE P9-T3 [P0] Extract pure/shared helper blocks first into `src/app/shared/*` and replace inline duplicates with imports.
-- [x] DONE P9-T4 [P0] Extract state transition/selectors/runtime lifecycle helpers into `src/app/state/*` while preserving current state schema.
-- [x] DONE P9-T5 [P0] Extract domain operations (room/play-area/animation business rules) into `src/app/domain/*` with unchanged behavior.
-- [x] DONE P9-T6 [P0] Extract UI controllers/bindings (dashboard/settings sync) into `src/app/ui/*` using explicit interface contracts.
-- [x] DONE P9-T7 [P0] Extract input arbitration (pointer/keyboard/touch/pan guards) into `src/app/input/*` and keep deterministic interactions.
-- [x] DONE P9-T8 [P0] Extract render and media lifecycle blocks into `src/app/render/*` and `src/app/gif/*` without `/output/final` regressions.
+- [x] DONE P9-T2 [P0] Introduce thin bootstrap contract in `src/app.js` and move composition wiring to `src/app/lib/boot/*` with parity adapters.
+- [x] DONE P9-T3 [P0] Extract pure/shared helper blocks first into `src/app/lib/shared/*` and replace inline duplicates with imports.
+- [x] DONE P9-T4 [P0] Extract state transition/selectors/runtime lifecycle helpers into `src/app/lib/state/*` while preserving current state schema.
+- [x] DONE P9-T5 [P0] Extract domain operations (room/play-area/animation business rules) into `src/app/lib/domain/*` with unchanged behavior.
+- [x] DONE P9-T6 [P0] Extract UI controllers/bindings (dashboard/settings sync) into `src/app/lib/ui/*` using explicit interface contracts.
+- [x] DONE P9-T7 [P0] Extract input arbitration (pointer/keyboard/touch/pan guards) into `src/app/lib/input/*` and keep deterministic interactions.
+- [x] DONE P9-T8 [P0] Extract render and media lifecycle blocks into `src/app/lib/render/*` and `src/app/gif/*` without `/output/final` regressions.
 - [x] DONE P9-T9 [P0] Add meaningful English comments at non-obvious lifecycle/state/render/integration hotspots across extracted modules.
 - [x] DONE P9-T10 [P0] Implement centralized structured logging utility and migrate high-value diagnostics checkpoints.
 - [x] DONE P9-T11 [P0] Execute staged regression matrix (runtime, settings/dashboard, save/load, API save flow, `/output/final`) and record evidence.

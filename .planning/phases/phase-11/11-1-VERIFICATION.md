@@ -4,7 +4,7 @@ Date: 2026-04-04
 
 ## Evidence Commands
 - `node --check src/app/runtime/runtime-orchestration.js`
-- `node --check src/app/state/runtime-state.js`
+- `node --check src/app/lib/state/runtime-state.js`
 - `node -e "..."` static acceptance assertions (artifact: `debug/p11-1-acceptance-regression-output.json`)
 
 ## Acceptance Matrix (G11-1 .. G11-11)

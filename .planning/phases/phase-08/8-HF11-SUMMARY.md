@@ -28,9 +28,9 @@ Room animations now use a definition-driven model with typed assets (`coded`/`gi
 
 - `src/app.js`
 - `index.html`
-- `src/app/shared/config.js`
-- `src/app/persistence/board-profiles.js`
-- `src/app/state/runtime-state.js`
+- `src/app/lib/shared/config.js`
+- `src/app/lib/persistence/board-profiles.js`
+- `src/app/lib/state/runtime-state.js`
 - `.planning/phases/phase-08/8-HF11-VERIFICATION.md`
 - `.planning/phases/phase-08/P8-T88-HF11-REGRESSION.md`
 

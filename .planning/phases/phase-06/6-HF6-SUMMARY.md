@@ -20,7 +20,7 @@ key-files:
     - .planning/phases/phase-06/6-HF6-SUMMARY.md
   modified:
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - src/styles.css
     - .planning/phases/phase-06/PLAN.md
     - .planning/phases/phase-06/BACKLOG.md
@@ -71,7 +71,7 @@ completed: 2026-03-26
 
 ## Files Created/Modified
 - `src/app.js` - vertex lifecycle arbitration, stable same-room selection sync, and keyboard/panel vertex-delete parity.
-- `src/app/state/runtime-state.js` - polygon editor state extended with explicit vertex-selection activity flag.
+- `src/app/lib/state/runtime-state.js` - polygon editor state extended with explicit vertex-selection activity flag.
 - `src/styles.css` - drag-scoped text-selection suppression for room-area drags.
 - `.planning/phases/phase-06/P6-T53-REGRESSION.md` - combined HF6 regression matrix (PASS).
 - `.planning/phases/phase-06/{PLAN,BACKLOG,TASKS,ACCEPTANCE,RISKS,EXECUTE,README}.md` - HF6 closure and gate updates.

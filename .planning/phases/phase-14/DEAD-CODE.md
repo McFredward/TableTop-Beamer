@@ -7,7 +7,7 @@ Verification results for candidates D1..D10 from `INVENTORY.md`.
 ### D1 — `loadLegacyRoomGeometryByBoard` (runtime-orchestration.js:3446)
 - Body: `return createDefaultRoomGeometryByBoard();` — always returns defaults since Phase 13-1 removed localStorage.
 - Only caller: `loadBoardProfiles()` at line 3480.
-- The persistence helper (`src/app/persistence/board-profiles.js:86`) is fed-from-localStorage and still live — but the runtime stub bypasses localStorage entirely by calling the default factory.
+- The persistence helper (`src/app/lib/persistence/board-profiles.js:86`) is fed-from-localStorage and still live — but the runtime stub bypasses localStorage entirely by calling the default factory.
 - **Action**: delete the stub, delete the `legacyRoomGeometry` local in `loadBoardProfiles`, drop the parameter thread.
 
 ### D2 — `loadLegacySpecialPolygonsByBoard` (runtime-orchestration.js:3450)

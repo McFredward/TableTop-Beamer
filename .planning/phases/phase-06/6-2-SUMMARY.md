@@ -23,9 +23,9 @@ key-files:
     - index.html
     - src/app.js
     - src/styles.css
-    - src/app/state/runtime-state.js
-    - src/app/domain/rooms.js
-    - src/app/persistence/board-profiles.js
+    - src/app/lib/state/runtime-state.js
+    - src/app/lib/domain/rooms.js
+    - src/app/lib/persistence/board-profiles.js
     - server.mjs
     - .planning/phases/phase-06/TASKS.md
 key-decisions:
@@ -74,9 +74,9 @@ completed: 2026-03-26
 - `index.html` - Play Area labels and new room-template option/toggle controls.
 - `src/app.js` - toggle split, visibility guards, Play Area text updates, template creation logic, playAreaPolygon load/save integration.
 - `src/styles.css` - removed legacy `is-special` overlay styles.
-- `src/app/state/runtime-state.js` - added visibility state flags for room/play-area vertex groups.
-- `src/app/domain/rooms.js` - preserved template metadata for stable persistence reload.
-- `src/app/persistence/board-profiles.js` - migration alias mapping to canonical `playAreaPolygon`.
+- `src/app/lib/state/runtime-state.js` - added visibility state flags for room/play-area vertex groups.
+- `src/app/lib/domain/rooms.js` - preserved template metadata for stable persistence reload.
+- `src/app/lib/persistence/board-profiles.js` - migration alias mapping to canonical `playAreaPolygon`.
 - `server.mjs` - global-default merge now canonicalizes `playAreaPolygon` with legacy alias fallback.
 - `.planning/phases/phase-06/TASKS.md` - marked P6-T23..P6-T29 as done.
 - `.planning/phases/phase-06/P6-T29-VERIFICATION.md` - acceptance evidence matrix and checks.

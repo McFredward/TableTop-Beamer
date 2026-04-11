@@ -7,11 +7,11 @@ Datum: 2026-03-25
 Erfolgreich ohne Fehler fuer:
 
 - `src/app.js`
-- `src/app/shared/config.js`
-- `src/app/shared/normalizers.js`
-- `src/app/state/runtime-state.js`
-- `src/app/persistence/board-profiles.js`
-- `src/app/api/global-defaults-api.js`
+- `src/app/lib/shared/config.js`
+- `src/app/lib/shared/normalizers.js`
+- `src/app/lib/state/runtime-state.js`
+- `src/app/lib/persistence/board-profiles.js`
+- `src/app/lib/api/global-defaults-api.js`
 - `server.mjs`
 
 ## 2) Save/Load API Smoke (Node-Server)

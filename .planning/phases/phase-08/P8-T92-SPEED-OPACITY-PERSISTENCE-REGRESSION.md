@@ -15,6 +15,6 @@ Date: 2026-04-01
 
 ## Evidence
 
-- `rg -n "room-playback-speed|GIF Playback Speed" index.html src/app.js src/app/state/runtime-state.js` returns no matches.
+- `rg -n "room-playback-speed|GIF Playback Speed" index.html src/app.js src/app/lib/state/runtime-state.js` returns no matches.
 - `rg -n "gifPlaybackSpeed: clampRoomSpeed|clampRoomSpeed\(animation\.speed \?\? animation\.playbackSpeed|playbackSpeed: draftPayload\.speed" src/app.js` confirms unified speed wiring.
 - `rg -n "roomOpacityInput\.disabled\s*=\s*!|syncGifRoomControls|isGifRoomAnimation" src/app.js` returns no matches (no type-specific opacity disable path).

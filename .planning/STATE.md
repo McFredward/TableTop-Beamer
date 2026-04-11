@@ -516,7 +516,7 @@
 - Verbindliche Erweiterung fuer Phase 4: Raummodell wird generalisiert (`room create/delete`, freie Polygone, editierbare Custom-Namen) statt statischem Raumset.
 - Phase-4 Plan 4-2 ist als priorisierte P0-Ausfuehrungswelle fuer Room-Generalisierung + Datenmigration execute-ready gesetzt.
 - Datenregel fuer Plan 4-2: Defaults/Profile migrieren auf neuen Room-JSON-Standard; Legacy-Staende bleiben ladbar und werden beim Speichern auf den neuen Standard normalisiert.
-- Plan-4-2 Umsetzung: Room-Ownership ist modularisiert (`src/app/domain/rooms`, `src/app/ui/settings/rooms`), waehrend `src/app.js` die Orchestrierung beibehlt.
+- Plan-4-2 Umsetzung: Room-Ownership ist modularisiert (`src/app/lib/domain/rooms`, `src/app/lib/ui/settings/rooms`), waehrend `src/app.js` die Orchestrierung beibehlt.
 - Plan-4-2 Umsetzung: Kanonisches Raummodell nutzt `roomCatalog` (`id`,`name`,`polygon`,`meta`), UI erlaubt Room-Create/Delete, freie Polygonbearbeitung und Custom-Namen.
 - Plan-4-2 Umsetzung: Legacy-Roomdaten bleiben ladbar; Save schreibt konsistent das neue roomCatalog-Schema.
 - Neues verpflichtendes Feedback fuer Phase 4 ist gesetzt: Desktop-Problem mit wachsender Running-Liste wird als P0 behandelt; Liste muss begrenzt/scrollbar oder layout-separiert sein, damit Controls immer erreichbar bleiben.
@@ -1048,7 +1048,7 @@
 - Evidence:
   - `.planning/phases/phase-04/P4-T21-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check src/app/lib/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 4)
@@ -1058,7 +1058,7 @@
 - Evidence:
   - `.planning/phases/phase-04/P4-T32-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check src/app/lib/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 5)
@@ -1068,7 +1068,7 @@
 - Evidence:
   - `.planning/phases/phase-04/P4-T38-HOTFIX-REGRESSION.md`
   - `node --check src/app.js` (Regression Syntax Check)
-  - `node --check src/app/state/runtime-state.js` (State Syntax Check)
+  - `node --check src/app/lib/state/runtime-state.js` (State Syntax Check)
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 5b)
@@ -1123,7 +1123,7 @@
 - Evidence:
   - `.planning/phases/phase-06/P6-T66-REGRESSION.md`
   - `node --check src/app.js` => PASS
-  - `node --check src/app/state/runtime-state.js` => PASS
+  - `node --check src/app/lib/state/runtime-state.js` => PASS
 
 ## Decision Log Addendum (HF8)
 - Room/vertex/edge selection darf `roomDraft.targetType/targetId` nicht implizit ueberschreiben; Target-Auswahl bleibt operator-owned.

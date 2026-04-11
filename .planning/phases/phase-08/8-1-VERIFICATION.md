@@ -40,7 +40,7 @@ Interpretation:
 
 | Acceptance item | Evidence | Status |
 | --- | --- | --- |
-| Multi-Play-Area create/delete/select/persist | New settings controls + canonical `playAreas[]` persistence path (`src/app.js`, `src/app/persistence/board-profiles.js`) | PASS |
+| Multi-Play-Area create/delete/select/persist | New settings controls + canonical `playAreas[]` persistence path (`src/app.js`, `src/app/lib/persistence/board-profiles.js`) | PASS |
 | Active-area edit determinism | Polygon edit path reads/writes selected play-area only (`getSelectedPlayAreaId` + editor handlers) | PASS |
 | Union inside rendering | `clipToInsideShip` now clips against all valid play-area polygons | PASS |
 | Union outside rendering | `clipToOutsideShip` now uses inverse even-odd clip against all play-area polygons | PASS |
@@ -49,7 +49,7 @@ Interpretation:
 | Image upload success (`jpg/jpeg/png/webp`) | Multipart import endpoint with saved server asset + catalog board | PASS |
 | Image upload validation (negative type) | Invalid upload returns `IMPORT_IMAGE_INVALID_TYPE` | PASS |
 | Manual polygon workflow after image import | Imported image board loads with empty room catalog and active Settings editor flow | PASS |
-| Non-regression baseline | `node --check src/app.js`, `node --check server.mjs`, `node --check src/app/persistence/board-profiles.js`, `node --check src/app/state/runtime-state.js` | PASS |
+| Non-regression baseline | `node --check src/app.js`, `node --check server.mjs`, `node --check src/app/lib/persistence/board-profiles.js`, `node --check src/app/lib/state/runtime-state.js` | PASS |
 
 ## Notes
 - Temporary verification import artifacts were removed after test execution.

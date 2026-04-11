@@ -17,14 +17,14 @@ tech-stack:
 key-files:
   created:
     - .planning/phases/phase-09/9-1-BOUNDARY-MAP.md
-    - src/app/boot/app-composition.js
-    - src/app/shared/runtime-env.js
-    - src/app/state/live-sync-state.js
-    - src/app/domain/live-sync-domain.js
-    - src/app/ui/runtime-panels-controller.js
-    - src/app/input/interaction-guards.js
-    - src/app/render/viewport-lifecycle.js
-    - src/app/shared/logger.js
+    - src/app/lib/boot/app-composition.js
+    - src/app/lib/shared/runtime-env.js
+    - src/app/lib/state/live-sync-state.js
+    - src/app/lib/domain/live-sync-domain.js
+    - src/app/lib/ui/runtime-panels-controller.js
+    - src/app/lib/input/interaction-guards.js
+    - src/app/lib/render/viewport-lifecycle.js
+    - src/app/lib/shared/logger.js
     - .planning/phases/phase-09/9-1-VERIFICATION.md
   modified:
     - src/app.js
@@ -79,9 +79,9 @@ completed: 2026-04-02
 ## Files Created/Modified
 - `src/app.js` - reduced inline ownership by delegating boot/env/state/domain/ui/input/render slices; integrated structured logger.
 - `index.html` - registered new extraction modules before `src/app.js`.
-- `src/app/shared/logger.js` - centralized scoped logger with level gating.
-- `src/app/state/live-sync-state.js` - live sync state and mutation trace helper ownership.
-- `src/app/domain/live-sync-domain.js` - animation timestamp/trigger-key domain rules.
+- `src/app/lib/shared/logger.js` - centralized scoped logger with level gating.
+- `src/app/lib/state/live-sync-state.js` - live sync state and mutation trace helper ownership.
+- `src/app/lib/domain/live-sync-domain.js` - animation timestamp/trigger-key domain rules.
 
 ## Decisions Made
 - Use dependency-injected adapter boundaries in 9-1 to preserve behavior while moving ownership.

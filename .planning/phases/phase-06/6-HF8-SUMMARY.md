@@ -19,7 +19,7 @@ key-files:
     - .planning/phases/phase-06/P6-T66-REGRESSION.md
   modified:
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - index.html
     - .planning/phases/phase-06/{TASKS,PLAN,BACKLOG,ACCEPTANCE,RISKS,EXECUTE}.md
     - .planning/CURRENT_PHASE.md
@@ -64,7 +64,7 @@ completed: 2026-03-26
 ## Files Created/Modified
 - `.planning/phases/phase-06/P6-T66-REGRESSION.md` - Combined HF8 verification matrix and PASS evidence.
 - `src/app.js` - Draft persistence fixes, cluster CRUD logic, target/fanout stabilization, staggered start behavior, delayed audio/visual start handling.
-- `src/app/state/runtime-state.js` - Added persisted `roomDraft.staggerStart` runtime field.
+- `src/app/lib/state/runtime-state.js` - Added persisted `roomDraft.staggerStart` runtime field.
 - `index.html` - Added cluster management panel and dashboard `stagger start` toggle.
 - `.planning/phases/phase-06/{TASKS,PLAN,BACKLOG,ACCEPTANCE,RISKS,EXECUTE}.md` - HF8 task status, scope, risk, and evidence synchronization.
 - `.planning/CURRENT_PHASE.md` - Next plan pointer moved to `6-3`.

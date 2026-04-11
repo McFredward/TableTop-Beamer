@@ -22,7 +22,7 @@ key-files:
   modified:
     - index.html
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - .planning/phases/phase-08/TASKS.md
     - .planning/phases/phase-08/PLAN.md
     - .planning/phases/phase-08/BACKLOG.md
@@ -67,7 +67,7 @@ completed: 2026-04-01
 ## Files Created/Modified
 - `index.html` - Removed GIF-specific room playback speed control.
 - `src/app.js` - Unified room speed wiring and removed GIF-only opacity/speed gating paths.
-- `src/app/state/runtime-state.js` - Removed separate room draft playbackSpeed seed from initial state.
+- `src/app/lib/state/runtime-state.js` - Removed separate room draft playbackSpeed seed from initial state.
 - `.planning/phases/phase-08/8-HF12-VERIFICATION.md` - HF12 verification summary.
 - `.planning/phases/phase-08/P8-T92-SPEED-OPACITY-PERSISTENCE-REGRESSION.md` - persistence guard evidence.
 - `.planning/phases/phase-08/P8-T93-ROOM-CRUD-TYPED-ASSET-NON-REGRESSION.md` - room CRUD/typed mapping non-regression evidence.

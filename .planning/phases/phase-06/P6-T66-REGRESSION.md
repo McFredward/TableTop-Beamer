@@ -7,7 +7,7 @@ Scope: P6-T61 .. P6-T66
 
 1. Syntax checks
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
+   - `node --check src/app/lib/state/runtime-state.js`
    - Result: PASS
 
 2. Draft persistence hardening

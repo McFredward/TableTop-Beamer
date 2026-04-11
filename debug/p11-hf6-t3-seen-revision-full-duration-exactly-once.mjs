@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const runtimeSource = readFileSync(new URL("../src/app/runtime/runtime-orchestration.js", import.meta.url), "utf8");
-const stateSource = readFileSync(new URL("../src/app/state/live-sync-state.js", import.meta.url), "utf8");
+const stateSource = readFileSync(new URL("../src/app/lib/state/live-sync-state.js", import.meta.url), "utf8");
 
 const hasSeenRunRegistryState =
   stateSource.includes("activeSeenOneShotRunByTriggerRevision")

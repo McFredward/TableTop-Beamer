@@ -17,7 +17,7 @@ tech-stack:
   patterns: [catalog-first board loading, server-validated board import payloads, room-target fanout]
 key-files:
   created: [.planning/phases/phase-06/P6-T13-VERIFICATION.md]
-  modified: [server.mjs, src/app.js, index.html, src/app/shared/config.js, src/app/domain/rooms.js, src/app/persistence/board-profiles.js, src/app/state/runtime-state.js, README.md]
+  modified: [server.mjs, src/app.js, index.html, src/app/lib/shared/config.js, src/app/lib/domain/rooms.js, src/app/lib/persistence/board-profiles.js, src/app/lib/state/runtime-state.js, README.md]
 key-decisions:
   - "Catalog load now prefers GET /api/boards and only falls back to zone files when API catalog is unavailable."
   - "Cluster execution is explicit dropdown behavior; board click always reverts room target to single-room mode."
@@ -65,10 +65,10 @@ completed: 2026-03-26
 - `server.mjs` - board catalog loading, board import validation/storage, new API endpoints.
 - `src/app.js` - catalog-first loading, import action, room target parser, cluster fanout behavior.
 - `index.html` - board import controls, room target dropdown, English UI labels.
-- `src/app/shared/config.js` - cluster metadata on built-ins and English room animation labels.
-- `src/app/domain/rooms.js` - normalized room cluster shape.
-- `src/app/persistence/board-profiles.js` - cluster field migration support.
-- `src/app/state/runtime-state.js` - room target state fields.
+- `src/app/lib/shared/config.js` - cluster metadata on built-ins and English room animation labels.
+- `src/app/lib/domain/rooms.js` - normalized room cluster shape.
+- `src/app/lib/persistence/board-profiles.js` - cluster field migration support.
+- `src/app/lib/state/runtime-state.js` - room target state fields.
 - `README.md` - English operator setup and import format documentation.
 - `.planning/phases/phase-06/P6-T13-VERIFICATION.md` - regression evidence checklist.
 

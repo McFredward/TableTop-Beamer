@@ -61,7 +61,7 @@ Close verify-work-6 P0 blocker `English-only operator flow` with reproducible ev
    - Result: no matches in operator runtime paths after final conversion.
 2. `node --check src/app.js`
    - Result: pass.
-3. `node --check src/app/api/global-defaults-api.js`
+3. `node --check src/app/lib/api/global-defaults-api.js`
    - Result: pass.
 
 ### Manual sweep matrix
@@ -71,7 +71,7 @@ Close verify-work-6 P0 blocker `English-only operator flow` with reproducible ev
 | Control UI labels/hints | `index.html` | No German operator-facing labels/buttons/empty states | PASS |
 | Settings UI labels/hints | `index.html` | No German settings copy or placeholders | PASS |
 | Runtime status messages | `src/app.js` | Trigger/status feedback in English | PASS |
-| Save/preflight/startup errors | `src/app.js`, `src/app/api/global-defaults-api.js` | Operator-facing errors/diagnostics in English | PASS |
+| Save/preflight/startup errors | `src/app.js`, `src/app/lib/api/global-defaults-api.js` | Operator-facing errors/diagnostics in English | PASS |
 | Final-flow messaging | `src/app.js` | Final-flow relevant status/error copy in English | PASS |
 | Operator docs | `README.md`, `.planning/phases/phase-06/README.md` | English-only policy stated consistently | PASS |
 

@@ -6,14 +6,14 @@ Date: 2026-04-02
 
 ```bash
 node --check src/app.js
-node --check src/app/boot/app-composition.js
-node --check src/app/shared/runtime-env.js
-node --check src/app/state/live-sync-state.js
-node --check src/app/domain/live-sync-domain.js
-node --check src/app/ui/runtime-panels-controller.js
-node --check src/app/input/interaction-guards.js
-node --check src/app/render/viewport-lifecycle.js
-node --check src/app/shared/logger.js
+node --check src/app/lib/boot/app-composition.js
+node --check src/app/lib/shared/runtime-env.js
+node --check src/app/lib/state/live-sync-state.js
+node --check src/app/lib/domain/live-sync-domain.js
+node --check src/app/lib/ui/runtime-panels-controller.js
+node --check src/app/lib/input/interaction-guards.js
+node --check src/app/lib/render/viewport-lifecycle.js
+node --check src/app/lib/shared/logger.js
 ```
 
 Result: **PASS** (all syntax checks succeeded)
@@ -32,17 +32,17 @@ Static parity guards:
 | Acceptance Gate | Evidence | Result |
 | --- | --- | --- |
 | Monolith-Boundary-Map-Test | `.planning/phases/phase-09/9-1-BOUNDARY-MAP.md` | PASS |
-| Thin-Bootstrap-Test | `src/app/boot/app-composition.js` + bootstrap call delegation in `src/app.js` | PASS |
-| Shared-Utility-Extraction-Test | `src/app/shared/runtime-env.js` | PASS |
-| State-Transition-Parity-Test | `src/app/state/live-sync-state.js` with unchanged helper call contracts | PASS |
-| Domain-Parity-Test | `src/app/domain/live-sync-domain.js` | PASS |
-| UI-Controller-Parity-Test | `src/app/ui/runtime-panels-controller.js` adapter call | PASS |
-| Input-Arbitration-Parity-Test | `src/app/input/interaction-guards.js` adapter call | PASS |
-| Render-Lifecycle-Parity-Test | `src/app/render/viewport-lifecycle.js` adapter call | PASS |
+| Thin-Bootstrap-Test | `src/app/lib/boot/app-composition.js` + bootstrap call delegation in `src/app.js` | PASS |
+| Shared-Utility-Extraction-Test | `src/app/lib/shared/runtime-env.js` | PASS |
+| State-Transition-Parity-Test | `src/app/lib/state/live-sync-state.js` with unchanged helper call contracts | PASS |
+| Domain-Parity-Test | `src/app/lib/domain/live-sync-domain.js` | PASS |
+| UI-Controller-Parity-Test | `src/app/lib/ui/runtime-panels-controller.js` adapter call | PASS |
+| Input-Arbitration-Parity-Test | `src/app/lib/input/interaction-guards.js` adapter call | PASS |
+| Render-Lifecycle-Parity-Test | `src/app/lib/render/viewport-lifecycle.js` adapter call | PASS |
 | Media-Playback-Parity-Test | GIF decode path unchanged, diagnostics migration only | PASS |
 | Persistence-Parity-Test | No persistence behavior mutation in this wave | PASS |
 | API-Save-Parity-Test | No API transport behavior mutation in this wave | PASS |
 | Comment-Coverage-Quality-Test | Non-obvious comments added to revision/snapshot/startup lifecycle points | PASS |
-| Structured-Logging-Contract-Test | `src/app/shared/logger.js` + scoped migration in `src/app.js` | PASS |
+| Structured-Logging-Contract-Test | `src/app/lib/shared/logger.js` + scoped migration in `src/app.js` | PASS |
 | Logging-Noise-Guard-Test | default log level `warn`; hot loops remain unlogged | PASS |
 | Non-Regression-Full-Matrix-Test | syntax + static parity guard bundle | PASS |

@@ -27,7 +27,7 @@ key-files:
     - .planning/phases/phase-11/11-HF6-VERIFICATION.md
   modified:
     - src/app/runtime/runtime-orchestration.js
-    - src/app/state/live-sync-state.js
+    - src/app/lib/state/live-sync-state.js
     - server.mjs
     - .planning/CURRENT_PHASE.md
     - .planning/ROADMAP.md
@@ -79,7 +79,7 @@ completed: 2026-04-05
 
 ## Files Created/Modified
 - `src/app/runtime/runtime-orchestration.js` - added revision-keyed seen-one-shot retention, polling-safe retention merge, and explicit clear-revision observer.
-- `src/app/state/live-sync-state.js` - added live-sync state for active seen one-shot runs and observed clear revision tracking.
+- `src/app/lib/state/live-sync-state.js` - added live-sync state for active seen one-shot runs and observed clear revision tracking.
 - `server.mjs` - added `globalClearRevision` propagation/increment on `clear-all` for explicit polling cancellation authority.
 - `debug/p11-hf6-*.mjs/json` - deterministic RED/root-cause/fix/non-regression/parity/acceptance artifacts.
 - `.planning/phases/phase-11/11-HF6-VERIFICATION.md` - consolidated HF6 gate matrix and PASS closure.

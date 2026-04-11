@@ -28,7 +28,7 @@ Durchgefuehrt:
 - Guard-Suite prueft explizit auf fehlende Referenzen in:
   - `index.html`
   - `src/app.js`
-  - `src/app/state/runtime-state.js`
+  - `src/app/lib/state/runtime-state.js`
 
 Ergebnis:
 - PASS (keine `output-route-select`/`outputRoute`-Referenzen mehr)

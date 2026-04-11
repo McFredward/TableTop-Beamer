@@ -5,10 +5,10 @@
 ```
 LOC   File                                              Status
 14142 src/app/runtime/runtime-orchestration.js         entry + orchestration + not-yet-extracted domains
-  287 src/app/runtime/runtime-polygon-drag-support.js  extracted (T1)
-  235 src/app/runtime/runtime-room-geometry.js         extracted (T2)
-   88 src/app/runtime/runtime-polygon-normalizers.js   extracted (T3)
-  427 src/app/runtime/polygon-contract.js              pre-existing
+  287 src/app/runtime/viewport/runtime-polygon-drag-support.js  extracted (T1)
+  235 src/app/runtime/state/runtime-room-geometry.js         extracted (T2)
+   88 src/app/runtime/state/runtime-polygon-normalizers.js   extracted (T3)
+  427 src/app/runtime/core/polygon-contract.js              pre-existing
 ```
 
 The runtime directory now holds five JS files. The monolith is still

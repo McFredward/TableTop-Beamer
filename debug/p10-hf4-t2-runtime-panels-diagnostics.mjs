@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import vm from "node:vm";
 
-const runtimePanelsSource = readFileSync(new URL("../src/app/ui/runtime-panels-controller.js", import.meta.url), "utf8");
+const runtimePanelsSource = readFileSync(new URL("../src/app/lib/ui/runtime-panels-controller.js", import.meta.url), "utf8");
 const appSource = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
 function executeOrder(order) {

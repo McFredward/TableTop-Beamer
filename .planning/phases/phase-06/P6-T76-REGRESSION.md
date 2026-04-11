@@ -7,7 +7,7 @@ Scope: P6-T72 .. P6-T76
 
 1. Syntax checks
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
+   - `node --check src/app/lib/state/runtime-state.js`
    - Result: PASS
 
 2. Cluster fanout completeness

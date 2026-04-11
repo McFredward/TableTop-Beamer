@@ -57,7 +57,7 @@ for (const root of scanRoots) {
 
 // Storage keys currently used (from shared/config.js).
 const sharedConfig = readFileSync(
-  join(projectRoot, "src/app/shared/config.js"),
+  join(projectRoot, "src/app/lib/shared/config.js"),
   "utf8",
 );
 const storageKeyMatches = [

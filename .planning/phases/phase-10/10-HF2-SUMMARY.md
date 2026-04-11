@@ -20,7 +20,7 @@ key-files:
     - .planning/phases/phase-10/P10-HF2-T7-BROWSER-REGRESSION.md
   modified:
     - src/app/runtime/runtime-orchestration.js
-    - src/app/persistence/board-profiles.js
+    - src/app/lib/persistence/board-profiles.js
     - .planning/phases/phase-10/TASKS.md
 key-decisions:
   - "Use one canonical play-area contract and normalize all legacy inside/outside polygon aliases into it."
@@ -61,7 +61,7 @@ completed: 2026-04-04
 ## Files Created/Modified
 - `.planning/phases/phase-10/P10-HF2-T1-REPRO-TRACE.md` - reproducible failure map and root-cause summary.
 - `src/app/runtime/runtime-orchestration.js` - canonical polygon parsing/validation, defaults precedence merge, canonical clip-source retrieval.
-- `src/app/persistence/board-profiles.js` - migration alias support for inside/outside polygon legacy keys.
+- `src/app/lib/persistence/board-profiles.js` - migration alias support for inside/outside polygon legacy keys.
 - `.planning/phases/phase-10/P10-HF2-T7-BROWSER-REGRESSION.md` - cross-browser regression evidence record.
 - `.planning/phases/phase-10/TASKS.md` - HF2 task progress updates.
 
@@ -85,8 +85,8 @@ completed: 2026-04-04
 - **Found during:** Task 2
 - **Issue:** Alias payloads could bypass canonical play-area hydration and drift by browser/runtime path.
 - **Fix:** Added alias intake for `inside/outside` polygon fields in migration + runtime contract resolution.
-- **Files modified:** `src/app/runtime/runtime-orchestration.js`, `src/app/persistence/board-profiles.js`
-- **Verification:** `node --check src/app/runtime/runtime-orchestration.js && node --check src/app/persistence/board-profiles.js`
+- **Files modified:** `src/app/runtime/runtime-orchestration.js`, `src/app/lib/persistence/board-profiles.js`
+- **Verification:** `node --check src/app/runtime/runtime-orchestration.js && node --check src/app/lib/persistence/board-profiles.js`
 - **Committed in:** `7229129`
 
 ---

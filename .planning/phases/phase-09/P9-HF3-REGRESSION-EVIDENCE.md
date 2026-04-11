@@ -51,4 +51,4 @@ Date: 2026-04-04
 ## Static Validation Commands
 
 - `node --check src/app/runtime/runtime-orchestration.js` ✅
-- `node --check src/app/state/runtime-state.js` ✅
+- `node --check src/app/lib/state/runtime-state.js` ✅

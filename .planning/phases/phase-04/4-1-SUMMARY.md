@@ -15,11 +15,11 @@ tech-stack:
   patterns: [window facade modules, dependency-injected state factories, delegated persistence/api boundaries]
 key-files:
   created:
-    - src/app/shared/config.js
-    - src/app/shared/normalizers.js
-    - src/app/state/runtime-state.js
-    - src/app/persistence/board-profiles.js
-    - src/app/api/global-defaults-api.js
+    - src/app/lib/shared/config.js
+    - src/app/lib/shared/normalizers.js
+    - src/app/lib/state/runtime-state.js
+    - src/app/lib/persistence/board-profiles.js
+    - src/app/lib/api/global-defaults-api.js
     - .planning/phases/phase-04/P4-T7-SMOKE-REGRESSION.md
   modified:
     - src/app.js
@@ -64,11 +64,11 @@ completed: 2026-03-25
 7. **Task 7: Smoke-Regression dokumentiert** - `8ad1af8` (test)
 
 ## Files Created/Modified
-- `src/app/shared/config.js` - ausgelagerte Boards/Animationen/Defaults/Storage-Keys.
-- `src/app/shared/normalizers.js` - pure Zone-/Geometry-/Sound-Normalizer.
-- `src/app/state/runtime-state.js` - initial state factory + selector helpers.
-- `src/app/persistence/board-profiles.js` - Legacy-Migration und LocalStorage helpers.
-- `src/app/api/global-defaults-api.js` - Resolver/Preflight/Save-Load/Error facade.
+- `src/app/lib/shared/config.js` - ausgelagerte Boards/Animationen/Defaults/Storage-Keys.
+- `src/app/lib/shared/normalizers.js` - pure Zone-/Geometry-/Sound-Normalizer.
+- `src/app/lib/state/runtime-state.js` - initial state factory + selector helpers.
+- `src/app/lib/persistence/board-profiles.js` - Legacy-Migration und LocalStorage helpers.
+- `src/app/lib/api/global-defaults-api.js` - Resolver/Preflight/Save-Load/Error facade.
 - `src/app.js` - Umstellung auf neue Module/Facades.
 - `index.html` - modulare Script-Reihenfolge fuer Phase-4-Extraktion.
 - `.planning/phases/phase-04/P4-T7-SMOKE-REGRESSION.md` - Smoke-Evidenz.

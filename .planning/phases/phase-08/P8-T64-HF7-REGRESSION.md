@@ -30,5 +30,5 @@ Status: PASS
 
 5. **Inside persistence/load/defaults migration stability**
    - Check: inside definition model is written/read via board profiles and included in migrated payloads/default flow.
-   - Evidence: `src/app.js` (`buildBoardProfilesFromState`, `applyBoardProfilesToState`, live snapshot hydration), `src/app/persistence/board-profiles.js` migration mapping.
+   - Evidence: `src/app.js` (`buildBoardProfilesFromState`, `applyBoardProfilesToState`, live snapshot hydration), `src/app/lib/persistence/board-profiles.js` migration mapping.
    - Result: PASS

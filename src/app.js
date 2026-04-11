@@ -4,10 +4,6 @@
     (() => ({ info() {}, warn() {}, error() {} }))();
 
   const requiredDomains = [
-    "TT_BEAMER_EDITOR_FLOWS",
-    "TT_BEAMER_SYNC_HANDLERS",
-    "TT_BEAMER_SETTINGS_CONTROLLERS",
-    "TT_BEAMER_MEDIA_HANDLERS",
     "TT_BEAMER_RUNTIME_PANELS",
   ];
 

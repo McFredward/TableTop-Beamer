@@ -4,9 +4,9 @@ Date: 2026-04-04
 
 ## Evidence Commands
 - `node --check src/app/runtime/runtime-orchestration.js`
-- `node --check src/app/ui/runtime-panels-controller.js`
-- `node --check src/app/state/runtime-state.js`
-- `node --check src/app/shared/config.js`
+- `node --check src/app/lib/ui/runtime-panels-controller.js`
+- `node --check src/app/lib/state/runtime-state.js`
+- `node --check src/app/lib/shared/config.js`
 - `node --check server.mjs`
 - `node -e "..."` static HF1 regression assertions -> `debug/p11-hf1-acceptance-regression-output.json`
 

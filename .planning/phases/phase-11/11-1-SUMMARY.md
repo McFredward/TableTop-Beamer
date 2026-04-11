@@ -21,7 +21,7 @@ key-files:
   modified:
     - index.html
     - src/app/runtime/runtime-orchestration.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - src/styles.css
     - .planning/phases/phase-11/TASKS.md
 key-decisions:
@@ -68,7 +68,7 @@ completed: 2026-04-04
 ## Files Created/Modified
 - `index.html` - added settings sub-tab shell and quick mode action panel.
 - `src/app/runtime/runtime-orchestration.js` - implemented settings tabs, quick mode engine, tap dispatcher, guards, feedback, and mobile overview safeguards.
-- `src/app/state/runtime-state.js` - added `settingsSubtab` and `quickMode` runtime state.
+- `src/app/lib/state/runtime-state.js` - added `settingsSubtab` and `quickMode` runtime state.
 - `src/styles.css` - added settings sub-tab and mobile quick rail styles.
 - `.planning/phases/phase-11/11-1-VERIFICATION.md` - acceptance gate evidence matrix.
 - `debug/p11-1-acceptance-regression-output.json` - static regression assertions artifact.

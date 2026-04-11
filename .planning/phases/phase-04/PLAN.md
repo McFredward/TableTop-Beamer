@@ -6,16 +6,16 @@ Phase 4 ueberfuehrt den monolithischen Client aus `src/app.js` in eine modulare 
 ## Zielarchitektur (Sollstruktur)
 
 ### Ordnerstruktur
-- `src/app/boot/`: Application-Bootstrap, DOM-Mount, Initial-Load, Wire-Up.
-- `src/app/state/`: zentraler Runtime-State, Defaults, Selektoren, State-Guards.
-- `src/app/domain/`: fachliche Module (`animations`, `audio`, `rooms`, `profiles`, `geometry`).
-- `src/app/render/`: Canvas-/Overlay-Renderer, Clipping, Room/Global/Outside Draw-Pipelines.
+- `src/app/lib/boot/`: Application-Bootstrap, DOM-Mount, Initial-Load, Wire-Up.
+- `src/app/lib/state/`: zentraler Runtime-State, Defaults, Selektoren, State-Guards.
+- `src/app/lib/domain/`: fachliche Module (`animations`, `audio`, `rooms`, `profiles`, `geometry`).
+- `src/app/lib/render/`: Canvas-/Overlay-Renderer, Clipping, Room/Global/Outside Draw-Pipelines.
 - `src/app/gif/`: GIF-Lader, Decoder-Adapter (native/fallback), Scheduler, Cache.
-- `src/app/persistence/`: LocalStorage, Profil-Migrationen, Save-Payload-Building.
-- `src/app/api/`: API-Resolver, Preflight, Save/Load-Client, Error-Klassifikation.
-- `src/app/ui/`: View-Switching (`dashboard`/`settings`), Form-Bindings, Runtime-Liste, Feedback.
-- `src/app/input/`: Pointer/Touch/Keyboard, Pan-vs-Edit Guards, Event-Normalisierung.
-- `src/app/shared/`: Utilities, Constants, Typkontrakte (JSDoc), pure Helper.
+- `src/app/lib/persistence/`: LocalStorage, Profil-Migrationen, Save-Payload-Building.
+- `src/app/lib/api/`: API-Resolver, Preflight, Save/Load-Client, Error-Klassifikation.
+- `src/app/lib/ui/`: View-Switching (`dashboard`/`settings`), Form-Bindings, Runtime-Liste, Feedback.
+- `src/app/lib/input/`: Pointer/Touch/Keyboard, Pan-vs-Edit Guards, Event-Normalisierung.
+- `src/app/lib/shared/`: Utilities, Constants, Typkontrakte (JSDoc), pure Helper.
 
 ### Modulgrenzen und Verantwortlichkeiten
 - `state` haelt nur Zustand + pure Mutationen; keine DOM- oder Fetch-Logik.

@@ -9,7 +9,7 @@ Status: PASS
 ## Automated Evidence
 
 1. **Syntax/runtime guard**
-   - Command: `node --check src/app.js && node --check src/app/shared/config.js && node --check src/app/state/runtime-state.js && node --check src/app/persistence/board-profiles.js`
+   - Command: `node --check src/app.js && node --check src/app/lib/shared/config.js && node --check src/app/lib/state/runtime-state.js && node --check src/app/lib/persistence/board-profiles.js`
    - Result: PASS
 
 2. **HF7 regression matrix**

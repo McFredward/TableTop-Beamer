@@ -23,7 +23,7 @@ key-files:
   modified:
     - server.mjs
     - src/app.js
-    - src/app/state/runtime-state.js
+    - src/app/lib/state/runtime-state.js
     - index.html
     - debug/p7-t12-sync-regression.mjs
     - debug/p7-t13-non-regression.mjs
@@ -72,7 +72,7 @@ completed: 2026-03-27
 ## Files Created/Modified
 - `server.mjs` - Added global trigger/stop revision runtime maps and context-update roomDraft merge.
 - `src/app.js` - Added revision-aware global replay/audio guards and deterministic stagger offset flow.
-- `src/app/state/runtime-state.js` - Added default `roomDraft.staggerOffsetMs` state field.
+- `src/app/lib/state/runtime-state.js` - Added default `roomDraft.staggerOffsetMs` state field.
 - `index.html` - Added stagger delay slider UI (`room-stagger-offset`).
 - `debug/p7-t12-sync-regression.mjs` - Added lifecycle map schema checks.
 - `debug/p7-t13-non-regression.mjs` - Added HF3 behavior matrix checks (global revision parity, explicit stop, stagger parity).

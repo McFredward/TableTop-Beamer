@@ -22,7 +22,7 @@ key-files:
     - debug/p10-hf7-t8-fail-pass-proof.mjs
     - .planning/phases/phase-10/10-HF7-VERIFICATION.md
   modified:
-    - src/app/persistence/board-profiles.js
+    - src/app/lib/persistence/board-profiles.js
     - .planning/phases/phase-10/TASKS.md
     - .planning/phases/phase-10/EXECUTE.md
     - .planning/ROADMAP.md
@@ -66,7 +66,7 @@ completed: 2026-04-04
 8. **Task 8: FAIL->PASS proof + artifact sync** - `0ad4410` (test)
 
 ## Files Created/Modified
-- `src/app/persistence/board-profiles.js` - extraction/migration hardening for unknown board keys.
+- `src/app/lib/persistence/board-profiles.js` - extraction/migration hardening for unknown board keys.
 - `debug/p10-hf7-*.mjs` - RED/PASS diagnostics and fail-pass proof runner.
 - `.planning/phases/phase-10/P10-HF7-T*.md` - task evidence artifacts.
 - `.planning/phases/phase-10/10-HF7-VERIFICATION.md` - execution verification ledger.

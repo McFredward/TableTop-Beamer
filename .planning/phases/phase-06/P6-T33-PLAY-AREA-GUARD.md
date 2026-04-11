@@ -7,7 +7,7 @@ Scope: P6-T33 (Play Area remains unaffected by room copy/keyboard/deselection)
 
 1. Syntax checks
    - `node --check src/app.js`
-   - `node --check src/app/state/runtime-state.js`
+   - `node --check src/app/lib/state/runtime-state.js`
    - Result: PASS
 
 2. Room keyboard operations are room-scoped and guarded
