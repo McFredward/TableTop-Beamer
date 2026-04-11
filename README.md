@@ -2,16 +2,18 @@
 
 A tabletop projector overlay controller designed to enhance board games with immersive animations.
 
-> NOTE: This is more of an hobby project build for myself than a stable piece of software. Expect bugs 🕷️. AI was heavily used here. 
+> NOTE: This is more of an hobby project build for myself than a stable piece of software. Expect bugs 🕷️. AI was heavily used here.
+
+
 
 <p align="center">
 <table>
 <tr>
-  <td><video src="readme-assets/demo.mp4" controls width="400" height="250"></video></td>
-  <td><video src="readme-assets/demo2.mp4" controls width="400" height="250"></video></td>
+  <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
+  <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
 </tr>
 </table>
-<img src="readme-assets/tt-beamer-readme.png" width="350">
+<img src="readme-assets/tt-beamer-readme.png" width="500">
 </p>
 
 ## Features
