@@ -7997,8 +7997,20 @@ function beginShipPolygonVertexDrag(event, vertexIndex) {
   state.shipPolygonEditor.dragVertexIndex = vertexIndex;
   state.shipPolygonEditor.dragPointerId = event.pointerId;
   state.shipPolygonEditor.dragBoardId = state.boardId;
-  state.shipPolygonEditor.dragStartPoints = getShipPolygonPoints(state.boardId);
+  const startPoints = getShipPolygonPoints(state.boardId);
+  state.shipPolygonEditor.dragStartPoints = startPoints;
   state.shipPolygonEditor.dragMoved = false;
+  // Phase 13-HF9: capture the offset from the pointer to the vertex's
+  // current position so subsequent pointermove updates keep the vertex
+  // exactly under the finger/cursor. Without this the vertex "jumps"
+  // to the raw pointer coords on the first move.
+  const initialVertex = startPoints[vertexIndex] || [0, 0];
+  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+  state.shipPolygonEditor.dragVertexOffsetX = initialVertex[0] - pointerX;
+  state.shipPolygonEditor.dragVertexOffsetY = initialVertex[1] - pointerY;
+  // Phase 13-HF9: cache DOM refs for the incremental drag renderer so
+  // pointermove never re-queries the DOM and never rebuilds the SVG.
+  state.shipPolygonEditor.dragDomRefs = cacheShipPolygonDragDomRefs();
   // Phase 13-HF8: enter heavy-interaction mode. Pauses draw() + polling
   // + arms the renderRoomOverlay rAF coalescer for the drag duration.
   beginPolygonDragInteraction();
@@ -8015,6 +8027,9 @@ function clearShipPolygonDragSession() {
   state.shipPolygonEditor.dragBoardId = null;
   state.shipPolygonEditor.dragStartPoints = null;
   state.shipPolygonEditor.dragMoved = false;
+  state.shipPolygonEditor.dragVertexOffsetX = 0;
+  state.shipPolygonEditor.dragVertexOffsetY = 0;
+  state.shipPolygonEditor.dragDomRefs = null;
   endPolygonDragInteraction();
 }
 
@@ -8321,8 +8336,16 @@ function beginPolygonVertexDrag(event, roomId, vertexIndex) {
   state.polygonEditor.dragPointerId = event.pointerId;
   state.polygonEditor.dragRoomId = roomId;
   state.polygonEditor.dragBoardId = state.boardId;
-  state.polygonEditor.dragStartPoints = getSpecialPolygonPoints(state.boardId, roomId);
+  const startPoints = getSpecialPolygonPoints(state.boardId, roomId);
+  state.polygonEditor.dragStartPoints = startPoints;
   state.polygonEditor.dragMoved = false;
+  // Phase 13-HF9: capture offset for jump-free drag + cache DOM refs
+  // for the incremental renderer.
+  const initialVertex = startPoints[vertexIndex] || [0, 0];
+  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+  state.polygonEditor.dragVertexOffsetX = initialVertex[0] - pointerX;
+  state.polygonEditor.dragVertexOffsetY = initialVertex[1] - pointerY;
+  state.polygonEditor.dragDomRefs = cacheRoomPolygonDragDomRefs(roomId);
   // Phase 13-HF8: heavy-interaction gate.
   beginPolygonDragInteraction();
   try {
@@ -8369,6 +8392,8 @@ function beginPolygonAreaDrag(event, roomId, { boardId = state.boardId, startPoi
     : getNormalizedOverlayPoint(event);
   state.polygonEditor.dragAreaMoved = false;
   clearPendingPolygonAreaDragSession();
+  // Phase 13-HF9: cache DOM refs for incremental renderer.
+  state.polygonEditor.dragAreaDomRefs = cacheRoomPolygonDragDomRefs(roomId);
   // Phase 13-HF8: heavy-interaction gate. clearPendingPolygonAreaDragSession
   // above would clear pending state and might early-exit the end path,
   // so we re-enter heavy interaction here.
@@ -8388,6 +8413,7 @@ function clearPolygonAreaDragSession() {
   state.polygonEditor.dragAreaStartPoints = null;
   state.polygonEditor.dragAreaStartPointerPoint = null;
   state.polygonEditor.dragAreaMoved = false;
+  state.polygonEditor.dragAreaDomRefs = null;
   roomOverlay.classList.remove("is-room-dragging");
   endPolygonDragInteraction();
 }
@@ -8427,6 +8453,9 @@ function clearPolygonDragSession() {
   state.polygonEditor.dragBoardId = null;
   state.polygonEditor.dragStartPoints = null;
   state.polygonEditor.dragMoved = false;
+  state.polygonEditor.dragVertexOffsetX = 0;
+  state.polygonEditor.dragVertexOffsetY = 0;
+  state.polygonEditor.dragDomRefs = null;
   endPolygonDragInteraction();
 }
 
@@ -12143,6 +12172,141 @@ function flushPendingRoomOverlayRender() {
   }
 }
 
+// Phase 13-HF9: incremental SVG drag renderer. On drag start we cache
+// references to the exact DOM nodes that represent the dragged
+// polygon + its handles; per-event updates then set attributes on
+// those cached nodes directly, without rebuilding the whole overlay.
+// renderRoomOverlay is only called once at drag end to resync
+// everything (class toggles, selection state, etc).
+function cacheRoomPolygonDragDomRefs(roomId) {
+  if (!roomOverlay) return null;
+  const polygon = roomOverlay.querySelector(
+    `polygon.room-zone[data-room-id="${roomId}"]`,
+  );
+  // The editor handles (vertex + edge) are only rendered for the
+  // currently selected room, which is the room being dragged. They are
+  // top-level children of roomOverlay in vertex-index / edge-index
+  // order, so we can index by position directly.
+  const vertexHitTargets = Array.from(
+    roomOverlay.querySelectorAll(
+      ".polygon-vertex-hit-target:not(.ship-polygon-vertex-hit-target)",
+    ),
+  );
+  const vertexHandles = Array.from(
+    roomOverlay.querySelectorAll(
+      ".polygon-vertex-handle:not(.ship-polygon-vertex-handle)",
+    ),
+  );
+  const vertexLabels = Array.from(
+    roomOverlay.querySelectorAll(
+      ".polygon-vertex-index:not(.ship-polygon-vertex-index)",
+    ),
+  );
+  const edgeHitTargets = Array.from(
+    roomOverlay.querySelectorAll(
+      ".polygon-edge-hit-target:not(.ship-polygon-edge-hit-target)",
+    ),
+  );
+  const edgeHandles = Array.from(
+    roomOverlay.querySelectorAll(
+      ".polygon-edge-handle:not(.ship-polygon-edge-handle)",
+    ),
+  );
+  return { polygon, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
+}
+
+function cacheShipPolygonDragDomRefs() {
+  if (!roomOverlay) return null;
+  const mask = roomOverlay.querySelector("polygon.ship-zone-mask.is-active");
+  const vertexHitTargets = Array.from(
+    roomOverlay.querySelectorAll(".ship-polygon-vertex-hit-target"),
+  );
+  const vertexHandles = Array.from(
+    roomOverlay.querySelectorAll(".ship-polygon-vertex-handle"),
+  );
+  const vertexLabels = Array.from(
+    roomOverlay.querySelectorAll(".ship-polygon-vertex-index"),
+  );
+  const edgeHitTargets = Array.from(
+    roomOverlay.querySelectorAll(".ship-polygon-edge-hit-target"),
+  );
+  const edgeHandles = Array.from(
+    roomOverlay.querySelectorAll(".ship-polygon-edge-handle"),
+  );
+  return { mask, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
+}
+
+// Convert a normalized (0..1) point into the SVG viewBox-space used by
+// all overlay elements (which is 0..1000 per axis). The room polygons
+// store points in 0..1 space but render at (x*1000, y*1000).
+function toOverlayUnits(x, y) {
+  return [x * 1000, y * 1000];
+}
+
+function applyIncrementalPolygonPointsToDom(polygonNode, points) {
+  if (!polygonNode) return;
+  const value = points
+    .map(([x, y]) => `${(x * 1000).toFixed(1)},${(y * 1000).toFixed(1)}`)
+    .join(" ");
+  polygonNode.setAttribute("points", value);
+}
+
+function applyIncrementalVertexHandlesToDom(refs, points) {
+  if (!refs) return;
+  const n = points.length;
+  for (let i = 0; i < n; i += 1) {
+    const [ux, uy] = toOverlayUnits(points[i][0], points[i][1]);
+    const xStr = ux.toFixed(1);
+    const yStr = uy.toFixed(1);
+    const hit = refs.vertexHitTargets?.[i];
+    if (hit) {
+      hit.setAttribute("cx", xStr);
+      hit.setAttribute("cy", yStr);
+    }
+    const handle = refs.vertexHandles?.[i];
+    if (handle) {
+      handle.setAttribute("cx", xStr);
+      handle.setAttribute("cy", yStr);
+    }
+    const label = refs.vertexLabels?.[i];
+    if (label) {
+      label.setAttribute("x", xStr);
+      label.setAttribute("y", (uy + 3).toFixed(1));
+    }
+  }
+  // Edges sit at the midpoint between vertex[i] and vertex[(i+1)%n].
+  if (Array.isArray(refs.edgeHitTargets) && refs.edgeHitTargets.length > 0) {
+    for (let i = 0; i < n; i += 1) {
+      const [ax, ay] = toOverlayUnits(points[i][0], points[i][1]);
+      const [bx, by] = toOverlayUnits(points[(i + 1) % n][0], points[(i + 1) % n][1]);
+      const cx = ((ax + bx) / 2).toFixed(1);
+      const cy = ((ay + by) / 2).toFixed(1);
+      const hit = refs.edgeHitTargets[i];
+      if (hit) {
+        hit.setAttribute("cx", cx);
+        hit.setAttribute("cy", cy);
+      }
+      const handle = refs.edgeHandles?.[i];
+      if (handle) {
+        handle.setAttribute("cx", cx);
+        handle.setAttribute("cy", cy);
+      }
+    }
+  }
+}
+
+function applyIncrementalRoomDrag(refs, points) {
+  if (!refs) return;
+  applyIncrementalPolygonPointsToDom(refs.polygon, points);
+  applyIncrementalVertexHandlesToDom(refs, points);
+}
+
+function applyIncrementalShipDrag(refs, points) {
+  if (!refs) return;
+  applyIncrementalPolygonPointsToDom(refs.mask, points);
+  applyIncrementalVertexHandlesToDom(refs, points);
+}
+
 // Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
 // drag types. begin* called from each begin*Drag helper. end* called
 // from each finish*/cancel*/clearPending* helper. Idempotent: multiple
@@ -13450,12 +13614,17 @@ roomOverlay.addEventListener("pointermove", (event) => {
     }
     const boardId = state.shipPolygonEditor.dragBoardId;
     const points = getShipPolygonPoints(boardId);
-    const [x, y] = getNormalizedOverlayPoint(event);
-    points[state.shipPolygonEditor.dragVertexIndex] = [x, y];
+    const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+    // Phase 13-HF9: apply the grab-offset so the vertex stays
+    // exactly under the finger/cursor, no snap on first move.
+    const nextX = pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0);
+    const nextY = pointerY + (state.shipPolygonEditor.dragVertexOffsetY || 0);
+    points[state.shipPolygonEditor.dragVertexIndex] = [nextX, nextY];
     setShipPolygonPoints(boardId, points);
     state.shipPolygonEditor.dragMoved = true;
-    // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
-    scheduleRoomOverlayRender();
+    // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
+    // Targets only the cached ship polygon mask + vertex/edge handles.
+    applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, getShipPolygonPoints(boardId));
     syncShipPolygonEditorStatus();
     return;
   }
@@ -13486,8 +13655,10 @@ roomOverlay.addEventListener("pointermove", (event) => {
     ]);
     setSpecialPolygonPoints(boardId, roomId, shifted);
     state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
-    // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
-    scheduleRoomOverlayRender();
+    // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
+    // Updates the dragged room polygon's points attribute plus every
+    // vertex + edge marker (they all shift by the same delta).
+    applyIncrementalRoomDrag(state.polygonEditor.dragAreaDomRefs, shifted);
     syncPolygonEditorStatus();
     return;
   }
@@ -13507,12 +13678,16 @@ roomOverlay.addEventListener("pointermove", (event) => {
     return;
   }
   const points = getSpecialPolygonPoints(boardId, roomId);
-  const [x, y] = getNormalizedOverlayPoint(event);
-  points[state.polygonEditor.dragVertexIndex] = [x, y];
+  const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+  // Phase 13-HF9: apply grab-offset so the vertex stays under the
+  // cursor/finger, no first-move snap.
+  const nextX = pointerX + (state.polygonEditor.dragVertexOffsetX || 0);
+  const nextY = pointerY + (state.polygonEditor.dragVertexOffsetY || 0);
+  points[state.polygonEditor.dragVertexIndex] = [nextX, nextY];
   setSpecialPolygonPoints(boardId, roomId, points);
   state.polygonEditor.dragMoved = true;
-  // Phase 13-HF8: rAF-coalesce the SVG overlay rebuild during drag.
-  scheduleRoomOverlayRender();
+  // Phase 13-HF9: incremental DOM update — no full renderRoomOverlay.
+  applyIncrementalRoomDrag(state.polygonEditor.dragDomRefs, getSpecialPolygonPoints(boardId, roomId));
   syncPolygonEditorStatus();
 });
 
