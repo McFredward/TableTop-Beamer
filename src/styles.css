@@ -127,7 +127,12 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   pointer-events: auto;
 }
 
-.stage.is-panning {
+.stage.is-panning,
+.stage.is-touch-gesture {
+  /* Phase 13-HF6: disable the 120ms ease transition during any touch
+     gesture (pan OR pinch). Previously pinch retained the transition,
+     which turned every rAF zoom tick into a fresh 120ms interpolation
+     and produced the "seconds of lag" the user reported. */
   transition: none;
 }
 

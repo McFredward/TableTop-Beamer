@@ -4296,6 +4296,12 @@ function syncStageZoomTransform() {
 }
 
 function syncBoardZoomStatus() {
+  // Phase 13-HF6: skip this expensive status line update during an
+  // active touch gesture. It reads stage.clientWidth/clientHeight +
+  // writes to boardZoomStatus.textContent on every call, which forces
+  // synchronous layout when interleaved with CSS variable writes in
+  // the hot rAF path. The bar refreshes once the gesture ends.
+  if (touchGestureActive) return;
   const zoom = getBoardZoom(state.boardId);
   const percent = Math.round(zoom.scale * 100);
   const bounds = getStagePanBounds(zoom.scale);
@@ -4419,6 +4425,11 @@ function isPanArbitrating() {
 }
 
 function setPanCursorState() {
+  // Phase 13-HF6: skip during an active touch gesture. The class
+  // toggles do minimal work but the follow-up syncBoardZoomStatus is
+  // expensive (stage.clientWidth/Height reads). The gesture-end
+  // handler re-runs this once the user lifts their finger.
+  if (touchGestureActive) return;
   const zoom = getBoardZoom(state.boardId);
   const interactive = state.uiView === "settings" && zoom.scale > 1;
   stage.classList.toggle("is-panning", state.panMode.active);
@@ -12054,6 +12065,40 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // Mouse wheel over the stage: exponential scale delta, cursor-anchored.
 // Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
 
+// Phase 13-HF6: global "touch gesture in progress" flag. When true,
+// heavy DOM-read paths (syncBoardZoomStatus, setPanCursorState) skip
+// their work to keep the rAF path pure writes — no forced reflows.
+// The flag is set/cleared by the touch gesture state machine and a
+// gesture-end handler refreshes the UI once.
+let touchGestureActive = false;
+
+// Phase 13-HF6: cached stage geometry to avoid forced reflows during
+// high-frequency touch gestures on mobile. `stage.getBoundingClientRect()`
+// and `stage.clientWidth/clientHeight` force synchronous layout when
+// read after a CSS variable write, which is exactly what the old
+// per-pointermove zoom math did. Now we cache the rect + layout size
+// on gesture start and refresh on window resize only.
+const stageGeometryCache = {
+  rect: null,
+  layoutWidth: 0,
+  layoutHeight: 0,
+};
+function refreshStageGeometryCache() {
+  if (!stage) return;
+  stageGeometryCache.rect = stage.getBoundingClientRect();
+  stageGeometryCache.layoutWidth = stage.clientWidth || 0;
+  stageGeometryCache.layoutHeight = stage.clientHeight || 0;
+}
+window.addEventListener("resize", () => {
+  stageGeometryCache.rect = null;
+});
+function getCachedStageGeometry() {
+  if (!stageGeometryCache.rect || stageGeometryCache.layoutWidth <= 0) {
+    refreshStageGeometryCache();
+  }
+  return stageGeometryCache;
+}
+
 // Phase 13-HF4: cursor-accurate zoom-around-anchor math for the stage's
 // CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
 // offsetLeft which implicitly assumes `transform-origin: 0 0` and
@@ -12076,10 +12121,12 @@ roomGeometryStretchYInput.addEventListener("input", () => {
 // No layoutLeft / layoutCenterX required — the math is differential.
 function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
   if (!stage) return;
-  const rect = stage.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return;
-  const layoutWidth = stage.clientWidth || 0;
-  const layoutHeight = stage.clientHeight || 0;
+  // Phase 13-HF6: use cached stage geometry. No layout reads per event.
+  const geo = getCachedStageGeometry();
+  const rect = geo.rect;
+  if (!rect || rect.width <= 0 || rect.height <= 0) return;
+  const layoutWidth = geo.layoutWidth;
+  const layoutHeight = geo.layoutHeight;
   if (layoutWidth <= 0 || layoutHeight <= 0) return;
 
   const current = getBoardZoom(state.boardId);
@@ -12096,13 +12143,10 @@ function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
   const newPanX = current.panX + (layoutWidth / 2 - stageLocalX) * scaleDelta;
   const newPanY = current.panY + (layoutHeight / 2 - stageLocalY) * scaleDelta;
 
-  // Phase 13-HF5: rAF-throttle zoom writes too. Mouse wheel + pinch
-  // both call this function at high frequency.
   scheduleZoomUpdate(
     clampPanToBounds({ scale: clamped, panX: newPanX, panY: newPanY }),
     reason || `Board zoom -> ${Math.round(clamped * 100)}%`,
   );
-  setPanCursorState();
 }
 
 if (stage) {
@@ -12343,6 +12387,14 @@ if (stage) {
       // First pointer — enter tentative state.
       if (touchGesture.mode === "idle" || touchGesture.mode === "panning") {
         resetTouchGestureToIdle();
+        // Phase 13-HF6: refresh the stage geometry cache ONCE at the
+        // start of a gesture. All subsequent pan/pinch math reads from
+        // the cache — no forced reflows in pointermove.
+        refreshStageGeometryCache();
+        // Phase 13-HF6: flag gesture active so heavy DOM-read paths
+        // skip their work for the duration of the gesture.
+        touchGestureActive = true;
+        stage.classList.add("is-touch-gesture");
         touchGesture.mode = "tentative";
         touchGesture.primaryPointerId = event.pointerId;
         touchGesture.primaryStartClientX = event.clientX;
@@ -12432,6 +12484,13 @@ if (stage) {
     }
     if (touchGesture.pinchPointers.size === 0) {
       resetTouchGestureToIdle();
+      // Phase 13-HF6: clear gesture-active flag and refresh the status
+      // line once the user has lifted all fingers. Also flush any
+      // pending rAF update synchronously so the final frame reflects
+      // the last pointer position, not the penultimate one.
+      touchGestureActive = false;
+      stage.classList.remove("is-touch-gesture");
+      setPanCursorState();
     }
   }
   stage.addEventListener("pointerup", endTouchGestureForPointer, { capture: true });
