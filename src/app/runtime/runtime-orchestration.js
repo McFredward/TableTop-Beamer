@@ -1713,240 +1713,55 @@ function normalizeSpecialPolygonMap(polygonMap, boardId, preservedPolygonMap = n
   return defaults;
 }
 
-function createDefaultBoardProfiles() {
-  return Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      {
-        roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
-        deletedRoomIds: [],
-        roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-        hitareaCalibration: { ...HITAREA_CALIBRATION_DEFAULT },
-        roomGeometry: createDefaultRoomGeometryMap(board.id),
-        roomStateProfiles: createDefaultRoomStateProfileMap(board.id),
-        specialPolygons: createDefaultSpecialPolygonMap(board.id),
-        playAreas: normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT),
-        selectedPlayAreaId: "play-area-1",
-        playAreaPolygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
-        roomFx: normalizeRoomFxProfile({ animations: createDefaultRoomAnimationDefinitions() }),
-        insideFx: normalizeInsideFxProfile({ animations: createDefaultInsideAnimationDefinitions() }),
-        outsideFx: normalizeOutsideFxProfile(OUTSIDE_FX_DEFAULT),
-      },
-    ]),
-  );
-}
-
-function buildBoardProfilesFromState() {
-  return Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      {
-        roomCatalog: board.rooms.map((room) => roomToCatalogEntry(room)),
-        deletedRoomIds: normalizeRoomTombstoneIds(state.roomTombstonesByBoard?.[board.id], board.id),
-        roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-        hitareaCalibration: normalizeHitareaCalibration(state.hitareaCalibrationByBoard[board.id]),
-        roomGeometry: normalizeRoomGeometryMap(state.roomGeometryByBoard[board.id], board.id),
-        roomStateProfiles: normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
-        specialPolygons: normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
-        playAreas: getPlayAreas(board.id).map((area) => ({
-          id: area.id,
-          name: area.name,
-          polygon: normalizeShipPolygon(area.polygon),
-        })),
-        selectedPlayAreaId: getSelectedPlayAreaId(board.id),
-        playAreaPolygon: normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
-        roomFx: normalizeRoomFxProfile(state.roomFxByBoard?.[board.id]),
-        insideFx: normalizeInsideFxProfile(state.insideFxByBoard[board.id]),
-        outsideFx: normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
-      },
-    ]),
-  );
-}
-
-function buildPersistedRuntimeSettingsFromState() {
-  const mp4Controls = getMp4PerformanceControls();
-  return {
-    audio: {
-      enabled: Boolean(state.audio.enabled),
-      volume: Math.max(0, Math.min(1, Number(state.audio.volume) || 0)),
-    },
-    animationSpeed: clampAnimationSpeed(state.animationSpeed),
-    animationSoundMap: normalizeAnimationSoundMap(state.animationSoundMap),
-    mp4Performance: {
-      tier: mp4Controls.tier,
-      renderCap: mp4Controls.renderCap,
-      qualityFloor: mp4Controls.qualityFloor,
-      degradeThreshold: mp4Controls.degradeThreshold,
-      recoverThreshold: mp4Controls.recoverThreshold,
-    },
-  };
-}
-
-function buildBoardProfileStoragePayload() {
-  return {
-    schema: "tt-beamer.board-profiles.v3",
-    savedAt: new Date().toISOString(),
-    boards: buildBoardProfilesFromState(),
-    ...buildPersistedRuntimeSettingsFromState(),
-  };
-}
-
-function applyPersistedRuntimeSettings(payload) {
-  if (!payload || typeof payload !== "object") {
-    return;
-  }
-
-  if (payload.audio && typeof payload.audio === "object") {
-    state.audio.enabled = Boolean(payload.audio.enabled);
-    const nextVolume = Number(payload.audio.volume);
-    if (Number.isFinite(nextVolume)) {
-      state.audio.volume = Math.max(0, Math.min(1, nextVolume));
-    }
-  }
-
-  if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
-    state.animationSpeed = clampAnimationSpeed(payload.animationSpeed);
-  }
-
-  if (Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
-    state.animationSoundMap = normalizeAnimationSoundMap(payload.animationSoundMap);
-  }
-
-  if (Object.prototype.hasOwnProperty.call(payload, "mp4Performance")) {
-    state.runtimePerf.mp4Controls = normalizeMp4PerformanceControls(payload.mp4Performance);
-  }
-}
-
-function applyBoardProfilesToState(profiles) {
-  BOARDS = BOARDS.map((board) => {
-    const deletedRoomIds = normalizeRoomTombstoneIds(
-      profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
-      board.id,
-    );
-    const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
-    const nextBoard = applyRoomCatalog(board, roomCatalog, deletedRoomIds);
-    nextBoard.roomClusters = Array.isArray(profiles?.[board.id]?.roomClusters)
-      ? profiles[board.id].roomClusters.map((cluster) => ({ ...cluster }))
-      : Array.isArray(nextBoard.roomClusters)
-        ? nextBoard.roomClusters.map((cluster) => ({ ...cluster }))
-        : [];
-    return nextBoard;
-  });
-  state.roomTombstonesByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeRoomTombstoneIds(
-        profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
-        board.id,
-      ),
-    ]),
-  );
-  state.hitareaCalibrationByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeHitareaCalibration(profiles?.[board.id]?.hitareaCalibration),
-    ]),
-  );
-  state.roomGeometryByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeRoomGeometryMap(profiles?.[board.id]?.roomGeometry, board.id),
-    ]),
-  );
-  state.roomStateProfilesByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeRoomStateProfileMap(profiles?.[board.id]?.roomStateProfiles, board.id),
-    ]),
-  );
-  state.specialPolygonsByBoard = Object.fromEntries(
-    BOARDS.map((board) => [
-      board.id,
-      normalizeSpecialPolygonMap(
-        profiles?.[board.id]?.specialPolygons,
-        board.id,
-        state.specialPolygonsByBoard?.[board.id],
-      ),
-    ]),
-  );
-  // Phase 13-HF13: the incoming config may carry polygons with a
-  // different centroid than whatever we had cached. Clear every
-  // anchor so each room reseats its stable stretch origin from the
-  // freshly-hydrated polygon on next access.
-  if (state.roomStretchAnchorCache) {
-    state.roomStretchAnchorCache.clear();
-  }
-  state.playAreasByBoard = Object.fromEntries(
-    BOARDS.map((board) => {
-      const profile = profiles?.[board.id] ?? {};
-      const migratedPlayAreas = normalizePlayAreasCollection(
-        profile.playAreas,
-        profile.playAreaPolygon ?? profile.shipPolygon ?? profile.shipMask ?? SHIP_POLYGON_DEFAULT,
-      );
-      return [board.id, migratedPlayAreas];
-    }),
-  );
-  state.selectedPlayAreaIdByBoard = Object.fromEntries(
-    BOARDS.map((board) => {
-      const profile = profiles?.[board.id] ?? {};
-      const areas = state.playAreasByBoard[board.id] ?? normalizePlayAreasCollection(null, SHIP_POLYGON_DEFAULT);
-      const preferred = String(profile.selectedPlayAreaId || "").trim();
-      const selected = areas.some((area) => area.id === preferred) ? preferred : areas[0]?.id ?? "play-area-1";
-      return [board.id, selected];
-    }),
-  );
-  state.shipPolygonsByBoard = Object.fromEntries(
-    BOARDS.map((board) => {
-      const selected = getSelectedPlayArea(board.id);
-      return [board.id, normalizeShipPolygon(selected?.polygon ?? SHIP_POLYGON_DEFAULT)];
-    }),
-  );
-  state.outsideFxByBoard = Object.fromEntries(
-    BOARDS.map((board) => [board.id, normalizeOutsideFxProfile(profiles?.[board.id]?.outsideFx)]),
-  );
-  state.roomFxByBoard = Object.fromEntries(
-    BOARDS.map((board) => [board.id, normalizeRoomFxProfile(profiles?.[board.id]?.roomFx)]),
-  );
-  state.insideFxByBoard = Object.fromEntries(
-    BOARDS.map((board) => [board.id, normalizeInsideFxProfile(profiles?.[board.id]?.insideFx)]),
-  );
-}
-
-function extractBoardProfilesCandidate(raw) {
-  return extractBoardProfilesCandidateFromPersistence(raw, BOARDS);
-}
-
-function buildMigratedBoardProfiles(candidate) {
-  return buildMigratedBoardProfilesFromPersistence({
-    boards: BOARDS,
-    candidate,
-    createDefaultBoardProfiles,
-    createDefaultRoomGeometryMap,
-    createDefaultRoomStateProfileMap,
-    createDefaultSpecialPolygonMap,
-    HITAREA_CALIBRATION_DEFAULT,
-    SHIP_POLYGON_DEFAULT,
-    createDefaultRoomAnimationDefinitions,
-    createDefaultInsideAnimationDefinitions,
-    OUTSIDE_FX_DEFAULT,
-  });
-}
-
-// Phase 13-1: hydrate from the server-supplied bootstrap payload. If none
-// is available, apply defaults so the runtime still has valid state (the
-// blocking error overlay handles user-visible messaging separately).
-function loadBoardProfiles() {
-  const bootstrapPayload = window.__TT_BEAMER_BOOTSTRAP_CONFIG__ || null;
-  if (bootstrapPayload && typeof bootstrapPayload === "object") {
-    const candidate = extractBoardProfilesCandidate(bootstrapPayload);
-    if (candidate) {
-      applyBoardProfilesToState(buildMigratedBoardProfiles(candidate));
-      applyPersistedRuntimeSettings(bootstrapPayload);
-      return;
-    }
-  }
-  applyBoardProfilesToState(buildMigratedBoardProfiles(null));
-}
+// Phase 14-2: board profile hydration moved to
+// src/app/runtime/runtime-board-profiles.js. fx-normalizers and
+// perf controls are injected via ctx arrows because their
+// destructures sit below this position in orchestration.
+window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
+  state,
+  HITAREA_CALIBRATION_DEFAULT,
+  SHIP_POLYGON_DEFAULT,
+  OUTSIDE_FX_DEFAULT,
+  getBoards: () => BOARDS,
+  setBoards: (next) => { BOARDS = next; },
+  roomToCatalogEntry,
+  applyRoomCatalog,
+  normalizeHitareaCalibration,
+  normalizeAnimationSoundMap,
+  extractBoardProfilesCandidateFromPersistence,
+  buildMigratedBoardProfilesFromPersistence,
+  createDefaultRoomGeometryMap,
+  createDefaultRoomStateProfileMap,
+  createDefaultSpecialPolygonMap,
+  createDefaultRoomAnimationDefinitions,
+  createDefaultInsideAnimationDefinitions,
+  normalizePlayAreasCollection,
+  normalizeShipPolygon,
+  normalizeRoomTombstoneIds,
+  normalizeRoomGeometryMap,
+  normalizeRoomStateProfileMap,
+  normalizeSpecialPolygonMap,
+  getPlayAreas,
+  getSelectedPlayAreaId,
+  getSelectedPlayArea,
+  clampAnimationSpeed: (v) => clampAnimationSpeed(v),
+  normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
+  normalizeInsideFxProfile: (profile) => normalizeInsideFxProfile(profile),
+  normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
+  getMp4PerformanceControls: () => getMp4PerformanceControls(),
+  normalizeMp4PerformanceControls: (raw) => normalizeMp4PerformanceControls(raw),
+});
+const {
+  createDefaultBoardProfiles,
+  buildBoardProfilesFromState,
+  buildPersistedRuntimeSettingsFromState,
+  buildBoardProfileStoragePayload,
+  applyPersistedRuntimeSettings,
+  applyBoardProfilesToState,
+  extractBoardProfilesCandidate,
+  buildMigratedBoardProfiles,
+  loadBoardProfiles,
+} = window.TT_BEAMER_RUNTIME_BOARD_PROFILES;
 
 // Phase 14-2: config-sync (persist/apply/discard, dirty flag
 // lifecycle, server-unreachable overlay ~180 LOC) moved to
