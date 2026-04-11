@@ -340,206 +340,58 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-apply-changes",
 ];
 
-function applyOutputRoleViewContract() {
-  if (outputRole !== OUTPUT_ROLE_FINAL) {
-    return;
-  }
-  document.body.dataset.finalFxOnly = "true";
-  if (controlPanel) {
-    controlPanel.hidden = true;
-    controlPanel.setAttribute("aria-hidden", "true");
-    controlPanel.setAttribute("inert", "");
-  }
-  if (boardImage) {
-    boardImage.setAttribute("aria-hidden", "true");
-    boardImage.style.display = "none";
-  }
-  if (projectionArea) {
-    projectionArea.setAttribute("aria-label", "Final Output FX-only");
-  }
-  triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
-}
-
-function syncAlignModePanel() {
-  const enabled = Boolean(state.alignMode);
-  if (alignModeToggleInput) {
-    alignModeToggleInput.checked = enabled;
-  }
-  if (alignModeStatus) {
-    alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
-  }
-  document.body.classList.toggle("align-mode-active", enabled);
-  if (roomOverlay) {
-    if (outputRole === OUTPUT_ROLE_CONTROL) {
-      roomOverlay.style.display = "";
-      roomOverlay.setAttribute("aria-hidden", "false");
-      return;
-    }
-    const hiddenInFinal = outputRole === OUTPUT_ROLE_FINAL && !enabled;
-    roomOverlay.style.display = hiddenInFinal ? "none" : "block";
-    roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
-  }
-}
-
-function setAlignMode(enabled, { emit = true } = {}) {
-  const nextAlignMode = Boolean(enabled);
-  if (emit && outputRole === OUTPUT_ROLE_CONTROL) {
-    void emitLiveMutation("context-update", {
-      reason: "align-toggle",
-      alignMode: nextAlignMode,
-      runtime: {
-        alignMode: nextAlignMode,
-      },
-    }).then(() => {
-      triggerFeedback.textContent = `Pending: align mode ${nextAlignMode ? "ON" : "OFF"} (waiting for snapshot)`;
-    }).catch(() => {
-      triggerFeedback.textContent = "Status: align-mode command failed";
-      syncAlignModePanel();
-    });
-    return;
-  }
-  state.alignMode = nextAlignMode;
-  syncAlignModePanel();
-  renderRoomOverlay();
-}
-
+// Phase 14-2: stage viewport cluster (applyOutputRoleViewContract,
+// syncAlignModePanel, setAlignMode, collectStageViewportMetrics,
+// getCanonicalViewportRect, mapClientPointToNormalized,
+// mapNormalizedPointToPixels, applyStageViewportRecompute,
+// runStageViewportLifecycle, scheduleStageViewportLifecycle,
+// handleDevicePixelRatioChange, bindDevicePixelRatioWatcher) moved to
+// src/app/runtime/runtime-stage-viewport.js.
 const ctx = canvas.getContext("2d");
 
-const stageViewport = {
-  rafId: null,
-  pendingReasons: new Set(),
-  lastCssWidth: 0,
-  lastCssHeight: 0,
-  lastPixelWidth: 0,
-  lastPixelHeight: 0,
-  lastDpr: 0,
-  dprMediaQuery: null,
-};
-
-function collectStageViewportMetrics() {
-  const stageRect = stage?.getBoundingClientRect();
-  const fallbackRect = projectionArea?.getBoundingClientRect();
-  const rawWidth = stageRect?.width || fallbackRect?.width || window.innerWidth || 1;
-  const rawHeight = stageRect?.height || fallbackRect?.height || window.innerHeight || 1;
-  const cssWidth = Math.max(1, Math.round(rawWidth));
-  const cssHeight = Math.max(1, Math.round(rawHeight));
-  const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
-  const pixelWidth = Math.max(1, Math.round(cssWidth * dpr));
-  const pixelHeight = Math.max(1, Math.round(cssHeight * dpr));
-  return {
-    cssWidth,
-    cssHeight,
-    dpr,
-    pixelWidth,
-    pixelHeight,
-  };
-}
-
-function getCanonicalViewportRect() {
-  const stageRect = stage?.getBoundingClientRect?.();
-  if (stageRect && stageRect.width > 0 && stageRect.height > 0) {
-    return stageRect;
-  }
-  const fallbackRect = projectionArea?.getBoundingClientRect?.();
-  if (fallbackRect && fallbackRect.width > 0 && fallbackRect.height > 0) {
-    return fallbackRect;
-  }
-  return {
-    left: 0,
-    top: 0,
-    width: Math.max(1, Number(window.innerWidth) || 1),
-    height: Math.max(1, Number(window.innerHeight) || 1),
-  };
-}
-
-function mapClientPointToNormalized(clientX, clientY) {
-  const rect = getCanonicalViewportRect();
-  const normalizedX = (Number(clientX) - rect.left) / Math.max(1, rect.width);
-  const normalizedY = (Number(clientY) - rect.top) / Math.max(1, rect.height);
-  return [
-    clampRoomAbsoluteCoordinate(normalizedX),
-    clampRoomAbsoluteCoordinate(normalizedY),
-  ];
-}
-
-function mapNormalizedPointToPixels(normalizedX, normalizedY, width, height) {
-  return [
-    clampRoomAbsoluteCoordinate(normalizedX) * Math.max(1, Number(width) || 1),
-    clampRoomAbsoluteCoordinate(normalizedY) * Math.max(1, Number(height) || 1),
-  ];
-}
-
-function applyStageViewportRecompute(reason = "unknown") {
-  const metrics = collectStageViewportMetrics();
-  const cssChanged =
-    metrics.cssWidth !== stageViewport.lastCssWidth || metrics.cssHeight !== stageViewport.lastCssHeight;
-  const dprChanged = metrics.dpr !== stageViewport.lastDpr;
-  const pixelChanged =
-    metrics.pixelWidth !== stageViewport.lastPixelWidth ||
-    metrics.pixelHeight !== stageViewport.lastPixelHeight;
-  if (!cssChanged && !dprChanged && !pixelChanged) {
-    return false;
-  }
-
-  canvas.style.width = `${metrics.cssWidth}px`;
-  canvas.style.height = `${metrics.cssHeight}px`;
-  canvas.width = metrics.pixelWidth;
-  canvas.height = metrics.pixelHeight;
-
-  stageViewport.lastCssWidth = metrics.cssWidth;
-  stageViewport.lastCssHeight = metrics.cssHeight;
-  stageViewport.lastPixelWidth = metrics.pixelWidth;
-  stageViewport.lastPixelHeight = metrics.pixelHeight;
-  stageViewport.lastDpr = metrics.dpr;
-
-  const reasonSuffix = reason ? ` (${reason})` : "";
-  stage.dataset.viewport = `${metrics.cssWidth}x${metrics.cssHeight}@${metrics.dpr.toFixed(2)}${reasonSuffix}`;
-  return true;
-}
-
-function runStageViewportLifecycle(reason = "unknown") {
-  window.TT_BEAMER_RENDER_VIEWPORT.runStageViewportLifecycle({
-    applyStageViewportRecompute,
-    getBoardZoom,
-    state,
-    updateCurrentBoardZoom,
-    setPanCursorState,
-    syncDashboardZoneVisibility,
-    syncMobileStickyOffsets,
-    updateMobilePerformanceStatus,
-    validateViewExclusivity,
-    validateViewNavigationVisibility,
-    runMobileProjectionVisibilityGuard,
-    runLayoutScrollRegression,
-    runNavigationStateRegression,
-    triggerFeedback,
-    reason,
-  });
-}
-
-function scheduleStageViewportLifecycle(reason = "unknown") {
-  window.TT_BEAMER_RENDER_VIEWPORT.scheduleStageViewportLifecycle({
-    stageViewport,
-    requestAnimationFrame,
-    run: (scheduledReason) => {
-      runStageViewportLifecycle(scheduledReason);
-    },
-    reason,
-  });
-}
-
-function handleDevicePixelRatioChange() {
-  bindDevicePixelRatioWatcher();
-  scheduleStageViewportLifecycle("dpr-change");
-}
-
-function bindDevicePixelRatioWatcher() {
-  window.TT_BEAMER_RENDER_VIEWPORT.bindDevicePixelRatioWatcher({
-    stageViewport,
-    windowLike: window,
-    onDprChange: handleDevicePixelRatioChange,
-  });
-}
+window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
+  canvas,
+  stage,
+  projectionArea,
+  roomOverlay,
+  boardImage,
+  controlPanel,
+  triggerFeedback,
+  alignModeToggleInput,
+  alignModeStatus,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
+  OUTPUT_ROLE_CONTROL,
+  get state() { return state; },
+  clampRoomAbsoluteCoordinate: (v) => clampRoomAbsoluteCoordinate(v),
+  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  getBoardZoom: (boardId) => getBoardZoom(boardId),
+  updateCurrentBoardZoom: (zoom, reason) => updateCurrentBoardZoom(zoom, reason),
+  setPanCursorState: () => setPanCursorState(),
+  syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
+  syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
+  updateMobilePerformanceStatus: () => updateMobilePerformanceStatus(),
+  validateViewExclusivity: (view, opts) => validateViewExclusivity(view, opts),
+  validateViewNavigationVisibility: (opts) => validateViewNavigationVisibility(opts),
+  runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
+  runLayoutScrollRegression: () => runLayoutScrollRegression(),
+  runNavigationStateRegression: () => runNavigationStateRegression(),
+});
+const {
+  applyOutputRoleViewContract,
+  syncAlignModePanel,
+  setAlignMode,
+  collectStageViewportMetrics,
+  getCanonicalViewportRect,
+  mapClientPointToNormalized,
+  mapNormalizedPointToPixels,
+  applyStageViewportRecompute,
+  runStageViewportLifecycle,
+  scheduleStageViewportLifecycle,
+  handleDevicePixelRatioChange,
+  bindDevicePixelRatioWatcher,
+} = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0].id,
