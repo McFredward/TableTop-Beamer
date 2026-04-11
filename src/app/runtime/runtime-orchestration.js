@@ -3648,203 +3648,55 @@ const {
   runShipClipRegression,
 } = window.TT_BEAMER_RUNTIME_REGRESSION_TESTS;
 
-function syncPolygonEditorStatus() {
-  const selectedRoomId = syncSelectedRoomStateForBoard(state.boardId);
-  if (!selectedRoomId) {
-    polygonEditorStatus.textContent = "Polygon editor: no active room selected";
-    return;
-  }
-  const roomId = selectedRoomId;
-  const room = getBoard().rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
-    return;
-  }
-  const points = getSpecialPolygonPoints(state.boardId, room.id);
-  if (!areRoomVerticesEditable()) {
-    polygonEditorStatus.textContent = `Polygon editor (${room.name ?? room.label}): vertices hidden (editing disabled)`;
-    return;
-  }
-  const activeVertex = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
-  const activeEdge = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
-  const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
-  polygonEditorStatus.textContent = `Polygon editor (${room.name ?? room.label}): ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
-}
-
-function syncPolygonVertexSelect(roomId) {
-  polygonVertexSelect.replaceChildren();
-  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
-  const room = getBoard().rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    polygonVertexSelect.disabled = true;
-    return;
-  }
-  const points = getSpecialPolygonPoints(state.boardId, room.id);
-  for (let i = 0; i < points.length; i += 1) {
-    const option = document.createElement("option");
-    option.value = String(i);
-    option.textContent = `Vertex ${i + 1}`;
-    polygonVertexSelect.append(option);
-  }
-  const maxIndex = Math.max(0, points.length - 1);
-  state.polygonEditor.selectedVertexIndex = Math.min(state.polygonEditor.selectedVertexIndex, maxIndex);
-  state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
-  polygonVertexSelect.value = String(state.polygonEditor.selectedVertexIndex);
-  polygonVertexSelect.disabled = points.length === 0 || !roomVerticesVisible;
-  polygonDeleteVertexButton.disabled = points.length <= 3 || !roomVerticesVisible;
-}
-
-function syncPolygonEdgeSelect(roomId) {
-  polygonEdgeSelect.replaceChildren();
-  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
-  const room = getBoard().rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    polygonEdgeSelect.disabled = true;
-    return;
-  }
-  const points = getSpecialPolygonPoints(state.boardId, room.id);
-  for (let i = 0; i < points.length; i += 1) {
-    const option = document.createElement("option");
-    const next = i === points.length - 1 ? 1 : i + 2;
-    option.value = String(i);
-    option.textContent = `Edge ${i + 1} (Vertex ${i + 1} -> ${next})`;
-    polygonEdgeSelect.append(option);
-  }
-  const maxIndex = Math.max(0, points.length - 1);
-  state.polygonEditor.selectedEdgeIndex = Math.min(state.polygonEditor.selectedEdgeIndex, maxIndex);
-  polygonEdgeSelect.value = String(state.polygonEditor.selectedEdgeIndex);
-  polygonEdgeSelect.disabled = points.length === 0 || !roomVerticesVisible;
-}
-
-function syncPolygonEditorPanel() {
-  const rooms = getSpecialRooms(state.boardId);
-  const previous = polygonRoomSelect.value;
-  const preferred = getActivePolygonRoomId(state.boardId);
-  const activeRoomId = rooms.some((room) => room.id === preferred)
-    ? preferred
-    : rooms.some((room) => room.id === previous)
-      ? previous
-      : rooms[0]?.id;
-  syncRoomSelect(polygonRoomSelect, rooms, activeRoomId);
-  if (activeRoomId) {
-    setActivePolygonRoomId(state.boardId, activeRoomId);
-  }
-  const disabled = rooms.length === 0;
-  polygonInsertVertexButton.disabled = disabled;
-  polygonResetRoomButton.disabled = disabled;
-  polygonFocusRoomButton.disabled = disabled;
-  if (roomRenameInput) {
-    const activeRoom = getBoard().rooms.find((entry) => entry.id === activeRoomId);
-    roomRenameInput.value = activeRoom?.name ?? activeRoom?.label ?? "";
-    roomRenameInput.disabled = disabled;
-  }
-  const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
-  if (showRoomVerticesInput) {
-    showRoomVerticesInput.checked = roomVerticesVisible;
-  }
-  polygonVertexSelect.disabled = disabled || !roomVerticesVisible;
-  polygonEdgeSelect.disabled = disabled || !roomVerticesVisible;
-  polygonInsertVertexButton.disabled = disabled || !roomVerticesVisible;
-  polygonDeleteVertexButton.disabled = disabled || !roomVerticesVisible;
-  syncPolygonVertexSelect(activeRoomId);
-  syncPolygonEdgeSelect(activeRoomId);
-  syncPolygonEditorStatus();
-}
-
-function syncShipPolygonEditorStatus() {
-  const points = getShipPolygonPoints(state.boardId);
-  const selectedArea = getSelectedPlayArea(state.boardId);
-  if (!arePlayAreaVerticesEditable()) {
-    shipPolygonEditorStatus.textContent = "Play Area editor: vertices hidden (editing disabled)";
-    return;
-  }
-  const activeVertex = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedVertexIndex));
-  const activeEdge = Math.max(0, Math.min(points.length - 1, state.shipPolygonEditor.selectedEdgeIndex));
-  const handleSize = Math.round(getCurrentPolygonHandleScale() * 100);
-  shipPolygonEditorStatus.textContent =
-    `Play Area editor (${selectedArea?.name ?? "n/a"}): ${points.length} vertices | active vertex ${activeVertex + 1} | edge ${activeEdge + 1} | handle ${handleSize}%`;
-}
-
-function syncShipPolygonVertexSelect() {
-  shipPolygonVertexSelect.replaceChildren();
-  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
-  const points = getShipPolygonPoints(state.boardId);
-  for (let i = 0; i < points.length; i += 1) {
-    const option = document.createElement("option");
-    option.value = String(i);
-    option.textContent = `Vertex ${i + 1}`;
-    shipPolygonVertexSelect.append(option);
-  }
-  const maxIndex = Math.max(0, points.length - 1);
-  state.shipPolygonEditor.selectedVertexIndex = Math.min(state.shipPolygonEditor.selectedVertexIndex, maxIndex);
-  state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
-  shipPolygonVertexSelect.value = String(state.shipPolygonEditor.selectedVertexIndex);
-  shipPolygonDeleteVertexButton.disabled = points.length <= 3 || !playAreaVerticesVisible;
-  shipPolygonVertexSelect.disabled = !playAreaVerticesVisible;
-}
-
-function syncShipPolygonEdgeSelect() {
-  shipPolygonEdgeSelect.replaceChildren();
-  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
-  const points = getShipPolygonPoints(state.boardId);
-  for (let i = 0; i < points.length; i += 1) {
-    const option = document.createElement("option");
-    const next = i === points.length - 1 ? 1 : i + 2;
-    option.value = String(i);
-    option.textContent = `Edge ${i + 1} (Vertex ${i + 1} -> ${next})`;
-    shipPolygonEdgeSelect.append(option);
-  }
-  const maxIndex = Math.max(0, points.length - 1);
-  state.shipPolygonEditor.selectedEdgeIndex = Math.min(state.shipPolygonEditor.selectedEdgeIndex, maxIndex);
-  shipPolygonEdgeSelect.value = String(state.shipPolygonEditor.selectedEdgeIndex);
-  shipPolygonEdgeSelect.disabled = !playAreaVerticesVisible;
-}
-
-function syncShipPolygonEditorPanel() {
-  const playAreas = getPlayAreas(state.boardId);
-  const selectedPlayAreaId = getSelectedPlayAreaId(state.boardId);
-  if (playAreaSelect) {
-    playAreaSelect.replaceChildren();
-    for (const area of playAreas) {
-      const option = document.createElement("option");
-      option.value = area.id;
-      option.textContent = `${area.name} (${area.id})`;
-      playAreaSelect.append(option);
-    }
-    playAreaSelect.value = selectedPlayAreaId;
-    playAreaSelect.disabled = playAreas.length === 0;
-  }
-  if (playAreaNameInput) {
-    const selectedArea = getSelectedPlayArea(state.boardId);
-    playAreaNameInput.value = selectedArea?.name ?? "";
-    playAreaNameInput.disabled = playAreas.length === 0;
-  }
-  if (playAreaDeleteButton) {
-    playAreaDeleteButton.disabled = playAreas.length <= 1;
-  }
-  if (playAreaCreateButton) {
-    playAreaCreateButton.disabled = false;
-  }
-  const playAreaVerticesVisible = state.polygonEditor.playAreaVerticesVisible !== false;
-  if (showPlayAreaVerticesInput) {
-    showPlayAreaVerticesInput.checked = playAreaVerticesVisible;
-  }
-  shipPolygonVertexSelect.disabled = !playAreaVerticesVisible;
-  shipPolygonEdgeSelect.disabled = !playAreaVerticesVisible;
-  shipPolygonInsertVertexButton.disabled = !playAreaVerticesVisible;
-  shipPolygonDeleteVertexButton.disabled = !playAreaVerticesVisible;
-  syncShipPolygonVertexSelect();
-  syncShipPolygonEdgeSelect();
-  syncShipPolygonEditorStatus();
-}
-
-function areRoomVerticesEditable() {
-  return state.polygonEditor.roomVerticesVisible !== false;
-}
-
-function arePlayAreaVerticesEditable() {
-  return state.polygonEditor.playAreaVerticesVisible !== false;
-}
+// Phase 14-2: polygon editor panel syncs moved to
+// src/app/runtime/runtime-polygon-editor-panels.js.
+window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS.init({
+  state,
+  polygonEditorStatus,
+  polygonVertexSelect,
+  polygonEdgeSelect,
+  polygonDeleteVertexButton,
+  polygonRoomSelect,
+  polygonInsertVertexButton,
+  polygonResetRoomButton,
+  polygonFocusRoomButton,
+  roomRenameInput,
+  showRoomVerticesInput,
+  shipPolygonEditorStatus,
+  shipPolygonVertexSelect,
+  shipPolygonEdgeSelect,
+  shipPolygonDeleteVertexButton,
+  shipPolygonInsertVertexButton,
+  playAreaSelect,
+  playAreaNameInput,
+  playAreaDeleteButton,
+  playAreaCreateButton,
+  showPlayAreaVerticesInput,
+  getBoard: (boardId) => getBoard(boardId),
+  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  getSpecialRooms: (boardId) => getSpecialRooms(boardId),
+  getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
+  setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
+  getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
+  getPlayAreas: (boardId) => getPlayAreas(boardId),
+  getSelectedPlayArea: (boardId) => getSelectedPlayArea(boardId),
+  getSelectedPlayAreaId: (boardId) => getSelectedPlayAreaId(boardId),
+  getCurrentPolygonHandleScale: () => getCurrentPolygonHandleScale(),
+  syncSelectedRoomStateForBoard: (boardId) => syncSelectedRoomStateForBoard(boardId),
+  syncRoomSelect: (select, rooms, activeRoomId) => syncRoomSelect(select, rooms, activeRoomId),
+});
+const {
+  areRoomVerticesEditable,
+  arePlayAreaVerticesEditable,
+  syncPolygonEditorStatus,
+  syncPolygonVertexSelect,
+  syncPolygonEdgeSelect,
+  syncPolygonEditorPanel,
+  syncShipPolygonEditorStatus,
+  syncShipPolygonVertexSelect,
+  syncShipPolygonEdgeSelect,
+  syncShipPolygonEditorPanel,
+} = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS;
 
 // Phase 14-2: asset-ref normalizers moved to
 // src/app/runtime/runtime-asset-refs.js.
