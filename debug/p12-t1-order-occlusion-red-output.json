@@ -1,0 +1,78 @@
+{
+  "suite": "P12-T1-room-animation-order-dependent-occlusion-red",
+  "phase": "RED",
+  "expected": "FAIL",
+  "observed": "FAIL",
+  "checks": [
+    {
+      "id": "render-loop-iterates-insertion-order-without-layering-guard",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "coded-power-outage-uses-near-opaque-full-clip-fill",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "coded-intruder-alert-uses-full-clip-red-fill",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "no-room-concurrency-map-in-draw-loop",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "no-additive-layering-guard-in-draw-path",
+      "expected": true,
+      "pass": true
+    },
+    {
+      "id": "alarm-suppressed-in-alarm-then-malfunction-order",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "composed": {
+          "r": 3.996000000000004,
+          "g": 1.192800000000001,
+          "b": 1.404000000000001,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "alarm-visible-in-malfunction-then-alarm-order",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "composed": {
+          "r": 87.22800000000001,
+          "g": 15.8808,
+          "b": 16.092000000000002,
+          "a": 1
+        }
+      }
+    },
+    {
+      "id": "order-invariance-violated-without-fix",
+      "expected": true,
+      "pass": true,
+      "meta": {
+        "alarmThenMalfunction": {
+          "r": 3.996000000000004,
+          "g": 1.192800000000001,
+          "b": 1.404000000000001,
+          "a": 1
+        },
+        "malfunctionThenAlarm": {
+          "r": 87.22800000000001,
+          "g": 15.8808,
+          "b": 16.092000000000002,
+          "a": 1
+        }
+      }
+    }
+  ]
+}
