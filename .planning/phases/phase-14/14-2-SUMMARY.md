@@ -1,14 +1,15 @@
-# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — twelve modules extracted)
+# 14-2 SUMMARY — Runtime Module Split (PARTIAL PASS — fifteen modules extracted)
 
-Status: **PARTIAL PASS — twelve extractions landed, 2720 LOC relocated out of the monolith, remaining high-coupling domains scoped for follow-up**
+Status: **PARTIAL PASS — fifteen extractions landed, 4051 LOC relocated out of the monolith, remaining high-coupling domains scoped for follow-up**
 
 Commits (chronological):
 - Round 1 (T1..T7): `8c78f06` → `2bc89af` → `e6649a9` → `6ee21ad` → `167dd22` → `e029b43` → `c886005`
 - Round 2 (T8..T12): `7dfbac9` → `7e498f9` → `169c9e9` → `b51745e` → `83ebdf6`
+- Round 3 (T13..T15): `bf0ec89` → `3367c79` → `db8f218`
 
 ## What was achieved
 
-Twelve module extractions validated the IIFE + init + destructure
+Fifteen module extractions validated the IIFE + init + destructure
 contract defined in `MODULE-BOUNDARIES.md`. Harnesses
 (`p11-hf4`, `p11-hf6`, `p12-1`, `p13-hf13`) remained GREEN through
 every commit.
@@ -27,29 +28,35 @@ every commit.
 | 10 | `169c9e9` | `runtime-effect-visuals.js` | −200 | +257 |
 | 11 | `b51745e` | `runtime-regression-tests.js` | −388 | +517 |
 | 12 | `83ebdf6` | `runtime-animation-lifecycle.js` | −309 | +449 |
+| 13 | `bf0ec89` | `runtime-draw-loop.js` | −376 | +501 |
+| 14 | `3367c79` | `runtime-room-dispatch.js` | −496 | +568 |
+| 15 | `db8f218` | `runtime-fx-panels.js` | −459 | +630 |
 
 Cumulative LOC delta:
-- `runtime-orchestration.js`: **14 658 → 11 938** (−2720 LOC, −18.6%).
-- 12 new runtime modules: **+3573 LOC**.
-- Net: +853 LOC from module wrappers and init plumbing — a controlled
-  investment in structure across 12 extractions.
+- `runtime-orchestration.js`: **14 658 → 10 607** (−4051 LOC, −27.6%).
+- 15 new runtime modules: **+5272 LOC**.
+- Net: +1221 LOC from module wrappers and init plumbing — a controlled
+  investment in structure across 15 extractions.
 
 Final runtime/ layout:
 ```
 LOC   File
-11938 src/app/runtime/runtime-orchestration.js  (thinned entry + remaining domains)
-  517 src/app/runtime/runtime-regression-tests.js (T11)
+10607 src/app/runtime/runtime-orchestration.js  (thinned entry + remaining domains)
+  630 src/app/runtime/runtime-fx-panels.js           (T15)
+  568 src/app/runtime/runtime-room-dispatch.js       (T14)
+  517 src/app/runtime/runtime-regression-tests.js    (T11)
+  501 src/app/runtime/runtime-draw-loop.js           (T13)
   449 src/app/runtime/runtime-animation-lifecycle.js (T12)
-  427 src/app/runtime/polygon-contract.js         (pre-existing)
-  389 src/app/runtime/runtime-audio.js            (T7)
-  372 src/app/runtime/runtime-gif-decoder.js      (T4)
-  352 src/app/runtime/runtime-outside-mp4.js      (T5)
-  321 src/app/runtime/runtime-quick-mode.js       (T8)
+  427 src/app/runtime/polygon-contract.js            (pre-existing)
+  389 src/app/runtime/runtime-audio.js               (T7)
+  372 src/app/runtime/runtime-gif-decoder.js         (T4)
+  352 src/app/runtime/runtime-outside-mp4.js         (T5)
+  321 src/app/runtime/runtime-quick-mode.js          (T8)
   287 src/app/runtime/runtime-polygon-drag-support.js (T1)
-  257 src/app/runtime/runtime-effect-visuals.js   (T10)
-  235 src/app/runtime/runtime-room-geometry.js    (T2)
-  153 src/app/runtime/runtime-canvas-clip.js      (T9)
-  153 src/app/runtime/runtime-gif-playback.js     (T6)
+  257 src/app/runtime/runtime-effect-visuals.js      (T10)
+  235 src/app/runtime/runtime-room-geometry.js       (T2)
+  153 src/app/runtime/runtime-canvas-clip.js         (T9)
+  153 src/app/runtime/runtime-gif-playback.js        (T6)
    88 src/app/runtime/runtime-polygon-normalizers.js (T3)
 ```
 
@@ -57,36 +64,35 @@ LOC   File
 
 The Phase 14-2 exit criterion of `runtime-orchestration.js < 1500 LOC`
 (with a soft cap of 1500 LOC per module, hard cap 2000 LOC) was
-**not met**. The main file still sits at 11 938 LOC, nearly eight
-times the target.
+**not met**. The main file still sits at 10 607 LOC, about seven
+times the original hard target.
 
-Reaching the target requires several more extractions of sizes 400
-to 2500 LOC each, including the high-coupling domains (draw loop,
-FX panel syncs, settings panels, live-sync glue) that need careful
-dependency injection and — in some cases — small event bus
-abstractions to decouple the UI sync layer from the live-sync glue.
+Reaching the target requires several more extractions of sizes 300
+to 700 LOC each, including the high-coupling domains (room
+management + cluster CRUD, config hydrate, touch gesture state
+machine, live-sync glue, viewport zoom) that need careful
+dependency injection.
 
 ## Why the phase is closed PARTIAL instead of driving it to 100%
 
-- **Risk per extraction scales with coupling.** T1..T12 targeted the
+- **Risk per extraction scales with coupling.** T1..T15 targeted the
   lowest- and medium-coupling clusters first. The remaining ones
-  (`draw-loop`, `fx-panel-syncs`, `settings-panels`, `live-sync-glue`)
-  each touch dozens of cross-file references and require a
-  much larger working-memory window + multiple harness iterations
-  per commit.
+  (`room-management`, `config-hydrate`, `touch-gesture`,
+  `live-sync-glue`, `viewport-zoom`) each touch many cross-file
+  references and require multiple harness iterations per commit.
 - **Pattern is validated, template is documented.** Every future
   extraction can follow the same IIFE + init + destructure contract
-  that T1..T12 exercised successfully. Future sessions can pick up
+  that T1..T15 exercised successfully. Future sessions can pick up
   `MODULE-BOUNDARIES.md` and execute a single module at a time with
   bounded risk.
-- **Harness grep blind spots (R4) surfaced twice.** Both extractions
-  that moved function declarations out of the monolith broke
-  location-pinned harness greps (`p13-hf13` initially, then
-  `p12-t6` after T12). Both were relaxed to be file-agnostic:
-  concatenate every `.js` under `src/app/runtime/**`. Each future
-  extraction will likely trip at least one more location-pinned
-  grep; that is accounted for in the per-commit harness-relax step
-  of the extraction contract.
+- **Harness grep blind spots (R4) surfaced several times.** Every
+  commit that moved function declarations broke location-pinned
+  greps in P12-T1/T3/T5/T6/T7 + P13-HF13. All fixes follow the
+  same pattern — concat every `.js` under `src/app/runtime/**` and
+  accept both `ctx.` and `c.` forms of the additive-layering guard.
+  Each future extraction will likely trip at least one more
+  location-pinned grep; that is accounted for in the per-commit
+  harness-relax step of the extraction contract.
 - **No functional regressions.** Every committed extraction passed
   all four live harnesses without behaviour change. Phase 13's
   HF13 structural fix (stable stretch anchor) sits in the extracted
@@ -98,21 +104,23 @@ The remaining extraction work is a straight-line execution of the
 list in `MODULE-BOUNDARIES.md` under "Candidate modules for future
 extractions". Expected sequence:
 
-1. `runtime-draw-loop.js` (~500 LOC, high risk — high dependency graph,
-   includes `drawRoomComposition`, `drawInsideGlobalVisual`,
-   `drawAnimation`, `drawAnimationSafely`, `drawOutsideFxLayer`,
-   `pruneFinishedAnimations`, `draw`)
-2. `runtime-fx-panels.js` (~750 LOC, medium risk — `syncInsideFxPanel`,
-   `syncRoomFxPanel`, `syncOutsideFxPanel`, resource pickers)
-3. `runtime-viewport-zoom.js` (~500 LOC, medium risk)
-4. `runtime-touch-gesture.js` (~700 LOC, medium risk — inside
-   existing IIFE block)
-5. `runtime-config-hydrate.js` (~600 LOC, medium risk)
-6. `runtime-settings-panels.js` (~2000 LOC, high risk, likely multiple commits)
-7. `runtime-live-sync-glue.js` (~800 LOC, high risk)
+1. `runtime-room-management.js` (~615 LOC, medium-high risk —
+   syncRoomManagementPanel, syncClusterManagementPanel, cluster
+   CRUD, room copy/paste clipboard, createRoomFromSettings,
+   deleteSelectedRoom, renameSelectedRoom, getBoardRoomClusters,
+   resolveRoomDraftTargets, buildClusterDispatchPlan)
+2. `runtime-viewport-zoom.js` (~500 LOC scattered across 3 regions,
+   medium risk — zoom/pan core)
+3. `runtime-config-hydrate.js` (~260 LOC, medium risk — BOARDS
+   reassignment requires setter callback pattern)
+4. `runtime-touch-gesture.js` (~700 LOC inside existing IIFE,
+   medium-high risk)
+5. `runtime-settings-panels.js` (remaining sync* panels, high risk,
+   likely multiple commits)
+6. `runtime-live-sync-glue.js` (~800 LOC, high risk)
 
 If every future extraction lands clean, the main file shrinks from
-11 938 → ~6500-7000 LOC. Hitting the 5k LOC soft target requires
+10 607 → ~7000-7500 LOC. Hitting the 5k LOC soft target requires
 additional splits inside the settings panels and live-sync glue
 (4-6 extra modules).
 
@@ -120,9 +128,9 @@ additional splits inside the settings panels and live-sync glue
 
 | Gate | Target | Actual |
 |---|---|---|
-| `runtime-orchestration.js` size | < 1500 LOC | **11 938 LOC** ❌ |
+| `runtime-orchestration.js` size | < 1500 LOC | **10 607 LOC** ❌ |
 | Every `src/app/**` file < 1500 LOC soft cap | ✓ | all new modules within bound; monolith above ❌ |
-| 8+ modules under `src/app/runtime/**` | 8 required | 13 shipped (+1 pre-existing = 14 total) ✅ |
+| 8+ modules under `src/app/runtime/**` | 8 required | 16 shipped (+1 pre-existing = 17 total) ✅ |
 | `runtime-orchestration.js` is thin entry | no | still monolith ❌ |
 | No circular imports | ✓ | ✓ |
 | All live harnesses PASS | ✓ | p11-hf4 ✓, p11-hf6 ✓, p12-1 ✓, p13-hf13 ✓ |
