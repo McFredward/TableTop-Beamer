@@ -1365,161 +1365,42 @@ const {
   handleQuickModeRoomTap,
 } = window.TT_BEAMER_RUNTIME_QUICK_MODE;
 
-function setViewGroupVisibility(groups, visible) {
-  for (const entry of groups) {
-    const shouldHide = !visible;
-    entry.classList.toggle("view-hidden", shouldHide);
-    entry.toggleAttribute("hidden", shouldHide);
-    entry.setAttribute("aria-hidden", shouldHide ? "true" : "false");
-    if ("inert" in entry) {
-      entry.inert = shouldHide;
-    }
-  }
-}
-
-function isViewGroupVisible(entry) {
-  return !entry.hidden && !entry.classList.contains("view-hidden") && entry.getAttribute("aria-hidden") !== "true";
-}
-
-function validateSettingsControlOwnership({ silent = false, context = "runtime" } = {}) {
-  const outsideDefinition = getSelectedOutsideAnimationDefinition(state.boardId);
-  const outsideModeDirectionApplicable = isOutsideModeDirectionApplicable(outsideDefinition);
-  const leaks = [];
-  for (const id of SETTINGS_EXCLUSIVE_CONTROL_IDS) {
-    const element = document.getElementById(id);
-    if (!element) {
-      if ((id === "outside-mode" || id === "outside-direction") && !outsideModeDirectionApplicable) {
-        continue;
-      }
-      leaks.push(`missing control: #${id}`);
-      continue;
-    }
-    const viewOwner = element.closest("[data-view]");
-    const ownerView = viewOwner?.dataset?.view;
-    if (ownerView !== "settings") {
-      leaks.push(`settings-control leak: #${id} mounted in ${ownerView ?? "unknown"}`);
-      break;
-    }
-  }
-
-  if (leaks.length > 0) {
-    if (!silent) {
-      logUi.error("settings_ownership_violation", {
-        event: "settings-ownership-violation",
-        context,
-        leaks,
-      });
-      triggerFeedback.textContent =
-        "Status: Configuration leak detected (settings control found outside Settings view)";
-    }
-    return false;
-  }
-  return true;
-}
-
-function validateViewExclusivity(expectedView, { silent = false, context = "runtime" } = {}) {
-  const leaks = [];
-  const expectSettings = expectedView === "settings";
-  const rootView = controlPanel?.dataset.activeView;
-
-  if (rootView !== expectedView) {
-    leaks.push(`root-view mismatch: expected ${expectedView}, got ${rootView ?? "missing"}`);
-  }
-
-  if (expectSettings && settingsViewGroups.every((entry) => !isViewGroupVisible(entry))) {
-    leaks.push("settings groups unexpectedly hidden");
-  }
-  if (!expectSettings && dashboardViewGroups.every((entry) => !isViewGroupVisible(entry))) {
-    leaks.push("dashboard groups unexpectedly hidden");
-  }
-
-  for (const entry of settingsViewGroups) {
-    if (isViewGroupVisible(entry) !== expectSettings) {
-      leaks.push(`settings leak: ${entry.tagName.toLowerCase()}`);
-      break;
-    }
-  }
-  for (const entry of dashboardViewGroups) {
-    if (isViewGroupVisible(entry) === expectSettings) {
-      leaks.push(`dashboard leak: ${entry.tagName.toLowerCase()}`);
-      break;
-    }
-  }
-
-  if (leaks.length > 0) {
-    if (!silent) {
-      logUi.error("view_exclusivity_violation", {
-        event: "view-exclusivity-violation",
-        context,
-        leaks,
-      });
-      triggerFeedback.textContent = "Status: Tab exclusivity violated (visible leftover block detected)";
-    }
-    return false;
-  }
-  return validateSettingsControlOwnership({ silent, context });
-}
-
-function setActiveView(view, { skipGuard = false } = {}) {
-  const nextView = view === "settings" ? "settings" : "dashboard";
-  // Phase 13-HF4: block the Dashboard switch while local config edits are
-  // unsaved. User must Apply or Discard first. Settings → Dashboard is
-  // the only direction blocked (Dashboard → Settings is always allowed,
-  // since edits only live in Settings).
-  if (
-    !skipGuard
-    && nextView === "dashboard"
-    && state.uiView === "settings"
-    && state.localConfigDirty
-  ) {
-    const accepted = window.confirm(
-      "Du hast ungespeicherte lokale Aenderungen.\n\n"
-      + "OK  = Apply (auf Server pushen und dann zum Dashboard wechseln)\n"
-      + "Abbrechen = im Settings bleiben (Discard-Button benutzen um zu verwerfen)",
-    );
-    if (!accepted) {
-      return;
-    }
-    void applyLocalConfigToServer().then((result) => {
-      if (result.ok) {
-        setActiveView("dashboard", { skipGuard: true });
-      }
-    });
-    return;
-  }
-  if (nextView !== "settings") {
-    state.panMode.spacePressed = false;
-    endPanMode(null, { canceled: true });
-  }
-  state.uiView = nextView;
-  ensurePrimaryNavigationVisible();
-  if (controlPanel) {
-    controlPanel.dataset.activeView = nextView;
-  }
-  const showSettings = nextView === "settings";
-  setViewGroupVisibility(settingsViewGroups, showSettings);
-  setViewGroupVisibility(dashboardViewGroups, !showSettings);
-  openDashboardViewButton.classList.toggle("active", !showSettings);
-  openSettingsViewButton.classList.toggle("active", showSettings);
-  openDashboardViewButton.setAttribute("aria-pressed", showSettings ? "false" : "true");
-  openSettingsViewButton.setAttribute("aria-pressed", showSettings ? "true" : "false");
-  syncSettingsSubtabVisibility();
-  if (showSettings) {
-    resetClearAllGuard();
-    syncPolygonEditorPanel();
-    syncShipPolygonEditorPanel();
-  }
-  syncDashboardZoneVisibility();
-  syncMobileStickyOffsets();
-  syncStageZoomTransform();
-  setPanCursorState();
-  renderRoomOverlay();
-  if (!skipGuard) {
-    validateViewExclusivity(nextView, { context: "set-active-view" });
-    validateViewNavigationVisibility({ context: "set-active-view" });
-    runMobileProjectionVisibilityGuard({ context: "set-active-view" });
-  }
-}
+// Phase 14-2: view visibility + exclusivity + setActiveView moved to
+// src/app/runtime/runtime-view-visibility.js.
+window.TT_BEAMER_RUNTIME_VIEW_VISIBILITY.init({
+  state,
+  controlPanel,
+  triggerFeedback,
+  settingsViewGroups,
+  dashboardViewGroups,
+  openDashboardViewButton,
+  openSettingsViewButton,
+  SETTINGS_EXCLUSIVE_CONTROL_IDS,
+  logUi,
+  getSelectedOutsideAnimationDefinition: (boardId) => getSelectedOutsideAnimationDefinition(boardId),
+  isOutsideModeDirectionApplicable: (def) => isOutsideModeDirectionApplicable(def),
+  applyLocalConfigToServer: () => applyLocalConfigToServer(),
+  endPanMode: (e, o) => endPanMode(e, o),
+  ensurePrimaryNavigationVisible: () => ensurePrimaryNavigationVisible(),
+  syncSettingsSubtabVisibility: () => syncSettingsSubtabVisibility(),
+  resetClearAllGuard: () => resetClearAllGuard(),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncShipPolygonEditorPanel: () => syncShipPolygonEditorPanel(),
+  syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
+  syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
+  syncStageZoomTransform: () => syncStageZoomTransform(),
+  setPanCursorState: () => setPanCursorState(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+  validateViewNavigationVisibility: (opts) => validateViewNavigationVisibility(opts),
+  runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
+});
+const {
+  setViewGroupVisibility,
+  isViewGroupVisible,
+  validateSettingsControlOwnership,
+  validateViewExclusivity,
+  setActiveView,
+} = window.TT_BEAMER_RUNTIME_VIEW_VISIBILITY;
 
 // Phase 14-2: 9 run*Regression runtime self-tests moved to
 // src/app/runtime/runtime-regression-tests.js. Init + destructure so
