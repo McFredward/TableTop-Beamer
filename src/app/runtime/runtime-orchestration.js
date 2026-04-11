@@ -2415,66 +2415,15 @@ function clearRoomTombstone(boardId, roomId) {
   );
 }
 
-function normalizePolygonPoint(point) {
-  const objectLikePoint = point && typeof point === "object" && !Array.isArray(point)
-    ? point
-    : null;
-  const rawX = Array.isArray(point)
-    ? point[0]
-    : objectLikePoint?.x ?? objectLikePoint?.[0];
-  const rawY = Array.isArray(point)
-    ? point[1]
-    : objectLikePoint?.y ?? objectLikePoint?.[1];
-  return [
-    clampRoomAbsoluteCoordinate(Number(rawX) || 0.5),
-    clampRoomAbsoluteCoordinate(Number(rawY) || 0.5),
-  ];
-}
-
-function getNormalizedPolygonArea(points) {
-  if (!Array.isArray(points) || points.length < 3) {
-    return 0;
-  }
-  let area = 0;
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    if (!Array.isArray(current) || !Array.isArray(next)) {
-      return 0;
-    }
-    area += Number(current[0]) * Number(next[1]) - Number(next[0]) * Number(current[1]);
-  }
-  return Math.abs(area / 2);
-}
-
-function isRenderableNormalizedPolygon(points, { minArea = 0.00003 } = {}) {
-  if (!Array.isArray(points) || points.length < 3) {
-    return false;
-  }
-  return getNormalizedPolygonArea(points) >= minArea;
-}
-
-function normalizeSpecialPolygon(points, fallbackPoints = []) {
-  const source = Array.isArray(points) && points.length >= 3 ? points : fallbackPoints;
-  const normalized = source.map((entry) => normalizePolygonPoint(entry));
-  if (isRenderableNormalizedPolygon(normalized)) {
-    return normalized;
-  }
-  const normalizedFallback = (Array.isArray(fallbackPoints) ? fallbackPoints : [])
-    .map((entry) => normalizePolygonPoint(entry));
-  if (isRenderableNormalizedPolygon(normalizedFallback)) {
-    return normalizedFallback;
-  }
-  return [
-    [0.45, 0.45],
-    [0.55, 0.45],
-    [0.5, 0.55],
-  ];
-}
-
-function isValidSpecialPolygon(points) {
-  return Array.isArray(points) && points.length >= 3;
-}
+// Phase 14-2: polygon normalizers moved to
+// src/app/runtime/runtime-polygon-normalizers.js
+const {
+  normalizePolygonPoint,
+  getNormalizedPolygonArea,
+  isRenderableNormalizedPolygon,
+  normalizeSpecialPolygon,
+  isValidSpecialPolygon,
+} = window.TT_BEAMER_RUNTIME_POLYGON_NORMALIZERS;
 
 function mergeSpecialPolygonMaps(primaryMap, fallbackMap) {
   const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
