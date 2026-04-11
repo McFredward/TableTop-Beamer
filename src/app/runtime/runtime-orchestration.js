@@ -1830,9 +1830,9 @@ let animationIdCounter = 1;
 const ashParticles = [];
 let lastListRenderAt = 0;
 const audioAssetPoolByPath = new Map();
-const gifPlaybackCacheByPath = new Map();
-// Phase 14-2: outside-mp4 caches + loop/fallback constants moved to
-// src/app/runtime/runtime-outside-mp4.js (module-private state).
+// Phase 14-2: GIF playback cache moved to runtime-gif-playback.js
+// (module-private state). Outside-mp4 caches + loop/fallback constants
+// moved to runtime-outside-mp4.js.
 const audioAssetCursorByEffect = {};
 const audioAssetVoiceCursorByPath = {};
 const activeAnimationAudioById = new Map();
@@ -4468,125 +4468,25 @@ const {
   decodeGifPlaybackFramesWithParser,
 } = window.TT_BEAMER_RUNTIME_GIF_DECODER;
 
-function getGifPlaybackCacheEntry(path) {
-  if (!path) {
-    return null;
-  }
-  if (!gifPlaybackCacheByPath.has(path)) {
-    const entry = {
-      status: "idle",
-      frames: [],
-      totalDurationMs: 0,
-      error: null,
-      promise: null,
-    };
-    gifPlaybackCacheByPath.set(path, entry);
-  }
-  return gifPlaybackCacheByPath.get(path) ?? null;
-}
-
-async function decodeGifPlaybackFrames(path, entry) {
-  const response = await fetch(path, { cache: "force-cache" });
-  if (!response.ok) {
-    throw new Error(`GIF fetch failed (${response.status})`);
-  }
-  const data = await response.arrayBuffer();
-  if (canDecodeGifFramesWithImageDecoder()) {
-    const decoder = new ImageDecoder({ data, type: "image/gif" });
-    await decoder.tracks.ready;
-    const frameCount = Math.max(1, Number(decoder.tracks?.selectedTrack?.frameCount) || 1);
-    const frames = [];
-    let totalDurationMs = 0;
-    for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-      const { image } = await decoder.decode({ frameIndex });
-      const durationMs = Math.max(16, Math.round((Number(image.duration) || 100000) / 1000));
-      const bitmap = await createImageBitmap(image);
-      image.close();
-      frames.push({ bitmap, durationMs });
-      totalDurationMs += durationMs;
-    }
-    decoder.close?.();
-    entry.frames = frames;
-    entry.totalDurationMs = Math.max(16, totalDurationMs);
-    entry.status = "ready";
-    entry.error = null;
-    return;
-  }
-
-  decodeGifPlaybackFramesWithParser(data, entry);
-}
-
-function ensureGifPlaybackReady(path) {
-  const entry = getGifPlaybackCacheEntry(path);
-  if (!entry) {
-    return null;
-  }
-  if (entry.status === "ready" || entry.status === "loading") {
-    return entry;
-  }
-  entry.status = "loading";
-  entry.promise = decodeGifPlaybackFrames(path, entry)
-    .catch((error) => {
-      logRender.warn("gif_decode_failed", {
-        event: "gif-decode-failed",
-        boardId: state.boardId,
-        path,
-        error: String(error?.message || error),
-      });
-      entry.status = "fallback";
-      entry.error = error;
-    })
-    .finally(() => {
-      entry.promise = null;
-    });
-  return entry;
-}
-
-function getGifPlaybackFrame(path, elapsedSeconds) {
-  const entry = ensureGifPlaybackReady(path);
-  if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
-    return null;
-  }
-  const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
-  let cursorMs = (((Number(elapsedSeconds) || 0) * 1000) % totalDurationMs + totalDurationMs) % totalDurationMs;
-  for (const frame of entry.frames) {
-    if (cursorMs < frame.durationMs) {
-      return frame.bitmap;
-    }
-    cursorMs -= frame.durationMs;
-  }
-  return entry.frames[entry.frames.length - 1]?.bitmap ?? null;
-}
-
-function resolveRoomGifRenderConfig(type, age, intensity, options = {}) {
-  const gifPath = options.gifAssetPath ?? ROOM_GIF_ANIMATION_ASSETS[type];
-  const timelineAge = Number(options.gifTimelineAgeSec ?? age) || 0;
-  const playbackSpeed = clampGifPlaybackSpeed(options.gifPlaybackSpeed ?? 1);
-  return {
-    frame: getGifPlaybackFrame(gifPath, timelineAge * playbackSpeed),
-    opacity: clampRoomOpacity(options.opacity ?? intensity),
-  };
-}
-
-function warmGifAssetPath(path, { reason = "runtime" } = {}) {
-  if (!path) {
-    return;
-  }
-  const warm = () => {
-    ensureGifPlaybackReady(path);
-  };
-  if (typeof window.requestIdleCallback === "function" && reason !== "trigger") {
-    window.requestIdleCallback(() => warm(), { timeout: 450 });
-    return;
-  }
-  warm();
-}
-
-function warmRoomGifAssets({ reason = "runtime" } = {}) {
-  for (const assetPath of Object.values(ROOM_GIF_ANIMATION_ASSETS)) {
-    warmGifAssetPath(assetPath, { reason });
-  }
-}
+// Phase 14-2: GIF playback cache + frame getter live in
+// runtime-gif-playback.js. Init + destructure so call sites resolve
+// the same names.
+window.TT_BEAMER_RUNTIME_GIF_PLAYBACK.init({
+  state,
+  logRender,
+  gifDecoder: window.TT_BEAMER_RUNTIME_GIF_DECODER,
+  ROOM_GIF_ANIMATION_ASSETS,
+  clampGifPlaybackSpeed: (value) => clampGifPlaybackSpeed(value),
+  clampRoomOpacity: (value) => clampRoomOpacity(value),
+});
+const {
+  getGifPlaybackCacheEntry,
+  ensureGifPlaybackReady,
+  getGifPlaybackFrame,
+  resolveRoomGifRenderConfig,
+  warmGifAssetPath,
+  warmRoomGifAssets,
+} = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
 
 // Phase 14-2: outside MP4 playback + caches live in
 // src/app/runtime/runtime-outside-mp4.js. Init + destructure so the
