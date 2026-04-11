@@ -130,16 +130,27 @@ const output = {
   ],
 };
 
-const allChecksPass = output.checks.every((c) => c.pass === true);
-output.observed = allChecksPass ? "FAIL" : "INCONCLUSIVE";
+const fixAlreadyApplied = hasRoomConcurrencyMap || hasAdditiveLayeringGuard;
+if (fixAlreadyApplied) {
+  // RED baseline is frozen in the committed output file. The fix is now
+  // present in runtime-orchestration.js, so re-running this harness would
+  // produce a post-fix snapshot — do not overwrite the baseline.
+  console.log(
+    "FROZEN - P12-T4 fix detected in runtime; RED baseline preserved. "
+      + "Use debug/p12-t7-order-invariance-fail-pass-proof.mjs for post-fix evidence.",
+  );
+} else {
+  const allChecksPass = output.checks.every((c) => c.pass === true);
+  output.observed = allChecksPass ? "FAIL" : "INCONCLUSIVE";
 
-writeFileSync(
-  new URL("./p12-t1-order-occlusion-red-output.json", import.meta.url),
-  `${JSON.stringify(output, null, 2)}\n`,
-);
+  writeFileSync(
+    new URL("./p12-t1-order-occlusion-red-output.json", import.meta.url),
+    `${JSON.stringify(output, null, 2)}\n`,
+  );
 
-console.log(
-  allChecksPass
-    ? "FAIL - RED baseline captured: order-dependent room animation occlusion reproduced"
-    : "INCONCLUSIVE - RED baseline incomplete, review checks",
-);
+  console.log(
+    allChecksPass
+      ? "FAIL - RED baseline captured: order-dependent room animation occlusion reproduced"
+      : "INCONCLUSIVE - RED baseline incomplete, review checks",
+  );
+}

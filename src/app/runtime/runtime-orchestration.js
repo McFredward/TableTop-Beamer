@@ -11055,6 +11055,11 @@ function drawAnimation(animation, now) {
         if (!clipped) {
           continue;
         }
+        const memberConcurrencyKey = `${animation.boardId ?? ""}::${room.id ?? ""}`;
+        const memberConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(memberConcurrencyKey) ?? 0;
+        if (memberConcurrency >= 2) {
+          ctx.globalCompositeOperation = "lighter";
+        }
         drawRoomComposition(memberAnimation, age, room, roomMetrics);
       } finally {
         ctx.restore();
@@ -11086,6 +11091,15 @@ function drawAnimation(animation, now) {
       const clipped = clipToRoom(room, animation.boardId);
       if (!clipped) {
         return;
+      }
+      // P12-1 order-invariant layering: when this room has ≥ 2 concurrent
+      // running animations, draw with additive composite so no effect can
+      // occlude another regardless of trigger order. Type-independent:
+      // coded, mp4, and gif all route through drawRoomComposition.
+      const concurrencyKey = `${animation.boardId ?? ""}::${animation.roomId ?? ""}`;
+      const roomConcurrency = state.runtimePerf.roomConcurrencyByKey?.get(concurrencyKey) ?? 0;
+      if (roomConcurrency >= 2) {
+        ctx.globalCompositeOperation = "lighter";
       }
       drawRoomComposition(animation, age, room, roomMetrics);
     } finally {
@@ -11505,6 +11519,21 @@ function draw(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     pruneFinishedAnimations(now);
     drawOutsideFxLayer(now);
+
+    // Order-invariant room layering (P12-1):
+    // When ≥ 2 animations (any type) run in the same (board, room), switch
+    // to additive composite ('lighter') so draw order cannot occlude.
+    // Single-animation rooms keep the default source-over blend.
+    const roomConcurrencyByKey = new Map();
+    for (const entry of state.runningAnimations) {
+      if (entry?.scope !== "room") continue;
+      const boardId = typeof entry.boardId === "string" ? entry.boardId : "";
+      const roomId = typeof entry.roomId === "string" ? entry.roomId : "";
+      if (!roomId) continue;
+      const key = `${boardId}::${roomId}`;
+      roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
+    }
+    state.runtimePerf.roomConcurrencyByKey = roomConcurrencyByKey;
 
     const failedAnimationIds = [];
     let renderedCount = 0;
