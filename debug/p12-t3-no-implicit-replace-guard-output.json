@@ -1,0 +1,43 @@
+{
+  "suite": "P12-T3-no-implicit-replace-guard",
+  "phase": "GREEN-STATIC",
+  "expected": "PASS",
+  "observed": "PASS",
+  "checks": [
+    {
+      "id": "start-path-no-unguarded-stopAnimation",
+      "expected": 0,
+      "actual": 0,
+      "pass": true,
+      "note": "startRoomAnimationFromDraft must not call stopAnimation as a side-effect."
+    },
+    {
+      "id": "no-room-upsert-by-type-roomId",
+      "expected": false,
+      "actual": false,
+      "pass": true,
+      "note": "Start path must not upsert by (type, roomId) — would implicitly replace a running animation."
+    },
+    {
+      "id": "start-path-uses-additive-createAnimation",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Fresh triggers go through createAnimation(...) and additive insertion."
+    },
+    {
+      "id": "no-unsafe-stop-animation-emit-outside-edit-branch",
+      "expected": false,
+      "actual": false,
+      "pass": true,
+      "note": "stop-animation emission is only allowed inside the explicit editTargetId cluster-reuse branch."
+    },
+    {
+      "id": "legitimate-edit-overwrite-path-preserved",
+      "expected": true,
+      "actual": true,
+      "pass": true,
+      "note": "Operator-initiated edit-target overwrite must remain available (not in scope of P12-T3)."
+    }
+  ]
+}
