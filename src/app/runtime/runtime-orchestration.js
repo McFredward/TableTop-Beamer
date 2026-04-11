@@ -2198,59 +2198,10 @@ function syncBoardSelectOptions() {
 const BOARD_ZOOM_SCALE_MIN = 0.25;
 const BOARD_ZOOM_SCALE_MAX = 4.0;
 
-function clampBoardZoomScale(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 1;
-  return Math.max(BOARD_ZOOM_SCALE_MIN, Math.min(BOARD_ZOOM_SCALE_MAX, numeric));
-}
-
-function normalizeBoardZoomProfile(profile) {
-  const scale = clampBoardZoomScale(Number(profile?.scale) || BOARD_ZOOM_DEFAULT.scale);
-  return clampPanToBounds({
-    scale,
-    panX: Number(profile?.panX) || 0,
-    panY: Number(profile?.panY) || 0,
-  });
-}
-
-function getStagePanBounds(scale) {
-  const width = stage?.clientWidth || 0;
-  const height = stage?.clientHeight || 0;
-  const maxPanX = Math.max(0, (width * (scale - 1)) / 2);
-  const maxPanY = Math.max(0, (height * (scale - 1)) / 2);
-  return { maxPanX, maxPanY };
-}
-
-function clampPanToBounds(profile) {
-  const scale = clampBoardZoomScale(Number(profile?.scale) || 1);
-  const { maxPanX, maxPanY } = getStagePanBounds(scale);
-  return {
-    scale,
-    panX: Math.max(-maxPanX, Math.min(maxPanX, Number(profile?.panX) || 0)),
-    panY: Math.max(-maxPanY, Math.min(maxPanY, Number(profile?.panY) || 0)),
-  };
-}
-
-function computePanForZoomFocus(scale, focus = null) {
-  const width = stage?.clientWidth || 0;
-  const height = stage?.clientHeight || 0;
-  const center = focus ?? { x: 0.5, y: 0.5 };
-  const rawPanX = -((center.x - 0.5) * width * scale);
-  const rawPanY = -((center.y - 0.5) * height * scale);
-  return clampPanToBounds({ scale, panX: rawPanX, panY: rawPanY });
-}
-
-function createDefaultBoardZoomByBoard() {
-  return Object.fromEntries(BOARDS.map((board) => [board.id, { ...BOARD_ZOOM_DEFAULT }]));
-}
-
-function getBoardZoom(boardId = state.boardId) {
-  return normalizeBoardZoomProfile(state.boardZoomByBoard[boardId]);
-}
-
-function setBoardZoom(boardId, profile) {
-  state.boardZoomByBoard[boardId] = normalizeBoardZoomProfile(profile);
-}
+// Phase 14-2: viewport zoom functions now live in runtime-viewport-zoom.js.
+// Init + destructure block is placed later in the file (after touchGestureActive
+// and polygon-drag-support are initialized, since the zoom module needs
+// getCachedStageGeometry and getTouchGestureActive at call time).
 
 function clampRoomStretch(value) {
   return Math.max(0.6, Math.min(1.6, value));
@@ -4145,217 +4096,6 @@ function syncSelectedRoomStateForBoard(boardId = state.boardId) {
 
 function setActivePolygonRoomId(boardId, roomId) {
   state.polygonEditor.roomIdByBoard[boardId] = roomId;
-}
-
-function getRoomCenterForZoom(boardId = state.boardId, roomId = getActivePolygonRoomId(boardId)) {
-  const room = getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    return {
-      x: BOARD_ZOOM_DEFAULT.originX,
-      y: BOARD_ZOOM_DEFAULT.originY,
-    };
-  }
-  const points = getRoomPoints(room, boardId);
-  if (!points.length) {
-    const fallback = getRawRoomCenter(room, boardId);
-    return { x: fallback.x, y: fallback.y };
-  }
-  const center = points.reduce(
-    (acc, [x, y]) => ({ x: acc.x + x / 1000, y: acc.y + y / 1000 }),
-    { x: 0, y: 0 },
-  );
-  return {
-    x: center.x / points.length,
-    y: center.y / points.length,
-  };
-}
-
-function syncStageZoomTransform() {
-  const zoom = state.uiView === "settings"
-    ? getBoardZoom(state.boardId)
-    : BOARD_ZOOM_DEFAULT;
-  stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
-  stage.style.setProperty("--stage-pan-x", `${zoom.panX.toFixed(2)}px`);
-  stage.style.setProperty("--stage-pan-y", `${zoom.panY.toFixed(2)}px`);
-}
-
-function syncBoardZoomStatus() {
-  // Phase 13-HF6: skip this expensive status line update during an
-  // active touch gesture. It reads stage.clientWidth/clientHeight +
-  // writes to boardZoomStatus.textContent on every call, which forces
-  // synchronous layout when interleaved with CSS variable writes in
-  // the hot rAF path. The bar refreshes once the gesture ends.
-  if (touchGestureActive) return;
-  const zoom = getBoardZoom(state.boardId);
-  const percent = Math.round(zoom.scale * 100);
-  const bounds = getStagePanBounds(zoom.scale);
-  const modeLabel = state.panMode.active
-    ? "PAN active (dragging)"
-    : state.panMode.spacePressed
-      ? "PAN ready (Space pressed)"
-      : "Edit mode";
-  boardZoomStatus.textContent = `Zoom: ${percent}% (Min ${Math.round(BOARD_ZOOM_SCALE_MIN * 100)}%, Max ${Math.round(BOARD_ZOOM_SCALE_MAX * 100)}%) | Pan X ${Math.round(zoom.panX)}px, Y ${Math.round(zoom.panY)}px | Bounds ±${Math.round(bounds.maxPanX)}px/±${Math.round(bounds.maxPanY)}px`;
-  if (boardPanStatus) {
-    const hint = zoom.scale > 1
-      ? "Space + drag or middle mouse button: move board"
-      : "Pan is available above zoom > 100%";
-    boardPanStatus.textContent = `Pan status: ${modeLabel} | ${hint}`;
-  }
-}
-
-function syncBoardZoomPanel() {
-  // Phase 13-2: zoom slider removed. This function is kept for ABI stability
-  // of the ~20 call sites that use it — it still refreshes the status line
-  // and the stage transform, it just no longer writes to a slider/label.
-  syncPolygonHandleSizePanel();
-  syncBoardZoomStatus();
-  syncStageZoomTransform();
-}
-
-function syncPolygonHandleSizePanel() {
-  const percent = Math.round(getCurrentPolygonHandleScale() * 100);
-  if (polygonHandleSizeInput) {
-    polygonHandleSizeInput.value = String(percent);
-  }
-  if (polygonHandleSizeValue) {
-    polygonHandleSizeValue.textContent = `${percent}%`;
-  }
-}
-
-function updateCurrentBoardZoom(partial, statusText = null) {
-  const current = getBoardZoom(state.boardId);
-  const next = clampPanToBounds({
-    ...current,
-    ...partial,
-  });
-  setBoardZoom(state.boardId, next);
-  syncBoardZoomPanel();
-  setPanCursorState();
-  if (statusText) {
-    triggerFeedback.textContent = `Status: ${statusText}`;
-  }
-}
-
-// Phase 13-HF5: rAF-coalesced zoom/pan writer. Called from high-frequency
-// pan/zoom pointermove paths (touch pan, mouse wheel, pinch). Collapses
-// many same-frame calls into a single updateCurrentBoardZoom() + DOM
-// write per animation frame, which eliminates the mobile lag seen in
-// HF4 touch pan.
-let pendingZoomUpdate = null;
-let pendingZoomFrameHandle = null;
-function scheduleZoomUpdate(partial, statusText = null) {
-  pendingZoomUpdate = pendingZoomUpdate
-    ? { ...pendingZoomUpdate, ...partial, statusText: statusText ?? pendingZoomUpdate.statusText }
-    : { ...partial, statusText };
-  if (pendingZoomFrameHandle !== null) return;
-  pendingZoomFrameHandle = window.requestAnimationFrame(() => {
-    pendingZoomFrameHandle = null;
-    const payload = pendingZoomUpdate || {};
-    pendingZoomUpdate = null;
-    const { statusText: pendingStatus, ...rest } = payload;
-    updateCurrentBoardZoom(rest, pendingStatus ?? null);
-  });
-}
-
-function fitZoomToActiveSpecialRoom() {
-  const roomId = getActivePolygonRoomId(state.boardId);
-  const room = getBoard(state.boardId).rooms.find((entry) => entry.id === roomId);
-  if (!room) {
-    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom reset to default");
-    return;
-  }
-
-  const points = getRoomPoints(room, state.boardId).map(([x, y]) => [x / 1000, y / 1000]);
-  if (!points.length) {
-    updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Zoom reset to default");
-    return;
-  }
-
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const [x, y] of points) {
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-  }
-
-  const boxSize = Math.max(0.05, maxX - minX, maxY - minY);
-  const targetCoverage = 0.45;
-  const scale = clampBoardZoomScale(targetCoverage / boxSize);
-  const center = getRoomCenterForZoom(state.boardId, room.id);
-  const viewport = computePanForZoomFocus(scale, center);
-  updateCurrentBoardZoom(viewport, `${room.name ?? room.label} zoomed (${Math.round(scale * 100)}%)`);
-}
-
-function canStartPanModeFromEvent(event) {
-  if (state.uiView !== "settings") {
-    return false;
-  }
-  const zoom = getBoardZoom(state.boardId);
-  if (zoom.scale <= 1) {
-    return false;
-  }
-  // Phase 13-HF4: touch gestures are routed through the central touch
-  // gesture manager (see `touchGesture` state machine below). Mouse pan
-  // still uses middle-click or space-drag.
-  return event.button === 1 || state.panMode.spacePressed;
-}
-
-function isPanArbitrating() {
-  return state.panMode.spacePressed || state.panMode.active;
-}
-
-function setPanCursorState() {
-  // Phase 13-HF6: skip during an active touch gesture. The class
-  // toggles do minimal work but the follow-up syncBoardZoomStatus is
-  // expensive (stage.clientWidth/Height reads). The gesture-end
-  // handler re-runs this once the user lifts their finger.
-  if (touchGestureActive) return;
-  const zoom = getBoardZoom(state.boardId);
-  const interactive = state.uiView === "settings" && zoom.scale > 1;
-  stage.classList.toggle("is-panning", state.panMode.active);
-  roomOverlay.classList.toggle("is-pan-enabled", interactive);
-  roomOverlay.classList.toggle("is-pan-ready", interactive && state.panMode.spacePressed && !state.panMode.active);
-  roomOverlay.classList.toggle("is-panning", state.panMode.active);
-  syncBoardZoomStatus();
-}
-
-function startPanMode(event, trigger) {
-  const zoom = getBoardZoom(state.boardId);
-  state.panMode.active = true;
-  state.panMode.pointerId = event.pointerId;
-  state.panMode.startClientX = event.clientX;
-  state.panMode.startClientY = event.clientY;
-  state.panMode.startPanX = zoom.panX;
-  state.panMode.startPanY = zoom.panY;
-  state.panMode.trigger = trigger;
-  try {
-    roomOverlay.setPointerCapture(event.pointerId);
-  } catch {
-    // ignore unsupported pointer capture
-  }
-  setPanCursorState();
-  triggerFeedback.textContent = "Status: Pan mode active (moving board)";
-}
-
-function endPanMode(event, { canceled = false } = {}) {
-  if (!state.panMode.active) {
-    return;
-  }
-  const pointerId = state.panMode.pointerId;
-  if (pointerId !== null && event && roomOverlay.hasPointerCapture(pointerId)) {
-    roomOverlay.releasePointerCapture(pointerId);
-  }
-  state.panMode.active = false;
-  state.panMode.pointerId = null;
-  state.panMode.trigger = null;
-  setPanCursorState();
-  triggerFeedback.textContent = canceled
-    ? "Status: Pan mode canceled"
-    : "Status: Pan mode ended";
 }
 
 function clampRoomIntensity(value) {
@@ -7676,35 +7416,54 @@ const {
 //   newPanX = panX + (layoutWidth/2 - stageLocalX) * (newScale - scale)
 //
 // No layoutLeft / layoutCenterX required — the math is differential.
-function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
-  if (!stage) return;
-  // Phase 13-HF6: use cached stage geometry. No layout reads per event.
-  const geo = getCachedStageGeometry();
-  const rect = geo.rect;
-  if (!rect || rect.width <= 0 || rect.height <= 0) return;
-  const layoutWidth = geo.layoutWidth;
-  const layoutHeight = geo.layoutHeight;
-  if (layoutWidth <= 0 || layoutHeight <= 0) return;
-
-  const current = getBoardZoom(state.boardId);
-  const currentScale = Math.max(0.0001, Number(current.scale) || 1);
-  const clamped = clampBoardZoomScale(nextScale);
-  if (!Number.isFinite(clamped) || clamped <= 0) return;
-
-  const fracX = (clientX - rect.left) / rect.width;
-  const fracY = (clientY - rect.top) / rect.height;
-  const stageLocalX = fracX * layoutWidth;
-  const stageLocalY = fracY * layoutHeight;
-
-  const scaleDelta = clamped - currentScale;
-  const newPanX = current.panX + (layoutWidth / 2 - stageLocalX) * scaleDelta;
-  const newPanY = current.panY + (layoutHeight / 2 - stageLocalY) * scaleDelta;
-
-  scheduleZoomUpdate(
-    clampPanToBounds({ scale: clamped, panX: newPanX, panY: newPanY }),
-    reason || `Board zoom -> ${Math.round(clamped * 100)}%`,
-  );
-}
+// Phase 14-2: viewport zoom + pan (~300 LOC scattered across 4
+// regions) moved to src/app/runtime/runtime-viewport-zoom.js.
+// Init + destructure so existing call sites resolve the same names.
+window.TT_BEAMER_RUNTIME_VIEWPORT_ZOOM.init({
+  state,
+  stage,
+  roomOverlay,
+  boardZoomStatus,
+  boardPanStatus,
+  polygonHandleSizeInput,
+  polygonHandleSizeValue,
+  triggerFeedback,
+  BOARD_ZOOM_DEFAULT,
+  BOARD_ZOOM_SCALE_MIN,
+  BOARD_ZOOM_SCALE_MAX,
+  getBoards: () => BOARDS,
+  getBoard: (boardId) => getBoard(boardId),
+  getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
+  getRoomPoints: (room, boardId) => getRoomPoints(room, boardId),
+  getRawRoomCenter: (room, boardId) => getRawRoomCenter(room, boardId),
+  getCurrentPolygonHandleScale: () => getCurrentPolygonHandleScale(),
+  getCachedStageGeometry: () => getCachedStageGeometry(),
+  getTouchGestureActive: () => touchGestureActive,
+});
+const {
+  clampBoardZoomScale,
+  normalizeBoardZoomProfile,
+  getStagePanBounds,
+  clampPanToBounds,
+  computePanForZoomFocus,
+  createDefaultBoardZoomByBoard,
+  getBoardZoom,
+  setBoardZoom,
+  getRoomCenterForZoom,
+  syncStageZoomTransform,
+  syncBoardZoomStatus,
+  syncBoardZoomPanel,
+  syncPolygonHandleSizePanel,
+  updateCurrentBoardZoom,
+  scheduleZoomUpdate,
+  fitZoomToActiveSpecialRoom,
+  canStartPanModeFromEvent,
+  isPanArbitrating,
+  setPanCursorState,
+  startPanMode,
+  endPanMode,
+  applyZoomScaleAroundClientPoint,
+} = window.TT_BEAMER_RUNTIME_VIEWPORT_ZOOM;
 
 if (stage) {
   stage.addEventListener(
