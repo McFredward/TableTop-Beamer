@@ -1,0 +1,13 @@
+{
+  "suite": "P13-HF10-acceptance-regression",
+  "phase": "GREEN",
+  "observed": "PASS",
+  "hardGates": {
+    "G13-HF10-1-desktop-room-vertex-render-before-begin": true,
+    "G13-HF10-2-desktop-polygon-area-render-before-begin": true,
+    "G13-HF10-3-mobile-room-vertex-selection-and-render-before-begin": true,
+    "G13-HF10-4-mobile-room-area-render-before-begin": true,
+    "G13-HF10-NR-HF9-incremental-drag": true,
+    "G13-HF10-NR-HF7-HF8-gates": true
+  }
+}

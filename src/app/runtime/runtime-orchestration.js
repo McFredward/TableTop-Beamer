@@ -8318,8 +8318,10 @@ function renderPolygonEditorHandles() {
       syncPolygonVertexSelect(room.id);
       syncPolygonEdgeSelect(room.id);
       syncRoomPanelFromSelection({ preserveDraftState: true });
-      beginPolygonVertexDrag(event, room.id, index);
+      // Phase 13-HF10: render BEFORE beginDrag so HF9 cached DOM refs
+      // point at the freshly-rendered nodes, not detached orphans.
       renderRoomOverlay();
+      beginPolygonVertexDrag(event, room.id, index);
       syncPolygonEditorStatus();
     });
     marker.append(hitTarget, handle, indexLabel);
@@ -9047,8 +9049,10 @@ function renderRoomOverlay() {
       syncPolygonRoomSelection(room.id);
       syncPolygonEditorPanel();
       syncRoomPanelFromSelection({ preserveDraftState: true });
-      beginPendingPolygonAreaDrag(event, room.id);
+      // Phase 13-HF10: render BEFORE begin so HF9 refs (cached later
+      // when pending promotes to active area drag) point to fresh DOM.
       renderRoomOverlay();
+      beginPendingPolygonAreaDrag(event, room.id);
     });
     if (state.selectedRoomId === room.id) {
       polygon.classList.add("is-selected");
@@ -12610,7 +12614,24 @@ if (stage) {
       if (kind === "ship-vertex" && touchGesture.primaryHitIndex >= 0) {
         beginShipPolygonVertexDrag(syntheticEvent, touchGesture.primaryHitIndex);
       } else if (kind === "room-vertex" && touchGesture.primaryHitIndex >= 0 && touchGesture.primaryHitRoomId) {
-        beginPolygonVertexDrag(syntheticEvent, touchGesture.primaryHitRoomId, touchGesture.primaryHitIndex);
+        // Phase 13-HF10: ensure the target room is selected + the
+        // editor handles for that room are freshly rendered BEFORE
+        // beginPolygonVertexDrag caches HF9 DOM refs, otherwise refs
+        // point to the previously-selected room's handles or none.
+        const roomId = touchGesture.primaryHitRoomId;
+        state.selectedRoomId = roomId;
+        state.selectedRoomByBoard[state.boardId] = roomId;
+        setActivePolygonRoomId(state.boardId, roomId);
+        state.polygonEditor.selectedVertexIndex = touchGesture.primaryHitIndex;
+        state.polygonEditor.selectedEdgeIndex = touchGesture.primaryHitIndex;
+        state.polygonEditor.vertexSelectionActive = true;
+        syncPolygonRoomSelection(roomId);
+        syncPolygonVertexSelect(roomId);
+        syncPolygonEdgeSelect(roomId);
+        syncPolygonEditorPanel();
+        syncRoomPanelFromSelection({ preserveDraftState: true });
+        renderRoomOverlay();
+        beginPolygonVertexDrag(syntheticEvent, roomId, touchGesture.primaryHitIndex);
       } else if (kind === "room-area" && touchGesture.primaryHitRoomId) {
         // Select the room first (so the polygon-area drag has context).
         state.selectedRoomId = touchGesture.primaryHitRoomId;
@@ -12618,8 +12639,9 @@ if (stage) {
         syncPolygonRoomSelection(touchGesture.primaryHitRoomId);
         syncPolygonEditorPanel();
         syncRoomPanelFromSelection({ preserveDraftState: true });
-        beginPendingPolygonAreaDrag(syntheticEvent, touchGesture.primaryHitRoomId);
+        // Phase 13-HF10: render BEFORE begin (same rationale).
         renderRoomOverlay();
+        beginPendingPolygonAreaDrag(syntheticEvent, touchGesture.primaryHitRoomId);
       } else {
         // Unknown kind (ship-edge, room-edge) - fall back to pan.
         startTouchPanFromPrimary();
