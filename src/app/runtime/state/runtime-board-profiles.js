@@ -162,6 +162,22 @@
         ),
       ]),
     );
+    // Phase 15-5: sync specialPolygonsByBoard → room.polygon so
+    // getRoomSourcePoints (which reads room.polygon) sees the
+    // user-edited coordinates, not the stale roomCatalog ones.
+    // Previously the hitarea+geometry transform pipeline masked
+    // this gap; with the pipeline now identity, room.polygon must
+    // carry the authoritative polygon data directly.
+    for (const board of BOARDS) {
+      const boardPolygons = state.specialPolygonsByBoard[board.id] ?? {};
+      for (const room of board.rooms) {
+        const edited = boardPolygons[room.id];
+        if (Array.isArray(edited) && edited.length >= 3) {
+          room.polygon = edited.map((point) => [...point]);
+          room.points = edited.map((point) => [...point]);
+        }
+      }
+    }
     // Phase 13-HF13: the incoming config may carry polygons with a
     // different centroid than whatever we had cached. Clear every
     // anchor so each room reseats its stable stretch origin from the

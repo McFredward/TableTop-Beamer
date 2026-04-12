@@ -60,8 +60,12 @@ const g13_hf13_4 =
 
 // G13-HF13-5: hydration clears the stretch-anchor cache so newly
 // hydrated polygons reseat their anchors.
+// Phase 15-5: the sync block that copies specialPolygons → room.polygon
+// now sits between the fromEntries assignment and the cache clear.
+// Accept either the original tight adjacency or the new layout with
+// the sync block in between.
 const g13_hf13_5 =
-  /state\.specialPolygonsByBoard = Object\.fromEntries\([\s\S]*?\);\s*\/\/ Phase 13-HF13[\s\S]*?state\.roomStretchAnchorCache\.clear\(\);/.test(runtimeSrc);
+  /state\.specialPolygonsByBoard = Object\.fromEntries\([\s\S]*?\);[\s\S]*?state\.roomStretchAnchorCache\.clear\(\);/.test(runtimeSrc);
 
 // G13-HF13-6: HF12's drag-time frozen-transform helpers are GONE.
 const g13_hf13_6 =
