@@ -454,7 +454,6 @@
     syncRoomPanelFromSelection({ preserveDraftState: true });
     renderRoomOverlay();
     triggerFeedback.textContent = `Status: ${animation.id} loaded into editor${isClusterScope ? " (cluster)" : ""}`;
-    openLiveEditor(animationId);
   }
 
   function renderRunningAnimationsList() {
@@ -565,7 +564,7 @@
             return;
           }
           setDashboardZone("manage");
-          editAnimation(anim.id);
+          openLiveEditor(anim.id);
         });
         actions.append(editButton);
       }
