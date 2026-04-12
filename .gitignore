@@ -13,3 +13,4 @@ logs/*.jsonl
 # Local environment
 .env
 .env.*
+config/global-defaults.json.pre-migration-bak

@@ -361,7 +361,7 @@
     for (const soundPath of ctx.ALL_SOUND_ASSET_PATHS) {
       const option = document.createElement("option");
       option.value = soundPath;
-      option.textContent = soundPath.replace("resources/nemesis/sounds/", "");
+      option.textContent = soundPath.replace(/^\/?(resources\/)?sounds\//, "").replace(/^\/?(resources\/)?nemesis\/sounds\//, "");
       audioMappingSoundSelect.append(option);
     }
 

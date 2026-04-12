@@ -1,0 +1,337 @@
+{
+  "schema": "tt-beamer.board-import.v1",
+  "importedAt": "2026-04-12T08:24:39.622Z",
+  "board": {
+    "schema": "tt-beamer.board-catalog.v1",
+    "boardId": "nemesis-board-b",
+    "metadata": {
+      "name": "Nemesis Board B",
+      "imageSrc": "resources/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg"
+    },
+    "roomCatalog": [
+      {
+        "id": "b-01",
+        "name": "Hex B-01",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-02",
+        "name": "Hex B-02",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-03",
+        "name": "Hex B-03",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-04",
+        "name": "Hex B-04",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-05",
+        "name": "Hex B-05",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-06",
+        "name": "Hex B-06",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-07",
+        "name": "Hex B-07",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-08",
+        "name": "Hex B-08",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-09",
+        "name": "Hex B-09",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-10",
+        "name": "Hex B-10",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-11",
+        "name": "Hex B-11",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-12",
+        "name": "Hex B-12",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-13",
+        "name": "Hex B-13",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "b-14",
+        "name": "Hex B-14",
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon"
+        }
+      },
+      {
+        "id": "special-cockpit",
+        "name": "Cockpit",
+        "polygon": [
+          [
+            0.014,
+            0.383
+          ],
+          [
+            0.051,
+            0.347
+          ],
+          [
+            0.108,
+            0.348
+          ],
+          [
+            0.135,
+            0.392
+          ],
+          [
+            0.135,
+            0.67
+          ],
+          [
+            0.108,
+            0.71
+          ],
+          [
+            0.051,
+            0.71
+          ],
+          [
+            0.014,
+            0.668
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        }
+      },
+      {
+        "id": "special-cryoschlaf",
+        "name": "Cryoschlaf",
+        "polygon": [
+          [
+            0.261,
+            0.402
+          ],
+          [
+            0.306,
+            0.347
+          ],
+          [
+            0.387,
+            0.347
+          ],
+          [
+            0.426,
+            0.392
+          ],
+          [
+            0.426,
+            0.667
+          ],
+          [
+            0.387,
+            0.709
+          ],
+          [
+            0.306,
+            0.709
+          ],
+          [
+            0.261,
+            0.668
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        }
+      },
+      {
+        "id": "special-maschinenraum-1",
+        "name": "Maschinenraum 1",
+        "polygon": [
+          [
+            0.856,
+            0.587
+          ],
+          [
+            0.895,
+            0.558
+          ],
+          [
+            0.957,
+            0.558
+          ],
+          [
+            0.986,
+            0.587
+          ],
+          [
+            0.986,
+            0.678
+          ],
+          [
+            0.957,
+            0.704
+          ],
+          [
+            0.895,
+            0.704
+          ],
+          [
+            0.856,
+            0.676
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        }
+      },
+      {
+        "id": "special-maschinenraum-2",
+        "name": "Maschinenraum 2",
+        "polygon": [
+          [
+            0.856,
+            0.455
+          ],
+          [
+            0.895,
+            0.425
+          ],
+          [
+            0.957,
+            0.425
+          ],
+          [
+            0.986,
+            0.453
+          ],
+          [
+            0.986,
+            0.542
+          ],
+          [
+            0.957,
+            0.572
+          ],
+          [
+            0.895,
+            0.572
+          ],
+          [
+            0.856,
+            0.545
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        }
+      },
+      {
+        "id": "special-maschinenraum-3",
+        "name": "Maschinenraum 3",
+        "polygon": [
+          [
+            0.858,
+            0.323
+          ],
+          [
+            0.895,
+            0.294
+          ],
+          [
+            0.958,
+            0.294
+          ],
+          [
+            0.986,
+            0.323
+          ],
+          [
+            0.986,
+            0.409
+          ],
+          [
+            0.958,
+            0.435
+          ],
+          [
+            0.895,
+            0.435
+          ],
+          [
+            0.858,
+            0.411
+          ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        }
+      }
+    ],
+    "roomClusters": []
+  }
+}

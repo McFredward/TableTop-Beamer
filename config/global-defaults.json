@@ -6673,7 +6673,7 @@
             "id": "outside-sandstorm",
             "name": "Outside Sandstorm",
             "assetType": "mp4",
-            "assetRef": "/resources/nemesis/animations/sandstorm.mp4",
+            "assetRef": "/resources/animations/sandstorm.mp4",
             "intensity": 0.9,
             "speed": 1,
             "mode": "standard",
@@ -7277,19 +7277,19 @@
             "id": "kaputt",
             "name": "Malfunction",
             "assetType": "mp4",
-            "assetRef": "/resources/nemesis/animations/malfunction2.mp4"
+            "assetRef": "/resources/animations/malfunction2.mp4"
           },
           {
             "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/fire.gif"
+            "assetRef": "/resources/animations/fire.gif"
           },
           {
             "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/final.gif"
+            "assetRef": "/resources/animations/final.gif"
           },
           {
             "id": "lichtflackern",
@@ -12878,7 +12878,7 @@
             "id": "outside-sandstorm",
             "name": "Outside Sandstorm",
             "assetType": "mp4",
-            "assetRef": "/resources/nemesis/animations/sandstorm.mp4",
+            "assetRef": "/resources/animations/sandstorm.mp4",
             "intensity": 0.9,
             "speed": 1,
             "mode": "standard",
@@ -13558,19 +13558,19 @@
             "id": "kaputt",
             "name": "Malfunction",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/malfunction.gif"
+            "assetRef": "/resources/animations/malfunction.gif"
           },
           {
             "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/fire.gif"
+            "assetRef": "/resources/animations/fire.gif"
           },
           {
             "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/final.gif"
+            "assetRef": "/resources/animations/final.gif"
           },
           {
             "id": "lichtflackern",
@@ -15583,7 +15583,7 @@
             "id": "outside-sandstorm",
             "name": "Outside Sandstorm",
             "assetType": "mp4",
-            "assetRef": "/resources/nemesis/animations/sandstorm.mp4",
+            "assetRef": "/resources/animations/sandstorm.mp4",
             "intensity": 0.9,
             "speed": 1,
             "mode": "standard",
@@ -15596,7 +15596,7 @@
         "mode": "standard",
         "direction": "forward",
         "assetType": "mp4",
-        "assetRef": "/resources/nemesis/animations/sandstorm.mp4"
+        "assetRef": "/resources/animations/sandstorm.mp4"
       },
       "insideFx": {
         "selectedAnimationId": "hull-flicker",
@@ -15642,19 +15642,19 @@
             "id": "kaputt",
             "name": "Malfunction",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/malfunction.gif"
+            "assetRef": "/resources/animations/malfunction.gif"
           },
           {
             "id": "feuer",
             "name": "Fire",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/fire.gif"
+            "assetRef": "/resources/animations/fire.gif"
           },
           {
             "id": "schleim",
             "name": "Slime",
             "assetType": "gif",
-            "assetRef": "/resources/nemesis/animations/final.gif"
+            "assetRef": "/resources/animations/final.gif"
           },
           {
             "id": "lichtflackern",
@@ -15679,11 +15679,11 @@
   "animationSpeed": 1,
   "animationSoundMap": {
     "hull-flicker": "none",
-    "intruder-alert": "/resources/nemesis/sounds/alarm.mp3",
-    "power-outage": "/resources/nemesis/sounds/power/3.wav",
+    "intruder-alert": "/resources/sounds/alarm.mp3",
+    "power-outage": "/resources/sounds/power/3.wav",
     "outside-space": "none",
     "kaputt": "none",
-    "fire": "/resources/nemesis/sounds/power/3.wav",
+    "fire": "/resources/sounds/power/3.wav",
     "slime": "none",
     "scanning": "none",
     "flicker": "none",

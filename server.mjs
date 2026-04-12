@@ -24,7 +24,8 @@ const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
 const BOARD_DEFINITION_SCHEMA = "tt-beamer.board-definition.v1";
 const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
-const BUILTIN_BOARD_IDS = new Set(["nemesis-board-a", "nemesis-board-b"]);
+// Phase 16: no more builtin board IDs — all boards are catalog entries.
+const BUILTIN_BOARD_IDS = new Set();
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 
@@ -1897,19 +1898,11 @@ async function loadCanonicalBoardsFromStorage() {
   return catalogBoards;
 }
 
+// Phase 16: all boards are catalog entries in config/boards/.
+// The old zone-based builtin loading path is no longer needed.
 async function loadBoardCatalog() {
-  const builtInBoards = await loadBuiltInBoardsFromZones();
   const storedBoards = await loadCanonicalBoardsFromStorage();
-  const byId = new Map();
-
-  for (const board of builtInBoards) {
-    byId.set(board.boardId, board);
-  }
-  for (const board of storedBoards) {
-    byId.set(board.boardId, board);
-  }
-
-  const boards = Array.from(byId.values()).sort((a, b) => a.boardId.localeCompare(b.boardId));
+  const boards = storedBoards.sort((a, b) => a.boardId.localeCompare(b.boardId));
   return {
     schema: BOARD_CATALOG_SCHEMA,
     generatedAt: new Date().toISOString(),

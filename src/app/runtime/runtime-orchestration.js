@@ -285,8 +285,8 @@ const {
 } = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
-  defaultBoardId: BOARDS[0].id,
-  defaultRoomAnimationId: createDefaultRoomAnimationDefinitions()[0]?.id ?? ROOM_ANIMATIONS[0].id,
+  defaultBoardId: BOARDS[0]?.id ?? "",
+  defaultRoomAnimationId: createDefaultRoomAnimationDefinitions()[0]?.id ?? ROOM_ANIMATIONS[0]?.id ?? "kaputt",
   roomOpacity: roomOpacityInput?.value,
   roomIntensity: roomIntensityInput?.value,
   roomSpeed: roomSpeedInput?.value,
