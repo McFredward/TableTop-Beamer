@@ -361,6 +361,10 @@
           Resource asset picker
           <select id="inside-resource-select"></select>
         </label>
+        <label>
+          Sound
+          <select id="inside-sound-ref"></select>
+        </label>
         <button id="inside-apply-changes" type="button">Apply changes</button>
       </section>
 
@@ -417,6 +421,10 @@
           Resource asset picker
           <select id="outside-resource-select"></select>
         </label>
+        <label>
+          Sound
+          <select id="outside-sound-ref"></select>
+        </label>
         <button id="outside-apply-changes" type="button">Apply changes</button>
       </section>
 
@@ -447,6 +455,10 @@
         <label>
           Resource asset picker
           <select id="room-resource-select"></select>
+        </label>
+        <label>
+          Sound
+          <select id="room-sound-ref"></select>
         </label>
         <button id="room-apply-changes" type="button">Apply changes</button>
       </section>
@@ -506,18 +518,9 @@
         <p id="audio-status" class="status-line" aria-live="polite">Audio: ON (70%)</p>
       </section>
 
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
-        <h2>Sound mapping per animation</h2>
-        <label>
-          Animation
-          <select id="audio-mapping-animation"></select>
-        </label>
-        <label>
-          Sound
-          <select id="audio-mapping-sound"></select>
-        </label>
-        <p id="audio-mapping-status" class="status-line" aria-live="polite">Sound mapping: ready</p>
-      </section>
+      <!-- Phase 15-9: "Sound mapping per animation" panel dissolved.
+           Each room/inside/outside animation editor block now has its
+           own Sound dropdown so users can set sound per-definition. -->
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Mobile Performance-Checks</h2>

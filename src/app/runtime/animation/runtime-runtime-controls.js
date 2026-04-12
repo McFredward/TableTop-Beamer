@@ -181,6 +181,15 @@
       (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
     );
     const isOutside = ctx.getGlobalAnimationCategory(type) === "outside-ship";
+    // Phase 15-9: look up the matching global animation definition so
+    // we can copy its per-definition soundAssetRef onto the dispatched
+    // animation entry. For inside globals the type == definition.id;
+    // for outside we also match by id.
+    const lookupProfile = isOutside
+      ? ctx.getOutsideFxProfile(state.boardId)
+      : ctx.getInsideFxProfile(state.boardId);
+    const matchedDefinition = lookupProfile?.animations?.find((entry) => entry.id === type) ?? null;
+    const definitionSoundAssetRef = matchedDefinition?.soundAssetRef ?? "none";
     const normalizedDefaultDurationSec = Number(defaultDurationSec);
     const effectiveDefaultDurationSec = loopUntilStopped
       ? null
@@ -197,6 +206,7 @@
           boardId: state.boardId,
           intensity: 1,
           soundVolume: playSound ? 1 : 0,
+          soundAssetRef: playSound ? definitionSoundAssetRef : "none",
           hold: effectiveDefaultDurationSec === null,
           durationSec: effectiveDefaultDurationSec ?? 0,
         });
@@ -235,6 +245,7 @@
         scope: "global",
         intensity: 1,
         soundVolume: playSound ? 1 : 0,
+        soundAssetRef: playSound ? definitionSoundAssetRef : "none",
         hold: effectiveDefaultDurationSec === null,
         durationSec: effectiveDefaultDurationSec ?? 0,
       });

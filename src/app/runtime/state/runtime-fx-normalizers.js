@@ -11,6 +11,24 @@
     ctx = dependencies;
   }
 
+  // Phase 15-9: shared sound-asset-ref normalizer used by all three
+  // animation definition normalizers. Accepts an explicit path from
+  // ALL_SOUND_ASSET_PATHS, the sentinel "none" (SOUND_MAPPING_NONE),
+  // or falls back to "none" for empty/unknown input. Default per
+  // user request: animations start with no sound.
+  function normalizeSoundAssetRef(value) {
+    const sentinelNone = ctx?.SOUND_MAPPING_NONE ?? "none";
+    const allPaths = Array.isArray(ctx?.ALL_SOUND_ASSET_PATHS) ? ctx.ALL_SOUND_ASSET_PATHS : [];
+    if (value == null || value === "" || value === sentinelNone) {
+      return sentinelNone;
+    }
+    const trimmed = String(value).trim();
+    if (trimmed === sentinelNone || !trimmed) {
+      return sentinelNone;
+    }
+    return allPaths.includes(trimmed) ? trimmed : sentinelNone;
+  }
+
   // ========= INSIDE =========
 
   function normalizeInsideAssetType(value) {
@@ -45,6 +63,8 @@
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
+      // Phase 15-9: per-definition sound selector. Default = none.
+      soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
     };
   }
 
@@ -129,6 +149,7 @@
       assetRef: seeded.assetRef ?? "hull-flicker",
       intensity: seeded.intensity ?? 1,
       speed: seeded.speed ?? 1,
+      soundAssetRef: seeded.soundAssetRef,
     });
   }
 
@@ -174,6 +195,8 @@
       mode: ctx.normalizeOutsideMode(definition?.mode),
       direction: ctx.normalizeOutsideDirection(definition?.direction),
       soundEnabled: Boolean(definition?.soundEnabled),
+      // Phase 15-9: per-definition sound selector. Default = none.
+      soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
     };
   }
 
@@ -314,6 +337,7 @@
       mode: seeded.mode ?? "standard",
       direction: seeded.direction ?? "forward",
       soundEnabled: seeded.soundEnabled ?? false,
+      soundAssetRef: seeded.soundAssetRef,
     });
   }
 
@@ -346,6 +370,8 @@
       name,
       assetType,
       assetRef,
+      // Phase 15-9: per-definition sound selector. Default = none.
+      soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
     };
   }
 
@@ -430,6 +456,7 @@
       name: baseName,
       assetType: seeded.assetType ?? "coded",
       assetRef: seeded.assetRef ?? "intruder-alert",
+      soundAssetRef: seeded.soundAssetRef,
     });
   }
 

@@ -246,7 +246,21 @@
       pendingAnimationAudioStartTimers.set(animation.id, timerId);
       return;
     }
-    const path = ctx.getMappedSoundPathForAnimation(animation.type);
+    // Phase 15-9: prefer the per-definition soundAssetRef if the
+    // animation carries one. Fall back to the legacy
+    // animationSoundMap lookup so existing persisted state still
+    // plays the mapped sound during the migration window.
+    const inlineSoundRef = typeof animation.soundAssetRef === "string"
+      ? animation.soundAssetRef.trim()
+      : "";
+    let path;
+    if (inlineSoundRef && inlineSoundRef !== ctx.SOUND_MAPPING_NONE) {
+      path = ctx.ALL_SOUND_ASSET_PATHS.includes(inlineSoundRef) ? inlineSoundRef : null;
+    } else if (inlineSoundRef === ctx.SOUND_MAPPING_NONE) {
+      path = null;
+    } else {
+      path = ctx.getMappedSoundPathForAnimation(animation.type);
+    }
     if (!path) {
       stopAnimationSound(animation.id);
       return;

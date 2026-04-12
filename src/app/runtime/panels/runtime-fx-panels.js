@@ -17,6 +17,33 @@
     ctx = dependencies;
   }
 
+  // Phase 15-9: shared sound-selector dropdown populator. Each
+  // animation editor block has a <select> for picking the sound that
+  // plays when the animation fires. Options are "(kein Sound)" plus
+  // every path in ALL_SOUND_ASSET_PATHS. Selection defaults to the
+  // definition's current soundAssetRef or the SOUND_MAPPING_NONE
+  // sentinel.
+  function populateSoundRefSelect(selectEl, selectedValue) {
+    if (!selectEl) return;
+    const noneSentinel = ctx.SOUND_MAPPING_NONE ?? "none";
+    const allPaths = Array.isArray(ctx.ALL_SOUND_ASSET_PATHS) ? ctx.ALL_SOUND_ASSET_PATHS : [];
+    selectEl.replaceChildren();
+    const noneOption = document.createElement("option");
+    noneOption.value = noneSentinel;
+    noneOption.textContent = "(no sound)";
+    selectEl.append(noneOption);
+    for (const path of allPaths) {
+      const option = document.createElement("option");
+      option.value = path;
+      option.textContent = path.split("/").pop() || path;
+      selectEl.append(option);
+    }
+    const effectiveValue = selectedValue && (selectedValue === noneSentinel || allPaths.includes(selectedValue))
+      ? selectedValue
+      : noneSentinel;
+    selectEl.value = effectiveValue;
+  }
+
   function syncOutsideModeDirectionVisibility(definition) {
     const visible = ctx.isOutsideModeDirectionApplicable(definition);
     ctx.setConditionalFieldMounted(ctx.outsideModeFieldMount, visible);
@@ -115,6 +142,7 @@
       assetType: ctx.normalizeInsideAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
       loopUntilStopped: Boolean(definition.loopUntilStopped),
+      soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
     };
     ctx.insideEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -146,11 +174,14 @@
       assetType,
       String(ctx.insideAssetRefInput?.value || "").trim(),
     );
+    // Phase 15-9: carry per-definition sound selection through the draft.
+    const soundAssetRef = String(ctx.insideSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
     return setInsideEditorDraft(effectiveBoardId, {
       intensity: ctx.clampOutsideIntensity(ctx.insideIntensityInput?.value),
       speed: ctx.clampOutsideSpeed(ctx.insideSpeedInput?.value),
       assetType,
       assetRef,
+      soundAssetRef,
       loopUntilStopped: Boolean(ctx.insideLoopUntilStopInput?.checked),
     });
   }
@@ -197,6 +228,10 @@
       );
     }
     syncInsideResourcePicker(assetType, assetRef);
+    populateSoundRefSelect(
+      ctx.insideSoundRefSelect,
+      draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
+    );
     ctx.insideIntensityValue.textContent = intensity.toFixed(2);
     ctx.insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
     renderInsideGlobalButtons();
@@ -268,6 +303,7 @@
       animationId: definition.id,
       assetType: ctx.normalizeRoomAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
+      soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
     };
     ctx.roomEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -296,9 +332,12 @@
       assetType,
       String(ctx.roomAssetRefInput?.value || "").trim(),
     );
+    // Phase 15-9: carry per-definition sound selection through the draft.
+    const soundAssetRef = String(ctx.roomSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
     return setRoomEditorDraft(effectiveBoardId, {
       assetType,
       assetRef,
+      soundAssetRef,
     });
   }
 
@@ -357,6 +396,10 @@
       ctx.roomAnimationSettingsDeleteButton.disabled = roomFx.animations.length <= 1;
     }
     syncRoomResourcePicker(assetType, assetRef);
+    populateSoundRefSelect(
+      ctx.roomSoundRefSelect,
+      draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
+    );
   }
 
   function buildOutsideProfileWithSelectedAnimationPatch(boardId, patch = {}, profileOverride = null) {
@@ -451,6 +494,7 @@
       direction: ctx.normalizeOutsideDirection(definition.direction),
       assetType: ctx.normalizeOutsideAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
+      soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
     };
     ctx.outsideEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -484,6 +528,8 @@
       String(ctx.outsideAssetRefInput?.value || "").trim(),
     );
     const allowModeDirection = ctx.isOutsideModeDirectionApplicable({ assetType, assetRef });
+    // Phase 15-9: carry per-definition sound selection through the draft.
+    const soundAssetRef = String(ctx.outsideSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
     return setOutsideEditorDraft(effectiveBoardId, {
       intensity: ctx.clampOutsideIntensity(ctx.outsideIntensityInput?.value),
       speed: ctx.clampOutsideSpeed(ctx.outsideSpeedInput?.value),
@@ -491,6 +537,7 @@
       direction: allowModeDirection ? ctx.normalizeOutsideDirection(ctx.outsideDirectionInput?.value) : "forward",
       assetType,
       assetRef,
+      soundAssetRef,
     });
   }
 
@@ -558,6 +605,10 @@
       assetRef,
     });
     syncOutsideResourcePicker(assetType, assetRef);
+    populateSoundRefSelect(
+      ctx.outsideSoundRefSelect,
+      draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
+    );
     ctx.outsideIntensityValue.textContent = intensity.toFixed(2);
     ctx.outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
   }

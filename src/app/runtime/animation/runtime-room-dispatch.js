@@ -47,6 +47,9 @@
         animationName: selectedDefinition.name,
         roomAssetType: selectedAssetType,
         roomAssetRef: selectedAssetRef,
+        // Phase 15-9: carry the per-definition sound selection onto
+        // the dispatched animation entry.
+        soundAssetRef: selectedDefinition.soundAssetRef ?? "none",
         intensity: clampRoomIntensity(state.roomDraft.intensity),
         speed: clampRoomSpeed(state.roomDraft.speed),
         opacity: clampRoomOpacity(state.roomDraft.opacity),
@@ -132,6 +135,7 @@
                     animationName: draftPayload.animationName,
                     roomAssetType: draftPayload.roomAssetType,
                     roomAssetRef: draftPayload.roomAssetRef,
+                    soundAssetRef: draftPayload.soundAssetRef,
                     scope: "room",
                     roomId,
                     boardId: state.boardId,
@@ -237,6 +241,7 @@
           animationName: draftPayload.animationName,
           roomAssetType: draftPayload.roomAssetType,
           roomAssetRef: draftPayload.roomAssetRef,
+          soundAssetRef: draftPayload.soundAssetRef,
           scope: "room",
           roomId,
           boardId: state.boardId,
@@ -503,6 +508,7 @@
           animationName: draftPayload.animationName,
           roomAssetType: draftPayload.roomAssetType,
           roomAssetRef: draftPayload.roomAssetRef,
+          soundAssetRef: draftPayload.soundAssetRef,
           scope: "cluster",
           roomId: null,
           boardId: state.boardId,

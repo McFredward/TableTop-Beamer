@@ -27,6 +27,7 @@
     hold = false,
     durationSec = 15,
     startDelayMs = 0,
+    soundAssetRef = "",
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -39,6 +40,10 @@
       animationName: String(animationName || "").trim() || undefined,
       roomAssetType: String(roomAssetType || "").trim() || undefined,
       roomAssetRef: String(roomAssetRef || "").trim() || undefined,
+      // Phase 15-9: carry the per-definition sound selection onto the
+      // runtime animation entry so playSoundForAnimation can resolve
+      // the path without reaching back through state.animationSoundMap.
+      soundAssetRef: String(soundAssetRef || "").trim() || undefined,
       scope,
       roomId,
       intensity,

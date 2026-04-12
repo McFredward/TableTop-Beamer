@@ -215,6 +215,8 @@
             ...entry,
             assetType: draft.assetType,
             assetRef: draft.assetRef,
+            // Phase 15-9: persist the per-definition sound selection.
+            soundAssetRef: draft.soundAssetRef ?? entry.soundAssetRef ?? "none",
           }
           : entry)),
       });
@@ -324,6 +326,7 @@
         assetType: draft.assetType,
         assetRef: draft.assetRef,
         loopUntilStopped: Boolean(draft.loopUntilStopped),
+        soundAssetRef: draft.soundAssetRef ?? "none",
       });
       setInsideFxProfile(state.boardId, nextProfile);
       const persisted = persistBoardProfiles();
@@ -503,6 +506,7 @@
         direction: draft.direction,
         assetType: draft.assetType,
         assetRef: draft.assetRef,
+        soundAssetRef: draft.soundAssetRef ?? "none",
       });
       if (outputRole === OUTPUT_ROLE_CONTROL) {
         void emitLiveMutation("outside-update", {
