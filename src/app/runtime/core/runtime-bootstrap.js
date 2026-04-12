@@ -85,9 +85,7 @@
     if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
       state.boardId = BOARDS[0]?.id ?? "";
     }
-    state.hitareaCalibrationByBoard = ctx.createDefaultHitareaCalibrationMap();
     state.roomTombstonesByBoard = ctx.createDefaultRoomTombstonesByBoard();
-    state.roomGeometryByBoard = ctx.createDefaultRoomGeometryByBoard();
     state.roomStateProfilesByBoard = ctx.createDefaultRoomStateProfilesByBoard();
     state.specialPolygonsByBoard = ctx.createDefaultSpecialPolygonsByBoard();
     state.playAreasByBoard = ctx.createDefaultPlayAreasByBoard();

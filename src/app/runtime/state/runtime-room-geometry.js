@@ -62,55 +62,40 @@
     return anchor;
   }
 
+  // Phase 15-5 (full removal): geometry offsets + stretch have been
+  // baked into the stored polygon coordinates. The transform is now
+  // identity — center equals the polygon centroid, stretch is 1:1.
+  // Shape preserved for callers that destructure the return value
+  // (projectDisplayNormalizedToRoomRaw, polygon drag pipeline, etc.).
   function getRoomTransform(room, boardId) {
-    const effectiveBoardId = boardId ?? ctx.state.boardId;
-    const geometry = ctx.getRoomGeometry(effectiveBoardId, room.id);
-    // Phase 13-HF13: use the session-stable anchor so the transform is
-    // independent of the live polygon centroid.
-    const baseCenter = getStableRoomStretchAnchor(room, effectiveBoardId);
-    const centerX = geometry.mode === "absolute" ? geometry.absoluteX : baseCenter.x + geometry.offsetX;
-    const centerY = geometry.mode === "absolute" ? geometry.absoluteY : baseCenter.y + geometry.offsetY;
+    const baseCenter = getStableRoomStretchAnchor(room, boardId);
     return {
-      centerX,
-      centerY,
-      stretchX: geometry.stretchX,
-      stretchY: geometry.stretchY,
+      centerX: baseCenter.x,
+      centerY: baseCenter.y,
+      stretchX: 1,
+      stretchY: 1,
       baseCenterX: baseCenter.x,
       baseCenterY: baseCenter.y,
     };
   }
 
+  // Phase 15-5 (full removal): hitarea calibration + room geometry
+  // transforms have been baked into the stored polygon coordinates
+  // by the p15-migrate-bake-transforms.mjs migration script. The
+  // pipeline is now identity: source points map 1:1 to display
+  // points (scaled ×1000 for the SVG overlay coordinate space).
   function getRoomPoints(room, boardId) {
     const effectiveBoardId = boardId ?? ctx.state.boardId;
-    const calibration = ctx.getHitareaCalibration(effectiveBoardId);
-    const transform = getRoomTransform(room, effectiveBoardId);
     const sourcePoints = ctx.getRoomSourcePoints(room, effectiveBoardId);
     if (sourcePoints.length >= 3) {
-      // Phase 13-HF13: stretch origin is the stable anchor captured in
-      // getRoomTransform, not a live-recomputed centroid. Non-dragged
-      // vertices always map to the same display position because the
-      // transform is constant across vertex edits.
-      const baseCenter = { x: transform.baseCenterX, y: transform.baseCenterY };
-      return sourcePoints
-        .map(([x, y]) => {
-          const transformedX = transform.centerX + (x - baseCenter.x) * transform.stretchX;
-          const transformedY = transform.centerY + (y - baseCenter.y) * transform.stretchY;
-          return applyHitareaCalibration(transformedX, transformedY, calibration);
-        })
-        .map(([x, y]) => [x * 1000, y * 1000]);
+      return sourcePoints.map(([x, y]) => [x * 1000, y * 1000]);
     }
+    const center = getRoomCenterFromPoints(sourcePoints.length ? sourcePoints : [[0.5, 0.5]]);
+    const r = room.radius ?? 0.08;
     const points = [];
-    const cx = transform.centerX;
-    const cy = transform.centerY;
-    const r = room.radius;
     for (let i = 0; i < 6; i += 1) {
       const angle = (Math.PI / 3) * i;
-      const point = applyHitareaCalibration(
-        cx + Math.cos(angle) * r * transform.stretchX,
-        cy + Math.sin(angle) * r * transform.stretchY,
-        calibration,
-      );
-      points.push([point[0] * 1000, point[1] * 1000]);
+      points.push([(center.x + Math.cos(angle) * r) * 1000, (center.y + Math.sin(angle) * r) * 1000]);
     }
     return points;
   }

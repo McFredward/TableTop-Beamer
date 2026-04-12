@@ -45,9 +45,18 @@ const getRoomPointsStart = runtimeSrc.search(/function getRoomPoints\(room, boar
 const getRoomPointsBody = getRoomPointsStart >= 0
   ? runtimeSrc.slice(getRoomPointsStart, getRoomPointsStart + 1800)
   : "";
+// Phase 15-5 (full removal): getRoomPoints is now an identity
+// pipeline (source → ×1000). The original HF13-4 gate checked for
+// the stretch-anchor-based transform. The simplified pipeline
+// satisfies the spirit of the gate (no unstable centroid recompute
+// during vertex edits) by definition — there is no transform at
+// all. Accept either the legacy transform pattern or the identity
+// pipeline.
 const g13_hf13_4 =
-  getRoomPointsBody.includes("const baseCenter = { x: transform.baseCenterX, y: transform.baseCenterY };")
-  && !getRoomPointsBody.includes("getRoomCenterFromPoints(sourcePoints)");
+  (getRoomPointsBody.includes("const baseCenter = { x: transform.baseCenterX, y: transform.baseCenterY };")
+    && !getRoomPointsBody.includes("getRoomCenterFromPoints(sourcePoints)"))
+  || (getRoomPointsBody.includes("sourcePoints.map(([x, y]) => [x * 1000, y * 1000])")
+    && !getRoomPointsBody.includes("getRoomCenterFromPoints(sourcePoints)"));
 
 // G13-HF13-5: hydration clears the stretch-anchor cache so newly
 // hydrated polygons reseat their anchors.
