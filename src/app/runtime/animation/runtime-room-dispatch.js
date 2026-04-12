@@ -568,6 +568,42 @@
         ? `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
         : `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for ${targetLabel}`;
       renderRunningAnimationsList();
+
+      // Save as default animation if the checkbox is checked.
+      if (ctx.dashboardDefaultAnimation?.checked && createdAnimations.length > 0) {
+        for (const animation of createdAnimations) {
+          if (!state.defaultAnimationsByBoard[animation.boardId]) {
+            state.defaultAnimationsByBoard[animation.boardId] = [];
+          }
+          const defaults = state.defaultAnimationsByBoard[animation.boardId];
+          const filtered = defaults.filter(d => !(d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope));
+          filtered.push({
+            type: animation.type,
+            animationName: animation.animationName,
+            scope: animation.scope,
+            roomId: animation.roomId,
+            boardId: animation.boardId,
+            clusterId: animation.clusterId,
+            clusterName: animation.clusterName,
+            roomAssetType: animation.roomAssetType,
+            roomAssetRef: animation.roomAssetRef,
+            soundAssetRef: animation.soundAssetRef,
+            opacity: animation.opacity,
+            intensity: animation.intensity,
+            speed: animation.speed,
+            soundVolume: animation.soundVolume,
+            rotationDeg: animation.rotationDeg,
+            stretchToPolygon: animation.stretchToPolygon,
+            widthScale: animation.widthScale,
+            heightScale: animation.heightScale,
+            offsetXScale: animation.offsetXScale,
+            offsetYScale: animation.offsetYScale,
+          });
+          state.defaultAnimationsByBoard[animation.boardId] = filtered;
+        }
+        void ctx.saveAndCaptureCleanBaseline().catch(() => {});
+        ctx.dashboardDefaultAnimation.checked = false;
+      }
     } finally {
       restoreRoomDraftUiSnapshot(draftSnapshot, "room-start");
     }

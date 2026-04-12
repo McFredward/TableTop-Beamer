@@ -89,6 +89,7 @@
       liveEditorOffsetYValue: document.querySelector("#live-editor-offset-y-value"),
       liveEditorDiscard: document.querySelector("#live-editor-discard"),
       liveEditorDefault: document.querySelector("#live-editor-default"),
+      dashboardDefaultAnimation: document.querySelector("#dashboard-default-animation"),
       audioEnabledInput: document.querySelector("#audio-enabled"),
       audioVolumeInput: document.querySelector("#audio-volume"),
       audioVolumeValue: document.querySelector("#audio-volume-value"),

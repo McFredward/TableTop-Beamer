@@ -91,7 +91,7 @@ const {
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
   liveEditorHeight, liveEditorHeightValue, liveEditorOffsetX, liveEditorOffsetXValue,
-  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault,
+  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault, dashboardDefaultAnimation,
   audioEnabledInput, audioVolumeInput,
   audioVolumeValue, audioStatus, audioMappingAnimationSelect, audioMappingSoundSelect,
   audioMappingStatus, animationSpeedInput, animationSpeedValue, animationSpeedStatus,
@@ -1982,6 +1982,8 @@ window.TT_BEAMER_RUNTIME_ROOM_DISPATCH.init({
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   getRoomAnimationLabelById: (type, boardId) => getRoomAnimationLabelById(type, boardId),
   getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
+  dashboardDefaultAnimation,
+  saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
 });
 const { startRoomAnimationFromDraft } = window.TT_BEAMER_RUNTIME_ROOM_DISPATCH;
 

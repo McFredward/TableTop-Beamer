@@ -218,13 +218,6 @@
         (item) => item?.id === liveEditorAnimationId,
       );
       if (animation) {
-        // Emit live-sync mutation so other clients see the edit.
-        if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL) {
-          void ctx.emitLiveMutation("edit-room", {
-            animationId: animation.id,
-            animation: ctx.buildAnimationSnapshotForLiveSync(animation),
-          }).catch(() => {});
-        }
         const makeDefault = Boolean(ctx.liveEditorDefault?.checked);
         if (!ctx.state.defaultAnimationsByBoard[animation.boardId]) {
           ctx.state.defaultAnimationsByBoard[animation.boardId] = [];
