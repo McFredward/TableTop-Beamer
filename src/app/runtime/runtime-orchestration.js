@@ -91,7 +91,7 @@ const {
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
   liveEditorHeight, liveEditorHeightValue, liveEditorOffsetX, liveEditorOffsetXValue,
-  liveEditorOffsetY, liveEditorOffsetYValue,
+  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard,
   audioEnabledInput, audioVolumeInput,
   audioVolumeValue, audioStatus, audioMappingAnimationSelect, audioMappingSoundSelect,
   audioMappingStatus, animationSpeedInput, animationSpeedValue, animationSpeedStatus,
