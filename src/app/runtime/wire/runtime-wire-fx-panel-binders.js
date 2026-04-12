@@ -200,6 +200,43 @@
       triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
     });
 
+    // Phase 15-3: live preview for transform sliders. Writing to the
+    // draft only — commit happens on Apply. Value labels update in
+    // real time so the user can see the exact numbers.
+    ctx.roomRotationDegInput?.addEventListener("input", () => {
+      const v = Number(ctx.roomRotationDegInput.value) || 0;
+      if (ctx.roomRotationDegValue) ctx.roomRotationDegValue.textContent = String(Math.round(v));
+      setRoomEditorDraft(state.boardId, { rotationDeg: v });
+    });
+    ctx.roomStretchToPolygonInput?.addEventListener("change", () => {
+      const stretch = Boolean(ctx.roomStretchToPolygonInput.checked);
+      if (ctx.roomWidthScaleInput) ctx.roomWidthScaleInput.disabled = stretch;
+      if (ctx.roomHeightScaleInput) ctx.roomHeightScaleInput.disabled = stretch;
+      if (ctx.roomOffsetXScaleInput) ctx.roomOffsetXScaleInput.disabled = stretch;
+      if (ctx.roomOffsetYScaleInput) ctx.roomOffsetYScaleInput.disabled = stretch;
+      setRoomEditorDraft(state.boardId, { stretchToPolygon: stretch });
+    });
+    ctx.roomWidthScaleInput?.addEventListener("input", () => {
+      const v = Number(ctx.roomWidthScaleInput.value) || 1;
+      if (ctx.roomWidthScaleValue) ctx.roomWidthScaleValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { widthScale: v });
+    });
+    ctx.roomHeightScaleInput?.addEventListener("input", () => {
+      const v = Number(ctx.roomHeightScaleInput.value) || 1;
+      if (ctx.roomHeightScaleValue) ctx.roomHeightScaleValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { heightScale: v });
+    });
+    ctx.roomOffsetXScaleInput?.addEventListener("input", () => {
+      const v = Number(ctx.roomOffsetXScaleInput.value) || 0;
+      if (ctx.roomOffsetXScaleValue) ctx.roomOffsetXScaleValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { offsetXScale: v });
+    });
+    ctx.roomOffsetYScaleInput?.addEventListener("input", () => {
+      const v = Number(ctx.roomOffsetYScaleInput.value) || 0;
+      if (ctx.roomOffsetYScaleValue) ctx.roomOffsetYScaleValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { offsetYScale: v });
+    });
+
     roomApplyChangesButton?.addEventListener("click", () => {
       const draft = collectRoomEditorDraftFromInputs(state.boardId);
       if (!draft) {
@@ -217,6 +254,13 @@
             assetRef: draft.assetRef,
             // Phase 15-9: persist the per-definition sound selection.
             soundAssetRef: draft.soundAssetRef ?? entry.soundAssetRef ?? "none",
+            // Phase 15-3: persist the per-definition transform options.
+            rotationDeg: draft.rotationDeg ?? entry.rotationDeg ?? 0,
+            stretchToPolygon: draft.stretchToPolygon ?? entry.stretchToPolygon ?? true,
+            widthScale: draft.widthScale ?? entry.widthScale ?? 1,
+            heightScale: draft.heightScale ?? entry.heightScale ?? 1,
+            offsetXScale: draft.offsetXScale ?? entry.offsetXScale ?? 0,
+            offsetYScale: draft.offsetYScale ?? entry.offsetYScale ?? 0,
           }
           : entry)),
       });

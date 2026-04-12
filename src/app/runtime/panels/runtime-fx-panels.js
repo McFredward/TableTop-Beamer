@@ -304,6 +304,13 @@
       assetType: ctx.normalizeRoomAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
       soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
+      // Phase 15-3: transform options
+      rotationDeg: Number(definition.rotationDeg) || 0,
+      stretchToPolygon: definition.stretchToPolygon !== false,
+      widthScale: Number.isFinite(Number(definition.widthScale)) ? Number(definition.widthScale) : 1,
+      heightScale: Number.isFinite(Number(definition.heightScale)) ? Number(definition.heightScale) : 1,
+      offsetXScale: Number(definition.offsetXScale) || 0,
+      offsetYScale: Number(definition.offsetYScale) || 0,
     };
     ctx.roomEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -334,10 +341,25 @@
     );
     // Phase 15-9: carry per-definition sound selection through the draft.
     const soundAssetRef = String(ctx.roomSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
+    // Phase 15-3: carry transform options through the draft.
+    const rotationDeg = Number(ctx.roomRotationDegInput?.value) || 0;
+    const stretchToPolygon = ctx.roomStretchToPolygonInput
+      ? Boolean(ctx.roomStretchToPolygonInput.checked)
+      : true;
+    const widthScale = Number(ctx.roomWidthScaleInput?.value) || 1;
+    const heightScale = Number(ctx.roomHeightScaleInput?.value) || 1;
+    const offsetXScale = Number(ctx.roomOffsetXScaleInput?.value) || 0;
+    const offsetYScale = Number(ctx.roomOffsetYScaleInput?.value) || 0;
     return setRoomEditorDraft(effectiveBoardId, {
       assetType,
       assetRef,
       soundAssetRef,
+      rotationDeg,
+      stretchToPolygon,
+      widthScale,
+      heightScale,
+      offsetXScale,
+      offsetYScale,
     });
   }
 
@@ -400,6 +422,66 @@
       ctx.roomSoundRefSelect,
       draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
     );
+    // Phase 15-3: sync transform inputs from the draft / definition.
+    const rotationDeg = Number(
+      draft?.rotationDeg ?? selectedDefinition?.rotationDeg ?? 0,
+    );
+    const stretchToPolygon = draft?.stretchToPolygon !== undefined
+      ? Boolean(draft.stretchToPolygon)
+      : (selectedDefinition?.stretchToPolygon !== false);
+    const widthScale = Number(
+      draft?.widthScale ?? selectedDefinition?.widthScale ?? 1,
+    );
+    const heightScale = Number(
+      draft?.heightScale ?? selectedDefinition?.heightScale ?? 1,
+    );
+    const offsetXScale = Number(
+      draft?.offsetXScale ?? selectedDefinition?.offsetXScale ?? 0,
+    );
+    const offsetYScale = Number(
+      draft?.offsetYScale ?? selectedDefinition?.offsetYScale ?? 0,
+    );
+    if (ctx.roomRotationDegInput) {
+      ctx.roomRotationDegInput.value = String(rotationDeg);
+    }
+    if (ctx.roomRotationDegValue) {
+      ctx.roomRotationDegValue.textContent = String(Math.round(rotationDeg));
+    }
+    if (ctx.roomStretchToPolygonInput) {
+      ctx.roomStretchToPolygonInput.checked = stretchToPolygon;
+    }
+    if (ctx.roomWidthScaleInput) {
+      ctx.roomWidthScaleInput.value = String(widthScale);
+      ctx.roomWidthScaleInput.disabled = stretchToPolygon;
+    }
+    if (ctx.roomWidthScaleValue) {
+      ctx.roomWidthScaleValue.textContent = widthScale.toFixed(2);
+    }
+    if (ctx.roomHeightScaleInput) {
+      ctx.roomHeightScaleInput.value = String(heightScale);
+      ctx.roomHeightScaleInput.disabled = stretchToPolygon;
+    }
+    if (ctx.roomHeightScaleValue) {
+      ctx.roomHeightScaleValue.textContent = heightScale.toFixed(2);
+    }
+    if (ctx.roomOffsetXScaleInput) {
+      ctx.roomOffsetXScaleInput.value = String(offsetXScale);
+      ctx.roomOffsetXScaleInput.disabled = stretchToPolygon;
+    }
+    if (ctx.roomOffsetXScaleValue) {
+      ctx.roomOffsetXScaleValue.textContent = offsetXScale.toFixed(2);
+    }
+    if (ctx.roomOffsetYScaleInput) {
+      ctx.roomOffsetYScaleInput.value = String(offsetYScale);
+      ctx.roomOffsetYScaleInput.disabled = stretchToPolygon;
+    }
+    if (ctx.roomOffsetYScaleValue) {
+      ctx.roomOffsetYScaleValue.textContent = offsetYScale.toFixed(2);
+    }
+    if (ctx.roomTransformDetails) {
+      const isTransformable = assetType === "gif" || assetType === "mp4";
+      ctx.roomTransformDetails.hidden = !isTransformable;
+    }
   }
 
   function buildOutsideProfileWithSelectedAnimationPatch(boardId, patch = {}, profileOverride = null) {

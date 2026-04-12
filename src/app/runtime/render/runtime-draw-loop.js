@@ -20,6 +20,41 @@
     ctx = dependencies;
   }
 
+  // Phase 15-3: compute the effective draw rect for a room mp4/gif
+  // asset. Falls back to the polygon bounding box when the
+  // definition says "stretch to polygon" (default). Otherwise uses
+  // the per-definition width/height/offset scales relative to the
+  // polygon, plus a rotation applied around the result's center.
+  // Returns { centerX, centerY, w, h, rotationRad }.
+  function resolveRoomAssetDrawRect(animation, roomMetrics) {
+    const definition = ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId);
+    const stretch = definition?.stretchToPolygon !== false;
+    const widthScale = stretch ? 1 : (Number(definition?.widthScale) || 1);
+    const heightScale = stretch ? 1 : (Number(definition?.heightScale) || 1);
+    const offsetXScale = stretch ? 0 : (Number(definition?.offsetXScale) || 0);
+    const offsetYScale = stretch ? 0 : (Number(definition?.offsetYScale) || 0);
+    const rotationDeg = Number(definition?.rotationDeg) || 0;
+    const baseCenterX = roomMetrics.minX + roomMetrics.width / 2;
+    const baseCenterY = roomMetrics.minY + roomMetrics.height / 2;
+    return {
+      centerX: baseCenterX + offsetXScale * roomMetrics.width,
+      centerY: baseCenterY + offsetYScale * roomMetrics.height,
+      w: roomMetrics.width * widthScale,
+      h: roomMetrics.height * heightScale,
+      rotationRad: rotationDeg * Math.PI / 180,
+    };
+  }
+
+  function drawRoomAssetImage(c, source, rect) {
+    c.save();
+    c.translate(rect.centerX, rect.centerY);
+    if (rect.rotationRad !== 0) {
+      c.rotate(rect.rotationRad);
+    }
+    c.drawImage(source, -rect.w / 2, -rect.h / 2, rect.w, rect.h);
+    c.restore();
+  }
+
   function drawRoomComposition(animation, age, room, roomMetrics) {
     const c = ctx.canvasCtx;
     const qualityScale = ctx.getRuntimeQualityScale();
@@ -33,9 +68,10 @@
         opacity: ctx.clampRoomOpacity(animation.opacity),
       });
       if (gifRenderConfig.frame) {
+        const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
         c.save();
         c.globalAlpha = gifRenderConfig.opacity;
-        c.drawImage(gifRenderConfig.frame, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+        drawRoomAssetImage(c, gifRenderConfig.frame, rect);
         c.restore();
       }
       return;
@@ -59,9 +95,10 @@
         }
         if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
           try {
+            const rect = resolveRoomAssetDrawRect(animation, roomMetrics);
             c.save();
             c.globalAlpha = ctx.clampRoomOpacity(animation.opacity);
-            c.drawImage(video, roomMetrics.minX, roomMetrics.minY, roomMetrics.width, roomMetrics.height);
+            drawRoomAssetImage(c, video, rect);
             c.restore();
           } catch {
             c.restore();

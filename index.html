@@ -460,6 +460,33 @@
           Sound
           <select id="room-sound-ref"></select>
         </label>
+        <details id="room-transform-details" class="room-transform-options">
+          <summary>More options (for mp4 / gif)</summary>
+          <label>
+            Rotation (deg) <span id="room-rotation-deg-value">0</span>
+            <input id="room-rotation-deg" type="range" min="-180" max="180" step="1" value="0" />
+          </label>
+          <label class="inline-checkbox">
+            <input id="room-stretch-to-polygon" type="checkbox" checked />
+            Stretch to polygon (default)
+          </label>
+          <label>
+            Width scale <span id="room-width-scale-value">1.00</span>
+            <input id="room-width-scale" type="range" min="0.1" max="3" step="0.01" value="1" />
+          </label>
+          <label>
+            Height scale <span id="room-height-scale-value">1.00</span>
+            <input id="room-height-scale" type="range" min="0.1" max="3" step="0.01" value="1" />
+          </label>
+          <label>
+            X offset <span id="room-offset-x-scale-value">0.00</span>
+            <input id="room-offset-x-scale" type="range" min="-1" max="1" step="0.01" value="0" />
+          </label>
+          <label>
+            Y offset <span id="room-offset-y-scale-value">0.00</span>
+            <input id="room-offset-y-scale" type="range" min="-1" max="1" step="0.01" value="0" />
+          </label>
+        </details>
         <button id="room-apply-changes" type="button">Apply changes</button>
       </section>
 

@@ -365,6 +365,14 @@
     const rawAssetRef = String(definition?.assetRef || "").trim();
     const fallbackAssetRef = ctx.normalizeRoomAssetRefForType(assetType, fallbackDefaults.assetRef, "");
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
+    // Phase 15-3: mp4/gif room animations now support per-definition
+    // transform options. Defaults preserve the pre-phase behaviour
+    // (stretch to polygon, no rotation, no offset).
+    const clamp = (value, min, max, fallback) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    };
     return {
       id,
       name,
@@ -372,6 +380,12 @@
       assetRef,
       // Phase 15-9: per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
+      stretchToPolygon: definition?.stretchToPolygon !== false,
+      widthScale: clamp(definition?.widthScale, 0.05, 5, 1),
+      heightScale: clamp(definition?.heightScale, 0.05, 5, 1),
+      offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
+      offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
     };
   }
 
@@ -457,6 +471,12 @@
       assetType: seeded.assetType ?? "coded",
       assetRef: seeded.assetRef ?? "intruder-alert",
       soundAssetRef: seeded.soundAssetRef,
+      rotationDeg: seeded.rotationDeg,
+      stretchToPolygon: seeded.stretchToPolygon,
+      widthScale: seeded.widthScale,
+      heightScale: seeded.heightScale,
+      offsetXScale: seeded.offsetXScale,
+      offsetYScale: seeded.offsetYScale,
     });
   }
 
