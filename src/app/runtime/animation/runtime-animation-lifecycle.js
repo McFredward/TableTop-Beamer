@@ -60,12 +60,12 @@
       ctx.liveEditorOffsetY.disabled = checked;
     });
     ctx.liveEditorWidth.addEventListener("input", () => {
-      const value = Math.max(0.1, Math.min(3, Number(ctx.liveEditorWidth.value)));
+      const value = Math.max(0.1, Math.min(10, Number(ctx.liveEditorWidth.value)));
       ctx.liveEditorWidthValue.textContent = value.toFixed(2);
       applyLiveEditorValue("widthScale", value);
     });
     ctx.liveEditorHeight.addEventListener("input", () => {
-      const value = Math.max(0.1, Math.min(3, Number(ctx.liveEditorHeight.value)));
+      const value = Math.max(0.1, Math.min(10, Number(ctx.liveEditorHeight.value)));
       ctx.liveEditorHeightValue.textContent = value.toFixed(2);
       applyLiveEditorValue("heightScale", value);
     });
