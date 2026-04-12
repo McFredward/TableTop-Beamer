@@ -85,6 +85,16 @@
     if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
       state.boardId = BOARDS[0]?.id ?? "";
     }
+    // Phase 15-5: hitarea + geometry are legacy identity stubs. The
+    // maps still need to exist (empty objects per board) so code
+    // that reads them via getHitareaCalibration / getRoomGeometry
+    // doesn't crash on undefined property access.
+    state.hitareaCalibrationByBoard = Object.fromEntries(
+      ctx.getBoards().map((board) => [board.id, { offsetX: 0, offsetY: 0, scale: 1 }]),
+    );
+    state.roomGeometryByBoard = Object.fromEntries(
+      ctx.getBoards().map((board) => [board.id, {}]),
+    );
     state.roomTombstonesByBoard = ctx.createDefaultRoomTombstonesByBoard();
     state.roomStateProfilesByBoard = ctx.createDefaultRoomStateProfilesByBoard();
     state.specialPolygonsByBoard = ctx.createDefaultSpecialPolygonsByBoard();
