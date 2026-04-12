@@ -2885,6 +2885,9 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
   getLiveTraceSnapshot,
   draw: (timestamp) => draw(timestamp),
   createAnimation: (opts) => createAnimation(opts),
+  playSoundForAnimation: (animation) => playSoundForAnimation(animation),
+  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  buildAnimationSnapshotForLiveSync: (animation) => buildAnimationSnapshotForLiveSync(animation),
 });
 const {
   syncRuntimePanelsFromState,

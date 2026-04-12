@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-04-12T12:35:10.851Z",
+  "savedAt": "2026-04-12T12:41:02.232Z",
   "source": "runtime-state",
   "boardProfiles": {
     "nemesis-board-a": {
@@ -7536,9 +7536,9 @@
             "soundAssetRef": "none",
             "rotationDeg": 0,
             "stretchToPolygon": false,
-            "widthScale": 3,
-            "heightScale": 1,
-            "offsetXScale": 0,
+            "widthScale": 5.87,
+            "heightScale": 1.22,
+            "offsetXScale": 0.19,
             "offsetYScale": 0
           }
         ]
@@ -7562,6 +7562,46 @@
           "widthScale": 3,
           "heightScale": 1,
           "offsetXScale": 0,
+          "offsetYScale": 0
+        },
+        {
+          "type": "burst",
+          "animationName": "burst",
+          "scope": "room",
+          "roomId": "room-52",
+          "boardId": "nemesis-board-a",
+          "roomAssetType": "gif",
+          "roomAssetRef": "/resources/animations/burst.gif",
+          "soundAssetRef": "none",
+          "opacity": 1,
+          "intensity": 1,
+          "speed": 1,
+          "soundVolume": 1,
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 7.54,
+          "heightScale": 1.06,
+          "offsetXScale": 0.4,
+          "offsetYScale": 0
+        },
+        {
+          "type": "burst",
+          "animationName": "burst",
+          "scope": "room",
+          "roomId": "room-51",
+          "boardId": "nemesis-board-a",
+          "roomAssetType": "gif",
+          "roomAssetRef": "/resources/animations/burst.gif",
+          "soundAssetRef": "none",
+          "opacity": 1,
+          "intensity": 0.8,
+          "speed": 1,
+          "soundVolume": 1,
+          "rotationDeg": 0,
+          "stretchToPolygon": false,
+          "widthScale": 5.87,
+          "heightScale": 1.22,
+          "offsetXScale": 0.19,
           "offsetYScale": 0
         }
       ]

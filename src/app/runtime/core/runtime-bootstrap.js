@@ -154,32 +154,6 @@
 
     syncRuntimePanelsFromState();
 
-    // Auto-start default animations.
-    const defaultAnimations = ctx.state.defaultAnimationsByBoard[ctx.state.boardId] || [];
-    for (const def of defaultAnimations) {
-      const anim = ctx.createAnimation({
-        type: def.type,
-        animationName: def.animationName,
-        scope: def.scope || "room",
-        roomId: def.roomId,
-        boardId: def.boardId || ctx.state.boardId,
-        intensity: def.intensity ?? 0.8,
-        speed: def.speed ?? 1,
-        opacity: def.opacity ?? 0.9,
-        soundVolume: def.soundVolume ?? 1,
-        soundAssetRef: def.soundAssetRef,
-        rotationDeg: def.rotationDeg ?? 0,
-        stretchToPolygon: def.stretchToPolygon !== false,
-        widthScale: def.widthScale ?? 1,
-        heightScale: def.heightScale ?? 1,
-        offsetXScale: def.offsetXScale ?? 0,
-        offsetYScale: def.offsetYScale ?? 0,
-        hold: true,
-        durationSec: 0,
-      });
-      ctx.state.runningAnimations.push(anim);
-    }
-
     ctx.restoreSettingsSubtabPreference();
     ctx.syncQuickModePanel();
     ctx.syncMobileStickyOffsets();
@@ -238,6 +212,52 @@
       version: liveSync.lastAppliedVersion,
     });
     requestAnimationFrame(ctx.draw);
+
+    // Auto-start default animations after a short delay so the first
+    // live-sync snapshot poll has settled and won't overwrite our
+    // newly-created entries. Each default is dispatched as a
+    // trigger-room live mutation so the server includes it in
+    // subsequent snapshots for other clients.
+    window.setTimeout(() => {
+      const boardDefaults = state.defaultAnimationsByBoard[state.boardId] || [];
+      if (boardDefaults.length === 0) return;
+      for (const def of boardDefaults) {
+        const existing = state.runningAnimations.find(
+          (a) => a.type === def.type && a.roomId === def.roomId && a.scope === def.scope,
+        );
+        if (existing) continue;
+        const anim = ctx.createAnimation({
+          type: def.type,
+          animationName: def.animationName,
+          scope: def.scope || "room",
+          roomId: def.roomId,
+          boardId: def.boardId || state.boardId,
+          intensity: def.intensity ?? 0.8,
+          speed: def.speed ?? 1,
+          opacity: def.opacity ?? 0.9,
+          soundVolume: def.soundVolume ?? 1,
+          soundAssetRef: def.soundAssetRef,
+          roomAssetType: def.roomAssetType,
+          roomAssetRef: def.roomAssetRef,
+          rotationDeg: def.rotationDeg ?? 0,
+          stretchToPolygon: def.stretchToPolygon !== false,
+          widthScale: def.widthScale ?? 1,
+          heightScale: def.heightScale ?? 1,
+          offsetXScale: def.offsetXScale ?? 0,
+          offsetYScale: def.offsetYScale ?? 0,
+          hold: true,
+          durationSec: 0,
+        });
+        state.runningAnimations.push(anim);
+        ctx.playSoundForAnimation(anim);
+        void ctx.emitLiveMutation("trigger-room", {
+          animationId: anim.id,
+          animation: ctx.buildAnimationSnapshotForLiveSync(anim),
+        }).catch(() => {});
+      }
+      ctx.renderRunningAnimationsList();
+      ctx.refreshGlobalButtons();
+    }, 1500);
   }
 
   window.TT_BEAMER_RUNTIME_BOOTSTRAP = {
