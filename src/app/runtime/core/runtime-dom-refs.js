@@ -19,6 +19,7 @@
       boardStatus: document.querySelector("#board-status"),
       zonesStatus: document.querySelector("#zones-status"),
       alignModeToggleInput: document.querySelector("#align-mode-toggle"),
+      alignModeButton: document.querySelector("#align-mode-button"),
       alignModeStatus: document.querySelector("#align-mode-status"),
       exportGlobalDefaultsButton: document.querySelector("#export-global-defaults"),
       globalDefaultsStatus: document.querySelector("#global-defaults-status"),

@@ -158,10 +158,10 @@
           <input id="board-import-name" type="text" maxlength="80" placeholder="e.g. Zombicide Main Board" />
         </label>
         <button id="board-import-button" type="button">Import board (JSON or image) to server catalog</button>
-        <label class="inline-checkbox">
-          <input id="align-mode-toggle" type="checkbox" />
-          Align mode (show polygons on final output)
-        </label>
+        <!-- Phase 15-7: align mode moved to the Dashboard view as
+             #align-mode-button. The legacy #align-mode-toggle checkbox
+             is removed; the existing alignModeToggleInput DOM ref
+             will resolve to null and sync helpers already guard. -->
         <!-- Phase 13-HF4: Apply/Discard bar moved to the control-panel top.
              Export/Import remain in the settings-specific area. -->
         <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
@@ -486,7 +486,10 @@
         <h2>Active animations</h2>
         <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
         <ul id="running-animations" class="running-list" aria-live="polite"></ul>
-        <button id="stop-all" class="danger" type="button">Clear All</button>
+        <div class="button-grid button-grid-2">
+          <button id="stop-all" class="danger" type="button">Clear All</button>
+          <button id="align-mode-button" type="button" aria-pressed="false">Align mode: OFF</button>
+        </div>
         <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 

@@ -44,6 +44,7 @@
       startRoomAnimationButton,
       mobileStartRoomButton,
       alignModeToggleInput,
+      alignModeButton,
       exportGlobalDefaultsButton,
       runMobilePerformanceCheckButton,
       mp4PerformanceTierInput,
@@ -296,6 +297,11 @@
 
     alignModeToggleInput?.addEventListener("change", () => {
       setAlignMode(Boolean(alignModeToggleInput.checked));
+    });
+
+    // Phase 15-7: Dashboard-side align mode toggle button.
+    alignModeButton?.addEventListener("click", () => {
+      setAlignMode(!state.alignMode);
     });
 
     exportGlobalDefaultsButton?.addEventListener("click", () => {
