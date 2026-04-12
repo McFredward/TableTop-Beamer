@@ -1750,6 +1750,17 @@ function sanitizeBoardFileName(boardId) {
   return safe.replace(/^-|-$/g, "");
 }
 
+// Phase 15-4 helper: used by auto-suffix board ID resolution during
+// image board import. Returns true if the given path exists on disk.
+async function pathExists(p) {
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function migrateLegacyImportedBoardStorage() {
   await mkdir(BOARD_STORAGE_DIR, { recursive: true });
   await mkdir(BOARD_ASSETS_DIR, { recursive: true });
@@ -2103,20 +2114,18 @@ async function handleImageBoardImport(req, res) {
   const requestedBoardId = String(textFieldMap.get("boardId") || "").trim();
   const requestedBoardName = String(textFieldMap.get("boardName") || textFieldMap.get("name") || "").trim();
   const filenameStem = path.basename(String(imagePart.filename || "upload"), path.extname(String(imagePart.filename || "upload")));
-  const boardIdSeed = requestedBoardId || filenameStem || `board-${Date.now().toString(36)}`;
-  const safeBoardId = sanitizeBoardFileName(boardIdSeed);
-  if (!safeBoardId) {
+  // Phase 15-4: prefer boardName -> filenameStem -> timestamp when no
+  // explicit boardId is supplied. The client no longer exposes a
+  // boardId text input; the server derives + conflict-resolves.
+  const boardIdSeed = requestedBoardId
+    || requestedBoardName
+    || filenameStem
+    || `board-${Date.now().toString(36)}`;
+  const baseSafeBoardId = sanitizeBoardFileName(boardIdSeed);
+  if (!baseSafeBoardId) {
     sendJson(res, 400, {
       error: "boardId is invalid after normalization",
       code: "IMPORT_INVALID_BOARD_ID",
-    });
-    return;
-  }
-  if (BUILTIN_BOARD_IDS.has(safeBoardId)) {
-    sendJson(res, 409, {
-      error: "boardId conflicts with a built-in board",
-      code: "IMPORT_BOARD_ID_CONFLICT",
-      boardId: safeBoardId,
     });
     return;
   }
@@ -2124,17 +2133,48 @@ async function handleImageBoardImport(req, res) {
   await migrateLegacyImportedBoardStorage();
   await mkdir(BOARD_STORAGE_DIR, { recursive: true });
   await mkdir(BOARD_ASSETS_DIR, { recursive: true });
-  const boardJsonPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
-  try {
-    await stat(boardJsonPath);
-    sendJson(res, 409, {
-      error: "board import already exists",
-      code: "IMPORT_ALREADY_EXISTS",
-      boardId: safeBoardId,
-    });
-    return;
-  } catch {
-    // proceed
+
+  // Phase 15-4: auto-resolve conflicts with a -2 / -3 / ... suffix so
+  // the user never needs to type an ID themselves. If the user DID
+  // provide an explicit boardId we still respect it exactly and
+  // return 409 on collision (caller opted into their own naming).
+  let safeBoardId = baseSafeBoardId;
+  let boardJsonPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
+  if (requestedBoardId) {
+    if (BUILTIN_BOARD_IDS.has(safeBoardId)) {
+      sendJson(res, 409, {
+        error: "boardId conflicts with a built-in board",
+        code: "IMPORT_BOARD_ID_CONFLICT",
+        boardId: safeBoardId,
+      });
+      return;
+    }
+    try {
+      await stat(boardJsonPath);
+      sendJson(res, 409, {
+        error: "board import already exists",
+        code: "IMPORT_ALREADY_EXISTS",
+        boardId: safeBoardId,
+      });
+      return;
+    } catch {
+      // proceed
+    }
+  } else {
+    let suffix = 2;
+    while (BUILTIN_BOARD_IDS.has(safeBoardId) || await pathExists(boardJsonPath)) {
+      safeBoardId = `${baseSafeBoardId}-${suffix}`;
+      boardJsonPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
+      suffix += 1;
+      if (suffix > 500) {
+        sendJson(res, 500, {
+          error: "could not find a free boardId after 500 attempts",
+          code: "IMPORT_BOARD_ID_EXHAUSTED",
+          boardId: baseSafeBoardId,
+        });
+        return;
+      }
+    }
   }
 
   const imageFileName = `${safeBoardId}-${Date.now().toString(36)}.${extension}`;
