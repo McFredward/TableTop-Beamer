@@ -15,12 +15,14 @@
 (() => {
   let ctx = null;
   let liveEditorAnimationId = null;
+  let liveEditorSnapshot = null;
 
   function init(dependencies) {
     ctx = dependencies;
 
-    // Wire live editor close button.
+    // Wire live editor close + discard buttons.
     ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
+    ctx.liveEditorDiscard?.addEventListener("click", discardLiveEditor);
 
     // Wire live editor sliders.
     ctx.liveEditorOpacity.addEventListener("input", () => {
@@ -101,6 +103,20 @@
     }
     liveEditorAnimationId = animationId;
     liveEditorDirty = false;
+    // Snapshot the original values so Discard can restore them.
+    liveEditorSnapshot = {
+      opacity: animation.opacity,
+      intensity: animation.intensity,
+      speed: animation.speed,
+      playbackSpeed: animation.playbackSpeed,
+      soundVolume: animation.soundVolume,
+      rotationDeg: animation.rotationDeg,
+      stretchToPolygon: animation.stretchToPolygon,
+      widthScale: animation.widthScale,
+      heightScale: animation.heightScale,
+      offsetXScale: animation.offsetXScale,
+      offsetYScale: animation.offsetYScale,
+    };
     ctx.liveEditorPanel.hidden = false;
     if (ctx.liveEditorPanel) {
       ctx.liveEditorPanel.classList.remove("has-unsaved");
@@ -175,6 +191,21 @@
       ctx.liveEditorOffsetX.disabled = stretched;
       ctx.liveEditorOffsetY.disabled = stretched;
     }
+  }
+
+  function discardLiveEditor() {
+    if (liveEditorAnimationId !== null && liveEditorSnapshot) {
+      const animation = ctx.state.runningAnimations.find(
+        (item) => item?.id === liveEditorAnimationId,
+      );
+      if (animation) {
+        Object.assign(animation, liveEditorSnapshot);
+      }
+    }
+    liveEditorAnimationId = null;
+    liveEditorSnapshot = null;
+    liveEditorDirty = false;
+    ctx.liveEditorPanel.hidden = true;
   }
 
   function closeLiveEditor() {

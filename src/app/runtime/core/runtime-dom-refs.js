@@ -87,6 +87,7 @@
       liveEditorOffsetXValue: document.querySelector("#live-editor-offset-x-value"),
       liveEditorOffsetY: document.querySelector("#live-editor-offset-y"),
       liveEditorOffsetYValue: document.querySelector("#live-editor-offset-y-value"),
+      liveEditorDiscard: document.querySelector("#live-editor-discard"),
       audioEnabledInput: document.querySelector("#audio-enabled"),
       audioVolumeInput: document.querySelector("#audio-volume"),
       audioVolumeValue: document.querySelector("#audio-volume-value"),

@@ -382,8 +382,8 @@
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
       stretchToPolygon: definition?.stretchToPolygon !== false,
-      widthScale: clamp(definition?.widthScale, 0.05, 5, 1),
-      heightScale: clamp(definition?.heightScale, 0.05, 5, 1),
+      widthScale: clamp(definition?.widthScale, 0.05, 10, 1),
+      heightScale: clamp(definition?.heightScale, 0.05, 10, 1),
       offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
       offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
     };

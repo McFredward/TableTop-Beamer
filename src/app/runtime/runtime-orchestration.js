@@ -2017,7 +2017,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorOffsetX,
   liveEditorOffsetXValue,
   liveEditorOffsetY,
-  liveEditorOffsetYValue,
+  liveEditorOffsetYValue, liveEditorDiscard,
   roomAnimationSelect,
   roomOpacityInput,
   roomOpacityValue,
