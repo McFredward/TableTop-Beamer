@@ -50,6 +50,12 @@
         // Phase 15-9: carry the per-definition sound selection onto
         // the dispatched animation entry.
         soundAssetRef: selectedDefinition.soundAssetRef ?? "none",
+        rotationDeg: state.roomDraft.rotationDeg ?? 0,
+        stretchToPolygon: state.roomDraft.stretchToPolygon !== false,
+        widthScale: state.roomDraft.widthScale ?? 1,
+        heightScale: state.roomDraft.heightScale ?? 1,
+        offsetXScale: state.roomDraft.offsetXScale ?? 0,
+        offsetYScale: state.roomDraft.offsetYScale ?? 0,
         intensity: clampRoomIntensity(state.roomDraft.intensity),
         speed: clampRoomSpeed(state.roomDraft.speed),
         opacity: clampRoomOpacity(state.roomDraft.opacity),

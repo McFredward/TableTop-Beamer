@@ -14,6 +14,18 @@
       globalDefaultsStatus,
       dashboardGlobalLoopUntilStopInput,
       dashboardGlobalPlaySoundInput,
+      dashboardTransformOptions,
+      dashboardRotationDegInput,
+      dashboardRotationDegValue,
+      dashboardStretchToPolygonInput,
+      dashboardWidthScaleInput,
+      dashboardWidthScaleValue,
+      dashboardHeightScaleInput,
+      dashboardHeightScaleValue,
+      dashboardOffsetXScaleInput,
+      dashboardOffsetXScaleValue,
+      dashboardOffsetYScaleInput,
+      dashboardOffsetYScaleValue,
       stopAllButton,
       roomCreateButton,
       roomDeleteButton,
@@ -160,6 +172,42 @@
       renameSelectedRoom(roomRenameInput.value);
     });
 
+    // Helper: sync dashboard transform inputs from a definition or current draft.
+    function syncDashboardTransformInputs(def) {
+      const rot = Number(def?.rotationDeg) || 0;
+      const stretch = def?.stretchToPolygon !== false;
+      const ws = stretch ? 1 : (Number(def?.widthScale) || 1);
+      const hs = stretch ? 1 : (Number(def?.heightScale) || 1);
+      const ox = stretch ? 0 : (Number(def?.offsetXScale) || 0);
+      const oy = stretch ? 0 : (Number(def?.offsetYScale) || 0);
+
+      state.roomDraft.rotationDeg = rot;
+      state.roomDraft.stretchToPolygon = stretch;
+      state.roomDraft.widthScale = ws;
+      state.roomDraft.heightScale = hs;
+      state.roomDraft.offsetXScale = ox;
+      state.roomDraft.offsetYScale = oy;
+
+      if (dashboardRotationDegInput) dashboardRotationDegInput.value = rot;
+      if (dashboardRotationDegValue) dashboardRotationDegValue.textContent = `${rot}°`;
+      if (dashboardStretchToPolygonInput) dashboardStretchToPolygonInput.checked = stretch;
+      if (dashboardWidthScaleInput) dashboardWidthScaleInput.value = ws;
+      if (dashboardWidthScaleValue) dashboardWidthScaleValue.textContent = ws.toFixed(2);
+      if (dashboardHeightScaleInput) dashboardHeightScaleInput.value = hs;
+      if (dashboardHeightScaleValue) dashboardHeightScaleValue.textContent = hs.toFixed(2);
+      if (dashboardOffsetXScaleInput) dashboardOffsetXScaleInput.value = ox;
+      if (dashboardOffsetXScaleValue) dashboardOffsetXScaleValue.textContent = ox.toFixed(2);
+      if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.value = oy;
+      if (dashboardOffsetYScaleValue) dashboardOffsetYScaleValue.textContent = oy.toFixed(2);
+
+      // Disable w/h/offset when stretch-to-polygon is active.
+      const scaleDisabled = stretch;
+      if (dashboardWidthScaleInput) dashboardWidthScaleInput.disabled = scaleDisabled;
+      if (dashboardHeightScaleInput) dashboardHeightScaleInput.disabled = scaleDisabled;
+      if (dashboardOffsetXScaleInput) dashboardOffsetXScaleInput.disabled = scaleDisabled;
+      if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.disabled = scaleDisabled;
+    }
+
     roomAnimationSelect.addEventListener("change", () => {
       const selected = roomAnimationSelect.value;
       const roomFx = getRoomFxProfile(state.boardId);
@@ -171,6 +219,48 @@
       if (normalizeRoomAssetType(selectedDefinition?.assetType) === "gif") {
         warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });
       }
+      syncDashboardTransformInputs(selectedDefinition);
+    });
+
+    // Dashboard per-start transform override inputs.
+    dashboardRotationDegInput?.addEventListener("input", () => {
+      const v = Number(dashboardRotationDegInput.value) || 0;
+      state.roomDraft.rotationDeg = v;
+      if (dashboardRotationDegValue) dashboardRotationDegValue.textContent = `${v}°`;
+    });
+
+    dashboardStretchToPolygonInput?.addEventListener("change", () => {
+      const stretch = Boolean(dashboardStretchToPolygonInput.checked);
+      state.roomDraft.stretchToPolygon = stretch;
+      const scaleDisabled = stretch;
+      if (dashboardWidthScaleInput) dashboardWidthScaleInput.disabled = scaleDisabled;
+      if (dashboardHeightScaleInput) dashboardHeightScaleInput.disabled = scaleDisabled;
+      if (dashboardOffsetXScaleInput) dashboardOffsetXScaleInput.disabled = scaleDisabled;
+      if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.disabled = scaleDisabled;
+    });
+
+    dashboardWidthScaleInput?.addEventListener("input", () => {
+      const v = Number(dashboardWidthScaleInput.value) || 1;
+      state.roomDraft.widthScale = v;
+      if (dashboardWidthScaleValue) dashboardWidthScaleValue.textContent = v.toFixed(2);
+    });
+
+    dashboardHeightScaleInput?.addEventListener("input", () => {
+      const v = Number(dashboardHeightScaleInput.value) || 1;
+      state.roomDraft.heightScale = v;
+      if (dashboardHeightScaleValue) dashboardHeightScaleValue.textContent = v.toFixed(2);
+    });
+
+    dashboardOffsetXScaleInput?.addEventListener("input", () => {
+      const v = Number(dashboardOffsetXScaleInput.value) || 0;
+      state.roomDraft.offsetXScale = v;
+      if (dashboardOffsetXScaleValue) dashboardOffsetXScaleValue.textContent = v.toFixed(2);
+    });
+
+    dashboardOffsetYScaleInput?.addEventListener("input", () => {
+      const v = Number(dashboardOffsetYScaleInput.value) || 0;
+      state.roomDraft.offsetYScale = v;
+      if (dashboardOffsetYScaleValue) dashboardOffsetYScaleValue.textContent = v.toFixed(2);
     });
 
     roomTargetSelect?.addEventListener("change", () => {

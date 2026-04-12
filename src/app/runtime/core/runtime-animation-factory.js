@@ -28,6 +28,12 @@
     durationSec = 15,
     startDelayMs = 0,
     soundAssetRef = "",
+    rotationDeg = 0,
+    stretchToPolygon = true,
+    widthScale = 1,
+    heightScale = 1,
+    offsetXScale = 0,
+    offsetYScale = 0,
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -44,6 +50,12 @@
       // runtime animation entry so playSoundForAnimation can resolve
       // the path without reaching back through state.animationSoundMap.
       soundAssetRef: String(soundAssetRef || "").trim() || undefined,
+      rotationDeg: Number(rotationDeg) || 0,
+      stretchToPolygon: stretchToPolygon !== false,
+      widthScale: Number(widthScale) || 1,
+      heightScale: Number(heightScale) || 1,
+      offsetXScale: Number(offsetXScale) || 0,
+      offsetYScale: Number(offsetYScale) || 0,
       scope,
       roomId,
       intensity,

@@ -28,12 +28,12 @@
   // Returns { centerX, centerY, w, h, rotationRad }.
   function resolveRoomAssetDrawRect(animation, roomMetrics) {
     const definition = ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId);
-    const stretch = definition?.stretchToPolygon !== false;
-    const widthScale = stretch ? 1 : (Number(definition?.widthScale) || 1);
-    const heightScale = stretch ? 1 : (Number(definition?.heightScale) || 1);
-    const offsetXScale = stretch ? 0 : (Number(definition?.offsetXScale) || 0);
-    const offsetYScale = stretch ? 0 : (Number(definition?.offsetYScale) || 0);
-    const rotationDeg = Number(definition?.rotationDeg) || 0;
+    const stretch = (animation.stretchToPolygon !== undefined ? animation.stretchToPolygon : definition?.stretchToPolygon) !== false;
+    const widthScale = stretch ? 1 : (Number(animation.widthScale ?? definition?.widthScale) || 1);
+    const heightScale = stretch ? 1 : (Number(animation.heightScale ?? definition?.heightScale) || 1);
+    const offsetXScale = stretch ? 0 : (Number(animation.offsetXScale ?? definition?.offsetXScale) || 0);
+    const offsetYScale = stretch ? 0 : (Number(animation.offsetYScale ?? definition?.offsetYScale) || 0);
+    const rotationDeg = Number(animation.rotationDeg ?? definition?.rotationDeg) || 0;
     const baseCenterX = roomMetrics.minX + roomMetrics.width / 2;
     const baseCenterY = roomMetrics.minY + roomMetrics.height / 2;
     return {

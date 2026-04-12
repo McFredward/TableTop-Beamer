@@ -26,6 +26,12 @@
         staggerStart: false,
         staggerOffsetMs: 140,
         durationSec: 0,
+        rotationDeg: 0,
+        stretchToPolygon: true,
+        widthScale: 1,
+        heightScale: 1,
+        offsetXScale: 0,
+        offsetYScale: 0,
       },
       runningAnimations: [],
       audio: {
