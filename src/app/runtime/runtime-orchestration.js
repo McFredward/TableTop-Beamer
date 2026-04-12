@@ -51,6 +51,22 @@ const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole })
 const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: outputRole });
 const polygonContract = window.TT_BEAMER_POLYGON_CONTRACT ?? null;
 
+// Phase 14-2 reorg fix: polygon normalizers module needs to be pulled
+// into orchestration scope explicitly — orchestration call sites
+// reference `normalizeSpecialPolygon` / `isValidSpecialPolygon` both
+// directly (object-shorthand at line ~821) and inside ctx-arrow
+// wrappers. Without this destructure the direct shorthand throws
+// `ReferenceError: normalizeSpecialPolygon is not defined` during
+// module-load wiring, which blocks the rest of orchestration from
+// binding event handlers.
+const {
+  normalizePolygonPoint,
+  getNormalizedPolygonArea,
+  isRenderableNormalizedPolygon,
+  normalizeSpecialPolygon,
+  isValidSpecialPolygon,
+} = window.TT_BEAMER_RUNTIME_POLYGON_NORMALIZERS;
+
 const {
   stage, boardImage, canvas, roomOverlay, boardSelect, boardImportFileInput,
   boardImportImageInput, boardImportNameInput, boardImportIdInput, boardImportButton,
@@ -683,7 +699,7 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   extractBoardProfilesCandidateFromPersistence,
   buildMigratedBoardProfilesFromPersistence,
   createDefaultRoomGeometryMap,
-  createDefaultRoomStateProfileMap,
+  createDefaultRoomStateProfileMap: (boardId) => createDefaultRoomStateProfileMap(boardId),
   createDefaultSpecialPolygonMap,
   createDefaultRoomAnimationDefinitions,
   createDefaultInsideAnimationDefinitions,
@@ -691,7 +707,7 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   normalizeShipPolygon,
   normalizeRoomTombstoneIds,
   normalizeRoomGeometryMap,
-  normalizeRoomStateProfileMap,
+  normalizeRoomStateProfileMap: (map, boardId) => normalizeRoomStateProfileMap(map, boardId),
   normalizeSpecialPolygonMap,
   getPlayAreas,
   getSelectedPlayAreaId,
@@ -772,6 +788,7 @@ const {
   buildGlobalDefaultsPayload,
   saveGlobalDefaultsToServer,
   fetchWithTimeout,
+  getGlobalDefaultsApiFacade,
   runApiPreflight,
   classifyHttpStatus,
   getApiBaseFromSaveEndpoint,
@@ -858,6 +875,125 @@ const {
   getRoomEquivalentType,
   getRoomGifAssetFileName,
 } = window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS;
+
+// Phase 14-2 reorg fix: three runtime modules (AUDIO, ROOM_GEOMETRY,
+// LIVE_SYNC_HELPERS) lost their init() + destructure blocks during the
+// T51 folder reorganization, leaving orchestration with bare references
+// to `playSoundForAnimation`, `getRoomPoints`, `emitOutsideFxMutation`,
+// etc. that threw ReferenceError at first call. Restore all three
+// blocks here. They are placed after BOARD_STATE_ACCESSORS destructure
+// because ROOM_GEOMETRY needs its direct refs (getHitareaCalibration,
+// getRoomGeometry). All other cross-module helpers used by these three
+// modules are injected via ctx arrows so they late-bind to later
+// destructures in orchestration.
+window.TT_BEAMER_RUNTIME_AUDIO.init({
+  state,
+  liveSync,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
+  audioStatus,
+  triggerFeedback,
+  animationSpeedInput,
+  animationSpeedValue,
+  animationSpeedStatus,
+  audioMappingAnimationSelect,
+  audioMappingStatus,
+  audioMappingSoundSelect,
+  ALL_SOUND_ASSET_PATHS,
+  ALL_ANIMATION_TYPES,
+  GLOBAL_ANIMATIONS,
+  SOUND_MAPPING_NONE,
+  persistBoardProfiles: () => persistBoardProfiles(),
+  clampAnimationSpeed: (v) => clampAnimationSpeed(v),
+  clampRoomSoundVolume: (v) => clampRoomSoundVolume(v),
+  getGlobalTriggerRevision: (a) => getGlobalTriggerRevision(a),
+  getGlobalTriggerKey: (a) => getGlobalTriggerKey(a),
+  getAnimationStartedAtEpochMs: (a) => getAnimationStartedAtEpochMs(a),
+  getMappedSoundPathForAnimation: (t) => getMappedSoundPathForAnimation(t),
+  getAnimationLabel: (t) => getAnimationLabel(t),
+  normalizeAnimationSoundPath: (type, path) => normalizeAnimationSoundPath(type, path),
+  getGlobalAnimationCategory: (t) => getGlobalAnimationCategory(t),
+});
+const {
+  syncAudioStatus,
+  isOutputAudibleRole,
+  isAudioPlaybackAllowed,
+  persistRuntimeSoundSettingsChange,
+  syncAnimationSpeedPanel,
+  createAudioAssetVoice,
+  getAudioAssetPool,
+  warmEventSoundAssets,
+  applyAudioGain,
+  stopAllAudioVoices,
+  stopAnimationSound,
+  getAnimationAudioLifecycleKey,
+  stopSoundsForInactiveAnimations,
+  enforceAudioLifecycleGuard,
+  playSoundForAnimation,
+  syncAudioMappingStatus,
+  syncAudioMappingPanel,
+  clearAllActiveAnimationAudio,
+} = window.TT_BEAMER_RUNTIME_AUDIO;
+
+window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY.init({
+  state,
+  canvas,
+  polygonContract,
+  SHIP_POLYGON_DEFAULT,
+  getRoomSourcePoints: (room, boardId) => getRoomSourcePoints(room, boardId),
+  getRawRoomCenter: (room, boardId) => getRawRoomCenter(room, boardId),
+  getRoomGeometry: (boardId, roomId) => getRoomGeometry(boardId, roomId),
+  getHitareaCalibration: (boardId) => getHitareaCalibration(boardId),
+  getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
+  getPlayAreas: (boardId) => getPlayAreas(boardId),
+  mapNormalizedPointToPixels: (x, y, w, h) => mapNormalizedPointToPixels(x, y, w, h),
+  normalizePolygonPoint: (p) => normalizePolygonPoint(p),
+  isRenderableNormalizedPolygon: (p) => isRenderableNormalizedPolygon(p),
+});
+const {
+  applyHitareaCalibration,
+  getRoomCenterFromPoints,
+  getStableRoomStretchAnchor,
+  getRoomTransform,
+  getRoomPoints,
+  getRoomLabelPosition,
+  getRoomPolygonPixels,
+  getShipPolygonPixels,
+  getPlayAreaPolygonsPixels,
+  getRoomRenderMetrics,
+} = window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY;
+
+window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS.init({
+  state,
+  liveSync,
+  OUTPUT_ROLE_CONTROL,
+  getOutputRole: () => outputRole,
+  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
+  clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
+  getAnimationStartedAtEpochMs: (animation) => getAnimationStartedAtEpochMs(animation),
+  getClusterTargetById: (id, boardId) => getClusterTargetById(id, boardId),
+  reconcileHydratedRunningAnimations: (runningAnimations, now) => reconcileHydratedRunningAnimations(runningAnimations, now),
+  logRuntime,
+  getGlobalTriggerKey: (animation) => getGlobalTriggerKey(animation),
+});
+const {
+  normalizeLiveMutationPayload,
+  emitOutsideFxMutation,
+  emitRoomDraftSyncMutation,
+  scheduleRoomDraftSync,
+  hydrateRunningAnimationStartTimestamps,
+  reconcileHydratedAnimations,
+  isFiniteDurationGlobalAnimation,
+  buildTerminalOneShotFingerprint,
+  rememberTerminalOneShotReplay,
+  shouldSuppressTerminalOneShotReplay,
+  filterRunningAnimationsForBoard,
+  isControlCriticalMutationEnvelope,
+  sendLiveMutationReceiveAck,
+  sendLiveMutationApplyAck,
+  shouldApplyMutationEnvelope,
+} = window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS;
 
 // Phase 14-2: GIF decoder moved to runtime-gif-decoder.js.
 const {
