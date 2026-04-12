@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename } from "node:fs/promises";
-import { createReadStream } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2647,6 +2647,58 @@ const server = createServer(async (req, res) => {
 });
 
 attachLiveWebSocket(server);
+
+// Phase 16: auto-start default animations from global-defaults.json
+// so the first snapshot clients receive already includes them.
+try {
+  const globalDefaultsRaw = readFileSync(path.join(ROOT_DIR, "config", "global-defaults.json"), "utf8");
+  const globalDefaults = JSON.parse(globalDefaultsRaw);
+  const boardProfiles = globalDefaults?.boardProfiles ?? {};
+  const allDefaults = [];
+  for (const [boardId, profile] of Object.entries(boardProfiles)) {
+    const defaults = Array.isArray(profile?.defaultAnimations) ? profile.defaultAnimations : [];
+    for (const def of defaults) {
+      if (!def?.type || !def?.scope) continue;
+      allDefaults.push({
+        id: `default-${boardId}-${def.roomId || def.type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        boardId: def.boardId || boardId,
+        type: def.type,
+        animationName: def.animationName ?? def.type,
+        scope: def.scope || "room",
+        roomId: def.roomId ?? null,
+        clusterId: def.clusterId ?? null,
+        clusterName: def.clusterName ?? null,
+        roomAssetType: def.roomAssetType ?? "coded",
+        roomAssetRef: def.roomAssetRef ?? def.type,
+        soundAssetRef: def.soundAssetRef ?? "none",
+        intensity: def.intensity ?? 0.8,
+        speed: def.speed ?? 1,
+        opacity: def.opacity ?? 0.9,
+        soundVolume: def.soundVolume ?? 1,
+        rotationDeg: def.rotationDeg ?? 0,
+        stretchToPolygon: def.stretchToPolygon !== false,
+        widthScale: def.widthScale ?? 1,
+        heightScale: def.heightScale ?? 1,
+        offsetXScale: def.offsetXScale ?? 0,
+        offsetYScale: def.offsetYScale ?? 0,
+        hold: true,
+        durationMs: null,
+        startedAtEpochMs: Date.now(),
+      });
+    }
+  }
+  if (allDefaults.length > 0) {
+    if (!liveSessionState.snapshot.runtime) {
+      liveSessionState.snapshot.runtime = {};
+    }
+    liveSessionState.snapshot.runtime.runningAnimations = allDefaults;
+    liveSessionState.version = 1;
+    liveSessionState.updatedAt = new Date().toISOString();
+    console.log(`[default-animations] Pre-loaded ${allDefaults.length} default animation(s) into live session`);
+  }
+} catch (error) {
+  console.warn("[default-animations] Could not load defaults:", error?.message || error);
+}
 
 server.listen(PORT, HOST, () => {
   logSessionEvent("server-start", {
