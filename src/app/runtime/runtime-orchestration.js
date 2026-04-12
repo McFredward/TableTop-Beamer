@@ -91,7 +91,7 @@ const {
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
   liveEditorHeight, liveEditorHeightValue, liveEditorOffsetX, liveEditorOffsetXValue,
-  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard,
+  liveEditorOffsetY, liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault,
   audioEnabledInput, audioVolumeInput,
   audioVolumeValue, audioStatus, audioMappingAnimationSelect, audioMappingSoundSelect,
   audioMappingStatus, animationSpeedInput, animationSpeedValue, animationSpeedStatus,
@@ -2017,7 +2017,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorOffsetX,
   liveEditorOffsetXValue,
   liveEditorOffsetY,
-  liveEditorOffsetYValue, liveEditorDiscard,
+  liveEditorOffsetYValue, liveEditorDiscard, liveEditorDefault,
   roomAnimationSelect,
   roomOpacityInput,
   roomOpacityValue,
@@ -2880,6 +2880,7 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
   refreshGlobalButtons: () => refreshGlobalButtons(),
   getLiveTraceSnapshot,
   draw: (timestamp) => draw(timestamp),
+  createAnimation: (opts) => createAnimation(opts),
 });
 const {
   syncRuntimePanelsFromState,

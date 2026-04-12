@@ -153,6 +153,33 @@
     }
 
     syncRuntimePanelsFromState();
+
+    // Auto-start default animations.
+    const defaultAnimations = ctx.state.defaultAnimationsByBoard[ctx.state.boardId] || [];
+    for (const def of defaultAnimations) {
+      const anim = ctx.createAnimation({
+        type: def.type,
+        animationName: def.animationName,
+        scope: def.scope || "room",
+        roomId: def.roomId,
+        boardId: def.boardId || ctx.state.boardId,
+        intensity: def.intensity ?? 0.8,
+        speed: def.speed ?? 1,
+        opacity: def.opacity ?? 0.9,
+        soundVolume: def.soundVolume ?? 1,
+        soundAssetRef: def.soundAssetRef,
+        rotationDeg: def.rotationDeg ?? 0,
+        stretchToPolygon: def.stretchToPolygon !== false,
+        widthScale: def.widthScale ?? 1,
+        heightScale: def.heightScale ?? 1,
+        offsetXScale: def.offsetXScale ?? 0,
+        offsetYScale: def.offsetYScale ?? 0,
+        hold: true,
+        durationSec: 0,
+      });
+      ctx.state.runningAnimations.push(anim);
+    }
+
     ctx.restoreSettingsSubtabPreference();
     ctx.syncQuickModePanel();
     ctx.syncMobileStickyOffsets();

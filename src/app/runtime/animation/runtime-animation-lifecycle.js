@@ -191,6 +191,10 @@
       ctx.liveEditorOffsetX.disabled = stretched;
       ctx.liveEditorOffsetY.disabled = stretched;
     }
+
+    const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
+    const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
+    if (ctx.liveEditorDefault) ctx.liveEditorDefault.checked = isDefault;
   }
 
   function discardLiveEditor() {
@@ -221,6 +225,38 @@
             animation: ctx.buildAnimationSnapshotForLiveSync(animation),
           }).catch(() => {});
         }
+        const makeDefault = Boolean(ctx.liveEditorDefault?.checked);
+        if (!ctx.state.defaultAnimationsByBoard[animation.boardId]) {
+          ctx.state.defaultAnimationsByBoard[animation.boardId] = [];
+        }
+        const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId];
+        // Remove any existing default for same type+roomId+scope
+        const filtered = defaults.filter(d => !(d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope));
+        if (makeDefault) {
+          filtered.push({
+            type: animation.type,
+            animationName: animation.animationName,
+            scope: animation.scope,
+            roomId: animation.roomId,
+            boardId: animation.boardId,
+            clusterId: animation.clusterId,
+            clusterName: animation.clusterName,
+            roomAssetType: animation.roomAssetType,
+            roomAssetRef: animation.roomAssetRef,
+            soundAssetRef: animation.soundAssetRef,
+            opacity: animation.opacity,
+            intensity: animation.intensity,
+            speed: animation.speed,
+            soundVolume: animation.soundVolume,
+            rotationDeg: animation.rotationDeg,
+            stretchToPolygon: animation.stretchToPolygon,
+            widthScale: animation.widthScale,
+            heightScale: animation.heightScale,
+            offsetXScale: animation.offsetXScale,
+            offsetYScale: animation.offsetYScale,
+          });
+        }
+        ctx.state.defaultAnimationsByBoard[animation.boardId] = filtered;
         // Persist transform changes back to the animation definition
         // so they survive a page reload. Uses the direct
         // saveAndCaptureCleanBaseline path so the apply/discard bar

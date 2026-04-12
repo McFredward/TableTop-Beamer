@@ -52,6 +52,7 @@
       roomGeometryByBoard: {},
       roomStateProfilesByBoard: {},
       specialPolygonsByBoard: {},
+      defaultAnimationsByBoard: {},
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},
