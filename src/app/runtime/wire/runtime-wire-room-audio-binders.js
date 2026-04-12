@@ -529,6 +529,11 @@
     mp4RecoverThresholdInput?.addEventListener("input", () => {
       updateMp4PerformanceControls({ recoverThreshold: Number(mp4RecoverThresholdInput.value) }, { announce: false });
     });
+
+    // Initial sync so dashboard transform inputs match the
+    // currently-selected animation definition on first load.
+    const initialDef = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
+    syncDashboardTransformInputs(initialDef);
   }
 
   window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS = {
