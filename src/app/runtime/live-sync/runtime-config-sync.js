@@ -9,6 +9,7 @@
 (() => {
   let ctx = null;
   let cleanBaselineJson = null;
+  let suppressBroadcastReapplyUntil = 0;
 
   function init(dependencies) {
     ctx = dependencies;
@@ -154,6 +155,10 @@
   // dirty-flag step needed.
   async function saveAndCaptureCleanBaseline() {
     try {
+      // Suppress the global-config-update broadcast echo for 3 seconds
+      // so our own save doesn't trigger a re-fetch that overwrites
+      // local state changes the user is about to make next.
+      suppressBroadcastReapplyUntil = Date.now() + 3000;
       await ctx.saveGlobalDefaultsToServer();
       clearLocalConfigDirty("Global config: synced");
       captureCleanBaseline();
@@ -162,6 +167,10 @@
       console.warn("[global-config] silent save failed:", error?.message || error);
       return { ok: false };
     }
+  }
+
+  function shouldSuppressBroadcastReapply() {
+    return Date.now() < suppressBroadcastReapplyUntil;
   }
 
   async function discardLocalConfigAndReloadFromServer() {
@@ -278,5 +287,6 @@
     renderServerUnreachableOverlay,
     captureCleanBaseline,
     saveAndCaptureCleanBaseline,
+    shouldSuppressBroadcastReapply,
   };
 })();

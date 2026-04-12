@@ -445,6 +445,9 @@
             if (ctx.state.localConfigDirty) {
               ctx.state.remoteConfigUpdateAwaiting = true;
               ctx.refreshApplyDiscardButtonsUi();
+            } else if (ctx.shouldSuppressBroadcastReapply()) {
+              // Our own save just broadcast this — skip re-fetch to
+              // avoid overwriting local state changes in progress.
             } else {
               void (async () => {
                 try {

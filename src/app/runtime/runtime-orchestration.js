@@ -487,6 +487,7 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   refreshApplyDiscardButtonsUi: () => refreshApplyDiscardButtonsUi(),
   fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
   applyGlobalDefaultsPayloadToState: (payload) => applyGlobalDefaultsPayloadToState(payload),
+  shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
 });
 const {
   shouldApplySnapshotVersion,
@@ -775,6 +776,7 @@ const {
   renderServerUnreachableOverlay,
   captureCleanBaseline,
   saveAndCaptureCleanBaseline,
+  shouldSuppressBroadcastReapply,
 } = window.TT_BEAMER_RUNTIME_CONFIG_SYNC;
 
 // Phase 14-2: global defaults API facade + error/hint formatters +
