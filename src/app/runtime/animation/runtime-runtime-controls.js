@@ -20,12 +20,41 @@
     window.TT_BEAMER_INPUT_GUARDS.recordTriggerIntent(ctx.state);
   }
 
+  // Phase 15-6: graceful audio for global inside non-loop animations.
+  // When a non-loop inside global is stopped (clear-all, snapshot
+  // stop, etc.), we previously called stopAnimationSound which
+  // hard-cut the voice mid-sample. That's fine for loops (the user
+  // expects an immediate stop) and for outside animations (long
+  // ambient audio), but for short inside one-shots it was jarring.
+  // Now we pass `graceful: true` so the active iteration plays to
+  // its natural `ended` event while the animation is still removed
+  // from the tracking map. We also stop calling
+  // clearAllActiveAnimationAudio unconditionally — that wipes the
+  // tracking map even for voices we want to fade out naturally.
+  function shouldGracefulStopAudio(animation) {
+    if (!animation || animation.scope !== "global") return false;
+    // Inside scope = anything NOT outside-space. outside-space gets
+    // the hard stop so the ambient track doesn't drift into silence
+    // uncontrollably when the user clears the board.
+    if (animation.type === "outside-space") return false;
+    return !animation.loopUntilStopped;
+  }
+
   function hardStopRuntimeEffects({ clearVisuals = true } = {}) {
     const state = ctx.state;
+    let anyGraceful = false;
     for (const animation of state.runningAnimations) {
-      ctx.stopAnimationSound(animation.id);
+      const graceful = shouldGracefulStopAudio(animation);
+      if (graceful) {
+        anyGraceful = true;
+      }
+      ctx.stopAnimationSound(animation.id, { graceful });
     }
-    ctx.clearAllActiveAnimationAudio();
+    // Only flush the entire voice map when nothing wants a graceful
+    // fade-out. Otherwise the graceful voices would be orphaned.
+    if (!anyGraceful) {
+      ctx.clearAllActiveAnimationAudio();
+    }
     if (clearVisuals) {
       ctx.ashParticles.length = 0;
     }

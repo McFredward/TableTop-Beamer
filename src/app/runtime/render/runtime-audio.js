@@ -128,7 +128,13 @@
     }
   }
 
-  function stopAnimationSound(animationId) {
+  // Phase 15-6: stopAnimationSound accepts an optional `graceful` flag.
+  // When graceful=true, the current audio iteration is NOT cut off —
+  // the voice is allowed to play out to its natural `ended` event,
+  // and only the "keep looping" onEnded handler is unhooked so the
+  // sound doesn't replay. Used by hardStopRuntimeEffects for global
+  // inside non-loop animations so users don't hear an abrupt cut.
+  function stopAnimationSound(animationId, { graceful = false } = {}) {
     const pendingTimer = pendingAnimationAudioStartTimers.get(animationId);
     if (pendingTimer) {
       window.clearTimeout(pendingTimer);
@@ -142,7 +148,7 @@
     if (voice && onEnded) {
       voice.removeEventListener("ended", onEnded);
     }
-    if (voice) {
+    if (voice && !graceful) {
       voice.pause();
       voice.currentTime = 0;
     }
