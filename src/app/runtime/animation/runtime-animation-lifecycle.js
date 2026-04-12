@@ -144,6 +144,48 @@
   }
 
   function closeLiveEditor() {
+    if (liveEditorAnimationId !== null) {
+      const animation = ctx.state.runningAnimations.find(
+        (item) => item?.id === liveEditorAnimationId,
+      );
+      if (animation) {
+        // Emit live-sync mutation so other clients see the edit.
+        if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL) {
+          void ctx.emitLiveMutation("edit-room", {
+            animationId: animation.id,
+            animation: ctx.buildAnimationSnapshotForLiveSync(animation),
+          }).catch(() => {});
+        }
+        // Persist transform changes back to the animation definition
+        // so they survive a page reload.
+        if (animation.scope === "room" || animation.scope === "cluster") {
+          const profile = ctx.getRoomFxProfile(animation.boardId);
+          const definition = profile.animations.find(
+            (entry) => entry.id === animation.type,
+          );
+          if (definition) {
+            const nextProfile = ctx.normalizeRoomFxProfile({
+              ...profile,
+              animations: profile.animations.map((entry) =>
+                entry.id !== definition.id
+                  ? entry
+                  : {
+                    ...entry,
+                    rotationDeg: animation.rotationDeg ?? entry.rotationDeg,
+                    stretchToPolygon: animation.stretchToPolygon ?? entry.stretchToPolygon,
+                    widthScale: animation.widthScale ?? entry.widthScale,
+                    heightScale: animation.heightScale ?? entry.heightScale,
+                    offsetXScale: animation.offsetXScale ?? entry.offsetXScale,
+                    offsetYScale: animation.offsetYScale ?? entry.offsetYScale,
+                  },
+              ),
+            });
+            ctx.setRoomFxProfile(animation.boardId, nextProfile);
+            ctx.persistBoardProfiles();
+          }
+        }
+      }
+    }
     liveEditorAnimationId = null;
     ctx.liveEditorPanel.hidden = true;
   }

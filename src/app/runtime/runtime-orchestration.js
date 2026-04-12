@@ -2063,6 +2063,10 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomEquivalentType: (type, boardId) => getRoomEquivalentType(type, boardId),
   shouldSuppressRapidTap: (key, threshold) => shouldSuppressRapidTap(key, threshold),
   setDashboardZone: (zone) => setDashboardZone(zone),
+  buildAnimationSnapshotForLiveSync: (animation) => buildAnimationSnapshotForLiveSync(animation),
+  getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
+  setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
+  normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
 });
 const {
   collectAnimationStopIds,
