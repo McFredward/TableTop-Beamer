@@ -79,6 +79,19 @@
     });
   }
 
+  let liveEditorDirty = false;
+
+  function markLiveEditorDirty() {
+    if (liveEditorDirty) return;
+    liveEditorDirty = true;
+    if (ctx.liveEditorPanel) {
+      ctx.liveEditorPanel.classList.add("has-unsaved");
+    }
+    if (ctx.liveEditorClose) {
+      ctx.liveEditorClose.textContent = "Done (save)";
+    }
+  }
+
   function openLiveEditor(animationId) {
     const { state } = ctx;
     const animation = state.runningAnimations.find((item) => item?.id === animationId);
@@ -87,8 +100,29 @@
       return;
     }
     liveEditorAnimationId = animationId;
+    liveEditorDirty = false;
     ctx.liveEditorPanel.hidden = false;
-    ctx.liveEditorTitle.textContent = animation.animationName || animation.type || "Animation";
+    if (ctx.liveEditorPanel) {
+      ctx.liveEditorPanel.classList.remove("has-unsaved");
+    }
+    if (ctx.liveEditorClose) {
+      ctx.liveEditorClose.textContent = "Done";
+    }
+
+    // Build a descriptive title: animation name + room/cluster name.
+    const effectLabel = animation.animationName || animation.type || "Animation";
+    const board = ctx.getBoard(animation.boardId);
+    let targetLabel = "";
+    if (animation.scope === "room" && animation.roomId) {
+      const room = board.rooms.find((r) => r.id === animation.roomId);
+      targetLabel = room?.name ?? room?.label ?? animation.roomId;
+    } else if (animation.scope === "cluster") {
+      const cluster = ctx.getClusterTargetById(animation.clusterId, animation.boardId);
+      targetLabel = cluster?.name ?? animation.clusterName ?? "Cluster";
+    }
+    ctx.liveEditorTitle.textContent = targetLabel
+      ? `Editing: ${effectLabel} — ${targetLabel}`
+      : `Editing: ${effectLabel}`;
 
     // Populate sliders from current animation values.
     const opacity = ctx.clampRoomOpacity(animation.opacity ?? 0.9);
@@ -203,6 +237,7 @@
     const animation = state.runningAnimations.find((item) => item?.id === liveEditorAnimationId);
     if (animation) {
       animation[field] = value;
+      markLiveEditorDirty();
     }
   }
 
