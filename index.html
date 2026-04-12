@@ -207,30 +207,6 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Hitarea Calibration</h2>
-        <p class="status-line">Manual fine tuning for hit test and overlay (per active board).</p>
-        <div class="calibration-grid">
-          <label>
-            Hitarea X-Offset <span id="hitarea-offset-x-value">0.000</span>
-            <input id="hitarea-offset-x" type="range" min="-0.15" max="0.15" step="0.001" value="0" />
-          </label>
-          <label>
-            Hitarea Y-Offset <span id="hitarea-offset-y-value">0.000</span>
-            <input id="hitarea-offset-y" type="range" min="-0.15" max="0.15" step="0.001" value="0" />
-          </label>
-          <label>
-            Hitarea Scale <span id="hitarea-scale-value">1.000</span>
-            <input id="hitarea-scale" type="range" min="0.85" max="1.15" step="0.001" value="1" />
-          </label>
-        </div>
-        <div class="button-grid button-grid-2">
-          <button id="hitarea-save" type="button">Save calibration</button>
-          <button id="hitarea-reset" type="button">Reset calibration to default</button>
-        </div>
-        <p id="hitarea-status" class="status-line" aria-live="polite">Hitarea: Default</p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room management</h2>
         <label>
           New room name
@@ -250,39 +226,6 @@
         </div>
         <p id="room-management-status" class="status-line" aria-live="polite">
           Room management: ready
-        </p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Room geometry</h2>
-        <p class="status-line">Calibrate per-room position as relative offset or absolute target position.</p>
-        <label>
-          Calibration mode
-          <select id="room-geometry-mode">
-            <option value="relative">Relative (offset)</option>
-            <option value="absolute">Absolute (target coordinate)</option>
-          </select>
-        </label>
-        <div class="calibration-grid">
-          <label>
-            Position X <span id="room-geometry-x-value">0.000</span>
-            <input id="room-geometry-x" type="range" min="-0.25" max="0.25" step="0.001" value="0" />
-          </label>
-          <label>
-            Position Y <span id="room-geometry-y-value">0.000</span>
-            <input id="room-geometry-y" type="range" min="-0.25" max="0.25" step="0.001" value="0" />
-          </label>
-          <label>
-            Stretch X <span id="room-geometry-stretch-x-value">1.000</span>
-            <input id="room-geometry-stretch-x" type="range" min="0.6" max="1.6" step="0.001" value="1" />
-          </label>
-          <label>
-            Stretch Y <span id="room-geometry-stretch-y-value">1.000</span>
-            <input id="room-geometry-stretch-y" type="range" min="0.6" max="1.6" step="0.001" value="1" />
-          </label>
-        </div>
-        <p id="room-geometry-status" class="status-line" aria-live="polite">
-          Room geometry: select a room on the board
         </p>
       </section>
 
