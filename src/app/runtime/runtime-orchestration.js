@@ -744,6 +744,8 @@ window.TT_BEAMER_RUNTIME_CONFIG_SYNC.init({
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
+  buildBoardProfilesFromState: () => buildBoardProfilesFromState(),
+  buildPersistedRuntimeSettingsFromState: () => buildPersistedRuntimeSettingsFromState(),
 });
 const {
   persistBoardProfiles,
@@ -753,6 +755,7 @@ const {
   applyLocalConfigToServer,
   discardLocalConfigAndReloadFromServer,
   renderServerUnreachableOverlay,
+  captureCleanBaseline,
 } = window.TT_BEAMER_RUNTIME_CONFIG_SYNC;
 
 // Phase 14-2: global defaults API facade + error/hint formatters +
@@ -2764,6 +2767,7 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
   normalizeAnimationSoundMap,
   fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
   loadBoardProfiles: () => loadBoardProfiles(),
+  captureCleanBaseline: () => captureCleanBaseline(),
   buildResolveSnapshot: (opts) => buildResolveSnapshot(opts),
   formatResolveSnapshot: (snapshot) => formatResolveSnapshot(snapshot),
   renderServerUnreachableOverlay: (error) => renderServerUnreachableOverlay(error),

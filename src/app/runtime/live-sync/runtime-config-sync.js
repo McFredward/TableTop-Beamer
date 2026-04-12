@@ -8,12 +8,65 @@
 // Dependencies injected via ctx.
 (() => {
   let ctx = null;
+  let cleanBaselineJson = null;
 
   function init(dependencies) {
     ctx = dependencies;
   }
 
+  // Produce a stable, key-sorted JSON serialization of any value so two
+  // structurally-equal objects always compare as identical strings.
+  function stableStringify(value) {
+    if (value === null || typeof value !== "object") {
+      return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map(stableStringify).join(",")}]`;
+    }
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+
+  // Snapshot of everything that persistBoardProfiles is supposed to
+  // cover: the full board profile map plus the persisted runtime
+  // settings. Used as the dirty-gate comparison key.
+  function buildDirtyComparisonSnapshot() {
+    if (typeof ctx?.buildBoardProfilesFromState !== "function"
+      || typeof ctx?.buildPersistedRuntimeSettingsFromState !== "function") {
+      return null;
+    }
+    const snapshot = {
+      boardProfiles: ctx.buildBoardProfilesFromState(),
+      runtimeSettings: ctx.buildPersistedRuntimeSettingsFromState(),
+    };
+    return stableStringify(snapshot);
+  }
+
+  function captureCleanBaseline() {
+    cleanBaselineJson = buildDirtyComparisonSnapshot();
+  }
+
+  // Phase 15-1: dirty flag only fires when state actually differs from
+  // the clean baseline. Before this, every dropdown change that merely
+  // re-selected the current value was incorrectly marking the config
+  // dirty and triggering the "unsaved changes" banner.
   function persistBoardProfiles() {
+    const currentJson = buildDirtyComparisonSnapshot();
+    if (cleanBaselineJson === null) {
+      // Baseline not yet captured (shouldn't happen in normal bootstrap
+      // ordering, but stay safe). Fall back to legacy mark-always.
+      markLocalConfigDirty("board-profiles-mutated");
+      return { ok: true, target: "local-dirty", routing: "opt-in" };
+    }
+    if (currentJson === cleanBaselineJson) {
+      // No net change vs. the last server-clean state. Ensure the dirty
+      // flag is cleared in case an earlier mutation brought us here and
+      // the user has since reverted.
+      if (ctx.state.localConfigDirty) {
+        clearLocalConfigDirty("Global config: no unsaved changes");
+      }
+      return { ok: true, target: "clean", routing: "opt-in" };
+    }
     markLocalConfigDirty("board-profiles-mutated");
     return { ok: true, target: "local-dirty", routing: "opt-in" };
   }
@@ -83,6 +136,7 @@
     try {
       await ctx.saveGlobalDefaultsToServer();
       clearLocalConfigDirty("Global config: pushed local changes to server");
+      captureCleanBaseline();
       return { ok: true };
     } catch (error) {
       const message = String(error?.message || error || "unknown");
@@ -102,6 +156,7 @@
       ctx.renderRunningAnimationsList();
       ctx.refreshGlobalButtons();
       clearLocalConfigDirty("Global config: discarded local changes, reloaded from server");
+      captureCleanBaseline();
       return { ok: true };
     } catch (error) {
       const message = String(error?.message || error || "unknown");
@@ -205,5 +260,6 @@
     applyLocalConfigToServer,
     discardLocalConfigAndReloadFromServer,
     renderServerUnreachableOverlay,
+    captureCleanBaseline,
   };
 })();

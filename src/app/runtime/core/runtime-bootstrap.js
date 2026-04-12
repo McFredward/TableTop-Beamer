@@ -120,6 +120,7 @@
       const loaded = await ctx.fetchGlobalDefaultsPayload();
       window.__TT_BEAMER_BOOTSTRAP_CONFIG__ = loaded.payload;
       ctx.loadBoardProfiles();
+      ctx.captureCleanBaseline();
       state.startupDefaultsGuard.attempted = true;
       state.startupDefaultsGuard.applied = true;
       state.startupDefaultsGuard.outcome = "applied";
@@ -135,6 +136,7 @@
       state.startupDefaultsGuard.outcome = "failed-explicit";
       state.startupDefaultsGuard.detail = String(error?.message || error || "server-unreachable");
       ctx.loadBoardProfiles();
+      ctx.captureCleanBaseline();
       ctx.renderServerUnreachableOverlay(error);
       if (ctx.globalDefaultsStatus) {
         ctx.globalDefaultsStatus.textContent =
