@@ -172,7 +172,6 @@
       renameSelectedRoom(roomRenameInput.value);
     });
 
-    // Helper: sync dashboard transform inputs from a definition or current draft.
     function syncDashboardTransformInputs(def) {
       const rot = Number(def?.rotationDeg) || 0;
       const stretch = def?.stretchToPolygon !== false;
@@ -200,12 +199,17 @@
       if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.value = oy;
       if (dashboardOffsetYScaleValue) dashboardOffsetYScaleValue.textContent = oy.toFixed(2);
 
-      // Disable w/h/offset when stretch-to-polygon is active.
-      const scaleDisabled = stretch;
-      if (dashboardWidthScaleInput) dashboardWidthScaleInput.disabled = scaleDisabled;
-      if (dashboardHeightScaleInput) dashboardHeightScaleInput.disabled = scaleDisabled;
-      if (dashboardOffsetXScaleInput) dashboardOffsetXScaleInput.disabled = scaleDisabled;
-      if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.disabled = scaleDisabled;
+      if (dashboardWidthScaleInput) dashboardWidthScaleInput.disabled = stretch;
+      if (dashboardHeightScaleInput) dashboardHeightScaleInput.disabled = stretch;
+      if (dashboardOffsetXScaleInput) dashboardOffsetXScaleInput.disabled = stretch;
+      if (dashboardOffsetYScaleInput) dashboardOffsetYScaleInput.disabled = stretch;
+
+      // Only show transform options for mp4/gif, not coded.
+      const assetType = normalizeRoomAssetType(def?.assetType);
+      const isTransformable = assetType === "gif" || assetType === "mp4";
+      if (dashboardTransformOptions) {
+        dashboardTransformOptions.hidden = !isTransformable;
+      }
     }
 
     roomAnimationSelect.addEventListener("change", () => {
