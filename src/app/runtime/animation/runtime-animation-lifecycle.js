@@ -14,9 +14,149 @@
 // list rendering).
 (() => {
   let ctx = null;
+  let liveEditorAnimationId = null;
 
   function init(dependencies) {
     ctx = dependencies;
+
+    // Wire live editor close button.
+    ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
+
+    // Wire live editor sliders.
+    ctx.liveEditorOpacity.addEventListener("input", () => {
+      const value = ctx.clampRoomOpacity(Number(ctx.liveEditorOpacity.value));
+      ctx.liveEditorOpacityValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("opacity", value);
+    });
+    ctx.liveEditorIntensity.addEventListener("input", () => {
+      const value = ctx.clampRoomIntensity(Number(ctx.liveEditorIntensity.value));
+      ctx.liveEditorIntensityValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("intensity", value);
+    });
+    ctx.liveEditorSpeed.addEventListener("input", () => {
+      const value = ctx.clampRoomSpeed(Number(ctx.liveEditorSpeed.value));
+      ctx.liveEditorSpeedValue.textContent = `${value.toFixed(2)}x`;
+      applyLiveEditorValue("speed", value);
+      applyLiveEditorValue("playbackSpeed", value);
+    });
+    ctx.liveEditorSoundVolume.addEventListener("input", () => {
+      const raw = Number(ctx.liveEditorSoundVolume.value);
+      ctx.liveEditorSoundVolumeValue.textContent = `${Math.round(raw)}%`;
+      applyLiveEditorValue("soundVolume", ctx.clampRoomSoundVolume(raw / 100));
+    });
+    ctx.liveEditorRotation.addEventListener("input", () => {
+      const value = Math.max(-180, Math.min(180, Number(ctx.liveEditorRotation.value)));
+      ctx.liveEditorRotationValue.textContent = `${value}°`;
+      applyLiveEditorValue("rotationDeg", value);
+    });
+    ctx.liveEditorStretch.addEventListener("change", () => {
+      const checked = ctx.liveEditorStretch.checked;
+      applyLiveEditorValue("stretchToPolygon", checked);
+      ctx.liveEditorWidth.disabled = checked;
+      ctx.liveEditorHeight.disabled = checked;
+      ctx.liveEditorOffsetX.disabled = checked;
+      ctx.liveEditorOffsetY.disabled = checked;
+    });
+    ctx.liveEditorWidth.addEventListener("input", () => {
+      const value = Math.max(0.1, Math.min(3, Number(ctx.liveEditorWidth.value)));
+      ctx.liveEditorWidthValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("widthScale", value);
+    });
+    ctx.liveEditorHeight.addEventListener("input", () => {
+      const value = Math.max(0.1, Math.min(3, Number(ctx.liveEditorHeight.value)));
+      ctx.liveEditorHeightValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("heightScale", value);
+    });
+    ctx.liveEditorOffsetX.addEventListener("input", () => {
+      const value = Math.max(-1, Math.min(1, Number(ctx.liveEditorOffsetX.value)));
+      ctx.liveEditorOffsetXValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("offsetXScale", value);
+    });
+    ctx.liveEditorOffsetY.addEventListener("input", () => {
+      const value = Math.max(-1, Math.min(1, Number(ctx.liveEditorOffsetY.value)));
+      ctx.liveEditorOffsetYValue.textContent = value.toFixed(2);
+      applyLiveEditorValue("offsetYScale", value);
+    });
+  }
+
+  function openLiveEditor(animationId) {
+    const { state } = ctx;
+    const animation = state.runningAnimations.find((item) => item?.id === animationId);
+    if (!animation) {
+      closeLiveEditor();
+      return;
+    }
+    liveEditorAnimationId = animationId;
+    ctx.liveEditorPanel.hidden = false;
+    ctx.liveEditorTitle.textContent = animation.animationName || animation.type || "Animation";
+
+    // Populate sliders from current animation values.
+    const opacity = ctx.clampRoomOpacity(animation.opacity ?? 0.9);
+    ctx.liveEditorOpacity.value = String(opacity);
+    ctx.liveEditorOpacityValue.textContent = opacity.toFixed(2);
+
+    const intensity = ctx.clampRoomIntensity(animation.intensity ?? 1);
+    ctx.liveEditorIntensity.value = String(intensity);
+    ctx.liveEditorIntensityValue.textContent = intensity.toFixed(2);
+
+    const speed = ctx.clampRoomSpeed(animation.speed ?? 1);
+    ctx.liveEditorSpeed.value = String(speed);
+    ctx.liveEditorSpeedValue.textContent = `${speed.toFixed(2)}x`;
+
+    const soundVolume = Math.round(ctx.clampRoomSoundVolume(animation.soundVolume ?? 1) * 100);
+    ctx.liveEditorSoundVolume.value = String(soundVolume);
+    ctx.liveEditorSoundVolumeValue.textContent = `${soundVolume}%`;
+
+    // Transform fields — only visible for mp4/gif asset types.
+    const assetType = String(animation.roomAssetType ?? "").toLowerCase();
+    const showTransform = assetType === "mp4" || assetType === "gif";
+    ctx.liveEditorTransform.hidden = !showTransform;
+
+    if (showTransform) {
+      const rotationDeg = Math.max(-180, Math.min(180, Number(animation.rotationDeg ?? 0)));
+      ctx.liveEditorRotation.value = String(rotationDeg);
+      ctx.liveEditorRotationValue.textContent = `${rotationDeg}°`;
+
+      const stretched = Boolean(animation.stretchToPolygon);
+      ctx.liveEditorStretch.checked = stretched;
+
+      const widthScale = Math.max(0.1, Math.min(3, Number(animation.widthScale ?? 1)));
+      ctx.liveEditorWidth.value = String(widthScale);
+      ctx.liveEditorWidthValue.textContent = widthScale.toFixed(2);
+
+      const heightScale = Math.max(0.1, Math.min(3, Number(animation.heightScale ?? 1)));
+      ctx.liveEditorHeight.value = String(heightScale);
+      ctx.liveEditorHeightValue.textContent = heightScale.toFixed(2);
+
+      const offsetXScale = Math.max(-1, Math.min(1, Number(animation.offsetXScale ?? 0)));
+      ctx.liveEditorOffsetX.value = String(offsetXScale);
+      ctx.liveEditorOffsetXValue.textContent = offsetXScale.toFixed(2);
+
+      const offsetYScale = Math.max(-1, Math.min(1, Number(animation.offsetYScale ?? 0)));
+      ctx.liveEditorOffsetY.value = String(offsetYScale);
+      ctx.liveEditorOffsetYValue.textContent = offsetYScale.toFixed(2);
+
+      ctx.liveEditorWidth.disabled = stretched;
+      ctx.liveEditorHeight.disabled = stretched;
+      ctx.liveEditorOffsetX.disabled = stretched;
+      ctx.liveEditorOffsetY.disabled = stretched;
+    }
+  }
+
+  function closeLiveEditor() {
+    liveEditorAnimationId = null;
+    ctx.liveEditorPanel.hidden = true;
+  }
+
+  function applyLiveEditorValue(field, value) {
+    const { state } = ctx;
+    if (liveEditorAnimationId === null) {
+      return;
+    }
+    const animation = state.runningAnimations.find((item) => item?.id === liveEditorAnimationId);
+    if (animation) {
+      animation[field] = value;
+    }
   }
 
   function collectAnimationStopIds(targetAnimation, { mutateClusterMembership = false } = {}) {
@@ -267,6 +407,7 @@
     syncRoomPanelFromSelection({ preserveDraftState: true });
     renderRoomOverlay();
     triggerFeedback.textContent = `Status: ${animation.id} loaded into editor${isClusterScope ? " (cluster)" : ""}`;
+    openLiveEditor(animationId);
   }
 
   function renderRunningAnimationsList() {
@@ -278,6 +419,15 @@
       clampClusterStaggerOffsetMs, getRoomGifAssetFileName, getRoomEquivalentType,
       getClusterMemberAnimationIds, shouldSuppressRapidTap, setDashboardZone,
     } = ctx;
+    // Auto-close live editor if the animation it targets no longer exists.
+    if (liveEditorAnimationId !== null) {
+      const editorAnimationStillRunning = state.runningAnimations.some(
+        (item) => item?.id === liveEditorAnimationId,
+      );
+      if (!editorAnimationStillRunning) {
+        closeLiveEditor();
+      }
+    }
     const parity = validateRunningListParity();
     runningAnimationsList.replaceChildren();
     const listAnimations = getRunningAnimationsForList();
@@ -445,5 +595,6 @@
     isRunningListInteractionActive,
     validateRunningListParity,
     refreshGlobalButtons,
+    closeLiveEditor,
   };
 })();

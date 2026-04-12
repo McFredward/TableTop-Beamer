@@ -552,6 +552,55 @@
         <h2>Active animations</h2>
         <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
         <ul id="running-animations" class="running-list" aria-live="polite"></ul>
+        <div id="live-editor-panel" class="live-editor-panel" hidden>
+          <div class="live-editor-header">
+            <strong id="live-editor-title">Editing: —</strong>
+            <button id="live-editor-close" type="button">Done</button>
+          </div>
+          <label>
+            Opacity <span id="live-editor-opacity-value">0.90</span>
+            <input id="live-editor-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
+          </label>
+          <label>
+            Intensity <span id="live-editor-intensity-value">0.80</span>
+            <input id="live-editor-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Speed <span id="live-editor-speed-value">1.00x</span>
+            <input id="live-editor-speed" type="range" min="0.1" max="2.5" step="0.05" value="1" />
+          </label>
+          <label>
+            Sound Volume <span id="live-editor-sound-volume-value">100%</span>
+            <input id="live-editor-sound-volume" type="range" min="0" max="100" step="1" value="100" />
+          </label>
+          <fieldset id="live-editor-transform" class="room-transform-options">
+            <legend>Transform</legend>
+            <label>
+              Rotation (deg) <span id="live-editor-rotation-value">0</span>
+              <input id="live-editor-rotation" type="range" min="-180" max="180" step="1" value="0" />
+            </label>
+            <label class="inline-checkbox">
+              <input id="live-editor-stretch" type="checkbox" checked />
+              Stretch to polygon
+            </label>
+            <label>
+              Width scale <span id="live-editor-width-value">1.00</span>
+              <input id="live-editor-width" type="range" min="0.1" max="3" step="0.01" value="1" />
+            </label>
+            <label>
+              Height scale <span id="live-editor-height-value">1.00</span>
+              <input id="live-editor-height" type="range" min="0.1" max="3" step="0.01" value="1" />
+            </label>
+            <label>
+              X offset <span id="live-editor-offset-x-value">0.00</span>
+              <input id="live-editor-offset-x" type="range" min="-1" max="1" step="0.01" value="0" />
+            </label>
+            <label>
+              Y offset <span id="live-editor-offset-y-value">0.00</span>
+              <input id="live-editor-offset-y" type="range" min="-1" max="1" step="0.01" value="0" />
+            </label>
+          </fieldset>
+        </div>
         <div class="button-grid button-grid-2">
           <button id="stop-all" class="danger" type="button">Clear All</button>
           <button id="align-mode-button" type="button" aria-pressed="false">Align mode: OFF</button>
