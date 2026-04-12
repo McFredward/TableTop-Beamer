@@ -203,3 +203,46 @@ Phase 14 is **CLOSED PARTIAL**. Plan 14-1 PASS, Plan 14-2 PARTIAL.
 The remaining extractions are scoped, documented, and mechanically
 reproducible via the validated pattern — they are a straight
 follow-up for a subsequent session or a dedicated Phase 14-continuation.
+
+## Post-closure hotfix — commit `2bed48c`
+
+During browser validation after the T51+T52 reorg, `/output/final`
+failed with runtime ReferenceErrors (`playSoundForAnimation is not
+defined`, `getRoomPoints is not defined`, TDZ on
+`createDefaultRoomStateProfileMap`). Forensic git diff traced the
+regression to commit `e2a1d1d` (T26 polygon editor extraction), whose
+diff accidentally deleted three adjacent `.init()` + destructure
+blocks: `TT_BEAMER_RUNTIME_AUDIO`, `TT_BEAMER_RUNTIME_ROOM_GEOMETRY`,
+and `TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS`. The existing regex
+harnesses missed it because they match string patterns in source
+files, not actual module wiring.
+
+Hotfix `2bed48c` restores all three init blocks verbatim from their
+original extraction commits (T7/T2/T22), widens the
+`POLYGON_NORMALIZERS` destructure with `normalizePolygonPoint` /
+`isRenderableNormalizedPolygon`, adds `getGlobalDefaultsApiFacade`
+to the `GLOBAL_DEFAULTS` destructure, and wraps two TDZ'd bindings
+in arrow wrappers.
+
+Five new smoke tests were added so this class of accident cannot
+recur silently:
+
+- `debug/p14-orchestration-init-scope-check.mjs` — static scanner
+  for TDZ + undeclared bare shorthand + late-binding arrow bodies
+  with undeclared inner identifiers
+- `debug/p14-orchestration-module-exports-check.mjs` — every
+  runtime module's export list must be destructured, method-accessed,
+  or redundantly provided by another module
+- `debug/p14-orchestration-runtime-loader.mjs` — executes all 69
+  `<script defer src="/src/app/...">` tags in a Node vm sandbox
+  with auto-stubbing Proxy for window/document; catches every
+  top-level load error the regex harnesses miss
+- `debug/p14-final-loader.mjs` — same loader with
+  pathname=/output/final so FINAL-branching init paths are exercised
+- `debug/p14-final-audio-trace.mjs` — traces the final-output audio
+  pipeline end-to-end: runs initializeApplication, then invokes
+  `playSoundForAnimation` with a synthetic animation and asserts
+  the call reaches `audio.play()` with the correct sound path
+
+User confirmed: `/output/final` now renders, control UI works,
+`/output/final` audio plays.
