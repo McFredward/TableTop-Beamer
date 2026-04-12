@@ -98,9 +98,11 @@
 
   function syncStageZoomTransform() {
     const state = ctx.state;
-    const zoom = state.uiView === "settings"
-      ? getBoardZoom(state.boardId)
-      : ctx.BOARD_ZOOM_DEFAULT;
+    // Phase 15-2: zoom/pan state now persists across both dashboard and
+    // settings views so the user can drag the board around during a
+    // session. Previously the CSS vars reset to default outside of
+    // settings, which made pan/zoom feel like it was "lost".
+    const zoom = getBoardZoom(state.boardId);
     ctx.stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
     ctx.stage.style.setProperty("--stage-pan-x", `${zoom.panX.toFixed(2)}px`);
     ctx.stage.style.setProperty("--stage-pan-y", `${zoom.panY.toFixed(2)}px`);
@@ -219,9 +221,10 @@
 
   function canStartPanModeFromEvent(event) {
     const state = ctx.state;
-    if (state.uiView !== "settings") {
-      return false;
-    }
+    // Phase 15-2: pan mode is now allowed in both dashboard and
+    // settings views. The user still has to opt in explicitly via
+    // middle-click or space-drag, so normal dashboard room clicks
+    // are not stolen by accident.
     const zoom = getBoardZoom(state.boardId);
     if (zoom.scale <= 1) {
       return false;
@@ -244,7 +247,9 @@
     // handler re-runs this once the user lifts their finger.
     if (ctx.getTouchGestureActive()) return;
     const zoom = getBoardZoom(state.boardId);
-    const interactive = state.uiView === "settings" && zoom.scale > 1;
+    // Phase 15-2: pan cursor available in both dashboard and settings
+    // when zoomed in (matches the widened canStartPanModeFromEvent).
+    const interactive = zoom.scale > 1;
     ctx.stage.classList.toggle("is-panning", state.panMode.active);
     ctx.roomOverlay.classList.toggle("is-pan-enabled", interactive);
     ctx.roomOverlay.classList.toggle("is-pan-ready", interactive && state.panMode.spacePressed && !state.panMode.active);
