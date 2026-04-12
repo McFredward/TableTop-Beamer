@@ -240,12 +240,15 @@
       persistRuntimeSoundSettingsChange("Status: Audio toggle applied, but persistence failed");
     });
 
-    audioMappingAnimationSelect.addEventListener("change", () => {
+    // Phase 15-9: standalone Sound Mapping panel removed — these two
+    // event listeners are no longer needed since sound is now
+    // per-animation-definition. Guard with ?. for null-safety.
+    audioMappingAnimationSelect?.addEventListener("change", () => {
       syncAudioMappingPanel();
     });
 
-    audioMappingSoundSelect.addEventListener("change", () => {
-      const animationType = audioMappingAnimationSelect.value;
+    audioMappingSoundSelect?.addEventListener("change", () => {
+      const animationType = audioMappingAnimationSelect?.value;
       if (!animationType) {
         return;
       }

@@ -302,7 +302,12 @@
     reusable.play().catch(() => undefined);
   }
 
+  // Phase 15-9: the standalone Sound Mapping panel was removed.
+  // These two sync functions are retained as no-ops for callers
+  // that still invoke them (e.g. syncRuntimePanelsFromState).
+  // When the DOM refs are null, nothing to sync.
   function syncAudioMappingStatus() {
+    if (!ctx.audioMappingAnimationSelect || !ctx.audioMappingStatus) return;
     const animationType = ctx.audioMappingAnimationSelect.value || ctx.ALL_ANIMATION_TYPES[0]?.id;
     if (!animationType) {
       ctx.audioMappingStatus.textContent = "Sound mapping: no animations available";
@@ -322,6 +327,7 @@
     const state = ctx.state;
     const audioMappingAnimationSelect = ctx.audioMappingAnimationSelect;
     const audioMappingSoundSelect = ctx.audioMappingSoundSelect;
+    if (!audioMappingAnimationSelect || !audioMappingSoundSelect) return;
     if (audioMappingAnimationSelect.childElementCount === 0) {
       for (const animation of ctx.ALL_ANIMATION_TYPES) {
         const option = document.createElement("option");
