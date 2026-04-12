@@ -170,11 +170,11 @@
       const stretched = Boolean(animation.stretchToPolygon);
       ctx.liveEditorStretch.checked = stretched;
 
-      const widthScale = Math.max(0.1, Math.min(3, Number(animation.widthScale ?? 1)));
+      const widthScale = Math.max(0.1, Math.min(10, Number(animation.widthScale ?? 1)));
       ctx.liveEditorWidth.value = String(widthScale);
       ctx.liveEditorWidthValue.textContent = widthScale.toFixed(2);
 
-      const heightScale = Math.max(0.1, Math.min(3, Number(animation.heightScale ?? 1)));
+      const heightScale = Math.max(0.1, Math.min(10, Number(animation.heightScale ?? 1)));
       ctx.liveEditorHeight.value = String(heightScale);
       ctx.liveEditorHeightValue.textContent = heightScale.toFixed(2);
 
