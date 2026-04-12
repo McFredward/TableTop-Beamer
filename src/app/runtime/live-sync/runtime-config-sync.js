@@ -148,6 +148,22 @@
     }
   }
 
+  // Direct save + baseline capture without showing the apply/discard
+  // bar. Used by the live animation editor's "Done" button — the
+  // user's click is the explicit commit action, no intermediate
+  // dirty-flag step needed.
+  async function saveAndCaptureCleanBaseline() {
+    try {
+      await ctx.saveGlobalDefaultsToServer();
+      clearLocalConfigDirty("Global config: synced");
+      captureCleanBaseline();
+      return { ok: true };
+    } catch (error) {
+      console.warn("[global-config] silent save failed:", error?.message || error);
+      return { ok: false };
+    }
+  }
+
   async function discardLocalConfigAndReloadFromServer() {
     try {
       const loaded = await ctx.fetchGlobalDefaultsPayload();
@@ -261,5 +277,6 @@
     discardLocalConfigAndReloadFromServer,
     renderServerUnreachableOverlay,
     captureCleanBaseline,
+    saveAndCaptureCleanBaseline,
   };
 })();

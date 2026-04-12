@@ -774,6 +774,7 @@ const {
   discardLocalConfigAndReloadFromServer,
   renderServerUnreachableOverlay,
   captureCleanBaseline,
+  saveAndCaptureCleanBaseline,
 } = window.TT_BEAMER_RUNTIME_CONFIG_SYNC;
 
 // Phase 14-2: global defaults API facade + error/hint formatters +
@@ -2067,6 +2068,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
   setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
+  saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
 });
 const {
   collectAnimationStopIds,

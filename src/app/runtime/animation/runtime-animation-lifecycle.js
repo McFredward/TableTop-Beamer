@@ -157,7 +157,10 @@
           }).catch(() => {});
         }
         // Persist transform changes back to the animation definition
-        // so they survive a page reload.
+        // so they survive a page reload. Uses the direct
+        // saveAndCaptureCleanBaseline path so the apply/discard bar
+        // does NOT appear — the live editor "Done" button is the
+        // user's explicit commit action.
         if (animation.scope === "room" || animation.scope === "cluster") {
           const profile = ctx.getRoomFxProfile(animation.boardId);
           const definition = profile.animations.find(
@@ -181,7 +184,9 @@
               ),
             });
             ctx.setRoomFxProfile(animation.boardId, nextProfile);
-            ctx.persistBoardProfiles();
+            // Save directly to server + advance the clean baseline so
+            // the dirty-flag bar doesn't trigger.
+            void ctx.saveAndCaptureCleanBaseline().catch(() => {});
           }
         }
       }
