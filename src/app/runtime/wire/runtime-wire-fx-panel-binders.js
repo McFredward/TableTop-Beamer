@@ -91,7 +91,14 @@
 
     roomAnimationSettingsCreateButton?.addEventListener("click", () => {
       const profile = getRoomFxProfile(state.boardId);
-      const definition = createRoomAnimationDefinition(roomAnimationSettingsNameInput?.value, profile.animations);
+      // Phase 15-8: seed the new definition from the user's current
+      // editor-panel inputs so they don't have to re-enter the values.
+      const currentDraft = collectRoomEditorDraftFromInputs(state.boardId);
+      const definition = createRoomAnimationDefinition(
+        roomAnimationSettingsNameInput?.value,
+        profile.animations,
+        currentDraft,
+      );
       const nextProfile = {
         ...profile,
         animations: [...profile.animations, definition],
@@ -221,7 +228,13 @@
 
     insideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getInsideFxProfile(state.boardId);
-      const definition = createInsideAnimationDefinition(insideAnimationNameInput?.value, profile.animations);
+      // Phase 15-8: inherit user's current editor values on create.
+      const currentDraft = collectInsideEditorDraftFromInputs(state.boardId);
+      const definition = createInsideAnimationDefinition(
+        insideAnimationNameInput?.value,
+        profile.animations,
+        currentDraft,
+      );
       const nextProfile = {
         ...profile,
         animations: [...profile.animations, definition],
@@ -355,7 +368,13 @@
 
     outsideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getOutsideFxProfile(state.boardId);
-      const definition = createOutsideAnimationDefinition(outsideAnimationNameInput?.value, profile.animations);
+      // Phase 15-8: inherit user's current editor values on create.
+      const currentDraft = collectOutsideEditorDraftFromInputs(state.boardId);
+      const definition = createOutsideAnimationDefinition(
+        outsideAnimationNameInput?.value,
+        profile.animations,
+        currentDraft,
+      );
       const nextAnimations = [...profile.animations, definition];
       const nextProfile = {
         ...profile,

@@ -107,7 +107,7 @@
     return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
   }
 
-  function createInsideAnimationDefinition(name, existingDefinitions = []) {
+  function createInsideAnimationDefinition(name, existingDefinitions = [], initialValues = null) {
     const baseName = String(name || "").trim() || "Inside Animation";
     const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "inside-animation";
     let candidateId = slug;
@@ -117,13 +117,18 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
+    // Phase 15-8: seed the new definition with the user's current
+    // editor-panel values when provided, so "Create" captures what
+    // the user has already been configuring instead of forcing a
+    // follow-up edit step.
+    const seeded = initialValues && typeof initialValues === "object" ? initialValues : {};
     return normalizeInsideAnimationDefinition({
       id: candidateId,
       name: baseName,
-      assetType: "coded",
-      assetRef: "hull-flicker",
-      intensity: 1,
-      speed: 1,
+      assetType: seeded.assetType ?? "coded",
+      assetRef: seeded.assetRef ?? "hull-flicker",
+      intensity: seeded.intensity ?? 1,
+      speed: seeded.speed ?? 1,
     });
   }
 
@@ -286,7 +291,7 @@
     };
   }
 
-  function createOutsideAnimationDefinition(name, existingDefinitions = []) {
+  function createOutsideAnimationDefinition(name, existingDefinitions = [], initialValues = null) {
     const baseName = String(name || "").trim() || "Outside Animation";
     const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "outside-animation";
     let candidateId = slug;
@@ -296,16 +301,19 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
+    // Phase 15-8: inherit the user's current editor values so the
+    // newly-created entry matches what the user has been configuring.
+    const seeded = initialValues && typeof initialValues === "object" ? initialValues : {};
     return normalizeOutsideAnimationDefinition({
       id: candidateId,
       name: baseName,
-      assetType: "coded",
-      assetRef: "outside-space",
-      intensity: 0.7,
-      speed: 1,
-      mode: "standard",
-      direction: "forward",
-      soundEnabled: false,
+      assetType: seeded.assetType ?? "coded",
+      assetRef: seeded.assetRef ?? "outside-space",
+      intensity: seeded.intensity ?? 0.7,
+      speed: seeded.speed ?? 1,
+      mode: seeded.mode ?? "standard",
+      direction: seeded.direction ?? "forward",
+      soundEnabled: seeded.soundEnabled ?? false,
     });
   }
 
@@ -403,7 +411,7 @@
     return profile.animations.find((entry) => entry.id === normalizedId) ?? null;
   }
 
-  function createRoomAnimationDefinition(name, existingDefinitions = []) {
+  function createRoomAnimationDefinition(name, existingDefinitions = [], initialValues = null) {
     const baseName = String(name || "").trim() || "Room Animation";
     const slug = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "room-animation";
     let candidateId = slug;
@@ -413,11 +421,15 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
+    // Phase 15-8: inherit the user's current asset-type/asset-ref
+    // editor values so creating a new animation doesn't discard
+    // whatever was already selected in the dropdowns.
+    const seeded = initialValues && typeof initialValues === "object" ? initialValues : {};
     return normalizeRoomAnimationDefinition({
       id: candidateId,
       name: baseName,
-      assetType: "coded",
-      assetRef: "intruder-alert",
+      assetType: seeded.assetType ?? "coded",
+      assetRef: seeded.assetRef ?? "intruder-alert",
     });
   }
 
