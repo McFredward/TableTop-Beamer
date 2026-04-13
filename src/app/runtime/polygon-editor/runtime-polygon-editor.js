@@ -18,6 +18,7 @@
   }
 
   function beginShipPolygonVertexDrag(event, vertexIndex) {
+    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move Play Area vertex");
     const state = ctx.state;
     state.shipPolygonEditor.dragVertexIndex = vertexIndex;
     state.shipPolygonEditor.dragPointerId = event.pointerId;
@@ -52,7 +53,7 @@
   }
 
   function commitShipPolygonDrag() {
-    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move Play Area vertex");
+    // Undo state was captured at drag start (beginShipPolygonVertexDrag)
     const persisted = ctx.persistBoardProfiles();
     ctx.triggerFeedback.textContent = persisted
       ? "Status: Play Area vertex moved"
@@ -350,6 +351,7 @@
   }
 
   function beginPolygonVertexDrag(event, roomId, vertexIndex) {
+    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room vertex");
     const state = ctx.state;
     state.polygonEditor.dragVertexIndex = vertexIndex;
     state.polygonEditor.dragPointerId = event.pointerId;
@@ -407,6 +409,7 @@
     if (!Array.isArray(startPoints) || startPoints.length < 3) {
       return;
     }
+    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room area");
     state.polygonEditor.dragAreaPointerId = event.pointerId;
     state.polygonEditor.dragAreaRoomId = roomId;
     state.polygonEditor.dragAreaBoardId = boardId;
@@ -483,7 +486,7 @@
   }
 
   function commitPolygonDrag() {
-    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room vertex");
+    // Undo state was captured at drag start (beginPolygonVertexDrag)
     const persisted = ctx.persistBoardProfiles();
     ctx.triggerFeedback.textContent = persisted
       ? "Status: Polygon vertex moved"
@@ -537,7 +540,7 @@
     if (cancel) {
       cancelPolygonAreaDrag();
     } else if (moved) {
-      if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room area");
+      // Undo state was captured at drag start (beginPolygonAreaDrag)
       const persisted = ctx.persistBoardProfiles();
       state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
       ctx.triggerFeedback.textContent = persisted
