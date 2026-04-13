@@ -215,59 +215,72 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: dismiss loading overlay inside the stage area. The overlay
-    // must stay until the first live-sync snapshot has been applied (which
-    // may switch the board) AND the resulting board image has finished
-    // loading. The startup sequence is:
-    //   1. initializeApplication → loads default board
-    //   2. connectLiveSyncSocket + scheduleNextLiveSnapshotPoll(0)
-    //   3. Server snapshot arrives → may switch to different board
-    //   4. New board image loads
-    //   5. Draw loop renders settled frames → DISMISS
+    // Phase 18: dismiss loading overlay based on real readiness indicators.
+    // Indicators checked every frame:
+    //   1. First live-sync snapshot applied (liveSync version advanced)
+    //   2. Board image fully loaded (complete + naturalWidth > 0)
+    //   3. Board image src stable (no pending board switch)
+    //   4. Draw loop running (frameIndex advancing)
+    //   5. If default animations exist, at least one is rendering
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
       const initialVersion = liveSync.lastAppliedVersion;
       let lastSeenSrc = boardImage?.src || "";
-      let settledFrames = 0;
+      let lastSeenFrameIndex = 0;
+      let stableImageFrames = 0;
 
-      const checkSettled = () => {
-        // Wait until at least one snapshot has been applied
-        if (liveSync.lastAppliedVersion <= initialVersion) {
-          settledFrames = 0;
-          requestAnimationFrame(checkSettled);
-          return;
-        }
-        // If the board image src changed, reset and wait for new image
-        const currentSrc = boardImage?.src || "";
-        if (currentSrc !== lastSeenSrc) {
-          lastSeenSrc = currentSrc;
-          settledFrames = 0;
-          requestAnimationFrame(checkSettled);
-          return;
-        }
-        // Wait for image to be fully loaded
-        const imageReady = !boardImage || (boardImage.complete && boardImage.naturalWidth > 0);
-        if (!imageReady) {
-          settledFrames = 0;
-          requestAnimationFrame(checkSettled);
-          return;
-        }
-        settledFrames += 1;
-        if (settledFrames < 5) {
-          requestAnimationFrame(checkSettled);
-          return;
-        }
+      const dismiss = () => {
         loadingOverlay.classList.add("is-hidden");
         loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
       };
-      requestAnimationFrame(checkSettled);
-      // Safety: always dismiss after 15s no matter what
-      setTimeout(() => {
-        if (!loadingOverlay.classList.contains("is-hidden")) {
-          loadingOverlay.classList.add("is-hidden");
-          loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
+
+      const checkReady = () => {
+        // 1. Snapshot must have been applied
+        if (liveSync.lastAppliedVersion <= initialVersion) {
+          requestAnimationFrame(checkReady);
+          return;
         }
+        // 2. Board image src must be stable (no board switch in progress)
+        const currentSrc = boardImage?.src || "";
+        if (currentSrc !== lastSeenSrc) {
+          lastSeenSrc = currentSrc;
+          stableImageFrames = 0;
+          requestAnimationFrame(checkReady);
+          return;
+        }
+        // 3. Board image must be fully loaded
+        if (boardImage && (!boardImage.complete || !boardImage.naturalWidth)) {
+          stableImageFrames = 0;
+          requestAnimationFrame(checkReady);
+          return;
+        }
+        // 4. Draw loop must be advancing
+        const currentFrameIndex = state.runtimePerf?.frameIndex || 0;
+        if (currentFrameIndex <= lastSeenFrameIndex) {
+          requestAnimationFrame(checkReady);
+          return;
+        }
+        lastSeenFrameIndex = currentFrameIndex;
+        // 5. If running animations exist, they must have rendered at least a few frames
+        const hasAnimations = state.runningAnimations?.length > 0;
+        if (hasAnimations && stableImageFrames < 3) {
+          stableImageFrames += 1;
+          requestAnimationFrame(checkReady);
+          return;
+        }
+        // If no animations, just need image + a couple of draw frames
+        if (!hasAnimations && stableImageFrames < 2) {
+          stableImageFrames += 1;
+          requestAnimationFrame(checkReady);
+          return;
+        }
+        dismiss();
+      };
+      requestAnimationFrame(checkReady);
+      // Safety: always dismiss after 15s
+      setTimeout(() => {
+        if (!loadingOverlay.classList.contains("is-hidden")) dismiss();
       }, 15000);
     }
     requestAnimationFrame(ctx.draw);

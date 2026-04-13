@@ -95,10 +95,13 @@
   }
 
   function collectStageViewportMetrics() {
-    const stageRect = ctx.stage?.getBoundingClientRect();
-    const fallbackRect = ctx.projectionArea?.getBoundingClientRect();
-    const rawWidth = stageRect?.width || fallbackRect?.width || window.innerWidth || 1;
-    const rawHeight = stageRect?.height || fallbackRect?.height || window.innerHeight || 1;
+    // Phase 18: use clientWidth/clientHeight instead of getBoundingClientRect().
+    // getBoundingClientRect() includes CSS transforms (zoom/pan), which inflates
+    // the dimensions at non-1x zoom. clientWidth/clientHeight return the layout
+    // dimensions before transforms — the correct basis for canvas pixel buffer.
+    const stage = ctx.stage;
+    const rawWidth = stage?.clientWidth || ctx.projectionArea?.clientWidth || window.innerWidth || 1;
+    const rawHeight = stage?.clientHeight || ctx.projectionArea?.clientHeight || window.innerHeight || 1;
     const cssWidth = Math.max(1, Math.round(rawWidth));
     const cssHeight = Math.max(1, Math.round(rawHeight));
     const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
