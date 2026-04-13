@@ -215,6 +215,12 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
+    // Phase 18: dismiss the loading overlay with a fade-out transition
+    const loadingOverlay = document.getElementById("loading-overlay");
+    if (loadingOverlay) {
+      loadingOverlay.classList.add("is-hidden");
+      loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
+    }
     requestAnimationFrame(ctx.draw);
   }
 

@@ -13,6 +13,46 @@
   box-sizing: border-box;
 }
 
+/* Phase 18: loading overlay — full-screen spinner shown during app init */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  background: radial-gradient(160% 180% at 20% 0%, #1a2538 0%, #090d14 45%);
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+.loading-overlay.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(55, 192, 161, 0.2);
+  border-top-color: #37c0a1;
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+.loading-text {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.92rem;
+  color: #97a4b8;
+  letter-spacing: 0.04em;
+}
+body[data-output-role="final-output"] .loading-overlay {
+  background: #000;
+}
+
 body {
   margin: 0;
   height: 100vh;
@@ -1141,7 +1181,9 @@ button.danger.is-armed {
   }
 
   .stage {
-    width: min(95vw, calc((100vh - 1rem) * (7978 / 5456)));
+    /* Phase 18: in landscape sidebar layout, available width = viewport - 300px sidebar.
+       Fit the board to whichever dimension is more constrained. */
+    width: min(calc(100vw - 300px - 1rem), calc((100vh - 1rem) * (7978 / 5456)));
   }
 
   .dashboard {

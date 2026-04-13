@@ -33,8 +33,12 @@
     const stage = ctx.stage;
     const width = stage?.clientWidth || 0;
     const height = stage?.clientHeight || 0;
-    const maxPanX = Math.max(0, (width * (scale - 1)) / 2);
-    const maxPanY = Math.max(0, (height * (scale - 1)) / 2);
+    // Phase 18: allow panning beyond edges — 25% overshoot at any zoom level,
+    // plus the normal zoom-based pan range. This lets users push the board
+    // partially off-screen for better focus on specific areas.
+    const overshoot = Math.max(width, height) * 0.25;
+    const maxPanX = Math.max(0, (width * (scale - 1)) / 2) + overshoot;
+    const maxPanY = Math.max(0, (height * (scale - 1)) / 2) + overshoot;
     return { maxPanX, maxPanY };
   }
 
