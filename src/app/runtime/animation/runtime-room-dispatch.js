@@ -56,6 +56,7 @@
         heightScale: state.roomDraft.heightScale ?? 1,
         offsetXScale: state.roomDraft.offsetXScale ?? 0,
         offsetYScale: state.roomDraft.offsetYScale ?? 0,
+        colorHex: state.roomDraft.colorHex ?? "#ff0000",
         intensity: clampRoomIntensity(state.roomDraft.intensity),
         speed: clampRoomSpeed(state.roomDraft.speed),
         opacity: clampRoomOpacity(state.roomDraft.opacity),
@@ -150,6 +151,7 @@
                     opacity: draftPayload.opacity,
                     playbackSpeed: draftPayload.speed,
                     soundVolume: draftPayload.soundVolume,
+                    colorHex: draftPayload.colorHex,
                     hold: true,
                     durationSec: 0,
                     startDelayMs,
@@ -256,6 +258,7 @@
           opacity: draftPayload.opacity,
           playbackSpeed: draftPayload.speed,
           soundVolume: draftPayload.soundVolume,
+          colorHex: draftPayload.colorHex,
           hold: true,
           durationSec: 0,
           startDelayMs,
@@ -276,6 +279,7 @@
             opacity: draftPayload.opacity,
             playbackSpeed: draftPayload.speed,
             soundVolume: draftPayload.soundVolume,
+            colorHex: draftPayload.colorHex,
             hold: true,
             durationSec: 0,
           });
@@ -387,6 +391,7 @@
                   opacity: draftPayload.opacity,
                   playbackSpeed: draftPayload.speed,
                   soundVolume: draftPayload.soundVolume,
+                  colorHex: draftPayload.colorHex,
                   hold: true,
                   durationSec: 0,
                   startDelayMs,
@@ -501,6 +506,7 @@
         opacity: draftPayload.opacity,
         playbackSpeed: draftPayload.speed,
         soundVolume: draftPayload.soundVolume,
+        colorHex: draftPayload.colorHex,
         hold: true,
         durationSec: 0,
         startDelayMs,
@@ -523,6 +529,7 @@
           opacity: draftPayload.opacity,
           playbackSpeed: draftPayload.speed,
           soundVolume: draftPayload.soundVolume,
+          colorHex: draftPayload.colorHex,
           hold: true,
           durationSec: 0,
           startDelayMs: 0,
@@ -606,6 +613,21 @@
       }
     } finally {
       restoreRoomDraftUiSnapshot(draftSnapshot, "room-start");
+      const def = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
+      if (def) {
+        state.roomDraft.opacity = clampRoomOpacity(def.opacity ?? 0.9);
+        state.roomDraft.intensity = clampRoomIntensity(def.intensity ?? 0.8);
+        state.roomDraft.speed = clampRoomSpeed(def.speed ?? 1);
+        state.roomDraft.soundVolume = clampRoomSoundVolume(def.soundVolume ?? 1);
+        state.roomDraft.rotationDeg = def.rotationDeg ?? 0;
+        state.roomDraft.stretchToPolygon = def.stretchToPolygon !== false;
+        state.roomDraft.widthScale = def.widthScale ?? 1;
+        state.roomDraft.heightScale = def.heightScale ?? 1;
+        state.roomDraft.offsetXScale = def.offsetXScale ?? 0;
+        state.roomDraft.offsetYScale = def.offsetYScale ?? 0;
+        // colorHex is intentionally NOT reset — user's color persists across starts
+        ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
+      }
     }
   }
 

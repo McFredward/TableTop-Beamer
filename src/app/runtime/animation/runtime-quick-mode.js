@@ -274,6 +274,10 @@
 
   function handleQuickModeRoomTap(roomId) {
     const state = ctx.state;
+    if (ctx.isRoomFrozen(state.boardId, roomId)) {
+      ctx.triggerFeedback.textContent = "Status: Room is frozen";
+      return;
+    }
     const mode = normalizeQuickMode(state.quickMode?.mode);
     ctx.preserveMobileBoardOverview("quick-mode-room-tap");
     if (!markQuickModeRoomInflight(roomId)) {

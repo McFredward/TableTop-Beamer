@@ -322,6 +322,23 @@
     const reconciledRunningAnimations = ctx.reconcileHydratedAnimations(primedRunningAnimations);
     const retainedRunningAnimations = ctx.retainActiveSeenOneShotRuns(reconciledRunningAnimations);
     state.runningAnimations = ctx.hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
+    // Preserve local-only edits (live editor) for animations that already
+    // existed before this snapshot — but only on the control client and
+    // only when the snapshot is NOT from an edit-room mutation (which
+    // carries the authoritative edited values for all clients).
+    if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL && mutationType !== "edit-room") {
+      const LOCAL_EDIT_FIELDS = ["opacity", "intensity", "speed", "playbackSpeed", "soundVolume",
+        "rotationDeg", "stretchToPolygon", "widthScale", "heightScale", "offsetXScale", "offsetYScale", "colorHex"];
+      for (const animation of state.runningAnimations) {
+        const previous = previousAnimationsById.get(animation.id);
+        if (!previous) continue;
+        for (const field of LOCAL_EDIT_FIELDS) {
+          if (previous[field] !== undefined) {
+            animation[field] = previous[field];
+          }
+        }
+      }
+    }
     ctx.reconcileStopPendingFromSnapshot();
     if (ctx.getOutputRole() !== ctx.OUTPUT_ROLE_CONTROL && runtime.roomDraft && typeof runtime.roomDraft === "object") {
       state.roomDraft = {
@@ -422,7 +439,10 @@
             const sessionVersion = Number(payload?.session?.version ?? 0);
             const mutationType = typeof payload?.mutationType === "string" ? payload.mutationType : null;
             const shouldApplyImmediateStopSnapshot =
-              mutationType === ctx.STOP_ANIMATION_MUTATION_TYPE || mutationType === "clear-all";
+              mutationType === ctx.STOP_ANIMATION_MUTATION_TYPE
+              || mutationType === "clear-all"
+              || mutationType === "edit-room"
+              || mutationType === "trigger-room";
             if (
               shouldApplyImmediateStopSnapshot
               && Number.isFinite(sessionVersion)

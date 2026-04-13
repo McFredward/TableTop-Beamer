@@ -118,6 +118,13 @@
       normalizeMp4PerformanceTier,
       getMp4TierDefaults,
       updateMp4PerformanceControls,
+      roomFrozenCheckbox,
+      roomColorPicker,
+      roomColorPickerLabel,
+      setRoomFrozen,
+      syncSelectedRoomStateForBoard,
+      persistBoardProfiles,
+      renderRoomOverlay,
     } = ctx;
 
     dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
@@ -172,6 +179,16 @@
       renameSelectedRoom(roomRenameInput.value);
     });
 
+    roomFrozenCheckbox?.addEventListener("change", () => {
+      const roomId = syncSelectedRoomStateForBoard(state.boardId);
+      if (roomId) {
+        setRoomFrozen(state.boardId, roomId, roomFrozenCheckbox.checked);
+        persistBoardProfiles();
+        syncRoomTargetSelect();
+        renderRoomOverlay();
+      }
+    });
+
     function syncDashboardTransformInputs(def) {
       const rot = Number(def?.rotationDeg) || 0;
       const stretch = def?.stretchToPolygon !== false;
@@ -224,7 +241,45 @@
         warmGifAssetPath(selectedDefinition?.assetRef, { reason: "trigger" });
       }
       syncDashboardTransformInputs(selectedDefinition);
+      syncColorPickerVisibility(selectedDefinition);
+      applyDefinitionDefaultsToDraft(selectedDefinition);
     });
+
+    roomColorPicker?.addEventListener("input", () => {
+      state.roomDraft.colorHex = roomColorPicker.value;
+    });
+
+    function applyDefinitionDefaultsToDraft(definition) {
+      state.roomDraft.opacity = clampRoomOpacity(definition?.opacity ?? 0.9);
+      state.roomDraft.intensity = clampRoomIntensity(definition?.intensity ?? 0.8);
+      state.roomDraft.speed = clampRoomSpeed(definition?.speed ?? 1);
+      state.roomDraft.soundVolume = clampRoomSoundVolume(definition?.soundVolume ?? 1);
+      state.roomDraft.rotationDeg = definition?.rotationDeg ?? 0;
+      state.roomDraft.stretchToPolygon = definition?.stretchToPolygon !== false;
+      state.roomDraft.widthScale = definition?.widthScale ?? 1;
+      state.roomDraft.heightScale = definition?.heightScale ?? 1;
+      state.roomDraft.offsetXScale = definition?.offsetXScale ?? 0;
+      state.roomDraft.offsetYScale = definition?.offsetYScale ?? 0;
+      // colorHex is intentionally NOT reset — user's color persists
+      roomOpacityInput.value = String(state.roomDraft.opacity);
+      roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
+      roomIntensityInput.value = String(state.roomDraft.intensity);
+      roomIntensityValue.textContent = state.roomDraft.intensity.toFixed(2);
+      roomSpeedInput.value = String(state.roomDraft.speed);
+      roomSpeedValue.textContent = `${state.roomDraft.speed.toFixed(2)}x`;
+      roomSoundVolumeInput.value = String(Math.round(state.roomDraft.soundVolume * 100));
+      roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
+      syncDashboardTransformInputs(definition);
+    }
+
+    function syncColorPickerVisibility(definition) {
+      if (!roomColorPickerLabel) {
+        return;
+      }
+      const isSolidColor = normalizeRoomAssetType(definition?.assetType) === "coded"
+        && String(definition?.assetRef || "").toLowerCase() === "solid-color";
+      roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+    }
 
     // Dashboard per-start transform override inputs.
     dashboardRotationDegInput?.addEventListener("input", () => {
@@ -534,6 +589,7 @@
     // currently-selected animation definition on first load.
     const initialDef = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
     syncDashboardTransformInputs(initialDef);
+    syncColorPickerVisibility(initialDef);
   }
 
   window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS = {

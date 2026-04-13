@@ -560,6 +560,9 @@
       if (state.uiView === "settings") {
         polygon.classList.add("is-draggable");
       }
+      if (ctx.isRoomFrozen(state.boardId, room.id)) {
+        polygon.classList.add("is-frozen");
+      }
       polygon.dataset.roomId = room.id;
       polygon.setAttribute(
         "points",
@@ -572,6 +575,9 @@
           return;
         }
         if (ctx.isPanArbitrating()) {
+          return;
+        }
+        if (state.uiView === "dashboard" && ctx.isRoomFrozen(state.boardId, room.id)) {
           return;
         }
         if (ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL && state.uiView === "dashboard" && ctx.isQuickModeActive()) {

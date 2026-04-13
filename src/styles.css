@@ -289,6 +289,18 @@ body[data-output-role="final-output"] .toast-stack {
   stroke: rgba(164, 255, 227, 0.95);
 }
 
+.room-zone.is-frozen {
+  fill: rgba(100, 100, 120, 0.12);
+  stroke: rgba(140, 140, 160, 0.5);
+  cursor: not-allowed;
+  stroke-dasharray: 6 3;
+}
+
+.room-zone.is-frozen:hover {
+  fill: rgba(100, 100, 120, 0.18);
+  stroke: rgba(140, 140, 160, 0.65);
+}
+
 .room-zone-label {
   fill: #caf5ff;
   font-family: "Barlow Condensed", sans-serif;

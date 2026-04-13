@@ -36,6 +36,7 @@
       ...knownDefaultRefs,
       "special-slime",
       "special-scanning",
+      "solid-color",
     ]));
   }
 

@@ -716,7 +716,7 @@ function applyContextUpdatePatch(payload) {
   }
 
   if (shouldAtomicClear) {
-    nextRuntime.runningAnimations = [];
+    nextRuntime.runningAnimations = buildDefaultAnimationsForBoard(selectedBoard);
   }
 
   if (atomicSwitchTransactionId) {
@@ -2648,20 +2648,20 @@ const server = createServer(async (req, res) => {
 
 attachLiveWebSocket(server);
 
-// Phase 16: auto-start default animations from global-defaults.json
-// so the first snapshot clients receive already includes them.
-try {
-  const globalDefaultsRaw = readFileSync(path.join(ROOT_DIR, "config", "global-defaults.json"), "utf8");
-  const globalDefaults = JSON.parse(globalDefaultsRaw);
-  const boardProfiles = globalDefaults?.boardProfiles ?? {};
-  const allDefaults = [];
-  for (const [boardId, profile] of Object.entries(boardProfiles)) {
-    const defaults = Array.isArray(profile?.defaultAnimations) ? profile.defaultAnimations : [];
-    for (const def of defaults) {
-      if (!def?.type || !def?.scope) continue;
-      allDefaults.push({
-        id: `default-${boardId}-${def.roomId || def.type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-        boardId: def.boardId || boardId,
+// Phase 16: build default animation entries for a specific board from global-defaults.json.
+function buildDefaultAnimationsForBoard(targetBoardId) {
+  try {
+    const globalDefaultsRaw = readFileSync(GLOBAL_DEFAULTS_PATH, "utf8");
+    const globalDefaults = JSON.parse(globalDefaultsRaw);
+    const boardProfiles = globalDefaults?.boardProfiles ?? {};
+    const profile = boardProfiles[targetBoardId];
+    if (!profile) return [];
+    const defaults = Array.isArray(profile.defaultAnimations) ? profile.defaultAnimations : [];
+    return defaults
+      .filter((def) => def?.type && def?.scope)
+      .map((def) => ({
+        id: `default-${targetBoardId}-${def.roomId || def.type}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        boardId: def.boardId || targetBoardId,
         type: def.type,
         animationName: def.animationName ?? def.type,
         scope: def.scope || "room",
@@ -2684,8 +2684,20 @@ try {
         hold: true,
         durationMs: null,
         startedAtEpochMs: Date.now(),
-      });
-    }
+      }));
+  } catch {
+    return [];
+  }
+}
+
+// Auto-start default animations on server startup.
+try {
+  const globalDefaultsRaw = readFileSync(GLOBAL_DEFAULTS_PATH, "utf8");
+  const globalDefaults = JSON.parse(globalDefaultsRaw);
+  const boardProfiles = globalDefaults?.boardProfiles ?? {};
+  const allDefaults = [];
+  for (const boardId of Object.keys(boardProfiles)) {
+    allDefaults.push(...buildDefaultAnimationsForBoard(boardId));
   }
   if (allDefaults.length > 0) {
     if (!liveSessionState.snapshot.runtime) {

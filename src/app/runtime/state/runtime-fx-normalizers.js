@@ -386,6 +386,11 @@
       heightScale: clamp(definition?.heightScale, 0.05, 10, 1),
       offsetXScale: clamp(definition?.offsetXScale, -2, 2, 0),
       offsetYScale: clamp(definition?.offsetYScale, -2, 2, 0),
+      opacity: clamp(definition?.opacity, 0.1, 1, 0.9),
+      intensity: clamp(definition?.intensity, 0.2, 1.5, 0.8),
+      speed: clamp(definition?.speed, 0.1, 2.5, 1),
+      soundVolume: clamp(definition?.soundVolume, 0, 1, 1),
+      colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex) ? definition.colorHex : "#ff0000",
     };
   }
 

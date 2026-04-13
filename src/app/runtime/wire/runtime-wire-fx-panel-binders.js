@@ -16,6 +16,14 @@
       roomAssetRefInput,
       roomResourceSelect,
       roomApplyChangesButton,
+      roomDefOpacityInput,
+      roomDefOpacityValue,
+      roomDefIntensityInput,
+      roomDefIntensityValue,
+      roomDefSpeedInput,
+      roomDefSpeedValue,
+      roomDefSoundVolumeInput,
+      roomDefSoundVolumeValue,
       insideAnimationCreateButton,
       insideAnimationNameInput,
       insideAnimationSelect,
@@ -67,6 +75,9 @@
       normalizeRoomFxProfile,
       clampOutsideIntensity,
       clampOutsideSpeed,
+      clampRoomOpacity,
+      clampRoomIntensity,
+      clampRoomSpeed,
       setRoomEditorDraft,
       setInsideEditorDraft,
       setOutsideEditorDraft,
@@ -157,19 +168,31 @@
         : `Status: Room animation ${selectedDefinition.name} deleted (persistence failed)`;
     });
 
+    function commitRoomDraftToDefinition(patch) {
+      const profile = getRoomFxProfile(state.boardId);
+      const selectedDefinition = profile.animations.find((entry) => entry.id === profile.selectedAnimationId) ?? profile.animations[0];
+      if (!selectedDefinition) return;
+      const nextProfile = normalizeRoomFxProfile({
+        ...profile,
+        animations: profile.animations.map((entry) => (entry.id === selectedDefinition.id
+          ? { ...entry, ...patch }
+          : entry)),
+      });
+      setRoomFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+    }
+
     roomAssetTypeInput?.addEventListener("change", () => {
       const assetType = normalizeRoomAssetType(roomAssetTypeInput.value);
       const currentAssetRef = String(roomAssetRefInput?.value || "").trim();
       const normalizedAssetRef = normalizeRoomAssetRefForType(assetType, currentAssetRef);
-      setRoomEditorDraft(state.boardId, {
-        assetType,
-        assetRef: normalizedAssetRef,
-      });
+      setRoomEditorDraft(state.boardId, { assetType, assetRef: normalizedAssetRef });
       if (roomAssetRefInput) {
         roomAssetRefInput.value = normalizedAssetRef;
       }
       syncRoomResourcePicker(assetType, normalizedAssetRef);
-      triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+      commitRoomDraftToDefinition({ assetType, assetRef: normalizedAssetRef });
+      syncRoomFxPanel();
     });
 
     roomAssetRefInput?.addEventListener("change", () => {
@@ -178,7 +201,7 @@
       roomAssetRefInput.value = assetRef;
       setRoomEditorDraft(state.boardId, { assetRef });
       syncRoomResourcePicker(assetType, assetRef);
-      triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+      commitRoomDraftToDefinition({ assetRef });
     });
 
     roomAssetRefInput?.addEventListener("input", () => {
@@ -186,6 +209,7 @@
       const assetRef = normalizeRoomAssetRefForType(assetType, String(roomAssetRefInput.value || "").trim());
       setRoomEditorDraft(state.boardId, { assetRef });
       syncRoomResourcePicker(assetType, assetRef);
+      commitRoomDraftToDefinition({ assetRef });
     });
 
     roomResourceSelect?.addEventListener("change", () => {
@@ -197,7 +221,7 @@
         roomAssetRefInput.value = selectedAsset;
       }
       setRoomEditorDraft(state.boardId, { assetRef: selectedAsset });
-      triggerFeedback.textContent = "Status: Room draft updated - apply changes to commit";
+      commitRoomDraftToDefinition({ assetRef: selectedAsset });
     });
 
     // Phase 15-3: live preview for transform sliders. Writing to the
@@ -207,6 +231,7 @@
       const v = Number(ctx.roomRotationDegInput.value) || 0;
       if (ctx.roomRotationDegValue) ctx.roomRotationDegValue.textContent = String(Math.round(v));
       setRoomEditorDraft(state.boardId, { rotationDeg: v });
+      commitRoomDraftToDefinition({ rotationDeg: v });
     });
     ctx.roomStretchToPolygonInput?.addEventListener("change", () => {
       const stretch = Boolean(ctx.roomStretchToPolygonInput.checked);
@@ -215,28 +240,57 @@
       if (ctx.roomOffsetXScaleInput) ctx.roomOffsetXScaleInput.disabled = stretch;
       if (ctx.roomOffsetYScaleInput) ctx.roomOffsetYScaleInput.disabled = stretch;
       setRoomEditorDraft(state.boardId, { stretchToPolygon: stretch });
+      commitRoomDraftToDefinition({ stretchToPolygon: stretch });
     });
     ctx.roomWidthScaleInput?.addEventListener("input", () => {
       const v = Number(ctx.roomWidthScaleInput.value) || 1;
       if (ctx.roomWidthScaleValue) ctx.roomWidthScaleValue.textContent = v.toFixed(2);
       setRoomEditorDraft(state.boardId, { widthScale: v });
+      commitRoomDraftToDefinition({ widthScale: v });
     });
     ctx.roomHeightScaleInput?.addEventListener("input", () => {
       const v = Number(ctx.roomHeightScaleInput.value) || 1;
       if (ctx.roomHeightScaleValue) ctx.roomHeightScaleValue.textContent = v.toFixed(2);
       setRoomEditorDraft(state.boardId, { heightScale: v });
+      commitRoomDraftToDefinition({ heightScale: v });
     });
     ctx.roomOffsetXScaleInput?.addEventListener("input", () => {
       const v = Number(ctx.roomOffsetXScaleInput.value) || 0;
       if (ctx.roomOffsetXScaleValue) ctx.roomOffsetXScaleValue.textContent = v.toFixed(2);
       setRoomEditorDraft(state.boardId, { offsetXScale: v });
+      commitRoomDraftToDefinition({ offsetXScale: v });
     });
     ctx.roomOffsetYScaleInput?.addEventListener("input", () => {
       const v = Number(ctx.roomOffsetYScaleInput.value) || 0;
       if (ctx.roomOffsetYScaleValue) ctx.roomOffsetYScaleValue.textContent = v.toFixed(2);
       setRoomEditorDraft(state.boardId, { offsetYScale: v });
+      commitRoomDraftToDefinition({ offsetYScale: v });
     });
 
+    roomDefOpacityInput?.addEventListener("input", () => {
+      const v = clampRoomOpacity(Number(roomDefOpacityInput.value));
+      if (roomDefOpacityValue) roomDefOpacityValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { opacity: v });
+      commitRoomDraftToDefinition({ opacity: v });
+    });
+    roomDefIntensityInput?.addEventListener("input", () => {
+      const v = clampRoomIntensity(Number(roomDefIntensityInput.value));
+      if (roomDefIntensityValue) roomDefIntensityValue.textContent = v.toFixed(2);
+      setRoomEditorDraft(state.boardId, { intensity: v });
+      commitRoomDraftToDefinition({ intensity: v });
+    });
+    roomDefSpeedInput?.addEventListener("input", () => {
+      const v = clampRoomSpeed(Number(roomDefSpeedInput.value));
+      if (roomDefSpeedValue) roomDefSpeedValue.textContent = `${v.toFixed(2)}x`;
+      setRoomEditorDraft(state.boardId, { speed: v });
+      commitRoomDraftToDefinition({ speed: v });
+    });
+    roomDefSoundVolumeInput?.addEventListener("input", () => {
+      const v = Math.max(0, Math.min(100, Math.round(Number(roomDefSoundVolumeInput.value) || 0)));
+      if (roomDefSoundVolumeValue) roomDefSoundVolumeValue.textContent = `${v}%`;
+      setRoomEditorDraft(state.boardId, { soundVolume: v / 100 });
+      commitRoomDraftToDefinition({ soundVolume: v / 100 });
+    });
     roomApplyChangesButton?.addEventListener("click", () => {
       const draft = collectRoomEditorDraftFromInputs(state.boardId);
       if (!draft) {
@@ -261,6 +315,11 @@
             heightScale: draft.heightScale ?? entry.heightScale ?? 1,
             offsetXScale: draft.offsetXScale ?? entry.offsetXScale ?? 0,
             offsetYScale: draft.offsetYScale ?? entry.offsetYScale ?? 0,
+            opacity: draft.opacity ?? entry.opacity ?? 0.9,
+            intensity: draft.intensity ?? entry.intensity ?? 0.8,
+            speed: draft.speed ?? entry.speed ?? 1,
+            soundVolume: draft.soundVolume ?? entry.soundVolume ?? 1,
+            colorHex: draft.colorHex ?? entry.colorHex ?? "#ff0000",
           }
           : entry)),
       });
@@ -315,31 +374,36 @@
         : "Status: Inside animation selection updated (persistence failed)";
     });
 
+    function commitInsideDraftToDefinition(patch) {
+      const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, patch);
+      setInsideFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+    }
+
     insideIntensityInput?.addEventListener("input", () => {
       const intensity = clampOutsideIntensity(insideIntensityInput.value);
       setInsideEditorDraft(state.boardId, { intensity });
       insideIntensityValue.textContent = intensity.toFixed(2);
+      commitInsideDraftToDefinition({ intensity });
     });
 
     insideSpeedInput?.addEventListener("input", () => {
       const speed = clampOutsideSpeed(insideSpeedInput.value);
       setInsideEditorDraft(state.boardId, { speed });
       insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+      commitInsideDraftToDefinition({ speed });
     });
 
     insideAssetTypeInput?.addEventListener("change", () => {
       const assetType = normalizeInsideAssetType(insideAssetTypeInput.value);
       const currentAssetRef = String(insideAssetRefInput?.value || "").trim();
       const normalizedAssetRef = normalizeInsideAssetRefForType(assetType, currentAssetRef);
-      setInsideEditorDraft(state.boardId, {
-        assetType,
-        assetRef: normalizedAssetRef,
-      });
+      setInsideEditorDraft(state.boardId, { assetType, assetRef: normalizedAssetRef });
       if (insideAssetRefInput) {
         insideAssetRefInput.value = normalizedAssetRef;
       }
       syncInsideResourcePicker(assetType, normalizedAssetRef);
-      triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+      commitInsideDraftToDefinition({ assetType, assetRef: normalizedAssetRef });
     });
 
     insideAssetRefInput?.addEventListener("change", () => {
@@ -348,14 +412,13 @@
       insideAssetRefInput.value = assetRef;
       setInsideEditorDraft(state.boardId, { assetRef });
       syncInsideResourcePicker(assetType, assetRef);
-      triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+      commitInsideDraftToDefinition({ assetRef });
     });
 
     insideLoopUntilStopInput?.addEventListener("change", () => {
-      setInsideEditorDraft(state.boardId, {
-        loopUntilStopped: Boolean(insideLoopUntilStopInput.checked),
-      });
-      triggerFeedback.textContent = "Status: Inside draft updated - apply changes to commit";
+      const loopUntilStopped = Boolean(insideLoopUntilStopInput.checked);
+      setInsideEditorDraft(state.boardId, { loopUntilStopped });
+      commitInsideDraftToDefinition({ loopUntilStopped });
     });
 
     insideApplyChangesButton?.addEventListener("click", () => {
@@ -492,49 +555,60 @@
         : "Status: Outside animation selection updated (persistence failed)";
     });
 
+    function commitOutsideDraftToDefinition(patch) {
+      const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, patch);
+      updateOutsideFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+    }
+
     outsideIntensityInput.addEventListener("input", () => {
       const intensity = clampOutsideIntensity(outsideIntensityInput.value);
       setOutsideEditorDraft(state.boardId, { intensity });
       outsideIntensityValue.textContent = intensity.toFixed(2);
+      commitOutsideDraftToDefinition({ intensity });
     });
 
     outsideSpeedInput.addEventListener("input", () => {
       const speed = clampOutsideSpeed(outsideSpeedInput.value);
       setOutsideEditorDraft(state.boardId, { speed });
       outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+      commitOutsideDraftToDefinition({ speed });
     });
 
     outsideModeInput.addEventListener("change", () => {
       if (outsideModeInput.disabled) {
         return;
       }
-      setOutsideEditorDraft(state.boardId, { mode: normalizeOutsideMode(outsideModeInput.value) });
-      triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+      const mode = normalizeOutsideMode(outsideModeInput.value);
+      setOutsideEditorDraft(state.boardId, { mode });
+      commitOutsideDraftToDefinition({ mode });
     });
 
     outsideDirectionInput.addEventListener("change", () => {
       if (outsideDirectionInput.disabled) {
         return;
       }
-      setOutsideEditorDraft(state.boardId, {
-        direction: normalizeOutsideDirection(outsideDirectionInput.value),
-      });
-      triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+      const direction = normalizeOutsideDirection(outsideDirectionInput.value);
+      setOutsideEditorDraft(state.boardId, { direction });
+      commitOutsideDraftToDefinition({ direction });
     });
 
     outsideAssetTypeInput?.addEventListener("change", () => {
       syncOutsideDraftVisibilityFromInputs(state.boardId);
-      triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+      const draft = collectOutsideEditorDraftFromInputs(state.boardId);
+      if (draft) commitOutsideDraftToDefinition({ assetType: draft.assetType, assetRef: draft.assetRef });
     });
 
     outsideAssetRefInput?.addEventListener("change", () => {
       syncOutsideDraftVisibilityFromInputs(state.boardId);
-      triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+      const draft = collectOutsideEditorDraftFromInputs(state.boardId);
+      if (draft) commitOutsideDraftToDefinition({ assetRef: draft.assetRef });
     });
 
     outsideAssetRefInput?.addEventListener("input", () => {
       syncOutsideDraftVisibilityFromInputs(state.boardId);
-      triggerFeedback.textContent = "Status: Outside draft updated - apply changes to commit";
+      const draft = collectOutsideEditorDraftFromInputs(state.boardId);
+      if (draft) commitOutsideDraftToDefinition({ assetRef: draft.assetRef });
     });
 
     outsideApplyChangesButton?.addEventListener("click", () => {

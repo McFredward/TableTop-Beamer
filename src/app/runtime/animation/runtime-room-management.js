@@ -28,6 +28,7 @@
       ctx.roomManagementStatus.textContent = statusText;
     }
     syncClusterManagementPanel();
+    syncRoomFrozenCheckbox();
   }
 
   function syncRoomCreateShapeOptions(board) {
@@ -536,6 +537,9 @@
     if (state.specialPolygonsByBoard[state.boardId]) {
       delete state.specialPolygonsByBoard[state.boardId][room.id];
     }
+    if (state.frozenRoomsByBoard?.[state.boardId]) {
+      delete state.frozenRoomsByBoard[state.boardId][room.id];
+    }
     ctx.markRoomTombstone(state.boardId, room.id);
     const fallbackRoomId = nextRooms[0]?.id ?? null;
     state.selectedRoomId = fallbackRoomId;
@@ -615,12 +619,14 @@
   function getRoomTargetOptions(boardId) {
     const effectiveBoardId = boardId ?? ctx.state.boardId;
     const board = ctx.getBoard(effectiveBoardId);
-    const roomTargets = board.rooms.map((room) => ({
-      value: `room:${room.id}`,
-      label: `Room: ${room.name ?? room.label}`,
-      targetType: "room",
-      targetId: room.id,
-    }));
+    const roomTargets = board.rooms
+      .filter((room) => !ctx.isRoomFrozen(effectiveBoardId, room.id))
+      .map((room) => ({
+        value: `room:${room.id}`,
+        label: `Room: ${room.name ?? room.label}`,
+        targetType: "room",
+        targetId: room.id,
+      }));
     const clusterTargets = getBoardRoomClusters(effectiveBoardId).map((cluster) => ({
       value: `cluster:${cluster.clusterId}`,
       label: `Cluster: ${cluster.name} (${cluster.roomIds.length})`,
@@ -637,6 +643,15 @@
       return { targetType, targetId };
     }
     return null;
+  }
+
+  function syncRoomFrozenCheckbox() {
+    if (!ctx.roomFrozenCheckbox) {
+      return;
+    }
+    const roomId = ctx.syncSelectedRoomStateForBoard(ctx.state.boardId);
+    ctx.roomFrozenCheckbox.disabled = !roomId;
+    ctx.roomFrozenCheckbox.checked = roomId ? ctx.isRoomFrozen(ctx.state.boardId, roomId) : false;
   }
 
   window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT = {
@@ -667,5 +682,6 @@
     getBoardRoomClusters,
     getRoomTargetOptions,
     parseRoomTargetValue,
+    syncRoomFrozenCheckbox,
   };
 })();

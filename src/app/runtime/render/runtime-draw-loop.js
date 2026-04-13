@@ -124,6 +124,7 @@
         gifTimelineAgeSec: age,
         gifPlaybackSpeed: playbackSpeed,
         roomAnimationType: animation.type,
+        colorHex: animation.colorHex,
       },
     );
   }

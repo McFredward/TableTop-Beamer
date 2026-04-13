@@ -237,6 +237,37 @@
     return path ? path.split("/").pop() ?? path : null;
   }
 
+  function isRoomFrozen(boardId = ctx.state.boardId, roomId) {
+    return Boolean(ctx.state.frozenRoomsByBoard?.[boardId]?.[roomId]);
+  }
+
+  function setRoomFrozen(boardId, roomId, frozen) {
+    const state = ctx.state;
+    if (!state.frozenRoomsByBoard[boardId]) {
+      state.frozenRoomsByBoard[boardId] = {};
+    }
+    if (frozen) {
+      state.frozenRoomsByBoard[boardId][roomId] = true;
+    } else {
+      delete state.frozenRoomsByBoard[boardId][roomId];
+    }
+  }
+
+  function normalizeFrozenRoomsMap(raw, boardId) {
+    if (!raw || typeof raw !== "object") {
+      return {};
+    }
+    const board = ctx.getBoard(boardId);
+    const validIds = new Set(board.rooms.map((room) => room.id));
+    const result = {};
+    for (const roomId of Object.keys(raw)) {
+      if (validIds.has(roomId) && raw[roomId]) {
+        result[roomId] = true;
+      }
+    }
+    return result;
+  }
+
   window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS = {
     init,
     createDefaultHitareaCalibrationMap,
@@ -270,5 +301,8 @@
     resolveRoomAnimationEffectType,
     getRoomEquivalentType,
     getRoomGifAssetFileName,
+    isRoomFrozen,
+    setRoomFrozen,
+    normalizeFrozenRoomsMap,
   };
 })();

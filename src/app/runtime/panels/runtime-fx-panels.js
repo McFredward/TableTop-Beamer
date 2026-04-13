@@ -350,6 +350,10 @@
     const heightScale = Number(ctx.roomHeightScaleInput?.value) || 1;
     const offsetXScale = Number(ctx.roomOffsetXScaleInput?.value) || 0;
     const offsetYScale = Number(ctx.roomOffsetYScaleInput?.value) || 0;
+    const opacity = Number(ctx.roomDefOpacityInput?.value) || 0.9;
+    const intensity = Number(ctx.roomDefIntensityInput?.value) || 0.8;
+    const speed = Number(ctx.roomDefSpeedInput?.value) || 1;
+    const soundVolume = (Number(ctx.roomDefSoundVolumeInput?.value) || 100) / 100;
     return setRoomEditorDraft(effectiveBoardId, {
       assetType,
       assetRef,
@@ -360,6 +364,10 @@
       heightScale,
       offsetXScale,
       offsetYScale,
+      opacity,
+      intensity,
+      speed,
+      soundVolume,
     });
   }
 
@@ -481,6 +489,34 @@
     if (ctx.roomTransformDetails) {
       const isTransformable = assetType === "gif" || assetType === "mp4";
       ctx.roomTransformDetails.hidden = !isTransformable;
+    }
+    const defOpacity = Number(draft?.opacity ?? selectedDefinition?.opacity ?? 0.9);
+    const defIntensity = Number(draft?.intensity ?? selectedDefinition?.intensity ?? 0.8);
+    const defSpeed = Number(draft?.speed ?? selectedDefinition?.speed ?? 1);
+    const defSoundVolume = Number(draft?.soundVolume ?? selectedDefinition?.soundVolume ?? 1);
+    if (ctx.roomDefOpacityInput) {
+      ctx.roomDefOpacityInput.value = String(defOpacity);
+    }
+    if (ctx.roomDefOpacityValue) {
+      ctx.roomDefOpacityValue.textContent = defOpacity.toFixed(2);
+    }
+    if (ctx.roomDefIntensityInput) {
+      ctx.roomDefIntensityInput.value = String(defIntensity);
+    }
+    if (ctx.roomDefIntensityValue) {
+      ctx.roomDefIntensityValue.textContent = defIntensity.toFixed(2);
+    }
+    if (ctx.roomDefSpeedInput) {
+      ctx.roomDefSpeedInput.value = String(defSpeed);
+    }
+    if (ctx.roomDefSpeedValue) {
+      ctx.roomDefSpeedValue.textContent = `${defSpeed.toFixed(2)}x`;
+    }
+    if (ctx.roomDefSoundVolumeInput) {
+      ctx.roomDefSoundVolumeInput.value = String(Math.round(defSoundVolume * 100));
+    }
+    if (ctx.roomDefSoundVolumeValue) {
+      ctx.roomDefSoundVolumeValue.textContent = `${Math.round(defSoundVolume * 100)}%`;
     }
   }
 

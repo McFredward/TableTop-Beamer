@@ -104,6 +104,10 @@
           Animation
           <select id="room-animation-select"></select>
         </label>
+        <label id="room-color-picker-label" style="display:none">
+          Color
+          <input id="room-color-picker" type="color" value="#ff0000" />
+        </label>
 
         <p class="status-line">Room animations run in hold mode by default until stopped.</p>
         <details id="room-options">
@@ -309,6 +313,10 @@
           Room name
           <input id="room-rename-input" type="text" maxlength="64" placeholder="Edit room name" />
         </label>
+        <label class="inline-checkbox">
+          <input id="room-frozen-checkbox" type="checkbox" />
+          Freeze room (not selectable in Dashboard)
+        </label>
         <p id="polygon-editor-status" class="status-line" aria-live="polite">
           Polygon editor: select a room
         </p>
@@ -396,7 +404,6 @@
           Sound
           <select id="inside-sound-ref"></select>
         </label>
-        <button id="inside-apply-changes" type="button">Apply changes</button>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
@@ -456,7 +463,6 @@
           Sound
           <select id="outside-sound-ref"></select>
         </label>
-        <button id="outside-apply-changes" type="button">Apply changes</button>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
@@ -491,8 +497,27 @@
           Sound
           <select id="room-sound-ref"></select>
         </label>
+        <details id="room-def-defaults-details">
+          <summary>Default values</summary>
+          <label>
+            Opacity <span id="room-def-opacity-value">0.90</span>
+            <input id="room-def-opacity" type="range" min="0.1" max="1" step="0.05" value="0.9" />
+          </label>
+          <label>
+            Intensity <span id="room-def-intensity-value">0.80</span>
+            <input id="room-def-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
+          </label>
+          <label>
+            Speed <span id="room-def-speed-value">1.00x</span>
+            <input id="room-def-speed" type="range" min="0.1" max="2.5" step="0.05" value="1" />
+          </label>
+          <label>
+            Sound volume <span id="room-def-sound-volume-value">100%</span>
+            <input id="room-def-sound-volume" type="range" min="0" max="100" step="1" value="100" />
+          </label>
+        </details>
         <details id="room-transform-details" class="room-transform-options">
-          <summary>More options (for mp4 / gif)</summary>
+          <summary>Transform defaults (mp4 / gif)</summary>
           <label>
             Rotation (deg) <span id="room-rotation-deg-value">0</span>
             <input id="room-rotation-deg" type="range" min="-180" max="180" step="1" value="0" />
@@ -518,7 +543,6 @@
             <input id="room-offset-y-scale" type="range" min="-1" max="1" step="0.01" value="0" />
           </label>
         </details>
-        <button id="room-apply-changes" type="button">Apply changes</button>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">

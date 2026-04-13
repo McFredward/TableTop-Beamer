@@ -283,6 +283,12 @@
             void ctx.saveAndCaptureCleanBaseline().catch(() => {});
           }
         }
+        // Broadcast the updated animation values to all clients
+        // (including /output/final) via an edit-room live mutation.
+        void ctx.emitLiveMutation("edit-room", {
+          animationId: animation.id,
+          animation: ctx.buildAnimationSnapshotForLiveSync(animation),
+        }).catch(() => {});
       }
     }
     liveEditorAnimationId = null;

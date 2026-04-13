@@ -32,6 +32,7 @@
         heightScale: 1,
         offsetXScale: 0,
         offsetYScale: 0,
+        colorHex: "#ff0000",
       },
       runningAnimations: [],
       audio: {
@@ -53,6 +54,7 @@
       roomStateProfilesByBoard: {},
       specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},
+      frozenRoomsByBoard: {},
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},

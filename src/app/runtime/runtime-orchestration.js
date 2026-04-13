@@ -72,8 +72,8 @@ const {
   boardImportImageInput, boardImportNameInput, boardImportIdInput, boardImportButton,
   boardStatus, zonesStatus, alignModeToggleInput, alignModeButton, alignModeStatus,
   exportGlobalDefaultsButton, globalDefaultsStatus, apiDiagnoseStatus, triggerFeedback,
-  stopAllButton, roomSelected, roomTargetSelect, roomAnimationSelect,
-  roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
+  stopAllButton, roomSelected, roomTargetSelect, roomAnimationSelect, roomColorPicker,
+  roomColorPickerLabel, roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
   roomAnimationSettingsCreateButton, roomAnimationSettingsDeleteButton,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
@@ -81,6 +81,8 @@ const {
   roomHeightScaleInput, roomHeightScaleValue, roomOffsetXScaleInput,
   roomOffsetXScaleValue, roomOffsetYScaleInput, roomOffsetYScaleValue,
   roomApplyChangesButton,
+  roomDefOpacityInput, roomDefOpacityValue, roomDefIntensityInput, roomDefIntensityValue,
+  roomDefSpeedInput, roomDefSpeedValue, roomDefSoundVolumeInput, roomDefSoundVolumeValue,
   roomOpacityInput, roomOpacityValue, roomIntensityInput, roomIntensityValue,
   roomSpeedInput, roomSpeedValue, roomSoundVolumeInput, roomSoundVolumeValue,
   roomDurationInput, roomStaggerStartInput, roomStaggerOffsetInput, roomStaggerOffsetValue,
@@ -111,7 +113,8 @@ const {
   polygonRoomSelect, showRoomVerticesInput, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
-  roomCreateButton, roomDeleteButton, roomManagementStatus, clusterSelect, clusterNameInput,
+  roomCreateButton, roomDeleteButton, roomManagementStatus, roomFrozenCheckbox,
+  clusterSelect, clusterNameInput,
   clusterRoomIdsSelect, clusterCreateButton, clusterSaveButton, clusterDeleteButton,
   clusterManagementStatus, roomRenameInput, showPlayAreaVerticesInput, playAreaSelect,
   playAreaNameInput, playAreaCreateButton, playAreaDeleteButton, shipPolygonVertexSelect,
@@ -728,6 +731,7 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   normalizeRoomGeometryMap,
   normalizeRoomStateProfileMap: (map, boardId) => normalizeRoomStateProfileMap(map, boardId),
   normalizeSpecialPolygonMap,
+  normalizeFrozenRoomsMap: (raw, boardId) => normalizeFrozenRoomsMap(raw, boardId),
   getPlayAreas,
   getSelectedPlayAreaId,
   getSelectedPlayArea,
@@ -898,6 +902,9 @@ const {
   resolveRoomAnimationEffectType,
   getRoomEquivalentType,
   getRoomGifAssetFileName,
+  isRoomFrozen,
+  setRoomFrozen,
+  normalizeFrozenRoomsMap,
 } = window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS;
 
 // Phase 14-2 reorg fix: three runtime modules (AUDIO, ROOM_GEOMETRY,
@@ -1280,6 +1287,7 @@ window.TT_BEAMER_RUNTIME_QUICK_MODE.init({
   getBoard: (boardId) => getBoard(boardId),
   getRoomAnimationLabelById: (type, boardId) => getRoomAnimationLabelById(type, boardId),
   preserveMobileBoardOverview: (reason) => preserveMobileBoardOverview(reason),
+  isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
 });
 const {
   normalizeQuickMode,
@@ -1612,6 +1620,14 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   roomAssetRefInput,
   roomAnimationSelect,
   roomAnimationSettingsSelect,
+  roomDefOpacityInput,
+  roomDefOpacityValue,
+  roomDefIntensityInput,
+  roomDefIntensityValue,
+  roomDefSpeedInput,
+  roomDefSpeedValue,
+  roomDefSoundVolumeInput,
+  roomDefSoundVolumeValue,
   roomAnimationSettingsDeleteButton,
   outsideResourceSelect,
   outsideSoundRefSelect,
@@ -1745,6 +1761,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   isQuickModeActive: () => isQuickModeActive(),
   handleQuickModeRoomTap: (roomId) => handleQuickModeRoomTap(roomId),
   applyRoomDraftTargetFromRoomClick: (roomId) => applyRoomDraftTargetFromRoomClick(roomId),
+  isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
 });
 const {
   getNormalizedOverlayPoint,
@@ -1856,6 +1873,9 @@ window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT.init({
   setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
   stopAnimationSound: (animationId) => stopAnimationSound(animationId),
+  isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
+  setRoomFrozen: (boardId, roomId, frozen) => setRoomFrozen(boardId, roomId, frozen),
+  roomFrozenCheckbox,
 });
 const {
   syncRoomManagementPanel,
@@ -1884,6 +1904,7 @@ const {
   getBoardRoomClusters,
   getRoomTargetOptions,
   parseRoomTargetValue,
+  syncRoomFrozenCheckbox,
 } = window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT;
 
 // Phase 14-2: room draft UI state + cluster runtime helpers
@@ -1926,6 +1947,10 @@ window.TT_BEAMER_RUNTIME_ROOM_DRAFT.init({
   syncRoomGeometryPanel: () => syncRoomGeometryPanel(),
   syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
   syncRoomManagementPanel: (statusText) => syncRoomManagementPanel(statusText),
+  isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
+  roomColorPickerLabel,
+  getRoomAnimationDefinitionById: (id, boardId) => getRoomAnimationDefinitionById(id, boardId),
+  normalizeRoomAssetType: (v) => normalizeRoomAssetType(v),
 });
 const {
   resolveRoomDraftTargets,
@@ -1986,6 +2011,7 @@ window.TT_BEAMER_RUNTIME_ROOM_DISPATCH.init({
   getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
   dashboardDefaultAnimation,
   saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
 });
 const { startRoomAnimationFromDraft } = window.TT_BEAMER_RUNTIME_ROOM_DISPATCH;
 
@@ -2038,6 +2064,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getOutputRole: () => outputRole,
   getClusterMemberAnimationIds: (animation) => getClusterMemberAnimationIds(animation),
   emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+  buildAnimationSnapshotForLiveSync: (animation) => buildAnimationSnapshotForLiveSync(animation),
   stopAnimationSound: (animationId) => stopAnimationSound(animationId),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
   updateOutsideFxProfile: (boardId, partial) => updateOutsideFxProfile(boardId, partial),
@@ -2529,6 +2556,14 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   roomAssetRefInput,
   roomResourceSelect,
   roomApplyChangesButton,
+  roomDefOpacityInput,
+  roomDefOpacityValue,
+  roomDefIntensityInput,
+  roomDefIntensityValue,
+  roomDefSpeedInput,
+  roomDefSpeedValue,
+  roomDefSoundVolumeInput,
+  roomDefSoundVolumeValue,
   insideAnimationCreateButton,
   insideAnimationNameInput,
   insideAnimationSelect,
@@ -2580,6 +2615,9 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   normalizeRoomFxProfile,
   clampOutsideIntensity: (v) => clampOutsideIntensity(v),
   clampOutsideSpeed: (v) => clampOutsideSpeed(v),
+  clampRoomOpacity: (v) => clampRoomOpacity(v),
+  clampRoomIntensity: (v) => clampRoomIntensity(v),
+  clampRoomSpeed: (v) => clampRoomSpeed(v),
   setRoomEditorDraft,
   setInsideEditorDraft,
   setOutsideEditorDraft,
@@ -2778,6 +2816,13 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   normalizeMp4PerformanceTier: (v) => normalizeMp4PerformanceTier(v),
   getMp4TierDefaults: (tier) => getMp4TierDefaults(tier),
   updateMp4PerformanceControls: (partial, opts) => updateMp4PerformanceControls(partial, opts),
+  roomFrozenCheckbox,
+  roomColorPicker,
+  roomColorPickerLabel,
+  setRoomFrozen: (boardId, roomId, frozen) => setRoomFrozen(boardId, roomId, frozen),
+  syncSelectedRoomStateForBoard: (boardId) => syncSelectedRoomStateForBoard(boardId),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  renderRoomOverlay: () => renderRoomOverlay(),
 });
 
 const resizeObserver = new ResizeObserver((entries) => {

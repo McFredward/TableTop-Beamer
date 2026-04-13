@@ -34,6 +34,7 @@
     heightScale = 1,
     offsetXScale = 0,
     offsetYScale = 0,
+    colorHex = "",
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -56,6 +57,7 @@
       heightScale: Number(heightScale) || 1,
       offsetXScale: Number(offsetXScale) || 0,
       offsetYScale: Number(offsetYScale) || 0,
+      colorHex: typeof colorHex === "string" && /^#[0-9a-f]{6}$/i.test(colorHex) ? colorHex : undefined,
       scope,
       roomId,
       intensity,

@@ -174,6 +174,8 @@
             ? { selectedAnimationId: profile.selectedOutsideAnimationId }
             : {}),
         },
+        defaultAnimations: Array.isArray(profile.defaultAnimations) ? profile.defaultAnimations : [],
+        frozenRooms: profile.frozenRooms && typeof profile.frozenRooms === "object" ? profile.frozenRooms : {},
       };
     }
     return migrated;

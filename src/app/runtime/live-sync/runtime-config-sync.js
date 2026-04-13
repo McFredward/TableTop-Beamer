@@ -31,13 +31,26 @@
   // Snapshot of everything that persistBoardProfiles is supposed to
   // cover: the full board profile map plus the persisted runtime
   // settings. Used as the dirty-gate comparison key.
+  function stripSelectionOnlyFields(boardProfiles) {
+    const stripped = {};
+    for (const [boardId, profile] of Object.entries(boardProfiles)) {
+      const { roomFx, insideFx, ...rest } = profile;
+      stripped[boardId] = {
+        ...rest,
+        roomFx: roomFx ? { animations: roomFx.animations } : roomFx,
+        insideFx: insideFx ? (({ selectedAnimationId, ...keep }) => keep)(insideFx) : insideFx,
+      };
+    }
+    return stripped;
+  }
+
   function buildDirtyComparisonSnapshot() {
     if (typeof ctx?.buildBoardProfilesFromState !== "function"
       || typeof ctx?.buildPersistedRuntimeSettingsFromState !== "function") {
       return null;
     }
     const snapshot = {
-      boardProfiles: ctx.buildBoardProfilesFromState(),
+      boardProfiles: stripSelectionOnlyFields(ctx.buildBoardProfilesFromState()),
       runtimeSettings: ctx.buildPersistedRuntimeSettingsFromState(),
     };
     return stableStringify(snapshot);
@@ -135,6 +148,7 @@
     const state = ctx.state;
     if (!state.localConfigDirty) return { ok: true, nothingToDo: true };
     try {
+      suppressBroadcastReapplyUntil = Date.now() + 3000;
       await ctx.saveGlobalDefaultsToServer();
       clearLocalConfigDirty("Global config: pushed local changes to server");
       captureCleanBaseline();

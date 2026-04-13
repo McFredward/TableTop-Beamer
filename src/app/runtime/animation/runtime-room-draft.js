@@ -26,19 +26,20 @@
     const clusters = ctx.getBoardRoomClusters(state.boardId);
     const clusterById = new Map(clusters.map((cluster) => [cluster.clusterId, cluster]));
     const hasRoom = (roomId) => board.rooms.some((entry) => entry.id === roomId);
+    const isUsable = (roomId) => hasRoom(roomId) && !ctx.isRoomFrozen(state.boardId, roomId);
 
     if (state.roomDraft.targetType === "cluster") {
       const cluster = clusterById.get(state.roomDraft.targetId);
       if (cluster && cluster.roomIds.length > 0) {
-        return cluster.roomIds;
+        return cluster.roomIds.filter((roomId) => isUsable(roomId));
       }
     }
 
     const selectedRoomId = state.roomDraft.targetType === "room" ? state.roomDraft.targetId : fallbackRoomId;
-    if (selectedRoomId && hasRoom(selectedRoomId)) {
+    if (selectedRoomId && isUsable(selectedRoomId)) {
       return [selectedRoomId];
     }
-    if (fallbackRoomId && hasRoom(fallbackRoomId)) {
+    if (fallbackRoomId && isUsable(fallbackRoomId)) {
       return [fallbackRoomId];
     }
     return [];
@@ -214,6 +215,9 @@
       ctx.syncRoomStaggerOffsetControl();
       ctx.syncRoomGeometryPanel();
       ctx.syncDashboardZoneVisibility();
+      if (ctx.roomColorPickerLabel) {
+        ctx.roomColorPickerLabel.style.display = "none";
+      }
       return;
     }
     ctx.startRoomAnimationButton.disabled = false;
@@ -231,6 +235,12 @@
         : roomFx.animations[0]?.id ?? "kaputt";
     }
     ctx.roomAnimationSelect.value = state.roomDraft.animationId;
+    if (ctx.roomColorPickerLabel) {
+      const def = ctx.getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
+      const isSolidColor = ctx.normalizeRoomAssetType(def?.assetType) === "coded"
+        && String(def?.assetRef || "").toLowerCase() === "solid-color";
+      ctx.roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+    }
     ctx.roomOpacityInput.value = String(ctx.clampRoomOpacity(state.roomDraft.opacity));
     ctx.roomOpacityValue.textContent = ctx.clampRoomOpacity(state.roomDraft.opacity).toFixed(2);
     state.roomDraft.intensity = ctx.clampRoomIntensity(state.roomDraft.intensity);
