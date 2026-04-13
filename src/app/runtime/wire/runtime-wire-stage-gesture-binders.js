@@ -162,6 +162,8 @@
 
     function startTouchPanFromPrimary() {
       if (touchGesture.mode === "panning") return;
+      // Phase 18: now activate heavy-interaction pause (confirmed pan gesture)
+      setTouchGestureActive(true);
       const zoom = getBoardZoom(state.boardId);
       if (zoom.scale <= 1 && state.uiView !== "settings") {
         // fallthrough
@@ -248,13 +250,18 @@
           });
           touchGesture.pinchLastDistance = touchGesturePinchDistance();
           touchGesture.mode = "pinching";
+          // Phase 18: activate heavy-interaction pause (confirmed pinch gesture)
+          setTouchGestureActive(true);
           return;
         }
 
         if (touchGesture.mode === "idle" || touchGesture.mode === "panning") {
           resetTouchGestureToIdle();
           refreshStageGeometryCache();
-          setTouchGestureActive(true);
+          // Phase 18: delay setTouchGestureActive(true) until the gesture is
+          // confirmed as pan or pinch. Setting it on tentative pointerdown
+          // causes a visible animation flicker on every quick tap (the draw
+          // loop skips rendering during "heavy interaction").
           stage.classList.add("is-touch-gesture");
           try {
             if (liveSync?.pollTimerId !== null && liveSync?.pollTimerId !== undefined) {
