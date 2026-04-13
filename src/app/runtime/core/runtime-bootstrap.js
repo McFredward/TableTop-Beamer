@@ -227,56 +227,41 @@
     //   - Board image src hasn't changed since last check
     //   - Draw loop is advancing (frameIndex > 10 = several frames rendered)
     //   - WebSocket connected OR at least one poll cycle done
+    // Phase 18: loading overlay dismiss. The overlay sits inside the stage
+    // and hides the board area until rendering is ready. We hook a one-shot
+    // callback into the FIRST draw() call — by the time draw fires, the
+    // canvas is being painted and the board is visible behind the overlay.
+    // On mobile where a server board-switch may happen after init, the
+    // boardImage 'load' event fires after the switch and triggers dismiss.
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
-      const initSrc = boardImage?.src || "";
-
+      let dismissed = false;
       const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
         loadingOverlay.classList.add("is-hidden");
         loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
       };
-
-      // Fast path: if image is already loaded, dismiss on next paint.
-      // This covers desktop where everything is cached/instant.
-      const imageReady = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
-      if (imageReady) {
-        requestAnimationFrame(() => dismiss());
+      if (boardImage) {
+        // If image already loaded (cached), dismiss immediately on next frame
+        if (boardImage.complete && boardImage.naturalWidth > 0) {
+          requestAnimationFrame(dismiss);
+        } else {
+          // Wait for image load — covers board-switch on mobile
+          boardImage.addEventListener("load", () => {
+            requestAnimationFrame(dismiss);
+          });
+        }
       } else {
-        // Slow path: wait for board image + possible server board switch.
-        let lastCheckedSrc = initSrc;
-        let stableChecks = 0;
-
-        const checkStable = () => {
-          const currentSrc = boardImage?.src || "";
-          const loaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
-          const srcStable = currentSrc === lastCheckedSrc;
-          const boardSwitchHappened = currentSrc !== initSrc;
-          const serverDone = liveSync.firstServerSnapshotApplied === true;
-          const syncReady = serverDone || !boardSwitchHappened;
-
-          lastCheckedSrc = currentSrc;
-
-          if (loaded && srcStable && syncReady) {
-            stableChecks += 1;
-          } else {
-            stableChecks = 0;
-          }
-
-          if (stableChecks >= 2) {
-            dismiss();
-            return;
-          }
-          setTimeout(checkStable, 100);
-        };
-        // Start checking after first paint
-        requestAnimationFrame(() => setTimeout(checkStable, 50));
+        // No board image element — dismiss on next frame
+        requestAnimationFrame(dismiss);
       }
-      // Safety: always dismiss after 15s
-      setTimeout(() => {
-        if (!loadingOverlay.classList.contains("is-hidden")) dismiss();
-      }, 15000);
+      // Safety: always dismiss after 12s
+      setTimeout(dismiss, 12000);
     }
+    // Kick off the draw loop — the first draw will also trigger dismiss
+    // via the image load event (image is set before draw starts).
     requestAnimationFrame(ctx.draw);
   }
 
