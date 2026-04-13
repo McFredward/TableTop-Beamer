@@ -941,12 +941,23 @@ button.danger.is-armed {
   }
 
   .settings-subtab-switch {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
   }
 
   .settings-subtab-switch button {
-    min-height: 3rem;
-    font-size: 0.92rem;
+    min-height: 2.5rem;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .panel {
+    padding: 0.55rem;
+    gap: 0.5rem;
   }
 
   h2 {
