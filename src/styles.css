@@ -636,9 +636,9 @@ input[type="number"] {
   border: 1px solid rgba(97, 130, 171, 0.6);
   border-radius: 0.55rem;
   background: rgba(16, 26, 40, 0.75);
-  padding: 0.62rem;
+  padding: 0.5rem;
   display: grid;
-  gap: 0.48rem;
+  gap: 0.35rem;
 }
 
 .running-title {
