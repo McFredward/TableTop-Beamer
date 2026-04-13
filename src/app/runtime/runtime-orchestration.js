@@ -103,7 +103,7 @@ const {
   roomGeometryYValue, roomGeometryStretchXInput, roomGeometryStretchXValue,
   roomGeometryStretchYInput, roomGeometryStretchYValue, roomGeometryStatus,
   openDashboardViewButton, openSettingsViewButton, openTriggerZoneButton, openManageZoneButton,
-  mobileStartRoomButton, mobileLayoutStatus, quickModePanel, quickModeStatus,
+  mobileStartRoomButton, mobileLayoutStatus, quickModePanel, quickAnimationPicker, quickModeStatus,
   quickModeOffButton, quickModeActivateButton, quickModeDeactivateButton, quickModeClearButton,
   controlPanel, projectionArea, primaryViewSwitch, dashboardStickyShell, mobileZoneSwitch,
   runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
