@@ -2201,6 +2201,8 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   state,
   canvas,
   canvasCtx: ctx,
+  boardImage,
+  liveSync,
   logRender,
   triggerFeedback,
   OUTPUT_ROLE_FINAL,

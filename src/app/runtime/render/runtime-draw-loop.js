@@ -516,8 +516,59 @@
         lastListRenderAt = now;
       }
       ctx.recordRuntimeFrameCost(performance.now() - frameStart);
+      tickLoadingOverlay();
     } finally {
       requestAnimationFrame(draw);
+    }
+  }
+
+  // Phase 18: loading overlay dismiss — runs once per draw frame.
+  // Two paths to dismiss:
+  //   FAST: server snapshot applied + board image loaded → dismiss immediately
+  //   FALLBACK: board image loaded + src stable for 3 frames + no board
+  //     switch detected → dismiss (covers desktop where server may be slow)
+  // Board switch resets stableFrames so overlay stays until new image loads.
+  function tickLoadingOverlay() {
+    const state = ctx.state;
+    const loading = state._loading;
+    if (!loading || loading.dismissed) return;
+    const overlay = loading.overlay;
+    if (!overlay) { loading.dismissed = true; return; }
+
+    const boardImage = ctx.boardImage;
+    const currentSrc = boardImage?.src || "";
+    const imageLoaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
+
+    // If src changed, a board switch is happening — reset stability
+    if (currentSrc !== loading.lastSeenSrc) {
+      loading.lastSeenSrc = currentSrc;
+      loading.stableFrames = 0;
+      return;
+    }
+
+    if (!imageLoaded) {
+      loading.stableFrames = 0;
+      return;
+    }
+
+    loading.stableFrames += 1;
+
+    // Fast path: server snapshot confirmed + image loaded → go
+    const serverReady = ctx.liveSync?.firstServerSnapshotApplied === true;
+    if (serverReady && loading.stableFrames >= 1) {
+      loading.dismissed = true;
+      overlay.classList.add("is-hidden");
+      overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
+      return;
+    }
+
+    // Fallback: no board switch + image stable for 3 frames → go
+    // (handles desktop where server snapshot might arrive later)
+    const boardSwitchHappened = currentSrc !== loading.initBoardSrc;
+    if (!boardSwitchHappened && loading.stableFrames >= 3) {
+      loading.dismissed = true;
+      overlay.classList.add("is-hidden");
+      overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
     }
   }
 

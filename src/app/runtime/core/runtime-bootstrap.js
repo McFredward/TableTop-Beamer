@@ -215,53 +215,28 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: dismiss loading overlay using stability-based detection.
-    // The startup sequence involves async steps (server fetch, board switch,
-    // image load, animation start) that happen over several seconds. Instead
-    // of trying to hook each step, we poll every 200ms and require ALL
-    // conditions to be met simultaneously for 3 consecutive checks (~600ms
-    // of stability). Any change resets the counter.
-    //
-    // Ready conditions:
-    //   - Board image loaded (complete + naturalWidth > 0)
-    //   - Board image src hasn't changed since last check
-    //   - Draw loop is advancing (frameIndex > 10 = several frames rendered)
-    //   - WebSocket connected OR at least one poll cycle done
-    // Phase 18: loading overlay dismiss. The overlay sits inside the stage
-    // and hides the board area until rendering is ready. We hook a one-shot
-    // callback into the FIRST draw() call — by the time draw fires, the
-    // canvas is being painted and the board is visible behind the overlay.
-    // On mobile where a server board-switch may happen after init, the
-    // boardImage 'load' event fires after the switch and triggers dismiss.
-    const loadingOverlay = document.getElementById("loading-overlay");
+    // Phase 18: loading overlay state — tickLoadingOverlay() in the draw
+    // loop checks this every frame and dismisses when ready. Two paths:
+    //   FAST: no board switch + image loaded → dismiss after 3 stable frames
+    //   SLOW: board switch detected → wait for server snapshot + new image
+    state._loading = {
+      overlay: document.getElementById("loading-overlay"),
+      dismissed: false,
+      initBoardSrc: ctx.boardImage?.src || "",
+      lastSeenSrc: ctx.boardImage?.src || "",
+      stableFrames: 0,
+    };
+    // Safety: always dismiss after 12s
+    const loadingOverlay = state._loading.overlay;
     if (loadingOverlay) {
-      const boardImage = ctx.boardImage;
-      let dismissed = false;
-      const dismiss = () => {
-        if (dismissed) return;
-        dismissed = true;
-        loadingOverlay.classList.add("is-hidden");
-        loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
-      };
-      if (boardImage) {
-        // If image already loaded (cached), dismiss immediately on next frame
-        if (boardImage.complete && boardImage.naturalWidth > 0) {
-          requestAnimationFrame(dismiss);
-        } else {
-          // Wait for image load — covers board-switch on mobile
-          boardImage.addEventListener("load", () => {
-            requestAnimationFrame(dismiss);
-          });
+      setTimeout(() => {
+        if (!state._loading.dismissed) {
+          state._loading.dismissed = true;
+          loadingOverlay.classList.add("is-hidden");
+          loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
         }
-      } else {
-        // No board image element — dismiss on next frame
-        requestAnimationFrame(dismiss);
-      }
-      // Safety: always dismiss after 12s
-      setTimeout(dismiss, 12000);
+      }, 12000);
     }
-    // Kick off the draw loop — the first draw will also trigger dismiss
-    // via the image load event (image is set before draw starts).
     requestAnimationFrame(ctx.draw);
   }
 
