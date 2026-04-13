@@ -147,3 +147,22 @@ Exit Criteria:
 - `grep -r "// removed"` / `grep -r "// legacy"` / ausgekommentete Code-Bloecke verifiziert entfernt.
 - Keine regressiven Aenderungen in Phase 11/12/13 Acceptance-Harnesses — alle GREEN.
 - Build + Startup unveraendert; in-browser smoke unveraendert.
+
+## Phase 18 - UX Overhaul: Simplicity & Mobile-First (PLANNED)
+Ziel: Umfassende UX-Ueberarbeitung fuer intuitive Bedienung ohne Funktionalitaetsverlust. Mobile ist der primaere Nutzungskontext waehrend des Spiels. Quick Mode (Tap Mode) ist der Haupt-Workflow. Status-Rauschen eliminieren, progressive Disclosure, klare Terminologie.
+
+Status: PLANNED. Plan 18-1 bis 18-4 definiert in `.planning/phases/phase-18/PLAN.md`.
+
+Milestones:
+1. M1 Dashboard UX: Quick Mode Promotion, Room Animation Simplification, Status Cleanup, Empty States.
+2. M2 Settings UX: Panel Consolidation, Terminology Overhaul, Navigation Polish.
+3. M3 Mobile-First: Quick Mode Touch Optimization, Compact Running Animations, Mobile Settings.
+4. M4 Visual Polish: Hierarchy Differentiation, Button/Control Styling, Typography.
+
+Exit Criteria:
+- Quick Mode ist die prominenteste Section im Dashboard und primaerer Interaktionspfad.
+- Alle statischen/technischen Status-Zeilen entfernt oder in technische Details verlagert.
+- Settings-Panels konsolidiert (Board Setup, Room Editor statt 6 separate Panels).
+- Terminologie nutzerfreundlich (keine Asset/Coded Begriffe in der UI).
+- Mobile Touch-Targets mindestens 48px, Quick Mode ohne Scrollen erreichbar.
+- Keine Funktionalitaet entfernt — nur Darstellung und Zugaenglichkeit verbessert.
