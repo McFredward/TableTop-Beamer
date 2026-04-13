@@ -44,10 +44,7 @@
       <header class="settings-only view-hidden" data-view="settings" hidden>
         <p class="eyebrow">Board Game Operator Deck</p>
         <h1>Settings Workspace</h1>
-        <p class="lead">
-          Calibrate hit areas and room geometry separately from the trigger dashboard. Dashboard controls stay hidden
-          here.
-        </p>
+        <p class="lead">Configure board, animations, and system settings.</p>
       </header>
 
       <nav class="view-switch primary-view-switch" aria-label="View switch">
@@ -75,7 +72,6 @@
           <button id="settings-subtab-system" type="button" data-settings-subtab="system">System &amp;
             Performance</button>
         </nav>
-        <p id="settings-subtab-status" class="status-line" aria-live="polite">Settings focus: Board &amp; Geometry</p>
       </section>
 
       <div class="dashboard-sticky-shell dashboard-only" data-view="dashboard">
@@ -206,19 +202,12 @@
         <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
         <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
-        <p id="zones-status" class="status-line" aria-live="polite">
-          Board source: checked at startup
-        </p>
+        <p id="zones-status" class="status-line" aria-live="polite"></p>
         <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
         <p id="global-defaults-status" class="status-line" aria-live="polite">
           Global Defaults: not saved yet
         </p>
-        <p id="api-diagnose-status" class="status-line" aria-live="polite">
-          API diagnostics: checked in save preflight
-        </p>
-        <p class="status-line">
-          Note: Download export is a secondary fallback. Primary path remains API save.
-        </p>
+        <p id="api-diagnose-status" class="status-line" aria-live="polite"></p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
@@ -582,7 +571,6 @@
       <section id="running-overview-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
         data-dashboard-zone="manage">
         <h2>Active animations</h2>
-        <p class="status-line">Priority section: runtime status with direct Stop/Edit actions.</p>
         <ul id="running-animations" class="running-list" aria-live="polite"></ul>
         <div id="live-editor-panel" class="live-editor-panel" hidden>
           <div class="live-editor-header">
@@ -644,7 +632,6 @@
           <button id="stop-all" class="danger" type="button">Clear All</button>
           <button id="align-mode-button" type="button" aria-pressed="false">Align mode: OFF</button>
         </div>
-        <p class="status-line">Touch safety: `Clear All` requires an explicit double confirmation.</p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
