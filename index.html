@@ -171,9 +171,10 @@
         </details>
       </section>
 
+      <!-- Phase 18-2: merged "Board catalog + output" and "Board zoom" into one panel -->
       <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings"
         data-settings-tab="board" hidden>
-        <h2>Board catalog + output</h2>
+        <h2>Board Setup</h2>
         <label>
           Board
           <select id="board-select"></select>
@@ -191,29 +192,11 @@
           <input id="board-import-name" type="text" maxlength="80" placeholder="e.g. Zombicide Main Board" />
         </label>
         <button id="board-import-button" type="button">Import board (JSON or image) to server catalog</button>
-        <!-- Phase 15-7: align mode moved to the Dashboard view as
-             #align-mode-button. The legacy #align-mode-toggle checkbox
-             is removed; the existing alignModeToggleInput DOM ref
-             will resolve to null and sync helpers already guard. -->
-        <!-- Phase 13-HF4: Apply/Discard bar moved to the control-panel top.
-             Export/Import remain in the settings-specific area. -->
         <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
         <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
         <p id="zones-status" class="status-line" aria-live="polite"></p>
-        <p id="align-mode-status" class="status-line" aria-live="polite">Align-Mode: OFF</p>
-        <p id="global-defaults-status" class="status-line" aria-live="polite">
-          Global Defaults: not saved yet
-        </p>
         <p id="api-diagnose-status" class="status-line" aria-live="polite"></p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Board zoom (Settings)</h2>
-        <p class="status-line">
-          Scrollrad (Desktop) oder Zwei-Finger-Pinch (Mobile) ueber dem Board zoomt von 25% bis 400%.
-          Fit- und Reset-Buttons bleiben erhalten.
-        </p>
         <label>
           Polygon handle size <span id="polygon-handle-size-value">100%</span>
           <input id="polygon-handle-size" type="range" min="10" max="100" step="1" value="100" />
@@ -223,13 +206,11 @@
           <button id="board-zoom-reset" type="button">Reset zoom</button>
         </div>
         <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
-        <p id="board-pan-status" class="status-line" aria-live="polite">
-          Pan status: edit mode | pan becomes active above 100% zoom
-        </p>
       </section>
 
+      <!-- Phase 18-2: merged "Room management" and "Room polygon editor" into one panel -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Room management</h2>
+        <h2>Room Editor</h2>
         <label>
           New room name
           <input id="room-name-input" type="text" maxlength="64" placeholder="e.g. Brood Chamber" />
@@ -246,36 +227,6 @@
           <button id="room-create" type="button">Create room</button>
           <button id="room-delete" type="button">Delete room</button>
         </div>
-        <p id="room-management-status" class="status-line" aria-live="polite">
-          Room management: ready
-        </p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Cluster management</h2>
-        <label>
-          Cluster
-          <select id="cluster-select"></select>
-        </label>
-        <label>
-          Cluster name
-          <input id="cluster-name-input" type="text" maxlength="64" placeholder="e.g. Frontline" />
-        </label>
-        <label>
-          Cluster rooms (multi-select)
-          <select id="cluster-room-ids" multiple size="8"></select>
-        </label>
-        <div class="button-grid button-grid-3">
-          <button id="cluster-create" type="button">Create cluster</button>
-          <button id="cluster-save" type="button">Save cluster</button>
-          <button id="cluster-delete" type="button">Delete cluster</button>
-        </div>
-        <p id="cluster-management-status" class="status-line" aria-live="polite">Cluster management: ready</p>
-      </section>
-
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Room polygon editor</h2>
-        <p class="status-line">Drag vertices on the overlay or insert/delete using buttons.</p>
         <label class="inline-checkbox">
           <input id="show-room-vertices" type="checkbox" checked />
           Show Room Vertices
@@ -308,14 +259,31 @@
           <input id="room-frozen-checkbox" type="checkbox" />
           Freeze room (not selectable in Dashboard)
         </label>
-        <p id="polygon-editor-status" class="status-line" aria-live="polite">
-          Polygon editor: select a room
-        </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Play Area editor (outside mask)</h2>
-        <p class="status-line">Edit the Play Area mask; outside effects are rendered only outside this polygon.</p>
+        <h2>Cluster management</h2>
+        <label>
+          Cluster
+          <select id="cluster-select"></select>
+        </label>
+        <label>
+          Cluster name
+          <input id="cluster-name-input" type="text" maxlength="64" placeholder="e.g. Frontline" />
+        </label>
+        <label>
+          Cluster rooms (multi-select)
+          <select id="cluster-room-ids" multiple size="8"></select>
+        </label>
+        <div class="button-grid button-grid-3">
+          <button id="cluster-create" type="button">Create cluster</button>
+          <button id="cluster-save" type="button">Save cluster</button>
+          <button id="cluster-delete" type="button">Delete cluster</button>
+        </div>
+      </section>
+
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
+        <h2>Play Area</h2>
         <label>
           Active Play Area
           <select id="play-area-select"></select>
@@ -347,9 +315,6 @@
         <div class="button-grid button-grid-2">
           <button id="ship-polygon-reset" type="button">Reset Play Area polygon to default</button>
         </div>
-        <p id="ship-polygon-editor-status" class="status-line" aria-live="polite">
-          Play Area editor: ready
-        </p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
