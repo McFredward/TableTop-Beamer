@@ -111,14 +111,14 @@
       ctx.quickModePanel.dataset.mode = mode;
       ctx.quickModePanel.classList.toggle("is-busy", inflightCount > 0);
     }
-    // Phase 18: sync inline animation picker — visible only in "activate" mode
+    // Phase 18: sync inline animation picker — visible in "activate" and "deactivate" modes
     syncQuickAnimationPicker(mode);
   }
 
   function syncQuickAnimationPicker(mode) {
     const picker = ctx.quickAnimationPicker;
     if (!picker) return;
-    if (mode !== "activate") {
+    if (mode !== "activate" && mode !== "deactivate") {
       picker.style.display = "none";
       return;
     }
