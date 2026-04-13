@@ -215,69 +215,55 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: dismiss loading overlay based on real readiness indicators.
-    // Indicators checked every frame:
-    //   1. First live-sync snapshot applied (liveSync version advanced)
-    //   2. Board image fully loaded (complete + naturalWidth > 0)
-    //   3. Board image src stable (no pending board switch)
-    //   4. Draw loop running (frameIndex advancing)
-    //   5. If default animations exist, at least one is rendering
+    // Phase 18: dismiss loading overlay using stability-based detection.
+    // The startup sequence involves async steps (server fetch, board switch,
+    // image load, animation start) that happen over several seconds. Instead
+    // of trying to hook each step, we poll every 200ms and require ALL
+    // conditions to be met simultaneously for 3 consecutive checks (~600ms
+    // of stability). Any change resets the counter.
+    //
+    // Ready conditions:
+    //   - Board image loaded (complete + naturalWidth > 0)
+    //   - Board image src hasn't changed since last check
+    //   - Draw loop is advancing (frameIndex > 10 = several frames rendered)
+    //   - WebSocket connected OR at least one poll cycle done
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
-      const initialVersion = liveSync.lastAppliedVersion;
-      let lastSeenSrc = boardImage?.src || "";
-      let lastSeenFrameIndex = 0;
-      let stableImageFrames = 0;
+      let lastCheckedSrc = "";
+      let consecutiveReadyChecks = 0;
+      const REQUIRED_STABLE_CHECKS = 3;
 
       const dismiss = () => {
         loadingOverlay.classList.add("is-hidden");
         loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
       };
 
-      const checkReady = () => {
-        // 1. Snapshot must have been applied
-        if (liveSync.lastAppliedVersion <= initialVersion) {
-          requestAnimationFrame(checkReady);
-          return;
-        }
-        // 2. Board image src must be stable (no board switch in progress)
+      const checkStable = () => {
         const currentSrc = boardImage?.src || "";
-        if (currentSrc !== lastSeenSrc) {
-          lastSeenSrc = currentSrc;
-          stableImageFrames = 0;
-          requestAnimationFrame(checkReady);
+        const imageLoaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
+        const srcStable = currentSrc === lastCheckedSrc && currentSrc !== "";
+        const drawRunning = (state.runtimePerf?.frameIndex || 0) > 10;
+        const socketReady = liveSync.socket?.readyState === 1;
+        const pollDone = liveSync.lastAppliedVersion > 0;
+        const syncReady = socketReady || pollDone;
+
+        lastCheckedSrc = currentSrc;
+
+        if (imageLoaded && srcStable && drawRunning && syncReady) {
+          consecutiveReadyChecks += 1;
+        } else {
+          consecutiveReadyChecks = 0;
+        }
+
+        if (consecutiveReadyChecks >= REQUIRED_STABLE_CHECKS) {
+          dismiss();
           return;
         }
-        // 3. Board image must be fully loaded
-        if (boardImage && (!boardImage.complete || !boardImage.naturalWidth)) {
-          stableImageFrames = 0;
-          requestAnimationFrame(checkReady);
-          return;
-        }
-        // 4. Draw loop must be advancing
-        const currentFrameIndex = state.runtimePerf?.frameIndex || 0;
-        if (currentFrameIndex <= lastSeenFrameIndex) {
-          requestAnimationFrame(checkReady);
-          return;
-        }
-        lastSeenFrameIndex = currentFrameIndex;
-        // 5. If running animations exist, they must have rendered at least a few frames
-        const hasAnimations = state.runningAnimations?.length > 0;
-        if (hasAnimations && stableImageFrames < 3) {
-          stableImageFrames += 1;
-          requestAnimationFrame(checkReady);
-          return;
-        }
-        // If no animations, just need image + a couple of draw frames
-        if (!hasAnimations && stableImageFrames < 2) {
-          stableImageFrames += 1;
-          requestAnimationFrame(checkReady);
-          return;
-        }
-        dismiss();
+        setTimeout(checkStable, 200);
       };
-      requestAnimationFrame(checkReady);
+      // Start checking after a short delay to let the first async operations begin
+      setTimeout(checkStable, 300);
       // Safety: always dismiss after 15s
       setTimeout(() => {
         if (!loadingOverlay.classList.contains("is-hidden")) dismiss();
