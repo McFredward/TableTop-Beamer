@@ -121,6 +121,11 @@
     if (!definition || typeof definition !== "object") {
       return `${boardId}:outside:missing-definition`;
     }
+    // Phase 18: lifecycle key only includes asset identity — NOT speed or
+    // intensity. Speed/intensity changes should adjust playback rate and
+    // opacity without restarting the video. Including them caused the mp4
+    // to restart whenever a live-sync snapshot arrived (e.g. room animation
+    // start/stop) because normalization could produce slightly different values.
     return [
       String(boardId || "global").trim() || "global",
       String(definition.id || "outside").trim() || "outside",
@@ -128,8 +133,6 @@
       String(definition.assetRef || "outside-space").trim() || "outside-space",
       String(definition.mode || "standard").trim() || "standard",
       String(definition.direction || "forward").trim() || "forward",
-      Number(definition.speed || 1).toFixed(3),
-      Number(definition.intensity || 1).toFixed(3),
     ].join("|");
   }
 

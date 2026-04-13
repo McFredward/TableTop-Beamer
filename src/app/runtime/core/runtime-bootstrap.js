@@ -232,7 +232,7 @@
       const boardImage = ctx.boardImage;
       let lastCheckedSrc = "";
       let consecutiveReadyChecks = 0;
-      const REQUIRED_STABLE_CHECKS = 3;
+      const REQUIRED_STABLE_CHECKS = 2;
 
       const dismiss = () => {
         loadingOverlay.classList.add("is-hidden");
@@ -243,7 +243,7 @@
         const currentSrc = boardImage?.src || "";
         const imageLoaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
         const srcStable = currentSrc === lastCheckedSrc && currentSrc !== "";
-        const drawRunning = (state.runtimePerf?.frameIndex || 0) > 10;
+        const drawRunning = (state.runtimePerf?.frameIndex || 0) > 3;
         const socketReady = liveSync.socket?.readyState === 1;
         const pollDone = liveSync.lastAppliedVersion > 0;
         const syncReady = socketReady || pollDone;
@@ -260,10 +260,9 @@
           dismiss();
           return;
         }
-        setTimeout(checkStable, 200);
+        setTimeout(checkStable, 150);
       };
-      // Start checking after a short delay to let the first async operations begin
-      setTimeout(checkStable, 300);
+      setTimeout(checkStable, 100);
       // Safety: always dismiss after 15s
       setTimeout(() => {
         if (!loadingOverlay.classList.contains("is-hidden")) dismiss();
