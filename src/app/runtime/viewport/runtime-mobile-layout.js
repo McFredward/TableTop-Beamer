@@ -92,10 +92,10 @@
     const isMobile = isMobileViewport();
     ctx.controlPanel.dataset.mobileViewport = isMobile ? "true" : "false";
     ctx.controlPanel.dataset.mobileOrientation = orientation;
-    const zoneLabel = ctx.state.dashboardZone === "manage" ? "Manage running" : "Trigger";
+    const zoneLabel = ctx.state.dashboardZone === "manage" ? "Active" : "Control";
     ctx.mobileLayoutStatus.textContent = isMobile
       ? `Mobile (${orientation}): focus ${zoneLabel}`
-      : "Desktop: Trigger and Manage sections visible in parallel";
+      : "Desktop: Control and Active sections visible in parallel";
   }
 
   function syncDashboardZoneVisibility() {
@@ -265,8 +265,8 @@
     if (announce && state.uiView === "dashboard") {
       ctx.triggerFeedback.textContent =
         nextZone === "manage"
-          ? "Status: Mobile focus set to Manage running"
-          : "Status: Mobile focus set to Trigger";
+          ? "Status: Mobile focus set to Active"
+          : "Status: Mobile focus set to Control";
     }
   }
 
