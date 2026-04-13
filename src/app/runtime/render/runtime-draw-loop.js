@@ -525,8 +525,10 @@
   }
 
   // Phase 18: loading overlay dismiss — runs once per draw frame.
-  // Dismiss immediately when board image is loaded. If a board switch
-  // happens (src changes), reset and wait for the new image.
+  // Waits for the first server snapshot to be applied (which may trigger
+  // a board switch), then dismisses once the board image is loaded.
+  // On desktop the server responds fast (<200ms) so this adds minimal delay.
+  // On mobile the server snapshot triggers a board switch → new image loads.
   function tickLoadingOverlay() {
     const state = ctx.state;
     const loading = state._loading;
@@ -544,7 +546,11 @@
       return;
     }
 
-    // Dismiss as soon as the current board image is loaded
+    // Wait for server snapshot first — it may switch the board
+    const serverReady = ctx.liveSync?.firstServerSnapshotApplied === true;
+    if (!serverReady) return;
+
+    // Server confirmed — dismiss when image is loaded
     if (imageLoaded) {
       loading.dismissed = true;
       overlay.classList.add("is-hidden");
