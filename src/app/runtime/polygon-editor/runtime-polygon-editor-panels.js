@@ -21,6 +21,7 @@
   }
 
   function syncPolygonEditorStatus() {
+    if (!ctx.polygonEditorStatus) return;
     const state = ctx.state;
     const selectedRoomId = ctx.syncSelectedRoomStateForBoard(state.boardId);
     if (!selectedRoomId) {
@@ -128,6 +129,7 @@
   }
 
   function syncShipPolygonEditorStatus() {
+    if (!ctx.shipPolygonEditorStatus) return;
     const state = ctx.state;
     const points = ctx.getShipPolygonPoints(state.boardId);
     const selectedArea = ctx.getSelectedPlayArea(state.boardId);

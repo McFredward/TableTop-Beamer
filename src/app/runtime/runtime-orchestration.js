@@ -146,9 +146,9 @@ const outsideDirectionFieldMount = createConditionalFieldMountSlot(outsideDirect
 const outsideAnimationsPanel = outsideApplyChangesButton?.closest("section") ?? null;
 const SETTINGS_SUBTAB_STORAGE_KEY = "tt-beamer.settings-subtab.v1";
 const SETTINGS_SUBTAB_LABELS = {
-  board: "Board & Geometry",
+  board: "Board",
   animations: "Animations",
-  system: "System & Performance",
+  system: "System",
 };
 
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
@@ -156,9 +156,7 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-import-file",
   "board-import-image",
   "board-import-name",
-  "board-import-id",
   "board-import-button",
-  // Phase 13-1: save-global-defaults + load-apply-global-defaults removed.
   "export-global-defaults",
   "import-global-defaults",
   "mp4-performance-tier",
@@ -169,22 +167,9 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "animation-speed",
   "audio-enabled",
   "audio-volume",
-  "audio-mapping-animation",
-  "audio-mapping-sound",
-  // Phase 13-2: board-zoom-range slider removed in favor of wheel + pinch.
   "polygon-handle-size",
   "board-zoom-fit",
   "board-zoom-reset",
-  "hitarea-offset-x",
-  "hitarea-offset-y",
-  "hitarea-scale",
-  "hitarea-save",
-  "hitarea-reset",
-  "room-geometry-mode",
-  "room-geometry-x",
-  "room-geometry-y",
-  "room-geometry-stretch-x",
-  "room-geometry-stretch-y",
   "room-name-input",
   "room-create-shape",
   "room-create",
@@ -225,7 +210,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "outside-asset-type",
   "outside-asset-ref",
   "outside-resource-select",
-  "outside-apply-changes",
   "inside-animation-select",
   "inside-animation-name",
   "inside-animation-create",
@@ -235,7 +219,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "inside-asset-ref",
   "inside-resource-select",
   "inside-loop-until-stop",
-  "inside-apply-changes",
   "room-animation-settings-select",
   "room-animation-settings-name",
   "room-animation-settings-create",
@@ -243,7 +226,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-asset-type",
   "room-asset-ref",
   "room-resource-select",
-  "room-apply-changes",
 ];
 
 // Phase 14-2: stage viewport cluster (applyOutputRoleViewContract,

@@ -109,10 +109,9 @@
         }
       }
 
-      const orderMask = runningOverviewPanel.compareDocumentPosition(globalAnimationPanel);
-      if ((orderMask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) {
-        issues.push("running panel not before trigger groups");
-      }
+      // Phase 18: running-overview-panel (dashboard manage zone) and global-animation-panel
+      // (settings board tab) are in different views. DOM order between cross-view panels
+      // is not functionally relevant — skip this positional check.
 
       if (mobileViewport) {
         const mobileClusterEntries = [

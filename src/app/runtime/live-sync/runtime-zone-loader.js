@@ -26,7 +26,9 @@
       const fallback = state.zoneLoader.fallbackBoards[boardId] || "none";
       return `${boardId}: ${mode}${fallback !== "none" ? ` (${fallback})` : ""}`;
     });
-    ctx.zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
+    if (ctx.zonesStatus) {
+      ctx.zonesStatus.textContent = `Board source: ${boards.join(" | ")}`;
+    }
   }
 
   async function loadExternalBoardZones() {

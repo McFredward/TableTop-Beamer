@@ -458,10 +458,14 @@
       endpoint: loaded.endpoint,
       method: "GET",
     });
-    ctx.globalDefaultsStatus.textContent =
-      `Global Defaults: loaded & applied (${formatResolveSnapshot(snapshot)} | Source ${sourceLabel})`;
-    ctx.apiDiagnoseStatus.textContent =
-      `API diagnostics: OK (${formatResolveSnapshot(snapshot)} | GET /api/global-defaults or config/global-defaults.json)`;
+    if (ctx.globalDefaultsStatus) {
+      ctx.globalDefaultsStatus.textContent =
+        `Global Defaults: loaded & applied (${formatResolveSnapshot(snapshot)} | Source ${sourceLabel})`;
+    }
+    if (ctx.apiDiagnoseStatus) {
+      ctx.apiDiagnoseStatus.textContent =
+        `API diagnostics: OK (${formatResolveSnapshot(snapshot)} | GET /api/global-defaults or config/global-defaults.json)`;
+    }
     ctx.triggerFeedback.textContent =
       `Status: Defaults loaded & applied (${formatResolveSnapshot(snapshot)} | ${sourceLabel})`;
 

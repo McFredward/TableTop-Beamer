@@ -161,12 +161,16 @@
     ctx.connectLiveSyncSocket();
     ctx.scheduleNextLiveSnapshotPoll(0);
     if (startupDefaultsSnapshot) {
-      ctx.globalDefaultsStatus.textContent =
-        `Global Defaults: automatically loaded & applied (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      if (ctx.globalDefaultsStatus) {
+        ctx.globalDefaultsStatus.textContent =
+          `Global Defaults: automatically loaded & applied (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      }
       ctx.triggerFeedback.textContent =
         `Status: Startup defaults active (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
-      ctx.apiDiagnoseStatus.textContent =
-        `API diagnostics: startup load OK (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      if (ctx.apiDiagnoseStatus) {
+        ctx.apiDiagnoseStatus.textContent =
+          `API diagnostics: startup load OK (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
+      }
     }
     ctx.warmEventSoundAssets();
     ctx.warmRoomGifAssets({ reason: "startup" });
