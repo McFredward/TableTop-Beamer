@@ -215,27 +215,39 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: dismiss loading overlay once the board image is loaded and
-    // the first frame has been rendered. The user perceives "loading" as the
-    // time until they see the actual board with animations, not just the DOM.
+    // Phase 18: dismiss loading overlay inside the stage area. The overlay
+    // stays visible until the board image is fully loaded, the live-sync
+    // snapshot has been applied (may trigger a board switch), and the draw
+    // loop has rendered a few settled frames. This covers the full user-
+    // perceived loading: scripts → server fetch → board switch → first paint.
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
-      const dismissLoading = () => {
-        // Wait one extra rAF to ensure the first draw is painted
-        requestAnimationFrame(() => {
+      let settledFrames = 0;
+      const checkSettled = () => {
+        const imageReady = !boardImage || (boardImage.complete && boardImage.naturalWidth > 0);
+        if (!imageReady) {
+          // Image still loading (maybe board-switch changed it) — retry
+          settledFrames = 0;
+          requestAnimationFrame(checkSettled);
+          return;
+        }
+        settledFrames += 1;
+        if (settledFrames < 5) {
+          requestAnimationFrame(checkSettled);
+          return;
+        }
+        loadingOverlay.classList.add("is-hidden");
+        loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
+      };
+      requestAnimationFrame(checkSettled);
+      // Safety: always dismiss after 12s no matter what
+      setTimeout(() => {
+        if (!loadingOverlay.classList.contains("is-hidden")) {
           loadingOverlay.classList.add("is-hidden");
           loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
-        });
-      };
-      if (boardImage && !boardImage.complete) {
-        boardImage.addEventListener("load", dismissLoading, { once: true });
-        // Safety timeout in case image load event doesn't fire
-        setTimeout(dismissLoading, 8000);
-      } else {
-        // Image already cached or no image — dismiss after first draw
-        requestAnimationFrame(dismissLoading);
-      }
+        }
+      }, 12000);
     }
     requestAnimationFrame(ctx.draw);
   }

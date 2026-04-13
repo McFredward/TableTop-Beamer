@@ -228,17 +228,9 @@
 
   function canStartPanModeFromEvent(event) {
     const state = ctx.state;
-    // Phase 15-2: pan mode is now allowed in both dashboard and
-    // settings views. The user still has to opt in explicitly via
-    // middle-click or space-drag, so normal dashboard room clicks
-    // are not stolen by accident.
-    const zoom = getBoardZoom(state.boardId);
-    if (zoom.scale <= 1) {
-      return false;
-    }
-    // Phase 13-HF4: touch gestures are routed through the central touch
-    // gesture manager (see `touchGesture` state machine below). Mouse pan
-    // still uses middle-click or space-drag.
+    // Phase 18: pan is always allowed at any zoom level. Users need the
+    // freedom to reposition the board even when zoomed out. The opt-in
+    // mechanism (middle-click or space-drag) prevents accidental panning.
     return event.button === 1 || state.panMode.spacePressed;
   }
 
@@ -254,12 +246,10 @@
     // handler re-runs this once the user lifts their finger.
     if (ctx.getTouchGestureActive()) return;
     const zoom = getBoardZoom(state.boardId);
-    // Phase 15-2: pan cursor available in both dashboard and settings
-    // when zoomed in (matches the widened canStartPanModeFromEvent).
-    const interactive = zoom.scale > 1;
+    // Phase 18: pan is always available at any zoom level.
     ctx.stage.classList.toggle("is-panning", state.panMode.active);
-    ctx.roomOverlay.classList.toggle("is-pan-enabled", interactive);
-    ctx.roomOverlay.classList.toggle("is-pan-ready", interactive && state.panMode.spacePressed && !state.panMode.active);
+    ctx.roomOverlay.classList.toggle("is-pan-enabled", true);
+    ctx.roomOverlay.classList.toggle("is-pan-ready", state.panMode.spacePressed && !state.panMode.active);
     ctx.roomOverlay.classList.toggle("is-panning", state.panMode.active);
     syncBoardZoomStatus();
   }

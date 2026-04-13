@@ -14,15 +14,15 @@
 </head>
 
 <body>
-  <!-- Phase 18: loading overlay — shown until app initialization completes -->
-  <div id="loading-overlay" class="loading-overlay" aria-live="polite">
-    <div class="loading-spinner"></div>
-    <p class="loading-text">Loading...</p>
-  </div>
-
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
+        <!-- Phase 18: loading indicator inside the board area — stays visible
+             until board image loaded + first draw frame rendered -->
+        <div id="loading-overlay" class="loading-overlay" aria-live="polite">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Loading...</p>
+        </div>
         <img id="board-image" alt="Board" draggable="false" />
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
         <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>

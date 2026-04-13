@@ -13,18 +13,20 @@
   box-sizing: border-box;
 }
 
-/* Phase 18: loading overlay — full-screen spinner shown during app init */
+/* Phase 18: loading overlay — inside the stage area, covers the board
+   until images are loaded and the first frame has rendered */
 .loading-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 9999;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.2rem;
-  background: radial-gradient(160% 180% at 20% 0%, #1a2538 0%, #090d14 45%);
-  transition: opacity 0.4s ease, visibility 0.4s ease;
+  background: #090d14;
+  border-radius: inherit;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 .loading-overlay.is-hidden {
   opacity: 0;
@@ -32,8 +34,8 @@
   pointer-events: none;
 }
 .loading-spinner {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border: 3px solid rgba(55, 192, 161, 0.2);
   border-top-color: #37c0a1;
   border-radius: 50%;
@@ -45,7 +47,7 @@
 .loading-text {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   color: #97a4b8;
   letter-spacing: 0.04em;
 }
