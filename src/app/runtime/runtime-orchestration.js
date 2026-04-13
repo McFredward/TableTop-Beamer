@@ -2877,6 +2877,11 @@ if (projectionArea) {
 bindDevicePixelRatioWatcher();
 scheduleStageViewportLifecycle("startup-bind");
 
+// Phase 18: initialize slider touch guard for mobile scroll protection
+if (window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD) {
+  window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD.init();
+}
+
 // Phase 14-2: syncRuntimePanelsFromState + initializeApplication
 // moved to src/app/runtime/runtime-bootstrap.js.
 window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
