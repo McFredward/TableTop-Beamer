@@ -434,6 +434,8 @@
                   mutationType: "live-hello",
                 });
               }
+              // Phase 18: live-hello is a server snapshot — mark as applied
+              ctx.liveSync.firstServerSnapshotApplied = true;
             }
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
