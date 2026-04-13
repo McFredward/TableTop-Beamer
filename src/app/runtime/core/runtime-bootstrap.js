@@ -216,18 +216,39 @@
       version: liveSync.lastAppliedVersion,
     });
     // Phase 18: dismiss loading overlay inside the stage area. The overlay
-    // stays visible until the board image is fully loaded, the live-sync
-    // snapshot has been applied (may trigger a board switch), and the draw
-    // loop has rendered a few settled frames. This covers the full user-
-    // perceived loading: scripts → server fetch → board switch → first paint.
+    // must stay until the first live-sync snapshot has been applied (which
+    // may switch the board) AND the resulting board image has finished
+    // loading. The startup sequence is:
+    //   1. initializeApplication → loads default board
+    //   2. connectLiveSyncSocket + scheduleNextLiveSnapshotPoll(0)
+    //   3. Server snapshot arrives → may switch to different board
+    //   4. New board image loads
+    //   5. Draw loop renders settled frames → DISMISS
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
+      const initialVersion = liveSync.lastAppliedVersion;
+      let lastSeenSrc = boardImage?.src || "";
       let settledFrames = 0;
+
       const checkSettled = () => {
+        // Wait until at least one snapshot has been applied
+        if (liveSync.lastAppliedVersion <= initialVersion) {
+          settledFrames = 0;
+          requestAnimationFrame(checkSettled);
+          return;
+        }
+        // If the board image src changed, reset and wait for new image
+        const currentSrc = boardImage?.src || "";
+        if (currentSrc !== lastSeenSrc) {
+          lastSeenSrc = currentSrc;
+          settledFrames = 0;
+          requestAnimationFrame(checkSettled);
+          return;
+        }
+        // Wait for image to be fully loaded
         const imageReady = !boardImage || (boardImage.complete && boardImage.naturalWidth > 0);
         if (!imageReady) {
-          // Image still loading (maybe board-switch changed it) — retry
           settledFrames = 0;
           requestAnimationFrame(checkSettled);
           return;
@@ -241,13 +262,13 @@
         loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
       };
       requestAnimationFrame(checkSettled);
-      // Safety: always dismiss after 12s no matter what
+      // Safety: always dismiss after 15s no matter what
       setTimeout(() => {
         if (!loadingOverlay.classList.contains("is-hidden")) {
           loadingOverlay.classList.add("is-hidden");
           loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
         }
-      }, 12000);
+      }, 15000);
     }
     requestAnimationFrame(ctx.draw);
   }

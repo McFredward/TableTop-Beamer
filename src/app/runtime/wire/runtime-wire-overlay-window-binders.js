@@ -417,6 +417,17 @@
       scheduleStageViewportLifecycle("orientationchange");
       syncDashboardZoneVisibility();
       syncMobileStickyOffsets();
+      // Phase 18: CSS layout may not have settled yet when orientationchange
+      // fires. Schedule additional recomputes after a delay so the canvas
+      // picks up the final stage dimensions (fixes outside animation scaling).
+      setTimeout(() => {
+        scheduleStageViewportLifecycle("orientationchange-settled-200");
+        syncMobileStickyOffsets();
+      }, 200);
+      setTimeout(() => {
+        scheduleStageViewportLifecycle("orientationchange-settled-600");
+        syncMobileStickyOffsets();
+      }, 600);
       const orientationOk = runOrientationStateRegression();
       const navigationOk = runNavigationStateRegression();
       const projectionOk = runMobileProjectionVisibilityGuard({ context: "orientationchange" });
