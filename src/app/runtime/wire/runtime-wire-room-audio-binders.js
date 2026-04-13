@@ -125,6 +125,7 @@
       syncSelectedRoomStateForBoard,
       persistBoardProfiles,
       renderRoomOverlay,
+      pushUndoState,
     } = ctx;
 
     dashboardGlobalLoopUntilStopInput?.addEventListener("change", () => {
@@ -152,10 +153,12 @@
     });
 
     roomCreateButton?.addEventListener("click", () => {
+      if (typeof pushUndoState === "function") pushUndoState("Create room");
       createRoomFromSettings();
     });
 
     roomDeleteButton?.addEventListener("click", () => {
+      if (typeof pushUndoState === "function") pushUndoState("Delete room");
       deleteSelectedRoom();
     });
 
@@ -175,6 +178,9 @@
       deleteSelectedClusterFromSettings();
     });
 
+    roomRenameInput?.addEventListener("focus", () => {
+      if (typeof pushUndoState === "function") pushUndoState("Rename room");
+    });
     roomRenameInput?.addEventListener("input", () => {
       renameSelectedRoom(roomRenameInput.value);
     });

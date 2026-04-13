@@ -259,6 +259,10 @@
           <input id="room-frozen-checkbox" type="checkbox" />
           Freeze room (not selectable in Dashboard)
         </label>
+        <div class="button-grid button-grid-2">
+          <button id="polygon-undo" type="button" disabled>Undo</button>
+          <button id="polygon-redo" type="button" disabled>Redo</button>
+        </div>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
@@ -713,6 +717,7 @@
   <script src="/src/app/runtime/state/runtime-asset-refs.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-editor-panels.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-context-menu.js" defer></script>
+  <script src="/src/app/runtime/polygon-editor/runtime-polygon-undo.js" defer></script>
   <script src="/src/app/runtime/state/runtime-fx-normalizers.js" defer></script>
   <script src="/src/app/runtime/state/runtime-board-profiles.js" defer></script>
   <script src="/src/app/runtime/live-sync/runtime-global-defaults.js" defer></script>

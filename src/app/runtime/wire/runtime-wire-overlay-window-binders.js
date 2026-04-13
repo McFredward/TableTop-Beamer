@@ -53,6 +53,8 @@
       deleteSelectedPolygonVertex,
       deleteSelectedRoom,
       getActivePolygonRoomId,
+      polygonUndo,
+      polygonRedo,
       resetClearAllGuard,
       clearAllQuickModeInflight,
       scheduleNextLiveSnapshotPoll,
@@ -298,6 +300,16 @@
         const modifierPressed = event.ctrlKey || event.metaKey;
         const typingTarget = isTypingShortcutTarget(event.target);
         const playAreaContext = isPlayAreaShortcutContext(event.target);
+        // Phase 18-3: Ctrl+Z = undo, Ctrl+Shift+Z = redo (only in Settings Board subtab)
+        if (!typingTarget && modifierPressed && !event.altKey && key === "z" && state.settingsSubtab === "board") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            polygonRedo();
+          } else {
+            polygonUndo();
+          }
+          return;
+        }
         if (!typingTarget && !playAreaContext && modifierPressed && !event.altKey && !event.shiftKey && key === "c") {
           event.preventDefault();
           copySelectedRoomToClipboard();

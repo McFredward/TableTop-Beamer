@@ -72,6 +72,7 @@
       getSelectedPlayArea,
       setPlayAreas,
       deleteSelectedPolygonVertex,
+      pushUndoState,
     } = ctx;
 
     polygonHandleSizeInput?.addEventListener("input", () => {
@@ -169,6 +170,7 @@
         return;
       }
       const points = getSpecialPolygonPoints(state.boardId, roomId);
+      if (typeof pushUndoState === "function") pushUndoState("Insert vertex");
       const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
       const nextIndex = (index + 1) % points.length;
       const a = points[index];
@@ -208,6 +210,7 @@
         triggerFeedback.textContent = "Status: No board default available for this room";
         return;
       }
+      if (typeof pushUndoState === "function") pushUndoState("Reset room polygon");
       setSpecialPolygonPoints(state.boardId, roomId, fallbackPolygon);
       const persisted = persistBoardProfiles();
       state.polygonEditor.selectedVertexIndex = 0;

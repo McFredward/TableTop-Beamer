@@ -52,6 +52,7 @@
   }
 
   function commitShipPolygonDrag() {
+    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move Play Area vertex");
     const persisted = ctx.persistBoardProfiles();
     ctx.triggerFeedback.textContent = persisted
       ? "Status: Play Area vertex moved"
@@ -482,6 +483,7 @@
   }
 
   function commitPolygonDrag() {
+    if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room vertex");
     const persisted = ctx.persistBoardProfiles();
     ctx.triggerFeedback.textContent = persisted
       ? "Status: Polygon vertex moved"
@@ -535,6 +537,7 @@
     if (cancel) {
       cancelPolygonAreaDrag();
     } else if (moved) {
+      if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Move room area");
       const persisted = ctx.persistBoardProfiles();
       state.polygonEditor.suppressRoomClickUntil = performance.now() + 220;
       ctx.triggerFeedback.textContent = persisted

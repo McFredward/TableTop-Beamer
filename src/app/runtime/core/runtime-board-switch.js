@@ -42,6 +42,7 @@
       state.selectedRoomByBoard[previousBoardId] = previousRoomId;
     }
 
+    if (typeof ctx.clearUndoStack === "function") ctx.clearUndoStack();
     const board = ctx.getBoard(boardId);
     state.boardId = board.id;
     state.selectedBoard = board.id;

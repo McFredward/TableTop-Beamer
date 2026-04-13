@@ -116,7 +116,8 @@ const {
   roomCreateButton, roomDeleteButton, roomManagementStatus, roomFrozenCheckbox,
   clusterSelect, clusterNameInput,
   clusterRoomIdsSelect, clusterCreateButton, clusterSaveButton, clusterDeleteButton,
-  clusterManagementStatus, roomRenameInput, showPlayAreaVerticesInput, playAreaSelect,
+  clusterManagementStatus, roomRenameInput, polygonUndoButton, polygonRedoButton,
+  showPlayAreaVerticesInput, playAreaSelect,
   playAreaNameInput, playAreaCreateButton, playAreaDeleteButton, shipPolygonVertexSelect,
   shipPolygonEdgeSelect, shipPolygonInsertVertexButton, shipPolygonDeleteVertexButton,
   shipPolygonResetButton, shipPolygonEditorStatus, outsideAnimationSelect,
@@ -1762,6 +1763,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   handleQuickModeRoomTap: (roomId) => handleQuickModeRoomTap(roomId),
   applyRoomDraftTargetFromRoomClick: (roomId) => applyRoomDraftTargetFromRoomClick(roomId),
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
+  pushUndoState: (desc) => pushUndoState(desc),
 });
 const {
   getNormalizedOverlayPoint,
@@ -1823,6 +1825,7 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   normalizeRoomGeometry: (geometry, room, boardId) => normalizeRoomGeometry(geometry, room, boardId),
   normalizeRoomStateProfile: (profile) => normalizeRoomStateProfile(profile),
   normalizeRoomTombstoneIds: (ids, boardId) => normalizeRoomTombstoneIds(ids, boardId),
+  clearUndoStack: () => { if (typeof clearUndoStack === "function") clearUndoStack(); },
 });
 const {
   emitBoardLayoutContextMutation,
@@ -1925,7 +1928,37 @@ window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
   syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
   renderRoomOverlay: () => renderRoomOverlay(),
+  pushUndoState: (desc) => pushUndoState(desc),
 });
+
+// Phase 18-3: undo/redo system for polygon editing operations.
+window.TT_BEAMER_RUNTIME_POLYGON_UNDO.init({
+  state,
+  triggerFeedback,
+  undoButton: polygonUndoButton,
+  redoButton: polygonRedoButton,
+  getBoard: (boardId) => getBoard(boardId),
+  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  ensureBoardRoomStateMaps: (boardId) => ensureBoardRoomStateMaps(boardId),
+  clearRoomTombstone: (boardId, roomId) => clearRoomTombstone(boardId, roomId),
+  markRoomTombstone: (boardId, roomId) => markRoomTombstone(boardId, roomId),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
+  renderRoomOverlay: () => renderRoomOverlay(),
+});
+const {
+  pushUndoState,
+  undo: polygonUndo,
+  redo: polygonRedo,
+  clearUndoStack,
+  syncUndoRedoButtons,
+} = window.TT_BEAMER_RUNTIME_POLYGON_UNDO;
+
+// Wire undo/redo button clicks
+polygonUndoButton?.addEventListener("click", () => polygonUndo());
+polygonRedoButton?.addEventListener("click", () => polygonRedo());
 
 // Phase 14-2: room draft UI state + cluster runtime helpers
 // (~330 LOC) moved to src/app/runtime/runtime-room-draft.js.
@@ -2477,6 +2510,7 @@ function deleteSelectedPolygonVertex() {
     triggerFeedback.textContent = "Status: Polygon requires at least 3 vertices";
     return false;
   }
+  pushUndoState("Delete vertex");
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   points.splice(index, 1);
   setSpecialPolygonPoints(state.boardId, roomId, points);
@@ -2562,6 +2596,7 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   getSelectedPlayArea: (boardId) => getSelectedPlayArea(boardId),
   setPlayAreas: (boardId, areas, opts) => setPlayAreas(boardId, areas, opts),
   deleteSelectedPolygonVertex: () => deleteSelectedPolygonVertex(),
+  pushUndoState: (desc) => pushUndoState(desc),
 });
 
 // Phase 14-2: room/inside/outside FX panel event binders moved to
@@ -2708,6 +2743,8 @@ window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
   deleteSelectedPolygonVertex: () => deleteSelectedPolygonVertex(),
   deleteSelectedRoom: () => deleteSelectedRoom(),
   getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
+  polygonUndo: () => polygonUndo(),
+  polygonRedo: () => polygonRedo(),
   resetClearAllGuard: () => resetClearAllGuard(),
   clearAllQuickModeInflight: () => clearAllQuickModeInflight(),
   scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
@@ -2843,6 +2880,7 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   syncSelectedRoomStateForBoard: (boardId) => syncSelectedRoomStateForBoard(boardId),
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRoomOverlay: () => renderRoomOverlay(),
+  pushUndoState: (desc) => pushUndoState(desc),
 });
 
 const resizeObserver = new ResizeObserver((entries) => {

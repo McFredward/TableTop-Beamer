@@ -184,6 +184,8 @@
       clusterDeleteButton: document.querySelector("#cluster-delete"),
       clusterManagementStatus: document.querySelector("#cluster-management-status"),
       roomRenameInput: document.querySelector("#room-rename-input"),
+      polygonUndoButton: document.querySelector("#polygon-undo"),
+      polygonRedoButton: document.querySelector("#polygon-redo"),
       showPlayAreaVerticesInput: document.querySelector("#show-play-area-vertices"),
       playAreaSelect: document.querySelector("#play-area-select"),
       playAreaNameInput: document.querySelector("#play-area-name"),
