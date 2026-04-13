@@ -109,9 +109,13 @@
           <input id="room-color-picker" type="color" value="#ff0000" />
         </label>
 
-        <p class="status-line">Room animations run in hold mode by default until stopped.</p>
+        <button id="start-room-animation" type="button">Start room animation</button>
+        <label class="inline-checkbox">
+          <input id="dashboard-default-animation" type="checkbox" />
+          Default animation (auto-start on load)
+        </label>
         <details id="room-options">
-          <summary>More options</summary>
+          <summary>Advanced overrides</summary>
 
           <label>
             Opacity <span id="room-opacity-value">0.90</span>
@@ -130,47 +134,47 @@
             <input id="room-sound-volume" type="range" min="0" max="100" step="1" value="100" />
           </label>
           <input id="room-duration" type="hidden" value="18" />
-          <label class="inline-checkbox">
-            <input id="room-stagger-start" type="checkbox" />
-            Stagger start (cluster only)
-          </label>
-          <label>
-            Stagger delay <span id="room-stagger-offset-value">140ms</span>
-            <input id="room-stagger-offset" type="range" min="0" max="4000" step="20" value="140" />
-          </label>
-          <fieldset id="dashboard-transform-options" class="room-transform-options">
-            <legend>Transform (override for this start)</legend>
-            <label>
-              Rotation (deg) <span id="dashboard-rotation-deg-value">0</span>
-              <input id="dashboard-rotation-deg" type="range" min="-180" max="180" step="1" value="0" />
-            </label>
+          <div id="room-stagger-container" style="display:none">
             <label class="inline-checkbox">
-              <input id="dashboard-stretch-to-polygon" type="checkbox" checked />
-              Stretch to polygon (default)
+              <input id="room-stagger-start" type="checkbox" />
+              Stagger start (cluster only)
             </label>
             <label>
-              Width scale <span id="dashboard-width-scale-value">1.00</span>
-              <input id="dashboard-width-scale" type="range" min="0.1" max="10" step="0.01" value="1" />
+              Stagger delay <span id="room-stagger-offset-value">140ms</span>
+              <input id="room-stagger-offset" type="range" min="0" max="4000" step="20" value="140" />
             </label>
-            <label>
-              Height scale <span id="dashboard-height-scale-value">1.00</span>
-              <input id="dashboard-height-scale" type="range" min="0.1" max="10" step="0.01" value="1" />
-            </label>
-            <label>
-              X offset <span id="dashboard-offset-x-scale-value">0.00</span>
-              <input id="dashboard-offset-x-scale" type="range" min="-1" max="1" step="0.01" value="0" />
-            </label>
-            <label>
-              Y offset <span id="dashboard-offset-y-scale-value">0.00</span>
-              <input id="dashboard-offset-y-scale" type="range" min="-1" max="1" step="0.01" value="0" />
-            </label>
-          </fieldset>
-          <label class="inline-checkbox">
-            <input id="dashboard-default-animation" type="checkbox" />
-            Default animation (auto-start on load)
-          </label>
+          </div>
+          <details>
+            <summary>Transform (override for this start)</summary>
+            <fieldset id="dashboard-transform-options" class="room-transform-options">
+              <legend>Transform (override for this start)</legend>
+              <label>
+                Rotation (deg) <span id="dashboard-rotation-deg-value">0</span>
+                <input id="dashboard-rotation-deg" type="range" min="-180" max="180" step="1" value="0" />
+              </label>
+              <label class="inline-checkbox">
+                <input id="dashboard-stretch-to-polygon" type="checkbox" checked />
+                Stretch to polygon (default)
+              </label>
+              <label>
+                Width scale <span id="dashboard-width-scale-value">1.00</span>
+                <input id="dashboard-width-scale" type="range" min="0.1" max="10" step="0.01" value="1" />
+              </label>
+              <label>
+                Height scale <span id="dashboard-height-scale-value">1.00</span>
+                <input id="dashboard-height-scale" type="range" min="0.1" max="10" step="0.01" value="1" />
+              </label>
+              <label>
+                X offset <span id="dashboard-offset-x-scale-value">0.00</span>
+                <input id="dashboard-offset-x-scale" type="range" min="-1" max="1" step="0.01" value="0" />
+              </label>
+              <label>
+                Y offset <span id="dashboard-offset-y-scale-value">0.00</span>
+                <input id="dashboard-offset-y-scale" type="range" min="-1" max="1" step="0.01" value="0" />
+              </label>
+            </fieldset>
+          </details>
         </details>
-        <button id="start-room-animation" type="button">Start room animation</button>
       </section>
 
       <section id="global-animation-panel" class="panel settings-only view-hidden" data-view="settings"
