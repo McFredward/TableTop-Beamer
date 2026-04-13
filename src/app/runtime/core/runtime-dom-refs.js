@@ -136,6 +136,7 @@
       mobileStartRoomButton: document.querySelector("#mobile-start-room"),
       mobileLayoutStatus: document.querySelector("#mobile-layout-status"),
       quickModePanel: document.querySelector("#quick-mode-panel"),
+      quickAnimationPicker: document.querySelector("#quick-mode-animation-picker"),
       quickModeStatus: document.querySelector("#quick-mode-status"),
       quickModeOffButton: document.querySelector("#quick-mode-off"),
       quickModeActivateButton: document.querySelector("#quick-mode-activate"),

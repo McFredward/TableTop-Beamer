@@ -590,6 +590,47 @@ h1 {
   background: linear-gradient(180deg, rgba(22, 42, 58, 0.98), rgba(14, 26, 38, 0.98));
 }
 
+/* Phase 18: Quick Mode inline animation picker — horizontal scrollable pills */
+.quick-animation-picker {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 0.25rem 0;
+}
+.quick-animation-picker::-webkit-scrollbar {
+  display: none;
+}
+.quick-animation-pill {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  min-height: 2rem;
+  touch-action: manipulation;
+}
+.quick-animation-pill:hover {
+  border-color: var(--glow);
+  color: var(--text);
+  transform: none;
+}
+.quick-animation-pill.is-selected {
+  background: rgba(55, 192, 161, 0.18);
+  border-color: var(--glow);
+  color: var(--glow);
+  font-weight: 600;
+}
+
 
 .quick-mode-buttons button {
   min-height: 3rem;
@@ -1083,6 +1124,13 @@ button.danger.is-armed {
   .quick-mode-buttons button {
     min-height: 3.5rem;
     font-size: 0.95rem;
+  }
+
+  /* Phase 18: larger touch targets for animation pills on mobile */
+  .quick-animation-pill {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
   }
 
   #running-animations {

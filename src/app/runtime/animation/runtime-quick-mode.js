@@ -111,6 +111,62 @@
       ctx.quickModePanel.dataset.mode = mode;
       ctx.quickModePanel.classList.toggle("is-busy", inflightCount > 0);
     }
+    // Phase 18: sync inline animation picker — visible only in "activate" mode
+    syncQuickAnimationPicker(mode);
+  }
+
+  function syncQuickAnimationPicker(mode) {
+    const picker = ctx.quickAnimationPicker;
+    if (!picker) return;
+    if (mode !== "activate") {
+      picker.style.display = "none";
+      return;
+    }
+    picker.style.display = "flex";
+    // Get room animation definitions for current board
+    const state = ctx.state;
+    const roomFx = ctx.getRoomFxProfile(state.boardId);
+    const animations = roomFx?.animations;
+    if (!Array.isArray(animations) || animations.length === 0) {
+      picker.style.display = "none";
+      return;
+    }
+    const currentId = state.roomDraft.animationId;
+    // Only rebuild pills if the animation list changed
+    const pillIds = Array.from(picker.children).map((el) => el.dataset.animationId);
+    const defIds = animations.map((d) => d.id);
+    const needsRebuild = pillIds.length !== defIds.length || pillIds.some((id, i) => id !== defIds[i]);
+    if (needsRebuild) {
+      picker.replaceChildren();
+      for (const definition of animations) {
+        const pill = document.createElement("button");
+        pill.type = "button";
+        pill.className = "quick-animation-pill";
+        pill.dataset.animationId = definition.id;
+        pill.textContent = definition.name;
+        pill.setAttribute("role", "option");
+        pill.addEventListener("click", () => {
+          state.roomDraft.animationId = definition.id;
+          // Also sync the main dropdown
+          if (ctx.roomAnimationSelect) {
+            ctx.roomAnimationSelect.value = definition.id;
+          }
+          syncQuickAnimationPickerSelection(definition.id);
+        });
+        picker.append(pill);
+      }
+    }
+    syncQuickAnimationPickerSelection(currentId);
+  }
+
+  function syncQuickAnimationPickerSelection(selectedId) {
+    const picker = ctx.quickAnimationPicker;
+    if (!picker) return;
+    for (const pill of picker.children) {
+      const isSelected = pill.dataset.animationId === selectedId;
+      pill.classList.toggle("is-selected", isSelected);
+      pill.setAttribute("aria-selected", isSelected ? "true" : "false");
+    }
   }
 
   function setQuickMode(nextMode, { announce = true } = {}) {
