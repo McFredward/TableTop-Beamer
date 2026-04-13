@@ -231,43 +231,47 @@
     if (loadingOverlay) {
       const boardImage = ctx.boardImage;
       const initSrc = boardImage?.src || "";
-      let lastCheckedSrc = "";
-      let consecutiveReadyChecks = 0;
-      const startedAt = Date.now();
 
       const dismiss = () => {
         loadingOverlay.classList.add("is-hidden");
         loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
       };
 
-      const checkStable = () => {
-        const currentSrc = boardImage?.src || "";
-        const imageLoaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
-        const srcStable = currentSrc === lastCheckedSrc && currentSrc !== "";
-        const drawRunning = (state.runtimePerf?.frameIndex || 0) > 3;
-        const serverSnapshotDone = liveSync.firstServerSnapshotApplied === true;
-        // Board src changed since init = server triggered a board switch.
-        // In that case we MUST wait for the server snapshot to settle.
-        // If src never changed, the initial board is correct and we can
-        // dismiss as soon as the image is loaded and draw is running.
-        const boardSwitchHappened = currentSrc !== initSrc;
-        const syncReady = serverSnapshotDone || !boardSwitchHappened;
+      // Fast path: if image is already loaded, dismiss on next paint.
+      // This covers desktop where everything is cached/instant.
+      const imageReady = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
+      if (imageReady) {
+        requestAnimationFrame(() => dismiss());
+      } else {
+        // Slow path: wait for board image + possible server board switch.
+        let lastCheckedSrc = initSrc;
+        let stableChecks = 0;
 
-        lastCheckedSrc = currentSrc;
+        const checkStable = () => {
+          const currentSrc = boardImage?.src || "";
+          const loaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
+          const srcStable = currentSrc === lastCheckedSrc;
+          const boardSwitchHappened = currentSrc !== initSrc;
+          const serverDone = liveSync.firstServerSnapshotApplied === true;
+          const syncReady = serverDone || !boardSwitchHappened;
 
-        if (imageLoaded && srcStable && drawRunning && syncReady) {
-          consecutiveReadyChecks += 1;
-        } else {
-          consecutiveReadyChecks = 0;
-        }
+          lastCheckedSrc = currentSrc;
 
-        if (consecutiveReadyChecks >= 2) {
-          dismiss();
-          return;
-        }
-        setTimeout(checkStable, 120);
-      };
-      setTimeout(checkStable, 50);
+          if (loaded && srcStable && syncReady) {
+            stableChecks += 1;
+          } else {
+            stableChecks = 0;
+          }
+
+          if (stableChecks >= 2) {
+            dismiss();
+            return;
+          }
+          setTimeout(checkStable, 100);
+        };
+        // Start checking after first paint
+        requestAnimationFrame(() => setTimeout(checkStable, 50));
+      }
       // Safety: always dismiss after 15s
       setTimeout(() => {
         if (!loadingOverlay.classList.contains("is-hidden")) dismiss();
