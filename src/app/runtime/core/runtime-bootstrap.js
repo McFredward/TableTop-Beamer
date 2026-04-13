@@ -215,11 +215,27 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: dismiss the loading overlay with a fade-out transition
+    // Phase 18: dismiss loading overlay once the board image is loaded and
+    // the first frame has been rendered. The user perceives "loading" as the
+    // time until they see the actual board with animations, not just the DOM.
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
-      loadingOverlay.classList.add("is-hidden");
-      loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
+      const boardImage = ctx.boardImage;
+      const dismissLoading = () => {
+        // Wait one extra rAF to ensure the first draw is painted
+        requestAnimationFrame(() => {
+          loadingOverlay.classList.add("is-hidden");
+          loadingOverlay.addEventListener("transitionend", () => loadingOverlay.remove(), { once: true });
+        });
+      };
+      if (boardImage && !boardImage.complete) {
+        boardImage.addEventListener("load", dismissLoading, { once: true });
+        // Safety timeout in case image load event doesn't fire
+        setTimeout(dismissLoading, 8000);
+      } else {
+        // Image already cached or no image — dismiss after first draw
+        requestAnimationFrame(dismissLoading);
+      }
     }
     requestAnimationFrame(ctx.draw);
   }
