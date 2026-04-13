@@ -55,6 +55,18 @@
         <button id="open-settings-view" type="button">Settings</button>
       </nav>
 
+      <section id="quick-mode-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
+        data-dashboard-zone="trigger">
+        <h2>Quick Mode</h2>
+        <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
+          <button id="quick-mode-off" type="button" class="active">Select</button>
+          <button id="quick-mode-activate" type="button">Start</button>
+          <button id="quick-mode-deactivate" type="button">Stop</button>
+          <button id="quick-mode-clear" type="button" class="danger">Clear</button>
+        </div>
+        <p id="quick-mode-status" class="status-line" aria-live="polite">Select a room on the board</p>
+      </section>
+
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <nav class="view-switch settings-subtab-switch" aria-label="Settings groups">
           <button id="settings-subtab-board" type="button" data-settings-subtab="board" class="active">Board &amp;
@@ -78,18 +90,6 @@
           Mobile focus: Trigger
         </p>
       </div>
-
-      <section id="quick-mode-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
-        data-dashboard-zone="trigger">
-        <h2>Selection mode</h2>
-        <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
-          <button id="quick-mode-off" type="button" class="active">Select</button>
-          <button id="quick-mode-activate" type="button">Activate</button>
-          <button id="quick-mode-deactivate" type="button">Deactivate</button>
-          <button id="quick-mode-clear" type="button" class="danger">Clear room</button>
-        </div>
-        <p id="quick-mode-status" class="status-line" aria-live="polite">Quick mode: OFF</p>
-      </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Room animation</h2>

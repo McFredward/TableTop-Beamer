@@ -344,10 +344,10 @@ const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
 const QUICK_MODE_VALUES = new Set(["off", "activate", "deactivate", "clear"]);
 const QUICK_MODE_LABELS = {
-  off: "SELECT",
-  activate: "ACTIVATE",
-  deactivate: "DEACTIVATE",
-  clear: "CLEAR",
+  off: "Select",
+  activate: "Start",
+  deactivate: "Stop",
+  clear: "Clear",
 };
 const GLOBAL_ONE_SHOT_DURATION_SEC = 4;
 

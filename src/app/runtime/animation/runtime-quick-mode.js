@@ -96,9 +96,16 @@
       button.setAttribute("aria-pressed", isActive ? "true" : "false");
     }
     if (ctx.quickModeStatus) {
+      const contextualMessages = {
+        off: "Select a room on the board",
+        activate: "Tap a room to start its animation",
+        deactivate: "Tap a room to stop its animation",
+        clear: "Tap a room to clear all its animations",
+      };
+      const baseMessage = contextualMessages[mode] ?? contextualMessages.off;
       ctx.quickModeStatus.textContent = inflightCount > 0
-        ? `Quick mode: ${ctx.QUICK_MODE_LABELS[mode] ?? ctx.QUICK_MODE_LABELS.off} | busy: ${inflightCount}`
-        : `Quick mode: ${ctx.QUICK_MODE_LABELS[mode] ?? ctx.QUICK_MODE_LABELS.off}`;
+        ? `${baseMessage} | busy: ${inflightCount}`
+        : baseMessage;
     }
     if (ctx.quickModePanel) {
       ctx.quickModePanel.dataset.mode = mode;
