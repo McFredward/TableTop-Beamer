@@ -42,8 +42,9 @@
       state.selectedRoomByBoard[previousBoardId] = previousRoomId;
     }
 
-    if (typeof ctx.clearUndoStack === "function") ctx.clearUndoStack();
     const board = ctx.getBoard(boardId);
+    const isActualSwitch = previousBoardId !== board.id;
+    if (isActualSwitch && typeof ctx.clearUndoStack === "function") ctx.clearUndoStack();
     state.boardId = board.id;
     state.selectedBoard = board.id;
     state.selectedLayout = board.id;
@@ -56,8 +57,14 @@
       : board.rooms[0]?.id ?? null;
     state.selectedRoomByBoard[board.id] = state.selectedRoomId;
     ensureBoardRoomStateMaps(board.id);
-    ctx.clearOutsideMp4PlaybackState(previousBoardId);
-    ctx.clearOutsideTimelineState(previousBoardId);
+    // Phase 18: only clear outside mp4 state on actual board switches.
+    // syncRuntimePanelsFromState calls switchBoard with the same boardId
+    // on every snapshot apply — clearing playback state here would restart
+    // the outside mp4 video every time a room animation starts/stops.
+    if (isActualSwitch) {
+      ctx.clearOutsideMp4PlaybackState(previousBoardId);
+      ctx.clearOutsideTimelineState(previousBoardId);
+    }
     ctx.warmRoomGifAssets({ reason: "board-switch" });
     ctx.prewarmBoardOutsideMp4Asset(board.id, { reason });
     ctx.syncRoomPanelFromSelection();

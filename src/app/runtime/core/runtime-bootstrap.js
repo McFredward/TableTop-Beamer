@@ -244,9 +244,11 @@
         const imageLoaded = boardImage && boardImage.complete && boardImage.naturalWidth > 0;
         const srcStable = currentSrc === lastCheckedSrc && currentSrc !== "";
         const drawRunning = (state.runtimePerf?.frameIndex || 0) > 3;
-        const socketReady = liveSync.socket?.readyState === 1;
-        const pollDone = liveSync.lastAppliedVersion > 0;
-        const syncReady = socketReady || pollDone;
+        // Phase 18: use the explicit flag set by live-sync-core when the
+        // first server-driven snapshot (poll or WebSocket) has been applied.
+        // lastAppliedVersion > 0 is not reliable — startup defaults load
+        // already sets it before the server snapshot arrives.
+        const syncReady = liveSync.firstServerSnapshotApplied === true;
 
         lastCheckedSrc = currentSrc;
 

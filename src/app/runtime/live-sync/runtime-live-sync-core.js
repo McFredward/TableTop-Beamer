@@ -61,6 +61,8 @@
           mutationType: "snapshot-poll",
         });
         if (applied) {
+          // Phase 18: mark that the first server-driven snapshot has been applied
+          ctx.liveSync.firstServerSnapshotApplied = true;
           ctx.resolvePendingMutationsByVersion(incomingVersion);
         }
       }
@@ -454,6 +456,8 @@
                 mutationEnvelope: payload?.mutationEnvelope ?? null,
                 mutationType,
               });
+              // Phase 18: mark that the first server-driven snapshot has been applied
+              ctx.liveSync.firstServerSnapshotApplied = true;
             }
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
