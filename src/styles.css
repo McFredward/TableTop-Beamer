@@ -709,14 +709,16 @@ input[type="number"] {
 }
 
 button {
-  border: 1px solid rgba(110, 130, 156, 0.54);
+  border: 1px solid rgba(110, 130, 156, 0.48);
   color: var(--text);
-  background: linear-gradient(180deg, #1d2b43, #162238);
+  background: linear-gradient(180deg, rgba(29, 43, 67, 0.9), rgba(22, 34, 56, 0.9));
   border-radius: 0.55rem;
   min-height: 2.9rem;
   cursor: pointer;
-  transition: transform 100ms ease, border-color 150ms ease;
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, background 200ms ease, opacity 200ms ease;
   touch-action: manipulation;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 input[type="range"] {
@@ -725,22 +727,56 @@ input[type="range"] {
 
 button:hover {
   transform: translateY(-1px);
-  border-color: #58ddbf;
+  border-color: rgba(88, 221, 191, 0.7);
+  box-shadow: 0 0 0.6rem rgba(55, 192, 161, 0.2);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
 }
 
 button.active {
-  box-shadow: inset 0 0 0 1px #5de6c7, 0 0 0.8rem rgba(93, 230, 199, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(93, 230, 199, 0.6), 0 0 1rem rgba(93, 230, 199, 0.35);
+  border-color: rgba(93, 230, 199, 0.7);
+}
+
+button:disabled {
+  opacity: 0.4;
+  filter: saturate(0.3);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 button.danger {
-  background: linear-gradient(180deg, #572222, #431818);
-  border-color: rgba(207, 102, 102, 0.5);
+  background: linear-gradient(180deg, rgba(87, 34, 34, 0.95), rgba(67, 24, 24, 0.95));
+  border-color: rgba(209, 79, 79, 0.55);
+}
+
+button.danger:hover {
+  border-color: rgba(230, 110, 110, 0.8);
+  box-shadow: 0 0 0.7rem rgba(209, 79, 79, 0.3);
 }
 
 button.danger.is-armed {
   background: linear-gradient(180deg, #842c2c, #631e1e);
   border-color: rgba(255, 155, 155, 0.9);
   box-shadow: inset 0 0 0 1px rgba(255, 203, 203, 0.45), 0 0 0.7rem rgba(209, 79, 79, 0.45);
+}
+
+/* Phase 18-5: Start button — accent green, prominent */
+#start-room-animation {
+  background: linear-gradient(180deg, rgba(30, 82, 68, 0.95), rgba(20, 60, 50, 0.95));
+  border-color: rgba(55, 192, 161, 0.6);
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-height: 3.2rem;
+  letter-spacing: 0.02em;
+}
+#start-room-animation:hover {
+  border-color: rgba(55, 192, 161, 0.85);
+  box-shadow: 0 0 1rem rgba(55, 192, 161, 0.35), inset 0 0 0 1px rgba(55, 192, 161, 0.2);
 }
 
 .hint {
