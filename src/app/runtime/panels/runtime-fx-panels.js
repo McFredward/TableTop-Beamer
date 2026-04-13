@@ -201,6 +201,16 @@
       }
       ctx.insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
     }
+    // Phase 18-2: update mode indicator badge
+    if (ctx.insideModeIndicator) {
+      if (selectedDefinition) {
+        ctx.insideModeIndicator.textContent = `Editing: ${selectedDefinition.name}`;
+        ctx.insideModeIndicator.dataset.mode = "editing";
+      } else {
+        ctx.insideModeIndicator.textContent = "Creating new animation";
+        ctx.insideModeIndicator.dataset.mode = "creating";
+      }
+    }
     const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? inside.intensity;
     const speed = draft?.speed ?? selectedDefinition?.speed ?? inside.speed;
     const assetType = ctx.normalizeInsideAssetType(draft?.assetType ?? selectedDefinition?.assetType ?? inside.assetType);
@@ -386,6 +396,19 @@
         ctx.roomAnimationSettingsSelect.append(option);
       }
       ctx.roomAnimationSettingsSelect.value = selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "";
+    }
+    // Phase 18-2: update mode indicator badge and delete button visibility
+    if (ctx.roomModeIndicator) {
+      if (selectedDefinition) {
+        ctx.roomModeIndicator.textContent = `Editing: ${selectedDefinition.name}`;
+        ctx.roomModeIndicator.dataset.mode = "editing";
+      } else {
+        ctx.roomModeIndicator.textContent = "Creating new animation";
+        ctx.roomModeIndicator.dataset.mode = "creating";
+      }
+    }
+    if (ctx.roomAnimationSettingsDeleteButton) {
+      ctx.roomAnimationSettingsDeleteButton.hidden = !selectedDefinition || roomFx.animations.length <= 1;
     }
 
     if (ctx.roomAnimationSelect) {
@@ -688,6 +711,16 @@
         ctx.outsideAnimationSelect.append(option);
       }
       ctx.outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";
+    }
+    // Phase 18-2: update mode indicator badge
+    if (ctx.outsideModeIndicator) {
+      if (selectedDefinition) {
+        ctx.outsideModeIndicator.textContent = `Editing: ${selectedDefinition.name}`;
+        ctx.outsideModeIndicator.dataset.mode = "editing";
+      } else {
+        ctx.outsideModeIndicator.textContent = "Creating new animation";
+        ctx.outsideModeIndicator.dataset.mode = "creating";
+      }
     }
     ctx.outsideEnabledInput.checked = outside.enabled;
     const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? outside.intensity;

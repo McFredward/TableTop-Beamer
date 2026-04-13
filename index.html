@@ -317,17 +317,18 @@
         </div>
       </section>
 
+      <!-- Phase 18-2: reworked Inside Animations with create/edit mode indicator -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Inside Animations</h2>
-        <p class="status-line">Configure inside effects with definition-based entries and create flow.</p>
+        <div class="animation-create-flow">
+          <input id="inside-animation-name" type="text" maxlength="64" placeholder="New inside animation name" />
+          <button id="inside-animation-create" type="button">Create Inside Animation</button>
+        </div>
+        <span id="inside-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
         <label>
           Animation
           <select id="inside-animation-select"></select>
         </label>
-        <div class="button-grid button-grid-2">
-          <input id="inside-animation-name" type="text" maxlength="64" placeholder="New inside animation name" />
-          <button id="inside-animation-create" type="button">Create Inside Animation</button>
-        </div>
         <label>
           Inside intensity <span id="inside-intensity-value">1.00</span>
           <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
@@ -362,17 +363,18 @@
         </label>
       </section>
 
+      <!-- Phase 18-2: reworked Outside Animations with create/edit mode indicator -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Outside Animations</h2>
-        <p class="status-line">Configure outside effects and keep them isolated outside Play Area masks.</p>
+        <div class="animation-create-flow">
+          <input id="outside-animation-name" type="text" maxlength="64" placeholder="New outside animation name" />
+          <button id="outside-animation-create" type="button">Create Outside Animation</button>
+        </div>
+        <span id="outside-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
         <label>
           Animation
           <select id="outside-animation-select"></select>
         </label>
-        <div class="button-grid button-grid-2">
-          <input id="outside-animation-name" type="text" maxlength="64" placeholder="New outside animation name" />
-          <button id="outside-animation-create" type="button">Create Outside Animation</button>
-        </div>
         <label class="inline-checkbox">
           <input id="outside-enabled" type="checkbox" />
           Outside animations enabled
@@ -421,17 +423,18 @@
         </label>
       </section>
 
+      <!-- Phase 18-2: reworked Room Animations with create/edit mode indicator -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Room Animations</h2>
-        <p class="status-line">Configure room-scope definitions with create/edit/delete and typed assets.</p>
+        <div class="animation-create-flow">
+          <input id="room-animation-settings-name" type="text" maxlength="64" placeholder="New room animation name" />
+          <button id="room-animation-settings-create" type="button">Create Room Animation</button>
+        </div>
+        <span id="room-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
         <label>
           Animation
           <select id="room-animation-settings-select"></select>
         </label>
-        <div class="button-grid button-grid-2">
-          <input id="room-animation-settings-name" type="text" maxlength="64" placeholder="New room animation name" />
-          <button id="room-animation-settings-create" type="button">Create Room Animation</button>
-        </div>
         <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
         <label>
           Asset type

@@ -989,3 +989,44 @@ button.danger.is-armed {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Phase 18-2: animation create/edit mode indicator badge */
+.animation-mode-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15em 0.55em;
+  border-radius: 4px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.animation-mode-badge[data-mode="editing"] {
+  background: rgba(55, 192, 161, 0.12);
+  border-color: var(--glow);
+  color: var(--glow);
+}
+.animation-mode-badge[data-mode="creating"] {
+  background: rgba(209, 79, 79, 0.10);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.animation-mode-badge:empty {
+  display: none;
+}
+
+/* Phase 18-2: animation create flow visual separation */
+.animation-create-flow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  background: var(--panel-alt);
+}
+.animation-create-flow input[type="text"] {
+  min-width: 0;
+}
