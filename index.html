@@ -209,21 +209,23 @@
       <!-- Phase 18-2: merged "Room management" and "Room polygon editor" into one panel -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room Editor</h2>
-        <label>
-          New room name
-          <input id="room-name-input" type="text" maxlength="64" placeholder="e.g. Brood Chamber" />
-        </label>
-        <label>
-          Initial shape or polygon template
-          <select id="room-create-shape">
-            <option value="hexagon">Hexagon (starter template)</option>
-            <option value="free">Free triangle (starter template)</option>
-            <option value="template-play-area">Create room from existing polygon: Play Area</option>
-          </select>
-        </label>
-        <div class="button-grid button-grid-2">
-          <button id="room-create" type="button">Create room</button>
-          <button id="room-delete" type="button">Delete room</button>
+        <div class="room-create-accent">
+          <label>
+            New room name
+            <input id="room-name-input" type="text" maxlength="64" placeholder="e.g. Brood Chamber" />
+          </label>
+          <label>
+            Initial shape or polygon template
+            <select id="room-create-shape">
+              <option value="hexagon">Hexagon (starter template)</option>
+              <option value="free">Free triangle (starter template)</option>
+              <option value="template-play-area">Create room from existing polygon: Play Area</option>
+            </select>
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="room-create" type="button">Create room</button>
+            <button id="room-delete" type="button">Delete room</button>
+          </div>
         </div>
         <label class="inline-checkbox">
           <input id="show-room-vertices" type="checkbox" checked />
@@ -282,17 +284,19 @@
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Play Area</h2>
-        <label>
-          Active Play Area
-          <select id="play-area-select"></select>
-        </label>
-        <label>
-          Play Area name
-          <input id="play-area-name" type="text" maxlength="64" placeholder="e.g. Board Left" />
-        </label>
-        <div class="button-grid button-grid-2">
-          <button id="play-area-create" type="button">Create Play Area</button>
-          <button id="play-area-delete" type="button">Delete Play Area</button>
+        <div class="play-area-create-accent">
+          <label>
+            Active Play Area
+            <select id="play-area-select"></select>
+          </label>
+          <label>
+            Play Area name
+            <input id="play-area-name" type="text" maxlength="64" placeholder="e.g. Board Left" />
+          </label>
+          <div class="button-grid button-grid-2">
+            <button id="play-area-create" type="button">Create Play Area</button>
+            <button id="play-area-delete" type="button">Delete Play Area</button>
+          </div>
         </div>
         <label class="inline-checkbox">
           <input id="show-play-area-vertices" type="checkbox" checked />
@@ -708,6 +712,7 @@
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-editor.js" defer></script>
   <script src="/src/app/runtime/state/runtime-asset-refs.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-editor-panels.js" defer></script>
+  <script src="/src/app/runtime/polygon-editor/runtime-polygon-context-menu.js" defer></script>
   <script src="/src/app/runtime/state/runtime-fx-normalizers.js" defer></script>
   <script src="/src/app/runtime/state/runtime-board-profiles.js" defer></script>
   <script src="/src/app/runtime/live-sync/runtime-global-defaults.js" defer></script>

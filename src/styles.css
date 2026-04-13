@@ -1030,3 +1030,50 @@ button.danger.is-armed {
 .animation-create-flow input[type="text"] {
   min-width: 0;
 }
+
+/* Phase 18-3: board context menu for right-click / long-press room creation */
+.board-context-menu {
+  position: fixed;
+  z-index: 1100;
+  display: grid;
+  gap: 2px;
+  min-width: 160px;
+  padding: 4px;
+  background: rgba(14, 22, 34, 0.96);
+  border: 1px solid rgba(120, 214, 244, 0.55);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+}
+.board-context-menu-item {
+  min-height: 2.4rem;
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 80ms ease;
+}
+.board-context-menu-item:hover {
+  background: rgba(55, 192, 161, 0.18);
+  transform: none;
+  border-color: transparent;
+}
+
+/* Phase 18-3: visual separation accents for Room vs Play Area creation */
+.room-create-accent,
+.play-area-create-accent {
+  display: grid;
+  gap: 0.65rem;
+  padding-left: 0.55rem;
+}
+.room-create-accent {
+  border-left: 3px solid rgba(55, 192, 161, 0.7);
+}
+.play-area-create-accent {
+  border-left: 3px solid rgba(130, 120, 255, 0.7);
+}

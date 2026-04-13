@@ -1907,6 +1907,26 @@ const {
   syncRoomFrozenCheckbox,
 } = window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT;
 
+// Phase 18-3: board context menu for right-click / long-press room creation.
+window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
+  state,
+  roomOverlay,
+  triggerFeedback,
+  mapClientPointToNormalized: (x, y) => mapClientPointToNormalized(x, y),
+  isPanArbitrating: () => isPanArbitrating(),
+  getBoard: (boardId) => getBoard(boardId),
+  createRoomId: (board) => createRoomId(board),
+  createHexagonPolygon: (opts) => createHexagonPolygon(opts),
+  ensureBoardRoomStateMaps: (boardId) => ensureBoardRoomStateMaps(boardId),
+  clearRoomTombstone: (boardId, roomId) => clearRoomTombstone(boardId, roomId),
+  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
+  syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  renderRoomOverlay: () => renderRoomOverlay(),
+});
+
 // Phase 14-2: room draft UI state + cluster runtime helpers
 // (~330 LOC) moved to src/app/runtime/runtime-room-draft.js.
 // Init + destructure so existing call sites resolve the same names.
