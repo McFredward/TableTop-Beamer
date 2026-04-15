@@ -1750,6 +1750,15 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
   pushUndoState: (desc) => pushUndoState(desc),
   normalizePolygonPoint: (p) => normalizePolygonPoint(p),
+  getPlayAreas: (boardId) => getPlayAreas(boardId),
+  setPlayAreaPolygon: (boardId, areaId, polygon) => {
+    const areas = getPlayAreas(boardId);
+    const area = areas.find((a) => a.id === areaId);
+    if (area) {
+      area.polygon = polygon;
+      setShipPolygonPoints(boardId, getSelectedPlayArea(boardId)?.polygon || polygon);
+    }
+  },
 });
 const {
   getNormalizedOverlayPoint,
@@ -1931,8 +1940,18 @@ window.TT_BEAMER_RUNTIME_POLYGON_UNDO.init({
   markRoomTombstone: (boardId, roomId) => markRoomTombstone(boardId, roomId),
   persistBoardProfiles: () => persistBoardProfiles(),
   syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
+  syncShipPolygonEditorPanel: () => syncShipPolygonEditorPanel(),
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
   renderRoomOverlay: () => renderRoomOverlay(),
+  getPlayAreas: (boardId) => getPlayAreas(boardId),
+  setPlayAreaPolygon: (boardId, areaId, polygon) => {
+    const areas = getPlayAreas(boardId);
+    const area = areas.find((a) => a.id === areaId);
+    if (area) {
+      area.polygon = polygon;
+      setShipPolygonPoints(boardId, getSelectedPlayArea(boardId)?.polygon || polygon);
+    }
+  },
 });
 const {
   pushUndoState,

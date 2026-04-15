@@ -279,6 +279,36 @@
         }
         event.stopPropagation();
         event.preventDefault();
+        // Phase 18: detect double-click manually — renderRoomOverlay destroys
+        // SVG elements on each rebuild, so native dblclick never fires.
+        const now = performance.now();
+        const lastTap = state.polygonEditor._lastEdgeTap;
+        const isDoubleTap = lastTap
+          && lastTap.roomId === room.id
+          && lastTap.edgeIndex === index
+          && (now - lastTap.time) < 400;
+        state.polygonEditor._lastEdgeTap = { roomId: room.id, edgeIndex: index, time: now };
+        if (isDoubleTap) {
+          // Double-tap: insert vertex at edge midpoint
+          state.polygonEditor._lastEdgeTap = null;
+          const roomPoints = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+          if (Array.isArray(roomPoints) && roomPoints.length >= 3) {
+            if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert vertex (double-click)");
+            const nextIndex = (index + 1) % roomPoints.length;
+            const a = roomPoints[index];
+            const b = roomPoints[nextIndex];
+            const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+            roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
+            ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
+            ctx.persistBoardProfiles();
+            state.polygonEditor.selectedVertexIndex = nextIndex;
+            state.polygonEditor.selectedEdgeIndex = index;
+            ctx.syncPolygonEditorPanel();
+            renderRoomOverlay();
+          }
+          return;
+        }
+        // Single tap: select edge
         state.selectedRoomId = room.id;
         state.selectedRoomByBoard[state.boardId] = room.id;
         syncPolygonRoomSelection(room.id);
@@ -289,26 +319,6 @@
         ctx.polygonEdgeSelect.value = String(index);
         renderRoomOverlay();
         ctx.syncPolygonEditorStatus();
-      });
-      // Phase 18: double-click on edge midpoint inserts a vertex there
-      edgeHitTarget.addEventListener("dblclick", (event) => {
-        if (!ctx.areRoomVerticesEditable()) return;
-        event.stopPropagation();
-        event.preventDefault();
-        const roomPoints = ctx.getSpecialPolygonPoints(state.boardId, room.id);
-        if (!Array.isArray(roomPoints) || roomPoints.length < 3) return;
-        if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert vertex (double-click)");
-        const nextIndex = (index + 1) % roomPoints.length;
-        const a = roomPoints[index];
-        const b = roomPoints[nextIndex];
-        const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
-        ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
-        ctx.persistBoardProfiles();
-        state.polygonEditor.selectedVertexIndex = nextIndex;
-        state.polygonEditor.selectedEdgeIndex = index;
-        ctx.syncPolygonEditorPanel();
-        renderRoomOverlay();
       });
       edgeMarker.append(edgeHitTarget, edgeHandle);
       ctx.roomOverlay.append(edgeMarker);
@@ -654,6 +664,10 @@
         const labelPosition = ctx.getRoomLabelPosition(room, state.boardId);
         label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
         label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
+        // Phase 18: scale label font-size with polygon handle size slider
+        const handleScale = ctx.getCurrentPolygonHandleScale();
+        const labelFontSize = Math.max(8, Math.round(22 * handleScale));
+        label.style.fontSize = `${labelFontSize}px`;
         const roomName = room.name ?? room.label;
         label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
         ctx.roomOverlay.append(label);

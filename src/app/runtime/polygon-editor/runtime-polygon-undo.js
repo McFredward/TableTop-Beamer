@@ -24,24 +24,32 @@
       name: room.name ?? room.label,
       polygon: ctx.getSpecialPolygonPoints(state.boardId, room.id).map((p) => [p[0], p[1]]),
     }));
-    return roomStates;
+    // Phase 18: also capture Play Area polygons for full undo coverage
+    const playAreas = typeof ctx.getPlayAreas === "function" ? ctx.getPlayAreas(state.boardId) : [];
+    const playAreaStates = playAreas.map((area) => ({
+      id: area.id,
+      name: area.name ?? area.id,
+      polygon: (area.polygon || []).map((p) => [p[0], p[1]]),
+    }));
+    return { roomStates, playAreaStates };
   }
 
-  function restoreState(roomStates) {
+  function restoreState(snapshot) {
     const state = ctx.state;
     const board = ctx.getBoard();
-    // Build a map of current rooms by id for efficient lookup
+    // Support both old format (array) and new format (object with roomStates + playAreaStates)
+    const roomStates = Array.isArray(snapshot) ? snapshot : (snapshot.roomStates || []);
+    const playAreaStates = Array.isArray(snapshot) ? [] : (snapshot.playAreaStates || []);
+
+    // --- Restore rooms ---
     const currentRoomMap = new Map(board.rooms.map((r) => [r.id, r]));
     const restoredIds = new Set(roomStates.map((r) => r.id));
 
-    // Remove rooms that are not in the snapshot
     board.rooms = board.rooms.filter((r) => restoredIds.has(r.id));
 
-    // Add back rooms that existed in snapshot but not in current board
     for (const snap of roomStates) {
       let room = currentRoomMap.get(snap.id);
       if (!room) {
-        // Room was deleted -- recreate a minimal room object
         room = {
           id: snap.id,
           name: snap.name,
@@ -57,7 +65,6 @@
         ctx.ensureBoardRoomStateMaps(state.boardId);
         ctx.clearRoomTombstone(state.boardId, snap.id);
       }
-      // Restore name + polygon
       room.name = snap.name;
       room.label = snap.name;
       room.polygon = snap.polygon.map((p) => [...p]);
@@ -65,15 +72,27 @@
       ctx.setSpecialPolygonPoints(state.boardId, snap.id, snap.polygon.map((p) => [...p]));
     }
 
-    // Mark rooms that were removed by undo as tombstones
     for (const [id] of currentRoomMap) {
       if (!restoredIds.has(id)) {
         ctx.markRoomTombstone(state.boardId, id);
       }
     }
 
+    // --- Restore Play Area polygons ---
+    if (playAreaStates.length > 0 && typeof ctx.getPlayAreas === "function" && typeof ctx.setPlayAreaPolygon === "function") {
+      const currentAreas = ctx.getPlayAreas(state.boardId);
+      for (const snap of playAreaStates) {
+        const area = currentAreas.find((a) => a.id === snap.id);
+        if (area) {
+          area.polygon = snap.polygon.map((p) => [...p]);
+          ctx.setPlayAreaPolygon(state.boardId, snap.id, snap.polygon.map((p) => [...p]));
+        }
+      }
+    }
+
     ctx.persistBoardProfiles();
     ctx.syncPolygonEditorPanel();
+    if (typeof ctx.syncShipPolygonEditorPanel === "function") ctx.syncShipPolygonEditorPanel();
     ctx.syncRoomPanelFromSelection();
     ctx.renderRoomOverlay();
     syncUndoRedoButtons();
@@ -81,38 +100,35 @@
 
   function pushUndoState(description) {
     const snapshot = captureCurrentState();
-    undoStack.push({ description: description || "edit", roomStates: snapshot });
+    undoStack.push({ description: description || "edit", snapshot });
     if (undoStack.length > MAX_STACK_SIZE) {
       undoStack.shift();
     }
-    // Any new action clears the redo stack
     redoStack = [];
     syncUndoRedoButtons();
   }
 
   function undo() {
     if (undoStack.length === 0) return;
-    // Save current state to redo stack before restoring
     const currentSnapshot = captureCurrentState();
-    redoStack.push({ description: "undo-point", roomStates: currentSnapshot });
+    redoStack.push({ description: "undo-point", snapshot: currentSnapshot });
     if (redoStack.length > MAX_STACK_SIZE) {
       redoStack.shift();
     }
     const entry = undoStack.pop();
-    restoreState(entry.roomStates);
+    restoreState(entry.snapshot);
     ctx.triggerFeedback.textContent = `Status: Undo - ${entry.description}`;
   }
 
   function redo() {
     if (redoStack.length === 0) return;
-    // Save current state to undo stack before restoring
     const currentSnapshot = captureCurrentState();
-    undoStack.push({ description: "redo-point", roomStates: currentSnapshot });
+    undoStack.push({ description: "redo-point", snapshot: currentSnapshot });
     if (undoStack.length > MAX_STACK_SIZE) {
       undoStack.shift();
     }
     const entry = redoStack.pop();
-    restoreState(entry.roomStates);
+    restoreState(entry.snapshot);
     ctx.triggerFeedback.textContent = `Status: Redo - ${entry.description}`;
   }
 
