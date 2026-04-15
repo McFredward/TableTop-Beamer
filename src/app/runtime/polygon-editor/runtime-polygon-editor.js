@@ -151,6 +151,33 @@
         }
         event.stopPropagation();
         event.preventDefault();
+        // Phase 18: detect double-click for Play Area edge midpoint
+        const now = performance.now();
+        const lastTap = state.shipPolygonEditor._lastEdgeTap;
+        const isDoubleTap = lastTap
+          && lastTap.edgeIndex === index
+          && (now - lastTap.time) < 400;
+        state.shipPolygonEditor._lastEdgeTap = { edgeIndex: index, time: now };
+        if (isDoubleTap) {
+          state.shipPolygonEditor._lastEdgeTap = null;
+          if (Array.isArray(points) && points.length >= 3) {
+            if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert Play Area vertex (double-click)");
+            const nextIndex = (index + 1) % points.length;
+            const a = points[index];
+            const b = points[nextIndex];
+            const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+            points.splice(nextIndex, 0, ctx.normalizeShipPolygon([midpoint])[0] || midpoint);
+            ctx.setShipPolygonPoints(state.boardId, points);
+            ctx.persistBoardProfiles();
+            state.shipPolygonEditor.selectedVertexIndex = nextIndex;
+            state.shipPolygonEditor.selectedEdgeIndex = index;
+            ctx.syncShipPolygonVertexSelect();
+            ctx.syncShipPolygonEditorStatus();
+            renderRoomOverlay();
+          }
+          return;
+        }
+        // Single tap: select edge
         state.shipPolygonEditor.selectedEdgeIndex = index;
         ctx.shipPolygonEdgeSelect.value = String(index);
         renderRoomOverlay();
