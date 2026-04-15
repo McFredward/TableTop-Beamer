@@ -301,12 +301,15 @@
             roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
             ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
             ctx.persistBoardProfiles();
-            // Keep the room selected after insert
+            // Keep the room selected after insert — suppress follow-up clicks
+            // from the double-tap so they don't deselect or re-select another room
             state.selectedRoomId = room.id;
             state.selectedRoomByBoard[state.boardId] = room.id;
             state.polygonEditor.selectedVertexIndex = nextIndex;
             state.polygonEditor.selectedEdgeIndex = index;
+            state.polygonEditor.suppressRoomClickUntil = performance.now() + 400;
             ctx.setActivePolygonRoomId(state.boardId, room.id);
+            syncPolygonRoomSelection(room.id);
             ctx.syncPolygonEditorPanel();
             ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
             renderRoomOverlay();
