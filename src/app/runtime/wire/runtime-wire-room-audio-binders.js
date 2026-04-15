@@ -546,7 +546,7 @@
     window.addEventListener("beforeunload", (event) => {
       if (!state.localConfigDirty) return undefined;
       event.preventDefault();
-      event.returnValue = "Lokale Aenderungen sind nicht gespeichert.";
+      event.returnValue = "You have unsaved changes.";
       return event.returnValue;
     });
 

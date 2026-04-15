@@ -115,9 +115,9 @@
       && state.localConfigDirty
     ) {
       const accepted = window.confirm(
-        "Du hast ungespeicherte lokale Aenderungen.\n\n"
-        + "OK  = Apply (auf Server pushen und dann zum Dashboard wechseln)\n"
-        + "Abbrechen = im Settings bleiben (Discard-Button benutzen um zu verwerfen)",
+        "You have unsaved changes.\n\n"
+        + "OK = Save and switch to Dashboard\n"
+        + "Cancel = Stay in Settings",
       );
       if (!accepted) {
         return;

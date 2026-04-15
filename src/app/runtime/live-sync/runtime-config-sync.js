@@ -132,10 +132,10 @@
     if (indicator) {
       if (remoteAwaiting) {
         indicator.textContent =
-          "Server-Config wurde von einem anderen Client geaendert. Apply ueberschreibt die Serverversion, Discard laedt sie.";
+          "Settings were changed on another device. Save overwrites, Discard reloads.";
         indicator.style.display = "";
       } else if (dirty) {
-        indicator.textContent = "Lokale Aenderungen sind nicht gespeichert.";
+        indicator.textContent = "You have unsaved changes.";
         indicator.style.display = "";
       } else {
         indicator.textContent = "";
@@ -233,7 +233,7 @@
     });
 
     const title = document.createElement("h1");
-    title.textContent = "Server nicht erreichbar";
+    title.textContent = "Unable to connect to server";
     title.style.fontSize = "24px";
     title.style.margin = "0";
     overlay.append(title);

@@ -199,12 +199,13 @@
       !outsideIsolationRegressionOk ||
       !shipClipRegressionOk
     ) {
-      ctx.triggerFeedback.textContent =
-        "Status: Regression failed (startup/view/layout/zoom-pan/orientation/navigation/projection + outside isolation + ship clip)";
-    } else {
-      ctx.triggerFeedback.textContent =
-        "Status: Regression ok (Startup + View/Layout + Zoom-Pan-Edit + Orientation + Navigation + Projection + Pointer-Capture + Outside-Isolation + Ship-Clip)";
+      ctx.logBootstrap.warn("regression_check_failed", {
+        event: "regression-check-failed",
+        view: !viewRegressionOk, layout: !layoutRegressionOk,
+        startup: !startupGuardRegressionOk, zoomPan: !zoomPanRegressionOk,
+      });
     }
+    ctx.triggerFeedback.textContent = "Status: ready";
     ctx.renderRunningAnimationsList();
     ctx.refreshGlobalButtons();
     window.TT_BEAMER_LIVE_SYNC_DEBUG = {

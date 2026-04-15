@@ -290,6 +290,26 @@
         renderRoomOverlay();
         ctx.syncPolygonEditorStatus();
       });
+      // Phase 18: double-click on edge midpoint inserts a vertex there
+      edgeHitTarget.addEventListener("dblclick", (event) => {
+        if (!ctx.areRoomVerticesEditable()) return;
+        event.stopPropagation();
+        event.preventDefault();
+        const roomPoints = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+        if (!Array.isArray(roomPoints) || roomPoints.length < 3) return;
+        if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert vertex (double-click)");
+        const nextIndex = (index + 1) % roomPoints.length;
+        const a = roomPoints[index];
+        const b = roomPoints[nextIndex];
+        const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
+        ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
+        ctx.persistBoardProfiles();
+        state.polygonEditor.selectedVertexIndex = nextIndex;
+        state.polygonEditor.selectedEdgeIndex = index;
+        ctx.syncPolygonEditorPanel();
+        renderRoomOverlay();
+      });
       edgeMarker.append(edgeHitTarget, edgeHandle);
       ctx.roomOverlay.append(edgeMarker);
     }

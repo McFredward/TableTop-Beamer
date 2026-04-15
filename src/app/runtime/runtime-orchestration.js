@@ -1749,6 +1749,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   applyRoomDraftTargetFromRoomClick: (roomId) => applyRoomDraftTargetFromRoomClick(roomId),
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
   pushUndoState: (desc) => pushUndoState(desc),
+  normalizePolygonPoint: (p) => normalizePolygonPoint(p),
 });
 const {
   getNormalizedOverlayPoint,
