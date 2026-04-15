@@ -217,7 +217,7 @@
       }
       indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
       indexLabel.setAttribute("x", x.toFixed(1));
-      indexLabel.setAttribute("y", (y + 3).toFixed(1));
+      indexLabel.setAttribute("y", (y + vertexLabelSize * 0.35).toFixed(1));
       indexLabel.textContent = String(index + 1);
 
       hitTarget.addEventListener("pointerdown", (event) => {
@@ -392,7 +392,7 @@
       }
       indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
       indexLabel.setAttribute("x", x.toFixed(1));
-      indexLabel.setAttribute("y", (y + 3).toFixed(1));
+      indexLabel.setAttribute("y", (y + vertexLabelSize * 0.35).toFixed(1));
       indexLabel.textContent = String(index + 1);
 
       hitTarget.addEventListener("pointerdown", (event) => {
