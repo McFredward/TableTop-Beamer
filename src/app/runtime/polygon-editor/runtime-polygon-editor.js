@@ -117,6 +117,9 @@
       }
       const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       maskPolygon.classList.add("ship-zone-mask");
+      // Phase 18: scale Play Area stroke with handle size
+      const paHandleScale = ctx.getCurrentPolygonHandleScale();
+      maskPolygon.style.strokeWidth = `${Math.max(0.8, 2 * Math.max(0.4, paHandleScale)).toFixed(2)}px`;
       if (area.id === selectedPlayAreaId) {
         maskPolygon.classList.add("is-active");
       }
@@ -278,6 +281,7 @@
       vertexHitRadius,
       vertexHandleRadius,
       vertexLabelSize,
+      strokeScale,
     } = ctx.getPolygonEditorHandleMetrics(zoomScale, ctx.getCurrentPolygonHandleScale());
     for (let index = 0; index < points.length; index += 1) {
       const [aX, aY] = points[index];
@@ -625,9 +629,14 @@
       return;
     }
 
+    // Phase 18: compute stroke scale for polygon lines
+    const overlayHandleScale = ctx.getCurrentPolygonHandleScale();
+    const overlayStrokeWidth = Math.max(0.8, 2 * Math.max(0.4, overlayHandleScale));
+
     for (const room of board.rooms) {
       const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       polygon.classList.add("room-zone");
+      polygon.style.strokeWidth = `${overlayStrokeWidth.toFixed(2)}px`;
       if (state.uiView === "settings") {
         polygon.classList.add("is-draggable");
       }

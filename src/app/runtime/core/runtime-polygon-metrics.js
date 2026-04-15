@@ -65,7 +65,9 @@
       edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale,
       vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale * coarse,
       vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale,
-      vertexLabelSize: Math.max(9, 11 * inverseZoom) * Math.max(0.9, normalizedHandleScale * 0.95),
+      // Phase 18: label and stroke scale proportionally with handle size
+      vertexLabelSize: Math.max(5, 11 * inverseZoom * normalizedHandleScale),
+      strokeScale: Math.max(0.4, normalizedHandleScale),
     };
   }
 
