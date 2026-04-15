@@ -65,8 +65,8 @@
       edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale,
       vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale * coarse,
       vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale,
-      // Phase 18: label and stroke scale proportionally with handle size
-      vertexLabelSize: Math.max(5, 11 * inverseZoom * normalizedHandleScale),
+      // Phase 18: label size = ~75% of handle diameter so it always fits inside the bubble
+      vertexLabelSize: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * 1.5,
       strokeScale: Math.max(0.4, normalizedHandleScale),
     };
   }
