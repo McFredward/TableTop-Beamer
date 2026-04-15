@@ -301,9 +301,14 @@
             roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
             ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
             ctx.persistBoardProfiles();
+            // Keep the room selected after insert
+            state.selectedRoomId = room.id;
+            state.selectedRoomByBoard[state.boardId] = room.id;
             state.polygonEditor.selectedVertexIndex = nextIndex;
             state.polygonEditor.selectedEdgeIndex = index;
+            ctx.setActivePolygonRoomId(state.boardId, room.id);
             ctx.syncPolygonEditorPanel();
+            ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
             renderRoomOverlay();
           }
           return;
