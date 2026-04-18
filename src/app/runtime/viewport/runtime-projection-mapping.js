@@ -423,10 +423,12 @@
     const vh = window.innerHeight;
     const dx = ((e.clientX - edgeDragState.startX) / vw) * 100;
     const dy = ((e.clientY - edgeDragState.startY) / vh) * 100;
+    // Left/right edges move only horizontally, top/bottom only vertically
+    const isVertical = edgeDragState.edgeDef.id === "left" || edgeDragState.edgeDef.id === "right";
     for (const ck of edgeDragState.edgeDef.corners) {
       const start = edgeDragState.startCorners[ck];
-      corners[ck].x = Math.max(0, Math.min(100, start.x + dx));
-      corners[ck].y = Math.max(0, Math.min(100, start.y + dy));
+      corners[ck].x = Math.max(0, Math.min(100, start.x + (isVertical ? dx : 0)));
+      corners[ck].y = Math.max(0, Math.min(100, start.y + (isVertical ? 0 : dy)));
     }
     positionHandles();
     drawLines();
