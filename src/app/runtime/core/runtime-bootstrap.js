@@ -158,11 +158,10 @@
     ctx.syncQuickModePanel();
     ctx.syncMobileStickyOffsets();
     ctx.applyOutputRoleViewContract();
-    // Phase 19-2: load projection mapping corners from global defaults and
-    // apply the saved transform on /output so calibration persists across reloads.
-    if (typeof ctx.loadProjectionCornersFromConfig === "function") {
-      const bootstrapConfig = window.__TT_BEAMER_BOOTSTRAP_CONFIG__;
-      ctx.loadProjectionCornersFromConfig(bootstrapConfig);
+    // Phase 19-2: apply projection mapping transform on /output.
+    // Corners are loaded from localStorage in the module's init() — no need
+    // to overwrite them from server config (localStorage is per-client).
+    if (typeof ctx.applyProjectionTransform === "function") {
       ctx.applyProjectionTransform();
     }
     ctx.connectLiveSyncSocket();
