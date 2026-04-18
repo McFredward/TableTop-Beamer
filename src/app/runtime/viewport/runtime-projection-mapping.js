@@ -21,17 +21,16 @@
 (() => {
   let ctx = null;
 
-  // ── Grid state ─────────────────────────────────────────────────────────────
+  // ── State ───────────────────────────────────────────────────────────────────
   //
-  // The grid redistributes content by remapping source regions to destination
-  // regions. Source lines are always evenly spaced. Destination lines (dstXs,
-  // dstYs) are adjustable — moving a line compresses content on one side and
-  // stretches it on the other.
+  // TWO independent systems that stack:
   //
-  // Example: 5 vertical lines at [0, 0.25, 0.5, 0.75, 1] (source, fixed).
-  // If dstXs[2] is moved from 0.5 to 0.4, the second column (src 0.25-0.5)
-  // gets squeezed into dst 0.25-0.4, and the third (src 0.5-0.75) stretches
-  // into dst 0.4-0.75.
+  // 1. CORNERS (CSS matrix3d perspective): 4 corner positions in viewport
+  //    coords (0-1). Control the overall perspective warp of the stage.
+  //
+  // 2. GRID (canvas mesh warp): redistributes content within the canvas.
+  //    Grid edges always at 0 and 1. Interior lines adjustable.
+  //    Does NOT interact with corner positions.
 
   const DEFAULT_COUNT = 5; // 5 lines = 4 columns/rows
 
@@ -41,6 +40,16 @@
     return lines;
   }
 
+  // Corner positions for CSS perspective (0-1 viewport coords)
+  const corners = {
+    topLeft: { x: 0, y: 0 },
+    topRight: { x: 1, y: 0 },
+    bottomRight: { x: 1, y: 1 },
+    bottomLeft: { x: 0, y: 1 },
+  };
+
+  // Grid line positions for canvas mesh warp (0-1 canvas-local coords)
+  // Edges (first/last) are always 0 and 1 — never moved.
   const grid = {
     srcXs: makeEvenLines(DEFAULT_COUNT),
     dstXs: makeEvenLines(DEFAULT_COUNT),
@@ -48,23 +57,29 @@
     dstYs: makeEvenLines(DEFAULT_COUNT),
   };
 
-  // Legacy compat
   const CORNER_KEYS = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /** Check whether any destination lines differ from source (= grid is active). */
+  /** Check whether any grid lines differ from source (= mesh warp active). */
   function hasGridDisplacements() {
-    for (let i = 1; i < grid.dstXs.length - 1; i++) {
+    for (let i = 0; i < grid.dstXs.length; i++) {
       if (Math.abs(grid.dstXs[i] - grid.srcXs[i]) > 1e-6) return true;
     }
-    for (let i = 1; i < grid.dstYs.length - 1; i++) {
+    for (let i = 0; i < grid.dstYs.length; i++) {
       if (Math.abs(grid.dstYs[i] - grid.srcYs[i]) > 1e-6) return true;
     }
     return false;
   }
 
-  // Legacy compat aliases used by the rest of the module
+  function cornersAreDefault() {
+    return Math.abs(corners.topLeft.x) < 1e-6 && Math.abs(corners.topLeft.y) < 1e-6
+      && Math.abs(corners.topRight.x - 1) < 1e-6 && Math.abs(corners.topRight.y) < 1e-6
+      && Math.abs(corners.bottomRight.x - 1) < 1e-6 && Math.abs(corners.bottomRight.y - 1) < 1e-6
+      && Math.abs(corners.bottomLeft.x) < 1e-6 && Math.abs(corners.bottomLeft.y - 1) < 1e-6;
+  }
+
+  // Legacy compat — getPoint returns grid line positions (for drawLines)
   function getPoint(row, col) {
     return { x: grid.dstXs[col] ?? 0, y: grid.dstYs[row] ?? 0 };
   }
@@ -174,20 +189,13 @@
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const lastRow = grid.dstYs.length - 1;
-    const lastCol = grid.dstXs.length - 1;
 
-    // Corner points in pixel coordinates
-    const tl = getPoint(0, 0);
-    const tr = getPoint(0, lastCol);
-    const br = getPoint(lastRow, lastCol);
-    const bl = getPoint(lastRow, 0);
-
+    // Use separate corner state (not grid lines)
     const dst = [
-      { x: tl.x * vw, y: tl.y * vh },
-      { x: tr.x * vw, y: tr.y * vh },
-      { x: br.x * vw, y: br.y * vh },
-      { x: bl.x * vw, y: bl.y * vh },
+      { x: corners.topLeft.x * vw, y: corners.topLeft.y * vh },
+      { x: corners.topRight.x * vw, y: corners.topRight.y * vh },
+      { x: corners.bottomRight.x * vw, y: corners.bottomRight.y * vh },
+      { x: corners.bottomLeft.x * vw, y: corners.bottomLeft.y * vh },
     ];
 
     const matrix = computeMatrix3d(vw, vh, dst);
@@ -324,21 +332,18 @@
 
     // Only create handles for the 4 corners — lines are dragged via the
     // line canvas (onLinePointerDown). This keeps the UI clean.
-    const cornerPositions = [
-      { row: 0, col: 0, label: "1" },
-      { row: 0, col: lastCol, label: "2" },
-      { row: lastRow, col: lastCol, label: "3" },
-      { row: lastRow, col: 0, label: "4" },
+    const cornerDefs = [
+      { key: "topLeft", label: "1" },
+      { key: "topRight", label: "2" },
+      { key: "bottomRight", label: "3" },
+      { key: "bottomLeft", label: "4" },
     ];
-    for (const corner of cornerPositions) {
-      const { row, col, label: cornerLabel } = corner;
-
+    for (const cDef of cornerDefs) {
         const el = document.createElement("div");
         el.className = "projection-corner-handle";
-        el.dataset.gridRow = String(row);
-        el.dataset.gridCol = String(col);
+        el.dataset.cornerKey = cDef.key;
 
-        el.textContent = cornerLabel;
+        el.textContent = cDef.label;
         el.style.cssText = `
           position: fixed;
           width: 28px; height: 28px;
@@ -372,24 +377,14 @@
   function positionHandles() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const rows = grid.dstYs.length;
-    const cols = grid.dstXs.length;
-    let idx = 0;
-
-    const cornerPositions = [
-      { row: 0, col: 0 },
-      { row: 0, col: cols - 1 },
-      { row: rows - 1, col: cols - 1 },
-      { row: rows - 1, col: 0 },
-    ];
-    for (let i = 0; i < cornerPositions.length; i++) {
-      const { row, col } = cornerPositions[i];
-      const pt = getPoint(row, col);
+    const cornerKeys = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
+    for (let i = 0; i < cornerKeys.length; i++) {
+      const key = cornerKeys[i];
+      const c = corners[key];
       const el = handleElements[i];
       if (el) {
-        el.style.left = `${pt.x * vw}px`;
-        el.style.top = `${pt.y * vh}px`;
-        const key = `${row}-${col}`;
+        el.style.left = `${c.x * vw}px`;
+        el.style.top = `${c.y * vh}px`;
         if (key === activeHandleKey) {
           el.style.background = "rgba(255, 200, 30, 0.95)";
           el.style.color = "#000";
@@ -446,9 +441,9 @@
       lineCtx.stroke();
     }
 
-    // Draw drag-handle indicators on interior lines (visual affordance)
+    // Draw drag-handle indicators on ALL lines (visual affordance)
     // Horizontal lines: small double-arrow ↕ icon at the midpoint
-    for (let row = 1; row < rows - 1; row++) {
+    for (let row = 0; row < rows; row++) {
       const midCol = Math.floor(cols / 2);
       const pt = getPoint(row, midCol);
       const px = pt.x * vw;
@@ -467,7 +462,7 @@
       lineCtx.fillText("↕", px, py);
     }
     // Vertical lines: small double-arrow ↔ icon at the midpoint
-    for (let col = 1; col < cols - 1; col++) {
+    for (let col = 0; col < cols; col++) {
       const midRow = Math.floor(rows / 2);
       const pt = getPoint(midRow, col);
       const px = pt.x * vw;
@@ -489,15 +484,10 @@
     lineCtx.beginPath();
     const lastRow = rows - 1;
     const lastCol = cols - 1;
-    const corners = [
-      getPoint(0, 0),
-      getPoint(0, lastCol),
-      getPoint(lastRow, lastCol),
-      getPoint(lastRow, 0),
-    ];
+    const quadCorners = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft];
     for (let i = 0; i < 4; i++) {
-      const px = corners[i].x * vw;
-      const py = corners[i].y * vh;
+      const px = quadCorners[i].x * vw;
+      const py = quadCorners[i].y * vh;
       if (i === 0) lineCtx.moveTo(px, py);
       else lineCtx.lineTo(px, py);
     }
@@ -510,19 +500,18 @@
   function onHandlePointerDown(e) {
     e.preventDefault();
     e.stopPropagation();
-    const row = Number(e.currentTarget.dataset.gridRow);
-    const col = Number(e.currentTarget.dataset.gridCol);
-    const pt = getPoint(row, col);
+    const cornerKey = e.currentTarget.dataset.cornerKey;
+    const c = corners[cornerKey];
+    if (!c) return;
 
-    activeHandleKey = `${row}-${col}`;
+    activeHandleKey = cornerKey;
 
     dragState = {
-      row,
-      col,
+      cornerKey,
       startX: e.clientX,
       startY: e.clientY,
-      startPtX: pt.x,
-      startPtY: pt.y,
+      startPtX: c.x,
+      startPtY: c.y,
     };
 
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -543,15 +532,9 @@
     const dx = (e.clientX - dragState.startX) / vw;
     const dy = (e.clientY - dragState.startY) / vh;
 
-    const row = dragState.row;
-    const col = dragState.col;
-    const lastRow = grid.dstYs.length - 1;
-    const lastCol = grid.dstXs.length - 1;
-    const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
-
-    // Only corners have draggable handle points — they move freely in X+Y
-    grid.dstXs[col] = Math.max(0, Math.min(1, dragState.startPtX + dx));
-    grid.dstYs[row] = Math.max(0, Math.min(1, dragState.startPtY + dy));
+    // Move the corner freely in X+Y
+    corners[dragState.cornerKey].x = Math.max(0, Math.min(1, dragState.startPtX + dx));
+    corners[dragState.cornerKey].y = Math.max(0, Math.min(1, dragState.startPtY + dy));
 
     positionHandles();
     drawLines();
@@ -920,6 +903,11 @@
     grid.dstYs = makeEvenLines(DEFAULT_COUNT);
     grid.srcXs = makeEvenLines(DEFAULT_COUNT);
     grid.srcYs = makeEvenLines(DEFAULT_COUNT);
+    // Reset corners to default
+    corners.topLeft = { x: 0, y: 0 };
+    corners.topRight = { x: 1, y: 0 };
+    corners.bottomRight = { x: 1, y: 1 };
+    corners.bottomLeft = { x: 0, y: 1 };
     applyTransform();
     // Clear all localStorage keys for projection mapping
     try {
@@ -982,6 +970,12 @@
   function saveToLocalStorage() {
     try {
       localStorage.setItem(LS_KEY_V2, JSON.stringify({
+        corners: {
+          topLeft: corners.topLeft,
+          topRight: corners.topRight,
+          bottomRight: corners.bottomRight,
+          bottomLeft: corners.bottomLeft,
+        },
         dstXs: grid.dstXs,
         dstYs: grid.dstYs,
       }));
@@ -1007,6 +1001,14 @@
             grid.dstYs.sort((a, b) => a - b);
             if (grid.dstYs[0] !== 0) grid.dstYs.unshift(0);
             if (grid.dstYs[grid.dstYs.length - 1] !== 1) grid.dstYs.push(1);
+          }
+          // Load corners if saved
+          if (parsed.corners && typeof parsed.corners === "object") {
+            for (const k of CORNER_KEYS) {
+              if (parsed.corners[k] && typeof parsed.corners[k].x === "number") {
+                corners[k] = { x: parsed.corners[k].x, y: parsed.corners[k].y };
+              }
+            }
           }
           // Rebuild source lines to match count
           grid.srcXs = makeEvenLines(grid.dstXs.length);
