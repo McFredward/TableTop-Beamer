@@ -1,64 +1,110 @@
-// Phase 19-2: Projection mapping — 4-corner warp for /output via CSS matrix3d.
+// Phase 19-4: Unified Grid Projection System.
 //
-// Computes a perspective homography from 4 user-positioned corners and
-// applies it as a CSS matrix3d() transform on the .stage element.
-// Only active on /output (OUTPUT_ROLE_FINAL).
+// Replaces the dual 4-corner + grid-mesh approach with ONE unified grid.
+// The grid IS the projection — corners, edges, and interior points are
+// all part of the same grid.  Default 4x4 = 5x5 = 25 control points.
 //
-// Owns: corner state, homography math, CSS matrix3d application,
-// drag handles, arrow key fine-tuning, persistence to global-defaults.
+// - The 4 corner points control the CSS matrix3d perspective transform
+//   on .stage (same homography math as Phase 19-2).
+// - Edge points are constrained to their axis.
+// - Interior points move freely for local canvas distortion.
+// - Grid lines are draggable as whole rows/columns.
+// - Right-click context menu to add/remove lines.
+//
+// Post-draw mesh warp: after the main draw() completes, if any interior
+// points are displaced, a per-cell drawImage pass deforms the canvas
+// content.  Zero overhead when no interior displacements exist.
+//
+// Persistence: localStorage key "tt-beamer.projection-mapping-v2".
+// Falls back to old key "tt-beamer.projection-mapping.corners" for
+// migration of the 4-corner positions.
 (() => {
   let ctx = null;
 
-  // Corner positions in percentages (0-100) of the viewport.
-  // Order: topLeft, topRight, bottomRight, bottomLeft.
-  const DEFAULT_CORNERS = {
-    topLeft:     { x: 0, y: 0 },
-    topRight:    { x: 100, y: 0 },
-    bottomRight: { x: 100, y: 100 },
-    bottomLeft:  { x: 0, y: 100 },
+  // ── Grid state ─────────────────────────────────────────────────────────────
+  //
+  // xs/ys: normalized 0-1 positions of vertical/horizontal grid lines.
+  // Always includes 0 and 1 (the edges).
+  // points: displaced positions for grid intersections.
+  //   Key = "row-col", value = { x, y } in normalized viewport coords.
+  //   If absent, the default position is { x: xs[col], y: ys[row] }.
+
+  const DEFAULT_XS = [0, 0.25, 0.5, 0.75, 1];
+  const DEFAULT_YS = [0, 0.25, 0.5, 0.75, 1];
+
+  const grid = {
+    xs: DEFAULT_XS.slice(),
+    ys: DEFAULT_YS.slice(),
+    points: {},
   };
 
+  // Legacy compat
   const CORNER_KEYS = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
-  const CORNER_LABELS = { topLeft: "1", topRight: "2", bottomRight: "3", bottomLeft: "4" };
-  // Edges: each connects two corners. Dragging an edge moves both corners.
-  const EDGE_DEFS = [
-    { id: "top",    corners: ["topLeft", "topRight"],     label: "T" },
-    { id: "right",  corners: ["topRight", "bottomRight"], label: "R" },
-    { id: "bottom", corners: ["bottomRight", "bottomLeft"], label: "B" },
-    { id: "left",   corners: ["bottomLeft", "topLeft"],   label: "L" },
-  ];
 
-  let corners = deepCloneCorners(DEFAULT_CORNERS);
-  let activeCornerIndex = 0; // which corner is "active" for arrow keys
-  let handleElements = [];   // 4 draggable corner handle divs
-  let edgeHandleElements = []; // 4 draggable edge (side) handle divs
-  let lineCanvas = null;     // canvas overlay for connecting lines
-  let lineCtx = null;
-  let handlesVisible = false;
-  let dragState = null;      // { cornerKey, startX, startY, startCornerX, startCornerY }
-  let edgeDragState = null;  // { edgeDef, startX, startY, startCorners }
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function init(dependencies) {
-    ctx = dependencies;
-    // Load saved corners from localStorage on this client
-    loadCornersFromLocalStorage();
-    // Phase 19-3: load grid mesh state
-    loadGridFromLocalStorage();
-  }
-
-  // ── Deep clone helpers ──────────────────────────────────────────────────────
-
-  function deepCloneCorners(c) {
-    const out = {};
-    for (const k of CORNER_KEYS) {
-      out[k] = { x: c[k].x, y: c[k].y };
+  /** Get the position of a grid point (row, col). */
+  function getPoint(row, col) {
+    const key = `${row}-${col}`;
+    if (grid.points[key]) {
+      return { x: grid.points[key].x, y: grid.points[key].y };
     }
-    return out;
+    return { x: grid.xs[col], y: grid.ys[row] };
   }
 
+  /** Set the position of a grid point (row, col). */
+  function setPoint(row, col, x, y) {
+    grid.points[`${row}-${col}`] = { x, y };
+  }
+
+  /** Check if a point has been displaced from its default position. */
+  function isDisplaced(row, col) {
+    const key = `${row}-${col}`;
+    if (!grid.points[key]) return false;
+    const dx = Math.abs(grid.points[key].x - grid.xs[col]);
+    const dy = Math.abs(grid.points[key].y - grid.ys[row]);
+    return dx > 1e-6 || dy > 1e-6;
+  }
+
+  /** Check whether any interior points (not corners, not edges) are displaced. */
+  function hasInteriorDisplacements() {
+    const lastRow = grid.ys.length - 1;
+    const lastCol = grid.xs.length - 1;
+    for (let row = 1; row < lastRow; row++) {
+      for (let col = 1; col < lastCol; col++) {
+        if (isDisplaced(row, col)) return true;
+      }
+    }
+    // Also check edge (non-corner) displacements as they affect cell geometry
+    for (let row = 0; row <= lastRow; row++) {
+      for (let col = 0; col <= lastCol; col++) {
+        const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
+        if (isCorner) continue;
+        if (isDisplaced(row, col)) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Check whether the 4 corners are at their default positions. */
   function cornersAreDefault() {
-    for (const k of CORNER_KEYS) {
-      if (corners[k].x !== DEFAULT_CORNERS[k].x || corners[k].y !== DEFAULT_CORNERS[k].y) {
+    const lastRow = grid.ys.length - 1;
+    const lastCol = grid.xs.length - 1;
+    const corners = [
+      getPoint(0, 0),
+      getPoint(0, lastCol),
+      getPoint(lastRow, lastCol),
+      getPoint(lastRow, 0),
+    ];
+    const defaults = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    for (let i = 0; i < 4; i++) {
+      if (Math.abs(corners[i].x - defaults[i].x) > 1e-6 ||
+          Math.abs(corners[i].y - defaults[i].y) > 1e-6) {
         return false;
       }
     }
@@ -66,34 +112,13 @@
   }
 
   // ── Homography math ─────────────────────────────────────────────────────────
-  //
-  // Given source rect (0,0)-(w,h) and 4 destination points, compute the
-  // 3x3 perspective transform H such that H * [src] ~ [dst].
-  // Then convert to CSS matrix3d (column-major 4x4).
-  //
-  // We use the adjugate-based approach (no SVD needed for exactly 4 points
-  // mapping from a rectangle):
-  //
-  // Source quad: (0,0), (w,0), (w,h), (0,h)
-  // Dest quad:   (x0,y0), (x1,y1), (x2,y2), (x3,y3)
 
   function computeMatrix3d(w, h, dst) {
-    // dst = [{ x, y }, { x, y }, { x, y }, { x, y }] in px
-    // Maps from source rectangle to destination quadrilateral.
-    //
-    // We compute the perspective transform using the standard algorithm:
-    // H maps (0,0)->(x0,y0), (w,0)->(x1,y1), (w,h)->(x2,y2), (0,h)->(x3,y3)
-    //
-    // First compute the transform from unit square to dst quad, then
-    // compose with the transform from src rect to unit square.
-
     const x0 = dst[0].x, y0 = dst[0].y;
     const x1 = dst[1].x, y1 = dst[1].y;
     const x2 = dst[2].x, y2 = dst[2].y;
     const x3 = dst[3].x, y3 = dst[3].y;
 
-    // Transform from unit square [0,1]x[0,1] to quad (x0..x3, y0..y3)
-    // Using the algorithm from Paul Heckbert's thesis / Projective Mappings.
     const dx1 = x1 - x2;
     const dx2 = x3 - x2;
     const dx3 = x0 - x1 + x2 - x3;
@@ -103,7 +128,6 @@
 
     const denom = dx1 * dy2 - dx2 * dy1;
     if (Math.abs(denom) < 1e-10) {
-      // Degenerate — return identity
       return "none";
     }
 
@@ -116,15 +140,6 @@
     const d = y1 - y0 + g * y1;
     const e = y3 - y0 + h_ * y3;
     const f = y0;
-    // g, h_ already computed
-    // i = 1
-
-    // H_unit maps unit square to dst:
-    // H_unit = [[a, b, c], [d, e, f], [g, h_, 1]]
-
-    // Now compose with source rect -> unit square:
-    // S = [[1/w, 0, 0], [0, 1/h, 0], [0, 0, 1]]
-    // Final H = H_unit * S
 
     const ha = a / w;
     const hb = b / h;
@@ -134,24 +149,11 @@
     const hf = f;
     const hg = g / w;
     const hh = h_ / h;
-    // hi = 1
 
-    // Convert 3x3 homography to CSS matrix3d (4x4, column-major)
-    // CSS matrix3d(a1,a2,a3,a4, b1,b2,b3,b4, c1,c2,c3,c4, d1,d2,d3,d4)
-    // where columns are:
-    //   col0: [a1,a2,a3,a4]  col1: [b1,b2,b3,b4]  col2: [c1,c2,c3,c4]  col3: [d1,d2,d3,d4]
-    //
-    // From 3x3 [ha,hb,hc; hd,he,hf; hg,hh,1] we embed into 4x4:
-    //   [ha, hb, 0, hc]
-    //   [hd, he, 0, hf]
-    //   [ 0,  0, 1,  0]
-    //   [hg, hh, 0,  1]
-    //
-    // CSS matrix3d is column-major:
     return `matrix3d(${ha},${hd},0,${hg}, ${hb},${he},0,${hh}, 0,0,1,0, ${hc},${hf},0,1)`;
   }
 
-  // ── Apply transform ─────────────────────────────────────────────────────────
+  // ── Apply CSS transform ────────────────────────────────────────────────────
 
   function applyTransform() {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
@@ -165,143 +167,277 @@
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const lastRow = grid.ys.length - 1;
+    const lastCol = grid.xs.length - 1;
 
-    // Convert percentage corners to pixel positions
-    const dst = CORNER_KEYS.map((k) => ({
-      x: (corners[k].x / 100) * vw,
-      y: (corners[k].y / 100) * vh,
-    }));
+    // Corner points in pixel coordinates
+    const tl = getPoint(0, 0);
+    const tr = getPoint(0, lastCol);
+    const br = getPoint(lastRow, lastCol);
+    const bl = getPoint(lastRow, 0);
+
+    const dst = [
+      { x: tl.x * vw, y: tl.y * vh },
+      { x: tr.x * vw, y: tr.y * vh },
+      { x: br.x * vw, y: br.y * vh },
+      { x: bl.x * vw, y: bl.y * vh },
+    ];
 
     const matrix = computeMatrix3d(vw, vh, dst);
     stage.style.transform = matrix;
     stage.style.transformOrigin = "0 0";
   }
 
-  // ── Handle UI ───────────────────────────────────────────────────────────────
+  // ── Post-draw mesh warp ────────────────────────────────────────────────────
+  //
+  // Called from the draw loop after all rendering completes.
+  // If any non-corner grid points are displaced, takes a snapshot of the
+  // canvas content and redraws it through the displaced grid mesh.
+
+  let _warpTmpCanvas = null;
+  let _warpTmpCtx = null;
+
+  function postDrawMeshWarp(canvas, canvasCtx) {
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    if (!hasInteriorDisplacements()) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Reuse cached temp canvas
+    if (!_warpTmpCanvas) {
+      _warpTmpCanvas = document.createElement("canvas");
+      _warpTmpCtx = _warpTmpCanvas.getContext("2d");
+    }
+    if (_warpTmpCanvas.width !== w || _warpTmpCanvas.height !== h) {
+      _warpTmpCanvas.width = w;
+      _warpTmpCanvas.height = h;
+    }
+
+    // Snapshot current content
+    _warpTmpCtx.clearRect(0, 0, w, h);
+    _warpTmpCtx.drawImage(canvas, 0, 0);
+
+    // Clear and redraw through mesh
+    canvasCtx.clearRect(0, 0, w, h);
+
+    const xs = grid.xs;
+    const ys = grid.ys;
+
+    for (let row = 0; row < ys.length - 1; row++) {
+      for (let col = 0; col < xs.length - 1; col++) {
+        // Source rectangle: original grid positions x canvas dimensions
+        const srcX = xs[col] * w;
+        const srcY = ys[row] * h;
+        const srcW = (xs[col + 1] - xs[col]) * w;
+        const srcH = (ys[row + 1] - ys[row]) * h;
+
+        if (srcW < 0.5 || srcH < 0.5) continue;
+
+        // Destination: displaced grid positions
+        const tl = getPoint(row, col);
+        const tr = getPoint(row, col + 1);
+        const bl = getPoint(row + 1, col);
+
+        const dstX = tl.x * w;
+        const dstY = tl.y * h;
+        const dstRight = tr.x * w;
+        const dstBottom = bl.y * h;
+        const dstW = dstRight - dstX;
+        const dstH = dstBottom - dstY;
+
+        if (dstW < 0.5 || dstH < 0.5) continue;
+
+        canvasCtx.drawImage(
+          _warpTmpCanvas,
+          srcX, srcY, srcW, srcH,
+          dstX, dstY, dstW, dstH,
+        );
+      }
+    }
+  }
+
+  // ── Handle UI ──────────────────────────────────────────────────────────────
+
+  let handleElements = [];    // All grid point handle divs
+  let lineCanvas = null;      // Canvas overlay for grid lines
+  let lineCtx = null;
+  let handlesVisible = false;
+  let dragState = null;       // { row, col, startX, startY, startPtX, startPtY }
+  let activeHandleKey = null; // "row-col" of selected handle for arrow keys
+  let contextMenu = null;     // Context menu DOM element
+
+  // Grid line drag state
+  let lineDragState = null;
+  const LINE_HIT_THRESHOLD = 15; // px
 
   function createHandles() {
-    if (handleElements.length > 0) return;
+    if (handlesVisible) return;
+    handlesVisible = true;
 
-    // Line canvas overlay
+    // Grid line canvas overlay — pointer-events enabled for line dragging
     lineCanvas = document.createElement("canvas");
-    lineCanvas.id = "projection-line-canvas";
-    lineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9998;";
+    lineCanvas.id = "projection-grid-line-canvas";
+    lineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:auto;z-index:9997;cursor:default;";
     document.body.appendChild(lineCanvas);
     lineCtx = lineCanvas.getContext("2d");
 
-    for (let i = 0; i < 4; i++) {
-      const key = CORNER_KEYS[i];
-      const el = document.createElement("div");
-      el.className = "projection-corner-handle";
-      el.dataset.cornerIndex = String(i);
-      el.dataset.cornerKey = key;
-      el.textContent = CORNER_LABELS[key];
-      el.style.cssText = `
-        position: fixed;
-        width: 28px; height: 28px;
-        border-radius: 50%;
-        background: rgba(220, 30, 30, 0.85);
-        border: 2px solid rgba(255, 255, 255, 0.9);
-        color: #fff;
-        font-family: "Barlow Condensed", sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: grab;
-        z-index: 9999;
-        user-select: none;
-        -webkit-user-select: none;
-        touch-action: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-        transition: background 120ms ease, transform 120ms ease;
-      `;
-      el.addEventListener("pointerdown", onHandlePointerDown);
-      document.body.appendChild(el);
-      handleElements.push(el);
-    }
+    lineCanvas.addEventListener("pointerdown", onLinePointerDown);
+    lineCanvas.addEventListener("contextmenu", onContextMenu);
 
-    // Create edge (side) handles — small rectangles at midpoints of each edge
-    for (let i = 0; i < EDGE_DEFS.length; i++) {
-      const edge = EDGE_DEFS[i];
-      const el = document.createElement("div");
-      el.className = "projection-edge-handle";
-      el.dataset.edgeIndex = String(i);
-      el.dataset.edgeId = edge.id;
-      const isVertical = edge.id === "left" || edge.id === "right";
-      el.style.cssText = `
-        position: fixed;
-        width: ${isVertical ? "12px" : "28px"};
-        height: ${isVertical ? "28px" : "12px"};
-        border-radius: 4px;
-        background: rgba(100, 160, 255, 0.8);
-        border: 2px solid rgba(255, 255, 255, 0.85);
-        cursor: ${isVertical ? "ew-resize" : "ns-resize"};
-        z-index: 9998;
-        user-select: none;
-        -webkit-user-select: none;
-        touch-action: none;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        transition: background 120ms ease;
-      `;
-      el.addEventListener("pointerdown", onEdgePointerDown);
-      document.body.appendChild(el);
-      edgeHandleElements.push(el);
-    }
-
-    positionHandles();
+    rebuildHandleElements();
     drawLines();
   }
 
   function removeHandles() {
+    if (!handlesVisible) return;
+    handlesVisible = false;
+
     for (const el of handleElements) {
       el.removeEventListener("pointerdown", onHandlePointerDown);
       el.remove();
     }
     handleElements = [];
-    for (const el of edgeHandleElements) {
-      el.removeEventListener("pointerdown", onEdgePointerDown);
-      el.remove();
-    }
-    edgeHandleElements = [];
+
     if (lineCanvas) {
+      lineCanvas.removeEventListener("pointerdown", onLinePointerDown);
+      lineCanvas.removeEventListener("contextmenu", onContextMenu);
       lineCanvas.remove();
       lineCanvas = null;
       lineCtx = null;
     }
+
+    dismissContextMenu();
+  }
+
+  function rebuildHandleElements() {
+    // Remove old handles
+    for (const el of handleElements) {
+      el.removeEventListener("pointerdown", onHandlePointerDown);
+      el.remove();
+    }
+    handleElements = [];
+
+    const rows = grid.ys.length;
+    const cols = grid.xs.length;
+    const lastRow = rows - 1;
+    const lastCol = cols - 1;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
+        const isEdge = !isCorner && (row === 0 || row === lastRow || col === 0 || col === lastCol);
+
+        const el = document.createElement("div");
+        el.className = isCorner ? "projection-corner-handle" : "projection-grid-handle";
+        el.dataset.gridRow = String(row);
+        el.dataset.gridCol = String(col);
+
+        let cornerLabel = "";
+        if (isCorner) {
+          if (row === 0 && col === 0) cornerLabel = "1";
+          else if (row === 0 && col === lastCol) cornerLabel = "2";
+          else if (row === lastRow && col === lastCol) cornerLabel = "3";
+          else cornerLabel = "4";
+        }
+
+        if (isCorner) {
+          el.textContent = cornerLabel;
+          el.style.cssText = `
+            position: fixed;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: rgba(220, 30, 30, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            color: #fff;
+            font-family: "Barlow Condensed", sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            z-index: 9999;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
+          `;
+        } else if (isEdge) {
+          const isHorizontalEdge = row === 0 || row === lastRow;
+          el.style.cssText = `
+            position: fixed;
+            width: ${isHorizontalEdge ? "12px" : "16px"};
+            height: ${isHorizontalEdge ? "16px" : "12px"};
+            border-radius: 3px;
+            background: rgba(100, 160, 255, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            cursor: ${isHorizontalEdge ? "ew-resize" : "ns-resize"};
+            z-index: 9999;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+            transform: translate(-50%, -50%);
+          `;
+        } else {
+          // Interior point
+          el.style.cssText = `
+            position: fixed;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: rgba(0, 220, 200, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            cursor: move;
+            z-index: 9999;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
+          `;
+        }
+
+        el.addEventListener("pointerdown", onHandlePointerDown);
+        document.body.appendChild(el);
+        handleElements.push(el);
+      }
+    }
+
+    positionHandles();
   }
 
   function positionHandles() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    for (let i = 0; i < handleElements.length; i++) {
-      const key = CORNER_KEYS[i];
-      const px = (corners[key].x / 100) * vw;
-      const py = (corners[key].y / 100) * vh;
-      handleElements[i].style.left = `${px - 14}px`;
-      handleElements[i].style.top = `${py - 14}px`;
-      // Active corner highlight
-      if (i === activeCornerIndex) {
-        handleElements[i].style.background = "rgba(255, 200, 30, 0.95)";
-        handleElements[i].style.transform = "scale(1.25)";
-        handleElements[i].style.color = "#000";
-      } else {
-        handleElements[i].style.background = "rgba(220, 30, 30, 0.85)";
-        handleElements[i].style.transform = "scale(1)";
-        handleElements[i].style.color = "#fff";
+    const rows = grid.ys.length;
+    const cols = grid.xs.length;
+    let idx = 0;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const pt = getPoint(row, col);
+        const px = pt.x * vw;
+        const py = pt.y * vh;
+        const el = handleElements[idx];
+        if (el) {
+          el.style.left = `${px}px`;
+          el.style.top = `${py}px`;
+
+          // Highlight active handle
+          const key = `${row}-${col}`;
+          const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
+          if (isCorner && key === activeHandleKey) {
+            el.style.background = "rgba(255, 200, 30, 0.95)";
+            el.style.color = "#000";
+          } else if (isCorner) {
+            el.style.background = "rgba(220, 30, 30, 0.85)";
+            el.style.color = "#fff";
+          }
+        }
+        idx++;
       }
-    }
-    // Position edge handles at midpoints of each edge
-    for (let i = 0; i < edgeHandleElements.length; i++) {
-      const edge = EDGE_DEFS[i];
-      const c1 = corners[edge.corners[0]];
-      const c2 = corners[edge.corners[1]];
-      const mx = ((c1.x + c2.x) / 2 / 100) * vw;
-      const my = ((c1.y + c2.y) / 2 / 100) * vh;
-      const isVertical = edge.id === "left" || edge.id === "right";
-      edgeHandleElements[i].style.left = `${mx - (isVertical ? 6 : 14)}px`;
-      edgeHandleElements[i].style.top = `${my - (isVertical ? 14 : 6)}px`;
     }
   }
 
@@ -315,26 +451,55 @@
     lineCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     lineCtx.clearRect(0, 0, vw, vh);
 
-    lineCtx.strokeStyle = "rgba(220, 30, 30, 0.7)";
-    lineCtx.lineWidth = 2;
-    lineCtx.beginPath();
-    for (let i = 0; i < 4; i++) {
-      const k = CORNER_KEYS[i];
-      const px = (corners[k].x / 100) * vw;
-      const py = (corners[k].y / 100) * vh;
-      if (i === 0) lineCtx.moveTo(px, py);
-      else lineCtx.lineTo(px, py);
-    }
-    lineCtx.closePath();
-    lineCtx.stroke();
+    const rows = grid.ys.length;
+    const cols = grid.xs.length;
 
-    // Filled quad (semi-transparent)
+    // Draw horizontal grid lines
+    for (let row = 0; row < rows; row++) {
+      const isEdge = row === 0 || row === rows - 1;
+      lineCtx.strokeStyle = isEdge ? "rgba(220, 30, 30, 0.7)" : "rgba(0, 220, 180, 0.45)";
+      lineCtx.lineWidth = isEdge ? 2 : 1;
+      lineCtx.beginPath();
+      for (let col = 0; col < cols; col++) {
+        const pt = getPoint(row, col);
+        const px = pt.x * vw;
+        const py = pt.y * vh;
+        if (col === 0) lineCtx.moveTo(px, py);
+        else lineCtx.lineTo(px, py);
+      }
+      lineCtx.stroke();
+    }
+
+    // Draw vertical grid lines
+    for (let col = 0; col < cols; col++) {
+      const isEdge = col === 0 || col === cols - 1;
+      lineCtx.strokeStyle = isEdge ? "rgba(220, 30, 30, 0.7)" : "rgba(0, 220, 180, 0.45)";
+      lineCtx.lineWidth = isEdge ? 2 : 1;
+      lineCtx.beginPath();
+      for (let row = 0; row < rows; row++) {
+        const pt = getPoint(row, col);
+        const px = pt.x * vw;
+        const py = pt.y * vh;
+        if (row === 0) lineCtx.moveTo(px, py);
+        else lineCtx.lineTo(px, py);
+      }
+      lineCtx.stroke();
+    }
+
+    // Filled quad from corners (semi-transparent)
     lineCtx.fillStyle = "rgba(255, 50, 50, 0.06)";
     lineCtx.beginPath();
+    const lastRow = rows - 1;
+    const lastCol = cols - 1;
+    const corners = [
+      getPoint(0, 0),
+      getPoint(0, lastCol),
+      getPoint(lastRow, lastCol),
+      getPoint(lastRow, 0),
+    ];
     for (let i = 0; i < 4; i++) {
-      const k = CORNER_KEYS[i];
-      const px = (corners[k].x / 100) * vw;
-      const py = (corners[k].y / 100) * vh;
+      const px = corners[i].x * vw;
+      const py = corners[i].y * vh;
       if (i === 0) lineCtx.moveTo(px, py);
       else lineCtx.lineTo(px, py);
     }
@@ -342,21 +507,24 @@
     lineCtx.fill();
   }
 
-  // ── Drag handling ───────────────────────────────────────────────────────────
+  // ── Handle drag ────────────────────────────────────────────────────────────
 
   function onHandlePointerDown(e) {
     e.preventDefault();
     e.stopPropagation();
-    const idx = Number(e.currentTarget.dataset.cornerIndex);
-    const key = CORNER_KEYS[idx];
-    activeCornerIndex = idx;
+    const row = Number(e.currentTarget.dataset.gridRow);
+    const col = Number(e.currentTarget.dataset.gridCol);
+    const pt = getPoint(row, col);
+
+    activeHandleKey = `${row}-${col}`;
 
     dragState = {
-      cornerKey: key,
+      row,
+      col,
       startX: e.clientX,
       startY: e.clientY,
-      startCornerX: corners[key].x,
-      startCornerY: corners[key].y,
+      startPtX: pt.x,
+      startPtY: pt.y,
     };
 
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -374,88 +542,182 @@
     e.preventDefault();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-    const newX = dragState.startCornerX + (dx / vw) * 100;
-    const newY = dragState.startCornerY + (dy / vh) * 100;
-    corners[dragState.cornerKey].x = Math.max(0, Math.min(100, newX));
-    corners[dragState.cornerKey].y = Math.max(0, Math.min(100, newY));
+    const dx = (e.clientX - dragState.startX) / vw;
+    const dy = (e.clientY - dragState.startY) / vh;
+
+    const row = dragState.row;
+    const col = dragState.col;
+    const rows = grid.ys.length;
+    const cols = grid.xs.length;
+    const lastRow = rows - 1;
+    const lastCol = cols - 1;
+
+    const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
+    const isTopEdge = row === 0 && !isCorner;
+    const isBottomEdge = row === lastRow && !isCorner;
+    const isLeftEdge = col === 0 && !isCorner;
+    const isRightEdge = col === lastCol && !isCorner;
+    const isHorizontalEdge = isTopEdge || isBottomEdge;
+    const isVerticalEdge = isLeftEdge || isRightEdge;
+
+    let newX = dragState.startPtX + dx;
+    let newY = dragState.startPtY + dy;
+
+    // Edge constraints: horizontal edges (top/bottom) only move horizontally (x),
+    // vertical edges (left/right) only move vertically (y)
+    if (isHorizontalEdge) {
+      newY = dragState.startPtY; // Lock Y
+    }
+    if (isVerticalEdge) {
+      newX = dragState.startPtX; // Lock X
+    }
+
+    // Clamp to viewport
+    newX = Math.max(0, Math.min(1, newX));
+    newY = Math.max(0, Math.min(1, newY));
+
+    setPoint(row, col, newX, newY);
     positionHandles();
     drawLines();
     applyTransform();
   }
 
-  function onDragEnd(e) {
+  function onDragEnd() {
     if (!dragState) return;
     dragState = null;
     document.removeEventListener("pointermove", onDragMove);
     document.removeEventListener("pointerup", onDragEnd);
     document.removeEventListener("pointercancel", onDragEnd);
     positionHandles();
-    saveCornersToLocalStorage();
+    saveToLocalStorage();
   }
 
-  // ── Edge (side) drag handling ──────────────────────────────────────────────
+  // ── Grid line drag (move entire row/column) ────────────────────────────────
 
-  function onEdgePointerDown(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const idx = Number(e.currentTarget.dataset.edgeIndex);
-    const edge = EDGE_DEFS[idx];
+  function onLinePointerDown(e) {
+    if (e.button !== 0) return; // Left click only — right is context menu
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const mx = e.clientX;
+    const my = e.clientY;
+    const rows = grid.ys.length;
+    const cols = grid.xs.length;
 
-    edgeDragState = {
-      edgeDef: edge,
-      startX: e.clientX,
-      startY: e.clientY,
-      startCorners: {
-        [edge.corners[0]]: { ...corners[edge.corners[0]] },
-        [edge.corners[1]]: { ...corners[edge.corners[1]] },
-      },
-    };
+    // Check interior horizontal lines (not edge rows 0 and last)
+    for (let row = 1; row < rows - 1; row++) {
+      // Approximate line Y from the average of all points on this row
+      let avgY = 0;
+      for (let col = 0; col < cols; col++) {
+        avgY += getPoint(row, col).y;
+      }
+      avgY = (avgY / cols) * vh;
+      if (Math.abs(my - avgY) < LINE_HIT_THRESHOLD) {
+        e.preventDefault();
+        e.stopPropagation();
+        const startPositions = [];
+        for (let col = 0; col < cols; col++) {
+          startPositions.push(getPoint(row, col));
+        }
+        lineDragState = {
+          axis: "horizontal",
+          lineIndex: row,
+          startY: my,
+          startPositions,
+        };
+        lineCanvas.style.cursor = "ns-resize";
+        lineCanvas.setPointerCapture(e.pointerId);
+        document.addEventListener("pointermove", onLineDragMove);
+        document.addEventListener("pointerup", onLineDragEnd);
+        document.addEventListener("pointercancel", onLineDragEnd);
+        return;
+      }
+    }
 
-    e.currentTarget.setPointerCapture(e.pointerId);
-    document.addEventListener("pointermove", onEdgeDragMove);
-    document.addEventListener("pointerup", onEdgeDragEnd);
-    document.addEventListener("pointercancel", onEdgeDragEnd);
+    // Check interior vertical lines (not edge cols 0 and last)
+    for (let col = 1; col < cols - 1; col++) {
+      let avgX = 0;
+      for (let row = 0; row < rows; row++) {
+        avgX += getPoint(row, col).x;
+      }
+      avgX = (avgX / rows) * vw;
+      if (Math.abs(mx - avgX) < LINE_HIT_THRESHOLD) {
+        e.preventDefault();
+        e.stopPropagation();
+        const startPositions = [];
+        for (let row = 0; row < rows; row++) {
+          startPositions.push(getPoint(row, col));
+        }
+        lineDragState = {
+          axis: "vertical",
+          lineIndex: col,
+          startX: mx,
+          startPositions,
+        };
+        lineCanvas.style.cursor = "ew-resize";
+        lineCanvas.setPointerCapture(e.pointerId);
+        document.addEventListener("pointermove", onLineDragMove);
+        document.addEventListener("pointerup", onLineDragEnd);
+        document.addEventListener("pointercancel", onLineDragEnd);
+        return;
+      }
+    }
   }
 
-  function onEdgeDragMove(e) {
-    if (!edgeDragState) return;
+  function onLineDragMove(e) {
+    if (!lineDragState) return;
     e.preventDefault();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const dx = ((e.clientX - edgeDragState.startX) / vw) * 100;
-    const dy = ((e.clientY - edgeDragState.startY) / vh) * 100;
-    // Left/right edges move only horizontally, top/bottom only vertically
-    const isVertical = edgeDragState.edgeDef.id === "left" || edgeDragState.edgeDef.id === "right";
-    for (const ck of edgeDragState.edgeDef.corners) {
-      const start = edgeDragState.startCorners[ck];
-      corners[ck].x = Math.max(0, Math.min(100, start.x + (isVertical ? dx : 0)));
-      corners[ck].y = Math.max(0, Math.min(100, start.y + (isVertical ? 0 : dy)));
+    const cols = grid.xs.length;
+    const rows = grid.ys.length;
+
+    if (lineDragState.axis === "horizontal") {
+      const dy = (e.clientY - lineDragState.startY) / vh;
+      const row = lineDragState.lineIndex;
+      for (let col = 0; col < cols; col++) {
+        const start = lineDragState.startPositions[col];
+        setPoint(row, col, start.x, Math.max(0, Math.min(1, start.y + dy)));
+      }
+    } else {
+      const dx = (e.clientX - lineDragState.startX) / vw;
+      const col = lineDragState.lineIndex;
+      for (let row = 0; row < rows; row++) {
+        const start = lineDragState.startPositions[row];
+        setPoint(row, col, Math.max(0, Math.min(1, start.x + dx)), start.y);
+      }
     }
+
     positionHandles();
     drawLines();
-    applyTransform();
   }
 
-  function onEdgeDragEnd() {
-    if (!edgeDragState) return;
-    edgeDragState = null;
-    document.removeEventListener("pointermove", onEdgeDragMove);
-    document.removeEventListener("pointerup", onEdgeDragEnd);
-    document.removeEventListener("pointercancel", onEdgeDragEnd);
-    positionHandles();
-    saveCornersToLocalStorage();
+  function onLineDragEnd() {
+    if (!lineDragState) return;
+    lineDragState = null;
+    if (lineCanvas) lineCanvas.style.cursor = "default";
+    document.removeEventListener("pointermove", onLineDragMove);
+    document.removeEventListener("pointerup", onLineDragEnd);
+    document.removeEventListener("pointercancel", onLineDragEnd);
+    saveToLocalStorage();
   }
 
-  // ── Arrow key fine-tuning ───────────────────────────────────────────────────
+  // ── Arrow key fine-tuning ──────────────────────────────────────────────────
 
   function onKeyDown(e) {
-    if (!handlesVisible) return;
+    if (!handlesVisible || !activeHandleKey) return;
 
     if (e.key === "Tab") {
       e.preventDefault();
-      activeCornerIndex = (activeCornerIndex + 1) % 4;
+      // Cycle through all handle keys
+      const rows = grid.ys.length;
+      const cols = grid.xs.length;
+      const parts = activeHandleKey.split("-").map(Number);
+      let row = parts[0];
+      let col = parts[1];
+      col++;
+      if (col >= cols) { col = 0; row++; }
+      if (row >= rows) { row = 0; }
+      activeHandleKey = `${row}-${col}`;
       positionHandles();
       return;
     }
@@ -468,544 +730,26 @@
     const step = e.shiftKey ? 10 : 1;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const key = CORNER_KEYS[activeCornerIndex];
-    corners[key].x += (dir[0] * step / vw) * 100;
-    corners[key].y += (dir[1] * step / vh) * 100;
-    corners[key].x = Math.max(0, Math.min(100, corners[key].x));
-    corners[key].y = Math.max(0, Math.min(100, corners[key].y));
+    const parts = activeHandleKey.split("-").map(Number);
+    const row = parts[0];
+    const col = parts[1];
+    const pt = getPoint(row, col);
+
+    pt.x += (dir[0] * step / vw);
+    pt.y += (dir[1] * step / vh);
+    pt.x = Math.max(0, Math.min(1, pt.x));
+    pt.y = Math.max(0, Math.min(1, pt.y));
+
+    setPoint(row, col, pt.x, pt.y);
     positionHandles();
     drawLines();
     applyTransform();
-    saveCornersToLocalStorage();
+    saveToLocalStorage();
   }
 
-  // ── Show / Hide ─────────────────────────────────────────────────────────────
+  // ── Context menu ───────────────────────────────────────────────────────────
 
-  function showHandles() {
-    if (handlesVisible) return;
-    handlesVisible = true;
-    createHandles();
-    document.addEventListener("keydown", onKeyDown);
-  }
-
-  function hideHandles() {
-    if (!handlesVisible) return;
-    handlesVisible = false;
-    removeHandles();
-    document.removeEventListener("keydown", onKeyDown);
-  }
-
-  // ── Persistence (localStorage — per-client, not global) ─────────────────────
-
-  const LOCAL_STORAGE_KEY = "tt-beamer.projection-mapping.corners";
-
-  function loadCornersFromLocalStorage() {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") return;
-      for (const k of CORNER_KEYS) {
-        if (parsed[k] && typeof parsed[k].x === "number" && typeof parsed[k].y === "number") {
-          corners[k] = { x: parsed[k].x, y: parsed[k].y };
-        }
-      }
-    } catch {
-      // ignore corrupt localStorage
-    }
-  }
-
-  function saveCornersToLocalStorage() {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(deepCloneCorners(corners)));
-    } catch {
-      // ignore storage errors
-    }
-  }
-
-  // Legacy compat — loadCornersFromConfig still works if called
-  function loadCornersFromConfig(globalDefaults) {
-    const pm = globalDefaults?.projectionMapping;
-    if (!pm || !pm.corners) return;
-    for (const k of CORNER_KEYS) {
-      if (pm.corners[k] && typeof pm.corners[k].x === "number" && typeof pm.corners[k].y === "number") {
-        corners[k] = { x: pm.corners[k].x, y: pm.corners[k].y };
-      }
-    }
-  }
-
-  function getCornersForPersistence() {
-    return deepCloneCorners(corners);
-  }
-
-  function resetCorners() {
-    corners = deepCloneCorners(DEFAULT_CORNERS);
-    applyTransform();
-    saveCornersToLocalStorage();
-    if (handlesVisible) {
-      positionHandles();
-      drawLines();
-    }
-  }
-
-  // ── Grid Mesh Warp (Phase 19-3) ─────────────────────────────────────────────
-  //
-  // Variable-density grid mesh warp that deforms canvas content BEFORE the
-  // CSS matrix3d perspective transform is applied.  Works via an offscreen
-  // canvas: all animation rendering goes there, then each grid cell is copied
-  // onto the visible canvas with per-cell drawImage mapping.
-
-  const GRID_LS_KEY = "tt-beamer.projection-grid";
-
-  const DEFAULT_GRID = {
-    horizontalLines: [0.25, 0.5, 0.75],
-    verticalLines:   [0.25, 0.5, 0.75],
-    displacements:   {},                    // key "row-col" -> { dx, dy }
-  };
-
-  let grid = deepCloneGrid(DEFAULT_GRID);
-  let offscreenCanvas = null;
-  let offscreenCtx = null;
-  let gridHandleElements = [];       // DOM elements for grid intersection handles
-  let gridLineCanvas = null;         // canvas overlay for grid lines
-  let gridLineCtx = null;
-  let gridHandlesVisible = false;
-  let gridDragState = null;          // { row, col, startX, startY, startDx, startDy }
-  let gridContextMenu = null;        // context menu DOM element
-
-  function deepCloneGrid(g) {
-    const displacements = {};
-    for (const k of Object.keys(g.displacements)) {
-      displacements[k] = { dx: g.displacements[k].dx, dy: g.displacements[k].dy };
-    }
-    return {
-      horizontalLines: g.horizontalLines.slice(),
-      verticalLines:   g.verticalLines.slice(),
-      displacements,
-    };
-  }
-
-  /** Number of grid rows/cols (includes edges). */
-  function gridRows() { return grid.horizontalLines.length + 2; }
-  function gridCols() { return grid.verticalLines.length + 2; }
-
-  /** Get the normalized X positions for all columns (0 = left edge, 1 = right edge). */
-  function gridXPositions() { return [0, ...grid.verticalLines, 1]; }
-  /** Get the normalized Y positions for all rows. */
-  function gridYPositions() { return [0, ...grid.horizontalLines, 1]; }
-
-  /** Get displacement for a grid point (row, col). */
-  function getDisplacement(row, col) {
-    const d = grid.displacements[`${row}-${col}`];
-    return d ? { dx: d.dx, dy: d.dy } : { dx: 0, dy: 0 };
-  }
-
-  /** Set displacement for a grid point. */
-  function setDisplacement(row, col, dx, dy) {
-    grid.displacements[`${row}-${col}`] = { dx, dy };
-  }
-
-  /** Check whether any grid point has a non-zero displacement. */
-  function hasNonZeroDisplacements() {
-    for (const k of Object.keys(grid.displacements)) {
-      const d = grid.displacements[k];
-      if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) return true;
-    }
-    return false;
-  }
-
-  // ── Offscreen canvas lifecycle ───────────────────────────────────────────────
-
-  /**
-   * Called at the start of each draw frame.  If the grid warp is active
-   * (we're on /output and have non-zero displacements) this returns an
-   * offscreen canvas + its 2d context.  The caller should render to this
-   * canvas instead of the visible one.  Returns null when warp is inactive.
-   */
-  function beginGridWarpFrame(visibleCanvas) {
-    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return null;
-    if (!hasNonZeroDisplacements()) return null;
-
-    const w = visibleCanvas.width;
-    const h = visibleCanvas.height;
-
-    if (!offscreenCanvas) {
-      offscreenCanvas = document.createElement("canvas");
-      offscreenCtx = offscreenCanvas.getContext("2d");
-    }
-    if (offscreenCanvas.width !== w || offscreenCanvas.height !== h) {
-      offscreenCanvas.width = w;
-      offscreenCanvas.height = h;
-    }
-    offscreenCtx.clearRect(0, 0, w, h);
-    return { canvas: offscreenCanvas, ctx: offscreenCtx };
-  }
-
-  /**
-   * Called after drawing completes.  Copies the offscreen canvas content
-   * onto the visible canvas through the deformed grid mesh.
-   */
-  function endGridWarpFrame(visibleCanvas, visibleCtx) {
-    if (!offscreenCanvas) return;
-
-    const w = visibleCanvas.width;
-    const h = visibleCanvas.height;
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-
-    visibleCtx.clearRect(0, 0, w, h);
-
-    for (let row = 0; row < ys.length - 1; row++) {
-      for (let col = 0; col < xs.length - 1; col++) {
-        // Source rectangle: evenly spaced in offscreen canvas
-        const srcX = xs[col] * w;
-        const srcY = ys[row] * h;
-        const srcW = (xs[col + 1] - xs[col]) * w;
-        const srcH = (ys[row + 1] - ys[row]) * h;
-
-        if (srcW < 0.5 || srcH < 0.5) continue;
-
-        // Destination: displaced grid positions
-        const tl = getDisplacement(row, col);
-        const tr = getDisplacement(row, col + 1);
-        const bl = getDisplacement(row + 1, col);
-        const br = getDisplacement(row + 1, col + 1);
-
-        const dstX = (xs[col] + tl.dx) * w;
-        const dstY = (ys[row] + tl.dy) * h;
-        // Use average of corner displacements for width/height
-        const dstRight = (xs[col + 1] + tr.dx) * w;
-        const dstBottom = (ys[row + 1] + bl.dy) * h;
-        const dstW = dstRight - dstX;
-        const dstH = dstBottom - dstY;
-
-        if (dstW < 0.5 || dstH < 0.5) continue;
-
-        visibleCtx.drawImage(
-          offscreenCanvas,
-          srcX, srcY, srcW, srcH,
-          dstX, dstY, dstW, dstH,
-        );
-      }
-    }
-  }
-
-  // ── Grid overlay UI (Phase 19-3) ─────────────────────────────────────────────
-
-  function createGridOverlay() {
-    if (gridHandlesVisible) return;
-    gridHandlesVisible = true;
-
-    // Grid line canvas — pointer-events enabled for line dragging
-    gridLineCanvas = document.createElement("canvas");
-    gridLineCanvas.id = "projection-grid-line-canvas";
-    gridLineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:auto;z-index:9997;cursor:default;";
-    document.body.appendChild(gridLineCanvas);
-    gridLineCtx = gridLineCanvas.getContext("2d");
-
-    gridLineCanvas.addEventListener("pointerdown", onGridLinePointerDown);
-    rebuildGridHandles();
-    drawGridLines();
-  }
-
-  function removeGridOverlay() {
-    if (!gridHandlesVisible) return;
-    gridHandlesVisible = false;
-    for (const el of gridHandleElements) {
-      el.removeEventListener("pointerdown", onGridHandlePointerDown);
-      el.remove();
-    }
-    gridHandleElements = [];
-    if (gridLineCanvas) {
-      gridLineCanvas.removeEventListener("pointerdown", onGridLinePointerDown);
-      gridLineCanvas.remove();
-      gridLineCanvas = null;
-      gridLineCtx = null;
-    }
-    dismissGridContextMenu();
-  }
-
-  function rebuildGridHandles() {
-    // Remove old handles
-    for (const el of gridHandleElements) {
-      el.removeEventListener("pointerdown", onGridHandlePointerDown);
-      el.remove();
-    }
-    gridHandleElements = [];
-
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-    const rows = ys.length;
-    const cols = xs.length;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
-        if (isCorner) continue; // 4-corner system handles those
-
-        const el = document.createElement("div");
-        el.className = "projection-grid-handle";
-        el.dataset.gridRow = String(row);
-        el.dataset.gridCol = String(col);
-        const isEdge = row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
-        el.style.cssText = `
-          position: fixed;
-          width: 16px; height: 16px;
-          border-radius: 50%;
-          background: ${isEdge ? "rgba(100, 200, 255, 0.85)" : "rgba(0, 255, 200, 0.85)"};
-          border: 2px solid rgba(255, 255, 255, 0.9);
-          cursor: ${isEdge ? (row === 0 || row === rows - 1 ? "ew-resize" : "ns-resize") : "move"};
-          z-index: 9999;
-          user-select: none;
-          -webkit-user-select: none;
-          touch-action: none;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.5);
-          transform: translate(-50%, -50%);
-        `;
-        el.addEventListener("pointerdown", onGridHandlePointerDown);
-        document.body.appendChild(el);
-        gridHandleElements.push(el);
-      }
-    }
-    positionGridHandles();
-  }
-
-  function positionGridHandles() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-    let idx = 0;
-    const rows = ys.length;
-    const cols = xs.length;
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
-        if (isCorner) continue;
-
-        const d = getDisplacement(row, col);
-        const px = (xs[col] + d.dx) * vw;
-        const py = (ys[row] + d.dy) * vh;
-        gridHandleElements[idx].style.left = `${px}px`;
-        gridHandleElements[idx].style.top = `${py}px`;
-        idx++;
-      }
-    }
-  }
-
-  function drawGridLines() {
-    if (!gridLineCanvas || !gridLineCtx) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const dpr = window.devicePixelRatio || 1;
-    gridLineCanvas.width = vw * dpr;
-    gridLineCanvas.height = vh * dpr;
-    gridLineCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    gridLineCtx.clearRect(0, 0, vw, vh);
-
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-    const rows = ys.length;
-    const cols = xs.length;
-
-    gridLineCtx.strokeStyle = "rgba(0, 220, 180, 0.45)";
-    gridLineCtx.lineWidth = 1;
-
-    // Draw horizontal lines
-    for (let row = 0; row < rows; row++) {
-      gridLineCtx.beginPath();
-      for (let col = 0; col < cols; col++) {
-        const d = getDisplacement(row, col);
-        const px = (xs[col] + d.dx) * vw;
-        const py = (ys[row] + d.dy) * vh;
-        if (col === 0) gridLineCtx.moveTo(px, py);
-        else gridLineCtx.lineTo(px, py);
-      }
-      gridLineCtx.stroke();
-    }
-
-    // Draw vertical lines
-    for (let col = 0; col < cols; col++) {
-      gridLineCtx.beginPath();
-      for (let row = 0; row < rows; row++) {
-        const d = getDisplacement(row, col);
-        const px = (xs[col] + d.dx) * vw;
-        const py = (ys[row] + d.dy) * vh;
-        if (row === 0) gridLineCtx.moveTo(px, py);
-        else gridLineCtx.lineTo(px, py);
-      }
-      gridLineCtx.stroke();
-    }
-  }
-
-  // ── Grid handle drag ─────────────────────────────────────────────────────────
-
-  function onGridHandlePointerDown(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const row = Number(e.currentTarget.dataset.gridRow);
-    const col = Number(e.currentTarget.dataset.gridCol);
-    const d = getDisplacement(row, col);
-
-    gridDragState = {
-      row, col,
-      startX: e.clientX,
-      startY: e.clientY,
-      startDx: d.dx,
-      startDy: d.dy,
-    };
-
-    e.currentTarget.setPointerCapture(e.pointerId);
-    document.addEventListener("pointermove", onGridDragMove);
-    document.addEventListener("pointerup", onGridDragEnd);
-    document.addEventListener("pointercancel", onGridDragEnd);
-  }
-
-  function onGridDragMove(e) {
-    if (!gridDragState) return;
-    e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const dx = (e.clientX - gridDragState.startX) / vw;
-    const dy = (e.clientY - gridDragState.startY) / vh;
-
-    const rows = gridRows();
-    const cols = gridCols();
-    const row = gridDragState.row;
-    const col = gridDragState.col;
-    const isTopEdge = row === 0;
-    const isBottomEdge = row === rows - 1;
-    const isLeftEdge = col === 0;
-    const isRightEdge = col === cols - 1;
-
-    let newDx = gridDragState.startDx + dx;
-    let newDy = gridDragState.startDy + dy;
-
-    // Edge constraints: top/bottom edges move only vertically,
-    // left/right edges move only horizontally
-    if (isTopEdge || isBottomEdge) {
-      newDx = gridDragState.startDx; // lock horizontal — only move up/down
-    }
-    if (isLeftEdge || isRightEdge) {
-      newDy = gridDragState.startDy; // lock vertical — only move left/right
-    }
-
-    setDisplacement(row, col, newDx, newDy);
-    positionGridHandles();
-    drawGridLines();
-  }
-
-  function onGridDragEnd() {
-    if (!gridDragState) return;
-    gridDragState = null;
-    document.removeEventListener("pointermove", onGridDragMove);
-    document.removeEventListener("pointerup", onGridDragEnd);
-    document.removeEventListener("pointercancel", onGridDragEnd);
-    saveGridToLocalStorage();
-  }
-
-  // ── Grid line drag (move entire row/column) ─────────────────────────────────
-
-  let gridLineDragState = null;
-  const LINE_HIT_THRESHOLD = 12; // px
-
-  function onGridLinePointerDown(e) {
-    if (e.button !== 0) return; // only left click, right click is context menu
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const mx = e.clientX;
-    const my = e.clientY;
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-
-    // Check interior horizontal lines (not edges 0 and last)
-    for (let row = 1; row < ys.length - 1; row++) {
-      const lineY = ys[row] * vh;
-      if (Math.abs(my - lineY) < LINE_HIT_THRESHOLD) {
-        e.preventDefault();
-        e.stopPropagation();
-        gridLineDragState = {
-          axis: "horizontal",
-          lineIndex: row,
-          startY: my,
-          startPositions: xs.map((_, col) => getDisplacement(row, col)),
-        };
-        gridLineCanvas.style.cursor = "ns-resize";
-        gridLineCanvas.setPointerCapture(e.pointerId);
-        document.addEventListener("pointermove", onGridLineDragMove);
-        document.addEventListener("pointerup", onGridLineDragEnd);
-        document.addEventListener("pointercancel", onGridLineDragEnd);
-        return;
-      }
-    }
-
-    // Check interior vertical lines (not edges 0 and last)
-    for (let col = 1; col < xs.length - 1; col++) {
-      const lineX = xs[col] * vw;
-      if (Math.abs(mx - lineX) < LINE_HIT_THRESHOLD) {
-        e.preventDefault();
-        e.stopPropagation();
-        gridLineDragState = {
-          axis: "vertical",
-          lineIndex: col,
-          startX: mx,
-          startPositions: ys.map((_, row) => getDisplacement(row, col)),
-        };
-        gridLineCanvas.style.cursor = "ew-resize";
-        gridLineCanvas.setPointerCapture(e.pointerId);
-        document.addEventListener("pointermove", onGridLineDragMove);
-        document.addEventListener("pointerup", onGridLineDragEnd);
-        document.addEventListener("pointercancel", onGridLineDragEnd);
-        return;
-      }
-    }
-  }
-
-  function onGridLineDragMove(e) {
-    if (!gridLineDragState) return;
-    e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const xs = gridXPositions();
-    const ys = gridYPositions();
-
-    if (gridLineDragState.axis === "horizontal") {
-      const dy = (e.clientY - gridLineDragState.startY) / vh;
-      const row = gridLineDragState.lineIndex;
-      for (let col = 0; col < xs.length; col++) {
-        const start = gridLineDragState.startPositions[col];
-        // Horizontal line: move all points on this row vertically
-        setDisplacement(row, col, start.dx, start.dy + dy);
-      }
-    } else {
-      const dx = (e.clientX - gridLineDragState.startX) / vw;
-      const col = gridLineDragState.lineIndex;
-      for (let row = 0; row < ys.length; row++) {
-        const start = gridLineDragState.startPositions[row];
-        // Vertical line: move all points on this column horizontally
-        setDisplacement(row, col, start.dx + dx, start.dy);
-      }
-    }
-    positionGridHandles();
-    drawGridLines();
-  }
-
-  function onGridLineDragEnd() {
-    if (!gridLineDragState) return;
-    gridLineDragState = null;
-    gridLineCanvas.style.cursor = "default";
-    document.removeEventListener("pointermove", onGridLineDragMove);
-    document.removeEventListener("pointerup", onGridLineDragEnd);
-    document.removeEventListener("pointercancel", onGridLineDragEnd);
-    saveGridToLocalStorage();
-  }
-
-  // ── Grid context menu (Phase 19-3) ────────────────────────────────────────────
-
-  function onGridContextMenu(e) {
-    if (!gridHandlesVisible) return;
-    if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+  function onContextMenu(e) {
     e.preventDefault();
     e.stopPropagation();
 
@@ -1018,35 +762,53 @@
     let nearHLine = -1;
     let nearVLine = -1;
 
-    for (let i = 0; i < grid.horizontalLines.length; i++) {
-      if (Math.abs(grid.horizontalLines[i] - normY) < nearLineThreshold) {
+    // Check interior horizontal lines (indices 1..length-2 in ys)
+    for (let i = 1; i < grid.ys.length - 1; i++) {
+      if (Math.abs(grid.ys[i] - normY) < nearLineThreshold) {
         nearHLine = i;
         break;
       }
     }
-    for (let i = 0; i < grid.verticalLines.length; i++) {
-      if (Math.abs(grid.verticalLines[i] - normX) < nearLineThreshold) {
+    // Check interior vertical lines
+    for (let i = 1; i < grid.xs.length - 1; i++) {
+      if (Math.abs(grid.xs[i] - normX) < nearLineThreshold) {
         nearVLine = i;
         break;
       }
     }
 
     const items = [];
-    if (nearHLine >= 0 && grid.horizontalLines.length > 1) {
-      items.push({ label: "Remove this horizontal line", action: () => removeHorizontalLine(nearHLine) });
+    if (nearHLine >= 0 && grid.ys.length > 3) {
+      // Can remove if more than edge lines + 1 interior line
+      items.push({
+        label: "Remove this horizontal line",
+        action: () => removeHorizontalLine(nearHLine),
+      });
     }
-    if (nearVLine >= 0 && grid.verticalLines.length > 1) {
-      items.push({ label: "Remove this vertical line", action: () => removeVerticalLine(nearVLine) });
+    if (nearVLine >= 0 && grid.xs.length > 3) {
+      items.push({
+        label: "Remove this vertical line",
+        action: () => removeVerticalLine(nearVLine),
+      });
     }
-    items.push({ label: "Add horizontal line here", action: () => addHorizontalLine(normY) });
-    items.push({ label: "Add vertical line here", action: () => addVerticalLine(normX) });
-    items.push({ label: "Reset grid", action: () => resetGrid() });
+    items.push({
+      label: "Add horizontal line here",
+      action: () => addHorizontalLine(normY),
+    });
+    items.push({
+      label: "Add vertical line here",
+      action: () => addVerticalLine(normX),
+    });
+    items.push({
+      label: "Reset all",
+      action: () => resetGrid(),
+    });
 
-    showGridContextMenu(e.clientX, e.clientY, items);
+    showContextMenu(e.clientX, e.clientY, items);
   }
 
-  function showGridContextMenu(x, y, items) {
-    dismissGridContextMenu();
+  function showContextMenu(x, y, items) {
+    dismissContextMenu();
     const menu = document.createElement("div");
     menu.className = "board-context-menu";
     menu.style.left = `${x}px`;
@@ -1056,16 +818,16 @@
       const btn = document.createElement("button");
       btn.className = "board-context-menu-item";
       btn.textContent = item.label;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        dismissGridContextMenu();
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        dismissContextMenu();
         item.action();
       });
       menu.appendChild(btn);
     }
 
     document.body.appendChild(menu);
-    gridContextMenu = menu;
+    contextMenu = menu;
 
     // Ensure menu stays in viewport
     requestAnimationFrame(() => {
@@ -1078,116 +840,206 @@
       }
     });
 
-    // Dismiss on next click outside
     setTimeout(() => {
-      document.addEventListener("pointerdown", dismissGridContextMenuOnOutsideClick);
+      document.addEventListener("pointerdown", dismissContextMenuOnOutside);
     }, 0);
   }
 
-  function dismissGridContextMenuOnOutsideClick(e) {
-    if (gridContextMenu && !gridContextMenu.contains(e.target)) {
-      dismissGridContextMenu();
+  function dismissContextMenuOnOutside(e) {
+    if (contextMenu && !contextMenu.contains(e.target)) {
+      dismissContextMenu();
     }
   }
 
-  function dismissGridContextMenu() {
-    if (gridContextMenu) {
-      gridContextMenu.remove();
-      gridContextMenu = null;
+  function dismissContextMenu() {
+    if (contextMenu) {
+      contextMenu.remove();
+      contextMenu = null;
     }
-    document.removeEventListener("pointerdown", dismissGridContextMenuOnOutsideClick);
+    document.removeEventListener("pointerdown", dismissContextMenuOnOutside);
   }
 
-  // ── Grid line add/remove ──────────────────────────────────────────────────────
+  // ── Grid line add/remove ───────────────────────────────────────────────────
 
   function addHorizontalLine(normY) {
-    // Clamp and avoid duplicates
     normY = Math.max(0.02, Math.min(0.98, normY));
-    grid.horizontalLines.push(normY);
-    grid.horizontalLines.sort((a, b) => a - b);
-    // Rebuild displacements map with shifted row indices
-    rebuildDisplacementsAfterGridChange();
-    saveGridToLocalStorage();
-    if (gridHandlesVisible) {
-      rebuildGridHandles();
-      drawGridLines();
+    // Insert into ys array (which always includes 0 and 1)
+    const newYs = grid.ys.slice();
+    newYs.push(normY);
+    newYs.sort((a, b) => a - b);
+    // Deduplicate
+    grid.ys = [...new Set(newYs)];
+    // Clear displacements — grid topology changed
+    grid.points = {};
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      drawLines();
     }
   }
 
   function addVerticalLine(normX) {
     normX = Math.max(0.02, Math.min(0.98, normX));
-    grid.verticalLines.push(normX);
-    grid.verticalLines.sort((a, b) => a - b);
-    rebuildDisplacementsAfterGridChange();
-    saveGridToLocalStorage();
-    if (gridHandlesVisible) {
-      rebuildGridHandles();
-      drawGridLines();
+    const newXs = grid.xs.slice();
+    newXs.push(normX);
+    newXs.sort((a, b) => a - b);
+    grid.xs = [...new Set(newXs)];
+    grid.points = {};
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      drawLines();
     }
   }
 
   function removeHorizontalLine(index) {
-    if (grid.horizontalLines.length <= 1) return;
-    grid.horizontalLines.splice(index, 1);
-    rebuildDisplacementsAfterGridChange();
-    saveGridToLocalStorage();
-    if (gridHandlesVisible) {
-      rebuildGridHandles();
-      drawGridLines();
+    if (grid.ys.length <= 3) return; // Need at least edges + 1
+    // Don't remove first or last (edges)
+    if (index === 0 || index === grid.ys.length - 1) return;
+    grid.ys.splice(index, 1);
+    grid.points = {};
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      drawLines();
     }
   }
 
   function removeVerticalLine(index) {
-    if (grid.verticalLines.length <= 1) return;
-    grid.verticalLines.splice(index, 1);
-    rebuildDisplacementsAfterGridChange();
-    saveGridToLocalStorage();
-    if (gridHandlesVisible) {
-      rebuildGridHandles();
-      drawGridLines();
+    if (grid.xs.length <= 3) return;
+    if (index === 0 || index === grid.xs.length - 1) return;
+    grid.xs.splice(index, 1);
+    grid.points = {};
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      drawLines();
     }
-  }
-
-  /**
-   * After adding/removing grid lines the row/col indices change.
-   * Clear all displacements — they're small adjustments that won't map
-   * meaningfully to a different grid topology.
-   */
-  function rebuildDisplacementsAfterGridChange() {
-    grid.displacements = {};
   }
 
   function resetGrid() {
-    grid = deepCloneGrid(DEFAULT_GRID);
-    saveGridToLocalStorage();
-    if (gridHandlesVisible) {
-      rebuildGridHandles();
-      drawGridLines();
+    grid.xs = DEFAULT_XS.slice();
+    grid.ys = DEFAULT_YS.slice();
+    grid.points = {};
+    applyTransform();
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      drawLines();
     }
   }
 
-  // ── Grid persistence ──────────────────────────────────────────────────────────
+  // ── Show / Hide (unified — everything in one go) ───────────────────────────
 
-  function loadGridFromLocalStorage() {
+  function showHandles() {
+    if (handlesVisible) return;
+    createHandles();
+    document.addEventListener("keydown", onKeyDown);
+    // Set initial active handle to first corner
+    activeHandleKey = "0-0";
+  }
+
+  function hideHandles() {
+    if (!handlesVisible) return;
+    removeHandles();
+    document.removeEventListener("keydown", onKeyDown);
+  }
+
+  // ── Align mode integration ─────────────────────────────────────────────────
+
+  function onAlignModeChange(enabled) {
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    if (enabled) {
+      applyTransform();
+      showHandles();
+    } else {
+      hideHandles();
+      // Keep transform applied — calibration persists
+      saveToLocalStorage();
+    }
+  }
+
+  // ── Resize handling ────────────────────────────────────────────────────────
+
+  function onWindowResize() {
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    applyTransform();
+    if (handlesVisible) {
+      positionHandles();
+      drawLines();
+    }
+  }
+
+  // ── Persistence ────────────────────────────────────────────────────────────
+
+  const LS_KEY_V2 = "tt-beamer.projection-mapping-v2";
+  const LS_KEY_OLD = "tt-beamer.projection-mapping.corners";
+
+  function saveToLocalStorage() {
     try {
-      const raw = localStorage.getItem(GRID_LS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") return;
-      if (Array.isArray(parsed.horizontalLines) && parsed.horizontalLines.length >= 1) {
-        grid.horizontalLines = parsed.horizontalLines.filter((v) => typeof v === "number" && v > 0 && v < 1);
-        grid.horizontalLines.sort((a, b) => a - b);
-      }
-      if (Array.isArray(parsed.verticalLines) && parsed.verticalLines.length >= 1) {
-        grid.verticalLines = parsed.verticalLines.filter((v) => typeof v === "number" && v > 0 && v < 1);
-        grid.verticalLines.sort((a, b) => a - b);
-      }
-      if (parsed.displacements && typeof parsed.displacements === "object") {
-        for (const k of Object.keys(parsed.displacements)) {
-          const d = parsed.displacements[k];
-          if (d && typeof d.dx === "number" && typeof d.dy === "number") {
-            grid.displacements[k] = { dx: d.dx, dy: d.dy };
+      localStorage.setItem(LS_KEY_V2, JSON.stringify({
+        xs: grid.xs,
+        ys: grid.ys,
+        points: grid.points,
+      }));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  function loadFromLocalStorage() {
+    try {
+      // Try new key first
+      const rawV2 = localStorage.getItem(LS_KEY_V2);
+      if (rawV2) {
+        const parsed = JSON.parse(rawV2);
+        if (parsed && typeof parsed === "object") {
+          if (Array.isArray(parsed.xs) && parsed.xs.length >= 2) {
+            grid.xs = parsed.xs.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
+            grid.xs.sort((a, b) => a - b);
+            if (grid.xs[0] !== 0) grid.xs.unshift(0);
+            if (grid.xs[grid.xs.length - 1] !== 1) grid.xs.push(1);
           }
+          if (Array.isArray(parsed.ys) && parsed.ys.length >= 2) {
+            grid.ys = parsed.ys.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
+            grid.ys.sort((a, b) => a - b);
+            if (grid.ys[0] !== 0) grid.ys.unshift(0);
+            if (grid.ys[grid.ys.length - 1] !== 1) grid.ys.push(1);
+          }
+          if (parsed.points && typeof parsed.points === "object") {
+            for (const k of Object.keys(parsed.points)) {
+              const p = parsed.points[k];
+              if (p && typeof p.x === "number" && typeof p.y === "number") {
+                grid.points[k] = { x: p.x, y: p.y };
+              }
+            }
+          }
+          return; // Loaded v2 successfully
+        }
+      }
+
+      // Fallback: migrate from old 4-corner key
+      const rawOld = localStorage.getItem(LS_KEY_OLD);
+      if (rawOld) {
+        const parsed = JSON.parse(rawOld);
+        if (parsed && typeof parsed === "object") {
+          const lastRow = grid.ys.length - 1;
+          const lastCol = grid.xs.length - 1;
+          // Old format: { topLeft: {x,y}, topRight: {x,y}, ... } where x,y are 0-100
+          if (parsed.topLeft && typeof parsed.topLeft.x === "number") {
+            setPoint(0, 0, parsed.topLeft.x / 100, parsed.topLeft.y / 100);
+          }
+          if (parsed.topRight && typeof parsed.topRight.x === "number") {
+            setPoint(0, lastCol, parsed.topRight.x / 100, parsed.topRight.y / 100);
+          }
+          if (parsed.bottomRight && typeof parsed.bottomRight.x === "number") {
+            setPoint(lastRow, lastCol, parsed.bottomRight.x / 100, parsed.bottomRight.y / 100);
+          }
+          if (parsed.bottomLeft && typeof parsed.bottomLeft.x === "number") {
+            setPoint(lastRow, 0, parsed.bottomLeft.x / 100, parsed.bottomLeft.y / 100);
+          }
+          // Save as v2 immediately
+          saveToLocalStorage();
         }
       }
     } catch {
@@ -1195,75 +1047,62 @@
     }
   }
 
-  function saveGridToLocalStorage() {
-    try {
-      localStorage.setItem(GRID_LS_KEY, JSON.stringify({
-        horizontalLines: grid.horizontalLines,
-        verticalLines:   grid.verticalLines,
-        displacements:   grid.displacements,
-      }));
-    } catch {
-      // ignore storage errors
-    }
+  // ── Legacy compat ──────────────────────────────────────────────────────────
+
+  function getCorners() {
+    const lastRow = grid.ys.length - 1;
+    const lastCol = grid.xs.length - 1;
+    const tl = getPoint(0, 0);
+    const tr = getPoint(0, lastCol);
+    const br = getPoint(lastRow, lastCol);
+    const bl = getPoint(lastRow, 0);
+    return {
+      topLeft:     { x: tl.x * 100, y: tl.y * 100 },
+      topRight:    { x: tr.x * 100, y: tr.y * 100 },
+      bottomRight: { x: br.x * 100, y: br.y * 100 },
+      bottomLeft:  { x: bl.x * 100, y: bl.y * 100 },
+    };
   }
 
-  // ── Align mode integration ──────────────────────────────────────────────────
-
-  function onAlignModeChange(enabled) {
-    if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    if (enabled) {
-      applyTransform();
-      showHandles();
-      createGridOverlay();
-      document.addEventListener("contextmenu", onGridContextMenu);
-    } else {
-      hideHandles();
-      removeGridOverlay();
-      document.removeEventListener("contextmenu", onGridContextMenu);
-      // Keep transform applied — calibration persists
-      // Save corners
-      saveCorners();
-    }
+  function getCornersForPersistence() {
+    return getCorners();
   }
 
-  function saveCorners() {
-    saveCornersToLocalStorage();
+  function loadCornersFromConfig(_globalDefaults) {
+    // Legacy no-op — persistence is now via localStorage only
   }
 
-  // ── Resize handling ─────────────────────────────────────────────────────────
-
-  function onWindowResize() {
-    if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    applyTransform();
-    if (handlesVisible) {
-      positionHandles();
-      drawLines();
-    }
-    if (gridHandlesVisible) {
-      positionGridHandles();
-      drawGridLines();
-    }
+  function resetCorners() {
+    resetGrid();
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  function init(dependencies) {
+    ctx = dependencies;
+    loadFromLocalStorage();
+  }
+
+  // ── Public API ─────────────────────────────────────────────────────────────
 
   window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING = {
     init,
     applyTransform,
     showHandles,
     hideHandles,
-    loadCornersFromConfig,
-    getCornersForPersistence,
-    resetCorners,
     onAlignModeChange,
     onWindowResize,
-    getCorners: () => deepCloneCorners(corners),
-    getActiveCornerIndex: () => activeCornerIndex,
+    resetCorners,
+    loadCornersFromConfig,
+    getCornersForPersistence,
+    postDrawMeshWarp,
+    getCorners,
     CORNER_KEYS,
-    // Phase 19-3: grid mesh warp
-    beginGridWarpFrame,
-    endGridWarpFrame,
-    getGrid: () => deepCloneGrid(grid),
+    // Legacy compat — grid warp is now post-draw, no begin/end needed.
+    // These are kept so nothing crashes if called.
+    beginGridWarpFrame: () => null,
+    endGridWarpFrame: () => {},
+    getGrid: () => ({ xs: grid.xs.slice(), ys: grid.ys.slice(), points: { ...grid.points } }),
     resetGrid,
   };
 })();
