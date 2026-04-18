@@ -720,6 +720,31 @@
 
     renderPolygonEditorHandles();
     renderShipPolygonEditorHandles();
+    // Phase 19: render Play Area boundaries (mask only, no handles) during
+    // align mode on /output so the operator can see projection boundaries.
+    renderAlignModePlayAreaOverlay();
+  }
+
+  function renderAlignModePlayAreaOverlay() {
+    const state = ctx.state;
+    // Only render on /output when align mode is active
+    if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL || !state.alignMode) {
+      return;
+    }
+    const allAreas = ctx.getPlayAreas(state.boardId);
+    if (!allAreas || allAreas.length === 0) {
+      return;
+    }
+    for (const area of allAreas) {
+      const areaPoints = ctx.normalizeShipPolygon(area?.polygon).map(([x, y]) => [x * 1000, y * 1000]);
+      if (areaPoints.length < 3) {
+        continue;
+      }
+      const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      maskPolygon.classList.add("ship-zone-mask", "align-mode-play-area");
+      maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+      ctx.roomOverlay.append(maskPolygon);
+    }
   }
 
   window.TT_BEAMER_RUNTIME_POLYGON_EDITOR = {

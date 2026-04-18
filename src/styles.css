@@ -117,6 +117,16 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   pointer-events: auto;
 }
 
+/* Phase 19: Play Area boundaries shown during align mode on /output */
+.align-mode-play-area {
+  fill: none;
+  stroke: rgba(130, 120, 255, 0.85);
+  stroke-width: 2.5;
+  stroke-dasharray: 12 6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay) {
   display: none !important;
 }
