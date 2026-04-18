@@ -696,13 +696,14 @@
     if (gridHandlesVisible) return;
     gridHandlesVisible = true;
 
-    // Grid line canvas
+    // Grid line canvas — pointer-events enabled for line dragging
     gridLineCanvas = document.createElement("canvas");
     gridLineCanvas.id = "projection-grid-line-canvas";
-    gridLineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9997;";
+    gridLineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:auto;z-index:9997;cursor:default;";
     document.body.appendChild(gridLineCanvas);
     gridLineCtx = gridLineCanvas.getContext("2d");
 
+    gridLineCanvas.addEventListener("pointerdown", onGridLinePointerDown);
     rebuildGridHandles();
     drawGridLines();
   }
@@ -716,6 +717,7 @@
     }
     gridHandleElements = [];
     if (gridLineCanvas) {
+      gridLineCanvas.removeEventListener("pointerdown", onGridLinePointerDown);
       gridLineCanvas.remove();
       gridLineCanvas = null;
       gridLineCtx = null;
@@ -880,13 +882,13 @@
     let newDx = gridDragState.startDx + dx;
     let newDy = gridDragState.startDy + dy;
 
-    // Edge constraints: top/bottom edges move only horizontally,
-    // left/right edges move only vertically
+    // Edge constraints: top/bottom edges move only vertically,
+    // left/right edges move only horizontally
     if (isTopEdge || isBottomEdge) {
-      newDy = gridDragState.startDy; // lock vertical
+      newDx = gridDragState.startDx; // lock horizontal — only move up/down
     }
     if (isLeftEdge || isRightEdge) {
-      newDx = gridDragState.startDx; // lock horizontal
+      newDy = gridDragState.startDy; // lock vertical — only move left/right
     }
 
     setDisplacement(row, col, newDx, newDy);
@@ -900,6 +902,102 @@
     document.removeEventListener("pointermove", onGridDragMove);
     document.removeEventListener("pointerup", onGridDragEnd);
     document.removeEventListener("pointercancel", onGridDragEnd);
+    saveGridToLocalStorage();
+  }
+
+  // ── Grid line drag (move entire row/column) ─────────────────────────────────
+
+  let gridLineDragState = null;
+  const LINE_HIT_THRESHOLD = 12; // px
+
+  function onGridLinePointerDown(e) {
+    if (e.button !== 0) return; // only left click, right click is context menu
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const mx = e.clientX;
+    const my = e.clientY;
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+
+    // Check interior horizontal lines (not edges 0 and last)
+    for (let row = 1; row < ys.length - 1; row++) {
+      const lineY = ys[row] * vh;
+      if (Math.abs(my - lineY) < LINE_HIT_THRESHOLD) {
+        e.preventDefault();
+        e.stopPropagation();
+        gridLineDragState = {
+          axis: "horizontal",
+          lineIndex: row,
+          startY: my,
+          startPositions: xs.map((_, col) => getDisplacement(row, col)),
+        };
+        gridLineCanvas.style.cursor = "ns-resize";
+        gridLineCanvas.setPointerCapture(e.pointerId);
+        document.addEventListener("pointermove", onGridLineDragMove);
+        document.addEventListener("pointerup", onGridLineDragEnd);
+        document.addEventListener("pointercancel", onGridLineDragEnd);
+        return;
+      }
+    }
+
+    // Check interior vertical lines (not edges 0 and last)
+    for (let col = 1; col < xs.length - 1; col++) {
+      const lineX = xs[col] * vw;
+      if (Math.abs(mx - lineX) < LINE_HIT_THRESHOLD) {
+        e.preventDefault();
+        e.stopPropagation();
+        gridLineDragState = {
+          axis: "vertical",
+          lineIndex: col,
+          startX: mx,
+          startPositions: ys.map((_, row) => getDisplacement(row, col)),
+        };
+        gridLineCanvas.style.cursor = "ew-resize";
+        gridLineCanvas.setPointerCapture(e.pointerId);
+        document.addEventListener("pointermove", onGridLineDragMove);
+        document.addEventListener("pointerup", onGridLineDragEnd);
+        document.addEventListener("pointercancel", onGridLineDragEnd);
+        return;
+      }
+    }
+  }
+
+  function onGridLineDragMove(e) {
+    if (!gridLineDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+
+    if (gridLineDragState.axis === "horizontal") {
+      const dy = (e.clientY - gridLineDragState.startY) / vh;
+      const row = gridLineDragState.lineIndex;
+      for (let col = 0; col < xs.length; col++) {
+        const start = gridLineDragState.startPositions[col];
+        // Horizontal line: move all points on this row vertically
+        setDisplacement(row, col, start.dx, start.dy + dy);
+      }
+    } else {
+      const dx = (e.clientX - gridLineDragState.startX) / vw;
+      const col = gridLineDragState.lineIndex;
+      for (let row = 0; row < ys.length; row++) {
+        const start = gridLineDragState.startPositions[row];
+        // Vertical line: move all points on this column horizontally
+        setDisplacement(row, col, start.dx + dx, start.dy);
+      }
+    }
+    positionGridHandles();
+    drawGridLines();
+  }
+
+  function onGridLineDragEnd() {
+    if (!gridLineDragState) return;
+    gridLineDragState = null;
+    gridLineCanvas.style.cursor = "default";
+    document.removeEventListener("pointermove", onGridLineDragMove);
+    document.removeEventListener("pointerup", onGridLineDragEnd);
+    document.removeEventListener("pointercancel", onGridLineDragEnd);
     saveGridToLocalStorage();
   }
 

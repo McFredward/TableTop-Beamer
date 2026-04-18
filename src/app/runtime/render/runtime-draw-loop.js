@@ -452,14 +452,18 @@
       // runs, even during heavy interaction early returns.
       tickLoadingOverlay();
 
-      // Phase 19-3: grid mesh warp — if active, swap render target to offscreen
+      // Phase 19-3: grid mesh warp — if active, swap render target to offscreen.
+      // IMPORTANT: re-read c/canvas from ctx AFTER swap so all rendering
+      // (including sub-functions that read ctx.canvasCtx) uses the offscreen.
       const warpTarget = ctx.beginGridWarpFrame?.(canvas);
+      let activeC = c;
+      let activeCanvas = canvas;
       if (warpTarget) {
         ctx.canvasCtx = warpTarget.ctx;
         ctx.canvas = warpTarget.canvas;
+        activeC = warpTarget.ctx;
+        activeCanvas = warpTarget.canvas;
       }
-      const activeC = ctx.canvasCtx;
-      const activeCanvas = ctx.canvas;
 
       activeC.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
       pruneFinishedAnimations(now);
