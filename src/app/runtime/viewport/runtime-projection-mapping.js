@@ -563,13 +563,13 @@
     let newX = dragState.startPtX + dx;
     let newY = dragState.startPtY + dy;
 
-    // Edge constraints: horizontal edges (top/bottom) only move horizontally (x),
-    // vertical edges (left/right) only move vertically (y)
+    // Edge constraints: horizontal edges (top/bottom) only move vertically,
+    // vertical edges (left/right) only move horizontally
     if (isHorizontalEdge) {
-      newY = dragState.startPtY; // Lock Y
+      newX = dragState.startPtX; // Lock X — only move up/down
     }
     if (isVerticalEdge) {
-      newX = dragState.startPtX; // Lock X
+      newY = dragState.startPtY; // Lock Y — only move left/right
     }
 
     // Clamp to viewport
@@ -603,8 +603,8 @@
     const rows = grid.ys.length;
     const cols = grid.xs.length;
 
-    // Check interior horizontal lines (not edge rows 0 and last)
-    for (let row = 1; row < rows - 1; row++) {
+    // Check ALL horizontal lines (including edges)
+    for (let row = 0; row < rows; row++) {
       // Approximate line Y from the average of all points on this row
       let avgY = 0;
       for (let col = 0; col < cols; col++) {
@@ -633,8 +633,8 @@
       }
     }
 
-    // Check interior vertical lines (not edge cols 0 and last)
-    for (let col = 1; col < cols - 1; col++) {
+    // Check ALL vertical lines (including edges)
+    for (let col = 0; col < cols; col++) {
       let avgX = 0;
       for (let row = 0; row < rows; row++) {
         avgX += getPoint(row, col).x;
@@ -689,6 +689,7 @@
 
     positionHandles();
     drawLines();
+    applyTransform(); // corners may have moved if dragging an edge line
   }
 
   function onLineDragEnd() {
