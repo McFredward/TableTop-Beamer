@@ -31,6 +31,8 @@
 
   function init(dependencies) {
     ctx = dependencies;
+    // Load saved corners from localStorage on this client
+    loadCornersFromLocalStorage();
   }
 
   // ── Deep clone helpers ──────────────────────────────────────────────────────
@@ -321,8 +323,8 @@
     const dy = e.clientY - dragState.startY;
     const newX = dragState.startCornerX + (dx / vw) * 100;
     const newY = dragState.startCornerY + (dy / vh) * 100;
-    corners[dragState.cornerKey].x = Math.max(-10, Math.min(110, newX));
-    corners[dragState.cornerKey].y = Math.max(-10, Math.min(110, newY));
+    corners[dragState.cornerKey].x = Math.max(0, Math.min(100, newX));
+    corners[dragState.cornerKey].y = Math.max(0, Math.min(100, newY));
     positionHandles();
     drawLines();
     applyTransform();
@@ -360,8 +362,8 @@
     const key = CORNER_KEYS[activeCornerIndex];
     corners[key].x += (dir[0] * step / vw) * 100;
     corners[key].y += (dir[1] * step / vh) * 100;
-    corners[key].x = Math.max(-10, Math.min(110, corners[key].x));
-    corners[key].y = Math.max(-10, Math.min(110, corners[key].y));
+    corners[key].x = Math.max(0, Math.min(100, corners[key].x));
+    corners[key].y = Math.max(0, Math.min(100, corners[key].y));
     positionHandles();
     drawLines();
     applyTransform();
@@ -383,8 +385,35 @@
     document.removeEventListener("keydown", onKeyDown);
   }
 
-  // ── Persistence ─────────────────────────────────────────────────────────────
+  // ── Persistence (localStorage — per-client, not global) ─────────────────────
 
+  const LOCAL_STORAGE_KEY = "tt-beamer.projection-mapping.corners";
+
+  function loadCornersFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      for (const k of CORNER_KEYS) {
+        if (parsed[k] && typeof parsed[k].x === "number" && typeof parsed[k].y === "number") {
+          corners[k] = { x: parsed[k].x, y: parsed[k].y };
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+  }
+
+  function saveCornersToLocalStorage() {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(deepCloneCorners(corners)));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  // Legacy compat — loadCornersFromConfig still works if called
   function loadCornersFromConfig(globalDefaults) {
     const pm = globalDefaults?.projectionMapping;
     if (!pm || !pm.corners) return;
@@ -402,6 +431,7 @@
   function resetCorners() {
     corners = deepCloneCorners(DEFAULT_CORNERS);
     applyTransform();
+    saveCornersToLocalStorage();
     if (handlesVisible) {
       positionHandles();
       drawLines();
@@ -424,8 +454,7 @@
   }
 
   function saveCorners() {
-    if (typeof ctx.saveProjectionMapping !== "function") return;
-    ctx.saveProjectionMapping();
+    saveCornersToLocalStorage();
   }
 
   // ── Resize handling ─────────────────────────────────────────────────────────
