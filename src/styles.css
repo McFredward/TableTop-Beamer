@@ -91,6 +91,7 @@ body[data-output-role="final-output"] .projection-area {
   width: 100vw;
   height: 100vh;
   padding: 0;
+  overflow: visible;
 }
 
 body[data-output-role="final-output"] .stage {
@@ -100,9 +101,11 @@ body[data-output-role="final-output"] .stage {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  /* Phase 19-2: removed transform: none !important — projection mapping
-     applies a CSS matrix3d() via JS for 4-corner warp calibration. */
+  /* Phase 19-2: projection mapping applies CSS matrix3d() via JS.
+     overflow + contain must be visible so the warped content isn't clipped. */
   transform-origin: 0 0;
+  overflow: visible;
+  contain: none;
 }
 
 body[data-output-role="final-output"] #board-image,
