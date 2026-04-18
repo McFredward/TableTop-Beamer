@@ -294,6 +294,7 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   outputRole,
   OUTPUT_ROLE_FINAL,
   OUTPUT_ROLE_CONTROL,
+  renderRoomOverlay: () => { try { renderRoomOverlay(); } catch { /* not ready yet */ } },
   saveProjectionMapping: () => {
     // Phase 19-2: persist projection corners via the existing global-defaults
     // save pipeline. buildPersistedRuntimeSettingsFromState() already includes
@@ -314,6 +315,8 @@ const {
   onWindowResize: onProjectionWindowResize,
   // Phase 19-4: post-draw mesh warp (replaces begin/end grid warp)
   postDrawMeshWarp: projectionPostDrawMeshWarp,
+  remapPoint: projectionRemapPoint,
+  hasGridDisplacements: projectionHasGridDisplacements,
 } = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
@@ -1784,6 +1787,8 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
   pushUndoState: (desc) => pushUndoState(desc),
   normalizePolygonPoint: (p) => normalizePolygonPoint(p),
+  remapGridPoint: (nx, ny) => projectionRemapPoint(nx, ny),
+  hasGridDisplacements: () => projectionHasGridDisplacements(),
   getPlayAreas: (boardId) => getPlayAreas(boardId),
   setPlayAreaPolygon: (boardId, areaId, polygon) => {
     const areas = getPlayAreas(boardId);

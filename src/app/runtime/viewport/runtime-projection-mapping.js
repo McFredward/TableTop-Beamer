@@ -69,6 +69,30 @@
     return { x: grid.dstXs[col] ?? 0, y: grid.dstYs[row] ?? 0 };
   }
 
+  /**
+   * Remap a normalized point (0-1) through the grid distortion.
+   * Uses piecewise linear interpolation: find which source cell the point
+   * falls in, then interpolate to the corresponding destination cell.
+   * Returns { x, y } in 0-1 range.
+   */
+  function remapPoint(nx, ny) {
+    if (!hasGridDisplacements()) return { x: nx, y: ny };
+    return { x: remapAxis(nx, grid.srcXs, grid.dstXs), y: remapAxis(ny, grid.srcYs, grid.dstYs) };
+  }
+
+  function remapAxis(val, src, dst) {
+    // Find which segment val falls in
+    for (let i = 0; i < src.length - 1; i++) {
+      if (val <= src[i + 1]) {
+        const segLen = src[i + 1] - src[i];
+        if (segLen < 1e-10) return dst[i];
+        const t = (val - src[i]) / segLen;
+        return dst[i] + t * (dst[i + 1] - dst[i]);
+      }
+    }
+    return dst[dst.length - 1];
+  }
+
   /** Check whether the 4 corners are at their default positions. */
   function cornersAreDefault() {
     const lastRow = grid.dstYs.length - 1;
@@ -543,6 +567,8 @@
     positionHandles();
     drawLines();
     applyTransform();
+    // Re-render room overlay so SVG contours match the grid warp
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function onDragEnd() {
@@ -632,6 +658,7 @@
     positionHandles();
     drawLines();
     applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function onLineDragEnd() {
@@ -1017,6 +1044,8 @@
     loadCornersFromConfig,
     getCornersForPersistence,
     postDrawMeshWarp,
+    remapPoint,
+    hasGridDisplacements,
     getCorners,
     CORNER_KEYS,
     // Legacy compat — grid warp is now post-draw, no begin/end needed.

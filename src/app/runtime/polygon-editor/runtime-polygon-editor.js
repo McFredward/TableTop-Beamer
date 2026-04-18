@@ -644,10 +644,21 @@
         polygon.classList.add("is-frozen");
       }
       polygon.dataset.roomId = room.id;
+      // Phase 19: on /output, remap polygon points through grid warp
+      const useGridRemap = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL
+        && typeof ctx.remapGridPoint === "function"
+        && typeof ctx.hasGridDisplacements === "function"
+        && ctx.hasGridDisplacements();
       polygon.setAttribute(
         "points",
         ctx.getRoomPoints(room, state.boardId)
-          .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+          .map(([x, y]) => {
+            if (useGridRemap) {
+              const r = ctx.remapGridPoint(x / 1000, y / 1000);
+              return `${(r.x * 1000).toFixed(1)},${(r.y * 1000).toFixed(1)}`;
+            }
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
           .join(" "),
       );
       polygon.addEventListener("click", (event) => {
@@ -742,7 +753,16 @@
       }
       const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       maskPolygon.classList.add("ship-zone-mask", "align-mode-play-area");
-      maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" "));
+      const useGridRemap = typeof ctx.remapGridPoint === "function"
+        && typeof ctx.hasGridDisplacements === "function"
+        && ctx.hasGridDisplacements();
+      maskPolygon.setAttribute("points", areaPoints.map(([x, y]) => {
+        if (useGridRemap) {
+          const r = ctx.remapGridPoint(x / 1000, y / 1000);
+          return `${(r.x * 1000).toFixed(1)},${(r.y * 1000).toFixed(1)}`;
+        }
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(" "));
       ctx.roomOverlay.append(maskPolygon);
     }
   }
