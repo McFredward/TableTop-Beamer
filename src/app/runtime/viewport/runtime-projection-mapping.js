@@ -23,19 +23,29 @@
 
   // ── Grid state ─────────────────────────────────────────────────────────────
   //
-  // xs/ys: normalized 0-1 positions of vertical/horizontal grid lines.
-  // Always includes 0 and 1 (the edges).
-  // points: displaced positions for grid intersections.
-  //   Key = "row-col", value = { x, y } in normalized viewport coords.
-  //   If absent, the default position is { x: xs[col], y: ys[row] }.
+  // The grid redistributes content by remapping source regions to destination
+  // regions. Source lines are always evenly spaced. Destination lines (dstXs,
+  // dstYs) are adjustable — moving a line compresses content on one side and
+  // stretches it on the other.
+  //
+  // Example: 5 vertical lines at [0, 0.25, 0.5, 0.75, 1] (source, fixed).
+  // If dstXs[2] is moved from 0.5 to 0.4, the second column (src 0.25-0.5)
+  // gets squeezed into dst 0.25-0.4, and the third (src 0.5-0.75) stretches
+  // into dst 0.4-0.75.
 
-  const DEFAULT_XS = [0, 0.25, 0.5, 0.75, 1];
-  const DEFAULT_YS = [0, 0.25, 0.5, 0.75, 1];
+  const DEFAULT_COUNT = 5; // 5 lines = 4 columns/rows
+
+  function makeEvenLines(n) {
+    const lines = [];
+    for (let i = 0; i < n; i++) lines.push(i / (n - 1));
+    return lines;
+  }
 
   const grid = {
-    xs: DEFAULT_XS.slice(),
-    ys: DEFAULT_YS.slice(),
-    points: {},
+    srcXs: makeEvenLines(DEFAULT_COUNT),
+    dstXs: makeEvenLines(DEFAULT_COUNT),
+    srcYs: makeEvenLines(DEFAULT_COUNT),
+    dstYs: makeEvenLines(DEFAULT_COUNT),
   };
 
   // Legacy compat
@@ -43,53 +53,26 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /** Get the position of a grid point (row, col). */
-  function getPoint(row, col) {
-    const key = `${row}-${col}`;
-    if (grid.points[key]) {
-      return { x: grid.points[key].x, y: grid.points[key].y };
+  /** Check whether any destination lines differ from source (= grid is active). */
+  function hasGridDisplacements() {
+    for (let i = 1; i < grid.dstXs.length - 1; i++) {
+      if (Math.abs(grid.dstXs[i] - grid.srcXs[i]) > 1e-6) return true;
     }
-    return { x: grid.xs[col], y: grid.ys[row] };
-  }
-
-  /** Set the position of a grid point (row, col). */
-  function setPoint(row, col, x, y) {
-    grid.points[`${row}-${col}`] = { x, y };
-  }
-
-  /** Check if a point has been displaced from its default position. */
-  function isDisplaced(row, col) {
-    const key = `${row}-${col}`;
-    if (!grid.points[key]) return false;
-    const dx = Math.abs(grid.points[key].x - grid.xs[col]);
-    const dy = Math.abs(grid.points[key].y - grid.ys[row]);
-    return dx > 1e-6 || dy > 1e-6;
-  }
-
-  /** Check whether any interior points (not corners, not edges) are displaced. */
-  function hasInteriorDisplacements() {
-    const lastRow = grid.ys.length - 1;
-    const lastCol = grid.xs.length - 1;
-    for (let row = 1; row < lastRow; row++) {
-      for (let col = 1; col < lastCol; col++) {
-        if (isDisplaced(row, col)) return true;
-      }
-    }
-    // Also check edge (non-corner) displacements as they affect cell geometry
-    for (let row = 0; row <= lastRow; row++) {
-      for (let col = 0; col <= lastCol; col++) {
-        const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
-        if (isCorner) continue;
-        if (isDisplaced(row, col)) return true;
-      }
+    for (let i = 1; i < grid.dstYs.length - 1; i++) {
+      if (Math.abs(grid.dstYs[i] - grid.srcYs[i]) > 1e-6) return true;
     }
     return false;
   }
 
+  // Legacy compat aliases used by the rest of the module
+  function getPoint(row, col) {
+    return { x: grid.dstXs[col] ?? 0, y: grid.dstYs[row] ?? 0 };
+  }
+
   /** Check whether the 4 corners are at their default positions. */
   function cornersAreDefault() {
-    const lastRow = grid.ys.length - 1;
-    const lastCol = grid.xs.length - 1;
+    const lastRow = grid.dstYs.length - 1;
+    const lastCol = grid.dstXs.length - 1;
     const corners = [
       getPoint(0, 0),
       getPoint(0, lastCol),
@@ -167,8 +150,8 @@
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const lastRow = grid.ys.length - 1;
-    const lastCol = grid.xs.length - 1;
+    const lastRow = grid.dstYs.length - 1;
+    const lastCol = grid.dstXs.length - 1;
 
     // Corner points in pixel coordinates
     const tl = getPoint(0, 0);
@@ -199,7 +182,7 @@
 
   function postDrawMeshWarp(canvas, canvasCtx) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    if (!hasInteriorDisplacements()) return;
+    if (!hasGridDisplacements()) return;
 
     const w = canvas.width;
     const h = canvas.height;
@@ -218,34 +201,23 @@
     _warpTmpCtx.clearRect(0, 0, w, h);
     _warpTmpCtx.drawImage(canvas, 0, 0);
 
-    // Clear and redraw through mesh
+    // Clear and redraw through grid: source = evenly spaced, dest = adjusted
     canvasCtx.clearRect(0, 0, w, h);
 
-    const xs = grid.xs;
-    const ys = grid.ys;
-
-    for (let row = 0; row < ys.length - 1; row++) {
-      for (let col = 0; col < xs.length - 1; col++) {
-        // Source rectangle: original grid positions x canvas dimensions
-        const srcX = xs[col] * w;
-        const srcY = ys[row] * h;
-        const srcW = (xs[col + 1] - xs[col]) * w;
-        const srcH = (ys[row + 1] - ys[row]) * h;
-
+    for (let row = 0; row < grid.srcYs.length - 1; row++) {
+      for (let col = 0; col < grid.srcXs.length - 1; col++) {
+        // Source: evenly spaced columns/rows from the snapshot
+        const srcX = grid.srcXs[col] * w;
+        const srcY = grid.srcYs[row] * h;
+        const srcW = (grid.srcXs[col + 1] - grid.srcXs[col]) * w;
+        const srcH = (grid.srcYs[row + 1] - grid.srcYs[row]) * h;
         if (srcW < 0.5 || srcH < 0.5) continue;
 
-        // Destination: displaced grid positions
-        const tl = getPoint(row, col);
-        const tr = getPoint(row, col + 1);
-        const bl = getPoint(row + 1, col);
-
-        const dstX = tl.x * w;
-        const dstY = tl.y * h;
-        const dstRight = tr.x * w;
-        const dstBottom = bl.y * h;
-        const dstW = dstRight - dstX;
-        const dstH = dstBottom - dstY;
-
+        // Destination: adjusted line positions
+        const dstX = grid.dstXs[col] * w;
+        const dstY = grid.dstYs[row] * h;
+        const dstW = (grid.dstXs[col + 1] - grid.dstXs[col]) * w;
+        const dstH = (grid.dstYs[row + 1] - grid.dstYs[row]) * h;
         if (dstW < 0.5 || dstH < 0.5) continue;
 
         canvasCtx.drawImage(
@@ -318,8 +290,8 @@
     }
     handleElements = [];
 
-    const rows = grid.ys.length;
-    const cols = grid.xs.length;
+    const rows = grid.dstYs.length;
+    const cols = grid.dstXs.length;
     const lastRow = rows - 1;
     const lastCol = cols - 1;
 
@@ -411,8 +383,8 @@
   function positionHandles() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const rows = grid.ys.length;
-    const cols = grid.xs.length;
+    const rows = grid.dstYs.length;
+    const cols = grid.dstXs.length;
     let idx = 0;
 
     for (let row = 0; row < rows; row++) {
@@ -451,8 +423,8 @@
     lineCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     lineCtx.clearRect(0, 0, vw, vh);
 
-    const rows = grid.ys.length;
-    const cols = grid.xs.length;
+    const rows = grid.dstYs.length;
+    const cols = grid.dstXs.length;
 
     // Draw horizontal grid lines
     for (let row = 0; row < rows; row++) {
@@ -547,36 +519,27 @@
 
     const row = dragState.row;
     const col = dragState.col;
-    const rows = grid.ys.length;
-    const cols = grid.xs.length;
-    const lastRow = rows - 1;
-    const lastCol = cols - 1;
-
+    const lastRow = grid.dstYs.length - 1;
+    const lastCol = grid.dstXs.length - 1;
     const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
-    const isTopEdge = row === 0 && !isCorner;
-    const isBottomEdge = row === lastRow && !isCorner;
-    const isLeftEdge = col === 0 && !isCorner;
-    const isRightEdge = col === lastCol && !isCorner;
-    const isHorizontalEdge = isTopEdge || isBottomEdge;
-    const isVerticalEdge = isLeftEdge || isRightEdge;
 
-    let newX = dragState.startPtX + dx;
-    let newY = dragState.startPtY + dy;
+    if (isCorner) {
+      // Corners: move both X and Y freely (perspective control)
+      grid.dstXs[col] = Math.max(0, Math.min(1, dragState.startPtX + dx));
+      grid.dstYs[row] = Math.max(0, Math.min(1, dragState.startPtY + dy));
+    } else {
+      // Non-corner handles move the entire LINE they belong to.
+      // Interior/edge column handles → move the vertical line (X only)
+      const prevX = grid.dstXs[col - 1] ?? 0;
+      const nextX = grid.dstXs[col + 1] ?? 1;
+      grid.dstXs[col] = Math.max(prevX + 0.01, Math.min(nextX - 0.01, dragState.startPtX + dx));
 
-    // Edge constraints: horizontal edges (top/bottom) only move vertically,
-    // vertical edges (left/right) only move horizontally
-    if (isHorizontalEdge) {
-      newX = dragState.startPtX; // Lock X — only move up/down
+      // Interior/edge row handles → move the horizontal line (Y only)
+      const prevY = grid.dstYs[row - 1] ?? 0;
+      const nextY = grid.dstYs[row + 1] ?? 1;
+      grid.dstYs[row] = Math.max(prevY + 0.01, Math.min(nextY - 0.01, dragState.startPtY + dy));
     }
-    if (isVerticalEdge) {
-      newY = dragState.startPtY; // Lock Y — only move left/right
-    }
 
-    // Clamp to viewport
-    newX = Math.max(0, Math.min(1, newX));
-    newY = Math.max(0, Math.min(1, newY));
-
-    setPoint(row, col, newX, newY);
     positionHandles();
     drawLines();
     applyTransform();
@@ -600,29 +563,20 @@
     const vh = window.innerHeight;
     const mx = e.clientX;
     const my = e.clientY;
-    const rows = grid.ys.length;
-    const cols = grid.xs.length;
+    const rows = grid.dstYs.length;
+    const cols = grid.dstXs.length;
 
-    // Check ALL horizontal lines (including edges)
+    // Check horizontal lines: use dstYs positions directly
     for (let row = 0; row < rows; row++) {
-      // Approximate line Y from the average of all points on this row
-      let avgY = 0;
-      for (let col = 0; col < cols; col++) {
-        avgY += getPoint(row, col).y;
-      }
-      avgY = (avgY / cols) * vh;
-      if (Math.abs(my - avgY) < LINE_HIT_THRESHOLD) {
+      const lineY = grid.dstYs[row] * vh;
+      if (Math.abs(my - lineY) < LINE_HIT_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
-        const startPositions = [];
-        for (let col = 0; col < cols; col++) {
-          startPositions.push(getPoint(row, col));
-        }
         lineDragState = {
           axis: "horizontal",
           lineIndex: row,
           startY: my,
-          startPositions,
+          startVal: grid.dstYs[row],
         };
         lineCanvas.style.cursor = "ns-resize";
         lineCanvas.setPointerCapture(e.pointerId);
@@ -633,25 +587,17 @@
       }
     }
 
-    // Check ALL vertical lines (including edges)
+    // Check vertical lines: use dstXs positions directly
     for (let col = 0; col < cols; col++) {
-      let avgX = 0;
-      for (let row = 0; row < rows; row++) {
-        avgX += getPoint(row, col).x;
-      }
-      avgX = (avgX / rows) * vw;
-      if (Math.abs(mx - avgX) < LINE_HIT_THRESHOLD) {
+      const lineX = grid.dstXs[col] * vw;
+      if (Math.abs(mx - lineX) < LINE_HIT_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
-        const startPositions = [];
-        for (let row = 0; row < rows; row++) {
-          startPositions.push(getPoint(row, col));
-        }
         lineDragState = {
           axis: "vertical",
           lineIndex: col,
           startX: mx,
-          startPositions,
+          startVal: grid.dstXs[col],
         };
         lineCanvas.style.cursor = "ew-resize";
         lineCanvas.setPointerCapture(e.pointerId);
@@ -668,28 +614,24 @@
     e.preventDefault();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const cols = grid.xs.length;
-    const rows = grid.ys.length;
 
     if (lineDragState.axis === "horizontal") {
       const dy = (e.clientY - lineDragState.startY) / vh;
       const row = lineDragState.lineIndex;
-      for (let col = 0; col < cols; col++) {
-        const start = lineDragState.startPositions[col];
-        setPoint(row, col, start.x, Math.max(0, Math.min(1, start.y + dy)));
-      }
+      const prevY = grid.dstYs[row - 1] ?? 0;
+      const nextY = grid.dstYs[row + 1] ?? 1;
+      grid.dstYs[row] = Math.max(prevY + 0.01, Math.min(nextY - 0.01, lineDragState.startVal + dy));
     } else {
       const dx = (e.clientX - lineDragState.startX) / vw;
       const col = lineDragState.lineIndex;
-      for (let row = 0; row < rows; row++) {
-        const start = lineDragState.startPositions[row];
-        setPoint(row, col, Math.max(0, Math.min(1, start.x + dx)), start.y);
-      }
+      const prevX = grid.dstXs[col - 1] ?? 0;
+      const nextX = grid.dstXs[col + 1] ?? 1;
+      grid.dstXs[col] = Math.max(prevX + 0.01, Math.min(nextX - 0.01, lineDragState.startVal + dx));
     }
 
     positionHandles();
     drawLines();
-    applyTransform(); // corners may have moved if dragging an edge line
+    applyTransform();
   }
 
   function onLineDragEnd() {
@@ -710,8 +652,8 @@
     if (e.key === "Tab") {
       e.preventDefault();
       // Cycle through all handle keys
-      const rows = grid.ys.length;
-      const cols = grid.xs.length;
+      const rows = grid.dstYs.length;
+      const cols = grid.dstXs.length;
       const parts = activeHandleKey.split("-").map(Number);
       let row = parts[0];
       let col = parts[1];
@@ -764,29 +706,29 @@
     let nearVLine = -1;
 
     // Check interior horizontal lines (indices 1..length-2 in ys)
-    for (let i = 1; i < grid.ys.length - 1; i++) {
-      if (Math.abs(grid.ys[i] - normY) < nearLineThreshold) {
+    for (let i = 1; i < grid.dstYs.length - 1; i++) {
+      if (Math.abs(grid.dstYs[i] - normY) < nearLineThreshold) {
         nearHLine = i;
         break;
       }
     }
     // Check interior vertical lines
-    for (let i = 1; i < grid.xs.length - 1; i++) {
-      if (Math.abs(grid.xs[i] - normX) < nearLineThreshold) {
+    for (let i = 1; i < grid.dstXs.length - 1; i++) {
+      if (Math.abs(grid.dstXs[i] - normX) < nearLineThreshold) {
         nearVLine = i;
         break;
       }
     }
 
     const items = [];
-    if (nearHLine >= 0 && grid.ys.length > 3) {
+    if (nearHLine >= 0 && grid.dstYs.length > 3) {
       // Can remove if more than edge lines + 1 interior line
       items.push({
         label: "Remove this horizontal line",
         action: () => removeHorizontalLine(nearHLine),
       });
     }
-    if (nearVLine >= 0 && grid.xs.length > 3) {
+    if (nearVLine >= 0 && grid.dstXs.length > 3) {
       items.push({
         label: "Remove this vertical line",
         action: () => removeVerticalLine(nearVLine),
@@ -865,13 +807,15 @@
   function addHorizontalLine(normY) {
     normY = Math.max(0.02, Math.min(0.98, normY));
     // Insert into ys array (which always includes 0 and 1)
-    const newYs = grid.ys.slice();
+    const newYs = grid.dstYs.slice();
     newYs.push(normY);
     newYs.sort((a, b) => a - b);
     // Deduplicate
-    grid.ys = [...new Set(newYs)];
+    grid.dstYs = [...new Set(newYs)];
     // Clear displacements — grid topology changed
-    grid.points = {};
+    // grid lines changed — rebuild srcXs/srcYs to match new count
+    grid.srcXs = makeEvenLines(grid.dstXs.length);
+    grid.srcYs = makeEvenLines(grid.dstYs.length);
     saveToLocalStorage();
     if (handlesVisible) {
       rebuildHandleElements();
@@ -881,11 +825,13 @@
 
   function addVerticalLine(normX) {
     normX = Math.max(0.02, Math.min(0.98, normX));
-    const newXs = grid.xs.slice();
+    const newXs = grid.dstXs.slice();
     newXs.push(normX);
     newXs.sort((a, b) => a - b);
-    grid.xs = [...new Set(newXs)];
-    grid.points = {};
+    grid.dstXs = [...new Set(newXs)];
+    // grid lines changed — rebuild srcXs/srcYs to match new count
+    grid.srcXs = makeEvenLines(grid.dstXs.length);
+    grid.srcYs = makeEvenLines(grid.dstYs.length);
     saveToLocalStorage();
     if (handlesVisible) {
       rebuildHandleElements();
@@ -894,11 +840,13 @@
   }
 
   function removeHorizontalLine(index) {
-    if (grid.ys.length <= 3) return; // Need at least edges + 1
+    if (grid.dstYs.length <= 3) return; // Need at least edges + 1
     // Don't remove first or last (edges)
-    if (index === 0 || index === grid.ys.length - 1) return;
-    grid.ys.splice(index, 1);
-    grid.points = {};
+    if (index === 0 || index === grid.dstYs.length - 1) return;
+    grid.dstYs.splice(index, 1);
+    // grid lines changed — rebuild srcXs/srcYs to match new count
+    grid.srcXs = makeEvenLines(grid.dstXs.length);
+    grid.srcYs = makeEvenLines(grid.dstYs.length);
     saveToLocalStorage();
     if (handlesVisible) {
       rebuildHandleElements();
@@ -907,10 +855,12 @@
   }
 
   function removeVerticalLine(index) {
-    if (grid.xs.length <= 3) return;
-    if (index === 0 || index === grid.xs.length - 1) return;
-    grid.xs.splice(index, 1);
-    grid.points = {};
+    if (grid.dstXs.length <= 3) return;
+    if (index === 0 || index === grid.dstXs.length - 1) return;
+    grid.dstXs.splice(index, 1);
+    // grid lines changed — rebuild srcXs/srcYs to match new count
+    grid.srcXs = makeEvenLines(grid.dstXs.length);
+    grid.srcYs = makeEvenLines(grid.dstYs.length);
     saveToLocalStorage();
     if (handlesVisible) {
       rebuildHandleElements();
@@ -919,9 +869,11 @@
   }
 
   function resetGrid() {
-    grid.xs = DEFAULT_XS.slice();
-    grid.ys = DEFAULT_YS.slice();
-    grid.points = {};
+    grid.dstXs = DEFAULT_XS.slice();
+    grid.dstYs = DEFAULT_YS.slice();
+    // grid lines changed — rebuild srcXs/srcYs to match new count
+    grid.srcXs = makeEvenLines(grid.dstXs.length);
+    grid.srcYs = makeEvenLines(grid.dstYs.length);
     applyTransform();
     saveToLocalStorage();
     if (handlesVisible) {
@@ -979,9 +931,8 @@
   function saveToLocalStorage() {
     try {
       localStorage.setItem(LS_KEY_V2, JSON.stringify({
-        xs: grid.xs,
-        ys: grid.ys,
-        points: grid.points,
+        dstXs: grid.dstXs,
+        dstYs: grid.dstYs,
       }));
     } catch {
       // ignore storage errors
@@ -990,57 +941,26 @@
 
   function loadFromLocalStorage() {
     try {
-      // Try new key first
       const rawV2 = localStorage.getItem(LS_KEY_V2);
       if (rawV2) {
         const parsed = JSON.parse(rawV2);
         if (parsed && typeof parsed === "object") {
-          if (Array.isArray(parsed.xs) && parsed.xs.length >= 2) {
-            grid.xs = parsed.xs.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
-            grid.xs.sort((a, b) => a - b);
-            if (grid.xs[0] !== 0) grid.xs.unshift(0);
-            if (grid.xs[grid.xs.length - 1] !== 1) grid.xs.push(1);
+          if (Array.isArray(parsed.dstXs) && parsed.dstXs.length >= 2) {
+            grid.dstXs = parsed.dstXs.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
+            grid.dstXs.sort((a, b) => a - b);
+            if (grid.dstXs[0] !== 0) grid.dstXs.unshift(0);
+            if (grid.dstXs[grid.dstXs.length - 1] !== 1) grid.dstXs.push(1);
           }
-          if (Array.isArray(parsed.ys) && parsed.ys.length >= 2) {
-            grid.ys = parsed.ys.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
-            grid.ys.sort((a, b) => a - b);
-            if (grid.ys[0] !== 0) grid.ys.unshift(0);
-            if (grid.ys[grid.ys.length - 1] !== 1) grid.ys.push(1);
+          if (Array.isArray(parsed.dstYs) && parsed.dstYs.length >= 2) {
+            grid.dstYs = parsed.dstYs.filter((v) => typeof v === "number" && v >= 0 && v <= 1);
+            grid.dstYs.sort((a, b) => a - b);
+            if (grid.dstYs[0] !== 0) grid.dstYs.unshift(0);
+            if (grid.dstYs[grid.dstYs.length - 1] !== 1) grid.dstYs.push(1);
           }
-          if (parsed.points && typeof parsed.points === "object") {
-            for (const k of Object.keys(parsed.points)) {
-              const p = parsed.points[k];
-              if (p && typeof p.x === "number" && typeof p.y === "number") {
-                grid.points[k] = { x: p.x, y: p.y };
-              }
-            }
-          }
-          return; // Loaded v2 successfully
-        }
-      }
-
-      // Fallback: migrate from old 4-corner key
-      const rawOld = localStorage.getItem(LS_KEY_OLD);
-      if (rawOld) {
-        const parsed = JSON.parse(rawOld);
-        if (parsed && typeof parsed === "object") {
-          const lastRow = grid.ys.length - 1;
-          const lastCol = grid.xs.length - 1;
-          // Old format: { topLeft: {x,y}, topRight: {x,y}, ... } where x,y are 0-100
-          if (parsed.topLeft && typeof parsed.topLeft.x === "number") {
-            setPoint(0, 0, parsed.topLeft.x / 100, parsed.topLeft.y / 100);
-          }
-          if (parsed.topRight && typeof parsed.topRight.x === "number") {
-            setPoint(0, lastCol, parsed.topRight.x / 100, parsed.topRight.y / 100);
-          }
-          if (parsed.bottomRight && typeof parsed.bottomRight.x === "number") {
-            setPoint(lastRow, lastCol, parsed.bottomRight.x / 100, parsed.bottomRight.y / 100);
-          }
-          if (parsed.bottomLeft && typeof parsed.bottomLeft.x === "number") {
-            setPoint(lastRow, 0, parsed.bottomLeft.x / 100, parsed.bottomLeft.y / 100);
-          }
-          // Save as v2 immediately
-          saveToLocalStorage();
+          // Rebuild source lines to match count
+          grid.srcXs = makeEvenLines(grid.dstXs.length);
+          grid.srcYs = makeEvenLines(grid.dstYs.length);
+          return;
         }
       }
     } catch {
@@ -1051,8 +971,8 @@
   // ── Legacy compat ──────────────────────────────────────────────────────────
 
   function getCorners() {
-    const lastRow = grid.ys.length - 1;
-    const lastCol = grid.xs.length - 1;
+    const lastRow = grid.dstYs.length - 1;
+    const lastCol = grid.dstXs.length - 1;
     const tl = getPoint(0, 0);
     const tr = getPoint(0, lastCol);
     const br = getPoint(lastRow, lastCol);
@@ -1103,7 +1023,7 @@
     // These are kept so nothing crashes if called.
     beginGridWarpFrame: () => null,
     endGridWarpFrame: () => {},
-    getGrid: () => ({ xs: grid.xs.slice(), ys: grid.ys.slice(), points: { ...grid.points } }),
+    getGrid: () => ({ dstXs: grid.dstXs.slice(), dstYs: grid.dstYs.slice(), srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice() }),
     resetGrid,
   };
 })();
