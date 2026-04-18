@@ -451,7 +451,17 @@
       // Phase 18: tick loading overlay BEFORE any rendering so it always
       // runs, even during heavy interaction early returns.
       tickLoadingOverlay();
-      c.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Phase 19-3: grid mesh warp — if active, swap render target to offscreen
+      const warpTarget = ctx.beginGridWarpFrame?.(canvas);
+      if (warpTarget) {
+        ctx.canvasCtx = warpTarget.ctx;
+        ctx.canvas = warpTarget.canvas;
+      }
+      const activeC = ctx.canvasCtx;
+      const activeCanvas = ctx.canvas;
+
+      activeC.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
       pruneFinishedAnimations(now);
       // Phase 13-HF7: pause the heavy animation render pipeline while a
       // touch gesture is in flight. The gesture is brief (typically
@@ -463,6 +473,8 @@
       // the user is editing, not watching — and drag lag was the
       // remaining symptom after HF7.
       if (ctx.isHeavyInteractionActive()) {
+        // Phase 19-3: restore original canvas refs if warp was active
+        if (warpTarget) { ctx.canvasCtx = c; ctx.canvas = canvas; }
         ctx.recordRuntimeFrameCost(performance.now() - frameStart);
         return;
       }
@@ -508,6 +520,13 @@
         ctx.refreshGlobalButtons();
         ctx.triggerFeedback.textContent =
           "Status: faulty animation isolated, render timer continues";
+      }
+
+      // Phase 19-3: end grid mesh warp — copy offscreen to visible canvas
+      if (warpTarget) {
+        ctx.canvasCtx = c;
+        ctx.canvas = canvas;
+        ctx.endGridWarpFrame?.(canvas, c);
       }
 
       if (

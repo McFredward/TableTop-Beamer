@@ -312,6 +312,9 @@ const {
   resetCorners: resetProjectionCorners,
   onAlignModeChange: onProjectionAlignModeChange,
   onWindowResize: onProjectionWindowResize,
+  // Phase 19-3: grid mesh warp
+  beginGridWarpFrame: beginProjectionGridWarpFrame,
+  endGridWarpFrame: endProjectionGridWarpFrame,
 } = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
@@ -2308,6 +2311,9 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   isRunningListInteractionActive: () => isRunningListInteractionActive(),
   drawEffectVisual: (type, age, intensity, room, roomMetrics, options) => drawEffectVisual(type, age, intensity, room, roomMetrics, options),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
+  // Phase 19-3: grid mesh warp hooks
+  beginGridWarpFrame: (canvas) => beginProjectionGridWarpFrame(canvas),
+  endGridWarpFrame: (canvas, visibleCtx) => endProjectionGridWarpFrame(canvas, visibleCtx),
 });
 const {
   drawRoomComposition,

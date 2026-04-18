@@ -134,6 +134,18 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   z-index: 9998;
 }
 
+/* Phase 19-3: Grid mesh warp handles and overlay */
+.projection-grid-handle {
+  /* Styles are inline in JS; this class is for potential overrides */
+}
+
+#projection-grid-line-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9997;
+}
+
 /* Phase 19: Play Area boundaries shown during align mode on /output */
 .align-mode-play-area {
   fill: none;

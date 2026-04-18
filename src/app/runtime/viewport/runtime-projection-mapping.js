@@ -42,6 +42,8 @@
     ctx = dependencies;
     // Load saved corners from localStorage on this client
     loadCornersFromLocalStorage();
+    // Phase 19-3: load grid mesh state
+    loadGridFromLocalStorage();
   }
 
   // ── Deep clone helpers ──────────────────────────────────────────────────────
@@ -546,6 +548,567 @@
     }
   }
 
+  // ── Grid Mesh Warp (Phase 19-3) ─────────────────────────────────────────────
+  //
+  // Variable-density grid mesh warp that deforms canvas content BEFORE the
+  // CSS matrix3d perspective transform is applied.  Works via an offscreen
+  // canvas: all animation rendering goes there, then each grid cell is copied
+  // onto the visible canvas with per-cell drawImage mapping.
+
+  const GRID_LS_KEY = "tt-beamer.projection-grid";
+
+  const DEFAULT_GRID = {
+    horizontalLines: [0.25, 0.5, 0.75],
+    verticalLines:   [0.25, 0.5, 0.75],
+    displacements:   {},                    // key "row-col" -> { dx, dy }
+  };
+
+  let grid = deepCloneGrid(DEFAULT_GRID);
+  let offscreenCanvas = null;
+  let offscreenCtx = null;
+  let gridHandleElements = [];       // DOM elements for grid intersection handles
+  let gridLineCanvas = null;         // canvas overlay for grid lines
+  let gridLineCtx = null;
+  let gridHandlesVisible = false;
+  let gridDragState = null;          // { row, col, startX, startY, startDx, startDy }
+  let gridContextMenu = null;        // context menu DOM element
+
+  function deepCloneGrid(g) {
+    const displacements = {};
+    for (const k of Object.keys(g.displacements)) {
+      displacements[k] = { dx: g.displacements[k].dx, dy: g.displacements[k].dy };
+    }
+    return {
+      horizontalLines: g.horizontalLines.slice(),
+      verticalLines:   g.verticalLines.slice(),
+      displacements,
+    };
+  }
+
+  /** Number of grid rows/cols (includes edges). */
+  function gridRows() { return grid.horizontalLines.length + 2; }
+  function gridCols() { return grid.verticalLines.length + 2; }
+
+  /** Get the normalized X positions for all columns (0 = left edge, 1 = right edge). */
+  function gridXPositions() { return [0, ...grid.verticalLines, 1]; }
+  /** Get the normalized Y positions for all rows. */
+  function gridYPositions() { return [0, ...grid.horizontalLines, 1]; }
+
+  /** Get displacement for a grid point (row, col). */
+  function getDisplacement(row, col) {
+    const d = grid.displacements[`${row}-${col}`];
+    return d ? { dx: d.dx, dy: d.dy } : { dx: 0, dy: 0 };
+  }
+
+  /** Set displacement for a grid point. */
+  function setDisplacement(row, col, dx, dy) {
+    grid.displacements[`${row}-${col}`] = { dx, dy };
+  }
+
+  /** Check whether any grid point has a non-zero displacement. */
+  function hasNonZeroDisplacements() {
+    for (const k of Object.keys(grid.displacements)) {
+      const d = grid.displacements[k];
+      if (Math.abs(d.dx) > 1e-6 || Math.abs(d.dy) > 1e-6) return true;
+    }
+    return false;
+  }
+
+  // ── Offscreen canvas lifecycle ───────────────────────────────────────────────
+
+  /**
+   * Called at the start of each draw frame.  If the grid warp is active
+   * (we're on /output and have non-zero displacements) this returns an
+   * offscreen canvas + its 2d context.  The caller should render to this
+   * canvas instead of the visible one.  Returns null when warp is inactive.
+   */
+  function beginGridWarpFrame(visibleCanvas) {
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return null;
+    if (!hasNonZeroDisplacements()) return null;
+
+    const w = visibleCanvas.width;
+    const h = visibleCanvas.height;
+
+    if (!offscreenCanvas) {
+      offscreenCanvas = document.createElement("canvas");
+      offscreenCtx = offscreenCanvas.getContext("2d");
+    }
+    if (offscreenCanvas.width !== w || offscreenCanvas.height !== h) {
+      offscreenCanvas.width = w;
+      offscreenCanvas.height = h;
+    }
+    offscreenCtx.clearRect(0, 0, w, h);
+    return { canvas: offscreenCanvas, ctx: offscreenCtx };
+  }
+
+  /**
+   * Called after drawing completes.  Copies the offscreen canvas content
+   * onto the visible canvas through the deformed grid mesh.
+   */
+  function endGridWarpFrame(visibleCanvas, visibleCtx) {
+    if (!offscreenCanvas) return;
+
+    const w = visibleCanvas.width;
+    const h = visibleCanvas.height;
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+
+    visibleCtx.clearRect(0, 0, w, h);
+
+    for (let row = 0; row < ys.length - 1; row++) {
+      for (let col = 0; col < xs.length - 1; col++) {
+        // Source rectangle: evenly spaced in offscreen canvas
+        const srcX = xs[col] * w;
+        const srcY = ys[row] * h;
+        const srcW = (xs[col + 1] - xs[col]) * w;
+        const srcH = (ys[row + 1] - ys[row]) * h;
+
+        if (srcW < 0.5 || srcH < 0.5) continue;
+
+        // Destination: displaced grid positions
+        const tl = getDisplacement(row, col);
+        const tr = getDisplacement(row, col + 1);
+        const bl = getDisplacement(row + 1, col);
+        const br = getDisplacement(row + 1, col + 1);
+
+        const dstX = (xs[col] + tl.dx) * w;
+        const dstY = (ys[row] + tl.dy) * h;
+        // Use average of corner displacements for width/height
+        const dstRight = (xs[col + 1] + tr.dx) * w;
+        const dstBottom = (ys[row + 1] + bl.dy) * h;
+        const dstW = dstRight - dstX;
+        const dstH = dstBottom - dstY;
+
+        if (dstW < 0.5 || dstH < 0.5) continue;
+
+        visibleCtx.drawImage(
+          offscreenCanvas,
+          srcX, srcY, srcW, srcH,
+          dstX, dstY, dstW, dstH,
+        );
+      }
+    }
+  }
+
+  // ── Grid overlay UI (Phase 19-3) ─────────────────────────────────────────────
+
+  function createGridOverlay() {
+    if (gridHandlesVisible) return;
+    gridHandlesVisible = true;
+
+    // Grid line canvas
+    gridLineCanvas = document.createElement("canvas");
+    gridLineCanvas.id = "projection-grid-line-canvas";
+    gridLineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9997;";
+    document.body.appendChild(gridLineCanvas);
+    gridLineCtx = gridLineCanvas.getContext("2d");
+
+    rebuildGridHandles();
+    drawGridLines();
+  }
+
+  function removeGridOverlay() {
+    if (!gridHandlesVisible) return;
+    gridHandlesVisible = false;
+    for (const el of gridHandleElements) {
+      el.removeEventListener("pointerdown", onGridHandlePointerDown);
+      el.remove();
+    }
+    gridHandleElements = [];
+    if (gridLineCanvas) {
+      gridLineCanvas.remove();
+      gridLineCanvas = null;
+      gridLineCtx = null;
+    }
+    dismissGridContextMenu();
+  }
+
+  function rebuildGridHandles() {
+    // Remove old handles
+    for (const el of gridHandleElements) {
+      el.removeEventListener("pointerdown", onGridHandlePointerDown);
+      el.remove();
+    }
+    gridHandleElements = [];
+
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+    const rows = ys.length;
+    const cols = xs.length;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
+        if (isCorner) continue; // 4-corner system handles those
+
+        const el = document.createElement("div");
+        el.className = "projection-grid-handle";
+        el.dataset.gridRow = String(row);
+        el.dataset.gridCol = String(col);
+        const isEdge = row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+        el.style.cssText = `
+          position: fixed;
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          background: ${isEdge ? "rgba(100, 200, 255, 0.85)" : "rgba(0, 255, 200, 0.85)"};
+          border: 2px solid rgba(255, 255, 255, 0.9);
+          cursor: ${isEdge ? (row === 0 || row === rows - 1 ? "ew-resize" : "ns-resize") : "move"};
+          z-index: 9999;
+          user-select: none;
+          -webkit-user-select: none;
+          touch-action: none;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.5);
+          transform: translate(-50%, -50%);
+        `;
+        el.addEventListener("pointerdown", onGridHandlePointerDown);
+        document.body.appendChild(el);
+        gridHandleElements.push(el);
+      }
+    }
+    positionGridHandles();
+  }
+
+  function positionGridHandles() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+    let idx = 0;
+    const rows = ys.length;
+    const cols = xs.length;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
+        if (isCorner) continue;
+
+        const d = getDisplacement(row, col);
+        const px = (xs[col] + d.dx) * vw;
+        const py = (ys[row] + d.dy) * vh;
+        gridHandleElements[idx].style.left = `${px}px`;
+        gridHandleElements[idx].style.top = `${py}px`;
+        idx++;
+      }
+    }
+  }
+
+  function drawGridLines() {
+    if (!gridLineCanvas || !gridLineCtx) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    gridLineCanvas.width = vw * dpr;
+    gridLineCanvas.height = vh * dpr;
+    gridLineCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gridLineCtx.clearRect(0, 0, vw, vh);
+
+    const xs = gridXPositions();
+    const ys = gridYPositions();
+    const rows = ys.length;
+    const cols = xs.length;
+
+    gridLineCtx.strokeStyle = "rgba(0, 220, 180, 0.45)";
+    gridLineCtx.lineWidth = 1;
+
+    // Draw horizontal lines
+    for (let row = 0; row < rows; row++) {
+      gridLineCtx.beginPath();
+      for (let col = 0; col < cols; col++) {
+        const d = getDisplacement(row, col);
+        const px = (xs[col] + d.dx) * vw;
+        const py = (ys[row] + d.dy) * vh;
+        if (col === 0) gridLineCtx.moveTo(px, py);
+        else gridLineCtx.lineTo(px, py);
+      }
+      gridLineCtx.stroke();
+    }
+
+    // Draw vertical lines
+    for (let col = 0; col < cols; col++) {
+      gridLineCtx.beginPath();
+      for (let row = 0; row < rows; row++) {
+        const d = getDisplacement(row, col);
+        const px = (xs[col] + d.dx) * vw;
+        const py = (ys[row] + d.dy) * vh;
+        if (row === 0) gridLineCtx.moveTo(px, py);
+        else gridLineCtx.lineTo(px, py);
+      }
+      gridLineCtx.stroke();
+    }
+  }
+
+  // ── Grid handle drag ─────────────────────────────────────────────────────────
+
+  function onGridHandlePointerDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const row = Number(e.currentTarget.dataset.gridRow);
+    const col = Number(e.currentTarget.dataset.gridCol);
+    const d = getDisplacement(row, col);
+
+    gridDragState = {
+      row, col,
+      startX: e.clientX,
+      startY: e.clientY,
+      startDx: d.dx,
+      startDy: d.dy,
+    };
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+    document.addEventListener("pointermove", onGridDragMove);
+    document.addEventListener("pointerup", onGridDragEnd);
+    document.addEventListener("pointercancel", onGridDragEnd);
+  }
+
+  function onGridDragMove(e) {
+    if (!gridDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const dx = (e.clientX - gridDragState.startX) / vw;
+    const dy = (e.clientY - gridDragState.startY) / vh;
+
+    const rows = gridRows();
+    const cols = gridCols();
+    const row = gridDragState.row;
+    const col = gridDragState.col;
+    const isTopEdge = row === 0;
+    const isBottomEdge = row === rows - 1;
+    const isLeftEdge = col === 0;
+    const isRightEdge = col === cols - 1;
+
+    let newDx = gridDragState.startDx + dx;
+    let newDy = gridDragState.startDy + dy;
+
+    // Edge constraints: top/bottom edges move only horizontally,
+    // left/right edges move only vertically
+    if (isTopEdge || isBottomEdge) {
+      newDy = gridDragState.startDy; // lock vertical
+    }
+    if (isLeftEdge || isRightEdge) {
+      newDx = gridDragState.startDx; // lock horizontal
+    }
+
+    setDisplacement(row, col, newDx, newDy);
+    positionGridHandles();
+    drawGridLines();
+  }
+
+  function onGridDragEnd() {
+    if (!gridDragState) return;
+    gridDragState = null;
+    document.removeEventListener("pointermove", onGridDragMove);
+    document.removeEventListener("pointerup", onGridDragEnd);
+    document.removeEventListener("pointercancel", onGridDragEnd);
+    saveGridToLocalStorage();
+  }
+
+  // ── Grid context menu (Phase 19-3) ────────────────────────────────────────────
+
+  function onGridContextMenu(e) {
+    if (!gridHandlesVisible) return;
+    if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const normX = e.clientX / vw;
+    const normY = e.clientY / vh;
+
+    const nearLineThreshold = 0.03;
+    let nearHLine = -1;
+    let nearVLine = -1;
+
+    for (let i = 0; i < grid.horizontalLines.length; i++) {
+      if (Math.abs(grid.horizontalLines[i] - normY) < nearLineThreshold) {
+        nearHLine = i;
+        break;
+      }
+    }
+    for (let i = 0; i < grid.verticalLines.length; i++) {
+      if (Math.abs(grid.verticalLines[i] - normX) < nearLineThreshold) {
+        nearVLine = i;
+        break;
+      }
+    }
+
+    const items = [];
+    if (nearHLine >= 0 && grid.horizontalLines.length > 1) {
+      items.push({ label: "Remove this horizontal line", action: () => removeHorizontalLine(nearHLine) });
+    }
+    if (nearVLine >= 0 && grid.verticalLines.length > 1) {
+      items.push({ label: "Remove this vertical line", action: () => removeVerticalLine(nearVLine) });
+    }
+    items.push({ label: "Add horizontal line here", action: () => addHorizontalLine(normY) });
+    items.push({ label: "Add vertical line here", action: () => addVerticalLine(normX) });
+    items.push({ label: "Reset grid", action: () => resetGrid() });
+
+    showGridContextMenu(e.clientX, e.clientY, items);
+  }
+
+  function showGridContextMenu(x, y, items) {
+    dismissGridContextMenu();
+    const menu = document.createElement("div");
+    menu.className = "board-context-menu";
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    for (const item of items) {
+      const btn = document.createElement("button");
+      btn.className = "board-context-menu-item";
+      btn.textContent = item.label;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dismissGridContextMenu();
+        item.action();
+      });
+      menu.appendChild(btn);
+    }
+
+    document.body.appendChild(menu);
+    gridContextMenu = menu;
+
+    // Ensure menu stays in viewport
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) {
+        menu.style.left = `${window.innerWidth - rect.width - 4}px`;
+      }
+      if (rect.bottom > window.innerHeight) {
+        menu.style.top = `${window.innerHeight - rect.height - 4}px`;
+      }
+    });
+
+    // Dismiss on next click outside
+    setTimeout(() => {
+      document.addEventListener("pointerdown", dismissGridContextMenuOnOutsideClick);
+    }, 0);
+  }
+
+  function dismissGridContextMenuOnOutsideClick(e) {
+    if (gridContextMenu && !gridContextMenu.contains(e.target)) {
+      dismissGridContextMenu();
+    }
+  }
+
+  function dismissGridContextMenu() {
+    if (gridContextMenu) {
+      gridContextMenu.remove();
+      gridContextMenu = null;
+    }
+    document.removeEventListener("pointerdown", dismissGridContextMenuOnOutsideClick);
+  }
+
+  // ── Grid line add/remove ──────────────────────────────────────────────────────
+
+  function addHorizontalLine(normY) {
+    // Clamp and avoid duplicates
+    normY = Math.max(0.02, Math.min(0.98, normY));
+    grid.horizontalLines.push(normY);
+    grid.horizontalLines.sort((a, b) => a - b);
+    // Rebuild displacements map with shifted row indices
+    rebuildDisplacementsAfterGridChange();
+    saveGridToLocalStorage();
+    if (gridHandlesVisible) {
+      rebuildGridHandles();
+      drawGridLines();
+    }
+  }
+
+  function addVerticalLine(normX) {
+    normX = Math.max(0.02, Math.min(0.98, normX));
+    grid.verticalLines.push(normX);
+    grid.verticalLines.sort((a, b) => a - b);
+    rebuildDisplacementsAfterGridChange();
+    saveGridToLocalStorage();
+    if (gridHandlesVisible) {
+      rebuildGridHandles();
+      drawGridLines();
+    }
+  }
+
+  function removeHorizontalLine(index) {
+    if (grid.horizontalLines.length <= 1) return;
+    grid.horizontalLines.splice(index, 1);
+    rebuildDisplacementsAfterGridChange();
+    saveGridToLocalStorage();
+    if (gridHandlesVisible) {
+      rebuildGridHandles();
+      drawGridLines();
+    }
+  }
+
+  function removeVerticalLine(index) {
+    if (grid.verticalLines.length <= 1) return;
+    grid.verticalLines.splice(index, 1);
+    rebuildDisplacementsAfterGridChange();
+    saveGridToLocalStorage();
+    if (gridHandlesVisible) {
+      rebuildGridHandles();
+      drawGridLines();
+    }
+  }
+
+  /**
+   * After adding/removing grid lines the row/col indices change.
+   * Clear all displacements — they're small adjustments that won't map
+   * meaningfully to a different grid topology.
+   */
+  function rebuildDisplacementsAfterGridChange() {
+    grid.displacements = {};
+  }
+
+  function resetGrid() {
+    grid = deepCloneGrid(DEFAULT_GRID);
+    saveGridToLocalStorage();
+    if (gridHandlesVisible) {
+      rebuildGridHandles();
+      drawGridLines();
+    }
+  }
+
+  // ── Grid persistence ──────────────────────────────────────────────────────────
+
+  function loadGridFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem(GRID_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      if (Array.isArray(parsed.horizontalLines) && parsed.horizontalLines.length >= 1) {
+        grid.horizontalLines = parsed.horizontalLines.filter((v) => typeof v === "number" && v > 0 && v < 1);
+        grid.horizontalLines.sort((a, b) => a - b);
+      }
+      if (Array.isArray(parsed.verticalLines) && parsed.verticalLines.length >= 1) {
+        grid.verticalLines = parsed.verticalLines.filter((v) => typeof v === "number" && v > 0 && v < 1);
+        grid.verticalLines.sort((a, b) => a - b);
+      }
+      if (parsed.displacements && typeof parsed.displacements === "object") {
+        for (const k of Object.keys(parsed.displacements)) {
+          const d = parsed.displacements[k];
+          if (d && typeof d.dx === "number" && typeof d.dy === "number") {
+            grid.displacements[k] = { dx: d.dx, dy: d.dy };
+          }
+        }
+      }
+    } catch {
+      // ignore corrupt localStorage
+    }
+  }
+
+  function saveGridToLocalStorage() {
+    try {
+      localStorage.setItem(GRID_LS_KEY, JSON.stringify({
+        horizontalLines: grid.horizontalLines,
+        verticalLines:   grid.verticalLines,
+        displacements:   grid.displacements,
+      }));
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   // ── Align mode integration ──────────────────────────────────────────────────
 
   function onAlignModeChange(enabled) {
@@ -553,8 +1116,12 @@
     if (enabled) {
       applyTransform();
       showHandles();
+      createGridOverlay();
+      document.addEventListener("contextmenu", onGridContextMenu);
     } else {
       hideHandles();
+      removeGridOverlay();
+      document.removeEventListener("contextmenu", onGridContextMenu);
       // Keep transform applied — calibration persists
       // Save corners
       saveCorners();
@@ -574,6 +1141,10 @@
       positionHandles();
       drawLines();
     }
+    if (gridHandlesVisible) {
+      positionGridHandles();
+      drawGridLines();
+    }
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -591,5 +1162,10 @@
     getCorners: () => deepCloneCorners(corners),
     getActiveCornerIndex: () => activeCornerIndex,
     CORNER_KEYS,
+    // Phase 19-3: grid mesh warp
+    beginGridWarpFrame,
+    endGridWarpFrame,
+    getGrid: () => deepCloneGrid(grid),
+    resetGrid,
   };
 })();
