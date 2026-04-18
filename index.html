@@ -33,6 +33,12 @@
       <!-- Phase 13-HF4: Apply/Discard bar lives at the very top of the control
            panel so unsaved-state warnings are always visible regardless of
            which view is active. -->
+      <!-- Phase 19: sticky align mode indicator — visible when align mode is active -->
+      <div id="align-mode-indicator" class="align-mode-indicator" style="display:none">
+        <span class="align-mode-indicator-dot"></span>
+        Align Mode active — output is showing room overlay
+      </div>
+
       <div class="apply-config-bar apply-config-bar-global" id="apply-global-config-bar">
         <button id="apply-global-config" type="button" disabled>Apply changes (no pending edits)</button>
         <button id="discard-global-config" type="button" disabled>Discard local changes</button>

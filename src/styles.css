@@ -643,6 +643,39 @@ h1 {
 
 
 /* Phase 19: Align Mode toggle — standalone button below Quick Mode */
+/* Phase 19: sticky indicator bar when align mode is active on Dashboard */
+.align-mode-indicator {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 39;
+  padding: 6px 12px;
+  background: rgba(20, 60, 55, 0.95);
+  border: 1px solid rgba(55, 192, 161, 0.6);
+  border-radius: 0 0 6px 6px;
+  color: var(--glow);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+}
+.align-mode-indicator-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--glow);
+  animation: align-dot-blink 1.5s ease-in-out infinite;
+}
+@keyframes align-dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 .align-mode-toggle {
   width: 100%;
   min-height: 2.6rem;

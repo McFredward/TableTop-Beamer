@@ -59,6 +59,11 @@
       ctx.alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
     }
     document.body.classList.toggle("align-mode-active", enabled);
+    // Phase 19: show/hide sticky indicator bar on Dashboard
+    const indicator = document.getElementById("align-mode-indicator");
+    if (indicator) {
+      indicator.style.display = enabled ? "flex" : "none";
+    }
     if (ctx.roomOverlay) {
       if (ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL) {
         ctx.roomOverlay.style.display = "";
