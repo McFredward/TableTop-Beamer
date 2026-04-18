@@ -319,86 +319,48 @@
     const lastRow = rows - 1;
     const lastCol = cols - 1;
 
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
-        const isEdge = !isCorner && (row === 0 || row === lastRow || col === 0 || col === lastCol);
+    // Only create handles for the 4 corners — lines are dragged via the
+    // line canvas (onLinePointerDown). This keeps the UI clean.
+    const cornerPositions = [
+      { row: 0, col: 0, label: "1" },
+      { row: 0, col: lastCol, label: "2" },
+      { row: lastRow, col: lastCol, label: "3" },
+      { row: lastRow, col: 0, label: "4" },
+    ];
+    for (const corner of cornerPositions) {
+      const { row, col, label: cornerLabel } = corner;
 
         const el = document.createElement("div");
-        el.className = isCorner ? "projection-corner-handle" : "projection-grid-handle";
+        el.className = "projection-corner-handle";
         el.dataset.gridRow = String(row);
         el.dataset.gridCol = String(col);
 
-        let cornerLabel = "";
-        if (isCorner) {
-          if (row === 0 && col === 0) cornerLabel = "1";
-          else if (row === 0 && col === lastCol) cornerLabel = "2";
-          else if (row === lastRow && col === lastCol) cornerLabel = "3";
-          else cornerLabel = "4";
-        }
-
-        if (isCorner) {
-          el.textContent = cornerLabel;
-          el.style.cssText = `
-            position: fixed;
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            background: rgba(220, 30, 30, 0.85);
-            border: 2px solid rgba(255, 255, 255, 0.9);
-            color: #fff;
-            font-family: "Barlow Condensed", sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: grab;
-            z-index: 9999;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            transform: translate(-50%, -50%);
-          `;
-        } else if (isEdge) {
-          const isHorizontalEdge = row === 0 || row === lastRow;
-          el.style.cssText = `
-            position: fixed;
-            width: ${isHorizontalEdge ? "12px" : "16px"};
-            height: ${isHorizontalEdge ? "16px" : "12px"};
-            border-radius: 3px;
-            background: rgba(100, 160, 255, 0.8);
-            border: 2px solid rgba(255, 255, 255, 0.85);
-            cursor: ${isHorizontalEdge ? "ew-resize" : "ns-resize"};
-            z-index: 9999;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            box-shadow: 0 1px 6px rgba(0,0,0,0.4);
-            transform: translate(-50%, -50%);
-          `;
-        } else {
-          // Interior point
-          el.style.cssText = `
-            position: fixed;
-            width: 14px; height: 14px;
-            border-radius: 50%;
-            background: rgba(0, 220, 200, 0.85);
-            border: 2px solid rgba(255, 255, 255, 0.9);
-            cursor: move;
-            z-index: 9999;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            box-shadow: 0 1px 6px rgba(0,0,0,0.5);
-            transform: translate(-50%, -50%);
-          `;
-        }
+        el.textContent = cornerLabel;
+        el.style.cssText = `
+          position: fixed;
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          background: rgba(220, 30, 30, 0.85);
+          border: 2px solid rgba(255, 255, 255, 0.9);
+          color: #fff;
+          font-family: "Barlow Condensed", sans-serif;
+          font-size: 13px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: grab;
+          z-index: 9999;
+          user-select: none;
+          -webkit-user-select: none;
+          touch-action: none;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          transform: translate(-50%, -50%);
+        `;
 
         el.addEventListener("pointerdown", onHandlePointerDown);
         document.body.appendChild(el);
         handleElements.push(el);
-      }
     }
 
     positionHandles();
@@ -411,28 +373,27 @@
     const cols = grid.dstXs.length;
     let idx = 0;
 
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const pt = getPoint(row, col);
-        const px = pt.x * vw;
-        const py = pt.y * vh;
-        const el = handleElements[idx];
-        if (el) {
-          el.style.left = `${px}px`;
-          el.style.top = `${py}px`;
-
-          // Highlight active handle
-          const key = `${row}-${col}`;
-          const isCorner = (row === 0 || row === rows - 1) && (col === 0 || col === cols - 1);
-          if (isCorner && key === activeHandleKey) {
-            el.style.background = "rgba(255, 200, 30, 0.95)";
-            el.style.color = "#000";
-          } else if (isCorner) {
-            el.style.background = "rgba(220, 30, 30, 0.85)";
-            el.style.color = "#fff";
-          }
+    const cornerPositions = [
+      { row: 0, col: 0 },
+      { row: 0, col: cols - 1 },
+      { row: rows - 1, col: cols - 1 },
+      { row: rows - 1, col: 0 },
+    ];
+    for (let i = 0; i < cornerPositions.length; i++) {
+      const { row, col } = cornerPositions[i];
+      const pt = getPoint(row, col);
+      const el = handleElements[i];
+      if (el) {
+        el.style.left = `${pt.x * vw}px`;
+        el.style.top = `${pt.y * vh}px`;
+        const key = `${row}-${col}`;
+        if (key === activeHandleKey) {
+          el.style.background = "rgba(255, 200, 30, 0.95)";
+          el.style.color = "#000";
+        } else {
+          el.style.background = "rgba(220, 30, 30, 0.85)";
+          el.style.color = "#fff";
         }
-        idx++;
       }
     }
   }
@@ -547,22 +508,9 @@
     const lastCol = grid.dstXs.length - 1;
     const isCorner = (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
 
-    if (isCorner) {
-      // Corners: move both X and Y freely (perspective control)
-      grid.dstXs[col] = Math.max(0, Math.min(1, dragState.startPtX + dx));
-      grid.dstYs[row] = Math.max(0, Math.min(1, dragState.startPtY + dy));
-    } else {
-      // Non-corner handles move the entire LINE they belong to.
-      // Interior/edge column handles → move the vertical line (X only)
-      const prevX = grid.dstXs[col - 1] ?? 0;
-      const nextX = grid.dstXs[col + 1] ?? 1;
-      grid.dstXs[col] = Math.max(prevX + 0.01, Math.min(nextX - 0.01, dragState.startPtX + dx));
-
-      // Interior/edge row handles → move the horizontal line (Y only)
-      const prevY = grid.dstYs[row - 1] ?? 0;
-      const nextY = grid.dstYs[row + 1] ?? 1;
-      grid.dstYs[row] = Math.max(prevY + 0.01, Math.min(nextY - 0.01, dragState.startPtY + dy));
-    }
+    // Only corners have draggable handle points — they move freely in X+Y
+    grid.dstXs[col] = Math.max(0, Math.min(1, dragState.startPtX + dx));
+    grid.dstYs[row] = Math.max(0, Math.min(1, dragState.startPtY + dy));
 
     positionHandles();
     drawLines();
@@ -674,7 +622,15 @@
   // ── Arrow key fine-tuning ──────────────────────────────────────────────────
 
   function onKeyDown(e) {
-    if (!handlesVisible || !activeHandleKey) return;
+    if (!handlesVisible) return;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      resetGrid();
+      return;
+    }
+
+    if (!activeHandleKey) return;
 
     if (e.key === "Tab") {
       e.preventDefault();
