@@ -255,6 +255,12 @@ window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
   clampRoomAbsoluteCoordinate: (v) => clampRoomAbsoluteCoordinate(v),
   emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
   renderRoomOverlay: () => renderRoomOverlay(),
+  onAlignModeChanged: (enabled) => {
+    // Phase 19-2: projection mapping align mode integration
+    if (typeof onProjectionAlignModeChange === "function") {
+      onProjectionAlignModeChange(enabled);
+    }
+  },
   getBoardZoom: (boardId) => getBoardZoom(boardId),
   updateCurrentBoardZoom: (zoom, reason) => updateCurrentBoardZoom(zoom, reason),
   setPanCursorState: () => setPanCursorState(),
@@ -281,6 +287,32 @@ const {
   handleDevicePixelRatioChange,
   bindDevicePixelRatioWatcher,
 } = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
+
+// Phase 19-2: projection mapping — 4-corner warp for /output.
+window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
+  stage,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
+  OUTPUT_ROLE_CONTROL,
+  saveProjectionMapping: () => {
+    // Phase 19-2: persist projection corners via the existing global-defaults
+    // save pipeline. buildPersistedRuntimeSettingsFromState() already includes
+    // projectionMapping from the module, so a normal save captures everything.
+    try {
+      saveGlobalDefaultsToServer().catch(() => {});
+    } catch { /* best-effort — saveGlobalDefaultsToServer may not be ready yet */ }
+  },
+});
+const {
+  applyTransform: applyProjectionTransform,
+  showHandles: showProjectionHandles,
+  hideHandles: hideProjectionHandles,
+  loadCornersFromConfig: loadProjectionCornersFromConfig,
+  getCornersForPersistence: getProjectionCornersForPersistence,
+  resetCorners: resetProjectionCorners,
+  onAlignModeChange: onProjectionAlignModeChange,
+  onWindowResize: onProjectionWindowResize,
+} = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
 
 const state = window.TT_BEAMER_STATE.createInitialState({
   defaultBoardId: BOARDS[0]?.id ?? "",
@@ -2893,6 +2925,8 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
 const resizeObserver = new ResizeObserver((entries) => {
   void entries;
   scheduleStageViewportLifecycle("resize-observer");
+  // Phase 19-2: recompute projection mapping on resize
+  onProjectionWindowResize();
 });
 
 resizeObserver.observe(stage);
@@ -2978,6 +3012,8 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
   syncQuickModePanel: () => syncQuickModePanel(),
   syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
   applyOutputRoleViewContract: () => applyOutputRoleViewContract(),
+  loadProjectionCornersFromConfig: (config) => loadProjectionCornersFromConfig(config),
+  applyProjectionTransform: () => applyProjectionTransform(),
   connectLiveSyncSocket: () => connectLiveSyncSocket(),
   scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
   warmEventSoundAssets: () => warmEventSoundAssets(),

@@ -79,6 +79,10 @@
         degradeThreshold: mp4Controls.degradeThreshold,
         recoverThreshold: mp4Controls.recoverThreshold,
       },
+      // Phase 19-2: projection mapping corners
+      ...(window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING
+        ? { projectionMapping: { corners: window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.getCornersForPersistence() } }
+        : {}),
     };
   }
 

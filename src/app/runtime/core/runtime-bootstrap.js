@@ -158,6 +158,13 @@
     ctx.syncQuickModePanel();
     ctx.syncMobileStickyOffsets();
     ctx.applyOutputRoleViewContract();
+    // Phase 19-2: load projection mapping corners from global defaults and
+    // apply the saved transform on /output so calibration persists across reloads.
+    if (typeof ctx.loadProjectionCornersFromConfig === "function") {
+      const bootstrapConfig = window.__TT_BEAMER_BOOTSTRAP_CONFIG__;
+      ctx.loadProjectionCornersFromConfig(bootstrapConfig);
+      ctx.applyProjectionTransform();
+    }
     ctx.connectLiveSyncSocket();
     ctx.scheduleNextLiveSnapshotPoll(0);
     if (startupDefaultsSnapshot) {

@@ -2421,6 +2421,10 @@ async function handleGlobalDefaultsSave(req, res) {
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
     animationSoundMap: parsed.animationSoundMap ?? {},
+    // Phase 19-2: projection mapping corners persist across saves
+    ...(parsed.projectionMapping || existing?.projectionMapping
+      ? { projectionMapping: parsed.projectionMapping ?? existing?.projectionMapping }
+      : {}),
   };
 
   await writeFile(GLOBAL_DEFAULTS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
