@@ -390,6 +390,7 @@
     document.removeEventListener("pointerup", onDragEnd);
     document.removeEventListener("pointercancel", onDragEnd);
     positionHandles();
+    saveCornersToLocalStorage();
   }
 
   // ── Edge (side) drag handling ──────────────────────────────────────────────
@@ -442,6 +443,7 @@
     document.removeEventListener("pointerup", onEdgeDragEnd);
     document.removeEventListener("pointercancel", onEdgeDragEnd);
     positionHandles();
+    saveCornersToLocalStorage();
   }
 
   // ── Arrow key fine-tuning ───────────────────────────────────────────────────
@@ -472,6 +474,7 @@
     positionHandles();
     drawLines();
     applyTransform();
+    saveCornersToLocalStorage();
   }
 
   // ── Show / Hide ─────────────────────────────────────────────────────────────
