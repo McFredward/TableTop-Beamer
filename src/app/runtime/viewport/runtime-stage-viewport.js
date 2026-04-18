@@ -43,6 +43,8 @@
     ctx.triggerFeedback.textContent = "Status: Final-Output aktiv (FX-only, ohne Controller-UI)";
   }
 
+  let _lastAlignModeState = null;
+
   function syncAlignModePanel() {
     const state = ctx.state;
     const enabled = Boolean(state.alignMode);
@@ -59,15 +61,16 @@
       ctx.alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
     }
     document.body.classList.toggle("align-mode-active", enabled);
-    // Phase 19: show/hide sticky indicator bar on Dashboard
-    const indicator = document.getElementById("align-mode-indicator");
-    if (indicator) {
-      indicator.style.display = enabled ? "flex" : "none";
+    // Phase 19: show/hide sticky indicator bar on Dashboard (cached lookup)
+    if (!ctx._alignIndicator) {
+      ctx._alignIndicator = document.getElementById("align-mode-indicator");
     }
-    // Phase 19-2: notify projection mapping — syncAlignModePanel is called
-    // both from setAlignMode and from snapshot apply, so this is the single
-    // reliable hook for align mode changes on ALL clients including /output.
-    if (typeof ctx.onAlignModeChanged === "function") {
+    if (ctx._alignIndicator) {
+      ctx._alignIndicator.style.display = enabled ? "flex" : "none";
+    }
+    // Phase 19-2: notify projection mapping only when state actually changed
+    if (enabled !== _lastAlignModeState && typeof ctx.onAlignModeChanged === "function") {
+      _lastAlignModeState = enabled;
       ctx.onAlignModeChanged(enabled);
     }
     if (ctx.roomOverlay) {
