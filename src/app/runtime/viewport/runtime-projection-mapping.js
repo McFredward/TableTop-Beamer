@@ -20,14 +20,23 @@
 
   const CORNER_KEYS = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
   const CORNER_LABELS = { topLeft: "1", topRight: "2", bottomRight: "3", bottomLeft: "4" };
+  // Edges: each connects two corners. Dragging an edge moves both corners.
+  const EDGE_DEFS = [
+    { id: "top",    corners: ["topLeft", "topRight"],     label: "T" },
+    { id: "right",  corners: ["topRight", "bottomRight"], label: "R" },
+    { id: "bottom", corners: ["bottomRight", "bottomLeft"], label: "B" },
+    { id: "left",   corners: ["bottomLeft", "topLeft"],   label: "L" },
+  ];
 
   let corners = deepCloneCorners(DEFAULT_CORNERS);
   let activeCornerIndex = 0; // which corner is "active" for arrow keys
-  let handleElements = [];   // 4 draggable handle divs
+  let handleElements = [];   // 4 draggable corner handle divs
+  let edgeHandleElements = []; // 4 draggable edge (side) handle divs
   let lineCanvas = null;     // canvas overlay for connecting lines
   let lineCtx = null;
   let handlesVisible = false;
   let dragState = null;      // { cornerKey, startX, startY, startCornerX, startCornerY }
+  let edgeDragState = null;  // { edgeDef, startX, startY, startCorners }
 
   function init(dependencies) {
     ctx = dependencies;
@@ -211,6 +220,34 @@
       handleElements.push(el);
     }
 
+    // Create edge (side) handles — small rectangles at midpoints of each edge
+    for (let i = 0; i < EDGE_DEFS.length; i++) {
+      const edge = EDGE_DEFS[i];
+      const el = document.createElement("div");
+      el.className = "projection-edge-handle";
+      el.dataset.edgeIndex = String(i);
+      el.dataset.edgeId = edge.id;
+      const isVertical = edge.id === "left" || edge.id === "right";
+      el.style.cssText = `
+        position: fixed;
+        width: ${isVertical ? "12px" : "28px"};
+        height: ${isVertical ? "28px" : "12px"};
+        border-radius: 4px;
+        background: rgba(100, 160, 255, 0.8);
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        cursor: ${isVertical ? "ew-resize" : "ns-resize"};
+        z-index: 9998;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        transition: background 120ms ease;
+      `;
+      el.addEventListener("pointerdown", onEdgePointerDown);
+      document.body.appendChild(el);
+      edgeHandleElements.push(el);
+    }
+
     positionHandles();
     drawLines();
   }
@@ -221,6 +258,11 @@
       el.remove();
     }
     handleElements = [];
+    for (const el of edgeHandleElements) {
+      el.removeEventListener("pointerdown", onEdgePointerDown);
+      el.remove();
+    }
+    edgeHandleElements = [];
     if (lineCanvas) {
       lineCanvas.remove();
       lineCanvas = null;
@@ -247,6 +289,17 @@
         handleElements[i].style.transform = "scale(1)";
         handleElements[i].style.color = "#fff";
       }
+    }
+    // Position edge handles at midpoints of each edge
+    for (let i = 0; i < edgeHandleElements.length; i++) {
+      const edge = EDGE_DEFS[i];
+      const c1 = corners[edge.corners[0]];
+      const c2 = corners[edge.corners[1]];
+      const mx = ((c1.x + c2.x) / 2 / 100) * vw;
+      const my = ((c1.y + c2.y) / 2 / 100) * vh;
+      const isVertical = edge.id === "left" || edge.id === "right";
+      edgeHandleElements[i].style.left = `${mx - (isVertical ? 6 : 14)}px`;
+      edgeHandleElements[i].style.top = `${my - (isVertical ? 14 : 6)}px`;
     }
   }
 
@@ -336,6 +389,56 @@
     document.removeEventListener("pointermove", onDragMove);
     document.removeEventListener("pointerup", onDragEnd);
     document.removeEventListener("pointercancel", onDragEnd);
+    positionHandles();
+  }
+
+  // ── Edge (side) drag handling ──────────────────────────────────────────────
+
+  function onEdgePointerDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const idx = Number(e.currentTarget.dataset.edgeIndex);
+    const edge = EDGE_DEFS[idx];
+
+    edgeDragState = {
+      edgeDef: edge,
+      startX: e.clientX,
+      startY: e.clientY,
+      startCorners: {
+        [edge.corners[0]]: { ...corners[edge.corners[0]] },
+        [edge.corners[1]]: { ...corners[edge.corners[1]] },
+      },
+    };
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+    document.addEventListener("pointermove", onEdgeDragMove);
+    document.addEventListener("pointerup", onEdgeDragEnd);
+    document.addEventListener("pointercancel", onEdgeDragEnd);
+  }
+
+  function onEdgeDragMove(e) {
+    if (!edgeDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const dx = ((e.clientX - edgeDragState.startX) / vw) * 100;
+    const dy = ((e.clientY - edgeDragState.startY) / vh) * 100;
+    for (const ck of edgeDragState.edgeDef.corners) {
+      const start = edgeDragState.startCorners[ck];
+      corners[ck].x = Math.max(0, Math.min(100, start.x + dx));
+      corners[ck].y = Math.max(0, Math.min(100, start.y + dy));
+    }
+    positionHandles();
+    drawLines();
+    applyTransform();
+  }
+
+  function onEdgeDragEnd() {
+    if (!edgeDragState) return;
+    edgeDragState = null;
+    document.removeEventListener("pointermove", onEdgeDragMove);
+    document.removeEventListener("pointerup", onEdgeDragEnd);
+    document.removeEventListener("pointercancel", onEdgeDragEnd);
     positionHandles();
   }
 
