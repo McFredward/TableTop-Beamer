@@ -916,17 +916,21 @@
   }
 
   function resetGrid() {
-    grid.dstXs = DEFAULT_XS.slice();
-    grid.dstYs = DEFAULT_YS.slice();
-    // grid lines changed — rebuild srcXs/srcYs to match new count
-    grid.srcXs = makeEvenLines(grid.dstXs.length);
-    grid.srcYs = makeEvenLines(grid.dstYs.length);
+    grid.dstXs = makeEvenLines(DEFAULT_COUNT);
+    grid.dstYs = makeEvenLines(DEFAULT_COUNT);
+    grid.srcXs = makeEvenLines(DEFAULT_COUNT);
+    grid.srcYs = makeEvenLines(DEFAULT_COUNT);
     applyTransform();
-    saveToLocalStorage();
+    // Clear all localStorage keys for projection mapping
+    try {
+      localStorage.removeItem(LS_KEY_V2);
+      localStorage.removeItem(LS_KEY_OLD);
+    } catch { /* ignore */ }
     if (handlesVisible) {
       rebuildHandleElements();
       drawLines();
     }
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   // ── Show / Hide (unified — everything in one go) ───────────────────────────
@@ -934,19 +938,14 @@
   function showHandles() {
     if (handlesVisible) return;
     createHandles();
-    // Bind keyboard to lineCanvas (it's focusable with tabIndex=0)
-    if (lineCanvas) {
-      lineCanvas.addEventListener("keydown", onKeyDown);
-      lineCanvas.focus();
-    }
+    // Bind keyboard globally so ESC works regardless of focus
+    document.addEventListener("keydown", onKeyDown);
     activeHandleKey = "0-0";
   }
 
   function hideHandles() {
     if (!handlesVisible) return;
-    if (lineCanvas) {
-      lineCanvas.removeEventListener("keydown", onKeyDown);
-    }
+    document.removeEventListener("keydown", onKeyDown);
     removeHandles();
   }
 
