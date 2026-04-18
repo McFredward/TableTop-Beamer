@@ -64,6 +64,12 @@
     if (indicator) {
       indicator.style.display = enabled ? "flex" : "none";
     }
+    // Phase 19-2: notify projection mapping — syncAlignModePanel is called
+    // both from setAlignMode and from snapshot apply, so this is the single
+    // reliable hook for align mode changes on ALL clients including /output.
+    if (typeof ctx.onAlignModeChanged === "function") {
+      ctx.onAlignModeChanged(enabled);
+    }
     if (ctx.roomOverlay) {
       if (ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL) {
         ctx.roomOverlay.style.display = "";
@@ -97,10 +103,6 @@
     state.alignMode = nextAlignMode;
     syncAlignModePanel();
     ctx.renderRoomOverlay();
-    // Phase 19-2: notify projection mapping of align mode change
-    if (typeof ctx.onAlignModeChanged === "function") {
-      ctx.onAlignModeChanged(nextAlignMode);
-    }
   }
 
   function collectStageViewportMetrics() {
