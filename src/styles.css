@@ -122,19 +122,11 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   pointer-events: auto;
 }
 
-/* Phase 19-2: Projection mapping corner handles — only visible on /output during align mode */
+/* Phase 19-4: Unified grid projection — handles and grid overlay */
 .projection-corner-handle {
   /* Styles are inline in JS; this class is for potential overrides */
 }
 
-#projection-line-canvas {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9998;
-}
-
-/* Phase 19-3: Grid mesh warp handles and overlay */
 .projection-grid-handle {
   /* Styles are inline in JS; this class is for potential overrides */
 }
@@ -142,7 +134,7 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
 #projection-grid-line-canvas {
   position: fixed;
   inset: 0;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 9997;
 }
 
