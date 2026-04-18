@@ -71,6 +71,9 @@
         <p id="quick-mode-status" class="status-line" aria-live="polite">Select a room on the board</p>
       </section>
 
+      <button id="align-mode-button" class="align-mode-toggle dashboard-only" type="button" data-view="dashboard"
+        data-dashboard-zone="trigger" aria-pressed="false">Align: OFF</button>
+
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <nav class="view-switch settings-subtab-switch" aria-label="Settings groups">
           <button id="settings-subtab-board" type="button" data-settings-subtab="board" class="active">Board</button>
@@ -614,7 +617,6 @@
         </div>
         <div class="button-grid button-grid-2">
           <button id="stop-all" class="danger" type="button">Clear All</button>
-          <button id="align-mode-button" type="button" aria-pressed="false">Align mode: OFF</button>
         </div>
       </section>
 

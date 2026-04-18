@@ -51,7 +51,7 @@
     }
     // Phase 15-7: Dashboard-side align-mode button mirrors the state.
     if (ctx.alignModeButton) {
-      ctx.alignModeButton.textContent = `Align mode: ${enabled ? "ON" : "OFF"}`;
+      ctx.alignModeButton.textContent = `Align: ${enabled ? "ON" : "OFF"}`;
       ctx.alignModeButton.setAttribute("aria-pressed", enabled ? "true" : "false");
       ctx.alignModeButton.classList.toggle("is-active", enabled);
     }

@@ -632,6 +632,35 @@ h1 {
 }
 
 
+/* Phase 19: Align Mode toggle — standalone button below Quick Mode */
+.align-mode-toggle {
+  width: 100%;
+  min-height: 2.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(110, 130, 156, 0.35);
+  background: linear-gradient(180deg, rgba(22, 32, 50, 0.9), rgba(16, 24, 40, 0.9));
+  color: var(--muted);
+  border-radius: 0.55rem;
+  transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease, color 200ms ease;
+}
+.align-mode-toggle:hover {
+  border-color: rgba(130, 160, 220, 0.6);
+  color: var(--text);
+}
+.align-mode-toggle.is-active {
+  background: linear-gradient(180deg, rgba(30, 70, 90, 0.95), rgba(20, 55, 72, 0.95));
+  border-color: rgba(55, 192, 161, 0.8);
+  color: var(--glow);
+  box-shadow: 0 0 0.8rem rgba(55, 192, 161, 0.25), inset 0 0 0 1px rgba(55, 192, 161, 0.15);
+  animation: align-glow-pulse 2.5s ease-in-out infinite;
+}
+@keyframes align-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0.8rem rgba(55, 192, 161, 0.25), inset 0 0 0 1px rgba(55, 192, 161, 0.15); }
+  50% { box-shadow: 0 0 1.4rem rgba(55, 192, 161, 0.4), inset 0 0 0 1px rgba(55, 192, 161, 0.3); }
+}
+
 .quick-mode-buttons button {
   min-height: 3rem;
   font-weight: 600;
