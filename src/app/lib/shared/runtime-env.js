@@ -4,9 +4,13 @@
 
   function resolveOutputRoleFromLocation(locationLike = window.location) {
     const pathname = locationLike?.pathname || "/";
-    return pathname === "/output/final" || pathname.startsWith("/output/final/")
-      ? OUTPUT_ROLE_FINAL
-      : OUTPUT_ROLE_CONTROL;
+    if (pathname === "/output/final" || pathname.startsWith("/output/final/")) {
+      return OUTPUT_ROLE_FINAL;
+    }
+    if (pathname === "/output" || pathname.startsWith("/output/")) {
+      return OUTPUT_ROLE_FINAL;
+    }
+    return OUTPUT_ROLE_CONTROL;
   }
 
   function resolveLiveWebSocketUrl({ outputRole, locationLike = window.location } = {}) {

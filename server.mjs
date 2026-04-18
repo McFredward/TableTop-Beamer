@@ -2447,7 +2447,7 @@ async function handleGlobalDefaultsSave(req, res) {
 }
 
 function resolveStaticPath(urlValue, routePath) {
-  if (routePath === "/output/final") {
+  if (routePath === "/output/final" || routePath === "/output") {
     return path.join(ROOT_DIR, "index.html");
   }
   return toSafePath(urlValue || "/");
