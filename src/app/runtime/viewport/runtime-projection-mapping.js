@@ -274,11 +274,13 @@
     // Grid line canvas overlay — pointer-events enabled for line dragging
     lineCanvas = document.createElement("canvas");
     lineCanvas.id = "projection-grid-line-canvas";
-    lineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:auto;z-index:9997;cursor:default;";
+    lineCanvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:auto;z-index:9997;cursor:default;outline:none;";
+    lineCanvas.tabIndex = 0; // Make focusable for keyboard events
     document.body.appendChild(lineCanvas);
     lineCtx = lineCanvas.getContext("2d");
 
     lineCanvas.addEventListener("pointerdown", onLinePointerDown);
+    lineCanvas.addEventListener("pointermove", onLineHover);
     lineCanvas.addEventListener("contextmenu", onContextMenu);
 
     rebuildHandleElements();
@@ -297,6 +299,7 @@
 
     if (lineCanvas) {
       lineCanvas.removeEventListener("pointerdown", onLinePointerDown);
+      lineCanvas.removeEventListener("pointermove", onLineHover);
       lineCanvas.removeEventListener("contextmenu", onContextMenu);
       lineCanvas.remove();
       lineCanvas = null;
@@ -443,6 +446,44 @@
       lineCtx.stroke();
     }
 
+    // Draw drag-handle indicators on interior lines (visual affordance)
+    // Horizontal lines: small double-arrow ↕ icon at the midpoint
+    for (let row = 1; row < rows - 1; row++) {
+      const midCol = Math.floor(cols / 2);
+      const pt = getPoint(row, midCol);
+      const px = pt.x * vw;
+      const py = pt.y * vh;
+      // Draw grab handle: rounded rect with arrows
+      lineCtx.fillStyle = "rgba(0, 220, 180, 0.7)";
+      lineCtx.beginPath();
+      const hw = 20, hh = 10;
+      lineCtx.roundRect(px - hw, py - hh, hw * 2, hh * 2, 4);
+      lineCtx.fill();
+      // Draw ↕ arrows
+      lineCtx.fillStyle = "#fff";
+      lineCtx.font = "bold 12px sans-serif";
+      lineCtx.textAlign = "center";
+      lineCtx.textBaseline = "middle";
+      lineCtx.fillText("↕", px, py);
+    }
+    // Vertical lines: small double-arrow ↔ icon at the midpoint
+    for (let col = 1; col < cols - 1; col++) {
+      const midRow = Math.floor(rows / 2);
+      const pt = getPoint(midRow, col);
+      const px = pt.x * vw;
+      const py = pt.y * vh;
+      lineCtx.fillStyle = "rgba(0, 220, 180, 0.7)";
+      lineCtx.beginPath();
+      const hw = 10, hh = 20;
+      lineCtx.roundRect(px - hw, py - hh, hw * 2, hh * 2, 4);
+      lineCtx.fill();
+      lineCtx.fillStyle = "#fff";
+      lineCtx.font = "bold 12px sans-serif";
+      lineCtx.textAlign = "center";
+      lineCtx.textBaseline = "middle";
+      lineCtx.fillText("↔", px, py);
+    }
+
     // Filled quad from corners (semi-transparent)
     lineCtx.fillStyle = "rgba(255, 50, 50, 0.06)";
     lineCtx.beginPath();
@@ -530,6 +571,29 @@
   }
 
   // ── Grid line drag (move entire row/column) ────────────────────────────────
+
+  function onLineHover(e) {
+    if (lineDragState || !lineCanvas) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rows = grid.dstYs.length;
+    const cols = grid.dstXs.length;
+    // Check horizontal interior lines
+    for (let row = 1; row < rows - 1; row++) {
+      if (Math.abs(e.clientY - grid.dstYs[row] * vh) < LINE_HIT_THRESHOLD) {
+        lineCanvas.style.cursor = "ns-resize";
+        return;
+      }
+    }
+    // Check vertical interior lines
+    for (let col = 1; col < cols - 1; col++) {
+      if (Math.abs(e.clientX - grid.dstXs[col] * vw) < LINE_HIT_THRESHOLD) {
+        lineCanvas.style.cursor = "ew-resize";
+        return;
+      }
+    }
+    lineCanvas.style.cursor = "default";
+  }
 
   function onLinePointerDown(e) {
     if (e.button !== 0) return; // Left click only — right is context menu
@@ -870,15 +934,20 @@
   function showHandles() {
     if (handlesVisible) return;
     createHandles();
-    document.addEventListener("keydown", onKeyDown);
-    // Set initial active handle to first corner
+    // Bind keyboard to lineCanvas (it's focusable with tabIndex=0)
+    if (lineCanvas) {
+      lineCanvas.addEventListener("keydown", onKeyDown);
+      lineCanvas.focus();
+    }
     activeHandleKey = "0-0";
   }
 
   function hideHandles() {
     if (!handlesVisible) return;
+    if (lineCanvas) {
+      lineCanvas.removeEventListener("keydown", onKeyDown);
+    }
     removeHandles();
-    document.removeEventListener("keydown", onKeyDown);
   }
 
   // ── Align mode integration ─────────────────────────────────────────────────
