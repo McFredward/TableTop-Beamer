@@ -97,6 +97,10 @@
     state.alignMode = nextAlignMode;
     syncAlignModePanel();
     ctx.renderRoomOverlay();
+    // Phase 19-2: notify projection mapping of align mode change
+    if (typeof ctx.onAlignModeChanged === "function") {
+      ctx.onAlignModeChanged(nextAlignMode);
+    }
   }
 
   function collectStageViewportMetrics() {
