@@ -148,21 +148,33 @@ Exit Criteria:
 - Keine regressiven Aenderungen in Phase 11/12/13 Acceptance-Harnesses — alle GREEN.
 - Build + Startup unveraendert; in-browser smoke unveraendert.
 
-## Phase 18 - UX Overhaul: Simplicity & Mobile-First (PLANNED)
-Ziel: Umfassende UX-Ueberarbeitung fuer intuitive Bedienung ohne Funktionalitaetsverlust. Mobile ist der primaere Nutzungskontext waehrend des Spiels. Quick Mode (Tap Mode) ist der Haupt-Workflow. Status-Rauschen eliminieren, progressive Disclosure, klare Terminologie.
+## Phase 18 - UX Overhaul: Simplicity & Mobile-First (CLOSED)
+Ziel: Umfassende UX-Ueberarbeitung fuer intuitive Bedienung ohne Funktionalitaetsverlust.
 
-Status: PLANNED. Plan 18-1 bis 18-4 definiert in `.planning/phases/phase-18/PLAN.md`.
+Status: CLOSED. 5 Plans (18-01 bis 18-05) + extensive Bugfixes. 55+ Commits.
+
+Delivered:
+- Dashboard: Quick Mode an oberster Position mit Inline-Animation-Picker (horizontale Pills)
+- Settings: Panel-Konsolidierung (Board Setup, Room Editor), Animation Create/Edit Workflow, Terminologie (Effect/GIF/Video)
+- Polygon Workflow: Rechtsklick/Long-Press Room-Creation, Undo/Redo (Ctrl+Z), Doppelklick-Vertex-Insert
+- Mobile: Landscape Side-by-Side Layout, Slider Touch Guard, Pill-Subtabs
+- Visual: Glassmorphism-Panels, Custom Range-Slider, Accent-Buttons
+- Fixes: Loading Overlay (Server-Snapshot-aware), Outside MP4 Restart-Fix, Canvas clientWidth Rotation-Fix, Pan bei jedem Zoom, Animation-Flicker-Fix, englische Texte
+
+## Phase 19 - Align Mode Overhaul + Projection Mapping (PLANNING)
+Ziel: Align Mode ueberarbeiten mit prominentem Dashboard-Button, Play Area Grenzen Anzeige, 4-Ecken Projection Mapping auf /output, und Output-Pfad von /output/final auf /output aendern.
+
+Status: PLANNING.
 
 Milestones:
-1. M1 Dashboard UX: Quick Mode Promotion, Room Animation Simplification, Status Cleanup, Empty States.
-2. M2 Settings UX: Panel Consolidation, Terminology Overhaul, Navigation Polish.
-3. M3 Mobile-First: Quick Mode Touch Optimization, Compact Running Animations, Mobile Settings.
-4. M4 Visual Polish: Hierarchy Differentiation, Button/Control Styling, Typography.
+1. M1 Align Mode Visibility: Button an prominenter Stelle im Dashboard, nicht versteckt.
+2. M2 Play Area Display: Align Mode zeigt Play Area Grenzen an.
+3. M3 Projection Mapping: 4-Ecken-Verschiebung auf /output fuer perfekte Beamer-Anpassung (Maus-Drag + Pfeiltasten-Feinjustierung), CSS perspective transform, schwarz ausserhalb.
+4. M4 Output Path: /output/final → /output umrouten.
 
 Exit Criteria:
-- Quick Mode ist die prominenteste Section im Dashboard und primaerer Interaktionspfad.
-- Alle statischen/technischen Status-Zeilen entfernt oder in technische Details verlagert.
-- Settings-Panels konsolidiert (Board Setup, Room Editor statt 6 separate Panels).
-- Terminologie nutzerfreundlich (keine Asset/Coded Begriffe in der UI).
-- Mobile Touch-Targets mindestens 48px, Quick Mode ohne Scrollen erreichbar.
-- Keine Funktionalitaet entfernt — nur Darstellung und Zugaenglichkeit verbessert.
+- Align Mode Button im Dashboard sichtbar ohne Scrollen.
+- Play Area Polygone im Align Mode sichtbar auf /output.
+- 4 Ecken per Drag oder Pfeiltasten verschiebbar auf /output waehrend Align Mode.
+- Projection Mapping nur aktiv waehrend Align Mode, sonst normaler Output.
+- Output erreichbar unter /output statt /output/final.

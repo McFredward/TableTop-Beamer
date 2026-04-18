@@ -7,14 +7,14 @@
 
 ## Lifecycle
 - Planning Mode: active
-- Current Phase: 18
-- Current Phase Key: phase-18
-- Last Prepared: 2026-04-13
-- Execution Readiness: PLANNED
-- Previous Phase: 17 (CLOSED)
-- Last Executed Plan: 17 (solid-color animation, per-definition defaults, dirty-flag rework, freeze persistence, live-sync fixes)
-- Planned Next Execution: Phase 18 — UX Overhaul: Simplicity & Mobile-First
-- Last Execution Summary: Phase 17 delivered solid-color coded animation, per-definition default values (opacity/intensity/speed/soundVolume/transform), Settings dirty-flag rework (immediate commit, no Apply buttons), freeze persistence fix (broadcast suppression + migration), live-editor sync to /output/final, board-switch default animation loading
+- Current Phase: 19
+- Current Phase Key: phase-19
+- Last Prepared: 2026-04-18
+- Execution Readiness: PLANNING
+- Previous Phase: 18 (CLOSED)
+- Last Executed Plan: 18 (UX Overhaul — Dashboard restructure, Settings consolidation, Polygon workflow + Undo/Redo, Mobile-First, Visual Polish, Quick Mode animation picker, Loading overlay, Outside MP4 stability, Pan freedom, Landscape layout)
+- Planned Next Execution: Phase 19 — Align Mode Overhaul + Projection Mapping
+- Last Execution Summary: Phase 18 delivered comprehensive UX overhaul: Quick Mode promotion with inline animation picker, Settings panel consolidation, animation create/edit workflow rework, terminology update, polygon context menu + undo/redo system, mobile-first polish (landscape side-by-side, slider touch guard, pill subtabs), visual modernization (glassmorphism panels, custom sliders), loading overlay with server-snapshot awareness, outside MP4 restart fix, pan at any zoom, canvas sizing fix for rotation, dblclick vertex insert, English texts
 
 ## Source Inputs
 - docs/PHASE1-BACKLOG.md
