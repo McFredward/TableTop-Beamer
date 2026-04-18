@@ -1440,7 +1440,7 @@ button.danger.is-armed {
 /* Phase 18-3: board context menu for right-click / long-press room creation */
 .board-context-menu {
   position: fixed;
-  z-index: 1100;
+  z-index: 10100;
   display: grid;
   gap: 2px;
   min-width: 160px;
