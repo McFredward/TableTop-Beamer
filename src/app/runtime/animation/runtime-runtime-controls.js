@@ -62,23 +62,40 @@
 
   function executeClearAll() {
     const state = ctx.state;
+    const clearDefaults = Boolean(ctx.stopAllIncludeDefaultsCheckbox?.checked);
     if (ctx.getOutputRole() === ctx.OUTPUT_ROLE_CONTROL) {
       void ctx.emitLiveMutation("clear-all", {
         priorityHint: "high",
         reason: "control-clear-all",
+        payload: { clearDefaults },
       }).then(() => {
-        ctx.triggerFeedback.textContent = "Pending: Clear All command accepted (waiting for snapshot)";
+        ctx.triggerFeedback.textContent = clearDefaults
+          ? "Pending: Clear All (incl. defaults) command accepted"
+          : "Pending: Clear All command accepted (waiting for snapshot)";
       }).catch(() => {
         ctx.triggerFeedback.textContent = "Status: Clear All command failed";
       });
       return;
     }
-    hardStopRuntimeEffects({ clearVisuals: true });
-    for (const board of ctx.getBoards()) {
-      ctx.updateOutsideFxProfile(board.id, { enabled: false });
+    if (clearDefaults) {
+      hardStopRuntimeEffects({ clearVisuals: true });
+      for (const board of ctx.getBoards()) {
+        ctx.updateOutsideFxProfile(board.id, { enabled: false });
+      }
+      state.runningAnimations = [];
+    } else {
+      // Keep default animations (id prefix "default-") running
+      for (const animation of state.runningAnimations) {
+        if (String(animation?.id || "").startsWith("default-")) continue;
+        const graceful = shouldGracefulStopAudio(animation);
+        ctx.stopAnimationSound(animation.id, { graceful });
+      }
+      ctx.ashParticles.length = 0;
+      state.runningAnimations = state.runningAnimations.filter(
+        (a) => String(a?.id || "").startsWith("default-"),
+      );
     }
     ctx.persistBoardProfiles();
-    state.runningAnimations = [];
     ctx.clearRoomDraftEditTarget();
     ctx.syncOutsideFxPanel();
     ctx.renderRunningAnimationsList();
@@ -86,6 +103,7 @@
     ctx.triggerFeedback.textContent = "Status: Clear All executed";
     void ctx.emitLiveMutation("clear-all", {
       priorityHint: "high",
+      payload: { clearDefaults },
     });
   }
 

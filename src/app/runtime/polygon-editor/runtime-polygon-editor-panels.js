@@ -190,7 +190,7 @@
       for (const area of playAreas) {
         const option = document.createElement("option");
         option.value = area.id;
-        option.textContent = `${area.name} (${area.id})`;
+        option.textContent = area.name;
         ctx.playAreaSelect.append(option);
       }
       ctx.playAreaSelect.value = selectedPlayAreaId;

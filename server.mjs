@@ -462,30 +462,39 @@ function applyRoomMutationPatch(mutationType, payload) {
       }
     }
   } else if (mutationType === "clear-all") {
+    const clearDefaults = payload?.clearDefaults === true;
+    const isDefault = (entry) => String(entry?.id || "").startsWith("default-");
+    const shouldStop = (entry) => clearDefaults || !isDefault(entry);
+
     for (const entry of runningAnimations) {
-      if (entry?.scope !== "global" || !entry?.boardId || !entry?.type) {
-        continue;
-      }
+      if (!shouldStop(entry)) continue;
+      if (entry?.scope !== "global" || !entry?.boardId || !entry?.type) continue;
       const triggerKey = `${entry.boardId}:${entry.type}`;
       const stopRevision = Number(globalStopRevisions[triggerKey]) || 0;
       globalStopRevisions[triggerKey] = stopRevision + 1;
     }
+    const kept = runningAnimations.filter((e) => !shouldStop(e));
     runningAnimations.length = 0;
-    const outsideFxByBoard = readOutsideFxByBoard();
-    for (const [boardId, profile] of Object.entries(outsideFxByBoard)) {
-      outsideFxByBoard[boardId] = {
-        ...(isPlainObject(profile) ? profile : {}),
-        enabled: false,
-      };
+    runningAnimations.push(...kept);
+
+    let outsideFxByBoard = null;
+    if (clearDefaults) {
+      outsideFxByBoard = readOutsideFxByBoard();
+      for (const [boardId, profile] of Object.entries(outsideFxByBoard)) {
+        outsideFxByBoard[boardId] = {
+          ...(isPlainObject(profile) ? profile : {}),
+          enabled: false,
+        };
+      }
+      nextRuntime.outsideFxByBoard = outsideFxByBoard;
     }
-    nextRuntime.outsideFxByBoard = outsideFxByBoard;
     nextRuntime.runningAnimations = runningAnimations;
     nextRuntime.globalStopRevisions = globalStopRevisions;
     globalClearRevision += 1;
     nextRuntime.globalClearRevision = globalClearRevision;
     return {
       runtime: nextRuntime,
-      outsideFxByBoard,
+      ...(outsideFxByBoard ? { outsideFxByBoard } : {}),
       ...(authoritativeBoardId
         ? {
           selectedBoard: authoritativeBoardId,

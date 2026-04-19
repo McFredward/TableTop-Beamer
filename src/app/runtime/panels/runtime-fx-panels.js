@@ -196,7 +196,7 @@
       for (const definition of inside.animations) {
         const option = document.createElement("option");
         option.value = definition.id;
-        option.textContent = `${definition.name} (${definition.id})`;
+        option.textContent = definition.name;
         ctx.insideAnimationSelect.append(option);
       }
       ctx.insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
@@ -392,7 +392,7 @@
       for (const definition of roomFx.animations) {
         const option = document.createElement("option");
         option.value = definition.id;
-        option.textContent = `${definition.name} (${definition.id})`;
+        option.textContent = definition.name;
         ctx.roomAnimationSettingsSelect.append(option);
       }
       ctx.roomAnimationSettingsSelect.value = selectedDefinition?.id ?? roomFx.animations[0]?.id ?? "";
@@ -707,7 +707,7 @@
       for (const definition of outside.animations) {
         const option = document.createElement("option");
         option.value = definition.id;
-        option.textContent = `${definition.name} (${definition.id})`;
+        option.textContent = definition.name;
         ctx.outsideAnimationSelect.append(option);
       }
       ctx.outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";

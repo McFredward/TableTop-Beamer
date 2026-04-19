@@ -163,17 +163,22 @@
         state.shipPolygonEditor._lastEdgeTap = { edgeIndex: index, time: now };
         if (isDoubleTap) {
           state.shipPolygonEditor._lastEdgeTap = null;
-          if (Array.isArray(points) && points.length >= 3) {
+          // Work in normalized 0-1 space, NOT the *1000 SVG-display array.
+          // Otherwise setShipPolygonPoints would store huge values that
+          // normalizeShipPolygon then resets to the default rectangle.
+          const rawPoints = ctx.normalizeShipPolygon(selectedArea?.polygon);
+          if (Array.isArray(rawPoints) && rawPoints.length >= 3) {
             if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert Play Area vertex (double-click)");
-            const nextIndex = (index + 1) % points.length;
-            const a = points[index];
-            const b = points[nextIndex];
+            const nextIndex = (index + 1) % rawPoints.length;
+            const a = rawPoints[index];
+            const b = rawPoints[nextIndex];
             const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-            points.splice(nextIndex, 0, ctx.normalizeShipPolygon([midpoint])[0] || midpoint);
-            ctx.setShipPolygonPoints(state.boardId, points);
+            rawPoints.splice(nextIndex, 0, midpoint);
+            ctx.setShipPolygonPoints(state.boardId, rawPoints);
             ctx.persistBoardProfiles();
             state.shipPolygonEditor.selectedVertexIndex = nextIndex;
             state.shipPolygonEditor.selectedEdgeIndex = index;
+            state.polygonEditor.suppressRoomClickUntil = performance.now() + 400;
             ctx.syncShipPolygonVertexSelect();
             ctx.syncShipPolygonEditorStatus();
             renderRoomOverlay();

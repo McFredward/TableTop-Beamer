@@ -26,6 +26,7 @@
       apiDiagnoseStatus: document.querySelector("#api-diagnose-status"),
       triggerFeedback: document.querySelector("#trigger-feedback"),
       stopAllButton: document.querySelector("#stop-all"),
+      stopAllIncludeDefaultsCheckbox: document.querySelector("#stop-all-include-defaults"),
       roomSelected: document.querySelector("#room-selected"),
       roomTargetSelect: document.querySelector("#room-target-select"),
       roomAnimationSelect: document.querySelector("#room-animation-select"),
