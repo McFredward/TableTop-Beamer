@@ -34,9 +34,17 @@
       syncPolygonEditorPanel,
       syncRoomPanelFromSelection,
       renderRoomOverlay,
+      outputRole,
+      OUTPUT_ROLE_FINAL,
     } = ctx;
 
     if (!stage) {
+      return;
+    }
+    // /output (FINAL) must not be zoom-/pan-interactive — that view is
+    // driven by the projection-mapping align system, not by the dashboard
+    // zoom/pan controls.
+    if (outputRole === OUTPUT_ROLE_FINAL) {
       return;
     }
 

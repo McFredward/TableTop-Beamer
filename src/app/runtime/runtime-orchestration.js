@@ -2518,6 +2518,8 @@ window.TT_BEAMER_RUNTIME_WIRE_STAGE_GESTURE_BINDERS.wireStageGestureBinders({
   liveSync,
   stage,
   roomOverlay,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
   getBoardZoom: (boardId) => getBoardZoom(boardId),
   applyZoomScaleAroundClientPoint: (scale, x, y, label) => applyZoomScaleAroundClientPoint(scale, x, y, label),
   clampBoardZoomScale: (scale) => clampBoardZoomScale(scale),
