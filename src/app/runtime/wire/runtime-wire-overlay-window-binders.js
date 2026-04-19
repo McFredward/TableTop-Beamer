@@ -300,8 +300,10 @@
         const modifierPressed = event.ctrlKey || event.metaKey;
         const typingTarget = isTypingShortcutTarget(event.target);
         const playAreaContext = isPlayAreaShortcutContext(event.target);
-        // Phase 18-3: Ctrl+Z = undo, Ctrl+Shift+Z = redo (only in Settings Board subtab)
-        if (!typingTarget && modifierPressed && !event.altKey && key === "z" && state.settingsSubtab === "board") {
+        // Ctrl+Z = undo, Ctrl+Shift+Z = redo. Works in any Settings subtab —
+        // the undo is global to polygon/play-area edits regardless of which
+        // subtab is currently open.
+        if (!typingTarget && modifierPressed && !event.altKey && key === "z") {
           event.preventDefault();
           if (event.shiftKey) {
             polygonRedo();

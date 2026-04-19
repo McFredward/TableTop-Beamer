@@ -93,7 +93,10 @@
   }
 
   function getSpecialRooms(boardId = ctx.state.boardId) {
-    return ctx.getBoard(boardId).rooms;
+    // During init (nav regression) the board catalog may not be ready yet.
+    // Return an empty array instead of crashing on board?.rooms.
+    const board = ctx.getBoard(boardId);
+    return Array.isArray(board?.rooms) ? board.rooms : [];
   }
 
   function getActivePolygonRoomId(boardId = ctx.state.boardId) {
