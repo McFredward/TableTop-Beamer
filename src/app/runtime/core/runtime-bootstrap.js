@@ -58,6 +58,7 @@
       syncShipPolygonEditorPanel: ctx.syncShipPolygonEditorPanel,
       syncRoomFxPanel: ctx.syncRoomFxPanel,
       syncOutsideFxPanel: ctx.syncOutsideFxPanel,
+      syncInsideFxPanel: ctx.syncInsideFxPanel,
       syncAlignModePanel: ctx.syncAlignModePanel,
       syncBoardZoomPanel: ctx.syncBoardZoomPanel,
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,

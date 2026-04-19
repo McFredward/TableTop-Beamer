@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-04-19T11:54:51.606Z",
+  "savedAt": "2026-04-19T12:27:00.010Z",
   "source": "runtime-state",
   "boardProfiles": {
     "nemesis-board-a": {
@@ -6956,7 +6956,7 @@
         ]
       ],
       "outsideFx": {
-        "enabled": false,
+        "enabled": true,
         "selectedAnimationId": "outside-space",
         "animations": [
           {
@@ -6964,9 +6964,9 @@
             "name": "Outside Space",
             "assetType": "coded",
             "assetRef": "outside-space",
-            "intensity": 0.85,
-            "speed": 1.4,
-            "mode": "standard",
+            "intensity": 1,
+            "speed": 1,
+            "mode": "immersive",
             "direction": "reverse",
             "soundEnabled": false,
             "soundAssetRef": "none"
@@ -6984,9 +6984,9 @@
             "soundAssetRef": "none"
           }
         ],
-        "intensity": 0.85,
-        "speed": 1.4,
-        "mode": "standard",
+        "intensity": 1,
+        "speed": 1,
+        "mode": "immersive",
         "direction": "reverse",
         "assetType": "coded",
         "assetRef": "outside-space"
@@ -22153,8 +22153,8 @@
             "name": "Outside Space",
             "assetType": "coded",
             "assetRef": "outside-space",
-            "intensity": null,
-            "speed": null,
+            "intensity": 0.2,
+            "speed": 1,
             "mode": "standard",
             "direction": "forward",
             "soundEnabled": false,

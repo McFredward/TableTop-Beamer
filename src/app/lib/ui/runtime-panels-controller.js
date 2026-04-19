@@ -27,6 +27,7 @@
     syncShipPolygonEditorPanel,
     syncRoomFxPanel,
     syncOutsideFxPanel,
+    syncInsideFxPanel,
     syncAlignModePanel,
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
@@ -56,6 +57,7 @@
     syncShipPolygonEditorPanel();
     syncRoomFxPanel();
     syncOutsideFxPanel();
+    if (typeof syncInsideFxPanel === "function") syncInsideFxPanel();
     syncAlignModePanel();
     syncBoardZoomPanel();
     syncDashboardZoneVisibility();
