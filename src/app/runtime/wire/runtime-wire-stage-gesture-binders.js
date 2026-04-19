@@ -43,6 +43,15 @@
     stage.addEventListener(
       "wheel",
       (event) => {
+        // TEMP DIAGNOSTIC — Phase 20 zoom bug hunt
+        console.log("[wheel diag]", {
+          hasTarget: !!event.target,
+          targetTag: event.target?.tagName,
+          targetId: event.target?.id,
+          stageContains: stage.contains(event.target),
+          deltaY: event.deltaY,
+          defaultPrevented: event.defaultPrevented,
+        });
         if (!event.target || !stage.contains(event.target)) return;
         event.preventDefault();
         const current = getBoardZoom(state.boardId);

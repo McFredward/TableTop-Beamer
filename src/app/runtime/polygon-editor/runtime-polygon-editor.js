@@ -634,6 +634,12 @@
       return;
     }
 
+    // Board catalog may not be ready during the init-time nav regression.
+    // Skip rendering room polygons until it is.
+    if (!board || !Array.isArray(board.rooms)) {
+      return;
+    }
+
     // Phase 18: compute stroke scale for polygon lines
     const overlayHandleScale = ctx.getCurrentPolygonHandleScale();
     const overlayStrokeWidth = Math.max(0.8, 2 * Math.max(0.4, overlayHandleScale));
