@@ -485,11 +485,12 @@
         const boardId = state.boardId;
         if (!boardId) { setStatus("No board selected."); return; }
         try {
-          setStatus(`Preparing package for ${boardId}...`);
+          setStatus(`Preparing package for ${boardId}… (bundling assets, this can take a moment)`);
           const resp = await fetch(`/api/boards/bundle-export?boardId=${encodeURIComponent(boardId)}`);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const pkg = await resp.json();
-          const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
+          const serialized = JSON.stringify(pkg);
+          const blob = new Blob([serialized], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -499,7 +500,10 @@
           link.click();
           link.remove();
           URL.revokeObjectURL(url);
-          setStatus(`Saved ${link.download}. Share this file.`);
+          const sizeMB = (serialized.length / (1024 * 1024)).toFixed(1);
+          const resCount = Array.isArray(pkg.resources) ? pkg.resources.length : 0;
+          const imgNote = pkg.boardImage ? "board image + " : "";
+          setStatus(`Saved ${link.download} (${sizeMB} MB — ${imgNote}${resCount} bundled asset${resCount === 1 ? "" : "s"}). Share this file.`);
         } catch (error) {
           setStatus(`Export failed: ${error?.message || error}`);
         }
@@ -514,13 +518,14 @@
         const isPackage = mime === "application/json" || /\.json$/i.test(file.name);
         try {
           if (isPackage) {
-            setStatus(`Reading package ${file.name}...`);
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            setStatus(`Reading package ${file.name} (${sizeMB} MB)…`);
             const text = await file.text();
             // Loose validation — the server gives a friendlier error if wrong.
             try { JSON.parse(text); } catch {
               throw new Error("that doesn't look like a valid package file");
             }
-            setStatus(`Importing...`);
+            setStatus(`Uploading… (this can take a moment for packages with videos)`);
             const resp = await fetch("/api/boards/bundle-import", {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -531,7 +536,12 @@
               throw new Error(body?.error || `HTTP ${resp.status}`);
             }
             const body = await resp.json();
-            setStatus(`Imported "${body.boardId}". Reload the page to see it in the list.`);
+            const wrote = Number(body.resourcesWritten) || 0;
+            const skipped = Number(body.resourcesSkipped) || 0;
+            const extra = wrote || skipped
+              ? ` · ${wrote} new asset${wrote === 1 ? "" : "s"}${skipped ? `, ${skipped} already on disk` : ""}`
+              : "";
+            setStatus(`Imported "${body.boardId}"${extra}. Reload the page to see it in the list.`);
             triggerFeedback.textContent = `Status: Board ${body.boardId} imported`;
           } else if (isImage) {
             setStatus(`Uploading ${file.name}...`);

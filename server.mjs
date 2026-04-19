@@ -2696,6 +2696,48 @@ const server = createServer(async (req, res) => {
         } catch { /* image missing — exported package will just not include it */ }
       }
 
+      // Scan the boardProfile recursively for /resources/... paths referenced by
+      // its animations + sounds, and embed each file as base64. Receiver ends
+      // up with a fully playable board, GIFs/MP4s and all.
+      const referencedPaths = new Set();
+      const collectRefs = (node) => {
+        if (!node) return;
+        if (typeof node === "string") {
+          const trimmed = node.trim();
+          if (/^\/?resources\//i.test(trimmed)) {
+            referencedPaths.add(trimmed.replace(/^\/+/, ""));
+          }
+          return;
+        }
+        if (Array.isArray(node)) {
+          for (const entry of node) collectRefs(entry);
+          return;
+        }
+        if (typeof node === "object") {
+          for (const value of Object.values(node)) collectRefs(value);
+        }
+      };
+      collectRefs(boardProfile);
+      const resources = [];
+      const resourceMime = {
+        gif: "image/gif", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp",
+        mp4: "video/mp4", webm: "video/webm",
+        mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4",
+      };
+      for (const relPath of referencedPaths) {
+        try {
+          const resolved = path.join(ROOT_DIR, relPath);
+          if (!resolved.startsWith(ROOT_DIR)) continue;
+          const buf = await readFile(resolved);
+          const ext = path.extname(resolved).slice(1).toLowerCase();
+          resources.push({
+            path: relPath,
+            mimeType: resourceMime[ext] || "application/octet-stream",
+            base64: buf.toString("base64"),
+          });
+        } catch { /* resource missing on disk — skip silently */ }
+      }
+
       sendJson(res, 200, {
         schema: "tt-beamer.board-package.v1",
         exportedAt: new Date().toISOString(),
@@ -2704,6 +2746,7 @@ const server = createServer(async (req, res) => {
         boardProfile,
         projectionProfiles,
         boardImage,
+        resources,
       });
       return;
     }
@@ -2711,8 +2754,8 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && routePath === "/api/boards/bundle-import") {
       let parsed;
       try {
-        // Allow larger payloads (base64 image can be several MB).
-        parsed = await parseJsonBody(req, { maxBytes: 20 * 1024 * 1024 });
+        // Allow very large payloads — packages can include bundled MP4s.
+        parsed = await parseJsonBody(req, { maxBytes: 500 * 1024 * 1024 });
       } catch (error) {
         const message = error instanceof Error ? error.message : "invalid JSON payload";
         if (message.includes("payload too large")) {
@@ -2815,7 +2858,36 @@ const server = createServer(async (req, res) => {
         await saveProjectionProfilesRaw(all);
       }
 
-      sendJson(res, 200, { ok: true, boardId });
+      // 5) Write any bundled resources (GIFs / MP4s / sounds referenced by
+      //    this board's animations). Paths are restricted to `resources/…`
+      //    to prevent writing outside the project. Files are only created
+      //    when missing — existing files are left alone so custom local
+      //    assets on the destination aren't overwritten.
+      let resourcesWritten = 0;
+      let resourcesSkipped = 0;
+      const incomingResources = Array.isArray(parsed?.resources) ? parsed.resources : [];
+      for (const entry of incomingResources) {
+        const relRaw = String(entry?.path || "").replace(/^\/+/, "");
+        if (!relRaw.startsWith("resources/")) { resourcesSkipped++; continue; }
+        if (relRaw.includes("..")) { resourcesSkipped++; continue; }
+        if (typeof entry?.base64 !== "string" || entry.base64.length === 0) { resourcesSkipped++; continue; }
+        const resolved = path.join(ROOT_DIR, relRaw);
+        if (!resolved.startsWith(ROOT_DIR)) { resourcesSkipped++; continue; }
+        try {
+          // Don't overwrite — let the user's local copy win if it exists.
+          try { await stat(resolved); resourcesSkipped++; continue; } catch { /* not there, proceed */ }
+          await mkdir(path.dirname(resolved), { recursive: true });
+          await writeFile(resolved, Buffer.from(entry.base64, "base64"));
+          resourcesWritten++;
+        } catch { resourcesSkipped++; }
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        boardId,
+        resourcesWritten,
+        resourcesSkipped,
+      });
       return;
     }
 
