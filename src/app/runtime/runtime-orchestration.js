@@ -966,6 +966,7 @@ window.TT_BEAMER_RUNTIME_AUDIO.init({
   getAnimationLabel: (t) => getAnimationLabel(t),
   normalizeAnimationSoundPath: (type, path) => normalizeAnimationSoundPath(type, path),
   getGlobalAnimationCategory: (t) => getGlobalAnimationCategory(t),
+  isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
 });
 const {
   syncAudioStatus,
@@ -1275,6 +1276,7 @@ window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
   emitStopAnimationCommand: (animationId, opts) => emitStopAnimationCommand(animationId, opts),
   getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
+  isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
 });
 const {
   recordTriggerIntent,
@@ -2191,6 +2193,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   clampRoomDurationSec: (value) => clampRoomDurationSec(value),
   clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
   isRoomAnimationType: (type) => isRoomAnimationType(type),
+  isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   syncRoomStaggerOffsetControl: () => syncRoomStaggerOffsetControl(),
   syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
