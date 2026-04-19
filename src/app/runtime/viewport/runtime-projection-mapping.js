@@ -258,7 +258,51 @@
   let lineDragState = null;
   // Whole-grid pan state (click on empty area + drag)
   let panDragState = null;
+  // Rotate state — corner handles can rotate the whole grid around its centroid
+  let rotateDragState = null;
+  let rotateHandleElements = [];
   const LINE_HIT_THRESHOLD = 15; // px
+
+  // ── Undo stack (grid state snapshots) ──────────────────────────────────────
+  const MAX_UNDO = 50;
+  let undoStack = [];
+
+  function snapshotGridState() {
+    return {
+      srcXs: grid.srcXs.slice(),
+      srcYs: grid.srcYs.slice(),
+      points: grid.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
+    };
+  }
+
+  function restoreGridSnapshot(snap) {
+    if (!snap) return;
+    grid.srcXs = snap.srcXs.slice();
+    grid.srcYs = snap.srcYs.slice();
+    grid.points = snap.points.map((row) => row.map((p) => ({ x: p.x, y: p.y })));
+  }
+
+  function pushUndo() {
+    undoStack.push(snapshotGridState());
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+  }
+
+  function clearUndo() {
+    undoStack = [];
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    restoreGridSnapshot(undoStack.pop());
+    saveToLocalStorage();
+    if (handlesVisible) {
+      rebuildHandleElements();
+      positionRotateHandles();
+      drawLines();
+    }
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+  }
 
   function createHandles() {
     if (handlesVisible) return;
@@ -289,6 +333,12 @@
       el.remove();
     }
     handleElements = [];
+
+    for (const el of rotateHandleElements) {
+      el.removeEventListener("pointerdown", onRotateHandlePointerDown);
+      el.remove();
+    }
+    rotateHandleElements = [];
 
     if (lineCanvas) {
       lineCanvas.removeEventListener("pointerdown", onLinePointerDown);
@@ -342,7 +392,139 @@
       }
     }
 
+    rebuildRotateHandles();
     positionHandles();
+    positionRotateHandles();
+  }
+
+  // ── Rotate handles (one per corner — rotate whole grid around centroid) ────
+
+  // corner keys: TL, TR, BR, BL
+  const ROTATE_CORNERS = [
+    { key: "TL", rowFn: () => 0,                          colFn: () => 0,                          offX: -30, offY: -30 },
+    { key: "TR", rowFn: () => 0,                          colFn: () => grid.srcXs.length - 1,      offX:  30, offY: -30 },
+    { key: "BR", rowFn: () => grid.srcYs.length - 1,      colFn: () => grid.srcXs.length - 1,      offX:  30, offY:  30 },
+    { key: "BL", rowFn: () => grid.srcYs.length - 1,      colFn: () => 0,                          offX: -30, offY:  30 },
+  ];
+
+  function rebuildRotateHandles() {
+    for (const el of rotateHandleElements) {
+      el.removeEventListener("pointerdown", onRotateHandlePointerDown);
+      el.remove();
+    }
+    rotateHandleElements = [];
+    for (const corner of ROTATE_CORNERS) {
+      const el = document.createElement("div");
+      el.className = "projection-rotate-handle";
+      el.dataset.rotateCorner = corner.key;
+      el.textContent = "↻";
+      const size = 22;
+      el.style.cssText = `
+        position: fixed;
+        width: ${size}px; height: ${size}px;
+        border-radius: 50%;
+        background: rgba(255, 160, 30, 0.9);
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: ${size - 4}px;
+        text-align: center;
+        cursor: crosshair;
+        z-index: 10000;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        transform: translate(-50%, -50%);
+      `;
+      el.addEventListener("pointerdown", onRotateHandlePointerDown);
+      document.body.appendChild(el);
+      rotateHandleElements.push(el);
+    }
+  }
+
+  function positionRotateHandles() {
+    if (rotateHandleElements.length !== ROTATE_CORNERS.length) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    for (let i = 0; i < ROTATE_CORNERS.length; i++) {
+      const c = ROTATE_CORNERS[i];
+      const row = c.rowFn();
+      const col = c.colFn();
+      const pt = getPoint(row, col);
+      rotateHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
+      rotateHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
+    }
+  }
+
+  function onRotateHandlePointerDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    pushUndo();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Centroid of all grid points (in pixel coords)
+    let cx = 0, cy = 0, n = 0;
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      for (let col = 0; col < grid.srcXs.length; col++) {
+        const p = grid.points[r][col];
+        cx += p.x; cy += p.y; n++;
+      }
+    }
+    cx = (cx / n) * vw;
+    cy = (cy / n) * vh;
+    const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+    const allStartPts = [];
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      allStartPts[r] = [];
+      for (let col = 0; col < grid.srcXs.length; col++) {
+        allStartPts[r][col] = { ...grid.points[r][col] };
+      }
+    }
+    rotateDragState = { cx, cy, startAngle, allStartPts };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    document.addEventListener("pointermove", onRotateDragMove);
+    document.addEventListener("pointerup", onRotateDragEnd);
+    document.addEventListener("pointercancel", onRotateDragEnd);
+  }
+
+  function onRotateDragMove(e) {
+    if (!rotateDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const { cx, cy, startAngle, allStartPts } = rotateDragState;
+    const cur = Math.atan2(e.clientY - cy, e.clientX - cx);
+    const delta = cur - startAngle;
+    const cosD = Math.cos(delta);
+    const sinD = Math.sin(delta);
+    // Rotate each point around centroid (in pixel space to keep aspect)
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      for (let col = 0; col < grid.srcXs.length; col++) {
+        const p = allStartPts[r][col];
+        const pxAbs = p.x * vw - cx;
+        const pyAbs = p.y * vh - cy;
+        const rxAbs = pxAbs * cosD - pyAbs * sinD;
+        const ryAbs = pxAbs * sinD + pyAbs * cosD;
+        grid.points[r][col].x = (rxAbs + cx) / vw;
+        grid.points[r][col].y = (ryAbs + cy) / vh;
+      }
+    }
+    positionHandles();
+    positionRotateHandles();
+    drawLines();
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+  }
+
+  function onRotateDragEnd() {
+    if (!rotateDragState) return;
+    rotateDragState = null;
+    document.removeEventListener("pointermove", onRotateDragMove);
+    document.removeEventListener("pointerup", onRotateDragEnd);
+    document.removeEventListener("pointercancel", onRotateDragEnd);
+    saveToLocalStorage();
   }
 
   function positionHandles() {
@@ -484,6 +666,7 @@
     const pt = getPoint(row, col);
 
     activeHandleKey = `${row}-${col}`;
+    pushUndo();
 
     // Snapshot ALL point positions at drag start for proportional edge scaling
     const allStartPts = [];
@@ -587,6 +770,7 @@
     }
 
     positionHandles();
+    positionRotateHandles();
     drawLines();
     applyTransform();
     // Re-render room overlay so SVG contours match the grid warp
@@ -652,6 +836,7 @@
       if (Math.abs(my - avgY) < LINE_HIT_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
+        pushUndo();
         // Capture start positions for all points on this row
         const startPts = [];
         for (let c = 0; c < cols; c++) startPts.push({ ...getPoint(row, c) });
@@ -679,6 +864,7 @@
       if (Math.abs(mx - avgX) < LINE_HIT_THRESHOLD) {
         e.preventDefault();
         e.stopPropagation();
+        pushUndo();
         const startPts = [];
         for (let r = 0; r < rows; r++) startPts.push({ ...getPoint(r, col) });
         const allStartPts = [];
@@ -699,6 +885,7 @@
     // No line hit → start whole-grid pan
     e.preventDefault();
     e.stopPropagation();
+    pushUndo();
     const allStartPts = [];
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (let r = 0; r < rows; r++) {
@@ -746,6 +933,7 @@
     }
 
     positionHandles();
+    positionRotateHandles();
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
@@ -828,6 +1016,7 @@
     }
 
     positionHandles();
+    positionRotateHandles();
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
@@ -847,6 +1036,13 @@
 
   function onKeyDown(e) {
     if (!handlesVisible) return;
+
+    // Ctrl+Z / Cmd+Z → undo
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      undo();
+      return;
+    }
 
     if (e.key === "Escape") {
       e.preventDefault();
@@ -877,6 +1073,7 @@
     if (!dir) return;
 
     e.preventDefault();
+    pushUndo();
     const step = e.shiftKey ? 10 : 1;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -892,6 +1089,7 @@
 
     setPoint(row, col, pt.x, pt.y);
     positionHandles();
+    positionRotateHandles();
     drawLines();
     applyTransform();
     saveToLocalStorage();
@@ -950,11 +1148,145 @@
       action: () => addVerticalLine(normX),
     });
     items.push({
+      label: "Save profile...",
+      action: () => profileSaveFlow(),
+    });
+    items.push({
+      label: "Load profile...",
+      action: () => profileLoadFlow(),
+    });
+    items.push({
+      label: "Delete profile...",
+      action: () => profileDeleteFlow(),
+    });
+    items.push({
       label: "Reset all",
       action: () => resetGrid(),
     });
 
     showContextMenu(e.clientX, e.clientY, items);
+  }
+
+  // ── Server-side profile flows ──────────────────────────────────────────────
+
+  function getCurrentBoardId() {
+    try {
+      return typeof ctx?.getBoardId === "function" ? ctx.getBoardId() : null;
+    } catch { return null; }
+  }
+
+  function buildGridPayload() {
+    const pointsArr = [];
+    for (let row = 0; row < grid.srcYs.length; row++) {
+      for (let col = 0; col < grid.srcXs.length; col++) {
+        const pt = getPoint(row, col);
+        pointsArr.push({ row, col, x: pt.x, y: pt.y });
+      }
+    }
+    return { srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: pointsArr };
+  }
+
+  function applyGridPayload(data) {
+    if (!data || typeof data !== "object") return;
+    if (Array.isArray(data.srcXs) && data.srcXs.length >= 2) {
+      grid.srcXs = data.srcXs.filter((v) => typeof v === "number").slice().sort((a, b) => a - b);
+    }
+    if (Array.isArray(data.srcYs) && data.srcYs.length >= 2) {
+      grid.srcYs = data.srcYs.filter((v) => typeof v === "number").slice().sort((a, b) => a - b);
+    }
+    buildDefaultPoints();
+    if (Array.isArray(data.points)) {
+      for (const p of data.points) {
+        if (typeof p.row === "number" && typeof p.col === "number"
+          && typeof p.x === "number" && typeof p.y === "number") {
+          setPoint(p.row, p.col, p.x, p.y);
+        }
+      }
+    }
+  }
+
+  async function profileSaveFlow() {
+    const boardId = getCurrentBoardId();
+    if (!boardId) { alert("No board selected."); return; }
+    const name = window.prompt("Profile name:", "");
+    if (!name || !name.trim()) return;
+    try {
+      const resp = await fetch("/api/projection-profiles", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ boardId, name: name.trim(), data: buildGridPayload() }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    } catch (err) {
+      alert("Save failed: " + (err?.message || err));
+    }
+  }
+
+  async function fetchProfileList(boardId) {
+    const resp = await fetch(`/api/projection-profiles?boardId=${encodeURIComponent(boardId)}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const body = await resp.json();
+    return Array.isArray(body?.names) ? body.names : [];
+  }
+
+  async function profileLoadFlow() {
+    const boardId = getCurrentBoardId();
+    if (!boardId) { alert("No board selected."); return; }
+    let names;
+    try {
+      names = await fetchProfileList(boardId);
+    } catch (err) {
+      alert("Could not fetch profiles: " + (err?.message || err));
+      return;
+    }
+    if (names.length === 0) { alert("No saved profiles for this board."); return; }
+    showProfilePickerMenu(names, async (name) => {
+      try {
+        const resp = await fetch(`/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(name)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const body = await resp.json();
+        pushUndo();
+        applyGridPayload(body?.data);
+        saveToLocalStorage();
+        if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
+        applyTransform();
+        if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+      } catch (err) {
+        alert("Load failed: " + (err?.message || err));
+      }
+    });
+  }
+
+  async function profileDeleteFlow() {
+    const boardId = getCurrentBoardId();
+    if (!boardId) { alert("No board selected."); return; }
+    let names;
+    try {
+      names = await fetchProfileList(boardId);
+    } catch (err) {
+      alert("Could not fetch profiles: " + (err?.message || err));
+      return;
+    }
+    if (names.length === 0) { alert("No saved profiles to delete."); return; }
+    showProfilePickerMenu(names, async (name) => {
+      if (!confirm(`Delete profile "${name}"?`)) return;
+      try {
+        const resp = await fetch(`/api/projection-profiles?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(name)}`, { method: "DELETE" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      } catch (err) {
+        alert("Delete failed: " + (err?.message || err));
+      }
+    });
+  }
+
+  function showProfilePickerMenu(names, onPick) {
+    // Put the menu at the center of the viewport
+    const items = names.map((name) => ({
+      label: name,
+      action: () => onPick(name),
+    }));
+    items.push({ label: "Cancel", action: () => {} });
+    showContextMenu(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), items);
   }
 
   function showContextMenu(x, y, items) {
@@ -1041,6 +1373,7 @@
 
     const newSrcY = grid.srcYs[above] + t * (grid.srcYs[below] - grid.srcYs[above]);
     for (const y of grid.srcYs) if (Math.abs(y - newSrcY) < 1e-6) return;
+    pushUndo();
 
     // Interpolate new row's points between above and below at screen-space t
     const newRow = [];
@@ -1088,6 +1421,7 @@
 
     const newSrcX = grid.srcXs[left] + t * (grid.srcXs[right] - grid.srcXs[left]);
     for (const x of grid.srcXs) if (Math.abs(x - newSrcX) < 1e-6) return;
+    pushUndo();
 
     for (let r = 0; r < rows; r++) {
       const pL = grid.points[r][left];
@@ -1108,6 +1442,7 @@
   function removeHorizontalLine(index) {
     if (grid.srcYs.length <= 3) return;
     if (index === 0 || index === grid.srcYs.length - 1) return;
+    pushUndo();
     grid.srcYs.splice(index, 1);
     grid.points.splice(index, 1);
     saveToLocalStorage();
@@ -1118,6 +1453,7 @@
   function removeVerticalLine(index) {
     if (grid.srcXs.length <= 3) return;
     if (index === 0 || index === grid.srcXs.length - 1) return;
+    pushUndo();
     grid.srcXs.splice(index, 1);
     for (const row of grid.points) row.splice(index, 1);
     saveToLocalStorage();
@@ -1126,6 +1462,7 @@
   }
 
   function resetGrid() {
+    pushUndo();
     grid.srcXs = makeEvenLines(DEFAULT_COUNT);
     grid.srcYs = makeEvenLines(DEFAULT_COUNT);
     buildDefaultPoints();
@@ -1134,7 +1471,7 @@
       localStorage.removeItem(LS_KEY_V2);
       localStorage.removeItem(LS_KEY_OLD);
     } catch { /* ignore */ }
-    if (handlesVisible) { rebuildHandleElements(); drawLines(); }
+    if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
@@ -1152,6 +1489,7 @@
     if (!handlesVisible) return;
     document.removeEventListener("keydown", onKeyDown);
     removeHandles();
+    clearUndo();
   }
 
   // ── Align mode integration ─────────────────────────────────────────────────
@@ -1175,6 +1513,7 @@
     applyTransform();
     if (handlesVisible) {
       positionHandles();
+      positionRotateHandles();
       drawLines();
     }
   }

@@ -295,6 +295,8 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   OUTPUT_ROLE_FINAL,
   OUTPUT_ROLE_CONTROL,
   renderRoomOverlay: () => { try { renderRoomOverlay(); } catch { /* not ready yet */ } },
+  // Current board for server-side profile scoping
+  getBoardId: () => state?.boardId ?? null,
   saveProjectionMapping: () => {
     // Phase 19-2: persist projection corners via the existing global-defaults
     // save pipeline. buildPersistedRuntimeSettingsFromState() already includes

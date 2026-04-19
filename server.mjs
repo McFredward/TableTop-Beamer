@@ -16,6 +16,7 @@ const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
+const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const LEGACY_IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
@@ -1485,6 +1486,31 @@ async function parseJsonBody(req, { maxBytes = 2 * 1024 * 1024 } = {}) {
   return JSON.parse(raw);
 }
 
+// ── Projection profiles (per-board, server-side) ───────────────────────────
+// Layout on disk: { [boardId]: { [profileName]: gridState } }
+
+async function loadProjectionProfilesRaw() {
+  try {
+    const content = await readFile(PROJECTION_PROFILES_PATH, "utf8");
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveProjectionProfilesRaw(data) {
+  await mkdir(path.dirname(PROJECTION_PROFILES_PATH), { recursive: true });
+  await writeFile(PROJECTION_PROFILES_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+function sanitizeProfileName(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+  if (s.length > 80) return null;
+  return s;
+}
+
 function mutateLiveSession({ mutation, nextSnapshotPatch }) {
   liveSessionState.version += 1;
   liveSessionState.updatedAt = new Date().toISOString();
@@ -2626,6 +2652,79 @@ const server = createServer(async (req, res) => {
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });
       }
+      return;
+    }
+
+    // Projection profiles — per-board server-side calibration profiles
+    if (req.method === "GET" && routePath === "/api/projection-profiles") {
+      const requestUrl = new URL(req.url || "/api/projection-profiles", "http://localhost");
+      const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
+      if (!boardId) {
+        sendJson(res, 400, { ok: false, error: "boardId required" });
+        return;
+      }
+      const all = await loadProjectionProfilesRaw();
+      const boardProfiles = all[boardId] && typeof all[boardId] === "object" ? all[boardId] : {};
+      sendJson(res, 200, { ok: true, boardId, names: Object.keys(boardProfiles).sort() });
+      return;
+    }
+
+    if (req.method === "GET" && routePath === "/api/projection-profiles/load") {
+      const requestUrl = new URL(req.url || "/api/projection-profiles/load", "http://localhost");
+      const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
+      const name = sanitizeProfileName(requestUrl.searchParams.get("name"));
+      if (!boardId || !name) {
+        sendJson(res, 400, { ok: false, error: "boardId and name required" });
+        return;
+      }
+      const all = await loadProjectionProfilesRaw();
+      const data = all[boardId]?.[name];
+      if (!data) {
+        sendJson(res, 404, { ok: false, error: "profile not found" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, boardId, name, data });
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/projection-profiles") {
+      let parsed;
+      try {
+        parsed = await parseJsonBody(req, { maxBytes: 128 * 1024 });
+      } catch {
+        sendJson(res, 400, { ok: false, error: "invalid JSON payload" });
+        return;
+      }
+      const boardId = normalizeNonEmptyString(parsed?.boardId);
+      const name = sanitizeProfileName(parsed?.name);
+      const data = parsed?.data;
+      if (!boardId || !name || !data || typeof data !== "object") {
+        sendJson(res, 400, { ok: false, error: "boardId, name, data required" });
+        return;
+      }
+      const all = await loadProjectionProfilesRaw();
+      if (!all[boardId] || typeof all[boardId] !== "object") all[boardId] = {};
+      all[boardId][name] = data;
+      await saveProjectionProfilesRaw(all);
+      sendJson(res, 200, { ok: true, boardId, name });
+      return;
+    }
+
+    if (req.method === "DELETE" && routePath === "/api/projection-profiles") {
+      const requestUrl = new URL(req.url || "/api/projection-profiles", "http://localhost");
+      const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
+      const name = sanitizeProfileName(requestUrl.searchParams.get("name"));
+      if (!boardId || !name) {
+        sendJson(res, 400, { ok: false, error: "boardId and name required" });
+        return;
+      }
+      const all = await loadProjectionProfilesRaw();
+      if (all[boardId] && all[boardId][name]) {
+        delete all[boardId][name];
+        if (Object.keys(all[boardId]).length === 0) delete all[boardId];
+        await saveProjectionProfilesRaw(all);
+      }
+      sendJson(res, 200, { ok: true, boardId, name });
       return;
     }
 
