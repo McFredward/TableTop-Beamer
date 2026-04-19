@@ -488,22 +488,26 @@
           setStatus(`Preparing package for ${boardId}… (bundling assets, this can take a moment)`);
           const resp = await fetch(`/api/boards/bundle-export?boardId=${encodeURIComponent(boardId)}`);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const pkg = await resp.json();
-          const serialized = JSON.stringify(pkg);
-          const blob = new Blob([serialized], { type: "application/json" });
+          const blob = await resp.blob();
+          // Prefer the server-suggested filename from Content-Disposition.
+          let downloadName = null;
+          const cd = resp.headers.get("content-disposition") || "";
+          const match = cd.match(/filename\s*=\s*"?([^";]+)"?/i);
+          if (match) downloadName = match[1];
+          if (!downloadName) {
+            const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            downloadName = `tt-beamer-board-${boardId}-${stamp}.zip`;
+          }
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-          link.download = `tt-beamer-board-${boardId}-${stamp}.json`;
+          link.download = downloadName;
           document.body.append(link);
           link.click();
           link.remove();
           URL.revokeObjectURL(url);
-          const sizeMB = (serialized.length / (1024 * 1024)).toFixed(1);
-          const resCount = Array.isArray(pkg.resources) ? pkg.resources.length : 0;
-          const imgNote = pkg.boardImage ? "board image + " : "";
-          setStatus(`Saved ${link.download} (${sizeMB} MB — ${imgNote}${resCount} bundled asset${resCount === 1 ? "" : "s"}). Share this file.`);
+          const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
+          setStatus(`Saved ${downloadName} (${sizeMB} MB). Share this file.`);
         } catch (error) {
           setStatus(`Export failed: ${error?.message || error}`);
         }
@@ -515,21 +519,17 @@
         if (!file) return;
         const mime = String(file.type || "").toLowerCase();
         const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name);
-        const isPackage = mime === "application/json" || /\.json$/i.test(file.name);
+        const isPackage = /\.zip$/i.test(file.name)
+          || mime === "application/zip"
+          || mime === "application/x-zip-compressed";
         try {
           if (isPackage) {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-            setStatus(`Reading package ${file.name} (${sizeMB} MB)…`);
-            const text = await file.text();
-            // Loose validation — the server gives a friendlier error if wrong.
-            try { JSON.parse(text); } catch {
-              throw new Error("that doesn't look like a valid package file");
-            }
-            setStatus(`Uploading… (this can take a moment for packages with videos)`);
+            setStatus(`Uploading ${file.name} (${sizeMB} MB)… — this can take a moment for packages with videos`);
             const resp = await fetch("/api/boards/bundle-import", {
               method: "POST",
-              headers: { "content-type": "application/json" },
-              body: text,
+              headers: { "content-type": "application/zip" },
+              body: file, // sent as raw binary
             });
             if (!resp.ok) {
               const body = await resp.json().catch(() => ({}));
@@ -539,7 +539,7 @@
             const wrote = Number(body.resourcesWritten) || 0;
             const skipped = Number(body.resourcesSkipped) || 0;
             const extra = wrote || skipped
-              ? ` · ${wrote} new asset${wrote === 1 ? "" : "s"}${skipped ? `, ${skipped} already on disk` : ""}`
+              ? ` · ${wrote} new asset${wrote === 1 ? "" : "s"}${skipped ? `, ${skipped} already on disk (skipped)` : ""}`
               : "";
             setStatus(`Imported "${body.boardId}"${extra}. Reload the page to see it in the list.`);
             triggerFeedback.textContent = `Status: Board ${body.boardId} imported`;
@@ -561,7 +561,7 @@
             setStatus(`Created board "${body.boardId ?? body.board?.boardId ?? "(new)"}" — reload to see it.`);
             triggerFeedback.textContent = `Status: New board created from image`;
           } else {
-            throw new Error("unsupported file — pick a board package (.json) or an image (.png / .jpg / .webp)");
+            throw new Error("unsupported file — pick a board package (.zip) or an image (.png / .jpg / .webp)");
           }
         } catch (error) {
           setStatus(`Import failed: ${error?.message || error}`);

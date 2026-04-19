@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename } from "node:fs/promises";
 import { createReadStream, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { deflateRawSync, inflateRawSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -1513,6 +1514,151 @@ async function saveProjectionProfilesRaw(data) {
   await writeFile(PROJECTION_PROFILES_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
+// ── Minimal pure-Node ZIP encoder/decoder (DEFLATE) ───────────────────────
+// Used by the board-package export/import so large MP4 assets travel as
+// real .zip instead of base64-inflated JSON.
+let ZIP_CRC_TABLE = null;
+function zipCrc32(buffer) {
+  if (!ZIP_CRC_TABLE) {
+    ZIP_CRC_TABLE = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      ZIP_CRC_TABLE[n] = c >>> 0;
+    }
+  }
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buffer.length; i++) {
+    c = ZIP_CRC_TABLE[(c ^ buffer[i]) & 0xFF] ^ (c >>> 8);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function buildZipArchive(entries) {
+  // entries: [{ path: string, data: Buffer, store?: boolean }]
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >>> 1)) & 0xFFFF;
+  const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+  for (const entry of entries) {
+    const nameBuf = Buffer.from(entry.path, "utf8");
+    const raw = entry.data;
+    const crc = zipCrc32(raw);
+    // Already-compressed media (mp4/gif/png/jpg/mp3/webm/...) barely shrinks
+    // through deflate and just wastes CPU. Store them uncompressed.
+    const ext = path.extname(entry.path).slice(1).toLowerCase();
+    const incompressible = new Set(["mp4", "mp3", "gif", "png", "jpg", "jpeg", "webp", "webm", "ogg", "m4a", "aac", "flac"]);
+    const store = entry.store ?? incompressible.has(ext);
+    const compressed = store ? raw : deflateRawSync(raw);
+    const method = store ? 0 : 8;
+
+    const lh = Buffer.alloc(30);
+    lh.writeUInt32LE(0x04034b50, 0);
+    lh.writeUInt16LE(20, 4);
+    lh.writeUInt16LE(0x0800, 6); // UTF-8 filename
+    lh.writeUInt16LE(method, 8);
+    lh.writeUInt16LE(dosTime, 10);
+    lh.writeUInt16LE(dosDate, 12);
+    lh.writeUInt32LE(crc, 14);
+    lh.writeUInt32LE(compressed.length, 18);
+    lh.writeUInt32LE(raw.length, 22);
+    lh.writeUInt16LE(nameBuf.length, 26);
+    lh.writeUInt16LE(0, 28);
+    chunks.push(lh, nameBuf, compressed);
+    central.push({ nameBuf, crc, compressedSize: compressed.length, uncompressedSize: raw.length, offset, dosTime, dosDate, method });
+    offset += 30 + nameBuf.length + compressed.length;
+  }
+
+  const centralStart = offset;
+  for (const e of central) {
+    const c = Buffer.alloc(46);
+    c.writeUInt32LE(0x02014b50, 0);
+    c.writeUInt16LE(0x031E, 4); // made by: UNIX / v3.0
+    c.writeUInt16LE(20, 6);
+    c.writeUInt16LE(0x0800, 8);
+    c.writeUInt16LE(e.method, 10);
+    c.writeUInt16LE(e.dosTime, 12);
+    c.writeUInt16LE(e.dosDate, 14);
+    c.writeUInt32LE(e.crc, 16);
+    c.writeUInt32LE(e.compressedSize, 20);
+    c.writeUInt32LE(e.uncompressedSize, 24);
+    c.writeUInt16LE(e.nameBuf.length, 28);
+    c.writeUInt16LE(0, 30);
+    c.writeUInt16LE(0, 32);
+    c.writeUInt16LE(0, 34);
+    c.writeUInt16LE(0, 36);
+    c.writeUInt32LE(0, 38);
+    c.writeUInt32LE(e.offset, 42);
+    chunks.push(c, e.nameBuf);
+    offset += 46 + e.nameBuf.length;
+  }
+
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(central.length, 8);
+  eocd.writeUInt16LE(central.length, 10);
+  eocd.writeUInt32LE(offset - centralStart, 12);
+  eocd.writeUInt32LE(centralStart, 16);
+  eocd.writeUInt16LE(0, 20);
+  chunks.push(eocd);
+  return Buffer.concat(chunks);
+}
+
+function parseZipArchive(buffer) {
+  // Scan backwards for EOCD signature (allow for ZIP comments up to 65535)
+  let eocd = -1;
+  const maxScan = Math.max(0, buffer.length - 65558);
+  for (let i = buffer.length - 22; i >= maxScan; i--) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd === -1) throw new Error("not a ZIP file (no end-of-central-directory signature)");
+  const totalEntries = buffer.readUInt16LE(eocd + 10);
+  const centralStart = buffer.readUInt32LE(eocd + 16);
+
+  const entries = [];
+  let p = centralStart;
+  for (let i = 0; i < totalEntries; i++) {
+    if (buffer.readUInt32LE(p) !== 0x02014b50) throw new Error("bad central directory");
+    const method = buffer.readUInt16LE(p + 10);
+    const compressedSize = buffer.readUInt32LE(p + 20);
+    const nameLen = buffer.readUInt16LE(p + 28);
+    const extraLen = buffer.readUInt16LE(p + 30);
+    const commentLen = buffer.readUInt16LE(p + 32);
+    const localOffset = buffer.readUInt32LE(p + 42);
+    const filename = buffer.slice(p + 46, p + 46 + nameLen).toString("utf8");
+
+    if (buffer.readUInt32LE(localOffset) !== 0x04034b50) throw new Error("bad local header");
+    const lnl = buffer.readUInt16LE(localOffset + 26);
+    const lel = buffer.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + lnl + lel;
+    const rawData = buffer.slice(dataStart, dataStart + compressedSize);
+    let data;
+    if (method === 0) data = rawData;
+    else if (method === 8) data = inflateRawSync(rawData);
+    else throw new Error(`unsupported compression method ${method} in entry "${filename}"`);
+    entries.push({ path: filename, data });
+
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
+
+async function readRawBody(req, { maxBytes = 500 * 1024 * 1024 } = {}) {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > maxBytes) throw new Error("payload too large");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 function sanitizeProfileName(value) {
   const s = String(value || "").trim();
   if (!s) return null;
@@ -2643,9 +2789,10 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    // Per-board PACKAGE: board definition + runtime profile + align-mode profiles +
-    // the board image itself embedded as base64. Self-contained — share the
-    // exported file and the receiver has everything they need.
+    // Per-board PACKAGE: a real .zip holding board definition, runtime
+    // profile, align-mode profiles, the board image, and every GIF / MP4 /
+    // sound the animations reference. Self-contained — share the exported
+    // file and the receiver has everything they need.
     if (req.method === "GET" && routePath === "/api/boards/bundle-export") {
       const requestUrl = new URL(req.url || "/api/boards/bundle-export", "http://localhost");
       const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
@@ -2676,29 +2823,22 @@ const server = createServer(async (req, res) => {
       const allProjection = await loadProjectionProfilesRaw();
       const projectionProfiles = allProjection[boardId] ?? {};
 
-      // Embed the board image as base64 so the file is self-contained.
-      let boardImage = null;
+      // Grab the board image from disk so we can embed it in the zip.
+      let boardImagePath = null;
+      let boardImageData = null;
       const imageSrc = String(board?.metadata?.imageSrc || "");
       if (imageSrc) {
         try {
           const relPath = imageSrc.replace(/^\/+/, "");
           const resolvedPath = path.join(ROOT_DIR, relPath);
           if (resolvedPath.startsWith(ROOT_DIR)) {
-            const buf = await readFile(resolvedPath);
-            const ext = path.extname(resolvedPath).slice(1).toLowerCase() || "png";
-            const mimeMap = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
-            boardImage = {
-              filename: path.basename(resolvedPath),
-              mimeType: mimeMap[ext] || "application/octet-stream",
-              base64: buf.toString("base64"),
-            };
+            boardImageData = await readFile(resolvedPath);
+            boardImagePath = relPath;
           }
-        } catch { /* image missing — exported package will just not include it */ }
+        } catch { /* missing — exported package just won't include it */ }
       }
 
-      // Scan the boardProfile recursively for /resources/... paths referenced by
-      // its animations + sounds, and embed each file as base64. Receiver ends
-      // up with a fully playable board, GIFs/MP4s and all.
+      // Collect every /resources/... path referenced by the board profile.
       const referencedPaths = new Set();
       const collectRefs = (node) => {
         if (!node) return;
@@ -2709,55 +2849,59 @@ const server = createServer(async (req, res) => {
           }
           return;
         }
-        if (Array.isArray(node)) {
-          for (const entry of node) collectRefs(entry);
-          return;
-        }
-        if (typeof node === "object") {
-          for (const value of Object.values(node)) collectRefs(value);
-        }
+        if (Array.isArray(node)) { for (const e of node) collectRefs(e); return; }
+        if (typeof node === "object") for (const v of Object.values(node)) collectRefs(v);
       };
       collectRefs(boardProfile);
-      const resources = [];
-      const resourceMime = {
-        gif: "image/gif", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp",
-        mp4: "video/mp4", webm: "video/webm",
-        mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4",
-      };
+
+      // Read each resource file from disk.
+      const resourceEntries = [];
       for (const relPath of referencedPaths) {
         try {
           const resolved = path.join(ROOT_DIR, relPath);
           if (!resolved.startsWith(ROOT_DIR)) continue;
           const buf = await readFile(resolved);
-          const ext = path.extname(resolved).slice(1).toLowerCase();
-          resources.push({
-            path: relPath,
-            mimeType: resourceMime[ext] || "application/octet-stream",
-            base64: buf.toString("base64"),
-          });
-        } catch { /* resource missing on disk — skip silently */ }
+          resourceEntries.push({ path: relPath, data: buf });
+        } catch { /* missing — skip silently */ }
       }
 
-      sendJson(res, 200, {
-        schema: "tt-beamer.board-package.v1",
+      // Assemble the zip. `package.json` carries the manifest; all referenced
+      // files live at their canonical paths inside the archive.
+      const manifest = {
+        schema: "tt-beamer.board-package.v2",
         exportedAt: new Date().toISOString(),
         boardId,
         board,
         boardProfile,
         projectionProfiles,
-        boardImage,
-        resources,
+        boardImagePath: boardImagePath ?? null,
+        resourcePaths: resourceEntries.map((e) => e.path),
+      };
+      const zipEntries = [
+        { path: "package.json", data: Buffer.from(JSON.stringify(manifest, null, 2), "utf8") },
+      ];
+      if (boardImageData && boardImagePath) {
+        zipEntries.push({ path: boardImagePath, data: boardImageData });
+      }
+      for (const entry of resourceEntries) zipEntries.push(entry);
+
+      const zipBuffer = buildZipArchive(zipEntries);
+      const downloadName = `tt-beamer-board-${safeFileName}-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`;
+      res.writeHead(200, {
+        "content-type": "application/zip",
+        "content-length": zipBuffer.length,
+        "content-disposition": `attachment; filename="${downloadName}"`,
       });
+      res.end(zipBuffer);
       return;
     }
 
     if (req.method === "POST" && routePath === "/api/boards/bundle-import") {
-      let parsed;
+      let body;
       try {
-        // Allow very large payloads — packages can include bundled MP4s.
-        parsed = await parseJsonBody(req, { maxBytes: 500 * 1024 * 1024 });
+        body = await readRawBody(req, { maxBytes: 500 * 1024 * 1024 });
       } catch (error) {
-        const message = error instanceof Error ? error.message : "invalid JSON payload";
+        const message = error instanceof Error ? error.message : "invalid payload";
         if (message.includes("payload too large")) {
           sendJson(res, 413, { ok: false, error: "payload too large" });
           return;
@@ -2765,59 +2909,100 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: "invalid payload" });
         return;
       }
-      // Accept both the legacy bundle schema and the new package schema.
-      const schema = parsed?.schema;
-      if (schema !== "tt-beamer.board-package.v1" && schema !== "tt-beamer.board-bundle.v1") {
-        sendJson(res, 400, {
-          ok: false,
-          error: "unrecognized file — this isn't a tt-beamer board package",
-        });
+      let entries;
+      try {
+        entries = parseZipArchive(body);
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: `not a valid board package (.zip): ${error?.message || error}` });
         return;
       }
-      const incomingBoard = parsed?.board;
+
+      // Find the manifest.
+      const fileMap = new Map(entries.map((e) => [e.path, e.data]));
+      const manifestBuf = fileMap.get("package.json");
+      if (!manifestBuf) {
+        sendJson(res, 400, { ok: false, error: "package.json missing inside the zip" });
+        return;
+      }
+      let manifest;
+      try {
+        manifest = JSON.parse(manifestBuf.toString("utf8"));
+      } catch {
+        sendJson(res, 400, { ok: false, error: "package.json inside the zip is invalid JSON" });
+        return;
+      }
+      const schema = manifest?.schema;
+      if (schema !== "tt-beamer.board-package.v2" && schema !== "tt-beamer.board-package.v1" && schema !== "tt-beamer.board-bundle.v1") {
+        sendJson(res, 400, { ok: false, error: "unrecognized package schema" });
+        return;
+      }
+      const incomingBoard = manifest?.board;
       const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import" });
       if (!normalized.ok) {
-        sendJson(res, 400, {
-          ok: false,
-          error: "board package validation failed",
-          issues: normalized.issues,
-        });
+        sendJson(res, 400, { ok: false, error: "board package validation failed", issues: normalized.issues });
         return;
       }
       const board = normalized.board;
       const boardId = board.boardId;
-      const safeFileName = sanitizeBoardFileName(boardId);
-      if (!safeFileName) {
+      const safeBoardId = sanitizeBoardFileName(boardId);
+      if (!safeBoardId) {
         sendJson(res, 400, { ok: false, error: "invalid boardId" });
         return;
       }
 
-      // 1) If the package bundled the board image, decode + write it and
-      //    rewrite imageSrc to the new server-local path.
       await mkdir(BOARD_ASSETS_DIR, { recursive: true });
-      const boardImage = parsed?.boardImage;
-      let rewrittenImageSrc = null;
-      if (boardImage && typeof boardImage.base64 === "string" && boardImage.base64) {
-        const allowedExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-        const ext = allowedExt[String(boardImage.mimeType || "").toLowerCase()]
-          ?? path.extname(String(boardImage.filename || "")).slice(1).toLowerCase()
-          ?? "png";
-        const validExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "png";
+
+      // Resources: write everything the manifest flagged, but NEVER overwrite
+      // existing files. Skipping pre-existing resources means the same MP4
+      // doesn't accumulate as copies when importing multiple boards that
+      // reference it.
+      let resourcesWritten = 0;
+      let resourcesSkipped = 0;
+      const resourcePaths = Array.isArray(manifest?.resourcePaths) ? manifest.resourcePaths : [];
+      for (const relRaw of resourcePaths) {
+        const rel = String(relRaw || "").replace(/^\/+/, "");
+        if (!rel.startsWith("resources/") || rel.includes("..")) { resourcesSkipped++; continue; }
+        const data = fileMap.get(rel);
+        if (!data) { resourcesSkipped++; continue; }
+        const resolved = path.join(ROOT_DIR, rel);
+        if (!resolved.startsWith(ROOT_DIR)) { resourcesSkipped++; continue; }
         try {
-          const data = Buffer.from(boardImage.base64, "base64");
-          if (data.length > 0 && data.length <= IMAGE_IMPORT_MAX_BYTES) {
-            const fileName = `${safeFileName}-${Date.now().toString(36)}.${validExt}`;
-            await writeFile(path.join(BOARD_ASSETS_DIR, fileName), data);
-            rewrittenImageSrc = `/config/boards/assets/${fileName}`;
-          }
-        } catch { /* bad base64 — fall through without image */ }
+          try { await stat(resolved); resourcesSkipped++; continue; } catch { /* new, proceed */ }
+          await mkdir(path.dirname(resolved), { recursive: true });
+          await writeFile(resolved, data);
+          resourcesWritten++;
+        } catch { resourcesSkipped++; }
       }
 
-      // 2) Write board definition. Use rewrittenImageSrc when we wrote a new
-      //    image; otherwise keep the incoming imageSrc (which may reference
-      //    a built-in resources/boards/ file).
+      // Board image: if bundled at boardImagePath, write a uniquely-named
+      // copy into config/boards/assets/ and rewrite imageSrc. If the zip
+      // didn't carry an image, keep whatever imageSrc was in the manifest —
+      // the destination may already have that file locally.
+      let rewrittenImageSrc = null;
+      const imagePathInZip = String(manifest?.boardImagePath || "").replace(/^\/+/, "");
+      if (imagePathInZip) {
+        const imgBuf = fileMap.get(imagePathInZip);
+        if (imgBuf && imgBuf.length > 0 && imgBuf.length <= IMAGE_IMPORT_MAX_BYTES) {
+          // Prefer the destination copy if the same imagePathInZip already
+          // exists — avoids redundant duplicates in config/boards/assets/.
+          if (imagePathInZip.startsWith("resources/")) {
+            // image is in resources/, handled by the resource loop already.
+            rewrittenImageSrc = `/${imagePathInZip}`;
+          } else {
+            const ext = path.extname(imagePathInZip).slice(1).toLowerCase() || "png";
+            const validExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "png";
+            const fileName = `${safeBoardId}-${Date.now().toString(36)}.${validExt}`;
+            try {
+              await writeFile(path.join(BOARD_ASSETS_DIR, fileName), imgBuf);
+              rewrittenImageSrc = `/config/boards/assets/${fileName}`;
+            } catch { /* keep original imageSrc */ }
+          }
+        }
+      }
+
+      // Write the board definition.
       await mkdir(BOARD_STORAGE_DIR, { recursive: true });
-      const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+      const targetPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
       const mergedMetadata = { ...(board.metadata ?? {}) };
       if (rewrittenImageSrc) mergedMetadata.imageSrc = rewrittenImageSrc;
       const boardPayload = {
@@ -2833,13 +3018,11 @@ const server = createServer(async (req, res) => {
       };
       await writeFile(targetPath, JSON.stringify(boardPayload, null, 2) + "\n", "utf8");
 
-      // 3) Merge board runtime profile into global-defaults.json
-      const boardProfile = parsed?.boardProfile;
+      // Merge board runtime profile into global-defaults.json.
+      const boardProfile = manifest?.boardProfile;
       if (boardProfile && typeof boardProfile === "object") {
         let gd = {};
-        try {
-          gd = JSON.parse(await readFile(GLOBAL_DEFAULTS_PATH, "utf8"));
-        } catch { /* empty */ }
+        try { gd = JSON.parse(await readFile(GLOBAL_DEFAULTS_PATH, "utf8")); } catch { /* empty */ }
         if (!gd || typeof gd !== "object") gd = {};
         if (!gd.boardProfiles || typeof gd.boardProfiles !== "object") gd.boardProfiles = {};
         gd.boardProfiles[boardId] = boardProfile;
@@ -2847,8 +3030,8 @@ const server = createServer(async (req, res) => {
         await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
       }
 
-      // 4) Merge align-mode projection profiles
-      const projectionProfiles = parsed?.projectionProfiles;
+      // Merge align-mode projection profiles.
+      const projectionProfiles = manifest?.projectionProfiles;
       if (projectionProfiles && typeof projectionProfiles === "object") {
         const all = await loadProjectionProfilesRaw();
         all[boardId] = {
@@ -2858,36 +3041,7 @@ const server = createServer(async (req, res) => {
         await saveProjectionProfilesRaw(all);
       }
 
-      // 5) Write any bundled resources (GIFs / MP4s / sounds referenced by
-      //    this board's animations). Paths are restricted to `resources/…`
-      //    to prevent writing outside the project. Files are only created
-      //    when missing — existing files are left alone so custom local
-      //    assets on the destination aren't overwritten.
-      let resourcesWritten = 0;
-      let resourcesSkipped = 0;
-      const incomingResources = Array.isArray(parsed?.resources) ? parsed.resources : [];
-      for (const entry of incomingResources) {
-        const relRaw = String(entry?.path || "").replace(/^\/+/, "");
-        if (!relRaw.startsWith("resources/")) { resourcesSkipped++; continue; }
-        if (relRaw.includes("..")) { resourcesSkipped++; continue; }
-        if (typeof entry?.base64 !== "string" || entry.base64.length === 0) { resourcesSkipped++; continue; }
-        const resolved = path.join(ROOT_DIR, relRaw);
-        if (!resolved.startsWith(ROOT_DIR)) { resourcesSkipped++; continue; }
-        try {
-          // Don't overwrite — let the user's local copy win if it exists.
-          try { await stat(resolved); resourcesSkipped++; continue; } catch { /* not there, proceed */ }
-          await mkdir(path.dirname(resolved), { recursive: true });
-          await writeFile(resolved, Buffer.from(entry.base64, "base64"));
-          resourcesWritten++;
-        } catch { resourcesSkipped++; }
-      }
-
-      sendJson(res, 200, {
-        ok: true,
-        boardId,
-        resourcesWritten,
-        resourcesSkipped,
-      });
+      sendJson(res, 200, { ok: true, boardId, resourcesWritten, resourcesSkipped });
       return;
     }
 
