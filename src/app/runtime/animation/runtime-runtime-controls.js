@@ -198,7 +198,31 @@
     const existing = state.runningAnimations.find(
       (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
     );
-    const isOutside = ctx.getGlobalAnimationCategory(type) === "outside-ship";
+    // Phase 20: resolve the category dynamically. Custom outside animations
+    // created by the user aren't in GLOBAL_ANIMATIONS (which only knows the
+    // built-in outside-space), so we also check the board's outside profile.
+    const outsideProfileForCategory = ctx.getOutsideFxProfile(state.boardId);
+    const isOutsideByProfile = outsideProfileForCategory?.animations?.some((a) => a.id === type) ?? false;
+    const isOutside = isOutsideByProfile || ctx.getGlobalAnimationCategory(type) === "outside-ship";
+    // Phase 20: only one outside animation may play at a time. When we're
+    // about to start a new outside, stop any other outside animation
+    // currently running on this board so the switch is clean.
+    if (isOutside && !existing) {
+      const outsideIds = new Set(
+        (outsideProfileForCategory?.animations ?? []).map((a) => a.id),
+      );
+      outsideIds.add("outside-space");
+      const otherRunningOutside = state.runningAnimations.filter(
+        (anim) =>
+          anim.scope === "global"
+          && anim.boardId === state.boardId
+          && anim.type !== type
+          && outsideIds.has(anim.type),
+      );
+      for (const other of otherRunningOutside) {
+        ctx.stopAnimation(other.id);
+      }
+    }
     // Phase 15-9: look up the matching global animation definition so
     // we can copy its per-definition soundAssetRef onto the dispatched
     // animation entry. For inside globals the type == definition.id;

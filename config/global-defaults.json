@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-04-18T21:17:27.999Z",
+  "savedAt": "2026-04-19T11:54:51.606Z",
   "source": "runtime-state",
   "boardProfiles": {
     "nemesis-board-a": {
@@ -6956,7 +6956,7 @@
         ]
       ],
       "outsideFx": {
-        "enabled": true,
+        "enabled": false,
         "selectedAnimationId": "outside-space",
         "animations": [
           {
@@ -6964,9 +6964,9 @@
             "name": "Outside Space",
             "assetType": "coded",
             "assetRef": "outside-space",
-            "intensity": 1.3,
-            "speed": 1,
-            "mode": "immersive",
+            "intensity": 0.85,
+            "speed": 1.4,
+            "mode": "standard",
             "direction": "reverse",
             "soundEnabled": false,
             "soundAssetRef": "none"
@@ -6984,9 +6984,9 @@
             "soundAssetRef": "none"
           }
         ],
-        "intensity": 1.3,
-        "speed": 1,
-        "mode": "immersive",
+        "intensity": 0.85,
+        "speed": 1.4,
+        "mode": "standard",
         "direction": "reverse",
         "assetType": "coded",
         "assetRef": "outside-space"
@@ -22339,20 +22339,20 @@
   "projectionMapping": {
     "corners": {
       "topLeft": {
-        "x": 0,
-        "y": 0
+        "x": 20.364583333333332,
+        "y": 10.555555555555555
       },
       "topRight": {
-        "x": 100,
-        "y": 0
+        "x": 75.36458333333333,
+        "y": 10.555555555555555
       },
       "bottomRight": {
-        "x": 100,
-        "y": 100
+        "x": 75.36458333333333,
+        "y": 81.57407407407409
       },
       "bottomLeft": {
-        "x": 0,
-        "y": 100
+        "x": 20.364583333333332,
+        "y": 81.57407407407409
       }
     }
   }

@@ -624,9 +624,17 @@ function applyGlobalMutationPatch(payload) {
     const outsideFxByBoard = readOutsideFxByBoard();
     const targetBoardId = boardId ?? normalizeNonEmptyString(liveSessionState.snapshot?.selectedBoard) ?? null;
     if (targetBoardId) {
+      const prevProfile = isPlainObject(outsideFxByBoard[targetBoardId]) ? outsideFxByBoard[targetBoardId] : {};
       outsideFxByBoard[targetBoardId] = {
-        ...(isPlainObject(outsideFxByBoard[targetBoardId]) ? outsideFxByBoard[targetBoardId] : {}),
+        ...prevProfile,
         enabled: action !== "stop",
+        // Phase 20: trigger-global for an outside animation must also point
+        // the renderer at that specific definition — otherwise starting
+        // "outside-sandstorm" still renders whatever selectedAnimationId
+        // previously pointed to (often "outside-space" or nothing).
+        ...(action !== "stop" && animationType
+          ? { selectedAnimationId: animationType }
+          : {}),
       };
       nextRuntime.outsideFxByBoard = outsideFxByBoard;
       return {
