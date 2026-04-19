@@ -133,8 +133,12 @@
   // ── Apply transform (no-op — all warping is done via canvas mesh) ──────────
 
   function applyTransform() {
-    // No CSS transform — the unified grid mesh warp handles everything
-    if (ctx?.stage) ctx.stage.style.transform = "none";
+    // Phase 19 unified grid warps via canvas mesh (see postDrawMeshWarp) —
+    // no CSS transform is applied from this module. We must NOT touch
+    // stage.style.transform here, because the CONTROL client's .stage
+    // carries the zoom/pan CSS rule `translate(var(--stage-pan-x), …)
+    // scale(var(--stage-zoom-scale))` and writing `transform: none`
+    // would make mouse-wheel/pinch zoom invisible.
   }
 
   // ── Post-draw mesh warp ────────────────────────────────────────────────────
