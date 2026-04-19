@@ -381,13 +381,28 @@
     if (!target || !(target instanceof Element)) {
       return false;
     }
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-      return true;
+    const NON_TYPING_INPUT_TYPES = new Set([
+      "checkbox", "radio", "button", "submit", "reset",
+      "file", "color", "image", "range",
+    ]);
+    const isTextInput = (el) => {
+      if (!(el instanceof HTMLInputElement)) return false;
+      return !NON_TYPING_INPUT_TYPES.has(String(el.type || "").toLowerCase());
+    };
+    if (target instanceof HTMLTextAreaElement) return true;
+    if (target instanceof HTMLSelectElement) return true;
+    if (isTextInput(target)) return true;
+    if (target.isContentEditable) return true;
+    // Walk up the tree; stop at the first matching ancestor
+    let el = target.parentElement;
+    while (el) {
+      if (el instanceof HTMLTextAreaElement) return true;
+      if (el instanceof HTMLSelectElement) return true;
+      if (isTextInput(el)) return true;
+      if (el.isContentEditable) return true;
+      el = el.parentElement;
     }
-    if (target.isContentEditable) {
-      return true;
-    }
-    return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+    return false;
   }
 
   function isPlayAreaShortcutContext(target) {

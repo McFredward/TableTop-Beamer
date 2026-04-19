@@ -67,7 +67,7 @@
       void ctx.emitLiveMutation("clear-all", {
         priorityHint: "high",
         reason: "control-clear-all",
-        payload: { clearDefaults },
+        clearDefaults,
       }).then(() => {
         ctx.triggerFeedback.textContent = clearDefaults
           ? "Pending: Clear All (incl. defaults) command accepted"
@@ -103,7 +103,7 @@
     ctx.triggerFeedback.textContent = "Status: Clear All executed";
     void ctx.emitLiveMutation("clear-all", {
       priorityHint: "high",
-      payload: { clearDefaults },
+      clearDefaults,
     });
   }
 
