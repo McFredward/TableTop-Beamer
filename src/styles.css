@@ -533,6 +533,40 @@ body[data-output-role="final-output"] .toast-stack {
   display: none !important;
 }
 
+/* Phase 20: two-tab switcher inside animation editor sections */
+.animation-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.animation-tab-button {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.animation-tab-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.animation-tab-button.is-active {
+  background: rgba(0, 220, 200, 0.15);
+  color: #fff;
+  border-color: rgba(0, 220, 200, 0.45);
+}
+
+.animation-tab-panel[hidden] {
+  display: none !important;
+}
+
 .dashboard-sticky-shell {
   display: grid;
   gap: 0.65rem;

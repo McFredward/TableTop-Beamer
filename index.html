@@ -356,145 +356,168 @@
         </div>
       </section>
 
-      <!-- Phase 18-2: reworked Inside Animations with create/edit mode indicator -->
+      <!-- Phase 20: two-tab UI — "Create new" / "Edit existing" -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Inside Animations</h2>
-        <div class="animation-create-flow">
-          <input id="inside-animation-name" type="text" maxlength="64" placeholder="New inside animation name" />
-          <button id="inside-animation-create" type="button">Create Inside Animation</button>
+        <div class="animation-tabs" role="tablist">
+          <button type="button" class="animation-tab-button is-active" data-animation-tab="create">Create new</button>
+          <button type="button" class="animation-tab-button" data-animation-tab="edit">Edit existing</button>
         </div>
-        <span id="inside-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
-        <label>
-          Animation
-          <select id="inside-animation-select"></select>
-        </label>
-        <label>
-          Inside intensity <span id="inside-intensity-value">1.00</span>
-          <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
-        </label>
-        <label>
-          Inside speed <span id="inside-speed-value">1.00x</span>
-          <input id="inside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
-        </label>
-        <label class="inline-checkbox">
-          <input id="inside-loop-until-stop" type="checkbox" />
-          Loop until stopped
-        </label>
-        <label>
-          Type
-          <select id="inside-asset-type">
-            <option value="coded">Effect</option>
-            <option value="gif">GIF</option>
-            <option value="mp4">Video</option>
-          </select>
-        </label>
-        <label style="display:none">
-          Asset reference
-          <input id="inside-asset-ref" type="text" maxlength="256" placeholder="hull-flicker or /resources/..." />
-        </label>
-        <label>
-          Source
-          <select id="inside-resource-select"></select>
-        </label>
-        <label>
-          Sound
-          <select id="inside-sound-ref"></select>
-        </label>
+        <div class="animation-tab-panel" data-animation-tab-panel="create">
+          <label>
+            New inside animation name
+            <input id="inside-animation-name" type="text" maxlength="64" placeholder="e.g. Hull Flicker" />
+          </label>
+          <button id="inside-animation-create" type="button">Create &amp; switch to Edit</button>
+        </div>
+        <div class="animation-tab-panel" data-animation-tab-panel="edit" hidden>
+          <label>
+            Animation
+            <select id="inside-animation-select"></select>
+          </label>
+          <label>
+            Inside intensity <span id="inside-intensity-value">1.00</span>
+            <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
+          </label>
+          <label>
+            Inside speed <span id="inside-speed-value">1.00x</span>
+            <input id="inside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
+          </label>
+          <label class="inline-checkbox">
+            <input id="inside-loop-until-stop" type="checkbox" />
+            Loop until stopped
+          </label>
+          <label>
+            Type
+            <select id="inside-asset-type">
+              <option value="coded">Effect</option>
+              <option value="gif">GIF</option>
+              <option value="mp4">Video</option>
+            </select>
+          </label>
+          <label style="display:none">
+            Asset reference
+            <input id="inside-asset-ref" type="text" maxlength="256" placeholder="hull-flicker or /resources/..." />
+          </label>
+          <label>
+            Source
+            <select id="inside-resource-select"></select>
+          </label>
+          <label>
+            Sound
+            <select id="inside-sound-ref"></select>
+          </label>
+        </div>
       </section>
 
-      <!-- Phase 18-2: reworked Outside Animations with create/edit mode indicator -->
+      <!-- Phase 20: two-tab UI — "Create new" / "Edit existing" -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Outside Animations</h2>
-        <div class="animation-create-flow">
-          <input id="outside-animation-name" type="text" maxlength="64" placeholder="New outside animation name" />
-          <button id="outside-animation-create" type="button">Create Outside Animation</button>
+        <div class="animation-tabs" role="tablist">
+          <button type="button" class="animation-tab-button is-active" data-animation-tab="create">Create new</button>
+          <button type="button" class="animation-tab-button" data-animation-tab="edit">Edit existing</button>
         </div>
-        <span id="outside-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
-        <label>
-          Animation
-          <select id="outside-animation-select"></select>
-        </label>
-        <label class="inline-checkbox">
-          <input id="outside-enabled" type="checkbox" />
-          Outside animations enabled
-        </label>
-        <label>
-          Outside intensity <span id="outside-intensity-value">0.70</span>
-          <input id="outside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.7" />
-        </label>
-        <label>
-          Outside speed <span id="outside-speed-value">1.00x</span>
-          <input id="outside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
-        </label>
-        <label>
-          Outside mode
-          <select id="outside-mode">
-            <option value="standard">Standard</option>
-            <option value="immersive">Immersive</option>
-          </select>
-        </label>
-        <label>
-          Outside direction
-          <select id="outside-direction">
-            <option value="forward">Forward</option>
-            <option value="reverse">Reverse</option>
-          </select>
-        </label>
-        <label>
-          Type
-          <select id="outside-asset-type">
-            <option value="coded">Effect</option>
-            <option value="gif">GIF</option>
-            <option value="mp4">Video</option>
-          </select>
-        </label>
-        <label style="display:none">
-          Asset reference
-          <input id="outside-asset-ref" type="text" maxlength="256" placeholder="outside-space or /resources/..." />
-        </label>
-        <label>
-          Source
-          <select id="outside-resource-select"></select>
-        </label>
-        <label>
-          Sound
-          <select id="outside-sound-ref"></select>
-        </label>
+        <div class="animation-tab-panel" data-animation-tab-panel="create">
+          <label>
+            New outside animation name
+            <input id="outside-animation-name" type="text" maxlength="64" placeholder="e.g. Space travel" />
+          </label>
+          <button id="outside-animation-create" type="button">Create &amp; switch to Edit</button>
+        </div>
+        <div class="animation-tab-panel" data-animation-tab-panel="edit" hidden>
+          <label>
+            Animation
+            <select id="outside-animation-select"></select>
+          </label>
+          <label class="inline-checkbox">
+            <input id="outside-enabled" type="checkbox" />
+            Outside animations enabled
+          </label>
+          <label>
+            Outside intensity <span id="outside-intensity-value">0.70</span>
+            <input id="outside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.7" />
+          </label>
+          <label>
+            Outside speed <span id="outside-speed-value">1.00x</span>
+            <input id="outside-speed" type="range" min="0.3" max="2.5" step="0.05" value="1" />
+          </label>
+          <label>
+            Outside mode
+            <select id="outside-mode">
+              <option value="standard">Standard</option>
+              <option value="immersive">Immersive</option>
+            </select>
+          </label>
+          <label>
+            Outside direction
+            <select id="outside-direction">
+              <option value="forward">Forward</option>
+              <option value="reverse">Reverse</option>
+            </select>
+          </label>
+          <label>
+            Type
+            <select id="outside-asset-type">
+              <option value="coded">Effect</option>
+              <option value="gif">GIF</option>
+              <option value="mp4">Video</option>
+            </select>
+          </label>
+          <label style="display:none">
+            Asset reference
+            <input id="outside-asset-ref" type="text" maxlength="256" placeholder="outside-space or /resources/..." />
+          </label>
+          <label>
+            Source
+            <select id="outside-resource-select"></select>
+          </label>
+          <label>
+            Sound
+            <select id="outside-sound-ref"></select>
+          </label>
+        </div>
       </section>
 
-      <!-- Phase 18-2: reworked Room Animations with create/edit mode indicator -->
+      <!-- Phase 20: two-tab UI — "Create new" / "Edit existing" -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="animations" hidden>
         <h2>Room Animations</h2>
-        <div class="animation-create-flow">
-          <input id="room-animation-settings-name" type="text" maxlength="64" placeholder="New room animation name" />
-          <button id="room-animation-settings-create" type="button">Create Room Animation</button>
+        <div class="animation-tabs" role="tablist">
+          <button type="button" class="animation-tab-button is-active" data-animation-tab="create">Create new</button>
+          <button type="button" class="animation-tab-button" data-animation-tab="edit">Edit existing</button>
         </div>
-        <span id="room-mode-indicator" class="animation-mode-badge" aria-live="polite"></span>
-        <label>
-          Animation
-          <select id="room-animation-settings-select"></select>
-        </label>
-        <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
-        <label>
-          Type
-          <select id="room-asset-type">
-            <option value="coded">Effect</option>
-            <option value="gif">GIF</option>
-            <option value="mp4">Video</option>
-          </select>
-        </label>
-        <label style="display:none">
-          Asset reference
-          <input id="room-asset-ref" type="text" maxlength="256" placeholder="intruder-alert or /resources/..." />
-        </label>
-        <label>
-          Source
-          <select id="room-resource-select"></select>
-        </label>
-        <label>
-          Sound
-          <select id="room-sound-ref"></select>
-        </label>
+        <div class="animation-tab-panel" data-animation-tab-panel="create">
+          <label>
+            New room animation name
+            <input id="room-animation-settings-name" type="text" maxlength="64" placeholder="e.g. Intruder Alert" />
+          </label>
+          <button id="room-animation-settings-create" type="button">Create &amp; switch to Edit</button>
+        </div>
+        <div class="animation-tab-panel" data-animation-tab-panel="edit" hidden>
+          <label>
+            Animation
+            <select id="room-animation-settings-select"></select>
+          </label>
+          <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
+          <label>
+            Type
+            <select id="room-asset-type">
+              <option value="coded">Effect</option>
+              <option value="gif">GIF</option>
+              <option value="mp4">Video</option>
+            </select>
+          </label>
+          <label style="display:none">
+            Asset reference
+            <input id="room-asset-ref" type="text" maxlength="256" placeholder="intruder-alert or /resources/..." />
+          </label>
+          <label>
+            Source
+            <select id="room-resource-select"></select>
+          </label>
+          <label>
+            Sound
+            <select id="room-sound-ref"></select>
+          </label>
         <details id="room-def-defaults-details">
           <summary>Default values</summary>
           <label>
@@ -541,6 +564,7 @@
             <input id="room-offset-y-scale" type="range" min="-1" max="1" step="0.01" value="0" />
           </label>
         </details>
+        </div>
       </section>
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">

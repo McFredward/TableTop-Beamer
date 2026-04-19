@@ -102,13 +102,11 @@
 
     roomAnimationSettingsCreateButton?.addEventListener("click", () => {
       const profile = getRoomFxProfile(state.boardId);
-      // Phase 15-8: seed the new definition from the user's current
-      // editor-panel inputs so they don't have to re-enter the values.
-      const currentDraft = collectRoomEditorDraftFromInputs(state.boardId);
+      // Phase 20: create with defaults (user configures in the Edit tab).
       const definition = createRoomAnimationDefinition(
         roomAnimationSettingsNameInput?.value,
         profile.animations,
-        currentDraft,
+        null,
       );
       const nextProfile = {
         ...profile,
@@ -122,6 +120,7 @@
         roomAnimationSettingsNameInput.value = "";
       }
       syncRoomFxPanel();
+      switchAnimationSectionTab(roomAnimationSettingsCreateButton, "edit");
       triggerFeedback.textContent = persisted
         ? `Status: Room animation ${definition.name} created`
         : `Status: Room animation ${definition.name} created (persistence failed)`;
@@ -333,12 +332,11 @@
 
     insideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getInsideFxProfile(state.boardId);
-      // Phase 15-8: inherit user's current editor values on create.
-      const currentDraft = collectInsideEditorDraftFromInputs(state.boardId);
+      // Phase 20: create with defaults (user configures in the Edit tab).
       const definition = createInsideAnimationDefinition(
         insideAnimationNameInput?.value,
         profile.animations,
-        currentDraft,
+        null,
       );
       const nextProfile = {
         ...profile,
@@ -354,6 +352,7 @@
         insideAnimationNameInput.value = "";
       }
       delete insideEditorDraftByBoard[state.boardId];
+      switchAnimationSectionTab(insideAnimationCreateButton, "edit");
       triggerFeedback.textContent = persisted
         ? `Status: Inside animation ${definition.name} created`
         : `Status: Inside animation ${definition.name} created (persistence failed)`;
@@ -478,12 +477,11 @@
 
     outsideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getOutsideFxProfile(state.boardId);
-      // Phase 15-8: inherit user's current editor values on create.
-      const currentDraft = collectOutsideEditorDraftFromInputs(state.boardId);
+      // Phase 20: create with defaults (user configures in the Edit tab).
       const definition = createOutsideAnimationDefinition(
         outsideAnimationNameInput?.value,
         profile.animations,
-        currentDraft,
+        null,
       );
       const nextAnimations = [...profile.animations, definition];
       const nextProfile = {
@@ -503,6 +501,7 @@
           if (outsideAnimationNameInput) {
             outsideAnimationNameInput.value = "";
           }
+          switchAnimationSectionTab(outsideAnimationCreateButton, "edit");
           triggerFeedback.textContent = `Pending: Outside animation ${definition.name} created (waiting for snapshot)`;
         }).catch(() => {
           triggerFeedback.textContent = "Status: Outside animation create command failed";
@@ -519,6 +518,7 @@
       if (outsideAnimationNameInput) {
         outsideAnimationNameInput.value = "";
       }
+      switchAnimationSectionTab(outsideAnimationCreateButton, "edit");
       triggerFeedback.textContent = persisted
         ? `Status: Outside animation ${definition.name} created`
         : `Status: Outside animation ${definition.name} created (persistence failed)`;
@@ -650,6 +650,29 @@
         ? "Status: Outside changes applied"
         : "Status: Outside changes applied (persistence failed)";
     });
+
+    // Phase 20: wire the two-tab switcher in every animation section.
+    // Expects each section to contain `.animation-tab-button[data-animation-tab]`
+    // buttons and `[data-animation-tab-panel]` panels.
+    const tabButtons = document.querySelectorAll(".animation-tab-button[data-animation-tab]");
+    for (const button of tabButtons) {
+      button.addEventListener("click", () => {
+        switchAnimationSectionTab(button, button.dataset.animationTab);
+      });
+    }
+  }
+
+  // Activate a tab within the nearest enclosing <section>. `anchorEl` can be
+  // any element inside the section (typically a button that just fired).
+  function switchAnimationSectionTab(anchorEl, tabName) {
+    const section = anchorEl?.closest("section");
+    if (!section) return;
+    for (const btn of section.querySelectorAll(".animation-tab-button[data-animation-tab]")) {
+      btn.classList.toggle("is-active", btn.dataset.animationTab === tabName);
+    }
+    for (const panel of section.querySelectorAll("[data-animation-tab-panel]")) {
+      panel.hidden = panel.dataset.animationTabPanel !== tabName;
+    }
   }
 
   window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS = {
