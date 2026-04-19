@@ -128,7 +128,7 @@ const {
   insideAnimationNameInput, insideAnimationCreateButton, insideIntensityInput,
   insideIntensityValue, insideSpeedInput, insideSpeedValue, insideAssetTypeInput,
   insideAssetRefInput, insideResourceSelect, insideSoundRefSelect, insideLoopUntilStopInput, insideApplyChangesButton,
-  insideGlobalButtons, dashboardGlobalLoopUntilStopInput, dashboardGlobalPlaySoundInput,
+  insideGlobalButtons, outsideGlobalButtons, outsideAnimationDeleteButton, dashboardGlobalLoopUntilStopInput, dashboardGlobalPlaySoundInput,
   dashboardTransformOptions, dashboardRotationDegInput, dashboardRotationDegValue,
   dashboardStretchToPolygonInput, dashboardWidthScaleInput, dashboardWidthScaleValue,
   dashboardHeightScaleInput, dashboardHeightScaleValue, dashboardOffsetXScaleInput,
@@ -1628,6 +1628,8 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   insideSpeedValue,
   insideLoopUntilStopInput,
   insideGlobalButtons,
+  outsideGlobalButtons,
+  outsideAnimationDeleteButton,
   roomResourceSelect,
   roomSoundRefSelect,
   roomTransformDetails,
@@ -1733,6 +1735,9 @@ const {
   syncOutsideFxPanel,
   findOutsideGlobalAnimation,
   syncOutsideRuntimeMirror,
+  getOutsideEditingAnimationId,
+  setOutsideEditingAnimationId,
+  renderOutsideGlobalButtons,
 } = window.TT_BEAMER_RUNTIME_FX_PANELS;
 
 // Phase 14-2: polygon editor drag/render + renderRoomOverlay moved to
@@ -2696,6 +2701,9 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   outsideAssetTypeInput,
   outsideAssetRefInput,
   outsideApplyChangesButton,
+  outsideAnimationDeleteButton,
+  setOutsideEditingAnimationId,
+  getOutsideEditingAnimationId,
   triggerFeedback,
   roomEditorDraftByBoard,
   insideEditorDraftByBoard,

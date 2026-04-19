@@ -13,6 +13,24 @@
 (() => {
   let ctx = null;
 
+  // Phase 20: separate "which outside animation am I editing" from
+  // "which outside animation is currently playing". The dropdown in the
+  // Outside editor updates this UI-only map, not the persisted
+  // selectedAnimationId — switching the dropdown must not swap the live
+  // animation. Only actual parameter edits to the *running* animation
+  // propagate live (via buildOutsideProfileWithSelectedAnimationPatch).
+  const outsideEditingAnimationIdByBoard = {};
+
+  function getOutsideEditingAnimationId(boardId) {
+    const effective = boardId ?? ctx.state.boardId;
+    return outsideEditingAnimationIdByBoard[effective] ?? null;
+  }
+
+  function setOutsideEditingAnimationId(boardId, animationId) {
+    const effective = boardId ?? ctx.state.boardId;
+    outsideEditingAnimationIdByBoard[effective] = animationId;
+  }
+
   function init(dependencies) {
     ctx = dependencies;
   }
@@ -259,6 +277,23 @@
       button.dataset.global = definition.id;
       button.textContent = definition.name;
       ctx.insideGlobalButtons.append(button);
+    }
+  }
+
+  // Phase 20: one dashboard button per outside animation definition.
+  function renderOutsideGlobalButtons() {
+    if (!ctx.outsideGlobalButtons) {
+      return;
+    }
+    const outside = ctx.getOutsideFxProfile(ctx.state.boardId);
+    ctx.outsideGlobalButtons.replaceChildren();
+    for (const definition of outside.animations) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.global = definition.id;
+      button.dataset.globalScope = "outside";
+      button.textContent = definition.name;
+      ctx.outsideGlobalButtons.append(button);
     }
   }
 
@@ -546,13 +581,21 @@
   function buildOutsideProfileWithSelectedAnimationPatch(boardId, patch = {}, profileOverride = null) {
     const effectiveBoardId = boardId ?? ctx.state.boardId;
     const baseProfile = ctx.normalizeOutsideFxProfile(profileOverride ?? ctx.getOutsideFxProfile(effectiveBoardId));
-    const selectedDefinition =
-      baseProfile.animations.find((entry) => entry.id === baseProfile.selectedAnimationId) ?? baseProfile.animations[0];
-    if (!selectedDefinition) {
+    // Phase 20: edits land on the definition the user is currently *editing*
+    // (driven by the UI-only editing map), not the one that happens to be
+    // marked as selectedAnimationId. Preserve the persisted
+    // selectedAnimationId so the running animation isn't disturbed.
+    const editingId = getOutsideEditingAnimationId(effectiveBoardId)
+      ?? baseProfile.selectedAnimationId
+      ?? baseProfile.animations[0]?.id
+      ?? null;
+    const editingDefinition =
+      baseProfile.animations.find((entry) => entry.id === editingId) ?? baseProfile.animations[0];
+    if (!editingDefinition) {
       return baseProfile;
     }
     const nextAnimations = baseProfile.animations.map((entry) => {
-      if (entry.id !== selectedDefinition.id) {
+      if (entry.id !== editingDefinition.id) {
         return entry;
       }
       return ctx.normalizeOutsideAnimationDefinition({
@@ -562,7 +605,10 @@
     });
     return ctx.normalizeOutsideFxProfile({
       ...baseProfile,
-      selectedAnimationId: selectedDefinition.id,
+      // Preserve the previously selected animation — only the animation
+      // definitions themselves get patched. The caller may override this
+      // through the returned profile if they really intend to swap.
+      selectedAnimationId: baseProfile.selectedAnimationId ?? editingDefinition.id,
       animations: nextAnimations,
     });
   }
@@ -700,7 +746,17 @@
   function syncOutsideFxPanel() {
     const state = ctx.state;
     const outside = ctx.getOutsideFxProfile(state.boardId);
-    const selectedDefinition = ctx.getSelectedOutsideAnimationDefinition(state.boardId);
+    // Phase 20: the editor shows the animation tracked by the per-board
+    // UI-only `outsideEditingAnimationIdByBoard` — independent of the
+    // persisted `selectedAnimationId` that determines what actually
+    // plays when outside FX is enabled.
+    const editingId = getOutsideEditingAnimationId(state.boardId)
+      ?? outside.selectedAnimationId
+      ?? outside.animations[0]?.id
+      ?? null;
+    const selectedDefinition = outside.animations.find((a) => a.id === editingId)
+      ?? outside.animations[0]
+      ?? null;
     const draft = getOutsideEditorDraft(state.boardId, selectedDefinition);
     if (ctx.outsideAnimationSelect) {
       ctx.outsideAnimationSelect.replaceChildren();
@@ -762,6 +818,7 @@
     );
     ctx.outsideIntensityValue.textContent = intensity.toFixed(2);
     ctx.outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+    renderOutsideGlobalButtons();
   }
 
   function findOutsideGlobalAnimation(boardId) {
@@ -828,5 +885,8 @@
     syncOutsideFxPanel,
     findOutsideGlobalAnimation,
     syncOutsideRuntimeMirror,
+    getOutsideEditingAnimationId,
+    setOutsideEditingAnimationId,
+    renderOutsideGlobalButtons,
   };
 })();

@@ -525,34 +525,66 @@
     });
 
     outsideAnimationSelect?.addEventListener("change", () => {
-      const selectedAnimationId = normalizeOutsideAnimationId(outsideAnimationSelect.value);
+      // Phase 20: picking another animation in the Edit tab changes ONLY
+      // which definition the editor shows. It must NOT switch the running
+      // outside animation or emit a live mutation. Changes land on the
+      // running animation only if the user then edits a parameter of the
+      // animation that happens to be the currently-selected/playing one.
+      const editingId = normalizeOutsideAnimationId(outsideAnimationSelect.value);
+      ctx.setOutsideEditingAnimationId(state.boardId, editingId);
+      delete outsideEditorDraftByBoard[state.boardId];
+      syncOutsideFxPanel();
+    });
+
+    ctx.outsideAnimationDeleteButton?.addEventListener("click", () => {
+      const profile = getOutsideFxProfile(state.boardId);
+      if (profile.animations.length <= 1) {
+        triggerFeedback.textContent = "Status: Keep at least one outside animation definition";
+        return;
+      }
+      const editingId = ctx.getOutsideEditingAnimationId(state.boardId)
+        ?? profile.selectedAnimationId
+        ?? profile.animations[0]?.id;
+      const victim = profile.animations.find((entry) => entry.id === editingId)
+        ?? profile.animations[0];
+      if (!victim) return;
+      const nextAnimations = profile.animations.filter((entry) => entry.id !== victim.id);
+      const nextSelected = profile.selectedAnimationId === victim.id
+        ? (nextAnimations[0]?.id ?? null)
+        : profile.selectedAnimationId;
+      const nextProfile = {
+        ...profile,
+        animations: nextAnimations,
+        selectedAnimationId: nextSelected,
+      };
+      // Any ongoing edit-drafts are now stale.
+      delete outsideEditorDraftByBoard[state.boardId];
+      // Point the editor at whatever animation is now first.
+      ctx.setOutsideEditingAnimationId(state.boardId, nextAnimations[0]?.id ?? null);
+
       if (outputRole === OUTPUT_ROLE_CONTROL) {
-        const nextProfile = {
-          ...getOutsideFxProfile(state.boardId),
-          selectedAnimationId,
-        };
         void emitLiveMutation("outside-update", {
           outsideBoardId: state.boardId,
-          reason: "outside-animation-select",
+          reason: "outside-animation-delete",
           outsideFx: nextProfile,
-          outsideFxByBoard: {
-            [state.boardId]: nextProfile,
-          },
+          outsideFxByBoard: { [state.boardId]: nextProfile },
         }).then(() => {
-          triggerFeedback.textContent = "Pending: Outside animation selection command accepted (waiting for snapshot)";
+          triggerFeedback.textContent = `Status: Outside animation ${victim.name} deleted`;
         }).catch(() => {
-          triggerFeedback.textContent = "Status: Outside animation selection command failed";
-          syncOutsideFxPanel();
+          triggerFeedback.textContent = "Status: Outside animation delete command failed";
         });
         return;
       }
-      updateOutsideFxProfile(state.boardId, { selectedAnimationId });
+      updateOutsideFxProfile(state.boardId, {
+        animations: nextAnimations,
+        selectedAnimationId: nextSelected,
+      });
       const persisted = persistBoardProfiles();
       syncOutsideFxPanel();
-      emitOutsideFxMutation(state.boardId, "outside-animation-select");
+      emitOutsideFxMutation(state.boardId, "outside-animation-delete");
       triggerFeedback.textContent = persisted
-        ? "Status: Outside animation selection updated"
-        : "Status: Outside animation selection updated (persistence failed)";
+        ? `Status: Outside animation ${victim.name} deleted`
+        : `Status: Outside animation ${victim.name} deleted (persistence failed)`;
     });
 
     function commitOutsideDraftToDefinition(patch) {

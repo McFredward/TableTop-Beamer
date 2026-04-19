@@ -429,6 +429,7 @@
             Animation
             <select id="outside-animation-select"></select>
           </label>
+          <button id="outside-animation-delete" type="button">Delete selected outside animation</button>
           <label class="inline-checkbox">
             <input id="outside-enabled" type="checkbox" />
             Outside animations enabled
@@ -582,9 +583,7 @@
 
       <section class="panel dashboard-only" data-view="dashboard" data-dashboard-zone="trigger">
         <h2>Global animations - outside Play Area</h2>
-        <div class="button-grid button-grid-2">
-          <button data-global="outside-space">Outside Space</button>
-        </div>
+        <div id="outside-global-buttons" class="button-grid button-grid-2"></div>
         <p id="trigger-feedback" class="status-line" aria-live="polite">Status: ready</p>
       </section>
 
