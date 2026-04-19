@@ -152,6 +152,116 @@ That's all that's strictly required — the in-browser Align Mode handles everyt
 
 5. **You're ready** — start controlling animations and enjoy your game!
 
+## Using the app
+
+The control UI has two top-level views that you switch between with the large Dashboard / Settings toggle:
+
+- **Dashboard** — what you use during the game. Start/stop animations, switch rooms, tweak a running effect on the fly.
+- **Settings** — what you set up before the game. Paint the room outlines, link animations to rooms, organize clusters, tune asset defaults.
+
+### Dashboard
+
+The dashboard is split into three zones (on mobile you swipe between them; on desktop they sit side by side):
+
+- **Trigger** — the grid of room / cluster / global buttons. Tap a button to start an animation in that room (or stop it if one is already running there). Global buttons trigger board-wide effects (e.g. "Outside Space").
+- **Manage** — the list of currently-running animations. Tap one to bring up the **Live Editor**: override opacity, intensity, speed, sound volume and per-animation transform (rotation, stretch, scale, offset) without editing the saved animation definition. "Default animation" toggle auto-starts this effect when the server boots.
+- **Control** — **Clear All** + the "Also clear default animations" checkbox. By default, Clear All stops only the animations you started manually and keeps the board atmosphere (outside effects, default animations) running. Tick the checkbox first if you want to stop literally everything.
+
+### Settings
+
+Settings has three subtabs:
+
+- **Board** — rooms, polygons, play areas, the board catalog, zoom controls, and the per-board Export / Import section.
+- **Animations** — the three animation editors (Inside / Outside / Room).
+- **System** — global animation speed factor and audio settings.
+
+#### Rooms
+
+A **room** is a polygon on the board that can host animations. Rooms are where you actually trigger effects like "Alarm" or "Intruder Alert".
+
+In the **Board** subtab, the *Room Editor* panel lets you:
+
+1. **Create a room** — type a name, click *Create room*. A small hexagon appears on the board.
+2. **Edit its polygon** — drag the teal vertex handles. Double-click an edge midpoint to insert a vertex. Select a vertex and hit `Delete` to remove it.
+3. **Move the whole polygon** — click inside it and drag.
+4. **Copy / Paste** — select a room, `Ctrl+C` to copy, `Ctrl+V` to paste. Useful when you need many similarly-shaped rooms (e.g., the Nemesis hex grid).
+5. **Freeze** — the lock icon disables drag on a room so you don't accidentally move it mid-game.
+6. **Undo / Redo** — `Ctrl+Z` / `Ctrl+Shift+Z` works across all polygon edits and works in any Settings subtab.
+
+#### Play Areas
+
+A **play area** is the region the board itself occupies — everything *inside* is "indoors", everything *outside* is "space" (or whatever backdrop you pick). It's what Outside Animations render against.
+
+A board can have multiple play areas — useful for split-board setups or boards with an outer frame. The polygon editor works the same as for rooms (vertex drag, double-click to insert, delete).
+
+#### Clusters
+
+A **cluster** groups several rooms together. When you trigger a cluster, the animation fires in every room of the cluster simultaneously. Example: a "Nest Activity" cluster covering every hex where nests spawn, so you can flash them all at once when an event card says so.
+
+Create/edit clusters from the Room Editor's cluster sub-panel.
+
+#### Animations
+
+There are three kinds of animations you can define, each with its own editor in **Settings → Animations**:
+
+- **Room Animations** — play inside a specific room polygon (triggered per-room from the dashboard).
+- **Inside Animations** — play inside the *play area* (board-wide indoor effects like a lighting flicker).
+- **Outside Animations** — play *outside* the play area (the backdrop: space, sandstorm, an alien world).
+
+Every editor has the same two-tab layout:
+
+- **Create new** — a name field and a **Create & switch to Edit** button. The new animation is created with sensible defaults and the tab automatically flips to Edit.
+- **Edit existing** — dropdown of all animations + all their parameters:
+  - **Type** — `Effect` (built-in coded), `GIF`, or `Video` (MP4).
+  - **Source** — pick from the resource catalog. For Effects it's a list of built-in names; for GIF / Video it's files under `resources/`.
+  - **Sound** — pick from event-sound assets. Plays when the animation starts.
+  - **Intensity / Speed / Opacity** — per-type tweakable ranges.
+  - **Loop until stopped** — relevant for one-shot effects you want to hold.
+  - **Transform defaults** (Room) — rotation, stretch-to-polygon toggle, width/height scale, X/Y offset. These apply to GIF/MP4 assets that don't automatically fit the polygon shape.
+
+#### Sounds
+
+Any animation can have a sound attached via the *Sound* dropdown in its editor. The per-animation volume is controlled in the Live Editor (or as a default in the Room animation editor). Global audio enable + master volume lives in **Settings → System**.
+
+Place custom sound files under `resources/sounds/` and they'll show up in the dropdown after a reload.
+
+#### Custom assets (GIF / MP4)
+
+Drop your files into:
+
+- `resources/boards/images/` — board background images
+- `resources/gifs/` — custom GIFs
+- `resources/videos/` — custom MP4 loops
+- `resources/sounds/` — custom event sounds
+
+Reload the control UI and they'll appear in the Source / Sound dropdowns. For MP4 loops that aren't seamlessly looped, see [Looping Videos](#looping-videos-ffmpeg) below.
+
+#### Boards
+
+The **Board** dropdown at the top of Settings → Board switches between boards. Each board has its own rooms, play areas, clusters, animations, sounds and align-mode calibration.
+
+Import a new board from:
+
+- **JSON** — a `tt-beamer.board-catalog.v1` file you already exported.
+- **Image** — a JPG / PNG / WEBP. The server registers a minimal board with that image as the background; you then paint rooms on it yourself.
+
+#### Export / Import
+
+Two levels of export/import are provided:
+
+- **Per-board bundle** (`Settings → Board → Export / Import Board`). Packages everything that belongs to the currently-selected board:
+  - Board definition (rooms, play areas)
+  - Runtime profile (animations, clusters, Inside/Outside/Room FX settings)
+  - Align-mode projection profiles for that board
+
+  The JSON file has schema `tt-beamer.board-bundle.v1`. Importing merges into the target server — board definition is overwritten, runtime profile is replaced for that board only, projection profiles are merged (existing ones with the same name are overwritten).
+
+- **Global config** (the two Export/Import buttons further up in the Board panel). Bundles *all* boards' runtime profiles + global settings into a single backup JSON. Use this for full backups of your setup.
+
+### Align Mode
+
+See *Getting Started* step 4 above. Align mode is how you match the projected image to the physical board; it is described there with all the interaction details.
+
 ## Optional: xrandr (hardware-level cropping)
 
 The in-browser Align Mode handles most projection alignment just fine. The only thing it can't do is prevent light from spilling past the edges of your table — it can shrink the _content_, but the projector will still emit light everywhere. If that bothers you (e.g., it lights up nearby walls or chairs), you can additionally use `xrandr` to crop and transform the output signal at the X server level.
