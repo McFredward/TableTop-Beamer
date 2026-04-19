@@ -49,11 +49,22 @@
   }
 
   function clampOutsideIntensity(value) {
-    return Math.max(0.2, Math.min(1.5, Number(value) || ctx.OUTSIDE_FX_DEFAULT.intensity));
+    // Fallback was `ctx.OUTSIDE_FX_DEFAULT.intensity`, but OUTSIDE_FX_DEFAULT
+    // only carries { enabled, selectedAnimationId, animations } — no
+    // top-level intensity. That made this function return NaN on any
+    // invalid input (undefined, 0, empty string, NaN itself), which then
+    // cascaded: NaN got stored on the animation definition, the editor
+    // showed "NaN" in the spans, and the renderer drew with NaN alpha
+    // (effectively black / invisible).
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) ? numeric : 0.7;
+    return Math.max(0.2, Math.min(1.5, safe));
   }
 
   function clampOutsideSpeed(value) {
-    return Math.max(0.3, Math.min(2.5, Number(value) || ctx.OUTSIDE_FX_DEFAULT.speed));
+    const numeric = Number(value);
+    const safe = Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
+    return Math.max(0.3, Math.min(2.5, safe));
   }
 
   function normalizeOutsideMode(value) {
