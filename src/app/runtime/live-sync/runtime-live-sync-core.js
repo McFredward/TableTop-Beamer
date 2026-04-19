@@ -273,13 +273,33 @@
       }
     }
     if (sharedOutsideFxByBoard) {
+      // Phase 20: the server's snapshot patch for an outside-related
+      // mutation sometimes only carries a partial profile (e.g., just
+      // { enabled, selectedAnimationId }). If we normalized that as-is,
+      // normalizeOutsideFxProfile would repopulate the `animations` array
+      // from the hard-coded defaults — silently discarding any edits
+      // the user made (speed/intensity/direction/etc). Preserve the
+      // local `animations` when the incoming profile is missing them.
       state.outsideFxByBoard = {
         ...state.outsideFxByBoard,
         ...Object.fromEntries(
-          BOARDS.map((board) => [
-            board.id,
-            ctx.normalizeOutsideFxProfile(sharedOutsideFxByBoard[board.id] ?? state.outsideFxByBoard[board.id]),
-          ]),
+          BOARDS.map((board) => {
+            const incoming = sharedOutsideFxByBoard[board.id];
+            const local = state.outsideFxByBoard[board.id];
+            const hasIncomingAnimations = incoming
+              && Array.isArray(incoming.animations)
+              && incoming.animations.length > 0;
+            const hasLocalAnimations = local
+              && Array.isArray(local.animations)
+              && local.animations.length > 0;
+            const effective =
+              incoming
+                ? (hasIncomingAnimations || !hasLocalAnimations
+                  ? incoming
+                  : { ...incoming, animations: local.animations })
+                : local;
+            return [board.id, ctx.normalizeOutsideFxProfile(effective)];
+          }),
         ),
       };
     }
