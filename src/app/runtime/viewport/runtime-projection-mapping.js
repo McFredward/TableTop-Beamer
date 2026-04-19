@@ -887,40 +887,116 @@
 
   function addHorizontalLine(normY) {
     normY = Math.max(0.02, Math.min(0.98, normY));
-    const newSrcYs = [...new Set([...grid.srcYs, normY])].sort((a, b) => a - b);
-    grid.srcYs = newSrcYs;
-    grid.srcXs = makeEvenLines(grid.srcXs.length); // keep X count
-    buildDefaultPoints(); // reset all points to default positions
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+
+    // Compute each row's average screen-space Y (reflects current deformation)
+    const avgYs = [];
+    for (let r = 0; r < rows; r++) {
+      let s = 0;
+      for (let c = 0; c < cols; c++) s += grid.points[r][c].y;
+      avgYs.push(s / cols);
+    }
+
+    // Find insertion index in screen space
+    let insertIdx = rows;
+    for (let i = 0; i < rows; i++) {
+      if (normY < avgYs[i]) { insertIdx = i; break; }
+    }
+    if (insertIdx === 0) insertIdx = 1;
+    if (insertIdx >= rows) insertIdx = rows - 1;
+    const above = insertIdx - 1;
+    const below = insertIdx;
+    const yA = avgYs[above];
+    const yB = avgYs[below];
+    if (Math.abs(yB - yA) < 1e-6) return;
+    const t = (normY - yA) / (yB - yA);
+    if (t < 0.01 || t > 0.99) return; // too close to an existing line
+
+    const newSrcY = grid.srcYs[above] + t * (grid.srcYs[below] - grid.srcYs[above]);
+    for (const y of grid.srcYs) if (Math.abs(y - newSrcY) < 1e-6) return;
+
+    // Interpolate new row's points between above and below at screen-space t
+    const newRow = [];
+    for (let c = 0; c < cols; c++) {
+      const pA = grid.points[above][c];
+      const pB = grid.points[below][c];
+      newRow.push({
+        x: pA.x + (pB.x - pA.x) * t,
+        y: pA.y + (pB.y - pA.y) * t,
+      });
+    }
+    grid.srcYs.splice(insertIdx, 0, newSrcY);
+    grid.points.splice(insertIdx, 0, newRow);
+
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function addVerticalLine(normX) {
     normX = Math.max(0.02, Math.min(0.98, normX));
-    const newSrcXs = [...new Set([...grid.srcXs, normX])].sort((a, b) => a - b);
-    grid.srcXs = newSrcXs;
-    grid.srcYs = makeEvenLines(grid.srcYs.length); // keep Y count
-    buildDefaultPoints();
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+
+    const avgXs = [];
+    for (let c = 0; c < cols; c++) {
+      let s = 0;
+      for (let r = 0; r < rows; r++) s += grid.points[r][c].x;
+      avgXs.push(s / rows);
+    }
+
+    let insertIdx = cols;
+    for (let i = 0; i < cols; i++) {
+      if (normX < avgXs[i]) { insertIdx = i; break; }
+    }
+    if (insertIdx === 0) insertIdx = 1;
+    if (insertIdx >= cols) insertIdx = cols - 1;
+    const left = insertIdx - 1;
+    const right = insertIdx;
+    const xA = avgXs[left];
+    const xB = avgXs[right];
+    if (Math.abs(xB - xA) < 1e-6) return;
+    const t = (normX - xA) / (xB - xA);
+    if (t < 0.01 || t > 0.99) return;
+
+    const newSrcX = grid.srcXs[left] + t * (grid.srcXs[right] - grid.srcXs[left]);
+    for (const x of grid.srcXs) if (Math.abs(x - newSrcX) < 1e-6) return;
+
+    for (let r = 0; r < rows; r++) {
+      const pL = grid.points[r][left];
+      const pR = grid.points[r][right];
+      const newPt = {
+        x: pL.x + (pR.x - pL.x) * t,
+        y: pL.y + (pR.y - pL.y) * t,
+      };
+      grid.points[r].splice(insertIdx, 0, newPt);
+    }
+    grid.srcXs.splice(insertIdx, 0, newSrcX);
+
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function removeHorizontalLine(index) {
     if (grid.srcYs.length <= 3) return;
     if (index === 0 || index === grid.srcYs.length - 1) return;
     grid.srcYs.splice(index, 1);
-    buildDefaultPoints();
+    grid.points.splice(index, 1);
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function removeVerticalLine(index) {
     if (grid.srcXs.length <= 3) return;
     if (index === 0 || index === grid.srcXs.length - 1) return;
     grid.srcXs.splice(index, 1);
-    buildDefaultPoints();
+    for (const row of grid.points) row.splice(index, 1);
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
   }
 
   function resetGrid() {
