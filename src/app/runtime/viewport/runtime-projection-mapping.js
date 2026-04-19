@@ -197,6 +197,8 @@
 
   // Grid line drag state
   let lineDragState = null;
+  // Whole-grid pan state (click on empty area + drag)
+  let panDragState = null;
   const LINE_HIT_THRESHOLD = 15; // px
 
   function createHandles() {
@@ -545,7 +547,7 @@
   // ── Grid line drag (move entire row/column) ────────────────────────────────
 
   function onLineHover(e) {
-    if (lineDragState || !lineCanvas) return;
+    if (lineDragState || panDragState || !lineCanvas) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const rows = grid.srcYs.length;
@@ -570,7 +572,8 @@
         return;
       }
     }
-    lineCanvas.style.cursor = "default";
+    // Empty area → show grab cursor (whole-grid pan)
+    lineCanvas.style.cursor = "grab";
   }
 
   function onLinePointerDown(e) {
@@ -633,6 +636,70 @@
         return;
       }
     }
+
+    // No line hit → start whole-grid pan
+    e.preventDefault();
+    e.stopPropagation();
+    const allStartPts = [];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let r = 0; r < rows; r++) {
+      allStartPts[r] = [];
+      for (let c = 0; c < cols; c++) {
+        const p = getPoint(r, c);
+        allStartPts[r][c] = { x: p.x, y: p.y };
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+    }
+    panDragState = {
+      startX: mx,
+      startY: my,
+      allStartPts,
+      minX, maxX, minY, maxY,
+    };
+    lineCanvas.style.cursor = "grabbing";
+    lineCanvas.setPointerCapture(e.pointerId);
+    document.addEventListener("pointermove", onPanDragMove);
+    document.addEventListener("pointerup", onPanDragEnd);
+    document.addEventListener("pointercancel", onPanDragEnd);
+  }
+
+  function onPanDragMove(e) {
+    if (!panDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let dx = (e.clientX - panDragState.startX) / vw;
+    let dy = (e.clientY - panDragState.startY) / vh;
+    // Clamp translation so bounding box stays within [0, 1]
+    dx = Math.max(-panDragState.minX, Math.min(1 - panDragState.maxX, dx));
+    dy = Math.max(-panDragState.minY, Math.min(1 - panDragState.maxY, dy));
+
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    const sp = panDragState.allStartPts;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        setPoint(r, c, sp[r][c].x + dx, sp[r][c].y + dy);
+      }
+    }
+
+    positionHandles();
+    drawLines();
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+  }
+
+  function onPanDragEnd() {
+    if (!panDragState) return;
+    panDragState = null;
+    if (lineCanvas) lineCanvas.style.cursor = "grab";
+    document.removeEventListener("pointermove", onPanDragMove);
+    document.removeEventListener("pointerup", onPanDragEnd);
+    document.removeEventListener("pointercancel", onPanDragEnd);
+    saveToLocalStorage();
   }
 
   function onLineDragMove(e) {
