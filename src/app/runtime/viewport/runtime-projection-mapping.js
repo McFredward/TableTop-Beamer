@@ -1323,7 +1323,7 @@
     });
 
     setTimeout(() => {
-      document.addEventListener("pointerdown", dismissContextMenuOnOutside);
+      document.addEventListener("pointerdown", dismissContextMenuOnOutside, true);
     }, 0);
   }
 
@@ -1338,7 +1338,7 @@
       contextMenu.remove();
       contextMenu = null;
     }
-    document.removeEventListener("pointerdown", dismissContextMenuOnOutside);
+    document.removeEventListener("pointerdown", dismissContextMenuOnOutside, true);
   }
 
   // ── Grid line add/remove ───────────────────────────────────────────────────
