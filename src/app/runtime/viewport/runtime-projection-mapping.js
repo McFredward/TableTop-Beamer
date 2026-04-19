@@ -86,12 +86,13 @@
 
   /**
    * Remap a normalized point (0-1) through the grid distortion.
-   * Finds which source cell the point falls in, then bilinearly interpolates
-   * within the displaced cell. Returns { x, y } in 0-1 range.
+   * Splits each cell into 2 triangles along the TL-BR diagonal and uses
+   * barycentric coords within the triangle. This matches the canvas mesh
+   * warp (which uses the same triangulation) so SVG contours and canvas
+   * animations stay perfectly aligned. Returns { x, y } in 0-1 range.
    */
   function remapPoint(nx, ny) {
     if (!hasGridDisplacements()) return { x: nx, y: ny };
-    // Find cell
     let ci = 0, ri = 0;
     for (let i = 0; i < grid.srcXs.length - 1; i++) {
       if (nx <= grid.srcXs[i + 1] || i === grid.srcXs.length - 2) { ci = i; break; }
@@ -99,7 +100,6 @@
     for (let i = 0; i < grid.srcYs.length - 1; i++) {
       if (ny <= grid.srcYs[i + 1] || i === grid.srcYs.length - 2) { ri = i; break; }
     }
-    // Interpolation within the cell
     const sx = grid.srcXs[ci + 1] - grid.srcXs[ci];
     const sy = grid.srcYs[ri + 1] - grid.srcYs[ri];
     const tx = sx > 1e-10 ? (nx - grid.srcXs[ci]) / sx : 0;
@@ -108,12 +108,26 @@
     const tr = getPoint(ri, ci + 1);
     const bl = getPoint(ri + 1, ci);
     const br = getPoint(ri + 1, ci + 1);
-    // Bilinear interpolation
-    const topX = tl.x + (tr.x - tl.x) * tx;
-    const topY = tl.y + (tr.y - tl.y) * tx;
-    const botX = bl.x + (br.x - bl.x) * tx;
-    const botY = bl.y + (br.y - bl.y) * tx;
-    return { x: topX + (botX - topX) * ty, y: topY + (botY - topY) * ty };
+    // Split cell by TL-BR diagonal:
+    //  tx >= ty → upper-right triangle (TL, TR, BR)
+    //  tx <  ty → lower-left  triangle (TL, BR, BL)
+    if (tx >= ty) {
+      const aTL = 1 - tx;
+      const aTR = tx - ty;
+      const aBR = ty;
+      return {
+        x: aTL * tl.x + aTR * tr.x + aBR * br.x,
+        y: aTL * tl.y + aTR * tr.y + aBR * br.y,
+      };
+    } else {
+      const aTL = 1 - ty;
+      const aBR = tx;
+      const aBL = ty - tx;
+      return {
+        x: aTL * tl.x + aBR * br.x + aBL * bl.x,
+        y: aTL * tl.y + aBR * br.y + aBL * bl.y,
+      };
+    }
   }
 
   // ── Apply transform (no-op — all warping is done via canvas mesh) ──────────
@@ -132,6 +146,37 @@
   let _warpTmpCanvas = null;
   let _warpTmpCtx = null;
 
+  /**
+   * Draw an affine-mapped source triangle into a dest triangle on `cctx`.
+   * Uses clip() + setTransform() to perform the correct affine warp for
+   * the one triangle, honoring all 3 corners (unlike drawImage rect mapping
+   * which would lose 2 of the 4 cell corners).
+   */
+  function drawAffineTriangle(cctx, img, sx0, sy0, sx1, sy1, sx2, sy2, dx0, dy0, dx1, dy1, dx2, dy2) {
+    const det = sx0 * (sy1 - sy2) - sy0 * (sx1 - sx2) + (sx1 * sy2 - sx2 * sy1);
+    if (Math.abs(det) < 1e-10) return;
+    const inv = 1 / det;
+
+    const a = (dx0 * (sy1 - sy2) + dx1 * (sy2 - sy0) + dx2 * (sy0 - sy1)) * inv;
+    const c = (dx0 * (sx2 - sx1) + dx1 * (sx0 - sx2) + dx2 * (sx1 - sx0)) * inv;
+    const e = (dx0 * (sx1 * sy2 - sx2 * sy1) + dx1 * (sx2 * sy0 - sx0 * sy2) + dx2 * (sx0 * sy1 - sx1 * sy0)) * inv;
+
+    const b = (dy0 * (sy1 - sy2) + dy1 * (sy2 - sy0) + dy2 * (sy0 - sy1)) * inv;
+    const d = (dy0 * (sx2 - sx1) + dy1 * (sx0 - sx2) + dy2 * (sx1 - sx0)) * inv;
+    const f = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) * inv;
+
+    cctx.save();
+    cctx.beginPath();
+    cctx.moveTo(dx0, dy0);
+    cctx.lineTo(dx1, dy1);
+    cctx.lineTo(dx2, dy2);
+    cctx.closePath();
+    cctx.clip();
+    cctx.transform(a, b, c, d, e, f);
+    cctx.drawImage(img, 0, 0);
+    cctx.restore();
+  }
+
   function postDrawMeshWarp(canvas, canvasCtx) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
     if (!hasGridDisplacements()) return;
@@ -139,7 +184,6 @@
     const w = canvas.width;
     const h = canvas.height;
 
-    // Reuse cached temp canvas
     if (!_warpTmpCanvas) {
       _warpTmpCanvas = document.createElement("canvas");
       _warpTmpCtx = _warpTmpCanvas.getContext("2d");
@@ -150,39 +194,54 @@
     }
 
     // Snapshot current content
+    _warpTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
     _warpTmpCtx.clearRect(0, 0, w, h);
     _warpTmpCtx.drawImage(canvas, 0, 0);
 
-    // Clear and redraw through grid: source = evenly spaced, dest = per-point
+    // Clear and redraw through grid using triangulated affine warps.
+    // Each cell is split into 2 triangles along the TL-BR diagonal so all
+    // 4 corner displacements are honored (a plain rect drawImage would
+    // ignore TR and BL).  Matches the triangulation used in remapPoint.
+    canvasCtx.save();
+    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
     canvasCtx.clearRect(0, 0, w, h);
 
     for (let row = 0; row < grid.srcYs.length - 1; row++) {
       for (let col = 0; col < grid.srcXs.length - 1; col++) {
-        // Source: evenly spaced cell from the snapshot
-        const srcX = grid.srcXs[col] * w;
-        const srcY = grid.srcYs[row] * h;
-        const srcW = (grid.srcXs[col + 1] - grid.srcXs[col]) * w;
-        const srcH = (grid.srcYs[row + 1] - grid.srcYs[row]) * h;
-        if (srcW < 0.5 || srcH < 0.5) continue;
+        const sTLx = grid.srcXs[col] * w;
+        const sTLy = grid.srcYs[row] * h;
+        const sTRx = grid.srcXs[col + 1] * w;
+        const sTRy = grid.srcYs[row] * h;
+        const sBLx = grid.srcXs[col] * w;
+        const sBLy = grid.srcYs[row + 1] * h;
+        const sBRx = grid.srcXs[col + 1] * w;
+        const sBRy = grid.srcYs[row + 1] * h;
 
-        // Destination: use top-left and bottom-right point positions
-        // (drawImage can only do rect-to-rect, so we use the bounding rect
-        // of the displaced cell — full perspective per-cell requires triangulation)
-        const tl = getPoint(row, col);
-        const br = getPoint(row + 1, col + 1);
-        const dstX = tl.x * w;
-        const dstY = tl.y * h;
-        const dstW = (br.x - tl.x) * w;
-        const dstH = (br.y - tl.y) * h;
-        if (dstW < 0.5 || dstH < 0.5) continue;
+        const dTL = getPoint(row, col);
+        const dTR = getPoint(row, col + 1);
+        const dBL = getPoint(row + 1, col);
+        const dBR = getPoint(row + 1, col + 1);
+        const dTLx = dTL.x * w, dTLy = dTL.y * h;
+        const dTRx = dTR.x * w, dTRy = dTR.y * h;
+        const dBLx = dBL.x * w, dBLy = dBL.y * h;
+        const dBRx = dBR.x * w, dBRy = dBR.y * h;
 
-        canvasCtx.drawImage(
-          _warpTmpCanvas,
-          srcX, srcY, srcW, srcH,
-          dstX, dstY, dstW, dstH,
+        // Triangle 1: TL, TR, BR
+        drawAffineTriangle(
+          canvasCtx, _warpTmpCanvas,
+          sTLx, sTLy, sTRx, sTRy, sBRx, sBRy,
+          dTLx, dTLy, dTRx, dTRy, dBRx, dBRy,
+        );
+        // Triangle 2: TL, BR, BL
+        drawAffineTriangle(
+          canvasCtx, _warpTmpCanvas,
+          sTLx, sTLy, sBRx, sBRy, sBLx, sBLy,
+          dTLx, dTLy, dBRx, dBRy, dBLx, dBLy,
         );
       }
     }
+
+    canvasCtx.restore();
   }
 
   // ── Handle UI ──────────────────────────────────────────────────────────────
