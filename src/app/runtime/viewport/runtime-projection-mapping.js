@@ -278,6 +278,7 @@
         el.addEventListener("pointerdown", onHandlePointerDown);
         document.body.appendChild(el);
         handleElements.push(el);
+      }
     }
 
     positionHandles();
@@ -386,8 +387,9 @@
         lineCtx.fillStyle = "#fff";
         lineCtx.font = "bold 11px sans-serif";
         lineCtx.textAlign = "center";
-      lineCtx.textBaseline = "middle";
-      lineCtx.fillText("↔", px, py);
+        lineCtx.textBaseline = "middle";
+        lineCtx.fillText("↔", px, py);
+      }
     }
 
     // Filled quad from corners (semi-transparent)
