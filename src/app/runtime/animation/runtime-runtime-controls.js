@@ -33,9 +33,13 @@
   // tracking map even for voices we want to fade out naturally.
   function shouldGracefulStopAudio(animation) {
     if (!animation || animation.scope !== "global") return false;
-    // Inside scope = anything NOT outside-space. outside-space gets
-    // the hard stop so the ambient track doesn't drift into silence
-    // uncontrollably when the user clears the board.
+    // Outside animations get the hard stop so the ambient track doesn't
+    // drift into silence uncontrollably when the user clears the board.
+    // Any type listed in the board's outside profile counts as outside —
+    // the old hardcoded "outside-space" fallback is kept only for
+    // backwards compatibility with boards that still carry that id.
+    const boardId = animation.boardId ?? ctx.state.boardId;
+    if (ctx.isOutsideAnimationType?.(animation.type, boardId)) return false;
     if (animation.type === "outside-space") return false;
     return !animation.loopUntilStopped;
   }

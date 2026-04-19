@@ -306,6 +306,18 @@
     return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
   }
 
+  // Phase 20: "is this animation type an outside animation?" — driven
+  // purely by the board's outside profile, so custom outside animations
+  // are recognized just like built-in ones. Used by the render path to
+  // decide whether an animation belongs to the outside (masked) layer
+  // instead of the inside-ship layer.
+  function isOutsideAnimationType(type, boardId = ctx.state.boardId) {
+    if (!type) return false;
+    const profile = getOutsideFxProfile(boardId);
+    return Array.isArray(profile?.animations)
+      && profile.animations.some((entry) => entry?.id === type);
+  }
+
   function resolveOutsideTimeline(elapsedSeconds, speed) {
     const normalizedElapsed = Math.max(0, Number(elapsedSeconds) || 0);
     const normalizedSpeed = ctx.clampOutsideSpeed(speed);
@@ -507,6 +519,7 @@
     setOutsideFxProfile,
     updateOutsideFxProfile,
     getSelectedOutsideAnimationDefinition,
+    isOutsideAnimationType,
     resolveOutsideTimeline,
     createOutsideAnimationDefinition,
     normalizeRoomAssetType,

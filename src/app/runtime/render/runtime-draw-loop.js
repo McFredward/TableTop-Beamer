@@ -252,8 +252,11 @@
       }
       return;
     }
-    if (animation.type === "outside-space") {
-      // Outside is rendered in a dedicated isolated layer path.
+    if (ctx.isOutsideAnimationType?.(animation.type, animation.boardId ?? ctx.state.boardId)
+      || animation.type === "outside-space") {
+      // Outside is rendered in a dedicated isolated layer path — skip
+      // the normal inside-ship rendering for ANY animation type the
+      // board's outside profile knows about.
       return;
     }
 

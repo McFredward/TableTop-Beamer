@@ -821,23 +821,58 @@
     renderOutsideGlobalButtons();
   }
 
+  // Phase 20: "is this running animation the outside animation for this
+  // board?" — recognises any type listed in the board's outside profile,
+  // not just the built-in outside-space id.
   function findOutsideGlobalAnimation(boardId) {
     return ctx.state.runningAnimations.find(
       (animation) =>
-        animation.scope === "global" && animation.type === "outside-space" && animation.boardId === boardId,
+        animation?.scope === "global"
+        && animation?.boardId === boardId
+        && (ctx.isOutsideAnimationType?.(animation?.type, boardId)
+          || animation?.type === "outside-space"),
     );
   }
 
   function syncOutsideRuntimeMirror(boardId) {
     const effectiveBoardId = boardId ?? ctx.state.boardId;
     const state = ctx.state;
-    const outsideEnabled = ctx.getOutsideFxProfile(effectiveBoardId).enabled;
+    const profile = ctx.getOutsideFxProfile(effectiveBoardId);
+    const outsideEnabled = profile.enabled;
     const existing = findOutsideGlobalAnimation(effectiveBoardId);
+    // Current "selected" outside definition drives which type the
+    // mirrored running animation takes on — no more hardcoded
+    // "outside-space".
+    const selectedDefinition =
+      profile.animations.find((entry) => entry.id === profile.selectedAnimationId)
+      ?? profile.animations[0]
+      ?? null;
+    const desiredType = selectedDefinition?.id ?? null;
 
-    if (outsideEnabled && !existing) {
+    // If the selected animation changed while outside was already on, swap
+    // the mirrored type so the renderer picks up the new definition.
+    if (outsideEnabled && existing && desiredType && existing.type !== desiredType) {
+      ctx.stopAnimationSound(existing.id);
+      state.runningAnimations = state.runningAnimations.filter((animation) => animation.id !== existing.id);
+      ctx.clearOutsideMp4PlaybackState(effectiveBoardId);
+      ctx.clearOutsideTimelineState(effectiveBoardId);
       const outsideAnimation = ctx.createAnimation({
         boardId: effectiveBoardId,
-        type: "outside-space",
+        type: desiredType,
+        scope: "global",
+        intensity: 1,
+        hold: true,
+        durationSec: 0,
+      });
+      state.runningAnimations.push(outsideAnimation);
+      ctx.playSoundForAnimation(outsideAnimation);
+      return true;
+    }
+
+    if (outsideEnabled && !existing && desiredType) {
+      const outsideAnimation = ctx.createAnimation({
+        boardId: effectiveBoardId,
+        type: desiredType,
         scope: "global",
         intensity: 1,
         hold: true,

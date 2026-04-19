@@ -388,7 +388,10 @@
       ...(targetScope ? { targetScope } : {}),
       ...(targetType ? { targetType } : {}),
       ...(boardId ? { boardId } : {}),
-      ...(targetScope === "global" && targetType === "outside-space" ? { outsideHint: true } : {}),
+      ...(targetScope === "global"
+        && (ctx.isOutsideAnimationType?.(targetType, boardId) || targetType === "outside-space")
+        ? { outsideHint: true }
+        : {}),
     };
   }
 
@@ -453,7 +456,9 @@
     if (state.roomDraft.editTargetId && idsToStop.has(state.roomDraft.editTargetId)) {
       clearRoomDraftEditTarget();
     }
-    if (target?.scope === "global" && target.type === "outside-space") {
+    if (target?.scope === "global"
+      && (ctx.isOutsideAnimationType?.(target.type, target.boardId)
+        || target.type === "outside-space")) {
       updateOutsideFxProfile(target.boardId, { enabled: false });
       persistBoardProfiles();
       if (target.boardId === state.boardId) {

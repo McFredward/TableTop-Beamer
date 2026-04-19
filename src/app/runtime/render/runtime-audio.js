@@ -190,7 +190,12 @@
     if (!animation || !isAudioPlaybackAllowed()) {
       return;
     }
-    if (animation.scope === "global" && animation.type === "outside-space") {
+    if (animation.scope === "global"
+      && (ctx.isOutsideAnimationType?.(animation.type, animation.boardId ?? ctx.state.boardId)
+        || animation.type === "outside-space")) {
+      // Outside animations drive their audio through a different path
+      // (bound to the outside layer). Short-circuit the generic
+      // per-animation sound player here.
       stopAnimationSound(animation.id);
       return;
     }
