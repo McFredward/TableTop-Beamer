@@ -2643,6 +2643,127 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Per-board bundle: board definition + board runtime profile + align-mode profiles
+    if (req.method === "GET" && routePath === "/api/boards/bundle-export") {
+      const requestUrl = new URL(req.url || "/api/boards/bundle-export", "http://localhost");
+      const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
+      if (!boardId) {
+        sendJson(res, 400, { ok: false, error: "boardId required" });
+        return;
+      }
+      const safeFileName = sanitizeBoardFileName(boardId);
+      if (!safeFileName) {
+        sendJson(res, 400, { ok: false, error: "invalid boardId" });
+        return;
+      }
+      let board = null;
+      try {
+        const boardRaw = await readFile(path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`), "utf8");
+        const parsed = JSON.parse(boardRaw);
+        board = parsed?.board ?? parsed;
+      } catch {
+        sendJson(res, 404, { ok: false, error: "board not found" });
+        return;
+      }
+      let boardProfile = null;
+      try {
+        const gdRaw = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
+        const gd = JSON.parse(gdRaw);
+        boardProfile = gd?.boardProfiles?.[boardId] ?? null;
+      } catch { /* ok */ }
+      const allProjection = await loadProjectionProfilesRaw();
+      const projectionProfiles = allProjection[boardId] ?? {};
+      sendJson(res, 200, {
+        schema: "tt-beamer.board-bundle.v1",
+        exportedAt: new Date().toISOString(),
+        boardId,
+        board,
+        boardProfile,
+        projectionProfiles,
+      });
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/boards/bundle-import") {
+      let parsed;
+      try {
+        parsed = await parseJsonBody(req, { maxBytes: 5 * 1024 * 1024 });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "invalid JSON payload";
+        if (message.includes("payload too large")) {
+          sendJson(res, 413, { ok: false, error: "payload too large" });
+          return;
+        }
+        sendJson(res, 400, { ok: false, error: "invalid JSON payload" });
+        return;
+      }
+      if (parsed?.schema !== "tt-beamer.board-bundle.v1") {
+        sendJson(res, 400, { ok: false, error: "schema mismatch — expected tt-beamer.board-bundle.v1" });
+        return;
+      }
+      const incomingBoard = parsed?.board;
+      const normalized = normalizeBoardDefinition(incomingBoard, { source: "bundle-import" });
+      if (!normalized.ok) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "board definition validation failed",
+          issues: normalized.issues,
+        });
+        return;
+      }
+      const board = normalized.board;
+      const boardId = board.boardId;
+      const safeFileName = sanitizeBoardFileName(boardId);
+      if (!safeFileName) {
+        sendJson(res, 400, { ok: false, error: "invalid boardId" });
+        return;
+      }
+
+      // 1) Write board definition (overwrite is allowed for bundle import)
+      await mkdir(BOARD_STORAGE_DIR, { recursive: true });
+      const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+      const boardPayload = {
+        schema: BOARD_IMPORT_SCHEMA,
+        importedAt: new Date().toISOString(),
+        board: {
+          schema: BOARD_DEFINITION_SCHEMA,
+          boardId: board.boardId,
+          metadata: board.metadata ?? {},
+          roomCatalog: board.roomCatalog ?? [],
+          ...(board.playAreas ? { playAreas: board.playAreas } : {}),
+        },
+      };
+      await writeFile(targetPath, JSON.stringify(boardPayload, null, 2) + "\n", "utf8");
+
+      // 2) Merge board runtime profile into global-defaults.json
+      const boardProfile = parsed?.boardProfile;
+      if (boardProfile && typeof boardProfile === "object") {
+        let gd = {};
+        try {
+          gd = JSON.parse(await readFile(GLOBAL_DEFAULTS_PATH, "utf8"));
+        } catch { /* empty */ }
+        if (!gd || typeof gd !== "object") gd = {};
+        if (!gd.boardProfiles || typeof gd.boardProfiles !== "object") gd.boardProfiles = {};
+        gd.boardProfiles[boardId] = boardProfile;
+        await mkdir(path.dirname(GLOBAL_DEFAULTS_PATH), { recursive: true });
+        await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
+      }
+
+      // 3) Merge align-mode projection profiles
+      const projectionProfiles = parsed?.projectionProfiles;
+      if (projectionProfiles && typeof projectionProfiles === "object") {
+        const all = await loadProjectionProfilesRaw();
+        all[boardId] = {
+          ...(all[boardId] && typeof all[boardId] === "object" ? all[boardId] : {}),
+          ...projectionProfiles,
+        };
+        await saveProjectionProfilesRaw(all);
+      }
+
+      sendJson(res, 200, { ok: true, boardId });
+      return;
+    }
+
     if (req.method === "POST" && routePath === "/api/boards/import") {
       await handleBoardImport(req, res);
       return;

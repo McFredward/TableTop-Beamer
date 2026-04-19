@@ -470,6 +470,67 @@
       triggerFeedback.textContent = `Status: Config exported to ${fileName}`;
     });
 
+    // Phase 20: per-board bundle export/import (board def + runtime profile + align profiles)
+    (function wireBundleExportImport() {
+      const exportButton = document.querySelector("#bundle-export-board");
+      const importInput = document.querySelector("#bundle-import-file");
+      const bundleStatus = document.querySelector("#bundle-status");
+      const setStatus = (msg) => { if (bundleStatus) bundleStatus.textContent = msg; };
+
+      exportButton?.addEventListener("click", async () => {
+        const boardId = state.boardId;
+        if (!boardId) { setStatus("No board selected."); return; }
+        try {
+          setStatus(`Exporting ${boardId}...`);
+          const resp = await fetch(`/api/boards/bundle-export?boardId=${encodeURIComponent(boardId)}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const bundle = await resp.json();
+          const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+          link.download = `tt-beamer-board-${boardId}-${stamp}.json`;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+          setStatus(`Exported ${boardId} → ${link.download}`);
+        } catch (error) {
+          setStatus(`Export failed: ${error?.message || error}`);
+        }
+      });
+
+      importInput?.addEventListener("change", async () => {
+        const file = importInput.files?.[0];
+        importInput.value = "";
+        if (!file) return;
+        try {
+          setStatus(`Reading ${file.name}...`);
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if (parsed?.schema !== "tt-beamer.board-bundle.v1") {
+            throw new Error("not a tt-beamer.board-bundle.v1 file");
+          }
+          setStatus(`Importing ${parsed.boardId ?? "(unknown board)"}...`);
+          const resp = await fetch("/api/boards/bundle-import", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: text,
+          });
+          if (!resp.ok) {
+            const body = await resp.json().catch(() => ({}));
+            throw new Error(body?.error || `HTTP ${resp.status}`);
+          }
+          const body = await resp.json();
+          setStatus(`Imported board "${body.boardId}" — reload to see it in the catalog.`);
+          triggerFeedback.textContent = `Status: Board bundle ${body.boardId} imported`;
+        } catch (error) {
+          setStatus(`Import failed: ${error?.message || error}`);
+        }
+      });
+    })();
+
     // Phase 13-1: Import-from-file wiring.
     (function wireImportGlobalDefaultsButton() {
       const importButton = document.querySelector("#import-global-defaults");

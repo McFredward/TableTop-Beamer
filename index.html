@@ -224,6 +224,21 @@
         <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
       </section>
 
+      <!-- Phase 20: per-board bundle export/import — share a whole board end-to-end -->
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
+        <h2>Export / Import Board</h2>
+        <p>
+          Share a board end-to-end. The JSON bundle includes: board definition (rooms, play areas),
+          animation and sound assignments, clusters, and saved align-mode profiles.
+        </p>
+        <button id="bundle-export-board" type="button">Export current board (download JSON)</button>
+        <label>
+          Import board bundle (JSON)
+          <input id="bundle-import-file" type="file" accept="application/json,.json" />
+        </label>
+        <p id="bundle-status" class="status-line" aria-live="polite">Ready.</p>
+      </section>
+
       <!-- Phase 18-2: merged "Room management" and "Room polygon editor" into one panel -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
         <h2>Room Editor</h2>
