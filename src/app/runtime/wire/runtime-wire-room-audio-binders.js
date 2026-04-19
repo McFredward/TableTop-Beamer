@@ -470,10 +470,14 @@
       triggerFeedback.textContent = `Status: Config exported to ${fileName}`;
     });
 
-    // Phase 20: per-board bundle export/import (board def + runtime profile + align profiles)
+    // Phase 20: unified per-board package export/import.
+    // Export downloads a self-contained board package (board definition +
+    // runtime profile + align profiles + board image as base64).
+    // Import accepts either such a package OR a raw image for a fresh board.
     (function wireBundleExportImport() {
       const exportButton = document.querySelector("#bundle-export-board");
       const importInput = document.querySelector("#bundle-import-file");
+      const nameInput = document.querySelector("#bundle-import-name");
       const bundleStatus = document.querySelector("#bundle-status");
       const setStatus = (msg) => { if (bundleStatus) bundleStatus.textContent = msg; };
 
@@ -481,11 +485,11 @@
         const boardId = state.boardId;
         if (!boardId) { setStatus("No board selected."); return; }
         try {
-          setStatus(`Exporting ${boardId}...`);
+          setStatus(`Preparing package for ${boardId}...`);
           const resp = await fetch(`/api/boards/bundle-export?boardId=${encodeURIComponent(boardId)}`);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const bundle = await resp.json();
-          const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+          const pkg = await resp.json();
+          const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -495,7 +499,7 @@
           link.click();
           link.remove();
           URL.revokeObjectURL(url);
-          setStatus(`Exported ${boardId} → ${link.download}`);
+          setStatus(`Saved ${link.download}. Share this file.`);
         } catch (error) {
           setStatus(`Export failed: ${error?.message || error}`);
         }
@@ -505,26 +509,50 @@
         const file = importInput.files?.[0];
         importInput.value = "";
         if (!file) return;
+        const mime = String(file.type || "").toLowerCase();
+        const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name);
+        const isPackage = mime === "application/json" || /\.json$/i.test(file.name);
         try {
-          setStatus(`Reading ${file.name}...`);
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          if (parsed?.schema !== "tt-beamer.board-bundle.v1") {
-            throw new Error("not a tt-beamer.board-bundle.v1 file");
+          if (isPackage) {
+            setStatus(`Reading package ${file.name}...`);
+            const text = await file.text();
+            // Loose validation — the server gives a friendlier error if wrong.
+            try { JSON.parse(text); } catch {
+              throw new Error("that doesn't look like a valid package file");
+            }
+            setStatus(`Importing...`);
+            const resp = await fetch("/api/boards/bundle-import", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: text,
+            });
+            if (!resp.ok) {
+              const body = await resp.json().catch(() => ({}));
+              throw new Error(body?.error || `HTTP ${resp.status}`);
+            }
+            const body = await resp.json();
+            setStatus(`Imported "${body.boardId}". Reload the page to see it in the list.`);
+            triggerFeedback.textContent = `Status: Board ${body.boardId} imported`;
+          } else if (isImage) {
+            setStatus(`Uploading ${file.name}...`);
+            const form = new FormData();
+            form.append("image", file, file.name);
+            if (nameInput?.value?.trim()) form.append("boardName", nameInput.value.trim());
+            const resp = await fetch("/api/boards/import", {
+              method: "POST",
+              body: form,
+            });
+            if (!resp.ok) {
+              const body = await resp.json().catch(() => ({}));
+              throw new Error(body?.error || `HTTP ${resp.status}`);
+            }
+            const body = await resp.json();
+            if (nameInput) nameInput.value = "";
+            setStatus(`Created board "${body.boardId ?? body.board?.boardId ?? "(new)"}" — reload to see it.`);
+            triggerFeedback.textContent = `Status: New board created from image`;
+          } else {
+            throw new Error("unsupported file — pick a board package (.json) or an image (.png / .jpg / .webp)");
           }
-          setStatus(`Importing ${parsed.boardId ?? "(unknown board)"}...`);
-          const resp = await fetch("/api/boards/bundle-import", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: text,
-          });
-          if (!resp.ok) {
-            const body = await resp.json().catch(() => ({}));
-            throw new Error(body?.error || `HTTP ${resp.status}`);
-          }
-          const body = await resp.json();
-          setStatus(`Imported board "${body.boardId}" — reload to see it in the catalog.`);
-          triggerFeedback.textContent = `Status: Board bundle ${body.boardId} imported`;
         } catch (error) {
           setStatus(`Import failed: ${error?.message || error}`);
         }

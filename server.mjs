@@ -2643,7 +2643,9 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    // Per-board bundle: board definition + board runtime profile + align-mode profiles
+    // Per-board PACKAGE: board definition + runtime profile + align-mode profiles +
+    // the board image itself embedded as base64. Self-contained — share the
+    // exported file and the receiver has everything they need.
     if (req.method === "GET" && routePath === "/api/boards/bundle-export") {
       const requestUrl = new URL(req.url || "/api/boards/bundle-export", "http://localhost");
       const boardId = normalizeNonEmptyString(requestUrl.searchParams.get("boardId"));
@@ -2673,13 +2675,35 @@ const server = createServer(async (req, res) => {
       } catch { /* ok */ }
       const allProjection = await loadProjectionProfilesRaw();
       const projectionProfiles = allProjection[boardId] ?? {};
+
+      // Embed the board image as base64 so the file is self-contained.
+      let boardImage = null;
+      const imageSrc = String(board?.metadata?.imageSrc || "");
+      if (imageSrc) {
+        try {
+          const relPath = imageSrc.replace(/^\/+/, "");
+          const resolvedPath = path.join(ROOT_DIR, relPath);
+          if (resolvedPath.startsWith(ROOT_DIR)) {
+            const buf = await readFile(resolvedPath);
+            const ext = path.extname(resolvedPath).slice(1).toLowerCase() || "png";
+            const mimeMap = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+            boardImage = {
+              filename: path.basename(resolvedPath),
+              mimeType: mimeMap[ext] || "application/octet-stream",
+              base64: buf.toString("base64"),
+            };
+          }
+        } catch { /* image missing — exported package will just not include it */ }
+      }
+
       sendJson(res, 200, {
-        schema: "tt-beamer.board-bundle.v1",
+        schema: "tt-beamer.board-package.v1",
         exportedAt: new Date().toISOString(),
         boardId,
         board,
         boardProfile,
         projectionProfiles,
+        boardImage,
       });
       return;
     }
@@ -2687,26 +2711,32 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && routePath === "/api/boards/bundle-import") {
       let parsed;
       try {
-        parsed = await parseJsonBody(req, { maxBytes: 5 * 1024 * 1024 });
+        // Allow larger payloads (base64 image can be several MB).
+        parsed = await parseJsonBody(req, { maxBytes: 20 * 1024 * 1024 });
       } catch (error) {
         const message = error instanceof Error ? error.message : "invalid JSON payload";
         if (message.includes("payload too large")) {
           sendJson(res, 413, { ok: false, error: "payload too large" });
           return;
         }
-        sendJson(res, 400, { ok: false, error: "invalid JSON payload" });
+        sendJson(res, 400, { ok: false, error: "invalid payload" });
         return;
       }
-      if (parsed?.schema !== "tt-beamer.board-bundle.v1") {
-        sendJson(res, 400, { ok: false, error: "schema mismatch — expected tt-beamer.board-bundle.v1" });
+      // Accept both the legacy bundle schema and the new package schema.
+      const schema = parsed?.schema;
+      if (schema !== "tt-beamer.board-package.v1" && schema !== "tt-beamer.board-bundle.v1") {
+        sendJson(res, 400, {
+          ok: false,
+          error: "unrecognized file — this isn't a tt-beamer board package",
+        });
         return;
       }
       const incomingBoard = parsed?.board;
-      const normalized = normalizeBoardDefinition(incomingBoard, { source: "bundle-import" });
+      const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import" });
       if (!normalized.ok) {
         sendJson(res, 400, {
           ok: false,
-          error: "board definition validation failed",
+          error: "board package validation failed",
           issues: normalized.issues,
         });
         return;
@@ -2719,23 +2749,48 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      // 1) Write board definition (overwrite is allowed for bundle import)
+      // 1) If the package bundled the board image, decode + write it and
+      //    rewrite imageSrc to the new server-local path.
+      await mkdir(BOARD_ASSETS_DIR, { recursive: true });
+      const boardImage = parsed?.boardImage;
+      let rewrittenImageSrc = null;
+      if (boardImage && typeof boardImage.base64 === "string" && boardImage.base64) {
+        const allowedExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+        const ext = allowedExt[String(boardImage.mimeType || "").toLowerCase()]
+          ?? path.extname(String(boardImage.filename || "")).slice(1).toLowerCase()
+          ?? "png";
+        const validExt = ["jpg", "jpeg", "png", "webp"].includes(ext) ? ext : "png";
+        try {
+          const data = Buffer.from(boardImage.base64, "base64");
+          if (data.length > 0 && data.length <= IMAGE_IMPORT_MAX_BYTES) {
+            const fileName = `${safeFileName}-${Date.now().toString(36)}.${validExt}`;
+            await writeFile(path.join(BOARD_ASSETS_DIR, fileName), data);
+            rewrittenImageSrc = `/config/boards/assets/${fileName}`;
+          }
+        } catch { /* bad base64 — fall through without image */ }
+      }
+
+      // 2) Write board definition. Use rewrittenImageSrc when we wrote a new
+      //    image; otherwise keep the incoming imageSrc (which may reference
+      //    a built-in resources/boards/ file).
       await mkdir(BOARD_STORAGE_DIR, { recursive: true });
       const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+      const mergedMetadata = { ...(board.metadata ?? {}) };
+      if (rewrittenImageSrc) mergedMetadata.imageSrc = rewrittenImageSrc;
       const boardPayload = {
         schema: BOARD_IMPORT_SCHEMA,
         importedAt: new Date().toISOString(),
         board: {
           schema: BOARD_DEFINITION_SCHEMA,
           boardId: board.boardId,
-          metadata: board.metadata ?? {},
+          metadata: mergedMetadata,
           roomCatalog: board.roomCatalog ?? [],
           ...(board.playAreas ? { playAreas: board.playAreas } : {}),
         },
       };
       await writeFile(targetPath, JSON.stringify(boardPayload, null, 2) + "\n", "utf8");
 
-      // 2) Merge board runtime profile into global-defaults.json
+      // 3) Merge board runtime profile into global-defaults.json
       const boardProfile = parsed?.boardProfile;
       if (boardProfile && typeof boardProfile === "object") {
         let gd = {};
@@ -2749,7 +2804,7 @@ const server = createServer(async (req, res) => {
         await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
       }
 
-      // 3) Merge align-mode projection profiles
+      // 4) Merge align-mode projection profiles
       const projectionProfiles = parsed?.projectionProfiles;
       if (projectionProfiles && typeof projectionProfiles === "object") {
         const all = await loadProjectionProfilesRaw();

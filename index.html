@@ -195,21 +195,6 @@
           Board
           <select id="board-select"></select>
         </label>
-        <label>
-          Import board (JSON)
-          <input id="board-import-file" type="file" accept="application/json,.json" />
-        </label>
-        <label>
-          Import board image (JPG/PNG/WEBP)
-          <input id="board-import-image" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
-        </label>
-        <label>
-          New image board name (optional)
-          <input id="board-import-name" type="text" maxlength="80" placeholder="e.g. Zombicide Main Board" />
-        </label>
-        <button id="board-import-button" type="button">Import board (JSON or image) to server catalog</button>
-        <button id="export-global-defaults" type="button">Export config (download JSON backup)</button>
-        <button id="import-global-defaults" type="button">Import config (upload JSON, overwrites server)</button>
         <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
         <p id="zones-status" class="status-line" aria-live="polite"></p>
         <p id="api-diagnose-status" class="status-line" aria-live="polite"></p>
@@ -224,17 +209,31 @@
         <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
       </section>
 
-      <!-- Phase 20: per-board bundle export/import — share a whole board end-to-end -->
+      <!-- Phase 20: unified per-board package export/import (package or image) -->
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
-        <h2>Export / Import Board</h2>
+        <h2>Share a Board</h2>
         <p>
-          Share a board end-to-end. The JSON bundle includes: board definition (rooms, play areas),
-          animation and sound assignments, clusters, and saved align-mode profiles.
+          Export the currently selected board as a <strong>board package</strong> — a single file
+          that bundles the board image, the rooms, play areas, clusters, animation &amp; sound
+          setup and any saved align-mode calibrations. Share the file, import it on another device.
         </p>
-        <button id="bundle-export-board" type="button">Export current board (download JSON)</button>
+        <button id="bundle-export-board" type="button">Download board package</button>
+        <h3 style="margin-top:1.2rem">Add a board</h3>
+        <p>
+          Pick either:
+        </p>
+        <ul>
+          <li><strong>A board package</strong> you received — imports the whole thing.</li>
+          <li><strong>A picture</strong> of your board (PNG / JPG / WEBP) — creates a fresh board from that image so you can paint rooms on it.</li>
+        </ul>
         <label>
-          Import board bundle (JSON)
-          <input id="bundle-import-file" type="file" accept="application/json,.json" />
+          Choose file
+          <input id="bundle-import-file" type="file"
+            accept="application/json,.json,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
+        </label>
+        <label>
+          Board name <span style="opacity:0.6">(only used when importing a picture)</span>
+          <input id="bundle-import-name" type="text" maxlength="80" placeholder="e.g. Zombicide Main Board" />
         </label>
         <p id="bundle-status" class="status-line" aria-live="polite">Ready.</p>
       </section>
