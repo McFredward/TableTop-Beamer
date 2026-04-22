@@ -841,13 +841,20 @@
     let lastSectionKey = null;
     let lastSubgroupKey = null;
     const subgroupCounts = new Map();
-    // Pre-count so the sub-heading can show "Brood Chamber · 2 anims".
+    // Pre-count so we know which rooms/clusters have a real stack
+    // (> 1 anim) and therefore deserve a visual sub-cluster header.
+    // Rooms with a single animation stay flat so the list doesn't
+    // gain an extra heading per row in the common case.
     for (const anim of sortedAnimations) {
       const sk = sectionKeyByAnimationId.get(anim.id);
       if (!GROUPED_SECTIONS.has(sk)) continue;
       const gk = subgroupKeyFor(anim);
       if (!gk) continue;
       subgroupCounts.set(gk, (subgroupCounts.get(gk) || 0) + 1);
+    }
+    const stackedSubgroups = new Set();
+    for (const [gk, count] of subgroupCounts) {
+      if (count > 1) stackedSubgroups.add(gk);
     }
     for (const anim of sortedAnimations) {
       const sectionKey = sectionKeyByAnimationId.get(anim.id);
@@ -860,31 +867,30 @@
         lastSectionKey = sectionKey;
         lastSubgroupKey = null;
       }
-      if (GROUPED_SECTIONS.has(sectionKey)) {
-        const subKey = subgroupKeyFor(anim);
-        if (subKey && subKey !== lastSubgroupKey) {
-          const subLabel = subgroupLabelFor(anim);
-          const count = subgroupCounts.get(subKey) || 1;
-          const subHeading = document.createElement("li");
-          subHeading.className = "running-subgroup-heading";
-          subHeading.setAttribute("role", "presentation");
-          const name = document.createElement("span");
-          name.className = "running-subgroup-name";
-          name.textContent = subLabel;
-          subHeading.append(name);
-          if (count > 1) {
-            const countChip = document.createElement("span");
-            countChip.className = "running-subgroup-count";
-            countChip.textContent = `${count} anims`;
-            subHeading.append(countChip);
-          }
-          runningAnimationsList.append(subHeading);
-          lastSubgroupKey = subKey;
-        }
+      const subKey = GROUPED_SECTIONS.has(sectionKey) ? subgroupKeyFor(anim) : null;
+      const isStacked = subKey && stackedSubgroups.has(subKey);
+      if (isStacked && subKey !== lastSubgroupKey) {
+        const subLabel = subgroupLabelFor(anim);
+        const count = subgroupCounts.get(subKey);
+        const subHeading = document.createElement("li");
+        subHeading.className = "running-subgroup-heading";
+        subHeading.setAttribute("role", "presentation");
+        const name = document.createElement("span");
+        name.className = "running-subgroup-name";
+        name.textContent = subLabel;
+        subHeading.append(name);
+        const countChip = document.createElement("span");
+        countChip.className = "running-subgroup-count";
+        countChip.textContent = `${count} anims`;
+        subHeading.append(countChip);
+        runningAnimationsList.append(subHeading);
+        lastSubgroupKey = subKey;
+      } else if (!isStacked) {
+        lastSubgroupKey = null;
       }
       const li = document.createElement("li");
       li.className = "running-item";
-      if (GROUPED_SECTIONS.has(sectionKey)) {
+      if (isStacked) {
         li.classList.add("running-item-grouped");
       }
       // Phase 22 W2d: icon tile prepended to each row. Tint driven by
