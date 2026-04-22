@@ -153,10 +153,15 @@ body[data-output-role="final-output"] #animation-editor-page {
   width: 100%;
 }
 
-.anim-editor-scope-tabs button {
+/* Override the Obsidian theme's generic pill-shaped `button` rule so
+ * the segmented tabs render as rectangles with 9-px corners per the
+ * clickdummy (not capsule pills). */
+#animation-editor-page .anim-editor-scope-tabs button {
   flex: 1;
+  min-height: 30px;
   padding: 6px 10px;
   font-size: 12px;
+  border-radius: 9px;
 }
 
 .anim-editor-list {
@@ -177,28 +182,39 @@ body[data-output-role="final-output"] #animation-editor-page {
 }
 
 /* Library rows match the redesign's AnimationEditor artboard exactly:
- * 10-px padding, 10-px corner radius (not pill / not oval), 32-px
- * rounded-square icon tile on the left (radius 8). */
+ * 10-px padding, 10-px corner radius (rectangles, not pills), 32-px
+ * rounded-square icon tile on the left (radius 8).
+ *
+ * `all: unset` strips the Obsidian theme's generic `button` pill
+ * treatment (border-radius: 999 px) that would otherwise win by
+ * specificity; we then restate every property we actually need. */
+#animation-editor-page .anim-editor-row,
 .anim-editor-row {
+  all: unset;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 10px;
+  width: 100%;
+  min-height: 0;
   border-radius: 10px;
   background: transparent;
   cursor: pointer;
-  border: 0;
   text-align: left;
-  font: inherit;
+  font-family: var(--rd-font-body);
+  font-size: 13px;
   color: var(--c-text);
   transition: background var(--rd-t-quick);
 }
 
+#animation-editor-page .anim-editor-row:hover,
 .anim-editor-row:hover {
   background: var(--c-surface);
 }
 
+#animation-editor-page .anim-editor-row.is-selected,
 .anim-editor-row.is-selected {
   background: var(--c-accent-bg);
   color: var(--c-accent);
