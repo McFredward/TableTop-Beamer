@@ -122,7 +122,10 @@
       picker.style.display = "none";
       return;
     }
-    picker.style.display = "flex";
+    // Phase 22 W2c: clear the inline display so the CSS layout rule
+    // wins. Legacy (Phase 18) theme used flex via inline style; the
+    // Obsidian theme uses a grid declared in theme-obsidian.css.
+    picker.style.display = "";
     // Get room animation definitions for current board
     const state = ctx.state;
     const roomFx = ctx.getRoomFxProfile(state.boardId);

@@ -650,11 +650,19 @@ body[data-output-role="final-output"].dir-obsidian-dark {
  * ------------------------------------------------------------- */
 
 .dir-obsidian-dark .quick-animation-picker {
-  display: grid !important;
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--rd-s-2);
   overflow: visible;
   padding: 0;
+}
+
+/* The Phase 18 JS toggles visibility via inline style.display; respect
+ * that so Select still hides the picker. Without this, the !important-
+ * free display: grid above would always win in the Obsidian direction. */
+.dir-obsidian-dark .quick-animation-picker[style*="display: none"],
+.dir-obsidian-dark .quick-animation-picker[style*="display:none"] {
+  display: none !important;
 }
 
 .dir-obsidian-dark .quick-animation-pill {
