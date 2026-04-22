@@ -45,13 +45,49 @@
     </main>
 
     <aside id="control-panel" class="dashboard" data-active-view="dashboard" aria-label="Effect control panel">
-      <!-- Phase 13-HF4: Apply/Discard bar lives at the very top of the control
-           panel so unsaved-state warnings are always visible regardless of
-           which view is active. -->
-      <!-- Phase 19: sticky align mode indicator — visible when align mode is active -->
-      <div id="align-mode-indicator" class="align-mode-indicator" style="display:none">
-        <span class="align-mode-indicator-dot"></span>
-        Align Mode active — output is showing room overlay
+      <!-- Phase 22 W2b: compact top chrome — brand mark + active-board
+           sub-line + running-count + align chips + Align icon button.
+           Replaces the verbose h1/eyebrow/lead header. Apply/Discard bar
+           below stays in place (restyled in W2a). Align-mode-indicator
+           lives inside the topbar actions and restyles as a chip. -->
+      <div class="rd-topbar" role="banner">
+        <div class="rd-topbar-brand">
+          <span class="rd-topbar-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+              <path d="M5 15l-2 6 6-2M13.5 6.5a4.5 4.5 0 0 1 6 0l-1 7-7 7-5-5 7-7zM14 9h.01" />
+            </svg>
+          </span>
+          <div class="rd-topbar-brand-text">
+            <div class="rd-topbar-brand-title">TableTop Beamer</div>
+            <p id="topbar-board-label" class="rd-topbar-brand-sub" aria-live="polite">No board yet</p>
+          </div>
+        </div>
+        <div class="rd-topbar-actions">
+          <!-- Phase 22 W2b: running-count chip — shown only when >0. Text
+               is updated in renderRunningAnimationsList. -->
+          <span id="running-count-chip" hidden aria-live="polite">
+            <span class="rd-dot rd-dot-pulse" aria-hidden="true"></span>
+            <span id="running-count-chip-label">0 running</span>
+          </span>
+          <!-- Phase 19: sticky align-mode indicator, restyled as chip. -->
+          <div id="align-mode-indicator" class="align-mode-indicator" style="display:none"
+            role="status" aria-label="Align mode active">
+            <span class="align-mode-indicator-dot" aria-hidden="true"></span>
+            <span>Align active</span>
+          </div>
+          <!-- Align toggle — icon-only; JS sets aria-pressed and a
+               human title instead of textContent (see
+               runtime-stage-viewport.js syncAlignModePanel). -->
+          <button id="align-mode-button" class="rd-icon-btn align-mode-toggle dashboard-only" type="button"
+            data-view="dashboard" data-dashboard-zone="trigger" aria-pressed="false"
+            title="Toggle align mode" aria-label="Toggle align mode">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM12 12h.01" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="apply-config-bar apply-config-bar-global" id="apply-global-config-bar">
@@ -59,18 +95,6 @@
         <button id="discard-global-config" type="button" disabled>Discard local changes</button>
         <p id="apply-global-config-indicator" class="status-line" aria-live="polite" style="display: none"></p>
       </div>
-
-      <header class="dashboard-only" data-view="dashboard">
-        <p class="eyebrow">TableTop Beamer</p>
-        <h1>Atmosphere Controller</h1>
-        <p class="lead">Control room animations and effects during your game.</p>
-      </header>
-
-      <header class="settings-only view-hidden" data-view="settings" hidden>
-        <p class="eyebrow">Board Game Operator Deck</p>
-        <h1>Settings Workspace</h1>
-        <p class="lead">Configure board, animations, and system settings.</p>
-      </header>
 
       <nav class="view-switch primary-view-switch" aria-label="View switch">
         <button id="open-dashboard-view" type="button" class="active">Dashboard</button>
@@ -91,9 +115,6 @@
         </div>
         <p id="quick-mode-status" class="status-line" aria-live="polite">Select a room on the board</p>
       </section>
-
-      <button id="align-mode-button" class="align-mode-toggle dashboard-only" type="button" data-view="dashboard"
-        data-dashboard-zone="trigger" aria-pressed="false">Align: OFF</button>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
         <nav class="view-switch settings-subtab-switch" aria-label="Settings groups">

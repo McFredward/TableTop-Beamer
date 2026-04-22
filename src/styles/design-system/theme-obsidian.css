@@ -488,6 +488,155 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   color: var(--c-text-3);
 }
 
+/* ----- Top chrome (W2b) ----------------------------------------- */
+
+.dir-obsidian-dark .rd-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-3);
+  padding: var(--rd-s-2) 0;
+  min-height: var(--rd-hit);
+}
+
+.dir-obsidian-dark .rd-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.dir-obsidian-dark .rd-topbar-mark {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: var(--rd-r-sm);
+  background: var(--c-accent);
+  color: var(--c-accent-fg);
+  display: grid;
+  place-items: center;
+}
+
+.dir-obsidian-dark .rd-topbar-brand-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.dir-obsidian-dark .rd-topbar-brand-title {
+  font-family: var(--rd-font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: var(--rd-tracking-title);
+  color: var(--c-text);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dir-obsidian-dark .rd-topbar-brand-sub {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  color: var(--c-text-3);
+  line-height: 1.2;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dir-obsidian-dark .rd-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-2);
+  flex: 0 0 auto;
+}
+
+/* Icon-only align button — override the generic pill-button rules
+ * since this button lives in the topbar and should stay square. */
+.dir-obsidian-dark .rd-topbar .rd-icon-btn,
+.dir-obsidian-dark .rd-icon-btn {
+  min-height: var(--rd-hit);
+  width: var(--rd-hit);
+  height: var(--rd-hit);
+  padding: 0;
+  border-radius: var(--rd-r-md);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dir-obsidian-dark .rd-icon-btn:hover:not(:disabled) {
+  background: var(--c-surface-2);
+  transform: none;
+  border-color: var(--c-border);
+}
+
+.dir-obsidian-dark .rd-icon-btn.is-on,
+.dir-obsidian-dark .rd-icon-btn[aria-pressed="true"] {
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  border-color: transparent;
+}
+
+/* Align-mode indicator restyled as a chip. The existing DOM is
+ *   <div id="align-mode-indicator" class="align-mode-indicator"
+ *        style="display:none">
+ *     <span class="align-mode-indicator-dot"></span>
+ *     Align Mode active — output is showing room overlay
+ *   </div>
+ * so we target the existing classes. */
+.dir-obsidian-dark #align-mode-indicator.align-mode-indicator {
+  display: none;
+  align-items: center;
+  gap: var(--rd-s-2);
+  padding: 5px 10px;
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dir-obsidian-dark #align-mode-indicator.align-mode-indicator .align-mode-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-accent);
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 0 var(--c-accent);
+  animation: rd-pulse 1.8s ease-out infinite;
+}
+
+/* Running-count chip */
+.dir-obsidian-dark #running-count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dir-obsidian-dark #running-count-chip[hidden] { display: none !important; }
+
+.dir-obsidian-dark #running-count-chip .rd-dot {
+  background: var(--c-accent);
+}
+
 /* ----- Quick Mode buttons (today's 4-state bar) ----------------- */
 
 .dir-obsidian-dark .quick-mode-buttons button {

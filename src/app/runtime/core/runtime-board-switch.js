@@ -51,6 +51,10 @@
     ctx.boardImage.src = board.src;
     ctx.boardSelect.value = board.id;
     ctx.boardStatus.textContent = `Active board: ${board.label}`;
+    // Phase 22 W2b: mirror the label into the topbar brand sub-line.
+    if (ctx.topbarBoardLabel) {
+      ctx.topbarBoardLabel.textContent = board.label;
+    }
     const rememberedRoom = state.selectedRoomByBoard[board.id];
     state.selectedRoomId = board.rooms.some((room) => room.id === rememberedRoom)
       ? rememberedRoom

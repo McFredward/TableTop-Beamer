@@ -89,6 +89,8 @@ const {
   roomSpeedInput, roomSpeedValue, roomSoundVolumeInput, roomSoundVolumeValue,
   roomDurationInput, roomStaggerStartInput, roomStaggerOffsetInput, roomStaggerOffsetValue,
   startRoomAnimationButton, runningAnimationsList,
+  // Phase 22 W2b: topbar elements — brand sub-line label + running-count chip.
+  topbarBoardLabel, runningCountChip, runningCountChipLabel,
   liveEditorPanel, liveEditorTitle, liveEditorClose,
   liveEditorOpacity, liveEditorOpacityValue, liveEditorIntensity, liveEditorIntensityValue,
   liveEditorSpeed, liveEditorSpeedValue, liveEditorSoundVolume, liveEditorSoundVolumeValue,
@@ -1868,6 +1870,8 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   boardImage,
   boardSelect,
   boardStatus,
+  // Phase 22 W2b: topbar brand sub-line mirrors the board label.
+  topbarBoardLabel,
   triggerFeedback,
   getBoard: (boardId) => getBoard(boardId),
   emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
@@ -2173,6 +2177,10 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveSync,
   triggerFeedback,
   runningAnimationsList,
+  // Phase 22 W2b: topbar running-count chip refs, consumed by
+  // renderRunningAnimationsList to show "N running" / hide at 0.
+  runningCountChip,
+  runningCountChipLabel,
   liveEditorPanel,
   liveEditorTitle,
   liveEditorClose,

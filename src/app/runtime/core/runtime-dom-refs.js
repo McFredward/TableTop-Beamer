@@ -17,6 +17,11 @@
       boardImportIdInput: document.querySelector("#board-import-id"),
       boardImportButton: document.querySelector("#board-import-button"),
       boardStatus: document.querySelector("#board-status"),
+      // Phase 22 W2b: compact board-label in the topbar brand.
+      topbarBoardLabel: document.querySelector("#topbar-board-label"),
+      // Phase 22 W2b: running-count chip in the topbar.
+      runningCountChip: document.querySelector("#running-count-chip"),
+      runningCountChipLabel: document.querySelector("#running-count-chip-label"),
       zonesStatus: document.querySelector("#zones-status"),
       alignModeToggleInput: document.querySelector("#align-mode-toggle"),
       alignModeButton: document.querySelector("#align-mode-button"),

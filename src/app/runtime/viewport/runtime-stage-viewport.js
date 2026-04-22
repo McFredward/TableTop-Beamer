@@ -51,11 +51,20 @@
     if (ctx.alignModeToggleInput) {
       ctx.alignModeToggleInput.checked = enabled;
     }
-    // Phase 15-7: Dashboard-side align-mode button mirrors the state.
+    // Phase 22 W2b: the button is now icon-only in the topbar; reflect
+    // state via aria-pressed + title only (the SVG child is permanent).
     if (ctx.alignModeButton) {
-      ctx.alignModeButton.textContent = `Align: ${enabled ? "ON" : "OFF"}`;
       ctx.alignModeButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+      ctx.alignModeButton.setAttribute(
+        "title",
+        enabled ? "Align mode on (click to turn off)" : "Toggle align mode",
+      );
+      ctx.alignModeButton.setAttribute(
+        "aria-label",
+        enabled ? "Align mode on" : "Toggle align mode",
+      );
       ctx.alignModeButton.classList.toggle("is-active", enabled);
+      ctx.alignModeButton.classList.toggle("is-on", enabled);
     }
     if (ctx.alignModeStatus) {
       ctx.alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;

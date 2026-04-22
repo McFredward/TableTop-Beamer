@@ -706,6 +706,23 @@
     const parity = validateRunningListParity();
     runningAnimationsList.replaceChildren();
     const listAnimations = getRunningAnimationsForList();
+    // Phase 22 W2b: topbar running-count chip. Uses the full
+    // state.runningAnimations.length (not the filtered list) so the
+    // chip reports the true system-wide count.
+    const totalRunning = Array.isArray(state.runningAnimations)
+      ? state.runningAnimations.length
+      : 0;
+    if (ctx.runningCountChip) {
+      if (totalRunning > 0) {
+        ctx.runningCountChip.hidden = false;
+        if (ctx.runningCountChipLabel) {
+          ctx.runningCountChipLabel.textContent =
+            `${totalRunning} running`;
+        }
+      } else {
+        ctx.runningCountChip.hidden = true;
+      }
+    }
     if (listAnimations.length === 0) {
       const empty = document.createElement("li");
       empty.className = "running-empty";
