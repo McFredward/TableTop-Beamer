@@ -132,6 +132,328 @@
   function render() {
     renderScopeTabs();
     renderList();
+    renderPane();
+  }
+
+  // =============================================================
+  // W3b-2 — editor pane: Identity + Defaults cards.
+  // =============================================================
+  //
+  // Rebuilds the editor pane on selection / scope change. Input events
+  // patch the definition and persist via the existing profile setter
+  // (scope-keyed) — never re-render from inside an input handler so
+  // focus isn't yanked mid-type.
+
+  let currentPaneKey = null;
+
+  function renderPane() {
+    const pane = ctx.animEditorPane;
+    const placeholder = ctx.animEditorPanePlaceholder;
+    if (!pane) return;
+
+    const boardId = ctx.state?.boardId;
+    const sel = getSelection();
+    const def = findDefinition(sel.scope, sel.id, boardId);
+    const paneKey = def ? `${sel.scope}:${def.id}` : null;
+    if (paneKey === currentPaneKey) {
+      updatePaneDynamicBits(def);
+      return;
+    }
+    currentPaneKey = paneKey;
+
+    pane.replaceChildren();
+    if (!def) {
+      if (placeholder) {
+        pane.append(placeholder);
+        placeholder.hidden = false;
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "anim-editor-placeholder";
+        empty.textContent = "Select an animation to edit.";
+        pane.append(empty);
+      }
+      return;
+    }
+    if (placeholder) placeholder.hidden = true;
+
+    pane.append(buildHeader(sel.scope, def));
+    pane.append(buildIdentityCard(sel.scope, def, boardId));
+    pane.append(buildDefaultsCard(sel.scope, def, boardId));
+  }
+
+  function buildHeader(scope, def) {
+    const header = document.createElement("header");
+    header.className = "anim-editor-pane-header";
+    const tile = document.createElement("span");
+    tile.className = "anim-editor-pane-icon";
+    const icons = window.TT_BEAMER_UI_ICONS;
+    if (icons?.createIcon) {
+      const name = icons.resolveAnimationIcon
+        ? icons.resolveAnimationIcon(def)
+        : "sparkles";
+      tile.append(icons.createIcon(name, { size: 26, strokeWidth: 1.5 }));
+    }
+    header.append(tile);
+    const wrap = document.createElement("div");
+    wrap.className = "anim-editor-pane-name";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "rd-eyebrow";
+    eyebrow.textContent = `Edit ${scopeLabel(scope)} animation`;
+    const title = document.createElement("h2");
+    title.className = "rd-h1";
+    title.textContent = def.name;
+    title.dataset.animEditorField = "title";
+    wrap.append(eyebrow, title);
+    header.append(wrap);
+    return header;
+  }
+
+  function scopeLabel(scope) {
+    if (scope === "inside") return "Inside";
+    if (scope === "outside") return "Outside";
+    if (scope === "room") return "Room";
+    return scope;
+  }
+
+  // -------- Identity card ------------------------------------------
+  function buildIdentityCard(scope, def, boardId) {
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Identity";
+    card.append(eyebrow);
+
+    const nameLabel = document.createElement("label");
+    nameLabel.className = "anim-editor-field-label";
+    const nameCaption = document.createElement("span");
+    nameCaption.textContent = "Name";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.maxLength = 64;
+    nameInput.value = def.name ?? "";
+    nameInput.addEventListener("input", () => {
+      const next = sanitizeName(nameInput.value, def.name);
+      if (next === def.name) return;
+      patchAnimation(scope, boardId, def.id, { name: next });
+      // Reflect the new name in the library row + pane header without
+      // a full rebuild (preserves caret inside the input).
+      const headerTitle = ctx.animEditorPane.querySelector("[data-anim-editor-field='title']");
+      if (headerTitle) headerTitle.textContent = next;
+      const selectedRow = ctx.animEditorList?.querySelector(
+        `.anim-editor-row.is-selected .anim-editor-row-name`,
+      );
+      if (selectedRow) selectedRow.textContent = next;
+    });
+    nameLabel.append(nameCaption, nameInput);
+    card.append(nameLabel);
+
+    const iconField = document.createElement("div");
+    iconField.className = "anim-editor-field-label";
+    const iconCap = document.createElement("span");
+    iconCap.textContent = "Icon";
+    const iconRoot = document.createElement("div");
+    iconRoot.className = "rd-icon-picker";
+    iconRoot.setAttribute("role", "radiogroup");
+    iconRoot.setAttribute("aria-label", "Animation icon");
+    iconField.append(iconCap, iconRoot);
+    card.append(iconField);
+
+    const pickerApi = window.TT_BEAMER_UI_ICON_PICKER?.mount(iconRoot, {
+      onChange: (name) => {
+        patchAnimation(scope, boardId, def.id, { icon: name });
+        // Refresh the library row icon + header icon.
+        renderList();
+        const tile = ctx.animEditorPane.querySelector(".anim-editor-pane-icon");
+        if (tile) {
+          tile.replaceChildren();
+          const icons = window.TT_BEAMER_UI_ICONS;
+          tile.append(icons.createIcon(name, { size: 26, strokeWidth: 1.5 }));
+        }
+      },
+    });
+    pickerApi?.setValue(def.icon ?? null);
+    return card;
+  }
+
+  // -------- Defaults card ------------------------------------------
+  function buildDefaultsCard(scope, def, boardId) {
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Defaults";
+    card.append(eyebrow);
+
+    const fields = getDefaultFields(scope, def);
+    for (const f of fields) {
+      if (f.kind === "slider") {
+        card.append(buildSliderRow(scope, def, boardId, f));
+      } else if (f.kind === "toggle") {
+        card.append(buildToggleRow(scope, def, boardId, f));
+      }
+    }
+    return card;
+  }
+
+  function getDefaultFields(scope, def) {
+    const fields = [];
+    if (scope === "room") {
+      fields.push({
+        kind: "slider", key: "opacity", label: "Opacity",
+        min: 0.1, max: 1, step: 0.05,
+        format: (v) => `${Math.round(v * 100)}%`,
+      });
+      fields.push({
+        kind: "slider", key: "intensity", label: "Intensity",
+        min: 0.2, max: 1.5, step: 0.05,
+        format: (v) => v.toFixed(2),
+      });
+      fields.push({
+        kind: "slider", key: "speed", label: "Speed",
+        min: 0.1, max: 2.5, step: 0.05,
+        format: (v) => `${v.toFixed(2)}x`,
+      });
+      fields.push({
+        kind: "slider", key: "soundVolume", label: "Sound volume",
+        min: 0, max: 1, step: 0.01,
+        format: (v) => `${Math.round(v * 100)}%`,
+      });
+    } else {
+      fields.push({
+        kind: "slider", key: "intensity", label: "Intensity",
+        min: 0.2, max: 1.5, step: 0.05,
+        format: (v) => v.toFixed(2),
+      });
+      fields.push({
+        kind: "slider", key: "speed", label: "Speed",
+        min: 0.3, max: 2.5, step: 0.05,
+        format: (v) => `${v.toFixed(2)}x`,
+      });
+      if (scope === "inside") {
+        fields.push({
+          kind: "toggle", key: "loopUntilStopped",
+          label: "Loop",
+          sub: "Repeats until stopped.",
+        });
+      }
+    }
+    return fields;
+  }
+
+  function buildSliderRow(scope, def, boardId, field) {
+    const row = document.createElement("div");
+    row.className = "anim-editor-slider-row";
+    const head = document.createElement("div");
+    head.className = "anim-editor-slider-row-head";
+    const lab = document.createElement("span");
+    lab.textContent = field.label;
+    const val = document.createElement("span");
+    val.className = "rd-num";
+    const initial = Number(def[field.key]);
+    val.textContent = Number.isFinite(initial) ? field.format(initial) : "—";
+    head.append(lab, val);
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = String(field.min);
+    input.max = String(field.max);
+    input.step = String(field.step);
+    input.value = String(Number.isFinite(initial) ? initial : field.min);
+    input.addEventListener("input", () => {
+      const v = Number(input.value);
+      val.textContent = field.format(v);
+      patchAnimation(scope, boardId, def.id, { [field.key]: v });
+    });
+    row.append(head, input);
+    return row;
+  }
+
+  function buildToggleRow(scope, def, boardId, field) {
+    const row = document.createElement("div");
+    row.className = "anim-editor-toggle-row";
+    const text = document.createElement("div");
+    text.className = "anim-editor-toggle-row-text";
+    const title = document.createElement("span");
+    title.className = "anim-editor-toggle-row-title";
+    title.textContent = field.label;
+    text.append(title);
+    if (field.sub) {
+      const sub = document.createElement("span");
+      sub.className = "anim-editor-toggle-row-sub";
+      sub.textContent = field.sub;
+      text.append(sub);
+    }
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "rd-toggle";
+    toggle.setAttribute("role", "switch");
+    const initial = Boolean(def[field.key]);
+    toggle.setAttribute("aria-checked", initial ? "true" : "false");
+    toggle.addEventListener("click", () => {
+      const next = toggle.getAttribute("aria-checked") !== "true";
+      toggle.setAttribute("aria-checked", next ? "true" : "false");
+      patchAnimation(scope, boardId, def.id, { [field.key]: next });
+    });
+    row.append(text, toggle);
+    return row;
+  }
+
+  // -------- Shared helpers -----------------------------------------
+
+  function sanitizeName(value, fallback) {
+    const trimmed = String(value ?? "").trim();
+    return trimmed || String(fallback ?? "").trim() || "Unnamed animation";
+  }
+
+  function findDefinition(scope, id, boardId) {
+    if (!scope || !id || !boardId) return null;
+    const list = collectAnimations(scope);
+    return list.find((def) => def.id === id) ?? null;
+  }
+
+  // Patch a single animation in-place by id across any scope and
+  // persist via the registered profile setter. Mirrors the legacy
+  // Rename / slider handlers in runtime-wire-fx-panel-binders.js
+  // without requiring the patched animation to match
+  // profile.selectedAnimationId (which belongs to the old sidebar
+  // workflow).
+  function patchAnimation(scope, boardId, id, patch) {
+    if (!ctx || !boardId || !id) return;
+    const setter = scope === "inside" ? ctx.setInsideFxProfile
+      : scope === "outside" ? ctx.setOutsideFxProfile
+      : scope === "room" ? ctx.setRoomFxProfile
+      : null;
+    const getter = scope === "inside" ? ctx.getInsideFxProfile
+      : scope === "outside" ? ctx.getOutsideFxProfile
+      : scope === "room" ? ctx.getRoomFxProfile
+      : null;
+    if (!setter || !getter) return;
+    const profile = getter(boardId);
+    if (!profile?.animations) return;
+    const next = {
+      ...profile,
+      animations: profile.animations.map((def) =>
+        def.id === id ? { ...def, ...patch } : def,
+      ),
+    };
+    setter(boardId, next);
+    if (typeof ctx.persistBoardProfiles === "function") {
+      ctx.persistBoardProfiles();
+    }
+    if (typeof ctx.refreshGlobalButtons === "function") {
+      ctx.refreshGlobalButtons();
+    }
+  }
+
+  // Update values without rebuilding — preserves input focus.
+  function updatePaneDynamicBits(def) {
+    if (!def) return;
+    const pane = ctx.animEditorPane;
+    if (!pane) return;
+    const headerTitle = pane.querySelector("[data-anim-editor-field='title']");
+    if (headerTitle && headerTitle.textContent !== def.name) {
+      headerTitle.textContent = def.name;
+    }
   }
 
   function renderScopeTabs() {

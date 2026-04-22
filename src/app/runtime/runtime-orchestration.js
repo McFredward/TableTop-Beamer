@@ -2060,6 +2060,12 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
     getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
     getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
+    // Phase 22 W3b-2: setters + persist for the editor's patch flow.
+    setInsideFxProfile: (boardId, profile) => setInsideFxProfile(boardId, profile),
+    setOutsideFxProfile: (boardId, profile) => updateOutsideFxProfile(boardId, profile),
+    setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
+    persistBoardProfiles: () => persistBoardProfiles(),
+    refreshGlobalButtons: () => refreshGlobalButtons(),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
   });
 }

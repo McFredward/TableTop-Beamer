@@ -264,6 +264,131 @@ body[data-output-role="final-output"] #animation-editor-page {
   max-width: 420px;
 }
 
+/* Editor header strip — big icon + eyebrow + name. */
+.anim-editor-pane-header {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-4);
+}
+
+.anim-editor-pane-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--rd-r-lg);
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.anim-editor-pane-name .rd-eyebrow { margin-bottom: 2px; }
+.anim-editor-pane-name .rd-h1 { font-size: 26px; line-height: 1.1; }
+
+/* Cards share the same visual grammar as .rd-card; this spec
+ * tightens the vertical rhythm inside the editor pane. */
+.anim-editor-card {
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-lg);
+  padding: var(--rd-s-5);
+  display: grid;
+  gap: var(--rd-s-4);
+  min-width: 0;
+}
+
+.anim-editor-card-eyebrow {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-text-3);
+  margin: 0;
+}
+
+.anim-editor-field-label {
+  display: grid;
+  gap: 6px;
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  color: var(--c-text-2);
+  min-width: 0;
+}
+
+.anim-editor-field-label input[type="text"],
+.anim-editor-field-label input[type="number"] {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--rd-r-md);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.anim-editor-field-label input[type="text"]:focus-visible,
+.anim-editor-field-label input[type="number"]:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+/* Slider row — [label  value]
+ *               [------slider------]  */
+.anim-editor-slider-row {
+  display: grid;
+  gap: 6px;
+}
+
+.anim-editor-slider-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rd-s-3);
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+}
+
+.anim-editor-slider-row-head > span:first-child {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.anim-editor-slider-row-head > span:last-child {
+  color: var(--c-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.anim-editor-toggle-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--rd-s-4);
+  min-width: 0;
+}
+
+.anim-editor-toggle-row-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.anim-editor-toggle-row-title {
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.anim-editor-toggle-row-sub {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+
 /* Preview column */
 .anim-editor-preview {
   grid-area: preview;
