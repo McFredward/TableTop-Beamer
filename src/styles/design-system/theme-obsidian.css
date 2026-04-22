@@ -1,0 +1,511 @@
+/* =============================================================
+ * Phase 22 Wave 2a — Obsidian theme overlay.
+ *
+ * Opts all existing control-panel markup into the Obsidian visual
+ * identity (Inter typography, flat panels, pill buttons, iOS-style
+ * toggles, white-thumb sliders, accent-green primary CTAs, new input
+ * styling, …) WITHOUT touching the DOM or the legacy tokens in
+ * src/styles.css. Subsequent W2 commits restructure layout; this
+ * commit is pure reskin.
+ *
+ * Every rule is scoped under `.dir-obsidian-dark` so nothing leaks
+ * into `/output` (which also carries the class but hides the control
+ * panel entirely) and so flipping to `.dir-obsidian-light` in Wave 5
+ * will swap palettes automatically.
+ * ============================================================= */
+
+/* ----- Base: body + typography ---------------------------------- */
+
+.dir-obsidian-dark {
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark body {
+  font-family: var(--rd-font-body);
+  letter-spacing: var(--rd-tracking-body);
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+/* Keep the projection surface (output role) on the plain black the
+ * original CSS already sets — do not re-tint it. */
+body[data-output-role="final-output"].dir-obsidian-dark {
+  background: #000;
+}
+
+.dir-obsidian-dark h1,
+.dir-obsidian-dark h2,
+.dir-obsidian-dark h3 {
+  font-family: var(--rd-font-display);
+  letter-spacing: var(--rd-tracking-title);
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: var(--rd-tracking-display);
+  line-height: 1.1;
+}
+
+.dir-obsidian-dark h2 {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.dir-obsidian-dark .eyebrow {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-text-3);
+}
+
+.dir-obsidian-dark .lead {
+  color: var(--c-text-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ----- Dashboard shell + panels --------------------------------- */
+
+.dir-obsidian-dark .dashboard {
+  background: var(--c-bg);
+  border-left: 1px solid var(--c-border);
+  gap: var(--rd-s-4);
+  padding: var(--rd-s-5);
+}
+
+.dir-obsidian-dark .panel {
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-lg);
+  padding: var(--rd-s-5);
+  gap: var(--rd-s-4);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--c-shadow);
+}
+
+.dir-obsidian-dark .panel h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark .running-overview-panel {
+  border-color: color-mix(in srgb, var(--c-accent) 55%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--c-accent) 20%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--c-accent) 10%, transparent),
+    var(--c-shadow);
+  background: var(--c-bg-raised);
+}
+
+/* ----- View-switch button groups -------------------------------- */
+
+.dir-obsidian-dark .view-switch {
+  display: grid;
+  gap: var(--rd-s-2);
+}
+
+.dir-obsidian-dark .view-switch button {
+  height: var(--rd-hit-sm);
+  min-height: var(--rd-hit-sm);
+  padding: 0 var(--rd-s-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-md);
+  color: var(--c-text-2);
+  font-family: var(--rd-font-body);
+  font-weight: 500;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.dir-obsidian-dark .view-switch button.active {
+  background: var(--c-accent-bg);
+  border-color: transparent;
+  color: var(--c-accent);
+  box-shadow: none;
+}
+
+/* ----- Generic buttons ------------------------------------------ */
+
+.dir-obsidian-dark button {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  border-radius: var(--rd-r-pill);
+  min-height: var(--rd-hit);
+  padding: 0 var(--rd-s-4);
+  font-family: var(--rd-font-body);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: var(--rd-tracking-body);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  transition:
+    background var(--rd-t-quick),
+    transform var(--rd-t-quick),
+    border-color var(--rd-t-quick),
+    color var(--rd-t-quick);
+}
+
+.dir-obsidian-dark button:hover:not(:disabled) {
+  background: var(--c-surface-2);
+  transform: none;
+  box-shadow: none;
+  border-color: var(--c-border);
+}
+
+.dir-obsidian-dark button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.dir-obsidian-dark button:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.dir-obsidian-dark button.active {
+  background: var(--c-accent-bg);
+  border-color: transparent;
+  color: var(--c-accent);
+  box-shadow: none;
+}
+
+.dir-obsidian-dark button:disabled {
+  opacity: 0.45;
+  filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.dir-obsidian-dark button.danger {
+  background: var(--c-danger-bg);
+  border-color: transparent;
+  color: var(--c-danger);
+}
+
+.dir-obsidian-dark button.danger:hover:not(:disabled) {
+  background: var(--c-danger-bg);
+  filter: brightness(1.1);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dir-obsidian-dark button.danger.is-armed {
+  background: var(--c-danger);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--c-danger-bg);
+}
+
+/* Primary accent CTA — the green "Start room animation" pill. */
+.dir-obsidian-dark #start-room-animation {
+  background: var(--c-accent);
+  color: var(--c-accent-fg);
+  border-color: transparent;
+  font-weight: 600;
+  letter-spacing: var(--rd-tracking-body);
+}
+
+.dir-obsidian-dark #start-room-animation:hover:not(:disabled) {
+  background: var(--c-accent);
+  filter: brightness(1.06);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Align-mode toggle keeps its pulsing green when ON, but flatter. */
+.dir-obsidian-dark .align-mode-toggle {
+  border-radius: var(--rd-r-pill);
+}
+
+.dir-obsidian-dark .align-mode-toggle[aria-pressed="true"] {
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  border-color: transparent;
+}
+
+/* ----- Inputs, selects, textareas ------------------------------- */
+
+.dir-obsidian-dark input[type="text"],
+.dir-obsidian-dark input[type="number"],
+.dir-obsidian-dark input[type="email"],
+.dir-obsidian-dark input[type="password"],
+.dir-obsidian-dark input[type="search"],
+.dir-obsidian-dark textarea,
+.dir-obsidian-dark select {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-md);
+  color: var(--c-text);
+  min-height: var(--rd-hit-sm);
+  padding: 0 var(--rd-s-3);
+  font-family: var(--rd-font-body);
+  font-size: 14px;
+}
+
+.dir-obsidian-dark input[type="file"] {
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark textarea { padding: var(--rd-s-3); }
+
+.dir-obsidian-dark input:focus-visible,
+.dir-obsidian-dark select:focus-visible,
+.dir-obsidian-dark textarea:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* ----- Range sliders — Obsidian white thumb --------------------- */
+
+.dir-obsidian-dark input[type="range"] {
+  background: transparent;
+  min-height: var(--rd-hit);
+}
+
+.dir-obsidian-dark input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--c-surface-3);
+  height: 4px;
+  border-radius: 2px;
+  border: 0;
+}
+
+.dir-obsidian-dark input[type="range"]::-moz-range-track {
+  background: var(--c-surface-3);
+  height: 4px;
+  border-radius: 2px;
+  border: 0;
+}
+
+.dir-obsidian-dark input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  margin-top: -10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--rd-t-quick);
+}
+
+.dir-obsidian-dark input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--rd-t-quick);
+}
+
+.dir-obsidian-dark input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+
+.dir-obsidian-dark input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.12);
+}
+
+/* ----- Checkbox → iOS toggle ------------------------------------ */
+
+.dir-obsidian-dark .inline-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-3);
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark .inline-checkbox input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  transition:
+    background var(--rd-t-med),
+    border-color var(--rd-t-med);
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.dir-obsidian-dark .inline-checkbox input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: left var(--rd-t-med);
+}
+
+.dir-obsidian-dark .inline-checkbox input[type="checkbox"]:checked {
+  background: var(--c-accent);
+  border-color: transparent;
+}
+
+.dir-obsidian-dark .inline-checkbox input[type="checkbox"]:checked::after {
+  left: 20px;
+}
+
+.dir-obsidian-dark .inline-checkbox input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 3px;
+}
+
+/* Any stray checkbox not inside .inline-checkbox gets the same toggle
+ * treatment. Keeps freeze-room, breaks-solid-color, etc. consistent. */
+.dir-obsidian-dark input[type="checkbox"]:not(.inline-checkbox input) {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.dir-obsidian-dark input[type="checkbox"]:not(.inline-checkbox input)::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  transition: left var(--rd-t-med);
+}
+
+.dir-obsidian-dark input[type="checkbox"]:not(.inline-checkbox input):checked {
+  background: var(--c-accent);
+  border-color: transparent;
+}
+
+.dir-obsidian-dark input[type="checkbox"]:not(.inline-checkbox input):checked::after {
+  left: 20px;
+}
+
+/* ----- Labels + status lines ------------------------------------ */
+
+.dir-obsidian-dark label {
+  font-family: var(--rd-font-body);
+  color: var(--c-text-2);
+  font-size: 13px;
+  display: grid;
+  gap: var(--rd-s-2);
+}
+
+.dir-obsidian-dark label span {
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dir-obsidian-dark .status-line {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  color: var(--c-text-2);
+}
+
+/* ----- Apply/Discard bar ---------------------------------------- */
+
+.dir-obsidian-dark .apply-config-bar {
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-md);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.dir-obsidian-dark .apply-config-bar.is-dirty {
+  background: color-mix(in srgb, var(--c-warn) 10%, var(--c-bg-raised));
+  border-color: color-mix(in srgb, var(--c-warn) 55%, transparent);
+  box-shadow: none;
+}
+
+.dir-obsidian-dark .apply-config-bar #apply-global-config.has-unsaved {
+  background: var(--c-accent);
+  color: var(--c-accent-fg);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.dir-obsidian-dark .apply-config-bar #apply-global-config-indicator {
+  color: var(--c-warn);
+}
+
+/* ----- Align-mode indicator + running-section headings ---------- */
+
+.dir-obsidian-dark .align-mode-indicator {
+  background: color-mix(in srgb, var(--c-accent) 12%, var(--c-bg-raised));
+  border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
+  color: var(--c-accent);
+  border-radius: var(--rd-r-pill);
+  padding: var(--rd-s-2) var(--rd-s-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dir-obsidian-dark .align-mode-indicator-dot {
+  background: var(--c-accent);
+  box-shadow: 0 0 0 0 var(--c-accent);
+}
+
+.dir-obsidian-dark .running-section-heading {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-text-3);
+}
+
+/* ----- Quick Mode buttons (today's 4-state bar) ----------------- */
+
+.dir-obsidian-dark .quick-mode-buttons button {
+  min-height: var(--rd-hit);
+}
+
+.dir-obsidian-dark .quick-animation-pill {
+  border-radius: var(--rd-r-pill);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-2);
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dir-obsidian-dark .quick-animation-pill.is-selected {
+  background: var(--c-accent-bg);
+  border-color: transparent;
+  color: var(--c-accent);
+}
