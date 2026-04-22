@@ -774,6 +774,31 @@
       { key: "room", label: "Room" },
       { key: "freezed", label: "Frozen Rooms" },
     ];
+    // Phase 22 W2d: within Room / Cluster / Frozen sections, animations
+    // are further grouped by the room or cluster they target so the
+    // user can see at a glance when multiple animations are stacked
+    // inside one room. Outside + Inside stay flat (they apply board-
+    // wide). The secondary sort is still newest-first within each
+    // subgroup so the most-recently-triggered anim is on top.
+    const GROUPED_SECTIONS = new Set(["room", "cluster", "freezed"]);
+    const subgroupKeyFor = (anim) => {
+      if (anim.scope === "room") return `room:${anim.roomId}`;
+      if (anim.scope === "cluster") return `cluster:${anim.clusterId}`;
+      return null;
+    };
+    const subgroupLabelFor = (anim) => {
+      if (anim.scope === "room") {
+        const board = getBoard(anim.boardId);
+        return board.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId;
+      }
+      if (anim.scope === "cluster") {
+        return anim.clusterName
+          ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name
+          ?? anim.clusterId
+          ?? "Cluster";
+      }
+      return "";
+    };
     const sortedAnimations = [];
     const sectionKeyByAnimationId = new Map();
     const sectionLabelByKey = new Map();
@@ -783,12 +808,47 @@
       if (!entries || entries.length === 0) continue;
       sectionLabelByKey.set(key, label);
       sectionCountByKey.set(key, entries.length);
-      for (const anim of entries) {
+      let orderedEntries = entries;
+      if (GROUPED_SECTIONS.has(key)) {
+        // Cluster members (rooms) together; rooms with more active
+        // animations appear first so stacks are visually prominent.
+        const byKey = new Map();
+        for (const anim of entries) {
+          const k = subgroupKeyFor(anim) ?? `_:${anim.id}`;
+          if (!byKey.has(k)) byKey.set(k, []);
+          byKey.get(k).push(anim);
+        }
+        const orderedKeys = [...byKey.keys()].sort((a, b) => {
+          const la = byKey.get(a).length;
+          const lb = byKey.get(b).length;
+          if (lb !== la) return lb - la;
+          return String(a).localeCompare(String(b));
+        });
+        orderedEntries = [];
+        for (const k of orderedKeys) {
+          const rooms = byKey.get(k);
+          rooms.sort((a, b) =>
+            Number(b.startedAt || 0) - Number(a.startedAt || 0),
+          );
+          orderedEntries.push(...rooms);
+        }
+      }
+      for (const anim of orderedEntries) {
         sectionKeyByAnimationId.set(anim.id, key);
         sortedAnimations.push(anim);
       }
     }
     let lastSectionKey = null;
+    let lastSubgroupKey = null;
+    const subgroupCounts = new Map();
+    // Pre-count so the sub-heading can show "Brood Chamber · 2 anims".
+    for (const anim of sortedAnimations) {
+      const sk = sectionKeyByAnimationId.get(anim.id);
+      if (!GROUPED_SECTIONS.has(sk)) continue;
+      const gk = subgroupKeyFor(anim);
+      if (!gk) continue;
+      subgroupCounts.set(gk, (subgroupCounts.get(gk) || 0) + 1);
+    }
     for (const anim of sortedAnimations) {
       const sectionKey = sectionKeyByAnimationId.get(anim.id);
       if (sectionKey && sectionKey !== lastSectionKey) {
@@ -798,25 +858,62 @@
         heading.textContent = `${sectionLabelByKey.get(sectionKey)} (${sectionCountByKey.get(sectionKey)})`;
         runningAnimationsList.append(heading);
         lastSectionKey = sectionKey;
+        lastSubgroupKey = null;
+      }
+      if (GROUPED_SECTIONS.has(sectionKey)) {
+        const subKey = subgroupKeyFor(anim);
+        if (subKey && subKey !== lastSubgroupKey) {
+          const subLabel = subgroupLabelFor(anim);
+          const count = subgroupCounts.get(subKey) || 1;
+          const subHeading = document.createElement("li");
+          subHeading.className = "running-subgroup-heading";
+          subHeading.setAttribute("role", "presentation");
+          const name = document.createElement("span");
+          name.className = "running-subgroup-name";
+          name.textContent = subLabel;
+          subHeading.append(name);
+          if (count > 1) {
+            const countChip = document.createElement("span");
+            countChip.className = "running-subgroup-count";
+            countChip.textContent = `${count} anims`;
+            subHeading.append(countChip);
+          }
+          runningAnimationsList.append(subHeading);
+          lastSubgroupKey = subKey;
+        }
       }
       const li = document.createElement("li");
       li.className = "running-item";
-      // Phase 22 W2d: icon tile prepended to each row. Tint is driven
-      // by data-scope; glyph is resolved via resolveAnimationIcon using
-      // the animation definition where available. Falls back to the
-      // running entry itself if the definition lookup isn't wired
-      // for this scope (e.g., global animations pre-Wave 3).
+      if (GROUPED_SECTIONS.has(sectionKey)) {
+        li.classList.add("running-item-grouped");
+      }
+      // Phase 22 W2d: icon tile prepended to each row. Tint driven by
+      // data-scope; glyph resolved from the animation definition via
+      // ctx.getRoomAnimationDefinitionById (room + cluster scope), or
+      // synthesized directly from anim.type for global scope (type IS
+      // the coded key there — fire / malfunction / hull-flicker / …).
       const iconWrap = document.createElement("span");
       iconWrap.className = "running-item-icon";
       iconWrap.dataset.scope = sectionKey || "inside";
       iconWrap.setAttribute("aria-hidden", "true");
       const iconsApi = window.TT_BEAMER_UI_ICONS;
       if (iconsApi && typeof iconsApi.createIcon === "function") {
-        const resolverInput = { ...(anim || {}), type: anim?.type };
-        if (anim?.scope === "room" && typeof ctx.getRoomAnimationDefinition === "function") {
-          const def = ctx.getRoomAnimationDefinition(anim.type, anim.boardId);
-          if (def) Object.assign(resolverInput, def);
+        let def = null;
+        if ((anim.scope === "room" || anim.scope === "cluster")
+            && typeof ctx.getRoomAnimationDefinitionById === "function") {
+          def = ctx.getRoomAnimationDefinitionById(anim.type, anim.boardId);
         }
+        const resolverInput = {
+          icon: def?.icon ?? null,
+          name: def?.name ?? anim.animationName ?? getAnimationLabel(anim.type),
+          type: def?.type ?? (anim.scope === "global" ? "coded" : anim.type),
+          codedEffectType:
+            def?.codedEffectType
+            ?? (anim.scope === "global" ? anim.type : null),
+          codedKey: def?.codedKey ?? (anim.scope === "global" ? anim.type : null),
+          assetType: def?.assetType ?? null,
+          assetRef: def?.assetRef ?? null,
+        };
         const iconName = iconsApi.resolveAnimationIcon
           ? iconsApi.resolveAnimationIcon(resolverInput)
           : "sparkles";
@@ -830,38 +927,17 @@
         : anim.scope === "room" || anim.scope === "cluster"
           ? getRoomAnimationLabelById(anim.type, anim.boardId)
           : getAnimationLabel(anim.type);
-      const animationBoard = getBoard(anim.boardId);
-      const roomLabel = anim.scope === "room"
-        ? animationBoard.rooms.find((r) => r.id === anim.roomId)?.label ?? anim.roomId
-        : anim.scope === "cluster"
-          ? anim.clusterName ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name ?? anim.clusterId ?? "Cluster"
-          : "Global";
-      const scopeLabel = anim.scope === "room"
-        ? "ROOM"
-        : anim.scope === "cluster"
-          ? "CLUSTER"
-          : getGlobalCategoryRuntimeLabel(anim.type);
-      const scopeBadge = document.createElement("span");
-      scopeBadge.className = `running-scope-badge running-scope-badge-${scopeLabel.toLowerCase()}`;
-      scopeBadge.textContent = scopeLabel;
-      title.append(scopeBadge, document.createTextNode(` ${effectLabel} - ${roomLabel}`));
+      title.textContent = effectLabel;
 
+      // Phase 22 W2d: drop the Instance/Type/Board debug dump. Keep a
+      // single-line compact meta with just the remaining time (or
+      // "hold") — it's the only field users actually scan the list for.
       const meta = document.createElement("div");
       meta.className = "running-meta";
       const remaining = anim.durationMs
         ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
         : "hold";
-      const roomMeta = anim.scope === "room"
-        ? ` | Opacity: ${clampRoomOpacity(anim.opacity ?? 0.9).toFixed(2)} | Speed: ${clampRoomSpeed(anim.speed ?? anim.playbackSpeed ?? 1).toFixed(2)}x${getRoomGifAssetFileName(anim.type, anim.boardId) ? ` | GIF: ${getRoomGifAssetFileName(anim.type, anim.boardId)}` : ""}${getRoomEquivalentType(anim.type, anim.boardId) ? ` | GlobalEq: ${getRoomEquivalentType(anim.type, anim.boardId)}` : ""} | Sound: ${Math.round(
-          clampRoomSoundVolume(anim.soundVolume ?? 1) * 100,
-        )}%`
-        : anim.scope === "cluster"
-          ? ` | Cluster: ${anim.clusterName ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name ?? anim.clusterId ?? "unknown"} | Members: ${Math.max(
-            0,
-            getClusterMemberAnimationIds(anim).length,
-          )} | Start: ${(anim.clusterStartMode ?? "synchronous") === "staggered" ? "staggered" : "synchronous"}${(anim.clusterStartMode ?? "synchronous") === "staggered" ? ` (${clampClusterStaggerOffsetMs(anim.clusterStartOffsetMs)}ms)` : ""}`
-          : "";
-      meta.textContent = `Instance: ${anim.id} | Type: ${anim.type} | Board: ${getBoard(anim.boardId).label} | Intensity: ${anim.intensity.toFixed(2)}${roomMeta} | Remaining: ${remaining}`;
+      meta.textContent = remaining === "hold" ? "hold" : `in ${remaining}`;
 
       const actions = document.createElement("div");
       actions.className = "running-actions";

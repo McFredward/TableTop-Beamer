@@ -765,6 +765,57 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   margin-top: 0;
 }
 
+/* Sub-group heading (W2d fix) — Room, Cluster, Frozen sections are
+ * split by the room/cluster the animation targets. Rooms with more
+ * active animations are listed first so stacks jump out visually. */
+.dir-obsidian-dark #running-animations .running-subgroup-heading {
+  list-style: none;
+  padding: var(--rd-s-2) 2px 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text);
+  background: transparent;
+  border: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-subgroup-heading:first-child {
+  padding-top: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-subgroup-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dir-obsidian-dark #running-animations .running-subgroup-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  flex: 0 0 auto;
+}
+
+/* Rows inside a sub-group indent slightly and tuck under the header
+ * so each stack reads as a visual cluster. */
+.dir-obsidian-dark #running-animations .running-item-grouped {
+  margin-left: var(--rd-s-3);
+  border-left: 2px solid var(--c-accent-bg);
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
 .dir-obsidian-dark #running-animations .running-empty {
   list-style: none;
   padding: var(--rd-s-4);
