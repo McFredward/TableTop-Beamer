@@ -171,6 +171,13 @@ body[data-output-role="final-output"] #animation-editor-page {
   overflow-y: auto;
   min-width: 0;
   display: grid;
+  /* Grid parents default to `align-content: normal` → single-row
+   * grids stretch that one row to fill the 1fr parent, which here
+   * means a single animation makes the row fill the whole column.
+   * Pinning to `start` keeps rows at their natural ~52 px height
+   * and lets the remaining space stay empty at the bottom. */
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 2px;
   scrollbar-width: thin;
 }
