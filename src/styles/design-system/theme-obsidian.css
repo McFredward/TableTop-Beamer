@@ -725,3 +725,182 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ----- Active animations list (W2d) -----------------------------
+ * The <ul id="running-animations"> keeps its flat section-based
+ * structure (Outside / Inside / Cluster / Room / Frozen Rooms) but
+ * each .running-item is restyled as an Obsidian card row:
+ *     [icon tile]  Title                             [Edit] [Stop]
+ *                  scope · room · N% · 1.0× · hold
+ * The verbose debug meta from Phase 18 (Instance:…, Type:…, Board:…)
+ * becomes a single-line sub-meta via ellipsis — same information,
+ * tighter visual. Everything still fits the 390 px sidebar.
+ * ------------------------------------------------------------- */
+
+.dir-obsidian-dark #running-animations.running-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--rd-s-2);
+  min-width: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-section-heading {
+  list-style: none;
+  padding: 0;
+  margin: var(--rd-s-3) 0 4px;
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+  color: var(--c-text-3);
+  background: transparent;
+  border: 0;
+  border-left: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-section-heading:first-child {
+  margin-top: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-empty {
+  list-style: none;
+  padding: var(--rd-s-4);
+  border-radius: var(--rd-r-md);
+  background: var(--c-surface);
+  border: 1px dashed var(--c-border);
+  font-family: var(--rd-font-body);
+  color: var(--c-text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.dir-obsidian-dark #running-animations .running-item {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--rd-s-3);
+  padding: var(--rd-s-3);
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-md);
+  min-width: 0;
+}
+
+/* Icon tile — tinted by scope (JS adds a modifier class). */
+.dir-obsidian-dark .running-item-icon {
+  grid-column: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--rd-r-sm);
+  background: var(--c-surface-2);
+  color: var(--c-text-2);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.dir-obsidian-dark .running-item-icon[data-scope="room"] {
+  background: var(--c-room-bg);
+  color: var(--c-room);
+}
+.dir-obsidian-dark .running-item-icon[data-scope="cluster"] {
+  background: color-mix(in srgb, var(--c-accent) 16%, var(--c-bg-raised));
+  color: var(--c-accent);
+}
+.dir-obsidian-dark .running-item-icon[data-scope="outside"] {
+  background: color-mix(in srgb, var(--c-warn) 16%, var(--c-bg-raised));
+  color: var(--c-warn);
+}
+.dir-obsidian-dark .running-item-icon[data-scope="inside"] {
+  background: color-mix(in srgb, var(--c-accent) 14%, var(--c-bg-raised));
+  color: var(--c-accent);
+}
+.dir-obsidian-dark .running-item-icon[data-scope="freezed"] {
+  background: var(--c-surface-2);
+  color: var(--c-text-3);
+}
+
+.dir-obsidian-dark #running-animations .running-title {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-2);
+  min-width: 0;
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dir-obsidian-dark #running-animations .running-scope-badge {
+  display: none; /* Scope now reads via the icon tile tint. */
+}
+
+.dir-obsidian-dark #running-animations .running-meta {
+  grid-column: 2;
+  grid-row: 2;
+  font-family: var(--rd-font-body);
+  font-size: 11px;
+  color: var(--c-text-3);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-actions {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.dir-obsidian-dark #running-animations .running-actions button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: var(--rd-r-sm);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-2);
+  font-size: 0;
+}
+
+.dir-obsidian-dark #running-animations .running-actions button::before {
+  font-family: var(--rd-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--rd-tracking-caps);
+  color: inherit;
+}
+
+/* Label buttons (Stop / Edit) with text content — re-enable. */
+.dir-obsidian-dark #running-animations .running-actions button {
+  font-size: 11px;
+  width: auto;
+  min-width: 40px;
+  padding: 0 var(--rd-s-2);
+}
+
+.dir-obsidian-dark #running-animations .running-actions button:hover:not(:disabled) {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  border-color: var(--c-border);
+}
+
+.dir-obsidian-dark #running-animations .running-actions button:disabled {
+  opacity: 0.4;
+}

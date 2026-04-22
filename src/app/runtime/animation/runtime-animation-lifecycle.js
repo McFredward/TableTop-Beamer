@@ -801,6 +801,28 @@
       }
       const li = document.createElement("li");
       li.className = "running-item";
+      // Phase 22 W2d: icon tile prepended to each row. Tint is driven
+      // by data-scope; glyph is resolved via resolveAnimationIcon using
+      // the animation definition where available. Falls back to the
+      // running entry itself if the definition lookup isn't wired
+      // for this scope (e.g., global animations pre-Wave 3).
+      const iconWrap = document.createElement("span");
+      iconWrap.className = "running-item-icon";
+      iconWrap.dataset.scope = sectionKey || "inside";
+      iconWrap.setAttribute("aria-hidden", "true");
+      const iconsApi = window.TT_BEAMER_UI_ICONS;
+      if (iconsApi && typeof iconsApi.createIcon === "function") {
+        const resolverInput = { ...(anim || {}), type: anim?.type };
+        if (anim?.scope === "room" && typeof ctx.getRoomAnimationDefinition === "function") {
+          const def = ctx.getRoomAnimationDefinition(anim.type, anim.boardId);
+          if (def) Object.assign(resolverInput, def);
+        }
+        const iconName = iconsApi.resolveAnimationIcon
+          ? iconsApi.resolveAnimationIcon(resolverInput)
+          : "sparkles";
+        iconWrap.append(iconsApi.createIcon(iconName, { size: 18 }));
+      }
+      li.append(iconWrap);
       const title = document.createElement("div");
       title.className = "running-title";
       const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
