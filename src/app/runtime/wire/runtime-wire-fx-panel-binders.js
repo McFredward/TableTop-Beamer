@@ -859,6 +859,52 @@
       }
       refreshGlobalButtons?.();
     });
+
+    // Phase 22 W3a: one-time icon-picker mounts. Each picker's
+    // onChange patches definition.icon and persists; syncFxPanel
+    // mirrors the selection via setValue (see fx-panels.js).
+    const iconPickerApi = window.TT_BEAMER_UI_ICON_PICKER;
+    const withDirtyPersist = (mutation) => {
+      mutation();
+      persistBoardProfiles();
+      refreshGlobalButtons?.();
+    };
+
+    if (iconPickerApi && ctx.insideIconPicker) {
+      iconPickerApi.mount(ctx.insideIconPicker, {
+        onChange: (name) => {
+          withDirtyPersist(() => {
+            const next = buildInsideProfileWithSelectedAnimationPatch(
+              state.boardId,
+              { icon: name },
+            );
+            setInsideFxProfile(state.boardId, next);
+          });
+        },
+      });
+    }
+
+    if (iconPickerApi && ctx.outsideIconPicker) {
+      iconPickerApi.mount(ctx.outsideIconPicker, {
+        onChange: (name) => {
+          withDirtyPersist(() => {
+            const next = buildOutsideProfileWithSelectedAnimationPatch(
+              state.boardId,
+              { icon: name },
+            );
+            updateOutsideFxProfile(state.boardId, next);
+          });
+        },
+      });
+    }
+
+    if (iconPickerApi && ctx.roomIconPicker) {
+      iconPickerApi.mount(ctx.roomIconPicker, {
+        onChange: (name) => {
+          commitRoomDraftToDefinition({ icon: name });
+        },
+      });
+    }
   }
 
   // Activate a tab within the nearest enclosing <section>. `anchorEl` can be

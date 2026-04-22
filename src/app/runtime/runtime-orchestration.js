@@ -76,6 +76,8 @@ const {
   roomColorPickerLabel, roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
   roomAnimationSettingsCreateButton, roomAnimationSettingsDeleteButton,
   roomAnimationRenameInput, roomAnimationRenameButton,
+  // Phase 22 W3a: animation icon picker roots (Inside / Outside / Room).
+  insideIconPicker, outsideIconPicker, roomIconPicker,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
   roomStretchToPolygonInput, roomWidthScaleInput, roomWidthScaleValue,
@@ -1686,6 +1688,10 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   roomAnimationSettingsDeleteButton,
   roomAnimationRenameInput,
   roomAnimationRenameButton,
+  // Phase 22 W3a: icon picker roots threaded into the fx-panel ctx.
+  insideIconPicker,
+  outsideIconPicker,
+  roomIconPicker,
   outsideResourceSelect,
   outsideSoundRefSelect,
   outsideAssetTypeInput,
@@ -2748,6 +2754,11 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   roomAnimationSettingsNameInput,
   roomAnimationRenameInput,
   roomAnimationRenameButton,
+  // Phase 22 W3a: icon-picker roots consumed by the mount() calls in
+  // wireFxPanelBinders so their onChange handlers can patch + persist.
+  insideIconPicker,
+  outsideIconPicker,
+  roomIconPicker,
   roomAssetTypeInput,
   roomAssetRefInput,
   roomResourceSelect,

@@ -223,6 +223,13 @@
     if (ctx.insideAnimationRenameInput) {
       ctx.insideAnimationRenameInput.value = selectedDefinition?.name ?? "";
     }
+    // Phase 22 W3a: reflect selected definition's icon in the picker.
+    // The picker's onChange was already wired at init in the binders.
+    const iconPickerApi = window.TT_BEAMER_UI_ICON_PICKER;
+    if (iconPickerApi && ctx.insideIconPicker) {
+      const api = iconPickerApi.mount(ctx.insideIconPicker);
+      api?.setValue(selectedDefinition?.icon ?? null);
+    }
     // Phase 18-2: update mode indicator badge
     if (ctx.insideModeIndicator) {
       if (selectedDefinition) {
@@ -458,6 +465,12 @@
     // Phase 21-1: keep the rename input in sync with the selected def.
     if (ctx.roomAnimationRenameInput) {
       ctx.roomAnimationRenameInput.value = selectedDefinition?.name ?? "";
+    }
+    // Phase 22 W3a: reflect selected room definition's icon in the picker.
+    const roomIconPickerApi = window.TT_BEAMER_UI_ICON_PICKER;
+    if (roomIconPickerApi && ctx.roomIconPicker) {
+      const api = roomIconPickerApi.mount(ctx.roomIconPicker);
+      api?.setValue(selectedDefinition?.icon ?? null);
     }
 
     if (ctx.roomAnimationSelect) {
@@ -803,6 +816,12 @@
     // Phase 21-1: keep the rename input in sync with the currently-edited def.
     if (ctx.outsideAnimationRenameInput) {
       ctx.outsideAnimationRenameInput.value = selectedDefinition?.name ?? "";
+    }
+    // Phase 22 W3a: reflect selected outside definition's icon in the picker.
+    const outsideIconPickerApi = window.TT_BEAMER_UI_ICON_PICKER;
+    if (outsideIconPickerApi && ctx.outsideIconPicker) {
+      const api = outsideIconPickerApi.mount(ctx.outsideIconPicker);
+      api?.setValue(selectedDefinition?.icon ?? null);
     }
     // Phase 18-2: update mode indicator badge
     if (ctx.outsideModeIndicator) {

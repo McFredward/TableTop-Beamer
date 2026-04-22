@@ -162,6 +162,10 @@
       quickModeDeactivateButton: document.querySelector("#quick-mode-deactivate"),
       quickModeToggleButton: document.querySelector("#quick-mode-toggle"),
       quickModeClearButton: document.querySelector("#quick-mode-clear"),
+      // Phase 22 W3a: icon-picker root elements, one per animation editor.
+      insideIconPicker: document.querySelector("#inside-icon-picker"),
+      outsideIconPicker: document.querySelector("#outside-icon-picker"),
+      roomIconPicker: document.querySelector("#room-icon-picker"),
       controlPanel: document.querySelector("#control-panel"),
       projectionArea: document.querySelector(".projection-area"),
       primaryViewSwitch: document.querySelector(".primary-view-switch"),

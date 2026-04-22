@@ -476,6 +476,12 @@
             Rename
             <input id="inside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
+          <!-- Phase 22 W3a: icon picker. Populated + toggled by
+               syncInsideFxPanel; clicks set definition.icon. -->
+          <div class="rd-icon-picker-field">
+            <span class="rd-icon-picker-label">Icon</span>
+            <div id="inside-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Inside animation icon"></div>
+          </div>
           <label>
             Inside intensity <span id="inside-intensity-value">1.00</span>
             <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
@@ -534,6 +540,11 @@
             Rename
             <input id="outside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
+          <!-- Phase 22 W3a: icon picker — populated by syncOutsideFxPanel. -->
+          <div class="rd-icon-picker-field">
+            <span class="rd-icon-picker-label">Icon</span>
+            <div id="outside-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Outside animation icon"></div>
+          </div>
           <button id="outside-animation-delete" type="button">Delete selected outside animation</button>
           <label class="inline-checkbox">
             <input id="outside-enabled" type="checkbox" />
@@ -607,6 +618,11 @@
             Rename
             <input id="room-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
+          <!-- Phase 22 W3a: icon picker — populated by syncRoomFxPanel. -->
+          <div class="rd-icon-picker-field">
+            <span class="rd-icon-picker-label">Icon</span>
+            <div id="room-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Room animation icon"></div>
+          </div>
           <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
           <label>
             Type
@@ -866,6 +882,8 @@
   <!-- Phase 22 Wave 1: design-system icon primitive. Loaded first so
        later wave wirings can call TT_BEAMER_UI_ICONS.createIcon(name). -->
   <script src="/src/app/runtime/ui/icons.js" defer></script>
+  <!-- Phase 22 Wave 3a: reusable icon-picker (TT_BEAMER_UI_ICON_PICKER). -->
+  <script src="/src/app/runtime/ui/icon-picker.js" defer></script>
   <script src="/src/app/lib/shared/config.js" defer></script>
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>
   <script src="/src/app/lib/shared/logger.js" defer></script>

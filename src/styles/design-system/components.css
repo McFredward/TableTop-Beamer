@@ -349,3 +349,72 @@
   background: var(--c-surface-3);
   border-radius: 999px;
 }
+
+/* ---------- Icon picker (Phase 22 W3a) --------------------
+ * Compact grid of icon tiles used in each animation editor's Edit
+ * Existing panel. Populated from TT_BEAMER_UI_ICONS.ICON_DEFS;
+ * selection patches definition.icon — downstream resolveAnimationIcon
+ * picks it up automatically. */
+.rd-icon-picker-field {
+  display: grid;
+  gap: var(--rd-s-2);
+}
+
+.rd-icon-picker-label {
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  color: var(--c-text-2);
+}
+
+.rd-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-md);
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.rd-icon-picker::-webkit-scrollbar { width: 8px; }
+.rd-icon-picker::-webkit-scrollbar-thumb {
+  background: var(--c-surface-3);
+  border-radius: 999px;
+}
+
+.rd-icon-picker-tile {
+  all: unset;
+  box-sizing: border-box;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--rd-r-sm);
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: pointer;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  transition:
+    background var(--rd-t-quick),
+    color var(--rd-t-quick),
+    outline-color var(--rd-t-quick);
+}
+
+.rd-icon-picker-tile:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+.rd-icon-picker-tile.is-selected {
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  outline-color: var(--c-accent);
+}
+
+.rd-icon-picker-tile:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+}

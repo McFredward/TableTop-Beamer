@@ -29,6 +29,23 @@
     return allPaths.includes(trimmed) ? trimmed : sentinelNone;
   }
 
+  // Phase 22 W3a: accept a design-system icon key if it exists in
+  // ICON_DEFS (loaded by icons.js), otherwise return null. null is
+  // the "no user override" sentinel — resolveAnimationIcon falls back
+  // to its heuristic (coded-effect type / name keywords) in that case.
+  // If icons.js hasn't loaded yet (server-side snapshot parse, boot
+  // ordering quirks) we just round-trip whatever string came in, so
+  // we never lose the field; a later re-normalize with icons loaded
+  // will validate it.
+  function normalizeIconKey(value) {
+    if (value == null) return null;
+    const trimmed = String(value).trim();
+    if (!trimmed) return null;
+    const defs = window.TT_BEAMER_UI_ICONS?.ICON_DEFS;
+    if (!defs) return trimmed;
+    return Object.prototype.hasOwnProperty.call(defs, trimmed) ? trimmed : null;
+  }
+
   // ========= INSIDE =========
 
   function normalizeInsideAssetType(value) {
@@ -65,6 +82,10 @@
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
       // Phase 15-9: per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      // Phase 22 W3a: user-assigned icon key from the design-system set.
+      // Empty string / missing → null so resolveAnimationIcon falls back
+      // to its heuristic (coded-effect type / name keywords).
+      icon: normalizeIconKey(definition?.icon),
     };
   }
 
@@ -197,6 +218,8 @@
       soundEnabled: Boolean(definition?.soundEnabled),
       // Phase 15-9: per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
+      // Phase 22 W3a: user-assigned icon key (see Inside normalizer).
+      icon: normalizeIconKey(definition?.icon),
     };
   }
 
@@ -407,6 +430,8 @@
       // hull-flicker, a running instance in room R cuts any concurrent
       // solid-color animation in R during the flicker's off-gate.
       breaksSolidColor: Boolean(definition?.breaksSolidColor),
+      // Phase 22 W3a: user-assigned icon key (see Inside normalizer).
+      icon: normalizeIconKey(definition?.icon),
     };
   }
 
