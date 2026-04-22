@@ -906,6 +906,32 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+/* Target (room / cluster name) — same weight as the title's sub-caption
+ * in the design: slightly brighter than the muted timer so the user
+ * reads "WHAT · WHERE" at a glance. */
+.dir-obsidian-dark #running-animations .running-meta-target {
+  color: var(--c-text-2);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dir-obsidian-dark #running-animations .running-meta-sep {
+  color: var(--c-text-3);
+  flex: 0 0 auto;
+}
+
+.dir-obsidian-dark #running-animations .running-meta-timer {
+  color: var(--c-text-3);
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .dir-obsidian-dark #running-animations .running-actions {

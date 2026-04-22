@@ -935,15 +935,46 @@
           : getAnimationLabel(anim.type);
       title.textContent = effectLabel;
 
-      // Phase 22 W2d: drop the Instance/Type/Board debug dump. Keep a
-      // single-line compact meta with just the remaining time (or
-      // "hold") — it's the only field users actually scan the list for.
+      // Phase 22 W2d: compact single-line sub-meta. For non-stacked
+      // rooms/clusters we prefix the target name so the user still
+      // knows WHICH room/cluster the animation belongs to — stacked
+      // rows omit it because the subgroup header already shows it.
+      // Outside / Inside sections are board-wide so no target prefix.
       const meta = document.createElement("div");
       meta.className = "running-meta";
       const remaining = anim.durationMs
         ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
         : "hold";
-      meta.textContent = remaining === "hold" ? "hold" : `in ${remaining}`;
+      const timerLabel = remaining === "hold" ? "hold" : `in ${remaining}`;
+      let targetLabel = null;
+      if (!isStacked) {
+        if (anim.scope === "room") {
+          const board = getBoard(anim.boardId);
+          targetLabel = board.rooms.find((r) => r.id === anim.roomId)?.label
+            ?? anim.roomId
+            ?? null;
+        } else if (anim.scope === "cluster") {
+          targetLabel = anim.clusterName
+            ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name
+            ?? anim.clusterId
+            ?? null;
+        }
+      }
+      if (targetLabel) {
+        const targetEl = document.createElement("span");
+        targetEl.className = "running-meta-target";
+        targetEl.textContent = targetLabel;
+        const sep = document.createElement("span");
+        sep.className = "running-meta-sep";
+        sep.setAttribute("aria-hidden", "true");
+        sep.textContent = "·";
+        const timerEl = document.createElement("span");
+        timerEl.className = "running-meta-timer";
+        timerEl.textContent = timerLabel;
+        meta.append(targetEl, sep, timerEl);
+      } else {
+        meta.textContent = timerLabel;
+      }
 
       const actions = document.createElement("div");
       actions.className = "running-actions";
