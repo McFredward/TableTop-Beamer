@@ -79,6 +79,25 @@
       ctx.liveEditorOffsetYValue.textContent = value.toFixed(2);
       applyLiveEditorValue("offsetYScale", value);
     });
+    // Phase 21-1: outside-specific knobs. Populated + shown in
+    // openLiveEditor when the target is a running outside global
+    // animation.
+    ctx.liveEditorOutsideMode?.addEventListener("change", () => {
+      const value = ctx.liveEditorOutsideMode.value === "immersive" ? "immersive" : "standard";
+      applyLiveEditorValue("mode", value);
+    });
+    ctx.liveEditorOutsideDirection?.addEventListener("change", () => {
+      const value = ctx.liveEditorOutsideDirection.value === "reverse" ? "reverse" : "forward";
+      applyLiveEditorValue("direction", value);
+    });
+    // Phase 21-1: coded-specific Color picker — only surfaced when the
+    // underlying coded effect is `solid-color`. Keeps non-solid-color
+    // animations uncluttered.
+    ctx.liveEditorColor?.addEventListener("input", () => {
+      const raw = String(ctx.liveEditorColor.value || "").trim();
+      const value = /^#[0-9a-f]{6}$/i.test(raw) ? raw : "#ff0000";
+      applyLiveEditorValue("colorHex", value);
+    });
   }
 
   let liveEditorDirty = false;
@@ -116,8 +135,23 @@
       heightScale: animation.heightScale,
       offsetXScale: animation.offsetXScale,
       offsetYScale: animation.offsetYScale,
+      // Phase 21-1: outside instance fields.
+      mode: animation.mode,
+      direction: animation.direction,
+      // Phase 21-1: coded-specific (solid-color) per-instance color.
+      colorHex: animation.colorHex,
     };
     ctx.liveEditorPanel.hidden = false;
+    // Phase 21-1: auto-scroll the panel into view so the user sees the
+    // editor open. The running-animations list can sit far below the
+    // viewport and a silent panel-unhide was easy to miss.
+    if (typeof ctx.liveEditorPanel.scrollIntoView === "function") {
+      try {
+        ctx.liveEditorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch {
+        ctx.liveEditorPanel.scrollIntoView();
+      }
+    }
     if (ctx.liveEditorPanel) {
       ctx.liveEditorPanel.classList.remove("has-unsaved");
     }
@@ -192,6 +226,63 @@
       ctx.liveEditorOffsetY.disabled = stretched;
     }
 
+    // Phase 21-1: solid-color coded backbone — surface the Color picker
+    // in the Live Editor only when the currently-running animation's
+    // coded effect resolves to solid-color. Covers room-scoped coded
+    // solid-color triggers (the main use case — "white lamp" clusters).
+    if (ctx.liveEditorColor || ctx.liveEditorColorLabel) {
+      let showColor = false;
+      let effectiveColor = "#ff0000";
+      if ((animation.scope === "room" || animation.scope === "cluster")
+        && typeof ctx.resolveRoomCodedEffectType === "function") {
+        const assetType = typeof ctx.normalizeRoomAssetType === "function"
+          ? ctx.normalizeRoomAssetType(animation.roomAssetType)
+          : animation.roomAssetType;
+        if (assetType === "coded") {
+          const resolved = ctx.resolveRoomCodedEffectType(animation.roomAssetRef || animation.type);
+          showColor = resolved === "solid-color";
+        }
+      }
+      if (showColor) {
+        const def = typeof ctx.getRoomAnimationDefinitionById === "function"
+          ? ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId)
+          : null;
+        const raw = String(animation.colorHex ?? def?.colorHex ?? "#ff0000").trim();
+        effectiveColor = /^#[0-9a-f]{6}$/i.test(raw) ? raw : "#ff0000";
+      }
+      if (ctx.liveEditorColorLabel) {
+        ctx.liveEditorColorLabel.style.display = showColor ? "" : "none";
+      }
+      if (ctx.liveEditorColor && showColor) {
+        ctx.liveEditorColor.value = effectiveColor;
+      }
+    }
+
+    // Phase 21-1: outside-specific knobs (mode/direction) for coded
+    // outside backbones. Only show for global-scope animations whose
+    // type is in the board's outside profile — other globals (inside)
+    // don't have these concepts.
+    const showOutsideFx = animation.scope === "global"
+      && typeof ctx.isOutsideAnimationType === "function"
+      && ctx.isOutsideAnimationType(animation.type, animation.boardId);
+    if (ctx.liveEditorOutsideFx) {
+      ctx.liveEditorOutsideFx.hidden = !showOutsideFx;
+    }
+    if (showOutsideFx) {
+      // Fallback to the definition when the instance doesn't carry
+      // mode/direction yet (e.g. legacy running animation pre-Phase 21).
+      const outsideProfile = ctx.getOutsideFxProfile(animation.boardId);
+      const definition = outsideProfile?.animations?.find((entry) => entry?.id === animation.type) ?? null;
+      const effectiveMode = animation.mode ?? definition?.mode ?? "standard";
+      const effectiveDirection = animation.direction ?? definition?.direction ?? "forward";
+      if (ctx.liveEditorOutsideMode) {
+        ctx.liveEditorOutsideMode.value = effectiveMode === "immersive" ? "immersive" : "standard";
+      }
+      if (ctx.liveEditorOutsideDirection) {
+        ctx.liveEditorOutsideDirection.value = effectiveDirection === "reverse" ? "reverse" : "forward";
+      }
+    }
+
     const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
     const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
     if (ctx.liveEditorDefault) ctx.liveEditorDefault.checked = isDefault;
@@ -247,6 +338,11 @@
             heightScale: animation.heightScale,
             offsetXScale: animation.offsetXScale,
             offsetYScale: animation.offsetYScale,
+            // Phase 21-1: persist the per-instance color on the default
+            // so autostart reloads pick it back up. Without this, the
+            // autostart path re-created the animation with the red
+            // factory default every time.
+            colorHex: animation.colorHex,
           });
         }
         ctx.state.defaultAnimationsByBoard[animation.boardId] = filtered;
@@ -289,6 +385,21 @@
           animationId: animation.id,
           animation: ctx.buildAnimationSnapshotForLiveSync(animation),
         }).catch(() => {});
+        // Phase 21-1: for cluster-scope edits, also broadcast each
+        // linked room child so the server + other clients carry the
+        // propagated field values. Without this, the next snapshot
+        // from the server reverts member intensity/opacity back to
+        // the pre-edit state (server never saw the child updates).
+        if (animation.scope === "cluster") {
+          for (const child of ctx.state.runningAnimations) {
+            if (child?.parentClusterRunId === animation.id && child?.scope === "room") {
+              void ctx.emitLiveMutation("edit-room", {
+                animationId: child.id,
+                animation: ctx.buildAnimationSnapshotForLiveSync(child),
+              }).catch(() => {});
+            }
+          }
+        }
       }
     }
     liveEditorAnimationId = null;
@@ -303,6 +414,18 @@
     const animation = state.runningAnimations.find((item) => item?.id === liveEditorAnimationId);
     if (animation) {
       animation[field] = value;
+      // Phase 21-1: for cluster-scope edits, propagate the field to every
+      // linked room-scoped child. Without this, the draw loop reads
+      // memberAnimation[field] on each child (which never changes after
+      // spawn) and the Live Editor slider appears inert — most obvious
+      // with solid-color intensity/opacity in an "all rooms" cluster.
+      if (animation.scope === "cluster") {
+        for (const entry of state.runningAnimations) {
+          if (entry?.parentClusterRunId === animation.id && entry?.scope === "room") {
+            entry[field] = value;
+          }
+        }
+      }
       markLiveEditorDirty();
     }
   }
@@ -591,14 +714,74 @@
       return;
     }
 
-    const sortedAnimations = [...listAnimations].sort((a, b) => {
-      const startedDelta = Number(b.startedAt || 0) - Number(a.startedAt || 0);
-      if (startedDelta !== 0) {
-        return startedDelta;
+    // Phase 21-1: categorize into Outside / Inside / Cluster / Room /
+    // Frozen sections with a heading per section, and sort newest-first
+    // (by startedAt) within each section. Empty sections are omitted.
+    // Frozen-room animations are pulled out of the Room/Cluster buckets
+    // so the user can see at-a-glance what's playing in rooms they've
+    // explicitly frozen.
+    const isFrozenRoomAnim = (anim) => {
+      if (typeof ctx.isRoomFrozen !== "function") return false;
+      if (anim.scope === "room" && anim.roomId) {
+        return ctx.isRoomFrozen(anim.boardId, anim.roomId);
       }
-      return String(a.id || "").localeCompare(String(b.id || ""));
-    });
+      return false;
+    };
+    const bucketFor = (anim) => {
+      if (isFrozenRoomAnim(anim)) return "freezed";
+      if (anim.scope === "cluster") return "cluster";
+      if (anim.scope === "room") return "room";
+      // scope === "global" — split outside vs inside by category label.
+      const label = typeof getGlobalCategoryRuntimeLabel === "function"
+        ? String(getGlobalCategoryRuntimeLabel(anim.type)).toLowerCase()
+        : "";
+      if (label === "outside" || label.includes("outside")) return "outside";
+      return "inside";
+    };
+    const buckets = { outside: [], inside: [], cluster: [], room: [], freezed: [] };
+    for (const anim of listAnimations) {
+      const key = bucketFor(anim);
+      if (buckets[key]) buckets[key].push(anim);
+    }
+    for (const key of Object.keys(buckets)) {
+      buckets[key].sort((a, b) => {
+        const startedDelta = Number(b.startedAt || 0) - Number(a.startedAt || 0);
+        if (startedDelta !== 0) return startedDelta;
+        return String(a.id || "").localeCompare(String(b.id || ""));
+      });
+    }
+    const sectionMeta = [
+      { key: "outside", label: "Outside" },
+      { key: "inside", label: "Inside" },
+      { key: "cluster", label: "Cluster" },
+      { key: "room", label: "Room" },
+      { key: "freezed", label: "Frozen Rooms" },
+    ];
+    const sortedAnimations = [];
+    const sectionKeyByAnimationId = new Map();
+    const sectionLabelByKey = new Map();
+    const sectionCountByKey = new Map();
+    for (const { key, label } of sectionMeta) {
+      const entries = buckets[key];
+      if (!entries || entries.length === 0) continue;
+      sectionLabelByKey.set(key, label);
+      sectionCountByKey.set(key, entries.length);
+      for (const anim of entries) {
+        sectionKeyByAnimationId.set(anim.id, key);
+        sortedAnimations.push(anim);
+      }
+    }
+    let lastSectionKey = null;
     for (const anim of sortedAnimations) {
+      const sectionKey = sectionKeyByAnimationId.get(anim.id);
+      if (sectionKey && sectionKey !== lastSectionKey) {
+        const heading = document.createElement("li");
+        heading.className = `running-section-heading running-section-${sectionKey}`;
+        heading.setAttribute("role", "presentation");
+        heading.textContent = `${sectionLabelByKey.get(sectionKey)} (${sectionCountByKey.get(sectionKey)})`;
+        runningAnimationsList.append(heading);
+        lastSectionKey = sectionKey;
+      }
       const li = document.createElement("li");
       li.className = "running-item";
       const title = document.createElement("div");
@@ -661,7 +844,10 @@
       });
       actions.append(stopButton);
 
-      if (anim.scope === "room" || anim.scope === "cluster") {
+      // Phase 21-1: also allow Live Editor on scope="global" so outside
+      // (and inside) running animations can have their per-instance
+      // intensity/speed edited, independent of the definition defaults.
+      if (anim.scope === "room" || anim.scope === "cluster" || anim.scope === "global") {
         const editButton = document.createElement("button");
         editButton.type = "button";
         editButton.textContent = "Edit";

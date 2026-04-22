@@ -111,7 +111,14 @@
     ctx.polygonResetRoomButton.disabled = disabled;
     ctx.polygonFocusRoomButton.disabled = disabled;
     if (ctx.roomRenameInput) {
-      const activeRoom = ctx.getBoard().rooms.find((entry) => entry.id === activeRoomId);
+      // Phase 21-1: defensive — early in boot or during a board switch,
+      // ctx.getBoard() can return undefined before state.boardId is
+      // wired. Guard so the rename input refresh doesn't throw and
+      // abort the rest of syncPolygonEditorPanel.
+      const boardForRename = ctx.getBoard();
+      const activeRoom = Array.isArray(boardForRename?.rooms)
+        ? boardForRename.rooms.find((entry) => entry.id === activeRoomId)
+        : null;
       ctx.roomRenameInput.value = activeRoom?.name ?? activeRoom?.label ?? "";
       ctx.roomRenameInput.disabled = disabled;
     }

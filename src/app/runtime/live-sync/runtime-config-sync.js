@@ -34,11 +34,28 @@
   function stripSelectionOnlyFields(boardProfiles) {
     const stripped = {};
     for (const [boardId, profile] of Object.entries(boardProfiles)) {
-      const { roomFx, insideFx, ...rest } = profile;
+      const { roomFx, insideFx, outsideFx, ...rest } = profile;
+      // Phase 21-1: normalizeInsideFxProfile / normalizeOutsideFxProfile
+      // mirror the currently-selected animation's tunable fields onto the
+      // profile root (intensity/speed/assetType/assetRef/mode/direction/
+      // loopUntilStopped). Picking another animation in the Edit tab
+      // changes selectedAnimationId → those mirrored root fields change
+      // too → the dirty diff fires even though the user didn't actually
+      // edit any animation definition. Strip BOTH selectedAnimationId
+      // and every mirrored field from the dirty-comparison snapshot;
+      // the `animations` array is the source of truth for the definitions
+      // themselves, and `outsideFx.enabled` is a real user toggle.
+      const insideFxForCompare = insideFx
+        ? (({ selectedAnimationId, intensity, speed, assetType, assetRef, loopUntilStopped, ...keep }) => keep)(insideFx)
+        : insideFx;
+      const outsideFxForCompare = outsideFx
+        ? (({ selectedAnimationId, intensity, speed, mode, direction, assetType, assetRef, ...keep }) => keep)(outsideFx)
+        : outsideFx;
       stripped[boardId] = {
         ...rest,
         roomFx: roomFx ? { animations: roomFx.animations } : roomFx,
-        insideFx: insideFx ? (({ selectedAnimationId, ...keep }) => keep)(insideFx) : insideFx,
+        insideFx: insideFxForCompare,
+        outsideFx: outsideFxForCompare,
       };
     }
     return stripped;

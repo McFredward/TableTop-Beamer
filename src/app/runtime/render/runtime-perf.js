@@ -99,8 +99,22 @@
       return true;
     }
     if (animation.scope === "global") {
+      // Phase 21-1: loop-until-stopped globals (hold=true or null
+      // durationMs) must also render every frame — otherwise an inside
+      // loop like Hull Flicker gets coalesced down to a handful of
+      // frames per second and visually appears to "not play" even
+      // though it's in the list. Previously only finite-duration
+      // globals and outside-space were treated as critical, which
+      // meant looped inside globals fell into the non-critical budget
+      // and could be skipped under any coalesce stride > 1.
+      if (animation.hold === true) {
+        return true;
+      }
       const durationMs = Number(animation.durationMs);
       if (Number.isFinite(durationMs) && durationMs > 0) {
+        return true;
+      }
+      if (animation.durationMs === null) {
         return true;
       }
       const type = typeof animation.type === "string" ? animation.type : "";

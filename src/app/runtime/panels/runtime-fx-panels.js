@@ -219,6 +219,10 @@
       }
       ctx.insideAnimationSelect.value = selectedDefinition?.id ?? inside.animations[0]?.id ?? "";
     }
+    // Phase 21-1: keep the rename input in sync with the selected def.
+    if (ctx.insideAnimationRenameInput) {
+      ctx.insideAnimationRenameInput.value = selectedDefinition?.name ?? "";
+    }
     // Phase 18-2: update mode indicator badge
     if (ctx.insideModeIndicator) {
       if (selectedDefinition) {
@@ -356,6 +360,8 @@
       heightScale: Number.isFinite(Number(definition.heightScale)) ? Number(definition.heightScale) : 1,
       offsetXScale: Number(definition.offsetXScale) || 0,
       offsetYScale: Number(definition.offsetYScale) || 0,
+      // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
+      breaksSolidColor: Boolean(definition.breaksSolidColor),
     };
     ctx.roomEditorDraftByBoard[effectiveBoardId] = next;
     return next;
@@ -399,6 +405,9 @@
     const intensity = Number(ctx.roomDefIntensityInput?.value) || 0.8;
     const speed = Number(ctx.roomDefSpeedInput?.value) || 1;
     const soundVolume = (Number(ctx.roomDefSoundVolumeInput?.value) || 100) / 100;
+    const breaksSolidColor = ctx.roomBreaksSolidColorInput
+      ? Boolean(ctx.roomBreaksSolidColorInput.checked)
+      : undefined;
     return setRoomEditorDraft(effectiveBoardId, {
       assetType,
       assetRef,
@@ -413,6 +422,7 @@
       intensity,
       speed,
       soundVolume,
+      ...(breaksSolidColor !== undefined ? { breaksSolidColor } : {}),
     });
   }
 
@@ -444,6 +454,10 @@
     }
     if (ctx.roomAnimationSettingsDeleteButton) {
       ctx.roomAnimationSettingsDeleteButton.hidden = !selectedDefinition || roomFx.animations.length <= 1;
+    }
+    // Phase 21-1: keep the rename input in sync with the selected def.
+    if (ctx.roomAnimationRenameInput) {
+      ctx.roomAnimationRenameInput.value = selectedDefinition?.name ?? "";
     }
 
     if (ctx.roomAnimationSelect) {
@@ -575,6 +589,24 @@
     }
     if (ctx.roomDefSoundVolumeValue) {
       ctx.roomDefSoundVolumeValue.textContent = `${Math.round(defSoundVolume * 100)}%`;
+    }
+    // Phase 21-1: breaksSolidColor checkbox — only meaningful on the
+    // hull-flicker coded backbone. Hidden for every other animation so it
+    // doesn't pollute unrelated editors.
+    if (ctx.roomBreaksSolidColorInput || ctx.roomBreaksSolidColorLabel) {
+      const resolvedAssetRef = ctx.resolveRoomCodedEffectType(
+        assetRef || selectedDefinition?.assetRef || "",
+      );
+      const isHullFlicker = assetType === "coded" && resolvedAssetRef === "hull-flicker";
+      if (ctx.roomBreaksSolidColorLabel) {
+        ctx.roomBreaksSolidColorLabel.style.display = isHullFlicker ? "" : "none";
+      }
+      if (ctx.roomBreaksSolidColorInput) {
+        const currentValue = Boolean(
+          draft?.breaksSolidColor ?? selectedDefinition?.breaksSolidColor ?? false,
+        );
+        ctx.roomBreaksSolidColorInput.checked = currentValue;
+      }
     }
   }
 
@@ -767,6 +799,10 @@
         ctx.outsideAnimationSelect.append(option);
       }
       ctx.outsideAnimationSelect.value = selectedDefinition?.id ?? outside.animations[0]?.id ?? "";
+    }
+    // Phase 21-1: keep the rename input in sync with the currently-edited def.
+    if (ctx.outsideAnimationRenameInput) {
+      ctx.outsideAnimationRenameInput.value = selectedDefinition?.name ?? "";
     }
     // Phase 18-2: update mode indicator badge
     if (ctx.outsideModeIndicator) {

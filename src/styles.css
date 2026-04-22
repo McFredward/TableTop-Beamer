@@ -374,6 +374,18 @@ body[data-output-role="final-output"] .toast-stack {
   stroke: rgba(140, 140, 160, 0.65);
 }
 
+/* Phase 21-1: polygon rotation mode — highlight the rotating polygon */
+.room-zone.is-rotating {
+  stroke: rgba(255, 168, 70, 0.95);
+  stroke-width: 3;
+  stroke-dasharray: 8 4;
+  cursor: grab;
+  fill: rgba(255, 168, 70, 0.08);
+}
+.room-zone.is-rotating:active {
+  cursor: grabbing;
+}
+
 .room-zone-label {
   fill: #caf5ff;
   font-family: "Barlow Condensed", sans-serif;
@@ -565,6 +577,293 @@ body[data-output-role="final-output"] .toast-stack {
 
 .animation-tab-panel[hidden] {
   display: none !important;
+}
+
+/* Phase 21-2: modernized board share panel (export row + tabbed import).
+ * The min-width: 0 cascade is intentional — without it, a long filename
+ * in .bundle-file-card-name (nowrap + ellipsis) would bubble up through
+ * the grid chain and push the 390px dashboard column wider than its
+ * track, forcing the page to scroll horizontally. */
+.bundle-share-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.bundle-share-panel .bundle-import,
+.bundle-share-panel .bundle-import-panel,
+.bundle-share-panel .bundle-file-card,
+.bundle-share-panel .bundle-file-card-body,
+.bundle-share-panel .bundle-field {
+  min-width: 0;
+}
+
+.bundle-export-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bundle-export-copy {
+  flex: 1;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.bundle-primary {
+  padding: 0.55rem 0.95rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(76, 139, 255, 0.5);
+  background: linear-gradient(180deg, #5a97ff, #4079f0);
+  color: #fff;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 80ms ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.bundle-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #6ba2ff, #4c8bff);
+  border-color: rgba(120, 170, 255, 0.7);
+}
+
+.bundle-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.bundle-primary:disabled {
+  background: rgba(76, 139, 255, 0.25);
+  border-color: rgba(76, 139, 255, 0.25);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.bundle-import {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.9rem 0.95rem 0.95rem;
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.bundle-import h3 {
+  margin: 0 0 0.1rem;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.bundle-import-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.28rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bundle-import-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  font-size: 0.88rem;
+  border-radius: 0.4rem;
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.68);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.bundle-import-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bundle-import-tab.is-active {
+  background: rgba(76, 139, 255, 0.18);
+  color: #fff;
+  border-color: rgba(76, 139, 255, 0.45);
+}
+
+.bundle-tab-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.bundle-import-panel[hidden] {
+  display: none !important;
+}
+
+.bundle-import-panel {
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.35rem;
+}
+
+.bundle-import-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bundle-file-picker {
+  position: relative;
+  display: block;
+}
+
+.bundle-file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.bundle-file-picker-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.bundle-file-picker:hover .bundle-file-picker-cta,
+.bundle-file-picker input[type="file"]:focus-visible + .bundle-file-picker-cta {
+  background: rgba(76, 139, 255, 0.1);
+  border-color: rgba(76, 139, 255, 0.55);
+  color: #fff;
+}
+
+.bundle-file-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(76, 139, 255, 0.08);
+  border: 1px solid rgba(76, 139, 255, 0.3);
+  min-height: 2.6rem;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.bundle-file-card.is-empty {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.bundle-file-card-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.bundle-file-card.is-empty .bundle-file-card-icon {
+  opacity: 0.35;
+}
+
+.bundle-file-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.bundle-file-card-name {
+  font-size: 0.86rem;
+  color: #fff;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bundle-file-card.is-empty .bundle-file-card-name {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 400;
+}
+
+.bundle-file-card-meta {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.bundle-file-card-meta:empty {
+  display: none;
+}
+
+.bundle-file-card-clear {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: color 100ms ease, background 100ms ease;
+}
+
+.bundle-file-card-clear:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bundle-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bundle-field-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bundle-field input {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.9rem;
+  border-radius: 0.45rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.bundle-field input:focus-visible {
+  outline: none;
+  border-color: rgba(76, 139, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(76, 139, 255, 0.2);
+}
+
+.bundle-field input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bundle-status-line {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .dashboard-sticky-shell {
@@ -1010,6 +1309,22 @@ input[type="range"]::-moz-range-thumb:hover {
   padding: 0.5rem;
   border-radius: 0.5rem;
   font-size: 0.76rem;
+}
+
+/* Phase 21-1: category heading inside the Active Animations list */
+.running-section-heading {
+  list-style: none;
+  margin: 0.6rem 0 0.15rem;
+  padding: 0.25rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--glow);
+  border-bottom: 1px solid rgba(55, 192, 161, 0.32);
+}
+.running-section-heading:first-child {
+  margin-top: 0;
 }
 
 button {

@@ -20,6 +20,31 @@
     ctx = dependencies;
   }
 
+  // Phase 21-1: shared gate function for the hull-flicker coded effect.
+  // Deterministic in (age, speed, intensity); matches the exact timeline
+  // math that used to live inline in the hull-flicker draw branch.
+  // Consumers read `isOnPeriod` to know whether the lamp is currently lit.
+  function computeHullFlickerGate(age, speed = 1, intensity = 1) {
+    const effectiveAge = Number.isFinite(age) ? age * (Number.isFinite(speed) && speed > 0 ? speed : 1) : 0;
+    const safeIntensity = Number.isFinite(intensity) ? intensity : 1;
+    const timeline = effectiveAge * (1.6 + safeIntensity * 0.5);
+    const step = Math.floor(timeline * 6);
+    const gate = ctx.flickerNoise(step * 0.08 + 3.9);
+    const isOnPeriod = gate > 0.72;
+    let flickerIntensity = 0;
+    if (isOnPeriod) {
+      const baseFlicker = (ctx.flickerNoise(step * 0.22 + 7.4) * 0.55 +
+        ctx.flickerNoise(step * 0.55 + 15.2) * 0.35 +
+        ctx.flickerNoise(step * 1.1 + 28.6) * 0.1);
+      flickerIntensity = (0.4 + baseFlicker * 0.6) * safeIntensity;
+    }
+    return { isOnPeriod, flickerIntensity, step, gate };
+  }
+
+  function isHullFlickerLampOff(age, speed = 1, intensity = 1) {
+    return !computeHullFlickerGate(age, speed, intensity).isOnPeriod;
+  }
+
   function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
     const canvas = ctx.canvas;
     const c = ctx.canvasCtx;
@@ -115,19 +140,7 @@
     }
 
     if (type === "hull-flicker") {
-      const timeline = age * (1.6 + intensity * 0.5);
-      const step = Math.floor(timeline * 6);
-
-      const gate = ctx.flickerNoise(step * 0.08 + 3.9);
-      const isOnPeriod = gate > 0.72;
-
-      let flickerIntensity = 0;
-      if (isOnPeriod) {
-        const baseFlicker = (ctx.flickerNoise(step * 0.22 + 7.4) * 0.55 +
-          ctx.flickerNoise(step * 0.55 + 15.2) * 0.35 +
-          ctx.flickerNoise(step * 1.1 + 28.6) * 0.1);
-        flickerIntensity = (0.4 + baseFlicker * 0.6) * intensity;
-      }
+      const { isOnPeriod, flickerIntensity } = computeHullFlickerGate(age, 1, intensity);
 
       const dipAlpha = isOnPeriod && flickerIntensity < 0.35 ? (0.35 - flickerIntensity) * 0.5 * intensity : 0;
       c.fillStyle = `rgba(0, 0, 0, ${Math.min(0.3, dipAlpha)})`;
@@ -213,7 +226,16 @@
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
       const b = parseInt(hex.slice(5, 7), 16);
-      c.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.min(1, intensity * 0.8)})`;
+      // Phase 21-1: solid-color used to ignore `opacity` entirely and
+      // squeezed brightness into `intensity * 0.8`, so the Live Editor's
+      // opacity slider did nothing and intensity only shifted alpha by a
+      // narrow fixed factor. Now both sliders modulate the fill alpha
+      // directly (opacity × intensity, clamped to [0,1]) — same mental
+      // model the user has for gif/mp4 rooms.
+      const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
+      const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
+      const alpha = Math.max(0, Math.min(1, opacityOption * intensitySafe));
+      c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
       c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       return;
     }
@@ -251,5 +273,7 @@
   window.TT_BEAMER_RUNTIME_EFFECT_VISUALS = {
     init,
     drawEffectVisual,
+    computeHullFlickerGate,
+    isHullFlickerLampOff,
   };
 })();

@@ -1,145 +1,199 @@
 {
   "schema": "tt-beamer.board-import.v1",
-  "importedAt": "2026-04-12T08:24:39.620Z",
+  "importedAt": "2026-04-20T19:15:16.820Z",
   "board": {
-    "schema": "tt-beamer.board-catalog.v1",
+    "schema": "tt-beamer.board-definition.v1",
     "boardId": "nemesis-board-a",
     "metadata": {
       "name": "Nemesis Board A",
-      "imageSrc": "resources/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg"
+      "imageSrc": "/resources/boards/httpssteamusercontentaakamaihdnetugc946212227080494269577CF3785BAEF06122BDE208B776E07B27BFFA58.jpg",
+      "source": "package-import"
     },
     "roomCatalog": [
       {
         "id": "a-01",
         "name": "Hex A-01",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-02",
         "name": "Hex A-02",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-03",
         "name": "Hex A-03",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-04",
         "name": "Hex A-04",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-05",
         "name": "Hex A-05",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-06",
         "name": "Hex A-06",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-07",
         "name": "Hex A-07",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-08",
         "name": "Hex A-08",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-09",
         "name": "Hex A-09",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-10",
         "name": "Hex A-10",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-11",
         "name": "Hex A-11",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-12",
         "name": "Hex A-12",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-13",
         "name": "Hex A-13",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-14",
         "name": "Hex A-14",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-15",
         "name": "Hex A-15",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "a-16",
         "name": "Hex A-16",
+        "radius": 0.055,
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon"
-        }
+        },
+        "x": 0.5,
+        "y": 0.5
       },
       {
         "id": "special-cockpit",
         "name": "Cockpit",
+        "radius": 0.055,
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        },
         "polygon": [
           [
             0.026,
@@ -169,15 +223,16 @@
             0.027,
             0.556
           ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom"
-        }
+        ]
       },
       {
         "id": "special-cryoschlaf",
         "name": "Cryoschlaf",
+        "radius": 0.055,
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        },
         "polygon": [
           [
             0.457,
@@ -215,15 +270,16 @@
             0.466,
             0.59
           ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom"
-        }
+        ]
       },
       {
         "id": "special-maschinenraum-1",
         "name": "Maschinenraum 1",
+        "radius": 0.055,
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        },
         "polygon": [
           [
             0.855,
@@ -257,15 +313,16 @@
             0.855,
             0.852
           ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom"
-        }
+        ]
       },
       {
         "id": "special-maschinenraum-2",
         "name": "Maschinenraum 2",
+        "radius": 0.055,
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        },
         "polygon": [
           [
             0.857,
@@ -299,15 +356,16 @@
             0.857,
             0.561
           ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom"
-        }
+        ]
       },
       {
         "id": "special-maschinenraum-3",
         "name": "Maschinenraum 3",
+        "radius": 0.055,
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom"
+        },
         "polygon": [
           [
             0.855,
@@ -341,13 +399,8 @@
             0.855,
             0.286
           ]
-        ],
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom"
-        }
+        ]
       }
-    ],
-    "roomClusters": []
+    ]
   }
 }

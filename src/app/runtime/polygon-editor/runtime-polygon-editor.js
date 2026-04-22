@@ -273,6 +273,12 @@
     if (!roomId) {
       return;
     }
+    // Phase 21-1: in rotation mode, hide vertex + edge handles
+    // immediately so the user gets a clean "rotate the whole polygon"
+    // affordance rather than mixed rotate/edit controls.
+    if (state.polygonEditor.rotatingRoomId === roomId) {
+      return;
+    }
     ctx.setActivePolygonRoomId(state.boardId, roomId);
     const room = ctx.getBoard().rooms.find((entry) => entry.id === roomId);
     if (!room) {
@@ -653,6 +659,10 @@
       }
       if (ctx.isRoomFrozen(state.boardId, room.id)) {
         polygon.classList.add("is-frozen");
+      }
+      // Phase 21-1: visual indicator for rotation mode.
+      if (state.polygonEditor?.rotatingRoomId === room.id) {
+        polygon.classList.add("is-rotating");
       }
       polygon.dataset.roomId = room.id;
       // Phase 19: on /output, remap polygon points through grid warp

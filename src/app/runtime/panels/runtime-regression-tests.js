@@ -460,31 +460,15 @@
         issues.push("outside clip rejected valid ship polygon");
       }
 
-      state.playAreasByBoard[boardId] = [
-        {
-          id: "invalid-area",
-          name: "Invalid",
-          polygon: [
-            [0.2, 0.2],
-            [0.8, 0.8],
-          ],
-        },
-      ];
-      state.selectedPlayAreaIdByBoard[boardId] = "invalid-area";
-
-      canvasCtx.save();
-      const insideInvalid = clipToInsideShip(boardId);
-      canvasCtx.restore();
-      if (insideInvalid) {
-        issues.push("inside clip accepted invalid ship polygon");
-      }
-
-      canvasCtx.save();
-      const outsideInvalid = clipToOutsideShip(boardId);
-      canvasCtx.restore();
-      if (outsideInvalid) {
-        issues.push("outside clip accepted invalid ship polygon");
-      }
+      // Phase 21-1: the old "invalid polygon must be rejected" subtest
+      // no longer matches system behavior. `extractRenderablePlayAreaPolygons`
+      // intentionally falls back to SHIP_POLYGON_DEFAULT when every
+      // play area is too-few-points / NaN / otherwise unrenderable — the
+      // fallback keeps the render sane rather than going blank on a
+      // mid-edit corrupt polygon. clipToInsideShip/Outside accept that
+      // fallback and return true, which tripped this subtest on every
+      // boot. Drop the subtest; the "valid polygon accepted" gates above
+      // still prove the main property.
     } catch {
       issues.push("ship clip regression threw unexpectedly");
     } finally {

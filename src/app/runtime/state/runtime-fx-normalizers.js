@@ -403,6 +403,10 @@
       speed: clamp(definition?.speed, 0.1, 2.5, 1),
       soundVolume: clamp(definition?.soundVolume, 0, 1, 1),
       colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex) ? definition.colorHex : "#ff0000",
+      // Phase 21-1: opt-in. When true and this definition resolves to
+      // hull-flicker, a running instance in room R cuts any concurrent
+      // solid-color animation in R during the flicker's off-gate.
+      breaksSolidColor: Boolean(definition?.breaksSolidColor),
     };
   }
 

@@ -35,6 +35,8 @@
     offsetXScale = 0,
     offsetYScale = 0,
     colorHex = "",
+    mode = "",
+    direction = "",
   }) {
     const normalizedStartDelayMs = Math.max(0, Number(startDelayMs) || 0);
     const startedAt = performance.now() + normalizedStartDelayMs;
@@ -65,6 +67,13 @@
       opacity: ctx.clampRoomOpacity(opacity),
       playbackSpeed: ctx.clampRoomSpeed(speed),
       soundVolume: ctx.clampRoomSoundVolume(soundVolume),
+      // Phase 21-1: carry per-instance outside knobs so the draw
+      // path reads the values captured at trigger time (and later
+      // mutated by the Live Editor) rather than the definition's
+      // latest uncommitted edits. Leaves room/cluster entries
+      // unaffected since upsert call sites don't pass these.
+      mode: typeof mode === "string" && mode ? mode : undefined,
+      direction: typeof direction === "string" && direction ? direction : undefined,
       hold: effectiveHold,
       durationMs: effectiveHold ? null : Math.max(1000, durationSec * 1000),
       startedAt,

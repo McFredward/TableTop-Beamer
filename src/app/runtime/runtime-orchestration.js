@@ -75,6 +75,7 @@ const {
   stopAllButton, stopAllIncludeDefaultsCheckbox, roomSelected, roomTargetSelect, roomAnimationSelect, roomColorPicker,
   roomColorPickerLabel, roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
   roomAnimationSettingsCreateButton, roomAnimationSettingsDeleteButton,
+  roomAnimationRenameInput, roomAnimationRenameButton,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
   roomStretchToPolygonInput, roomWidthScaleInput, roomWidthScaleValue,
@@ -83,6 +84,7 @@ const {
   roomApplyChangesButton,
   roomDefOpacityInput, roomDefOpacityValue, roomDefIntensityInput, roomDefIntensityValue,
   roomDefSpeedInput, roomDefSpeedValue, roomDefSoundVolumeInput, roomDefSoundVolumeValue,
+  roomBreaksSolidColorInput, roomBreaksSolidColorLabel,
   roomOpacityInput, roomOpacityValue, roomIntensityInput, roomIntensityValue,
   roomSpeedInput, roomSpeedValue, roomSoundVolumeInput, roomSoundVolumeValue,
   roomDurationInput, roomStaggerStartInput, roomStaggerOffsetInput, roomStaggerOffsetValue,
@@ -90,6 +92,8 @@ const {
   liveEditorPanel, liveEditorTitle, liveEditorClose,
   liveEditorOpacity, liveEditorOpacityValue, liveEditorIntensity, liveEditorIntensityValue,
   liveEditorSpeed, liveEditorSpeedValue, liveEditorSoundVolume, liveEditorSoundVolumeValue,
+  liveEditorColor, liveEditorColorLabel,
+  liveEditorOutsideFx, liveEditorOutsideMode, liveEditorOutsideDirection,
   liveEditorTransform, liveEditorRotation, liveEditorRotationValue,
   liveEditorStretch, liveEditorWidth, liveEditorWidthValue,
   liveEditorHeight, liveEditorHeightValue, liveEditorOffsetX, liveEditorOffsetXValue,
@@ -121,11 +125,15 @@ const {
   playAreaNameInput, playAreaCreateButton, playAreaDeleteButton, shipPolygonVertexSelect,
   shipPolygonEdgeSelect, shipPolygonInsertVertexButton, shipPolygonDeleteVertexButton,
   shipPolygonResetButton, shipPolygonEditorStatus, outsideAnimationSelect,
-  outsideAnimationNameInput, outsideAnimationCreateButton, outsideEnabledInput,
+  outsideAnimationNameInput, outsideAnimationCreateButton,
+  outsideAnimationRenameInput, outsideAnimationRenameButton,
+  outsideEnabledInput,
   outsideIntensityInput, outsideIntensityValue, outsideSpeedInput, outsideSpeedValue,
   outsideModeInput, outsideDirectionInput, outsideAssetTypeInput, outsideAssetRefInput,
   outsideResourceSelect, outsideSoundRefSelect, outsideApplyChangesButton, insideAnimationSelect,
-  insideAnimationNameInput, insideAnimationCreateButton, insideIntensityInput,
+  insideAnimationNameInput, insideAnimationCreateButton,
+  insideAnimationRenameInput, insideAnimationRenameButton,
+  insideIntensityInput,
   insideIntensityValue, insideSpeedInput, insideSpeedValue, insideAssetTypeInput,
   insideAssetRefInput, insideResourceSelect, insideSoundRefSelect, insideLoopUntilStopInput, insideApplyChangesButton,
   insideGlobalButtons, outsideGlobalButtons, outsideAnimationDeleteButton, dashboardGlobalLoopUntilStopInput, dashboardGlobalPlaySoundInput,
@@ -151,14 +159,13 @@ const SETTINGS_SUBTAB_LABELS = {
   system: "System",
 };
 
+// Phase 21-1: purge stale entries. The board-import-* and
+// export/import-global-defaults controls were replaced by the unified
+// "Share a Board" zip bundle in Phase 20 — their IDs no longer exist
+// in index.html, so validateSettingsControlOwnership was logging a
+// noisy "missing control" leak on every resize / view switch.
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
-  "board-import-file",
-  "board-import-image",
-  "board-import-name",
-  "board-import-button",
-  "export-global-defaults",
-  "import-global-defaults",
   "mp4-performance-tier",
   "mp4-render-cap",
   "mp4-quality-floor",
@@ -1661,12 +1668,20 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   roomDefSpeedValue,
   roomDefSoundVolumeInput,
   roomDefSoundVolumeValue,
+  roomBreaksSolidColorInput,
+  roomBreaksSolidColorLabel,
   roomAnimationSettingsDeleteButton,
+  roomAnimationRenameInput,
+  roomAnimationRenameButton,
   outsideResourceSelect,
   outsideSoundRefSelect,
   outsideAssetTypeInput,
   outsideAssetRefInput,
   outsideAnimationSelect,
+  outsideAnimationRenameInput,
+  outsideAnimationRenameButton,
+  insideAnimationRenameInput,
+  insideAnimationRenameButton,
   outsideEnabledInput,
   outsideIntensityInput,
   outsideSpeedInput,
@@ -1695,6 +1710,9 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   getRoomAssetCandidates: (assetType) => getRoomAssetCandidates(assetType),
   getSelectedRoomAnimationDefinition: (boardId) => getSelectedRoomAnimationDefinition(boardId),
   getRoomAnimationDefinitionById: (type, boardId) => getRoomAnimationDefinitionById(type, boardId),
+  // Phase 21-1: needed to detect "hull-flicker" backbone for the
+  // breaksSolidColor checkbox visibility inside syncRoomFxPanel.
+  resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
   normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
   normalizeOutsideAnimationDefinition: (entry) => normalizeOutsideAnimationDefinition(entry),
   normalizeOutsideAssetType: (assetType) => normalizeOutsideAssetType(assetType),
@@ -1977,6 +1995,25 @@ window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
   renderRoomOverlay: () => renderRoomOverlay(),
   pushUndoState: (desc) => pushUndoState(desc),
+  // Phase 21-1: delegate rotate/exit menu actions to the rotation
+  // module. These are populated lazily once the rotation module
+  // finishes its own init a few lines below.
+  enterRotationMode: (roomId) => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.enterRotationMode?.(roomId),
+  exitRotationMode: () => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.exitRotationMode?.(),
+});
+
+// Phase 21-1: polygon rotation mode (right-click → Rotate / Exit).
+window.TT_BEAMER_RUNTIME_POLYGON_ROTATION.init({
+  state,
+  canvas,
+  roomOverlay,
+  triggerFeedback,
+  getNormalizedOverlayPoint: (event) => getNormalizedOverlayPoint(event),
+  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  pushUndoState: (desc) => pushUndoState(desc),
+  persistBoardProfiles: () => persistBoardProfiles(),
+  renderRoomOverlay: () => renderRoomOverlay(),
 });
 
 // Phase 18-3: undo/redo system for polygon editing operations.
@@ -2147,6 +2184,11 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveEditorSpeedValue,
   liveEditorSoundVolume,
   liveEditorSoundVolumeValue,
+  liveEditorColor,
+  liveEditorColorLabel,
+  liveEditorOutsideFx,
+  liveEditorOutsideMode,
+  liveEditorOutsideDirection,
   liveEditorTransform,
   liveEditorRotation,
   liveEditorRotationValue,
@@ -2186,6 +2228,9 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomAnimationDefinitionById: (type, boardId) => getRoomAnimationDefinitionById(type, boardId),
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
   normalizeRoomAssetRefForType: (assetType, ref, fallback) => normalizeRoomAssetRefForType(assetType, ref, fallback),
+  // Phase 21-1: Live Editor needs this to detect the solid-color
+  // coded backbone and surface the Color picker only when applicable.
+  resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampRoomIntensity: (value) => clampRoomIntensity(value),
   clampRoomSpeed: (value) => clampRoomSpeed(value),
@@ -2194,6 +2239,10 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
   isRoomAnimationType: (type) => isRoomAnimationType(type),
   isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
+  // Phase 21-1: needed by the Live Editor to resolve outside definition
+  // fallbacks (mode/direction) when the running instance doesn't carry
+  // those fields yet (legacy pre-Phase 21 snapshots).
+  getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
   syncRoomStaggerOffsetControl: () => syncRoomStaggerOffsetControl(),
   syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
@@ -2212,6 +2261,9 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
   saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
+  // Phase 21-1: needed by the Active Animations list to bucket room
+  // animations running in frozen rooms into the "Frozen Rooms" section.
+  isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
 });
 const {
   collectAnimationStopIds,
@@ -2267,7 +2319,7 @@ window.TT_BEAMER_RUNTIME_EFFECT_VISUALS.init({
   clampOutsideSpeed: (value) => clampOutsideSpeed(value),
   flickerNoise: (seed) => flickerNoise(seed),
 });
-const { drawEffectVisual } = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
+const { drawEffectVisual, isHullFlickerLampOff } = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
 
 // Phase 14-2: draw loop (draw, pruneFinishedAnimations, drawOutsideFxLayer,
 // drawAnimation(Safely), drawInsideGlobalVisual, drawRoomComposition)
@@ -2330,6 +2382,7 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   refreshGlobalButtons: () => refreshGlobalButtons(),
   isRunningListInteractionActive: () => isRunningListInteractionActive(),
   drawEffectVisual: (type, age, intensity, room, roomMetrics, options) => drawEffectVisual(type, age, intensity, room, roomMetrics, options),
+  isHullFlickerLampOff: (age, speed, intensity) => isHullFlickerLampOff(age, speed, intensity),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
   // Phase 19-4: post-draw mesh warp (unified grid projection)
   postDrawMeshWarp: (canvas, canvasCtx) => projectionPostDrawMeshWarp(canvas, canvasCtx),
@@ -2673,6 +2726,8 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   roomAnimationSettingsSelect,
   roomAnimationSettingsDeleteButton,
   roomAnimationSettingsNameInput,
+  roomAnimationRenameInput,
+  roomAnimationRenameButton,
   roomAssetTypeInput,
   roomAssetRefInput,
   roomResourceSelect,
@@ -2685,8 +2740,12 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   roomDefSpeedValue,
   roomDefSoundVolumeInput,
   roomDefSoundVolumeValue,
+  roomBreaksSolidColorInput,
+  roomBreaksSolidColorLabel,
   insideAnimationCreateButton,
   insideAnimationNameInput,
+  insideAnimationRenameInput,
+  insideAnimationRenameButton,
   insideAnimationSelect,
   insideIntensityInput,
   insideIntensityValue,
@@ -2699,6 +2758,8 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   outsideEnabledInput,
   outsideAnimationCreateButton,
   outsideAnimationNameInput,
+  outsideAnimationRenameInput,
+  outsideAnimationRenameButton,
   outsideAnimationSelect,
   outsideIntensityInput,
   outsideIntensityValue,
@@ -2757,6 +2818,10 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   syncInsideResourcePicker,
   syncOutsideDraftVisibilityFromInputs,
   syncOutsideRuntimeMirror,
+  // Phase 21-1: called by commitRoomDraftToDefinition to refresh the
+  // dashboard's per-start draft sliders the instant a Settings edit
+  // lands (so the first Start already uses the new default).
+  syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),

@@ -88,6 +88,17 @@
         dragAreaStartPoints: null,
         dragAreaStartPointerPoint: null,
         dragAreaMoved: false,
+        // Phase 21-1: optional rotation mode toggled from the polygon
+        // context menu. When set to a roomId, pointer-drag on that
+        // room's polygon rotates it around its centroid instead of
+        // translating or vertex-editing.
+        rotatingRoomId: null,
+        rotateBoardId: null,
+        rotatePointerId: null,
+        rotateStartAngle: 0,
+        rotateStartPoints: null,
+        rotateCenter: null,
+        rotateMoved: false,
       },
       shipPolygonEditor: {
         selectedVertexIndex: 0,

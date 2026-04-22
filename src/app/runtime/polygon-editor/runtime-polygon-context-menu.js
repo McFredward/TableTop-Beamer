@@ -28,22 +28,36 @@
     menuEl.className = "board-context-menu";
     menuEl.setAttribute("role", "menu");
     menuEl.style.display = "none";
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "board-context-menu-item";
-    btn.setAttribute("role", "menuitem");
-    btn.textContent = "Add room here";
-    btn.addEventListener("click", (event) => {
+    // Phase 21-1: rotation mode toggle. Menu now carries three
+    // possible actions depending on where the right-click landed:
+    //  - empty board area + not rotating → "Add room here"
+    //  - on a room polygon + not rotating → "Rotate polygon"
+    //  - on a room polygon + already rotating THIS room → "Exit rotation"
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "board-context-menu-item";
+    addBtn.dataset.action = "add";
+    addBtn.setAttribute("role", "menuitem");
+    addBtn.textContent = "Add room here";
+    addBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       handleAddRoomHere();
     });
-    // Prevent the button from starting a long-press cycle
-    btn.addEventListener("pointerdown", (event) => {
-      event.stopPropagation();
-    });
+    addBtn.addEventListener("pointerdown", (event) => event.stopPropagation());
 
-    menuEl.append(btn);
+    const rotateBtn = document.createElement("button");
+    rotateBtn.type = "button";
+    rotateBtn.className = "board-context-menu-item";
+    rotateBtn.dataset.action = "rotate";
+    rotateBtn.setAttribute("role", "menuitem");
+    rotateBtn.textContent = "Rotate polygon";
+    rotateBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleRotateOrExit();
+    });
+    rotateBtn.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    menuEl.append(addBtn, rotateBtn);
     document.querySelector(".app-shell").append(menuEl);
   }
 
@@ -67,6 +81,51 @@
     if (target === ctx.roomOverlay) return true;
     if (target instanceof SVGElement && !target.closest(".room-zone")) return true;
     return false;
+  }
+
+  // Phase 21-1: detect when a right-click lands directly on a room
+  // polygon SVG. Returns the roomId or null.
+  function resolveRoomIdAtEvent(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return null;
+    const zone = target.closest?.(".room-zone");
+    if (!zone) return null;
+    const roomId = zone.getAttribute("data-room-id") ?? zone.dataset?.roomId ?? null;
+    return roomId || null;
+  }
+
+  function applyMenuMode({ mode, roomId }) {
+    if (!menuEl) return;
+    const addBtn = menuEl.querySelector("[data-action=\"add\"]");
+    const rotateBtn = menuEl.querySelector("[data-action=\"rotate\"]");
+    const isRotatingThis = ctx.state.polygonEditor?.rotatingRoomId
+      && ctx.state.polygonEditor.rotatingRoomId === roomId;
+    if (mode === "empty") {
+      if (addBtn) addBtn.hidden = false;
+      if (rotateBtn) rotateBtn.hidden = true;
+    } else if (mode === "polygon") {
+      if (addBtn) addBtn.hidden = true;
+      if (rotateBtn) {
+        rotateBtn.hidden = false;
+        rotateBtn.textContent = isRotatingThis ? "Exit rotation mode" : "Rotate polygon";
+      }
+    }
+    menuEl._mode = mode;
+    menuEl._roomId = roomId;
+  }
+
+  function handleRotateOrExit() {
+    const state = ctx.state;
+    const targetRoomId = menuEl?._roomId ?? null;
+    hideMenu();
+    if (!targetRoomId) return;
+    if (state.polygonEditor.rotatingRoomId === targetRoomId) {
+      if (typeof ctx.exitRotationMode === "function") ctx.exitRotationMode();
+      return;
+    }
+    if (typeof ctx.enterRotationMode === "function") {
+      ctx.enterRotationMode(targetRoomId);
+    }
   }
 
   function showMenu(clientX, clientY, normalizedX, normalizedY) {
@@ -162,10 +221,13 @@
     // Desktop right-click context menu
     overlay.addEventListener("contextmenu", (event) => {
       if (!isContextMenuAllowed()) return;
-      if (!isEmptyAreaClick(event)) return;
+      const roomId = resolveRoomIdAtEvent(event);
+      const onEmpty = isEmptyAreaClick(event);
+      if (!roomId && !onEmpty) return;
       event.preventDefault();
       event.stopPropagation();
       const [nx, ny] = ctx.mapClientPointToNormalized(event.clientX, event.clientY);
+      applyMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
       showMenu(event.clientX, event.clientY, nx, ny);
     });
 
@@ -176,7 +238,9 @@
       // Only for touch or pen (not mouse right-click — that uses contextmenu)
       if (event.pointerType === "mouse") return;
       if (!isContextMenuAllowed()) return;
-      if (!isEmptyAreaClick(event)) return;
+      const roomId = resolveRoomIdAtEvent(event);
+      const onEmpty = isEmptyAreaClick(event);
+      if (!roomId && !onEmpty) return;
 
       clearLongPressTimer();
       longPressPointerId = event.pointerId;
@@ -187,6 +251,7 @@
         // Verify conditions still hold
         if (!isContextMenuAllowed()) return;
         const [nx, ny] = ctx.mapClientPointToNormalized(longPressStartX, longPressStartY);
+        applyMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
         showMenu(longPressStartX, longPressStartY, nx, ny);
         longPressPointerId = null;
       }, LONG_PRESS_MS);

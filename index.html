@@ -209,34 +209,86 @@
         <p id="board-zoom-status" class="status-line" aria-live="polite">Zoom: 100%</p>
       </section>
 
-      <!-- Phase 20: unified per-board package export/import (package or image) -->
-      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="board" hidden>
+      <!-- Phase 21-2: tabbed import UX (package | image) with two-step flow. -->
+      <section class="panel settings-only view-hidden bundle-share-panel" data-view="settings" data-settings-tab="board" hidden>
         <h2>Share a Board</h2>
-        <p>
-          Export the currently selected board as a <strong>board package</strong> — a single file
-          that bundles the board image, the rooms, play areas, clusters, animation &amp; sound
-          setup, any saved align-mode calibrations, <strong>and</strong> every GIF / video / sound
-          that the animations use. Share the file, import it on another device.
-        </p>
-        <button id="bundle-export-board" type="button">Download board package</button>
-        <h3 style="margin-top:1.2rem">Add a board</h3>
-        <p>
-          Pick either:
-        </p>
-        <ul>
-          <li><strong>A board package</strong> you received — imports the whole thing.</li>
-          <li><strong>A picture</strong> of your board (PNG / JPG / WEBP) — creates a fresh board from that image so you can paint rooms on it.</li>
-        </ul>
-        <label>
-          Choose file
-          <input id="bundle-import-file" type="file"
-            accept=".zip,application/zip,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
-        </label>
-        <label>
-          Board name <span style="opacity:0.6">(only used when importing a picture)</span>
-          <input id="bundle-import-name" type="text" maxlength="80" placeholder="e.g. Zombicide Main Board" />
-        </label>
-        <p id="bundle-status" class="status-line" aria-live="polite">Ready.</p>
+
+        <div class="bundle-export-row">
+          <div class="bundle-export-copy">
+            Bundle the current board into one <strong>.zip</strong> — image, rooms, animations, sounds,
+            calibrations. Share it, import it on another device.
+          </div>
+          <button id="bundle-export-board" type="button" class="bundle-primary">Download package</button>
+        </div>
+
+        <div class="bundle-import">
+          <h3>Add a board</h3>
+          <div class="bundle-import-tabs" role="tablist" aria-label="Import source">
+            <button type="button" class="bundle-import-tab is-active"
+              data-bundle-import-tab="package" role="tab" aria-selected="true">
+              <span class="bundle-tab-icon" aria-hidden="true">📦</span>
+              <span>Import package</span>
+            </button>
+            <button type="button" class="bundle-import-tab"
+              data-bundle-import-tab="image" role="tab" aria-selected="false">
+              <span class="bundle-tab-icon" aria-hidden="true">🖼️</span>
+              <span>From image</span>
+            </button>
+          </div>
+
+          <div class="bundle-import-panel" data-bundle-import-panel="package" role="tabpanel">
+            <p class="bundle-import-hint">A <strong>.zip</strong> package from another device — imports everything.</p>
+            <label class="bundle-file-picker">
+              <input id="bundle-import-package-file" type="file" accept=".zip,application/zip" />
+              <span class="bundle-file-picker-cta">Choose .zip file</span>
+            </label>
+            <div id="bundle-import-package-card" class="bundle-file-card is-empty" aria-live="polite">
+              <span class="bundle-file-card-icon" aria-hidden="true">📄</span>
+              <div class="bundle-file-card-body">
+                <span class="bundle-file-card-name">No file selected</span>
+                <span class="bundle-file-card-meta"></span>
+              </div>
+              <button type="button" class="bundle-file-card-clear" data-bundle-clear="package"
+                aria-label="Remove chosen file" hidden>×</button>
+            </div>
+            <label class="bundle-field">
+              <span class="bundle-field-label">Board name</span>
+              <input id="bundle-import-package-name" type="text" maxlength="80"
+                placeholder="Select a package to prefill the name" disabled />
+            </label>
+            <button id="bundle-import-package-upload" type="button" class="bundle-primary" disabled>
+              Upload package
+            </button>
+          </div>
+
+          <div class="bundle-import-panel" data-bundle-import-panel="image" role="tabpanel" hidden>
+            <p class="bundle-import-hint">A <strong>PNG / JPG / WEBP</strong> picture of your board — paint rooms afterwards.</p>
+            <label class="bundle-file-picker">
+              <input id="bundle-import-image-file" type="file"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
+              <span class="bundle-file-picker-cta">Choose image</span>
+            </label>
+            <div id="bundle-import-image-card" class="bundle-file-card is-empty" aria-live="polite">
+              <span class="bundle-file-card-icon" aria-hidden="true">🖼️</span>
+              <div class="bundle-file-card-body">
+                <span class="bundle-file-card-name">No file selected</span>
+                <span class="bundle-file-card-meta"></span>
+              </div>
+              <button type="button" class="bundle-file-card-clear" data-bundle-clear="image"
+                aria-label="Remove chosen file" hidden>×</button>
+            </div>
+            <label class="bundle-field">
+              <span class="bundle-field-label">Board name</span>
+              <input id="bundle-import-image-name" type="text" maxlength="80"
+                placeholder="e.g. Zombicide Main Board" disabled />
+            </label>
+            <button id="bundle-import-image-upload" type="button" class="bundle-primary" disabled>
+              Upload image
+            </button>
+          </div>
+
+          <p id="bundle-status" class="status-line bundle-status-line" aria-live="polite">Ready.</p>
+        </div>
       </section>
 
       <!-- Phase 18-2: merged "Room management" and "Room polygon editor" into one panel -->
@@ -376,6 +428,10 @@
             <select id="inside-animation-select"></select>
           </label>
           <label>
+            Rename
+            <input id="inside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
+          </label>
+          <label>
             Inside intensity <span id="inside-intensity-value">1.00</span>
             <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
           </label>
@@ -428,6 +484,10 @@
           <label>
             Animation
             <select id="outside-animation-select"></select>
+          </label>
+          <label>
+            Rename
+            <input id="outside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
           <button id="outside-animation-delete" type="button">Delete selected outside animation</button>
           <label class="inline-checkbox">
@@ -498,6 +558,10 @@
             Animation
             <select id="room-animation-settings-select"></select>
           </label>
+          <label>
+            Rename
+            <input id="room-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
+          </label>
           <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
           <label>
             Type
@@ -519,6 +583,10 @@
             Sound
             <select id="room-sound-ref"></select>
           </label>
+        <label id="room-breaks-solid-color-label" class="inline-checkbox" style="display:none">
+          <input id="room-breaks-solid-color" type="checkbox" />
+          Break solid-color lamps in the same room (broken-lamp effect)
+        </label>
         <details id="room-def-defaults-details">
           <summary>Default values</summary>
           <label>
@@ -620,6 +688,10 @@
             Intensity <span id="live-editor-intensity-value">0.80</span>
             <input id="live-editor-intensity" type="range" min="0.2" max="1.5" step="0.05" value="0.8" />
           </label>
+          <label id="live-editor-color-label" style="display:none">
+            Color
+            <input id="live-editor-color" type="color" value="#ff0000" />
+          </label>
           <label>
             Speed <span id="live-editor-speed-value">1.00x</span>
             <input id="live-editor-speed" type="range" min="0.1" max="2.5" step="0.05" value="1" />
@@ -628,6 +700,23 @@
             Sound Volume <span id="live-editor-sound-volume-value">100%</span>
             <input id="live-editor-sound-volume" type="range" min="0" max="100" step="1" value="100" />
           </label>
+          <fieldset id="live-editor-outside-fx" class="room-transform-options" hidden>
+            <legend>Outside</legend>
+            <label>
+              Mode
+              <select id="live-editor-outside-mode">
+                <option value="standard">Standard</option>
+                <option value="immersive">Immersive</option>
+              </select>
+            </label>
+            <label>
+              Direction
+              <select id="live-editor-outside-direction">
+                <option value="forward">Forward</option>
+                <option value="reverse">Reverse</option>
+              </select>
+            </label>
+          </fieldset>
           <details>
             <summary>Transform</summary>
             <fieldset id="live-editor-transform" class="room-transform-options">
@@ -777,6 +866,7 @@
   <script src="/src/app/runtime/state/runtime-asset-refs.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-editor-panels.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-context-menu.js" defer></script>
+  <script src="/src/app/runtime/polygon-editor/runtime-polygon-rotation.js" defer></script>
   <script src="/src/app/runtime/polygon-editor/runtime-polygon-undo.js" defer></script>
   <script src="/src/app/runtime/state/runtime-fx-normalizers.js" defer></script>
   <script src="/src/app/runtime/state/runtime-board-profiles.js" defer></script>

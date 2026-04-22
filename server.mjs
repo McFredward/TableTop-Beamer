@@ -580,12 +580,26 @@ function applyGlobalMutationPatch(payload) {
       typeof payload?.playSound === "boolean"
         ? payload.playSound
         : !(Number.isFinite(requestedSoundVolume) && requestedSoundVolume <= 0);
+    // Phase 21-1: persist per-instance outside knobs (speed/opacity/mode/
+    // direction) through the server-authoritative record so the Pi client
+    // (and /output) render with the values the control client captured
+    // from the definition at trigger time. Without this, the snapshot
+    // roundtrip stripped these fields and the draw path had to fall back
+    // to the definition.
+    const incomingSpeed = Number(incomingAnimation?.speed);
+    const incomingOpacity = Number(incomingAnimation?.opacity);
+    const incomingMode = normalizeNonEmptyString(incomingAnimation?.mode);
+    const incomingDirection = normalizeNonEmptyString(incomingAnimation?.direction);
     const authoritativeAnimation = {
       id: "",
       scope: "global",
       boardId,
       type: animationType,
       intensity: Number.isFinite(Number(incomingAnimation?.intensity)) ? Number(incomingAnimation.intensity) : 1,
+      ...(Number.isFinite(incomingSpeed) ? { speed: incomingSpeed } : {}),
+      ...(Number.isFinite(incomingOpacity) ? { opacity: incomingOpacity } : {}),
+      ...(incomingMode ? { mode: incomingMode } : {}),
+      ...(incomingDirection ? { direction: incomingDirection } : {}),
       hold: requestedLoopUntilStopped,
       durationMs: requestedLoopUntilStopped
         ? null
@@ -2905,6 +2919,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && routePath === "/api/boards/bundle-import") {
+      // Phase 21-2: optional ?renameTo=<label> overrides the embedded
+      // board.metadata.name so users can rename a package before import.
+      const importUrl = new URL(req.url || "/api/boards/bundle-import", "http://localhost");
+      const renameTo = String(importUrl.searchParams.get("renameTo") || "").trim().slice(0, 80);
       let body;
       try {
         body = await readRawBody(req, { maxBytes: 500 * 1024 * 1024 });
@@ -2945,6 +2963,12 @@ const server = createServer(async (req, res) => {
         return;
       }
       const incomingBoard = manifest?.board;
+      if (renameTo && incomingBoard && typeof incomingBoard === "object") {
+        if (!incomingBoard.metadata || typeof incomingBoard.metadata !== "object") {
+          incomingBoard.metadata = {};
+        }
+        incomingBoard.metadata.name = renameTo;
+      }
       const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import" });
       if (!normalized.ok) {
         sendJson(res, 400, { ok: false, error: "board package validation failed", issues: normalized.issues });
@@ -3203,6 +3227,12 @@ function buildDefaultAnimationsForBoard(targetBoardId) {
         heightScale: def.heightScale ?? 1,
         offsetXScale: def.offsetXScale ?? 0,
         offsetYScale: def.offsetYScale ?? 0,
+        // Phase 21-1: carry colorHex so autostarted solid-color
+        // animations come back up with the user's chosen color
+        // instead of the factory #ff0000 default.
+        ...(typeof def.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(def.colorHex)
+          ? { colorHex: def.colorHex }
+          : {}),
         hold: true,
         durationMs: null,
         startedAtEpochMs: Date.now(),

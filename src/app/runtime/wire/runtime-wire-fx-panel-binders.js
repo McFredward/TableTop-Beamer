@@ -12,6 +12,7 @@
       roomAnimationSettingsSelect,
       roomAnimationSettingsDeleteButton,
       roomAnimationSettingsNameInput,
+      roomAnimationRenameInput,
       roomAssetTypeInput,
       roomAssetRefInput,
       roomResourceSelect,
@@ -24,8 +25,11 @@
       roomDefSpeedValue,
       roomDefSoundVolumeInput,
       roomDefSoundVolumeValue,
+      roomBreaksSolidColorInput,
+      roomBreaksSolidColorLabel,
       insideAnimationCreateButton,
       insideAnimationNameInput,
+      insideAnimationRenameInput,
       insideAnimationSelect,
       insideIntensityInput,
       insideIntensityValue,
@@ -38,6 +42,7 @@
       outsideEnabledInput,
       outsideAnimationCreateButton,
       outsideAnimationNameInput,
+      outsideAnimationRenameInput,
       outsideAnimationSelect,
       outsideIntensityInput,
       outsideIntensityValue,
@@ -179,6 +184,28 @@
       });
       setRoomFxProfile(state.boardId, nextProfile);
       persistBoardProfiles();
+      // Phase 21-1: when the definition being edited in Settings is the
+      // same animation the dashboard currently has selected, mirror the
+      // patch onto state.roomDraft so the next Start picks up the new
+      // default immediately (no "first-Start uses old values" lag). Also
+      // re-run the dashboard panel sync so the on-screen slider moves.
+      if (state.roomDraft.animationId === selectedDefinition.id) {
+        const draftPatch = {};
+        if (patch.opacity !== undefined) draftPatch.opacity = Number(patch.opacity);
+        if (patch.intensity !== undefined) draftPatch.intensity = Number(patch.intensity);
+        if (patch.speed !== undefined) draftPatch.speed = Number(patch.speed);
+        if (patch.soundVolume !== undefined) draftPatch.soundVolume = Number(patch.soundVolume);
+        if (patch.rotationDeg !== undefined) draftPatch.rotationDeg = Number(patch.rotationDeg);
+        if (patch.stretchToPolygon !== undefined) draftPatch.stretchToPolygon = Boolean(patch.stretchToPolygon);
+        if (patch.widthScale !== undefined) draftPatch.widthScale = Number(patch.widthScale);
+        if (patch.heightScale !== undefined) draftPatch.heightScale = Number(patch.heightScale);
+        if (patch.offsetXScale !== undefined) draftPatch.offsetXScale = Number(patch.offsetXScale);
+        if (patch.offsetYScale !== undefined) draftPatch.offsetYScale = Number(patch.offsetYScale);
+        Object.assign(state.roomDraft, draftPatch);
+        if (typeof ctx.syncRoomPanelFromSelection === "function") {
+          ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
+        }
+      }
     }
 
     roomAssetTypeInput?.addEventListener("change", () => {
@@ -290,6 +317,12 @@
       setRoomEditorDraft(state.boardId, { soundVolume: v / 100 });
       commitRoomDraftToDefinition({ soundVolume: v / 100 });
     });
+    // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
+    roomBreaksSolidColorInput?.addEventListener("change", () => {
+      const v = Boolean(roomBreaksSolidColorInput.checked);
+      setRoomEditorDraft(state.boardId, { breaksSolidColor: v });
+      commitRoomDraftToDefinition({ breaksSolidColor: v });
+    });
     roomApplyChangesButton?.addEventListener("click", () => {
       const draft = collectRoomEditorDraftFromInputs(state.boardId);
       if (!draft) {
@@ -319,6 +352,8 @@
             speed: draft.speed ?? entry.speed ?? 1,
             soundVolume: draft.soundVolume ?? entry.soundVolume ?? 1,
             colorHex: draft.colorHex ?? entry.colorHex ?? "#ff0000",
+            // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color.
+            breaksSolidColor: Boolean(draft.breaksSolidColor ?? entry.breaksSolidColor),
           }
           : entry)),
       });
@@ -448,6 +483,11 @@
           ...getOutsideFxProfile(state.boardId),
           enabled: Boolean(outsideEnabledInput.checked),
         };
+        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // fires on toggle (the broadcast-snapshot roundtrip bypassed
+        // persistBoardProfiles, leaving the apply/discard bar blind).
+        updateOutsideFxProfile(state.boardId, { enabled: Boolean(outsideEnabledInput.checked) });
+        persistBoardProfiles();
         void emitLiveMutation("outside-update", {
           outsideBoardId: state.boardId,
           reason: "outside-enabled-toggle",
@@ -490,6 +530,13 @@
         selectedAnimationId: definition.id,
       };
       if (outputRole === OUTPUT_ROLE_CONTROL) {
+        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // fires on create.
+        updateOutsideFxProfile(state.boardId, {
+          animations: nextAnimations,
+          selectedAnimationId: definition.id,
+        });
+        persistBoardProfiles();
         void emitLiveMutation("outside-update", {
           outsideBoardId: state.boardId,
           reason: "outside-animation-create",
@@ -563,6 +610,13 @@
       ctx.setOutsideEditingAnimationId(state.boardId, nextAnimations[0]?.id ?? null);
 
       if (outputRole === OUTPUT_ROLE_CONTROL) {
+        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // fires on delete.
+        updateOutsideFxProfile(state.boardId, {
+          animations: nextAnimations,
+          selectedAnimationId: nextSelected,
+        });
+        persistBoardProfiles();
         void emitLiveMutation("outside-update", {
           outsideBoardId: state.boardId,
           reason: "outside-animation-delete",
@@ -659,6 +713,10 @@
         soundAssetRef: draft.soundAssetRef ?? "none",
       });
       if (outputRole === OUTPUT_ROLE_CONTROL) {
+        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // fires on Apply Changes.
+        setOutsideFxProfile(state.boardId, nextProfile);
+        persistBoardProfiles();
         void emitLiveMutation("outside-update", {
           outsideBoardId: state.boardId,
           reason: "outside-apply-changes",
@@ -692,6 +750,115 @@
         switchAnimationSectionTab(button, button.dataset.animationTab);
       });
     }
+
+    // Phase 21-1: rename handlers for the three animation sections. Each
+    // takes the current text-input value, writes it to the selected
+    // definition's `name`, persists + re-syncs, and (for outside/inside)
+    // also handles the network push via the same paths as other def
+    // edits. Empty names are ignored.
+    function sanitizeRenameInput(rawValue, fallback) {
+      const trimmed = String(rawValue ?? "").trim();
+      return trimmed.slice(0, 64) || fallback;
+    }
+
+    // Phase 21-1: per user feedback, rename fires on input change — no
+    // extra "Rename" button. Each change writes the new name to the
+    // selected definition and marks the config dirty via
+    // persistBoardProfiles. The user confirms via the global Apply bar
+    // like every other definition edit. Empty names fall back to the
+    // current name (no accidental unnamed animations).
+    roomAnimationRenameInput?.addEventListener("input", () => {
+      const profile = getRoomFxProfile(state.boardId);
+      const selectedDefinition = profile.animations.find((entry) => entry.id === profile.selectedAnimationId)
+        ?? profile.animations[0];
+      if (!selectedDefinition) return;
+      const nextName = sanitizeRenameInput(roomAnimationRenameInput.value, selectedDefinition.name);
+      if (nextName === selectedDefinition.name) return;
+      const nextProfile = normalizeRoomFxProfile({
+        ...profile,
+        animations: profile.animations.map((entry) => (entry.id === selectedDefinition.id
+          ? { ...entry, name: nextName }
+          : entry)),
+      });
+      setRoomFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+      // Refresh the animation dropdowns so the new name shows
+      // everywhere, but do NOT reset the rename input (would move the
+      // caret to the start and ruin typing). syncRoomFxPanel writes
+      // ctx.roomAnimationRenameInput.value back — skip that by bypassing
+      // the sync here; the select/label refresh can happen on next tick
+      // via a minimal select repopulation.
+      if (ctx.roomAnimationSettingsSelect) {
+        ctx.roomAnimationSettingsSelect.replaceChildren();
+        for (const def of nextProfile.animations) {
+          const opt = document.createElement("option");
+          opt.value = def.id;
+          opt.textContent = def.name;
+          ctx.roomAnimationSettingsSelect.append(opt);
+        }
+        ctx.roomAnimationSettingsSelect.value = selectedDefinition.id;
+      }
+      if (ctx.roomAnimationSelect) {
+        ctx.roomAnimationSelect.replaceChildren();
+        for (const def of nextProfile.animations) {
+          const opt = document.createElement("option");
+          opt.value = def.id;
+          opt.textContent = def.name;
+          ctx.roomAnimationSelect.append(opt);
+        }
+        ctx.roomAnimationSelect.value = state.roomDraft.animationId;
+      }
+    });
+
+    insideAnimationRenameInput?.addEventListener("input", () => {
+      const profile = getInsideFxProfile(state.boardId);
+      const selectedDefinition = profile.animations.find((entry) => entry.id === profile.selectedAnimationId)
+        ?? profile.animations[0];
+      if (!selectedDefinition) return;
+      const nextName = sanitizeRenameInput(insideAnimationRenameInput.value, selectedDefinition.name);
+      if (nextName === selectedDefinition.name) return;
+      const nextProfile = buildInsideProfileWithSelectedAnimationPatch(state.boardId, { name: nextName });
+      setInsideFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+      // Refresh the inside select without clobbering the rename input caret.
+      if (ctx.insideAnimationSelect) {
+        ctx.insideAnimationSelect.replaceChildren();
+        for (const def of nextProfile.animations) {
+          const opt = document.createElement("option");
+          opt.value = def.id;
+          opt.textContent = def.name;
+          ctx.insideAnimationSelect.append(opt);
+        }
+        ctx.insideAnimationSelect.value = selectedDefinition.id;
+      }
+      refreshGlobalButtons?.();
+    });
+
+    outsideAnimationRenameInput?.addEventListener("input", () => {
+      const profile = getOutsideFxProfile(state.boardId);
+      const editingId = ctx.getOutsideEditingAnimationId?.(state.boardId)
+        ?? profile.selectedAnimationId
+        ?? profile.animations[0]?.id;
+      const selectedDefinition = profile.animations.find((entry) => entry.id === editingId)
+        ?? profile.animations[0];
+      if (!selectedDefinition) return;
+      const nextName = sanitizeRenameInput(outsideAnimationRenameInput.value, selectedDefinition.name);
+      if (nextName === selectedDefinition.name) return;
+      const nextProfile = buildOutsideProfileWithSelectedAnimationPatch(state.boardId, { name: nextName });
+      updateOutsideFxProfile(state.boardId, nextProfile);
+      persistBoardProfiles();
+      if (ctx.outsideAnimationSelect) {
+        ctx.outsideAnimationSelect.replaceChildren();
+        for (const def of nextProfile.animations) {
+          const opt = document.createElement("option");
+          opt.value = def.id;
+          opt.textContent = def.name;
+          ctx.outsideAnimationSelect.append(opt);
+        }
+        ctx.outsideAnimationSelect.value = selectedDefinition.id;
+      }
+      refreshGlobalButtons?.();
+    });
   }
 
   // Activate a tab within the nearest enclosing <section>. `anchorEl` can be

@@ -208,6 +208,12 @@
     const outsideProfileForCategory = ctx.getOutsideFxProfile(state.boardId);
     const isOutsideByProfile = outsideProfileForCategory?.animations?.some((a) => a.id === type) ?? false;
     const isOutside = isOutsideByProfile || ctx.getGlobalAnimationCategory(type) === "outside-ship";
+    // Phase 21-1: outside animations are conceptually continuous (they
+    // loop forever until the user toggles them off). Force loop mode so
+    // they don't silently vanish from the Active Animations list after
+    // the global one-shot window (GLOBAL_ONE_SHOT_DURATION_SEC = 4s)
+    // even though the underlying outside layer is still drawing.
+    const effectiveLoopUntilStopped = isOutside ? true : loopUntilStopped;
     // Phase 20: only one outside animation may play at a time. When we're
     // about to start a new outside, stop any other outside animation
     // currently running on this board so the switch is clean.
@@ -237,7 +243,7 @@
     const matchedDefinition = lookupProfile?.animations?.find((entry) => entry.id === type) ?? null;
     const definitionSoundAssetRef = matchedDefinition?.soundAssetRef ?? "none";
     const normalizedDefaultDurationSec = Number(defaultDurationSec);
-    const effectiveDefaultDurationSec = loopUntilStopped
+    const effectiveDefaultDurationSec = effectiveLoopUntilStopped
       ? null
       : (Number.isFinite(normalizedDefaultDurationSec) && normalizedDefaultDurationSec > 0
         ? normalizedDefaultDurationSec
@@ -246,11 +252,25 @@
       if (existing) {
         ctx.stopAnimation(existing.id);
       } else {
+        // Phase 21-1: align outside/inside global animations with the
+        // room model — copy the definition's tunable fields onto the
+        // running instance at trigger time so Settings only edits the
+        // DEFAULT and the running animation's values live on the
+        // instance (Live Editor target). Without this snapshot, the
+        // draw path reaches back into the definition every frame,
+        // which (a) prevents per-instance Live Editor edits from
+        // being visible, and (b) makes toggle-off+on "revert" to the
+        // last committed-to-server definition since the live-sync
+        // snapshot roundtrip overwrites the local pending changes.
         const animation = ctx.createAnimation({
           type,
           scope: "global",
           boardId: state.boardId,
-          intensity: 1,
+          intensity: Number(matchedDefinition?.intensity) || 1,
+          speed: Number(matchedDefinition?.speed) || 1,
+          opacity: Number(matchedDefinition?.opacity) || 1,
+          mode: matchedDefinition?.mode ?? "",
+          direction: matchedDefinition?.direction ?? "",
           soundVolume: playSound ? 1 : 0,
           soundAssetRef: playSound ? definitionSoundAssetRef : "none",
           hold: effectiveDefaultDurationSec === null,
@@ -289,7 +309,11 @@
       const animation = ctx.createAnimation({
         type,
         scope: "global",
-        intensity: 1,
+        intensity: Number(matchedDefinition?.intensity) || 1,
+        speed: Number(matchedDefinition?.speed) || 1,
+        opacity: Number(matchedDefinition?.opacity) || 1,
+        mode: matchedDefinition?.mode ?? "",
+        direction: matchedDefinition?.direction ?? "",
         soundVolume: playSound ? 1 : 0,
         soundAssetRef: playSound ? definitionSoundAssetRef : "none",
         hold: effectiveDefaultDurationSec === null,

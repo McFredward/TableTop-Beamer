@@ -111,6 +111,32 @@
     const effectType = ctx.resolveRoomCodedEffectType(assetRef || animation.type);
     const playbackSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
     const playbackAge = age * ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
+    // Phase 21-1: opt-in hull-flicker ⇒ solid-color coupling. When any
+    // running animation in this exact room resolves to hull-flicker AND its
+    // definition has breaksSolidColor=true, the flicker's off-gate overrides
+    // the solid-color fill so the lamp actually goes dark instead of just
+    // blinking on top of a lit surface.
+    if (effectType === "solid-color") {
+      const gate = findActiveHullFlickerGate(animation.boardId, room?.id);
+      if (gate && ctx.isHullFlickerLampOff(gate.age, gate.speed, gate.intensity)) {
+        return;
+      }
+    }
+    // Phase 21-1: when hull-flicker in this exact room has the
+    // breaksSolidColor flag on AND a sibling solid-color animation is
+    // running in the same room, the FLICKER is delivered purely by
+    // gating the solid-color fill on/off — the hull-flicker's own
+    // yellow-tube + black-dim overlay would double up and look like
+    // an extra bright strobe on top of the lamp. Suppress the
+    // hull-flicker visual in that case. In rooms without a
+    // solid-color sibling, hull-flicker draws normally (unchanged).
+    if (effectType === "hull-flicker") {
+      const def = ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId);
+      if (def?.breaksSolidColor === true
+          && roomHasSolidColorSibling(animation.boardId, room?.id)) {
+        return;
+      }
+    }
     ctx.drawEffectVisual(
       effectType,
       playbackAge,
@@ -127,6 +153,86 @@
         colorHex: animation.colorHex,
       },
     );
+  }
+
+  // Phase 21-1: scan running animations for a room-scoped (or cluster-member)
+  // animation on (boardId, roomId) whose definition resolves to hull-flicker
+  // with breaksSolidColor=true. Returns { age, speed, intensity } for the
+  // first match, or null. Age is computed in the same units the hull-flicker
+  // render branch uses (seconds since start × state.animationSpeed × per-
+  // animation speed) so the gate function sees identical timeline math.
+  function findActiveHullFlickerGate(boardId, roomId) {
+    if (!boardId || !roomId) return null;
+    const state = ctx.state;
+    const now = performance.now();
+    const running = Array.isArray(state?.runningAnimations) ? state.runningAnimations : [];
+    for (const entry of running) {
+      if (!entry || entry.boardId !== boardId) continue;
+      if (!Number.isFinite(entry.startedAt) || now < entry.startedAt) continue;
+      if (entry.scope === "room" && entry.roomId === roomId) {
+        const def = ctx.getRoomAnimationDefinitionById(entry.type, boardId);
+        if (!def || def.breaksSolidColor !== true) continue;
+        const resolved = ctx.resolveRoomCodedEffectType(def.assetRef || entry.type);
+        if (resolved !== "hull-flicker") continue;
+        const speed = ctx.clampRoomSpeed(entry.speed ?? def.speed ?? 1);
+        const age = ((now - entry.startedAt) / 1000) * (Number(state.animationSpeed) || 1) * speed;
+        return { age, speed, intensity: Number(def.intensity) || 1 };
+      }
+      if (entry.scope === "cluster") {
+        const memberViews = ctx.buildClusterMemberRuntimeViews(entry);
+        for (const memberView of memberViews) {
+          if (memberView?.roomId !== roomId) continue;
+          const memberAnimation = memberView.animation;
+          if (!memberAnimation) continue;
+          const def = ctx.getRoomAnimationDefinitionById(memberAnimation.type, boardId);
+          if (!def || def.breaksSolidColor !== true) continue;
+          const resolved = ctx.resolveRoomCodedEffectType(def.assetRef || memberAnimation.type);
+          if (resolved !== "hull-flicker") continue;
+          const memberStart = Number.isFinite(memberAnimation.startedAt)
+            ? memberAnimation.startedAt
+            : entry.startedAt;
+          if (!Number.isFinite(memberStart) || now < memberStart) continue;
+          const speed = ctx.clampRoomSpeed(memberAnimation.speed ?? entry.speed ?? def.speed ?? 1);
+          const age = ((now - memberStart) / 1000) * (Number(state.animationSpeed) || 1) * speed;
+          return { age, speed, intensity: Number(def.intensity) || 1 };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Phase 21-1: does (boardId, roomId) currently have any running
+  // room-scoped (or cluster-member) animation whose resolved coded
+  // effect is solid-color? Used to suppress the hull-flicker
+  // overlay when it's coupled with solid-color via breaksSolidColor.
+  function roomHasSolidColorSibling(boardId, roomId) {
+    if (!boardId || !roomId) return false;
+    const state = ctx.state;
+    const running = Array.isArray(state?.runningAnimations) ? state.runningAnimations : [];
+    for (const entry of running) {
+      if (!entry || entry.boardId !== boardId) continue;
+      if (entry.scope === "room" && entry.roomId === roomId) {
+        const def = ctx.getRoomAnimationDefinitionById(entry.type, boardId);
+        const assetType = ctx.normalizeRoomAssetType(def?.assetType);
+        if (assetType !== "coded") continue;
+        const resolved = ctx.resolveRoomCodedEffectType(def?.assetRef || entry.type);
+        if (resolved === "solid-color") return true;
+      }
+      if (entry.scope === "cluster") {
+        const memberViews = ctx.buildClusterMemberRuntimeViews(entry);
+        for (const memberView of memberViews) {
+          if (memberView?.roomId !== roomId) continue;
+          const memberAnimation = memberView.animation;
+          if (!memberAnimation) continue;
+          const def = ctx.getRoomAnimationDefinitionById(memberAnimation.type, boardId);
+          const assetType = ctx.normalizeRoomAssetType(def?.assetType);
+          if (assetType !== "coded") continue;
+          const resolved = ctx.resolveRoomCodedEffectType(def?.assetRef || memberAnimation.type);
+          if (resolved === "solid-color") return true;
+        }
+      }
+    }
+    return false;
   }
 
   function drawInsideGlobalVisual(animation, age) {
@@ -302,13 +408,34 @@
       ctx.clearOutsideTimelineState(state.boardId);
       return;
     }
+    // Phase 21-1: align outside with the room/instance model — when a
+    // running outside animation exists for this board, its per-instance
+    // values (intensity/speed/opacity/mode/direction) drive the draw so
+    // Live Editor changes and trigger-time captures win over the
+    // definition's latest uncommitted edits. Fall back to the definition
+    // only when no running instance carries the field (legacy snapshot
+    // safety).
+    const runningInstance = state.runningAnimations.find(
+      (anim) => anim?.scope === "global"
+        && anim?.boardId === state.boardId
+        && anim?.type === selectedDefinition.id,
+    ) ?? null;
+    const pickInstance = (key, fallback) => {
+      const raw = runningInstance?.[key];
+      return raw === undefined || raw === null || raw === "" ? fallback : raw;
+    };
+    const effectiveIntensity = Number(pickInstance("intensity", selectedDefinition.intensity));
+    const effectiveSpeed = Number(pickInstance("speed", selectedDefinition.speed));
+    const effectiveOpacity = Number(pickInstance("opacity", selectedDefinition.opacity ?? 1));
+    const effectiveMode = pickInstance("mode", selectedDefinition.mode);
+    const effectiveDirectionRaw = pickInstance("direction", selectedDefinition.direction);
     const outsideLifecycleKey = ctx.buildOutsideLifecycleKey(state.boardId, selectedDefinition);
     const elapsedSeconds = ctx.resolveOutsideElapsedSeconds(now, {
       boardId: state.boardId,
       lifecycleKey: outsideLifecycleKey,
     }) * state.animationSpeed;
-    const timeline = ctx.resolveOutsideTimeline(elapsedSeconds, selectedDefinition.speed);
-    const effectiveDirection = selectedDefinition.direction === "reverse" ? "reverse" : "forward";
+    const timeline = ctx.resolveOutsideTimeline(elapsedSeconds, effectiveSpeed);
+    const effectiveDirection = effectiveDirectionRaw === "reverse" ? "reverse" : "forward";
 
     c.save();
     try {
@@ -323,7 +450,7 @@
         ctx.clearOutsideMp4PlaybackState(state.boardId);
         const frame = ctx.getGifPlaybackFrame(selectedDefinition.assetRef, timeline.timeline);
         if (frame) {
-          c.globalAlpha = ctx.clampOutsideIntensity(selectedDefinition.intensity);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
           c.drawImage(frame, 0, 0, ctx.canvas.width, ctx.canvas.height);
         }
         return;
@@ -332,7 +459,7 @@
         const videoEntry = ctx.getOutsideVideoElement(selectedDefinition.assetRef);
         if (videoEntry?.video) {
           const video = videoEntry.video;
-          const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(selectedDefinition.speed) * state.animationSpeed));
+          const targetRate = Math.max(0.15, Math.min(4, ctx.clampOutsideSpeed(effectiveSpeed) * state.animationSpeed));
           const playbackState = ctx.ensureOutsideMp4Playback(video, {
             boardId: state.boardId,
             lifecycleKey: outsideLifecycleKey,
@@ -340,7 +467,7 @@
             targetRate,
           });
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
-          c.globalAlpha = ctx.clampOutsideIntensity(selectedDefinition.intensity);
+          c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
           if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
             if (ctx.shouldDrawOutsideMp4Now(playbackState)) {
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -358,9 +485,9 @@
       }
       ctx.clearOutsideMp4PlaybackState(state.boardId);
       const codedEffectType = ctx.resolveOutsideCodedEffectType(selectedDefinition.assetRef);
-      ctx.drawEffectVisual(codedEffectType, timeline.timeline, selectedDefinition.intensity, null, null, {
-        outsideMode: selectedDefinition.mode,
-        outsideSpeed: selectedDefinition.speed,
+      ctx.drawEffectVisual(codedEffectType, timeline.timeline, effectiveIntensity, null, null, {
+        outsideMode: effectiveMode,
+        outsideSpeed: effectiveSpeed,
         outsideDirection: effectiveDirection,
       });
     } finally {
