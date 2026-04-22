@@ -637,10 +637,59 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   background: var(--c-accent);
 }
 
-/* ----- Quick Mode buttons (today's 4-state bar) ----------------- */
+/* ----- Quick Mode segmented (W2e) -------------------------------
+ * Was (pre-W2e): .button-grid.button-grid-2 with four distinct pill
+ * buttons (Off / Start / Stop / Clear). Now a 3-segment iOS-style
+ * pill bar: Select / Toggle / Clear. Inherits .rd-segmented sizing
+ * from components.css; we override the defaults so the segments fill
+ * the panel width, hit the chunky-touch hit-target, and the "Clear"
+ * segment picks up the desaturated danger tint when active.
+ * ------------------------------------------------------------- */
 
-.dir-obsidian-dark .quick-mode-buttons button {
+.dir-obsidian-dark .quick-mode-segmented {
+  width: 100%;
+  padding: 4px;
+  gap: 3px;
+  border-radius: var(--rd-r-md);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+}
+
+.dir-obsidian-dark .quick-mode-segmented button {
+  flex: 1;
   min-height: var(--rd-hit);
+  padding: 0 var(--rd-s-3);
+  border: 0;
+  border-radius: calc(var(--rd-r-md) - 4px);
+  background: transparent;
+  color: var(--c-text-2);
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--rd-t-quick),
+    color var(--rd-t-quick);
+}
+
+.dir-obsidian-dark .quick-mode-segmented button:hover:not(.active):not(:disabled) {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  transform: none;
+}
+
+.dir-obsidian-dark .quick-mode-segmented button.active,
+.dir-obsidian-dark .quick-mode-segmented button[aria-selected="true"] {
+  background: var(--c-bg-raised);
+  color: var(--c-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.dir-obsidian-dark .quick-mode-segmented #quick-mode-clear.active,
+.dir-obsidian-dark .quick-mode-segmented #quick-mode-clear[aria-selected="true"] {
+  background: var(--c-danger-bg);
+  color: var(--c-danger);
+  box-shadow: none;
 }
 
 /* ----- Quick Mode animation picker (W2c) ------------------------

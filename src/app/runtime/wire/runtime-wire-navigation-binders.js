@@ -22,6 +22,7 @@
       quickModeOffButton,
       quickModeActivateButton,
       quickModeDeactivateButton,
+      quickModeToggleButton,
       quickModeClearButton,
       openTriggerZoneButton,
       openManageZoneButton,
@@ -111,16 +112,24 @@
       });
     }
 
+    // Phase 22 W2e: 3-segment quick-mode bar. Activate / Deactivate
+    // merged into Toggle (see toggleRoomAnimationByQuickTap). Old
+    // button refs still destructured so the click-binders are no-ops
+    // when the legacy DOM IDs aren't present (they aren't post-W2e).
     quickModeOffButton?.addEventListener("click", () => {
       setQuickMode("off");
     });
 
+    quickModeToggleButton?.addEventListener("click", () => {
+      setQuickMode("toggle");
+    });
+
     quickModeActivateButton?.addEventListener("click", () => {
-      setQuickMode("activate");
+      setQuickMode("toggle");
     });
 
     quickModeDeactivateButton?.addEventListener("click", () => {
-      setQuickMode("deactivate");
+      setQuickMode("toggle");
     });
 
     quickModeClearButton?.addEventListener("click", () => {

@@ -154,8 +154,13 @@
       quickAnimationPicker: document.querySelector("#quick-mode-animation-picker"),
       quickModeStatus: document.querySelector("#quick-mode-status"),
       quickModeOffButton: document.querySelector("#quick-mode-off"),
+      // Phase 22 W2e: legacy Activate/Deactivate buttons are gone from
+      // the DOM — querySelector returns null so the old bindings are
+      // no-ops without needing guarded deletion. Toggle takes their
+      // place.
       quickModeActivateButton: document.querySelector("#quick-mode-activate"),
       quickModeDeactivateButton: document.querySelector("#quick-mode-deactivate"),
+      quickModeToggleButton: document.querySelector("#quick-mode-toggle"),
       quickModeClearButton: document.querySelector("#quick-mode-clear"),
       controlPanel: document.querySelector("#control-panel"),
       projectionArea: document.querySelector(".projection-area"),

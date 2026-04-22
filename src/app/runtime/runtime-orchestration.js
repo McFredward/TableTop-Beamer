@@ -110,7 +110,7 @@ const {
   roomGeometryStretchYInput, roomGeometryStretchYValue, roomGeometryStatus,
   openDashboardViewButton, openSettingsViewButton, openTriggerZoneButton, openManageZoneButton,
   mobileStartRoomButton, mobileLayoutStatus, quickModePanel, quickAnimationPicker, quickModeStatus,
-  quickModeOffButton, quickModeActivateButton, quickModeDeactivateButton, quickModeClearButton,
+  quickModeOffButton, quickModeActivateButton, quickModeDeactivateButton, quickModeToggleButton, quickModeClearButton,
   controlPanel, projectionArea, primaryViewSwitch, dashboardStickyShell, mobileZoneSwitch,
   runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
   mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
@@ -373,11 +373,21 @@ const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
 const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
-const QUICK_MODE_VALUES = new Set(["off", "activate", "deactivate", "clear"]);
+// Phase 22 W2e: "toggle" replaces the split activate/deactivate modes
+// in the UI. The legacy names stay in the valid set so snapshots that
+// still carry them load without tripping the normalize fallback.
+const QUICK_MODE_VALUES = new Set([
+  "off",
+  "activate",
+  "deactivate",
+  "toggle",
+  "clear",
+]);
 const QUICK_MODE_LABELS = {
   off: "Select",
   activate: "Start",
   deactivate: "Stop",
+  toggle: "Toggle",
   clear: "Clear",
 };
 const GLOBAL_ONE_SHOT_DURATION_SEC = 4;
@@ -1311,6 +1321,7 @@ window.TT_BEAMER_RUNTIME_QUICK_MODE.init({
   quickModeOffButton,
   quickModeActivateButton,
   quickModeDeactivateButton,
+  quickModeToggleButton,
   quickModeClearButton,
   quickModeStatus,
   quickModePanel,
@@ -2424,6 +2435,7 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
   quickModeOffButton,
   quickModeActivateButton,
   quickModeDeactivateButton,
+  quickModeToggleButton,
   quickModeClearButton,
   openTriggerZoneButton,
   openManageZoneButton,

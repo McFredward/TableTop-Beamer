@@ -81,25 +81,41 @@
     const state = ctx.state;
     const mode = normalizeQuickMode(state.quickMode?.mode);
     const inflightCount = getQuickModeInflightCount();
+    // Phase 22 W2e: buttonMap reflects the 3-segment UI. The activate
+    // and deactivate refs are retained so stored state that still
+    // carries those modes (snapshots, remote commands) lights up
+    // Toggle visually — both converge there in the new UX.
     const buttonMap = {
       off: ctx.quickModeOffButton,
-      activate: ctx.quickModeActivateButton,
-      deactivate: ctx.quickModeDeactivateButton,
+      toggle: ctx.quickModeToggleButton,
+      activate: ctx.quickModeToggleButton,
+      deactivate: ctx.quickModeToggleButton,
       clear: ctx.quickModeClearButton,
     };
-    for (const [value, button] of Object.entries(buttonMap)) {
-      if (!button) {
-        continue;
-      }
-      const isActive = mode === value;
-      button.classList.toggle("active", isActive);
-      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    const segmentedButtons = [
+      ctx.quickModeOffButton,
+      ctx.quickModeToggleButton,
+      ctx.quickModeClearButton,
+    ];
+    // Reset visual state first so only the mapped segment lights up.
+    for (const btn of segmentedButtons) {
+      if (!btn) continue;
+      btn.classList.remove("active");
+      btn.setAttribute("aria-selected", "false");
+      btn.setAttribute("aria-pressed", "false");
+    }
+    const targetBtn = buttonMap[mode];
+    if (targetBtn) {
+      targetBtn.classList.add("active");
+      targetBtn.setAttribute("aria-selected", "true");
+      targetBtn.setAttribute("aria-pressed", "true");
     }
     if (ctx.quickModeStatus) {
       const contextualMessages = {
         off: "Select a room on the board",
-        activate: "Tap a room to start its animation",
-        deactivate: "Tap a room to stop its animation",
+        toggle: "Tap a room to toggle its armed animation",
+        activate: "Tap a room to toggle its armed animation",
+        deactivate: "Tap a room to toggle its armed animation",
         clear: "Tap a room to clear all its animations",
       };
       const baseMessage = contextualMessages[mode] ?? contextualMessages.off;
@@ -111,14 +127,17 @@
       ctx.quickModePanel.dataset.mode = mode;
       ctx.quickModePanel.classList.toggle("is-busy", inflightCount > 0);
     }
-    // Phase 18: sync inline animation picker — visible in "activate" and "deactivate" modes
+    // Phase 22 W2e: picker is the "armed animation library" — visible
+    // whenever a room tap is meaningful (toggle + legacy activate/
+    // deactivate). Hidden in Select (no room-tap action) and Clear
+    // (armed animation doesn't matter when clearing all).
     syncQuickAnimationPicker(mode);
   }
 
   function syncQuickAnimationPicker(mode) {
     const picker = ctx.quickAnimationPicker;
     if (!picker) return;
-    if (mode !== "activate" && mode !== "deactivate") {
+    if (mode !== "activate" && mode !== "deactivate" && mode !== "toggle") {
       picker.style.display = "none";
       return;
     }
@@ -306,6 +325,54 @@
     };
   }
 
+  // Phase 22 W2e: Toggle mode — start the armed animation in the room
+  // if it isn't already running there, otherwise stop the running
+  // instance(s) of that same animation. Collapses the legacy Start +
+  // Stop modes into a single tap-to-toggle flow.
+  function toggleRoomAnimationByQuickTap(roomId) {
+    const state = ctx.state;
+    const selectedAnimationType = String(state.roomDraft.animationId || "").trim();
+    if (!selectedAnimationType) {
+      return {
+        ok: false,
+        action: "toggle",
+        roomLabel: getQuickModeRoomLabel(roomId),
+        reason: "missing-animation-selection",
+        message: "Pick an animation from the library first",
+      };
+    }
+    const running = collectQuickTapRoomAnimationIds(roomId, {
+      onlyType: selectedAnimationType,
+    });
+    if (running.length > 0) {
+      for (const animationId of running) {
+        ctx.stopAnimation(animationId);
+      }
+      return {
+        ok: true,
+        action: "toggle",
+        roomLabel: getQuickModeRoomLabel(roomId),
+        count: running.length,
+        result: "stopped",
+      };
+    }
+    const activated = activateRoomAnimationByQuickTap(roomId);
+    if (activated?.ok) {
+      return {
+        ok: true,
+        action: "toggle",
+        roomLabel: activated.roomLabel,
+        result: "started",
+      };
+    }
+    return activated ?? {
+      ok: false,
+      action: "toggle",
+      roomLabel: getQuickModeRoomLabel(roomId),
+      reason: "activate-failed",
+    };
+  }
+
   function clearRoomAnimationsByQuickTap(roomId) {
     const targetIds = collectQuickTapRoomAnimationIds(roomId);
     if (targetIds.length === 0) {
@@ -365,13 +432,11 @@
       ctx.triggerFeedback.textContent = "Status: Quick mode room action already in flight";
       return;
     }
-    if (mode === "activate") {
-      const outcome = activateRoomAnimationByQuickTap(roomId);
-      reportQuickModeTapOutcome(mode, outcome, roomId);
-      return;
-    }
-    if (mode === "deactivate") {
-      const outcome = deactivateRoomAnimationByQuickTap(roomId);
+    // Phase 22 W2e: "toggle" is the new primary mode. "activate" and
+    // "deactivate" are routed to the same handler so snapshots / remote
+    // commands carrying legacy mode names still do the right thing.
+    if (mode === "toggle" || mode === "activate" || mode === "deactivate") {
+      const outcome = toggleRoomAnimationByQuickTap(roomId);
       reportQuickModeTapOutcome(mode, outcome, roomId);
       return;
     }
@@ -399,6 +464,7 @@
     activateRoomAnimationByQuickTap,
     collectQuickTapRoomAnimationIds,
     deactivateRoomAnimationByQuickTap,
+    toggleRoomAnimationByQuickTap,
     clearRoomAnimationsByQuickTap,
     reportQuickModeTapOutcome,
     handleQuickModeRoomTap,

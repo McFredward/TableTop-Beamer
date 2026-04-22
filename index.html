@@ -104,11 +104,20 @@
       <section id="quick-mode-panel" class="panel dashboard-only running-overview-panel" data-view="dashboard"
         data-dashboard-zone="trigger">
         <h2>Quick Mode</h2>
-        <div class="button-grid button-grid-2 quick-mode-buttons" role="group" aria-label="Quick room mode">
-          <button id="quick-mode-off" type="button" class="active">Select</button>
-          <button id="quick-mode-activate" type="button">Start</button>
-          <button id="quick-mode-deactivate" type="button">Stop</button>
-          <button id="quick-mode-clear" type="button" class="danger">Clear</button>
+        <!-- Phase 22 W2e: 4-button Off/Start/Stop/Clear bar replaced by a
+             3-segment control. Start + Stop collapsed into a single
+             "Toggle" mode: taps start the armed animation in the room
+             if it isn't running there, or stop it if it is. "Select"
+             keeps the legacy off-mode behaviour (room click picks a
+             room for the Room-animation panel). "Clear" is unchanged. -->
+        <div class="rd-segmented quick-mode-segmented" role="group"
+          aria-label="Quick room mode">
+          <button id="quick-mode-off" type="button"
+            data-quick-mode="off" aria-selected="true">Select</button>
+          <button id="quick-mode-toggle" type="button"
+            data-quick-mode="toggle" aria-selected="false">Toggle</button>
+          <button id="quick-mode-clear" type="button"
+            data-quick-mode="clear" aria-selected="false">Clear</button>
         </div>
         <!-- Phase 18: inline animation picker for Start mode — horizontal scrollable pills -->
         <div id="quick-mode-animation-picker" class="quick-animation-picker" style="display:none" role="listbox" aria-label="Quick animation picker">
