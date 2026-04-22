@@ -1,0 +1,174 @@
+/* =============================================================
+ * Phase 22 Wave 1 — Obsidian design-system foundations.
+ *
+ * Sourced from .planning/design-system/redesign/foundations.css.
+ * Only the two Obsidian directions ship (dark + light-stub).
+ * Bone and Inkwell were reference-only in the handoff and are
+ * intentionally not ported.
+ *
+ * All tokens are prefixed `--c-*` (contextual / theme-driven) or
+ * `--rd-*` (design-system structural — spacing, radii, motion,
+ * typography). This keeps them from colliding with the legacy
+ * `--glow`, `--panel`, `--bg` tokens in src/styles.css; both sets
+ * coexist throughout Phase 22 and the legacy ones retire in Wave 4.
+ * ============================================================= */
+
+:root {
+  /* Typography — one family with matched display sibling */
+  --rd-font-display: "Inter Tight", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rd-font-body:    "Inter",       -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rd-font-mono:    ui-monospace, "SF Mono", Menlo, monospace;
+
+  --rd-tracking-display: -0.022em;
+  --rd-tracking-title:   -0.014em;
+  --rd-tracking-body:    -0.006em;
+  --rd-tracking-caps:     0.08em;
+
+  /* 8pt spacing grid */
+  --rd-s-1: 4px;
+  --rd-s-2: 8px;
+  --rd-s-3: 12px;
+  --rd-s-4: 16px;
+  --rd-s-5: 20px;
+  --rd-s-6: 24px;
+  --rd-s-7: 32px;
+  --rd-s-8: 40px;
+  --rd-s-9: 56px;
+
+  /* Radii — continuous scale */
+  --rd-r-sm: 8px;
+  --rd-r-md: 12px;
+  --rd-r-lg: 18px;
+  --rd-r-xl: 24px;
+  --rd-r-pill: 999px;
+
+  /* Motion */
+  --rd-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --rd-t-quick: 140ms var(--rd-easing);
+  --rd-t-med:   220ms var(--rd-easing);
+  --rd-t-slow:  440ms var(--rd-easing);
+
+  /* Hit targets — table-side remote under dim light */
+  --rd-hit:     44px;
+  --rd-hit-sm:  36px;
+  --rd-hit-lg:  52px;
+}
+
+/* =============================================================
+ * Obsidian — dark (primary direction for Phase 22)
+ * ============================================================= */
+.dir-obsidian-dark {
+  --c-bg:         #0b0d10;
+  --c-bg-raised:  #14171c;
+  --c-surface:    rgba(255,255,255,0.04);
+  --c-surface-2:  rgba(255,255,255,0.07);
+  --c-surface-3:  rgba(255,255,255,0.10);
+  --c-border:     rgba(255,255,255,0.08);
+  --c-border-str: rgba(255,255,255,0.14);
+  --c-text:       #f2f4f7;
+  --c-text-2:     rgba(242,244,247,0.68);
+  --c-text-3:     rgba(242,244,247,0.42);
+  --c-accent:     #32D3A3;
+  --c-accent-2:   #1FA378;
+  --c-accent-bg:  rgba(50,211,163,0.14);
+  --c-accent-fg:  #06110C;
+  --c-danger:     #FF5B5B;
+  --c-danger-bg:  rgba(255,91,91,0.12);
+  --c-warn:       #F5B544;
+  --c-room:       #7DD3FC;
+  --c-room-bg:    rgba(125,211,252,0.10);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.04) inset,
+                  0 8px 24px rgba(0,0,0,0.35);
+}
+
+/* =============================================================
+ * Obsidian — light (stub for Wave 5; same grammar, warm gray)
+ * ============================================================= */
+.dir-obsidian-light {
+  --c-bg:         #F4F5F7;
+  --c-bg-raised:  #FFFFFF;
+  --c-surface:    #F9FAFB;
+  --c-surface-2:  #EEF0F3;
+  --c-surface-3:  #E3E6EB;
+  --c-border:     rgba(10,10,14,0.08);
+  --c-border-str: rgba(10,10,14,0.16);
+  --c-text:       #111418;
+  --c-text-2:     rgba(17,20,24,0.64);
+  --c-text-3:     rgba(17,20,24,0.40);
+  --c-accent:     #0F9E75;
+  --c-accent-2:   #0B7A5A;
+  --c-accent-bg:  rgba(15,158,117,0.12);
+  --c-accent-fg:  #FFFFFF;
+  --c-danger:     #D94141;
+  --c-danger-bg:  rgba(217,65,65,0.10);
+  --c-warn:       #B9801F;
+  --c-room:       #2563EB;
+  --c-room-bg:    rgba(37,99,235,0.08);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.9) inset,
+                  0 6px 18px rgba(20,22,30,0.06);
+}
+
+/* =============================================================
+ * Type roles — scoped `.rd-*` so they don't clobber existing
+ * heading styles in src/styles.css. Apply explicitly where the
+ * redesign wants them.
+ * ============================================================= */
+.rd-h1 {
+  font-family: var(--rd-font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: var(--rd-tracking-display);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-h2 {
+  font-family: var(--rd-font-display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: var(--rd-tracking-title);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-body {
+  font-family: var(--rd-font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: var(--rd-tracking-body);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-sub {
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--c-text-2);
+  margin: 0;
+}
+.rd-caption {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--c-text-3);
+  margin: 0;
+}
+.rd-eyebrow {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--rd-tracking-caps);
+  color: var(--c-text-3);
+  margin: 0;
+}
+.rd-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.rd-focus:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}

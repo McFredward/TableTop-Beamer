@@ -7,13 +7,23 @@
   <title>TT Beamer Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Phase 22: Inter + Inter Tight added alongside the existing Barlow
+       Condensed / Space Grotesk fonts. Both sets coexist through the
+       design-system migration; the legacy fonts retire once every
+       surface is ported over (Wave 4). -->
   <link
-    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="/src/styles.css" />
+  <!-- Phase 22 Wave 1: design-system tokens + primitive components.
+       Loaded AFTER /src/styles.css so .rd-* rules don't conflict with
+       the current styling, but their tokens are available to new
+       markup we add in Waves 2–4. -->
+  <link rel="stylesheet" href="/src/styles/design-system/foundations.css" />
+  <link rel="stylesheet" href="/src/styles/design-system/components.css" />
 </head>
 
-<body>
+<body class="dir-obsidian-dark">
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
@@ -818,6 +828,9 @@
   </div>
   <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
 
+  <!-- Phase 22 Wave 1: design-system icon primitive. Loaded first so
+       later wave wirings can call TT_BEAMER_UI_ICONS.createIcon(name). -->
+  <script src="/src/app/runtime/ui/icons.js" defer></script>
   <script src="/src/app/lib/shared/config.js" defer></script>
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>
   <script src="/src/app/lib/shared/logger.js" defer></script>
