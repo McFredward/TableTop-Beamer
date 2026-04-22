@@ -1,0 +1,209 @@
+/* =============================================================
+   TableTop Beamer — Colors & Type
+   Sourced directly from src/styles.css :root tokens and
+   observed usage across panels, polygons, and ship zones.
+   ============================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap");
+
+:root {
+  /* -------------------------------------------------------
+     Base palette — from repo --bg / --panel / --line / etc.
+     ------------------------------------------------------- */
+  --bg:           #090d14;   /* app background base */
+  --bg-top:       #1a2538;   /* radial-gradient top (20% 0%) */
+  --panel:        #131a27;   /* panel solid */
+  --panel-alt:    #0f1521;   /* second-level surface */
+  --line:         #334156;   /* borders / dividers */
+  --text:         #eef3fb;   /* primary text */
+  --muted:        #97a4b8;   /* secondary text, labels */
+  --glow:         #37c0a1;   /* accent — the one brand color */
+  --danger:       #d14f4f;   /* destructive actions */
+
+  /* -------------------------------------------------------
+     Alpha surfaces (observed in panels/toasts)
+     ------------------------------------------------------- */
+  --panel-grad-a: rgba(19, 26, 39, 0.85);
+  --panel-grad-b: rgba(15, 21, 33, 0.85);
+  --panel-border: rgba(138, 158, 181, 0.18);
+  --dashboard-grad-a: rgba(20, 29, 45, 0.96);
+  --dashboard-grad-b: rgba(11, 17, 27, 0.96);
+  --toast-bg:       rgba(14, 22, 34, 0.94);
+
+  /* -------------------------------------------------------
+     Room / polygon / play-area accents
+     ------------------------------------------------------- */
+  --room-fill:          rgba(35, 169, 210, 0.05);
+  --room-stroke:        rgba(120, 214, 244, 0.45);
+  --room-fill-hover:    rgba(63, 185, 214, 0.22);
+  --room-stroke-hover:  rgba(161, 248, 255, 0.9);
+  --room-fill-selected: rgba(89, 203, 188, 0.24);
+  --room-stroke-selected: rgba(164, 255, 227, 0.95);
+  --room-label:         #caf5ff;
+
+  --vertex-fill:        rgba(255, 218, 140, 0.45);
+  --vertex-fill-active: rgba(255, 63, 63, 0.60);
+  --edge-fill:          rgba(118, 206, 255, 0.42);
+  --edge-fill-active:   rgba(152, 255, 213, 0.52);
+
+  --ship-fill:          rgba(98, 124, 248, 0.08);
+  --ship-stroke:        rgba(170, 191, 255, 0.90);
+  --playarea-dash:      rgba(130, 120, 255, 0.85);
+
+  /* -------------------------------------------------------
+     Semantic scope badges (running animations list)
+     ------------------------------------------------------- */
+  --badge-room-border:    rgba(156, 232, 191, 0.78);
+  --badge-room-bg:        rgba(24, 81, 63, 0.42);
+  --badge-global-border:  rgba(164, 207, 255, 0.74);
+  --badge-global-bg:      rgba(31, 73, 118, 0.48);
+  --badge-cluster-border: rgba(228, 180, 255, 0.80);
+  --badge-cluster-bg:     rgba(94, 39, 136, 0.50);
+  --badge-cluster-text:   #f5dcff;
+
+  /* -------------------------------------------------------
+     Glow halos (the accent color, layered for the signature
+     "atmosphere control" feel)
+     ------------------------------------------------------- */
+  --glow-soft:    0 0 0.6rem rgba(55, 192, 161, 0.20);
+  --glow-medium:  0 0 1.0rem rgba(55, 192, 161, 0.35);
+  --glow-strong:  0 0 1.4rem rgba(55, 192, 161, 0.40);
+  --glow-inset:   inset 0 0 0 1px rgba(55, 192, 161, 0.25);
+
+  /* -------------------------------------------------------
+     Shadows / elevation
+     ------------------------------------------------------- */
+  --shadow-stage:   0 1rem 2.2rem rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-panel:   inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-toast:   0 0.5rem 1.4rem rgba(0, 0, 0, 0.35);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.04);
+
+  /* -------------------------------------------------------
+     Radii (observed: 0.45, 0.55, 0.6, 0.75, 1rem, 999px)
+     ------------------------------------------------------- */
+  --radius-xs: 0.45rem;   /* inputs, small buttons */
+  --radius-sm: 0.55rem;   /* standard button / panel child */
+  --radius-md: 0.75rem;   /* panel card */
+  --radius-lg: 1rem;      /* stage frame */
+  --radius-pill: 999px;   /* pills, badges */
+
+  /* -------------------------------------------------------
+     Spacing scale (repo uses rem-based multiples)
+     ------------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.35rem;
+  --space-3: 0.5rem;
+  --space-4: 0.65rem;
+  --space-5: 0.75rem;
+  --space-6: 1rem;
+  --space-7: 1.25rem;
+  --space-8: 1.5rem;
+
+  /* Control minimums — mobile-first, repo uses 2.6–3.2rem */
+  --control-min: 2.75rem;
+  --control-min-primary: 3.2rem;
+
+  /* -------------------------------------------------------
+     Motion — all 120–200ms, all ease
+     ------------------------------------------------------- */
+  --t-fast:   120ms ease;
+  --t-medium: 200ms ease;
+  --t-slow:   500ms ease;
+
+  /* -------------------------------------------------------
+     Type — only two families: display (condensed) + body
+     ------------------------------------------------------- */
+  --font-display: "Barlow Condensed", "Oswald", sans-serif;
+  --font-body:    "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Type scale (observed from repo) */
+  --fs-xs:   0.72rem;   /* mode badges */
+  --fs-sm:   0.78rem;   /* hints, status lines */
+  --fs-base: 0.87rem;   /* body */
+  --fs-md:   0.95rem;   /* prominent buttons */
+  --fs-lg:   1.10rem;   /* h2 */
+  --fs-xl:   1.85rem;   /* h1 */
+
+  /* Tracking — display headings use +0.04em, eyebrows same */
+  --tracking-tight: 0;
+  --tracking-wide:  0.04em;
+}
+
+/* =============================================================
+   Semantic type roles — apply these classes, not raw rules
+   ============================================================= */
+
+.ds-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--glow);
+  margin: 0;
+}
+
+.ds-h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text);
+  margin: 0;
+}
+
+.ds-h2 {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  margin: 0;
+}
+
+.ds-lead {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  color: var(--muted);
+  margin: 0;
+}
+
+.ds-body {
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  color: var(--text);
+  margin: 0;
+}
+
+.ds-label {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.ds-hint {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.ds-status {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: #a6f2df;  /* faint mint — status-line from repo */
+}
+
+.ds-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+
+/* Polygon SVG label (used inside stage overlays) */
+.ds-room-label {
+  font-family: var(--font-display);
+  font-size: 22px;
+  fill: var(--room-label);
+  text-anchor: middle;
+}

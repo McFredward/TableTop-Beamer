@@ -1,0 +1,237 @@
+/* =============================================================
+   Shared component shell for the three redesign artboards.
+   Assumes foundations.css is imported and a .dir-* class on root.
+   ============================================================= */
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--rd-font-body); color: var(--c-text); background: var(--c-bg); }
+
+/* ---------- Icon ------------------------------------------- */
+.rd-ico { width: 20px; height: 20px; flex: 0 0 auto; }
+.rd-ico-sm { width: 16px; height: 16px; flex: 0 0 auto; }
+.rd-ico-lg { width: 24px; height: 24px; flex: 0 0 auto; }
+
+/* ---------- Buttons ---------------------------------------- */
+.rd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--rd-hit);
+  padding: 0 16px;
+  border-radius: var(--rd-r-pill);
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: var(--rd-tracking-body);
+  cursor: pointer;
+  transition: background var(--rd-t-quick), transform var(--rd-t-quick), border-color var(--rd-t-quick);
+  -webkit-tap-highlight-color: transparent;
+}
+.rd-btn:hover { background: var(--c-surface-2); }
+.rd-btn:active { transform: scale(0.97); }
+.rd-btn[aria-pressed="true"] { background: var(--c-accent-bg); border-color: transparent; color: var(--c-accent); }
+
+.rd-btn-primary {
+  background: var(--c-accent);
+  border-color: transparent;
+  color: var(--c-accent-fg);
+  font-weight: 600;
+}
+.rd-btn-primary:hover { background: var(--c-accent); filter: brightness(1.06); }
+
+.rd-btn-lg { height: var(--rd-hit-lg); padding: 0 22px; font-size: 15px; }
+.rd-btn-sm { height: var(--rd-hit-sm); padding: 0 12px; font-size: 13px; }
+
+.rd-btn-ghost { background: transparent; border-color: transparent; color: var(--c-text-2); }
+.rd-btn-ghost:hover { background: var(--c-surface); color: var(--c-text); }
+
+.rd-btn-danger {
+  background: var(--c-danger-bg);
+  color: var(--c-danger);
+  border-color: transparent;
+}
+
+.rd-icon-btn {
+  width: var(--rd-hit);
+  height: var(--rd-hit);
+  padding: 0;
+  border-radius: var(--rd-r-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: background var(--rd-t-quick);
+}
+.rd-icon-btn:hover { background: var(--c-surface-2); }
+.rd-icon-btn.is-on { background: var(--c-accent-bg); color: var(--c-accent); border-color: transparent; }
+
+/* ---------- Surface & card --------------------------------- */
+.rd-card {
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-lg);
+  padding: var(--rd-s-6);
+  box-shadow: var(--c-shadow);
+}
+.rd-card-tight { padding: var(--rd-s-4); }
+
+.rd-divider { height: 1px; background: var(--c-border); width: 100%; }
+
+/* ---------- Segmented control (iOS-ish) -------------------- */
+.rd-segmented {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--c-surface);
+  border-radius: var(--rd-r-md);
+  border: 1px solid var(--c-border);
+  gap: 2px;
+}
+.rd-segmented button {
+  border: 0;
+  background: transparent;
+  color: var(--c-text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: calc(var(--rd-r-md) - 3px);
+  cursor: pointer;
+  min-height: 30px;
+  transition: background var(--rd-t-quick), color var(--rd-t-quick);
+}
+.rd-segmented button[aria-selected="true"] {
+  background: var(--c-bg-raised);
+  color: var(--c-text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+.dir-bone .rd-segmented button[aria-selected="true"] {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.06);
+}
+
+/* ---------- Row list ---------------------------------------- */
+.rd-list { display: grid; gap: 1px; background: var(--c-border); border-radius: var(--rd-r-md); overflow: hidden; }
+.rd-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--c-bg-raised);
+  padding: 12px 14px;
+  min-height: 52px;
+}
+.rd-row .rd-row-title { font-size: 14px; color: var(--c-text); font-weight: 500; }
+.rd-row .rd-row-sub { font-size: 12px; color: var(--c-text-2); }
+.rd-row .spacer { flex: 1; }
+
+/* ---------- Toggle (iOS-style) ----------------------------- */
+.rd-toggle {
+  --h: 28px;
+  width: 46px; height: var(--h);
+  border-radius: var(--rd-r-pill);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--rd-t-med);
+  flex: 0 0 auto;
+  padding: 0; margin: 0;
+}
+.rd-toggle::after {
+  content: "";
+  position: absolute; top: 2px; left: 2px;
+  width: 22px; height: 22px;
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: left var(--rd-t-med);
+}
+.rd-toggle[aria-checked="true"] { background: var(--c-accent); border-color: transparent; }
+.rd-toggle[aria-checked="true"]::after { left: 20px; }
+
+/* ---------- Slider ----------------------------------------- */
+.rd-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+.rd-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--c-surface-3);
+  border-radius: 2px;
+}
+.rd-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 0 0 0.5px rgba(0,0,0,0.04);
+  margin-top: -10px;
+  border: 0;
+}
+.rd-slider::-moz-range-track {
+  height: 4px;
+  background: var(--c-surface-3);
+  border-radius: 2px;
+}
+.rd-slider::-moz-range-thumb {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; border: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Slider with accent fill — uses background-size trick via CSS var */
+.rd-slider-accent {
+  background: linear-gradient(var(--c-accent), var(--c-accent)) no-repeat;
+  background-size: var(--fill, 50%) 4px;
+  background-position: 0 50%;
+  border-radius: 2px;
+}
+
+/* ---------- Chip / tag ------------------------------------- */
+.rd-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px; font-weight: 500;
+  border-radius: var(--rd-r-pill);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  border: 1px solid var(--c-border);
+}
+.rd-chip[data-variant="accent"] { background: var(--c-accent-bg); color: var(--c-accent); border-color: transparent; }
+.rd-chip[data-variant="room"]   { background: var(--c-room-bg);  color: var(--c-room);   border-color: transparent; }
+.rd-chip[data-variant="danger"] { background: var(--c-danger-bg); color: var(--c-danger); border-color: transparent; }
+
+/* ---------- Status dot ------------------------------------- */
+.rd-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--c-accent); flex: 0 0 auto; }
+.rd-dot-pulse { box-shadow: 0 0 0 0 var(--c-accent); animation: rd-pulse 1.8s ease-out infinite; }
+@keyframes rd-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--c-accent) 0%,  transparent); }
+}
+
+/* ---------- Stage / board --------------------------------- */
+.rd-stage {
+  position: relative;
+  aspect-ratio: 7978 / 5456;
+  background: var(--c-bg-raised);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-xl);
+  overflow: hidden;
+}
+.rd-stage::before {
+  content: ""; position: absolute; inset: 0;
+  background:
+    radial-gradient(70% 55% at 50% 45%, rgba(255,255,255,0.05), transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0) 40%);
+  pointer-events: none;
+}
+
+/* ---------- Scrollable area -------------------------------- */
+.rd-scroll { overflow-y: auto; scrollbar-width: thin; }
+.rd-scroll::-webkit-scrollbar { width: 8px; }
+.rd-scroll::-webkit-scrollbar-thumb { background: var(--c-surface-3); border-radius: 999px; }

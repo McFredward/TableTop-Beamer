@@ -1,0 +1,218 @@
+/* =============================================================
+   TableTop Beamer — REDESIGN foundations
+   Apple-inspired. Quieter. More breathing room.
+   Three directions share these tokens; each overrides accent + surface.
+   ============================================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap");
+
+:root {
+  /* Typography — one family, precise weights */
+  --rd-font-display: "Inter Tight", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rd-font-body:    "Inter",       -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --rd-font-mono:    ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Apple-style tracking tables */
+  --rd-tracking-display: -0.022em;
+  --rd-tracking-title:   -0.014em;
+  --rd-tracking-body:    -0.006em;
+  --rd-tracking-caps:     0.08em;
+
+  /* 8pt spacing grid */
+  --rd-s-1: 4px;
+  --rd-s-2: 8px;
+  --rd-s-3: 12px;
+  --rd-s-4: 16px;
+  --rd-s-5: 20px;
+  --rd-s-6: 24px;
+  --rd-s-7: 32px;
+  --rd-s-8: 40px;
+  --rd-s-9: 56px;
+
+  /* Radii — larger, more continuous */
+  --rd-r-sm: 8px;
+  --rd-r-md: 12px;
+  --rd-r-lg: 18px;
+  --rd-r-xl: 24px;
+  --rd-r-pill: 999px;
+
+  /* Motion */
+  --rd-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --rd-t-quick: 140ms var(--rd-easing);
+  --rd-t-med:   220ms var(--rd-easing);
+  --rd-t-slow:  440ms var(--rd-easing);
+
+  /* Hit targets */
+  --rd-hit:     44px;
+  --rd-hit-sm:  36px;
+  --rd-hit-lg:  52px;
+}
+
+/* =============================================================
+   Direction A — "Obsidian" — deep charcoal, single mint accent
+   Our signature dark surface; refined for calm + clarity.
+   ============================================================= */
+.dir-obsidian,
+.dir-obsidian-dark {
+  --c-bg:         #0b0d10;
+  --c-bg-raised:  #14171c;
+  --c-surface:    rgba(255,255,255,0.04);
+  --c-surface-2:  rgba(255,255,255,0.07);
+  --c-surface-3:  rgba(255,255,255,0.10);
+  --c-border:     rgba(255,255,255,0.08);
+  --c-border-str: rgba(255,255,255,0.14);
+  --c-text:       #f2f4f7;
+  --c-text-2:     rgba(242,244,247,0.68);
+  --c-text-3:     rgba(242,244,247,0.42);
+  --c-accent:     #32D3A3;       /* mint, tuned slightly cooler */
+  --c-accent-2:   #1FA378;
+  --c-accent-bg:  rgba(50,211,163,0.14);
+  --c-accent-fg:  #06110C;
+  --c-danger:     #FF5B5B;
+  --c-danger-bg:  rgba(255,91,91,0.12);
+  --c-warn:       #F5B544;
+  --c-room:       #7DD3FC;       /* light blue, like iOS sys blue */
+  --c-room-bg:    rgba(125,211,252,0.10);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.35);
+}
+
+/* Light counterpart — same grammar on a warm gray-white ground */
+.dir-obsidian-light {
+  --c-bg:         #F4F5F7;
+  --c-bg-raised:  #FFFFFF;
+  --c-surface:    #F9FAFB;
+  --c-surface-2:  #EEF0F3;
+  --c-surface-3:  #E3E6EB;
+  --c-border:     rgba(10,10,14,0.08);
+  --c-border-str: rgba(10,10,14,0.16);
+  --c-text:       #111418;
+  --c-text-2:     rgba(17,20,24,0.64);
+  --c-text-3:     rgba(17,20,24,0.40);
+  --c-accent:     #0F9E75;
+  --c-accent-2:   #0B7A5A;
+  --c-accent-bg:  rgba(15,158,117,0.12);
+  --c-accent-fg:  #FFFFFF;
+  --c-danger:     #D94141;
+  --c-danger-bg:  rgba(217,65,65,0.10);
+  --c-warn:       #B9801F;
+  --c-room:       #2563EB;
+  --c-room-bg:    rgba(37,99,235,0.08);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 18px rgba(20,22,30,0.06);
+}
+
+/* =============================================================
+   Direction B — "Bone" — warm light mode
+   Same grammar inverted. Paper-like, for daytime setup.
+   ============================================================= */
+.dir-bone {
+  --c-bg:         #F6F4EF;
+  --c-bg-raised:  #FFFFFF;
+  --c-surface:    #FFFFFF;
+  --c-surface-2:  #F1EFE9;
+  --c-surface-3:  #E6E3DB;
+  --c-border:     rgba(10,10,14,0.08);
+  --c-border-str: rgba(10,10,14,0.14);
+  --c-text:       #1A1D22;
+  --c-text-2:     rgba(26,29,34,0.66);
+  --c-text-3:     rgba(26,29,34,0.42);
+  --c-accent:     #1E7F63;
+  --c-accent-2:   #14604A;
+  --c-accent-bg:  rgba(30,127,99,0.12);
+  --c-danger:     #C0392B;
+  --c-danger-bg:  rgba(192,57,43,0.10);
+  --c-warn:       #B07A16;
+  --c-room:       #2563EB;
+  --c-room-bg:    rgba(37,99,235,0.08);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 24px rgba(30,30,35,0.08);
+}
+
+/* =============================================================
+   Direction C — "Inkwell" — high-contrast, cinema-dark
+   Nearly black with a saturated violet accent. Ceremonial.
+   For the "dim-room, game-night" vibe taken further.
+   ============================================================= */
+.dir-inkwell {
+  --c-bg:         #07070A;
+  --c-bg-raised:  #101017;
+  --c-surface:    rgba(255,255,255,0.03);
+  --c-surface-2:  rgba(255,255,255,0.06);
+  --c-surface-3:  rgba(255,255,255,0.09);
+  --c-border:     rgba(255,255,255,0.06);
+  --c-border-str: rgba(255,255,255,0.12);
+  --c-text:       #F5F2FF;
+  --c-text-2:     rgba(245,242,255,0.66);
+  --c-text-3:     rgba(245,242,255,0.38);
+  --c-accent:     #B794FF;
+  --c-accent-2:   #8A5CFF;
+  --c-accent-bg:  rgba(183,148,255,0.14);
+  --c-danger:     #FF6B8A;
+  --c-danger-bg:  rgba(255,107,138,0.12);
+  --c-warn:       #FFC278;
+  --c-room:       #9FE3FF;
+  --c-room-bg:    rgba(159,227,255,0.08);
+  --c-shadow:     0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 32px rgba(0,0,0,0.55);
+}
+
+/* =============================================================
+   Type roles (scoped)
+   ============================================================= */
+.rd-h1 {
+  font-family: var(--rd-font-display);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: var(--rd-tracking-display);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-h2 {
+  font-family: var(--rd-font-display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: var(--rd-tracking-title);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-body {
+  font-family: var(--rd-font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: var(--rd-tracking-body);
+  color: var(--c-text);
+  margin: 0;
+}
+.rd-sub {
+  font-family: var(--rd-font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--c-text-2);
+  margin: 0;
+}
+.rd-caption {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--c-text-3);
+  margin: 0;
+}
+.rd-eyebrow {
+  font-family: var(--rd-font-body);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--rd-tracking-caps);
+  color: var(--c-text-3);
+  margin: 0;
+}
+.rd-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Focus ring */
+.rd-focus:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: inherit;
+}

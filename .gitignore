@@ -14,3 +14,7 @@ logs/*.jsonl
 .env
 .env.*
 config/global-defaults.json.pre-migration-bak
+
+# Design-system handoff archive — extracted essentials are tracked under
+# .planning/design-system/; the raw zip is local-only.
+TableTop Beamer Design System-handoff.zip

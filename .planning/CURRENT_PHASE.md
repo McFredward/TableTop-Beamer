@@ -1,10 +1,11 @@
 # CURRENT PHASE
 
-- Active: none (Phase 20 CLOSED — 6 quality-of-life items shipped)
-- Status: Phase 20 CLOSED — Clear All opt-in checkbox, play-area vertex fix, dropdown labels, animation editor tabs, per-board bundle export/import, README expansion
-- Previous Phase: Phase 19 (Align Mode + Projection Mapping) CLOSED
-- Next Phase: (waiting for new direction)
+- Active: Phase 22 (Design-System Migration — Obsidian redesign, dark-first)
+- Status: Wave 1 (foundations) not yet started
+- Previous Phase: Phase 21 (Hull-Flicker + Outside rewire + QoL + rotation + share UX) CLOSED
+- Next Phase: (TBD)
 
+Phase 21 closure: `.planning/phases/phase-21/SUMMARY.md`
 Phase 20 closure: `.planning/phases/phase-20/SUMMARY.md`
 Phase 19 closure: `.planning/phases/phase-19/SUMMARY.md`
 Phase 15 closure: `.planning/phases/phase-15/SUMMARY.md`
