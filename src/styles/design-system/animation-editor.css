@@ -52,6 +52,26 @@ body[data-output-role="final-output"] #animation-editor-page {
   background: var(--c-bg-raised);
 }
 
+/* Editor-scoped button overrides — the mock's AnimationEditor uses
+ * rectangular buttons with 10–12 px radii, not the pill-shaped
+ * .rd-btn from the Obsidian dashboard. Scoping here keeps the pill
+ * treatment on the Dashboard untouched. */
+#animation-editor-page .rd-btn {
+  border-radius: 10px;
+}
+
+#animation-editor-page .rd-icon-btn {
+  border-radius: 10px;
+}
+
+/* Compact 36-px icon button (search/add slots). */
+#animation-editor-page .anim-editor-add {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 10px;
+}
+
 .anim-editor-back {
   flex: 0 0 auto;
   gap: 6px;
@@ -156,13 +176,16 @@ body[data-output-role="final-output"] #animation-editor-page {
   border-radius: 999px;
 }
 
+/* Library rows match the redesign's AnimationEditor artboard exactly:
+ * 10-px padding, 10-px corner radius (not pill / not oval), 32-px
+ * rounded-square icon tile on the left (radius 8). */
 .anim-editor-row {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: var(--rd-r-sm);
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
   background: transparent;
   cursor: pointer;
   border: 0;
@@ -182,9 +205,9 @@ body[data-output-role="final-output"] #animation-editor-page {
 }
 
 .anim-editor-row-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: var(--c-surface-2);
   color: var(--c-text-2);
   display: grid;
@@ -295,6 +318,13 @@ body[data-output-role="final-output"] #animation-editor-page {
   display: grid;
   gap: var(--rd-s-4);
   min-width: 0;
+}
+
+/* Cap the icon picker so the 8 tiles never balloon past mock
+ * sizes on wide monitors. Matches the ~516 px content width of
+ * the Identity card in the 1280-px artboard. */
+#animation-editor-page .rd-icon-picker {
+  max-width: 520px;
 }
 
 .anim-editor-card-eyebrow {

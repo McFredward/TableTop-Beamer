@@ -368,16 +368,17 @@
 
 .rd-icon-picker {
   display: grid;
-  /* Tiles size themselves ~36 px; extra horizontal space spreads as
-   * gaps so the grid stays compact in both the 390 px sidebar and
-   * the wider animation-editor Identity card. */
-  grid-template-columns: repeat(auto-fill, 36px);
-  justify-content: start;
+  /* Mock's AnimationEditor uses repeat(8, 1fr) with border-radius 14
+   * on the container. Tiles stay proportionate to the card's own
+   * width, not the viewport — callers (e.g. the Identity card) cap
+   * the picker with a max-width so tiles don't balloon on wide
+   * monitors. */
+  grid-template-columns: repeat(8, 1fr);
   gap: 6px;
   padding: 8px;
   background: var(--c-surface);
   border: 1px solid var(--c-border);
-  border-radius: var(--rd-r-md);
+  border-radius: 14px;
   max-height: 220px;
   overflow-y: auto;
   scrollbar-width: thin;
