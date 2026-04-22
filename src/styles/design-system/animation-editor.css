@@ -230,7 +230,7 @@ body[data-output-role="final-output"] #animation-editor-page {
 .anim-editor-row-icon {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--c-surface-2);
   color: var(--c-text-2);
   display: grid;
@@ -320,12 +320,23 @@ body[data-output-role="final-output"] #animation-editor-page {
 .anim-editor-pane-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--rd-r-lg);
+  border-radius: 6px;
   background: var(--c-accent-bg);
   color: var(--c-accent);
   display: grid;
   place-items: center;
   flex: 0 0 auto;
+}
+
+/* Icon-picker tiles inside the animation editor stay rectangular —
+ * override the rounded .rd-icon-picker-tile default (which still
+ * serves the Dashboard's other uses). */
+#animation-editor-page .rd-icon-picker-tile {
+  border-radius: 4px;
+}
+
+#animation-editor-page .rd-icon-picker {
+  border-radius: 6px;
 }
 
 .anim-editor-pane-name .rd-eyebrow { margin-bottom: 2px; }
