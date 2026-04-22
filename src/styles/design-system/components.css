@@ -368,7 +368,11 @@
 
 .rd-icon-picker {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  /* Tiles size themselves ~36 px; extra horizontal space spreads as
+   * gaps so the grid stays compact in both the 390 px sidebar and
+   * the wider animation-editor Identity card. */
+  grid-template-columns: repeat(auto-fill, 36px);
+  justify-content: start;
   gap: 6px;
   padding: 8px;
   background: var(--c-surface);
