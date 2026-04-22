@@ -78,6 +78,10 @@ const {
   roomAnimationRenameInput, roomAnimationRenameButton,
   // Phase 22 W3a: animation icon picker roots (Inside / Outside / Room).
   insideIconPicker, outsideIconPicker, roomIconPicker,
+  // Phase 22 W3b: full-page animation editor DOM refs.
+  animEditorPage, animEditorBackButton, animEditorSearchInput, animEditorAddButton,
+  animEditorScopeTabs, animEditorList, animEditorEmpty, animEditorCount,
+  animEditorPane, animEditorPanePlaceholder, animEditorPreview,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
   roomStretchToPolygonInput, roomWidthScaleInput, roomWidthScaleValue,
@@ -2036,6 +2040,29 @@ window.TT_BEAMER_RUNTIME_POLYGON_ROTATION.init({
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRoomOverlay: () => renderRoomOverlay(),
 });
+
+// Phase 22 W3b: full-page animation editor controller.
+if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
+  window.TT_BEAMER_ANIMATION_EDITOR_VIEW.init({
+    state,
+    triggerFeedback,
+    animEditorPage,
+    animEditorBackButton,
+    animEditorSearchInput,
+    animEditorAddButton,
+    animEditorScopeTabs,
+    animEditorList,
+    animEditorEmpty,
+    animEditorCount,
+    animEditorPane,
+    animEditorPanePlaceholder,
+    animEditorPreview,
+    getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
+    getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
+    getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
+    setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
+  });
+}
 
 // Phase 18-3: undo/redo system for polygon editing operations.
 window.TT_BEAMER_RUNTIME_POLYGON_UNDO.init({

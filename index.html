@@ -26,6 +26,8 @@
        .dir-obsidian-dark. Must load AFTER styles.css so its rules win
        the cascade. -->
   <link rel="stylesheet" href="/src/styles/design-system/theme-obsidian.css" />
+  <!-- Phase 22 W3b: full-page animation editor layout. -->
+  <link rel="stylesheet" href="/src/styles/design-system/animation-editor.css" />
 </head>
 
 <body class="dir-obsidian-dark">
@@ -476,12 +478,6 @@
             Rename
             <input id="inside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
-          <!-- Phase 22 W3a: icon picker. Populated + toggled by
-               syncInsideFxPanel; clicks set definition.icon. -->
-          <div class="rd-icon-picker-field">
-            <span class="rd-icon-picker-label">Icon</span>
-            <div id="inside-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Inside animation icon"></div>
-          </div>
           <label>
             Inside intensity <span id="inside-intensity-value">1.00</span>
             <input id="inside-intensity" type="range" min="0.2" max="1.5" step="0.05" value="1" />
@@ -540,11 +536,6 @@
             Rename
             <input id="outside-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
-          <!-- Phase 22 W3a: icon picker — populated by syncOutsideFxPanel. -->
-          <div class="rd-icon-picker-field">
-            <span class="rd-icon-picker-label">Icon</span>
-            <div id="outside-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Outside animation icon"></div>
-          </div>
           <button id="outside-animation-delete" type="button">Delete selected outside animation</button>
           <label class="inline-checkbox">
             <input id="outside-enabled" type="checkbox" />
@@ -618,11 +609,6 @@
             Rename
             <input id="room-animation-rename" type="text" maxlength="64" placeholder="Animation name" />
           </label>
-          <!-- Phase 22 W3a: icon picker — populated by syncRoomFxPanel. -->
-          <div class="rd-icon-picker-field">
-            <span class="rd-icon-picker-label">Icon</span>
-            <div id="room-icon-picker" class="rd-icon-picker" role="radiogroup" aria-label="Room animation icon"></div>
-          </div>
           <button id="room-animation-settings-delete" type="button">Delete selected room animation</button>
           <label>
             Type
@@ -877,6 +863,73 @@
         the projector, open the /output path and use fullscreen.</footer>
     </aside>
   </div>
+
+  <!-- Phase 22 W3b: full-page animation editor. Sits outside .app-shell
+       and overlays everything when body[data-animation-editor-open="true"]
+       (entry: Settings → Animations subtab auto-opens; exit: Back button).
+       Scope tabs filter the flat library across Inside / Outside / Room. -->
+  <div id="animation-editor-page" class="anim-editor" hidden>
+    <header class="anim-editor-topbar">
+      <button id="anim-editor-back" type="button" class="rd-btn rd-btn-ghost anim-editor-back"
+        title="Close editor" aria-label="Close editor">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 12H5M12 5l-7 7 7 7" />
+        </svg>
+        <span>Back</span>
+      </button>
+      <div class="anim-editor-topbar-title">
+        <p class="rd-eyebrow">Setup</p>
+        <h1 class="rd-h1">Animations</h1>
+      </div>
+    </header>
+
+    <aside class="anim-editor-library">
+      <div class="anim-editor-library-head">
+        <p id="anim-editor-count" class="rd-caption">0 configured</p>
+      </div>
+      <div class="anim-editor-library-controls">
+        <label class="anim-editor-search">
+          <svg class="anim-editor-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+            aria-hidden="true">
+            <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM21 21l-4.3-4.3" />
+          </svg>
+          <input id="anim-editor-search" type="search" placeholder="Search animations" />
+        </label>
+        <button id="anim-editor-add" type="button" class="rd-icon-btn anim-editor-add"
+          title="Add animation" aria-label="Add animation">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      </div>
+      <div class="rd-segmented anim-editor-scope-tabs" role="tablist" aria-label="Animation scope">
+        <button type="button" data-anim-scope="inside" aria-selected="true">Inside</button>
+        <button type="button" data-anim-scope="outside" aria-selected="false">Outside</button>
+        <button type="button" data-anim-scope="room" aria-selected="false">Room</button>
+      </div>
+      <ul id="anim-editor-list" class="anim-editor-list" role="listbox" aria-label="Animations"></ul>
+      <p id="anim-editor-empty" class="anim-editor-empty" hidden>No animations match your search.</p>
+    </aside>
+
+    <main id="anim-editor-pane" class="anim-editor-pane">
+      <div id="anim-editor-pane-placeholder" class="anim-editor-placeholder">
+        <p class="rd-sub">Select an animation from the library to edit its defaults.</p>
+      </div>
+      <!-- W3b-2 fills in Identity / Defaults / (Source / Sound) cards here. -->
+    </main>
+
+    <aside id="anim-editor-preview" class="anim-editor-preview">
+      <p class="rd-eyebrow">Live preview</p>
+      <div class="anim-editor-preview-placeholder">
+        <p class="rd-caption">Select an animation to see its defaults.</p>
+      </div>
+      <!-- W3b-4 fills in metadata + Test on board + Delete here. -->
+    </aside>
+  </div>
+
   <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
 
   <!-- Phase 22 Wave 1: design-system icon primitive. Loaded first so
@@ -884,6 +937,8 @@
   <script src="/src/app/runtime/ui/icons.js" defer></script>
   <!-- Phase 22 Wave 3a: reusable icon-picker (TT_BEAMER_UI_ICON_PICKER). -->
   <script src="/src/app/runtime/ui/icon-picker.js" defer></script>
+  <!-- Phase 22 W3b: full-page animation editor controller. -->
+  <script src="/src/app/runtime/ui/animation-editor-view.js" defer></script>
   <script src="/src/app/lib/shared/config.js" defer></script>
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>
   <script src="/src/app/lib/shared/logger.js" defer></script>

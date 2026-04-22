@@ -184,6 +184,21 @@
     if (persist) {
       persistSettingsSubtab(state.settingsSubtab);
     }
+    // Phase 22 W3b: Animations subtab auto-opens the full-page editor
+    // (per the redesign — the three sidebar panels it replaces are
+    // queued for removal in W3b-5). Other subtabs close the editor.
+    const editor = window.TT_BEAMER_ANIMATION_EDITOR_VIEW;
+    if (editor && state.uiView === "settings") {
+      if (state.settingsSubtab === "animations") {
+        if (!editor.isOpen()) editor.open();
+      } else if (editor.isOpen()) {
+        // Already on a different subtab — close without re-navigating
+        // (the close() hook would push back to "board" otherwise).
+        document.body.removeAttribute("data-animation-editor-open");
+        const page = document.querySelector("#animation-editor-page");
+        if (page) page.hidden = true;
+      }
+    }
   }
 
   function restoreSettingsSubtabPreference() {
