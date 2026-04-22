@@ -121,5 +121,85 @@
     return svg;
   }
 
-  window.TT_BEAMER_UI_ICONS = { ICON_DEFS, createIcon };
+  // Phase 22 W2c: heuristic icon resolver used until Wave 3 ships
+  // per-animation user-assigned icons via the animation editor.
+  // Takes a room/outside animation definition and returns a best-guess
+  // icon name from ICON_DEFS. Library tiles + running-list rows both
+  // consume this so we don't show blank squares before Wave 3.
+  //
+  // Resolution order: explicit `definition.icon` (set once Wave 3 lands)
+  // → coded-effect type → asset type → name keyword → fallback.
+  function resolveAnimationIcon(definition) {
+    if (!definition || typeof definition !== "object") return "sparkles";
+    if (typeof definition.icon === "string" && ICON_DEFS[definition.icon]) {
+      return definition.icon;
+    }
+    const type = String(definition.type || "").toLowerCase();
+    const codedKey = String(
+      definition.codedEffectType || definition.codedKey || "",
+    ).toLowerCase();
+    const assetType = String(definition.assetType || "").toLowerCase();
+    const name = String(definition.name || definition.id || "").toLowerCase();
+    const hay = `${codedKey} ${name}`;
+
+    const BY_CODED = {
+      "hull-flicker":    "bolt",
+      "malfunction":     "bolt",
+      "intruder-alert":  "bell",
+      "alarm":           "bell",
+      "solid-color":     "picker",
+      "scanning":        "scan",
+      "burst":           "sparkles",
+      "fire":            "flame",
+      "slime":           "drop",
+      "power-out":       "power",
+      "power":           "power",
+    };
+    if (BY_CODED[codedKey]) return BY_CODED[codedKey];
+    if (type === "coded" && BY_CODED[codedKey]) return BY_CODED[codedKey];
+
+    const KEYWORDS = [
+      ["fire",      "flame"],
+      ["flame",     "flame"],
+      ["intruder",  "bell"],
+      ["alarm",     "bell"],
+      ["alert",     "bell"],
+      ["malfunc",   "bolt"],
+      ["flicker",   "bolt"],
+      ["bolt",      "bolt"],
+      ["lightning", "bolt"],
+      ["scan",      "scan"],
+      ["burst",     "sparkles"],
+      ["spark",     "sparkles"],
+      ["explosion", "sparkles"],
+      ["slime",     "drop"],
+      ["ooze",      "drop"],
+      ["water",     "drop"],
+      ["power",     "power"],
+      ["color",     "picker"],
+      ["light",     "picker"],
+      ["ghost",     "ghost"],
+      ["rocket",    "rocket"],
+      ["shield",    "shield"],
+      ["lock",      "lock"],
+      ["clock",     "clock"],
+      ["map",       "map"],
+      ["room",      "room"],
+    ];
+    for (const [keyword, icon] of KEYWORDS) {
+      if (hay.includes(keyword)) return icon;
+    }
+
+    // Asset-type fallback — GIFs and videos don't imply a specific
+    // glyph, but "play" reads well for videos; GIFs land on the
+    // sparkles bucket (generic FX feel).
+    if (assetType === "video" || assetType === "mp4") return "play";
+    return "sparkles";
+  }
+
+  window.TT_BEAMER_UI_ICONS = {
+    ICON_DEFS,
+    createIcon,
+    resolveAnimationIcon,
+  };
 })();

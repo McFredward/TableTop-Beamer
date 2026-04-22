@@ -643,18 +643,77 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   min-height: var(--rd-hit);
 }
 
+/* ----- Quick Mode animation picker (W2c) ------------------------
+ * Was: horizontal scrolling pills of text (Phase 18).
+ * Now: 4-column tile grid with icon + label. Selected state gets a
+ * mint accent ring + tinted background; hover subtly lifts.
+ * ------------------------------------------------------------- */
+
+.dir-obsidian-dark .quick-animation-picker {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--rd-s-2);
+  overflow: visible;
+  padding: 0;
+}
+
 .dir-obsidian-dark .quick-animation-pill {
-  border-radius: var(--rd-r-pill);
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  aspect-ratio: 1 / 1;
+  padding: var(--rd-s-2);
+  border-radius: var(--rd-r-md);
   background: var(--c-surface);
-  border: 1px solid var(--c-border);
+  border: 1px solid transparent;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
   color: var(--c-text-2);
   font-family: var(--rd-font-body);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.15;
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background var(--rd-t-quick),
+    color var(--rd-t-quick),
+    outline-color var(--rd-t-quick),
+    transform var(--rd-t-quick);
+  min-height: 0;
+}
+
+.dir-obsidian-dark .quick-animation-pill:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  transform: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dir-obsidian-dark .quick-animation-pill:active {
+  transform: scale(0.96);
 }
 
 .dir-obsidian-dark .quick-animation-pill.is-selected {
   background: var(--c-accent-bg);
-  border-color: transparent;
   color: var(--c-accent);
+  outline-color: var(--c-accent);
+}
+
+.dir-obsidian-dark .quick-animation-pill .rd-ico {
+  display: block;
+}
+
+.dir-obsidian-dark .quick-animation-pill-label {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

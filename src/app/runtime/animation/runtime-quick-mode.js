@@ -138,13 +138,28 @@
     const needsRebuild = pillIds.length !== defIds.length || pillIds.some((id, i) => id !== defIds[i]);
     if (needsRebuild) {
       picker.replaceChildren();
+      // Phase 22 W2c: build each entry as an icon tile (icon top, label
+      // bottom). Icon resolution falls back through coded-effect type →
+      // name keyword → sparkles (see resolveAnimationIcon). Wave 3 will
+      // let users override via the animation editor's icon picker.
+      const icons = window.TT_BEAMER_UI_ICONS;
       for (const definition of animations) {
         const pill = document.createElement("button");
         pill.type = "button";
         pill.className = "quick-animation-pill";
         pill.dataset.animationId = definition.id;
-        pill.textContent = definition.name;
         pill.setAttribute("role", "option");
+        pill.setAttribute("title", definition.name || definition.id);
+        if (icons && typeof icons.createIcon === "function") {
+          const iconName = icons.resolveAnimationIcon
+            ? icons.resolveAnimationIcon(definition)
+            : "sparkles";
+          pill.append(icons.createIcon(iconName, { size: 22 }));
+        }
+        const label = document.createElement("span");
+        label.className = "quick-animation-pill-label";
+        label.textContent = definition.name;
+        pill.append(label);
         pill.addEventListener("click", () => {
           state.roomDraft.animationId = definition.id;
           // Also sync the main dropdown
