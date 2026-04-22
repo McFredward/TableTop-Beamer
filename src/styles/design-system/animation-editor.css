@@ -168,6 +168,7 @@ body[data-output-role="final-output"] #animation-editor-page {
   list-style: none;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   min-width: 0;
   display: grid;
@@ -178,7 +179,7 @@ body[data-output-role="final-output"] #animation-editor-page {
    * and lets the remaining space stay empty at the bottom. */
   align-content: start;
   grid-auto-rows: max-content;
-  gap: 2px;
+  gap: 4px;
   scrollbar-width: thin;
 }
 
@@ -292,10 +293,11 @@ body[data-output-role="final-output"] #animation-editor-page {
 .anim-editor-pane {
   grid-area: pane;
   padding: var(--rd-s-7);
+  overflow-x: hidden;
   overflow-y: auto;
   display: grid;
   align-content: start;
-  gap: var(--rd-s-5);
+  gap: var(--rd-s-6);
   min-width: 0;
 }
 
