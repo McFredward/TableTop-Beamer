@@ -9,8 +9,12 @@
  * Entry / exit state is owned by animation-editor-view.js.
  * ============================================================= */
 
+/* Default: hidden. The ID selector would otherwise beat the
+ * default [hidden] UA rule and leak the editor into every view
+ * (including /output). Visibility flips on via the body attribute
+ * toggled from animation-editor-view.js. */
 #animation-editor-page {
-  display: grid;
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -24,8 +28,17 @@
   font-family: var(--rd-font-body);
 }
 
+body[data-animation-editor-open="true"] #animation-editor-page {
+  display: grid;
+}
+
 body[data-animation-editor-open="true"] .app-shell {
   visibility: hidden;
+}
+
+/* Hard safety net — projection view NEVER shows editor chrome. */
+body[data-output-role="final-output"] #animation-editor-page {
+  display: none !important;
 }
 
 /* Topbar */
