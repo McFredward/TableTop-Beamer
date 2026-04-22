@@ -940,12 +940,15 @@
       // knows WHICH room/cluster the animation belongs to — stacked
       // rows omit it because the subgroup header already shows it.
       // Outside / Inside sections are board-wide so no target prefix.
+      // The "hold" state (no durationMs) is the default for most
+      // animations, so we omit the timer entirely in that case —
+      // showing "hold" on every row just adds noise.
       const meta = document.createElement("div");
       meta.className = "running-meta";
-      const remaining = anim.durationMs
-        ? `${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
-        : "hold";
-      const timerLabel = remaining === "hold" ? "hold" : `in ${remaining}`;
+      const hasTimer = Number(anim.durationMs) > 0;
+      const timerLabel = hasTimer
+        ? `in ${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
+        : null;
       let targetLabel = null;
       if (!isStacked) {
         if (anim.scope === "room") {
@@ -964,16 +967,21 @@
         const targetEl = document.createElement("span");
         targetEl.className = "running-meta-target";
         targetEl.textContent = targetLabel;
-        const sep = document.createElement("span");
-        sep.className = "running-meta-sep";
-        sep.setAttribute("aria-hidden", "true");
-        sep.textContent = "·";
-        const timerEl = document.createElement("span");
-        timerEl.className = "running-meta-timer";
-        timerEl.textContent = timerLabel;
-        meta.append(targetEl, sep, timerEl);
-      } else {
+        meta.append(targetEl);
+        if (timerLabel) {
+          const sep = document.createElement("span");
+          sep.className = "running-meta-sep";
+          sep.setAttribute("aria-hidden", "true");
+          sep.textContent = "·";
+          const timerEl = document.createElement("span");
+          timerEl.className = "running-meta-timer";
+          timerEl.textContent = timerLabel;
+          meta.append(sep, timerEl);
+        }
+      } else if (timerLabel) {
         meta.textContent = timerLabel;
+      } else {
+        meta.hidden = true;
       }
 
       const actions = document.createElement("div");
