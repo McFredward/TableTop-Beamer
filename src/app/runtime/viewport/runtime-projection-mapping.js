@@ -169,14 +169,19 @@
     const d = (dy0 * (sx2 - sx1) + dy1 * (sx0 - sx2) + dy2 * (sx1 - sx0)) * inv;
     const f = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) * inv;
 
-    // Phase 22 W5: inflate the clip triangle outward by ~0.5 px along
-    // the centroid normal. Adjacent triangles share edges; without
-    // this overlap the canvas AA leaves hairline gaps between them,
-    // which MP4 content makes visible as black diagonals + grid
-    // boundaries. Overlapping by sub-pixel hides those seams.
+    // Phase 22 W5 v2: inflate each triangle's clip polygon outward
+    // by 1.5 px along the centroid normal + stroke the same clip
+    // path before drawImage so the edge pixels are filled from the
+    // source image. The 0.5-px inflate from v1 was too subtle to
+    // hide the AA seams on MP4 content; 1.5 px overlaps neighbours
+    // enough that the seam is painted over by the overlap. The
+    // explicit stroke step paints a 2-px thick line from the
+    // *source* image along the clip edge, so the seam pixels carry
+    // image content instead of falling back to the canvas
+    // clear-colour.
     const CX = (dx0 + dx1 + dx2) / 3;
     const CY = (dy0 + dy1 + dy2) / 3;
-    const INFLATE = 0.5;
+    const INFLATE = 1.5;
     const pushOut = (x, y) => {
       const vx = x - CX;
       const vy = y - CY;
@@ -196,6 +201,10 @@
     cctx.lineTo(px2, py2);
     cctx.closePath();
     cctx.clip();
+    // Keep bilinear filtering on so the warp is smooth at the
+    // seams instead of nearest-neighbor-aliased.
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = "high";
     cctx.transform(a, b, c, d, e, f);
     cctx.drawImage(img, 0, 0);
     cctx.restore();

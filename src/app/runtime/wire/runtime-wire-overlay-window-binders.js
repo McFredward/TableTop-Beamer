@@ -94,21 +94,24 @@
         }
         const boardId = state.shipPolygonEditor.dragBoardId;
         const points = getShipPolygonPoints(boardId);
-        // Phase 22 W5 fix: clamp the pointer coord to [0, 1] BEFORE
-        // applying the grab offset. Previously the pointer carried a
-        // 20% overshoot margin (mapClientPointToNormalized clamps to
-        // [-0.2, 1.2]); when the user dragged past the board edge the
-        // clamp margin + stored offset conspired to shift the vertex
-        // AWAY from the board edge back inside, instead of keeping it
-        // pinned at the max border.
+        // Phase 22 W5 fix v2: previous clamp pinned `pointer` to [0,1]
+        // BEFORE applying the grab offset — but that still let the
+        // vertex land at `boundary - offset` when the pointer left the
+        // board. Result: vertex floats just INSIDE the edge instead of
+        // hugging it. Switch strategy — use the grab offset only while
+        // the pointer is inside the board; once the pointer exits on
+        // either axis, drop the offset for that axis and pin the
+        // vertex directly to the board edge.
         const [pointerXRaw, pointerYRaw] = getNormalizedOverlayPoint(event);
-        const pointerX = clampDisplayNormalizedCoordinate(pointerXRaw);
-        const pointerY = clampDisplayNormalizedCoordinate(pointerYRaw);
+        const offX = state.shipPolygonEditor.dragVertexOffsetX || 0;
+        const offY = state.shipPolygonEditor.dragVertexOffsetY || 0;
+        const outsideX = pointerXRaw <= 0 || pointerXRaw >= 1;
+        const outsideY = pointerYRaw <= 0 || pointerYRaw >= 1;
         const nextX = clampDisplayNormalizedCoordinate(
-          pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0),
+          outsideX ? pointerXRaw : pointerXRaw + offX,
         );
         const nextY = clampDisplayNormalizedCoordinate(
-          pointerY + (state.shipPolygonEditor.dragVertexOffsetY || 0),
+          outsideY ? pointerYRaw : pointerYRaw + offY,
         );
         points[state.shipPolygonEditor.dragVertexIndex] = [nextX, nextY];
         setShipPolygonPoints(boardId, points);
@@ -177,12 +180,20 @@
       if (!vertexRoom) {
         return;
       }
-      const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+      // Phase 22 W5 fix: same boundary-pin strategy as ship polygon
+      // — drop the grab offset on any axis where the pointer leaves
+      // the board so the vertex hugs the edge instead of floating
+      // at `edge - offset` when the cursor exits.
+      const [pointerXRaw, pointerYRaw] = getNormalizedOverlayPoint(event);
+      const rOffX = state.polygonEditor.dragVertexOffsetX || 0;
+      const rOffY = state.polygonEditor.dragVertexOffsetY || 0;
+      const rOutsideX = pointerXRaw <= 0 || pointerXRaw >= 1;
+      const rOutsideY = pointerYRaw <= 0 || pointerYRaw >= 1;
       const nextDisplayX = clampDisplayNormalizedCoordinate(
-        pointerX + (state.polygonEditor.dragVertexOffsetX || 0),
+        rOutsideX ? pointerXRaw : pointerXRaw + rOffX,
       );
       const nextDisplayY = clampDisplayNormalizedCoordinate(
-        pointerY + (state.polygonEditor.dragVertexOffsetY || 0),
+        rOutsideY ? pointerYRaw : pointerYRaw + rOffY,
       );
       const [rawNextX, rawNextY] = projectDisplayNormalizedToRoomRaw(
         nextDisplayX, nextDisplayY, vertexRoom, boardId,
@@ -333,11 +344,26 @@
         }
         if (
           !typingTarget &&
-          !playAreaContext &&
           !modifierPressed &&
           !event.altKey &&
           (key === "delete" || event.code === "Delete")
         ) {
+          // Phase 22 W5 fix: DELETE on a selected Play-Area vertex
+          // now removes that vertex (same as the sidebar button).
+          // Previously the handler short-circuited on playAreaContext
+          // and fell through to browser-default, so the key did
+          // nothing while a play-area vertex was highlighted.
+          if (playAreaContext) {
+            const shipPts = state.shipPolygonsByBoard?.[state.boardId];
+            if (Array.isArray(shipPts) && shipPts.length > 3) {
+              event.preventDefault();
+              const button = document.querySelector("#ship-polygon-delete-vertex");
+              if (button && !button.disabled) {
+                button.click();
+              }
+            }
+            return;
+          }
           event.preventDefault();
           const shouldDeleteVertex =
             state.polygonEditor.vertexSelectionActive &&
