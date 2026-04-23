@@ -205,6 +205,10 @@
   }
 
   function syncInsideFxPanel() {
+    // Phase 22 W3b-5: legacy "Inside Animations" sidebar panel removed.
+    // When its DOM roots are gone, the full-page animation editor owns
+    // the per-animation UI and this sync is a no-op.
+    if (!ctx.insideAnimationSelect && !ctx.insideIntensityInput) return;
     const state = ctx.state;
     const inside = ctx.getInsideFxProfile(state.boardId);
     const selectedDefinition = ctx.getSelectedInsideAnimationDefinition(state.boardId);
@@ -434,6 +438,8 @@
   }
 
   function syncRoomFxPanel() {
+    // Phase 22 W3b-5: legacy "Room Animations" sidebar panel removed.
+    if (!ctx.roomAnimationSettingsSelect && !ctx.roomAssetTypeInput) return;
     const state = ctx.state;
     const roomFx = ctx.getRoomFxProfile(state.boardId);
     const selectedDefinition = ctx.getSelectedRoomAnimationDefinition(state.boardId);
@@ -789,6 +795,8 @@
   }
 
   function syncOutsideFxPanel() {
+    // Phase 22 W3b-5: legacy "Outside Animations" sidebar panel removed.
+    if (!ctx.outsideAnimationSelect && !ctx.outsideEnabledInput) return;
     const state = ctx.state;
     const outside = ctx.getOutsideFxProfile(state.boardId);
     // Phase 20: the editor shows the animation tracked by the per-board
