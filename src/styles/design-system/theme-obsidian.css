@@ -334,9 +334,17 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   box-shadow: none;
 }
 
-/* Align-mode toggle keeps its pulsing green when ON, but flatter. */
+/* Align-mode toggle — text + icon button, stays pill-shaped. */
 .dir-obsidian-dark .align-mode-toggle {
   border-radius: var(--rd-r-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  height: var(--rd-hit-sm);
+  min-height: var(--rd-hit-sm);
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .dir-obsidian-dark .align-mode-toggle[aria-pressed="true"] {
