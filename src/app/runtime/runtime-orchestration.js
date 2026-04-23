@@ -83,6 +83,7 @@ const {
   animEditorScopeTabs, animEditorList, animEditorEmpty, animEditorCount,
   animEditorPane, animEditorPanePlaceholder, animEditorPreview,
   animEditorDirtyBar, animEditorApplyButton, animEditorDiscardButton,
+  animEditorBoardSelect,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
   roomStretchToPolygonInput, roomWidthScaleInput, roomWidthScaleValue,
