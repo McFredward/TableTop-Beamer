@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
@@ -2149,6 +2149,93 @@ async function loadResourceAssetCatalog() {
   };
 }
 
+const ANIMATION_RESOURCE_DIR = path.join(RESOURCES_DIR, "animations");
+const ANIMATION_RESOURCE_MAX_BYTES = 50 * 1024 * 1024;
+const ANIMATION_RESOURCE_EXTENSIONS = new Set(["gif", "mp4"]);
+
+function sanitizeAnimationResourceFilename(raw) {
+  const cleaned = String(raw ?? "")
+    .replace(/\\/g, "/")
+    .split("/").pop()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!cleaned) return null;
+  const ext = path.extname(cleaned).replace(/^\./, "");
+  if (!ANIMATION_RESOURCE_EXTENSIONS.has(ext)) return null;
+  const stem = path.basename(cleaned, `.${ext}`);
+  if (!stem) return null;
+  return `${stem}.${ext}`;
+}
+
+async function resolveAnimationResourcePath(filename) {
+  const safe = sanitizeAnimationResourceFilename(filename);
+  if (!safe) return null;
+  const resolved = path.join(ANIMATION_RESOURCE_DIR, safe);
+  if (!resolved.startsWith(ANIMATION_RESOURCE_DIR + path.sep)) return null;
+  return { absolute: resolved, filename: safe, url: `/resources/animations/${safe}` };
+}
+
+async function handleAnimationResourceUpload(req, res) {
+  const requestUrl = new URL(req.url || "/api/resources/animations", "http://localhost");
+  const rawName = requestUrl.searchParams.get("filename");
+  const target = await resolveAnimationResourcePath(rawName);
+  if (!target) {
+    sendJson(res, 400, { ok: false, error: "invalid filename; must end in .gif or .mp4" });
+    return;
+  }
+  const chunks = [];
+  let totalSize = 0;
+  try {
+    for await (const chunk of req) {
+      totalSize += chunk.length;
+      if (totalSize > ANIMATION_RESOURCE_MAX_BYTES) {
+        sendJson(res, 413, { ok: false, error: "payload too large" });
+        return;
+      }
+      chunks.push(chunk);
+    }
+  } catch {
+    sendJson(res, 400, { ok: false, error: "upload stream error" });
+    return;
+  }
+  if (totalSize === 0) {
+    sendJson(res, 400, { ok: false, error: "empty payload" });
+    return;
+  }
+  try {
+    await mkdir(ANIMATION_RESOURCE_DIR, { recursive: true });
+    await writeFile(target.absolute, Buffer.concat(chunks));
+  } catch {
+    sendJson(res, 500, { ok: false, error: "write failed" });
+    return;
+  }
+  sendJson(res, 200, { ok: true, path: target.url, filename: target.filename });
+}
+
+async function handleAnimationResourceDelete(req, res) {
+  const requestUrl = new URL(req.url || "/api/resources/animations", "http://localhost");
+  const rawPath = requestUrl.searchParams.get("path") || requestUrl.searchParams.get("filename");
+  const candidate = String(rawPath || "").replace(/^\/+/, "").replace(/^resources\/animations\//, "");
+  const target = await resolveAnimationResourcePath(candidate);
+  if (!target) {
+    sendJson(res, 400, { ok: false, error: "invalid path" });
+    return;
+  }
+  try {
+    await unlink(target.absolute);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      sendJson(res, 404, { ok: false, error: "file not found" });
+      return;
+    }
+    sendJson(res, 500, { ok: false, error: "delete failed" });
+    return;
+  }
+  sendJson(res, 200, { ok: true, path: target.url });
+}
+
 const IMAGE_IMPORT_ALLOWED_MIME_TO_EXT = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -2808,6 +2895,16 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && routePath === "/api/resources") {
       const catalog = await loadResourceAssetCatalog();
       sendJson(res, 200, catalog);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/resources/animations") {
+      await handleAnimationResourceUpload(req, res);
+      return;
+    }
+
+    if (req.method === "DELETE" && routePath === "/api/resources/animations") {
+      await handleAnimationResourceDelete(req, res);
       return;
     }
 

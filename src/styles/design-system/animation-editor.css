@@ -710,3 +710,35 @@ body[data-output-role="final-output"] #animation-editor-page {
 .anim-editor-delete {
   width: 100%;
 }
+
+/* Phase 22 W3b-4d: GIF/MP4 asset picker (dropdown + Upload + Delete). */
+.anim-editor-asset-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.anim-editor-asset-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.anim-editor-asset-actions .rd-btn {
+  flex: 0 0 auto;
+  padding: 0 14px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.anim-editor-asset-actions .rd-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.anim-editor-asset-status {
+  margin: 0;
+  min-height: 16px;
+  color: var(--c-text-3);
+  font-size: 12px;
+}

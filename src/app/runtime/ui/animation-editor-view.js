@@ -596,28 +596,180 @@
       ],
     }));
 
+    if (def.assetType === "gif" || def.assetType === "mp4") {
+      card.append(buildAssetPickerRow(scope, def, boardId));
+    } else {
+      const label = document.createElement("label");
+      label.className = "anim-editor-field-label";
+      const cap = document.createElement("span");
+      cap.textContent = "Effect key";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.maxLength = 256;
+      input.placeholder = "e.g. hull-flicker";
+      input.value = def.assetRef ?? "";
+      input.addEventListener("input", () => {
+        patchAnimation(scope, boardId, def.id, { assetRef: input.value.trim() });
+      });
+      label.append(cap, input);
+      card.append(label);
+    }
+    return card;
+  }
+
+  // Phase 22 W3b-4d: GIF/MP4 pickers — dropdown of resources/animations/*
+  // plus Upload + Delete buttons. Replaces the previous free-text path input.
+  function buildAssetPickerRow(scope, def, boardId) {
+    const ext = def.assetType === "mp4" ? "mp4" : "gif";
+    const wrap = document.createElement("div");
+    wrap.className = "anim-editor-asset-picker";
+
     const label = document.createElement("label");
     label.className = "anim-editor-field-label";
     const cap = document.createElement("span");
-    cap.textContent = def.assetType === "coded"
-      ? "Effect key"
-      : def.assetType === "mp4"
-      ? "Video path"
-      : "GIF path";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = 256;
-    input.placeholder = def.assetType === "coded"
-      ? "e.g. hull-flicker"
-      : "/resources/…";
-    input.value = def.assetRef ?? "";
-    input.addEventListener("input", () => {
-      const next = input.value.trim();
-      patchAnimation(scope, boardId, def.id, { assetRef: next });
+    cap.textContent = ext === "mp4" ? "Video file" : "GIF file";
+    const select = document.createElement("select");
+    select.className = "anim-editor-asset-select";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = `Select ${ext.toUpperCase()}…`;
+    select.append(placeholder);
+    label.append(cap, select);
+
+    const actions = document.createElement("div");
+    actions.className = "anim-editor-asset-actions";
+
+    const uploadBtn = document.createElement("button");
+    uploadBtn.type = "button";
+    uploadBtn.className = "rd-btn rd-btn-ghost";
+    uploadBtn.textContent = "Upload";
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "rd-btn rd-btn-ghost";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = true;
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ext === "mp4" ? "video/mp4,.mp4" : "image/gif,.gif";
+    fileInput.style.display = "none";
+
+    const status = document.createElement("p");
+    status.className = "rd-caption anim-editor-asset-status";
+
+    actions.append(uploadBtn, deleteBtn, fileInput);
+    wrap.append(label, actions, status);
+
+    async function refreshList(selectedPath) {
+      const files = await fetchAnimationResources(ext);
+      select.replaceChildren();
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = files.length
+        ? `Select ${ext.toUpperCase()}…`
+        : `No ${ext.toUpperCase()} files uploaded`;
+      select.append(ph);
+      for (const file of files) {
+        const opt = document.createElement("option");
+        opt.value = file;
+        opt.textContent = file.replace(/^\/resources\/animations\//, "");
+        select.append(opt);
+      }
+      const current = selectedPath ?? String(def.assetRef || "").trim();
+      if (current && files.includes(current)) {
+        select.value = current;
+        deleteBtn.disabled = false;
+      } else {
+        select.value = "";
+        deleteBtn.disabled = true;
+      }
+    }
+
+    select.addEventListener("change", () => {
+      patchAnimation(scope, boardId, def.id, { assetRef: select.value });
+      deleteBtn.disabled = !select.value;
     });
-    label.append(cap, input);
-    card.append(label);
-    return card;
+
+    uploadBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = "";
+      if (!file) return;
+      status.textContent = `Uploading ${file.name}…`;
+      uploadBtn.disabled = true;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const response = await fetch(
+          `/api/resources/animations?filename=${encodeURIComponent(file.name)}`,
+          { method: "POST", body: arrayBuffer },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok) {
+          status.textContent = payload?.error || "Upload failed";
+          return;
+        }
+        status.textContent = `Uploaded ${payload.filename}`;
+        patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+        await refreshList(payload.path);
+      } catch (error) {
+        status.textContent = "Upload failed";
+        console.error("anim upload failed", error);
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    deleteBtn.addEventListener("click", async () => {
+      const current = select.value;
+      if (!current) return;
+      const name = current.replace(/^\/resources\/animations\//, "");
+      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
+      status.textContent = `Deleting ${name}…`;
+      deleteBtn.disabled = true;
+      try {
+        const response = await fetch(
+          `/api/resources/animations?path=${encodeURIComponent(current)}`,
+          { method: "DELETE" },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok) {
+          status.textContent = payload?.error || "Delete failed";
+          deleteBtn.disabled = false;
+          return;
+        }
+        status.textContent = `Deleted ${name}`;
+        if (String(def.assetRef || "").trim() === current) {
+          patchAnimation(scope, boardId, def.id, { assetRef: "" });
+        }
+        await refreshList("");
+      } catch (error) {
+        status.textContent = "Delete failed";
+        console.error("anim delete failed", error);
+        deleteBtn.disabled = false;
+      }
+    });
+
+    refreshList();
+
+    return wrap;
+  }
+
+  async function fetchAnimationResources(ext) {
+    try {
+      const response = await fetch("/api/resources");
+      if (!response.ok) return [];
+      const payload = await response.json();
+      const files = Array.isArray(payload?.files) ? payload.files : [];
+      const pattern = new RegExp(`\\.${ext}$`, "i");
+      return files
+        .map((entry) => String(entry || "").trim())
+        .filter((entry) => entry.startsWith("/resources/animations/") && pattern.test(entry))
+        .sort();
+    } catch {
+      return [];
+    }
   }
 
   function buildSoundCard(scope, def, boardId) {
