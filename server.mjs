@@ -2149,11 +2149,20 @@ async function loadResourceAssetCatalog() {
   };
 }
 
-const ANIMATION_RESOURCE_DIR = path.join(RESOURCES_DIR, "animations");
-const ANIMATION_RESOURCE_MAX_BYTES = 50 * 1024 * 1024;
-const ANIMATION_RESOURCE_EXTENSIONS = new Set(["gif", "mp4"]);
+const ANIMATION_RESOURCE_CONFIG = {
+  folder: "animations",
+  absoluteDir: path.join(RESOURCES_DIR, "animations"),
+  maxBytes: 50 * 1024 * 1024,
+  extensions: new Set(["gif", "mp4"]),
+};
+const SOUND_RESOURCE_CONFIG = {
+  folder: "sounds",
+  absoluteDir: path.join(RESOURCES_DIR, "sounds"),
+  maxBytes: 20 * 1024 * 1024,
+  extensions: new Set(["mp3", "wav", "ogg", "m4a"]),
+};
 
-function sanitizeAnimationResourceFilename(raw) {
+function sanitizeResourceFilename(raw, config) {
   const cleaned = String(raw ?? "")
     .replace(/\\/g, "/")
     .split("/").pop()
@@ -2163,26 +2172,27 @@ function sanitizeAnimationResourceFilename(raw) {
     .replace(/^-+|-+$/g, "");
   if (!cleaned) return null;
   const ext = path.extname(cleaned).replace(/^\./, "");
-  if (!ANIMATION_RESOURCE_EXTENSIONS.has(ext)) return null;
+  if (!config.extensions.has(ext)) return null;
   const stem = path.basename(cleaned, `.${ext}`);
   if (!stem) return null;
   return `${stem}.${ext}`;
 }
 
-async function resolveAnimationResourcePath(filename) {
-  const safe = sanitizeAnimationResourceFilename(filename);
+function resolveResourcePath(filename, config) {
+  const safe = sanitizeResourceFilename(filename, config);
   if (!safe) return null;
-  const resolved = path.join(ANIMATION_RESOURCE_DIR, safe);
-  if (!resolved.startsWith(ANIMATION_RESOURCE_DIR + path.sep)) return null;
-  return { absolute: resolved, filename: safe, url: `/resources/animations/${safe}` };
+  const resolved = path.join(config.absoluteDir, safe);
+  if (!resolved.startsWith(config.absoluteDir + path.sep)) return null;
+  return { absolute: resolved, filename: safe, url: `/resources/${config.folder}/${safe}` };
 }
 
-async function handleAnimationResourceUpload(req, res) {
-  const requestUrl = new URL(req.url || "/api/resources/animations", "http://localhost");
+async function handleResourceUpload(req, res, config) {
+  const requestUrl = new URL(req.url || `/api/resources/${config.folder}`, "http://localhost");
   const rawName = requestUrl.searchParams.get("filename");
-  const target = await resolveAnimationResourcePath(rawName);
+  const target = resolveResourcePath(rawName, config);
   if (!target) {
-    sendJson(res, 400, { ok: false, error: "invalid filename; must end in .gif or .mp4" });
+    const allow = Array.from(config.extensions).map((e) => `.${e}`).join(", ");
+    sendJson(res, 400, { ok: false, error: `invalid filename; allowed extensions: ${allow}` });
     return;
   }
   const chunks = [];
@@ -2190,7 +2200,7 @@ async function handleAnimationResourceUpload(req, res) {
   try {
     for await (const chunk of req) {
       totalSize += chunk.length;
-      if (totalSize > ANIMATION_RESOURCE_MAX_BYTES) {
+      if (totalSize > config.maxBytes) {
         sendJson(res, 413, { ok: false, error: "payload too large" });
         return;
       }
@@ -2205,7 +2215,7 @@ async function handleAnimationResourceUpload(req, res) {
     return;
   }
   try {
-    await mkdir(ANIMATION_RESOURCE_DIR, { recursive: true });
+    await mkdir(config.absoluteDir, { recursive: true });
     await writeFile(target.absolute, Buffer.concat(chunks));
   } catch {
     sendJson(res, 500, { ok: false, error: "write failed" });
@@ -2214,11 +2224,12 @@ async function handleAnimationResourceUpload(req, res) {
   sendJson(res, 200, { ok: true, path: target.url, filename: target.filename });
 }
 
-async function handleAnimationResourceDelete(req, res) {
-  const requestUrl = new URL(req.url || "/api/resources/animations", "http://localhost");
+async function handleResourceDelete(req, res, config) {
+  const requestUrl = new URL(req.url || `/api/resources/${config.folder}`, "http://localhost");
   const rawPath = requestUrl.searchParams.get("path") || requestUrl.searchParams.get("filename");
-  const candidate = String(rawPath || "").replace(/^\/+/, "").replace(/^resources\/animations\//, "");
-  const target = await resolveAnimationResourcePath(candidate);
+  const prefixRegex = new RegExp(`^resources\\/${config.folder}\\/`);
+  const candidate = String(rawPath || "").replace(/^\/+/, "").replace(prefixRegex, "");
+  const target = resolveResourcePath(candidate, config);
   if (!target) {
     sendJson(res, 400, { ok: false, error: "invalid path" });
     return;
@@ -2235,6 +2246,11 @@ async function handleAnimationResourceDelete(req, res) {
   }
   sendJson(res, 200, { ok: true, path: target.url });
 }
+
+const handleAnimationResourceUpload = (req, res) => handleResourceUpload(req, res, ANIMATION_RESOURCE_CONFIG);
+const handleAnimationResourceDelete = (req, res) => handleResourceDelete(req, res, ANIMATION_RESOURCE_CONFIG);
+const handleSoundResourceUpload = (req, res) => handleResourceUpload(req, res, SOUND_RESOURCE_CONFIG);
+const handleSoundResourceDelete = (req, res) => handleResourceDelete(req, res, SOUND_RESOURCE_CONFIG);
 
 const IMAGE_IMPORT_ALLOWED_MIME_TO_EXT = {
   "image/jpeg": "jpg",
@@ -2905,6 +2921,16 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "DELETE" && routePath === "/api/resources/animations") {
       await handleAnimationResourceDelete(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/resources/sounds") {
+      await handleSoundResourceUpload(req, res);
+      return;
+    }
+
+    if (req.method === "DELETE" && routePath === "/api/resources/sounds") {
+      await handleSoundResourceDelete(req, res);
       return;
     }
 

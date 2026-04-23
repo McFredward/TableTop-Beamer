@@ -820,25 +820,167 @@
     eyebrow.className = "anim-editor-card-eyebrow";
     eyebrow.textContent = "Sound";
     card.append(eyebrow);
+    card.append(buildSoundPickerRow(scope, def, boardId));
+    return card;
+  }
 
+  // Phase 22: sound picker — mirrors the GIF/MP4 asset picker but
+  // targets /resources/sounds/ with audio extensions, and includes a
+  // "No sound" entry mapped to SOUND_MAPPING_NONE.
+  function buildSoundPickerRow(scope, def, boardId) {
     const config = window.TT_BEAMER_CONFIG || {};
     const noneValue = config.SOUND_MAPPING_NONE ?? "none";
-    const paths = Array.isArray(config.ALL_SOUND_ASSET_PATHS)
-      ? config.ALL_SOUND_ASSET_PATHS
-      : [];
-    const options = [
-      { value: noneValue, label: "No sound" },
-      ...paths.map((p) => ({
-        value: p,
-        label: String(p).split("/").pop() || p,
-      })),
-    ];
-    card.append(buildSelectRow(scope, def, boardId, {
-      key: "soundAssetRef",
-      label: "Sound file",
-      options,
-    }));
-    return card;
+    const extensions = ["mp3", "wav", "ogg", "m4a"];
+
+    const wrap = document.createElement("div");
+    wrap.className = "anim-editor-asset-picker";
+
+    const label = document.createElement("label");
+    label.className = "anim-editor-field-label";
+    const cap = document.createElement("span");
+    cap.textContent = "Sound file";
+    const select = document.createElement("select");
+    select.className = "anim-editor-asset-select";
+    label.append(cap, select);
+
+    const actions = document.createElement("div");
+    actions.className = "anim-editor-asset-actions";
+
+    const uploadBtn = document.createElement("button");
+    uploadBtn.type = "button";
+    uploadBtn.className = "rd-btn rd-btn-ghost";
+    uploadBtn.textContent = "Upload";
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "rd-btn rd-btn-ghost";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = true;
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "audio/*,.mp3,.wav,.ogg,.m4a";
+    fileInput.style.display = "none";
+
+    const status = document.createElement("p");
+    status.className = "rd-caption anim-editor-asset-status";
+
+    actions.append(uploadBtn, deleteBtn, fileInput);
+    wrap.append(label, actions, status);
+
+    async function refreshList(selectedPath) {
+      const files = await fetchSoundResources(extensions);
+      const builtIn = Array.isArray(config.ALL_SOUND_ASSET_PATHS)
+        ? config.ALL_SOUND_ASSET_PATHS
+        : [];
+      // Built-in paths + uploaded /resources/sounds/ entries. Merge
+      // and dedupe so uploads land alongside the seeded map files.
+      const merged = Array.from(new Set([...builtIn, ...files])).sort();
+      select.replaceChildren();
+      const noneOpt = document.createElement("option");
+      noneOpt.value = noneValue;
+      noneOpt.textContent = "No sound";
+      select.append(noneOpt);
+      for (const file of merged) {
+        const opt = document.createElement("option");
+        opt.value = file;
+        opt.textContent = String(file).split("/").pop() || file;
+        select.append(opt);
+      }
+      const current = selectedPath ?? String(def.soundAssetRef || noneValue);
+      select.value = merged.includes(current) ? current : (current === noneValue ? noneValue : noneValue);
+      // Delete is only enabled for user-uploaded files (not built-ins).
+      const isUploaded = typeof select.value === "string"
+        && select.value.startsWith("/resources/sounds/")
+        && !builtIn.includes(select.value);
+      deleteBtn.disabled = !isUploaded;
+    }
+
+    select.addEventListener("change", () => {
+      patchAnimation(scope, boardId, def.id, { soundAssetRef: select.value });
+      const builtIn = Array.isArray(config.ALL_SOUND_ASSET_PATHS) ? config.ALL_SOUND_ASSET_PATHS : [];
+      const isUploaded = select.value.startsWith("/resources/sounds/") && !builtIn.includes(select.value);
+      deleteBtn.disabled = !isUploaded;
+    });
+
+    uploadBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = "";
+      if (!file) return;
+      status.textContent = `Uploading ${file.name}…`;
+      uploadBtn.disabled = true;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const response = await fetch(
+          `/api/resources/sounds?filename=${encodeURIComponent(file.name)}`,
+          { method: "POST", body: arrayBuffer },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok) {
+          status.textContent = payload?.error || "Upload failed";
+          return;
+        }
+        status.textContent = `Uploaded ${payload.filename}`;
+        patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+        await refreshList(payload.path);
+      } catch (error) {
+        status.textContent = "Upload failed";
+        console.error("sound upload failed", error);
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    deleteBtn.addEventListener("click", async () => {
+      const current = select.value;
+      if (!current || current === noneValue) return;
+      const name = current.replace(/^\/resources\/sounds\//, "");
+      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
+      status.textContent = `Deleting ${name}…`;
+      deleteBtn.disabled = true;
+      try {
+        const response = await fetch(
+          `/api/resources/sounds?path=${encodeURIComponent(current)}`,
+          { method: "DELETE" },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.ok) {
+          status.textContent = payload?.error || "Delete failed";
+          deleteBtn.disabled = false;
+          return;
+        }
+        status.textContent = `Deleted ${name}`;
+        if (String(def.soundAssetRef || "").trim() === current) {
+          patchAnimation(scope, boardId, def.id, { soundAssetRef: noneValue });
+        }
+        await refreshList(noneValue);
+      } catch (error) {
+        status.textContent = "Delete failed";
+        console.error("sound delete failed", error);
+        deleteBtn.disabled = false;
+      }
+    });
+
+    refreshList();
+    return wrap;
+  }
+
+  async function fetchSoundResources(extensions) {
+    try {
+      const response = await fetch("/api/resources");
+      if (!response.ok) return [];
+      const payload = await response.json();
+      const files = Array.isArray(payload?.files) ? payload.files : [];
+      const extRegex = new RegExp(`\\.(${extensions.join("|")})$`, "i");
+      return files
+        .map((entry) => String(entry || "").trim())
+        .filter((entry) => entry.startsWith("/resources/sounds/") && extRegex.test(entry))
+        .sort();
+    } catch {
+      return [];
+    }
   }
 
   function buildSelectRow(scope, def, boardId, field) {

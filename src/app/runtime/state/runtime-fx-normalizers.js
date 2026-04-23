@@ -26,7 +26,15 @@
     if (trimmed === sentinelNone || !trimmed) {
       return sentinelNone;
     }
-    return allPaths.includes(trimmed) ? trimmed : sentinelNone;
+    if (allPaths.includes(trimmed)) return trimmed;
+    // Phase 22: allow user-uploaded sound files in /resources/sounds/.
+    // Accept any path under that folder with a known audio extension —
+    // the server's upload endpoint only writes files matching this
+    // pattern, so accepting them here closes the round-trip.
+    if (/^\/resources\/sounds\/.+\.(mp3|wav|ogg|m4a)$/i.test(trimmed)) {
+      return trimmed;
+    }
+    return sentinelNone;
   }
 
   // Phase 22 W3a: accept a design-system icon key if it exists in

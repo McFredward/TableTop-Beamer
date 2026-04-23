@@ -260,7 +260,15 @@
       : "";
     let path;
     if (inlineSoundRef && inlineSoundRef !== ctx.SOUND_MAPPING_NONE) {
-      path = ctx.ALL_SOUND_ASSET_PATHS.includes(inlineSoundRef) ? inlineSoundRef : null;
+      // Phase 22: accept any /resources/sounds/*.{mp3,wav,ogg,m4a} so
+      // user-uploaded sounds work alongside the built-in map.
+      if (ctx.ALL_SOUND_ASSET_PATHS.includes(inlineSoundRef)) {
+        path = inlineSoundRef;
+      } else if (/^\/resources\/sounds\/.+\.(mp3|wav|ogg|m4a)$/i.test(inlineSoundRef)) {
+        path = inlineSoundRef;
+      } else {
+        path = null;
+      }
     } else if (inlineSoundRef === ctx.SOUND_MAPPING_NONE) {
       path = null;
     } else {
