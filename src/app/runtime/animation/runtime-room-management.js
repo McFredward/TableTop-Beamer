@@ -409,20 +409,6 @@
     if (ctx.state.shipPolygonEditor.dragVertexIndex !== null) {
       return true;
     }
-    // Phase 22 W5 fix: DELETE on a selected (not just dragged) play-
-    // area vertex needs the same handling as drag mode. Treat "play-
-    // area vertices visible + at least one ship vertex selected" as
-    // play-area context so the keyboard routes to the ship-polygon
-    // delete path. If the user also had a room vertex active, the
-    // play-area-visible flag is the tiebreaker — they'd need to hide
-    // play-area vertices to fall back to room-delete shortcut.
-    const polyState = ctx.state.polygonEditor;
-    const shipState = ctx.state.shipPolygonEditor;
-    const playAreaVerticesVisible = polyState?.playAreaVerticesVisible !== false;
-    const hasShipSelection = Number.isInteger(shipState?.selectedVertexIndex);
-    if (playAreaVerticesVisible && hasShipSelection) {
-      return true;
-    }
     if (!target || !(target instanceof Element)) {
       return false;
     }
