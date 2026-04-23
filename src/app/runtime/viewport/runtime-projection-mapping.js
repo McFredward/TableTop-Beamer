@@ -73,10 +73,18 @@
 
   /** Check whether any points differ from their default positions. */
   function hasGridDisplacements() {
+    // Phase 22 W5 fix: tolerate sub-pixel float drift in saved grids
+    // without triggering the full mesh-warp pass. The mesh-warp is
+    // fundamentally seam-prone on MP4 content (per-triangle affine
+    // transforms diverge in the clip-overlap region and sample
+    // slightly different source colours), so only run it when the
+    // user has a displacement big enough to matter. 0.001 normalized
+    // ≈ 1 px on a 1000-px canvas — below that we stay identity.
+    const THRESHOLD = 0.001;
     for (let row = 0; row < grid.srcYs.length; row++) {
       for (let col = 0; col < grid.srcXs.length; col++) {
         const pt = getPoint(row, col);
-        if (Math.abs(pt.x - grid.srcXs[col]) > 1e-6 || Math.abs(pt.y - grid.srcYs[row]) > 1e-6) {
+        if (Math.abs(pt.x - grid.srcXs[col]) > THRESHOLD || Math.abs(pt.y - grid.srcYs[row]) > THRESHOLD) {
           return true;
         }
       }

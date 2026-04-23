@@ -27,9 +27,15 @@
     const rawY = Array.isArray(point)
       ? point[1]
       : objectLikePoint?.y ?? objectLikePoint?.[1];
+    // Phase 22 W5 fix: `|| 0.5` treated 0 as "missing" and threw the
+    // vertex into the board centre whenever the clamp drove a
+    // coordinate to the left / top edge. Use an explicit finite-check
+    // so legitimate zeroes pass through.
+    const numX = Number(rawX);
+    const numY = Number(rawY);
     return [
-      clampRoomAbsoluteCoordinate(Number(rawX) || 0.5),
-      clampRoomAbsoluteCoordinate(Number(rawY) || 0.5),
+      clampRoomAbsoluteCoordinate(Number.isFinite(numX) ? numX : 0.5),
+      clampRoomAbsoluteCoordinate(Number.isFinite(numY) ? numY : 0.5),
     ];
   }
 
