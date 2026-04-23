@@ -2065,8 +2065,14 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
     getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
     // Phase 22 W3b-2: setters + persist for the editor's patch flow.
+    // Phase 22 W3b-4d fix: use the raw setOutsideFxProfile, not
+    // updateOutsideFxProfile — the latter re-derives intensity /
+    // speed / mode / direction from the profile ROOT (the selection
+    // mirrors) and throws away whatever we patched on the
+    // animation definition itself, so sliders appeared stuck and
+    // never tripped the dirty comparison.
     setInsideFxProfile: (boardId, profile) => setInsideFxProfile(boardId, profile),
-    setOutsideFxProfile: (boardId, profile) => updateOutsideFxProfile(boardId, profile),
+    setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
     setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
     persistBoardProfiles: () => persistBoardProfiles(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
