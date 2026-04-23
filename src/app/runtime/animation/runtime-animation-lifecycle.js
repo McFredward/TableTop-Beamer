@@ -706,22 +706,41 @@
     const parity = validateRunningListParity();
     runningAnimationsList.replaceChildren();
     const listAnimations = getRunningAnimationsForList();
-    // Phase 22 W2b: topbar running-count chip. Uses the full
-    // state.runningAnimations.length (not the filtered list) so the
-    // chip reports the true system-wide count.
-    const totalRunning = Array.isArray(state.runningAnimations)
-      ? state.runningAnimations.length
-      : 0;
+    // Phase 22 W2b / W5: topbar running-count chip — split into
+    // default (auto-restoring) and custom (ad-hoc) animation counts.
+    // An animation counts as "default" when its (type, roomId, scope)
+    // triple is present in state.defaultAnimationsByBoard for its
+    // board; everything else is "custom". Each line hides when its
+    // count is zero; the whole chip hides when both are zero.
+    const allRunning = Array.isArray(state.runningAnimations)
+      ? state.runningAnimations
+      : [];
+    const totalRunning = allRunning.length;
+    const defaultsByBoard = state.defaultAnimationsByBoard || {};
+    let defaultCount = 0;
+    for (const anim of allRunning) {
+      const defs = defaultsByBoard[anim?.boardId] || [];
+      const isDefault = defs.some(
+        (d) => d.type === anim.type && d.roomId === anim.roomId && d.scope === anim.scope,
+      );
+      if (isDefault) defaultCount += 1;
+    }
+    const customCount = totalRunning - defaultCount;
     if (ctx.runningCountChip) {
-      if (totalRunning > 0) {
-        ctx.runningCountChip.hidden = false;
-        if (ctx.runningCountChipLabel) {
-          ctx.runningCountChipLabel.textContent =
-            `${totalRunning} running`;
-        }
-      } else {
-        ctx.runningCountChip.hidden = true;
-      }
+      ctx.runningCountChip.hidden = totalRunning === 0;
+    }
+    if (ctx.runningCountChipLabelDefault) {
+      ctx.runningCountChipLabelDefault.hidden = defaultCount === 0;
+      ctx.runningCountChipLabelDefault.textContent = `${defaultCount} default`;
+    }
+    if (ctx.runningCountChipLabelCustom) {
+      ctx.runningCountChipLabelCustom.hidden = customCount === 0;
+      ctx.runningCountChipLabelCustom.textContent = `${customCount} custom`;
+    }
+    if (ctx.runningCountChipLabel) {
+      // Keep the single-line summary for screen readers + legacy
+      // consumers.
+      ctx.runningCountChipLabel.textContent = `${totalRunning} running`;
     }
     if (listAnimations.length === 0) {
       const empty = document.createElement("li");

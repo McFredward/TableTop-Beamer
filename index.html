@@ -66,11 +66,17 @@
           </div>
         </div>
         <div class="rd-topbar-actions">
-          <!-- Phase 22 W2b: running-count chip — shown only when >0. Text
-               is updated in renderRunningAnimationsList. -->
-          <span id="running-count-chip" hidden aria-live="polite">
+          <!-- Phase 22 W2b / W5: running-count chip — split into default
+               (auto-restoring) and custom (ad-hoc) animation counts on
+               two lines. Each line only renders when its count is >0,
+               and the whole wrapper hides when both are zero. -->
+          <span id="running-count-chip" class="running-count-chip" hidden aria-live="polite">
             <span class="rd-dot rd-dot-pulse" aria-hidden="true"></span>
-            <span id="running-count-chip-label">0 running</span>
+            <span class="running-count-chip-stack">
+              <span id="running-count-chip-label-default" class="running-count-line is-default" hidden></span>
+              <span id="running-count-chip-label-custom" class="running-count-line is-custom" hidden></span>
+            </span>
+            <span id="running-count-chip-label" class="sr-only" aria-live="polite">0 running</span>
           </span>
           <!-- Phase 19: sticky align-mode indicator, restyled as chip. -->
           <div id="align-mode-indicator" class="align-mode-indicator" style="display:none"
@@ -114,12 +120,12 @@
              room for the Room-animation panel). "Clear" is unchanged. -->
         <div class="rd-segmented quick-mode-segmented" role="group"
           aria-label="Quick room mode">
-          <button id="quick-mode-off" type="button"
-            data-quick-mode="off" aria-selected="true">Select</button>
           <button id="quick-mode-toggle" type="button"
-            data-quick-mode="toggle" aria-selected="false">Toggle</button>
+            data-quick-mode="toggle" aria-selected="true">Toggle</button>
           <button id="quick-mode-clear" type="button"
             data-quick-mode="clear" aria-selected="false">Clear</button>
+          <button id="quick-mode-off" type="button"
+            data-quick-mode="off" aria-selected="false">Select</button>
         </div>
         <!-- Phase 18: inline animation picker for Start mode — horizontal scrollable pills -->
         <div id="quick-mode-animation-picker" class="quick-animation-picker" style="display:none" role="listbox" aria-label="Quick animation picker">

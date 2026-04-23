@@ -19,15 +19,17 @@
     ctx = dependencies;
   }
 
+  // Phase 22 W5: Toggle is now the default mode; Select drops to the
+  // rightmost slot and stops being the implicit fallback.
   function normalizeQuickMode(mode) {
     const normalized = String(mode || "").trim().toLowerCase();
-    return ctx.QUICK_MODE_VALUES.has(normalized) ? normalized : "off";
+    return ctx.QUICK_MODE_VALUES.has(normalized) ? normalized : "toggle";
   }
 
   function getQuickModeInflightMap() {
     const state = ctx.state;
     if (!state.quickMode || typeof state.quickMode !== "object") {
-      state.quickMode = { mode: "off", inflightByRoom: {} };
+      state.quickMode = { mode: "toggle", inflightByRoom: {} };
     }
     if (!state.quickMode.inflightByRoom || typeof state.quickMode.inflightByRoom !== "object") {
       state.quickMode.inflightByRoom = {};

@@ -22,6 +22,8 @@
       // Phase 22 W2b: running-count chip in the topbar.
       runningCountChip: document.querySelector("#running-count-chip"),
       runningCountChipLabel: document.querySelector("#running-count-chip-label"),
+      runningCountChipLabelDefault: document.querySelector("#running-count-chip-label-default"),
+      runningCountChipLabelCustom: document.querySelector("#running-count-chip-label-custom"),
       zonesStatus: document.querySelector("#zones-status"),
       alignModeToggleInput: document.querySelector("#align-mode-toggle"),
       alignModeButton: document.querySelector("#align-mode-button"),
