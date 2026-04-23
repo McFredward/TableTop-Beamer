@@ -181,9 +181,33 @@
     _glInitTried = true;
     try {
       _glCanvas = document.createElement("canvas");
-      _gl = _glCanvas.getContext("webgl", { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true })
-         || _glCanvas.getContext("experimental-webgl", { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true });
+      // Phase 22 W5 v3: RPi/Chromium lean WebGL options — no AA buffer
+      // (we don't need multisampling since the mesh is artifact-free),
+      // no premultiplied alpha (so texImage2D interprets the canvas
+      // colour buffer directly), and lowPower hint so the RPi's
+      // VideoCore can schedule the context on its integrated path
+      // without spinning a discrete GPU (no-op on RPi but correct).
+      const glOpts = {
+        premultipliedAlpha: false,
+        antialias: false,
+        preserveDrawingBuffer: true,
+        powerPreference: "low-power",
+        desynchronized: true,
+      };
+      _gl = _glCanvas.getContext("webgl", glOpts)
+         || _glCanvas.getContext("experimental-webgl", glOpts);
       if (!_gl) return false;
+      // Drop the context cleanly on GPU reset (happens on RPi under
+      // thermal throttle or external display resets). Next frame will
+      // retry init; if that also fails we drop to the 2D fallback.
+      _glCanvas.addEventListener("webglcontextlost", (event) => {
+        event.preventDefault();
+        _glInitOk = false;
+        _glInitTried = false;
+        _gl = null;
+        _glProgram = null;
+        _glTexture = null;
+      }, false);
       const compile = (src, type) => {
         const s = _gl.createShader(type);
         _gl.shaderSource(s, src);
