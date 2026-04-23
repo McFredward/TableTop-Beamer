@@ -769,8 +769,18 @@
       // renderPreview to switch targets or exit cleanly.
       const canvas = document.createElement("canvas");
       canvas.className = "anim-editor-preview-media anim-editor-preview-canvas";
-      canvas.width = 320;
-      canvas.height = 240;
+      // Phase 22 W3b-4d fix: intrinsic canvas size should match the
+      // live board's pixel dimensions so position/speed-based
+      // coded effects (outside-space star field, sweeping scans,
+      // …) render at the same apparent speed in the preview as on
+      // the projection. CSS scales the canvas down to fit the
+      // 280-px preview column; the intrinsic coordinate space
+      // stays 1:1 with the board.
+      const boardCanvas = document.querySelector("#fx-canvas");
+      const refW = Number(boardCanvas?.width) || 1280;
+      const refH = Number(boardCanvas?.height) || 960;
+      canvas.width = refW;
+      canvas.height = refH;
       wrap.append(canvas);
       startCodedPreview(canvas, scope, def);
     } else {
