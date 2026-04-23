@@ -477,7 +477,7 @@
         : "Status: Inside changes applied (persistence failed)";
     });
 
-    outsideEnabledInput.addEventListener("change", () => {
+    outsideEnabledInput?.addEventListener("change", () => {
       if (outputRole === OUTPUT_ROLE_CONTROL) {
         const nextProfile = {
           ...getOutsideFxProfile(state.boardId),
@@ -647,21 +647,21 @@
       persistBoardProfiles();
     }
 
-    outsideIntensityInput.addEventListener("input", () => {
+    outsideIntensityInput?.addEventListener("input", () => {
       const intensity = clampOutsideIntensity(outsideIntensityInput.value);
       setOutsideEditorDraft(state.boardId, { intensity });
-      outsideIntensityValue.textContent = intensity.toFixed(2);
+      if (outsideIntensityValue) outsideIntensityValue.textContent = intensity.toFixed(2);
       commitOutsideDraftToDefinition({ intensity });
     });
 
-    outsideSpeedInput.addEventListener("input", () => {
+    outsideSpeedInput?.addEventListener("input", () => {
       const speed = clampOutsideSpeed(outsideSpeedInput.value);
       setOutsideEditorDraft(state.boardId, { speed });
-      outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+      if (outsideSpeedValue) outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
       commitOutsideDraftToDefinition({ speed });
     });
 
-    outsideModeInput.addEventListener("change", () => {
+    outsideModeInput?.addEventListener("change", () => {
       if (outsideModeInput.disabled) {
         return;
       }
@@ -670,7 +670,7 @@
       commitOutsideDraftToDefinition({ mode });
     });
 
-    outsideDirectionInput.addEventListener("change", () => {
+    outsideDirectionInput?.addEventListener("change", () => {
       if (outsideDirectionInput.disabled) {
         return;
       }
