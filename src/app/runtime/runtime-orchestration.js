@@ -99,6 +99,7 @@ const {
   startRoomAnimationButton, runningAnimationsList,
   // Phase 22 W2b: topbar elements — brand sub-line label + running-count chip.
   topbarBoardLabel, runningCountChip, runningCountChipLabel,
+  runningCountChipLabelDefault, runningCountChipLabelCustom,
   liveEditorPanel, liveEditorTitle, liveEditorClose,
   liveEditorOpacity, liveEditorOpacityValue, liveEditorIntensity, liveEditorIntensityValue,
   liveEditorSpeed, liveEditorSpeedValue, liveEditorSoundVolume, liveEditorSoundVolumeValue,
@@ -2256,6 +2257,8 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   // renderRunningAnimationsList to show "N running" / hide at 0.
   runningCountChip,
   runningCountChipLabel,
+  runningCountChipLabelDefault,
+  runningCountChipLabelCustom,
   liveEditorPanel,
   liveEditorTitle,
   liveEditorClose,
