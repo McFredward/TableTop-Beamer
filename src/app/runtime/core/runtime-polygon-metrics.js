@@ -60,14 +60,21 @@
     const inverseZoom = 1 / safeZoomScale;
     const normalizedHandleScale = clampPolygonHandleScale(handleScale);
     const coarse = getCoarsePointerHitMultiplier();
+    // Phase 22 W5: shrink the "100%" preset to what was 75% before.
+    // The slider still runs 10–100%, but every rendered pixel scales
+    // through this factor so the default feels less chunky against
+    // the modernised polygon palette.
+    const visualTrim = 0.75;
     return {
+      // Hit targets stay at the old size so touch ergonomics don't
+      // regress — only the visible handles shrink.
       edgeHitRadius: Math.max(8, 12 * inverseZoom) * normalizedHandleScale * coarse,
-      edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale,
+      edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale * visualTrim,
       vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale * coarse,
-      vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale,
+      vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * visualTrim,
       // Phase 18: label size = ~75% of handle diameter so it always fits inside the bubble
-      vertexLabelSize: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * 1.5,
-      strokeScale: Math.max(0.4, normalizedHandleScale),
+      vertexLabelSize: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * 1.5 * visualTrim,
+      strokeScale: Math.max(0.4, normalizedHandleScale * visualTrim),
     };
   }
 
