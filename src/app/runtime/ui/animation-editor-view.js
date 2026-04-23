@@ -177,13 +177,18 @@
     if (placeholder) placeholder.hidden = true;
 
     pane.append(buildHeader(sel.scope, def));
+    // Phase 22 W3b-3 (revised): card order per user spec —
+    //   Identity (Name + Icon)
+    //   Source (asset type + path)
+    //   Coded effect card (only for Room solid-color / hull-flicker)
+    //   Defaults (opacity / intensity / speed / volume / loop;
+    //             Outside: + mode + direction inline)
+    //   Sound
     pane.append(buildIdentityCard(sel.scope, def, boardId));
-    pane.append(buildDefaultsCard(sel.scope, def, boardId));
-    const playback = buildPlaybackCard(sel.scope, def, boardId);
-    if (playback) pane.append(playback);
+    pane.append(buildSourceCard(sel.scope, def, boardId));
     const colorCard = buildColorCard(sel.scope, def, boardId);
     if (colorCard) pane.append(colorCard);
-    pane.append(buildSourceCard(sel.scope, def, boardId));
+    pane.append(buildDefaultsCard(sel.scope, def, boardId));
     pane.append(buildSoundCard(sel.scope, def, boardId));
   }
 
@@ -278,7 +283,15 @@
         }
       },
     });
-    pickerApi?.setValue(def.icon ?? null);
+    // Phase 22 W3b-3 fix: reflect the EFFECTIVE icon (explicit
+    // definition.icon if set, else the heuristic fallback) so the
+    // user always sees which glyph is rendering in the Dashboard
+    // library + Active Animations list. Picking the same tile is a
+    // no-op in the icon-picker module, so no accidental writes.
+    const icons = window.TT_BEAMER_UI_ICONS;
+    const resolved = def.icon
+      ?? (icons?.resolveAnimationIcon ? icons.resolveAnimationIcon(def) : null);
+    pickerApi?.setValue(resolved ?? null);
     return card;
   }
 
@@ -297,6 +310,8 @@
         card.append(buildSliderRow(scope, def, boardId, f));
       } else if (f.kind === "toggle") {
         card.append(buildToggleRow(scope, def, boardId, f));
+      } else if (f.kind === "select") {
+        card.append(buildSelectRow(scope, def, boardId, f));
       }
     }
     return card;
@@ -341,6 +356,25 @@
           kind: "toggle", key: "loopUntilStopped",
           label: "Loop",
           sub: "Repeats until stopped.",
+        });
+      }
+      if (scope === "outside") {
+        // Phase 22 W3b-3 (revised): mode + direction used to live in
+        // a separate Playback card; inlined into Defaults so the user
+        // has one consolidated tuning area.
+        fields.push({
+          kind: "select", key: "mode", label: "Mode",
+          options: [
+            { value: "standard", label: "Standard" },
+            { value: "immersive", label: "Immersive" },
+          ],
+        });
+        fields.push({
+          kind: "select", key: "direction", label: "Direction",
+          options: [
+            { value: "forward", label: "Forward" },
+            { value: "reverse", label: "Reverse" },
+          ],
         });
       }
     }
