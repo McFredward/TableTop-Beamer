@@ -1061,14 +1061,17 @@
       c2d.fillRect(0, 0, canvas.width, canvas.height);
       c2d.restore();
       const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
-      // Phase 22 W3b-4d fix: do NOT pre-scale age by speed. Coded
-      // branches that honour speed (outside-space) multiply by
-      // `speedFactor` derived from `options.outsideSpeed` themselves;
-      // pre-scaling here double-applied the speed and left the
-      // default-settings sliders looking unresponsive. Simpler coded
-      // branches (intruder-alert, fire, …) don't honour speed; their
-      // preview runs at 1 × which is acceptable for a thumbnail.
+      // Phase 22 W3b polish: mirror what runtime-draw-loop.js does for
+      // every scope before calling drawEffectVisual — inside uses
+      // `age * speed`, room uses `age * playbackSpeed`, outside's
+      // resolveOutsideTimeline returns `elapsed * speed`. Pre-scaling
+      // here is what makes effects like scanning, fire, intruder-alert
+      // actually honour the speed slider in the preview. outside-space
+      // additionally consumes `options.outsideSpeed` to scale layer
+      // motion; this still double-applies, but that matches board
+      // behavior 1:1 so the preview and board agree on speed.
       const age = (performance.now() - startTime) / 1000;
+      const scaledAge = age * speed;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
       const options = {
         opacity: Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1,
@@ -1080,7 +1083,7 @@
       };
       try {
         visuals.withPreviewCanvas(canvas, () => {
-          visuals.drawEffectVisual(current.assetRef, age, intensity, null, roomMetrics(), options);
+          visuals.drawEffectVisual(current.assetRef, scaledAge, intensity, null, roomMetrics(), options);
         });
       } catch (error) {
         console.error("anim editor preview error", error);
