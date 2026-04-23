@@ -936,18 +936,34 @@
     const ref = String(def.assetRef || "").trim();
 
     if (type === "gif" && ref) {
-      const img = document.createElement("img");
-      img.className = "anim-editor-preview-media";
-      img.dataset.animEditorPreviewMedia = "gif";
-      img.src = toResourceUrl(ref);
-      img.alt = def.name;
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.addEventListener("error", () => {
-        wrap.replaceChildren(buildPreviewMissingNotice(ref));
-      });
-      applyMediaPreviewProps(img, def);
-      wrap.append(img);
+      // Phase 22 W3b polish: GIF preview renders through the shared
+      // gif-playback cache so the speed slider actually changes the
+      // frame cadence — native <img> playback ignores any external
+      // timing. Same math the board's draw loop uses:
+      //   getGifPlaybackFrame(path, age × speed)
+      //   globalAlpha = opacity × intensity
+      const canvas = document.createElement("canvas");
+      canvas.className = "anim-editor-preview-media anim-editor-preview-canvas";
+      canvas.dataset.animEditorPreviewMedia = "gif";
+      const boardCanvas = document.querySelector("#fx-canvas");
+      canvas.width = Number(boardCanvas?.width) || 1280;
+      canvas.height = Number(boardCanvas?.height) || 960;
+      wrap.append(canvas);
+      const started = startGifPreview(canvas, scope, def, wrap, ref);
+      if (!started) {
+        // gif-playback module missing (unlikely) — last-resort <img>.
+        wrap.replaceChildren();
+        const img = document.createElement("img");
+        img.className = "anim-editor-preview-media";
+        img.dataset.animEditorPreviewMedia = "gif";
+        img.src = toResourceUrl(ref);
+        img.alt = def.name;
+        img.addEventListener("error", () => {
+          wrap.replaceChildren(buildPreviewMissingNotice(ref));
+        });
+        applyMediaPreviewProps(img, def);
+        wrap.append(img);
+      }
     } else if (type === "mp4" && ref) {
       const video = document.createElement("video");
       video.className = "anim-editor-preview-media";
@@ -1082,6 +1098,63 @@
       previewLoopId = null;
     }
     previewLoopKey = null;
+  }
+
+  // Phase 22 W3b polish: canvas-backed GIF preview so the speed
+  // slider actually changes the frame cadence. Uses the same
+  // decoded-frame cache the board's draw loop uses.
+  function startGifPreview(canvas, scope, def, wrap, ref) {
+    const gifApi = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
+    if (!gifApi?.ensureGifPlaybackReady || !gifApi.getGifPlaybackFrame) {
+      return false;
+    }
+    stopCodedPreview();
+    const path = toResourceUrl(ref);
+    const entry = gifApi.ensureGifPlaybackReady(path);
+    const cacheEntry = gifApi.getGifPlaybackCacheEntry
+      ? gifApi.getGifPlaybackCacheEntry(path)
+      : entry;
+    const key = `gif:${scope}:${def.id}`;
+    previewLoopKey = key;
+    const startTime = performance.now();
+    const c2d = canvas.getContext("2d");
+    function tick() {
+      if (previewLoopKey !== key) return;
+      if (!document.body.contains(canvas)) {
+        stopCodedPreview();
+        return;
+      }
+      if (cacheEntry?.status === "fallback" || cacheEntry?.error) {
+        stopCodedPreview();
+        if (wrap) wrap.replaceChildren(buildPreviewMissingNotice(ref));
+        return;
+      }
+      const current = findDefinition(scope, def.id, getEditorBoardId()) ?? def;
+      const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
+      const age = (performance.now() - startTime) / 1000;
+      const opacity = Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1;
+      const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
+      const effective = Math.max(0, Math.min(1, opacity * intensity));
+      c2d.save();
+      c2d.fillStyle = "#000";
+      c2d.fillRect(0, 0, canvas.width, canvas.height);
+      const frame = gifApi.getGifPlaybackFrame(path, age * speed);
+      if (frame) {
+        c2d.globalAlpha = effective;
+        const fw = frame.width;
+        const fh = frame.height;
+        const cw = canvas.width;
+        const ch = canvas.height;
+        const fit = Math.min(cw / fw, ch / fh);
+        const dw = fw * fit;
+        const dh = fh * fit;
+        c2d.drawImage(frame, (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+      }
+      c2d.restore();
+      previewLoopId = requestAnimationFrame(tick);
+    }
+    previewLoopId = requestAnimationFrame(tick);
+    return true;
   }
 
   // Turn a stored asset ref into a URL the browser can load. The
