@@ -17,7 +17,15 @@
   function buildTiles(root) {
     const icons = window.TT_BEAMER_UI_ICONS;
     if (!icons || !icons.ICON_DEFS) return [];
-    const names = Object.keys(icons.ICON_DEFS).sort();
+    // Phase 22 W3b polish: the picker only exposes the curated
+    // animation-flavour subset. Full ICON_DEFS keeps non-animation
+    // glyphs (trash, search, settings…) around for UI chrome.
+    const curated = Array.isArray(icons.ANIMATION_ICON_KEYS)
+      ? icons.ANIMATION_ICON_KEYS.filter((n) => icons.ICON_DEFS[n])
+      : null;
+    const names = curated && curated.length
+      ? curated
+      : Object.keys(icons.ICON_DEFS).sort();
     root.replaceChildren();
     const tiles = [];
     for (const name of names) {

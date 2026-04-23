@@ -71,7 +71,46 @@
     close:       "M6 6l12 12M18 6L6 18",
     info:        "M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 11v5M12 8h.01",
     picker:      "M12 4v2M12 18v2M4 12H2M22 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M6 18l-1.5 1.5M19.5 4.5 18 6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z",
+    // Phase 22 W3b polish: animation-flavoured icons so the picker
+    // isn't padded with PC-chrome glyphs.
+    star:         "M12 3l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 17.4 6.2 20.8l1.6-6.6L2.7 9.8l6.7-.6z",
+    moon:         "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
+    sun:          "M12 5V3M12 21v-2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z",
+    snowflake:    "M12 2v20M4.5 6l15 12M19.5 6l-15 12M2 12h20M7 5l5 3 5-3M7 19l5-3 5 3M5 7l3 5-3 5M19 7l-3 5 3 5",
+    cloud:        "M7.5 18h10a4 4 0 0 0 .5-7.95A6 6 0 0 0 6.2 11.2 3.5 3.5 0 0 0 7.5 18z",
+    smoke:        "M5 10c0-3 3-3 3-6M10 10c0-3 3-3 3-6M15 10c0-3 3-3 3-6M4 14h16M3 18h18M5 22h14",
+    wave:         "M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0",
+    spiral:       "M12 12a3 3 0 1 1 3 3 5 5 0 0 1-5-5 7 7 0 0 1 7-7",
+    activity:     "M3 12h4l3-8 4 16 3-8h4",
+    siren:        "M7 15V9a5 5 0 0 1 10 0v6M5 15h14v4H5zM12 4V2M19 7l1.5-1.5M5 7 3.5 5.5",
+    crosshair:    "M12 2v4M12 18v4M2 12h4M18 12h4M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z",
+    heart:        "M12 20s-7-4.5-7-10a4.5 4.5 0 0 1 8-2.9A4.5 4.5 0 0 1 19 10c0 5.5-7 10-7 10z",
+    zap:          "M11 2 3 14h7l-1 8 10-14h-7z",
+    pulse:        "M2 12h5l2-7 3 14 2-7h8",
+    orbit:        "M12 12a3 3 0 1 1 0-6 3 3 0 0 1 0 6zM22 6a10 10 0 0 1-10 10A10 10 0 0 1 2 6",
+    twinkle:      "M12 4v4M12 16v4M4 12h4M16 12h4M8 8l2.5 2.5M13.5 13.5 16 16M8 16l2.5-2.5M13.5 10.5 16 8M12 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4z",
+    sparkle_small:"M12 3l1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2zM19 15l.8 2L22 18l-2 .7L19 21l-.8-2L16 18l2-.8z",
+    siren_alt:    "M12 3a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7zM5 10v4h14v-4M12 16v4M8 20h8",
+    moon_stars:   "M20 13A8 8 0 1 1 11 4 6 6 0 0 0 20 13zM17 4l.6 1.4L19 6l-1.4.6L17 8l-.6-1.4L15 6l1.4-.6z",
+    radio:        "M5 16a8 8 0 0 1 14 0M7.5 13a5 5 0 0 1 9 0M10 10a2 2 0 0 1 4 0M12 16a1 1 0 1 1 0 2 1 1 0 0 1 0-2z",
   };
+
+  // Phase 22 W3b polish: curated list exposed to the icon picker.
+  // Everything in here reads as "animation / effect" — no settings
+  // gears, no trash cans, no volume controls, no nav chrome. Full
+  // ICON_DEFS stays available for general UI chrome so tools like
+  // the trash button in the preview footer still work.
+  const ANIMATION_ICON_KEYS = [
+    "sparkles", "sparkle_small", "star", "twinkle",
+    "flame", "bolt", "zap", "drop",
+    "ghost", "bell", "siren", "siren_alt",
+    "shield", "rocket", "scan", "radio",
+    "eye", "target", "crosshair",
+    "wave", "spiral", "orbit", "pulse", "activity",
+    "moon", "moon_stars", "sun", "cloud", "snowflake", "smoke",
+    "heart", "layers", "clock",
+    "frame", "power",
+  ];
 
   function createIcon(name, options) {
     const {
@@ -199,6 +238,7 @@
 
   window.TT_BEAMER_UI_ICONS = {
     ICON_DEFS,
+    ANIMATION_ICON_KEYS,
     createIcon,
     resolveAnimationIcon,
   };

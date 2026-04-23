@@ -329,6 +329,10 @@ body[data-output-role="final-output"] #animation-editor-page {
 
 .anim-editor-row-body {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.15;
 }
 
 .anim-editor-row-name {
