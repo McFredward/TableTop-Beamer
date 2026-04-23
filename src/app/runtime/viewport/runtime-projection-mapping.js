@@ -158,6 +158,180 @@
   let _warpTmpCanvas = null;
   let _warpTmpCtx = null;
 
+  // Phase 22 W5 v3: WebGL mesh-warp state. The 2D-canvas per-triangle
+  // clip+drawImage approach produced seams because per-triangle affine
+  // transforms and clip-boundary AA disagree at shared edges. GL
+  // samples a single texture with per-vertex UVs — no clipping, no
+  // seam. Falls back to the 2D path when WebGL is unavailable.
+  let _glCanvas = null;
+  let _gl = null;
+  let _glProgram = null;
+  let _glTexture = null;
+  let _glPosBuf = null;
+  let _glUVBuf = null;
+  let _glIdxBuf = null;
+  let _glInitTried = false;
+  let _glInitOk = false;
+  let _glAttrPos = -1;
+  let _glAttrUV = -1;
+  let _glUniTex = null;
+
+  function _initMeshWarpGL() {
+    if (_glInitTried) return _glInitOk;
+    _glInitTried = true;
+    try {
+      _glCanvas = document.createElement("canvas");
+      _gl = _glCanvas.getContext("webgl", { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true })
+         || _glCanvas.getContext("experimental-webgl", { premultipliedAlpha: false, antialias: false, preserveDrawingBuffer: true });
+      if (!_gl) return false;
+      const compile = (src, type) => {
+        const s = _gl.createShader(type);
+        _gl.shaderSource(s, src);
+        _gl.compileShader(s);
+        if (!_gl.getShaderParameter(s, _gl.COMPILE_STATUS)) {
+          console.error("mesh-warp shader error:", _gl.getShaderInfoLog(s));
+          return null;
+        }
+        return s;
+      };
+      const vs = compile(
+        "attribute vec2 aPos;\nattribute vec2 aUV;\nvarying vec2 vUV;\n"
+        + "void main(){ gl_Position = vec4(aPos, 0.0, 1.0); vUV = aUV; }",
+        _gl.VERTEX_SHADER,
+      );
+      const fs = compile(
+        "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\n"
+        + "void main(){ gl_FragColor = texture2D(uTex, vUV); }",
+        _gl.FRAGMENT_SHADER,
+      );
+      if (!vs || !fs) return false;
+      _glProgram = _gl.createProgram();
+      _gl.attachShader(_glProgram, vs);
+      _gl.attachShader(_glProgram, fs);
+      _gl.linkProgram(_glProgram);
+      if (!_gl.getProgramParameter(_glProgram, _gl.LINK_STATUS)) {
+        console.error("mesh-warp link error:", _gl.getProgramInfoLog(_glProgram));
+        return false;
+      }
+      _gl.useProgram(_glProgram);
+      _glAttrPos = _gl.getAttribLocation(_glProgram, "aPos");
+      _glAttrUV = _gl.getAttribLocation(_glProgram, "aUV");
+      _glUniTex = _gl.getUniformLocation(_glProgram, "uTex");
+      _glTexture = _gl.createTexture();
+      _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+      _glPosBuf = _gl.createBuffer();
+      _glUVBuf = _gl.createBuffer();
+      _glIdxBuf = _gl.createBuffer();
+      _glInitOk = true;
+      return true;
+    } catch (error) {
+      console.error("mesh-warp GL init failed:", error);
+      return false;
+    }
+  }
+
+  function _postDrawMeshWarpGL(canvas, canvasCtx) {
+    if (!_initMeshWarpGL()) return false;
+    const w = canvas.width;
+    const h = canvas.height;
+    if (_glCanvas.width !== w || _glCanvas.height !== h) {
+      _glCanvas.width = w;
+      _glCanvas.height = h;
+    }
+    // Snapshot current canvas into the temp canvas (also used by 2D path).
+    if (!_warpTmpCanvas) {
+      _warpTmpCanvas = document.createElement("canvas");
+      _warpTmpCtx = _warpTmpCanvas.getContext("2d");
+    }
+    if (_warpTmpCanvas.width !== w || _warpTmpCanvas.height !== h) {
+      _warpTmpCanvas.width = w;
+      _warpTmpCanvas.height = h;
+    }
+    _warpTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
+    _warpTmpCtx.clearRect(0, 0, w, h);
+    _warpTmpCtx.drawImage(canvas, 0, 0);
+
+    _gl.viewport(0, 0, w, h);
+    _gl.useProgram(_glProgram);
+    _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
+    _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
+    _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    try {
+      _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, _warpTmpCanvas);
+    } catch (error) {
+      console.error("mesh-warp texImage2D failed:", error);
+      return false;
+    }
+
+    const cols = grid.srcXs.length;
+    const rows = grid.srcYs.length;
+    const vertexCount = rows * cols;
+    const positions = new Float32Array(vertexCount * 2);
+    const uvs = new Float32Array(vertexCount * 2);
+    let vi = 0;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const pt = getPoint(row, col);
+        // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL, so NDC y
+        // maps as (1 - 2*pt.y) to keep top-of-canvas = top-of-NDC-visible.
+        positions[vi] = pt.x * 2 - 1;
+        positions[vi + 1] = 1 - pt.y * 2;
+        uvs[vi] = grid.srcXs[col];
+        // With UNPACK_FLIP_Y_WEBGL = true, texture's V axis is flipped:
+        // UV (u, v) samples src pixel (u*W, (1-v)*H). To keep our source
+        // Y aligned with destination Y, use (1 - grid.srcYs[row]).
+        uvs[vi + 1] = 1 - grid.srcYs[row];
+        vi += 2;
+      }
+    }
+    const triCount = (rows - 1) * (cols - 1) * 2;
+    const indices = new Uint16Array(triCount * 3);
+    let ii = 0;
+    for (let row = 0; row < rows - 1; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        const tl = row * cols + col;
+        const tr = tl + 1;
+        const bl = tl + cols;
+        const br = bl + 1;
+        indices[ii++] = tl; indices[ii++] = tr; indices[ii++] = br;
+        indices[ii++] = tl; indices[ii++] = br; indices[ii++] = bl;
+      }
+    }
+
+    _gl.bindBuffer(_gl.ARRAY_BUFFER, _glPosBuf);
+    _gl.bufferData(_gl.ARRAY_BUFFER, positions, _gl.DYNAMIC_DRAW);
+    _gl.enableVertexAttribArray(_glAttrPos);
+    _gl.vertexAttribPointer(_glAttrPos, 2, _gl.FLOAT, false, 0, 0);
+
+    _gl.bindBuffer(_gl.ARRAY_BUFFER, _glUVBuf);
+    _gl.bufferData(_gl.ARRAY_BUFFER, uvs, _gl.DYNAMIC_DRAW);
+    _gl.enableVertexAttribArray(_glAttrUV);
+    _gl.vertexAttribPointer(_glAttrUV, 2, _gl.FLOAT, false, 0, 0);
+
+    _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
+    _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, indices, _gl.DYNAMIC_DRAW);
+
+    _gl.activeTexture(_gl.TEXTURE0);
+    _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
+    _gl.uniform1i(_glUniTex, 0);
+
+    _gl.clearColor(0, 0, 0, 0);
+    _gl.clear(_gl.COLOR_BUFFER_BIT);
+    _gl.drawElements(_gl.TRIANGLES, indices.length, _gl.UNSIGNED_SHORT, 0);
+
+    // Blit GL result onto the main canvas.
+    canvasCtx.save();
+    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+    canvasCtx.clearRect(0, 0, w, h);
+    canvasCtx.drawImage(_glCanvas, 0, 0);
+    canvasCtx.restore();
+    return true;
+  }
+
   /**
    * Draw an affine-mapped source triangle into a dest triangle on `cctx`.
    * Uses clip() + setTransform() to perform the correct affine warp for
@@ -221,6 +395,11 @@
   function postDrawMeshWarp(canvas, canvasCtx) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
     if (!hasGridDisplacements()) return;
+
+    // Phase 22 W5 v3: WebGL path eliminates the per-triangle clip
+    // seams that were visible on MP4 content. Falls back to the 2D
+    // path below only if GL init fails (ancient browser / no GPU).
+    if (_postDrawMeshWarpGL(canvas, canvasCtx)) return;
 
     const w = canvas.width;
     const h = canvas.height;
