@@ -101,6 +101,11 @@
     polygonRoomSelect.addEventListener("change", () => {
       const roomId = polygonRoomSelect.value;
       syncPolygonRoomSelection(roomId);
+      // Phase 22 W5: mirror the ship-select fix — picking a room in
+      // the dropdown moves editing intent to that room, so DELETE
+      // should target room vertices regardless of which polygon the
+      // user previously had focus on.
+      state.lastPolygonFocus = "room";
       const zoom = getBoardZoom(state.boardId);
       const center = getRoomCenterForZoom(state.boardId, roomId);
       updateCurrentBoardZoom(computePanForZoomFocus(zoom.scale, center));
@@ -251,6 +256,13 @@
       setSelectedPlayAreaId(state.boardId, playAreaSelect.value);
       state.shipPolygonEditor.selectedVertexIndex = 0;
       state.shipPolygonEditor.selectedEdgeIndex = 0;
+      // Phase 22 W5 fix: switching the active play area moves the
+      // user's editing intent to the new polygon. Flip lastPolygonFocus
+      // to "ship" (and drop any stale room vertex selection) so DELETE
+      // routes to the play-area delete path right away, without the
+      // user having to click a vertex first.
+      state.lastPolygonFocus = "ship";
+      state.polygonEditor.vertexSelectionActive = false;
       state.shipPolygonsByBoard[state.boardId] = getShipPolygonPoints(state.boardId);
       if (wasClean && typeof captureCleanBaseline === "function") {
         captureCleanBaseline();
