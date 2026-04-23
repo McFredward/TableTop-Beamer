@@ -438,8 +438,11 @@
   }
 
   function syncRoomFxPanel() {
-    // Phase 22 W3b-5: legacy "Room Animations" sidebar panel removed.
-    if (!ctx.roomAnimationSettingsSelect && !ctx.roomAssetTypeInput) return;
+    // Phase 22 W3b-5 fix: the Dashboard's "Room animation" picker
+    // (#room-animation-select) is populated by this function too —
+    // not just the removed sidebar panel. Every write below is
+    // already null-guarded per target, so let the function run even
+    // when the legacy sidebar DOM is gone.
     const state = ctx.state;
     const roomFx = ctx.getRoomFxProfile(state.boardId);
     const selectedDefinition = ctx.getSelectedRoomAnimationDefinition(state.boardId);

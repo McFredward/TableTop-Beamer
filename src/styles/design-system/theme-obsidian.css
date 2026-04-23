@@ -369,16 +369,19 @@ body[data-output-role="final-output"].dir-obsidian-dark {
 }
 
 /* Phase 22 W3b polish: native <option> dropdown panels inherit the OS
- * default (white bg + white text on some setups). Force dark surface
- * + light text so the expanded list stays readable. */
+ * default (white bg + white text on some setups). Force a SOLID dark
+ * surface (not the token's rgba white-on-transparent, which composites
+ * to white on the OS dropdown layer) and a light text colour so the
+ * expanded list stays readable across Chrome/Firefox/Safari. */
 .dir-obsidian-dark select option,
 .dir-obsidian-dark select optgroup {
-  background-color: var(--c-surface);
-  color: var(--c-text);
+  background-color: #14171c;
+  color: #f2f4f7;
 }
-.dir-obsidian-dark select option:checked {
-  background-color: var(--c-accent);
-  color: var(--c-text);
+.dir-obsidian-dark select option:checked,
+.dir-obsidian-dark select option:hover {
+  background-color: #1f2a3d;
+  color: #f2f4f7;
 }
 
 .dir-obsidian-dark textarea { padding: var(--rd-s-3); }
