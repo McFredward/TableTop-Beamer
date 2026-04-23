@@ -390,14 +390,19 @@
       return !NON_TYPING_INPUT_TYPES.has(String(el.type || "").toLowerCase());
     };
     if (target instanceof HTMLTextAreaElement) return true;
-    if (target instanceof HTMLSelectElement) return true;
+    // Phase 22 W5 fix: <select> used to count as typing — that meant
+    // a focused dropdown (e.g. Active Play Area) swallowed DELETE,
+    // Ctrl+Z etc. A select isn't a text field; only treat the native
+    // combobox as typing when the user is mid-interaction (its
+    // dropdown panel being open isn't reliably detectable, so we
+    // just drop the check entirely — shortcuts now work while a
+    // select has focus, which matches desktop native UX).
     if (isTextInput(target)) return true;
     if (target.isContentEditable) return true;
     // Walk up the tree; stop at the first matching ancestor
     let el = target.parentElement;
     while (el) {
       if (el instanceof HTMLTextAreaElement) return true;
-      if (el instanceof HTMLSelectElement) return true;
       if (isTextInput(el)) return true;
       if (el.isContentEditable) return true;
       el = el.parentElement;

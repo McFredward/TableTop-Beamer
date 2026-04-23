@@ -113,6 +113,10 @@
       syncPolygonEditorPanel();
       renderRoomOverlay();
       setPanCursorState();
+      // Phase 22 W5 fix: blur the select so DELETE / Ctrl+Z aren't
+      // swallowed by isTypingShortcutTarget while focus still sits
+      // on this dropdown.
+      try { polygonRoomSelect.blur(); } catch {}
     });
 
     showRoomVerticesInput?.addEventListener("change", () => {
@@ -264,6 +268,10 @@
       state.lastPolygonFocus = "ship";
       state.polygonEditor.vertexSelectionActive = false;
       state.shipPolygonsByBoard[state.boardId] = getShipPolygonPoints(state.boardId);
+      // Phase 22 W5 fix: blur the select so keyboard shortcuts (DELETE,
+      // Ctrl+Z, …) aren't swallowed by isTypingShortcutTarget — which
+      // treats any <select> as a typing target while it has focus.
+      try { playAreaSelect.blur(); } catch {}
       if (wasClean && typeof captureCleanBaseline === "function") {
         captureCleanBaseline();
       } else {
