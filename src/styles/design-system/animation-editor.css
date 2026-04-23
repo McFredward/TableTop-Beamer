@@ -52,6 +52,38 @@ body[data-output-role="final-output"] #animation-editor-page {
   background: var(--c-bg-raised);
 }
 
+.anim-editor-topbar-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Dirty-state mini bar in the editor topbar — pops when
+ * state.localConfigDirty flips true so the user sees the same
+ * unsaved-changes affordance they get on Dashboard / Settings. */
+.anim-editor-dirty-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--rd-s-3);
+  padding: 6px 10px 6px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--c-warn) 12%, var(--c-bg-raised));
+  border: 1px solid color-mix(in srgb, var(--c-warn) 45%, transparent);
+  color: var(--c-warn);
+  flex: 0 0 auto;
+}
+
+.anim-editor-dirty-bar[hidden] {
+  display: none !important;
+}
+
+.anim-editor-dirty-label {
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--rd-tracking-caps);
+  text-transform: uppercase;
+}
+
 /* Editor-scoped button overrides — the mock's AnimationEditor uses
  * rectangular buttons with 10–12 px radii, not the pill-shaped
  * .rd-btn from the Obsidian dashboard. Scoping here keeps the pill
@@ -333,20 +365,54 @@ body[data-output-role="final-output"] #animation-editor-page {
 /* Icon-picker tiles inside the animation editor stay rectangular —
  * override the rounded .rd-icon-picker-tile default (which still
  * serves the Dashboard's other uses). */
+/* Phase 22 W3b-4 fix: deterministic tile sizing with flex centering.
+ * Previous implementation used `width/height: 100%` inside a grid
+ * with `aspect-ratio` fallbacks that drifted in some browsers,
+ * causing the tile's rendered box to exceed the grid-auto-rows
+ * track and overlap the next row; `place-items: center` on a grid
+ * also sometimes left the SVG a half-pixel off center horizontally.
+ *
+ * Hard-pin the tile to a literal 32 × 32 box, swap to flex-center,
+ * and size the SVG explicitly. The tile box can't grow past the
+ * track height, the SVG's `display: block` removes inline baseline
+ * spacing, and flex-center aligns it exactly. */
 #animation-editor-page .rd-icon-picker-tile {
+  all: unset;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 4px;
   line-height: 0;
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: pointer;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  transition:
+    background var(--rd-t-quick),
+    color var(--rd-t-quick),
+    outline-color var(--rd-t-quick);
 }
 
-/* Pin the SVG to block-level + explicit 16×16 so the default
- * `.rd-ico { width: 20 px }` rule and the SVG's inline baseline
- * spacing can't push the tile past its 32-px grid track (overlap
- * fix) and so `place-items: center` on the tile lands the glyph
- * exactly in the middle (horizontal centering fix). */
+#animation-editor-page .rd-icon-picker-tile:hover {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+}
+
+#animation-editor-page .rd-icon-picker-tile.is-selected {
+  background: var(--c-accent-bg);
+  color: var(--c-accent);
+  outline-color: var(--c-accent);
+}
+
 #animation-editor-page .rd-icon-picker-tile > svg {
   display: block;
   width: 16px;
   height: 16px;
+  flex: 0 0 auto;
 }
 
 #animation-editor-page .rd-icon-picker {
@@ -571,6 +637,21 @@ body[data-output-role="final-output"] #animation-editor-page {
   display: block;
   width: 48px;
   height: 48px;
+}
+
+/* W3b-4 (revised): GIF / MP4 live-preview media. The swatch sizes
+ * itself to the card width; the media fills it at its natural aspect
+ * ratio with object-fit: contain so thin or tall assets stay
+ * readable. Width capped so really wide assets don't shove the right
+ * column around. */
+.anim-editor-preview-media {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: var(--rd-r-md);
+  background: #000;
 }
 
 .anim-editor-preview-swatch-label {

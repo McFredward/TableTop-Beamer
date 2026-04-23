@@ -178,6 +178,10 @@
       animEditorPane: document.querySelector("#anim-editor-pane"),
       animEditorPanePlaceholder: document.querySelector("#anim-editor-pane-placeholder"),
       animEditorPreview: document.querySelector("#anim-editor-preview"),
+      // Phase 22 W3b-4: editor-scoped dirty bar + Apply/Discard buttons.
+      animEditorDirtyBar: document.querySelector("#anim-editor-dirty-bar"),
+      animEditorApplyButton: document.querySelector("#anim-editor-apply"),
+      animEditorDiscardButton: document.querySelector("#anim-editor-discard"),
       controlPanel: document.querySelector("#control-panel"),
       projectionArea: document.querySelector(".projection-area"),
       primaryViewSwitch: document.querySelector(".primary-view-switch"),

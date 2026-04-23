@@ -41,8 +41,32 @@
   function bindDom() {
     const back = ctx.animEditorBackButton;
     if (back && !back._ttBeamerBound) {
-      back.addEventListener("click", close);
+      back.addEventListener("click", handleBack);
       back._ttBeamerBound = true;
+    }
+    if (ctx.animEditorApplyButton && !ctx.animEditorApplyButton._ttBeamerBound) {
+      ctx.animEditorApplyButton.addEventListener("click", () => {
+        if (typeof ctx.applyLocalConfigToServer === "function") {
+          Promise.resolve(ctx.applyLocalConfigToServer()).then(() => {
+            syncDirtyBar();
+          });
+        }
+      });
+      ctx.animEditorApplyButton._ttBeamerBound = true;
+    }
+    if (ctx.animEditorDiscardButton && !ctx.animEditorDiscardButton._ttBeamerBound) {
+      ctx.animEditorDiscardButton.addEventListener("click", () => {
+        if (typeof ctx.discardLocalConfigAndReloadFromServer === "function") {
+          ctx.discardLocalConfigAndReloadFromServer();
+          // Wait a tick for the reload to flush through, then
+          // re-render + refresh the dirty bar.
+          setTimeout(() => {
+            currentPaneKey = null;
+            render();
+          }, 50);
+        }
+      });
+      ctx.animEditorDiscardButton._ttBeamerBound = true;
     }
     if (ctx.animEditorSearchInput && !ctx.animEditorSearchInput._ttBeamerBound) {
       ctx.animEditorSearchInput.addEventListener("input", () => {
@@ -112,6 +136,36 @@
     }
   }
 
+  // Phase 22 W3b-4 (revised): Back is blocked while the user has
+  // pending edits — same UX contract as the Settings → Dashboard
+  // switch in setActiveView. OK = Apply + close. Cancel = stay.
+  function handleBack() {
+    const state = ctx.state;
+    if (state?.localConfigDirty && typeof ctx.applyLocalConfigToServer === "function") {
+      const accepted = window.confirm(
+        "You have unsaved animation changes.\n\n"
+        + "OK = Apply and close the editor\n"
+        + "Cancel = Stay here and decide (Apply or Discard)",
+      );
+      if (!accepted) return;
+      Promise.resolve(ctx.applyLocalConfigToServer()).then((result) => {
+        if (result && result.ok !== false) close();
+      });
+      return;
+    }
+    close();
+  }
+
+  function syncDirtyBar() {
+    const bar = ctx.animEditorDirtyBar;
+    if (!bar) return;
+    const dirty = Boolean(ctx.state?.localConfigDirty);
+    bar.hidden = !dirty;
+    if (ctx.animEditorBackButton) {
+      ctx.animEditorBackButton.classList.toggle("anim-editor-back--dirty", dirty);
+    }
+  }
+
   function collectAnimations(scope) {
     const boardId = ctx.state?.boardId;
     if (!boardId) return [];
@@ -132,6 +186,7 @@
     renderList();
     renderPane();
     renderPreview();
+    syncDirtyBar();
   }
 
   // =============================================================
@@ -667,21 +722,60 @@
     root.append(footer);
   }
 
+  // Phase 22 W3b-4 (revised): live preview — GIF and MP4 render inline
+  // so the user can see the animation's actual content. Coded effects
+  // stay as the icon glyph (the canvas-driven preview would require a
+  // dedicated render loop and drawEffectVisual access; coming later).
   function buildPreviewSwatch(scope, def) {
     const wrap = document.createElement("div");
     wrap.className = "anim-editor-preview-swatch";
-    const icons = window.TT_BEAMER_UI_ICONS;
-    if (icons?.createIcon) {
-      const name = def.icon
-        ?? (icons.resolveAnimationIcon ? icons.resolveAnimationIcon(def) : "sparkles");
-      const iconEl = icons.createIcon(name, { size: 48, strokeWidth: 1.25 });
-      wrap.append(iconEl);
+
+    const type = String(def.assetType || "").toLowerCase();
+    const ref = String(def.assetRef || "").trim();
+
+    if (type === "gif" && ref) {
+      const img = document.createElement("img");
+      img.className = "anim-editor-preview-media";
+      img.src = toResourceUrl(ref);
+      img.alt = def.name;
+      img.loading = "lazy";
+      img.decoding = "async";
+      wrap.append(img);
+    } else if (type === "mp4" && ref) {
+      const video = document.createElement("video");
+      video.className = "anim-editor-preview-media";
+      video.src = toResourceUrl(ref);
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "");
+      wrap.append(video);
+    } else {
+      const icons = window.TT_BEAMER_UI_ICONS;
+      if (icons?.createIcon) {
+        const name = def.icon
+          ?? (icons.resolveAnimationIcon ? icons.resolveAnimationIcon(def) : "sparkles");
+        const iconEl = icons.createIcon(name, { size: 48, strokeWidth: 1.25 });
+        wrap.append(iconEl);
+      }
     }
+
     const label = document.createElement("p");
     label.className = "anim-editor-preview-swatch-label";
     label.textContent = def.name;
     wrap.append(label);
     return wrap;
+  }
+
+  // Turn a stored asset ref into a URL the browser can load. The
+  // runtime stores refs as "resources/foo.gif" or "/resources/foo.gif";
+  // both forms should resolve to /resources/foo.gif.
+  function toResourceUrl(ref) {
+    const trimmed = String(ref || "").trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("/") || /^https?:/i.test(trimmed)) return trimmed;
+    return `/${trimmed.replace(/^\/+/, "")}`;
   }
 
   function buildPreviewMeta(scope, def) {
@@ -848,6 +942,9 @@
     if (typeof ctx.refreshGlobalButtons === "function") {
       ctx.refreshGlobalButtons();
     }
+    // Phase 22 W3b-4 (revised): every patch may flip localConfigDirty;
+    // reflect it in the editor topbar immediately.
+    syncDirtyBar();
   }
 
   // Update values without rebuilding — preserves input focus.

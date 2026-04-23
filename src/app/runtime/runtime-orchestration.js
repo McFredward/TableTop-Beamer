@@ -82,6 +82,7 @@ const {
   animEditorPage, animEditorBackButton, animEditorSearchInput, animEditorAddButton,
   animEditorScopeTabs, animEditorList, animEditorEmpty, animEditorCount,
   animEditorPane, animEditorPanePlaceholder, animEditorPreview,
+  animEditorDirtyBar, animEditorApplyButton, animEditorDiscardButton,
   roomAssetTypeInput, roomAssetRefInput, roomResourceSelect, roomSoundRefSelect,
   roomTransformDetails, roomRotationDegInput, roomRotationDegValue,
   roomStretchToPolygonInput, roomWidthScaleInput, roomWidthScaleValue,
@@ -2057,6 +2058,9 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     animEditorPane,
     animEditorPanePlaceholder,
     animEditorPreview,
+    animEditorDirtyBar,
+    animEditorApplyButton,
+    animEditorDiscardButton,
     getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
     getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
     getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
@@ -2070,6 +2074,11 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     // solid-color / hull-flicker coded effects.
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
+    // Phase 22 W3b-4 (revised): editor-scoped Apply / Discard + Back
+    // guard. Back uses window.confirm to block the exit when the user
+    // has unsaved edits.
+    applyLocalConfigToServer: () => applyLocalConfigToServer(),
+    discardLocalConfigAndReloadFromServer: () => discardLocalConfigAndReloadFromServer(),
   });
 }
 
