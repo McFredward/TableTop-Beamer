@@ -720,10 +720,16 @@
     let defaultCount = 0;
     for (const anim of allRunning) {
       const defs = defaultsByBoard[anim?.boardId] || [];
-      const isDefault = defs.some(
+      const explicitDefault = defs.some(
         (d) => d.type === anim.type && d.roomId === anim.roomId && d.scope === anim.scope,
       );
-      if (isDefault) defaultCount += 1;
+      // Phase 22 W5 fix: outside animations persist via the outside
+      // profile's `enabled` flag, not through defaultAnimationsByBoard.
+      // They still auto-restart on reload, so they belong in the
+      // "default" count. scope === "global" covers outside-ship
+      // animations that the outside FX panel pushes into runningAnimations.
+      const impliedAutostart = anim?.scope === "global";
+      if (explicitDefault || impliedAutostart) defaultCount += 1;
     }
     const customCount = totalRunning - defaultCount;
     if (ctx.runningCountChip) {
