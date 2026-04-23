@@ -938,6 +938,7 @@
     if (type === "gif" && ref) {
       const img = document.createElement("img");
       img.className = "anim-editor-preview-media";
+      img.dataset.animEditorPreviewMedia = "gif";
       img.src = toResourceUrl(ref);
       img.alt = def.name;
       img.loading = "lazy";
@@ -945,10 +946,12 @@
       img.addEventListener("error", () => {
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
       });
+      applyMediaPreviewProps(img, def);
       wrap.append(img);
     } else if (type === "mp4" && ref) {
       const video = document.createElement("video");
       video.className = "anim-editor-preview-media";
+      video.dataset.animEditorPreviewMedia = "mp4";
       video.src = toResourceUrl(ref);
       video.autoplay = true;
       video.loop = true;
@@ -958,6 +961,10 @@
       video.addEventListener("error", () => {
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
       });
+      video.addEventListener("loadedmetadata", () => {
+        applyMediaPreviewProps(video, def);
+      });
+      applyMediaPreviewProps(video, def);
       wrap.append(video);
     } else if (type === "coded" && ref && window.TT_BEAMER_RUNTIME_EFFECT_VISUALS?.withPreviewCanvas) {
       // Phase 22 W3b-4 (revised): coded effects get a live canvas
@@ -1121,6 +1128,37 @@
     return t || "—";
   }
 
+  // Phase 22 W3b polish: reflect current slider/toggle state on the
+  // GIF img or MP4 video element. Matches the board's draw math:
+  //   - effective alpha = opacity × intensity
+  //   - mp4 playbackRate = speed
+  // (GIF speed can't be modified natively — frame timing is baked
+  // into the file.)
+  function applyMediaPreviewProps(el, def) {
+    if (!el || !def) return;
+    const opacity = Number.isFinite(Number(def.opacity)) ? Number(def.opacity) : 1;
+    const intensity = Number.isFinite(Number(def.intensity)) ? Number(def.intensity) : 1;
+    const effective = Math.max(0, Math.min(1, opacity * intensity));
+    el.style.opacity = String(effective);
+    if (el.tagName === "VIDEO") {
+      const speed = Number.isFinite(Number(def.speed)) ? Number(def.speed) : 1;
+      const clamped = Math.max(0.15, Math.min(4, speed));
+      try {
+        if (Math.abs((Number(el.playbackRate) || 1) - clamped) > 0.01) {
+          el.playbackRate = clamped;
+        }
+      } catch { /* some browsers throw before loadedmetadata — handler retries */ }
+    }
+  }
+
+  function updatePreviewDynamicBits(def) {
+    if (!def) return;
+    const root = ctx?.animEditorPreview;
+    if (!root) return;
+    const el = root.querySelector("[data-anim-editor-preview-media]");
+    if (el) applyMediaPreviewProps(el, def);
+  }
+
   function buildPreviewMissingNotice(ref) {
     const box = document.createElement("div");
     box.className = "anim-editor-preview-missing";
@@ -1274,14 +1312,22 @@
     // media file. Patches that only nudge numeric params skip the
     // rebuild to avoid canvas flicker under rapid slider input.
     const selection = getSelection();
-    const touchesPreview = patch && (
+    const affectsSelection = selection.scope === scope && selection.id === id;
+    if (!affectsSelection) return;
+    const touchesPreviewSource = patch && (
       Object.prototype.hasOwnProperty.call(patch, "assetType")
       || Object.prototype.hasOwnProperty.call(patch, "assetRef")
     );
-    const affectsSelection = selection.scope === scope && selection.id === id;
-    if (touchesPreview && affectsSelection) {
+    if (touchesPreviewSource) {
       renderPreview();
+      return;
     }
+    // Numeric / toggle patches — update opacity / intensity /
+    // playbackRate in-place on the existing img or video element.
+    // Coded effects already react live via the rAF loop reading
+    // findDefinition() each tick; no rebuild needed there.
+    const fresh = findDefinition(scope, id, boardId);
+    updatePreviewDynamicBits(fresh);
   }
 
   // Update values without rebuilding — preserves input focus.
