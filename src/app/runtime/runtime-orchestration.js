@@ -2795,6 +2795,7 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
   setShipPolygonPoints: (boardId, points) => setShipPolygonPoints(boardId, points),
   persistBoardProfiles: () => persistBoardProfiles(),
+  captureCleanBaseline: () => captureCleanBaseline(),
   getDefaultRoomPolygon: (boardId, roomId) => getDefaultRoomPolygon(boardId, roomId),
   setSelectedPlayAreaId: (boardId, id) => setSelectedPlayAreaId(boardId, id),
   getPlayAreas: (boardId) => getPlayAreas(boardId),

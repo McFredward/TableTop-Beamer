@@ -65,6 +65,7 @@
       getShipPolygonPoints,
       setShipPolygonPoints,
       persistBoardProfiles,
+      captureCleanBaseline,
       getDefaultRoomPolygon,
       setSelectedPlayAreaId,
       getPlayAreas,
@@ -238,11 +239,24 @@
     });
 
     playAreaSelect?.addEventListener("change", () => {
+      // Phase 22 W5 fix: selection is a viewing/edit filter, not a
+      // persistable edit. Switching the active play area shouldn't
+      // flip localConfigDirty. The shipPolygonsByBoard cache still
+      // has to be swapped so the editor + overlay render the new
+      // polygon, but when the user was clean before the switch we
+      // refresh the baseline so the dirty comparison doesn't treat
+      // this as an edit. If they were already dirty, leave the
+      // dirty state alone — their pending edits still matter.
+      const wasClean = !state.localConfigDirty;
       setSelectedPlayAreaId(state.boardId, playAreaSelect.value);
       state.shipPolygonEditor.selectedVertexIndex = 0;
       state.shipPolygonEditor.selectedEdgeIndex = 0;
       state.shipPolygonsByBoard[state.boardId] = getShipPolygonPoints(state.boardId);
-      persistBoardProfiles();
+      if (wasClean && typeof captureCleanBaseline === "function") {
+        captureCleanBaseline();
+      } else {
+        persistBoardProfiles();
+      }
       syncShipPolygonEditorPanel();
       renderRoomOverlay();
       triggerFeedback.textContent = "Status: Active Play Area selected";

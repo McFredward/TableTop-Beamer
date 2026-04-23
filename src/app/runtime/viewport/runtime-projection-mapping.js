@@ -169,11 +169,31 @@
     const d = (dy0 * (sx2 - sx1) + dy1 * (sx0 - sx2) + dy2 * (sx1 - sx0)) * inv;
     const f = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) * inv;
 
+    // Phase 22 W5: inflate the clip triangle outward by ~0.5 px along
+    // the centroid normal. Adjacent triangles share edges; without
+    // this overlap the canvas AA leaves hairline gaps between them,
+    // which MP4 content makes visible as black diagonals + grid
+    // boundaries. Overlapping by sub-pixel hides those seams.
+    const CX = (dx0 + dx1 + dx2) / 3;
+    const CY = (dy0 + dy1 + dy2) / 3;
+    const INFLATE = 0.5;
+    const pushOut = (x, y) => {
+      const vx = x - CX;
+      const vy = y - CY;
+      const len = Math.hypot(vx, vy);
+      if (len < 1e-6) return [x, y];
+      const scale = 1 + INFLATE / len;
+      return [CX + vx * scale, CY + vy * scale];
+    };
+    const [px0, py0] = pushOut(dx0, dy0);
+    const [px1, py1] = pushOut(dx1, dy1);
+    const [px2, py2] = pushOut(dx2, dy2);
+
     cctx.save();
     cctx.beginPath();
-    cctx.moveTo(dx0, dy0);
-    cctx.lineTo(dx1, dy1);
-    cctx.lineTo(dx2, dy2);
+    cctx.moveTo(px0, py0);
+    cctx.lineTo(px1, py1);
+    cctx.lineTo(px2, py2);
     cctx.closePath();
     cctx.clip();
     cctx.transform(a, b, c, d, e, f);

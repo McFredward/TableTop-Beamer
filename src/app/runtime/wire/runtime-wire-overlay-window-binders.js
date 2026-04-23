@@ -94,7 +94,16 @@
         }
         const boardId = state.shipPolygonEditor.dragBoardId;
         const points = getShipPolygonPoints(boardId);
-        const [pointerX, pointerY] = getNormalizedOverlayPoint(event);
+        // Phase 22 W5 fix: clamp the pointer coord to [0, 1] BEFORE
+        // applying the grab offset. Previously the pointer carried a
+        // 20% overshoot margin (mapClientPointToNormalized clamps to
+        // [-0.2, 1.2]); when the user dragged past the board edge the
+        // clamp margin + stored offset conspired to shift the vertex
+        // AWAY from the board edge back inside, instead of keeping it
+        // pinned at the max border.
+        const [pointerXRaw, pointerYRaw] = getNormalizedOverlayPoint(event);
+        const pointerX = clampDisplayNormalizedCoordinate(pointerXRaw);
+        const pointerY = clampDisplayNormalizedCoordinate(pointerYRaw);
         const nextX = clampDisplayNormalizedCoordinate(
           pointerX + (state.shipPolygonEditor.dragVertexOffsetX || 0),
         );
