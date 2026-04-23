@@ -829,7 +829,14 @@
       c2d.fillRect(0, 0, canvas.width, canvas.height);
       c2d.restore();
       const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
-      const age = ((performance.now() - startTime) / 1000) * speed;
+      // Phase 22 W3b-4d fix: do NOT pre-scale age by speed. Coded
+      // branches that honour speed (outside-space) multiply by
+      // `speedFactor` derived from `options.outsideSpeed` themselves;
+      // pre-scaling here double-applied the speed and left the
+      // default-settings sliders looking unresponsive. Simpler coded
+      // branches (intruder-alert, fire, …) don't honour speed; their
+      // preview runs at 1 × which is acceptable for a thumbnail.
+      const age = (performance.now() - startTime) / 1000;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
       const options = {
         opacity: Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1,
