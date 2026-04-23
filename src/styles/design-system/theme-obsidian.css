@@ -132,6 +132,43 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   box-shadow: none;
 }
 
+/* Phase 22 W4: Settings subtab switcher — horizontal segmented look
+ * matching the animation-editor scope tabs. Overrides the default
+ * vertical grid layout of .view-switch. */
+.dir-obsidian-dark .settings-subtab-switch {
+  display: inline-flex;
+  gap: 0;
+  padding: 4px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--rd-r-pill, 999px);
+  width: auto;
+  align-self: flex-start;
+}
+
+.dir-obsidian-dark .settings-subtab-switch button {
+  flex: 0 0 auto;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-3);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.dir-obsidian-dark .settings-subtab-switch button:hover {
+  color: var(--c-text);
+}
+
+.dir-obsidian-dark .settings-subtab-switch button.active {
+  background: var(--c-bg-raised);
+  border-color: var(--c-border);
+  color: var(--c-text);
+}
+
 /* ----- Generic buttons ------------------------------------------ */
 
 .dir-obsidian-dark button {
