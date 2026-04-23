@@ -2066,6 +2066,9 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
     persistBoardProfiles: () => persistBoardProfiles(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
+    // Phase 22 W3b-3: needed by the Room color card to detect
+    // solid-color / hull-flicker coded effects.
+    resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
   });
 }

@@ -179,6 +179,12 @@
     pane.append(buildHeader(sel.scope, def));
     pane.append(buildIdentityCard(sel.scope, def, boardId));
     pane.append(buildDefaultsCard(sel.scope, def, boardId));
+    const playback = buildPlaybackCard(sel.scope, def, boardId);
+    if (playback) pane.append(playback);
+    const colorCard = buildColorCard(sel.scope, def, boardId);
+    if (colorCard) pane.append(colorCard);
+    pane.append(buildSourceCard(sel.scope, def, boardId));
+    pane.append(buildSoundCard(sel.scope, def, boardId));
   }
 
   function buildHeader(scope, def) {
@@ -396,6 +402,186 @@
     });
     row.append(text, toggle);
     return row;
+  }
+
+  // -------- Scope-specific cards (W3b-3) --------------------------
+
+  // Outside animations add Mode + Direction. Inside / Room don't
+  // have those concepts on the runtime side, so we return null and
+  // the card is omitted.
+  function buildPlaybackCard(scope, def, boardId) {
+    if (scope !== "outside") return null;
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Playback";
+    card.append(eyebrow);
+
+    card.append(buildSelectRow(scope, def, boardId, {
+      key: "mode",
+      label: "Mode",
+      options: [
+        { value: "standard", label: "Standard" },
+        { value: "immersive", label: "Immersive" },
+      ],
+    }));
+    card.append(buildSelectRow(scope, def, boardId, {
+      key: "direction",
+      label: "Direction",
+      options: [
+        { value: "forward", label: "Forward" },
+        { value: "reverse", label: "Reverse" },
+      ],
+    }));
+    return card;
+  }
+
+  // Room animations of the `solid-color` coded variant expose a color
+  // swatch; hull-flicker exposes breaksSolidColor. Non-matching
+  // variants don't need this card.
+  function buildColorCard(scope, def, boardId) {
+    if (scope !== "room") return null;
+    const resolveCodedType = ctx.resolveRoomCodedEffectType;
+    const coded = def.assetType === "coded"
+      ? (typeof resolveCodedType === "function"
+        ? resolveCodedType(def.assetRef) || def.assetRef
+        : def.assetRef)
+      : null;
+    const isSolidColor = coded === "solid-color";
+    const isHullFlicker = coded === "hull-flicker";
+    if (!isSolidColor && !isHullFlicker) return null;
+
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Coded effect";
+    card.append(eyebrow);
+
+    if (isSolidColor) {
+      const label = document.createElement("label");
+      label.className = "anim-editor-field-label";
+      const cap = document.createElement("span");
+      cap.textContent = "Color";
+      const picker = document.createElement("input");
+      picker.type = "color";
+      picker.value = /^#[0-9a-f]{6}$/i.test(def.colorHex) ? def.colorHex : "#ff0000";
+      picker.addEventListener("input", () => {
+        patchAnimation(scope, boardId, def.id, { colorHex: picker.value });
+      });
+      label.append(cap, picker);
+      card.append(label);
+    }
+
+    if (isHullFlicker) {
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "breaksSolidColor",
+        label: "Break solid color",
+        sub: "Cuts any solid-color animation in the same room during the flicker’s off-gate.",
+      }));
+    }
+    return card;
+  }
+
+  // -------- Source + Sound cards ----------------------------------
+
+  function buildSourceCard(scope, def, boardId) {
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Source";
+    card.append(eyebrow);
+
+    card.append(buildSelectRow(scope, def, boardId, {
+      key: "assetType",
+      label: "Type",
+      options: [
+        { value: "coded", label: "Effect (coded)" },
+        { value: "gif",   label: "GIF" },
+        { value: "mp4",   label: "Video" },
+      ],
+    }));
+
+    const label = document.createElement("label");
+    label.className = "anim-editor-field-label";
+    const cap = document.createElement("span");
+    cap.textContent = def.assetType === "coded"
+      ? "Effect key"
+      : def.assetType === "mp4"
+      ? "Video path"
+      : "GIF path";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 256;
+    input.placeholder = def.assetType === "coded"
+      ? "e.g. hull-flicker"
+      : "/resources/…";
+    input.value = def.assetRef ?? "";
+    input.addEventListener("input", () => {
+      const next = input.value.trim();
+      patchAnimation(scope, boardId, def.id, { assetRef: next });
+    });
+    label.append(cap, input);
+    card.append(label);
+    return card;
+  }
+
+  function buildSoundCard(scope, def, boardId) {
+    const card = document.createElement("section");
+    card.className = "anim-editor-card";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "anim-editor-card-eyebrow";
+    eyebrow.textContent = "Sound";
+    card.append(eyebrow);
+
+    const config = window.TT_BEAMER_CONFIG || {};
+    const noneValue = config.SOUND_MAPPING_NONE ?? "none";
+    const paths = Array.isArray(config.ALL_SOUND_ASSET_PATHS)
+      ? config.ALL_SOUND_ASSET_PATHS
+      : [];
+    const options = [
+      { value: noneValue, label: "No sound" },
+      ...paths.map((p) => ({
+        value: p,
+        label: String(p).split("/").pop() || p,
+      })),
+    ];
+    card.append(buildSelectRow(scope, def, boardId, {
+      key: "soundAssetRef",
+      label: "Sound file",
+      options,
+    }));
+    return card;
+  }
+
+  function buildSelectRow(scope, def, boardId, field) {
+    const label = document.createElement("label");
+    label.className = "anim-editor-field-label";
+    const cap = document.createElement("span");
+    cap.textContent = field.label;
+    const select = document.createElement("select");
+    for (const opt of field.options) {
+      const option = document.createElement("option");
+      option.value = opt.value;
+      option.textContent = opt.label;
+      select.append(option);
+    }
+    select.value = String(def[field.key] ?? field.options[0]?.value ?? "");
+    select.addEventListener("change", () => {
+      patchAnimation(scope, boardId, def.id, { [field.key]: select.value });
+      // Changing assetType in the Source card should rebuild the
+      // asset-ref caption ("GIF path" vs "Effect key"); easiest way
+      // is a full pane rebuild, losing any in-flight caret — but
+      // changing assetType is an infrequent, deliberate action.
+      if (field.key === "assetType") {
+        currentPaneKey = null;
+        renderPane();
+      }
+    });
+    label.append(cap, select);
+    return label;
   }
 
   // -------- Shared helpers -----------------------------------------
