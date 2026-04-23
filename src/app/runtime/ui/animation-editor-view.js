@@ -25,7 +25,7 @@
 (() => {
   let ctx = null;
   const state = {
-    scope: "inside",
+    scope: "room",
     search: "",
     selectedIds: { inside: null, outside: null, room: null },
     open: false,
@@ -140,7 +140,7 @@
       if (!board?.id) continue;
       const opt = document.createElement("option");
       opt.value = board.id;
-      opt.textContent = board.name || board.id;
+      opt.textContent = board.label || board.name || board.metadata?.name || board.id;
       select.append(opt);
     }
     if (activeId && boards.some((b) => b?.id === activeId)) {
@@ -192,12 +192,28 @@
   }
 
   // Phase 22 W3b-5 revisit: Back is fully blocked while there are
-  // unsaved edits — the user must hit Apply or Discard explicitly.
-  // Previously the Back click threw a window.confirm; the user now
-  // wants a grayed-out, inert button instead.
+  // unsaved edits. A click in the dirty state now flashes the dirty
+  // bar so the user understands *why* Back is inert and what they
+  // need to do next (Apply or Discard).
   function handleBack() {
-    if (ctx.state?.localConfigDirty) return;
+    if (ctx.state?.localConfigDirty) {
+      flashDirtyBar();
+      return;
+    }
     close();
+  }
+
+  function flashDirtyBar() {
+    const bar = ctx.animEditorDirtyBar;
+    if (!bar) return;
+    bar.classList.remove("anim-editor-dirty-bar--flash");
+    // Force reflow so removing + re-adding the class triggers a new
+    // animation cycle when the user spams Back.
+    void bar.offsetWidth;
+    bar.classList.add("anim-editor-dirty-bar--flash");
+    window.setTimeout(() => {
+      bar.classList.remove("anim-editor-dirty-bar--flash");
+    }, 900);
   }
 
   function syncDirtyBar() {

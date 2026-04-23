@@ -129,11 +129,39 @@ body[data-output-role="final-output"] #animation-editor-page {
 }
 
 /* Back button — disabled look when dirty flag is up (the view-level
- * .anim-editor-back--dirty class is applied by syncDirtyBar). */
+ * .anim-editor-back--dirty class is applied by syncDirtyBar). The
+ * click still fires so handleBack can flash the dirty bar instead of
+ * silently swallowing the input. */
 .anim-editor-back.anim-editor-back--dirty {
   opacity: 0.35;
   cursor: not-allowed;
-  pointer-events: none;
+}
+
+/* Dirty-bar flash: triggered when the user clicks Back while dirty. */
+.anim-editor-dirty-bar--flash {
+  animation: animEditorDirtyFlash 0.9s ease-in-out;
+}
+@keyframes animEditorDirtyFlash {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-warn) 25%, transparent),
+                0 6px 18px color-mix(in srgb, var(--c-warn) 15%, transparent);
+  }
+  15% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-warn) 75%, transparent),
+                0 14px 34px color-mix(in srgb, var(--c-warn) 55%, transparent);
+  }
+  45% {
+    transform: scale(0.99);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-warn) 60%, transparent),
+                0 10px 24px color-mix(in srgb, var(--c-warn) 40%, transparent);
+  }
+  70% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-warn) 50%, transparent),
+                0 10px 22px color-mix(in srgb, var(--c-warn) 35%, transparent);
+  }
 }
 
 /* Editor-scoped button overrides — the mock's AnimationEditor uses

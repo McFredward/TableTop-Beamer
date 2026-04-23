@@ -255,6 +255,19 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   color: var(--c-text);
 }
 
+/* Phase 22 W3b polish: native <option> dropdown panels inherit the OS
+ * default (white bg + white text on some setups). Force dark surface
+ * + light text so the expanded list stays readable. */
+.dir-obsidian-dark select option,
+.dir-obsidian-dark select optgroup {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+}
+.dir-obsidian-dark select option:checked {
+  background-color: var(--c-accent);
+  color: var(--c-text);
+}
+
 .dir-obsidian-dark textarea { padding: var(--rd-s-3); }
 
 .dir-obsidian-dark input:focus-visible,

@@ -654,6 +654,15 @@
         </svg>
         <span>Back</span>
       </button>
+      <!-- Phase 22 W3b polish: dirty-state bar sits immediately to the
+           right of Back so it's the first thing the user sees and
+           reaches for when they try to leave with unsaved edits. -->
+      <div id="anim-editor-dirty-bar" class="anim-editor-dirty-bar" hidden role="status" aria-live="polite">
+        <span class="anim-editor-dirty-dot" aria-hidden="true"></span>
+        <span class="anim-editor-dirty-label">Unsaved changes</span>
+        <button id="anim-editor-discard" type="button" class="rd-btn rd-btn-ghost">Discard</button>
+        <button id="anim-editor-apply" type="button" class="rd-btn rd-btn-primary">Apply</button>
+      </div>
       <div class="anim-editor-topbar-title">
         <p class="rd-eyebrow">Setup</p>
         <h1 class="rd-h1">Animations</h1>
@@ -666,16 +675,6 @@
         <span class="rd-caption">Editing board</span>
         <select id="anim-editor-board-select"></select>
       </label>
-      <!-- Phase 22 W3b-4 (revised): dirty-state mini bar. Shown only
-           when state.localConfigDirty is true; Apply / Discard here
-           are peers to the global #apply-global-config-bar. Back is
-           also blocked when this is visible. -->
-      <div id="anim-editor-dirty-bar" class="anim-editor-dirty-bar" hidden role="status" aria-live="polite">
-        <span class="anim-editor-dirty-dot" aria-hidden="true"></span>
-        <span class="anim-editor-dirty-label">Unsaved changes</span>
-        <button id="anim-editor-discard" type="button" class="rd-btn rd-btn-ghost">Discard</button>
-        <button id="anim-editor-apply" type="button" class="rd-btn rd-btn-primary">Apply</button>
-      </div>
     </header>
 
     <aside class="anim-editor-library">
@@ -700,9 +699,9 @@
         </button>
       </div>
       <div class="rd-segmented anim-editor-scope-tabs" role="tablist" aria-label="Animation scope">
-        <button type="button" data-anim-scope="inside" aria-selected="true">Inside</button>
+        <button type="button" data-anim-scope="room" aria-selected="true">Room</button>
+        <button type="button" data-anim-scope="inside" aria-selected="false">Inside</button>
         <button type="button" data-anim-scope="outside" aria-selected="false">Outside</button>
-        <button type="button" data-anim-scope="room" aria-selected="false">Room</button>
       </div>
       <ul id="anim-editor-list" class="anim-editor-list" role="listbox" aria-label="Animations"></ul>
       <p id="anim-editor-empty" class="anim-editor-empty" hidden>No animations match your search.</p>
