@@ -373,10 +373,23 @@ body[data-output-role="final-output"].dir-obsidian-dark {
  * surface (not the token's rgba white-on-transparent, which composites
  * to white on the OS dropdown layer) and a light text colour so the
  * expanded list stays readable across Chrome/Firefox/Safari. */
-.dir-obsidian-dark select option,
-.dir-obsidian-dark select optgroup {
+/* Native <option>/<optgroup> only honour a narrow subset of CSS —
+ * background + color consistently, font-weight/size sometimes, padding
+ * never. Within those constraints: solid dark surface, light text,
+ * distinct group labels, accent highlight for the selected row. */
+.dir-obsidian-dark select option {
   background-color: #14171c;
   color: #f2f4f7;
+  padding: 6px 10px;
+}
+.dir-obsidian-dark select optgroup {
+  background-color: #0b0d10;
+  color: #9aa4b2;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-style: normal;
 }
 .dir-obsidian-dark select option:checked,
 .dir-obsidian-dark select option:hover {

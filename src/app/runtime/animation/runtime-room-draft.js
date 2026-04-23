@@ -167,11 +167,31 @@
     }
     const options = ctx.getRoomTargetOptions(state.boardId);
     ctx.roomTargetSelect.replaceChildren();
-    for (const optionEntry of options) {
+    // Phase 22 W5 polish: clusters are typically the quick-pick items
+    // the user wants at the top. Split into <optgroup>s so the native
+    // dropdown shows a bold "Clusters" header group above the full
+    // room list — no more scrolling to the bottom to pick a cluster.
+    const clusters = options.filter((entry) => entry.targetType === "cluster");
+    const rooms = options.filter((entry) => entry.targetType === "room");
+    const appendOption = (parent, entry) => {
       const option = document.createElement("option");
-      option.value = optionEntry.value;
-      option.textContent = optionEntry.label;
-      ctx.roomTargetSelect.append(option);
+      option.value = entry.value;
+      // Optgroups already communicate the kind, so drop the "Room: "
+      // / "Cluster: " prefix from the option label itself.
+      option.textContent = entry.label.replace(/^(Room|Cluster):\s*/, "");
+      parent.append(option);
+    };
+    if (clusters.length) {
+      const clusterGroup = document.createElement("optgroup");
+      clusterGroup.label = "Clusters";
+      for (const entry of clusters) appendOption(clusterGroup, entry);
+      ctx.roomTargetSelect.append(clusterGroup);
+    }
+    if (rooms.length) {
+      const roomGroup = document.createElement("optgroup");
+      roomGroup.label = "Rooms";
+      for (const entry of rooms) appendOption(roomGroup, entry);
+      ctx.roomTargetSelect.append(roomGroup);
     }
 
     const room = ctx.getSelectedRoom();
