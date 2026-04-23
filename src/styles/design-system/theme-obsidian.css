@@ -816,6 +816,140 @@ body[data-output-role="final-output"].dir-obsidian-dark {
   border: 0;
 }
 
+/* ----- Phase 22 W5: polygon + room-zone overlay polish ----------- *
+ * Pre-Obsidian visuals used a wide mix of cyan/teal/amber/red tints
+ * that read as noisy against the new flat surfaces. Collapse the
+ * palette onto the Obsidian accent family: default = translucent
+ * accent stroke on near-zero fill, hover = stronger accent fill,
+ * selected = solid accent border + tint, frozen = muted greyscale,
+ * rotation = warn-amber. Handles shrink to small dots/pills with
+ * glow instead of the big fill+stroke combo.
+ * --------------------------------------------------------------- */
+
+.dir-obsidian-dark .room-zone {
+  fill: color-mix(in srgb, var(--c-accent) 6%, transparent);
+  stroke: color-mix(in srgb, var(--c-accent) 55%, transparent);
+  stroke-width: 1.5;
+}
+.dir-obsidian-dark .room-zone:hover {
+  fill: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  stroke: var(--c-accent);
+}
+.dir-obsidian-dark .room-zone.is-selected {
+  fill: color-mix(in srgb, var(--c-accent) 22%, transparent);
+  stroke: var(--c-accent);
+  stroke-width: 2;
+}
+.dir-obsidian-dark .room-zone.is-frozen {
+  fill: color-mix(in srgb, var(--c-text-3) 8%, transparent);
+  stroke: color-mix(in srgb, var(--c-text-3) 45%, transparent);
+  stroke-dasharray: 5 4;
+}
+.dir-obsidian-dark .room-zone.is-frozen:hover {
+  fill: color-mix(in srgb, var(--c-text-3) 14%, transparent);
+  stroke: color-mix(in srgb, var(--c-text-3) 65%, transparent);
+}
+.dir-obsidian-dark .room-zone.is-rotating {
+  fill: color-mix(in srgb, var(--c-warn) 10%, transparent);
+  stroke: var(--c-warn);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+}
+
+.dir-obsidian-dark .room-zone-label {
+  fill: var(--c-text);
+  font-family: var(--rd-font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  paint-order: stroke fill;
+  stroke: rgba(11, 13, 16, 0.65);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+/* Vertex + edge handles: crisp dots, no heavy drop-shadow.
+ * Default state is a small accent-tinted pill; active state pops to
+ * solid accent for selection, with a subtle glow halo. */
+.dir-obsidian-dark .polygon-vertex-handle {
+  fill: color-mix(in srgb, var(--c-accent) 75%, transparent);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c-accent) 55%, transparent));
+}
+.dir-obsidian-dark .polygon-vertex-handle.is-active {
+  fill: var(--c-accent);
+  stroke: #ffffff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
+}
+.dir-obsidian-dark .polygon-vertex-index {
+  fill: #ffffff;
+  font-family: var(--rd-font-body);
+  font-size: 10px;
+  font-weight: 600;
+}
+.dir-obsidian-dark .polygon-vertex-index.is-active {
+  fill: #ffffff;
+  font-weight: 700;
+}
+
+.dir-obsidian-dark .polygon-edge-handle {
+  fill: color-mix(in srgb, var(--c-accent) 45%, transparent);
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.25;
+}
+.dir-obsidian-dark .polygon-edge-handle.is-active {
+  fill: var(--c-accent);
+  stroke: #ffffff;
+  stroke-width: 1.75;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-accent) 80%, transparent));
+}
+.dir-obsidian-dark .polygon-edge-hit-target.is-active {
+  fill: color-mix(in srgb, var(--c-accent) 14%, transparent);
+}
+.dir-obsidian-dark .polygon-vertex-hit-target.is-active {
+  fill: color-mix(in srgb, var(--c-accent) 14%, transparent);
+}
+
+/* Ship polygon (play area boundary) — slightly different hue so the
+ * user can tell room polygons apart from the ship outline. Use a
+ * muted lavender tint derived from c-text-2. */
+.dir-obsidian-dark .ship-zone-mask {
+  fill: color-mix(in srgb, var(--c-text-2) 8%, transparent);
+  stroke: color-mix(in srgb, var(--c-text-2) 70%, transparent);
+  stroke-width: 1.5;
+}
+.dir-obsidian-dark .ship-zone-mask.is-active {
+  fill: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  stroke: var(--c-accent);
+}
+.dir-obsidian-dark .ship-polygon-vertex-handle {
+  fill: color-mix(in srgb, var(--c-text-2) 60%, transparent);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+.dir-obsidian-dark .ship-polygon-vertex-handle.is-active {
+  fill: var(--c-accent);
+  stroke: #ffffff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
+}
+.dir-obsidian-dark .ship-polygon-edge-handle {
+  fill: color-mix(in srgb, var(--c-text-2) 45%, transparent);
+  stroke: rgba(255, 255, 255, 0.82);
+}
+.dir-obsidian-dark .ship-polygon-edge-handle.is-active {
+  fill: var(--c-accent);
+  stroke: #ffffff;
+}
+.dir-obsidian-dark .ship-polygon-vertex-index {
+  fill: #ffffff;
+  font-family: var(--rd-font-body);
+  font-size: 10px;
+  font-weight: 600;
+}
+
 /* ----- Quick Mode segmented (W2e) -------------------------------
  * Was (pre-W2e): .button-grid.button-grid-2 with four distinct pill
  * buttons (Off / Start / Stop / Clear). Now a 3-segment iOS-style
