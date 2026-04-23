@@ -205,10 +205,11 @@
   }
 
   function syncInsideFxPanel() {
-    // Phase 22 W3b-5: legacy "Inside Animations" sidebar panel removed.
-    // When its DOM roots are gone, the full-page animation editor owns
-    // the per-animation UI and this sync is a no-op.
-    if (!ctx.insideAnimationSelect && !ctx.insideIntensityInput) return;
+    // Phase 22 W3b-5 fix: the Dashboard's Inside-Play-Area global
+    // buttons are rendered by renderInsideGlobalButtons() at the END
+    // of this function — skipping the whole sync over the now-removed
+    // legacy sidebar refs killed those buttons too. Null-guard the
+    // legacy-only writes individually instead.
     const state = ctx.state;
     const inside = ctx.getInsideFxProfile(state.boardId);
     const selectedDefinition = ctx.getSelectedInsideAnimationDefinition(state.boardId);
@@ -255,8 +256,8 @@
     if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
       setInsideEditorDraft(state.boardId, { assetType, assetRef });
     }
-    ctx.insideIntensityInput.value = String(intensity);
-    ctx.insideSpeedInput.value = String(speed);
+    if (ctx.insideIntensityInput) ctx.insideIntensityInput.value = String(intensity);
+    if (ctx.insideSpeedInput) ctx.insideSpeedInput.value = String(speed);
     if (ctx.insideAssetTypeInput) {
       ctx.insideAssetTypeInput.value = assetType;
     }
@@ -275,8 +276,8 @@
       ctx.insideSoundRefSelect,
       draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
     );
-    ctx.insideIntensityValue.textContent = intensity.toFixed(2);
-    ctx.insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+    if (ctx.insideIntensityValue) ctx.insideIntensityValue.textContent = intensity.toFixed(2);
+    if (ctx.insideSpeedValue) ctx.insideSpeedValue.textContent = `${speed.toFixed(2)}x`;
     renderInsideGlobalButtons();
   }
 
@@ -798,8 +799,10 @@
   }
 
   function syncOutsideFxPanel() {
-    // Phase 22 W3b-5: legacy "Outside Animations" sidebar panel removed.
-    if (!ctx.outsideAnimationSelect && !ctx.outsideEnabledInput) return;
+    // Phase 22 W3b-5 fix: Dashboard's Outside-Play-Area buttons are
+    // rendered by renderOutsideGlobalButtons() at the END; skipping
+    // this function over the removed legacy panel refs killed those
+    // buttons too. Null-guard the legacy-only writes individually.
     const state = ctx.state;
     const outside = ctx.getOutsideFxProfile(state.boardId);
     // Phase 20: the editor shows the animation tracked by the per-board
@@ -844,7 +847,7 @@
         ctx.outsideModeIndicator.dataset.mode = "creating";
       }
     }
-    ctx.outsideEnabledInput.checked = outside.enabled;
+    if (ctx.outsideEnabledInput) ctx.outsideEnabledInput.checked = outside.enabled;
     const intensity = draft?.intensity ?? selectedDefinition?.intensity ?? outside.intensity;
     const speed = draft?.speed ?? selectedDefinition?.speed ?? outside.speed;
     const mode = ctx.isOutsideModeDirectionApplicable(selectedDefinition)
@@ -862,10 +865,10 @@
     if (draft && (draft.assetType !== assetType || draft.assetRef !== assetRef)) {
       setOutsideEditorDraft(state.boardId, { assetType, assetRef });
     }
-    ctx.outsideIntensityInput.value = String(intensity);
-    ctx.outsideSpeedInput.value = String(speed);
-    ctx.outsideModeInput.value = mode;
-    ctx.outsideDirectionInput.value = direction;
+    if (ctx.outsideIntensityInput) ctx.outsideIntensityInput.value = String(intensity);
+    if (ctx.outsideSpeedInput) ctx.outsideSpeedInput.value = String(speed);
+    if (ctx.outsideModeInput) ctx.outsideModeInput.value = mode;
+    if (ctx.outsideDirectionInput) ctx.outsideDirectionInput.value = direction;
     if (ctx.outsideAssetTypeInput) {
       ctx.outsideAssetTypeInput.value = assetType;
     }
@@ -882,8 +885,8 @@
       ctx.outsideSoundRefSelect,
       draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
     );
-    ctx.outsideIntensityValue.textContent = intensity.toFixed(2);
-    ctx.outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
+    if (ctx.outsideIntensityValue) ctx.outsideIntensityValue.textContent = intensity.toFixed(2);
+    if (ctx.outsideSpeedValue) ctx.outsideSpeedValue.textContent = `${speed.toFixed(2)}x`;
     renderOutsideGlobalButtons();
   }
 
