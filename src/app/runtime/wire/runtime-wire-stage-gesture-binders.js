@@ -56,10 +56,19 @@
         const current = getBoardZoom(state.boardId);
         const step = Math.exp(-event.deltaY * 0.0009);
         const nextScale = current.scale * step;
+        // Phase 22 W5: anchor zoom at the stage *centre* instead of
+        // the cursor so the board stays centred when you scroll in /
+        // out. Cursor-anchored zoom had users re-panning after every
+        // wheel tick because it pulled the visible region toward the
+        // top-left corner when zooming out with the cursor away from
+        // the centre.
+        const stageRect = stage.getBoundingClientRect();
+        const anchorX = stageRect.left + stageRect.width / 2;
+        const anchorY = stageRect.top + stageRect.height / 2;
         applyZoomScaleAroundClientPoint(
           nextScale,
-          event.clientX,
-          event.clientY,
+          anchorX,
+          anchorY,
           `Board zoom wheel -> ${Math.round(clampBoardZoomScale(nextScale) * 100)}%`,
         );
       },

@@ -83,8 +83,20 @@
         `Status: Zone fallback active (${zoneFallbackCount} board) - see zone-source status in Settings panel`;
     }
     const BOARDS = ctx.getBoards();
+    // Phase 22 W5: honour the last-opened board id from localStorage
+    // before falling back to the first available board. Server-side
+    // state may carry its own boardId too — prefer that over the
+    // persisted one if set, otherwise use the stored preference.
+    let persistedBoardId = "";
+    try {
+      persistedBoardId = window.localStorage?.getItem("tt-beamer.last-board-id.v1") || "";
+    } catch { /* private mode / quota — ignore */ }
     if (!state.boardId || !BOARDS.some((board) => board.id === state.boardId)) {
-      state.boardId = BOARDS[0]?.id ?? "";
+      if (persistedBoardId && BOARDS.some((board) => board.id === persistedBoardId)) {
+        state.boardId = persistedBoardId;
+      } else {
+        state.boardId = BOARDS[0]?.id ?? "";
+      }
     }
     // Phase 15-5: hitarea + geometry are legacy identity stubs. The
     // maps still need to exist (empty objects per board) so code

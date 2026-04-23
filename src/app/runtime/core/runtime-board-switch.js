@@ -48,6 +48,12 @@
     state.boardId = board.id;
     state.selectedBoard = board.id;
     state.selectedLayout = board.id;
+    // Phase 22 W5: persist the active board id in localStorage so a
+    // page reload lands on whatever the user last had open (falling
+    // back to the first available board if that id no longer exists).
+    try {
+      window.localStorage?.setItem("tt-beamer.last-board-id.v1", board.id);
+    } catch { /* private mode / quota — ignore */ }
     ctx.boardImage.src = board.src;
     ctx.boardSelect.value = board.id;
     ctx.boardStatus.textContent = `Active board: ${board.label}`;

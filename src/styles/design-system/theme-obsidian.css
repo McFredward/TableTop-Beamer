@@ -865,14 +865,14 @@ body[data-output-role="final-output"].dir-obsidian-dark {
 }
 
 .dir-obsidian-dark .room-zone-label {
-  fill: var(--c-text);
+  fill: color-mix(in srgb, var(--c-text) 78%, transparent);
   font-family: var(--rd-font-body);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   paint-order: stroke fill;
-  stroke: rgba(11, 13, 16, 0.65);
-  stroke-width: 3;
+  stroke: rgba(11, 13, 16, 0.55);
+  stroke-width: 2;
   stroke-linejoin: round;
 }
 
