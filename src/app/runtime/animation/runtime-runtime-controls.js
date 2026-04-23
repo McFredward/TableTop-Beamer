@@ -209,7 +209,12 @@
     } catch {
       stored = "";
     }
-    setSettingsSubtab(stored || state.settingsSubtab || "board", { persist: false });
+    // Phase 22 W3b-5: "animations" must never be the restored default.
+    // The full-page editor is a deliberate destination, not a landing
+    // screen; a stale "animations" preference used to leave the sidebar
+    // blank on reload (legacy panels removed, editor didn't auto-open).
+    if (stored === "animations") stored = "";
+    setSettingsSubtab(stored || (state.settingsSubtab !== "animations" ? state.settingsSubtab : "") || "board", { persist: false });
   }
 
   function upsertGlobalAnimation(type, defaultDurationSec, { loopUntilStopped = false, playSound = true } = {}) {

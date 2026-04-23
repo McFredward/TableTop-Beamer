@@ -182,6 +182,8 @@
       animEditorDirtyBar: document.querySelector("#anim-editor-dirty-bar"),
       animEditorApplyButton: document.querySelector("#anim-editor-apply"),
       animEditorDiscardButton: document.querySelector("#anim-editor-discard"),
+      // Phase 22: editor-scoped board picker (does not switch dashboard board).
+      animEditorBoardSelect: document.querySelector("#anim-editor-board-select"),
       controlPanel: document.querySelector("#control-panel"),
       projectionArea: document.querySelector(".projection-area"),
       primaryViewSwitch: document.querySelector(".primary-view-switch"),

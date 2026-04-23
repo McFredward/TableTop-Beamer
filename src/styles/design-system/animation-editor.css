@@ -57,19 +57,55 @@ body[data-output-role="final-output"] #animation-editor-page {
   min-width: 0;
 }
 
-/* Dirty-state mini bar in the editor topbar — pops when
- * state.localConfigDirty flips true so the user sees the same
- * unsaved-changes affordance they get on Dashboard / Settings. */
+/* Phase 22: editor-scoped board picker in the topbar. */
+.anim-editor-board-picker {
+  display: grid;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-width: 180px;
+}
+.anim-editor-board-picker .rd-caption {
+  margin: 0;
+  color: var(--c-text-3);
+}
+.anim-editor-board-picker select {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* Dirty-state bar in the editor topbar — lives right next to Back so
+ * "unsaved changes" is impossible to miss. Back is grayed out while the
+ * bar is showing; Apply / Discard are the only exits. */
 .anim-editor-dirty-bar {
   display: flex;
   align-items: center;
   gap: var(--rd-s-3);
-  padding: 6px 10px 6px 14px;
+  padding: 8px 12px 8px 16px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--c-warn) 12%, var(--c-bg-raised));
-  border: 1px solid color-mix(in srgb, var(--c-warn) 45%, transparent);
+  background: color-mix(in srgb, var(--c-warn) 22%, var(--c-bg-raised));
+  border: 1px solid color-mix(in srgb, var(--c-warn) 70%, transparent);
   color: var(--c-warn);
   flex: 0 0 auto;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-warn) 25%, transparent),
+              0 6px 18px color-mix(in srgb, var(--c-warn) 15%, transparent);
+  animation: animEditorDirtyPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes animEditorDirtyPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-warn) 25%, transparent),
+                0 6px 18px color-mix(in srgb, var(--c-warn) 15%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-warn) 45%, transparent),
+                0 10px 24px color-mix(in srgb, var(--c-warn) 25%, transparent);
+  }
 }
 
 .anim-editor-dirty-bar[hidden] {
@@ -78,10 +114,26 @@ body[data-output-role="final-output"] #animation-editor-page {
 
 .anim-editor-dirty-label {
   font-family: var(--rd-font-body);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: var(--rd-tracking-caps);
   text-transform: uppercase;
+}
+
+.anim-editor-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-warn);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c-warn) 80%, transparent);
+}
+
+/* Back button — disabled look when dirty flag is up (the view-level
+ * .anim-editor-back--dirty class is applied by syncDirtyBar). */
+.anim-editor-back.anim-editor-back--dirty {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Editor-scoped button overrides — the mock's AnimationEditor uses
@@ -741,4 +793,26 @@ body[data-output-role="final-output"] #animation-editor-page {
   min-height: 16px;
   color: var(--c-text-3);
   font-size: 12px;
+}
+
+/* Phase 22: preview fallback when asset file is 404. */
+.anim-editor-preview-missing {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 18px;
+  text-align: center;
+  color: var(--c-text-3);
+}
+.anim-editor-preview-missing-title {
+  color: var(--c-danger, #ff6b6b);
+  font-weight: 600;
+  margin: 0;
+}
+.anim-editor-preview-missing-path {
+  margin: 0;
+  word-break: break-all;
+  font-family: var(--rd-font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  opacity: 0.85;
 }

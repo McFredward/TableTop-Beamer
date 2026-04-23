@@ -2061,6 +2061,12 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     animEditorDirtyBar,
     animEditorApplyButton,
     animEditorDiscardButton,
+    animEditorBoardSelect,
+    // Phase 22: list of available boards + dashboard's active board id,
+    // used by the editor-scoped board picker. It intentionally does
+    // NOT expose switchBoard() — switching the editor's board must
+    // never move the dashboard's stage.
+    getBoards: () => BOARDS,
     getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
     getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
     getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),

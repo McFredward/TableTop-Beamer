@@ -29,7 +29,17 @@
     search: "",
     selectedIds: { inside: null, outside: null, room: null },
     open: false,
+    // Phase 22: editor-scoped board id. null = "use whatever board the
+    // dashboard currently targets". Populated when the user picks a
+    // different board from the editor's own board dropdown; reset back
+    // to null on every open() so the editor re-inherits the dashboard
+    // selection each session.
+    editorBoardId: null,
   };
+
+  function getEditorBoardId() {
+    return state.editorBoardId ?? ctx?.state?.boardId ?? null;
+  }
   const listeners = new Set();
 
   function init(dependencies) {
@@ -101,6 +111,41 @@
       });
       ctx.animEditorAddButton._ttBeamerBound = true;
     }
+    // Phase 22: editor-scoped board picker. Change fires a re-render
+    // targeting the new board id — does NOT call switchBoard(), so the
+    // dashboard stage is untouched.
+    if (ctx.animEditorBoardSelect && !ctx.animEditorBoardSelect._ttBeamerBound) {
+      ctx.animEditorBoardSelect.addEventListener("change", () => {
+        const next = String(ctx.animEditorBoardSelect.value || "").trim();
+        state.editorBoardId = next || null;
+        // Selection ids are per-board: wipe them when hopping boards so
+        // the library default-selects the first animation of the new
+        // board rather than sticking on an id that doesn't exist there.
+        state.selectedIds = { inside: null, outside: null, room: null };
+        currentPaneKey = null;
+        render();
+      });
+      ctx.animEditorBoardSelect._ttBeamerBound = true;
+    }
+  }
+
+  function populateBoardSelect() {
+    const select = ctx?.animEditorBoardSelect;
+    if (!select) return;
+    const getBoards = typeof ctx.getBoards === "function" ? ctx.getBoards : null;
+    const boards = Array.isArray(getBoards?.()) ? getBoards() : [];
+    const activeId = getEditorBoardId();
+    select.replaceChildren();
+    for (const board of boards) {
+      if (!board?.id) continue;
+      const opt = document.createElement("option");
+      opt.value = board.id;
+      opt.textContent = board.name || board.id;
+      select.append(opt);
+    }
+    if (activeId && boards.some((b) => b?.id === activeId)) {
+      select.value = activeId;
+    }
   }
 
   function isOpen() {
@@ -112,10 +157,16 @@
     if (scope && (scope === "inside" || scope === "outside" || scope === "room")) {
       state.scope = scope;
     }
+    // Phase 22: every open() re-inherits the dashboard's board id. The
+    // editor's board picker is a session-scoped override, not a sticky
+    // preference — reopening the editor always starts from the active
+    // dashboard selection.
+    state.editorBoardId = null;
     if (ctx.animEditorPage) {
       ctx.animEditorPage.hidden = false;
     }
     document.body.setAttribute("data-animation-editor-open", "true");
+    populateBoardSelect();
     render();
     if (ctx.animEditorSearchInput) {
       // Drop focus into the search box; it's the primary affordance.
@@ -140,38 +191,28 @@
     }
   }
 
-  // Phase 22 W3b-4 (revised): Back is blocked while the user has
-  // pending edits — same UX contract as the Settings → Dashboard
-  // switch in setActiveView. OK = Apply + close. Cancel = stay.
+  // Phase 22 W3b-5 revisit: Back is fully blocked while there are
+  // unsaved edits — the user must hit Apply or Discard explicitly.
+  // Previously the Back click threw a window.confirm; the user now
+  // wants a grayed-out, inert button instead.
   function handleBack() {
-    const state = ctx.state;
-    if (state?.localConfigDirty && typeof ctx.applyLocalConfigToServer === "function") {
-      const accepted = window.confirm(
-        "You have unsaved animation changes.\n\n"
-        + "OK = Apply and close the editor\n"
-        + "Cancel = Stay here and decide (Apply or Discard)",
-      );
-      if (!accepted) return;
-      Promise.resolve(ctx.applyLocalConfigToServer()).then((result) => {
-        if (result && result.ok !== false) close();
-      });
-      return;
-    }
+    if (ctx.state?.localConfigDirty) return;
     close();
   }
 
   function syncDirtyBar() {
     const bar = ctx.animEditorDirtyBar;
-    if (!bar) return;
     const dirty = Boolean(ctx.state?.localConfigDirty);
-    bar.hidden = !dirty;
+    if (bar) bar.hidden = !dirty;
     if (ctx.animEditorBackButton) {
       ctx.animEditorBackButton.classList.toggle("anim-editor-back--dirty", dirty);
+      ctx.animEditorBackButton.disabled = dirty;
+      ctx.animEditorBackButton.setAttribute("aria-disabled", dirty ? "true" : "false");
     }
   }
 
   function collectAnimations(scope) {
-    const boardId = ctx.state?.boardId;
+    const boardId = getEditorBoardId();
     if (!boardId) return [];
     if (scope === "inside" && typeof ctx.getInsideFxProfile === "function") {
       return ctx.getInsideFxProfile(boardId)?.animations ?? [];
@@ -209,7 +250,7 @@
     const placeholder = ctx.animEditorPanePlaceholder;
     if (!pane) return;
 
-    const boardId = ctx.state?.boardId;
+    const boardId = getEditorBoardId();
     const sel = getSelection();
     const def = findDefinition(sel.scope, sel.id, boardId);
     const paneKey = def ? `${sel.scope}:${def.id}` : null;
@@ -838,7 +879,7 @@
     // detaches the old canvas but the rAF keeps trying to draw on
     // the orphaned node until the containment check fires.
     stopCodedPreview();
-    const boardId = ctx.state?.boardId;
+    const boardId = getEditorBoardId();
     const sel = getSelection();
     const def = findDefinition(sel.scope, sel.id, boardId);
     root.replaceChildren();
@@ -901,6 +942,9 @@
       img.alt = def.name;
       img.loading = "lazy";
       img.decoding = "async";
+      img.addEventListener("error", () => {
+        wrap.replaceChildren(buildPreviewMissingNotice(ref));
+      });
       wrap.append(img);
     } else if (type === "mp4" && ref) {
       const video = document.createElement("video");
@@ -911,6 +955,9 @@
       video.muted = true;
       video.playsInline = true;
       video.setAttribute("playsinline", "");
+      video.addEventListener("error", () => {
+        wrap.replaceChildren(buildPreviewMissingNotice(ref));
+      });
       wrap.append(video);
     } else if (type === "coded" && ref && window.TT_BEAMER_RUNTIME_EFFECT_VISUALS?.withPreviewCanvas) {
       // Phase 22 W3b-4 (revised): coded effects get a live canvas
@@ -985,7 +1032,7 @@
         stopCodedPreview();
         return;
       }
-      const current = findDefinition(scope, def.id, ctx.state?.boardId) ?? def;
+      const current = findDefinition(scope, def.id, getEditorBoardId()) ?? def;
       c2d.save();
       c2d.fillStyle = "#000";
       c2d.fillRect(0, 0, canvas.width, canvas.height);
@@ -1048,9 +1095,7 @@
       ["Type",      formatAssetType(def.assetType)],
       ["Source",    def.assetRef || "—"],
     ];
-    if (scope === "inside") {
-      rows.push(["Loop", def.loopUntilStopped ? "Loops until stopped" : "One-shot"]);
-    } else if (scope === "outside") {
+    if (scope === "outside") {
       rows.push(["Mode",      def.mode ?? "standard"]);
       rows.push(["Direction", def.direction ?? "forward"]);
     }
@@ -1076,10 +1121,23 @@
     return t || "—";
   }
 
+  function buildPreviewMissingNotice(ref) {
+    const box = document.createElement("div");
+    box.className = "anim-editor-preview-missing";
+    const title = document.createElement("p");
+    title.className = "rd-caption anim-editor-preview-missing-title";
+    title.textContent = "File not found";
+    const path = document.createElement("p");
+    path.className = "rd-caption anim-editor-preview-missing-path";
+    path.textContent = ref;
+    box.append(title, path);
+    return box;
+  }
+
   // -------- Create + Delete (W3b-4) --------------------------------
 
   function createAnimation(scope) {
-    const boardId = ctx.state?.boardId;
+    const boardId = getEditorBoardId();
     if (!boardId) return;
     const getter = scope === "inside" ? ctx.getInsideFxProfile
       : scope === "outside" ? ctx.getOutsideFxProfile
@@ -1127,7 +1185,7 @@
   }
 
   function deleteAnimation(scope, id) {
-    const boardId = ctx.state?.boardId;
+    const boardId = getEditorBoardId();
     if (!boardId || !id) return;
     const getter = scope === "inside" ? ctx.getInsideFxProfile
       : scope === "outside" ? ctx.getOutsideFxProfile
@@ -1296,11 +1354,7 @@
       body.append(nm);
       const sub = document.createElement("span");
       sub.className = "anim-editor-row-sub";
-      const loopText = def.loopUntilStopped ? "Loop" : "One-shot";
-      const assetText = def.assetType
-        ? String(def.assetType).toUpperCase()
-        : "";
-      sub.textContent = assetText ? `${loopText} · ${assetText}` : loopText;
+      sub.textContent = def.assetType ? String(def.assetType).toUpperCase() : "";
       body.append(sub);
       row.append(body);
 

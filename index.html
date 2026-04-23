@@ -658,11 +658,20 @@
         <p class="rd-eyebrow">Setup</p>
         <h1 class="rd-h1">Animations</h1>
       </div>
+      <!-- Phase 22: editor-scoped board picker. Scoping lives in the
+           view controller — switching here retargets the editor only
+           and never calls switchBoard(), so the Dashboard's stage
+           keeps whatever board it had. -->
+      <label class="anim-editor-board-picker">
+        <span class="rd-caption">Editing board</span>
+        <select id="anim-editor-board-select"></select>
+      </label>
       <!-- Phase 22 W3b-4 (revised): dirty-state mini bar. Shown only
            when state.localConfigDirty is true; Apply / Discard here
            are peers to the global #apply-global-config-bar. Back is
            also blocked when this is visible. -->
-      <div id="anim-editor-dirty-bar" class="anim-editor-dirty-bar" hidden>
+      <div id="anim-editor-dirty-bar" class="anim-editor-dirty-bar" hidden role="status" aria-live="polite">
+        <span class="anim-editor-dirty-dot" aria-hidden="true"></span>
         <span class="anim-editor-dirty-label">Unsaved changes</span>
         <button id="anim-editor-discard" type="button" class="rd-btn rd-btn-ghost">Discard</button>
         <button id="anim-editor-apply" type="button" class="rd-btn rd-btn-primary">Apply</button>
