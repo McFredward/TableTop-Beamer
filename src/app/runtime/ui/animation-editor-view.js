@@ -331,6 +331,23 @@
     title.dataset.animEditorField = "title";
     wrap.append(eyebrow, title);
     header.append(wrap);
+    // Phase 22 W3b polish: prominent Delete button in the pane header
+    // so the option is visible without scrolling the preview column.
+    // Delete still routes through persistBoardProfiles() → dirty flag;
+    // the row only actually disappears from the server after Apply.
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "rd-btn rd-btn-danger anim-editor-pane-delete";
+    if (icons?.createIcon) del.append(icons.createIcon("trash", { size: 14 }));
+    const delLabel = document.createElement("span");
+    delLabel.textContent = "Delete";
+    del.append(delLabel);
+    del.addEventListener("click", () => {
+      const name = String(def.name || "").trim() || "this animation";
+      if (!window.confirm(`Delete ${name}? The change stays local until you hit Apply.`)) return;
+      deleteAnimation(scope, def.id);
+    });
+    header.append(del);
     return header;
   }
 
@@ -476,21 +493,25 @@
       if (scope === "outside") {
         // Phase 22 W3b-3 (revised): mode + direction used to live in
         // a separate Playback card; inlined into Defaults so the user
-        // has one consolidated tuning area.
-        fields.push({
-          kind: "select", key: "mode", label: "Mode",
-          options: [
-            { value: "standard", label: "Standard" },
-            { value: "immersive", label: "Immersive" },
-          ],
-        });
-        fields.push({
-          kind: "select", key: "direction", label: "Direction",
-          options: [
-            { value: "forward", label: "Forward" },
-            { value: "reverse", label: "Reverse" },
-          ],
-        });
+        // has one consolidated tuning area. Phase 22 W3b polish: mode
+        // + direction only render for coded outside effects — GIF and
+        // MP4 ignore both at runtime, so the controls were dead UI.
+        if (def.assetType === "coded") {
+          fields.push({
+            kind: "select", key: "mode", label: "Mode",
+            options: [
+              { value: "standard", label: "Standard" },
+              { value: "immersive", label: "Immersive" },
+            ],
+          });
+          fields.push({
+            kind: "select", key: "direction", label: "Direction",
+            options: [
+              { value: "forward", label: "Forward" },
+              { value: "reverse", label: "Reverse" },
+            ],
+          });
+        }
       }
     }
     return fields;
@@ -1071,13 +1092,11 @@
     const delLabel = document.createElement("span");
     delLabel.textContent = "Delete animation";
     del.append(delLabel);
-    const list = collectAnimations(sel.scope);
-    if (list.length <= 1) {
-      del.disabled = true;
-      del.title = "Each scope needs at least one animation";
-    } else {
-      del.addEventListener("click", () => deleteAnimation(sel.scope, def.id));
-    }
+    del.addEventListener("click", () => {
+      const name = String(def.name || "").trim() || "this animation";
+      if (!window.confirm(`Delete ${name}? The change stays local until you hit Apply.`)) return;
+      deleteAnimation(sel.scope, def.id);
+    });
     footer.append(del);
     root.append(footer);
   }
@@ -1336,7 +1355,7 @@
       ["Type",      formatAssetType(def.assetType)],
       ["Source",    def.assetRef || "—"],
     ];
-    if (scope === "outside") {
+    if (scope === "outside" && def.assetType === "coded") {
       rows.push(["Mode",      def.mode ?? "standard"]);
       rows.push(["Direction", def.direction ?? "forward"]);
     }
@@ -1470,7 +1489,7 @@
     if (!getter || !setter) return;
     const profile = getter(boardId);
     const existing = profile?.animations ?? [];
-    if (existing.length <= 1) return;
+    if (existing.length === 0) return;
     const nextAnimations = existing.filter((d) => d.id !== id);
     const nextSelectedId = nextAnimations[0]?.id ?? null;
     const next = {

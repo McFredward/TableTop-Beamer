@@ -435,6 +435,16 @@ body[data-output-role="final-output"] #animation-editor-page {
   gap: var(--rd-s-4);
 }
 
+/* Pane header delete — prominent, right-aligned. */
+.anim-editor-pane-delete {
+  margin-left: auto;
+  flex: 0 0 auto;
+  gap: 6px;
+  padding: 0 14px;
+  height: 36px;
+  font-size: 13px;
+}
+
 .anim-editor-pane-icon {
   width: 56px;
   height: 56px;
