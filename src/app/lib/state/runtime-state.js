@@ -45,7 +45,7 @@
       settingsSubtab: "board",
       dashboardZone: "trigger",
       quickMode: {
-        mode: "off",
+        mode: "toggle",
         inflightByRoom: {},
       },
       hitareaCalibrationByBoard: {},
