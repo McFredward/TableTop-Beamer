@@ -335,6 +335,18 @@ body[data-output-role="final-output"] #animation-editor-page {
  * serves the Dashboard's other uses). */
 #animation-editor-page .rd-icon-picker-tile {
   border-radius: 4px;
+  line-height: 0;
+}
+
+/* Pin the SVG to block-level + explicit 16×16 so the default
+ * `.rd-ico { width: 20 px }` rule and the SVG's inline baseline
+ * spacing can't push the tile past its 32-px grid track (overlap
+ * fix) and so `place-items: center` on the tile lands the glyph
+ * exactly in the middle (horizontal centering fix). */
+#animation-editor-page .rd-icon-picker-tile > svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 #animation-editor-page .rd-icon-picker {
