@@ -41,6 +41,54 @@ body[data-output-role="final-output"] #animation-editor-page {
   display: none !important;
 }
 
+/* Phase 22 W5: responsive collapse for narrow viewports.
+ *   ≤1180 px — drop preview column (still reachable via pane edits)
+ *   ≤880 px  — stack library above pane; topbar wraps. */
+@media (max-width: 1180px) {
+  body[data-animation-editor-open="true"] #animation-editor-page {
+    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-areas:
+      "topbar  topbar"
+      "library pane";
+  }
+  body[data-animation-editor-open="true"] #animation-editor-page .anim-editor-preview {
+    display: none;
+  }
+}
+
+@media (max-width: 880px) {
+  body[data-animation-editor-open="true"] #animation-editor-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "topbar"
+      "library"
+      "pane";
+  }
+  body[data-animation-editor-open="true"] #animation-editor-page .anim-editor-library {
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .anim-editor-topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .anim-editor-topbar-title {
+    order: -1;
+    flex: 0 0 100%;
+  }
+  .anim-editor-board-picker {
+    min-width: 140px;
+    flex: 1;
+  }
+  .anim-editor-dirty-bar {
+    flex: 1;
+    justify-content: space-between;
+  }
+}
+
 /* Topbar */
 .anim-editor-topbar {
   grid-area: topbar;
