@@ -39,6 +39,27 @@
         return;
       }
 
+      // Phase 22 W5 fix: first-ever tap bug — the roomDraft sliders /
+      // values are only synced to a definition when the user manually
+      // picks it in the sidebar dropdown. Quick-mode tap never goes
+      // through that change event, so the very first animation fires
+      // with the stale session baseline (speed=1, intensity=1, …)
+      // instead of the animation's saved defaults. Re-seed here if
+      // the draft wasn't synced with the current selectedDefinition.
+      if (state.roomDraft.lastSyncedAnimationId !== selectedDefinition.id) {
+        state.roomDraft.opacity = clampRoomOpacity(selectedDefinition.opacity ?? 0.9);
+        state.roomDraft.intensity = clampRoomIntensity(selectedDefinition.intensity ?? 0.8);
+        state.roomDraft.speed = clampRoomSpeed(selectedDefinition.speed ?? 1);
+        state.roomDraft.soundVolume = clampRoomSoundVolume(selectedDefinition.soundVolume ?? 1);
+        state.roomDraft.rotationDeg = selectedDefinition.rotationDeg ?? 0;
+        state.roomDraft.stretchToPolygon = selectedDefinition.stretchToPolygon !== false;
+        state.roomDraft.widthScale = selectedDefinition.widthScale ?? 1;
+        state.roomDraft.heightScale = selectedDefinition.heightScale ?? 1;
+        state.roomDraft.offsetXScale = selectedDefinition.offsetXScale ?? 0;
+        state.roomDraft.offsetYScale = selectedDefinition.offsetYScale ?? 0;
+        state.roomDraft.lastSyncedAnimationId = selectedDefinition.id;
+      }
+
       const selectedAssetType = normalizeRoomAssetType(selectedDefinition.assetType);
       const selectedAssetRef = normalizeRoomAssetRefForType(selectedAssetType, selectedDefinition.assetRef);
 

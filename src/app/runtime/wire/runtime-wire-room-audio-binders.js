@@ -266,6 +266,11 @@
       state.roomDraft.heightScale = definition?.heightScale ?? 1;
       state.roomDraft.offsetXScale = definition?.offsetXScale ?? 0;
       state.roomDraft.offsetYScale = definition?.offsetYScale ?? 0;
+      // Phase 22 W5: mark the draft as synced with this animation so
+      // the dispatch path can tell whether a re-sync is needed before
+      // firing (first-ever tap ships the stale session defaults
+      // otherwise — see bug ticket on Scanning/Slime first-tap speed).
+      state.roomDraft.lastSyncedAnimationId = definition?.id ?? null;
       // colorHex is intentionally NOT reset — user's color persists
       roomOpacityInput.value = String(state.roomDraft.opacity);
       roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
