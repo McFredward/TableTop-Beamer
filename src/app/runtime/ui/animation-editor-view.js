@@ -69,13 +69,11 @@
       }
       ctx.animEditorScopeTabs._ttBeamerBound = true;
     }
-    // W3b-4 will wire the add button; for now render a short-circuit.
+    // Phase 22 W3b-4: + button creates a new animation in the
+    // currently-selected scope.
     if (ctx.animEditorAddButton && !ctx.animEditorAddButton._ttBeamerBound) {
       ctx.animEditorAddButton.addEventListener("click", () => {
-        if (ctx.triggerFeedback) {
-          ctx.triggerFeedback.textContent =
-            "Status: Add coming in the next sub-commit — use Dashboard → Settings’ legacy Create flow until then";
-        }
+        createAnimation(state.scope);
       });
       ctx.animEditorAddButton._ttBeamerBound = true;
     }
@@ -133,6 +131,7 @@
     renderScopeTabs();
     renderList();
     renderPane();
+    renderPreview();
   }
 
   // =============================================================
@@ -618,6 +617,192 @@
     return label;
   }
 
+  // -------- Preview column (W3b-4) ---------------------------------
+
+  function renderPreview() {
+    const root = ctx.animEditorPreview;
+    if (!root) return;
+    const boardId = ctx.state?.boardId;
+    const sel = getSelection();
+    const def = findDefinition(sel.scope, sel.id, boardId);
+    root.replaceChildren();
+
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "rd-eyebrow";
+    eyebrow.textContent = "Live preview";
+    root.append(eyebrow);
+
+    if (!def) {
+      const empty = document.createElement("div");
+      empty.className = "anim-editor-preview-placeholder";
+      const hint = document.createElement("p");
+      hint.className = "rd-caption";
+      hint.textContent = "Select an animation to see its defaults.";
+      empty.append(hint);
+      root.append(empty);
+      return;
+    }
+
+    root.append(buildPreviewSwatch(sel.scope, def));
+    root.append(buildPreviewMeta(sel.scope, def));
+
+    const footer = document.createElement("div");
+    footer.className = "anim-editor-preview-footer";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "rd-btn rd-btn-danger anim-editor-delete";
+    const trashIcon = window.TT_BEAMER_UI_ICONS?.createIcon("trash", { size: 14 });
+    if (trashIcon) del.append(trashIcon);
+    const delLabel = document.createElement("span");
+    delLabel.textContent = "Delete animation";
+    del.append(delLabel);
+    const list = collectAnimations(sel.scope);
+    if (list.length <= 1) {
+      del.disabled = true;
+      del.title = "Each scope needs at least one animation";
+    } else {
+      del.addEventListener("click", () => deleteAnimation(sel.scope, def.id));
+    }
+    footer.append(del);
+    root.append(footer);
+  }
+
+  function buildPreviewSwatch(scope, def) {
+    const wrap = document.createElement("div");
+    wrap.className = "anim-editor-preview-swatch";
+    const icons = window.TT_BEAMER_UI_ICONS;
+    if (icons?.createIcon) {
+      const name = def.icon
+        ?? (icons.resolveAnimationIcon ? icons.resolveAnimationIcon(def) : "sparkles");
+      const iconEl = icons.createIcon(name, { size: 48, strokeWidth: 1.25 });
+      wrap.append(iconEl);
+    }
+    const label = document.createElement("p");
+    label.className = "anim-editor-preview-swatch-label";
+    label.textContent = def.name;
+    wrap.append(label);
+    return wrap;
+  }
+
+  function buildPreviewMeta(scope, def) {
+    const box = document.createElement("dl");
+    box.className = "anim-editor-preview-meta";
+    const rows = [
+      ["Scope",     scopeLabel(scope)],
+      ["Type",      formatAssetType(def.assetType)],
+      ["Source",    def.assetRef || "—"],
+    ];
+    if (scope === "inside") {
+      rows.push(["Loop", def.loopUntilStopped ? "Loops until stopped" : "One-shot"]);
+    } else if (scope === "outside") {
+      rows.push(["Mode",      def.mode ?? "standard"]);
+      rows.push(["Direction", def.direction ?? "forward"]);
+    }
+    const noneValue = window.TT_BEAMER_CONFIG?.SOUND_MAPPING_NONE ?? "none";
+    const soundRef = def.soundAssetRef ?? noneValue;
+    rows.push(["Sound",
+      soundRef === noneValue ? "—" : (String(soundRef).split("/").pop() || soundRef),
+    ]);
+    for (const [k, v] of rows) {
+      const dt = document.createElement("dt");
+      dt.textContent = k;
+      const dd = document.createElement("dd");
+      dd.textContent = v;
+      box.append(dt, dd);
+    }
+    return box;
+  }
+
+  function formatAssetType(t) {
+    if (t === "coded") return "Effect (coded)";
+    if (t === "mp4") return "Video";
+    if (t === "gif") return "GIF";
+    return t || "—";
+  }
+
+  // -------- Create + Delete (W3b-4) --------------------------------
+
+  function createAnimation(scope) {
+    const boardId = ctx.state?.boardId;
+    if (!boardId) return;
+    const getter = scope === "inside" ? ctx.getInsideFxProfile
+      : scope === "outside" ? ctx.getOutsideFxProfile
+      : scope === "room" ? ctx.getRoomFxProfile
+      : null;
+    const setter = scope === "inside" ? ctx.setInsideFxProfile
+      : scope === "outside" ? ctx.setOutsideFxProfile
+      : scope === "room" ? ctx.setRoomFxProfile
+      : null;
+    if (!getter || !setter) return;
+    const profile = getter(boardId);
+    const existing = profile?.animations ?? [];
+    const seeds = {
+      inside:  { prefix: "inside",  assetRef: "hull-flicker" },
+      outside: { prefix: "outside", assetRef: "outside-space" },
+      room:    { prefix: "room",    assetRef: "intruder-alert" },
+    };
+    const s = seeds[scope] ?? seeds.inside;
+    let n = existing.length + 1;
+    let id;
+    do {
+      id = `${s.prefix}-${Date.now().toString(36)}-${n}`;
+      n += 1;
+    } while (existing.some((d) => d.id === id));
+    const label = `${scopeLabel(scope)} animation ${existing.length + 1}`;
+    const newDef = {
+      id,
+      name: label,
+      assetType: "coded",
+      assetRef: s.assetRef,
+    };
+    const next = {
+      ...profile,
+      animations: [...existing, newDef],
+    };
+    setter(boardId, next);
+    if (typeof ctx.persistBoardProfiles === "function") ctx.persistBoardProfiles();
+    if (typeof ctx.refreshGlobalButtons === "function") ctx.refreshGlobalButtons();
+    state.selectedIds[scope] = id;
+    currentPaneKey = null;
+    render();
+    if (ctx.triggerFeedback) {
+      ctx.triggerFeedback.textContent = `Status: Created ${label}`;
+    }
+  }
+
+  function deleteAnimation(scope, id) {
+    const boardId = ctx.state?.boardId;
+    if (!boardId || !id) return;
+    const getter = scope === "inside" ? ctx.getInsideFxProfile
+      : scope === "outside" ? ctx.getOutsideFxProfile
+      : scope === "room" ? ctx.getRoomFxProfile
+      : null;
+    const setter = scope === "inside" ? ctx.setInsideFxProfile
+      : scope === "outside" ? ctx.setOutsideFxProfile
+      : scope === "room" ? ctx.setRoomFxProfile
+      : null;
+    if (!getter || !setter) return;
+    const profile = getter(boardId);
+    const existing = profile?.animations ?? [];
+    if (existing.length <= 1) return;
+    const nextAnimations = existing.filter((d) => d.id !== id);
+    const nextSelectedId = nextAnimations[0]?.id ?? null;
+    const next = {
+      ...profile,
+      animations: nextAnimations,
+      selectedAnimationId: nextSelectedId ?? profile.selectedAnimationId,
+    };
+    setter(boardId, next);
+    if (typeof ctx.persistBoardProfiles === "function") ctx.persistBoardProfiles();
+    if (typeof ctx.refreshGlobalButtons === "function") ctx.refreshGlobalButtons();
+    state.selectedIds[scope] = nextSelectedId;
+    currentPaneKey = null;
+    render();
+    if (ctx.triggerFeedback) {
+      ctx.triggerFeedback.textContent = "Status: Animation deleted";
+    }
+  }
+
   // -------- Shared helpers -----------------------------------------
 
   function sanitizeName(value, fallback) {
@@ -773,9 +958,10 @@
         // the list + notify listeners. The pane subscribes via
         // render() at init, not notifySelection, so the pane didn't
         // rebuild when the user picked another animation. Call
-        // renderPane() directly so the middle column follows the
+        // renderPane() / renderPreview() directly so both follow the
         // selection.
         renderPane();
+        renderPreview();
         notifySelection();
       });
       list.append(row);
