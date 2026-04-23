@@ -270,10 +270,34 @@
     }
   }
 
+  // Phase 22 W3b-4 (live preview): run `fn` with this module's
+  // canvas + canvas-context temporarily redirected to the caller's
+  // preview canvas. drawEffectVisual renders to `ctx.canvas`, so
+  // swapping here lets the animation editor's preview column reuse
+  // the exact same coded-effect draw code as the main stage without
+  // duplicating logic. Runs synchronously; restores in a finally
+  // block so a thrown draw won't leak the preview canvas into the
+  // main stage's render loop.
+  function withPreviewCanvas(previewCanvas, fn) {
+    if (!ctx || !previewCanvas || typeof fn !== "function") return;
+    const origCanvas = ctx.canvas;
+    const origCanvasCtx = ctx.canvasCtx;
+    const previewCtx = previewCanvas.getContext("2d");
+    ctx.canvas = previewCanvas;
+    ctx.canvasCtx = previewCtx;
+    try {
+      fn();
+    } finally {
+      ctx.canvas = origCanvas;
+      ctx.canvasCtx = origCanvasCtx;
+    }
+  }
+
   window.TT_BEAMER_RUNTIME_EFFECT_VISUALS = {
     init,
     drawEffectVisual,
     computeHullFlickerGate,
     isHullFlickerLampOff,
+    withPreviewCanvas,
   };
 })();

@@ -654,6 +654,12 @@ body[data-output-role="final-output"] #animation-editor-page {
   background: #000;
 }
 
+/* Coded-effect preview canvas — shares the same size + treatment as
+ * the GIF/MP4 media; aspect 4:3 matches the canvas's native 320×240. */
+.anim-editor-preview-canvas {
+  aspect-ratio: 4 / 3;
+}
+
 .anim-editor-preview-swatch-label {
   margin: 0;
   font-family: var(--rd-font-display);

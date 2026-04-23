@@ -125,6 +125,10 @@
 
   function close() {
     state.open = false;
+    // Phase 22 W3b-4 (revised): make sure the coded-preview rAF loop
+    // stops when the editor closes, even if the canvas isn't
+    // immediately garbage-collected.
+    stopCodedPreview();
     if (ctx.animEditorPage) {
       ctx.animEditorPage.hidden = true;
     }
@@ -677,6 +681,11 @@
   function renderPreview() {
     const root = ctx.animEditorPreview;
     if (!root) return;
+    // Phase 22 W3b-4 (revised): cancel any in-flight coded-effect
+    // preview loop before rebuilding — otherwise replaceChildren()
+    // detaches the old canvas but the rAF keeps trying to draw on
+    // the orphaned node until the containment check fires.
+    stopCodedPreview();
     const boardId = ctx.state?.boardId;
     const sel = getSelection();
     const def = findDefinition(sel.scope, sel.id, boardId);
@@ -751,6 +760,19 @@
       video.playsInline = true;
       video.setAttribute("playsinline", "");
       wrap.append(video);
+    } else if (type === "coded" && ref && window.TT_BEAMER_RUNTIME_EFFECT_VISUALS?.withPreviewCanvas) {
+      // Phase 22 W3b-4 (revised): coded effects get a live canvas
+      // preview that replays drawEffectVisual on every rAF with the
+      // definition's current defaults (opacity, intensity, speed,
+      // colorHex, outside mode/direction). startCodedPreview sets up
+      // a rAF loop; stopCodedPreview cancels it — re-called on every
+      // renderPreview to switch targets or exit cleanly.
+      const canvas = document.createElement("canvas");
+      canvas.className = "anim-editor-preview-media anim-editor-preview-canvas";
+      canvas.width = 320;
+      canvas.height = 240;
+      wrap.append(canvas);
+      startCodedPreview(canvas, scope, def);
     } else {
       const icons = window.TT_BEAMER_UI_ICONS;
       if (icons?.createIcon) {
@@ -766,6 +788,77 @@
     label.textContent = def.name;
     wrap.append(label);
     return wrap;
+  }
+
+  // Coded-effect preview loop — see note above. One loop at a time,
+  // re-keyed per (scope,id) so changing selection cancels the old
+  // loop before spinning up the new one.
+  let previewLoopId = null;
+  let previewLoopKey = null;
+  function startCodedPreview(canvas, scope, def) {
+    const visuals = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
+    if (!visuals?.withPreviewCanvas || !visuals.drawEffectVisual) return;
+    stopCodedPreview();
+    const key = `${scope}:${def.id}`;
+    previewLoopKey = key;
+    const startTime = performance.now();
+    const c2d = canvas.getContext("2d");
+    const roomMetrics = () => {
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = 8;
+      return {
+        centerX: w / 2,
+        centerY: h / 2,
+        minX: pad,
+        minY: pad,
+        width: w - pad * 2,
+        height: h - pad * 2,
+        radius: Math.min(w, h) * 0.42,
+      };
+    };
+    function tick() {
+      if (previewLoopKey !== key) return;
+      if (!document.body.contains(canvas)) {
+        stopCodedPreview();
+        return;
+      }
+      const current = findDefinition(scope, def.id, ctx.state?.boardId) ?? def;
+      c2d.save();
+      c2d.fillStyle = "#000";
+      c2d.fillRect(0, 0, canvas.width, canvas.height);
+      c2d.restore();
+      const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
+      const age = ((performance.now() - startTime) / 1000) * speed;
+      const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
+      const options = {
+        opacity: Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1,
+        colorHex: current.colorHex,
+        outsideMode: current.mode,
+        outsideDirection: current.direction,
+        outsideSpeed: speed,
+        densityFactor: 1,
+      };
+      try {
+        visuals.withPreviewCanvas(canvas, () => {
+          visuals.drawEffectVisual(current.assetRef, age, intensity, null, roomMetrics(), options);
+        });
+      } catch (error) {
+        console.error("anim editor preview error", error);
+        stopCodedPreview();
+        return;
+      }
+      previewLoopId = requestAnimationFrame(tick);
+    }
+    previewLoopId = requestAnimationFrame(tick);
+  }
+
+  function stopCodedPreview() {
+    if (previewLoopId != null) {
+      cancelAnimationFrame(previewLoopId);
+      previewLoopId = null;
+    }
+    previewLoopKey = null;
   }
 
   // Turn a stored asset ref into a URL the browser can load. The
