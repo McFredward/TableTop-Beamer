@@ -735,6 +735,13 @@
       row.addEventListener("click", () => {
         state.selectedIds[state.scope] = def.id;
         renderList();
+        // Phase 22 W3b-3 fix: the click handler used to only refresh
+        // the list + notify listeners. The pane subscribes via
+        // render() at init, not notifySelection, so the pane didn't
+        // rebuild when the user picked another animation. Call
+        // renderPane() directly so the middle column follows the
+        // selection.
+        renderPane();
         notifySelection();
       });
       list.append(row);
