@@ -348,36 +348,45 @@
           !event.altKey &&
           (key === "delete" || event.code === "Delete")
         ) {
-          // Phase 22 W5 fix v2: disambiguate DELETE by what's actively
-          // selected on the overlay, not by focused UI element. Order:
-          //   1. Room vertex active         → delete room vertex
-          //   2. Play-area visible + ship vertex → delete ship vertex
-          //      (via the sidebar button so validation stays unified)
-          //   3. Neither                    → delete selected room
+          // Phase 22 W5 fix v3: route DELETE by `state.lastPolygonFocus`
+          // so whichever polygon the user most recently clicked wins.
+          // Fall back to the legacy "whoever has the active flag"
+          // checks when the focus marker isn't set yet (fresh session).
+          const lastFocus = state.lastPolygonFocus;
+          const shipPts = state.shipPolygonsByBoard?.[state.boardId];
+          const playAreaVisible = state.polygonEditor.playAreaVerticesVisible !== false;
+          const shipIndex = state.shipPolygonEditor?.selectedVertexIndex;
+          const canDeleteShipVertex =
+            playAreaVisible
+            && Number.isInteger(shipIndex)
+            && Array.isArray(shipPts)
+            && shipPts.length > 3;
           const roomVertexActive =
             state.polygonEditor.vertexSelectionActive
             && areRoomVerticesEditable()
             && Boolean(getActivePolygonRoomId(state.boardId));
+
+          if (lastFocus === "ship" && canDeleteShipVertex) {
+            event.preventDefault();
+            const button = document.querySelector("#ship-polygon-delete-vertex");
+            if (button && !button.disabled) button.click();
+            return;
+          }
+          if (lastFocus === "room" && roomVertexActive) {
+            event.preventDefault();
+            deleteSelectedPolygonVertex();
+            return;
+          }
+          // No explicit focus marker — legacy fallbacks.
           if (roomVertexActive) {
             event.preventDefault();
             deleteSelectedPolygonVertex();
             return;
           }
-          const playAreaVisible = state.polygonEditor.playAreaVerticesVisible !== false;
-          const shipIndex = state.shipPolygonEditor?.selectedVertexIndex;
-          const hasShipSelection = Number.isInteger(shipIndex);
-          const shipPts = state.shipPolygonsByBoard?.[state.boardId];
-          const canDeleteShipVertex =
-            playAreaVisible
-            && hasShipSelection
-            && Array.isArray(shipPts)
-            && shipPts.length > 3;
           if (canDeleteShipVertex) {
             event.preventDefault();
             const button = document.querySelector("#ship-polygon-delete-vertex");
-            if (button && !button.disabled) {
-              button.click();
-            }
+            if (button && !button.disabled) button.click();
             return;
           }
           if (!playAreaContext) {

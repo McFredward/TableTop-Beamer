@@ -233,6 +233,12 @@
         event.preventDefault();
         beginShipPolygonVertexDrag(event, index);
         state.shipPolygonEditor.selectedVertexIndex = index;
+        // Phase 22 W5 fix: flag this as the most-recently-interacted
+        // polygon target so the DELETE keybinding routes the next
+        // press to the ship-polygon delete path instead of an older
+        // room-vertex selection that still sits in polygonEditor.
+        state.lastPolygonFocus = "ship";
+        state.polygonEditor.vertexSelectionActive = false;
         ctx.syncShipPolygonVertexSelect();
       });
       marker.append(hitTarget, handle, indexLabel);
@@ -418,6 +424,9 @@
         state.polygonEditor.selectedVertexIndex = index;
         state.polygonEditor.selectedEdgeIndex = index;
         state.polygonEditor.vertexSelectionActive = true;
+        // Phase 22 W5: pair with the ship-vertex handler so DELETE
+        // always targets the most-recently clicked polygon's vertex.
+        state.lastPolygonFocus = "room";
         ctx.syncPolygonVertexSelect(room.id);
         ctx.syncPolygonEdgeSelect(room.id);
         ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
