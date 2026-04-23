@@ -1265,6 +1265,23 @@
     // Phase 22 W3b-4 (revised): every patch may flip localConfigDirty;
     // reflect it in the editor topbar immediately.
     syncDirtyBar();
+    // Phase 22: keep the Live preview in lockstep with the pending
+    // edits — even before the user hits Apply. Coded-effect previews
+    // already read `findDefinition()` each rAF tick so slider +
+    // colour changes animate live; but switching asset type, asset
+    // ref, or coded-effect key needs a full rebuild since the preview
+    // element swaps (img ↔ video ↔ canvas) or points at a different
+    // media file. Patches that only nudge numeric params skip the
+    // rebuild to avoid canvas flicker under rapid slider input.
+    const selection = getSelection();
+    const touchesPreview = patch && (
+      Object.prototype.hasOwnProperty.call(patch, "assetType")
+      || Object.prototype.hasOwnProperty.call(patch, "assetRef")
+    );
+    const affectsSelection = selection.scope === scope && selection.id === id;
+    if (touchesPreview && affectsSelection) {
+      renderPreview();
+    }
   }
 
   // Update values without rebuilding — preserves input focus.
