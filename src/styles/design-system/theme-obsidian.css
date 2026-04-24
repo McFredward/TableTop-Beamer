@@ -1391,3 +1391,94 @@ body[data-output-role="final-output"].dir-obsidian-dark {
 .dir-obsidian-dark #running-animations .running-actions button:disabled {
   opacity: 0.4;
 }
+
+/* =============================================================
+ * Phase 22 W5 — responsive breakpoints (dashboard + topbar)
+ *
+ * Complements the responsive block in animation-editor.css so the
+ * whole Obsidian surface shrinks gracefully on narrower laptops,
+ * tablets, and portrait phones. Legacy styles.css already has 920/
+ * 760/1080 media queries for its own .app-shell / .dashboard
+ * grids; these blocks are layered on top to adjust the redesign
+ * primitives (topbar, stage card, running-count chip, sidebar
+ * cards) for the same viewports.
+ * ============================================================= */
+
+/* Compact laptops — narrower sidebar + tighter topbar padding. */
+@media (max-width: 1180px) {
+  .dir-obsidian-dark .rd-topbar {
+    padding: 0 var(--rd-s-3);
+    gap: var(--rd-s-2);
+  }
+  .dir-obsidian-dark .running-count-chip {
+    padding: 0 10px;
+  }
+  .dir-obsidian-dark #panel {
+    padding: var(--rd-s-3);
+  }
+}
+
+/* Tablet / narrow laptop — hide the count-chip secondary line,
+ * stack the dashboard zone buttons tighter. */
+@media (max-width: 980px) {
+  .dir-obsidian-dark .running-count-line {
+    font-size: 11px;
+  }
+  .dir-obsidian-dark .rd-topbar-actions {
+    gap: 4px;
+  }
+  .dir-obsidian-dark .align-mode-toggle span {
+    display: none; /* icon-only align button below the laptop breakpoint */
+  }
+  .dir-obsidian-dark .align-mode-toggle {
+    padding: 0 10px;
+    gap: 0;
+  }
+}
+
+/* Portrait phone — the legacy app-shell already stacks to one
+ * column at ≤920px portrait; the redesign bits need to follow. */
+@media (max-width: 920px) {
+  .dir-obsidian-dark .rd-topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--rd-hit);
+    padding: 6px var(--rd-s-2);
+    row-gap: 4px;
+  }
+  .dir-obsidian-dark .rd-topbar-brand {
+    flex: 1 1 auto;
+  }
+  .dir-obsidian-dark .rd-topbar-sub {
+    font-size: 11px;
+  }
+  .dir-obsidian-dark .running-count-chip {
+    order: 10; /* push to second row on wrap */
+    flex-basis: 100%;
+    justify-content: center;
+  }
+  .dir-obsidian-dark .panel {
+    padding: var(--rd-s-2);
+  }
+  .dir-obsidian-dark .panel h2 {
+    font-size: 14px;
+  }
+  .dir-obsidian-dark button {
+    min-height: 40px;
+  }
+  .dir-obsidian-dark .rd-segmented button {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
+/* Very small phones — compact mode for bottom sidebar. */
+@media (max-width: 600px) {
+  .dir-obsidian-dark .rd-topbar-brand strong {
+    font-size: 13px;
+  }
+  .dir-obsidian-dark .rd-card,
+  .dir-obsidian-dark .panel {
+    border-radius: var(--rd-r-2);
+  }
+}
