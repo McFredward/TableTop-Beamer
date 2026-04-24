@@ -1,10 +1,11 @@
 # CURRENT PHASE
 
-- Active: Phase 22 (Design-System Migration — Obsidian redesign, dark-first)
-- Status: Wave 1 (foundations) not yet started
-- Previous Phase: Phase 21 (Hull-Flicker + Outside rewire + QoL + rotation + share UX) CLOSED
+- Active: (none — Phase 22 CLOSED)
+- Status: Ready for next phase planning
+- Previous Phase: Phase 22 (Design-System Migration — Obsidian redesign) CLOSED
 - Next Phase: (TBD)
 
+Phase 22 closure: `.planning/phases/phase-22/SUMMARY.md`
 Phase 21 closure: `.planning/phases/phase-21/SUMMARY.md`
 Phase 20 closure: `.planning/phases/phase-20/SUMMARY.md`
 Phase 19 closure: `.planning/phases/phase-19/SUMMARY.md`
