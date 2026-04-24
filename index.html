@@ -30,7 +30,19 @@
   <link rel="stylesheet" href="/src/styles/design-system/animation-editor.css" />
 </head>
 
-<body class="dir-obsidian-dark">
+<body class="dir-obsidian dir-obsidian-dark">
+  <!-- Phase 22 W5: restore the persisted theme preference before the
+       main JS boot so there's no dark → light (or vice versa) flash.
+       Must run inline BEFORE the DOM renders visually. -->
+  <script>
+    try {
+      var __ttTheme = window.localStorage?.getItem("tt-beamer.theme.v1");
+      if (__ttTheme === "light") {
+        document.body.classList.remove("dir-obsidian-dark");
+        document.body.classList.add("dir-obsidian-light");
+      }
+    } catch (e) { /* private mode / quota — stay on default dark */ }
+  </script>
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
@@ -95,6 +107,22 @@
               <path d="M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM12 12h.01" />
             </svg>
             <span>Align</span>
+          </button>
+          <!-- Phase 22 W5: theme toggle. Inline onclick flips dark/light
+               + persists to localStorage. Sun/moon glyphs are drawn from
+               two SVGs; CSS hides the inactive one by body theme class. -->
+          <button id="theme-toggle-button" class="rd-icon-btn theme-toggle" type="button"
+            title="Toggle light/dark mode" aria-label="Toggle light/dark mode"
+            onclick="(function(){try{var b=document.body;var toLight=!b.classList.contains('dir-obsidian-light');b.classList.toggle('dir-obsidian-light',toLight);b.classList.toggle('dir-obsidian-dark',!toLight);window.localStorage?.setItem('tt-beamer.theme.v1',toLight?'light':'dark');}catch(e){}})()">
+            <svg class="theme-toggle-icon theme-toggle-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
           </button>
         </div>
       </div>
