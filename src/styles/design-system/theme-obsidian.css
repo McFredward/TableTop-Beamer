@@ -678,14 +678,18 @@ body[data-output-role="final-output"].dir-obsidian {
 .dir-obsidian .rd-topbar-brand {
   display: flex;
   align-items: center;
-  gap: var(--rd-s-3);
+  gap: 10px;
   min-width: 0;
-  flex: 1;
+  /* Phase 22 W5: don't greedy-grow. Brand takes the width it needs
+   * (which keeps "TableTop Beamer" + board sub-line at full size),
+   * and .rd-topbar-actions on the right gets whatever space it asks
+   * for. ml-auto on .rd-topbar-actions pushes it to the far edge. */
+  flex: 0 1 auto;
 }
 
 .dir-obsidian .rd-topbar-mark {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   flex: 0 0 auto;
   border-radius: var(--rd-r-sm);
   background: var(--c-accent);
@@ -702,7 +706,7 @@ body[data-output-role="final-output"].dir-obsidian {
 
 .dir-obsidian .rd-topbar-brand-title {
   font-family: var(--rd-font-display);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: var(--rd-tracking-title);
   color: var(--c-text);
@@ -727,6 +731,11 @@ body[data-output-role="final-output"].dir-obsidian {
   display: flex;
   align-items: center;
   gap: var(--rd-s-2);
+  /* Push actions to the right edge so they don't eat into the brand
+   * region. Combined with `flex: 0 1 auto` on .rd-topbar-brand the
+   * brand text never gets ellipsised unless the viewport is too
+   * narrow to fit both naturally. */
+  margin-left: auto;
   flex: 0 0 auto;
 }
 
@@ -1431,7 +1440,9 @@ body[data-output-role="final-output"].dir-obsidian {
  * cards) for the same viewports.
  * ============================================================= */
 
-/* Compact laptops — narrower sidebar + tighter topbar padding. */
+/* Compact laptops — narrower sidebar + tighter topbar padding.
+ * Also drop the Align label to icon-only so the brand title stays
+ * uncut on typical laptop widths. */
 @media (max-width: 1180px) {
   .dir-obsidian .rd-topbar {
     padding: 0 var(--rd-s-3);
@@ -1442,6 +1453,13 @@ body[data-output-role="final-output"].dir-obsidian {
   }
   .dir-obsidian #panel {
     padding: var(--rd-s-3);
+  }
+  .dir-obsidian .align-mode-toggle span {
+    display: none;
+  }
+  .dir-obsidian .align-mode-toggle {
+    padding: 0 10px;
+    gap: 0;
   }
 }
 
