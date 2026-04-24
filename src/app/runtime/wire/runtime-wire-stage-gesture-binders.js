@@ -53,21 +53,37 @@
       (event) => {
         if (!event.target || !stage.contains(event.target)) return;
         event.preventDefault();
+        // Phase 22 W5 v3: refresh the stage geometry cache so the
+        // zoom math uses the current pan/scale rect, not a stale
+        // snapshot from the last resize/boot. Stale cache was why
+        // center-anchored zoom still appeared to drift toward the
+        // board middle — the formula was solving for the WRONG
+        // layout point.
+        refreshStageGeometryCache();
         const current = getBoardZoom(state.boardId);
         const step = Math.exp(-event.deltaY * 0.0009);
         const nextScale = current.scale * step;
-        // Phase 22 W5 v2: anchor at the *viewport frame* centre, not
-        // the stage rect centre. Stage rect is post-transform — its
-        // centre is always the board layout centre, so zooming in
-        // kept pulling the view toward the board middle. The parent
-        // .projection-area is a fixed-size window into the stage;
-        // its centre is where the user is actually looking. Using
-        // that keeps whatever's currently at the viewport centre
-        // anchored across zoom changes.
-        const frame = stage.parentElement || stage;
-        const frameRect = frame.getBoundingClientRect();
-        const anchorX = frameRect.left + frameRect.width / 2;
-        const anchorY = frameRect.top + frameRect.height / 2;
+        // User preference: zoom IN anchors at the cursor (so the
+        // point you point at stays put, matches the original UX).
+        // Zoom OUT anchors at the viewport frame centre for a
+        // uniform shrink without directional drift, even near the
+        // board edge.
+        let anchorX;
+        let anchorY;
+        if (event.deltaY < 0) {
+          // Wheel up = zoom in → cursor-anchored.
+          anchorX = event.clientX;
+          anchorY = event.clientY;
+        } else {
+          // Wheel down = zoom out → viewport frame centre. Uses
+          // the parent .projection-area (fixed-size window into the
+          // stage) so the current focal point stays anchored,
+          // independent of pan/scale.
+          const frame = stage.parentElement || stage;
+          const frameRect = frame.getBoundingClientRect();
+          anchorX = frameRect.left + frameRect.width / 2;
+          anchorY = frameRect.top + frameRect.height / 2;
+        }
         applyZoomScaleAroundClientPoint(
           nextScale,
           anchorX,
