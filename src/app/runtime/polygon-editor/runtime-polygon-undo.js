@@ -1,4 +1,4 @@
-// Phase 18-3: undo/redo system for polygon editing operations.
+// Undo/redo system for polygon editing operations.
 //
 // Maintains undo + redo stacks of room geometry snapshots. Each entry
 // stores a deep clone of all room polygons + names. Capture points
@@ -24,7 +24,7 @@
       name: room.name ?? room.label,
       polygon: ctx.getSpecialPolygonPoints(state.boardId, room.id).map((p) => [p[0], p[1]]),
     }));
-    // Phase 18: also capture Play Area polygons for full undo coverage
+    // Also capture Play Area polygons for full undo coverage
     const playAreas = typeof ctx.getPlayAreas === "function" ? ctx.getPlayAreas(state.boardId) : [];
     const playAreaStates = playAreas.map((area) => ({
       id: area.id,

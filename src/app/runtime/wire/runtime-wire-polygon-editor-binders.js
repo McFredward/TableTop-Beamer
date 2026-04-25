@@ -101,7 +101,7 @@
     polygonRoomSelect.addEventListener("change", () => {
       const roomId = polygonRoomSelect.value;
       syncPolygonRoomSelection(roomId);
-      // Phase 22 W5: mirror the ship-select fix — picking a room in
+      // Mirror the ship-select fix — picking a room in
       // the dropdown moves editing intent to that room, so DELETE
       // should target room vertices regardless of which polygon the
       // user previously had focus on.
@@ -113,7 +113,7 @@
       syncPolygonEditorPanel();
       renderRoomOverlay();
       setPanCursorState();
-      // Phase 22 W5 fix: blur the select so DELETE / Ctrl+Z aren't
+      // Blur the select so DELETE / Ctrl+Z aren't
       // swallowed by isTypingShortcutTarget while focus still sits
       // on this dropdown.
       try { polygonRoomSelect.blur(); } catch {}
@@ -248,7 +248,7 @@
     });
 
     playAreaSelect?.addEventListener("change", () => {
-      // Phase 22 W5 fix: selection is a viewing/edit filter, not a
+      // Selection is a viewing/edit filter, not a
       // persistable edit. Switching the active play area shouldn't
       // flip localConfigDirty. The shipPolygonsByBoard cache still
       // has to be swapped so the editor + overlay render the new
@@ -260,7 +260,7 @@
       setSelectedPlayAreaId(state.boardId, playAreaSelect.value);
       state.shipPolygonEditor.selectedVertexIndex = 0;
       state.shipPolygonEditor.selectedEdgeIndex = 0;
-      // Phase 22 W5 fix: switching the active play area moves the
+      // Switching the active play area moves the
       // user's editing intent to the new polygon. Flip lastPolygonFocus
       // to "ship" (and drop any stale room vertex selection) so DELETE
       // routes to the play-area delete path right away, without the
@@ -268,7 +268,7 @@
       state.lastPolygonFocus = "ship";
       state.polygonEditor.vertexSelectionActive = false;
       state.shipPolygonsByBoard[state.boardId] = getShipPolygonPoints(state.boardId);
-      // Phase 22 W5 fix: blur the select so keyboard shortcuts (DELETE,
+      // Blur the select so keyboard shortcuts (DELETE,
       // Ctrl+Z, …) aren't swallowed by isTypingShortcutTarget — which
       // treats any <select> as a typing target while it has focus.
       try { playAreaSelect.blur(); } catch {}

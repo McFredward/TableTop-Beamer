@@ -121,7 +121,7 @@
     if (!definition || typeof definition !== "object") {
       return `${boardId}:outside:missing-definition`;
     }
-    // Phase 18: lifecycle key only includes asset identity — NOT speed or
+    // Lifecycle key only includes asset identity — NOT speed or
     // intensity. Speed/intensity changes should adjust playback rate and
     // opacity without restarting the video. Including them caused the mp4
     // to restart whenever a live-sync snapshot arrived (e.g. room animation

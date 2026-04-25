@@ -51,7 +51,7 @@
     if (ctx.alignModeToggleInput) {
       ctx.alignModeToggleInput.checked = enabled;
     }
-    // Phase 22 W2b: the button is now icon-only in the topbar; reflect
+    // The button is now icon-only in the topbar; reflect
     // state via aria-pressed + title only (the SVG child is permanent).
     if (ctx.alignModeButton) {
       ctx.alignModeButton.setAttribute("aria-pressed", enabled ? "true" : "false");
@@ -70,14 +70,14 @@
       ctx.alignModeStatus.textContent = `Align-Mode: ${enabled ? "ON" : "OFF"}`;
     }
     document.body.classList.toggle("align-mode-active", enabled);
-    // Phase 19: show/hide sticky indicator bar on Dashboard (cached lookup)
+    // Show/hide sticky indicator bar on Dashboard (cached lookup)
     if (!ctx._alignIndicator) {
       ctx._alignIndicator = document.getElementById("align-mode-indicator");
     }
     if (ctx._alignIndicator) {
       ctx._alignIndicator.style.display = enabled ? "flex" : "none";
     }
-    // Phase 19-2: notify projection mapping only when state actually changed
+    // Notify projection mapping only when state actually changed
     if (enabled !== _lastAlignModeState && typeof ctx.onAlignModeChanged === "function") {
       _lastAlignModeState = enabled;
       ctx.onAlignModeChanged(enabled);
@@ -118,7 +118,7 @@
   }
 
   function collectStageViewportMetrics() {
-    // Phase 18: use clientWidth/clientHeight instead of getBoundingClientRect().
+    // Use clientWidth/clientHeight instead of getBoundingClientRect().
     // getBoundingClientRect() includes CSS transforms (zoom/pan), which inflates
     // the dimensions at non-1x zoom. clientWidth/clientHeight return the layout
     // dimensions before transforms — the correct basis for canvas pixel buffer.

@@ -1,4 +1,4 @@
-// Phase 18-3: board context menu for direct room creation.
+// Board context menu for direct room creation.
 //
 // Right-click (contextmenu) or long-press (>500ms) on empty area of
 // #room-overlay shows a small popup with "Add room here". Clicking
@@ -28,7 +28,7 @@
     menuEl.className = "board-context-menu";
     menuEl.setAttribute("role", "menu");
     menuEl.style.display = "none";
-    // Phase 21-1: rotation mode toggle. Menu now carries three
+    // Rotation mode toggle. Menu now carries three
     // possible actions depending on where the right-click landed:
     //  - empty board area + not rotating → "Add room here"
     //  - on a room polygon + not rotating → "Rotate polygon"
@@ -83,7 +83,7 @@
     return false;
   }
 
-  // Phase 21-1: detect when a right-click lands directly on a room
+  // Detect when a right-click lands directly on a room
   // polygon SVG. Returns the roomId or null.
   function resolveRoomIdAtEvent(event) {
     const target = event.target;

@@ -53,7 +53,7 @@
       (event) => {
         if (!event.target || !stage.contains(event.target)) return;
         event.preventDefault();
-        // Phase 22 W5 v3: refresh the stage geometry cache so the
+        // Refresh the stage geometry cache so the
         // zoom math uses the current pan/scale rect, not a stale
         // snapshot from the last resize/boot. Stale cache was why
         // center-anchored zoom still appeared to drift toward the
@@ -198,7 +198,7 @@
 
     function startTouchPanFromPrimary() {
       if (touchGesture.mode === "panning") return;
-      // Phase 18: now activate heavy-interaction pause (confirmed pan gesture)
+      // Now activate heavy-interaction pause (confirmed pan gesture)
       setTouchGestureActive(true);
       const zoom = getBoardZoom(state.boardId);
       if (zoom.scale <= 1 && state.uiView !== "settings") {
@@ -286,7 +286,7 @@
           });
           touchGesture.pinchLastDistance = touchGesturePinchDistance();
           touchGesture.mode = "pinching";
-          // Phase 18: activate heavy-interaction pause (confirmed pinch gesture)
+          // Activate heavy-interaction pause (confirmed pinch gesture)
           setTouchGestureActive(true);
           return;
         }
@@ -294,7 +294,7 @@
         if (touchGesture.mode === "idle" || touchGesture.mode === "panning") {
           resetTouchGestureToIdle();
           refreshStageGeometryCache();
-          // Phase 18: delay setTouchGestureActive(true) until the gesture is
+          // Delay setTouchGestureActive(true) until the gesture is
           // confirmed as pan or pinch. Setting it on tentative pointerdown
           // causes a visible animation flicker on every quick tap (the draw
           // loop skips rendering during "heavy interaction").

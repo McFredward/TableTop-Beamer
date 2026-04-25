@@ -111,7 +111,7 @@
     ctx.polygonResetRoomButton.disabled = disabled;
     ctx.polygonFocusRoomButton.disabled = disabled;
     if (ctx.roomRenameInput) {
-      // Phase 21-1: defensive — early in boot or during a board switch,
+      // Defensive — early in boot or during a board switch,
       // ctx.getBoard() can return undefined before state.boardId is
       // wired. Guard so the rename input refresh doesn't throw and
       // abort the rest of syncPolygonEditorPanel.

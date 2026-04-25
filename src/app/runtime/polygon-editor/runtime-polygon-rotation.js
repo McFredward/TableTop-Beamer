@@ -1,4 +1,4 @@
-// Phase 21-1: optional polygon rotation mode.
+// Optional polygon rotation mode.
 //
 // When a room is put into "rotation mode" (via right-click → Rotate
 // polygon in the polygon-context-menu), pointer-drag on that room's
@@ -74,7 +74,7 @@
     return [sx / points.length, sy / points.length];
   }
 
-  // Phase 21-1: rotations MUST happen in aspect-corrected (pixel) space —
+  // Rotations MUST happen in aspect-corrected (pixel) space —
   // the board canvas is rarely square, so rotating in normalized [0,1]
   // coordinates was squashing the polygon into an ellipse. We pick an
   // isotropic scale from the live canvas (width × height) so pixel-space

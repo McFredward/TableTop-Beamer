@@ -35,7 +35,7 @@
     const stripped = {};
     for (const [boardId, profile] of Object.entries(boardProfiles)) {
       const { roomFx, insideFx, outsideFx, ...rest } = profile;
-      // Phase 21-1: normalizeInsideFxProfile / normalizeOutsideFxProfile
+      // normalizeInsideFxProfile / normalizeOutsideFxProfile
       // mirror the currently-selected animation's tunable fields onto the
       // profile root (intensity/speed/assetType/assetRef/mode/direction/
       // loopUntilStopped). Picking another animation in the Edit tab
@@ -77,7 +77,7 @@
     cleanBaselineJson = buildDirtyComparisonSnapshot();
   }
 
-  // Phase 15-1: dirty flag only fires when state actually differs from
+  // Dirty flag only fires when state actually differs from
   // the clean baseline. Before this, every dropdown change that merely
   // re-selected the current value was incorrectly marking the config
   // dirty and triggering the "unsaved changes" banner.

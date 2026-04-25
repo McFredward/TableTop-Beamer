@@ -94,7 +94,7 @@
         }
         const boardId = state.shipPolygonEditor.dragBoardId;
         const points = getShipPolygonPoints(boardId);
-        // Phase 22 W5 fix v2: previous clamp pinned `pointer` to [0,1]
+        // Previous clamp pinned `pointer` to [0,1]
         // BEFORE applying the grab offset — but that still let the
         // vertex land at `boundary - offset` when the pointer left the
         // board. Result: vertex floats just INSIDE the edge instead of
@@ -180,7 +180,7 @@
       if (!vertexRoom) {
         return;
       }
-      // Phase 22 W5 fix: same boundary-pin strategy as ship polygon
+      // Same boundary-pin strategy as ship polygon
       // — drop the grab offset on any axis where the pointer leaves
       // the board so the vertex hugs the edge instead of floating
       // at `edge - offset` when the cursor exits.
@@ -348,7 +348,7 @@
           !event.altKey &&
           (key === "delete" || event.code === "Delete")
         ) {
-          // Phase 22 W5 fix v3: route DELETE by `state.lastPolygonFocus`
+          // Route DELETE by `state.lastPolygonFocus`
           // so whichever polygon the user most recently clicked wins.
           // Fall back to the legacy "whoever has the active flag"
           // checks when the focus marker isn't set yet (fresh session).
@@ -473,7 +473,7 @@
       scheduleStageViewportLifecycle("orientationchange");
       syncDashboardZoneVisibility();
       syncMobileStickyOffsets();
-      // Phase 18: CSS layout may not have settled yet when orientationchange
+      // CSS layout may not have settled yet when orientationchange
       // fires. Schedule additional recomputes after a delay so the canvas
       // picks up the final stage dimensions (fixes outside animation scaling).
       setTimeout(() => {

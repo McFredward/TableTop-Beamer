@@ -79,7 +79,7 @@
         degradeThreshold: mp4Controls.degradeThreshold,
         recoverThreshold: mp4Controls.recoverThreshold,
       },
-      // Phase 19-2: projection mapping corners
+      // Projection mapping corners
       ...(window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING
         ? { projectionMapping: { corners: window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.getCornersForPersistence() } }
         : {}),
@@ -149,7 +149,7 @@
         ),
       ]),
     );
-    // Phase 15-5 (full removal): hitareaCalibration + roomGeometry
+    // hitareaCalibration + roomGeometry
     // no longer read from profiles. The migration script baked them
     // into specialPolygons and the pipeline is identity now.
     state.roomStateProfilesByBoard = Object.fromEntries(
@@ -174,7 +174,7 @@
     state.frozenRoomsByBoard = Object.fromEntries(
       BOARDS.map((board) => [board.id, ctx.normalizeFrozenRoomsMap(profiles?.[board.id]?.frozenRooms, board.id)]),
     );
-    // Phase 15-5: sync specialPolygonsByBoard → room.polygon so
+    // Sync specialPolygonsByBoard → room.polygon so
     // getRoomSourcePoints (which reads room.polygon) sees the
     // user-edited coordinates, not the stale roomCatalog ones.
     // Previously the hitarea+geometry transform pipeline masked
@@ -190,7 +190,7 @@
         }
       }
     }
-    // Phase 13-HF13: the incoming config may carry polygons with a
+    // The incoming config may carry polygons with a
     // different centroid than whatever we had cached. Clear every
     // anchor so each room reseats its stable stretch origin from the
     // freshly-hydrated polygon on next access.
@@ -253,7 +253,7 @@
     });
   }
 
-  // Phase 13-1: hydrate from the server-supplied bootstrap payload. If none
+  // Hydrate from the server-supplied bootstrap payload. If none
   // is available, apply defaults so the runtime still has valid state (the
   // blocking error overlay handles user-visible messaging separately).
   function loadBoardProfiles() {

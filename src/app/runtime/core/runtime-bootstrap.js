@@ -83,7 +83,7 @@
         `Status: Zone fallback active (${zoneFallbackCount} board) - see zone-source status in Settings panel`;
     }
     const BOARDS = ctx.getBoards();
-    // Phase 22 W5: honour the last-opened board id from localStorage
+    // Honour the last-opened board id from localStorage
     // before falling back to the first available board. Server-side
     // state may carry its own boardId too — prefer that over the
     // persisted one if set, otherwise use the stored preference.
@@ -98,7 +98,7 @@
         state.boardId = BOARDS[0]?.id ?? "";
       }
     }
-    // Phase 15-5: hitarea + geometry are legacy identity stubs. The
+    // hitarea + geometry are legacy identity stubs. The
     // maps still need to exist (empty objects per board) so code
     // that reads them via getHitareaCalibration / getRoomGeometry
     // doesn't crash on undefined property access.
@@ -171,7 +171,7 @@
     ctx.syncQuickModePanel();
     ctx.syncMobileStickyOffsets();
     ctx.applyOutputRoleViewContract();
-    // Phase 19-2: apply projection mapping transform on /output.
+    // Apply projection mapping transform on /output.
     // Corners are loaded from localStorage in the module's init() — no need
     // to overwrite them from server config (localStorage is per-client).
     if (typeof ctx.applyProjectionTransform === "function") {
@@ -232,7 +232,7 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
-    // Phase 18: loading overlay state — tickLoadingOverlay() in the draw
+    // Loading overlay state — tickLoadingOverlay() in the draw
     // loop checks this every frame and dismisses when ready. Two paths:
     //   FAST: no board switch + image loaded → dismiss after 3 stable frames
     //   SLOW: board switch detected → wait for server snapshot + new image

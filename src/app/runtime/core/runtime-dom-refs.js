@@ -17,9 +17,9 @@
       boardImportIdInput: document.querySelector("#board-import-id"),
       boardImportButton: document.querySelector("#board-import-button"),
       boardStatus: document.querySelector("#board-status"),
-      // Phase 22 W2b: compact board-label in the topbar brand.
+      // Compact board-label in the topbar brand.
       topbarBoardLabel: document.querySelector("#topbar-board-label"),
-      // Phase 22 W2b: running-count chip in the topbar.
+      // Running-count chip in the topbar.
       runningCountChip: document.querySelector("#running-count-chip"),
       runningCountChipLabel: document.querySelector("#running-count-chip-label"),
       runningCountChipLabelDefault: document.querySelector("#running-count-chip-label-default"),
@@ -158,11 +158,11 @@
       quickModeOffButton: document.querySelector("#quick-mode-off"),
       quickModeToggleButton: document.querySelector("#quick-mode-toggle"),
       quickModeClearButton: document.querySelector("#quick-mode-clear"),
-      // Phase 22 W3a: icon-picker root elements, one per animation editor.
+      // Icon-picker root elements, one per animation editor.
       insideIconPicker: document.querySelector("#inside-icon-picker"),
       outsideIconPicker: document.querySelector("#outside-icon-picker"),
       roomIconPicker: document.querySelector("#room-icon-picker"),
-      // Phase 22 W3b: full-page animation editor DOM refs.
+      // Full-page animation editor DOM refs.
       animEditorPage: document.querySelector("#animation-editor-page"),
       animEditorBackButton: document.querySelector("#anim-editor-back"),
       animEditorSearchInput: document.querySelector("#anim-editor-search"),
@@ -174,11 +174,11 @@
       animEditorPane: document.querySelector("#anim-editor-pane"),
       animEditorPanePlaceholder: document.querySelector("#anim-editor-pane-placeholder"),
       animEditorPreview: document.querySelector("#anim-editor-preview"),
-      // Phase 22 W3b-4: editor-scoped dirty bar + Apply/Discard buttons.
+      // Editor-scoped dirty bar + Apply/Discard buttons.
       animEditorDirtyBar: document.querySelector("#anim-editor-dirty-bar"),
       animEditorApplyButton: document.querySelector("#anim-editor-apply"),
       animEditorDiscardButton: document.querySelector("#anim-editor-discard"),
-      // Phase 22: editor-scoped board picker (does not switch dashboard board).
+      // Editor-scoped board picker (does not switch dashboard board).
       animEditorBoardSelect: document.querySelector("#anim-editor-board-select"),
       controlPanel: document.querySelector("#control-panel"),
       projectionArea: document.querySelector(".projection-area"),

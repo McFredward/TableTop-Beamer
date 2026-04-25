@@ -40,7 +40,7 @@
     };
   }
 
-  // Phase 13-HF13: stable stretch-anchor getter. The anchor is the
+  // Stable stretch-anchor getter. The anchor is the
   // polygon's centroid at the moment the room first enters the
   // session, and it does not update on vertex edits. This keeps the
   // transform (and therefore every consumer of getRoomPoints: full
@@ -62,7 +62,7 @@
     return anchor;
   }
 
-  // Phase 15-5 (full removal): geometry offsets + stretch have been
+  // Geometry offsets + stretch have been
   // baked into the stored polygon coordinates. The transform is now
   // identity — center equals the polygon centroid, stretch is 1:1.
   // Shape preserved for callers that destructure the return value
@@ -79,7 +79,7 @@
     };
   }
 
-  // Phase 15-5 (full removal): hitarea calibration + room geometry
+  // Hitarea calibration + room geometry
   // transforms have been baked into the stored polygon coordinates
   // by the p15-migrate-bake-transforms.mjs migration script. The
   // pipeline is now identity: source points map 1:1 to display

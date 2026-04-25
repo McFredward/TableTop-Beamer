@@ -128,7 +128,7 @@
     }
   }
 
-  // Phase 15-6: stopAnimationSound accepts an optional `graceful` flag.
+  // stopAnimationSound accepts an optional `graceful` flag.
   // When graceful=true, the current audio iteration is NOT cut off —
   // the voice is allowed to play out to its natural `ended` event,
   // and only the "keep looping" onEnded handler is unhooked so the
@@ -251,7 +251,7 @@
       pendingAnimationAudioStartTimers.set(animation.id, timerId);
       return;
     }
-    // Phase 15-9: prefer the per-definition soundAssetRef if the
+    // Prefer the per-definition soundAssetRef if the
     // animation carries one. Fall back to the legacy
     // animationSoundMap lookup so existing persisted state still
     // plays the mapped sound during the migration window.
@@ -260,7 +260,7 @@
       : "";
     let path;
     if (inlineSoundRef && inlineSoundRef !== ctx.SOUND_MAPPING_NONE) {
-      // Phase 22: accept any /resources/sounds/*.{mp3,wav,ogg,m4a} so
+      // Accept any /resources/sounds/*.{mp3,wav,ogg,m4a} so
       // user-uploaded sounds work alongside the built-in map.
       if (ctx.ALL_SOUND_ASSET_PATHS.includes(inlineSoundRef)) {
         path = inlineSoundRef;
@@ -315,7 +315,7 @@
     reusable.play().catch(() => undefined);
   }
 
-  // Phase 15-9: the standalone Sound Mapping panel was removed.
+  // The standalone Sound Mapping panel was removed.
   // These two sync functions are retained as no-ops for callers
   // that still invoke them (e.g. syncRuntimePanelsFromState).
   // When the DOM refs are null, nothing to sync.

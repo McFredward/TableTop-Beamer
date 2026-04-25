@@ -48,7 +48,7 @@
     state.boardId = board.id;
     state.selectedBoard = board.id;
     state.selectedLayout = board.id;
-    // Phase 22 W5: persist the active board id in localStorage so a
+    // Persist the active board id in localStorage so a
     // page reload lands on whatever the user last had open (falling
     // back to the first available board if that id no longer exists).
     try {
@@ -57,7 +57,7 @@
     ctx.boardImage.src = board.src;
     ctx.boardSelect.value = board.id;
     ctx.boardStatus.textContent = `Active board: ${board.label}`;
-    // Phase 22 W2b: mirror the label into the topbar brand sub-line.
+    // Mirror the label into the topbar brand sub-line.
     if (ctx.topbarBoardLabel) {
       ctx.topbarBoardLabel.textContent = board.label;
     }
@@ -67,7 +67,7 @@
       : board.rooms[0]?.id ?? null;
     state.selectedRoomByBoard[board.id] = state.selectedRoomId;
     ensureBoardRoomStateMaps(board.id);
-    // Phase 18: only clear outside mp4 state on actual board switches.
+    // Only clear outside mp4 state on actual board switches.
     // syncRuntimePanelsFromState calls switchBoard with the same boardId
     // on every snapshot apply — clearing playback state here would restart
     // the outside mp4 video every time a room animation starts/stops.

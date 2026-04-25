@@ -15,7 +15,7 @@
     return `/${raw}`;
   }
 
-  // Phase 16: all boards load from /api/boards at startup. No
+  // All boards load from /api/boards at startup. No
   // hardcoded board definitions — the app is fully generic and
   // works for any board game. If the server is unreachable on
   // first load, the blocking overlay prompts retry.
@@ -29,7 +29,7 @@
     })),
   }));
 
-  // Phase 16: zone config sources are no longer needed — all boards
+  // Zone config sources are no longer needed — all boards
   // load from /api/boards. Kept as empty array so the zone-loader
   // fallback path doesn't crash on missing iteration target.
   const ZONE_CONFIG_SOURCES = [];

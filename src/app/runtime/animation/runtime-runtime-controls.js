@@ -146,7 +146,7 @@
   }
 
   function persistSettingsSubtab(nextSubtab) {
-    // Phase 13-1: subtab memory is ephemeral per browser-tab session.
+    // Subtab memory is ephemeral per browser-tab session.
     try {
       window.sessionStorage.setItem(ctx.SETTINGS_SUBTAB_STORAGE_KEY, nextSubtab);
     } catch {
@@ -184,7 +184,7 @@
     if (persist) {
       persistSettingsSubtab(state.settingsSubtab);
     }
-    // Phase 22 W3b: Animations subtab auto-opens the full-page editor
+    // Animations subtab auto-opens the full-page editor
     // (per the redesign — the three sidebar panels it replaces are
     // queued for removal in W3b-5). Other subtabs close the editor.
     const editor = window.TT_BEAMER_ANIMATION_EDITOR_VIEW;
@@ -209,7 +209,7 @@
     } catch {
       stored = "";
     }
-    // Phase 22 W3b-5: "animations" must never be the restored default.
+    // "animations" must never be the restored default.
     // The full-page editor is a deliberate destination, not a landing
     // screen; a stale "animations" preference used to leave the sidebar
     // blank on reload (legacy panels removed, editor didn't auto-open).
@@ -222,19 +222,19 @@
     const existing = state.runningAnimations.find(
       (anim) => anim.scope === "global" && anim.type === type && anim.boardId === state.boardId,
     );
-    // Phase 20: resolve the category dynamically. Custom outside animations
+    // Resolve the category dynamically. Custom outside animations
     // created by the user aren't in GLOBAL_ANIMATIONS (which only knows the
     // built-in outside-space), so we also check the board's outside profile.
     const outsideProfileForCategory = ctx.getOutsideFxProfile(state.boardId);
     const isOutsideByProfile = outsideProfileForCategory?.animations?.some((a) => a.id === type) ?? false;
     const isOutside = isOutsideByProfile || ctx.getGlobalAnimationCategory(type) === "outside-ship";
-    // Phase 21-1: outside animations are conceptually continuous (they
+    // Outside animations are conceptually continuous (they
     // loop forever until the user toggles them off). Force loop mode so
     // they don't silently vanish from the Active Animations list after
     // the global one-shot window (GLOBAL_ONE_SHOT_DURATION_SEC = 4s)
     // even though the underlying outside layer is still drawing.
     const effectiveLoopUntilStopped = isOutside ? true : loopUntilStopped;
-    // Phase 20: only one outside animation may play at a time. When we're
+    // Only one outside animation may play at a time. When we're
     // about to start a new outside, stop any other outside animation
     // currently running on this board so the switch is clean.
     if (isOutside && !existing) {
@@ -253,7 +253,7 @@
         ctx.stopAnimation(other.id);
       }
     }
-    // Phase 15-9: look up the matching global animation definition so
+    // Look up the matching global animation definition so
     // we can copy its per-definition soundAssetRef onto the dispatched
     // animation entry. For inside globals the type == definition.id;
     // for outside we also match by id.
@@ -272,7 +272,7 @@
       if (existing) {
         ctx.stopAnimation(existing.id);
       } else {
-        // Phase 21-1: align outside/inside global animations with the
+        // Align outside/inside global animations with the
         // room model — copy the definition's tunable fields onto the
         // running instance at trigger time so Settings only edits the
         // DEFAULT and the running animation's values live on the

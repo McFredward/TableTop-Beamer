@@ -39,7 +39,7 @@
         return;
       }
 
-      // Phase 22 W5 fix: first-ever tap bug — the roomDraft sliders /
+      // First-ever tap bug — the roomDraft sliders /
       // values are only synced to a definition when the user manually
       // picks it in the sidebar dropdown. Quick-mode tap never goes
       // through that change event, so the very first animation fires
@@ -68,7 +68,7 @@
         animationName: selectedDefinition.name,
         roomAssetType: selectedAssetType,
         roomAssetRef: selectedAssetRef,
-        // Phase 15-9: carry the per-definition sound selection onto
+        // Carry the per-definition sound selection onto
         // the dispatched animation entry.
         soundAssetRef: selectedDefinition.soundAssetRef ?? "none",
         rotationDeg: state.roomDraft.rotationDeg ?? 0,

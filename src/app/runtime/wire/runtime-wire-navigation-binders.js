@@ -110,7 +110,7 @@
       });
     }
 
-    // Phase 22 W2e: 3-segment quick-mode bar. Activate / Deactivate
+    // 3-segment quick-mode bar. Activate / Deactivate
     // merged into Toggle (see toggleRoomAnimationByQuickTap).
     quickModeOffButton?.addEventListener("click", () => {
       setQuickMode("off");

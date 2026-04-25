@@ -1,4 +1,4 @@
-// Phase 22 Wave 1 — inline-SVG icon primitives.
+// Inline-SVG icon primitives.
 //
 // Vanilla-JS port of .planning/design-system/redesign/Icons.jsx. Every
 // icon is a single path in a 24×24 viewBox with 1.75 stroke, rounded
@@ -71,7 +71,7 @@
     close:       "M6 6l12 12M18 6L6 18",
     info:        "M12 4a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM12 11v5M12 8h.01",
     picker:      "M12 4v2M12 18v2M4 12H2M22 12h-2M6 6 4.5 4.5M19.5 19.5 18 18M6 18l-1.5 1.5M19.5 4.5 18 6M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z",
-    // Phase 22 W3b polish: animation-flavoured icons so the picker
+    // Animation-flavoured icons so the picker
     // isn't padded with PC-chrome glyphs.
     star:         "M12 3l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 17.4 6.2 20.8l1.6-6.6L2.7 9.8l6.7-.6z",
     moon:         "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z",
@@ -95,7 +95,7 @@
     radio:        "M5 16a8 8 0 0 1 14 0M7.5 13a5 5 0 0 1 9 0M10 10a2 2 0 0 1 4 0M12 16a1 1 0 1 1 0 2 1 1 0 0 1 0-2z",
   };
 
-  // Phase 22 W3b polish: curated list exposed to the icon picker.
+  // Curated list exposed to the icon picker.
   // Everything in here reads as "animation / effect" — no settings
   // gears, no trash cans, no volume controls, no nav chrome. Full
   // ICON_DEFS stays available for general UI chrome so tools like

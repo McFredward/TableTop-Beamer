@@ -80,12 +80,12 @@
     return numeric.toFixed(3);
   }
 
-  // Phase 15-2: no-op (panel removed).
+  // No-op (panel removed).
   function syncHitareaStatus() {
     // intentionally empty
   }
 
-  // Phase 15-2: legacy Hitarea Calibration panel removed from UI.
+  // Legacy Hitarea Calibration panel removed from UI.
   // The underlying calibration state is preserved (so existing
   // board profiles still load and render polygons identically) but
   // the panel has no DOM to sync. No-op retained so call sites from
@@ -98,12 +98,12 @@
     return (Number(value) || 0).toFixed(3);
   }
 
-  // Phase 15-2: no-op (panel removed).
+  // No-op (panel removed).
   function syncRoomGeometryStatus() {
     // intentionally empty
   }
 
-  // Phase 15-2: legacy Room Geometry panel removed from UI.
+  // Legacy Room Geometry panel removed from UI.
   // Persisted roomGeometry state still flows through the transform
   // pipeline so polygons render identically; the user-facing sliders
   // and mode picker are gone. No-op retained for the runtime panels

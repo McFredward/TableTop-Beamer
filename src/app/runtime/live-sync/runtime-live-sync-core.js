@@ -61,7 +61,7 @@
           mutationType: "snapshot-poll",
         });
         if (applied) {
-          // Phase 18: mark that the first server-driven snapshot has been applied
+          // Mark that the first server-driven snapshot has been applied
           ctx.liveSync.firstServerSnapshotApplied = true;
           ctx.resolvePendingMutationsByVersion(incomingVersion);
         }
@@ -273,7 +273,7 @@
       }
     }
     if (sharedOutsideFxByBoard) {
-      // Phase 20: the server's snapshot patch for an outside-related
+      // The server's snapshot patch for an outside-related
       // mutation sometimes only carries a partial profile (e.g., just
       // { enabled, selectedAnimationId }). If we normalized that as-is,
       // normalizeOutsideFxProfile would repopulate the `animations` array
@@ -454,7 +454,7 @@
                   mutationType: "live-hello",
                 });
               }
-              // Phase 18: live-hello is a server snapshot — mark as applied
+              // live-hello is a server snapshot — mark as applied
               ctx.liveSync.firstServerSnapshotApplied = true;
             }
             ctx.scheduleNextLiveSnapshotPoll(0);
@@ -478,7 +478,7 @@
                 mutationEnvelope: payload?.mutationEnvelope ?? null,
                 mutationType,
               });
-              // Phase 18: mark that the first server-driven snapshot has been applied
+              // Mark that the first server-driven snapshot has been applied
               ctx.liveSync.firstServerSnapshotApplied = true;
             }
             ctx.scheduleNextLiveSnapshotPoll(0);

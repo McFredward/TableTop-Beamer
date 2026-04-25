@@ -99,7 +99,7 @@
       return true;
     }
     if (animation.scope === "global") {
-      // Phase 21-1: loop-until-stopped globals (hold=true or null
+      // Loop-until-stopped globals (hold=true or null
       // durationMs) must also render every frame — otherwise an inside
       // loop like Hull Flicker gets coalesced down to a handful of
       // frames per second and visually appears to "not play" even

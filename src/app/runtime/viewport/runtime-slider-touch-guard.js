@@ -1,4 +1,4 @@
-// Phase 18: prevent accidental slider activation while scrolling on mobile.
+// Prevent accidental slider activation while scrolling on mobile.
 //
 // On touch devices, range inputs capture touch events even during vertical
 // scroll gestures, causing unintended value changes. This module intercepts

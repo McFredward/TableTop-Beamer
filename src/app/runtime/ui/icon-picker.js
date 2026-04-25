@@ -1,4 +1,4 @@
-// Phase 22 W3a — reusable animation-icon picker.
+// Reusable animation-icon picker.
 //
 // Populates a `.rd-icon-picker` grid with every glyph from
 // TT_BEAMER_UI_ICONS.ICON_DEFS, highlights the currently-selected
@@ -17,7 +17,7 @@
   function buildTiles(root) {
     const icons = window.TT_BEAMER_UI_ICONS;
     if (!icons || !icons.ICON_DEFS) return [];
-    // Phase 22 W3b polish: the picker only exposes the curated
+    // The picker only exposes the curated
     // animation-flavour subset. Full ICON_DEFS keeps non-animation
     // glyphs (trash, search, settings…) around for UI chrome.
     const curated = Array.isArray(icons.ANIMATION_ICON_KEYS)

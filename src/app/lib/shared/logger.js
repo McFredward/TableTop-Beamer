@@ -11,7 +11,7 @@
     if (LEVELS[explicit]) {
       return explicit;
     }
-    // Phase 13-1: log level override moved from localStorage to URL query param.
+    // Log level override moved from localStorage to URL query param.
     try {
       const params = new URLSearchParams(window.location?.search || "");
       const queryLevel = String(params.get("logLevel") || "").trim().toLowerCase();

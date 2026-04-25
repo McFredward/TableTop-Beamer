@@ -266,7 +266,7 @@
       state.roomDraft.heightScale = definition?.heightScale ?? 1;
       state.roomDraft.offsetXScale = definition?.offsetXScale ?? 0;
       state.roomDraft.offsetYScale = definition?.offsetYScale ?? 0;
-      // Phase 22 W5: mark the draft as synced with this animation so
+      // Mark the draft as synced with this animation so
       // the dispatch path can tell whether a re-sync is needed before
       // firing (first-ever tap ships the stale session defaults
       // otherwise — see bug ticket on Scanning/Slime first-tap speed).
@@ -400,7 +400,7 @@
       persistRuntimeSoundSettingsChange("Status: Audio toggle applied, but persistence failed");
     });
 
-    // Phase 15-9: standalone Sound Mapping panel removed — these two
+    // Standalone Sound Mapping panel removed — these two
     // event listeners are no longer needed since sound is now
     // per-animation-definition. Guard with ?. for null-safety.
     audioMappingAnimationSelect?.addEventListener("change", () => {
@@ -462,7 +462,7 @@
       setAlignMode(Boolean(alignModeToggleInput.checked));
     });
 
-    // Phase 15-7: Dashboard-side align mode toggle button.
+    // Dashboard-side align mode toggle button.
     alignModeButton?.addEventListener("click", () => {
       setAlignMode(!state.alignMode);
     });
@@ -475,8 +475,8 @@
       triggerFeedback.textContent = `Status: Config exported to ${fileName}`;
     });
 
-    // Phase 20: unified per-board package export/import.
-    // Phase 21-2: package and image imports are separate two-step flows —
+    // Unified per-board package export/import.
+    // Package and image imports are separate two-step flows —
     // pick a file (preview), then click Upload. Package imports peek at
     // the zip's package.json locally so the rename field can be prefilled
     // with the board's embedded label without a double-upload.
@@ -790,7 +790,7 @@
       });
     })();
 
-    // Phase 13-1: Import-from-file wiring.
+    // Import-from-file wiring.
     (function wireImportGlobalDefaultsButton() {
       const importButton = document.querySelector("#import-global-defaults");
       if (!importButton) return;
@@ -837,7 +837,7 @@
       });
     })();
 
-    // Phase 13-HF3: Apply / Discard buttons.
+    // Apply / Discard buttons.
     (function wireApplyDiscardGlobalConfigButtons() {
       const applyButton = document.getElementById("apply-global-config");
       const discardButton = document.getElementById("discard-global-config");
@@ -862,7 +862,7 @@
       refreshApplyDiscardButtonsUi();
     })();
 
-    // Phase 13-HF3: browser-native "Leave site?" prompt when dirty.
+    // Browser-native "Leave site?" prompt when dirty.
     window.addEventListener("beforeunload", (event) => {
       if (!state.localConfigDirty) return undefined;
       event.preventDefault();

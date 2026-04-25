@@ -167,7 +167,7 @@
     }
     const options = ctx.getRoomTargetOptions(state.boardId);
     ctx.roomTargetSelect.replaceChildren();
-    // Phase 22 W5 polish: clusters are typically the quick-pick items
+    // Clusters are typically the quick-pick items
     // the user wants at the top. Split into <optgroup>s so the native
     // dropdown shows a bold "Clusters" header group above the full
     // room list — no more scrolling to the bottom to pick a cluster.

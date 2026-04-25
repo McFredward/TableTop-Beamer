@@ -117,7 +117,7 @@
       }
       const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       maskPolygon.classList.add("ship-zone-mask");
-      // Phase 18: scale Play Area stroke with handle size
+      // Scale Play Area stroke with handle size
       const paHandleScale = ctx.getCurrentPolygonHandleScale();
       maskPolygon.style.strokeWidth = `${Math.max(0.8, 2 * Math.max(0.4, paHandleScale)).toFixed(2)}px`;
       if (area.id === selectedPlayAreaId) {
@@ -154,7 +154,7 @@
         }
         event.stopPropagation();
         event.preventDefault();
-        // Phase 18: detect double-click for Play Area edge midpoint
+        // Detect double-click for Play Area edge midpoint
         const now = performance.now();
         const lastTap = state.shipPolygonEditor._lastEdgeTap;
         const isDoubleTap = lastTap
@@ -233,7 +233,7 @@
         event.preventDefault();
         beginShipPolygonVertexDrag(event, index);
         state.shipPolygonEditor.selectedVertexIndex = index;
-        // Phase 22 W5 fix: flag this as the most-recently-interacted
+        // Flag this as the most-recently-interacted
         // polygon target so the DELETE keybinding routes the next
         // press to the ship-polygon delete path instead of an older
         // room-vertex selection that still sits in polygonEditor.
@@ -279,7 +279,7 @@
     if (!roomId) {
       return;
     }
-    // Phase 21-1: in rotation mode, hide vertex + edge handles
+    // In rotation mode, hide vertex + edge handles
     // immediately so the user gets a clean "rotate the whole polygon"
     // affordance rather than mixed rotate/edit controls.
     if (state.polygonEditor.rotatingRoomId === roomId) {
@@ -327,7 +327,7 @@
         }
         event.stopPropagation();
         event.preventDefault();
-        // Phase 18: detect double-click manually — renderRoomOverlay destroys
+        // Detect double-click manually — renderRoomOverlay destroys
         // SVG elements on each rebuild, so native dblclick never fires.
         const now = performance.now();
         const lastTap = state.polygonEditor._lastEdgeTap;
@@ -424,7 +424,7 @@
         state.polygonEditor.selectedVertexIndex = index;
         state.polygonEditor.selectedEdgeIndex = index;
         state.polygonEditor.vertexSelectionActive = true;
-        // Phase 22 W5: pair with the ship-vertex handler so DELETE
+        // Pair with the ship-vertex handler so DELETE
         // always targets the most-recently clicked polygon's vertex.
         state.lastPolygonFocus = "room";
         ctx.syncPolygonVertexSelect(room.id);
@@ -655,7 +655,7 @@
       return;
     }
 
-    // Phase 18: compute stroke scale for polygon lines
+    // Compute stroke scale for polygon lines
     const overlayHandleScale = ctx.getCurrentPolygonHandleScale();
     const overlayStrokeWidth = Math.max(0.8, 2 * Math.max(0.4, overlayHandleScale));
 
@@ -669,12 +669,12 @@
       if (ctx.isRoomFrozen(state.boardId, room.id)) {
         polygon.classList.add("is-frozen");
       }
-      // Phase 21-1: visual indicator for rotation mode.
+      // Visual indicator for rotation mode.
       if (state.polygonEditor?.rotatingRoomId === room.id) {
         polygon.classList.add("is-rotating");
       }
       polygon.dataset.roomId = room.id;
-      // Phase 19: on /output, remap polygon points through grid warp
+      // On /output, remap polygon points through grid warp
       const useGridRemap = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL
         && typeof ctx.remapGridPoint === "function"
         && typeof ctx.hasGridDisplacements === "function"
@@ -749,8 +749,8 @@
         const labelPosition = ctx.getRoomLabelPosition(room, state.boardId);
         label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
         label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
-        // Phase 18: scale label font-size with polygon handle size slider.
-        // Phase 23 W3 v3: ALSO scale by polygon size so tiny rooms don't
+        // Scale label font-size with polygon handle size slider.
+        // ALSO scale by polygon size so tiny rooms don't
         // get a label that overruns the polygon. Compute the bounding-box
         // shorter side from the room's points (in 0–1000 SVG units) and
         // map to a multiplier in [0.4, 1.4]. The final font size is
@@ -781,7 +781,7 @@
 
     renderPolygonEditorHandles();
     renderShipPolygonEditorHandles();
-    // Phase 19: render Play Area boundaries (mask only, no handles) during
+    // Render Play Area boundaries (mask only, no handles) during
     // align mode on /output so the operator can see projection boundaries.
     renderAlignModePlayAreaOverlay();
   }

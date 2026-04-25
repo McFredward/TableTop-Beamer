@@ -390,7 +390,7 @@
       return !NON_TYPING_INPUT_TYPES.has(String(el.type || "").toLowerCase());
     };
     if (target instanceof HTMLTextAreaElement) return true;
-    // Phase 22 W5 fix: <select> used to count as typing — that meant
+    // <select> used to count as typing — that meant
     // a focused dropdown (e.g. Active Play Area) swallowed DELETE,
     // Ctrl+Z etc. A select isn't a text field; only treat the native
     // combobox as typing when the user is mid-interaction (its

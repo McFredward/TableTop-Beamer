@@ -7,7 +7,7 @@
     fetchWithTimeout,
     location,
   }) {
-    // Phase 13-1: localStorage-backed apiBase override removed. Overrides
+    // localStorage-backed apiBase override removed. Overrides
     // are now resolved from `window.__TT_BEAMER_API_BASE__` or a URL query
     // parameter only — no browser persistent storage.
     function classifyHttpStatus(status) {
@@ -105,7 +105,7 @@
         return queryBase;
       }
 
-      // Phase 13-1: no localStorage fallback. If no window global or URL
+      // No localStorage fallback. If no window global or URL
       // query param is set, we fall through to the UI origin.
       return null;
     }

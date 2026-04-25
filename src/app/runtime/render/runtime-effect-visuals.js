@@ -20,7 +20,7 @@
     ctx = dependencies;
   }
 
-  // Phase 21-1: shared gate function for the hull-flicker coded effect.
+  // Shared gate function for the hull-flicker coded effect.
   // Deterministic in (age, speed, intensity); matches the exact timeline
   // math that used to live inline in the hull-flicker draw branch.
   // Consumers read `isOnPeriod` to know whether the lamp is currently lit.
@@ -226,7 +226,7 @@
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
       const b = parseInt(hex.slice(5, 7), 16);
-      // Phase 21-1: solid-color used to ignore `opacity` entirely and
+      // Solid-color used to ignore `opacity` entirely and
       // squeezed brightness into `intensity * 0.8`, so the Live Editor's
       // opacity slider did nothing and intensity only shifted alpha by a
       // narrow fixed factor. Now both sliders modulate the fill alpha
@@ -270,7 +270,7 @@
     }
   }
 
-  // Phase 22 W3b-4 (live preview): run `fn` with this module's
+  // Run `fn` with this module's
   // canvas + canvas-context temporarily redirected to the caller's
   // preview canvas. drawEffectVisual renders to `ctx.canvas`, so
   // swapping here lets the animation editor's preview column reuse

@@ -19,7 +19,7 @@
     ctx = dependencies;
   }
 
-  // Phase 22 W5: Toggle is now the default mode; Select drops to the
+  // Toggle is now the default mode; Select drops to the
   // rightmost slot and stops being the implicit fallback.
   function normalizeQuickMode(mode) {
     const normalized = String(mode || "").trim().toLowerCase();
@@ -83,7 +83,7 @@
     const state = ctx.state;
     const mode = normalizeQuickMode(state.quickMode?.mode);
     const inflightCount = getQuickModeInflightCount();
-    // Phase 22 W2e: buttonMap reflects the 3-segment UI. The activate
+    // buttonMap reflects the 3-segment UI. The activate
     // and deactivate refs are retained so stored state that still
     // carries those modes (snapshots, remote commands) lights up
     // Toggle visually — both converge there in the new UX.
@@ -129,7 +129,7 @@
       ctx.quickModePanel.dataset.mode = mode;
       ctx.quickModePanel.classList.toggle("is-busy", inflightCount > 0);
     }
-    // Phase 22 W2e: picker is the "armed animation library" — visible
+    // Picker is the "armed animation library" — visible
     // whenever a room tap is meaningful (toggle + legacy activate/
     // deactivate). Hidden in Select (no room-tap action) and Clear
     // (armed animation doesn't matter when clearing all).
@@ -143,7 +143,7 @@
       picker.style.display = "none";
       return;
     }
-    // Phase 22 W2c: clear the inline display so the CSS layout rule
+    // Clear the inline display so the CSS layout rule
     // wins. Legacy (Phase 18) theme used flex via inline style; the
     // Obsidian theme uses a grid declared in theme-obsidian.css.
     picker.style.display = "";
@@ -162,7 +162,7 @@
     const needsRebuild = pillIds.length !== defIds.length || pillIds.some((id, i) => id !== defIds[i]);
     if (needsRebuild) {
       picker.replaceChildren();
-      // Phase 22 W2c: build each entry as an icon tile (icon top, label
+      // Build each entry as an icon tile (icon top, label
       // bottom). Icon resolution falls back through coded-effect type →
       // name keyword → sparkles (see resolveAnimationIcon). Wave 3 will
       // let users override via the animation editor's icon picker.
@@ -327,7 +327,7 @@
     };
   }
 
-  // Phase 22 W2e: Toggle mode — start the armed animation in the room
+  // Toggle mode — start the armed animation in the room
   // if it isn't already running there, otherwise stop the running
   // instance(s) of that same animation. Collapses the legacy Start +
   // Stop modes into a single tap-to-toggle flow.
@@ -434,7 +434,7 @@
       ctx.triggerFeedback.textContent = "Status: Quick mode room action already in flight";
       return;
     }
-    // Phase 22 W2e: "toggle" is the new primary mode. "activate" and
+    // "toggle" is the new primary mode. "activate" and
     // "deactivate" are routed to the same handler so snapshots / remote
     // commands carrying legacy mode names still do the right thing.
     if (mode === "toggle" || mode === "activate" || mode === "deactivate") {
