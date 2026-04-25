@@ -66,7 +66,14 @@
              the stage's pan/zoom transform AND are auto-hidden in
              /output/ via the existing rule that limits #stage children
              to #fx-canvas + #room-overlay on the projection surface. -->
-        <div id="cluster-pads" class="cluster-pads" aria-label="Cluster trigger pads"></div>
+        <div id="cluster-pads" class="cluster-pads" aria-label="Cluster trigger pads">
+          <!-- Phase 23 W2: pre-rendered placeholder so the rail
+               position is always observable, even before the
+               runtime first calls renderClusterPads(). The runtime
+               removes this when it finds clusters to render or
+               replaces its text otherwise. -->
+          <div class="cluster-pads-empty">No clusters on this board</div>
+        </div>
       </div>
     </main>
 

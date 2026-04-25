@@ -1559,10 +1559,20 @@ body[data-output-role="final-output"].dir-obsidian {
  * ============================================================= */
 
 .dir-obsidian #stage {
-  /* Allow cluster pads (positioned at left:100%) to render outside
-   * the stage box. The fx-canvas + room-overlay are sized to the
-   * stage box so they don't leak. */
+  /* Allow cluster pads (positioned outside stage box) to render
+   * through. fx-canvas + room-overlay are sized to the stage box
+   * so they don't leak. */
   overflow: visible;
+}
+/* Phase 23 W2: ALSO relax the projection-area overflow so the
+ * rail isn't clipped by the parent container when the stage is
+ * close to the projection-area edges. /output/ keeps overflow
+ * hidden to prevent any FX leakage on the projection surface. */
+.dir-obsidian .projection-area {
+  overflow: visible;
+}
+body[data-output-role="final-output"].dir-obsidian .projection-area {
+  overflow: hidden;
 }
 /* But still clip the rounded board frame itself for fx-canvas /
  * board-image content — pin those to the box via clip-path. */
