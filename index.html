@@ -67,8 +67,15 @@
            chain that kept hiding it inside #stage. Hidden in
            /output/ via the dashboard-only CSS scoped to body's
            data-output-role attribute. -->
+      <!-- Phase 23 W2 v8: rail now has an explicit "Cluster" header
+           so the user knows what these tiles represent + an inner
+           scrollable list so many clusters can stack and scroll
+           (mouse + touch). Header stays put while the list scrolls. -->
       <div id="cluster-pads" class="cluster-pads" aria-label="Cluster trigger pads">
-        <div class="cluster-pads-empty">No clusters on this board</div>
+        <div class="cluster-pads-header" aria-hidden="true">Cluster</div>
+        <div id="cluster-pads-list" class="cluster-pads-list" role="list">
+          <div class="cluster-pads-empty">No clusters on this board</div>
+        </div>
       </div>
     </main>
 

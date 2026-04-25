@@ -1182,6 +1182,19 @@
       return;
     }
     updateClusterPadsRect();
+    // Phase 23 W2 v8: pads now live in the inner scrollable list,
+    // not the rail container itself. The rail container also holds
+    // the "Cluster" header which must NOT be touched by this pass.
+    let listEl = document.getElementById("cluster-pads-list");
+    if (!listEl) {
+      // Defensive bootstrap if the list element is missing (e.g.
+      // pre-W2-v8 cached HTML). Build it inside the container.
+      listEl = document.createElement("div");
+      listEl.id = "cluster-pads-list";
+      listEl.className = "cluster-pads-list";
+      listEl.setAttribute("role", "list");
+      container.append(listEl);
+    }
     const clusters = (typeof ctx.getBoardRoomClusters === "function")
       ? (ctx.getBoardRoomClusters(state.boardId) || [])
       : [];
@@ -1199,7 +1212,7 @@
     // update — only running-state class flips.
     const existingByClusterId = new Map();
     let emptyHint = null;
-    for (const child of Array.from(container.children)) {
+    for (const child of Array.from(listEl.children)) {
       const clusterId = child?.dataset?.clusterId;
       if (clusterId) existingByClusterId.set(clusterId, child);
       else if (child?.classList?.contains("cluster-pads-empty")) emptyHint = child;
@@ -1242,7 +1255,7 @@
           });
           dispatchClusterByTapAction(clusterId);
         });
-        container.append(pad);
+        listEl.append(pad);
       }
       // Always sync label text (name may have changed in editor).
       const labelEl = pad.querySelector(".cluster-pad-label");
@@ -1268,7 +1281,7 @@
         emptyHint = document.createElement("div");
         emptyHint.className = "cluster-pads-empty";
         emptyHint.textContent = "No clusters on this board";
-        container.append(emptyHint);
+        listEl.append(emptyHint);
       }
     } else if (emptyHint) {
       emptyHint.remove();

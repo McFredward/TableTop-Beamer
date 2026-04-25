@@ -1592,11 +1592,15 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
    *   --rail-left, --rail-top, --rail-height, --rail-scale
    * onto this element on every render tick. The rail's transform
    * + padding-right then place it just left of the stage's
-   * visible left edge, scaled to match.  */
+   * visible left edge, scaled to match.
+   *
+   * Phase 23 W2 v8: the rail is now a header + scrollable list. The
+   * outer box keeps its fixed positioning + scale; the inner
+   * .cluster-pads-list owns the scroll. */
   position: fixed;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   pointer-events: auto;
   z-index: 5;
   width: 130px;
@@ -1607,6 +1611,53 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
   height: var(--rail-height, 60vh);
   transform: translateX(-100%) scale(var(--rail-scale, 1));
   transform-origin: 100% 0;
+}
+
+/* "Cluster" heading at the top of the rail. Sticks above the
+ * scrollable list so the user always sees what the tiles below
+ * represent. Uppercase + tracked spacing matches the dashboard's
+ * other section eyebrows. */
+.cluster-pads-header {
+  flex: 0 0 auto;
+  font-family: var(--rd-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-text-3);
+  padding: 4px 6px 0;
+  user-select: none;
+}
+
+/* Scrollable list of pads. Owns the overflow so the header stays
+ * pinned. Touch scrolling is enabled with momentum on iOS Safari +
+ * overscroll-behavior so the page doesn't scroll when the user
+ * swipes through the cluster list on mobile. */
+.cluster-pads-list {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  /* Subtle scrollbar to match dashboard chrome. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-str, rgba(255, 255, 255, 0.18)) transparent;
+  padding: 2px 4px 8px;
+}
+.cluster-pads-list::-webkit-scrollbar {
+  width: 6px;
+}
+.cluster-pads-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cluster-pads-list::-webkit-scrollbar-thumb {
+  background: var(--c-border-str, rgba(255, 255, 255, 0.18));
+  border-radius: 3px;
 }
 
 /* Hide the rail entirely on /output/. */
@@ -1721,15 +1772,29 @@ body[data-output-role="final-output"] .cluster-pads {
 /* Narrow viewports — shrink rail to fit the smaller gutter. */
 @media (max-width: 980px) {
   .cluster-pads {
-    width: 100px;
+    width: 110px;
     padding-right: 8px;
   }
 }
+/* Phase 23 W2 v8: on small screens we keep the rail visible so the
+ * user can still trigger clusters with touch. The rail narrows
+ * further and the list scrolls vertically — touch momentum is on. */
 @media (max-width: 720px) {
-  /* On true mobile, hide the pads — the user has the dashboard
-   * dropdown for cluster trigger when the side gutter disappears.
-   * Phase 24 could revisit a bottom-strip layout. */
   .cluster-pads {
-    display: none;
+    width: 92px;
+    padding-right: 6px;
+    gap: 6px;
+  }
+  .cluster-pads-header {
+    font-size: 9px;
+    padding: 2px 4px 0;
+  }
+  .cluster-pads-list {
+    gap: 8px;
+    padding: 2px 2px 6px;
+  }
+  .cluster-pad-label {
+    font-size: 11px;
+    padding: 4px 6px;
   }
 }
