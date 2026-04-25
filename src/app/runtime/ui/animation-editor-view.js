@@ -1,4 +1,4 @@
-// Phase 22 W3b — full-page animation editor controller.
+// Full-page animation editor controller.
 //
 // Owns visibility + library/search/scope state. The middle editor
 // pane and the preview column are populated by follow-up sub-commits
@@ -29,7 +29,7 @@
     search: "",
     selectedIds: { inside: null, outside: null, room: null },
     open: false,
-    // Phase 22: editor-scoped board id. null = "use whatever board the
+    // Editor-scoped board id. null = "use whatever board the
     // dashboard currently targets". Populated when the user picks a
     // different board from the editor's own board dropdown; reset back
     // to null on every open() so the editor re-inherits the dashboard
@@ -103,7 +103,7 @@
       }
       ctx.animEditorScopeTabs._ttBeamerBound = true;
     }
-    // Phase 22 W3b-4: + button creates a new animation in the
+    // + button creates a new animation in the
     // currently-selected scope.
     if (ctx.animEditorAddButton && !ctx.animEditorAddButton._ttBeamerBound) {
       ctx.animEditorAddButton.addEventListener("click", () => {
@@ -111,7 +111,7 @@
       });
       ctx.animEditorAddButton._ttBeamerBound = true;
     }
-    // Phase 22: editor-scoped board picker. Change fires a re-render
+    // Editor-scoped board picker. Change fires a re-render
     // targeting the new board id — does NOT call switchBoard(), so the
     // dashboard stage is untouched.
     if (ctx.animEditorBoardSelect && !ctx.animEditorBoardSelect._ttBeamerBound) {
@@ -157,7 +157,7 @@
     if (scope && (scope === "inside" || scope === "outside" || scope === "room")) {
       state.scope = scope;
     }
-    // Phase 22: every open() re-inherits the dashboard's board id. The
+    // Every open() re-inherits the dashboard's board id. The
     // editor's board picker is a session-scoped override, not a sticky
     // preference — reopening the editor always starts from the active
     // dashboard selection.
@@ -176,7 +176,7 @@
 
   function close() {
     state.open = false;
-    // Phase 22 W3b-4 (revised): make sure the coded-preview rAF loop
+    // Make sure the coded-preview rAF loop
     // stops when the editor closes, even if the canvas isn't
     // immediately garbage-collected.
     stopCodedPreview();
@@ -191,7 +191,7 @@
     }
   }
 
-  // Phase 22 W3b-5 revisit: Back is fully blocked while there are
+  // Back is fully blocked while there are
   // unsaved edits. A click in the dirty state now flashes the dirty
   // bar so the user understands *why* Back is inert and what they
   // need to do next (Apply or Discard).
@@ -292,7 +292,7 @@
     if (placeholder) placeholder.hidden = true;
 
     pane.append(buildHeader(sel.scope, def));
-    // Phase 22 W3b-3 (revised): card order per user spec —
+    // Card order per user spec —
     //   Identity (Name + Icon)
     //   Source (asset type + path)
     //   Coded effect card (only for Room solid-color / hull-flicker)
@@ -331,7 +331,7 @@
     title.dataset.animEditorField = "title";
     wrap.append(eyebrow, title);
     header.append(wrap);
-    // Phase 22 W3b polish: prominent Delete button in the pane header
+    // Prominent Delete button in the pane header
     // so the option is visible without scrolling the preview column.
     // Delete still routes through persistBoardProfiles() → dirty flag;
     // the row only actually disappears from the server after Apply.
@@ -415,7 +415,7 @@
         }
       },
     });
-    // Phase 22 W3b-3 fix: reflect the EFFECTIVE icon (explicit
+    // Reflect the EFFECTIVE icon (explicit
     // definition.icon if set, else the heuristic fallback) so the
     // user always sees which glyph is rendering in the Dashboard
     // library + Active Animations list. Picking the same tile is a
@@ -491,7 +491,7 @@
         });
       }
       if (scope === "outside") {
-        // Phase 22 W3b-3 (revised): mode + direction used to live in
+        // Mode + direction used to live in
         // a separate Playback card; inlined into Defaults so the user
         // has one consolidated tuning area. Phase 22 W3b polish: mode
         // + direction only render for coded outside effects — GIF and
@@ -664,7 +664,7 @@
     return card;
   }
 
-  // Phase 22 W3b-4d: GIF/MP4 pickers — dropdown of resources/animations/*
+  // GIF/MP4 pickers — dropdown of resources/animations/*
   // plus Upload + Delete buttons. Replaces the previous free-text path input.
   function buildAssetPickerRow(scope, def, boardId) {
     const ext = def.assetType === "mp4" ? "mp4" : "gif";
@@ -830,7 +830,7 @@
     return card;
   }
 
-  // Phase 22: sound picker — mirrors the GIF/MP4 asset picker but
+  // Sound picker — mirrors the GIF/MP4 asset picker but
   // targets /resources/sounds/ with audio extensions, and includes a
   // "No sound" entry mapped to SOUND_MAPPING_NONE.
   function buildSoundPickerRow(scope, def, boardId) {
@@ -1022,7 +1022,7 @@
   function renderPreview() {
     const root = ctx.animEditorPreview;
     if (!root) return;
-    // Phase 22 W3b-4 (revised): cancel any in-flight coded-effect
+    // Cancel any in-flight coded-effect
     // preview loop before rebuilding — otherwise replaceChildren()
     // detaches the old canvas but the rAF keeps trying to draw on
     // the orphaned node until the containment check fires.
@@ -1070,7 +1070,7 @@
     root.append(footer);
   }
 
-  // Phase 22 W3b-4 (revised): live preview — GIF and MP4 render inline
+  // Live preview — GIF and MP4 render inline
   // so the user can see the animation's actual content. Coded effects
   // stay as the icon glyph (the canvas-driven preview would require a
   // dedicated render loop and drawEffectVisual access; coming later).
@@ -1082,7 +1082,7 @@
     const ref = String(def.assetRef || "").trim();
 
     if (type === "gif" && ref) {
-      // Phase 22 W3b polish: GIF preview renders through the shared
+      // GIF preview renders through the shared
       // gif-playback cache so the speed slider actually changes the
       // frame cadence — native <img> playback ignores any external
       // timing. Same math the board's draw loop uses:
@@ -1129,7 +1129,7 @@
       applyMediaPreviewProps(video, def);
       wrap.append(video);
     } else if (type === "coded" && ref && window.TT_BEAMER_RUNTIME_EFFECT_VISUALS?.withPreviewCanvas) {
-      // Phase 22 W3b-4 (revised): coded effects get a live canvas
+      // Coded effects get a live canvas
       // preview that replays drawEffectVisual on every rAF with the
       // definition's current defaults (opacity, intensity, speed,
       // colorHex, outside mode/direction). startCodedPreview sets up
@@ -1137,7 +1137,7 @@
       // renderPreview to switch targets or exit cleanly.
       const canvas = document.createElement("canvas");
       canvas.className = "anim-editor-preview-media anim-editor-preview-canvas";
-      // Phase 22 W3b-4d fix: intrinsic canvas size should match the
+      // Intrinsic canvas size should match the
       // live board's pixel dimensions so position/speed-based
       // coded effects (outside-space star field, sweeping scans,
       // …) render at the same apparent speed in the preview as on
@@ -1207,7 +1207,7 @@
       c2d.fillRect(0, 0, canvas.width, canvas.height);
       c2d.restore();
       const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
-      // Phase 22 W3b polish: mirror what runtime-draw-loop.js does for
+      // Mirror what runtime-draw-loop.js does for
       // every scope before calling drawEffectVisual — inside uses
       // `age * speed`, room uses `age * playbackSpeed`, outside's
       // resolveOutsideTimeline returns `elapsed * speed`. Pre-scaling
@@ -1249,7 +1249,7 @@
     previewLoopKey = null;
   }
 
-  // Phase 22 W3b polish: canvas-backed GIF preview so the speed
+  // Canvas-backed GIF preview so the speed
   // slider actually changes the frame cadence. Uses the same
   // decoded-frame cache the board's draw loop uses.
   function startGifPreview(canvas, scope, def, wrap, ref) {
@@ -1350,7 +1350,7 @@
     return t || "—";
   }
 
-  // Phase 22 W3b polish: reflect current slider/toggle state on the
+  // Reflect current slider/toggle state on the
   // GIF img or MP4 video element. Matches the board's draw math:
   //   - effective alpha = opacity × intensity
   //   - mp4 playbackRate = speed
@@ -1522,10 +1522,10 @@
     if (typeof ctx.refreshGlobalButtons === "function") {
       ctx.refreshGlobalButtons();
     }
-    // Phase 22 W3b-4 (revised): every patch may flip localConfigDirty;
+    // Every patch may flip localConfigDirty;
     // reflect it in the editor topbar immediately.
     syncDirtyBar();
-    // Phase 22: keep the Live preview in lockstep with the pending
+    // Keep the Live preview in lockstep with the pending
     // edits — even before the user hits Apply. Coded-effect previews
     // already read `findDefinition()` each rAF tick so slider +
     // colour changes animate live; but switching asset type, asset
@@ -1652,7 +1652,7 @@
       row.addEventListener("click", () => {
         state.selectedIds[state.scope] = def.id;
         renderList();
-        // Phase 22 W3b-3 fix: the click handler used to only refresh
+        // The click handler used to only refresh
         // the list + notify listeners. The pane subscribes via
         // render() at init, not notifySelection, so the pane didn't
         // rebuild when the user picked another animation. Call

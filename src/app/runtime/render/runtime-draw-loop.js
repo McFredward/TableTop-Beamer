@@ -20,7 +20,7 @@
     ctx = dependencies;
   }
 
-  // Phase 15-3: compute the effective draw rect for a room mp4/gif
+  // Compute the effective draw rect for a room mp4/gif
   // asset. Falls back to the polygon bounding box when the
   // definition says "stretch to polygon" (default). Otherwise uses
   // the per-definition width/height/offset scales relative to the
@@ -111,7 +111,7 @@
     const effectType = ctx.resolveRoomCodedEffectType(assetRef || animation.type);
     const playbackSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
     const playbackAge = age * ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
-    // Phase 21-1: opt-in hull-flicker ⇒ solid-color coupling. When any
+    // Opt-in hull-flicker ⇒ solid-color coupling. When any
     // running animation in this exact room resolves to hull-flicker AND its
     // definition has breaksSolidColor=true, the flicker's off-gate overrides
     // the solid-color fill so the lamp actually goes dark instead of just
@@ -122,7 +122,7 @@
         return;
       }
     }
-    // Phase 21-1: when hull-flicker in this exact room has the
+    // When hull-flicker in this exact room has the
     // breaksSolidColor flag on AND a sibling solid-color animation is
     // running in the same room, the FLICKER is delivered purely by
     // gating the solid-color fill on/off — the hull-flicker's own
@@ -155,7 +155,7 @@
     );
   }
 
-  // Phase 21-1: scan running animations for a room-scoped (or cluster-member)
+  // Scan running animations for a room-scoped (or cluster-member)
   // animation on (boardId, roomId) whose definition resolves to hull-flicker
   // with breaksSolidColor=true. Returns { age, speed, intensity } for the
   // first match, or null. Age is computed in the same units the hull-flicker
@@ -201,7 +201,7 @@
     return null;
   }
 
-  // Phase 21-1: does (boardId, roomId) currently have any running
+  // Does (boardId, roomId) currently have any running
   // room-scoped (or cluster-member) animation whose resolved coded
   // effect is solid-color? Used to suppress the hull-flicker
   // overlay when it's coupled with solid-color via breaksSolidColor.
@@ -343,7 +343,7 @@
         if (!clipped) {
           return;
         }
-        // P12-1 order-invariant layering: when this room has ≥ 2 concurrent
+        // Order-invariant layering: when this room has ≥ 2 concurrent
         // running animations, draw with additive composite so no effect can
         // occlude another regardless of trigger order. Type-independent:
         // coded, mp4, and gif all route through drawRoomComposition.
@@ -408,7 +408,7 @@
       ctx.clearOutsideTimelineState(state.boardId);
       return;
     }
-    // Phase 21-1: align outside with the room/instance model — when a
+    // Align outside with the room/instance model — when a
     // running outside animation exists for this board, its per-instance
     // values (intensity/speed/opacity/mode/direction) drive the draw so
     // Live Editor changes and trigger-time captures win over the
@@ -549,7 +549,7 @@
     }
   }
 
-  // Phase 23 W2 v10: minimal pad renderer — covers solid-color
+  // Minimal pad renderer — covers solid-color
   // (the user's primary smoke test) explicitly, falls back to a
   // soft accent-tinted indicator for other animation types. The
   // ctx-swap + drawRoomComposition approach (v9) leaked geometry
@@ -566,7 +566,7 @@
     const origCanvasCtx = ctx.canvasCtx;
     const visualsModule = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
 
-    // Phase 23 W2 v11 fix: clear EVERY pad canvas at the start so a
+    // Clear EVERY pad canvas at the start so a
     // pad whose cluster animation just stopped doesn't keep showing
     // the last painted frame. Sized to the pad's css rect × dpr each
     // frame in case the layout shifted.
@@ -702,7 +702,7 @@
         state.mobilePerf.pendingTriggerAt = null;
       }
 
-      // Phase 18: tick loading overlay BEFORE any rendering so it always
+      // Tick loading overlay BEFORE any rendering so it always
       // runs, even during heavy interaction early returns.
       tickLoadingOverlay();
 
@@ -723,7 +723,7 @@
       }
       drawOutsideFxLayer(now);
 
-      // Order-invariant room layering (P12-1):
+      // Order-invariant room layering:
       // When ≥ 2 animations (any type) run in the same (board, room), switch
       // to additive composite ('lighter') so draw order cannot occlude.
       // Single-animation rooms keep the default source-over blend.
@@ -768,7 +768,7 @@
       // Phase 19-4: post-draw mesh warp — deform canvas through grid if needed
       ctx.postDrawMeshWarp?.(canvas, c);
 
-      // Phase 23 W2 v7: blit each cluster animation's first member
+      // Blit each cluster animation's first member
       // room region into its pad canvas. Pads are off-stage DOM
       // elements that mirror the cluster's rendered animation as a
       // miniature room. Runs only on dashboard (control role); /output/
@@ -791,7 +791,7 @@
     }
   }
 
-  // Phase 18: loading overlay dismiss — runs once per draw frame.
+  // Loading overlay dismiss — runs once per draw frame.
   // Waits for the first server snapshot to be applied (which may trigger
   // a board switch), then dismisses once the board image is loaded.
   // On desktop the server responds fast (<200ms) so this adds minimal delay.

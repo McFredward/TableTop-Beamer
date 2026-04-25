@@ -20,7 +20,7 @@
   function init(dependencies) {
     ctx = dependencies;
 
-    // Phase 23 W2 v6: continuous rAF tracking of the cluster rail
+    // Continuous rAF tracking of the cluster rail
     // position. CSS transitions on .stage's transform mean the
     // bounding rect interpolates over ~120 ms after every pan/zoom
     // commit; one-shot rAF after the commit catches the START of
@@ -110,7 +110,7 @@
       ctx.liveEditorOffsetYValue.textContent = value.toFixed(2);
       applyLiveEditorValue("offsetYScale", value);
     });
-    // Phase 21-1: outside-specific knobs. Populated + shown in
+    // Outside-specific knobs. Populated + shown in
     // openLiveEditor when the target is a running outside global
     // animation.
     ctx.liveEditorOutsideMode?.addEventListener("change", () => {
@@ -121,7 +121,7 @@
       const value = ctx.liveEditorOutsideDirection.value === "reverse" ? "reverse" : "forward";
       applyLiveEditorValue("direction", value);
     });
-    // Phase 21-1: coded-specific Color picker — only surfaced when the
+    // Coded-specific Color picker — only surfaced when the
     // underlying coded effect is `solid-color`. Keeps non-solid-color
     // animations uncluttered.
     ctx.liveEditorColor?.addEventListener("input", () => {
@@ -166,14 +166,14 @@
       heightScale: animation.heightScale,
       offsetXScale: animation.offsetXScale,
       offsetYScale: animation.offsetYScale,
-      // Phase 21-1: outside instance fields.
+      // Outside instance fields.
       mode: animation.mode,
       direction: animation.direction,
-      // Phase 21-1: coded-specific (solid-color) per-instance color.
+      // Coded-specific (solid-color) per-instance color.
       colorHex: animation.colorHex,
     };
     ctx.liveEditorPanel.hidden = false;
-    // Phase 21-1: auto-scroll the panel into view so the user sees the
+    // Auto-scroll the panel into view so the user sees the
     // editor open. The running-animations list can sit far below the
     // viewport and a silent panel-unhide was easy to miss.
     if (typeof ctx.liveEditorPanel.scrollIntoView === "function") {
@@ -257,7 +257,7 @@
       ctx.liveEditorOffsetY.disabled = stretched;
     }
 
-    // Phase 21-1: solid-color coded backbone — surface the Color picker
+    // Solid-color coded backbone — surface the Color picker
     // in the Live Editor only when the currently-running animation's
     // coded effect resolves to solid-color. Covers room-scoped coded
     // solid-color triggers (the main use case — "white lamp" clusters).
@@ -289,7 +289,7 @@
       }
     }
 
-    // Phase 21-1: outside-specific knobs (mode/direction) for coded
+    // Outside-specific knobs (mode/direction) for coded
     // outside backbones. Only show for global-scope animations whose
     // type is in the board's outside profile — other globals (inside)
     // don't have these concepts.
@@ -369,7 +369,7 @@
             heightScale: animation.heightScale,
             offsetXScale: animation.offsetXScale,
             offsetYScale: animation.offsetYScale,
-            // Phase 21-1: persist the per-instance color on the default
+            // Persist the per-instance color on the default
             // so autostart reloads pick it back up. Without this, the
             // autostart path re-created the animation with the red
             // factory default every time.
@@ -416,7 +416,7 @@
           animationId: animation.id,
           animation: ctx.buildAnimationSnapshotForLiveSync(animation),
         }).catch(() => {});
-        // Phase 21-1: for cluster-scope edits, also broadcast each
+        // For cluster-scope edits, also broadcast each
         // linked room child so the server + other clients carry the
         // propagated field values. Without this, the next snapshot
         // from the server reverts member intensity/opacity back to
@@ -445,7 +445,7 @@
     const animation = state.runningAnimations.find((item) => item?.id === liveEditorAnimationId);
     if (animation) {
       animation[field] = value;
-      // Phase 21-1: for cluster-scope edits, propagate the field to every
+      // For cluster-scope edits, propagate the field to every
       // linked room-scoped child. Without this, the draw loop reads
       // memberAnimation[field] on each child (which never changes after
       // spawn) and the Live Editor slider appears inert — most obvious
@@ -737,7 +737,7 @@
     const parity = validateRunningListParity();
     runningAnimationsList.replaceChildren();
     const listAnimations = getRunningAnimationsForList();
-    // Phase 22 W2b / W5: topbar running-count chip — split into
+    // Topbar running-count chip — split into
     // default (auto-restoring) and custom (ad-hoc) animation counts.
     // An animation counts as "default" when its (type, roomId, scope)
     // triple is present in state.defaultAnimationsByBoard for its
@@ -754,7 +754,7 @@
       const explicitDefault = defs.some(
         (d) => d.type === anim.type && d.roomId === anim.roomId && d.scope === anim.scope,
       );
-      // Phase 22 W5 fix: outside animations persist via the outside
+      // Outside animations persist via the outside
       // profile's `enabled` flag, not through defaultAnimationsByBoard.
       // They still auto-restart on reload, so they belong in the
       // "default" count. scope === "global" covers outside-ship
@@ -787,7 +787,7 @@
       return;
     }
 
-    // Phase 21-1: categorize into Outside / Inside / Cluster / Room /
+    // Categorize into Outside / Inside / Cluster / Room /
     // Frozen sections with a heading per section, and sort newest-first
     // (by startedAt) within each section. Empty sections are omitted.
     // Frozen-room animations are pulled out of the Room/Cluster buckets
@@ -830,7 +830,7 @@
       { key: "room", label: "Room" },
       { key: "freezed", label: "Frozen Rooms" },
     ];
-    // Phase 22 W2d: within Room / Cluster / Frozen sections, animations
+    // Within Room / Cluster / Frozen sections, animations
     // are further grouped by the room or cluster they target so the
     // user can see at a glance when multiple animations are stacked
     // inside one room. Outside + Inside stay flat (they apply board-
@@ -949,7 +949,7 @@
       if (isStacked) {
         li.classList.add("running-item-grouped");
       }
-      // Phase 22 W2d: icon tile prepended to each row. Tint driven by
+      // Icon tile prepended to each row. Tint driven by
       // data-scope; glyph resolved from the animation definition via
       // ctx.getRoomAnimationDefinitionById (room + cluster scope), or
       // synthesized directly from anim.type for global scope (type IS
@@ -991,7 +991,7 @@
           : getAnimationLabel(anim.type);
       title.textContent = effectLabel;
 
-      // Phase 22 W2d: compact single-line sub-meta. For non-stacked
+      // Compact single-line sub-meta. For non-stacked
       // rooms/clusters we prefix the target name so the user still
       // knows WHICH room/cluster the animation belongs to — stacked
       // rows omit it because the subgroup header already shows it.
@@ -1060,7 +1060,7 @@
       });
       actions.append(stopButton);
 
-      // Phase 21-1: also allow Live Editor on scope="global" so outside
+      // Also allow Live Editor on scope="global" so outside
       // (and inside) running animations can have their per-instance
       // intensity/speed edited, independent of the definition defaults.
       if (anim.scope === "room" || anim.scope === "cluster" || anim.scope === "global") {
@@ -1182,7 +1182,7 @@
       return;
     }
     updateClusterPadsRect();
-    // Phase 23 W2 v8: pads now live in the inner scrollable list,
+    // Pads now live in the inner scrollable list,
     // not the rail container itself. The rail container also holds
     // the "Cluster" header which must NOT be touched by this pass.
     let listEl = document.getElementById("cluster-pads-list");
@@ -1221,7 +1221,7 @@
         pad.dataset.clusterId = clusterId;
         const render = document.createElement("div");
         render.className = "cluster-pad-render";
-        // Phase 23 W2 v7: per-pad canvas. Animation pixels for the
+        // Per-pad canvas. Animation pixels for the
         // cluster's first member room get blitted in here every frame
         // by the draw loop's drawClusterPadCanvases pass — see
         // runtime-draw-loop.js. The pad now visually IS the running
@@ -1235,7 +1235,7 @@
         const label = document.createElement("div");
         label.className = "cluster-pad-label";
         pad.append(render, dot, label);
-        // Phase 23 W2 v6: pad behaves exactly like a room — tap
+        // Pad behaves exactly like a room — tap
         // dispatches via the active Tap-Action (Off / Toggle /
         // Clear). No inline × control; mode is set globally on
         // the dashboard.
@@ -1275,7 +1275,7 @@
     }
   }
 
-  // Phase 23 W2 v6: pad tap routes through the active Tap-Action
+  // Pad tap routes through the active Tap-Action
   // mode just like room taps. Off = no-op; Toggle = toggle dispatch;
   // Clear = stop everything for this cluster.
   function dispatchClusterByTapAction(clusterId) {
