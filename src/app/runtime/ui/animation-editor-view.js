@@ -1283,7 +1283,7 @@
       const age = (performance.now() - startTime) / 1000;
       const opacity = Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
-      const effective = Math.max(0, Math.min(1, opacity * intensity));
+      const effective = window.TT_BEAMER_RUNTIME_UTILS.clamp01(opacity * intensity);
       c2d.save();
       c2d.fillStyle = "#000";
       c2d.fillRect(0, 0, canvas.width, canvas.height);
@@ -1360,7 +1360,7 @@
     if (!el || !def) return;
     const opacity = Number.isFinite(Number(def.opacity)) ? Number(def.opacity) : 1;
     const intensity = Number.isFinite(Number(def.intensity)) ? Number(def.intensity) : 1;
-    const effective = Math.max(0, Math.min(1, opacity * intensity));
+    const effective = window.TT_BEAMER_RUNTIME_UTILS.clamp01(opacity * intensity);
     el.style.opacity = String(effective);
     if (el.tagName === "VIDEO") {
       const speed = Number.isFinite(Number(def.speed)) ? Number(def.speed) : 1;
