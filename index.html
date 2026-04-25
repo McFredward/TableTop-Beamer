@@ -799,6 +799,10 @@
 
   <div id="toast-stack" class="toast-stack" aria-live="assertive" aria-atomic="false"></div>
 
+  <!-- Phase 24 W3.1-C4.5: pure self-contained utility IIFE; hoisted to top of
+       runtime block so any consumer (e.g. animation-editor-view.js) sees it at
+       parse time. No runtime dependencies. -->
+  <script src="/src/app/runtime/runtime-utils.js" defer></script>
   <!-- Phase 22 Wave 1: design-system icon primitive. Loaded first so
        later wave wirings can call TT_BEAMER_UI_ICONS.createIcon(name). -->
   <script src="/src/app/runtime/ui/icons.js" defer></script>
@@ -823,7 +827,6 @@
   <script src="/src/app/lib/render/viewport-lifecycle.js" defer></script>
   <script src="/src/app/lib/ui/settings/rooms.js" defer></script>
   <script src="/src/app/lib/ui/runtime-panels-controller.js" defer></script>
-  <script src="/src/app/runtime/runtime-utils.js" defer></script>
   <script src="/src/app/runtime/core/polygon-contract.js" defer></script>
   <script src="/src/app/runtime/state/runtime-polygon-normalizers.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-polygon-drag-support.js" defer></script>
