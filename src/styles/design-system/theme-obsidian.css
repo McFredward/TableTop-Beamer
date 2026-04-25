@@ -1558,30 +1558,12 @@ body[data-output-role="final-output"].dir-obsidian {
  * (Wave 2 next step).
  * ============================================================= */
 
-.dir-obsidian #stage {
-  /* Allow cluster pads (positioned outside stage box) to render
-   * through. fx-canvas + room-overlay are sized to the stage box
-   * so they don't leak. */
-  overflow: visible;
-}
-/* Phase 23 W2: ALSO relax the projection-area overflow so the
- * rail isn't clipped by the parent container when the stage is
- * close to the projection-area edges. /output/ keeps overflow
- * hidden to prevent any FX leakage on the projection surface. */
-.dir-obsidian .projection-area {
-  overflow: visible;
-}
-body[data-output-role="final-output"].dir-obsidian .projection-area {
-  overflow: hidden;
-}
-/* But still clip the rounded board frame itself for fx-canvas /
- * board-image content — pin those to the box via clip-path. */
-.dir-obsidian #stage > #board-image,
-.dir-obsidian #stage > #fx-canvas,
-.dir-obsidian #stage > #room-overlay {
-  /* No clip-path needed — these elements are sized exactly to
-   * the stage box and don't paint outside. */
-}
+/* Phase 23 W3 v3: cluster pads now use position:fixed (since W2 v6)
+ * so they're not constrained by #stage or .projection-area. We can
+ * restore the default overflow:hidden on both, which clips stage
+ * content (board image, fx-canvas) when zoomed/panned past the
+ * container edges — without it, the board would visibly bleed over
+ * the dashboard chrome on zoom-in / large pans. */
 
 .cluster-pads {
   /* Phase 23 W2 v6: position:fixed + JS-driven sync to the stage

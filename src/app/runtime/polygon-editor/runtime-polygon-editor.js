@@ -749,9 +749,29 @@
         const labelPosition = ctx.getRoomLabelPosition(room, state.boardId);
         label.setAttribute("x", String((labelPosition.x * 1000).toFixed(1)));
         label.setAttribute("y", String((labelPosition.y * 1000 + 8).toFixed(1)));
-        // Phase 18: scale label font-size with polygon handle size slider
+        // Phase 18: scale label font-size with polygon handle size slider.
+        // Phase 23 W3 v3: ALSO scale by polygon size so tiny rooms don't
+        // get a label that overruns the polygon. Compute the bounding-box
+        // shorter side from the room's points (in 0–1000 SVG units) and
+        // map to a multiplier in [0.4, 1.4]. The final font size is
+        // clamped to [8, 38]px.
         const handleScale = ctx.getCurrentPolygonHandleScale();
-        const labelFontSize = Math.max(8, Math.round(22 * handleScale));
+        const points = ctx.getRoomPoints(room, state.boardId);
+        let minX = 1000;
+        let minY = 1000;
+        let maxX = 0;
+        let maxY = 0;
+        for (const [px, py] of points) {
+          if (px < minX) minX = px;
+          if (py < minY) minY = py;
+          if (px > maxX) maxX = px;
+          if (py > maxY) maxY = py;
+        }
+        const polyShorter = Math.min(maxX - minX, maxY - minY);
+        // 200/1000 (= 20% of board) → 1×; below 80 (8%) → 0.4×; above 280 (28%) → 1.4×.
+        const polyFactor = Math.max(0.4, Math.min(1.4, polyShorter / 200));
+        const baseSize = 22 * handleScale * polyFactor;
+        const labelFontSize = Math.max(8, Math.min(38, Math.round(baseSize)));
         label.style.fontSize = `${labelFontSize}px`;
         const roomName = room.name ?? room.label;
         label.textContent = roomName.startsWith("Hex ") ? roomName.replace("Hex ", "") : roomName;
