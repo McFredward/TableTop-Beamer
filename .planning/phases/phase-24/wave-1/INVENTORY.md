@@ -55,8 +55,25 @@ Decisions:
 
 ## Kept (false positive)
 
-| Commit | Identifier | Reason | Consumer |
+(none in Wave 1)
+
+## Deferred to later wave
+
+| Commit | Identifier | Reason | Defer-to |
 |--------|------------|--------|----------|
+| C5 (dropped) | All 110 dead-DOM-id candidates from RESEARCH.md §E (DOM-ref cleanup) | Per the plan's universal procedure decision rule, "if any of Steps 1–3 produces a match outside the dom-refs.js declaration site, KEEP the ref." Every one of the 110 candidates fails Step 2: the HTML `id` is missing from `index.html`, but the camelCase ref name still has live JS consumers (`?.addEventListener`, `if (ctx.X)` guards, `replaceChildren()` patterns, etc.). Removing the `dom-refs.js` entry without also pruning consumers would leave dead `?.`-chained calls scattered across the runtime — that expands C5 well beyond Wave 1's "subtractive, mechanical, grep-verified, no behaviour change" scope. Orchestrator decision 2026-04-25: drop C5 entirely from Wave 1; refs + consumers will be pruned together when the affected modules are touched. | Wave 3 (file decomposition). The consumer modules (`runtime-orchestration.js`, `runtime-wire-*.js`, `animation-editor-view.js`, `runtime-polygon-edit.js`, etc.) are scheduled to be split there; refs and consumers get removed as a paired unit in the same commit set. |
+
+### C5 per-theme counts (deferral evidence)
+
+| Theme | Dead ids | Consumer files | Consumer lines |
+|-------|----------|----------------|----------------|
+| C5.1 (low-risk legacy nav/quick-mode) | 9 | 2 | 18 |
+| C5.2 (output-mode legacy) | 10 | 1 | 20 |
+| C5.3 (animation-editor / polygon-editor legacy) | 72 | 3 | 557 |
+| C5.4 (runtime wiring + misc) | 19 | 15 | 154 |
+| **Total** | **110** | **~21 (some overlap)** | **~749** |
+
+Source: RESEARCH.md §E candidate list cross-referenced against ripgrep of camelCase ref names across `src/`. Each candidate had at least one live consumer outside `runtime-dom-refs.js`. Full per-id breakdown lives in the C5 STOP report on the orchestrator chat thread.
 
 ## Kept (user-confirmed)
 
