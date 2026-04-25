@@ -76,9 +76,7 @@ const {
   roomColorPickerLabel, roomAnimationSettingsSelect, roomAnimationSettingsNameInput,
   roomAnimationSettingsCreateButton, roomAnimationSettingsDeleteButton,
   roomAnimationRenameInput, roomAnimationRenameButton,
-  // Phase 22 W3a: animation icon picker roots (Inside / Outside / Room).
   insideIconPicker, outsideIconPicker, roomIconPicker,
-  // Phase 22 W3b: full-page animation editor DOM refs.
   animEditorPage, animEditorBackButton, animEditorSearchInput, animEditorAddButton,
   animEditorScopeTabs, animEditorList, animEditorEmpty, animEditorCount,
   animEditorPane, animEditorPanePlaceholder, animEditorPreview,
@@ -97,7 +95,6 @@ const {
   roomSpeedInput, roomSpeedValue, roomSoundVolumeInput, roomSoundVolumeValue,
   roomDurationInput, roomStaggerStartInput, roomStaggerOffsetInput, roomStaggerOffsetValue,
   startRoomAnimationButton, runningAnimationsList,
-  // Phase 22 W2b: topbar elements — brand sub-line label + running-count chip.
   topbarBoardLabel, runningCountChip, runningCountChipLabel,
   runningCountChipLabelDefault, runningCountChipLabelCustom,
   liveEditorPanel, liveEditorTitle, liveEditorClose,
@@ -267,7 +264,6 @@ window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
   emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
   renderRoomOverlay: () => renderRoomOverlay(),
   onAlignModeChanged: (enabled) => {
-    // Phase 19-2: projection mapping align mode integration
     if (typeof onProjectionAlignModeChange === "function") {
       onProjectionAlignModeChange(enabled);
     }
@@ -299,7 +295,6 @@ const {
   bindDevicePixelRatioWatcher,
 } = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
 
-// Phase 19-2: projection mapping — 4-corner warp for /output.
 window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   stage,
   outputRole,
@@ -309,9 +304,6 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   // Current board for server-side profile scoping
   getBoardId: () => state?.boardId ?? null,
   saveProjectionMapping: () => {
-    // Phase 19-2: persist projection corners via the existing global-defaults
-    // save pipeline. buildPersistedRuntimeSettingsFromState() already includes
-    // projectionMapping from the module, so a normal save captures everything.
     try {
       saveGlobalDefaultsToServer().catch(() => {});
     } catch { /* best-effort — saveGlobalDefaultsToServer may not be ready yet */ }
@@ -326,7 +318,6 @@ const {
   resetCorners: resetProjectionCorners,
   onAlignModeChange: onProjectionAlignModeChange,
   onWindowResize: onProjectionWindowResize,
-  // Phase 19-4: post-draw mesh warp (replaces begin/end grid warp)
   postDrawMeshWarp: projectionPostDrawMeshWarp,
   remapPoint: projectionRemapPoint,
   hasGridDisplacements: projectionHasGridDisplacements,
@@ -1626,7 +1617,6 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   roomAnimationSettingsDeleteButton,
   roomAnimationRenameInput,
   roomAnimationRenameButton,
-  // Phase 22 W3a: icon picker roots threaded into the fx-panel ctx.
   insideIconPicker,
   outsideIconPicker,
   roomIconPicker,
@@ -1667,8 +1657,6 @@ window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   getRoomAssetCandidates: (assetType) => getRoomAssetCandidates(assetType),
   getSelectedRoomAnimationDefinition: (boardId) => getSelectedRoomAnimationDefinition(boardId),
   getRoomAnimationDefinitionById: (type, boardId) => getRoomAnimationDefinitionById(type, boardId),
-  // Phase 21-1: needed to detect "hull-flicker" backbone for the
-  // breaksSolidColor checkbox visibility inside syncRoomFxPanel.
   resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
   normalizeOutsideFxProfile: (profile) => normalizeOutsideFxProfile(profile),
   normalizeOutsideAnimationDefinition: (entry) => normalizeOutsideAnimationDefinition(entry),
@@ -1823,7 +1811,6 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   boardImage,
   boardSelect,
   boardStatus,
-  // Phase 22 W2b: topbar brand sub-line mirrors the board label.
   topbarBoardLabel,
   triggerFeedback,
   getBoard: (boardId) => getBoard(boardId),
@@ -2010,8 +1997,6 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
     persistBoardProfiles: () => persistBoardProfiles(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
-    // Phase 22 W3b-3: needed by the Room color card to detect
-    // solid-color / hull-flicker coded effects.
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
     // Editor-scoped Apply / Discard + Back
@@ -2169,8 +2154,6 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   liveSync,
   triggerFeedback,
   runningAnimationsList,
-  // Phase 22 W2b: topbar running-count chip refs, consumed by
-  // renderRunningAnimationsList to show "N running" / hide at 0.
   runningCountChip,
   runningCountChipLabel,
   runningCountChipLabelDefault,
@@ -2230,8 +2213,6 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getRoomAnimationDefinitionById: (type, boardId) => getRoomAnimationDefinitionById(type, boardId),
   normalizeRoomAssetType: (assetType) => normalizeRoomAssetType(assetType),
   normalizeRoomAssetRefForType: (assetType, ref, fallback) => normalizeRoomAssetRefForType(assetType, ref, fallback),
-  // Phase 21-1: Live Editor needs this to detect the solid-color
-  // coded backbone and surface the Color picker only when applicable.
   resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
   clampRoomIntensity: (value) => clampRoomIntensity(value),
@@ -2263,14 +2244,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
   normalizeRoomFxProfile: (profile) => normalizeRoomFxProfile(profile),
   saveAndCaptureCleanBaseline: () => saveAndCaptureCleanBaseline(),
-  // Phase 21-1: needed by the Active Animations list to bucket room
-  // animations running in frozen rooms into the "Frozen Rooms" section.
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
-  // Phase 23 W2: cluster pads need access to the cluster catalog +
-  // dispatch entry point. startRoomAnimationFromDraft is exposed
-  // here lazily because it only gets defined later in this file
-  // (window.TT_BEAMER_RUNTIME_ROOM_DISPATCH binding) — wrap in an
-  // arrow so the lookup happens at call time, not init time.
   getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
   startRoomAnimationFromDraft: () => startRoomAnimationFromDraft?.(),
   syncRoomTargetSelect: () => syncRoomTargetSelect?.(),
@@ -2384,11 +2358,7 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   drawEffectVisual: (type, age, intensity, room, roomMetrics, options) => drawEffectVisual(type, age, intensity, room, roomMetrics, options),
   isHullFlickerLampOff: (age, speed, intensity) => isHullFlickerLampOff(age, speed, intensity),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
-  // Phase 19-4: post-draw mesh warp (unified grid projection)
   postDrawMeshWarp: (canvas, canvasCtx) => projectionPostDrawMeshWarp(canvas, canvasCtx),
-  // Phase 23 W2 v7: cluster pads need the room polygon pixels of
-  // the cluster's first member to crop the source region from the
-  // main fx-canvas and blit into the pad canvas.
   getRoomPolygonPixels: (room, w, h, boardId) => getRoomPolygonPixels(room, w, h, boardId),
 });
 const {
@@ -2437,9 +2407,6 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
 
 
 
-// Phase 13-2: zoom slider removed. Wheel + pinch gestures below replace it.
-// Mouse wheel over the stage: exponential scale delta, cursor-anchored.
-// Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
 
 // Phase 13-HF6: global "touch gesture in progress" flag. When true,
 // heavy DOM-read paths skip their work to keep the rAF path pure
@@ -2685,8 +2652,6 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   roomAnimationSettingsNameInput,
   roomAnimationRenameInput,
   roomAnimationRenameButton,
-  // Phase 22 W3a: icon-picker roots consumed by the mount() calls in
-  // wireFxPanelBinders so their onChange handlers can patch + persist.
   insideIconPicker,
   outsideIconPicker,
   roomIconPicker,
@@ -2780,9 +2745,6 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   syncInsideResourcePicker,
   syncOutsideDraftVisibilityFromInputs,
   syncOutsideRuntimeMirror,
-  // Phase 21-1: called by commitRoomDraftToDefinition to refresh the
-  // dashboard's per-start draft sliders the instant a Settings edit
-  // lands (so the first Start already uses the new default).
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
@@ -2978,7 +2940,6 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
 const resizeObserver = new ResizeObserver((entries) => {
   void entries;
   scheduleStageViewportLifecycle("resize-observer");
-  // Phase 19-2: recompute projection mapping on resize
   onProjectionWindowResize();
 });
 
@@ -2989,7 +2950,6 @@ if (projectionArea) {
 bindDevicePixelRatioWatcher();
 scheduleStageViewportLifecycle("startup-bind");
 
-// Phase 18: initialize slider touch guard for mobile scroll protection
 if (window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD) {
   window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD.init();
 }

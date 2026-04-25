@@ -765,7 +765,6 @@
           "Status: faulty animation isolated, render timer continues";
       }
 
-      // Phase 19-4: post-draw mesh warp — deform canvas through grid if needed
       ctx.postDrawMeshWarp?.(canvas, c);
 
       // Blit each cluster animation's first member

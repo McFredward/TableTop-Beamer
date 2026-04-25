@@ -741,9 +741,6 @@
         : "Status: Outside changes applied (persistence failed)";
     });
 
-    // Phase 20: wire the two-tab switcher in every animation section.
-    // Expects each section to contain `.animation-tab-button[data-animation-tab]`
-    // buttons and `[data-animation-tab-panel]` panels.
     const tabButtons = document.querySelectorAll(".animation-tab-button[data-animation-tab]");
     for (const button of tabButtons) {
       button.addEventListener("click", () => {

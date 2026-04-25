@@ -1132,11 +1132,6 @@
       );
       button.classList.toggle("active", isActive);
     });
-    // Phase 23 W2: cluster pads share the same state-driven update
-    // cadence as the global buttons — running scope flips and board
-    // switches both reach refreshGlobalButtons through the existing
-    // lifecycle hooks. Piggyback on it instead of wiring a parallel
-    // call site.
     try { renderClusterPads(); } catch { /* defensive — never crash render loop */ }
   }
 
