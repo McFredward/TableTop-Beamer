@@ -382,7 +382,19 @@
     _gl.clear(_gl.COLOR_BUFFER_BIT);
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
-    if (!isOutput) {
+    if (isOutput) {
+      // Phase 23 W3 v3: clear fx-canvas after texture upload so its
+      // (now-stale) UNWARPED content can't leak through the alpha=0
+      // areas of the GL framebuffer. Without this, transparent areas
+      // of the warped triangles let fx-canvas show through and you
+      // see both the warped animation AND the original unwarped
+      // animation simultaneously — which looks like colours bleeding
+      // outside the room polygons.
+      canvasCtx.save();
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+      canvasCtx.restore();
+    } else {
       // Dashboard path — read GL result back onto fx-canvas so the
       // existing editor compositing path keeps working unchanged.
       canvasCtx.save();
