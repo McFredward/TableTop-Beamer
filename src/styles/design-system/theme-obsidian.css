@@ -1,5 +1,5 @@
 /* =============================================================
- * Phase 22 Wave 2a — Obsidian theme overlay.
+ * Obsidian theme overlay.
  *
  * Opts all existing control-panel markup into the Obsidian visual
  * identity (Inter typography, flat panels, pill buttons, iOS-style
@@ -10,7 +10,7 @@
  *
  * Every rule is scoped under `.dir-obsidian-dark` so nothing leaks
  * into `/output` (which also carries the class but hides the control
- * panel entirely) and so flipping to `.dir-obsidian-light` in Wave 5
+ * panel entirely) and so flipping to `.dir-obsidian-light` later
  * will swap palettes automatically.
  * ============================================================= */
 
@@ -132,7 +132,7 @@ body[data-output-role="final-output"].dir-obsidian {
   box-shadow: none;
 }
 
-/* Phase 22 W4: Settings subtab switcher — horizontal segmented look
+/* Settings subtab switcher — horizontal segmented look
  * matching the animation-editor scope tabs. Overrides the default
  * vertical grid layout of .view-switch. */
 .dir-obsidian .settings-subtab-switch {
@@ -169,7 +169,7 @@ body[data-output-role="final-output"].dir-obsidian {
   color: var(--c-text);
 }
 
-/* ----- Phase 22 W4: bundle share / import panel polish ----------- */
+/* ----- bundle share / import panel polish ----------- */
 
 .dir-obsidian .bundle-primary {
   background: var(--c-accent);
@@ -335,7 +335,7 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* Align-mode toggle — text + icon button, stays pill-shaped.
- * Phase 22 W5: explicitly override the legacy styles.css rule
+ * explicitly override the legacy styles.css rule
  * (`width: 100%` + `background: linear-gradient(dark blue)`) so
  * the topbar pill stays compact and theme-driven. The legacy rule
  * is loaded BEFORE us, but our `.dir-obsidian .align-mode-toggle`
@@ -369,7 +369,7 @@ body[data-output-role="final-output"].dir-obsidian {
   border-color: transparent;
 }
 
-/* Phase 22 W5: theme toggle button — shows sun in dark mode (click
+/* theme toggle button — shows sun in dark mode (click
  * to go light), moon in light mode (click to go dark). */
 .dir-obsidian .theme-toggle {
   display: inline-flex;
@@ -419,7 +419,7 @@ body[data-output-role="final-output"].dir-obsidian {
   color: var(--c-text);
 }
 
-/* Phase 22 W3b polish: native <option> dropdown panels inherit the OS
+/* native <option> dropdown panels inherit the OS
  * default (white bg + white text on some setups). Force a SOLID dark
  * surface (not the token's rgba white-on-transparent, which composites
  * to white on the OS dropdown layer) and a light text colour so the
@@ -684,7 +684,7 @@ body[data-output-role="final-output"].dir-obsidian {
 /* ----- Top chrome (W2b) ----------------------------------------- */
 
 .dir-obsidian .rd-topbar {
-  /* Phase 22 W5: stack brand on row 1, action cluster on row 2.
+  /* stack brand on row 1, action cluster on row 2.
    * Single-row topbar kept clipping "TableTop Beamer" once the
    * Align + theme + count chip filled the right side. Two rows
    * give the brand full width and let the actions breathe below. */
@@ -700,7 +700,7 @@ body[data-output-role="final-output"].dir-obsidian {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  /* Phase 22 W5: parent topbar is now column-flex, so the brand
+  /* parent topbar is now column-flex, so the brand
    * row spans the full width — text never gets clipped by the
    * action cluster (which lives on its own row below). */
   width: 100%;
@@ -750,7 +750,7 @@ body[data-output-role="final-output"].dir-obsidian {
   display: flex;
   align-items: center;
   gap: var(--rd-s-2);
-  /* Phase 22 W5: actions live on their own row beneath the brand —
+  /* actions live on their own row beneath the brand —
    * pin them to the right edge of that row via justify-content so
    * the visual hierarchy is clear (chip + Align + theme stay
    * grouped on the right; brand reads first on row 1). */
@@ -844,7 +844,7 @@ body[data-output-role="final-output"].dir-obsidian {
   background: var(--c-accent);
 }
 
-/* Phase 22 W5: two-line running-count chip — default vs custom.
+/* two-line running-count chip — default vs custom.
  * Stacked vertically in the same chip body so the topbar slot keeps
  * its footprint; dot aligns with the first line. */
 .dir-obsidian .running-count-chip-stack {
@@ -881,7 +881,7 @@ body[data-output-role="final-output"].dir-obsidian {
   border: 0;
 }
 
-/* ----- Phase 22 W5: polygon + room-zone overlay polish ----------- *
+/* ----- polygon + room-zone overlay polish ----------- *
  * Pre-Obsidian visuals used a wide mix of cyan/teal/amber/red tints
  * that read as noisy against the new flat surfaces. Collapse the
  * palette onto the Obsidian accent family: default = translucent
@@ -1071,7 +1071,7 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* ----- Quick Mode animation picker (W2c) ------------------------
- * Was: horizontal scrolling pills of text (Phase 18).
+ * Was: horizontal scrolling pills of text.
  * Now: 4-column tile grid with icon + label. Selected state gets a
  * mint accent ring + tinted background; hover subtly lifts.
  * ------------------------------------------------------------- */
@@ -1084,7 +1084,7 @@ body[data-output-role="final-output"].dir-obsidian {
   padding: 0;
 }
 
-/* The Phase 18 JS toggles visibility via inline style.display; respect
+/* The runtime JS toggles visibility via inline style.display; respect
  * that so Select still hides the picker. Without this, the !important-
  * free display: grid above would always win in the Obsidian direction. */
 .dir-obsidian .quick-animation-picker[style*="display: none"],
@@ -1159,7 +1159,7 @@ body[data-output-role="final-output"].dir-obsidian {
  * each .running-item is restyled as an Obsidian card row:
  *     [icon tile]  Title                             [Edit] [Stop]
  *                  scope · room · N% · 1.0× · hold
- * The verbose debug meta from Phase 18 (Instance:…, Type:…, Board:…)
+ * The verbose debug meta (Instance:…, Type:…, Board:…)
  * becomes a single-line sub-meta via ellipsis — same information,
  * tighter visual. Everything still fits the 390 px sidebar.
  * ------------------------------------------------------------- */
@@ -1450,7 +1450,7 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* =============================================================
- * Phase 22 W5 — responsive breakpoints (dashboard + topbar)
+ * responsive breakpoints (dashboard + topbar)
  *
  * Complements the responsive block in animation-editor.css so the
  * whole Obsidian surface shrinks gracefully on narrower laptops,
@@ -1544,7 +1544,7 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* =============================================================
- * Phase 23 W2 — Cluster pads (artificial mini-rooms next to board)
+ * Cluster pads (artificial mini-rooms next to board)
  *
  * The pads sit absolutely-positioned to the right of the board
  * image, inside #stage so they pan/zoom with it. The board's
@@ -1555,10 +1555,10 @@ body[data-output-role="final-output"].dir-obsidian {
  * Each pad is a square-ish render surface with the cluster name
  * label, an inline x clear control, and a running-state dot. The
  * inner render area is what the cluster animation paints into
- * (Wave 2 next step).
+ * (rendered in a follow-up step).
  * ============================================================= */
 
-/* Phase 23 W3 v3: cluster pads now use position:fixed (since W2 v6)
+/* cluster pads use position:fixed
  * so they're not constrained by #stage or .projection-area. We can
  * restore the default overflow:hidden on both, which clips stage
  * content (board image, fx-canvas) when zoomed/panned past the
@@ -1566,7 +1566,7 @@ body[data-output-role="final-output"].dir-obsidian {
  * the dashboard chrome on zoom-in / large pans. */
 
 .cluster-pads {
-  /* Phase 23 W2 v6: position:fixed + JS-driven sync to the stage
+  /* position:fixed + JS-driven sync to the stage
    * bounding rect. The rail is no longer a child of #stage so it
    * isn't subject to the projection-area / app-shell / body
    * overflow:hidden chain that kept clipping it on the dashboard.
@@ -1576,7 +1576,7 @@ body[data-output-role="final-output"].dir-obsidian {
    * + padding-right then place it just left of the stage's
    * visible left edge, scaled to match.
    *
-   * Phase 23 W2 v8: the rail is now a header + scrollable list. The
+   * the rail is now a header + scrollable list. The
    * outer box keeps its fixed positioning + scale; the inner
    * .cluster-pads-list owns the scroll. */
   position: fixed;
@@ -1699,7 +1699,7 @@ body[data-output-role="final-output"] .cluster-pads {
   width: 100%;
   height: 100%;
   display: block;
-  /* Phase 23 W2 v7: pad canvas is the rendered animation surface,
+  /* pad canvas is the rendered animation surface,
    * cropped from the main fx-canvas each frame. Background stays
    * transparent so the pad's own bg shows through where the source
    * room's polygon doesn't paint pixels. */
@@ -1746,7 +1746,7 @@ body[data-output-role="final-output"] .cluster-pads {
   50%      { opacity: 0.55; transform: scale(0.85); }
 }
 
-/* Phase 23 W2 v6: .cluster-pad-clear removed — pad tap routes
+/* .cluster-pad-clear removed — pad tap routes
  * through the active Tap-Action mode (Off / Toggle / Clear). The
  * running-state dot in the top-right gives the user visual
  * feedback when an animation is dispatched on the cluster. */
@@ -1758,7 +1758,7 @@ body[data-output-role="final-output"] .cluster-pads {
     padding-right: 8px;
   }
 }
-/* Phase 23 W2 v8: on small screens we keep the rail visible so the
+/* on small screens we keep the rail visible so the
  * user can still trigger clusters with touch. The rail narrows
  * further and the list scrolls vertically — touch momentum is on. */
 @media (max-width: 720px) {

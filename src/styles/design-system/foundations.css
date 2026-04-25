@@ -1,5 +1,5 @@
 /* =============================================================
- * Phase 22 Wave 1 — Obsidian design-system foundations.
+ * Obsidian design-system foundations.
  *
  * Sourced from .planning/design-system/redesign/foundations.css.
  * Only the two Obsidian directions ship (dark + light-stub).
@@ -10,7 +10,7 @@
  * `--rd-*` (design-system structural — spacing, radii, motion,
  * typography). This keeps them from colliding with the legacy
  * `--glow`, `--panel`, `--bg` tokens in src/styles.css; both sets
- * coexist throughout Phase 22 and the legacy ones retire in Wave 4.
+ * coexist throughout the design-system migration; the legacy ones retire later.
  * ============================================================= */
 
 :root {
@@ -55,7 +55,7 @@
 }
 
 /* =============================================================
- * Obsidian — dark (primary direction for Phase 22)
+ * Obsidian — dark (primary direction)
  * ============================================================= */
 .dir-obsidian-dark {
   --c-bg:         #0b0d10;
@@ -82,7 +82,7 @@
 }
 
 /* =============================================================
- * Obsidian — light (stub for Wave 5; same grammar, warm gray)
+ * Obsidian — light (stub; same grammar, warm gray)
  * ============================================================= */
 .dir-obsidian-light {
   --c-bg:         #F4F5F7;

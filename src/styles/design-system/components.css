@@ -1,5 +1,5 @@
 /* =============================================================
- * Phase 22 Wave 1 — Obsidian design-system components.
+ * Obsidian design-system components.
  *
  * Sourced from .planning/design-system/redesign/components.css.
  * Every rule is scoped to `.rd-*` classes so existing markup
@@ -350,7 +350,7 @@
   border-radius: 999px;
 }
 
-/* ---------- Icon picker (Phase 22 W3a) --------------------
+/* ---------- Icon picker --------------------
  * Compact grid of icon tiles used in each animation editor's Edit
  * Existing panel. Populated from TT_BEAMER_UI_ICONS.ICON_DEFS;
  * selection patches definition.icon — downstream resolveAnimationIcon

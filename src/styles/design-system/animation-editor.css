@@ -1,5 +1,5 @@
 /* =============================================================
- * Phase 22 W3b — full-page animation editor.
+ * full-page animation editor.
  *
  * Hidden by default (`#animation-editor-page[hidden]`). When the
  * user enters Settings → Animations we flip body[data-animation-
@@ -41,7 +41,7 @@ body[data-output-role="final-output"] #animation-editor-page {
   display: none !important;
 }
 
-/* Phase 22 W5: responsive collapse for narrow viewports.
+/* responsive collapse for narrow viewports.
  *   ≤1180 px — drop preview column (still reachable via pane edits)
  *   ≤880 px  — stack library above pane; topbar wraps. */
 @media (max-width: 1180px) {
@@ -105,7 +105,7 @@ body[data-output-role="final-output"] #animation-editor-page {
   min-width: 0;
 }
 
-/* Phase 22: editor-scoped board picker in the topbar. */
+/* editor-scoped board picker in the topbar. */
 .anim-editor-board-picker {
   display: grid;
   gap: 2px;
@@ -507,7 +507,7 @@ body[data-output-role="final-output"] #animation-editor-page {
 /* Icon-picker tiles inside the animation editor stay rectangular —
  * override the rounded .rd-icon-picker-tile default (which still
  * serves the Dashboard's other uses). */
-/* Phase 22 W3b-4 fix: deterministic tile sizing with flex centering.
+/* 4 fix: deterministic tile sizing with flex centering.
  * Previous implementation used `width/height: 100%` inside a grid
  * with `aspect-ratio` fallbacks that drifted in some browsers,
  * causing the tile's rendered box to exceed the grid-auto-rows
@@ -853,7 +853,7 @@ body[data-output-role="final-output"] #animation-editor-page {
   width: 100%;
 }
 
-/* Phase 22 W3b-4d: GIF/MP4 asset picker (dropdown + Upload + Delete). */
+/* 4d: GIF/MP4 asset picker (dropdown + Upload + Delete). */
 .anim-editor-asset-picker {
   display: grid;
   gap: 10px;
@@ -885,7 +885,7 @@ body[data-output-role="final-output"] #animation-editor-page {
   font-size: 12px;
 }
 
-/* Phase 22: preview fallback when asset file is 404. */
+/* preview fallback when asset file is 404. */
 .anim-editor-preview-missing {
   display: grid;
   place-items: center;
