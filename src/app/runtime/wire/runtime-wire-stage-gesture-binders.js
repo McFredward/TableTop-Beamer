@@ -1,6 +1,6 @@
 // stage wheel + touch gesture state machine binders.
 //
-// Wires the stage wheel listener and the Phase 13-HF4 centralised touch
+// Wires the stage wheel listener and the centralised touch
 // gesture state machine (idle/tentative/panning/pinching/drag) with
 // capture-phase pointerdown/move/up/cancel + contextmenu blocker.
 // Exposed as wireStageGestureBinders(ctx).

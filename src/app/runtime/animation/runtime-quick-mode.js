@@ -144,7 +144,7 @@
       return;
     }
     // Clear the inline display so the CSS layout rule
-    // wins. Legacy (Phase 18) theme used flex via inline style; the
+    // wins. The legacy theme used flex via inline style; the
     // Obsidian theme uses a grid declared in theme-obsidian.css.
     picker.style.display = "";
     // Get room animation definitions for current board
@@ -164,7 +164,7 @@
       picker.replaceChildren();
       // Build each entry as an icon tile (icon top, label
       // bottom). Icon resolution falls back through coded-effect type →
-      // name keyword → sparkles (see resolveAnimationIcon). Wave 3 will
+      // name keyword → sparkles (see resolveAnimationIcon). Future work will
       // let users override via the animation editor's icon picker.
       const icons = window.TT_BEAMER_UI_ICONS;
       for (const definition of animations) {

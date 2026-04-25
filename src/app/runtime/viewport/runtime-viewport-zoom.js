@@ -305,7 +305,7 @@
   }
 
   // Cursor-accurate zoom-around-anchor math for the stage's
-  // CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
+  // CSS `transform-origin: 50% 50%`. The previous absolute-anchor approach used the parent rect +
   // offsetLeft which implicitly assumes `transform-origin: 0 0` and
   // produced the wrong anchor on every zoom.
   function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {

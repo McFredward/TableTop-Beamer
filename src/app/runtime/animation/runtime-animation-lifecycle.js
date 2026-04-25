@@ -301,7 +301,7 @@
     }
     if (showOutsideFx) {
       // Fallback to the definition when the instance doesn't carry
-      // mode/direction yet (e.g. legacy running animation pre-Phase 21).
+      // mode/direction yet (e.g. legacy running animation from older snapshots).
       const outsideProfile = ctx.getOutsideFxProfile(animation.boardId);
       const definition = outsideProfile?.animations?.find((entry) => entry?.id === animation.type) ?? null;
       const effectiveMode = animation.mode ?? definition?.mode ?? "standard";

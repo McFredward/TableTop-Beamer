@@ -5,7 +5,7 @@
 // all part of the same grid.  Default 4x4 = 5x5 = 25 control points.
 //
 // - The 4 corner points control the CSS matrix3d perspective transform
-//   on .stage (same homography math as Phase 19-2).
+//   on .stage (same homography math as the original CSS-matrix3d implementation).
 // - Edge points are constrained to their axis.
 // - Interior points move freely for local canvas distortion.
 // - Grid lines are draggable as whole rows/columns.

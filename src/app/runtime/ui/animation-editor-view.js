@@ -493,7 +493,7 @@
       if (scope === "outside") {
         // Mode + direction used to live in
         // a separate Playback card; inlined into Defaults so the user
-        // has one consolidated tuning area. Phase 22 W3b polish: mode
+        // has one consolidated tuning area. Polish update: mode
         // + direction only render for coded outside effects — GIF and
         // MP4 ignore both at runtime, so the controls were dead UI.
         if (def.assetType === "coded") {

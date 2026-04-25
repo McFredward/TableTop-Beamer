@@ -341,7 +341,7 @@ state.remoteConfigUpdateAwaiting = false;
 // `getRoomTransform` and `getRoomPoints` independent of the live
 // polygon centroid, so vertex edits no longer shift the displayed
 // position of non-dragged vertices when stretch != 1.
-// See .planning/phases/phase-13/P13-HF13-T2-ROOT-CAUSE-ISOLATION.md.
+// See planning docs in .planning/phases/phase-13/ for the root-cause isolation derivation.
 state.roomStretchAnchorCache = new Map();
 
 const liveSync = window.TT_BEAMER_LIVE_SYNC_STATE.createLiveSyncState();
@@ -2193,7 +2193,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
   // Needed by the Live Editor to resolve outside definition
   // fallbacks (mode/direction) when the running instance doesn't carry
-  // those fields yet (legacy pre-Phase 21 snapshots).
+  // those fields yet (legacy snapshots that predate per-instance mode/direction).
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
   syncRoomStaggerOffsetControl: () => syncRoomStaggerOffsetControl(),
   syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
@@ -2410,7 +2410,7 @@ const {
 } = window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT;
 
 // Cursor-accurate zoom-around-anchor math for the stage's
-// CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
+// CSS `transform-origin: 50% 50%`. The previous absolute-anchor approach used the parent rect +
 // offsetLeft which implicitly assumes `transform-origin: 0 0` and
 // produced the wrong anchor on every zoom.
 //

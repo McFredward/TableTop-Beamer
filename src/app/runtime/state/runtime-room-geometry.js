@@ -2,7 +2,7 @@
 //
 // Owns the pure-ish room/ship polygon geometry helpers the rest of
 // the runtime consults: transform computation, stable stretch anchor
-// cache (HF13 structural fix), hit-area calibration, display-space
+// cache (stable-anchor structural fix), hit-area calibration, display-space
 // coordinate conversion, and per-room metrics used by the draw loop.
 //
 // Consumer API is destructured back into runtime-orchestration.js so
@@ -46,7 +46,7 @@
   // transform (and therefore every consumer of getRoomPoints: full
   // rebuild, incremental drag renderer, hit testing, zoom centering,
   // polygon editor handle renderer, …) stable when a single vertex
-  // is edited on a room with stretch != 1. See P13-HF13-T2.
+  // is edited on a room with stretch != 1. See planning docs in .planning/phases/phase-13/.
   function getStableRoomStretchAnchor(room, boardId) {
     const state = ctx.state;
     const effectiveBoardId = boardId ?? state.boardId;

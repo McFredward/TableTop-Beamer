@@ -2,7 +2,7 @@
 //
 // Owns the Audio() voice pool, the active-animation audio map, the
 // pending start-delay timers, and the cross-client revision memory
-// used by the Phase 11 global-trigger loop-once guards. The module
+// used by the global-trigger loop-once guards. The module
 // also owns the audio status + mapping UI sync helpers so every
 // audio path lives in one place.
 //
