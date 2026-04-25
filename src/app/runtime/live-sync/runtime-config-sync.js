@@ -1,4 +1,4 @@
-// Phase 14-2: config-sync module.
+// config-sync module.
 //
 // Owns the local-dirty flag lifecycle + server apply/discard
 // transport + blocking server-unreachable overlay. This is the

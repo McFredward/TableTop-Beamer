@@ -1,4 +1,4 @@
-// Phase 14-2: live-sync core module.
+// live-sync core module.
 //
 // Owns the live-sync command/snapshot pipeline:
 //   - shouldApplySnapshotVersion (monotonic version gate)

@@ -1,4 +1,4 @@
-// Phase 14-2: audio pipeline module.
+// audio pipeline module.
 //
 // Owns the Audio() voice pool, the active-animation audio map, the
 // pending start-delay timers, and the cross-client revision memory

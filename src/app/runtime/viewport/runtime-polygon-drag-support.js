@@ -1,4 +1,4 @@
-// Phase 14-2: polygon-drag support module.
+// polygon-drag support module.
 //
 // This module owns the infrastructure the room/ship polygon drag
 // pipelines rely on: heavy-interaction flag, rAF-coalesced overlay

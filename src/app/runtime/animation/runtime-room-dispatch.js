@@ -1,4 +1,4 @@
-// Phase 14-2: room dispatch module.
+// room dispatch module.
 //
 // Owns startRoomAnimationFromDraft — the single 530-LOC function that
 // transforms state.roomDraft into concrete running animations (or

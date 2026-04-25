@@ -1,4 +1,4 @@
-// Phase 14-2: asset-ref normalizer module.
+// asset-ref normalizer module.
 //
 // Pure helpers for coded/gif/mp4 asset reference classification and
 // normalization across room, inside, and outside FX profiles.

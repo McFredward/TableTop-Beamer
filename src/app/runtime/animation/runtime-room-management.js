@@ -1,4 +1,4 @@
-// Phase 14-2: room + cluster management module.
+// room + cluster management module.
 //
 // Owns room CRUD (create/delete/rename/copy/paste), cluster CRUD
 // (create/update/delete/select), room/cluster target selectors,

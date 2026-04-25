@@ -1,4 +1,4 @@
-// Phase 14-2: outside MP4 playback module.
+// outside MP4 playback module.
 //
 // Owns the outside (and room) MP4/video playback caches, lifecycle
 // state, prewarm logic, fallback canvas capture/replay, and the

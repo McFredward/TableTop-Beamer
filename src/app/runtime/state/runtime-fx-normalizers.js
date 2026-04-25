@@ -1,4 +1,4 @@
-// Phase 14-2: inside/outside/room FX profile normalizer module.
+// inside/outside/room FX profile normalizer module.
 //
 // Owns the normalize/create/get/set helpers for FX profiles across
 // the three scopes (inside, outside, room). All cross-dependencies

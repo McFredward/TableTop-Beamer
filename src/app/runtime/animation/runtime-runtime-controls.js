@@ -1,4 +1,4 @@
-// Phase 14-2: runtime controls module.
+// runtime controls module.
 //
 // Owns the high-level runtime control surface that doesn't fit into
 // any other module:

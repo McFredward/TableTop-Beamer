@@ -1,4 +1,4 @@
-// Phase 14-2: global defaults API + error/hint formatting module.
+// global defaults API + error/hint formatting module.
 //
 // Owns the global-defaults API facade singleton, fetchWithTimeout with
 // abort-error translation, all API classification + host/routing

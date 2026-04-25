@@ -1,4 +1,4 @@
-// Phase 14-2: zone loader + board import module.
+// zone loader + board import module.
 //
 // Owns the board catalog loading pipeline (HTTP + static fallback
 // chain with last-known-good memory), the JSON/image board import

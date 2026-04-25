@@ -1,4 +1,4 @@
-// Phase 14-2: canvas clipping helpers module.
+// canvas clipping helpers module.
 //
 // Owns the 2D-canvas polygon clipping helpers used by the draw loop
 // to mask room animations, ship interiors, and outside-ship

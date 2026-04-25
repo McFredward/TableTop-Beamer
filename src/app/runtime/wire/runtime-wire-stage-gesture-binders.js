@@ -1,4 +1,4 @@
-// Phase 14-2: stage wheel + touch gesture state machine binders.
+// stage wheel + touch gesture state machine binders.
 //
 // Wires the stage wheel listener and the Phase 13-HF4 centralised touch
 // gesture state machine (idle/tentative/panning/pinching/drag) with

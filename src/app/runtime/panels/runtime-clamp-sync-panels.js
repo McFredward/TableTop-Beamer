@@ -1,4 +1,4 @@
-// Phase 14-2: clamp helpers + hitarea/room-geometry panel syncs.
+// clamp helpers + hitarea/room-geometry panel syncs.
 //
 // Owns assorted clamp helpers (room speed/sound-volume/cluster-stagger-
 // offset/audio-volume/animation-speed/outside-intensity/outside-speed),

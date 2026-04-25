@@ -1,4 +1,4 @@
-// Phase 14-2: runtime-side polygon normalizers.
+// runtime-side polygon normalizers.
 //
 // These are the permissive ([-0.2, 1.2]) normalization helpers used by
 // the runtime's drag pipeline and specialPolygon persistence. They are

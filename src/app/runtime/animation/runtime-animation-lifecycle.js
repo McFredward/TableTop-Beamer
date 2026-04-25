@@ -1,4 +1,4 @@
-// Phase 14-2: animation lifecycle module.
+// animation lifecycle module.
 //
 // Owns the animation stop/edit dispatch pipeline:
 //   - collectAnimationStopIds / buildStopCommandTargetMeta

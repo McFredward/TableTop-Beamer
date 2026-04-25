@@ -1,4 +1,4 @@
-// Phase 14-2: draw loop module.
+// draw loop module.
 //
 // Owns the top-level rAF draw loop and every function it calls:
 //   - draw(now) + rAF self-reschedule

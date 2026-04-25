@@ -1,4 +1,4 @@
-// Phase 14-2: mobile layout + view visibility module.
+// mobile layout + view visibility module.
 //
 // Owns the mobile viewport probes (isMobileViewport,
 // isMobilePortraitViewport, getMobileOrientationLabel), mobile

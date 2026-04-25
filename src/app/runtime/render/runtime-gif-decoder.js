@@ -1,4 +1,4 @@
-// Phase 14-2: pure GIF decoder module.
+// pure GIF decoder module.
 //
 // No runtime state. These functions only operate on byte arrays and
 // return decoded data structures. `decodeGifPlaybackFramesWithParser`

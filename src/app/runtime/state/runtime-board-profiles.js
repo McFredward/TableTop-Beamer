@@ -1,4 +1,4 @@
-// Phase 14-2: board profile hydration module.
+// board profile hydration module.
 //
 // Owns the board-profile shape: create defaults, build snapshots from
 // runtime state, serialize to storage, apply hydrated profiles back to

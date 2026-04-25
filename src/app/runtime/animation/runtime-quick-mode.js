@@ -1,4 +1,4 @@
-// Phase 14-2: quick-mode module.
+// quick-mode module.
 //
 // Owns the quick-mode state machine (off/activate/deactivate/clear),
 // per-room inflight tracking, tap dispatch, and status sync.

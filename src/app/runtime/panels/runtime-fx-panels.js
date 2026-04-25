@@ -1,4 +1,4 @@
-// Phase 14-2: FX panel syncs module.
+// FX panel syncs module.
 //
 // Owns the inside/room/outside FX panel DOM sync + editor-draft
 // helpers: syncInsideFxPanel / syncRoomFxPanel / syncOutsideFxPanel,

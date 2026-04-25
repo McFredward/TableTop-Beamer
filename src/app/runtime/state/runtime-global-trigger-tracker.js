@@ -1,4 +1,4 @@
-// Phase 14-2: global trigger revision + one-shot replay tracker.
+// global trigger revision + one-shot replay tracker.
 //
 // Owns the bookkeeping for global trigger revisions (stop, clear,
 // start), the revision-key → seen-one-shot-run map, and the prime

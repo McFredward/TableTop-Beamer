@@ -1,4 +1,4 @@
-// Phase 14-2: runtime performance module.
+// runtime performance module.
 //
 // Owns the mp4/quality performance pipeline: performance-tier
 // normalization, adaptive quality-scale feedback loop, mp4 frame

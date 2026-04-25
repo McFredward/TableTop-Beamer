@@ -1,4 +1,4 @@
-// Phase 14-2: runtime regression self-tests module.
+// runtime regression self-tests module.
 //
 // Owns the 9 run*Regression functions that exercise view visibility,
 // layout scroll, startup defaults guard, zoom/pan editing, pan

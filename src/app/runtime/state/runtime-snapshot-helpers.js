@@ -1,4 +1,4 @@
-// Phase 14-2: runtime snapshot + toast + canonical-polygon issue module.
+// runtime snapshot + toast + canonical-polygon issue module.
 //
 // Owns the outbound runtime snapshot builder for live-sync, the
 // adaptive polling scheduler, the toast stack (with dedupe), the

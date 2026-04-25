@@ -1,4 +1,4 @@
-// Phase 14-2: viewport zoom + pan module.
+// viewport zoom + pan module.
 //
 // Owns the entire zoom/pan state machine: profile normalization,
 // bounds clamping, zoom panel sync, pan mode state, rAF-coalesced

@@ -1,4 +1,4 @@
-// Phase 14-2: room draft + cluster runtime helpers module.
+// room draft + cluster runtime helpers module.
 //
 // Owns the room draft UI state (captureRoomDraftUiSnapshot,
 // restoreRoomDraftUiSnapshot, normalizeRoomDraftUiField,

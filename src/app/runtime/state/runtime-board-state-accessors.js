@@ -1,4 +1,4 @@
-// Phase 14-2: per-board runtime state accessors.
+// per-board runtime state accessors.
 //
 // Owns per-board getters/setters for hitarea calibration, room
 // geometry, special polygons, room source points, active-polygon

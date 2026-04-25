@@ -1,4 +1,4 @@
-// Phase 14-2: room-geometry helpers module.
+// room-geometry helpers module.
 //
 // Owns the pure-ish room/ship polygon geometry helpers the rest of
 // the runtime consults: transform computation, stable stretch anchor

@@ -1,4 +1,4 @@
-// Phase 14-2: live-sync helpers module.
+// live-sync helpers module.
 //
 // Owns the mutation payload normalizer, the outside-FX + room-draft
 // outbound mutation emitters, the terminal one-shot replay guards,

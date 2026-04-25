@@ -1,4 +1,4 @@
-// Phase 14-2: application bootstrap module.
+// application bootstrap module.
 //
 // Owns syncRuntimePanelsFromState (runtime panel wire-up via the
 // canonical/legacy TT_BEAMER_RUNTIME_PANELS delegation) and

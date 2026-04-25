@@ -1,4 +1,4 @@
-// Phase 14-2: board switch module.
+// board switch module.
 //
 // Owns emitBoardLayoutContextMutation (context-update mutation),
 // shouldPreserveLifecycleStatusFeedback (lifecycle-status guard),

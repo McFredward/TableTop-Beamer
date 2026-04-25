@@ -1,4 +1,4 @@
-// Phase 14-2: polygon metrics + global animation helpers.
+// polygon metrics + global animation helpers.
 //
 // Owns getGlobalAnimationCategory, getGlobalCategoryRuntimeLabel,
 // getMappedSoundPathForAnimation, cloneBoardEntry, clampRoomStretch,

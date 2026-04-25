@@ -1,4 +1,4 @@
-// Phase 14-2: polygon editor panel sync module.
+// polygon editor panel sync module.
 //
 // Owns the DOM-facing sync helpers for the polygon editor panels:
 // vertex/edge selects, status lines, room and play-area selectors,

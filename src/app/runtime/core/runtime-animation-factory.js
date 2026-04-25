@@ -1,4 +1,4 @@
-// Phase 14-2: animation factory + small runtime helpers.
+// animation factory + small runtime helpers.
 //
 // Owns the monotonic animation id counter and the createAnimation
 // factory that clamps inputs and stamps startedAt/startedAtEpochMs.

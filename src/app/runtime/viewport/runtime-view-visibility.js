@@ -1,4 +1,4 @@
-// Phase 14-2: view visibility + exclusivity module.
+// view visibility + exclusivity module.
 //
 // Owns setViewGroupVisibility, isViewGroupVisible,
 // validateSettingsControlOwnership, validateViewExclusivity, and

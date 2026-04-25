@@ -1,4 +1,4 @@
-// Phase 14-2: room/inside/outside FX panel event binders.
+// room/inside/outside FX panel event binders.
 //
 // Wires 28 event listeners for the three FX panels: animation settings
 // create/select/delete, asset type/ref inputs, resource selects, apply

@@ -1,4 +1,4 @@
-// Phase 14-2: polygon editor + play area event binders.
+// polygon editor + play area event binders.
 //
 // Wires the polygon handle size slider, board zoom buttons, polygon
 // room/vertex/edge selects, visibility toggles, vertex insert/delete/reset/

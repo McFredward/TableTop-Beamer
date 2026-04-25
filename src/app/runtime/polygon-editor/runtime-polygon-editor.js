@@ -1,4 +1,4 @@
-// Phase 14-2: polygon editor drag/render + room overlay module.
+// polygon editor drag/render + room overlay module.
 //
 // Owns the polygon editor interaction surface: vertex + area drag
 // sessions for both ship polygon and room polygons, editor handle

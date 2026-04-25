@@ -1,4 +1,4 @@
-// Phase 14-2: navigation + board import + quick mode event binders.
+// navigation + board import + quick mode event binders.
 //
 // Wires board select, board import (JSON + image), view navigation
 // (dashboard / settings), settings subtab buttons, quick mode state

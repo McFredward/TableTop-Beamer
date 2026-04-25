@@ -1,4 +1,4 @@
-// Phase 14-2: roomOverlay pointer + document/window event binders.
+// roomOverlay pointer + document/window event binders.
 //
 // Wires the polygon drag pointer lifecycle on roomOverlay (pointermove/
 // up/cancel/down/click), document keyboard shortcuts (Ctrl+C/V, Delete,

@@ -1,4 +1,4 @@
-// Phase 14-2: coded effect visuals module.
+// coded effect visuals module.
 //
 // Owns drawEffectVisual — the dispatcher for coded (non-gif/mp4)
 // room and outside effects: outside-space parallax star field,

@@ -246,13 +246,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "room-resource-select",
 ];
 
-// Phase 14-2: stage viewport cluster (applyOutputRoleViewContract,
-// syncAlignModePanel, setAlignMode, collectStageViewportMetrics,
-// getCanonicalViewportRect, mapClientPointToNormalized,
-// mapNormalizedPointToPixels, applyStageViewportRecompute,
-// runStageViewportLifecycle, scheduleStageViewportLifecycle,
-// handleDevicePixelRatioChange, bindDevicePixelRatioWatcher) moved to
-// src/app/runtime/runtime-stage-viewport.js.
 const ctx = canvas.getContext("2d");
 
 window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
@@ -420,8 +413,6 @@ const {
   reconcileHydratedRunningAnimations,
 } = window.TT_BEAMER_EVENT_LIFECYCLE;
 
-// Phase 14-2: global trigger revision + one-shot replay tracking
-// moved to src/app/runtime/runtime-global-trigger-tracker.js.
 window.TT_BEAMER_RUNTIME_GLOBAL_TRIGGER_TRACKER.init({
   liveSync,
   isFiniteDurationGlobalAnimation: (a) => isFiniteDurationGlobalAnimation(a),
@@ -440,9 +431,6 @@ const {
   primeGlobalTriggerRuntimeTimestamps,
 } = window.TT_BEAMER_RUNTIME_GLOBAL_TRIGGER_TRACKER;
 
-// Phase 14-2: snapshot builder + polling scheduler + toast/error
-// + canonical-polygon issue helpers moved to
-// src/app/runtime/runtime-snapshot-helpers.js.
 window.TT_BEAMER_RUNTIME_SNAPSHOT_HELPERS.init({
   state,
   liveSync,
@@ -479,10 +467,6 @@ const {
   resolvePendingMutationsByVersion,
 } = window.TT_BEAMER_RUNTIME_SNAPSHOT_HELPERS;
 
-// Phase 14-2: live-sync core (shouldApplySnapshotVersion,
-// pollLiveSnapshotOnce, emitLiveMutation, applyLiveRuntimeSnapshot,
-// connectLiveSyncSocket — ~510 LOC) moved to
-// src/app/runtime/runtime-live-sync-core.js.
 window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   state,
   liveSync,
@@ -557,10 +541,6 @@ const { getBoard, getSelectedRoom } = window.TT_BEAMER_STATE.createStateSelector
 
 const ashParticles = [];
 let lastListRenderAt = 0;
-// Phase 14-2: audio pools + timers moved to runtime-audio.js
-// (module-private state). GIF playback cache moved to
-// runtime-gif-playback.js. Outside-mp4 caches + loop/fallback
-// constants moved to runtime-outside-mp4.js.
 const audioAssetCursorByEffect = {};
 let outsideResourceAssets = [];
 const outsideEditorDraftByBoard = {};
@@ -602,8 +582,6 @@ const {
   buildMigratedBoardProfiles: buildMigratedBoardProfilesFromPersistence,
 } = window.TT_BEAMER_PERSISTENCE;
 
-// Phase 14-2: polygon metrics + global animation helpers moved to
-// src/app/runtime/runtime-polygon-metrics.js.
 window.TT_BEAMER_RUNTIME_POLYGON_METRICS.init({
   state,
   GLOBAL_ANIMATIONS,
@@ -625,8 +603,6 @@ const {
   getPolygonEditorHandleMetrics,
 } = window.TT_BEAMER_RUNTIME_POLYGON_METRICS;
 
-// Phase 14-2: animation factory + flickerNoise + hitarea/geometry
-// update helpers moved to src/app/runtime/runtime-animation-factory.js.
 window.TT_BEAMER_RUNTIME_ANIMATION_FACTORY.init({
   state,
   hitareaStatus,
@@ -697,9 +673,6 @@ const BOARD_ZOOM_SCALE_MAX = 8.0;
 // Phase 13-3: shared guard for polygon vertex/edge pointerdown handlers.
 // Accepts touch pointers (which may report button === -1 on some browsers)
 // while still rejecting right-click / middle-click mouse events.
-// Phase 14-2: polygon contract + play areas + ship polygon +
-// room geometry + tombstones moved to
-// src/app/runtime/runtime-play-area-geometry.js.
 window.TT_BEAMER_RUNTIME_PLAY_AREA_GEOMETRY.init({
   state,
   SHIP_POLYGON_DEFAULT,
@@ -804,10 +777,6 @@ const {
   loadBoardProfiles,
 } = window.TT_BEAMER_RUNTIME_BOARD_PROFILES;
 
-// Phase 14-2: config-sync (persist/apply/discard, dirty flag
-// lifecycle, server-unreachable overlay ~180 LOC) moved to
-// src/app/runtime/runtime-config-sync.js. Init + destructure so
-// existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_CONFIG_SYNC.init({
   state,
   globalDefaultsStatus,
@@ -899,9 +868,6 @@ const {
   loadAndApplyGlobalDefaults,
 } = window.TT_BEAMER_RUNTIME_GLOBAL_DEFAULTS;
 
-// Phase 14-2: per-board state accessors (hitarea, geometry,
-// special polygons, room state profiles, clamp helpers, room type
-// predicates) moved to src/app/runtime/runtime-board-state-accessors.js.
 window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS.init({
   state,
   HITAREA_CALIBRATION_DEFAULT,
@@ -1077,15 +1043,11 @@ const {
   shouldApplyMutationEnvelope,
 } = window.TT_BEAMER_RUNTIME_LIVE_SYNC_HELPERS;
 
-// Phase 14-2: GIF decoder moved to runtime-gif-decoder.js.
 const {
   canDecodeGifFramesWithImageDecoder,
   decodeGifPlaybackFramesWithParser,
 } = window.TT_BEAMER_RUNTIME_GIF_DECODER;
 
-// Phase 14-2: GIF playback cache + frame getter live in
-// runtime-gif-playback.js. Init + destructure so call sites resolve
-// the same names.
 window.TT_BEAMER_RUNTIME_GIF_PLAYBACK.init({
   state,
   logRender,
@@ -1103,10 +1065,6 @@ const {
   warmRoomGifAssets,
 } = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
 
-// Phase 14-2: outside MP4 playback + caches live in
-// src/app/runtime/runtime-outside-mp4.js. Init + destructure so the
-// existing call sites (draw loop, outside apply, prewarm, …) resolve
-// the same names they did before the extraction.
 window.TT_BEAMER_RUNTIME_OUTSIDE_MP4.init({
   state,
   canvas,
@@ -1133,8 +1091,6 @@ const {
   ensureOutsideMp4Playback,
 } = window.TT_BEAMER_RUNTIME_OUTSIDE_MP4;
 
-// Phase 14-2: clamp helpers + hitarea/room-geometry panel syncs
-// moved to src/app/runtime/runtime-clamp-sync-panels.js.
 window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS.init({
   state,
   OUTSIDE_FX_DEFAULT,
@@ -1183,9 +1139,6 @@ const {
   syncRoomGeometryPanel,
 } = window.TT_BEAMER_RUNTIME_CLAMP_SYNC_PANELS;
 
-// Phase 14-2: mobile layout + view visibility + setDashboardZone
-// (~250 LOC) moved to src/app/runtime/runtime-mobile-layout.js.
-// Init + destructure so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_MOBILE_LAYOUT.init({
   state,
   controlPanel,
@@ -1230,9 +1183,6 @@ function shouldSuppressRapidTap(actionKey, thresholdMs = 320) {
   });
 }
 
-// Phase 14-2: runtime performance (mp4 quality loop, mobile
-// status, mp4 controls panel ~265 LOC) moved to
-// src/app/runtime/runtime-perf.js.
 window.TT_BEAMER_RUNTIME_PERF.init({
   state,
   mobilePerformanceStatus,
@@ -1268,11 +1218,6 @@ const {
   updateMp4PerformanceControls,
 } = window.TT_BEAMER_RUNTIME_PERF;
 
-// Phase 14-2: runtime controls (~200 LOC: recordTriggerIntent,
-// hardStopRuntimeEffects, executeClearAll, clear-all guard, settings
-// subtab state machine, upsertGlobalAnimation) moved to
-// src/app/runtime/runtime-runtime-controls.js. Init + destructure
-// so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS.init({
   state,
   ashParticles,
@@ -1320,9 +1265,6 @@ const {
   upsertGlobalAnimation,
 } = window.TT_BEAMER_RUNTIME_RUNTIME_CONTROLS;
 
-// Phase 14-2: quick-mode state machine lives in
-// src/app/runtime/runtime-quick-mode.js. Init + destructure so call
-// sites resolve the same names they did before the extraction.
 window.TT_BEAMER_RUNTIME_QUICK_MODE.init({
   state,
   QUICK_MODE_VALUES,
@@ -1364,8 +1306,6 @@ const {
   handleQuickModeRoomTap,
 } = window.TT_BEAMER_RUNTIME_QUICK_MODE;
 
-// Phase 14-2: view visibility + exclusivity + setActiveView moved to
-// src/app/runtime/runtime-view-visibility.js.
 window.TT_BEAMER_RUNTIME_VIEW_VISIBILITY.init({
   state,
   controlPanel,
@@ -1402,9 +1342,6 @@ const {
   setActiveView,
 } = window.TT_BEAMER_RUNTIME_VIEW_VISIBILITY;
 
-// Phase 14-2: 9 run*Regression runtime self-tests moved to
-// src/app/runtime/runtime-regression-tests.js. Init + destructure so
-// existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_REGRESSION_TESTS.init({
   state,
   canvasCtx: ctx,
@@ -1466,8 +1403,6 @@ const {
   runShipClipRegression,
 } = window.TT_BEAMER_RUNTIME_REGRESSION_TESTS;
 
-// Phase 14-2: polygon editor panel syncs moved to
-// src/app/runtime/runtime-polygon-editor-panels.js.
 window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS.init({
   state,
   polygonEditorStatus,
@@ -1516,8 +1451,6 @@ const {
   syncShipPolygonEditorPanel,
 } = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS;
 
-// Phase 14-2: asset-ref normalizers moved to
-// src/app/runtime/runtime-asset-refs.js.
 window.TT_BEAMER_RUNTIME_ASSET_REFS.init({
   OUTSIDE_SHIP_GLOBAL_ANIMATIONS,
   normalizeOutsideAnimationId: (id, fallback) => normalizeOutsideAnimationId(id, fallback),
@@ -1881,8 +1814,6 @@ const {
   renderRoomOverlay,
 } = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR;
 
-// Phase 14-2: board switch cluster moved to
-// src/app/runtime/runtime-board-switch.js.
 window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   state,
   ROOM_GEOMETRY_DEFAULT,
@@ -1926,9 +1857,6 @@ const {
   ensureBoardRoomStateMaps,
 } = window.TT_BEAMER_RUNTIME_BOARD_SWITCH;
 
-// Phase 14-2: room + cluster management (~615 LOC) moved to
-// src/app/runtime/runtime-room-management.js. Init + destructure
-// so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT.init({
   state,
   clusterSelect,
@@ -2133,9 +2061,6 @@ const {
 polygonUndoButton?.addEventListener("click", () => polygonUndo());
 polygonRedoButton?.addEventListener("click", () => polygonRedo());
 
-// Phase 14-2: room draft UI state + cluster runtime helpers
-// (~330 LOC) moved to src/app/runtime/runtime-room-draft.js.
-// Init + destructure so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_ROOM_DRAFT.init({
   state,
   CLUSTER_STAGGER_OFFSET_DEFAULT_MS,
@@ -2203,9 +2128,6 @@ const {
 // clipToRoom, etc.) have been destructured — see the init block
 // after flickerNoise below.
 
-// Phase 14-2: startRoomAnimationFromDraft moved to
-// src/app/runtime/runtime-room-dispatch.js. Init + destructure so
-// existing call sites resolve the same name.
 window.TT_BEAMER_RUNTIME_ROOM_DISPATCH.init({
   state,
   triggerFeedback,
@@ -2242,10 +2164,6 @@ window.TT_BEAMER_RUNTIME_ROOM_DISPATCH.init({
 const { startRoomAnimationFromDraft } = window.TT_BEAMER_RUNTIME_ROOM_DISPATCH;
 
 
-// Phase 14-2: animation lifecycle (stop/edit/list + stop-pending
-// liveSync helpers) moved to
-// src/app/runtime/runtime-animation-lifecycle.js. Init + destructure
-// so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   state,
   liveSync,
@@ -2375,9 +2293,6 @@ const {
   closeLiveEditor,
 } = window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE;
 
-// Phase 14-2: canvas clip helpers live in
-// src/app/runtime/runtime-canvas-clip.js. Init + destructure so
-// existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_CANVAS_CLIP.init({
   state,
   canvas,
@@ -2400,9 +2315,6 @@ const {
 } = window.TT_BEAMER_RUNTIME_CANVAS_CLIP;
 
 
-// Phase 14-2: drawEffectVisual lives in
-// src/app/runtime/runtime-effect-visuals.js. Init + destructure so
-// existing call sites resolve the same name.
 window.TT_BEAMER_RUNTIME_EFFECT_VISUALS.init({
   state,
   canvas,
@@ -2414,11 +2326,6 @@ window.TT_BEAMER_RUNTIME_EFFECT_VISUALS.init({
 });
 const { drawEffectVisual, isHullFlickerLampOff } = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
 
-// Phase 14-2: draw loop (draw, pruneFinishedAnimations, drawOutsideFxLayer,
-// drawAnimation(Safely), drawInsideGlobalVisual, drawRoomComposition)
-// moved to src/app/runtime/runtime-draw-loop.js. Init + destructure so
-// existing call sites (e.g., applyClearAllResultToRuntime calling
-// drawAnimation or the rAF self-reschedule) resolve the same names.
 window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   state,
   canvas,
@@ -2495,8 +2402,6 @@ const {
   startDrawLoop,
 } = window.TT_BEAMER_RUNTIME_DRAW_LOOP;
 
-// Phase 14-2: navigation + board import + quick mode binders moved to
-// src/app/runtime/runtime-wire-navigation-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
   state,
   triggerFeedback,
@@ -2541,9 +2446,6 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
 // writes — no forced reflows. Set by the touch gesture state machine.
 let touchGestureActive = false;
 
-// Phase 14-2: polygon-drag support module (polygon drag flag, rAF
-// overlay render coalescer, cached drag DOM refs, incremental SVG
-// writer, heavy-interaction lifecycle, cached stage geometry).
 window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT.init({
   state,
   liveSync,
@@ -2591,9 +2493,6 @@ const {
 //   newPanX = panX + (layoutWidth/2 - stageLocalX) * (newScale - scale)
 //
 // No layoutLeft / layoutCenterX required — the math is differential.
-// Phase 14-2: viewport zoom + pan (~300 LOC scattered across 4
-// regions) moved to src/app/runtime/runtime-viewport-zoom.js.
-// Init + destructure so existing call sites resolve the same names.
 window.TT_BEAMER_RUNTIME_VIEWPORT_ZOOM.init({
   state,
   stage,
@@ -2640,8 +2539,6 @@ const {
   applyZoomScaleAroundClientPoint,
 } = window.TT_BEAMER_RUNTIME_VIEWPORT_ZOOM;
 
-// Phase 14-2: stage wheel + touch gesture state machine moved to
-// src/app/runtime/runtime-wire-stage-gesture-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_STAGE_GESTURE_BINDERS.wireStageGestureBinders({
   state,
   liveSync,
@@ -2709,8 +2606,6 @@ function deleteSelectedPolygonVertex() {
 }
 
 
-// Phase 14-2: polygon editor + play area event binders moved to
-// src/app/runtime/runtime-wire-polygon-editor-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   state,
   polygonHandleSizeInput,
@@ -2782,8 +2677,6 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   pushUndoState: (desc) => pushUndoState(desc),
 });
 
-// Phase 14-2: room/inside/outside FX panel event binders moved to
-// src/app/runtime/runtime-wire-fx-panel-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   state,
   roomAnimationSettingsCreateButton,
@@ -2898,8 +2791,6 @@ window.TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS.wireFxPanelBinders({
   emitOutsideFxMutation: (boardId, reason) => emitOutsideFxMutation(boardId, reason),
 });
 
-// Phase 14-2: roomOverlay pointer + document keyboard + window-level
-// event binders moved to src/app/runtime/runtime-wire-overlay-window-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
   state,
   liveSync,
@@ -2964,8 +2855,6 @@ window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
   upsertGlobalAnimation: (type, duration, opts) => upsertGlobalAnimation(type, duration, opts),
 });
 
-// Phase 14-2: room panel + audio + global config + mp4 perf binders
-// moved to src/app/runtime/runtime-wire-room-audio-binders.js.
 window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   state,
   triggerFeedback,
@@ -3105,8 +2994,6 @@ if (window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD) {
   window.TT_BEAMER_RUNTIME_SLIDER_TOUCH_GUARD.init();
 }
 
-// Phase 14-2: syncRuntimePanelsFromState + initializeApplication
-// moved to src/app/runtime/runtime-bootstrap.js.
 window.TT_BEAMER_RUNTIME_BOOTSTRAP.init({
   state,
   liveSync,

@@ -1,4 +1,4 @@
-// Phase 14-2: play area + room geometry + polygon contract module.
+// play area + room geometry + polygon contract module.
 //
 // Owns polygon acceptance predicate, room geometry mode/normalization/
 // default maps, room tombstone CRUD, special polygon merge helpers,

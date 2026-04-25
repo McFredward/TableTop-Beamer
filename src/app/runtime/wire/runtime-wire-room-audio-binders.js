@@ -1,4 +1,4 @@
-// Phase 14-2: room panel + audio + global config + mp4 perf binders.
+// room panel + audio + global config + mp4 perf binders.
 //
 // Wires dashboard global trigger mode, stopAll, room/cluster CRUD,
 // room animation select + draft inputs, audio enable/mapping/volume,

@@ -1,4 +1,4 @@
-// Phase 14-2: DOM ref collector.
+// DOM ref collector.
 //
 // Returns all runtime DOM element references as a single object.
 // Called once from orchestration; the result is destructured into

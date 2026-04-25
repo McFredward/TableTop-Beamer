@@ -1,4 +1,4 @@
-// Phase 14-2: stage viewport + align mode + mapping helpers.
+// stage viewport + align mode + mapping helpers.
 //
 // Owns applyOutputRoleViewContract, syncAlignModePanel, setAlignMode,
 // module-private stageViewport state, collectStageViewportMetrics,

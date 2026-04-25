@@ -1,4 +1,4 @@
-// Phase 14-2: GIF playback cache + frame getter module.
+// GIF playback cache + frame getter module.
 //
 // Owns the decoded-frame cache (per gif path), the lazy-decode
 // pipeline (ImageDecoder fast path + parser fallback via the
