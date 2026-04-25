@@ -1120,18 +1120,31 @@
   function renderClusterPads() {
     const { state } = ctx;
     const container = document.getElementById("cluster-pads");
-    if (!container) return;
+    if (!container) {
+      if (window.__TT_CLUSTER_DEBUG__) console.warn("[cluster-pads] container missing");
+      return;
+    }
     const clusters = (typeof ctx.getBoardRoomClusters === "function")
       ? (ctx.getBoardRoomClusters(state.boardId) || [])
       : [];
+    if (window.__TT_CLUSTER_DEBUG__) {
+      console.info(
+        "[cluster-pads] board=", state.boardId,
+        "clusters=", clusters.length,
+        "names=", clusters.map((c) => c.name).join(",") || "(none)",
+        "ctx.getBoardRoomClusters=", typeof ctx.getBoardRoomClusters,
+      );
+    }
 
     // Sync DOM children with cluster list. Reuse existing pads when
     // their clusterId matches so we don't churn DOM on every state
     // update — only running-state class flips.
     const existingByClusterId = new Map();
+    let emptyHint = null;
     for (const child of Array.from(container.children)) {
       const clusterId = child?.dataset?.clusterId;
       if (clusterId) existingByClusterId.set(clusterId, child);
+      else if (child?.classList?.contains("cluster-pads-empty")) emptyHint = child;
     }
     const seen = new Set();
     for (const cluster of clusters) {
@@ -1180,6 +1193,20 @@
     // Remove pads for clusters that no longer exist.
     for (const [clusterId, pad] of existingByClusterId) {
       if (!seen.has(clusterId)) pad.remove();
+    }
+    // Empty-state hint: show a soft "no clusters" pill when there
+    // are zero clusters on the active board so the rail position
+    // is verifiable at a glance + the user knows the surface
+    // exists.
+    if (clusters.length === 0) {
+      if (!emptyHint) {
+        emptyHint = document.createElement("div");
+        emptyHint.className = "cluster-pads-empty";
+        emptyHint.textContent = "No clusters on this board";
+        container.append(emptyHint);
+      }
+    } else if (emptyHint) {
+      emptyHint.remove();
     }
   }
 

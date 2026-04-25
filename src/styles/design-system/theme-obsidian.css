@@ -1593,8 +1593,26 @@ body[data-output-role="final-output"].dir-obsidian {
    * z-index a sibling .stage with a box-shadow could occlude). */
   z-index: 5;
 }
-.cluster-pads:empty {
-  display: none;
+/* Empty-state placeholder for the cluster rail. Visible while we
+ * have zero pads — this used to be `display: none` but hiding
+ * the container made it impossible to tell at a glance whether
+ * the rail itself is positioned correctly. The placeholder
+ * collapses (via :empty + :has on browsers that support it) when
+ * pads exist; otherwise it stays visible as a soft cue. */
+.cluster-pads-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  height: 64px;
+  padding: 8px;
+  border: 1px dashed var(--c-border-str, rgba(255, 255, 255, 0.14));
+  border-radius: 12px;
+  font-family: var(--rd-font-body);
+  font-size: 11px;
+  color: var(--c-text-3);
+  background: color-mix(in srgb, var(--c-bg-raised) 70%, transparent);
 }
 
 .cluster-pad {
