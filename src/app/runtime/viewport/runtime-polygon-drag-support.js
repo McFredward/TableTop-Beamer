@@ -46,10 +46,6 @@
     return touchActive || polygonDragActive;
   }
 
-  function isPolygonDragActive() {
-    return polygonDragActive;
-  }
-
   // Phase 13-HF8: rAF-coalesced wrapper around renderRoomOverlay().
   // Multiple same-frame drag pointermove events collapse into one SVG
   // rebuild per animation frame instead of one per event. finish*Drag
@@ -270,7 +266,6 @@
   window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT = {
     init,
     isHeavyInteractionActive,
-    isPolygonDragActive,
     scheduleRoomOverlayRender,
     flushPendingRoomOverlayRender,
     cacheRoomPolygonDragDomRefs,

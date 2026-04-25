@@ -59,8 +59,6 @@
   }
   buildDefaultPoints();
 
-  const CORNER_KEYS = ["topLeft", "topRight", "bottomRight", "bottomLeft"];
-
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function getPoint(row, col) {
@@ -1941,11 +1939,6 @@
     remapPoint,
     hasGridDisplacements,
     getCorners,
-    CORNER_KEYS,
-    // Legacy compat — grid warp is now post-draw, no begin/end needed.
-    // These are kept so nothing crashes if called.
-    beginGridWarpFrame: () => null,
-    endGridWarpFrame: () => {},
     getGrid: () => ({ srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: grid.points }),
     resetGrid,
   };

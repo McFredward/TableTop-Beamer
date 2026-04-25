@@ -37,6 +37,14 @@ Decisions:
 | C2 | `runtime-wire-calibration-binders.js` (entire 23-line no-op module deleted) | src/app/runtime/wire/runtime-wire-calibration-binders.js | 3 (declaration + export object + module-global write) | 0 |
 | C2 | `<script src=".../runtime-wire-calibration-binders.js" defer>` tag | index.html:862 | 1 | 0 |
 | C2 | `window.TT_BEAMER_RUNTIME_WIRE_CALIBRATION_BINDERS.wireCalibrationBinders({ ... })` orchestration call (~32 lines incl. ctx-thread args + Phase 14-2 comment) | runtime-orchestration.js:2539–2570 | 1 | 0 |
+| C3 | `readJson` function declaration | board-profiles.js:2–12 | 2 (decl + export) | 0 |
+| C3 | `writeJson` function declaration | board-profiles.js:14–21 | 2 (decl + export) | 0 |
+| C3 | `readJson, writeJson` entries in `window.TT_BEAMER_PERSISTENCE` export | board-profiles.js:185–186 | 2 | 0 |
+| C3 | `CORNER_KEYS` declaration | runtime-projection-mapping.js:62 | 2 (decl + export) | 0 |
+| C3 | `CORNER_KEYS, beginGridWarpFrame, endGridWarpFrame` exports + legacy-compat comment | runtime-projection-mapping.js:1944–1948 | 4 lines | 0 |
+| C3 | `isPolygonDragActive` function declaration | runtime-polygon-drag-support.js:49–51 | 2 (decl + export) | 0 |
+| C3 | `isPolygonDragActive` export entry | runtime-polygon-drag-support.js:273 | 1 | 0 |
+| C3 | `buildPlaybackCard(scope, def, boardId)` + 3-line header comment | animation-editor-view.js:579–608 | 1 | 0 |
 
 ## Kept (false positive)
 

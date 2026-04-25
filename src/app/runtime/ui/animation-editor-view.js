@@ -576,37 +576,6 @@
 
   // -------- Scope-specific cards (W3b-3) --------------------------
 
-  // Outside animations add Mode + Direction. Inside / Room don't
-  // have those concepts on the runtime side, so we return null and
-  // the card is omitted.
-  function buildPlaybackCard(scope, def, boardId) {
-    if (scope !== "outside") return null;
-    const card = document.createElement("section");
-    card.className = "anim-editor-card";
-    const eyebrow = document.createElement("p");
-    eyebrow.className = "anim-editor-card-eyebrow";
-    eyebrow.textContent = "Playback";
-    card.append(eyebrow);
-
-    card.append(buildSelectRow(scope, def, boardId, {
-      key: "mode",
-      label: "Mode",
-      options: [
-        { value: "standard", label: "Standard" },
-        { value: "immersive", label: "Immersive" },
-      ],
-    }));
-    card.append(buildSelectRow(scope, def, boardId, {
-      key: "direction",
-      label: "Direction",
-      options: [
-        { value: "forward", label: "Forward" },
-        { value: "reverse", label: "Reverse" },
-      ],
-    }));
-    return card;
-  }
-
   // Room animations of the `solid-color` coded variant expose a color
   // swatch; hull-flicker exposes breaksSolidColor. Non-matching
   // variants don't need this card.

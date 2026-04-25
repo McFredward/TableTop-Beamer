@@ -1,25 +1,4 @@
 (() => {
-  function readJson(storage, key) {
-    try {
-      const raw = storage.getItem(key);
-      if (!raw) {
-        return null;
-      }
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
-
-  function writeJson(storage, key, value) {
-    try {
-      storage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   function extractBoardProfilesCandidate(raw, boards) {
     if (!raw || typeof raw !== "object") {
       return null;
@@ -182,8 +161,6 @@
   }
 
   window.TT_BEAMER_PERSISTENCE = {
-    readJson,
-    writeJson,
     extractBoardProfilesCandidate,
     buildMigratedBoardProfiles,
   };
