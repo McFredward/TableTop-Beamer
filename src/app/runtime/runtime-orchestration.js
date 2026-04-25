@@ -2481,6 +2481,10 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
   // Phase 19-4: post-draw mesh warp (unified grid projection)
   postDrawMeshWarp: (canvas, canvasCtx) => projectionPostDrawMeshWarp(canvas, canvasCtx),
+  // Phase 23 W2 v7: cluster pads need the room polygon pixels of
+  // the cluster's first member to crop the source region from the
+  // main fx-canvas and blit into the pad canvas.
+  getRoomPolygonPixels: (room, w, h, boardId) => getRoomPolygonPixels(room, w, h, boardId),
 });
 const {
   drawRoomComposition,

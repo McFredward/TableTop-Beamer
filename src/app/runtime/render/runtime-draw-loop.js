@@ -549,6 +549,78 @@
     }
   }
 
+  // Phase 23 W2 v7: copy each cluster's first member room region from
+  // the main fx-canvas into its corresponding cluster-pad canvas. The
+  // user sees the cluster's animation playing inside the pad as if
+  // it were a real mini-room. Runs once per frame after the main
+  // draw is complete. Uses image smoothing so the small pad surface
+  // doesn't look pixelated.
+  function drawClusterPadCanvases(_now) {
+    const state = ctx.state;
+    const padContainer = document.getElementById("cluster-pads");
+    if (!padContainer) return;
+    const mainCanvas = ctx.canvas;
+    const dpr = window.devicePixelRatio || 1;
+    for (const anim of state.runningAnimations) {
+      if (anim?.scope !== "cluster") continue;
+      if (anim.boardId !== state.boardId) continue;
+      const clusterId = String(anim.clusterId || "").trim();
+      if (!clusterId) continue;
+      const pad = padContainer.querySelector(`.cluster-pad[data-cluster-id="${clusterId.replace(/"/g, '\\"')}"]`);
+      if (!pad) continue;
+      const padCanvas = pad.querySelector(".cluster-pad-canvas");
+      if (!padCanvas) continue;
+      const cssRect = padCanvas.getBoundingClientRect();
+      if (cssRect.width <= 0 || cssRect.height <= 0) continue;
+      const targetW = Math.max(1, Math.round(cssRect.width * dpr));
+      const targetH = Math.max(1, Math.round(cssRect.height * dpr));
+      if (padCanvas.width !== targetW) padCanvas.width = targetW;
+      if (padCanvas.height !== targetH) padCanvas.height = targetH;
+      const padCtx = padCanvas.getContext("2d");
+      padCtx.clearRect(0, 0, padCanvas.width, padCanvas.height);
+
+      // Pick the cluster's first member room as the source view.
+      let memberViews = [];
+      try { memberViews = ctx.buildClusterMemberRuntimeViews(anim) || []; } catch { /* defensive */ }
+      if (memberViews.length === 0) continue;
+      const board = ctx.getBoard(anim.boardId);
+      const room = board?.rooms?.find((r) => r.id === memberViews[0].roomId);
+      if (!room) continue;
+
+      // Compute the room polygon's bounding box on the main canvas.
+      let polygonPixels = null;
+      try {
+        polygonPixels = ctx.getRoomPolygonPixels(room, mainCanvas.width, mainCanvas.height, anim.boardId);
+      } catch { /* defensive */ }
+      if (!Array.isArray(polygonPixels) || polygonPixels.length < 3) continue;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const point of polygonPixels) {
+        if (!Array.isArray(point) || point.length < 2) continue;
+        const px = Number(point[0]);
+        const py = Number(point[1]);
+        if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      }
+      const srcW = maxX - minX;
+      const srcH = maxY - minY;
+      if (!(srcW > 0) || !(srcH > 0)) continue;
+      // Clamp source rect to canvas bounds.
+      const sx = Math.max(0, Math.min(mainCanvas.width, minX));
+      const sy = Math.max(0, Math.min(mainCanvas.height, minY));
+      const sw = Math.max(1, Math.min(mainCanvas.width - sx, srcW));
+      const sh = Math.max(1, Math.min(mainCanvas.height - sy, srcH));
+
+      padCtx.imageSmoothingEnabled = true;
+      padCtx.imageSmoothingQuality = "high";
+      try {
+        padCtx.drawImage(mainCanvas, sx, sy, sw, sh, 0, 0, padCanvas.width, padCanvas.height);
+      } catch { /* defensive */ }
+    }
+  }
+
   function draw(now) {
     const state = ctx.state;
     const c = ctx.canvasCtx;
@@ -643,6 +715,15 @@
 
       // Phase 19-4: post-draw mesh warp — deform canvas through grid if needed
       ctx.postDrawMeshWarp?.(canvas, c);
+
+      // Phase 23 W2 v7: blit each cluster animation's first member
+      // room region into its pad canvas. Pads are off-stage DOM
+      // elements that mirror the cluster's rendered animation as a
+      // miniature room. Runs only on dashboard (control role); /output/
+      // doesn't render the rail at all.
+      if (ctx.getOutputRole() !== ctx.OUTPUT_ROLE_FINAL) {
+        drawClusterPadCanvases(now);
+      }
 
       if (
         ctx.getOutputRole() !== ctx.OUTPUT_ROLE_FINAL

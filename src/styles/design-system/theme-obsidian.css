@@ -1660,6 +1660,18 @@ body[data-output-role="final-output"] .cluster-pads {
   inset: 0;
   pointer-events: none;
 }
+.cluster-pad-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Phase 23 W2 v7: pad canvas is the rendered animation surface,
+   * cropped from the main fx-canvas each frame. Background stays
+   * transparent so the pad's own bg shows through where the source
+   * room's polygon doesn't paint pixels. */
+  background: transparent;
+}
 
 .cluster-pad-label {
   position: absolute;

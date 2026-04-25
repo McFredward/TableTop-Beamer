@@ -1216,6 +1216,14 @@
         pad.dataset.clusterId = clusterId;
         const render = document.createElement("div");
         render.className = "cluster-pad-render";
+        // Phase 23 W2 v7: per-pad canvas. Animation pixels for the
+        // cluster's first member room get blitted in here every frame
+        // by the draw loop's drawClusterPadCanvases pass — see
+        // runtime-draw-loop.js. The pad now visually IS the running
+        // animation, not a static label.
+        const canvas = document.createElement("canvas");
+        canvas.className = "cluster-pad-canvas";
+        render.appendChild(canvas);
         const dot = document.createElement("span");
         dot.className = "cluster-pad-dot";
         dot.setAttribute("aria-hidden", "true");
