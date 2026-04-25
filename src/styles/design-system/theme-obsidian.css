@@ -1701,32 +1701,10 @@ body[data-output-role="final-output"] .cluster-pads {
   50%      { opacity: 0.55; transform: scale(0.85); }
 }
 
-.cluster-pad-clear {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 22px;
-  height: 22px;
-  min-height: 22px;
-  padding: 0;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  background: color-mix(in srgb, var(--c-bg) 60%, transparent);
-  color: var(--c-text-2);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-}
-.cluster-pad.is-running .cluster-pad-clear {
-  display: inline-flex;
-}
-.cluster-pad-clear:hover:not(:disabled) {
-  background: var(--c-bg);
-  color: var(--c-text);
-  border-color: var(--c-border);
-}
+/* Phase 23 W2 v6: .cluster-pad-clear removed — pad tap routes
+ * through the active Tap-Action mode (Off / Toggle / Clear). The
+ * running-state dot in the top-right gives the user visual
+ * feedback when an animation is dispatched on the cluster. */
 
 /* Narrow viewports — shrink rail to fit the smaller gutter. */
 @media (max-width: 980px) {

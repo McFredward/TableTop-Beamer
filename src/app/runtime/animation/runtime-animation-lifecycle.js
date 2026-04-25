@@ -20,13 +20,36 @@
   function init(dependencies) {
     ctx = dependencies;
 
-    // Phase 23 W2: keep the cluster rail glued to the stage rect on
-    // viewport resize + scroll. Render-time updates (zoom/pan)
-    // already flow through renderClusterPads via refreshGlobalButtons;
-    // this catches the cases that don't (window resize, layout
-    // shifts from settings panel toggles, etc.).
-    window.addEventListener("resize", updateClusterPadsRect, { passive: true });
-    window.addEventListener("scroll", updateClusterPadsRect, { passive: true });
+    // Phase 23 W2 v6: continuous rAF tracking of the cluster rail
+    // position. CSS transitions on .stage's transform mean the
+    // bounding rect interpolates over ~120 ms after every pan/zoom
+    // commit; one-shot rAF after the commit catches the START of
+    // the transition but the rail then drifts until the next
+    // render tick. A continuous rAF with diff-skip (only writes
+    // CSS variables when the rect actually changed) is cheap and
+    // keeps the rail perfectly glued.
+    let lastRailKey = "";
+    function rafTick() {
+      const stage = ctx?.stage || document.getElementById("stage");
+      const rail = document.getElementById("cluster-pads");
+      if (stage && rail) {
+        const rect = stage.getBoundingClientRect();
+        if (rect.width > 0) {
+          const layoutWidth = stage.clientWidth || rect.width;
+          const scale = rect.width / Math.max(1, layoutWidth);
+          const key = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.height.toFixed(1)}|${scale.toFixed(4)}`;
+          if (key !== lastRailKey) {
+            lastRailKey = key;
+            rail.style.setProperty("--rail-left", `${rect.left}px`);
+            rail.style.setProperty("--rail-top", `${rect.top}px`);
+            rail.style.setProperty("--rail-height", `${rect.height}px`);
+            rail.style.setProperty("--rail-scale", String(scale));
+          }
+        }
+      }
+      window.requestAnimationFrame(rafTick);
+    }
+    window.requestAnimationFrame(rafTick);
 
     // Wire live editor close + discard buttons.
     ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
@@ -1196,21 +1219,15 @@
         const dot = document.createElement("span");
         dot.className = "cluster-pad-dot";
         dot.setAttribute("aria-hidden", "true");
-        const clear = document.createElement("button");
-        clear.type = "button";
-        clear.className = "cluster-pad-clear";
-        clear.title = "Clear cluster animations";
-        clear.setAttribute("aria-label", `Clear cluster ${cluster.name || clusterId}`);
-        clear.textContent = "×";
-        clear.addEventListener("click", (event) => {
-          event.stopPropagation();
-          dispatchClusterClear(clusterId);
-        });
         const label = document.createElement("div");
         label.className = "cluster-pad-label";
-        pad.append(render, dot, clear, label);
+        pad.append(render, dot, label);
+        // Phase 23 W2 v6: pad behaves exactly like a room — tap
+        // dispatches via the active Tap-Action (Off / Toggle /
+        // Clear). No inline × control; mode is set globally on
+        // the dashboard.
         pad.addEventListener("click", () => {
-          dispatchClusterToggle(clusterId);
+          dispatchClusterByTapAction(clusterId);
         });
         container.append(pad);
       }
@@ -1243,6 +1260,21 @@
     } else if (emptyHint) {
       emptyHint.remove();
     }
+  }
+
+  // Phase 23 W2 v6: pad tap routes through the active Tap-Action
+  // mode just like room taps. Off = no-op; Toggle = toggle dispatch;
+  // Clear = stop everything for this cluster.
+  function dispatchClusterByTapAction(clusterId) {
+    const { state } = ctx;
+    const mode = String(state.quickMode?.mode || "toggle").toLowerCase();
+    if (mode === "off") return;
+    if (mode === "clear") {
+      dispatchClusterClear(clusterId);
+      return;
+    }
+    // mode === "toggle" (default)
+    dispatchClusterToggle(clusterId);
   }
 
   function dispatchClusterToggle(clusterId) {
