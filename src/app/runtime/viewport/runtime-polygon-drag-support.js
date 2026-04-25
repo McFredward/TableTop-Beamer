@@ -213,7 +213,7 @@
   // Clamp a display-space coordinate to the visible board [0, 1].
   // Used by the vertex drag path so vertices stick to the edge.
   function clampDisplayNormalizedCoordinate(value) {
-    return Math.max(0, Math.min(1, Number(value) || 0));
+    return window.TT_BEAMER_RUNTIME_UTILS.clamp01(Number(value) || 0);
   }
 
   // Heavy-interaction flag: pauses the draw loop's render pipeline so

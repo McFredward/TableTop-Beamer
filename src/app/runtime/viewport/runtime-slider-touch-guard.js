@@ -91,7 +91,7 @@
 
   function updateSliderFromTouch(slider, touch) {
     const rect = slider.getBoundingClientRect();
-    const fraction = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    const fraction = window.TT_BEAMER_RUNTIME_UTILS.clamp01((touch.clientX - rect.left) / rect.width);
     const min = parseFloat(slider.min) || 0;
     const max = parseFloat(slider.max) || 100;
     const step = parseFloat(slider.step) || 1;

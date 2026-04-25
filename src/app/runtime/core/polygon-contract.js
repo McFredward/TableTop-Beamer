@@ -4,7 +4,7 @@
     if (!Number.isFinite(numeric)) {
       return 0.5;
     }
-    return Math.max(0, Math.min(1, numeric));
+    return window.TT_BEAMER_RUNTIME_UTILS.clamp01(numeric);
   }
 
   function normalizePolygonPoint(point) {
