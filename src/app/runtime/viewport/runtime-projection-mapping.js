@@ -175,12 +175,6 @@
   let _glAttrPos = -1;
   let _glAttrUV = -1;
   let _glUniTex = null;
-  // Phase 23 W3: when in /output/ we want the GL canvas itself to be
-  // the visible warp surface — no GPU→CPU readback. We append the GL
-  // canvas to the same parent as fx-canvas and rely on CSS to stack
-  // it on top, then clear fx-canvas after the texImage2D upload so
-  // the unwarped 2D content doesn't show through underneath.
-  let _glCanvasOnStage = false;
   // Cached typed arrays so we don't allocate fresh Float32Array /
   // Uint16Array every frame on RPi. Sized for the current grid; we
   // reallocate only when rows/cols change.
@@ -273,42 +267,14 @@
     }
   }
 
-  // Phase 23 W3: in /output/ the GL canvas itself becomes the visible
-  // warp surface (overlay over the now-blank fx-canvas). This is
-  // critical for RPi performance because the previous design did
-  // `drawImage(_glCanvas, 0, 0)` back to the 2D fx-canvas every
-  // frame — a full-size CPU-side memcpy that on a 1080p RPi costs
-  // 5–10 ms just by itself. Direct display eliminates that round-trip.
-  function _ensureGLCanvasOnStage() {
-    if (_glCanvasOnStage || !_glCanvas) return;
-    const fx = ctx?.canvas;
-    const parent = fx?.parentNode;
-    if (!parent) return;
-    _glCanvas.id = "fx-gl-canvas";
-    _glCanvas.className = "fx-gl-canvas";
-    _glCanvas.setAttribute("aria-hidden", "true");
-    parent.insertBefore(_glCanvas, fx.nextSibling);
-    _glCanvasOnStage = true;
-  }
-
   function _postDrawMeshWarpGL(canvas, canvasCtx) {
     if (!_initMeshWarpGL()) return false;
-    const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    if (isOutput) _ensureGLCanvasOnStage();
 
     const w = canvas.width;
     const h = canvas.height;
     if (_glCanvas.width !== w || _glCanvas.height !== h) {
       _glCanvas.width = w;
       _glCanvas.height = h;
-    }
-    // Sync the GL canvas's CSS size to match fx-canvas exactly so the
-    // overlay aligns pixel-for-pixel inside the stage box.
-    if (isOutput) {
-      const cssW = canvas.style.width;
-      const cssH = canvas.style.height;
-      if (cssW && _glCanvas.style.width !== cssW) _glCanvas.style.width = cssW;
-      if (cssH && _glCanvas.style.height !== cssH) _glCanvas.style.height = cssH;
     }
 
     _gl.viewport(0, 0, w, h);
@@ -400,26 +366,17 @@
     _gl.clear(_gl.COLOR_BUFFER_BIT);
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
-    if (isOutput) {
-      // Phase 23 W3: skip the GPU→CPU readback. The GL canvas IS the
-      // visible surface — we just need to clear fx-canvas so its now-
-      // stale unwarped content doesn't show through underneath. The
-      // texture upload above already snapshotted what we need.
-      canvasCtx.save();
-      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-      canvasCtx.clearRect(0, 0, w, h);
-      canvasCtx.restore();
-    } else {
-      // Dashboard: read GL result back onto fx-canvas so the existing
-      // editor compositing path keeps working unchanged. (The /output/
-      // optimization above doesn't apply here because the projection-
-      // mapping editor draws other handles on top of fx-canvas.)
-      canvasCtx.save();
-      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-      canvasCtx.clearRect(0, 0, w, h);
-      canvasCtx.drawImage(_glCanvas, 0, 0);
-      canvasCtx.restore();
-    }
+    // Blit the GL warp result back onto fx-canvas (the visible 2D
+    // surface). This readback is unfortunately needed because the rest
+    // of the rendering pipeline composites against fx-canvas. A
+    // direct-GL-overlay variant was tried but produced a black /output/
+    // when the source canvas couldn't be sampled cleanly — needs more
+    // investigation before re-enabling.
+    canvasCtx.save();
+    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+    canvasCtx.clearRect(0, 0, w, h);
+    canvasCtx.drawImage(_glCanvas, 0, 0);
+    canvasCtx.restore();
     return true;
   }
 
