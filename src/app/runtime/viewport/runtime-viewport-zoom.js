@@ -33,7 +33,7 @@
     const stage = ctx.stage;
     const width = stage?.clientWidth || 0;
     const height = stage?.clientHeight || 0;
-    // Phase 18: always allow panning at any zoom level. The base overshoot
+    // Always allow panning at any zoom level. The base overshoot
     // (40% of stage size) ensures the board can be pushed off-screen even
     // when fully zoomed out. At higher zoom, the normal zoom-based range
     // adds on top of the overshoot for full reachability.
@@ -105,7 +105,7 @@
 
   function syncStageZoomTransform() {
     const state = ctx.state;
-    // Phase 15-2: zoom/pan state now persists across both dashboard and
+    // Zoom/pan state now persists across both dashboard and
     // settings views so the user can drag the board around during a
     // session. Previously the CSS vars reset to default outside of
     // settings, which made pan/zoom feel like it was "lost".
@@ -113,7 +113,7 @@
     ctx.stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
     ctx.stage.style.setProperty("--stage-pan-x", `${zoom.panX.toFixed(2)}px`);
     ctx.stage.style.setProperty("--stage-pan-y", `${zoom.panY.toFixed(2)}px`);
-    // Phase 23 W2: cluster rail position:fixed mirror needs to
+    // Cluster rail position:fixed mirror needs to
     // re-sync to the stage's new bounding rect on every pan/zoom
     // tick. Read on next frame so the transform CSS has settled.
     if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
@@ -133,7 +133,7 @@
 
   function syncBoardZoomStatus() {
     const state = ctx.state;
-    // Phase 13-HF6: skip this expensive status line update during an
+    // Skip this expensive status line update during an
     // active touch gesture. It reads stage.clientWidth/clientHeight +
     // writes to boardZoomStatus.textContent on every call, which forces
     // synchronous layout when interleaved with CSS variable writes in
@@ -244,7 +244,7 @@
 
   function canStartPanModeFromEvent(event) {
     const state = ctx.state;
-    // Phase 18: pan is always allowed at any zoom level. Users need the
+    // Pan is always allowed at any zoom level. Users need the
     // freedom to reposition the board even when zoomed out. The opt-in
     // mechanism (middle-click or space-drag) prevents accidental panning.
     return event.button === 1 || state.panMode.spacePressed;
@@ -256,13 +256,13 @@
 
   function setPanCursorState() {
     const state = ctx.state;
-    // Phase 13-HF6: skip during an active touch gesture. The class
+    // Skip during an active touch gesture. The class
     // toggles do minimal work but the follow-up syncBoardZoomStatus is
     // expensive (stage.clientWidth/Height reads). The gesture-end
     // handler re-runs this once the user lifts their finger.
     if (ctx.getTouchGestureActive()) return;
     const zoom = getBoardZoom(state.boardId);
-    // Phase 18: pan is always available at any zoom level.
+    // Pan is always available at any zoom level.
     ctx.stage.classList.toggle("is-panning", state.panMode.active);
     ctx.roomOverlay.classList.toggle("is-pan-enabled", true);
     ctx.roomOverlay.classList.toggle("is-pan-ready", state.panMode.spacePressed && !state.panMode.active);
@@ -307,7 +307,7 @@
       : "Status: Pan mode ended";
   }
 
-  // Phase 13-HF4: cursor-accurate zoom-around-anchor math for the stage's
+  // Cursor-accurate zoom-around-anchor math for the stage's
   // CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
   // offsetLeft which implicitly assumes `transform-origin: 0 0` and
   // produced the wrong anchor on every zoom.

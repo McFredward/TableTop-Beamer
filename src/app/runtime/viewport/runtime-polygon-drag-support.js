@@ -46,7 +46,7 @@
     return touchActive || polygonDragActive;
   }
 
-  // Phase 13-HF8: rAF-coalesced wrapper around renderRoomOverlay().
+  // rAF-coalesced wrapper around renderRoomOverlay().
   // Multiple same-frame drag pointermove events collapse into one SVG
   // rebuild per animation frame instead of one per event. finish*Drag
   // helpers call renderRoomOverlay() directly to flush.
@@ -64,7 +64,7 @@
     }
   }
 
-  // Phase 13-HF9: incremental SVG drag renderer. On drag start we
+  // Incremental SVG drag renderer. On drag start we
   // cache references to the exact DOM nodes that represent the
   // dragged polygon + its handles; per-event updates then set
   // attributes on those cached nodes directly, without rebuilding the
@@ -126,7 +126,7 @@
     return { mask, vertexHitTargets, vertexHandles, vertexLabels, edgeHitTargets, edgeHandles };
   }
 
-  // Phase 13-HF11: incremental drag renderer consumes points already
+  // Incremental drag renderer consumes points already
   // in SVG viewBox units (0..1000 per axis) — the same space
   // `getRoomPoints` returns.
   function applyIncrementalPolygonPointsToDom(polygonNode, points) {
@@ -195,7 +195,7 @@
     applyIncrementalVertexHandlesToDom(refs, overlayPoints);
   }
 
-  // Phase 13-HF13: invert the live, session-stable room transform so
+  // Invert the live, session-stable room transform so
   // a pointer position expressed in display-normalized [0, 1] space
   // can be written back to raw storage.
   function projectDisplayNormalizedToRoomRaw(displayNormalizedX, displayNormalizedY, room, boardId) {
@@ -247,7 +247,7 @@
     try { ctx?.scheduleNextLiveSnapshotPoll?.(0); } catch { /* best effort */ }
   }
 
-  // Phase 13-HF6: cached stage geometry to avoid forced reflows
+  // Cached stage geometry to avoid forced reflows
   // during high-frequency touch gestures on mobile.
   function refreshStageGeometryCache() {
     const stage = ctx?.stage;

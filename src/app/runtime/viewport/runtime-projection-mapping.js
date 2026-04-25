@@ -1,4 +1,4 @@
-// Phase 19-4: Unified Grid Projection System.
+// Unified Grid Projection System.
 //
 // Replaces the dual 4-corner + grid-mesh approach with ONE unified grid.
 // The grid IS the projection — corners, edges, and interior points are
@@ -71,7 +71,7 @@
 
   /** Check whether any points differ from their default positions. */
   function hasGridDisplacements() {
-    // Phase 22 W5 fix: tolerate sub-pixel float drift in saved grids
+    // Tolerate sub-pixel float drift in saved grids
     // without triggering the full mesh-warp pass. The mesh-warp is
     // fundamentally seam-prone on MP4 content (per-triangle affine
     // transforms diverge in the clip-overlap region and sample
@@ -139,7 +139,7 @@
   // ── Apply transform (no-op — all warping is done via canvas mesh) ──────────
 
   function applyTransform() {
-    // Phase 19 unified grid warps via canvas mesh (see postDrawMeshWarp) —
+    // Unified grid warps via canvas mesh (see postDrawMeshWarp) —
     // no CSS transform is applied from this module. We must NOT touch
     // stage.style.transform here, because the CONTROL client's .stage
     // carries the zoom/pan CSS rule `translate(var(--stage-pan-x), …)
@@ -156,7 +156,7 @@
   let _warpTmpCanvas = null;
   let _warpTmpCtx = null;
 
-  // Phase 22 W5 v3: WebGL mesh-warp state. The 2D-canvas per-triangle
+  // WebGL mesh-warp state. The 2D-canvas per-triangle
   // clip+drawImage approach produced seams because per-triangle affine
   // transforms and clip-boundary AA disagree at shared edges. GL
   // samples a single texture with per-vertex UVs — no clipping, no
@@ -187,14 +187,14 @@
     if (_glInitTried) return _glInitOk;
     _glInitTried = true;
     try {
-      // Phase 23 W3 v2: prefer the in-DOM #fx-gl-canvas element so
+      // Prefer the in-DOM #fx-gl-canvas element so
       // the WebGL drawing buffer is composited as a child of #stage
       // from the very first frame. The previous attempt (commit
       // 13ab558) appended the canvas mid-frame and produced a black
       // /output/ — likely a CSS/timing edge case on Chromium.
       _glCanvas = document.getElementById("fx-gl-canvas")
                 || document.createElement("canvas");
-      // Phase 22 W5 v3: RPi/Chromium lean WebGL options — no AA buffer
+      // RPi/Chromium lean WebGL options — no AA buffer
       // (we don't need multisampling since the mesh is artifact-free),
       // no premultiplied alpha (so texImage2D interprets the canvas
       // colour buffer directly), and lowPower hint so the RPi's
@@ -287,7 +287,7 @@
     _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
     _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     try {
-      // Phase 23 W3: upload the source canvas DIRECTLY. The previous
+      // Upload the source canvas DIRECTLY. The previous
       // path bounced through a 2D temp canvas (`_warpTmpCanvas`) which
       // cost an extra full-canvas memcpy on the CPU side every frame
       // (~5 ms on a 1080p Pi 4). texImage2D accepts HTMLCanvasElement
@@ -366,7 +366,7 @@
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
 
-    // Phase 23 W3 v2: in /output/ the GL canvas itself is the visible
+    // In /output/ the GL canvas itself is the visible
     // surface, so clear it OPAQUE black (the projector's "no light"
     // colour) and skip the GPU→CPU drawImage readback. In dashboard
     // we still need the readback because the projection-mapping
@@ -381,7 +381,7 @@
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
     if (isOutput) {
-      // Phase 23 W3 v3: clear fx-canvas after texture upload so its
+      // Clear fx-canvas after texture upload so its
       // (now-stale) UNWARPED content can't leak through the alpha=0
       // areas of the GL framebuffer. Without this, transparent areas
       // of the warped triangles let fx-canvas show through and you
@@ -423,7 +423,7 @@
     const d = (dy0 * (sx2 - sx1) + dy1 * (sx0 - sx2) + dy2 * (sx1 - sx0)) * inv;
     const f = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) * inv;
 
-    // Phase 22 W5 v2: inflate each triangle's clip polygon outward
+    // Inflate each triangle's clip polygon outward
     // by 1.5 px along the centroid normal + stroke the same clip
     // path before drawImage so the edge pixels are filled from the
     // source image. The 0.5-px inflate from v1 was too subtle to
@@ -477,11 +477,11 @@
       return;
     }
 
-    // Phase 22 W5 v3: WebGL path eliminates the per-triangle clip
+    // WebGL path eliminates the per-triangle clip
     // seams that were visible on MP4 content. Falls back to the 2D
     // path below only if GL init fails (ancient browser / no GPU).
     if (_postDrawMeshWarpGL(canvas, canvasCtx)) {
-      // Phase 23 W3 v2: in /output/ the GL canvas is the visible
+      // In /output/ the GL canvas is the visible
       // surface, so show it now that we know it has fresh content.
       if (glCanvasEl && glCanvasEl.style.display !== "block") {
         glCanvasEl.style.display = "block";
