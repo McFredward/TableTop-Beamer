@@ -564,6 +564,23 @@
     const dpr = window.devicePixelRatio || 1;
     const origCanvas = ctx.canvas;
     const origCanvasCtx = ctx.canvasCtx;
+    const visualsModule = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
+
+    // Phase 23 W2 v11 fix: clear EVERY pad canvas at the start so a
+    // pad whose cluster animation just stopped doesn't keep showing
+    // the last painted frame. Sized to the pad's css rect × dpr each
+    // frame in case the layout shifted.
+    const allPadCanvases = padContainer.querySelectorAll(".cluster-pad-canvas");
+    for (const padCanvas of allPadCanvases) {
+      const cssRect = padCanvas.getBoundingClientRect();
+      if (cssRect.width <= 0 || cssRect.height <= 0) continue;
+      const targetW = Math.max(1, Math.round(cssRect.width * dpr));
+      const targetH = Math.max(1, Math.round(cssRect.height * dpr));
+      if (padCanvas.width !== targetW) padCanvas.width = targetW;
+      if (padCanvas.height !== targetH) padCanvas.height = targetH;
+      padCanvas.getContext("2d").clearRect(0, 0, padCanvas.width, padCanvas.height);
+    }
+
     // Group cluster-scope running animations by clusterId so multiple
     // animations on the same cluster all paint into the same pad.
     const byCluster = new Map();
@@ -609,7 +626,7 @@
         minY: 0,
       };
 
-      // Hijack ctx so per-effect drawers paint into THIS pad canvas.
+      // Hijack draw-loop's ctx for drawRoomComposition's local `c`.
       ctx.canvas = padCanvas;
       ctx.canvasCtx = padCtx;
       try {
@@ -626,13 +643,27 @@
           const age = ((now - Number(memberAnim.startedAt || 0)) / 1000)
             * Number(state.animationSpeed || 1)
             * speed;
-          try {
-            drawRoomComposition(memberAnim, age, fakeRoom, fakeRoomMetrics);
-          } catch (error) {
-            // Defensive — never crash on a single effect render error.
-            if (typeof console !== "undefined") {
-              console.warn("[cluster-pad] drawRoomComposition error", error);
+          // Wrap drawRoomComposition in withPreviewCanvas so the
+          // effect-visuals module's OWN ctx (separate object from
+          // draw-loop's ctx) also sees padCanvas during the call.
+          // Without this, coded effects like solid-color and hull-
+          // flicker call fillRect(0,0,w,h) on the main fx-canvas —
+          // visible as a small rect at the board's top-left
+          // (solid-color) or as the whole board flickering
+          // (hull-flicker fills the entire main canvas).
+          const renderOnce = () => {
+            try {
+              drawRoomComposition(memberAnim, age, fakeRoom, fakeRoomMetrics);
+            } catch (error) {
+              if (typeof console !== "undefined") {
+                console.warn("[cluster-pad] drawRoomComposition error", error);
+              }
             }
+          };
+          if (visualsModule && typeof visualsModule.withPreviewCanvas === "function") {
+            visualsModule.withPreviewCanvas(padCanvas, renderOnce);
+          } else {
+            renderOnce();
           }
         }
       } finally {
