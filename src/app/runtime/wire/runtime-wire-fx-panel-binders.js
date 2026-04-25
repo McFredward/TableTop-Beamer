@@ -107,7 +107,7 @@
 
     roomAnimationSettingsCreateButton?.addEventListener("click", () => {
       const profile = getRoomFxProfile(state.boardId);
-      // Phase 20: create with defaults (user configures in the Edit tab).
+      // Create with defaults (user configures in the Edit tab).
       const definition = createRoomAnimationDefinition(
         roomAnimationSettingsNameInput?.value,
         profile.animations,
@@ -184,7 +184,7 @@
       });
       setRoomFxProfile(state.boardId, nextProfile);
       persistBoardProfiles();
-      // Phase 21-1: when the definition being edited in Settings is the
+      // When the definition being edited in Settings is the
       // same animation the dashboard currently has selected, mirror the
       // patch onto state.roomDraft so the next Start picks up the new
       // default immediately (no "first-Start uses old values" lag). Also
@@ -250,7 +250,7 @@
       commitRoomDraftToDefinition({ assetRef: selectedAsset });
     });
 
-    // Phase 15-3: live preview for transform sliders. Writing to the
+    // Live preview for transform sliders. Writing to the
     // draft only — commit happens on Apply. Value labels update in
     // real time so the user can see the exact numbers.
     ctx.roomRotationDegInput?.addEventListener("input", () => {
@@ -317,7 +317,7 @@
       setRoomEditorDraft(state.boardId, { soundVolume: v / 100 });
       commitRoomDraftToDefinition({ soundVolume: v / 100 });
     });
-    // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
+    // Opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
     roomBreaksSolidColorInput?.addEventListener("change", () => {
       const v = Boolean(roomBreaksSolidColorInput.checked);
       setRoomEditorDraft(state.boardId, { breaksSolidColor: v });
@@ -338,9 +338,9 @@
             ...entry,
             assetType: draft.assetType,
             assetRef: draft.assetRef,
-            // Phase 15-9: persist the per-definition sound selection.
+            // Persist the per-definition sound selection.
             soundAssetRef: draft.soundAssetRef ?? entry.soundAssetRef ?? "none",
-            // Phase 15-3: persist the per-definition transform options.
+            // Persist the per-definition transform options.
             rotationDeg: draft.rotationDeg ?? entry.rotationDeg ?? 0,
             stretchToPolygon: draft.stretchToPolygon ?? entry.stretchToPolygon ?? true,
             widthScale: draft.widthScale ?? entry.widthScale ?? 1,
@@ -352,7 +352,7 @@
             speed: draft.speed ?? entry.speed ?? 1,
             soundVolume: draft.soundVolume ?? entry.soundVolume ?? 1,
             colorHex: draft.colorHex ?? entry.colorHex ?? "#ff0000",
-            // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color.
+            // Opt-in hull-flicker ⇒ cuts concurrent solid-color.
             breaksSolidColor: Boolean(draft.breaksSolidColor ?? entry.breaksSolidColor),
           }
           : entry)),
@@ -367,7 +367,7 @@
 
     insideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getInsideFxProfile(state.boardId);
-      // Phase 20: create with defaults (user configures in the Edit tab).
+      // Create with defaults (user configures in the Edit tab).
       const definition = createInsideAnimationDefinition(
         insideAnimationNameInput?.value,
         profile.animations,
@@ -483,7 +483,7 @@
           ...getOutsideFxProfile(state.boardId),
           enabled: Boolean(outsideEnabledInput.checked),
         };
-        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // Optimistic local apply + persist so the dirty flag
         // fires on toggle (the broadcast-snapshot roundtrip bypassed
         // persistBoardProfiles, leaving the apply/discard bar blind).
         updateOutsideFxProfile(state.boardId, { enabled: Boolean(outsideEnabledInput.checked) });
@@ -517,7 +517,7 @@
 
     outsideAnimationCreateButton?.addEventListener("click", () => {
       const profile = getOutsideFxProfile(state.boardId);
-      // Phase 20: create with defaults (user configures in the Edit tab).
+      // Create with defaults (user configures in the Edit tab).
       const definition = createOutsideAnimationDefinition(
         outsideAnimationNameInput?.value,
         profile.animations,
@@ -530,7 +530,7 @@
         selectedAnimationId: definition.id,
       };
       if (outputRole === OUTPUT_ROLE_CONTROL) {
-        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // Optimistic local apply + persist so the dirty flag
         // fires on create.
         updateOutsideFxProfile(state.boardId, {
           animations: nextAnimations,
@@ -572,7 +572,7 @@
     });
 
     outsideAnimationSelect?.addEventListener("change", () => {
-      // Phase 20: picking another animation in the Edit tab changes ONLY
+      // Picking another animation in the Edit tab changes ONLY
       // which definition the editor shows. It must NOT switch the running
       // outside animation or emit a live mutation. Changes land on the
       // running animation only if the user then edits a parameter of the
@@ -610,7 +610,7 @@
       ctx.setOutsideEditingAnimationId(state.boardId, nextAnimations[0]?.id ?? null);
 
       if (outputRole === OUTPUT_ROLE_CONTROL) {
-        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // Optimistic local apply + persist so the dirty flag
         // fires on delete.
         updateOutsideFxProfile(state.boardId, {
           animations: nextAnimations,
@@ -713,7 +713,7 @@
         soundAssetRef: draft.soundAssetRef ?? "none",
       });
       if (outputRole === OUTPUT_ROLE_CONTROL) {
-        // Phase 21-1: optimistic local apply + persist so the dirty flag
+        // Optimistic local apply + persist so the dirty flag
         // fires on Apply Changes.
         setOutsideFxProfile(state.boardId, nextProfile);
         persistBoardProfiles();
@@ -751,7 +751,7 @@
       });
     }
 
-    // Phase 21-1: rename handlers for the three animation sections. Each
+    // Rename handlers for the three animation sections. Each
     // takes the current text-input value, writes it to the selected
     // definition's `name`, persists + re-syncs, and (for outside/inside)
     // also handles the network push via the same paths as other def
@@ -761,7 +761,7 @@
       return trimmed.slice(0, 64) || fallback;
     }
 
-    // Phase 21-1: per user feedback, rename fires on input change — no
+    // Per user feedback, rename fires on input change — no
     // extra "Rename" button. Each change writes the new name to the
     // selected definition and marks the config dirty via
     // persistBoardProfiles. The user confirms via the global Apply bar
@@ -860,7 +860,7 @@
       refreshGlobalButtons?.();
     });
 
-    // Phase 22 W3a: one-time icon-picker mounts. Each picker's
+    // One-time icon-picker mounts. Each picker's
     // onChange patches definition.icon and persists; syncFxPanel
     // mirrors the selection via setValue (see fx-panels.js).
     const iconPickerApi = window.TT_BEAMER_UI_ICON_PICKER;

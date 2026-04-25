@@ -13,7 +13,7 @@
 (() => {
   let ctx = null;
 
-  // Phase 20: separate "which outside animation am I editing" from
+  // Separate "which outside animation am I editing" from
   // "which outside animation is currently playing". The dropdown in the
   // Outside editor updates this UI-only map, not the persisted
   // selectedAnimationId — switching the dropdown must not swap the live
@@ -35,7 +35,7 @@
     ctx = dependencies;
   }
 
-  // Phase 15-9: shared sound-selector dropdown populator. Each
+  // Shared sound-selector dropdown populator. Each
   // animation editor block has a <select> for picking the sound that
   // plays when the animation fires. Options are "(kein Sound)" plus
   // every path in ALL_SOUND_ASSET_PATHS. Selection defaults to the
@@ -192,7 +192,7 @@
       assetType,
       String(ctx.insideAssetRefInput?.value || "").trim(),
     );
-    // Phase 15-9: carry per-definition sound selection through the draft.
+    // Carry per-definition sound selection through the draft.
     const soundAssetRef = String(ctx.insideSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
     return setInsideEditorDraft(effectiveBoardId, {
       intensity: ctx.clampOutsideIntensity(ctx.insideIntensityInput?.value),
@@ -205,7 +205,7 @@
   }
 
   function syncInsideFxPanel() {
-    // Phase 22 W3b-5 fix: the Dashboard's Inside-Play-Area global
+    // The Dashboard's Inside-Play-Area global
     // buttons are rendered by renderInsideGlobalButtons() at the END
     // of this function — skipping the whole sync over the now-removed
     // legacy sidebar refs killed those buttons too. Null-guard the
@@ -365,14 +365,14 @@
       assetType: ctx.normalizeRoomAssetType(definition.assetType),
       assetRef: String(definition.assetRef || "").trim(),
       soundAssetRef: String(definition.soundAssetRef || ctx.SOUND_MAPPING_NONE),
-      // Phase 15-3: transform options
+      // Transform options
       rotationDeg: Number(definition.rotationDeg) || 0,
       stretchToPolygon: definition.stretchToPolygon !== false,
       widthScale: Number.isFinite(Number(definition.widthScale)) ? Number(definition.widthScale) : 1,
       heightScale: Number.isFinite(Number(definition.heightScale)) ? Number(definition.heightScale) : 1,
       offsetXScale: Number(definition.offsetXScale) || 0,
       offsetYScale: Number(definition.offsetYScale) || 0,
-      // Phase 21-1: opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
+      // Opt-in hull-flicker ⇒ cuts concurrent solid-color in room.
       breaksSolidColor: Boolean(definition.breaksSolidColor),
     };
     ctx.roomEditorDraftByBoard[effectiveBoardId] = next;
@@ -402,9 +402,9 @@
       assetType,
       String(ctx.roomAssetRefInput?.value || "").trim(),
     );
-    // Phase 15-9: carry per-definition sound selection through the draft.
+    // Carry per-definition sound selection through the draft.
     const soundAssetRef = String(ctx.roomSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
-    // Phase 15-3: carry transform options through the draft.
+    // Carry transform options through the draft.
     const rotationDeg = Number(ctx.roomRotationDegInput?.value) || 0;
     const stretchToPolygon = ctx.roomStretchToPolygonInput
       ? Boolean(ctx.roomStretchToPolygonInput.checked)
@@ -439,7 +439,7 @@
   }
 
   function syncRoomFxPanel() {
-    // Phase 22 W3b-5 fix: the Dashboard's "Room animation" picker
+    // The Dashboard's "Room animation" picker
     // (#room-animation-select) is populated by this function too —
     // not just the removed sidebar panel. Every write below is
     // already null-guarded per target, so let the function run even
@@ -525,7 +525,7 @@
       ctx.roomSoundRefSelect,
       draft?.soundAssetRef ?? selectedDefinition?.soundAssetRef,
     );
-    // Phase 15-3: sync transform inputs from the draft / definition.
+    // Sync transform inputs from the draft / definition.
     const rotationDeg = Number(
       draft?.rotationDeg ?? selectedDefinition?.rotationDeg ?? 0,
     );
@@ -613,7 +613,7 @@
     if (ctx.roomDefSoundVolumeValue) {
       ctx.roomDefSoundVolumeValue.textContent = `${Math.round(defSoundVolume * 100)}%`;
     }
-    // Phase 21-1: breaksSolidColor checkbox — only meaningful on the
+    // breaksSolidColor checkbox — only meaningful on the
     // hull-flicker coded backbone. Hidden for every other animation so it
     // doesn't pollute unrelated editors.
     if (ctx.roomBreaksSolidColorInput || ctx.roomBreaksSolidColorLabel) {
@@ -636,7 +636,7 @@
   function buildOutsideProfileWithSelectedAnimationPatch(boardId, patch = {}, profileOverride = null) {
     const effectiveBoardId = boardId ?? ctx.state.boardId;
     const baseProfile = ctx.normalizeOutsideFxProfile(profileOverride ?? ctx.getOutsideFxProfile(effectiveBoardId));
-    // Phase 20: edits land on the definition the user is currently *editing*
+    // Edits land on the definition the user is currently *editing*
     // (driven by the UI-only editing map), not the one that happens to be
     // marked as selectedAnimationId. Preserve the persisted
     // selectedAnimationId so the running animation isn't disturbed.
@@ -770,7 +770,7 @@
       String(ctx.outsideAssetRefInput?.value || "").trim(),
     );
     const allowModeDirection = ctx.isOutsideModeDirectionApplicable({ assetType, assetRef });
-    // Phase 15-9: carry per-definition sound selection through the draft.
+    // Carry per-definition sound selection through the draft.
     const soundAssetRef = String(ctx.outsideSoundRefSelect?.value || ctx.SOUND_MAPPING_NONE);
     return setOutsideEditorDraft(effectiveBoardId, {
       intensity: ctx.clampOutsideIntensity(ctx.outsideIntensityInput?.value),
@@ -799,13 +799,13 @@
   }
 
   function syncOutsideFxPanel() {
-    // Phase 22 W3b-5 fix: Dashboard's Outside-Play-Area buttons are
+    // Dashboard's Outside-Play-Area buttons are
     // rendered by renderOutsideGlobalButtons() at the END; skipping
     // this function over the removed legacy panel refs killed those
     // buttons too. Null-guard the legacy-only writes individually.
     const state = ctx.state;
     const outside = ctx.getOutsideFxProfile(state.boardId);
-    // Phase 20: the editor shows the animation tracked by the per-board
+    // The editor shows the animation tracked by the per-board
     // UI-only `outsideEditingAnimationIdByBoard` — independent of the
     // persisted `selectedAnimationId` that determines what actually
     // plays when outside FX is enabled.
@@ -890,7 +890,7 @@
     renderOutsideGlobalButtons();
   }
 
-  // Phase 20: "is this running animation the outside animation for this
+  // "Is this running animation the outside animation for this
   // board?" — recognises any type listed in the board's outside profile,
   // not just the built-in outside-space id.
   function findOutsideGlobalAnimation(boardId) {

@@ -11,7 +11,7 @@
     ctx = dependencies;
   }
 
-  // Phase 15-9: shared sound-asset-ref normalizer used by all three
+  // Shared sound-asset-ref normalizer used by all three
   // animation definition normalizers. Accepts an explicit path from
   // ALL_SOUND_ASSET_PATHS, the sentinel "none" (SOUND_MAPPING_NONE),
   // or falls back to "none" for empty/unknown input. Default per
@@ -27,7 +27,7 @@
       return sentinelNone;
     }
     if (allPaths.includes(trimmed)) return trimmed;
-    // Phase 22: allow user-uploaded sound files in /resources/sounds/.
+    // Allow user-uploaded sound files in /resources/sounds/.
     // Accept any path under that folder with a known audio extension —
     // the server's upload endpoint only writes files matching this
     // pattern, so accepting them here closes the round-trip.
@@ -37,7 +37,7 @@
     return sentinelNone;
   }
 
-  // Phase 22 W3a: accept a design-system icon key if it exists in
+  // Accept a design-system icon key if it exists in
   // ICON_DEFS (loaded by icons.js), otherwise return null. null is
   // the "no user override" sentinel — resolveAnimationIcon falls back
   // to its heuristic (coded-effect type / name keywords) in that case.
@@ -88,9 +88,9 @@
       intensity: ctx.clampOutsideIntensity(definition?.intensity),
       speed: ctx.clampOutsideSpeed(definition?.speed),
       loopUntilStopped: Boolean(definition?.loopUntilStopped ?? definition?.hold),
-      // Phase 15-9: per-definition sound selector. Default = none.
+      // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
-      // Phase 22 W3a: user-assigned icon key from the design-system set.
+      // User-assigned icon key from the design-system set.
       // Empty string / missing → null so resolveAnimationIcon falls back
       // to its heuristic (coded-effect type / name keywords).
       icon: normalizeIconKey(definition?.icon),
@@ -166,7 +166,7 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
-    // Phase 15-8: seed the new definition with the user's current
+    // Seed the new definition with the user's current
     // editor-panel values when provided, so "Create" captures what
     // the user has already been configuring instead of forcing a
     // follow-up edit step.
@@ -224,9 +224,9 @@
       mode: ctx.normalizeOutsideMode(definition?.mode),
       direction: ctx.normalizeOutsideDirection(definition?.direction),
       soundEnabled: Boolean(definition?.soundEnabled),
-      // Phase 15-9: per-definition sound selector. Default = none.
+      // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
-      // Phase 22 W3a: user-assigned icon key (see Inside normalizer).
+      // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };
   }
@@ -337,7 +337,7 @@
     return profile.animations.find((entry) => entry.id === selectedId) ?? profile.animations[0] ?? null;
   }
 
-  // Phase 20: "is this animation type an outside animation?" — driven
+  // "Is this animation type an outside animation?" — driven
   // purely by the board's outside profile, so custom outside animations
   // are recognized just like built-in ones. Used by the render path to
   // decide whether an animation belongs to the outside (masked) layer
@@ -367,7 +367,7 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
-    // Phase 15-8: inherit the user's current editor values so the
+    // Inherit the user's current editor values so the
     // newly-created entry matches what the user has been configuring.
     const seeded = initialValues && typeof initialValues === "object" ? initialValues : {};
     return normalizeOutsideAnimationDefinition({
@@ -408,7 +408,7 @@
     const rawAssetRef = String(definition?.assetRef || "").trim();
     const fallbackAssetRef = ctx.normalizeRoomAssetRefForType(assetType, fallbackDefaults.assetRef, "");
     const assetRef = ctx.normalizeRoomAssetRefForType(assetType, rawAssetRef, fallbackAssetRef);
-    // Phase 15-3: mp4/gif room animations now support per-definition
+    // mp4/gif room animations now support per-definition
     // transform options. Defaults preserve the pre-phase behaviour
     // (stretch to polygon, no rotation, no offset).
     const clamp = (value, min, max, fallback) => {
@@ -421,7 +421,7 @@
       name,
       assetType,
       assetRef,
-      // Phase 15-9: per-definition sound selector. Default = none.
+      // Per-definition sound selector. Default = none.
       soundAssetRef: normalizeSoundAssetRef(definition?.soundAssetRef),
       rotationDeg: clamp(definition?.rotationDeg, -360, 360, 0),
       stretchToPolygon: definition?.stretchToPolygon !== false,
@@ -434,11 +434,11 @@
       speed: clamp(definition?.speed, 0.1, 2.5, 1),
       soundVolume: clamp(definition?.soundVolume, 0, 1, 1),
       colorHex: typeof definition?.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(definition.colorHex) ? definition.colorHex : "#ff0000",
-      // Phase 21-1: opt-in. When true and this definition resolves to
+      // Opt-in. When true and this definition resolves to
       // hull-flicker, a running instance in room R cuts any concurrent
       // solid-color animation in R during the flicker's off-gate.
       breaksSolidColor: Boolean(definition?.breaksSolidColor),
-      // Phase 22 W3a: user-assigned icon key (see Inside normalizer).
+      // User-assigned icon key (see Inside normalizer).
       icon: normalizeIconKey(definition?.icon),
     };
   }
@@ -515,7 +515,7 @@
       candidateId = `${slug}-${suffix}`;
       suffix += 1;
     }
-    // Phase 15-8: inherit the user's current asset-type/asset-ref
+    // Inherit the user's current asset-type/asset-ref
     // editor values so creating a new animation doesn't discard
     // whatever was already selected in the dropdowns.
     const seeded = initialValues && typeof initialValues === "object" ? initialValues : {};
