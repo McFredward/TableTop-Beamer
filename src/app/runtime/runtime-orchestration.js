@@ -51,14 +51,11 @@ const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole })
 const logRuntime = window.TT_BEAMER_LOGGER.createLogger("runtime", { source: outputRole });
 const polygonContract = window.TT_BEAMER_POLYGON_CONTRACT ?? null;
 
-// Phase 14-2 reorg fix: polygon normalizers module needs to be pulled
-// into orchestration scope explicitly — orchestration call sites
-// reference `normalizeSpecialPolygon` / `isValidSpecialPolygon` both
-// directly (object-shorthand at line ~821) and inside ctx-arrow
-// wrappers. Without this destructure the direct shorthand throws
-// `ReferenceError: normalizeSpecialPolygon is not defined` during
-// module-load wiring, which blocks the rest of orchestration from
-// binding event handlers.
+// Init order: orchestration must destructure normalizeSpecialPolygon /
+// isValidSpecialPolygon into local scope before binding event handlers.
+// The direct shorthand at the wire site references them outside the
+// ctx-arrow wrappers and would otherwise throw ReferenceError during
+// module-load wiring.
 const {
   normalizePolygonPoint,
   getNormalizedPolygonArea,
@@ -167,11 +164,8 @@ const SETTINGS_SUBTAB_LABELS = {
   system: "System",
 };
 
-// Phase 21-1: purge stale entries. The board-import-* and
-// export/import-global-defaults controls were replaced by the unified
-// "Share a Board" zip bundle in Phase 20 — their IDs no longer exist
-// in index.html, so validateSettingsControlOwnership was logging a
-// noisy "missing control" leak on every resize / view switch.
+// These IDs no longer exist in index.html (replaced by the "Share a
+// Board" bundle); listing them here suppressed the noisy "missing control" log.
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "mp4-performance-tier",
@@ -620,10 +614,8 @@ const {
 const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
 
 
-// Phase 14-2: zone loader + board import (~295 LOC) moved to
-// src/app/runtime/runtime-zone-loader.js. BOARDS is reassigned via
-// the setBoards callback since the module cannot mutate the outer
-// let directly.
+// BOARDS is reassigned via the setBoards callback since the
+// runtime-zone-loader module cannot mutate the outer let directly.
 window.TT_BEAMER_RUNTIME_ZONE_LOADER.init({
   state,
   zonesStatus,
@@ -655,10 +647,9 @@ const {
 const BOARD_ZOOM_SCALE_MIN = 0.25;
 const BOARD_ZOOM_SCALE_MAX = 8.0;
 
-// Phase 14-2: viewport zoom functions now live in runtime-viewport-zoom.js.
-// Init + destructure block is placed later in the file (after touchGestureActive
-// and polygon-drag-support are initialized, since the zoom module needs
-// getCachedStageGeometry and getTouchGestureActive at call time).
+// Init + destructure for the viewport-zoom module is placed later in the
+// file (after touchGestureActive and polygon-drag-support are initialized,
+// since the zoom module needs getCachedStageGeometry and getTouchGestureActive at call time).
 
 
 // Shared guard for polygon vertex/edge pointerdown handlers.
@@ -717,10 +708,9 @@ const {
   normalizeSpecialPolygonMap,
 } = window.TT_BEAMER_RUNTIME_PLAY_AREA_GEOMETRY;
 
-// Phase 14-2: board profile hydration moved to
-// src/app/runtime/runtime-board-profiles.js. fx-normalizers and
-// perf controls are injected via ctx arrows because their
-// destructures sit below this position in orchestration.
+// fx-normalizers and perf controls are injected via ctx arrows
+// because their destructures sit below this position in
+// orchestration.
 window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   state,
   HITAREA_CALIBRATION_DEFAULT,
@@ -793,8 +783,6 @@ const {
   shouldSuppressBroadcastReapply,
 } = window.TT_BEAMER_RUNTIME_CONFIG_SYNC;
 
-// Phase 14-2: global defaults API facade + error/hint formatters +
-// load/save/apply glue moved to src/app/runtime/runtime-global-defaults.js.
 // board-profiles helpers are injected as direct refs (already
 // destructured above). fx/config-sync helpers used only by
 // loadAndApplyGlobalDefaults come from ctx arrows so downstream
@@ -914,16 +902,8 @@ const {
   normalizeFrozenRoomsMap,
 } = window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS;
 
-// Phase 14-2 reorg fix: three runtime modules (AUDIO, ROOM_GEOMETRY,
-// LIVE_SYNC_HELPERS) lost their init() + destructure blocks during the
-// T51 folder reorganization, leaving orchestration with bare references
-// to `playSoundForAnimation`, `getRoomPoints`, `emitOutsideFxMutation`,
-// etc. that threw ReferenceError at first call. Restore all three
-// blocks here. They are placed after BOARD_STATE_ACCESSORS destructure
-// because ROOM_GEOMETRY needs its direct refs (getHitareaCalibration,
-// getRoomGeometry). All other cross-module helpers used by these three
-// modules are injected via ctx arrows so they late-bind to later
-// destructures in orchestration.
+// Init order: must follow BOARD_STATE_ACCESSORS — ROOM_GEOMETRY
+// destructures getHitareaCalibration / getRoomGeometry from it.
 window.TT_BEAMER_RUNTIME_AUDIO.init({
   state,
   liveSync,
@@ -1473,10 +1453,9 @@ const {
 } = window.TT_BEAMER_RUNTIME_ASSET_REFS;
 
 
-// Phase 14-2: inside/outside/room FX profile normalizers moved to
-// src/app/runtime/runtime-fx-normalizers.js. The asset-ref normalizers
-// are injected via ctx arrows because the asset-refs destructure above
-// supplies them as top-level consts.
+// fx-normalizers' asset-ref normalizer dependencies are injected via
+// ctx arrows because the asset-refs destructure above supplies them
+// as top-level consts.
 window.TT_BEAMER_RUNTIME_FX_NORMALIZERS.init({
   state,
   OUTSIDE_ANIMATION_ASSET_TYPES,
@@ -1561,11 +1540,9 @@ function setConditionalFieldMounted(slot, mounted) {
   }
 }
 
-// Phase 14-2: FX panel syncs (~560 LOC) moved to
-// src/app/runtime/runtime-fx-panels.js. Init + destructure so
-// existing call sites resolve the same names. Editor draft storage
-// and outsideResourceAssets remain in orchestration scope (passed
-// by reference) — mutations to the objects propagate naturally.
+// Editor draft storage and outsideResourceAssets remain in
+// orchestration scope (passed by reference) — mutations to the
+// objects propagate naturally to runtime-fx-panels.
 window.TT_BEAMER_RUNTIME_FX_PANELS.init({
   state,
   ROOM_ANIMATIONS,
@@ -1709,11 +1686,9 @@ const {
   renderOutsideGlobalButtons,
 } = window.TT_BEAMER_RUNTIME_FX_PANELS;
 
-// Phase 14-2: polygon editor drag/render + renderRoomOverlay moved to
-// src/app/runtime/runtime-polygon-editor.js. Init + destructure so
-// existing call sites resolve the same names. All cross-module deps
-// are injected via ctx arrows so downstream destructures (room-geometry,
-// room-management, room-draft, viewport-zoom) can land later without TDZ.
+// All cross-module deps for the polygon editor are injected via ctx
+// arrows so downstream destructures (room-geometry, room-management,
+// room-draft, viewport-zoom) can land later without TDZ.
 window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   state,
   roomOverlay,
@@ -1985,13 +1960,9 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     getInsideFxProfile: (boardId) => getInsideFxProfile(boardId),
     getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
     getRoomFxProfile: (boardId) => getRoomFxProfile(boardId),
-    // Phase 22 W3b-2: setters + persist for the editor's patch flow.
-    // Phase 22 W3b-4d fix: use the raw setOutsideFxProfile, not
-    // updateOutsideFxProfile — the latter re-derives intensity /
-    // speed / mode / direction from the profile ROOT (the selection
-    // mirrors) and throws away whatever we patched on the
-    // animation definition itself, so sliders appeared stuck and
-    // never tripped the dirty comparison.
+    // Use raw setters (not the update* wrappers): the wrappers re-derive
+    // intensity/speed/mode/direction from the profile root and clobber
+    // per-definition patches, leaving sliders stuck.
     setInsideFxProfile: (boardId, profile) => setInsideFxProfile(boardId, profile),
     setOutsideFxProfile: (boardId, profile) => setOutsideFxProfile(boardId, profile),
     setRoomFxProfile: (boardId, profile) => setRoomFxProfile(boardId, profile),
@@ -2107,11 +2078,9 @@ const {
 } = window.TT_BEAMER_RUNTIME_ROOM_DRAFT;
 
 
-// Phase 14-2: drawRoomComposition now lives in runtime-draw-loop.js
-// along with the rest of the draw pipeline. Init + destructure is
-// deferred until after all upstream helpers (drawEffectVisual,
-// clipToRoom, etc.) have been destructured — see the init block
-// after flickerNoise below.
+// drawRoomComposition's init + destructure is deferred until after
+// all upstream helpers (drawEffectVisual, clipToRoom, etc.) have
+// been destructured — see the init block after flickerNoise below.
 
 window.TT_BEAMER_RUNTIME_ROOM_DISPATCH.init({
   state,
@@ -2408,9 +2377,9 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
 
 
 
-// Phase 13-HF6: global "touch gesture in progress" flag. When true,
-// heavy DOM-read paths skip their work to keep the rAF path pure
-// writes — no forced reflows. Set by the touch gesture state machine.
+// Global "touch gesture in progress" flag: blocks the rAF zoom-pan
+// writer's DOM writes during a touch gesture so the writer doesn't
+// fight the gesture handler. Set by touch handlers; cleared on touchend.
 let touchGestureActive = false;
 
 window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT.init({
