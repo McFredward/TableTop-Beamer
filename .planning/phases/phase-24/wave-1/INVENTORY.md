@@ -34,6 +34,9 @@ Decisions:
 | C1 | `console.info("[cluster-pad] CLEAR all", ...)` | runtime-animation-lifecycle.js:1397 | 1 | 0 |
 | C1 | `const beforeCount = state.runningAnimations.length;` (only consumer was deleted log) | runtime-animation-lifecycle.js:1321 | 1 | 0 |
 | C1 | `window.TT_BEAMER_LIVE_SYNC_DEBUG = { getLiveTraceSnapshot: ... }` (debug-only DevTools snapshot bag) | runtime-bootstrap.js:230–232 | 1 | 0 |
+| C2 | `runtime-wire-calibration-binders.js` (entire 23-line no-op module deleted) | src/app/runtime/wire/runtime-wire-calibration-binders.js | 3 (declaration + export object + module-global write) | 0 |
+| C2 | `<script src=".../runtime-wire-calibration-binders.js" defer>` tag | index.html:862 | 1 | 0 |
+| C2 | `window.TT_BEAMER_RUNTIME_WIRE_CALIBRATION_BINDERS.wireCalibrationBinders({ ... })` orchestration call (~32 lines incl. ctx-thread args + Phase 14-2 comment) | runtime-orchestration.js:2539–2570 | 1 | 0 |
 
 ## Kept (false positive)
 

@@ -2536,39 +2536,6 @@ window.TT_BEAMER_RUNTIME_WIRE_NAVIGATION_BINDERS.wireNavigationBinders({
 
 
 
-// Phase 14-2: hitarea + room geometry event binders moved to
-// src/app/runtime/runtime-wire-calibration-binders.js.
-window.TT_BEAMER_RUNTIME_WIRE_CALIBRATION_BINDERS.wireCalibrationBinders({
-  state,
-  hitareaOffsetXInput,
-  hitareaOffsetYInput,
-  hitareaScaleInput,
-  hitareaSaveButton,
-  hitareaResetButton,
-  roomGeometryModeInput,
-  roomGeometryXInput,
-  roomGeometryYInput,
-  roomGeometryStretchXInput,
-  roomGeometryStretchYInput,
-  HITAREA_CALIBRATION_DEFAULT,
-  clampHitareaOffset,
-  clampHitareaScale,
-  clampRoomAbsoluteCoordinate,
-  clampRoomRelativeOffset,
-  clampRoomStretch: (v) => clampRoomStretch(v),
-  updateActiveBoardHitareaCalibration: (partial) => updateActiveBoardHitareaCalibration(partial),
-  setHitareaCalibration: (boardId, calibration) => setHitareaCalibration(boardId, calibration),
-  persistBoardProfiles: () => persistBoardProfiles(),
-  syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
-  renderRoomOverlay: () => renderRoomOverlay(),
-  triggerFeedback,
-  getSelectedRoom: () => getSelectedRoom(),
-  getRoomGeometry: (boardId, roomId) => getRoomGeometry(boardId, roomId),
-  getRawRoomCenter: (room, boardId) => getRawRoomCenter(room, boardId),
-  normalizeRoomGeometryMode: (mode) => normalizeRoomGeometryMode(mode),
-  updateSelectedRoomGeometry: (partial, suffix) => updateSelectedRoomGeometry(partial, suffix),
-});
-
 // Phase 13-2: zoom slider removed. Wheel + pinch gestures below replace it.
 // Mouse wheel over the stage: exponential scale delta, cursor-anchored.
 // Two-finger pinch: midpoint-anchored scale via pointer pair distance ratio.
