@@ -1118,10 +1118,6 @@
   // Animation rendering INSIDE the pad lands in the next commit;
   // for now the pad shows name + state only.
   function renderClusterPads() {
-    if (!window.__TT_CLUSTER_PADS_LOGGED__) {
-      window.__TT_CLUSTER_PADS_LOGGED__ = true;
-      console.info("[cluster-pads] renderClusterPads called for the first time");
-    }
     const { state } = ctx;
     const container = document.getElementById("cluster-pads");
     if (!container) {

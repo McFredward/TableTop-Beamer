@@ -1584,27 +1584,36 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
 }
 
 .cluster-pads {
-  /* Phase 23 W2 debug: switch to flex-row of the projection-area
-   * via fixed positioning at the LEFT edge of the viewport so we
-   * stop fighting the stage's transform/overflow chain. The pads
-   * still need to track stage pan/zoom — but one debug iteration
-   * at a time. First confirm the rail is visible, then re-couple
-   * to the stage transform once we've seen ANY pad render. */
-  position: fixed;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* Phase 23 W2 v4: child of #stage at right:100% so the right
+   * edge sits at stage's left edge, then translateX(-12px) for
+   * the visual gap. Inherits the stage's pan/zoom transform
+   * because it's INSIDE #stage. To make the rail visible past
+   * .projection-area / .app-shell / body (all overflow:hidden by
+   * default in styles.css), the dashboard relaxes those parents
+   * to overflow:visible — see rules below. */
+  position: absolute;
+  right: 100%;
+  top: 0;
+  height: 100%;
   width: 130px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-right: 12px;
   pointer-events: auto;
-  z-index: 50;
-  /* Bright debug border so the rail is unmissable even when
-   * empty. Drop in v4 once we've confirmed it shows up. */
-  outline: 2px dashed magenta;
-  outline-offset: 4px;
-  padding: 4px;
+  z-index: 5;
+}
+
+/* Dashboard surface only — let the rail render past projection-
+ * area / app-shell / body bounds. /output/ keeps overflow:hidden
+ * to prevent any FX leakage. */
+body[data-output-role="control"].dir-obsidian,
+body[data-output-role="control"].dir-obsidian .app-shell,
+body[data-output-role="control"].dir-obsidian .projection-area {
+  overflow: visible;
+}
+body[data-output-role="control"].dir-obsidian #stage {
+  overflow: visible;
 }
 /* Empty-state placeholder for the cluster rail. Visible while we
  * have zero pads — this used to be `display: none` but hiding
@@ -1721,11 +1730,12 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
   border-color: var(--c-border);
 }
 
-/* Phase 23 debug iteration — disabled responsive overrides so
- * nothing fights the position:fixed debug rail. Re-enable once
- * we've confirmed the rail renders at all. */
+/* Narrow viewports — shrink rail to fit the smaller gutter. */
 @media (max-width: 980px) {
-  /* placeholder */
+  .cluster-pads {
+    width: 100px;
+    padding-right: 8px;
+  }
 }
 @media (max-width: 720px) {
   /* On true mobile, hide the pads — the user has the dashboard
