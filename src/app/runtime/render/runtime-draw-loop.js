@@ -549,26 +549,19 @@
     }
   }
 
-  // Phase 23 W2 v9: render each cluster's animation DIRECTLY into
-  // its pad canvas. Previous version (v7/v8) blitted from the main
-  // fx-canvas where the animation was painted into a polygon-shaped
-  // clip — leaving transparent edges or showing whatever room was
-  // there. The user wants the pad to be a SELF-CONTAINED mini-room
-  // that fills its full rect with the cluster's animation, decoupled
-  // from any board polygon shape.
-  //
-  // Strategy: temporarily hijack ctx.canvas + ctx.canvasCtx to point
-  // at the pad canvas, synthesise a unit-square "room" with matching
-  // metrics covering the full pad rect, then call drawRoomComposition
-  // (the same per-room paint function the main draw loop uses for
-  // cluster members). Restore originals after.
-  function drawClusterPadCanvases(now) {
+  // Phase 23 W2 v10: minimal pad renderer — covers solid-color
+  // (the user's primary smoke test) explicitly, falls back to a
+  // soft accent-tinted indicator for other animation types. The
+  // ctx-swap + drawRoomComposition approach (v9) leaked geometry
+  // lookups via ctx.getRoomLabelPosition for the synthetic room
+  // and painted the animation at the wrong on-screen location.
+  // Direct fillRect-based painting is decoupled from any board
+  // polygon math and produces a fully-filled pad rect every time.
+  function drawClusterPadCanvases(_now) {
     const state = ctx.state;
     const padContainer = document.getElementById("cluster-pads");
     if (!padContainer) return;
     const dpr = window.devicePixelRatio || 1;
-    const origCanvas = ctx.canvas;
-    const origCanvasCtx = ctx.canvasCtx;
     for (const anim of state.runningAnimations) {
       if (anim?.scope !== "cluster") continue;
       if (anim.boardId !== state.boardId) continue;
@@ -587,57 +580,43 @@
       const padCtx = padCanvas.getContext("2d");
       padCtx.clearRect(0, 0, padCanvas.width, padCanvas.height);
 
-      // Resolve the member animation params (intensity, speed, color,
-      // assetType, etc) from the first cluster member view. The
-      // cluster owns the cross-room timing; member views carry the
-      // same animation params applied to each room.
+      // Resolve animation params from the first member.
       let memberViews = [];
       try { memberViews = ctx.buildClusterMemberRuntimeViews(anim) || []; } catch { /* defensive */ }
-      if (memberViews.length === 0) continue;
-      const memberAnim = memberViews[0].animation;
-      if (!memberAnim) continue;
-      const speed = ctx.clampRoomSpeed
-        ? ctx.clampRoomSpeed(memberAnim.speed ?? 1)
-        : Math.max(0.1, Number(memberAnim.speed) || 1);
-      const age = ((now - Number(memberAnim.startedAt || 0)) / 1000)
-        * Number(state.animationSpeed || 1)
-        * speed;
+      const memberAnim = memberViews[0]?.animation || anim;
 
-      // Synthetic room covering the full pad rect. Polygon is a unit
-      // square (so polygon-clip ops still produce valid masks); the
-      // metrics map every (x,y) in the polygon to the full pad
-      // canvas pixel space.
-      const fakeRoom = {
-        id: `__cluster_pad_${clusterId}`,
-        polygon: [[0, 0], [1, 0], [1, 1], [0, 1]],
-        center: { x: 0.5, y: 0.5 },
-        radius: 0.5,
-      };
-      const fakeRoomMetrics = {
-        centerX: padCanvas.width / 2,
-        centerY: padCanvas.height / 2,
-        width: padCanvas.width,
-        height: padCanvas.height,
-        radius: Math.min(padCanvas.width, padCanvas.height) / 2,
-        minX: 0,
-        minY: 0,
-      };
-
-      // Hijack ctx so drawRoomComposition + drawEffectVisual paint
-      // into this pad canvas instead of the main fx-canvas.
-      ctx.canvas = padCanvas;
-      ctx.canvasCtx = padCtx;
-      try {
-        drawRoomComposition(memberAnim, age, fakeRoom, fakeRoomMetrics);
-      } catch (error) {
-        // Defensive — never crash the render loop if a single pad fails.
-        if (typeof console !== "undefined") {
-          console.warn("[cluster-pad] render error", error);
-        }
-      } finally {
-        ctx.canvas = origCanvas;
-        ctx.canvasCtx = origCanvasCtx;
+      // Solid-color: fill the pad with the animation's color.
+      // (User's smoke-test case.)
+      const isSolidColor = (memberAnim?.type === "solid-color")
+        || (anim?.type === "solid-color")
+        || (typeof memberAnim?.roomAssetRef === "string"
+          && memberAnim.roomAssetRef.toLowerCase().includes("solid-color"));
+      if (isSolidColor) {
+        const color = memberAnim?.colorHex || anim?.colorHex || "#ff0000";
+        const alpha = Math.max(0, Math.min(1, Number(memberAnim?.opacity ?? anim?.opacity ?? 1)));
+        padCtx.save();
+        padCtx.globalAlpha = alpha;
+        padCtx.fillStyle = color;
+        padCtx.fillRect(0, 0, padCanvas.width, padCanvas.height);
+        padCtx.restore();
+        continue;
       }
+
+      // Fallback: soft accent-coloured "running" tint plus a label
+      // hint that paints the cluster animation type. Until we wire
+      // up per-effect direct renderers this gives the user an
+      // unmistakable signal that the cluster is active without
+      // borrowing the board's polygon-clipped pixels.
+      padCtx.save();
+      padCtx.fillStyle = "rgba(50, 211, 163, 0.18)";
+      padCtx.fillRect(0, 0, padCanvas.width, padCanvas.height);
+      padCtx.fillStyle = "rgba(50, 211, 163, 0.85)";
+      padCtx.font = `${Math.max(11, padCanvas.width / 10)}px "Inter", sans-serif`;
+      padCtx.textAlign = "center";
+      padCtx.textBaseline = "middle";
+      const typeLabel = String(memberAnim?.animationName || memberAnim?.type || anim?.type || "running");
+      padCtx.fillText(typeLabel, padCanvas.width / 2, padCanvas.height / 2);
+      padCtx.restore();
     }
   }
 

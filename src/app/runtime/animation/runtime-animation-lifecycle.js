@@ -1294,6 +1294,10 @@
     const { state } = ctx;
     const normalizedClusterId = String(clusterId || "").trim();
     if (!normalizedClusterId) return;
+    const beforeCount = state.runningAnimations.length;
+    const beforeClusterCount = state.runningAnimations.filter(
+      (a) => a?.scope === "cluster" && String(a.clusterId || "").trim() === normalizedClusterId,
+    ).length;
     const isRunning = state.runningAnimations.some(
       (anim) => anim?.scope === "cluster"
         && String(anim.clusterId || "").trim() === normalizedClusterId
@@ -1314,6 +1318,8 @@
     state.roomDraft.editTargetId = null;
     if (typeof ctx.startRoomAnimationFromDraft === "function") {
       ctx.startRoomAnimationFromDraft();
+    } else {
+      console.warn("[cluster-pad] ctx.startRoomAnimationFromDraft is not a function");
     }
     state.roomDraft.targetType = previousTargetType;
     state.roomDraft.targetId = previousTargetId;
@@ -1321,6 +1327,19 @@
     if (typeof ctx.syncRoomTargetSelect === "function") {
       ctx.syncRoomTargetSelect();
     }
+    const afterCount = state.runningAnimations.length;
+    const afterClusterCount = state.runningAnimations.filter(
+      (a) => a?.scope === "cluster" && String(a.clusterId || "").trim() === normalizedClusterId,
+    ).length;
+    console.info("[cluster-pad] dispatch toggle result", {
+      clusterId: normalizedClusterId,
+      armedAnimationId: state.roomDraft?.animationId,
+      animationsCountBefore: beforeCount,
+      animationsCountAfter: afterCount,
+      clusterEntriesBefore: beforeClusterCount,
+      clusterEntriesAfter: afterClusterCount,
+      delta: afterCount - beforeCount,
+    });
   }
 
   function dispatchClusterClear(clusterId) {
