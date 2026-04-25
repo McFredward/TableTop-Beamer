@@ -2350,6 +2350,14 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   // Phase 21-1: needed by the Active Animations list to bucket room
   // animations running in frozen rooms into the "Frozen Rooms" section.
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
+  // Phase 23 W2: cluster pads need access to the cluster catalog +
+  // dispatch entry point. startRoomAnimationFromDraft is exposed
+  // here lazily because it only gets defined later in this file
+  // (window.TT_BEAMER_RUNTIME_ROOM_DISPATCH binding) — wrap in an
+  // arrow so the lookup happens at call time, not init time.
+  getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
+  startRoomAnimationFromDraft: () => startRoomAnimationFromDraft?.(),
+  syncRoomTargetSelect: () => syncRoomTargetSelect?.(),
 });
 const {
   collectAnimationStopIds,

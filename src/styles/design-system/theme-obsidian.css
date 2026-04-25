@@ -1574,8 +1574,11 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 .cluster-pads {
+  /* Phase 23 W2: pinned to the LEFT side of the board, since the
+   * dashboard sidebar (settings / armed library / running list)
+   * lives on the right and would otherwise overlap the rail. */
   position: absolute;
-  left: calc(100% + 12px);
+  right: calc(100% + 12px);
   top: 0;
   height: 100%;
   width: 18%;
@@ -1585,6 +1588,10 @@ body[data-output-role="final-output"].dir-obsidian {
   flex-direction: column;
   gap: 10px;
   pointer-events: auto;
+  /* Make sure the pads sit ON TOP of the stage's siblings (they
+   * extend OUTSIDE the stage's natural box; without an explicit
+   * z-index a sibling .stage with a box-shadow could occlude). */
+  z-index: 5;
 }
 .cluster-pads:empty {
   display: none;
@@ -1691,7 +1698,7 @@ body[data-output-role="final-output"].dir-obsidian {
     width: 14%;
     min-width: 90px;
     max-width: 150px;
-    left: calc(100% + 8px);
+    right: calc(100% + 8px);
     gap: 8px;
   }
 }
