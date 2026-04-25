@@ -227,9 +227,6 @@
     ctx.triggerFeedback.textContent = "Status: ready";
     ctx.renderRunningAnimationsList();
     ctx.refreshGlobalButtons();
-    window.TT_BEAMER_LIVE_SYNC_DEBUG = {
-      getLiveTraceSnapshot: ctx.getLiveTraceSnapshot,
-    };
     ctx.logBootstrap.info("init_ready", {
       event: "init-ready",
       boardId: state.boardId,

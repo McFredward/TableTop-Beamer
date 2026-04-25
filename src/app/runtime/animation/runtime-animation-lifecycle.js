@@ -1198,14 +1198,6 @@
     const clusters = (typeof ctx.getBoardRoomClusters === "function")
       ? (ctx.getBoardRoomClusters(state.boardId) || [])
       : [];
-    if (window.__TT_CLUSTER_DEBUG__) {
-      console.info(
-        "[cluster-pads] board=", state.boardId,
-        "clusters=", clusters.length,
-        "names=", clusters.map((c) => c.name).join(",") || "(none)",
-        "ctx.getBoardRoomClusters=", typeof ctx.getBoardRoomClusters,
-      );
-    }
 
     // Sync DOM children with cluster list. Reuse existing pads when
     // their clusterId matches so we don't churn DOM on every state
@@ -1248,11 +1240,6 @@
         // Clear). No inline × control; mode is set globally on
         // the dashboard.
         pad.addEventListener("click", () => {
-          console.info("[cluster-pad] click", {
-            clusterId,
-            mode: ctx?.state?.quickMode?.mode,
-            armedAnimation: ctx?.state?.roomDraft?.animationId,
-          });
           dispatchClusterByTapAction(clusterId);
         });
         listEl.append(pad);
@@ -1299,7 +1286,6 @@
       ctx.triggerFeedback.textContent =
         `Status: cluster pad tap (mode=${mode}, armed=${armedId || "(none)"})`;
     }
-    console.info("[cluster-pad] tap-action route", { clusterId, mode, armedId });
     if (mode === "off") return;
     if (mode === "clear") {
       dispatchClusterClear(clusterId);
@@ -1318,7 +1304,6 @@
     const normalizedClusterId = String(clusterId || "").trim();
     if (!normalizedClusterId) return;
     const armedType = String(state.roomDraft?.animationId || "").trim();
-    const beforeCount = state.runningAnimations.length;
     // Find existing cluster-scope entries on this cluster of the
     // CURRENTLY ARMED type — those are the ones a same-type tap
     // should stop. Other cluster entries are left alone.
@@ -1328,15 +1313,7 @@
         && String(anim.boardId || "").trim() === String(state.boardId || "").trim()
         && (!armedType || String(anim.type || "").trim() === armedType),
     );
-    console.info("[cluster-pad] toggle entry", {
-      clusterId: normalizedClusterId,
-      armedType,
-      stateBoardId: state.boardId,
-      runningTotal: beforeCount,
-      matchingTypeCount: matchingTypeEntries.length,
-    });
     if (matchingTypeEntries.length > 0) {
-      console.info("[cluster-pad] -> STOP same-type path", { count: matchingTypeEntries.length });
       // stopAnimation is defined locally in this module — call it
       // directly. ctx.stopAnimation isn't forwarded.
       for (const anim of matchingTypeEntries) {
@@ -1344,7 +1321,6 @@
       }
       return;
     }
-    console.info("[cluster-pad] -> START path (no same-type cluster running, dispatching)");
     // Start: temporarily flip roomDraft to target this cluster, then
     // call startRoomAnimationFromDraft (the same path the dropdown
     // + room-tap pipeline uses).
@@ -1357,7 +1333,6 @@
     if (typeof ctx.startRoomAnimationFromDraft === "function") {
       try {
         ctx.startRoomAnimationFromDraft();
-        console.info("[cluster-pad] startRoomAnimationFromDraft returned (sync)");
       } catch (error) {
         console.error("[cluster-pad] startRoomAnimationFromDraft THREW:", error);
       }
@@ -1370,19 +1345,6 @@
     if (typeof ctx.syncRoomTargetSelect === "function") {
       ctx.syncRoomTargetSelect();
     }
-    const afterCount = state.runningAnimations.length;
-    const afterClusterCount = state.runningAnimations.filter(
-      (a) => a?.scope === "cluster" && String(a.clusterId || "").trim() === normalizedClusterId,
-    ).length;
-    console.info("[cluster-pad] dispatch toggle result", {
-      clusterId: normalizedClusterId,
-      armedAnimationId: state.roomDraft?.animationId,
-      animationsCountBefore: beforeCount,
-      animationsCountAfter: afterCount,
-      clusterEntriesBefore: beforeClusterCount,
-      clusterEntriesAfter: afterClusterCount,
-      delta: afterCount - beforeCount,
-    });
   }
 
   function dispatchClusterClear(clusterId) {
@@ -1394,7 +1356,6 @@
         && String(anim.clusterId || "").trim() === normalizedClusterId
         && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
     );
-    console.info("[cluster-pad] CLEAR all", { matches: matches.length });
     for (const anim of matches) {
       stopAnimation(anim.id);
     }
