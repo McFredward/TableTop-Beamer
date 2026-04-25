@@ -60,18 +60,32 @@ UI. `/output` projection surface untouched (as scoped).
   targets at full size).
 
 ### Wave 5 — Mobile + light polish ✅
-- `.dir-obsidian-light` palette populated in foundations.css
-  (still behind an opt-in class; dark is the default for the
-  production projection use case).
+- `.dir-obsidian-light` palette populated in foundations.css.
+- **Live light/dark mode toggle** in the topbar with localStorage
+  persistence under `tt-beamer.theme.v1`. Inline boot snippet
+  restores the saved preference before the main JS loads, so no
+  dark→light flash on reload. All 199 theme rules in
+  theme-obsidian.css rescoped from `.dir-obsidian-dark` to
+  `.dir-obsidian` so token swaps drive both palettes from the same
+  ruleset; the `-dark` / `-light` classes remain the palette hooks
+  (token definitions in foundations.css).
 - Animation editor responsive at 1180/880 px (already shipped
   mid-wave).
 - Dashboard + topbar responsive breakpoints (1180 / 980 / 920 /
   600 px) landed in theme-obsidian.css:
-  - 1180: tighter topbar + chip padding.
-  - 980: icon-only Align, smaller chip font.
-  - 920: topbar wraps to two rows, chip fills row 2, 40-px hit
-    target on buttons.
+  - 1180: tighter topbar + chip padding, Align icon-only.
+  - 980: smaller chip font, tighter action gap.
+  - 920: per-row spacing tightened on phones; topbar already
+    stacked.
   - 600: compact card radii.
+- **Topbar layout finalised as two-row stack**: brand (logo +
+  "TableTop Beamer" + board sub-line) on row 1 with full width,
+  action cluster (running-count chip + Align + theme-toggle) on
+  row 2 right-aligned. Brand is no longer ellipsised by the
+  action cluster on any viewport.
+- Align toggle button: legacy `width: 100%` and dark-blue
+  linear-gradient overrides cleared so the pill stays compact and
+  theme-aware in both light and dark.
 - WebGL mesh warp — seamless projection alignment on MP4
   backgrounds (was the blocker keeping alignment immersive on the
   physical board). RPi-friendly with context-lost fallback.
@@ -139,8 +153,6 @@ UI. `/output` projection surface untouched (as scoped).
 
 ## Follow-ups (not phase-blocking)
 
-- Light-mode palette needs a per-component audit pass before a
-  public toggle (only foundations + stub component rules exist).
 - Mobile artboard pixel-perfect recreation (the redesign's
   `Artboard-MobilePlay.jsx` / `Artboard-MobileEditor.jsx`) is
   achievable through the responsive breakpoints as-is; a further
@@ -148,6 +160,15 @@ UI. `/output` projection surface untouched (as scoped).
 - If MP4 frame rate on RPi drops under WebGL, consider a stride
   throttle on `texImage2D` upload (every-other-frame) — current
   renderer uploads at full display rate.
+- Light mode is shipped and toggled live, but the legacy
+  `src/styles.css` (which is loaded BEFORE the design-system
+  CSS) still has hard-coded dark-mode colours in a few places.
+  Most are masked by the `.dir-obsidian` overrides (proven by
+  the W5 align-toggle fix), but a future pass could inventory
+  every legacy rule that paints background/border/colour with
+  raw hex/rgba and convert them to token references too. Not
+  urgent — the current palette swap covers every UI surface that
+  affects user-facing legibility.
 
 ## Commits (W5, chronological slice)
 
@@ -177,4 +198,9 @@ fd1023e fix(22-w5): <select> no longer blocks DELETE/Ctrl+Z shortcuts
 d55f9d6 fix(22-w5): wheel zoom anchors at viewport frame, not stage rect
 ecd4160 fix(22-w5): zoom-in cursor-anchored, zoom-out frame-anchored, cache refresh
 9461031 feat(22-w5): responsive breakpoints for dashboard + topbar
+9ef791c docs(phase-22): Wave 5 complete — Phase 22 closed (initial)
+b754680 feat(22-w5): light/dark mode toggle with localStorage persistence
+6cb52d6 fix(22-w5): topbar brand no longer clipped by Align/theme buttons
+2be2a61 fix(22-w5): topbar stacks brand on row 1, actions on row 2
+07d41f1 fix(22-w5): align button — compact + theme-aware in light mode
 ```
