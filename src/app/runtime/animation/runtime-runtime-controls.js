@@ -20,17 +20,10 @@
     window.TT_BEAMER_INPUT_GUARDS.recordTriggerIntent(ctx.state);
   }
 
-  // Phase 15-6: graceful audio for global inside non-loop animations.
-  // When a non-loop inside global is stopped (clear-all, snapshot
-  // stop, etc.), we previously called stopAnimationSound which
-  // hard-cut the voice mid-sample. That's fine for loops (the user
-  // expects an immediate stop) and for outside animations (long
-  // ambient audio), but for short inside one-shots it was jarring.
-  // Now we pass `graceful: true` so the active iteration plays to
-  // its natural `ended` event while the animation is still removed
-  // from the tracking map. We also stop calling
-  // clearAllActiveAnimationAudio unconditionally — that wipes the
-  // tracking map even for voices we want to fade out naturally.
+  // Inside non-loop globals stop with `graceful: true` so the active
+  // sample plays to its natural `ended` event (no click on short SFX);
+  // outside / loop animations still hard-cut so ambient audio doesn't
+  // drift across triggers.
   function shouldGracefulStopAudio(animation) {
     if (!animation || animation.scope !== "global") return false;
     // Outside animations get the hard stop so the ambient track doesn't

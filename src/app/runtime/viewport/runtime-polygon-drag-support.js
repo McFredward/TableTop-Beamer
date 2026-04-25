@@ -216,9 +216,9 @@
     return Math.max(0, Math.min(1, Number(value) || 0));
   }
 
-  // Phase 13-HF8: heavy-interaction lifecycle shared by all polygon
-  // drag types. begin* called from each begin*Drag helper. end* called
-  // from each finish*/cancel*/clearPending* helper. Idempotent.
+  // Heavy-interaction flag: pauses the draw loop's render pipeline so
+  // polygon edit gestures stay smooth (see runtime-draw-loop.js's
+  // heavy-interaction guard). Set on gesture start; cleared on end.
   function beginPolygonDragInteraction() {
     if (polygonDragActive) return;
     polygonDragActive = true;

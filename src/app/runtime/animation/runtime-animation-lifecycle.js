@@ -1135,20 +1135,12 @@
     try { renderClusterPads(); } catch { /* defensive — never crash render loop */ }
   }
 
-  // Phase 23 W2: cluster pads — artificial mini-rooms next to the
-  // board. One pad per cluster on the active board. Each pad is a
-  // square div carrying the cluster name + a running-state dot +
-  // a clear (×) control. Tap = toggle cluster dispatch via the
-  // existing quick-mode flow (sets roomDraft.targetType="cluster"
-  // then stops or starts via startRoomAnimationFromDraft).
-  // Animation rendering INSIDE the pad lands in the next commit;
-  // for now the pad shows name + state only.
-  // Phase 23 W2 v6: sync the position:fixed cluster rail to the
-  // stage's current screen rect. Called on every renderClusterPads
-  // tick + on window resize so the rail tracks pan/zoom in real
-  // time. The rail sits outside #stage in the DOM (avoiding the
-  // overflow:hidden chain inside the dashboard tree) but visually
-  // behaves as if attached to the stage's left edge.
+  // Cluster pads: artificial mini-rooms beside the board for each cluster
+  // (users fire/clear cluster animations without picking individual rooms).
+  // The position:fixed cluster rail is synced to the stage's current screen
+  // rect on every tick + on resize — the rail sits outside #stage (avoiding
+  // the dashboard's overflow:hidden chain) but visually attaches to the
+  // stage's left edge.
   function updateClusterPadsRect() {
     const container = document.getElementById("cluster-pads");
     if (!container) return;

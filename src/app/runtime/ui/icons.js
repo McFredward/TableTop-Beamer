@@ -160,14 +160,9 @@
     return svg;
   }
 
-  // Phase 22 W2c: heuristic icon resolver used until Wave 3 ships
-  // per-animation user-assigned icons via the animation editor.
-  // Takes a room/outside animation definition and returns a best-guess
-  // icon name from ICON_DEFS. Library tiles + running-list rows both
-  // consume this so we don't show blank squares before Wave 3.
-  //
-  // Resolution order: explicit `definition.icon` (set once Wave 3 lands)
-  // → coded-effect type → asset type → name keyword → fallback.
+  // Icon resolution order: explicit `definition.icon` (user-assigned via
+  // the animation editor) → coded-effect type → asset type → name
+  // keyword → fallback.
   function resolveAnimationIcon(definition) {
     if (!definition || typeof definition !== "object") return "sparkles";
     if (typeof definition.icon === "string" && ICON_DEFS[definition.icon]) {

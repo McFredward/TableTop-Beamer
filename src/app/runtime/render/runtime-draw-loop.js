@@ -708,15 +708,9 @@
 
       c.clearRect(0, 0, canvas.width, canvas.height);
       pruneFinishedAnimations(now);
-      // Phase 13-HF7: pause the heavy animation render pipeline while a
-      // touch gesture is in flight. The gesture is brief (typically
-      // under 2 s) and the user is actively interacting, not staring at
-      // background animations. Skipping the outside-fx layer + the
-      // drawAnimationSafely loop recovers 20–40 ms of main-thread time
-      // per frame on mobile.
-      // Phase 13-HF8: also pause during polygon drag. Same rationale —
-      // the user is editing, not watching — and drag lag was the
-      // remaining symptom after HF7.
+      // Pause the render pipeline while a touch gesture or polygon drag is
+      // active. Recovers 20–40 ms / frame on mobile and removes drag lag.
+      // (See heavy-interaction guards in runtime-polygon-drag-support.)
       if (ctx.isHeavyInteractionActive()) {
         ctx.recordRuntimeFrameCost(performance.now() - frameStart);
         return;

@@ -157,9 +157,8 @@
   }
 
   function syncBoardZoomPanel() {
-    // Phase 13-2: zoom slider removed. This function is kept for ABI stability
-    // of the ~20 call sites that use it — it still refreshes the status line
-    // and the stage transform, it just no longer writes to a slider/label.
+    // Kept for ABI stability of ~20 call sites: refreshes the status line
+    // and the stage transform without writing to a slider/label.
     syncPolygonHandleSizePanel();
     syncBoardZoomStatus();
     syncStageZoomTransform();
@@ -189,11 +188,9 @@
     }
   }
 
-  // Phase 13-HF5: rAF-coalesced zoom/pan writer. Called from high-frequency
-  // pan/zoom pointermove paths (touch pan, mouse wheel, pinch). Collapses
-  // many same-frame calls into a single updateCurrentBoardZoom() + DOM
-  // write per animation frame, which eliminates the mobile lag seen in
-  // HF4 touch pan.
+  // rAF-coalesced zoom/pan writer: collapses many same-frame calls
+  // (from pan, wheel, pinch) into one updateCurrentBoardZoom() + DOM
+  // write per frame, fixing mobile pan lag.
   function scheduleZoomUpdate(partial, statusText = null) {
     pendingZoomUpdate = pendingZoomUpdate
       ? { ...pendingZoomUpdate, ...partial, statusText: statusText ?? pendingZoomUpdate.statusText }
