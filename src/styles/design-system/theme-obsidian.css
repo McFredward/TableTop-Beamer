@@ -334,8 +334,14 @@ body[data-output-role="final-output"].dir-obsidian {
   box-shadow: none;
 }
 
-/* Align-mode toggle — text + icon button, stays pill-shaped. */
+/* Align-mode toggle — text + icon button, stays pill-shaped.
+ * Phase 22 W5: explicitly override the legacy styles.css rule
+ * (`width: 100%` + `background: linear-gradient(dark blue)`) so
+ * the topbar pill stays compact and theme-driven. The legacy rule
+ * is loaded BEFORE us, but our `.dir-obsidian .align-mode-toggle`
+ * selector is more specific (0,2,0 vs 0,1,0). */
 .dir-obsidian .align-mode-toggle {
+  width: auto;
   border-radius: var(--rd-r-pill);
   display: inline-flex;
   align-items: center;
@@ -345,6 +351,16 @@ body[data-output-role="final-output"].dir-obsidian {
   min-height: var(--rd-hit-sm);
   font-weight: 500;
   font-size: 13px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-2);
+  flex: 0 0 auto;
+}
+
+.dir-obsidian .align-mode-toggle:hover:not(:disabled) {
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  border-color: var(--c-border);
 }
 
 .dir-obsidian .align-mode-toggle[aria-pressed="true"] {
