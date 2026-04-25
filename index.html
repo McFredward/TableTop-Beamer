@@ -60,6 +60,13 @@
         <img id="board-image" alt="Board" draggable="false" />
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
         <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+        <!-- Phase 23 W2: cluster pads — artificial mini-rooms next to
+             the board for fast cluster trigger + per-cluster running
+             state. Inserted as a direct child of #stage so they share
+             the stage's pan/zoom transform AND are auto-hidden in
+             /output/ via the existing rule that limits #stage children
+             to #fx-canvas + #room-overlay on the projection surface. -->
+        <div id="cluster-pads" class="cluster-pads" aria-label="Cluster trigger pads"></div>
       </div>
     </main>
 

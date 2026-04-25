@@ -1101,6 +1101,133 @@
       );
       button.classList.toggle("active", isActive);
     });
+    // Phase 23 W2: cluster pads share the same state-driven update
+    // cadence as the global buttons — running scope flips and board
+    // switches both reach refreshGlobalButtons through the existing
+    // lifecycle hooks. Piggyback on it instead of wiring a parallel
+    // call site.
+    try { renderClusterPads(); } catch { /* defensive — never crash render loop */ }
+  }
+
+  // Phase 23 W2: cluster pads — artificial mini-rooms next to the
+  // board. One pad per cluster on the active board. Each pad is a
+  // square div carrying the cluster name + a running-state dot +
+  // a clear (×) control. Tap = toggle cluster dispatch via the
+  // existing quick-mode flow (sets roomDraft.targetType="cluster"
+  // then stops or starts via startRoomAnimationFromDraft).
+  // Animation rendering INSIDE the pad lands in the next commit;
+  // for now the pad shows name + state only.
+  function renderClusterPads() {
+    const { state } = ctx;
+    const container = document.getElementById("cluster-pads");
+    if (!container) return;
+    const clusters = (typeof ctx.getBoardRoomClusters === "function")
+      ? (ctx.getBoardRoomClusters(state.boardId) || [])
+      : [];
+
+    // Sync DOM children with cluster list. Reuse existing pads when
+    // their clusterId matches so we don't churn DOM on every state
+    // update — only running-state class flips.
+    const existingByClusterId = new Map();
+    for (const child of Array.from(container.children)) {
+      const clusterId = child?.dataset?.clusterId;
+      if (clusterId) existingByClusterId.set(clusterId, child);
+    }
+    const seen = new Set();
+    for (const cluster of clusters) {
+      const clusterId = String(cluster.clusterId || "").trim();
+      if (!clusterId) continue;
+      seen.add(clusterId);
+      let pad = existingByClusterId.get(clusterId);
+      if (!pad) {
+        pad = document.createElement("div");
+        pad.className = "cluster-pad";
+        pad.dataset.clusterId = clusterId;
+        const render = document.createElement("div");
+        render.className = "cluster-pad-render";
+        const dot = document.createElement("span");
+        dot.className = "cluster-pad-dot";
+        dot.setAttribute("aria-hidden", "true");
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "cluster-pad-clear";
+        clear.title = "Clear cluster animations";
+        clear.setAttribute("aria-label", `Clear cluster ${cluster.name || clusterId}`);
+        clear.textContent = "×";
+        clear.addEventListener("click", (event) => {
+          event.stopPropagation();
+          dispatchClusterClear(clusterId);
+        });
+        const label = document.createElement("div");
+        label.className = "cluster-pad-label";
+        pad.append(render, dot, clear, label);
+        pad.addEventListener("click", () => {
+          dispatchClusterToggle(clusterId);
+        });
+        container.append(pad);
+      }
+      // Always sync label text (name may have changed in editor).
+      const labelEl = pad.querySelector(".cluster-pad-label");
+      if (labelEl) labelEl.textContent = cluster.name || clusterId;
+      // Sync running state.
+      const isRunning = state.runningAnimations.some(
+        (anim) => anim?.scope === "cluster"
+          && String(anim.clusterId || "").trim() === clusterId
+          && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
+      );
+      pad.classList.toggle("is-running", isRunning);
+    }
+    // Remove pads for clusters that no longer exist.
+    for (const [clusterId, pad] of existingByClusterId) {
+      if (!seen.has(clusterId)) pad.remove();
+    }
+  }
+
+  function dispatchClusterToggle(clusterId) {
+    const { state } = ctx;
+    const normalizedClusterId = String(clusterId || "").trim();
+    if (!normalizedClusterId) return;
+    const isRunning = state.runningAnimations.some(
+      (anim) => anim?.scope === "cluster"
+        && String(anim.clusterId || "").trim() === normalizedClusterId
+        && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
+    );
+    if (isRunning) {
+      dispatchClusterClear(normalizedClusterId);
+      return;
+    }
+    // Start: temporarily flip roomDraft to target this cluster, then
+    // call startRoomAnimationFromDraft (the same path the dropdown
+    // + room-tap pipeline uses).
+    const previousTargetType = state.roomDraft.targetType;
+    const previousTargetId = state.roomDraft.targetId;
+    const previousEditTargetId = state.roomDraft.editTargetId;
+    state.roomDraft.targetType = "cluster";
+    state.roomDraft.targetId = normalizedClusterId;
+    state.roomDraft.editTargetId = null;
+    if (typeof ctx.startRoomAnimationFromDraft === "function") {
+      ctx.startRoomAnimationFromDraft();
+    }
+    state.roomDraft.targetType = previousTargetType;
+    state.roomDraft.targetId = previousTargetId;
+    state.roomDraft.editTargetId = previousEditTargetId;
+    if (typeof ctx.syncRoomTargetSelect === "function") {
+      ctx.syncRoomTargetSelect();
+    }
+  }
+
+  function dispatchClusterClear(clusterId) {
+    const { state } = ctx;
+    const normalizedClusterId = String(clusterId || "").trim();
+    if (!normalizedClusterId) return;
+    const matches = state.runningAnimations.filter(
+      (anim) => anim?.scope === "cluster"
+        && String(anim.clusterId || "").trim() === normalizedClusterId
+        && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
+    );
+    for (const anim of matches) {
+      if (typeof ctx.stopAnimation === "function") ctx.stopAnimation(anim.id);
+    }
   }
 
   window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE = {
@@ -1118,6 +1245,7 @@
     isRunningListInteractionActive,
     validateRunningListParity,
     refreshGlobalButtons,
+    renderClusterPads,
     closeLiveEditor,
   };
 })();

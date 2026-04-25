@@ -2365,6 +2365,7 @@ const {
   isRunningListInteractionActive,
   validateRunningListParity,
   refreshGlobalButtons,
+  renderClusterPads,
   closeLiveEditor,
 } = window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE;
 

@@ -1542,3 +1542,164 @@ body[data-output-role="final-output"].dir-obsidian {
     border-radius: var(--rd-r-2);
   }
 }
+
+/* =============================================================
+ * Phase 23 W2 — Cluster pads (artificial mini-rooms next to board)
+ *
+ * The pads sit absolutely-positioned to the right of the board
+ * image, inside #stage so they pan/zoom with it. The board's
+ * `overflow: hidden` would clip them — relax to `visible` for
+ * dashboard mode. Output mode keeps them hidden via the existing
+ * `body[data-output-role="final-output"] #stage>*` rule.
+ *
+ * Each pad is a square-ish render surface with the cluster name
+ * label, an inline x clear control, and a running-state dot. The
+ * inner render area is what the cluster animation paints into
+ * (Wave 2 next step).
+ * ============================================================= */
+
+.dir-obsidian #stage {
+  /* Allow cluster pads (positioned at left:100%) to render outside
+   * the stage box. The fx-canvas + room-overlay are sized to the
+   * stage box so they don't leak. */
+  overflow: visible;
+}
+/* But still clip the rounded board frame itself for fx-canvas /
+ * board-image content — pin those to the box via clip-path. */
+.dir-obsidian #stage > #board-image,
+.dir-obsidian #stage > #fx-canvas,
+.dir-obsidian #stage > #room-overlay {
+  /* No clip-path needed — these elements are sized exactly to
+   * the stage box and don't paint outside. */
+}
+
+.cluster-pads {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 0;
+  height: 100%;
+  width: 18%;
+  min-width: 110px;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+.cluster-pads:empty {
+  display: none;
+}
+
+.cluster-pad {
+  position: relative;
+  flex: 0 1 auto;
+  aspect-ratio: 1 / 1;
+  background: var(--c-bg-raised, #14171c);
+  border: 1px solid var(--c-border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.cluster-pad:hover {
+  border-color: color-mix(in srgb, var(--c-accent) 60%, var(--c-border));
+}
+.cluster-pad.is-running {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-accent) 18%, transparent);
+}
+
+/* Inner render surface — cluster animation paints in here. */
+.cluster-pad-render {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cluster-pad-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 10px;
+  font-family: var(--rd-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text);
+  background: linear-gradient(180deg,
+    transparent,
+    color-mix(in srgb, var(--c-bg) 80%, transparent) 60%,
+    color-mix(in srgb, var(--c-bg) 92%, transparent));
+  pointer-events: none;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cluster-pad-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-bg-raised);
+  display: none;
+}
+.cluster-pad.is-running .cluster-pad-dot {
+  display: block;
+  animation: cluster-pad-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cluster-pad-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
+
+.cluster-pad-clear {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--c-bg) 60%, transparent);
+  color: var(--c-text-2);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+.cluster-pad.is-running .cluster-pad-clear {
+  display: inline-flex;
+}
+.cluster-pad-clear:hover:not(:disabled) {
+  background: var(--c-bg);
+  color: var(--c-text);
+  border-color: var(--c-border);
+}
+
+/* Narrow viewports — collapse the pads next to the stage rather
+ * than letting them push the layout. Below 980 px sidebar is
+ * already tight; reduce pad column width. */
+@media (max-width: 980px) {
+  .cluster-pads {
+    width: 14%;
+    min-width: 90px;
+    max-width: 150px;
+    left: calc(100% + 8px);
+    gap: 8px;
+  }
+}
+@media (max-width: 720px) {
+  /* On true mobile, hide the pads — the user has the dashboard
+   * dropdown for cluster trigger when the side gutter disappears.
+   * Phase 24 could revisit a bottom-strip layout. */
+  .cluster-pads {
+    display: none;
+  }
+}
