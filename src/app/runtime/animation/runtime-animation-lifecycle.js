@@ -1296,38 +1296,40 @@
     dispatchClusterToggle(clusterId);
   }
 
+  // Toggle is TYPE-aware: like a normal room tap, it toggles only
+  // the armed animation TYPE on this cluster. Other cluster
+  // animations of different types stay running (multi-animation
+  // per cluster, same as multi-animation per room).
   function dispatchClusterToggle(clusterId) {
     const { state } = ctx;
     const normalizedClusterId = String(clusterId || "").trim();
     if (!normalizedClusterId) return;
+    const armedType = String(state.roomDraft?.animationId || "").trim();
     const beforeCount = state.runningAnimations.length;
-    const beforeClusterCount = state.runningAnimations.filter(
-      (a) => a?.scope === "cluster" && String(a.clusterId || "").trim() === normalizedClusterId,
-    ).length;
-    const allClusterEntries = state.runningAnimations.filter(
-      (a) => a?.scope === "cluster",
-    ).map((a) => ({
-      id: a.id, clusterId: a.clusterId, boardId: a.boardId, type: a.type,
-    }));
-    const isRunning = state.runningAnimations.some(
+    // Find existing cluster-scope entries on this cluster of the
+    // CURRENTLY ARMED type — those are the ones a same-type tap
+    // should stop. Other cluster entries are left alone.
+    const matchingTypeEntries = state.runningAnimations.filter(
       (anim) => anim?.scope === "cluster"
         && String(anim.clusterId || "").trim() === normalizedClusterId
-        && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
+        && String(anim.boardId || "").trim() === String(state.boardId || "").trim()
+        && (!armedType || String(anim.type || "").trim() === armedType),
     );
     console.info("[cluster-pad] toggle entry", {
       clusterId: normalizedClusterId,
+      armedType,
       stateBoardId: state.boardId,
       runningTotal: beforeCount,
-      clusterEntriesCount: beforeClusterCount,
-      allClusterEntries,
-      isRunning,
+      matchingTypeCount: matchingTypeEntries.length,
     });
-    if (isRunning) {
-      console.info("[cluster-pad] -> CLEAR path (cluster already running)");
-      dispatchClusterClear(normalizedClusterId);
+    if (matchingTypeEntries.length > 0) {
+      console.info("[cluster-pad] -> STOP same-type path");
+      for (const anim of matchingTypeEntries) {
+        if (typeof ctx.stopAnimation === "function") ctx.stopAnimation(anim.id);
+      }
       return;
     }
-    console.info("[cluster-pad] -> START path (no cluster running, dispatching)");
+    console.info("[cluster-pad] -> START path (no same-type cluster running, dispatching)");
     // Start: temporarily flip roomDraft to target this cluster, then
     // call startRoomAnimationFromDraft (the same path the dropdown
     // + room-tap pipeline uses).
