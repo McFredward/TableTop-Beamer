@@ -175,6 +175,21 @@
   let _glAttrPos = -1;
   let _glAttrUV = -1;
   let _glUniTex = null;
+  // Phase 23 W3: when in /output/ we want the GL canvas itself to be
+  // the visible warp surface — no GPU→CPU readback. We append the GL
+  // canvas to the same parent as fx-canvas and rely on CSS to stack
+  // it on top, then clear fx-canvas after the texImage2D upload so
+  // the unwarped 2D content doesn't show through underneath.
+  let _glCanvasOnStage = false;
+  // Cached typed arrays so we don't allocate fresh Float32Array /
+  // Uint16Array every frame on RPi. Sized for the current grid; we
+  // reallocate only when rows/cols change.
+  let _glCachedRows = 0;
+  let _glCachedCols = 0;
+  let _glPositions = null;
+  let _glUVs = null;
+  let _glIndices = null;
+  let _glIndexCount = 0;
 
   function _initMeshWarpGL() {
     if (_glInitTried) return _glInitOk;
@@ -258,26 +273,43 @@
     }
   }
 
+  // Phase 23 W3: in /output/ the GL canvas itself becomes the visible
+  // warp surface (overlay over the now-blank fx-canvas). This is
+  // critical for RPi performance because the previous design did
+  // `drawImage(_glCanvas, 0, 0)` back to the 2D fx-canvas every
+  // frame — a full-size CPU-side memcpy that on a 1080p RPi costs
+  // 5–10 ms just by itself. Direct display eliminates that round-trip.
+  function _ensureGLCanvasOnStage() {
+    if (_glCanvasOnStage || !_glCanvas) return;
+    const fx = ctx?.canvas;
+    const parent = fx?.parentNode;
+    if (!parent) return;
+    _glCanvas.id = "fx-gl-canvas";
+    _glCanvas.className = "fx-gl-canvas";
+    _glCanvas.setAttribute("aria-hidden", "true");
+    parent.insertBefore(_glCanvas, fx.nextSibling);
+    _glCanvasOnStage = true;
+  }
+
   function _postDrawMeshWarpGL(canvas, canvasCtx) {
     if (!_initMeshWarpGL()) return false;
+    const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+    if (isOutput) _ensureGLCanvasOnStage();
+
     const w = canvas.width;
     const h = canvas.height;
     if (_glCanvas.width !== w || _glCanvas.height !== h) {
       _glCanvas.width = w;
       _glCanvas.height = h;
     }
-    // Snapshot current canvas into the temp canvas (also used by 2D path).
-    if (!_warpTmpCanvas) {
-      _warpTmpCanvas = document.createElement("canvas");
-      _warpTmpCtx = _warpTmpCanvas.getContext("2d");
+    // Sync the GL canvas's CSS size to match fx-canvas exactly so the
+    // overlay aligns pixel-for-pixel inside the stage box.
+    if (isOutput) {
+      const cssW = canvas.style.width;
+      const cssH = canvas.style.height;
+      if (cssW && _glCanvas.style.width !== cssW) _glCanvas.style.width = cssW;
+      if (cssH && _glCanvas.style.height !== cssH) _glCanvas.style.height = cssH;
     }
-    if (_warpTmpCanvas.width !== w || _warpTmpCanvas.height !== h) {
-      _warpTmpCanvas.width = w;
-      _warpTmpCanvas.height = h;
-    }
-    _warpTmpCtx.setTransform(1, 0, 0, 1, 0, 0);
-    _warpTmpCtx.clearRect(0, 0, w, h);
-    _warpTmpCtx.drawImage(canvas, 0, 0);
 
     _gl.viewport(0, 0, w, h);
     _gl.useProgram(_glProgram);
@@ -285,7 +317,12 @@
     _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
     _gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     try {
-      _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, _warpTmpCanvas);
+      // Phase 23 W3: upload the source canvas DIRECTLY. The previous
+      // path bounced through a 2D temp canvas (`_warpTmpCanvas`) which
+      // cost an extra full-canvas memcpy on the CPU side every frame
+      // (~5 ms on a 1080p Pi 4). texImage2D accepts HTMLCanvasElement
+      // per the WebGL spec, so the temp hop is pure overhead.
+      _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, canvas);
     } catch (error) {
       console.error("mesh-warp texImage2D failed:", error);
       return false;
@@ -294,65 +331,95 @@
     const cols = grid.srcXs.length;
     const rows = grid.srcYs.length;
     const vertexCount = rows * cols;
-    const positions = new Float32Array(vertexCount * 2);
-    const uvs = new Float32Array(vertexCount * 2);
+    const triCount = (rows - 1) * (cols - 1) * 2;
+
+    // Reallocate the cached typed arrays only when grid resolution
+    // changes (rare — happens when user inserts/removes grid lines).
+    // Per-frame they're reused, so we don't trigger fresh GC churn
+    // on the RPi.
+    if (_glCachedRows !== rows || _glCachedCols !== cols
+        || !_glPositions || !_glUVs || !_glIndices) {
+      _glPositions = new Float32Array(vertexCount * 2);
+      _glUVs = new Float32Array(vertexCount * 2);
+      _glIndices = new Uint16Array(triCount * 3);
+      _glIndexCount = _glIndices.length;
+      _glCachedRows = rows;
+      _glCachedCols = cols;
+      // Build indices once for this grid resolution.
+      let ii = 0;
+      for (let row = 0; row < rows - 1; row++) {
+        for (let col = 0; col < cols - 1; col++) {
+          const tl = row * cols + col;
+          const tr = tl + 1;
+          const bl = tl + cols;
+          const br = bl + 1;
+          _glIndices[ii++] = tl; _glIndices[ii++] = tr; _glIndices[ii++] = br;
+          _glIndices[ii++] = tl; _glIndices[ii++] = br; _glIndices[ii++] = bl;
+        }
+      }
+      _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
+      _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, _glIndices, _gl.STATIC_DRAW);
+    }
+
+    // Positions + UVs are recomputed each frame so handle drags +
+    // grid-line drags reflect immediately. Both arrays are tiny
+    // (~50 floats for a 4×4 grid) so the cost is microscopic next
+    // to the texImage2D upload.
     let vi = 0;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const pt = getPoint(row, col);
-        // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL, so NDC y
-        // maps as (1 - 2*pt.y) to keep top-of-canvas = top-of-NDC-visible.
-        positions[vi] = pt.x * 2 - 1;
-        positions[vi + 1] = 1 - pt.y * 2;
-        uvs[vi] = grid.srcXs[col];
-        // With UNPACK_FLIP_Y_WEBGL = true, texture's V axis is flipped:
-        // UV (u, v) samples src pixel (u*W, (1-v)*H). To keep our source
-        // Y aligned with destination Y, use (1 - grid.srcYs[row]).
-        uvs[vi + 1] = 1 - grid.srcYs[row];
+        // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
+        _glPositions[vi] = pt.x * 2 - 1;
+        _glPositions[vi + 1] = 1 - pt.y * 2;
+        _glUVs[vi] = grid.srcXs[col];
+        // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
+        // flipped, so use (1 - grid.srcYs[row]) to keep source Y
+        // aligned with destination Y.
+        _glUVs[vi + 1] = 1 - grid.srcYs[row];
         vi += 2;
-      }
-    }
-    const triCount = (rows - 1) * (cols - 1) * 2;
-    const indices = new Uint16Array(triCount * 3);
-    let ii = 0;
-    for (let row = 0; row < rows - 1; row++) {
-      for (let col = 0; col < cols - 1; col++) {
-        const tl = row * cols + col;
-        const tr = tl + 1;
-        const bl = tl + cols;
-        const br = bl + 1;
-        indices[ii++] = tl; indices[ii++] = tr; indices[ii++] = br;
-        indices[ii++] = tl; indices[ii++] = br; indices[ii++] = bl;
       }
     }
 
     _gl.bindBuffer(_gl.ARRAY_BUFFER, _glPosBuf);
-    _gl.bufferData(_gl.ARRAY_BUFFER, positions, _gl.DYNAMIC_DRAW);
+    _gl.bufferData(_gl.ARRAY_BUFFER, _glPositions, _gl.DYNAMIC_DRAW);
     _gl.enableVertexAttribArray(_glAttrPos);
     _gl.vertexAttribPointer(_glAttrPos, 2, _gl.FLOAT, false, 0, 0);
 
     _gl.bindBuffer(_gl.ARRAY_BUFFER, _glUVBuf);
-    _gl.bufferData(_gl.ARRAY_BUFFER, uvs, _gl.DYNAMIC_DRAW);
+    _gl.bufferData(_gl.ARRAY_BUFFER, _glUVs, _gl.DYNAMIC_DRAW);
     _gl.enableVertexAttribArray(_glAttrUV);
     _gl.vertexAttribPointer(_glAttrUV, 2, _gl.FLOAT, false, 0, 0);
 
     _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
-    _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, indices, _gl.DYNAMIC_DRAW);
-
     _gl.activeTexture(_gl.TEXTURE0);
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
 
     _gl.clearColor(0, 0, 0, 0);
     _gl.clear(_gl.COLOR_BUFFER_BIT);
-    _gl.drawElements(_gl.TRIANGLES, indices.length, _gl.UNSIGNED_SHORT, 0);
+    _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
-    // Blit GL result onto the main canvas.
-    canvasCtx.save();
-    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-    canvasCtx.clearRect(0, 0, w, h);
-    canvasCtx.drawImage(_glCanvas, 0, 0);
-    canvasCtx.restore();
+    if (isOutput) {
+      // Phase 23 W3: skip the GPU→CPU readback. The GL canvas IS the
+      // visible surface — we just need to clear fx-canvas so its now-
+      // stale unwarped content doesn't show through underneath. The
+      // texture upload above already snapshotted what we need.
+      canvasCtx.save();
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+      canvasCtx.restore();
+    } else {
+      // Dashboard: read GL result back onto fx-canvas so the existing
+      // editor compositing path keeps working unchanged. (The /output/
+      // optimization above doesn't apply here because the projection-
+      // mapping editor draws other handles on top of fx-canvas.)
+      canvasCtx.save();
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+      canvasCtx.drawImage(_glCanvas, 0, 0);
+      canvasCtx.restore();
+    }
     return true;
   }
 

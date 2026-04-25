@@ -148,7 +148,7 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   pointer-events: none;
 }
 
-body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay) {
+body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay):not(#fx-gl-canvas) {
   display: none !important;
 }
 
@@ -222,6 +222,7 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
 
 #board-image,
 #fx-canvas,
+#fx-gl-canvas,
 #room-overlay {
   position: absolute;
   inset: 0;
@@ -232,6 +233,21 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
      drag lands as a pointer event on the vertex hit target. Zoom
      gestures live on the parent #stage and remain available. */
   touch-action: none;
+}
+
+/* Phase 23 W3: GL warp output canvas — a sibling of fx-canvas that
+   stacks on top inside #stage. In /output/ this canvas IS the visible
+   warped projection (fx-canvas underneath is cleared each frame after
+   we sample it for the texture upload). Hidden in dashboard since the
+   editor relies on the existing readback path so handles keep
+   compositing correctly on top of fx-canvas. */
+#fx-gl-canvas {
+  pointer-events: none;
+  display: none;
+  z-index: 2;
+}
+body[data-output-role="final-output"] #fx-gl-canvas {
+  display: block;
 }
 
 /* Phase 13-HF3: Apply / Discard bar for opt-in save.
