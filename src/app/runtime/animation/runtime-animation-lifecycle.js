@@ -1304,15 +1304,30 @@
     const beforeClusterCount = state.runningAnimations.filter(
       (a) => a?.scope === "cluster" && String(a.clusterId || "").trim() === normalizedClusterId,
     ).length;
+    const allClusterEntries = state.runningAnimations.filter(
+      (a) => a?.scope === "cluster",
+    ).map((a) => ({
+      id: a.id, clusterId: a.clusterId, boardId: a.boardId, type: a.type,
+    }));
     const isRunning = state.runningAnimations.some(
       (anim) => anim?.scope === "cluster"
         && String(anim.clusterId || "").trim() === normalizedClusterId
         && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
     );
+    console.info("[cluster-pad] toggle entry", {
+      clusterId: normalizedClusterId,
+      stateBoardId: state.boardId,
+      runningTotal: beforeCount,
+      clusterEntriesCount: beforeClusterCount,
+      allClusterEntries,
+      isRunning,
+    });
     if (isRunning) {
+      console.info("[cluster-pad] -> CLEAR path (cluster already running)");
       dispatchClusterClear(normalizedClusterId);
       return;
     }
+    console.info("[cluster-pad] -> START path (no cluster running, dispatching)");
     // Start: temporarily flip roomDraft to target this cluster, then
     // call startRoomAnimationFromDraft (the same path the dropdown
     // + room-tap pipeline uses).
@@ -1323,7 +1338,12 @@
     state.roomDraft.targetId = normalizedClusterId;
     state.roomDraft.editTargetId = null;
     if (typeof ctx.startRoomAnimationFromDraft === "function") {
-      ctx.startRoomAnimationFromDraft();
+      try {
+        ctx.startRoomAnimationFromDraft();
+        console.info("[cluster-pad] startRoomAnimationFromDraft returned (sync)");
+      } catch (error) {
+        console.error("[cluster-pad] startRoomAnimationFromDraft THREW:", error);
+      }
     } else {
       console.warn("[cluster-pad] ctx.startRoomAnimationFromDraft is not a function");
     }
