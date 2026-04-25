@@ -59,6 +59,13 @@
         </div>
         <img id="board-image" alt="Board" draggable="false" />
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
+        <!-- Phase 23 W3 v2: GL warp output canvas. Pre-declared in
+             HTML so the WebGL context is created on a real DOM
+             element from the very first frame (no mid-frame
+             insertions). Visible only in /output/ where it acts as
+             the displayed warp surface, eliminating the GL→2D
+             readback that was the dominant per-frame cost on RPi. -->
+        <canvas id="fx-gl-canvas" aria-hidden="true"></canvas>
         <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
       </div>
       <!-- Phase 23 W2 v6: cluster rail moved OUT of #stage entirely.

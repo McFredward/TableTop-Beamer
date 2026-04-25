@@ -189,7 +189,13 @@
     if (_glInitTried) return _glInitOk;
     _glInitTried = true;
     try {
-      _glCanvas = document.createElement("canvas");
+      // Phase 23 W3 v2: prefer the in-DOM #fx-gl-canvas element so
+      // the WebGL drawing buffer is composited as a child of #stage
+      // from the very first frame. The previous attempt (commit
+      // 13ab558) appended the canvas mid-frame and produced a black
+      // /output/ — likely a CSS/timing edge case on Chromium.
+      _glCanvas = document.getElementById("fx-gl-canvas")
+                || document.createElement("canvas");
       // Phase 22 W5 v3: RPi/Chromium lean WebGL options — no AA buffer
       // (we don't need multisampling since the mesh is artifact-free),
       // no premultiplied alpha (so texImage2D interprets the canvas
@@ -362,21 +368,29 @@
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
 
-    _gl.clearColor(0, 0, 0, 0);
+    // Phase 23 W3 v2: in /output/ the GL canvas itself is the visible
+    // surface, so clear it OPAQUE black (the projector's "no light"
+    // colour) and skip the GPU→CPU drawImage readback. In dashboard
+    // we still need the readback because the projection-mapping
+    // editor composites handles on top of fx-canvas.
+    const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+    if (isOutput) {
+      _gl.clearColor(0, 0, 0, 1);
+    } else {
+      _gl.clearColor(0, 0, 0, 0);
+    }
     _gl.clear(_gl.COLOR_BUFFER_BIT);
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
-    // Blit the GL warp result back onto fx-canvas (the visible 2D
-    // surface). This readback is unfortunately needed because the rest
-    // of the rendering pipeline composites against fx-canvas. A
-    // direct-GL-overlay variant was tried but produced a black /output/
-    // when the source canvas couldn't be sampled cleanly — needs more
-    // investigation before re-enabling.
-    canvasCtx.save();
-    canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
-    canvasCtx.clearRect(0, 0, w, h);
-    canvasCtx.drawImage(_glCanvas, 0, 0);
-    canvasCtx.restore();
+    if (!isOutput) {
+      // Dashboard path — read GL result back onto fx-canvas so the
+      // existing editor compositing path keeps working unchanged.
+      canvasCtx.save();
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+      canvasCtx.drawImage(_glCanvas, 0, 0);
+      canvasCtx.restore();
+    }
     return true;
   }
 
@@ -442,12 +456,33 @@
 
   function postDrawMeshWarp(canvas, canvasCtx) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    if (!hasGridDisplacements()) return;
+    const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+    const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
+    if (!hasGridDisplacements()) {
+      // No active warp — fx-canvas content is shown directly. Hide
+      // the GL overlay so it can't display a stale frame.
+      if (glCanvasEl && glCanvasEl.style.display !== "none") {
+        glCanvasEl.style.display = "none";
+      }
+      return;
+    }
 
     // Phase 22 W5 v3: WebGL path eliminates the per-triangle clip
     // seams that were visible on MP4 content. Falls back to the 2D
     // path below only if GL init fails (ancient browser / no GPU).
-    if (_postDrawMeshWarpGL(canvas, canvasCtx)) return;
+    if (_postDrawMeshWarpGL(canvas, canvasCtx)) {
+      // Phase 23 W3 v2: in /output/ the GL canvas is the visible
+      // surface, so show it now that we know it has fresh content.
+      if (glCanvasEl && glCanvasEl.style.display !== "block") {
+        glCanvasEl.style.display = "block";
+      }
+      return;
+    }
+    // GL failed — fall back to 2D warp on fx-canvas. Hide the GL
+    // overlay so its (possibly stale) content can't show through.
+    if (glCanvasEl && glCanvasEl.style.display !== "none") {
+      glCanvasEl.style.display = "none";
+    }
 
     const w = canvas.width;
     const h = canvas.height;

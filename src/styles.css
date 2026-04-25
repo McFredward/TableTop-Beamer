@@ -148,7 +148,7 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   pointer-events: none;
 }
 
-body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay) {
+body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay):not(#fx-gl-canvas) {
   display: none !important;
 }
 
@@ -222,6 +222,7 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
 
 #board-image,
 #fx-canvas,
+#fx-gl-canvas,
 #room-overlay {
   position: absolute;
   inset: 0;
@@ -232,6 +233,17 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
      drag lands as a pointer event on the vertex hit target. Zoom
      gestures live on the parent #stage and remain available. */
   touch-action: none;
+}
+
+/* Phase 23 W3 v2: GL warp canvas — sibling of fx-canvas. Hidden by
+   default; runtime toggles inline display:block ONLY in /output/
+   AND only while a non-identity warp is active. The opaque
+   clearColor in the GL pass means it fully occludes fx-canvas
+   beneath when shown, so there's no double-image. */
+#fx-gl-canvas {
+  pointer-events: none;
+  display: none;
+  z-index: 2;
 }
 
 /* Phase 13-HF3: Apply / Discard bar for opt-in save.
