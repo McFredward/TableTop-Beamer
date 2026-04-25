@@ -549,18 +549,26 @@
     }
   }
 
-  // Phase 23 W2 v7: copy each cluster's first member room region from
-  // the main fx-canvas into its corresponding cluster-pad canvas. The
-  // user sees the cluster's animation playing inside the pad as if
-  // it were a real mini-room. Runs once per frame after the main
-  // draw is complete. Uses image smoothing so the small pad surface
-  // doesn't look pixelated.
-  function drawClusterPadCanvases(_now) {
+  // Phase 23 W2 v9: render each cluster's animation DIRECTLY into
+  // its pad canvas. Previous version (v7/v8) blitted from the main
+  // fx-canvas where the animation was painted into a polygon-shaped
+  // clip — leaving transparent edges or showing whatever room was
+  // there. The user wants the pad to be a SELF-CONTAINED mini-room
+  // that fills its full rect with the cluster's animation, decoupled
+  // from any board polygon shape.
+  //
+  // Strategy: temporarily hijack ctx.canvas + ctx.canvasCtx to point
+  // at the pad canvas, synthesise a unit-square "room" with matching
+  // metrics covering the full pad rect, then call drawRoomComposition
+  // (the same per-room paint function the main draw loop uses for
+  // cluster members). Restore originals after.
+  function drawClusterPadCanvases(now) {
     const state = ctx.state;
     const padContainer = document.getElementById("cluster-pads");
     if (!padContainer) return;
-    const mainCanvas = ctx.canvas;
     const dpr = window.devicePixelRatio || 1;
+    const origCanvas = ctx.canvas;
+    const origCanvasCtx = ctx.canvasCtx;
     for (const anim of state.runningAnimations) {
       if (anim?.scope !== "cluster") continue;
       if (anim.boardId !== state.boardId) continue;
@@ -579,63 +587,57 @@
       const padCtx = padCanvas.getContext("2d");
       padCtx.clearRect(0, 0, padCanvas.width, padCanvas.height);
 
-      // Pick the cluster's first member room as the source view.
+      // Resolve the member animation params (intensity, speed, color,
+      // assetType, etc) from the first cluster member view. The
+      // cluster owns the cross-room timing; member views carry the
+      // same animation params applied to each room.
       let memberViews = [];
       try { memberViews = ctx.buildClusterMemberRuntimeViews(anim) || []; } catch { /* defensive */ }
       if (memberViews.length === 0) continue;
-      const board = ctx.getBoard(anim.boardId);
-      const room = board?.rooms?.find((r) => r.id === memberViews[0].roomId);
-      if (!room) continue;
+      const memberAnim = memberViews[0].animation;
+      if (!memberAnim) continue;
+      const speed = ctx.clampRoomSpeed
+        ? ctx.clampRoomSpeed(memberAnim.speed ?? 1)
+        : Math.max(0.1, Number(memberAnim.speed) || 1);
+      const age = ((now - Number(memberAnim.startedAt || 0)) / 1000)
+        * Number(state.animationSpeed || 1)
+        * speed;
 
-      // Compute the room polygon's bounding box on the main canvas.
-      let polygonPixels = null;
+      // Synthetic room covering the full pad rect. Polygon is a unit
+      // square (so polygon-clip ops still produce valid masks); the
+      // metrics map every (x,y) in the polygon to the full pad
+      // canvas pixel space.
+      const fakeRoom = {
+        id: `__cluster_pad_${clusterId}`,
+        polygon: [[0, 0], [1, 0], [1, 1], [0, 1]],
+        center: { x: 0.5, y: 0.5 },
+        radius: 0.5,
+      };
+      const fakeRoomMetrics = {
+        centerX: padCanvas.width / 2,
+        centerY: padCanvas.height / 2,
+        width: padCanvas.width,
+        height: padCanvas.height,
+        radius: Math.min(padCanvas.width, padCanvas.height) / 2,
+        minX: 0,
+        minY: 0,
+      };
+
+      // Hijack ctx so drawRoomComposition + drawEffectVisual paint
+      // into this pad canvas instead of the main fx-canvas.
+      ctx.canvas = padCanvas;
+      ctx.canvasCtx = padCtx;
       try {
-        polygonPixels = ctx.getRoomPolygonPixels(room, mainCanvas.width, mainCanvas.height, anim.boardId);
-      } catch { /* defensive */ }
-      if (!Array.isArray(polygonPixels) || polygonPixels.length < 3) continue;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let cxAccum = 0, cyAccum = 0, cnt = 0;
-      for (const point of polygonPixels) {
-        if (!Array.isArray(point) || point.length < 2) continue;
-        const px = Number(point[0]);
-        const py = Number(point[1]);
-        if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
-        if (px < minX) minX = px;
-        if (py < minY) minY = py;
-        if (px > maxX) maxX = px;
-        if (py > maxY) maxY = py;
-        cxAccum += px; cyAccum += py; cnt += 1;
+        drawRoomComposition(memberAnim, age, fakeRoom, fakeRoomMetrics);
+      } catch (error) {
+        // Defensive — never crash the render loop if a single pad fails.
+        if (typeof console !== "undefined") {
+          console.warn("[cluster-pad] render error", error);
+        }
+      } finally {
+        ctx.canvas = origCanvas;
+        ctx.canvasCtx = origCanvasCtx;
       }
-      const bboxW = maxX - minX;
-      const bboxH = maxY - minY;
-      if (!(bboxW > 0) || !(bboxH > 0) || cnt === 0) continue;
-      // Phase 23 W2 v8: shrink the source crop to the polygon's
-      // INSCRIBED region around the centroid so we don't blit
-      // transparent corners into the pad. Result: the pad fills
-      // with the animation's interior pixels regardless of the
-      // source polygon's shape (hexagon, L-shape, etc.).
-      const cx = cxAccum / cnt;
-      const cy = cyAccum / cnt;
-      // 50%×50% inscribed box around the centroid is conservative
-      // enough to fit inside any reasonable convex polygon.
-      const insetW = bboxW * 0.5;
-      const insetH = bboxH * 0.5;
-      // Use the SQUARE side of the smaller dimension so the pad's
-      // 1:1 aspect ratio doesn't stretch the source non-uniformly.
-      const side = Math.max(8, Math.min(insetW, insetH));
-      const halfSide = side / 2;
-      const sxRaw = cx - halfSide;
-      const syRaw = cy - halfSide;
-      const sx = Math.max(0, Math.min(mainCanvas.width - 1, sxRaw));
-      const sy = Math.max(0, Math.min(mainCanvas.height - 1, syRaw));
-      const sw = Math.max(1, Math.min(mainCanvas.width - sx, side));
-      const sh = Math.max(1, Math.min(mainCanvas.height - sy, side));
-
-      padCtx.imageSmoothingEnabled = true;
-      padCtx.imageSmoothingQuality = "high";
-      try {
-        padCtx.drawImage(mainCanvas, sx, sy, sw, sh, 0, 0, padCanvas.width, padCanvas.height);
-      } catch { /* defensive */ }
     }
   }
 

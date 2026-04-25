@@ -1235,6 +1235,11 @@
         // Clear). No inline × control; mode is set globally on
         // the dashboard.
         pad.addEventListener("click", () => {
+          console.info("[cluster-pad] click", {
+            clusterId,
+            mode: ctx?.state?.quickMode?.mode,
+            armedAnimation: ctx?.state?.roomDraft?.animationId,
+          });
           dispatchClusterByTapAction(clusterId);
         });
         container.append(pad);
