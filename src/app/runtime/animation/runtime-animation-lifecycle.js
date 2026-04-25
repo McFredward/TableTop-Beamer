@@ -1323,9 +1323,11 @@
       matchingTypeCount: matchingTypeEntries.length,
     });
     if (matchingTypeEntries.length > 0) {
-      console.info("[cluster-pad] -> STOP same-type path");
+      console.info("[cluster-pad] -> STOP same-type path", { count: matchingTypeEntries.length });
+      // stopAnimation is defined locally in this module — call it
+      // directly. ctx.stopAnimation isn't forwarded.
       for (const anim of matchingTypeEntries) {
-        if (typeof ctx.stopAnimation === "function") ctx.stopAnimation(anim.id);
+        stopAnimation(anim.id);
       }
       return;
     }
@@ -1379,8 +1381,9 @@
         && String(anim.clusterId || "").trim() === normalizedClusterId
         && String(anim.boardId || "").trim() === String(state.boardId || "").trim(),
     );
+    console.info("[cluster-pad] CLEAR all", { matches: matches.length });
     for (const anim of matches) {
-      if (typeof ctx.stopAnimation === "function") ctx.stopAnimation(anim.id);
+      stopAnimation(anim.id);
     }
   }
 
