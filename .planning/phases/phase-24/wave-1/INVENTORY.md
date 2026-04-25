@@ -52,6 +52,7 @@ Decisions:
 | C4 | `quickModeActivateButton, quickModeDeactivateButton` destructure entry | runtime-wire-navigation-binders.js:23–24 | 2 | 0 |
 | C4 | `quickModeActivateButton?.addEventListener` + `quickModeDeactivateButton?.addEventListener` no-op handler blocks (8 lines incl. blank lines + 1 obsolete comment line) | runtime-wire-navigation-binders.js:127–133 | 2 | 0 |
 | C4 | DOM-refs comment in module-header listing dead refs (cosmetic update) | runtime-quick-mode.js:8–9 | 2 | 0 |
+| C6 | `resources/animations/output.mp4` (zero-byte stale render artifact) | resources/animations/output.mp4 (0 bytes) | 0 references in src/, index.html, config/ (pre) | 0 |
 
 ## Kept (false positive)
 
@@ -83,4 +84,29 @@ Source: RESEARCH.md §E candidate list cross-referenced against ripgrep of camel
 
 ## End-of-wave verification
 
-(filled in after C6)
+Run date: 2026-04-25 (post-C6).
+
+| Acceptance grep | Pre-flight | Post-wave | Pass |
+|-----------------|------------|-----------|------|
+| `window.__TT_*_DEBUG__` in `src/` | 1 (`__TT_CLUSTER_DEBUG__`) | 0 | yes |
+| `console.info(` in `src/` outside `src/app/lib/shared/logger.js` (path-anchored exclude) | 9 | 0 | yes |
+| `console.info(` in `src/app/lib/shared/logger.js` (carve-out, expected nonzero) | 1 | 1 | yes (preserved) |
+| `__TT_CLUSTER_DEBUG__` anywhere in `src/` | 1 | 0 | yes |
+| `TT_BEAMER_LIVE_SYNC_DEBUG` anywhere in `src/` | 1 (runtime-bootstrap.js:230) | 0 | yes |
+| `runtime-wire-calibration-binders` / `TT_BEAMER_RUNTIME_WIRE_CALIBRATION_BINDERS` / `wireCalibrationBinders` (C2) in `src/` + `index.html` | 3 (decl + script tag + orchestration call) | 0 | yes |
+| C3 removed exports (`readJson`, `writeJson`, `CORNER_KEYS`, `beginGridWarpFrame`, `endGridWarpFrame`, `isPolygonDragActive`, `buildPlaybackCard`) word-bounded in `src/` | multiple (decl + export sites) | 0 | yes |
+| `quickModeActivateButton` / `quickModeDeactivateButton` (C4) in `src/` | 7 occurrences across 4 files | 0 | yes |
+| `resources/animations/output.mp4` referenced anywhere in `src/`, `index.html`, `config/` | 0 (pre, file was an unreferenced stale artifact) | 0 | yes (file removed; no callers existed) |
+
+All acceptance criteria from PLAN §7 met. Note: the full ROADMAP regression checklist (manual smoke pass, ~10–15 min) still needs to run before declaring Wave 1 done.
+
+## Wave 1 commits
+
+| # | Hash | Message |
+|---|------|---------|
+| 1 | `896a5c4` | refactor(24-1): remove __TT_CLUSTER_DEBUG__ flag and cluster-pad info logs |
+| 2 | `36e1edf` | refactor(24-1): remove no-op calibration-binders module |
+| 3 | `9ffe9e1` | refactor(24-1): remove dead exports + buildPlaybackCard |
+| 4 | `f737d10` | refactor(24-1): remove dead quick-mode-activate/-deactivate bindings |
+| 5 | `0c0f471` | refactor(24-1): defer DOM-ref cleanup to later wave (C5 dropped) |
+| 6 | (this commit) | chore(24-1): remove zero-byte resources/animations/output.mp4 |
