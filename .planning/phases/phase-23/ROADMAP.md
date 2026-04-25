@@ -40,16 +40,22 @@ presentation-only on top of the existing cluster-dispatch logic.
 ## Wave 2 — Cluster trigger surfaces
 
 **Deliverables**
-- A new "Clusters" rail next to the stage that renders ONE button
-  per cluster defined on the active board.
-- Each cluster button shows:
-  - Cluster name.
-  - The icon of whichever animation is currently armed for it (or
-    the cluster's saved default), styled like a Library-item
-    chip.
-  - A small "running" badge / dot if any of its rooms is
-    currently animating from a cluster dispatch.
-  - A small × control inline (Tap-Action = Clear behaviour).
+- A new "Clusters" rail of **artificial mini-rooms** next to the
+  stage. Each cluster gets one pad. Pads are NOT buttons in the
+  flat-DOM-button sense — they're real render surfaces where the
+  cluster's currently-armed animation actually plays inside the pad
+  (same canvas / GIF / coded path as a real room polygon).
+- Pads sit OUTSIDE the board image area but INSIDE the stage's
+  transform group, so they pan and zoom together with the board.
+  Default placement: a vertical column to the right of the board
+  (toggleable to left if right is too narrow).
+- Each cluster pad shows:
+  - The cluster's currently-armed animation rendered live in
+    the pad's interior.
+  - Cluster name as a small label below or overlaid.
+  - A small "running" dot (top-right corner) when any of its
+    rooms is currently animating from a cluster dispatch.
+  - A small × control (top-left corner) for Tap-Action = Clear.
 - Tap on the cluster button = same effect as picking the cluster
   in the existing Quick-Pick dropdown and tapping any of its
   rooms (uses existing buildClusterDispatchPlan).
