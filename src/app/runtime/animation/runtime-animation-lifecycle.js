@@ -20,6 +20,14 @@
   function init(dependencies) {
     ctx = dependencies;
 
+    // Phase 23 W2: keep the cluster rail glued to the stage rect on
+    // viewport resize + scroll. Render-time updates (zoom/pan)
+    // already flow through renderClusterPads via refreshGlobalButtons;
+    // this catches the cases that don't (window resize, layout
+    // shifts from settings panel toggles, etc.).
+    window.addEventListener("resize", updateClusterPadsRect, { passive: true });
+    window.addEventListener("scroll", updateClusterPadsRect, { passive: true });
+
     // Wire live editor close + discard buttons.
     ctx.liveEditorClose.addEventListener("click", closeLiveEditor);
     ctx.liveEditorDiscard?.addEventListener("click", discardLiveEditor);
@@ -1117,6 +1125,32 @@
   // then stops or starts via startRoomAnimationFromDraft).
   // Animation rendering INSIDE the pad lands in the next commit;
   // for now the pad shows name + state only.
+  // Phase 23 W2 v6: sync the position:fixed cluster rail to the
+  // stage's current screen rect. Called on every renderClusterPads
+  // tick + on window resize so the rail tracks pan/zoom in real
+  // time. The rail sits outside #stage in the DOM (avoiding the
+  // overflow:hidden chain inside the dashboard tree) but visually
+  // behaves as if attached to the stage's left edge.
+  function updateClusterPadsRect() {
+    const container = document.getElementById("cluster-pads");
+    if (!container) return;
+    const stage = ctx?.stage || document.getElementById("stage");
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    // CSS variables — the rail's `transform: translateX(-100%) scale(s)`
+    // pulls it leftward by its own width (so its right edge aligns
+    // with --rail-left, i.e. stage's left edge), and scales by the
+    // current stage scale so pan + zoom track together.
+    container.style.setProperty("--rail-left", `${rect.left}px`);
+    container.style.setProperty("--rail-top", `${rect.top}px`);
+    container.style.setProperty("--rail-height", `${rect.height}px`);
+    // Approximate stage scale from rect width vs layout width.
+    const layoutWidth = stage.clientWidth || rect.width;
+    const scale = rect.width / Math.max(1, layoutWidth);
+    container.style.setProperty("--rail-scale", String(scale));
+  }
+
   function renderClusterPads() {
     const { state } = ctx;
     const container = document.getElementById("cluster-pads");
@@ -1124,38 +1158,7 @@
       console.warn("[cluster-pads] container element missing from DOM");
       return;
     }
-    if (!window.__TT_CLUSTER_PADS_LOGGED_ONCE__) {
-      window.__TT_CLUSTER_PADS_LOGGED_ONCE__ = true;
-      const cs = window.getComputedStyle(container);
-      const rect = container.getBoundingClientRect();
-      console.info("[cluster-pads] first render call:", {
-        boardId: state.boardId,
-        ctxHasGetBoardRoomClusters: typeof ctx.getBoardRoomClusters,
-        clustersCount: (typeof ctx.getBoardRoomClusters === "function"
-          ? (ctx.getBoardRoomClusters(state.boardId) || []).length
-          : "n/a"),
-        rectLeft: rect.left,
-        rectTop: rect.top,
-        rectWidth: rect.width,
-        rectHeight: rect.height,
-        display: cs.display,
-        visibility: cs.visibility,
-        opacity: cs.opacity,
-        position: cs.position,
-        zIndex: cs.zIndex,
-        overflow: cs.overflow,
-        bodyOverflow: window.getComputedStyle(document.body).overflow,
-        appShellOverflow: document.querySelector(".app-shell")
-          ? window.getComputedStyle(document.querySelector(".app-shell")).overflow
-          : "n/a",
-        projectionAreaOverflow: document.querySelector(".projection-area")
-          ? window.getComputedStyle(document.querySelector(".projection-area")).overflow
-          : "n/a",
-        stageOverflow: document.querySelector("#stage")
-          ? window.getComputedStyle(document.querySelector("#stage")).overflow
-          : "n/a",
-      });
-    }
+    updateClusterPadsRect();
     const clusters = (typeof ctx.getBoardRoomClusters === "function")
       ? (ctx.getBoardRoomClusters(state.boardId) || [])
       : [];

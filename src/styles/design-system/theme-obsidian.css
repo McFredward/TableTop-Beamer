@@ -1584,36 +1584,34 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
 }
 
 .cluster-pads {
-  /* Phase 23 W2 v5 debug: hyper-visible while we re-debug the
-   * positioning chain. red bg + yellow outline so the element
-   * is impossible to miss whether stage transform is applied
-   * correctly or not. Will tone down once visible. */
-  position: absolute;
-  right: 100%;
-  top: 0;
-  height: 100%;
-  width: 130px;
+  /* Phase 23 W2 v6: position:fixed + JS-driven sync to the stage
+   * bounding rect. The rail is no longer a child of #stage so it
+   * isn't subject to the projection-area / app-shell / body
+   * overflow:hidden chain that kept clipping it on the dashboard.
+   * JS reads stage.getBoundingClientRect() and writes:
+   *   --rail-left, --rail-top, --rail-height, --rail-scale
+   * onto this element on every render tick. The rail's transform
+   * + padding-right then place it just left of the stage's
+   * visible left edge, scaled to match.  */
+  position: fixed;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-right: 12px;
   pointer-events: auto;
-  z-index: 999 !important;
-  background: rgba(255, 0, 0, 0.4) !important;
-  outline: 4px solid yellow !important;
-  outline-offset: -2px;
+  z-index: 5;
+  width: 130px;
+  padding-right: 12px;
+  /* Defaults until JS sets the vars (first frame). */
+  left: var(--rail-left, 12px);
+  top: var(--rail-top, 50%);
+  height: var(--rail-height, 60vh);
+  transform: translateX(-100%) scale(var(--rail-scale, 1));
+  transform-origin: 100% 0;
 }
 
-/* Dashboard surface only — let the rail render past projection-
- * area / app-shell / body bounds. /output/ keeps overflow:hidden
- * to prevent any FX leakage. */
-body[data-output-role="control"].dir-obsidian,
-body[data-output-role="control"].dir-obsidian .app-shell,
-body[data-output-role="control"].dir-obsidian .projection-area {
-  overflow: visible;
-}
-body[data-output-role="control"].dir-obsidian #stage {
-  overflow: visible;
+/* Hide the rail entirely on /output/. */
+body[data-output-role="final-output"] .cluster-pads {
+  display: none !important;
 }
 /* Empty-state placeholder for the cluster rail. Visible while we
  * have zero pads — this used to be `display: none` but hiding

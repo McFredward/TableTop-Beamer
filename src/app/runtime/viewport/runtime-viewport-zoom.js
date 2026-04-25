@@ -113,6 +113,22 @@
     ctx.stage.style.setProperty("--stage-zoom-scale", String(zoom.scale));
     ctx.stage.style.setProperty("--stage-pan-x", `${zoom.panX.toFixed(2)}px`);
     ctx.stage.style.setProperty("--stage-pan-y", `${zoom.panY.toFixed(2)}px`);
+    // Phase 23 W2: cluster rail position:fixed mirror needs to
+    // re-sync to the stage's new bounding rect on every pan/zoom
+    // tick. Read on next frame so the transform CSS has settled.
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(() => {
+        const rail = document.getElementById("cluster-pads");
+        if (!rail) return;
+        const rect = ctx.stage.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        rail.style.setProperty("--rail-left", `${rect.left}px`);
+        rail.style.setProperty("--rail-top", `${rect.top}px`);
+        rail.style.setProperty("--rail-height", `${rect.height}px`);
+        const layoutWidth = ctx.stage.clientWidth || rect.width;
+        rail.style.setProperty("--rail-scale", String(rect.width / Math.max(1, layoutWidth)));
+      });
+    }
   }
 
   function syncBoardZoomStatus() {
