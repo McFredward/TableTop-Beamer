@@ -312,7 +312,7 @@
       commitRoomDraftToDefinition({ speed: v });
     });
     roomDefSoundVolumeInput?.addEventListener("input", () => {
-      const v = Math.max(0, Math.min(100, Math.round(Number(roomDefSoundVolumeInput.value) || 0)));
+      const v = window.TT_BEAMER_RUNTIME_UTILS.clamp(0, 100, Math.round(Number(roomDefSoundVolumeInput.value) || 0));
       if (roomDefSoundVolumeValue) roomDefSoundVolumeValue.textContent = `${v}%`;
       setRoomEditorDraft(state.boardId, { soundVolume: v / 100 });
       commitRoomDraftToDefinition({ soundVolume: v / 100 });

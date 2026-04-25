@@ -410,7 +410,7 @@
       state.audio.enabled = Boolean(payload.audio.enabled);
       const nextVolume = Number(payload.audio.volume);
       if (Number.isFinite(nextVolume)) {
-        state.audio.volume = Math.max(0, Math.min(1, nextVolume));
+        state.audio.volume = window.TT_BEAMER_RUNTIME_UTILS.clamp01(nextVolume);
       }
     }
 

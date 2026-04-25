@@ -362,7 +362,7 @@
     });
 
     roomSoundVolumeInput.addEventListener("input", () => {
-      const volume = Math.max(0, Math.min(100, Number(roomSoundVolumeInput.value) || 0));
+      const volume = window.TT_BEAMER_RUNTIME_UTILS.clamp(0, 100, Number(roomSoundVolumeInput.value) || 0);
       state.roomDraft.soundVolume = clampRoomSoundVolume(volume / 100);
       roomSoundVolumeValue.textContent = `${Math.round(state.roomDraft.soundVolume * 100)}%`;
     });
