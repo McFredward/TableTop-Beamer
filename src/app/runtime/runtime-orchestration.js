@@ -341,7 +341,7 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
 
-// Phase 13-HF3: opt-in save. Local config edits stay local (dirty) until
+// Opt-in save: local config edits stay local (dirty) until
 // the user clicks the Apply button. `localConfigDirty` is the dirty flag.
 // `remoteConfigUpdateAwaiting` is set when a peer pushed a new config
 // while we were dirty — the refetch is suppressed until the user either
@@ -349,7 +349,7 @@ const state = window.TT_BEAMER_STATE.createInitialState({
 state.localConfigDirty = false;
 state.remoteConfigUpdateAwaiting = false;
 
-// Phase 13-HF13: stable stretch-anchor cache. Keyed as
+// Stable stretch-anchor cache. Keyed as
 // `${boardId}::${roomId}` → { x, y }. The anchor is the polygon
 // centroid captured on first access and held for the life of the
 // session (cleared on rehydration). Using a stable anchor makes
@@ -375,7 +375,7 @@ const CLUSTER_STAGGER_OFFSET_MIN_MS = 0;
 const CLUSTER_STAGGER_OFFSET_MAX_MS = 4000;
 const CLUSTER_STAGGER_OFFSET_DEFAULT_MS = 140;
 const STOP_ANIMATION_MUTATION_TYPE = "stop-animation";
-// Phase 22 W2e: "toggle" replaces the split activate/deactivate modes
+// "toggle" replaces the split activate/deactivate modes
 // in the UI. The legacy names stay in the valid set so snapshots that
 // still carry them load without tripping the normalize fallback.
 const QUICK_MODE_VALUES = new Set([
@@ -658,7 +658,7 @@ const {
   syncBoardSelectOptions,
 } = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
 
-// Phase 13-2: zoom range extended to [0.25, 4.0]. Wheel + pinch gestures
+// Zoom range extended to [0.25, 4.0]. Wheel + pinch gestures
 // replace the zoom slider; pan clamping still keeps the board visible at
 // extreme zoom-outs.
 const BOARD_ZOOM_SCALE_MIN = 0.25;
@@ -670,7 +670,7 @@ const BOARD_ZOOM_SCALE_MAX = 8.0;
 // getCachedStageGeometry and getTouchGestureActive at call time).
 
 
-// Phase 13-3: shared guard for polygon vertex/edge pointerdown handlers.
+// Shared guard for polygon vertex/edge pointerdown handlers.
 // Accepts touch pointers (which may report button === -1 on some browsers)
 // while still rejecting right-click / middle-click mouse events.
 window.TT_BEAMER_RUNTIME_PLAY_AREA_GEOMETRY.init({
@@ -1930,7 +1930,7 @@ const {
   syncRoomFrozenCheckbox,
 } = window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT;
 
-// Phase 18-3: board context menu for right-click / long-press room creation.
+// Board context menu for right-click / long-press room creation.
 window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   state,
   roomOverlay,
@@ -1949,14 +1949,14 @@ window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
   renderRoomOverlay: () => renderRoomOverlay(),
   pushUndoState: (desc) => pushUndoState(desc),
-  // Phase 21-1: delegate rotate/exit menu actions to the rotation
+  // Delegate rotate/exit menu actions to the rotation
   // module. These are populated lazily once the rotation module
   // finishes its own init a few lines below.
   enterRotationMode: (roomId) => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.enterRotationMode?.(roomId),
   exitRotationMode: () => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.exitRotationMode?.(),
 });
 
-// Phase 21-1: polygon rotation mode (right-click → Rotate / Exit).
+// Polygon rotation mode (right-click → Rotate / Exit).
 window.TT_BEAMER_RUNTIME_POLYGON_ROTATION.init({
   state,
   canvas,
@@ -1970,7 +1970,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_ROTATION.init({
   renderRoomOverlay: () => renderRoomOverlay(),
 });
 
-// Phase 22 W3b: full-page animation editor controller.
+// Full-page animation editor controller.
 if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
   window.TT_BEAMER_ANIMATION_EDITOR_VIEW.init({
     state,
@@ -1990,7 +1990,7 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     animEditorApplyButton,
     animEditorDiscardButton,
     animEditorBoardSelect,
-    // Phase 22: list of available boards + dashboard's active board id,
+    // List of available boards + dashboard's active board id,
     // used by the editor-scoped board picker. It intentionally does
     // NOT expose switchBoard() — switching the editor's board must
     // never move the dashboard's stage.
@@ -2014,7 +2014,7 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     // solid-color / hull-flicker coded effects.
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
-    // Phase 22 W3b-4 (revised): editor-scoped Apply / Discard + Back
+    // Editor-scoped Apply / Discard + Back
     // guard. Back uses window.confirm to block the exit when the user
     // has unsaved edits.
     applyLocalConfigToServer: () => applyLocalConfigToServer(),
@@ -2022,7 +2022,7 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
   });
 }
 
-// Phase 18-3: undo/redo system for polygon editing operations.
+// Undo/redo system for polygon editing operations.
 window.TT_BEAMER_RUNTIME_POLYGON_UNDO.init({
   state,
   triggerFeedback,
@@ -2241,7 +2241,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   clampClusterStaggerOffsetMs: (value) => clampClusterStaggerOffsetMs(value),
   isRoomAnimationType: (type) => isRoomAnimationType(type),
   isOutsideAnimationType: (type, boardId) => isOutsideAnimationType(type, boardId),
-  // Phase 21-1: needed by the Live Editor to resolve outside definition
+  // Needed by the Live Editor to resolve outside definition
   // fallbacks (mode/direction) when the running instance doesn't carry
   // those fields yet (legacy pre-Phase 21 snapshots).
   getOutsideFxProfile: (boardId) => getOutsideFxProfile(boardId),
@@ -2473,7 +2473,7 @@ const {
   getCachedStageGeometry,
 } = window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT;
 
-// Phase 13-HF4: cursor-accurate zoom-around-anchor math for the stage's
+// Cursor-accurate zoom-around-anchor math for the stage's
 // CSS `transform-origin: 50% 50%`. HF1's attempt used the parent rect +
 // offsetLeft which implicitly assumes `transform-origin: 0 0` and
 // produced the wrong anchor on every zoom.
