@@ -12,7 +12,6 @@ space backdrops — and you trigger them from your phone, room by room, in real 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20RPi-orange.svg)](#requirements)
 [![Made with Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Status](https://img.shields.io/badge/Status-Hobby%20Project-purple.svg)](#project-status)
 
 <br>
 
@@ -104,7 +103,7 @@ every other within a frame. Multiple controllers can be connected at once.
   </div>
 - 🌗 **Light & dark themes.** Toggle from the topbar.
 - 🔊 **Per-animation sounds** with global master volume.
-- 💾 **Full board export / import** as a single JSON bundle.
+- 💾 **Full board export / import** as a single bundle.
 - 🥧 **Raspberry-Pi-friendly output path.** WebGL warp displays directly on the
   output canvas — no GPU readback, runs smoothly on a Pi 4 / Pi 5.
 - 📦 **Pre-shipped boards.** Nemesis (both base-game boards) and Nemesis Lockdown
