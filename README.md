@@ -67,10 +67,16 @@ group rooms into **clusters**, and trigger everything from your phone during pla
 
 Two browsers run side-by-side:
 
-- **Output view** (`/output`) — fullscreen on a Raspberry Pi connected to the
-  projector. No UI, just the rendered animations warped to fit your physical board.
 - **Control dashboard** (`/`) — on your phone or tablet. Tap rooms to fire effects,
   manage what's running, alter speed/opacity/sound on the fly.
+  <div align="center">
+  <img src="./readme-assets/tab_animations.gif" width="" />
+  </div>
+- **Output view** (`/output`) — fullscreen on a Raspberry Pi connected to the
+  projector. No UI, just the rendered animations warped to fit your physical board.
+  <div align="center">
+  <img src="./readme-assets/output_mode.gif" width="" />
+  </div>
 
 Both browsers stay in sync through the server: changes from one client appear on
 every other within a frame. Multiple controllers can be connected at once.
@@ -82,19 +88,27 @@ every other within a frame. Multiple controllers can be connected at once.
 - 🎯 **In-browser projection mapping.** A WebGL-accelerated mesh-warp grid you
   drag, rotate, and scale until the projection sits perfectly on the physical
   board. Profiles are saved per-board on the server.
+  <div align="center">
+  <img src="./readme-assets/align_mode.gif" width="75%" />
+  </div>
 - 📱 **Mobile-first control UI.** Designed for one-thumb operation during a game.
-- 🪐 **Custom animations.** Built-in coded effects, GIF, and MP4 loops. Drop files
-  into `resources/` and they show up in the dropdown.
+- 🪐 **Animation editor.** Built-in coded effects or add your own GIF, and MP4 files.
+  <div align="center">
+  <img src="./readme-assets/edit_animations.gif" width="75%" />
+  </div>
 - 🧩 **Rooms, play areas, clusters.** Paint any polygonal region. Group rooms so
   one tap fires across many at once. Each cluster gets a live mini-preview tile
   next to the board on the dashboard.
+  <div align="center">
+  <img src="./readme-assets/edit_polygons.gif" width="75%" />
+  </div>
 - 🌗 **Light & dark themes.** Toggle from the topbar.
 - 🔊 **Per-animation sounds** with global master volume.
 - 💾 **Full board export / import** as a single JSON bundle.
 - 🥧 **Raspberry-Pi-friendly output path.** WebGL warp displays directly on the
   output canvas — no GPU readback, runs smoothly on a Pi 4 / Pi 5.
 - 📦 **Pre-shipped boards.** Nemesis (both base-game boards) and Nemesis Lockdown
-  (both boards) are included.
+  (both boards) are included with hand crafted polygons.
 
 ---
 
@@ -281,7 +295,7 @@ Each editor has two tabs:
 | Light flicker | Coded | Inside |
 | Fire | Coded | Room |
 
-…plus more. Drop your own assets in `resources/` to add to this list.
+…plus more. Upload your own assets in the Animation Editor to add to this list.
 
 ### Sounds
 
@@ -289,23 +303,9 @@ Attach a sound to any animation via the *Sound* dropdown in its editor. Per-
 animation volume is in the Live Editor (or as a default in the Room editor).
 Global audio enable + master volume lives in **Settings → System**.
 
-Drop custom files in `resources/sounds/` and they appear in the dropdown after
-a reload.
+### Custom assets (Audio / GIF / MP4)
 
-### Custom assets (GIF / MP4)
-
-Drop files into:
-
-```
-resources/
-├── boards/images/   # board background images
-├── gifs/            # custom GIFs
-├── videos/          # custom MP4 loops
-└── sounds/          # custom event sounds
-```
-
-Reload the control UI and they appear in the relevant dropdown. For MP4 loops
-that aren't seamless, see [Looping videos with FFmpeg](#looping-videos-with-ffmpeg).
+You can upload your own GIF, MP4 Animations loops and audio files in the Animation editor and use it for any animation.
 
 ### Boards
 
@@ -315,32 +315,19 @@ align-mode calibration.
 
 Import a new board from:
 
-- **JSON** — a `tt-beamer.board-catalog.v1` file you already exported.
+- **Package (.zip)** — a `.zip` archive file exported previously or by some other user.
 - **Image** — JPG / PNG / WEBP. The server registers a minimal board with that
   image as the background; you paint rooms on it yourself.
 
 ### Export / Import
 
-Two levels:
-
-| Level | What it bundles | When to use |
-|---|---|---|
-| **Per-board** | Board definition, runtime profile, projection profiles for that board | Sharing one board with someone, backing up before a big edit |
-| **Global config** | All boards' runtime profiles + global settings | Full backup of your setup |
-
-Per-board files use schema `tt-beamer.board-bundle.v1`. Importing merges into
-the target server: the board definition is overwritten, the runtime profile is
-replaced for that board only, projection profiles are merged (existing
-same-name profiles are overwritten).
+You can share a board including Board definition, all animations, projection profiles for that board as a zip and share it as a package with others.
 
 ---
 
 ## Optional: hardware-level cropping with `xrandr`
 
-The in-browser Align Mode handles content alignment fine on its own — but it
-can't physically prevent the projector from emitting light past your table. If
-that bothers you (light spilling onto walls / chairs), you can crop the X11
-output signal.
+The in-browser Align Mode handles content alignment fine on its own — but if you want to crop the whole rasberry pi image perfectly to you whole table beforehand you can use `xrandr` for that. After that you can additionally use the align mode to crop the output to the board.
 
 > Only supported on Raspberry Pi OS with the X11 session (not Wayland).
 
@@ -379,36 +366,10 @@ Combine with the in-browser Align Mode for final pixel-perfect placement.
 ---
 
 ## Tips & utilities
-
-### Looping videos with FFmpeg
-
-For MP4 sources that aren't already seamlessly looped:
-
-```bash
-ffmpeg -i input.mp4 -filter_complex "
-[0:v]split=2[vA][vB];
-[0:a]asplit=2[aA][aB];
-[vA]trim=0:duration/2,setpts=PTS-STARTPTS[v1];
-[vB]trim=start=duration/2,setpts=PTS-STARTPTS[v2];
-[aA]atrim=0:duration/2,asetpts=PTS-STARTPTS[a1];
-[aB]atrim=start=duration/2,asetpts=PTS-STARTPTS[a2];
-[v2][v1]xfade=transition=fade:duration=5:offset=(duration/2-5)[v];
-[a2][a1]acrossfade=d=5[a]
-" -map "[v]" -map "[a]" -c:v libx264 -crf 18 -preset slow -pix_fmt yuv420p -movflags +faststart output.mp4
-```
-
-Splits the clip in half, swaps the two halves, and crossfades over 5 seconds —
-the result loops cleanly. Doesn't work for every clip but it's my best non-AI
-attempt.
-
 ### Performance on Raspberry Pi
 
 - **Prefer GIF over MP4** — MP4 decode is the heaviest path. GIFs drop straight
   into the GPU pipeline.
-- **WebGL output mode** — already on by default. The output path skips the
-  `drawImage` GPU→CPU readback, saving ~5–10 ms per frame on a Pi 4.
-- **Lower DPR** — if you hit frame drops, drop the projector's resolution
-  rather than fighting the canvas backing-store size.
 
 ---
 
