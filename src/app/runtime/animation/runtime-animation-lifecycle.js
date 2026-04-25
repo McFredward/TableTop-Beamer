@@ -1281,6 +1281,12 @@
   function dispatchClusterByTapAction(clusterId) {
     const { state } = ctx;
     const mode = String(state.quickMode?.mode || "toggle").toLowerCase();
+    const armedId = String(state.roomDraft?.animationId || "").trim();
+    if (ctx.triggerFeedback) {
+      ctx.triggerFeedback.textContent =
+        `Status: cluster pad tap (mode=${mode}, armed=${armedId || "(none)"})`;
+    }
+    console.info("[cluster-pad] tap-action route", { clusterId, mode, armedId });
     if (mode === "off") return;
     if (mode === "clear") {
       dispatchClusterClear(clusterId);
