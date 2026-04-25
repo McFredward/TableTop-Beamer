@@ -1121,8 +1121,40 @@
     const { state } = ctx;
     const container = document.getElementById("cluster-pads");
     if (!container) {
-      if (window.__TT_CLUSTER_DEBUG__) console.warn("[cluster-pads] container missing");
+      console.warn("[cluster-pads] container element missing from DOM");
       return;
+    }
+    if (!window.__TT_CLUSTER_PADS_LOGGED_ONCE__) {
+      window.__TT_CLUSTER_PADS_LOGGED_ONCE__ = true;
+      const cs = window.getComputedStyle(container);
+      const rect = container.getBoundingClientRect();
+      console.info("[cluster-pads] first render call:", {
+        boardId: state.boardId,
+        ctxHasGetBoardRoomClusters: typeof ctx.getBoardRoomClusters,
+        clustersCount: (typeof ctx.getBoardRoomClusters === "function"
+          ? (ctx.getBoardRoomClusters(state.boardId) || []).length
+          : "n/a"),
+        rectLeft: rect.left,
+        rectTop: rect.top,
+        rectWidth: rect.width,
+        rectHeight: rect.height,
+        display: cs.display,
+        visibility: cs.visibility,
+        opacity: cs.opacity,
+        position: cs.position,
+        zIndex: cs.zIndex,
+        overflow: cs.overflow,
+        bodyOverflow: window.getComputedStyle(document.body).overflow,
+        appShellOverflow: document.querySelector(".app-shell")
+          ? window.getComputedStyle(document.querySelector(".app-shell")).overflow
+          : "n/a",
+        projectionAreaOverflow: document.querySelector(".projection-area")
+          ? window.getComputedStyle(document.querySelector(".projection-area")).overflow
+          : "n/a",
+        stageOverflow: document.querySelector("#stage")
+          ? window.getComputedStyle(document.querySelector("#stage")).overflow
+          : "n/a",
+      });
     }
     const clusters = (typeof ctx.getBoardRoomClusters === "function")
       ? (ctx.getBoardRoomClusters(state.boardId) || [])

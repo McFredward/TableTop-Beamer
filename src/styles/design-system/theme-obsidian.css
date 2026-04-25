@@ -1584,13 +1584,10 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
 }
 
 .cluster-pads {
-  /* Phase 23 W2 v4: child of #stage at right:100% so the right
-   * edge sits at stage's left edge, then translateX(-12px) for
-   * the visual gap. Inherits the stage's pan/zoom transform
-   * because it's INSIDE #stage. To make the rail visible past
-   * .projection-area / .app-shell / body (all overflow:hidden by
-   * default in styles.css), the dashboard relaxes those parents
-   * to overflow:visible — see rules below. */
+  /* Phase 23 W2 v5 debug: hyper-visible while we re-debug the
+   * positioning chain. red bg + yellow outline so the element
+   * is impossible to miss whether stage transform is applied
+   * correctly or not. Will tone down once visible. */
   position: absolute;
   right: 100%;
   top: 0;
@@ -1601,7 +1598,10 @@ body[data-output-role="final-output"].dir-obsidian .projection-area {
   gap: 10px;
   padding-right: 12px;
   pointer-events: auto;
-  z-index: 5;
+  z-index: 999 !important;
+  background: rgba(255, 0, 0, 0.4) !important;
+  outline: 4px solid yellow !important;
+  outline-offset: -2px;
 }
 
 /* Dashboard surface only — let the rail render past projection-
