@@ -220,16 +220,7 @@
       return;
     }
 
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-    for (const [x, y] of points) {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
+    const { minX, maxX, minY, maxY } = window.TT_BEAMER_RUNTIME_UTILS.bboxOfPolygon(points);
 
     const boxSize = Math.max(0.05, maxX - minX, maxY - minY);
     const targetCoverage = 0.45;
