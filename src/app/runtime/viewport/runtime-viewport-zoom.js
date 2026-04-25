@@ -299,6 +299,22 @@
   // CSS `transform-origin: 50% 50%`. The previous absolute-anchor approach used the parent rect +
   // offsetLeft which implicitly assumes `transform-origin: 0 0` and
   // produced the wrong anchor on every zoom.
+  //
+  // Derivation (transform-origin 50% 50%):
+  //   visualX = layoutCenterX + panX + (stageLocalX - layoutWidth/2) * scale
+  //
+  // Given a cursor at (clientX, clientY) we read fracX/fracY from the
+  // TRANSFORMED getBoundingClientRect(), which gives the cursor's position
+  // as a 0..1 fraction inside the visible stage. That fraction equals the
+  // same fraction in UNTRANSFORMED stage-local coordinates:
+  //   stageLocalX = fracX * stage.clientWidth
+  //
+  // To keep the stage-local point under the cursor after rescaling, we need
+  //   clientX = layoutCenterX + newPanX + (stageLocalX - layoutWidth/2) * newScale
+  // Subtracting the current equation and solving for newPanX:
+  //   newPanX = panX + (layoutWidth/2 - stageLocalX) * (newScale - scale)
+  //
+  // No layoutLeft / layoutCenterX required — the math is differential.
   function applyZoomScaleAroundClientPoint(nextScale, clientX, clientY, reason) {
     const state = ctx.state;
     if (!ctx.stage) return;
