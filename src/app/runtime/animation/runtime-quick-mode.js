@@ -5,9 +5,9 @@
 //
 // Dependencies injected via ctx:
 //   state
-//   DOM refs: quickModeOffButton, quickModeActivateButton,
-//             quickModeDeactivateButton, quickModeClearButton,
-//             quickModeStatus, quickModePanel, triggerFeedback
+//   DOM refs: quickModeOffButton, quickModeToggleButton,
+//             quickModeClearButton, quickModeStatus,
+//             quickModePanel, triggerFeedback
 //   Constants: QUICK_MODE_VALUES, QUICK_MODE_LABELS
 //   Helpers: showToast, startRoomAnimationFromDraft,
 //            syncRoomTargetSelect, stopAnimation, getBoard,

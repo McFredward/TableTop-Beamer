@@ -45,6 +45,13 @@ Decisions:
 | C3 | `isPolygonDragActive` function declaration | runtime-polygon-drag-support.js:49–51 | 2 (decl + export) | 0 |
 | C3 | `isPolygonDragActive` export entry | runtime-polygon-drag-support.js:273 | 1 | 0 |
 | C3 | `buildPlaybackCard(scope, def, boardId)` + 3-line header comment | animation-editor-view.js:579–608 | 1 | 0 |
+| C4 | `quickModeActivateButton`, `quickModeDeactivateButton` querySelector entries + Phase 22 W2e legacy comment (4 lines) | runtime-dom-refs.js:159–164 | 2 | 0 |
+| C4 | `quickModeActivateButton, quickModeDeactivateButton` destructure entry | runtime-orchestration.js:122 | 1 | 0 |
+| C4 | `quickModeActivateButton, quickModeDeactivateButton` ctx-thread (1st) | runtime-orchestration.js:1331–1332 | 2 | 0 |
+| C4 | `quickModeActivateButton, quickModeDeactivateButton` ctx-thread (2nd) | runtime-orchestration.js:2516–2517 | 2 | 0 |
+| C4 | `quickModeActivateButton, quickModeDeactivateButton` destructure entry | runtime-wire-navigation-binders.js:23–24 | 2 | 0 |
+| C4 | `quickModeActivateButton?.addEventListener` + `quickModeDeactivateButton?.addEventListener` no-op handler blocks (8 lines incl. blank lines + 1 obsolete comment line) | runtime-wire-navigation-binders.js:127–133 | 2 | 0 |
+| C4 | DOM-refs comment in module-header listing dead refs (cosmetic update) | runtime-quick-mode.js:8–9 | 2 | 0 |
 
 ## Kept (false positive)
 
