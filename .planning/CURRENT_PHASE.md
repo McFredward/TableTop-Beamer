@@ -1,9 +1,9 @@
 # CURRENT PHASE
 
-- Active: (none — Phase 22 CLOSED)
-- Status: Ready for next phase planning
+- Active: Phase 23 (Identity polish + cluster trigger UI)
+- Status: ROADMAP drafted, awaiting user confirmation to execute
+- Roadmap: `.planning/phases/phase-23/ROADMAP.md`
 - Previous Phase: Phase 22 (Design-System Migration — Obsidian redesign) CLOSED
-- Next Phase: (TBD)
 
 Phase 22 closure: `.planning/phases/phase-22/SUMMARY.md`
 Phase 21 closure: `.planning/phases/phase-21/SUMMARY.md`
