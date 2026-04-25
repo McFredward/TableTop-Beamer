@@ -594,6 +594,7 @@
       } catch { /* defensive */ }
       if (!Array.isArray(polygonPixels) || polygonPixels.length < 3) continue;
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let cxAccum = 0, cyAccum = 0, cnt = 0;
       for (const point of polygonPixels) {
         if (!Array.isArray(point) || point.length < 2) continue;
         const px = Number(point[0]);
@@ -603,15 +604,32 @@
         if (py < minY) minY = py;
         if (px > maxX) maxX = px;
         if (py > maxY) maxY = py;
+        cxAccum += px; cyAccum += py; cnt += 1;
       }
-      const srcW = maxX - minX;
-      const srcH = maxY - minY;
-      if (!(srcW > 0) || !(srcH > 0)) continue;
-      // Clamp source rect to canvas bounds.
-      const sx = Math.max(0, Math.min(mainCanvas.width, minX));
-      const sy = Math.max(0, Math.min(mainCanvas.height, minY));
-      const sw = Math.max(1, Math.min(mainCanvas.width - sx, srcW));
-      const sh = Math.max(1, Math.min(mainCanvas.height - sy, srcH));
+      const bboxW = maxX - minX;
+      const bboxH = maxY - minY;
+      if (!(bboxW > 0) || !(bboxH > 0) || cnt === 0) continue;
+      // Phase 23 W2 v8: shrink the source crop to the polygon's
+      // INSCRIBED region around the centroid so we don't blit
+      // transparent corners into the pad. Result: the pad fills
+      // with the animation's interior pixels regardless of the
+      // source polygon's shape (hexagon, L-shape, etc.).
+      const cx = cxAccum / cnt;
+      const cy = cyAccum / cnt;
+      // 50%×50% inscribed box around the centroid is conservative
+      // enough to fit inside any reasonable convex polygon.
+      const insetW = bboxW * 0.5;
+      const insetH = bboxH * 0.5;
+      // Use the SQUARE side of the smaller dimension so the pad's
+      // 1:1 aspect ratio doesn't stretch the source non-uniformly.
+      const side = Math.max(8, Math.min(insetW, insetH));
+      const halfSide = side / 2;
+      const sxRaw = cx - halfSide;
+      const syRaw = cy - halfSide;
+      const sx = Math.max(0, Math.min(mainCanvas.width - 1, sxRaw));
+      const sy = Math.max(0, Math.min(mainCanvas.height - 1, syRaw));
+      const sw = Math.max(1, Math.min(mainCanvas.width - sx, side));
+      const sh = Math.max(1, Math.min(mainCanvas.height - sy, side));
 
       padCtx.imageSmoothingEnabled = true;
       padCtx.imageSmoothingQuality = "high";
