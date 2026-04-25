@@ -251,7 +251,7 @@
   }
 
   // =============================================================
-  // W3b-2 — editor pane: Identity + Defaults cards.
+  // editor pane: Identity + Defaults cards.
   // =============================================================
   //
   // Rebuilds the editor pane on selection / scope change. Input events
@@ -574,7 +574,7 @@
     return row;
   }
 
-  // -------- Scope-specific cards (W3b-3) --------------------------
+  // -------- Scope-specific cards --------------------------
 
   // Room animations of the `solid-color` coded variant expose a color
   // swatch; hull-flicker exposes breaksSolidColor. Non-matching
@@ -1017,7 +1017,7 @@
     return label;
   }
 
-  // -------- Preview column (W3b-4) ---------------------------------
+  // -------- Preview column ---------------------------------
 
   function renderPreview() {
     const root = ctx.animEditorPreview;
@@ -1394,7 +1394,7 @@
     return box;
   }
 
-  // -------- Create + Delete (W3b-4) --------------------------------
+  // -------- Create + Delete --------------------------------
 
   function createAnimation(scope) {
     const boardId = getEditorBoardId();
