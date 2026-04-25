@@ -668,11 +668,15 @@ body[data-output-role="final-output"].dir-obsidian {
 /* ----- Top chrome (W2b) ----------------------------------------- */
 
 .dir-obsidian .rd-topbar {
+  /* Phase 22 W5: stack brand on row 1, action cluster on row 2.
+   * Single-row topbar kept clipping "TableTop Beamer" once the
+   * Align + theme + count chip filled the right side. Two rows
+   * give the brand full width and let the actions breathe below. */
   display: flex;
-  align-items: center;
-  gap: var(--rd-s-3);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: var(--rd-s-2) 0;
-  min-height: var(--rd-hit);
 }
 
 .dir-obsidian .rd-topbar-brand {
@@ -680,11 +684,10 @@ body[data-output-role="final-output"].dir-obsidian {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  /* Phase 22 W5: don't greedy-grow. Brand takes the width it needs
-   * (which keeps "TableTop Beamer" + board sub-line at full size),
-   * and .rd-topbar-actions on the right gets whatever space it asks
-   * for. ml-auto on .rd-topbar-actions pushes it to the far edge. */
-  flex: 0 1 auto;
+  /* Phase 22 W5: parent topbar is now column-flex, so the brand
+   * row spans the full width — text never gets clipped by the
+   * action cluster (which lives on its own row below). */
+  width: 100%;
 }
 
 .dir-obsidian .rd-topbar-mark {
@@ -731,12 +734,14 @@ body[data-output-role="final-output"].dir-obsidian {
   display: flex;
   align-items: center;
   gap: var(--rd-s-2);
-  /* Push actions to the right edge so they don't eat into the brand
-   * region. Combined with `flex: 0 1 auto` on .rd-topbar-brand the
-   * brand text never gets ellipsised unless the viewport is too
-   * narrow to fit both naturally. */
-  margin-left: auto;
-  flex: 0 0 auto;
+  /* Phase 22 W5: actions live on their own row beneath the brand —
+   * pin them to the right edge of that row via justify-content so
+   * the visual hierarchy is clear (chip + Align + theme stay
+   * grouped on the right; brand reads first on row 1). */
+  justify-content: flex-end;
+  width: 100%;
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 
 /* Icon-only align button — override the generic pill-button rules
@@ -1482,25 +1487,19 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* Portrait phone — the legacy app-shell already stacks to one
- * column at ≤920px portrait; the redesign bits need to follow. */
+ * column at ≤920px portrait; the redesign bits need to follow.
+ * Topbar now ALWAYS stacks (column-flex), so this block only
+ * tightens the per-row spacing on phones. */
 @media (max-width: 920px) {
   .dir-obsidian .rd-topbar {
-    flex-wrap: wrap;
-    height: auto;
-    min-height: var(--rd-hit);
     padding: 6px var(--rd-s-2);
-    row-gap: 4px;
-  }
-  .dir-obsidian .rd-topbar-brand {
-    flex: 1 1 auto;
+    gap: 4px;
   }
   .dir-obsidian .rd-topbar-sub {
     font-size: 11px;
   }
   .dir-obsidian .running-count-chip {
-    order: 10; /* push to second row on wrap */
-    flex-basis: 100%;
-    justify-content: center;
+    flex: 0 1 auto;
   }
   .dir-obsidian .panel {
     padding: var(--rd-s-2);
