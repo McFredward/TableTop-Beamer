@@ -43,27 +43,19 @@
     }
   }
 
-  function renderRunningAnimationsList() {
-    const {
-      state, runningAnimationsList, triggerFeedback,
-      getRunningAnimationsForList, getRoomAnimationLabelById, getAnimationLabel,
-      getBoard, getClusterTargetById, getGlobalCategoryRuntimeLabel,
-      clampRoomOpacity, clampRoomSpeed, clampRoomSoundVolume,
-      clampClusterStaggerOffsetMs, getRoomGifAssetFileName, getRoomEquivalentType,
-      getClusterMemberAnimationIds, shouldSuppressRapidTap, setDashboardZone,
-    } = ctx;
-    // Auto-close live editor if the animation it targets no longer exists.
-    if (liveEditorAnimationId !== null) {
-      const editorAnimationStillRunning = state.runningAnimations.some(
-        (item) => item?.id === liveEditorAnimationId,
-      );
-      if (!editorAnimationStillRunning) {
-        closeLiveEditor();
-      }
-    }
-    const parity = validateRunningListParity();
-    runningAnimationsList.replaceChildren();
-    const listAnimations = getRunningAnimationsForList();
+  // W3.4-C4b: renderRunningAnimationsList (369 lines) decomposed into
+  // 4 named per-row helpers + a thin outer orchestrator. Helper bodies
+  // are byte-identical to the corresponding sub-blocks of the post-C4a
+  // renderRunningAnimationsList (verified via diff -w against the
+  // captured C4a body). Renamed two helpers vs PLAN: PLAN proposed
+  // `_applyRunningRowState` + `_wireRunningRowListeners`, but the actual
+  // code has no separate "apply row state" step (state is read once at
+  // build time) and listener wiring is tightly intertwined with button
+  // creation. The natural cut is by execution phase
+  // (counters → categorize → outer loop → per-row build), which the
+  // helper names below reflect.
+
+  function _renderRunningCountersChip(state) {
     // Topbar running-count chip — split into
     // default (auto-restoring) and custom (ad-hoc) animation counts.
     // An animation counts as "default" when its (type, roomId, scope)
@@ -106,14 +98,9 @@
       // consumers.
       ctx.runningCountChipLabel.textContent = `${totalRunning} running`;
     }
-    if (listAnimations.length === 0) {
-      const empty = document.createElement("li");
-      empty.className = "running-empty";
-      empty.textContent = "No active animations";
-      runningAnimationsList.append(empty);
-      return;
-    }
+  }
 
+  function _categorizeAndOrderAnimations(listAnimations, getGlobalCategoryRuntimeLabel, getBoard, getClusterTargetById) {
     // Categorize into Outside / Inside / Cluster / Room /
     // Frozen sections with a heading per section, and sort newest-first
     // (by startedAt) within each section. Empty sections are omitted.
@@ -221,8 +208,6 @@
         sortedAnimations.push(anim);
       }
     }
-    let lastSectionKey = null;
-    let lastSubgroupKey = null;
     const subgroupCounts = new Map();
     // Pre-count so we know which rooms/clusters have a real stack
     // (> 1 anim) and therefore deserve a visual sub-cluster header.
@@ -239,6 +224,164 @@
     for (const [gk, count] of subgroupCounts) {
       if (count > 1) stackedSubgroups.add(gk);
     }
+    return {
+      sortedAnimations, sectionKeyByAnimationId, sectionLabelByKey,
+      sectionCountByKey, subgroupKeyFor, subgroupLabelFor,
+      subgroupCounts, stackedSubgroups, GROUPED_SECTIONS,
+    };
+  }
+
+  function _buildRunningRow(anim, sectionKey, isStacked, deps) {
+    const {
+      runningAnimationsList, getRoomAnimationLabelById, getAnimationLabel,
+      getBoard, getClusterTargetById, shouldSuppressRapidTap, setDashboardZone,
+    } = deps;
+    const li = document.createElement("li");
+    li.className = "running-item";
+    if (isStacked) {
+      li.classList.add("running-item-grouped");
+    }
+    // Icon tile prepended to each row. Tint driven by
+    // data-scope; glyph resolved from the animation definition via
+    // ctx.getRoomAnimationDefinitionById (room + cluster scope), or
+    // synthesized directly from anim.type for global scope (type IS
+    // the coded key there — fire / malfunction / hull-flicker / …).
+    const iconWrap = document.createElement("span");
+    iconWrap.className = "running-item-icon";
+    iconWrap.dataset.scope = sectionKey || "inside";
+    iconWrap.setAttribute("aria-hidden", "true");
+    const iconsApi = window.TT_BEAMER_UI_ICONS;
+    if (iconsApi && typeof iconsApi.createIcon === "function") {
+      let def = null;
+      if ((anim.scope === "room" || anim.scope === "cluster")
+          && typeof ctx.getRoomAnimationDefinitionById === "function") {
+        def = ctx.getRoomAnimationDefinitionById(anim.type, anim.boardId);
+      }
+      const resolverInput = {
+        icon: def?.icon ?? null,
+        name: def?.name ?? anim.animationName ?? getAnimationLabel(anim.type),
+        type: def?.type ?? (anim.scope === "global" ? "coded" : anim.type),
+        codedEffectType:
+          def?.codedEffectType
+          ?? (anim.scope === "global" ? anim.type : null),
+        codedKey: def?.codedKey ?? (anim.scope === "global" ? anim.type : null),
+        assetType: def?.assetType ?? null,
+        assetRef: def?.assetRef ?? null,
+      };
+      const iconName = iconsApi.resolveAnimationIcon
+        ? iconsApi.resolveAnimationIcon(resolverInput)
+        : "sparkles";
+      iconWrap.append(iconsApi.createIcon(iconName, { size: 18 }));
+    }
+    li.append(iconWrap);
+    const title = document.createElement("div");
+    title.className = "running-title";
+    const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
+      ? anim.animationName
+      : anim.scope === "room" || anim.scope === "cluster"
+        ? getRoomAnimationLabelById(anim.type, anim.boardId)
+        : getAnimationLabel(anim.type);
+    title.textContent = effectLabel;
+
+    // Compact single-line sub-meta. For non-stacked
+    // rooms/clusters we prefix the target name so the user still
+    // knows WHICH room/cluster the animation belongs to — stacked
+    // rows omit it because the subgroup header already shows it.
+    // Outside / Inside sections are board-wide so no target prefix.
+    // The "hold" state (no durationMs) is the default for most
+    // animations, so we omit the timer entirely in that case —
+    // showing "hold" on every row just adds noise.
+    const meta = document.createElement("div");
+    meta.className = "running-meta";
+    const hasTimer = Number(anim.durationMs) > 0;
+    const timerLabel = hasTimer
+      ? `in ${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
+      : null;
+    let targetLabel = null;
+    if (!isStacked) {
+      if (anim.scope === "room") {
+        const board = getBoard(anim.boardId);
+        targetLabel = board.rooms.find((r) => r.id === anim.roomId)?.label
+          ?? anim.roomId
+          ?? null;
+      } else if (anim.scope === "cluster") {
+        targetLabel = anim.clusterName
+          ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name
+          ?? anim.clusterId
+          ?? null;
+      }
+    }
+    if (targetLabel) {
+      const targetEl = document.createElement("span");
+      targetEl.className = "running-meta-target";
+      targetEl.textContent = targetLabel;
+      meta.append(targetEl);
+      if (timerLabel) {
+        const sep = document.createElement("span");
+        sep.className = "running-meta-sep";
+        sep.setAttribute("aria-hidden", "true");
+        sep.textContent = "·";
+        const timerEl = document.createElement("span");
+        timerEl.className = "running-meta-timer";
+        timerEl.textContent = timerLabel;
+        meta.append(sep, timerEl);
+      }
+    } else if (timerLabel) {
+      meta.textContent = timerLabel;
+    } else {
+      meta.hidden = true;
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "running-actions";
+    const stopButton = document.createElement("button");
+    stopButton.type = "button";
+    const stopPending = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
+    stopButton.textContent = stopPending ? "Stopping..." : "Stop";
+    stopButton.disabled = stopPending;
+    stopButton.addEventListener("click", () => {
+      const pendingAtClick = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
+      if (pendingAtClick) {
+        return;
+      }
+      if (shouldSuppressRapidTap(`running-stop-${anim.id}`)) {
+        return;
+      }
+      setDashboardZone("manage");
+      stopAnimation(anim.id);
+    });
+    actions.append(stopButton);
+
+    // Also allow Live Editor on scope="global" so outside
+    // (and inside) running animations can have their per-instance
+    // intensity/speed edited, independent of the definition defaults.
+    if (anim.scope === "room" || anim.scope === "cluster" || anim.scope === "global") {
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.textContent = "Edit";
+      editButton.addEventListener("click", () => {
+        if (shouldSuppressRapidTap(`running-edit-${anim.id}`)) {
+          return;
+        }
+        setDashboardZone("manage");
+        openLiveEditor(anim.id);
+      });
+      actions.append(editButton);
+    }
+
+    li.append(title, meta, actions);
+    runningAnimationsList.append(li);
+  }
+
+  function _renderRunningRowsContainer(orderInfo, deps) {
+    const { runningAnimationsList } = deps;
+    const {
+      sortedAnimations, sectionKeyByAnimationId, sectionLabelByKey,
+      sectionCountByKey, subgroupKeyFor, subgroupLabelFor,
+      subgroupCounts, stackedSubgroups, GROUPED_SECTIONS,
+    } = orderInfo;
+    let lastSectionKey = null;
+    let lastSubgroupKey = null;
     for (const anim of sortedAnimations) {
       const sectionKey = sectionKeyByAnimationId.get(anim.id);
       if (sectionKey && sectionKey !== lastSectionKey) {
@@ -271,142 +414,53 @@
       } else if (!isStacked) {
         lastSubgroupKey = null;
       }
-      const li = document.createElement("li");
-      li.className = "running-item";
-      if (isStacked) {
-        li.classList.add("running-item-grouped");
-      }
-      // Icon tile prepended to each row. Tint driven by
-      // data-scope; glyph resolved from the animation definition via
-      // ctx.getRoomAnimationDefinitionById (room + cluster scope), or
-      // synthesized directly from anim.type for global scope (type IS
-      // the coded key there — fire / malfunction / hull-flicker / …).
-      const iconWrap = document.createElement("span");
-      iconWrap.className = "running-item-icon";
-      iconWrap.dataset.scope = sectionKey || "inside";
-      iconWrap.setAttribute("aria-hidden", "true");
-      const iconsApi = window.TT_BEAMER_UI_ICONS;
-      if (iconsApi && typeof iconsApi.createIcon === "function") {
-        let def = null;
-        if ((anim.scope === "room" || anim.scope === "cluster")
-            && typeof ctx.getRoomAnimationDefinitionById === "function") {
-          def = ctx.getRoomAnimationDefinitionById(anim.type, anim.boardId);
-        }
-        const resolverInput = {
-          icon: def?.icon ?? null,
-          name: def?.name ?? anim.animationName ?? getAnimationLabel(anim.type),
-          type: def?.type ?? (anim.scope === "global" ? "coded" : anim.type),
-          codedEffectType:
-            def?.codedEffectType
-            ?? (anim.scope === "global" ? anim.type : null),
-          codedKey: def?.codedKey ?? (anim.scope === "global" ? anim.type : null),
-          assetType: def?.assetType ?? null,
-          assetRef: def?.assetRef ?? null,
-        };
-        const iconName = iconsApi.resolveAnimationIcon
-          ? iconsApi.resolveAnimationIcon(resolverInput)
-          : "sparkles";
-        iconWrap.append(iconsApi.createIcon(iconName, { size: 18 }));
-      }
-      li.append(iconWrap);
-      const title = document.createElement("div");
-      title.className = "running-title";
-      const effectLabel = (anim.scope === "room" || anim.scope === "cluster") && anim.animationName
-        ? anim.animationName
-        : anim.scope === "room" || anim.scope === "cluster"
-          ? getRoomAnimationLabelById(anim.type, anim.boardId)
-          : getAnimationLabel(anim.type);
-      title.textContent = effectLabel;
-
-      // Compact single-line sub-meta. For non-stacked
-      // rooms/clusters we prefix the target name so the user still
-      // knows WHICH room/cluster the animation belongs to — stacked
-      // rows omit it because the subgroup header already shows it.
-      // Outside / Inside sections are board-wide so no target prefix.
-      // The "hold" state (no durationMs) is the default for most
-      // animations, so we omit the timer entirely in that case —
-      // showing "hold" on every row just adds noise.
-      const meta = document.createElement("div");
-      meta.className = "running-meta";
-      const hasTimer = Number(anim.durationMs) > 0;
-      const timerLabel = hasTimer
-        ? `in ${Math.max(0, Math.ceil((anim.startedAt + anim.durationMs - performance.now()) / 1000))}s`
-        : null;
-      let targetLabel = null;
-      if (!isStacked) {
-        if (anim.scope === "room") {
-          const board = getBoard(anim.boardId);
-          targetLabel = board.rooms.find((r) => r.id === anim.roomId)?.label
-            ?? anim.roomId
-            ?? null;
-        } else if (anim.scope === "cluster") {
-          targetLabel = anim.clusterName
-            ?? getClusterTargetById(anim.clusterId, anim.boardId)?.name
-            ?? anim.clusterId
-            ?? null;
-        }
-      }
-      if (targetLabel) {
-        const targetEl = document.createElement("span");
-        targetEl.className = "running-meta-target";
-        targetEl.textContent = targetLabel;
-        meta.append(targetEl);
-        if (timerLabel) {
-          const sep = document.createElement("span");
-          sep.className = "running-meta-sep";
-          sep.setAttribute("aria-hidden", "true");
-          sep.textContent = "·";
-          const timerEl = document.createElement("span");
-          timerEl.className = "running-meta-timer";
-          timerEl.textContent = timerLabel;
-          meta.append(sep, timerEl);
-        }
-      } else if (timerLabel) {
-        meta.textContent = timerLabel;
-      } else {
-        meta.hidden = true;
-      }
-
-      const actions = document.createElement("div");
-      actions.className = "running-actions";
-      const stopButton = document.createElement("button");
-      stopButton.type = "button";
-      const stopPending = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
-      stopButton.textContent = stopPending ? "Stopping..." : "Stop";
-      stopButton.disabled = stopPending;
-      stopButton.addEventListener("click", () => {
-        const pendingAtClick = [...collectAnimationStopIds(anim)].some((id) => isStopPendingForAnimationId(id));
-        if (pendingAtClick) {
-          return;
-        }
-        if (shouldSuppressRapidTap(`running-stop-${anim.id}`)) {
-          return;
-        }
-        setDashboardZone("manage");
-        stopAnimation(anim.id);
-      });
-      actions.append(stopButton);
-
-      // Also allow Live Editor on scope="global" so outside
-      // (and inside) running animations can have their per-instance
-      // intensity/speed edited, independent of the definition defaults.
-      if (anim.scope === "room" || anim.scope === "cluster" || anim.scope === "global") {
-        const editButton = document.createElement("button");
-        editButton.type = "button";
-        editButton.textContent = "Edit";
-        editButton.addEventListener("click", () => {
-          if (shouldSuppressRapidTap(`running-edit-${anim.id}`)) {
-            return;
-          }
-          setDashboardZone("manage");
-          openLiveEditor(anim.id);
-        });
-        actions.append(editButton);
-      }
-
-      li.append(title, meta, actions);
-      runningAnimationsList.append(li);
+      _buildRunningRow(anim, sectionKey, isStacked, deps);
     }
+  }
+
+  function renderRunningAnimationsList() {
+    const {
+      state, runningAnimationsList, triggerFeedback,
+      getRunningAnimationsForList, getRoomAnimationLabelById, getAnimationLabel,
+      getBoard, getClusterTargetById, getGlobalCategoryRuntimeLabel,
+      shouldSuppressRapidTap, setDashboardZone,
+    } = ctx;
+    // Auto-close live editor if the animation it targets no longer exists.
+    if (liveEditorAnimationId !== null) {
+      const editorAnimationStillRunning = state.runningAnimations.some(
+        (item) => item?.id === liveEditorAnimationId,
+      );
+      if (!editorAnimationStillRunning) {
+        closeLiveEditor();
+      }
+    }
+    const parity = validateRunningListParity();
+    runningAnimationsList.replaceChildren();
+    const listAnimations = getRunningAnimationsForList();
+    _renderRunningCountersChip(state);
+    if (listAnimations.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "running-empty";
+      empty.textContent = "No active animations";
+      runningAnimationsList.append(empty);
+      return;
+    }
+
+    const orderInfo = _categorizeAndOrderAnimations(
+      listAnimations,
+      getGlobalCategoryRuntimeLabel,
+      getBoard,
+      getClusterTargetById,
+    );
+    _renderRunningRowsContainer(orderInfo, {
+      runningAnimationsList,
+      getRoomAnimationLabelById,
+      getAnimationLabel,
+      getBoard,
+      getClusterTargetById,
+      shouldSuppressRapidTap,
+      setDashboardZone,
+    });
 
     if (!parity.ok) {
       triggerFeedback.textContent = `Status: Running-Liste-Guard meldet Drift (${parity.reason})`;
