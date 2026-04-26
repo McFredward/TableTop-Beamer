@@ -14,7 +14,7 @@
 (() => {
   const MOUNT_KEY = "__ttBeamerIconPicker";
 
-  function buildTiles(root) {
+  function renderTiles(root) {
     const icons = window.TT_BEAMER_UI_ICONS;
     if (!icons || !icons.ICON_DEFS) return [];
     // The picker only exposes the curated
@@ -49,7 +49,7 @@
     const opts = options || {};
     let state = root[MOUNT_KEY];
     if (!state) {
-      const tiles = buildTiles(root);
+      const tiles = renderTiles(root);
       state = { tiles, value: null, onChange: opts.onChange || null };
       root[MOUNT_KEY] = state;
       root.addEventListener("click", (event) => {
