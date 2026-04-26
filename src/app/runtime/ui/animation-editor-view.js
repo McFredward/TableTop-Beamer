@@ -23,209 +23,25 @@
 //   render()        — re-render library + pane (external callers
 //                     can re-render after a profile change)
 (() => {
+  // Phase 24 W3.3-C1: shell functions (init / bindDom / populateBoardSelect /
+  // isOpen / open / close / handleBack / flashDirtyBar / syncDirtyBar /
+  // getEditorBoardId / getSelection / onSelectionChange / notifySelection)
+  // moved to runtime/ui/animation-editor-shell.js. This file is being
+  // progressively shrunk into a re-export shim across W3.3-C1..C5; until
+  // C5 lands, it continues to host the library-list / edit-pane /
+  // live-preview clusters and exposes the legacy aggregate namespace.
   let ctx = null;
-  const state = {
-    scope: "room",
-    search: "",
-    selectedIds: { inside: null, outside: null, room: null },
-    open: false,
-    // Editor-scoped board id. null = "use whatever board the
-    // dashboard currently targets". Populated when the user picks a
-    // different board from the editor's own board dropdown; reset back
-    // to null on every open() so the editor re-inherits the dashboard
-    // selection each session.
-    editorBoardId: null,
-  };
-
-  function getEditorBoardId() {
-    return state.editorBoardId ?? ctx?.state?.boardId ?? null;
-  }
-  const listeners = new Set();
-
-  function init(dependencies) {
-    ctx = dependencies;
-    bindDom();
-    render();
-  }
-
-  function bindDom() {
-    const back = ctx.animEditorBackButton;
-    if (back && !back._ttBeamerBound) {
-      back.addEventListener("click", handleBack);
-      back._ttBeamerBound = true;
-    }
-    if (ctx.animEditorApplyButton && !ctx.animEditorApplyButton._ttBeamerBound) {
-      ctx.animEditorApplyButton.addEventListener("click", () => {
-        if (typeof ctx.applyLocalConfigToServer === "function") {
-          Promise.resolve(ctx.applyLocalConfigToServer()).then(() => {
-            syncDirtyBar();
-          });
-        }
-      });
-      ctx.animEditorApplyButton._ttBeamerBound = true;
-    }
-    if (ctx.animEditorDiscardButton && !ctx.animEditorDiscardButton._ttBeamerBound) {
-      ctx.animEditorDiscardButton.addEventListener("click", () => {
-        if (typeof ctx.discardLocalConfigAndReloadFromServer === "function") {
-          ctx.discardLocalConfigAndReloadFromServer();
-          // Wait a tick for the reload to flush through, then
-          // re-render + refresh the dirty bar.
-          setTimeout(() => {
-            currentPaneKey = null;
-            render();
-          }, 50);
-        }
-      });
-      ctx.animEditorDiscardButton._ttBeamerBound = true;
-    }
-    if (ctx.animEditorSearchInput && !ctx.animEditorSearchInput._ttBeamerBound) {
-      ctx.animEditorSearchInput.addEventListener("input", () => {
-        state.search = String(ctx.animEditorSearchInput.value || "").trim().toLowerCase();
-        renderList();
-      });
-      ctx.animEditorSearchInput._ttBeamerBound = true;
-    }
-    if (ctx.animEditorScopeTabs && !ctx.animEditorScopeTabs._ttBeamerBound) {
-      for (const btn of ctx.animEditorScopeTabs.querySelectorAll("button[data-anim-scope]")) {
-        btn.addEventListener("click", () => {
-          const nextScope = btn.dataset.animScope;
-          if (nextScope && nextScope !== state.scope) {
-            state.scope = nextScope;
-            if (ctx.animEditorSearchInput) {
-              // Search is scope-local; clearing on switch keeps the
-              // list predictable when hopping between scopes.
-              ctx.animEditorSearchInput.value = "";
-              state.search = "";
-            }
-            render();
-          }
-        });
-      }
-      ctx.animEditorScopeTabs._ttBeamerBound = true;
-    }
-    // + button creates a new animation in the
-    // currently-selected scope.
-    if (ctx.animEditorAddButton && !ctx.animEditorAddButton._ttBeamerBound) {
-      ctx.animEditorAddButton.addEventListener("click", () => {
-        createAnimation(state.scope);
-      });
-      ctx.animEditorAddButton._ttBeamerBound = true;
-    }
-    // Editor-scoped board picker. Change fires a re-render
-    // targeting the new board id — does NOT call switchBoard(), so the
-    // dashboard stage is untouched.
-    if (ctx.animEditorBoardSelect && !ctx.animEditorBoardSelect._ttBeamerBound) {
-      ctx.animEditorBoardSelect.addEventListener("change", () => {
-        const next = String(ctx.animEditorBoardSelect.value || "").trim();
-        state.editorBoardId = next || null;
-        // Selection ids are per-board: wipe them when hopping boards so
-        // the library default-selects the first animation of the new
-        // board rather than sticking on an id that doesn't exist there.
-        state.selectedIds = { inside: null, outside: null, room: null };
-        currentPaneKey = null;
-        render();
-      });
-      ctx.animEditorBoardSelect._ttBeamerBound = true;
-    }
-  }
-
-  function populateBoardSelect() {
-    const select = ctx?.animEditorBoardSelect;
-    if (!select) return;
-    const getBoards = typeof ctx.getBoards === "function" ? ctx.getBoards : null;
-    const boards = Array.isArray(getBoards?.()) ? getBoards() : [];
-    const activeId = getEditorBoardId();
-    select.replaceChildren();
-    for (const board of boards) {
-      if (!board?.id) continue;
-      const opt = document.createElement("option");
-      opt.value = board.id;
-      opt.textContent = board.label || board.name || board.metadata?.name || board.id;
-      select.append(opt);
-    }
-    if (activeId && boards.some((b) => b?.id === activeId)) {
-      select.value = activeId;
-    }
-  }
-
-  function isOpen() {
-    return Boolean(state.open);
-  }
-
-  function open(scope) {
-    state.open = true;
-    if (scope && (scope === "inside" || scope === "outside" || scope === "room")) {
-      state.scope = scope;
-    }
-    // Every open() re-inherits the dashboard's board id. The
-    // editor's board picker is a session-scoped override, not a sticky
-    // preference — reopening the editor always starts from the active
-    // dashboard selection.
-    state.editorBoardId = null;
-    if (ctx.animEditorPage) {
-      ctx.animEditorPage.hidden = false;
-    }
-    document.body.setAttribute("data-animation-editor-open", "true");
-    populateBoardSelect();
-    render();
-    if (ctx.animEditorSearchInput) {
-      // Drop focus into the search box; it's the primary affordance.
-      try { ctx.animEditorSearchInput.focus(); } catch {}
-    }
-  }
-
-  function close() {
-    state.open = false;
-    // Make sure the coded-preview rAF loop
-    // stops when the editor closes, even if the canvas isn't
-    // immediately garbage-collected.
-    stopCodedPreview();
-    if (ctx.animEditorPage) {
-      ctx.animEditorPage.hidden = true;
-    }
-    document.body.removeAttribute("data-animation-editor-open");
-    // Return to Settings → Board subtab so the user lands somewhere
-    // meaningful (Animations subtab would just re-open the editor).
-    if (typeof ctx.setSettingsSubtab === "function") {
-      ctx.setSettingsSubtab("board");
-    }
-  }
-
-  // Back is fully blocked while there are
-  // unsaved edits. A click in the dirty state now flashes the dirty
-  // bar so the user understands *why* Back is inert and what they
-  // need to do next (Apply or Discard).
-  function handleBack() {
-    if (ctx.state?.localConfigDirty) {
-      flashDirtyBar();
-      return;
-    }
-    close();
-  }
-
-  function flashDirtyBar() {
-    const bar = ctx.animEditorDirtyBar;
-    if (!bar) return;
-    bar.classList.remove("anim-editor-dirty-bar--flash");
-    // Force reflow so removing + re-adding the class triggers a new
-    // animation cycle when the user spams Back.
-    void bar.offsetWidth;
-    bar.classList.add("anim-editor-dirty-bar--flash");
-    window.setTimeout(() => {
-      bar.classList.remove("anim-editor-dirty-bar--flash");
-    }, 900);
-  }
-
-  function syncDirtyBar() {
-    const bar = ctx.animEditorDirtyBar;
-    const dirty = Boolean(ctx.state?.localConfigDirty);
-    if (bar) bar.hidden = !dirty;
-    if (ctx.animEditorBackButton) {
-      ctx.animEditorBackButton.classList.toggle("anim-editor-back--dirty", dirty);
-      ctx.animEditorBackButton.disabled = dirty;
-      ctx.animEditorBackButton.setAttribute("aria-disabled", dirty ? "true" : "false");
-    }
-  }
+  const shell = window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_SHELL;
+  // Shared reference to the shell's module-private state object so the
+  // still-in-shim functions (renderPane / renderList / etc.) keep their
+  // bare `state.x` mutations working byte-identically until they too
+  // move out in C2..C4.
+  const state = shell.getState();
+  const getEditorBoardId = shell.getEditorBoardId;
+  const getSelection = shell.getSelection;
+  const notifySelection = shell.notifySelection;
+  const flashDirtyBar = shell.flashDirtyBar;
+  const syncDirtyBar = shell.syncDirtyBar;
 
   function collectAnimations(scope) {
     const boardId = getEditorBoardId();
@@ -1667,32 +1483,34 @@
     notifySelection();
   }
 
-  function getSelection() {
-    return {
-      scope: state.scope,
-      id: state.selectedIds[state.scope],
-    };
-  }
+  // Phase 24 W3.3-C1: getSelection / onSelectionChange / notifySelection
+  // moved to runtime/ui/animation-editor-shell.js along with the
+  // module-private `listeners` Set. They are aliased into shim scope at
+  // the IIFE top so the still-in-shim renderList body can keep calling
+  // `notifySelection()` byte-identically.
 
-  function onSelectionChange(handler) {
-    if (typeof handler === "function") listeners.add(handler);
-    return () => listeners.delete(handler);
-  }
-
-  function notifySelection() {
-    const sel = getSelection();
-    for (const handler of listeners) {
-      try { handler(sel); } catch (err) { console.error(err); }
-    }
-  }
-
+  // Aggregate the legacy public namespace by aliasing shell exports for
+  // every key except `init` and `render` — `render` is still defined
+  // locally in this shim until W3.3-C2 lands; `init` is wrapped here so
+  // we can pass the still-in-shim callbacks (render / renderList /
+  // createAnimation / clearPaneCache / stopCodedPreview) to shell.init.
   window.TT_BEAMER_ANIMATION_EDITOR_VIEW = {
-    init,
-    open,
-    close,
-    isOpen,
-    getSelection,
-    onSelectionChange,
+    init: (deps) => {
+      ctx = deps;
+      shell.init({
+        ...deps,
+        render,
+        renderList,
+        createAnimation,
+        clearPaneCache: () => { currentPaneKey = null; },
+        stopCodedPreview,
+      });
+    },
+    open: shell.open,
+    close: shell.close,
+    isOpen: shell.isOpen,
+    getSelection: shell.getSelection,
+    onSelectionChange: shell.onSelectionChange,
     render,
   };
 })();
