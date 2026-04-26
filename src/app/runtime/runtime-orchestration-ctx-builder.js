@@ -7,13 +7,21 @@
 // (e.g., for BOARDS, which is reassigned via runtime-zone-loader's
 // setBoards callback) are preserved by keeping arrow wrappers around
 // accessor refs rather than reducing to direct function refs.
+//
+// W4.1-C1 — Reorganised the 95-key bag into 17 natural areas with
+// in-source banner headers (per PLAN §4.1.1). Keys, names, and value
+// expressions are PRESERVED VERBATIM; only the in-source order
+// changes (destructure block + return literal both follow the same
+// area sequence).
 (() => {
   function buildBootstrapCtx(refs) {
     const {
+      // ─── Area A — Runtime state + globals ───────────────────────
       state,
       liveSync,
       logBootstrap,
       triggerFeedback,
+      // ─── Area B — DOM refs (panel inputs / status nodes) ────────
       globalDefaultsStatus,
       apiDiagnoseStatus,
       animationSpeedInput,
@@ -27,16 +35,16 @@
       audioEnabledInput,
       audioVolumeInput,
       audioVolumeValue,
+      // ─── Area C — Boards ────────────────────────────────────────
       getBoards,
       switchBoard,
+      // ─── Area D — Clamps ────────────────────────────────────────
       clampRoomOpacity,
       clampRoomSpeed,
       clampRoomSoundVolume,
       clampAnimationSpeed,
+      // ─── Area E — Panel sync ────────────────────────────────────
       syncRoomDraftActionButton,
-      applyAudioGain,
-      enforceAudioLifecycleGuard,
-      syncAudioStatus,
       syncAudioMappingPanel,
       syncAnimationSpeedPanel,
       syncHitareaCalibrationPanel,
@@ -48,11 +56,24 @@
       syncAlignModePanel,
       syncBoardZoomPanel,
       syncDashboardZoneVisibility,
-      updateMobilePerformanceStatus,
       syncMp4PerformanceControlsPanel,
-      loadExternalBoardZones,
-      loadOutsideResourceAssets,
+      syncMobileStickyOffsets,
+      syncQuickModePanel,
       syncBoardSelectOptions,
+      // ─── Area F — Status sync ───────────────────────────────────
+      syncAudioStatus,
+      updateMobilePerformanceStatus,
+      // ─── Area G — Audio side-effects ────────────────────────────
+      applyAudioGain,
+      enforceAudioLifecycleGuard,
+      playSoundForAnimation,
+      // ─── Area H — View + viewport ───────────────────────────────
+      applyOutputRoleViewContract,
+      loadProjectionCornersFromConfig,
+      applyProjectionTransform,
+      setActiveView,
+      setPanCursorState,
+      // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap,
       createDefaultRoomTombstonesByBoard,
       createDefaultRoomGeometryByBoard,
@@ -65,28 +86,31 @@
       createDefaultOutsideFxByBoard,
       createDefaultBoardZoomByBoard,
       createDefaultAnimationSoundMap,
+      // ─── Area J — Domain getters / normalizers ──────────────────
       getShipPolygonPoints,
       normalizeQuickMode,
       normalizeAnimationSoundMap,
+      // ─── Area K — Boot-flow ─────────────────────────────────────
       fetchGlobalDefaultsPayload,
       loadBoardProfiles,
       captureCleanBaseline,
+      restoreSettingsSubtabPreference,
+      loadExternalBoardZones,
+      loadOutsideResourceAssets,
+      // ─── Area L — Error / overlay UI ────────────────────────────
       buildResolveSnapshot,
       formatResolveSnapshot,
       renderServerUnreachableOverlay,
-      restoreSettingsSubtabPreference,
-      syncQuickModePanel,
-      syncMobileStickyOffsets,
-      applyOutputRoleViewContract,
-      loadProjectionCornersFromConfig,
-      applyProjectionTransform,
+      // ─── Area M — Live-sync ─────────────────────────────────────
       connectLiveSyncSocket,
       scheduleNextLiveSnapshotPoll,
+      emitLiveMutation,
+      buildAnimationSnapshotForLiveSync,
+      // ─── Area N — Asset warm-up ─────────────────────────────────
       warmEventSoundAssets,
       warmRoomGifAssets,
       prewarmBoardOutsideMp4Asset,
-      setActiveView,
-      setPanCursorState,
+      // ─── Area O — Regression tests ──────────────────────────────
       runViewVisibilityRegression,
       runLayoutScrollRegression,
       runStartupDefaultsGuardRegression,
@@ -97,20 +121,21 @@
       runMobileProjectionVisibilityGuard,
       runOutsideIsolationRegression,
       runShipClipRegression,
+      // ─── Area P — Animation lifecycle hooks ─────────────────────
       renderRunningAnimationsList,
       refreshGlobalButtons,
-      getLiveTraceSnapshot,
       draw,
       createAnimation,
-      playSoundForAnimation,
-      emitLiveMutation,
-      buildAnimationSnapshotForLiveSync,
+      // ─── Area Q — Diagnostics ───────────────────────────────────
+      getLiveTraceSnapshot,
     } = refs;
     return {
+      // ─── Area A — Runtime state + globals ───────────────────────
       state,
       liveSync,
       logBootstrap,
       triggerFeedback,
+      // ─── Area B — DOM refs (panel inputs / status nodes) ────────
       globalDefaultsStatus,
       apiDiagnoseStatus,
       animationSpeedInput,
@@ -124,16 +149,16 @@
       audioEnabledInput,
       audioVolumeInput,
       audioVolumeValue,
+      // ─── Area C — Boards ────────────────────────────────────────
       getBoards: () => getBoards(),
       switchBoard: (boardId, opts) => switchBoard(boardId, opts),
+      // ─── Area D — Clamps ────────────────────────────────────────
       clampRoomOpacity: (v) => clampRoomOpacity(v),
       clampRoomSpeed: (v) => clampRoomSpeed(v),
       clampRoomSoundVolume: (v) => clampRoomSoundVolume(v),
       clampAnimationSpeed: (v) => clampAnimationSpeed(v),
+      // ─── Area E — Panel sync ────────────────────────────────────
       syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
-      applyAudioGain: () => applyAudioGain(),
-      enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
-      syncAudioStatus: () => syncAudioStatus(),
       syncAudioMappingPanel: () => syncAudioMappingPanel(),
       syncAnimationSpeedPanel: () => syncAnimationSpeedPanel(),
       syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
@@ -145,11 +170,24 @@
       syncAlignModePanel: () => syncAlignModePanel(),
       syncBoardZoomPanel: () => syncBoardZoomPanel(),
       syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
-      updateMobilePerformanceStatus: () => updateMobilePerformanceStatus(),
       syncMp4PerformanceControlsPanel: () => syncMp4PerformanceControlsPanel(),
-      loadExternalBoardZones: () => loadExternalBoardZones(),
-      loadOutsideResourceAssets: () => loadOutsideResourceAssets(),
+      syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
+      syncQuickModePanel: () => syncQuickModePanel(),
       syncBoardSelectOptions: () => syncBoardSelectOptions(),
+      // ─── Area F — Status sync ───────────────────────────────────
+      syncAudioStatus: () => syncAudioStatus(),
+      updateMobilePerformanceStatus: () => updateMobilePerformanceStatus(),
+      // ─── Area G — Audio side-effects ────────────────────────────
+      applyAudioGain: () => applyAudioGain(),
+      enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
+      playSoundForAnimation: (animation) => playSoundForAnimation(animation),
+      // ─── Area H — View + viewport ───────────────────────────────
+      applyOutputRoleViewContract: () => applyOutputRoleViewContract(),
+      loadProjectionCornersFromConfig: (config) => loadProjectionCornersFromConfig(config),
+      applyProjectionTransform: () => applyProjectionTransform(),
+      setActiveView: (view, opts) => setActiveView(view, opts),
+      setPanCursorState: () => setPanCursorState(),
+      // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap: () => createDefaultHitareaCalibrationMap(),
       createDefaultRoomTombstonesByBoard: () => createDefaultRoomTombstonesByBoard(),
       createDefaultRoomGeometryByBoard: () => createDefaultRoomGeometryByBoard(),
@@ -162,28 +200,31 @@
       createDefaultOutsideFxByBoard: () => createDefaultOutsideFxByBoard(),
       createDefaultBoardZoomByBoard: () => createDefaultBoardZoomByBoard(),
       createDefaultAnimationSoundMap,
+      // ─── Area J — Domain getters / normalizers ──────────────────
       getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
       normalizeQuickMode: (mode) => normalizeQuickMode(mode),
       normalizeAnimationSoundMap,
+      // ─── Area K — Boot-flow ─────────────────────────────────────
       fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
       loadBoardProfiles: () => loadBoardProfiles(),
       captureCleanBaseline: () => captureCleanBaseline(),
+      restoreSettingsSubtabPreference: () => restoreSettingsSubtabPreference(),
+      loadExternalBoardZones: () => loadExternalBoardZones(),
+      loadOutsideResourceAssets: () => loadOutsideResourceAssets(),
+      // ─── Area L — Error / overlay UI ────────────────────────────
       buildResolveSnapshot: (opts) => buildResolveSnapshot(opts),
       formatResolveSnapshot: (snapshot) => formatResolveSnapshot(snapshot),
       renderServerUnreachableOverlay: (error) => renderServerUnreachableOverlay(error),
-      restoreSettingsSubtabPreference: () => restoreSettingsSubtabPreference(),
-      syncQuickModePanel: () => syncQuickModePanel(),
-      syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
-      applyOutputRoleViewContract: () => applyOutputRoleViewContract(),
-      loadProjectionCornersFromConfig: (config) => loadProjectionCornersFromConfig(config),
-      applyProjectionTransform: () => applyProjectionTransform(),
+      // ─── Area M — Live-sync ─────────────────────────────────────
       connectLiveSyncSocket: () => connectLiveSyncSocket(),
       scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
+      emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
+      buildAnimationSnapshotForLiveSync: (animation) => buildAnimationSnapshotForLiveSync(animation),
+      // ─── Area N — Asset warm-up ─────────────────────────────────
       warmEventSoundAssets: () => warmEventSoundAssets(),
       warmRoomGifAssets: (opts) => warmRoomGifAssets(opts),
       prewarmBoardOutsideMp4Asset: (boardId, opts) => prewarmBoardOutsideMp4Asset(boardId, opts),
-      setActiveView: (view, opts) => setActiveView(view, opts),
-      setPanCursorState: () => setPanCursorState(),
+      // ─── Area O — Regression tests ──────────────────────────────
       runViewVisibilityRegression: () => runViewVisibilityRegression(),
       runLayoutScrollRegression: () => runLayoutScrollRegression(),
       runStartupDefaultsGuardRegression: () => runStartupDefaultsGuardRegression(),
@@ -194,14 +235,13 @@
       runMobileProjectionVisibilityGuard: (opts) => runMobileProjectionVisibilityGuard(opts),
       runOutsideIsolationRegression: () => runOutsideIsolationRegression(),
       runShipClipRegression: () => runShipClipRegression(),
+      // ─── Area P — Animation lifecycle hooks ─────────────────────
       renderRunningAnimationsList: () => renderRunningAnimationsList(),
       refreshGlobalButtons: () => refreshGlobalButtons(),
-      getLiveTraceSnapshot,
       draw: (timestamp) => draw(timestamp),
       createAnimation: (opts) => createAnimation(opts),
-      playSoundForAnimation: (animation) => playSoundForAnimation(animation),
-      emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
-      buildAnimationSnapshotForLiveSync: (animation) => buildAnimationSnapshotForLiveSync(animation),
+      // ─── Area Q — Diagnostics ───────────────────────────────────
+      getLiveTraceSnapshot,
     };
   }
 
