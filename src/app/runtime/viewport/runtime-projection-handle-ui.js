@@ -1116,6 +1116,18 @@
     clearUndo();
   }
 
+  // ── Resize handling ────────────────────────────────────────────────────────
+
+  function onWindowResize() {
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    applyTransform();
+    if (handlesVisible) {
+      positionHandles();
+      positionRotateHandles();
+      drawLines();
+    }
+  }
+
   // ── Align mode integration ─────────────────────────────────────────────────
 
   function onAlignModeChange(enabled) {
@@ -1158,6 +1170,7 @@
     showHandles,
     hideHandles,
     onAlignModeChange,
+    onWindowResize,
     rebuildHandleElements,
     positionHandles,
     positionRotateHandles,

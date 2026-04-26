@@ -21,11 +21,11 @@
 (() => {
   let ctx = null;
 
-  // Grid state, helpers, undo, persistence, and resetGrid live in
-  // runtime-projection-grid-state.js (W3.2-C1). Destructure into local
-  // bindings so the still-in-shim functions (handle UI, GL/2D
-  // renderers, profile flows) can reference them by bare identifier
-  // exactly as they did pre-split.
+  // Grid state lives in runtime-projection-grid-state.js (W3.2-C1).
+  // Destructure into local bindings so the shim's remaining functions
+  // (remapPoint, postDrawMeshWarp, getCornersForPersistence,
+  // resetCorners, getGrid arrow) and its init forwarders can reference
+  // them by bare identifier.
   const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
   const {
     grid,
@@ -33,7 +33,6 @@
     setPoint,
     hasGridDisplacements,
     saveToLocalStorage,
-    loadFromLocalStorage,
     pushUndo,
     undo,
     clearUndo,
@@ -53,12 +52,15 @@
   const { postDrawMeshWarp2D } = fallback;
 
   // Handle UI (W3.2-C4). Imports the public surface so the shim's
-  // public API can delegate to it.
+  // public API can delegate to it. onWindowResize moved with the
+  // handle-UI state in W3.2-C6 since its body reads handlesVisible /
+  // positionHandles / positionRotateHandles / drawLines.
   const handleUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
   const {
     showHandles,
     hideHandles,
     onAlignModeChange,
+    onWindowResize,
   } = handleUi;
 
   // Profile persistence (W3.2-C5). Imports the profile flow callbacks
@@ -172,47 +174,6 @@
     // 2D mesh-warp body lives in postDrawMeshWarp2D (W3.2-C3).
     postDrawMeshWarp2D(canvas, canvasCtx);
   }
-
-  // Handle UI (state, handles, rotate, lines, drag, arrow key,
-  // context menu) moved to runtime-projection-handle-ui.js
-  // (W3.2-C4). The shim destructures handle-ui exports below;
-  // showContextMenu is destructured back so the still-in-shim
-  // showProfilePickerMenu (W3.2-C5 will move it) keeps working.
-
-
-  // Server-side profile flows (getCurrentBoardId, buildGridPayload,
-  // applyGridPayload, profileSaveFlow, fetchProfileList,
-  // profileLoadFlow, profileDeleteFlow, showProfilePickerMenu)
-  // moved to runtime-projection-profile-persistence.js (W3.2-C5).
-  // The shim destructures the public surface for handle-ui's
-  // context-menu items via the profile-persistence import block
-  // at the top of this IIFE.
-
-
-  // showContextMenu / dismissContextMenu / dismissContextMenuOnOutside,
-  // Grid line add/remove (addHorizontalLine, addVerticalLine,
-  // removeHorizontalLine, removeVerticalLine), showHandles,
-  // hideHandles, and onAlignModeChange moved to
-  // runtime-projection-handle-ui.js (W3.2-C4). The shim's
-  // showProfilePickerMenu still calls showContextMenu via the
-  // handle-ui destructure at the top of this IIFE.
-
-
-  // ── Resize handling ────────────────────────────────────────────────────────
-
-  function onWindowResize() {
-    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    applyTransform();
-    if (handlesVisible) {
-      positionHandles();
-      positionRotateHandles();
-      drawLines();
-    }
-  }
-
-  // Persistence (LS_KEY_V2, LS_KEY_OLD, saveToLocalStorage,
-  // loadFromLocalStorage) and getCorners moved to
-  // runtime-projection-grid-state.js (W3.2-C1).
 
   // ── Legacy compat ──────────────────────────────────────────────────────────
 
