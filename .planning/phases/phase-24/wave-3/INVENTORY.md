@@ -407,6 +407,14 @@ W3.5 closed with 2 code commits (`638381e` → `375df83`) plus 2 verification-on
 
 **End-of-W3.5 gate (this is the make-or-break moment):** The 2 code commits passed all per-commit primary gates (node --check, byte-identical diff -w, namespace existence, script order, kernel preservation). The acceptance bar miss (2991 > 2925) is a PLAN math-projection deviation, not a structural failure — documented in Decision-log W3.5-C2. ROADMAP exception clause "the orchestration wire-up which is allowed to be a re-export shell" continues to sanction the residual shim; the absolute residual size cap is a softer target than the structural carve-out goal. Recommendation: revisit shim residual goal in W3.6 or a follow-up wave if a different decomposition strategy emerges. Browser-load smoke pass is the user's responsibility before declaring W3.5 done.
 
+## W3.6 progress (in progress)
+
+**Tag:** `phase-24-w3-6-start` set on HEAD before W3.6-C1 (post-W3.5).
+
+| Commit | Hash | Files moved-from | Files moved-to | Lines moved | `node --check` | Body-identical | `<script>` order | Notes |
+|--------|------|------------------|----------------|------------:|----------------|----------------|------------------|-------|
+| W3.6-C10 | `a9c75c9` | `runtime-draw-loop.js` (drawClusterPadCanvases lines 552-674 incl. comment block) | `runtime-draw-loop-cluster-pads.js` (new, 151 lines) | 115 function lines + 8 comment lines + 2 helper boilerplate (init + namespace) | yes (both files clean) | yes — `drawClusterPadCanvases` byte-identical (115/115 lines) | yes (cluster-pads at index.html:853, before draw-loop at :854; orchestration last at :903) | **runtime-draw-loop.js: 836 → 716 lines** (under 800 acceptance bar). Init wiring: parent's `init()` now also calls `window.TT_BEAMER_RUNTIME_DRAW_LOOP_CLUSTER_PADS.init({ ctx, drawRoomComposition })`. Single call site at `draw():770` swapped from local `drawClusterPadCanvases(now)` to `window.TT_BEAMER_RUNTIME_DRAW_LOOP_CLUSTER_PADS.drawClusterPadCanvases(now)`. New namespace 2 keys (`init`, `drawClusterPadCanvases`). |
+
 ## Final file-size table
 
 To be filled at end-of-wave (after W3.2–W3.6 land).
