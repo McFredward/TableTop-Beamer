@@ -23,12 +23,6 @@
       });
       return;
     }
-    if (!window.TT_BEAMER_RUNTIME_PANELS) {
-      window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
-    }
-    if (!window.TT_BEAMER_UI_RUNTIME_PANELS) {
-      window.TT_BEAMER_UI_RUNTIME_PANELS = runtimePanelsApi;
-    }
 
     runtimePanelsApi.syncRuntimePanelsFromState({
       state: ctx.state,
