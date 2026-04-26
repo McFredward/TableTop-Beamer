@@ -105,7 +105,7 @@
     };
   }
 
-  function applyRoomCatalog(board, roomCatalog = [], deletedRoomIds = []) {
+  function mergeRoomCatalog(board, roomCatalog = [], deletedRoomIds = []) {
     const tombstones = new Set(
       (Array.isArray(deletedRoomIds) ? deletedRoomIds : [])
         .map((roomId) => String(roomId || "").trim())
@@ -172,7 +172,7 @@
     normalizeBoard,
     cloneBoard,
     roomToCatalogEntry,
-    applyRoomCatalog,
+    applyRoomCatalog: mergeRoomCatalog,
     createRoomId,
   };
 })();
