@@ -16,7 +16,7 @@
 //     helpers, isRunningListInteractionActive, validateRunningListParity,
 //     refreshGlobalButtons).
 //   - runtime-lifecycle-cluster-pads.js (W3.4-C5) — cluster pad rail
-//     + rAF rail-tracker registration + dispatch (updateClusterPadsRect,
+//     + rAF rail-tracker registration + dispatch (syncClusterPadsRect,
 //     renderClusterPads, dispatchClusterByTapAction,
 //     dispatchClusterToggle, dispatchClusterClear).
 //

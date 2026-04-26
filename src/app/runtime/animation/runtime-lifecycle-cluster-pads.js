@@ -1,6 +1,6 @@
 // lifecycle-cluster-pads sub-module — owns the
 // cluster pad rail beside the board: the rAF rail-tracker (registered
-// once in init), updateClusterPadsRect, renderClusterPads,
+// once in init), syncClusterPadsRect, renderClusterPads,
 // dispatchClusterByTapAction, dispatchClusterToggle, dispatchClusterClear.
 //
 // W3.4-C5 critical: the rAF rail-tracker MUST register inside this
@@ -62,7 +62,7 @@
   // rect on every tick + on resize — the rail sits outside #stage (avoiding
   // the dashboard's overflow:hidden chain) but visually attaches to the
   // stage's left edge.
-  function updateClusterPadsRect() {
+  function syncClusterPadsRect() {
     const container = document.getElementById("cluster-pads");
     if (!container) return;
     const stage = ctx?.stage || document.getElementById("stage");
@@ -89,7 +89,7 @@
       console.warn("[cluster-pads] container element missing from DOM");
       return;
     }
-    updateClusterPadsRect();
+    syncClusterPadsRect();
     // Pads now live in the inner scrollable list,
     // not the rail container itself. The rail container also holds
     // the "Cluster" header which must NOT be touched by this pass.
@@ -271,7 +271,7 @@
 
   window.TT_BEAMER_RUNTIME_LIFECYCLE_CLUSTER_PADS = {
     init,
-    updateClusterPadsRect,
+    updateClusterPadsRect: syncClusterPadsRect,
     renderClusterPads,
     dispatchClusterByTapAction,
     dispatchClusterToggle,
