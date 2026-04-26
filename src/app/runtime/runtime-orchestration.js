@@ -152,6 +152,12 @@ const {
   settingsTabbedSections,
 } = window.TT_BEAMER_RUNTIME_DOM_REFS.collectDomRefs();
 
+const {
+  shouldSuppressRapidTap,
+  createConditionalFieldMountSlot,
+  setConditionalFieldMounted,
+} = window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS;
+
 const outsideModeField = outsideModeInput?.closest("label") ?? null;
 const outsideDirectionField = outsideDirectionInput?.closest("label") ?? null;
 const outsideModeFieldMount = createConditionalFieldMountSlot(outsideModeField, "outside-mode");
@@ -325,6 +331,8 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
+
+window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
 
 // Opt-in save: local config edits stay local (dirty) until
 // the user clicks the Apply button. `localConfigDirty` is the dirty flag.
@@ -1146,14 +1154,6 @@ const {
   setDashboardZone,
 } = window.TT_BEAMER_RUNTIME_MOBILE_LAYOUT;
 
-function shouldSuppressRapidTap(actionKey, thresholdMs = 320) {
-  return window.TT_BEAMER_INPUT_GUARDS.shouldSuppressRapidTap({
-    state,
-    actionKey,
-    thresholdMs,
-  });
-}
-
 window.TT_BEAMER_RUNTIME_PERF.init({
   state,
   mobilePerformanceStatus,
@@ -1510,35 +1510,6 @@ const {
   getRoomAnimationDefinitionById,
   createRoomAnimationDefinition,
 } = window.TT_BEAMER_RUNTIME_FX_NORMALIZERS;
-
-function createConditionalFieldMountSlot(field, anchorName) {
-  if (!field || !field.parentElement) {
-    return null;
-  }
-  const parent = field.parentElement;
-  const anchor = document.createComment(`${anchorName}-mount-anchor`);
-  parent.insertBefore(anchor, field.nextSibling);
-  return {
-    field,
-    parent,
-    anchor,
-  };
-}
-
-function setConditionalFieldMounted(slot, mounted) {
-  if (!slot?.field || !slot.parent || !slot.anchor) {
-    return;
-  }
-  if (mounted) {
-    if (!slot.field.isConnected) {
-      slot.parent.insertBefore(slot.field, slot.anchor);
-    }
-    return;
-  }
-  if (slot.field.isConnected) {
-    slot.field.remove();
-  }
-}
 
 // Editor draft storage and outsideResourceAssets remain in
 // orchestration scope (passed by reference) — mutations to the
