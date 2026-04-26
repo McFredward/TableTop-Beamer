@@ -20,7 +20,7 @@
     ctx = dependencies;
   }
 
-  function applyHitareaCalibration(x, y, calibration) {
+  function computeHitareaCalibratedPoint(x, y, calibration) {
     const scaledX = (x - 0.5) * calibration.scale + 0.5 + calibration.offsetX;
     const scaledY = (y - 0.5) * calibration.scale + 0.5 + calibration.offsetY;
     return [Math.max(-0.2, Math.min(1.2, scaledX)), Math.max(-0.2, Math.min(1.2, scaledY))];
@@ -206,7 +206,7 @@
 
   window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY = {
     init,
-    applyHitareaCalibration,
+    applyHitareaCalibration: computeHitareaCalibratedPoint,
     getRoomCenterFromPoints,
     getStableRoomStretchAnchor,
     getRoomTransform,
