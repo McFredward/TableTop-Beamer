@@ -239,8 +239,19 @@
   // Setter so handle-ui (post-W3.2-C4) can mirror its local
   // handlesVisible flag into this module without breaking byte-identical
   // body source for undo() / resetGrid() (which read `handlesVisible`
-  // as a bare identifier).
-  function setHandlesVisible(v) { handlesVisible = v; }
+  // as a bare identifier). The listener registry (W3.2-C5) lets other
+  // sub-modules (profile-persistence) subscribe so their own
+  // handlesVisible mirror stays in sync.
+  const _handlesVisibleListeners = [];
+  function setHandlesVisible(v) {
+    handlesVisible = v;
+    for (const cb of _handlesVisibleListeners) {
+      try { cb(v); } catch { /* listener guard */ }
+    }
+  }
+  function addHandlesVisibleListener(cb) {
+    if (typeof cb === "function") _handlesVisibleListeners.push(cb);
+  }
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -264,6 +275,7 @@
     resetGrid,
     getGrid: () => ({ srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: grid.points }),
     setHandlesVisible,
+    addHandlesVisibleListener,
     buildDefaultPoints,
   };
 })();

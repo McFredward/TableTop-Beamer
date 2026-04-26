@@ -53,16 +53,23 @@
   const { postDrawMeshWarp2D } = fallback;
 
   // Handle UI (W3.2-C4). Imports the public surface so the shim's
-  // public API can delegate to it; showContextMenu is destructured
-  // back into the shim so showProfilePickerMenu (still in shim
-  // until W3.2-C5 moves profile flows) keeps working.
+  // public API can delegate to it.
   const handleUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
   const {
     showHandles,
     hideHandles,
     onAlignModeChange,
-    showContextMenu,
   } = handleUi;
+
+  // Profile persistence (W3.2-C5). Imports the profile flow callbacks
+  // so the shim can forward them into handle-ui's init (consumed by
+  // its context-menu items).
+  const profilePersistence = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+  const {
+    profileSaveFlow,
+    profileLoadFlow,
+    profileDeleteFlow,
+  } = profilePersistence;
 
   /**
    * Remap a normalized point (0-1) through the grid distortion.
@@ -173,127 +180,14 @@
   // showProfilePickerMenu (W3.2-C5 will move it) keeps working.
 
 
-  // ── Server-side profile flows ──────────────────────────────────────────────
+  // Server-side profile flows (getCurrentBoardId, buildGridPayload,
+  // applyGridPayload, profileSaveFlow, fetchProfileList,
+  // profileLoadFlow, profileDeleteFlow, showProfilePickerMenu)
+  // moved to runtime-projection-profile-persistence.js (W3.2-C5).
+  // The shim destructures the public surface for handle-ui's
+  // context-menu items via the profile-persistence import block
+  // at the top of this IIFE.
 
-  function getCurrentBoardId() {
-    try {
-      return typeof ctx?.getBoardId === "function" ? ctx.getBoardId() : null;
-    } catch { return null; }
-  }
-
-  function buildGridPayload() {
-    const pointsArr = [];
-    for (let row = 0; row < grid.srcYs.length; row++) {
-      for (let col = 0; col < grid.srcXs.length; col++) {
-        const pt = getPoint(row, col);
-        pointsArr.push({ row, col, x: pt.x, y: pt.y });
-      }
-    }
-    return { srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: pointsArr };
-  }
-
-  function applyGridPayload(data) {
-    if (!data || typeof data !== "object") return;
-    if (Array.isArray(data.srcXs) && data.srcXs.length >= 2) {
-      grid.srcXs = data.srcXs.filter((v) => typeof v === "number").slice().sort((a, b) => a - b);
-    }
-    if (Array.isArray(data.srcYs) && data.srcYs.length >= 2) {
-      grid.srcYs = data.srcYs.filter((v) => typeof v === "number").slice().sort((a, b) => a - b);
-    }
-    buildDefaultPoints();
-    if (Array.isArray(data.points)) {
-      for (const p of data.points) {
-        if (typeof p.row === "number" && typeof p.col === "number"
-          && typeof p.x === "number" && typeof p.y === "number") {
-          setPoint(p.row, p.col, p.x, p.y);
-        }
-      }
-    }
-  }
-
-  async function profileSaveFlow() {
-    const boardId = getCurrentBoardId();
-    if (!boardId) { alert("No board selected."); return; }
-    const name = window.prompt("Profile name:", "");
-    if (!name || !name.trim()) return;
-    try {
-      const resp = await fetch("/api/projection-profiles", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ boardId, name: name.trim(), data: buildGridPayload() }),
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    } catch (err) {
-      alert("Save failed: " + (err?.message || err));
-    }
-  }
-
-  async function fetchProfileList(boardId) {
-    const resp = await fetch(`/api/projection-profiles?boardId=${encodeURIComponent(boardId)}`);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    return Array.isArray(body?.names) ? body.names : [];
-  }
-
-  async function profileLoadFlow() {
-    const boardId = getCurrentBoardId();
-    if (!boardId) { alert("No board selected."); return; }
-    let names;
-    try {
-      names = await fetchProfileList(boardId);
-    } catch (err) {
-      alert("Could not fetch profiles: " + (err?.message || err));
-      return;
-    }
-    if (names.length === 0) { alert("No saved profiles for this board."); return; }
-    showProfilePickerMenu(names, async (name) => {
-      try {
-        const resp = await fetch(`/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(name)}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const body = await resp.json();
-        pushUndo();
-        applyGridPayload(body?.data);
-        saveToLocalStorage();
-        if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
-        applyTransform();
-        if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-      } catch (err) {
-        alert("Load failed: " + (err?.message || err));
-      }
-    });
-  }
-
-  async function profileDeleteFlow() {
-    const boardId = getCurrentBoardId();
-    if (!boardId) { alert("No board selected."); return; }
-    let names;
-    try {
-      names = await fetchProfileList(boardId);
-    } catch (err) {
-      alert("Could not fetch profiles: " + (err?.message || err));
-      return;
-    }
-    if (names.length === 0) { alert("No saved profiles to delete."); return; }
-    showProfilePickerMenu(names, async (name) => {
-      if (!confirm(`Delete profile "${name}"?`)) return;
-      try {
-        const resp = await fetch(`/api/projection-profiles?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(name)}`, { method: "DELETE" });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      } catch (err) {
-        alert("Delete failed: " + (err?.message || err));
-      }
-    });
-  }
-
-  function showProfilePickerMenu(names, onPick) {
-    // Put the menu at the center of the viewport
-    const items = names.map((name) => ({
-      label: name,
-      action: () => onPick(name),
-    }));
-    items.push({ label: "Cancel", action: () => {} });
-    showContextMenu(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), items);
-  }
 
   // showContextMenu / dismissContextMenu / dismissContextMenuOnOutside,
   // Grid line add/remove (addHorizontalLine, addVerticalLine,
@@ -362,9 +256,9 @@
       getPoint,
     }));
     // Handle UI (W3.2-C4): grid-state refs + applyTransform (shim) +
-    // profile flow callbacks (still in shim until W3.2-C5) +
-    // setGridStateHandlesVisible setter so its handlesVisible mirrors
-    // into grid-state.
+    // profile flow callbacks (now from profile-persistence per
+    // W3.2-C5) + gridState namespace so its createHandles /
+    // removeHandles can mirror handlesVisible into grid-state.
     handleUi.init(Object.assign({}, dependencies, {
       grid,
       getPoint,
@@ -378,6 +272,24 @@
       profileSaveFlow,
       profileLoadFlow,
       profileDeleteFlow,
+      gridState,
+    }));
+    // Profile persistence (W3.2-C5): grid-state refs + handle-ui refs
+    // (rebuildHandleElements / drawLines / positionRotateHandles /
+    // showContextMenu) + applyTransform (shim) + gridState namespace
+    // so it can subscribe to handlesVisible changes.
+    profilePersistence.init(Object.assign({}, dependencies, {
+      grid,
+      getPoint,
+      setPoint,
+      pushUndo,
+      saveToLocalStorage,
+      buildDefaultPoints,
+      applyTransform,
+      rebuildHandleElements: handleUi.rebuildHandleElements,
+      drawLines: handleUi.drawLines,
+      positionRotateHandles: handleUi.positionRotateHandles,
+      showContextMenu: handleUi.showContextMenu,
       gridState,
     }));
   }
