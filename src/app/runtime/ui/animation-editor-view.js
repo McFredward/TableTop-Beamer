@@ -32,39 +32,25 @@
   // live-preview clusters and exposes the legacy aggregate namespace.
   let ctx = null;
   const shell = window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_SHELL;
+  const libraryList = window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_LIBRARY_LIST;
   // Shared reference to the shell's module-private state object so the
-  // still-in-shim functions (renderPane / renderList / etc.) keep their
-  // bare `state.x` mutations working byte-identically until they too
-  // move out in C2..C4.
+  // still-in-shim functions (renderPane / etc.) keep their bare
+  // `state.x` mutations working byte-identically until they too move
+  // out in C3..C4.
   const state = shell.getState();
   const getEditorBoardId = shell.getEditorBoardId;
   const getSelection = shell.getSelection;
   const notifySelection = shell.notifySelection;
   const flashDirtyBar = shell.flashDirtyBar;
   const syncDirtyBar = shell.syncDirtyBar;
-
-  function collectAnimations(scope) {
-    const boardId = getEditorBoardId();
-    if (!boardId) return [];
-    if (scope === "inside" && typeof ctx.getInsideFxProfile === "function") {
-      return ctx.getInsideFxProfile(boardId)?.animations ?? [];
-    }
-    if (scope === "outside" && typeof ctx.getOutsideFxProfile === "function") {
-      return ctx.getOutsideFxProfile(boardId)?.animations ?? [];
-    }
-    if (scope === "room" && typeof ctx.getRoomFxProfile === "function") {
-      return ctx.getRoomFxProfile(boardId)?.animations ?? [];
-    }
-    return [];
-  }
-
-  function render() {
-    renderScopeTabs();
-    renderList();
-    renderPane();
-    renderPreview();
-    syncDirtyBar();
-  }
+  // Phase 24 W3.3-C2: collectAnimations / render / renderScopeTabs /
+  // renderList moved to runtime/ui/animation-editor-library-list.js.
+  // Aliased into shim scope so the still-in-shim edit-pane functions
+  // (buildIdentityCard, createAnimation, deleteAnimation, findDefinition)
+  // keep their bare-identifier call sites byte-identical.
+  const render = libraryList.render;
+  const renderList = libraryList.renderList;
+  const collectAnimations = libraryList.collectAnimations;
 
   // =============================================================
   // editor pane: Identity + Defaults cards.
@@ -1379,109 +1365,9 @@
     }
   }
 
-  function renderScopeTabs() {
-    const nav = ctx.animEditorScopeTabs;
-    if (!nav) return;
-    for (const btn of nav.querySelectorAll("button[data-anim-scope]")) {
-      const isActive = btn.dataset.animScope === state.scope;
-      btn.classList.toggle("active", isActive);
-      btn.setAttribute("aria-selected", isActive ? "true" : "false");
-    }
-  }
-
-  function renderList() {
-    const list = ctx.animEditorList;
-    const empty = ctx.animEditorEmpty;
-    const count = ctx.animEditorCount;
-    if (!list) return;
-
-    const all = collectAnimations(state.scope);
-    const filtered = state.search
-      ? all.filter((def) =>
-          String(def.name || "").toLowerCase().includes(state.search)
-          || String(def.id || "").toLowerCase().includes(state.search))
-      : all;
-
-    if (count) {
-      count.textContent = `${all.length} configured`;
-    }
-    list.replaceChildren();
-    if (filtered.length === 0) {
-      if (empty) empty.hidden = false;
-      return;
-    }
-    if (empty) empty.hidden = true;
-
-    // If no selection for this scope yet, seed from the first visible
-    // entry so the editor pane (W3b-2) has something to render.
-    if (!state.selectedIds[state.scope]) {
-      state.selectedIds[state.scope] = filtered[0].id;
-    }
-
-    const icons = window.TT_BEAMER_UI_ICONS;
-    for (const def of filtered) {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "anim-editor-row";
-      row.setAttribute("role", "option");
-      row.dataset.animationId = def.id;
-      if (state.selectedIds[state.scope] === def.id) {
-        row.classList.add("is-selected");
-        row.setAttribute("aria-selected", "true");
-      } else {
-        row.setAttribute("aria-selected", "false");
-      }
-
-      const iconWrap = document.createElement("span");
-      iconWrap.className = "anim-editor-row-icon";
-      iconWrap.setAttribute("aria-hidden", "true");
-      if (icons?.createIcon) {
-        const name = icons.resolveAnimationIcon
-          ? icons.resolveAnimationIcon({
-            ...def,
-            codedEffectType: def.codedEffectType,
-            codedKey: def.codedKey,
-          })
-          : "sparkles";
-        iconWrap.append(icons.createIcon(name, { size: 16 }));
-      }
-      row.append(iconWrap);
-
-      const body = document.createElement("span");
-      body.className = "anim-editor-row-body";
-      const nm = document.createElement("span");
-      nm.className = "anim-editor-row-name";
-      nm.textContent = def.name;
-      body.append(nm);
-      const sub = document.createElement("span");
-      sub.className = "anim-editor-row-sub";
-      sub.textContent = def.assetType ? String(def.assetType).toUpperCase() : "";
-      body.append(sub);
-      row.append(body);
-
-      const dot = document.createElement("span");
-      dot.className = "anim-editor-row-loop";
-      dot.title = def.loopUntilStopped ? "Loops until stopped" : "Plays once";
-      dot.setAttribute("aria-hidden", "true");
-      row.append(dot);
-
-      row.addEventListener("click", () => {
-        state.selectedIds[state.scope] = def.id;
-        renderList();
-        // The click handler used to only refresh
-        // the list + notify listeners. The pane subscribes via
-        // render() at init, not notifySelection, so the pane didn't
-        // rebuild when the user picked another animation. Call
-        // renderPane() / renderPreview() directly so both follow the
-        // selection.
-        renderPane();
-        renderPreview();
-        notifySelection();
-      });
-      list.append(row);
-    }
-    notifySelection();
-  }
+  // Phase 24 W3.3-C2: renderScopeTabs / renderList moved to
+  // runtime/ui/animation-editor-library-list.js along with collectAnimations
+  // and the editor's library `render()` orchestrator.
 
   // Phase 24 W3.3-C1: getSelection / onSelectionChange / notifySelection
   // moved to runtime/ui/animation-editor-shell.js along with the
