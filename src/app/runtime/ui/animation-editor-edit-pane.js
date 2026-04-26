@@ -1,5 +1,5 @@
 // Animation editor edit-pane — owns the Identity / Source / Coded /
-// Defaults / Sound cards plus the patchAnimation / createAnimation /
+// Defaults cards plus the patchAnimation / createAnimation /
 // deleteAnimation / findDefinition profile-mutation helpers.
 // Cross-module callbacks (renderList / render / renderPreview /
 // updatePreviewDynamicBits / collectAnimations / syncDirtyBar /
@@ -9,9 +9,16 @@
 // Phase 24 W3.3-C3: extracted from animation-editor-view.js. The
 // module-private `currentPaneKey` cache moves with renderPane —
 // shell.bindDom / shell.open clear it via the new `clearPaneCache`
-// export. The two private helpers `fetchAnimationResources` and
-// `fetchSoundResources` (only called from buildAssetPickerRow /
-// buildSoundPickerRow respectively) move with their callers.
+// export.
+//
+// Phase 24 W3.6-Cextra-edit-pane: the GIF/MP4/sound asset-picker
+// cluster (`buildAssetPickerRow` + `fetchAnimationResources` +
+// `buildSoundCard` + `buildSoundPickerRow` + `fetchSoundResources`)
+// moved out into runtime/ui/animation-editor-edit-pane-asset-picker.js
+// (Option B minimal split — shell drops 1006 → ~684 to clear ≤800).
+// Bare-identifier call sites in buildSourceCard (buildAssetPickerRow)
+// and renderPane (buildSoundCard) stay byte-identical via parse-time
+// `let` bindings populated at init from the asset-picker namespace.
 (() => {
   let ctx = null;
   let state = null;
@@ -29,6 +36,14 @@
   let renderList = null;
   let renderPreview = null;
   let updatePreviewDynamicBits = null;
+
+  // W3.6-Cextra-edit-pane: asset-picker-cluster bridge bindings.
+  // Populated at init from
+  // window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_EDIT_PANE_ASSET_PICKER so
+  // bare-identifier call sites stay byte-identical.
+  let buildAssetPickerRow = null;
+  let buildSoundCard = null;
+  let buildSoundPickerRow = null;
 
   let currentPaneKey = null;
 
@@ -48,6 +63,16 @@
     if (typeof deps.renderList === "function") renderList = deps.renderList;
     if (typeof deps.renderPreview === "function") renderPreview = deps.renderPreview;
     if (typeof deps.updatePreviewDynamicBits === "function") updatePreviewDynamicBits = deps.updatePreviewDynamicBits;
+    // W3.6-Cextra-edit-pane: pull asset-picker cluster refs and
+    // forward `patchAnimation` so the sub-module's button handlers
+    // can mutate animation state through the same path.
+    const assetPicker = window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_EDIT_PANE_ASSET_PICKER;
+    if (assetPicker) {
+      buildAssetPickerRow = assetPicker.buildAssetPickerRow;
+      buildSoundCard = assetPicker.buildSoundCard;
+      buildSoundPickerRow = assetPicker.buildSoundPickerRow;
+      assetPicker.init({ patchAnimation });
+    }
   }
 
   function clearPaneCache() {
@@ -457,330 +482,15 @@
     return card;
   }
 
-  // GIF/MP4 pickers — dropdown of resources/animations/*
-  // plus Upload + Delete buttons. Replaces the previous free-text path input.
-  function buildAssetPickerRow(scope, def, boardId) {
-    const ext = def.assetType === "mp4" ? "mp4" : "gif";
-    const wrap = document.createElement("div");
-    wrap.className = "anim-editor-asset-picker";
-
-    const label = document.createElement("label");
-    label.className = "anim-editor-field-label";
-    const cap = document.createElement("span");
-    cap.textContent = ext === "mp4" ? "Video file" : "GIF file";
-    const select = document.createElement("select");
-    select.className = "anim-editor-asset-select";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = `Select ${ext.toUpperCase()}…`;
-    select.append(placeholder);
-    label.append(cap, select);
-
-    const actions = document.createElement("div");
-    actions.className = "anim-editor-asset-actions";
-
-    const uploadBtn = document.createElement("button");
-    uploadBtn.type = "button";
-    uploadBtn.className = "rd-btn rd-btn-ghost";
-    uploadBtn.textContent = "Upload";
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "rd-btn rd-btn-ghost";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.disabled = true;
-
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = ext === "mp4" ? "video/mp4,.mp4" : "image/gif,.gif";
-    fileInput.style.display = "none";
-
-    const status = document.createElement("p");
-    status.className = "rd-caption anim-editor-asset-status";
-
-    actions.append(uploadBtn, deleteBtn, fileInput);
-    wrap.append(label, actions, status);
-
-    async function refreshList(selectedPath) {
-      const files = await fetchAnimationResources(ext);
-      select.replaceChildren();
-      const ph = document.createElement("option");
-      ph.value = "";
-      ph.textContent = files.length
-        ? `Select ${ext.toUpperCase()}…`
-        : `No ${ext.toUpperCase()} files uploaded`;
-      select.append(ph);
-      for (const file of files) {
-        const opt = document.createElement("option");
-        opt.value = file;
-        opt.textContent = file.replace(/^\/resources\/animations\//, "");
-        select.append(opt);
-      }
-      const current = selectedPath ?? String(def.assetRef || "").trim();
-      if (current && files.includes(current)) {
-        select.value = current;
-        deleteBtn.disabled = false;
-      } else {
-        select.value = "";
-        deleteBtn.disabled = true;
-      }
-    }
-
-    select.addEventListener("change", () => {
-      patchAnimation(scope, boardId, def.id, { assetRef: select.value });
-      deleteBtn.disabled = !select.value;
-    });
-
-    uploadBtn.addEventListener("click", () => fileInput.click());
-
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files?.[0];
-      fileInput.value = "";
-      if (!file) return;
-      status.textContent = `Uploading ${file.name}…`;
-      uploadBtn.disabled = true;
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const response = await fetch(
-          `/api/resources/animations?filename=${encodeURIComponent(file.name)}`,
-          { method: "POST", body: arrayBuffer },
-        );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.ok) {
-          status.textContent = payload?.error || "Upload failed";
-          return;
-        }
-        status.textContent = `Uploaded ${payload.filename}`;
-        patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
-        await refreshList(payload.path);
-      } catch (error) {
-        status.textContent = "Upload failed";
-        console.error("anim upload failed", error);
-      } finally {
-        uploadBtn.disabled = false;
-      }
-    });
-
-    deleteBtn.addEventListener("click", async () => {
-      const current = select.value;
-      if (!current) return;
-      const name = current.replace(/^\/resources\/animations\//, "");
-      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
-      status.textContent = `Deleting ${name}…`;
-      deleteBtn.disabled = true;
-      try {
-        const response = await fetch(
-          `/api/resources/animations?path=${encodeURIComponent(current)}`,
-          { method: "DELETE" },
-        );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.ok) {
-          status.textContent = payload?.error || "Delete failed";
-          deleteBtn.disabled = false;
-          return;
-        }
-        status.textContent = `Deleted ${name}`;
-        if (String(def.assetRef || "").trim() === current) {
-          patchAnimation(scope, boardId, def.id, { assetRef: "" });
-        }
-        await refreshList("");
-      } catch (error) {
-        status.textContent = "Delete failed";
-        console.error("anim delete failed", error);
-        deleteBtn.disabled = false;
-      }
-    });
-
-    refreshList();
-
-    return wrap;
-  }
-
-  async function fetchAnimationResources(ext) {
-    try {
-      const response = await fetch("/api/resources");
-      if (!response.ok) return [];
-      const payload = await response.json();
-      const files = Array.isArray(payload?.files) ? payload.files : [];
-      const pattern = new RegExp(`\\.${ext}$`, "i");
-      return files
-        .map((entry) => String(entry || "").trim())
-        .filter((entry) => entry.startsWith("/resources/animations/") && pattern.test(entry))
-        .sort();
-    } catch {
-      return [];
-    }
-  }
-
-  function buildSoundCard(scope, def, boardId) {
-    const card = document.createElement("section");
-    card.className = "anim-editor-card";
-    const eyebrow = document.createElement("p");
-    eyebrow.className = "anim-editor-card-eyebrow";
-    eyebrow.textContent = "Sound";
-    card.append(eyebrow);
-    card.append(buildSoundPickerRow(scope, def, boardId));
-    return card;
-  }
-
-  // Sound picker — mirrors the GIF/MP4 asset picker but
-  // targets /resources/sounds/ with audio extensions, and includes a
-  // "No sound" entry mapped to SOUND_MAPPING_NONE.
-  function buildSoundPickerRow(scope, def, boardId) {
-    const config = window.TT_BEAMER_CONFIG || {};
-    const noneValue = config.SOUND_MAPPING_NONE ?? "none";
-    const extensions = ["mp3", "wav", "ogg", "m4a"];
-
-    const wrap = document.createElement("div");
-    wrap.className = "anim-editor-asset-picker";
-
-    const label = document.createElement("label");
-    label.className = "anim-editor-field-label";
-    const cap = document.createElement("span");
-    cap.textContent = "Sound file";
-    const select = document.createElement("select");
-    select.className = "anim-editor-asset-select";
-    label.append(cap, select);
-
-    const actions = document.createElement("div");
-    actions.className = "anim-editor-asset-actions";
-
-    const uploadBtn = document.createElement("button");
-    uploadBtn.type = "button";
-    uploadBtn.className = "rd-btn rd-btn-ghost";
-    uploadBtn.textContent = "Upload";
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "rd-btn rd-btn-ghost";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.disabled = true;
-
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "audio/*,.mp3,.wav,.ogg,.m4a";
-    fileInput.style.display = "none";
-
-    const status = document.createElement("p");
-    status.className = "rd-caption anim-editor-asset-status";
-
-    actions.append(uploadBtn, deleteBtn, fileInput);
-    wrap.append(label, actions, status);
-
-    async function refreshList(selectedPath) {
-      const files = await fetchSoundResources(extensions);
-      const builtIn = Array.isArray(config.ALL_SOUND_ASSET_PATHS)
-        ? config.ALL_SOUND_ASSET_PATHS
-        : [];
-      // Built-in paths + uploaded /resources/sounds/ entries. Merge
-      // and dedupe so uploads land alongside the seeded map files.
-      const merged = Array.from(new Set([...builtIn, ...files])).sort();
-      select.replaceChildren();
-      const noneOpt = document.createElement("option");
-      noneOpt.value = noneValue;
-      noneOpt.textContent = "No sound";
-      select.append(noneOpt);
-      for (const file of merged) {
-        const opt = document.createElement("option");
-        opt.value = file;
-        opt.textContent = String(file).split("/").pop() || file;
-        select.append(opt);
-      }
-      const current = selectedPath ?? String(def.soundAssetRef || noneValue);
-      select.value = merged.includes(current) ? current : (current === noneValue ? noneValue : noneValue);
-      // Delete is only enabled for user-uploaded files (not built-ins).
-      const isUploaded = typeof select.value === "string"
-        && select.value.startsWith("/resources/sounds/")
-        && !builtIn.includes(select.value);
-      deleteBtn.disabled = !isUploaded;
-    }
-
-    select.addEventListener("change", () => {
-      patchAnimation(scope, boardId, def.id, { soundAssetRef: select.value });
-      const builtIn = Array.isArray(config.ALL_SOUND_ASSET_PATHS) ? config.ALL_SOUND_ASSET_PATHS : [];
-      const isUploaded = select.value.startsWith("/resources/sounds/") && !builtIn.includes(select.value);
-      deleteBtn.disabled = !isUploaded;
-    });
-
-    uploadBtn.addEventListener("click", () => fileInput.click());
-
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files?.[0];
-      fileInput.value = "";
-      if (!file) return;
-      status.textContent = `Uploading ${file.name}…`;
-      uploadBtn.disabled = true;
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const response = await fetch(
-          `/api/resources/sounds?filename=${encodeURIComponent(file.name)}`,
-          { method: "POST", body: arrayBuffer },
-        );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.ok) {
-          status.textContent = payload?.error || "Upload failed";
-          return;
-        }
-        status.textContent = `Uploaded ${payload.filename}`;
-        patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
-        await refreshList(payload.path);
-      } catch (error) {
-        status.textContent = "Upload failed";
-        console.error("sound upload failed", error);
-      } finally {
-        uploadBtn.disabled = false;
-      }
-    });
-
-    deleteBtn.addEventListener("click", async () => {
-      const current = select.value;
-      if (!current || current === noneValue) return;
-      const name = current.replace(/^\/resources\/sounds\//, "");
-      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
-      status.textContent = `Deleting ${name}…`;
-      deleteBtn.disabled = true;
-      try {
-        const response = await fetch(
-          `/api/resources/sounds?path=${encodeURIComponent(current)}`,
-          { method: "DELETE" },
-        );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload?.ok) {
-          status.textContent = payload?.error || "Delete failed";
-          deleteBtn.disabled = false;
-          return;
-        }
-        status.textContent = `Deleted ${name}`;
-        if (String(def.soundAssetRef || "").trim() === current) {
-          patchAnimation(scope, boardId, def.id, { soundAssetRef: noneValue });
-        }
-        await refreshList(noneValue);
-      } catch (error) {
-        status.textContent = "Delete failed";
-        console.error("sound delete failed", error);
-        deleteBtn.disabled = false;
-      }
-    });
-
-    refreshList();
-    return wrap;
-  }
-
-  async function fetchSoundResources(extensions) {
-    try {
-      const response = await fetch("/api/resources");
-      if (!response.ok) return [];
-      const payload = await response.json();
-      const files = Array.isArray(payload?.files) ? payload.files : [];
-      const extRegex = new RegExp(`\\.(${extensions.join("|")})$`, "i");
-      return files
-        .map((entry) => String(entry || "").trim())
-        .filter((entry) => entry.startsWith("/resources/sounds/") && extRegex.test(entry))
-        .sort();
-    } catch {
-      return [];
-    }
-  }
+  // GIF/MP4 pickers (`buildAssetPickerRow` + private
+  // `fetchAnimationResources`) and the Sound card + sound picker
+  // (`buildSoundCard` + `buildSoundPickerRow` + private
+  // `fetchSoundResources`) moved to
+  // animation-editor-edit-pane-asset-picker.js in W3.6-Cextra-edit-pane.
+  // Bare-identifier call sites in `buildSourceCard` (line ~440) and
+  // `renderPane` (line ~100) resolve through the parse-time `let`
+  // bindings populated at init from the asset-picker namespace, so
+  // those call sites stay byte-identical with the pre-W3.6 IIFE.
 
   function buildSelectRow(scope, def, boardId, field) {
     const label = document.createElement("label");
@@ -979,6 +689,12 @@
     }
   }
 
+  // W3.6-Cextra-edit-pane: re-export the 3 asset-picker keys from the
+  // sub-module so the 22-key namespace contract stays intact for any
+  // downstream caller. The asset-picker `<script>` is loaded BEFORE
+  // this file in index.html, so its namespace is already populated at
+  // parse-time of this IIFE.
+  const _assetPickerNs = window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_EDIT_PANE_ASSET_PICKER || {};
   window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_EDIT_PANE = {
     init,
     clearPaneCache,
@@ -992,9 +708,9 @@
     buildToggleRow,
     buildColorCard,
     buildSourceCard,
-    buildAssetPickerRow,
-    buildSoundCard,
-    buildSoundPickerRow,
+    buildAssetPickerRow: _assetPickerNs.buildAssetPickerRow,
+    buildSoundCard: _assetPickerNs.buildSoundCard,
+    buildSoundPickerRow: _assetPickerNs.buildSoundPickerRow,
     buildSelectRow,
     createAnimation,
     deleteAnimation,
