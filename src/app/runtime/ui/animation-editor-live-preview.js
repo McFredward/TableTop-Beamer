@@ -124,7 +124,7 @@
         img.addEventListener("error", () => {
           wrap.replaceChildren(buildPreviewMissingNotice(ref));
         });
-        applyMediaPreviewProps(img, def);
+        syncMediaPreviewProps(img, def);
         wrap.append(img);
       }
     } else if (type === "mp4" && ref) {
@@ -141,9 +141,9 @@
         wrap.replaceChildren(buildPreviewMissingNotice(ref));
       });
       video.addEventListener("loadedmetadata", () => {
-        applyMediaPreviewProps(video, def);
+        syncMediaPreviewProps(video, def);
       });
-      applyMediaPreviewProps(video, def);
+      syncMediaPreviewProps(video, def);
       wrap.append(video);
     } else if (type === "coded" && ref && window.TT_BEAMER_RUNTIME_EFFECT_VISUALS?.withPreviewCanvas) {
       // Coded effects get a live canvas
@@ -373,7 +373,7 @@
   //   - mp4 playbackRate = speed
   // (GIF speed can't be modified natively — frame timing is baked
   // into the file.)
-  function applyMediaPreviewProps(el, def) {
+  function syncMediaPreviewProps(el, def) {
     if (!el || !def) return;
     const opacity = Number.isFinite(Number(def.opacity)) ? Number(def.opacity) : 1;
     const intensity = Number.isFinite(Number(def.intensity)) ? Number(def.intensity) : 1;
@@ -395,7 +395,7 @@
     const root = ctx?.animEditorPreview;
     if (!root) return;
     const el = root.querySelector("[data-anim-editor-preview-media]");
-    if (el) applyMediaPreviewProps(el, def);
+    if (el) syncMediaPreviewProps(el, def);
   }
 
   function buildPreviewMissingNotice(ref) {
@@ -421,7 +421,7 @@
     toResourceUrl,
     buildPreviewMeta,
     formatAssetType,
-    applyMediaPreviewProps,
+    applyMediaPreviewProps: syncMediaPreviewProps,
     updatePreviewDynamicBits,
     buildPreviewMissingNotice,
   };
