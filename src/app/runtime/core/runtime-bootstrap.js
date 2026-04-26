@@ -68,10 +68,10 @@
     ctx.syncMp4PerformanceControlsPanel();
   }
 
-  async function initializeApplication() {
+  // W3.6-C7 Phase 1: zone loader + outside resource assets + board
+  // select options + zone fallback feedback.
+  async function _initApplicationLoadZonesAndResources() {
     const state = ctx.state;
-    const liveSync = ctx.liveSync;
-    ctx.logBootstrap.info("init_start", { event: "init-start" });
     await ctx.loadExternalBoardZones();
     await ctx.loadOutsideResourceAssets();
     ctx.syncBoardSelectOptions();
@@ -82,6 +82,13 @@
       ctx.triggerFeedback.textContent =
         `Status: Zone fallback active (${zoneFallbackCount} board) - see zone-source status in Settings panel`;
     }
+  }
+
+  // W3.6-C7 Phase 2: per-board state initialization (board-id resolve,
+  // legacy hitarea/geometry stubs, all per-board default maps, quick-
+  // mode normalize, animation sound map + speed clamp).
+  function _initApplicationSetupBoardState() {
+    const state = ctx.state;
     const BOARDS = ctx.getBoards();
     // Honour the last-opened board id from localStorage
     // before falling back to the first available board. Server-side
@@ -128,7 +135,14 @@
     };
     state.animationSoundMap = ctx.normalizeAnimationSoundMap(ctx.createDefaultAnimationSoundMap());
     state.animationSpeed = ctx.clampAnimationSpeed(ctx.animationSpeedInput.value);
+  }
 
+  // W3.6-C7 Phase 3: server-first global-defaults hydration with
+  // explicit failure overlay. Returns the resolve snapshot (or null
+  // if hydration failed) so the caller can apply the post-hydration
+  // status messaging.
+  async function _initApplicationStartupDefaultsGuard() {
+    const state = ctx.state;
     state.startupDefaultsGuard.fallbackRequired = true;
     state.startupDefaultsGuard.attempted = false;
     state.startupDefaultsGuard.applied = false;
@@ -165,6 +179,12 @@
       }
     }
 
+    return startupDefaultsSnapshot;
+  }
+
+  // W3.6-C7 Phase 4: post-hydration panel sync + projection transform
+  // application + live-sync socket connection + first poll schedule.
+  function _initApplicationConnectAndSync() {
     syncRuntimePanelsFromState();
 
     ctx.restoreSettingsSubtabPreference();
@@ -179,6 +199,11 @@
     }
     ctx.connectLiveSyncSocket();
     ctx.scheduleNextLiveSnapshotPoll(0);
+  }
+
+  // W3.6-C7 Phase 5: status messaging from the resolved hydration
+  // snapshot (operator visibility into where defaults came from).
+  function _initApplicationApplyHydrationStatus(startupDefaultsSnapshot) {
     if (startupDefaultsSnapshot) {
       if (ctx.globalDefaultsStatus) {
         ctx.globalDefaultsStatus.textContent =
@@ -191,6 +216,14 @@
           `API diagnostics: startup load OK (${ctx.formatResolveSnapshot(startupDefaultsSnapshot)})`;
       }
     }
+  }
+
+  // W3.6-C7 Phase 6: asset warmup (event sounds, room GIFs, outside
+  // MP4 prewarm) + view activation + cursor state + 10 regression
+  // self-tests with consolidated warning log on any failure.
+  function _initApplicationWarmupAndRegress() {
+    const state = ctx.state;
+    const liveSync = ctx.liveSync;
     ctx.warmEventSoundAssets();
     ctx.warmRoomGifAssets({ reason: "startup" });
     ctx.prewarmBoardOutsideMp4Asset(state.boardId, { reason: "startup" });
@@ -232,6 +265,12 @@
       boardId: state.boardId,
       version: liveSync.lastAppliedVersion,
     });
+  }
+
+  // W3.6-C7 Phase 7: loading-overlay state setup + 12s safety
+  // dismissal + first frame kickoff via requestAnimationFrame.
+  function _initApplicationLoadingOverlayAndDraw() {
+    const state = ctx.state;
     // Loading overlay state — tickLoadingOverlay() in the draw
     // loop checks this every frame and dismisses when ready. Two paths:
     //   FAST: no board switch + image loaded → dismiss after 3 stable frames
@@ -255,6 +294,17 @@
       }, 12000);
     }
     requestAnimationFrame(ctx.draw);
+  }
+
+  async function initializeApplication() {
+    ctx.logBootstrap.info("init_start", { event: "init-start" });
+    await _initApplicationLoadZonesAndResources();
+    _initApplicationSetupBoardState();
+    const startupDefaultsSnapshot = await _initApplicationStartupDefaultsGuard();
+    _initApplicationConnectAndSync();
+    _initApplicationApplyHydrationStatus(startupDefaultsSnapshot);
+    _initApplicationWarmupAndRegress();
+    _initApplicationLoadingOverlayAndDraw();
   }
 
   window.TT_BEAMER_RUNTIME_BOOTSTRAP = {
