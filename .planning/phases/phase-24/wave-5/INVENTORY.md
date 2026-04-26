@@ -166,7 +166,8 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 | W5.2-C1 | `c59f849` | W5.2 | code | 20 | +87 / -0 | yes (19 grep + 1 §5.1 audit) | yes | yes (101/101 files have headers) | yes | yes (101) | yes | header batch; comment-only diff |
 | W5.3-C1 | `23e667f` | W5.3 | code | 1 (runtime-bootstrap) | +0 / -6 | yes (defensive block at lines 26-31) | yes | yes (block gone) | yes | yes (101) | yes | SCC resolved; bootstrap is now pure consumer |
 | W5.3-C2 | `7c0778d` | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
-| W5.4-C1 | (this commit) | W5.4 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | post-SCC graph + cycle-resolution evidence |
+| W5.4-C1 | `807420f` | W5.4 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | post-SCC graph + cycle-resolution evidence |
+| W5.5-C1 | (this commit) | W5.5 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | 8 shim audit; 7 KEEP, 1 removed (UI_RUNTIME_PANELS) |
 
 ## Cycle resolution
 
@@ -285,8 +286,147 @@ Header text per file (verbatim, as landed):
 
 ## Per-shim re-export audit
 
-(8 namespaces audited — 6 W3 shims + 2 wire shims + the now-removed
-`UI_RUNTIME_PANELS`. Populated by W5.5-C1.)
+Per RESEARCH §4.3, the post-W3 tree contains 8 shim-style namespaces that
+re-export sub-namespaces. The W5.5 audit confirms by exhaustive grep that
+each shim's parent namespace has at least one external reader (orchestration
+in every case, plus a sibling consumer in some), and each sub-namespace
+has 0–1 external readers (parent shim, or a sibling sub-namespace in the
+case of `LIFECYCLE_STATE`).
+
+Methodology per shim:
+```bash
+# External readers of the shim (excluding the shim file itself):
+grep -rln "<SHIM_NAMESPACE>" src/ | grep -v "<shim file>"
+
+# External readers of each sub-namespace (excluding the sub-namespace
+# definer file and the shim file):
+grep -rln "<SUB_NAMESPACE>" src/ | grep -v "<sub-namespace file>" | grep -v "<shim file>"
+```
+
+### Shim 1: `runtime/viewport/runtime-projection-mapping.js` (`TT_BEAMER_RUNTIME_PROJECTION_MAPPING`, 15 keys)
+
+External readers of the shim namespace (2 files):
+- `src/app/runtime/runtime-orchestration.js` — destructures ~15 keys.
+- `src/app/runtime/state/runtime-board-profiles.js` — reads `getCornersForPersistence`.
+
+Sub-namespaces (5 sub-modules: grid-state, gl-renderer, 2d-fallback,
+handle-ui, profile-persistence): each is read ONLY by its own definer
+file and by `runtime-projection-mapping.js` (the shim). 0 external readers
+per sub-namespace.
+
+**Load-bearing:** removing the shim breaks orchestration's destructure
++ board-profiles' single-key read. KEEP.
+
+### Shim 2: `runtime/ui/animation-editor-view.js` (`TT_BEAMER_ANIMATION_EDITOR_VIEW`, 7 keys)
+
+External readers of the shim namespace (2 files):
+- `src/app/runtime/runtime-orchestration.js` — calls `init` + `isOpen`.
+- `src/app/runtime/animation/runtime-runtime-controls.js` — reads `open` / `isOpen`.
+
+Sub-namespaces (4 sub-modules: shell, library-list, edit-pane, live-preview):
+each is read by its own definer file and by `animation-editor-view.js`
+(the shim). One internal sibling read: `animation-editor-edit-pane-asset-picker.js`
+reads `TT_BEAMER_RUNTIME_ANIMATION_EDITOR_EDIT_PANE` — sub-cluster
+internal coupling, not an external surface.
+
+**Load-bearing:** removing the shim breaks orchestration's `init` call +
+runtime-controls' open-state read. KEEP.
+
+### Shim 3: `runtime/animation/runtime-animation-lifecycle.js` (`TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE`, 16 keys)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js` — destructures `closeLiveEditor` +
+  several others.
+
+Sub-namespaces (5 sub-modules): each is read by its own definer file and
+by the shim. The `LIFECYCLE_STATE` sub-namespace is also read by
+`runtime-lifecycle-live-editor.js` and `runtime-lifecycle-running-list.js`
+— intentional sibling-cluster reads documented in shim header per
+RESEARCH §4.4.
+
+**Load-bearing:** removing the shim breaks orchestration's destructure.
+KEEP. Sub-namespace `LIFECYCLE_STATE` cannot be removed either — it's a
+shared state object across the lifecycle cluster.
+
+### Shim 4: `runtime/panels/runtime-fx-panels.js` (`TT_BEAMER_RUNTIME_FX_PANELS`, 28 keys)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js` — destructures ~10 keys.
+
+Sub-namespaces (2 sub-modules: room with 6 keys, inside-outside with 21 keys):
+each is read by its own definer file and by `runtime-fx-panels.js`
+(the shim). 0 external readers beyond the shim pattern.
+
+**Load-bearing:** removing the shim breaks orchestration's destructure.
+KEEP.
+
+### Shim 5: `runtime/polygon-editor/runtime-polygon-editor.js` (`TT_BEAMER_RUNTIME_POLYGON_EDITOR`, 24 keys)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js` — destructures 22 keys.
+
+Sub-namespace (`POLYGON_EDITOR_HANDLES`, 1 sub-module): read by its own
+definer file and by `runtime-polygon-editor.js` (the shim). 0 external
+readers beyond the shim pattern.
+
+**Load-bearing:** removing the shim breaks orchestration's destructure.
+KEEP.
+
+### Shim 6: `runtime/render/runtime-draw-loop.js` (`TT_BEAMER_RUNTIME_DRAW_LOOP`)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js` — destructures ~5 keys.
+
+Sub-namespace (`DRAW_LOOP_CLUSTER_PADS`, 1 sub-module): read by its own
+definer file and by `runtime-draw-loop.js` (the shim). 0 external
+readers beyond the shim pattern.
+
+**Load-bearing:** removing the shim breaks orchestration's destructure.
+KEEP.
+
+### Shim 7: `runtime/wire/runtime-wire-room-audio-binders.js` (`TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS`)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js`.
+
+Sub-namespace (`WIRE_ROOM_AUDIO_BINDERS_BUNDLE`, 1 sub-module): read by
+its own definer file and by `runtime-wire-room-audio-binders.js` (the
+shim). 0 external readers beyond the shim pattern.
+
+**Load-bearing:** removing the shim breaks orchestration. KEEP.
+
+### Shim 8: `runtime/wire/runtime-wire-fx-panel-binders.js` (`TT_BEAMER_RUNTIME_WIRE_FX_PANEL_BINDERS`)
+
+External readers of the shim namespace (1 file):
+- `src/app/runtime/runtime-orchestration.js`.
+
+Sub-namespace (`WIRE_FX_PANEL_BINDERS_OUTSIDE`, 1 sub-module): read by
+its own definer file and by `runtime-wire-fx-panel-binders.js` (the
+shim). 0 external readers beyond the shim pattern.
+
+**Load-bearing:** removing the shim breaks orchestration. KEEP.
+
+### Removed shim: `TT_BEAMER_UI_RUNTIME_PANELS` (W5.3-C2)
+
+Pre-W5: read defensively in `runtime-bootstrap.js` (?? fallback chain +
+`hasLegacy` log field) and written in `runtime-panels-controller.js`.
+Both definer/consumer; **zero external readers** per RESEARCH §4.2 +
+pre-flight grep + post-W5.3-C1 verification (the only fallback consumer
+was bootstrap itself, and bootstrap's read-via-fallback is a no-op once
+the canonical `TT_BEAMER_RUNTIME_PANELS` is guaranteed by load order).
+
+Removed in W5.3-C2 (commit `7c0778d`): namespace count 101 → 100.
+
+### Conclusion
+
+Negative result confirmed. Of the 9 namespaces audited (8 shims + the
+now-removed `TT_BEAMER_UI_RUNTIME_PANELS`), exactly 1 had zero external
+readers and was removable (W5.3-C2). The other 8 have genuine external
+consumers — at minimum, `runtime-orchestration.js` destructures from each
+shim's parent namespace, and several shims are also read by sibling-cluster
+modules. ROADMAP §"Wave 5 → Remove transitive re-exports nobody depends on"
+is satisfied: the only such transitive re-export was `UI_RUNTIME_PANELS`,
+and it is gone.
 
 ## `<script>` load-order verification
 
