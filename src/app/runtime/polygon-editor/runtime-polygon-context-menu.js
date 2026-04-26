@@ -94,7 +94,7 @@
     return roomId || null;
   }
 
-  function applyMenuMode({ mode, roomId }) {
+  function setMenuMode({ mode, roomId }) {
     if (!menuEl) return;
     const addBtn = menuEl.querySelector("[data-action=\"add\"]");
     const rotateBtn = menuEl.querySelector("[data-action=\"rotate\"]");
@@ -227,7 +227,7 @@
       event.preventDefault();
       event.stopPropagation();
       const [nx, ny] = ctx.mapClientPointToNormalized(event.clientX, event.clientY);
-      applyMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
+      setMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
       showMenu(event.clientX, event.clientY, nx, ny);
     });
 
@@ -251,7 +251,7 @@
         // Verify conditions still hold
         if (!isContextMenuAllowed()) return;
         const [nx, ny] = ctx.mapClientPointToNormalized(longPressStartX, longPressStartY);
-        applyMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
+        setMenuMode({ mode: roomId ? "polygon" : "empty", roomId });
         showMenu(longPressStartX, longPressStartY, nx, ny);
         longPressPointerId = null;
       }, LONG_PRESS_MS);
