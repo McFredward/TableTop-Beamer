@@ -112,13 +112,12 @@
     });
   }
 
-  function openLiveEditor(animationId) {
-    const { state } = ctx;
-    const animation = state.runningAnimations.find((item) => item?.id === animationId);
-    if (!animation) {
-      closeLiveEditor();
-      return;
-    }
+  // W3.4-C3b: openLiveEditor (180-line body post-C1-bridges) decomposed
+  // into 4 named helpers + a thin outer orchestrator. Helper bodies are
+  // byte-identical to the corresponding sub-blocks of openLiveEditor's
+  // post-C3a state (verified via diff -w against the captured C3a body).
+
+  function _buildLiveEditorSnapshot(animation, animationId) {
     liveEditorAnimationId = animationId;
     liveEditorDirty = false;
     // Snapshot the original values so Discard can restore them.
@@ -146,6 +145,9 @@
     lifecycleState.setLiveEditorAnimationId(animationId);
     lifecycleState.setLiveEditorSnapshot(liveEditorSnapshot);
     lifecycleState.clearLiveEditorDirty();
+  }
+
+  function _populateLiveEditorPanel(animation) {
     ctx.liveEditorPanel.hidden = false;
     // Auto-scroll the panel into view so the user sees the
     // editor open. The running-animations list can sit far below the
@@ -230,7 +232,9 @@
       ctx.liveEditorOffsetX.disabled = stretched;
       ctx.liveEditorOffsetY.disabled = stretched;
     }
+  }
 
+  function _populateLiveEditorAdvancedFields(animation) {
     // Solid-color coded backbone — surface the Color picker
     // in the Live Editor only when the currently-running animation's
     // coded effect resolves to solid-color. Covers room-scoped coded
@@ -287,10 +291,25 @@
         ctx.liveEditorOutsideDirection.value = effectiveDirection === "reverse" ? "reverse" : "forward";
       }
     }
+  }
 
+  function _finalizeLiveEditorOpen(animation) {
     const defaults = ctx.state.defaultAnimationsByBoard[animation.boardId] || [];
     const isDefault = defaults.some(d => d.type === animation.type && d.roomId === animation.roomId && d.scope === animation.scope);
     if (ctx.liveEditorDefault) ctx.liveEditorDefault.checked = isDefault;
+  }
+
+  function openLiveEditor(animationId) {
+    const { state } = ctx;
+    const animation = state.runningAnimations.find((item) => item?.id === animationId);
+    if (!animation) {
+      closeLiveEditor();
+      return;
+    }
+    _buildLiveEditorSnapshot(animation, animationId);
+    _populateLiveEditorPanel(animation);
+    _populateLiveEditorAdvancedFields(animation);
+    _finalizeLiveEditorOpen(animation);
   }
 
   function discardLiveEditor() {
