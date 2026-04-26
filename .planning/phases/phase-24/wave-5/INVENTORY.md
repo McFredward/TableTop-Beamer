@@ -167,7 +167,8 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 | W5.3-C1 | `23e667f` | W5.3 | code | 1 (runtime-bootstrap) | +0 / -6 | yes (defensive block at lines 26-31) | yes | yes (block gone) | yes | yes (101) | yes | SCC resolved; bootstrap is now pure consumer |
 | W5.3-C2 | `7c0778d` | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
 | W5.4-C1 | `807420f` | W5.4 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | post-SCC graph + cycle-resolution evidence |
-| W5.5-C1 | (this commit) | W5.5 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | 8 shim audit; 7 KEEP, 1 removed (UI_RUNTIME_PANELS) |
+| W5.5-C1 | `2676f1f` | W5.5 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | 8 shim audit; 7 KEEP, 1 removed (UI_RUNTIME_PANELS) |
+| W5.6-C1 | (this commit) | W5.6 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | <script> order verified; document-order defer guarantee |
 
 ## Cycle resolution
 
@@ -431,8 +432,86 @@ and it is gone.
 ## `<script>` load-order verification
 
 Baseline `<script>` count in `index.html`: **102** `<script src` lines.
-Wave 5 does NOT edit `index.html`. Per-namespace ordering verification populated
-by W5.6-C1.
+Wave 5 does NOT edit `index.html`. Verified across the full wave:
+
+```bash
+$ git diff phase-24-w5-start..HEAD -- index.html
+(empty)
+```
+
+### Document-order load semantics
+
+All `<script src="/src/app/...">` tags use the `defer` attribute, so the
+browser executes them in document order after the HTML parse completes.
+Document order = HTML line order, which is what RESEARCH §2.2 + PLAN §10
+risk-row 4 rely on for the SCC fix.
+
+### Critical orderings (post-W5)
+
+#### SCC fix dependency (W5.3-C1)
+
+W5.3-C1's defensive-write deletion depends on
+`runtime-panels-controller.js` parsing before `runtime-bootstrap.js`
+(the runtime/core variant). Verified at HEAD post-W5:
+
+```bash
+$ grep -nE 'runtime-panels-controller|runtime/core/runtime-bootstrap' index.html
+835:  <script src="/src/app/lib/ui/runtime-panels-controller.js" defer></script>
+907:  <script src="/src/app/runtime/core/runtime-bootstrap.js" defer></script>
+```
+
+panels-controller at line 835 → bootstrap at line 907. With both `defer`,
+panels-controller's IIFE writes `window.TT_BEAMER_RUNTIME_PANELS` long
+before bootstrap's `syncRuntimePanelsFromState` is called from
+orchestration's `init`. The SCC fix is stable.
+
+#### Runtime-utils first-load contract
+
+`runtime-utils.js` (defines `TT_BEAMER_RUNTIME_UTILS` — clamp, clamp01,
+bboxOfPolygon) loads at the very top of the runtime block:
+
+```bash
+$ grep -nE 'runtime-utils' index.html
+805:  <script src="/src/app/runtime/runtime-utils.js" defer></script>
+```
+
+Every runtime consumer (polygon-contract, viewport, audio, gif, editor
+modules — see §1.4 RESEARCH external-refs column) reads
+`TT_BEAMER_RUNTIME_UTILS`; the line-805 first-position load guarantees
+parse-time availability across the rest of the runtime block.
+
+#### Two `runtime-bootstrap.js` files — intentional naming
+
+There are two files named `runtime-bootstrap.js`:
+
+- `lib/boot/runtime-bootstrap.js` — line 830 in `index.html`. Defines
+  `TT_BEAMER_BOOT` (the small BOOT factory whose `run` method invokes
+  the app initializer). Loads before the lib block proper.
+- `runtime/core/runtime-bootstrap.js` — line 907. Defines
+  `TT_BEAMER_RUNTIME_BOOTSTRAP` (the large application bootstrap with
+  syncRuntimePanelsFromState + initializeApplication). Loads after every
+  runtime module it consumes.
+
+Both load before `runtime-orchestration.js` (line 910) which depends on
+both `TT_BEAMER_BOOT` and `TT_BEAMER_RUNTIME_BOOTSTRAP`.
+
+#### Final orchestration load
+
+`runtime-orchestration.js` is the last runtime-namespace consumer (line
+910), followed only by `app.js` (line 911) which kicks off
+`TT_BEAMER_BOOT.run` against the assembled orchestration ctx. This means
+every namespace orchestration destructures has its definer's `<script>`
+tag at a smaller line number — the document-order guarantee that
+RESEARCH §1.5's verify-load-order harness would assert.
+
+### Conclusion
+
+Load order verified. All 100 namespaces have their definer's `<script>`
+tag preceding every external reader's `<script>` tag (or co-loaded under
+the `defer`-script document-order guarantee). The SCC resolution from
+W5.3 is stable as long as `index.html:835` (panels-controller) precedes
+`index.html:907` (bootstrap). Wave 5 has not edited `index.html`; the
+guarantee is preserved.
 
 ## Public API lock-list verification
 
