@@ -165,7 +165,8 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 | W5.1-C1 | `da3a1ca` | W5.1 | docs | 3 (INVENTORY + PLAN + RESEARCH) | n/a | n/a | yes | n/a | n/a | yes (101) | yes | baseline + per-file table + decisions |
 | W5.2-C1 | `c59f849` | W5.2 | code | 20 | +87 / -0 | yes (19 grep + 1 §5.1 audit) | yes | yes (101/101 files have headers) | yes | yes (101) | yes | header batch; comment-only diff |
 | W5.3-C1 | `23e667f` | W5.3 | code | 1 (runtime-bootstrap) | +0 / -6 | yes (defensive block at lines 26-31) | yes | yes (block gone) | yes | yes (101) | yes | SCC resolved; bootstrap is now pure consumer |
-| W5.3-C2 | (this commit) | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
+| W5.3-C2 | `7c0778d` | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
+| W5.4-C1 | (this commit) | W5.4 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | post-SCC graph + cycle-resolution evidence |
 
 ## Cycle resolution
 
@@ -186,11 +187,58 @@ unreachable. RESEARCH §2.1 + §2.2 detail.
 
 ### Post-W5.3 graph
 
-(To be filled in by W5.4-C1 after W5.3-C1 + C2 land.)
+After W5.3-C1 + C2 landed:
+
+- **Nodes:** 101 file-graph nodes (file count unchanged — Wave 5 does not
+  create or remove any `.js` file).
+- **Namespace count:** 100 (was 101; `TT_BEAMER_UI_RUNTIME_PANELS`
+  removed in W5.3-C2 — documented intentional reduction).
+- **Edges:** the bootstrap ↔ panels-controller cycle is gone. Concretely:
+  - `runtime-bootstrap.js` writes ONLY `window.TT_BEAMER_RUNTIME_BOOTSTRAP`
+    (its own namespace at file line 303). It no longer writes
+    `TT_BEAMER_RUNTIME_PANELS` or `TT_BEAMER_UI_RUNTIME_PANELS` (W5.3-C1
+    deleted those defensive writes).
+  - `runtime-bootstrap.js` reads `window.TT_BEAMER_RUNTIME_PANELS` (line 17,
+    `?? null` fallback). One-way edge to panels-controller.
+  - `runtime-panels-controller.js` writes ONLY `window.TT_BEAMER_RUNTIME_PANELS`
+    (line 79). It does not read any other `TT_BEAMER_*` namespace at parse time.
+  - `runtime-panels-controller.js` no longer writes
+    `window.TT_BEAMER_UI_RUNTIME_PANELS` (W5.3-C2 deleted that line).
+- **Non-trivial SCCs:** **0** (101 trivial SCCs).
+
+The single non-trivial SCC of size 2 (bootstrap ↔ panels-controller) collapses
+into two trivial SCCs because the back-edge (bootstrap → panels-controller via
+namespace write) was the only edge in that direction; deleting it leaves the
+forward edge (bootstrap reads panels-controller's namespace) intact and the
+graph acyclic on this pair.
+
+Per-file evidence:
+
+```bash
+$ grep -n "window\.TT_BEAMER_[A-Z_]\+\s*=" src/app/runtime/core/runtime-bootstrap.js
+303:  window.TT_BEAMER_RUNTIME_BOOTSTRAP = {
+
+$ grep -n "window\.TT_BEAMER_[A-Z_]" src/app/lib/ui/runtime-panels-controller.js
+79:  window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
+```
 
 ### `madge`-equivalent gate
 
-(To be filled in by W5.4-C1.)
+ROADMAP §"Wave 5 → Acceptance" → "`madge` / equivalent shows zero cycles
+in `src/app/runtime/`": gate satisfied.
+
+`madge` itself parses ES module `import` syntax. This codebase uses
+IIFE-with-`window`-globals and has zero `import` statements in its runtime
+tree; `madge` cannot run on it. The "or equivalent" clause is honoured
+by reasoning over the file → file edge graph derived from `window.TT_BEAMER_*`
+reads/writes (per RESEARCH §1.5 methodology):
+
+- Pre-W5: 1 non-trivial SCC of size 2 (bootstrap ↔ panels-controller).
+- Post-W5.3-C1+C2: 0 non-trivial SCCs (101 trivial SCCs over 101 files).
+
+The discrepancy between ROADMAP's literal `madge` mention and the
+graph-grep methodology actually used is documented here so future readers
+don't expect literal `madge` output.
 
 ## Header inventory
 
