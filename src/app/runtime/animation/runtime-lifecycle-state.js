@@ -10,6 +10,14 @@
   let liveEditorAnimationId = null;
   let liveEditorSnapshot = null;
   let liveEditorDirty = false;
+  // W3.4-C3a addition (same shape as W3.2-C5's
+  // addHandlesVisibleListener fanout): the lifecycle shim subscribes
+  // to setLiveEditorAnimationId so its IIFE-local mirror stays in sync
+  // with writes coming from the live-editor sub-module. Without this
+  // bridge, the shim's renderRunningAnimationsList (still in shim
+  // until W3.4-C4a) would read a stale `null` and the
+  // auto-close-when-deleted check would silently no-op.
+  const _animIdListeners = new Set();
 
   function init(dependencies) {
     ctx = dependencies?.ctx ?? dependencies;
@@ -21,6 +29,13 @@
 
   function setLiveEditorAnimationId(value) {
     liveEditorAnimationId = value;
+    for (const cb of _animIdListeners) {
+      try { cb(value); } catch { /* listener errors must not break the editor */ }
+    }
+  }
+
+  function addLiveEditorAnimationIdListener(cb) {
+    if (typeof cb === "function") _animIdListeners.add(cb);
   }
 
   function getLiveEditorSnapshot() {
@@ -78,6 +93,7 @@
     init,
     getLiveEditorAnimationId,
     setLiveEditorAnimationId,
+    addLiveEditorAnimationIdListener,
     getLiveEditorSnapshot,
     setLiveEditorSnapshot,
     isLiveEditorDirty,
