@@ -14,11 +14,36 @@
 // list rendering).
 (() => {
   let ctx = null;
+  // Shim-side shadows of the lifecycle-state vars. Source of truth
+  // lives in runtime-lifecycle-state.js (W3.4-C1); these shadows keep
+  // the still-in-shim functions (openLiveEditor / discardLiveEditor /
+  // closeLiveEditor / renderRunningAnimationsList) byte-identical until
+  // they migrate to live-editor / running-list sub-modules in C3a/C4a.
+  // Writes are mirrored to the lifecycle-state module via setLive*/
+  // clearLiveEditorDirty so applyLiveEditorValue (now living in state)
+  // sees the same values when the slider listeners fire.
   let liveEditorAnimationId = null;
   let liveEditorSnapshot = null;
+  let liveEditorDirty = false;
+  // Re-aliased in init from window.TT_BEAMER_RUNTIME_LIFECYCLE_STATE
+  // so the slider listener bodies (which call `applyLiveEditorValue(...)`
+  // by bare name) resolve byte-identically. The canonical body lives
+  // in runtime-lifecycle-state.js (W3.4-C1).
+  let applyLiveEditorValue = null;
+  // Lifecycle-state sub-module reference used by the still-in-shim
+  // functions (openLiveEditor / discardLiveEditor / closeLiveEditor)
+  // to mirror their writes to the canonical state copy.
+  let lifecycleState = null;
 
   function init(dependencies) {
     ctx = dependencies;
+
+    // Initialize the lifecycle-state sub-module first so its
+    // `applyLiveEditorValue` / state getters/setters are ready before
+    // the slider listeners (registered below) fire.
+    lifecycleState = window.TT_BEAMER_RUNTIME_LIFECYCLE_STATE;
+    lifecycleState.init({ ctx: dependencies });
+    applyLiveEditorValue = lifecycleState.applyLiveEditorValue;
 
     // Continuous rAF tracking of the cluster rail
     // position. CSS transitions on .stage's transform mean the
@@ -131,18 +156,8 @@
     });
   }
 
-  let liveEditorDirty = false;
-
-  function markLiveEditorDirty() {
-    if (liveEditorDirty) return;
-    liveEditorDirty = true;
-    if (ctx.liveEditorPanel) {
-      ctx.liveEditorPanel.classList.add("has-unsaved");
-    }
-    if (ctx.liveEditorClose) {
-      ctx.liveEditorClose.textContent = "Done (save)";
-    }
-  }
+  // markLiveEditorDirty + applyLiveEditorValue + the `liveEditorDirty`
+  // state moved to runtime-lifecycle-state.js (W3.4-C1).
 
   function openLiveEditor(animationId) {
     const { state } = ctx;
@@ -172,6 +187,12 @@
       // Coded-specific (solid-color) per-instance color.
       colorHex: animation.colorHex,
     };
+    // W3.4-C1 bridge: mirror writes to the lifecycle-state module
+    // so applyLiveEditorValue (now there) sees the same animationId
+    // when slider listeners fire.
+    lifecycleState.setLiveEditorAnimationId(animationId);
+    lifecycleState.setLiveEditorSnapshot(liveEditorSnapshot);
+    lifecycleState.clearLiveEditorDirty();
     ctx.liveEditorPanel.hidden = false;
     // Auto-scroll the panel into view so the user sees the
     // editor open. The running-animations list can sit far below the
@@ -331,6 +352,10 @@
     liveEditorAnimationId = null;
     liveEditorSnapshot = null;
     liveEditorDirty = false;
+    // W3.4-C1 bridge: mirror writes to the lifecycle-state module.
+    lifecycleState.setLiveEditorAnimationId(null);
+    lifecycleState.setLiveEditorSnapshot(null);
+    lifecycleState.clearLiveEditorDirty();
     ctx.liveEditorPanel.hidden = true;
   }
 
@@ -434,31 +459,9 @@
       }
     }
     liveEditorAnimationId = null;
+    // W3.4-C1 bridge: mirror to the lifecycle-state module.
+    lifecycleState.setLiveEditorAnimationId(null);
     ctx.liveEditorPanel.hidden = true;
-  }
-
-  function applyLiveEditorValue(field, value) {
-    const { state } = ctx;
-    if (liveEditorAnimationId === null) {
-      return;
-    }
-    const animation = state.runningAnimations.find((item) => item?.id === liveEditorAnimationId);
-    if (animation) {
-      animation[field] = value;
-      // For cluster-scope edits, propagate the field to every
-      // linked room-scoped child. Without this, the draw loop reads
-      // memberAnimation[field] on each child (which never changes after
-      // spawn) and the Live Editor slider appears inert — most obvious
-      // with solid-color intensity/opacity in an "all rooms" cluster.
-      if (animation.scope === "cluster") {
-        for (const entry of state.runningAnimations) {
-          if (entry?.parentClusterRunId === animation.id && entry?.scope === "room") {
-            entry[field] = value;
-          }
-        }
-      }
-      markLiveEditorDirty();
-    }
   }
 
   function collectAnimationStopIds(targetAnimation, { mutateClusterMembership = false } = {}) {
