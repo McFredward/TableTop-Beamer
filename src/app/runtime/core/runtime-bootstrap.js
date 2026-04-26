@@ -1,7 +1,7 @@
 // application bootstrap module.
 //
-// Owns syncRuntimePanelsFromState (runtime panel wire-up via the
-// canonical/legacy TT_BEAMER_RUNTIME_PANELS delegation) and
+// Owns syncRuntimePanelsFromState (runtime panel wire-up via
+// the TT_BEAMER_RUNTIME_PANELS namespace) and
 // initializeApplication (the full startup sequence: zone loader,
 // outside resources, default state maps, server-first config hydration
 // with blocking overlay on failure, panel sync, live-sync connect,
@@ -14,12 +14,11 @@
   }
 
   function syncRuntimePanelsFromState() {
-    const runtimePanelsApi = window.TT_BEAMER_RUNTIME_PANELS ?? window.TT_BEAMER_UI_RUNTIME_PANELS ?? null;
+    const runtimePanelsApi = window.TT_BEAMER_RUNTIME_PANELS ?? null;
     if (!runtimePanelsApi || typeof runtimePanelsApi.syncRuntimePanelsFromState !== "function") {
       ctx.logBootstrap.warn("runtime_panels_missing", {
         event: "runtime-panels-missing",
         hasCanonical: Boolean(window.TT_BEAMER_RUNTIME_PANELS),
-        hasLegacy: Boolean(window.TT_BEAMER_UI_RUNTIME_PANELS),
       });
       return;
     }

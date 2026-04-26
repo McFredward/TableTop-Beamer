@@ -74,8 +74,7 @@
     syncRuntimePanelsFromState,
   };
 
-  // Keep the canonical runtime key and the legacy UI key in sync so
-  // bootstrap/load-order checks remain deterministic across browsers.
+  // Expose the runtime panels API so bootstrap can read it and
+  // sync via syncRuntimePanelsFromState during initial load.
   window.TT_BEAMER_RUNTIME_PANELS = runtimePanelsApi;
-  window.TT_BEAMER_UI_RUNTIME_PANELS = runtimePanelsApi;
 })();

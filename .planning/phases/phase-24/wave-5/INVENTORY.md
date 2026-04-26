@@ -164,7 +164,8 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 |--------|------|----------|------|------:|----------:|----------|------|-----------|----------------|-------|----------------|-------|
 | W5.1-C1 | `da3a1ca` | W5.1 | docs | 3 (INVENTORY + PLAN + RESEARCH) | n/a | n/a | yes | n/a | n/a | yes (101) | yes | baseline + per-file table + decisions |
 | W5.2-C1 | `c59f849` | W5.2 | code | 20 | +87 / -0 | yes (19 grep + 1 §5.1 audit) | yes | yes (101/101 files have headers) | yes | yes (101) | yes | header batch; comment-only diff |
-| W5.3-C1 | (this commit) | W5.3 | code | 1 (runtime-bootstrap) | +0 / -6 | yes (defensive block at lines 26-31) | yes | yes (block gone) | yes | yes (101) | yes | SCC resolved; bootstrap is now pure consumer |
+| W5.3-C1 | `23e667f` | W5.3 | code | 1 (runtime-bootstrap) | +0 / -6 | yes (defensive block at lines 26-31) | yes | yes (block gone) | yes | yes (101) | yes | SCC resolved; bootstrap is now pure consumer |
+| W5.3-C2 | (this commit) | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
 
 ## Cycle resolution
 
