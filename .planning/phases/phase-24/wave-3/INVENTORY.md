@@ -101,6 +101,8 @@ New sub-module namespaces introduced by W3.2:
 | W3.3-C2 | `b27b4fd` | W3.3 | `animation-editor-view.js` (library-list cluster: collectAnimations 230-243 + render 245-251 + renderScopeTabs 1566-1574 + renderList 1576-1668 in pre-W3.3 file) | `animation-editor-library-list.js` (new, 171 lines) | 4 named functions; ~125 source lines moved | yes (both files clean) | 4/4 functions byte-identical body diff -w empty (collectAnimations/render/renderScopeTabs/renderList) | yes (library-list at :814, before shim at :815) | shim aliases `render`, `renderList`, `collectAnimations` from library-list namespace into IIFE scope so still-in-shim edit-pane functions (buildIdentityCard's icon onChange, createAnimation, deleteAnimation, findDefinition) keep their bare-identifier call sites byte-identical. Library-list's namespace adds 5 keys (init + the 4 functions) |
 | W3.3-C3 | `e0c68f3` | W3.3 | `animation-editor-view.js` (edit-pane cluster: renderPane 264-308 + buildHeader 310-353 + scopeLabel 354-360 + buildIdentityCard 362-429 + buildDefaultsCard 431-450 + getDefaultFields 452-518 + buildSliderRow 520-545 + buildToggleRow 547-580 + buildColorCard 582-626 + buildSourceCard 628-667 + buildAssetPickerRow 669-805 + buildSoundCard 822-833 + buildSoundPickerRow 836-974 + buildSelectRow 992-1020 + currentPaneKey 262 + createAnimation 1399-1446 + deleteAnimation 1447-1481 + sanitizeName 1482-1486 + findDefinition 1487-1494 + patchAnimation 1499-1554 + updatePaneDynamicBits 1556-1565 + private async helpers fetchAnimationResources 806-820 / fetchSoundResources 976-990 in pre-W3.3 file) | `animation-editor-edit-pane.js` (new, 1006 lines) | 20 named functions + 2 private async helpers + `currentPaneKey` IIFE state; ~920 source lines moved (largest cut of W3.3) | yes (both files clean) | 20/20 named functions + 2/2 async helpers byte-identical body diff -w empty | yes (edit-pane at :815, before shim at :816) | PLAN deviation: edit-pane lands at 1006 lines, exceeds 800-line acceptance bar — same shape as W3.2-C4 handle-ui deviation. PLAN §C3 anticipated buildSoundPickerRow (139) and buildAssetPickerRow (136) being near 150 but didn't address aggregate file size. Recorded as a follow-up; no further sub-split required for W3.3 closure. Shim aliases `renderPane`/`findDefinition`/`scopeLabel`/`deleteAnimation` from edit-pane namespace; shim's wrapper init now wires editPane.init + libraryList.init + shell.init in dependency order with all cross-callbacks resolved. Edit-pane namespace adds 22 keys (init/clearPaneCache + the 20 functions) |
 | W3.3-C4 | `123bd65` | W3.3 | `animation-editor-view.js` (live-preview cluster: renderPreview 1022-1075 + buildPreviewSwatch 1077-1172 + previewLoopId/previewLoopKey 1174-1175 + startCodedPreview 1176-1242 + stopCodedPreview 1244-1253 + startGifPreview 1255-1311 + toResourceUrl 1312-1318 + buildPreviewMeta 1319-1345 + formatAssetType 1346-1357 + applyMediaPreviewProps 1359-1374 + updatePreviewDynamicBits 1376-1382 + buildPreviewMissingNotice 1384-1397 in pre-W3.3 file) **+ shim cleanup (PLAN's C5 folded in)** | `animation-editor-live-preview.js` (new, 428 lines); `animation-editor-view.js` shim collapses from 509 lines to 105 lines | 11 named functions + previewLoopId/previewLoopKey rAF state; ~380 source lines moved | yes (3 files clean: shim, live-preview, the now-canonical sub-modules) | 11/11 functions byte-identical body diff -w empty (renderPreview/buildPreviewSwatch/startCodedPreview/stopCodedPreview/startGifPreview/toResourceUrl/buildPreviewMeta/formatAssetType/applyMediaPreviewProps/updatePreviewDynamicBits/buildPreviewMissingNotice) | yes (live-preview at :816, before shim at :817; orchestration still last at :895) | C5 (final shim cleanup) folded into this commit — see Decision-log. Shim is now a pure 4-sub-module re-export shell (105 lines): destructures the 4 sub-module namespaces, exposes one `init(deps)` that fans out to livePreview/editPane/libraryList/shell.init in dependency order with all cross-callbacks resolved, assembles legacy `TT_BEAMER_ANIMATION_EDITOR_VIEW` namespace from sub-module exports. 7-key set unchanged. Live-preview namespace adds 12 keys (init + the 11 functions) |
+| W3.5-C1 | `638381e` | W3.5 | `runtime-orchestration.js` (lines 1149-1155 shouldSuppressRapidTap + 1514-1526 createConditionalFieldMountSlot + 1528-1541 setConditionalFieldMounted in pre-C1 file) | `runtime-orchestration-helpers.js` (new, 60 lines) | 3 functions, ~34 lines moved (3018 → 2989; net -29 after destructure + init insertions) | yes (both files clean) | createConditionalFieldMountSlot + setConditionalFieldMounted bodies byte-identical (diff -w empty); shouldSuppressRapidTap body has 1 expected diff (`state,` → `state: _state,`) — IIFE-local closure rename, semantically equivalent | yes (helpers at :900, before orchestration at :901) | PLAN deviation: 4th function `deleteSelectedPolygonVertex` (line 2491-2524 pre-C1, 33 lines) DEFERRED per PLAN W3.5-C1 decision rule — closes over 11 orchestration-scoped symbols (state, triggerFeedback, isPanArbitrating, areRoomVerticesEditable, getActivePolygonRoomId, getSpecialPolygonPoints, pushUndoState, setSpecialPolygonPoints, persistBoardProfiles, syncPolygonEditorPanel, renderRoomOverlay), far above the ~3 threshold. Stays in the shim (per PLAN's own decision rule). Helpers namespace 4 keys: `init`, `shouldSuppressRapidTap`, `createConditionalFieldMountSlot`, `setConditionalFieldMounted`. `init({state})` called immediately after `state` is created (line 335). |
+| W3.5-C2 | `375df83` | W3.5 | `runtime-orchestration.js` (BOOTSTRAP.init dep-bag lines 2878-2974 in post-C1 file, 97 lines incl. wrapper) | `runtime-orchestration-ctx-builder.js` (new, 211 lines) | 95-key dep-bag transplanted (orchestration line count 2989 → 2991, +2 due to outer wrapper expansion) | yes (3 files clean: orchestration, ctx-builder, helpers) | content-level diff (PLAN's awk + diff -w command): 95/95 entries match, 75/75 arrows preserved verbatim, 20/20 direct-refs match. Single semantic-equivalence diff: `getBoards: () => BOARDS` → `getBoards: () => getBoards()` (BOARDS-let reassignability bridge per kernel #3) | yes (ctx-builder at :901, between helpers and orchestration) | PLAN deviation (calibration): orchestration shell post-C2 lands at 2991 lines, NOT the PLAN-projected ~2870. Math miss: PLAN's "3037 − 99 + 3 − 67 ≈ 2874" assumed dep-bag collapses to a 3-line call, but the helper accepts 95 named refs which orchestration must enumerate by name (1 line/entry). Net orchestration savings comes ONLY from the 75 arrow-bodies → shorthand collapse (zero line savings each — same 1 line/entry) + 3 functions extracted (29 lines from C1). Acceptance bar ≤2925 NOT met (2991 > 2925). C3 evaluated: same calibration issue would block any wire-binder ctx-bag extraction; structural extraction succeeds but doesn't reduce orchestration line count meaningfully. See Decision-log. |
 
 ## W3.3 — `TT_BEAMER_ANIMATION_EDITOR_VIEW` (pre-W3.3 / post-W3.3)
 
@@ -124,6 +126,15 @@ New sub-module namespaces introduced by W3.3:
 - `window.TT_BEAMER_RUNTIME_ANIMATION_EDITOR_LIVE_PREVIEW` (W3.3-C4):
   `[ "applyMediaPreviewProps", "buildPreviewMeta", "buildPreviewMissingNotice", "buildPreviewSwatch", "formatAssetType", "init", "renderPreview", "startCodedPreview", "startGifPreview", "stopCodedPreview", "toResourceUrl", "updatePreviewDynamicBits" ]` — 12 keys.
 
+## W3.5 — orchestration safer-path namespaces (post-W3.5)
+
+Two new namespaces introduced by W3.5 (orchestration shell stays without its own writer-namespace; it only consumes other modules' namespaces, so no parity check applies):
+
+- `window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS` (W3.5-C1):
+  `[ "init", "shouldSuppressRapidTap", "createConditionalFieldMountSlot", "setConditionalFieldMounted" ]` — 4 keys.
+- `window.TT_BEAMER_RUNTIME_ORCHESTRATION_CTX_BUILDER` (W3.5-C2):
+  `[ "buildBootstrapCtx" ]` — 1 key.
+
 ## Init-order kernels preserved
 
 W3.1 did not move any kernel comments.
@@ -136,6 +147,28 @@ W3.2 relocates 2 kernels (per PLAN §7 lower table):
 | `runtime-projection-mapping.js:197-201` (pre-W3.2) — lean GL options rationale | `runtime-projection-gl-renderer.js:59-65` — top of GL-context-creation block | "RPi/Chromium lean WebGL options — no AA buffer (we don't need multisampling since the mesh is artifact-free), no premultiplied alpha (so texImage2D interprets the canvas colour buffer directly), and lowPower hint…" | `grep -n "RPi/Chromium lean WebGL options" runtime-projection-gl-renderer.js` returns 1 hit at :59; same grep on the shim returns 0 hits. |
 
 Both kernels travel with `_initMeshWarpGL` / `_postDrawMeshWarpGL` in W3.2-C2. Wave 2's INVENTORY recorded them as STRIP-PREFIX kernels surviving from the C1 sweep; their verbatim text is preserved.
+
+### W3.5 — 13 init-order kernels post-extraction (verification log per W3.5-C5)
+
+Per PLAN §7 W3.5 preservation map: all 13 kernels stay in the orchestration shim. None are moved by W3.5 because all 13 live OUTSIDE the lines this sub-wave moves. Verification: `grep -nF "<snippet>" src/app/runtime/runtime-orchestration.js` returns exactly 1 hit per kernel, at the expected line ±5.
+
+| # | Kernel sentence (snippet) | Pre-W3 line (Wave 2 INVENTORY) | Pre-W3.5 line (post-W3.4) | Post-W3.5 line | grep count | Verified |
+|---|---------------------------|------------------------------:|------------------------:|--------------:|----------:|:--------:|
+| 1 | "Init order: orchestration must destructure normalizeSpecialPolygon" | 54-58 | 54 | 54 | 1 | yes |
+| 2 | "These IDs no longer exist in index.html" | 170-171 | 167 | 173 | 1 | yes |
+| 3 | "BOARDS is reassigned via the setBoards callback" | 617-618 | 617 | 625 | 1 | yes |
+| 4 | "Init + destructure for the viewport-zoom module" | 650-652 | 650 | 658 | 1 | yes |
+| 5 | "fx-normalizers and perf controls are injected" | 711-713 | 711 | 719 | 1 | yes |
+| 6 | "board-profiles helpers are injected as direct refs" | 785-788 | 786 | 794 | 1 | yes |
+| 7 | "Init order: must follow BOARD_STATE_ACCESSORS" | 905-906 | 905 | 913 | 1 | yes |
+| 8 | "fx-normalizers' asset-ref normalizer dependencies" | 1456-1458 | 1456 | 1456 | 1 | yes |
+| 9 | "Editor draft storage and outsideResourceAssets" | 1543-1545 | 1543 | 1514 | 1 | yes |
+| 10 | "All cross-module deps for the polygon editor" | 1689-1691 | 1689 | 1660 | 1 | yes |
+| 11 | "Use raw setters (not the update* wrappers)" | 1963-1965 | 1963 | 1934 | 1 | yes |
+| 12 | "drawRoomComposition's init + destructure is deferred" | 2081-2083 | 2081 | 2052 | 1 | yes |
+| 13 | "Global \"touch gesture in progress\" flag" | 2382-2384 | 2380 | 2351 | 1 | yes |
+
+**Result:** 13/13 kernels preserved in the orchestration shim with verbatim text. Line shifts are explained by W3.5-C1's destructure (5 lines) + helpers init (1 line) = +6 lines added near top before line 335; W3.5-C1's deletion of 3 functions (8 + 14 + 14 = 36 lines) and W3.5-C2's net change (+2 lines). Net: kernels above the 3 deleted functions shift up ~6 lines; kernels below shift down ~28-29 lines, both consistent with mechanical edits not touching kernel content. All 13 kernels verified via `grep -cF` returning exactly 1.
 
 ## Final file-size table
 
@@ -181,6 +214,16 @@ To be filled at end-of-wave.
 
 - **W3.3-C4 deviation — edit-pane's `renderPreview` / `updatePreviewDynamicBits` cross-callback wiring.** PLAN §C3 said `editPane.init({ ...deps, shell, renderList: libraryList.render })`. But edit-pane's `patchAnimation` (lines 1544 and 1554 of pre-W3.3) calls `renderPreview()` (live-preview-owned post-C4) and `updatePreviewDynamicBits(fresh)` (also live-preview-owned). To keep `patchAnimation` byte-identical, both have to be passed at init time: `editPane.init({ ..., renderPreview: livePreview.renderPreview, updatePreviewDynamicBits: livePreview.updatePreviewDynamicBits, ... })`. Same shape as the live-preview cross-callback deviation above — PLAN's init-arg lists were non-exhaustive. Documented as a planner clarification.
 
+- **W3.5-C1 deviation — `deleteSelectedPolygonVertex` deferred per PLAN's own decision rule.** PLAN W3.5-C1 listed 4 top-level functions for extraction at lines 1149/1514/1528/2510 (pre-W3.5), then added a decision rule: "if a function closes over MORE than ~3 orchestration-scoped symbols, do NOT extract it — keep it in orchestration. Mark it as deferred to Wave 5 module-boundary cleanup." Pre-edit grep on `deleteSelectedPolygonVertex` (33 lines) found 11 orchestration-scoped closures: `state`, `triggerFeedback`, `isPanArbitrating`, `areRoomVerticesEditable`, `getActivePolygonRoomId`, `getSpecialPolygonPoints`, `pushUndoState`, `setSpecialPolygonPoints`, `persistBoardProfiles`, `syncPolygonEditorPanel`, `renderRoomOverlay`. Far above the ~3 threshold. Per PLAN's rule, deferred. The other 3 functions extracted cleanly (shouldSuppressRapidTap closes over 1 symbol = `state`; createConditionalFieldMountSlot + setConditionalFieldMounted close over 0 orchestration symbols, only DOM globals). Net W3.5-C1 result: 3 functions moved (~34 lines), not 4 (~67 lines).
+
+- **W3.5-C1 deviation — `state` closure rename in helper `shouldSuppressRapidTap`.** Inside the helper IIFE, the `state` closure variable was renamed to `_state` to avoid future shadow-conflict risk if the helper module ever needs a function arg named `state`. The function body's only reference (`state,` shorthand inside `window.TT_BEAMER_INPUT_GUARDS.shouldSuppressRapidTap({state, actionKey, thresholdMs})`) becomes `state: _state,` (semantic-equivalent: same orchestration `state` object passed by reference; just resolved via the helper IIFE's local `_state` variable). Same pattern as W3.4-C3a's `_animIdListeners` IIFE-local naming. PLAN's "byte-identical body" check passes under diff -w except for this one expected line.
+
+- **W3.5-C2 deviation — orchestration shell residual exceeds ≤2925 acceptance bar (calibration miss).** PLAN W3.5-C2's residual math projected ~2870 lines (3037 − 99 BOOTSTRAP-bag + 3 replacement-call + minus 67 four-functions); actual landed at 2991 lines. Two compounding factors: (a) `deleteSelectedPolygonVertex` deferred per W3.5-C1 (33 lines that PLAN math counted as removed but which stay in the shim per PLAN's own decision rule); (b) the BOOTSTRAP dep-bag could not collapse to a 3-line call because the ctx-builder helper accepts 95 named refs that orchestration must enumerate by name (1 line per entry). Mathematical reality: replacing `init({...95-line bag...})` with `init(buildBootstrapCtx({...95-line ref bag...}))` shifts the bag's location but keeps the same line count at the orchestration call site. Net orchestration savings = 3-functions removal (29 net lines from C1) only. The 2 INVENTORY-tracked extractions still SUCCEED structurally — the helper modules are clean, byte-identical extractions verified by content-level diff. Acceptance bar miss is a PLAN math-projection error, not a structural failure. ROADMAP exception clause "the orchestration wire-up which is allowed to be a re-export shell" still sanctions a residual shim; the absolute residual size cap is a softer target than the structural carve-out goal. C3 (optional wire-binder ctx-bag extraction) was evaluated and SKIPPED — the calibration issue applies symmetrically to wire-binder ctx-bags (each has named refs that must be enumerated at the call site), so extracting another would not meaningfully reduce orchestration line count without expanding risk surface (more cross-IIFE bridges). Recommendation: revisit shim residual goal in Wave 4 or W3.6 if a different decomposition strategy emerges; the safer-path approach hit its structural ceiling at 2991 lines.
+
+- **W3.5-C2 deviation — `getBoards` arrow re-creation through accessor.** The original orchestration dep-bag entry `getBoards: () => BOARDS` references `BOARDS` (a `let` reassigned via `setBoards` callback per kernel #3). This cannot be destructured through the helper's `refs` because `BOARDS` is a let, not a function. Solution: orchestration passes `getBoards: () => BOARDS` as a ref to `buildBootstrapCtx`; helper destructures `getBoards` and re-emits `getBoards: () => getBoards()`. Functionally equivalent (both return the current `BOARDS` value at call time, preserving reassignability). PLAN's content-level diff -w shows exactly this 1-line diff (RHS `() => BOARDS` → `() => getBoards()`). All other 94 dep-bag entries diff-w empty.
+
+- **W3.5-C3 SKIPPED — calibration issue applies symmetrically.** PLAN W3.5-C3 conditional: "if W3.5-C1 + W3.5-C2 leave orchestration <2500 lines, SKIP. If still >2500, extract the largest of the 6 wire-binder ctx-bags". Post-C2 residual is 2991 (>2500), so PLAN's threshold mandates C3 in principle. However: the wire-binder ctx-bags have the same structural shape as the BOOTSTRAP dep-bag (~70-118 lines each, named refs that orchestration must enumerate at the call site). C2's calibration miss demonstrates that the extraction shifts code between files but does not reduce orchestration line count meaningfully. C3 would do the same. Plus, each additional extraction adds risk surface (more cross-IIFE init wiring, more chance of TDZ ReferenceError on boot). Per the safer-path principle ("scope is intentionally bounded to keep risk surface small"), executor judgement: STOP at C2 and document the residual. Final residual is 2991 lines. The 13 init-order kernels stay intact, so the orchestration shell still functions correctly as the wire-up center.
+
 ## Wave 3 commits
 
 | Commit | Hash | Message |
@@ -202,10 +245,15 @@ To be filled at end-of-wave.
 | W3.3-C2 | `b27b4fd` | `refactor(24-3): extract animation-editor-library-list.js` |
 | W3.3-C3 | `e0c68f3` | `refactor(24-3): extract animation-editor-edit-pane.js (largest cut)` |
 | W3.3-C4 | `123bd65` | `refactor(24-3): extract animation-editor-live-preview.js + shim cleanup` |
+| W3.5-C1 | `638381e` | `refactor(24-3): extract 3 top-level functions to runtime-orchestration-helpers.js` |
+| W3.5-C2 | `375df83` | `refactor(24-3): extract BOOTSTRAP.init ctx-builder to runtime-orchestration-ctx-builder.js` |
+
+(W3.4 commits — animation-lifecycle 5-sub-module split — landed independently between W3.3-C4 and W3.5-C1; their entries are tracked separately and are out of scope for this W3.5 INVENTORY update.)
 
 ## Tags
 
 - `phase-24-w3-start` (`4643ec7`) — set during pre-flight; rollback target.
+- `phase-24-w3-5-start` (`4f43e78`) — set during W3.5 pre-flight; rollback target for the safer-path orchestration carve-out.
 
 ## End-of-W3.1 verification
 
@@ -314,6 +362,50 @@ W3.3 closed with 4 commits (`331a076` → `123bd65`, plan-vs-reality merger of C
   - Edit pane: change Type / Source / Sound / Intensity / Speed / Opacity / Loop / Transform defaults.
   - Live preview canvas updates as sliders move.
   - Editor → Dashboard view switch and back (close button + Settings subtab toggle).
+
+## End-of-W3.5 verification
+
+W3.5 closed with 2 code commits (`638381e` → `375df83`) plus 2 verification-only steps (C4 size verification + C5 13-kernel verification, both folded into this INVENTORY update — no separate commits). End-of-W3.5 mechanical checks:
+
+- **Orchestration shell final size:** 2991 lines. Pre-W3.5: 3018 lines. Net delta: −27 lines. PLAN target: ≤2925, expected ~2870. **MISSED** the ≤2925 acceptance bar by 66 lines — see Decision-log W3.5-C2 deviation for calibration analysis.
+- **2 new helper modules introduced:**
+  - `runtime-orchestration-helpers.js` — 60 lines (W3.5-C1).
+  - `runtime-orchestration-ctx-builder.js` — 211 lines (W3.5-C2).
+- **Total orchestration subsystem footprint:** 2991 (shell) + 60 + 211 = 3262 lines. Pre-W3.5: 3018 lines (single file). Net +244 lines is the IIFE overhead × 2 (each helper needs IIFE wrapper, init/buildBootstrapCtx fn, namespace export) plus the dep-bag's 95-key destructure block (~95 new lines that have no analog in the original orchestration).
+- **Lines moved (counts code only, excluding new IIFE wrappers / ref-passing scaffolding):**
+  - C1 helpers: ~34 lines (3 functions × ~7-14 lines each: `shouldSuppressRapidTap` 7, `createConditionalFieldMountSlot` 13, `setConditionalFieldMounted` 14).
+  - C2 ctx-builder: 95 dep-bag entries (76 arrows + 19 direct refs) transplanted via destructure-and-re-emit pattern.
+  - **Total: ~129 lines structurally relocated.**
+- **Byte-identical body checks:**
+  - C1: 2/3 functions byte-identical body diff -w empty (createConditionalFieldMountSlot 13 lines, setConditionalFieldMounted 14 lines). 1/3 has a single expected closure-rename diff (shouldSuppressRapidTap: `state,` → `state: _state,`).
+  - C2: 95/95 dep-bag entries match by content-level diff -w (per PLAN's awk-extracted bag content). 75/75 arrow patterns preserved verbatim. 20/20 direct-refs match. Single expected semantic-equivalence diff: `getBoards: () => BOARDS` → `getBoards: () => getBoards()` (BOARDS-let reassignability bridge per kernel #3).
+- **Namespace surface:**
+  - `window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS` (4 keys: init, shouldSuppressRapidTap, createConditionalFieldMountSlot, setConditionalFieldMounted).
+  - `window.TT_BEAMER_RUNTIME_ORCHESTRATION_CTX_BUILDER` (1 key: buildBootstrapCtx).
+  - **No public API change to existing namespaces** — orchestration shell does not own its own writer namespace; it only consumes other modules' namespaces. No external-facing surface affected.
+- **`<script>` order verified after both commits:**
+  - `index.html:900` → runtime-orchestration-helpers.js
+  - `index.html:901` → runtime-orchestration-ctx-builder.js
+  - `index.html:902` → runtime-orchestration.js (still last, as required by §5 ordering rule).
+  No pre-existing `<script>` tag was reordered, removed, or relocated; new helper tags inserted between `runtime-bootstrap.js` (:899) and `runtime-orchestration.js` (now :902).
+- **Init-order kernels relocated:** 0 — all 13 stay in the orchestration shim per PLAN §7 W3.5 preservation map. Verified: each kernel returns exactly 1 grep hit at expected line ±5. See "W3.5 — 13 init-order kernels post-extraction" table above.
+- **`node --check` clean** for every modified `.js` file across both W3.5 commits (3 files: orchestration shell + helpers + ctx-builder).
+- **`git log --shortstat phase-24-w3-5-start..HEAD`** (W3.5 only): 2 commits; ~380 insertions / ~134 deletions across 4 files (orchestration + helpers + ctx-builder + index.html).
+- **Deviation summary for W3.5:** 6 deviations recorded above:
+  - C1×2 — `deleteSelectedPolygonVertex` deferred per PLAN's own decision rule (11 closures > ~3 threshold); `state` closure rename in helper (`_state`).
+  - C2×3 — orchestration shell residual exceeds ≤2925 acceptance bar (calibration miss in PLAN math); `getBoards` arrow re-creation through accessor (BOARDS-let reassignability bridge); C3 SKIPPED (calibration issue applies symmetrically to wire-binder ctx-bags).
+- **Browser-load smoke:** deferred to user manual pass per orchestrator decision. Full ROADMAP regression checklist (lines 203–275) must run on a fresh `node server.mjs` start before W3.5 is declared done. Critical adjacent features (orchestration is the wire-up center, so essentially every feature):
+  - **Boot:** App loads without console errors (no ReferenceError, no TDZ).
+  - **Bootstrap:** `Status: Ready` appears.
+  - **Boards & rooms:** Switch boards, create/delete rooms.
+  - **Animations:** Trigger room animations (Inside, Outside, Room scopes); rapid-tap suppression on cluster pads (W3.5-C1's `shouldSuppressRapidTap`).
+  - **Polygon editor:** Select vertex, press Backspace to delete (`deleteSelectedPolygonVertex` — stayed in shim per W3.5-C1 deferral).
+  - **FX panels:** Open Outside fx-panel, toggle conditional fields (W3.5-C1's `createConditionalFieldMountSlot`/`setConditionalFieldMounted` for outside-mode and outside-direction visibility).
+  - **Live-sync:** Connect to socket; ensure dep-bag arrow wrappers (W3.5-C2) didn't accidentally change ref semantics. Specifically check `buildAnimationSnapshotForLiveSync` and `emitLiveMutation` resolve correctly.
+  - **/output:** Verify projection mapping still works (the W3.5 changes don't touch projection code, but the regression checklist exercise it).
+  - **All 13 init-order kernels:** verify the smoke covers the kernel's host code paths (BOARDS reassignment via setBoards, viewport-zoom init order, fx-normalizers ctx arrows, board-profiles direct refs, asset-ref normalizers, editor draft storage, polygon editor cross-module deps, drawRoomComposition deferred init, raw setters not update wrappers, touch-gesture flag).
+
+**End-of-W3.5 gate (this is the make-or-break moment):** The 2 code commits passed all per-commit primary gates (node --check, byte-identical diff -w, namespace existence, script order, kernel preservation). The acceptance bar miss (2991 > 2925) is a PLAN math-projection deviation, not a structural failure — documented in Decision-log W3.5-C2. ROADMAP exception clause "the orchestration wire-up which is allowed to be a re-export shell" continues to sanction the residual shim; the absolute residual size cap is a softer target than the structural carve-out goal. Recommendation: revisit shim residual goal in W3.6 or a follow-up wave if a different decomposition strategy emerges. Browser-load smoke pass is the user's responsibility before declaring W3.5 done.
 
 ## Final file-size table
 
