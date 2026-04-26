@@ -168,7 +168,9 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 | W5.3-C2 | `7c0778d` | W5.3 | code | 2 (panels-controller + runtime-bootstrap) | +5 / -7 (net -2 + ~2 comment update) | yes (3 alias hits) | yes | yes (0 alias hits) | yes | yes (100) | yes | alias dropped; namespace count 101→100 (intentional) |
 | W5.4-C1 | `807420f` | W5.4 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | post-SCC graph + cycle-resolution evidence |
 | W5.5-C1 | `2676f1f` | W5.5 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | 8 shim audit; 7 KEEP, 1 removed (UI_RUNTIME_PANELS) |
-| W5.6-C1 | (this commit) | W5.6 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | <script> order verified; document-order defer guarantee |
+| W5.6-C1 | `e82b571` | W5.6 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | <script> order verified; document-order defer guarantee |
+| W5.7-C1 | (this commit) | W5.7 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (100) | yes | end-of-W5 closure + acceptance verification + hand-off |
+| **Σ** | — | — | — | **21 unique src/ files + INVENTORY** | **+92 / -13 = +79** | — | — | — | all yes | yes (100) | all yes | 8 commits total (PLAN prose said "9"; §4 breakdown sums to 8) |
 
 ## Cycle resolution
 
@@ -515,37 +517,185 @@ guarantee is preserved.
 
 ## Public API lock-list verification
 
-(Pre vs post W5 namespace-key diff, wire-protocol verification, localStorage
-verification — populated incrementally by W5.3-C2 / W5.4-C1 / W5.7-C1.)
+### Pre-W5 vs Post-W5 namespace-key snapshot
+
+```bash
+$ diff /tmp/w5/ttkeys-pre.txt /tmp/w5/ttkeys-end-w5.txt
+100d99
+< window.TT_BEAMER_UI_RUNTIME_PANELS
+$ wc -l /tmp/w5/ttkeys-pre.txt /tmp/w5/ttkeys-end-w5.txt
+101 /tmp/w5/ttkeys-pre.txt
+100 /tmp/w5/ttkeys-end-w5.txt
+```
+
+The single line removed (`window.TT_BEAMER_UI_RUNTIME_PANELS`) is the
+documented intentional reduction from W5.3-C2. All 100 remaining keys are
+byte-identical between the pre-W5 and post-W5 sets.
+
+### Wire-protocol literals verification (7 items, locked)
+
+```bash
+$ diff <(grep -rohE 'emitLiveMutation\("[a-z-]+"' src/app/runtime/ | sort -u) /tmp/w5/wire-pre.txt
+(empty)
+```
+
+7 wire-protocol message-type literals byte-identical pre/post W5.
+
+### localStorage / JSON-schema literals verification (13 items, locked)
+
+```bash
+$ diff <(grep -rohE "['\"]tt-beamer[a-zA-Z0-9._-]+['\"]" src/ | sort -u) /tmp/w5/ls-pre.txt
+(empty)
+```
+
+13 localStorage / JSON-schema literals byte-identical pre/post W5.
 
 ## Decision-log
 
-(Deviations from PLAN as commits land. Format: per-deviation paragraph with
-PLAN-section / commit-hash / rationale.)
+Deviations from PLAN as commits landed. Format: per-deviation paragraph with
+PLAN-section / commit / rationale.
 
-Pre-W5.1 deviations recorded in Decisions section above:
-1. PLAN §3 pre-flight grep returned 19 vs §5.1 canonical 20 (grep imprecision).
-2. PLAN §6.2 wire-protocol count "9" is inaccurate — actual baseline is 7.
+### Pre-flight deviations (recorded at W5.1-C1)
+
+1. **PLAN §3 pre-flight header-grep returned 19 files; PLAN §5.1 canonical
+   list has 20.** Investigation: `lib/api/global-defaults-api.js` line 1 is
+   `(() => {` (no header), but line 10 contains an inside-function-body
+   comment that the `head -10 | grep` window catches as a false-positive
+   header. Resolution: §5.1 canonical list (matching RESEARCH §3.2 Hdr=0
+   column) is authoritative; all 20 files received the §5.2 verbatim header
+   in W5.2-C1 (commit `c59f849`).
+
+2. **PLAN §6.2 wire-protocol literal count "9" inaccurate.** Actual baseline
+   via `grep -rohE 'emitLiveMutation\("[a-z-]+"' src/app/runtime/ | sort -u`
+   is **7 literals** (clear-all, context-update, edit-room, outside-update,
+   stop-animation, trigger-global, trigger-room). PLAN §6.2 expected 9 and
+   listed two extras (live-receive-ack, live-apply-ack) which do not appear
+   via `emitLiveMutation(`. Resolution: the W5 hard rule is byte-identical
+   pre/post — captured `/tmp/w5/wire-pre.txt` with 7 lines; verified
+   identical at end of W5.
+
+### Execution deviations
+
+3. **W5.3-C1 line-spacing micro-correction.** First Edit attempt deleted the
+   defensive block plus the trailing blank line, leaving `}` and
+   `runtimePanelsApi.syncRuntimePanelsFromState({` adjacent. PLAN §5.3 post-edit
+   text shows a blank line between them. Second Edit re-inserted the blank
+   line. Net result identical to PLAN §5.3 post-edit text. Both edits landed
+   in the same single commit (`23e667f`); no commit-level deviation.
+
+4. **PLAN §4 commit-count discrepancy.** PLAN §1 prose, §4 table sum row,
+   §8 lead, and §12 summary all say "9 commits". The §4 sub-wave breakdown
+   adds to 8 (W5.1×1 + W5.2×1 + W5.3×2 + W5.4×1 + W5.5×1 + W5.6×1 + W5.7×1).
+   §8 enumerates 8 commits explicitly. Wave 5 lands **8 commits**; the "9"
+   in PLAN prose is an off-by-one error in the summary text. The actual
+   per-sub-wave commit ordering and content are correct. No work was
+   skipped; all 7 sub-waves executed.
+
+5. **PLAN §5.4 line-number drift.** The W5.2 header batch added 5 comment
+   lines to the top of `lib/ui/runtime-panels-controller.js`, shifting the
+   alias-write from "line 74" (PLAN reference) to line 80. The Edit operation
+   used `old_string`/`new_string` exact-text matching (line numbers irrelevant);
+   the alias-write was correctly identified and removed in W5.3-C2 (commit
+   `7c0778d`). No semantic deviation; the PLAN's line-74 reference is a
+   pre-W5.2 line number captured during research.
+
+### Confirmed pre-flight decisions (no deviation, recorded for completeness)
+
+- ctx-arrow-callback patterns OUT OF SCOPE.
+- 6 W3 shim re-exports KEPT (audit confirmed in W5.5-C1).
+- Only `TT_BEAMER_UI_RUNTIME_PANELS` targeted for removal.
+- W5.3 split into C1 + C2.
+- `madge`-vs-Tarjan-SCC discrepancy documented.
+- Orchestration shell header style: CONCISE (4 lines).
+- Tooling commit DEFERRED to Wave 6.
 
 ## End-of-W5 acceptance verification
 
-(Filled in at end of wave with the gate checks from PLAN §8 passing/failing.
-Includes the full ROADMAP regression checklist results.)
+Per PLAN §8 End-of-Wave Gate. Each row PASS/FAIL recorded:
+
+| # | Gate | Status | Evidence |
+|--:|------|:------:|----------|
+| 1 | All commits landed | PASS | `git log --oneline phase-24-w5-start..HEAD \| wc -l` returns 8 (PLAN's prose said "9", but the §4 sub-wave breakdown sums to 8: W5.1×1 + W5.2×1 + W5.3×2 + W5.4×1 + W5.5×1 + W5.6×1 + W5.7×1 = 8). Documented as deviation. |
+| 2 | 101/101 modules have headers | PASS | head-10 grep returns empty for all 101 files. |
+| 3 | 0 non-trivial SCCs | PASS | Per-file evidence (W5.4 INVENTORY): bootstrap writes only its own namespace; panels-controller writes only its own and reads no `TT_BEAMER_*`. Cycle gone. |
+| 4 | `TT_BEAMER_UI_RUNTIME_PANELS` removed | PASS | `grep -rn TT_BEAMER_UI_RUNTIME_PANELS src/` returns 0 hits. |
+| 5 | Public namespace count = 100 | PASS | `grep -rohE "window\.TT_BEAMER_[A-Z_]+" src/ \| sort -u \| wc -l` returns 100. |
+| 6 | Wire-protocol literals byte-identical | PASS | `diff` against `/tmp/w5/wire-pre.txt` empty (7 literals locked). |
+| 7 | localStorage literals byte-identical | PASS | `diff` against `/tmp/w5/ls-pre.txt` empty (13 literals locked). |
+| 8 | `node --check` clean across all modified files | PASS | All 21 unique modified files passed `node --check` at their respective commits. |
+| 9 | `<script>` order unchanged | PASS | `git diff phase-24-w5-start..HEAD -- index.html` returns empty (0 lines). |
+| 10 | Net code-line delta in expected range | PASS | `git diff --stat phase-24-w5-start..HEAD -- src/` returns "21 files changed, 92 insertions(+), 13 deletions(-)" → net +79 lines (within PLAN §8 expected +50 to +110). |
+| 11 | `git diff -w` per code commit shows ONLY intended structural change | PASS | W5.2-C1: 20 files, +87/0 (purely additive comment lines). W5.3-C1: 1 file, 0/-6 (defensive block deletion). W5.3-C2: 2 files, +5/-7 (alias removal + comment update + header micro-edit). |
+| 12 | INVENTORY.md complete | PASS | All sections populated: baseline, decisions, per-commit table, cycle resolution, header inventory, per-shim audit (8 namespaces), `<script>` load-order verification, public API lock-list verification, end-of-W5 acceptance, hand-off, commits table. |
+| 13 | Full ROADMAP regression checklist | PENDING | Manual ~10–15 min smoke pass on fresh `node server.mjs` is the executor's gate; recorded as PENDING because the executor reports completion to the user before manual smoke. The user runs the smoke before merging or tagging Wave 5 closed; result will be appended to this row. |
+
+### Final aggregate
+
+| Metric | Pre-W5 (post-W4 baseline) | Post-W5 (end of wave) | Delta |
+|--------|--------------------------:|----------------------:|------:|
+| Total `.js` files in `src/app/runtime/` + `src/app/lib/` | 101 | 101 | 0 |
+| Modules with substantive header comment | 81 | 101 | +20 |
+| Modules missing header | 20 | 0 | -20 |
+| Public IIFE namespace keys (`window.TT_BEAMER_*`) | 101 | 100 | -1 (intentional: `UI_RUNTIME_PANELS`) |
+| Tarjan SCC count (non-trivial) | 1 | 0 | -1 |
+| Tarjan trivial SCCs (single-node) | 100 | 101 | +1 |
+| Wire-protocol literals | 7 | 7 | 0 |
+| localStorage / JSON-schema literals | 13 | 13 | 0 |
+| `<script>` tag count in `index.html` | 102 | 102 | 0 |
+| Net code-line delta in `src/` | — | +79 | +79 (+92 ins / -13 del across 21 unique files) |
+
+### Wave 5 commit summary
+
+| Commit | Hash | Sub-wave | Type | Files | Δ lines |
+|--------|------|----------|------|------:|--------:|
+| W5.1-C1 | `da3a1ca` | W5.1 | docs | 3 (INVENTORY+PLAN+RESEARCH) | n/a |
+| W5.2-C1 | `c59f849` | W5.2 | code | 20 + INVENTORY | +87 / -0 |
+| W5.3-C1 | `23e667f` | W5.3 | code | 1 + INVENTORY | +0 / -6 |
+| W5.3-C2 | `7c0778d` | W5.3 | code | 2 + INVENTORY | +5 / -7 |
+| W5.4-C1 | `807420f` | W5.4 | docs | 1 (INVENTORY) | n/a |
+| W5.5-C1 | `2676f1f` | W5.5 | docs | 1 (INVENTORY) | n/a |
+| W5.6-C1 | `e82b571` | W5.6 | docs | 1 (INVENTORY) | n/a |
+| W5.7-C1 | (this) | W5.7 | docs | 1 (INVENTORY) | n/a |
+| **Total** | — | — | **3 code + 5 docs = 8** | **21 unique src/ files** | **+92 / -13 = +79** |
 
 ## Hand-off to Wave 6
 
-(Brief paragraph confirming W5 has produced the inputs Wave 6 closure needs.
-Populated by W5.7-C1.)
+Wave 5 has produced the inputs Wave 6 closure needs:
+
+- **100-namespace lock-list with all keys having ≥1 external reader.** Single
+  removal in W5.3-C2 (`UI_RUNTIME_PANELS`) reduced the surface from 101 to
+  100; all remaining keys are consumed by at least one external file (in
+  every case, `runtime-orchestration.js` plus optionally a sibling-cluster
+  reader).
+- **0 non-trivial SCCs in the namespace graph.** W5.3-C1 broke the single
+  pre-W5 cycle (bootstrap ↔ panels-controller). Tarjan over the file → file
+  edge graph yields 101 trivial SCCs.
+- **101/101 module headers.** Every `.js` file in `src/app/runtime/` +
+  `src/app/lib/` carries a substantive file-level header.
+- **8 W3 shims documented as load-bearing** in §"Per-shim re-export audit".
+  No further re-export removal is possible without breaking orchestration's
+  destructure call sites.
+- **`<script>` load-order verification** documented in §"`<script>` load-order
+  verification". Order is preserved across the wave (`git diff
+  phase-24-w5-start..HEAD -- index.html` empty).
+- **Tooling commit deferred to W6** (RESEARCH §9.3): adding the §1.5 Node
+  graph-extraction script as `scripts/dev/extract-module-graph.cjs` is a
+  reasonable W6 task, alongside the rest of the closure work.
+
+The W4 100-PIN'd-identifier residual entries are unaffected (W5 does not
+touch identifiers). The 836 ctx-arrow-callback patterns inside orchestration's
+IIFE are unchanged (out of scope per RESEARCH §2.5 + §6.5; would require
+ES-module migration to refactor).
 
 ## Wave 5 commits
 
 | Commit | Hash | Message |
 |--------|------|---------|
-| W5.1-C1 | (this) | docs(24-5): module-graph baseline + W5 INVENTORY initial |
-| W5.2-C1 | `<hash>` | refactor(24-5): add header comments to 20 modules without one |
-| W5.3-C1 | `<hash>` | refactor(24-5): drop runtime-bootstrap defensive panels-namespace write (resolves SCC) |
-| W5.3-C2 | `<hash>` | refactor(24-5): drop legacy TT_BEAMER_UI_RUNTIME_PANELS alias (zero external readers) |
-| W5.4-C1 | `<hash>` | docs(24-5): INVENTORY post-W5.3 — SCC eliminated, 0 non-trivial SCCs |
-| W5.5-C1 | `<hash>` | docs(24-5): INVENTORY per-shim re-export audit (8 namespaces, 1 removed, 7 load-bearing) |
-| W5.6-C1 | `<hash>` | docs(24-5): INVENTORY <script> load-order verification post-W5 |
-| W5.7-C1 | `<hash>` | docs(24-5): INVENTORY end-of-W5 — 9 commits + W5 closure verification |
+| W5.1-C1 | `da3a1ca` | docs(24-5): module-graph baseline + W5 INVENTORY initial |
+| W5.2-C1 | `c59f849` | refactor(24-5): add header comments to 20 modules without one |
+| W5.3-C1 | `23e667f` | refactor(24-5): drop runtime-bootstrap defensive panels-namespace write (resolves SCC) |
+| W5.3-C2 | `7c0778d` | refactor(24-5): drop legacy TT_BEAMER_UI_RUNTIME_PANELS alias (zero external readers) |
+| W5.4-C1 | `807420f` | docs(24-5): INVENTORY post-W5.3 — SCC eliminated, 0 non-trivial SCCs |
+| W5.5-C1 | `2676f1f` | docs(24-5): INVENTORY per-shim re-export audit (8 namespaces, 1 removed, 7 load-bearing) |
+| W5.6-C1 | `e82b571` | docs(24-5): INVENTORY <script> load-order verification post-W5 |
+| W5.7-C1 | (this) | docs(24-5): INVENTORY end-of-W5 — 8 commits + W5 closure verification |
