@@ -164,7 +164,7 @@
     };
   }
 
-  function applyDisposalToGifCanvas(canvasPixels, frameMeta, bgColorRgba) {
+  function applyGifDisposalToCanvas(canvasPixels, frameMeta, bgColorRgba) {
     if (!frameMeta) {
       return;
     }
@@ -268,7 +268,7 @@
         throw new Error(`GIF parse failed: unexpected block ${blockType}`);
       }
 
-      applyDisposalToGifCanvas(canvasPixels, previousFrameMeta, bgColorRgba);
+      applyGifDisposalToCanvas(canvasPixels, previousFrameMeta, bgColorRgba);
 
       const left = bytes[cursor] | (bytes[cursor + 1] << 8);
       const top = bytes[cursor + 2] | (bytes[cursor + 3] << 8);
