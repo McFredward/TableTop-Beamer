@@ -170,8 +170,9 @@ const SETTINGS_SUBTAB_LABELS = {
   system: "System",
 };
 
-// These IDs no longer exist in index.html (replaced by the "Share a
-// Board" bundle); listing them here suppressed the noisy "missing control" log.
+// Control IDs whose ownership belongs exclusively to the Settings view.
+// The settings-ownership validator iterates this list to confirm each ID
+// resolves to a DOM element and that no other view claims write access.
 const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "board-select",
   "mp4-performance-tier",
@@ -214,33 +215,6 @@ const SETTINGS_EXCLUSIVE_CONTROL_IDS = [
   "play-area-create",
   "play-area-delete",
   "show-play-area-vertices",
-  "outside-animation-select",
-  "outside-animation-name",
-  "outside-animation-create",
-  "outside-enabled",
-  "outside-intensity",
-  "outside-speed",
-  "outside-mode",
-  "outside-direction",
-  "outside-asset-type",
-  "outside-asset-ref",
-  "outside-resource-select",
-  "inside-animation-select",
-  "inside-animation-name",
-  "inside-animation-create",
-  "inside-intensity",
-  "inside-speed",
-  "inside-asset-type",
-  "inside-asset-ref",
-  "inside-resource-select",
-  "inside-loop-until-stop",
-  "room-animation-settings-select",
-  "room-animation-settings-name",
-  "room-animation-settings-create",
-  "room-animation-settings-delete",
-  "room-asset-type",
-  "room-asset-ref",
-  "room-resource-select",
 ];
 
 const ctx = canvas.getContext("2d");
