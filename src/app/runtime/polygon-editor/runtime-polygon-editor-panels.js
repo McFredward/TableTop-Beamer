@@ -29,7 +29,15 @@
       return;
     }
     const roomId = selectedRoomId;
-    const room = ctx.getBoard().rooms.find((entry) => entry.id === roomId);
+    // Defensive — early in boot or during a board switch,
+    // ctx.getBoard() can return undefined before state.boardId is
+    // wired. Guard so the status refresh doesn't throw.
+    const board = ctx.getBoard();
+    if (!board) {
+      ctx.polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
+      return;
+    }
+    const room = board.rooms.find((entry) => entry.id === roomId);
     if (!room) {
       ctx.polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
       return;
@@ -49,7 +57,15 @@
     const state = ctx.state;
     ctx.polygonVertexSelect.replaceChildren();
     const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
-    const room = ctx.getBoard().rooms.find((entry) => entry.id === roomId);
+    // Defensive — early in boot or during a board switch,
+    // ctx.getBoard() can return undefined before state.boardId is
+    // wired. Guard so the vertex-select refresh doesn't throw.
+    const board = ctx.getBoard();
+    if (!board) {
+      ctx.polygonVertexSelect.disabled = true;
+      return;
+    }
+    const room = board.rooms.find((entry) => entry.id === roomId);
     if (!room) {
       ctx.polygonVertexSelect.disabled = true;
       return;
@@ -73,7 +89,15 @@
     const state = ctx.state;
     ctx.polygonEdgeSelect.replaceChildren();
     const roomVerticesVisible = state.polygonEditor.roomVerticesVisible !== false;
-    const room = ctx.getBoard().rooms.find((entry) => entry.id === roomId);
+    // Defensive — early in boot or during a board switch,
+    // ctx.getBoard() can return undefined before state.boardId is
+    // wired. Guard so the edge-select refresh doesn't throw.
+    const board = ctx.getBoard();
+    if (!board) {
+      ctx.polygonEdgeSelect.disabled = true;
+      return;
+    }
+    const room = board.rooms.find((entry) => entry.id === roomId);
     if (!room) {
       ctx.polygonEdgeSelect.disabled = true;
       return;
