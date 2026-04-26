@@ -96,7 +96,7 @@
       stopAnimationSound,
       stopAllAudioVoices,
       playSoundForAnimation,
-      applyAudioGain,
+      syncAudioGain,
       enforceAudioLifecycleGuard,
       syncAudioStatus,
       persistRuntimeSoundSettingsChange,
@@ -394,7 +394,7 @@
           playSoundForAnimation(animation);
         }
       }
-      applyAudioGain();
+      syncAudioGain();
       enforceAudioLifecycleGuard();
       syncAudioStatus();
       persistRuntimeSoundSettingsChange("Status: Audio toggle applied, but persistence failed");
@@ -429,7 +429,7 @@
       const volumePercent = clampAudioVolumePercent(Number(audioVolumeInput.value));
       state.audio.volume = volumePercent / 100;
       audioVolumeValue.textContent = `${volumePercent}%`;
-      applyAudioGain();
+      syncAudioGain();
       syncAudioStatus();
       persistRuntimeSoundSettingsChange("Status: Audio volume set, but persistence failed");
     });

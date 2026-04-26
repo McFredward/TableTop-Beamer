@@ -47,7 +47,7 @@
       audioEnabledInput: ctx.audioEnabledInput,
       audioVolumeInput: ctx.audioVolumeInput,
       audioVolumeValue: ctx.audioVolumeValue,
-      applyAudioGain: ctx.applyAudioGain,
+      syncAudioGain: ctx.syncAudioGain,
       enforceAudioLifecycleGuard: ctx.enforceAudioLifecycleGuard,
       syncAudioStatus: ctx.syncAudioStatus,
       syncAudioMappingPanel: ctx.syncAudioMappingPanel,

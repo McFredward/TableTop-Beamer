@@ -64,7 +64,7 @@
       syncAudioStatus,
       updateMobilePerformanceStatus,
       // ─── Area G — Audio side-effects ────────────────────────────
-      applyAudioGain,
+      syncAudioGain,
       enforceAudioLifecycleGuard,
       playSoundForAnimation,
       // ─── Area H — View + viewport ───────────────────────────────
@@ -178,7 +178,7 @@
       syncAudioStatus: () => syncAudioStatus(),
       updateMobilePerformanceStatus: () => updateMobilePerformanceStatus(),
       // ─── Area G — Audio side-effects ────────────────────────────
-      applyAudioGain: () => applyAudioGain(),
+      syncAudioGain: () => syncAudioGain(),
       enforceAudioLifecycleGuard: () => enforceAudioLifecycleGuard(),
       playSoundForAnimation: (animation) => playSoundForAnimation(animation),
       // ─── Area H — View + viewport ───────────────────────────────

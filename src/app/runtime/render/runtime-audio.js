@@ -98,7 +98,7 @@
     }
   }
 
-  function applyAudioGain() {
+  function syncAudioGain() {
     const state = ctx.state;
     const targetVolume = isAudioPlaybackAllowed() ? state.audio.volume : 0;
     for (const pool of audioAssetPoolByPath.values()) {
@@ -414,7 +414,7 @@
     createAudioAssetVoice,
     getAudioAssetPool,
     warmEventSoundAssets,
-    applyAudioGain,
+    applyAudioGain: syncAudioGain,
     stopAllAudioVoices,
     stopAnimationSound,
     getAnimationAudioLifecycleKey,

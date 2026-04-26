@@ -16,7 +16,7 @@
     audioEnabledInput,
     audioVolumeInput,
     audioVolumeValue,
-    applyAudioGain,
+    syncAudioGain,
     enforceAudioLifecycleGuard,
     syncAudioStatus,
     syncAudioMappingPanel,
@@ -46,7 +46,7 @@
     audioEnabledInput.checked = state.audio.enabled;
     audioVolumeInput.value = String(Math.round(state.audio.volume * 100));
     audioVolumeValue.textContent = `${Math.round(state.audio.volume * 100)}%`;
-    applyAudioGain();
+    syncAudioGain();
     enforceAudioLifecycleGuard();
     syncAudioStatus();
     syncAudioMappingPanel();
