@@ -113,7 +113,7 @@
       applyLocalConfigToServer,
       discardLocalConfigAndReloadFromServer,
       refreshApplyDiscardButtonsUi,
-      updateMobilePerformanceStatus,
+      syncMobilePerformanceStatus,
       percentile,
       normalizeMp4PerformanceTier,
       getMp4TierDefaults,
@@ -566,7 +566,7 @@
     });
 
     runMobilePerformanceCheckButton?.addEventListener("click", () => {
-      updateMobilePerformanceStatus();
+      syncMobilePerformanceStatus();
       const jankFrames = state.mobilePerf.frameDeltaSamples.filter((delta) => delta >= 40).length;
       state.mobilePerf.lastSnapshot = {
         measuredAt: new Date().toISOString(),

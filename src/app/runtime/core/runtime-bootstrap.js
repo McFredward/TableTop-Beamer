@@ -62,7 +62,7 @@
       syncAlignModePanel: ctx.syncAlignModePanel,
       syncBoardZoomPanel: ctx.syncBoardZoomPanel,
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,
-      updateMobilePerformanceStatus: ctx.updateMobilePerformanceStatus,
+      syncMobilePerformanceStatus: ctx.syncMobilePerformanceStatus,
       syncMp4PerformanceControlsPanel: ctx.syncMp4PerformanceControlsPanel,
     });
     ctx.syncMp4PerformanceControlsPanel();

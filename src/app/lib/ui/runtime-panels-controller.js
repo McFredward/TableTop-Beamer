@@ -31,7 +31,7 @@
     syncAlignModePanel,
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
-    updateMobilePerformanceStatus,
+    syncMobilePerformanceStatus,
   }) {
     switchBoard(state.boardId, { announceStatus: false });
     roomAnimationSelect.value = state.roomDraft.animationId;
@@ -61,7 +61,7 @@
     syncAlignModePanel();
     syncBoardZoomPanel();
     syncDashboardZoneVisibility();
-    updateMobilePerformanceStatus();
+    syncMobilePerformanceStatus();
   }
 
   const runtimePanelsApi = {

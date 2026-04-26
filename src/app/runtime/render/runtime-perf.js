@@ -219,7 +219,7 @@
     }
   }
 
-  function updateMobilePerformanceStatus() {
+  function syncMobilePerformanceStatus() {
     const state = ctx.state;
     if (!ctx.mobilePerformanceStatus) {
       return;
@@ -314,7 +314,7 @@
     shouldSkipRoomMp4Frame,
     getRuntimeVisualCaps,
     recordRuntimeFrameCost,
-    updateMobilePerformanceStatus,
+    updateMobilePerformanceStatus: syncMobilePerformanceStatus,
     syncMp4PerformanceControlsPanel,
     updateMp4PerformanceControls,
   };
