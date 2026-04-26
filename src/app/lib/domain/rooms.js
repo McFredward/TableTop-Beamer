@@ -1,3 +1,7 @@
+// Rooms domain. Pure helpers — normalizeBoard, normalizeRoom,
+// mergeRoomCatalog — used by every client of the rooms data
+// shape - runtime, settings, live-sync, and persistence.
+
 (() => {
   const ROOM_SCHEMA = "tt-beamer.room.v2";
 

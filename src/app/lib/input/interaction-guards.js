@@ -1,3 +1,7 @@
+// Input guards. Shared rapid-tap and touch-suppression helpers used
+// by runtime-runtime-controls and orchestration to debounce repeated
+// pointer events.
+
 (() => {
   function shouldSuppressRapidTap({ state, actionKey, thresholdMs = 320 }) {
     const now = performance.now();

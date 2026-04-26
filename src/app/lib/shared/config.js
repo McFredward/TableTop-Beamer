@@ -1,3 +1,8 @@
+// Shared config constants. Board catalog, animation-type registry,
+// localStorage-key literals, ROOMS defaults, sound-mapping presets.
+// Loaded first within the lib block so every consumer can read
+// TT_BEAMER_CONFIG at parse time.
+
 (() => {
   function toRootAssetPath(value) {
     const raw = String(value || "").trim();

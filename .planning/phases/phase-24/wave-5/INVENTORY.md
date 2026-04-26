@@ -162,7 +162,8 @@ parse errors at HEAD `6cfc682`; no pre-existing console oddities recorded.
 
 | Commit | Hash | Sub-wave | Type | Files | Lines (Δ) | Pre-grep | Edit | Post-grep | `node --check` | NS OK | `<script>` OK | Notes |
 |--------|------|----------|------|------:|----------:|----------|------|-----------|----------------|-------|----------------|-------|
-| W5.1-C1 | (this commit) | W5.1 | docs | 1 (INVENTORY) | n/a | n/a | yes | n/a | n/a | yes (101) | yes | baseline + per-file table + decisions |
+| W5.1-C1 | `da3a1ca` | W5.1 | docs | 3 (INVENTORY + PLAN + RESEARCH) | n/a | n/a | yes | n/a | n/a | yes (101) | yes | baseline + per-file table + decisions |
+| W5.2-C1 | (this commit) | W5.2 | code | 20 | +87 / -0 | yes (19 grep + 1 §5.1 audit) | yes | yes (101/101 files have headers) | yes | yes (101) | yes | header batch; comment-only diff |
 
 ## Cycle resolution
 
@@ -191,8 +192,46 @@ unreachable. RESEARCH §2.1 + §2.2 detail.
 
 ## Header inventory
 
-(20 files + their assigned headers from PLAN §5.2 — populated post-W5.2 to capture
-the exact text landed.)
+Post-W5.2-C1: all 20 §5.1 files received their §5.2 verbatim header. Each header
+is `//` line-comment style with a trailing blank line before the existing first
+source-text line. No existing comment was removed; no source-text line moved.
+IIFE-opener counts unchanged (1 per IIFE-wrapped file; 0 for `runtime-orchestration.js`).
+
+Post-W5.2-C1 verification:
+
+```bash
+$ for f in $(find src/app/runtime src/app/lib -name "*.js" | sort); do
+    head -10 "$f" | grep -E '^\s*(//|/\*)' >/dev/null || echo "MISSING: $f"
+  done
+(empty - all 101/101 files have headers)
+$ git diff --stat HEAD~..HEAD -- src/ | tail -1
+20 files changed, 87 insertions(+)
+```
+
+Header text per file (verbatim, as landed):
+
+| # | File | Header lines | Style notes |
+|--:|------|------:|-------------|
+| 1 | `lib/api/global-defaults-api.js` | 4 | "Global-defaults HTTP API facade" |
+| 2 | `lib/boot/app-composition.js` | 3 | "Bootstrap composition" |
+| 3 | `lib/boot/runtime-bootstrap.js` | 2 | "Runtime-bootstrap factory" |
+| 4 | `lib/domain/event-lifecycle.js` | 3 | "Event-lifecycle domain" |
+| 5 | `lib/domain/live-sync-domain.js` | 2 | "Live-sync domain" |
+| 6 | `lib/domain/rooms.js` | 3 | "Rooms domain" |
+| 7 | `lib/input/interaction-guards.js` | 3 | "Input guards" |
+| 8 | `lib/persistence/board-profiles.js` | 3 | "Board-profile persistence" |
+| 9 | `lib/render/viewport-lifecycle.js` | 3 | "Viewport lifecycle" |
+| 10 | `lib/shared/config.js` | 4 | "Shared config constants" |
+| 11 | `lib/shared/logger.js` | 3 | "Logger factory" |
+| 12 | `lib/shared/normalizers.js` | 4 | "Shared normalizers" |
+| 13 | `lib/shared/runtime-env.js` | 3 | "Runtime-env constants" |
+| 14 | `lib/state/live-sync-state.js` | 3 | "Live-sync state factory" |
+| 15 | `lib/state/runtime-state.js` | 3 | "Runtime-state factory" |
+| 16 | `lib/ui/runtime-panels-controller.js` | 5 | "Runtime-panels controller" — does NOT mention legacy alias (W5.3-C2 will remove the alias) |
+| 17 | `lib/ui/settings/rooms.js` | 3 | "Settings/rooms UI helpers" |
+| 18 | `runtime/core/polygon-contract.js` | 4 | "Polygon clip contract" |
+| 19 | `runtime/runtime-orchestration.js` | 5 | "Runtime orchestration shell" — concise per pre-flight decision; inserted at line 1 (no IIFE wrapper) |
+| 20 | `runtime/runtime-utils.js` | 4 | "Runtime utilities" |
 
 ## Per-shim re-export audit
 

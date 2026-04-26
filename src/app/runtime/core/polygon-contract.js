@@ -1,3 +1,8 @@
+// Polygon clip contract. Pure geometry helpers - clipPolygon,
+// polygonBounds, normalizePolygonPoint, etc. - used by canvas-clip
+// and gif-decoder for room-shaped masking. No runtime state.
+// Reads TT_BEAMER_RUNTIME_UTILS.clamp01 for normalised-coord clamps.
+
 (() => {
   function clampNormalizedCoordinate(value) {
     const numeric = Number(value);

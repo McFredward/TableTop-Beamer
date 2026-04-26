@@ -1,3 +1,7 @@
+// Event-lifecycle domain. Pure helpers for animation lifecycle math —
+// is-this-event-expired checks, start-time + duration arithmetic.
+// Used by both the dashboard runtime and the live-sync receiver.
+
 (() => {
   function toFiniteNumber(value, fallback = null) {
     const numeric = Number(value);

@@ -1,3 +1,7 @@
+// Runtime-env constants. Output role detection - CONTROL vs FINAL -
+// plus the OUTPUT_ROLE_FINAL string constant used by orchestration
+// to gate output-only behaviour.
+
 (() => {
   const OUTPUT_ROLE_CONTROL = "control";
   const OUTPUT_ROLE_FINAL = "final-output";

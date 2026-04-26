@@ -1,3 +1,7 @@
+// Board-profile persistence. localStorage read/write plus JSON-schema
+// validation for the tt-beamer.board-profiles.v3 key. Pure storage
+// layer; the projection-mapping module owns the in-memory profile state.
+
 (() => {
   function extractBoardProfilesCandidate(raw, boards) {
     if (!raw || typeof raw !== "object") {

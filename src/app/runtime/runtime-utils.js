@@ -1,3 +1,8 @@
+// Runtime utilities. Shared helpers - clamp, clamp01, bboxOfPolygon -
+// used by polygon, viewport, audio, gif, and editor modules. Pure
+// functions, no state. Loaded first in the runtime block so every
+// consumer can read TT_BEAMER_RUNTIME_UTILS at parse time.
+
 (() => {
   function clamp(min, max, v) {
     return Math.max(min, Math.min(max, v));

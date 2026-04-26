@@ -1,3 +1,9 @@
+// Runtime orchestration shell. Wires every runtime sub-module together
+// via the BOOTSTRAP.init dep-bag - see runtime-orchestration-ctx-builder.js
+// for the 95-key bag and its 17 area-divider banners. Sanctioned
+// residual size per ROADMAP exception. No public namespace; consumes
+// the post-W5 set of 100 sibling namespaces via destructure.
+
 const {
   BOARDS: CONFIG_BOARDS,
   INLINE_FALLBACK_BOARDS,

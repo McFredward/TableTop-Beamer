@@ -1,3 +1,8 @@
+// Shared normalizers. Pure data-shape helpers - normalizeAnimationSoundMap,
+// normalizeQuickMode, normalizePerRoomOpacityMap, etc. - used by both
+// runtime and any future test harness. Reads TT_BEAMER_CONFIG for
+// canonical defaults.
+
 (() => {
   const {
     ALL_ANIMATION_TYPES,

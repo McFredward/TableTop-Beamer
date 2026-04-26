@@ -1,3 +1,6 @@
+// Runtime-bootstrap factory. Creates the BOOT object whose run method
+// invokes the app initializer; the smallest useful module in the tree.
+
 (() => {
   function createRuntimeBootstrap() {
     return {

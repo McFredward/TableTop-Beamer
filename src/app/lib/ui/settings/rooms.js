@@ -1,3 +1,7 @@
+// Settings/rooms UI helpers. Small DOM-side helpers used by the rooms
+// settings subtab; kept under lib/ui/settings/ to mirror the directory
+// shape of the settings pane.
+
 (() => {
   function buildRoomOption(room) {
     return {

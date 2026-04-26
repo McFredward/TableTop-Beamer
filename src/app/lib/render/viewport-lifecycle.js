@@ -1,3 +1,7 @@
+// Viewport lifecycle. Window resize and orientationchange handler
+// factory used by runtime-stage-viewport; encapsulates the rAF-coalesced
+// resize callback so the stage module stays focused on geometry.
+
 (() => {
   function runStageViewportLifecycle({
     applyStageViewportRecompute,

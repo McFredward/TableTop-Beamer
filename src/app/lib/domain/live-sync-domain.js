@@ -1,3 +1,6 @@
+// Live-sync domain. Pure helpers for normalising the live-sync envelope
+// shape across emit and receive paths; no IO, no state.
+
 (() => {
   function getAnimationStartedAtEpochMs(animation) {
     if (Number.isFinite(animation?.startedAtEpochMs)) {

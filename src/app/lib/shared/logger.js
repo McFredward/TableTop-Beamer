@@ -1,3 +1,7 @@
+// Logger factory. createLogger - scope, ctx - returns a tiny logger
+// with info/warn/error methods that emit structured payloads to console
+// and feed the live-sync log relay when one is wired.
+
 (() => {
   const LEVELS = {
     debug: 10,

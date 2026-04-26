@@ -1,3 +1,8 @@
+// Global-defaults HTTP API facade. Wraps fetch with timeout + base-URL
+// discovery for the persisted-config endpoints. Pure transport — no
+// state, no caching; consumers (runtime-global-defaults) handle merge
+// + persistence.
+
 (() => {
   function createGlobalDefaultsApiFacade({
     apiBaseUrlParamKeys,

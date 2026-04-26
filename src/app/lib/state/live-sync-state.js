@@ -1,3 +1,7 @@
+// Live-sync state factory. createDefaultLiveSyncState builds the shape
+// of state.liveSync used by runtime-live-sync-core to track connection
+// status, retry timers, and the last-applied envelope.
+
 (() => {
   function createLiveSyncState() {
     return {

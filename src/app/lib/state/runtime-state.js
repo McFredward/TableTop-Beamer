@@ -1,3 +1,7 @@
+// Runtime-state factory. createDefaultState composes the full per-board
+// and per-room state maps that orchestration's bootstrap.init populates
+// and that every sub-module reads via ctx.state.
+
 (() => {
   function createInitialState({
     defaultBoardId,

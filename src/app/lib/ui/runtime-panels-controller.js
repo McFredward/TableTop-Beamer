@@ -1,3 +1,9 @@
+// Runtime-panels controller. Owns syncRuntimePanelsFromState which
+// fans out to every panel-sync helper - room list, animation editor,
+// align-mode panel, board zoom, dashboard-zone visibility, mobile
+// performance status. Exposes TT_BEAMER_RUNTIME_PANELS for bootstrap
+// to invoke during initial load.
+
 (() => {
   function syncRuntimePanelsFromState({
     state,
