@@ -5,18 +5,19 @@
 // Space, Escape for drag cancel), the global button-click delegation
 // handler, and window-level blur/visibility/orientation/resize/
 // fullscreen/scroll reactions. Exposed as wireOverlayWindowBinders(ctx).
+//
+// Phase 24 W3.6-C5a: the original 525-line `wireOverlayWindowBinders`
+// function body has been decomposed into 14 named helpers per topical
+// listener boundary. Each helper takes `ctx` and re-destructures only
+// the vars it needs; the body of each `addEventListener` callback is
+// byte-identical with the pre-W3.6 IIFE. The outer
+// `wireOverlayWindowBinders` shell drops to a destructure-free
+// dispatch sequence (~16 lines).
 (() => {
-  function wireOverlayWindowBinders(ctx) {
+  function _wireOverlayPointerMove(ctx) {
     const {
       state,
-      liveSync,
       roomOverlay,
-      triggerFeedback,
-      dashboardGlobalLoopUntilStopInput,
-      dashboardGlobalPlaySoundInput,
-      outputRole,
-      OUTPUT_ROLE_CONTROL,
-      GLOBAL_ONE_SHOT_DURATION_SEC,
       arePlayAreaVerticesEditable,
       areRoomVerticesEditable,
       getShipPolygonPoints,
@@ -37,38 +38,7 @@
       finishShipPolygonVertexDrag,
       finishPolygonAreaDrag,
       finishPolygonVertexDrag,
-      preserveRoomSelectionAfterPointerLifecycle,
-      clearPendingPolygonAreaDragSession,
-      canStartPanModeFromEvent,
-      startPanMode,
-      endPanMode,
-      isPanArbitrating,
       scheduleZoomUpdate,
-      setPanCursorState,
-      clearSelectedRoomSelection,
-      isTypingShortcutTarget,
-      isPlayAreaShortcutContext,
-      copySelectedRoomToClipboard,
-      pasteRoomFromClipboard,
-      deleteSelectedPolygonVertex,
-      deleteSelectedRoom,
-      getActivePolygonRoomId,
-      polygonUndo,
-      polygonRedo,
-      resetClearAllGuard,
-      clearAllQuickModeInflight,
-      scheduleNextLiveSnapshotPoll,
-      scheduleStageViewportLifecycle,
-      syncDashboardZoneVisibility,
-      syncMobileStickyOffsets,
-      runOrientationStateRegression,
-      runNavigationStateRegression,
-      runMobileProjectionVisibilityGuard,
-      validateViewNavigationVisibility,
-      shouldSuppressRapidTap,
-      recordTriggerIntent,
-      setDashboardZone,
-      upsertGlobalAnimation,
     } = ctx;
 
     roomOverlay.addEventListener("pointermove", (event) => {
@@ -208,6 +178,19 @@
       );
       syncPolygonEditorStatus();
     });
+  }
+
+  function _wireOverlayPointerUp(ctx) {
+    const {
+      state,
+      roomOverlay,
+      endPanMode,
+      finishShipPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      finishPolygonVertexDrag,
+      preserveRoomSelectionAfterPointerLifecycle,
+      clearPendingPolygonAreaDragSession,
+    } = ctx;
 
     roomOverlay.addEventListener("pointerup", (event) => {
       if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
@@ -243,6 +226,18 @@
       finishPolygonVertexDrag(event, { cancel: false });
       preserveRoomSelectionAfterPointerLifecycle();
     });
+  }
+
+  function _wireOverlayPointerCancel(ctx) {
+    const {
+      state,
+      roomOverlay,
+      endPanMode,
+      finishShipPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      finishPolygonVertexDrag,
+      clearPendingPolygonAreaDragSession,
+    } = ctx;
 
     roomOverlay.addEventListener("pointercancel", (event) => {
       if (state.panMode.active && state.panMode.pointerId === event.pointerId) {
@@ -266,6 +261,19 @@
       }
       finishPolygonVertexDrag(event, { cancel: true });
     });
+  }
+
+  function _wireOverlayPointerDown(ctx) {
+    const {
+      state,
+      roomOverlay,
+      canStartPanModeFromEvent,
+      startPanMode,
+      finishShipPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      finishPolygonVertexDrag,
+      clearPendingPolygonAreaDragSession,
+    } = ctx;
 
     roomOverlay.addEventListener("pointerdown", (event) => {
       if (!canStartPanModeFromEvent(event)) {
@@ -292,6 +300,15 @@
           : "space";
       startPanMode(event, trigger);
     });
+  }
+
+  function _wireOverlayPointerClick(ctx) {
+    const {
+      state,
+      roomOverlay,
+      isPanArbitrating,
+      clearSelectedRoomSelection,
+    } = ctx;
 
     roomOverlay.addEventListener("click", (event) => {
       if (performance.now() < (state.polygonEditor.suppressRoomClickUntil || 0)) {
@@ -313,6 +330,29 @@
       }
       clearSelectedRoomSelection("Room management: selection cleared (empty board click)");
     });
+  }
+
+  function _wireOverlayKeydownShortcut(ctx) {
+    const {
+      state,
+      outputRole,
+      OUTPUT_ROLE_CONTROL,
+      areRoomVerticesEditable,
+      isTypingShortcutTarget,
+      isPlayAreaShortcutContext,
+      copySelectedRoomToClipboard,
+      pasteRoomFromClipboard,
+      deleteSelectedPolygonVertex,
+      deleteSelectedRoom,
+      getActivePolygonRoomId,
+      polygonUndo,
+      polygonRedo,
+      finishShipPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      finishPolygonVertexDrag,
+      clearPendingPolygonAreaDragSession,
+      setPanCursorState,
+    } = ctx;
 
     document.addEventListener("keydown", (event) => {
       if (state.uiView === "settings" && outputRole === OUTPUT_ROLE_CONTROL && !event.defaultPrevented) {
@@ -430,6 +470,10 @@
         }
       }
     });
+  }
+
+  function _wireOverlayKeyupShortcut(ctx) {
+    const { state, endPanMode, setPanCursorState } = ctx;
 
     document.addEventListener("keyup", (event) => {
       if (event.code !== "Space") {
@@ -442,6 +486,19 @@
         setPanCursorState();
       }
     });
+  }
+
+  function _wireOverlayWindowBlur(ctx) {
+    const {
+      state,
+      finishShipPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      clearPendingPolygonAreaDragSession,
+      endPanMode,
+      resetClearAllGuard,
+      clearAllQuickModeInflight,
+      setPanCursorState,
+    } = ctx;
 
     window.addEventListener("blur", () => {
       state.panMode.spacePressed = false;
@@ -459,6 +516,10 @@
       clearAllQuickModeInflight();
       setPanCursorState();
     });
+  }
+
+  function _wireOverlayVisibilityChange(ctx) {
+    const { liveSync, scheduleNextLiveSnapshotPoll } = ctx;
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
@@ -468,6 +529,18 @@
       }
       scheduleNextLiveSnapshotPoll();
     });
+  }
+
+  function _wireOverlayOrientationChange(ctx) {
+    const {
+      triggerFeedback,
+      scheduleStageViewportLifecycle,
+      syncDashboardZoneVisibility,
+      syncMobileStickyOffsets,
+      runOrientationStateRegression,
+      runNavigationStateRegression,
+      runMobileProjectionVisibilityGuard,
+    } = ctx;
 
     window.addEventListener("orientationchange", () => {
       scheduleStageViewportLifecycle("orientationchange");
@@ -492,14 +565,31 @@
         ? "Status: Orientation changed, UI state/navigation/board visibility stable"
         : "Status: Orientation guard detected drift in state, navigation, or board visibility";
     });
+  }
+
+  function _wireOverlayResize(ctx) {
+    const { scheduleStageViewportLifecycle } = ctx;
 
     window.addEventListener("resize", () => {
       scheduleStageViewportLifecycle("window-resize");
     });
+  }
+
+  function _wireOverlayFullscreenChange(ctx) {
+    const { scheduleStageViewportLifecycle } = ctx;
 
     document.addEventListener("fullscreenchange", () => {
       scheduleStageViewportLifecycle("fullscreenchange");
     });
+  }
+
+  function _wireOverlayScroll(ctx) {
+    const {
+      triggerFeedback,
+      syncMobileStickyOffsets,
+      validateViewNavigationVisibility,
+      runMobileProjectionVisibilityGuard,
+    } = ctx;
 
     window.addEventListener(
       "scroll",
@@ -514,6 +604,18 @@
       },
       { passive: true },
     );
+  }
+
+  function _wireOverlayGlobalButtonClick(ctx) {
+    const {
+      dashboardGlobalLoopUntilStopInput,
+      dashboardGlobalPlaySoundInput,
+      GLOBAL_ONE_SHOT_DURATION_SEC,
+      shouldSuppressRapidTap,
+      recordTriggerIntent,
+      setDashboardZone,
+      upsertGlobalAnimation,
+    } = ctx;
 
     document.addEventListener("click", (event) => {
       const button = event.target instanceof Element ? event.target.closest("button[data-global]") : null;
@@ -530,6 +632,23 @@
       const playSound = dashboardGlobalPlaySoundInput ? dashboardGlobalPlaySoundInput.checked : true;
       upsertGlobalAnimation(type, GLOBAL_ONE_SHOT_DURATION_SEC, { loopUntilStopped, playSound });
     });
+  }
+
+  function wireOverlayWindowBinders(ctx) {
+    _wireOverlayPointerMove(ctx);
+    _wireOverlayPointerUp(ctx);
+    _wireOverlayPointerCancel(ctx);
+    _wireOverlayPointerDown(ctx);
+    _wireOverlayPointerClick(ctx);
+    _wireOverlayKeydownShortcut(ctx);
+    _wireOverlayKeyupShortcut(ctx);
+    _wireOverlayWindowBlur(ctx);
+    _wireOverlayVisibilityChange(ctx);
+    _wireOverlayOrientationChange(ctx);
+    _wireOverlayResize(ctx);
+    _wireOverlayFullscreenChange(ctx);
+    _wireOverlayScroll(ctx);
+    _wireOverlayGlobalButtonClick(ctx);
   }
 
   window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS = {
