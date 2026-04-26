@@ -246,7 +246,7 @@
     };
   }
 
-  function applyPolygonPrecedence(baseProfiles = {}, polygonOwnerProfiles = {}) {
+  function mergePolygonPrecedence(baseProfiles = {}, polygonOwnerProfiles = {}) {
     const merged = {};
     const boardIds = new Set([
       ...Object.keys(baseProfiles ?? {}),
@@ -458,7 +458,7 @@
     filterRoomCatalogByDeletedIds,
     mergeBoardProfilesForGlobalExport,
     resolveProfilePolygonContract,
-    applyPolygonPrecedence,
+    applyPolygonPrecedence: mergePolygonPrecedence,
     createDefaultSpecialPolygonMap,
     createDefaultSpecialPolygonsByBoard,
     normalizeShipPolygon,
