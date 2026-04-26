@@ -4,76 +4,25 @@
 // room/vertex/edge selects, visibility toggles, vertex insert/delete/reset/
 // focus buttons, play area CRUD, and ship polygon vertex/edge/insert/
 // delete/reset controls. Exposed as wirePolygonEditorBinders(ctx).
+//
+// Phase 24 W3.6-C5b: the original 447-line `wirePolygonEditorBinders`
+// function body has been decomposed into 17 named topical helpers per
+// listener boundary. Each helper takes `ctx` and re-destructures only
+// the vars it needs; the body of each `addEventListener` callback is
+// byte-identical with the pre-W3.6 IIFE. The outer
+// `wirePolygonEditorBinders` shell drops to a 19-line dispatch
+// sequence.
 (() => {
-  function wirePolygonEditorBinders(ctx) {
+  function _wirePolygonHandleSize(ctx) {
     const {
       state,
       polygonHandleSizeInput,
-      boardZoomFitButton,
-      boardZoomResetButton,
-      polygonRoomSelect,
-      showRoomVerticesInput,
-      showPlayAreaVerticesInput,
-      polygonVertexSelect,
-      polygonEdgeSelect,
-      polygonInsertVertexButton,
-      polygonDeleteVertexButton,
-      polygonResetRoomButton,
-      polygonFocusRoomButton,
-      playAreaSelect,
-      playAreaNameInput,
-      playAreaCreateButton,
-      playAreaDeleteButton,
-      shipPolygonVertexSelect,
-      shipPolygonEdgeSelect,
-      shipPolygonInsertVertexButton,
-      shipPolygonDeleteVertexButton,
-      shipPolygonResetButton,
-      SHIP_POLYGON_DEFAULT,
-      BOARD_ZOOM_DEFAULT,
       triggerFeedback,
       clampPolygonHandleScale,
-      normalizePolygonPoint,
-      normalizeShipPolygon,
-      normalizePlayAreaId,
       syncPolygonHandleSizePanel,
       syncPolygonEditorStatus,
       syncShipPolygonEditorStatus,
-      syncPolygonEditorPanel,
-      syncShipPolygonEditorPanel,
-      syncRoomPanelFromSelection,
-      syncPolygonEdgeSelect,
       renderRoomOverlay,
-      endPanMode,
-      fitZoomToActiveSpecialRoom,
-      setPanCursorState,
-      updateCurrentBoardZoom,
-      getBoardZoom,
-      getRoomCenterForZoom,
-      computePanForZoomFocus,
-      syncPolygonRoomSelection,
-      areRoomVerticesEditable,
-      arePlayAreaVerticesEditable,
-      finishPolygonVertexDrag,
-      finishPolygonAreaDrag,
-      finishShipPolygonVertexDrag,
-      getActivePolygonRoomId,
-      isPanArbitrating,
-      resolvePolygonEditingRoomId,
-      getSpecialPolygonPoints,
-      setSpecialPolygonPoints,
-      getShipPolygonPoints,
-      setShipPolygonPoints,
-      persistBoardProfiles,
-      captureCleanBaseline,
-      getDefaultRoomPolygon,
-      setSelectedPlayAreaId,
-      getPlayAreas,
-      getSelectedPlayAreaId,
-      getSelectedPlayArea,
-      setPlayAreas,
-      deleteSelectedPolygonVertex,
-      pushUndoState,
     } = ctx;
 
     polygonHandleSizeInput?.addEventListener("input", () => {
@@ -85,18 +34,42 @@
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Polygon handle size (including Play Area) set to ${Math.round(handleScale * 100)}%`;
     });
+  }
+
+  function _wireBoardZoomFit(ctx) {
+    const { boardZoomFitButton, endPanMode, fitZoomToActiveSpecialRoom, setPanCursorState } = ctx;
 
     boardZoomFitButton.addEventListener("click", () => {
       endPanMode(null, { canceled: true });
       fitZoomToActiveSpecialRoom();
       setPanCursorState();
     });
+  }
+
+  function _wireBoardZoomReset(ctx) {
+    const { boardZoomResetButton, BOARD_ZOOM_DEFAULT, updateCurrentBoardZoom, endPanMode, setPanCursorState } = ctx;
 
     boardZoomResetButton.addEventListener("click", () => {
       updateCurrentBoardZoom(BOARD_ZOOM_DEFAULT, "Board zoom reset");
       endPanMode(null, { canceled: true });
       setPanCursorState();
     });
+  }
+
+  function _wirePolygonRoomSelectChange(ctx) {
+    const {
+      state,
+      polygonRoomSelect,
+      syncPolygonRoomSelection,
+      getBoardZoom,
+      getRoomCenterForZoom,
+      updateCurrentBoardZoom,
+      computePanForZoomFocus,
+      syncRoomPanelFromSelection,
+      syncPolygonEditorPanel,
+      renderRoomOverlay,
+      setPanCursorState,
+    } = ctx;
 
     polygonRoomSelect.addEventListener("change", () => {
       const roomId = polygonRoomSelect.value;
@@ -118,6 +91,18 @@
       // on this dropdown.
       try { polygonRoomSelect.blur(); } catch {}
     });
+  }
+
+  function _wireShowRoomVerticesToggle(ctx) {
+    const {
+      state,
+      showRoomVerticesInput,
+      triggerFeedback,
+      finishPolygonVertexDrag,
+      finishPolygonAreaDrag,
+      syncPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     showRoomVerticesInput?.addEventListener("change", () => {
       state.polygonEditor.roomVerticesVisible = showRoomVerticesInput.checked;
@@ -133,6 +118,17 @@
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Room vertices ${showRoomVerticesInput.checked ? "shown" : "hidden"}`;
     });
+  }
+
+  function _wireShowPlayAreaVerticesToggle(ctx) {
+    const {
+      state,
+      showPlayAreaVerticesInput,
+      triggerFeedback,
+      finishShipPolygonVertexDrag,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     showPlayAreaVerticesInput?.addEventListener("change", () => {
       state.polygonEditor.playAreaVerticesVisible = showPlayAreaVerticesInput.checked;
@@ -143,6 +139,18 @@
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Play Area vertices ${showPlayAreaVerticesInput.checked ? "shown" : "hidden"}`;
     });
+  }
+
+  function _wirePolygonVertexSelectChange(ctx) {
+    const {
+      state,
+      polygonVertexSelect,
+      areRoomVerticesEditable,
+      getActivePolygonRoomId,
+      syncPolygonEdgeSelect,
+      renderRoomOverlay,
+      syncPolygonEditorStatus,
+    } = ctx;
 
     polygonVertexSelect.addEventListener("change", () => {
       if (!areRoomVerticesEditable()) {
@@ -155,6 +163,16 @@
       renderRoomOverlay();
       syncPolygonEditorStatus();
     });
+  }
+
+  function _wirePolygonEdgeSelectChange(ctx) {
+    const {
+      state,
+      polygonEdgeSelect,
+      areRoomVerticesEditable,
+      renderRoomOverlay,
+      syncPolygonEditorStatus,
+    } = ctx;
 
     polygonEdgeSelect.addEventListener("change", () => {
       if (!areRoomVerticesEditable()) {
@@ -164,6 +182,24 @@
       renderRoomOverlay();
       syncPolygonEditorStatus();
     });
+  }
+
+  function _wirePolygonInsertVertex(ctx) {
+    const {
+      state,
+      polygonInsertVertexButton,
+      triggerFeedback,
+      isPanArbitrating,
+      areRoomVerticesEditable,
+      resolvePolygonEditingRoomId,
+      getSpecialPolygonPoints,
+      setSpecialPolygonPoints,
+      normalizePolygonPoint,
+      pushUndoState,
+      persistBoardProfiles,
+      syncPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     polygonInsertVertexButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -197,10 +233,31 @@
         ? "Status: Polygon vertex inserted"
         : "Status: Polygon vertex inserted (persistence failed)";
     });
+  }
+
+  function _wirePolygonDeleteVertex(ctx) {
+    const { polygonDeleteVertexButton, deleteSelectedPolygonVertex } = ctx;
 
     polygonDeleteVertexButton.addEventListener("click", () => {
       deleteSelectedPolygonVertex();
     });
+  }
+
+  function _wirePolygonResetRoom(ctx) {
+    const {
+      state,
+      polygonResetRoomButton,
+      triggerFeedback,
+      isPanArbitrating,
+      areRoomVerticesEditable,
+      getActivePolygonRoomId,
+      getDefaultRoomPolygon,
+      setSpecialPolygonPoints,
+      pushUndoState,
+      persistBoardProfiles,
+      syncPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     polygonResetRoomButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -230,6 +287,18 @@
         ? "Status: Room polygon reset to default"
         : "Status: Room polygon reset to default (persistence failed)";
     });
+  }
+
+  function _wirePolygonFocusRoom(ctx) {
+    const {
+      state,
+      polygonFocusRoomButton,
+      triggerFeedback,
+      isPanArbitrating,
+      getActivePolygonRoomId,
+      syncRoomPanelFromSelection,
+      renderRoomOverlay,
+    } = ctx;
 
     polygonFocusRoomButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -246,6 +315,20 @@
       renderRoomOverlay();
       triggerFeedback.textContent = "Status: Special room focused in overlay";
     });
+  }
+
+  function _wirePlayAreaSelectChange(ctx) {
+    const {
+      state,
+      playAreaSelect,
+      triggerFeedback,
+      setSelectedPlayAreaId,
+      getShipPolygonPoints,
+      captureCleanBaseline,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     playAreaSelect?.addEventListener("change", () => {
       // Selection is a viewing/edit filter, not a
@@ -281,6 +364,20 @@
       renderRoomOverlay();
       triggerFeedback.textContent = "Status: Active Play Area selected";
     });
+  }
+
+  function _wirePlayAreaNameInputChange(ctx) {
+    const {
+      state,
+      playAreaNameInput,
+      triggerFeedback,
+      getPlayAreas,
+      getSelectedPlayAreaId,
+      setPlayAreas,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     playAreaNameInput?.addEventListener("change", () => {
       const areas = getPlayAreas(state.boardId);
@@ -302,6 +399,23 @@
         ? "Status: Play Area name updated"
         : "Status: Play Area name updated (persistence failed)";
     });
+  }
+
+  function _wirePlayAreaCreate(ctx) {
+    const {
+      state,
+      playAreaCreateButton,
+      triggerFeedback,
+      SHIP_POLYGON_DEFAULT,
+      normalizePlayAreaId,
+      normalizeShipPolygon,
+      getPlayAreas,
+      getSelectedPlayArea,
+      setPlayAreas,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     playAreaCreateButton?.addEventListener("click", () => {
       const currentAreas = getPlayAreas(state.boardId);
@@ -330,6 +444,20 @@
         ? `Status: Created ${nextArea.name}`
         : `Status: Created ${nextArea.name} (persistence failed)`;
     });
+  }
+
+  function _wirePlayAreaDelete(ctx) {
+    const {
+      state,
+      playAreaDeleteButton,
+      triggerFeedback,
+      getPlayAreas,
+      getSelectedPlayArea,
+      setPlayAreas,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     playAreaDeleteButton?.addEventListener("click", () => {
       const currentAreas = getPlayAreas(state.boardId);
@@ -357,6 +485,16 @@
         ? `Status: Deleted ${selectedArea.name}`
         : `Status: Deleted ${selectedArea.name} (persistence failed)`;
     });
+  }
+
+  function _wireShipPolygonVertexSelect(ctx) {
+    const {
+      state,
+      shipPolygonVertexSelect,
+      arePlayAreaVerticesEditable,
+      renderRoomOverlay,
+      syncShipPolygonEditorStatus,
+    } = ctx;
 
     shipPolygonVertexSelect.addEventListener("change", () => {
       if (!arePlayAreaVerticesEditable()) {
@@ -368,6 +506,16 @@
       renderRoomOverlay();
       syncShipPolygonEditorStatus();
     });
+  }
+
+  function _wireShipPolygonEdgeSelect(ctx) {
+    const {
+      state,
+      shipPolygonEdgeSelect,
+      arePlayAreaVerticesEditable,
+      renderRoomOverlay,
+      syncShipPolygonEditorStatus,
+    } = ctx;
 
     shipPolygonEdgeSelect.addEventListener("change", () => {
       if (!arePlayAreaVerticesEditable()) {
@@ -377,6 +525,22 @@
       renderRoomOverlay();
       syncShipPolygonEditorStatus();
     });
+  }
+
+  function _wireShipPolygonInsertVertex(ctx) {
+    const {
+      state,
+      shipPolygonInsertVertexButton,
+      triggerFeedback,
+      isPanArbitrating,
+      arePlayAreaVerticesEditable,
+      getShipPolygonPoints,
+      setShipPolygonPoints,
+      normalizePolygonPoint,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     shipPolygonInsertVertexButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -404,6 +568,21 @@
         ? "Status: Play Area vertex inserted"
         : "Status: Play Area vertex inserted (persistence failed)";
     });
+  }
+
+  function _wireShipPolygonDeleteVertex(ctx) {
+    const {
+      state,
+      shipPolygonDeleteVertexButton,
+      triggerFeedback,
+      isPanArbitrating,
+      arePlayAreaVerticesEditable,
+      getShipPolygonPoints,
+      setShipPolygonPoints,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     shipPolygonDeleteVertexButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -431,6 +610,21 @@
         ? "Status: Play Area vertex deleted"
         : "Status: Play Area vertex deleted (persistence failed)";
     });
+  }
+
+  function _wireShipPolygonReset(ctx) {
+    const {
+      state,
+      shipPolygonResetButton,
+      SHIP_POLYGON_DEFAULT,
+      triggerFeedback,
+      isPanArbitrating,
+      arePlayAreaVerticesEditable,
+      setShipPolygonPoints,
+      persistBoardProfiles,
+      syncShipPolygonEditorPanel,
+      renderRoomOverlay,
+    } = ctx;
 
     shipPolygonResetButton.addEventListener("click", () => {
       if (isPanArbitrating()) {
@@ -451,6 +645,30 @@
         ? "Status: Play Area polygon reset to default"
         : "Status: Play Area polygon reset to default (persistence failed)";
     });
+  }
+
+  function wirePolygonEditorBinders(ctx) {
+    _wirePolygonHandleSize(ctx);
+    _wireBoardZoomFit(ctx);
+    _wireBoardZoomReset(ctx);
+    _wirePolygonRoomSelectChange(ctx);
+    _wireShowRoomVerticesToggle(ctx);
+    _wireShowPlayAreaVerticesToggle(ctx);
+    _wirePolygonVertexSelectChange(ctx);
+    _wirePolygonEdgeSelectChange(ctx);
+    _wirePolygonInsertVertex(ctx);
+    _wirePolygonDeleteVertex(ctx);
+    _wirePolygonResetRoom(ctx);
+    _wirePolygonFocusRoom(ctx);
+    _wirePlayAreaSelectChange(ctx);
+    _wirePlayAreaNameInputChange(ctx);
+    _wirePlayAreaCreate(ctx);
+    _wirePlayAreaDelete(ctx);
+    _wireShipPolygonVertexSelect(ctx);
+    _wireShipPolygonEdgeSelect(ctx);
+    _wireShipPolygonInsertVertex(ctx);
+    _wireShipPolygonDeleteVertex(ctx);
+    _wireShipPolygonReset(ctx);
   }
 
   window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS = {
