@@ -67,11 +67,15 @@
     // hit targets keep their old size for touch ergonomics.
     const visualTrim = 0.5625;
     return {
-      // Hit targets stay at the old size so touch ergonomics don't
-      // regress — only the visible handles shrink.
-      edgeHitRadius: Math.max(8, 12 * inverseZoom) * normalizedHandleScale * coarse,
+      // Hit-target radii stay slightly larger than the visible handle
+      // (so the user has some pointer-placement forgiveness) but no
+      // longer the 4× generous floor that made adjacent vertices
+      // impossible to disambiguate. About 1.5–1.8× the visible
+      // handle, scaling proportionally with both zoom and handle-size
+      // slider — at high zoom the user gets pixel-precise grabbing.
+      edgeHitRadius: Math.max(2.5, 6 * inverseZoom) * normalizedHandleScale * coarse,
       edgeHandleRadius: Math.max(4, 5.5 * inverseZoom) * normalizedHandleScale * visualTrim,
-      vertexHitRadius: Math.max(10, 16 * inverseZoom) * normalizedHandleScale * coarse,
+      vertexHitRadius: Math.max(3, 7 * inverseZoom) * normalizedHandleScale * coarse,
       vertexHandleRadius: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * visualTrim,
       // Label size = ~75% of handle diameter so it always fits inside the bubble
       vertexLabelSize: Math.max(5, 7.5 * inverseZoom) * normalizedHandleScale * 1.5 * visualTrim,

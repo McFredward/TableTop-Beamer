@@ -81,21 +81,27 @@
   // the clean baseline. Before this, every dropdown change that merely
   // re-selected the current value was incorrectly marking the config
   // dirty and triggering the "unsaved changes" banner.
+  //
+  // Fast-path optimisation: once the local state is already known
+  // dirty, subsequent mutations skip the full snapshot build +
+  // stableStringify (which on a multi-board project can chew ~1MB of
+  // JSON per call and was firing once per vertex drag, animation
+  // tweak, etc.). The user's "is it actually clean again?" check
+  // happens on the next call after they've cleared dirty (Apply or
+  // Discard) — that path still does the full comparison so reverting
+  // to baseline is detectable.
   function persistBoardProfiles() {
-    const currentJson = buildDirtyComparisonSnapshot();
     if (cleanBaselineJson === null) {
-      // Baseline not yet captured (shouldn't happen in normal bootstrap
-      // ordering, but stay safe). Fall back to legacy mark-always.
       markLocalConfigDirty("board-profiles-mutated");
       return { ok: true, target: "local-dirty", routing: "opt-in" };
     }
+    if (ctx.state.localConfigDirty) {
+      // Already dirty — nothing the comparison would tell us that we
+      // don't already know. Skip the heavy stringify entirely.
+      return { ok: true, target: "local-dirty", routing: "opt-in" };
+    }
+    const currentJson = buildDirtyComparisonSnapshot();
     if (currentJson === cleanBaselineJson) {
-      // No net change vs. the last server-clean state. Ensure the dirty
-      // flag is cleared in case an earlier mutation brought us here and
-      // the user has since reverted.
-      if (ctx.state.localConfigDirty) {
-        clearLocalConfigDirty("Global config: no unsaved changes");
-      }
       return { ok: true, target: "clean", routing: "opt-in" };
     }
     markLocalConfigDirty("board-profiles-mutated");
