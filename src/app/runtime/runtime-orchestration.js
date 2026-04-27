@@ -1921,6 +1921,9 @@ if (window.TT_BEAMER_ANIMATION_EDITOR_VIEW) {
     persistBoardProfiles: () => persistBoardProfiles(),
     refreshGlobalButtons: () => refreshGlobalButtons(),
     resolveRoomCodedEffectType: (assetRef) => resolveRoomCodedEffectType(assetRef),
+    getRoomCodedAssetKeys: () => getRoomCodedAssetKeys(),
+    getInsideCodedAssetKeys: () => getInsideCodedAssetKeys(),
+    getOutsideCodedAssetKeys: () => getOutsideCodedAssetKeys(),
     setSettingsSubtab: (subtab) => setSettingsSubtab(subtab),
     // Editor-scoped Apply / Discard + Back
     // guard. Back uses window.confirm to block the exit when the user

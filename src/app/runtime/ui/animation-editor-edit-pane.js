@@ -174,6 +174,17 @@
     return scope;
   }
 
+  // Pretty-print a coded effect key for the dropdown
+  // (e.g. "hull-flicker" → "Hull Flicker").
+  function formatCodedEffectLabel(key) {
+    const raw = String(key || "").trim();
+    if (!raw) return "(none)";
+    return raw
+      .replace(/[-_]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }
+
   // -------- Identity card ------------------------------------------
   function buildIdentityCard(scope, def, boardId) {
     const card = document.createElement("section");
@@ -462,19 +473,37 @@
     if (def.assetType === "gif" || def.assetType === "mp4") {
       card.append(buildAssetPickerRow(scope, def, boardId));
     } else {
+      // Coded effect dropdown — use the scope-specific registry of
+      // valid keys so the user can pick an effect from the list
+      // instead of typing one and hoping it matches a renderer.
+      // (Phase 25 user feedback: "key" text input was unguessable.)
       const label = document.createElement("label");
       label.className = "anim-editor-field-label";
       const cap = document.createElement("span");
-      cap.textContent = "Effect key";
-      const input = document.createElement("input");
-      input.type = "text";
-      input.maxLength = 256;
-      input.placeholder = "e.g. hull-flicker";
-      input.value = def.assetRef ?? "";
-      input.addEventListener("input", () => {
-        patchAnimation(scope, boardId, def.id, { assetRef: input.value.trim() });
+      cap.textContent = "Effect";
+      const select = document.createElement("select");
+      const getKeys = scope === "room" ? ctx.getRoomCodedAssetKeys
+        : scope === "inside" ? ctx.getInsideCodedAssetKeys
+        : scope === "outside" ? ctx.getOutsideCodedAssetKeys
+        : null;
+      const codedKeys = (typeof getKeys === "function" ? getKeys() : []) || [];
+      const currentRef = String(def.assetRef ?? "").trim().toLowerCase();
+      // Make sure the current value is in the list even if the
+      // registry doesn't recognise it (legacy / hand-typed values).
+      const optionKeys = currentRef && !codedKeys.includes(currentRef)
+        ? [currentRef, ...codedKeys]
+        : codedKeys;
+      for (const key of optionKeys) {
+        const option = document.createElement("option");
+        option.value = key;
+        option.textContent = formatCodedEffectLabel(key);
+        if (key === currentRef) option.selected = true;
+        select.append(option);
+      }
+      select.addEventListener("change", () => {
+        patchAnimation(scope, boardId, def.id, { assetRef: select.value });
       });
-      label.append(cap, input);
+      label.append(cap, select);
       card.append(label);
     }
     return card;
