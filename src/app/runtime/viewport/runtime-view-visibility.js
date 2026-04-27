@@ -133,6 +133,22 @@
       state.panMode.spacePressed = false;
       ctx.endPanMode(null, { canceled: true });
     }
+    // Entering Settings should default to "nothing selected" so the
+    // selected-room highlight doesn't stick to whatever the user was
+    // last editing. Clear selection state on the transition.
+    if (nextView === "settings" && state.uiView !== "settings") {
+      state.selectedRoomId = null;
+      if (state.selectedRoomByBoard) {
+        state.selectedRoomByBoard[state.boardId] = null;
+      }
+      state.polygonEditor.selectedVertexIndex = null;
+      state.polygonEditor.selectedEdgeIndex = null;
+      state.polygonEditor.vertexSelectionActive = false;
+      if (state.shipPolygonEditor) {
+        state.shipPolygonEditor.selectedVertexIndex = null;
+      }
+      state.lastPolygonFocus = null;
+    }
     state.uiView = nextView;
     ctx.ensurePrimaryNavigationVisible();
     if (ctx.controlPanel) {
