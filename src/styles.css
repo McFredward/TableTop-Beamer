@@ -457,15 +457,14 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-handle {
-  /* Solid dot: high-opacity fill instead of the prior translucent
-   * disc, so the vertex reads as a filled point rather than a ring
-   * around the underlying board image. */
-  fill: rgba(255, 218, 140, 0.95);
-  stroke: rgba(255, 242, 214, 0.92);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
+  /* Truly solid dot: opaque fill, NO stroke. The previous version
+   * kept a 1.4px stroke that ate the visible inside on small handles
+   * and made the vertex look like a hollow ring. The drop-shadow
+   * provides the visual definition against the board image. */
+  fill: rgb(255, 218, 140);
+  stroke: none;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
   /* Vertex transparency slider (Phase 25 user feedback). The wire
    * binder writes --tt-vertex-handle-opacity on documentElement; this
    * rule applies it as the SVG element's group opacity so a value of 0
@@ -477,18 +476,16 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-handle.is-active {
-  fill: rgba(255, 246, 138, 0.95);
-  stroke: rgba(20, 24, 16, 0.95);
-  stroke-width: 2.8;
+  fill: rgb(255, 246, 138);
+  stroke: none;
   /* Always stay visible even when the transparency slider hides the
    * resting handles — the user explicitly picked this vertex. */
   opacity: 1;
   filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
 .ship-polygon-vertex-handle.is-active {
-  fill: rgba(255, 246, 138, 0.95);
-  stroke: rgba(20, 24, 16, 0.95);
-  stroke-width: 2.8;
+  fill: rgb(255, 246, 138);
+  stroke: none;
   opacity: 1;
   filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
@@ -545,8 +542,8 @@ body[data-output-role="final-output"] .toast-stack {
 
 .ship-polygon-vertex-handle {
   /* Solid dot — see .polygon-vertex-handle. */
-  fill: rgba(172, 183, 255, 0.95);
-  stroke: rgba(240, 244, 255, 0.96);
+  fill: rgb(172, 183, 255);
+  stroke: none;
 }
 
 .ship-polygon-vertex-index {
