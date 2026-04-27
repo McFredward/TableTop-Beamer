@@ -14,6 +14,22 @@
     ctx = dependencies;
   }
 
+  // Coalesced rAF defer for renderRunningAnimationsList. The running-
+  // list rebuild is the heaviest synchronous work on the start path and
+  // isn't required for the animation to appear on the canvas — the next
+  // draw frame handles that. Deferring shaves perceptible latency off
+  // the tap → paint loop on mobile where every ms of main-thread work
+  // delays the next compositor frame. Multiple starts within one frame
+  // collapse to a single rAF render. (Phase 25 BACKLOG #9)
+  let pendingRunningListFrame = 0;
+  function deferRenderRunningList() {
+    if (pendingRunningListFrame) return;
+    pendingRunningListFrame = window.requestAnimationFrame(() => {
+      pendingRunningListFrame = 0;
+      try { ctx.renderRunningAnimationsList(); } catch { /* defensive */ }
+    });
+  }
+
   function startRoomAnimationFromDraft() {
     const {
       state, triggerFeedback, OUTPUT_ROLE_CONTROL,
@@ -475,7 +491,7 @@
             }
             clearRoomDraftEditTarget();
             triggerFeedback.textContent = `Status: ${updatedCluster.id} updated in place (cluster)`;
-            renderRunningAnimationsList();
+            deferRenderRunningList();
             return;
           }
           clearRoomDraftEditTarget();
@@ -497,7 +513,7 @@
           playSoundForAnimation(updated);
           triggerFeedback.textContent = `Status: ${updated.id} updated in place`;
           clearRoomDraftEditTarget();
-          renderRunningAnimationsList();
+          deferRenderRunningList();
           emitLiveMutation("edit-room", {
             animationId: updated.id,
             animation: buildAnimationSnapshotForLiveSync(updated),
@@ -595,7 +611,7 @@
       triggerFeedback.textContent = isClusterTarget
         ? `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for cluster ${targetLabel} (${createdAnimations.length} rooms, ${clusterStartModeLabel})`
         : `Status: ${getRoomAnimationLabelById(draftPayload.type, state.boardId)} started for ${targetLabel}`;
-      renderRunningAnimationsList();
+      deferRenderRunningList();
 
       // Save as default animation if the checkbox is checked.
       if (ctx.dashboardDefaultAnimation?.checked && createdAnimations.length > 0) {
