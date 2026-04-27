@@ -1676,6 +1676,16 @@ body[data-output-role="final-output"].dir-obsidian {
 body[data-output-role="final-output"] .cluster-pads {
   display: none !important;
 }
+/* Hide the rail on Settings view. setActiveView toggles `view-hidden`
+ * + the `hidden` attribute on every [data-view="dashboard"] element,
+ * but the .cluster-pads class rule above sets `display: flex` and wins
+ * the specificity tie since theme-obsidian.css loads after styles.css.
+ * Use #id specificity here so the rail actually disappears under
+ * Settings. (Phase 25 BACKLOG #5 follow-up) */
+#cluster-pads.view-hidden,
+#cluster-pads[hidden] {
+  display: none !important;
+}
 /* Empty-state placeholder for the cluster rail. Visible while we
  * have zero pads — this used to be `display: none` but hiding
  * the container made it impossible to tell at a glance whether
