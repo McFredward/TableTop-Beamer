@@ -948,19 +948,18 @@ body[data-output-role="final-output"].dir-obsidian {
   stroke-linejoin: round;
 }
 
-/* Vertex + edge handles: crisp dots, no heavy drop-shadow.
- * Default state is a small accent-tinted pill; active state pops to
- * solid accent for selection, with a subtle glow halo. */
+/* Vertex + edge handles: TRULY solid dots — opaque fill, no stroke.
+ * The previous obsidian rule kept a 75%-transparent fill plus a 1.5px
+ * white stroke, which read as a hollow ring once the user shrunk the
+ * handle below 50%. The drop-shadow alone provides definition. */
 .dir-obsidian .polygon-vertex-handle {
-  fill: color-mix(in srgb, var(--c-accent) 75%, transparent);
-  stroke: #ffffff;
-  stroke-width: 1.5;
+  fill: var(--c-accent);
+  stroke: none;
   filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c-accent) 55%, transparent));
 }
 .dir-obsidian .polygon-vertex-handle.is-active {
   fill: var(--c-accent);
-  stroke: #ffffff;
-  stroke-width: 2;
+  stroke: none;
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
 }
 .dir-obsidian .polygon-vertex-index {
@@ -1005,14 +1004,13 @@ body[data-output-role="final-output"].dir-obsidian {
   stroke: var(--c-accent);
 }
 .dir-obsidian .ship-polygon-vertex-handle {
-  fill: color-mix(in srgb, var(--c-text-2) 60%, transparent);
-  stroke: #ffffff;
-  stroke-width: 1.5;
+  fill: var(--c-text-2);
+  stroke: none;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45));
 }
 .dir-obsidian .ship-polygon-vertex-handle.is-active {
   fill: var(--c-accent);
-  stroke: #ffffff;
-  stroke-width: 2;
+  stroke: none;
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
 }
 .dir-obsidian .ship-polygon-edge-handle {
