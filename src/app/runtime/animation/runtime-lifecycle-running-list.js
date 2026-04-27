@@ -514,6 +514,13 @@
       button.classList.toggle("active", isActive);
     });
     try { renderClusterPads(); } catch { /* defensive — never crash render loop */ }
+    // Keep the Toggle-mode tile picker in sync with the current
+    // board's animation library: needed after board switch and after
+    // any animation edit/delete via the Animation Editor. The picker
+    // itself diff-checks via fingerprint (id + name + icon), so calling
+    // this on every refreshGlobalButtons tick is cheap when nothing
+    // has changed. (Phase 25 BACKLOG #3)
+    try { ctx.syncQuickModePanel?.(); } catch { /* defensive */ }
   }
 
   window.TT_BEAMER_RUNTIME_LIFECYCLE_RUNNING_LIST = {

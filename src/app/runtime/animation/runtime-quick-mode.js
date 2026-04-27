@@ -156,29 +156,37 @@
       return;
     }
     const currentId = state.roomDraft.animationId;
-    // Only rebuild pills if the animation list changed
-    const pillIds = Array.from(picker.children).map((el) => el.dataset.animationId);
-    const defIds = animations.map((d) => d.id);
-    const needsRebuild = pillIds.length !== defIds.length || pillIds.some((id, i) => id !== defIds[i]);
+    // Rebuild pills when the animation list changes structurally OR
+    // when any animation's name / resolved icon changes. The earlier
+    // ID-only fingerprint missed in-place edits (rename, icon swap)
+    // and missed board switches when both boards happened to have the
+    // same default animation IDs in the same order — pills stayed
+    // stale until the user cycled tap-action mode. (Phase 25 BACKLOG #3)
+    const icons = window.TT_BEAMER_UI_ICONS;
+    function resolveIconFor(def) {
+      return icons?.resolveAnimationIcon ? icons.resolveAnimationIcon(def) : "sparkles";
+    }
+    const pillFingerprints = Array.from(picker.children).map((el) => el.dataset.animationFingerprint || "");
+    const defFingerprints = animations.map((d) => `${d.id}|${d.name || ""}|${resolveIconFor(d)}`);
+    const needsRebuild = pillFingerprints.length !== defFingerprints.length
+      || pillFingerprints.some((fp, i) => fp !== defFingerprints[i]);
     if (needsRebuild) {
       picker.replaceChildren();
       // Build each entry as an icon tile (icon top, label
       // bottom). Icon resolution falls back through coded-effect type →
       // name keyword → sparkles (see resolveAnimationIcon). Future work will
       // let users override via the animation editor's icon picker.
-      const icons = window.TT_BEAMER_UI_ICONS;
-      for (const definition of animations) {
+      for (let i = 0; i < animations.length; i += 1) {
+        const definition = animations[i];
         const pill = document.createElement("button");
         pill.type = "button";
         pill.className = "quick-animation-pill";
         pill.dataset.animationId = definition.id;
+        pill.dataset.animationFingerprint = defFingerprints[i];
         pill.setAttribute("role", "option");
         pill.setAttribute("title", definition.name || definition.id);
         if (icons && typeof icons.createIcon === "function") {
-          const iconName = icons.resolveAnimationIcon
-            ? icons.resolveAnimationIcon(definition)
-            : "sparkles";
-          pill.append(icons.createIcon(iconName, { size: 22 }));
+          pill.append(icons.createIcon(resolveIconFor(definition), { size: 22 }));
         }
         const label = document.createElement("span");
         label.className = "quick-animation-pill-label";

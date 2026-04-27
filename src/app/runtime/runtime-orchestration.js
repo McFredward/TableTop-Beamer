@@ -2178,6 +2178,7 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   getBoardRoomClusters: (boardId) => getBoardRoomClusters(boardId),
   startRoomAnimationFromDraft: () => startRoomAnimationFromDraft?.(),
   syncRoomTargetSelect: () => syncRoomTargetSelect?.(),
+  syncQuickModePanel: () => syncQuickModePanel?.(),
 });
 const {
   collectAnimationStopIds,
