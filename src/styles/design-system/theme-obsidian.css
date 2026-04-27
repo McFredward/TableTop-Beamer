@@ -1579,6 +1579,21 @@ body[data-output-role="final-output"].dir-obsidian {
    * the rail is now a header + scrollable list. The
    * outer box keeps its fixed positioning + scale; the inner
    * .cluster-pads-list owns the scroll. */
+
+  /* Pin to dark-theme tokens so the rail keeps its dark
+   * appearance under .dir-obsidian-light. The cluster pads display
+   * live animation pixels designed for a dark surface; under the
+   * light theme the pad would turn white and the "Cluster" header +
+   * pad labels would lose contrast. These overrides cascade to every
+   * descendant via CSS variable inheritance. (Phase 25 BACKLOG #1) */
+  --c-bg:         #0b0d10;
+  --c-bg-raised:  #14171c;
+  --c-text:       #f2f4f7;
+  --c-text-2:     rgba(242, 244, 247, 0.68);
+  --c-text-3:     rgba(242, 244, 247, 0.42);
+  --c-border:     rgba(255, 255, 255, 0.08);
+  --c-border-str: rgba(255, 255, 255, 0.14);
+
   position: fixed;
   display: flex;
   flex-direction: column;
