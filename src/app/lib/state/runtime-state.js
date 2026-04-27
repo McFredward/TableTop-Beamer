@@ -59,6 +59,7 @@
       specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},
       frozenRoomsByBoard: {},
+      hiddenRoomNamesByBoard: {},
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},

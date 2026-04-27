@@ -271,6 +271,43 @@
     return result;
   }
 
+  // Hide-room-name toggle (Phase 25 BACKLOG #6). Mirrors the frozen-
+  // room state pattern: parallel state map keyed by board+room, no
+  // change to ROOM_SCHEMA, persisted via board profiles, local to the
+  // dashboard render path (renderRoomOverlay skips the SVG label
+  // when hidden). /output never renders the label, so this toggle is
+  // a no-op there.
+  function isRoomNameHidden(boardId = ctx.state.boardId, roomId) {
+    return Boolean(ctx.state.hiddenRoomNamesByBoard?.[boardId]?.[roomId]);
+  }
+
+  function setRoomNameHidden(boardId, roomId, hidden) {
+    const state = ctx.state;
+    if (!state.hiddenRoomNamesByBoard[boardId]) {
+      state.hiddenRoomNamesByBoard[boardId] = {};
+    }
+    if (hidden) {
+      state.hiddenRoomNamesByBoard[boardId][roomId] = true;
+    } else {
+      delete state.hiddenRoomNamesByBoard[boardId][roomId];
+    }
+  }
+
+  function normalizeHiddenRoomNamesMap(raw, boardId) {
+    if (!raw || typeof raw !== "object") {
+      return {};
+    }
+    const board = ctx.getBoard(boardId);
+    const validIds = new Set(board.rooms.map((room) => room.id));
+    const result = {};
+    for (const roomId of Object.keys(raw)) {
+      if (validIds.has(roomId) && raw[roomId]) {
+        result[roomId] = true;
+      }
+    }
+    return result;
+  }
+
   window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS = {
     init,
     createDefaultHitareaCalibrationMap,
@@ -307,5 +344,8 @@
     isRoomFrozen,
     setRoomFrozen,
     normalizeFrozenRoomsMap,
+    isRoomNameHidden,
+    setRoomNameHidden,
+    normalizeHiddenRoomNamesMap,
   };
 })();

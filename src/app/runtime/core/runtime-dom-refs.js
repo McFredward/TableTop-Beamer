@@ -215,6 +215,7 @@
       roomDeleteButton: document.querySelector("#room-delete"),
       roomManagementStatus: document.querySelector("#room-management-status"),
       roomFrozenCheckbox: document.querySelector("#room-frozen-checkbox"),
+      roomNameHiddenCheckbox: document.querySelector("#room-name-hidden-checkbox"),
       clusterSelect: document.querySelector("#cluster-select"),
       clusterNameInput: document.querySelector("#cluster-name-input"),
       clusterRoomIdsSelect: document.querySelector("#cluster-room-ids"),

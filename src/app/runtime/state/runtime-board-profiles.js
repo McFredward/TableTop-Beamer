@@ -57,6 +57,7 @@
           outsideFx: ctx.normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
           defaultAnimations: state.defaultAnimationsByBoard[board.id] || [],
           frozenRooms: state.frozenRoomsByBoard[board.id] || {},
+          hiddenRoomNames: state.hiddenRoomNamesByBoard[board.id] || {},
         },
       ]),
     );
@@ -173,6 +174,9 @@
     );
     state.frozenRoomsByBoard = Object.fromEntries(
       BOARDS.map((board) => [board.id, ctx.normalizeFrozenRoomsMap(profiles?.[board.id]?.frozenRooms, board.id)]),
+    );
+    state.hiddenRoomNamesByBoard = Object.fromEntries(
+      BOARDS.map((board) => [board.id, ctx.normalizeHiddenRoomNamesMap(profiles?.[board.id]?.hiddenRoomNames, board.id)]),
     );
     // Sync specialPolygonsByBoard → room.polygon so
     // getRoomSourcePoints (which reads room.polygon) sees the

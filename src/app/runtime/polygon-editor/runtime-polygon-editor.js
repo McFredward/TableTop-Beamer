@@ -445,7 +445,10 @@
       }
       ctx.roomOverlay.append(polygon);
 
-      if (ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) {
+      if (
+        ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL
+        && !(typeof ctx.isRoomNameHidden === "function" && ctx.isRoomNameHidden(state.boardId, room.id))
+      ) {
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
         label.classList.add("room-zone-label");
         const labelPosition = ctx.getRoomLabelPosition(room, state.boardId);

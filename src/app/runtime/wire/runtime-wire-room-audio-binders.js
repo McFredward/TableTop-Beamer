@@ -119,9 +119,11 @@
       getMp4TierDefaults,
       updateMp4PerformanceControls,
       roomFrozenCheckbox,
+      roomNameHiddenCheckbox,
       roomColorPicker,
       roomColorPickerLabel,
       setRoomFrozen,
+      setRoomNameHidden,
       syncSelectedRoomStateForBoard,
       persistBoardProfiles,
       renderRoomOverlay,
@@ -191,6 +193,15 @@
         setRoomFrozen(state.boardId, roomId, roomFrozenCheckbox.checked);
         persistBoardProfiles();
         syncRoomTargetSelect();
+        renderRoomOverlay();
+      }
+    });
+
+    roomNameHiddenCheckbox?.addEventListener("change", () => {
+      const roomId = syncSelectedRoomStateForBoard(state.boardId);
+      if (roomId) {
+        setRoomNameHidden(state.boardId, roomId, roomNameHiddenCheckbox.checked);
+        persistBoardProfiles();
         renderRoomOverlay();
       }
     });
