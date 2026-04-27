@@ -448,6 +448,14 @@ body[data-output-role="final-output"] .toast-stack {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
+  /* Vertex transparency slider (Phase 25 user feedback). The wire
+   * binder writes --tt-vertex-handle-opacity on documentElement; this
+   * rule applies it as the SVG element's group opacity so a value of 0
+   * fully hides the handle (incl. fill, stroke and drop shadow). */
+  opacity: var(--tt-vertex-handle-opacity, 1);
+}
+.ship-polygon-vertex-handle {
+  opacity: var(--tt-vertex-handle-opacity, 1);
 }
 
 .polygon-vertex-handle.is-active {

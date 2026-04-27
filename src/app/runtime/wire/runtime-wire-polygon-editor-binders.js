@@ -138,6 +138,36 @@
     });
   }
 
+  function _wirePolygonHandleOpacity(ctx) {
+    const {
+      state,
+      polygonHandleOpacityInput,
+      polygonHandleOpacityValue,
+      renderRoomOverlay,
+    } = ctx;
+    const apply = (frac) => {
+      // Set a CSS variable on documentElement so the overlay's
+      // vertex/handle style rules can pick it up. Falls back to
+      // inline style on the overlay element if styles haven't been
+      // updated to use the variable yet.
+      const clamped = Math.max(0, Math.min(1, Number(frac) || 0));
+      document.documentElement.style.setProperty("--tt-vertex-handle-opacity", String(clamped));
+      // Defensive: also stamp a class flag for stylesheets that
+      // need a discrete on/off cue.
+      document.documentElement.classList.toggle("tt-vertex-handles-hidden", clamped === 0);
+    };
+    apply(state.polygonEditor.handleOpacity ?? 1);
+    polygonHandleOpacityInput?.addEventListener("input", () => {
+      const pct = Math.max(0, Math.min(100, Number(polygonHandleOpacityInput.value) || 0));
+      const frac = pct / 100;
+      state.polygonEditor.handleOpacity = frac;
+      if (polygonHandleOpacityValue) polygonHandleOpacityValue.textContent = `${Math.round(pct)}%`;
+      apply(frac);
+      renderRoomOverlay();
+      window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
+    });
+  }
+
   function _wireShowPlayAreaVerticesToggle(ctx) {
     const {
       state,
@@ -673,6 +703,7 @@
     _wirePolygonRoomSelectChange(ctx);
     _wireShowRoomVerticesToggle(ctx);
     _wireShowRoomNamesToggle(ctx);
+    _wirePolygonHandleOpacity(ctx);
     _wireShowPlayAreaVerticesToggle(ctx);
     _wirePolygonVertexSelectChange(ctx);
     _wirePolygonEdgeSelectChange(ctx);

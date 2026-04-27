@@ -80,6 +80,8 @@
       }
       const scale = clamp(dpe.handleScale, 0.25, 4, null);
       if (scale !== null) pe.handleScale = scale;
+      const opacity = clamp(dpe.handleOpacity, 0, 1, null);
+      if (opacity !== null) pe.handleOpacity = opacity;
     }
     if (state.quickMode && data.quickMode && typeof data.quickMode === "object") {
       const m = normalizeQuickMode(data.quickMode.mode);
@@ -100,6 +102,7 @@
         roomNamesVisible: pe.roomNamesVisible !== false,
         playAreaVerticesVisible: pe.playAreaVerticesVisible !== false,
         handleScale: clamp(pe.handleScale, 0.25, 4, 1),
+        handleOpacity: clamp(pe.handleOpacity, 0, 1, 1),
       },
       quickMode: {
         mode: normalizeQuickMode(state.quickMode?.mode) ?? "toggle",

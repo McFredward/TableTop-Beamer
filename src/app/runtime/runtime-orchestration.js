@@ -125,7 +125,7 @@ const {
   mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
   mp4QualityFloorValue, mp4DegradeThresholdInput, mp4DegradeThresholdValue,
   mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus, toastStack,
-  polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonVertexSelect, polygonEdgeSelect,
+  polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
   roomCreateButton, roomDeleteButton, roomManagementStatus, roomFrozenCheckbox,
@@ -1868,6 +1868,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   // finishes its own init a few lines below.
   enterRotationMode: (roomId) => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.enterRotationMode?.(roomId),
   exitRotationMode: () => window.TT_BEAMER_RUNTIME_POLYGON_ROTATION?.exitRotationMode?.(),
+  deleteSelectedRoom: () => deleteSelectedRoom(),
 });
 
 // Polygon rotation mode (right-click → Rotate / Exit).
@@ -2487,6 +2488,8 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   polygonRoomSelect,
   showRoomVerticesInput,
   showRoomNamesInput,
+  polygonHandleOpacityInput,
+  polygonHandleOpacityValue,
   showPlayAreaVerticesInput,
   polygonVertexSelect,
   polygonEdgeSelect,

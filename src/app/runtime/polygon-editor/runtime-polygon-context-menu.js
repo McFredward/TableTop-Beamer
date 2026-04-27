@@ -57,7 +57,21 @@
     });
     rotateBtn.addEventListener("pointerdown", (event) => event.stopPropagation());
 
-    menuEl.append(addBtn, rotateBtn);
+    // Delete room — second polygon-context option.
+    // (Phase 25 user feedback.)
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "board-context-menu-item";
+    deleteBtn.dataset.action = "delete";
+    deleteBtn.setAttribute("role", "menuitem");
+    deleteBtn.textContent = "Delete room";
+    deleteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      handleDeleteRoom();
+    });
+    deleteBtn.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    menuEl.append(addBtn, rotateBtn, deleteBtn);
     document.querySelector(".app-shell").append(menuEl);
   }
 
@@ -98,20 +112,40 @@
     if (!menuEl) return;
     const addBtn = menuEl.querySelector("[data-action=\"add\"]");
     const rotateBtn = menuEl.querySelector("[data-action=\"rotate\"]");
+    const deleteBtn = menuEl.querySelector("[data-action=\"delete\"]");
     const isRotatingThis = ctx.state.polygonEditor?.rotatingRoomId
       && ctx.state.polygonEditor.rotatingRoomId === roomId;
     if (mode === "empty") {
       if (addBtn) addBtn.hidden = false;
       if (rotateBtn) rotateBtn.hidden = true;
+      if (deleteBtn) deleteBtn.hidden = true;
     } else if (mode === "polygon") {
       if (addBtn) addBtn.hidden = true;
       if (rotateBtn) {
         rotateBtn.hidden = false;
         rotateBtn.textContent = isRotatingThis ? "Exit rotation mode" : "Rotate polygon";
       }
+      if (deleteBtn) deleteBtn.hidden = false;
     }
     menuEl._mode = mode;
     menuEl._roomId = roomId;
+  }
+
+  function handleDeleteRoom() {
+    const targetRoomId = menuEl?._roomId ?? null;
+    hideMenu();
+    if (!targetRoomId) return;
+    // Mirror the keyboard DEL path: select the room first so
+    // deleteSelectedRoom() targets the right one. The selection bridge
+    // is owned by polygon-editor's "select room" action — we use the
+    // exposed ctx.deleteRoomById when available, else fall back to
+    // setting state and calling deleteSelectedRoom.
+    const state = ctx.state;
+    state.selectedRoomId = targetRoomId;
+    state.selectedRoomByBoard[state.boardId] = targetRoomId;
+    if (typeof ctx.deleteSelectedRoom === "function") {
+      ctx.deleteSelectedRoom();
+    }
   }
 
   function handleRotateOrExit() {

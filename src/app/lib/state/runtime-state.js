@@ -76,6 +76,12 @@
         // Mirrors roomVerticesVisible — session-level, not persisted.
         // (Phase 25 BACKLOG #6)
         roomNamesVisible: true,
+        // 0..1 transparency of the polygon vertex handles in the
+        // overlay. 1 = fully opaque (legacy), 0 = invisible. Mirrors
+        // handleScale's session-level lifecycle but persisted via
+        // the local-ui-prefs module so it survives reloads.
+        // (Phase 25 user feedback.)
+        handleOpacity: 1,
         playAreaVerticesVisible: true,
         selectedVertexIndex: 0,
         selectedEdgeIndex: 0,

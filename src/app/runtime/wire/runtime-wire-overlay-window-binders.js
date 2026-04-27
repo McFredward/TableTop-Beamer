@@ -417,6 +417,18 @@
             deleteSelectedPolygonVertex();
             return;
           }
+          // Room is focused but no vertex is active → delete the
+          // whole room polygon. This branch matches the user's
+          // expectation: "select a room, press DEL → polygon gone".
+          // Has to come BEFORE the canDeleteShipVertex fallback,
+          // otherwise a non-zero ship-vertex index intercepts every
+          // DEL keystroke even when the user hasn't touched the play
+          // area lately. (Phase 25 user feedback.)
+          if (lastFocus === "room" && !playAreaContext) {
+            event.preventDefault();
+            deleteSelectedRoom();
+            return;
+          }
           // No explicit focus marker — legacy fallbacks.
           if (roomVertexActive) {
             event.preventDefault();

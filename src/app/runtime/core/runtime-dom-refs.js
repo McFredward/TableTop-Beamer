@@ -203,6 +203,8 @@
       polygonRoomSelect: document.querySelector("#polygon-room-select"),
       showRoomVerticesInput: document.querySelector("#show-room-vertices"),
       showRoomNamesInput: document.querySelector("#show-room-names"),
+      polygonHandleOpacityInput: document.querySelector("#polygon-handle-opacity"),
+      polygonHandleOpacityValue: document.querySelector("#polygon-handle-opacity-value"),
       polygonVertexSelect: document.querySelector("#polygon-vertex-select"),
       polygonEdgeSelect: document.querySelector("#polygon-edge-select"),
       polygonInsertVertexButton: document.querySelector("#polygon-insert-vertex"),

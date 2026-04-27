@@ -153,6 +153,22 @@
     if (ctx.showRoomNamesInput) {
       ctx.showRoomNamesInput.checked = state.polygonEditor.roomNamesVisible !== false;
     }
+    if (ctx.polygonHandleOpacityInput) {
+      const opacityFrac = Number.isFinite(Number(state.polygonEditor.handleOpacity))
+        ? Number(state.polygonEditor.handleOpacity)
+        : 1;
+      const pct = Math.max(0, Math.min(100, Math.round(opacityFrac * 100)));
+      ctx.polygonHandleOpacityInput.value = String(pct);
+      if (ctx.polygonHandleOpacityValue) {
+        ctx.polygonHandleOpacityValue.textContent = `${pct}%`;
+      }
+      // Push the loaded value into the CSS variable so the
+      // overlay reflects the persisted setting on first paint.
+      document.documentElement.style.setProperty(
+        "--tt-vertex-handle-opacity",
+        String(opacityFrac),
+      );
+    }
     ctx.polygonVertexSelect.disabled = disabled || !roomVerticesVisible;
     ctx.polygonEdgeSelect.disabled = disabled || !roomVerticesVisible;
     ctx.polygonInsertVertexButton.disabled = disabled || !roomVerticesVisible;
