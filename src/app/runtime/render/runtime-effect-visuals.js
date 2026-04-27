@@ -242,31 +242,36 @@
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const alpha = Math.max(0, Math.min(1, opacityOption * intensitySafe));
-      // Clear any existing alpha within the room's clipped area first,
-      // then paint at the configured alpha. This prevents the "intensity
-      // bump" at room overlaps when two rooms with solid-color have
-      // intersecting polygons — without the pre-clear, source-over
-      // accumulates alpha across draws (0.5 + 0.5×0.5 = 0.75) so the
-      // overlap looks visibly brighter. With the pre-clear, the overlap
-      // ends up at exactly `alpha` like the non-overlap regions.
-      // (Phase 25 BACKLOG #12)
+      // Composite mode "copy" replaces dst with src inside the clip,
+      // so the AA edge of the clipped fill ends up as pure solid-color
+      // (alpha falloff at the 1-pixel boundary only — no color mixing
+      // with whatever was painted behind: outside-fx, adjacent rooms'
+      // animations, etc.). This addresses two user-reported artifacts:
+      //   - Cross-room polygon overlap intensity bump (BACKLOG #12) —
+      //     "copy" replaces, so two rooms with the same color don't
+      //     alpha-accumulate (0.5 + 0.5×0.5 = 0.75) at the overlap.
+      //   - "Lighter edges" at play-area boundaries and adjacent to
+      //     dark animations like malfunction — without "copy" the AA
+      //     edge would source-over-blend with bright outside-fx or
+      //     adjacent-room paint, making the rim look brighter than
+      //     the interior.
       //
-      // Skip the pre-clear when the outer composite is "lighter" — that
-      // means the caller is in the same-room ≥2-anims path (Phase 12-1)
-      // and is intentionally relying on additive blend with a sibling
-      // animation in this room. Pre-clearing would destroy the sibling's
-      // contribution. The cross-room-overlap intensity bump only happens
-      // under "source-over", so gating on that is sufficient.
-      const wantsClear = c.globalCompositeOperation === "source-over";
-      if (wantsClear) {
+      // Skip "copy" when the outer composite is "lighter" — that's
+      // the same-room ≥2-anims path (Phase 12-1) and intentionally
+      // additively blends with sibling animations in this room.
+      // Cross-room-overlap and edge-mix artifacts only happen under
+      // "source-over", so gating on that is sufficient.
+      const useCopy = c.globalCompositeOperation === "source-over";
+      if (useCopy) {
         c.save();
-        c.globalCompositeOperation = "destination-out";
-        c.fillStyle = "rgba(0, 0, 0, 1)";
+        c.globalCompositeOperation = "copy";
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
         c.restore();
+      } else {
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       }
-      c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       return;
     }
 
