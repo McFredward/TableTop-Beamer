@@ -457,9 +457,12 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-handle {
-  fill: rgba(255, 218, 140, 0.45);
+  /* Solid dot: high-opacity fill instead of the prior translucent
+   * disc, so the vertex reads as a filled point rather than a ring
+   * around the underlying board image. */
+  fill: rgba(255, 218, 140, 0.95);
   stroke: rgba(255, 242, 214, 0.92);
-  stroke-width: 2.1;
+  stroke-width: 1.4;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
@@ -499,14 +502,11 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-index {
-  /* Labels now sit OUTSIDE the vertex handle, so they need contrast
-   * against the board image instead of the bright bubble interior.
-   * Dark stroke + bright fill = paint-style outline that reads on
-   * any background. */
-  fill: #fff4d8;
-  stroke: rgba(8, 10, 16, 0.85);
-  stroke-width: 0.9;
-  paint-order: stroke fill;
+  /* Sits INSIDE the (now solid) handle bubble. The renderer skips
+   * emitting these labels altogether when the handle scale is below
+   * 50%, so the styling can stay simple and contrast-tuned for the
+   * bright bubble fill. */
+  fill: #0a0f18;
   font-family: "Barlow Condensed", sans-serif;
   font-size: 11px;
   font-weight: 600;
@@ -515,9 +515,7 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-index.is-active {
-  fill: #ffe66b;
-  stroke: rgba(8, 10, 16, 0.95);
-  stroke-width: 1;
+  fill: #fff4f4;
   font-weight: 700;
 }
 
@@ -546,21 +544,17 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .ship-polygon-vertex-handle {
-  fill: rgba(172, 183, 255, 0.52);
+  /* Solid dot — see .polygon-vertex-handle. */
+  fill: rgba(172, 183, 255, 0.95);
   stroke: rgba(240, 244, 255, 0.96);
 }
 
 .ship-polygon-vertex-index {
-  /* Outside-the-handle label — uses the same outlined style as
-   * the room-vertex labels so both polygon types stay legible
-   * against the board image. */
-  fill: #d8eaff;
-  stroke: rgba(8, 10, 16, 0.85);
+  fill: #0c1428;
 }
 
 .ship-polygon-vertex-index.is-active {
-  fill: #ffe66b;
-  stroke: rgba(8, 10, 16, 0.95);
+  fill: #effffd;
 }
 
 .dashboard {

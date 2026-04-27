@@ -147,12 +147,11 @@
       ctx.roomOverlay.append(edgeMarker);
     }
 
-    // Compute polygon centroid so vertex labels can be pushed
-    // OUTWARD (away from the polygon body) instead of sitting on top
-    // of the vertex handles. Lets the user shrink handles smaller for
-    // precise placement without losing the index labels.
-    const centroidX = points.reduce((s, p) => s + p[0], 0) / points.length;
-    const centroidY = points.reduce((s, p) => s + p[1], 0) / points.length;
+    // Hide vertex index labels once the handle gets small (under 50%
+    // of the slider) — the numbers stop being legible inside a tiny
+    // bubble anyway, and removing them lets the user dial handles down
+    // for pixel-precise polygon placement.
+    const showIndexLabels = ctx.getCurrentPolygonHandleScale() >= 0.5;
 
     points.forEach(([x, y], index) => {
       const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -174,21 +173,18 @@
       handle.setAttribute("cy", y.toFixed(1));
       handle.setAttribute("r", vertexHandleRadius.toFixed(2));
 
-      const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      indexLabel.classList.add("polygon-vertex-index", "ship-polygon-vertex-index");
-      if (index === state.shipPolygonEditor.selectedVertexIndex) {
-        indexLabel.classList.add("is-active");
+      let indexLabel = null;
+      if (showIndexLabels) {
+        indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        indexLabel.classList.add("polygon-vertex-index", "ship-polygon-vertex-index");
+        if (index === state.shipPolygonEditor.selectedVertexIndex) {
+          indexLabel.classList.add("is-active");
+        }
+        indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
+        indexLabel.setAttribute("x", x.toFixed(1));
+        indexLabel.setAttribute("y", (y + vertexLabelSize * 0.35).toFixed(1));
+        indexLabel.textContent = String(index + 1);
       }
-      indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
-      const dx = x - centroidX;
-      const dy = y - centroidY;
-      const len = Math.hypot(dx, dy) || 1;
-      const labelOffset = vertexHandleRadius + vertexLabelSize * 0.85;
-      const labelX = x + (dx / len) * labelOffset;
-      const labelY = y + (dy / len) * labelOffset + vertexLabelSize * 0.35;
-      indexLabel.setAttribute("x", labelX.toFixed(1));
-      indexLabel.setAttribute("y", labelY.toFixed(1));
-      indexLabel.textContent = String(index + 1);
 
       hitTarget.addEventListener("pointerdown", (event) => {
         if (ctx.isPanArbitrating() || !ctx.isAcceptablePolygonPointerEvent(event) || !ctx.arePlayAreaVerticesEditable()) {
@@ -213,7 +209,8 @@
         state.polygonEditor.vertexSelectionActive = false;
         ctx.syncShipPolygonVertexSelect();
       });
-      marker.append(hitTarget, handle, indexLabel);
+      marker.append(hitTarget, handle);
+      if (indexLabel) marker.append(indexLabel);
       ctx.roomOverlay.append(marker);
     });
   }
@@ -331,11 +328,10 @@
       ctx.roomOverlay.append(edgeMarker);
     }
 
-    // See ship-handle path: outward-pushed vertex labels so the
-    // numbers stay readable when the user shrinks handles for
-    // pixel-precise polygon editing.
-    const roomCentroidX = points.reduce((s, p) => s + p[0], 0) / points.length;
-    const roomCentroidY = points.reduce((s, p) => s + p[1], 0) / points.length;
+    // Hide vertex index labels when handles are <50% — they stop
+    // being legible inside the small bubble anyway, and removing them
+    // lets the user shrink handles for pixel-precise polygon editing.
+    const showRoomIndexLabels = ctx.getCurrentPolygonHandleScale() >= 0.5;
 
     points.forEach(([x, y], index) => {
       const marker = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -359,21 +355,18 @@
       handle.setAttribute("cy", y.toFixed(1));
       handle.setAttribute("r", vertexHandleRadius.toFixed(2));
 
-      const indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      indexLabel.classList.add("polygon-vertex-index");
-      if (index === state.polygonEditor.selectedVertexIndex) {
-        indexLabel.classList.add("is-active");
+      let indexLabel = null;
+      if (showRoomIndexLabels) {
+        indexLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        indexLabel.classList.add("polygon-vertex-index");
+        if (index === state.polygonEditor.selectedVertexIndex) {
+          indexLabel.classList.add("is-active");
+        }
+        indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
+        indexLabel.setAttribute("x", x.toFixed(1));
+        indexLabel.setAttribute("y", (y + vertexLabelSize * 0.35).toFixed(1));
+        indexLabel.textContent = String(index + 1);
       }
-      indexLabel.style.fontSize = `${vertexLabelSize.toFixed(2)}px`;
-      const dx = x - roomCentroidX;
-      const dy = y - roomCentroidY;
-      const len = Math.hypot(dx, dy) || 1;
-      const labelOffset = vertexHandleRadius + vertexLabelSize * 0.85;
-      const labelX = x + (dx / len) * labelOffset;
-      const labelY = y + (dy / len) * labelOffset + vertexLabelSize * 0.35;
-      indexLabel.setAttribute("x", labelX.toFixed(1));
-      indexLabel.setAttribute("y", labelY.toFixed(1));
-      indexLabel.textContent = String(index + 1);
 
       hitTarget.addEventListener("pointerdown", (event) => {
         if (ctx.isPanArbitrating() || !ctx.isAcceptablePolygonPointerEvent(event) || !ctx.areRoomVerticesEditable()) {
@@ -401,7 +394,8 @@
         beginPolygonVertexDrag(event, room.id, index);
         ctx.syncPolygonEditorStatus();
       });
-      marker.append(hitTarget, handle, indexLabel);
+      marker.append(hitTarget, handle);
+      if (indexLabel) marker.append(indexLabel);
       ctx.roomOverlay.append(marker);
     });
   }
