@@ -1,10 +1,11 @@
 # CURRENT PHASE
 
-- Active: Phase 25 (Bug & Polish — backlog drafted)
-- Status: BACKLOG drafted from user-reported issues at end of Phase 24; awaiting ROADMAP planning
-- Backlog: `.planning/phases/phase-25/BACKLOG.md`
+- Active: Phase 25 (Bug & Polish) CLOSED
+- Status: 12 BACKLOG items shipped across 5 waves + closure; awaiting user smoke test
+- Closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end`)
 - Previous Phase: Phase 24 (Code-Quality Refactor — 6 waves) CLOSED
 
+Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end`)
 Phase 24 closure: `.planning/phases/phase-24/SUMMARY.md` (tag `phase-24-end`)
 Phase 23 closure: `.planning/phases/phase-23/SUMMARY.md`
 Phase 22 closure: `.planning/phases/phase-22/SUMMARY.md`
