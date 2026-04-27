@@ -16,93 +16,6 @@
   let ctx = null;
   let lastListRenderAt = 0;
 
-  // Solid-color rim fix (user-reported in Phase 25 hotfix series):
-  // Canvas2D rasterises every clipped path with alpha-AA at the
-  // boundary, leaving a 1-pixel halo at the polygon edge where the
-  // background shows through. To eliminate that, solid-color rooms
-  // are painted in a pre-pass via a *binarized* polygon mask: render
-  // the polygon to an offscreen, threshold every pixel's alpha to 0
-  // or 255, then drawImage to main with globalAlpha = configured
-  // alpha. drawImage from a binarized source preserves the hard
-  // edge — no AA halo. Cached per polygon (rebuilds on edit).
-  const SOLID_COLOR_MASK_CACHE = new Map();
-  const SOLID_COLOR_MASK_CACHE_CAP = 32;
-  let SOLID_COLOR_TINT_CANVAS = null;
-
-  function getSolidColorMask(polygon, w, h) {
-    if (!Array.isArray(polygon) || polygon.length < 3) return null;
-    const polyHash = polygon
-      .map((p) => `${Math.round(p[0] * 10) / 10},${Math.round(p[1] * 10) / 10}`)
-      .join("|");
-    const key = `${w}x${h}|${polyHash}`;
-    const cached = SOLID_COLOR_MASK_CACHE.get(key);
-    if (cached) {
-      // LRU touch: re-insert at end.
-      SOLID_COLOR_MASK_CACHE.delete(key);
-      SOLID_COLOR_MASK_CACHE.set(key, cached);
-      return cached;
-    }
-    let off;
-    try {
-      off = document.createElement("canvas");
-      off.width = w;
-      off.height = h;
-    } catch { return null; }
-    const oCtx = off.getContext("2d");
-    if (!oCtx) return null;
-    oCtx.fillStyle = "rgba(255, 255, 255, 1)";
-    oCtx.beginPath();
-    oCtx.moveTo(polygon[0][0], polygon[0][1]);
-    for (let i = 1; i < polygon.length; i += 1) {
-      oCtx.lineTo(polygon[i][0], polygon[i][1]);
-    }
-    oCtx.closePath();
-    oCtx.fill();
-    // Binarize alpha — every pixel becomes either fully transparent
-    // or fully opaque, eliminating Canvas2D's path-AA at the boundary.
-    let img;
-    try { img = oCtx.getImageData(0, 0, w, h); } catch { return null; }
-    const data = img.data;
-    for (let i = 3; i < data.length; i += 4) {
-      data[i] = data[i] >= 128 ? 255 : 0;
-    }
-    oCtx.putImageData(img, 0, 0);
-    if (SOLID_COLOR_MASK_CACHE.size >= SOLID_COLOR_MASK_CACHE_CAP) {
-      const firstKey = SOLID_COLOR_MASK_CACHE.keys().next().value;
-      SOLID_COLOR_MASK_CACHE.delete(firstKey);
-    }
-    SOLID_COLOR_MASK_CACHE.set(key, off);
-    return off;
-  }
-
-  function paintSolidColorBinarized(c, polygon, r, g, b, alpha) {
-    const mask = getSolidColorMask(polygon, c.canvas.width, c.canvas.height);
-    if (!mask) return false;
-    const w = c.canvas.width;
-    const h = c.canvas.height;
-    if (!SOLID_COLOR_TINT_CANVAS) {
-      SOLID_COLOR_TINT_CANVAS = document.createElement("canvas");
-    }
-    if (SOLID_COLOR_TINT_CANVAS.width !== w || SOLID_COLOR_TINT_CANVAS.height !== h) {
-      SOLID_COLOR_TINT_CANVAS.width = w;
-      SOLID_COLOR_TINT_CANVAS.height = h;
-    }
-    const tCtx = SOLID_COLOR_TINT_CANVAS.getContext("2d");
-    if (!tCtx) return false;
-    tCtx.globalCompositeOperation = "source-over";
-    tCtx.clearRect(0, 0, w, h);
-    tCtx.drawImage(mask, 0, 0);
-    tCtx.globalCompositeOperation = "source-in";
-    tCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    tCtx.fillRect(0, 0, w, h);
-    tCtx.globalCompositeOperation = "source-over";
-    c.save();
-    c.globalAlpha = alpha;
-    c.drawImage(SOLID_COLOR_TINT_CANVAS, 0, 0);
-    c.restore();
-    return true;
-  }
-
   function init(dependencies) {
     ctx = dependencies;
     window.TT_BEAMER_RUNTIME_DRAW_LOOP_CLUSTER_PADS.init({
@@ -371,14 +284,6 @@
     const state = ctx.state;
     const c = ctx.canvasCtx;
     if (Number.isFinite(animation?.startedAt) && now < Number(animation.startedAt)) {
-      return;
-    }
-    // Solid-color rim-fix pre-pass already painted this animation
-    // via the binarized mask path. Skip to avoid double-paint.
-    if (
-      animation?.id
-      && state.runtimePerf?.solidColorRenderedIds?.has(animation.id)
-    ) {
       return;
     }
     if (animation.scope === "cluster") {
@@ -706,61 +611,6 @@
         roomConcurrencyByKey.set(key, (roomConcurrencyByKey.get(key) || 0) + 1);
       }
       state.runtimePerf.roomConcurrencyByKey = roomConcurrencyByKey;
-
-      // Solid-color rim fix pre-pass: render every solo-solid-color
-      // animation directly via a binarized polygon mask (hard edges,
-      // no AA halo). The main loop below skips IDs in the rendered
-      // set. Rooms with concurrency ≥ 2 fall through to the regular
-      // clip-and-paint path with "lighter" composite (Phase 12-1
-      // additive-blend behaviour preserved). This addresses the
-      // user-reported "lighter rim" at solid-color polygon edges.
-      const solidColorRenderedIds = new Set();
-      try {
-        const board = ctx.getBoard(state.boardId);
-        const canvasC = ctx.canvasCtx;
-        for (const anim of state.runningAnimations) {
-          if (anim?.scope !== "room") continue;
-          if (anim.boardId !== state.boardId) continue;
-          // Cluster members (scope=room with parentClusterRunId) are
-          // painted by the cluster controller's member-iteration in
-          // drawAnimation. Skip here to avoid double-paint.
-          if (anim.parentClusterRunId) continue;
-          const effectType = ctx.resolveRoomCodedEffectType(
-            anim.roomAssetRef ?? anim.type,
-          );
-          if (effectType !== "solid-color") continue;
-          const concurrencyKey = `${anim.boardId ?? ""}::${anim.roomId ?? ""}`;
-          if ((roomConcurrencyByKey.get(concurrencyKey) ?? 0) >= 2) continue;
-          const room = board?.rooms?.find((r) => r.id === anim.roomId);
-          if (!room) continue;
-          const polygon = ctx.getRoomPolygonPixels(
-            room,
-            canvasC.canvas.width,
-            canvasC.canvas.height,
-            anim.boardId,
-          );
-          if (!polygon || polygon.length < 3) continue;
-          const hex = typeof anim.colorHex === "string" && /^#[0-9a-f]{6}$/i.test(anim.colorHex)
-            ? anim.colorHex
-            : "#ff0000";
-          const r = parseInt(hex.slice(1, 3), 16);
-          const g = parseInt(hex.slice(3, 5), 16);
-          const b = parseInt(hex.slice(5, 7), 16);
-          const opacity = ctx.clampRoomOpacity(anim.opacity);
-          const intensitySafe = Number.isFinite(Number(anim.intensity)) ? Number(anim.intensity) : 1;
-          const alpha = Math.max(0, Math.min(1, opacity * intensitySafe));
-          if (paintSolidColorBinarized(canvasC, polygon, r, g, b, alpha)) {
-            solidColorRenderedIds.add(anim.id);
-          }
-        }
-      } catch (error) {
-        // Defensive — never let the pre-pass break the draw loop.
-        // Falls back to the in-clip fillRect path in drawAnimation.
-        if (typeof console !== "undefined") {
-          console.warn("[draw-loop] solid-color pre-pass error", error);
-        }
-      }
-      state.runtimePerf.solidColorRenderedIds = solidColorRenderedIds;
 
       const failedAnimationIds = [];
       let renderedCount = 0;
