@@ -231,8 +231,14 @@
       // additionally consumes `options.outsideSpeed` to scale layer
       // motion; this still double-applies, but that matches board
       // behavior 1:1 so the preview and board agree on speed.
+      //
+      // Also apply state.animationSpeed (the global runtime multiplier)
+      // so the preview matches Dashboard / /output exactly when the
+      // user has changed that slider away from 1×. (Phase 25 BACKLOG #8)
+      const globalSpeed = Number(ctx?.state?.animationSpeed);
+      const globalSpeedSafe = Number.isFinite(globalSpeed) && globalSpeed > 0 ? globalSpeed : 1;
       const age = (performance.now() - startTime) / 1000;
-      const scaledAge = age * speed;
+      const scaledAge = age * speed * globalSpeedSafe;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
       const options = {
         opacity: Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1,
@@ -295,6 +301,11 @@
       }
       const current = findDefinition(scope, def.id, getEditorBoardId()) ?? def;
       const speed = Number(current.speed) > 0 ? Number(current.speed) : 1;
+      // Apply state.animationSpeed so the GIF preview matches Dashboard
+      // and /output (Phase 25 BACKLOG #8). Same factoring as the coded
+      // preview tick above.
+      const globalSpeed = Number(ctx?.state?.animationSpeed);
+      const globalSpeedSafe = Number.isFinite(globalSpeed) && globalSpeed > 0 ? globalSpeed : 1;
       const age = (performance.now() - startTime) / 1000;
       const opacity = Number.isFinite(Number(current.opacity)) ? Number(current.opacity) : 1;
       const intensity = Number.isFinite(Number(current.intensity)) ? Number(current.intensity) : 1;
@@ -302,7 +313,7 @@
       c2d.save();
       c2d.fillStyle = "#000";
       c2d.fillRect(0, 0, canvas.width, canvas.height);
-      const frame = gifApi.getGifPlaybackFrame(path, age * speed);
+      const frame = gifApi.getGifPlaybackFrame(path, age * speed * globalSpeedSafe);
       if (frame) {
         c2d.globalAlpha = effective;
         const fw = frame.width;
@@ -379,7 +390,13 @@
     el.style.opacity = String(effective);
     if (el.tagName === "VIDEO") {
       const speed = Number.isFinite(Number(def.speed)) ? Number(def.speed) : 1;
-      const clamped = Math.max(0.15, Math.min(4, speed));
+      // Multiply by state.animationSpeed so the MP4 preview matches the
+      // Dashboard / /output rate (which uses speed × state.animationSpeed
+      // — see runtime-draw-loop.js drawInsideGlobalVisual). Phase 25
+      // BACKLOG #8.
+      const globalSpeed = Number(ctx?.state?.animationSpeed);
+      const globalSpeedSafe = Number.isFinite(globalSpeed) && globalSpeed > 0 ? globalSpeed : 1;
+      const clamped = Math.max(0.15, Math.min(4, speed * globalSpeedSafe));
       try {
         if (Math.abs((Number(el.playbackRate) || 1) - clamped) > 0.01) {
           el.playbackRate = clamped;
