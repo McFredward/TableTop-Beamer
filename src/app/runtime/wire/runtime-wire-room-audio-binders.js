@@ -287,7 +287,18 @@
       // firing (first-ever tap ships the stale session defaults
       // otherwise — see bug ticket on Scanning/Slime first-tap speed).
       state.roomDraft.lastSyncedAnimationId = definition?.id ?? null;
-      // colorHex is intentionally NOT reset — user's color persists
+      // Reset colorHex to the animation's stored default whenever the
+      // user picks a (different) animation. The dashboard color picker
+      // is intentionally a "short-term override" only — switching away
+      // and back should re-show the animation's saved default, not the
+      // overridden value. (Phase 25 user feedback.)
+      const defHex = String(definition?.colorHex || "").trim();
+      if (/^#[0-9a-f]{6}$/i.test(defHex)) {
+        state.roomDraft.colorHex = defHex;
+        if (roomColorPicker) roomColorPicker.value = defHex;
+        const quickPicker = document.querySelector("#quick-mode-color-picker");
+        if (quickPicker) quickPicker.value = defHex;
+      }
       roomOpacityInput.value = String(state.roomDraft.opacity);
       roomOpacityValue.textContent = state.roomDraft.opacity.toFixed(2);
       roomIntensityInput.value = String(state.roomDraft.intensity);

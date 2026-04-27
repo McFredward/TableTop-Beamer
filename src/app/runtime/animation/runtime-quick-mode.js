@@ -194,16 +194,16 @@
         pill.append(label);
         pill.addEventListener("click", () => {
           state.roomDraft.animationId = definition.id;
-          // Also sync the main dropdown
+          // Sync the main dropdown AND fire its `change` event so the
+          // wire-binder's applyDefinitionDefaultsToDraft path runs —
+          // that's what resets colorHex (and other per-animation
+          // defaults) back to the animation's saved values, treating
+          // the dashboard pickers as short-term overrides only.
           if (ctx.roomAnimationSelect) {
             ctx.roomAnimationSelect.value = definition.id;
+            ctx.roomAnimationSelect.dispatchEvent(new Event("change", { bubbles: true }));
           }
           syncQuickAnimationPickerSelection(definition.id);
-          // Pill clicks bypass the dropdown's `change` event, so the
-          // sidebar's color picker visibility doesn't update on its
-          // own. Mirror what the dropdown change handler does so a
-          // solid-color pill exposes the colour control immediately,
-          // not only after the user opens the Animation dropdown.
           syncSolidColorPickerVisibility(definition);
         });
         picker.append(pill);
