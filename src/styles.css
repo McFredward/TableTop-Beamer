@@ -2007,3 +2007,77 @@ button.danger.is-armed {
 .tt-modal-btn-danger:hover:not(:disabled) {
   background: rgba(209, 79, 79, 1);
 }
+
+/* Compact "Delete" link tucked next to the Active Board status line —
+ * present but not in-your-face. */
+.board-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.board-status-row #board-status {
+  flex: 1;
+  margin: 0;
+}
+.board-delete-link {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(209, 79, 79, 0.85);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(209, 79, 79, 0.4);
+  text-underline-offset: 2px;
+  transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+.board-delete-link:hover:not(:disabled) {
+  background: rgba(209, 79, 79, 0.12);
+  border-color: rgba(209, 79, 79, 0.4);
+  color: rgba(255, 120, 120, 0.95);
+}
+.board-delete-link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Empty-state shown inside the stage when no boards exist. */
+.board-empty-state {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 2rem;
+  z-index: 5;
+  pointer-events: none;
+}
+.board-empty-state[hidden] {
+  display: none !important;
+}
+.board-empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.55;
+}
+.board-empty-state-title {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+.board-empty-state-body {
+  margin: 0;
+  max-width: 32rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.board-empty-state-body strong {
+  color: rgba(146, 222, 207, 0.95);
+  font-weight: 600;
+}

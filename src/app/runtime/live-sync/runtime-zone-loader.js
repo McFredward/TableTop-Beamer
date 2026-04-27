@@ -327,6 +327,30 @@
       state.boardId = BOARDS[0]?.id ?? "";
     }
     ctx.boardSelect.value = state.boardId;
+    syncBoardEmptyState(BOARDS.length === 0);
+  }
+
+  // Toggle the in-stage empty-state placeholder + hide the existing
+  // board image when no boards are loaded. Also disables the delete
+  // button so the user can't try to delete what isn't there.
+  function syncBoardEmptyState(isEmpty) {
+    const empty = document.querySelector("#board-empty-state");
+    const img = document.querySelector("#board-image");
+    const overlay = document.querySelector("#room-overlay");
+    const deleteBtn = document.querySelector("#board-delete-current");
+    if (empty) {
+      if (isEmpty) empty.removeAttribute("hidden");
+      else empty.setAttribute("hidden", "");
+    }
+    if (img) {
+      img.style.visibility = isEmpty ? "hidden" : "";
+    }
+    if (overlay) {
+      overlay.style.visibility = isEmpty ? "hidden" : "";
+    }
+    if (deleteBtn) {
+      deleteBtn.disabled = isEmpty;
+    }
   }
 
   // Delete an imported board on the server, then drop it from the

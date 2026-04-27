@@ -58,6 +58,16 @@
           <p class="loading-text">Loading...</p>
         </div>
         <img id="board-image" alt="Board" draggable="false" />
+        <!-- Empty-state when no boards exist (after deleting the last one).
+             Shown by the zone-loader when BOARDS is empty; hidden otherwise. -->
+        <div id="board-empty-state" class="board-empty-state" hidden>
+          <div class="board-empty-state-icon" aria-hidden="true">📋</div>
+          <h2 class="board-empty-state-title">No board loaded</h2>
+          <p class="board-empty-state-body">
+            Open <strong>Settings → Share a Board</strong> and import a board
+            package or board image to get started.
+          </p>
+        </div>
         <canvas id="fx-canvas" aria-hidden="true"></canvas>
         <!-- Phase 23 W3 v2: GL warp output canvas. Pre-declared in
              HTML so the WebGL context is created on a real DOM
@@ -325,10 +335,13 @@
           Board
           <select id="board-select"></select>
         </label>
-        <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
-        <button id="board-delete-current" type="button" class="rd-btn rd-btn-danger">
-          Delete current board
-        </button>
+        <div class="board-status-row">
+          <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
+          <button id="board-delete-current" type="button" class="board-delete-link"
+            aria-label="Delete current board" title="Delete current board">
+            Delete
+          </button>
+        </div>
         <p id="zones-status" class="status-line" aria-live="polite"></p>
         <p id="api-diagnose-status" class="status-line" aria-live="polite"></p>
         <label>
