@@ -100,6 +100,11 @@
   // gears, no trash cans, no volume controls, no nav chrome. Full
   // ICON_DEFS stays available for general UI chrome so tools like
   // the trash button in the preview footer still work.
+  //
+  // Invariant: every icon that resolveAnimationIcon() can return
+  // (explicit override, BY_CODED, KEYWORDS, asset-type fallback)
+  // must appear here, so the user can always re-select the icon
+  // their animation already uses.
   const ANIMATION_ICON_KEYS = [
     "sparkles", "sparkle_small", "star", "twinkle",
     "flame", "bolt", "zap", "drop",
@@ -110,6 +115,7 @@
     "moon", "moon_stars", "sun", "cloud", "snowflake", "smoke",
     "heart", "layers", "clock",
     "frame", "power",
+    "play", "picker", "lock", "map", "room",
   ];
 
   function createIcon(name, options) {
