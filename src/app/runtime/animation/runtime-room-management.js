@@ -105,7 +105,16 @@
     }
     const normalizedSelection = new Set(normalizeClusterRoomIds(selectedRoomIds, board));
     ctx.clusterRoomIdsSelect.replaceChildren();
-    for (const room of board.rooms) {
+    // Sort alphabetically by display name (case-insensitive) for the
+    // cluster-membership picker. The original room order on the board
+    // model is creation-order which made finding rooms in a long list
+    // tedious — alphabetical is what the user expects (Phase 25).
+    const sortedRooms = [...board.rooms].sort((a, b) => {
+      const an = String(a.name ?? a.label ?? a.id ?? "");
+      const bn = String(b.name ?? b.label ?? b.id ?? "");
+      return an.localeCompare(bn, undefined, { sensitivity: "base", numeric: true });
+    });
+    for (const room of sortedRooms) {
       const option = document.createElement("option");
       option.value = room.id;
       option.textContent = room.name ?? room.label ?? room.id;
@@ -173,6 +182,7 @@
     board.roomClusters = nextClusters;
     const persisted = ctx.persistBoardProfiles();
     ctx.syncRoomTargetSelect();
+    refreshClusterPadRail();
     syncClusterManagementPanel(
       persisted
         ? `Cluster management: ${name} created`
@@ -206,6 +216,7 @@
     ));
     const persisted = ctx.persistBoardProfiles();
     ctx.syncRoomTargetSelect();
+    refreshClusterPadRail();
     syncClusterManagementPanel(
       persisted
         ? `Cluster management: ${name} updated`
@@ -230,12 +241,23 @@
     }
     const persisted = ctx.persistBoardProfiles();
     ctx.syncRoomTargetSelect();
+    refreshClusterPadRail();
     syncClusterManagementPanel(
       persisted
         ? `Cluster management: ${selectedCluster.name} deleted`
         : `Cluster management: ${selectedCluster.name} deleted (persistence failed)`,
     );
     return persisted;
+  }
+
+  // Refresh the dashboard's cluster pad rail after a cluster CRUD
+  // op so create / save / delete is reflected immediately without
+  // a page reload (Phase 25 user feedback). Defensive — the
+  // ANIMATION_LIFECYCLE namespace may not be ready at module-init
+  // time but is ready by the time these functions are invoked.
+  function refreshClusterPadRail() {
+    const lifecycle = window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE;
+    try { lifecycle?.renderClusterPads?.(); } catch { /* defensive */ }
   }
 
   function calculatePolygonCenterAndRadius(polygon, fallbackCenter = { x: 0.5, y: 0.5 }, fallbackRadius = 0.055) {
