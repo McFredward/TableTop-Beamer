@@ -370,8 +370,11 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .room-zone.is-selected {
-  fill: rgba(89, 203, 188, 0.24);
-  stroke: rgba(164, 255, 227, 0.95);
+  fill: rgba(89, 203, 188, 0.36);
+  stroke: rgba(255, 246, 138, 1);
+  stroke-width: 3.2;
+  stroke-dasharray: 6 3;
+  filter: drop-shadow(0 0 4px rgba(255, 246, 138, 0.55));
 }
 
 .room-zone.is-frozen {

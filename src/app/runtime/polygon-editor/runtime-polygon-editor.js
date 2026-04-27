@@ -415,6 +415,10 @@
         state.selectedRoomByBoard[state.boardId] = room.id;
         ctx.applyRoomDraftTargetFromRoomClick(room.id);
         state.polygonEditor.vertexSelectionActive = false;
+        // Clear any stale ship-vertex selection so DEL doesn't fall
+        // through to a play-area handle that was clicked earlier.
+        state.shipPolygonEditor.selectedVertexIndex = null;
+        state.lastPolygonFocus = "room";
         syncPolygonRoomSelection(room.id);
         ctx.syncPolygonEditorPanel();
         ctx.syncRoomPanelFromSelection({ preserveDraftState: true });
@@ -434,6 +438,8 @@
         state.selectedRoomId = room.id;
         state.selectedRoomByBoard[state.boardId] = room.id;
         state.polygonEditor.vertexSelectionActive = false;
+        state.shipPolygonEditor.selectedVertexIndex = null;
+        state.lastPolygonFocus = "room";
         syncPolygonRoomSelection(room.id);
         ctx.syncPolygonEditorPanel();
         ctx.syncRoomPanelFromSelection({ preserveDraftState: true });

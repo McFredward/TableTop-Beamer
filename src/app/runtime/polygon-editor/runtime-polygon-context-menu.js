@@ -118,7 +118,13 @@
     if (mode === "empty") {
       if (addBtn) addBtn.hidden = false;
       if (rotateBtn) rotateBtn.hidden = true;
-      if (deleteBtn) deleteBtn.hidden = true;
+      // Even when right-click lands off a polygon, surface a Delete
+      // option for whatever room is currently selected — the user has
+      // a clear "selected room" mental model and shouldn't have to
+      // pixel-hunt the polygon to delete it.
+      const selectedRoomId = ctx.state?.selectedRoomId ?? null;
+      if (deleteBtn) deleteBtn.hidden = !selectedRoomId;
+      if (selectedRoomId) menuEl._roomId = selectedRoomId;
     } else if (mode === "polygon") {
       if (addBtn) addBtn.hidden = true;
       if (rotateBtn) {
@@ -128,7 +134,7 @@
       if (deleteBtn) deleteBtn.hidden = false;
     }
     menuEl._mode = mode;
-    menuEl._roomId = roomId;
+    if (mode === "polygon") menuEl._roomId = roomId;
   }
 
   function handleDeleteRoom() {

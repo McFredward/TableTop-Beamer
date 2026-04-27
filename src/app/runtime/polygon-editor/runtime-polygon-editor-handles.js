@@ -185,6 +185,13 @@
         event.preventDefault();
         beginShipPolygonVertexDrag(event, index);
         state.shipPolygonEditor.selectedVertexIndex = index;
+        // Mutual exclusion: clicking a play-area vertex deselects any
+        // previously-selected room (and its vertex) so the highlight is
+        // unambiguous.
+        state.selectedRoomId = null;
+        state.selectedRoomByBoard[state.boardId] = null;
+        state.polygonEditor.selectedVertexIndex = null;
+        state.polygonEditor.selectedEdgeIndex = null;
         // Flag this as the most-recently-interacted
         // polygon target so the DELETE keybinding routes the next
         // press to the ship-polygon delete path instead of an older
@@ -355,6 +362,10 @@
         state.polygonEditor.selectedVertexIndex = index;
         state.polygonEditor.selectedEdgeIndex = index;
         state.polygonEditor.vertexSelectionActive = true;
+        // Mutual exclusion: clicking a room vertex clears any
+        // previously-selected play-area vertex so the highlight only
+        // ever shows on one element at a time.
+        state.shipPolygonEditor.selectedVertexIndex = null;
         // Pair with the ship-vertex handler so DELETE
         // always targets the most-recently clicked polygon's vertex.
         state.lastPolygonFocus = "room";
