@@ -238,6 +238,9 @@
       if (ctx.roomColorPickerLabel) {
         ctx.roomColorPickerLabel.style.display = "none";
       }
+      if (ctx.quickModeColorPickerLabel) {
+        ctx.quickModeColorPickerLabel.style.display = "none";
+      }
       return;
     }
     ctx.startRoomAnimationButton.disabled = false;
@@ -255,11 +258,16 @@
         : roomFx.animations[0]?.id ?? "kaputt";
     }
     ctx.roomAnimationSelect.value = state.roomDraft.animationId;
-    if (ctx.roomColorPickerLabel) {
+    {
       const def = ctx.getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);
       const isSolidColor = ctx.normalizeRoomAssetType(def?.assetType) === "coded"
         && String(def?.assetRef || "").toLowerCase() === "solid-color";
-      ctx.roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+      if (ctx.roomColorPickerLabel) {
+        ctx.roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+      }
+      if (ctx.quickModeColorPickerLabel) {
+        ctx.quickModeColorPickerLabel.style.display = isSolidColor ? "" : "none";
+      }
     }
     ctx.roomOpacityInput.value = String(ctx.clampRoomOpacity(state.roomDraft.opacity));
     ctx.roomOpacityValue.textContent = ctx.clampRoomOpacity(state.roomDraft.opacity).toFixed(2);

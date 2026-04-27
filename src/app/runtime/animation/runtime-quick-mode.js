@@ -199,11 +199,48 @@
             ctx.roomAnimationSelect.value = definition.id;
           }
           syncQuickAnimationPickerSelection(definition.id);
+          // Pill clicks bypass the dropdown's `change` event, so the
+          // sidebar's color picker visibility doesn't update on its
+          // own. Mirror what the dropdown change handler does so a
+          // solid-color pill exposes the colour control immediately,
+          // not only after the user opens the Animation dropdown.
+          syncSolidColorPickerVisibility(definition);
         });
         picker.append(pill);
       }
     }
     syncQuickAnimationPickerSelection(currentId);
+    // Also reflect the currently-armed animation: keeps the Tap-Action
+    // colour picker visible after refresh ticks (animation save, board
+    // switch).
+    const armed = animations.find((d) => d.id === currentId) ?? null;
+    if (armed) syncSolidColorPickerVisibility(armed);
+  }
+
+  // Show/hide the sidebar's `roomColorPicker` AND the new Tap-Action
+  // `quickModeColorPicker` based on the armed animation's effect type.
+  // Mirrors the visibility test in syncRoomPanelFromSelection so behaviour
+  // matches whether the user picked the animation via the dropdown or
+  // via a Quick-Mode pill.
+  function syncSolidColorPickerVisibility(definition) {
+    const isSolidColor = definition?.assetType === "coded"
+      && String(definition?.assetRef || "").toLowerCase() === "solid-color";
+    if (ctx.roomColorPickerLabel) {
+      ctx.roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+    }
+    if (ctx.quickModeColorPickerLabel) {
+      ctx.quickModeColorPickerLabel.style.display = isSolidColor ? "" : "none";
+    }
+    if (ctx.quickModeColorPicker) {
+      const draftHex = String(ctx.state.roomDraft.colorHex || "").trim();
+      const defHex = String(definition?.colorHex || "").trim();
+      const next = /^#[0-9a-f]{6}$/i.test(draftHex)
+        ? draftHex
+        : (/^#[0-9a-f]{6}$/i.test(defHex) ? defHex : "#ff0000");
+      if (ctx.quickModeColorPicker.value !== next) {
+        ctx.quickModeColorPicker.value = next;
+      }
+    }
   }
 
   function syncQuickAnimationPickerSelection(selectedId) {

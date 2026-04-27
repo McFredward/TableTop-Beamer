@@ -205,6 +205,8 @@
       showRoomNamesInput: document.querySelector("#show-room-names"),
       polygonHandleOpacityInput: document.querySelector("#polygon-handle-opacity"),
       polygonHandleOpacityValue: document.querySelector("#polygon-handle-opacity-value"),
+      quickModeColorPicker: document.querySelector("#quick-mode-color-picker"),
+      quickModeColorPickerLabel: document.querySelector("#quick-mode-color-picker-label"),
       polygonVertexSelect: document.querySelector("#polygon-vertex-select"),
       polygonEdgeSelect: document.querySelector("#polygon-edge-select"),
       polygonInsertVertexButton: document.querySelector("#polygon-insert-vertex"),

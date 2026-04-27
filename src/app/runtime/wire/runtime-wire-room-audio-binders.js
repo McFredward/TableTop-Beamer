@@ -253,6 +253,22 @@
 
     roomColorPicker?.addEventListener("input", () => {
       state.roomDraft.colorHex = roomColorPicker.value;
+      // Mirror the value into the Tap-Action picker (added in
+      // Phase 25) so both inputs stay in lockstep.
+      const quickPicker = document.querySelector("#quick-mode-color-picker");
+      if (quickPicker && quickPicker.value !== roomColorPicker.value) {
+        quickPicker.value = roomColorPicker.value;
+      }
+    });
+
+    // Tap-Action colour picker mirror — writes the same draft state
+    // and pushes the value back into the sidebar picker for symmetry.
+    const quickModeColorPicker = document.querySelector("#quick-mode-color-picker");
+    quickModeColorPicker?.addEventListener("input", () => {
+      state.roomDraft.colorHex = quickModeColorPicker.value;
+      if (roomColorPicker && roomColorPicker.value !== quickModeColorPicker.value) {
+        roomColorPicker.value = quickModeColorPicker.value;
+      }
     });
 
     function applyDefinitionDefaultsToDraft(definition) {
@@ -284,12 +300,17 @@
     }
 
     function syncColorPickerVisibility(definition) {
-      if (!roomColorPickerLabel) {
-        return;
-      }
       const isSolidColor = normalizeRoomAssetType(definition?.assetType) === "coded"
         && String(definition?.assetRef || "").toLowerCase() === "solid-color";
-      roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+      if (roomColorPickerLabel) {
+        roomColorPickerLabel.style.display = isSolidColor ? "" : "none";
+      }
+      // Mirror visibility into the Tap-Action picker so dropdown
+      // changes also reveal/hide it (Phase 25 user feedback).
+      const tapPickerLabel = document.querySelector("#quick-mode-color-picker-label");
+      if (tapPickerLabel) {
+        tapPickerLabel.style.display = isSolidColor ? "" : "none";
+      }
     }
 
     // Dashboard per-start transform override inputs.

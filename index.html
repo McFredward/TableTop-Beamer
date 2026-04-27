@@ -200,6 +200,14 @@
         <div id="quick-mode-animation-picker" class="quick-animation-picker" style="display:none" role="listbox" aria-label="Quick animation picker">
         </div>
         <p id="quick-mode-status" class="status-line" aria-live="polite">Select a room on the board</p>
+        <!-- Solid-color picker for the Tap-Action panel — appears
+             whenever the armed animation's effect is solid-color, so
+             the user can pick the colour without leaving the
+             Tap-Action section. (Phase 25 user feedback.) -->
+        <label id="quick-mode-color-picker-label" style="display:none">
+          Color
+          <input id="quick-mode-color-picker" type="color" value="#ff0000" />
+        </label>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" hidden>
