@@ -735,6 +735,21 @@ body[data-output-role="final-output"].dir-obsidian {
   white-space: nowrap;
 }
 
+/* Tiny version chip next to the brand title — populated at parse time
+ * by the inline script in index.html from TT_BEAMER_CONFIG.APP_VERSION.
+ * (Phase 25 BACKLOG #2) */
+.dir-obsidian .rd-topbar-version {
+  margin-left: 6px;
+  font-family: var(--rd-font-body);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--c-text-3);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
 .dir-obsidian .rd-topbar-brand-sub {
   font-family: var(--rd-font-body);
   font-size: 12px;

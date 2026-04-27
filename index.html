@@ -112,7 +112,7 @@
             </svg>
           </span>
           <div class="rd-topbar-brand-text">
-            <div class="rd-topbar-brand-title">TableTop Beamer</div>
+            <div class="rd-topbar-brand-title">TableTop Beamer<small id="app-version" class="rd-topbar-version" aria-label="App version"></small></div>
             <p id="topbar-board-label" class="rd-topbar-brand-sub" aria-live="polite">No board yet</p>
           </div>
         </div>
@@ -818,6 +818,16 @@
   <script src="/src/app/runtime/ui/animation-editor-live-preview.js" defer></script>
   <script src="/src/app/runtime/ui/animation-editor-view.js" defer></script>
   <script src="/src/app/lib/shared/config.js" defer></script>
+  <!-- Populate the topbar version chip from TT_BEAMER_CONFIG.APP_VERSION
+       once config.js has run. DOMContentLoaded fires after all defer
+       scripts execute, so the constant is guaranteed to be available. -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const el = document.getElementById("app-version");
+      const v = window.TT_BEAMER_CONFIG && window.TT_BEAMER_CONFIG.APP_VERSION;
+      if (el && v) el.textContent = "v" + v;
+    });
+  </script>
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>
   <script src="/src/app/lib/shared/logger.js" defer></script>
   <script src="/src/app/lib/shared/normalizers.js" defer></script>

@@ -207,6 +207,13 @@
     corpse: false,
   };
 
+  // App version. Cadence: phase number → minor; in-phase hotfixes →
+  // patch. Bump on phase closure (e.g. Phase 26 → "0.26.0",
+  // Phase 26 hotfix → "0.26.1"). Surfaced to the user via the small
+  // chip in the topbar (index.html #app-version, populated at parse
+  // time by the inline script next to the topbar).
+  const APP_VERSION = "0.25.0";
+
   window.TT_BEAMER_CONFIG = {
     BOARDS,
     INLINE_FALLBACK_BOARDS,
@@ -240,5 +247,6 @@
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
     ROOM_STATE_DEFAULT,
+    APP_VERSION,
   };
 })();
