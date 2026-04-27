@@ -1,10 +1,12 @@
 # CURRENT PHASE
 
-- Active: Phase 23 (Identity polish + cluster trigger UI)
-- Status: ROADMAP drafted, awaiting user confirmation to execute
-- Roadmap: `.planning/phases/phase-23/ROADMAP.md`
-- Previous Phase: Phase 22 (Design-System Migration — Obsidian redesign) CLOSED
+- Active: Phase 25 (Bug & Polish — backlog drafted)
+- Status: BACKLOG drafted from user-reported issues at end of Phase 24; awaiting ROADMAP planning
+- Backlog: `.planning/phases/phase-25/BACKLOG.md`
+- Previous Phase: Phase 24 (Code-Quality Refactor — 6 waves) CLOSED
 
+Phase 24 closure: `.planning/phases/phase-24/SUMMARY.md` (tag `phase-24-end`)
+Phase 23 closure: `.planning/phases/phase-23/SUMMARY.md`
 Phase 22 closure: `.planning/phases/phase-22/SUMMARY.md`
 Phase 21 closure: `.planning/phases/phase-21/SUMMARY.md`
 Phase 20 closure: `.planning/phases/phase-20/SUMMARY.md`
