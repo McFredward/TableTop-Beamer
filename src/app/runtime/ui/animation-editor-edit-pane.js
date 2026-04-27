@@ -161,8 +161,6 @@
     delLabel.textContent = "Delete";
     del.append(delLabel);
     del.addEventListener("click", () => {
-      const name = String(def.name || "").trim() || "this animation";
-      if (!window.confirm(`Delete ${name}? The change stays local until you hit Apply.`)) return;
       deleteAnimation(scope, def.id);
     });
     header.append(del);
