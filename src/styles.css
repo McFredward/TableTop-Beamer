@@ -369,7 +369,16 @@ body[data-output-role="final-output"] .toast-stack {
   stroke: rgba(161, 248, 255, 0.9);
 }
 
+/* Default (Dashboard) selection: subtle teal — visible but easy to
+ * mistake for an animation in motion, so it stays mild. The strong
+ * yellow accent below is gated on .is-draggable, which is only
+ * applied in Settings mode where the user is editing geometry. */
 .room-zone.is-selected {
+  fill: rgba(89, 203, 188, 0.24);
+  stroke: rgba(164, 255, 227, 0.95);
+}
+
+.room-zone.is-draggable.is-selected {
   fill: rgba(89, 203, 188, 0.36);
   stroke: rgba(255, 246, 138, 1);
   stroke-width: 3.2;
