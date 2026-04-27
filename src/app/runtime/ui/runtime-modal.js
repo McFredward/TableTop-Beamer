@@ -132,10 +132,14 @@
         ensureCleanup();
         resolve(value);
       };
+      const matchesExpected = (raw) => {
+        if (expectedValue === null) return true;
+        return String(raw ?? "").trim() === String(expectedValue).trim();
+      };
       const confirmBtn = {
         label: confirmLabel,
         kind: danger ? "danger" : "primary",
-        disabled: expectedValue !== null && initialValue !== expectedValue,
+        disabled: !matchesExpected(initialValue),
         onClick: () => close(input.value),
       };
       const buttons = [
@@ -145,12 +149,11 @@
       buildButtonRow(dialog, buttons);
 
       // Live-validate the typed value against expected when provided.
-      // Keeps the destructive button gated behind an exact match so
-      // accidental Enter doesn't fire.
+      // Keeps the destructive button gated behind a (trimmed) match so
+      // a trailing space the user can't see doesn't keep blocking them.
       function syncConfirmEnabled() {
         if (expectedValue === null) return;
-        const matches = input.value === expectedValue;
-        confirmBtn.el.disabled = !matches;
+        confirmBtn.el.disabled = !matchesExpected(input.value);
       }
       input.addEventListener("input", syncConfirmEnabled);
 

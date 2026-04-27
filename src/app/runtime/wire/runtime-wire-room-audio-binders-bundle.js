@@ -385,6 +385,11 @@
         const selectEl = document.querySelector("#board-select");
         const activeOption = selectEl?.selectedOptions?.[0] || null;
         const expected = (activeOption?.textContent ?? activeId).trim();
+        if (!modal?.showPrompt) {
+          setStatus("Delete board: confirmation modal unavailable.");
+          console.error("[board-delete] TT_BEAMER_RUNTIME_MODAL not loaded");
+          return;
+        }
         const typed = await modal.showPrompt({
           title: `Delete board "${expected}"?`,
           body:
@@ -397,6 +402,7 @@
           cancelLabel: "Cancel",
           danger: true,
         });
+        console.log("[board-delete] modal returned:", JSON.stringify(typed), "expected:", JSON.stringify(expected));
         if (typed === null) {
           setStatus("Delete board: cancelled.");
           return;
@@ -410,11 +416,22 @@
           if (!zl?.deleteBoardFromServer) {
             throw new Error("zone loader not ready");
           }
-          await zl.deleteBoardFromServer(activeId);
+          console.log("[board-delete] sending DELETE for", activeId);
+          const result = await zl.deleteBoardFromServer(activeId);
+          console.log("[board-delete] server response:", result);
           setStatus(`Deleted board "${expected}".`);
           triggerFeedback.textContent = `Status: Board ${activeId} deleted`;
+          // Surface success via a toast — bundle-status sits in the
+          // import section and is easy to miss.
+          if (typeof ctx.showToast === "function") {
+            ctx.showToast(`Deleted board "${expected}"`, { kind: "success" });
+          }
         } catch (error) {
+          console.error("[board-delete] failed:", error);
           setStatus(`Delete failed: ${error?.message || error}`);
+          if (typeof ctx.showToast === "function") {
+            ctx.showToast(`Delete failed: ${error?.message || error}`, { kind: "error" });
+          }
         } finally {
           deleteButton.disabled = false;
         }
