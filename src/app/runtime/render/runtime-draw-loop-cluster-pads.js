@@ -100,6 +100,17 @@
       // Hijack draw-loop's ctx for drawRoomComposition's local `c`.
       ctx.canvas = padCanvas;
       ctx.canvasCtx = padCtx;
+      // Match drawAnimation's room/cluster-member branch: when ≥2
+      // cluster animations layer on the same cluster pad, switch to
+      // additive composite so later draws can't occlude earlier ones.
+      // Without this, the pad showed only the most-recently dispatched
+      // animation regardless of order — solid-color masking flame, etc.
+      // (Phase 25 BACKLOG #4)
+      const clusterConcurrent = anims.length >= 2;
+      if (clusterConcurrent) {
+        padCtx.save();
+        padCtx.globalCompositeOperation = "lighter";
+      }
       try {
         // Stack every cluster animation that's running on this
         // cluster — same multi-animation behavior as a real room.
@@ -138,6 +149,7 @@
           }
         }
       } finally {
+        if (clusterConcurrent) padCtx.restore();
         ctx.canvas = origCanvas;
         ctx.canvasCtx = origCanvasCtx;
       }
