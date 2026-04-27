@@ -372,6 +372,7 @@
       const setStatus = (msg) => { if (bundleStatus) bundleStatus.textContent = msg; };
       deleteButton.addEventListener("click", async () => {
         const zl = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
+        const modal = window.TT_BEAMER_RUNTIME_MODAL;
         const activeId = String(state?.boardId || "").trim();
         if (!activeId) {
           setStatus("Delete board: no board is currently active.");
@@ -384,12 +385,18 @@
         const selectEl = document.querySelector("#board-select");
         const activeOption = selectEl?.selectedOptions?.[0] || null;
         const expected = (activeOption?.textContent ?? activeId).trim();
-        const typed = window.prompt(
-          `Delete the board "${expected}"?\n\n`
-          + `This is permanent. The board's saved data and uploaded image will be removed from the server.\n\n`
-          + `To confirm, type the board's name exactly:\n${expected}`,
-          "",
-        );
+        const typed = await modal.showPrompt({
+          title: `Delete board "${expected}"?`,
+          body:
+            "This is permanent. The board's saved data and uploaded "
+            + "image will be removed from the server.\n\n"
+            + `To confirm, type the board's name exactly: ${expected}`,
+          placeholder: expected,
+          expectedValue: expected,
+          confirmLabel: "Delete board",
+          cancelLabel: "Cancel",
+          danger: true,
+        });
         if (typed === null) {
           setStatus("Delete board: cancelled.");
           return;
@@ -403,9 +410,9 @@
           if (!zl?.deleteBoardFromServer) {
             throw new Error("zone loader not ready");
           }
-          await zl.deleteBoardFromServer(activeBoard.id);
+          await zl.deleteBoardFromServer(activeId);
           setStatus(`Deleted board "${expected}".`);
-          triggerFeedback.textContent = `Status: Board ${activeBoard.id} deleted`;
+          triggerFeedback.textContent = `Status: Board ${activeId} deleted`;
         } catch (error) {
           setStatus(`Delete failed: ${error?.message || error}`);
         } finally {

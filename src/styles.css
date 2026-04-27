@@ -1900,3 +1900,110 @@ button.danger.is-armed {
 #room-options[open] summary {
   border-bottom-color: rgba(138, 158, 181, 0.25);
 }
+
+/* In-app confirm / prompt modals — replaces window.confirm + .prompt
+ * with a panel-styled dialog that matches the rest of the UI. */
+.tt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 14, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: tt-modal-fade 120ms ease-out;
+}
+@keyframes tt-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.tt-modal {
+  min-width: 320px;
+  max-width: 480px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-alt) 100%);
+  border: 1px solid rgba(120, 214, 244, 0.45);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+.tt-modal-danger {
+  border-color: rgba(209, 79, 79, 0.7);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(209, 79, 79, 0.25);
+}
+.tt-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.tt-modal-body {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.tt-modal-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: rgba(8, 12, 20, 0.8);
+  border: 1px solid rgba(146, 166, 191, 0.35);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-family: inherit;
+}
+.tt-modal-input:focus {
+  outline: none;
+  border-color: rgba(120, 214, 244, 0.85);
+  box-shadow: 0 0 0 2px rgba(120, 214, 244, 0.25);
+}
+.tt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.tt-modal-btn {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 80ms ease, border-color 80ms ease, transform 80ms ease;
+}
+.tt-modal-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tt-modal-btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: rgba(146, 166, 191, 0.4);
+}
+.tt-modal-btn-ghost:hover:not(:disabled) {
+  border-color: rgba(146, 166, 191, 0.75);
+  color: var(--text);
+}
+.tt-modal-btn-primary {
+  background: rgba(55, 192, 161, 0.85);
+  color: #061013;
+  border-color: rgba(55, 192, 161, 0.95);
+}
+.tt-modal-btn-primary:hover:not(:disabled) {
+  background: rgba(55, 192, 161, 1);
+}
+.tt-modal-btn-danger {
+  background: rgba(209, 79, 79, 0.85);
+  color: #fff;
+  border-color: rgba(209, 79, 79, 0.95);
+}
+.tt-modal-btn-danger:hover:not(:disabled) {
+  background: rgba(209, 79, 79, 1);
+}
