@@ -169,8 +169,15 @@
       c.fillStyle = `rgba(0, 0, 0, ${alpha})`;
       c.fillRect(0, 0, w, h);
 
-      const flash = Math.random() > 0.88;
-      if (flash) {
+      // Blue flash used to be `Math.random() > 0.88`, which fires at
+      // a fixed ~12% per frame regardless of `age` — so the speed
+      // slider had no visible effect (BACKLOG #10). Replace with a
+      // deterministic age-driven noise: two incommensurate sine waves
+      // multiplied to mimic randomness. Because `age` is already scaled
+      // by the animation's speed (see drawInsideGlobalVisual /
+      // drawRoomCodedVisual), the flash cadence now scales with speed.
+      const flashNoise = Math.abs(Math.sin(age * 53.7) * Math.sin(age * 71.3));
+      if (flashNoise > 0.78) {
         c.fillStyle = `rgba(122, 182, 255, ${0.15 * intensity})`;
         c.fillRect(0, 0, w, h);
       }
