@@ -357,9 +357,12 @@
       return;
     }
 
-    // Compute stroke scale for polygon lines
+    // Polygon outline thickness scales linearly with the handle-size
+    // slider so the stroke never out-grows the vertex dots. Old formula
+    // floored at 0.8px which made tiny dots disappear inside a wide
+    // line at low slider values.
     const overlayHandleScale = ctx.getCurrentPolygonHandleScale();
-    const overlayStrokeWidth = Math.max(0.8, 2 * Math.max(0.4, overlayHandleScale));
+    const overlayStrokeWidth = Math.max(0.25, 2 * overlayHandleScale);
 
     for (const room of board.rooms) {
       const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");

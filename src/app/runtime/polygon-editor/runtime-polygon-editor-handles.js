@@ -69,9 +69,11 @@
       }
       const maskPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
       maskPolygon.classList.add("ship-zone-mask");
-      // Scale Play Area stroke with handle size
+      // Scale Play Area stroke linearly with the handle-size slider —
+      // matches the room-zone path so both polygon types shrink in
+      // proportion with their vertex dots.
       const paHandleScale = ctx.getCurrentPolygonHandleScale();
-      maskPolygon.style.strokeWidth = `${Math.max(0.8, 2 * Math.max(0.4, paHandleScale)).toFixed(2)}px`;
+      maskPolygon.style.strokeWidth = `${Math.max(0.25, 2 * paHandleScale).toFixed(2)}px`;
       if (area.id === selectedPlayAreaId) {
         maskPolygon.classList.add("is-active");
       }

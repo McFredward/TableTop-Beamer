@@ -949,18 +949,20 @@ body[data-output-role="final-output"].dir-obsidian {
 }
 
 /* Vertex + edge handles: TRULY solid dots — opaque fill, no stroke.
- * The previous obsidian rule kept a 75%-transparent fill plus a 1.5px
- * white stroke, which read as a hollow ring once the user shrunk the
- * handle below 50%. The drop-shadow alone provides definition. */
+ * Vertex uses a *lighter* shade of accent so it stands apart from
+ * the polygon outline (which is plain accent). Edge midpoints are
+ * white so they're visually distinct from vertices at a glance —
+ * the user double-clicks them to insert a new vertex, so they need
+ * to read as "different thing" without thinking. */
 .dir-obsidian .polygon-vertex-handle {
-  fill: var(--c-accent);
+  fill: color-mix(in srgb, var(--c-accent) 55%, white);
   stroke: none;
   filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c-accent) 55%, transparent));
 }
 .dir-obsidian .polygon-vertex-handle.is-active {
-  fill: var(--c-accent);
+  fill: var(--c-warn);
   stroke: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-warn) 85%, transparent));
 }
 .dir-obsidian .polygon-vertex-index {
   fill: #ffffff;
@@ -973,15 +975,18 @@ body[data-output-role="final-output"].dir-obsidian {
   font-weight: 700;
 }
 
+/* Edge midpoint handle: solid white "phantom" dot, deliberately a
+ * different colour from the vertex (which uses lightened accent) so
+ * the user instantly tells "click to insert" apart from "drag this
+ * vertex". No stroke — same solid-dot principle as vertices. */
 .dir-obsidian .polygon-edge-handle {
-  fill: color-mix(in srgb, var(--c-accent) 45%, transparent);
-  stroke: rgba(255, 255, 255, 0.85);
-  stroke-width: 1.25;
+  fill: rgba(255, 255, 255, 0.85);
+  stroke: none;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.5));
 }
 .dir-obsidian .polygon-edge-handle.is-active {
-  fill: var(--c-accent);
-  stroke: #ffffff;
-  stroke-width: 1.75;
+  fill: #ffffff;
+  stroke: none;
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-accent) 80%, transparent));
 }
 .dir-obsidian .polygon-edge-hit-target.is-active {
@@ -1004,22 +1009,25 @@ body[data-output-role="final-output"].dir-obsidian {
   stroke: var(--c-accent);
 }
 .dir-obsidian .ship-polygon-vertex-handle {
-  fill: var(--c-text-2);
+  /* Lightened lavender so the dot stands apart from the ship-zone
+   * outline (which is plain --c-text-2). */
+  fill: color-mix(in srgb, var(--c-text-2) 55%, white);
   stroke: none;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45));
 }
 .dir-obsidian .ship-polygon-vertex-handle.is-active {
-  fill: var(--c-accent);
+  fill: var(--c-warn);
   stroke: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-accent) 85%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-warn) 85%, transparent));
 }
 .dir-obsidian .ship-polygon-edge-handle {
-  fill: color-mix(in srgb, var(--c-text-2) 45%, transparent);
-  stroke: rgba(255, 255, 255, 0.82);
+  fill: rgba(255, 255, 255, 0.78);
+  stroke: none;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.5));
 }
 .dir-obsidian .ship-polygon-edge-handle.is-active {
-  fill: var(--c-accent);
-  stroke: #ffffff;
+  fill: #ffffff;
+  stroke: none;
 }
 .dir-obsidian .ship-polygon-vertex-index {
   fill: #ffffff;
