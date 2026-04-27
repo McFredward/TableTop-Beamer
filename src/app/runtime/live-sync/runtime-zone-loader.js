@@ -57,17 +57,20 @@
         const normalizedBoards = runtimeBoards
           .map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board))
           .filter((board) => board?.id && Array.isArray(board.rooms));
-        if (normalizedBoards.length > 0) {
-          ctx.setBoards(normalizedBoards);
-          for (const board of normalizedBoards) {
-            state.zoneLoader.loadedBoards[board.id] = "/api/boards";
-            state.zoneLoader.fallbackBoards[board.id] = "none";
-            state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
-            state.zoneLoader.detailByBoard[board.id] = "ok";
-          }
-          syncZoneLoaderStatus();
-          return;
+        // Always overwrite BOARDS from /api/boards when the response
+        // is OK — even if the catalog is empty. The fallback below
+        // would otherwise install INLINE_FALLBACK_BOARDS (now empty)
+        // and silently drop the board the user just imported. The
+        // server is authoritative once it answers OK.
+        ctx.setBoards(normalizedBoards);
+        for (const board of normalizedBoards) {
+          state.zoneLoader.loadedBoards[board.id] = "/api/boards";
+          state.zoneLoader.fallbackBoards[board.id] = "none";
+          state.zoneLoader.classificationByBoard[board.id] = "CATALOG_LOADED";
+          state.zoneLoader.detailByBoard[board.id] = "ok";
         }
+        syncZoneLoaderStatus();
+        return;
       }
     } catch {
       // fall back to static zone files below
@@ -183,6 +186,11 @@
         throw new Error(`Board import succeeded but activation failed: ${parsed.boardId}`);
       }
     }
+    // Final sync — switchBoard() above only sets the selected value,
+    // it doesn't rebuild options. A second syncBoardSelectOptions
+    // ensures the dropdown reflects every board even if some other
+    // path raced in between (live-sync poll, panel refresh).
+    syncBoardSelectOptions();
     return parsed;
   }
 
@@ -300,6 +308,8 @@
         throw new Error(`Image import succeeded but activation failed: ${parsed.boardId}`);
       }
     }
+    // Final dropdown re-sync (see importBoardFromFile for rationale).
+    syncBoardSelectOptions();
     return parsed;
   }
 
@@ -319,6 +329,44 @@
     ctx.boardSelect.value = state.boardId;
   }
 
+  // Delete an imported board on the server, then drop it from the
+  // local BOARDS list and refresh the dropdown. Caller is responsible
+  // for the user-confirmation flow (type-to-confirm in the UI).
+  async function deleteBoardFromServer(boardId) {
+    const target = String(boardId || "").trim();
+    if (!target) {
+      throw new Error("boardId required");
+    }
+    const response = await ctx.fetchWithTimeout("/api/boards/delete", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ boardId: target }),
+    });
+    let parsed = null;
+    try { parsed = await response.json(); } catch { parsed = null; }
+    if (!response.ok) {
+      const message = parsed?.error || parsed?.code || `HTTP ${response.status}`;
+      throw new Error(`Board delete failed: ${message}`);
+    }
+    const state = ctx.state;
+    const remaining = ctx.getBoards().filter((board) => board.id !== target);
+    ctx.setBoards(remaining);
+    if (state.boardId === target) {
+      const fallback = remaining[0]?.id ?? "";
+      if (fallback) {
+        ctx.switchBoard(fallback, { emitLiveContext: true, reason: "board-deleted" });
+      } else {
+        state.boardId = "";
+      }
+    }
+    syncBoardSelectOptions();
+    syncZoneLoaderStatus();
+    return parsed;
+  }
+
   window.TT_BEAMER_RUNTIME_ZONE_LOADER = {
     init,
     syncZoneLoaderStatus,
@@ -328,6 +376,7 @@
     ensureImportedBoardInCatalog,
     activateImportedBoard,
     importBoardFromImage,
+    deleteBoardFromServer,
     syncBoardSelectOptions,
   };
 })();

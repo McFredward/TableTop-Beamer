@@ -2609,6 +2609,75 @@ async function handleBoardImport(req, res) {
   });
 }
 
+async function handleBoardDelete(req, res) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+    if (chunks.reduce((size, item) => size + item.length, 0) > 64 * 1024) {
+      sendJson(res, 413, { error: "payload too large", code: "DELETE_PAYLOAD_TOO_LARGE" });
+      return;
+    }
+  }
+  let parsed = {};
+  if (chunks.length > 0) {
+    const raw = Buffer.concat(chunks).toString("utf8");
+    if (raw.trim()) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        sendJson(res, 400, { error: "invalid JSON payload", code: "DELETE_INVALID_JSON" });
+        return;
+      }
+    }
+  }
+  const boardId = String(parsed?.boardId || "").trim();
+  if (!boardId) {
+    sendJson(res, 400, { error: "boardId required", code: "DELETE_BOARD_ID_REQUIRED" });
+    return;
+  }
+  if (BUILTIN_BOARD_IDS.has(boardId)) {
+    sendJson(res, 409, { error: "cannot delete a built-in board", code: "DELETE_BUILTIN_FORBIDDEN", boardId });
+    return;
+  }
+  const safeFileName = sanitizeBoardFileName(boardId);
+  if (!safeFileName) {
+    sendJson(res, 400, { error: "invalid boardId", code: "DELETE_INVALID_BOARD_ID" });
+    return;
+  }
+  const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+  try {
+    await stat(targetPath);
+  } catch {
+    sendJson(res, 404, { error: "board not found", code: "DELETE_NOT_FOUND", boardId });
+    return;
+  }
+  // Read the board to find its image asset (if any) so we can clean
+  // up the orphan image file too. Best-effort — proceeds even if
+  // metadata is missing or malformed.
+  let imageAssetPath = null;
+  try {
+    const raw = await readFile(targetPath, "utf8");
+    const parsedBoard = JSON.parse(raw);
+    const imageSrc = String(parsedBoard?.board?.metadata?.imageSrc || "").trim();
+    if (imageSrc.startsWith("/config/boards/assets/")) {
+      const rel = imageSrc.replace(/^\/+/, "");
+      imageAssetPath = path.join(ROOT_DIR, rel);
+    }
+  } catch { /* best-effort */ }
+  await unlink(targetPath);
+  if (imageAssetPath) {
+    try { await unlink(imageAssetPath); } catch { /* asset already gone — fine */ }
+  }
+  const catalog = await loadBoardCatalog();
+  sendJson(res, 200, {
+    ok: true,
+    code: "DELETE_OK",
+    boardId,
+    catalogGeneratedAt: catalog.generatedAt,
+    boardCount: catalog.boardCount,
+  });
+}
+
 function isValidPolygon(points) {
   return (
     Array.isArray(points) &&
@@ -3202,6 +3271,11 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && routePath === "/api/boards/import") {
       await handleBoardImport(req, res);
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/boards/delete") {
+      await handleBoardDelete(req, res);
       return;
     }
 

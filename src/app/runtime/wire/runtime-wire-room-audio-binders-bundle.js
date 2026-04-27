@@ -264,7 +264,25 @@
           const extra = wrote || skipped
             ? ` · ${wrote} new asset${wrote === 1 ? "" : "s"}${skipped ? `, ${skipped} already on disk (skipped)` : ""}`
             : "";
-          setStatus(`Imported "${body.boardId}"${extra}. Reload the page to see it in the list.`);
+          // Live-refresh the dashboard's board dropdown so the
+          // imported board shows up immediately. Falls back gracefully
+          // if the zone-loader namespace isn't ready (defensive only —
+          // it's always wired by this point in real boots).
+          let liveRefreshOk = false;
+          try {
+            const zl = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
+            if (zl?.loadExternalBoardZones) {
+              await zl.loadExternalBoardZones();
+              if (body.boardId && zl.activateImportedBoard) {
+                zl.activateImportedBoard(body.boardId, "bundle-import");
+              }
+              if (zl.syncBoardSelectOptions) zl.syncBoardSelectOptions();
+              liveRefreshOk = true;
+            }
+          } catch { /* keep going — user can still reload */ }
+          setStatus(liveRefreshOk
+            ? `Imported "${body.boardId}"${extra}.`
+            : `Imported "${body.boardId}"${extra}. Reload the page to see it in the list.`);
           triggerFeedback.textContent = `Status: Board ${body.boardId} imported`;
           resetPackageForm();
         } catch (error) {
@@ -315,7 +333,22 @@
             throw new Error(body?.error || `HTTP ${resp.status}`);
           }
           const body = await resp.json();
-          setStatus(`Created board "${body.boardId ?? body.board?.boardId ?? "(new)"}" — reload to see it.`);
+          const newBoardId = body.boardId ?? body.board?.boardId ?? "";
+          let liveRefreshOk = false;
+          try {
+            const zl = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
+            if (zl?.loadExternalBoardZones) {
+              await zl.loadExternalBoardZones();
+              if (newBoardId && zl.activateImportedBoard) {
+                zl.activateImportedBoard(newBoardId, "bundle-import-image");
+              }
+              if (zl.syncBoardSelectOptions) zl.syncBoardSelectOptions();
+              liveRefreshOk = true;
+            }
+          } catch { /* fall through to reload hint */ }
+          setStatus(liveRefreshOk
+            ? `Created board "${newBoardId || "(new)"}".`
+            : `Created board "${newBoardId || "(new)"}" — reload to see it.`);
           triggerFeedback.textContent = `Status: New board created from image`;
           resetImageForm();
         } catch (error) {
@@ -324,6 +357,59 @@
           if (imageNameInput) imageNameInput.disabled = false;
         } finally {
           if (imageFileInput) imageFileInput.disabled = false;
+        }
+      });
+    })();
+
+    // ── Delete current board ───────────────────────────────────────
+    // Type-to-confirm: the user has to type the active board's label
+    // EXACTLY into a prompt before the destructive call goes through.
+    // Also blocks deletion of built-in boards (server enforces too).
+    (function wireBoardDelete() {
+      const deleteButton = document.querySelector("#board-delete-current");
+      if (!deleteButton) return;
+      const bundleStatus = document.querySelector("#bundle-status");
+      const setStatus = (msg) => { if (bundleStatus) bundleStatus.textContent = msg; };
+      deleteButton.addEventListener("click", async () => {
+        const zl = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
+        const activeId = String(state?.boardId || "").trim();
+        if (!activeId) {
+          setStatus("Delete board: no board is currently active.");
+          return;
+        }
+        // Pull the active board's display label from the dropdown's
+        // selected option — keeps this binder independent of the
+        // BOARDS-array import. Falls back to id if the option text
+        // isn't available.
+        const selectEl = document.querySelector("#board-select");
+        const activeOption = selectEl?.selectedOptions?.[0] || null;
+        const expected = (activeOption?.textContent ?? activeId).trim();
+        const typed = window.prompt(
+          `Delete the board "${expected}"?\n\n`
+          + `This is permanent. The board's saved data and uploaded image will be removed from the server.\n\n`
+          + `To confirm, type the board's name exactly:\n${expected}`,
+          "",
+        );
+        if (typed === null) {
+          setStatus("Delete board: cancelled.");
+          return;
+        }
+        if (typed.trim() !== expected) {
+          setStatus(`Delete board: name didn't match — typed "${typed}", expected "${expected}". Aborted.`);
+          return;
+        }
+        deleteButton.disabled = true;
+        try {
+          if (!zl?.deleteBoardFromServer) {
+            throw new Error("zone loader not ready");
+          }
+          await zl.deleteBoardFromServer(activeBoard.id);
+          setStatus(`Deleted board "${expected}".`);
+          triggerFeedback.textContent = `Status: Board ${activeBoard.id} deleted`;
+        } catch (error) {
+          setStatus(`Delete failed: ${error?.message || error}`);
+        } finally {
+          deleteButton.disabled = false;
         }
       });
     })();
