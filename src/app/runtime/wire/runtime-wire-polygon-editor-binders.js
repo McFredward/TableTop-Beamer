@@ -120,6 +120,21 @@
     });
   }
 
+  function _wireShowRoomNamesToggle(ctx) {
+    const {
+      state,
+      showRoomNamesInput,
+      triggerFeedback,
+      renderRoomOverlay,
+    } = ctx;
+
+    showRoomNamesInput?.addEventListener("change", () => {
+      state.polygonEditor.roomNamesVisible = showRoomNamesInput.checked;
+      renderRoomOverlay();
+      triggerFeedback.textContent = `Status: Room names ${showRoomNamesInput.checked ? "shown" : "hidden"}`;
+    });
+  }
+
   function _wireShowPlayAreaVerticesToggle(ctx) {
     const {
       state,
@@ -653,6 +668,7 @@
     _wireBoardZoomReset(ctx);
     _wirePolygonRoomSelectChange(ctx);
     _wireShowRoomVerticesToggle(ctx);
+    _wireShowRoomNamesToggle(ctx);
     _wireShowPlayAreaVerticesToggle(ctx);
     _wirePolygonVertexSelectChange(ctx);
     _wirePolygonEdgeSelectChange(ctx);

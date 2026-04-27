@@ -59,7 +59,6 @@
       specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},
       frozenRoomsByBoard: {},
-      hiddenRoomNamesByBoard: {},
       shipPolygonsByBoard: {},
       playAreasByBoard: {},
       selectedPlayAreaIdByBoard: {},
@@ -72,6 +71,11 @@
         roomIdByBoard: {},
         handleScale: 1,
         roomVerticesVisible: true,
+        // Global toggle for the SVG room-name overlay labels rendered
+        // by renderRoomOverlay. Default true preserves existing behaviour.
+        // Mirrors roomVerticesVisible — session-level, not persisted.
+        // (Phase 25 BACKLOG #6)
+        roomNamesVisible: true,
         playAreaVerticesVisible: true,
         selectedVertexIndex: 0,
         selectedEdgeIndex: 0,

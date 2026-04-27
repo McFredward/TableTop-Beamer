@@ -125,11 +125,10 @@ const {
   mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
   mp4QualityFloorValue, mp4DegradeThresholdInput, mp4DegradeThresholdValue,
   mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus, toastStack,
-  polygonRoomSelect, showRoomVerticesInput, polygonVertexSelect, polygonEdgeSelect,
+  polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
   roomCreateButton, roomDeleteButton, roomManagementStatus, roomFrozenCheckbox,
-  roomNameHiddenCheckbox,
   clusterSelect, clusterNameInput,
   clusterRoomIdsSelect, clusterCreateButton, clusterSaveButton, clusterDeleteButton,
   clusterManagementStatus, roomRenameInput, polygonUndoButton, polygonRedoButton,
@@ -725,7 +724,6 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   normalizeRoomStateProfileMap: (map, boardId) => normalizeRoomStateProfileMap(map, boardId),
   normalizeSpecialPolygonMap,
   normalizeFrozenRoomsMap: (raw, boardId) => normalizeFrozenRoomsMap(raw, boardId),
-  normalizeHiddenRoomNamesMap: (raw, boardId) => normalizeHiddenRoomNamesMap(raw, boardId),
   getPlayAreas,
   getSelectedPlayAreaId,
   getSelectedPlayArea,
@@ -890,9 +888,6 @@ const {
   isRoomFrozen,
   setRoomFrozen,
   normalizeFrozenRoomsMap,
-  isRoomNameHidden,
-  setRoomNameHidden,
-  normalizeHiddenRoomNamesMap,
 } = window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS;
 
 // Init order: must follow BOARD_STATE_ACCESSORS — ROOM_GEOMETRY
@@ -1371,6 +1366,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS.init({
   polygonFocusRoomButton,
   roomRenameInput,
   showRoomVerticesInput,
+  showRoomNamesInput,
   shipPolygonEditorStatus,
   shipPolygonVertexSelect,
   shipPolygonEdgeSelect,
@@ -1693,7 +1689,6 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   handleQuickModeRoomTap: (roomId) => handleQuickModeRoomTap(roomId),
   applyRoomDraftTargetFromRoomClick: (roomId) => applyRoomDraftTargetFromRoomClick(roomId),
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
-  isRoomNameHidden: (boardId, roomId) => isRoomNameHidden(boardId, roomId),
   pushUndoState: (desc) => pushUndoState(desc),
   normalizePolygonPoint: (p) => normalizePolygonPoint(p),
   remapGridPoint: (nx, ny) => projectionRemapPoint(nx, ny),
@@ -1817,10 +1812,7 @@ window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT.init({
   stopAnimationSound: (animationId) => stopAnimationSound(animationId),
   isRoomFrozen: (boardId, roomId) => isRoomFrozen(boardId, roomId),
   setRoomFrozen: (boardId, roomId, frozen) => setRoomFrozen(boardId, roomId, frozen),
-  isRoomNameHidden: (boardId, roomId) => isRoomNameHidden(boardId, roomId),
-  setRoomNameHidden: (boardId, roomId, hidden) => setRoomNameHidden(boardId, roomId, hidden),
   roomFrozenCheckbox,
-  roomNameHiddenCheckbox,
 });
 const {
   syncRoomManagementPanel,
@@ -1850,7 +1842,6 @@ const {
   getRoomTargetOptions,
   parseRoomTargetValue,
   syncRoomFrozenCheckbox,
-  syncRoomNameHiddenCheckbox,
 } = window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT;
 
 // Board context menu for right-click / long-press room creation.
@@ -2492,6 +2483,7 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   boardZoomResetButton,
   polygonRoomSelect,
   showRoomVerticesInput,
+  showRoomNamesInput,
   showPlayAreaVerticesInput,
   polygonVertexSelect,
   polygonEdgeSelect,
@@ -2840,11 +2832,9 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   getMp4TierDefaults: (tier) => getMp4TierDefaults(tier),
   updateMp4PerformanceControls: (partial, opts) => updateMp4PerformanceControls(partial, opts),
   roomFrozenCheckbox,
-  roomNameHiddenCheckbox,
   roomColorPicker,
   roomColorPickerLabel,
   setRoomFrozen: (boardId, roomId, frozen) => setRoomFrozen(boardId, roomId, frozen),
-  setRoomNameHidden: (boardId, roomId, hidden) => setRoomNameHidden(boardId, roomId, hidden),
   syncSelectedRoomStateForBoard: (boardId) => syncSelectedRoomStateForBoard(boardId),
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRoomOverlay: () => renderRoomOverlay(),

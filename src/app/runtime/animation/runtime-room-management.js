@@ -29,7 +29,6 @@
     }
     syncClusterManagementPanel();
     syncRoomFrozenCheckbox();
-    syncRoomNameHiddenCheckbox();
   }
 
   function syncRoomCreateShapeOptions(board) {
@@ -675,15 +674,6 @@
     ctx.roomFrozenCheckbox.checked = roomId ? ctx.isRoomFrozen(ctx.state.boardId, roomId) : false;
   }
 
-  function syncRoomNameHiddenCheckbox() {
-    if (!ctx.roomNameHiddenCheckbox) {
-      return;
-    }
-    const roomId = ctx.syncSelectedRoomStateForBoard(ctx.state.boardId);
-    ctx.roomNameHiddenCheckbox.disabled = !roomId;
-    ctx.roomNameHiddenCheckbox.checked = roomId ? ctx.isRoomNameHidden(ctx.state.boardId, roomId) : false;
-  }
-
   window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT = {
     init,
     syncRoomManagementPanel,
@@ -713,6 +703,5 @@
     getRoomTargetOptions,
     parseRoomTargetValue,
     syncRoomFrozenCheckbox,
-    syncRoomNameHiddenCheckbox,
   };
 })();

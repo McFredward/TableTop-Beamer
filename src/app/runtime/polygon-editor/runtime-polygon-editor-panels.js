@@ -150,6 +150,9 @@
     if (ctx.showRoomVerticesInput) {
       ctx.showRoomVerticesInput.checked = roomVerticesVisible;
     }
+    if (ctx.showRoomNamesInput) {
+      ctx.showRoomNamesInput.checked = state.polygonEditor.roomNamesVisible !== false;
+    }
     ctx.polygonVertexSelect.disabled = disabled || !roomVerticesVisible;
     ctx.polygonEdgeSelect.disabled = disabled || !roomVerticesVisible;
     ctx.polygonInsertVertexButton.disabled = disabled || !roomVerticesVisible;
