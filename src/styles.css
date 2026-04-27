@@ -499,15 +499,25 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-index {
-  fill: #0a0f18;
+  /* Labels now sit OUTSIDE the vertex handle, so they need contrast
+   * against the board image instead of the bright bubble interior.
+   * Dark stroke + bright fill = paint-style outline that reads on
+   * any background. */
+  fill: #fff4d8;
+  stroke: rgba(8, 10, 16, 0.85);
+  stroke-width: 0.9;
+  paint-order: stroke fill;
   font-family: "Barlow Condensed", sans-serif;
   font-size: 11px;
+  font-weight: 600;
   text-anchor: middle;
   pointer-events: none;
 }
 
 .polygon-vertex-index.is-active {
-  fill: #fff4f4;
+  fill: #ffe66b;
+  stroke: rgba(8, 10, 16, 0.95);
+  stroke-width: 1;
   font-weight: 700;
 }
 
@@ -541,11 +551,16 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .ship-polygon-vertex-index {
-  fill: #0c1428;
+  /* Outside-the-handle label — uses the same outlined style as
+   * the room-vertex labels so both polygon types stay legible
+   * against the board image. */
+  fill: #d8eaff;
+  stroke: rgba(8, 10, 16, 0.85);
 }
 
 .ship-polygon-vertex-index.is-active {
-  fill: #effffd;
+  fill: #ffe66b;
+  stroke: rgba(8, 10, 16, 0.95);
 }
 
 .dashboard {

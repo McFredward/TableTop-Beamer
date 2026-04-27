@@ -634,7 +634,7 @@ const {
 // replace the zoom slider; pan clamping still keeps the board visible at
 // extreme zoom-outs.
 const BOARD_ZOOM_SCALE_MIN = 0.25;
-const BOARD_ZOOM_SCALE_MAX = 8.0;
+const BOARD_ZOOM_SCALE_MAX = 24.0;
 
 // Init + destructure for the viewport-zoom module is placed later in the
 // file (after touchGestureActive and polygon-drag-support are initialized,
