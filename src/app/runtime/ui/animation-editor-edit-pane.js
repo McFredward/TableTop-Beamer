@@ -279,21 +279,42 @@
   function getDefaultFields(scope, def) {
     const fields = [];
     if (scope === "room") {
+      // Resolve coded-effect type so we can hide sliders that the
+      // chosen renderer ignores. Audit (Phase 25 user feedback):
+      //  - room coded "solid-color" never uses age/speed (static
+      //    fill) → hide Speed.
+      //  - room "gif" passes opacity-from-animation.opacity to the
+      //    gif render config and ignores animation.intensity in
+      //    that path → hide Intensity.
+      //  - room "mp4" sets canvas globalAlpha from animation.opacity
+      //    only; intensity is unused in the mp4 branch → hide
+      //    Intensity.
+      const resolveCoded = ctx.resolveRoomCodedEffectType;
+      const codedType = def.assetType === "coded"
+        ? (typeof resolveCoded === "function" ? resolveCoded(def.assetRef) || def.assetRef : def.assetRef)
+        : null;
+      const isSolidColor = codedType === "solid-color";
+      const isMedia = def.assetType === "gif" || def.assetType === "mp4";
+
       fields.push({
         kind: "slider", key: "opacity", label: "Opacity",
         min: 0.1, max: 1, step: 0.05,
         format: (v) => `${Math.round(v * 100)}%`,
       });
-      fields.push({
-        kind: "slider", key: "intensity", label: "Intensity",
-        min: 0.2, max: 1.5, step: 0.05,
-        format: (v) => v.toFixed(2),
-      });
-      fields.push({
-        kind: "slider", key: "speed", label: "Speed",
-        min: 0.1, max: 2.5, step: 0.05,
-        format: (v) => `${v.toFixed(2)}x`,
-      });
+      if (!isMedia) {
+        fields.push({
+          kind: "slider", key: "intensity", label: "Intensity",
+          min: 0.2, max: 1.5, step: 0.05,
+          format: (v) => v.toFixed(2),
+        });
+      }
+      if (!isSolidColor) {
+        fields.push({
+          kind: "slider", key: "speed", label: "Speed",
+          min: 0.1, max: 2.5, step: 0.05,
+          format: (v) => `${v.toFixed(2)}x`,
+        });
+      }
       fields.push({
         kind: "slider", key: "soundVolume", label: "Sound volume",
         min: 0, max: 1, step: 0.01,
