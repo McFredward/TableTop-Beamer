@@ -373,8 +373,7 @@ body[data-output-role="final-output"] .toast-stack {
   fill: rgba(89, 203, 188, 0.36);
   stroke: rgba(255, 246, 138, 1);
   stroke-width: 3.2;
-  stroke-dasharray: 6 3;
-  filter: drop-shadow(0 0 4px rgba(255, 246, 138, 0.55));
+  filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
 
 .room-zone.is-frozen {
@@ -429,6 +428,10 @@ body[data-output-role="final-output"] .toast-stack {
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
+  /* Edge midpoints (the dots used to insert a new vertex on
+   * double-click) follow the same transparency slider as the corner
+   * handles — user feedback. */
+  opacity: var(--tt-vertex-handle-opacity, 1);
 }
 
 .polygon-edge-handle.is-active {
@@ -462,9 +465,20 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-vertex-handle.is-active {
-  fill: rgba(255, 63, 63, 0.6);
-  stroke: rgba(255, 246, 246, 0.98);
+  fill: rgba(255, 246, 138, 0.95);
+  stroke: rgba(20, 24, 16, 0.95);
   stroke-width: 2.8;
+  /* Always stay visible even when the transparency slider hides the
+   * resting handles — the user explicitly picked this vertex. */
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
+}
+.ship-polygon-vertex-handle.is-active {
+  fill: rgba(255, 246, 138, 0.95);
+  stroke: rgba(20, 24, 16, 0.95);
+  stroke-width: 2.8;
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
 
 .polygon-vertex-hit-target {
@@ -504,6 +518,7 @@ body[data-output-role="final-output"] .toast-stack {
 .ship-polygon-edge-handle {
   fill: rgba(164, 178, 255, 0.42);
   stroke: rgba(229, 236, 255, 0.88);
+  opacity: var(--tt-vertex-handle-opacity, 1);
 }
 
 .ship-polygon-edge-handle.is-active {
@@ -514,11 +529,6 @@ body[data-output-role="final-output"] .toast-stack {
 .ship-polygon-vertex-handle {
   fill: rgba(172, 183, 255, 0.52);
   stroke: rgba(240, 244, 255, 0.96);
-}
-
-.ship-polygon-vertex-handle.is-active {
-  fill: rgba(103, 255, 226, 0.74);
-  stroke: rgba(230, 255, 248, 0.99);
 }
 
 .ship-polygon-vertex-index {

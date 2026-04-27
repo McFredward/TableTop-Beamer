@@ -60,11 +60,12 @@
     const inverseZoom = 1 / safeZoomScale;
     const normalizedHandleScale = clampPolygonHandleScale(handleScale);
     const coarse = getCoarsePointerHitMultiplier();
-    // Shrink the "100%" preset to what was 75% before.
-    // The slider still runs 10–100%, but every rendered pixel scales
-    // through this factor so the default feels less chunky against
-    // the modernised polygon palette.
-    const visualTrim = 0.75;
+    // Shrink the "100%" preset further: what was 75% on the slider
+    // becomes the new 100%. Compounds the prior 0.75 trim with another
+    // 0.75, so the default visual size is 0.5625 × the original.
+    // The slider still runs 10–100% — only the visible handles shrink;
+    // hit targets keep their old size for touch ergonomics.
+    const visualTrim = 0.5625;
     return {
       // Hit targets stay at the old size so touch ergonomics don't
       // regress — only the visible handles shrink.
