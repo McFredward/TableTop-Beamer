@@ -268,6 +268,7 @@
           ? "Status: Mobile focus set to Active"
           : "Status: Mobile focus set to Control";
     }
+    window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
   }
 
   window.TT_BEAMER_RUNTIME_MOBILE_LAYOUT = {

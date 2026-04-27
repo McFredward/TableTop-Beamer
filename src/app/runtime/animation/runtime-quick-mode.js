@@ -240,6 +240,7 @@
     if (announce) {
       ctx.triggerFeedback.textContent = `Status: Quick mode ${ctx.QUICK_MODE_LABELS[normalizedMode] ?? ctx.QUICK_MODE_LABELS.off}`;
     }
+    window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
   }
 
   function isQuickModeActive() {

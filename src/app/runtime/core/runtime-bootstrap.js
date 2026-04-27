@@ -98,6 +98,12 @@
         state.boardId = BOARDS[0]?.id ?? "";
       }
     }
+    // Apply persisted local UI prefs (toggle states, polygon corner
+    // size, tap-action mode, mobile zone) over the defaults set in
+    // runtime-state.js. Quiet on missing/corrupt payloads.
+    try {
+      window.TT_BEAMER_LOCAL_UI_PREFS?.loadLocalUiPrefs?.(state);
+    } catch { /* defensive — never block boot */ }
     // hitarea + geometry are legacy identity stubs. The
     // maps still need to exist (empty objects per board) so code
     // that reads them via getHitareaCalibration / getRoomGeometry

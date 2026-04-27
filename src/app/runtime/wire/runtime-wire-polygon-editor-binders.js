@@ -33,6 +33,7 @@
       syncShipPolygonEditorStatus();
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Polygon handle size (including Play Area) set to ${Math.round(handleScale * 100)}%`;
+      window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
     });
   }
 
@@ -117,6 +118,7 @@
       syncPolygonEditorPanel();
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Room vertices ${showRoomVerticesInput.checked ? "shown" : "hidden"}`;
+      window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
     });
   }
 
@@ -132,6 +134,7 @@
       state.polygonEditor.roomNamesVisible = showRoomNamesInput.checked;
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Room names ${showRoomNamesInput.checked ? "shown" : "hidden"}`;
+      window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
     });
   }
 
@@ -153,6 +156,7 @@
       syncShipPolygonEditorPanel();
       renderRoomOverlay();
       triggerFeedback.textContent = `Status: Play Area vertices ${showPlayAreaVerticesInput.checked ? "shown" : "hidden"}`;
+      window.TT_BEAMER_LOCAL_UI_PREFS?.persistLocalUiPrefs?.(state);
     });
   }
 
