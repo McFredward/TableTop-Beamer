@@ -960,9 +960,13 @@ body[data-output-role="final-output"].dir-obsidian {
   filter: drop-shadow(0 0 2px color-mix(in srgb, var(--c-accent) 55%, transparent));
 }
 .dir-obsidian .polygon-vertex-handle.is-active {
-  fill: var(--c-warn);
+  /* Active vertex uses --c-danger (red) so it stays clearly distinct
+   * from the gold-toned edge midpoints in BOTH resting and active
+   * states. Earlier this used --c-warn (gold) which collided with
+   * the midpoint hue. */
+  fill: var(--c-danger);
   stroke: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-warn) 85%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-danger) 85%, transparent));
 }
 .dir-obsidian .polygon-vertex-index {
   fill: #ffffff;
@@ -1017,9 +1021,12 @@ body[data-output-role="final-output"].dir-obsidian {
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45));
 }
 .dir-obsidian .ship-polygon-vertex-handle.is-active {
-  fill: var(--c-warn);
+  /* Same red highlight as the room-polygon active vertex so the
+   * "you've selected a corner" cue reads identically across polygon
+   * kinds, and stays distinct from the gold midpoint dots. */
+  fill: var(--c-danger);
   stroke: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-warn) 85%, transparent));
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-danger) 85%, transparent));
 }
 .dir-obsidian .ship-polygon-edge-handle {
   /* Same warm-gold hue as room edge midpoints so the
