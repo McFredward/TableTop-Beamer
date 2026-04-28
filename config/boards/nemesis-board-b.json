@@ -13,12 +13,6 @@
       {
         "id": "b-01",
         "name": "001",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "hexagon",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.14256172418212898,
@@ -44,17 +38,16 @@
             0.11397622418212888,
             0.07860479866766457
           ]
-        ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
       },
       {
         "id": "special-cockpit",
         "name": "002",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.05365642547607419,
@@ -316,17 +309,16 @@
             0.05628554153442383,
             0.6381164314784561
           ]
-        ]
-      },
-      {
-        "id": "special-cryoschlaf",
-        "name": "008",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "custom",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "special-cryoschlaf",
+        "name": "008",
         "polygon": [
           [
             0.27547338867187493,
@@ -580,17 +572,16 @@
             0.2751145629882813,
             0.6286255173102107
           ]
-        ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom",
+          "templateSource": null
+        }
       },
       {
         "id": "room-10",
         "name": "007",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "hexagon",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.38777404260253906,
@@ -616,17 +607,16 @@
             0.359188542602539,
             0.02980764900946148
           ]
-        ]
-      },
-      {
-        "id": "room-11",
-        "name": "010",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-11",
+        "name": "010",
         "polygon": [
           [
             0.5704559710467777,
@@ -652,17 +642,16 @@
             0.5418704710467777,
             0.14511097826349573
           ]
-        ]
-      },
-      {
-        "id": "room-12",
-        "name": "014",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-12",
+        "name": "014",
         "polygon": [
           [
             0.7803098829737558,
@@ -688,17 +677,16 @@
             0.7517243829737557,
             0.11519520207627829
           ]
-        ]
-      },
-      {
-        "id": "room-13",
-        "name": "017",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-13",
+        "name": "017",
         "polygon": [
           [
             0.941589746948242,
@@ -724,17 +712,16 @@
             0.9130042469482419,
             0.04148381172918797
           ]
-        ]
-      },
-      {
-        "id": "room-15",
-        "name": "013",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-15",
+        "name": "013",
         "polygon": [
           [
             0.6766703180792337,
@@ -760,17 +747,16 @@
             0.6480848180792336,
             0.4176921877533017
           ]
-        ]
-      },
-      {
-        "id": "room-16",
-        "name": "016",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-16",
+        "name": "016",
         "polygon": [
           [
             0.7794698845323058,
@@ -796,17 +782,16 @@
             0.7508843845323057,
             0.7167064547995718
           ]
-        ]
-      },
-      {
-        "id": "room-18",
-        "name": "021",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-18",
+        "name": "021",
         "polygon": [
           [
             0.9414850363631941,
@@ -832,17 +817,16 @@
             0.912899536363194,
             0.7893734209097722
           ]
-        ]
-      },
-      {
-        "id": "room-19",
-        "name": "012",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-19",
+        "name": "012",
         "polygon": [
           [
             0.5691396737060547,
@@ -868,17 +852,16 @@
             0.5405541737060545,
             0.6882753919293834
           ]
-        ]
-      },
-      {
-        "id": "room-20",
-        "name": "006",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-20",
+        "name": "006",
         "polygon": [
           [
             0.28052610253906246,
@@ -904,17 +887,16 @@
             0.2519406025390624,
             0.6532062390973521
           ]
-        ]
-      },
-      {
-        "id": "room-21",
-        "name": "009",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-21",
+        "name": "009",
         "polygon": [
           [
             0.3872455391845703,
@@ -940,17 +922,16 @@
             0.35866003918457023,
             0.8099685681989146
           ]
-        ]
-      },
-      {
-        "id": "room-22",
-        "name": "003",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-22",
+        "name": "003",
         "polygon": [
           [
             0.1439006447753906,
@@ -976,17 +957,16 @@
             0.11531514477539051,
             0.7593130506207896
           ]
-        ]
-      },
-      {
-        "id": "room-23",
-        "name": "005",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-23",
+        "name": "005",
         "polygon": [
           [
             0.2529174141845703,
@@ -1012,17 +992,16 @@
             0.2243319141845702,
             0.41686227547430516
           ]
-        ]
-      },
-      {
-        "id": "room-24",
-        "name": "001-004",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-24",
+        "name": "001-004",
         "polygon": [
           [
             0.18895011138916018,
@@ -1076,17 +1055,16 @@
             0.19097250366210938,
             0.19713408486831474
           ]
-        ]
-      },
-      {
-        "id": "room-33",
-        "name": "004",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-33",
+        "name": "004",
         "polygon": [
           [
             0.2822330803833008,
@@ -1112,17 +1090,16 @@
             0.25364758038330076,
             0.18432595955633646
           ]
-        ]
-      },
-      {
-        "id": "room-25",
-        "name": "011",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-25",
+        "name": "011",
         "polygon": [
           [
             0.5142362236938477,
@@ -1148,17 +1125,16 @@
             0.48565072369384765,
             0.41675985848211766
           ]
-        ]
-      },
-      {
-        "id": "room-26",
-        "name": "004-007",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-26",
+        "name": "004-007",
         "polygon": [
           [
             0.20910900878906247,
@@ -1292,17 +1268,16 @@
             0.23718669128417968,
             0.18708880615234375
           ]
-        ]
-      },
-      {
-        "id": "room-27",
-        "name": "004-010",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-27",
+        "name": "004-010",
         "polygon": [
           [
             0.36384976196289065,
@@ -1440,17 +1415,16 @@
             0.421622314453125,
             0.1894202270507812
           ]
-        ]
-      },
-      {
-        "id": "room-28",
-        "name": "004-005",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-28",
+        "name": "004-005",
         "polygon": [
           [
             0.18376252746582034,
@@ -1492,17 +1466,16 @@
             0.21063533020019531,
             0.4251473693847656
           ]
-        ]
-      },
-      {
-        "id": "room-29",
-        "name": "005-008",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-29",
+        "name": "005-008",
         "polygon": [
           [
             0.224917053254175,
@@ -1584,17 +1557,16 @@
             0.23526342773437503,
             0.45181478881835935
           ]
-        ]
-      },
-      {
-        "id": "room-30",
-        "name": "008-010",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-30",
+        "name": "008-010",
         "polygon": [
           [
             0.39255484185552875,
@@ -1732,17 +1704,16 @@
             0.40106359912163897,
             0.3846027532579919
           ]
-        ]
-      },
-      {
-        "id": "room-31",
-        "name": "005-008",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-31",
+        "name": "005-008",
         "polygon": [
           [
             0.25880323028564456,
@@ -1844,17 +1815,16 @@
             0.25851072692871097,
             0.5206861306052806
           ]
-        ]
-      },
-      {
-        "id": "room-32",
-        "name": "005-006",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-32",
+        "name": "005-006",
         "polygon": [
           [
             0.23867974853515628,
@@ -1924,17 +1894,16 @@
             0.23852557373046873,
             0.6486500502031992
           ]
-        ]
-      },
-      {
-        "id": "room-34",
-        "name": "002-003",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-34",
+        "name": "002-003",
         "polygon": [
           [
             0.07192427062988282,
@@ -2044,17 +2013,16 @@
             0.1045931625366211,
             0.7617064208984375
           ]
-        ]
-      },
-      {
-        "id": "room-35",
-        "name": "003-006",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-35",
+        "name": "003-006",
         "polygon": [
           [
             0.1236939239501953,
@@ -2108,17 +2076,16 @@
             0.1375255126953125,
             0.8210764770507812
           ]
-        ]
-      },
-      {
-        "id": "room-36",
-        "name": "001-002",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-36",
+        "name": "001-002",
         "polygon": [
           [
             0.1036094741821289,
@@ -2228,17 +2195,16 @@
             0.10346555328369139,
             0.33829164861279165
           ]
-        ]
-      },
-      {
-        "id": "room-37",
-        "name": "006-009",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-37",
+        "name": "006-009",
         "polygon": [
           [
             0.2208833788188843,
@@ -2380,17 +2346,16 @@
             0.29844078107562666,
             0.9388943540226143
           ]
-        ]
-      },
-      {
-        "id": "room-38",
-        "name": "006-012",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-38",
+        "name": "006-012",
         "polygon": [
           [
             0.34131085205078127,
@@ -2528,17 +2493,16 @@
             0.40335540771484374,
             0.835271240234375
           ]
-        ]
-      },
-      {
-        "id": "room-39",
-        "name": "008-012",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-39",
+        "name": "008-012",
         "polygon": [
           [
             0.40335543823242187,
@@ -2656,17 +2620,16 @@
             0.47343548583984374,
             0.6533058471679688
           ]
-        ]
-      },
-      {
-        "id": "room-40",
-        "name": "012-016",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-40",
+        "name": "012-016",
         "polygon": [
           [
             0.5951533813476563,
@@ -2808,17 +2771,16 @@
             0.646264404296875,
             0.9015807495117187
           ]
-        ]
-      },
-      {
-        "id": "room-41",
-        "name": "013-016",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-41",
+        "name": "013-016",
         "polygon": [
           [
             0.5979982588617185,
@@ -2956,17 +2918,16 @@
             0.6692142559632582,
             0.7920185921176411
           ]
-        ]
-      },
-      {
-        "id": "room-42",
-        "name": "011-013-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-42",
+        "name": "011-013-1",
         "polygon": [
           [
             0.4873539193289357,
@@ -3068,17 +3029,16 @@
             0.5027237882439461,
             0.45889215682883683
           ]
-        ]
-      },
-      {
-        "id": "room-43",
-        "name": "011-013-2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-43",
+        "name": "011-013-2",
         "polygon": [
           [
             0.5001827813294959,
@@ -3184,17 +3144,16 @@
             0.48758373156892065,
             0.5537348058158138
           ]
-        ]
-      },
-      {
-        "id": "room-44",
-        "name": "013-014",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-44",
+        "name": "013-014",
         "polygon": [
           [
             0.5983456355566273,
@@ -3348,17 +3307,16 @@
             0.6342770385742188,
             0.42295767211914065
           ]
-        ]
-      },
-      {
-        "id": "room-45",
-        "name": "010-014",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-45",
+        "name": "010-014",
         "polygon": [
           [
             0.5415901476895354,
@@ -3508,17 +3466,16 @@
             0.5547966899156743,
             0.19121779444943243
           ]
-        ]
-      },
-      {
-        "id": "room-46",
-        "name": "014-015",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-46",
+        "name": "014-015",
         "polygon": [
           [
             0.776920189338569,
@@ -3656,17 +3613,16 @@
             0.777541527229194,
             0.41447985227679257
           ]
-        ]
-      },
-      {
-        "id": "room-47",
-        "name": "014-017",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-47",
+        "name": "014-017",
         "polygon": [
           [
             0.7508094966643688,
@@ -3772,17 +3728,16 @@
             0.7656271489092438,
             0.16211374874862738
           ]
-        ]
-      },
-      {
-        "id": "room-48",
-        "name": "017-018-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-48",
+        "name": "017-018-1",
         "polygon": [
           [
             0.8174152597798956,
@@ -3948,17 +3903,16 @@
             0.8500498657226563,
             0.33551400756835936
           ]
-        ]
-      },
-      {
-        "id": "room-49",
-        "name": "017-018-2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-49",
+        "name": "017-018-2",
         "polygon": [
           [
             0.9267152099609375,
@@ -4092,17 +4046,16 @@
             0.9534359130859374,
             0.30183822780697683
           ]
-        ]
-      },
-      {
-        "id": "room-50",
-        "name": "015-016",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-50",
+        "name": "015-016",
         "polygon": [
           [
             0.7234905090332031,
@@ -4244,17 +4197,16 @@
             0.711836181640625,
             0.7167437762965633
           ]
-        ]
-      },
-      {
-        "id": "room-51",
-        "name": "015-019",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-51",
+        "name": "015-019",
         "polygon": [
           [
             0.7925002576456158,
@@ -4312,17 +4264,16 @@
             0.8044263348997063,
             0.49356895296481945
           ]
-        ]
-      },
-      {
-        "id": "room-52",
-        "name": "016-021",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-52",
+        "name": "016-021",
         "polygon": [
           [
             0.7996395263671875,
@@ -4388,17 +4339,16 @@
             0.8546683901977481,
             0.9288460800644629
           ]
-        ]
-      },
-      {
-        "id": "room-53",
-        "name": "020-021-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-53",
+        "name": "020-021-1",
         "polygon": [
           [
             0.8177770963519168,
@@ -4548,17 +4498,16 @@
             0.8371423167403582,
             0.835068405634893
           ]
-        ]
-      },
-      {
-        "id": "room-54",
-        "name": "020-021-2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-54",
+        "name": "020-021-2",
         "polygon": [
           [
             0.9329571988309386,
@@ -4652,17 +4601,16 @@
             0.9327328445782742,
             0.8453992126810798
           ]
-        ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
       },
       {
         "id": "room-55",
         "name": "b1",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "custom",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.951408366228489,
@@ -4688,17 +4636,16 @@
             1,
             0.4122219113649823
           ]
-        ]
-      },
-      {
-        "id": "room-56",
-        "name": "b2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "custom",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-56",
+        "name": "b2",
         "polygon": [
           [
             0.9591006539966909,
@@ -4740,17 +4687,16 @@
             1,
             0.5399650653790984
           ]
-        ]
-      },
-      {
-        "id": "room-57",
-        "name": "b3",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "custom",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-57",
+        "name": "b3",
         "polygon": [
           [
             1,
@@ -4776,17 +4722,16 @@
             1,
             0.575844122179952
           ]
-        ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "custom",
+          "templateSource": null
+        }
       },
       {
         "id": "room-61",
         "name": "B-2",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "hexagon",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.45519354442445864,
@@ -4952,17 +4897,16 @@
             0.4521267425018177,
             0.8579887809609988
           ]
-        ]
-      },
-      {
-        "id": "room-60",
-        "name": "B-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-60",
+        "name": "B-1",
         "polygon": [
           [
             0.40674073565369223,
@@ -5128,17 +5072,16 @@
             0.4036739337310513,
             0.8585958173665845
           ]
-        ]
-      },
-      {
-        "id": "room-58",
-        "name": "A-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-58",
+        "name": "A-1",
         "polygon": [
           [
             0.4071279273474221,
@@ -5304,17 +5247,16 @@
             0.4040611254247812,
             0.03777167416994956
           ]
-        ]
-      },
-      {
-        "id": "room-59",
-        "name": "A-2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-59",
+        "name": "A-2",
         "polygon": [
           [
             0.45630127245111407,
@@ -5480,17 +5422,16 @@
             0.45323447052847315,
             0.037016781512699756
           ]
-        ]
-      },
-      {
-        "id": "room-62",
-        "name": "TC-1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-62",
+        "name": "TC-1",
         "polygon": [
           [
             0.7117492608720698,
@@ -5732,17 +5673,16 @@
             0.7099133233720698,
             0.3171021951155389
           ]
-        ]
-      },
-      {
-        "id": "room-63",
-        "name": "TC-2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-63",
+        "name": "TC-2",
         "polygon": [
           [
             0.7117035616890721,
@@ -5984,17 +5924,16 @@
             0.7098676241890721,
             0.5853038129885664
           ]
-        ]
-      },
-      {
-        "id": "room-65",
-        "name": "R1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-65",
+        "name": "R1",
         "polygon": [
           [
             0.14828741922255995,
@@ -6056,17 +5995,16 @@
             0.1478175527697404,
             0.09358085723577046
           ]
-        ]
-      },
-      {
-        "id": "room-66",
-        "name": "R2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-66",
+        "name": "R2",
         "polygon": [
           [
             0.2798211098899733,
@@ -6128,17 +6066,16 @@
             0.27935124343715373,
             0.14602226473607105
           ]
-        ]
-      },
-      {
-        "id": "room-67",
-        "name": "R3",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-67",
+        "name": "R3",
         "polygon": [
           [
             0.5125370843414724,
@@ -6200,17 +6137,16 @@
             0.5120672178886528,
             0.10991570897260931
           ]
-        ]
-      },
-      {
-        "id": "room-68",
-        "name": "R4",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-68",
+        "name": "R4",
         "polygon": [
           [
             0.6919930638312051,
@@ -6272,17 +6208,16 @@
             0.6915231973783855,
             0.34292061051762684
           ]
-        ]
-      },
-      {
-        "id": "room-69",
-        "name": "R8",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-69",
+        "name": "R8",
         "polygon": [
           [
             0.8372270808358262,
@@ -6344,17 +6279,16 @@
             0.8367572143830067,
             0.3667496069797845
           ]
-        ]
-      },
-      {
-        "id": "room-70",
-        "name": "R5",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-70",
+        "name": "R5",
         "polygon": [
           [
             0.8530020345093505,
@@ -6416,17 +6350,16 @@
             0.852532168056531,
             0.4241532739311311
           ]
-        ]
-      },
-      {
-        "id": "room-71",
-        "name": "R6",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-71",
+        "name": "R6",
         "polygon": [
           [
             0.3327776140988112,
@@ -6488,17 +6421,16 @@
             0.33230774764599164,
             0.7703207279541394
           ]
-        ]
-      },
-      {
-        "id": "room-72",
-        "name": "R7",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-72",
+        "name": "R7",
         "polygon": [
           [
             0.5317946850980914,
@@ -6560,17 +6492,16 @@
             0.5313248186452718,
             0.4835029818595149
           ]
-        ]
-      },
-      {
-        "id": "room-73",
-        "name": "B1",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-73",
+        "name": "B1",
         "polygon": [
           [
             0.14957737236886676,
@@ -6632,17 +6563,16 @@
             0.1491075059160472,
             0.8777269658141499
           ]
-        ]
-      },
-      {
-        "id": "room-74",
-        "name": "B2",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-74",
+        "name": "B2",
         "polygon": [
           [
             0.38746268198081946,
@@ -6704,17 +6634,16 @@
             0.3869928155279999,
             0.9196068071684219
           ]
-        ]
-      },
-      {
-        "id": "room-75",
-        "name": "B3",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-75",
+        "name": "B3",
         "polygon": [
           [
             0.5138426452728826,
@@ -6776,89 +6705,16 @@
             0.513372778820063,
             0.8525454764761611
           ]
-        ]
-      },
-      {
-        "id": "room-76",
-        "name": "B3 Copy",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
-        "polygon": [
-          [
-            0.6115950119361646,
-            0.7714281794465886
-          ],
-          [
-            0.6117230815139842,
-            0.7732338514053042
-          ],
-          [
-            0.6114073050966264,
-            0.7747349832171168
-          ],
-          [
-            0.6108473880542686,
-            0.7760219190659795
-          ],
-          [
-            0.6095065340440551,
-            0.7767627179273559
-          ],
-          [
-            0.6081656800338417,
-            0.7775035167887322
-          ],
-          [
-            0.6071816610739706,
-            0.777098459463805
-          ],
-          [
-            0.6061976421140998,
-            0.7766934021388779
-          ],
-          [
-            0.6056569443957274,
-            0.7750053423593749
-          ],
-          [
-            0.6051162466773552,
-            0.7733172825798719
-          ],
-          [
-            0.6055589272236026,
-            0.7713967122922948
-          ],
-          [
-            0.6060992640198501,
-            0.7696189393133509
-          ],
-          [
-            0.6075622003150585,
-            0.7686974945091573
-          ],
-          [
-            0.609269277235267,
-            0.7683472389394966
-          ],
-          [
-            0.6111251454833451,
-            0.7697653047965064
-          ]
-        ]
+        }
       },
       {
         "id": "room-77",
         "name": "B4",
-        "radius": 0.055,
-        "meta": {
-          "schema": "tt-beamer.room.v2",
-          "spawnShape": "hexagon",
-          "templateSource": null
-        },
         "polygon": [
           [
             0.42090483854465216,
@@ -6920,17 +6776,16 @@
             0.4204349720918326,
             0.5651309136868118
           ]
-        ]
-      },
-      {
-        "id": "room-78",
-        "name": "B5",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-78",
+        "name": "B5",
         "polygon": [
           [
             0.33323542901674247,
@@ -6992,17 +6847,16 @@
             0.3327655625639229,
             0.19374732865710706
           ]
-        ]
-      },
-      {
-        "id": "room-79",
-        "name": "B6",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-79",
+        "name": "B6",
         "polygon": [
           [
             0.6917896939545821,
@@ -7064,17 +6918,16 @@
             0.6913198275017626,
             0.6128093260104852
           ]
-        ]
-      },
-      {
-        "id": "room-80",
-        "name": "B7",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-80",
+        "name": "B7",
         "polygon": [
           [
             0.8548089290800899,
@@ -7136,17 +6989,16 @@
             0.8543390626272703,
             0.5385195115044756
           ]
-        ]
-      },
-      {
-        "id": "room-81",
-        "name": "B8",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-81",
+        "name": "B8",
         "polygon": [
           [
             0.8366109194747865,
@@ -7208,17 +7060,16 @@
             0.836141053021967,
             0.604572619013833
           ]
-        ]
-      },
-      {
-        "id": "room-14",
-        "name": "015",
-        "radius": 0.055,
+        ],
         "meta": {
           "schema": "tt-beamer.room.v2",
           "spawnShape": "hexagon",
           "templateSource": null
-        },
+        }
+      },
+      {
+        "id": "room-14",
+        "name": "015",
         "polygon": [
           [
             0.8078457894287109,
@@ -7244,7 +7095,12 @@
             0.7792602894287107,
             0.41630615364813334
           ]
-        ]
+        ],
+        "meta": {
+          "schema": "tt-beamer.room.v2",
+          "spawnShape": "hexagon",
+          "templateSource": null
+        }
       }
     ],
     "roomClusters": [
@@ -7316,7 +7172,8 @@
       "b-05",
       "b-14",
       "b-13",
-      "room-64"
+      "room-64",
+      "room-76"
     ],
     "hitareaCalibration": {
       "offsetX": 0,
@@ -7716,12 +7573,6 @@
         "corpse": false
       },
       "room-75": {
-        "broken": false,
-        "burning": false,
-        "alienCount": 0,
-        "corpse": false
-      },
-      "room-76": {
         "broken": false,
         "burning": false,
         "alienCount": 0,
@@ -8409,32 +8260,6 @@
         [
           0.9130042469482419,
           0.04148381172918797
-        ]
-      ],
-      "room-14": [
-        [
-          0.8078457894287109,
-          0.4872778015136719
-        ],
-        [
-          0.779260289428711,
-          0.5582494493792105
-        ],
-        [
-          0.7220892894287109,
-          0.5582494493792105
-        ],
-        [
-          0.6935037894287108,
-          0.4872778015136719
-        ],
-        [
-          0.7220892894287109,
-          0.41630615364813334
-        ],
-        [
-          0.7792602894287107,
-          0.41630615364813334
         ]
       ],
       "room-15": [
@@ -12069,6 +11894,338 @@
           0.575844122179952
         ]
       ],
+      "room-61": [
+        [
+          0.45519354442445864,
+          0.8534384676112213
+        ],
+        [
+          0.4596334716452318,
+          0.8494019605425
+        ],
+        [
+          0.46337535453027956,
+          0.8468855794592873
+        ],
+        [
+          0.46824941702115763,
+          0.8455389481717607
+        ],
+        [
+          0.47218041422091034,
+          0.8471667562998919
+        ],
+        [
+          0.4762948176189755,
+          0.8501002762920792
+        ],
+        [
+          0.4792510298823612,
+          0.8544083982423427
+        ],
+        [
+          0.4821493272262648,
+          0.8597516280700417
+        ],
+        [
+          0.48436083588747003,
+          0.8651569127514975
+        ],
+        [
+          0.486340156161711,
+          0.8713779347994736
+        ],
+        [
+          0.4872633777231061,
+          0.8772925328937198
+        ],
+        [
+          0.4884996417652182,
+          0.8844682871892071
+        ],
+        [
+          0.4888341829611793,
+          0.8912276593470237
+        ],
+        [
+          0.4892633923476316,
+          0.898820551793106
+        ],
+        [
+          0.4889198332711693,
+          0.9076237893907604
+        ],
+        [
+          0.48820455449254185,
+          0.9133549670199459
+        ],
+        [
+          0.48733640147351814,
+          0.9201858159406198
+        ],
+        [
+          0.4863274988777915,
+          0.926061708711291
+        ],
+        [
+          0.48487532955093526,
+          0.9312701103362694
+        ],
+        [
+          0.483374332099079,
+          0.9356217281094475
+        ],
+        [
+          0.4811055008273697,
+          0.9410440351116132
+        ],
+        [
+          0.4783712049018111,
+          0.9459051567548646
+        ],
+        [
+          0.4747183864065243,
+          0.9497887063134194
+        ],
+        [
+          0.470110171887215,
+          0.9524557778972664
+        ],
+        [
+          0.46621906762961374,
+          0.9524504459219271
+        ],
+        [
+          0.4619330262066328,
+          0.9507282552239564
+        ],
+        [
+          0.4579559281971425,
+          0.9465030997996825
+        ],
+        [
+          0.4545524257126374,
+          0.9421739513659622
+        ],
+        [
+          0.45233098637025565,
+          0.9363324827035155
+        ],
+        [
+          0.450288613855817,
+          0.9303596713096431
+        ],
+        [
+          0.44881894704332176,
+          0.9242253750060179
+        ],
+        [
+          0.4477169909495836,
+          0.9175939561512417
+        ],
+        [
+          0.44676151923084534,
+          0.9114623278766818
+        ],
+        [
+          0.4464503979352015,
+          0.9046380666477447
+        ],
+        [
+          0.44613927663955766,
+          0.8992417785051405
+        ],
+        [
+          0.44621330435082146,
+          0.8934832150444231
+        ],
+        [
+          0.44599436331208525,
+          0.8870106650405392
+        ],
+        [
+          0.4462920980423109,
+          0.8775153998663103
+        ],
+        [
+          0.4476733838681775,
+          0.870730496106186
+        ],
+        [
+          0.44973897557922404,
+          0.8642431967515578
+        ],
+        [
+          0.4521267425018177,
+          0.8579887809609988
+        ]
+      ],
+      "room-60": [
+        [
+          0.40674073565369223,
+          0.854045504016807
+        ],
+        [
+          0.41118066287446536,
+          0.8500089969480856
+        ],
+        [
+          0.41492254575951315,
+          0.847492615864873
+        ],
+        [
+          0.4197966082503912,
+          0.8461459845773464
+        ],
+        [
+          0.42372760545014393,
+          0.8477737927054776
+        ],
+        [
+          0.4278420088482091,
+          0.8507073126976649
+        ],
+        [
+          0.43079822111159477,
+          0.8550154346479284
+        ],
+        [
+          0.4336965184554984,
+          0.8603586644756274
+        ],
+        [
+          0.4359080271167036,
+          0.8657639491570832
+        ],
+        [
+          0.4378873473909446,
+          0.8719849712050592
+        ],
+        [
+          0.43881056895233966,
+          0.8778995692993055
+        ],
+        [
+          0.4400468329944518,
+          0.8850753235947928
+        ],
+        [
+          0.4403813741904129,
+          0.8918346957526094
+        ],
+        [
+          0.4408105835768652,
+          0.8994275881986917
+        ],
+        [
+          0.44046702450040287,
+          0.9082308257963461
+        ],
+        [
+          0.43975174572177544,
+          0.9139620034255316
+        ],
+        [
+          0.43888359270275173,
+          0.9207928523462054
+        ],
+        [
+          0.43787469010702507,
+          0.9266687451168767
+        ],
+        [
+          0.43642252078016885,
+          0.9318771467418551
+        ],
+        [
+          0.4349215233283126,
+          0.9362287645150332
+        ],
+        [
+          0.4326526920566033,
+          0.9416510715171988
+        ],
+        [
+          0.4299183961310447,
+          0.9465121931604503
+        ],
+        [
+          0.4262655776357579,
+          0.9503957427190051
+        ],
+        [
+          0.4216573631164486,
+          0.9530628143028521
+        ],
+        [
+          0.41776625885884733,
+          0.9530574823275128
+        ],
+        [
+          0.4134802174358664,
+          0.9513352916295421
+        ],
+        [
+          0.40950311942637607,
+          0.9471101362052682
+        ],
+        [
+          0.40609961694187097,
+          0.9427809877715478
+        ],
+        [
+          0.40387817759948924,
+          0.9369395191091012
+        ],
+        [
+          0.40183580508505057,
+          0.9309667077152288
+        ],
+        [
+          0.40036613827255535,
+          0.9248324114116035
+        ],
+        [
+          0.3992641821788172,
+          0.9182009925568274
+        ],
+        [
+          0.39830871046007893,
+          0.9120693642822675
+        ],
+        [
+          0.3979975891644351,
+          0.9052451030533304
+        ],
+        [
+          0.39768646786879125,
+          0.8998488149107262
+        ],
+        [
+          0.39776049558005505,
+          0.8940902514500088
+        ],
+        [
+          0.39754155454131884,
+          0.8876177014461248
+        ],
+        [
+          0.3978392892715445,
+          0.878122436271896
+        ],
+        [
+          0.3992205750974111,
+          0.8713375325117717
+        ],
+        [
+          0.40128616680845763,
+          0.8648502331571435
+        ],
+        [
+          0.4036739337310513,
+          0.8585958173665845
+        ]
+      ],
       "room-58": [
         [
           0.4071279273474221,
@@ -12399,338 +12556,6 @@
         [
           0.45323447052847315,
           0.037016781512699756
-        ]
-      ],
-      "room-60": [
-        [
-          0.40674073565369223,
-          0.854045504016807
-        ],
-        [
-          0.41118066287446536,
-          0.8500089969480856
-        ],
-        [
-          0.41492254575951315,
-          0.847492615864873
-        ],
-        [
-          0.4197966082503912,
-          0.8461459845773464
-        ],
-        [
-          0.42372760545014393,
-          0.8477737927054776
-        ],
-        [
-          0.4278420088482091,
-          0.8507073126976649
-        ],
-        [
-          0.43079822111159477,
-          0.8550154346479284
-        ],
-        [
-          0.4336965184554984,
-          0.8603586644756274
-        ],
-        [
-          0.4359080271167036,
-          0.8657639491570832
-        ],
-        [
-          0.4378873473909446,
-          0.8719849712050592
-        ],
-        [
-          0.43881056895233966,
-          0.8778995692993055
-        ],
-        [
-          0.4400468329944518,
-          0.8850753235947928
-        ],
-        [
-          0.4403813741904129,
-          0.8918346957526094
-        ],
-        [
-          0.4408105835768652,
-          0.8994275881986917
-        ],
-        [
-          0.44046702450040287,
-          0.9082308257963461
-        ],
-        [
-          0.43975174572177544,
-          0.9139620034255316
-        ],
-        [
-          0.43888359270275173,
-          0.9207928523462054
-        ],
-        [
-          0.43787469010702507,
-          0.9266687451168767
-        ],
-        [
-          0.43642252078016885,
-          0.9318771467418551
-        ],
-        [
-          0.4349215233283126,
-          0.9362287645150332
-        ],
-        [
-          0.4326526920566033,
-          0.9416510715171988
-        ],
-        [
-          0.4299183961310447,
-          0.9465121931604503
-        ],
-        [
-          0.4262655776357579,
-          0.9503957427190051
-        ],
-        [
-          0.4216573631164486,
-          0.9530628143028521
-        ],
-        [
-          0.41776625885884733,
-          0.9530574823275128
-        ],
-        [
-          0.4134802174358664,
-          0.9513352916295421
-        ],
-        [
-          0.40950311942637607,
-          0.9471101362052682
-        ],
-        [
-          0.40609961694187097,
-          0.9427809877715478
-        ],
-        [
-          0.40387817759948924,
-          0.9369395191091012
-        ],
-        [
-          0.40183580508505057,
-          0.9309667077152288
-        ],
-        [
-          0.40036613827255535,
-          0.9248324114116035
-        ],
-        [
-          0.3992641821788172,
-          0.9182009925568274
-        ],
-        [
-          0.39830871046007893,
-          0.9120693642822675
-        ],
-        [
-          0.3979975891644351,
-          0.9052451030533304
-        ],
-        [
-          0.39768646786879125,
-          0.8998488149107262
-        ],
-        [
-          0.39776049558005505,
-          0.8940902514500088
-        ],
-        [
-          0.39754155454131884,
-          0.8876177014461248
-        ],
-        [
-          0.3978392892715445,
-          0.878122436271896
-        ],
-        [
-          0.3992205750974111,
-          0.8713375325117717
-        ],
-        [
-          0.40128616680845763,
-          0.8648502331571435
-        ],
-        [
-          0.4036739337310513,
-          0.8585958173665845
-        ]
-      ],
-      "room-61": [
-        [
-          0.45519354442445864,
-          0.8534384676112213
-        ],
-        [
-          0.4596334716452318,
-          0.8494019605425
-        ],
-        [
-          0.46337535453027956,
-          0.8468855794592873
-        ],
-        [
-          0.46824941702115763,
-          0.8455389481717607
-        ],
-        [
-          0.47218041422091034,
-          0.8471667562998919
-        ],
-        [
-          0.4762948176189755,
-          0.8501002762920792
-        ],
-        [
-          0.4792510298823612,
-          0.8544083982423427
-        ],
-        [
-          0.4821493272262648,
-          0.8597516280700417
-        ],
-        [
-          0.48436083588747003,
-          0.8651569127514975
-        ],
-        [
-          0.486340156161711,
-          0.8713779347994736
-        ],
-        [
-          0.4872633777231061,
-          0.8772925328937198
-        ],
-        [
-          0.4884996417652182,
-          0.8844682871892071
-        ],
-        [
-          0.4888341829611793,
-          0.8912276593470237
-        ],
-        [
-          0.4892633923476316,
-          0.898820551793106
-        ],
-        [
-          0.4889198332711693,
-          0.9076237893907604
-        ],
-        [
-          0.48820455449254185,
-          0.9133549670199459
-        ],
-        [
-          0.48733640147351814,
-          0.9201858159406198
-        ],
-        [
-          0.4863274988777915,
-          0.926061708711291
-        ],
-        [
-          0.48487532955093526,
-          0.9312701103362694
-        ],
-        [
-          0.483374332099079,
-          0.9356217281094475
-        ],
-        [
-          0.4811055008273697,
-          0.9410440351116132
-        ],
-        [
-          0.4783712049018111,
-          0.9459051567548646
-        ],
-        [
-          0.4747183864065243,
-          0.9497887063134194
-        ],
-        [
-          0.470110171887215,
-          0.9524557778972664
-        ],
-        [
-          0.46621906762961374,
-          0.9524504459219271
-        ],
-        [
-          0.4619330262066328,
-          0.9507282552239564
-        ],
-        [
-          0.4579559281971425,
-          0.9465030997996825
-        ],
-        [
-          0.4545524257126374,
-          0.9421739513659622
-        ],
-        [
-          0.45233098637025565,
-          0.9363324827035155
-        ],
-        [
-          0.450288613855817,
-          0.9303596713096431
-        ],
-        [
-          0.44881894704332176,
-          0.9242253750060179
-        ],
-        [
-          0.4477169909495836,
-          0.9175939561512417
-        ],
-        [
-          0.44676151923084534,
-          0.9114623278766818
-        ],
-        [
-          0.4464503979352015,
-          0.9046380666477447
-        ],
-        [
-          0.44613927663955766,
-          0.8992417785051405
-        ],
-        [
-          0.44621330435082146,
-          0.8934832150444231
-        ],
-        [
-          0.44599436331208525,
-          0.8870106650405392
-        ],
-        [
-          0.4462920980423109,
-          0.8775153998663103
-        ],
-        [
-          0.4476733838681775,
-          0.870730496106186
-        ],
-        [
-          0.44973897557922404,
-          0.8642431967515578
-        ],
-        [
-          0.4521267425018177,
-          0.8579887809609988
         ]
       ],
       "room-62": [
@@ -13215,68 +13040,6 @@
         [
           0.7098676241890721,
           0.5853038129885664
-        ]
-      ],
-      "room-64": [
-        [
-          0.6114818865955982,
-          0.6581680955719483
-        ],
-        [
-          0.6116099561734178,
-          0.659973767530664
-        ],
-        [
-          0.61129417975606,
-          0.6614748993424765
-        ],
-        [
-          0.6107342627137021,
-          0.6627618351913392
-        ],
-        [
-          0.6093934087034887,
-          0.6635026340527156
-        ],
-        [
-          0.6080525546932752,
-          0.6642434329140919
-        ],
-        [
-          0.6070685357334042,
-          0.6638383755891648
-        ],
-        [
-          0.6060845167735333,
-          0.6634333182642377
-        ],
-        [
-          0.605543819055161,
-          0.6617452584847346
-        ],
-        [
-          0.6050031213367888,
-          0.6600571987052316
-        ],
-        [
-          0.6054458018830362,
-          0.6581366284176545
-        ],
-        [
-          0.6059861386792836,
-          0.6563588554387106
-        ],
-        [
-          0.6074490749744921,
-          0.655437410634517
-        ],
-        [
-          0.6091561518947006,
-          0.6550871550648565
-        ],
-        [
-          0.6110120201427787,
-          0.6565052209218661
         ]
       ],
       "room-65": [
@@ -13961,68 +13724,6 @@
           0.8525454764761611
         ]
       ],
-      "room-76": [
-        [
-          0.6115950119361646,
-          0.7714281794465886
-        ],
-        [
-          0.6117230815139842,
-          0.7732338514053042
-        ],
-        [
-          0.6114073050966264,
-          0.7747349832171168
-        ],
-        [
-          0.6108473880542686,
-          0.7760219190659795
-        ],
-        [
-          0.6095065340440551,
-          0.7767627179273559
-        ],
-        [
-          0.6081656800338417,
-          0.7775035167887322
-        ],
-        [
-          0.6071816610739706,
-          0.777098459463805
-        ],
-        [
-          0.6061976421140998,
-          0.7766934021388779
-        ],
-        [
-          0.6056569443957274,
-          0.7750053423593749
-        ],
-        [
-          0.6051162466773552,
-          0.7733172825798719
-        ],
-        [
-          0.6055589272236026,
-          0.7713967122922948
-        ],
-        [
-          0.6060992640198501,
-          0.7696189393133509
-        ],
-        [
-          0.6075622003150585,
-          0.7686974945091573
-        ],
-        [
-          0.609269277235267,
-          0.7683472389394966
-        ],
-        [
-          0.6111251454833451,
-          0.7697653047965064
-        ]
-      ],
       "room-77": [
         [
           0.42090483854465216,
@@ -14331,6 +14032,32 @@
         [
           0.836141053021967,
           0.604572619013833
+        ]
+      ],
+      "room-14": [
+        [
+          0.8078457894287109,
+          0.4872778015136719
+        ],
+        [
+          0.779260289428711,
+          0.5582494493792105
+        ],
+        [
+          0.7220892894287109,
+          0.5582494493792105
+        ],
+        [
+          0.6935037894287108,
+          0.4872778015136719
+        ],
+        [
+          0.7220892894287109,
+          0.41630615364813334
+        ],
+        [
+          0.7792602894287107,
+          0.41630615364813334
         ]
       ]
     },

@@ -115,7 +115,7 @@ every other within a frame. Multiple controllers can be connected at once.
 
 | | |
 |---|---|
-| 🎥 **Projector** | Short-throw, ceiling-mounted, image fully covering the table |
+| 🎥 **Projector** | Short-throw, DLP, ceiling-mounted, image fully covering the table |
 | 🖥️ **Output device** | Raspberry Pi 4/5 (or any Linux mini PC) connected to the projector |
 | 🌐 **Server** | Any machine running Node.js, reachable from the Pi and the phone |
 | 📱 **Controller** | Phone / tablet with a modern browser |
