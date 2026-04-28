@@ -67,15 +67,13 @@ and trigger everything from your phone during play.
 <table>
   <tr>
     <td align="center">
-      <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
+      <video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video>
     </td>
     <td align="center">
-      <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
+      <video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video>
     </td>
     <td align="center">
-      <td>
-        <img src="./readme-assets/example_board.gif" width=""/>
-      </td>
+      <img src="./readme-assets/example_board.gif" width=""/>  
     </td>
   </tr>
 </table>
