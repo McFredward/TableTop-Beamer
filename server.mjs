@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { readFile, writeFile, stat, appendFile, mkdir, readdir, rename, unlink } from "node:fs/promises";
+import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { createReadStream, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
@@ -18,7 +18,6 @@ const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
 const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
-const LEGACY_IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 
@@ -1829,8 +1828,7 @@ function normalizeRoomClusterEntry(cluster, roomIds = new Set(), index = 0) {
 function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRoomCatalog = false } = {}) {
   const boardId = String(inputBoard?.boardId || inputBoard?.id || "").trim();
   const name = String(inputBoard?.metadata?.name || inputBoard?.label || "").trim();
-  const rawImageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
-  const imageSrc = rawImageSrc.replace("/config/boards/imported/assets/", "/config/boards/assets/");
+  const imageSrc = String(inputBoard?.metadata?.imageSrc || inputBoard?.src || "").trim();
   const roomCatalogRaw = Array.isArray(inputBoard?.roomCatalog)
     ? inputBoard.roomCatalog
     : Array.isArray(inputBoard?.rooms)
@@ -1964,59 +1962,7 @@ async function pathExists(p) {
   }
 }
 
-async function migrateLegacyImportedBoardStorage() {
-  await mkdir(BOARD_STORAGE_DIR, { recursive: true });
-  await mkdir(BOARD_ASSETS_DIR, { recursive: true });
-  let legacyEntries = [];
-  try {
-    legacyEntries = await readdir(LEGACY_IMPORTED_BOARDS_DIR, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of legacyEntries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) {
-      continue;
-    }
-    const legacyPath = path.join(LEGACY_IMPORTED_BOARDS_DIR, entry.name);
-    const canonicalPath = path.join(BOARD_STORAGE_DIR, entry.name);
-    try {
-      await stat(canonicalPath);
-    } catch {
-      try {
-        await rename(legacyPath, canonicalPath);
-      } catch {
-        // leave legacy file in place if migration move fails
-      }
-    }
-  }
-
-  const legacyAssetsDir = path.join(LEGACY_IMPORTED_BOARDS_DIR, "assets");
-  let legacyAssetEntries = [];
-  try {
-    legacyAssetEntries = await readdir(legacyAssetsDir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const entry of legacyAssetEntries) {
-    if (!entry.isFile()) {
-      continue;
-    }
-    const legacyPath = path.join(legacyAssetsDir, entry.name);
-    const canonicalPath = path.join(BOARD_ASSETS_DIR, entry.name);
-    try {
-      await stat(canonicalPath);
-    } catch {
-      try {
-        await rename(legacyPath, canonicalPath);
-      } catch {
-        // leave legacy file in place if migration move fails
-      }
-    }
-  }
-}
-
 async function loadCanonicalBoardsFromStorage() {
-  await migrateLegacyImportedBoardStorage();
   await mkdir(BOARD_STORAGE_DIR, { recursive: true });
   const entries = await readdir(BOARD_STORAGE_DIR, { withFileTypes: true });
   const catalogBoards = [];
@@ -2374,7 +2320,6 @@ async function handleImageBoardImport(req, res) {
     return;
   }
 
-  await migrateLegacyImportedBoardStorage();
   await mkdir(BOARD_STORAGE_DIR, { recursive: true });
   await mkdir(BOARD_ASSETS_DIR, { recursive: true });
 
@@ -2520,7 +2465,6 @@ async function handleBoardImport(req, res) {
     return;
   }
 
-  await migrateLegacyImportedBoardStorage();
   await mkdir(BOARD_STORAGE_DIR, { recursive: true });
   const targetPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
   try {
