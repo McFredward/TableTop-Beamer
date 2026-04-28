@@ -222,6 +222,11 @@
   function beginPolygonDragInteraction() {
     if (polygonDragActive) return;
     polygonDragActive = true;
+    // Capture stage geometry NOW (layout is clean) so subsequent
+    // mapClientPointToNormalized calls during the drag can read from
+    // the cache and avoid forcing a sync layout flush after each SVG
+    // attribute write.
+    refreshStageGeometryCache();
     try {
       const liveSync = ctx?.liveSync;
       if (liveSync?.pollTimerId !== null && liveSync?.pollTimerId !== undefined) {
@@ -242,6 +247,9 @@
       return;
     }
     polygonDragActive = false;
+    // Cached rect is stale once the drag ends — next gesture should
+    // recompute from a fresh getBoundingClientRect.
+    stageGeometryCache.rect = null;
     flushPendingRoomOverlayRender();
     ctx?.renderRoomOverlay?.();
     try { ctx?.scheduleNextLiveSnapshotPoll?.(0); } catch { /* best effort */ }

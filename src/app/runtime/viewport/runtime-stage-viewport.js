@@ -140,6 +140,20 @@
   }
 
   function getCanonicalViewportRect() {
+    // During a polygon drag the stage transform is frozen (no
+    // concurrent zoom/pan), so the cached rect from polygon-drag
+    // support stays valid for the whole gesture. That avoids the
+    // forced synchronous layout that getBoundingClientRect() triggers
+    // after each applyIncrementalRoomDrag SVG attribute write —
+    // forced layout was the dominant cost per pointermove on
+    // high-Hz mice.
+    const dragSupport = window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT;
+    if (dragSupport?.isHeavyInteractionActive?.()) {
+      const cached = dragSupport.getCachedStageGeometry?.();
+      if (cached?.rect && cached.rect.width > 0 && cached.rect.height > 0) {
+        return cached.rect;
+      }
+    }
     const stageRect = ctx.stage?.getBoundingClientRect?.();
     if (stageRect && stageRect.width > 0 && stageRect.height > 0) {
       return stageRect;
