@@ -2557,6 +2557,29 @@ async function handleBoardDelete(req, res) {
   if (imageAssetPath) {
     try { await unlink(imageAssetPath); } catch { /* asset already gone — fine */ }
   }
+
+  // Cascade: scrub the board's runtime profile from global-defaults
+  // and any per-board projection (calibration) profiles. Without this
+  // step, boardProfiles[boardId] and projection-profiles[boardId]
+  // outlive the board JSON and reappear as orphans in the next save.
+  // Shared media (animation gifs/mp4s under /resources/animations/)
+  // is intentionally left in place — those are not board-owned.
+  try {
+    const gdRaw = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
+    const gd = JSON.parse(gdRaw);
+    if (gd && typeof gd === "object" && gd.boardProfiles && typeof gd.boardProfiles === "object" && Object.prototype.hasOwnProperty.call(gd.boardProfiles, boardId)) {
+      delete gd.boardProfiles[boardId];
+      await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
+    }
+  } catch { /* file missing or unparseable — fine */ }
+  try {
+    const allProjection = await loadProjectionProfilesRaw();
+    if (Object.prototype.hasOwnProperty.call(allProjection, boardId)) {
+      delete allProjection[boardId];
+      await saveProjectionProfilesRaw(allProjection);
+    }
+  } catch { /* fine */ }
+
   const catalog = await loadBoardCatalog();
   sendJson(res, 200, {
     ok: true,
