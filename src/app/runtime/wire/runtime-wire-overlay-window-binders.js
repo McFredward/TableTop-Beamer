@@ -41,7 +41,30 @@
       scheduleZoomUpdate,
     } = ctx;
 
+    // Gaming mice can fire pointermove at 1000Hz+. The drag handler
+     // does real work each call (state mutation + SVG attribute writes
+     // + status text rebuild) and was the source of the CPU/fan spike
+     // the user noticed during polygon editing. Coalesce per
+     // animation frame: store the latest event, schedule one rAF;
+     // browser repaints at 60–120Hz anyway so dropping intermediate
+     // events is invisible while the CPU bill drops by ~10×.
+    let pendingMoveEvent = null;
+    let pendingMoveRafId = null;
+    function flushPendingMoveEvent() {
+      pendingMoveRafId = null;
+      const event = pendingMoveEvent;
+      pendingMoveEvent = null;
+      if (event) processMoveEvent(event);
+    }
+
     roomOverlay.addEventListener("pointermove", (event) => {
+      pendingMoveEvent = event;
+      if (pendingMoveRafId === null) {
+        pendingMoveRafId = window.requestAnimationFrame(flushPendingMoveEvent);
+      }
+    });
+
+    function processMoveEvent(event) {
       if (state.panMode.active) {
         if (state.panMode.pointerId !== event.pointerId) {
           return;
@@ -177,7 +200,7 @@
         getRoomPoints(vertexRoom, boardId),
       );
       syncPolygonEditorStatus();
-    });
+    }
   }
 
   function _wireOverlayPointerUp(ctx) {
