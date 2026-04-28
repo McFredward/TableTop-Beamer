@@ -97,8 +97,13 @@
     };
   }
 
-  function normalizeInsideAnimationDefinitions(definitions) {
-    const incoming = Array.isArray(definitions) ? definitions : [];
+  function normalizeInsideAnimationDefinitions(definitions, { allowEmpty = false } = {}) {
+    // allowEmpty=true: caller passed an explicit array (possibly
+    // empty) and wants the result respected verbatim. Used for
+    // newly-imported boards which start with no animations so the
+    // user can populate them via "copy from board".
+    const isExplicitArray = Array.isArray(definitions);
+    const incoming = isExplicitArray ? definitions : [];
     const normalized = incoming
       .map((entry, index) => normalizeInsideAnimationDefinition(entry, index))
       .filter((entry) => entry && typeof entry === "object");
@@ -111,7 +116,7 @@
       seen.add(entry.id);
       uniqueById.push(entry);
     }
-    if (uniqueById.length > 0) {
+    if (uniqueById.length > 0 || (allowEmpty && isExplicitArray)) {
       return uniqueById;
     }
     return ctx.createDefaultInsideAnimationDefinitions().map((entry, index) => normalizeInsideAnimationDefinition(entry, index));
@@ -119,7 +124,24 @@
 
   function normalizeInsideFxProfile(profile) {
     const legacyProfile = profile && typeof profile === "object" ? profile : {};
-    const animations = normalizeInsideAnimationDefinitions(legacyProfile?.animations ?? legacyProfile?.insideAnimations);
+    const rawAnimations = legacyProfile?.animations ?? legacyProfile?.insideAnimations;
+    const animations = normalizeInsideAnimationDefinitions(rawAnimations, {
+      allowEmpty: Array.isArray(rawAnimations),
+    });
+    if (animations.length === 0) {
+      // Empty animations on purpose (new board). Return a profile
+      // shape that downstream renderers can read without crashing —
+      // selected ids/refs are blank, gating booleans default to off.
+      return {
+        selectedAnimationId: "",
+        animations,
+        intensity: 1,
+        speed: 1,
+        assetType: "coded",
+        assetRef: "",
+        loopUntilStopped: false,
+      };
+    }
     const preferredId = normalizeInsideAnimationId(
       legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedInsideAnimationId,
       animations[0]?.id ?? "hull-flicker",
@@ -231,8 +253,9 @@
     };
   }
 
-  function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null) {
-    const incoming = Array.isArray(definitions) ? definitions : [];
+  function normalizeOutsideAnimationDefinitions(definitions, legacyProfile = null, { allowEmpty = false } = {}) {
+    const isExplicitArray = Array.isArray(definitions);
+    const incoming = isExplicitArray ? definitions : [];
     const normalized = incoming
       .map((entry, index) => normalizeOutsideAnimationDefinition(entry, index))
       .filter((entry) => entry && typeof entry === "object");
@@ -245,7 +268,7 @@
       seen.add(entry.id);
       uniqueById.push(entry);
     }
-    if (uniqueById.length > 0) {
+    if (uniqueById.length > 0 || (allowEmpty && isExplicitArray)) {
       return uniqueById;
     }
     const defaults = ctx.createDefaultOutsideAnimationDefinitions();
@@ -271,10 +294,25 @@
 
   function normalizeOutsideFxProfile(profile) {
     const legacyProfile = profile && typeof profile === "object" ? profile : ctx.OUTSIDE_FX_DEFAULT;
+    const rawAnimations = legacyProfile?.animations ?? legacyProfile?.outsideAnimations;
     const animations = normalizeOutsideAnimationDefinitions(
-      legacyProfile?.animations ?? legacyProfile?.outsideAnimations,
+      rawAnimations,
       legacyProfile,
+      { allowEmpty: Array.isArray(rawAnimations) },
     );
+    if (animations.length === 0) {
+      return {
+        enabled: Boolean(legacyProfile?.enabled),
+        selectedAnimationId: "",
+        animations,
+        intensity: 1,
+        speed: 1,
+        mode: "standard",
+        direction: "forward",
+        assetType: "coded",
+        assetRef: "",
+      };
+    }
     const preferredId = normalizeOutsideAnimationId(
       legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedOutsideAnimationId,
       animations[0]?.id ?? "outside-space",
@@ -443,8 +481,9 @@
     };
   }
 
-  function normalizeRoomAnimationDefinitions(definitions) {
-    const incoming = Array.isArray(definitions) ? definitions : [];
+  function normalizeRoomAnimationDefinitions(definitions, { allowEmpty = false } = {}) {
+    const isExplicitArray = Array.isArray(definitions);
+    const incoming = isExplicitArray ? definitions : [];
     const normalized = incoming
       .map((entry, index) => normalizeRoomAnimationDefinition(entry, index))
       .filter((entry) => entry && typeof entry === "object");
@@ -457,7 +496,7 @@
       seen.add(entry.id);
       uniqueById.push(entry);
     }
-    if (uniqueById.length > 0) {
+    if (uniqueById.length > 0 || (allowEmpty && isExplicitArray)) {
       return uniqueById;
     }
     return ctx.createDefaultRoomAnimationDefinitions().map((entry, index) => normalizeRoomAnimationDefinition(entry, index));
@@ -465,9 +504,16 @@
 
   function normalizeRoomFxProfile(profile) {
     const legacyProfile = profile && typeof profile === "object" ? profile : {};
-    const animations = normalizeRoomAnimationDefinitions(
-      legacyProfile?.animations ?? legacyProfile?.roomAnimations,
-    );
+    const rawAnimations = legacyProfile?.animations ?? legacyProfile?.roomAnimations;
+    const animations = normalizeRoomAnimationDefinitions(rawAnimations, {
+      allowEmpty: Array.isArray(rawAnimations),
+    });
+    if (animations.length === 0) {
+      return {
+        selectedAnimationId: "",
+        animations,
+      };
+    }
     const preferredId = normalizeRoomAnimationId(
       legacyProfile?.selectedAnimationId ?? legacyProfile?.selectedRoomAnimationId,
       animations[0]?.id ?? "kaputt",

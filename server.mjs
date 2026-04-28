@@ -2475,6 +2475,12 @@ async function handleImageBoardImport(req, res) {
   await writeFile(imageFilePath, imagePart.data);
 
   const imageSrc = `/config/boards/assets/${imageFileName}`;
+  // Phase 26: image-imported boards start completely empty —
+  // including the FX libraries. Explicit empty arrays are written
+  // (rather than omitting the fields) so the client's normalizers
+  // respect them as "intentionally empty" instead of falling back
+  // to factory defaults. The user populates the new board via the
+  // animation editor's "copy from another board" feature.
   const normalized = normalizeBoardDefinition({
     boardId: safeBoardId,
     metadata: {
@@ -2483,6 +2489,9 @@ async function handleImageBoardImport(req, res) {
     },
     roomCatalog: [],
     roomClusters: [],
+    insideFx: { animations: [] },
+    outsideFx: { enabled: false, animations: [] },
+    roomFx: { animations: [] },
   }, {
     source: "catalog-image",
     allowEmptyRoomCatalog: true,
