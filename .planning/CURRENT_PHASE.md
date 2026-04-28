@@ -1,11 +1,16 @@
 # CURRENT PHASE
 
 - Active: Phase 26 (Data-storage cleanup) — in progress
-- Status: 4 commits (26-1..26-4) shipped — dead zones data + helpers
-  removed, board JSONs schema-normalized, Maschinenraum scrubbed
-  from board catalogs and global-defaults boardProfiles, legacy
-  imported/ migration retired.
-- App version: `0.26.0`
+- Status: 6 commits + 1 hotfix shipped. 26-1..26-4 cleaned dead
+  zones, normalized board schemas, scrubbed Maschinenraum, retired
+  imported/ migration. h1 cascaded board-delete to profiles.
+  26-6 unified per-board state into config/boards/<id>.json (board
+  JSON now holds both static catalog data AND live state),
+  shrunk global-defaults.json to truly-global fields, consolidated
+  images under /config/boards/assets/. Package format bumped to
+  tt-beamer.board-package.v3 (no boardProfile field — board carries
+  it inline).
+- App version: `0.26.2`
 - Previous Phase: Phase 25 (Bug & Polish) CLOSED — final
 
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)

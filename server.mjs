@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, stat, appendFile, mkdir, readdir, unlink } from "node:fs/promises";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import path from "node:path";
@@ -22,10 +22,50 @@ const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
-const BOARD_DEFINITION_SCHEMA = "tt-beamer.board-definition.v1";
+const BOARD_DEFINITION_SCHEMA = "tt-beamer.board.v2";
 const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
+const BOARD_PACKAGE_SCHEMA = "tt-beamer.board-package.v3";
 // Phase 16: no more builtin board IDs — all boards are catalog entries.
 const BUILTIN_BOARD_IDS = new Set();
+
+// Phase 26: per-board live-state fields stored inline in
+// config/boards/<id>.json. Anything in this list is what used to
+// live in global-defaults.json :: boardProfiles[<id>] before the
+// unification. global-defaults.json now only holds truly-global
+// state (audio, animationSpeed, animationSoundMap, projectionMapping).
+const BOARD_PROFILE_FIELDS = Object.freeze([
+  "deletedRoomIds",
+  "hitareaCalibration",
+  "roomGeometry",
+  "roomStateProfiles",
+  "specialPolygons",
+  "playAreaPolygon",
+  "playAreas",
+  "selectedPlayAreaId",
+  "outsideFx",
+  "insideFx",
+  "roomFx",
+  "defaultAnimations",
+  "frozenRooms",
+  "hiddenRoomNames",
+]);
+
+function extractProfileFromUnifiedBoard(board) {
+  if (!board || typeof board !== "object") return {};
+  const profile = {};
+  // roomCatalog and roomClusters are part of the unified board
+  // shape AND part of what runtime-side boardProfiles consumers
+  // expect. Both surfaces read them — emit them in the synthesized
+  // profile too.
+  if (Array.isArray(board.roomCatalog)) profile.roomCatalog = board.roomCatalog;
+  if (Array.isArray(board.roomClusters)) profile.roomClusters = board.roomClusters;
+  for (const field of BOARD_PROFILE_FIELDS) {
+    if (board[field] !== undefined) {
+      profile[field] = board[field];
+    }
+  }
+  return profile;
+}
 
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 
@@ -1886,6 +1926,16 @@ function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRo
     clusterSeen.add(cluster.clusterId);
   }
 
+  // Pass through Phase-26 unified profile fields so the on-disk
+  // shape (config/boards/<id>.json) can carry both static catalog
+  // data and live-state data in one file.
+  const profileExtras = {};
+  for (const field of BOARD_PROFILE_FIELDS) {
+    if (inputBoard?.[field] !== undefined) {
+      profileExtras[field] = inputBoard[field];
+    }
+  }
+
   return {
     ok: issues.length === 0,
     issues,
@@ -1899,6 +1949,7 @@ function normalizeBoardDefinition(inputBoard, { source = "catalog", allowEmptyRo
       },
       roomCatalog,
       roomClusters,
+      ...profileExtras,
     },
   };
 }
@@ -2004,6 +2055,59 @@ async function loadBoardCatalog() {
     boards,
     runtimeBoards: boards.map(toRuntimeBoard),
   };
+}
+
+// Phase 26: synthesize the runtime-side boardProfiles map by
+// reading every config/boards/<id>.json and projecting each into
+// just the live-state fields. Used to keep the GET /api/global-
+// defaults response shape stable for existing clients.
+async function synthesizeBoardProfiles() {
+  const storedBoards = await loadCanonicalBoardsFromStorage();
+  const profiles = {};
+  for (const board of storedBoards) {
+    profiles[board.boardId] = extractProfileFromUnifiedBoard(board);
+  }
+  return profiles;
+}
+
+// Phase 26: write a single board's live-state fields back into
+// its config/boards/<id>.json, preserving the static fields (and
+// any extras the caller didn't touch). Caller passes the
+// per-board slice of the incoming boardProfiles payload.
+async function persistBoardProfileToBoardFile(boardId, profile) {
+  const safeFileName = sanitizeBoardFileName(boardId);
+  if (!safeFileName) return false;
+  const filePath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+  let outer;
+  try {
+    const raw = await readFile(filePath, "utf8");
+    outer = JSON.parse(raw);
+  } catch {
+    return false;
+  }
+  const inner = outer && typeof outer === "object" ? (outer.board ?? outer) : null;
+  if (!inner || typeof inner !== "object") return false;
+
+  // Apply incoming profile fields. Profile owns roomCatalog +
+  // roomClusters because the runtime is the canonical source for
+  // user-edited geometry.
+  if (profile && typeof profile === "object") {
+    if (Array.isArray(profile.roomCatalog)) inner.roomCatalog = profile.roomCatalog;
+    if (Array.isArray(profile.roomClusters)) inner.roomClusters = profile.roomClusters;
+    for (const field of BOARD_PROFILE_FIELDS) {
+      if (profile[field] !== undefined) {
+        inner[field] = profile[field];
+      }
+    }
+  }
+
+  if (outer.board) {
+    outer.board = inner;
+  } else {
+    outer = inner;
+  }
+  await writeFile(filePath, `${JSON.stringify(outer, null, 2)}\n`, "utf8");
+  return true;
 }
 
 async function listResourceFilesRecursive(baseDir, relativeDir = "") {
@@ -2558,20 +2662,12 @@ async function handleBoardDelete(req, res) {
     try { await unlink(imageAssetPath); } catch { /* asset already gone — fine */ }
   }
 
-  // Cascade: scrub the board's runtime profile from global-defaults
-  // and any per-board projection (calibration) profiles. Without this
-  // step, boardProfiles[boardId] and projection-profiles[boardId]
-  // outlive the board JSON and reappear as orphans in the next save.
-  // Shared media (animation gifs/mp4s under /resources/animations/)
-  // is intentionally left in place — those are not board-owned.
-  try {
-    const gdRaw = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
-    const gd = JSON.parse(gdRaw);
-    if (gd && typeof gd === "object" && gd.boardProfiles && typeof gd.boardProfiles === "object" && Object.prototype.hasOwnProperty.call(gd.boardProfiles, boardId)) {
-      delete gd.boardProfiles[boardId];
-      await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
-    }
-  } catch { /* file missing or unparseable — fine */ }
+  // Phase 26: per-board live-state lives inline in the board JSON
+  // we just unlinked, so no boardProfiles cascade is needed. We
+  // still scrub projection-profiles since those are stored
+  // separately keyed by boardId. Shared media (animation gifs/
+  // mp4s under /resources/animations/) is intentionally left in
+  // place — those are not board-owned.
   try {
     const allProjection = await loadProjectionProfilesRaw();
     if (Object.prototype.hasOwnProperty.call(allProjection, boardId)) {
@@ -2602,70 +2698,6 @@ function isValidPolygon(points) {
         Number.isFinite(Number(point[1])),
     )
   );
-}
-
-function mergeSpecialPolygonMap(primaryMap, fallbackMap) {
-  const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
-  if (!primaryMap || typeof primaryMap !== "object") {
-    return merged;
-  }
-  for (const [roomId, polygon] of Object.entries(primaryMap)) {
-    if (isValidPolygon(polygon)) {
-      merged[roomId] = polygon;
-    }
-  }
-  return merged;
-}
-
-function mergeBoardProfiles(primaryProfiles, fallbackProfiles) {
-  const merged = {};
-  const boardIds = new Set([
-    ...Object.keys(fallbackProfiles ?? {}),
-    ...Object.keys(primaryProfiles ?? {}),
-  ]);
-
-  for (const boardId of boardIds) {
-    const primary = primaryProfiles?.[boardId] ?? {};
-    const fallback = fallbackProfiles?.[boardId] ?? {};
-    const mergedPlayAreas = Array.isArray(primary.playAreas) && primary.playAreas.length > 0
-      ? primary.playAreas
-      : Array.isArray(fallback.playAreas) && fallback.playAreas.length > 0
-        ? fallback.playAreas
-        : null;
-    const selectedPlayAreaCandidate = String(primary.selectedPlayAreaId || fallback.selectedPlayAreaId || "").trim();
-    const selectedPlayAreaId = mergedPlayAreas && mergedPlayAreas.some((entry) => String(entry?.id || "").trim() === selectedPlayAreaCandidate)
-      ? selectedPlayAreaCandidate
-      : String(mergedPlayAreas?.[0]?.id || "play-area-1");
-    const selectedPlayArea = Array.isArray(mergedPlayAreas)
-      ? mergedPlayAreas.find((entry) => String(entry?.id || "").trim() === selectedPlayAreaId) ?? mergedPlayAreas[0]
-      : null;
-    const selectedPlayAreaPolygon = isValidPolygon(selectedPlayArea?.polygon)
-      ? selectedPlayArea.polygon
-      : null;
-    merged[boardId] = {
-      ...fallback,
-      ...primary,
-      specialPolygons: mergeSpecialPolygonMap(primary.specialPolygons, fallback.specialPolygons),
-      ...(Array.isArray(mergedPlayAreas)
-        ? {
-          playAreas: mergedPlayAreas,
-          selectedPlayAreaId,
-        }
-        : {}),
-      playAreaPolygon: isValidPolygon(primary.playAreaPolygon)
-        ? primary.playAreaPolygon
-        : selectedPlayAreaPolygon
-          ?? (isValidPolygon(primary.shipPolygon)
-            ? primary.shipPolygon
-            : isValidPolygon(fallback.playAreaPolygon)
-              ? fallback.playAreaPolygon
-              : isValidPolygon(fallback.shipPolygon)
-                ? fallback.shipPolygon
-                : undefined),
-    };
-  }
-
-  return merged;
 }
 
 async function handleGlobalDefaultsSave(req, res) {
@@ -2700,11 +2732,26 @@ async function handleGlobalDefaultsSave(req, res) {
     existing = null;
   }
 
+  // Phase 26: per-board live state goes into config/boards/<id>.json,
+  // not global-defaults.json. Split the incoming boardProfiles map
+  // here and dispatch each entry to its own file.
+  const incomingProfiles = parsed.boardProfiles && typeof parsed.boardProfiles === "object"
+    ? parsed.boardProfiles
+    : {};
+  for (const boardId of Object.keys(incomingProfiles)) {
+    const profile = incomingProfiles[boardId];
+    if (!profile || typeof profile !== "object") continue;
+    try {
+      await persistBoardProfileToBoardFile(boardId, profile);
+    } catch (error) {
+      console.warn(`[global-defaults] persist board profile ${boardId} failed:`, error?.message || error);
+    }
+  }
+
   const next = {
     schema: "tt-beamer.global-defaults.v1",
     savedAt: new Date().toISOString(),
     source: parsed.source ?? "browser-local-state",
-    boardProfiles: mergeBoardProfiles(parsed.boardProfiles ?? {}, existing?.boardProfiles ?? {}),
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
     animationSoundMap: parsed.animationSoundMap ?? {},
@@ -2931,6 +2978,10 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: "invalid boardId" });
         return;
       }
+      // Phase 26: board JSON is now self-contained — both static
+      // catalog data AND live-state fields live inline. The package
+      // exports the unified board verbatim; no separate boardProfile
+      // field is needed.
       let board = null;
       try {
         const boardRaw = await readFile(path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`), "utf8");
@@ -2940,12 +2991,6 @@ const server = createServer(async (req, res) => {
         sendJson(res, 404, { ok: false, error: "board not found" });
         return;
       }
-      let boardProfile = null;
-      try {
-        const gdRaw = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
-        const gd = JSON.parse(gdRaw);
-        boardProfile = gd?.boardProfiles?.[boardId] ?? null;
-      } catch { /* ok */ }
       const allProjection = await loadProjectionProfilesRaw();
       const projectionProfiles = allProjection[boardId] ?? {};
 
@@ -2964,7 +3009,8 @@ const server = createServer(async (req, res) => {
         } catch { /* missing — exported package just won't include it */ }
       }
 
-      // Collect every /resources/... path referenced by the board profile.
+      // Collect every /resources/... path referenced anywhere in
+      // the unified board (animations, sound assets, etc.).
       const referencedPaths = new Set();
       const collectRefs = (node) => {
         if (!node) return;
@@ -2978,7 +3024,7 @@ const server = createServer(async (req, res) => {
         if (Array.isArray(node)) { for (const e of node) collectRefs(e); return; }
         if (typeof node === "object") for (const v of Object.values(node)) collectRefs(v);
       };
-      collectRefs(boardProfile);
+      collectRefs(board);
 
       // Read each resource file from disk.
       const resourceEntries = [];
@@ -2994,11 +3040,10 @@ const server = createServer(async (req, res) => {
       // Assemble the zip. `package.json` carries the manifest; all referenced
       // files live at their canonical paths inside the archive.
       const manifest = {
-        schema: "tt-beamer.board-package.v2",
+        schema: BOARD_PACKAGE_SCHEMA,
         exportedAt: new Date().toISOString(),
         boardId,
         board,
-        boardProfile,
         projectionProfiles,
         boardImagePath: boardImagePath ?? null,
         resourcePaths: resourceEntries.map((e) => e.path),
@@ -3062,10 +3107,14 @@ const server = createServer(async (req, res) => {
         return;
       }
       const schema = manifest?.schema;
-      if (schema !== "tt-beamer.board-package.v2" && schema !== "tt-beamer.board-package.v1" && schema !== "tt-beamer.board-bundle.v1") {
+      if (schema !== BOARD_PACKAGE_SCHEMA) {
         sendJson(res, 400, { ok: false, error: "unrecognized package schema" });
         return;
       }
+      // Phase 26: package format v3 carries the unified board
+      // (static + live-state inline). Older v1/v2 packages with a
+      // separate boardProfile field are rejected — pre-release, no
+      // back-compat for old packages.
       const incomingBoard = manifest?.board;
       if (renameTo && incomingBoard && typeof incomingBoard === "object") {
         if (!incomingBoard.metadata || typeof incomingBoard.metadata !== "object") {
@@ -3073,7 +3122,7 @@ const server = createServer(async (req, res) => {
         }
         incomingBoard.metadata.name = renameTo;
       }
-      const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import" });
+      const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import", allowEmptyRoomCatalog: true });
       if (!normalized.ok) {
         sendJson(res, 400, { ok: false, error: "board package validation failed", issues: normalized.issues });
         return;
@@ -3136,35 +3185,21 @@ const server = createServer(async (req, res) => {
         }
       }
 
-      // Write the board definition.
+      // Phase 26: write the unified board JSON. The normalized
+      // shape already includes profile fields (roomCatalog,
+      // roomClusters, hitareaCalibration, playAreaPolygon, etc.),
+      // pulled directly from manifest.board.
       await mkdir(BOARD_STORAGE_DIR, { recursive: true });
       const targetPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);
-      const mergedMetadata = { ...(board.metadata ?? {}) };
-      if (rewrittenImageSrc) mergedMetadata.imageSrc = rewrittenImageSrc;
+      if (rewrittenImageSrc) {
+        board.metadata = { ...(board.metadata ?? {}), imageSrc: rewrittenImageSrc };
+      }
       const boardPayload = {
         schema: BOARD_IMPORT_SCHEMA,
         importedAt: new Date().toISOString(),
-        board: {
-          schema: BOARD_DEFINITION_SCHEMA,
-          boardId: board.boardId,
-          metadata: mergedMetadata,
-          roomCatalog: board.roomCatalog ?? [],
-          ...(board.playAreas ? { playAreas: board.playAreas } : {}),
-        },
+        board,
       };
       await writeFile(targetPath, JSON.stringify(boardPayload, null, 2) + "\n", "utf8");
-
-      // Merge board runtime profile into global-defaults.json.
-      const boardProfile = manifest?.boardProfile;
-      if (boardProfile && typeof boardProfile === "object") {
-        let gd = {};
-        try { gd = JSON.parse(await readFile(GLOBAL_DEFAULTS_PATH, "utf8")); } catch { /* empty */ }
-        if (!gd || typeof gd !== "object") gd = {};
-        if (!gd.boardProfiles || typeof gd.boardProfiles !== "object") gd.boardProfiles = {};
-        gd.boardProfiles[boardId] = boardProfile;
-        await mkdir(path.dirname(GLOBAL_DEFAULTS_PATH), { recursive: true });
-        await writeFile(GLOBAL_DEFAULTS_PATH, JSON.stringify(gd, null, 2) + "\n", "utf8");
-      }
 
       // Merge align-mode projection profiles.
       const projectionProfiles = manifest?.projectionProfiles;
@@ -3200,7 +3235,13 @@ const server = createServer(async (req, res) => {
       try {
         const content = await readFile(GLOBAL_DEFAULTS_PATH, "utf8");
         const parsed = JSON.parse(content);
-        sendJson(res, 200, parsed);
+        // Phase 26: per-board profile data lives inline in each
+        // config/boards/<id>.json now; synthesize boardProfiles
+        // here so existing clients (which still expect the merged
+        // shape on /api/global-defaults) keep working.
+        const synthesized = await synthesizeBoardProfiles();
+        const response = { ...parsed, boardProfiles: synthesized };
+        sendJson(res, 200, response);
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });
       }
@@ -3303,15 +3344,18 @@ const server = createServer(async (req, res) => {
 
 attachLiveWebSocket(server);
 
-// Phase 16: build default animation entries for a specific board from global-defaults.json.
+// Phase 26: read defaultAnimations from the board's unified JSON
+// (config/boards/<id>.json) instead of global-defaults.boardProfiles.
 function buildDefaultAnimationsForBoard(targetBoardId) {
   try {
-    const globalDefaultsRaw = readFileSync(GLOBAL_DEFAULTS_PATH, "utf8");
-    const globalDefaults = JSON.parse(globalDefaultsRaw);
-    const boardProfiles = globalDefaults?.boardProfiles ?? {};
-    const profile = boardProfiles[targetBoardId];
-    if (!profile) return [];
-    const defaults = Array.isArray(profile.defaultAnimations) ? profile.defaultAnimations : [];
+    const safeFileName = sanitizeBoardFileName(targetBoardId);
+    if (!safeFileName) return [];
+    const boardPath = path.join(BOARD_STORAGE_DIR, `${safeFileName}.json`);
+    const raw = readFileSync(boardPath, "utf8");
+    const outer = JSON.parse(raw);
+    const inner = outer?.board ?? outer;
+    if (!inner || typeof inner !== "object") return [];
+    const defaults = Array.isArray(inner.defaultAnimations) ? inner.defaultAnimations : [];
     return defaults
       .filter((def) => def?.type && def?.scope)
       .map((def) => ({
@@ -3353,11 +3397,12 @@ function buildDefaultAnimationsForBoard(targetBoardId) {
 
 // Auto-start default animations on server startup.
 try {
-  const globalDefaultsRaw = readFileSync(GLOBAL_DEFAULTS_PATH, "utf8");
-  const globalDefaults = JSON.parse(globalDefaultsRaw);
-  const boardProfiles = globalDefaults?.boardProfiles ?? {};
+  let entries = [];
+  try { entries = readdirSync(BOARD_STORAGE_DIR, { withFileTypes: true }); } catch { /* dir missing */ }
   const allDefaults = [];
-  for (const boardId of Object.keys(boardProfiles)) {
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json") || entry.name.startsWith(".")) continue;
+    const boardId = entry.name.replace(/\.json$/, "");
     allDefaults.push(...buildDefaultAnimationsForBoard(boardId));
   }
   if (allDefaults.length > 0) {
