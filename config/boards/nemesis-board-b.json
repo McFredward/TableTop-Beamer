@@ -2,11 +2,12 @@
   "schema": "tt-beamer.board-import.v1",
   "importedAt": "2026-04-12T08:24:39.622Z",
   "board": {
-    "schema": "tt-beamer.board-catalog.v1",
+    "schema": "tt-beamer.board-definition.v1",
     "boardId": "nemesis-board-b",
     "metadata": {
       "name": "Nemesis Board B",
-      "imageSrc": "resources/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg"
+      "imageSrc": "/resources/boards/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg",
+      "source": "package-import"
     },
     "roomCatalog": [
       {

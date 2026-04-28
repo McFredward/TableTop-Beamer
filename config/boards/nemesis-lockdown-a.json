@@ -6,9 +6,8 @@
     "boardId": "nemesis-lockdown-a",
     "metadata": {
       "name": "Nemesis Lockdown A",
-      "imageSrc": "/config/boards/imported/assets/httpssteamusercontentaakamaihdnetugc2023851270019933596941cadc8d91fb2c43fa92bb0214cc72eb9230652-mn8son54.png",
-      "source": "imported-image",
-      "imported": true
+      "imageSrc": "/config/boards/assets/httpssteamusercontentaakamaihdnetugc2023851270019933596941cadc8d91fb2c43fa92bb0214cc72eb9230652-mn8son54.png",
+      "source": "imported-image"
     },
     "roomCatalog": [],
     "roomClusters": []
