@@ -194,14 +194,8 @@ the board.
 | `Esc` | Reset grid to default |
 | Arrow keys | Nudge selected handle (`Shift` for larger steps) |
 
-Calibration persists per-client in `localStorage`, and **named profiles are
-stored server-side per board** — so you can switch between boards and reapply
-the matching calibration with two clicks.
-
-> The warp uses a triangulated mesh: SVG room outlines, GIFs, MP4s, and coded
-> effects all stay perfectly in sync as you deform the grid. On the Pi the
-> output path is WebGL-accelerated and skips the CPU readback that older
-> browser projection setups need.
+Named calibration profiles are stored per-board, so switching boards reapplies
+the matching alignment with two clicks.
 
 ---
 
@@ -222,13 +216,12 @@ side-by-side on desktop):
 
 - **Trigger** — grid of room / cluster / global buttons. Tap to start an
   animation. Tap again to toggle off (when Tap-Action is set to **Toggle**).
-- **Manage** — list of currently-running animations. Tap one to open the
-  **Live Editor** for runtime overrides: opacity, intensity, speed, sound
-  volume, rotation, stretch, scale, X/Y offset. The **Default animation**
-  toggle here marks an effect to auto-start whenever the server boots.
-- **Control** — **Clear All** button + an *Also clear default animations*
-  checkbox. By default Clear All keeps your atmospheric defaults running so
-  the table never goes pitch-black mid-game.
+- **Manage** — list of running animations. Tap one to open the **Live Editor**
+  for runtime overrides (opacity, intensity, speed, sound volume, rotation,
+  stretch, scale, offset). The **Default animation** toggle marks an effect to
+  auto-start when the server boots.
+- **Control** — **Clear All** button. By default it keeps your default
+  animations running; tick *Also clear default animations* to stop everything.
 
 ### Quick-Mode Tap Action
 
@@ -239,7 +232,7 @@ does:
 |---|---|
 | **Toggle** *(default)* | First tap fires the armed animation, second tap stops it. |
 | **Clear** | Tapping a room stops every animation in that room. |
-| **Select** | Picks the animation to fire next without triggering it (useful when picking from a long library). |
+| **Select** | Picks the animation to fire next without triggering it. |
 
 When the armed animation is the **Solid color** effect, an inline color picker
 appears in the panel so you can change the colour without leaving the
@@ -322,21 +315,18 @@ Each animation definition exposes:
   width / height scale, X / Y offset
 - **Color** *(Solid color effect)* — colour swatch picked once at edit time
   (and overridable live from the dashboard panel)
-- **Break solid color** *(Hull Flicker / Power Outage)* — when enabled in a
-  room running alongside a solid-color animation, the solid colour is gated
-  off during the effect's dark phase, so the room actually goes dark instead
-  of blinking on top of a lit surface.
+- **Break solid color** *(Hull Flicker / Power Outage)* — when paired with a
+  Solid color animation in the same room, the room goes dark during the
+  effect's dark phase instead of staying lit underneath.
 
 Editor topbar controls:
 
 - **+ Add** — creates a new animation in the active scope.
 - **📋 Copy from another board** — pulls every animation from a chosen source
-  board into the current one (all three scopes at once). Skips entries whose
-  name already exists on the target — safe to re-run, intended as a starting
-  point for a brand-new board.
+  board into the current one (skips duplicates by name).
 - **Search** — filters the list as you type.
-- **Apply / Discard** — Apply pushes all pending edits to the server (and out
-  to every connected client). Discard reloads the server-side state.
+- **Apply / Discard** — Apply saves to the server and pushes to all connected
+  clients. Discard reverts.
 
 > Newly image-imported boards start with **no animations**. Use *Copy from
 > another board* or **+ Add** to build the library.
@@ -370,10 +360,8 @@ editor). Global audio enable + master volume lives in **Settings → System**.
 ### Custom assets (GIF / MP4 / audio)
 
 Upload your own GIFs, MP4 loops, and audio files directly from the animation
-editor's source picker — they land under `resources/animations/` (or
-`resources/sounds/`) and become available for any animation. Uploads are
-de-duplicated by content hash, so re-importing a package never accumulates
-copies of the same file.
+editor's source picker — they land under `resources/animations/` or
+`resources/sounds/` and become available for every board.
 
 ### Boards
 
@@ -404,46 +392,35 @@ boards may still reference it.
 
 ### Export / Import
 
-Export a board as a self-contained `.zip` from *Settings → Board → Export
-this board*. The package contains everything needed to reproduce the board on
-another machine: definition, animation library (with referenced GIFs / MP4s /
-sounds), projection-mapping profiles, and the board image.
+**Export this board** wraps everything needed to reproduce a board (definition,
+animation library, referenced GIFs / MP4s / sounds, calibration profiles, board
+image) into a single `.zip`.
 
-Import via *Settings → Board → Import board package*. Existing boards with the
-same id are overwritten — use the optional **Rename** field on import to land
-the package as a sibling instead.
-
-> Package schema: `tt-beamer.board-package.v3`. Earlier formats are not
-> supported (pre-release; no back-compat).
+**Import board package** drops a `.zip` back in. A board with the same id is
+overwritten — use the **Rename** field on import to land the package as a
+sibling instead.
 
 ---
 
 ## Data layout (where things live on disk)
 
-Everything per-board lives in **one file** — `config/boards/<board-id>.json`:
+Each board's full state lives in **one file**: `config/boards/<board-id>.json`.
 
 ```
 config/
 ├── boards/
-│   ├── nemesis-board-a.json        # full state for one board
-│   ├── nemesis-board-b.json        # (rooms, polygons, animations, FX,
-│   ├── nemesis-lockdown-a.json     #  default-animations, frozen rooms,
-│   ├── nemesis-lockdown-b.json     #  hitarea calibration, …)
-│   └── assets/                     # board images (JPG / PNG / WEBP)
-├── global-defaults.json            # truly-global state only:
-│                                   #   audio, animationSpeed,
-│                                   #   animationSoundMap, projectionMapping
-└── projection-profiles.json        # named align-mode calibration grids,
-                                    # keyed by board
+│   ├── <board-id>.json             # one file = one board (everything per-board)
+│   └── assets/                     # board images
+├── global-defaults.json            # truly-global state (audio, animation speed)
+└── projection-profiles.json        # saved alignment grids, keyed by board
 
 resources/
 ├── animations/                     # shared GIFs + MP4s
 └── sounds/                         # shared audio files
 ```
 
-`/resources/` is the *shared* media library — animations and sounds that any
-board can reference. `/config/boards/` is the per-board data. Deleting a
-board never touches `/resources/`.
+Deleting a board removes only its entry under `config/boards/`. Shared media
+in `/resources/` is left alone.
 
 ---
 
@@ -491,16 +468,10 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 
 ## Performance tips
 
-- **Prefer GIF over MP4** on the Pi. MP4 decode is the heaviest path; GIFs
-  drop straight into the GPU pipeline.
-- **Cap concurrent room animations.** Each running animation costs a draw
-  pass per frame. Default cap is 96 — adjust in *Settings → System* if needed.
-- **Use a wired connection** between the Pi and the server. Wi-Fi works but
-  jitter shows up as occasional frame stalls during peak traffic (live-state
-  sync).
-- **Match projector + board aspect roughly** so the warp doesn't have to
-  squeeze too hard — a tightly-warped corner has slightly more visible
-  triangulation than the rest.
+- **Prefer GIF over MP4** on the Pi — MP4 decode is the heaviest path.
+- **Use a wired connection** between the Pi and the server when possible.
+- **Match projector + board aspect roughly** so Align Mode doesn't have to
+  warp too aggressively.
 
 ---
 
@@ -530,17 +501,12 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 
 ## Project status
 
-Hobby project I built primarily for myself. AI was used heavily during
-development. Things I didn't bother polishing for a wider audience are clearly
-labelled as such, and bugs will exist.
+Hobby project I built primarily for myself, version **0.26.x**. AI was used
+heavily during development. It's been running reliably on my own setup for
+many game nights, but bugs exist.
 
-That said: it's been running reliably on my own setup for many game nights,
-and the architecture is documented end-to-end in `.planning/phases/`. If you
-want to fork or extend it, the planning docs are a good orientation map.
-
-The current version is **0.26.x** — Phase 26 unified the data model so each
-board's full state lives in a single JSON file (previously split between a
-catalog file and a fat `global-defaults.json`).
+If you want to fork or extend it, the architecture is documented end-to-end
+under `.planning/phases/`.
 
 If you have suggestions, open a
 [GitHub issue](https://github.com/McFredward/tt-beamer/issues). You can also
