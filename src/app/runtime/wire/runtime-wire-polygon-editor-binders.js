@@ -477,11 +477,14 @@
         nextId = `${baseId}-${suffix}`;
         suffix += 1;
       }
-      const template = getSelectedPlayArea(state.boardId)?.polygon ?? SHIP_POLYGON_DEFAULT;
+      // Always start a brand-new area from the default ship outline
+      // so it pops in as a clearly-distinct shape regardless of how
+      // the user has reshaped their existing play areas. They can
+      // edit the polygon afterwards via the vertex/edge controls.
       const nextArea = {
         id: nextId,
         name: `Play Area ${nextIndex}`,
-        polygon: normalizeShipPolygon(template),
+        polygon: normalizeShipPolygon(SHIP_POLYGON_DEFAULT),
       };
       setPlayAreas(state.boardId, [...currentAreas, nextArea], { selectedPlayAreaId: nextId });
       state.shipPolygonEditor.selectedVertexIndex = 0;
