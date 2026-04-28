@@ -2218,7 +2218,7 @@ window.TT_BEAMER_RUNTIME_EFFECT_VISUALS.init({
   clampOutsideSpeed: (value) => clampOutsideSpeed(value),
   flickerNoise: (seed) => flickerNoise(seed),
 });
-const { drawEffectVisual, isHullFlickerLampOff } = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
+const { drawEffectVisual, isHullFlickerLampOff, isPowerOutageLampOff } = window.TT_BEAMER_RUNTIME_EFFECT_VISUALS;
 
 window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   state,
@@ -2277,6 +2277,7 @@ window.TT_BEAMER_RUNTIME_DRAW_LOOP.init({
   isRunningListInteractionActive: () => isRunningListInteractionActive(),
   drawEffectVisual: (type, age, intensity, room, roomMetrics, options) => drawEffectVisual(type, age, intensity, room, roomMetrics, options),
   isHullFlickerLampOff: (age, speed, intensity) => isHullFlickerLampOff(age, speed, intensity),
+  isPowerOutageLampOff: (age, speed, intensity) => isPowerOutageLampOff(age, speed, intensity),
   clearRoomDraftEditTarget: () => clearRoomDraftEditTarget(),
   postDrawMeshWarp: (canvas, canvasCtx) => projectionPostDrawMeshWarp(canvas, canvasCtx),
   getRoomPolygonPixels: (room, w, h, boardId) => getRoomPolygonPixels(room, w, h, boardId),

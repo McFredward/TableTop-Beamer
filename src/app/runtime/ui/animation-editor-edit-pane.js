@@ -425,8 +425,8 @@
   // -------- Scope-specific cards --------------------------
 
   // Room animations of the `solid-color` coded variant expose a color
-  // swatch; hull-flicker exposes breaksSolidColor. Non-matching
-  // variants don't need this card.
+  // swatch; hull-flicker and power-outage expose breaksSolidColor.
+  // Non-matching variants don't need this card.
   function buildColorCard(scope, def, boardId) {
     if (scope !== "room") return null;
     const resolveCodedType = ctx.resolveRoomCodedEffectType;
@@ -437,7 +437,8 @@
       : null;
     const isSolidColor = coded === "solid-color";
     const isHullFlicker = coded === "hull-flicker";
-    if (!isSolidColor && !isHullFlicker) return null;
+    const isPowerOutage = coded === "power-outage";
+    if (!isSolidColor && !isHullFlicker && !isPowerOutage) return null;
 
     const card = document.createElement("section");
     card.className = "anim-editor-card";
@@ -466,6 +467,13 @@
         key: "breaksSolidColor",
         label: "Break solid color",
         sub: "Cuts any solid-color animation in the same room during the flicker’s off-gate.",
+      }));
+    }
+    if (isPowerOutage) {
+      card.append(buildToggleRow(scope, def, boardId, {
+        key: "breaksSolidColor",
+        label: "Break solid color",
+        sub: "Cuts any solid-color animation in the same room except during the brief blue-flash flickers.",
       }));
     }
     return card;

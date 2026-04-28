@@ -115,26 +115,30 @@
     const effectType = ctx.resolveRoomCodedEffectType(assetRef || animation.type);
     const playbackSpeed = ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
     const playbackAge = age * ctx.clampRoomSpeed(animation.speed ?? animation.playbackSpeed ?? 1);
-    // Opt-in hull-flicker ⇒ solid-color coupling. When any
-    // running animation in this exact room resolves to hull-flicker AND its
-    // definition has breaksSolidColor=true, the flicker's off-gate overrides
-    // the solid-color fill so the lamp actually goes dark instead of just
-    // blinking on top of a lit surface.
+    // Opt-in coded-effect ⇒ solid-color coupling. When any running
+    // animation in this exact room resolves to a "breaking" coded
+    // effect (hull-flicker or power-outage) AND its definition has
+    // breaksSolidColor=true, the effect's off-gate overrides the
+    // solid-color fill so the room actually goes dark instead of
+    // just rendering on top of a lit surface.
     if (effectType === "solid-color") {
-      const gate = findActiveHullFlickerGate(animation.boardId, room?.id);
-      if (gate && ctx.isHullFlickerLampOff(gate.age, gate.speed, gate.intensity)) {
+      const flickerGate = findActiveBreakingGate(animation.boardId, room?.id, "hull-flicker");
+      if (flickerGate && ctx.isHullFlickerLampOff(flickerGate.age, flickerGate.speed, flickerGate.intensity)) {
+        return;
+      }
+      const outageGate = findActiveBreakingGate(animation.boardId, room?.id, "power-outage");
+      if (outageGate && ctx.isPowerOutageLampOff(outageGate.age, outageGate.speed, outageGate.intensity)) {
         return;
       }
     }
-    // When hull-flicker in this exact room has the
-    // breaksSolidColor flag on AND a sibling solid-color animation is
-    // running in the same room, the FLICKER is delivered purely by
-    // gating the solid-color fill on/off — the hull-flicker's own
-    // yellow-tube + black-dim overlay would double up and look like
-    // an extra bright strobe on top of the lamp. Suppress the
-    // hull-flicker visual in that case. In rooms without a
-    // solid-color sibling, hull-flicker draws normally (unchanged).
-    if (effectType === "hull-flicker") {
+    // When a "breaking" coded effect in this exact room has the
+    // breaksSolidColor flag on AND a sibling solid-color animation
+    // is running in the same room, the effect is delivered purely
+    // by gating the solid-color fill on/off — the effect's own
+    // overlay would double up on top of the lamp. Suppress the
+    // effect visual in that case. In rooms without a solid-color
+    // sibling, the effect draws normally (unchanged).
+    if (effectType === "hull-flicker" || effectType === "power-outage") {
       const def = ctx.getRoomAnimationDefinitionById(animation.type, animation.boardId);
       if (def?.breaksSolidColor === true
           && roomHasSolidColorSibling(animation.boardId, room?.id)) {
@@ -160,13 +164,14 @@
   }
 
   // Scan running animations for a room-scoped (or cluster-member)
-  // animation on (boardId, roomId) whose definition resolves to hull-flicker
-  // with breaksSolidColor=true. Returns { age, speed, intensity } for the
-  // first match, or null. Age is computed in the same units the hull-flicker
-  // render branch uses (seconds since start × state.animationSpeed × per-
-  // animation speed) so the gate function sees identical timeline math.
-  function findActiveHullFlickerGate(boardId, roomId) {
-    if (!boardId || !roomId) return null;
+  // animation on (boardId, roomId) whose definition resolves to the
+  // given coded effect type with breaksSolidColor=true. Returns
+  // { age, speed, intensity } for the first match, or null. Age is
+  // computed in the same units the effect's render branch uses
+  // (seconds since start × state.animationSpeed × per-animation
+  // speed) so the gate function sees identical timeline math.
+  function findActiveBreakingGate(boardId, roomId, codedEffectType) {
+    if (!boardId || !roomId || !codedEffectType) return null;
     const state = ctx.state;
     const now = performance.now();
     const running = Array.isArray(state?.runningAnimations) ? state.runningAnimations : [];
@@ -177,7 +182,7 @@
         const def = ctx.getRoomAnimationDefinitionById(entry.type, boardId);
         if (!def || def.breaksSolidColor !== true) continue;
         const resolved = ctx.resolveRoomCodedEffectType(def.assetRef || entry.type);
-        if (resolved !== "hull-flicker") continue;
+        if (resolved !== codedEffectType) continue;
         const speed = ctx.clampRoomSpeed(entry.speed ?? def.speed ?? 1);
         const age = ((now - entry.startedAt) / 1000) * (Number(state.animationSpeed) || 1) * speed;
         return { age, speed, intensity: Number(def.intensity) || 1 };
@@ -191,7 +196,7 @@
           const def = ctx.getRoomAnimationDefinitionById(memberAnimation.type, boardId);
           if (!def || def.breaksSolidColor !== true) continue;
           const resolved = ctx.resolveRoomCodedEffectType(def.assetRef || memberAnimation.type);
-          if (resolved !== "hull-flicker") continue;
+          if (resolved !== codedEffectType) continue;
           const memberStart = Number.isFinite(memberAnimation.startedAt)
             ? memberAnimation.startedAt
             : entry.startedAt;

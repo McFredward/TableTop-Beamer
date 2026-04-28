@@ -45,6 +45,25 @@
     return !computeHullFlickerGate(age, speed, intensity).isOnPeriod;
   }
 
+  // Shared gate for the power-outage coded effect. Mirrors the
+  // flashNoise threshold used inside the power-outage draw branch
+  // (Math.abs(sin*sin) > 0.78 == "brief blue flash"). For
+  // breaksSolidColor coupling we treat those flash moments as the
+  // ON period — solid-color renders briefly when the flash fires
+  // and is gated dark the rest of the time, so a solid-color room
+  // visibly behaves like the power is mostly out with intermittent
+  // recoveries.
+  function computePowerOutageGate(age, speed = 1, intensity = 1) {
+    const effectiveAge = Number.isFinite(age) ? age * (Number.isFinite(speed) && speed > 0 ? speed : 1) : 0;
+    const flashNoise = Math.abs(Math.sin(effectiveAge * 53.7) * Math.sin(effectiveAge * 71.3));
+    const isOnPeriod = flashNoise > 0.78;
+    return { isOnPeriod, flashNoise };
+  }
+
+  function isPowerOutageLampOff(age, speed = 1, intensity = 1) {
+    return !computePowerOutageGate(age, speed, intensity).isOnPeriod;
+  }
+
   function drawEffectVisual(type, age, intensity, room, roomMetrics = null, options = {}) {
     const canvas = ctx.canvas;
     const c = ctx.canvasCtx;
@@ -323,6 +342,8 @@
     drawEffectVisual,
     computeHullFlickerGate,
     isHullFlickerLampOff,
+    computePowerOutageGate,
+    isPowerOutageLampOff,
     withPreviewCanvas,
   };
 })();
