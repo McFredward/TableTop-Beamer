@@ -469,7 +469,16 @@
     animationSpeedInput.addEventListener("input", () => {
       state.animationSpeed = clampAnimationSpeed(animationSpeedInput.value);
       syncAnimationSpeedPanel();
-      triggerFeedback.textContent = `Status: Animation Speed ${state.animationSpeed.toFixed(2)}x`;
+      // Persist immediately so /output/ and any other connected view
+      // pick up the new global speed multiplier — without this they
+      // keep running at the previously-saved value and animations
+      // visibly drift relative to the dashboard.
+      const persisted = persistRuntimeSoundSettingsChange(
+        `Status: Animation Speed ${state.animationSpeed.toFixed(2)}x (persistence failed)`,
+      );
+      triggerFeedback.textContent = persisted
+        ? `Status: Animation Speed ${state.animationSpeed.toFixed(2)}x`
+        : `Status: Animation Speed ${state.animationSpeed.toFixed(2)}x (persistence failed)`;
     });
 
     startRoomAnimationButton.addEventListener("click", () => {

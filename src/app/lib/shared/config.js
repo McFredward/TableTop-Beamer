@@ -207,7 +207,7 @@
   // Phase 26 hotfix → "0.26.1"). Surfaced to the user via the small
   // chip in the topbar (index.html #app-version, populated at parse
   // time by the inline script next to the topbar).
-  const APP_VERSION = "0.26.3";
+  const APP_VERSION = "0.26.4";
 
   window.TT_BEAMER_CONFIG = {
     BOARDS,
