@@ -167,6 +167,7 @@
       animEditorBackButton: document.querySelector("#anim-editor-back"),
       animEditorSearchInput: document.querySelector("#anim-editor-search"),
       animEditorAddButton: document.querySelector("#anim-editor-add"),
+      animEditorCopyFromBoardButton: document.querySelector("#anim-editor-copy-from-board"),
       animEditorScopeTabs: document.querySelector(".anim-editor-scope-tabs"),
       animEditorList: document.querySelector("#anim-editor-list"),
       animEditorEmpty: document.querySelector("#anim-editor-empty"),

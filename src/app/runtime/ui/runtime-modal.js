@@ -178,5 +178,68 @@
     });
   }
 
-  window.TT_BEAMER_RUNTIME_MODAL = { showConfirm, showPrompt };
+  function showSelect({
+    title = "Choose",
+    body = "",
+    options = [],
+    initialValue = null,
+    confirmLabel = "OK",
+    cancelLabel = "Cancel",
+  } = {}) {
+    ensureCleanup();
+    return new Promise((resolve) => {
+      const backdrop = buildBackdrop();
+      const dialog = buildDialog({ title, body, danger: false });
+      const select = document.createElement("select");
+      select.className = "tt-modal-input";
+      for (const opt of options) {
+        const o = document.createElement("option");
+        o.value = String(opt?.value ?? "");
+        o.textContent = String(opt?.label ?? opt?.value ?? "");
+        select.append(o);
+      }
+      if (initialValue != null && options.some((opt) => String(opt.value) === String(initialValue))) {
+        select.value = String(initialValue);
+      }
+      dialog.append(select);
+
+      const close = (value) => {
+        document.removeEventListener("keydown", onKey, true);
+        ensureCleanup();
+        resolve(value);
+      };
+      const confirmBtn = {
+        label: confirmLabel,
+        kind: "primary",
+        disabled: options.length === 0,
+        onClick: () => close(select.value),
+      };
+      const buttons = [
+        { label: cancelLabel, kind: "ghost", onClick: () => close(null) },
+        confirmBtn,
+      ];
+      buildButtonRow(dialog, buttons);
+
+      backdrop.append(dialog);
+      backdrop.addEventListener("pointerdown", (event) => {
+        if (event.target === backdrop) close(null);
+      });
+      function onKey(event) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(null);
+        } else if (event.key === "Enter") {
+          if (confirmBtn.el.disabled) return;
+          event.preventDefault();
+          close(select.value);
+        }
+      }
+      document.addEventListener("keydown", onKey, true);
+      document.body.append(backdrop);
+      activeBackdrop = backdrop;
+      requestAnimationFrame(() => select.focus());
+    });
+  }
+
+  window.TT_BEAMER_RUNTIME_MODAL = { showConfirm, showPrompt, showSelect };
 })();
