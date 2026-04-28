@@ -16,7 +16,6 @@ const PORT = Number(process.env.PORT ?? 4173);
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const GLOBAL_DEFAULTS_PATH = path.join(ROOT_DIR, "config", "global-defaults.json");
 const LIVE_LOG_PATH = process.env.TT_BEAMER_LIVE_LOG_PATH ?? path.join(ROOT_DIR, "logs", "live-sync.jsonl");
-const ZONES_DIR = path.join(ROOT_DIR, "config", "zones");
 const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profiles.json");
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const LEGACY_IMPORTED_BOARDS_DIR = path.join(BOARD_STORAGE_DIR, "imported");
@@ -2014,60 +2013,6 @@ async function migrateLegacyImportedBoardStorage() {
       }
     }
   }
-}
-
-async function loadBuiltInBoardsFromZones() {
-  let entries = [];
-  try {
-    entries = await readdir(ZONES_DIR, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-
-  const boards = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".json")) {
-      continue;
-    }
-    const filePath = path.join(ZONES_DIR, entry.name);
-    try {
-      const raw = await readFile(filePath, "utf8");
-      const payload = JSON.parse(raw);
-      const sourceRoomCatalog = Array.isArray(payload?.rooms)
-        ? payload.rooms.map((room) => ({
-          id: room.id,
-          name: room.name ?? room.label,
-          x: room.x,
-          y: room.y,
-          radius: room.radius,
-          polygon: room.polygon ?? room.points,
-        }))
-        : [];
-      const normalized = normalizeBoardDefinition(
-        {
-          boardId: payload?.board?.id,
-          metadata: {
-            name: payload?.board?.label,
-            imageSrc: payload?.board?.src,
-          },
-          roomCatalog: sourceRoomCatalog,
-          roomClusters: Array.isArray(payload?.roomClusters) ? payload.roomClusters : buildDefaultSpecialCluster(sourceRoomCatalog),
-        },
-        {
-          source: "builtin-zone",
-        },
-      );
-      if (!normalized.ok) {
-        continue;
-      }
-      boards.push(normalized.board);
-    } catch {
-      continue;
-    }
-  }
-
-  boards.sort((a, b) => a.boardId.localeCompare(b.boardId));
-  return boards;
 }
 
 async function loadCanonicalBoardsFromStorage() {

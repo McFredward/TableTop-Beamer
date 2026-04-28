@@ -34,11 +34,6 @@
     })),
   }));
 
-  // Zone config sources are no longer needed — all boards
-  // load from /api/boards. Kept as empty array so the zone-loader
-  // fallback path doesn't crash on missing iteration target.
-  const ZONE_CONFIG_SOURCES = [];
-
   const ROOM_GIF_ANIMATION_ASSETS = {
     kaputt: toRootAssetPath("resources/animations/malfunction.gif"),
     fire: toRootAssetPath("resources/animations/fire.gif"),
@@ -217,7 +212,6 @@
   window.TT_BEAMER_CONFIG = {
     BOARDS,
     INLINE_FALLBACK_BOARDS,
-    ZONE_CONFIG_SOURCES,
     ROOM_GIF_ANIMATION_ASSETS,
     ROOM_GLOBAL_EQUIVALENT_MAP,
     ROOM_ANIMATIONS,

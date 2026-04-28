@@ -7,7 +7,6 @@
 const {
   BOARDS: CONFIG_BOARDS,
   INLINE_FALLBACK_BOARDS,
-  ZONE_CONFIG_SOURCES,
   ROOM_GIF_ANIMATION_ASSETS,
   ROOM_GLOBAL_EQUIVALENT_MAP,
   ROOM_ANIMATIONS,
@@ -529,9 +528,6 @@ const {
   normalizeAnimationSoundPath,
   normalizeAnimationSoundMap,
   isFiniteUnitValue,
-  normalizeZoneRoom,
-  validateZonePayload,
-  classifyZoneFallback,
   clampHitareaOffset,
   clampHitareaScale,
   normalizeHitareaCalibration,
@@ -600,23 +596,17 @@ const {
   updateSelectedRoomGeometry,
 } = window.TT_BEAMER_RUNTIME_ANIMATION_FACTORY;
 
-const lastKnownGoodBoardById = new Map(INLINE_FALLBACK_BOARDS.map((board) => [board.id, cloneBoardEntry(board)]));
-
-
 // BOARDS is reassigned via the setBoards callback since the
 // runtime-zone-loader module cannot mutate the outer let directly.
 window.TT_BEAMER_RUNTIME_ZONE_LOADER.init({
   state,
   zonesStatus,
   boardSelect,
-  ZONE_CONFIG_SOURCES,
   INLINE_FALLBACK_BOARDS,
   getBoards: () => BOARDS,
   setBoards: (next) => { BOARDS = next; },
   fetchWithTimeout: (url, options) => fetchWithTimeout(url, options),
   cloneBoardEntry: (board) => cloneBoardEntry(board),
-  validateZonePayload: (payload, boardId, requiredRoomIds) => validateZonePayload(payload, boardId, requiredRoomIds),
-  classifyZoneFallback: (status, code) => classifyZoneFallback(status, code),
   switchBoard: (boardId, opts) => switchBoard(boardId, opts),
 });
 const {

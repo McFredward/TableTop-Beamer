@@ -9,7 +9,6 @@
 // Dependencies injected via ctx.
 (() => {
   let ctx = null;
-  const lastKnownGoodBoardById = new Map();
 
   function init(dependencies) {
     ctx = dependencies;
@@ -57,11 +56,6 @@
         const normalizedBoards = runtimeBoards
           .map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board))
           .filter((board) => board?.id && Array.isArray(board.rooms));
-        // Always overwrite BOARDS from /api/boards when the response
-        // is OK — even if the catalog is empty. The fallback below
-        // would otherwise install INLINE_FALLBACK_BOARDS (now empty)
-        // and silently drop the board the user just imported. The
-        // server is authoritative once it answers OK.
         ctx.setBoards(normalizedBoards);
         for (const board of normalizedBoards) {
           state.zoneLoader.loadedBoards[board.id] = "/api/boards";
@@ -73,74 +67,14 @@
         return;
       }
     } catch {
-      // fall back to static zone files below
+      // /api/boards unreachable — clear catalog and let empty-state overlay handle it.
     }
 
-    const loadedByBoardId = new Map();
-    const loadedBoards = {};
-    const fallbackBoards = {};
-    const classificationByBoard = {};
-    const detailByBoard = {};
-
-    for (const source of ctx.ZONE_CONFIG_SOURCES) {
-      const fallbackInline = ctx.INLINE_FALLBACK_BOARDS.find((board) => board.id === source.boardId);
-      const fallbackLastKnown = lastKnownGoodBoardById.get(source.boardId) ?? fallbackInline;
-      let responseStatus = null;
-      try {
-        const response = await ctx.fetchWithTimeout(source.endpoint, {
-          method: "GET",
-          headers: {
-            accept: "application/json",
-          },
-        });
-        responseStatus = response.status;
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        let payload;
-        try {
-          payload = await response.json();
-        } catch {
-          throw Object.assign(new Error("malformed JSON"), { zoneCode: "ZONE_MALFORMED_JSON" });
-        }
-
-        const requiredRoomIds = (fallbackInline?.rooms ?? []).map((room) => room.id);
-        const validated = ctx.validateZonePayload(payload, source.boardId, requiredRoomIds);
-        if (!validated.ok || !validated.normalizedBoard) {
-          throw Object.assign(new Error(validated.issues.join("; ")), {
-            zoneCode: validated.code,
-          });
-        }
-
-        const board = ctx.cloneBoardEntry(validated.normalizedBoard);
-        loadedByBoardId.set(source.boardId, board);
-        lastKnownGoodBoardById.set(source.boardId, ctx.cloneBoardEntry(board));
-        loadedBoards[source.boardId] = source.endpoint;
-        fallbackBoards[source.boardId] = "none";
-        classificationByBoard[source.boardId] = "ZONE_LOADED";
-        detailByBoard[source.boardId] = "ok";
-      } catch (error) {
-        const zoneCode =
-          error && typeof error === "object" && "zoneCode" in error ? String(error.zoneCode || "") : "";
-        const classification = ctx.classifyZoneFallback(responseStatus, zoneCode);
-        const fallbackType = lastKnownGoodBoardById.has(source.boardId) ? "fallback:last-known-good" : "fallback:inline";
-        loadedByBoardId.set(source.boardId, ctx.cloneBoardEntry(fallbackLastKnown));
-        loadedBoards[source.boardId] = "fallback";
-        fallbackBoards[source.boardId] = fallbackType;
-        classificationByBoard[source.boardId] = classification;
-        detailByBoard[source.boardId] =
-          error instanceof Error ? error.message : zoneCode || `status=${responseStatus ?? "n/a"}`;
-      }
-    }
-
-    ctx.setBoards(ctx.INLINE_FALLBACK_BOARDS.map(
-      (fallbackBoard) => ctx.cloneBoardEntry(loadedByBoardId.get(fallbackBoard.id) ?? fallbackBoard),
-    ));
-    state.zoneLoader.loadedBoards = loadedBoards;
-    state.zoneLoader.fallbackBoards = fallbackBoards;
-    state.zoneLoader.classificationByBoard = classificationByBoard;
-    state.zoneLoader.detailByBoard = detailByBoard;
+    ctx.setBoards([]);
+    state.zoneLoader.loadedBoards = {};
+    state.zoneLoader.fallbackBoards = {};
+    state.zoneLoader.classificationByBoard = {};
+    state.zoneLoader.detailByBoard = {};
     syncZoneLoaderStatus();
   }
 
