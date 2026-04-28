@@ -975,19 +975,20 @@ body[data-output-role="final-output"].dir-obsidian {
   font-weight: 700;
 }
 
-/* Edge midpoint handle: solid white "phantom" dot, deliberately a
- * different colour from the vertex (which uses lightened accent) so
- * the user instantly tells "click to insert" apart from "drag this
- * vertex". No stroke — same solid-dot principle as vertices. */
+/* Edge midpoint handle: lightened warn (warm gold) — deliberately a
+ * different *hue* from the vertex (which uses lightened accent /
+ * mint), so "click to insert" reads instantly different from
+ * "drag this vertex" without needing to look closely. No stroke —
+ * same solid-dot principle as vertices. */
 .dir-obsidian .polygon-edge-handle {
-  fill: rgba(255, 255, 255, 0.85);
+  fill: color-mix(in srgb, var(--c-warn) 80%, white);
   stroke: none;
   filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.5));
 }
 .dir-obsidian .polygon-edge-handle.is-active {
-  fill: #ffffff;
+  fill: var(--c-warn);
   stroke: none;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-accent) 80%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c-warn) 80%, transparent));
 }
 .dir-obsidian .polygon-edge-hit-target.is-active {
   fill: color-mix(in srgb, var(--c-accent) 14%, transparent);
@@ -1021,12 +1022,16 @@ body[data-output-role="final-output"].dir-obsidian {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c-warn) 85%, transparent));
 }
 .dir-obsidian .ship-polygon-edge-handle {
-  fill: rgba(255, 255, 255, 0.78);
+  /* Same warm-gold hue as room edge midpoints so the
+   * "click-to-insert" affordance reads consistently across both
+   * polygon kinds, and stays clearly distinct from the lavender
+   * ship-polygon vertex dots. */
+  fill: color-mix(in srgb, var(--c-warn) 80%, white);
   stroke: none;
   filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.5));
 }
 .dir-obsidian .ship-polygon-edge-handle.is-active {
-  fill: #ffffff;
+  fill: var(--c-warn);
   stroke: none;
 }
 .dir-obsidian .ship-polygon-vertex-index {

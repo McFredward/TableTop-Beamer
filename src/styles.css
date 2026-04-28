@@ -432,20 +432,25 @@ body[data-output-role="final-output"] .toast-stack {
 }
 
 .polygon-edge-handle {
-  fill: rgba(118, 206, 255, 0.42);
-  stroke: rgba(223, 245, 255, 0.82);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
+  /* Edge midpoint dots use a clearly different hue (cool blue) from
+   * the corner-vertex dots (warm peach) so "click to insert" reads
+   * different from "drag this vertex" without needing to look
+   * closely. Saturated fill + no stroke matches the solid-dot
+   * principle of the vertex handles. */
+  fill: rgba(118, 196, 255, 0.92);
+  stroke: none;
   pointer-events: none;
-  /* Edge midpoints (the dots used to insert a new vertex on
-   * double-click) follow the same transparency slider as the corner
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
+  /* Edge midpoints follow the same transparency slider as the corner
    * handles — user feedback. */
   opacity: var(--tt-vertex-handle-opacity, 1);
 }
 
 .polygon-edge-handle.is-active {
-  fill: rgba(152, 255, 213, 0.52);
-  stroke: rgba(234, 255, 244, 0.96);
+  fill: rgba(160, 220, 255, 1);
+  stroke: none;
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(118, 196, 255, 0.85));
 }
 
 .polygon-edge-hit-target {
