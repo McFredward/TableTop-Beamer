@@ -181,16 +181,6 @@
         c.fillStyle = `rgba(122, 182, 255, ${0.15 * intensity})`;
         c.fillRect(0, 0, w, h);
       }
-
-      for (let i = 0; i < 4; i += 1) {
-        const y = h * (0.2 + i * 0.2);
-        c.strokeStyle = `rgba(125, 191, 255, ${(0.07 + pulse * 0.07) * intensity})`;
-        c.lineWidth = 6;
-        c.beginPath();
-        c.moveTo(0, y);
-        c.lineTo(w, y);
-        c.stroke();
-      }
       return;
     }
 
