@@ -2170,6 +2170,12 @@ window.TT_BEAMER_RUNTIME_ANIMATION_LIFECYCLE.init({
   startRoomAnimationFromDraft: () => startRoomAnimationFromDraft?.(),
   syncRoomTargetSelect: () => syncRoomTargetSelect?.(),
   syncQuickModePanel: () => syncQuickModePanel?.(),
+  // Phase 26: refreshGlobalButtons rebuilds the inside/outside
+  // dashboard button rows from the current FX profile so adds /
+  // deletes / renames in the animation editor surface immediately
+  // on the dashboard without a page reload.
+  renderInsideGlobalButtons: () => renderInsideGlobalButtons(),
+  renderOutsideGlobalButtons: () => renderOutsideGlobalButtons(),
 });
 const {
   collectAnimationStopIds,

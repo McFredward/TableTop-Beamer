@@ -506,6 +506,13 @@
 
   function refreshGlobalButtons() {
     const { state } = ctx;
+    // Phase 26: rebuild the dashboard's inside / outside button DOM
+    // from the current FX profile BEFORE toggling .active. Without
+    // this, adds / deletes / renames in the animation editor stay
+    // invisible until a page reload. The editor and live-sync hydrate
+    // both call refreshGlobalButtons so this picks up both paths.
+    try { ctx.renderInsideGlobalButtons?.(); } catch { /* defensive */ }
+    try { ctx.renderOutsideGlobalButtons?.(); } catch { /* defensive */ }
     document.querySelectorAll("button[data-global]").forEach((button) => {
       const type = button.dataset.global;
       const isActive = state.runningAnimations.some(
