@@ -58,24 +58,26 @@ room, in real time.
 
 ## What is it?
 
-<div style="display: flex; align-items: center; gap: 30px;">
-  <div style="flex: 1;">
-    TableTop Beamer turns a ceiling-mounted short-throw projector into an
-    interactive atmosphere layer for board games. You define <b>rooms</b>
-    (polygons painted onto the board), assign <b>animations</b> (alarms,
-    fires, scanners, intruders, MP4 loops…), group rooms into <b>clusters</b>,
-    and trigger everything from your phone during play.
-  </div>
-  <div>
-    <img src="./readme-assets/example_board.gif" width="40%"/>
-  </div>
-</div>
+TableTop Beamer turns a ceiling-mounted short-throw projector into an
+interactive atmosphere layer for board games. You define <b>rooms</b>
+(polygons painted onto the board), assign <b>animations</b> (alarms,
+fires, scanners, intruders, MP4 loops…), group rooms into <b>clusters</b>,
+and trigger everything from your phone during play.
 
 <table>
-<tr>
-  <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
-  <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
-</tr>
+  <tr>
+    <td align="center">
+      <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
+    </td>
+    <td align="center">
+      <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
+    </td>
+    <td align="center">
+      <td>
+        <img src="./readme-assets/example_board.gif" width=""/>
+      </td>
+    </td>
+  </tr>
 </table>
 
 Two browsers run side-by-side:
@@ -163,7 +165,7 @@ Clone the repo on your **server machine** and start it:
 ```bash
 sudo apt update && sudo apt install -y nodejs npm
 git clone https://github.com/McFredward/TableTop-Beamer
-cd tt-beamer
+cd TableTop-Beamer
 node server.mjs --host 0.0.0.0 --port 4173
 ```
 
@@ -454,8 +456,8 @@ Install the bundled mapper helper:
 sudo apt update
 sudo apt install -y python3 python3-venv
 
-cd ~ && git clone https://github.com/McFredward/tt-beamer
-cd tt-beamer/scripts
+cd ~ && git clone https://github.com/McFredward/TableTop-Beamer
+cd TableTop-Beamer/scripts
 
 python3 -m venv venv
 ./venv/bin/pip install pygame numpy
@@ -464,7 +466,7 @@ python3 -m venv venv
 Run it:
 
 ```bash
-~/tt-beamer/scripts/venv/bin/python map.py
+~/TableTop-Beamer/scripts/venv/bin/python map.py
 ```
 
 Adjust the rectangle to match your table — drag vertices with the mouse,
@@ -507,7 +509,7 @@ If you want to fork or extend it, the architecture is documented end-to-end
 under `.planning/phases/`.
 
 If you have suggestions, open a
-[GitHub issue](https://github.com/McFredward/tt-beamer/issues). You can also
+[GitHub issue](https://github.com/McFredward/TableTop-Beamer/issues). You can also
 reach me as **McFredward** on Discord.
 
 ---
