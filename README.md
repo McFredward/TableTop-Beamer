@@ -4,7 +4,7 @@
 
 # TableTop Beamer
 
-**Phone-controlled atmospheric projection mapping for tabletop board games.**
+**Atmospheric projection mapping for tabletop board games.**
 
 A short-throw ceiling projector beams animations onto your board — alarms, lights,
 intruders, space backdrops — and you trigger them from your phone, room by
@@ -16,13 +16,6 @@ room, in real time.
 [![Version](https://img.shields.io/badge/version-0.26.x-purple.svg)](#project-status)
 
 <br>
-
-<table>
-<tr>
-  <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
-  <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
-</tr>
-</table>
 
 <img src="readme-assets/tt-beamer-readme.png" width="500" alt="TableTop Beamer overview" />
 
@@ -65,11 +58,25 @@ room, in real time.
 
 ## What is it?
 
-TableTop Beamer turns a ceiling-mounted short-throw projector into an
-interactive atmosphere layer for board games. You define **rooms** (polygons
-painted onto the board), assign **animations** (alarms, fires, scanners,
-intruders, MP4 loops…), group rooms into **clusters**, and trigger everything
-from your phone during play.
+<div style="display: flex; align-items: center; gap: 30px;">
+  <div style="flex: 1;">
+    TableTop Beamer turns a ceiling-mounted short-throw projector into an
+    interactive atmosphere layer for board games. You define <b>rooms</b>
+    (polygons painted onto the board), assign <b>animations</b> (alarms,
+    fires, scanners, intruders, MP4 loops…), group rooms into <b>clusters</b>,
+    and trigger everything from your phone during play.
+  </div>
+  <div>
+    <img src="./readme-assets/example_board.gif" width="40%"/>
+  </div>
+</div>
+
+<table>
+<tr>
+  <td><video src="https://github.com/user-attachments/assets/2dbe0f3f-5305-45ef-9895-f87d07323829"></video></td>
+  <td><video src="https://github.com/user-attachments/assets/f9b21f27-8330-4f6a-a1cb-ea3e045b27f1"></video></td>
+</tr>
+</table>
 
 Two browsers run side-by-side:
 
@@ -155,7 +162,7 @@ Clone the repo on your **server machine** and start it:
 
 ```bash
 sudo apt update && sudo apt install -y nodejs npm
-git clone https://github.com/McFredward/tt-beamer
+git clone https://github.com/McFredward/TableTop-Beamer
 cd tt-beamer
 node server.mjs --host 0.0.0.0 --port 4173
 ```
@@ -427,8 +434,7 @@ in `/resources/` is left alone.
 ## Optional: hardware-level cropping with `xrandr`
 
 The in-browser Align Mode is enough for content alignment on its own — but if
-you want to crop the whole projector raster to your table beforehand (so light
-doesn't spill onto chairs / walls), `xrandr` can do it at the display layer.
+you want to crop the whole projector raster to your table beforehand, `xrandr` can do it at the display layer.
 Combine with Align Mode for the final pixel-perfect placement.
 
 > Only supported on Raspberry Pi OS with the X11 session (not Wayland).
@@ -469,9 +475,6 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 ## Performance tips
 
 - **Prefer GIF over MP4** on the Pi — MP4 decode is the heaviest path.
-- **Use a wired connection** between the Pi and the server when possible.
-- **Match projector + board aspect roughly** so Align Mode doesn't have to
-  warp too aggressively.
 
 ---
 
@@ -480,10 +483,6 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 - MP4 decode is heavy on Pi — prefer GIFs where possible.
 - Sound for non-looped global animations is unreliable. Workaround: tick
   *Loop until stopped* and stop manually.
-- Some GIF animations occasionally render on the Pi but not on the phone
-  preview canvas (cosmetic — projector output is still correct).
-- Bundle-import overwrites a board with the same id without warning. Use the
-  *Rename* field at import time to avoid this.
 
 ---
 
@@ -494,14 +493,13 @@ fine-tune with arrow keys, **Enter** to apply, **Esc** to exit.
 - **Computer-vision-driven automation** — train local CV models that watch the
   board state and trigger animations automatically (no manual taps).
 - Per-cluster live editor (long-press a cluster pad to open it).
-- Cleaner audio routing for global non-looped animations.
-- Optional 409-on-collision flag for bundle-import.
+- Cleaner audio routing.
 
 ---
 
 ## Project status
 
-Hobby project I built primarily for myself, version **0.26.x**. AI was used
+Hobby project I built primarily for mysels. AI was used
 heavily during development. It's been running reliably on my own setup for
 many game nights, but bugs exist.
 
