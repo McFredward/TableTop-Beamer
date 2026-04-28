@@ -137,6 +137,55 @@
     polygonNode.setAttribute("points", value);
   }
 
+  // Update one vertex's hit-target/handle/label, plus the two edge
+  // midpoints adjacent to it. Used during single-vertex drags so we
+  // skip the N-1 unchanged vertices' attribute writes (the dominant
+  // SVG cost on polygons with many vertices).
+  function writeVertexAndAdjacentEdges(refs, points, index) {
+    const n = points.length;
+    if (n === 0) return;
+    const idx = ((index % n) + n) % n;
+    const [ux, uy] = points[idx];
+    const xStr = ux.toFixed(1);
+    const yStr = uy.toFixed(1);
+    const hit = refs.vertexHitTargets?.[idx];
+    if (hit) {
+      hit.setAttribute("cx", xStr);
+      hit.setAttribute("cy", yStr);
+    }
+    const handle = refs.vertexHandles?.[idx];
+    if (handle) {
+      handle.setAttribute("cx", xStr);
+      handle.setAttribute("cy", yStr);
+    }
+    const label = refs.vertexLabels?.[idx];
+    if (label) {
+      label.setAttribute("x", xStr);
+      label.setAttribute("y", (uy + 3).toFixed(1));
+    }
+    if (!Array.isArray(refs.edgeHitTargets) || refs.edgeHitTargets.length === 0) return;
+    // Edge i sits between vertex i and vertex i+1, so moving vertex
+    // `idx` repositions edges (idx - 1) and (idx) — the two segments
+    // that share this vertex.
+    const edgeIndices = [(idx - 1 + n) % n, idx];
+    for (const ei of edgeIndices) {
+      const [ax, ay] = points[ei];
+      const [bx, by] = points[(ei + 1) % n];
+      const cx = ((ax + bx) / 2).toFixed(1);
+      const cy = ((ay + by) / 2).toFixed(1);
+      const eHit = refs.edgeHitTargets[ei];
+      if (eHit) {
+        eHit.setAttribute("cx", cx);
+        eHit.setAttribute("cy", cy);
+      }
+      const eHandle = refs.edgeHandles?.[ei];
+      if (eHandle) {
+        eHandle.setAttribute("cx", cx);
+        eHandle.setAttribute("cy", cy);
+      }
+    }
+  }
+
   function applyIncrementalVertexHandlesToDom(refs, points) {
     if (!refs) return;
     const n = points.length;
@@ -183,16 +232,24 @@
     }
   }
 
-  function applyIncrementalRoomDrag(refs, overlayPoints) {
+  function applyIncrementalRoomDrag(refs, overlayPoints, changedIndex = null) {
     if (!refs) return;
     applyIncrementalPolygonPointsToDom(refs.polygon, overlayPoints);
-    applyIncrementalVertexHandlesToDom(refs, overlayPoints);
+    if (Number.isInteger(changedIndex)) {
+      writeVertexAndAdjacentEdges(refs, overlayPoints, changedIndex);
+    } else {
+      applyIncrementalVertexHandlesToDom(refs, overlayPoints);
+    }
   }
 
-  function applyIncrementalShipDrag(refs, overlayPoints) {
+  function applyIncrementalShipDrag(refs, overlayPoints, changedIndex = null) {
     if (!refs) return;
     applyIncrementalPolygonPointsToDom(refs.mask, overlayPoints);
-    applyIncrementalVertexHandlesToDom(refs, overlayPoints);
+    if (Number.isInteger(changedIndex)) {
+      writeVertexAndAdjacentEdges(refs, overlayPoints, changedIndex);
+    } else {
+      applyIncrementalVertexHandlesToDom(refs, overlayPoints);
+    }
   }
 
   // Invert the live, session-stable room transform so

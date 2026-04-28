@@ -111,8 +111,16 @@
         state.shipPolygonEditor.dragMoved = true;
         const shipRaw = getShipPolygonPoints(boardId);
         const shipOverlay = shipRaw.map(([x, y]) => [x * 1000, y * 1000]);
-        applyIncrementalShipDrag(state.shipPolygonEditor.dragDomRefs, shipOverlay);
-        syncShipPolygonEditorStatus();
+        applyIncrementalShipDrag(
+          state.shipPolygonEditor.dragDomRefs,
+          shipOverlay,
+          state.shipPolygonEditor.dragVertexIndex,
+        );
+        // Status text shows vertex-count + active-index + handle-% —
+        // none of those change while dragging a single vertex. The
+        // syncShipPolygonEditorStatus call still fires on drag end
+        // and on selection changes, which is when the line actually
+        // needs to refresh.
         return;
       }
       maybePromotePendingPolygonAreaDrag(event);
@@ -150,7 +158,8 @@
             getRoomPoints(areaRoom, boardId),
           );
         }
-        syncPolygonEditorStatus();
+        // Status line content doesn't change during a drag — see
+        // ship-vertex branch comment above.
         return;
       }
       if (state.polygonEditor.dragVertexIndex === null || state.uiView !== "settings") {
@@ -198,8 +207,9 @@
       applyIncrementalRoomDrag(
         state.polygonEditor.dragDomRefs,
         getRoomPoints(vertexRoom, boardId),
+        state.polygonEditor.dragVertexIndex,
       );
-      syncPolygonEditorStatus();
+      // Status line content doesn't change during a drag.
     }
   }
 
