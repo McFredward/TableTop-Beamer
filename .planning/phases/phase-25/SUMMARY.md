@@ -201,3 +201,133 @@ When ready, smoke test:
   intensity as the non-overlap regions.
 - **W5.1** On mobile, tap a room repeatedly to trigger
   animations → no perceptible stutter on each tap.
+
+---
+
+## Hotfix series — h1 through h30
+
+After W1–W5 closure (`phase-25-end` tag, `e9c3109`), interactive
+testing surfaced a long tail of polish/UX issues and one perf
+regression. They were shipped as 30 atomic patch commits over the
+course of one sit-down session. Version chip moved to `0.25.30`.
+
+### UX / behaviour
+
+- **h1** `f9b5be6` Cluster pad rail still visible on Settings —
+  CSS specificity tie between `.cluster-pads { display: flex }` and
+  `.view-hidden { display: none }` resolved by `#id+!important`
+  override.
+- **h2** `ea6e349` "Hide room names" promoted from per-room toggle
+  to a global flag (mirrors "Show Room Vertices").
+- **h3** `321bc3b` Solid-color uses `composite: copy` to avoid edge
+  alpha mixing at room boundaries.
+- **h4** `d099a74` Local UI prefs (handle scale, vertex transparency,
+  vertex/name visibility, dashboard zone, quick-mode mode) persist
+  to `localStorage` under `tt-beamer.local-ui-prefs.v1`.
+- **h5/h6** `5bb349b/ac0a062` (both reverted) Two attempts at
+  binarized polygon mask to eliminate solid-color edge rim — first
+  was too slow, second was acceptable on perf but the rim still
+  bled. Lower-priority issue parked by the user.
+- **h7** `0fa5f18` Cluster Mgmt: rooms sort alphabetically + pad
+  rail refreshes immediately on cluster CRUD.
+- **h8** `7012763` Coded effect picker is now a proper dropdown in
+  the Animation Editor (was a free-text input).
+- **h9** `8bc16d9` Sliders that don't affect the chosen renderer
+  (Speed for solid-color, Intensity for room mp4/gif) hide.
+- **h10** `d1f73e0` Imported boards appear in the dropdown
+  immediately (no reload). Server-side `deleteBoardFromServer` API
+  added.
+- **h11** `0c2a662` DEL key in Settings with a room selected
+  deletes the whole room. Right-click context menu gains
+  "Delete room". Vertex transparency slider (0–100%) added to the
+  Room Editor panel.
+- **h12** `e61bb3d` Solid-color picker shows on Quick-Mode pill
+  click and now also lives in the Tap Action section so the user
+  can tweak the colour without leaving Dashboard.
+
+### Selection visuals
+
+- **h13** `2a206ea` Mutual exclusion of polygon selection — clicking
+  a room area / room vertex / play-area vertex clears the others.
+  Tap-Action picker visibility wired through `ctx`. Strong yellow
+  selection accent.
+- **h14** `49b6a07` Selected-vertex highlight + edge-handle opacity
+  + smaller default handle size (visualTrim 0.75 → 0.5625).
+- **h15** `aaf9b26` Strong selection accent gated to Settings via
+  `.is-draggable.is-selected` so Dashboard view stays subtle.
+- **h16** `7bf0c59` Entering Settings clears any pre-existing
+  selection — opens to a clean slate.
+
+### Board management
+
+- **h17** `fd87db5` Board delete actually works (was referencing an
+  undefined `activeBoard.id`). Custom in-app modal dialog system
+  introduced (`runtime-modal.js` + matching CSS), used by the
+  delete-board confirm flow with type-to-confirm + danger styling.
+- **h18** `4b91125` Board-delete diagnostic console logs + trimmed
+  match comparison (caught the HTTP 405 = stale server, not a
+  client bug).
+- **h19** `c65ea27` Board delete rendered as a small "Delete" link
+  next to Active Board, not a full-width red button. New empty-
+  state placeholder when BOARDS becomes empty.
+
+### Animation defaults
+
+- **h20** `69455ea` Solid-color picker resets to the animation's
+  saved default on every animation switch — picker is a "short-term
+  override" only.
+
+### Polygon editor visuals
+
+- **h21** `7619b34` Max zoom bumped from 8× to 24× (vertex labels
+  initially pushed outside the bubble, reverted in h22).
+- **h22** `5e99b3e` Labels back inside the handle, hidden entirely
+  when handle scale is below 50%.
+- **h23/h24** `0260ae3/0dc5503` Vertex handles render as truly
+  solid dots — including in the active obsidian theme rules that
+  were the actual override winner.
+- **h25** `fca17b3` Edge midpoints solid white (distinct hue from
+  vertex), polygon outline scales linearly with handle slider.
+
+### Performance — drag-time
+
+- **h26** `97b4faf` Tighter grab radius (~1.5–1.8× the visible
+  handle, was ~4×) so adjacent vertices can be picked apart at
+  high zoom. `persistBoardProfiles` fast-paths the common
+  "already dirty" case — skips the ~1MB JSON.stringify dirty
+  diff on every mutation.
+- **h27** `4598e69 / f99f2cb` (reverted) Pause draw loop on wheel
+  zoom + pan — the user wanted animations to keep running through
+  zoom, so the change was reverted.
+- **h28** `6aac804` Polygon-drag pointermove coalesced via rAF.
+  Gaming mice fire 1000Hz+; the handler now stores the latest
+  event and processes one per animation frame, dropping handler
+  invocations by ~10–16×.
+- **h29** `aae4816` Stage rect cached during drag to skip the
+  forced layout flush `getBoundingClientRect` triggered after
+  every `applyIncrementalRoomDrag` SVG attribute write.
+- **h30** `0b4d24a` Single-vertex drag rewrites only the touched
+  vertex + its two adjacent edge midpoints, not all N. Per-frame
+  status-line rebuilds removed from the pointermove path
+  (vertex-count / handle-% don't change during a drag). Combined
+  perf delta: drag of a 50-vertex polygon dropped from ~500
+  attribute writes per frame to ~10.
+
+## Known parked / reverted
+
+- **Solid-color rim at room boundaries.** Two binarized-mask
+  attempts (h5, h6) reverted. User explicitly de-prioritised
+  ("stell es erstmal zurück, ich hab wichtigere Probleme"). Real
+  fix likely requires a layered alpha-mask pre-pass on a separate
+  off-screen canvas; left for a future targeted phase if it
+  resurfaces as a blocker.
+- **Wheel/pan pausing animations** (h27). Reverted on user request
+  — animations should keep rendering through zoom/pan.
+
+## Closure marker
+
+- Tag: `phase-25-end-h30` (this commit).
+- Final version: `0.25.30` (h30 chip).
+- Phase artifact: this `SUMMARY.md` (W1–W5 + hotfix appendix).
+- All hotfix commits land on `master` between `phase-25-end`
+  (`e9c3109`) and the closure marker.
