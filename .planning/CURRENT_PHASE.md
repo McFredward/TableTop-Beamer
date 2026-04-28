@@ -1,11 +1,12 @@
 # CURRENT PHASE
 
-- Active: Phase 25 (Bug & Polish) CLOSED — final
-- Status: 12 BACKLOG items + 30-commit hotfix series (h1–h30) shipped.
-  Smoke-tested across multiple sit-downs; user signed off after h30.
-- Closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)
-- App version: `0.25.30`
-- Previous Phase: Phase 24 (Code-Quality Refactor — 6 waves) CLOSED
+- Active: Phase 26 (Data-storage cleanup) — in progress
+- Status: 4 commits (26-1..26-4) shipped — dead zones data + helpers
+  removed, board JSONs schema-normalized, Maschinenraum scrubbed
+  from board catalogs and global-defaults boardProfiles, legacy
+  imported/ migration retired.
+- App version: `0.26.0`
+- Previous Phase: Phase 25 (Bug & Polish) CLOSED — final
 
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)
 Phase 24 closure: `.planning/phases/phase-24/SUMMARY.md` (tag `phase-24-end`)
