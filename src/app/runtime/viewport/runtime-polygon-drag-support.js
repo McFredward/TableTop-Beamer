@@ -27,6 +27,14 @@
   // we read it through a ctx-supplied getter.
   let polygonDragActive = false;
   let pendingRoomOverlayRenderHandle = null;
+  // Wheel-zoom and pan don't have clear start/end markers, but they
+  // produce a stream of events. We extend the heavy-interaction
+  // window each time one fires so the draw loop can pause for the
+  // duration of the gesture (and a small grace tail). Without this
+  // the draw loop runs at 60fps + forced layout during fast wheel
+  // zooms, which is what the user noticed as a fan-spike. */
+  let viewportInteractionUntil = 0;
+  const VIEWPORT_INTERACTION_GRACE_MS = 180;
 
   const stageGeometryCache = {
     rect: null,
@@ -43,7 +51,19 @@
 
   function isHeavyInteractionActive() {
     const touchActive = ctx?.getTouchGestureActive ? ctx.getTouchGestureActive() : false;
-    return touchActive || polygonDragActive;
+    if (touchActive || polygonDragActive) return true;
+    const panActive = Boolean(ctx?.state?.panMode?.active);
+    if (panActive) return true;
+    if (viewportInteractionUntil > performance.now()) return true;
+    return false;
+  }
+
+  // Called by wheel/pinch zoom or pointer-pan handlers to extend the
+  // "viewport gesture in flight" window. The draw-loop pause guard
+  // reads this so 60fps animation rendering stops while the user is
+  // actively zooming/panning the board.
+  function markViewportInteraction(graceMs = VIEWPORT_INTERACTION_GRACE_MS) {
+    viewportInteractionUntil = performance.now() + Math.max(0, Number(graceMs) || 0);
   }
 
   // rAF-coalesced wrapper around renderRoomOverlay().
@@ -266,6 +286,7 @@
   window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT = {
     init,
     isHeavyInteractionActive,
+    markViewportInteraction,
     scheduleRoomOverlayRender,
     flushPendingRoomOverlayRender,
     cacheRoomPolygonDragDomRefs,

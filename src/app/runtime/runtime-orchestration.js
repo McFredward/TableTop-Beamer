@@ -2356,6 +2356,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_DRAG_SUPPORT.init({
 });
 const {
   isHeavyInteractionActive,
+  markViewportInteraction,
   scheduleRoomOverlayRender,
   flushPendingRoomOverlayRender,
   cacheRoomPolygonDragDomRefs,
@@ -2433,6 +2434,7 @@ window.TT_BEAMER_RUNTIME_WIRE_STAGE_GESTURE_BINDERS.wireStageGestureBinders({
   setPanCursorState: () => setPanCursorState(),
   refreshStageGeometryCache: () => refreshStageGeometryCache(),
   scheduleNextLiveSnapshotPoll: (delay) => scheduleNextLiveSnapshotPoll(delay),
+  markViewportInteraction: (graceMs) => markViewportInteraction(graceMs),
   setTouchGestureActive: (v) => { touchGestureActive = v; },
   finishShipPolygonVertexDrag: (event, opts) => finishShipPolygonVertexDrag(event, opts),
   finishPolygonAreaDrag: (event, opts) => finishPolygonAreaDrag(event, opts),

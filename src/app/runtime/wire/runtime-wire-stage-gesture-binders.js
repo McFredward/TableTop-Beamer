@@ -21,6 +21,7 @@
       refreshStageGeometryCache,
       scheduleNextLiveSnapshotPoll,
       setTouchGestureActive,
+      markViewportInteraction,
       finishShipPolygonVertexDrag,
       finishPolygonAreaDrag,
       finishPolygonVertexDrag,
@@ -53,6 +54,15 @@
       (event) => {
         if (!event.target || !stage.contains(event.target)) return;
         event.preventDefault();
+        // Pause the per-frame draw loop while the user is actively
+        // wheel-zooming. Each wheel event extends the heavy-interaction
+        // window by ~180ms; the draw loop resumes once the gesture
+        // settles. Without this guard the canvas keeps redrawing all
+        // running animations at 60fps + forced layout for every wheel
+        // tick, which is what spiked the user's CPU/fan during editing.
+        if (typeof markViewportInteraction === "function") {
+          markViewportInteraction();
+        }
         // Refresh the stage geometry cache so the
         // zoom math uses the current pan/scale rect, not a stale
         // snapshot from the last resize/boot. Stale cache was why
