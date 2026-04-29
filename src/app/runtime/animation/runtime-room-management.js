@@ -114,14 +114,47 @@
       const bn = String(b.name ?? b.label ?? b.id ?? "");
       return an.localeCompare(bn, undefined, { sensitivity: "base", numeric: true });
     });
+    // Phase 26: detect rooms that share a name (case-insensitive,
+    // trimmed). For those entries, append a position hint so the user
+    // can tell two same-named rooms apart in the picker — typically
+    // useful when the board has accidental "ghost" rooms (tiny
+    // polygons left over from a misclick) that share a name with the
+    // intended room.
+    const nameCounts = new Map();
+    for (const room of sortedRooms) {
+      const key = String(room.name ?? room.label ?? room.id ?? "").trim().toLowerCase();
+      nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+    }
     for (const room of sortedRooms) {
       const option = document.createElement("option");
       option.value = room.id;
-      option.textContent = room.name ?? room.label ?? room.id;
+      const baseName = String(room.name ?? room.label ?? room.id);
+      const key = baseName.trim().toLowerCase();
+      option.textContent = (nameCounts.get(key) || 0) > 1
+        ? `${baseName} · ${getRoomPositionHint(room)}`
+        : baseName;
       option.selected = normalizedSelection.has(room.id);
       ctx.clusterRoomIdsSelect.append(option);
     }
     ctx.clusterRoomIdsSelect.disabled = board.rooms.length === 0;
+  }
+
+  function getRoomPositionHint(room) {
+    const pts = Array.isArray(room?.polygon) ? room.polygon
+      : Array.isArray(room?.points) ? room.points : null;
+    if (pts && pts.length >= 3) {
+      const xs = pts.map((p) => Number(p?.[0])).filter(Number.isFinite);
+      const ys = pts.map((p) => Number(p?.[1])).filter(Number.isFinite);
+      if (xs.length && ys.length) {
+        const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
+        const cy = ys.reduce((a, b) => a + b, 0) / ys.length;
+        return `${Math.round(cx * 100)}%/${Math.round(cy * 100)}%`;
+      }
+    }
+    if (Number.isFinite(Number(room?.x)) && Number.isFinite(Number(room?.y))) {
+      return `${Math.round(Number(room.x) * 100)}%/${Math.round(Number(room.y) * 100)}%`;
+    }
+    return String(room?.id || "");
   }
 
   function syncClusterManagementPanel(statusText = null, { preferredClusterId = null } = {}) {
