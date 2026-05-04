@@ -125,7 +125,9 @@ const {
   runningOverviewPanel, globalAnimationPanel, runMobilePerformanceCheckButton, mobilePerformanceStatus,
   mp4PerformanceTierInput, mp4RenderCapInput, mp4RenderCapValue, mp4QualityFloorInput,
   mp4QualityFloorValue, mp4DegradeThresholdInput, mp4DegradeThresholdValue,
-  mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus, toastStack,
+  mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus,
+  renderModeSelect, renderModeStatus,
+  diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
@@ -284,6 +286,10 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   renderRoomOverlay: () => { try { renderRoomOverlay(); } catch { /* not ready yet */ } },
   // Current board for server-side profile scoping
   getBoardId: () => state?.boardId ?? null,
+  // Server-driven render-mode (auto / 2d / gl) so /output/ can skip the
+  // GL warp on weak hardware (e.g. Raspberry Pi). Read at frame time so
+  // a live update via global-config-update takes effect immediately.
+  getRenderMode: () => state?.renderMode ?? "auto",
   saveProjectionMapping: () => {
     try {
       saveGlobalDefaultsToServer().catch(() => {});
@@ -314,6 +320,10 @@ const state = window.TT_BEAMER_STATE.createInitialState({
 });
 
 window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
+
+// Tiny probe so the inline /output/ status-chip script in index.html can
+// read state.renderMode without taking a hard runtime dependency.
+window.__ttBeamerStateProbe = () => state;
 
 // Opt-in save: local config edits stay local (dirty) until
 // the user clicks the Apply button. `localConfigDirty` is the dirty flag.
@@ -499,6 +509,7 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
   applyGlobalDefaultsPayloadToState: (payload) => applyGlobalDefaultsPayloadToState(payload),
   shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
+  warmGifAssetPath: (path, opts) => warmGifAssetPath(path, opts),
 });
 const {
   shouldApplySnapshotVersion,
@@ -934,6 +945,65 @@ const {
   clearAllActiveAnimationAudio,
 } = window.TT_BEAMER_RUNTIME_AUDIO;
 
+// Render-mode (auto / 2d / gl) — server-persisted via global-defaults.
+// Lives here rather than in a dedicated module since it's a single
+// state field with a select-driven UI.
+const RENDER_MODE_LABELS = {
+  auto: "Render mode: auto (GL only when warp grid is bent)",
+  "2d": "Render mode: 2D — Pi-friendly (GL skipped)",
+  gl: "Render mode: GL — always run mesh warp",
+};
+function normalizeRenderModeValue(value) {
+  return value === "2d" || value === "gl" ? value : "auto";
+}
+function syncRenderModePanel() {
+  const mode = normalizeRenderModeValue(state.renderMode);
+  state.renderMode = mode;
+  if (renderModeSelect && renderModeSelect.value !== mode) {
+    renderModeSelect.value = mode;
+  }
+  if (renderModeStatus) {
+    renderModeStatus.textContent = RENDER_MODE_LABELS[mode];
+  }
+}
+function setRenderMode(nextMode) {
+  state.renderMode = normalizeRenderModeValue(nextMode);
+  syncRenderModePanel();
+  // Push to server immediately so /output/ sees the change live via
+  // global-config-update broadcast. persistBoardProfiles (the localStorage-
+  // only path that persistRuntimeSoundSettingsChange uses) does not
+  // notify the server.
+  saveGlobalDefaultsToServer().catch((error) => {
+    triggerFeedback.textContent = "Status: render mode save failed (see console)";
+    console.warn("[render-mode] save failed:", error?.message || error);
+  });
+}
+
+// Diagnostic overlay toggle. Mirror of setRenderMode wiring — server-
+// persisted via global-defaults so toggling on the dashboard PC pushes
+// to /output/ on the Pi via the global-config-update broadcast. Uses a
+// body data-attribute so the chip's visibility is purely CSS-driven
+// (no per-frame JS guard needed).
+function syncDiagnosticOverlayPanel() {
+  const enabled = Boolean(state.diagnosticOverlay);
+  state.diagnosticOverlay = enabled;
+  if (diagnosticOverlayToggle && diagnosticOverlayToggle.checked !== enabled) {
+    diagnosticOverlayToggle.checked = enabled;
+  }
+  if (diagnosticOverlayStatus) {
+    diagnosticOverlayStatus.textContent = enabled ? "Diagnostic overlay: visible" : "Diagnostic overlay: hidden";
+  }
+  document.body.dataset.diagnosticOverlay = enabled ? "true" : "false";
+}
+function setDiagnosticOverlay(nextEnabled) {
+  state.diagnosticOverlay = Boolean(nextEnabled);
+  syncDiagnosticOverlayPanel();
+  saveGlobalDefaultsToServer().catch((error) => {
+    triggerFeedback.textContent = "Status: diagnostic overlay save failed (see console)";
+    console.warn("[diagnostic-overlay] save failed:", error?.message || error);
+  });
+}
+
 window.TT_BEAMER_RUNTIME_ROOM_GEOMETRY.init({
   state,
   canvas,
@@ -1004,6 +1074,9 @@ window.TT_BEAMER_RUNTIME_GIF_PLAYBACK.init({
   logRender,
   gifDecoder: window.TT_BEAMER_RUNTIME_GIF_DECODER,
   ROOM_GIF_ANIMATION_ASSETS,
+  outputRole,
+  OUTPUT_ROLE_FINAL,
+  getBoards: () => getBoards(),
   clampGifPlaybackSpeed: (value) => clampGifPlaybackSpeed(value),
   clampRoomOpacity: (value) => clampRoomOpacity(value),
 });
@@ -2786,6 +2859,14 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   mp4QualityFloorInput,
   mp4DegradeThresholdInput,
   mp4RecoverThresholdInput,
+  renderModeSelect,
+  renderModeStatus,
+  setRenderMode: (mode) => setRenderMode(mode),
+  syncRenderModePanel: () => syncRenderModePanel(),
+  diagnosticOverlayToggle,
+  diagnosticOverlayStatus,
+  setDiagnosticOverlay: (enabled) => setDiagnosticOverlay(enabled),
+  syncDiagnosticOverlayPanel: () => syncDiagnosticOverlayPanel(),
   armClearAllGuard: () => armClearAllGuard(),
   resetClearAllGuard: () => resetClearAllGuard(),
   setDashboardZone: (zone) => setDashboardZone(zone),
@@ -2909,6 +2990,8 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     syncDashboardZoneVisibility,
     syncMobilePerformanceStatus,
     syncMp4PerformanceControlsPanel,
+    syncRenderModePanel,
+    syncDiagnosticOverlayPanel,
     loadExternalBoardZones,
     loadOutsideResourceAssets,
     syncBoardSelectOptions,

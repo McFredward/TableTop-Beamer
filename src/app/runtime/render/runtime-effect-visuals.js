@@ -251,36 +251,37 @@
       const opacityOption = Number.isFinite(Number(options.opacity)) ? Number(options.opacity) : 1;
       const intensitySafe = Number.isFinite(intensity) ? intensity : 1;
       const alpha = Math.max(0, Math.min(1, opacityOption * intensitySafe));
-      // Composite mode "copy" replaces dst with src inside the clip,
-      // so the AA edge of the clipped fill ends up as pure solid-color
-      // (alpha falloff at the 1-pixel boundary only — no color mixing
-      // with whatever was painted behind: outside-fx, adjacent rooms'
-      // animations, etc.). This addresses two user-reported artifacts:
-      //   - Cross-room polygon overlap intensity bump (BACKLOG #12) —
-      //     "copy" replaces, so two rooms with the same color don't
-      //     alpha-accumulate (0.5 + 0.5×0.5 = 0.75) at the overlap.
-      //   - "Lighter edges" at play-area boundaries and adjacent to
-      //     dark animations like malfunction — without "copy" the AA
-      //     edge would source-over-blend with bright outside-fx or
-      //     adjacent-room paint, making the rim look brighter than
-      //     the interior.
+      // clearRect-then-fillRect achieves the same "destination is
+      // replaced, not blended" behaviour as `globalCompositeOperation
+      // = "copy"` (Phase 25-h3) without paying the per-call backing-
+      // store snapshot that made "copy" cost ~5-30 ms/room on Pi
+      // /output/ and collapsed perf to single-digit fps when many
+      // rooms ran solid-color simultaneously.
       //
-      // Skip "copy" when the outer composite is "lighter" — that's
-      // the same-room ≥2-anims path (Phase 12-1) and intentionally
-      // additively blends with sibling animations in this room.
-      // Cross-room-overlap and edge-mix artifacts only happen under
-      // "source-over", so gating on that is sufficient.
-      const useCopy = c.globalCompositeOperation === "source-over";
-      if (useCopy) {
-        c.save();
-        c.globalCompositeOperation = "copy";
-        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
-        c.restore();
-      } else {
-        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
+      // Why it works:
+      // - clearRect respects the clip: only pixels inside this room's
+      //   polygon are wiped to transparent. Whatever a previously-
+      //   drawn solid-color room wrote into the same pixels (overlap
+      //   area, sub-pixel polygon overlap, etc.) is removed before we
+      //   paint our own colour, so two adjacent rooms with the same
+      //   semi-transparent colour no longer alpha-stack to a brighter
+      //   tone at their shared edge.
+      // - fillRect with default source-over composite then paints the
+      //   solid colour onto a freshly-cleared region. Equivalent to
+      //   `copy` for the in-clip pixels, with a small AA-edge dimming
+      //   instead of an AA-edge halo (perceptually milder than the
+      //   brightness bump).
+      // - Both ops are GPU primitives — no composite-mode change
+      //   means no canvas-state-machine round trip on each call.
+      // - Skip the clearRect when the outer composite is "lighter"
+      //   (same-room ≥2-anims path, Phase 12-1) — that path is
+      //   *intentionally* additive and the clear would defeat it.
+      const skipClear = c.globalCompositeOperation === "lighter";
+      c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      if (!skipClear) {
+        c.clearRect(roomMinX, roomMinY, roomWidth, roomHeight);
       }
+      c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       return;
     }
 

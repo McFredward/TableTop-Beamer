@@ -122,6 +122,30 @@ body[data-output-role="final-output"].align-mode-active #room-overlay {
   pointer-events: auto;
 }
 
+.output-status-chip {
+  display: none;
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 9999;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #c8f7d5;
+  font: 600 11px/1.2 "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  border: 1px solid rgba(80, 200, 160, 0.45);
+  gap: 6px;
+  align-items: center;
+}
+.output-status-chip .output-status-sep {
+  opacity: 0.45;
+}
+body[data-diagnostic-overlay="true"] .output-status-chip {
+  display: inline-flex;
+}
+
 /* 4: Unified grid projection — handles and grid overlay */
 .projection-corner-handle {
   /* Styles are inline in JS; this class is for potential overrides */

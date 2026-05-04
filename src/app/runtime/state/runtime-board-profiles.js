@@ -72,6 +72,8 @@
       },
       animationSpeed: ctx.clampAnimationSpeed(state.animationSpeed),
       animationSoundMap: ctx.normalizeAnimationSoundMap(state.animationSoundMap),
+      renderMode: normalizeRenderMode(state.renderMode),
+      diagnosticOverlay: Boolean(state.diagnosticOverlay),
       mp4Performance: {
         tier: mp4Controls.tier,
         renderCap: mp4Controls.renderCap,
@@ -84,6 +86,10 @@
         ? { projectionMapping: { corners: window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.getCornersForPersistence() } }
         : {}),
     };
+  }
+
+  function normalizeRenderMode(value) {
+    return value === "2d" || value === "gl" ? value : "auto";
   }
 
   function buildBoardProfileStoragePayload() {
@@ -119,6 +125,14 @@
 
     if (Object.prototype.hasOwnProperty.call(payload, "mp4Performance")) {
       state.runtimePerf.mp4Controls = ctx.normalizeMp4PerformanceControls(payload.mp4Performance);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, "renderMode")) {
+      state.renderMode = normalizeRenderMode(payload.renderMode);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, "diagnosticOverlay")) {
+      state.diagnosticOverlay = Boolean(payload.diagnosticOverlay);
     }
   }
 
@@ -280,5 +294,6 @@
     extractBoardProfilesCandidate,
     buildMigratedBoardProfiles,
     loadBoardProfiles,
+    normalizeRenderMode,
   };
 })();

@@ -344,6 +344,17 @@
     const reconciledRunningAnimations = ctx.reconcileHydratedAnimations(primedRunningAnimations);
     const retainedRunningAnimations = ctx.retainActiveSeenOneShotRuns(reconciledRunningAnimations);
     state.runningAnimations = ctx.hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
+    // Eagerly warm any GIF asset referenced by an incoming animation so
+    // /output/ on a Pi doesn't have to lazy-decode after the first frame
+    // request (which routinely missed short animations entirely because
+    // decode latency exceeded the animation's lifetime).
+    if (typeof ctx.warmGifAssetPath === "function") {
+      for (const animation of state.runningAnimations) {
+        if (animation?.roomAssetType === "gif" && typeof animation.roomAssetRef === "string" && animation.roomAssetRef) {
+          ctx.warmGifAssetPath(animation.roomAssetRef, { reason: "trigger" });
+        }
+      }
+    }
     // Preserve local-only edits (live editor) for animations that already
     // existed before this snapshot — but only on the control client and
     // only when the snapshot is NOT from an edit-room mutation (which

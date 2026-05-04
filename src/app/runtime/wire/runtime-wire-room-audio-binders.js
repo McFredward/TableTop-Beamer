@@ -64,6 +64,10 @@
       mp4QualityFloorInput,
       mp4DegradeThresholdInput,
       mp4RecoverThresholdInput,
+      renderModeSelect,
+      setRenderMode,
+      diagnosticOverlayToggle,
+      setDiagnosticOverlay,
       armClearAllGuard,
       resetClearAllGuard,
       setDashboardZone,
@@ -645,6 +649,14 @@
 
     mp4RecoverThresholdInput?.addEventListener("input", () => {
       updateMp4PerformanceControls({ recoverThreshold: Number(mp4RecoverThresholdInput.value) }, { announce: false });
+    });
+
+    renderModeSelect?.addEventListener("change", () => {
+      setRenderMode(renderModeSelect.value);
+    });
+
+    diagnosticOverlayToggle?.addEventListener("change", () => {
+      setDiagnosticOverlay(diagnosticOverlayToggle.checked);
     });
 
     // Initial sync so dashboard transform inputs match the

@@ -15351,7 +15351,7 @@
           "speed": 1,
           "soundVolume": 1,
           "colorHex": "#ff0000",
-          "breaksSolidColor": false,
+          "breaksSolidColor": true,
           "icon": "power"
         }
       ]

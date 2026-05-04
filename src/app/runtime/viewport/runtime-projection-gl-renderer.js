@@ -93,13 +93,27 @@
         }
         return s;
       };
+      // highp UV precision in BOTH shaders so adjacent triangles agree
+      // on the texel sampled at their shared edge. With mediump (fp16)
+      // the interpolated vUV diverged by ~1 texel at boundaries,
+      // showing as visible triangle seams on uniform regions
+      // (solid-color, dark backgrounds). highp (fp32) eliminates the
+      // sampling discrepancy and is supported on Pi 4/5 + virtually all
+      // modern Chromium WebGL contexts. The GLSL ES 1.0 spec requires
+      // highp in vertex shaders; in fragment shaders it's supported but
+      // not guaranteed — we declare a default highp and the
+      // GL_FRAGMENT_PRECISION_HIGH guard falls back to mediump if the
+      // GPU genuinely doesn't support highp (very old VC4 only).
       const vs = compile(
-        "attribute vec2 aPos;\nattribute vec2 aUV;\nvarying vec2 vUV;\n"
+        "precision highp float;\n"
+        + "attribute vec2 aPos;\nattribute vec2 aUV;\nvarying highp vec2 vUV;\n"
         + "void main(){ gl_Position = vec4(aPos, 0.0, 1.0); vUV = aUV; }",
         _gl.VERTEX_SHADER,
       );
       const fs = compile(
-        "precision mediump float;\nvarying vec2 vUV;\nuniform sampler2D uTex;\n"
+        "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n"
+        + "#else\nprecision mediump float;\n#endif\n"
+        + "varying highp vec2 vUV;\nuniform sampler2D uTex;\n"
         + "void main(){ gl_FragColor = texture2D(uTex, vUV); }",
         _gl.FRAGMENT_SHADER,
       );
@@ -118,8 +132,23 @@
       _glUniTex = _gl.getUniformLocation(_glProgram, "uTex");
       _glTexture = _gl.createTexture();
       _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
-      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
-      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
+      // NEAREST instead of LINEAR. With LINEAR magnification, the
+      // texture lookup at triangle boundaries averages 4 texels —
+      // even at identity warp the sub-texel position chosen by each
+      // triangle's barycentric interpolation can land on a slightly
+      // different pixel boundary than its neighbour, leaving a
+      // 1-pixel ridge along every shared mesh edge. On uniform
+      // surfaces (especially solid-color rooms) those ridges read as
+      // visible "triangulation lines". NEAREST forces one texel per
+      // fragment with no interpolation — the warp output is byte-
+      // identical to the source on identity warp, and on actual
+      // deformation the warp mesh produces straightforward pixel-
+      // sampling without filter cross-talk between triangles. On a
+      // projector at typical viewing distance, NEAREST vs LINEAR is
+      // imperceptible for warp-target content; the trade-off is
+      // entirely on the side of fewer artifacts.
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.NEAREST);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.NEAREST);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
       _glPosBuf = _gl.createBuffer();

@@ -146,7 +146,23 @@
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
-    if (!hasGridDisplacements()) {
+
+    // Server-driven render-mode override. "2d" forces the GL path off
+    // entirely so /output/ never pays the per-frame texImage2D upload —
+    // critical for Raspberry Pi smoothness. "gl" forces it on (for
+    // diagnostic A/B comparisons). "auto" keeps the original behavior.
+    const renderMode = typeof ctx.getRenderMode === "function" ? ctx.getRenderMode() : "auto";
+
+    if (renderMode === "2d") {
+      if (glCanvasEl && glCanvasEl.style.display !== "none") {
+        glCanvasEl.style.display = "none";
+      }
+      if (!hasGridDisplacements()) return;
+      postDrawMeshWarp2D(canvas, canvasCtx);
+      return;
+    }
+
+    if (renderMode !== "gl" && !hasGridDisplacements()) {
       // No active warp — fx-canvas content is shown directly. Hide
       // the GL overlay so it can't display a stale frame.
       if (glCanvasEl && glCanvasEl.style.display !== "none") {

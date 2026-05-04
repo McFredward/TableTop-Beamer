@@ -44,26 +44,44 @@
       throw new Error(`GIF fetch failed (${response.status})`);
     }
     const data = await response.arrayBuffer();
+    // Pi/Chromium reports canDecodeGifFramesWithImageDecoder=true but
+    // a specific GIF can still throw mid-decode (memory pressure on
+    // large GIFs, malformed frames, transient decoder state). Without
+    // a try/catch the failure left entry.status="fallback" and
+    // getGifPlaybackFrame returned null forever for that GIF, even
+    // though the parser path could have decoded it. Wrapping the
+    // ImageDecoder block lets us fall through to the parser exactly
+    // as if the API weren't available — the path is byte-identical
+    // for the synchronous JS GIF parser.
     if (ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
-      const decoder = new ImageDecoder({ data, type: "image/gif" });
-      await decoder.tracks.ready;
-      const frameCount = Math.max(1, Number(decoder.tracks?.selectedTrack?.frameCount) || 1);
-      const frames = [];
-      let totalDurationMs = 0;
-      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-        const { image } = await decoder.decode({ frameIndex });
-        const durationMs = Math.max(16, Math.round((Number(image.duration) || 100000) / 1000));
-        const bitmap = await createImageBitmap(image);
-        image.close();
-        frames.push({ bitmap, durationMs });
-        totalDurationMs += durationMs;
+      try {
+        const decoder = new ImageDecoder({ data, type: "image/gif" });
+        await decoder.tracks.ready;
+        const frameCount = Math.max(1, Number(decoder.tracks?.selectedTrack?.frameCount) || 1);
+        const frames = [];
+        let totalDurationMs = 0;
+        for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
+          const { image } = await decoder.decode({ frameIndex });
+          const durationMs = Math.max(16, Math.round((Number(image.duration) || 100000) / 1000));
+          const bitmap = await createImageBitmap(image);
+          image.close();
+          frames.push({ bitmap, durationMs });
+          totalDurationMs += durationMs;
+        }
+        decoder.close?.();
+        entry.frames = frames;
+        entry.totalDurationMs = Math.max(16, totalDurationMs);
+        entry.status = "ready";
+        entry.error = null;
+        return;
+      } catch (error) {
+        ctx.logRender.warn("gif_image_decoder_failed_fallback_to_parser", {
+          event: "gif-image-decoder-failed",
+          path,
+          error: String(error?.message || error),
+        });
+        // intentional fall-through to the parser branch below
       }
-      decoder.close?.();
-      entry.frames = frames;
-      entry.totalDurationMs = Math.max(16, totalDurationMs);
-      entry.status = "ready";
-      entry.error = null;
-      return;
     }
 
     ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry);
@@ -128,7 +146,15 @@
     const warm = () => {
       ensureGifPlaybackReady(path);
     };
-    if (typeof window.requestIdleCallback === "function" && reason !== "trigger") {
+    // /output/ on a Raspberry Pi reliably starves requestIdleCallback —
+    // the page is busy decoding board image, mp4s, gifs, and starting
+    // the WebSocket; the idle queue may not fire for seconds. That made
+    // GIFs intermittently fail to play because the lazy on-demand decode
+    // path inside getGifPlaybackFrame couldn't catch up before short
+    // animations finished. On the final-output role we always warm
+    // immediately. Dashboard keeps the idle deferral.
+    const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+    if (!isFinalOutput && typeof window.requestIdleCallback === "function" && reason !== "trigger") {
       window.requestIdleCallback(() => warm(), { timeout: 450 });
       return;
     }
@@ -138,6 +164,28 @@
   function warmRoomGifAssets({ reason = "runtime" } = {}) {
     for (const assetPath of Object.values(ctx.ROOM_GIF_ANIMATION_ASSETS)) {
       warmGifAssetPath(assetPath, { reason });
+    }
+    // Also warm every per-board GIF definition currently in state.
+    // ROOM_GIF_ANIMATION_ASSETS is the static fallback map; each board
+    // can also have custom GIF animations defined in its roomFx
+    // profile. Without warming those here, a GIF triggered from
+    // dashboard for a board not yet rendered on /output/ would land in
+    // the lazy-decode path where Pi timing makes frames intermittently
+    // unavailable.
+    if (typeof ctx.getBoards === "function") {
+      try {
+        for (const board of ctx.getBoards()) {
+          const profile = ctx.state?.roomFxByBoard?.[board.id];
+          const animations = Array.isArray(profile?.animations) ? profile.animations : [];
+          for (const def of animations) {
+            if (def?.assetType === "gif" && typeof def.assetRef === "string" && def.assetRef) {
+              warmGifAssetPath(def.assetRef, { reason });
+            }
+          }
+        }
+      } catch {
+        // never let warmup throw — render path is more important
+      }
     }
   }
 

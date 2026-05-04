@@ -48,6 +48,21 @@
       }
     } catch (e) { /* private mode / quota — stay on default dark */ }
   </script>
+  <!-- /output/ diagnostic chip — only visible when body has both
+       data-output-role="final-output" and align-mode-active. Lets the
+       operator verify the running APP_VERSION + observe live fps on the
+       projector itself without needing the dashboard. -->
+  <div id="output-status-chip" class="output-status-chip" aria-hidden="true">
+    <span id="output-status-version">v?</span>
+    <span class="output-status-sep" aria-hidden="true">·</span>
+    <span id="output-status-fps">- fps</span>
+    <span class="output-status-sep" aria-hidden="true">·</span>
+    <span id="output-status-mode">auto</span>
+    <span class="output-status-sep" aria-hidden="true">·</span>
+    <span id="output-status-canvas">-x-</span>
+    <span class="output-status-sep" aria-hidden="true">·</span>
+    <span id="output-status-frame-cost">- ms</span>
+  </div>
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
@@ -711,6 +726,25 @@
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
+        <h2>Render mode (/output/)</h2>
+        <p class="status-line">Controls how the projector view composites the canvas. On a Raspberry Pi the GL warp can drop frame rate dramatically — switch to 2D if /output/ stutters.</p>
+        <label>
+          Mode
+          <select id="render-mode-select">
+            <option value="auto">Auto (GL only when warp grid is bent)</option>
+            <option value="2d">2D — Pi-friendly, skip GL entirely</option>
+            <option value="gl">GL — always run mesh warp</option>
+          </select>
+        </label>
+        <p id="render-mode-status" class="status-line" aria-live="polite">Render mode: auto</p>
+        <label class="inline-checkbox">
+          <input id="diagnostic-overlay-toggle" type="checkbox" />
+          Show diagnostic overlay (version · fps · render mode · canvas · frame cost)
+        </label>
+        <p id="diagnostic-overlay-status" class="status-line" aria-live="polite">Diagnostic overlay: hidden</p>
+      </section>
+
+      <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>MP4 performance controls</h2>
         <p class="status-line">Deterministic quality/performance policy for weak hardware and concurrent MP4 load.</p>
         <label>
@@ -866,6 +900,64 @@
       const el = document.getElementById("app-version");
       const v = window.TT_BEAMER_CONFIG && window.TT_BEAMER_CONFIG.APP_VERSION;
       if (el && v) el.textContent = "v" + v;
+
+      // /output/ diagnostic chip: version label + live fps + render-mode.
+      // Only consumed when body becomes align-mode-active on /output/ (CSS-gated).
+      // FPS sampled from rAF deltas with a sliding 60-frame window so the
+      // value is responsive but not jittery. Render-mode read from runtime
+      // state when available — falls back to "auto".
+      const chipVersion = document.getElementById("output-status-version");
+      const chipFps = document.getElementById("output-status-fps");
+      const chipMode = document.getElementById("output-status-mode");
+      const chipCanvas = document.getElementById("output-status-canvas");
+      const chipFrameCost = document.getElementById("output-status-frame-cost");
+      if (chipVersion && v) chipVersion.textContent = "v" + v;
+      const samples = [];
+      let lastTick = performance.now();
+      function sampleFrame() {
+        const nowTick = performance.now();
+        const delta = nowTick - lastTick;
+        lastTick = nowTick;
+        if (delta > 0 && delta < 2000) {
+          samples.push(delta);
+          if (samples.length > 60) samples.shift();
+        }
+        requestAnimationFrame(sampleFrame);
+      }
+      requestAnimationFrame(sampleFrame);
+      window.setInterval(() => {
+        if (chipFps) {
+          if (samples.length === 0) {
+            chipFps.textContent = "- fps";
+          } else {
+            const avgMs = samples.reduce((a, b) => a + b, 0) / samples.length;
+            const fps = avgMs > 0 ? 1000 / avgMs : 0;
+            chipFps.textContent = `${fps.toFixed(1)} fps`;
+          }
+        }
+        if (chipMode) {
+          const mode = window.__ttBeamerStateProbe && window.__ttBeamerStateProbe().renderMode
+            || "auto";
+          chipMode.textContent = String(mode);
+        }
+        if (chipCanvas) {
+          const canvas = document.getElementById("fx-canvas");
+          if (canvas) {
+            const dpr = (window.devicePixelRatio || 1).toFixed(2);
+            chipCanvas.textContent = `${canvas.width}×${canvas.height}@${dpr}`;
+          }
+        }
+        if (chipFrameCost) {
+          const probe = window.__ttBeamerStateProbe && window.__ttBeamerStateProbe();
+          const frameCostSamples = probe?.runtimePerf?.frameCostSamples;
+          if (Array.isArray(frameCostSamples) && frameCostSamples.length > 0) {
+            const sorted = frameCostSamples.slice().sort((a, b) => a - b);
+            const p50 = sorted[Math.floor(sorted.length * 0.5)];
+            const p90 = sorted[Math.floor(sorted.length * 0.9)];
+            chipFrameCost.textContent = `${p50.toFixed(0)}/${p90.toFixed(0)}ms`;
+          }
+        }
+      }, 500);
     });
   </script>
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>

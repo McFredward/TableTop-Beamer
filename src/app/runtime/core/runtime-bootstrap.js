@@ -57,8 +57,12 @@
       syncDashboardZoneVisibility: ctx.syncDashboardZoneVisibility,
       syncMobilePerformanceStatus: ctx.syncMobilePerformanceStatus,
       syncMp4PerformanceControlsPanel: ctx.syncMp4PerformanceControlsPanel,
+      syncRenderModePanel: ctx.syncRenderModePanel,
+      syncDiagnosticOverlayPanel: ctx.syncDiagnosticOverlayPanel,
     });
     ctx.syncMp4PerformanceControlsPanel();
+    ctx.syncRenderModePanel?.();
+    ctx.syncDiagnosticOverlayPanel?.();
   }
 
   // W3.6-C7 Phase 1: zone loader + outside resource assets + board

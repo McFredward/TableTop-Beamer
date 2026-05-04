@@ -2757,6 +2757,14 @@ async function handleGlobalDefaultsSave(req, res) {
     }
   }
 
+  const incomingRenderMode = parsed.renderMode === "2d" || parsed.renderMode === "gl" ? parsed.renderMode : null;
+  const existingRenderMode = existing?.renderMode === "2d" || existing?.renderMode === "gl" ? existing.renderMode : null;
+  const renderMode = incomingRenderMode ?? existingRenderMode ?? "auto";
+
+  const incomingDiagnosticOverlay = typeof parsed.diagnosticOverlay === "boolean" ? parsed.diagnosticOverlay : null;
+  const existingDiagnosticOverlay = typeof existing?.diagnosticOverlay === "boolean" ? existing.diagnosticOverlay : null;
+  const diagnosticOverlay = incomingDiagnosticOverlay ?? existingDiagnosticOverlay ?? false;
+
   const next = {
     schema: "tt-beamer.global-defaults.v1",
     savedAt: new Date().toISOString(),
@@ -2764,6 +2772,8 @@ async function handleGlobalDefaultsSave(req, res) {
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
     animationSoundMap: parsed.animationSoundMap ?? {},
+    renderMode,
+    diagnosticOverlay,
     // Phase 19-2: projection mapping corners persist across saves
     ...(parsed.projectionMapping || existing?.projectionMapping
       ? { projectionMapping: parsed.projectionMapping ?? existing?.projectionMapping }
