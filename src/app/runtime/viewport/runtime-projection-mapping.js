@@ -68,9 +68,9 @@
   // its context-menu items).
   const profilePersistence = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
   const {
-    profileSaveFlow,
     profileLoadFlow,
     profileDeleteFlow,
+    saveLoadedProfileFlow,
   } = profilePersistence;
 
   /**
@@ -246,7 +246,7 @@
       saveToLocalStorage,
       resetGrid,
       applyTransform,
-      profileSaveFlow,
+      saveLoadedProfileFlow,    // Phase 27: replaces legacy profileSaveFlow
       profileLoadFlow,
       profileDeleteFlow,
       gridState,

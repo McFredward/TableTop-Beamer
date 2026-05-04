@@ -145,6 +145,7 @@
     }
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
   function resetGrid() {

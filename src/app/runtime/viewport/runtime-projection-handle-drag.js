@@ -132,6 +132,7 @@
     document.removeEventListener("pointerup", onRotateDragEnd);
     document.removeEventListener("pointercancel", onRotateDragEnd);
     saveToLocalStorage();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
   // ── Handle drag ────────────────────────────────────────────────────────────
@@ -206,6 +207,7 @@
     document.removeEventListener("pointercancel", onDragEnd);
     positionHandles();
     saveToLocalStorage();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
   // ── Grid line drag (move entire row/column) ────────────────────────────────
@@ -451,6 +453,7 @@
     document.removeEventListener("pointerup", onLineDragEnd);
     document.removeEventListener("pointercancel", onLineDragEnd);
     saveToLocalStorage();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
   // ── Init / lineCanvas setter ───────────────────────────────────────────────

@@ -2116,3 +2116,27 @@ button.danger.is-armed {
   color: rgba(146, 222, 207, 0.95);
   font-weight: 600;
 }
+
+/* --- Phase 27: Align-mode toolbar (B3 + B4) ------------------------------ */
+.projection-align-toolbar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9998;
+  pointer-events: auto;
+}
+.projection-align-toolbar .projection-align-action-btn:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+.projection-align-toolbar .projection-align-action-save:hover:not([style*="pointer-events: none"]) {
+  background: var(--c-accent-2) !important;
+}
+.projection-align-toolbar .projection-align-action-discard:hover:not([style*="pointer-events: none"]) {
+  background: var(--c-danger-bg) !important;
+  border-color: var(--c-danger) !important;
+}
+.projection-align-toolbar .projection-align-action-saveas:hover {
+  background: var(--c-accent-bg) !important;
+}

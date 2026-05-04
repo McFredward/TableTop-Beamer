@@ -37,7 +37,7 @@
 
   // Cross-module callbacks injected at init time.
   let applyTransform = () => {};
-  let profileSaveFlow = () => {};
+  let profileSaveFlow = () => {};   // Phase 27: points to saveLoadedProfileFlow via init
   let profileLoadFlow = () => {};
   let profileDeleteFlow = () => {};
   // gridState reference (W3.2-C4 deviation): init-injected so the
@@ -68,6 +68,16 @@
   let contextMenu = null;     // Context menu DOM element
 
   let rotateHandleElements = [];
+
+  // Phase 27: align-mode toolbar (B3 + B4) — only present on /output/ in align mode.
+  let alignToolbarRoot = null;        // outer pill container (HTMLDivElement|null)
+  let alignChipNameEl = null;          // span for profile name
+  let alignChipDotEl = null;           // span for dirty dot
+  let alignSaveBtn = null;
+  let alignSaveAsBtn = null;
+  let alignDiscardBtn = null;
+  let _alignDirtyListener = null;
+  let _profilePersistApi = null;       // resolved at first use from window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE
 
   function createHandles() {
     if (handlesVisible) return;
@@ -119,6 +129,7 @@
     dragModule.setLineCanvas(null);
 
     dismissContextMenu();
+    removeAlignToolbar();
   }
 
   function rebuildHandleElements() {
@@ -225,6 +236,198 @@
       rotateHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
       rotateHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
     }
+  }
+
+  // ── Phase 27: Align-mode toolbar (B3 + B4) ────────────────────────────────
+
+  function _getProfilePersistApi() {
+    if (_profilePersistApi) return _profilePersistApi;
+    _profilePersistApi = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE || null;
+    return _profilePersistApi;
+  }
+
+  function rebuildAlignToolbar() {
+    removeAlignToolbar();
+    // UI-SPEC: pill is fixed top-center, z-index 9998, only on /output/ in align mode.
+    // showHandles already gates outputRole === OUTPUT_ROLE_FINAL — this function trusts that gate.
+    const root = document.createElement("div");
+    root.className = "projection-align-toolbar";
+    root.setAttribute("role", "status");
+    root.setAttribute("aria-label", "Profile state and actions");
+    root.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(14,22,34,0.92);
+      border: 1px solid var(--c-border);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      z-index: 9998;
+      font-family: 'Space Grotesk', sans-serif;
+    `;
+
+    // Chip pill: [● name]
+    const chip = document.createElement("div");
+    chip.className = "projection-align-chip";
+    chip.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+    `;
+    const dot = document.createElement("span");
+    dot.textContent = "●";
+    dot.style.cssText = "font-size:10px;color:var(--c-warn);display:none;";
+    const nameEl = document.createElement("span");
+    nameEl.style.cssText = "color:var(--c-text);";
+    chip.appendChild(dot);
+    chip.appendChild(nameEl);
+
+    // Save profile button
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "projection-align-action-btn projection-align-action-save";
+    saveBtn.type = "button";
+    saveBtn.textContent = "Save profile";
+    saveBtn.style.cssText = `
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      line-height: 1.2;
+      cursor: pointer;
+      background: transparent;
+      color: var(--c-text);
+      border: 1px solid var(--c-border-str);
+      transition: background 80ms ease, border-color 80ms ease, opacity 80ms ease;
+    `;
+
+    // Save as new
+    const saveAsBtn = document.createElement("button");
+    saveAsBtn.className = "projection-align-action-btn projection-align-action-saveas";
+    saveAsBtn.type = "button";
+    saveAsBtn.textContent = "Save as new…";
+    saveAsBtn.style.cssText = saveBtn.style.cssText;
+
+    // Discard
+    const discardBtn = document.createElement("button");
+    discardBtn.className = "projection-align-action-btn projection-align-action-discard";
+    discardBtn.type = "button";
+    discardBtn.textContent = "Discard";
+    discardBtn.style.cssText = `
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      line-height: 1.2;
+      cursor: pointer;
+      background: transparent;
+      color: var(--c-danger);
+      border: 1px solid rgba(255,91,91,0.35);
+      transition: background 80ms ease, border-color 80ms ease, opacity 80ms ease;
+    `;
+
+    // Click bindings
+    const api = _getProfilePersistApi();
+    saveBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveLoadedProfileFlow(); _refreshAlignToolbarVisual(); });
+    saveAsBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveAsNewProfileFlow(); _refreshAlignToolbarVisual(); });
+    discardBtn.addEventListener("click", (e) => { e.preventDefault(); if (api) api.discardChanges(); _refreshAlignToolbarVisual(); });
+
+    root.appendChild(chip);
+    root.appendChild(saveBtn);
+    root.appendChild(saveAsBtn);
+    root.appendChild(discardBtn);
+    document.body.appendChild(root);
+
+    alignToolbarRoot = root;
+    alignChipNameEl = nameEl;
+    alignChipDotEl = dot;
+    alignSaveBtn = saveBtn;
+    alignSaveAsBtn = saveAsBtn;
+    alignDiscardBtn = discardBtn;
+
+    // Subscribe to dirty changes from profile-persistence.
+    if (api && typeof api.addDirtyListener === "function") {
+      _alignDirtyListener = () => _refreshAlignToolbarVisual();
+      api.addDirtyListener(_alignDirtyListener);
+    }
+    _refreshAlignToolbarVisual();
+  }
+
+  function _refreshAlignToolbarVisual() {
+    if (!alignToolbarRoot) return;
+    const api = _getProfilePersistApi();
+    const name = api?.getLoadedProfileName?.() ?? null;
+    const dirty = Boolean(api?.isCurrentlyDirty?.());
+    // Chip name + color
+    if (name) {
+      alignChipNameEl.textContent = name;
+    } else {
+      alignChipNameEl.textContent = "Unsaved";
+    }
+    alignChipNameEl.style.color = dirty ? "var(--c-warn)" : (name ? "var(--c-text)" : "var(--c-text-2)");
+    alignChipDotEl.style.display = dirty ? "inline" : "none";
+    // Pill border on dirty
+    alignToolbarRoot.style.borderColor = dirty ? "rgba(245,181,68,0.5)" : "var(--c-border)";
+
+    // Save button: primary when dirty, ghost when clean
+    if (dirty) {
+      alignSaveBtn.style.background = "var(--c-accent)";
+      alignSaveBtn.style.color = "var(--c-accent-fg)";
+      alignSaveBtn.style.border = "1px solid transparent";
+      alignSaveBtn.style.opacity = "1";
+      alignSaveBtn.style.pointerEvents = "auto";
+    } else {
+      alignSaveBtn.style.background = "transparent";
+      alignSaveBtn.style.color = "var(--c-text)";
+      alignSaveBtn.style.border = "1px solid var(--c-border-str)";
+      alignSaveBtn.style.opacity = "0.35";
+      alignSaveBtn.style.pointerEvents = "none";
+    }
+
+    // Save as new: always visible; stays ghost
+    alignSaveAsBtn.style.opacity = "1";
+    alignSaveAsBtn.style.pointerEvents = "auto";
+
+    // Discard: enabled only when dirty
+    if (dirty) {
+      alignDiscardBtn.style.opacity = "1";
+      alignDiscardBtn.style.pointerEvents = "auto";
+    } else {
+      alignDiscardBtn.style.opacity = "0.35";
+      alignDiscardBtn.style.pointerEvents = "none";
+    }
+  }
+
+  function removeAlignToolbar() {
+    const api = _getProfilePersistApi();
+    if (api && typeof api.removeDirtyListener === "function" && _alignDirtyListener) {
+      api.removeDirtyListener(_alignDirtyListener);
+      _alignDirtyListener = null;
+    }
+    if (alignToolbarRoot) {
+      try { document.body.removeChild(alignToolbarRoot); } catch {}
+    }
+    alignToolbarRoot = null;
+    alignChipNameEl = null;
+    alignChipDotEl = null;
+    alignSaveBtn = null;
+    alignSaveAsBtn = null;
+    alignDiscardBtn = null;
   }
 
   // Rotate handle drag handlers moved to handle-drag sub-module
@@ -604,6 +807,8 @@
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    const _ppApi = _getProfilePersistApi();
+    if (_ppApi?.notifyDirtyChanged) _ppApi.notifyDirtyChanged();
   }
 
   function addVerticalLine(normX) {
@@ -650,6 +855,8 @@
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    const _ppApi2 = _getProfilePersistApi();
+    if (_ppApi2?.notifyDirtyChanged) _ppApi2.notifyDirtyChanged();
   }
 
   function removeHorizontalLine(index) {
@@ -661,6 +868,8 @@
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    const _ppApi3 = _getProfilePersistApi();
+    if (_ppApi3?.notifyDirtyChanged) _ppApi3.notifyDirtyChanged();
   }
 
   function removeVerticalLine(index) {
@@ -672,6 +881,8 @@
     saveToLocalStorage();
     if (handlesVisible) { rebuildHandleElements(); drawLines(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    const _ppApi4 = _getProfilePersistApi();
+    if (_ppApi4?.notifyDirtyChanged) _ppApi4.notifyDirtyChanged();
   }
 
   // ── Show / Hide (unified — everything in one go) ───────────────────────────
@@ -682,6 +893,10 @@
     // Bind keyboard globally so ESC works regardless of focus
     document.addEventListener("keydown", onKeyDown);
     activeHandleKey = "0-0";
+    // Phase 27 (B3 + B4): align-mode toolbar (only on /output/ — showHandles already gates this).
+    if (ctx && ctx.outputRole === ctx.OUTPUT_ROLE_FINAL) {
+      rebuildAlignToolbar();
+    }
   }
 
   function hideHandles() {
@@ -730,7 +945,10 @@
     if (typeof dependencies?.resetGrid === "function") resetGrid = dependencies.resetGrid;
     // Cross-module callbacks.
     if (typeof dependencies?.applyTransform === "function") applyTransform = dependencies.applyTransform;
-    if (typeof dependencies?.profileSaveFlow === "function") profileSaveFlow = dependencies.profileSaveFlow;
+    // Phase 27: saveLoadedProfileFlow replaces the legacy window.prompt-based profileSaveFlow.
+    // Accept either name so the context-menu item keeps working during transition.
+    if (typeof dependencies?.saveLoadedProfileFlow === "function") profileSaveFlow = dependencies.saveLoadedProfileFlow;
+    else if (typeof dependencies?.profileSaveFlow === "function") profileSaveFlow = dependencies.profileSaveFlow;
     if (typeof dependencies?.profileLoadFlow === "function") profileLoadFlow = dependencies.profileLoadFlow;
     if (typeof dependencies?.profileDeleteFlow === "function") profileDeleteFlow = dependencies.profileDeleteFlow;
     if (dependencies?.gridState && typeof dependencies.gridState.setHandlesVisible === "function") {
