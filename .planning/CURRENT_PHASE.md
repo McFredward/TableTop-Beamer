@@ -1,18 +1,18 @@
 # CURRENT PHASE
 
-- Active: Phase 26 (Data-storage cleanup) — in progress
-- Status: 6 commits + 1 hotfix shipped. 26-1..26-4 cleaned dead
-  zones, normalized board schemas, scrubbed Maschinenraum, retired
-  imported/ migration. h1 cascaded board-delete to profiles.
-  26-6 unified per-board state into config/boards/<id>.json (board
-  JSON now holds both static catalog data AND live state),
-  shrunk global-defaults.json to truly-global fields, consolidated
-  images under /config/boards/assets/. Package format bumped to
-  tt-beamer.board-package.v3 (no boardProfile field — board carries
-  it inline).
-- App version: `0.26.2`
-- Previous Phase: Phase 25 (Bug & Polish) CLOSED — final
+- Active: Phase 27 (Align Mode Refinement) — PLANNING
+- Status: Phase 26 closed (2026-05-04). 9 functional items + 9 hotfix
+  waves shipped. The closure hotfix (26-h9) bundled the Pi /output/
+  rendering hardening: render-mode toggle + diagnostic overlay chip +
+  solid-color cross-room perf fix + GL highp/NEAREST seam fix + GIF
+  reliability hooks. App version `0.26.23`. Phase 27 backlog captured
+  in `.planning/phases/phase-27/BACKLOG.md` from user-test feedback;
+  plan not yet authored.
+- App version: `0.26.23`
+- Previous Phase: Phase 26 (Data-storage cleanup + Pi /output/
+  rendering hardening) CLOSED — final.
 
+Phase 26 closure: `.planning/phases/phase-26/SUMMARY.md` (tag `phase-26-end-h9`)
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)
 Phase 24 closure: `.planning/phases/phase-24/SUMMARY.md` (tag `phase-24-end`)
 Phase 23 closure: `.planning/phases/phase-23/SUMMARY.md`

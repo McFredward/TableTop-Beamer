@@ -178,3 +178,47 @@ Exit Criteria:
 - 4 Ecken per Drag oder Pfeiltasten verschiebbar auf /output waehrend Align Mode.
 - Projection Mapping nur aktiv waehrend Align Mode, sonst normaler Output.
 - Output erreichbar unter /output statt /output/final.
+
+## Phase 26 - Data-storage cleanup + Pi /output/ rendering hardening (CLOSED)
+Ziel: Per-board State in `config/boards/<id>.json` konsolidieren, `global-defaults.json` auf wirklich globale Felder schrumpfen, Board-Package-Format auf v3 heben. Anschliessend (in Hotfix-Welle 9) eine harte Pi-/output/-Performance- und Render-Regression schliessen.
+
+Status: CLOSED PASS am 2026-05-04 nach Hotfix-Welle 9. Closure-Doku: `.planning/phases/phase-26/SUMMARY.md`. Tag: `phase-26-end-h9`. Final version: `0.26.23`.
+
+Milestones:
+1. M1 Data unification: per-board State in `config/boards/<id>.json` konsolidiert, `global-defaults.json` reduziert, Board-Image-Pfade unter `/config/boards/assets/` zusammengefasst, Package-Schema auf `tt-beamer.board-package.v3` gehoben.
+2. M2 UX/Animation polish: Power-Outage `Break solid color`, "copy animations from another board"-Button, leere Animationsbibliothek bei Board-Import.
+3. M3 Hotfix UX (h1..h8): Board-Delete-Cascade, Slider-Persistenz, Polygon-Editor-Visuals, FX-Picker-Stale-Refresh, Cluster-Picker-Disambiguation.
+4. M4 Hotfix h9 — Pi /output/ rendering hardening: Render-Mode-Toggle (auto/2d/gl) + Diagnostic-Overlay, server-persistiert + live-synced; Solid-Color-Cross-Room-Performance-Fix; GL-Triangle-Seam-Fix (highp + NEAREST); GIF-Reliability auf Pi (Idle-Bypass + ImageDecoder-Fallback).
+
+Exit Criteria:
+- Per-board State liegt vollstaendig in `config/boards/<id>.json` und Roundtrip Save/Load erhaelt alle Felder.
+- `tt-beamer.board-package.v3` Imports/Exports verlieren keine Daten.
+- Pi /output/ rendert bei vielen gleichzeitigen Solid-Color-Raeumen ohne FPS-Einbruch ohne dass die Cross-Room-Overlap-Aufhellung zurueckkehrt.
+- GL-Triangle-Linien sind auf Solid-Color-Raeumen unsichtbar.
+- GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
+- Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
+
+## Phase 27 - Align Mode Refinement (PLANNING)
+Ziel: Align Mode auf Basis von User-Test-Feedback (2026-05-04) konsistent und transparent gestalten — einheitliches Verhalten innerer und aeusserer Linien, Trapez-Verzerrung, geladenes-Profil-Anzeige + Dirty-Flag, Multi-Device-Save-Pflicht, schlankerer Default sowie korrekter Right-Click-Menue-Kontrast.
+
+Status: PLANNING. Backlog: `.planning/phases/phase-27/BACKLOG.md`. Plan noch nicht geschrieben.
+
+Milestones:
+1. M1 Edge-uniformity: aeussere Rand-Linien verhalten sich identisch zu inneren Linien (BACKLOG B1).
+2. M2 Trapezoid corners: aeussere Ecken sind frei verschiebbar — Rechteck-Constraint entfernt (BACKLOG B2).
+3. M3 Profile awareness: aktuell geladenes Profil ist sichtbar; Dirty-Flag mit Save/Discard-Optionen; Dirty-State blockiert Align-Mode-Off auf Remote-Clients (BACKLOG B3..B5).
+4. M4 Default layout: neuer Default ist 80%-Rechteck mit genau einer mittleren horizontalen + vertikalen Linie (BACKLOG B6).
+5. M5 Right-Click correctness: kontextabhaengiges Menue (Linie / Punkt / leere Flaeche), Loeschen verifiziert end-to-end (BACKLOG B7+B8).
+
+Exit Criteria:
+- Aeussere und innere Linien sind in Drag-, Snap- und Selektionsverhalten ununterscheidbar.
+- Aeussere Ecken sind unabhaengig verschiebbar (Trapez moeglich); GL-Mesh-Warp passt sich an.
+- Geladenes Profil + Dirty-Status sind in der Align-Mode-UI jederzeit sichtbar.
+- Dirty-State auf einem Device blockiert das Ausschalten von Align Mode auf anderen Devices mit klarer Hint-Message.
+- Frische Default-Profile haben das 80%-Rechteck-Layout mit genau zwei mittleren Linien.
+- Right-Click auf Linie zeigt nur "Delete line" + Create-Optionen, auf Punkt zeigt zusaetzlich "Delete point", auf leere Flaeche zeigt KEINE Delete-Optionen.
+- Linien-Loeschen funktioniert konsistent ueber Right-Click und persistiert in das geladene Profil.
+
+Out of Scope:
+- Aenderungen ausserhalb der Align-Mode-UI.
+- Neue Projection-Mapping-Features ausser dem Trapez-Corner-Release.
