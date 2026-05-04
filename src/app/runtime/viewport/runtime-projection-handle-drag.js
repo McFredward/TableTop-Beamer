@@ -385,57 +385,31 @@
     const lastCol = cols - 1;
     const sp = lineDragState.allStartPts;
 
+    // h8 (Phase 27 followup): outer-LINE drag now behaves identically to
+    // inner-LINE drag — only the dragged line moves; interior parallel lines
+    // stay fixed in absolute coordinates, so only the area between adjacent
+    // lines compresses/stretches. This matches the inner-line semantics from
+    // B1 (edge uniformity) and complements B9 (squish handles for whole-board
+    // scaling). Variables `lastRow`/`lastCol` and `sp` are retained above for
+    // legibility but the proportional-interior-scale blocks are removed.
+    void sp; void lastRow; void lastCol;
     if (lineDragState.axis === "horizontal") {
       const dy = (e.clientY - lineDragState.startY) / vh;
       const row = lineDragState.lineIndex;
-      const isEdgeRow = row === 0 || row === lastRow;
-      // Move all points on this row vertically
+      // Move all points on this row vertically. NO proportional rescale of
+      // adjacent rows — outer-line drag is now the same as inner-line drag.
       for (let col = 0; col < cols; col++) {
         const start = lineDragState.startPts[col];
         setPoint(row, col, start.x, Math.max(0, Math.min(1, start.y + dy)));
       }
-      // If edge row, proportionally adjust all inner rows
-      if (isEdgeRow) {
-        for (let ri = 1; ri < lastRow; ri++) {
-          for (let ci = 0; ci < cols; ci++) {
-            const oldTop = sp[0][ci].y;
-            const oldBottom = sp[lastRow][ci].y;
-            const newTop = getPoint(0, ci).y;
-            const newBottom = getPoint(lastRow, ci).y;
-            const oldRange = oldBottom - oldTop;
-            const newRange = newBottom - newTop;
-            if (Math.abs(oldRange) > 1e-6) {
-              const t = (sp[ri][ci].y - oldTop) / oldRange;
-              setPoint(ri, ci, getPoint(ri, ci).x, newTop + t * newRange);
-            }
-          }
-        }
-      }
     } else {
       const dx = (e.clientX - lineDragState.startX) / vw;
       const col = lineDragState.lineIndex;
-      const isEdgeCol = col === 0 || col === lastCol;
-      // Move all points on this column horizontally
+      // Move all points on this column horizontally. NO proportional rescale
+      // of adjacent columns — outer-line drag is now the same as inner-line drag.
       for (let row = 0; row < rows; row++) {
         const start = lineDragState.startPts[row];
         setPoint(row, col, Math.max(0, Math.min(1, start.x + dx)), start.y);
-      }
-      // If edge column, proportionally adjust all inner columns
-      if (isEdgeCol) {
-        for (let ci = 1; ci < lastCol; ci++) {
-          for (let ri = 0; ri < rows; ri++) {
-            const oldLeft = sp[ri][0].x;
-            const oldRight = sp[ri][lastCol].x;
-            const newLeft = getPoint(ri, 0).x;
-            const newRight = getPoint(ri, lastCol).x;
-            const oldRange = oldRight - oldLeft;
-            const newRange = newRight - newLeft;
-            if (Math.abs(oldRange) > 1e-6) {
-              const t = (sp[ri][ci].x - oldLeft) / oldRange;
-              setPoint(ri, ci, newLeft + t * newRange, getPoint(ri, ci).y);
-            }
-          }
-        }
       }
     }
 

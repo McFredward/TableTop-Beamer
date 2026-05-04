@@ -53,13 +53,17 @@
     const btn = ctx.alignModeButton;
     if (!btn) return;
     const hint = document.getElementById("align-mode-dirty-hint");
-    const HINT_COPY = "Unsaved changes on /output/ — save or discard there first.";
+    // h8: shorter on-screen chip copy (the long form would force a horizontal
+    // scrollbar in narrow topbar layouts). The full message stays in the
+    // button's title= attribute (tooltip) and aria-describedby for AT.
+    const HINT_COPY_FULL = "Unsaved changes on /output/ — save or discard there first.";
+    const HINT_COPY_CHIP = "Unsaved on /output/";
     if (dirty) {
       btn.setAttribute("disabled", "");
-      btn.setAttribute("title", HINT_COPY);
+      btn.setAttribute("title", HINT_COPY_FULL);
       btn.setAttribute("aria-describedby", "align-mode-dirty-hint");
       if (hint) {
-        hint.textContent = HINT_COPY;
+        hint.textContent = HINT_COPY_CHIP;
         hint.removeAttribute("hidden");
       }
     } else {

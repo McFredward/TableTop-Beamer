@@ -2155,19 +2155,24 @@ button.danger.is-armed {
   outline-offset: 2px;
 }
 
-/* Phase 27 h7: visible dirty-state hint next to the align button. The
- * <p id="align-mode-dirty-hint"> is hidden by default; when shown it
- * renders as a small amber pill explaining why the align toggle is
- * disabled. Positioned inline next to the align button in the topbar. */
+/* Phase 27 h7/h8: visible dirty-state hint next to the align button.
+ * h8: positioned `fixed` so it floats below the topbar's right edge —
+ * adding it to the inline flex flow forces the theme-toggle button onto
+ * a new row when `.rd-topbar-actions` `flex-wrap: wrap` triggers. The
+ * full message lives in the button's tooltip + aria-describedby. */
 #align-mode-dirty-hint:not([hidden]) {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  z-index: 50;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 0 0 8px;
+  gap: 5px;
+  margin: 0;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(245, 181, 68, 0.16);
-  border: 1px solid rgba(245, 181, 68, 0.5);
+  background: rgba(245, 181, 68, 0.18);
+  border: 1px solid rgba(245, 181, 68, 0.55);
   color: var(--c-warn);
   font-size: 11px;
   font-weight: 600;
@@ -2176,12 +2181,16 @@ button.danger.is-armed {
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 #align-mode-dirty-hint:not([hidden])::before {
   content: "●";
   display: inline-block;
-  font-size: 8px;
+  font-size: 7px;
   color: var(--c-warn);
+  flex-shrink: 0;
 }
 /* Visually mark the disabled align button so the user understands the
  * reason at-a-glance — the chip already says it, but the button itself

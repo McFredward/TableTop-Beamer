@@ -1061,14 +1061,17 @@
       const colIsOuter = hit.col === 0 || hit.col === lastCol;
       const rowIsOuter = hit.row === 0 || hit.row === lastRow;
 
-      if (!colIsOuter && cols > 3) {
+      // h8: only outer-line guards are kept; the lines>3 floor is removed
+      // because interior lines must be deletable down to a 2-row/2-col outer
+      // rectangle (the user wants the default mid-line in a 3×3 deletable).
+      if (!colIsOuter && cols > 2) {
         items.push({
           label: "Delete vertical line",
           destructive: true,
           action: () => removeVerticalLine(hit.col),
         });
       }
-      if (!rowIsOuter && rows > 3) {
+      if (!rowIsOuter && rows > 2) {
         items.push({
           label: "Delete horizontal line",
           destructive: true,
@@ -1088,7 +1091,9 @@
       const isOuter = hit.lineIndex === 0
         || (hit.axis === "h" && hit.lineIndex === lastRow)
         || (hit.axis === "v" && hit.lineIndex === lastCol);
-      if (!isOuter && (hit.axis === "h" ? rows > 3 : cols > 3)) {
+      // h8: same rule as the intersection branch — keep only the outer guard
+      // and the 2-line floor; delete the >3 floor so the default mid-line is removable.
+      if (!isOuter && (hit.axis === "h" ? rows > 2 : cols > 2)) {
         items.push({
           label: "Delete this line",
           destructive: true,
@@ -1290,8 +1295,11 @@
   }
 
   function removeHorizontalLine(index) {
-    if (grid.srcYs.length <= 3) return;
+    // h8: only outer rows are protected. Interior rows are removable
+    // even on a 3×3 default grid (going to 2 rows = just outer rectangle
+    // is a valid state — squish handles + corners still work).
     if (index === 0 || index === grid.srcYs.length - 1) return;
+    if (grid.srcYs.length <= 2) return; // can't go below outer rectangle
     pushUndo();
     grid.srcYs.splice(index, 1);
     grid.points.splice(index, 1);
@@ -1303,8 +1311,9 @@
   }
 
   function removeVerticalLine(index) {
-    if (grid.srcXs.length <= 3) return;
+    // h8: same relaxation as removeHorizontalLine — only outer cols protected.
     if (index === 0 || index === grid.srcXs.length - 1) return;
+    if (grid.srcXs.length <= 2) return;
     pushUndo();
     grid.srcXs.splice(index, 1);
     for (const row of grid.points) row.splice(index, 1);
