@@ -1,10 +1,11 @@
 ---
 phase: 27
 slug: align-mode-refinement
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-04
+reviewed_at: 2026-05-04
 ---
 
 # Phase 27 — UI Design Contract
@@ -71,14 +72,22 @@ Standard 8-point grid used throughout. No new spacing tokens are introduced.
 |-------|-------|-------------------|
 | xs | 4px | Dirty-dot gap from profile name; chip internal padding-top/bottom |
 | sm | 8px | Chip internal padding-left/right; toolbar gap between items |
-| md | 16px | Toolbar horizontal padding; squish-bar offset from outer edge (see below) |
+| md | 16px | Toolbar horizontal padding |
 | lg | 24px | Minimum squish-bar length (perpendicular) |
 | xl | 32px | Squish-bar length along the outer edge |
 
-Exceptions:
-- Squish-bar offset from outer edge: **30px** — matching the exact offset used by existing rotate handles (`offX: ±30, offY: ±30` in `runtime-projection-handle-ui.js`).
-- Intersection handle touch target: **18px visual / pointer events are on the element directly** — no change from existing.
-- Line hit-test threshold: **6px** for line-only hits; **10px** for intersection hits (locked in D-10).
+Phase 27's new spacing scale is 4-px-grid-aligned (xs=4, sm=8, md=16, lg=24, xl=32).
+
+### Inherited Geometry (Not Part of New Spacing Scale)
+
+The following values are NOT new spacing tokens — they are immutable inherited geometry from existing align-mode code that Phase 27 reuses verbatim. They are documented here for completeness so implementors do not introduce parallel non-grid values.
+
+| Value | Source | Why it must stay exactly this value |
+|-------|--------|-------------------------------------|
+| **30px** squish-bar offset from outer edge midpoint | `runtime-projection-handle-ui.js` — existing rotate handle `offX: ±30, offY: ±30` | Must match exactly to preserve visual symmetry with rotate handles. Changing to 32px would break the visual alignment between squish bars and rotate handles. |
+| **18px** intersection handle touch target | Pre-existing immutable handle DOM | Phase 27 does not modify the handle DOM. This is the current rendered diameter; any change would require modifying code outside Phase 27 scope. |
+
+Line hit-test thresholds (locked in D-10, not spacing tokens): 6px for line-only hits; 10px for intersection hits.
 
 ---
 
@@ -90,17 +99,25 @@ All Phase 27 UI text is small, label-weight — this is an overlay editor UI on 
 |------|------|--------|-------------|------|-------|
 | Chip label (profile name) | 12px | 600 | 1.2 | Space Grotesk | Profile chip name text |
 | Chip dirty dot | 10px | — | — | — | Unicode `●` character, not text |
-| Toolbar button | 12px | 600 | 1.2 | Space Grotesk | "Save", "Save as new…", "Discard" |
+| Toolbar button | 12px | 600 | 1.2 | Space Grotesk | "Save profile", "Save as new…", "Discard" |
 | Context menu item | 14px (0.88rem) | 500 | 1.3 | Space Grotesk | Matches `.board-context-menu-item` exactly |
 | Modal title ("Save as new…") | 16px (1.05rem) | 600 | 1.2 | Space Grotesk | Matches `.tt-modal-title` |
 | Modal body / hint | 14px (0.9rem) | 400 | 1.45 | Space Grotesk | Matches `.tt-modal-body` |
 | Dashboard hint text | 12px (0.78rem) | 400 | 1.35 | Space Grotesk | Matches `.hint` — dashboard toggle disabled hint |
+
+**Phase 27 introduces 2 new font weights: 400 (body/hint) and 600 (labels/buttons).**
+
+### Inherited Weights (Not Part of New Type Scale)
+
+`.board-context-menu-item` retains its existing `font-weight: 500` value because the spec reuses the existing class verbatim — this is not a new design decision. Phase 27 does not modify the context menu CSS class. The 500 weight appears in the table above solely to document what the inherited class renders; it is not part of the Phase 27 type scale.
 
 ---
 
 ## Color
 
 **60/30/10 split in the align-mode editor context:**
+
+Primary visual anchor: the profile chip + action pill centered at the top of the viewport — the only persistent non-canvas element in align mode and the focal point that draws the user's eye first.
 
 | Role | Value | Usage |
 |------|-------|-------|
@@ -150,7 +167,7 @@ These values are already implemented and must not change:
 **Structure:**
 
 ```
-[ ● Profile name ]  [ Save ]  [ Save as new… ]  [ Discard ]
+[ ● Profile name ]  [ Save profile ]  [ Save as new… ]  [ Discard ]
 ```
 
 All elements are in a single horizontal flex row: `display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px; background:rgba(14,22,34,0.92); border:1px solid var(--c-border); backdrop-filter:blur(6px); box-shadow:0 2px 8px rgba(0,0,0,0.5)`.
@@ -165,21 +182,21 @@ All elements are in a single horizontal flex row: `display:flex; align-items:cen
 - No dirty dot
 - Profile name in `var(--c-text)`
 - When no profile loaded: display text "Unsaved" in `var(--c-text-2)` (muted)
-- Save / Save as new / Discard: all three buttons visible but Discard is `opacity:0.35; pointer-events:none` (nothing to discard)
+- Save profile / Save as new / Discard: all three buttons visible but Discard is `opacity:0.35; pointer-events:none` (nothing to discard)
 
 **Dirty state (unsaved changes exist):**
 - Dirty dot `●` visible, `var(--c-warn)`
 - Profile name in `var(--c-warn)`
 - Chip pill border: `1px solid rgba(245,181,68,0.5)` (dark) / `rgba(185,128,31,0.5)` (light)
-- Save button: primary styling — `background:var(--c-accent); color:var(--c-accent-fg); border:none`
-- Save button hover: `background:var(--c-accent-2)` (darker teal on hover)
+- Save profile button: primary styling — `background:var(--c-accent); color:var(--c-accent-fg); border:none`
+- Save profile button hover: `background:var(--c-accent-2)` (darker teal on hover)
 - Save as new button: ghost styling — `background:transparent; color:var(--c-text); border:1px solid var(--c-border-str)`
 - Discard button: danger-tinted text — `background:transparent; color:var(--c-danger); border:1px solid rgba(255,91,91,0.35)`
 - Discard hover: `background:var(--c-danger-bg); border-color:var(--c-danger)`
 
 **When no profile is loaded (name = "Unsaved") and dirty:**
-- "Save" acts as "Save as new…" — triggers the name-input modal directly
-- Button label stays "Save" (user expectation: saving = committing changes)
+- "Save profile" acts as "Save as new…" — triggers the name-input modal directly
+- Button label stays "Save profile" (user expectation: saving = committing changes)
 
 **Button sizing:**
 - min-height: 28px (compact — this is an overlay on the projector canvas, not a full dashboard button)
@@ -191,7 +208,7 @@ All elements are in a single horizontal flex row: `display:flex; align-items:cen
 **Focus rings:** `outline:2px solid var(--c-accent); outline-offset:2px` — inherits from global button `:focus-visible` rule.
 
 **Keyboard:**
-- Tab order: profile chip (read-only display) → Save → Save as new → Discard
+- Tab order: profile chip (read-only display) → Save profile → Save as new → Discard
 - Escape inside toolbar: no action (Escape is owned by the existing grid reset; do not intercept)
 
 ---
@@ -206,8 +223,8 @@ Reuse existing `.tt-modal-backdrop` + `.tt-modal` pattern exactly.
 | Title | "Save as new profile" |
 | Body / hint | "Give this alignment a name so you can reload it later." |
 | Input placeholder | "e.g. Main stage, Angled left" |
-| Confirm button | label: "Save", class: `.tt-modal-btn .tt-modal-btn-primary` |
-| Cancel button | label: "Cancel", class: `.tt-modal-btn .tt-modal-btn-ghost` |
+| Confirm button | label: "Save profile", class: `.tt-modal-btn .tt-modal-btn-primary` |
+| Cancel button | label: "Keep editing", class: `.tt-modal-btn .tt-modal-btn-ghost` |
 | Input focus ring | `border-color:rgba(120,214,244,0.85); box-shadow:0 0 0 2px rgba(120,214,244,0.25)` |
 | Save disabled when | input is empty or whitespace-only |
 | Animation | `.tt-modal-fade` (already defined in styles.css — 120ms fade-in) |
@@ -303,7 +320,7 @@ Reuse `.board-context-menu` + `.board-context-menu-item` CSS classes exactly. Th
 
 **Placement:**
 
-Each bar is positioned at the **midpoint of its outer edge**, offset **30px outward** from the outer edge in screen space. This exactly matches the rotate-handle offset pattern (`offX: ±30, offY: ±30` at corners).
+Each bar is positioned at the **midpoint of its outer edge**, offset **30px outward** from the outer edge in screen space. This exactly matches the rotate-handle offset pattern (`offX: ±30, offY: ±30` at corners) — see Inherited Geometry note in Spacing Scale.
 
 | Bar | Anchor point | Offset direction |
 |-----|-------------|-----------------|
@@ -345,15 +362,15 @@ All other visual properties (width, height, background, border, border-radius) s
 | Profile chip — no profile loaded, clean | "Unsaved" |
 | Profile chip — profile loaded, clean | `{profile name}` |
 | Profile chip — dirty | `● {profile name}` or `● Unsaved` |
-| Save button (primary, clean profile) | "Save" |
-| Save button (no profile yet or new) | "Save" (opens name modal) |
+| Save button (primary, clean profile) | "Save profile" |
+| Save button (no profile yet or new) | "Save profile" (opens name modal) |
 | Save as new button | "Save as new…" |
 | Discard button | "Discard" |
 | Save-as modal title | "Save as new profile" |
 | Save-as modal body | "Give this alignment a name so you can reload it later." |
 | Save-as input placeholder | "e.g. Main stage, Angled left" |
-| Save-as confirm button | "Save" |
-| Save-as cancel button | "Cancel" |
+| Save-as confirm button | "Save profile" |
+| Save-as cancel button | "Keep editing" |
 | Dashboard toggle disabled hint | "Unsaved changes on /output/ — save or discard there first." |
 | Profile load failure toast | "Could not load profile "{name}" — format may be incompatible. Reset to default?" |
 | Profile load failure action | "Reset to default" (button in toast or modal — does not silently overwrite) |
@@ -394,11 +411,11 @@ Every destructive context-menu action (line deletion) must call `pushUndo()` bef
 | Profile chip | Clean, profile loaded | Name in `--c-text`, no dot |
 | Profile chip | Clean, no profile | "Unsaved" in `--c-text-2` |
 | Profile chip | Dirty | `●` in `--c-warn` + name in `--c-warn` + amber border on chip |
-| Save button | Clean profile exists | Ghost style, `opacity:0.35`, `pointer-events:none` |
-| Save button | Dirty, profile loaded | Primary (teal fill) |
-| Save button | Dirty, no profile | Primary (teal fill) — triggers name modal |
+| Save profile button | Clean profile exists | Ghost style, `opacity:0.35`, `pointer-events:none` |
+| Save profile button | Dirty, profile loaded | Primary (teal fill) |
+| Save profile button | Dirty, no profile | Primary (teal fill) — triggers name modal |
 | Discard button | Clean | Ghost, `opacity:0.35`, `pointer-events:none` |
-| Discard button | Dirty | Danger-tinted text, teal opacity border |
+| Discard button | Dirty | Danger-tinted text, `border:1px solid rgba(255,91,91,0.35)` |
 | Dashboard align toggle | Output clean | Normal enabled state |
 | Dashboard align toggle | Output dirty | `disabled`, `opacity:0.4`, hint text visible |
 | Squish bar | Resting | Teal, `rgba(50,211,163,0.80)` |
@@ -420,7 +437,7 @@ Every destructive context-menu action (line deletion) must call `pushUndo()` bef
 | ARIA on disabled toggle | `aria-describedby` → hidden hint `<p>` element |
 | Color-only dirty state | Dirty dot `●` is a character, not just color — readable without color discrimination |
 | Keyboard: context menu dismiss | Escape (already implemented in `dismissContextMenuOnOutside`) |
-| Keyboard: Tab order in toolbar | profile chip (tabindex=0, read-only) → Save → Save as new → Discard |
+| Keyboard: Tab order in toolbar | profile chip (tabindex=0, read-only) → Save profile → Save as new → Discard |
 | Touch targets | Squish bars: 60×10px visual, but 60×32px pointer hit area (via transparent padding or a larger invisible hit-target div stacked above) to meet the 32px minimum touch target on the short axis |
 
 ---
