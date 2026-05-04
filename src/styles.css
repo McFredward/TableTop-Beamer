@@ -2161,8 +2161,11 @@ button.danger.is-armed {
  * a new row when `.rd-topbar-actions` `flex-wrap: wrap` triggers. The
  * full message lives in the button's tooltip + aria-describedby. */
 #align-mode-dirty-hint:not([hidden]) {
+  /* h9: position below the two-row topbar (brand + actions) so it
+   * doesn't overlap dashboard chips/buttons. The topbar is roughly
+   * 100-110 px tall in the obsidian theme; 116 px gives a small gap. */
   position: fixed;
-  top: 60px;
+  top: 116px;
   right: 12px;
   z-index: 50;
   display: inline-flex;

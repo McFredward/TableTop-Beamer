@@ -139,13 +139,19 @@
     if (!_gridStateApi) return false;
     const cur = _gridStateApi.snapshotGridState();
     if (_loadedProfileSnapshot === null) {
-      // No profile loaded: dirty iff current geometry differs from buildNewProfileDefaultGrid result.
+      // No profile loaded: dirty iff current geometry differs from
+      // buildNewProfileDefaultGrid result.
+      // h9 — use def.points (the actual displaced 80% defaults) instead
+      // of synthesizing identity points (srcXs paired with srcYs). The
+      // identity version always disagreed with the real default state
+      // (where points are at 0.10/0.50/0.90 while srcXs are 0/0.5/1),
+      // so isDirty() returned true on every fresh load — and after
+      // Discard/ESC the dirty flag never cleared.
       const def = _gridStateApi.buildNewProfileDefaultGrid();
-      // Build a "default" snapshot at runtime so we can deep-equal.
       const defSnap = {
         srcXs: def.srcXs.slice(),
         srcYs: def.srcYs.slice(),
-        points: def.srcYs.map((y) => def.srcXs.map((x) => ({ x, y }))),
+        points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
       };
       return !_snapshotsEqual(cur, defSnap);
     }

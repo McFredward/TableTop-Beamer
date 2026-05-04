@@ -67,6 +67,8 @@
   // ── Rotate handle drag ─────────────────────────────────────────────────────
 
   function onRotateHandlePointerDown(e) {
+    // h9: ignore non-primary buttons (right-click → contextmenu, middle-click).
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     pushUndo();
@@ -139,6 +141,11 @@
   // ── Handle drag ────────────────────────────────────────────────────────────
 
   function onHandlePointerDown(e) {
+    // h9: ignore non-primary buttons (right-click → contextmenu, middle-click).
+    // Without this guard, a right-click on a handle starts a phantom drag
+    // session that ends with notifyDirtyChanged firing on pointerup —
+    // making the dirty flag flicker/activate even though nothing moved.
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     const row = Number(e.currentTarget.dataset.gridRow);
