@@ -2209,3 +2209,9 @@ button.danger.is-armed {
   opacity: 0.55;
   cursor: not-allowed;
 }
+/* Phase 28 (B2): mirror the disabled-state visuals on the board-select
+ * dropdown when the align-mode-dirty save-gate is active. */
+#board-select[disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

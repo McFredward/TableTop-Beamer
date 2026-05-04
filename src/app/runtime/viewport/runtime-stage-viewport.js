@@ -58,6 +58,10 @@
     // button's title= attribute (tooltip) and aria-describedby for AT.
     const HINT_COPY_FULL = "Unsaved changes on /output/ — save or discard there first.";
     const HINT_COPY_CHIP = "Unsaved on /output/";
+    // Phase 28 (B2/D-05): board-switch flavor of the long-form hint. The chip
+    // copy is shared with the align-toggle gate, but the long-form ends in
+    // "…to switch board." so the user knows which action is gated.
+    const HINT_COPY_FULL_BOARD_SWITCH = "Unsaved align changes on /output/ — save or discard there first to switch board.";
     if (dirty) {
       btn.setAttribute("disabled", "");
       btn.setAttribute("title", HINT_COPY_FULL);
@@ -75,6 +79,20 @@
       if (hint) {
         hint.textContent = "";
         hint.setAttribute("hidden", "");
+      }
+    }
+    // Phase 28 (B2/D-06): gate the board-switch dropdown identically. Same
+    // chip text reused; the long-form differs (ends in "…to switch board.").
+    const boardSelect = ctx.boardSelect ?? document.getElementById("board-select");
+    if (boardSelect) {
+      if (dirty) {
+        boardSelect.setAttribute("disabled", "");
+        boardSelect.setAttribute("title", HINT_COPY_FULL_BOARD_SWITCH);
+        boardSelect.setAttribute("aria-describedby", "align-mode-dirty-hint");
+      } else {
+        boardSelect.removeAttribute("disabled");
+        boardSelect.removeAttribute("aria-describedby");
+        boardSelect.removeAttribute("title");
       }
     }
   }
