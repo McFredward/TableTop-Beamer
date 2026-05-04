@@ -1,17 +1,14 @@
 # CURRENT PHASE
 
-- Active: Phase 27 (Align Mode Refinement) — PLANNING
-- Status: Phase 26 closed (2026-05-04). 9 functional items + 9 hotfix
-  waves shipped. The closure hotfix (26-h9) bundled the Pi /output/
-  rendering hardening: render-mode toggle + diagnostic overlay chip +
-  solid-color cross-room perf fix + GL highp/NEAREST seam fix + GIF
-  reliability hooks. App version `0.26.23`. Phase 27 backlog captured
-  in `.planning/phases/phase-27/BACKLOG.md` from user-test feedback;
-  plan not yet authored.
-- App version: `0.26.23`
-- Previous Phase: Phase 26 (Data-storage cleanup + Pi /output/
-  rendering hardening) CLOSED — final.
+- Active: none — Phase 27 closed (2026-05-04)
+- Status: Phase 27 (Align Mode Refinement) CLOSED. 5 plans (B1..B9
+  coverage) + 17 hotfixes (h1..h17) shipped, plus a bonus feature
+  (4 corner scale handles, h12). All 14 locked decisions D-01..D-14
+  implemented at full fidelity. README align-mode section refreshed.
+- App version: `0.27.0`
+- Previous Phase: Phase 27 (Align Mode Refinement) CLOSED — final.
 
+Phase 27 closure: `.planning/phases/phase-27/SUMMARY.md` (tag `phase-27-end`)
 Phase 26 closure: `.planning/phases/phase-26/SUMMARY.md` (tag `phase-26-end-h9`)
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)
 Phase 24 closure: `.planning/phases/phase-24/SUMMARY.md` (tag `phase-24-end`)

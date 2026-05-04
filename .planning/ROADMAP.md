@@ -198,10 +198,10 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 27 - Align Mode Refinement (PLANNING)
+## Phase 27 - Align Mode Refinement (CLOSED)
 Ziel: Align Mode auf Basis von User-Test-Feedback (2026-05-04) konsistent und transparent gestalten — einheitliches Verhalten innerer und aeusserer Linien, Trapez-Verzerrung, geladenes-Profil-Anzeige + Dirty-Flag, Multi-Device-Save-Pflicht, schlankerer Default sowie korrekter Right-Click-Menue-Kontrast.
 
-Status: PLANNING. Backlog: `.planning/phases/phase-27/BACKLOG.md`. Plan written 2026-05-04 (5 plans in 5 waves).
+Status: CLOSED am 2026-05-04. 5 Plans + 17 Hotfixes (h1..h17) + Bonus-Feature (h12 — 4 Eck-Skallierungs-Buttons). Closure-Doku: `.planning/phases/phase-27/SUMMARY.md`. Tag: `phase-27-end`. Final version: `0.27.0`.
 
 **Plans:** 5/5 plans complete
 
