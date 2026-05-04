@@ -201,7 +201,23 @@ Exit Criteria:
 ## Phase 27 - Align Mode Refinement (PLANNING)
 Ziel: Align Mode auf Basis von User-Test-Feedback (2026-05-04) konsistent und transparent gestalten — einheitliches Verhalten innerer und aeusserer Linien, Trapez-Verzerrung, geladenes-Profil-Anzeige + Dirty-Flag, Multi-Device-Save-Pflicht, schlankerer Default sowie korrekter Right-Click-Menue-Kontrast.
 
-Status: PLANNING. Backlog: `.planning/phases/phase-27/BACKLOG.md`. Plan noch nicht geschrieben.
+Status: PLANNING. Backlog: `.planning/phases/phase-27/BACKLOG.md`. Plan written 2026-05-04 (5 plans in 5 waves).
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Grid model: line-uniform color (B1) + outer-corner local-only drag (B2) + 80%/3×3 default layout (B6)
+- [ ] 27-02-PLAN.md — Profile chip + dirty flag + Save/Save-as-new/Discard toolbar + D-08 schema validation (B3, B4)
+- [ ] 27-03-PLAN.md — Right-click context menu rewrite: hit-test priority + three menu shapes + line-centric labels (B7, B8)
+- [ ] 27-04-PLAN.md — Squish bars: 4 outside-edge handles + opposite-side anchor + trapezoid edge-perpendicular axis (B9)
+- [ ] 27-05-PLAN.md — Multi-device save-gate: alignModeDirtyOnOutput broadcast + dashboard disable-with-hint + 10s grace timer (B5)
+
+Wave structure (serialized to enforce zero same-wave file overlap):
+- Wave 1: 27-01 (foundation — grid model + drawLines).
+- Wave 2: 27-02 (toolbar — depends on 27-01).
+- Wave 3: 27-03 (right-click menu — depends on 27-02; both touch handle-ui.js).
+- Wave 4: 27-04 (squish bars — depends on 27-03; touches handle-ui.js + handle-drag.js).
+- Wave 5: 27-05 (multi-device save-gate — depends on 27-02 dirty-listener API; touches server + cross-cutting client files, parallel-safe with 27-03/27-04 in principle but serialized for execution simplicity).
 
 Milestones:
 1. M1 Edge-uniformity: aeussere Rand-Linien verhalten sich identisch zu inneren Linien (BACKLOG B1).

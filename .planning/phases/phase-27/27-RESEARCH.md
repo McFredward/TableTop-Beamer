@@ -681,22 +681,25 @@ No new authentication, session management, or cryptography surface is introduced
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `resetGrid()` count as "no profile loaded" for the Discard button?**
    - What we know: `resetGrid()` clears the grid to default positions and clears localStorage.
    - What's unclear: Whether pressing Discard (= revert to loaded profile) when no profile is loaded should call `resetGrid()` or simply be disabled.
    - Recommendation: UI-SPEC implies Discard is disabled (ghost, `pointer-events:none`) when clean. When dirty with no loaded profile, Discard should call `resetGrid()` to revert to the new B6 default.
+   - **RESOLUTION:** Discard with no profile loaded calls `resetGrid()` (matches researcher recommendation). Implemented in Plan 27-02 Task 1's `discardChanges()` — when `_loadedProfileSnapshot === null`, the function constructs a fresh snapshot from `buildNewProfileDefaultGrid()` and restores it (functionally equivalent to `resetGrid()` but reuses the snapshot/restore path so undo + dirty re-evaluation are consistent).
 
 2. **"Add line through this point" in the intersection context menu — which axis?**
    - What we know: UI-SPEC says this item appears on line hits and intersection hits. For a "line" hit, it inserts a perpendicular line (on a horizontal line: add vertical line; on vertical line: add horizontal line). For an intersection hit, it's ambiguous.
    - What's unclear: When right-clicking on an intersection, should "Add line through this point" add both a perpendicular horizontal AND perpendicular vertical? Or should it be two separate items ("Add horizontal line here" + "Add vertical line here")?
    - Recommendation: For intersections, show both "Add horizontal line here" and "Add vertical line here" as separate items (matching the "empty canvas" menu). The "Add line through this point" label makes sense for a single-line hit; for intersections it degrades to two explicit add items.
+   - **RESOLUTION:** Emit a SINGLE menu item labeled `"Add line through this point"` per locked decision **D-10** and the locked **27-UI-SPEC** Copywriting Contract. The action of that single item adds BOTH a perpendicular horizontal AND a perpendicular vertical line at the click coordinate, so the user gets both lines through the point with one click — this matches the intuitive reading of the label. **NOTE:** The previous research recommendation of two separate items (`"Add horizontal line here"` + `"Add vertical line here"`) was OVERRIDDEN by the locked CONTEXT decision D-10 + the UI-SPEC Component Specifications "Right-Click Context Menu" table row for intersections. Implemented in Plan 27-03 Task 1's intersection branch as `{ label: "Add line through this point", action: () => { addHorizontalLine(normY); addVerticalLine(normX); } }`.
 
 3. **Does profile save via the new modal replace `profileSaveFlow()` entirely, or does the old save flow remain as a fallback?**
    - What we know: The old `profileSaveFlow()` uses `window.prompt()` (profile-persistence.js line 79).
    - What's unclear: Should the old prompt-based flow be removed entirely, or kept as a fallback in the context menu?
    - Recommendation: Remove the old `window.prompt()` path entirely. The new modal is the only save UI. The old context menu items ("Save profile...", "Load profile...", "Delete profile...") should be removed from `onContextMenu()` as part of the B3/B4/B7 rewrite.
+   - **RESOLUTION:** The `window.prompt()`-based `profileSaveFlow` is removed entirely (matches researcher recommendation). Replaced by the toolbar `Save` / `Save as new…` modal in Plan 27-02 Task 1 (`saveLoadedProfileFlow` / `saveAsNewProfileFlow` + the locked-copy `_promptProfileNameModal`). Plan 27-03 Task 1 also removes the legacy `Save profile…` / `Load profile…` / `Delete profile…` / `Reset all` items from the right-click menu.
 
 ---
 
