@@ -1,13 +1,12 @@
 # CURRENT PHASE
 
-- Active: none — Phase 27 closed (2026-05-04)
-- Status: Phase 27 (Align Mode Refinement) CLOSED. 5 plans (B1..B9
-  coverage) + 17 hotfixes (h1..h17) shipped, plus a bonus feature
-  (4 corner scale handles, h12). All 14 locked decisions D-01..D-14
-  implemented at full fidelity. README align-mode section refreshed.
-- App version: `0.27.0`
-- Previous Phase: Phase 27 (Align Mode Refinement) CLOSED — final.
+- Active: Phase 28 — Cross-cutting UX & State Polish (PLANNING)
+- Status: Backlog (B1..B6) drafted in `.planning/phases/phase-28/28-BACKLOG.md`.
+  Awaiting `/gsd-discuss-phase 28` to lock decisions before research/planning.
+- App version: `0.27.0` (from Phase 27 closure)
+- Previous Phase: Phase 27 (Align Mode Refinement) CLOSED 2026-05-04.
 
+Phase 28 backlog: `.planning/phases/phase-28/28-BACKLOG.md`
 Phase 27 closure: `.planning/phases/phase-27/SUMMARY.md` (tag `phase-27-end`)
 Phase 26 closure: `.planning/phases/phase-26/SUMMARY.md` (tag `phase-26-end-h9`)
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)

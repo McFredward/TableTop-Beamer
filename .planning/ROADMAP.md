@@ -198,6 +198,38 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
+## Phase 28 - Cross-cutting UX & State Polish (PLANNING)
+Ziel: Mehrere kleinere, voneinander entkoppelte UX/State-Probleme nach Phase-27-Closure beheben — board-gebundene Align-Profile, board-switch save-gate-Parität, Asset-Lifecycle-Korrektheit (Dirty-Flag-Hygiene + saubere Delete-Modals + Cache-Invalidierung bei Re-Upload mit gleichem Namen) und Diagnostic-Overlay-Cross-Client-Sync samt Topbar-Layout-Fix.
+
+Status: PLANNING. Backlog (`28-BACKLOG.md`) erfasst, Decisions noch offen — `/gsd-discuss-phase 28` als nächster Schritt.
+
+Backlog (User-Test 2026-05-04, post Phase-27-Closure):
+- B1 — Per-board Align-Profil-Memory: Profile sind bereits per-Board, aber beim Board-Switch bleibt das aktuell geladene Profil hängen. Stattdessen soll jedes Board sich sein zuletzt genutztes Align-Profil merken und beim Switchen automatisch laden.
+- B2 — Board-Switch save-gate (Align-Dirty-Block): Analog zur Phase-27-B5-Sperre des Align-Mode-Toggles soll ein Dirty-Align-State auch das Board-Switchen blockieren — mit klarem Hinweis, bis Save oder Discard.
+- B3 — Asset-Upload/Delete dirty-flag-Hygiene: Upload und Delete von GIFs/MP4s sollen das Dirty-Flag NICHT triggern — nur wenn die jeweilige Animation für ein Dropdown selektiert ist und sich der effektive Asset-Ref durch die Aktion verändert hat (Animation tatsächlich anders).
+- B4 — Custom Asset-Delete-Modal: Browser `confirm()` für GIF/MP4-Löschung ersetzen durch ein eigenes Modal im selben Stil wie der Board-Delete-Modal.
+- B5 — Asset-Cache-Invalidierung bei Re-Upload mit gleichem Namen: Wenn ein GIF/Video gelöscht und ein neues mit demselben Dateinamen hochgeladen wird, spielt aktuell weiter die alte Animation. Root-Cause finden (Cache-Key auf Pfad/Name? Image/Video-Object-Reuse?) und beheben — immer aktuellste Bytes nutzen.
+- B6 — Diagnostic-Overlay Cross-Client-Sync + Topbar-Integration: "Show diagnostic overlay" soll alle Clients (insb. /output/) direkt erfassen (live-sync). Im Dashboard soll das Overlay in die Topbar integriert werden (aktuell überlagert es Logo + Titel "TableTop Beamer").
+
+Milestones:
+1. M1 Per-board Align-Profil-Memory (B1) — last-used-Profil per Board persistiert + auto-load on switch.
+2. M2 Board-Switch save-gate (B2) — Dirty-Block für Board-Switch parallel zum Align-Mode-Toggle.
+3. M3 Asset-Lifecycle-Korrektheit (B3, B4, B5) — keine spurious dirty flags, eigenes Delete-Modal, korrekte Cache-Invalidierung bei Re-Upload.
+4. M4 Diagnostic-Overlay UX (B6) — cross-client live-sync + Topbar-Integration ohne Logo-Overlap.
+
+Exit Criteria:
+- Board-Switch lädt automatisch das per-Board zuletzt verwendete Align-Profil; manuelles Re-Loading entfällt.
+- Während Align-Dirty auf /output/ ist, bleibt Board-Switch deaktiviert mit identischer Hint-UX wie Phase 27 B5 (Tooltip + Disabled-Style).
+- GIF/MP4-Upload+Delete erzeugen kein Dirty-Flag, solange kein Dropdown-Auswahl-State sich tatsächlich ändert.
+- GIF/MP4-Löschung verwendet einen eigenen, board-style-konsistenten Modal — keine `window.confirm`-Aufrufe.
+- Re-Upload mit gleichem Dateinamen zeigt sofort den neuen Inhalt in allen aktiven Animationen (kein Browser-/Asset-Cache-Stale).
+- Diagnostic-Overlay-Toggle propagiert live an alle Clients inkl. /output/; Dashboard-Topbar bleibt frei vom Overlay-Block.
+
+Out of Scope:
+- Neue Asset-Typen oder neue Animationsklassen.
+- Align-Mode-Editor-Features außerhalb der save-gate-Erweiterung.
+- Server-seitige Storage-Schema-Änderungen außerhalb dessen, was für Re-Upload-Cache-Invalidierung minimal nötig ist.
+
 ## Phase 27 - Align Mode Refinement (CLOSED)
 Ziel: Align Mode auf Basis von User-Test-Feedback (2026-05-04) konsistent und transparent gestalten — einheitliches Verhalten innerer und aeusserer Linien, Trapez-Verzerrung, geladenes-Profil-Anzeige + Dirty-Flag, Multi-Device-Save-Pflicht, schlankerer Default sowie korrekter Right-Click-Menue-Kontrast.
 
