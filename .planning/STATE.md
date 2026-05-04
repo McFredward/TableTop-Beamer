@@ -1333,3 +1333,11 @@
 - Phase 14 ist ein Refactoring-Track: dead code removal + modulare Aufteilung der grossen Runtime-Datei.
 - Primaeres Ziel: `src/app/runtime/runtime-orchestration.js` (~14.5k LOC) in sinnvolle Domaenen-Module splitten; redundante/ungenutzte Pfade entfernen; Dateigroesse pro Modul unter ein akzeptables Niveau bringen.
 - Nicht-funktionale Phase: Keine neuen Features, keine Verhaltensaenderungen. Jede Extraction muss existing behavior preservieren und saemtliche Phase-13 Acceptance-Harnesses muessen unveraendert PASS bleiben.
+
+## Phase 28 Wave 0 Closure (2026-05-04)
+- Plan 28-00 (Wave-0 Test Scaffold) ist abgeschlossen. Commits: `55107a3` (chore: test/_helpers.mjs) + `4e98335` (test: 8 Wave-0 *.test.mjs scaffolds).
+- Test runner: Node 24 builtin `node:test`; canonical invocation `node --test "test/**/*.test.mjs"` (oder bare `node --test` aus Repo-Root). Plan-text hat `node --test test/` referenziert — diese Form wirft `MODULE_NOT_FOUND` in Node 24.13.1 und wurde durch die glob-/auto-discover-Form ersetzt; Suite-Ergebnis identisch.
+- Locked decision-ID skip-name contract: 15 named `test.skip()` Placeholders (B1-D01 ×2, B1-D02, B1-D03 fallback, B2-D05, B3-D07.1/.2/.3, B3-D08, B4-D09, B4-D10, B5-D11/D12, B5-D11, B5-D13 ×2). Downstream Waves (28-01..28-04) ersetzen genau diese Skips per `grep -F` durch reale Assertions; Renaming bricht den Vertrag.
+- B6 hat keinen Scaffold (manual-only laut `28-VALIDATION.md`); per Acceptance-Grep `grep -F "B6" test/` bestaetigt = no matches.
+- Suite-Baseline: `# tests 23 / # pass 8 / # fail 0 / # skipped 15`. Keine npm-Dependency, `package.json` unveraendert.
+- Closure-Dokument: `.planning/phases/phase-28/28-00-SUMMARY.md`.
