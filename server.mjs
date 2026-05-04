@@ -76,6 +76,10 @@ const liveSessionState = {
   snapshot: {
     schema: LIVE_STATE_SCHEMA,
     alignMode: false,
+    // Phase 27 (B5/D-06): true while /output/ has unsaved align-mode geometry.
+    // Cleared on /output/ save/discard, OR by the 10s grace timer if /output/
+    // disconnects while dirty.
+    alignModeDirtyOnOutput: false,
     selectedBoard: null,
     selectedLayout: null,
     outsideFxByBoard: {},
@@ -1388,6 +1392,11 @@ function attachLiveWebSocket(server) {
     liveClients.set(clientId, { socket, role, connectedAt: new Date().toISOString() });
     lastBroadcastVersionByClient.set(clientId, Number(liveSessionState.version || 0));
     upsertClientTelemetry(clientId, role);
+    if (role === "final-output") {
+      // Phase 27 (B5/D-06): a fresh /output/ client connecting cancels any pending grace timer.
+      // The new client will (re)broadcast its dirty state via POST /api/align-mode-dirty as needed.
+      _resetAlignModeDirtyGraceTimer();
+    }
     logSessionEvent("connect", {
       clientId,
       role,
@@ -1488,6 +1497,11 @@ function attachLiveWebSocket(server) {
         role,
         connectedClients: liveClients.size,
       });
+      // Phase 27 (B5/D-06): if a final-output client disconnected while dirty=true,
+      // start the 10 s grace timer. D-04 single-/output/ assumption keeps this safe.
+      if (role === "final-output" && liveSessionState.snapshot.alignModeDirtyOnOutput) {
+        _startAlignModeDirtyGraceTimer();
+      }
     });
     socket.on("error", (error) => {
       liveClients.delete(clientId);
@@ -1496,6 +1510,10 @@ function attachLiveWebSocket(server) {
         clientId,
         role,
       });
+      // Phase 27 (B5/D-06): same grace timer on socket error for final-output.
+      if (role === "final-output" && liveSessionState.snapshot.alignModeDirtyOnOutput) {
+        _startAlignModeDirtyGraceTimer();
+      }
     });
   });
 }
@@ -1717,6 +1735,57 @@ async function readRawBody(req, { maxBytes = 500 * 1024 * 1024 } = {}) {
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
+}
+
+// Phase 27 (B5/D-06) — align-mode dirty-flag enforcement.
+let _alignModeDirtyGraceTimer = null;
+let _alignModeDirtyLastAcceptedMs = 0;   // T-27-03 rate limit (one toggle per 100 ms)
+const ALIGN_MODE_DIRTY_RATE_LIMIT_MS = 100;
+const ALIGN_MODE_DIRTY_GRACE_TIMEOUT_MS = 10_000;
+
+function _broadcastAlignModeDirty() {
+  try {
+    broadcastLiveSession("global-config-update", {
+      target: "live-session.alignModeDirtyOnOutput",
+      source: "align-mode-dirty-update",
+      savedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn("[align-mode-dirty] broadcast failed:", error?.message || error);
+  }
+}
+
+function _setAlignModeDirty(nextDirty, sourceContext = "unknown") {
+  const next = Boolean(nextDirty);
+  if (liveSessionState.snapshot.alignModeDirtyOnOutput === next) {
+    return false;
+  }
+  liveSessionState.snapshot = {
+    ...liveSessionState.snapshot,
+    alignModeDirtyOnOutput: next,
+  };
+  liveSessionState.version += 1;
+  liveSessionState.updatedAt = new Date().toISOString();
+  logSessionEvent("align-mode-dirty-update", { dirty: next, source: sourceContext });
+  _broadcastAlignModeDirty();
+  return true;
+}
+
+function _resetAlignModeDirtyGraceTimer() {
+  if (_alignModeDirtyGraceTimer) {
+    clearTimeout(_alignModeDirtyGraceTimer);
+    _alignModeDirtyGraceTimer = null;
+  }
+}
+
+function _startAlignModeDirtyGraceTimer() {
+  _resetAlignModeDirtyGraceTimer();
+  _alignModeDirtyGraceTimer = setTimeout(() => {
+    _alignModeDirtyGraceTimer = null;
+    if (liveSessionState.snapshot.alignModeDirtyOnOutput) {
+      _setAlignModeDirty(false, "grace-timer-expired");
+    }
+  }, ALIGN_MODE_DIRTY_GRACE_TIMEOUT_MS);
 }
 
 function sanitizeProfileName(value) {
@@ -3337,6 +3406,40 @@ const server = createServer(async (req, res) => {
         await saveProjectionProfilesRaw(all);
       }
       sendJson(res, 200, { ok: true, boardId, name });
+      return;
+    }
+
+    // Phase 27 (B5/D-06): align-mode dirty-flag endpoint.
+    if (req.method === "OPTIONS" && routePath === "/api/align-mode-dirty") {
+      res.writeHead(204, { allow: "POST,OPTIONS" });
+      res.end();
+      return;
+    }
+
+    if (req.method === "POST" && routePath === "/api/align-mode-dirty") {
+      // T-27-03: rate limit (max 1 accepted toggle per 100 ms) to prevent grace-timer reset DoS.
+      const nowMs = Date.now();
+      if (nowMs - _alignModeDirtyLastAcceptedMs < ALIGN_MODE_DIRTY_RATE_LIMIT_MS) {
+        sendJson(res, 429, { ok: false, error: "rate-limited" });
+        return;
+      }
+      let parsed;
+      try { parsed = await parseJsonBody(req, { maxBytes: 1024 }); }
+      catch { sendJson(res, 400, { ok: false, error: "invalid JSON payload" }); return; }
+      // T-27-02: strict type validation — only boolean accepted.
+      if (typeof parsed?.dirty !== "boolean") {
+        sendJson(res, 400, { ok: false, error: "dirty must be a boolean" });
+        return;
+      }
+      _alignModeDirtyLastAcceptedMs = nowMs;
+      const dirty = parsed.dirty;
+      // Heartbeat semantics (D-06): if a still-dirty POST arrives during the grace window,
+      // reset the timer so the flag stays set as long as /output/ keeps reporting dirty.
+      if (dirty && _alignModeDirtyGraceTimer) {
+        _startAlignModeDirtyGraceTimer();
+      }
+      _setAlignModeDirty(dirty, "post-endpoint");
+      sendJson(res, 200, { ok: true, alignModeDirtyOnOutput: liveSessionState.snapshot.alignModeDirtyOnOutput });
       return;
     }
 
