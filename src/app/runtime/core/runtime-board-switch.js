@@ -131,11 +131,14 @@
     ctx.renderRoomOverlay();
     ctx.refreshGlobalButtons();
     // Phase 28 B1 (D-03): fire-and-forget the silent auto-load of the
-    // per-board remembered projection profile. switchBoard MUST stay
-    // synchronous — other call sites (e.g. syncRuntimePanelsFromState)
-    // depend on its synchronous side effects. Auto-load runs in the
-    // background and applies geometry + captures snapshot when ready.
-    void autoLoadRememberedProjectionProfile(board.id);
+    // per-board remembered projection profile. ONLY on actual board switches
+    // — syncRuntimePanelsFromState calls switchBoard(sameId) on every
+    // global-config-update snapshot, and an unconditional auto-load there
+    // would overwrite in-progress align-mode edits with the persisted
+    // profile every time the user moves a handle (28-h1 regression).
+    if (isActualSwitch) {
+      void autoLoadRememberedProjectionProfile(board.id);
+    }
     if (announceStatus && !shouldPreserveLifecycleStatusFeedback()) {
       const durationMs = Math.round(Math.max(0, performance.now() - switchStartedAt));
       ctx.triggerFeedback.textContent = `Status: board switched (${durationMs}ms)`;
