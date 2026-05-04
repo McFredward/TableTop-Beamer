@@ -375,7 +375,7 @@
       label: name,
       action: () => onPick(name),
     }));
-    items.push({ label: "Cancel", action: () => {} });
+    items.push({ label: "Keep editing", action: () => {} });
     showContextMenu(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), items);
   }
 

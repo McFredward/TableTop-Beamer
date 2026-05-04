@@ -481,6 +481,17 @@
     saveAsBtn.textContent = "Save as new…";
     saveAsBtn.style.cssText = saveBtn.style.cssText;
 
+    // h2: Load profile (the legacy right-click "Load profile..." menu was
+    // removed in plan 27-03 but no replacement was added — leaving users
+    // with no way to switch profiles. Mirror the Save / Save-as-new
+    // pattern with a dedicated toolbar button that opens the profile
+    // picker.)
+    const loadBtn = document.createElement("button");
+    loadBtn.className = "projection-align-action-btn projection-align-action-load";
+    loadBtn.type = "button";
+    loadBtn.textContent = "Load profile…";
+    loadBtn.style.cssText = saveBtn.style.cssText;
+
     // Discard
     const discardBtn = document.createElement("button");
     discardBtn.className = "projection-align-action-btn projection-align-action-discard";
@@ -505,11 +516,13 @@
     const api = _getProfilePersistApi();
     saveBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveLoadedProfileFlow(); _refreshAlignToolbarVisual(); });
     saveAsBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveAsNewProfileFlow(); _refreshAlignToolbarVisual(); });
+    loadBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.profileLoadFlow(); _refreshAlignToolbarVisual(); });
     discardBtn.addEventListener("click", (e) => { e.preventDefault(); if (api) api.discardChanges(); _refreshAlignToolbarVisual(); });
 
     root.appendChild(chip);
     root.appendChild(saveBtn);
     root.appendChild(saveAsBtn);
+    root.appendChild(loadBtn);
     root.appendChild(discardBtn);
     document.body.appendChild(root);
 
