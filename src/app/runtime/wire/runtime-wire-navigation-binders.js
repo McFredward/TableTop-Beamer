@@ -38,10 +38,22 @@
       setDashboardZone,
     } = ctx;
 
-    boardSelect.addEventListener("change", () => switchBoard(boardSelect.value, {
-      emitLiveContext: true,
-      reason: "board-select",
-    }));
+    boardSelect.addEventListener("change", () => {
+      // Phase 28 (B2/D-06): board-switch save-gate — when /output/ has unsaved
+      // align-mode changes, block the switch, roll the dropdown's visible
+      // value back to state.boardId, and surface the locked toast.
+      if (state.alignModeDirtyOnOutput) {
+        boardSelect.value = state.boardId;
+        if (triggerFeedback) {
+          triggerFeedback.textContent = "Status: unsaved align changes on /output/ — save or discard there first to switch board.";
+        }
+        return;
+      }
+      switchBoard(boardSelect.value, {
+        emitLiveContext: true,
+        reason: "board-select",
+      });
+    });
 
     boardImportButton?.addEventListener("click", async () => {
       const jsonFile = boardImportFileInput?.files?.[0] ?? null;

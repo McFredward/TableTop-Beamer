@@ -194,6 +194,16 @@
     if (!targetId || !ctx.getBoards().some((board) => board.id === targetId)) {
       return false;
     }
+    // Phase 28 (B2/D-06): board-switch save-gate — when /output/ has unsaved
+    // align-mode changes, block the post-import activation and surface the
+    // locked toast. The board still exists in the catalog; the user can
+    // re-trigger after saving/discarding on /output/.
+    if (state.alignModeDirtyOnOutput) {
+      if (ctx.triggerFeedback) {
+        ctx.triggerFeedback.textContent = "Status: unsaved align changes on /output/ — save or discard there first to switch board.";
+      }
+      return false;
+    }
     ctx.switchBoard(targetId, { emitLiveContext: true, reason });
     return state.boardId === targetId;
   }
@@ -315,7 +325,18 @@
     if (state.boardId === target) {
       const fallback = remaining[0]?.id ?? "";
       if (fallback) {
-        ctx.switchBoard(fallback, { emitLiveContext: true, reason: "board-deleted" });
+        // Phase 28 (B2/D-06): board-switch save-gate — when /output/ has
+        // unsaved align-mode changes, block the post-delete fallback switch
+        // and surface the locked toast. Rare branch (admin deleted the
+        // current board while /output/ is dirty); state.boardId stays at
+        // the deleted target until the user resolves /output/.
+        if (state.alignModeDirtyOnOutput) {
+          if (ctx.triggerFeedback) {
+            ctx.triggerFeedback.textContent = "Status: unsaved align changes on /output/ — save or discard there first to switch board.";
+          }
+        } else {
+          ctx.switchBoard(fallback, { emitLiveContext: true, reason: "board-deleted" });
+        }
       } else {
         state.boardId = "";
       }

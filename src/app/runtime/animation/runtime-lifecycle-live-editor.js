@@ -452,6 +452,16 @@
     if (!animation || (animation.scope !== "room" && animation.scope !== "cluster") || !isRoomAnimationType(animation.type)) {
       return;
     }
+    // Phase 28 (B2/D-06): board-switch save-gate — when /output/ has unsaved
+    // align-mode changes, block the editor's implicit board switch and
+    // surface the locked toast. (No dropdown rollback needed; this entry
+    // point is invoked from a click on a running-animation list item.)
+    if (state.alignModeDirtyOnOutput) {
+      if (triggerFeedback) {
+        triggerFeedback.textContent = "Status: unsaved align changes on /output/ — save or discard there first to switch board.";
+      }
+      return;
+    }
     switchBoard(animation.boardId, {
       emitLiveContext: true,
       reason: "edit-room-focus",
