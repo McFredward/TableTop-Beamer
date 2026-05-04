@@ -171,6 +171,15 @@
         `;
 
         el.addEventListener("pointerdown", onHandlePointerDown);
+        // Phase 27 (B7/h3): forward contextmenu from the handle DOM to
+        // the align-mode menu. Without this, right-clicks landing exactly
+        // on an intersection-handle element show the native browser menu
+        // because the handle (z-index 9999) sits above the lineCanvas
+        // (z-index 9997) which is where the contextmenu listener lives.
+        // onContextMenu's hit-test uses screen-space coordinates, so it
+        // correctly identifies the click as an intersection regardless of
+        // which DOM element received the event.
+        el.addEventListener("contextmenu", onContextMenu);
         document.body.appendChild(el);
         handleElements.push(el);
       }

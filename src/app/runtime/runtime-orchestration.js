@@ -509,7 +509,7 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   resolveLiveWebSocketUrl: () => resolveLiveWebSocketUrl(),
   refreshApplyDiscardButtonsUi: () => refreshApplyDiscardButtonsUi(),
   fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
-  applyGlobalDefaultsPayloadToState: (payload) => applyGlobalDefaultsPayloadToState(payload),
+  applyGlobalDefaultsPayloadToState: (payload, runtimeExtras) => applyGlobalDefaultsPayloadToState(payload, runtimeExtras),
   shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
   warmGifAssetPath: (path, opts) => warmGifAssetPath(path, opts),
 });
@@ -756,7 +756,7 @@ window.TT_BEAMER_RUNTIME_CONFIG_SYNC.init({
   globalDefaultsStatus,
   saveGlobalDefaultsToServer: () => saveGlobalDefaultsToServer(),
   fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
-  applyGlobalDefaultsPayloadToState: (payload) => applyGlobalDefaultsPayloadToState(payload),
+  applyGlobalDefaultsPayloadToState: (payload, runtimeExtras) => applyGlobalDefaultsPayloadToState(payload, runtimeExtras),
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
@@ -802,6 +802,10 @@ window.TT_BEAMER_RUNTIME_GLOBAL_DEFAULTS.init({
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
+  // Phase 27 (B5/h3): wire the dashboard-side dirty-disable sync so
+  // applyGlobalDefaultsPayloadToState can re-render the align-mode
+  // toggle's disabled state whenever the broadcast updates state.alignModeDirtyOnOutput.
+  syncAlignModeDirtyDashboardState: () => syncAlignModeDirtyDashboardState(),
 });
 const {
   buildGlobalDefaultsPayload,
