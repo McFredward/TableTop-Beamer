@@ -255,6 +255,9 @@
     // (rebuildHandleElements / drawLines / positionRotateHandles /
     // showContextMenu) + applyTransform (shim) + gridState namespace
     // so it can subscribe to handlesVisible changes.
+    // Phase 27: also inject gridStateApi so profile-persistence can call
+    // snapshotGridState / restoreGridSnapshot / buildNewProfileDefaultGrid
+    // for dirty-flag detection (B3/B4) and discard/load flows.
     profilePersistence.init(Object.assign({}, dependencies, {
       grid,
       getPoint,
@@ -268,6 +271,7 @@
       positionRotateHandles: handleUi.positionRotateHandles,
       showContextMenu: handleUi.showContextMenu,
       gridState,
+      gridStateApi: gridState,
     }));
   }
 
