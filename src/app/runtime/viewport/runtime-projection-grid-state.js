@@ -38,6 +38,7 @@
   // Intersection handles: freely draggable in X+Y.
   // Line handles (between intersections): move entire row/column in one axis.
 
+  // Legacy: kept for diagnostics. New defaults use buildNewProfileDefaultGrid() (B6).
   const DEFAULT_COUNT = 5; // 5 lines = 4 columns/rows
 
   function makeEvenLines(n) {
@@ -46,9 +47,18 @@
     return lines;
   }
 
+  function buildNewProfileDefaultGrid() {
+    // B6: 80%-centered 3×3 grid — outer at 10%/90%, single mid line at 50%
+    // (3 lines per axis = exactly one horizontal + one vertical interior line).
+    // D-07: applies to FRESH profiles only; existing saved profiles load verbatim
+    // via applyGridPayload(), which replaces srcXs/srcYs wholesale.
+    return { srcXs: [0.10, 0.50, 0.90], srcYs: [0.10, 0.50, 0.90] };
+  }
+
+  const _newProfileDefault = buildNewProfileDefaultGrid();
   const grid = {
-    srcXs: makeEvenLines(DEFAULT_COUNT),
-    srcYs: makeEvenLines(DEFAULT_COUNT),
+    srcXs: _newProfileDefault.srcXs.slice(),
+    srcYs: _newProfileDefault.srcYs.slice(),
     // points[row][col] = { x, y }. Built from srcXs/srcYs initially.
     points: null, // initialized in buildDefaultPoints()
   };
@@ -139,8 +149,9 @@
 
   function resetGrid() {
     pushUndo();
-    grid.srcXs = makeEvenLines(DEFAULT_COUNT);
-    grid.srcYs = makeEvenLines(DEFAULT_COUNT);
+    const fresh = buildNewProfileDefaultGrid();
+    grid.srcXs = fresh.srcXs.slice();
+    grid.srcYs = fresh.srcYs.slice();
     buildDefaultPoints();
     applyTransform();
     try {
@@ -277,5 +288,6 @@
     setHandlesVisible,
     addHandlesVisibleListener,
     buildDefaultPoints,
+    buildNewProfileDefaultGrid,
   };
 })();
