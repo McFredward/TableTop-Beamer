@@ -271,9 +271,9 @@
 
     // Draw horizontal grid lines
     for (let row = 0; row < rows; row++) {
-      const isEdge = row === 0 || row === rows - 1;
-      lineCtx.strokeStyle = isEdge ? "rgba(220, 30, 30, 0.7)" : "rgba(0, 220, 180, 0.45)";
-      lineCtx.lineWidth = isEdge ? 2 : 1;
+      // B1 (D-01): outer + inner lines render identically (uniform teal stroke).
+      lineCtx.strokeStyle = "rgba(0, 220, 180, 0.45)";
+      lineCtx.lineWidth = 1;
       lineCtx.beginPath();
       for (let col = 0; col < cols; col++) {
         const pt = getPoint(row, col);
@@ -287,9 +287,9 @@
 
     // Draw vertical grid lines
     for (let col = 0; col < cols; col++) {
-      const isEdge = col === 0 || col === cols - 1;
-      lineCtx.strokeStyle = isEdge ? "rgba(220, 30, 30, 0.7)" : "rgba(0, 220, 180, 0.45)";
-      lineCtx.lineWidth = isEdge ? 2 : 1;
+      // B1 (D-01): outer + inner lines render identically.
+      lineCtx.strokeStyle = "rgba(0, 220, 180, 0.45)";
+      lineCtx.lineWidth = 1;
       lineCtx.beginPath();
       for (let row = 0; row < rows; row++) {
         const pt = getPoint(row, col);
