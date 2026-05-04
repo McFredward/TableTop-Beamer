@@ -33,6 +33,45 @@
     return /Pending:|\bstarted\b|\baccepted\b|\bStopping\.\.\.\b/i.test(text);
   }
 
+  // Phase 28 B1 (D-03): silent auto-load of the per-board last-used
+  // projection profile. Fired fire-and-forget from switchBoard after the
+  // panels and overlay have synced. If a remembered profile name exists for
+  // this board AND the named profile loads cleanly, applyAndCaptureSnapshot
+  // restores the geometry with snapshot=loaded so isDirty()===false. If the
+  // name is null/missing OR the load fails (4xx, network error, malformed
+  // JSON), applyDefaultAndCaptureSnapshot restores the new-profile default
+  // geometry — also with snapshot=loaded so the dashboard's board-switch
+  // dropdown does NOT auto-disable just because the user switched boards.
+  // CRITICAL: this helper does NOT write state.lastUsedProfileNameByBoard
+  // (D-01: only user-explicit save/load triggers do).
+  async function autoLoadRememberedProjectionProfile(boardId) {
+    const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+    if (!persist || !ctx?.state) return;
+    const remembered = ctx.state.lastUsedProfileNameByBoard?.[boardId] ?? null;
+    if (!remembered) {
+      if (typeof persist.applyDefaultAndCaptureSnapshot === "function") {
+        persist.applyDefaultAndCaptureSnapshot();
+      }
+      return;
+    }
+    try {
+      const url = `/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(remembered)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        persist.applyDefaultAndCaptureSnapshot();
+        return;
+      }
+      const body = await resp.json();
+      if (!body?.data) {
+        persist.applyDefaultAndCaptureSnapshot();
+        return;
+      }
+      persist.applyAndCaptureSnapshot(body.data, remembered);
+    } catch (_err) {
+      persist.applyDefaultAndCaptureSnapshot();
+    }
+  }
+
   function switchBoard(boardId, { emitLiveContext = false, reason = "board-switch", announceStatus = true } = {}) {
     const state = ctx.state;
     const switchStartedAt = performance.now();
@@ -91,6 +130,12 @@
     ctx.canvasCtx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.renderRoomOverlay();
     ctx.refreshGlobalButtons();
+    // Phase 28 B1 (D-03): fire-and-forget the silent auto-load of the
+    // per-board remembered projection profile. switchBoard MUST stay
+    // synchronous — other call sites (e.g. syncRuntimePanelsFromState)
+    // depend on its synchronous side effects. Auto-load runs in the
+    // background and applies geometry + captures snapshot when ready.
+    void autoLoadRememberedProjectionProfile(board.id);
     if (announceStatus && !shouldPreserveLifecycleStatusFeedback()) {
       const durationMs = Math.round(Math.max(0, performance.now() - switchStartedAt));
       ctx.triggerFeedback.textContent = `Status: board switched (${durationMs}ms)`;
@@ -127,6 +172,9 @@
     emitBoardLayoutContextMutation,
     shouldPreserveLifecycleStatusFeedback,
     switchBoard,
+    // Phase 28 B1: exported so other modules / future tests can dry-run the
+    // auto-load behavior without going through switchBoard.
+    autoLoadRememberedProjectionProfile,
     ensureBoardRoomStateMaps,
   };
 })();

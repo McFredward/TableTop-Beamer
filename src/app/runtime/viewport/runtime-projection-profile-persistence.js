@@ -247,6 +247,14 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       // Re-snapshot the freshly saved geometry so dirty becomes false.
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      // Phase 28 B1 (D-01): persist the per-board last-used profile name on
+      // every explicit save. Auto-load on board-switch reads this back to
+      // restore the same profile silently. Discard / Reset / Default fall-back
+      // intentionally do NOT touch this field.
+      if (ctx?.state) {
+        (ctx.state.lastUsedProfileNameByBoard ??= {})[boardId] = _loadedProfileName;
+      }
+      if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
       _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name: _loadedProfileName };
@@ -271,6 +279,11 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       _loadedProfileName = name;
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      // Phase 28 B1 (D-01): persist last-used profile name on save-as-new.
+      if (ctx?.state) {
+        (ctx.state.lastUsedProfileNameByBoard ??= {})[boardId] = _loadedProfileName;
+      }
+      if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
       _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name };
@@ -316,6 +329,11 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       _loadedProfileName = name;
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      // Phase 28 B1 (D-01): persist last-used profile name on create-new.
+      if (ctx?.state) {
+        (ctx.state.lastUsedProfileNameByBoard ??= {})[boardId] = _loadedProfileName;
+      }
+      if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
       _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name };
@@ -461,6 +479,13 @@
         applyGridPayload(body.data);
         _loadedProfileName = name;
         _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+        // Phase 28 B1 (D-01): persist last-used profile name when the user
+        // explicitly picks a profile from the picker. Auto-load on board-switch
+        // does NOT touch this field — only user-driven flows do.
+        if (ctx?.state) {
+          (ctx.state.lastUsedProfileNameByBoard ??= {})[boardId] = _loadedProfileName;
+        }
+        if (typeof ctx?.persistBoardProfiles === "function") ctx.persistBoardProfiles();
         _persistLoadedProfileToLs();
         saveToLocalStorage();
         if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
@@ -535,6 +560,49 @@
     });
   }
 
+  // Phase 28 B1 (D-03): canonical "apply geometry + snapshot=loaded" sequence
+  // used by the silent auto-load on board-switch. Mirrors the order in
+  // profileLoadFlow.onPick so isDirty()===false post-load (the
+  // _loadedProfileSnapshot becomes equal to the freshly applied state).
+  // CRITICAL: this helper does NOT update state.lastUsedProfileNameByBoard.
+  // Per D-01, only user-explicit save/load triggers may write that field —
+  // auto-load is silent in BOTH directions (no popup, no field-write).
+  function applyAndCaptureSnapshot(data, name) {
+    if (!_gridStateApi) return;
+    pushUndo();
+    applyGridPayload(data);
+    _loadedProfileName = name || null;
+    _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    _persistLoadedProfileToLs();
+    saveToLocalStorage();
+    if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
+    applyTransform();
+    if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _recomputeAndNotifyDirty();
+  }
+
+  // Phase 28 B1 (D-03 fallback): silent default-geometry restore for the
+  // null-remembered-name branch and any auto-load failure path. Same
+  // snapshot=loaded contract as above; same D-01 binding (no field-write).
+  function applyDefaultAndCaptureSnapshot() {
+    if (!_gridStateApi) return;
+    pushUndo();
+    const def = _gridStateApi.buildNewProfileDefaultGrid();
+    _gridStateApi.restoreGridSnapshot({
+      srcXs: def.srcXs.slice(),
+      srcYs: def.srcYs.slice(),
+      points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
+    });
+    _loadedProfileName = null;
+    _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    _persistLoadedProfileToLs();
+    saveToLocalStorage();
+    if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
+    applyTransform();
+    if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _recomputeAndNotifyDirty();
+  }
+
   function init(dependencies) {
     ctx = dependencies;
     if (dependencies?.grid) grid = dependencies.grid;
@@ -593,5 +661,9 @@
     addDirtyListener,
     removeDirtyListener,
     notifyDirtyChanged,
+    // Phase 28 B1: silent auto-load helpers consumed by runtime-board-switch
+    // autoLoadRememberedProjectionProfile().
+    applyAndCaptureSnapshot,
+    applyDefaultAndCaptureSnapshot,
   };
 })();
