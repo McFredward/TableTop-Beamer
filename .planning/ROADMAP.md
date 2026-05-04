@@ -201,9 +201,9 @@ Exit Criteria:
 ## Phase 28 - Cross-cutting UX & State Polish (PLANNING)
 Ziel: Mehrere kleinere, voneinander entkoppelte UX/State-Probleme nach Phase-27-Closure beheben — board-gebundene Align-Profile, board-switch save-gate-Parität, Asset-Lifecycle-Korrektheit (Dirty-Flag-Hygiene + saubere Delete-Modals + Cache-Invalidierung bei Re-Upload mit gleichem Namen) und Diagnostic-Overlay-Cross-Client-Sync samt Topbar-Layout-Fix.
 
-Status: PLANNING. CONTEXT (D-01..D-21), RESEARCH and VALIDATION committed; 6 plans drafted across 6 sequential waves.
+Status: PLANNING. CONTEXT (D-01..D-21), RESEARCH and VALIDATION committed; 6 plans drafted across 6 sequential waves. All plans executed; ready for Phase Verifier review.
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed
 
 Plans:
 - [x] 28-00-PLAN.md — Wave 0: test/ scaffold (8 *.test.mjs files + helpers; node --test baseline)
@@ -211,7 +211,7 @@ Plans:
 - [x] 28-02-PLAN.md — B2: board-switch save-gate parallel to Phase 27 W5 align-toggle gate
 - [x] 28-03-PLAN.md — B3 + B4: asset-picker dirty-fire selection-match guard + custom delete modal (showConfirm reuse)
 - [x] 28-04-PLAN.md — B5: server sha256[:12] asset manifest + client resolveAssetUrlWithHash + render-layer wraps
-- [ ] 28-05-PLAN.md — B6: diagnostic-overlay topbar integration (Wave-0 cross-client smoke + CSS inline-variant + DOM relocation)
+- [x] 28-05-PLAN.md — B6: diagnostic-overlay topbar integration (CSS inline-variant + DOM relocation; Wave-0 + visual smokes auto-resolved per auto-mode)
 
 Wave structure (serialized to enforce zero same-wave file overlap and dirty-contract dependency):
 - Wave 0: 28-00 (test scaffold; foundation for automated verification).

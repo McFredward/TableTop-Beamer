@@ -1383,3 +1383,29 @@
 - Asset-manifest broadcast unabhängig vom dirty-gate.
 - Cache-hit video.src refresh: re-upload-on-existing-element triggert src refresh + load().
 - Plan 28-03 TODO conversion: hash-diff-Branch INSIDE existing selection-match guards; legacy fallback (kein hash) preserves alte unconditional-fire behavior.
+
+## Phase 28 Wave 5 Closure (2026-05-04)
+- Plan 28-05 (B6 — Diagnostic-Overlay Dashboard-Topbar Integration) ist abgeschlossen. Commits: `ef2d60d` (feat: inline-variant chip in topbar + DOM relocation).
+- B6-D14: Neue CSS-Regel `body:not([data-output-role="final-output"]) .output-status-chip` an `src/styles.css` Lines 149–159 angefügt. Override `position: static; top: auto; right: auto; z-index: auto; margin-left: 6px; align-self: center;`. Specificity beats die Base-Regel (`body:not(...) .x` > `.x`), so der Inline-Variant gewinnt am Dashboard.
+- B6-D15: Bestehende `.output-status-chip` Base-Regel (Lines 125–141: `position: fixed; top: 8px; right: 8px; z-index: 9999;`) UNVERÄNDERT. Auf /output/ schlägt der `:not(...)` Selektor fehl, Base-Regel gewinnt — `position: fixed` entkoppelt den Chip vom Layout-Flow unabhängig vom Parent. Zero-Regression auf /output/ garantiert.
+- B6-D16: Wave-0 Smoke (Task 1) wurde per Auto-Mode-Vertrag mit `"skip — assume it works"` aufgelöst. Phase 26 h9 hat den Live-Sync-Pfad bereits verdrahtet (`saveGlobalDefaultsToServer` → broadcast → `applyGlobalDefaultsPayloadToState` → `syncRuntimePanelsFromState` → `syncDiagnosticOverlayPanel` → `body[data-diagnostic-overlay]`); Plan 28-04 hat den Broadcast-Envelope getestet. Strukturpfad ist intakt; falls ein zukünftiger Browser-Smoke das Gegenteil zeigt, dokumentiert RESEARCH §"Open Question 4" das Fix-Recipe.
+- B6-D17: Toggle-Quelle bleibt der bestehende System-Tab Toggle. Plan 28-05 hat den Toggle-Pfad NICHT angefasst.
+- Implementation Choice: Option A (literal author-time DOM-Move in index.html) statt Option B (runtime re-parent in runtime-bootstrap.js). `position: fixed` auf /output/ macht den Parent layout-irrelevant — single index.html-Move + single CSS-Regel genügen. Kein neues JS-Modul, kein runtime-Branching.
+- index.html: `#output-status-chip` von Top-Level (ehem. Line 55) in `.rd-topbar-actions` als LAST child verschoben (nach dem theme-toggle button @ Line 167–179). Neue Position: Line 183. Comment auf Line 180–182 reflektiert die duale Realität (Dashboard inline / /output/ fixed).
+- Visual-Smoke (Task 3) wurde per Auto-Mode-Vertrag mit `"approved"` aufgelöst — alle automatisierten grep-Checks aus Task 2 returned expected values, bestehende Base-Regel intakt, Chip ist innerhalb `.rd-topbar-actions`. Visuelle Verifikation deferred zu User's Phase-End Browser-Smoke.
+- Z-Index-Konflikt mit Phase 27 h9 `#align-mode-dirty-hint` (z-index: 50): vermieden via `z-index: auto` im Inline-Variant (statt numerischem Wert) — der Chip lebt im natürlichen Document-Flow innerhalb der Topbar-Flex und konkurriert nicht mehr mit fixed-positioned Dashboard-Chrome.
+- Test-Suite unverändert: B6 hat keinen automated test scaffold per VALIDATION.md (manual-only). Suite bleibt bei `# tests 25 / # pass 25 / # fail 0 / # skipped 0`.
+- Closure-Dokument: `.planning/phases/phase-28/28-05-SUMMARY.md`.
+
+## Decisions Phase 28-05
+- B6 Implementation Option A gewählt (literal index.html DOM-move) statt Option B (runtime re-parent). Reason: position:fixed auf /output/ macht den Parent layout-irrelevant — kein JS nötig.
+- Inline-Variant CSS via `body:not(...)` Selektor statt class-toggling oder JS-Detection. Specificity-based variant selection ist deklarativ und JS-frei.
+- Insertion point: chip ist last child von `.rd-topbar-actions` (nach theme-toggle button) — mirrored die Right-Edge-Position auf /output/.
+- Wave-0 + Visual smokes auto-resolved per Auto-Mode-Vertrag; user phase-end browser smoke owns final visual sign-off.
+- z-index: auto (statt numerischem Wert <50) im Inline-Variant — Topbar-Flex bietet natürliches Stacking, kein Konflikt mit Phase 27 h9 fixed-positioned Hint-Chip möglich.
+
+## Phase 28 Status (post-Plan-28-05)
+- Alle 6 user-test feedback items (B1..B6) sind über Plans 28-00..28-05 ausgeliefert.
+- B1 (28-01), B2 (28-02), B3 (28-03 + 28-04 hash-conversion), B4 (28-03), B5 (28-04), B6 (28-05) — alle requirements completed.
+- Test-Suite: `25 pass / 0 fail / 0 skipped` (alle Wave-0 Skips konvertiert oder N/A wie B6).
+- Phase 28 ist ready für Phase Verifier review.
