@@ -635,6 +635,97 @@
 
   // ── Context menu ───────────────────────────────────────────────────────────
 
+  // Phase 27 (B7 + B8 + D-10): hit-test priority for align-mode right-click.
+  // Order: intersection (≤10 px) > line (≤6 px AND not within 10 px of an endpoint) > empty.
+  // Distances are computed in SCREEN-SPACE pixels using actual displaced positions —
+  // baseline srcXs/srcYs would be WRONG on a B2 trapezoid grid (Pitfall 1 in 27-RESEARCH.md).
+  function _hitTestAlignContext(clientX, clientY) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    const INTERSECTION_PX = 10;
+    const LINE_PX = 6;
+
+    // 1) Intersection priority.
+    let bestIxDist = Infinity;
+    let bestIxRow = -1;
+    let bestIxCol = -1;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const pt = getPoint(r, c);
+        const dx = pt.x * vw - clientX;
+        const dy = pt.y * vh - clientY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < bestIxDist) {
+          bestIxDist = d;
+          bestIxRow = r;
+          bestIxCol = c;
+        }
+      }
+    }
+    if (bestIxDist <= INTERSECTION_PX) {
+      return { type: "intersection", row: bestIxRow, col: bestIxCol };
+    }
+
+    // 2) Line priority — for each row, walk segments between adjacent column points.
+    //    A horizontal-line hit is a segment from (row, c) → (row, c+1).
+    //    A vertical-line hit is a segment from (r, col) → (r+1, col).
+    function _segDist(px, py, x1, y1, x2, y2) {
+      // Perpendicular distance from (px,py) to segment (x1,y1)-(x2,y2) in pixels.
+      const vx = x2 - x1, vy = y2 - y1;
+      const wx = px - x1, wy = py - y1;
+      const segLen2 = vx * vx + vy * vy;
+      if (segLen2 < 1e-6) return Math.sqrt(wx * wx + wy * wy);
+      let t = (wx * vx + wy * vy) / segLen2;
+      t = Math.max(0, Math.min(1, t));
+      const projX = x1 + t * vx;
+      const projY = y1 + t * vy;
+      const ddx = px - projX, ddy = py - projY;
+      return Math.sqrt(ddx * ddx + ddy * ddy);
+    }
+
+    let bestLineDist = Infinity;
+    let bestLineAxis = null;
+    let bestLineIndex = -1;
+
+    // Horizontal lines: row index, segments span cols 0..cols-1.
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        const p1 = getPoint(row, col);
+        const p2 = getPoint(row, col + 1);
+        const d = _segDist(clientX, clientY, p1.x * vw, p1.y * vh, p2.x * vw, p2.y * vh);
+        if (d < bestLineDist) {
+          bestLineDist = d;
+          bestLineAxis = "h";
+          bestLineIndex = row;
+        }
+      }
+    }
+    // Vertical lines: col index, segments span rows 0..rows-1.
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows - 1; row++) {
+        const p1 = getPoint(row, col);
+        const p2 = getPoint(row + 1, col);
+        const d = _segDist(clientX, clientY, p1.x * vw, p1.y * vh, p2.x * vw, p2.y * vh);
+        if (d < bestLineDist) {
+          bestLineDist = d;
+          bestLineAxis = "v";
+          bestLineIndex = col;
+        }
+      }
+    }
+
+    // Per UI-SPEC: line hit requires LINE_PX threshold AND cursor not within INTERSECTION_PX of any endpoint.
+    // We already established (above) that the closest intersection is > INTERSECTION_PX away —
+    // so the second clause is satisfied automatically by reaching this point.
+    if (bestLineDist <= LINE_PX && bestLineAxis !== null) {
+      return { type: "line", axis: bestLineAxis, lineIndex: bestLineIndex };
+    }
+
+    return { type: "empty" };
+  }
+
   function onContextMenu(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -643,64 +734,89 @@
     const vh = window.innerHeight;
     const normX = e.clientX / vw;
     const normY = e.clientY / vh;
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    const lastRow = rows - 1;
+    const lastCol = cols - 1;
 
-    const nearLineThreshold = 0.03;
-    let nearHLine = -1;
-    let nearVLine = -1;
-
-    // Check interior horizontal lines (indices 1..length-2 in ys)
-    for (let i = 1; i < grid.srcYs.length - 1; i++) {
-      if (Math.abs(grid.srcYs[i] - normY) < nearLineThreshold) {
-        nearHLine = i;
-        break;
-      }
-    }
-    // Check interior vertical lines
-    for (let i = 1; i < grid.srcXs.length - 1; i++) {
-      if (Math.abs(grid.srcXs[i] - normX) < nearLineThreshold) {
-        nearVLine = i;
-        break;
-      }
-    }
-
+    const hit = _hitTestAlignContext(e.clientX, e.clientY);
     const items = [];
-    if (nearHLine >= 0 && grid.srcYs.length > 3) {
-      // Can remove if more than edge lines + 1 interior line
+
+    if (hit.type === "intersection") {
+      // Intersection: per locked D-10 + 27-UI-SPEC, show:
+      //   - "Delete vertical line"   (hidden if outer)
+      //   - "Delete horizontal line" (hidden if outer)
+      //   - SINGLE "Add line through this point" item whose action adds BOTH a
+      //     perpendicular horizontal AND a perpendicular vertical line at the
+      //     click coordinate. This is the literal D-10/UI-SPEC contract and
+      //     OVERRIDES the prior research-Q2 two-item recommendation.
+      // Outer-line directions are HIDDEN (not greyed) per D-10.
+      const colIsOuter = hit.col === 0 || hit.col === lastCol;
+      const rowIsOuter = hit.row === 0 || hit.row === lastRow;
+
+      if (!colIsOuter && cols > 3) {
+        items.push({
+          label: "Delete vertical line",
+          destructive: true,
+          action: () => removeVerticalLine(hit.col),
+        });
+      }
+      if (!rowIsOuter && rows > 3) {
+        items.push({
+          label: "Delete horizontal line",
+          destructive: true,
+          action: () => removeHorizontalLine(hit.row),
+        });
+      }
+      // SINGLE "Add line through this point" — adds BOTH lines through the click coord (D-10).
       items.push({
-        label: "Remove this horizontal line",
-        action: () => removeHorizontalLine(nearHLine),
+        label: "Add line through this point",
+        action: () => {
+          addHorizontalLine(normY);
+          addVerticalLine(normX);
+        },
+      });
+    } else if (hit.type === "line") {
+      // Line-only hit: D-10 menu = "Delete this line" + "Add line through this point".
+      const isOuter = hit.lineIndex === 0
+        || (hit.axis === "h" && hit.lineIndex === lastRow)
+        || (hit.axis === "v" && hit.lineIndex === lastCol);
+      if (!isOuter && (hit.axis === "h" ? rows > 3 : cols > 3)) {
+        items.push({
+          label: "Delete this line",
+          destructive: true,
+          action: () => {
+            if (hit.axis === "h") removeHorizontalLine(hit.lineIndex);
+            else removeVerticalLine(hit.lineIndex);
+          },
+        });
+      }
+      // "Add line through this point": for an h-line hit, insert a perpendicular (vertical) line
+      // at click x; for a v-line hit, insert a perpendicular (horizontal) line at click y.
+      items.push({
+        label: "Add line through this point",
+        action: () => {
+          if (hit.axis === "h") addVerticalLine(normX);
+          else addHorizontalLine(normY);
+        },
+      });
+    } else {
+      // Empty canvas: ONLY add options. NO delete options. (D-10)
+      items.push({
+        label: "Add horizontal line here",
+        action: () => addHorizontalLine(normY),
+      });
+      items.push({
+        label: "Add vertical line here",
+        action: () => addVerticalLine(normX),
       });
     }
-    if (nearVLine >= 0 && grid.srcXs.length > 3) {
-      items.push({
-        label: "Remove this vertical line",
-        action: () => removeVerticalLine(nearVLine),
-      });
+
+    // Defensive: outer-corner intersection always retains the single "Add line through this point",
+    // so items is never empty in practice. Keep the guard regardless.
+    if (items.length === 0) {
+      return;
     }
-    items.push({
-      label: "Add horizontal line here",
-      action: () => addHorizontalLine(normY),
-    });
-    items.push({
-      label: "Add vertical line here",
-      action: () => addVerticalLine(normX),
-    });
-    items.push({
-      label: "Save profile...",
-      action: () => profileSaveFlow(),
-    });
-    items.push({
-      label: "Load profile...",
-      action: () => profileLoadFlow(),
-    });
-    items.push({
-      label: "Delete profile...",
-      action: () => profileDeleteFlow(),
-    });
-    items.push({
-      label: "Reset all",
-      action: () => resetGrid(),
-    });
 
     showContextMenu(e.clientX, e.clientY, items);
   }
@@ -709,13 +825,20 @@
     dismissContextMenu();
     const menu = document.createElement("div");
     menu.className = "board-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Grid line options");
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
 
     for (const item of items) {
       const btn = document.createElement("button");
       btn.className = "board-context-menu-item";
+      if (item.destructive) {
+        // UI-SPEC State Matrix: destructive items use color: var(--c-danger)
+        btn.style.color = "var(--c-danger)";
+      }
       btn.textContent = item.label;
+      btn.setAttribute("role", "menuitem");
       btn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         dismissContextMenu();
