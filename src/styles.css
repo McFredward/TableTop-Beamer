@@ -409,6 +409,20 @@ body[data-output-role="final-output"] .toast-stack {
   filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
 
+/* h15: suppress the dashboard's selected-room highlight on /output/.
+ * The dashboard uses .room-zone.is-selected to show which room is
+ * targeted for animation triggers — that visual cue belongs to the
+ * operator's screen, not the projected output. Even in align mode
+ * (where the room-overlay is otherwise visible on /output/), the
+ * selected-room highlight should not be projected. */
+body[data-output-role="final-output"] .room-zone.is-selected,
+body[data-output-role="final-output"] .room-zone.is-draggable.is-selected {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0;
+  filter: none;
+}
+
 .room-zone.is-frozen {
   fill: rgba(100, 100, 120, 0.12);
   stroke: rgba(140, 140, 160, 0.5);
