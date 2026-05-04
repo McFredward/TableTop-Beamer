@@ -45,6 +45,45 @@
   const _dirtyListeners = new Set();      // (boolean) -> void callbacks
   let _gridStateApi = null;               // injected via init() — exposes snapshotGridState/restoreGridSnapshot/buildNewProfileDefaultGrid
 
+  // h10: reload-resilience for loaded-profile metadata.
+  // The grid geometry already persists across reloads via grid-state's
+  // localStorage write. But _loadedProfileName / _loadedProfileSnapshot
+  // were lost on reload, so post-reload the toolbar showed "Unsaved"
+  // (instead of the profile name) and isDirty compared to the default
+  // (instead of the snapshot). Storing both lets a mid-edit reload
+  // preserve the dirty flag, the loaded profile name, and the correct
+  // dirty comparison target.
+  const LOADED_PROFILE_LS_KEY = "tt-beamer.align-loaded-profile.v1";
+
+  function _persistLoadedProfileToLs() {
+    try {
+      if (_loadedProfileName && _loadedProfileSnapshot) {
+        window.localStorage?.setItem(
+          LOADED_PROFILE_LS_KEY,
+          JSON.stringify({ name: _loadedProfileName, snapshot: _loadedProfileSnapshot }),
+        );
+      } else {
+        window.localStorage?.removeItem(LOADED_PROFILE_LS_KEY);
+      }
+    } catch { /* ignore quota/security errors */ }
+  }
+
+  function _restoreLoadedProfileFromLs() {
+    try {
+      const raw = window.localStorage?.getItem(LOADED_PROFILE_LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.name === "string"
+          && parsed.snapshot && typeof parsed.snapshot === "object"
+          && Array.isArray(parsed.snapshot.srcXs)
+          && Array.isArray(parsed.snapshot.srcYs)
+          && Array.isArray(parsed.snapshot.points)) {
+        _loadedProfileName = parsed.name;
+        _loadedProfileSnapshot = parsed.snapshot;
+      }
+    } catch { /* ignore */ }
+  }
+
   // --- Phase 27 (B5) align-mode dirty POST broadcaster ---
   let _alignModeDirtyPostInflight = false;
 
@@ -208,6 +247,7 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       // Re-snapshot the freshly saved geometry so dirty becomes false.
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name: _loadedProfileName };
     } catch (err) {
@@ -231,6 +271,7 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       _loadedProfileName = name;
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name };
     } catch (err) {
@@ -275,6 +316,7 @@
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       _loadedProfileName = name;
       _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      _persistLoadedProfileToLs();
       _recomputeAndNotifyDirty();
       return { ok: true, name };
     } catch (err) {
@@ -406,6 +448,7 @@
             });
             _loadedProfileName = null;
             _loadedProfileSnapshot = null;
+            _persistLoadedProfileToLs();
             saveToLocalStorage();
             if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
             applyTransform();
@@ -418,6 +461,7 @@
         applyGridPayload(body.data);
         _loadedProfileName = name;
         _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+        _persistLoadedProfileToLs();
         saveToLocalStorage();
         if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
         applyTransform();
@@ -514,6 +558,18 @@
     }
     // Phase 27 (B5): on /output/ only, subscribe the dirty POST broadcaster.
     _maybeStartOutputDirtyBroadcaster();
+
+    // h10: reload-resilience. Restore the previously-loaded profile name +
+    // snapshot from localStorage. Then force an initial dirty recompute so
+    // the toolbar's dirty dot reflects reality after a mid-edit reload (the
+    // `_dirty=false` initial value otherwise hid a freshly-loaded dirty
+    // state until the next user action).
+    _restoreLoadedProfileFromLs();
+    // Defer one frame so all dependencies (including grid-state) are fully
+    // wired and grid.points has been loaded from localStorage.
+    Promise.resolve().then(() => {
+      _recomputeAndNotifyDirty();
+    });
   }
 
   window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE = {
