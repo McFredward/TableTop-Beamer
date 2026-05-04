@@ -61,6 +61,7 @@
   let lineDragState = null;
   let panDragState = null;
   let rotateDragState = null;
+  let squishDragState = null; // Phase 27 (B9): squish-bar drag state
   const LINE_HIT_THRESHOLD = 15; // px
 
   // ── Rotate handle drag ─────────────────────────────────────────────────────
@@ -456,6 +457,217 @@
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
+  // ── Phase 27 (B9 + D-13 + D-14): squish-bar drag ─────────────────────────
+  //
+  // Math mirrors onLineDragMove isEdgeRow/isEdgeCol proportional-interior-scaling
+  // (proven pattern, lines above). Trapezoid: edge vector + outward normal computed
+  // at drag start from actual displaced corner positions; reduces to world axis for
+  // rectangular grids (D-14). Opposite-side anchor stays fixed (D-13).
+  //
+  // Side configuration resolved from window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI
+  // at call time (lazy — UI module exports SQUISH_SIDES after drag module loads).
+
+  function _resolveSquishSideCfg(sideKey) {
+    const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI || null;
+    if (!ui || typeof ui.getSquishSidesConfig !== "function") return null;
+    return ui.getSquishSidesConfig().find((s) => s.key === sideKey) || null;
+  }
+
+  function onSquishBarPointerDown(e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    const sideKey = e.currentTarget?.dataset?.squishSide;
+    const sideCfg = _resolveSquishSideCfg(sideKey);
+    if (!sideCfg) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pushUndo();
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+
+    // Snapshot every point at drag start.
+    const allStartPts = [];
+    for (let r = 0; r < rows; r++) {
+      allStartPts[r] = [];
+      for (let c = 0; c < cols; c++) {
+        const p = getPoint(r, c);
+        allStartPts[r][c] = { x: p.x, y: p.y };
+      }
+    }
+
+    // Compute edge-perpendicular outward normal (D-14 trapezoid path).
+    // For a rectangular grid normalX=0/normalY=±1 or normalX=±1/normalY=0 — exact world axes.
+    const edge = sideCfg.edgeAt();
+    const a0 = allStartPts[edge[0].r][edge[0].c];
+    const a1 = allStartPts[edge[1].r][edge[1].c];
+    // Edge vector in screen pixels:
+    const evx = (a1.x - a0.x) * vw;
+    const evy = (a1.y - a0.y) * vh;
+    const elen = Math.sqrt(evx * evx + evy * evy);
+    const eux = elen > 1e-3 ? evx / elen : 1;
+    const euy = elen > 1e-3 ? evy / elen : 0;
+    // Candidate outward normal (perpendicular, 90° CCW):
+    let nx = -euy;
+    let ny =  eux;
+    // Flip if it points opposite to the side's intended outward direction.
+    const outwardSign = (sideCfg.outwardDX !== 0)
+      ? Math.sign(sideCfg.outwardDX) * nx + Math.sign(sideCfg.outwardDY) * ny
+      : Math.sign(sideCfg.outwardDY) * ny + Math.sign(sideCfg.outwardDX) * nx;
+    if (outwardSign < 0) { nx = -nx; ny = -ny; }
+
+    squishDragState = {
+      sideCfg,
+      sideKey,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      allStartPts,
+      // nx/ny: outward unit normal in screen space (used to project drag delta).
+      nx,
+      ny,
+    };
+
+    // Apply dragging visual state via handle-ui.
+    const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+    if (ui && typeof ui.setSquishBarDragVisual === "function") {
+      ui.setSquishBarDragVisual(sideKey, true);
+    }
+
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch {}
+    document.addEventListener("pointermove", onSquishDragMove);
+    document.addEventListener("pointerup",   onSquishDragEnd);
+    document.addEventListener("pointercancel", onSquishDragEnd);
+  }
+
+  function onSquishDragMove(e) {
+    if (!squishDragState) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    const sp = squishDragState.allStartPts;
+    const { sideCfg, nx, ny } = squishDragState;
+
+    // Drag delta in screen pixels.
+    const dxPx = e.clientX - squishDragState.startClientX;
+    const dyPx = e.clientY - squishDragState.startClientY;
+    // Project onto outward normal: positive = expanding, negative = squishing.
+    const projOutwardPx = dxPx * nx + dyPx * ny;
+
+    // Convert projected pixel displacement back to normalized coords along each axis.
+    const dxNorm = (projOutwardPx * nx) / vw;
+    const dyNorm = (projOutwardPx * ny) / vh;
+
+    // Determine whether the dragged edge is a shared row or shared col.
+    const edge = sideCfg.edgeAt();
+    const sharedRow = edge[0].r === edge[1].r ? edge[0].r : null;
+    const sharedCol = edge[0].c === edge[1].c ? edge[0].c : null;
+    const lastRow = rows - 1;
+    const lastCol = cols - 1;
+
+    // 1) Move every point on the DRAGGED edge.
+    if (sharedRow !== null) {
+      for (let c = 0; c < cols; c++) {
+        const s = sp[sharedRow][c];
+        setPoint(sharedRow, c,
+          Math.max(0, Math.min(1, s.x + dxNorm)),
+          Math.max(0, Math.min(1, s.y + dyNorm)));
+      }
+    } else if (sharedCol !== null) {
+      for (let r = 0; r < rows; r++) {
+        const s = sp[r][sharedCol];
+        setPoint(r, sharedCol,
+          Math.max(0, Math.min(1, s.x + dxNorm)),
+          Math.max(0, Math.min(1, s.y + dyNorm)));
+      }
+    }
+
+    // 2) Anchor edge (opposite side) stays fixed — its points were never mutated above.
+
+    // 3) Interior proportional scaling — mirrors onLineDragMove isEdgeRow/isEdgeCol block.
+    if (sharedRow !== null) {
+      // Top (sharedRow=0) or Bottom (sharedRow=lastRow). Interior rows: 1..lastRow-1.
+      for (let ri = 1; ri < lastRow; ri++) {
+        for (let ci = 0; ci < cols; ci++) {
+          // Proportional Y interpolation between the (now moved) top and the fixed bottom.
+          const oldTopY    = sp[0][ci].y;
+          const oldBotY    = sp[lastRow][ci].y;
+          const newTopY    = getPoint(0, ci).y;
+          const newBotY    = getPoint(lastRow, ci).y;
+          const oldRangeY  = oldBotY - oldTopY;
+          const newRangeY  = newBotY - newTopY;
+          if (Math.abs(oldRangeY) > 1e-6) {
+            const t = (sp[ri][ci].y - oldTopY) / oldRangeY;
+            setPoint(ri, ci, getPoint(ri, ci).x, newTopY + t * newRangeY);
+          }
+          // Proportional X interpolation (handles trapezoid edge-perpendicular squish).
+          const oldTopX    = sp[0][ci].x;
+          const oldBotX    = sp[lastRow][ci].x;
+          const newTopX    = getPoint(0, ci).x;
+          const newBotX    = getPoint(lastRow, ci).x;
+          const oldRangeX  = oldBotX - oldTopX;
+          const newRangeX  = newBotX - newTopX;
+          if (Math.abs(oldRangeX) > 1e-6) {
+            const tX = (sp[ri][ci].x - oldTopX) / oldRangeX;
+            setPoint(ri, ci, newTopX + tX * newRangeX, getPoint(ri, ci).y);
+          }
+        }
+      }
+    } else if (sharedCol !== null) {
+      // Left (sharedCol=0) or Right (sharedCol=lastCol). Interior cols: 1..lastCol-1.
+      for (let ci = 1; ci < lastCol; ci++) {
+        for (let ri = 0; ri < rows; ri++) {
+          // Proportional X interpolation between the (now moved) left and the fixed right.
+          const oldLeftX   = sp[ri][0].x;
+          const oldRightX  = sp[ri][lastCol].x;
+          const newLeftX   = getPoint(ri, 0).x;
+          const newRightX  = getPoint(ri, lastCol).x;
+          const oldRangeX  = oldRightX - oldLeftX;
+          const newRangeX  = newRightX - newLeftX;
+          if (Math.abs(oldRangeX) > 1e-6) {
+            const t = (sp[ri][ci].x - oldLeftX) / oldRangeX;
+            setPoint(ri, ci, newLeftX + t * newRangeX, getPoint(ri, ci).y);
+          }
+          // Proportional Y interpolation (handles trapezoid edge-perpendicular squish).
+          const oldLeftY   = sp[ri][0].y;
+          const oldRightY  = sp[ri][lastCol].y;
+          const newLeftY   = getPoint(ri, 0).y;
+          const newRightY  = getPoint(ri, lastCol).y;
+          const oldRangeY  = oldRightY - oldLeftY;
+          const newRangeY  = newRightY - newLeftY;
+          if (Math.abs(oldRangeY) > 1e-6) {
+            const tY = (sp[ri][ci].y - oldLeftY) / oldRangeY;
+            setPoint(ri, ci, getPoint(ri, ci).x, newLeftY + tY * newRangeY);
+          }
+        }
+      }
+    }
+
+    positionHandles();
+    positionRotateHandles();   // also repositions squish bars via Task 1 hook
+    drawLines();
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+  }
+
+  function onSquishDragEnd() {
+    if (!squishDragState) return;
+    const sideKey = squishDragState.sideKey;
+    squishDragState = null;
+    document.removeEventListener("pointermove", onSquishDragMove);
+    document.removeEventListener("pointerup",   onSquishDragEnd);
+    document.removeEventListener("pointercancel", onSquishDragEnd);
+    // Restore resting visual on the bar.
+    const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+    if (ui && typeof ui.setSquishBarDragVisual === "function") {
+      ui.setSquishBarDragVisual(sideKey, false);
+    }
+    saveToLocalStorage();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
+  }
+
   // ── Init / lineCanvas setter ───────────────────────────────────────────────
 
   function init(dependencies) {
@@ -487,5 +699,9 @@
     onRotateHandlePointerDown,
     onLinePointerDown,
     onLineHover,
+    // Phase 27 (B9): squish-bar drag handlers.
+    onSquishBarPointerDown,
+    onSquishDragMove,
+    onSquishDragEnd,
   };
 })();
