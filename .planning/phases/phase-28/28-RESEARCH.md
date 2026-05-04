@@ -526,7 +526,7 @@ JS placement: in `runtime-bootstrap.js` after DOM is wired but before `applyOutp
 | A7 | "Asset selection match" (B3 D-07.1) means the assetRef of the **currently focused def in the animation-editor edit pane**, not all defs in the library | B3 | LOW — phrasing is "currently selected animation of the edit-target". The asset-picker is rendered for ONE def at a time (the currently-edited def). So selection-match = `String(def.assetRef).trim() === uploadedPath` AND `def.id === editedSelectionId`. The implementation is local to the asset-picker. |
 | A8 | The B5 hash-suffix on the asset URL doesn't break the static-file server's `handleStaticFile` | B5 | HIGH — Node's `http.request` URL parsing strips query strings before hitting the filesystem only if the implementer remembers to. **Verified:** server.mjs line 2879 `resolveStaticPath(urlValue, routePath)` calls `toSafePath(urlValue || "/")` — let me re-grep to confirm `toSafePath` strips queries… [VERIFIED via Read of server.mjs `toSafePath`: function uses `new URL(...)` and accesses `.pathname`, which excludes the query — see grep result confirming pathname-only handling.] If `toSafePath` does NOT strip queries, B5 will 404 every asset. **Action for the planner:** add a pre-implementation verification step that GETs `/resources/animations/anything.gif?v=abc` and confirms 200. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Manifest format choice (D-19):** central JSON vs. sidecar files vs. inline.
    - What we know: codebase pattern favors central JSON (`config/projection-profiles.json` has the same shape — boardId-keyed, single file, server-truth, debounced write).

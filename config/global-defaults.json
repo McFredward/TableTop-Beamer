@@ -1,6 +1,6 @@
 {
   "schema": "tt-beamer.global-defaults.v1",
-  "savedAt": "2026-04-29T18:57:15.456Z",
+  "savedAt": "2026-05-04T12:46:03.068Z",
   "source": "runtime-state",
   "audio": {
     "enabled": true,
@@ -20,7 +20,7 @@
     "alarm": "none"
   },
   "renderMode": "gl",
-  "diagnosticOverlay": false,
+  "diagnosticOverlay": true,
   "projectionMapping": {
     "corners": {
       "topLeft": {

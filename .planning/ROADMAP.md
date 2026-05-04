@@ -203,7 +203,7 @@ Ziel: Mehrere kleinere, voneinander entkoppelte UX/State-Probleme nach Phase-27-
 
 Status: PLANNING. CONTEXT (D-01..D-21), RESEARCH and VALIDATION committed; 6 plans drafted across 6 sequential waves. All plans executed; ready for Phase Verifier review.
 
-**Plans:** 6/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 - [x] 28-00-PLAN.md — Wave 0: test/ scaffold (8 *.test.mjs files + helpers; node --test baseline)

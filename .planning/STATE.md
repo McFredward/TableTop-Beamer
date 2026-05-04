@@ -1,11 +1,27 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-05-04T16:00:42.402Z"
+progress:
+  total_phases: 27
+  completed_phases: 5
+  total_plans: 22
+  completed_plans: 120
+  percent: 100
+---
+
 # STATE
 
 ## Project
+
 - Name: TT Beamer - Nemesis Overlay Prototype
 - Context: Brettspiel-Beamer-Projekt fuer visuelle, nicht spielbeeinflussende Overlays
 - Product Focus: Transition von OG-Nemesis auf boardspiel-agnostischen Katalogbetrieb
 
 ## Lifecycle
+
 - Planning Mode: active
 - Current Phase: 19
 - Current Phase Key: phase-19
@@ -17,11 +33,13 @@
 - Last Execution Summary: Phase 18 delivered comprehensive UX overhaul: Quick Mode promotion with inline animation picker, Settings panel consolidation, animation create/edit workflow rework, terminology update, polygon context menu + undo/redo system, mobile-first polish (landscape side-by-side, slider touch guard, pill subtabs), visual modernization (glassmorphism panels, custom sliders), loading overlay with server-snapshot awareness, outside MP4 restart fix, pan at any zoom, canvas sizing fix for rotation, dblclick vertex insert, English texts
 
 ## Source Inputs
+
 - docs/PHASE1-BACKLOG.md
 - docs/PHASE1-PLAN.md
 - docs/PHASE2-PLAN.md
 
 ## Decision Log
+
 - Phase-10 closure baseline ist PASS und bindend: Plan 10-HF9 schliesst command reliability/performance hardening inklusive FAIL->PASS Matrix.
 - Phase-11 Startregel ist bindend: unmittelbar nach Phase-10 closure startet ein execute-ready UX-Acceleration-Wave (Plan 11-1).
 - Phase-11 Scope-Regel ist bindend: Settings-Subtabs + Quick-Modi (`activate`/`deactivate`/`clear`) fuer sequenzielle Room-Taps sind primaere Ziele.
@@ -751,6 +769,7 @@
 - Phase-7 Plan 7-HF10 ist als priorisierte execute-ready P0-Blocker-Welle vor Plan 7-2 gesetzt.
 
 ## Execute-Phase Contract (Phase 1)
+
 - Scope klar dokumentiert: `.planning/phases/phase-01/SCOPE.md`
 - Umsetzungsplan vorhanden: `.planning/phases/phase-01/PLAN.md`
 - Arbeitsbacklog vorhanden: `.planning/phases/phase-01/BACKLOG.md`
@@ -758,6 +777,7 @@
 - Abnahme und Tests vorhanden: `.planning/phases/phase-01/ACCEPTANCE.md`
 
 ## Execution Results (Phase 1 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-1-SUMMARY.md`
 - Task Commits: 16 atomare Commits (`b5b006d` .. `70cc9e2`)
@@ -766,6 +786,7 @@
   - `.planning/phases/phase-01/P1-T15-REGRESSION.md`
 
 ## Execution Results (Phase 1 Plan 2)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-2-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`8b8fd36` .. `0e82c66`)
@@ -773,6 +794,7 @@
   - `.planning/phases/phase-01/P1-T23-OUTPUT-SMOKE.md`
 
 ## Execution Results (Phase 1 Plan 3)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-3-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`f916d3a` .. `1e99d06`)
@@ -780,6 +802,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-4-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`f7b6297` .. `1d0ecd5`)
@@ -788,6 +811,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 5)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-5-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`48dac0d` .. `39caaaf`)
@@ -796,6 +820,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 6)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-6-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`a650104` .. `f9543e9`)
@@ -804,6 +829,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 7)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-7-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`057e7d2` .. `dfa0d27`)
@@ -812,6 +838,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 8)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-8-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`0813906` .. `310f42e`)
@@ -820,6 +847,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 9)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-9-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`00cfd78` .. `ad883d0`)
@@ -828,6 +856,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 10)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-10-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`55dd54c` .. `59a8d45`)
@@ -836,6 +865,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 11)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-11-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`6fed501` .. `d3196cc`)
@@ -844,6 +874,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 12)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-12-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`9f4ec9d` .. `7b25994`)
@@ -852,6 +883,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 13)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-13-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`515081e` .. `e3b36a4`)
@@ -860,6 +892,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 14)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-14-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`75efc56` .. `74f638f`)
@@ -868,6 +901,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 15)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-15-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`511da73` .. `c932d10`)
@@ -877,6 +911,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 1 Plan 16)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-16-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`f42ef6c` .. `4bb251f`)
@@ -885,6 +920,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 1 Plan 17)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-17-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`5d69ceb`, `ee7b200`, `186a44a`, `0b42592`, `4483437`)
@@ -895,6 +931,7 @@
   - `POST /api/global-defaults` und `POST /api/global-defaults/` => `200` auf Node-Server-Smoke (Port 4180)
 
 ## Execution Results (Phase 1 Plan 18)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-18-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`aab8191`, `bca9ea5`, `def14a5`, `f53d8b6`, `fe1b375`)
@@ -906,6 +943,7 @@
 - Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
 
 ## Execution Results (Phase 1 Plan 19)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-19-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`4d29aa8`, `7f34d2f`, `2b7fd5b`, `d46d696`, `74c9019`)
@@ -916,6 +954,7 @@
   - Node-API-Repro: `HEALTH=200 OPTIONS=204 SAVE=[200,200,200,200,200] SAVE_AFTER_RESTART=200` (Port 4180)
 
 ## Execution Results (Phase 1 Plan 20)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-20-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`3b56f06`, `d74a58d`, `cf23e34`, `e786892`, `a7dfec4`)
@@ -928,6 +967,7 @@
 - Node-API-Positivtest (gleicher Port 4173): `NODE_HEALTH=200 NODE_OPTIONS=204 NODE_SAVES=[200,200,200,200,200] NODE_AFTER_RESTART=200`
 
 ## Execution Results (Phase 1 Plan 21)
+
 - Status: completed
 - Summary: `.planning/phases/phase-01/1-21-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`96345d4`, `d5fb34a`, `9e50f94`, `ce8330b`, `2edff83`)
@@ -939,6 +979,7 @@
   - Node-API-Smoke (Port 4180): `HEALTH=200 OPTIONS=204 SAVE=200`
 
 ## Execution Results (Phase 2 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-02/2-1-SUMMARY.md`
 - Task Commits: 10 atomare Commits (`9a9a157`, `22ffe34`, `44e9c7f`, `ffaa6cf`, `e6e89ea`, `ce8b948`, `4e67972`, `1cb6cf1`, `c082c9c`, `ce53529`)
@@ -953,6 +994,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 2 Plan 2)
+
 - Status: completed
 - Summary: `.planning/phases/phase-02/2-2-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`add84bb`, `94a61fd`, `6b97253`, `3964df8`, `4c8cca3`)
@@ -962,6 +1004,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 2 Plan 3)
+
 - Status: completed
 - Summary: `.planning/phases/phase-02/2-3-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`324bce2`, `c0e4c46`, `703c371`, `eeb68a6`, `befb9da`)
@@ -971,6 +1014,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 2 Plan 4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-02/2-4-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`5110c2f`, `47d5867`, `4d25bb6`, `b6aefb7`, `ad06399`)
@@ -980,6 +1024,7 @@
   - `node --check src/app.js` (Regression Syntax Check)
 
 ## Execution Results (Phase 2 Plan 5)
+
 - Status: completed
 - Summary: `.planning/phases/phase-02/2-5-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`9cf5083`, `a64c45b`, `b7c8e25`, `3b2f6c6`, `dc8456a`, `fc150fb`, `543e11c`)
@@ -991,6 +1036,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 3 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-03/3-1-SUMMARY.md`
 - Task Commits: 12 atomare Commits (`4e959aa`, `2272d2b`, `6b4f96b`, `4ccc445`, `105e5d2`, `c63e07f`, `8f42c2f`, `7ce0b9d`, `90956dc`, `2a0e6f3`, `f563afe`, `364c4a6`)
@@ -1000,6 +1046,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 3 Plan 2)
+
 - Status: completed
 - Summary: `.planning/phases/phase-03/3-2-SUMMARY.md`
 - Task Commits: 13 atomare Commits (`87c8b0e`, `1eec785`, `0e27d86`, `0b933d2`, `66924cf`, `735e1b2`, `a257923`, `d85028a`, `74c5485`, `3bc2e3e`, `a3c222a`, `a5a3019`, `42da20b`)
@@ -1011,6 +1058,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 3 Plan 3)
+
 - Status: completed
 - Summary: `.planning/phases/phase-03/3-3-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`ed34cd3`, `772ae75`, `9888c46`, `578c367`, `b06f498`, `998dada`)
@@ -1022,6 +1070,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 3 Plan 4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-03/3-4-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`807de04`, `e2b08da`, `ce12e43`, `cd62c92`, `3e5cde9`, `da1b9f5`)
@@ -1033,6 +1082,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-04/4-1-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`c8a36be`, `3bc677b`, `f822097`, `bf889dd`, `480b5d3`, `6186e3c`, `8ad1af8`)
@@ -1042,6 +1092,7 @@
   - `GET /api/health=200`, `OPTIONS /api/global-defaults=204`, `POST/GET /api/global-defaults=200` (Port 4199)
 
 ## Execution Results (Phase 4 Plan 3)
+
 - Status: completed
 - Summary: `.planning/phases/phase-04/4-3-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`dbe1704`, `ef97862`, `269c770`, `0d88d8e`, `c8ad4b1`)
@@ -1052,6 +1103,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-04/4-4-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`8cc1841`, `fec3884`, `5182609`, `6c1d025`, `1efbf52`)
@@ -1062,6 +1114,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 5)
+
 - Status: completed
 - Summary: `.planning/phases/phase-04/4-5-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`f04c09f`, `8e09d7e`, `4fc2308`, `a597c66`, `482a313`, `09e01a9`)
@@ -1072,6 +1125,7 @@
   - `node --check server.mjs` (Server Syntax Check)
 
 ## Execution Results (Phase 4 Plan 5b)
+
 - Status: completed
 - Summary: `.planning/phases/phase-04/4-5b-SUMMARY.md`
 - Task Commits: 3 atomare Commits (`4382929`, `9be9c36`, `55e374e`)
@@ -1081,6 +1135,7 @@
   - Static Nachweis: Persist-on-change Hook fuer `audio.enabled`, `audio.volume`, `animationSoundMap` + persistierte Mapping-Normalisierung (`src/app.js`)
 
 ## Execution Results (Phase 5 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-05/5-1-SUMMARY.md`
 - Task Commits: 16 atomare Commits (`cbc8d1e` .. `ad02f93`, inkl. Hotfix `63ce2ee`)
@@ -1091,6 +1146,7 @@
   - WebSocket Sync: `WS_SYNC=ok`, `SYNC_3C=ok receivers=2`
 
 ## Execution Results (Phase 5 Plan HF1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-05/5-HF1-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`5d3caa3`, `494a805`, `e690a27`, `3d0d276`, `11eabe0`, `1e41e7a`)
@@ -1100,6 +1156,7 @@
   - `node debug/p5-t24-final-output-contract-check.mjs` => `FINAL_CONTRACT=PASS`
 
 ## Execution Results (Phase 5 Plan HF2)
+
 - Status: completed
 - Summary: `.planning/phases/phase-05/5-HF2-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`fbcfce4`, `0b71203`, `a7b1925`, `31cafdc`, `41cb473`, `1df1d66`, `e4267c1`)
@@ -1109,6 +1166,7 @@
   - `node debug/p5-t30-single-click-sync-regression.mjs` => `P5_T30_SINGLE_CLICK_SYNC_GUARDS=PASS`
 
 ## Execution Results (Phase 5 Plan HF3)
+
 - Status: completed
 - Summary: `.planning/phases/phase-05/5-HF3-SUMMARY.md`
 - Task Commits: 5 atomare Commits (`e3eab15`, `9d1cb44`, `5918370`, `bba951d`, `8781189`)
@@ -1117,6 +1175,7 @@
   - `node debug/p5-t36-context-parity-regression.mjs` => `P5_T36_CONTEXT_PARITY_GUARDS=PASS`
 
 ## Execution Results (Phase 6 Plan HF8)
+
 - Status: completed
 - Summary: `.planning/phases/phase-06/6-HF8-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`f24f0c8`, `3af979c`, `884c308`, `e1d8c41`, `1150c47`, `47878f4`)
@@ -1126,10 +1185,12 @@
   - `node --check src/app/lib/state/runtime-state.js` => PASS
 
 ## Decision Log Addendum (HF8)
+
 - Room/vertex/edge selection darf `roomDraft.targetType/targetId` nicht implizit ueberschreiben; Target-Auswahl bleibt operator-owned.
 - Cluster-Startmodus `stagger start` ist cluster-only mit kurzem randomisiertem Versatz; `off` bleibt deterministisch synchron.
 
 ## Execution Results (Phase 7 Plan HF2)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF2-SUMMARY.md`
 - Task Commits: 3 commits (`162b589`, `3443bf1`, `d4991f2`)
@@ -1139,10 +1200,12 @@
   - `debug/p7-hf2-t14-output.json`
 
 ## Decision Log Addendum (HF2)
+
 - Korrektheitspfad ist serverautoritatives Snapshot-Polling; WebSocket bleibt optionaler `state-dirty`-Wakeup-Hint.
 - Control-Clients senden Mutationen write-only an den Server und zeigen Pending, bis die entsprechende Snapshot-Version sichtbar angewendet wurde.
 
 ## Execution Results (Phase 7 Plan HF4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF4-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`bd3bcf4`, `24e8186`, `3ce8487`, `748d5a9`, `9d176e7`, `d64ba6e`, `35218e9`)
@@ -1152,11 +1215,13 @@
   - `debug/p7-hf4-t14-output.json`
 
 ## Decision Log Addendum (HF4)
+
 - Start-Operationen fuer room/cluster sind draft-immutable; Draft-UI-Felder (`animation`, `target`, Slider) duerfen durch Start nicht mutieren.
 - Snapshot-Polling schreibt `runtime.roomDraft` auf Control-Clients nicht mehr in lokale Draft-Controls zurueck.
 - Room-Klick bleibt der einzige Auto-Pfad fuer Target-Autofill (`targetType=room`, `targetId=<clickedRoomId>`).
 
 ## Execution Results (Phase 7 Plan HF5)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF5-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`0a80369`, `b2cdc5e`, `e295609`, `5bdd733`, `db7b7a4`, `d39a6ae`, `2308c03`)
@@ -1166,11 +1231,13 @@
   - `debug/p7-hf5-t14-output.json`
 
 ## Decision Log Addendum (HF5 follow-up)
+
 - verify-work 7-HF5 Follow-up oeffnet zwei verbleibende P0-Blocker: nicht-deterministischer board-switch clear in Randfaellen und reconnect cross-board residue rehydrate.
 - Naechste verpflichtende Welle ist Plan 7-HF6 (Board-Context Residue Elimination), bevor Plan 7-2 gestartet werden darf.
 - Verbindliche HF6-Invariante: `switch -> reconnect` darf auf keinem Client boardfremde Running-Eintraege rehydrieren (`crossBoardResidueCount = 0`).
 
 ## Execution Results (Phase 7 Plan HF8)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF8-SUMMARY.md`
 - Task Commits: 6 atomare Commits (`9cbd442`, `bc7182b`, `b267d9e`, `10a7001`, `356887d`, `bdb7b8d`)
@@ -1180,10 +1247,12 @@
   - `debug/p7-hf8-t14-output.json`
 
 ## Decision Log Addendum (HF8)
+
 - Global stop-off konvergiert jetzt verbindlich ueber `stop-animation` mit explizitem Ziel-Metadatenpfad (`targetScope`/`targetType`/`boardId`) statt gemischter stop-Routen.
 - Running-List-Refresh ist waehrend aktiver Hover-/Focus-Interaktion pausiert, damit Hover-Highlight ohne Blink-/Loop-Flicker stabil bleibt.
 
 ## Execution Results (Phase 7 Plan HF9)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF9-SUMMARY.md`
 - Task Commits: 7 atomare Commits (`e7c2e49`, `2c86d1b`, `cf3028c`, `e8ad9ed`, `1126bfb`, `be80106`, `143d81b`)
@@ -1193,10 +1262,12 @@
   - `debug/p7-hf9-t14-output.json`
 
 ## Decision Log Addendum (HF9)
+
 - `context-update` ist jetzt reason-arbitriert: `room-draft-sync` und `align-toggle` duerfen ohne explizite Context-Switch-Transaktion keinen Board-Kontext mutieren.
 - `board switched` bleibt ein reines Kontextsignal und wird bei Runtime-Panel-Sync nicht mehr emittiert, damit Start-/Running-Status nicht maskiert werden.
 
 ## Execution Results (Phase 7 Plan HF10)
+
 - Status: completed
 - Summary: `.planning/phases/phase-07/7-HF10-SUMMARY.md`
 - Task Commits: 8 atomare Commits (`2702764`, `53000dd`, `b0dfd19`, `ff5d2c3`, `7fa0061`, `46dd911`, `a61eb95`, `45a966d`)
@@ -1209,6 +1280,7 @@
   - `debug/p7-hf10-t14-output.json`
 
 ## Decision Log Addendum (HF10)
+
 - Root cause fuer `start ignored/overwritten` ist reproduziert: ACK-accepted Starts wurden durch Snapshot-Sanitizer bei `selectedBoard = null` neutralisiert.
 - Start-Dispatch ist metadata-stabil (`boardId`/`targetScope`/`targetType`) bevor Commands an den serverautoritativen Commit-Pfad gehen.
 - Snapshot-Sanitizer + Client-Apply inferieren Board-Kontext aus Running-Payload, damit committed starts fuer `room`/`global-inside`/`cluster` nicht implizit gedroppt werden.
@@ -1219,6 +1291,7 @@
 - Phase-8 Plan 8-1 ist als priorisierte execute-ready erste Welle gesetzt.
 
 ## Execution Results (Phase 9 Plan 1)
+
 - Status: completed
 - Summary: `.planning/phases/phase-09/9-1-SUMMARY.md`
 - Task Commits: 12 atomare Commits (`b3aeba0`, `ba4ca92`, `88e5cc8`, `715d9db`, `7d89057`, `9689adf`, `5b287d6`, `c19467b`, `b1b1e94`, `d8e4646`, `073317f`, `da26e3d`)
@@ -1228,6 +1301,7 @@
   - `node --check src/app.js` => PASS
 
 ## Execution Results (Phase 10 Plan HF4)
+
 - Status: completed
 - Summary: `.planning/phases/phase-10/10-HF4-SUMMARY.md`
 - Task Commits: 10 atomare Commits (`4263002`, `70f5587`, `cbd99b9`, `26dd678`, `74c0c2e`, `f5134bf`, `1905e01`, `98e0886`, `b160209`, `6ead064`)
@@ -1238,6 +1312,7 @@
   - `debug/p10-hf4-t8-browser-parity-output.json`
 
 ## Decision Log Addendum (HF4)
+
 - Runtime panel API wird unter `TT_BEAMER_RUNTIME_PANELS` und `TT_BEAMER_UI_RUNTIME_PANELS` konsistent exponiert, damit browser-/load-order Drift keinen Missing-Domain-Fehler ausloest.
 - Settings-Ownership-Checks sind applicability-aware: unmounted `#outside-mode` und `#outside-direction` sind korrekt, wenn ausserhalb des fachlich anwendbaren Kontextes.
 - Ship-/Play-Area-Clipquellen akzeptieren nur renderbare kanonische/legacy Polygone; invalid provided polygons werden deterministisch verworfen statt auf invalid-default zu kippen.
@@ -1248,12 +1323,14 @@
 - HF3-Non-Regression-Regel: Stop/Clear und die volle Abspielzeit muessen cross-client und final-output paritaetisch gesichert sein.
 
 ## Phase 11 Closure
+
 - Phase 11 ist als CLOSED PASS markiert nach Plan 11-HF6.
 - Alle verpflichtenden Wellen (11-1, 11-HF1..11-HF6) sind implementiert, verifiziert und mit FAIL->PASS Evidenz geschlossen.
 - Follow-up Telemetrie-Item `P11-T13` ist als optional in Phase-12 Discovery-Scope ueberfuehrt.
 - Handoff: Phase 12 beginnt unmittelbar mit Plan 12-1 (Concurrent Room Animation Layering).
 
 ## Phase 12 Activation
+
 - Phase 12 (Concurrent Room Animation Layering) ist ab 2026-04-11 aktiv.
 - Bindende Zielregel: mehrere gleichzeitige Raumanimationen im selben Raum muessen voll sichtbar additiv uebereinandergelegt werden, unabhaengig von Trigger-Reihenfolge und Animationstyp (coded, mp4, gif).
 - Bindende Lifecycle-Regel: der Start einer neuen Raumanimation darf eine bestehende laufende Raumanimation niemals implizit verdraengen, ueberschreiben oder verstecken; nur explizites `stop`/`clear` oder das natuerliche Ende einer Animation beenden sie.
@@ -1262,6 +1339,7 @@
 - Bindende Reihenfolgen-Invarianz-Regel: A->B und B->A Trigger-Sequenzen produzieren identisches stabiles Endbild, wenn beide Animationen gleichzeitig laufen.
 
 ## Plan 12-1 Closure
+
 - Plan 12-1 (Concurrent Room Animation Layering) ist CLOSED PASS am 2026-04-11.
 - Root-Cause-Isolation: Render-Loop iterierte `state.runningAnimations` in Insertion-Order unter default `source-over`; Room-Scope Coded-Effekte (`power-outage`, `intruder-alert`), mp4 `drawImage(video)` und gif `drawImage(frame)` paintete near-opaque Pixel in die geteilte Room-Clip-Region. Whichever animation draw last wann deckte frühere ab.
 - Fix-Umsetzung: `draw()` baut pro Frame eine `roomConcurrencyByKey`-Map und exponiert sie auf `state.runtimePerf`. `drawAnimation()` room branch + cluster-member branch schalten `ctx.globalCompositeOperation = "lighter"` innerhalb der `ctx.save()/clipToRoom/restore`-Scope, wenn die Konkurrenzanzahl fuer diesen Raum >= 2 ist. Single-animation Rooms bleiben auf `source-over` (keine visuelle Regression fuer Einzel-Effekte).
@@ -1273,6 +1351,7 @@
 - Phase 12 exit criteria erfuellt. Phase 13 aktiviert.
 
 ## Phase 13 Activation
+
 - Phase 13 (Server-Authoritative Config + Gesture Zoom + Touch Polygon Editing) ist ab 2026-04-11 aktiv.
 - Plan 13-1 (Server-Authoritative Config) ist execute-ready und blockiert 13-2/13-3 bis PASS-Closure.
 - Bindende Storage-Regel: nichts persistent im Browser. Einzige Persistenz ist die globale Server-Config `config/global-defaults.json`. `sessionStorage` nur fuer ephemere UI-Praeferenz (Settings-Subtab-Memory).
@@ -1284,6 +1363,7 @@
 - Non-Regression-Regel: Phase 11 HF6 seen-once retention und Phase 12 additive layering bleiben statisch PASS.
 
 ## Plan 13-1 Closure (static guards)
+
 - Plan 13-1 (Server-Authoritative Config) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
 - Server is single source of truth: POST /api/global-defaults writes atomically and broadcasts `global-config-update` via `broadcastLiveSession`.
 - Client `persistBoardProfiles()` body replaced with 200ms-debounced `scheduleGlobalConfigWrite()` which POSTs via the existing API facade. All 44 call sites unchanged.
@@ -1298,6 +1378,7 @@
 - User browser verification required before merge.
 
 ## Plan 13-2 Closure (static guards)
+
 - Plan 13-2 (Gesture-Based Zoom) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
 - Zoom slider `#board-zoom-range` / `#board-zoom-value` removed from DOM and JS.
 - Zoom range extended to `[0.25, 4.0]` via `BOARD_ZOOM_SCALE_MIN` / `BOARD_ZOOM_SCALE_MAX` constants.
@@ -1310,6 +1391,7 @@
 - User browser verification required.
 
 ## Plan 13-3 Closure (static guards)
+
 - Plan 13-3 (Touch Polygon Editing) ist CLOSED PASS am 2026-04-11 mit statischen Guards.
 - `isAcceptablePolygonPointerEvent(event)` helper accepts `pointerType === "touch"`/`"pen"` regardless of `event.button`, still requires `button === 0` for mouse. Replaces `event.button !== 0` in 5 vertex/edge/area pointerdown handlers.
 - `getCoarsePointerHitMultiplier()` helper checks `matchMedia("(pointer: coarse)")` (1.8x) and `(any-pointer: coarse)` (1.5x); `vertexHitRadius` and `edgeHitRadius` multiplied by coarse factor. Visual handle radii unchanged.
@@ -1319,22 +1401,26 @@
 - In-browser touch verification on a real phone/tablet required before merge.
 
 ## Phase 13 Exit State
+
 - All three plans closed PASS (static guards).
 - Cross-plan non-regression verified: Phase 11 HF6 seen-once retention and Phase 12 additive layering remain statically present and functional.
 - In-browser verification is the remaining gate before merge. Specifically: multi-device config sync, server-offline error overlay + retry, wheel + pinch zoom centered on the gesture anchor, touch-drag of polygon vertices on a real touchscreen.
 
 ## Phase 13 HF Wave Closure (2026-04-11)
+
 - HF1..HF13 ausgeliefert (commits `dad3e8c` .. `71f72cb`). Cumulative Scope: cursor-zoom correctness, touch UX state machine, opt-in save flow, Apply bar UX, mobile perf (GPU hints, stage-rect cache, rAF coalescing), polygon drag pipeline (incremental SVG renderer, vertex offset, stale-refs reorder, transform preservation).
 - HF13 ist die strukturelle Loesung der vertex-drift Regression: `state.roomStretchAnchorCache` haelt pro `${boardId}::${roomId}` den stabilen Stretch-Anchor session-weit fest; `getRoomTransform`/`getRoomPoints` lesen daraus statt aus der Live-Centroid-Berechnung.
 - Sieben HF Acceptance-Harnesses sind GREEN (`debug/p13-hf7..hf13-acceptance-regression-output.json`); jede enthaelt HF7/HF8/HF9/HF10/HF11/Phase-11/Phase-12/Phase-13-1 non-regression gates.
 - Phase 13 ist CLOSED PASS; Closure-Dokument: `.planning/phases/phase-13/CLOSURE.md`.
 
 ## Phase 14 Kickoff (2026-04-11)
+
 - Phase 14 ist ein Refactoring-Track: dead code removal + modulare Aufteilung der grossen Runtime-Datei.
 - Primaeres Ziel: `src/app/runtime/runtime-orchestration.js` (~14.5k LOC) in sinnvolle Domaenen-Module splitten; redundante/ungenutzte Pfade entfernen; Dateigroesse pro Modul unter ein akzeptables Niveau bringen.
 - Nicht-funktionale Phase: Keine neuen Features, keine Verhaltensaenderungen. Jede Extraction muss existing behavior preservieren und saemtliche Phase-13 Acceptance-Harnesses muessen unveraendert PASS bleiben.
 
 ## Phase 28 Wave 0 Closure (2026-05-04)
+
 - Plan 28-00 (Wave-0 Test Scaffold) ist abgeschlossen. Commits: `55107a3` (chore: test/_helpers.mjs) + `4e98335` (test: 8 Wave-0 *.test.mjs scaffolds).
 - Test runner: Node 24 builtin `node:test`; canonical invocation `node --test "test/**/*.test.mjs"` (oder bare `node --test` aus Repo-Root). Plan-text hat `node --test test/` referenziert — diese Form wirft `MODULE_NOT_FOUND` in Node 24.13.1 und wurde durch die glob-/auto-discover-Form ersetzt; Suite-Ergebnis identisch.
 - Locked decision-ID skip-name contract: 15 named `test.skip()` Placeholders (B1-D01 ×2, B1-D02, B1-D03 fallback, B2-D05, B3-D07.1/.2/.3, B3-D08, B4-D09, B4-D10, B5-D11/D12, B5-D11, B5-D13 ×2). Downstream Waves (28-01..28-04) ersetzen genau diese Skips per `grep -F` durch reale Assertions; Renaming bricht den Vertrag.
@@ -1343,6 +1429,7 @@
 - Closure-Dokument: `.planning/phases/phase-28/28-00-SUMMARY.md`.
 
 ## Phase 28 Wave 1 Closure (2026-05-04)
+
 - Plan 28-01 (B1 — Per-Board "last-used" Align-Profil-Memory + Auto-Load on Board-Switch) ist abgeschlossen. Commits: `9f06f32` (feat: lastUsedProfileName field + path-traversal validator) + `fb99b19` (feat: save/load triggers + silent auto-load on board-switch).
 - B1-D01: vier explizite Trigger-Sites (saveLoaded / saveAsNew / createNew / profileLoad.onPick) schreiben `state.lastUsedProfileNameByBoard[boardId]` direkt vor `ctx.persistBoardProfiles()`. Discard / Reset / Default-Pfade sowie die zwei neuen Auto-Load-Helper (`applyAndCaptureSnapshot`, `applyDefaultAndCaptureSnapshot`) beruehren das Feld nicht — D-01 binding gegen Auto-Load-Recursion.
 - B1-D02: `BOARD_PROFILE_FIELDS` enthaelt `"lastUsedProfileName"` als letzten Eintrag der `Object.freeze`-Liste; die drei existierenden Iteratoren (server.mjs L62, L2002, L2166) round-trippen das Feld automatisch ohne weitere Server-Aenderung.
@@ -1352,6 +1439,7 @@
 - Closure-Dokument: `.planning/phases/phase-28/28-01-SUMMARY.md`.
 
 ## Phase 28 Wave 2 Closure (2026-05-04)
+
 - Plan 28-02 (B2 — Board-Switch Save-Gate parallel zu Phase 27 W5 Align-Toggle Gate) ist abgeschlossen. Commits: `569971f` (feat: extend syncAlignModeDirtyDashboardState to gate #board-select + CSS + B2-D05 test) + `7685f53` (feat: guard all four switchBoard call sites with alignModeDirtyOnOutput).
 - B2-D04: Gate ist server-authoritativ — inheritet `state.alignModeDirtyOnOutput` + 10s Grace-Timer + `applyGlobalDefaultsPayloadToState`-Sync aus Phase 27 W5. Kein neuer Server-Endpoint, keine neue WebSocket-Channel, kein duplicater State-Slot.
 - B2-D05: `HINT_COPY_FULL_BOARD_SWITCH = "Unsaved align changes on /output/ — save or discard there first to switch board."` ist als function-scoped Const in `syncAlignModeDirtyDashboardState` (runtime-stage-viewport.js) definiert. Der `HINT_COPY_CHIP = "Unsaved on /output/"` bleibt geteilt zwischen Align-Toggle- und Board-Switch-Gate; die Long-Forms unterscheiden sich nur in der trailing clause (`…there first.` vs `…there first to switch board.`). `#board-select[disabled]` CSS-Regel mirroret `#align-mode-button[disabled]` (cursor:not-allowed + opacity:0.55).
@@ -1362,6 +1450,7 @@
 - Closure-Dokument: `.planning/phases/phase-28/28-02-SUMMARY.md`.
 
 ## Phase 28 Wave 4 Closure (2026-05-04)
+
 - Plan 28-04 (B5 — Asset-Cache-Invalidation via content-hash sha256[:12] manifest) ist abgeschlossen. Commits: `19ac918` (test RED — live B5 hash + manifest contract tests) + `b4fcd0d` (feat GREEN — server-side manifest infra) + `69ba3c2` (feat — client manifest mirror + render-layer hash URLs + 28-03 TODO conversion).
 - B5-D11/D12: `computeAssetHash(buffer) = sha256(buffer).digest("hex").substring(0, 12)` — 12 hex Cache-Busting-Token, NICHT für Content-Authentication (in Code-Comments + Threat-Model T-28-04-01 als accepted risk dokumentiert). 48-Bit-Birthday-Limit ~16M Assets, realistic floor <1000.
 - B5-D13: `config/asset-manifest.json` mit Schema `tt-beamer.asset-manifest.v1` als zentrale flat hashByPath Map (`{ [url]: { hash, size, mtime } }`). Auf jedem Upload + Delete persistiert + via `broadcastLiveSession("global-config-update", { target: "config/asset-manifest.json", … })` an alle Clients gefanout. Boot-Synthese ist synchron (`await ensureAssetManifestOnBoot()` vor `server.listen`) und idempotent (matching-hash mtimes preserved).
@@ -1375,6 +1464,7 @@
 - Closure-Dokument: `.planning/phases/phase-28/28-04-SUMMARY.md`.
 
 ## Decisions Phase 28-04
+
 - B5 Cache-Bust-Token: sha256(bytes).digest("hex").substring(0, 12). 48-Bit accepted risk, dokumentiert.
 - Manifest-Format: zentrale `config/asset-manifest.json` (mirroring projection-profiles pattern) statt per-asset Sidecars.
 - Cache-Key Separation: Map-Keys bleiben raw paths; nur Network-URL bekommt `?v=<hash>`.
@@ -1385,6 +1475,7 @@
 - Plan 28-03 TODO conversion: hash-diff-Branch INSIDE existing selection-match guards; legacy fallback (kein hash) preserves alte unconditional-fire behavior.
 
 ## Phase 28 Wave 5 Closure (2026-05-04)
+
 - Plan 28-05 (B6 — Diagnostic-Overlay Dashboard-Topbar Integration) ist abgeschlossen. Commits: `ef2d60d` (feat: inline-variant chip in topbar + DOM relocation).
 - B6-D14: Neue CSS-Regel `body:not([data-output-role="final-output"]) .output-status-chip` an `src/styles.css` Lines 149–159 angefügt. Override `position: static; top: auto; right: auto; z-index: auto; margin-left: 6px; align-self: center;`. Specificity beats die Base-Regel (`body:not(...) .x` > `.x`), so der Inline-Variant gewinnt am Dashboard.
 - B6-D15: Bestehende `.output-status-chip` Base-Regel (Lines 125–141: `position: fixed; top: 8px; right: 8px; z-index: 9999;`) UNVERÄNDERT. Auf /output/ schlägt der `:not(...)` Selektor fehl, Base-Regel gewinnt — `position: fixed` entkoppelt den Chip vom Layout-Flow unabhängig vom Parent. Zero-Regression auf /output/ garantiert.
@@ -1398,6 +1489,7 @@
 - Closure-Dokument: `.planning/phases/phase-28/28-05-SUMMARY.md`.
 
 ## Decisions Phase 28-05
+
 - B6 Implementation Option A gewählt (literal index.html DOM-move) statt Option B (runtime re-parent). Reason: position:fixed auf /output/ macht den Parent layout-irrelevant — kein JS nötig.
 - Inline-Variant CSS via `body:not(...)` Selektor statt class-toggling oder JS-Detection. Specificity-based variant selection ist deklarativ und JS-frei.
 - Insertion point: chip ist last child von `.rd-topbar-actions` (nach theme-toggle button) — mirrored die Right-Edge-Position auf /output/.
@@ -1405,6 +1497,7 @@
 - z-index: auto (statt numerischem Wert <50) im Inline-Variant — Topbar-Flex bietet natürliches Stacking, kein Konflikt mit Phase 27 h9 fixed-positioned Hint-Chip möglich.
 
 ## Phase 28 Status (post-Plan-28-05)
+
 - Alle 6 user-test feedback items (B1..B6) sind über Plans 28-00..28-05 ausgeliefert.
 - B1 (28-01), B2 (28-02), B3 (28-03 + 28-04 hash-conversion), B4 (28-03), B5 (28-04), B6 (28-05) — alle requirements completed.
 - Test-Suite: `25 pass / 0 fail / 0 skipped` (alle Wave-0 Skips konvertiert oder N/A wie B6).
