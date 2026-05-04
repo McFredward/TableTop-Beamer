@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20RPi-orange.svg)](#requirements)
 [![Made with Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-0.26.x-purple.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-0.27.x-purple.svg)](#project-status)
 
 <br>
 
@@ -186,23 +186,71 @@ the image onto your physical board.
 ## Aligning the projection
 
 On the dashboard, hit the **Align Mode** toggle in the topbar. A calibration
-grid appears on the output view; drag it until the room outlines sit exactly on
-the board.
+grid appears on the projector output (`/output/`); drag it until the room
+outlines sit exactly on the board.
 
-| Action | What it does |
+A fresh grid starts as a centered 80% rectangle with one horizontal and one
+vertical line through the middle — clean enough to see what you're doing, easy
+to add more lines wherever you need finer control.
+
+### What you'll see on `/output/`
+
+A small **profile toolbar** floats at the top of the projected output during
+align mode. Drag it by the chip on the left to move it out of the way of
+whatever you're aligning — the position is remembered per profile.
+
+| Toolbar button | What it does |
 |---|---|
-| 🟢 Drag intersection handle (teal circle) | Move that single point freely |
-| ↕ / ↔ Drag line handle | Move a whole row / column along one axis |
-| Drag outer edge / corner | Proportionally scale all inner points |
-| Drag empty area | Pan the whole grid |
-| 🟠 Drag rotate handle (corner) | Rotate the entire grid around its centroid |
-| Right-click anywhere | Context menu: add line, remove line, save / load profile, reset |
-| `Ctrl+Z` / `Cmd+Z` | Undo last grid action |
-| `Esc` | Reset grid to default |
-| Arrow keys | Nudge selected handle (`Shift` for larger steps) |
+| `● Profile name` *(or "Unsaved")* | Shows which profile is loaded. The amber dot appears whenever there are unsaved changes. |
+| **Save profile** | Saves the current grid into the loaded profile. If no profile is loaded, prompts for a name. |
+| **New** | Asks for a name, then loads the default 80%-rectangle layout — perfect starting point for a new alignment. |
+| **Load profile…** | Pick a previously saved profile for the current board. |
+| **Discard** | Reverts every unsaved change. No confirm modal — quick to redo. |
 
-Named calibration profiles are stored per-board, so switching boards reapplies
-the matching alignment with two clicks.
+### Handles around the grid
+
+| Handle / gesture | Visual | What it does |
+|---|---|---|
+| **Intersection** | Teal circle on every line crossing | Drag a single point freely. Adjacent areas stretch around it. |
+| **Line** | The line itself, between intersections | Drag to move that one line; neighbouring lines stay fixed, the bands between them stretch. |
+| **Empty area** | — | Click+drag pans the whole grid as a unit (board translation). |
+| **Rotate** | Round 🟠 button outside each corner | Rotates the whole grid around its centre. |
+| **Scale** | Square teal button further out at each corner | Drags toward / away from the centre to scale the whole grid proportionally. |
+| **Squish bar** | Slim teal bar on each outer side | Compresses or stretches the grid along that axis with the **opposite side anchored** — the board doesn't translate, only the area between. |
+
+### Right-click menu
+
+The grid is defined by lines (horizontal + vertical); intersections are just
+where lines cross. The right-click menu reflects that:
+
+| Right-click on… | You get |
+|---|---|
+| Empty grid area | *Add horizontal line here* + *Add vertical line here* |
+| A line (between intersections) | *Delete this line* + *Add line through this point* |
+| An intersection | *Delete vertical line* + *Delete horizontal line* + *Add line through this point* |
+
+The four outer lines (the bounding rectangle) are immutable — they're never
+deletable, no matter where you click.
+
+### Keyboard
+
+| Key | Action |
+|---|---|
+| `Ctrl+Z` / `Cmd+Z` | Undo last grid action |
+| `Esc` | Same as **Discard** — revert unsaved changes (does **not** clear the loaded profile) |
+
+### Profiles, dirty state, and multi-device safety
+
+- Calibration profiles are saved **per board**, so switching boards reapplies
+  the matching alignment with two clicks.
+- While there are unsaved changes on `/output/`, the dashboard's **Align
+  Mode** toggle is disabled with a small amber chip — *"Unsaved on /output/"*.
+  This prevents accidentally exiting align mode from a remote device and
+  losing in-progress work. Save or discard on `/output/` to re-enable the
+  dashboard toggle.
+- Reloads on `/output/` are safe: a mid-edit page refresh keeps the loaded
+  profile, the dirty state, and all your in-progress geometry exactly as you
+  left them.
 
 ---
 
