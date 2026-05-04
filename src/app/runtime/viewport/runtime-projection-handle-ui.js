@@ -322,10 +322,10 @@
   // Same corner mapping as ROTATE_CORNERS but offset further out (±50)
   // so the two handle types don't collide at the corners.
   const SCALE_CORNERS = [
-    { key: "TL", rowFn: () => 0,                          colFn: () => 0,                          offX: -50, offY: -50 },
-    { key: "TR", rowFn: () => 0,                          colFn: () => grid.srcXs.length - 1,      offX:  50, offY: -50 },
-    { key: "BR", rowFn: () => grid.srcYs.length - 1,      colFn: () => grid.srcXs.length - 1,      offX:  50, offY:  50 },
-    { key: "BL", rowFn: () => grid.srcYs.length - 1,      colFn: () => 0,                          offX: -50, offY:  50 },
+    { key: "TL", rowFn: () => 0,                          colFn: () => 0,                          offX: -62, offY: -62 },
+    { key: "TR", rowFn: () => 0,                          colFn: () => grid.srcXs.length - 1,      offX:  62, offY: -62 },
+    { key: "BR", rowFn: () => grid.srcYs.length - 1,      colFn: () => grid.srcXs.length - 1,      offX:  62, offY:  62 },
+    { key: "BL", rowFn: () => grid.srcYs.length - 1,      colFn: () => 0,                          offX: -62, offY:  62 },
   ];
 
   function rebuildScaleHandles() {
