@@ -68,6 +68,8 @@
   let contextMenu = null;     // Context menu DOM element
 
   let rotateHandleElements = [];
+  // h12: corner scale-handles (proportional whole-board scale around centroid).
+  let scaleHandleElements = [];
 
   // Phase 27 (B9): squish bars — 4 elements (TOP, BOTTOM, LEFT, RIGHT).
   let squishBarElements = [];
@@ -189,6 +191,8 @@
     dismissContextMenu();
     removeAlignToolbar();
     removeSquishBars();
+    // h12: tear down scale handles alongside rotate/squish handles.
+    removeScaleHandles();
   }
 
   function rebuildHandleElements() {
@@ -242,6 +246,8 @@
 
     rebuildRotateHandles();
     rebuildSquishBars();
+    // h12: corner scale-handles rebuild alongside rotate handles.
+    rebuildScaleHandles();
     positionHandles();
     positionRotateHandles();
   }
@@ -307,6 +313,81 @@
     }
     // B9: squish bars track handle positions — called after every drag/resize/undo.
     positionSquishBars();
+    // h12: corner scale-handles track handle positions too.
+    positionScaleHandles();
+  }
+
+  // ── Scale handles (h12) — proportional whole-board scale around centroid ─
+
+  // Same corner mapping as ROTATE_CORNERS but offset further out (±50)
+  // so the two handle types don't collide at the corners.
+  const SCALE_CORNERS = [
+    { key: "TL", rowFn: () => 0,                          colFn: () => 0,                          offX: -50, offY: -50 },
+    { key: "TR", rowFn: () => 0,                          colFn: () => grid.srcXs.length - 1,      offX:  50, offY: -50 },
+    { key: "BR", rowFn: () => grid.srcYs.length - 1,      colFn: () => grid.srcXs.length - 1,      offX:  50, offY:  50 },
+    { key: "BL", rowFn: () => grid.srcYs.length - 1,      colFn: () => 0,                          offX: -50, offY:  50 },
+  ];
+
+  function rebuildScaleHandles() {
+    for (const el of scaleHandleElements) {
+      el.remove();
+    }
+    scaleHandleElements = [];
+    for (const corner of SCALE_CORNERS) {
+      const el = document.createElement("div");
+      el.className = "projection-scale-handle";
+      el.dataset.scaleCorner = corner.key;
+      el.textContent = "⤢";
+      el.title = "Drag to scale the whole board";
+      const size = 22;
+      el.style.cssText = `
+        position: fixed;
+        width: ${size}px; height: ${size}px;
+        border-radius: 4px;
+        background: rgba(50, 211, 163, 0.92);
+        border: 2px solid rgba(255, 255, 255, 0.95);
+        color: #052016;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: ${size - 4}px;
+        text-align: center;
+        cursor: nwse-resize;
+        z-index: 10000;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        transform: translate(-50%, -50%);
+      `;
+      // Pointerdown routes to drag handler (resolved lazily — drag module sets it after UI loads).
+      el.addEventListener("pointerdown", (e) => {
+        const fn = dragModule.onScaleHandlePointerDown;
+        if (typeof fn === "function") fn(e);
+      });
+      document.body.appendChild(el);
+      scaleHandleElements.push(el);
+    }
+  }
+
+  function positionScaleHandles() {
+    if (scaleHandleElements.length !== SCALE_CORNERS.length) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    for (let i = 0; i < SCALE_CORNERS.length; i++) {
+      const c = SCALE_CORNERS[i];
+      const row = c.rowFn();
+      const col = c.colFn();
+      const pt = getPoint(row, col);
+      scaleHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
+      scaleHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
+    }
+  }
+
+  function removeScaleHandles() {
+    for (const el of scaleHandleElements) {
+      try { document.body.removeChild(el); } catch {}
+    }
+    scaleHandleElements = [];
   }
 
   // ── Phase 27 (B9): Squish bars — one per outer side ───────────────────────

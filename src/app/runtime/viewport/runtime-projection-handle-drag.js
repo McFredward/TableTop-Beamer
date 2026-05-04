@@ -138,6 +138,107 @@
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
+  // ── Scale handle drag (h12) ───────────────────────────────────────────────
+  //
+  // Four corner-anchored buttons (parallel to the rotate handles) that
+  // proportionally scale the entire grid around its centroid. Drag outward
+  // from the centroid → scale up; drag inward → scale down. Uniform scale
+  // (preserves aspect ratio) — for non-uniform scaling the user has the
+  // four squish bars (B9).
+
+  let scaleDragState = null;
+
+  function _computeGridCentroid() {
+    let sumX = 0, sumY = 0, count = 0;
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      for (let c = 0; c < grid.srcXs.length; c++) {
+        const p = getPoint(r, c);
+        sumX += p.x;
+        sumY += p.y;
+        count += 1;
+      }
+    }
+    return count > 0 ? { x: sumX / count, y: sumY / count } : { x: 0.5, y: 0.5 };
+  }
+
+  function onScaleHandlePointerDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pushUndo();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const centroid = _computeGridCentroid();
+    const cxPx = centroid.x * vw;
+    const cyPx = centroid.y * vh;
+    const startDist = Math.hypot(e.clientX - cxPx, e.clientY - cyPx);
+    if (!Number.isFinite(startDist) || startDist < 1) {
+      // Click landed exactly on the centroid — invalid drag, abort.
+      return;
+    }
+    const allStartPts = [];
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      allStartPts[r] = [];
+      for (let c = 0; c < grid.srcXs.length; c++) {
+        const p = getPoint(r, c);
+        allStartPts[r][c] = { x: p.x, y: p.y };
+      }
+    }
+    scaleDragState = {
+      pointerId: e.pointerId,
+      cornerKey: e.currentTarget?.dataset?.scaleCorner || "",
+      centroid,
+      startDist,
+      allStartPts,
+    };
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch {}
+    if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.cursor = "grabbing";
+    document.addEventListener("pointermove", onScaleDragMove);
+    document.addEventListener("pointerup", onScaleDragEnd);
+    document.addEventListener("pointercancel", onScaleDragEnd);
+  }
+
+  function onScaleDragMove(e) {
+    if (!scaleDragState) return;
+    if (e.pointerId !== scaleDragState.pointerId) return;
+    e.preventDefault();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cxPx = scaleDragState.centroid.x * vw;
+    const cyPx = scaleDragState.centroid.y * vh;
+    const curDist = Math.hypot(e.clientX - cxPx, e.clientY - cyPx);
+    let factor = curDist / scaleDragState.startDist;
+    if (!Number.isFinite(factor) || factor < 0.05) factor = 0.05;
+    if (factor > 8) factor = 8;
+    const cx = scaleDragState.centroid.x;
+    const cy = scaleDragState.centroid.y;
+    const sp = scaleDragState.allStartPts;
+    for (let r = 0; r < grid.srcYs.length; r++) {
+      for (let c = 0; c < grid.srcXs.length; c++) {
+        const start = sp[r][c];
+        const newX = cx + (start.x - cx) * factor;
+        const newY = cy + (start.y - cy) * factor;
+        setPoint(r, c, Math.max(0, Math.min(1, newX)), Math.max(0, Math.min(1, newY)));
+      }
+    }
+    positionHandles();
+    positionRotateHandles();
+    drawLines();
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+  }
+
+  function onScaleDragEnd(e) {
+    if (!scaleDragState) return;
+    if (e && e.pointerId !== scaleDragState.pointerId) return;
+    scaleDragState = null;
+    document.removeEventListener("pointermove", onScaleDragMove);
+    document.removeEventListener("pointerup", onScaleDragEnd);
+    document.removeEventListener("pointercancel", onScaleDragEnd);
+    saveToLocalStorage();
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
+  }
+
   // ── Handle drag ────────────────────────────────────────────────────────────
 
   function onHandlePointerDown(e) {
@@ -691,5 +792,9 @@
     onSquishBarPointerDown,
     onSquishDragMove,
     onSquishDragEnd,
+    // Phase 27 (h12): corner scale-handle drag handlers.
+    onScaleHandlePointerDown,
+    onScaleDragMove,
+    onScaleDragEnd,
   };
 })();
