@@ -409,22 +409,12 @@ body[data-output-role="final-output"] .toast-stack {
   filter: drop-shadow(0 0 6px rgba(255, 246, 138, 0.85));
 }
 
-/* h15/h16: suppress the dashboard's selected-room highlight on /output/.
- * The dashboard uses .room-zone.is-selected to show which room is
- * targeted for animation triggers — that visual cue belongs to the
- * operator's screen, not the projected output. The selected room on
- * /output/ should look identical to non-selected rooms (faint default
- * outline). h15 used `transparent` which made the selected room fully
- * invisible — every renderRoomOverlay (e.g. after a line drag) hid the
- * room. h16: revert selected to the same values as the default
- * `.room-zone` so only the highlight is suppressed, never the outline. */
-body[data-output-role="final-output"] .room-zone.is-selected,
-body[data-output-role="final-output"] .room-zone.is-draggable.is-selected {
-  fill: rgba(35, 169, 210, 0.05);
-  stroke: rgba(120, 214, 244, 0.45);
-  stroke-width: 2;
-  filter: none;
-}
+/* h17: the `.is-selected` class is no longer applied at all on /output/
+ * (see runtime-polygon-editor.js renderRoomOverlay). No CSS override
+ * needed here — the dashboard selection is fully invisible to the
+ * projected output. The previous h15/h16 attempts to override fill /
+ * stroke from CSS were brittle because is-selected interacts with
+ * several other CSS rules (hover, is-rotating, theme overrides). */
 
 .room-zone.is-frozen {
   fill: rgba(100, 100, 120, 0.12);

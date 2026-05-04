@@ -449,7 +449,16 @@
         renderRoomOverlay();
         beginPendingPolygonAreaDrag(event, room.id);
       });
-      if (state.selectedRoomId === room.id) {
+      // h17: dashboard selection has zero effect on /output/. The
+      // is-selected class drives several visual rules (highlight stroke,
+      // glow filter, hover overlay, rotating state colour); rather than
+      // override every one of them in CSS, simply skip applying the
+      // class on the projected output. The dashboard is the only place
+      // that should reflect operator selection state.
+      if (
+        state.selectedRoomId === room.id
+        && ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL
+      ) {
         polygon.classList.add("is-selected");
       }
       ctx.roomOverlay.append(polygon);
