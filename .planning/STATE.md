@@ -1341,3 +1341,12 @@
 - B6 hat keinen Scaffold (manual-only laut `28-VALIDATION.md`); per Acceptance-Grep `grep -F "B6" test/` bestaetigt = no matches.
 - Suite-Baseline: `# tests 23 / # pass 8 / # fail 0 / # skipped 15`. Keine npm-Dependency, `package.json` unveraendert.
 - Closure-Dokument: `.planning/phases/phase-28/28-00-SUMMARY.md`.
+
+## Phase 28 Wave 1 Closure (2026-05-04)
+- Plan 28-01 (B1 — Per-Board "last-used" Align-Profil-Memory + Auto-Load on Board-Switch) ist abgeschlossen. Commits: `9f06f32` (feat: lastUsedProfileName field + path-traversal validator) + `fb99b19` (feat: save/load triggers + silent auto-load on board-switch).
+- B1-D01: vier explizite Trigger-Sites (saveLoaded / saveAsNew / createNew / profileLoad.onPick) schreiben `state.lastUsedProfileNameByBoard[boardId]` direkt vor `ctx.persistBoardProfiles()`. Discard / Reset / Default-Pfade sowie die zwei neuen Auto-Load-Helper (`applyAndCaptureSnapshot`, `applyDefaultAndCaptureSnapshot`) beruehren das Feld nicht — D-01 binding gegen Auto-Load-Recursion.
+- B1-D02: `BOARD_PROFILE_FIELDS` enthaelt `"lastUsedProfileName"` als letzten Eintrag der `Object.freeze`-Liste; die drei existierenden Iteratoren (server.mjs L62, L2002, L2166) round-trippen das Feld automatisch ohne weitere Server-Aenderung.
+- B1-D03: `autoLoadRememberedProjectionProfile(boardId)` ist in runtime-board-switch.js definiert und wird fire-and-forget via `void autoLoadRememberedProjectionProfile(board.id)` aus `switchBoard` nach `ctx.refreshGlobalButtons()` gefeuert. Stille Default-Fallback bei null/missing/4xx/network/parse-Fehler; keine Popups/Toasts/Confirms im Helper-Body.
+- T-28-01-01 mitigated: `validateProfileName` Regex `/^[a-zA-Z0-9 _.-]{1,80}$/` haertet Build- UND Apply-Sites in runtime-board-profiles.js gegen Path-Traversal/Overlength/Non-String — invalide Werte werden silent zu null gecoerced.
+- Test-Konversion: drei Wave-0 Skips (B1-D01 ×2, B1-D02, B1-D03 fallback) sind jetzt aktive PASS-Tests; Suite: `# tests 23 / # pass 12 / # fail 0 / # skipped 11`.
+- Closure-Dokument: `.planning/phases/phase-28/28-01-SUMMARY.md`.
