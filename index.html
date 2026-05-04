@@ -48,21 +48,6 @@
       }
     } catch (e) { /* private mode / quota — stay on default dark */ }
   </script>
-  <!-- /output/ diagnostic chip — only visible when body has both
-       data-output-role="final-output" and align-mode-active. Lets the
-       operator verify the running APP_VERSION + observe live fps on the
-       projector itself without needing the dashboard. -->
-  <div id="output-status-chip" class="output-status-chip" aria-hidden="true">
-    <span id="output-status-version">v?</span>
-    <span class="output-status-sep" aria-hidden="true">·</span>
-    <span id="output-status-fps">- fps</span>
-    <span class="output-status-sep" aria-hidden="true">·</span>
-    <span id="output-status-mode">auto</span>
-    <span class="output-status-sep" aria-hidden="true">·</span>
-    <span id="output-status-canvas">-x-</span>
-    <span class="output-status-sep" aria-hidden="true">·</span>
-    <span id="output-status-frame-cost">- ms</span>
-  </div>
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">
@@ -192,6 +177,20 @@
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
             </svg>
           </button>
+          <!-- Diagnostic chip — visible when body has data-diagnostic-overlay="true".
+               On /output/ renders top-right fixed (current style); on dashboard renders
+               inline inside the topbar flex (Phase 28 B6). -->
+          <div id="output-status-chip" class="output-status-chip" aria-hidden="true">
+            <span id="output-status-version">v?</span>
+            <span class="output-status-sep" aria-hidden="true">·</span>
+            <span id="output-status-fps">- fps</span>
+            <span class="output-status-sep" aria-hidden="true">·</span>
+            <span id="output-status-mode">auto</span>
+            <span class="output-status-sep" aria-hidden="true">·</span>
+            <span id="output-status-canvas">-x-</span>
+            <span class="output-status-sep" aria-hidden="true">·</span>
+            <span id="output-status-frame-cost">- ms</span>
+          </div>
         </div>
       </div>
 

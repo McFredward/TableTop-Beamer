@@ -146,6 +146,18 @@ body[data-diagnostic-overlay="true"] .output-status-chip {
   display: inline-flex;
 }
 
+/* Phase 28 B6 D-14: dashboard-inline variant. /output/ retains the fixed
+   top-right floating style; the dashboard integrates the chip into the
+   topbar flex so it doesn't overlap the logo + title. */
+body:not([data-output-role="final-output"]) .output-status-chip {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  margin-left: 6px;
+  align-self: center;
+}
+
 /* 4: Unified grid projection — handles and grid overlay */
 .projection-corner-handle {
   /* Styles are inline in JS; this class is for potential overrides */
