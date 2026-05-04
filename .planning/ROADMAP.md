@@ -209,6 +209,7 @@ Milestones:
 3. M3 Profile awareness: aktuell geladenes Profil ist sichtbar; Dirty-Flag mit Save/Discard-Optionen; Dirty-State blockiert Align-Mode-Off auf Remote-Clients (BACKLOG B3..B5).
 4. M4 Default layout: neuer Default ist 80%-Rechteck mit genau einer mittleren horizontalen + vertikalen Linie (BACKLOG B6).
 5. M5 Right-Click correctness: kontextabhaengiges Menue (Linie / Punkt / leere Flaeche), Loeschen verifiziert end-to-end (BACKLOG B7+B8).
+6. M6 Whole-board squish handles: kleine Bars ausserhalb des Rechtecks (analog zu den Rotations-Buttons) zum Stauchen/Strecken des gesamten Boards in einem Zug (BACKLOG B9).
 
 Exit Criteria:
 - Aeussere und innere Linien sind in Drag-, Snap- und Selektionsverhalten ununterscheidbar.
@@ -218,7 +219,8 @@ Exit Criteria:
 - Frische Default-Profile haben das 80%-Rechteck-Layout mit genau zwei mittleren Linien.
 - Right-Click auf Linie zeigt nur "Delete line" + Create-Optionen, auf Punkt zeigt zusaetzlich "Delete point", auf leere Flaeche zeigt KEINE Delete-Optionen.
 - Linien-Loeschen funktioniert konsistent ueber Right-Click und persistiert in das geladene Profil.
+- Squish-Handles ausserhalb des Rechtecks sind sichtbar, draggable und skalieren das gesamte Grid proportional (B1-Outer-Drag bleibt zusaetzlich verfuegbar).
 
 Out of Scope:
 - Aenderungen ausserhalb der Align-Mode-UI.
-- Neue Projection-Mapping-Features ausser dem Trapez-Corner-Release.
+- Neue Projection-Mapping-Features ausser dem Trapez-Corner-Release und den Squish-Handles.

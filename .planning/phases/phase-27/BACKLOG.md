@@ -89,6 +89,34 @@ the user request — implies a current bug). Specifically:
 Already implied by B7's "verify line deletion works" — kept as a
 separate UAT item so the verification harness has its own checkbox.
 
+### B9 — Whole-board "squish" handles outside the outer rectangle
+
+Even though outer edges now behave like inner lines per B1, the user
+also wants a dedicated whole-board scaling affordance: small bars
+(handles) positioned **outside** the outer rectangle — analogous to
+the rotation buttons that already sit outside the board — that allow
+squishing/stretching the entire grid as a unit. Drag a top/bottom bar
+to compress the whole board vertically; drag a left/right bar to
+compress it horizontally. The interior grid scales proportionally with
+the outer shape during the squish.
+
+This is **additive** to B1, not a replacement: the user can still
+drag the outer line itself (per B1 same-as-inner behavior), but the
+new squish bars give a fast way to scale the whole projection at once
+without dragging multiple points.
+
+Open questions for planning:
+- Position relative to the outer rectangle (offset distance, on which
+  edges, one-per-edge or one-per-side-pair)?
+- Visual style — match the existing rotation button style for
+  consistency?
+- Anchoring during squish — does the opposite edge stay fixed
+  (one-sided squish) or does the center stay fixed (symmetric squish
+  toward the middle)?
+- Interaction with B2 trapezoid corners — if the outer is a trapezoid,
+  does the squish still apply axis-aligned, or along the trapezoid's
+  local axes?
+
 ## Discuss-phase open questions
 
 - Device identification for B5 ("unsaved changes on device X").
