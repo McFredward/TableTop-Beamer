@@ -203,14 +203,14 @@ Ziel: Align Mode auf Basis von User-Test-Feedback (2026-05-04) konsistent und tr
 
 Status: PLANNING. Backlog: `.planning/phases/phase-27/BACKLOG.md`. Plan written 2026-05-04 (5 plans in 5 waves).
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 27-01-PLAN.md — Grid model: line-uniform color (B1) + outer-corner local-only drag (B2) + 80%/3×3 default layout (B6)
 - [x] 27-02-PLAN.md — Profile chip + dirty flag + Save/Save-as-new/Discard toolbar + D-08 schema validation (B3, B4)
 - [x] 27-03-PLAN.md — Right-click context menu rewrite: hit-test priority + three menu shapes + line-centric labels (B7, B8)
 - [x] 27-04-PLAN.md — Squish bars: 4 outside-edge handles + opposite-side anchor + trapezoid edge-perpendicular axis (B9)
-- [ ] 27-05-PLAN.md — Multi-device save-gate: alignModeDirtyOnOutput broadcast + dashboard disable-with-hint + 10s grace timer (B5)
+- [x] 27-05-PLAN.md — Multi-device save-gate: alignModeDirtyOnOutput broadcast + dashboard disable-with-hint + 10s grace timer (B5)
 
 Wave structure (serialized to enforce zero same-wave file overlap):
 - Wave 1: 27-01 (foundation — grid model + drawLines).
