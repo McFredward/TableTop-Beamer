@@ -45,6 +45,9 @@
   const _dirtyListeners = new Set();      // (boolean) -> void callbacks
   let _gridStateApi = null;               // injected via init() — exposes snapshotGridState/restoreGridSnapshot/buildNewProfileDefaultGrid
 
+  // --- Phase 27 (B5) align-mode dirty POST broadcaster ---
+  let _alignModeDirtyPostInflight = false;
+
   function getCurrentBoardId() {
     try {
       return typeof ctx?.getBoardId === "function" ? ctx.getBoardId() : null;
@@ -372,6 +375,36 @@
     showContextMenu(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2), items);
   }
 
+  async function _postAlignModeDirtyToServer(nextDirty) {
+    if (_alignModeDirtyPostInflight) return;
+    _alignModeDirtyPostInflight = true;
+    try {
+      const resp = await fetch("/api/align-mode-dirty", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dirty: Boolean(nextDirty) }),
+      });
+      if (!resp.ok && resp.status !== 429) {
+        // 429 is the rate-limit (T-27-03). The next change will retry.
+        console.warn("[align-mode-dirty] POST failed:", resp.status);
+      }
+    } catch (err) {
+      console.warn("[align-mode-dirty] POST error:", err?.message || err);
+    } finally {
+      _alignModeDirtyPostInflight = false;
+    }
+  }
+
+  function _maybeStartOutputDirtyBroadcaster() {
+    // Only on /output/ (D-04). The dashboard never authoritatively writes the dirty flag.
+    if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    // Subscribe to the local dirty listener (added by plan 27-02 task 1).
+    addDirtyListener((dirty) => {
+      // Fire-and-forget POST. The 100 ms server rate limit prevents oscillation issues.
+      void _postAlignModeDirtyToServer(dirty);
+    });
+  }
+
   function init(dependencies) {
     ctx = dependencies;
     if (dependencies?.grid) grid = dependencies.grid;
@@ -393,6 +426,8 @@
     if (gs && typeof gs.addHandlesVisibleListener === "function") {
       gs.addHandlesVisibleListener((v) => { handlesVisible = v; });
     }
+    // Phase 27 (B5): on /output/ only, subscribe the dirty POST broadcaster.
+    _maybeStartOutputDirtyBroadcaster();
   }
 
   window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE = {

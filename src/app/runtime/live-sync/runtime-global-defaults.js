@@ -387,7 +387,7 @@
     return getGlobalDefaultsApiFacade().fetchGlobalDefaultsPayload();
   }
 
-  function applyGlobalDefaultsPayloadToState(payload) {
+  function applyGlobalDefaultsPayloadToState(payload, runtimeSessionExtras = null) {
     const state = ctx.state;
     const boardCandidate = ctx.extractBoardProfilesCandidate(payload);
     if (boardCandidate) {
@@ -429,6 +429,18 @@
 
     if (payload && Object.prototype.hasOwnProperty.call(payload, "diagnosticOverlay")) {
       state.diagnosticOverlay = Boolean(payload.diagnosticOverlay);
+    }
+
+    // Phase 27 (B5/D-05/D-06): runtime session field — not stored in global-defaults.json.
+    // Comes from liveSessionState.snapshot.alignModeDirtyOnOutput on the server.
+    if (runtimeSessionExtras && Object.prototype.hasOwnProperty.call(runtimeSessionExtras, "alignModeDirtyOnOutput")) {
+      const next = Boolean(runtimeSessionExtras.alignModeDirtyOnOutput);
+      if (state.alignModeDirtyOnOutput !== next) {
+        state.alignModeDirtyOnOutput = next;
+        if (typeof ctx.syncAlignModeDirtyDashboardState === "function") {
+          ctx.syncAlignModeDirtyDashboardState();
+        }
+      }
     }
   }
 

@@ -45,6 +45,36 @@
 
   let _lastAlignModeState = null;
 
+  function syncAlignModeDirtyDashboardState() {
+    // Phase 27 (B5/D-05): when /output/ is dirty, disable the dashboard align-mode toggle
+    // with the locked hint copy. Only the dashboard (control role) shows this state.
+    if (!ctx || ctx.outputRole === ctx.OUTPUT_ROLE_FINAL) return;
+    const dirty = Boolean(ctx.state?.alignModeDirtyOnOutput);
+    const btn = ctx.alignModeButton;
+    if (!btn) return;
+    const hint = document.getElementById("align-mode-dirty-hint");
+    const HINT_COPY = "Unsaved changes on /output/ — save or discard there first.";
+    if (dirty) {
+      btn.setAttribute("disabled", "");
+      btn.setAttribute("title", HINT_COPY);
+      btn.setAttribute("aria-describedby", "align-mode-dirty-hint");
+      if (hint) {
+        hint.textContent = HINT_COPY;
+        hint.removeAttribute("hidden");
+      }
+    } else {
+      btn.removeAttribute("disabled");
+      btn.removeAttribute("aria-describedby");
+      // Restore the title that matches the current align state (don't call syncAlignModePanel — avoids loop).
+      const enabled = Boolean(ctx.state?.alignMode);
+      btn.setAttribute("title", enabled ? "Align mode on (click to turn off)" : "Toggle align mode");
+      if (hint) {
+        hint.textContent = "";
+        hint.setAttribute("hidden", "");
+      }
+    }
+  }
+
   function syncAlignModePanel() {
     const state = ctx.state;
     const enabled = Boolean(state.alignMode);
@@ -86,12 +116,16 @@
       if (ctx.outputRole === ctx.OUTPUT_ROLE_CONTROL) {
         ctx.roomOverlay.style.display = "";
         ctx.roomOverlay.setAttribute("aria-hidden", "false");
+        // Phase 27 (B5): re-evaluate dirty-disable on every align-state change.
+        syncAlignModeDirtyDashboardState();
         return;
       }
       const hiddenInFinal = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL && !enabled;
       ctx.roomOverlay.style.display = hiddenInFinal ? "none" : "block";
       ctx.roomOverlay.setAttribute("aria-hidden", hiddenInFinal ? "true" : "false");
     }
+    // Phase 27 (B5): re-evaluate dirty-disable on every align-state change.
+    syncAlignModeDirtyDashboardState();
   }
 
   function setAlignMode(enabled, { emit = true } = {}) {
@@ -263,6 +297,7 @@
     init,
     applyOutputRoleViewContract,
     syncAlignModePanel,
+    syncAlignModeDirtyDashboardState,
     setAlignMode,
     collectStageViewportMetrics,
     getCanonicalViewportRect,

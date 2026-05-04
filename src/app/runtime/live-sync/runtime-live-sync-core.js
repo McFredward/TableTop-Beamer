@@ -468,6 +468,15 @@
               // live-hello is a server snapshot — mark as applied
               ctx.liveSync.firstServerSnapshotApplied = true;
             }
+            // Phase 27 (B5): seed alignModeDirtyOnOutput from the hello envelope so the
+            // dashboard reflects the current dirty state immediately on connect.
+            const helloSnapshotForDirty = payload?.session?.snapshot;
+            if (helloSnapshotForDirty && Object.prototype.hasOwnProperty.call(helloSnapshotForDirty, "alignModeDirtyOnOutput")) {
+              ctx.state.alignModeDirtyOnOutput = Boolean(helloSnapshotForDirty.alignModeDirtyOnOutput);
+              if (typeof ctx.syncAlignModeDirtyDashboardState === "function") {
+                ctx.syncAlignModeDirtyDashboardState();
+              }
+            }
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
           if (payload?.type === "live-session-update") {
@@ -509,7 +518,10 @@
               void (async () => {
                 try {
                   const loaded = await ctx.fetchGlobalDefaultsPayload();
-                  ctx.applyGlobalDefaultsPayloadToState(loaded.payload);
+                  // Phase 27 (B5): also propagate runtime-session fields from the envelope
+                  // (alignModeDirtyOnOutput rides on session.snapshot, not global-defaults.json).
+                  const runtimeExtras = payload?.session?.snapshot || null;
+                  ctx.applyGlobalDefaultsPayloadToState(loaded.payload, runtimeExtras);
                   ctx.syncRuntimePanelsFromState();
                   ctx.renderRunningAnimationsList();
                   ctx.refreshGlobalButtons();

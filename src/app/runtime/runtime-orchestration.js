@@ -266,6 +266,7 @@ window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT.init({
 const {
   applyOutputRoleViewContract,
   syncAlignModePanel,
+  syncAlignModeDirtyDashboardState,
   setAlignMode,
   collectStageViewportMetrics,
   getCanonicalViewportRect,
@@ -498,6 +499,7 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   stopSoundsForInactiveAnimations: () => stopSoundsForInactiveAnimations(),
   playSoundForAnimation: (animation) => playSoundForAnimation(animation),
   syncAlignModePanel: () => syncAlignModePanel(),
+  syncAlignModeDirtyDashboardState: () => syncAlignModeDirtyDashboardState(),
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
@@ -2986,6 +2988,7 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     syncRoomFxPanel,
     syncOutsideFxPanel,
     syncAlignModePanel,
+    syncAlignModeDirtyDashboardState,
     syncBoardZoomPanel,
     syncDashboardZoneVisibility,
     syncMobilePerformanceStatus,

@@ -172,6 +172,10 @@
             </svg>
             <span>Align</span>
           </button>
+          <!-- Phase 27 (B5/D-05): screen-reader hint shown when /output/ has unsaved align-mode changes.
+               Populated and shown/hidden by syncAlignModeDirtyDashboardState() in runtime-stage-viewport.js. -->
+          <p id="align-mode-dirty-hint" class="hint dashboard-only" data-view="dashboard"
+             aria-live="polite" hidden></p>
           <!-- Phase 22 W5: theme toggle. Inline onclick flips dark/light
                + persists to localStorage. Sun/moon glyphs are drawn from
                two SVGs; CSS hides the inactive one by body theme class. -->

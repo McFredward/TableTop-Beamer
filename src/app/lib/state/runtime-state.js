@@ -18,6 +18,10 @@
       selectedRoomId: null,
       selectedRoomByBoard: {},
       alignMode: false,
+      // Phase 27 (B5/D-06): mirrors liveSessionState.snapshot.alignModeDirtyOnOutput on the server.
+      // True while /output/ has unsaved align-mode geometry changes. Read-only for all clients
+      // except /output/ which POSTs changes via /api/align-mode-dirty.
+      alignModeDirtyOnOutput: false,
       roomDraft: {
         editTargetId: null,
         targetType: "room",
