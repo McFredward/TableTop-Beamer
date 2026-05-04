@@ -7,7 +7,10 @@
 // animation-editor-edit-pane.js (Option B minimal split — shell drops
 // 1006 → ~684, clearing the ≤800 line acceptance bar). Cluster has
 // no `ctx.`/`state.` refs — only `patchAnimation` (injected via init)
-// plus `window.confirm` / `window.TT_BEAMER_CONFIG` globals. The two
+// plus `window.TT_BEAMER_RUNTIME_MODAL.showConfirm` / `window.TT_BEAMER_CONFIG`
+// globals. (Phase 28 B4 replaced the legacy `window` confirm calls with the
+// existing glassmorphism showConfirm modal for parity with board-delete UX.)
+// The two
 // private helpers `fetchAnimationResources` / `fetchSoundResources`
 // move with their callers (only called from
 // `buildAssetPickerRow` / `buildSoundPickerRow` respectively, per the
@@ -154,7 +157,14 @@
       const current = select.value;
       if (!current) return;
       const name = current.replace(/^\/resources\/animations\//, "");
-      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
+      const ok = await window.TT_BEAMER_RUNTIME_MODAL.showConfirm({
+        title: `Delete ${name}?`,
+        body: "This removes the file from disk and frees its slot.",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
+      if (!ok) return;
       status.textContent = `Deleting ${name}…`;
       deleteBtn.disabled = true;
       try {
@@ -337,7 +347,14 @@
       const current = select.value;
       if (!current || current === noneValue) return;
       const name = current.replace(/^\/resources\/sounds\//, "");
-      if (!window.confirm(`Delete ${name}? This removes it from disk.`)) return;
+      const ok = await window.TT_BEAMER_RUNTIME_MODAL.showConfirm({
+        title: `Delete ${name}?`,
+        body: "This removes the file from disk and frees its slot.",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        danger: true,
+      });
+      if (!ok) return;
       status.textContent = `Deleting ${name}…`;
       deleteBtn.disabled = true;
       try {
