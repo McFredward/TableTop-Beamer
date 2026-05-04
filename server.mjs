@@ -20,6 +20,9 @@ const PROJECTION_PROFILES_PATH = path.join(ROOT_DIR, "config", "projection-profi
 const BOARD_STORAGE_DIR = path.join(ROOT_DIR, "config", "boards");
 const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
+// Phase 28 B5 — central asset manifest with sha256[:12] cache-busting tokens.
+const ASSET_MANIFEST_PATH = path.join(ROOT_DIR, "config", "asset-manifest.json");
+const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
 const BOARD_DEFINITION_SCHEMA = "tt-beamer.board.v2";
@@ -2209,11 +2212,20 @@ async function listResourceFilesRecursive(baseDir, relativeDir = "") {
 async function loadResourceAssetCatalog() {
   const files = await listResourceFilesRecursive(RESOURCES_DIR);
   files.sort((a, b) => a.localeCompare(b));
+  // Phase 28 B5 — flat hashByPath map for client cache-busting.
+  const manifest = runtimeAssetManifest || (await loadAssetManifest());
+  const hashByPath = {};
+  for (const [url, entry] of Object.entries(manifest.hashByPath || {})) {
+    if (entry && typeof entry.hash === "string") {
+      hashByPath[url] = entry.hash;
+    }
+  }
   return {
     schema: "tt-beamer.resources.v1",
     generatedAt: new Date().toISOString(),
     count: files.length,
     files,
+    hashByPath,
   };
 }
 
@@ -2229,6 +2241,127 @@ const SOUND_RESOURCE_CONFIG = {
   maxBytes: 20 * 1024 * 1024,
   extensions: new Set(["mp3", "wav", "ogg", "m4a"]),
 };
+
+// ============================================================================
+// Phase 28 B5 — asset manifest infrastructure.
+//
+// The manifest is a single JSON file at config/asset-manifest.json holding a
+// flat hashByPath map. Each entry stores `{ hash, size, mtime }` where `hash`
+// is a sha256(bytes).digest("hex").substring(0, 12) cache-busting token (NOT
+// a security/integrity control — purely a URL cache-busting suffix). Clients
+// build `?v=<hash>` URL suffixes which invalidate (a) the browser HTTP cache,
+// (b) the path-keyed in-memory `Image`/`HTMLVideoElement` Maps in the render
+// layer, all in one stroke because the URL string IS the cache key.
+// ============================================================================
+
+let runtimeAssetManifest = null;
+
+async function loadAssetManifest() {
+  try {
+    const raw = await readFile(ASSET_MANIFEST_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    if (
+      parsed?.schema !== ASSET_MANIFEST_SCHEMA
+      || !parsed.hashByPath
+      || typeof parsed.hashByPath !== "object"
+    ) {
+      return {
+        schema: ASSET_MANIFEST_SCHEMA,
+        generatedAt: new Date().toISOString(),
+        hashByPath: {},
+      };
+    }
+    return parsed;
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return {
+        schema: ASSET_MANIFEST_SCHEMA,
+        generatedAt: new Date().toISOString(),
+        hashByPath: {},
+      };
+    }
+    console.warn("[asset-manifest] load failed:", error?.message || error);
+    return {
+      schema: ASSET_MANIFEST_SCHEMA,
+      generatedAt: new Date().toISOString(),
+      hashByPath: {},
+    };
+  }
+}
+
+async function saveAssetManifest(manifest) {
+  manifest.schema = ASSET_MANIFEST_SCHEMA;
+  manifest.generatedAt = new Date().toISOString();
+  await mkdir(path.dirname(ASSET_MANIFEST_PATH), { recursive: true });
+  await writeFile(
+    ASSET_MANIFEST_PATH,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+function computeAssetHash(buffer) {
+  // D-12: sha256[:12] — cache-busting token only, NOT for content authentication.
+  return createHash("sha256").update(buffer).digest("hex").substring(0, 12);
+}
+
+async function synthesizeAssetManifestFromDisk() {
+  const manifest = {
+    schema: ASSET_MANIFEST_SCHEMA,
+    generatedAt: new Date().toISOString(),
+    hashByPath: {},
+  };
+  for (const config of [ANIMATION_RESOURCE_CONFIG, SOUND_RESOURCE_CONFIG]) {
+    let entries = [];
+    try {
+      entries = await readdir(config.absoluteDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const filename = entry.name;
+      const ext = path.extname(filename).replace(/^\./, "").toLowerCase();
+      if (!config.extensions.has(ext)) continue;
+      const absolute = path.join(config.absoluteDir, filename);
+      try {
+        const buf = await readFile(absolute);
+        const fileStat = await stat(absolute);
+        const url = `/resources/${config.folder}/${filename}`;
+        manifest.hashByPath[url] = {
+          hash: computeAssetHash(buf),
+          size: buf.length,
+          mtime: fileStat.mtime.toISOString(),
+        };
+      } catch (err) {
+        console.warn(
+          `[asset-manifest] failed to hash ${absolute}:`,
+          err?.message || err,
+        );
+      }
+    }
+  }
+  return manifest;
+}
+
+async function ensureAssetManifestOnBoot() {
+  const existing = await loadAssetManifest();
+  const synthesized = await synthesizeAssetManifestFromDisk();
+  // Preserve existing mtime where the hash matches (avoid touching mtime on
+  // every boot just because the file was re-stat'd). Idempotent: re-running
+  // yields identical output as long as the bytes on disk are unchanged.
+  for (const [url, entry] of Object.entries(synthesized.hashByPath)) {
+    const prior = existing.hashByPath?.[url];
+    if (prior && prior.hash === entry.hash && prior.mtime) {
+      entry.mtime = prior.mtime;
+    }
+  }
+  await saveAssetManifest(synthesized);
+  runtimeAssetManifest = synthesized;
+  console.log(
+    `[asset-manifest] ready (${Object.keys(synthesized.hashByPath).length} entries)`,
+  );
+}
 
 function sanitizeResourceFilename(raw, config) {
   const cleaned = String(raw ?? "")
@@ -2282,14 +2415,46 @@ async function handleResourceUpload(req, res, config) {
     sendJson(res, 400, { ok: false, error: "empty payload" });
     return;
   }
+  // Phase 28 B5 — compute cache-busting hash + persist manifest + broadcast.
+  const buffer = Buffer.concat(chunks);
+  const hash = computeAssetHash(buffer);
   try {
     await mkdir(config.absoluteDir, { recursive: true });
-    await writeFile(target.absolute, Buffer.concat(chunks));
+    await writeFile(target.absolute, buffer);
   } catch {
     sendJson(res, 500, { ok: false, error: "write failed" });
     return;
   }
-  sendJson(res, 200, { ok: true, path: target.url, filename: target.filename });
+  // Manifest update + broadcast — failures here MUST NOT fail the upload (the
+  // file is already on disk). The manifest will be lazy-rebuilt on next boot.
+  try {
+    const manifest = await loadAssetManifest();
+    manifest.hashByPath[target.url] = {
+      hash,
+      size: buffer.length,
+      mtime: new Date().toISOString(),
+    };
+    await saveAssetManifest(manifest);
+    runtimeAssetManifest = manifest;
+    try {
+      broadcastLiveSession("global-config-update", {
+        target: "config/asset-manifest.json",
+        savedAt: manifest.generatedAt,
+        source: "asset-upload",
+      });
+    } catch (broadcastErr) {
+      console.warn(
+        "[asset-manifest] broadcast failed:",
+        broadcastErr?.message || broadcastErr,
+      );
+    }
+  } catch (manifestErr) {
+    console.warn(
+      "[asset-manifest] update on upload failed:",
+      manifestErr?.message || manifestErr,
+    );
+  }
+  sendJson(res, 200, { ok: true, path: target.url, filename: target.filename, hash });
 }
 
 async function handleResourceDelete(req, res, config) {
@@ -2311,6 +2476,31 @@ async function handleResourceDelete(req, res, config) {
     }
     sendJson(res, 500, { ok: false, error: "delete failed" });
     return;
+  }
+  // Phase 28 B5 — drop manifest entry + broadcast. Same fail-soft semantics as
+  // the upload path: file is already removed, manifest will heal on next boot.
+  try {
+    const manifest = await loadAssetManifest();
+    delete manifest.hashByPath[target.url];
+    await saveAssetManifest(manifest);
+    runtimeAssetManifest = manifest;
+    try {
+      broadcastLiveSession("global-config-update", {
+        target: "config/asset-manifest.json",
+        savedAt: manifest.generatedAt,
+        source: "asset-delete",
+      });
+    } catch (broadcastErr) {
+      console.warn(
+        "[asset-manifest] broadcast failed:",
+        broadcastErr?.message || broadcastErr,
+      );
+    }
+  } catch (manifestErr) {
+    console.warn(
+      "[asset-manifest] update on delete failed:",
+      manifestErr?.message || manifestErr,
+    );
   }
   sendJson(res, 200, { ok: true, path: target.url });
 }
@@ -3542,6 +3732,19 @@ try {
   }
 } catch (error) {
   console.warn("[default-animations] Could not load defaults:", error?.message || error);
+}
+
+// Phase 28 B5 — synchronously ensure the asset manifest is ready BEFORE the
+// HTTP listener accepts requests. Synthesis is idempotent (sha256[:12] of every
+// file in resources/animations + resources/sounds); existing entries with
+// matching hashes preserve their mtime to keep the manifest stable across boots.
+try {
+  await ensureAssetManifestOnBoot();
+} catch (error) {
+  console.warn(
+    "[asset-manifest] boot synthesis failed (continuing without manifest):",
+    error?.message || error,
+  );
 }
 
 server.listen(PORT, HOST, () => {

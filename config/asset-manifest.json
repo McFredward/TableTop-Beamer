@@ -1,0 +1,46 @@
+{
+  "schema": "tt-beamer.asset-manifest.v1",
+  "generatedAt": "2026-05-04T15:36:59.873Z",
+  "hashByPath": {
+    "/resources/animations/burst.gif": {
+      "hash": "ea0b0774b013",
+      "size": 2547448,
+      "mtime": "2026-04-12T08:27:47.249Z"
+    },
+    "/resources/animations/fire.gif": {
+      "hash": "07c43c1ec097",
+      "size": 2226598,
+      "mtime": "2026-04-12T08:27:47.250Z"
+    },
+    "/resources/animations/malfunction.gif": {
+      "hash": "4f0558cdafdf",
+      "size": 1656508,
+      "mtime": "2026-04-12T08:27:47.263Z"
+    },
+    "/resources/animations/malfunction2.mp4": {
+      "hash": "ce795c9b4405",
+      "size": 58185897,
+      "mtime": "2026-04-12T08:27:47.262Z"
+    },
+    "/resources/animations/sandstorm.mp4": {
+      "hash": "ef3d9bf25b19",
+      "size": 2839670,
+      "mtime": "2026-04-12T08:27:47.264Z"
+    },
+    "/resources/animations/slime.gif": {
+      "hash": "7c8c380d6064",
+      "size": 22274941,
+      "mtime": "2026-05-04T08:01:56.744Z"
+    },
+    "/resources/sounds/alarm.mp3": {
+      "hash": "34dfaf906741",
+      "size": 108921,
+      "mtime": "2026-04-12T08:27:47.270Z"
+    },
+    "/resources/sounds/electricity.mp3": {
+      "hash": "8e271583c8f9",
+      "size": 421440,
+      "mtime": "2026-04-12T08:27:47.270Z"
+    }
+  }
+}
