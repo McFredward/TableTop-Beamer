@@ -209,6 +209,50 @@
     }
   }
 
+  async function createNewProfileFlow() {
+    // h4: "New" button — prompt for a name, then LOAD THE DEFAULT
+    // geometry into the editor (instead of the current state), and
+    // save it as a fresh new profile under the given name. Any
+    // unsaved changes from the previous session are silently
+    // discarded — consistent with D-04 (no confirm modal for
+    // destructive operations on align state, since align geometry
+    // is easy to redo).
+    const boardId = getCurrentBoardId();
+    if (!boardId) { _showAlignErrorToast("No board selected."); return { ok: false }; }
+    const name = await _promptProfileNameModal({ kind: "create-new" });
+    if (!name) return { ok: false, cancelled: true };
+    // Step 1: load the new-profile default geometry into the editor
+    // (this becomes the profile's saved state).
+    pushUndo();
+    const def = _gridStateApi.buildNewProfileDefaultGrid();
+    _gridStateApi.restoreGridSnapshot({
+      srcXs: def.srcXs.slice(),
+      srcYs: def.srcYs.slice(),
+      points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
+    });
+    saveToLocalStorage();
+    if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
+    applyTransform();
+    if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    // Step 2: persist the default geometry as a new profile so it is
+    // immediately selectable in the load picker.
+    try {
+      const resp = await fetch("/api/projection-profiles", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ boardId, name, data: buildGridPayload() }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      _loadedProfileName = name;
+      _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+      _recomputeAndNotifyDirty();
+      return { ok: true, name };
+    } catch (err) {
+      _showAlignErrorToast("Create failed: " + (err?.message || err));
+      return { ok: false, error: err };
+    }
+  }
+
   function discardChanges() {
     // D-04 (B4): no confirm modal. If a profile is loaded, restore its snapshot; otherwise reset to new-profile default.
     pushUndo();
@@ -219,7 +263,11 @@
       _gridStateApi.restoreGridSnapshot({
         srcXs: def.srcXs.slice(),
         srcYs: def.srcYs.slice(),
-        points: def.srcYs.map((y) => def.srcXs.map((x) => ({ x, y }))),
+        // h5: use the displaced points from buildNewProfileDefaultGrid
+        // (def.points), NOT a synthesized identity points array. The
+        // identity version would set points == srcXs and disable the GL
+        // warp, leaving the board at 100% with alignment lines at 80%.
+        points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
       });
     }
     saveToLocalStorage();
@@ -229,7 +277,7 @@
     _recomputeAndNotifyDirty();
   }
 
-  function _promptProfileNameModal() {
+  function _promptProfileNameModal({ kind = "save-as-new" } = {}) {
     return new Promise((resolve) => {
       const backdrop = document.createElement("div");
       backdrop.className = "tt-modal-backdrop";
@@ -239,10 +287,14 @@
       modal.setAttribute("aria-modal", "true");
       const title = document.createElement("div");
       title.className = "tt-modal-title";
-      title.textContent = "Save as new profile";
+      // h4: variant copy. "save-as-new" preserves the current geometry
+      // under a new name; "create-new" loads the default geometry first.
+      title.textContent = kind === "create-new" ? "Create new profile" : "Save as new profile";
       const body = document.createElement("div");
       body.className = "tt-modal-body";
-      body.textContent = "Give this alignment a name so you can reload it later.";
+      body.textContent = kind === "create-new"
+        ? "Give the new profile a name. The default 80% layout will be loaded, replacing any unsaved changes."
+        : "Give this alignment a name so you can reload it later.";
       const input = document.createElement("input");
       input.className = "tt-modal-input";
       input.type = "text";
@@ -255,7 +307,7 @@
       cancelBtn.textContent = "Keep editing";
       const confirmBtn = document.createElement("button");
       confirmBtn.className = "tt-modal-btn tt-modal-btn-primary";
-      confirmBtn.textContent = "Save profile";
+      confirmBtn.textContent = kind === "create-new" ? "Create profile" : "Save profile";
       confirmBtn.disabled = true;
       const close = (val) => {
         document.body.removeChild(backdrop);
@@ -447,6 +499,7 @@
     // Phase 27:
     saveLoadedProfileFlow,
     saveAsNewProfileFlow,
+    createNewProfileFlow,
     discardChanges,
     isDirty,
     isCurrentlyDirty,

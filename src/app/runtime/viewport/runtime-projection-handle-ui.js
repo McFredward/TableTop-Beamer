@@ -483,11 +483,13 @@
       transition: background 80ms ease, border-color 80ms ease, opacity 80ms ease;
     `;
 
-    // Save as new
+    // h4: "New" button — prompts for a name and loads the default
+    // geometry into the editor (replaces the older "Save as new…"
+    // semantics, which preserved the current geometry).
     const saveAsBtn = document.createElement("button");
-    saveAsBtn.className = "projection-align-action-btn projection-align-action-saveas";
+    saveAsBtn.className = "projection-align-action-btn projection-align-action-new";
     saveAsBtn.type = "button";
-    saveAsBtn.textContent = "Save as new…";
+    saveAsBtn.textContent = "New";
     saveAsBtn.style.cssText = saveBtn.style.cssText;
 
     // h2: Load profile (the legacy right-click "Load profile..." menu was
@@ -524,7 +526,7 @@
     // Click bindings
     const api = _getProfilePersistApi();
     saveBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveLoadedProfileFlow(); _refreshAlignToolbarVisual(); });
-    saveAsBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.saveAsNewProfileFlow(); _refreshAlignToolbarVisual(); });
+    saveAsBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.createNewProfileFlow(); _refreshAlignToolbarVisual(); });
     loadBtn.addEventListener("click", async (e) => { e.preventDefault(); if (api) await api.profileLoadFlow(); _refreshAlignToolbarVisual(); });
     discardBtn.addEventListener("click", (e) => { e.preventDefault(); if (api) api.discardChanges(); _refreshAlignToolbarVisual(); });
 
@@ -766,7 +768,17 @@
 
     if (e.key === "Escape") {
       e.preventDefault();
-      resetGrid();
+      // h5: ESC is now equivalent to clicking "Discard" — restore the
+      // last-loaded profile geometry (or the new-profile default if no
+      // profile is loaded). NOT a full reset (which would also clear
+      // localStorage). Per D-04 there is no confirm modal.
+      const api = _getProfilePersistApi();
+      if (api && typeof api.discardChanges === "function") {
+        api.discardChanges();
+      } else {
+        // Fallback if persistence module isn't ready yet.
+        resetGrid();
+      }
       return;
     }
 
