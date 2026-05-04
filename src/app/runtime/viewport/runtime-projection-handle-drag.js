@@ -378,6 +378,13 @@
     document.removeEventListener("pointerup", onPanDragEnd);
     document.removeEventListener("pointercancel", onPanDragEnd);
     saveToLocalStorage();
+    // h11: pan-drag (the "verschieben" gesture — drag empty canvas to
+    // translate the whole grid) is the only mutation path that wasn't
+    // wired to the dirty broadcaster. Every other drag-end handler
+    // (onDragEnd / onLineDragEnd / onRotateDragEnd / onSquishDragEnd)
+    // already calls notifyDirtyChanged. Add it here so pan-drags
+    // correctly trigger the dirty flag.
+    try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
   function onLineDragMove(e) {
