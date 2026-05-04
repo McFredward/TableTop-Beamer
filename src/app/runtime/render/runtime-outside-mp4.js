@@ -39,9 +39,15 @@
     if (!normalizedPath) {
       return null;
     }
+    // Phase 28 B5: resolve the hash-suffixed URL. Map key stays as the raw
+    // `normalizedPath` so the asset-picker delete logic and the rest of the
+    // render layer continue to find cache entries by canonical path. Only
+    // `<video>.src` gets the `?v=<hash>` suffix.
+    const resolveHashUrl = () =>
+      window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(normalizedPath) ?? normalizedPath;
     if (!cacheMap.has(normalizedPath)) {
       const video = document.createElement("video");
-      video.src = normalizedPath;
+      video.src = resolveHashUrl();
       video.crossOrigin = "anonymous";
       video.preload = "auto";
       video.muted = true;
@@ -65,6 +71,27 @@
           entry.status = "error";
         }
       });
+    } else {
+      // Phase 28 B5: cache hit — re-upload between this and last call may have
+      // changed the resolved hash. If so, refresh the element's src so the
+      // browser bypasses HTTP cache AND the <video> reloads new bytes.
+      const entry = cacheMap.get(normalizedPath);
+      const video = entry?.video;
+      if (video) {
+        const desired = resolveHashUrl();
+        if (video.src !== desired && desired) {
+          // src setter is relative; compare canonical absolute strings.
+          const currentAbs = video.src;
+          const desiredAbs = new URL(desired, window.location.href).href;
+          if (currentAbs !== desiredAbs) {
+            video.src = desired;
+            try { video.currentTime = 0; } catch { /* DOM may reject */ }
+            try { video.load(); } catch { /* harmless */ }
+            entry.status = "loading";
+            entry.durationSec = null;
+          }
+        }
+      }
     }
     return cacheMap.get(normalizedPath) ?? null;
   }

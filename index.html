@@ -985,6 +985,10 @@
   <script src="/src/app/runtime/state/runtime-local-ui-prefs.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-polygon-drag-support.js" defer></script>
   <script src="/src/app/runtime/state/runtime-room-geometry.js" defer></script>
+  <!-- Phase 28 B5: asset manifest mirror — must load BEFORE the render-layer
+       modules (gif-playback / outside-mp4) so window.TT_BEAMER_RUNTIME_ASSET_MANIFEST
+       exists when their fetch / video.src code paths first run. -->
+  <script src="/src/app/runtime/state/runtime-asset-manifest.js" defer></script>
   <script src="/src/app/runtime/render/runtime-gif-decoder.js" defer></script>
   <script src="/src/app/runtime/render/runtime-gif-playback.js" defer></script>
   <script src="/src/app/runtime/render/runtime-outside-mp4.js" defer></script>

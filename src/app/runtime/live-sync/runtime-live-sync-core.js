@@ -508,6 +508,28 @@
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
           if (payload?.type === "global-config-update") {
+            // Phase 28 B5: when the broadcast target is the asset manifest,
+            // refetch /api/resources and update the client manifest mirror
+            // independently of the localConfigDirty / suppress gates above —
+            // those gates protect global-defaults user state, not asset URLs.
+            if (payload.target === "config/asset-manifest.json") {
+              void (async () => {
+                try {
+                  const resp = await fetch("/api/resources");
+                  if (!resp.ok) return;
+                  const body = await resp.json();
+                  const m = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST;
+                  if (m && typeof m.setManifest === "function" && body && typeof body.hashByPath === "object") {
+                    m.setManifest(body.hashByPath);
+                  }
+                } catch (err) {
+                  console.warn(
+                    "[asset-manifest] sync after broadcast failed:",
+                    err?.message || err,
+                  );
+                }
+              })();
+            }
             if (ctx.state.localConfigDirty) {
               ctx.state.remoteConfigUpdateAwaiting = true;
               ctx.refreshApplyDiscardButtonsUi();

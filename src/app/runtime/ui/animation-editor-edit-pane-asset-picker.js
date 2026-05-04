@@ -133,14 +133,22 @@
         const currentAssetRef = String(def.assetRef || "").trim();
         const uploadedPath = String(payload.path || "").trim();
         if (currentAssetRef && uploadedPath === currentAssetRef) {
-          // Re-upload of the SAME path that the def already references = content
-          // change (the user just replaced the bytes on disk under the same
-          // name).
-          // TODO(28-04): hash-diff gate per D-07.3 — when Plan 28-04 lands the
-          // server-side `payload.hash`, replace the unconditional patchAnimation
-          // here with `if (_lastSeenAssetHashByPath.get(uploadedPath) !== payload.hash)`
-          // and then `_lastSeenAssetHashByPath.set(uploadedPath, payload.hash);`.
-          patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+          // Re-upload of the SAME path that the def already references. Phase 28
+          // B5 (D-07.2 + D-07.3): payload.hash is now provided by the server.
+          // Same-bytes re-upload (same hash) → no dirty fire. Different-bytes
+          // re-upload (different hash) → patchAnimation fires + tracker updates.
+          const prevHash = _lastSeenAssetHashByPath.get(uploadedPath);
+          const newHash = typeof payload.hash === "string" ? payload.hash : null;
+          if (newHash && prevHash !== newHash) {
+            _lastSeenAssetHashByPath.set(uploadedPath, newHash);
+            patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+          } else if (!newHash) {
+            // Server didn't return a hash (legacy fallback) — fire as before
+            // so we don't regress dirty-on-replace behaviour.
+            patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+          }
+          // else: same hash → identical-bytes re-upload → no patchAnimation,
+          // no dirty.
         }
         // else: pure-library upload (no selection match) → no patchAnimation,
         // no dirty.
@@ -327,10 +335,19 @@
         const currentSoundRef = String(def.soundAssetRef || "").trim();
         const uploadedSoundPath = String(payload.path || "").trim();
         if (currentSoundRef && uploadedSoundPath === currentSoundRef) {
-          // TODO(28-04): hash-diff gate per D-07.3 — see _lastSeenSoundHashByPath.
-          // Plan 28-04 will replace the unconditional patchAnimation with a
-          // hash-compare against the tracker map.
-          patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+          // Phase 28 B5 (D-07.2 + D-07.3): symmetric hash-diff gate for sounds.
+          // Same hash = identical bytes re-uploaded → no patchAnimation, no dirty.
+          // Different hash = real content change → patchAnimation fires.
+          const prevSoundHash = _lastSeenSoundHashByPath.get(uploadedSoundPath);
+          const newSoundHash = typeof payload.hash === "string" ? payload.hash : null;
+          if (newSoundHash && prevSoundHash !== newSoundHash) {
+            _lastSeenSoundHashByPath.set(uploadedSoundPath, newSoundHash);
+            patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+          } else if (!newSoundHash) {
+            // Server didn't return a hash (legacy fallback) — fire as before.
+            patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+          }
+          // else: same hash → no-op.
         }
         // else: pure-library sound upload (no selection match) → no
         // patchAnimation, no dirty.

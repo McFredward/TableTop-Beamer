@@ -39,7 +39,14 @@
   }
 
   async function decodeGifPlaybackFrames(path, entry) {
-    const response = await fetch(path, { cache: "force-cache" });
+    // Phase 28 B5: append `?v=<hash>` to the network URL so a re-upload of the
+    // same path (different bytes) bypasses (a) the browser HTTP cache and
+    // (b) keeps the in-memory `gifPlaybackCacheByPath` Map keyed by the raw
+    // `path` (so asset-picker delete logic still finds the right entry). The
+    // resolver returns `path` unchanged when the manifest has no entry (e.g.
+    // built-in `coded-effect.fallback` paths).
+    const resolvedUrl = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
+    const response = await fetch(resolvedUrl, { cache: "force-cache" });
     if (!response.ok) {
       throw new Error(`GIF fetch failed (${response.status})`);
     }

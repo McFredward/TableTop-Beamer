@@ -442,6 +442,16 @@
         }
       }
     }
+
+    // Phase 28 B5: asset manifest application. The manifest may ride on the
+    // bootstrap payload or be inlined on a global-config-update envelope. Pass
+    // the flat hashByPath map (or the entry-shaped one — the resolver accepts
+    // both) into the client mirror.
+    if (payload && typeof payload === "object" && payload.assetManifest && typeof payload.assetManifest === "object") {
+      if (window.TT_BEAMER_RUNTIME_ASSET_MANIFEST && typeof window.TT_BEAMER_RUNTIME_ASSET_MANIFEST.setManifest === "function") {
+        window.TT_BEAMER_RUNTIME_ASSET_MANIFEST.setManifest(payload.assetManifest.hashByPath || {});
+      }
+    }
   }
 
   async function autoLoadGlobalDefaultsForFreshDevice({ force = false } = {}) {

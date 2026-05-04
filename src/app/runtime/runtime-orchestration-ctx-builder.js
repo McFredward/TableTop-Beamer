@@ -129,6 +129,15 @@
       // ─── Area Q — Diagnostics ───────────────────────────────────
       getLiveTraceSnapshot,
     } = refs;
+    // Phase 28 B5: asset manifest resolver. Every render-layer module that
+    // turns a raw assetRef into a network URL goes through ctx.resolveAssetUrlWithHash
+    // so `?v=<hash>` cache-busting is enforced consistently.
+    const resolveAssetUrlWithHash = (rawPath) => {
+      const m = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST;
+      return m && typeof m.resolveAssetUrlWithHash === "function"
+        ? m.resolveAssetUrlWithHash(rawPath)
+        : rawPath;
+    };
     return {
       // ─── Area A — Runtime state + globals ───────────────────────
       state,
@@ -242,6 +251,8 @@
       createAnimation: (opts) => createAnimation(opts),
       // ─── Area Q — Diagnostics ───────────────────────────────────
       getLiveTraceSnapshot,
+      // ─── Area R — Asset manifest resolver (Phase 28 B5) ──────────
+      resolveAssetUrlWithHash,
     };
   }
 

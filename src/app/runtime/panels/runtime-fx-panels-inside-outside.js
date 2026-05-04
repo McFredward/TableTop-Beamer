@@ -394,6 +394,16 @@
           .filter((entry) => entry.startsWith("/resources/") && /\.(gif|mp4)$/i.test(entry))
           .sort(),
       );
+      // Phase 28 B5: seed the client asset manifest mirror at boot. The
+      // server returns hashByPath as a flat path→hash map alongside files[].
+      const assetManifestModule = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST;
+      if (
+        assetManifestModule
+        && typeof assetManifestModule.setManifest === "function"
+        && payload && typeof payload.hashByPath === "object"
+      ) {
+        assetManifestModule.setManifest(payload.hashByPath);
+      }
     } catch {
       ctx.setOutsideResourceAssets([]);
     }

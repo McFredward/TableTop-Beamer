@@ -1,7 +1,7 @@
 // Phase 28 Wave 3 — asset-picker-dirty-gate (B3 dirty-fires-only-on-effective-change semantics).
-// Source-pattern tests on the asset-picker IIFE. Plan 28-04 will convert the two
-// hash-related TODO assertions into live hash-compare assertions when the server
-// returns `payload.hash`.
+// Plan 28-04 upgraded the B3-D07.2 + B3-D07.3 hash-TODO assertions to LIVE
+// hash-diff behaviour assertions: the source now wires `_lastSeenAssetHashByPath`
+// (and the sound-side counterpart) to the server-returned `payload.hash`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -32,77 +32,90 @@ test("B3-D07.1: upload of asset NOT in current selection fires no dirty", async 
   );
 });
 
-test("B3-D07.2: upload with same content-hash fires no dirty (TODO marker for Plan 28-04)", async () => {
-  // Plan 28-03 only lands selection-match gating (D-07.1) + the existing
-  // delete-side guard (D-08). The hash-diff branch (D-07.3) is deferred to
-  // Plan 28-04 — until then, both upload guards carry a TODO marker referring
-  // forward to Plan 28-04. This test guarantees the marker exists in BOTH
-  // pickers so Plan 28-04 has a precise grep target.
+test("B3-D07.2: upload with same content-hash fires no dirty (live hash-diff gate)", async () => {
+  // Plan 28-04 upgraded this from a TODO-marker assertion to a real behavior
+  // contract: the upload handler reads `payload.hash` (now returned by the
+  // server) and compares against `_lastSeenAssetHashByPath` / `_lastSeenSoundHashByPath`.
+  // Same hash → patchAnimation is skipped (no dirty fire).
   const src = await readFile(ASSET_PICKER_PATH, "utf8");
-  assert.ok(
-    src.includes("TODO(28-04): hash-diff gate per D-07.3"),
-    "TODO marker for Plan 28-04 hash gate must be present",
-  );
-  const occurrences = (
-    src.match(/TODO\(28-04\): hash-diff gate per D-07\.3/g) || []
-  ).length;
+
+  // The TODO(28-04) markers MUST be gone now that the gate is live.
   assert.equal(
-    occurrences,
-    2,
-    "exactly two TODO markers — one per picker (animation + sound)",
+    (src.match(/TODO\(28-04\)/g) || []).length,
+    0,
+    "TODO(28-04) markers must be removed once Plan 28-04 lands the live hash-diff gate",
   );
-  // Hash-tracker maps must be in place so Plan 28-04 can wire them to payload.hash.
+
+  // Animation-side hash-diff guard.
   assert.ok(
-    src.includes("_lastSeenAssetHashByPath"),
-    "_lastSeenAssetHashByPath tracker must exist",
+    src.includes("const prevHash = _lastSeenAssetHashByPath.get(uploadedPath)"),
+    "animation upload must read previous hash from _lastSeenAssetHashByPath",
   );
   assert.ok(
-    src.includes("_lastSeenSoundHashByPath"),
-    "_lastSeenSoundHashByPath tracker must exist",
+    src.includes("if (newHash && prevHash !== newHash)"),
+    "animation upload must compare prev vs new hash to gate dirty fire",
+  );
+  assert.ok(
+    src.includes("_lastSeenAssetHashByPath.set(uploadedPath, newHash)"),
+    "animation upload must update tracker map after firing patchAnimation",
+  );
+
+  // Sound-side symmetric guard.
+  assert.ok(
+    src.includes("const prevSoundHash = _lastSeenSoundHashByPath.get(uploadedSoundPath)"),
+    "sound upload must read previous hash from _lastSeenSoundHashByPath",
+  );
+  assert.ok(
+    src.includes("if (newSoundHash && prevSoundHash !== newSoundHash)"),
+    "sound upload must compare prev vs new hash to gate dirty fire",
+  );
+  assert.ok(
+    src.includes("_lastSeenSoundHashByPath.set(uploadedSoundPath, newSoundHash)"),
+    "sound upload must update tracker map after firing patchAnimation",
   );
 });
 
-test("B3-D07.3: upload with different content-hash fires dirty=true (structural — patchAnimation is INSIDE the guard)", async () => {
-  // Until Plan 28-04 lands payload.hash, the structural contract is: the
-  // patchAnimation call for the upload path lives INSIDE the selection-match
-  // guard block (i.e. between the `if (currentAssetRef && ...)` and the
-  // `// else: pure-library upload` comment). When 28-04 lands, it will replace
-  // the unconditional patchAnimation call with `if (hash differs) { ... }`
-  // and update this test to verify the hash compare instead.
+test("B3-D07.3: upload with different content-hash fires dirty=true (patchAnimation is INSIDE the hash-diff branch)", async () => {
+  // Live behaviour contract (Plan 28-04 upgrade): the patchAnimation call lives
+  // INSIDE the `if (newHash && prevHash !== newHash)` branch — so re-uploading
+  // identical bytes (same hash) does NOT fire patchAnimation, while re-uploading
+  // different bytes (different hash) DOES.
   const src = await readFile(ASSET_PICKER_PATH, "utf8");
-  // Animation upload — patchAnimation must be inside the selection-match block.
-  const animUploadStart = src.indexOf(
-    "if (currentAssetRef && uploadedPath === currentAssetRef)",
-  );
-  const animUploadEnd = src.indexOf("// else: pure-library upload");
-  assert.ok(animUploadStart > 0, "animation upload guard must exist");
+
+  // Animation: extract the hash-diff guard block and verify patchAnimation is inside it.
+  const animGuardStart = src.indexOf("if (newHash && prevHash !== newHash)");
+  assert.ok(animGuardStart > 0, "animation hash-diff guard must exist");
+  // The block extends to the matching close brace; for a structural assertion
+  // it's enough to slice forward to the next `else if` or `// else:` marker.
+  const animGuardEnd = src.indexOf("else if (!newHash)", animGuardStart);
+  assert.ok(animGuardEnd > animGuardStart, "animation guard must have an else-if fallback");
+  const animGuardBlock = src.slice(animGuardStart, animGuardEnd);
   assert.ok(
-    animUploadEnd > animUploadStart,
-    "animation upload guard must be followed by the // else: pure-library upload comment",
+    animGuardBlock.includes("_lastSeenAssetHashByPath.set(uploadedPath, newHash)"),
+    "animation tracker update must live INSIDE the hash-diff branch",
   );
-  const animUploadBlock = src.slice(animUploadStart, animUploadEnd);
   assert.ok(
-    animUploadBlock.includes(
+    animGuardBlock.includes(
       "patchAnimation(scope, boardId, def.id, { assetRef: payload.path })",
     ),
-    "animation patchAnimation must be inside the selection-match block",
+    "animation patchAnimation must live INSIDE the hash-diff branch",
   );
-  // Sound upload — patchAnimation must be inside the symmetric guard block.
-  const soundUploadStart = src.indexOf(
-    "if (currentSoundRef && uploadedSoundPath === currentSoundRef)",
-  );
-  const soundUploadEnd = src.indexOf("// else: pure-library sound upload");
-  assert.ok(soundUploadStart > 0, "sound upload guard must exist");
+
+  // Sound: same shape.
+  const soundGuardStart = src.indexOf("if (newSoundHash && prevSoundHash !== newSoundHash)");
+  assert.ok(soundGuardStart > 0, "sound hash-diff guard must exist");
+  const soundGuardEnd = src.indexOf("else if (!newSoundHash)", soundGuardStart);
+  assert.ok(soundGuardEnd > soundGuardStart, "sound guard must have an else-if fallback");
+  const soundGuardBlock = src.slice(soundGuardStart, soundGuardEnd);
   assert.ok(
-    soundUploadEnd > soundUploadStart,
-    "sound upload guard must be followed by the // else: pure-library sound upload comment",
+    soundGuardBlock.includes("_lastSeenSoundHashByPath.set(uploadedSoundPath, newSoundHash)"),
+    "sound tracker update must live INSIDE the hash-diff branch",
   );
-  const soundUploadBlock = src.slice(soundUploadStart, soundUploadEnd);
   assert.ok(
-    soundUploadBlock.includes(
+    soundGuardBlock.includes(
       "patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path })",
     ),
-    "sound patchAnimation must be inside the symmetric selection-match block",
+    "sound patchAnimation must live INSIDE the hash-diff branch",
   );
 });
 
