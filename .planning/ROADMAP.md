@@ -198,10 +198,10 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 28 - Cross-cutting UX & State Polish (PLANNING)
+## Phase 28 - Cross-cutting UX & State Polish (CLOSED)
 Ziel: Mehrere kleinere, voneinander entkoppelte UX/State-Probleme nach Phase-27-Closure beheben — board-gebundene Align-Profile, board-switch save-gate-Parität, Asset-Lifecycle-Korrektheit (Dirty-Flag-Hygiene + saubere Delete-Modals + Cache-Invalidierung bei Re-Upload mit gleichem Namen) und Diagnostic-Overlay-Cross-Client-Sync samt Topbar-Layout-Fix.
 
-Status: PLANNING. CONTEXT (D-01..D-21), RESEARCH and VALIDATION committed; 6 plans drafted across 6 sequential waves. All plans executed; ready for Phase Verifier review.
+Status: CLOSED am 2026-05-04. 6 Plans (28-00..28-05) ausgeführt; Test-Suite 25/25 grün; Verifier 32/32 automated PASS. 7 Items im 28-HUMAN-UAT.md erwarten Browser-Smoke vom User. Closure-Doku: `.planning/phases/phase-28/SUMMARY.md`. Tag: `phase-28-end`. Final version: `0.28.0`.
 
 **Plans:** 6/6 plans complete
 

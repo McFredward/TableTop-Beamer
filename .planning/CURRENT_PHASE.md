@@ -1,12 +1,13 @@
 # CURRENT PHASE
 
-- Active: Phase 28 — Cross-cutting UX & State Polish (PLANNING)
-- Status: Backlog (B1..B6) drafted in `.planning/phases/phase-28/28-BACKLOG.md`.
-  Awaiting `/gsd-discuss-phase 28` to lock decisions before research/planning.
-- App version: `0.27.0` (from Phase 27 closure)
-- Previous Phase: Phase 27 (Align Mode Refinement) CLOSED 2026-05-04.
+- Active: none — Phase 28 closed (2026-05-04)
+- Status: Phase 28 (Cross-cutting UX & State Polish) CLOSED. 6 plans (B1..B6 coverage)
+  shipped. Test suite 25/25 green; verifier 32/32 automated PASS. 7 items in
+  `28-HUMAN-UAT.md` await user-side browser smoke.
+- App version: `0.28.0`
+- Previous Phase: Phase 28 (Cross-cutting UX & State Polish) CLOSED — final.
 
-Phase 28 backlog: `.planning/phases/phase-28/28-BACKLOG.md`
+Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)
 Phase 27 closure: `.planning/phases/phase-27/SUMMARY.md` (tag `phase-27-end`)
 Phase 26 closure: `.planning/phases/phase-26/SUMMARY.md` (tag `phase-26-end-h9`)
 Phase 25 closure: `.planning/phases/phase-25/SUMMARY.md` (tag `phase-25-end-h30`)
