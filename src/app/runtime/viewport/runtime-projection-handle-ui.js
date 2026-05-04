@@ -69,6 +69,9 @@
 
   let rotateHandleElements = [];
 
+  // Phase 27 (B9): squish bars — 4 elements (TOP, BOTTOM, LEFT, RIGHT).
+  let squishBarElements = [];
+
   // Phase 27: align-mode toolbar (B3 + B4) — only present on /output/ in align mode.
   let alignToolbarRoot = null;        // outer pill container (HTMLDivElement|null)
   let alignChipNameEl = null;          // span for profile name
@@ -130,6 +133,7 @@
 
     dismissContextMenu();
     removeAlignToolbar();
+    removeSquishBars();
   }
 
   function rebuildHandleElements() {
@@ -173,6 +177,7 @@
     }
 
     rebuildRotateHandles();
+    rebuildSquishBars();
     positionHandles();
     positionRotateHandles();
   }
@@ -235,6 +240,161 @@
       const pt = getPoint(row, col);
       rotateHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
       rotateHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
+    }
+    // B9: squish bars track handle positions — called after every drag/resize/undo.
+    positionSquishBars();
+  }
+
+  // ── Phase 27 (B9): Squish bars — one per outer side ───────────────────────
+
+  // SQUISH_SIDES constant — placed after ROTATE_CORNERS for reference symmetry.
+  // Each entry describes one outer side:
+  //   key        — identifies the bar (also stored in wrap.dataset.squishSide)
+  //   barAxis    — "h" = bar is horizontal (top/bottom), "v" = vertical (left/right)
+  //   cursor     — CSS cursor for the hit-target wrapper
+  //   edgeAt()   — returns [{r,c},{r,c}] for the two outer corners on THIS edge
+  //   anchorAt() — returns [{r,c},{r,c}] for the two outer corners on the OPPOSITE edge
+  //   outwardDX/outwardDY — 30 px offset direction away from the grid (screen-space px)
+  // D-13: opposite-side anchor; D-14: trapezoid edge-perpendicular axis.
+  const SQUISH_SIDES = [
+    { key: "TOP",    barAxis: "h", cursor: "ns-resize",
+      edgeAt:   () => [{ r: 0,                          c: 0 },                          { r: 0,                          c: grid.srcXs.length - 1 }],
+      anchorAt: () => [{ r: grid.srcYs.length - 1,      c: 0 },                          { r: grid.srcYs.length - 1,      c: grid.srcXs.length - 1 }],
+      outwardDX: 0, outwardDY: -30 },
+    { key: "BOTTOM", barAxis: "h", cursor: "ns-resize",
+      edgeAt:   () => [{ r: grid.srcYs.length - 1,      c: 0 },                          { r: grid.srcYs.length - 1,      c: grid.srcXs.length - 1 }],
+      anchorAt: () => [{ r: 0,                           c: 0 },                          { r: 0,                           c: grid.srcXs.length - 1 }],
+      outwardDX: 0, outwardDY: 30 },
+    { key: "LEFT",   barAxis: "v", cursor: "ew-resize",
+      edgeAt:   () => [{ r: 0,                           c: 0 },                          { r: grid.srcYs.length - 1,      c: 0 }],
+      anchorAt: () => [{ r: 0,                           c: grid.srcXs.length - 1 },      { r: grid.srcYs.length - 1,      c: grid.srcXs.length - 1 }],
+      outwardDX: -30, outwardDY: 0 },
+    { key: "RIGHT",  barAxis: "v", cursor: "ew-resize",
+      edgeAt:   () => [{ r: 0,                           c: grid.srcXs.length - 1 },      { r: grid.srcYs.length - 1,      c: grid.srcXs.length - 1 }],
+      anchorAt: () => [{ r: 0,                           c: 0 },                          { r: grid.srcYs.length - 1,      c: 0 }],
+      outwardDX: 30, outwardDY: 0 },
+  ];
+
+  function rebuildSquishBars() {
+    removeSquishBars();
+    for (const side of SQUISH_SIDES) {
+      const isH = side.barAxis === "h";
+      const visualW = isH ? 60 : 10;
+      const visualH = isH ? 10 : 60;
+      const hitW    = isH ? 60 : 32;
+      const hitH    = isH ? 32 : 60;
+
+      // Outer wrapper: hit target (≥32 px on short axis — UI-SPEC Accessibility).
+      const wrap = document.createElement("div");
+      wrap.className = "projection-squish-bar";
+      wrap.dataset.squishSide = side.key;
+      wrap.style.cssText = `
+        position: fixed;
+        width: ${hitW}px;
+        height: ${hitH}px;
+        cursor: ${side.cursor};
+        z-index: 10001;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        transform: translate(-50%, -50%);
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: auto;
+      `;
+
+      // Inner visible bar.
+      const bar = document.createElement("div");
+      bar.style.cssText = `
+        width: ${visualW}px;
+        height: ${visualH}px;
+        background: rgba(50,211,163,0.80);
+        border: 1.5px solid rgba(255,255,255,0.85);
+        border-radius: 5px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+        position: relative;
+        pointer-events: none;
+      `;
+
+      // Inner ridge — 2 px line centered across the SHORT axis, 80% of LONG axis.
+      const ridge = document.createElement("div");
+      ridge.style.cssText = isH
+        ? "position:absolute;left:10%;top:50%;width:80%;height:2px;background:rgba(5,50,40,0.55);border-radius:1px;transform:translateY(-50%);pointer-events:none;"
+        : "position:absolute;left:50%;top:10%;width:2px;height:80%;background:rgba(5,50,40,0.55);border-radius:1px;transform:translateX(-50%);pointer-events:none;";
+      bar.appendChild(ridge);
+      wrap.appendChild(bar);
+      wrap._barInnerEl = bar;  // for hover/active styling
+
+      // Hover styling on the wrapper.
+      wrap.addEventListener("pointerenter", () => {
+        const innerBar = wrap._barInnerEl;
+        if (innerBar && !wrap.dataset.squishDragging) {
+          innerBar.style.background = "rgba(50,211,163,1.0)";
+          innerBar.style.borderColor = "rgba(255,255,255,1.0)";
+          innerBar.style.transform = "scale(1.08)";
+        }
+      });
+      wrap.addEventListener("pointerleave", () => {
+        const innerBar = wrap._barInnerEl;
+        if (innerBar && !wrap.dataset.squishDragging) {
+          innerBar.style.background = "rgba(50,211,163,0.80)";
+          innerBar.style.borderColor = "rgba(255,255,255,0.85)";
+          innerBar.style.transform = "scale(1.0)";
+        }
+      });
+
+      // Pointerdown routes to drag handler (resolved lazily — drag module sets it after UI loads).
+      wrap.addEventListener("pointerdown", (e) => {
+        const fn = dragModule.onSquishBarPointerDown;
+        if (typeof fn === "function") fn(e);
+      });
+
+      document.body.appendChild(wrap);
+      squishBarElements.push(wrap);
+    }
+    positionSquishBars();
+  }
+
+  function positionSquishBars() {
+    if (squishBarElements.length !== SQUISH_SIDES.length) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    for (let i = 0; i < SQUISH_SIDES.length; i++) {
+      const side = SQUISH_SIDES[i];
+      const corners = side.edgeAt();
+      const a = getPoint(corners[0].r, corners[0].c);
+      const b = getPoint(corners[1].r, corners[1].c);
+      // Midpoint of the (possibly trapezoid) outer edge in screen space.
+      const midX = ((a.x + b.x) / 2) * vw;
+      const midY = ((a.y + b.y) / 2) * vh;
+      squishBarElements[i].style.left = `${midX + side.outwardDX}px`;
+      squishBarElements[i].style.top  = `${midY + side.outwardDY}px`;
+    }
+  }
+
+  function removeSquishBars() {
+    for (const el of squishBarElements) {
+      try { document.body.removeChild(el); } catch {}
+    }
+    squishBarElements = [];
+  }
+
+  // Called by drag handler to apply active-drag visual state on the inner bar.
+  function setSquishBarDragVisual(sideKey, isDragging) {
+    const el = squishBarElements.find((e) => e.dataset.squishSide === sideKey);
+    if (!el || !el._barInnerEl) return;
+    if (isDragging) {
+      el.dataset.squishDragging = "1";
+      el._barInnerEl.style.background = "rgba(30,163,120,0.95)";
+      el._barInnerEl.style.transform = "scale(1.0)";
+    } else {
+      delete el.dataset.squishDragging;
+      el._barInnerEl.style.background = "rgba(50,211,163,0.80)";
+      el._barInnerEl.style.borderColor = "rgba(255,255,255,0.85)";
+      el._barInnerEl.style.transform = "scale(1.0)";
     }
   }
 
@@ -1092,6 +1252,8 @@
       positionRotateHandles,
       drawLines,
       setActiveHandleKey,
+      setSquishBarDragVisual,
+      getSquishSidesConfig: () => SQUISH_SIDES,
     }));
   }
 
@@ -1118,5 +1280,8 @@
     showContextMenu,
     dismissContextMenu,
     getHandlesVisible,
+    // Phase 27 (B9): squish-bar visual helpers — consumed by handle-drag.
+    setSquishBarDragVisual,
+    getSquishSidesConfig: () => SQUISH_SIDES,
   };
 })();

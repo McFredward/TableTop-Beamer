@@ -2140,3 +2140,17 @@ button.danger.is-armed {
 .projection-align-toolbar .projection-align-action-saveas:hover {
   background: var(--c-accent-bg) !important;
 }
+
+/* --- Phase 27 B9: align-mode squish bars ---------------------------------- */
+.projection-squish-bar {
+  position: fixed;
+  z-index: 10001;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+.projection-squish-bar:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
