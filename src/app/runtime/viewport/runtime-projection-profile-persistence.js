@@ -62,7 +62,17 @@
         pointsArr.push({ row, col, x: pt.x, y: pt.y });
       }
     }
-    return { srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: pointsArr };
+    const payload = { srcXs: grid.srcXs.slice(), srcYs: grid.srcYs.slice(), points: pointsArr };
+    // h6: include toolbar position in saved profile so each profile
+    // remembers where the user last positioned the toolbar.
+    try {
+      const handleUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      const pos = handleUi?.getAlignToolbarPosition?.();
+      if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+        payload.toolbarPosition = { x: pos.x, y: pos.y };
+      }
+    } catch { /* ignore */ }
+    return payload;
   }
 
   function applyGridPayload(data) {
@@ -82,6 +92,20 @@
         }
       }
     }
+    // h6: restore toolbar position from saved profile (if present).
+    // Persist=true so the position also lands in localStorage, surviving reloads.
+    try {
+      const handleUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      if (handleUi?.setAlignToolbarPosition) {
+        if (data.toolbarPosition && Number.isFinite(data.toolbarPosition.x)
+            && Number.isFinite(data.toolbarPosition.y)) {
+          handleUi.setAlignToolbarPosition({ x: data.toolbarPosition.x, y: data.toolbarPosition.y }, { persist: true });
+        }
+        // If no toolbarPosition in saved profile, leave the current position
+        // alone — switching profiles shouldn't snap the toolbar back to centered
+        // for legacy profiles that pre-date h6.
+      }
+    } catch { /* ignore */ }
   }
 
   async function fetchProfileList(boardId) {

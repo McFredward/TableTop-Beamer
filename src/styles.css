@@ -2154,3 +2154,39 @@ button.danger.is-armed {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
 }
+
+/* Phase 27 h7: visible dirty-state hint next to the align button. The
+ * <p id="align-mode-dirty-hint"> is hidden by default; when shown it
+ * renders as a small amber pill explaining why the align toggle is
+ * disabled. Positioned inline next to the align button in the topbar. */
+#align-mode-dirty-hint:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(245, 181, 68, 0.16);
+  border: 1px solid rgba(245, 181, 68, 0.5);
+  color: var(--c-warn);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+#align-mode-dirty-hint:not([hidden])::before {
+  content: "●";
+  display: inline-block;
+  font-size: 8px;
+  color: var(--c-warn);
+}
+/* Visually mark the disabled align button so the user understands the
+ * reason at-a-glance — the chip already says it, but the button itself
+ * should also show "I'm not clickable right now". */
+#align-mode-button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

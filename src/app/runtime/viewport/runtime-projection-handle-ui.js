@@ -82,6 +82,61 @@
   let _alignDirtyListener = null;
   let _profilePersistApi = null;       // resolved at first use from window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE
 
+  // h6: toolbar position — null means use the default centered top placement.
+  // Saved per-profile in the projection-profile JSON. Also persisted to
+  // localStorage so it survives reloads when no profile is loaded.
+  // Dragging the toolbar does NOT mark the profile dirty (geometry is what
+  // counts for dirty); on profile save the current position is included.
+  const TOOLBAR_POS_LS_KEY = "tt-beamer.align-toolbar-position.v1";
+  let alignToolbarPosition = null;     // {x: number, y: number} or null
+  let _toolbarDragState = null;        // {pointerId, startX, startY, originX, originY}
+  try {
+    const raw = window.localStorage?.getItem(TOOLBAR_POS_LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) {
+        alignToolbarPosition = { x: Number(parsed.x), y: Number(parsed.y) };
+      }
+    }
+  } catch { /* ignore */ }
+
+  function setAlignToolbarPosition(pos, { persist = false } = {}) {
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+      alignToolbarPosition = null;
+    } else {
+      alignToolbarPosition = { x: Number(pos.x), y: Number(pos.y) };
+    }
+    if (persist) {
+      try {
+        if (alignToolbarPosition) {
+          window.localStorage?.setItem(TOOLBAR_POS_LS_KEY, JSON.stringify(alignToolbarPosition));
+        } else {
+          window.localStorage?.removeItem(TOOLBAR_POS_LS_KEY);
+        }
+      } catch { /* ignore */ }
+    }
+    _applyAlignToolbarPosition();
+  }
+
+  function getAlignToolbarPosition() {
+    return alignToolbarPosition ? { x: alignToolbarPosition.x, y: alignToolbarPosition.y } : null;
+  }
+
+  function _applyAlignToolbarPosition() {
+    if (!alignToolbarRoot) return;
+    if (alignToolbarPosition) {
+      // Custom position: anchor by top-left, no transform.
+      alignToolbarRoot.style.left = `${alignToolbarPosition.x}px`;
+      alignToolbarRoot.style.top = `${alignToolbarPosition.y}px`;
+      alignToolbarRoot.style.transform = "none";
+    } else {
+      // Default: centered top.
+      alignToolbarRoot.style.left = "50%";
+      alignToolbarRoot.style.top = "16px";
+      alignToolbarRoot.style.transform = "translateX(-50%)";
+    }
+  }
+
   function createHandles() {
     if (handlesVisible) return;
     handlesVisible = true;
@@ -442,7 +497,7 @@
       font-family: 'Space Grotesk', sans-serif;
     `;
 
-    // Chip pill: [● name]
+    // Chip pill: [● name] — also serves as the drag handle for h6.
     const chip = document.createElement("div");
     chip.className = "projection-align-chip";
     chip.style.cssText = `
@@ -454,7 +509,12 @@
       font-size: 12px;
       font-weight: 600;
       line-height: 1.2;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     `;
+    chip.title = "Drag to reposition";
     const dot = document.createElement("span");
     dot.textContent = "●";
     dot.style.cssText = "font-size:10px;color:var(--c-warn);display:none;";
@@ -550,6 +610,59 @@
       api.addDirtyListener(_alignDirtyListener);
     }
     _refreshAlignToolbarVisual();
+
+    // h6: apply persisted position (from localStorage or profile load)
+    // and wire chip drag handlers.
+    _applyAlignToolbarPosition();
+    chip.addEventListener("pointerdown", _onToolbarChipPointerDown);
+  }
+
+  function _onToolbarChipPointerDown(e) {
+    if (!alignToolbarRoot) return;
+    if (e.button !== 0) return; // only primary button
+    e.preventDefault();
+    const rect = alignToolbarRoot.getBoundingClientRect();
+    _toolbarDragState = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: rect.left,
+      originY: rect.top,
+    };
+    try { e.target.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    if (e.target instanceof HTMLElement) e.target.style.cursor = "grabbing";
+    document.addEventListener("pointermove", _onToolbarChipPointerMove);
+    document.addEventListener("pointerup", _onToolbarChipPointerUp);
+    document.addEventListener("pointercancel", _onToolbarChipPointerUp);
+  }
+
+  function _onToolbarChipPointerMove(e) {
+    if (!_toolbarDragState || !alignToolbarRoot) return;
+    if (e.pointerId !== _toolbarDragState.pointerId) return;
+    const dx = e.clientX - _toolbarDragState.startX;
+    const dy = e.clientY - _toolbarDragState.startY;
+    const nextX = Math.max(0, Math.min(window.innerWidth - 50, _toolbarDragState.originX + dx));
+    const nextY = Math.max(0, Math.min(window.innerHeight - 30, _toolbarDragState.originY + dy));
+    alignToolbarPosition = { x: nextX, y: nextY };
+    alignToolbarRoot.style.left = `${nextX}px`;
+    alignToolbarRoot.style.top = `${nextY}px`;
+    alignToolbarRoot.style.transform = "none";
+  }
+
+  function _onToolbarChipPointerUp(e) {
+    if (!_toolbarDragState) return;
+    if (e.pointerId !== _toolbarDragState.pointerId) return;
+    document.removeEventListener("pointermove", _onToolbarChipPointerMove);
+    document.removeEventListener("pointerup", _onToolbarChipPointerUp);
+    document.removeEventListener("pointercancel", _onToolbarChipPointerUp);
+    _toolbarDragState = null;
+    if (e.target instanceof HTMLElement) e.target.style.cursor = "grab";
+    // Persist current position to localStorage so it survives reloads.
+    try {
+      if (alignToolbarPosition) {
+        window.localStorage?.setItem(TOOLBAR_POS_LS_KEY, JSON.stringify(alignToolbarPosition));
+      }
+    } catch { /* ignore */ }
   }
 
   function _refreshAlignToolbarVisual() {
@@ -1317,5 +1430,8 @@
     // Phase 27 (B9): squish-bar visual helpers — consumed by handle-drag.
     setSquishBarDragVisual,
     getSquishSidesConfig: () => SQUISH_SIDES,
+    // Phase 27 (h6): toolbar-position bridge — consumed by profile-persistence.
+    setAlignToolbarPosition,
+    getAlignToolbarPosition,
   };
 })();
