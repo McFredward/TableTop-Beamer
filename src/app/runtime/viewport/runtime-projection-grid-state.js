@@ -48,22 +48,51 @@
   }
 
   function buildNewProfileDefaultGrid() {
-    // B6: 80%-centered 3×3 grid — outer at 10%/90%, single mid line at 50%
-    // (3 lines per axis = exactly one horizontal + one vertical interior line).
-    // D-07: applies to FRESH profiles only; existing saved profiles load verbatim
-    // via applyGridPayload(), which replaces srcXs/srcYs wholesale.
-    return { srcXs: [0.10, 0.50, 0.90], srcYs: [0.10, 0.50, 0.90] };
+    // B6 (Phase 27, hotfix h1): 80%-centered 3×3 grid — outer corners
+    // displaced to 10%/90% so the GL mesh-warp actively shrinks the board
+    // content into 80% of the screen. The original h0 implementation set
+    // BOTH srcXs/srcYs and points to [0.10, 0.50, 0.90], which made
+    // hasGridDisplacements() return false (points equal srcXs) — so the
+    // GL warp was bypassed and the underlying fx-canvas continued to
+    // render at 100% of the screen, with the alignment lines drawn at
+    // 80% on top. Result: parts of the board fell outside the outermost
+    // alignment lines.
+    //
+    // The fix: srcXs/srcYs cover the full source canvas (0..1), and the
+    // points are pre-displaced to 0.10..0.90 so the GL warp samples the
+    // entire board content and squishes it into the 80% destination box.
+    // hasGridDisplacements() now returns true (point.x !== srcXs[col]),
+    // so the GL warp activates on a fresh-default grid.
+    //
+    // D-07: still applies to FRESH profiles only; existing saved profiles
+    // load verbatim via applyGridPayload(), which replaces both srcXs/srcYs
+    // AND points wholesale.
+    const srcXs = [0.0, 0.5, 1.0];
+    const srcYs = [0.0, 0.5, 1.0];
+    const dstXs = [0.10, 0.50, 0.90];
+    const dstYs = [0.10, 0.50, 0.90];
+    const points = [];
+    for (let row = 0; row < dstYs.length; row++) {
+      points[row] = [];
+      for (let col = 0; col < dstXs.length; col++) {
+        points[row][col] = { x: dstXs[col], y: dstYs[row] };
+      }
+    }
+    return { srcXs, srcYs, points };
   }
 
   const _newProfileDefault = buildNewProfileDefaultGrid();
   const grid = {
     srcXs: _newProfileDefault.srcXs.slice(),
     srcYs: _newProfileDefault.srcYs.slice(),
-    // points[row][col] = { x, y }. Built from srcXs/srcYs initially.
-    points: null, // initialized in buildDefaultPoints()
+    // points[row][col] = { x, y }. h1: pre-displaced 80%-shrink default.
+    points: _newProfileDefault.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
   };
 
   function buildDefaultPoints() {
+    // Legacy: kept for callers that explicitly want identity (points==srcXs).
+    // Fresh-profile defaults now use buildNewProfileDefaultGrid() which
+    // produces displaced points; do NOT call this from resetGrid (h1).
     const pts = [];
     for (let row = 0; row < grid.srcYs.length; row++) {
       pts[row] = [];
@@ -73,7 +102,6 @@
     }
     grid.points = pts;
   }
-  buildDefaultPoints();
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -153,7 +181,11 @@
     const fresh = buildNewProfileDefaultGrid();
     grid.srcXs = fresh.srcXs.slice();
     grid.srcYs = fresh.srcYs.slice();
-    buildDefaultPoints();
+    // h1: use displaced points from buildNewProfileDefaultGrid (NOT
+    // buildDefaultPoints — which would set points == srcXs and disable
+    // the warp, leaving the board at 100% while alignment lines render
+    // at 80%).
+    grid.points = fresh.points.map((row) => row.map((p) => ({ x: p.x, y: p.y })));
     applyTransform();
     try {
       localStorage.removeItem(LS_KEY_V2);

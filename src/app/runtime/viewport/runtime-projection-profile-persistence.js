@@ -316,7 +316,11 @@
             _gridStateApi.restoreGridSnapshot({
               srcXs: def.srcXs.slice(),
               srcYs: def.srcYs.slice(),
-              points: def.srcYs.map((y) => def.srcXs.map((x) => ({ x, y }))),
+              // h1: use the pre-displaced points from buildNewProfileDefaultGrid
+              // (def.points), NOT a synthesized identity points array — the
+              // identity version would map srcXs/srcYs onto themselves, which
+              // would disable the GL warp and leave the board at 100%.
+              points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
             });
             _loadedProfileName = null;
             _loadedProfileSnapshot = null;
