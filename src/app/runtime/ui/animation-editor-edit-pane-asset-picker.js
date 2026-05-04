@@ -18,6 +18,13 @@
   // call sites byte-identical with the pre-W3.6 IIFE.
   let patchAnimation = null;
 
+  // Phase 28 B3: track the last hash we saw per path so we can decide whether
+  // re-uploading the same name is a real content change (when Plan 28-04 lands
+  // the server-side hash). Until 28-04 lands, this map is unused; it stays here
+  // as the contract that 28-04 wires up.
+  const _lastSeenAssetHashByPath = new Map();
+  const _lastSeenSoundHashByPath = new Map();
+
   function init(deps) {
     if (typeof deps?.patchAnimation === "function") patchAnimation = deps.patchAnimation;
   }
@@ -116,7 +123,24 @@
           return;
         }
         status.textContent = `Uploaded ${payload.filename}`;
-        patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+        // Phase 28 B3 (D-07.1 + D-08): only fire dirty when the uploaded asset
+        // is the currently-selected def's assetRef. Pure library uploads
+        // (uploading a new file that isn't selected by anything) do NOT mark
+        // dirty.
+        const currentAssetRef = String(def.assetRef || "").trim();
+        const uploadedPath = String(payload.path || "").trim();
+        if (currentAssetRef && uploadedPath === currentAssetRef) {
+          // Re-upload of the SAME path that the def already references = content
+          // change (the user just replaced the bytes on disk under the same
+          // name).
+          // TODO(28-04): hash-diff gate per D-07.3 — when Plan 28-04 lands the
+          // server-side `payload.hash`, replace the unconditional patchAnimation
+          // here with `if (_lastSeenAssetHashByPath.get(uploadedPath) !== payload.hash)`
+          // and then `_lastSeenAssetHashByPath.set(uploadedPath, payload.hash);`.
+          patchAnimation(scope, boardId, def.id, { assetRef: payload.path });
+        }
+        // else: pure-library upload (no selection match) → no patchAnimation,
+        // no dirty.
         await refreshList(payload.path);
       } catch (error) {
         status.textContent = "Upload failed";
@@ -287,7 +311,19 @@
           return;
         }
         status.textContent = `Uploaded ${payload.filename}`;
-        patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+        // Phase 28 B3 (D-07.1 + D-08): symmetric guard for sound assets. Only
+        // fire dirty when the uploaded sound is the currently-selected def's
+        // soundAssetRef. Pure library uploads do NOT mark dirty.
+        const currentSoundRef = String(def.soundAssetRef || "").trim();
+        const uploadedSoundPath = String(payload.path || "").trim();
+        if (currentSoundRef && uploadedSoundPath === currentSoundRef) {
+          // TODO(28-04): hash-diff gate per D-07.3 — see _lastSeenSoundHashByPath.
+          // Plan 28-04 will replace the unconditional patchAnimation with a
+          // hash-compare against the tracker map.
+          patchAnimation(scope, boardId, def.id, { soundAssetRef: payload.path });
+        }
+        // else: pure-library sound upload (no selection match) → no
+        // patchAnimation, no dirty.
         await refreshList(payload.path);
       } catch (error) {
         status.textContent = "Upload failed";
