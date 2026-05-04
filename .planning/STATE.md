@@ -1360,3 +1360,26 @@
 - Single helper extension confirmed: `syncAlignModeDirtyDashboardState` ist die einzige Dashboard-Helper-Funktion; Phase 27 W5 align-toggle-Gate-Verhalten ist unverändert (keine Regression auf `HINT_COPY_FULL` / `HINT_COPY_CHIP`-Pfaden).
 - Test-Konversion: ein Wave-0 Skip (B2-D05) ist jetzt aktiver PASS-Test (source-pattern grep auf runtime-stage-viewport.js); Suite: `# tests 23 / # pass 13 / # fail 0 / # skipped 10`.
 - Closure-Dokument: `.planning/phases/phase-28/28-02-SUMMARY.md`.
+
+## Phase 28 Wave 4 Closure (2026-05-04)
+- Plan 28-04 (B5 — Asset-Cache-Invalidation via content-hash sha256[:12] manifest) ist abgeschlossen. Commits: `19ac918` (test RED — live B5 hash + manifest contract tests) + `b4fcd0d` (feat GREEN — server-side manifest infra) + `69ba3c2` (feat — client manifest mirror + render-layer hash URLs + 28-03 TODO conversion).
+- B5-D11/D12: `computeAssetHash(buffer) = sha256(buffer).digest("hex").substring(0, 12)` — 12 hex Cache-Busting-Token, NICHT für Content-Authentication (in Code-Comments + Threat-Model T-28-04-01 als accepted risk dokumentiert). 48-Bit-Birthday-Limit ~16M Assets, realistic floor <1000.
+- B5-D13: `config/asset-manifest.json` mit Schema `tt-beamer.asset-manifest.v1` als zentrale flat hashByPath Map (`{ [url]: { hash, size, mtime } }`). Auf jedem Upload + Delete persistiert + via `broadcastLiveSession("global-config-update", { target: "config/asset-manifest.json", … })` an alle Clients gefanout. Boot-Synthese ist synchron (`await ensureAssetManifestOnBoot()` vor `server.listen`) und idempotent (matching-hash mtimes preserved).
+- B5 Root-Cause-Fix: hash-suffixed URLs (`/resources/animations/foo.gif?v=abc123def456`) invalidieren THREE cache layers in einem Stroke — (1) Browser HTTP cache (URL-Cache-Key inkl. Query), (2) `gifPlaybackCacheByPath` Map (path-keyed but resolver wraps at fetch site, so Map-Key bleibt raw path), (3) `outsideVideoCacheByPath`/`roomVideoCacheByPath` Maps (element.src bekommt hash; Map-Key bleibt raw path). Cache-key separation erlaubt Asset-Picker-Delete-Logik weiterhin per Raw-Pfad zu finden.
+- Cache-hit refresh in `getMediaVideoElement`: vergleicht `video.src` gegen freshly resolved URL bei jedem Aufruf; bei Mismatch (peer hat zwischenzeitlich re-uploaded) → `video.src = newResolvedUrl` + `currentTime = 0` + `load()` + entry.status="loading". So updated der gecachte `<video>`-Element auf neue Bytes ohne Page-Reload.
+- Live-Sync-Refetch unabhängig vom localConfigDirty/suppress-broadcast Gate: wenn `payload.target === "config/asset-manifest.json"`, fetched runtime-live-sync-core.js sofort `/api/resources` und ruft `setManifest(body.hashByPath)` — die Gates schützen global-defaults user state, nicht asset URLs.
+- Plan 28-03 TODO(28-04) Markers GONE: beide upload-Pfade (animation + sound) in animation-editor-edit-pane-asset-picker.js haben jetzt LIVE hash-diff guards (`if (newHash && prevHash !== newHash)`) reading `payload.hash` und comparing gegen die pre-staged `_lastSeenAssetHashByPath` / `_lastSeenSoundHashByPath` Maps. Same-bytes re-upload (same hash) → no patchAnimation / no dirty. Different-bytes re-upload → fires.
+- Test-Konversion: drei Wave-0 Skips (B5-D11/D12, B5-D11, B5-D13 ×2) zu LIVE active tests; zwei B3 hash-TODO-asserts (B3-D07.2 + B3-D07.3) von TODO-marker / structural-block assertions auf LIVE hash-diff behavior assertions upgegraded. Suite: `# tests 25 / # pass 25 / # fail 0 / # skipped 0` — alle Phase-28-Skips konvertiert.
+- Boot-Smoke: `[asset-manifest] ready (8 entries)` log-line confirmed; idempotent on second boot (nur `generatedAt` ändert).
+- Bekannte Limitation (NICHT Plan-28-04 Scope): `gifPlaybackCacheByPath` Map hält bereits-decodierte Frames per raw path-key. Bei GIF-re-upload wird die HTTP-Cache invalidiert (neue URL → fresh fetch), aber die in-memory frames sind bis Page-Reload stale. Future plan kann `invalidateAssetByPath(rawPath)` an gif-playback-Modul anhängen + aus dem live-sync handler aufrufen. Nicht in B5-Scope, weil Plan-`<files>`-Liste die Erweiterung explizit ausschließt; B5's stated user goal ("see new bytes within 1s") gilt für MP4 + neue Page-Loads weiterhin.
+- Closure-Dokument: `.planning/phases/phase-28/28-04-SUMMARY.md`.
+
+## Decisions Phase 28-04
+- B5 Cache-Bust-Token: sha256(bytes).digest("hex").substring(0, 12). 48-Bit accepted risk, dokumentiert.
+- Manifest-Format: zentrale `config/asset-manifest.json` (mirroring projection-profiles pattern) statt per-asset Sidecars.
+- Cache-Key Separation: Map-Keys bleiben raw paths; nur Network-URL bekommt `?v=<hash>`.
+- Single resolver point: `ctx.resolveAssetUrlWithHash` + `window.TT_BEAMER_RUNTIME_ASSET_MANIFEST.resolveAssetUrlWithHash`. Pitfall 3 ausgeschlossen.
+- Sync boot synthesis: `await ensureAssetManifestOnBoot()` vor `server.listen` — Manifest bei erstem `/api/resources` request garantiert ready.
+- Asset-manifest broadcast unabhängig vom dirty-gate.
+- Cache-hit video.src refresh: re-upload-on-existing-element triggert src refresh + load().
+- Plan 28-03 TODO conversion: hash-diff-Branch INSIDE existing selection-match guards; legacy fallback (kein hash) preserves alte unconditional-fire behavior.
