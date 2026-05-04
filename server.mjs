@@ -48,6 +48,10 @@ const BOARD_PROFILE_FIELDS = Object.freeze([
   "defaultAnimations",
   "frozenRooms",
   "hiddenRoomNames",
+  // Phase 28 B1 (D-02): per-board memory of the last-loaded/saved
+  // projection profile. Read+written via the existing extract/persist
+  // iterators below — no other server.mjs change is required.
+  "lastUsedProfileName",
 ]);
 
 function extractProfileFromUnifiedBoard(board) {

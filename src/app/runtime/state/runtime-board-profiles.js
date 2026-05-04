@@ -13,6 +13,20 @@
     ctx = dependencies;
   }
 
+  // Phase 28 B1 (T-28-01-01): path-traversal-safe profile-name validator.
+  // Accepts trimmed strings matching /^[a-zA-Z0-9 _.-]{1,80}$/, returns the
+  // trimmed string. Anything else (non-string, empty, traversal chars,
+  // overlength, etc.) is silently coerced to null. Used both when building
+  // outbound profiles and when applying inbound profiles, so the field is
+  // always normalized at trust-boundary entry.
+  const PROFILE_NAME_PATTERN = /^[a-zA-Z0-9 _.-]{1,80}$/;
+  function validateProfileName(raw) {
+    if (typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    return PROFILE_NAME_PATTERN.test(trimmed) ? trimmed : null;
+  }
+
   function createDefaultBoardProfiles() {
     return Object.fromEntries(
       ctx.getBoards().map((board) => [
@@ -57,6 +71,11 @@
           outsideFx: ctx.normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
           defaultAnimations: state.defaultAnimationsByBoard[board.id] || [],
           frozenRooms: state.frozenRoomsByBoard[board.id] || {},
+          // Phase 28 B1 (D-02): emit explicit null when invalid OR absent so
+          // the round-trip is bit-exact for boards that have never had a
+          // profile loaded. The server's BOARD_PROFILE_FIELDS iterator
+          // skips `undefined` but persists `null`.
+          lastUsedProfileName: validateProfileName(state.lastUsedProfileNameByBoard?.[board.id]),
         },
       ]),
     );
@@ -245,6 +264,16 @@
     state.insideFxByBoard = Object.fromEntries(
       BOARDS.map((board) => [board.id, ctx.normalizeInsideFxProfile(profiles?.[board.id]?.insideFx)]),
     );
+    // Phase 28 B1 (D-02): hydrate per-board last-used projection profile name.
+    // Validator rejects path-traversal characters (T-28-01-01) and clamps
+    // invalid/absent values to null so legacy boards (no field on disk) cleanly
+    // fall through to the auto-load default-geometry branch (D-03 fallback).
+    state.lastUsedProfileNameByBoard = Object.fromEntries(
+      BOARDS.map((board) => [
+        board.id,
+        validateProfileName(profiles?.[board.id]?.lastUsedProfileName),
+      ]),
+    );
   }
 
   function extractBoardProfilesCandidate(raw) {
@@ -295,5 +324,8 @@
     buildMigratedBoardProfiles,
     loadBoardProfiles,
     normalizeRenderMode,
+    // Phase 28 B1: exported for cross-module consumers (e.g. defensive
+    // re-validation at write sites in runtime-projection-profile-persistence).
+    validateProfileName,
   };
 })();

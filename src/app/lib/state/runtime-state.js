@@ -80,6 +80,11 @@
       roomFxByBoard: {},
       insideFxByBoard: {},
       outsideFxByBoard: {},
+      // Phase 28 B1 (D-02): per-board map of the last-loaded/saved projection
+      // profile name. Server-authoritative via boards/<id>.json round-trip.
+      // Empty default; populated by applyBoardProfilesToState on hydration
+      // and by the four save/load triggers in runtime-projection-profile-persistence.
+      lastUsedProfileNameByBoard: {},
       boardZoomByBoard: {},
       roomClipboard: null,
       polygonEditor: {
