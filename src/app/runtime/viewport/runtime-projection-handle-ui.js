@@ -340,6 +340,13 @@
       el.textContent = "⤢";
       el.title = "Drag to scale the whole board";
       const size = 22;
+      // h14: cursor varies by corner so it visually matches the diagonal
+      // the user is dragging along. TL/BR share the ↘↖ diagonal (nwse),
+      // TR/BL share the ↗↙ diagonal (nesw). Stored in `data-cursor` so
+      // the drag-end handler can restore it after the temporary "grabbing"
+      // override during a drag.
+      const cornerCursor = (corner.key === "TL" || corner.key === "BR") ? "nwse-resize" : "nesw-resize";
+      el.dataset.cursor = cornerCursor;
       el.style.cssText = `
         position: fixed;
         width: ${size}px; height: ${size}px;
@@ -351,7 +358,7 @@
         font-weight: bold;
         line-height: ${size - 4}px;
         text-align: center;
-        cursor: nwse-resize;
+        cursor: ${cornerCursor};
         z-index: 10000;
         user-select: none;
         -webkit-user-select: none;

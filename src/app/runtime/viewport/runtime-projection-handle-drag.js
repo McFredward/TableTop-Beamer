@@ -184,15 +184,23 @@
         allStartPts[r][c] = { x: p.x, y: p.y };
       }
     }
+    // h14: store the element ref + its resting cursor so onScaleDragEnd
+    // can restore the corner-specific cursor (nwse-resize for TL/BR,
+    // nesw-resize for TR/BL) instead of leaving the temporary "grabbing"
+    // cursor stuck after pointerup.
+    const targetEl = e.currentTarget instanceof HTMLElement ? e.currentTarget : null;
+    const restingCursor = targetEl?.dataset?.cursor || "grab";
     scaleDragState = {
       pointerId: e.pointerId,
-      cornerKey: e.currentTarget?.dataset?.scaleCorner || "",
+      cornerKey: targetEl?.dataset?.scaleCorner || "",
       centroid,
       startDist,
       allStartPts,
+      targetEl,
+      restingCursor,
     };
-    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch {}
-    if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.cursor = "grabbing";
+    try { targetEl?.setPointerCapture?.(e.pointerId); } catch {}
+    if (targetEl) targetEl.style.cursor = "grabbing";
     document.addEventListener("pointermove", onScaleDragMove);
     document.addEventListener("pointerup", onScaleDragEnd);
     document.addEventListener("pointercancel", onScaleDragEnd);
@@ -231,6 +239,12 @@
   function onScaleDragEnd(e) {
     if (!scaleDragState) return;
     if (e && e.pointerId !== scaleDragState.pointerId) return;
+    // h14: restore the corner-specific resting cursor so the next
+    // mouseover doesn't get stuck on "grabbing".
+    const { targetEl, restingCursor } = scaleDragState;
+    if (targetEl) {
+      targetEl.style.cursor = restingCursor || "nwse-resize";
+    }
     scaleDragState = null;
     document.removeEventListener("pointermove", onScaleDragMove);
     document.removeEventListener("pointerup", onScaleDragEnd);
