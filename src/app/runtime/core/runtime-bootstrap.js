@@ -199,6 +199,41 @@
     }
     ctx.connectLiveSyncSocket();
     ctx.scheduleNextLiveSnapshotPoll(0);
+
+    // Phase 30 B3 h1: belt-and-suspenders force-apply of persisted
+    // diagnosticOverlay so a /output/ reload with overlay ON shows the
+    // chip immediately at boot. The apply-path through
+    // applyPersistedRuntimeSettings + syncRuntimePanelsFromState above
+    // SHOULD already set this, but in practice on /output/ the chip can
+    // stay hidden after reload until the next dashboard toggle. This block
+    // reads the bootstrap config payload directly (root + common nested
+    // shapes) and force-syncs the panel. No-op when the field is missing.
+    try {
+      const bootstrapPayload = window.__TT_BEAMER_BOOTSTRAP_CONFIG__ ?? null;
+      if (bootstrapPayload && typeof bootstrapPayload === "object") {
+        let overlayValue;
+        if (Object.prototype.hasOwnProperty.call(bootstrapPayload, "diagnosticOverlay")) {
+          overlayValue = Boolean(bootstrapPayload.diagnosticOverlay);
+        } else if (
+          bootstrapPayload.runtimeFlags
+          && typeof bootstrapPayload.runtimeFlags === "object"
+          && Object.prototype.hasOwnProperty.call(bootstrapPayload.runtimeFlags, "diagnosticOverlay")
+        ) {
+          overlayValue = Boolean(bootstrapPayload.runtimeFlags.diagnosticOverlay);
+        }
+        if (typeof overlayValue === "boolean") {
+          ctx.state.diagnosticOverlay = overlayValue;
+        }
+      }
+      if (typeof ctx.syncDiagnosticOverlayPanel === "function") {
+        ctx.syncDiagnosticOverlayPanel();
+      }
+    } catch (error) {
+      ctx.logBootstrap?.warn?.("diagnostic_overlay_boot_apply_failed", {
+        event: "diagnostic-overlay-boot-apply-failed",
+        error: String(error?.message || error || "unknown"),
+      });
+    }
   }
 
   // W3.6-C7 Phase 5: status messaging from the resolved hydration
