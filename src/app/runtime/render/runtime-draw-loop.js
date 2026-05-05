@@ -688,6 +688,7 @@
     // If src changed, a board switch is happening — wait for new image
     if (currentSrc !== loading.lastSeenSrc) {
       loading.lastSeenSrc = currentSrc;
+      loading.stableFrames = 0;
       return;
     }
 
@@ -695,12 +696,61 @@
     const serverReady = ctx.liveSync?.firstServerSnapshotApplied === true;
     if (!serverReady) return;
 
-    // Server confirmed — dismiss when image is loaded
-    if (imageLoaded) {
-      loading.dismissed = true;
-      overlay.classList.add("is-hidden");
-      overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
-    }
+    if (!imageLoaded) return;
+
+    // Phase 30 B1 h8: hold loading-overlay until additional boot conditions
+    // settle. Without these checks, /output/ briefly shows: (a) wrong board
+    // (state.boardId !== snapshot's selectedBoard); (b) rooms without
+    // outside-FX (mp4 not yet loaded); (c) white flash from GL canvas
+    // first display:block; (d) brief 2D-fallback streifen before GL stabilizes.
+    // The overlay should cover ALL of those transitions and reveal only the
+    // steady end-state.
+
+    // (1) Board switch fully applied: state.boardId matches snapshot's
+    //     selectedBoard if any.
+    const snapshotBoard =
+      typeof ctx.state?.selectedBoard === "string" && ctx.state.selectedBoard
+        ? ctx.state.selectedBoard
+        : ctx.state.boardId;
+    if (state.boardId !== snapshotBoard) return;
+
+    // (2) Outside-FX in steady state. If outside is enabled with mp4
+    //     selected, wait until the video element is decode-ready
+    //     (readyState >= 2) before dismissing — otherwise user sees
+    //     a white flash when the mp4 first paints.
+    try {
+      const outside = ctx.getOutsideFxProfile?.(state.boardId);
+      if (outside?.enabled) {
+        const def = ctx.getSelectedOutsideAnimationDefinition?.(state.boardId);
+        if (def?.assetType === "mp4" && typeof def.assetRef === "string") {
+          const videoEntry = ctx.getOutsideVideoElement?.(def.assetRef);
+          const video = videoEntry?.video;
+          if (!video || video.readyState < 2 || !(Number(video.videoWidth) > 0)) {
+            return;
+          }
+        }
+        if (def?.assetType === "gif" && typeof def.assetRef === "string") {
+          const gifApi = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
+          const gifEntry = gifApi?.getGifPlaybackCacheEntry?.(def.assetRef);
+          if (!gifEntry || gifEntry.status !== "ready") return;
+        }
+      }
+    } catch (_) { /* if outside accessors throw, fall through */ }
+
+    // (3) Wait for ≥3 stable frames AFTER all the above conditions become
+    //     true. Each tickLoadingOverlay call increments; resets when src
+    //     changes. This buffers the GL canvas first display:block + the
+    //     potential GL context reinit white-flash window into the still-
+    //     covered overlay region. ~50ms at 60fps.
+    loading.stableFrames = (loading.stableFrames || 0) + 1;
+    if (loading.stableFrames < 3) return;
+
+    // All conditions settled — dismiss with a short fade (200ms instead
+    // of 500ms; the system is genuinely ready, no need for slow fade).
+    loading.dismissed = true;
+    overlay.style.transition = "opacity 0.2s ease, visibility 0.2s ease";
+    overlay.classList.add("is-hidden");
+    overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
   }
 
   function startDrawLoop() {

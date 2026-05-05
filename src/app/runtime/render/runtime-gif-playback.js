@@ -21,6 +21,22 @@
     ctx = dependencies;
   }
 
+  // Phase 30 B2 h8: GIF lifecycle probes. Diagnostic ground-truth for
+  // Pi-side failures where GIFs don't start/stop. Logs only on /output/
+  // (final-output role) and dedupes per (event:path:status) so the
+  // console doesn't flood. Drop these tags after the issue is diagnosed.
+  const _gifProbeLogged = new Set();
+  function _gifProbe(event, payload = {}) {
+    try {
+      if (ctx?.outputRole !== ctx?.OUTPUT_ROLE_FINAL) return;
+      const key = `${event}:${payload.path || ""}:${payload.status || ""}`;
+      if (_gifProbeLogged.has(key)) return;
+      _gifProbeLogged.add(key);
+      // eslint-disable-next-line no-console
+      console.log(`[h8-gif-probe] ${event}`, { ...payload, t: performance.now().toFixed(0) });
+    } catch (_) { /* never let probe break render path */ }
+  }
+
   function getGifPlaybackCacheEntry(path) {
     if (!path) {
       return null;
@@ -39,6 +55,8 @@
   }
 
   async function decodeGifPlaybackFrames(path, entry) {
+    const _decodeStartedAt = performance.now();
+    _gifProbe("decode-start", { path, attempt: entry?.failureAttemptCount || 0 });
     // Phase 28 B5: append `?v=<hash>` to the network URL so a re-upload of the
     // same path (different bytes) bypasses (a) the browser HTTP cache and
     // (b) keeps the in-memory `gifPlaybackCacheByPath` Map keyed by the raw
@@ -80,6 +98,11 @@
         entry.totalDurationMs = Math.max(16, totalDurationMs);
         entry.status = "ready";
         entry.error = null;
+        _gifProbe("decode-success", {
+          path,
+          frames: frames.length,
+          ms: Math.round(performance.now() - _decodeStartedAt),
+        });
         return;
       } catch (error) {
         ctx.logRender.warn("gif_image_decoder_failed_fallback_to_parser", {
@@ -139,6 +162,8 @@
         entry.error = error;
         entry.lastFailureAt = Date.now();
         entry.failureAttemptCount = (entry.failureAttemptCount || 0) + 1;
+        _gifProbe("decode-fail", { path, error: String(error?.message || error) });
+        _gifProbe("status-fallback", { path, attempts: entry.failureAttemptCount });
       })
       .finally(() => {
         entry.promise = null;
@@ -149,6 +174,7 @@
   function getGifPlaybackFrame(path, elapsedSeconds) {
     const entry = ensureGifPlaybackReady(path);
     if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
+      _gifProbe("trigger-null", { path, status: entry?.status || "missing" });
       return null;
     }
     const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
@@ -182,16 +208,47 @@
   // succeed, but serializing the queue avoids the failure in the first
   // place AND lets the retry-loop run with calm GPU memory state.
   let _outputWarmQueue = Promise.resolve();
+  const WARM_DECODE_TIMEOUT_MS = 5000;
   function _enqueueOutputWarm(path) {
     _outputWarmQueue = _outputWarmQueue
-      .then(() => {
+      .then(async () => {
         const entry = ensureGifPlaybackReady(path);
         // Wait for the in-flight decode promise to settle (or null/sync
         // entries that don't have one — pass-through immediately).
-        if (entry && entry.promise && typeof entry.promise.then === "function") {
-          return entry.promise.catch(() => undefined);
+        if (!entry || !entry.promise || typeof entry.promise.then !== "function") {
+          return;
         }
-        return undefined;
+        // Phase 30 B2 h8: per-decode timeout. Pi VC4 + large GIFs (e.g.
+        // slime.gif 22 MB) can stall mid-decode; without a timeout the
+        // serialized queue blocks indefinitely and subsequent GIFs never
+        // warm. With timeout: stalled decode is abandoned, entry marked
+        // "fallback" (so trigger-time retry via Candidate B), queue
+        // continues. Worst case: a stalled GIF won't appear at first
+        // trigger but the next trigger (after backoff) retries and may
+        // succeed.
+        let timer;
+        try {
+          const timeoutPromise = new Promise((resolve) => {
+            timer = setTimeout(() => {
+              if (entry.status === "loading") {
+                entry.status = "fallback";
+                entry.error = new Error("warm_decode_timeout");
+                entry.lastFailureAt = Date.now();
+                entry.failureAttemptCount = (entry.failureAttemptCount || 0) + 1;
+                ctx.logRender?.warn?.("gif_warm_decode_timeout", {
+                  event: "gif-warm-decode-timeout",
+                  path,
+                  timeoutMs: WARM_DECODE_TIMEOUT_MS,
+                });
+                _gifProbe("warm-timeout", { path, timeoutMs: WARM_DECODE_TIMEOUT_MS });
+              }
+              resolve();
+            }, WARM_DECODE_TIMEOUT_MS);
+          });
+          await Promise.race([entry.promise.catch(() => undefined), timeoutPromise]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
       })
       .then(() => new Promise((resolve) => setTimeout(resolve, 200)))
       .catch(() => undefined);
