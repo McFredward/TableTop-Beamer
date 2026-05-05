@@ -52,7 +52,7 @@ function grepRecursive(dir, pattern, hits = []) {
 // the OWNING wave/plan that will remove the gate.
 // ---------------------------------------------------------------------------
 
-test("W2: hiddenRoomNames has zero src/ hits", { skip: "Wave 2 (29-02) not landed yet" }, () => {
+test("W2: hiddenRoomNames has zero src/ hits", () => {
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\bhiddenRoomNames\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
