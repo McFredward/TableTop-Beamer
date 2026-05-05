@@ -172,13 +172,35 @@
     };
   }
 
+  // Phase 30 B2 Candidate A: serialized warm queue on /output/. Without
+  // this, warmRoomGifAssets({reason: "startup"}) on Test-Board Nemesis
+  // Lockdown Board A fired N concurrent ImageDecoder decodes (incl. the
+  // 22 MB slime.gif), overwhelming Pi memory + decode slots. Some
+  // decodes threw mid-stream; the parser fallback also failed under the
+  // same pressure → entries ended up in `status="fallback"` with empty
+  // frames. With Candidate B (fallback-retry) those would eventually
+  // succeed, but serializing the queue avoids the failure in the first
+  // place AND lets the retry-loop run with calm GPU memory state.
+  let _outputWarmQueue = Promise.resolve();
+  function _enqueueOutputWarm(path) {
+    _outputWarmQueue = _outputWarmQueue
+      .then(() => {
+        const entry = ensureGifPlaybackReady(path);
+        // Wait for the in-flight decode promise to settle (or null/sync
+        // entries that don't have one — pass-through immediately).
+        if (entry && entry.promise && typeof entry.promise.then === "function") {
+          return entry.promise.catch(() => undefined);
+        }
+        return undefined;
+      })
+      .then(() => new Promise((resolve) => setTimeout(resolve, 200)))
+      .catch(() => undefined);
+  }
+
   function warmGifAssetPath(path, { reason = "runtime" } = {}) {
     if (!path) {
       return;
     }
-    const warm = () => {
-      ensureGifPlaybackReady(path);
-    };
     // /output/ on a Raspberry Pi reliably starves requestIdleCallback —
     // the page is busy decoding board image, mp4s, gifs, and starting
     // the WebSocket; the idle queue may not fire for seconds. That made
@@ -188,10 +210,23 @@
     // immediately. Dashboard keeps the idle deferral.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     if (!isFinalOutput && typeof window.requestIdleCallback === "function" && reason !== "trigger") {
-      window.requestIdleCallback(() => warm(), { timeout: 450 });
+      window.requestIdleCallback(() => ensureGifPlaybackReady(path), { timeout: 450 });
       return;
     }
-    warm();
+    // Phase 30 B2 Candidate A: on /output/, serialize warmup whenever
+    // it is NOT a user-trigger event. This covers all three call sites
+    // that exert N-concurrent-decode pressure on Pi /output/:
+    //   - reason="startup": initial /output/ boot warmup
+    //   - reason="board-switch": runtime-board-switch.js:117 invocation
+    //   - reason="runtime"/other: live-sync runtime defaults reapply
+    // Trigger-reason warms (user explicitly triggered an animation) bypass
+    // the queue — they need to start ASAP and are by nature one-shot
+    // (no concurrent-decode pressure).
+    if (isFinalOutput && reason !== "trigger") {
+      _enqueueOutputWarm(path);
+      return;
+    }
+    ensureGifPlaybackReady(path);
   }
 
   function warmRoomGifAssets({ reason = "runtime" } = {}) {
