@@ -499,6 +499,13 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   syncAlignModePanel: () => syncAlignModePanel(),
   syncAlignModeDirtyDashboardState: () => syncAlignModeDirtyDashboardState(),
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
+  // Phase 30 B3 (Plan 30-01 Task 3 CASE D): expose syncDiagnosticOverlayPanel
+  // into the live-sync ctx so the /output/-role apply branch can invoke it
+  // explicitly after applyGlobalDefaultsPayloadToState. Without this entry,
+  // the fallback call inside runtime-live-sync-core.js would silently no-op
+  // (typeof undefined !== "function") and the chip would never appear on
+  // /output/ even though state.diagnosticOverlay flipped correctly.
+  syncDiagnosticOverlayPanel: () => syncDiagnosticOverlayPanel(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
   renderRoomOverlay: () => renderRoomOverlay(),

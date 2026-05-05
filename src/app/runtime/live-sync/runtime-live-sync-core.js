@@ -569,6 +569,19 @@
                   // (alignModeDirtyOnOutput rides on session.snapshot, not global-defaults.json).
                   const runtimeExtras = payload?.session?.snapshot || null;
                   ctx.applyGlobalDefaultsPayloadToState(loaded.payload, runtimeExtras);
+                  // Phase 30 B3 (Plan 30-01 Task 3 CASE D): explicit /output/-role
+                  // fallback panel-sync. Probe-trace UAT (Task 2) confirmed that on
+                  // /output/, hop5a fires (state.diagnosticOverlay flips) but hop5c
+                  // (syncDiagnosticOverlayPanel → document.body.dataset write) never
+                  // fires through the syncRuntimePanelsFromState() path, so the chip
+                  // never updates. Calling it directly here for the final-output role
+                  // closes the gap. Dashboard role keeps the existing path untouched.
+                  if (
+                    ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+                    && typeof ctx.syncDiagnosticOverlayPanel === "function"
+                  ) {
+                    ctx.syncDiagnosticOverlayPanel();
+                  }
                   ctx.syncRuntimePanelsFromState();
                   ctx.renderRunningAnimationsList();
                   ctx.refreshGlobalButtons();
