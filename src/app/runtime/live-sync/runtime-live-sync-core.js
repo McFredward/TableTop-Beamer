@@ -523,6 +523,11 @@
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
           if (payload?.type === "global-config-update") {
+            console.log("[B3-probe] hop3 global-config-update received on /output/", {
+              outputRole: ctx.getOutputRole?.() ?? null,
+              target: payload.target ?? null,
+              hasDiagnosticOverlayInPayload: false, // payload doesn't contain diagnosticOverlay directly; will be in fetched body (hop 4)
+            });
             // Phase 28 B5: when the broadcast target is the asset manifest,
             // refetch /api/resources and update the client manifest mirror
             // independently of the localConfigDirty / suppress gates above —
@@ -545,6 +550,11 @@
                 }
               })();
             }
+            console.log("[B3-probe] hop4 apply-path gate", {
+              localConfigDirty: !!ctx.state?.localConfigDirty,
+              shouldSuppressBroadcastReapply: typeof ctx.shouldSuppressBroadcastReapply === "function" ? ctx.shouldSuppressBroadcastReapply() : null,
+              willTakeApplyBranch: !ctx.state?.localConfigDirty && !(typeof ctx.shouldSuppressBroadcastReapply === "function" && ctx.shouldSuppressBroadcastReapply()),
+            });
             if (ctx.state.localConfigDirty) {
               ctx.state.remoteConfigUpdateAwaiting = true;
               ctx.refreshApplyDiscardButtonsUi();

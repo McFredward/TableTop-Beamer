@@ -426,6 +426,11 @@
     }
 
     if (payload && Object.prototype.hasOwnProperty.call(payload, "diagnosticOverlay")) {
+      console.log("[B3-probe] hop5a state.diagnosticOverlay assignment", {
+        incoming: payload.diagnosticOverlay,
+        current: state.diagnosticOverlay,
+        next: Boolean(payload.diagnosticOverlay),
+      });
       state.diagnosticOverlay = Boolean(payload.diagnosticOverlay);
     }
 
