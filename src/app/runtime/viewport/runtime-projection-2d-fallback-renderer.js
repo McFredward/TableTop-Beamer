@@ -67,10 +67,16 @@
     cctx.lineTo(px2, py2);
     cctx.closePath();
     cctx.clip();
-    // Keep bilinear filtering on so the warp is smooth at the
-    // seams instead of nearest-neighbor-aliased.
-    cctx.imageSmoothingEnabled = true;
-    cctx.imageSmoothingQuality = "high";
+    // Phase 30 B1: bilinear filtering at per-triangle clip boundaries
+    // produces visible 1-pixel ridges on uniform solid-color content
+    // (every triangle samples a slightly different sub-texel near
+    // shared edges). NEAREST forces one texel per fragment with no
+    // interpolation — symmetric to the Phase-26-h9 GL fix
+    // (`TEXTURE_MIN/MAG_FILTER = NEAREST` at runtime-projection-gl-
+    // renderer.js:150-153). On a projector at typical viewing distance
+    // NEAREST is imperceptible vs LINEAR for warp-target content; the
+    // trade-off is entirely on the side of fewer seams.
+    cctx.imageSmoothingEnabled = false;
     cctx.transform(a, b, c, d, e, f);
     cctx.drawImage(img, 0, 0);
     cctx.restore();
