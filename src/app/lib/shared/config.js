@@ -195,13 +195,6 @@
     animations: createDefaultOutsideAnimationDefinitions(),
   };
 
-  const ROOM_STATE_DEFAULT = {
-    broken: false,
-    burning: false,
-    alienCount: 0,
-    corpse: false,
-  };
-
   // App version. Cadence: phase number → minor; in-phase hotfixes →
   // patch. Bump on phase closure (e.g. Phase 26 → "0.26.0",
   // Phase 26 hotfix → "0.26.1"). Surfaced to the user via the small
@@ -240,7 +233,6 @@
     createDefaultInsideAnimationDefinitions,
     createDefaultOutsideAnimationDefinitions,
     OUTSIDE_FX_DEFAULT,
-    ROOM_STATE_DEFAULT,
     APP_VERSION,
   };
 })();

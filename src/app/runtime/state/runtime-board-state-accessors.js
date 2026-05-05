@@ -2,9 +2,9 @@
 //
 // Owns per-board getters/setters for hitarea calibration, room
 // geometry, special polygons, room source points, active-polygon
-// room tracking, room state profiles (broken/burning/alien/corpse),
-// simple clamp helpers, room animation type predicates, and
-// resolve helpers for the room→global equivalent mapping.
+// room tracking, simple clamp helpers, room animation type
+// predicates, and resolve helpers for the room→global equivalent
+// mapping.
 (() => {
   let ctx = null;
 
@@ -159,48 +159,6 @@
     return Math.max(0, Math.min(2, Math.round(Number(value) || 0)));
   }
 
-  function normalizeRoomStateProfile(profile) {
-    return {
-      broken: Boolean(profile?.broken),
-      burning: Boolean(profile?.burning),
-      alienCount: clampAlienCount(profile?.alienCount),
-      corpse: Boolean(profile?.corpse),
-    };
-  }
-
-  function createDefaultRoomStateProfileMap(boardId) {
-    const board = ctx.getBoard(boardId);
-    return Object.fromEntries(
-      board.rooms.map((room) => [room.id, normalizeRoomStateProfile(ctx.ROOM_STATE_DEFAULT)]),
-    );
-  }
-
-  function createDefaultRoomStateProfilesByBoard() {
-    return Object.fromEntries(
-      ctx.getBoards().map((board) => [board.id, createDefaultRoomStateProfileMap(board.id)]),
-    );
-  }
-
-  function normalizeRoomStateProfileMap(profiles, boardId) {
-    const defaults = createDefaultRoomStateProfileMap(boardId);
-    for (const room of ctx.getBoard(boardId).rooms) {
-      defaults[room.id] = normalizeRoomStateProfile(profiles?.[room.id]);
-    }
-    return defaults;
-  }
-
-  function getRoomStateProfile(boardId, roomId) {
-    return normalizeRoomStateProfile(ctx.state.roomStateProfilesByBoard?.[boardId]?.[roomId]);
-  }
-
-  function setRoomStateProfile(boardId, roomId, profile) {
-    const state = ctx.state;
-    if (!state.roomStateProfilesByBoard[boardId]) {
-      state.roomStateProfilesByBoard[boardId] = createDefaultRoomStateProfileMap(boardId);
-    }
-    state.roomStateProfilesByBoard[boardId][roomId] = normalizeRoomStateProfile(profile);
-  }
-
   function isRoomAnimationType(type) {
     return Boolean(ctx.getRoomAnimationDefinitionById(type, ctx.state.boardId));
   }
@@ -293,12 +251,6 @@
     clampGifPlaybackSpeed,
     clampRoomDurationSec,
     clampAlienCount,
-    normalizeRoomStateProfile,
-    createDefaultRoomStateProfileMap,
-    createDefaultRoomStateProfilesByBoard,
-    normalizeRoomStateProfileMap,
-    getRoomStateProfile,
-    setRoomStateProfile,
     isRoomAnimationType,
     isRoomGlobalEquivalent,
     resolveRoomAnimationEffectType,

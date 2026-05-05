@@ -19,7 +19,6 @@
     if (
       raw.hitareaCalibrationByBoard ||
       raw.roomGeometryByBoard ||
-      raw.roomStateProfilesByBoard ||
       raw.specialPolygonsByBoard ||
       raw.roomCatalogByBoard
     ) {
@@ -30,7 +29,6 @@
             roomCatalog: raw.roomCatalogByBoard?.[board.id] ?? raw.roomsByBoard?.[board.id],
             hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
             roomGeometry: raw.roomGeometryByBoard?.[board.id],
-            roomStateProfiles: raw.roomStateProfilesByBoard?.[board.id],
             specialPolygons: raw.specialPolygonsByBoard?.[board.id],
           },
         ]),
@@ -51,7 +49,6 @@
         || value.playAreaPolygon
         || value.roomCatalog
         || value.roomGeometry
-        || value.roomStateProfiles
         || value.specialPolygons
         || value.outsideFx
         || value.roomFx
@@ -71,7 +68,6 @@
     candidate,
     createDefaultBoardProfiles,
     createDefaultRoomGeometryMap,
-    createDefaultRoomStateProfileMap,
     createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
@@ -115,8 +111,6 @@
           profile.roomGeometry ??
           profile.geometry ??
           createDefaultRoomGeometryMap(boardId),
-        roomStateProfiles:
-          profile.roomStateProfiles ?? profile.roomStates ?? createDefaultRoomStateProfileMap(boardId),
         specialPolygons:
           profile.specialPolygons ??
           profile.polygons ??

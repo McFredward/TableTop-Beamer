@@ -5,7 +5,7 @@
 // switchBoard (full active-board swap: image/select/status/room
 // selection/geometry maps/panels/overlay/global buttons), and
 // ensureBoardRoomStateMaps (fills missing per-room geometry +
-// state profile + tombstone entries).
+// tombstone entries).
 (() => {
   let ctx = null;
 
@@ -152,18 +152,13 @@
     const state = ctx.state;
     const board = ctx.getBoard(boardId);
     const geometryMap = state.roomGeometryByBoard[boardId] ?? {};
-    const stateMap = state.roomStateProfilesByBoard[boardId] ?? {};
     const tombstones = state.roomTombstonesByBoard?.[boardId] ?? [];
     for (const room of board.rooms) {
       if (!geometryMap[room.id]) {
         geometryMap[room.id] = ctx.normalizeRoomGeometry(ctx.ROOM_GEOMETRY_DEFAULT, room, boardId);
       }
-      if (!stateMap[room.id]) {
-        stateMap[room.id] = ctx.normalizeRoomStateProfile(ctx.ROOM_STATE_DEFAULT);
-      }
     }
     state.roomGeometryByBoard[boardId] = geometryMap;
-    state.roomStateProfilesByBoard[boardId] = stateMap;
     if (!state.roomTombstonesByBoard) {
       state.roomTombstonesByBoard = {};
     }

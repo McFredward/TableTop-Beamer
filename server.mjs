@@ -40,7 +40,6 @@ const BOARD_PROFILE_FIELDS = Object.freeze([
   "deletedRoomIds",
   "hitareaCalibration",
   "roomGeometry",
-  "roomStateProfiles",
   "specialPolygons",
   "playAreaPolygon",
   "playAreas",

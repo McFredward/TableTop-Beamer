@@ -70,7 +70,6 @@
       hitareaCalibrationByBoard: {},
       roomTombstonesByBoard: {},
       roomGeometryByBoard: {},
-      roomStateProfilesByBoard: {},
       specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},
       frozenRoomsByBoard: {},

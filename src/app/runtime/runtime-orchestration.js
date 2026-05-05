@@ -35,7 +35,6 @@ const {
   createDefaultInsideAnimationDefinitions,
   createDefaultOutsideAnimationDefinitions,
   OUTSIDE_FX_DEFAULT,
-  ROOM_STATE_DEFAULT,
 } = window.TT_BEAMER_CONFIG;
 
 let BOARDS = CONFIG_BOARDS.map((board) => window.TT_BEAMER_ROOMS.normalizeBoard(board));
@@ -724,7 +723,6 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   extractBoardProfilesCandidateFromPersistence,
   buildMigratedBoardProfilesFromPersistence,
   createDefaultRoomGeometryMap,
-  createDefaultRoomStateProfileMap: (boardId) => createDefaultRoomStateProfileMap(boardId),
   createDefaultSpecialPolygonMap,
   createDefaultRoomAnimationDefinitions,
   createDefaultInsideAnimationDefinitions,
@@ -732,7 +730,6 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   normalizeShipPolygon,
   normalizeRoomTombstoneIds,
   normalizeRoomGeometryMap,
-  normalizeRoomStateProfileMap: (map, boardId) => normalizeRoomStateProfileMap(map, boardId),
   normalizeSpecialPolygonMap,
   normalizeFrozenRoomsMap: (raw, boardId) => normalizeFrozenRoomsMap(raw, boardId),
   getPlayAreas,
@@ -854,7 +851,6 @@ window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS.init({
   state,
   HITAREA_CALIBRATION_DEFAULT,
   INLINE_FALLBACK_BOARDS,
-  ROOM_STATE_DEFAULT,
   ROOM_GLOBAL_EQUIVALENT_MAP,
   ROOM_GIF_ANIMATION_ASSETS,
   getBoard: (boardId) => getBoard(boardId),
@@ -889,12 +885,6 @@ const {
   clampGifPlaybackSpeed,
   clampRoomDurationSec,
   clampAlienCount,
-  normalizeRoomStateProfile,
-  createDefaultRoomStateProfileMap,
-  createDefaultRoomStateProfilesByBoard,
-  normalizeRoomStateProfileMap,
-  getRoomStateProfile,
-  setRoomStateProfile,
   isRoomAnimationType,
   isRoomGlobalEquivalent,
   resolveRoomAnimationEffectType,
@@ -1812,7 +1802,6 @@ const {
 window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   state,
   ROOM_GEOMETRY_DEFAULT,
-  ROOM_STATE_DEFAULT,
   canvas,
   canvasCtx: ctx,
   boardImage,
@@ -1840,7 +1829,6 @@ window.TT_BEAMER_RUNTIME_BOARD_SWITCH.init({
   renderRoomOverlay: () => renderRoomOverlay(),
   refreshGlobalButtons: () => refreshGlobalButtons(),
   normalizeRoomGeometry: (geometry, room, boardId) => normalizeRoomGeometry(geometry, room, boardId),
-  normalizeRoomStateProfile: (profile) => normalizeRoomStateProfile(profile),
   normalizeRoomTombstoneIds: (ids, boardId) => normalizeRoomTombstoneIds(ids, boardId),
   clearUndoStack: () => { if (typeof clearUndoStack === "function") clearUndoStack(); },
 });
@@ -3011,7 +2999,6 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     createDefaultHitareaCalibrationMap,
     createDefaultRoomTombstonesByBoard,
     createDefaultRoomGeometryByBoard,
-    createDefaultRoomStateProfilesByBoard,
     createDefaultSpecialPolygonsByBoard,
     createDefaultPlayAreasByBoard,
     createDefaultSelectedPlayAreaIdByBoard,

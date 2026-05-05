@@ -57,7 +57,7 @@ test("W2: hiddenRoomNames has zero src/ hits", () => {
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
 
-test("W2: roomStateProfiles has zero src/ hits (excluding state-accessor module which is removed in 29-03)", { skip: "Wave 2 (29-03) not landed yet" }, () => {
+test("W2: roomStateProfiles has zero src/ hits (excluding state-accessor module which is removed in 29-03)", () => {
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\broomStateProfiles?\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });

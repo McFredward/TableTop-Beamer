@@ -119,7 +119,6 @@
       ctx.getBoards().map((board) => [board.id, {}]),
     );
     state.roomTombstonesByBoard = ctx.createDefaultRoomTombstonesByBoard();
-    state.roomStateProfilesByBoard = ctx.createDefaultRoomStateProfilesByBoard();
     state.specialPolygonsByBoard = ctx.createDefaultSpecialPolygonsByBoard();
     state.playAreasByBoard = ctx.createDefaultPlayAreasByBoard();
     state.selectedPlayAreaIdByBoard = ctx.createDefaultSelectedPlayAreaIdByBoard();

@@ -606,9 +606,6 @@
     if (state.roomGeometryByBoard[state.boardId]) {
       delete state.roomGeometryByBoard[state.boardId][room.id];
     }
-    if (state.roomStateProfilesByBoard[state.boardId]) {
-      delete state.roomStateProfilesByBoard[state.boardId][room.id];
-    }
     if (state.specialPolygonsByBoard[state.boardId]) {
       delete state.specialPolygonsByBoard[state.boardId][room.id];
     }

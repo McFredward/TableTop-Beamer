@@ -35,7 +35,6 @@
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
           deletedRoomIds: [],
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-          roomStateProfiles: ctx.createDefaultRoomStateProfileMap(board.id),
           specialPolygons: ctx.createDefaultSpecialPolygonMap(board.id),
           playAreas: ctx.normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT),
           selectedPlayAreaId: "play-area-1",
@@ -57,7 +56,6 @@
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
           deletedRoomIds: ctx.normalizeRoomTombstoneIds(state.roomTombstonesByBoard?.[board.id], board.id),
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-          roomStateProfiles: ctx.normalizeRoomStateProfileMap(state.roomStateProfilesByBoard[board.id], board.id),
           specialPolygons: ctx.normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
           playAreas: ctx.getPlayAreas(board.id).map((area) => ({
             id: area.id,
@@ -185,12 +183,6 @@
     // hitareaCalibration + roomGeometry
     // no longer read from profiles. The migration script baked them
     // into specialPolygons and the pipeline is identity now.
-    state.roomStateProfilesByBoard = Object.fromEntries(
-      BOARDS.map((board) => [
-        board.id,
-        ctx.normalizeRoomStateProfileMap(profiles?.[board.id]?.roomStateProfiles, board.id),
-      ]),
-    );
     state.specialPolygonsByBoard = Object.fromEntries(
       BOARDS.map((board) => [
         board.id,
@@ -286,7 +278,6 @@
       candidate,
       createDefaultBoardProfiles,
       createDefaultRoomGeometryMap: ctx.createDefaultRoomGeometryMap,
-      createDefaultRoomStateProfileMap: ctx.createDefaultRoomStateProfileMap,
       createDefaultSpecialPolygonMap: ctx.createDefaultSpecialPolygonMap,
       HITAREA_CALIBRATION_DEFAULT: ctx.HITAREA_CALIBRATION_DEFAULT,
       SHIP_POLYGON_DEFAULT: ctx.SHIP_POLYGON_DEFAULT,
