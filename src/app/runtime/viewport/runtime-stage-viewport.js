@@ -84,15 +84,28 @@
     // Phase 28 (B2/D-06): gate the board-switch dropdown identically. Same
     // chip text reused; the long-form differs (ends in "…to switch board.").
     const boardSelect = ctx.boardSelect ?? document.getElementById("board-select");
+    const boardSwitchHint = document.getElementById("board-switch-dirty-hint");
     if (boardSelect) {
       if (dirty) {
         boardSelect.setAttribute("disabled", "");
         boardSelect.setAttribute("title", HINT_COPY_FULL_BOARD_SWITCH);
-        boardSelect.setAttribute("aria-describedby", "align-mode-dirty-hint");
+        boardSelect.setAttribute("aria-describedby", "board-switch-dirty-hint");
       } else {
         boardSelect.removeAttribute("disabled");
         boardSelect.removeAttribute("aria-describedby");
         boardSelect.removeAttribute("title");
+      }
+    }
+    // Phase 28 h4: inline contextual hint directly under the dropdown in
+    // the Board Setup panel — explains WHY the dropdown is disabled, since
+    // the topbar chip is far from where the user is clicking.
+    if (boardSwitchHint) {
+      if (dirty) {
+        boardSwitchHint.textContent = HINT_COPY_FULL_BOARD_SWITCH;
+        boardSwitchHint.removeAttribute("hidden");
+      } else {
+        boardSwitchHint.textContent = "";
+        boardSwitchHint.setAttribute("hidden", "");
       }
     }
   }

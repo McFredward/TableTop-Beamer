@@ -2221,6 +2221,32 @@ button.danger.is-armed {
   opacity: 0.55;
   cursor: not-allowed;
 }
+/* Phase 28 h4: inline contextual hint directly under the disabled
+ * #board-select in the Board Setup panel. Mirrors the topbar chip's
+ * amber/warn palette but flows in the panel layout instead of floating
+ * fixed-position — so the user sees "why is this disabled?" right at
+ * the dropdown they're trying to use. */
+#board-switch-dirty-hint:not([hidden]) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(245, 181, 68, 0.14);
+  border: 1px solid rgba(245, 181, 68, 0.45);
+  color: var(--c-warn);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+#board-switch-dirty-hint:not([hidden])::before {
+  content: "●";
+  display: inline-block;
+  font-size: 7px;
+  color: var(--c-warn);
+  flex-shrink: 0;
+}
 /* Phase 28 (B2): mirror the disabled-state visuals on the board-select
  * dropdown when the align-mode-dirty save-gate is active. */
 #board-select[disabled] {

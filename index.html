@@ -353,6 +353,12 @@
           Board
           <select id="board-select"></select>
         </label>
+        <!-- Phase 28 h4: contextual hint shown directly under the disabled
+             dropdown when /output/ has unsaved align-mode changes. Populated
+             and shown/hidden by syncAlignModeDirtyDashboardState() in
+             runtime-stage-viewport.js (alongside the existing topbar chip). -->
+        <p id="board-switch-dirty-hint" class="board-switch-dirty-hint"
+           aria-live="polite" hidden></p>
         <div class="board-status-row">
           <p id="board-status" class="status-line" aria-live="polite">Active board: -</p>
           <button id="board-delete-current" type="button" class="board-delete-link"
