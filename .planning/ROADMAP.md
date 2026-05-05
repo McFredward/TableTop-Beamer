@@ -198,10 +198,38 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
+## Phase 29 - Persistence Audit & Legacy Cleanup (PLANNING)
+Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.json`, `config/boards/<id>.json`, `config/projection-profiles.json`, `config/asset-manifest.json`) auf redundante / ungenutzte Felder. Tot-Code rauswerfen, Schema schlanker machen, Import/Export weiterhin funktional halten — keine Backwards-Compat erforderlich (Pre-Release).
+
+Status: PLANNING. Backlog (B1..B4) erfasst, Decisions noch offen — `/gsd-discuss-phase 29` als nächster Schritt.
+
+Backlog (User-Audit nach Phase-28-Closure):
+- B1 — Sound-Pfade in `global-defaults.json` (`animationSoundMap`): Verdacht auf Legacy-Field. Sounds sind Teil der Animation-Definitions im Board (`outsideFx.animations[].soundAssetRef`, `roomFx.animations[].soundAssetRef`, `defaultAnimations[].soundAssetRef`). Verifizieren ob `animationSoundMap` noch read-paths hat; wenn nicht → entfernen.
+- B2 — `deletedRoomIds` in board-JSON: Tombstone-Liste für gelöschte Räume. Verifizieren ob das Feld irgendwo noch konsumiert wird (Migration? Hydration-Reconciliation?). Wenn nicht → entfernen.
+- B3 — `roomStateProfiles` in board-JSON: Zustands-Map (broken/burning/alienCount/corpse) pro Raum. Verifizieren ob das Feld noch render-relevant ist oder ein Phase-pre-X-Relikt. Wenn nicht → entfernen.
+- B4 — Vollständiger Schema-Audit aller anderen Keys in den vier JSON-Files: jeder Key wird auf Read-Path im Source-Tree geprüft; toten Code + tote Felder entfernen. Import/Export-Schemas synchron mitziehen.
+
+Milestones:
+1. M1 Audit-Phase: jedes Feld klassifizieren (LIVE / DEAD / MIGRATION-ONLY).
+2. M2 Code-Cleanup: write-Pfade + read-Pfade + normalizers für DEAD-Felder entfernen.
+3. M3 Disk-Cleanup: tote Felder aus on-disk JSON-Files purgen (one-shot Migration).
+4. M4 Import/Export-Sync: Bundle-Export- und Import-Handler an das schlanke Schema anpassen.
+
+Exit Criteria:
+- Schema-Inventar (`PHASE_29_SCHEMA_AUDIT.md`) mit Klassifikation pro Feld.
+- Auf disk: keine DEAD-Felder mehr in den vier Config-JSON-Files.
+- In Source: keine Reads/Writes/Normalizers für DEAD-Felder (grep-verifizierbar = 0 hits).
+- Bundle-Export/Import-Roundtrip mit dem schlanken Schema funktional.
+- Test-Suite weiterhin grün; Phase-28-Acceptance (B1..B6) non-regressed.
+
+Out of Scope:
+- Backwards-Compat zu alten exportierten Packages (Pre-Release-OK).
+- Neue Persistence-Features oder Schema-Version-Bumps.
+
 ## Phase 28 - Cross-cutting UX & State Polish (CLOSED)
 Ziel: Mehrere kleinere, voneinander entkoppelte UX/State-Probleme nach Phase-27-Closure beheben — board-gebundene Align-Profile, board-switch save-gate-Parität, Asset-Lifecycle-Korrektheit (Dirty-Flag-Hygiene + saubere Delete-Modals + Cache-Invalidierung bei Re-Upload mit gleichem Namen) und Diagnostic-Overlay-Cross-Client-Sync samt Topbar-Layout-Fix.
 
-Status: CLOSED am 2026-05-04. 6 Plans (28-00..28-05) ausgeführt; Test-Suite 25/25 grün; Verifier 32/32 automated PASS. 7 Items im 28-HUMAN-UAT.md erwarten Browser-Smoke vom User. Closure-Doku: `.planning/phases/phase-28/SUMMARY.md`. Tag: `phase-28-end`. Final version: `0.28.0`.
+Status: CLOSED am 2026-05-04 (h8 final). 6 Plans (28-00..28-05) + 8 Hotfixes (h1..h8) aus interaktivem Testing. Test-Suite 25/25 grün. Closure-Doku: `.planning/phases/phase-28/SUMMARY.md`. Tag: `phase-28-end`. Final version: `0.28.1`.
 
 **Plans:** 6/6 plans complete
 

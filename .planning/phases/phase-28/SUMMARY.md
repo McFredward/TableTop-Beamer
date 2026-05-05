@@ -105,8 +105,8 @@ Decisions D-01..D-21 in `.planning/phases/phase-28/28-CONTEXT.md`.
 
 ## Aggregate metrics
 
-- **Commits since `phase-27-end` (`c4a18b4`):** 26 total (6 plan-impl plans
-  ×~3 commits/plan + Wave-0 scaffolding + closure commits).
+- **Commits since `phase-27-end` (`c4a18b4`):** 35 total (6 plan-impl plans
+  ×~3 commits/plan + Wave-0 scaffolding + closure commits + 8 hotfixes).
 - **Plan hierarchy:** 6 plans × 6 sequential waves (file overlap zwischen
   benachbarten Waves gezwungen serial).
 - **Test infrastructure:** Erste Phase mit automatisierten Tests
@@ -138,12 +138,25 @@ wurden im SUMMARY der jeweiligen Plans dokumentiert):
 
 | Backlog | Status |
 |---------|--------|
-| B1 — per-board last-used profile | ✓ artifact + wiring; user smoke pending |
-| B2 — board-switch save-gate (4 entry points) | ✓ artifact + wiring; user smoke pending |
+| B1 — per-board last-used profile | ✓ confirmed in user smoke (h1 fix needed) |
+| B2 — board-switch save-gate (4 entry points) | ✓ confirmed; h4 added inline hint under dropdown |
 | B3 — asset upload/delete dirty hygiene | ✓ artifact + wiring; user smoke pending |
 | B4 — custom asset-delete modal | ✓ artifact + wiring; user smoke pending |
 | B5 — asset cache invalidation (sha256[:12]) | ✓ artifact + wiring; user smoke pending; **GIF in-memory caveat documented** |
-| B6 — diagnostic-overlay topbar UX | ✓ artifact + wiring; user smoke pending |
+| B6 — diagnostic-overlay topbar UX | ✓ confirmed (h5 made align button cross-tab) |
+
+## Hotfix series (h1..h8) — interactive-test findings
+
+| # | Commit | Fix |
+|---|--------|-----|
+| h1 | `9c9c232` | Gate per-board auto-load on actual board switches only — `syncRuntimePanelsFromState` calls `switchBoard(sameId)` on every snapshot apply, and unconditional auto-load was overwriting in-progress align-mode edits within ~200 ms of every handle drag. |
+| h2 | `af6db45` | Rebuild outside-fx mirror after snapshot apply on /output/ — applyLiveRuntimeSnapshot replaces state.runningAnimations with the server's view, but the mirror is created locally and never broadcast. **Silent no-op due to wiring gap (see h3).** |
+| h3 | `950db94` | Wire `syncOutsideRuntimeMirror` into the live-sync-core ctx so h2's `typeof ctx.X === "function"` guard actually evaluates true. Without this h2 was dead code. Outside-space speed now matches dashboard on /output/ regardless of transforms. |
+| h4 | `4590de9` | Inline dirty-hint under the disabled `#board-select` in the Board Setup panel (long-form copy "Unsaved align changes on /output/ — save or discard there first to switch board.") so the user understands WHY the dropdown is locked. Topbar chip kept too. |
+| h5 | `6ca1daa` | Align button + dirty hint stay visible on all tabs (Settings included). Removed `data-view="dashboard"` + dead `dashboard-only` class so the `#control-panel[data-active-view="settings"] [data-view="dashboard"] { display:none }` rule no longer hides them. |
+| h6 | `4e72b00` | Bundle-import rename now derives a FRESH boardId via `sanitizeBoardFileName(renameTo)` + `-2/-3` collision suffix — previously only the metadata.name changed and the import overwrote the original board's JSON file. Renamed imports now land as new independent boards. |
+| h7 | `17ff5ec` | Refresh global-defaults after bundle-import so per-board state maps (`playAreasByBoard`, `defaultAnimationsByBoard`, `outsideFxByBoard`, `insideFxByBoard`, `roomFxByBoard`, etc.) hydrate for the new boardId. Without this, the imported board had rooms but no play areas / fx settings. |
+| h8 | `5311dc9` | Remap `defaultAnimations[i].boardId` to the new boardId on bundle-import rename. Server's autostart loop reads each entry's embedded boardId; without rewrite, imported autostart animations spawned under the package's original boardId and never played on the new board (even after server restart). |
 
 ## Known limitations
 

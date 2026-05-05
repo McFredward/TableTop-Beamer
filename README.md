@@ -13,7 +13,7 @@ room, in real time.
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](LICENCE)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%2F%20RPi-orange.svg)](#requirements)
 [![Made with Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Version](https://img.shields.io/badge/version-0.27.x-purple.svg)](#project-status)
+[![Version](https://img.shields.io/badge/version-0.28.0-purple.svg)](#project-status)
 
 <br>
 
@@ -100,6 +100,9 @@ at once.
 
 ## Highlights
 
+- 📦 **Pre-shipped boards.** `Nemesis` (both base-game boards) and `Nemesis
+  Lockdown` (both boards) are included with hand-crafted polygons and a starter
+  animation library.
 - 🎯 **In-browser projection mapping.** A WebGL-accelerated mesh-warp grid you
   drag, rotate, and scale until the projection sits perfectly on the physical
   board. Profiles are saved per-board on the server.
@@ -113,25 +116,18 @@ at once.
   <div align="center">
   <img src="./readme-assets/edit_animations.gif" width="75%" />
   </div>
-- 📋 **Copy animations between boards.** One click pulls every animation from
-  another board into the current one (skipping duplicates by name) — perfect
-  starting point for a freshly-imported board.
 - 🧩 **Rooms, play areas, clusters.** Paint any polygonal region. Group rooms
   so one tap fires across many at once. Each cluster gets a live mini-preview
   tile next to the board on the dashboard.
   <div align="center">
   <img src="./readme-assets/edit_polygons.gif" width="75%" />
   </div>
-- 🌗 **Light & dark themes.** Toggle from the topbar.
 - 🔊 **Per-animation sounds** with global master volume.
 - 💾 **Self-contained board packages.** Export everything (definition, animations,
   assets, calibration profiles, the board image) as a single `.zip`. Re-import
   on another machine; nothing else required.
 - 🥧 **Raspberry-Pi-friendly output path.** WebGL warp displays directly on the
   output canvas — no GPU readback, runs smoothly on a Pi 4 / Pi 5.
-- 📦 **Pre-shipped boards.** Nemesis (both base-game boards) and Nemesis
-  Lockdown (both boards) are included with hand-crafted polygons and a starter
-  animation library.
 
 ---
 
@@ -139,7 +135,7 @@ at once.
 
 | | |
 |---|---|
-| 🎥 **Projector** | Short-throw, DLP, ceiling-mounted, image fully covering the table |
+| 🎥 **Projector** | Short-throw, DLP, ceiling-mounted |
 | 🖥️ **Output device** | Raspberry Pi 4/5 (or any Linux mini PC) connected to the projector |
 | 🌐 **Server** | Any machine running Node.js 20+, reachable from the Pi and the phone |
 | 📱 **Controller** | Phone / tablet / desktop with a modern browser |

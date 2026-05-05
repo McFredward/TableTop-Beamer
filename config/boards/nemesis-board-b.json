@@ -1,12 +1,12 @@
 {
   "schema": "tt-beamer.board-import.v1",
-  "importedAt": "2026-04-12T08:24:39.622Z",
+  "importedAt": "2026-05-05T11:13:05.530Z",
   "board": {
     "schema": "tt-beamer.board.v2",
     "boardId": "nemesis-board-b",
     "metadata": {
       "name": "Nemesis Board B",
-      "imageSrc": "/config/boards/assets/httpssteamusercontentaakamaihdnetugc948472629471389466262B46FE788A03A16E28D87AE3C3D56A707BC356.jpg",
+      "imageSrc": "/config/boards/assets/nemesis-board-b-mosj50c8.jpg",
       "source": "package-import"
     },
     "roomCatalog": [
@@ -16307,6 +16307,7 @@
       "room-71": true,
       "room-73": true
     },
-    "hiddenRoomNames": {}
+    "hiddenRoomNames": {},
+    "lastUsedProfileName": null
   }
 }
