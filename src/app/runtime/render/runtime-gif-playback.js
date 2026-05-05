@@ -102,7 +102,31 @@
     if (entry.status === "ready" || entry.status === "loading") {
       return entry;
     }
+    // Phase 30 B2 Candidate B: "fallback" is no longer terminal. After a
+    // backoff (default 1000ms, doubling per attempt up to 8000ms) we reset
+    // to "idle" and re-attempt the decode. This addresses transient Pi
+    // ImageDecoder failures under load (slime.gif 22 MB + concurrent
+    // decodes) where the original Phase-26-h9 try/catch fell through to
+    // the parser, but the parser ALSO failed under the same memory
+    // pressure → entry stayed in "fallback" until page reload.
+    if (entry.status === "fallback") {
+      const now = Date.now();
+      const lastAttemptAt = entry.lastFailureAt || 0;
+      const attemptCount = entry.failureAttemptCount || 1;
+      const backoffMs = Math.min(8000, 1000 * Math.pow(2, attemptCount - 1));
+      if (now - lastAttemptAt < backoffMs) {
+        return entry; // still in backoff window
+      }
+      // Reset to idle for a fresh attempt; preserve attemptCount so the
+      // next failure backoff is longer.
+      entry.status = "idle";
+    }
     entry.status = "loading";
+    // Phase 30 B2 Candidate C foundation: remember the URL the bytes were
+    // decoded from so a manifest hash change can invalidate the cache.
+    const resolvedUrlAtDecode =
+      window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
+    entry.decodedFromUrl = resolvedUrlAtDecode;
     entry.promise = decodeGifPlaybackFrames(path, entry)
       .catch((error) => {
         ctx.logRender.warn("gif_decode_failed", {
@@ -113,6 +137,8 @@
         });
         entry.status = "fallback";
         entry.error = error;
+        entry.lastFailureAt = Date.now();
+        entry.failureAttemptCount = (entry.failureAttemptCount || 0) + 1;
       })
       .finally(() => {
         entry.promise = null;
@@ -196,6 +222,40 @@
     }
   }
 
+  /**
+   * Phase 30 B2 Candidate C: invalidate the in-memory cache entry for a
+   * given path so the next ensureGifPlaybackReady call re-decodes from
+   * the freshly-uploaded bytes. Symmetric to the MP4 path at
+   * runtime-outside-mp4.js:75-94 which already does this for <video>.src.
+   *
+   * Caller passes the new resolved URL (with `?v=<hash>`); we compare to
+   * the entry's recorded `decodedFromUrl`. On mismatch we reset the entry
+   * so the next ensureGifPlaybackReady triggers a fresh decode.
+   */
+  function invalidateGifCacheForPath(path) {
+    const entry = getGifPlaybackCacheEntry(path);
+    if (!entry) {
+      return false;
+    }
+    const desiredUrl =
+      window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
+    if (entry.decodedFromUrl && entry.decodedFromUrl === desiredUrl) {
+      return false; // bytes match; no invalidation needed
+    }
+    // Mismatch (or never decoded) → reset entry so next ensureGifPlaybackReady
+    // re-decodes. Preserve the cache slot itself; downstream getGifPlaybackFrame
+    // will return null while status is "idle" / "loading" — same as a fresh
+    // unwarmed entry.
+    entry.status = "idle";
+    entry.frames = [];
+    entry.totalDurationMs = 0;
+    entry.error = null;
+    entry.decodedFromUrl = null;
+    entry.lastFailureAt = 0;
+    entry.failureAttemptCount = 0;
+    return true;
+  }
+
   window.TT_BEAMER_RUNTIME_GIF_PLAYBACK = {
     init,
     getGifPlaybackCacheEntry,
@@ -204,5 +264,6 @@
     resolveRoomGifRenderConfig,
     warmGifAssetPath,
     warmRoomGifAssets,
+    invalidateGifCacheForPath,
   };
 })();
