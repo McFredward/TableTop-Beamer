@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-05T12:57:45.789Z"
+last_updated: "2026-05-05T13:09:30.000Z"
 progress:
   total_phases: 28
   completed_phases: 5
   total_plans: 29
-  completed_plans: 123
+  completed_plans: 124
   percent: 100
 ---
 
@@ -1537,3 +1537,18 @@ progress:
 - `ROOM_STATE_DEFAULT` constant in `src/app/lib/shared/config.js` was orphaned after the accessor-strip in Step 2.2. Per Step 2.7 the constant + import + 2 ctx pass-throughs were removed in the same atomic Task-2 commit. Documented as Rule-1 deviation in 29-02-SUMMARY.
 - `buildMigratedBoardProfiles` in `src/app/lib/persistence/board-profiles.js` retained per Pitfall 4 (still called by `applyGlobalDefaultsPayloadToState`). Only the `roomStateProfiles` param + record entry + 2 candidate-shape reads were trimmed; the function stays.
 - `phase-29 W2` skip-gate in `test/board-profile-fields.test.mjs` deliberately stays skipped — un-skips only after 29-04 also drops `playAreaPolygon` and `deletedRoomIds` (per the 11-field LIVE-only expectation in that test).
+
+## Phase 29 Plan 03 Closure (2026-05-05)
+
+- Plan 29-03 (Wave 2 batch 2 — drop `animationSoundMap` source-side plumbing + dead audio-mapping panel JS surface) ist abgeschlossen. Commits: `3ff963a` (Task 1 — strip dead audio-mapping panel surface across runtime-audio.js + binders + DOM refs + ctx wiring), `7409dab` (Task 2 — drop state.animationSoundMap slice + helpers + server-side load assembly + un-skip W2 animationSoundMap dead-grep test).
+- 15 source files touched (−197 lines net): server.mjs, lib/shared/normalizers.js, lib/state/runtime-state.js, lib/ui/runtime-panels-controller.js, runtime-animation-factory.js, runtime-bootstrap.js, runtime-dom-refs.js, runtime-polygon-metrics.js, runtime-global-defaults.js, runtime-audio.js, runtime-orchestration-ctx-builder.js, runtime-orchestration.js, runtime-board-profiles.js, runtime-wire-room-audio-binders.js, test/phase-29-dead-grep.test.mjs.
+- Test suite: was 31 pass / 13 skip / 0 fail; now 32 pass / 12 skip / 0 fail. The W2 `animationSoundMap` dead-grep skip gate flipped LIVE.
+- `runtime-animation-factory.js` per-animation source path (`soundAssetRef:` write at line ~55) is byte-unchanged — only a 3-line surrounding doc-comment was reworded to drop the legacy field-name token (resolves the conflict between the must_haves zero-grep truth and the byte-unchanged acceptance).
+- `config/global-defaults.json` byte-unchanged on disk. **CRITICAL ordering for 29-05:** the cleaned source no longer reads `state.animationSoundMap` *anywhere*; Wave 3 (29-05) MUST run the lossless animation-sound migration BEFORE the cleaned source first reads `global-defaults.json` on server boot.
+- Closure-Dokument: `.planning/phases/phase-29/29-03-SUMMARY.md`.
+
+## Decisions Phase 29-03
+
+- Per-animation `animation.soundAssetRef` (set authoritatively by `runtime-animation-factory.js:54-55`) is now the SOLE source of audio playback. The `state.animationSoundMap` global-state fallback chain in `playSoundForAnimation` was removed; animations without a per-animation ref now play silently. Wave 3's boot migration (29-05) guarantees ALL pre-existing animations get their refs populated before the cleaned source first runs (per CONTEXT D-03).
+- Helper functions `normalizeAnimationSoundMap` + `createDefaultAnimationSoundMap` were removed from `src/app/lib/shared/normalizers.js` after zero-consumer audit. `normalizeAnimationSoundPath` is preserved (still used by other render-time call sites in `runtime-orchestration.js`).
+- Polygon-metrics `getMappedSoundPathForAnimation` removed (orphaned after Task 1 panel-deletion). Cascaded clean of `SOUND_MAPPING_NONE` + `normalizeAnimationSoundPath` ctx pass-throughs from the `RUNTIME_POLYGON_METRICS.init({…})` invocation.
