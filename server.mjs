@@ -71,6 +71,28 @@ function extractProfileFromUnifiedBoard(board) {
   return profile;
 }
 
+// Phase 29 D-07: Bundle export filters the board payload to LIVE fields only.
+// The allowed-set is derived from BOARD_PROFILE_FIELDS (post-Phase-29 = 11 entries)
+// plus the structural keys that every board carries (schema, boardId, metadata,
+// roomCatalog, roomClusters). Any DEAD field still lingering in in-memory state
+// is silently dropped from the exported package.
+function filterBoardToLiveFields(board) {
+  if (!board || typeof board !== "object") return board;
+  const allowedTopKeys = new Set([
+    "schema",
+    "boardId",
+    "metadata",
+    "roomCatalog",
+    "roomClusters",
+    ...BOARD_PROFILE_FIELDS,
+  ]);
+  const out = {};
+  for (const [k, v] of Object.entries(board)) {
+    if (allowedTopKeys.has(k)) out[k] = v;
+  }
+  return out;
+}
+
 const LIVE_STATE_SCHEMA = "tt-beamer.live-state.v1";
 
 const liveSessionState = {
@@ -3321,7 +3343,10 @@ const server = createServer(async (req, res) => {
         schema: BOARD_PACKAGE_SCHEMA,
         exportedAt: new Date().toISOString(),
         boardId,
-        board,
+        // Phase 29 D-07: filter the outgoing board payload to LIVE fields only.
+        // Any DEAD field still lingering in in-memory state is silently dropped
+        // before the v4 package is built.
+        board: filterBoardToLiveFields(board),
         projectionProfiles,
         boardImagePath: boardImagePath ?? null,
         resourcePaths: resourceEntries.map((e) => e.path),

@@ -58,7 +58,7 @@ test("W4: bundle import handler emits SCHEMA_OUTDATED on non-v4 manifest", () =>
 // Asserts `filterBoardToLiveFields` exists in server.mjs and is referenced
 // inside the export-handler block (so the helper is both DEFINED and CALLED).
 // ---------------------------------------------------------------------------
-test("W4: filterBoardToLiveFields helper exists and is used in export handler", { skip: "Wave 4 (29-06) not landed yet" }, () => {
+test("W4: filterBoardToLiveFields helper exists and is used in export handler", () => {
   const src = readFileSync(join(REPO_ROOT, "server.mjs"), "utf8");
   assert.match(src, /function filterBoardToLiveFields\(/, "helper must be defined in server.mjs");
   // The export-handler block (currently around server.mjs:3251-3349) must call
