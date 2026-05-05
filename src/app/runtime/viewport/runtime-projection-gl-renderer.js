@@ -56,15 +56,29 @@
       // /output/ — likely a CSS/timing edge case on Chromium.
       _glCanvas = document.getElementById("fx-gl-canvas")
                 || document.createElement("canvas");
-      // RPi/Chromium lean WebGL options — no AA buffer
-      // (we don't need multisampling since the mesh is artifact-free),
-      // no premultiplied alpha (so texImage2D interprets the canvas
-      // colour buffer directly), and lowPower hint so the RPi's
-      // VideoCore can schedule the context on its integrated path
-      // without spinning a discrete GPU (no-op on RPi but correct).
+      // Phase 30 B1 h3: antialias=true enables MSAA at the
+      // rasterization stage. Phase-26-h9's "we don't need
+      // multisampling since the mesh is artifact-free" assumption
+      // proved wrong — user UAT (debug/lines_bug.jpg) showed visible
+      // 1-pixel streifen at every triangle shared edge in the 3x3
+      // mesh on Pi /output/. Multisampling fills exactly those
+      // coverage gaps via per-sample evaluation: at a shared edge
+      // where the rasterizer's top-left fill rule + sub-pixel jitter
+      // could leave a 1-pixel column uncovered by either triangle,
+      // MSAA samples that pixel from MULTIPLE rasterizer evaluations
+      // and averages → coverage holes filled with the average of
+      // adjacent triangle content (which is byte-identical to the
+      // adjacent triangle's content at the shared edge by
+      // construction). This is the canonical fix for the streifen
+      // mechanism the prior T2/T4/h1/h2 attempts failed to close.
+      // Cost on Pi VideoCore: minimal — 4× MSAA on a 4×4 vertex grid
+      // is well within the GPU's per-frame budget (existing draw
+      // call is a single drawElements over <100 triangles).
+      // No-AA premultipliedAlpha + low-power + desynchronized
+      // preserved as-is for the rest of the Pi-friendly stack.
       const glOpts = {
         premultipliedAlpha: false,
-        antialias: false,
+        antialias: true,
         preserveDrawingBuffer: true,
         powerPreference: "low-power",
         desynchronized: true,
