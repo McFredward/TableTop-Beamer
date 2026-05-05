@@ -203,10 +203,10 @@ Ziel: Drei Render-/Sync-Regressionen beheben, die vor Release aufgefallen sind. 
 
 Status: PLANNING. 3 plans authored 2026-05-05 (sequenzielle Reihenfolge per CONTEXT D-00).
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 30-01-PLAN.md — B3: Diagnostic Overlay live-sync to /output/ (probe-then-fix)
+- [x] 30-01-PLAN.md — B3: Diagnostic Overlay live-sync to /output/ (probe-then-fix)
 - [ ] 30-02-PLAN.md — B1: Animation seams in solid-color and others (2D-fallback NEAREST fix)
 - [ ] 30-03-PLAN.md — B2: Pi GIF reliability without reload (Candidates A+B+C)
 
