@@ -2,9 +2,15 @@
 //
 // No runtime state. These functions only operate on byte arrays and
 // return decoded data structures. `decodeGifPlaybackFramesWithParser`
-// creates per-frame <canvas> elements via standard browser APIs
-// (document.createElement, ImageData) but does not touch any runtime
-// DOM refs or state.
+// stores frames as `ImageData` (CPU-only pixel buffers) — NOT as
+// per-frame <canvas> elements. Phase 30 B2 h10: the previous
+// canvas-per-frame approach allocated a Chromium GPU-backed
+// drawing-buffer for every decoded frame; for a 22 MB / 150-frame
+// GIF this peaked at ~150 GPU textures and triggered
+// CONTEXT_LOST_WEBGL on Pi VC4 even though the decode itself
+// succeeded. ImageData lives in CPU heap memory — much cheaper, and
+// the runtime-gif-playback module owns ONE shared playback canvas
+// per cache entry that re-paints on demand via putImageData.
 //
 // Because there are no state dependencies the module does not need
 // an init() callback — the API is exposed immediately at script
@@ -324,17 +330,25 @@
         }
       }
 
-      const frameCanvas = document.createElement("canvas");
-      frameCanvas.width = logicalWidth;
-      frameCanvas.height = logicalHeight;
-      const frameCtx = frameCanvas.getContext("2d");
-      if (!frameCtx) {
-        throw new Error("GIF parse failed: 2d context unavailable");
-      }
-      frameCtx.putImageData(new ImageData(new Uint8ClampedArray(canvasPixels), logicalWidth, logicalHeight), 0, 0);
+      // Phase 30 B2 h10: store ImageData (CPU pixel buffer) instead
+      // of an HTMLCanvasElement. Each canvas creation on Chromium
+      // GPU-accelerated Canvas2D allocates a backing-store GPU
+      // texture; for slime.gif (150 frames × 1080×1080) that
+      // accumulated to ~600 MB of GPU memory and reliably tripped
+      // CONTEXT_LOST_WEBGL on Pi VC4 mid-decode. ImageData stays in
+      // JS heap — adding 150 frames cost ~600 MB CPU RAM on a
+      // 1080×1080 GIF, but the Pi has 8 GB system memory and zero
+      // GPU pressure. The shared playback canvas in
+      // runtime-gif-playback.js does the lazy putImageData when the
+      // draw loop asks for a specific frame.
+      const frameImageData = new ImageData(
+        new Uint8ClampedArray(canvasPixels),
+        logicalWidth,
+        logicalHeight,
+      );
 
       const durationMs = pendingGce.delayMs;
-      frames.push({ bitmap: frameCanvas, durationMs });
+      frames.push({ imageData: frameImageData, durationMs });
       totalDurationMs += durationMs;
 
       previousFrameMeta = {
@@ -361,6 +375,8 @@
 
     entry.frames = frames;
     entry.totalDurationMs = Math.max(16, totalDurationMs);
+    entry.frameWidth = logicalWidth;
+    entry.frameHeight = logicalHeight;
     entry.status = "ready";
     entry.error = null;
   }

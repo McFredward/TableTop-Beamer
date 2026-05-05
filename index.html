@@ -948,9 +948,20 @@
           }
         }
         if (chipMode) {
-          const mode = window.__ttBeamerStateProbe && window.__ttBeamerStateProbe().renderMode
-            || "auto";
-          chipMode.textContent = String(mode);
+          // Phase 30 B2 h10: prefer the effective-mode probe so the
+          // chip reflects auto-fallback to 2D when GL has been
+          // permanently disabled by repeated context losses. Falls
+          // back to the raw configured mode if the probe is not
+          // wired yet (rare boot race).
+          let mode;
+          try {
+            mode = (typeof window.__ttBeamerEffectiveRenderMode === "function")
+              ? window.__ttBeamerEffectiveRenderMode()
+              : (window.__ttBeamerStateProbe && window.__ttBeamerStateProbe().renderMode);
+          } catch (_) {
+            mode = "auto";
+          }
+          chipMode.textContent = String(mode || "auto");
         }
         if (chipCanvas) {
           const canvas = document.getElementById("fx-canvas");

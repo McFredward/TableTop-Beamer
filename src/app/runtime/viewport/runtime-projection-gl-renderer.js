@@ -58,6 +58,19 @@
   let _glContextLossCount = 0;
   const _GL_MAX_CONTEXT_LOSSES = 3;
   let _glPermanentlyDisabled = false;
+  // Phase 30 B2 h10: ensure each lifecycle-transition toast is fired
+  // exactly once. Without dedup the contextlost handler would fire a
+  // toast every frame for as long as the broken-context state
+  // persists.
+  let _toastFiredFirstLoss = false;
+  let _toastFiredPermanentDisable = false;
+  function _showLifecycleToast(message, kind = "warning") {
+    try {
+      if (typeof ctx?.showToast === "function") {
+        ctx.showToast(message, { kind, dedupeKey: `gl-lifecycle:${message}` });
+      }
+    } catch (_) { /* never let toast break render path */ }
+  }
   function _initMeshWarpGL() {
     // Phase 30 B2 h9: refuse all init attempts once GL has been
     // permanently disabled. Without this short-circuit, every draw
@@ -129,8 +142,28 @@
         // attempt allocates a fresh framebuffer, deepening the GPU
         // memory pressure that triggered the loss in the first place.
         _glContextLossCount += 1;
+        // Phase 30 B2 h10: surface fallback transitions to the user
+        // via toast so they can see WHY the visible mode no longer
+        // matches the configured value. Fire two distinct toasts:
+        //   - first loss → "GL context lost — auto-recovering"
+        //   - permanent disable → "GL permanently off; using 2D"
+        // Each fires at most once per page load (dedup flags).
+        if (!_toastFiredFirstLoss) {
+          _toastFiredFirstLoss = true;
+          _showLifecycleToast(
+            `WebGL context lost (${_glContextLossCount}/${_GL_MAX_CONTEXT_LOSSES}) — recovering`,
+            "warning",
+          );
+        }
         if (_glContextLossCount >= _GL_MAX_CONTEXT_LOSSES) {
           _glPermanentlyDisabled = true;
+          if (!_toastFiredPermanentDisable) {
+            _toastFiredPermanentDisable = true;
+            _showLifecycleToast(
+              "GL disabled after 3 context losses — using 2D fallback",
+              "error",
+            );
+          }
           if (typeof console !== "undefined" && console.warn) {
             // eslint-disable-next-line no-console
             console.warn(
@@ -467,5 +500,10 @@
     init,
     postDrawMeshWarpGL: _postDrawMeshWarpGL,
     tryInitGL: _initMeshWarpGL,
+    // Phase 30 B2 h10: expose lifecycle state so the orchestrator can
+    // show "effective mode" in the diagnostic chip when auto-fallback
+    // forces 2D. Reading these is cheap (closure scalars).
+    isGlPermanentlyDisabled: () => _glPermanentlyDisabled,
+    getGlContextLossCount: () => _glContextLossCount,
   };
 })();

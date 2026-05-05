@@ -199,21 +199,79 @@
     return entry;
   }
 
+  // Phase 30 B2 h10: shared playback canvas per cache entry. The parser
+  // path stores frames as ImageData (CPU pixel buffers); the draw loop
+  // needs a drawImage-compatible source. We allocate ONE 2D canvas per
+  // GIF and putImageData on demand when the cursor advances to a new
+  // frame index. Reduces the GPU-texture footprint from N-frames-per-GIF
+  // (e.g. 150 for slime) to 1, which is what eliminated the
+  // CONTEXT_LOST_WEBGL on Pi VC4 mid-decode.
+  function _ensurePlaybackCanvas(entry) {
+    if (entry._playbackCanvas) return entry._playbackCanvas;
+    const w = entry.frameWidth || entry.frames[0]?.imageData?.width || 0;
+    const h = entry.frameHeight || entry.frames[0]?.imageData?.height || 0;
+    if (w <= 0 || h <= 0) return null;
+    try {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      // willReadFrequently:true hints Chromium to keep this canvas in
+      // CPU-backed software pipeline (no GPU texture allocation). Even
+      // though we never actually getImageData here, the hint is the
+      // documented mechanism to opt out of GPU-accelerated Canvas2D —
+      // critical on Pi where the WebGL warp competes with Canvas2D for
+      // GPU memory.
+      const cctx = c.getContext("2d", { willReadFrequently: true });
+      if (!cctx) return null;
+      entry._playbackCanvas = c;
+      entry._playbackCanvasCtx = cctx;
+      entry._playbackCanvasFrameIndex = -1;
+      return c;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _resolveFrameIndex(entry, elapsedSeconds) {
+    const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
+    let cursorMs =
+      (((Number(elapsedSeconds) || 0) * 1000) % totalDurationMs + totalDurationMs) % totalDurationMs;
+    for (let i = 0; i < entry.frames.length; i += 1) {
+      const frame = entry.frames[i];
+      if (cursorMs < frame.durationMs) return i;
+      cursorMs -= frame.durationMs;
+    }
+    return entry.frames.length - 1;
+  }
+
   function getGifPlaybackFrame(path, elapsedSeconds) {
     const entry = ensureGifPlaybackReady(path);
     if (!entry || entry.status !== "ready" || entry.frames.length === 0) {
       _gifProbe("trigger-null", { path, status: entry?.status || "missing" });
       return null;
     }
-    const totalDurationMs = Math.max(16, entry.totalDurationMs || 0);
-    let cursorMs = (((Number(elapsedSeconds) || 0) * 1000) % totalDurationMs + totalDurationMs) % totalDurationMs;
-    for (const frame of entry.frames) {
-      if (cursorMs < frame.durationMs) {
-        return frame.bitmap;
+    const frameIdx = _resolveFrameIndex(entry, elapsedSeconds);
+    const frame = entry.frames[frameIdx];
+    if (!frame) return null;
+    // ImageDecoder fast-path (dashboard only) stores `bitmap` —
+    // ImageBitmap or HTMLCanvasElement, both directly drawable.
+    if (frame.bitmap) return frame.bitmap;
+    // Parser path (always on /output/, fallback elsewhere) stores
+    // ImageData. Lazily blit into the shared playback canvas.
+    if (frame.imageData) {
+      const canvas = _ensurePlaybackCanvas(entry);
+      if (!canvas) return null;
+      if (entry._playbackCanvasFrameIndex !== frameIdx) {
+        try {
+          entry._playbackCanvasCtx.putImageData(frame.imageData, 0, 0);
+          entry._playbackCanvasFrameIndex = frameIdx;
+        } catch (_) {
+          return null;
+        }
       }
-      cursorMs -= frame.durationMs;
+      return canvas;
     }
-    return entry.frames[entry.frames.length - 1]?.bitmap ?? null;
+    return null;
   }
 
   function resolveRoomGifRenderConfig(type, age, intensity, options = {}) {
@@ -373,6 +431,14 @@
     entry.decodedFromUrl = null;
     entry.lastFailureAt = 0;
     entry.failureAttemptCount = 0;
+    // Phase 30 B2 h10: drop the shared playback canvas so the next
+    // decode allocates one sized to the new GIF (asset re-upload may
+    // change dimensions).
+    entry._playbackCanvas = null;
+    entry._playbackCanvasCtx = null;
+    entry._playbackCanvasFrameIndex = -1;
+    entry.frameWidth = 0;
+    entry.frameHeight = 0;
     return true;
   }
 

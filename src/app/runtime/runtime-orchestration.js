@@ -303,6 +303,14 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   // GL warp on weak hardware (e.g. Raspberry Pi). Read at frame time so
   // a live update via global-config-update takes effect immediately.
   getRenderMode: () => state?.renderMode ?? "auto",
+  // Phase 30 B2 h10: forward showToast lazily so the gl-renderer can
+  // surface fallback transitions ("WebGL context lost — recovering",
+  // "GL disabled — using 2D"). The const `showToast` is declared
+  // later in this module (line ~459), so the arrow defers binding
+  // resolution until call time — by then the destructure has run.
+  showToast: (...args) => {
+    try { return showToast?.(...args); } catch (_) { return undefined; }
+  },
   saveProjectionMapping: () => {
     try {
       saveGlobalDefaultsToServer().catch(() => {});
@@ -337,6 +345,22 @@ window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
 // Tiny probe so the inline /output/ status-chip script in index.html can
 // read state.renderMode without taking a hard runtime dependency.
 window.__ttBeamerStateProbe = () => state;
+
+// Phase 30 B2 h10: expose the EFFECTIVE render mode (configured + the
+// gl-renderer's runtime fallback flag), so the diagnostic chip can
+// honestly show what's currently being rendered. When a user has
+// renderMode="auto" but the gl-renderer permanently disabled GL after
+// 3 context losses, the chip should read "auto→2d (gl-disabled)" not
+// "auto" — that visibility was the user's explicit demand.
+window.__ttBeamerEffectiveRenderMode = () => {
+  const configured = state?.renderMode ?? "auto";
+  const glDisabled = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER
+    ?.isGlPermanentlyDisabled?.() === true;
+  if (configured === "2d") return "2d";
+  if (configured === "gl") return glDisabled ? "gl→2d (gl-disabled)" : "gl";
+  // auto:
+  return glDisabled ? "auto→2d (gl-disabled)" : "auto";
+};
 
 // Opt-in save: local config edits stay local (dirty) until
 // the user clicks the Apply button. `localConfigDirty` is the dirty flag.
