@@ -17,6 +17,44 @@
 // load. runtime-orchestration.js destructures it back into its own
 // scope the way it already does with window.TT_BEAMER_POLYGON_CONTRACT.
 (() => {
+  // Phase 30 Plan 30-04 T7: pre-downsample large GIF source frames to
+  // GIF_MAX_PIXEL_DIM at decode time. Drawing a 1920×1080 source (e.g.
+  // malfunction.gif) into a ~200×150 room rect every frame is the
+  // dominant per-room cost on Pi VC4 (T2 UAT: per-room render = ~14 fps
+  // cost vs the entire 10 fps budget). Pre-downsampling moves the
+  // costly resample from the per-frame draw path to a one-shot
+  // decode-time operation. 512 px is well above any expected room rect
+  // on a 1920×1080 projector and any plausible outside-fx area, so
+  // visual quality is unaffected. Aspect ratio preserved.
+  const GIF_MAX_PIXEL_DIM = 512;
+  // Scratch canvases reused across all frames in a single decoder
+  // call. Two canvases total per decode (one source-size + one
+  // target-size), regardless of frame count. Freed at GC after the
+  // decoder call returns (held by closure for the duration of the
+  // parse only).
+  let _decoderSrcCanvas = null;
+  let _decoderSrcCtx = null;
+  let _decoderDstCanvas = null;
+  let _decoderDstCtx = null;
+  function _ensureDownscaleCanvases() {
+    if (_decoderSrcCanvas && _decoderDstCanvas) return true;
+    try {
+      _decoderSrcCanvas = document.createElement("canvas");
+      _decoderSrcCtx = _decoderSrcCanvas.getContext("2d");
+      _decoderDstCanvas = document.createElement("canvas");
+      // willReadFrequently:true → getImageData on the dst canvas reads
+      // straight from CPU memory, which is the path we need
+      // (downscaled pixels go back into JS heap as ImageData).
+      _decoderDstCtx = _decoderDstCanvas.getContext("2d", { willReadFrequently: true });
+      if (!_decoderSrcCtx || !_decoderDstCtx) return false;
+      _decoderDstCtx.imageSmoothingEnabled = true;
+      _decoderDstCtx.imageSmoothingQuality = "low"; // bilinear, fastest tier
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function canDecodeGifFramesWithImageDecoder() {
     return typeof ImageDecoder === "function" && typeof createImageBitmap === "function";
   }
@@ -349,19 +387,50 @@
       // Phase 30 B2 h10: store ImageData (CPU pixel buffer) instead
       // of an HTMLCanvasElement. Each canvas creation on Chromium
       // GPU-accelerated Canvas2D allocates a backing-store GPU
-      // texture; for slime.gif (150 frames × 1080×1080) that
-      // accumulated to ~600 MB of GPU memory and reliably tripped
-      // CONTEXT_LOST_WEBGL on Pi VC4 mid-decode. ImageData stays in
-      // JS heap — adding 150 frames cost ~600 MB CPU RAM on a
-      // 1080×1080 GIF, but the Pi has 8 GB system memory and zero
-      // GPU pressure. The shared playback canvas in
-      // runtime-gif-playback.js does the lazy putImageData when the
-      // draw loop asks for a specific frame.
-      const frameImageData = new ImageData(
-        new Uint8ClampedArray(canvasPixels),
-        logicalWidth,
-        logicalHeight,
+      // texture; for a 150-frame × 1080×1080 GIF that accumulated to
+      // ~600 MB of GPU memory and reliably tripped CONTEXT_LOST_WEBGL
+      // on Pi VC4 mid-decode. ImageData stays in JS heap — Pi has
+      // 8 GB system memory and zero GPU pressure. The shared
+      // playback canvas in runtime-gif-playback.js does the lazy
+      // putImageData when the draw loop asks for a specific frame.
+      //
+      // Phase 30 Plan 30-04 T7: cap each frame's stored size at
+      // GIF_MAX_PIXEL_DIM (512 px max-dim, aspect preserved). When
+      // the GIF logical size exceeds the cap, we downscale via the
+      // scratch source+target canvases. Eliminates the per-frame
+      // 1920×1080 → 200×150 GPU resample on the rendering hot path.
+      const dsScale = Math.min(
+        1,
+        GIF_MAX_PIXEL_DIM / Math.max(logicalWidth, logicalHeight),
       );
+      const targetW = Math.max(1, Math.round(logicalWidth * dsScale));
+      const targetH = Math.max(1, Math.round(logicalHeight * dsScale));
+      let frameImageData;
+      if (dsScale < 1 && _ensureDownscaleCanvases()) {
+        // Resize scratch canvases on demand. width-set is a no-op
+        // on Chromium when the value is unchanged, so the per-frame
+        // overhead is just the property comparison.
+        if (_decoderSrcCanvas.width !== logicalWidth) _decoderSrcCanvas.width = logicalWidth;
+        if (_decoderSrcCanvas.height !== logicalHeight) _decoderSrcCanvas.height = logicalHeight;
+        if (_decoderDstCanvas.width !== targetW) _decoderDstCanvas.width = targetW;
+        if (_decoderDstCanvas.height !== targetH) _decoderDstCanvas.height = targetH;
+        // Native-size source for this frame (needed because
+        // canvasPixels is the cumulative GIF buffer, not a single-
+        // frame slice we can reference directly as ImageData).
+        _decoderSrcCtx.putImageData(
+          new ImageData(new Uint8ClampedArray(canvasPixels), logicalWidth, logicalHeight),
+          0, 0,
+        );
+        _decoderDstCtx.clearRect(0, 0, targetW, targetH);
+        _decoderDstCtx.drawImage(_decoderSrcCanvas, 0, 0, targetW, targetH);
+        frameImageData = _decoderDstCtx.getImageData(0, 0, targetW, targetH);
+      } else {
+        frameImageData = new ImageData(
+          new Uint8ClampedArray(canvasPixels),
+          logicalWidth,
+          logicalHeight,
+        );
+      }
 
       const durationMs = pendingGce.delayMs;
       frames.push({ imageData: frameImageData, durationMs });
@@ -410,10 +479,24 @@
 
     entry.frames = frames;
     entry.totalDurationMs = Math.max(16, totalDurationMs);
-    entry.frameWidth = logicalWidth;
-    entry.frameHeight = logicalHeight;
+    // Phase 30 Plan 30-04 T7: frameWidth/frameHeight are the STORED
+    // pixel dims, which reflect the post-downsample size when
+    // dsScale < 1. Read from the first frame's ImageData so the
+    // playback canvas (runtime-gif-playback.js _ensurePlaybackCanvas)
+    // sizes itself to the actual stored buffer, not the original GIF
+    // logical size.
+    const firstImageData = frames[0]?.imageData;
+    entry.frameWidth = firstImageData?.width ?? logicalWidth;
+    entry.frameHeight = firstImageData?.height ?? logicalHeight;
     entry.status = "ready";
     entry.error = null;
+    // Drop scratch canvas references so the next decode call gets a
+    // fresh pair sized for ITS dimensions. Keeping them across calls
+    // would hold ~targetW×targetH GPU memory until the next decode.
+    _decoderSrcCanvas = null;
+    _decoderSrcCtx = null;
+    _decoderDstCanvas = null;
+    _decoderDstCtx = null;
   }
 
   window.TT_BEAMER_RUNTIME_GIF_DECODER = {
