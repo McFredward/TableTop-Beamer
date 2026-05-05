@@ -191,82 +191,124 @@
 
     const cols = grid.srcXs.length;
     const rows = grid.srcYs.length;
-    const vertexCount = rows * cols;
     const triCount = (rows - 1) * (cols - 1) * 2;
+    // Phase 30 B1 h2: per-triangle vertex inflation. Mirrors the 2D-
+    // fallback INFLATE strategy at runtime-projection-2d-fallback-
+    // renderer.js:38-58. The previous indexed-draw approach shared
+    // vertices between adjacent triangles via the index buffer; on
+    // /output/ the rasterizer's top-left fill rule + sub-pixel jitter
+    // on Pi/VC4 GPUs occasionally drops 1-pixel coverage at shared
+    // edges, leaving visible BLACK lines against the opaque-black
+    // clearColor (cf. user UAT photo debug/lines_bug.jpg showing the
+    // 3x3 grid pattern through orange solid-color content). The
+    // previous attempt (commit 5235ddd) made clearColor transparent
+    // so fx-canvas content would fill the gaps, but that produced a
+    // double-image (cf. debug/boken1.png) because fx-canvas content is
+    // mostly transparent itself — large portions of the GL output
+    // bled through, not just the seam pixels. Reverted in the
+    // immediately-prior commit; this h2 fixes the gaps at their
+    // source.
+    //
+    // The fix: break vertex sharing (no index buffer) and inflate
+    // each triangle outward from its centroid by ~1.5 px in pixel-
+    // space. Adjacent triangles now overlap by ~3 px at every former
+    // shared edge — no rasterization gap can persist; whichever
+    // triangle draws last overwrites the overlap, and adjacent
+    // triangles share identical source content along the shared edge
+    // so the overlap is byte-identical (no visible color seam). UVs
+    // stay un-inflated; NEAREST + CLAMP_TO_EDGE handles slight UV
+    // overshoot at outer triangles gracefully (texels pulled from
+    // the same source neighbourhood). This is the proven 2D-fallback
+    // approach (drawAffineTriangle's pushOut) applied verbatim to GL.
+    //
+    // Vertex layout: 3 verts × 2 floats per triangle, no indices →
+    // 6 floats per triangle for positions, 6 for UVs.
+    const vertexCount = triCount * 3;
 
     // Reallocate the cached typed arrays only when grid resolution
     // changes (rare — happens when user inserts/removes grid lines).
     // Per-frame they're reused, so we don't trigger fresh GC churn
-    // on the RPi.
+    // on the RPi. The index buffer is no longer used by the draw
+    // call (drawArrays replaces drawElements); we leave _glIdxBuf
+    // allocated as dead storage so re-init isn't needed if a future
+    // change re-introduces indexed draws.
     if (_glCachedRows !== rows || _glCachedCols !== cols
-        || !_glPositions || !_glUVs || !_glIndices) {
+        || !_glPositions || !_glUVs) {
       _glPositions = new Float32Array(vertexCount * 2);
       _glUVs = new Float32Array(vertexCount * 2);
-      _glIndices = new Uint16Array(triCount * 3);
-      _glIndexCount = _glIndices.length;
+      _glIndices = null; // h2: indexed draw retired; freed.
+      _glIndexCount = 0;
       _glCachedRows = rows;
       _glCachedCols = cols;
-      // Build indices once for this grid resolution.
-      let ii = 0;
-      for (let row = 0; row < rows - 1; row++) {
-        for (let col = 0; col < cols - 1; col++) {
-          const tl = row * cols + col;
-          const tr = tl + 1;
-          const bl = tl + cols;
-          const br = bl + 1;
-          _glIndices[ii++] = tl; _glIndices[ii++] = tr; _glIndices[ii++] = br;
-          _glIndices[ii++] = tl; _glIndices[ii++] = br; _glIndices[ii++] = bl;
-        }
-      }
-      _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
-      _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, _glIndices, _gl.STATIC_DRAW);
     }
 
-    // Positions + UVs are recomputed each frame so handle drags +
-    // grid-line drags reflect immediately. Both arrays are tiny
-    // (~50 floats for a 4×4 grid) so the cost is microscopic next
-    // to the texImage2D upload.
-    //
-    // Phase 30 B1 Task 4 (GL ESCALATION): pixel-snap each destination
-    // vertex to an integer pixel coordinate before mapping to NDC.
-    // Phase-26-h9 closed the texture-sampling seams (highp UV +
-    // NEAREST). What remained on /output/ at projector viewing
-    // distance was rasterizer-side: Phase-27-W4 trapezoid corners +
-    // 80% squish bars produce shared-edge vertices at fractional
-    // pixel coordinates (e.g. dst.x = 0.10 * 1920 = 192.0 vs.
-    // 0.10000001 * 1920 = 192.0...02 after grid math). Two adjacent
-    // triangles sharing such a vertex still pass the NDC
-    // floating-point equality test, but the rasterizer's diamond-
-    // exit rule evaluates coverage from each triangle's own
-    // direction → a 1-pixel column at the shared edge can be
-    // covered by both triangles or neither, and on /output/ the
-    // opaque-black clearColor (line 267) bleeds through any gaps.
-    // Snapping vertex positions to whole pixels makes shared edges
-    // land on exact pixel boundaries, where coverage is unambiguous
-    // for both triangles. Source UVs stay fractional (NEAREST
-    // sampling already discretizes them at the texel level —
-    // Phase-26-h9). This preserves trapezoid + squish geometry to
-    // within 0.5 px on a 1080p projector — visually indistinguishable
-    // — while eliminating shared-edge seams.
+    // Phase 30 B1 h2: build per-triangle inflated vertex stream each
+    // frame. Pixel-snap (Phase 30 B1 Task 4) is preserved at the
+    // pre-inflate step — vertices land on integer pixel centres
+    // before centroid-pushOut. Net effect: shared-edge vertices snap
+    // to the same pixel grid (so neighbours stay in register), then
+    // each triangle expands by 1.5 px past the snapped position →
+    // adjacent triangles overlap that 1.5 px on each side of the
+    // shared edge. UV writes use the original (un-inflated) source
+    // UVs because NEAREST sampling discretizes at the texel level —
+    // Phase-26-h9 — and CLAMP_TO_EDGE handles outer-triangle
+    // overshoot.
+    const INFLATE_PX = 1.5;
     let vi = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const pt = getPoint(row, col);
-        // Pixel-snap destination vertex: round to nearest integer
-        // pixel in framebuffer-coords, then map back to NDC. The
-        // round happens in pixel-space (pt.x * w) so the snap
-        // granularity is exactly 1 pixel regardless of canvas size.
-        const pxX = Math.round(pt.x * w);
-        const pxY = Math.round(pt.y * h);
-        // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
-        _glPositions[vi] = (pxX / w) * 2 - 1;
-        _glPositions[vi + 1] = 1 - (pxY / h) * 2;
-        _glUVs[vi] = grid.srcXs[col];
-        // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
-        // flipped, so use (1 - grid.srcYs[row]) to keep source Y
-        // aligned with destination Y.
-        _glUVs[vi + 1] = 1 - grid.srcYs[row];
-        vi += 2;
+    const writeVertex = (pxX, pxY, srcU, srcV) => {
+      // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
+      _glPositions[vi]     = (pxX / w) * 2 - 1;
+      _glPositions[vi + 1] = 1 - (pxY / h) * 2;
+      _glUVs[vi]     = srcU;
+      // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
+      // flipped, so use (1 - srcV) to keep source Y aligned with
+      // destination Y.
+      _glUVs[vi + 1] = 1 - srcV;
+      vi += 2;
+    };
+    const computeTriangle = (vA, vB, vC) => {
+      // 1) centroid in pixel-space.
+      const cx = (vA.dstPxX + vB.dstPxX + vC.dstPxX) / 3;
+      const cy = (vA.dstPxY + vB.dstPxY + vC.dstPxY) / 3;
+      // 2) push each vertex outward from centroid by INFLATE_PX.
+      const inflate = (v) => {
+        const dx = v.dstPxX - cx;
+        const dy = v.dstPxY - cy;
+        const len = Math.hypot(dx, dy);
+        if (len < 1e-6) return [v.dstPxX, v.dstPxY];
+        const scale = 1 + INFLATE_PX / len;
+        return [cx + dx * scale, cy + dy * scale];
+      };
+      const [ax, ay] = inflate(vA);
+      const [bx, by] = inflate(vB);
+      const [cxv, cyv] = inflate(vC);
+      // 3) emit in TL-TR-BR / TL-BR-BL winding (matches the prior
+      // index buffer order for triangle culling consistency).
+      writeVertex(ax, ay, vA.srcU, vA.srcV);
+      writeVertex(bx, by, vB.srcU, vB.srcV);
+      writeVertex(cxv, cyv, vC.srcU, vC.srcV);
+    };
+
+    for (let row = 0; row < rows - 1; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        const ptTL = getPoint(row, col);
+        const ptTR = getPoint(row, col + 1);
+        const ptBL = getPoint(row + 1, col);
+        const ptBR = getPoint(row + 1, col + 1);
+        // Pixel-snap each destination vertex (Phase 30 B1 Task 4
+        // preserved) before centroid inflation.
+        const vTL = { dstPxX: Math.round(ptTL.x * w), dstPxY: Math.round(ptTL.y * h),
+                      srcU: grid.srcXs[col],     srcV: grid.srcYs[row] };
+        const vTR = { dstPxX: Math.round(ptTR.x * w), dstPxY: Math.round(ptTR.y * h),
+                      srcU: grid.srcXs[col + 1], srcV: grid.srcYs[row] };
+        const vBL = { dstPxX: Math.round(ptBL.x * w), dstPxY: Math.round(ptBL.y * h),
+                      srcU: grid.srcXs[col],     srcV: grid.srcYs[row + 1] };
+        const vBR = { dstPxX: Math.round(ptBR.x * w), dstPxY: Math.round(ptBR.y * h),
+                      srcU: grid.srcXs[col + 1], srcV: grid.srcYs[row + 1] };
+        // Triangle TL-TR-BR
+        computeTriangle(vTL, vTR, vBR);
+        // Triangle TL-BR-BL
+        computeTriangle(vTL, vBR, vBL);
       }
     }
 
@@ -280,7 +322,6 @@
     _gl.enableVertexAttribArray(_glAttrUV);
     _gl.vertexAttribPointer(_glAttrUV, 2, _gl.FLOAT, false, 0, 0);
 
-    _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
     _gl.activeTexture(_gl.TEXTURE0);
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
@@ -297,7 +338,10 @@
       _gl.clearColor(0, 0, 0, 0);
     }
     _gl.clear(_gl.COLOR_BUFFER_BIT);
-    _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
+    // h2: drawArrays (non-indexed) replaces drawElements. Per-triangle
+    // inflated vertex stream → adjacent triangles overlap at former
+    // shared edges → no rasterizer gaps possible.
+    _gl.drawArrays(_gl.TRIANGLES, 0, vertexCount);
 
     if (isOutput) {
       // Clear fx-canvas after texture upload so its
