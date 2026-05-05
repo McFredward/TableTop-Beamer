@@ -25,7 +25,6 @@
     syncAudioGain,
     enforceAudioLifecycleGuard,
     syncAudioStatus,
-    syncAudioMappingPanel,
     syncAnimationSpeedPanel,
     syncHitareaCalibrationPanel,
     syncRoomGeometryPanel,
@@ -57,7 +56,6 @@
     syncAudioGain();
     enforceAudioLifecycleGuard();
     syncAudioStatus();
-    syncAudioMappingPanel();
     syncAnimationSpeedPanel();
     syncHitareaCalibrationPanel();
     syncRoomGeometryPanel();

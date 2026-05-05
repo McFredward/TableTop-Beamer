@@ -2,23 +2,16 @@
 //
 // Owns the Audio() voice pool, the active-animation audio map, the
 // pending start-delay timers, and the cross-client revision memory
-// used by the global-trigger loop-once guards. The module
-// also owns the audio status + mapping UI sync helpers so every
-// audio path lives in one place.
+// used by the global-trigger loop-once guards.
 //
 // Dependencies injected via ctx:
 //   state, liveSync, outputRole, OUTPUT_ROLE_FINAL
 //   DOM refs: audioStatus, triggerFeedback, animationSpeedInput,
-//             animationSpeedValue, animationSpeedStatus,
-//             audioMappingAnimationSelect, audioMappingStatus,
-//             audioMappingSoundSelect
-//   Constants: ALL_SOUND_ASSET_PATHS, ALL_ANIMATION_TYPES,
-//              GLOBAL_ANIMATIONS, SOUND_MAPPING_NONE
+//             animationSpeedValue, animationSpeedStatus
+//   Constants: ALL_SOUND_ASSET_PATHS, SOUND_MAPPING_NONE
 //   Helpers: persistBoardProfiles, clampAnimationSpeed,
 //            clampRoomSoundVolume, getGlobalTriggerRevision,
-//            getGlobalTriggerKey, getAnimationStartedAtEpochMs,
-//            getMappedSoundPathForAnimation, getAnimationLabel,
-//            normalizeAnimationSoundPath, getGlobalAnimationCategory
+//            getGlobalTriggerKey, getAnimationStartedAtEpochMs
 (() => {
   let ctx = null;
 
@@ -251,10 +244,10 @@
       pendingAnimationAudioStartTimers.set(animation.id, timerId);
       return;
     }
-    // Prefer the per-definition soundAssetRef if the
-    // animation carries one. Fall back to the legacy
-    // animationSoundMap lookup so existing persisted state still
-    // plays the mapped sound during the migration window.
+    // Per-animation soundAssetRef is the sole source of audio.
+    // The animation factory populates this field on creation, and
+    // Phase 29 Wave 3 boot migration backfills any pre-existing
+    // animations whose ref was empty.
     const inlineSoundRef = typeof animation.soundAssetRef === "string"
       ? animation.soundAssetRef.trim()
       : "";
@@ -269,10 +262,8 @@
       } else {
         path = null;
       }
-    } else if (inlineSoundRef === ctx.SOUND_MAPPING_NONE) {
-      path = null;
     } else {
-      path = ctx.getMappedSoundPathForAnimation(animation.type);
+      path = null;
     }
     if (!path) {
       stopAnimationSound(animation.id);
@@ -315,84 +306,6 @@
     reusable.play().catch(() => undefined);
   }
 
-  // The standalone Sound Mapping panel was removed.
-  // These two sync functions are retained as no-ops for callers
-  // that still invoke them (e.g. syncRuntimePanelsFromState).
-  // When the DOM refs are null, nothing to sync.
-  function syncAudioMappingStatus() {
-    if (!ctx.audioMappingAnimationSelect || !ctx.audioMappingStatus) return;
-    const animationType = ctx.audioMappingAnimationSelect.value || ctx.ALL_ANIMATION_TYPES[0]?.id;
-    if (!animationType) {
-      ctx.audioMappingStatus.textContent = "Sound mapping: no animations available";
-      return;
-    }
-    const label = ctx.getAnimationLabel(animationType);
-    const mapped = ctx.normalizeAnimationSoundPath(animationType, ctx.state.animationSoundMap[animationType]);
-    if (mapped === ctx.SOUND_MAPPING_NONE) {
-      ctx.audioMappingStatus.textContent = `Sound-Mapping: ${label} -> none`;
-      return;
-    }
-    const fileName = mapped.split("/").pop() ?? mapped;
-    ctx.audioMappingStatus.textContent = `Sound-Mapping: ${label} -> ${fileName}`;
-  }
-
-  function syncAudioMappingPanel() {
-    const state = ctx.state;
-    const audioMappingAnimationSelect = ctx.audioMappingAnimationSelect;
-    const audioMappingSoundSelect = ctx.audioMappingSoundSelect;
-    if (!audioMappingAnimationSelect || !audioMappingSoundSelect) return;
-    if (audioMappingAnimationSelect.childElementCount === 0) {
-      for (const animation of ctx.ALL_ANIMATION_TYPES) {
-        const option = document.createElement("option");
-        option.value = animation.id;
-        if (ctx.GLOBAL_ANIMATIONS.some((entry) => entry.id === animation.id)) {
-          const categoryLabel = ctx.getGlobalAnimationCategory(animation.id) === "outside-ship"
-            ? "Outside ship"
-            : "Inside ship";
-          option.textContent = `[${categoryLabel}] ${animation.label}`;
-        } else {
-          option.textContent = animation.label;
-        }
-        audioMappingAnimationSelect.append(option);
-      }
-    }
-
-    const selectedAnimationType = ctx.ALL_ANIMATION_TYPES.some((entry) => entry.id === audioMappingAnimationSelect.value)
-      ? audioMappingAnimationSelect.value
-      : ctx.ALL_ANIMATION_TYPES[0]?.id;
-    if (!selectedAnimationType) {
-      return;
-    }
-    audioMappingAnimationSelect.value = selectedAnimationType;
-
-    audioMappingSoundSelect.replaceChildren();
-    const noneOption = document.createElement("option");
-    noneOption.value = ctx.SOUND_MAPPING_NONE;
-    noneOption.textContent = "none (no sound)";
-    audioMappingSoundSelect.append(noneOption);
-
-    for (const soundPath of ctx.ALL_SOUND_ASSET_PATHS) {
-      const option = document.createElement("option");
-      option.value = soundPath;
-      option.textContent = soundPath.replace(/^\/?(resources\/)?sounds\//, "").replace(/^\/?(resources\/)?nemesis\/sounds\//, "");
-      audioMappingSoundSelect.append(option);
-    }
-
-    const mapped = ctx.normalizeAnimationSoundPath(
-      selectedAnimationType,
-      state.animationSoundMap[selectedAnimationType],
-    );
-    const previousMapped = state.animationSoundMap[selectedAnimationType];
-    state.animationSoundMap[selectedAnimationType] = mapped;
-    if (previousMapped !== mapped) {
-      persistRuntimeSoundSettingsChange(
-        "Status: Sound mapping normalized, but persistence failed",
-      );
-    }
-    audioMappingSoundSelect.value = mapped;
-    syncAudioMappingStatus();
-  }
-
   // Hard-stop helper used by the runtime's executeClearAll / panic
   // paths. Cancels every pending start-delay timer + clears the
   // active voice map.
@@ -421,8 +334,6 @@
     stopSoundsForInactiveAnimations,
     enforceAudioLifecycleGuard,
     playSoundForAnimation,
-    syncAudioMappingStatus,
-    syncAudioMappingPanel,
     clearAllActiveAnimationAudio,
   };
 })();

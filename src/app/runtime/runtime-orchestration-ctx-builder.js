@@ -45,7 +45,6 @@
       clampAnimationSpeed,
       // ─── Area E — Panel sync ────────────────────────────────────
       syncRoomDraftActionButton,
-      syncAudioMappingPanel,
       syncAnimationSpeedPanel,
       syncHitareaCalibrationPanel,
       syncRoomGeometryPanel,
@@ -167,7 +166,6 @@
       clampAnimationSpeed: (v) => clampAnimationSpeed(v),
       // ─── Area E — Panel sync ────────────────────────────────────
       syncRoomDraftActionButton: () => syncRoomDraftActionButton(),
-      syncAudioMappingPanel: () => syncAudioMappingPanel(),
       syncAnimationSpeedPanel: () => syncAnimationSpeedPanel(),
       syncHitareaCalibrationPanel: () => syncHitareaCalibrationPanel(),
       syncRoomGeometryPanel: () => syncRoomGeometryPanel(),

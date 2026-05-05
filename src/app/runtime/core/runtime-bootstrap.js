@@ -43,7 +43,6 @@
       syncAudioGain: ctx.syncAudioGain,
       enforceAudioLifecycleGuard: ctx.enforceAudioLifecycleGuard,
       syncAudioStatus: ctx.syncAudioStatus,
-      syncAudioMappingPanel: ctx.syncAudioMappingPanel,
       syncAnimationSpeedPanel: ctx.syncAnimationSpeedPanel,
       syncHitareaCalibrationPanel: ctx.syncHitareaCalibrationPanel,
       syncRoomGeometryPanel: ctx.syncRoomGeometryPanel,

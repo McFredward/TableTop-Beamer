@@ -48,8 +48,6 @@
       roomStaggerStartInput,
       roomStaggerOffsetInput,
       audioEnabledInput,
-      audioMappingAnimationSelect,
-      audioMappingSoundSelect,
       audioVolumeInput,
       audioVolumeValue,
       animationSpeedInput,
@@ -104,9 +102,6 @@
       enforceAudioLifecycleGuard,
       syncAudioStatus,
       persistRuntimeSoundSettingsChange,
-      syncAudioMappingPanel,
-      normalizeAnimationSoundPath,
-      getAnimationLabel,
       syncAnimationSpeedPanel,
       shouldSuppressRapidTap,
       recordTriggerIntent,
@@ -434,31 +429,6 @@
       enforceAudioLifecycleGuard();
       syncAudioStatus();
       persistRuntimeSoundSettingsChange("Status: Audio toggle applied, but persistence failed");
-    });
-
-    // Standalone Sound Mapping panel removed — these two
-    // event listeners are no longer needed since sound is now
-    // per-animation-definition. Guard with ?. for null-safety.
-    audioMappingAnimationSelect?.addEventListener("change", () => {
-      syncAudioMappingPanel();
-    });
-
-    audioMappingSoundSelect?.addEventListener("change", () => {
-      const animationType = audioMappingAnimationSelect?.value;
-      if (!animationType) {
-        return;
-      }
-      state.animationSoundMap[animationType] = normalizeAnimationSoundPath(
-        animationType,
-        audioMappingSoundSelect.value,
-      );
-      const persisted = persistRuntimeSoundSettingsChange(
-        `Status: Sound mapping for ${getAnimationLabel(animationType)} updated (persistence failed)`,
-      );
-      syncAudioMappingPanel();
-      triggerFeedback.textContent = persisted
-        ? `Status: Sound mapping for ${getAnimationLabel(animationType)} updated`
-        : `Status: Sound mapping for ${getAnimationLabel(animationType)} updated (persistence failed)`;
     });
 
     audioVolumeInput.addEventListener("input", () => {
