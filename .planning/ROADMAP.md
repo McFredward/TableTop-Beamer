@@ -198,6 +198,32 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
+## Phase 30 - Render-Stability Regressions Closure (PLANNING)
+Ziel: Drei Render-/Sync-Regressionen beheben, die vor Release aufgefallen sind. Test-Board: Nemesis Lockdown Board A.
+
+Status: PLANNING. Scaffolding in `.planning/phases/phase-30/` wird in der Discuss-Phase erzeugt.
+
+Backlog (User-Smoke 2026-05-05, post Phase-29-Closure):
+- B1 — Sichtbare Linien/Seams in Animationen, insbesondere `solid-color`: solid-color-Räume zeigen sichtbare Linien innerhalb des Raums (Transformations-Naht). Phase 26 h9 hatte den GL-Triangle-Seam-Fix (highp + NEAREST) — Regression. Kontrakt: solid-color soll wirklich SOLID sein, ohne sichtbare Naht-Linien innerhalb eines Raums; auch andere Animationen dürfen diese Linien nicht zeigen.
+- B2 — GIF-Animationen starten nicht zuverlässig auf Pi /output/: Auf stärkeren Geräten sichtbar, auf Pi starten manche nicht; Reload bringt fehlende Animationen, aber andere brechen dann ab. Phase 26 h9 hatte Idle-Bypass + ImageDecoder-Fallback bereits adressiert — Regression. Kontrakt: alle GIF-Animationen müssen auf Pi /output/ deterministisch starten, auch ohne Reload, und nach einem Reload nicht andere brechen.
+- B3 — `Show diagnostic overlay` synct nicht zu /output/: Toggle wirkt nur im Dashboard. Phase 28 B6 hatte Cross-Client-Sync bereits eingeführt — Regression. Kontrakt: Toggle-State synct live an alle Clients inkl. /output/, und Overlay erscheint/verschwindet dort sofort.
+
+Milestones:
+1. M1 Seam closure: solid-color (und ggf. andere) Animationen zeigen keine sichtbaren Naht-Linien innerhalb eines Raums; deterministische Reproduktion + FAIL→PASS-Evidenz auf Test-Board.
+2. M2 Pi GIF reliability: alle GIF-Animationen starten zuverlässig auf Pi /output/ ohne Reload; deterministische Reproduktion auf Pi-Hardware.
+3. M3 Overlay live-sync: Diagnostic-Overlay-Toggle propagiert live an /output/.
+
+Exit Criteria:
+- Auf dem Test-Board sind keine Naht-Linien innerhalb eines Raums in solid-color (und in den anderen verwendeten Animationen) sichtbar — verifiziert visuell auf Pi /output/.
+- Auf Pi starten alle in einem Boot konfigurierten GIF-Animationen ohne Reload; nach Reload brechen keine anderen ab.
+- Aktivieren von "Show diagnostic overlay" im Dashboard zeigt das Overlay binnen Live-Sync-Latenz auf /output/; Deaktivieren versteckt es dort sofort.
+- Test-Suite weiterhin grün (Phase 29: 40/40); keine Regression in Phase 26 h9 / Phase 28 B6 Akzeptanz.
+
+Out of Scope:
+- Neue Animations-Typen oder neue Render-Modes.
+- Änderungen am Persistence-Schema (Phase 29 v4 bleibt).
+- Refactoring außerhalb dessen was zur Regression-Behebung minimal nötig ist.
+
 ## Phase 29 - Persistence Audit & Legacy Cleanup (CLOSED)
 Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.json`, `config/boards/<id>.json`, `config/projection-profiles.json`, `config/asset-manifest.json`) auf redundante / ungenutzte Felder. Tot-Code rauswerfen, Schema schlanker machen, Import/Export weiterhin funktional halten — keine Backwards-Compat erforderlich (Pre-Release).
 
