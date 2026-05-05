@@ -239,11 +239,8 @@
     // floating-point equality test, but the rasterizer's diamond-
     // exit rule evaluates coverage from each triangle's own
     // direction → a 1-pixel column at the shared edge can be
-    // covered by both triangles or neither. (Phase 30 B1 h1: the
-    // clearColor below is now TRANSPARENT on /output/ as a
-    // belt-and-braces gap-fill — fx-canvas content shows through
-    // any rasterizer holes — but pixel-snapping still helps
-    // reduce the gaps at the source.)
+    // covered by both triangles or neither, and on /output/ the
+    // opaque-black clearColor (line 267) bleeds through any gaps.
     // Snapping vertex positions to whole pixels makes shared edges
     // land on exact pixel boundaries, where coverage is unambiguous
     // for both triangles. Source UVs stay fractional (NEAREST
@@ -288,36 +285,32 @@
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
 
-    // Phase 30 B1 h1: clearColor TRANSPARENT on /output/ (was opaque
-    // black). Rationale: the WebGL rasterizer can leave 1-pixel gaps
-    // at triangle shared edges (top-left fill rule mismatch on
-    // non-integer-snapped vertices; VC4 sub-pixel jitter on Pi). With
-    // opaque-black clearColor, those gaps render as visible BLACK
-    // LINES on uniform-colour content (cf. user UAT photo
-    // debug/lines_bug.jpg showing the 3x3 grid pattern through orange
-    // solid-color). Transparent clearColor lets fx-canvas content
-    // underneath show through any gaps. With the small Phase-27-W4
-    // default deformation (10% inset), the visual offset between
-    // warped (GL) and un-warped (fx-canvas) content at a 1-pixel gap
-    // is ≤0.1 px — imperceptible on a 1080p projector at table
-    // distance, far better than visible dark grid lines. Both
-    // /output/ and dashboard now use transparent clearColor — the
-    // dashboard path already used transparent.
+    // In /output/ the GL canvas itself is the visible
+    // surface, so clear it OPAQUE black (the projector's "no light"
+    // colour) and skip the GPU→CPU drawImage readback. In dashboard
+    // we still need the readback because the projection-mapping
+    // editor composites handles on top of fx-canvas.
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    _gl.clearColor(0, 0, 0, 0);
+    if (isOutput) {
+      _gl.clearColor(0, 0, 0, 1);
+    } else {
+      _gl.clearColor(0, 0, 0, 0);
+    }
     _gl.clear(_gl.COLOR_BUFFER_BIT);
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
 
     if (isOutput) {
-      // Phase 30 B1 h1: do NOT clear fx-canvas on /output/. The
-      // un-warped fx-canvas content underneath fx-gl-canvas serves as
-      // gap-fill for rasterization holes in the GL output (see
-      // clearColor comment above). Original logic cleared fx-canvas
-      // to avoid "double-image" colour bleeding outside room
-      // polygons; with Phase-27-W4 default 10% inset the warp
-      // deformation is small enough that warped-vs-un-warped at a
-      // 1-pixel gap is imperceptible. The trade-off is verified
-      // visually by the user UAT for solid-color animations.
+      // Clear fx-canvas after texture upload so its
+      // (now-stale) UNWARPED content can't leak through the alpha=0
+      // areas of the GL framebuffer. Without this, transparent areas
+      // of the warped triangles let fx-canvas show through and you
+      // see both the warped animation AND the original unwarped
+      // animation simultaneously — which looks like colours bleeding
+      // outside the room polygons.
+      canvasCtx.save();
+      canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+      canvasCtx.restore();
     } else {
       // Dashboard path — read GL result back onto fx-canvas so the
       // existing editor compositing path keeps working unchanged.

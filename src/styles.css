@@ -273,15 +273,9 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
 
 /* GL warp canvas — sibling of fx-canvas. Hidden by
    default; runtime toggles inline display:block ONLY in /output/
-   AND only while a non-identity warp is active. Phase 30 B1 h1:
-   GL pass uses TRANSPARENT clearColor and fx-canvas underneath is
-   intentionally NOT cleared on /output/, so the un-warped
-   fx-canvas content fills any 1-pixel rasterization gaps at
-   triangle shared edges. With small (Phase-27-W4 default 10%)
-   warp deformations, warped-vs-un-warped offset at a 1-pixel gap
-   is imperceptible at projector viewing distance. z-index:2
-   keeps fx-gl-canvas above fx-canvas (z-index:auto) but below
-   #room-overlay (z-index:3). */
+   AND only while a non-identity warp is active. The opaque
+   clearColor in the GL pass means it fully occludes fx-canvas
+   beneath when shown, so there's no double-image. */
 #fx-gl-canvas {
   pointer-events: none;
   display: none;
