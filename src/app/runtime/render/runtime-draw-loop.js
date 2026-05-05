@@ -16,32 +16,6 @@
   let ctx = null;
   let lastListRenderAt = 0;
 
-  // Phase 30 Plan 30-04 Step 1 (TEMPORARY — removed in T5).
-  // URL-flag A/B for Pi /output/ perf root-cause isolation.
-  // Default OFF — without query params behavior is byte-equivalent.
-  // Each flag short-circuits exactly one bucket so the user can read
-  // off the per-bucket fps gain on the diagnostic chip and we ship
-  // the right optimization (Option A vs Option B vs neither).
-  const _PERF = (() => {
-    try {
-      const p = new URLSearchParams(window.location?.search || "");
-      return {
-        skipOutside: p.get("perf_skip_outside") === "1",
-        skipRooms:   p.get("perf_skip_rooms")   === "1",
-        skipWarp:    p.get("perf_skip_warp")    === "1",
-        skipCapture: p.get("perf_skip_capture") === "1",
-      };
-    } catch (_) {
-      return { skipOutside: false, skipRooms: false, skipWarp: false, skipCapture: false };
-    }
-  })();
-  if (typeof window !== "undefined") {
-    // Surface skipCapture as a global so runtime-outside-mp4.js can
-    // short-circuit captureOutsideMp4FallbackFrame() at function-head
-    // without an import dependency.
-    window.__PERF_SKIP_CAPTURE = _PERF.skipCapture;
-  }
-
   function init(dependencies) {
     ctx = dependencies;
     window.TT_BEAMER_RUNTIME_DRAW_LOOP_CLUSTER_PADS.init({
@@ -503,7 +477,28 @@
           });
           ctx.maybeWrapOutsideMp4Loop(video, playbackState);
           c.globalAlpha = ctx.clampOutsideIntensity(effectiveIntensity) * (Number.isFinite(effectiveOpacity) ? effectiveOpacity : 1);
-          if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+          // Phase 30 Plan 30-04 T4 (Option B): on /output/ (final-output
+          // role) the rAF rate is below any tier-target gate, so
+          // shouldDrawOutsideMp4Now never returns false → the fallback
+          // canvas is dead weight. Always paint the live frame, never
+          // capture, never replay. This avoids the second 1920×1080
+          // drawImage(video, …) inside captureOutsideMp4FallbackFrame
+          // every frame. Per Pi UAT (T2) the entire outside-fx layer
+          // costs ~4.5 fps; this T4 fix recovers most of that cleanly.
+          // Boot transition is already covered by h8 tickLoadingOverlay
+          // (waits for video.readyState ≥ 2); the inner readyState
+          // check below is defense-in-depth and keeps the existing
+          // semantics (no bare/uninitialised frame paint).
+          //
+          // Non-/output/ contexts (dashboard preview etc.) keep the
+          // original tier-gated + fallback path so dashboard UX where
+          // the gate legitimately fires is unaffected.
+          const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
+          if (isFinalOutput) {
+            if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+              c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+            }
+          } else if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
             if (ctx.shouldDrawOutsideMp4Now(playbackState)) {
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
               ctx.captureOutsideMp4FallbackFrame(playbackState, video);
@@ -626,7 +621,7 @@
         ctx.recordRuntimeFrameCost(performance.now() - frameStart);
         return;
       }
-      if (!_PERF.skipOutside) drawOutsideFxLayer(now);
+      drawOutsideFxLayer(now);
 
       // Order-invariant room layering:
       // When ≥ 2 animations (any type) run in the same (board, room), switch
@@ -646,19 +641,17 @@
       const failedAnimationIds = [];
       let renderedCount = 0;
       const maxRenderAnimationsPerFrame = Math.max(1, Number(state.runtimePerf.maxRenderAnimationsPerFrame) || 96);
-      if (!_PERF.skipRooms) {
-        for (const anim of state.runningAnimations) {
-          if (ctx.shouldCoalesceNonCriticalAnimation(anim)) {
-            continue;
-          }
-          if (!ctx.isRenderCriticalAnimation(anim) && renderedCount >= maxRenderAnimationsPerFrame) {
-            continue;
-          }
-          const ok = drawAnimationSafely(anim, now);
-          renderedCount += 1;
-          if (!ok) {
-            failedAnimationIds.push(anim.id);
-          }
+      for (const anim of state.runningAnimations) {
+        if (ctx.shouldCoalesceNonCriticalAnimation(anim)) {
+          continue;
+        }
+        if (!ctx.isRenderCriticalAnimation(anim) && renderedCount >= maxRenderAnimationsPerFrame) {
+          continue;
+        }
+        const ok = drawAnimationSafely(anim, now);
+        renderedCount += 1;
+        if (!ok) {
+          failedAnimationIds.push(anim.id);
         }
       }
 
@@ -672,7 +665,7 @@
           "Status: faulty animation isolated, render timer continues";
       }
 
-      if (!_PERF.skipWarp) ctx.postDrawMeshWarp?.(canvas, c);
+      ctx.postDrawMeshWarp?.(canvas, c);
 
       // Blit each cluster animation's first member
       // room region into its pad canvas. Pads are off-stage DOM
