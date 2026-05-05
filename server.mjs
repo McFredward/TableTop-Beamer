@@ -10,7 +10,6 @@ import {
   dequeueFairMutation,
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
-import { purgeDeadFieldsOnBoot } from "./lib/migrations/phase-29-purge.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -3807,29 +3806,6 @@ try {
 } catch (error) {
   console.warn(
     "[asset-manifest] boot synthesis failed (continuing without manifest):",
-    error?.message || error,
-  );
-}
-
-// Phase 29 W3 — one-shot disk-side cleanup mirroring the Wave 2 source cleanup.
-// The migration is idempotent: boots 2..N find nothing to do and don't touch
-// any file. Runs BEFORE attachLiveWebSocket() / server.listen so no
-// global-config-update broadcast fires (Pitfall 6). Internally orders:
-// (1) lossless animationSoundMap → per-animation soundAssetRef migration FIRST
-// (Pitfall 2), (2) strip animationSoundMap from global-defaults.json,
-// (3) strip DEAD fields from each config/boards/<id>.json.
-try {
-  const phase29Result = await purgeDeadFieldsOnBoot({
-    globalDefaultsPath: GLOBAL_DEFAULTS_PATH,
-    boardStorageDir: BOARD_STORAGE_DIR,
-  });
-  const { migration, globalStripped, boardsStripped } = phase29Result;
-  console.log(
-    `[phase-29-purge] complete (migrated ${migration.copiedCount} sound refs across ${migration.boardFilesModified} boards; orphans ${migration.orphanCount}; global ${globalStripped.changed ? "stripped" : "unchanged"}; ${boardsStripped} board file(s) stripped)`,
-  );
-} catch (error) {
-  console.warn(
-    "[phase-29-purge] failed (continuing — re-run will retry):",
     error?.message || error,
   );
 }
