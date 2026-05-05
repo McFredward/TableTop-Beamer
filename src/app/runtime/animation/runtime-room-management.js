@@ -393,7 +393,6 @@
     };
     board.rooms.push(room);
     ctx.ensureBoardRoomStateMaps(state.boardId);
-    ctx.clearRoomTombstone(state.boardId, id);
     ctx.setSpecialPolygonPoints(state.boardId, id, room.polygon);
     ctx.setRoomGeometry(state.boardId, id, clipboard.geometry);
     state.selectedRoomId = id;
@@ -549,7 +548,6 @@
     };
     board.rooms.push(room);
     ctx.ensureBoardRoomStateMaps(state.boardId);
-    ctx.clearRoomTombstone(state.boardId, id);
     if (copiedGeometry) {
       ctx.setRoomGeometry(state.boardId, id, copiedGeometry);
     }
@@ -612,7 +610,6 @@
     if (state.frozenRoomsByBoard?.[state.boardId]) {
       delete state.frozenRoomsByBoard[state.boardId][room.id];
     }
-    ctx.markRoomTombstone(state.boardId, room.id);
     const fallbackRoomId = nextRooms[0]?.id ?? null;
     state.selectedRoomId = fallbackRoomId;
     state.selectedRoomByBoard[state.boardId] = fallbackRoomId;

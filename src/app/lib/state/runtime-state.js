@@ -67,7 +67,6 @@
         inflightByRoom: {},
       },
       hitareaCalibrationByBoard: {},
-      roomTombstonesByBoard: {},
       roomGeometryByBoard: {},
       specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},

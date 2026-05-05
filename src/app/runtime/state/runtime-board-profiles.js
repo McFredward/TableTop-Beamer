@@ -33,7 +33,6 @@
         board.id,
         {
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
-          deletedRoomIds: [],
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
           specialPolygons: ctx.createDefaultSpecialPolygonMap(board.id),
           playAreas: ctx.normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT),
@@ -53,7 +52,6 @@
         board.id,
         {
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
-          deletedRoomIds: ctx.normalizeRoomTombstoneIds(state.roomTombstonesByBoard?.[board.id], board.id),
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
           specialPolygons: ctx.normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
           playAreas: ctx.getPlayAreas(board.id).map((area) => ({
@@ -149,12 +147,8 @@
   function applyBoardProfilesToState(profiles) {
     const state = ctx.state;
     const nextBoards = ctx.getBoards().map((board) => {
-      const deletedRoomIds = ctx.normalizeRoomTombstoneIds(
-        profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
-        board.id,
-      );
       const roomCatalog = profiles?.[board.id]?.roomCatalog ?? profiles?.[board.id]?.rooms ?? null;
-      const nextBoard = ctx.applyRoomCatalog(board, roomCatalog, deletedRoomIds);
+      const nextBoard = ctx.applyRoomCatalog(board, roomCatalog);
       nextBoard.roomClusters = Array.isArray(profiles?.[board.id]?.roomClusters)
         ? profiles[board.id].roomClusters.map((cluster) => ({ ...cluster }))
         : Array.isArray(nextBoard.roomClusters)
@@ -164,15 +158,6 @@
     });
     ctx.setBoards(nextBoards);
     const BOARDS = ctx.getBoards();
-    state.roomTombstonesByBoard = Object.fromEntries(
-      BOARDS.map((board) => [
-        board.id,
-        ctx.normalizeRoomTombstoneIds(
-          profiles?.[board.id]?.deletedRoomIds ?? profiles?.[board.id]?.roomTombstones,
-          board.id,
-        ),
-      ]),
-    );
     // hitareaCalibration + roomGeometry
     // no longer read from profiles. The migration script baked them
     // into specialPolygons and the pipeline is identity now.

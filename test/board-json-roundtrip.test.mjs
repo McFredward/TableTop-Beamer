@@ -59,18 +59,18 @@ test("B1-D02: lastUsedProfileName persists in config/boards/<id>.json round-trip
     "BOARD_PROFILE_FIELDS must contain 'lastUsedProfileName'",
   );
 
-  // Sanity-check: existing fields still present (no accidental removal).
-  assert.ok(fields.includes("deletedRoomIds"), "deletedRoomIds must remain in BOARD_PROFILE_FIELDS");
+  // Sanity-check: existing LIVE fields still present (no accidental removal).
+  // Phase 29-04 dropped `deletedRoomIds` from BOARD_PROFILE_FIELDS as REDUNDANT.
   assert.ok(fields.includes("playAreas"), "playAreas must remain in BOARD_PROFILE_FIELDS");
 
   // Forward direction — board with the field → profile carries it through.
-  const boardWith = { deletedRoomIds: [], lastUsedProfileName: "alpha" };
+  const boardWith = { lastUsedProfileName: "alpha" };
   const profileWith = extractProfileFromUnifiedBoardClone(boardWith, fields);
   assert.equal(profileWith.lastUsedProfileName, "alpha", "field must round-trip board → profile");
 
   // Absent direction — board without the field → profile omits it (BOARD_PROFILE_FIELDS
   // iterator skips `undefined`).
-  const boardWithout = { deletedRoomIds: [] };
+  const boardWithout = {};
   const profileWithout = extractProfileFromUnifiedBoardClone(boardWithout, fields);
   assert.equal(
     Object.prototype.hasOwnProperty.call(profileWithout, "lastUsedProfileName"),
@@ -80,7 +80,7 @@ test("B1-D02: lastUsedProfileName persists in config/boards/<id>.json round-trip
 
   // Null direction — board with explicit null → profile carries through as null
   // (legacy boards that have the field stamped at apply time get null preserved).
-  const boardNull = { deletedRoomIds: [], lastUsedProfileName: null };
+  const boardNull = { lastUsedProfileName: null };
   const profileNull = extractProfileFromUnifiedBoardClone(boardNull, fields);
   assert.equal(profileNull.lastUsedProfileName, null, "explicit null must round-trip as null");
 
@@ -94,7 +94,6 @@ test("B1-D02: lastUsedProfileName persists in config/boards/<id>.json round-trip
       metadata: { name: "Synthetic", imageSrc: "/x.png", source: "test" },
       roomCatalog: [],
       roomClusters: [],
-      deletedRoomIds: [],
       lastUsedProfileName: "main-stage.v1",
     };
     await writeJsonFile(filePath, original);

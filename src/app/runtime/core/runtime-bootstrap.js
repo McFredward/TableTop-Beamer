@@ -117,7 +117,6 @@
     state.roomGeometryByBoard = Object.fromEntries(
       ctx.getBoards().map((board) => [board.id, {}]),
     );
-    state.roomTombstonesByBoard = ctx.createDefaultRoomTombstonesByBoard();
     state.specialPolygonsByBoard = ctx.createDefaultSpecialPolygonsByBoard();
     state.playAreasByBoard = ctx.createDefaultPlayAreasByBoard();
     state.selectedPlayAreaIdByBoard = ctx.createDefaultSelectedPlayAreaIdByBoard();

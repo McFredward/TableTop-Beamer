@@ -152,17 +152,12 @@
     const state = ctx.state;
     const board = ctx.getBoard(boardId);
     const geometryMap = state.roomGeometryByBoard[boardId] ?? {};
-    const tombstones = state.roomTombstonesByBoard?.[boardId] ?? [];
     for (const room of board.rooms) {
       if (!geometryMap[room.id]) {
         geometryMap[room.id] = ctx.normalizeRoomGeometry(ctx.ROOM_GEOMETRY_DEFAULT, room, boardId);
       }
     }
     state.roomGeometryByBoard[boardId] = geometryMap;
-    if (!state.roomTombstonesByBoard) {
-      state.roomTombstonesByBoard = {};
-    }
-    state.roomTombstonesByBoard[boardId] = ctx.normalizeRoomTombstoneIds(tombstones, boardId);
   }
 
   window.TT_BEAMER_RUNTIME_BOARD_SWITCH = {

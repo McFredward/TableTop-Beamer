@@ -99,7 +99,6 @@
         ];
       migrated[boardId] = {
         roomCatalog: profile.roomCatalog ?? profile.rooms ?? profile.roomModel ?? null,
-        deletedRoomIds: profile.deletedRoomIds ?? profile.roomTombstones ?? [],
         roomClusters: profile.roomClusters ?? profile.clusters ?? null,
         hitareaCalibration:
           profile.hitareaCalibration ?? profile.hitarea ?? HITAREA_CALIBRATION_DEFAULT,

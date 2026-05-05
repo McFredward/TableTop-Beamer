@@ -63,7 +63,6 @@
         };
         board.rooms.push(room);
         ctx.ensureBoardRoomStateMaps(state.boardId);
-        ctx.clearRoomTombstone(state.boardId, snap.id);
       }
       room.name = snap.name;
       room.label = snap.name;
@@ -72,11 +71,9 @@
       ctx.setSpecialPolygonPoints(state.boardId, snap.id, snap.polygon.map((p) => [...p]));
     }
 
-    for (const [id] of currentRoomMap) {
-      if (!restoredIds.has(id)) {
-        ctx.markRoomTombstone(state.boardId, id);
-      }
-    }
+    // Rooms not in the restored snapshot were already filtered out of
+    // board.rooms above (line 48); no tombstone bookkeeping needed —
+    // the room-catalog mutation IS the undo. (29-04 / 29-AUDIT.md §3.)
 
     // --- Restore Play Area polygons ---
     if (playAreaStates.length > 0 && typeof ctx.getPlayAreas === "function" && typeof ctx.setPlayAreaPolygon === "function") {

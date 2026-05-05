@@ -77,52 +77,6 @@
     );
   }
 
-  function normalizeRoomTombstoneIds(ids, boardId) {
-    void boardId;
-    return Array.from(
-      new Set(
-        (Array.isArray(ids) ? ids : [])
-          .map((entry) => String(entry || "").trim())
-          .filter(Boolean),
-      ),
-    );
-  }
-
-  function createDefaultRoomTombstonesByBoard() {
-    return Object.fromEntries(ctx.getBoards().map((board) => [board.id, []]));
-  }
-
-  function markRoomTombstone(boardId, roomId) {
-    const state = ctx.state;
-    if (!boardId || !roomId) {
-      return;
-    }
-    const current = state.roomTombstonesByBoard?.[boardId] ?? [];
-    const next = normalizeRoomTombstoneIds([...current, roomId], boardId);
-    if (!state.roomTombstonesByBoard) {
-      state.roomTombstonesByBoard = {};
-    }
-    state.roomTombstonesByBoard[boardId] = next;
-  }
-
-  function clearRoomTombstone(boardId, roomId) {
-    const state = ctx.state;
-    if (!boardId || !roomId) {
-      return;
-    }
-    const current = state.roomTombstonesByBoard?.[boardId] ?? [];
-    if (!current.includes(roomId)) {
-      return;
-    }
-    if (!state.roomTombstonesByBoard) {
-      state.roomTombstonesByBoard = {};
-    }
-    state.roomTombstonesByBoard[boardId] = normalizeRoomTombstoneIds(
-      current.filter((entry) => entry !== roomId),
-      boardId,
-    );
-  }
-
   function mergeSpecialPolygonMaps(primaryMap, fallbackMap) {
     const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
     if (!primaryMap || typeof primaryMap !== "object") {
@@ -134,17 +88,6 @@
       }
     }
     return merged;
-  }
-
-  function filterRoomCatalogByDeletedIds(roomCatalog, deletedRoomIds) {
-    if (!Array.isArray(roomCatalog)) {
-      return null;
-    }
-    const tombstones = new Set(normalizeRoomTombstoneIds(deletedRoomIds));
-    if (tombstones.size === 0) {
-      return roomCatalog;
-    }
-    return roomCatalog.filter((room) => !tombstones.has(String(room?.id || "").trim()));
   }
 
   function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
@@ -171,24 +114,16 @@
       const selectedPlayAreaId = mergedPlayAreas.some((area) => area.id === preferredSelectedPlayAreaId)
         ? preferredSelectedPlayAreaId
         : mergedPlayAreas[0].id;
-      const deletedRoomIds = normalizeRoomTombstoneIds([
-        ...(Array.isArray(fallback.deletedRoomIds) ? fallback.deletedRoomIds : fallback.roomTombstones ?? []),
-        ...(Array.isArray(primary.deletedRoomIds) ? primary.deletedRoomIds : primary.roomTombstones ?? []),
-      ]);
-      const roomCatalog = filterRoomCatalogByDeletedIds(
-        Array.isArray(primary.roomCatalog)
-          ? primary.roomCatalog
-          : Array.isArray(fallback.roomCatalog)
-            ? fallback.roomCatalog
-            : null,
-        deletedRoomIds,
-      );
+      const roomCatalog = Array.isArray(primary.roomCatalog)
+        ? primary.roomCatalog
+        : Array.isArray(fallback.roomCatalog)
+          ? fallback.roomCatalog
+          : null;
 
       merged[boardId] = {
         ...fallback,
         ...primary,
         roomCatalog,
-        deletedRoomIds,
         specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
         playAreas: mergedPlayAreas,
         selectedPlayAreaId,
@@ -438,12 +373,7 @@
     normalizeRoomGeometry,
     createDefaultRoomGeometryMap,
     createDefaultRoomGeometryByBoard,
-    normalizeRoomTombstoneIds,
-    createDefaultRoomTombstonesByBoard,
-    markRoomTombstone,
-    clearRoomTombstone,
     mergeSpecialPolygonMaps,
-    filterRoomCatalogByDeletedIds,
     mergeBoardProfilesForGlobalExport,
     resolveProfilePolygonContract,
     applyPolygonPrecedence: mergePolygonPrecedence,

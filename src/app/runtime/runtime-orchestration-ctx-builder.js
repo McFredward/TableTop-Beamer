@@ -74,7 +74,6 @@
       setPanCursorState,
       // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap,
-      createDefaultRoomTombstonesByBoard,
       createDefaultRoomGeometryByBoard,
       createDefaultSpecialPolygonsByBoard,
       createDefaultPlayAreasByBoard,
@@ -193,7 +192,6 @@
       setPanCursorState: () => setPanCursorState(),
       // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap: () => createDefaultHitareaCalibrationMap(),
-      createDefaultRoomTombstonesByBoard: () => createDefaultRoomTombstonesByBoard(),
       createDefaultRoomGeometryByBoard: () => createDefaultRoomGeometryByBoard(),
       createDefaultSpecialPolygonsByBoard: () => createDefaultSpecialPolygonsByBoard(),
       createDefaultPlayAreasByBoard: () => createDefaultPlayAreasByBoard(),

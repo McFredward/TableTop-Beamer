@@ -109,21 +109,15 @@
     };
   }
 
-  function mergeRoomCatalog(board, roomCatalog = [], deletedRoomIds = []) {
-    const tombstones = new Set(
-      (Array.isArray(deletedRoomIds) ? deletedRoomIds : [])
-        .map((roomId) => String(roomId || "").trim())
-        .filter(Boolean),
-    );
-    const baseRooms = (board.rooms || []).filter((room) => !tombstones.has(room.id));
+  function mergeRoomCatalog(board, roomCatalog = []) {
+    const baseRooms = board.rooms || [];
     if (!Array.isArray(roomCatalog) || roomCatalog.length === 0) {
       return normalizeBoard({
         ...board,
         rooms: baseRooms,
       });
     }
-    const filteredCatalog = roomCatalog.filter((room) => !tombstones.has(room?.id));
-    const catalogById = new Map(filteredCatalog.map((room) => [room.id, room]));
+    const catalogById = new Map(roomCatalog.map((room) => [room.id, room]));
     const merged = baseRooms.map((room, index) => {
       const catalogRoom = catalogById.get(room.id);
       if (!catalogRoom) {
@@ -143,7 +137,7 @@
         index,
       );
     });
-    for (const catalogRoom of filteredCatalog) {
+    for (const catalogRoom of roomCatalog) {
       if (merged.some((room) => room.id === catalogRoom.id)) {
         continue;
       }

@@ -67,12 +67,12 @@ test("W2: animationSoundMap has zero src/ hits", () => {
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
 
-test("W2: playAreaPolygon has zero src/ hits (legacy single-polygon path)", { skip: "Wave 2 (29-04) not landed yet" }, () => {
+test("W2: playAreaPolygon has zero src/ hits (legacy single-polygon path)", () => {
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\bplayAreaPolygon\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
 
-test("W2: deletedRoomIds has zero src/ hits (if Wave 1 audit confirms REDUNDANT)", { skip: "Wave 2 (29-04) gated on audit verdict" }, () => {
+test("W2: deletedRoomIds has zero src/ hits (if Wave 1 audit confirms REDUNDANT)", () => {
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\bdeletedRoomIds\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });

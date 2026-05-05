@@ -37,7 +37,6 @@ const BUILTIN_BOARD_IDS = new Set();
 // unification. global-defaults.json now only holds truly-global
 // state (audio, animationSpeed, projectionMapping).
 const BOARD_PROFILE_FIELDS = Object.freeze([
-  "deletedRoomIds",
   "hitareaCalibration",
   "roomGeometry",
   "specialPolygons",
