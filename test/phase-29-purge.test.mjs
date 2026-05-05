@@ -36,6 +36,9 @@ test("W3: purgeDeadFieldsOnBoot is idempotent", async () => {
       hiddenRoomNames: {},
       roomStateProfiles: { "room-1": { broken: false } },
       playAreaPolygon: [[0, 0], [1, 0], [1, 1], [0, 1]],
+      // 29-h1 dead fields:
+      specialPolygons: { "special-1": [[0, 0], [1, 0], [0, 1]] },
+      roomGeometry: {},
       playAreas: [{ id: "play-1", polygon: [[0, 0], [1, 0]] }],
       lastUsedProfileName: "Main",
     };
@@ -47,6 +50,8 @@ test("W3: purgeDeadFieldsOnBoot is idempotent", async () => {
     assert.ok(!("hiddenRoomNames" in after1), "hiddenRoomNames must be gone after first call");
     assert.ok(!("roomStateProfiles" in after1), "roomStateProfiles must be gone after first call");
     assert.ok(!("playAreaPolygon" in after1), "playAreaPolygon must be gone after first call");
+    assert.ok(!("specialPolygons" in after1), "specialPolygons must be gone after first call (29-h1)");
+    assert.ok(!("roomGeometry" in after1), "roomGeometry must be gone after first call (29-h1)");
 
     const r2 = await purgeBoardFile(boardPath);
     assert.equal(r2.changed, false, "second call MUST be a no-op (idempotence)");
@@ -68,11 +73,14 @@ test("W3: purgeBoardFile drops DEAD fields, preserves LIVE fields", async () => 
       boardId: "test-b",
       metadata: { name: "Test B" },
       roomCatalog: [{ id: "r1", name: "R1" }],
-      // DEAD:
+      // DEAD (Wave 2):
       hiddenRoomNames: { "r1": true },
       roomStateProfiles: { "r1": { broken: false } },
       playAreaPolygon: [[0, 0]],
       deletedRoomIds: ["old-room"],
+      // DEAD (29-h1):
+      specialPolygons: { "r1": [[0, 0], [1, 0], [0, 1]] },
+      roomGeometry: {},
       // LIVE:
       playAreas: [{ id: "p1", polygon: [[0, 0]] }],
       outsideFx: { animations: [] },
@@ -83,7 +91,12 @@ test("W3: purgeBoardFile drops DEAD fields, preserves LIVE fields", async () => 
     const out = await readJsonFile(boardPath);
 
     // DEAD fields gone:
-    for (const f of ["hiddenRoomNames", "roomStateProfiles", "playAreaPolygon", "deletedRoomIds"]) {
+    for (const f of [
+      // Wave 2:
+      "hiddenRoomNames", "roomStateProfiles", "playAreaPolygon", "deletedRoomIds",
+      // 29-h1:
+      "specialPolygons", "roomGeometry",
+    ]) {
       assert.ok(!(f in out), `${f} must be stripped`);
     }
     // LIVE fields preserved byte-identical:
