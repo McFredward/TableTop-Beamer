@@ -119,15 +119,122 @@
     }
   }
 
-  // ── Apply transform (no-op — all warping is done via canvas mesh) ──────────
+  // ── Apply transform — Phase 30 B1 h6 CSS-warp fast-path ──────────────────
 
   function applyTransform() {
-    // Unified grid warps via canvas mesh (see postDrawMeshWarp) —
-    // no CSS transform is applied from this module. We must NOT touch
-    // stage.style.transform here, because the CONTROL client's .stage
-    // carries the zoom/pan CSS rule `translate(var(--stage-pan-x), …)
-    // scale(var(--stage-zoom-scale))` and writing `transform: none`
-    // would make mouse-wheel/pinch zoom invisible.
+    const isOutput = ctx?.outputRole === ctx?.OUTPUT_ROLE_FINAL;
+    const stageEl = ctx?.stage || document.getElementById("stage");
+    if (!stageEl || !isOutput) return;
+    // Phase 30 B1 h6: CSS-warp fast-path. When the grid is trivial
+    // (all inner points = bilinear interp of 4 corners), apply the
+    // 4-corner perspective via a CSS matrix3d transform on .stage.
+    // The GPU compositor renders this as a single-quad with hardware
+    // sampling — no triangulation seams, no GL context dependency.
+    // For non-trivial grids (squish bars, mid-line drags), clear the
+    // CSS transform and let canvas mesh-warp run.
+    //
+    // We must NOT touch stage.style.transform on the CONTROL client,
+    // because its .stage carries the zoom/pan CSS rule
+    // `translate(var(--stage-pan-x), …) scale(var(--stage-zoom-scale))`
+    // and writing `transform: none` would make mouse-wheel/pinch zoom
+    // invisible. Hence the early `if (!isOutput) return;` above.
+    if (typeof gridState.isTrivialFourCornerGrid === "function"
+        && gridState.isTrivialFourCornerGrid()
+        && hasGridDisplacements()) {
+      const c = gridState.getCornerPoints();
+      const w = stageEl.clientWidth || stageEl.getBoundingClientRect().width || 1;
+      const h = stageEl.clientHeight || stageEl.getBoundingClientRect().height || 1;
+      // Source corners (untransformed stage = full screen, in stage CSS px)
+      const src = [
+        [0, 0], [w, 0], [w, h], [0, h],
+      ];
+      // Destination corners (in stage CSS px). c.TL etc. are normalized 0..1.
+      const dst = [
+        [c.TL.x * w, c.TL.y * h],
+        [c.TR.x * w, c.TR.y * h],
+        [c.BR.x * w, c.BR.y * h],
+        [c.BL.x * w, c.BL.y * h],
+      ];
+      const m = computePerspectiveMatrix3d(src, dst);
+      if (m) {
+        stageEl.style.transform = `matrix3d(${m.join(",")})`;
+        stageEl.style.transformOrigin = "0 0";
+        stageEl.dataset.cssWarpActive = "true";
+        return;
+      }
+    }
+    // Non-trivial grid OR no displacement: clear CSS transform so
+    // canvas mesh-warp can drive geometry directly.
+    if (stageEl.style.transform) stageEl.style.transform = "";
+    if (stageEl.dataset.cssWarpActive) delete stageEl.dataset.cssWarpActive;
+  }
+
+  // Phase 30 B1 h6: compute a CSS matrix3d that maps the 4 src corners
+  // (axis-aligned rect [(0,0),(w,0),(w,h),(0,h)]) to the 4 dst corners
+  // (arbitrary quadrilateral). This is a 2D homography; CSS matrix3d
+  // is column-major 4×4 and we set the affine + perspective entries.
+  // Algorithm: solve the 8x8 linear system for the 8 free coefficients
+  // of a perspective transform mapping 4 point pairs.
+  function computePerspectiveMatrix3d(src, dst) {
+    // 4 point correspondences → 8 equations → solve [a,b,c,d,e,f,g,h]:
+    //   x' = (a*x + b*y + c) / (g*x + h*y + 1)
+    //   y' = (d*x + e*y + f) / (g*x + h*y + 1)
+    // We write 8 equations and solve via Gaussian elimination.
+    const A = [];
+    const B = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i];
+      const [xp, yp] = dst[i];
+      A.push([x, y, 1, 0, 0, 0, -x * xp, -y * xp]);
+      A.push([0, 0, 0, x, y, 1, -x * yp, -y * yp]);
+      B.push(xp);
+      B.push(yp);
+    }
+    const sol = solveLinearSystem(A, B);
+    if (!sol) return null;
+    const [a, b, c, d, e, f, g, h] = sol;
+    // CSS matrix3d is column-major:
+    //   m11 m12 m13 m14   (col 0 = x basis)
+    //   m21 m22 m23 m24   (col 1 = y basis)
+    //   m31 m32 m33 m34   (col 2 = z basis)
+    //   m41 m42 m43 m44   (col 3 = translation)
+    // 2D homography in 4×4 form:
+    //   [ a b 0 c ]
+    //   [ d e 0 f ]
+    //   [ 0 0 1 0 ]
+    //   [ g h 0 1 ]
+    // Column-major flattening:
+    return [
+      a, d, 0, g,
+      b, e, 0, h,
+      0, 0, 1, 0,
+      c, f, 0, 1,
+    ];
+  }
+
+  // Gaussian elimination with partial pivoting. Returns null on singular.
+  function solveLinearSystem(A, B) {
+    const n = A.length;
+    const M = A.map((row, i) => [...row, B[i]]);
+    for (let col = 0; col < n; col++) {
+      let pivot = col;
+      for (let r = col + 1; r < n; r++) {
+        if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
+      }
+      if (Math.abs(M[pivot][col]) < 1e-10) return null;
+      if (pivot !== col) [M[col], M[pivot]] = [M[pivot], M[col]];
+      for (let r = 0; r < n; r++) {
+        if (r === col) continue;
+        const factor = M[r][col] / M[col][col];
+        for (let c = col; c <= n; c++) {
+          M[r][c] -= factor * M[col][c];
+        }
+      }
+    }
+    // After full Gauss-Jordan with pivots, the LHS is diagonal: row i
+    // has only M[i][i] non-zero in the LHS, and M[i][n] is the augmented
+    // RHS. So sol[i] = M[i][n] / M[i][i].
+    return M.map((row, i) => row[n] / row[i]);
   }
 
   // ── Post-draw mesh warp ────────────────────────────────────────────────────
@@ -161,6 +268,22 @@
         const glCanvasElNoWarp = isOutputNoWarp ? document.getElementById("fx-gl-canvas") : null;
         if (glCanvasElNoWarp && glCanvasElNoWarp.style.display !== "none") {
           glCanvasElNoWarp.style.display = "none";
+        }
+        return;
+      }
+    } catch (_) { /* ignore */ }
+    // Phase 30 B1 h6: when CSS-warp is active on .stage (trivial 4-
+    // corner grid), the geometry warp is handled by the GPU compositor.
+    // Skip canvas mesh-warp entirely — fx-canvas displays unwarped,
+    // CSS transforms it to the projected quadrilateral. No mesh
+    // triangulation = no seams.
+    try {
+      const stageEl = ctx.stage || document.getElementById("stage");
+      if (stageEl?.dataset?.cssWarpActive === "true") {
+        const isOutputCssWarp = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+        const glCanvasElCssWarp = isOutputCssWarp ? document.getElementById("fx-gl-canvas") : null;
+        if (glCanvasElCssWarp && glCanvasElCssWarp.style.display !== "none") {
+          glCanvasElCssWarp.style.display = "none";
         }
         return;
       }
@@ -199,22 +322,6 @@
       // In /output/ the GL canvas is the visible
       // surface, so show it now that we know it has fresh content.
       if (glCanvasEl && glCanvasEl.style.display !== "block") {
-        // Phase 30 B1 h5 PROBE: log the FIRST time fx-gl-canvas becomes
-        // visible. Captures the moment the GL warp output replaces
-        // fx-canvas as the visible surface — a likely white-flash
-        // trigger if there's a present-timing race with
-        // desynchronized:true. Fires only on the display-toggle, not
-        // on subsequent frames.
-        try {
-          console.log("[h5-probe] gl-canvas-first-shown", {
-            canvasW: canvas.width,
-            canvasH: canvas.height,
-            glCanvasW: glCanvasEl.width,
-            glCanvasH: glCanvasEl.height,
-            cssRect: glCanvasEl.getBoundingClientRect(),
-            at: performance.now().toFixed(0),
-          });
-        } catch (_) { /* ignore */ }
         glCanvasEl.style.display = "block";
       }
       return;

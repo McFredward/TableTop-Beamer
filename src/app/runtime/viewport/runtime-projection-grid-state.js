@@ -113,6 +113,60 @@
     if (grid.points[row]) grid.points[row][col] = { x, y };
   }
 
+  /**
+   * Phase 30 B1 h6: detect "trivial 4-corner-only" grids — grids where
+   * every inner point lies on the bilinear interpolation of the 4 outer
+   * corners. The user's default Phase-27-W4-h1 grid (10/90 inset, edge
+   * midpoints at midline, center at center) is trivial. Squish-bar
+   * adjustments and mid-line drags produce non-trivial grids. Trivial
+   * grids can be rendered via CSS transform on the stage (GPU-compositor,
+   * single-quad, seam-free), bypassing canvas mesh-warp entirely.
+   */
+  function isTrivialFourCornerGrid() {
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    if (rows < 2 || cols < 2) return true; // degenerate; treat as trivial
+    const TL = grid.points[0]?.[0];
+    const TR = grid.points[0]?.[cols - 1];
+    const BL = grid.points[rows - 1]?.[0];
+    const BR = grid.points[rows - 1]?.[cols - 1];
+    if (!TL || !TR || !BL || !BR) return true;
+    const TOL = 0.0015; // ~1.5 normalized units; ~3 px on 1920-wide canvas
+    for (let row = 0; row < rows; row++) {
+      const sy = grid.srcYs[row];
+      // Bilinear interp of corners using src coords as weights
+      // (since srcXs[0]=0 and srcXs[cols-1]=1 by construction for the
+      // canonical default; we use grid.srcXs[col] / grid.srcYs[row]
+      // as the parametric weights).
+      const ty = (sy - grid.srcYs[0]) / Math.max(1e-9, grid.srcYs[rows - 1] - grid.srcYs[0]);
+      for (let col = 0; col < cols; col++) {
+        const sx = grid.srcXs[col];
+        const tx = (sx - grid.srcXs[0]) / Math.max(1e-9, grid.srcXs[cols - 1] - grid.srcXs[0]);
+        // Expected position: bilinear of 4 corners at (tx, ty).
+        const expectedX = (1 - tx) * (1 - ty) * TL.x + tx * (1 - ty) * TR.x
+                        + (1 - tx) * ty * BL.x + tx * ty * BR.x;
+        const expectedY = (1 - tx) * (1 - ty) * TL.y + tx * (1 - ty) * TR.y
+                        + (1 - tx) * ty * BL.y + tx * ty * BR.y;
+        const actual = grid.points[row]?.[col];
+        if (!actual) return false;
+        if (Math.abs(actual.x - expectedX) > TOL) return false;
+        if (Math.abs(actual.y - expectedY) > TOL) return false;
+      }
+    }
+    return true;
+  }
+
+  function getCornerPoints() {
+    const rows = grid.srcYs.length;
+    const cols = grid.srcXs.length;
+    return {
+      TL: grid.points[0]?.[0] ?? { x: 0, y: 0 },
+      TR: grid.points[0]?.[cols - 1] ?? { x: 1, y: 0 },
+      BR: grid.points[rows - 1]?.[cols - 1] ?? { x: 1, y: 1 },
+      BL: grid.points[rows - 1]?.[0] ?? { x: 0, y: 1 },
+    };
+  }
+
   /** Check whether any points differ from their default positions. */
   function hasGridDisplacements() {
     // Tolerate sub-pixel float drift in saved grids
@@ -322,5 +376,7 @@
     addHandlesVisibleListener,
     buildDefaultPoints,
     buildNewProfileDefaultGrid,
+    isTrivialFourCornerGrid,
+    getCornerPoints,
   };
 })();

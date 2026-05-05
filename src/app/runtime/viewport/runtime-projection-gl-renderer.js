@@ -44,10 +44,6 @@
   let _glUVs = null;
   let _glIndices = null;
   let _glIndexCount = 0;
-  // Phase 30 B1 h5: one-shot flag for the gl-first-render probe so the
-  // log fires once at boot rather than every frame.
-  let _glFirstRenderLogged = false;
-
   function _initMeshWarpGL() {
     if (_glInitTried) return _glInitOk;
     _glInitTried = true;
@@ -59,29 +55,19 @@
       // /output/ — likely a CSS/timing edge case on Chromium.
       _glCanvas = document.getElementById("fx-gl-canvas")
                 || document.createElement("canvas");
-      // Phase 30 B1 h3: antialias=true enables MSAA at the
-      // rasterization stage. Phase-26-h9's "we don't need
-      // multisampling since the mesh is artifact-free" assumption
-      // proved wrong — user UAT (debug/lines_bug.jpg) showed visible
-      // 1-pixel streifen at every triangle shared edge in the 3x3
-      // mesh on Pi /output/. Multisampling fills exactly those
-      // coverage gaps via per-sample evaluation: at a shared edge
-      // where the rasterizer's top-left fill rule + sub-pixel jitter
-      // could leave a 1-pixel column uncovered by either triangle,
-      // MSAA samples that pixel from MULTIPLE rasterizer evaluations
-      // and averages → coverage holes filled with the average of
-      // adjacent triangle content (which is byte-identical to the
-      // adjacent triangle's content at the shared edge by
-      // construction). This is the canonical fix for the streifen
-      // mechanism the prior T2/T4/h1/h2 attempts failed to close.
-      // Cost on Pi VideoCore: minimal — 4× MSAA on a 4×4 vertex grid
-      // is well within the GPU's per-frame budget (existing draw
-      // call is a single drawElements over <100 triangles).
-      // No-AA premultipliedAlpha + low-power + desynchronized
-      // preserved as-is for the rest of the Pi-friendly stack.
+      // Phase 30 B1 h6: antialias: false (revert h3). The h3 attempt
+      // to enable MSAA caused WebGL CONTEXT_LOST_WEBGL on Pi VC4
+      // immediately after the first successful warp frame — confirmed
+      // by user console log showing CONTEXT_LOST + post-loss shader
+      // recompile failures. The Pi VC4 GPU's framebuffer memory
+      // budget (shared with system RAM) cannot afford the 4× MSAA
+      // expansion of a 1365×1080 buffer. Returning to no-AA preserves
+      // Pi-friendly memory profile. Streifen are addressed structurally
+      // via the CSS-warp fast-path in change 2 — GL is no longer
+      // load-bearing for the default 4-corner grid.
       const glOpts = {
         premultipliedAlpha: false,
-        antialias: true,
+        antialias: false,
         preserveDrawingBuffer: true,
         powerPreference: "low-power",
         desynchronized: true,
@@ -181,29 +167,6 @@
 
   function _postDrawMeshWarpGL(canvas, canvasCtx) {
     if (!_initMeshWarpGL()) return false;
-
-    // Phase 30 B1 h5 PROBE: log the FIRST successful GL warp call.
-    // Captures the canvas vs glCanvas dimensions at first render, plus
-    // viewport and DPR, so we can correlate dim mismatches with the
-    // observed white-flash → streifen transition. Fires once.
-    if (!_glFirstRenderLogged) {
-      _glFirstRenderLogged = true;
-      try {
-        const cssRect = _glCanvas.getBoundingClientRect?.() || null;
-        console.log("[h5-probe] gl-first-render", {
-          canvasW: canvas.width,
-          canvasH: canvas.height,
-          glCanvasBufW: _glCanvas.width,
-          glCanvasBufH: _glCanvas.height,
-          cssW: cssRect?.width,
-          cssH: cssRect?.height,
-          windowInnerW: window.innerWidth,
-          windowInnerH: window.innerHeight,
-          dpr: window.devicePixelRatio,
-          at: performance.now().toFixed(0),
-        });
-      } catch (_) { /* ignore */ }
-    }
 
     const w = canvas.width;
     const h = canvas.height;
