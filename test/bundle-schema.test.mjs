@@ -69,3 +69,38 @@ test("W4: filterBoardToLiveFields helper exists and is used in export handler", 
     `expected helper to be defined AND called (found ${callMatches.length} occurrences)`,
   );
 });
+
+// ---------------------------------------------------------------------------
+// Test 4 — Phase 29 h1: v4 export MUST NOT carry specialPolygons or
+// roomGeometry. The allowed-set in filterBoardToLiveFields spreads
+// BOARD_PROFILE_FIELDS plus a fixed structural-keys list. Asserting both
+// sources excludes the two dropped fields keeps the export-side filter
+// honest.
+// ---------------------------------------------------------------------------
+test("29-h1: v4 export filter excludes specialPolygons + roomGeometry", () => {
+  const src = readFileSync(join(REPO_ROOT, "server.mjs"), "utf8");
+
+  // 1. BOARD_PROFILE_FIELDS — primary spread source — must not contain
+  //    either dropped field. (Independent of board-profile-fields.test.mjs:
+  //    that test expects the LIVE set to BE 9 entries; this one binds the
+  //    DEAD-set absence to the bundle-export contract.)
+  const blockMatch = src.match(/const BOARD_PROFILE_FIELDS = Object\.freeze\(\[([\s\S]*?)\]\);/);
+  assert.ok(blockMatch, "BOARD_PROFILE_FIELDS block must be findable");
+  const fieldNames = Array.from(blockMatch[1].matchAll(/"([a-zA-Z0-9_]+)"/g)).map((m) => m[1]);
+  assert.ok(!fieldNames.includes("specialPolygons"),
+    "v4 export MUST NOT carry specialPolygons (29-h1: collapsed to roomCatalog[*].polygon)");
+  assert.ok(!fieldNames.includes("roomGeometry"),
+    "v4 export MUST NOT carry roomGeometry (29-h1: runtime-only, disk field always {})");
+
+  // 2. filterBoardToLiveFields' explicit `allowedTopKeys` set must list
+  //    only structural keys (schema, boardId, metadata, roomCatalog,
+  //    roomClusters) — neither dropped field has crept in there as a
+  //    hardcoded fallback.
+  const helperMatch = src.match(/function filterBoardToLiveFields\([\s\S]*?\n\}/);
+  assert.ok(helperMatch, "filterBoardToLiveFields body must be findable");
+  const body = helperMatch[0];
+  assert.ok(!/"specialPolygons"/.test(body),
+    "filterBoardToLiveFields MUST NOT hardcode specialPolygons in allowedTopKeys");
+  assert.ok(!/"roomGeometry"/.test(body),
+    "filterBoardToLiveFields MUST NOT hardcode roomGeometry in allowedTopKeys");
+});
