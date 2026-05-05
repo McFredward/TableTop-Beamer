@@ -35,7 +35,7 @@ const BUILTIN_BOARD_IDS = new Set();
 // config/boards/<id>.json. Anything in this list is what used to
 // live in global-defaults.json :: boardProfiles[<id>] before the
 // unification. global-defaults.json now only holds truly-global
-// state (audio, animationSpeed, animationSoundMap, projectionMapping).
+// state (audio, animationSpeed, projectionMapping).
 const BOARD_PROFILE_FIELDS = Object.freeze([
   "deletedRoomIds",
   "hitareaCalibration",
@@ -3032,7 +3032,6 @@ async function handleGlobalDefaultsSave(req, res) {
     source: parsed.source ?? "browser-local-state",
     audio: parsed.audio ?? { enabled: true, volume: 0.7 },
     animationSpeed: parsed.animationSpeed ?? 1,
-    animationSoundMap: parsed.animationSoundMap ?? {},
     renderMode,
     diagnosticOverlay,
     // Phase 19-2: projection mapping corners persist across saves

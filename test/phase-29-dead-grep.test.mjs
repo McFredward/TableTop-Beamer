@@ -62,7 +62,7 @@ test("W2: roomStateProfiles has zero src/ hits (excluding state-accessor module 
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
 
-test("W2: animationSoundMap has zero src/ hits", { skip: "Wave 2 (29-03) not landed yet" }, () => {
+test("W2: animationSoundMap has zero src/ hits", () => {
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\banimationSoundMap\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });

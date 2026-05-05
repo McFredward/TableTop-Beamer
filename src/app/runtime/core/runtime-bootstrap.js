@@ -134,7 +134,6 @@
         ? state.quickMode.inflightByRoom
         : {},
     };
-    state.animationSoundMap = ctx.normalizeAnimationSoundMap(ctx.createDefaultAnimationSoundMap());
     state.animationSpeed = ctx.clampAnimationSpeed(ctx.animationSpeedInput.value);
   }
 

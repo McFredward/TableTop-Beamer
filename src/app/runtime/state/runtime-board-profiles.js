@@ -88,7 +88,6 @@
         volume: window.TT_BEAMER_RUNTIME_UTILS.clamp01(Number(state.audio.volume) || 0),
       },
       animationSpeed: ctx.clampAnimationSpeed(state.animationSpeed),
-      animationSoundMap: ctx.normalizeAnimationSoundMap(state.animationSoundMap),
       renderMode: normalizeRenderMode(state.renderMode),
       diagnosticOverlay: Boolean(state.diagnosticOverlay),
       mp4Performance: {
@@ -134,10 +133,6 @@
 
     if (Object.prototype.hasOwnProperty.call(payload, "animationSpeed")) {
       state.animationSpeed = ctx.clampAnimationSpeed(payload.animationSpeed);
-    }
-
-    if (Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
-      state.animationSoundMap = ctx.normalizeAnimationSoundMap(payload.animationSoundMap);
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, "mp4Performance")) {

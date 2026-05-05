@@ -51,7 +51,8 @@
       roomAssetRef: String(roomAssetRef || "").trim() || undefined,
       // Carry the per-definition sound selection onto the
       // runtime animation entry so playSoundForAnimation can resolve
-      // the path without reaching back through state.animationSoundMap.
+      // the path directly from the animation. This per-animation ref is
+      // the sole source of audio post-Phase-29.
       soundAssetRef: String(soundAssetRef || "").trim() || undefined,
       rotationDeg: Number(rotationDeg) || 0,
       stretchToPolygon: stretchToPolygon !== false,

@@ -83,11 +83,9 @@
       createDefaultRoomFxByBoard,
       createDefaultOutsideFxByBoard,
       createDefaultBoardZoomByBoard,
-      createDefaultAnimationSoundMap,
       // ─── Area J — Domain getters / normalizers ──────────────────
       getShipPolygonPoints,
       normalizeQuickMode,
-      normalizeAnimationSoundMap,
       // ─── Area K — Boot-flow ─────────────────────────────────────
       fetchGlobalDefaultsPayload,
       loadBoardProfiles,
@@ -204,11 +202,9 @@
       createDefaultRoomFxByBoard: () => createDefaultRoomFxByBoard(),
       createDefaultOutsideFxByBoard: () => createDefaultOutsideFxByBoard(),
       createDefaultBoardZoomByBoard: () => createDefaultBoardZoomByBoard(),
-      createDefaultAnimationSoundMap,
       // ─── Area J — Domain getters / normalizers ──────────────────
       getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
       normalizeQuickMode: (mode) => normalizeQuickMode(mode),
-      normalizeAnimationSoundMap,
       // ─── Area K — Boot-flow ─────────────────────────────────────
       fetchGlobalDefaultsPayload: () => fetchGlobalDefaultsPayload(),
       loadBoardProfiles: () => loadBoardProfiles(),

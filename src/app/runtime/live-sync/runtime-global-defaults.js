@@ -418,10 +418,6 @@
       state.animationSpeed = ctx.clampAnimationSpeed(payload.animationSpeed);
     }
 
-    if (payload && Object.prototype.hasOwnProperty.call(payload, "animationSoundMap")) {
-      state.animationSoundMap = ctx.normalizeAnimationSoundMap(payload.animationSoundMap);
-    }
-
     if (payload && Object.prototype.hasOwnProperty.call(payload, "renderMode")) {
       const mode = payload.renderMode;
       state.renderMode = mode === "2d" || mode === "gl" ? mode : "auto";

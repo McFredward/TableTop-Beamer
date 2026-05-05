@@ -48,7 +48,6 @@
         volume: 0.7,
       },
       animationSpeed: 1,
-      animationSoundMap: {},
       // /output/ render-mode: "auto" (GL only when interior grid points
       // are displaced), "2d" (always skip GL — Pi-friendly), "gl"
       // (always run GL warp). Server-persisted via global-defaults so a

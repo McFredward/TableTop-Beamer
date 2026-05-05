@@ -539,12 +539,10 @@ const insideEditorDraftByBoard = {};
 const roomEditorDraftByBoard = {};
 
 const {
-  createDefaultAnimationSoundMap,
   getAnimationLabel,
   getGlobalAnimationCategory: getGlobalAnimationCategoryFromModule,
   getGlobalCategoryRuntimeLabel: getGlobalCategoryRuntimeLabelFromModule,
   normalizeAnimationSoundPath,
-  normalizeAnimationSoundMap,
   isFiniteUnitValue,
   clampHitareaOffset,
   clampHitareaScale,
@@ -573,10 +571,8 @@ const {
 window.TT_BEAMER_RUNTIME_POLYGON_METRICS.init({
   state,
   GLOBAL_ANIMATIONS,
-  SOUND_MAPPING_NONE,
   getGlobalAnimationCategoryFromModule,
   getGlobalCategoryRuntimeLabelFromModule,
-  normalizeAnimationSoundPath,
   cloneRoomBoard,
 });
 const {
@@ -717,7 +713,6 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   roomToCatalogEntry,
   applyRoomCatalog,
   normalizeHitareaCalibration,
-  normalizeAnimationSoundMap,
   extractBoardProfilesCandidateFromPersistence,
   buildMigratedBoardProfilesFromPersistence,
   createDefaultRoomGeometryMap,
@@ -798,7 +793,6 @@ window.TT_BEAMER_RUNTIME_GLOBAL_DEFAULTS.init({
   collectCanonicalPlayAreaIssuesFromProfiles: (p, o) => collectCanonicalPlayAreaIssuesFromProfiles(p, o),
   reportCanonicalPolygonIssues: (issues, o) => reportCanonicalPolygonIssues(issues, o),
   clampAnimationSpeed: (v) => clampAnimationSpeed(v),
-  normalizeAnimationSoundMap,
   persistBoardProfiles: () => persistBoardProfiles(),
   syncRuntimePanelsFromState: () => syncRuntimePanelsFromState(),
   renderRunningAnimationsList: () => renderRunningAnimationsList(),
@@ -2987,10 +2981,8 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     createDefaultRoomFxByBoard,
     createDefaultOutsideFxByBoard,
     createDefaultBoardZoomByBoard,
-    createDefaultAnimationSoundMap,
     getShipPolygonPoints,
     normalizeQuickMode,
-    normalizeAnimationSoundMap,
     fetchGlobalDefaultsPayload,
     loadBoardProfiles,
     captureCleanBaseline,

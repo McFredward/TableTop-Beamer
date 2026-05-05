@@ -1,9 +1,9 @@
 // polygon metrics + global animation helpers.
 //
 // Owns getGlobalAnimationCategory, getGlobalCategoryRuntimeLabel,
-// getMappedSoundPathForAnimation, cloneBoardEntry, clampRoomStretch,
-// clampPolygonHandleScale, getCurrentPolygonHandleScale,
-// getCoarsePointerHitMultiplier, getPolygonEditorHandleMetrics.
+// cloneBoardEntry, clampRoomStretch, clampPolygonHandleScale,
+// getCurrentPolygonHandleScale, getCoarsePointerHitMultiplier,
+// getPolygonEditorHandleMetrics.
 (() => {
   let ctx = null;
 
@@ -17,14 +17,6 @@
 
   function getGlobalCategoryRuntimeLabel(animationType) {
     return ctx.getGlobalCategoryRuntimeLabelFromModule(animationType, ctx.GLOBAL_ANIMATIONS);
-  }
-
-  function getMappedSoundPathForAnimation(animationType) {
-    const mapped = ctx.normalizeAnimationSoundPath(animationType, ctx.state.animationSoundMap[animationType]);
-    if (mapped === ctx.SOUND_MAPPING_NONE) {
-      return null;
-    }
-    return mapped;
   }
 
   function cloneBoardEntry(board) {
@@ -87,7 +79,6 @@
     init,
     getGlobalAnimationCategory,
     getGlobalCategoryRuntimeLabel,
-    getMappedSoundPathForAnimation,
     cloneBoardEntry,
     clampRoomStretch,
     clampPolygonHandleScale,

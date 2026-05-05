@@ -1,7 +1,6 @@
-// Shared normalizers. Pure data-shape helpers - normalizeAnimationSoundMap,
-// normalizeQuickMode, normalizePerRoomOpacityMap, etc. - used by both
-// runtime and any future test harness. Reads TT_BEAMER_CONFIG for
-// canonical defaults.
+// Shared normalizers. Pure data-shape helpers - normalizeQuickMode,
+// normalizePerRoomOpacityMap, etc. - used by both runtime and any
+// future test harness. Reads TT_BEAMER_CONFIG for canonical defaults.
 
 (() => {
   const {
@@ -10,14 +9,6 @@
     SOUND_MAPPING_NONE,
     ALL_SOUND_ASSET_PATHS,
   } = window.TT_BEAMER_CONFIG;
-
-  function createDefaultAnimationSoundMap() {
-    const defaults = {};
-    for (const { id } of ALL_ANIMATION_TYPES) {
-      defaults[id] = EVENT_SOUND_ASSETS[id]?.[0] ?? SOUND_MAPPING_NONE;
-    }
-    return defaults;
-  }
 
   function getAnimationLabel(animationType) {
     return ALL_ANIMATION_TYPES.find((entry) => entry.id === animationType)?.label ?? animationType;
@@ -45,14 +36,6 @@
       return defaultPath;
     }
     return SOUND_MAPPING_NONE;
-  }
-
-  function normalizeAnimationSoundMap(soundMap) {
-    const defaults = createDefaultAnimationSoundMap();
-    for (const animationType of Object.keys(defaults)) {
-      defaults[animationType] = normalizeAnimationSoundPath(animationType, soundMap?.[animationType]);
-    }
-    return defaults;
   }
 
   function isFiniteUnitValue(value) {
@@ -85,12 +68,10 @@
   }
 
   window.TT_BEAMER_NORMALIZERS = {
-    createDefaultAnimationSoundMap,
     getAnimationLabel,
     getGlobalAnimationCategory,
     getGlobalCategoryRuntimeLabel,
     normalizeAnimationSoundPath,
-    normalizeAnimationSoundMap,
     isFiniteUnitValue,
     clampHitareaOffset,
     clampHitareaScale,
