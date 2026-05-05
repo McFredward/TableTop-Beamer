@@ -37,10 +37,13 @@ const BUILTIN_BOARD_IDS = new Set();
 // live in global-defaults.json :: boardProfiles[<id>] before the
 // unification. global-defaults.json now only holds truly-global
 // state (audio, animationSpeed, projectionMapping).
+// Phase 29 h1: per-room polygons collapsed to `roomCatalog[*].polygon`
+// (single source of truth — the polygon-editor now writes/reads
+// `room.polygon` directly). The previous top-level shadow entry was
+// dropped from this list.
 const BOARD_PROFILE_FIELDS = Object.freeze([
   "hitareaCalibration",
   "roomGeometry",
-  "specialPolygons",
   "playAreas",
   "selectedPlayAreaId",
   "outsideFx",

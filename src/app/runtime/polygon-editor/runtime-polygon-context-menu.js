@@ -232,7 +232,7 @@
     };
     board.rooms.push(room);
     ctx.ensureBoardRoomStateMaps(state.boardId);
-    ctx.setSpecialPolygonPoints(state.boardId, id, room.polygon);
+    ctx.setRoomPolygonPoints(state.boardId, id, room.polygon);
     state.selectedRoomId = id;
     state.selectedRoomByBoard[state.boardId] = id;
     state.roomDraft.targetType = "room";

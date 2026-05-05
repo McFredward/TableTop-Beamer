@@ -393,7 +393,7 @@
     };
     board.rooms.push(room);
     ctx.ensureBoardRoomStateMaps(state.boardId);
-    ctx.setSpecialPolygonPoints(state.boardId, id, room.polygon);
+    ctx.setRoomPolygonPoints(state.boardId, id, room.polygon);
     ctx.setRoomGeometry(state.boardId, id, clipboard.geometry);
     state.selectedRoomId = id;
     state.selectedRoomByBoard[state.boardId] = id;
@@ -499,7 +499,7 @@
       const templateRoomId = createMode.slice("template-room:".length);
       const templateRoom = board.rooms.find((room) => room.id === templateRoomId);
       templateLabel = templateRoom?.name ?? templateRoom?.label ?? templateRoomId;
-      polygon = ctx.getSpecialPolygonPoints(state.boardId, templateRoomId).map((point) => ctx.normalizeRoomPoint(point));
+      polygon = ctx.getRoomPolygonPoints(state.boardId, templateRoomId).map((point) => ctx.normalizeRoomPoint(point));
       copiedGeometry = templateRoom ? ctx.getRoomGeometry(state.boardId, templateRoom.id) : null;
       copiedTransform = templateRoom
         ? {
@@ -604,9 +604,9 @@
     if (state.roomGeometryByBoard[state.boardId]) {
       delete state.roomGeometryByBoard[state.boardId][room.id];
     }
-    if (state.specialPolygonsByBoard[state.boardId]) {
-      delete state.specialPolygonsByBoard[state.boardId][room.id];
-    }
+    // Phase 29 h1: state.specialPolygonsByBoard removed — room polygon
+    // gone with the board.rooms[*] entry filtered above (nextRooms);
+    // no separate per-room shadow map to clean.
     if (state.frozenRoomsByBoard?.[state.boardId]) {
       delete state.frozenRoomsByBoard[state.boardId][room.id];
     }

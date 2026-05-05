@@ -68,7 +68,6 @@
       },
       hitareaCalibrationByBoard: {},
       roomGeometryByBoard: {},
-      specialPolygonsByBoard: {},
       defaultAnimationsByBoard: {},
       frozenRoomsByBoard: {},
       shipPolygonsByBoard: {},

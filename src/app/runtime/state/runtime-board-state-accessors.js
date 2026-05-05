@@ -1,10 +1,10 @@
 // per-board runtime state accessors.
 //
 // Owns per-board getters/setters for hitarea calibration, room
-// geometry, special polygons, room source points, active-polygon
-// room tracking, simple clamp helpers, room animation type
-// predicates, and resolve helpers for the room→global equivalent
-// mapping.
+// geometry, room polygons (read/write room.polygon directly), room
+// source points, active-polygon room tracking, simple clamp helpers,
+// room animation type predicates, and resolve helpers for the
+// room→global equivalent mapping.
 (() => {
   let ctx = null;
 
@@ -51,25 +51,24 @@
     setRoomGeometry(boardId, roomId, { ...previous, ...partial });
   }
 
-  function getSpecialPolygonPoints(boardId, roomId) {
-    const state = ctx.state;
-    const boardPolygons = state.specialPolygonsByBoard[boardId] ?? {};
-    const room = ctx.getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-    return ctx.normalizeSpecialPolygon(boardPolygons[roomId], room?.polygon ?? room?.points ?? []);
+  // Phase 29 h1: legacy per-room shadow map collapsed to room.polygon
+  // as the single source of truth. The previous accessor-level map
+  // was redundant — every read had a fallback to room.polygon and
+  // every write mirrored back to room.polygon + room.points. Now
+  // read/write room.polygon directly via the renamed helpers below.
+  function getRoomPolygonPoints(boardId, roomId) {
+    const room = ctx.getBoard(boardId)?.rooms?.find((entry) => entry.id === roomId);
+    const fallback = room?.polygon ?? room?.points ?? [];
+    return ctx.normalizeSpecialPolygon(fallback, fallback);
   }
 
-  function setSpecialPolygonPoints(boardId, roomId, points) {
-    const state = ctx.state;
-    if (!state.specialPolygonsByBoard[boardId]) {
-      state.specialPolygonsByBoard[boardId] = ctx.createDefaultSpecialPolygonMap(boardId);
-    }
-    const room = ctx.getBoard(boardId).rooms.find((entry) => entry.id === roomId);
-    const normalized = ctx.normalizeSpecialPolygon(points, room?.polygon ?? room?.points ?? []);
-    state.specialPolygonsByBoard[boardId][roomId] = normalized;
-    if (room) {
-      room.polygon = normalized.map((point) => [...point]);
-      room.points = normalized.map((point) => [...point]);
-    }
+  function setRoomPolygonPoints(boardId, roomId, points) {
+    const room = ctx.getBoard(boardId)?.rooms?.find((entry) => entry.id === roomId);
+    if (!room) return;
+    const fallbackPoints = room.polygon ?? room.points ?? [];
+    const normalized = ctx.normalizeSpecialPolygon(points, fallbackPoints);
+    room.polygon = normalized.map((point) => [...point]);
+    room.points = normalized.map((point) => [...point]);
   }
 
   function getDefaultRoomPolygon(boardId, roomId) {
@@ -237,8 +236,8 @@
     getRoomGeometry,
     setRoomGeometry,
     updateRoomGeometry,
-    getSpecialPolygonPoints,
-    setSpecialPolygonPoints,
+    getRoomPolygonPoints,
+    setRoomPolygonPoints,
     getDefaultRoomPolygon,
     getRoomSourcePoints,
     getSpecialRooms,

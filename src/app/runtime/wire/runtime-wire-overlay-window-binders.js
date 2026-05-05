@@ -30,8 +30,8 @@
       syncPolygonEditorStatus,
       maybePromotePendingPolygonAreaDrag,
       clampRoomAbsoluteCoordinate,
-      setSpecialPolygonPoints,
-      getSpecialPolygonPoints,
+      setRoomPolygonPoints,
+      getRoomPolygonPoints,
       getBoard,
       getRoomPoints,
       projectDisplayNormalizedToRoomRaw,
@@ -148,7 +148,7 @@
           clampRoomAbsoluteCoordinate(x + deltaX),
           clampRoomAbsoluteCoordinate(y + deltaY),
         ]);
-        setSpecialPolygonPoints(boardId, roomId, shifted);
+        setRoomPolygonPoints(boardId, roomId, shifted);
         state.polygonEditor.dragAreaMoved = state.polygonEditor.dragAreaMoved || moved;
         const areaBoard = getBoard(boardId);
         const areaRoom = areaBoard?.rooms?.find((entry) => entry.id === roomId);
@@ -200,9 +200,9 @@
       const [rawNextX, rawNextY] = projectDisplayNormalizedToRoomRaw(
         nextDisplayX, nextDisplayY, vertexRoom, boardId,
       );
-      const points = getSpecialPolygonPoints(boardId, roomId);
+      const points = getRoomPolygonPoints(boardId, roomId);
       points[state.polygonEditor.dragVertexIndex] = [rawNextX, rawNextY];
-      setSpecialPolygonPoints(boardId, roomId, points);
+      setRoomPolygonPoints(boardId, roomId, points);
       state.polygonEditor.dragMoved = true;
       applyIncrementalRoomDrag(
         state.polygonEditor.dragDomRefs,

@@ -241,8 +241,8 @@
       isPanArbitrating,
       areRoomVerticesEditable,
       resolvePolygonEditingRoomId,
-      getSpecialPolygonPoints,
-      setSpecialPolygonPoints,
+      getRoomPolygonPoints,
+      setRoomPolygonPoints,
       normalizePolygonPoint,
       pushUndoState,
       persistBoardProfiles,
@@ -264,7 +264,7 @@
         triggerFeedback.textContent = "Status: No active room selected for polygon insert";
         return;
       }
-      const points = getSpecialPolygonPoints(state.boardId, roomId);
+      const points = getRoomPolygonPoints(state.boardId, roomId);
       if (typeof pushUndoState === "function") pushUndoState("Insert vertex");
       const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedEdgeIndex));
       const nextIndex = (index + 1) % points.length;
@@ -272,7 +272,7 @@
       const b = points[nextIndex];
       const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       points.splice(nextIndex, 0, normalizePolygonPoint(midpoint));
-      setSpecialPolygonPoints(state.boardId, roomId, points);
+      setRoomPolygonPoints(state.boardId, roomId, points);
       const persisted = persistBoardProfiles();
       state.polygonEditor.selectedEdgeIndex = index;
       state.polygonEditor.selectedVertexIndex = nextIndex;
@@ -301,7 +301,7 @@
       areRoomVerticesEditable,
       getActivePolygonRoomId,
       getDefaultRoomPolygon,
-      setSpecialPolygonPoints,
+      setRoomPolygonPoints,
       pushUndoState,
       persistBoardProfiles,
       syncPolygonEditorPanel,
@@ -327,7 +327,7 @@
         return;
       }
       if (typeof pushUndoState === "function") pushUndoState("Reset room polygon");
-      setSpecialPolygonPoints(state.boardId, roomId, fallbackPolygon);
+      setRoomPolygonPoints(state.boardId, roomId, fallbackPolygon);
       const persisted = persistBoardProfiles();
       state.polygonEditor.selectedVertexIndex = 0;
       syncPolygonEditorPanel();

@@ -117,7 +117,8 @@
     state.roomGeometryByBoard = Object.fromEntries(
       ctx.getBoards().map((board) => [board.id, {}]),
     );
-    state.specialPolygonsByBoard = ctx.createDefaultSpecialPolygonsByBoard();
+    // Phase 29 h1: state.specialPolygonsByBoard is gone — room.polygon
+    // is now the single source for room polygons.
     state.playAreasByBoard = ctx.createDefaultPlayAreasByBoard();
     state.selectedPlayAreaIdByBoard = ctx.createDefaultSelectedPlayAreaIdByBoard();
     state.shipPolygonsByBoard = Object.fromEntries(

@@ -121,7 +121,7 @@
     const zoneRoomId = resolveRoomIdAtEvent(event);
     if (zoneRoomId !== rotatingRoomId) return false;
     const boardId = state.polygonEditor.rotateBoardId ?? state.boardId;
-    const startPoints = ctx.getSpecialPolygonPoints?.(boardId, rotatingRoomId);
+    const startPoints = ctx.getRoomPolygonPoints?.(boardId, rotatingRoomId);
     if (!Array.isArray(startPoints) || startPoints.length < 3) return false;
     const [cx, cy] = computeCentroid(startPoints);
     const [px, py] = ctx.getNormalizedOverlayPoint(event);
@@ -153,7 +153,7 @@
     const currentAngle = pointerAngleFromCentroid([px, py], [cx, cy]);
     const deltaAngle = currentAngle - state.polygonEditor.rotateStartAngle;
     const rotated = rotatePointsAround(startPoints, cx, cy, deltaAngle);
-    ctx.setSpecialPolygonPoints(state.polygonEditor.rotateBoardId ?? state.boardId,
+    ctx.setRoomPolygonPoints(state.polygonEditor.rotateBoardId ?? state.boardId,
       state.polygonEditor.rotatingRoomId, rotated);
     state.polygonEditor.rotateMoved = true;
     ctx.renderRoomOverlay?.();
@@ -167,7 +167,7 @@
       try { ctx.roomOverlay.releasePointerCapture(pointerId); } catch {}
     }
     if (cancel && state.polygonEditor.rotateStartPoints) {
-      ctx.setSpecialPolygonPoints(state.polygonEditor.rotateBoardId ?? state.boardId,
+      ctx.setRoomPolygonPoints(state.polygonEditor.rotateBoardId ?? state.boardId,
         state.polygonEditor.rotatingRoomId, state.polygonEditor.rotateStartPoints);
       ctx.renderRoomOverlay?.();
     } else if (state.polygonEditor.rotateMoved) {

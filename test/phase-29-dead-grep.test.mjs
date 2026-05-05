@@ -76,3 +76,24 @@ test("W2: deletedRoomIds has zero src/ hits (if Wave 1 audit confirms REDUNDANT)
   const hits = grepRecursive(join(REPO_ROOT, "src"), /\bdeletedRoomIds\b/);
   assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
 });
+
+// ---------------------------------------------------------------------------
+// Phase 29 h1 — specialPolygons collapsed to roomCatalog[*].polygon.
+// The accessor pair was renamed (getRoomPolygonPoints / setRoomPolygonPoints)
+// and the per-room shadow map (state.specialPolygonsByBoard) was removed.
+// ---------------------------------------------------------------------------
+
+test("29-h1: specialPolygons has zero src/ hits (collapsed to room.polygon)", () => {
+  const hits = grepRecursive(join(REPO_ROOT, "src"), /\bspecialPolygons\b/);
+  assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
+});
+
+test("29-h1: getSpecialPolygonPoints has zero src/ hits (renamed to getRoomPolygonPoints)", () => {
+  const hits = grepRecursive(join(REPO_ROOT, "src"), /\bgetSpecialPolygonPoints\b/);
+  assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
+});
+
+test("29-h1: setSpecialPolygonPoints has zero src/ hits (renamed to setRoomPolygonPoints)", () => {
+  const hits = grepRecursive(join(REPO_ROOT, "src"), /\bsetSpecialPolygonPoints\b/);
+  assert.equal(hits.length, 0, `expected 0 hits, found:\n${hits.join("\n")}`);
+});

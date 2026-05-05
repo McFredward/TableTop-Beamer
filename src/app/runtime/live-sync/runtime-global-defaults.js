@@ -391,11 +391,13 @@
     const state = ctx.state;
     const boardCandidate = ctx.extractBoardProfilesCandidate(payload);
     if (boardCandidate) {
+      // Phase 29 h1: per-room polygon shadow map removed from runtime.
+      // The single-arg shape (just the candidate) is canonical now —
+      // room.polygon serves as the authoritative source.
       const migratedProfiles = ctx.buildMigratedBoardProfiles(
         boardCandidate,
         state.hitareaCalibrationByBoard,
         state.roomGeometryByBoard,
-        state.specialPolygonsByBoard,
       );
       const canonicalIssues = ctx.collectCanonicalPlayAreaIssuesFromProfiles(boardCandidate, {
         sourceLabel: "global-defaults",

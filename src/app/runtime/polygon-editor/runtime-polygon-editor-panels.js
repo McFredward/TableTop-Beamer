@@ -42,7 +42,7 @@
       ctx.polygonEditorStatus.textContent = "Polygon editor: no rooms available on this board";
       return;
     }
-    const points = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+    const points = ctx.getRoomPolygonPoints(state.boardId, room.id);
     if (!areRoomVerticesEditable()) {
       ctx.polygonEditorStatus.textContent = `Polygon editor (${room.name ?? room.label}): vertices hidden (editing disabled)`;
       return;
@@ -70,7 +70,7 @@
       ctx.polygonVertexSelect.disabled = true;
       return;
     }
-    const points = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+    const points = ctx.getRoomPolygonPoints(state.boardId, room.id);
     for (let i = 0; i < points.length; i += 1) {
       const option = document.createElement("option");
       option.value = String(i);
@@ -102,7 +102,7 @@
       ctx.polygonEdgeSelect.disabled = true;
       return;
     }
-    const points = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+    const points = ctx.getRoomPolygonPoints(state.boardId, room.id);
     for (let i = 0; i < points.length; i += 1) {
       const option = document.createElement("option");
       const next = i === points.length - 1 ? 1 : i + 2;

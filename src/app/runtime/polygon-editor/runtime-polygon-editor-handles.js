@@ -289,7 +289,7 @@
         if (isDoubleTap) {
           // Double-tap: insert vertex at edge midpoint
           state.polygonEditor._lastEdgeTap = null;
-          const roomPoints = ctx.getSpecialPolygonPoints(state.boardId, room.id);
+          const roomPoints = ctx.getRoomPolygonPoints(state.boardId, room.id);
           if (Array.isArray(roomPoints) && roomPoints.length >= 3) {
             if (typeof ctx.pushUndoState === "function") ctx.pushUndoState("Insert vertex (double-click)");
             const nextIndex = (index + 1) % roomPoints.length;
@@ -297,7 +297,7 @@
             const b = roomPoints[nextIndex];
             const midpoint = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
             roomPoints.splice(nextIndex, 0, ctx.normalizePolygonPoint(midpoint));
-            ctx.setSpecialPolygonPoints(state.boardId, room.id, roomPoints);
+            ctx.setRoomPolygonPoints(state.boardId, room.id, roomPoints);
             ctx.persistBoardProfiles();
             // Keep the room selected after insert — suppress follow-up clicks
             // from the double-tap so they don't deselect or re-select another room

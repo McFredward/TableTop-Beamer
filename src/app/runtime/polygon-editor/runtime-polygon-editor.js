@@ -148,7 +148,7 @@
     state.polygonEditor.dragPointerId = event.pointerId;
     state.polygonEditor.dragRoomId = roomId;
     state.polygonEditor.dragBoardId = state.boardId;
-    const startPoints = ctx.getSpecialPolygonPoints(state.boardId, roomId);
+    const startPoints = ctx.getRoomPolygonPoints(state.boardId, roomId);
     state.polygonEditor.dragStartPoints = startPoints;
     state.polygonEditor.dragMoved = false;
     const board = ctx.getBoard(state.boardId);
@@ -196,7 +196,7 @@
 
   function beginPolygonAreaDrag(event, roomId, { boardId = ctx.state.boardId, startPointerPoint = null } = {}) {
     const state = ctx.state;
-    const startPoints = ctx.getSpecialPolygonPoints(boardId, roomId);
+    const startPoints = ctx.getRoomPolygonPoints(boardId, roomId);
     if (!Array.isArray(startPoints) || startPoints.length < 3) {
       return;
     }
@@ -288,7 +288,7 @@
     const state = ctx.state;
     const { dragBoardId, dragRoomId, dragStartPoints } = state.polygonEditor;
     if (dragBoardId && dragRoomId && Array.isArray(dragStartPoints)) {
-      ctx.setSpecialPolygonPoints(dragBoardId, dragRoomId, dragStartPoints);
+      ctx.setRoomPolygonPoints(dragBoardId, dragRoomId, dragStartPoints);
     }
     renderRoomOverlay();
     ctx.syncPolygonEditorStatus();
@@ -299,7 +299,7 @@
     const state = ctx.state;
     const { dragAreaBoardId, dragAreaRoomId, dragAreaStartPoints } = state.polygonEditor;
     if (dragAreaBoardId && dragAreaRoomId && Array.isArray(dragAreaStartPoints)) {
-      ctx.setSpecialPolygonPoints(dragAreaBoardId, dragAreaRoomId, dragAreaStartPoints);
+      ctx.setRoomPolygonPoints(dragAreaBoardId, dragAreaRoomId, dragAreaStartPoints);
     }
     renderRoomOverlay();
     ctx.syncPolygonEditorStatus();

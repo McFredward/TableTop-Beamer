@@ -1,11 +1,10 @@
 // play area + room geometry + polygon contract module.
 //
 // Owns polygon acceptance predicate, room geometry mode/normalization/
-// default maps, room tombstone CRUD, special polygon merge helpers,
-// board profile merger for global export, polygon contract resolver,
-// play area normalizers (id/entry/collection/defaults), play area
-// CRUD state accessors, ship polygon helpers, and the final
-// normalizeRoomGeometryMap / normalizeSpecialPolygonMap.
+// default maps, room tombstone CRUD, board profile merger for global
+// export, polygon contract resolver, play area normalizers
+// (id/entry/collection/defaults), play area CRUD state accessors,
+// ship polygon helpers, and the final normalizeRoomGeometryMap.
 (() => {
   let ctx = null;
 
@@ -77,18 +76,10 @@
     );
   }
 
-  function mergeSpecialPolygonMaps(primaryMap, fallbackMap) {
-    const merged = { ...(fallbackMap && typeof fallbackMap === "object" ? fallbackMap : {}) };
-    if (!primaryMap || typeof primaryMap !== "object") {
-      return merged;
-    }
-    for (const [roomId, polygon] of Object.entries(primaryMap)) {
-      if (ctx.isValidSpecialPolygon(polygon)) {
-        merged[roomId] = polygon;
-      }
-    }
-    return merged;
-  }
+  // Phase 29 h1: mergeSpecialPolygonMaps removed — room polygons now
+  // live exclusively in roomCatalog[*].polygon, which mergeBoardProfiles
+  // already merges via the `primary.roomCatalog ?? fallback.roomCatalog`
+  // selection below.
 
   function mergeBoardProfilesForGlobalExport(primaryProfiles, fallbackProfiles) {
     const merged = {};
@@ -120,11 +111,12 @@
           ? fallback.roomCatalog
           : null;
 
+      // Phase 29 h1: per-room polygons travel inside roomCatalog now —
+      // no separate per-room polygon map on the merged profile.
       merged[boardId] = {
         ...fallback,
         ...primary,
         roomCatalog,
-        specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
         playAreas: mergedPlayAreas,
         selectedPlayAreaId,
         roomFx: ctx.normalizeRoomFxProfile(primary.roomFx ?? fallback.roomFx),
@@ -190,19 +182,11 @@
     return merged;
   }
 
-  function createDefaultSpecialPolygonMap(boardId) {
-    const board = ctx.getBoard(boardId);
-    const specials = board.rooms.filter((room) => room.id.startsWith("special-") && ctx.getRoomSourcePoints(room, boardId).length >= 3);
-    return Object.fromEntries(
-      specials.map((room) => [room.id, ctx.normalizeSpecialPolygon(ctx.getRoomSourcePoints(room, boardId), ctx.getRoomSourcePoints(room, boardId))]),
-    );
-  }
-
-  function createDefaultSpecialPolygonsByBoard() {
-    return Object.fromEntries(
-      ctx.getBoards().map((board) => [board.id, createDefaultSpecialPolygonMap(board.id)]),
-    );
-  }
+  // Phase 29 h1: createDefaultSpecialPolygonMap /
+  // createDefaultSpecialPolygonsByBoard removed — the runtime no longer
+  // keeps a separate per-room polygon map. Room polygons live in
+  // board.rooms[i].polygon (populated by applyRoomCatalog from
+  // roomCatalog[*].polygon at hydration time).
 
   function normalizeShipPolygon(points) {
     return ctx.normalizeSpecialPolygon(points, ctx.SHIP_POLYGON_DEFAULT);
@@ -352,18 +336,8 @@
     return defaults;
   }
 
-  function normalizeSpecialPolygonMap(polygonMap, boardId, preservedPolygonMap = null) {
-    const defaults = createDefaultSpecialPolygonMap(boardId);
-    for (const room of ctx.getSpecialRooms(boardId)) {
-      const preserved = preservedPolygonMap?.[room.id];
-      const fallbackPoints = ctx.isValidSpecialPolygon(preserved) ? preserved : room.points ?? [];
-      const source = ctx.isValidSpecialPolygon(polygonMap?.[room.id])
-        ? polygonMap[room.id]
-        : fallbackPoints;
-      defaults[room.id] = ctx.normalizeSpecialPolygon(source, fallbackPoints);
-    }
-    return defaults;
-  }
+  // Phase 29 h1: normalizeSpecialPolygonMap removed — room polygons live
+  // in board.rooms[i].polygon, applied by applyRoomCatalog at hydration.
 
   window.TT_BEAMER_RUNTIME_PLAY_AREA_GEOMETRY = {
     init,
@@ -373,12 +347,9 @@
     normalizeRoomGeometry,
     createDefaultRoomGeometryMap,
     createDefaultRoomGeometryByBoard,
-    mergeSpecialPolygonMaps,
     mergeBoardProfilesForGlobalExport,
     resolveProfilePolygonContract,
     applyPolygonPrecedence: mergePolygonPrecedence,
-    createDefaultSpecialPolygonMap,
-    createDefaultSpecialPolygonsByBoard,
     normalizeShipPolygon,
     normalizePlayAreaId,
     normalizePlayAreaEntry,
@@ -393,6 +364,5 @@
     getShipPolygonPoints,
     setShipPolygonPoints,
     normalizeRoomGeometryMap,
-    normalizeSpecialPolygonMap,
   };
 })();

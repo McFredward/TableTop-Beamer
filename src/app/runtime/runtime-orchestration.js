@@ -672,12 +672,9 @@ const {
   normalizeRoomGeometry,
   createDefaultRoomGeometryMap,
   createDefaultRoomGeometryByBoard,
-  mergeSpecialPolygonMaps,
   mergeBoardProfilesForGlobalExport,
   resolveProfilePolygonContract,
   applyPolygonPrecedence,
-  createDefaultSpecialPolygonMap,
-  createDefaultSpecialPolygonsByBoard,
   normalizeShipPolygon,
   normalizePlayAreaId,
   normalizePlayAreaEntry,
@@ -692,7 +689,6 @@ const {
   getShipPolygonPoints,
   setShipPolygonPoints,
   normalizeRoomGeometryMap,
-  normalizeSpecialPolygonMap,
 } = window.TT_BEAMER_RUNTIME_PLAY_AREA_GEOMETRY;
 
 // fx-normalizers and perf controls are injected via ctx arrows
@@ -711,13 +707,11 @@ window.TT_BEAMER_RUNTIME_BOARD_PROFILES.init({
   extractBoardProfilesCandidateFromPersistence,
   buildMigratedBoardProfilesFromPersistence,
   createDefaultRoomGeometryMap,
-  createDefaultSpecialPolygonMap,
   createDefaultRoomAnimationDefinitions,
   createDefaultInsideAnimationDefinitions,
   normalizePlayAreasCollection,
   normalizeShipPolygon,
   normalizeRoomGeometryMap,
-  normalizeSpecialPolygonMap,
   normalizeFrozenRoomsMap: (raw, boardId) => normalizeFrozenRoomsMap(raw, boardId),
   getPlayAreas,
   getSelectedPlayAreaId,
@@ -845,7 +839,6 @@ window.TT_BEAMER_RUNTIME_BOARD_STATE_ACCESSORS.init({
   normalizeRoomGeometry: (geometry, room, boardId) => normalizeRoomGeometry(geometry, room, boardId),
   normalizeSpecialPolygon,
   createDefaultRoomGeometryMap: (boardId) => createDefaultRoomGeometryMap(boardId),
-  createDefaultSpecialPolygonMap: (boardId) => createDefaultSpecialPolygonMap(boardId),
   getRoomAnimationDefinitionById: (id, boardId) => getRoomAnimationDefinitionById(id, boardId),
   normalizeRoomAssetType: (v) => normalizeRoomAssetType(v),
   resolveRoomCodedEffectType: (ref) => resolveRoomCodedEffectType(ref),
@@ -857,8 +850,8 @@ const {
   getRoomGeometry,
   setRoomGeometry,
   updateRoomGeometry,
-  getSpecialPolygonPoints,
-  setSpecialPolygonPoints,
+  getRoomPolygonPoints,
+  setRoomPolygonPoints,
   getDefaultRoomPolygon,
   getRoomSourcePoints,
   getSpecialRooms,
@@ -1423,7 +1416,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR_PANELS.init({
   playAreaCreateButton,
   showPlayAreaVerticesInput,
   getBoard: (boardId) => getBoard(boardId),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
   getSpecialRooms: (boardId) => getSpecialRooms(boardId),
   getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
   setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
@@ -1715,8 +1708,8 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   beginPolygonDragInteraction: () => beginPolygonDragInteraction(),
   endPolygonDragInteraction: () => endPolygonDragInteraction(),
   persistBoardProfiles: () => persistBoardProfiles(),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   getBoard: (boardId) => getBoard(boardId),
   getRoomPoints: (room, boardId) => getRoomPoints(room, boardId),
   getRoomLabelPosition: (room, boardId) => getRoomLabelPosition(room, boardId),
@@ -1839,8 +1832,8 @@ window.TT_BEAMER_RUNTIME_ROOM_MANAGEMENT.init({
   normalizeRoomPoint: (point) => normalizeRoomPoint(point),
   normalizeRoomName: (value, fallback) => normalizeRoomName(value, fallback),
   createHexagonPolygon: (opts) => createHexagonPolygon(opts),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
   createRoomId: (board) => createRoomId(board),
   getRawRoomCenter: (room) => getRawRoomCenter(room),
@@ -1895,7 +1888,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_CONTEXT_MENU.init({
   createRoomId: (board) => createRoomId(board),
   createHexagonPolygon: (opts) => createHexagonPolygon(opts),
   ensureBoardRoomStateMaps: (boardId) => ensureBoardRoomStateMaps(boardId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   setActivePolygonRoomId: (boardId, roomId) => setActivePolygonRoomId(boardId, roomId),
   persistBoardProfiles: () => persistBoardProfiles(),
   syncRoomPanelFromSelection: (opts) => syncRoomPanelFromSelection(opts),
@@ -1917,8 +1910,8 @@ window.TT_BEAMER_RUNTIME_POLYGON_ROTATION.init({
   roomOverlay,
   triggerFeedback,
   getNormalizedOverlayPoint: (event) => getNormalizedOverlayPoint(event),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   pushUndoState: (desc) => pushUndoState(desc),
   persistBoardProfiles: () => persistBoardProfiles(),
   renderRoomOverlay: () => renderRoomOverlay(),
@@ -1981,8 +1974,8 @@ window.TT_BEAMER_RUNTIME_POLYGON_UNDO.init({
   undoButton: polygonUndoButton,
   redoButton: polygonRedoButton,
   getBoard: (boardId) => getBoard(boardId),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   ensureBoardRoomStateMaps: (boardId) => ensureBoardRoomStateMaps(boardId),
   persistBoardProfiles: () => persistBoardProfiles(),
   syncPolygonEditorPanel: () => syncPolygonEditorPanel(),
@@ -2503,7 +2496,7 @@ function deleteSelectedPolygonVertex() {
   if (!roomId) {
     return false;
   }
-  const points = getSpecialPolygonPoints(state.boardId, roomId);
+  const points = getRoomPolygonPoints(state.boardId, roomId);
   if (points.length <= 3) {
     triggerFeedback.textContent = "Status: Polygon requires at least 3 vertices";
     return false;
@@ -2511,7 +2504,7 @@ function deleteSelectedPolygonVertex() {
   pushUndoState("Delete vertex");
   const index = Math.max(0, Math.min(points.length - 1, state.polygonEditor.selectedVertexIndex));
   points.splice(index, 1);
-  setSpecialPolygonPoints(state.boardId, roomId, points);
+  setRoomPolygonPoints(state.boardId, roomId, points);
   const persisted = persistBoardProfiles();
   state.polygonEditor.selectedVertexIndex = Math.max(0, Math.min(index, points.length - 1));
   state.polygonEditor.selectedEdgeIndex = state.polygonEditor.selectedVertexIndex;
@@ -2583,8 +2576,8 @@ window.TT_BEAMER_RUNTIME_WIRE_POLYGON_EDITOR_BINDERS.wirePolygonEditorBinders({
   getActivePolygonRoomId: (boardId) => getActivePolygonRoomId(boardId),
   isPanArbitrating: () => isPanArbitrating(),
   resolvePolygonEditingRoomId: (boardId) => resolvePolygonEditingRoomId(boardId),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
   getShipPolygonPoints: (boardId) => getShipPolygonPoints(boardId),
   setShipPolygonPoints: (boardId, points) => setShipPolygonPoints(boardId, points),
   persistBoardProfiles: () => persistBoardProfiles(),
@@ -2730,8 +2723,8 @@ window.TT_BEAMER_RUNTIME_WIRE_OVERLAY_WINDOW_BINDERS.wireOverlayWindowBinders({
   syncPolygonEditorStatus: () => syncPolygonEditorStatus(),
   maybePromotePendingPolygonAreaDrag: (event) => maybePromotePendingPolygonAreaDrag(event),
   clampRoomAbsoluteCoordinate: (v) => clampRoomAbsoluteCoordinate(v),
-  setSpecialPolygonPoints: (boardId, roomId, points) => setSpecialPolygonPoints(boardId, roomId, points),
-  getSpecialPolygonPoints: (boardId, roomId) => getSpecialPolygonPoints(boardId, roomId),
+  setRoomPolygonPoints: (boardId, roomId, points) => setRoomPolygonPoints(boardId, roomId, points),
+  getRoomPolygonPoints: (boardId, roomId) => getRoomPolygonPoints(boardId, roomId),
   getBoard: (boardId) => getBoard(boardId),
   getRoomPoints: (room, boardId) => getRoomPoints(room, boardId),
   projectDisplayNormalizedToRoomRaw: (x, y, room, boardId) => projectDisplayNormalizedToRoomRaw(x, y, room, boardId),
@@ -2961,7 +2954,6 @@ window.TT_BEAMER_RUNTIME_BOOTSTRAP.init(
     syncBoardSelectOptions,
     createDefaultHitareaCalibrationMap,
     createDefaultRoomGeometryByBoard,
-    createDefaultSpecialPolygonsByBoard,
     createDefaultPlayAreasByBoard,
     createDefaultSelectedPlayAreaIdByBoard,
     createDefaultInsideFxByBoard,

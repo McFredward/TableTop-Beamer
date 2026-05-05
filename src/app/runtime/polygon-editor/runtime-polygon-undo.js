@@ -22,7 +22,7 @@
     const roomStates = board.rooms.map((room) => ({
       id: room.id,
       name: room.name ?? room.label,
-      polygon: ctx.getSpecialPolygonPoints(state.boardId, room.id).map((p) => [p[0], p[1]]),
+      polygon: ctx.getRoomPolygonPoints(state.boardId, room.id).map((p) => [p[0], p[1]]),
     }));
     // Also capture Play Area polygons for full undo coverage
     const playAreas = typeof ctx.getPlayAreas === "function" ? ctx.getPlayAreas(state.boardId) : [];
@@ -68,7 +68,7 @@
       room.label = snap.name;
       room.polygon = snap.polygon.map((p) => [...p]);
       room.points = snap.polygon.map((p) => [...p]);
-      ctx.setSpecialPolygonPoints(state.boardId, snap.id, snap.polygon.map((p) => [...p]));
+      ctx.setRoomPolygonPoints(state.boardId, snap.id, snap.polygon.map((p) => [...p]));
     }
 
     // Rooms not in the restored snapshot were already filtered out of

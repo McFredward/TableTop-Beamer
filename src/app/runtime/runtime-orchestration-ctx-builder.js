@@ -75,7 +75,6 @@
       // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap,
       createDefaultRoomGeometryByBoard,
-      createDefaultSpecialPolygonsByBoard,
       createDefaultPlayAreasByBoard,
       createDefaultSelectedPlayAreaIdByBoard,
       createDefaultInsideFxByBoard,
@@ -193,7 +192,6 @@
       // ─── Area I — Default-data factories ────────────────────────
       createDefaultHitareaCalibrationMap: () => createDefaultHitareaCalibrationMap(),
       createDefaultRoomGeometryByBoard: () => createDefaultRoomGeometryByBoard(),
-      createDefaultSpecialPolygonsByBoard: () => createDefaultSpecialPolygonsByBoard(),
       createDefaultPlayAreasByBoard: () => createDefaultPlayAreasByBoard(),
       createDefaultSelectedPlayAreaIdByBoard: () => createDefaultSelectedPlayAreaIdByBoard(),
       createDefaultInsideFxByBoard: () => createDefaultInsideFxByBoard(),

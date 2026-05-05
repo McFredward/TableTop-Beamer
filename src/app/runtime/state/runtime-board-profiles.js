@@ -34,7 +34,8 @@
         {
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-          specialPolygons: ctx.createDefaultSpecialPolygonMap(board.id),
+          // Phase 29 h1: room polygons live in roomCatalog[*].polygon —
+          // no separate per-room map on the profile shape.
           playAreas: ctx.normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT),
           selectedPlayAreaId: "play-area-1",
           roomFx: ctx.normalizeRoomFxProfile({ animations: ctx.createDefaultRoomAnimationDefinitions() }),
@@ -53,7 +54,9 @@
         {
           roomCatalog: board.rooms.map((room) => ctx.roomToCatalogEntry(room)),
           roomClusters: Array.isArray(board.roomClusters) ? board.roomClusters.map((cluster) => ({ ...cluster })) : [],
-          specialPolygons: ctx.normalizeSpecialPolygonMap(state.specialPolygonsByBoard[board.id], board.id),
+          // Phase 29 h1: per-room polygons travel via roomCatalog
+          // entries (roomToCatalogEntry serializes room.polygon) — no
+          // separate top-level map.
           playAreas: ctx.getPlayAreas(board.id).map((area) => ({
             id: area.id,
             name: area.name,
@@ -158,41 +161,15 @@
     });
     ctx.setBoards(nextBoards);
     const BOARDS = ctx.getBoards();
-    // hitareaCalibration + roomGeometry
-    // no longer read from profiles. The migration script baked them
-    // into specialPolygons and the pipeline is identity now.
-    state.specialPolygonsByBoard = Object.fromEntries(
-      BOARDS.map((board) => [
-        board.id,
-        ctx.normalizeSpecialPolygonMap(
-          profiles?.[board.id]?.specialPolygons,
-          board.id,
-          state.specialPolygonsByBoard?.[board.id],
-        ),
-      ]),
-    );
+    // Phase 29 h1: state.specialPolygonsByBoard is gone — room.polygon
+    // (populated by applyRoomCatalog above from profiles[boardId].roomCatalog)
+    // is the single source of truth for room polygons.
     state.defaultAnimationsByBoard = Object.fromEntries(
       BOARDS.map((board) => [board.id, Array.isArray(profiles?.[board.id]?.defaultAnimations) ? profiles[board.id].defaultAnimations : []]),
     );
     state.frozenRoomsByBoard = Object.fromEntries(
       BOARDS.map((board) => [board.id, ctx.normalizeFrozenRoomsMap(profiles?.[board.id]?.frozenRooms, board.id)]),
     );
-    // Sync specialPolygonsByBoard → room.polygon so
-    // getRoomSourcePoints (which reads room.polygon) sees the
-    // user-edited coordinates, not the stale roomCatalog ones.
-    // Previously the hitarea+geometry transform pipeline masked
-    // this gap; with the pipeline now identity, room.polygon must
-    // carry the authoritative polygon data directly.
-    for (const board of BOARDS) {
-      const boardPolygons = state.specialPolygonsByBoard[board.id] ?? {};
-      for (const room of board.rooms) {
-        const edited = boardPolygons[room.id];
-        if (Array.isArray(edited) && edited.length >= 3) {
-          room.polygon = edited.map((point) => [...point]);
-          room.points = edited.map((point) => [...point]);
-        }
-      }
-    }
     // The incoming config may carry polygons with a
     // different centroid than whatever we had cached. Clear every
     // anchor so each room reseats its stable stretch origin from the
@@ -256,7 +233,6 @@
       candidate,
       createDefaultBoardProfiles,
       createDefaultRoomGeometryMap: ctx.createDefaultRoomGeometryMap,
-      createDefaultSpecialPolygonMap: ctx.createDefaultSpecialPolygonMap,
       HITAREA_CALIBRATION_DEFAULT: ctx.HITAREA_CALIBRATION_DEFAULT,
       SHIP_POLYGON_DEFAULT: ctx.SHIP_POLYGON_DEFAULT,
       createDefaultRoomAnimationDefinitions: ctx.createDefaultRoomAnimationDefinitions,

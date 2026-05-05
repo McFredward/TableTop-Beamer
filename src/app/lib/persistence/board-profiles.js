@@ -18,18 +18,17 @@
 
     if (
       raw.hitareaCalibrationByBoard ||
-      raw.roomGeometryByBoard ||
-      raw.specialPolygonsByBoard ||
       raw.roomCatalogByBoard
     ) {
+      // Phase 29 h1: legacy *ByBoard fan-out for room polygons +
+      // roomGeometry dropped — roomCatalog (with embedded
+      // room.polygon) is the single source of truth.
       return Object.fromEntries(
         boards.map((board) => [
           board.id,
           {
             roomCatalog: raw.roomCatalogByBoard?.[board.id] ?? raw.roomsByBoard?.[board.id],
             hitareaCalibration: raw.hitareaCalibrationByBoard?.[board.id],
-            roomGeometry: raw.roomGeometryByBoard?.[board.id],
-            specialPolygons: raw.specialPolygonsByBoard?.[board.id],
           },
         ]),
       );
@@ -47,8 +46,6 @@
       return Boolean(
         value.playAreas
         || value.roomCatalog
-        || value.roomGeometry
-        || value.specialPolygons
         || value.outsideFx
         || value.roomFx
         || value.insideFx,
@@ -67,7 +64,6 @@
     candidate,
     createDefaultBoardProfiles,
     createDefaultRoomGeometryMap,
-    createDefaultSpecialPolygonMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
     createDefaultRoomAnimationDefinitions,
@@ -102,14 +98,12 @@
         roomClusters: profile.roomClusters ?? profile.clusters ?? null,
         hitareaCalibration:
           profile.hitareaCalibration ?? profile.hitarea ?? HITAREA_CALIBRATION_DEFAULT,
+        // Phase 29 h1: per-room polygons live exclusively in
+        // roomCatalog[*].polygon — no separate top-level entry.
         roomGeometry:
           profile.roomGeometry ??
           profile.geometry ??
           createDefaultRoomGeometryMap(boardId),
-        specialPolygons:
-          profile.specialPolygons ??
-          profile.polygons ??
-          createDefaultSpecialPolygonMap(boardId),
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         roomFx: {
