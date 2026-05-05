@@ -17,16 +17,22 @@
 // load. runtime-orchestration.js destructures it back into its own
 // scope the way it already does with window.TT_BEAMER_POLYGON_CONTRACT.
 (() => {
-  // Phase 30 Plan 30-04 T7: pre-downsample large GIF source frames to
-  // GIF_MAX_PIXEL_DIM at decode time. Drawing a 1920×1080 source (e.g.
-  // malfunction.gif) into a ~200×150 room rect every frame is the
-  // dominant per-room cost on Pi VC4 (T2 UAT: per-room render = ~14 fps
-  // cost vs the entire 10 fps budget). Pre-downsampling moves the
+  // Phase 30 Plan 30-04 T7/T15: pre-downsample large GIF source frames
+  // to GIF_MAX_PIXEL_DIM at decode time. Drawing a 1920×1080 source
+  // (e.g. malfunction.gif) into a ~200×150 room rect every frame is
+  // the dominant per-room cost on Pi VC4. Pre-downsampling moves the
   // costly resample from the per-frame draw path to a one-shot
-  // decode-time operation. 512 px is well above any expected room rect
-  // on a 1920×1080 projector and any plausible outside-fx area, so
-  // visual quality is unaffected. Aspect ratio preserved.
-  const GIF_MAX_PIXEL_DIM = 512;
+  // decode-time operation.
+  //
+  // T15: cap reduced 512 → 256 px. With T11's playback-canvas-only
+  // path on /output/ (no ImageBitmap), each cursor advance triggers a
+  // putImageData onto the shared canvas. At 512×288 that upload was
+  // ~5-10 ms on Pi VC4 (perceptible stutter at GIF loop wraps). At
+  // 256×144 it's ~1-2 ms. drawImage from the smaller source into the
+  // small room rect is also ~4× cheaper. 256 px is still well above
+  // typical room rect sizes (~200 px wide) on a 1920×1080 projector
+  // — visual quality at projector viewing distance is unaffected.
+  const GIF_MAX_PIXEL_DIM = 256;
   // Scratch canvases reused across all frames in a single decoder
   // call. Two canvases total per decode (one source-size + one
   // target-size), regardless of frame count. Freed at GC after the
@@ -246,8 +252,31 @@
   // compared to keeping GL alive.
   async function decodeGifPlaybackFramesWithParser(data, entry, options = {}) {
     const { yieldBetweenFrames = false, bakeImageBitmap = true } = options;
+    // Phase 30 Plan 30-04 T14: yield via requestAnimationFrame
+    // instead of setTimeout(0). setTimeout(0) gives only ~5 ms idle
+    // gaps which do NOT guarantee an rAF fires between yields. With
+    // YIELD_EVERY_N_FRAMES=8 and ~80 ms per LZW frame on Pi, the
+    // parser blocked the main thread for ~640 ms between yields —
+    // long enough that Pi VC4's GL watchdog reaped the WebGL
+    // context mid-decode (consistently observed in user UAT logs
+    // with "mesh-warp shader error: null" spam during slime
+    // decode). rAF yield guarantees the browser ticks one display
+    // refresh + a draw frame between every yield, so the GL
+    // renderer submits frames and the watchdog stays satisfied.
+    // Cost: ~16.7 ms wall time per yield (vs ~5 ms for setTimeout).
+    // For slime 150 frames / 8 = ~19 yields → ~313 ms extra parse
+    // time. Trade-off accepted: GL stability is mandatory.
+    //
+    // Falls back to setTimeout if requestAnimationFrame is missing
+    // (unlikely outside ancient browsers).
     const yieldTick = yieldBetweenFrames
-      ? () => new Promise((resolve) => setTimeout(resolve, 0))
+      ? () => new Promise((resolve) => {
+          if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+            window.requestAnimationFrame(() => resolve());
+          } else {
+            setTimeout(resolve, 0);
+          }
+        })
       : null;
     const bytes = new Uint8Array(data);
     if (bytes.length < 13) {

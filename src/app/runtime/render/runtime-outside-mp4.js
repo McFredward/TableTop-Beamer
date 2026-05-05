@@ -28,7 +28,16 @@
   const OUTSIDE_MP4_LOOP_START_OFFSET_SEC = 0.05;
   const OUTSIDE_MP4_LOOP_WRAP_LEAD_SEC = 0.08;
   const OUTSIDE_MP4_LOOP_WRAP_COOLDOWN_MS = 220;
-  const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 350;
+  // Phase 30 Plan 30-04 T16: bumped 350 → 1500 ms.
+  // T13 captures the fallback every 5th rAF; on Pi at 12 fps that's
+  // ~417 ms between captures, sometimes slipping past the 350 ms
+  // freshness gate → drawOutsideMp4FallbackFrame returned false →
+  // outside region went black during the loop-wrap seek window
+  // (the visible "hiccup" the user reports). 1500 ms is generously
+  // above any plausible capture cadence on Pi (would need <0.7 fps
+  // to miss the gate); the captured frame is still very close to
+  // the live frame visually for a slow-moving particle/sand backdrop.
+  const OUTSIDE_MP4_FALLBACK_FRAME_MAX_AGE_MS = 1500;
 
   function init(dependencies) {
     ctx = dependencies;
