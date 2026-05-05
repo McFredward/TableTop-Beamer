@@ -77,16 +77,22 @@
     cctx.lineTo(px2, py2);
     cctx.closePath();
     cctx.clip();
-    // Phase 30 B1: bilinear filtering at per-triangle clip boundaries
-    // produces visible 1-pixel ridges on uniform solid-color content
-    // (every triangle samples a slightly different sub-texel near
-    // shared edges). NEAREST forces one texel per fragment with no
-    // interpolation — symmetric to the Phase-26-h9 GL fix
-    // (`TEXTURE_MIN/MAG_FILTER = NEAREST` at runtime-projection-gl-
-    // renderer.js:150-153). On a projector at typical viewing distance
-    // NEAREST is imperceptible vs LINEAR for warp-target content; the
-    // trade-off is entirely on the side of fewer seams.
-    cctx.imageSmoothingEnabled = false;
+    // Phase 30 B1 h12: LINEAR sampling (imageSmoothingEnabled=true).
+    // The earlier h4-comment claimed symmetry with the GL fix at
+    // gl-renderer:223-237 ("NEAREST → LINEAR"), but applied the
+    // OPPOSITE direction here (LINEAR → NEAREST). That created a
+    // mirror of the GL streifen problem in the 2D path: under
+    // non-identity warp every triangle's affine transform discretises
+    // fractional source coords differently per fragment; on shared
+    // edges adjacent triangles round to different texels → 1-pixel
+    // diagonal seams. INFLATE=4 already overlaps clip footprints by
+    // ~8 px, so any clip-AA halo created by LINEAR sampling lives
+    // inside an overlap region where the neighbouring triangle paints
+    // identical source bytes (LINEAR is deterministic for identical
+    // inputs). Net: LINEAR + INFLATE=4 is seam-free, NEAREST +
+    // INFLATE=4 isn't.
+    cctx.imageSmoothingEnabled = true;
+    cctx.imageSmoothingQuality = "low"; // bilinear, fastest tier on Pi VC4
     cctx.transform(a, b, c, d, e, f);
     cctx.drawImage(img, 0, 0);
     cctx.restore();
@@ -137,10 +143,19 @@
         const dTR = getPoint(row, col + 1);
         const dBL = getPoint(row + 1, col);
         const dBR = getPoint(row + 1, col + 1);
-        const dTLx = dTL.x * w, dTLy = dTL.y * h;
-        const dTRx = dTR.x * w, dTRy = dTR.y * h;
-        const dBLx = dBL.x * w, dBLy = dBL.y * h;
-        const dBRx = dBR.x * w, dBRy = dBR.y * h;
+        // Phase 30 B1 h12: pixel-snap destination vertices, mirroring
+        // the GL path (runtime-projection-gl-renderer.js:413-415).
+        // Without this, fractional dst coords mean the rasterizer's
+        // diamond-exit rule evaluates coverage from each triangle's
+        // own direction → adjacent triangles can leave a 1-pixel gap
+        // OR overlap by 1 pixel at the shared edge. Snapping to
+        // integer pixels makes shared-edge coverage unambiguous and
+        // closes the second precision-source for 2D streifen
+        // (alongside the LINEAR-sampling fix in drawAffineTriangle).
+        const dTLx = Math.round(dTL.x * w), dTLy = Math.round(dTL.y * h);
+        const dTRx = Math.round(dTR.x * w), dTRy = Math.round(dTR.y * h);
+        const dBLx = Math.round(dBL.x * w), dBLy = Math.round(dBL.y * h);
+        const dBRx = Math.round(dBR.x * w), dBRy = Math.round(dBR.y * h);
 
         // Triangle 1: TL, TR, BR
         drawAffineTriangle(

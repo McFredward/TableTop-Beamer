@@ -371,9 +371,18 @@
       // rAF draw-loop (and the WebGL warp inside it) keeps running
       // through long parses. On Pi VC4 this prevents the GPU
       // driver's no-frames-for-Ns watchdog from reaping the WebGL
-      // context mid-parse. No-op when yieldTick is null
-      // (dashboard / non-final-output).
-      if (yieldTick) {
+      // context mid-parse.
+      //
+      // Phase 30 B2 h12: throttled to every YIELD_EVERY_N_FRAMES.
+      // h11's per-frame yield was 3× too aggressive — slime.gif's
+      // 150-frame parse ballooned from 9.8 s to 29.4 s because
+      // each setTimeout(0) costs ~5 ms minimum on Chromium. Yielding
+      // every 8th frame still releases the main thread within a
+      // single rAF budget (~16 ms), so the GL watchdog stays
+      // satisfied, while parse latency drops back toward the h10
+      // baseline.
+      const YIELD_EVERY_N_FRAMES = 8;
+      if (yieldTick && frames.length % YIELD_EVERY_N_FRAMES === 0) {
         await yieldTick();
       }
 

@@ -272,6 +272,22 @@
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+      // Phase 30 B2 h12: pre-allocate the texture with a 1×1 black
+      // pixel at init time. Without this, the first
+      // `texImage2D(..., canvas)` call in _postDrawMeshWarpGL is BOTH
+      // an allocation (1920×1080×4 = 8.3 MB) AND an upload — typically
+      // landing in the same boot frame as the first sandstorm.mp4
+      // `drawImage(video, …)` on the Pi (which itself triggers a
+      // ~3 MB GPU video texture allocation). The contemporaneous
+      // ~11 MB allocation burst is the most likely trigger of the
+      // boot-time CONTEXT_LOST_WEBGL the user observed at t≈2200 ms
+      // (BEFORE any GIF decode finished). Pre-allocating here turns
+      // the first real frame into a re-upload (no fresh allocation),
+      // staggering the GPU pressure across two paint cycles.
+      const _bootPixel = new Uint8Array([0, 0, 0, 255]);
+      _gl.texImage2D(
+        _gl.TEXTURE_2D, 0, _gl.RGBA, 1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, _bootPixel,
+      );
       _glPosBuf = _gl.createBuffer();
       _glUVBuf = _gl.createBuffer();
       _glIdxBuf = _gl.createBuffer();

@@ -218,13 +218,20 @@
       const c = document.createElement("canvas");
       c.width = w;
       c.height = h;
-      // willReadFrequently:true hints Chromium to keep this canvas in
-      // CPU-backed software pipeline (no GPU texture allocation). Even
-      // though we never actually getImageData here, the hint is the
-      // documented mechanism to opt out of GPU-accelerated Canvas2D —
-      // critical on Pi where the WebGL warp competes with Canvas2D for
-      // GPU memory.
-      const cctx = c.getContext("2d", { willReadFrequently: true });
+      // Phase 30 B2 h12: GPU-backed playback canvas (default — no
+      // willReadFrequently hint). h10's willReadFrequently:true
+      // forced the canvas onto Chromium's CPU/software pipeline,
+      // which made every per-frame `drawImage(playbackCanvas, …)`
+      // onto the GPU-backed fx-canvas a CPU→GPU memcpy of the full
+      // frame (~4-8 MB, ~30 ms on Pi VC4 PER active GIF). The
+      // shared-canvas-per-GIF approach already addresses the
+      // GPU-pressure concern (1 canvas vs 150) — willReadFrequently
+      // was both unnecessary AND a major fps regression. Without it
+      // putImageData costs more (CPU→GPU upload on frame change,
+      // ~5 ms) but only fires when the cursor advances (typically
+      // ≤30 Hz), while drawImage runs at full rAF rate (~60 Hz)
+      // and is now a GPU→GPU blit.
+      const cctx = c.getContext("2d");
       if (!cctx) return null;
       entry._playbackCanvas = c;
       entry._playbackCanvasCtx = cctx;
