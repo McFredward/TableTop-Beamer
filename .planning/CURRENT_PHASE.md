@@ -1,12 +1,15 @@
 # CURRENT PHASE
 
-- Active: none — Phase 29 closed (2026-05-05; h1 final 2026-05-05)
+- Active: none — Phase 29 closed (2026-05-05; h3 final 2026-05-05)
 - Status: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED. 7 plans
-  ausgeführt + h1 hotfix. 7 DEAD/REDUNDANT Felder entfernt
-  (Wave 2: 5 + h1: `specialPolygons` & `roomGeometry`).
-  BOARD_PROFILE_FIELDS 15→11→9. Schema v3→v4. Test-Suite 48/48 grün, 0 skip.
-- App version: `0.29.1`
-- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — h1 final.
+  ausgeführt + 3 hotfixes (h1: specialPolygons + roomGeometry collapse;
+  h2: drop one-shot boot migration for release-prep; h3: critical fix —
+  isDirty() returns false without loaded profile, so dashboard's
+  "Unsaved on /output/" no longer fires spuriously).
+  7 DEAD/REDUNDANT Felder entfernt. BOARD_PROFILE_FIELDS 15→11→9.
+  Schema v3→v4. Test-Suite 40/40 grün, 0 skip.
+- App version: `0.29.3` (h3 final — release-prep)
+- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — h3 final.
 
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
 Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)

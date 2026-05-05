@@ -7622,8 +7622,8 @@
         "name": "Bunker",
         "polygon": [
           [
-            0.09161568131941211,
-            0.0005591481499489473
+            0.09090543962023812,
+            0
           ],
           [
             0.33674943273430863,
@@ -7852,7 +7852,7 @@
         ]
       }
     ],
-    "selectedPlayAreaId": "play-area-1",
+    "selectedPlayAreaId": "play-area-2",
     "outsideFx": {
       "enabled": true,
       "selectedAnimationId": "outside-sandstorm",

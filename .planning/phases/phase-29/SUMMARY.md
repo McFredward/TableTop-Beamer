@@ -72,7 +72,7 @@ DROPS — undo arbeitet rein über `board.rooms` Snapshots.
   insideFx, roomFx, defaultAnimations, frozenRooms, lastUsedProfileName`.
 - **Net source removal:** ~250 LOC across 13+ files (Wave 2-4) + ~50 LOC
   delta across 21 files (h1).
-- **Final version:** `0.29.2` (h2 final — release-prep).
+- **Final version:** `0.29.3` (h3 final — release-prep).
 
 ## Decision coverage (D-01..D-11)
 
@@ -113,12 +113,13 @@ DROPS — undo arbeitet rein über `board.rooms` Snapshots.
   (siehe 29-05-SUMMARY decisions[3]).
 - ~~**`roomGeometry` disk vs runtime asymmetry**~~ — RESOLVED in 29-h1.
 
-## Hotfix series (h1) — post-closure audit
+## Hotfix series (h1..h3) — post-closure audit
 
 | # | Commits | Fix |
 |---|---------|-----|
-| h1 | `dd71aeb` + `df04e1b` + `bc02a76` + `d9164fe` + closure | Eliminate two redundant disk-side fields surfaced post-closure: (1) `specialPolygons` was a per-room polygon shadow map fully redundant with `roomCatalog[*].polygon` (verified Nemesis Board B: all 75 keys = roomCatalog room IDs, polygons byte-identical; polygon-editor wrote 3-fold and read with fallback). Collapsed to single source: `room.polygon`. (2) `roomGeometry` (resolves Open Question 3): on-disk field was empty `{}` on all 4 boards. Runtime state slice `state.roomGeometryByBoard` stays LIVE (drawAnimation reads stretchX/offsetX defaults via `ensureBoardRoomStateMaps`); disk persistence dropped. **BOARD_PROFILE_FIELDS shrank 11→9.** Boot-migration `lib/migrations/phase-29-purge.mjs` extended (DEAD_BOARD_FIELDS gains 2 entries) — live-run stripped 4 board file(s). Accessor pair renamed: `getSpecialPolygonPoints/setSpecialPolygonPoints` → `getRoomPolygonPoints/setRoomPolygonPoints`. Tests: 3 new dead-grep zero-hit gates + bundle-export exclusion gate; suite 47→48 green. |
-| h2 | (closure commit) | Pre-release boot-noise removal: the Phase-29 one-shot disk migration (`lib/migrations/phase-29-purge.mjs` + `purgeDeadFieldsOnBoot()` boot-block + import + 2 test files) printed `[phase-29-purge] complete (...)` on every server start. Migration was already complete on disk — single-user pre-release, no other installations to migrate. Hard-deleted: migration module, server.mjs import + boot try-block, `test/phase-29-purge.test.mjs`, `test/phase-29-sound-migration.test.mjs`, empty `lib/` directory. dead-grep + bundle-schema + board-profile-fields tests stay (regression value). Suite 48→40 green. |
+| h1 | `dd71aeb` + `df04e1b` + `bc02a76` + `d9164fe` + closure | Eliminate two redundant disk-side fields surfaced post-closure: (1) `specialPolygons` was a per-room polygon shadow map fully redundant with `roomCatalog[*].polygon` (verified Nemesis Board B: all 75 keys = roomCatalog room IDs, polygons byte-identical; polygon-editor wrote 3-fold and read with fallback). Collapsed to single source: `room.polygon`. (2) `roomGeometry` (resolves Open Question 3): on-disk field was empty `{}` on all 4 boards. Runtime state slice `state.roomGeometryByBoard` stays LIVE (drawAnimation reads stretchX/offsetX defaults via `ensureBoardRoomStateMaps`); disk persistence dropped. **BOARD_PROFILE_FIELDS shrank 11→9.** Accessor pair renamed: `getSpecialPolygonPoints/setSpecialPolygonPoints` → `getRoomPolygonPoints/setRoomPolygonPoints`. Tests: 3 new dead-grep zero-hit gates + bundle-export exclusion gate; suite 47→48 green. |
+| h2 | `eea52c3` | Pre-release boot-noise removal: the Phase-29 one-shot disk migration (`lib/migrations/phase-29-purge.mjs` + `purgeDeadFieldsOnBoot()` boot-block + import + 2 test files) printed `[phase-29-purge] complete (...)` on every server start. Migration was already complete on disk — single-user pre-release, no other installations to migrate. Hard-deleted: migration module, server.mjs import + boot try-block, `test/phase-29-purge.test.mjs`, `test/phase-29-sound-migration.test.mjs`, empty `lib/` directory. dead-grep + bundle-schema + board-profile-fields tests stay (regression value). Suite 48→40 green. |
+| h3 | `725df29` | **Critical bug:** dashboard "Unsaved on /output/" chip showed on fresh boot even with align mode OFF and no /output/ unsaved changes against any profile. Root cause in `isDirty()`: the no-profile branch compared current geometry against `buildNewProfileDefaultGrid()` and returned dirty=true if /output/ had ever panned (localStorage diverged from default). The /output/ broadcaster then POSTed `dirty=true` to server on every boot. Fix: when `_loadedProfileSnapshot === null`, `isDirty()` is permanently false. "Unsaved" exclusively means "loaded profile has changes since load" (user-mental-model contract). Server stale-flag cleared via direct `curl POST /api/align-mode-dirty {dirty:false}`. |
 
 ## Tags
 
@@ -130,7 +131,7 @@ DROPS — undo arbeitet rein über `board.rooms` Snapshots.
 ## Closure marker
 
 - Tag: `phase-29-end` (re-tagged at h1 closure commit).
-- Final version: `0.29.2` (h2 final — release-prep).
+- Final version: `0.29.3` (h3 final — release-prep).
 - Phase artifact: this `SUMMARY.md` + `29-AUDIT.md` (authoritative Verdict-Doku).
 - Alle commits auf `master` zwischen `phase-28-end` und dem closure marker.
 - Nächster Schritt: User-Smoke der 3 Items in `29-HUMAN-UAT.md`. Falls
