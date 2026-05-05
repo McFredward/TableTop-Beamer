@@ -49,6 +49,20 @@ const {
 const outputRole = resolveOutputRoleFromLocation(window.location);
 document.body.dataset.outputRole = outputRole;
 
+// Phase 30 B3 (CASE E structural variant): the diagnostic chip lives
+// inside <aside id="control-panel"> for dashboard's topbar-inline placement,
+// but on /output/ that aside is `display: none !important` (styles.css:111-117),
+// which transitively hides the chip even when its own `display: inline-flex`
+// rule fires. Relocating the chip to <body> on /output/ unhooks it from the
+// hidden ancestor while preserving its existing fixed-positioning CSS
+// (top: 8px; right: 8px; z-index: 9999).
+if (outputRole === OUTPUT_ROLE_FINAL) {
+  const __chip = document.getElementById("output-status-chip");
+  if (__chip && __chip.parentElement !== document.body) {
+    document.body.appendChild(__chip);
+  }
+}
+
 const logBootstrap = window.TT_BEAMER_LOGGER.createLogger("bootstrap", { source: outputRole });
 const logRender = window.TT_BEAMER_LOGGER.createLogger("render", { source: outputRole });
 const logUi = window.TT_BEAMER_LOGGER.createLogger("ui", { source: outputRole });
