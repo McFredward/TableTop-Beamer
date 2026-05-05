@@ -129,12 +129,15 @@
       }
     }
 
-    // Parser path: always on /output/, fallback elsewhere. Parser
-    // produces canvas-backed frames synchronously (no GPU bitmap
-    // allocation). The decoder sets entry.status = "ready" on
-    // success; we emit decode-success here so the probe fires for
-    // both ImageDecoder and parser paths.
-    ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry);
+    // Parser path: always on /output/, fallback elsewhere. Parser is
+    // ASYNC (Phase 30 B2 h11) so we await it. With
+    // `yieldBetweenFrames=true` on /output/, the parser awaits
+    // setTimeout(0) between frames — keeps the main thread responsive
+    // and prevents Pi VC4 GPU driver from reaping the WebGL context
+    // during long parses. Decoder sets entry.status="ready" on success.
+    await ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry, {
+      yieldBetweenFrames: isFinalOutput,
+    });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {
         path,

@@ -194,7 +194,23 @@
     }
   }
 
-  function decodeGifPlaybackFramesWithParser(data, entry) {
+  // Phase 30 B2 h11: async parser with optional per-frame yield. When
+  // `yieldBetweenFrames=true` (passed by /output/), we await
+  // setTimeout(0) after each decoded frame so the main thread becomes
+  // responsive between frames. Without this, slime.gif parsed in one
+  // ~9.8 s synchronous block on Pi 4 → the VC4 GPU driver's WebGL
+  // watchdog reaped the context (no rAF callbacks for >5 s = idle
+  // signal → CONTEXT_LOST_WEBGL right after decode-success). With the
+  // yield, rAF / paint / event-loop work all run between frames; the
+  // GL context keeps receiving frame submissions and stays alive.
+  // Per-yield overhead on Chrome is ~5 ms (setTimeout 0 minimum),
+  // adding ~750 ms to slime parse time. Net latency is irrelevant
+  // compared to keeping GL alive.
+  async function decodeGifPlaybackFramesWithParser(data, entry, options = {}) {
+    const { yieldBetweenFrames = false } = options;
+    const yieldTick = yieldBetweenFrames
+      ? () => new Promise((resolve) => setTimeout(resolve, 0))
+      : null;
     const bytes = new Uint8Array(data);
     if (bytes.length < 13) {
       throw new Error("GIF parse failed: payload too small");
@@ -350,6 +366,16 @@
       const durationMs = pendingGce.delayMs;
       frames.push({ imageData: frameImageData, durationMs });
       totalDurationMs += durationMs;
+
+      // Phase 30 B2 h11: yield to event loop between frames so the
+      // rAF draw-loop (and the WebGL warp inside it) keeps running
+      // through long parses. On Pi VC4 this prevents the GPU
+      // driver's no-frames-for-Ns watchdog from reaping the WebGL
+      // context mid-parse. No-op when yieldTick is null
+      // (dashboard / non-final-output).
+      if (yieldTick) {
+        await yieldTick();
+      }
 
       previousFrameMeta = {
         disposal: pendingGce.disposal,

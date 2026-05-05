@@ -348,18 +348,30 @@ window.__ttBeamerStateProbe = () => state;
 
 // Phase 30 B2 h10: expose the EFFECTIVE render mode (configured + the
 // gl-renderer's runtime fallback flag), so the diagnostic chip can
-// honestly show what's currently being rendered. When a user has
-// renderMode="auto" but the gl-renderer permanently disabled GL after
-// 3 context losses, the chip should read "auto→2d (gl-disabled)" not
-// "auto" — that visibility was the user's explicit demand.
+// honestly show what's currently being rendered.
+//
+// Phase 30 B2 h11: granularised. Even a SINGLE context-loss event
+// flips _glInitOk to false until the next successful frame; during
+// that window the render path falls through to 2D-fallback. Reporting
+// only the 3-loss permanent-disable threshold meant the chip kept
+// saying "gl" while the user was actually seeing 2D output. Now
+// any lossCount > 0 surfaces "gl→2d (loss xN)" so the chip never
+// lies about effective rendering. Resets cleanly because gl-renderer
+// resets _glContextLossCount to 0 on a successful drawElements call.
 window.__ttBeamerEffectiveRenderMode = () => {
   const configured = state?.renderMode ?? "auto";
-  const glDisabled = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER
-    ?.isGlPermanentlyDisabled?.() === true;
   if (configured === "2d") return "2d";
-  if (configured === "gl") return glDisabled ? "gl→2d (gl-disabled)" : "gl";
-  // auto:
-  return glDisabled ? "auto→2d (gl-disabled)" : "auto";
+  const glRenderer = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER;
+  const glDisabled = glRenderer?.isGlPermanentlyDisabled?.() === true;
+  const lossCount = Number(glRenderer?.getGlContextLossCount?.() || 0);
+  if (glDisabled) {
+    return configured === "gl" ? "gl→2d (gl-disabled)" : "auto→2d (gl-disabled)";
+  }
+  if (lossCount > 0) {
+    const suffix = `2d (loss x${lossCount})`;
+    return configured === "gl" ? `gl→${suffix}` : `auto→${suffix}`;
+  }
+  return configured;
 };
 
 // Opt-in save: local config edits stay local (dirty) until
