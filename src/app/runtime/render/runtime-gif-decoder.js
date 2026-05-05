@@ -245,7 +245,7 @@
   // adding ~750 ms to slime parse time. Net latency is irrelevant
   // compared to keeping GL alive.
   async function decodeGifPlaybackFramesWithParser(data, entry, options = {}) {
-    const { yieldBetweenFrames = false } = options;
+    const { yieldBetweenFrames = false, bakeImageBitmap = true } = options;
     const yieldTick = yieldBetweenFrames
       ? () => new Promise((resolve) => setTimeout(resolve, 0))
       : null;
@@ -447,8 +447,16 @@
       // unavailable: runtime-gif-playback.js getGifPlaybackFrame
       // returns either frame.bitmap or routes through the shared
       // playback canvas + putImageData path (h10/h12).
+      // Phase 30 Plan 30-04 T11: bakeImageBitmap=false on /output/.
+      // T9's per-frame createImageBitmap allocates GPU memory (e.g.
+      // slime.gif: 150 × 512×288×4 = ~88 MB) which on Pi VC4
+      // triggered the same CONTEXT_LOST_WEBGL pattern h10 originally
+      // fixed. On /output/ we keep the playback canvas + putImageData
+      // path (h10/h12), accepting the small per-cursor-advance cost
+      // for GPU-memory stability. Dashboard role keeps the bitmap
+      // path (no constrained GPU budget).
       let frameBitmap = null;
-      if (typeof createImageBitmap === "function") {
+      if (bakeImageBitmap && typeof createImageBitmap === "function") {
         try {
           frameBitmap = await createImageBitmap(frameImageData);
         } catch (_) {

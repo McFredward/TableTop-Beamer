@@ -137,6 +137,15 @@
     // during long parses. Decoder sets entry.status="ready" on success.
     await ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry, {
       yieldBetweenFrames: isFinalOutput,
+      // Phase 30 Plan 30-04 T11: skip the per-frame ImageBitmap
+      // pre-bake on /output/. T9's bitmap path was great on
+      // dashboard but on Pi VC4 the cumulative GPU allocation
+      // (e.g. 150 frames × 512×288×4 = ~88 MB for slime) brought
+      // back the CONTEXT_LOST_WEBGL pattern h10/h11 originally
+      // closed. Falling back to the playback-canvas + putImageData
+      // path keeps GIFs playable without GPU pressure; T7's
+      // 512px-max-dim downsample makes the per-frame upload cheap.
+      bakeImageBitmap: !isFinalOutput,
     });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {
@@ -304,7 +313,16 @@
   // succeed, but serializing the queue avoids the failure in the first
   // place AND lets the retry-loop run with calm GPU memory state.
   let _outputWarmQueue = Promise.resolve();
-  const WARM_DECODE_TIMEOUT_MS = 5000;
+  // Phase 30 Plan 30-04 T12: bumped 5000 → 30000. Pi VC4 parser
+  // path takes 12-15 s for slime.gif (150 frames × 512×288 each
+  // after T7 downsample). The original 5 s timeout fired during
+  // decode, marked the entry "fallback", returned trigger-null,
+  // then the actual decode resolved and flipped status="ready".
+  // User-visible UX: animations "disappear and reappear" during
+  // boot ("trying multiple modes"). 30 s easily covers parser
+  // worst case; on the rare actual stall the queue still moves
+  // on. Probe-tag "warm-timeout" is now exceptional, not routine.
+  const WARM_DECODE_TIMEOUT_MS = 30000;
   function _enqueueOutputWarm(path) {
     _outputWarmQueue = _outputWarmQueue
       .then(async () => {

@@ -495,19 +495,33 @@
           // the gate legitimately fires is unaffected.
           const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
           if (isFinalOutput) {
-            // Phase 30 Plan 30-04 T10: live-paint primary, periodic
-            // capture (~every 30 rAF = ~1 s at 30 fps), fallback only
-            // when readyState dips. T4 dropped the fallback entirely
-            // which exposed a brief gap during loop wrap
-            // (maybeWrapOutsideMp4Loop seeks currentTime back; for
-            // ~1 frame video.readyState may drop to 1). Restoring a
-            // throttled capture + fallback closes that gap without
-            // paying the per-frame ~10-30 ms second drawImage(video)
-            // cost we identified in T2 UAT.
-            if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
+            // Phase 30 Plan 30-04 T10/T13: live-paint primary,
+            // capture every 5th rAF (~300 ms staleness at 16 fps),
+            // fallback when readyState dips OR video is seeking.
+            // T10's every-30-frames was too sparse — at the loop-
+            // wrap boundary the captured bridge frame could be
+            // ~1.8 s old and the user saw a perceptible jump.
+            // Every 5th frame keeps the bridge fresh while still
+            // saving most of the per-frame drawImage(video) cost.
+            //
+            // Critical: also check `video.seeking`.
+            // maybeWrapOutsideMp4Loop sets video.currentTime back to
+            // a small value before natural EOS. During the seek the
+            // video is in `seeking` state for 1-3 rAF cycles, and
+            // readyState typically does NOT drop below 2 (Chromium
+            // keeps the prior buffer alive). Without the
+            // video.seeking guard, drawImage(video) during seeking
+            // paints stale or partial pixels → the visible hiccup.
+            const isSeeking = video.seeking === true;
+            const haveLiveFrame =
+              !isSeeking
+              && video.readyState >= 2
+              && Number(video.videoWidth) > 0
+              && Number(video.videoHeight) > 0;
+            if (haveLiveFrame) {
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
               const frameIdx = ctx.state?.runtimePerf?.frameIndex ?? 0;
-              if ((frameIdx % 30) === 0) {
+              if ((frameIdx % 5) === 0) {
                 ctx.captureOutsideMp4FallbackFrame(playbackState, video);
               }
             } else {
