@@ -226,13 +226,41 @@
     // grid-line drags reflect immediately. Both arrays are tiny
     // (~50 floats for a 4×4 grid) so the cost is microscopic next
     // to the texImage2D upload.
+    //
+    // Phase 30 B1 Task 4 (GL ESCALATION): pixel-snap each destination
+    // vertex to an integer pixel coordinate before mapping to NDC.
+    // Phase-26-h9 closed the texture-sampling seams (highp UV +
+    // NEAREST). What remained on /output/ at projector viewing
+    // distance was rasterizer-side: Phase-27-W4 trapezoid corners +
+    // 80% squish bars produce shared-edge vertices at fractional
+    // pixel coordinates (e.g. dst.x = 0.10 * 1920 = 192.0 vs.
+    // 0.10000001 * 1920 = 192.0...02 after grid math). Two adjacent
+    // triangles sharing such a vertex still pass the NDC
+    // floating-point equality test, but the rasterizer's diamond-
+    // exit rule evaluates coverage from each triangle's own
+    // direction → a 1-pixel column at the shared edge can be
+    // covered by both triangles or neither, and on /output/ the
+    // opaque-black clearColor (line 267) bleeds through any gaps.
+    // Snapping vertex positions to whole pixels makes shared edges
+    // land on exact pixel boundaries, where coverage is unambiguous
+    // for both triangles. Source UVs stay fractional (NEAREST
+    // sampling already discretizes them at the texel level —
+    // Phase-26-h9). This preserves trapezoid + squish geometry to
+    // within 0.5 px on a 1080p projector — visually indistinguishable
+    // — while eliminating shared-edge seams.
     let vi = 0;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const pt = getPoint(row, col);
+        // Pixel-snap destination vertex: round to nearest integer
+        // pixel in framebuffer-coords, then map back to NDC. The
+        // round happens in pixel-space (pt.x * w) so the snap
+        // granularity is exactly 1 pixel regardless of canvas size.
+        const pxX = Math.round(pt.x * w);
+        const pxY = Math.round(pt.y * h);
         // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
-        _glPositions[vi] = pt.x * 2 - 1;
-        _glPositions[vi + 1] = 1 - pt.y * 2;
+        _glPositions[vi] = (pxX / w) * 2 - 1;
+        _glPositions[vi + 1] = 1 - (pxY / h) * 2;
         _glUVs[vi] = grid.srcXs[col];
         // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
         // flipped, so use (1 - grid.srcYs[row]) to keep source Y
