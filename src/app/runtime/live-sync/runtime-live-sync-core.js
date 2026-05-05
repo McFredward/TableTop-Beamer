@@ -344,6 +344,21 @@
     const reconciledRunningAnimations = ctx.reconcileHydratedAnimations(primedRunningAnimations);
     const retainedRunningAnimations = ctx.retainActiveSeenOneShotRuns(reconciledRunningAnimations);
     state.runningAnimations = ctx.hydrateRunningAnimationStartTimestamps(retainedRunningAnimations);
+    // The outside-fx running mirror is created locally by
+    // syncOutsideRuntimeMirror and never round-tripped through the
+    // server (the mirror is a per-client placeholder for Live-Editor
+    // edits, not a real broadcast trigger). Snapshot apply just wiped
+    // it. On CONTROL the next syncRuntimePanelsFromState rebuilds it
+    // (gated below at line ~411), but on /output/ that path is skipped,
+    // so the mirror stays missing — and drawOutsideFxLayer's
+    // pickInstance("speed", def.speed) falls back from the mirror's
+    // hardcoded speed=1 to the user's slider value, which then enters
+    // the outside-space velocity formula twice (in `age` and in
+    // `speedFactor`) producing a roughly quadratic speedup. Rebuild
+    // the mirror inline on every role so /output/ stays in sync.
+    if (typeof ctx.syncOutsideRuntimeMirror === "function") {
+      ctx.syncOutsideRuntimeMirror(state.boardId);
+    }
     // Eagerly warm any GIF asset referenced by an incoming animation so
     // /output/ on a Pi doesn't have to lazy-decode after the first frame
     // request (which routinely missed short animations entirely because
