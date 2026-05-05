@@ -199,6 +199,22 @@
       // In /output/ the GL canvas is the visible
       // surface, so show it now that we know it has fresh content.
       if (glCanvasEl && glCanvasEl.style.display !== "block") {
+        // Phase 30 B1 h5 PROBE: log the FIRST time fx-gl-canvas becomes
+        // visible. Captures the moment the GL warp output replaces
+        // fx-canvas as the visible surface — a likely white-flash
+        // trigger if there's a present-timing race with
+        // desynchronized:true. Fires only on the display-toggle, not
+        // on subsequent frames.
+        try {
+          console.log("[h5-probe] gl-canvas-first-shown", {
+            canvasW: canvas.width,
+            canvasH: canvas.height,
+            glCanvasW: glCanvasEl.width,
+            glCanvasH: glCanvasEl.height,
+            cssRect: glCanvasEl.getBoundingClientRect(),
+            at: performance.now().toFixed(0),
+          });
+        } catch (_) { /* ignore */ }
         glCanvasEl.style.display = "block";
       }
       return;

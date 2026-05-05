@@ -44,6 +44,9 @@
   let _glUVs = null;
   let _glIndices = null;
   let _glIndexCount = 0;
+  // Phase 30 B1 h5: one-shot flag for the gl-first-render probe so the
+  // log fires once at boot rather than every frame.
+  let _glFirstRenderLogged = false;
 
   function _initMeshWarpGL() {
     if (_glInitTried) return _glInitOk;
@@ -179,14 +182,63 @@
   function _postDrawMeshWarpGL(canvas, canvasCtx) {
     if (!_initMeshWarpGL()) return false;
 
-    const w = canvas.width;
-    const h = canvas.height;
-    if (_glCanvas.width !== w || _glCanvas.height !== h) {
-      _glCanvas.width = w;
-      _glCanvas.height = h;
+    // Phase 30 B1 h5 PROBE: log the FIRST successful GL warp call.
+    // Captures the canvas vs glCanvas dimensions at first render, plus
+    // viewport and DPR, so we can correlate dim mismatches with the
+    // observed white-flash → streifen transition. Fires once.
+    if (!_glFirstRenderLogged) {
+      _glFirstRenderLogged = true;
+      try {
+        const cssRect = _glCanvas.getBoundingClientRect?.() || null;
+        console.log("[h5-probe] gl-first-render", {
+          canvasW: canvas.width,
+          canvasH: canvas.height,
+          glCanvasBufW: _glCanvas.width,
+          glCanvasBufH: _glCanvas.height,
+          cssW: cssRect?.width,
+          cssH: cssRect?.height,
+          windowInnerW: window.innerWidth,
+          windowInnerH: window.innerHeight,
+          dpr: window.devicePixelRatio,
+          at: performance.now().toFixed(0),
+        });
+      } catch (_) { /* ignore */ }
     }
 
-    _gl.viewport(0, 0, w, h);
+    const w = canvas.width;
+    const h = canvas.height;
+    // Phase 30 B1 h5: size the GL backing-store to the actual displayed
+    // CSS pixel rect × devicePixelRatio (Phase 26 SUMMARY explicitly
+    // flagged this — "canvas 1920×891 vs projector 1920×1080 mismatch
+    // causing browser bilinear upscale artifacts" — as the pending
+    // follow-up that h9's NEAREST/highp didn't address). With the
+    // backing-store dims = displayed dims × DPR, the browser does NO
+    // CSS upscaling on /output/ — what GL renders is what the projector
+    // shows, 1:1 at the pixel grid. This eliminates the bilinear-vs-
+    // pixelated dependency and any downstream amplification of in-canvas
+    // affine boundaries into visible streifen. Fallback to canvas
+    // pixel dims preserves dashboard behavior if getBoundingClientRect
+    // is unavailable (very old browsers).
+    let bufW = w;
+    let bufH = h;
+    try {
+      const cssRect = _glCanvas.getBoundingClientRect?.();
+      if (cssRect && cssRect.width > 0 && cssRect.height > 0) {
+        const dpr = Math.max(1, Number(window.devicePixelRatio) || 1);
+        bufW = Math.max(1, Math.round(cssRect.width * dpr));
+        bufH = Math.max(1, Math.round(cssRect.height * dpr));
+      }
+    } catch (_) { /* fall through to canvas dims */ }
+    if (_glCanvas.width !== bufW) _glCanvas.width = bufW;
+    if (_glCanvas.height !== bufH) _glCanvas.height = bufH;
+
+    // Viewport must match the framebuffer dim (= bufW/bufH after the
+    // backing-store sync above), not the source canvas dim. If we
+    // viewport at canvas (w,h) but the framebuffer is (bufW,bufH),
+    // GL will clip/letterbox the rendered mesh against a smaller-
+    // than-buffer rect and the projector sees the artifact-creating
+    // scale.
+    _gl.viewport(0, 0, bufW, bufH);
     _gl.useProgram(_glProgram);
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -268,13 +320,15 @@
         const pt = getPoint(row, col);
         // Pixel-snap destination vertex: round to nearest integer
         // pixel in framebuffer-coords, then map back to NDC. The
-        // round happens in pixel-space (pt.x * w) so the snap
-        // granularity is exactly 1 pixel regardless of canvas size.
-        const pxX = Math.round(pt.x * w);
-        const pxY = Math.round(pt.y * h);
+        // round happens in framebuffer pixel-space (pt.x * bufW) so
+        // the snap granularity is exactly 1 framebuffer pixel — which
+        // is also exactly 1 projector pixel after Phase 30 B1 h5's
+        // CSS-rect × DPR backing-store sync.
+        const pxX = Math.round(pt.x * bufW);
+        const pxY = Math.round(pt.y * bufH);
         // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
-        _glPositions[vi] = (pxX / w) * 2 - 1;
-        _glPositions[vi + 1] = 1 - (pxY / h) * 2;
+        _glPositions[vi] = (pxX / bufW) * 2 - 1;
+        _glPositions[vi + 1] = 1 - (pxY / bufH) * 2;
         _glUVs[vi] = grid.srcXs[col];
         // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
         // flipped, so use (1 - grid.srcYs[row]) to keep source Y
@@ -328,10 +382,17 @@
     } else {
       // Dashboard path — read GL result back onto fx-canvas so the
       // existing editor compositing path keeps working unchanged.
+      // Phase 30 B1 h5: explicitly scale the GL backing-store
+      // (bufW × bufH after CSS-rect × DPR sync) into fx-canvas
+      // (w × h). drawImage with full source rect + dest (w,h) does
+      // a one-pass bilinear resample; in dashboard the editor
+      // overlays handles + indicators on top so a tiny resample is
+      // imperceptible. /output/ does NOT take this path — it shows
+      // _glCanvas directly at native bufW × bufH.
       canvasCtx.save();
       canvasCtx.setTransform(1, 0, 0, 1, 0, 0);
       canvasCtx.clearRect(0, 0, w, h);
-      canvasCtx.drawImage(_glCanvas, 0, 0);
+      canvasCtx.drawImage(_glCanvas, 0, 0, bufW, bufH, 0, 0, w, h);
       canvasCtx.restore();
     }
     return true;

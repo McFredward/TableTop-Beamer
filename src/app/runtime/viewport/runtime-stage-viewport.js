@@ -268,6 +268,38 @@
       return false;
     }
 
+    // Phase 30 B1 h5 PROBE: canvas dimension change detection. Logs every
+    // time the Pi /output/ stage size changes — should fire ONCE at boot
+    // when kiosk window finalizes vs the initial smaller layout snapshot.
+    // If a change fires AFTER the first frame paints (~500ms post-boot),
+    // that's the white-flash moment. Logs prev (still-old stageViewport
+    // state) vs next (fresh metrics) BEFORE the canvas.width/.height
+    // writes so we capture the transition.
+    try {
+      const role = document.body?.dataset?.outputRole || "";
+      if (role === "final-output") {
+        console.log("[h5-probe] canvas-resize", {
+          role,
+          prev: {
+            cssW: stageViewport.lastCssWidth,
+            cssH: stageViewport.lastCssHeight,
+            pxW: stageViewport.lastPixelWidth,
+            pxH: stageViewport.lastPixelHeight,
+            dpr: stageViewport.lastDpr,
+          },
+          next: {
+            cssW: metrics.cssWidth,
+            cssH: metrics.cssHeight,
+            pxW: metrics.pixelWidth,
+            pxH: metrics.pixelHeight,
+            dpr: metrics.dpr,
+          },
+          reason,
+          at: performance.now().toFixed(0),
+        });
+      }
+    } catch (_) { /* ignore */ }
+
     ctx.canvas.style.width = `${metrics.cssWidth}px`;
     ctx.canvas.style.height = `${metrics.cssHeight}px`;
     ctx.canvas.width = metrics.pixelWidth;
