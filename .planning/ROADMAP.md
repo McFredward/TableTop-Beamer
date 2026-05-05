@@ -203,7 +203,7 @@ Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.js
 
 Status: PLANNING. Backlog (B1..B4) erfasst, CONTEXT (D-01..D-11) gelockt, RESEARCH + VALIDATION + 7 PLANs erstellt — execute-ready ab `/gsd-execute-phase 29`.
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [x] 29-W0-PLAN.md — Wave 0: 4 new test scaffolds + extend board-profile-fields.test.mjs (skip-gated future assertions)
@@ -212,7 +212,7 @@ Plans:
 - [x] 29-03-PLAN.md — Wave 2: drop animationSoundMap source-side + dead audio-mapping panel JS
 - [x] 29-04-PLAN.md — Wave 2: drop playAreaPolygon + deletedRoomIds/tombstones (BOARD_PROFILE_FIELDS at final 11)
 - [x] 29-05-PLAN.md — Wave 3: lib/migrations/phase-29-purge.mjs + boot-time disk cleanup + lossless animationSoundMap migration — completed 2026-05-05, commits `c5565b0` (module) + `864230f` (boot-wiring + one-shot disk strip) + `027f8a9` (6 W3 test gates flipped)
-- [ ] 29-06-PLAN.md — Wave 4: BOARD_PACKAGE_SCHEMA v3→v4 + filterBoardToLiveFields export filter + SCHEMA_OUTDATED import reject
+- [x] 29-06-PLAN.md — Wave 4: BOARD_PACKAGE_SCHEMA v3→v4 + filterBoardToLiveFields export filter + SCHEMA_OUTDATED import reject
 
 Backlog (User-Audit nach Phase-28-Closure):
 - B1 — Sound-Pfade in `global-defaults.json` (`animationSoundMap`): Verdacht auf Legacy-Field. Sounds sind Teil der Animation-Definitions im Board (`outsideFx.animations[].soundAssetRef`, `roomFx.animations[].soundAssetRef`, `defaultAnimations[].soundAssetRef`). Verifizieren ob `animationSoundMap` noch read-paths hat; wenn nicht → entfernen.
