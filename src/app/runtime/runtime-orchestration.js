@@ -512,6 +512,12 @@ window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.init({
   applyGlobalDefaultsPayloadToState: (payload, runtimeExtras) => applyGlobalDefaultsPayloadToState(payload, runtimeExtras),
   shouldSuppressBroadcastReapply: () => shouldSuppressBroadcastReapply(),
   warmGifAssetPath: (path, opts) => warmGifAssetPath(path, opts),
+  // 28-h3: explicitly inject syncOutsideRuntimeMirror so the post-snapshot
+  // mirror-rebuild guard at runtime-live-sync-core.js evaluates true on
+  // /output/. Without this, the typeof check fails silently and the mirror
+  // stays missing, causing pickInstance("speed", def.speed) to fall back
+  // from the mirror's hardcoded speed=1 to the user's slider value.
+  syncOutsideRuntimeMirror: (boardId) => syncOutsideRuntimeMirror(boardId),
 });
 const {
   shouldApplySnapshotVersion,
