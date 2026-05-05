@@ -198,10 +198,10 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 29 - Persistence Audit & Legacy Cleanup (PLANNING)
+## Phase 29 - Persistence Audit & Legacy Cleanup (CLOSED)
 Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.json`, `config/boards/<id>.json`, `config/projection-profiles.json`, `config/asset-manifest.json`) auf redundante / ungenutzte Felder. Tot-Code rauswerfen, Schema schlanker machen, Import/Export weiterhin funktional halten — keine Backwards-Compat erforderlich (Pre-Release).
 
-Status: PLANNING. Backlog (B1..B4) erfasst, CONTEXT (D-01..D-11) gelockt, RESEARCH + VALIDATION + 7 PLANs erstellt — execute-ready ab `/gsd-execute-phase 29`.
+Status: CLOSED am 2026-05-05. 7 Plans (29-W0..29-06) ausgeführt. 5 DEAD/REDUNDANT Felder entfernt (`hiddenRoomNames`, `roomStateProfiles`, `animationSoundMap`, `playAreaPolygon`, `deletedRoomIds`/tombstones). BOARD_PROFILE_FIELDS 15→11. Schema v3→v4 mit SCHEMA_OUTDATED-Reject. Test-Suite 44/44 grün, 0 skip. Closure-Doku: `.planning/phases/phase-29/SUMMARY.md`. Tag: `phase-29-end`. Final version: `0.29.0`.
 
 **Plans:** 7/7 plans complete
 

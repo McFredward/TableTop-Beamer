@@ -1,10 +1,13 @@
 # CURRENT PHASE
 
-- Active: Phase 29 — Persistence Audit & Legacy Cleanup (PLANNING)
-- Status: Backlog (B1..B4) drafted in ROADMAP.md. Awaiting `/gsd-discuss-phase 29` to lock decisions.
-- App version: `0.28.1` (from Phase 28 final closure)
-- Previous Phase: Phase 28 (Cross-cutting UX & State Polish) CLOSED 2026-05-04 (h8 final).
+- Active: none — Phase 29 closed (2026-05-05)
+- Status: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED. 7 plans
+  ausgeführt. 5 DEAD/REDUNDANT Felder entfernt. BOARD_PROFILE_FIELDS 15→11.
+  Schema v3→v4. Test-Suite 44/44 grün, 0 skip.
+- App version: `0.29.0`
+- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — final.
 
+Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
 Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)
 Phase 27 closure: `.planning/phases/phase-27/SUMMARY.md` (tag `phase-27-end`)
 Phase 26 closure: `.planning/phases/phase-26/SUMMARY.md` (tag `phase-26-end-h9`)
