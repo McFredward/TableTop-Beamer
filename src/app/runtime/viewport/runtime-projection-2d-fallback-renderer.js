@@ -36,7 +36,7 @@
     const f = (dy0 * (sx1 * sy2 - sx2 * sy1) + dy1 * (sx2 * sy0 - sx0 * sy2) + dy2 * (sx0 * sy1 - sx1 * sy0)) * inv;
 
     // Inflate each triangle's clip polygon outward
-    // by 1.5 px along the centroid normal + stroke the same clip
+    // by 4.0 px along the centroid normal + stroke the same clip
     // path before drawImage so the edge pixels are filled from the
     // source image. The 0.5-px inflate from v1 was too subtle to
     // hide the AA seams on MP4 content; 1.5 px overlaps neighbours
@@ -45,9 +45,19 @@
     // *source* image along the clip edge, so the seam pixels carry
     // image content instead of falling back to the canvas
     // clear-colour.
+    //
+    // Phase 30 B1 h7: bumped from 1.5 → 4.0. The 1.5px overlap is the
+    // theoretical minimum to cover Canvas2D clip-AA halos (~1-1.5px),
+    // but on Pi VC4 + projector scaling the effective halo width can be
+    // 2-3px after browser CSS upscaling. 4.0px provides a comfortable
+    // safety margin: adjacent triangles overlap by ~8px, fully covering
+    // any AA halo without producing visible content discrepancies (the
+    // overlap region samples the same source-edge content from both
+    // triangles by construction). Only kicks in if GL falls back to 2D
+    // (which the h7 GL stability changes are intended to prevent).
     const CX = (dx0 + dx1 + dx2) / 3;
     const CY = (dy0 + dy1 + dy2) / 3;
-    const INFLATE = 1.5;
+    const INFLATE = 4.0;
     const pushOut = (x, y) => {
       const vx = x - CX;
       const vy = y - CY;

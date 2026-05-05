@@ -119,62 +119,41 @@
     }
   }
 
-  // ── Apply transform — Phase 30 B1 h6 CSS-warp fast-path ──────────────────
+  // ── Apply transform — Phase 30 B1 h7 (canvas mesh-warp preserved) ──────────
 
   function applyTransform() {
-    const isOutput = ctx?.outputRole === ctx?.OUTPUT_ROLE_FINAL;
-    const stageEl = ctx?.stage || document.getElementById("stage");
-    if (!stageEl || !isOutput) return;
-    // Phase 30 B1 h6: CSS-warp fast-path. When the grid is trivial
-    // (all inner points = bilinear interp of 4 corners), apply the
-    // 4-corner perspective via a CSS matrix3d transform on .stage.
-    // The GPU compositor renders this as a single-quad with hardware
-    // sampling — no triangulation seams, no GL context dependency.
-    // For non-trivial grids (squish bars, mid-line drags), clear the
-    // CSS transform and let canvas mesh-warp run.
+    // Unified grid warps via canvas mesh (see postDrawMeshWarp) —
+    // no CSS transform is applied from this module. Phase 30 B1 h7:
+    // h6's CSS-matrix3d-fast-path was reverted because the user
+    // requires the full canvas mesh-warp functionality (incl. inner
+    // grid points / squish bars) for non-trivial board fits. The
+    // user explicitly stated: "Das mapping wie es jetzt aktuell ist
+    // ist perfekt mit all seinen funktionieren, das will ich so
+    // behalten nur OHNE die streifen oder Blitze beim laden" — so
+    // canvas mesh-warp must remain the rendering path for ALL grids,
+    // trivial or not. Only the streifen (clip-AA halos in 2D-fallback)
+    // and the white flash (desynchronized GL canvas first frame) are
+    // addressed in h7 — via GL stability tightening (see
+    // runtime-projection-gl-renderer.js) and INFLATE bump (see
+    // runtime-projection-2d-fallback-renderer.js).
     //
-    // We must NOT touch stage.style.transform on the CONTROL client,
-    // because its .stage carries the zoom/pan CSS rule
-    // `translate(var(--stage-pan-x), …) scale(var(--stage-zoom-scale))`
-    // and writing `transform: none` would make mouse-wheel/pinch zoom
-    // invisible. Hence the early `if (!isOutput) return;` above.
-    if (typeof gridState.isTrivialFourCornerGrid === "function"
-        && gridState.isTrivialFourCornerGrid()
-        && hasGridDisplacements()) {
-      const c = gridState.getCornerPoints();
-      const w = stageEl.clientWidth || stageEl.getBoundingClientRect().width || 1;
-      const h = stageEl.clientHeight || stageEl.getBoundingClientRect().height || 1;
-      // Source corners (untransformed stage = full screen, in stage CSS px)
-      const src = [
-        [0, 0], [w, 0], [w, h], [0, h],
-      ];
-      // Destination corners (in stage CSS px). c.TL etc. are normalized 0..1.
-      const dst = [
-        [c.TL.x * w, c.TL.y * h],
-        [c.TR.x * w, c.TR.y * h],
-        [c.BR.x * w, c.BR.y * h],
-        [c.BL.x * w, c.BL.y * h],
-      ];
-      const m = computePerspectiveMatrix3d(src, dst);
-      if (m) {
-        stageEl.style.transform = `matrix3d(${m.join(",")})`;
-        stageEl.style.transformOrigin = "0 0";
-        stageEl.dataset.cssWarpActive = "true";
-        return;
-      }
-    }
-    // Non-trivial grid OR no displacement: clear CSS transform so
-    // canvas mesh-warp can drive geometry directly.
-    if (stageEl.style.transform) stageEl.style.transform = "";
-    if (stageEl.dataset.cssWarpActive) delete stageEl.dataset.cssWarpActive;
+    // computePerspectiveMatrix3d + solveLinearSystem (below) and
+    // gridState.isTrivialFourCornerGrid + gridState.getCornerPoints
+    // are retained as DEAD CODE — useful for diagnostic + future
+    // perspective-only path. We must NOT touch stage.style.transform
+    // here, because the CONTROL client's .stage carries the
+    // zoom/pan CSS rule `translate(var(--stage-pan-x), …)
+    // scale(var(--stage-zoom-scale))` and writing `transform: none`
+    // would make mouse-wheel/pinch zoom invisible.
   }
 
-  // Phase 30 B1 h6: compute a CSS matrix3d that maps the 4 src corners
-  // (axis-aligned rect [(0,0),(w,0),(w,h),(0,h)]) to the 4 dst corners
-  // (arbitrary quadrilateral). This is a 2D homography; CSS matrix3d
-  // is column-major 4×4 and we set the affine + perspective entries.
-  // Algorithm: solve the 8x8 linear system for the 8 free coefficients
-  // of a perspective transform mapping 4 point pairs.
+  // Phase 30 B1 h7: DEAD CODE retained for diagnostic + future
+  // perspective-only path. Originally introduced in h6 for the CSS-
+  // warp fast-path; that routing was reverted in h7 because the user
+  // requires canvas mesh-warp for inner grid points (squish bars,
+  // mid-line drags). The helper itself is harmless — kept so a future
+  // diagnostic flag can route trivial grids through CSS without a
+  // re-implementation.
   function computePerspectiveMatrix3d(src, dst) {
     // 4 point correspondences → 8 equations → solve [a,b,c,d,e,f,g,h]:
     //   x' = (a*x + b*y + c) / (g*x + h*y + 1)
@@ -272,22 +251,10 @@
         return;
       }
     } catch (_) { /* ignore */ }
-    // Phase 30 B1 h6: when CSS-warp is active on .stage (trivial 4-
-    // corner grid), the geometry warp is handled by the GPU compositor.
-    // Skip canvas mesh-warp entirely — fx-canvas displays unwarped,
-    // CSS transforms it to the projected quadrilateral. No mesh
-    // triangulation = no seams.
-    try {
-      const stageEl = ctx.stage || document.getElementById("stage");
-      if (stageEl?.dataset?.cssWarpActive === "true") {
-        const isOutputCssWarp = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-        const glCanvasElCssWarp = isOutputCssWarp ? document.getElementById("fx-gl-canvas") : null;
-        if (glCanvasElCssWarp && glCanvasElCssWarp.style.display !== "none") {
-          glCanvasElCssWarp.style.display = "none";
-        }
-        return;
-      }
-    } catch (_) { /* ignore */ }
+    // Phase 30 B1 h7: the h6 CSS-warp short-circuit was removed.
+    // Canvas mesh-warp now drives geometry for ALL grids (the user
+    // requires it for inner grid points). The GL/2D path below is
+    // taken whenever there are displacements OR renderMode forces it.
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
 

@@ -55,22 +55,38 @@
       // /output/ — likely a CSS/timing edge case on Chromium.
       _glCanvas = document.getElementById("fx-gl-canvas")
                 || document.createElement("canvas");
-      // Phase 30 B1 h6: antialias: false (revert h3). The h3 attempt
-      // to enable MSAA caused WebGL CONTEXT_LOST_WEBGL on Pi VC4
-      // immediately after the first successful warp frame — confirmed
-      // by user console log showing CONTEXT_LOST + post-loss shader
-      // recompile failures. The Pi VC4 GPU's framebuffer memory
+      // Phase 30 B1 h7: antialias: false retained from h6 (revert h3).
+      // The h3 attempt to enable MSAA caused WebGL CONTEXT_LOST_WEBGL
+      // on Pi VC4 immediately after the first successful warp frame —
+      // confirmed by user console log showing CONTEXT_LOST + post-loss
+      // shader recompile failures. The Pi VC4 GPU's framebuffer memory
       // budget (shared with system RAM) cannot afford the 4× MSAA
       // expansion of a 1365×1080 buffer. Returning to no-AA preserves
-      // Pi-friendly memory profile. Streifen are addressed structurally
-      // via the CSS-warp fast-path in change 2 — GL is no longer
-      // load-bearing for the default 4-corner grid.
+      // a Pi-friendly memory profile.
+      //
+      // Phase 30 B1 h7: tighten GL context options for Pi VC4 stability.
+      // The user's console log showed CONTEXT_LOST_WEBGL after the first
+      // successful warp frame. Likely contributing factors:
+      //   - desynchronized:true allows the compositor to present the GL
+      //     canvas out-of-band; on Pi VC4 this can race with framebuffer
+      //     allocation and produce momentary white frames AND increase
+      //     context-loss likelihood under memory pressure.
+      //   - preserveDrawingBuffer:true holds the framebuffer in memory
+      //     between frames, doubling effective VRAM commitment on the Pi
+      //     (which only has shared system+GPU memory).
+      // Tightening to desynchronized:false + preserveDrawingBuffer:false
+      // trades a tiny per-frame upload cost (we redraw every frame anyway)
+      // for a much smaller memory footprint and synchronized presentation.
+      // User-facing effect: GL stays alive across boot, h4's LINEAR
+      // sampling becomes the actual rendering path (not the 2D-fallback
+      // clip-AA path that produces streifen), and the boot-time white
+      // flash from desynchronized GL canvas presentation disappears.
       const glOpts = {
         premultipliedAlpha: false,
         antialias: false,
-        preserveDrawingBuffer: true,
+        preserveDrawingBuffer: false,
         powerPreference: "low-power",
-        desynchronized: true,
+        desynchronized: false,
       };
       _gl = _glCanvas.getContext("webgl", glOpts)
          || _glCanvas.getContext("experimental-webgl", glOpts);
@@ -85,6 +101,36 @@
         _gl = null;
         _glProgram = null;
         _glTexture = null;
+      }, false);
+      // Phase 30 B1 h7: webglcontextrestored handler. Without this, when
+      // Pi VC4 loses + restores the WebGL context, the next
+      // _initMeshWarpGL call would try to compile shaders on a context
+      // that's still transitioning, hitting the "mesh-warp shader error:
+      // null" failure the user observed. With this handler, we
+      // explicitly reset all init state so the next draw cycle runs a
+      // clean compile + buffer setup on the freshly-restored context.
+      _glCanvas.addEventListener("webglcontextrestored", (event) => {
+        event.preventDefault?.();
+        // Clear all init + cached state so the next _initMeshWarpGL
+        // fully reinitializes shaders, buffers, and textures on the
+        // restored context.
+        _glInitOk = false;
+        _glInitTried = false;
+        _gl = null;
+        _glProgram = null;
+        _glTexture = null;
+        _glPosBuf = null;
+        _glUVBuf = null;
+        _glIdxBuf = null;
+        _glAttrPos = -1;
+        _glAttrUV = -1;
+        _glUniTex = null;
+        _glPositions = null;
+        _glUVs = null;
+        _glIndices = null;
+        _glIndexCount = 0;
+        _glCachedRows = 0;
+        _glCachedCols = 0;
       }, false);
       const compile = (src, type) => {
         const s = _gl.createShader(type);
