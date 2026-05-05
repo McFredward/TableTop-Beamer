@@ -25,7 +25,7 @@ test("scaffold: bundle-schema loads", () => assert.equal(1, 1));
 // Asserts the BOARD_PACKAGE_SCHEMA literal in server.mjs reads
 // "tt-beamer.board-package.v4" once Wave 4 lands.
 // ---------------------------------------------------------------------------
-test("W4: BOARD_PACKAGE_SCHEMA constant bumped to v4", { skip: "Wave 4 (29-06) not landed yet" }, () => {
+test("W4: BOARD_PACKAGE_SCHEMA constant bumped to v4", () => {
   const src = readFileSync(join(REPO_ROOT, "server.mjs"), "utf8");
   assert.match(
     src,
@@ -39,7 +39,7 @@ test("W4: BOARD_PACKAGE_SCHEMA constant bumped to v4", { skip: "Wave 4 (29-06) n
 // Asserts the import-handler block wraps the 400-response in the new
 // `code: "SCHEMA_OUTDATED"` shape with a "Package format outdated" message.
 // ---------------------------------------------------------------------------
-test("W4: bundle import handler emits SCHEMA_OUTDATED on non-v4 manifest", { skip: "Wave 4 (29-06) not landed yet" }, () => {
+test("W4: bundle import handler emits SCHEMA_OUTDATED on non-v4 manifest", () => {
   const src = readFileSync(join(REPO_ROOT, "server.mjs"), "utf8");
   assert.match(
     src,

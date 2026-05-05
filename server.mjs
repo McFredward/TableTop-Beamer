@@ -28,7 +28,7 @@ const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
 const BOARD_DEFINITION_SCHEMA = "tt-beamer.board.v2";
 const BOARD_IMPORT_SCHEMA = "tt-beamer.board-import.v1";
-const BOARD_PACKAGE_SCHEMA = "tt-beamer.board-package.v3";
+const BOARD_PACKAGE_SCHEMA = "tt-beamer.board-package.v4";
 // Phase 16: no more builtin board IDs — all boards are catalog entries.
 const BUILTIN_BOARD_IDS = new Set();
 
@@ -3386,7 +3386,11 @@ const server = createServer(async (req, res) => {
       }
       const schema = manifest?.schema;
       if (schema !== BOARD_PACKAGE_SCHEMA) {
-        sendJson(res, 400, { ok: false, error: "unrecognized package schema" });
+        sendJson(res, 400, {
+          ok: false,
+          error: `Package format outdated (schema=${schema || "unknown"}). Re-export from a v0.29+ server.`,
+          code: "SCHEMA_OUTDATED",
+        });
         return;
       }
       // Phase 26: package format v3 carries the unified board
