@@ -176,24 +176,15 @@
 
   function isDirty() {
     if (!_gridStateApi) return false;
+    // Phase 29 h3: dirty ONLY means "loaded profile has unsaved edits since
+    // load". With no profile loaded, the current geometry IS the session
+    // state (auto-persisted to localStorage); there's nothing to be unsaved
+    // against, so dirty is permanently false. The /output/ broadcaster
+    // therefore never POSTs dirty=true unless the user explicitly loaded or
+    // created a profile + made changes since — which is what the dashboard
+    // chip is supposed to surface.
+    if (_loadedProfileSnapshot === null) return false;
     const cur = _gridStateApi.snapshotGridState();
-    if (_loadedProfileSnapshot === null) {
-      // No profile loaded: dirty iff current geometry differs from
-      // buildNewProfileDefaultGrid result.
-      // h9 — use def.points (the actual displaced 80% defaults) instead
-      // of synthesizing identity points (srcXs paired with srcYs). The
-      // identity version always disagreed with the real default state
-      // (where points are at 0.10/0.50/0.90 while srcXs are 0/0.5/1),
-      // so isDirty() returned true on every fresh load — and after
-      // Discard/ESC the dirty flag never cleared.
-      const def = _gridStateApi.buildNewProfileDefaultGrid();
-      const defSnap = {
-        srcXs: def.srcXs.slice(),
-        srcYs: def.srcYs.slice(),
-        points: def.points.map((row) => row.map((p) => ({ x: p.x, y: p.y }))),
-      };
-      return !_snapshotsEqual(cur, defSnap);
-    }
     return !_snapshotsEqual(cur, _loadedProfileSnapshot);
   }
 
