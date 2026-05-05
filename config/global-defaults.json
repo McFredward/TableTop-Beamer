@@ -7,18 +7,6 @@
     "volume": 1
   },
   "animationSpeed": 1,
-  "animationSoundMap": {
-    "hull-flicker": "none",
-    "intruder-alert": "/resources/sounds/alarm.mp3",
-    "power-outage": "/resources/sounds/power/3.wav",
-    "outside-space": "none",
-    "kaputt": "none",
-    "fire": "/resources/sounds/power/3.wav",
-    "slime": "none",
-    "scanning": "none",
-    "flicker": "none",
-    "alarm": "none"
-  },
   "renderMode": "gl",
   "diagnosticOverlay": true,
   "projectionMapping": {
