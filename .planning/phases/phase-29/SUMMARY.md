@@ -2,8 +2,8 @@
 
 ## Status
 
-**CLOSED.** 7/7 plans executed (B1..B4 coverage). Test-Suite: 44/44 grün
-(`node --test "test/**/*.test.mjs"`), 0 skipped — alle skip-gates flipped.
+**CLOSED (h1 final).** 7/7 plans executed (B1..B4 coverage) + 1 hotfix.
+Test-Suite: 48/48 grün (`node --test "test/**/*.test.mjs"`), 0 skipped.
 Verifier: 6/6 must_haves automated PASS. 3 Items im 29-HUMAN-UAT.md
 warten auf User-Side-Browser-Smoke (visual sound playback, bundle
 roundtrip UI, undo/redo gesture).
@@ -65,15 +65,14 @@ DROPS — undo arbeitet rein über `board.rooms` Snapshots.
 
 ## Aggregate metrics
 
-- **Commits since `phase-28-end` (`3741285`):** 27 total (4 plan-impl
-  ×~3 commits + Wave-1 audit-only + 4 closure commits + h-anchor).
-- **Plan hierarchy:** 7 plans × 5 sequential waves.
-- **BOARD_PROFILE_FIELDS:** 15 → **11 LIVE entries** final shape:
-  `hitareaCalibration, roomGeometry, specialPolygons, playAreas,
-  selectedPlayAreaId, outsideFx, insideFx, roomFx, defaultAnimations,
-  frozenRooms, lastUsedProfileName`.
-- **Net source removal:** ~250 LOC across 13+ files.
-- **Final version:** `0.29.0`.
+- **Commits since `phase-28-end` (`3741285`):** 27 + 5 (h1) = 32 total.
+- **Plan hierarchy:** 7 plans × 5 sequential waves + 1 hotfix series.
+- **BOARD_PROFILE_FIELDS:** 15 → 11 → **9 LIVE entries** final shape:
+  `hitareaCalibration, playAreas, selectedPlayAreaId, outsideFx,
+  insideFx, roomFx, defaultAnimations, frozenRooms, lastUsedProfileName`.
+- **Net source removal:** ~250 LOC across 13+ files (Wave 2-4) + ~50 LOC
+  delta across 21 files (h1).
+- **Final version:** `0.29.1` (h1 patch).
 
 ## Decision coverage (D-01..D-11)
 
@@ -112,22 +111,26 @@ DROPS — undo arbeitet rein über `board.rooms` Snapshots.
 - **`config/asset-manifest.json` working-tree churn** — Phase 28 W4 boot-
   timestamp behavior; absichtlich aus Phase-29-Commits ausgeschlossen
   (siehe 29-05-SUMMARY decisions[3]).
-- **`roomGeometry` disk vs runtime asymmetry** — als DEFERRED markiert
-  (Open Question 3): runtime state slice ist LIVE, disk-Field könnte
-  redundant sein. Re-confirmation in einem Future-Phase, falls nötig.
+- ~~**`roomGeometry` disk vs runtime asymmetry**~~ — RESOLVED in 29-h1.
+
+## Hotfix series (h1) — post-closure audit
+
+| # | Commits | Fix |
+|---|---------|-----|
+| h1 | `dd71aeb` + `df04e1b` + `bc02a76` + `d9164fe` + closure | Eliminate two redundant disk-side fields surfaced post-closure: (1) `specialPolygons` was a per-room polygon shadow map fully redundant with `roomCatalog[*].polygon` (verified Nemesis Board B: all 75 keys = roomCatalog room IDs, polygons byte-identical; polygon-editor wrote 3-fold and read with fallback). Collapsed to single source: `room.polygon`. (2) `roomGeometry` (resolves Open Question 3): on-disk field was empty `{}` on all 4 boards. Runtime state slice `state.roomGeometryByBoard` stays LIVE (drawAnimation reads stretchX/offsetX defaults via `ensureBoardRoomStateMaps`); disk persistence dropped. **BOARD_PROFILE_FIELDS shrank 11→9.** Boot-migration `lib/migrations/phase-29-purge.mjs` extended (DEAD_BOARD_FIELDS gains 2 entries) — live-run stripped 4 board file(s). Accessor pair renamed: `getSpecialPolygonPoints/setSpecialPolygonPoints` → `getRoomPolygonPoints/setRoomPolygonPoints`. Tests: 3 new dead-grep zero-hit gates + bundle-export exclusion gate; suite 47→48 green. |
 
 ## Tags
 
 | Tag | Hash | Marker |
 |-----|------|--------|
 | `phase-28-end` | `3741285` | Phase 29 starts at this commit |
-| `phase-29-end` | (HEAD) | Phase 29 closed — persistence cleanup complete |
+| `phase-29-end` | (HEAD; re-tagged at h1 final) | Phase 29 closed — persistence cleanup + h1 |
 
 ## Closure marker
 
-- Tag: `phase-29-end` (closure commit).
-- Final version: `0.29.0`.
+- Tag: `phase-29-end` (re-tagged at h1 closure commit).
+- Final version: `0.29.1` (h1 patch).
 - Phase artifact: this `SUMMARY.md` + `29-AUDIT.md` (authoritative Verdict-Doku).
 - Alle commits auf `master` zwischen `phase-28-end` und dem closure marker.
 - Nächster Schritt: User-Smoke der 3 Items in `29-HUMAN-UAT.md`. Falls
-  Issues entstehen, folgen Hotfixes im h*-Pattern wie Phase 27/28.
+  weitere Issues entstehen, folgen Hotfixes im h*-Pattern wie Phase 27/28.

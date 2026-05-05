@@ -1,11 +1,12 @@
 # CURRENT PHASE
 
-- Active: none — Phase 29 closed (2026-05-05)
+- Active: none — Phase 29 closed (2026-05-05; h1 final 2026-05-05)
 - Status: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED. 7 plans
-  ausgeführt. 5 DEAD/REDUNDANT Felder entfernt. BOARD_PROFILE_FIELDS 15→11.
-  Schema v3→v4. Test-Suite 44/44 grün, 0 skip.
-- App version: `0.29.0`
-- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — final.
+  ausgeführt + h1 hotfix. 7 DEAD/REDUNDANT Felder entfernt
+  (Wave 2: 5 + h1: `specialPolygons` & `roomGeometry`).
+  BOARD_PROFILE_FIELDS 15→11→9. Schema v3→v4. Test-Suite 48/48 grün, 0 skip.
+- App version: `0.29.1`
+- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — h1 final.
 
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
 Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)
