@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-05T12:48:22.166Z"
+last_updated: "2026-05-05T12:57:45.789Z"
 progress:
   total_phases: 28
   completed_phases: 5
   total_plans: 29
-  completed_plans: 122
+  completed_plans: 123
   percent: 100
 ---
 
@@ -1522,3 +1522,18 @@ progress:
 - `animationSoundMap` verdict: REDUNDANT (lossless migration first). Per CONTEXT D-03, Wave 3 (29-05) MUST run `migrateAnimationSoundMapOnBoot` BEFORE `stripDeadFieldsFromGlobalDefaults(["animationSoundMap"])`. Single explicit ordering point in `purgeDeadFieldsOnBoot`.
 - Auto-mode sign-off: orchestrator pre-locked `"approved — proceed to Wave 2"`. Recorded verbatim in `29-AUDIT.md` §6 with ISO timestamp `2026-05-05T12:42:00Z`. Single-commit pattern (no separate Task-2 commit) — Task 1 produced the file with §6 already populated.
 - Audit-only enforcement: no `src/`, `server.mjs`, `config/`, `test/` files modified by 29-01. Verified post-commit via `git diff --stat`.
+
+## Phase 29 Plan 02 Closure (2026-05-05)
+
+- Plan 29-02 (Wave 2 batch 1 — drop `hiddenRoomNames` + `roomStateProfiles` plumbing) ist abgeschlossen. Commits: `72cc5fe` (Task 1 — drop hiddenRoomNames from BOARD_PROFILE_FIELDS), `5438a11` (Task 2 — drop roomStateProfiles plumbing across runtime + server, atomic).
+- BOARD_PROFILE_FIELDS shrunk from 15 → 13 entries; `lastUsedProfileName` (Phase 28 B1) preserved. Verified by awk-grep.
+- 12 source files touched (-98 lines net): server.mjs, runtime-state.js, runtime-bootstrap.js, runtime-board-state-accessors.js, runtime-board-profiles.js, runtime-room-management.js, runtime-board-switch.js, runtime-orchestration.js, runtime-orchestration-ctx-builder.js, lib/persistence/board-profiles.js, lib/shared/config.js, test/phase-29-dead-grep.test.mjs.
+- Test suite: was 29 pass / 15 skip / 0 fail; now 31 pass / 13 skip / 0 fail. Two W2 dead-grep skip gates flipped LIVE (`hiddenRoomNames`, `roomStateProfiles`).
+- Pitfall 1 (29-AUDIT §F2 risk note) honored — `runtime-polygon-undo.js` byte-unchanged across both commits. Undo flow uses tombstone IDs; never reads roomStateProfilesByBoard.
+- Closure-Dokument: `.planning/phases/phase-29/29-02-SUMMARY.md`.
+
+## Decisions Phase 29-02
+
+- `ROOM_STATE_DEFAULT` constant in `src/app/lib/shared/config.js` was orphaned after the accessor-strip in Step 2.2. Per Step 2.7 the constant + import + 2 ctx pass-throughs were removed in the same atomic Task-2 commit. Documented as Rule-1 deviation in 29-02-SUMMARY.
+- `buildMigratedBoardProfiles` in `src/app/lib/persistence/board-profiles.js` retained per Pitfall 4 (still called by `applyGlobalDefaultsPayloadToState`). Only the `roomStateProfiles` param + record entry + 2 candidate-shape reads were trimmed; the function stays.
+- `phase-29 W2` skip-gate in `test/board-profile-fields.test.mjs` deliberately stays skipped — un-skips only after 29-04 also drops `playAreaPolygon` and `deletedRoomIds` (per the 11-field LIVE-only expectation in that test).
