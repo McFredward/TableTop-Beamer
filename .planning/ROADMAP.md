@@ -203,11 +203,11 @@ Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.js
 
 Status: PLANNING. Backlog (B1..B4) erfasst, CONTEXT (D-01..D-11) gelockt, RESEARCH + VALIDATION + 7 PLANs erstellt — execute-ready ab `/gsd-execute-phase 29`.
 
-**Plans:** 7 plans across 5 waves (strictly serial)
+**Plans:** 2/7 plans executed
 
 Plans:
-- [ ] 29-W0-PLAN.md — Wave 0: 4 new test scaffolds + extend board-profile-fields.test.mjs (skip-gated future assertions)
-- [ ] 29-01-PLAN.md — Wave 1: 29-AUDIT.md classification doc + user-verify checkpoint (gates Wave 2)
+- [x] 29-W0-PLAN.md — Wave 0: 4 new test scaffolds + extend board-profile-fields.test.mjs (skip-gated future assertions)
+- [x] 29-01-PLAN.md — Wave 1: 29-AUDIT.md classification doc + user-verify checkpoint (gates Wave 2) — completed 2026-05-05, commit `c88ca27` (auto-mode sign-off)
 - [ ] 29-02-PLAN.md — Wave 2: drop hiddenRoomNames + roomStateProfiles plumbing (BOARD_PROFILE_FIELDS 15→13)
 - [ ] 29-03-PLAN.md — Wave 2: drop animationSoundMap source-side + dead audio-mapping panel JS
 - [ ] 29-04-PLAN.md — Wave 2: drop playAreaPolygon + deletedRoomIds/tombstones (BOARD_PROFILE_FIELDS at final 11)

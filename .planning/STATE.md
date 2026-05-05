@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-04T16:00:42.402Z"
+last_updated: "2026-05-05T12:48:22.166Z"
 progress:
-  total_phases: 27
+  total_phases: 28
   completed_phases: 5
-  total_plans: 22
-  completed_plans: 120
+  total_plans: 29
+  completed_plans: 122
   percent: 100
 ---
 
@@ -1502,3 +1502,23 @@ progress:
 - B1 (28-01), B2 (28-02), B3 (28-03 + 28-04 hash-conversion), B4 (28-03), B5 (28-04), B6 (28-05) — alle requirements completed.
 - Test-Suite: `25 pass / 0 fail / 0 skipped` (alle Wave-0 Skips konvertiert oder N/A wie B6).
 - Phase 28 ist ready für Phase Verifier review.
+
+## Phase 29 Wave 1 Closure (2026-05-05)
+
+- Plan 29-01 (Wave 1 — Audit document) ist abgeschlossen. Commit: `c88ca27` (docs: 29-AUDIT.md mit grep-evidenced field classification).
+- Audit-only plan: zero production code modified. `git diff --stat -- src/ server.mjs config/ test/` returned empty post-commit.
+- Test-Suite unverändert: `node --test "test/**/*.test.mjs"` reports `# tests 44 / # pass 29 / # fail 0 / # skipped 15` (W0 baseline preserved).
+- §1 Verdict Summary: 5 DEAD/REDUNDANT verdicts (`hiddenRoomNames`, `roomStateProfiles`, `animationSoundMap`, `playAreaPolygon`, `deletedRoomIds`); 17+ LIVE verdicts (alle übrigen `BOARD_PROFILE_FIELDS` + global-defaults + asset-manifest + projection-profiles top-level keys).
+- §3 deletedRoomIds undo trace (RESEARCH Open Question A2): RESOLVED — REDUNDANT — drop. `runtime-polygon-undo.js:66,77` sind Call-Sites, keine Reads. `captureCurrentState()` schreibt nur `roomStates`/`playAreaStates` ins Snapshot, niemals `state.roomTombstonesByBoard`. Kein Undo-Regressions-Risiko.
+- §4 roomGeometry (RESEARCH Open Question A3): LIVE in source, on-disk INCONCLUSIVE → deferred. Phase 29 hält `roomGeometry` in `BOARD_PROFILE_FIELDS`. Mid-flight re-architecture out of scope.
+- §5 Wave 2..4 Owner Mapping: 29-02 (drop hiddenRoomNames), 29-03 (drop roomStateProfiles + animationSoundMap plumbing), 29-04 (drop playAreaPolygon + deletedRoomIds), 29-05 (purgeDeadFieldsOnBoot + migrateAnimationSoundMapOnBoot), 29-06 (BOARD_PACKAGE_SCHEMA v3 → v4).
+- §6 Sign-Off: auto-mode-resolved per orchestrator-locked answer `"approved — proceed to Wave 2"` at 2026-05-05T12:42:00Z. Verbatim in `29-AUDIT.md` §6 — single-commit pattern (sign-off written into Task 1 commit, no separate Task 2 commit needed).
+- Closure-Dokument: `.planning/phases/phase-29/29-01-SUMMARY.md`.
+
+## Decisions Phase 29-01
+
+- `deletedRoomIds` verdict REDUNDANT — drop. Undo system uses tombstones as side-effect signal (mark/clear by ID), never as primary read. `runtime-polygon-undo.js` snapshot schema does not include `state.roomTombstonesByBoard`. Drop is safe per `29-AUDIT.md` §3.
+- `roomGeometry` verdict: LIVE in source; on-disk INCONCLUSIVE — deferred. Field bleibt in `BOARD_PROFILE_FIELDS`. Future audit may classify on-disk form; out of Phase 29 scope.
+- `animationSoundMap` verdict: REDUNDANT (lossless migration first). Per CONTEXT D-03, Wave 3 (29-05) MUST run `migrateAnimationSoundMapOnBoot` BEFORE `stripDeadFieldsFromGlobalDefaults(["animationSoundMap"])`. Single explicit ordering point in `purgeDeadFieldsOnBoot`.
+- Auto-mode sign-off: orchestrator pre-locked `"approved — proceed to Wave 2"`. Recorded verbatim in `29-AUDIT.md` §6 with ISO timestamp `2026-05-05T12:42:00Z`. Single-commit pattern (no separate Task-2 commit) — Task 1 produced the file with §6 already populated.
+- Audit-only enforcement: no `src/`, `server.mjs`, `config/`, `test/` files modified by 29-01. Verified post-commit via `git diff --stat`.
