@@ -148,8 +148,11 @@
           <!-- Align toggle — icon + "Align" label. Stays in the
                same topbar slot; JS still drives aria-pressed + title
                via syncAlignModePanel. -->
-          <button id="align-mode-button" class="rd-btn rd-btn-ghost align-mode-toggle dashboard-only" type="button"
-            data-view="dashboard" data-dashboard-zone="trigger" aria-pressed="false"
+          <!-- Phase 28 h5: align button is now always-visible across tabs.
+               Removed `data-view="dashboard"` + `dashboard-only` class so the
+               control stays accessible from Settings + Dashboard alike. -->
+          <button id="align-mode-button" class="rd-btn rd-btn-ghost align-mode-toggle" type="button"
+            data-dashboard-zone="trigger" aria-pressed="false"
             title="Toggle align mode" aria-label="Toggle align mode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -159,7 +162,7 @@
           </button>
           <!-- Phase 27 (B5/D-05): screen-reader hint shown when /output/ has unsaved align-mode changes.
                Populated and shown/hidden by syncAlignModeDirtyDashboardState() in runtime-stage-viewport.js. -->
-          <p id="align-mode-dirty-hint" class="hint dashboard-only" data-view="dashboard"
+          <p id="align-mode-dirty-hint" class="hint"
              aria-live="polite" hidden></p>
           <!-- Phase 22 W5: theme toggle. Inline onclick flips dark/light
                + persists to localStorage. Sun/moon glyphs are drawn from
