@@ -3420,6 +3420,23 @@ const server = createServer(async (req, res) => {
             if (suffix > 500) break;
           }
           incomingBoard.boardId = candidate;
+          // Phase 28 h8: defaultAnimations entries embed a per-entry
+          // boardId pointing back at the package's original board. The
+          // server's autostart loop (buildDefaultAnimationsForBoard ->
+          // line 3697 `def.boardId || targetBoardId`) preserves whatever
+          // boardId is on the entry, so without this remap the imported
+          // board's autostart animations would spawn under the original
+          // boardId and the runtime would route them to the wrong board.
+          // Same risk for nested clusterId references in cluster-scoped
+          // entries — but cluster IDs are preserved 1:1 across import,
+          // so only boardId needs rewriting here.
+          if (Array.isArray(incomingBoard.defaultAnimations)) {
+            for (const entry of incomingBoard.defaultAnimations) {
+              if (entry && typeof entry === "object") {
+                entry.boardId = candidate;
+              }
+            }
+          }
         }
       }
       const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import", allowEmptyRoomCatalog: true });
