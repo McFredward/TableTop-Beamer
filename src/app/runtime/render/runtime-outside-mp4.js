@@ -208,6 +208,11 @@
   }
 
   function captureOutsideMp4FallbackFrame(playbackState, video) {
+    // Phase 30 Plan 30-04 Step 1 (TEMPORARY — removed in T5).
+    // URL flag ?perf_skip_capture=1 short-circuits this second
+    // 1920×1080 drawImage(video) call so the user can A/B its cost
+    // on Pi /output/ via the diagnostic chip.
+    if (typeof window !== "undefined" && window.__PERF_SKIP_CAPTURE) return;
     if (!playbackState || !video) {
       return;
     }
