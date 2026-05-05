@@ -201,7 +201,18 @@ Exit Criteria:
 ## Phase 29 - Persistence Audit & Legacy Cleanup (PLANNING)
 Ziel: Systematischer Review aller Persistenz-Schemas (`config/global-defaults.json`, `config/boards/<id>.json`, `config/projection-profiles.json`, `config/asset-manifest.json`) auf redundante / ungenutzte Felder. Tot-Code rauswerfen, Schema schlanker machen, Import/Export weiterhin funktional halten — keine Backwards-Compat erforderlich (Pre-Release).
 
-Status: PLANNING. Backlog (B1..B4) erfasst, Decisions noch offen — `/gsd-discuss-phase 29` als nächster Schritt.
+Status: PLANNING. Backlog (B1..B4) erfasst, CONTEXT (D-01..D-11) gelockt, RESEARCH + VALIDATION + 7 PLANs erstellt — execute-ready ab `/gsd-execute-phase 29`.
+
+**Plans:** 7 plans across 5 waves (strictly serial)
+
+Plans:
+- [ ] 29-W0-PLAN.md — Wave 0: 4 new test scaffolds + extend board-profile-fields.test.mjs (skip-gated future assertions)
+- [ ] 29-01-PLAN.md — Wave 1: 29-AUDIT.md classification doc + user-verify checkpoint (gates Wave 2)
+- [ ] 29-02-PLAN.md — Wave 2: drop hiddenRoomNames + roomStateProfiles plumbing (BOARD_PROFILE_FIELDS 15→13)
+- [ ] 29-03-PLAN.md — Wave 2: drop animationSoundMap source-side + dead audio-mapping panel JS
+- [ ] 29-04-PLAN.md — Wave 2: drop playAreaPolygon + deletedRoomIds/tombstones (BOARD_PROFILE_FIELDS at final 11)
+- [ ] 29-05-PLAN.md — Wave 3: lib/migrations/phase-29-purge.mjs + boot-time disk cleanup + lossless animationSoundMap migration
+- [ ] 29-06-PLAN.md — Wave 4: BOARD_PACKAGE_SCHEMA v3→v4 + filterBoardToLiveFields export filter + SCHEMA_OUTDATED import reject
 
 Backlog (User-Audit nach Phase-28-Closure):
 - B1 — Sound-Pfade in `global-defaults.json` (`animationSoundMap`): Verdacht auf Legacy-Field. Sounds sind Teil der Animation-Definitions im Board (`outsideFx.animations[].soundAssetRef`, `roomFx.animations[].soundAssetRef`, `defaultAnimations[].soundAssetRef`). Verifizieren ob `animationSoundMap` noch read-paths hat; wenn nicht → entfernen.
@@ -216,7 +227,7 @@ Milestones:
 4. M4 Import/Export-Sync: Bundle-Export- und Import-Handler an das schlanke Schema anpassen.
 
 Exit Criteria:
-- Schema-Inventar (`PHASE_29_SCHEMA_AUDIT.md`) mit Klassifikation pro Feld.
+- Schema-Inventar (`29-AUDIT.md`) mit Klassifikation pro Feld.
 - Auf disk: keine DEAD-Felder mehr in den vier Config-JSON-Files.
 - In Source: keine Reads/Writes/Normalizers für DEAD-Felder (grep-verifizierbar = 0 hits).
 - Bundle-Export/Import-Roundtrip mit dem schlanken Schema funktional.

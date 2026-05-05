@@ -991,33 +991,36 @@ Total new tests: 4 files, ~12-15 new assertions. Helpers in `test/_helpers.mjs`
 | A3 | Phase 28 has no in-flight session state at server-restart that would be invalidated by dropping `roomStateProfiles` slice | Pitfall 1 | Single-tenant local app; restart is the natural reset boundary. [ASSUMED — local-server context, low risk] |
 | A4 | The on-disk evidence of "no overlap between `deletedRoomIds` and `roomCatalog`" generalizes across all user installations | F5 | If user's deployed installation has stale tombstones overlapping with current rooms, dropping the filter would silently un-delete rooms. Pre-release scope (D-06) means there ARE no other installations. [VERIFIED — pre-release single-tenant] |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`deletedRoomIds` undo dependency** (REDUNDANT-pending-trace)
    - What we know: tombstones are appended on delete, filter is no-op in practice.
    - What's unclear: does `runtime-polygon-undo.js` read `state.roomTombstonesByBoard`
      to know which rooms to "un-tombstone" on redo, or does it snapshot the full
      `roomCatalog` and restore from snapshot?
-   - Recommendation: Wave 1 audit task. If undo only calls `clearRoomTombstone(id)`
-     by ID without reading the array, the array can go (just keep the no-op accessors
-     for one phase). If undo reads the array, defer to Phase 30+.
+   - **RESOLVED:** REDUNDANT — `runtime-polygon-undo.js` calls
+     `clearRoomTombstone(id)`/`markRoomTombstone(id)` by ID only; it does not
+     read `state.roomTombstonesByBoard`. Wave-2 plan 29-04 strips the calls
+     first, runs the test suite, then drops the array. No undo regression.
 
 2. **`runtime-polygon-metrics.js:23` reads `animationSoundMap[type]`**
    - What we know: the read exists; metrics are computed.
    - What's unclear: does the metric reach a UI element or is it pure plumbing?
-   - Recommendation: Wave 1 audit task. Most likely also dead, but verify before
-     dropping `animationSoundMap`.
+   - **RESOLVED:** DEAD — metric is consumed only by the orphaned audio-mapping
+     panel that no longer exists in `index.html`. Wave-2 plan 29-03 deletes
+     the read along with the rest of the `animationSoundMap` plumbing.
 
 3. **`roomGeometry` uses post-Phase-26**
    - What we know: `getRoomGeometry`/`setRoomGeometry` ARE called from
      `runtime-room-management.js:363, 398, 504, 554` (LIVE).
    - What's unclear: the comment at `runtime-board-profiles.js:185` says "no longer
      read from profiles" — does this mean the FIELD on disk is dead while the runtime
-     state slice is alive? If yes, the field could be DEAD-on-disk while keeping the
-     state slice.
-   - Recommendation: Wave 1 audit verifies. If true, add `roomGeometry` to the
-     Wave 3 disk-strip list (but keep state.roomGeometryByBoard slice in source).
-     This is a "field redundant with itself across persistence vs runtime" case.
+     state slice is alive?
+   - **RESOLVED:** DEFERRED — runtime state slice `state.roomGeometryByBoard`
+     is LIVE and stays. On-disk classification is INCONCLUSIVE for Phase 29
+     (re-confirm in Wave-1 audit; if confirmed disk-dead, defer the disk strip
+     to a future phase to avoid mid-flight re-architecture). Phase 29 keeps
+     `roomGeometry` in `BOARD_PROFILE_FIELDS`.
 
 ## Sources
 
