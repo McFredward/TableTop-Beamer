@@ -534,8 +534,28 @@
                   if (!resp.ok) return;
                   const body = await resp.json();
                   const m = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST;
+                  const gifPlayback = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
                   if (m && typeof m.setManifest === "function" && body && typeof body.hashByPath === "object") {
+                    // Phase 30 B2 Candidate C: capture pre-update hashes for
+                    // every GIF cache entry so we can invalidate after the
+                    // manifest swap. Symmetric to the MP4 path which checks
+                    // currentAbs vs desiredAbs at runtime-outside-mp4.js:75-94.
+                    const preUpdateHashes = new Map();
+                    if (gifPlayback && typeof gifPlayback.getGifPlaybackCacheEntry === "function") {
+                      for (const path of Object.keys(body.hashByPath)) {
+                        const priorResolve = m.resolveAssetUrlWithHash?.(path) ?? path;
+                        preUpdateHashes.set(path, priorResolve);
+                      }
+                    }
                     m.setManifest(body.hashByPath);
+                    if (gifPlayback && typeof gifPlayback.invalidateGifCacheForPath === "function") {
+                      for (const [path, priorUrl] of preUpdateHashes) {
+                        const newUrl = m.resolveAssetUrlWithHash?.(path) ?? path;
+                        if (priorUrl !== newUrl) {
+                          gifPlayback.invalidateGifCacheForPath(path);
+                        }
+                      }
+                    }
                   }
                 } catch (err) {
                   console.warn(
