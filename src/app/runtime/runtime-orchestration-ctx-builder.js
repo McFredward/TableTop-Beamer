@@ -56,6 +56,8 @@
       syncBoardZoomPanel,
       syncDashboardZoneVisibility,
       syncMp4PerformanceControlsPanel,
+      syncRenderModePanel,
+      syncDiagnosticOverlayPanel,
       syncMobileStickyOffsets,
       syncQuickModePanel,
       syncBoardSelectOptions,
@@ -173,6 +175,15 @@
       syncBoardZoomPanel: () => syncBoardZoomPanel(),
       syncDashboardZoneVisibility: () => syncDashboardZoneVisibility(),
       syncMp4PerformanceControlsPanel: () => syncMp4PerformanceControlsPanel(),
+      // Phase 30 B3 h2: expose syncRenderModePanel + syncDiagnosticOverlayPanel
+      // into the bootstrap ctx. Both functions were exposed via the live-sync
+      // ctx (runtime-orchestration.js:520-522) but never wired into the
+      // bootstrap ctx, so on /output/ the bootstrap-time syncRuntimePanelsFromState
+      // call could never apply persisted state.diagnosticOverlay or render mode
+      // to the DOM. Side-effect: chip stayed hidden after /output/ reload until
+      // the user manually toggled — surfaced as user UAT failure on 2026-05-05.
+      syncRenderModePanel: () => syncRenderModePanel(),
+      syncDiagnosticOverlayPanel: () => syncDiagnosticOverlayPanel(),
       syncMobileStickyOffsets: () => syncMobileStickyOffsets(),
       syncQuickModePanel: () => syncQuickModePanel(),
       syncBoardSelectOptions: () => syncBoardSelectOptions(),
