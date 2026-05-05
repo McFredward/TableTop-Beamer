@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-05T13:22:49.532Z"
+last_updated: "2026-05-05T13:30:31.026Z"
 progress:
   total_phases: 28
   completed_phases: 5
   total_plans: 29
-  completed_plans: 125
+  completed_plans: 126
   percent: 100
 ---
 
@@ -1552,3 +1552,22 @@ progress:
 - Per-animation `animation.soundAssetRef` (set authoritatively by `runtime-animation-factory.js:54-55`) is now the SOLE source of audio playback. The `state.animationSoundMap` global-state fallback chain in `playSoundForAnimation` was removed; animations without a per-animation ref now play silently. Wave 3's boot migration (29-05) guarantees ALL pre-existing animations get their refs populated before the cleaned source first runs (per CONTEXT D-03).
 - Helper functions `normalizeAnimationSoundMap` + `createDefaultAnimationSoundMap` were removed from `src/app/lib/shared/normalizers.js` after zero-consumer audit. `normalizeAnimationSoundPath` is preserved (still used by other render-time call sites in `runtime-orchestration.js`).
 - Polygon-metrics `getMappedSoundPathForAnimation` removed (orphaned after Task 1 panel-deletion). Cascaded clean of `SOUND_MAPPING_NONE` + `normalizeAnimationSoundPath` ctx pass-throughs from the `RUNTIME_POLYGON_METRICS.init({…})` invocation.
+
+## Phase 29 Plan 05 Closure (2026-05-05)
+
+- Plan 29-05 (Wave 3 — boot disk migration) ist abgeschlossen. Commits: `c5565b0` (Task 1 — new module `lib/migrations/phase-29-purge.mjs` with 4 named helpers + idempotent semantics), `864230f` (Task 2 — wire `purgeDeadFieldsOnBoot` into server.mjs after `ensureAssetManifestOnBoot` and before `server.listen`; commit also captures the one-shot disk migration on real config files), `027f8a9` (Task 3 — un-skip + populate 6 W3 tests; all flipped from skip → pass).
+- New module `lib/migrations/phase-29-purge.mjs` (215 lines) exports: `purgeBoardFile`, `purgeGlobalDefaultsFields`, `migrateAnimationSoundMap`, `purgeDeadFieldsOnBoot`, `listBoardJsonFiles`, `PHASE_29_DEAD_BOARD_FIELDS`, `PHASE_29_DEAD_GLOBAL_FIELDS`. Order-comment `// MIGRATION FIRST — DO NOT REORDER (Pitfall 2)` present at the orchestrator call site. Helpers handle BOTH `outer.board` wrapped and flat board JSON shapes.
+- server.mjs: 1 import (line 13) + 1 try/catch boot-time call (lines 3781-3802). Verified ordering: `await ensureAssetManifestOnBoot` (3773) < `await purgeDeadFieldsOnBoot` (3789) < `server.listen(PORT, ...)` (3804). Logs one-line summary on success, warn-and-continue on failure.
+- Disk migration ran on real config files during Task 2 smoke-boot (live result captured in commit 864230f): 4 board JSONs stripped of DEAD board fields (−4466 lines: bulk was `roomStateProfiles` blocks; also `deletedRoomIds`, `hiddenRoomNames`, `playAreaPolygon` entries). `global-defaults.json` stripped of `animationSoundMap` (−12 lines). All 3 non-"none" animationSoundMap entries (`intruder-alert`, `power-outage`, `fire`) were ORPHANS — no matching `def.type` in any board's animation slots — silently dropped per D-03.
+- Idempotence verified live: a second `node server.mjs` boot reports `[phase-29-purge] complete (migrated 0 sound refs across 0 boards; orphans 0; global unchanged; 0 board file(s) stripped)` and leaves all config file mtimes byte-stable. The "boots 2..N find nothing to do" guarantee holds.
+- Test suite: was 35 pass / 9 skip / 0 fail; now 41 pass / 3 skip / 0 fail. Six W3 skip-gates flipped LIVE (3 in `phase-29-purge.test.mjs` — idempotence, strip-semantics + LIVE preservation, malformed-JSON tolerance; 3 in `phase-29-sound-migration.test.mjs` — copy-when-empty, skip-on-conflict, drop-orphan).
+- Closure-Dokument: `.planning/phases/phase-29/29-05-SUMMARY.md`.
+
+## Decisions Phase 29-05
+
+- Module placement (D-10 discretion): extracted helpers to a NEW module `lib/migrations/phase-29-purge.mjs` rather than inlining in server.mjs. Rationale: server.mjs has top-level `await server.listen` side effects; importing helpers from server.mjs into tests would boot the server during every test run. Extraction yields 1 source-of-truth re-imported by both server.mjs and the test files.
+- D-03 ordering point landed verbatim: `purgeDeadFieldsOnBoot` runs `migrateAnimationSoundMap` FIRST, then `purgeGlobalDefaultsFields`, then per-board `purgeBoardFile`. Both code-comment and SUMMARY documents the order as non-reorderable. The migration on this developer's working copy reported 3 orphans / 0 successful copies — but lossless semantics are still proven by `phase-29-sound-migration.test.mjs` Test 1 (synthetic fixture with matching `def.type`).
+- Two-shape input handling: real `config/boards/*.json` files are wrapped under `outer.board` (board-import.v1 schema); test fixtures use a flat board.v2 shape. The same helper code path handles both — confirmed by Task 2 live disk-migration success on wrapped boards AND by Task 3 tests passing on flat fixtures.
+- `config/asset-manifest.json` mutation visible in `git status` is unrelated Phase 28 W4 churn (every boot bumps its `generatedAt` timestamp); deliberately excluded from all 3 Phase 29 commits to keep the boundary clean.
+- Per D-06 hard-delete: the disk-side strip is captured in commit 864230f. Git history is the safety net — no `_legacy.json` quarantine, no feature-flag rollback. The `git diff --stat HEAD~3 HEAD config/` output is recorded verbatim in `.planning/phases/phase-29/29-05-SUMMARY.md` per the D-06 sicherheitsnetz convention.
+- Wave 3 closure marker: source-tree (Wave 2) and disk-side (Wave 3) cleanup are now SYNCHRONIZED on this developer's working copy. Next wave is 29-06 (Wave 4 — `BOARD_PACKAGE_SCHEMA` v3 → v4 + bundle-export filter + bundle-import v3 rejection error message).
