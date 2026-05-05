@@ -144,6 +144,27 @@
 
   function postDrawMeshWarp(canvas, canvasCtx) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    // Phase 30 B1 diagnostic: ?nowarp=1 URL query param bypasses
+    // postDrawMeshWarp entirely. Use this to confirm whether the user-
+    // observed Streifen come from mesh-warp triangulation or from a
+    // different upstream source. If Streifen disappear with ?nowarp=1,
+    // mesh-warp IS the source. If they persist, the seams are in
+    // fx-canvas content itself (rooms, outside-fx, polygon clip AA,
+    // or some other upstream layer) and the GL/2D fixes target the
+    // wrong layer.
+    try {
+      const params = new URLSearchParams(window.location?.search || "");
+      if (params.get("nowarp") === "1") {
+        // Hide GL canvas if it was visible — fx-canvas is the visible
+        // surface in this no-warp mode.
+        const isOutputNoWarp = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+        const glCanvasElNoWarp = isOutputNoWarp ? document.getElementById("fx-gl-canvas") : null;
+        if (glCanvasElNoWarp && glCanvasElNoWarp.style.display !== "none") {
+          glCanvasElNoWarp.style.display = "none";
+        }
+        return;
+      }
+    } catch (_) { /* ignore */ }
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
 
