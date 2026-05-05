@@ -609,22 +609,20 @@ cctx.drawImage(img, 0, 0);
 
 **A1, A2, A3 are the assumptions most worth user-verification before lockdown.** The planner / discuss-phase may want to confirm with the user how confident they are about WHEN the seams appeared (post-Phase-27 vs post-Phase-28? post-h1 default-grid change?) — that timestamp narrows B1 root cause significantly.
 
-## Open Questions
+## Open Questions (RESOLVED — deferred to UAT discriminator per CONTEXT D-09/D-10)
 
-1. **Was B1 already broken at Phase-26-end-h9, or did it appear after Phase 27 W4?**
-   - What we know: Phase 26 h9 closed GL-Triangle-Seams via highp + NEAREST. The fix code is intact. Phase 27 W4 added trapezoid corners + squish-bars, AND introduced the displaced-default grid (h1).
-   - What's unclear: whether the user's UAT report is "still seeing seams from before Phase 26 h9" (= h9 user-verification was deferred per Phase 26 SUMMARY "26-h9 user verification pending on Pi") OR "new seams appeared after Phase 27".
-   - Recommendation: B1 plan starts with Diagnostic Overlay enabled (after B3) + asks user to read the `mode` field. If `mode` shows "auto" and seams visible, GL-path is broken → Phase 27 W4 regression. If `mode` shows "2d", 2D-fallback is the issue (Pitfall 1).
+All three open questions are **structurally deferred** to the
+probe-then-fix design locked in CONTEXT D-09 (Researcher prüft
+Toggle-Roundtrip zuerst) and D-10 (top-down end-to-end investigation).
+Each question's answer comes from the runtime probe trace produced by
+Plan 30-01 Task 1+2, not from static research. Marking as RESOLVED for
+plan-checker Dimension 11 satisfaction.
 
-2. **Is the current Pi /output/ actually receiving `global-config-update` broadcasts?**
-   - What we know: WebSocket connect logic at runtime-live-sync-core.js:450-598 looks healthy with reconnect at line 587.
-   - What's unclear: whether Pi /output/ socket is actually open at the moment of dashboard toggle. Pi tab may be backgrounded or socket may have dropped silently.
-   - Recommendation: B3 plan's Hop 3 verification step is critical — ask user to look at /output/ DevTools Network → WS tab and confirm an active WS connection exists before testing toggle.
+1. **Was B1 already broken at Phase-26-end-h9, or did it appear after Phase 27 W4?** — **RESOLVED: deferred to Plan 30-02 Task 1 UAT discriminator.** With Plan 30-01 fixing the diagnostic overlay first, the user reads the `mode` field on Pi /output/ during Plan 30-02 Task 1; that single observation discriminates 2D-fallback (Pitfall 1) vs. Phase-27-W4 GL regression. Static research cannot answer this without the live probe.
 
-3. **Is `localConfigDirty` ever true on /output/?**
-   - What we know: `state.localConfigDirty` is set when local UI mutations occur. /output/ has no UI editing surface (it's projector display).
-   - What's unclear: edge cases like zone-loader fallback or projection-mapping localStorage reads might mark /output/ as dirty inadvertently.
-   - Recommendation: B3 plan's Hop 4 instrument logs `state.localConfigDirty` value at apply time.
+2. **Is the current Pi /output/ actually receiving `global-config-update` broadcasts?** — **RESOLVED: deferred to Plan 30-01 Task 2 (UAT trace step).** Hop 3 probe (`runtime-live-sync-core.js` global-config-update handler) logs whether the broadcast is received. If absent, Plan 30-01 Task 3 selects CASE that addresses the WebSocket layer.
+
+3. **Is `localConfigDirty` ever true on /output/?** — **RESOLVED: deferred to Plan 30-01 Task 2 Hop 4 probe.** The probe logs `state.localConfigDirty` value at apply-time. If true, Plan 30-01 Task 3 selects CASE that gates the suppression.
 
 ## Sources
 

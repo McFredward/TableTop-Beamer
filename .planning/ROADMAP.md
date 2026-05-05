@@ -201,7 +201,14 @@ Exit Criteria:
 ## Phase 30 - Render-Stability Regressions Closure (PLANNING)
 Ziel: Drei Render-/Sync-Regressionen beheben, die vor Release aufgefallen sind. Test-Board: Nemesis Lockdown Board A.
 
-Status: PLANNING. Scaffolding in `.planning/phases/phase-30/` wird in der Discuss-Phase erzeugt.
+Status: PLANNING. 3 plans authored 2026-05-05 (sequenzielle Reihenfolge per CONTEXT D-00).
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 30-01-PLAN.md — B3: Diagnostic Overlay live-sync to /output/ (probe-then-fix)
+- [ ] 30-02-PLAN.md — B1: Animation seams in solid-color and others (2D-fallback NEAREST fix)
+- [ ] 30-03-PLAN.md — B2: Pi GIF reliability without reload (Candidates A+B+C)
 
 Backlog (User-Smoke 2026-05-05, post Phase-29-Closure):
 - B1 — Sichtbare Linien/Seams in Animationen, insbesondere `solid-color`: solid-color-Räume zeigen sichtbare Linien innerhalb des Raums (Transformations-Naht). Phase 26 h9 hatte den GL-Triangle-Seam-Fix (highp + NEAREST) — Regression. Kontrakt: solid-color soll wirklich SOLID sein, ohne sichtbare Naht-Linien innerhalb eines Raums; auch andere Animationen dürfen diese Linien nicht zeigen.
