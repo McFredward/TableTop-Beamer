@@ -63,7 +63,6 @@
     boards,
     candidate,
     createDefaultBoardProfiles,
-    createDefaultRoomGeometryMap,
     HITAREA_CALIBRATION_DEFAULT,
     SHIP_POLYGON_DEFAULT,
     createDefaultRoomAnimationDefinitions,
@@ -98,12 +97,11 @@
         roomClusters: profile.roomClusters ?? profile.clusters ?? null,
         hitareaCalibration:
           profile.hitareaCalibration ?? profile.hitarea ?? HITAREA_CALIBRATION_DEFAULT,
-        // Phase 29 h1: per-room polygons live exclusively in
-        // roomCatalog[*].polygon — no separate top-level entry.
-        roomGeometry:
-          profile.roomGeometry ??
-          profile.geometry ??
-          createDefaultRoomGeometryMap(boardId),
+        // Phase 29 h1: per-room polygons live in roomCatalog[*].polygon
+        // (no separate map). `roomGeometry` is runtime-only now —
+        // state.roomGeometryByBoard is populated from defaults via
+        // ensureBoardRoomStateMaps + createDefaultRoomGeometryMap, and
+        // the on-disk field (always {} on every board file) is dropped.
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
         roomFx: {

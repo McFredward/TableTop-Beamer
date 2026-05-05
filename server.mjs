@@ -39,11 +39,12 @@ const BUILTIN_BOARD_IDS = new Set();
 // state (audio, animationSpeed, projectionMapping).
 // Phase 29 h1: per-room polygons collapsed to `roomCatalog[*].polygon`
 // (single source of truth — the polygon-editor now writes/reads
-// `room.polygon` directly). The previous top-level shadow entry was
-// dropped from this list.
+// `room.polygon` directly). `roomGeometry` removed from disk
+// persistence — runtime keeps the in-memory `roomGeometryByBoard`
+// slice (drawAnimation reads stretchX/offsetX defaults) but the
+// on-disk field was always `{}` and contributed nothing.
 const BOARD_PROFILE_FIELDS = Object.freeze([
   "hitareaCalibration",
-  "roomGeometry",
   "playAreas",
   "selectedPlayAreaId",
   "outsideFx",

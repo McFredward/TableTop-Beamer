@@ -232,7 +232,6 @@
       boards: ctx.getBoards(),
       candidate,
       createDefaultBoardProfiles,
-      createDefaultRoomGeometryMap: ctx.createDefaultRoomGeometryMap,
       HITAREA_CALIBRATION_DEFAULT: ctx.HITAREA_CALIBRATION_DEFAULT,
       SHIP_POLYGON_DEFAULT: ctx.SHIP_POLYGON_DEFAULT,
       createDefaultRoomAnimationDefinitions: ctx.createDefaultRoomAnimationDefinitions,
