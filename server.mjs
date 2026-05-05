@@ -3403,6 +3403,24 @@ const server = createServer(async (req, res) => {
           incomingBoard.metadata = {};
         }
         incomingBoard.metadata.name = renameTo;
+        // Phase 28 h6: also re-derive a fresh boardId from the new name
+        // so the import lands as a NEW independent board instead of
+        // overwriting whichever board the package was originally exported
+        // from. Apply the same -2/-3 collision-suffix logic that
+        // image-imports already use.
+        const renamedBaseBoardId = sanitizeBoardFileName(renameTo);
+        if (renamedBaseBoardId) {
+          let candidate = renamedBaseBoardId;
+          let candidatePath = path.join(BOARD_STORAGE_DIR, `${candidate}.json`);
+          let suffix = 2;
+          while (BUILTIN_BOARD_IDS.has(candidate) || await pathExists(candidatePath)) {
+            candidate = `${renamedBaseBoardId}-${suffix}`;
+            candidatePath = path.join(BOARD_STORAGE_DIR, `${candidate}.json`);
+            suffix += 1;
+            if (suffix > 500) break;
+          }
+          incomingBoard.boardId = candidate;
+        }
       }
       const normalized = normalizeBoardDefinition(incomingBoard, { source: "package-import", allowEmptyRoomCatalog: true });
       if (!normalized.ok) {
