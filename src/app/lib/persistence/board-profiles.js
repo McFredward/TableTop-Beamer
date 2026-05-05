@@ -46,7 +46,6 @@
       }
       return Boolean(
         value.playAreas
-        || value.playAreaPolygon
         || value.roomCatalog
         || value.roomGeometry
         || value.specialPolygons
@@ -81,16 +80,13 @@
       const board = boards.find((entry) => entry.id === boardId) ?? { id: boardId };
       const profile = candidate?.[boardId] ?? {};
       const legacyPolygon =
-        profile.playAreaPolygon ??
         profile.playArea ??
         profile.shipPolygon ??
         profile.shipMask ??
         profile.insidePolygon ??
         profile.outsidePolygon ??
         profile.inside?.polygon ??
-        profile.inside?.playAreaPolygon ??
         profile.outside?.polygon ??
-        profile.outside?.playAreaPolygon ??
         SHIP_POLYGON_DEFAULT;
       const playAreas = Array.isArray(profile.playAreas) && profile.playAreas.length > 0
         ? profile.playAreas
@@ -117,7 +113,6 @@
           createDefaultSpecialPolygonMap(boardId),
         playAreas,
         selectedPlayAreaId: profile.selectedPlayAreaId ?? playAreas[0]?.id ?? "play-area-1",
-        playAreaPolygon: legacyPolygon,
         roomFx: {
           animations:
             profile.roomFx?.animations

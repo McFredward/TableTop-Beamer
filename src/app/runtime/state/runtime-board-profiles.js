@@ -38,7 +38,6 @@
           specialPolygons: ctx.createDefaultSpecialPolygonMap(board.id),
           playAreas: ctx.normalizePlayAreasCollection(null, ctx.SHIP_POLYGON_DEFAULT),
           selectedPlayAreaId: "play-area-1",
-          playAreaPolygon: ctx.normalizeShipPolygon(ctx.SHIP_POLYGON_DEFAULT),
           roomFx: ctx.normalizeRoomFxProfile({ animations: ctx.createDefaultRoomAnimationDefinitions() }),
           insideFx: ctx.normalizeInsideFxProfile({ animations: ctx.createDefaultInsideAnimationDefinitions() }),
           outsideFx: ctx.normalizeOutsideFxProfile(ctx.OUTSIDE_FX_DEFAULT),
@@ -63,7 +62,6 @@
             polygon: ctx.normalizeShipPolygon(area.polygon),
           })),
           selectedPlayAreaId: ctx.getSelectedPlayAreaId(board.id),
-          playAreaPolygon: ctx.normalizeShipPolygon(state.shipPolygonsByBoard[board.id]),
           roomFx: ctx.normalizeRoomFxProfile(state.roomFxByBoard?.[board.id]),
           insideFx: ctx.normalizeInsideFxProfile(state.insideFxByBoard[board.id]),
           outsideFx: ctx.normalizeOutsideFxProfile(state.outsideFxByBoard[board.id]),
@@ -222,7 +220,7 @@
         const profile = profiles?.[board.id] ?? {};
         const migratedPlayAreas = ctx.normalizePlayAreasCollection(
           profile.playAreas,
-          profile.playAreaPolygon ?? profile.shipPolygon ?? profile.shipMask ?? ctx.SHIP_POLYGON_DEFAULT,
+          profile.shipPolygon ?? profile.shipMask ?? ctx.SHIP_POLYGON_DEFAULT,
         );
         return [board.id, migratedPlayAreas];
       }),

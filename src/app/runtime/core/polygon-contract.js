@@ -258,24 +258,18 @@
         ? fallbackPlayAreas
         : null;
     const candidateFallbackPolygon =
-      profile.playAreaPolygon
-      ?? profile.shipPolygon
+      profile.shipPolygon
       ?? profile.shipMask
       ?? profile.insidePolygon
       ?? profile.outsidePolygon
       ?? profile.inside?.polygon
-      ?? profile.inside?.playAreaPolygon
       ?? profile.outside?.polygon
-      ?? profile.outside?.playAreaPolygon
-      ?? fallbackProfile.playAreaPolygon
       ?? fallbackProfile.shipPolygon
       ?? fallbackProfile.shipMask
       ?? fallbackProfile.insidePolygon
       ?? fallbackProfile.outsidePolygon
       ?? fallbackProfile.inside?.polygon
-      ?? fallbackProfile.inside?.playAreaPolygon
       ?? fallbackProfile.outside?.polygon
-      ?? fallbackProfile.outside?.playAreaPolygon
       ?? shipPolygonDefault;
     const playAreas = normalizePlayAreasCollection(candidatePlayAreas, candidateFallbackPolygon);
     const preferredSelectedId = String(profile.selectedPlayAreaId || fallbackProfile.selectedPlayAreaId || "").trim();
@@ -341,7 +335,6 @@
 
       const fallbackPolygon =
         (Array.isArray(statePlayAreas) && statePlayAreas[0]?.polygon)
-        ?? profile?.playAreaPolygon
         ?? profile?.shipPolygon
         ?? profile?.insidePolygon
         ?? profile?.outsidePolygon

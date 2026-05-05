@@ -41,7 +41,6 @@ const BOARD_PROFILE_FIELDS = Object.freeze([
   "hitareaCalibration",
   "roomGeometry",
   "specialPolygons",
-  "playAreaPolygon",
   "playAreas",
   "selectedPlayAreaId",
   "outsideFx",
@@ -3501,7 +3500,7 @@ const server = createServer(async (req, res) => {
 
       // Phase 26: write the unified board JSON. The normalized
       // shape already includes profile fields (roomCatalog,
-      // roomClusters, hitareaCalibration, playAreaPolygon, etc.),
+      // roomClusters, hitareaCalibration, playAreas, etc.),
       // pulled directly from manifest.board.
       await mkdir(BOARD_STORAGE_DIR, { recursive: true });
       const targetPath = path.join(BOARD_STORAGE_DIR, `${safeBoardId}.json`);

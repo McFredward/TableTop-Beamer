@@ -163,9 +163,7 @@
           : Array.isArray(fallback.playAreas)
             ? fallback.playAreas
             : null,
-        primary.playAreaPolygon
-        ?? primary.shipPolygon
-        ?? fallback.playAreaPolygon
+        primary.shipPolygon
         ?? fallback.shipPolygon
         ?? ctx.SHIP_POLYGON_DEFAULT,
       );
@@ -173,7 +171,6 @@
       const selectedPlayAreaId = mergedPlayAreas.some((area) => area.id === preferredSelectedPlayAreaId)
         ? preferredSelectedPlayAreaId
         : mergedPlayAreas[0].id;
-      const selectedPlayArea = mergedPlayAreas.find((area) => area.id === selectedPlayAreaId) ?? mergedPlayAreas[0];
       const deletedRoomIds = normalizeRoomTombstoneIds([
         ...(Array.isArray(fallback.deletedRoomIds) ? fallback.deletedRoomIds : fallback.roomTombstones ?? []),
         ...(Array.isArray(primary.deletedRoomIds) ? primary.deletedRoomIds : primary.roomTombstones ?? []),
@@ -195,7 +192,6 @@
         specialPolygons: mergeSpecialPolygonMaps(primary.specialPolygons, fallback.specialPolygons),
         playAreas: mergedPlayAreas,
         selectedPlayAreaId,
-        playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? ctx.SHIP_POLYGON_DEFAULT),
         roomFx: ctx.normalizeRoomFxProfile(primary.roomFx ?? fallback.roomFx),
         insideFx: ctx.normalizeInsideFxProfile(primary.insideFx ?? fallback.insideFx),
         outsideFx: ctx.normalizeOutsideFxProfile(primary.outsideFx ?? fallback.outsideFx),
@@ -214,35 +210,27 @@
         ? fallbackPlayAreas
         : null;
     const candidateFallbackPolygon =
-      profile.playAreaPolygon
-      ?? profile.shipPolygon
+      profile.shipPolygon
       ?? profile.shipMask
       ?? profile.insidePolygon
       ?? profile.outsidePolygon
       ?? profile.inside?.polygon
-      ?? profile.inside?.playAreaPolygon
       ?? profile.outside?.polygon
-      ?? profile.outside?.playAreaPolygon
-      ?? fallbackProfile.playAreaPolygon
       ?? fallbackProfile.shipPolygon
       ?? fallbackProfile.shipMask
       ?? fallbackProfile.insidePolygon
       ?? fallbackProfile.outsidePolygon
       ?? fallbackProfile.inside?.polygon
-      ?? fallbackProfile.inside?.playAreaPolygon
       ?? fallbackProfile.outside?.polygon
-      ?? fallbackProfile.outside?.playAreaPolygon
       ?? ctx.SHIP_POLYGON_DEFAULT;
     const playAreas = normalizePlayAreasCollection(candidatePlayAreas, candidateFallbackPolygon);
     const preferredSelectedId = String(profile.selectedPlayAreaId || fallbackProfile.selectedPlayAreaId || "").trim();
     const selectedPlayAreaId = playAreas.some((entry) => entry.id === preferredSelectedId)
       ? preferredSelectedId
       : playAreas[0]?.id ?? "play-area-1";
-    const selectedPlayArea = playAreas.find((entry) => entry.id === selectedPlayAreaId) ?? playAreas[0];
     return {
       playAreas,
       selectedPlayAreaId,
-      playAreaPolygon: normalizeShipPolygon(selectedPlayArea?.polygon ?? candidateFallbackPolygon ?? ctx.SHIP_POLYGON_DEFAULT),
     };
   }
 
