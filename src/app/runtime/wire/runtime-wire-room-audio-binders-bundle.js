@@ -268,11 +268,26 @@
           // imported board shows up immediately. Falls back gracefully
           // if the zone-loader namespace isn't ready (defensive only —
           // it's always wired by this point in real boots).
+          // Phase 28 h7: also refresh the global-defaults payload before
+          // activating the new board, so per-board state maps
+          // (playAreasByBoard, defaultAnimationsByBoard, outsideFxByBoard,
+          // insideFxByBoard, roomFxByBoard, etc.) hydrate for the new
+          // boardId. Without this, switchBoard() activates the import
+          // before any of those maps know about it and the user sees a
+          // half-empty board (rooms present, play areas + default
+          // animations missing).
           let liveRefreshOk = false;
           try {
             const zl = window.TT_BEAMER_RUNTIME_ZONE_LOADER;
+            const gd = window.TT_BEAMER_RUNTIME_GLOBAL_DEFAULTS;
             if (zl?.loadExternalBoardZones) {
               await zl.loadExternalBoardZones();
+              if (gd?.fetchGlobalDefaultsPayload && gd?.applyGlobalDefaultsPayloadToState) {
+                try {
+                  const loaded = await gd.fetchGlobalDefaultsPayload();
+                  gd.applyGlobalDefaultsPayloadToState(loaded.payload);
+                } catch { /* best-effort — switchBoard will still work, profile fields just stay defaulted */ }
+              }
               if (body.boardId && zl.activateImportedBoard) {
                 zl.activateImportedBoard(body.boardId, "bundle-import");
               }
