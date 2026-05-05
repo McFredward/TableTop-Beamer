@@ -280,6 +280,15 @@ body[data-output-role="final-output"] #stage>*:not(#fx-canvas):not(#room-overlay
   pointer-events: none;
   display: none;
   z-index: 2;
+  /* Phase 30 B1 h4 (debugger CASE C fallback): force NEAREST CSS
+     upscaling on the GL canvas. If the GL backing-store dims don't
+     match the displayed CSS dims (Phase 26 SUMMARY documented
+     1920×891 vs 1920×1080 mismatch on Pi), the browser default
+     bilinear upscaling would amplify any in-canvas artifacts into
+     visible bleed. `image-rendering: pixelated` forces NEAREST CSS
+     scaling — a 1:1 mapping within each scaled display block,
+     preserving the LINEAR-smoothed in-canvas output cleanly. */
+  image-rendering: pixelated;
 }
 
 /* Apply / Discard bar for opt-in save.

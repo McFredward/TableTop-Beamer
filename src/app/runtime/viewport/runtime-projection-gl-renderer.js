@@ -146,23 +146,23 @@
       _glUniTex = _gl.getUniformLocation(_glProgram, "uTex");
       _glTexture = _gl.createTexture();
       _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
-      // NEAREST instead of LINEAR. With LINEAR magnification, the
-      // texture lookup at triangle boundaries averages 4 texels —
-      // even at identity warp the sub-texel position chosen by each
-      // triangle's barycentric interpolation can land on a slightly
-      // different pixel boundary than its neighbour, leaving a
-      // 1-pixel ridge along every shared mesh edge. On uniform
-      // surfaces (especially solid-color rooms) those ridges read as
-      // visible "triangulation lines". NEAREST forces one texel per
-      // fragment with no interpolation — the warp output is byte-
-      // identical to the source on identity warp, and on actual
-      // deformation the warp mesh produces straightforward pixel-
-      // sampling without filter cross-talk between triangles. On a
-      // projector at typical viewing distance, NEAREST vs LINEAR is
-      // imperceptible for warp-target content; the trade-off is
-      // entirely on the side of fewer artifacts.
-      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.NEAREST);
-      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.NEAREST);
+      // Phase 30 B1 h4: NEAREST → LINEAR. Phase-26-h9 chose NEAREST
+      // assuming IDENTITY warp (where it produces byte-identical
+      // source-to-dest output and avoids LINEAR's 4-texel-averaging
+      // sub-texel ridge). Phase-27-W4-h1 introduced a non-identity
+      // 80%-squish default grid; under non-identity warp every cell's
+      // per-fragment UV barycentric interpolation lands at slightly
+      // different sub-texel positions than its neighbour cell, and
+      // NEAREST's hard discrete texel pick at the cell boundary
+      // produces a 1-pixel content discontinuity → visible streifen
+      // matching the 3×3 mesh boundaries (cf. debug/lines_bug.jpg).
+      // LINEAR averages adjacent texels instead, dissolving the
+      // 1-pixel step into imperceptible sub-pixel softening at
+      // projector viewing distance. Phase-26-h9's identity-warp
+      // concern doesn't apply: at non-identity warp the smoothing
+      // is exactly what's needed.
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+      _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
       _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
       _glPosBuf = _gl.createBuffer();
