@@ -976,10 +976,6 @@ function setRenderMode(nextMode) {
 // body data-attribute so the chip's visibility is purely CSS-driven
 // (no per-frame JS guard needed).
 function syncDiagnosticOverlayPanel() {
-  console.log("[B3-probe] hop5c syncDiagnosticOverlayPanel called", {
-    stateDiagnosticOverlay: !!state.diagnosticOverlay,
-    bodyDatasetBefore: document.body?.dataset?.diagnosticOverlay ?? null,
-  });
   const enabled = Boolean(state.diagnosticOverlay);
   state.diagnosticOverlay = enabled;
   if (diagnosticOverlayToggle && diagnosticOverlayToggle.checked !== enabled) {
@@ -989,16 +985,8 @@ function syncDiagnosticOverlayPanel() {
     diagnosticOverlayStatus.textContent = enabled ? "Diagnostic overlay: visible" : "Diagnostic overlay: hidden";
   }
   document.body.dataset.diagnosticOverlay = enabled ? "true" : "false";
-  console.log("[B3-probe] hop6 DOM-write complete", {
-    bodyDatasetAfter: document.body.dataset.diagnosticOverlay,
-    chipDisplay: (() => {
-      const chip = document.querySelector(".output-status-chip");
-      return chip ? getComputedStyle(chip).display : "(no .output-status-chip element)";
-    })(),
-  });
 }
 function setDiagnosticOverlay(nextEnabled) {
-  console.log("[B3-probe] hop1 setDiagnosticOverlay called", { nextEnabled });
   state.diagnosticOverlay = Boolean(nextEnabled);
   syncDiagnosticOverlayPanel();
   saveGlobalDefaultsToServer().catch((error) => {
