@@ -78,7 +78,22 @@
     // ImageDecoder block lets us fall through to the parser exactly
     // as if the API weren't available — the path is byte-identical
     // for the synchronous JS GIF parser.
-    if (ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
+    //
+    // Phase 30 B2 h9: on /output/ ALWAYS use the parser path. The
+    // ImageDecoder API allocates GPU-backed ImageBitmap per frame; on
+    // Pi VC4 with large GIFs (slime.gif 22 MB ~150 frames × ~1 MB each
+    // = ~150 MB GPU) the cumulative texture memory triggers
+    // CONTEXT_LOST_WEBGL on the WebGL warp context — confirmed by user
+    // UAT log showing the loss right after slime decode-start, with
+    // subsequent "mesh-warp shader error: null" spam in the draw loop
+    // and ALL further GIF decode promises hanging because the
+    // ImageDecoder is killed by the context loss. The parser produces
+    // canvas-backed frames in CPU memory: slower per frame but no GPU
+    // pressure, so no context loss. Dashboard role keeps the
+    // ImageDecoder fast path since dashboard doesn't have the WebGL
+    // warp competing for GPU memory.
+    const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
+    if (!isFinalOutput && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
       try {
         const decoder = new ImageDecoder({ data, type: "image/gif" });
         await decoder.tracks.ready;
@@ -114,7 +129,20 @@
       }
     }
 
+    // Parser path: always on /output/, fallback elsewhere. Parser
+    // produces canvas-backed frames synchronously (no GPU bitmap
+    // allocation). The decoder sets entry.status = "ready" on
+    // success; we emit decode-success here so the probe fires for
+    // both ImageDecoder and parser paths.
     ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry);
+    if (entry.status === "ready") {
+      _gifProbe("decode-success", {
+        path,
+        frames: entry.frames.length,
+        ms: Math.round(performance.now() - _decodeStartedAt),
+        via: "parser",
+      });
+    }
   }
 
   function ensureGifPlaybackReady(path) {

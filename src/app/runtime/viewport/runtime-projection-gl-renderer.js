@@ -44,7 +44,26 @@
   let _glUVs = null;
   let _glIndices = null;
   let _glIndexCount = 0;
+  // Phase 30 B2 h9: bounded GL recovery. Pi VC4 in a broken-context
+  // state returns null infoLog from getShaderInfoLog after a few
+  // context losses, causing _initMeshWarpGL → compile() to fail and
+  // the draw loop to spam "mesh-warp shader error: null" indefinitely.
+  // We count consecutive context losses; on the threshold we set
+  // _glPermanentlyDisabled = true and short-circuit both
+  // _initMeshWarpGL and _postDrawMeshWarpGL so the renderer falls
+  // through to the 2D fallback path (with h7's INFLATE = 4.0 still
+  // hiding seams). The counter resets on a successful
+  // gl.drawElements call, so a transient single loss + recovery does
+  // NOT permanently disable GL.
+  let _glContextLossCount = 0;
+  const _GL_MAX_CONTEXT_LOSSES = 3;
+  let _glPermanentlyDisabled = false;
   function _initMeshWarpGL() {
+    // Phase 30 B2 h9: refuse all init attempts once GL has been
+    // permanently disabled. Without this short-circuit, every draw
+    // tick re-enters _initMeshWarpGL → fails compile on the broken
+    // context → logs the spammy null-infoLog error.
+    if (_glPermanentlyDisabled) return false;
     if (_glInitTried) return _glInitOk;
     _glInitTried = true;
     try {
@@ -101,6 +120,26 @@
         _gl = null;
         _glProgram = null;
         _glTexture = null;
+        // Phase 30 B2 h9: count consecutive context losses. If we hit
+        // the threshold (3 losses), give up on GL entirely and fall
+        // through to the 2D-fallback path permanently. Without this,
+        // Pi VC4's broken-context state (shader compile returns null
+        // infoLog) causes the draw loop to spam "mesh-warp shader
+        // error: null" indefinitely, AND every subsequent re-init
+        // attempt allocates a fresh framebuffer, deepening the GPU
+        // memory pressure that triggered the loss in the first place.
+        _glContextLossCount += 1;
+        if (_glContextLossCount >= _GL_MAX_CONTEXT_LOSSES) {
+          _glPermanentlyDisabled = true;
+          if (typeof console !== "undefined" && console.warn) {
+            // eslint-disable-next-line no-console
+            console.warn(
+              "[h9] GL permanently disabled after",
+              _glContextLossCount,
+              "context losses; using 2D fallback",
+            );
+          }
+        }
       }, false);
       // Phase 30 B1 h7: webglcontextrestored handler. Without this, when
       // Pi VC4 loses + restores the WebGL context, the next
@@ -212,6 +251,12 @@
   }
 
   function _postDrawMeshWarpGL(canvas, canvasCtx) {
+    // Phase 30 B2 h9: if GL was permanently disabled by repeated
+    // context losses, return false immediately so postDrawMeshWarp
+    // falls through to postDrawMeshWarp2D (h7's INFLATE = 4.0 keeps
+    // seams hidden). Avoids the per-frame _initMeshWarpGL re-entry
+    // and the resulting "mesh-warp shader error: null" spam.
+    if (_glPermanentlyDisabled) return false;
     if (!_initMeshWarpGL()) return false;
 
     const w = canvas.width;
@@ -375,6 +420,11 @@
     }
     _gl.clear(_gl.COLOR_BUFFER_BIT);
     _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
+    // Phase 30 B2 h9: reset context-loss counter on a successful
+    // frame. A transient single loss + recovery should NOT permanently
+    // disable GL; only repeated losses without a healthy frame in
+    // between cross the threshold.
+    _glContextLossCount = 0;
 
     if (isOutput) {
       // Clear fx-canvas after texture upload so its
