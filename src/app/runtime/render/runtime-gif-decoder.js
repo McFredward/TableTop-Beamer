@@ -433,7 +433,33 @@
       }
 
       const durationMs = pendingGce.delayMs;
-      frames.push({ imageData: frameImageData, durationMs });
+      // Phase 30 Plan 30-04 T9: pre-bake each frame's pixels as a
+      // GPU-resident ImageBitmap (when the platform supports
+      // createImageBitmap). drawImage(bitmap, …) on a Canvas2D
+      // destination is a GPU→GPU blit on Chromium, much cheaper
+      // than drawImage from a canvas that was last touched by
+      // putImageData (which triggers a CPU→GPU upload). Memory cost
+      // is bounded by T7's 512 px max-dim: e.g. 150 frames at
+      // 512×288×4 = ~88 MB for slime.gif worst case, well under
+      // Pi 8 GB system memory.
+      //
+      // Falls back gracefully to ImageData-only when the API is
+      // unavailable: runtime-gif-playback.js getGifPlaybackFrame
+      // returns either frame.bitmap or routes through the shared
+      // playback canvas + putImageData path (h10/h12).
+      let frameBitmap = null;
+      if (typeof createImageBitmap === "function") {
+        try {
+          frameBitmap = await createImageBitmap(frameImageData);
+        } catch (_) {
+          frameBitmap = null;
+        }
+      }
+      frames.push({
+        imageData: frameImageData,
+        bitmap: frameBitmap,
+        durationMs,
+      });
       totalDurationMs += durationMs;
 
       // Phase 30 B2 h11: yield to event loop between frames so the

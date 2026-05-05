@@ -495,8 +495,26 @@
           // the gate legitimately fires is unaffected.
           const isFinalOutput = ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL;
           if (isFinalOutput) {
+            // Phase 30 Plan 30-04 T10: live-paint primary, periodic
+            // capture (~every 30 rAF = ~1 s at 30 fps), fallback only
+            // when readyState dips. T4 dropped the fallback entirely
+            // which exposed a brief gap during loop wrap
+            // (maybeWrapOutsideMp4Loop seeks currentTime back; for
+            // ~1 frame video.readyState may drop to 1). Restoring a
+            // throttled capture + fallback closes that gap without
+            // paying the per-frame ~10-30 ms second drawImage(video)
+            // cost we identified in T2 UAT.
             if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
               c.drawImage(video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+              const frameIdx = ctx.state?.runtimePerf?.frameIndex ?? 0;
+              if ((frameIdx % 30) === 0) {
+                ctx.captureOutsideMp4FallbackFrame(playbackState, video);
+              }
+            } else {
+              // readyState dipped — typically the loop-wrap seek
+              // window. Replay the most-recent captured frame to
+              // bridge the gap seamlessly.
+              ctx.drawOutsideMp4FallbackFrame(playbackState);
             }
           } else if (video.readyState >= 2 && Number(video.videoWidth) > 0 && Number(video.videoHeight) > 0) {
             if (ctx.shouldDrawOutsideMp4Now(playbackState)) {
