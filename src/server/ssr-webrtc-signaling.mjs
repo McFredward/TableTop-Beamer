@@ -430,10 +430,26 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
             sendErr("audio-not-in-stream-use-pi-local-audio", requestId);
             return;
           }
-          const producer = state.videoProducer;
+          // Phase-31 h19 (2026-05-06): instead of immediately rejecting
+          // with `no-producer-yet` (which triggers the receiver's
+          // reconnect storm — observed as 10+ "connect role=consumer
+          // / disconnect" cycles at boot before stable), we HOLD the
+          // request for up to 30 s while the SSR Chromium tab finishes
+          // booting + publishing. The receiver's RPC has a 10 s ceiling
+          // so cap to a slightly shorter window (8 s) to surface a
+          // single, debuggable error if the publisher genuinely fails.
+          let producer = state.videoProducer;
           if (!producer) {
-            sendErr("no-producer-yet", requestId);
-            return;
+            const waitDeadline = Date.now() + 8000;
+            while (Date.now() < waitDeadline) {
+              await new Promise((r) => setTimeout(r, 200));
+              producer = state.videoProducer;
+              if (producer) break;
+            }
+            if (!producer) {
+              sendErr("no-producer-yet", requestId);
+              return;
+            }
           }
           if (!router.canConsume({
             producerId: producer.id,

@@ -37,6 +37,13 @@ export function attachInputForwarder({
   getCurrentProfileId,
   hitTestVertex,
   logger = console,
+  // Phase-31 h19 (2026-05-06): inject the <video> element so we can map
+  // pointer coords from receiver-viewport space → stream-content space.
+  // Without this, the user clicked at viewport (0, 0.5) and we sent
+  // grid coords (0, 0.5) — but with object-fit: cover the stream's
+  // actual content was cropped, so (0, 0.5) didn't correspond to the
+  // board's top-left edge that the user was AIMING at.
+  getVideoEl = () => null,
 }) {
   const wsUrl = `ws://${location.host}/api/live/ws?role=final-output-input`;
   let ws = null;
@@ -125,11 +132,65 @@ export function attachInputForwarder({
     if (ghostEl) ghostEl.style.display = "none";
   }
 
+  // Phase-31 h19: map pointer coords from receiver-viewport pixels to
+  // STREAM-CONTENT-NORMALIZED [0..1] space. The stream is encoded at the
+  // SSR tab's page dimensions (e.g. 1920×1080); the <video> displays it
+  // with object-fit: cover, so the visible rect on the receiver may be
+  // larger than the viewport and clipped. We compute the visible stream
+  // rect from videoEl.videoWidth/Height + viewport dims, then convert
+  // the click position to (clickX - streamLeft) / streamWidth.
+  //
+  // When videoEl is missing or videoWidth=0 (no frame yet) we fall back
+  // to overlay-rect normalization so the previous behavior is preserved.
   function pointerToNormalized(e) {
     const rect = overlayEl.getBoundingClientRect();
+    const videoEl = typeof getVideoEl === "function" ? getVideoEl() : null;
+    const vw = Number(videoEl?.videoWidth || 0);
+    const vh = Number(videoEl?.videoHeight || 0);
+    if (vw <= 0 || vh <= 0 || rect.width <= 0 || rect.height <= 0) {
+      return {
+        normalizedX: (e.clientX - rect.left) / rect.width,
+        normalizedY: (e.clientY - rect.top) / rect.height,
+      };
+    }
+    // object-fit: cover — scale to fill the longer axis, crop the shorter.
+    const viewportAspect = rect.width / rect.height;
+    const streamAspect = vw / vh;
+    let displayedW, displayedH, offsetX, offsetY;
+    if (streamAspect > viewportAspect) {
+      // stream is wider than viewport → cover scales to fill height,
+      // crops left/right. Visible stream content is the centered slice
+      // of the viewport in X, full height.
+      displayedH = rect.height;
+      displayedW = rect.height * streamAspect;
+      offsetX = (rect.width - displayedW) / 2;
+      offsetY = 0;
+    } else {
+      // stream is taller than viewport → cover scales to fill width,
+      // crops top/bottom. Visible content is centered in Y.
+      displayedW = rect.width;
+      displayedH = rect.width / streamAspect;
+      offsetX = 0;
+      offsetY = (rect.height - displayedH) / 2;
+    }
+    const localX = e.clientX - rect.left;
+    const localY = e.clientY - rect.top;
+    // Map into stream-content space, clamped to [0..1] (clicks outside
+    // the visible content area shouldn't crash, just clamp to nearest
+    // edge — the SSR-side handler clamps too).
+    const nx = Math.max(0, Math.min(1, (localX - offsetX) / displayedW));
+    const ny = Math.max(0, Math.min(1, (localY - offsetY) / displayedH));
+    return { normalizedX: nx, normalizedY: ny };
+  }
+
+  // h19: viewport-relative normalize for the ghost (so the visual lands
+  // under the user's finger, regardless of object-fit cropping).
+  function pointerToViewportNormalized(e) {
+    const rect = overlayEl.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return { vx: 0, vy: 0 };
     return {
-      normalizedX: (e.clientX - rect.left) / rect.width,
-      normalizedY: (e.clientY - rect.top) / rect.height,
+      vx: (e.clientX - rect.left) / rect.width,
+      vy: (e.clientY - rect.top) / rect.height,
     };
   }
 
@@ -143,14 +204,16 @@ export function attachInputForwarder({
     const vid = hitTestVertex({ x: normalizedX, y: normalizedY });
     if (vid == null) return;
     activeVertexId = vid;
-    moveGhost(normalizedX, normalizedY);
+    const { vx, vy } = pointerToViewportNormalized(e);
+    moveGhost(vx, vy);
     sendDrag("start", vid, normalizedX, normalizedY);
   }
 
   function onPointerMove(e) {
     if (activeVertexId == null) return;
     const { normalizedX, normalizedY } = pointerToNormalized(e);
-    moveGhost(normalizedX, normalizedY);
+    const { vx, vy } = pointerToViewportNormalized(e);
+    moveGhost(vx, vy);
     sendDrag("move", activeVertexId, normalizedX, normalizedY);
   }
 

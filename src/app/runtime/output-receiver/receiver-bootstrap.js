@@ -359,6 +359,11 @@ export async function bootReceiver({ logger = console } = {}) {
     overlayEl,
     isAlignModeActive: () => alignMode,
     getCurrentProfileId: () => currentProfileId,
+    // h19: hand the <video> element to the forwarder so it can map
+    // pointer coords from receiver-viewport space to stream-content
+    // space (object-fit: cover crops on aspect mismatch — without this,
+    // a click at the BOARD's TL in the stream sent the wrong coords).
+    getVideoEl: () => videoEl,
     hitTestVertex: ({ x, y }) => {
       // Wave-4 minimum: 4-corner hit-test (TL/TR/BR/BL with 20% radius).
       // The actual mesh-vertex resolution lives in the SSR tab — Pi sends

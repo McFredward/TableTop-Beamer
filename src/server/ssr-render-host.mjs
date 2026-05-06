@@ -257,11 +257,30 @@ export function bootSsrRenderHost({
       display = chosenDisplay;
     }
     return new Promise((resolve, reject) => {
-      const proc = spawn(
-        "Xvfb",
-        [chosenDisplay, "-screen", "0", `${viewport.width}x${viewport.height}x24`],
-        { stdio: ["ignore", "pipe", "pipe"] },
-      );
+      // Phase-31 h19 (2026-05-06): explicit X extensions for fps lift.
+      // RANDR + RENDER + GLX are required for Chromium's compositor to
+      // pick the GPU-accelerated path; without them the BeginFrameSource
+      // falls back to a ~20 Hz software timer (h18 reported the cap
+      // stayed at 21 fps despite --max-gum-fps + --disable-frame-rate-limit).
+      // -ac disables host-based access control so the Chromium child
+      // process doesn't ICE on auth handshake. -dpi 96 standardizes
+      // pixel density (Chromium reads DPI for layout decisions).
+      // ESCAPE HATCH: if you're still capped at ~21 fps after this and
+      // the diagnostic overlay's SSR fps ≤ 21, the BeginFrameSource is
+      // the limit. Replace Xvfb with Xdummy (a real Xorg with the dummy
+      // driver) which supports configurable refresh rates up to 240 Hz.
+      const xvfbArgs = [
+        chosenDisplay,
+        "-screen", "0", `${viewport.width}x${viewport.height}x24`,
+        "-ac",
+        "-dpi", "96",
+        "+extension", "RANDR",
+        "+extension", "RENDER",
+        "+extension", "GLX",
+        "+extension", "Composite",
+      ];
+      logger.info(`[ssr-host] Xvfb args: ${xvfbArgs.join(" ")}`);
+      const proc = spawn("Xvfb", xvfbArgs, { stdio: ["ignore", "pipe", "pipe"] });
       let stderrTail = "";
       if (proc.stderr) {
         proc.stderr.on("data", (chunk) => {
@@ -360,6 +379,14 @@ export function bootSsrRenderHost({
       args: [
         "--no-sandbox",
         "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
+        // Phase-31 h19 (2026-05-06): explicit ozone platform = x11.
+        // Chromium's auto-pick under Xvfb sometimes falls through to
+        // headless ozone, which caps the BeginFrameSource at ~20 Hz
+        // (matching the user-reported 21 fps cap). x11 binding routes
+        // frame production through the Xvfb display server's vsync,
+        // which can hit higher rates given the +extension flags h19
+        // also adds.
+        "--ozone-platform=x11",
         // h7: let Chromium auto-detect GL backend — SwiftShader was
         // catastrophically slow (4 fps + tearing). egl + ignore-gpu-blocklist
         // (added below if iGPU present) lets libva use the iGPU.

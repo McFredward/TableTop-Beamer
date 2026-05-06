@@ -566,7 +566,14 @@
               mutationType === ctx.STOP_ANIMATION_MUTATION_TYPE
               || mutationType === "clear-all"
               || mutationType === "edit-room"
-              || mutationType === "trigger-room";
+              || mutationType === "trigger-room"
+              // Phase-31 h19 (2026-05-06): align-corner-drag must apply
+              // IMMEDIATELY on the SSR tab — anything else makes the drag
+              // feel like 1+ second of input lag (snapshot poll cadence).
+              // Pi sends drag events at native pointermove rate (~120 Hz);
+              // they hit the SSR tab via this path so the streamed warp
+              // updates within the next captured frame.
+              || mutationType === "align-corner-drag";
             if (
               shouldApplyImmediateStopSnapshot
               && Number.isFinite(sessionVersion)
