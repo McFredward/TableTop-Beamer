@@ -78,32 +78,35 @@
           && Array.isArray(parsed.snapshot.srcXs)
           && Array.isArray(parsed.snapshot.srcYs)
           && Array.isArray(parsed.snapshot.points)) {
-        _loadedProfileName = parsed.name;
-        _loadedProfileSnapshot = parsed.snapshot;
-        // Phase-31 h23 (2026-05-06): also APPLY the snapshot to the
-        // active grid. Without this, grid-state's separate localStorage
-        // (which can drift from the profile-persistence LS — e.g. when
-        // defaults change between releases, or when grid-state's LS is
-        // empty on a fresh install) doesn't necessarily match the
-        // loaded profile's snapshot. The result is that isDirty()
-        // compares (grid != saved snapshot) and reports dirty=true on
-        // boot WITHOUT the user touching anything — blocking Align
-        // Mode toggle (the dirty save-gate). Forcing the apply makes
-        // grid == _loadedProfileSnapshot at module-init time, so a
-        // pristine boot reports dirty=false. The cost: any mid-edit
-        // reload loses unsaved edits — that's the right trade-off
-        // because align mode being unblocked outweighs preserving
-        // mid-drag state across page reloads.
-        if (_gridStateApi && typeof _gridStateApi.restoreGridSnapshot === "function") {
-          try {
-            _gridStateApi.restoreGridSnapshot(_loadedProfileSnapshot);
-            // Persist the now-applied grid back to grid-state's LS so
-            // the next boot is consistent without us re-running this
-            // dance every time.
-            saveToLocalStorage();
-          } catch (err) {
-            console.warn("[profile-persistence] restore-apply failed:", err?.message || err);
+        // Phase-31 h24 (2026-05-06): mismatch-detection cleanup.
+        // h23 force-applied the LS snapshot to the grid which
+        // OVERWROTE the user's intent (e.g. wrong default, lost
+        // edits). Reverted to a softer policy: at boot, if the LS
+        // snapshot doesn't match the current grid (which has been
+        // populated from grid-state's own LS or from defaults), we
+        // CLEAR the loaded-profile pointer instead of force-syncing.
+        // Result: isDirty() returns false (no profile loaded), align
+        // mode toggle is unblocked, and the user can explicitly load
+        // a profile to opt back into dirty tracking.
+        if (_gridStateApi && typeof _gridStateApi.snapshotGridState === "function") {
+          const currentGrid = _gridStateApi.snapshotGridState();
+          if (_snapshotsEqual(currentGrid, parsed.snapshot)) {
+            _loadedProfileName = parsed.name;
+            _loadedProfileSnapshot = parsed.snapshot;
+          } else {
+            // Mismatch — treat as no profile loaded. Clear the LS
+            // pointer so a future boot doesn't try the same compare.
+            try { window.localStorage?.removeItem(LOADED_PROFILE_LS_KEY); } catch (_) {}
+            console.info(
+              "[profile-persistence] LS-loaded profile",
+              parsed.name,
+              "doesn't match current grid — cleared (re-load via menu if you need dirty tracking)",
+            );
           }
+        } else {
+          // No grid-state API — fall back to legacy behavior.
+          _loadedProfileName = parsed.name;
+          _loadedProfileSnapshot = parsed.snapshot;
         }
       }
     } catch { /* ignore */ }

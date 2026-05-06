@@ -625,24 +625,25 @@
           ) {
             try {
               const drag = payload?.session?.snapshot?.runtime?.lastAlignCornerDrag;
-              // Phase-31 h21b (2026-05-06): gates against applying stale
-              // drags on boot. Without these, a `lastAlignCornerDrag`
-              // record persisted on the server from the user's PREVIOUS
-              // session would be applied to a freshly-loaded profile,
-              // mutating its grid → isDirty() flips on → "Unsaved" badge
-              // appears immediately and blocks entering align mode.
-              //
-              //   (a) ageMs cap — only apply drags newer than 5 s
-              //   (b) alignMode gate — drags only act while align mode
-              //       is currently active. The Pi can only fire drags
-              //       when the user is actively in align mode anyway.
               const dragAt = drag?.at ? Date.parse(drag.at) : 0;
               const ageMs = Number.isFinite(dragAt) ? Date.now() - dragAt : Infinity;
               const alignActive = Boolean(ctx.state?.alignMode);
-              // h22: also reject drags that predate the page load (see
-              // _pageLoadAtMs comment at top of module).
               const dragArrivedAfterLoad = Number.isFinite(dragAt) && dragAt >= _pageLoadAtMs;
-              if (drag && typeof drag === "object" && ageMs <= 5000 && alignActive && dragArrivedAfterLoad) {
+              const accepts = drag && typeof drag === "object" && ageMs <= 5000 && alignActive && dragArrivedAfterLoad;
+              // Phase-31 h24 (2026-05-06): one-line probe so the operator
+              // can see in the SSR-tab console exactly why a drag was
+              // accepted or rejected. Logs only on phase=start/end so
+              // we don't spam during a continuous drag (move events fire
+              // 60+ Hz).
+              if (drag?.phase === "start" || drag?.phase === "end" || !accepts) {
+                console.log(
+                  `[align-fast-path] phase=${drag?.phase} v=${drag?.vertexId} `
+                  + `xy=(${drag?.normalizedX?.toFixed(3)},${drag?.normalizedY?.toFixed(3)}) `
+                  + `ageMs=${Math.round(ageMs)} alignActive=${alignActive} `
+                  + `arrivedAfterLoad=${dragArrivedAfterLoad} accept=${accepts}`,
+                );
+              }
+              if (accepts) {
                 const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
                 const grid = gridState?.getGrid?.();
                 if (grid && Array.isArray(grid.srcXs) && Array.isArray(grid.srcYs)) {
@@ -726,6 +727,32 @@
             } else if (ctx.shouldSuppressBroadcastReapply()) {
               // Our own save just broadcast this — skip re-fetch to
               // avoid overwriting local state changes in progress.
+            } else if (
+              // Phase-31 h24 (2026-05-06): on the SSR Chromium tab, skip
+              // the cross-port API_UNREACHABLE-ridden refetch entirely.
+              // The broadcast envelope already carries the full updated
+              // snapshot; the SSR tab can apply directly from
+              // payload.session.snapshot without HTTP round-tripping
+              // through the port-fallback gauntlet (which under heavy
+              // GIF decoding reliably times out → spammy
+              // [global-config] broadcast refetch failed errors).
+              ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+              && payload?.session?.snapshot
+            ) {
+              try {
+                const runtimeExtras = payload.session.snapshot;
+                if (typeof ctx.applyGlobalDefaultsPayloadToState === "function") {
+                  // Use the snapshot itself as the payload; runtime fields
+                  // ride on session.snapshot in the same shape applyGlobalDefaults
+                  // expects (Phase 27 B5).
+                  ctx.applyGlobalDefaultsPayloadToState(runtimeExtras, runtimeExtras);
+                }
+                if (typeof ctx.syncDiagnosticOverlayPanel === "function") {
+                  ctx.syncDiagnosticOverlayPanel();
+                }
+              } catch (err) {
+                console.warn("[global-config] in-envelope apply failed:", err?.message || err);
+              }
             } else {
               void (async () => {
                 try {
