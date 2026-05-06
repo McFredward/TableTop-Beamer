@@ -82,13 +82,16 @@ test("setManifest: injects <link rel=preload as=fetch> for every GIF", () => {
     "/resources/animations/burst.gif": { hash: "AAAAAAAAAAAA", size: 100 },
     "/resources/animations/fire.gif": { hash: "BBBBBBBBBBBB", size: 100 },
     "/resources/animations/malfunction.gif": "CCCCCCCCCCCC",
+    "/resources/animations/sandstorm.mp4": { hash: "MP4HASHMP4HA", size: 100 },
     "/resources/sounds/click.mp3": { hash: "DDDDDDDDDDDD", size: 100 },
   });
 
   const links = fakeDocument.head.children.filter((c) => c._tag === "link");
-  // We restricted preload to /resources/animations/* — sounds & rooms
-  // use <audio>/<video src> which already have native preload semantics.
-  assert.equal(links.length, 3, "expected one <link> per GIF (3 GIFs)");
+  // Preload is GIF-only. MP4s are loaded by <video src=…> (which has
+  // its own preload semantics — adding `as=fetch` would make the
+  // browser warn "preloaded but not used within a few seconds"
+  // because <video> uses `as=video`). Sounds use <audio> similarly.
+  assert.equal(links.length, 3, "expected one <link> per GIF (3 GIFs); MP4 + sound excluded");
 
   const hrefs = links.map((l) => l._attrs.href).sort();
   assert.deepEqual(
@@ -98,7 +101,7 @@ test("setManifest: injects <link rel=preload as=fetch> for every GIF", () => {
       "/resources/animations/fire.gif?v=BBBBBBBBBBBB",
       "/resources/animations/malfunction.gif?v=CCCCCCCCCCCC",
     ],
-    "every preload link href must include the manifest hash",
+    "every preload link href must include the manifest hash; mp4 must NOT appear",
   );
 
   for (const link of links) {

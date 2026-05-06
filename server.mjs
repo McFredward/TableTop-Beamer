@@ -3972,7 +3972,7 @@ if (process.env.SSR_RENDER_HOST === "1") {
         console.warn("[ssr-restore] load failed:", err?.message || err);
       }
       await bootMediasoupRouter();
-      attachWebRtcSignaling(server);
+      const signalingState = attachWebRtcSignaling(server);
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
       // first SSR-tab fetch is instant. Failure is non-fatal — the route
       // will rebuild on demand.
@@ -3986,19 +3986,47 @@ if (process.env.SSR_RENDER_HOST === "1") {
       // reads `serverRendering.availableEncoders` from /api/global-defaults
       // (response is enriched here), or — when live-sync push is wired in
       // a follow-up — from a snapshot listener.
-      try {
-        const encoderConfig = await ssrHost.statusPromise?.catch?.(() => null);
-        if (encoderConfig?.encoderConfig?.available) {
-          if (!liveSessionState.snapshot.serverRendering) {
-            liveSessionState.snapshot.serverRendering = {};
+      // h17: poll the SSR host status until encoderConfig is resolved
+      // (start() sets it synchronously after spawn). Fire-and-forget —
+      // the rest of server boot doesn't depend on this.
+      void (async () => {
+        const startedAt = Date.now();
+        const TIMEOUT_MS = 15000;
+        while (Date.now() - startedAt < TIMEOUT_MS) {
+          const status = ssrHost.getStatus?.();
+          if (status?.encoderConfig) {
+            const enc = status.encoderConfig;
+            try {
+              if (enc.available) {
+                if (!liveSessionState.snapshot.serverRendering) {
+                  liveSessionState.snapshot.serverRendering = {};
+                }
+                liveSessionState.snapshot.serverRendering.availableEncoders = enc.available;
+              }
+              if (signalingState?.setServerInfo) {
+                signalingState.setServerInfo({
+                  encoder: String(enc.encoder || "unknown"),
+                  encoderSource: String(enc.source || "auto"),
+                  availableEncoders: Array.isArray(enc.available) ? enc.available.join(",") : "",
+                  qualityPreset: String(enc.preset || "balanced"),
+                  bitrateBps: Number(enc.bitrate || 0),
+                  fpsTarget: Number(enc.fpsTarget || 30),
+                  keyframeIntervalSec: Number(enc.keyframeIntervalSec || 2),
+                  x264Preset: String(enc.x264Preset || ""),
+                });
+                console.log(
+                  `[server] serverInfo published — encoder=${enc.encoder} preset=${enc.preset} bitrate=${enc.bitrate} fpsTarget=${enc.fpsTarget}`,
+                );
+              }
+            } catch (err) {
+              console.warn(`[server] availableEncoders snapshot wire failed: ${err?.message ?? "unknown"}`);
+            }
+            return;
           }
-          liveSessionState.snapshot.serverRendering.availableEncoders =
-            encoderConfig.encoderConfig.available;
+          await new Promise((r) => setTimeout(r, 250));
         }
-      } catch (err) {
-        // Non-fatal: badge will display "(auto-detection in progress…)".
-        console.warn(`[server] availableEncoders snapshot wire failed: ${err?.message ?? "unknown"}`);
-      }
+        console.warn("[server] encoder-config snapshot timed out — diagnostic overlay will lack encoder info");
+      })();
     } catch (err) {
       console.error(`[server] SSR boot failed: ${err?.message ?? "unknown"}`);
       process.exit(1);

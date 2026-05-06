@@ -115,16 +115,52 @@
       return null;
     }
 
+    // Phase-31 h16 (2026-05-06): TCP-target dedup to silence noisy CORS
+    // errors. `127.0.0.1:4173` and `localhost:4173` are different
+    // browser origins (CORS-relevant) but the SAME TCP socket — if one
+    // succeeds, the other will succeed; if one ECONNREFUSEs, the other
+    // will too. Trying both gratuitously fails with CORS-block when the
+    // origin host doesn't match the one we navigated from.
+    //
+    // We dedupe by TCP target (protocol://host:port where localhost ↔
+    // 127.0.0.1 collapse). The first candidate added wins — we keep it
+    // because it has the same origin as the page (CORS-safe). The
+    // collapsed-equivalent candidate is dropped.
+    function tcpTargetKey(apiBase) {
+      try {
+        const u = new URL(apiBase);
+        let host = u.hostname.toLowerCase();
+        // The URL parser preserves brackets on IPv6: hostname for
+        // `http://[::1]:4173` is `[::1]`. Strip them before alias check.
+        if (host.startsWith("[") && host.endsWith("]")) {
+          host = host.slice(1, -1);
+        }
+        if (host === "localhost" || host === "::1") host = "127.0.0.1";
+        const port = u.port || (u.protocol === "https:" ? "443" : "80");
+        return `${u.protocol}//${host}:${port}`;
+      } catch {
+        return apiBase;
+      }
+    }
+
     function resolveGlobalDefaultsApiCandidates() {
       const endpoints = [];
-      const seen = new Set();
+      const seenOrigin = new Set();
+      const seenTcp = new Set();
 
       function addEndpoint(base, source) {
         const normalized = normalizeApiBase(base);
-        if (!normalized || seen.has(normalized)) {
+        if (!normalized) return;
+        if (seenOrigin.has(normalized)) return;
+        const tcp = tcpTargetKey(normalized);
+        if (seenTcp.has(tcp)) {
+          // Already attempting an origin that hits the same TCP socket —
+          // adding this one would just produce a CORS error if the
+          // first attempt was same-origin. Skip.
           return;
         }
-        seen.add(normalized);
+        seenOrigin.add(normalized);
+        seenTcp.add(tcp);
         endpoints.push({
           apiBase: normalized,
           endpoint: `${normalized}/api/global-defaults`,

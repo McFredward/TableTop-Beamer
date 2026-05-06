@@ -105,43 +105,127 @@ export function createStatusUi({
     }
   }
 
-  // Diagnostic chip — D-D3. Renders received-fps · pc-state · frame-age ·
-  // heartbeat-age. The chip always stays visible on Pi /output/ because
-  // the operator needs an at-a-glance liveness signal even when the
-  // primary <video> element is happy.
-  function updateMetrics({
+  // h17: pure formatter — extracted so the rich multi-line chip output
+  // can be unit-tested without a DOM.
+  function formatDiagnosticOverlay({
     receivedFps,
     pcConnectionState,
     lastFrameAgeMs,
     heartbeatAgeMs,
-    ssrFps, // h8: SSR-tab's internal render fps (server-side rAF rate)
-  }) {
-    if (!chipEl) return;
-    const piFpsStr =
-      typeof receivedFps === "number" && Number.isFinite(receivedFps)
-        ? `stream=${receivedFps.toFixed(0)}fps`
-        : "stream=—fps";
-    // h8: SSR fps is null until the first heartbeat arrives carrying it.
-    const ssrFpsStr =
-      typeof ssrFps === "number" && Number.isFinite(ssrFps)
-        ? `ssr=${ssrFps.toFixed(0)}fps`
-        : "ssr=—";
-    const parts = [
-      piFpsStr,
-      ssrFpsStr,
-      `pc=${pcConnectionState ?? "?"}`,
-      `frame=${
-        typeof lastFrameAgeMs === "number" && Number.isFinite(lastFrameAgeMs)
-          ? Math.round(lastFrameAgeMs) + "ms"
-          : "?"
-      }`,
-      `hb=${
-        typeof heartbeatAgeMs === "number" && Number.isFinite(heartbeatAgeMs)
-          ? Math.round(heartbeatAgeMs) + "ms"
-          : "?"
-      }`,
+    ssrFps,
+    ssrStats,
+    serverInfo,
+    rtcStats,
+    rtcStatsPrev,
+    videoW,
+    videoH,
+    videoDropped,
+    videoTotal,
+    reconnectAttempts,
+  } = {}) {
+    const fmtFps = (v) =>
+      typeof v === "number" && Number.isFinite(v) ? `${v.toFixed(0)}fps` : "—fps";
+    const fmtMs = (v) =>
+      typeof v === "number" && Number.isFinite(v) ? `${Math.round(v)}ms` : "?";
+    const fmtN = (v, dp = 0) =>
+      typeof v === "number" && Number.isFinite(v) ? v.toFixed(dp) : "?";
+    const fmtBitrate = (bps) => {
+      if (typeof bps !== "number" || !Number.isFinite(bps) || bps <= 0) return "?";
+      if (bps >= 1_000_000) return `${(bps / 1_000_000).toFixed(1)}Mbps`;
+      if (bps >= 1_000) return `${(bps / 1_000).toFixed(0)}kbps`;
+      return `${Math.round(bps)}bps`;
+    };
+
+    // Per-second rates from rtc stats diff (frames/packets/bytes).
+    const pktLossPctPart = (() => {
+      const inb = rtcStats?.inbound;
+      if (!inb) return "?";
+      const totalRcvLost = inb.packetsReceived + inb.packetsLost;
+      if (!totalRcvLost) return "0%";
+      return `${((inb.packetsLost / totalRcvLost) * 100).toFixed(1)}%`;
+    })();
+
+    const stream = rtcStats?.inbound;
+    const codec = (rtcStats?.codec || "").replace(/^video\//, "");
+    const decoderImpl = rtcStats?.decoderImplementation || "?";
+    const rtt = rtcStats?.candidatePair?.rtt;
+    const rttMs = typeof rtt === "number" ? Math.round(rtt * 1000) : null;
+    const jitterMs = typeof stream?.jitter === "number"
+      ? Math.round(stream.jitter * 1000) : null;
+    const availBitrate = rtcStats?.candidatePair?.availableIncomingBitrate;
+
+    const dropFracPart = (() => {
+      if (!stream || !stream.framesDecoded) {
+        if (videoTotal && videoDropped) {
+          return `${videoDropped}/${videoTotal}`;
+        }
+        return "0/0";
+      }
+      return `${stream.framesDropped}/${stream.framesDecoded}`;
+    })();
+
+    // Stream resolution: prefer rtcStats (always fresh from sender),
+    // fall back to videoEl dims.
+    const streamW = stream?.frameWidth || videoW || 0;
+    const streamH = stream?.frameHeight || videoH || 0;
+    const streamRes = streamW > 0 && streamH > 0
+      ? `${streamW}x${streamH}`
+      : "?";
+
+    // SSR (server-render) info from heartbeat.
+    const ssrFpsStr = fmtFps(ssrFps);
+    const ssrW = ssrStats?.outputW || 0;
+    const ssrH = ssrStats?.outputH || 0;
+    const ssrRes = ssrW > 0 && ssrH > 0 ? `${ssrW}x${ssrH}` : "?";
+    const ssrDecoder = ssrStats?.lastDecodeVia || "?";
+    const ssrRenderer = ssrStats?.webglRenderer || "?";
+    const board = ssrStats?.boardId || "?";
+    const activeAnims = typeof ssrStats?.activeAnimations === "number"
+      ? ssrStats.activeAnimations : "?";
+    const alignMode = ssrStats?.alignMode === true
+      ? "ALIGN" : (ssrStats?.alignMode === false ? "off" : "?");
+    const gifsReady = ssrStats?.gifsReady ?? null;
+    const gifsTotal = ssrStats?.gifsTotal ?? null;
+    const gifsLoading = ssrStats?.gifsLoading ?? 0;
+    const gifsFallback = ssrStats?.gifsFallback ?? 0;
+    const gifsStr = gifsTotal != null
+      ? `${gifsReady}/${gifsTotal}` +
+        (gifsLoading > 0 ? ` ld${gifsLoading}` : "") +
+        (gifsFallback > 0 ? ` fb${gifsFallback}` : "")
+      : "?";
+
+    // Server-info one-shot.
+    const enc = serverInfo?.encoder || "?";
+    const encSrc = serverInfo?.encoderSource || "?";
+    const preset = serverInfo?.qualityPreset || "?";
+    const targetBps = serverInfo?.bitrateBps;
+    const fpsTarget = serverInfo?.fpsTarget;
+
+    // Six-line layout — one section per concern, label-prefixed for
+    // skim-readability. A monospace renderer (CSS `font-family: monospace;
+    // white-space: pre`) keeps the columns aligned.
+    const lines = [
+      `STREAM  ${fmtFps(receivedFps)} · ${streamRes} · ${codec || "?"} · drops=${dropFracPart} · loss=${pktLossPctPart}`,
+      `RTC     rtt=${rttMs != null ? rttMs + "ms" : "?"} · jitter=${jitterMs != null ? jitterMs + "ms" : "?"} · avail=${fmtBitrate(availBitrate)} · dec=${decoderImpl}`,
+      `SSR     ${ssrFpsStr} · ${ssrRes} · via=${ssrDecoder} · gpu=${ssrRenderer}`,
+      `ENCODE  ${enc}/${encSrc} · ${preset} · target=${fmtBitrate(targetBps)} · ${fpsTarget != null ? fpsTarget + "fps" : "?"}`,
+      `PIPE    pc=${pcConnectionState ?? "?"} · gifs=${gifsStr} · attempts=${reconnectAttempts ?? 0}`,
+      `BOARD   ${board} · anims=${activeAnims} · ${alignMode} · frame=${fmtMs(lastFrameAgeMs)} · hb=${fmtMs(heartbeatAgeMs)}`,
     ];
-    chipEl.textContent = parts.join(" · ");
+    return lines.join("\n");
+  }
+
+  // Diagnostic chip — D-D3 (extended in h17). Renders the multi-line
+  // overlay produced by formatDiagnosticOverlay. Stays visible on Pi
+  // /output/ because the operator needs an at-a-glance liveness signal
+  // even when the primary <video> element is happy.
+  function updateMetrics(input = {}) {
+    if (!chipEl) return;
+    chipEl.textContent = formatDiagnosticOverlay(input);
+    // Tag the chip so CSS can switch to the multi-line layout (white-
+    // space:pre + monospace). The original chip's CSS continues to work
+    // for any caller that still passes only the legacy fields.
+    chipEl.setAttribute("data-overlay-extended", "true");
     chipEl.setAttribute("aria-hidden", "false");
   }
 
@@ -154,5 +238,22 @@ export function createStatusUi({
     hideError,
     onRetry,
     updateMetrics,
+    // h17: pure formatter exposed for unit tests (covers the chip text
+    // contract without spinning up a DOM).
+    formatDiagnosticOverlay,
   };
+}
+
+// h17: also export at the module level for direct test imports — the
+// formatter has no DOM deps so it can be used standalone. Implementation
+// is colocated with the factory above so duplication is avoided.
+export function formatDiagnosticOverlay(input) {
+  // Build a transient factory just to grab the formatter — keeps the
+  // single source of truth inside createStatusUi while still exposing
+  // a top-level binding for tests / other modules.
+  const tmp = createStatusUi({
+    document: { getElementById: () => null },
+    chipEl: null,
+  });
+  return tmp.formatDiagnosticOverlay(input);
 }

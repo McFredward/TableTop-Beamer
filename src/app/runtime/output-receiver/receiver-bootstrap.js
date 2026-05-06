@@ -55,6 +55,14 @@ export async function bootReceiver({ logger = console } = {}) {
   // runs the early-exit branch, but we set it again here defensively
   // in case the bootstrap is invoked from a fresh context.)
   document.body.dataset.outputRole = "final-output";
+  // h17 (2026-05-06): always show the diagnostic overlay on the Pi
+  // receiver. The user explicitly wants render method, resolution,
+  // encoder, etc. visible on the streamed display so they can read
+  // exactly what's happening end-to-end. The overlay is hidden via
+  // `?diagnostic=off` if needed (CSS gates on body[data-diagnostic-overlay]).
+  if (!/[?&]diagnostic=off\b/.test(window.location.search || "")) {
+    document.body.dataset.diagnosticOverlay = "true";
+  }
 
   const chipEl = document.getElementById("output-status-chip");
   const videoEl = document.getElementById("ssr-video");
@@ -73,6 +81,22 @@ export async function bootReceiver({ logger = console } = {}) {
   let pcState = "new";
   let monitorInterval = null;
   let ssrFps = null; // h8: SSR-tab's internal render fps (via heartbeat).
+  // h17: rich diagnostic state — populated by heartbeat (server-side
+  // info + ssr-tab self-reported stats) and consumer-side polling
+  // (RTCPeerConnection.getStats + videoEl.getVideoPlaybackQuality).
+  let ssrStats = null;
+  let serverInfo = null;
+  // RTC stats sampled every 1s from RTCPeerConnection.getStats(). Diff'd
+  // against the prior tick to compute per-second rates (frames decoded,
+  // packets received, bytes received).
+  let rtcStats = {
+    codec: null,
+    inbound: { framesDecoded: 0, framesDropped: 0, framesPerSecond: 0, jitter: null,
+      packetsLost: 0, packetsReceived: 0, bytesReceived: 0, totalDecodeTime: 0 },
+    candidatePair: { rtt: null, availableIncomingBitrate: null },
+    decoderImplementation: null,
+  };
+  let rtcStatsPrev = null;
 
   // D-B4 retry button — manual operator escalation. Always available
   // when the error overlay is visible.
@@ -129,6 +153,15 @@ export async function bootReceiver({ logger = console } = {}) {
       receiver.onSsrFps((fps) => {
         ssrFps = fps;
       });
+      // h17: extended ssr stats (decoder, board, gif counts, output res…)
+      receiver.onSsrStats?.((stats) => {
+        ssrStats = stats;
+      });
+      // h17: server info (encoder, preset, bitrate) — sticks for the
+      // session, refreshed on every heartbeat for resilience.
+      receiver.onServerInfo?.((info) => {
+        serverInfo = info;
+      });
     } catch (err) {
       logger.error(`[ssr-receiver] connect failed: ${err?.message ?? err}`);
       reconnectAttempts += 1;
@@ -155,6 +188,59 @@ export async function bootReceiver({ logger = console } = {}) {
       setTimeout(() => {
         tryConnect();
       }, delay);
+    }
+  }
+
+  // h17: RTC getStats polling. RTCPeerConnection exposes per-track stats
+  // (jitter, packets lost, frames decoded, decoder implementation, RTT).
+  // We snapshot every tick and diff against the prior snapshot to derive
+  // per-second rates. Best-effort — if mediasoup-client doesn't expose
+  // the underlying PC, we just leave the fields null.
+  async function pollRtcStats() {
+    try {
+      const pc = receiver?.getRtcPeerConnection?.();
+      if (!pc || typeof pc.getStats !== "function") return;
+      const report = await pc.getStats();
+      const next = {
+        codec: null,
+        inbound: { framesDecoded: 0, framesDropped: 0, framesPerSecond: 0, jitter: null,
+          packetsLost: 0, packetsReceived: 0, bytesReceived: 0, totalDecodeTime: 0,
+          frameWidth: 0, frameHeight: 0 },
+        candidatePair: { rtt: null, availableIncomingBitrate: null },
+        decoderImplementation: null,
+      };
+      let codecId = null;
+      report.forEach((s) => {
+        if (s.type === "inbound-rtp" && s.kind === "video") {
+          next.inbound.framesDecoded = Number(s.framesDecoded || 0);
+          next.inbound.framesDropped = Number(s.framesDropped || 0);
+          next.inbound.framesPerSecond = Number(s.framesPerSecond || 0);
+          next.inbound.jitter = typeof s.jitter === "number" ? s.jitter : null;
+          next.inbound.packetsLost = Number(s.packetsLost || 0);
+          next.inbound.packetsReceived = Number(s.packetsReceived || 0);
+          next.inbound.bytesReceived = Number(s.bytesReceived || 0);
+          next.inbound.totalDecodeTime = Number(s.totalDecodeTime || 0);
+          next.inbound.frameWidth = Number(s.frameWidth || 0);
+          next.inbound.frameHeight = Number(s.frameHeight || 0);
+          if (typeof s.decoderImplementation === "string") {
+            next.decoderImplementation = s.decoderImplementation;
+          }
+          if (s.codecId) codecId = s.codecId;
+        } else if (s.type === "candidate-pair" && s.state === "succeeded" && s.nominated) {
+          if (typeof s.currentRoundTripTime === "number") next.candidatePair.rtt = s.currentRoundTripTime;
+          if (typeof s.availableIncomingBitrate === "number") {
+            next.candidatePair.availableIncomingBitrate = s.availableIncomingBitrate;
+          }
+        }
+      });
+      if (codecId) {
+        const codec = report.get?.(codecId);
+        if (codec?.mimeType) next.codec = String(codec.mimeType);
+      }
+      rtcStatsPrev = rtcStats;
+      rtcStats = next;
+    } catch (_) {
+      // never let stats polling break the receiver
     }
   }
 
@@ -188,12 +274,40 @@ export async function bootReceiver({ logger = console } = {}) {
       frameCount = 0;
       frameWindowStartMs = now;
     }
+    // h17: poll RTC stats (codec, RTT, jitter, drops). Fire-and-forget;
+    // fresh values land in `rtcStats` for the next chip render.
+    void pollRtcStats();
+    // h17: video element resolution (might lag a tick behind the actual
+    // frame size when simulcast layer changes; that's fine).
+    let videoW = 0, videoH = 0, videoDropped = 0, videoTotal = 0;
+    try {
+      videoW = Number(videoEl.videoWidth || 0);
+      videoH = Number(videoEl.videoHeight || 0);
+      const q = typeof videoEl.getVideoPlaybackQuality === "function"
+        ? videoEl.getVideoPlaybackQuality()
+        : null;
+      if (q) {
+        videoDropped = Number(q.droppedVideoFrames || 0);
+        videoTotal = Number(q.totalVideoFrames || 0);
+      }
+    } catch {}
     ui.updateMetrics({
+      // legacy fields
       receivedFps,
       pcConnectionState: pcState,
       lastFrameAgeMs: now - lastFrameAtMs,
       heartbeatAgeMs: now - lastHeartbeatAtMs,
-      ssrFps, // h8: SSR-tab internal render fps via heartbeat piggyback
+      ssrFps,
+      // h17 extended fields
+      ssrStats,
+      serverInfo,
+      rtcStats,
+      rtcStatsPrev,
+      videoW,
+      videoH,
+      videoDropped,
+      videoTotal,
+      reconnectAttempts,
     });
   }, 1000);
 

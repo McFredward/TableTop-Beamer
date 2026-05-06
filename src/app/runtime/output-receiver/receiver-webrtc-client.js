@@ -50,7 +50,17 @@ export async function createWebRtcReceiver({
   }
   const ms = window.mediasoupClient;
 
-  const subscribers = { connectionState: [], frame: [], heartbeat: [], ssrFps: [] };
+  // h17: ssrStats and serverInfo are piggybacked on heartbeat. We expose
+  // them as separate channels so the bootstrap can route them to the
+  // diagnostic overlay without parsing the heartbeat envelope itself.
+  const subscribers = {
+    connectionState: [],
+    frame: [],
+    heartbeat: [],
+    ssrFps: [],
+    ssrStats: [],
+    serverInfo: [],
+  };
   function emit(channel, ...args) {
     for (const cb of subscribers[channel]) {
       try {
@@ -107,6 +117,11 @@ export async function createWebRtcReceiver({
       if (m.type === "heartbeat") {
         // h8: server piggybacks SSR-tab fps on heartbeat for diagnostic chip.
         if (typeof m.ssrFps === "number") emit("ssrFps", m.ssrFps);
+        // h17: extended ssr-stats blob (board, decoder, gifs, output res, …)
+        if (m.ssrStats && typeof m.ssrStats === "object") emit("ssrStats", m.ssrStats);
+        // h17: server-info (encoder, preset, bitrate, …) — sent on every
+        // heartbeat for resilience (consumer can join late and still get it).
+        if (m.serverInfo && typeof m.serverInfo === "object") emit("serverInfo", m.serverInfo);
         emit("heartbeat");
         return;
       }
@@ -212,5 +227,22 @@ export async function createWebRtcReceiver({
     onFrameReceived: (cb) => subscribers.frame.push(cb),
     onHeartbeat: (cb) => subscribers.heartbeat.push(cb),
     onSsrFps: (cb) => subscribers.ssrFps.push(cb), // h8: SSR-tab internal render fps
+    onSsrStats: (cb) => subscribers.ssrStats.push(cb), // h17: rich SSR stats blob
+    onServerInfo: (cb) => subscribers.serverInfo.push(cb), // h17: encoder/preset/bitrate
+    // h17: getStats access for the diagnostic overlay's consumer-side
+    // RTC stats (codec, RTT, jitter, packet loss, frames decoded/dropped).
+    // Returns the underlying RTCPeerConnection used by mediasoup-client's
+    // recv-transport (best-effort — different mediasoup-client versions
+    // may not expose `_handler._pc`).
+    getRtcPeerConnection: () => {
+      try {
+        const t = recvTransport;
+        if (!t) return null;
+        const pc = t.handler?._pc || t._handler?._pc || t.pc || null;
+        return pc;
+      } catch {
+        return null;
+      }
+    },
   };
 }

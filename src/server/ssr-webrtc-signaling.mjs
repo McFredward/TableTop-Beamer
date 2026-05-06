@@ -158,6 +158,17 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     // sender can include it in messages to consumers.
     ssrFps: null,
     ssrFpsAtMs: 0,
+    // h17: SSR tab also posts a richer { type: "ssr-stats", stats: {...} }
+    // envelope every 1s carrying decoder method, board id, GIF cache
+    // counts, render-method, etc. We piggyback the FULL stats blob on
+    // every consumer heartbeat so the receiver chip can paint the
+    // extended overlay without round-tripping its own RPCs.
+    ssrStats: null,
+    ssrStatsAtMs: 0,
+    // h17: server-side encoder/preset info — set once at boot via
+    // `setServerInfo`, included on every consumer heartbeat so the chip
+    // can show "encoder=x264-software bitrate=8.0M preset=balanced".
+    serverInfo: null,
   };
 
   server.on("upgrade", (req, socket) => {
@@ -218,13 +229,19 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     if (role === "consumer" || role === "ssr-tab") {
       heartbeatTimer = setInterval(() => {
         try {
-          // h8: piggyback the SSR-tab's reported fps on the heartbeat for
-          // consumers so the Pi diagnostic chip can show "Pi-fps · SSR-fps".
-          // ssrFps is null until the SSR tab posts its first sample (~1s
-          // after publisher init); receivers gracefully handle missing.
+          // h17: piggyback FULL ssr-stats blob (which includes fps) plus
+          // the static server-info snapshot so the consumer's diagnostic
+          // overlay can render decoder, encoder, board, gifs, etc. on
+          // every tick without its own polling. Backwards-compatible:
+          // older consumers still read `ssrFps`.
           const ssrFresh = state.ssrFps !== null && (Date.now() - state.ssrFpsAtMs) < 5000;
+          const ssrStatsFresh = state.ssrStats !== null && (Date.now() - state.ssrStatsAtMs) < 5000;
           const payload = { type: "heartbeat", t: Date.now() };
-          if (role === "consumer" && ssrFresh) payload.ssrFps = state.ssrFps;
+          if (role === "consumer") {
+            if (ssrFresh) payload.ssrFps = state.ssrFps;
+            if (ssrStatsFresh) payload.ssrStats = state.ssrStats;
+            if (state.serverInfo) payload.serverInfo = state.serverInfo;
+          }
           const frame = encodeTextFrame(JSON.stringify(payload));
           socket.write(frame);
         } catch {
@@ -275,6 +292,39 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
         if (Number.isFinite(f) && f >= 0 && f <= 240) {
           state.ssrFps = Math.round(f * 10) / 10;
           state.ssrFpsAtMs = Date.now();
+        }
+        return;
+      }
+
+      // h17: extended ssr-stats envelope (board, decoder, gifs, output
+      // resolution, etc.). Like ssr-fps it's fire-and-forget telemetry,
+      // accepted only from the trusted ssr-tab role. We sanitize before
+      // caching: the heartbeat sender will copy this verbatim out to
+      // every consumer.
+      if (msg.type === "ssr-stats" && conn.role === "ssr-tab") {
+        const incoming = msg.stats;
+        if (incoming && typeof incoming === "object" && !Array.isArray(incoming)) {
+          const sanitized = {};
+          for (const [k, v] of Object.entries(incoming)) {
+            if (typeof k !== "string" || k.length > 32) continue;
+            if (
+              typeof v === "string" ? v.length <= 200 :
+              typeof v === "number" ? Number.isFinite(v) :
+              typeof v === "boolean" ? true :
+              false
+            ) {
+              sanitized[k] = v;
+            }
+          }
+          // Cap total payload size as a defensive measure (~32 fields).
+          const limited = Object.fromEntries(Object.entries(sanitized).slice(0, 32));
+          state.ssrStats = limited;
+          state.ssrStatsAtMs = Date.now();
+          // Keep the legacy fps cache in sync so older consumers still work.
+          if (typeof limited.fps === "number") {
+            state.ssrFps = limited.fps;
+            state.ssrFpsAtMs = Date.now();
+          }
         }
         return;
       }
@@ -448,6 +498,30 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       // The "close" handler above does the cleanup.
     });
   });
+
+  // h17: expose setServerInfo so server.mjs can publish boot-time
+  // encoder/preset/bitrate info into every consumer heartbeat. The
+  // shape is intentionally free-form (a string→primitive map) so we
+  // can extend it without a wire-protocol revision.
+  state.setServerInfo = (info) => {
+    if (info && typeof info === "object") {
+      const sanitized = {};
+      for (const [k, v] of Object.entries(info)) {
+        if (typeof k !== "string" || k.length > 32) continue;
+        if (
+          typeof v === "string" ? v.length <= 200 :
+          typeof v === "number" ? Number.isFinite(v) :
+          typeof v === "boolean" ? true :
+          false
+        ) {
+          sanitized[k] = v;
+        }
+      }
+      state.serverInfo = Object.fromEntries(Object.entries(sanitized).slice(0, 32));
+    } else {
+      state.serverInfo = null;
+    }
+  };
 
   return state;
 }

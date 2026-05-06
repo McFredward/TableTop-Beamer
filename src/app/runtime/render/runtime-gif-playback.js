@@ -222,6 +222,8 @@
           ms: Math.round(performance.now() - _decodeStartedAt),
           via: "image-decoder",
         });
+        // h17: expose last decoder method for the diagnostic overlay.
+        try { window.__TT_BEAMER_LAST_GIF_DECODE_METHOD__ = "image-decoder"; } catch (_) {}
         return;
       } catch (error) {
         ctx.logRender.warn("gif_image_decoder_failed_fallback_to_parser", {
@@ -270,7 +272,33 @@
         ms: Math.round(performance.now() - _decodeStartedAt),
         via: "parser",
       });
+      // h17: expose last decoder method for the diagnostic overlay.
+      try { window.__TT_BEAMER_LAST_GIF_DECODE_METHOD__ = "parser"; } catch (_) {}
     }
+  }
+
+  // Phase-31 h17: expose live cache state counters under a stable global
+  // so the SSR publisher's stats reporter can surface "ready/loading/
+  // fallback" counts in the consumer's diagnostic overlay. Updated on
+  // every entry mutation by walking the Map at read-time (cheap — caches
+  // hold tens of entries at most).
+  function _refreshGifCacheCountsGlobal() {
+    try {
+      let ready = 0, loading = 0, fallback = 0, idle = 0;
+      for (const entry of gifPlaybackCacheByPath.values()) {
+        if (entry.status === "ready") ready += 1;
+        else if (entry.status === "loading") loading += 1;
+        else if (entry.status === "fallback") fallback += 1;
+        else idle += 1;
+      }
+      window.__TT_BEAMER_GIF_CACHE_COUNTS__ = {
+        ready,
+        loading,
+        fallback,
+        idle,
+        total: gifPlaybackCacheByPath.size,
+      };
+    } catch (_) { /* never let diag bookkeeping break render path */ }
   }
 
   function ensureGifPlaybackReady(path) {
@@ -603,4 +631,13 @@
     warmRoomGifAssets,
     invalidateGifCacheForPath,
   };
+
+  // Phase-31 h17: keep `__TT_BEAMER_GIF_CACHE_COUNTS__` fresh on a
+  // 500ms tick so the SSR publisher's 1s stats poller always sees a
+  // recent snapshot. Cheaper than threading the refresh into every
+  // entry mutation site.
+  if (typeof setInterval === "function") {
+    setInterval(_refreshGifCacheCountsGlobal, 500);
+    _refreshGifCacheCountsGlobal();
+  }
 })();

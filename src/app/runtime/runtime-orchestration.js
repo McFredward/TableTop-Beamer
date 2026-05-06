@@ -422,6 +422,14 @@ window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
 // read state.renderMode without taking a hard runtime dependency.
 window.__ttBeamerStateProbe = () => state;
 
+// Phase-31 h17: expose the live state object via a stable window key so
+// the SSR publisher script can collect diagnostic info (board id, active
+// animation count, alignMode flag) every second for the consumer's
+// extended diagnostic overlay. Same shape as the probe — reading-only.
+// We pick a verbose name to make this read-side use unambiguous in the
+// publisher and to avoid colliding with normal runtime APIs.
+window.__TT_BEAMER_STATE_FOR_DIAG__ = state;
+
 // Phase 30 B2 h10: expose the EFFECTIVE render mode (configured + the
 // gl-renderer's runtime fallback flag), so the diagnostic chip can
 // honestly show what's currently being rendered.

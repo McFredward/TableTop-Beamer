@@ -70,16 +70,17 @@
     const head = document.head || document.getElementsByTagName("head")[0];
     if (!head) return;
 
-    // Walk the manifest and emit a preload link for every asset whose
-    // URL prefix matches our resource categories. We restrict to
-    // /resources/animations/* because that is the only category that
-    // (a) is fetched via JS fetch in the render path (mp4 uses <video>
-    // src which is already preloadable, sounds use <audio>), and (b)
-    // exhibited the fetch-hang under puppeteer-stream + Xvfb.
+    // Walk the manifest and emit a preload link ONLY for .gif files
+    // under /resources/animations/. MP4s under the same folder are
+    // loaded via <video src> which has its own preload mechanism — if
+    // we add link-preload tags for them, the browser warns "preloaded
+    // but not used within a few seconds" because the <video> element
+    // requests the URL with `as=video` semantics, not `as=fetch`.
     const desiredPaths = new Set();
     for (const rawPath of Object.keys(_hashByPath)) {
       if (typeof rawPath !== "string") continue;
       if (!rawPath.startsWith("/resources/animations/")) continue;
+      if (!rawPath.toLowerCase().endsWith(".gif")) continue;
       desiredPaths.add(rawPath);
     }
 

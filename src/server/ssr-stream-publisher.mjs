@@ -175,13 +175,11 @@ export function buildInPagePublisherScript() {
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
 
-    // h8: SSR-fps reporter. The user wants the Pi diagnostic chip to show
-    // BOTH the received-stream fps AND the SSR-tab's internal render fps.
-    // We measure rAF rate in the SSR page (= the page's actual present
-    // rate, which captures any throttling Chromium applied) and post it
-    // every 1s to the signaling WS. The signaling handler stashes it in
-    // shared state; the heartbeat sender includes it on the consumer-side
-    // heartbeat so the receiver-status-ui can render it.
+    // h17: SSR-side stats reporter. Replaces h8's single-fps message
+    // with a richer { type: "ssr-stats", stats: {...} } envelope so
+    // the consumer's diagnostic overlay can show render method,
+    // resolution, GIF counts, board, decoder, etc. Server piggybacks
+    // the latest stats on heartbeat.
     let __ssrFpsFrames = 0;
     let __ssrFpsLastReported = performance.now();
     const __ssrFpsTick = () => {
@@ -189,6 +187,78 @@ export function buildInPagePublisherScript() {
       requestAnimationFrame(__ssrFpsTick);
     };
     requestAnimationFrame(__ssrFpsTick);
+
+    // Collect non-fps stats once per tick. These poll cheap globals
+    // populated by the runtime (TT_BEAMER_RUNTIME_*). All fields are
+    // best-effort — missing values render as "?" in the consumer chip.
+    function __collectSsrStats() {
+      const out = {};
+      try {
+        // Output dims: the captured tab is the page itself, so the
+        // window dims = the encoder input dims.
+        out.outputW = Math.round(window.innerWidth);
+        out.outputH = Math.round(window.innerHeight);
+        out.devicePixelRatio = Number(window.devicePixelRatio || 1).toFixed(2);
+      } catch {}
+      try {
+        // Active board + animation count exposed by the runtime
+        // orchestration when it's mounted (final-output role).
+        const state = window.__TT_BEAMER_STATE_FOR_DIAG__ || null;
+        if (state) {
+          out.boardId = String(state.boardId || "").slice(0, 32) || null;
+          if (state.runningAnimations && typeof state.runningAnimations === "object") {
+            out.activeAnimations = Object.keys(state.runningAnimations).length;
+          }
+          out.alignMode = Boolean(state.alignMode);
+        }
+      } catch {}
+      try {
+        // GIF cache state counts: how many GIFs are decoded, loading,
+        // or in fallback. Surfaces decode-stalls in real time.
+        const gp = window.TT_BEAMER_RUNTIME_GIF_PLAYBACK;
+        if (gp && typeof gp.getGifPlaybackCacheEntry === "function") {
+          // We only know the active board's animation ids — but the
+          // runtime caches every GIF it has touched. The state machine
+          // (status: idle | loading | ready | fallback) is the same
+          // for all entries. Walk the manifest's animation paths.
+          const m = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST;
+          if (m && typeof m.resolveAssetUrlWithHash === "function") {
+            // No public iter API — use a sentinel global that the
+            // playback module exposes for diagnostics.
+            const counts = window.__TT_BEAMER_GIF_CACHE_COUNTS__;
+            if (counts && typeof counts === "object") {
+              out.gifsReady = Number(counts.ready || 0);
+              out.gifsLoading = Number(counts.loading || 0);
+              out.gifsFallback = Number(counts.fallback || 0);
+              out.gifsTotal = Number(counts.total || 0);
+            }
+          }
+        }
+      } catch {}
+      try {
+        // WebGL renderer for hardware identification. ANGLE strings tell
+        // us if the page is running on llvmpipe / SwiftShader / iGPU /
+        // discrete GPU — the single biggest diagnostic on a publishable
+        // build that may run on anything from a NUC to a workstation.
+        const c = document.createElement("canvas");
+        const gl = c.getContext("webgl2") || c.getContext("webgl");
+        if (gl) {
+          const ext = gl.getExtension("WEBGL_debug_renderer_info");
+          if (ext) {
+            const r = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "").slice(0, 60);
+            if (r) out.webglRenderer = r;
+          }
+        }
+      } catch {}
+      try {
+        // Render method (parser vs image-decoder) — the runtime sets
+        // this global on each successful decode for diagnostic surfacing.
+        const m = window.__TT_BEAMER_LAST_GIF_DECODE_METHOD__;
+        if (typeof m === "string") out.lastDecodeVia = m;
+      } catch {}
+      return out;
+    }
+
     setInterval(() => {
       const now = performance.now();
       const dt = now - __ssrFpsLastReported;
@@ -197,7 +267,12 @@ export function buildInPagePublisherScript() {
       __ssrFpsLastReported = now;
       try {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "ssr-fps", fps: Math.round(fps * 10) / 10 }));
+          const stats = __collectSsrStats();
+          stats.fps = Math.round(fps * 10) / 10;
+          // h17 sends the new envelope. h8's message kept temporarily for
+          // compatibility with consumers that haven't been updated.
+          ws.send(JSON.stringify({ type: "ssr-stats", stats }));
+          ws.send(JSON.stringify({ type: "ssr-fps", fps: stats.fps }));
         }
       } catch {}
     }, 1000);
