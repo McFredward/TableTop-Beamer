@@ -8,7 +8,18 @@
 // Pure unit-testable: `evaluateDisconnect` has zero browser deps and is
 // covered by test/ssr-receiver-disconnect-detection.test.mjs.
 
-export const DISCONNECT_THRESHOLD_MS = 3000;
+// Phase-31 h36 (2026-05-06): raised from 3000 to 8000 ms.
+// Under heavy align-mode drag traffic (Pi sending ~30 Hz align-grid-snapshot
+// broadcasts), the server's signaling-WS heartbeat (1500 ms interval) can
+// occasionally lag past the old 3 s threshold while the Node event loop
+// processes the burst of mutation fanouts — the receiver then declares
+// "heartbeat-stale", drops the WS, reconnects, and the cycle repeats
+// (the user's reported reconnect storm). 8 s leaves headroom for several
+// missed heartbeat intervals while still surfacing real disconnects within
+// a single align-mode session. The trade-off is slower disconnect detection
+// during a true crash, but the operator already has explicit `host-down`
+// and `pc-failed` signals which fire instantly via WebRTC state.
+export const DISCONNECT_THRESHOLD_MS = 8000;
 export const MAX_RECONNECT_ATTEMPTS = 10;
 
 /**

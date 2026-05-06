@@ -387,6 +387,27 @@
     _recomputeAndNotifyDirty();
     // Phase-31 h30: discard changes the grid → broadcast so SSR tab follows.
     try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+    // Phase-31 h36 (2026-05-06): the user reported that after the FIRST
+    // ESC the streamed board updates but the local handle/lines stay at
+    // the dragged positions; the SECOND ESC catches them up. The first
+    // ESC frequently coincides with a `video resize` event from the
+    // receiver stream re-establishing — and the videoEl's
+    // getBoundingClientRect can lag the actual DOM mutation by an
+    // animation frame, so the synchronous drawLines above uses a stale
+    // layout and renders into the wrong box. Schedule a delayed retry
+    // so the next frame catches the fresh layout. Cheap (≤ 1 ms) and
+    // idempotent — drawing the same grid twice produces the same output.
+    try {
+      window.requestAnimationFrame?.(() => {
+        if (handlesVisible && typeof rebuildHandleElements === "function") {
+          try {
+            rebuildHandleElements();
+            drawLines();
+            positionRotateHandles();
+          } catch (_) { /* defensive */ }
+        }
+      });
+    } catch (_) {}
     // h35 diagnostic: trace discardChanges so we can see if it actually
     // ran AND what state it restored to. The user reported first-ESC
     // resets animations but not lines, second-ESC resets lines —

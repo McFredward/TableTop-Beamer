@@ -59,29 +59,32 @@ test("evaluateDisconnect: pc-disconnected yields disconnected", () => {
   assert.ok(r.reasons.includes("pc-disconnected"));
 });
 
-test("evaluateDisconnect: frame stale > 3s yields disconnected when connected", () => {
+test("evaluateDisconnect: frame stale > threshold yields disconnected when connected", () => {
+  // h36: threshold raised to 8000 ms. Use 10000 ms gap to clearly exceed.
   const r = evaluateDisconnect({
     pcConnectionState: "connected",
     lastFrameAtMs: 0,
-    lastHeartbeatAtMs: 5000,
-    nowMs: 5000,
+    lastHeartbeatAtMs: 10000,
+    nowMs: 10000,
   });
   assert.equal(r.disconnected, true);
   assert.ok(r.reasons.includes("frame-stale"));
 });
 
-test("evaluateDisconnect: heartbeat stale > 3s yields disconnected", () => {
+test("evaluateDisconnect: heartbeat stale > threshold yields disconnected", () => {
+  // h36: threshold raised to 8000 ms. Use 10000 ms gap to clearly exceed.
   const r = evaluateDisconnect({
     pcConnectionState: "connected",
-    lastFrameAtMs: 5000,
+    lastFrameAtMs: 10000,
     lastHeartbeatAtMs: 0,
-    nowMs: 5000,
+    nowMs: 10000,
   });
   assert.equal(r.disconnected, true);
   assert.ok(r.reasons.includes("heartbeat-stale"));
 });
 
 test("evaluateDisconnect: all healthy returns false", () => {
+  // Within the 8 s h36 threshold — fresh enough to not declare disconnect.
   const r = evaluateDisconnect({
     pcConnectionState: "connected",
     lastFrameAtMs: 4500,
@@ -92,8 +95,15 @@ test("evaluateDisconnect: all healthy returns false", () => {
   assert.deepEqual(r.reasons, []);
 });
 
-test("DISCONNECT_THRESHOLD_MS is 3000ms per RESEARCH.md § Pi receiver", () => {
-  assert.equal(DISCONNECT_THRESHOLD_MS, 3000);
+test("DISCONNECT_THRESHOLD_MS is 8000ms per Phase-31 h36 reconnect-storm fix", () => {
+  // h36 (2026-05-06): raised from 3000 to 8000 ms. Heavy align-mode drag
+  // traffic causes the server's signaling-WS heartbeat to occasionally lag
+  // past 3 s while the Node event loop processes mutation fanouts; the
+  // old threshold then declared "heartbeat-stale" and dropped the WS,
+  // creating a reconnect storm. 8 s leaves headroom for several missed
+  // heartbeats while still surfacing real disconnects within an align-mode
+  // session. Real crashes still surface instantly via host-down / pc-failed.
+  assert.equal(DISCONNECT_THRESHOLD_MS, 8000);
 });
 
 test("MAX_RECONNECT_ATTEMPTS is 10 per Plan 03 D-B4 contract", () => {

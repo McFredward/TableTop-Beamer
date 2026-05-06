@@ -229,6 +229,18 @@
     // SSR tab follows. force=true so the user's Ctrl+Z immediately
     // shows up in the streamed frame even at low drag rates.
     try { broadcastGridSnapshot({ force: true }); } catch {}
+    // Phase-31 h36: same delayed-redraw fix as discardChanges. If the
+    // synchronous redraw above happened against a stale videoEl layout
+    // (immediately after a stream resize), an rAF retry catches the
+    // fresh bounding rect and re-positions the handles + lines.
+    try {
+      if (handlesVisible) {
+        window.requestAnimationFrame?.(() => {
+          try { rebuildHandleElements(); positionRotateHandles(); drawLines(); }
+          catch (_) {}
+        });
+      }
+    } catch (_) {}
   }
 
   function resetGrid() {
