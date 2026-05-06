@@ -279,18 +279,35 @@ export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
         }
       } catch {}
       try {
-        // WebGL renderer for hardware identification. ANGLE strings tell
-        // us if the page is running on llvmpipe / SwiftShader / iGPU /
-        // discrete GPU — the single biggest diagnostic on a publishable
-        // build that may run on anything from a NUC to a workstation.
-        const c = document.createElement("canvas");
-        const gl = c.getContext("webgl2") || c.getContext("webgl");
-        if (gl) {
-          const ext = gl.getExtension("WEBGL_debug_renderer_info");
-          if (ext) {
-            const r = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "").slice(0, 60);
-            if (r) out.webglRenderer = r;
-          }
+        // h21 (2026-05-06): WebGL renderer for hardware identification.
+        // CRITICAL — this MUST be cached after first read, or we leak
+        // a WebGL context every second. Chromium caps active WebGL
+        // contexts at 16; once the cap hits, the OLDEST context is
+        // evicted — that's the mesh-warp's GL context, which then
+        // fails to re-init ("shaderSource ... not of type WebGLShader")
+        // and the warp stops rendering. Symptom user reported in h20:
+        // "Ich sehe immer noch keinerlei Veränderung wenn ich
+        // irgendwas transformiere" — the drag was applied to grid
+        // points but the warp couldn't render the change.
+        if (typeof window.__ttbCachedWebglRenderer === "undefined") {
+          let cached = "";
+          try {
+            const c = document.createElement("canvas");
+            const gl = c.getContext("webgl2") || c.getContext("webgl");
+            if (gl) {
+              const ext = gl.getExtension("WEBGL_debug_renderer_info");
+              if (ext) {
+                cached = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "").slice(0, 60);
+              }
+              // Aggressively release the context immediately.
+              const lose = gl.getExtension("WEBGL_lose_context");
+              try { lose && lose.loseContext(); } catch (_) {}
+            }
+          } catch (_) { /* swallow — diagnostic, not critical */ }
+          window.__ttbCachedWebglRenderer = cached;
+        }
+        if (window.__ttbCachedWebglRenderer) {
+          out.webglRenderer = window.__ttbCachedWebglRenderer;
         }
       } catch {}
       try {
