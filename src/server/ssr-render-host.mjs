@@ -32,6 +32,32 @@ import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { platform } from "node:os";
 
 import { detectChromiumBinary } from "./ssr-browser-detect.mjs";
+
+/**
+ * Build the canonical Xvfb argument list for a given display + viewport.
+ * Exported for unit-testability (Wave-0 test A9 imports this directly).
+ *
+ * Phase 32 D-A4 root-cause fix: `-fakescreenfps 120` lifts the Xvfb
+ * BeginFrameSource above its default (~25 Hz), giving Chromium a 120 Hz
+ * screen budget so the rAF loop can reach 60 fps. Without this flag the
+ * BeginFrameSource caps at ~25 Hz regardless of --disable-frame-rate-limit.
+ *
+ * @param {{ display: string, width: number, height: number }} opts
+ * @returns {string[]}
+ */
+export function getXvfbArgs({ display, width, height }) {
+  return [
+    display,
+    "-screen", "0", `${width}x${height}x24`,
+    "-ac",
+    "-dpi", "96",
+    "+extension", "RANDR",
+    "+extension", "RENDER",
+    "+extension", "GLX",
+    "+extension", "Composite",
+    "-fakescreenfps", "120",  // Phase 32 D-A4 root-cause: lift Xvfb BeginFrameSource above default ~25Hz; Chromium will target 60fps with 120Hz screen budget
+  ];
+}
 import { probeEnvironment, formatEnvironmentReport } from "./ssr-environment-bootstrap.mjs";
 import path from "node:path";
 import {
@@ -265,20 +291,10 @@ export function bootSsrRenderHost({
       // -ac disables host-based access control so the Chromium child
       // process doesn't ICE on auth handshake. -dpi 96 standardizes
       // pixel density (Chromium reads DPI for layout decisions).
-      // ESCAPE HATCH: if you're still capped at ~21 fps after this and
-      // the diagnostic overlay's SSR fps ≤ 21, the BeginFrameSource is
-      // the limit. Replace Xvfb with Xdummy (a real Xorg with the dummy
-      // driver) which supports configurable refresh rates up to 240 Hz.
-      const xvfbArgs = [
-        chosenDisplay,
-        "-screen", "0", `${viewport.width}x${viewport.height}x24`,
-        "-ac",
-        "-dpi", "96",
-        "+extension", "RANDR",
-        "+extension", "RENDER",
-        "+extension", "GLX",
-        "+extension", "Composite",
-      ];
+      // Phase 32 D-A4: -fakescreenfps 120 lifts the BeginFrameSource above
+      // the default (~25Hz), giving Chromium a 120Hz screen budget so the
+      // rAF loop can reach 60fps. getXvfbArgs() is the canonical arg builder.
+      const xvfbArgs = getXvfbArgs({ display: chosenDisplay, width: viewport.width, height: viewport.height });
       logger.info(`[ssr-host] Xvfb args: ${xvfbArgs.join(" ")}`);
       const proc = spawn("Xvfb", xvfbArgs, { stdio: ["ignore", "pipe", "pipe"] });
       let stderrTail = "";

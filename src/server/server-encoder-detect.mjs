@@ -87,6 +87,25 @@ function probeVaapiDevice() {
 }
 
 /**
+ * Probe libva runtime availability — independent of ffmpeg.
+ * Chromium's libwebrtc VaapiVideoEncoder uses libva directly, so VAAPI
+ * encode can be available even when ffmpeg lacks `h264_vaapi`. This probe
+ * checks the libva shared library presence in the standard paths.
+ *
+ * Phase 32 D-A6: decouple Chromium VAAPI detection from ffmpeg probe.
+ *
+ * @returns {boolean}
+ */
+export function probeLibvaRuntime() {
+  const candidates = [
+    "/usr/lib/x86_64-linux-gnu/libva.so.2",
+    "/usr/lib/aarch64-linux-gnu/libva.so.2",
+    "/usr/local/lib/libva.so.2",
+  ];
+  return candidates.some((p) => existsSync(p));
+}
+
+/**
  * Detect available h264 encoders on this host. Returns priority-ordered
  * list. x264-software is ALWAYS appended as universal fallback, so the
  * returned array is never empty.
@@ -106,6 +125,7 @@ export async function detectAvailableEncoders(opts = {}) {
     (async () => ({
       ffmpegEncoders: await probeFfmpegEncoders(),
       hasVaapiDevice: probeVaapiDevice(),
+      hasLibva: probeLibvaRuntime(),    // Phase 32 D-A6: libva path, independent of ffmpeg
       hasNvidiaSmi: await probeNvidiaSmi(),
       platform: platform(),
     }));
@@ -118,8 +138,14 @@ export async function detectAvailableEncoders(opts = {}) {
     result.push("nvenc");
   }
 
-  // VAAPI: ffmpeg lists h264_vaapi AND a /dev/dri/renderD12x exists.
-  if (enc.includes("h264_vaapi") && env.hasVaapiDevice) {
+  // VAAPI: trust either ffmpeg h264_vaapi OR the Chromium-libva pair.
+  // Phase 32 D-A6: Chromium's libwebrtc VaapiVideoEncoder can encode h264
+  // via libva even when the installed ffmpeg lacks h264_vaapi. Both
+  // hasVaapiDevice (/dev/dri/renderD12x) AND hasLibva (libva.so.2) must be
+  // true to claim the Chromium VAAPI path — neither alone is sufficient.
+  if (env.hasVaapiDevice && env.hasLibva) {
+    result.push("vaapi");
+  } else if (enc.includes("h264_vaapi") && env.hasVaapiDevice) {
     result.push("vaapi");
   }
 
