@@ -216,6 +216,8 @@ const {
   ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
   ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrAudioRouteToggle,
   ssrServerRenderingStatus,
+  // Phase 32 D-A3/D-A2: stream FPS cap + align-mode boost controls
+  ssrStreamFpsCapRadios, ssrAlignModeBoostToggle,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
@@ -2975,6 +2977,9 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   ssrFpsTargetRadios,
   ssrAudioRouteToggle,
   ssrServerRenderingStatus,
+  // Phase 32 D-A3/D-A2: stream FPS cap + align-mode boost controls
+  ssrStreamFpsCapRadios,
+  ssrAlignModeBoostToggle,
   // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
   // serverRendering-update mutations directly through the existing
   // pipeline (Plan-04 validate→apply→persist→broadcast).

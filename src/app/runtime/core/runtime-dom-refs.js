@@ -211,6 +211,10 @@
       ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
       ssrAudioRouteToggle: document.querySelector("#ssr-audio-route-toggle"),
       ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
+      // Phase 32 D-A3: stream FPS cap radio group (30/45/60/0=native)
+      ssrStreamFpsCapRadios: Array.from(document.querySelectorAll('input[name="ssr-stream-fps-cap"]')),
+      // Phase 32 D-A2: align-mode boost toggle
+      ssrAlignModeBoostToggle: document.querySelector("#ssr-align-mode-boost-toggle"),
       toastStack: document.querySelector("#toast-stack"),
       polygonRoomSelect: document.querySelector("#polygon-room-select"),
       showRoomVerticesInput: document.querySelector("#show-room-vertices"),

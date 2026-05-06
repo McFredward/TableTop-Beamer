@@ -851,6 +851,27 @@
           <label><input type="radio" name="ssr-fps-target" value="15" /> 15 fps</label>
         </fieldset>
 
+        <!-- Phase 32 D-A3: operator-configurable stream FPS cap. Distinct
+             from the legacy Stream FPS target (which is the encoder-side
+             rate). 60 = match the publisher constraint ceiling; 0 = no
+             cap (hardware-bounded native). Default = 60. -->
+        <fieldset class="ssr-radio-group">
+          <legend>Stream FPS cap</legend>
+          <label><input type="radio" name="ssr-stream-fps-cap" value="30" /> 30 fps</label>
+          <label><input type="radio" name="ssr-stream-fps-cap" value="45" /> 45 fps</label>
+          <label><input type="radio" name="ssr-stream-fps-cap" value="60" /> 60 fps</label>
+          <label><input type="radio" name="ssr-stream-fps-cap" value="0" /> Native (no cap)</label>
+        </fieldset>
+
+        <!-- Phase 32 D-A2: when ON, the publisher boosts stream FPS to
+             60 during active align-mode drag for smoother handle feedback,
+             then returns to the configured cap when align-mode exits. -->
+        <label class="inline-checkbox" id="ssr-align-mode-boost-label"
+          title="Recommended: ON. Stream briefly bumps to 60 fps during align-mode drag for smoother handle feedback.">
+          <input id="ssr-align-mode-boost-toggle" type="checkbox" />
+          Boost stream FPS during align-mode drag (recommended)
+        </label>
+
         <!-- D-D2 REVERSAL (2026-05-06, see 31-D-D2-REVERSAL-ADDENDUM.md):
              audioRoute defaults to "pi-local" (unchecked = pi-local). The
              "in-stream" branch (checked) is rendered as a disabled checkbox
