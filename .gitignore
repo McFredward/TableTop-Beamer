@@ -13,6 +13,10 @@ logs/*.jsonl
 # Node / npm
 node_modules/
 
+# Phase 31 Plan 02 — bundled mediasoup-client browser blob, generated on
+# demand by src/server/ssr-stream-publisher.mjs:ensureMediasoupClientBundle.
+public/vendor/
+
 # Local environment
 .env
 .env.*

@@ -34,6 +34,7 @@ import {
   pickPreferredEncoder,
   ENCODER_PRIORITY,
 } from "./server-encoder-detect.mjs";
+import { injectInPagePublisher } from "./ssr-stream-publisher.mjs";
 
 // ---------------------------------------------------------------------
 // Stream-quality preset → concrete bitrate / fps / keyframe-interval map.
@@ -341,6 +342,20 @@ export function bootSsrRenderHost({
       });
       status.browserConnected = true;
       status.state = "running";
+      // Plan 02: opt-in WebRTC publisher injection. Gated separately
+      // from SSR_RENDER_HOST so Plan 01's tab-only smoke can still run
+      // without mediasoup being available.
+      if (process.env.SSR_PUBLISH === "1") {
+        try {
+          const producers = await injectInPagePublisher(page, { logger });
+          status.producerIds = producers;
+        } catch (err) {
+          logger.error(`[ssr-host] in-page publisher failed: ${err.message}`);
+          status.lastError = err.message;
+          // Do NOT crash the whole host — the tab is still up; let the
+          // health-ping decide whether to relaunch.
+        }
+      }
       browser.on("disconnected", () => {
         status.browserConnected = false;
         if (!stopRequested) {

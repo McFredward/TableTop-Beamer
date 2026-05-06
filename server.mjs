@@ -11,6 +11,9 @@ import {
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
 import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
+import { bootMediasoupRouter, shutdownMediasoupRouter } from "./src/server/ssr-mediasoup-router.mjs";
+import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
+import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -3137,6 +3140,29 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Phase 31 Plan 02 — serve the bundled mediasoup-client browser blob
+    // for the in-page publisher script injected into the SSR Chromium tab.
+    // The bundle is built on first request (esbuild, ~218 KB IIFE) and
+    // cached on disk. Subsequent boots are instant.
+    if ((req.method === "GET" || req.method === "HEAD") && routePath === "/vendor/mediasoup-client.min.js") {
+      try {
+        const bundle = await readMediasoupClientBundle({ logger: console });
+        res.writeHead(200, {
+          "content-type": "application/javascript; charset=utf-8",
+          "content-length": bundle.length,
+          "cache-control": "public, max-age=3600",
+        });
+        if (req.method === "HEAD") {
+          res.end();
+        } else {
+          res.end(bundle);
+        }
+      } catch (err) {
+        sendJson(res, 500, { error: "mediasoup-client bundle unavailable", detail: err?.message ?? "unknown" });
+      }
+      return;
+    }
+
     if (req.method === "OPTIONS" && routePath === "/api/global-defaults") {
       res.writeHead(204, {
         allow: "GET,HEAD,POST,OPTIONS",
@@ -3732,16 +3758,37 @@ attachLiveWebSocket(server);
 // existing 63-test suite + normal `node server.mjs` behavior is
 // fully unchanged.
 if (process.env.SSR_RENDER_HOST === "1") {
-  const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
-  setActiveSsrRenderHost(ssrHost);
+  // Plan 02 (Wave 2): boot mediasoup + signaling BEFORE the render-host
+  // so the in-page publisher (when SSR_PUBLISH=1) finds the signaling
+  // endpoint already attached. The render-host is started in an async
+  // IIFE so the existing call order around it stays unchanged.
+  (async () => {
+    try {
+      await bootMediasoupRouter();
+      attachWebRtcSignaling(server);
+      // Best-effort: pre-warm the mediasoup-client browser bundle so the
+      // first SSR-tab fetch is instant. Failure is non-fatal — the route
+      // will rebuild on demand.
+      ensureMediasoupClientBundle().catch((err) => {
+        console.warn(`[server] mediasoup-client pre-warm failed: ${err?.message ?? "unknown"}`);
+      });
+      const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
+      setActiveSsrRenderHost(ssrHost);
+    } catch (err) {
+      console.error(`[server] SSR boot failed: ${err?.message ?? "unknown"}`);
+      process.exit(1);
+    }
+  })();
   process.on("SIGINT", async () => {
     console.log("[server] SIGINT — shutting down SSR render host…");
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
+    try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
   });
   process.on("SIGTERM", async () => {
     console.log("[server] SIGTERM — shutting down SSR render host…");
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
+    try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
   });
 }
