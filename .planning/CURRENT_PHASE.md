@@ -1,19 +1,22 @@
 # CURRENT PHASE
 
-- Active: none — Phase 31 closed (CLOSED-WITH-HOTFIXES) on 2026-05-06.
-- Status: Phase 31 (Server-Side Rendering Pivot) CLOSED. Architectural
-  pivot delivered: Pi 4 is now a thin display client consuming a single
-  H264 WebRTC stream from the server-side Chromium tab. All 7 plans
-  (31-00..31-06) PASS, automated 9/9 PASS, plus 35 post-UAT hotfixes
-  (h12 – h46) addressing GIF reliability, align-mode round-trip, drag
-  flow, room-overlay sync, server-authoritative profile state, and
-  reconnect storm. Test-Suite 215 total / 211 pass / 4 skipped / 0 fail.
-  Two issues carried to Phase 32: (1) stream FPS plateau at ~25 fps,
-  (2) reconnect-storm regression on cold boot.
-- App version: `0.31.0-h46`
+- Active: none — Phase 32 delivered to UAT (PASS-AUTOMATED-PENDING-MANUAL) on 2026-05-07.
+- Status: Phase 32 (SSR Stream Performance + Connection Stability) automated
+  13/13 PASS. Five Pi-hardware UAT scenarios (32-HUMAN-UAT.md) deferred to
+  live operator testing. Block A (FPS Lift) delivered Xvfb -fakescreenfps,
+  Chromium-VAAPI libva probe, streamFpsCap schema, publisher cap-wiring,
+  align-mode boost, settings UI. Block B (Connection Stability) delivered
+  /api/ssr/ready producer-readiness gate, MAX_RECONNECT_ATTEMPTS hard cap
+  removal, adaptive backoff [1s, 2s, 5s, 10s, 30s] forever-retry,
+  sessionStorage backoff state, RECONNECTING countdown overlay, and
+  server-side proactive boot mediasoup-worker purge.
+  Test-Suite 274 total / 270 pass / 4 skipped / 0 fail. Phase-31 baseline
+  211 still green inside the 270.
+- App version: `0.32.0-delivered-to-uat`
 - Previous Phase: Phase 31 (Server-Side Rendering Pivot) CLOSED-WITH-HOTFIXES.
-- Next Phase: Phase 32 (SSR Stream Performance + Connection Stability) — DISCUSS.
+- Next Phase: Phase 33 — TBD (await Phase 32 manual UAT outcome).
 
+Phase 32 closure: `.planning/phases/phase-32/32-SUMMARY.md` (tag `phase-32-delivered-to-uat`)
 Phase 31 closure: `.planning/phases/phase-31/31-SUMMARY.md` (tag `phase-31-end`)
 Phase 30 closure: `.planning/phases/phase-30/SUMMARY.md` (tag `phase-30-end-partial`)
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)

@@ -198,18 +198,18 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 32 - SSR Stream Performance + Connection Stability (PLANNED)
+## Phase 32 - SSR Stream Performance + Connection Stability (PASS-AUTOMATED-PENDING-MANUAL)
 Ziel: Zwei post-Phase-31 Release-Blocker, die im Live-Test sichtbar wurden. (1) **Stream-FPS-Plateau:** SSR und WebRTC-Stream sind beide bei ~25 fps trotz preset-target 30. Operator-perceived "real-time" Drag im Align-Mode soll Framerate Richtung 60 fps lifen. Untersuchung: Sind Stream-fps an SSR-fps gekoppelt (rAF in headful Chromium, paint-throttle, Encoder-input-rate, mediasoup output-rate) oder ist das Zufall? (2) **Reconnect-Storm-Regression nach Cold-Boot:** Manchmal nach Server-Start reconnected der Pi-Receiver dauerhaft und fängt sich nicht — nur Server-Restart hilft. Sobald es einmal stabil läuft, läuft es lange stabil. Annahme: Server + Pi sind immer im gleichen lokalen LAN.
 
-Status: PLANNED (2026-05-06). Phase entstand aus Phase-31-Closure-Carry-over (siehe `.planning/phases/phase-31/31-SUMMARY.md` "Outstanding"-Sektion). CONTEXT.md + RESEARCH.md + VALIDATION.md complete. 4 Plans erstellt — Wave 0 (test scaffolding), Wave 1 (Block A FPS Lift parallel mit Block B Connection Stability), Wave 2 (Settings UI).
+Status: PASS-AUTOMATED-PENDING-MANUAL am 2026-05-07. Automated 13/13 PASS, Test-Suite 274/270/4/0. **Block A** geliefert: Xvfb `-fakescreenfps 120` (root-cause fix für rAF cap auf headful Chromium unter Xvfb), Chromium-native VAAPI libva-Probe (ersetzt ffmpeg-only check, lifts encoder von x264-software → vaapi auf Raptor Lake-P iGPU), `streamFpsCap` Schema-Feld + Publisher-Wiring + Align-Mode-Boost (250ms polling loop), Settings-UI im System & Performance Panel (4-radio FPS cap + boost checkbox), Bitrate-scaling (30→8M, 45→12M, ≥60→16M). **Block B** geliefert: `/api/ssr/ready` producer-readiness gate + WS `producer-ready` event, `MAX_RECONNECT_ATTEMPTS=10` hard cap REMOVED (root-cause), adaptive backoff `[1s, 2s, 5s, 10s, 30s]` forever-retry, sessionStorage backoff state (page-reload-safe), `RECONNECTING — Xs (attempt N)` countdown overlay, server-side `purgeStaleMediasoupWorker` boot-cleanup. Closure-Doku: `.planning/phases/phase-32/32-SUMMARY.md`. Tag pending: `phase-32-end` (after manual UAT pass) oder `phase-32-delivered-to-uat` (now). 5 Pi-hardware UAT-Items (`32-HUMAN-UAT.md`) gating final closure: FPS-on-hardware, drag-fluidity perception, cold-boot ×10, Pi-reload ×10, VC4 1080p@60 decode budget.
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 32-W0-PLAN.md — Wave 0: test scaffolding + baseline (10 new test files, ≥20 skip-gated assertions)
-- [ ] 32-01-PLAN.md — Wave 1 Block A: Xvfb -fakescreenfps 120 + VAAPI libva probe + streamFpsCap + alignModeBoost wiring
-- [ ] 32-02-PLAN.md — Wave 1 Block B: /api/ssr/ready gate + forever-retry adaptive backoff + countdown overlay + boot cleanup
-- [ ] 32-03-PLAN.md — Wave 2: Settings UI extension (Stream FPS Cap radio + Align-Mode Boost toggle)
+- [x] 32-W0-PLAN.md — Wave 0: test scaffolding + baseline (10 new test files, ≥20 skip-gated assertions)
+- [x] 32-01-PLAN.md — Wave 1 Block A: Xvfb -fakescreenfps 120 + VAAPI libva probe + streamFpsCap + alignModeBoost wiring
+- [x] 32-02-PLAN.md — Wave 1 Block B: /api/ssr/ready gate + forever-retry adaptive backoff + countdown overlay + boot cleanup
+- [x] 32-03-PLAN.md — Wave 2: Settings UI extension (Stream FPS Cap radio + Align-Mode Boost toggle)
 
 Trigger: Phase-31-Hotfix-Welle h24-h26 + h36-h38 hat Reconnect-Storm einmal stabilisiert (consumer-cap, per-IP cleanup, threshold raise). Aber bei kaltem Server-Boot bleibt das Problem latent reproducible. Parallel zeigte h18 dass FPS-lift auf 30 nominell möglich war, aber unter typischer Last sich auf ~25 einpegelte — Codepfade vermutlich nicht skaliert für > 25 fps Throughput.
 
