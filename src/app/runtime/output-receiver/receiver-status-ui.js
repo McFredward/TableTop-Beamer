@@ -119,8 +119,8 @@ export function createStatusUi({
     if (!chipEl) return;
     const piFpsStr =
       typeof receivedFps === "number" && Number.isFinite(receivedFps)
-        ? `pi=${receivedFps.toFixed(0)}fps`
-        : "pi=—fps";
+        ? `stream=${receivedFps.toFixed(0)}fps`
+        : "stream=—fps";
     // h8: SSR fps is null until the first heartbeat arrives carrying it.
     const ssrFpsStr =
       typeof ssrFps === "number" && Number.isFinite(ssrFps)

@@ -322,7 +322,24 @@ export function bootSsrRenderHost({
         // below) Chromium's libva uses the iGPU for VAAPI; canvas falls
         // back to llvmpipe but llvmpipe is faster than SwiftShader.
         "--use-gl=egl",
+        // h9: Chromium itself recommends this when WebGL falls back to
+        // software (visible in CDP console as "Automatic fallback to
+        // software WebGL has been deprecated"). Without it, WebGL
+        // contexts may fail to create at all on Xvfb.
+        "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
+        // h9 hotfix (2026-05-06): User confirmed GIFs play fine when
+        // visiting /output?ssr=1 in a regular browser — but NOT in the
+        // headful-puppeteer Chromium under Xvfb. Root cause: Chromium
+        // aggressively throttles "occluded" / unfocused tabs:
+        // requestAnimationFrame slows to ~1 Hz, setInterval grows to >=1s,
+        // and the GIF render loop stops advancing frames. The Xvfb-headful
+        // SSR window has no real user focus → all those throttles fire.
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,BackForwardCache",
+        "--disable-ipc-flooding-protection",
         // h4: app mode — no browser chrome at all. The window opens
         // with the page content filling its entire client area.
         `--app=${ssrUrl}`,
@@ -491,6 +508,24 @@ export function bootSsrRenderHost({
       }
       browser = await launchBrowser({ browserPath: browserDetect.path });
       page = await browser.newPage();
+      // h9: forward SSR-Tab console messages + page errors to server log so
+      // debugging the in-tab runtime doesn't require a separate DevTools.
+      // Filter spammy `[ssr-publisher]` echo since we already log those.
+      page.on?.("console", (msg) => {
+        try {
+          const t = msg.type();
+          const text = msg.text();
+          if (text.startsWith("[ssr-publisher]")) return; // already logged
+          const fn = (t === "error" ? logger.error : t === "warning" ? logger.warn : logger.info).bind(logger);
+          fn(`[ssr-tab:${t}] ${text.slice(0, 800)}`);
+        } catch {}
+      });
+      page.on?.("pageerror", (err) => {
+        try { logger.error(`[ssr-tab:pageerror] ${err?.stack ?? err?.message ?? err}`); } catch {}
+      });
+      page.on?.("requestfailed", (req) => {
+        try { logger.warn(`[ssr-tab:reqfailed] ${req.url()} :: ${req.failure()?.errorText ?? "?"}`); } catch {}
+      });
       cdpSession = await page.target().createCDPSession();
       await page.goto(`http://127.0.0.1:${port}/output?ssr=1`, {
         waitUntil: "domcontentloaded",
