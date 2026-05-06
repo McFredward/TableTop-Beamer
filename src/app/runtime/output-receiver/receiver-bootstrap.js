@@ -23,6 +23,10 @@ import {
   clearBackoffState,
   markStable,
   STABLE_RESET_THRESHOLD_MS,
+  showCountdownReconnect,
+  markConnectionStable,
+  evaluateOverlayHide,
+  OVERLAY_HIDE_AFTER_STABLE_MS,
 } from "./receiver-status-ui.js";
 // Phase 31 Plan 04 (D-D1): align-mode pointer events forwarded to server.
 import { attachInputForwarder } from "./receiver-input-forwarder.js";
@@ -117,6 +121,10 @@ export async function bootReceiver({ logger = console } = {}) {
   let receiver = null;
   let reconnectAttempts = loadBackoffState(backoffStorage).attempts;
   let connectionStableSince = null; // tracks when last stable connection started
+  // Phase 32 D-B3: countdown overlay state.
+  let countdownStop = null;        // stop() returned by showCountdownReconnect
+  const connectionStore = {};      // mutable store for markConnectionStable / evaluateOverlayHide
+  let overlayHidePoller = null;    // setInterval handle for hide-after-stable check
   let lastFrameAtMs = performance.now();
   let lastHeartbeatAtMs = performance.now();
   let frameCount = 0;
@@ -173,6 +181,23 @@ export async function bootReceiver({ logger = console } = {}) {
           reconnectAttempts = 0;
           clearBackoffState(backoffStorage);
           connectionStableSince = Date.now();
+          // Phase 32 D-B3: stop any running countdown and start stable-hide poller.
+          if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+          markConnectionStable({ now: Date.now(), store: connectionStore });
+          if (!overlayHidePoller) {
+            overlayHidePoller = setInterval(() => {
+              const { shouldHide } = evaluateOverlayHide({
+                now: Date.now(), store: connectionStore,
+                hideAfterMs: OVERLAY_HIDE_AFTER_STABLE_MS,
+              });
+              if (shouldHide) {
+                try { ui.hideReconnect(); } catch {}
+                if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+                clearInterval(overlayHidePoller);
+                overlayHidePoller = null;
+              }
+            }, 500);
+          }
           ui.hideSplash();
           ui.hideReconnect();
           ui.hideError();
@@ -180,12 +205,17 @@ export async function bootReceiver({ logger = console } = {}) {
         if (s === "failed" || s === "ws-closed" || s === "disconnected") {
           // Reset stable tracker so overlay re-shows on next retry.
           connectionStableSince = null;
+          connectionStore.connectionStableAtMs = null;
+          if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
         }
         // D-B4: explicit render-host-down — server publishes this when
         // the Chromium tab dies. Show error UI instead of leaving the
         // last frozen frame and waiting for the operator to notice.
         if (s === "host-down") {
           connectionStableSince = null;
+          connectionStore.connectionStableAtMs = null;
+          if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+          if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
           ui.hideSplash(); // h5: error must be visible above splash
           ui.showError(
             "Render host crashed. The server is restarting the render tab — click Retry to reconnect.",
@@ -245,9 +275,13 @@ export async function bootReceiver({ logger = console } = {}) {
       ui.hideSplash();
       // Use D-B2 schedule: attempt 0→1s, 1→2s, 2→5s, 3→10s, ≥4→30s.
       const delay = getBackoffDelay(reconnectAttempts - 1);
-      ui.showReconnect(
-        `RECONNECTING — ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})`,
-      );
+      // Phase 32 D-B3: show countdown overlay instead of plain text.
+      if (typeof countdownStop === "function") { countdownStop(); }
+      countdownStop = showCountdownReconnect({
+        doc: (typeof document !== "undefined" ? document : null),
+        delayMs: delay,
+        attemptN: reconnectAttempts,
+      });
       setTimeout(() => {
         tryConnect();
       }, delay);
@@ -326,10 +360,15 @@ export async function bootReceiver({ logger = console } = {}) {
       reconnectAttempts += 1;
       saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
       connectionStableSince = null;
+      connectionStore.connectionStableAtMs = null;
       const monDelay = getBackoffDelay(reconnectAttempts - 1);
-      ui.showReconnect(
-        `RECONNECTING — ${Math.round(monDelay / 1000)}s (attempt ${reconnectAttempts}) [${dec.reasons.join(", ")}]`,
-      );
+      // Phase 32 D-B3: countdown overlay for monitor-triggered reconnects.
+      if (typeof countdownStop === "function") { countdownStop(); }
+      countdownStop = showCountdownReconnect({
+        doc: (typeof document !== "undefined" ? document : null),
+        delayMs: monDelay,
+        attemptN: reconnectAttempts,
+      });
       try {
         receiver?.stop();
       } catch {}
@@ -488,6 +527,8 @@ export async function bootReceiver({ logger = console } = {}) {
     stop() {
       if (monitorInterval) clearInterval(monitorInterval);
       if (snapshotInterval) clearInterval(snapshotInterval);
+      if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
+      if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
       try {
         inputForwarder.teardown();
       } catch {}

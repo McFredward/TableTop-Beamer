@@ -1,9 +1,11 @@
 // test/phase-32-boot-cleanup.test.mjs
 //
-// Phase 32 Wave 0 — Block B test B9 (SKIP-GATED).
-// These tests will be flipped GREEN by Wave 1 when:
-//   - purgeStaleMediasoupWorker() is exported from a server module
-//   - server.mjs boot sequence calls it before bootMediasoupRouter()
+// Phase 32 Block B test B9. Flipped GREEN by 32-02-T3.
+// Verifies:
+//   - purgeStaleMediasoupWorker() exported from ssr-mediasoup-router.mjs
+//   - calls pkill -f mediasoup-worker via injected exec
+//   - swallows errors (no stale worker = OK)
+//   - server.mjs calls it BEFORE bootMediasoupRouter
 //
 // Contains: phase-32-boot-cleanup
 
@@ -15,10 +17,7 @@ import { readFileSync } from "node:fs";
 
 test(
   "B9a: purgeStaleMediasoupWorker({ exec: mockExec }) calls pkill -f mediasoup-worker",
-  { skip: "Wave 1 will export purgeStaleMediasoupWorker from ssr-mediasoup-router.mjs or a new boot-cleanup module" },
   async () => {
-    // Wave 1 will export this function. Here we assert the expected contract.
-    // Import will resolve once Wave 1 creates the export.
     const { purgeStaleMediasoupWorker } = await import(
       "../src/server/ssr-mediasoup-router.mjs"
     );
@@ -29,7 +28,7 @@ test(
       if (typeof cb === "function") cb(null, "", ""); // success
     };
 
-    await purgeStaleMediasoupWorker({ exec: mockExec });
+    await purgeStaleMediasoupWorker({ exec: mockExec, gracePeriodMs: 0 });
 
     assert.ok(
       calls.some((cmd) => cmd.includes("pkill") && cmd.includes("mediasoup-worker")),
@@ -41,8 +40,7 @@ test(
 // ── B9b: purgeStaleMediasoupWorker resolves even when exec throws ─────────
 
 test(
-  "B9b: purgeStaleMediasoupWorker resolves even when mockExec throws (no stale worker = OK)",
-  { skip: "Wave 1 will export purgeStaleMediasoupWorker with error-swallowing behavior" },
+  "B9b: purgeStaleMediasoupWorker resolves even when mockExec signals error (no stale worker = OK)",
   async () => {
     const { purgeStaleMediasoupWorker } = await import(
       "../src/server/ssr-mediasoup-router.mjs"
@@ -56,7 +54,7 @@ test(
 
     // Must not throw — "no stale worker" is the happy path on a clean boot.
     await assert.doesNotReject(
-      purgeStaleMediasoupWorker({ exec: mockExec }),
+      purgeStaleMediasoupWorker({ exec: mockExec, gracePeriodMs: 0 }),
       "purgeStaleMediasoupWorker must resolve (not reject) when exec signals no process found",
     );
   },
@@ -66,7 +64,6 @@ test(
 
 test(
   "B9c: server.mjs source contains purgeStaleMediasoupWorker call AND bootMediasoupRouter call AFTER it",
-  { skip: "Wave 1 will add purgeStaleMediasoupWorker call to server.mjs boot sequence" },
   () => {
     const src = readFileSync(
       new URL("../server.mjs", import.meta.url),

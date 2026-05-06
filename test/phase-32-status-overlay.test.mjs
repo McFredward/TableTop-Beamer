@@ -1,9 +1,10 @@
 // test/phase-32-status-overlay.test.mjs
 //
-// Phase 32 Wave 0 — Block B tests B10-B11 (SKIP-GATED).
-// These tests will be flipped GREEN by Wave 1 when:
-//   - showCountdownReconnect() is added to receiver-status-ui.js or receiver-bootstrap.js
-//   - markConnectionStable() and evaluateOverlayHide() are exported
+// Phase 32 Block B tests B10-B11. Flipped GREEN by 32-02-T3.
+// Verifies:
+//   - showCountdownReconnect() sets banner text in correct format
+//   - countdown text decrements over time
+//   - markConnectionStable() / evaluateOverlayHide() logic is correct
 //
 // Contains: phase-32-status-overlay
 
@@ -15,15 +16,13 @@ import { mockDocument } from "./helpers/phase-32-ssr-test-harness.mjs";
 
 test(
   "B10a: showCountdownReconnect({ doc: mockDoc, delayMs: 5000, attemptN: 3 }) sets #ssr-reconnect-banner text matching /^RECONNECTING — \\d+s \\(attempt 3\\)$/",
-  { skip: "Wave 1 will export showCountdownReconnect from receiver-status-ui.js or receiver-bootstrap.js" },
   async () => {
     const { showCountdownReconnect } = await import(
       "../src/app/runtime/output-receiver/receiver-status-ui.js"
     );
 
     const doc = mockDocument();
-    // showCountdownReconnect should synchronously set the initial text,
-    // then update via setTimeout. We check the initial call.
+    // showCountdownReconnect synchronously sets the initial text on first tick.
     showCountdownReconnect({ doc, delayMs: 5000, attemptN: 3 });
 
     const banner = doc.getElementById("ssr-reconnect-banner");
@@ -43,8 +42,7 @@ test(
 // ── B10b: countdown text decrements over time ─────────────────────────────
 
 test(
-  "B10b: showCountdownReconnect countdown shows decremented text after ~1100ms (second-to-last value is '4s')",
-  { skip: "Wave 1 will add countdown tick logic to showCountdownReconnect" },
+  "B10b: showCountdownReconnect countdown shows decremented text after ~1100ms (latest value is '4s')",
   async () => {
     const { showCountdownReconnect } = await import(
       "../src/app/runtime/output-receiver/receiver-status-ui.js"
@@ -60,25 +58,27 @@ test(
     Object.defineProperty(banner, "textContent", {
       get: () => _textContent,
       set: (v) => { _textContent = v; texts.push(v); },
+      configurable: true,
     });
 
     showCountdownReconnect({ doc, delayMs: 5000, attemptN: 3 });
 
-    // Wait ~1100ms for at least one tick to fire.
+    // Wait ~1100ms for ticks at 0ms (5s), 500ms (5s), 1000ms (4s) to fire.
     await new Promise((res) => setTimeout(res, 1100));
 
-    // There should be at least 2 text updates (initial + at least one decrement).
+    // There should be at least 3 text updates (0ms→5s, 500ms→5s, 1000ms→4s).
     assert.ok(
       texts.length >= 2,
-      `Expected at least 2 text updates (initial + decrement), got ${texts.length}: ${JSON.stringify(texts)}`,
+      `Expected at least 2 text updates, got ${texts.length}: ${JSON.stringify(texts)}`,
     );
 
-    // The second-to-last update should show 4s remaining (5s - 1s = 4s).
-    const secondToLast = texts[texts.length - 2];
+    // The latest (last) text should show 4s remaining after ~1s elapsed.
+    // With tickMs=500ms: tick at 0ms→5s, 500ms→5s, 1000ms→4s.
+    const lastText = texts[texts.length - 1];
     assert.match(
-      secondToLast,
+      lastText,
       /4s \(attempt 3\)/,
-      `Second-to-last text must show 4s, got: "${secondToLast}"`,
+      `Last text must show 4s after ~1s elapsed, got: "${lastText}" (all: ${JSON.stringify(texts)})`,
     );
   },
 );
@@ -87,14 +87,14 @@ test(
 
 test(
   "B11a: markConnectionStable({ now: 1000 }) + evaluateOverlayHide({ now: 6500 }) returns { shouldHide: true } (5500ms ≥ 5000ms)",
-  { skip: "Wave 1 will export markConnectionStable and evaluateOverlayHide from receiver-status-ui.js" },
   async () => {
     const { markConnectionStable, evaluateOverlayHide } = await import(
       "../src/app/runtime/output-receiver/receiver-status-ui.js"
     );
 
-    markConnectionStable({ now: 1000 });
-    const result = evaluateOverlayHide({ now: 6500 });
+    const store = {};
+    markConnectionStable({ now: 1000, store });
+    const result = evaluateOverlayHide({ now: 6500, store });
 
     assert.deepEqual(
       result,
@@ -108,14 +108,14 @@ test(
 
 test(
   "B11b: markConnectionStable({ now: 1000 }) + evaluateOverlayHide({ now: 5500 }) returns { shouldHide: false } (4500ms < 5000ms)",
-  { skip: "Wave 1 will export markConnectionStable and evaluateOverlayHide from receiver-status-ui.js" },
   async () => {
     const { markConnectionStable, evaluateOverlayHide } = await import(
       "../src/app/runtime/output-receiver/receiver-status-ui.js"
     );
 
-    markConnectionStable({ now: 1000 });
-    const result = evaluateOverlayHide({ now: 5500 });
+    const store = {};
+    markConnectionStable({ now: 1000, store });
+    const result = evaluateOverlayHide({ now: 5500, store });
 
     assert.deepEqual(
       result,

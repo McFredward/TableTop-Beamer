@@ -14,6 +14,7 @@
 
 import * as mediasoup from "mediasoup";
 import { networkInterfaces } from "node:os";
+import { execSync } from "node:child_process";
 
 const RTC_MIN_PORT = Number(process.env.SSR_RTC_MIN_PORT ?? 40000);
 const RTC_MAX_PORT = Number(process.env.SSR_RTC_MAX_PORT ?? 40100);
@@ -153,5 +154,53 @@ export async function shutdownMediasoupRouter() {
   if (activeWorker) {
     try { activeWorker.close(); } catch { /* already closed */ }
     activeWorker = null;
+  }
+}
+
+/**
+ * Phase 32 D-B4: purge stale mediasoup-worker processes left behind by
+ * a crashed prior server run. Called from server.mjs boot block BEFORE
+ * bootMediasoupRouter() so port bindings (40000-40100 RTC range) are free.
+ *
+ * Single-user dev-server assumption: the pkill command matches any process
+ * named mediasoup-worker; on a shared multi-tenant host, replace with
+ * PID-tracking. See research §"Pitfall 6: pkill on shared hosts".
+ *
+ * @param {object} [opts]
+ * @param {Function} [opts.exec]         - callback-style exec(cmd, opts, cb); defaults to execSync wrapper
+ * @param {number}   [opts.gracePeriodMs] - ms to wait after kill (default 200)
+ * @returns {Promise<void>}
+ */
+export async function purgeStaleMediasoupWorker({
+  exec: _exec,
+  gracePeriodMs = 200,
+} = {}) {
+  // Default exec: synchronous wrapper that presents a callback interface
+  // consistent with child_process.exec so the test injector works uniformly.
+  const execFn = _exec ?? ((cmd, _opts, cb) => {
+    try {
+      execSync(cmd, { stdio: "ignore" });
+      if (typeof cb === "function") cb(null, "", "");
+    } catch (err) {
+      if (typeof cb === "function") cb(err, "", "");
+    }
+  });
+
+  await new Promise((resolve) => {
+    try {
+      execFn("pkill -f mediasoup-worker", {}, (err) => {
+        // Ignore errors — pkill exits 1 when no matching process is found,
+        // which is the normal clean-boot case.
+        void err;
+        resolve();
+      });
+    } catch {
+      // Synchronous throw from a non-async exec wrapper — still OK.
+      resolve();
+    }
+  });
+
+  if (gracePeriodMs > 0) {
+    await new Promise((r) => setTimeout(r, gracePeriodMs));
   }
 }

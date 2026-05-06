@@ -11,7 +11,7 @@ import {
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
 import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
-import { bootMediasoupRouter, shutdownMediasoupRouter } from "./src/server/ssr-mediasoup-router.mjs";
+import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
@@ -4210,6 +4210,11 @@ if (process.env.SSR_RENDER_HOST === "1") {
       } catch (err) {
         console.warn("[active-grid] load failed:", err?.message || err);
       }
+      // Phase 32 D-B4: purge any stale mediasoup-worker process from a prior
+      // crashed server run before booting the new Worker. This frees the RTC
+      // port range (40000-40100) and clears dangling state.
+      console.log("[server] purging stale mediasoup-worker (D-B4)");
+      await purgeStaleMediasoupWorker();
       await bootMediasoupRouter();
       signalingState = attachWebRtcSignaling(server);
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
