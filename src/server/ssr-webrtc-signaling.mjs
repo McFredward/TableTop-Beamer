@@ -440,9 +440,14 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
           // single, debuggable error if the publisher genuinely fails.
           let producer = state.videoProducer;
           if (!producer) {
+            // Phase-31 h26 (2026-05-06): tighter 50 ms poll interval
+            // (was 200 ms) so a fresh producer is picked up within ~50 ms
+            // of being available. With the typical SSR-tab publish time
+            // of 1.5-2 s, this means the receiver waits the bare minimum
+            // for the producer instead of an extra 200 ms-aligned tick.
             const waitDeadline = Date.now() + 8000;
             while (Date.now() < waitDeadline) {
-              await new Promise((r) => setTimeout(r, 200));
+              await new Promise((r) => setTimeout(r, 50));
               producer = state.videoProducer;
               if (producer) break;
             }
