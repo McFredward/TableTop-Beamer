@@ -80,6 +80,31 @@
           && Array.isArray(parsed.snapshot.points)) {
         _loadedProfileName = parsed.name;
         _loadedProfileSnapshot = parsed.snapshot;
+        // Phase-31 h23 (2026-05-06): also APPLY the snapshot to the
+        // active grid. Without this, grid-state's separate localStorage
+        // (which can drift from the profile-persistence LS — e.g. when
+        // defaults change between releases, or when grid-state's LS is
+        // empty on a fresh install) doesn't necessarily match the
+        // loaded profile's snapshot. The result is that isDirty()
+        // compares (grid != saved snapshot) and reports dirty=true on
+        // boot WITHOUT the user touching anything — blocking Align
+        // Mode toggle (the dirty save-gate). Forcing the apply makes
+        // grid == _loadedProfileSnapshot at module-init time, so a
+        // pristine boot reports dirty=false. The cost: any mid-edit
+        // reload loses unsaved edits — that's the right trade-off
+        // because align mode being unblocked outweighs preserving
+        // mid-drag state across page reloads.
+        if (_gridStateApi && typeof _gridStateApi.restoreGridSnapshot === "function") {
+          try {
+            _gridStateApi.restoreGridSnapshot(_loadedProfileSnapshot);
+            // Persist the now-applied grid back to grid-state's LS so
+            // the next boot is consistent without us re-running this
+            // dance every time.
+            saveToLocalStorage();
+          } catch (err) {
+            console.warn("[profile-persistence] restore-apply failed:", err?.message || err);
+          }
+        }
       }
     } catch { /* ignore */ }
   }
