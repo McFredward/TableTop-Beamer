@@ -298,16 +298,53 @@ export function bootSsrRenderHost({
     if (typeof launcher !== "function") {
       throw new Error("puppeteer-stream did not export a launch() function");
     }
+    // h4 hotfix (2026-05-06): app mode (no browser chrome at all — no
+    // URL bar, no tabs, no menu) + popup suppression. The user reported
+    // the captured stream was leaking the URL bar and tab strip, plus
+    // any browser popups (translate, save-password, etc.) appeared in
+    // the stream too. App-mode + the suppression flags below remove
+    // every chrome surface so getDisplayMedia captures only the page.
+    const ssrUrl = `http://127.0.0.1:${port}/output?ssr=1`;
     return launcher({
       executablePath: browserPath,
       headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
       defaultViewport: viewport,
+      // ignoreDefaultArgs strips puppeteer's "--enable-automation" + the
+      // automation infobar so the captured frame has zero chrome.
+      ignoreDefaultArgs: ["--enable-automation"],
       args: [
         "--no-sandbox",
         "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
         "--use-gl=egl", // GPU acceleration (RESEARCH § Pattern 1)
         "--disable-dev-shm-usage",
-        "--auto-select-desktop-capture-source=Entire screen", // for Plan 02 in-page getDisplayMedia
+        // h4: app mode — no browser chrome at all. The window opens
+        // with the page content filling its entire client area.
+        `--app=${ssrUrl}`,
+        `--window-size=${viewport.width},${viewport.height}`,
+        "--window-position=0,0",
+        "--start-fullscreen",
+        // h4: capture target = the active tab, no source picker dialog.
+        // `auto-select-desktop-capture-source=Entire screen` was the previous
+        // behavior — it captures the whole virtual display including any
+        // overlay UI. Switch to tab-capture which only sees the page DOM.
+        // Title substring of /output/?ssr=1 (index.html sets <title>TableTop Beamer</title>).
+        "--auto-select-tab-capture-source-by-title=TableTop Beamer",
+        // h4: suppress every popup / infobar surface so they cannot
+        // appear in the captured frame.
+        "--disable-features=Translate,TranslateUI,PasswordManagerOnboarding,InterestFeedV2,AutofillServerCommunication",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-default-apps",
+        "--disable-extensions",
+        "--disable-component-extensions-with-background-pages",
+        "--disable-prompt-on-repost",
+        "--disable-popup-blocking", // ironically — keep popup-blocker OFF so any popups become same-tab navigations and never spawn extra windows on the desktop
+        "--disable-notifications",
+        "--disable-sync",
+        "--mute-audio", // server doesn't need to play audio (D-D2 reversal — Pi-local)
+        "--hide-crash-restore-bubble",
+        "--disable-session-crashed-bubble",
+        "--disable-infobars",
         // Encoder hint flag derived from resolveEncoderConfig (publishability — CONTEXT.md 2026-05-06).
         // Different builds of Chromium honor different feature flags; we surface the active encoder as a
         // hint and let Chromium fall back to libopenh264 if the requested HW path is unavailable.

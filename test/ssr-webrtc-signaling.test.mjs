@@ -126,9 +126,14 @@ test("Plan 02 (D-D2 reversal): publisher script requests video-only getDisplayMe
   }
   const src = readFileSync("./src/server/ssr-stream-publisher.mjs", "utf8");
   // The script body is a JS template string — we just grep the relevant tokens.
+  // h4 hotfix relaxed the test to accept multi-line option objects so we can
+  // add preferCurrentTab + selfBrowserSurface flags without breaking D-D2 contract.
+  const hasGetDisplayMediaCall = /getDisplayMedia\s*\(/.test(src);
+  const hasVideoTrue = /\bvideo\s*:\s*true\b/.test(src);
+  const hasAudioFalse = /\baudio\s*:\s*false\b/.test(src);
   assert.ok(
-    /getDisplayMedia\s*\(\s*\{\s*video\s*:\s*true\s*,\s*audio\s*:\s*false\s*\}/.test(src),
-    "publisher must call getDisplayMedia({ video: true, audio: false }) per D-D2 reversal",
+    hasGetDisplayMediaCall && hasVideoTrue && hasAudioFalse,
+    "publisher must call getDisplayMedia({ video: true, audio: false, ... }) per D-D2 reversal",
   );
   // No audio Producer — script must NOT call sendTransport.produce({ track: audioTrack })
   assert.ok(

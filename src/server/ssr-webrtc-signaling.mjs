@@ -205,6 +205,24 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
 
     const conn = makeConnState(role);
     if (role === "consumer") state.consumerCount += 1;
+
+    // h4 hotfix (2026-05-06): D-C4 heartbeat. The receiver expects
+    // {type:"heartbeat"} every ~1-2s on the same WS. Without it the
+    // 3s heartbeat-stale indicator fires and causes a reconnect storm.
+    // Heartbeats are cheap (~30 bytes per consumer per second).
+    let heartbeatTimer = null;
+    if (role === "consumer" || role === "ssr-tab") {
+      heartbeatTimer = setInterval(() => {
+        try {
+          const frame = encodeTextFrame(JSON.stringify({ type: "heartbeat", t: Date.now() }));
+          socket.write(frame);
+        } catch {
+          // socket already closing — let close handler clean up
+        }
+      }, 1500);
+      // Don't keep the process alive on the heartbeat alone.
+      heartbeatTimer.unref?.();
+    }
     logger.info(`[ssr-signal] connect role=${role} addr=${req.socket.remoteAddress}`);
 
     function send(obj) {
@@ -387,6 +405,7 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     });
 
     socket.on("close", () => {
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       for (const p of conn.producers.values()) { try { p.close(); } catch {} }
       for (const c of conn.consumers.values()) { try { c.close(); } catch {} }
       if (conn.sendTransport) { try { conn.sendTransport.close(); } catch {} }

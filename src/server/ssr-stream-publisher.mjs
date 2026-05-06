@@ -131,7 +131,18 @@ export function buildInPagePublisherScript() {
     });
 
     // 3. Capture tab — D-D2 REVERSAL: video-only, no audio.
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    // h4 hotfix: preferCurrentTab + selfBrowserSurface=include hint Chromium
+    // to capture the page DOM only (not browser chrome / OS desktop / popups).
+    // Combined with --auto-select-tab-capture-source-by-title=TableTop Beamer
+    // on the launcher, this yields a no-prompt clean capture of just the app.
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: false,
+      preferCurrentTab: true,
+      selfBrowserSurface: "include",
+      surfaceSwitching: "exclude",
+      systemAudio: "exclude",
+    });
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error("getDisplayMedia returned no video track");
 
