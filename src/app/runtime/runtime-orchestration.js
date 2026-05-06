@@ -49,6 +49,66 @@ const {
 const outputRole = resolveOutputRoleFromLocation(window.location);
 document.body.dataset.outputRole = outputRole;
 
+// Phase 31 (Plan 03): Pi /output/ becomes a thin WebRTC receiver.
+// The full render pipeline below this point is intended to render the
+// stream-source on the SSR Chromium tab (`?ssr=1`) and the dashboard.
+// On Pi /output/ (final-output without ?ssr=1) we additionally boot the
+// WebRTC receiver via dynamic-import; the existing render canvas elements
+// are hidden by CSS (Plan 03 Task 1) on Pi so the <video> + status
+// overlays are the only visible surface. D-D2 reversal: existing
+// runtime-wire-room-audio-binders.js stays active so Pi-local
+// WebSocket-driven audio still plays.
+//
+// `data-ssr-tab="true"` is the marker the SSR Chromium tab carries — CSS
+// rules use it to keep the existing canvas visible inside the SSR tab and
+// to suppress the receiver overlays there.
+{
+  const __ttbSearch = window.location.search || "";
+  const __ttbIsSsrTab = /[?&]ssr=1(\b|&)/.test(__ttbSearch);
+  if (__ttbIsSsrTab) {
+    document.body.dataset.ssrTab = "true";
+  }
+  const __ttbShouldBootReceiver =
+    outputRole === OUTPUT_ROLE_FINAL && !__ttbIsSsrTab;
+  if (__ttbShouldBootReceiver) {
+    // Pi /output/ — boot the WebRTC receiver. The existing canvas chrome
+    // is hidden by CSS so the <video> + status overlays are the only
+    // visible surface. Dynamic import keeps this file's static dep graph
+    // unchanged and lets Plan 05 audit / move the wiring later.
+    import("/src/app/runtime/output-receiver/receiver-bootstrap.js")
+      .then((mod) => mod.bootReceiver({ logger: console }))
+      .catch((err) => {
+        // D-B4: never silent black — surface the bootstrap-load failure
+        // directly via the error overlay so the operator sees what
+        // happened. Splash is hidden first to avoid two overlays
+        // stacking. A page reload is the only recovery from a
+        // module-load failure.
+        // eslint-disable-next-line no-console
+        console.error("[ssr-receiver] bootstrap failed", err);
+        const splash = document.getElementById("ssr-splash");
+        const errorOverlay = document.getElementById("ssr-error-overlay");
+        const errorBody = document.getElementById("ssr-error-body");
+        if (splash) splash.hidden = true;
+        if (errorOverlay) errorOverlay.hidden = false;
+        if (errorBody) {
+          errorBody.textContent =
+            `Receiver bootstrap failed: ${err?.message ?? err}. Reload the page to retry.`;
+        }
+      });
+    // NOTE: we do NOT return here — the render pipeline below continues
+    // to run for two reasons:
+    //   1. D-D2 reversal: the live-sync WebSocket boots later in this
+    //      module's init chain and is the channel that delivers
+    //      Pi-local audio triggers (runtime-wire-room-audio-binders.js).
+    //      Skipping all init() calls would silence Pi audio.
+    //   2. The existing canvas / draw-loop is hidden by CSS on Pi
+    //      /output/ (Plan 03 Task 1 styles.css rules) — visually a no-op.
+    // Plan 05 audits whether the rest of the pipeline can be slimmed
+    // down further on the Pi side (move audio binders into the receiver
+    // bootstrap, skip the draw loop entirely, etc.).
+  }
+}
+
 // Phase 30 B3 (CASE E structural variant): the diagnostic chip lives
 // inside <aside id="control-panel"> for dashboard's topbar-inline placement,
 // but on /output/ that aside is `display: none !important` (styles.css:111-117),
