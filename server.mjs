@@ -1211,6 +1211,21 @@ function applyLiveMutation({
     // frame reflects the gesture exactly. The originating client (Pi)
     // ignores it via the `originatorClientId` check in the live-sync
     // apply path so its own grid is not overwritten by its own broadcast.
+    //
+    // h33: server-side trace log so we can verify the broadcast is
+    // arriving from Pi without depending on client-side console access.
+    {
+      const cornerTL = payload.points?.find?.((p) => p.row === 0 && p.col === 0);
+      const lastRow = (payload.srcYs?.length ?? 1) - 1;
+      const lastCol = (payload.srcXs?.length ?? 1) - 1;
+      const cornerBR = payload.points?.find?.((p) => p.row === lastRow && p.col === lastCol);
+      console.log(
+        `[align-grid-snapshot] server-recv from=${role}/${clientId} `
+        + `corners=TL(${cornerTL?.x?.toFixed(2)},${cornerTL?.y?.toFixed(2)})..`
+        + `BR(${cornerBR?.x?.toFixed(2)},${cornerBR?.y?.toFixed(2)}) `
+        + `profile=${payload.profileId}`,
+      );
+    }
     nextSnapshotPatch = {
       runtime: {
         ...readRuntimeSnapshot(),
@@ -3475,6 +3490,29 @@ const server = createServer(async (req, res) => {
         ok: true,
         session: liveSessionState,
       });
+      return;
+    }
+
+    // Phase-31 h33 — Pi → server diagnostic-log bridge.
+    // Pi /output/'s browser console isn't visible in server stdout (the
+    // CDP forwarding only covers the SSR Chromium tab spawned by the
+    // server). To trace Pi-side issues — handle-drag, layout, broadcast —
+    // we ship Pi-side logs through a tiny POST endpoint and echo them to
+    // server stdout with a [pi-log] prefix.  Heavily rate-limited (one
+    // payload per call, 4 KB cap) to keep an unhelpful client from
+    // flooding the server.  Tagged so the operator can grep for them.
+    if (req.method === "POST" && routePath === "/api/diag-log") {
+      let parsed;
+      try {
+        parsed = await parseJsonBody(req, { maxBytes: 4 * 1024 });
+      } catch (_) {
+        sendJson(res, 400, { ok: false, error: "invalid-body" });
+        return;
+      }
+      const tag = typeof parsed?.tag === "string" ? parsed.tag.slice(0, 32) : "pi";
+      const message = typeof parsed?.message === "string" ? parsed.message.slice(0, 1024) : "";
+      console.log(`[${tag}-log] ${message}`);
+      sendJson(res, 200, { ok: true });
       return;
     }
 

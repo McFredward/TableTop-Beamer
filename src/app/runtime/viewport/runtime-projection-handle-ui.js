@@ -159,6 +159,25 @@
     }
   }
 
+  // h33 — Pi → server diagnostic-log bridge. Pi browser console is not
+  // visible in server stdout, so anything we want to trace from the
+  // operator's installation gets shipped through /api/diag-log. Best
+  // effort, fire-and-forget; never throw on failure.
+  function _piDiag(tag, message) {
+    try {
+      console.log(`[${tag}] ${message}`);
+      // Only Pi /output/ ships diag back; SSR tab + dashboard already
+      // log directly to stdout via CDP.
+      if (_isSsrChromiumTab()) return;
+      void fetch("/api/diag-log", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tag, message }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (_) { /* never break a UI path */ }
+  }
+
   // Phase-31 h33: re-position handles + lines whenever the streamed
   // video's resolution changes. Without this, positionHandles sees
   // videoWidth/Height = 0 on the very first call (stream hasn't
@@ -178,8 +197,9 @@
           positionHandles();
           positionRotateHandles();
           drawLines();
-          console.log(
-            `[handle-ui] video resize → reposition. videoSize=${v.videoWidth}x${v.videoHeight}`,
+          _piDiag(
+            "handle-ui",
+            `video resize → reposition videoSize=${v.videoWidth}x${v.videoHeight}`,
           );
         }
       } catch (_) {}
@@ -230,10 +250,12 @@
     try {
       const v = document.getElementById("ssr-video");
       const layout = _getStreamContentRect();
-      console.log(
-        `[handle-ui] createHandles videoSize=${v?.videoWidth || 0}x${v?.videoHeight || 0} `
+      _piDiag(
+        "handle-ui",
+        `createHandles videoSize=${v?.videoWidth || 0}x${v?.videoHeight || 0} `
         + `viewport=${window.innerWidth}x${window.innerHeight} `
-        + `layout=offset(${layout.offsetX.toFixed(0)},${layout.offsetY.toFixed(0)}) size=${layout.w.toFixed(0)}x${layout.h.toFixed(0)}`,
+        + `layout=offset(${layout.offsetX.toFixed(0)},${layout.offsetY.toFixed(0)}) size=${layout.w.toFixed(0)}x${layout.h.toFixed(0)} `
+        + `handles=${handleElements.length}`,
       );
     } catch (_) {}
   }
@@ -1695,5 +1717,7 @@
     // Phase 27 (h6): toolbar-position bridge — consumed by profile-persistence.
     setAlignToolbarPosition,
     getAlignToolbarPosition,
+    // h33: Pi → server diagnostic-log bridge — consumed by handle-drag.
+    piDiag: _piDiag,
   };
 })();

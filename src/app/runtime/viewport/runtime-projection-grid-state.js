@@ -415,7 +415,17 @@
       if (_broadcastLogCount < 5 || force) {
         const corners = `(${grid.points[0]?.[0]?.x?.toFixed(2)},${grid.points[0]?.[0]?.y?.toFixed(2)})..`
           + `(${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.x?.toFixed(2)},${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.y?.toFixed(2)})`;
-        console.log(`[align-grid-snapshot] EMIT force=${force} corners=${corners} profile=${profileId}`);
+        const msg = `EMIT force=${force} corners=${corners} profile=${profileId}`;
+        try {
+          const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+          if (ui && typeof ui.piDiag === "function") {
+            ui.piDiag("align-grid-snapshot", msg);
+          } else {
+            console.log(`[align-grid-snapshot] ${msg}`);
+          }
+        } catch (_) {
+          console.log(`[align-grid-snapshot] ${msg}`);
+        }
         _broadcastLogCount += 1;
       }
       void liveSyncCore.emitLiveMutation("align-grid-snapshot", {

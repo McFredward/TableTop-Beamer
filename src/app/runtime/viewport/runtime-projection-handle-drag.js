@@ -343,11 +343,17 @@
     const pt = getPoint(row, col);
     // h33 diagnostic: confirm handle pointerdown is reaching this handler.
     // If user reports drag broken, server stdout shows whether it fires.
-    console.log(
-      `[handle-drag] pointerdown row=${row} col=${col} `
-      + `pt=(${pt.x.toFixed(3)},${pt.y.toFixed(3)}) `
-      + `client=(${e.clientX},${e.clientY})`,
-    );
+    try {
+      const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      if (ui && typeof ui.piDiag === "function") {
+        ui.piDiag(
+          "handle-drag",
+          `pointerdown row=${row} col=${col} `
+          + `pt=(${pt.x.toFixed(3)},${pt.y.toFixed(3)}) `
+          + `client=(${e.clientX},${e.clientY})`,
+        );
+      }
+    } catch (_) {}
 
     setActiveHandleKey(`${row}-${col}`);
     pushUndo();
