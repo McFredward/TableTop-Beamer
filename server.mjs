@@ -10,6 +10,7 @@ import {
   dequeueFairMutation,
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
+import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -3722,6 +3723,28 @@ const server = createServer(async (req, res) => {
 });
 
 attachLiveWebSocket(server);
+
+// Phase 31 (Plan 01): SSR render-host. Headful Chromium under Xvfb
+// navigates to /output?ssr=1 and runs the existing render pipeline.
+// Wave 2 (Plan 02) wires the in-page WebRTC publish to mediasoup;
+// this plan only proves the tab boots and is process-managed.
+// Disabled by default until the user opts in via env var so the
+// existing 63-test suite + normal `node server.mjs` behavior is
+// fully unchanged.
+if (process.env.SSR_RENDER_HOST === "1") {
+  const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
+  setActiveSsrRenderHost(ssrHost);
+  process.on("SIGINT", async () => {
+    console.log("[server] SIGINT — shutting down SSR render host…");
+    try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
+    process.exit(0);
+  });
+  process.on("SIGTERM", async () => {
+    console.log("[server] SIGTERM — shutting down SSR render host…");
+    try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
+    process.exit(0);
+  });
+}
 
 // Phase 26: read defaultAnimations from the board's unified JSON
 // (config/boards/<id>.json) instead of global-defaults.boardProfiles.
