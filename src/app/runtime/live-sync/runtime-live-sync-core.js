@@ -427,7 +427,15 @@
       try {
         const drag = runtime.lastAlignCornerDrag;
         const dragKey = `${drag.at || ""}:${drag.vertexId}:${drag.phase}`;
-        if (state._lastAppliedAlignCornerDragKey !== dragKey) {
+        // h21b: gate against stale-drag replay on boot. Without these,
+        // the server's persisted runtime.lastAlignCornerDrag from the
+        // PREVIOUS session is applied to the freshly-loaded profile,
+        // mutating its grid → "Unsaved" badge → align mode blocked.
+        const dragAt = drag.at ? Date.parse(drag.at) : 0;
+        const ageMs = Number.isFinite(dragAt) ? Date.now() - dragAt : Infinity;
+        const alignActive = Boolean(state.alignMode);
+        const acceptable = ageMs <= 5000 && alignActive;
+        if (acceptable && state._lastAppliedAlignCornerDragKey !== dragKey) {
           state._lastAppliedAlignCornerDragKey = dragKey;
           const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
           if (gridState) {
@@ -604,7 +612,21 @@
           ) {
             try {
               const drag = payload?.session?.snapshot?.runtime?.lastAlignCornerDrag;
-              if (drag && typeof drag === "object") {
+              // Phase-31 h21b (2026-05-06): gates against applying stale
+              // drags on boot. Without these, a `lastAlignCornerDrag`
+              // record persisted on the server from the user's PREVIOUS
+              // session would be applied to a freshly-loaded profile,
+              // mutating its grid → isDirty() flips on → "Unsaved" badge
+              // appears immediately and blocks entering align mode.
+              //
+              //   (a) ageMs cap — only apply drags newer than 5 s
+              //   (b) alignMode gate — drags only act while align mode
+              //       is currently active. The Pi can only fire drags
+              //       when the user is actively in align mode anyway.
+              const dragAt = drag?.at ? Date.parse(drag.at) : 0;
+              const ageMs = Number.isFinite(dragAt) ? Date.now() - dragAt : Infinity;
+              const alignActive = Boolean(ctx.state?.alignMode);
+              if (drag && typeof drag === "object" && ageMs <= 5000 && alignActive) {
                 const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
                 const grid = gridState?.getGrid?.();
                 if (grid && Array.isArray(grid.srcXs) && Array.isArray(grid.srcYs)) {

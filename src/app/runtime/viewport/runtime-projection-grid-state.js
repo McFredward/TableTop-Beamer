@@ -48,24 +48,26 @@
   }
 
   function buildNewProfileDefaultGrid() {
-    // Phase-31 h20 (2026-05-06): IDENTITY DEFAULT (full-frame, no shrink).
-    // Phase 27's 10%/90% inset was designed to give the user a "shrink-
-    // first, then expand to fit" workflow but it produced the
-    // user-reported "board overflows the outer lines" issue: the GL warp
-    // shrinks the source into the 80% destination box, but the
-    // underlying fx-canvas still draws at 100%, so the outer 20% leaked
-    // through where the GL canvas had transparent margins.
+    // Phase-31 h21b (2026-05-06): RESTORED Phase-27 10%/90% inset default.
+    // The h20 identity-default was reverted because:
+    //   1. Saved profiles still have 10/90 corners; loading any of them
+    //      after h20 ran produced an immediate dirty-flag ON because
+    //      `isDirty()` compares the current grid (identity) against the
+    //      loaded snapshot (10/90) and they differ. The dirty flag then
+    //      blocks entering align mode.
+    //   2. The user explicitly asked for the 80% box back ("Weiterhin
+    //      füllt das default immer noch den gesamten Bildschirm und
+    //      nicht wie zuvor 80% aus").
     //
-    // h20 ships the identity default: srcXs/srcYs/points all at 0..1.
-    // The user sees handles AT the corners of the captured frame,
-    // matching the board extent. Drag-to-align then transforms the
-    // board within the bounds the user has visually defined. New
-    // profiles get this; existing saved profiles continue to load
-    // verbatim via applyGridPayload().
+    // The original "board overflows the outer lines" complaint is fixed
+    // by h20's OTHER change — hiding fx-canvas while GL warp is active
+    // (runtime-projection-mapping.js). With the 10/90 GL warp output now
+    // being the ONLY visible surface, the user sees the board cleanly
+    // shrunk into the 80% destination box, no leakage.
     const srcXs = [0.0, 0.5, 1.0];
     const srcYs = [0.0, 0.5, 1.0];
-    const dstXs = [0.0, 0.5, 1.0];
-    const dstYs = [0.0, 0.5, 1.0];
+    const dstXs = [0.10, 0.50, 0.90];
+    const dstYs = [0.10, 0.50, 0.90];
     const points = [];
     for (let row = 0; row < dstYs.length; row++) {
       points[row] = [];
