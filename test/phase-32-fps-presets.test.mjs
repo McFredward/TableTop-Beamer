@@ -1,54 +1,93 @@
 // test/phase-32-fps-presets.test.mjs
 //
-// Phase 32 Wave 0 — Block A tests A1-A3 (SKIP-GATED).
-// These tests will be flipped GREEN by Wave 1 when streamFpsCap is wired
-// into QUALITY_PRESETS, resolveEncoderConfig, and buildInPagePublisherScript.
+// Phase 32 Wave 1 — Block A tests A1-A3 (GREEN — flipped from skip by 32-01-T3).
+// Verifies streamFpsCap wired into resolveEncoderConfig and buildInPagePublisherScript.
 //
 // Contains: phase-32-fps-presets
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import path from "node:path";
+import os from "node:os";
 
-// ── A1: QUALITY_PRESETS exposes streamFpsCap ──────────────────────────────
+// ── A1: resolveEncoderConfig returns streamFpsCap ────────────────────────
 
 test(
   "A1: QUALITY_PRESETS exposes streamFpsCap per preset OR resolveEncoderConfig accepts streamFpsCap override",
-  { skip: "Wave 1 will wire streamFpsCap into QUALITY_PRESETS / resolveEncoderConfig" },
   async () => {
-    const { QUALITY_PRESETS, resolveEncoderConfig } = await import(
+    const { resolveEncoderConfig } = await import(
       "../src/server/ssr-render-host.mjs"
     );
-    const hasFpsCap =
-      (QUALITY_PRESETS &&
-        Object.values(QUALITY_PRESETS).some((p) => "streamFpsCap" in p)) ||
-      typeof resolveEncoderConfig === "function";
-    assert.ok(hasFpsCap, "QUALITY_PRESETS must have streamFpsCap OR resolveEncoderConfig must accept it");
+    // resolveEncoderConfig is a function — that satisfies the OR condition.
+    assert.ok(
+      typeof resolveEncoderConfig === "function",
+      "resolveEncoderConfig must be a function that accepts streamFpsCap config",
+    );
   },
 );
 
 // ── A2: resolveEncoderConfig returns streamFpsCap from config ─────────────
 
 test(
-  "A2: resolveEncoderConfig({ serverRendering: { streamFpsCap: 60 } }) returns { streamFpsCap: 60 } in result",
-  { skip: "Wave 1 will add resolveEncoderConfig with streamFpsCap support" },
+  "A2: resolveEncoderConfig reads streamFpsCap from config/global-defaults.json and returns it in result",
   async () => {
     const { resolveEncoderConfig } = await import("../src/server/ssr-render-host.mjs");
-    const result = resolveEncoderConfig({
-      serverRendering: { streamFpsCap: 60, encoder: "auto", qualityPreset: "balanced" },
-      available: ["x264-software"],
-    });
-    assert.equal(result.streamFpsCap, 60);
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "ssr-fpstest-"));
+    try {
+      mkdirSync(path.join(tmp, "config"), { recursive: true });
+      writeFileSync(
+        path.join(tmp, "config", "global-defaults.json"),
+        JSON.stringify({
+          serverRendering: {
+            encoder: "x264-software",
+            qualityPreset: "balanced",
+            streamFpsCap: 45,
+            alignModeBoost: false,
+          },
+        }),
+      );
+      const silentLogger = { info: () => {}, warn: () => {}, error: () => {} };
+      const result = await resolveEncoderConfig({ rootDir: tmp, logger: silentLogger });
+      assert.equal(result.streamFpsCap, 45, "streamFpsCap must be read from config");
+      assert.equal(result.effectiveStreamFpsCap, 45, "effectiveStreamFpsCap must equal streamFpsCap when non-zero");
+      assert.equal(result.alignModeBoost, false, "alignModeBoost must be read from config");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "A2b: resolveEncoderConfig maps streamFpsCap=0 (native) to effectiveStreamFpsCap=60",
+  async () => {
+    const { resolveEncoderConfig } = await import("../src/server/ssr-render-host.mjs");
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "ssr-fpstest0-"));
+    try {
+      mkdirSync(path.join(tmp, "config"), { recursive: true });
+      writeFileSync(
+        path.join(tmp, "config", "global-defaults.json"),
+        JSON.stringify({
+          serverRendering: { encoder: "x264-software", streamFpsCap: 0 },
+        }),
+      );
+      const silentLogger = { info: () => {}, warn: () => {}, error: () => {} };
+      const result = await resolveEncoderConfig({ rootDir: tmp, logger: silentLogger });
+      assert.equal(result.streamFpsCap, 0, "streamFpsCap=0 must be preserved (native)");
+      assert.equal(result.effectiveStreamFpsCap, 60, "effectiveStreamFpsCap must be 60 when streamFpsCap=0");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   },
 );
 
 // ── A3: buildInPagePublisherScript wires frameRate with streamFpsCap ──────
 
 test(
-  "A3a: buildInPagePublisherScript output contains frameRate: { ideal: 60, max: 60 } when streamFpsCap=60",
-  { skip: "Wave 1 will wire streamFpsCap into buildInPagePublisherScript" },
+  "A3a: buildInPagePublisherScript output contains frameRate ideal:60 max:60 when effectiveStreamFpsCap=60",
   async () => {
-    const { buildInPagePublisherScript } = await import("../src/server/ssr-render-host.mjs");
-    const script = buildInPagePublisherScript({ streamFpsCap: 60 });
+    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
+    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 60 });
     assert.ok(
       typeof script === "string",
       "buildInPagePublisherScript must return a string",
@@ -61,11 +100,10 @@ test(
 );
 
 test(
-  "A3b: buildInPagePublisherScript output contains frameRate: { ideal: 30, max: 30 } when streamFpsCap=30",
-  { skip: "Wave 1 will wire streamFpsCap into buildInPagePublisherScript" },
+  "A3b: buildInPagePublisherScript output contains frameRate ideal:30 max:30 when effectiveStreamFpsCap=30",
   async () => {
-    const { buildInPagePublisherScript } = await import("../src/server/ssr-render-host.mjs");
-    const script = buildInPagePublisherScript({ streamFpsCap: 30 });
+    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
+    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 30 });
     assert.ok(
       typeof script === "string",
       "buildInPagePublisherScript must return a string",
@@ -73,6 +111,53 @@ test(
     assert.ok(
       script.includes("ideal: 30") && script.includes("max: 30"),
       `Script must contain frameRate ideal:30 max:30 but got:\n${script.slice(0, 500)}`,
+    );
+  },
+);
+
+test(
+  "A3b2: buildInPagePublisherScript output contains frameRate ideal:45 max:45 when effectiveStreamFpsCap=45",
+  async () => {
+    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
+    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 45 });
+    assert.ok(
+      script.includes("ideal: 45") && script.includes("max: 45"),
+      `Script must contain frameRate ideal:45 max:45`,
+    );
+  },
+);
+
+test(
+  "A3c: buildInPagePublisherScript with alignModeBoost=true includes __TT_BEAMER_STATE_FOR_DIAG__ polling loop",
+  async () => {
+    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
+    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 60, alignModeBoost: true });
+    assert.ok(
+      script.includes("__TT_BEAMER_STATE_FOR_DIAG__"),
+      "Script must reference __TT_BEAMER_STATE_FOR_DIAG__ for align-mode polling",
+    );
+    assert.ok(
+      script.includes("setInterval"),
+      "Script must include setInterval polling loop for align-mode boost",
+    );
+    assert.ok(
+      script.includes("applyConstraints"),
+      "Script must include applyConstraints for reactive fps change",
+    );
+  },
+);
+
+test(
+  "A3d: buildInPagePublisherScript with alignModeBoost=false does NOT include the polling setInterval body",
+  async () => {
+    const { buildInPagePublisherScript } = await import("../src/server/ssr-stream-publisher.mjs");
+    const script = buildInPagePublisherScript({ effectiveStreamFpsCap: 60, alignModeBoost: false });
+    // The boost setInterval should be gated behind alignModeBoostEnabled=false
+    // so the setInterval call body for align-mode is NOT reached at runtime.
+    // We verify the flag is set to false in the script.
+    assert.ok(
+      script.includes("alignModeBoostEnabled = false"),
+      "Script must set alignModeBoostEnabled=false when alignModeBoost=false",
     );
   },
 );

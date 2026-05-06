@@ -121,6 +121,28 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     }
   }
 
+  // Phase 32 D-A3: read streamFpsCap + alignModeBoost from config block.
+  // sr is already parsed above; access directly from the parsed cfg object.
+  let userStreamFpsCap = 60;  // default per STREAM_FPS_CAP_DEFAULT
+  let userAlignModeBoost = true;  // default per ALIGN_MODE_BOOST_DEFAULT
+  try {
+    const raw2 = await readFile(path.join(rootDir, "config", "global-defaults.json"), "utf8");
+    const cfg2 = JSON.parse(raw2);
+    const sr2 = (cfg2 && typeof cfg2 === "object" && cfg2.serverRendering && typeof cfg2.serverRendering === "object")
+      ? cfg2.serverRendering
+      : {};
+    if (typeof sr2.streamFpsCap === "number" && Number.isFinite(sr2.streamFpsCap)) {
+      userStreamFpsCap = sr2.streamFpsCap;
+    }
+    if (typeof sr2.alignModeBoost === "boolean") {
+      userAlignModeBoost = sr2.alignModeBoost;
+    }
+  } catch {
+    // config missing or unparseable — use defaults above
+  }
+  // effectiveStreamFpsCap: 0 = native (no cap) → use 60 as the actual constraint value.
+  const effectiveStreamFpsCap = (userStreamFpsCap === 0) ? 60 : userStreamFpsCap;
+
   const available = await detectAvailableEncoders();
   logger.info(`[ssr-host] available encoders: ${available.join(", ")}`);
 
@@ -152,6 +174,9 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   logger.info(
     `[ssr-host] qualityPreset=${presetName} bitrate=${preset.bitrate} fpsTarget=${fpsTarget} keyframeIntervalSec=${preset.keyframeIntervalSec}`,
   );
+  logger.info(
+    `[ssr-host] streamFpsCap=${userStreamFpsCap} effectiveStreamFpsCap=${effectiveStreamFpsCap} alignModeBoost=${userAlignModeBoost}`,
+  );
 
   return {
     encoder: chosen,
@@ -163,6 +188,9 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
     keyframeIntervalSec: preset.keyframeIntervalSec,
     x264Preset: preset.x264Preset,
     resolutionPreference: userResolution,
+    streamFpsCap: userStreamFpsCap,           // Phase 32 D-A3 (raw, incl. 0=native)
+    effectiveStreamFpsCap,                    // Phase 32 D-A3 (resolved, 0→60)
+    alignModeBoost: userAlignModeBoost,       // Phase 32 D-A2
   };
 }
 
@@ -612,6 +640,8 @@ export function bootSsrRenderHost({
           const producers = await injectInPagePublisher(page, {
             logger,
             encoderConfig: status.encoderConfig,
+            effectiveStreamFpsCap: status.encoderConfig?.effectiveStreamFpsCap ?? 60,
+            alignModeBoost: status.encoderConfig?.alignModeBoost ?? true,
           });
           status.producerIds = producers;
         } catch (err) {

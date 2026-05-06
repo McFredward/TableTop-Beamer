@@ -34,19 +34,33 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
 
 /**
- * Bitrate cap derived from the active Stream-Quality preset.
- * Matches Plan 01 resolveEncoderConfig defaults:
- *   low-latency  → 4 Mbit/s
- *   balanced     → 8 Mbit/s
- *   high-quality → 12 Mbit/s
+ * Bitrate cap derived from the active Stream-Quality preset + FPS cap.
+ *
+ * Phase 32 D-A3: bitrate scales with streamFpsCap per Research §"Bitrate
+ * Scaling for FPS Lift":
+ *   30fps  → 8 Mbit/s  (current balanced)
+ *   45fps  → 12 Mbit/s (current high-quality)
+ *   60fps  → 16 Mbit/s (new high-fps — LAN gigabit handles it easily)
+ *   native → 16 Mbit/s (same cap as 60; hardware is the ceiling)
  *
  * Override via SSR_INITIAL_BITRATE env (single number, not per-layer);
  * we then split it across simulcast layers proportionally.
  *
+ * @param {{ effectiveStreamFpsCap?: number }} [opts]
  * @returns {{ low: number, mid: number, high: number, total: number }}
  */
-function deriveSimulcastBitrates() {
-  const total = Number(process.env.SSR_INITIAL_BITRATE ?? 8_000_000);
+function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
+  let total;
+  const envOverride = Number(process.env.SSR_INITIAL_BITRATE);
+  if (Number.isFinite(envOverride) && envOverride > 0) {
+    total = envOverride;
+  } else if (effectiveStreamFpsCap >= 60) {
+    total = 16_000_000; // 60fps or native → 16 Mbit/s
+  } else if (effectiveStreamFpsCap >= 45) {
+    total = 12_000_000; // 45fps → 12 Mbit/s
+  } else {
+    total = 8_000_000;  // 30fps → 8 Mbit/s baseline
+  }
   // Roughly: low=15%, mid=35%, high=100% of total per spatial layer.
   // The browser's congestion control will downscale layers as needed.
   return {
@@ -66,9 +80,16 @@ function deriveSimulcastBitrates() {
  *
  * D-D2 reversal: explicit `audio: false` — no audio track is captured
  * or produced.
+ *
+ * Phase 32 D-A3: effectiveStreamFpsCap drives getDisplayMedia frameRate
+ * constraint (0=native maps to 60 before reaching here via resolveEncoderConfig).
+ * Phase 32 D-A2: alignModeBoost enables a polling loop that calls
+ * applyConstraints to boost frameRate to 60 during active align-mode drag.
+ *
+ * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, alignModeBoost?: boolean }} [opts]
  */
-export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
-  const bitrates = deriveSimulcastBitrates();
+export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, alignModeBoost = true } = {}) {
+  const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap });
   // h18: pick simulcast vs single-layer based on encoder. x264-software
   // is CPU-bound — running 3 spatial layers triples encode cost and
   // commonly caps the stream around 20 fps on x86_64 workstations. With
@@ -167,11 +188,10 @@ export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
       video: {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
-        // h18: ask for 60 fps explicitly. The previous "ideal: 30" was
-        // being honored literally, capping us at 30 even when the page
-        // rendered higher. "max: 60" keeps the upper bound; congestion
-        // control / encoder budget naturally clamps where needed.
-        frameRate: { ideal: 60, max: 60 },
+        // Phase 32 D-A3: frameRate driven by streamFpsCap config.
+        // h18 previously hardcoded 60 — now uses effectiveStreamFpsCap so
+        // operator-configured cap flows through from config to capture.
+        frameRate: { ideal: ${effectiveStreamFpsCap}, max: ${effectiveStreamFpsCap} },
         cursor: "never",
       },
       audio: false,
@@ -182,12 +202,35 @@ export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
     });
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error("getDisplayMedia returned no video track");
-    // h18: lock in 60fps via applyConstraints. Best-effort — Chromium
-    // falls back to the source's natural rate if the page can't sustain.
+    // Phase 32 D-A3: lock in configured fps cap via applyConstraints.
+    // Best-effort — Chromium falls back to source natural rate if page can't sustain.
     try {
-      await videoTrack.applyConstraints({ frameRate: { ideal: 60, max: 60 } });
+      await videoTrack.applyConstraints({ frameRate: { ideal: ${effectiveStreamFpsCap}, max: ${effectiveStreamFpsCap} } });
     } catch (e) {
       console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
+    }
+
+    // Phase 32 D-A2: reactive align-mode FPS boost.
+    // When alignModeBoost is enabled, a 250ms polling loop monitors
+    // window.__TT_BEAMER_STATE_FOR_DIAG__.alignMode. On false→true
+    // transition: boost to alignModeFpsCap=60 (always ceiling during drag).
+    // On true→false: revert to baseFpsCap (the configured streamFpsCap).
+    const alignModeBoostEnabled = ${alignModeBoost ? "true" : "false"};
+    const baseFpsCap = ${effectiveStreamFpsCap};
+    const alignModeFpsCap = 60;  // always boost to ceiling during drag per D-A2
+    let lastAlignMode = false;
+    if (alignModeBoostEnabled) {
+      setInterval(() => {
+        const state = window.__TT_BEAMER_STATE_FOR_DIAG__;
+        const currentAlign = Boolean(state?.alignMode);
+        if (currentAlign !== lastAlignMode) {
+          lastAlignMode = currentAlign;
+          const cap = currentAlign ? alignModeFpsCap : baseFpsCap;
+          videoTrack.applyConstraints({ frameRate: { ideal: cap, max: cap } })
+            .then(() => console.log("[ssr-publisher] align-mode boost: fps cap ->", cap))
+            .catch((e) => console.warn("[ssr-publisher] align-mode boost applyConstraints failed", e?.message));
+        }
+      }, 250);
     }
     // h18: log effective track settings so the operator can read them
     // in the SSR-tab console when chasing fps issues.
@@ -369,8 +412,8 @@ export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
  * @param {{ logger?: { info: Function, warn: Function, error: Function }, timeoutMs?: number }} [opts]
  * @returns {Promise<{ video: string }>}
  */
-export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null } = {}) {
-  const script = buildInPagePublisherScript({ encoderConfig });
+export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null, effectiveStreamFpsCap = 60, alignModeBoost = true } = {}) {
+  const script = buildInPagePublisherScript({ encoderConfig, effectiveStreamFpsCap, alignModeBoost });
   await page.evaluate(script);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
