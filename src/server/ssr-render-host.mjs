@@ -335,8 +335,11 @@ export function bootSsrRenderHost({
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-default-apps",
-        "--disable-extensions",
-        "--disable-component-extensions-with-background-pages",
+        // h4.1: do NOT --disable-extensions — puppeteer-stream injects its
+        // own MV3 extension (id jjndjgheafjngoipoacpjgeicjeomjli) to enable
+        // getDisplayMedia tab capture. Disabling extensions blocks
+        // navigation to its options.html during puppeteer-stream init and
+        // makes puppeteer.launch() throw ERR_BLOCKED_BY_CLIENT.
         "--disable-prompt-on-repost",
         "--disable-popup-blocking", // ironically — keep popup-blocker OFF so any popups become same-tab navigations and never spawn extra windows on the desktop
         "--disable-notifications",
