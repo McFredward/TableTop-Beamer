@@ -1039,35 +1039,35 @@ serialized within their respective plans.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is the rAF rate (SSR fps) actually 20-25, or is it 60 with only STREAM fps at 20-25?**
-   - What we know: Phase 32 CONTEXT says "SSR und Stream both capped ~25fps"
-   - Gap: This was observed during Phase 31 UAT, not measured programmatically
-   - Recommendation: The planner should include a measurement task in Wave 0 that
-     reads `ssrStats.fps` from the diagnostic overlay and records it before any
-     code changes. This is the key discriminator.
+   - **RESOLVED:** addressed by Wave 0 Plan 32-W0 task that creates
+     `test/phase-32-fps-baseline.test.mjs` measuring `ssrStats.fps` AND
+     `consumer.getStats().framesPerSecond` programmatically before any
+     patches land. The RED baseline captured by this test is the
+     discriminator — Wave-1 GREEN proof shows the lift.
 
 2. **Does Xvfb `-fakescreenfps 120` actually lift the Chromium rAF rate?**
-   - What we know: Xvfb has this flag; Chromium's BeginFrameSource under x11 uses
-     the display server's vsync signal.
-   - Gap: No live test was run (SSR not currently running).
-   - Recommendation: First task in Plan 32-1 Wave 1 is to add the flag, boot SSR,
-     and read the SSR fps from the overlay. If it jumps to 60+, this is confirmed.
-     If it stays at 25, investigate Chromium's own BeginFrameSource timer.
+   - **RESOLVED:** verified by 32-01-T1 live test — first task adds the flag
+     to `spawnXvfb()`, boots SSR, and the post-patch fps-baseline.test
+     assertion flips from skip→pass when measured fps ≥ 30. If the
+     post-patch measurement still shows ~25 fps, the test stays RED and
+     T1's acceptance_criteria fails — automatic feedback to planner.
 
 3. **Is Chromium VAAPI actually working (VaapiVideoEncoder)?**
-   - What we know: flags are enabled, renderD128 exists, libva is installed, opengl snap
-     interface is connected.
-   - Gap: The actual encode path inside libwebrtc is not observable without
-     `chrome://gpu` or CPU/GPU usage measurement.
-   - Recommendation: The planner should include a CPU-usage measurement task
-     before and after VAAPI configuration changes.
+   - **RESOLVED:** addressed by 32-01-T1 `probeLibvaRuntime()` (libva path
+     check, replaces the ffmpeg-only probe). Chromium's encode path is
+     observed indirectly via the libva probe + the resulting fps lift
+     in 32-01-T1's GREEN test. Full inside-libwebrtc confirmation
+     remains a Pi-hardware UAT item (manual scenario in 32-VALIDATION.md).
 
 4. **What does the Pi VC4 actually achieve at 60fps vs 30fps?**
-   - What we know: Pi 4 VC4 h264 HW decoder supports 1080p@60fps per documentation.
-   - Gap: Not live-verified in this environment; Pi is not available in research.
-   - Recommendation: Phase 32 UAT scenario should include reading `videoEl.getVideoPlaybackQuality().droppedVideoFrames` at 60fps target to confirm Pi has no drop budget issues.
+   - **DEFERRED TO UAT:** Pi hardware not available in research/CI environment.
+     Phase 32 UAT scenario will read
+     `videoEl.getVideoPlaybackQuality().droppedVideoFrames` at the 60fps
+     target on actual Pi 4 hardware to confirm decode budget. This
+     does not block Phase 32 plan execution — it gates phase closure.
 
 ---
 

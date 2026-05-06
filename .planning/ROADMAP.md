@@ -198,10 +198,18 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 32 - SSR Stream Performance + Connection Stability (DISCUSS)
+## Phase 32 - SSR Stream Performance + Connection Stability (PLANNED)
 Ziel: Zwei post-Phase-31 Release-Blocker, die im Live-Test sichtbar wurden. (1) **Stream-FPS-Plateau:** SSR und WebRTC-Stream sind beide bei ~25 fps trotz preset-target 30. Operator-perceived "real-time" Drag im Align-Mode soll Framerate Richtung 60 fps lifen. Untersuchung: Sind Stream-fps an SSR-fps gekoppelt (rAF in headful Chromium, paint-throttle, Encoder-input-rate, mediasoup output-rate) oder ist das Zufall? (2) **Reconnect-Storm-Regression nach Cold-Boot:** Manchmal nach Server-Start reconnected der Pi-Receiver dauerhaft und fängt sich nicht — nur Server-Restart hilft. Sobald es einmal stabil läuft, läuft es lange stabil. Annahme: Server + Pi sind immer im gleichen lokalen LAN.
 
-Status: DISCUSS (2026-05-06). Phase entstand aus Phase-31-Closure-Carry-over (siehe `.planning/phases/phase-31/31-SUMMARY.md` "Outstanding"-Sektion). CONTEXT.md noch nicht erstellt — discuss-phase muss Gray Areas identifizieren.
+Status: PLANNED (2026-05-06). Phase entstand aus Phase-31-Closure-Carry-over (siehe `.planning/phases/phase-31/31-SUMMARY.md` "Outstanding"-Sektion). CONTEXT.md + RESEARCH.md + VALIDATION.md complete. 4 Plans erstellt — Wave 0 (test scaffolding), Wave 1 (Block A FPS Lift parallel mit Block B Connection Stability), Wave 2 (Settings UI).
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 32-W0-PLAN.md — Wave 0: test scaffolding + baseline (10 new test files, ≥20 skip-gated assertions)
+- [ ] 32-01-PLAN.md — Wave 1 Block A: Xvfb -fakescreenfps 120 + VAAPI libva probe + streamFpsCap + alignModeBoost wiring
+- [ ] 32-02-PLAN.md — Wave 1 Block B: /api/ssr/ready gate + forever-retry adaptive backoff + countdown overlay + boot cleanup
+- [ ] 32-03-PLAN.md — Wave 2: Settings UI extension (Stream FPS Cap radio + Align-Mode Boost toggle)
 
 Trigger: Phase-31-Hotfix-Welle h24-h26 + h36-h38 hat Reconnect-Storm einmal stabilisiert (consumer-cap, per-IP cleanup, threshold raise). Aber bei kaltem Server-Boot bleibt das Problem latent reproducible. Parallel zeigte h18 dass FPS-lift auf 30 nominell möglich war, aber unter typischer Last sich auf ~25 einpegelte — Codepfade vermutlich nicht skaliert für > 25 fps Throughput.
 
