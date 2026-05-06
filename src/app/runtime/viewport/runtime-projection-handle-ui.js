@@ -139,18 +139,36 @@
     }
   }
 
-  // Phase-31 h30 (2026-05-06): full pre-h29 handle-ui restored. Pi /output/
-  // and SSR tab both render handles + lines + listeners exactly as before.
-  // The cross-renderer sync is now provided by the new align-grid-snapshot
-  // mutation (server.mjs + live-sync-core.js): every handle-drag step on
-  // Pi broadcasts the resulting grid; the SSR tab applies it via
-  // gridState.restoreGridSnapshot and the next streamed frame reflects
-  // the change. The user's full drag/undo/dirty/right-click feature set
-  // works locally on Pi while the stream stays in lockstep.
+  // Phase-31 h32 (2026-05-06): SSR Chromium tab renders ZERO geometry +
+  // ZERO toolbar — its only job is to encode the warped board into the
+  // stream. Pi /output/ owns the entire align-mode UX: handles, lines,
+  // toolbar, drag handlers, undo, right-click, save/discard. The
+  // align-grid-snapshot live-sync mutation keeps the SSR tab's grid
+  // (and therefore its mesh-warp) in lockstep with Pi's local edits.
+  //
+  // h29 used the inverse gate ("Pi-receiver skip") which hid Pi's UI
+  // and left the streamed SSR tab UI as the only visible reference —
+  // and Pi couldn't drag because the receiver-input-forwarder doesn't
+  // support inner-grid / line / squish gestures. h32 reverses the
+  // direction: SSR tab is invisible UI-wise, Pi has everything.
+  function _isSsrChromiumTab() {
+    try {
+      return document.body?.dataset?.ssrTab === "true";
+    } catch (_) {
+      return false;
+    }
+  }
+
   function createHandles() {
     if (handlesVisible) return;
     handlesVisible = true;
     gridState.setHandlesVisible(true);
+
+    // h32: SSR Chromium tab — encode the warped board only. Skip all
+    // handle DOM + lineCanvas creation so the stream stays clean.
+    if (_isSsrChromiumTab()) {
+      return;
+    }
 
     // Grid line canvas overlay — pointer-events enabled for line dragging
     lineCanvas = document.createElement("canvas");
@@ -173,6 +191,12 @@
     if (!handlesVisible) return;
     handlesVisible = false;
     gridState.setHandlesVisible(false);
+
+    // h32: SSR tab never created the geometry — nothing to tear down
+    // beyond the toolbar (which it also never created in h32).
+    if (_isSsrChromiumTab()) {
+      return;
+    }
 
     for (const el of handleElements) {
       el.removeEventListener("pointerdown", onHandlePointerDown);
@@ -309,15 +333,14 @@
 
   function positionRotateHandles() {
     if (rotateHandleElements.length !== ROTATE_CORNERS.length) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const layout = _getStreamContentRect();
     for (let i = 0; i < ROTATE_CORNERS.length; i++) {
       const c = ROTATE_CORNERS[i];
       const row = c.rowFn();
       const col = c.colFn();
       const pt = getPoint(row, col);
-      rotateHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
-      rotateHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
+      rotateHandleElements[i].style.left = `${layout.offsetX + pt.x * layout.w + c.offX}px`;
+      rotateHandleElements[i].style.top = `${layout.offsetY + pt.y * layout.h + c.offY}px`;
     }
     // B9: squish bars track handle positions — called after every drag/resize/undo.
     positionSquishBars();
@@ -386,15 +409,14 @@
 
   function positionScaleHandles() {
     if (scaleHandleElements.length !== SCALE_CORNERS.length) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const layout = _getStreamContentRect();
     for (let i = 0; i < SCALE_CORNERS.length; i++) {
       const c = SCALE_CORNERS[i];
       const row = c.rowFn();
       const col = c.colFn();
       const pt = getPoint(row, col);
-      scaleHandleElements[i].style.left = `${pt.x * vw + c.offX}px`;
-      scaleHandleElements[i].style.top = `${pt.y * vh + c.offY}px`;
+      scaleHandleElements[i].style.left = `${layout.offsetX + pt.x * layout.w + c.offX}px`;
+      scaleHandleElements[i].style.top = `${layout.offsetY + pt.y * layout.h + c.offY}px`;
     }
   }
 
@@ -827,9 +849,55 @@
   // (W3.6-Cextra-handle-ui): onRotateHandlePointerDown,
   // onRotateDragMove, onRotateDragEnd.
 
-  function positionHandles() {
+  // Phase-31 h32 (2026-05-06): letterbox-aware grid → pixel projection.
+  //
+  // On Pi /output/ the streamed video uses object-fit: contain (h22) so
+  // when Pi's display aspect ratio differs from the SSR tab's encoding
+  // resolution, the streamed warped board lands inside a letterboxed
+  // rect, NOT the full Pi viewport. Without accounting for that, Pi's
+  // local handles + lines (which render against window.innerWidth /
+  // innerHeight) drift away from the streamed board edges by the
+  // letterbox offset — the user reported "ein paar cm versetzt"
+  // when the receiver display was wider/taller than the encoded stream.
+  //
+  // _getStreamContentRect() returns {offsetX, offsetY, w, h} of the
+  // displayed stream content within the Pi viewport. When no <video>
+  // element / no frames yet (e.g., SSR tab itself, dashboard preview
+  // not connected), it falls back to full viewport so the existing
+  // dashboard / SSR-tab callers behave identically to pre-h32.
+  function _getStreamContentRect() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    let videoEl = null;
+    try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
+    const sw = Number(videoEl?.videoWidth || 0);
+    const sh = Number(videoEl?.videoHeight || 0);
+    if (!videoEl || sw <= 0 || sh <= 0) {
+      return { offsetX: 0, offsetY: 0, w: vw, h: vh };
+    }
+    // object-fit: contain — fit ENTIRELY inside viewport, letterbox
+    // on the axis where the stream is shorter relative to its aspect.
+    const viewportAspect = vw / vh;
+    const streamAspect = sw / sh;
+    let displayedW, displayedH, offsetX, offsetY;
+    if (streamAspect > viewportAspect) {
+      // Stream wider than viewport → fit to width, letterbox top+bottom
+      displayedW = vw;
+      displayedH = vw / streamAspect;
+      offsetX = 0;
+      offsetY = (vh - displayedH) / 2;
+    } else {
+      // Stream taller than viewport → fit to height, letterbox left+right
+      displayedH = vh;
+      displayedW = vh * streamAspect;
+      offsetX = (vw - displayedW) / 2;
+      offsetY = 0;
+    }
+    return { offsetX, offsetY, w: displayedW, h: displayedH };
+  }
+
+  function positionHandles() {
+    const layout = _getStreamContentRect();
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
     let idx = 0;
@@ -838,8 +906,8 @@
         const el = handleElements[idx];
         if (el) {
           const pt = getPoint(row, col);
-          el.style.left = `${pt.x * vw}px`;
-          el.style.top = `${pt.y * vh}px`;
+          el.style.left = `${layout.offsetX + pt.x * layout.w}px`;
+          el.style.top = `${layout.offsetY + pt.y * layout.h}px`;
           const key = `${row}-${col}`;
           if (key === activeHandleKey) {
             el.style.background = "rgba(255, 200, 30, 0.95)";
@@ -862,6 +930,7 @@
     lineCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     lineCtx.clearRect(0, 0, vw, vh);
 
+    const layout = _getStreamContentRect();
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
 
@@ -873,8 +942,8 @@
       lineCtx.beginPath();
       for (let col = 0; col < cols; col++) {
         const pt = getPoint(row, col);
-        const px = pt.x * vw;
-        const py = pt.y * vh;
+        const px = layout.offsetX + pt.x * layout.w;
+        const py = layout.offsetY + pt.y * layout.h;
         if (col === 0) lineCtx.moveTo(px, py);
         else lineCtx.lineTo(px, py);
       }
@@ -889,8 +958,8 @@
       lineCtx.beginPath();
       for (let row = 0; row < rows; row++) {
         const pt = getPoint(row, col);
-        const px = pt.x * vw;
-        const py = pt.y * vh;
+        const px = layout.offsetX + pt.x * layout.w;
+        const py = layout.offsetY + pt.y * layout.h;
         if (row === 0) lineCtx.moveTo(px, py);
         else lineCtx.lineTo(px, py);
       }
@@ -1049,8 +1118,7 @@
   // Distances are computed in SCREEN-SPACE pixels using actual displaced positions —
   // baseline srcXs/srcYs would be WRONG on a B2 trapezoid grid (Pitfall 1 in 27-RESEARCH.md).
   function _hitTestAlignContext(clientX, clientY) {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const layout = _getStreamContentRect();
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
     const INTERSECTION_PX = 10;
@@ -1063,8 +1131,8 @@
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const pt = getPoint(r, c);
-        const dx = pt.x * vw - clientX;
-        const dy = pt.y * vh - clientY;
+        const dx = (layout.offsetX + pt.x * layout.w) - clientX;
+        const dy = (layout.offsetY + pt.y * layout.h) - clientY;
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d < bestIxDist) {
           bestIxDist = d;
@@ -1103,7 +1171,11 @@
       for (let col = 0; col < cols - 1; col++) {
         const p1 = getPoint(row, col);
         const p2 = getPoint(row, col + 1);
-        const d = _segDist(clientX, clientY, p1.x * vw, p1.y * vh, p2.x * vw, p2.y * vh);
+        const d = _segDist(
+          clientX, clientY,
+          layout.offsetX + p1.x * layout.w, layout.offsetY + p1.y * layout.h,
+          layout.offsetX + p2.x * layout.w, layout.offsetY + p2.y * layout.h,
+        );
         if (d < bestLineDist) {
           bestLineDist = d;
           bestLineAxis = "h";
@@ -1116,7 +1188,11 @@
       for (let row = 0; row < rows - 1; row++) {
         const p1 = getPoint(row, col);
         const p2 = getPoint(row + 1, col);
-        const d = _segDist(clientX, clientY, p1.x * vw, p1.y * vh, p2.x * vw, p2.y * vh);
+        const d = _segDist(
+          clientX, clientY,
+          layout.offsetX + p1.x * layout.w, layout.offsetY + p1.y * layout.h,
+          layout.offsetX + p2.x * layout.w, layout.offsetY + p2.y * layout.h,
+        );
         if (d < bestLineDist) {
           bestLineDist = d;
           bestLineAxis = "v";
@@ -1463,34 +1539,32 @@
 
   function onAlignModeChange(enabled) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
-    // h28 (2026-05-06): h27 reverted. The Pi-receiver-skip broke the
-    // toolbar AND prevented the user from activating align mode at
-    // all. Pi must keep its toolbar + handle UI to drive the toggle.
-    // The lines/board mismatch (Pi handles at viewport corners while
-    // streamed board is at 80% inset) is addressed elsewhere — by
-    // syncing Pi's grid state from the SSR tab's grid via live-sync.
+    // h32 (2026-05-06): clean split — SSR Chromium tab encodes the
+    // warped board only (ZERO overlays in the stream), Pi /output/
+    // owns the entire align-mode UX (handles, lines, toolbar, drag,
+    // undo, right-click, save/discard). The align-grid-snapshot
+    // live-sync mutation keeps both grids in lockstep so the streamed
+    // mesh-warp tracks every gesture made on Pi within ~33 ms.
     if (enabled) {
       applyTransform();
-      showHandles();
-      // Phase-31 h31 (2026-05-06): SSR-tab broadcasts its grid as
-      // soon as align mode engages so Pi's possibly-stale local grid
-      // (loaded from a different localStorage context) snaps to the
-      // authoritative state shown in the streamed video. Pi DOES NOT
-      // broadcast on entry — letting Pi push its stale grid would
-      // overwrite the SSR tab's correctly-loaded profile. Pi's local
-      // drags broadcast as usual once align mode is active.
-      const isSsrTab = document.body?.dataset?.ssrTab === "true";
-      if (isSsrTab) {
+      // Pi gets the full UI; SSR tab gets neither geometry nor toolbar.
+      if (_isSsrChromiumTab()) {
+        // SSR tab still needs to broadcast its authoritative grid so Pi
+        // (which may have stale localStorage from a different browser
+        // context) snaps to the state visible in the stream before any
+        // user drag. The broadcast helper is keyed on the live-sync
+        // core which is ready by the time align-toggle reaches us.
         const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
         if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
-          // Defer one tick so handles render first; then broadcast the
-          // SSR tab's authoritative grid to all clients.
           Promise.resolve().then(() => {
             try { gridStateApi.broadcastGridSnapshot({ force: true }); } catch (_) {}
           });
         }
+        return;
       }
+      showHandles();
     } else {
+      if (_isSsrChromiumTab()) return;
       hideHandles();
       // Keep transform applied — calibration persists
       saveToLocalStorage();

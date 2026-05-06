@@ -71,6 +71,45 @@
     } catch (_) { /* never break a drag */ }
   }
 
+  // Phase-31 h32 (2026-05-06) — letterbox-aware coord helper.
+  //
+  // Pi /output/'s streamed video uses object-fit: contain, so the
+  // displayed stream content occupies a letterboxed rect inside the
+  // viewport when Pi's display aspect differs from the SSR tab's
+  // encoding resolution. handle-ui draws handles + lines using the
+  // stream-content rect (handle-ui's _getStreamContentRect); drag
+  // math here MUST normalize against the same rect, otherwise drag
+  // deltas diverge from the cursor by the letterbox-axis ratio (the
+  // user's "ein paar cm versetzt" report). Inlined here so this module
+  // doesn't take an extra cross-module dependency for one helper.
+  function _getDragLayout() {
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
+    let videoEl = null;
+    try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
+    const sw = Number(videoEl?.videoWidth || 0);
+    const sh = Number(videoEl?.videoHeight || 0);
+    if (!videoEl || sw <= 0 || sh <= 0) {
+      return { offsetX: 0, offsetY: 0, w: vw, h: vh };
+    }
+    const viewportAspect = vw / vh;
+    const streamAspect = sw / sh;
+    let displayedW, displayedH, offsetX, offsetY;
+    if (streamAspect > viewportAspect) {
+      displayedW = vw;
+      displayedH = vw / streamAspect;
+      offsetX = 0;
+      offsetY = (vh - displayedH) / 2;
+    } else {
+      displayedH = vh;
+      displayedW = vh * streamAspect;
+      offsetX = (vw - displayedW) / 2;
+      offsetY = 0;
+    }
+    return { offsetX, offsetY, w: displayedW, h: displayedH };
+  }
+
   // Drag state — private to this module (handle-ui no longer owns
   // these per the Option-B split).
   let dragState = null;       // { row, col, startX, startY, startPtX, startPtY, allStartPts }
@@ -88,8 +127,9 @@
     e.preventDefault();
     e.stopPropagation();
     pushUndo();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     // Centroid of all grid points (in pixel coords)
     let cx = 0, cy = 0, n = 0;
     for (let r = 0; r < grid.srcYs.length; r++) {
@@ -100,7 +140,12 @@
     }
     cx = (cx / n) * vw;
     cy = (cy / n) * vh;
-    const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+    // h32: convert clientX/Y to LOCAL pixels (subtract letterbox offset) so
+    // the angle math is consistent with cx/cy which were computed in local space.
+    const startAngle = Math.atan2(
+      (e.clientY - _layout.offsetY) - cy,
+      (e.clientX - _layout.offsetX) - cx,
+    );
     const allStartPts = [];
     for (let r = 0; r < grid.srcYs.length; r++) {
       allStartPts[r] = [];
@@ -118,10 +163,14 @@
   function onRotateDragMove(e) {
     if (!rotateDragState) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const { cx, cy, startAngle, allStartPts } = rotateDragState;
-    const cur = Math.atan2(e.clientY - cy, e.clientX - cx);
+    const cur = Math.atan2(
+      (e.clientY - _layout.offsetY) - cy,
+      (e.clientX - _layout.offsetX) - cx,
+    );
     const delta = cur - startAngle;
     const cosD = Math.cos(delta);
     const sinD = Math.sin(delta);
@@ -183,12 +232,16 @@
     e.preventDefault();
     e.stopPropagation();
     pushUndo();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const centroid = _computeGridCentroid();
     const cxPx = centroid.x * vw;
     const cyPx = centroid.y * vh;
-    const startDist = Math.hypot(e.clientX - cxPx, e.clientY - cyPx);
+    const startDist = Math.hypot(
+      (e.clientX - _layout.offsetX) - cxPx,
+      (e.clientY - _layout.offsetY) - cyPx,
+    );
     if (!Number.isFinite(startDist) || startDist < 1) {
       // Click landed exactly on the centroid — invalid drag, abort.
       return;
@@ -227,11 +280,15 @@
     if (!scaleDragState) return;
     if (e.pointerId !== scaleDragState.pointerId) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const cxPx = scaleDragState.centroid.x * vw;
     const cyPx = scaleDragState.centroid.y * vh;
-    const curDist = Math.hypot(e.clientX - cxPx, e.clientY - cyPx);
+    const curDist = Math.hypot(
+      (e.clientX - _layout.offsetX) - cxPx,
+      (e.clientY - _layout.offsetY) - cyPx,
+    );
     let factor = curDist / scaleDragState.startDist;
     if (!Number.isFinite(factor) || factor < 0.05) factor = 0.05;
     if (factor > 8) factor = 8;
@@ -320,8 +377,9 @@
   function onDragMove(e) {
     if (!dragState) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const dx = (e.clientX - dragState.startX) / vw;
     const dy = (e.clientY - dragState.startY) / vh;
 
@@ -356,8 +414,13 @@
 
   function onLineHover(e) {
     if (lineDragState || panDragState || !lineCanvas) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
+    // h32: convert clientX/Y to LOCAL pixels (subtract letterbox offset)
+    // so the hit-test against (avgX/avgY in local pixels) matches.
+    const localY = e.clientY - _layout.offsetY;
+    const localX = e.clientX - _layout.offsetX;
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
     // Check horizontal lines — use average Y of all points on that row
@@ -365,7 +428,7 @@
       let avgY = 0;
       for (let col = 0; col < cols; col++) avgY += getPoint(row, col).y;
       avgY = (avgY / cols) * vh;
-      if (Math.abs(e.clientY - avgY) < LINE_HIT_THRESHOLD) {
+      if (Math.abs(localY - avgY) < LINE_HIT_THRESHOLD) {
         lineCanvas.style.cursor = "ns-resize";
         return;
       }
@@ -375,7 +438,7 @@
       let avgX = 0;
       for (let row = 0; row < rows; row++) avgX += getPoint(row, col).x;
       avgX = (avgX / rows) * vw;
-      if (Math.abs(e.clientX - avgX) < LINE_HIT_THRESHOLD) {
+      if (Math.abs(localX - avgX) < LINE_HIT_THRESHOLD) {
         lineCanvas.style.cursor = "ew-resize";
         return;
       }
@@ -386,10 +449,12 @@
 
   function onLinePointerDown(e) {
     if (e.button !== 0) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const mx = e.clientX;
-    const my = e.clientY;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
+    // h32: hit-test in local-pixel space (letterbox-aware).
+    const mx = e.clientX - _layout.offsetX;
+    const my = e.clientY - _layout.offsetY;
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
 
@@ -411,7 +476,10 @@
           allStartPts[r2] = [];
           for (let c2 = 0; c2 < cols; c2++) allStartPts[r2][c2] = { ...getPoint(r2, c2) };
         }
-        lineDragState = { axis: "horizontal", lineIndex: row, startY: my, startPts, allStartPts };
+        // h32: store raw e.clientY for delta math — pointer-move's
+        // (e.clientY - startY) is then a pure client-space delta and the
+        // letterbox offset cancels out.
+        lineDragState = { axis: "horizontal", lineIndex: row, startY: e.clientY, startPts, allStartPts };
         lineCanvas.style.cursor = "ns-resize";
         lineCanvas.setPointerCapture(e.pointerId);
         document.addEventListener("pointermove", onLineDragMove);
@@ -437,7 +505,8 @@
           allStartPts[r2] = [];
           for (let c2 = 0; c2 < cols; c2++) allStartPts[r2][c2] = { ...getPoint(r2, c2) };
         }
-        lineDragState = { axis: "vertical", lineIndex: col, startX: mx, startPts, allStartPts };
+        // h32: see horizontal-line note — startX is raw client coord.
+        lineDragState = { axis: "vertical", lineIndex: col, startX: e.clientX, startPts, allStartPts };
         lineCanvas.style.cursor = "ew-resize";
         lineCanvas.setPointerCapture(e.pointerId);
         document.addEventListener("pointermove", onLineDragMove);
@@ -464,9 +533,11 @@
         if (p.y > maxY) maxY = p.y;
       }
     }
+    // h32: store raw e.clientX/Y for delta math — onPanDragMove subtracts
+    // e.clientX from this and the letterbox offset cancels.
     panDragState = {
-      startX: mx,
-      startY: my,
+      startX: e.clientX,
+      startY: e.clientY,
       allStartPts,
       minX, maxX, minY, maxY,
     };
@@ -480,8 +551,9 @@
   function onPanDragMove(e) {
     if (!panDragState) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     let dx = (e.clientX - panDragState.startX) / vw;
     let dy = (e.clientY - panDragState.startY) / vh;
     // Clamp translation so bounding box stays within [0, 1]
@@ -525,8 +597,9 @@
   function onLineDragMove(e) {
     if (!lineDragState) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const cols = grid.srcXs.length;
     const rows = grid.srcYs.length;
 
@@ -606,8 +679,9 @@
     e.stopPropagation();
     pushUndo();
 
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
 
@@ -667,8 +741,9 @@
   function onSquishDragMove(e) {
     if (!squishDragState) return;
     e.preventDefault();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const _layout = _getDragLayout();
+    const vw = _layout.w;
+    const vh = _layout.h;
     const rows = grid.srcYs.length;
     const cols = grid.srcXs.length;
     const sp = squishDragState.allStartPts;
