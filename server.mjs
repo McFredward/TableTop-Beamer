@@ -4174,10 +4174,21 @@ if (process.env.SSR_RENDER_HOST === "1") {
             originatorClientId: "server-disk-restore",
             at: gridRestored.persistedAt || new Date().toISOString(),
           };
+          // h42: bump the live-session version so clients DO apply the
+          // seeded snapshot via live-hello. shouldApplySnapshotVersion
+          // rejects incomingVersion <= client.lastAppliedVersion, and
+          // a fresh client starts with lastAppliedVersion=0; if the
+          // server's version stays at 0, the live-hello snapshot is
+          // dropped silently and the client's own auto-loaded grid
+          // wins. Bumping to 1 lets the gate pass so the disk-restored
+          // grid lands on every client immediately on connect.
+          liveSessionState.version = Math.max(1, Number(liveSessionState.version || 0) + 1);
+          liveSessionState.updatedAt = new Date().toISOString();
           console.log(
             `[active-grid] restored profile=${gridRestored.profileId} `
             + `srcXs=${gridRestored.srcXs.length} srcYs=${gridRestored.srcYs.length} `
-            + `points=${gridRestored.points.length}`,
+            + `points=${gridRestored.points.length} `
+            + `version=${liveSessionState.version}`,
           );
         }
       } catch (err) {
