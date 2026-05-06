@@ -83,29 +83,38 @@
   // user's "ein paar cm versetzt" report). Inlined here so this module
   // doesn't take an extra cross-module dependency for one helper.
   function _getDragLayout() {
-    const _layout = _getDragLayout();
-    const vw = _layout.w;
-    const vh = _layout.h;
     let videoEl = null;
     try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
     const sw = Number(videoEl?.videoWidth || 0);
     const sh = Number(videoEl?.videoHeight || 0);
-    if (!videoEl || sw <= 0 || sh <= 0) {
-      return { offsetX: 0, offsetY: 0, w: vw, h: vh };
+    // h34: read the videoEl's ACTUAL on-screen rect so drag math
+    // operates in the same coord space as the rendered handles +
+    // streamed content. window.innerWidth/innerHeight (used pre-h34
+    // and accidentally overwritten by a replace_all into a recursion
+    // bug) can drift from the videoEl box on Pi browsers with
+    // padding/scrollbars/devicePixelRatio quirks.
+    let elRect = null;
+    try { elRect = videoEl?.getBoundingClientRect?.() || null; } catch (_) {}
+    const elX = elRect?.left ?? 0;
+    const elY = elRect?.top ?? 0;
+    const elW = elRect?.width ?? window.innerWidth;
+    const elH = elRect?.height ?? window.innerHeight;
+    if (!videoEl || sw <= 0 || sh <= 0 || elW <= 0 || elH <= 0) {
+      return { offsetX: elX, offsetY: elY, w: elW, h: elH };
     }
-    const viewportAspect = vw / vh;
+    const elAspect = elW / elH;
     const streamAspect = sw / sh;
     let displayedW, displayedH, offsetX, offsetY;
-    if (streamAspect > viewportAspect) {
-      displayedW = vw;
-      displayedH = vw / streamAspect;
-      offsetX = 0;
-      offsetY = (vh - displayedH) / 2;
+    if (streamAspect > elAspect) {
+      displayedW = elW;
+      displayedH = elW / streamAspect;
+      offsetX = elX;
+      offsetY = elY + (elH - displayedH) / 2;
     } else {
-      displayedH = vh;
-      displayedW = vh * streamAspect;
-      offsetX = (vw - displayedW) / 2;
-      offsetY = 0;
+      displayedH = elH;
+      displayedW = elH * streamAspect;
+      offsetX = elX + (elW - displayedW) / 2;
+      offsetY = elY;
     }
     return { offsetX, offsetY, w: displayedW, h: displayedH };
   }
@@ -343,6 +352,7 @@
     const pt = getPoint(row, col);
     // h33 diagnostic: confirm handle pointerdown is reaching this handler.
     // If user reports drag broken, server stdout shows whether it fires.
+    _dragMoveLogCount = 0; // reset so the next drag's first 3 moves log
     try {
       const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
       if (ui && typeof ui.piDiag === "function") {
@@ -350,7 +360,9 @@
           "handle-drag",
           `pointerdown row=${row} col=${col} `
           + `pt=(${pt.x.toFixed(3)},${pt.y.toFixed(3)}) `
-          + `client=(${e.clientX},${e.clientY})`,
+          + `client=(${e.clientX},${e.clientY}) `
+          + `pointerType=${e.pointerType} `
+          + `pointerId=${e.pointerId}`,
         );
       }
     } catch (_) {}
@@ -387,6 +399,8 @@
     positionHandles();
   }
 
+  // h34 diagnostic state — log first move + first end of each drag.
+  let _dragMoveLogCount = 0;
   function onDragMove(e) {
     if (!dragState) return;
     e.preventDefault();
@@ -395,6 +409,20 @@
     const vh = _layout.h;
     const dx = (e.clientX - dragState.startX) / vw;
     const dy = (e.clientY - dragState.startY) / vh;
+    if (_dragMoveLogCount < 3) {
+      try {
+        const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+        ui?.piDiag?.(
+          "handle-drag",
+          `MOVE row=${dragState.row} col=${dragState.col} `
+          + `client=(${e.clientX.toFixed(0)},${e.clientY.toFixed(0)}) `
+          + `start=(${dragState.startX.toFixed(0)},${dragState.startY.toFixed(0)}) `
+          + `dxdy=(${dx.toFixed(3)},${dy.toFixed(3)}) `
+          + `layout=(${_layout.offsetX.toFixed(0)},${_layout.offsetY.toFixed(0)},${_layout.w.toFixed(0)},${_layout.h.toFixed(0)})`,
+        );
+      } catch (_) {}
+      _dragMoveLogCount += 1;
+    }
 
     const newX = Math.max(0, Math.min(1, dragState.startPtX + dx));
     const newY = Math.max(0, Math.min(1, dragState.startPtY + dy));
@@ -412,8 +440,17 @@
     _broadcastDragSnapshot();
   }
 
-  function onDragEnd() {
+  function onDragEnd(e) {
     if (!dragState) return;
+    try {
+      const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      ui?.piDiag?.(
+        "handle-drag",
+        `END row=${dragState.row} col=${dragState.col} `
+        + `eventType=${e?.type} pointerId=${e?.pointerId} `
+        + `moveLogs=${_dragMoveLogCount}`,
+      );
+    } catch (_) {}
     dragState = null;
     document.removeEventListener("pointermove", onDragMove);
     document.removeEventListener("pointerup", onDragEnd);

@@ -941,32 +941,45 @@
   // not connected), it falls back to full viewport so the existing
   // dashboard / SSR-tab callers behave identically to pre-h32.
   function _getStreamContentRect() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
     let videoEl = null;
     try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
     const sw = Number(videoEl?.videoWidth || 0);
     const sh = Number(videoEl?.videoHeight || 0);
-    if (!videoEl || sw <= 0 || sh <= 0) {
-      return { offsetX: 0, offsetY: 0, w: vw, h: vh };
+    // h34: read the videoEl's ACTUAL on-screen rect via
+    // getBoundingClientRect. window.innerWidth / innerHeight can drift
+    // from the videoEl's box if the page has any padding, scrollbar, or
+    // vw/vh is reported at devicePixelRatio-adjusted size on some Pi
+    // browsers. The handle div positions are CSS pixels relative to
+    // the viewport — and so is getBoundingClientRect — so they line up
+    // 1:1 with the streamed content area when both come from the same
+    // source. Falls back to viewport dims if the element is missing.
+    let elRect = null;
+    try { elRect = videoEl?.getBoundingClientRect?.() || null; } catch (_) {}
+    const elX = elRect?.left ?? 0;
+    const elY = elRect?.top ?? 0;
+    const elW = elRect?.width ?? window.innerWidth;
+    const elH = elRect?.height ?? window.innerHeight;
+    if (!videoEl || sw <= 0 || sh <= 0 || elW <= 0 || elH <= 0) {
+      return { offsetX: elX, offsetY: elY, w: elW, h: elH };
     }
-    // object-fit: contain — fit ENTIRELY inside viewport, letterbox
-    // on the axis where the stream is shorter relative to its aspect.
-    const viewportAspect = vw / vh;
+    // object-fit: contain — fit ENTIRELY inside the videoEl's box,
+    // letterbox on the axis where the stream is shorter relative to
+    // its aspect.
+    const elAspect = elW / elH;
     const streamAspect = sw / sh;
     let displayedW, displayedH, offsetX, offsetY;
-    if (streamAspect > viewportAspect) {
-      // Stream wider than viewport → fit to width, letterbox top+bottom
-      displayedW = vw;
-      displayedH = vw / streamAspect;
-      offsetX = 0;
-      offsetY = (vh - displayedH) / 2;
+    if (streamAspect > elAspect) {
+      // Stream wider than element → fit to width, letterbox top+bottom
+      displayedW = elW;
+      displayedH = elW / streamAspect;
+      offsetX = elX;
+      offsetY = elY + (elH - displayedH) / 2;
     } else {
-      // Stream taller than viewport → fit to height, letterbox left+right
-      displayedH = vh;
-      displayedW = vh * streamAspect;
-      offsetX = (vw - displayedW) / 2;
-      offsetY = 0;
+      // Stream taller than element → fit to height, letterbox left+right
+      displayedH = elH;
+      displayedW = elH * streamAspect;
+      offsetX = elX + (elW - displayedW) / 2;
+      offsetY = elY;
     }
     return { offsetX, offsetY, w: displayedW, h: displayedH };
   }
