@@ -1,16 +1,21 @@
 # CURRENT PHASE
 
-- Active: none — Phase 29 closed (2026-05-05; h3 final 2026-05-05)
-- Status: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED. 7 plans
-  ausgeführt + 3 hotfixes (h1: specialPolygons + roomGeometry collapse;
-  h2: drop one-shot boot migration for release-prep; h3: critical fix —
-  isDirty() returns false without loaded profile, so dashboard's
-  "Unsaved on /output/" no longer fires spuriously).
-  7 DEAD/REDUNDANT Felder entfernt. BOARD_PROFILE_FIELDS 15→11→9.
-  Schema v3→v4. Test-Suite 40/40 grün, 0 skip.
-- App version: `0.29.3` (h3 final — release-prep)
-- Previous Phase: Phase 29 (Persistence Audit & Legacy Cleanup) CLOSED — h3 final.
+- Active: none — Phase 30 closed PARTIAL (2026-05-06)
+- Status: Phase 30 (Render-Stability Regressions Closure) CLOSED PARTIAL.
+  Three of four objectives delivered (B1 seam closure, B2 Pi GIF
+  reliability, B3 diagnostic overlay sync). The fourth — Plan 30-04 Pi
+  /output/ fps target ≥20 fps — was NOT met despite 16-task wave (T1-T16).
+  Final Pi fps: ~12 fps (target was 20+). Stability hotfixes h1-h15
+  shipped: GL context-loss eliminated, mp4 loop seamlessness restored,
+  GIF reliability hardened, mesh-warp seams closed in GL+2D, diagnostic
+  overlay live-syncs to /output/. Architectural conclusion: client-side
+  optimization plateaued — Phase 31 pivots to server-side rendering with
+  Pi as thin display client. Test-Suite 40/40 grün.
+- App version: `0.30.0-30-04-T14T15T16-raf-yield`
+- Previous Phase: Phase 30 (Render-Stability Regressions Closure) CLOSED PARTIAL.
+- Next Phase: Phase 31 (Server-Side Rendering Pivot) — PLANNING.
 
+Phase 30 closure: `.planning/phases/phase-30/SUMMARY.md` (tag `phase-30-end-partial`)
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
 Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)
 Phase 27 closure: `.planning/phases/phase-27/SUMMARY.md` (tag `phase-27-end`)

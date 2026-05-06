@@ -198,17 +198,72 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 30 - Render-Stability Regressions Closure (PLANNING)
-Ziel: Drei Render-/Sync-Regressionen beheben, die vor Release aufgefallen sind. Test-Board: Nemesis Lockdown Board A.
+## Phase 31 - Server-Side Rendering Pivot (PLANNING)
+Ziel: Architektonischer Pivot — Pi 4 wird zum Thin-Display-Client. Der Server (deutlich stärkere Hardware) übernimmt die komplette Render-Pipeline (Animations-Decode, Compositing, Mesh-Warp / Projection-Mapping, Multi-Area, Effects). `/output/` auf dem Pi konsumiert ausschließlich einen finalen Pixel-Stream. User-facing Verträge bleiben identisch: Align-Mode, 4-Ecken-Projection-Mapping, Multi-Area, Animation-Timeline, alle bisherigen Animations-Typen (coded, gif, mp4, solid-color). Es ändert sich ausschließlich der **Render-Ort**.
 
-Status: PLANNING. 3 plans authored 2026-05-05 (sequenzielle Reihenfolge per CONTEXT D-00).
+Status: PLANNING. Vorgeschaltet ist eine vollständige `gsd-discuss-phase` Welle, da der Umbau diverse Graubereiche eröffnet (Streaming-Protokoll, Server-Render-Stack, Latenz-Budget, Fallback bei Server-unreachable, Audio-Pfad, Align-Mode-Interaktion, Bandbreiten-Budget am Pi-LAN/WLAN, Cluster vs Single-Server, Encode/Decode-Stack auf Pi).
 
-**Plans:** 1/3 plans executed
+Trigger: Phase-30 hat client-seitig auf VC4 GPU plateau'd bei ~12 fps trotz 16-Task-Welle. Ziel ≥20 fps, ideal 30 fps. Phase-30-Stabilitätshotfixes h1-h15 bleiben als Defense-in-Depth im Code, falls SSR später optional wird.
+
+Hard Constraints (carried forward):
+- Mesh-Warp + 4-Corner Projection-Mapping (Phase 19/27/28) bleibt user-konfigurierbar.
+- Multi-Area + per-board Polygon-Geometrie (Phase 8/13) bleibt server-authoritativ.
+- Animation-Layering-Contract (Phase 12: additiv, explizit-stop-only, A→B == B→A) bleibt unverändert.
+- Animation-Definitions live in `config/boards/<id>.json` + `config/global-defaults.json` (Phase 26+29 Schema v4) — keine Schema-Änderungen erforderlich für die Pivot.
+- Align-Mode-Interaktion bleibt vom User aus auf `/output/` steuerbar.
+- Test-Board: Nemesis Lockdown Board A.
+
+Out of Scope (Phase 31):
+- Neue Animations-Typen.
+- UX-Redesign von Dashboard/Settings.
+- Schema-Migrationen.
+- Cluster/Multi-Server-Render (deferred falls Single-Server reicht).
+
+Discuss-Phase Gray Areas (zu klären, nicht hier festgelegt):
+- D1: Streaming-Protokoll — MJPEG-over-HTTP vs WebRTC vs WebSocket-binary-frames vs HLS vs raw-h264-via-MSE.
+- D2: Server-Render-Stack — headless Chromium (puppeteer-stream / playwright + WebRTC) vs node-canvas + ffmpeg encode vs nativer Renderer (skia-canvas/raylib) vs WebGL-server (gl npm + headless-gl).
+- D3: Encode-Format — h264 vs vp9 vs vp8 vs raw RGB; Pi-Decode-Budget muss reichen.
+- D4: Latenz-Budget — von Operator-Click bis sichtbarem Frame auf Pi.
+- D5: Fallback bei Server-unreachable — Black-Screen vs lokales Notfall-Rendering vs Cache.
+- D6: Align-Mode auf Stream — Server rendert mit aktiver Mapping-Transformation oder Pi nimmt nur Touch/Drag-Events entgegen und sendet sie zurück.
+- D7: Audio-Pfad — Sounds bleiben Pi-lokal (HTML5 Audio + WebSocket-Trigger) oder kommen mit dem Stream.
+- D8: Bandbreiten-Budget — Pi LAN/WLAN, 1920×1080@30fps Encode-Bitrate.
+- D9: Multi-Client-Support — kann der Server auch Dashboard-Clients über denselben Pfad bedienen, oder nur `/output/` (Single Renderer Instance)?
+- D10: Animation-State-Sync — wer ist source of truth für `runtime-state` während des Übergangs (Server-only, Pi-mirror, gar nichts auf Pi)?
+
+Milestones (vorläufig — werden in CONTEXT.md/PLAN finalisiert):
+1. M1 Discuss-Phase Closure: alle Graubereiche entschieden, CONTEXT.md fertig.
+2. M2 Research-Phase Closure: technische Validierung der gewählten Streaming/Encode-Stack auf Pi (Decode-fps, CPU/GPU-Last).
+3. M3 Server-Side-Render Bring-up: Server rendert das gleiche Frame wie heute auf Dashboard, ohne Pi.
+4. M4 Stream-Transport Bring-up: Pi-Client zeigt Server-Stream live an, Throughput ≥20 fps validiert.
+5. M5 User-Contract-Parity: Align-Mode + Projection-Mapping + Multi-Area + Animation-Timeline funktionieren end-to-end via Stream.
+6. M6 Fallback + Resilience: Server-Restart, Server-unreachable, Network-Hiccup-Verhalten definiert + getestet.
+7. M7 UAT: Pi auf Test-Board zeigt ≥20 fps mit allen Phase-30-Defensives als Backup-Pfad.
+
+Exit Criteria (vorläufig):
+- Pi `/output/` rendert ≥20 fps (idealer Range 24-30 fps) auf Nemesis Lockdown Board A unter typischer Last (multiple Räume + Outside-Animation + globale Trigger).
+- Operator-Click-bis-sichtbar auf Pi ≤200 ms (entscheidbar in Discuss-Phase).
+- Align-Mode + 4-Ecken-Mapping vom Pi aus voll bedienbar.
+- Phase 11/12/13/19/26/27/28/29 Akzeptanz-Verträge non-regressed.
+- Test-Suite weiterhin grün; neue Tests für Stream-Transport.
+
+Re-Use Decisions (carried forward, nicht erneut diskutieren):
+- Phase-30 Stability-Hotfixes h6-h15 bleiben im Code als Fallback-Pfad falls SSR ausfällt.
+- Server-Authoritative Config (Phase 13) bleibt — keine Browser-Persistenz.
+- Schema v4 (Phase 29) bleibt — keine Migration.
+
+## Phase 30 - Render-Stability Regressions Closure (CLOSED PARTIAL)
+Ziel: Drei Render-/Sync-Regressionen beheben, die vor Release aufgefallen sind. Test-Board: Nemesis Lockdown Board A. Mid-phase erweitert um Plan 30-04 (Pi /output/ fps target ≥20 fps).
+
+Status: CLOSED PARTIAL am 2026-05-06. Drei der vier Ziele erreicht (B1 + B2 + B3). Plan 30-04 (Pi fps ≥20) NICHT erreicht trotz 16-Task-Welle (T1-T16) — Final-fps auf Pi ~12 fps. Stabilität dagegen deutlich besser: GL-Context-Loss eliminiert (T14), mp4-Loop-Seamlessness wiederhergestellt, GIF-Reliability gehärtet, Mesh-Warp-Seams in GL+2D geschlossen, Diagnostic-Overlay live-synct. Architektonische Konsequenz: client-seitige Optimierung plateau'd auf VC4 — Phase 31 pivotiert zu Server-Side-Rendering mit Pi als Thin-Display-Client. Closure-Doku: `.planning/phases/phase-30/SUMMARY.md`. Tag: `phase-30-end-partial`. Final version: `0.30.0-30-04-T14T15T16-raf-yield`.
+
+**Plans:** 3/4 plans completed (30-01 + 30-02 + 30-03 PASS, 30-04 PARTIAL)
 
 Plans:
-- [x] 30-01-PLAN.md — B3: Diagnostic Overlay live-sync to /output/ (probe-then-fix)
-- [ ] 30-02-PLAN.md — B1: Animation seams in solid-color and others (2D-fallback NEAREST fix)
-- [ ] 30-03-PLAN.md — B2: Pi GIF reliability without reload (Candidates A+B+C)
+- [x] 30-01-PLAN.md — B3: Diagnostic Overlay live-sync to /output/ (PASS — D + E + h1 + h2)
+- [x] 30-02-PLAN.md — B1: Animation seams in solid-color and others (PASS — h1..h9 wave + T4 GL-mesh seam closure)
+- [x] 30-03-PLAN.md — B2: Pi GIF reliability without reload (PASS — Candidates A + B + C + h1 + h2)
+- [~] 30-04-PI-PERF-PLAN.md — Pi /output/ fps to 24-30 (PARTIAL — 16 tasks, T6/T8 cancelled and forwarded to Phase 31; final ~12 fps vs target 20+)
 
 Backlog (User-Smoke 2026-05-05, post Phase-29-Closure):
 - B1 — Sichtbare Linien/Seams in Animationen, insbesondere `solid-color`: solid-color-Räume zeigen sichtbare Linien innerhalb des Raums (Transformations-Naht). Phase 26 h9 hatte den GL-Triangle-Seam-Fix (highp + NEAREST) — Regression. Kontrakt: solid-color soll wirklich SOLID sein, ohne sichtbare Naht-Linien innerhalb eines Raums; auch andere Animationen dürfen diese Linien nicht zeigen.
