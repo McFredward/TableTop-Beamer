@@ -72,6 +72,7 @@ export async function bootReceiver({ logger = console } = {}) {
   let receivedFps = 0;
   let pcState = "new";
   let monitorInterval = null;
+  let ssrFps = null; // h8: SSR-tab's internal render fps (via heartbeat).
 
   // D-B4 retry button — manual operator escalation. Always available
   // when the error overlay is visible.
@@ -123,6 +124,10 @@ export async function bootReceiver({ logger = console } = {}) {
       });
       receiver.onHeartbeat(() => {
         lastHeartbeatAtMs = performance.now();
+      });
+      // h8: surface SSR-tab fps in the diagnostic chip alongside stream fps.
+      receiver.onSsrFps((fps) => {
+        ssrFps = fps;
       });
     } catch (err) {
       logger.error(`[ssr-receiver] connect failed: ${err?.message ?? err}`);
@@ -188,6 +193,7 @@ export async function bootReceiver({ logger = console } = {}) {
       pcConnectionState: pcState,
       lastFrameAgeMs: now - lastFrameAtMs,
       heartbeatAgeMs: now - lastHeartbeatAtMs,
+      ssrFps, // h8: SSR-tab internal render fps via heartbeat piggyback
     });
   }, 1000);
 

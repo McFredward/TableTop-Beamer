@@ -50,7 +50,7 @@ export async function createWebRtcReceiver({
   }
   const ms = window.mediasoupClient;
 
-  const subscribers = { connectionState: [], frame: [], heartbeat: [] };
+  const subscribers = { connectionState: [], frame: [], heartbeat: [], ssrFps: [] };
   function emit(channel, ...args) {
     for (const cb of subscribers[channel]) {
       try {
@@ -105,6 +105,8 @@ export async function createWebRtcReceiver({
         return;
       }
       if (m.type === "heartbeat") {
+        // h8: server piggybacks SSR-tab fps on heartbeat for diagnostic chip.
+        if (typeof m.ssrFps === "number") emit("ssrFps", m.ssrFps);
         emit("heartbeat");
         return;
       }
@@ -209,5 +211,6 @@ export async function createWebRtcReceiver({
     onConnectionStateChange: (cb) => subscribers.connectionState.push(cb),
     onFrameReceived: (cb) => subscribers.frame.push(cb),
     onHeartbeat: (cb) => subscribers.heartbeat.push(cb),
+    onSsrFps: (cb) => subscribers.ssrFps.push(cb), // h8: SSR-tab internal render fps
   };
 }

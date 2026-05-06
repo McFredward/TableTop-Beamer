@@ -93,20 +93,15 @@
     // ImageDecoder fast path since dashboard doesn't have the WebGL
     // warp competing for GPU memory.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    // h6 hotfix: classify "is this a Pi VC4-class environment" instead of
-    // "is this final-output". The SSR Chromium tab on the server runs
-    // /output?ssr=1 which IS final-output, but it's NOT a Pi — forcing it
-    // through the Pi-optimized slow parser path was the fps bottleneck +
-    // GIF "not playing" symptom users saw on /output/ (the Pi receives a
-    // stream, but the SSR tab generating that stream was using putImageData
-    // 1080p paths instead of the fast ImageDecoder + ImageBitmap path).
-    // ARM-UA defense-in-depth in getRuntimeEnvironment keeps real Pis on
-    // the slow path even with ?ssr=1 spoofed.
-    const __ttbEnv =
-      (typeof window !== "undefined"
-        && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
-    const isPiVc4 = __ttbEnv === "pi";
-    if (!isPiVc4 && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
+    // h8 hotfix (2026-05-06): REVERT h6's gate change. The SSR Chromium
+    // tab IS final-output (URL is /output/?ssr=1) and the user reported
+    // that GIFs no longer start reliably on it after h6 — exactly the
+    // Phase-30 B2 regression. Restore the post-Phase-30-closure behavior:
+    // ALL final-output paths (Pi receiver direct AND SSR tab) take the
+    // proven parser path. Phase-30 verified this path on Pi VC4; on the
+    // SSR tab it costs ~20 fps but is rock-solid for GIF reliability,
+    // which is the user's binding contract.
+    if (!isFinalOutput && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
       try {
         const decoder = new ImageDecoder({ data, type: "image/gif" });
         await decoder.tracks.ready;
@@ -149,17 +144,14 @@
     // and prevents Pi VC4 GPU driver from reaping the WebGL context
     // during long parses. Decoder sets entry.status="ready" on success.
     await ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry, {
-      // h6 hotfix: yield-between-frames is a Pi VC4 watchdog defense, not
-      // a generic "final-output" property. SSR Chromium tab on server
-      // doesn't need the yields and they dramatically cap fps. Pin to Pi.
-      yieldBetweenFrames: isPiVc4,
-      // Phase 30 Plan 30-04 T11: skip the per-frame ImageBitmap pre-bake
-      // on Pi /output/ specifically (T9's bitmap path was great on
-      // dashboard but on Pi VC4 cumulative GPU allocation revived h10/h11
-      // CONTEXT_LOST_WEBGL pattern). h6 hotfix: ssr-server tab benefits
-      // from the bitmap pre-bake too, so the gate is now Pi-specific
-      // rather than final-output.
-      bakeImageBitmap: !isPiVc4,
+      // h8: revert h6 — restore Phase-30 final-output behavior for GIF
+      // reliability. yield-between-frames + no-bitmap is the path that
+      // Phase 30 closure verified on /output/final. Cost: lower fps on
+      // strong hardware. Benefit: rock-solid GIF reliability matching
+      // Phase-30 closure state.
+      yieldBetweenFrames: isFinalOutput,
+      bakeImageBitmap: !isFinalOutput,
+      isFinalOutput,
     });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {
@@ -337,18 +329,13 @@
   // worst case; on the rare actual stall the queue still moves
   // on. Probe-tag "warm-timeout" is now exceptional, not routine.
   //
-  // Phase 31 Plan 05 (Wave 5) — runtime-environment gate. Per
-  // .planning/phases/phase-31/31-HOTFIX-AUDIT.md, T12 is `pi-only`:
-  // the server-side SSR Chromium tab decodes the same GIFs in
-  // <500 ms, so the original 5 s budget is more than sufficient and
-  // surfaces real stalls earlier. ARM-UA defense-in-depth in
-  // getRuntimeEnvironment clamps to "pi" on any ARM hardware
-  // regardless of URL. Falls back to "pi" if the helper is missing
-  // (Phase-30 behavior preserved).
-  const __ttbEnv =
-    (typeof window !== "undefined"
-      && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
-  const WARM_DECODE_TIMEOUT_MS = __ttbEnv === "pi" ? 30000 : 5000;
+  // h8 hotfix (2026-05-06): REVERT Plan-05 environment gate. User
+  // reports GIF "not starting" reliably on /output/ (with stream from
+  // SSR tab). The 5s timeout was too tight for the SSR tab's same
+  // canvas-heavy parser path that needs ~12-15s on slime.gif. Restoring
+  // Phase-30 closure state: 30s timeout for any final-output role
+  // (Pi-direct or SSR-server), 5s for dashboard.
+  const WARM_DECODE_TIMEOUT_MS = 30000;
   function _enqueueOutputWarm(path) {
     _outputWarmQueue = _outputWarmQueue
       .then(async () => {

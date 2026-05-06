@@ -161,40 +161,32 @@ test("getRuntimeEnvironment: aarch64 UA forces 'pi'", () => {
   assert.equal(result, "pi");
 });
 
-test("runtime-gif-decoder.js: T7+T15 256px cap gated on runtimeEnvironment === 'pi'", () => {
-  assert.ok(
-    GIF_DECODER_SRC.includes("getRuntimeEnvironment"),
-    "decoder reads runtime env",
-  );
-  assert.match(
-    GIF_DECODER_SRC,
-    /=== ?["']pi["']/,
-    "decoder branches on runtimeEnvironment === 'pi'",
-  );
-  // Both T7 and T15 share the same cap-application site
-  // (the `dsScale = Math.min(1, GIF_MAX_PIXEL_DIM / max(W,H))` line).
-  // The gate must be near the cap-application code.
+test("runtime-gif-decoder.js: T7+T15 256px cap applies to all final-output (h8 revert)", () => {
+  // h8 hotfix (2026-05-06): the Plan-05 environment gate that scoped the
+  // 256px cap to Pi was reverted because users reported GIFs not starting
+  // reliably on /output/ — exact Phase-30 B2 regression. The cap now
+  // applies to all final-output (Pi-direct AND SSR-tab render) which
+  // matches Phase-30 closure state.
   assert.match(
     GIF_DECODER_SRC,
     /GIF_MAX_PIXEL_DIM/,
     "GIF cap constant still defined",
   );
+  assert.match(
+    GIF_DECODER_SRC,
+    /isFinalOutput/,
+    "decoder gates the cap on isFinalOutput, not env-class",
+  );
 });
 
-test("runtime-gif-playback.js: T12 WARM_DECODE_TIMEOUT_MS gated on runtimeEnvironment === 'pi'", () => {
-  assert.ok(
-    GIF_PLAYBACK_SRC.includes("getRuntimeEnvironment"),
-    "playback reads runtime env",
-  );
+test("runtime-gif-playback.js: T12 WARM_DECODE_TIMEOUT_MS = 30000 universal (h8 revert)", () => {
+  // h8 hotfix: revert Plan-05 env-gate. Phase-30 closure used 30s for
+  // /output/final regardless of hardware; SSR Chromium tab uses the
+  // same canvas-heavy parser path that needs >5s on slime.gif.
   assert.match(
     GIF_PLAYBACK_SRC,
-    /=== ?["']pi["']\s*\?\s*30000/,
-    "WARM_DECODE_TIMEOUT_MS = pi ? 30000 : 5000",
-  );
-  assert.match(
-    GIF_PLAYBACK_SRC,
-    /:\s*5000/,
-    "non-pi branch keeps original 5000ms",
+    /WARM_DECODE_TIMEOUT_MS\s*=\s*30000/,
+    "WARM_DECODE_TIMEOUT_MS = 30000 universal",
   );
 });
 

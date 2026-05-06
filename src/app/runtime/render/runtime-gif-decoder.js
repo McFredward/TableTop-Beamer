@@ -429,20 +429,14 @@
       // scratch source+target canvases. Eliminates the per-frame
       // 1920×1080 → 200×150 GPU resample on the rendering hot path.
       //
-      // Phase 31 Plan 05 (Wave 5) — runtime-environment gate.
-      // Per .planning/phases/phase-31/31-HOTFIX-AUDIT.md, T7+T15 are
-      // classified `regression-risk` for the SSR Chromium tab on the
-      // server: the cap reduces GIF quality and the Pi `<video>` then
-      // upscales the streamed result, producing visible quality loss.
-      // Server has Intel iGPU + 32 GiB RAM (RESEARCH § Q1) — the cap is
-      // unnecessary. ARM-UA defense-in-depth in getRuntimeEnvironment
-      // means a Pi can never accidentally hit the no-cap branch even if
-      // someone tampers with the URL. Falls back to "pi" if the helper
-      // is unavailable (Phase-30 behavior preserved).
-      const __ttbEnv =
-        (typeof window !== "undefined"
-          && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
-      const dsScale = __ttbEnv === "pi"
+      // h8 hotfix (2026-05-06): REVERT Phase-31 Plan-05 environment-gate.
+      // The user reported that GIFs were not starting on /output/ — the
+      // exact regression Phase-30 B2 + h11 closed. Restore Phase-30
+      // closure state: cap applies to ALL final-output (both Pi-direct
+      // render AND SSR-tab render) since both are the "final visual
+      // output" path. /output/ is hardware-agnostic by design.
+      const isFinalOutputForCap = options?.isFinalOutput ?? true;
+      const dsScale = isFinalOutputForCap
         ? Math.min(1, GIF_MAX_PIXEL_DIM / Math.max(logicalWidth, logicalHeight))
         : 1;
       const targetW = Math.max(1, Math.round(logicalWidth * dsScale));

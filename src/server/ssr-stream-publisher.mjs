@@ -174,6 +174,33 @@ export function buildInPagePublisherScript() {
 
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
+
+    // h8: SSR-fps reporter. The user wants the Pi diagnostic chip to show
+    // BOTH the received-stream fps AND the SSR-tab's internal render fps.
+    // We measure rAF rate in the SSR page (= the page's actual present
+    // rate, which captures any throttling Chromium applied) and post it
+    // every 1s to the signaling WS. The signaling handler stashes it in
+    // shared state; the heartbeat sender includes it on the consumer-side
+    // heartbeat so the receiver-status-ui can render it.
+    let __ssrFpsFrames = 0;
+    let __ssrFpsLastReported = performance.now();
+    const __ssrFpsTick = () => {
+      __ssrFpsFrames += 1;
+      requestAnimationFrame(__ssrFpsTick);
+    };
+    requestAnimationFrame(__ssrFpsTick);
+    setInterval(() => {
+      const now = performance.now();
+      const dt = now - __ssrFpsLastReported;
+      const fps = dt > 0 ? (__ssrFpsFrames * 1000) / dt : 0;
+      __ssrFpsFrames = 0;
+      __ssrFpsLastReported = now;
+      try {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ssr-fps", fps: Math.round(fps * 10) / 10 }));
+        }
+      } catch {}
+    }, 1000);
   } catch (err) {
     console.error("[ssr-publisher] FAILED:", err);
     window.__ssrPublisherError = String((err && err.message) || err);

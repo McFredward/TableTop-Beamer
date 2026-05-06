@@ -154,6 +154,10 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
   const state = {
     videoProducer: null,
     consumerCount: 0,
+    // h8: SSR-tab posts its rAF fps every 1s; we keep latest so heartbeat
+    // sender can include it in messages to consumers.
+    ssrFps: null,
+    ssrFpsAtMs: 0,
   };
 
   server.on("upgrade", (req, socket) => {
@@ -214,7 +218,14 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     if (role === "consumer" || role === "ssr-tab") {
       heartbeatTimer = setInterval(() => {
         try {
-          const frame = encodeTextFrame(JSON.stringify({ type: "heartbeat", t: Date.now() }));
+          // h8: piggyback the SSR-tab's reported fps on the heartbeat for
+          // consumers so the Pi diagnostic chip can show "Pi-fps · SSR-fps".
+          // ssrFps is null until the SSR tab posts its first sample (~1s
+          // after publisher init); receivers gracefully handle missing.
+          const ssrFresh = state.ssrFps !== null && (Date.now() - state.ssrFpsAtMs) < 5000;
+          const payload = { type: "heartbeat", t: Date.now() };
+          if (role === "consumer" && ssrFresh) payload.ssrFps = state.ssrFps;
+          const frame = encodeTextFrame(JSON.stringify(payload));
           socket.write(frame);
         } catch {
           // socket already closing — let close handler clean up
@@ -254,6 +265,20 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
         sendErr("invalid-message");
         return;
       }
+
+      // h8: SSR-fps report from the publisher script. Not part of the
+      // RPC contract — it's a fire-and-forget telemetry message. We
+      // accept it only on ssr-tab connections to prevent consumers
+      // from spoofing.
+      if (msg.type === "ssr-fps" && conn.role === "ssr-tab") {
+        const f = Number(msg.fps);
+        if (Number.isFinite(f) && f >= 0 && f <= 240) {
+          state.ssrFps = Math.round(f * 10) / 10;
+          state.ssrFpsAtMs = Date.now();
+        }
+        return;
+      }
+
       const { action, requestId = null } = msg;
       if (typeof action !== "string" || !KNOWN_ACTIONS.has(action)) {
         sendErr("unknown-action", requestId);

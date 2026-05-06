@@ -114,14 +114,21 @@ export function createStatusUi({
     pcConnectionState,
     lastFrameAgeMs,
     heartbeatAgeMs,
+    ssrFps, // h8: SSR-tab's internal render fps (server-side rAF rate)
   }) {
     if (!chipEl) return;
-    const fpsStr =
+    const piFpsStr =
       typeof receivedFps === "number" && Number.isFinite(receivedFps)
-        ? `${receivedFps.toFixed(0)} fps`
-        : "— fps";
+        ? `pi=${receivedFps.toFixed(0)}fps`
+        : "pi=—fps";
+    // h8: SSR fps is null until the first heartbeat arrives carrying it.
+    const ssrFpsStr =
+      typeof ssrFps === "number" && Number.isFinite(ssrFps)
+        ? `ssr=${ssrFps.toFixed(0)}fps`
+        : "ssr=—";
     const parts = [
-      fpsStr,
+      piFpsStr,
+      ssrFpsStr,
       `pc=${pcConnectionState ?? "?"}`,
       `frame=${
         typeof lastFrameAgeMs === "number" && Number.isFinite(lastFrameAgeMs)
