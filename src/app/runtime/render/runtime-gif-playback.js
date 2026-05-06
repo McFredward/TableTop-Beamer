@@ -69,11 +69,19 @@
     // resolver returns `path` unchanged when the manifest has no entry (e.g.
     // built-in `coded-effect.fallback` paths).
     const resolvedUrl = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
-    const response = await fetch(resolvedUrl, { cache: "force-cache" });
+    _gifProbe("fetch-start", { path, url: resolvedUrl.slice(-80) });
+    // h13: drop `cache: "force-cache"` — observed to hang concurrent fetches
+    // for distinct GIF paths inside the puppeteer-stream Chromium tab
+    // (malfunction completes, burst+fire's fetch never returns headers).
+    // The asset URL already carries `?v=<hash>` (Phase-28 B5) so cache
+    // correctness is preserved by URL hashing rather than cache mode.
+    const response = await fetch(resolvedUrl);
     if (!response.ok) {
       throw new Error(`GIF fetch failed (${response.status})`);
     }
+    _gifProbe("fetch-headers-ok", { path, status: response.status, ms: Math.round(performance.now() - _decodeStartedAt) });
     const data = await response.arrayBuffer();
+    _gifProbe("fetch-bytes-ok", { path, bytes: data.byteLength, ms: Math.round(performance.now() - _decodeStartedAt) });
     // Pi/Chromium reports canDecodeGifFramesWithImageDecoder=true but
     // a specific GIF can still throw mid-decode (memory pressure on
     // large GIFs, malformed frames, transient decoder state). Without
@@ -98,32 +106,75 @@
     // ImageDecoder fast path since dashboard doesn't have the WebGL
     // warp competing for GPU memory.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    // h11 hotfix (2026-05-06): per-environment fast-path gating.
-    // CDP-captured probe showed burst.gif decode-start with no
-    // decode-success across 690+ trigger-null events — the parser path
-    // hangs on the SSR-Chromium-tab even with yieldBetweenFrames=false.
-    // Resolution: use the ImageDecoder fast path on dashboard AND SSR
-    // tab (both have GPU memory budget for the bitmap pre-bake). Pi
-    // VC4 gets the conservative parser path because Phase-30 closure
-    // confirmed ImageDecoder + ImageBitmap exhausts VC4 GPU memory.
+    // h13 hotfix (2026-05-06): REVERT h11's fast-path-on-SSR gate.
+    // CDP probes showed ImageDecoder.tracks.ready hangs INDEFINITELY
+    // for fire.gif and slime.gif on the SSR Chromium tab even with
+    // 6s Promise.race timeout (timeout never fires — appears the
+    // ImageDecoder constructor itself blocks the microtask queue or
+    // there's a Chromium 131 + libgif quirk under Xvfb). Solution:
+    // /output/ goes through the PARSER (Phase-30 closure path).
+    // Dashboard keeps ImageDecoder fast path. SSR-tab safety: parser
+    // doesn't yield (h11 already fixed yieldBetweenFrames Pi-only).
     const __ttbEnv =
       (typeof window !== "undefined"
         && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
     const isPiVc4ForFastPath = __ttbEnv === "pi";
-    if (!isPiVc4ForFastPath && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
+    if (!isFinalOutput && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
       try {
         const decoder = new ImageDecoder({ data, type: "image/gif" });
-        await decoder.tracks.ready;
+        // h12: timeout on tracks.ready too. slime.gif (22 MB) was observed
+        // to hang inside tracks.ready forever in Chromium 131 under Xvfb,
+        // never reaching decode-frames-start. 6 s ceiling so the parser
+        // fallback can kick in. Per-frame timeouts (below) catch mid-decode
+        // hangs separately.
+        await Promise.race([
+          decoder.tracks.ready,
+          new Promise((_, rej) => setTimeout(() => rej(new Error("tracks-ready-timeout")), 6000)),
+        ]);
         const frameCount = Math.max(1, Number(decoder.tracks?.selectedTrack?.frameCount) || 1);
+        _gifProbe("decode-frames-start", { path, frameCount });
         const frames = [];
         let totalDurationMs = 0;
         for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-          const { image } = await decoder.decode({ frameIndex });
+          // h12 hotfix (2026-05-06): per-frame timeout. fire.gif on the
+          // SSR-Chromium-tab has been observed to hang inside decoder
+          // .decode({ frameIndex }) for an entire frame indefinitely. We
+          // race the decode against a 4 s timeout and abort to the
+          // parser fallback if any single frame stalls — so a malformed
+          // or quirky-encoded GIF can never deadlock the warm queue.
+          const _frameStarted = performance.now();
+          let result;
+          try {
+            result = await Promise.race([
+              decoder.decode({ frameIndex }),
+              new Promise((_, rej) =>
+                setTimeout(() => rej(new Error(`frame-${frameIndex}-timeout`)), 4000),
+              ),
+            ]);
+          } catch (frameErr) {
+            _gifProbe("decode-frame-stall", {
+              path,
+              frameIndex,
+              ms: Math.round(performance.now() - _frameStarted),
+              err: String(frameErr?.message || frameErr).slice(0, 60),
+            });
+            throw frameErr; // fall through to parser branch below
+          }
+          const { image } = result;
           const durationMs = Math.max(16, Math.round((Number(image.duration) || 100000) / 1000));
           const bitmap = await createImageBitmap(image);
           image.close();
           frames.push({ bitmap, durationMs });
           totalDurationMs += durationMs;
+          // Progress probe every 10 frames so we can see where decode hangs.
+          if (frameIndex > 0 && frameIndex % 10 === 0) {
+            _gifProbe("decode-progress", {
+              path,
+              done: frameIndex,
+              total: frameCount,
+              ms: Math.round(performance.now() - _decodeStartedAt),
+            });
+          }
         }
         decoder.close?.();
         entry.frames = frames;
@@ -134,6 +185,7 @@
           path,
           frames: frames.length,
           ms: Math.round(performance.now() - _decodeStartedAt),
+          via: "image-decoder",
         });
         return;
       } catch (error) {
@@ -141,6 +193,10 @@
           event: "gif-image-decoder-failed",
           path,
           error: String(error?.message || error),
+        });
+        _gifProbe("fast-path-failed", {
+          path,
+          err: String(error?.message || error).slice(0, 80),
         });
         // intentional fall-through to the parser branch below
       }
