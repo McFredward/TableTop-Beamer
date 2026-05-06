@@ -89,6 +89,16 @@
           r.checked = (Number(r.value) === Number(serverRendering.fpsTarget));
         }
       }
+      // Phase 32 D-A3: stream FPS cap (distinct from legacy fpsTarget)
+      if (serverRendering.streamFpsCap != null) {
+        for (const r of (refs.ssrStreamFpsCapRadios || [])) {
+          r.checked = (Number(r.value) === Number(serverRendering.streamFpsCap));
+        }
+      }
+      // Phase 32 D-A2: align-mode boost toggle
+      if (typeof serverRendering.alignModeBoost === "boolean" && refs.ssrAlignModeBoostToggle) {
+        refs.ssrAlignModeBoostToggle.checked = serverRendering.alignModeBoost;
+      }
       if (typeof serverRendering.audioRoute === "string") {
         // checked === in-stream; unchecked === pi-local (D-D2 reversal default)
         if (refs.ssrAudioRouteToggle) {
@@ -149,6 +159,18 @@
     for (const r of (refs.ssrFpsTargetRadios || [])) {
       r.addEventListener("change", () => {
         if (r.checked) sendPatch({ fpsTarget: Number(r.value) });
+      });
+    }
+    // Phase 32 D-A3: stream FPS cap change handler
+    for (const r of (refs.ssrStreamFpsCapRadios || [])) {
+      r.addEventListener("change", () => {
+        if (r.checked) sendPatch({ streamFpsCap: Number(r.value) });
+      });
+    }
+    // Phase 32 D-A2: align-mode boost toggle change handler
+    if (refs.ssrAlignModeBoostToggle) {
+      refs.ssrAlignModeBoostToggle.addEventListener("change", (e) => {
+        sendPatch({ alignModeBoost: Boolean(e.target.checked) });
       });
     }
     if (refs.ssrAudioRouteToggle) {
