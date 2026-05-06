@@ -3,12 +3,12 @@ phase: 31
 phase_id: 31
 title: Server-Side Rendering Pivot
 slug: server-side-rendering-pivot
-status: DELIVERED-TO-UAT
-status_detail: "automated 9/9 PASS · manual 0/15 PENDING (Pi hardware required)"
+status: CLOSED-WITH-HOTFIXES
+status_detail: "delivered to UAT 2026-05-06; closed after 35 post-UAT hotfixes (h12-h46) addressing align-mode round-trip, GIF reliability, drag-flow, room-overlay sync, profile persistence, reconnect storm, FPS lift"
 test_board: nemesis-lockdown-a
 started: 2026-05-06T08:35:00Z
 delivered_to_uat: 2026-05-06T09:50:00Z
-closed: null
+closed: 2026-05-06T22:35:00Z
 tags: [ssr, server-side-rendering, webrtc, mediasoup, puppeteer, h264, thin-client, pi, publishability, d-d2-reversal, hotfix-audit, regression]
 
 # Phase plans
@@ -275,8 +275,68 @@ Test suite:
 - `node --test "test/**/*.test.mjs"` — 137 tests / 135 pass / 0 fail / 2 skip / exit 0 (regression-free)
 - Phase-29 baseline 40/40 still green within the 137-total
 
-Tag pending: `phase-31-end` (CLOSE PASS) or `phase-31-end-partial` (CLOSE PARTIAL) — set by operator after UAT pass.
+Tag: `phase-31-end` (CLOSE — see Hotfix Closure below).
 
 ---
 
-*Phase: 31-server-side-rendering-pivot · Phase Summary · DELIVERED-TO-UAT · 2026-05-06*
+## Hotfix Closure (h12 – h46) — 2026-05-06
+
+After delivery to UAT, 35 hotfix commits stabilised the SSR pipeline against
+Pi-hardware-only failure modes that the automated suite couldn't surface.
+All hotfixes were grouped on master (no separate branch); the test suite
+grew from 137 to 215 (211 pass / 4 skip / 0 fail) across the closure window.
+
+### Themes addressed
+
+1. **GIF fetch under Xvfb-Chromium (h12 – h15):** decoder hang root-caused
+   to a chromium-under-Xvfb fetch deadlock; closed with hardware-agnostic
+   single-flight mutex + ImageDecoder fallback. 4/4 GIFs decode reliably.
+2. **FPS lift + diagnostic overlay (h17 – h18):** render-mode chip,
+   preset live-update, align-mode round-trip wave 1.
+3. **Align-mode coordinate-space + WebGL (h19 – h22):** WebGL context
+   leak fixed, identity-default established, fast-path for live drag,
+   80% default restore + stale-drag boot guard.
+4. **Boot-state correctness (h23):** `isDirty()` no longer fires on
+   profile-less boot; LS snapshot applies to grid before first render.
+5. **Reconnect storm (h24 – h26, h36, h38):** consume-hold timing,
+   WebSocket leak on consume failure, disconnect threshold raise
+   (3000→8000 ms), `MAX_CONSUMER_CONNECTIONS` 10→50, per-IP cleanup,
+   socket force-destroy on error.
+6. **Drag flow + handle UI (h27 – h35):** Pi-receiver vs SSR-tab
+   handle-rendering split, `_isSsrChromiumTab()` gate, drag-flow probe,
+   `_getDragLayout` infinite recursion fix, letterbox-aware positioning,
+   `object-fit: fill` for 1:1 alignment.
+7. **Live-sync grid round-trip (h30 – h31, h37, h40):** full-grid
+   `align-grid-snapshot` mutation at 30 Hz so Pi handle-drags drive
+   the SSR-tab in lockstep; broadcast no-op fix; redraw after apply;
+   slow-path catch-up via `lastAlignGridSnapshot`.
+8. **Server-authoritative profile state (h41 – h44):** active grid
+   persisted to `config/runtime-active-grid.json` with debounced 200 ms
+   write; `liveSessionState.version` bumped on seed; eager grid apply
+   before `applyLiveRuntimeSnapshot`'s 200-line normalizer; alignMode
+   block hoisted above the trap.
+9. **Room-overlay 3-bug fix (h46):** symmetric clear on disable,
+   `context-update` in fast-path, BOARDS-load re-render — closed via
+   debugger session at `.planning/debug/phase-31-h46-room-overlay-bugs.md`.
+
+### Final test status at closure
+
+`node --test "test/**/*.test.mjs"` — **215 total / 211 pass / 0 fail / 4 skip / exit 0**.
+Phase-29 baseline 40/40 still green inside the 215.
+
+### Outstanding (carried to Phase 32)
+
+- **Stream FPS cap at ~25 fps** — SSR + STREAM both observed at this
+  ceiling regardless of preset. Investigate whether stream is coupled
+  to SSR render rate or the cap lives elsewhere (encoder, throttle,
+  headful-Chromium rAF). Target: lift toward 60 fps for align-mode
+  drag responsiveness (operator-perceived "real-time").
+- **Reconnect-storm regression after fresh boot** — runs stably for
+  long sessions but sometimes after start the Pi reconnects in a loop
+  and only server restart recovers. Local-LAN-only; needs deterministic
+  reproduction + targeted fix (likely interaction between consumer cap,
+  per-IP cleanup, and producer-startup timing).
+
+---
+
+*Phase: 31-server-side-rendering-pivot · Phase Summary · CLOSED-WITH-HOTFIXES · 2026-05-06*

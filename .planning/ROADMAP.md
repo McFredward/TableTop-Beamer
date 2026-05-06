@@ -198,10 +198,56 @@ Exit Criteria:
 - GIF-Animationen starten zuverlaessig auf Pi /output/ nach Reload.
 - Render-Mode + Diagnostic-Overlay sind in System-Tab toggle-bar, server-persistiert und live auf alle Clients gesynced.
 
-## Phase 31 - Server-Side Rendering Pivot (PLANNING)
+## Phase 32 - SSR Stream Performance + Connection Stability (DISCUSS)
+Ziel: Zwei post-Phase-31 Release-Blocker, die im Live-Test sichtbar wurden. (1) **Stream-FPS-Plateau:** SSR und WebRTC-Stream sind beide bei ~25 fps trotz preset-target 30. Operator-perceived "real-time" Drag im Align-Mode soll Framerate Richtung 60 fps lifen. Untersuchung: Sind Stream-fps an SSR-fps gekoppelt (rAF in headful Chromium, paint-throttle, Encoder-input-rate, mediasoup output-rate) oder ist das Zufall? (2) **Reconnect-Storm-Regression nach Cold-Boot:** Manchmal nach Server-Start reconnected der Pi-Receiver dauerhaft und fängt sich nicht — nur Server-Restart hilft. Sobald es einmal stabil läuft, läuft es lange stabil. Annahme: Server + Pi sind immer im gleichen lokalen LAN.
+
+Status: DISCUSS (2026-05-06). Phase entstand aus Phase-31-Closure-Carry-over (siehe `.planning/phases/phase-31/31-SUMMARY.md` "Outstanding"-Sektion). CONTEXT.md noch nicht erstellt — discuss-phase muss Gray Areas identifizieren.
+
+Trigger: Phase-31-Hotfix-Welle h24-h26 + h36-h38 hat Reconnect-Storm einmal stabilisiert (consumer-cap, per-IP cleanup, threshold raise). Aber bei kaltem Server-Boot bleibt das Problem latent reproducible. Parallel zeigte h18 dass FPS-lift auf 30 nominell möglich war, aber unter typischer Last sich auf ~25 einpegelte — Codepfade vermutlich nicht skaliert für > 25 fps Throughput.
+
+Hard Constraints (carried forward):
+- Phase-31 user-contracts (align mode, mesh-warp, layering) bleiben non-regressed.
+- Server-authoritative state (Phase 13 + Phase 31 h41/h42) bleibt.
+- Test-Board: Nemesis Lockdown Board A.
+- Server + Pi gleicher local LAN (gigabit ethernet bevorzugt — keine WAN-Latenz-Annahmen).
+
+Out of Scope (Phase 32):
+- Audio-Pfad (Pi-lokal seit D-D2-Reversal — bleibt).
+- Codec-Wechsel weg von H264 (nur falls Stream-Lift dies erfordert wird es Gray Area).
+- Pi-side Render-Fallback wenn Server unerreichbar.
+
+Discuss-Phase Gray Areas (zu klären):
+- D1: Stream-FPS-Kopplung — wo ist die Decoupling-Stelle? Capture-Rate vs Encode-Rate vs Decode-Rate. Welche Stage limitiert?
+- D2: Target-FPS — 30 (preset)? 60 (operator-perceived)? Encoder-Budget + Pi-Decode-Budget müssen reichen.
+- D3: Bitrate-Lift — bei FPS-Verdopplung Bitrate ebenfalls anheben oder Quality-Trade akzeptieren?
+- D4: Reconnect-Storm-Reproduktion — was triggert den Cold-Boot-Fail-Modus? Producer-startup-race? Consumer-cap exhaustion before cleanup? DTLS-handshake-deadlock?
+- D5: Backoff-Strategie — exponential? Jittered? Server-pushed STOP-RETRYING signal?
+- D6: Stream-Health-Indicator UI — soll Operator sehen wenn Re-connecting vs hängt?
+
+Milestones (vorläufig — werden in CONTEXT.md/PLAN finalisiert):
+1. M1 Discuss-Phase Closure: Gray Areas entschieden, CONTEXT.md fertig.
+2. M2 Research-Phase Closure: FPS-Pfad-Profiling (CDP timeline + mediasoup stats) — quantitatives Bild davon wo die Frames gedrosselt werden.
+3. M3 Stream-FPS-Lift: validate ≥40 fps unter typischer Last (Multi-Room + Animation + Align-Drag).
+4. M4 Reconnect-Storm-Repro: deterministisches Repro-Script schreiben.
+5. M5 Reconnect-Storm-Fix: Server-Restart als "letzte Option" obsolet.
+6. M6 UAT: Pi auf Test-Board zeigt durchgehend ≥40 fps + überlebt 10× Pi-Reload + 10× Server-Restart ohne stuck-state.
+
+Exit Criteria (vorläufig):
+- Stream + SSR FPS messbar ≥40 (idealer Range 50-60) auf Nemesis Lockdown Board A.
+- Operator-perceived Drag-Latenz im Align-Mode subjektiv "real-time".
+- Cold-Boot des Servers + Pi-Receiver-connect stabil ≥10 wiederholungen ohne stuck-Reconnect.
+- Pi-Reload während laufendem Stream stabil ≥10 wiederholungen ohne Server-Restart-Notwendigkeit.
+- Test-Suite weiterhin grün; neue Tests für FPS-Floor + Reconnect-Repro.
+
+Re-Use Decisions (carried forward, nicht erneut diskutieren):
+- WebRTC + mediasoup + h264 (Phase 31 D-A1/D-A2) bleibt.
+- Headful Chromium + Xvfb + puppeteer-stream (Phase 31 D-A3) bleibt.
+- Pi-local audio (Phase 31 D-D2-Reversal) bleibt.
+
+## Phase 31 - Server-Side Rendering Pivot (CLOSED-WITH-HOTFIXES)
 Ziel: Architektonischer Pivot — Pi 4 wird zum Thin-Display-Client. Der Server (deutlich stärkere Hardware) übernimmt die komplette Render-Pipeline (Animations-Decode, Compositing, Mesh-Warp / Projection-Mapping, Multi-Area, Effects). `/output/` auf dem Pi konsumiert ausschließlich einen finalen Pixel-Stream. User-facing Verträge bleiben identisch: Align-Mode, 4-Ecken-Projection-Mapping, Multi-Area, Animation-Timeline, alle bisherigen Animations-Typen (coded, gif, mp4, solid-color). Es ändert sich ausschließlich der **Render-Ort**.
 
-Status: PLANS READY (2026-05-06). Discuss-Phase + Research-Phase abgeschlossen. CONTEXT.md (D-A1..D-D4 LOCKED, D-X1..D-X8 Researcher-Discretion), RESEARCH.md (mediasoup + puppeteer-stream + Xvfb headful Chromium stack, audio-capture risk-flagged) und VALIDATION.md liegen vor. Plan-Set 31-00..31-06 (7 Plans) execute-ready.
+Status: CLOSED-WITH-HOTFIXES am 2026-05-06. 7/7 Plans (31-00..31-06) PASS + automated 9/9 PASS + 35 post-UAT hotfixes (h12-h46) für GIF-Reliability, Align-Mode round-trip, Drag-Flow, Room-Overlay-Sync, server-authoritative Profile-State, Reconnect-Storm. Test-Suite 215 total / 211 pass / 4 skip / 0 fail. Closure-Doku: `.planning/phases/phase-31/31-SUMMARY.md`. Tag: `phase-31-end`. Final version: `0.31.0-h46`. Zwei Items zu Phase 32 carried over: (1) Stream-FPS-Plateau ~25, (2) Reconnect-Storm-Regression auf Cold-Boot.
 
 **Plans:** 8/7 plans complete
 

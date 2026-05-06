@@ -1,20 +1,20 @@
 # CURRENT PHASE
 
-- Active: none — Phase 30 closed PARTIAL (2026-05-06)
-- Status: Phase 30 (Render-Stability Regressions Closure) CLOSED PARTIAL.
-  Three of four objectives delivered (B1 seam closure, B2 Pi GIF
-  reliability, B3 diagnostic overlay sync). The fourth — Plan 30-04 Pi
-  /output/ fps target ≥20 fps — was NOT met despite 16-task wave (T1-T16).
-  Final Pi fps: ~12 fps (target was 20+). Stability hotfixes h1-h15
-  shipped: GL context-loss eliminated, mp4 loop seamlessness restored,
-  GIF reliability hardened, mesh-warp seams closed in GL+2D, diagnostic
-  overlay live-syncs to /output/. Architectural conclusion: client-side
-  optimization plateaued — Phase 31 pivots to server-side rendering with
-  Pi as thin display client. Test-Suite 40/40 grün.
-- App version: `0.30.0-30-04-T14T15T16-raf-yield`
-- Previous Phase: Phase 30 (Render-Stability Regressions Closure) CLOSED PARTIAL.
-- Next Phase: Phase 31 (Server-Side Rendering Pivot) — PLANNING.
+- Active: none — Phase 31 closed (CLOSED-WITH-HOTFIXES) on 2026-05-06.
+- Status: Phase 31 (Server-Side Rendering Pivot) CLOSED. Architectural
+  pivot delivered: Pi 4 is now a thin display client consuming a single
+  H264 WebRTC stream from the server-side Chromium tab. All 7 plans
+  (31-00..31-06) PASS, automated 9/9 PASS, plus 35 post-UAT hotfixes
+  (h12 – h46) addressing GIF reliability, align-mode round-trip, drag
+  flow, room-overlay sync, server-authoritative profile state, and
+  reconnect storm. Test-Suite 215 total / 211 pass / 4 skipped / 0 fail.
+  Two issues carried to Phase 32: (1) stream FPS plateau at ~25 fps,
+  (2) reconnect-storm regression on cold boot.
+- App version: `0.31.0-h46`
+- Previous Phase: Phase 31 (Server-Side Rendering Pivot) CLOSED-WITH-HOTFIXES.
+- Next Phase: Phase 32 (SSR Stream Performance + Connection Stability) — DISCUSS.
 
+Phase 31 closure: `.planning/phases/phase-31/31-SUMMARY.md` (tag `phase-31-end`)
 Phase 30 closure: `.planning/phases/phase-30/SUMMARY.md` (tag `phase-30-end-partial`)
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
 Phase 28 closure: `.planning/phases/phase-28/SUMMARY.md` (tag `phase-28-end`)
