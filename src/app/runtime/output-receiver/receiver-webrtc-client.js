@@ -94,6 +94,16 @@ export async function createWebRtcReceiver({
   }
 
   async function connect() {
+    // Phase-31 h25 (2026-05-06): wrap the entire setup in a try/catch
+    // that closes the WebSocket on ANY failure. Without this, a thrown
+    // RPC (e.g. consume returning "no-producer-yet" after the h19 8 s
+    // hold) leaks the WS — the closure that owned `ws` becomes
+    // unreachable but the underlying TCP socket stays open until GC.
+    // Each failed reconnect attempt accumulated a leaked slot until
+    // the server's MAX_CONSUMER_CONNECTIONS=10 cap hit and rejected
+    // all further connects → user couldn't reconnect at all.
+    let setupOk = false;
+    try {
     ws = new WebSocket(signalUrl);
     await new Promise((res, rej) => {
       const onOpen = () => {
@@ -195,6 +205,17 @@ export async function createWebRtcReceiver({
     trackFrames();
 
     emit("connectionState", "connected");
+    setupOk = true;
+    } catch (err) {
+      // h25: any failure during setup closes the WS so the server-side
+      // consumer slot is freed immediately. Without this the slot stays
+      // claimed until the server's WS-close handler eventually fires
+      // (could be many seconds), and N failed reconnect attempts hit
+      // the cap=10 cliff long before that.
+      try { ws?.close(); } catch (_) {}
+      ws = null;
+      throw err;
+    }
   }
 
   function stop() {

@@ -108,6 +108,16 @@ export async function bootReceiver({ logger = console } = {}) {
   });
 
   async function tryConnect() {
+    // Phase-31 h25 (2026-05-06): stop any prior receiver before
+    // creating a new one. Without this, a failed connect attempt left
+    // the previous receiver instance stranded — its WS still claimed a
+    // server-side consumer slot. After ~10 attempts we hit the
+    // MAX_CONSUMER_CONNECTIONS=10 cap and the server REJECTED any new
+    // connect attempts → user could not reconnect at all.
+    if (receiver) {
+      try { receiver.stop(); } catch (_) {}
+      receiver = null;
+    }
     try {
       receiver = await createWebRtcReceiver({ videoEl, logger });
       receiver.onConnectionStateChange((s) => {
