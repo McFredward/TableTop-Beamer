@@ -25,15 +25,20 @@
   // Pi-side failures where GIFs don't start/stop. Logs only on /output/
   // (final-output role) and dedupes per (event:path:status) so the
   // console doesn't flood. Drop these tags after the issue is diagnosed.
-  const _gifProbeLogged = new Set();
+  // h10 hotfix: Drop the per-(event:path:status) dedupe — for diagnosing
+  // intermittent "some GIFs don't start" we MUST see retry events. The
+  // log volume on /output/ is bounded by the GIF count anyway. Also
+  // print path as a flat string (so it's grep-able) instead of {object}.
   function _gifProbe(event, payload = {}) {
     try {
       if (ctx?.outputRole !== ctx?.OUTPUT_ROLE_FINAL) return;
-      const key = `${event}:${payload.path || ""}:${payload.status || ""}`;
-      if (_gifProbeLogged.has(key)) return;
-      _gifProbeLogged.add(key);
+      const path = String(payload.path || "").split("/").pop().slice(0, 60);
+      const extras = Object.entries(payload)
+        .filter(([k]) => k !== "path")
+        .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`)
+        .join(" ");
       // eslint-disable-next-line no-console
-      console.log(`[h8-gif-probe] ${event}`, { ...payload, t: performance.now().toFixed(0) });
+      console.log(`[gif-probe] ${event} ${path} ${extras}`);
     } catch (_) { /* never let probe break render path */ }
   }
 
@@ -93,15 +98,19 @@
     // ImageDecoder fast path since dashboard doesn't have the WebGL
     // warp competing for GPU memory.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    // h8 hotfix (2026-05-06): REVERT h6's gate change. The SSR Chromium
-    // tab IS final-output (URL is /output/?ssr=1) and the user reported
-    // that GIFs no longer start reliably on it after h6 — exactly the
-    // Phase-30 B2 regression. Restore the post-Phase-30-closure behavior:
-    // ALL final-output paths (Pi receiver direct AND SSR tab) take the
-    // proven parser path. Phase-30 verified this path on Pi VC4; on the
-    // SSR tab it costs ~20 fps but is rock-solid for GIF reliability,
-    // which is the user's binding contract.
-    if (!isFinalOutput && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
+    // h11 hotfix (2026-05-06): per-environment fast-path gating.
+    // CDP-captured probe showed burst.gif decode-start with no
+    // decode-success across 690+ trigger-null events — the parser path
+    // hangs on the SSR-Chromium-tab even with yieldBetweenFrames=false.
+    // Resolution: use the ImageDecoder fast path on dashboard AND SSR
+    // tab (both have GPU memory budget for the bitmap pre-bake). Pi
+    // VC4 gets the conservative parser path because Phase-30 closure
+    // confirmed ImageDecoder + ImageBitmap exhausts VC4 GPU memory.
+    const __ttbEnv =
+      (typeof window !== "undefined"
+        && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
+    const isPiVc4ForFastPath = __ttbEnv === "pi";
+    if (!isPiVc4ForFastPath && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
       try {
         const decoder = new ImageDecoder({ data, type: "image/gif" });
         await decoder.tracks.ready;
@@ -143,15 +152,25 @@
     // setTimeout(0) between frames — keeps the main thread responsive
     // and prevents Pi VC4 GPU driver from reaping the WebGL context
     // during long parses. Decoder sets entry.status="ready" on success.
+    // h11 hotfix (2026-05-06): yieldBetweenFrames is a Pi-VC4-specific
+    // GL-watchdog defense (Phase-30 T14 rAF yield). On SSR-Chromium-tab
+    // under Xvfb, rAF is throttled by Chromium's internal "tab not really
+    // visible" heuristics even with h9's anti-throttling flags applied.
+    // The yield then never resolves and the parser hangs mid-decode —
+    // CDP-captured probe confirmed: malfunction.gif decoded in 1189ms,
+    // but burst.gif/fire.gif got `trigger-null status=loading` repeating
+    // 696× across the test run with no completion. The SSR tab does NOT
+    // run WebGL (canvas is software-rasterized) so no GL watchdog
+    // concern → safe to skip the yield.
+    //
+    // Same logic for bakeImageBitmap: the no-bitmap path is a Pi-VC4 GPU
+    // memory pressure defense, irrelevant on the server-class iGPU.
+    // h11: reuse __ttbEnv from the fast-path decision earlier in this fn.
+    const isPiVc4 = isPiVc4ForFastPath;
     await ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry, {
-      // h8: revert h6 — restore Phase-30 final-output behavior for GIF
-      // reliability. yield-between-frames + no-bitmap is the path that
-      // Phase 30 closure verified on /output/final. Cost: lower fps on
-      // strong hardware. Benefit: rock-solid GIF reliability matching
-      // Phase-30 closure state.
-      yieldBetweenFrames: isFinalOutput,
-      bakeImageBitmap: !isFinalOutput,
-      isFinalOutput,
+      yieldBetweenFrames: isPiVc4, // Pi-VC4 only — GL watchdog defense
+      bakeImageBitmap: !isPiVc4, // bake on dashboard + SSR tab; skip on Pi (GPU memory)
+      isFinalOutput, // h8: keep cap on /output/ paths (Phase-30 closure)
     });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {

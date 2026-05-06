@@ -340,6 +340,13 @@ export function bootSsrRenderHost({
         "--disable-renderer-backgrounding",
         "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,BackForwardCache",
         "--disable-ipc-flooding-protection",
+        // h10 (2026-05-06): user reports SSR fps capped at ~20 on strong
+        // hardware. Chromium's BeginFrameSource under Xvfb has no real
+        // vsync; its software timer falls back to ~20-30 Hz when the
+        // tab is in the "not really visible" state Xvfb produces. These
+        // flags lift the cap so rAF runs at the page's natural rate.
+        "--disable-gpu-vsync",
+        "--disable-frame-rate-limit",
         // h4: app mode — no browser chrome at all. The window opens
         // with the page content filling its entire client area.
         `--app=${ssrUrl}`,
