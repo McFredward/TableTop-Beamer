@@ -14,6 +14,15 @@ import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from
 import { bootMediasoupRouter, shutdownMediasoupRouter } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
+// Phase 31 Plan 04: D-X7 active-animations persistence + D-D1 align-mode round-trip.
+import { loadSsrInitialState, persistRunningAnimations, flushRunningAnimations } from "./src/server/ssr-state-restore.mjs";
+// Phase 31 Plan 04: serverRendering config schema (5 enum settings) + live-sync.
+import {
+  validateServerRenderingPatch,
+  applyServerRenderingPatch,
+  readFullConfig as readServerRenderingFullConfig,
+  scheduleServerRenderingWrite,
+} from "./src/server/ssr-server-rendering-config.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -134,6 +143,11 @@ const LIVE_MUTATION_TYPES = new Set([
   "align-toggle",
   "outside-update",
   "context-update",
+  // Phase 31 Plan 04 (D-D1): Pi pointer drag → server mesh-warp update.
+  "align-corner-drag",
+  // Phase 31 Plan 04 (publishability): live-sync write to
+  // config/global-defaults.json#serverRendering (5 enum settings).
+  "serverRendering-update",
 ]);
 const CONTROL_CRITICAL_MUTATIONS = new Set(["stop-animation", "clear-all"]);
 const NON_COALESCING_MUTATIONS = new Set([
@@ -143,6 +157,10 @@ const NON_COALESCING_MUTATIONS = new Set([
   "stop-animation",
   "clear-all",
   "align-toggle",
+  // Phase 31 Plan 04: each serverRendering-update click is a discrete
+  // intent — config writes must NOT coalesce. align-corner-drag is
+  // INTENTIONALLY coalescible (60Hz drag benefits from coalescing).
+  "serverRendering-update",
 ]);
 const LIVE_QUEUE_MAX_SIZE = 512;
 const LIVE_COALESCE_CLASS_MAX_SIZE = 96;
@@ -342,6 +360,24 @@ function isAnimationActiveForSnapshot(animation, nowEpochMs = Date.now()) {
 function reconcileSnapshotRunningAnimations(runningAnimations, nowEpochMs = Date.now()) {
   return (Array.isArray(runningAnimations) ? runningAnimations : [])
     .filter((animation) => isAnimationActiveForSnapshot(animation, nowEpochMs));
+}
+
+// Phase 31 Plan 04 (D-D1) — V5 ASVS payload validation for align-corner-drag.
+// STRIDE T-31-04-01 mitigation: Pi pointer events are LAN-trusted but the
+// payload shape must still be validated server-side before apply.
+//
+//   phase           ∈ {"start","move","end"}
+//   vertexId        ∈ ℤ ∩ [0, 99]
+//   normalizedX/Y   ∈ ℝ ∩ [0, 1] (finite)
+//   profileId       ∈ string, length 1..200
+function validateAlignCornerDragPayload(p) {
+  if (!p || typeof p !== "object") return false;
+  if (p.phase !== "start" && p.phase !== "move" && p.phase !== "end") return false;
+  if (!Number.isInteger(p.vertexId) || p.vertexId < 0 || p.vertexId > 99) return false;
+  if (!Number.isFinite(p.normalizedX) || p.normalizedX < 0 || p.normalizedX > 1) return false;
+  if (!Number.isFinite(p.normalizedY) || p.normalizedY < 0 || p.normalizedY > 1) return false;
+  if (typeof p.profileId !== "string" || p.profileId.length === 0 || p.profileId.length > 200) return false;
+  return true;
 }
 
 function isBoardContextSuppressedReason(reason) {
@@ -1003,6 +1039,54 @@ function applyLiveMutation({
     lastClientSequenceById.set(clientId, normalizedSequence);
   }
 
+  // Phase 31 Plan 04 (D-D1): V5 ASVS validation for align-corner-drag.
+  // STRIDE T-31-04-01 mitigation. Reject malformed payloads BEFORE apply.
+  if (mutationType === "align-corner-drag") {
+    if (!validateAlignCornerDragPayload(payload)) {
+      logErrorEvent("align-corner-drag-rejected", "invalid-payload-shape", {
+        clientId,
+        role,
+        mutationId: normalizedMutationId,
+      });
+      return {
+        applied: false,
+        duplicate: false,
+        stale: false,
+        rejected: true,
+        rejectReason: "align-corner-drag-invalid-payload",
+        mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+        priority: priority ?? resolveMutationPriority(mutationType, payload),
+        serverTimestamp: new Date().toISOString(),
+        serverIngestTimestamp: ingestAt ?? new Date().toISOString(),
+        version: liveSessionState.version,
+      };
+    }
+  }
+
+  // Phase 31 Plan 04 (publishability): validate serverRendering-update before apply.
+  if (mutationType === "serverRendering-update") {
+    const validation = validateServerRenderingPatch(payload);
+    if (!validation.valid) {
+      logErrorEvent("serverRendering-update-rejected", validation.reason, {
+        clientId,
+        role,
+        mutationId: normalizedMutationId,
+      });
+      return {
+        applied: false,
+        duplicate: false,
+        stale: false,
+        rejected: true,
+        rejectReason: validation.reason,
+        mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+        priority: priority ?? resolveMutationPriority(mutationType, payload),
+        serverTimestamp: new Date().toISOString(),
+        serverIngestTimestamp: ingestAt ?? new Date().toISOString(),
+        version: liveSessionState.version,
+      };
+    }
+  }
+
   let nextSnapshotPatch = null;
   if (mutationType === "outside-update") {
     nextSnapshotPatch = applyOutsideUpdatePatch(payload);
@@ -1017,6 +1101,41 @@ function applyLiveMutation({
     mutationType === "clear-all"
   ) {
     nextSnapshotPatch = applyRoomMutationPatch(mutationType, payload);
+  } else if (mutationType === "align-corner-drag") {
+    // The SSR Chromium tab is a live-sync client and applies the mesh-warp
+    // update via existing client-side align-mode handlers. Server's role
+    // here is validation + fanout — runtime patch carries the drag event
+    // through unchanged so the SSR tab and dashboard preview both see it.
+    nextSnapshotPatch = {
+      runtime: {
+        ...readRuntimeSnapshot(),
+        lastAlignCornerDrag: {
+          phase: payload.phase,
+          vertexId: payload.vertexId,
+          normalizedX: payload.normalizedX,
+          normalizedY: payload.normalizedY,
+          profileId: payload.profileId,
+          at: new Date().toISOString(),
+        },
+      },
+    };
+  } else if (mutationType === "serverRendering-update") {
+    // Persist the patched 5-key serverRendering block to global-defaults.json
+    // via the Phase-13-style debounced writer. Snapshot patch is a no-op
+    // wrt runtime state — the broadcast itself is the live-sync signal so
+    // Plan-05's UI re-fetches /api/global-defaults.
+    (async () => {
+      try {
+        const current = await readServerRenderingFullConfig({ rootDir: ROOT_DIR });
+        const next = applyServerRenderingPatch(current, payload);
+        await scheduleServerRenderingWrite({ rootDir: ROOT_DIR, fullConfig: next });
+      } catch (err) {
+        console.warn("[serverRendering-update] persist failed:", err?.message || err);
+      }
+    })();
+    nextSnapshotPatch = {
+      runtime: readRuntimeSnapshot(),
+    };
   } else {
     nextSnapshotPatch = {
       runtime: payload?.runtime ?? liveSessionState.snapshot.runtime,
@@ -1852,6 +1971,27 @@ function mutateLiveSession({ mutation, nextSnapshotPatch }) {
     selectedLayout: liveSessionState.snapshot.selectedLayout ?? null,
     outsideEnabledBoards,
   });
+  // Phase 31 Plan 04 (D-X7): persist running animations to disk so the SSR
+  // Chromium tab can replay them after a restart. Gated behind
+  // SSR_RENDER_HOST=1 so non-SSR runs don't write the file. 200ms debounce
+  // (in ssr-state-restore.mjs) coalesces rapid mutations.
+  if (process.env.SSR_RENDER_HOST === "1") {
+    const runtime = liveSessionState.snapshot?.runtime;
+    if (runtime && Array.isArray(runtime.runningAnimations)) {
+      const boardId =
+        normalizeNonEmptyString(liveSessionState.snapshot.selectedBoard)
+        ?? normalizeNonEmptyString(runtime.selectedBoard)
+        ?? normalizeNonEmptyString(runtime.boardId)
+        ?? null;
+      persistRunningAnimations({
+        rootDir: ROOT_DIR,
+        boardId,
+        runningAnimations: runtime.runningAnimations,
+      }).catch((err) => {
+        console.error("[ssr-persist] failed:", err?.message || err);
+      });
+    }
+  }
   return {
     version: liveSessionState.version,
     updatedAt: liveSessionState.updatedAt,
@@ -3764,6 +3904,26 @@ if (process.env.SSR_RENDER_HOST === "1") {
   // IIFE so the existing call order around it stays unchanged.
   (async () => {
     try {
+      // Phase 31 Plan 04 (D-X7): restore active animations from disk on
+      // boot BEFORE the SSR tab connects. Survivors land in
+      // liveSessionState.snapshot.runtime so the initial WS snapshot
+      // sent to the SSR tab carries them — re-fire happens via existing
+      // snapshot-apply logic.
+      try {
+        const restored = await loadSsrInitialState({ rootDir: ROOT_DIR });
+        if (restored.runningAnimations.length > 0) {
+          if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
+          liveSessionState.snapshot.runtime.runningAnimations = restored.runningAnimations;
+          if (restored.boardId) {
+            liveSessionState.snapshot.selectedBoard = restored.boardId;
+          }
+          console.log(`[ssr-restore] restored ${restored.runningAnimations.length} animations for board ${restored.boardId} (${restored.droppedExpired ?? 0} expired)`);
+        } else if (restored.schemaMismatch) {
+          console.warn("[ssr-restore] schema mismatch — ignoring runtime-active-animations.json");
+        }
+      } catch (err) {
+        console.warn("[ssr-restore] load failed:", err?.message || err);
+      }
       await bootMediasoupRouter();
       attachWebRtcSignaling(server);
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
@@ -3781,12 +3941,16 @@ if (process.env.SSR_RENDER_HOST === "1") {
   })();
   process.on("SIGINT", async () => {
     console.log("[server] SIGINT — shutting down SSR render host…");
+    // Phase 31 Plan 04 (D-X7): flush pending debounced active-animations
+    // write BEFORE tearing down the SSR host so we never lose state.
+    try { await flushRunningAnimations(); } catch (err) { console.error(err); }
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
     try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
   });
   process.on("SIGTERM", async () => {
     console.log("[server] SIGTERM — shutting down SSR render host…");
+    try { await flushRunningAnimations(); } catch (err) { console.error(err); }
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
     try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
