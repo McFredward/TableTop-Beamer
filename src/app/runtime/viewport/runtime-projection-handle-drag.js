@@ -83,40 +83,20 @@
   // user's "ein paar cm versetzt" report). Inlined here so this module
   // doesn't take an extra cross-module dependency for one helper.
   function _getDragLayout() {
+    // h35 (2026-05-06): mirrors handle-ui's _getStreamContentRect.
+    // With object-fit: fill on .ssr-video the streamed content fills
+    // the videoEl's box exactly — no letterbox — so layout is just
+    // the element's bounding rect; drag math operates directly on
+    // viewport-relative coordinates.
     let videoEl = null;
     try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
-    const sw = Number(videoEl?.videoWidth || 0);
-    const sh = Number(videoEl?.videoHeight || 0);
-    // h34: read the videoEl's ACTUAL on-screen rect so drag math
-    // operates in the same coord space as the rendered handles +
-    // streamed content. window.innerWidth/innerHeight (used pre-h34
-    // and accidentally overwritten by a replace_all into a recursion
-    // bug) can drift from the videoEl box on Pi browsers with
-    // padding/scrollbars/devicePixelRatio quirks.
     let elRect = null;
     try { elRect = videoEl?.getBoundingClientRect?.() || null; } catch (_) {}
     const elX = elRect?.left ?? 0;
     const elY = elRect?.top ?? 0;
     const elW = elRect?.width ?? window.innerWidth;
     const elH = elRect?.height ?? window.innerHeight;
-    if (!videoEl || sw <= 0 || sh <= 0 || elW <= 0 || elH <= 0) {
-      return { offsetX: elX, offsetY: elY, w: elW, h: elH };
-    }
-    const elAspect = elW / elH;
-    const streamAspect = sw / sh;
-    let displayedW, displayedH, offsetX, offsetY;
-    if (streamAspect > elAspect) {
-      displayedW = elW;
-      displayedH = elW / streamAspect;
-      offsetX = elX;
-      offsetY = elY + (elH - displayedH) / 2;
-    } else {
-      displayedH = elH;
-      displayedW = elH * streamAspect;
-      offsetX = elX + (elW - displayedW) / 2;
-      offsetY = elY;
-    }
-    return { offsetX, offsetY, w: displayedW, h: displayedH };
+    return { offsetX: elX, offsetY: elY, w: elW, h: elH };
   }
 
   // Drag state — private to this module (handle-ui no longer owns

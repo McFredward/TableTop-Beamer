@@ -365,7 +365,8 @@
   function discardChanges() {
     // D-04 (B4): no confirm modal. If a profile is loaded, restore its snapshot; otherwise reset to new-profile default.
     pushUndo();
-    if (_loadedProfileSnapshot) {
+    const usingProfile = !!_loadedProfileSnapshot;
+    if (usingProfile) {
       _gridStateApi.restoreGridSnapshot(_loadedProfileSnapshot);
     } else {
       const def = _gridStateApi.buildNewProfileDefaultGrid();
@@ -386,6 +387,24 @@
     _recomputeAndNotifyDirty();
     // Phase-31 h30: discard changes the grid → broadcast so SSR tab follows.
     try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+    // h35 diagnostic: trace discardChanges so we can see if it actually
+    // ran AND what state it restored to. The user reported first-ESC
+    // resets animations but not lines, second-ESC resets lines —
+    // logging both ESCs side-by-side will show whether the state changes.
+    try {
+      const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      if (ui?.piDiag) {
+        const grid = _gridStateApi?.getGrid?.();
+        const tlx = grid?.points?.[0]?.[0]?.x;
+        const tly = grid?.points?.[0]?.[0]?.y;
+        ui.piDiag(
+          "discard",
+          `usingProfile=${usingProfile} loadedName=${_loadedProfileName} `
+          + `handlesVisible=${handlesVisible} `
+          + `restoredTL=(${tlx?.toFixed?.(3)},${tly?.toFixed?.(3)})`,
+        );
+      }
+    } catch (_) {}
   }
 
   function _promptProfileNameModal({ kind = "save-as-new" } = {}) {

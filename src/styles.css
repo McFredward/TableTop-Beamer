@@ -2320,19 +2320,21 @@ body[data-ssr-preview="true"] .app-shell {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* h22 (2026-05-06): reverted h5's `cover` back to `contain`. cover
-     was masking a real bug: on receivers wider/shorter than 16:9, the
-     stream's top/bottom (including the projection-mapping Y handles
-     and any animations near the edges) got CROPPED. The user
-     manifestly hit this in align mode — handles at 10/90 inset Y
-     became invisible because they were inside the cropped region.
-     `contain` preserves the entire stream content with letterbox bars
-     on aspect-mismatched displays. The original "kein sichtbarer
-     Unterschied" requirement holds when receiver aspect == stream
-     aspect (typical 16:9 projector); on mismatched aspects the
-     letterbox is the lesser evil compared to cropping pixels the
-     SSR tab actually rendered. */
-  object-fit: contain;
+  /* h35 (2026-05-06): switched contain → fill so the streamed content
+     fills the entire receiver viewport with NO letterbox. Pi's local
+     handles + lines use the full viewport [0..1]; the SSR Chromium tab
+     encodes its content at the full SSR viewport [0..1]; with `fill`
+     the same normalized 0..1 maps to the same pixel position on Pi
+     screen, so handles + lines + warped board align pixel-perfect
+     regardless of aspect-ratio mismatch between Pi display and SSR
+     encoding. The trade-off vs h22's `contain`: when aspects differ,
+     the streamed image is stretched (no letterbox bars). For projection-
+     mapping this is the desired behavior — the operator calibrates the
+     mesh-warp grid against the actual physical play area, so any aspect
+     stretch is absorbed into the calibration rather than producing dead
+     letterbox bands at the screen edges. cover (h5) cropped pixels
+     entirely; fill keeps everything visible. */
+  object-fit: fill;
   background: #000;
   z-index: 1;
 }

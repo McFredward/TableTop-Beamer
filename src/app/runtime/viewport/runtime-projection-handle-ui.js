@@ -941,47 +941,23 @@
   // not connected), it falls back to full viewport so the existing
   // dashboard / SSR-tab callers behave identically to pre-h32.
   function _getStreamContentRect() {
+    // h35 (2026-05-06): with .ssr-video using `object-fit: fill` (h35
+    // CSS change), the streamed content covers the videoEl's entire
+    // box with no letterbox — and the SSR Chromium tab encodes its
+    // content at its full viewport [0..1]. So the rect is simply the
+    // videoEl's bounding rect; normalized grid coords [0..1] map
+    // directly to pixel positions inside it. Falls back to the
+    // viewport dims if the element is missing (dashboard / SSR tab
+    // itself / pre-stream).
     let videoEl = null;
     try { videoEl = document.getElementById("ssr-video"); } catch (_) {}
-    const sw = Number(videoEl?.videoWidth || 0);
-    const sh = Number(videoEl?.videoHeight || 0);
-    // h34: read the videoEl's ACTUAL on-screen rect via
-    // getBoundingClientRect. window.innerWidth / innerHeight can drift
-    // from the videoEl's box if the page has any padding, scrollbar, or
-    // vw/vh is reported at devicePixelRatio-adjusted size on some Pi
-    // browsers. The handle div positions are CSS pixels relative to
-    // the viewport — and so is getBoundingClientRect — so they line up
-    // 1:1 with the streamed content area when both come from the same
-    // source. Falls back to viewport dims if the element is missing.
     let elRect = null;
     try { elRect = videoEl?.getBoundingClientRect?.() || null; } catch (_) {}
     const elX = elRect?.left ?? 0;
     const elY = elRect?.top ?? 0;
     const elW = elRect?.width ?? window.innerWidth;
     const elH = elRect?.height ?? window.innerHeight;
-    if (!videoEl || sw <= 0 || sh <= 0 || elW <= 0 || elH <= 0) {
-      return { offsetX: elX, offsetY: elY, w: elW, h: elH };
-    }
-    // object-fit: contain — fit ENTIRELY inside the videoEl's box,
-    // letterbox on the axis where the stream is shorter relative to
-    // its aspect.
-    const elAspect = elW / elH;
-    const streamAspect = sw / sh;
-    let displayedW, displayedH, offsetX, offsetY;
-    if (streamAspect > elAspect) {
-      // Stream wider than element → fit to width, letterbox top+bottom
-      displayedW = elW;
-      displayedH = elW / streamAspect;
-      offsetX = elX;
-      offsetY = elY + (elH - displayedH) / 2;
-    } else {
-      // Stream taller than element → fit to height, letterbox left+right
-      displayedH = elH;
-      displayedW = elH * streamAspect;
-      offsetX = elX + (elW - displayedW) / 2;
-      offsetY = elY;
-    }
-    return { offsetX, offsetY, w: displayedW, h: displayedH };
+    return { offsetX: elX, offsetY: elY, w: elW, h: elH };
   }
 
   function positionHandles() {
