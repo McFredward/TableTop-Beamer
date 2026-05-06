@@ -1,46 +1,63 @@
 // src/server/ssr-state-restore.mjs
+// D-X7: server-side state-restore for active animations across SSR tab
+// restart. Reads/writes config/runtime-active-animations.json (NEW Phase-31
+// file) using a debounced 200ms write pattern (mirrors Phase-13).
+// Filters expired animations on load per Phase-11-HF6 + Phase-12 contracts:
+//   - loop===true → keep (loops never expire)
+//   - durationMs==null → keep (open-ended hold-until-stop)
+//   - startedAt + durationMs < now → drop (non-loop expired during downtime)
+//   - malformed numeric fields → drop (defensive)
 //
-// Phase 31 Plan 01: STUB.
-//
-// Plan 04 will fill this in with active-animations replay logic. For Plan 01
-// the contract is just: read `config/runtime-active-animations.json` if
-// present, validate the schema, and return a normalized initial-state
-// object. If the file is missing OR the schema mismatches the v1 constant,
-// return an empty state with the appropriate flag.
-//
-// Schema constant: `tt-beamer.runtime-active.v1` — locked by the Wave-0
-// scaffold test (`test/ssr-state-restore.test.mjs`) and by Plan 04's plan.
+// Wave 4 of Phase 31. The 200ms debounce coalesces rapid runningAnimations
+// mutations (e.g. simultaneous trigger-room + edit-room) into a single
+// disk write — STRIDE T-31-04-06 mitigation against persist-hammers-disk.
 
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 export const RUNTIME_ACTIVE_SCHEMA = "tt-beamer.runtime-active.v1";
+export const PERSIST_DEBOUNCE_MS = 200;
+
+// Module-scoped debounce state. Single SSR render-host process is the only
+// writer; tests reset via _resetForTests().
+let pendingTimer = null;
+let pendingPayload = null;
+let writeTargetPath = null;
+let pendingResolvers = [];
+let lastWriteAt = 0;
 
 /**
  * Load the SSR-specific initial replay state.
  *
  * @param {object} opts
  * @param {string} opts.rootDir — repo root (server.mjs's ROOT_DIR)
+ * @param {number} [opts.now] — epoch-ms cut-off for filterExpired (test injection)
  * @returns {Promise<{
  *   runningAnimations: Array<object>,
  *   boardId: string|null,
  *   schemaMismatch?: boolean,
+ *   persistedAt?: string|null,
+ *   droppedExpired?: number,
  * }>}
  */
-export async function loadSsrInitialState({ rootDir }) {
+export async function loadSsrInitialState({ rootDir, now = Date.now() } = {}) {
   if (!rootDir) {
     throw new Error("loadSsrInitialState: rootDir is required");
   }
-  const runtimeActivePath = path.join(rootDir, "config", "runtime-active-animations.json");
+  const filePath = path.join(rootDir, "config", "runtime-active-animations.json");
   try {
-    const raw = await readFile(runtimeActivePath, "utf8");
+    const raw = await readFile(filePath, "utf8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || parsed.schema !== RUNTIME_ACTIVE_SCHEMA) {
       return { runningAnimations: [], boardId: null, schemaMismatch: true };
     }
+    const animations = Array.isArray(parsed.runningAnimations) ? parsed.runningAnimations : [];
+    const survivors = filterExpired(animations, now);
     return {
-      runningAnimations: Array.isArray(parsed.runningAnimations) ? parsed.runningAnimations : [],
+      runningAnimations: survivors,
       boardId: typeof parsed.boardId === "string" ? parsed.boardId : null,
+      persistedAt: typeof parsed.persistedAt === "string" ? parsed.persistedAt : null,
+      droppedExpired: animations.length - survivors.length,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") {
@@ -48,4 +65,128 @@ export async function loadSsrInitialState({ rootDir }) {
     }
     throw err;
   }
+}
+
+/**
+ * Filter expired animations per Phase-11-HF6 + Phase-12 contract.
+ *
+ * Rule:
+ *   - loop===true → keep (loop animations never expire)
+ *   - durationMs==null → keep (open-ended hold-until-stop)
+ *   - startedAt+durationMs < now → drop (non-loop has finished its run)
+ *   - non-numeric startedAt or durationMs → drop (malformed → defensive)
+ *
+ * @param {Array<object>} animations
+ * @param {number} now epoch-ms
+ * @returns {Array<object>}
+ */
+export function filterExpired(animations, now) {
+  if (!Array.isArray(animations)) return [];
+  const out = [];
+  for (const anim of animations) {
+    if (!anim || typeof anim !== "object") continue;
+    if (anim.loop === true) {
+      out.push(anim);
+      continue;
+    }
+    if (anim.durationMs == null) {
+      out.push(anim);
+      continue;
+    }
+    const startedAt = Number(anim.startedAt ?? anim.startedAtEpochMs ?? 0);
+    const dur = Number(anim.durationMs);
+    if (!Number.isFinite(startedAt) || !Number.isFinite(dur)) {
+      // malformed → drop (Phase-11-HF6 defensive contract)
+      continue;
+    }
+    if (startedAt + dur >= now) out.push(anim);
+  }
+  return out;
+}
+
+/**
+ * Debounced write. Multiple calls within PERSIST_DEBOUNCE_MS coalesce to a
+ * single write of the LATEST payload (last-write-wins). The returned
+ * Promise resolves when the eventual write completes (or rejects on I/O
+ * failure).
+ *
+ * @param {object} input
+ * @param {string} input.rootDir
+ * @param {string|null} input.boardId
+ * @param {Array<object>} input.runningAnimations
+ * @returns {Promise<void>}
+ */
+export function persistRunningAnimations({ rootDir, boardId, runningAnimations }) {
+  if (!rootDir) {
+    return Promise.reject(new Error("persistRunningAnimations: rootDir is required"));
+  }
+  writeTargetPath = path.join(rootDir, "config", "runtime-active-animations.json");
+  pendingPayload = {
+    schema: RUNTIME_ACTIVE_SCHEMA,
+    boardId: typeof boardId === "string" ? boardId : null,
+    runningAnimations: Array.isArray(runningAnimations) ? runningAnimations : [],
+    persistedAt: new Date().toISOString(),
+  };
+  if (pendingTimer) clearTimeout(pendingTimer);
+  return new Promise((resolve, reject) => {
+    pendingResolvers.push({ resolve, reject });
+    pendingTimer = setTimeout(async () => {
+      pendingTimer = null;
+      const payload = pendingPayload;
+      const resolvers = pendingResolvers;
+      pendingPayload = null;
+      pendingResolvers = [];
+      try {
+        await mkdir(path.dirname(writeTargetPath), { recursive: true });
+        await writeFile(writeTargetPath, JSON.stringify(payload, null, 2), "utf8");
+        lastWriteAt = Date.now();
+        for (const r of resolvers) r.resolve();
+      } catch (err) {
+        for (const r of resolvers) r.reject(err);
+      }
+    }, PERSIST_DEBOUNCE_MS);
+  });
+}
+
+/**
+ * Force flush any pending debounced write. Used at server shutdown so the
+ * latest active-animations state is on disk before the process exits.
+ */
+export async function flushRunningAnimations() {
+  if (pendingTimer) {
+    clearTimeout(pendingTimer);
+    pendingTimer = null;
+  }
+  if (!pendingPayload || !writeTargetPath) {
+    // Settle any pending resolvers from earlier debounces with no payload.
+    const resolvers = pendingResolvers;
+    pendingResolvers = [];
+    for (const r of resolvers) r.resolve();
+    return;
+  }
+  const payload = pendingPayload;
+  const resolvers = pendingResolvers;
+  pendingPayload = null;
+  pendingResolvers = [];
+  try {
+    await mkdir(path.dirname(writeTargetPath), { recursive: true });
+    await writeFile(writeTargetPath, JSON.stringify(payload, null, 2), "utf8");
+    lastWriteAt = Date.now();
+    for (const r of resolvers) r.resolve();
+  } catch (err) {
+    for (const r of resolvers) r.reject(err);
+    throw err;
+  }
+}
+
+/** Resets module state — for tests only. */
+export function _resetForTests() {
+  if (pendingTimer) clearTimeout(pendingTimer);
+  pendingTimer = null;
+  pendingPayload = null;
+  writeTargetPath = null;
+  const resolvers = pendingResolvers;
+  pendingResolvers = [];
+  for (const r of resolvers) r.resolve();
+  lastWriteAt = 0;
 }
