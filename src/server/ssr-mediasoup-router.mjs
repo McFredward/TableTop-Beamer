@@ -13,11 +13,49 @@
 // harness) via WebRtcTransport.
 
 import * as mediasoup from "mediasoup";
+import { networkInterfaces } from "node:os";
 
 const RTC_MIN_PORT = Number(process.env.SSR_RTC_MIN_PORT ?? 40000);
 const RTC_MAX_PORT = Number(process.env.SSR_RTC_MAX_PORT ?? 40100);
-const ANNOUNCED_IP = process.env.SSR_ANNOUNCED_IP ?? null; // null → mediasoup picks
 const LISTEN_IP = process.env.SSR_LISTEN_IP ?? "0.0.0.0";
+
+/**
+ * h3 hotfix: WebRTC clients (Pi, dashboard from another laptop, etc.) need
+ * an announcedIp that's actually reachable from their network — 0.0.0.0
+ * is invalid as a connection target, so without an explicit announcedIp
+ * the SDP carries an unusable address and consume() silently times out
+ * after a few seconds (which is exactly what the user saw: rapid
+ * connect/disconnect cycles in the signaling log).
+ *
+ * Resolution priority:
+ *   1. SSR_ANNOUNCED_IP env override (operator wins).
+ *   2. First non-internal IPv4 address on a UP interface (LAN IP).
+ *   3. Fall back to null and log a clear warning so the operator can set
+ *      SSR_ANNOUNCED_IP manually.
+ */
+function detectAnnouncedIp(logger) {
+  const explicit = process.env.SSR_ANNOUNCED_IP;
+  if (explicit && explicit.length > 0) return explicit;
+
+  const ifaces = networkInterfaces();
+  for (const name of Object.keys(ifaces)) {
+    for (const addr of ifaces[name] ?? []) {
+      if (addr.family !== "IPv4") continue;
+      if (addr.internal) continue; // skip 127.0.0.1
+      if (typeof addr.address !== "string") continue;
+      // Skip docker / virtual interfaces by name heuristic — the operator can
+      // still override via SSR_ANNOUNCED_IP if their LAN goes through one of
+      // these.
+      if (/^(docker|br-|veth|virbr|tailscale|tun|tap)/i.test(name)) continue;
+      logger?.info?.(`[ssr-mediasoup] announcedIp auto-detected: ${addr.address} (interface=${name})`);
+      return addr.address;
+    }
+  }
+  logger?.warn?.(
+    `[ssr-mediasoup] no non-internal IPv4 found — set SSR_ANNOUNCED_IP=<server-LAN-IP> if remote clients can't connect`,
+  );
+  return null;
+}
 
 // D-D2 reversal: video-only. Audio lives on Pi /output/ via the
 // existing runtime-wire-room-audio-binders.js path. We intentionally
@@ -38,6 +76,7 @@ const MEDIA_CODECS = [
 
 let activeWorker = null;
 let activeRouter = null;
+let activeAnnouncedIp = null;
 
 /**
  * Boot (idempotent) the mediasoup Worker + Router.
@@ -59,8 +98,9 @@ export async function bootMediasoupRouter({ logger = console } = {}) {
     activeRouter = null;
   });
   activeRouter = await activeWorker.createRouter({ mediaCodecs: MEDIA_CODECS });
+  activeAnnouncedIp = detectAnnouncedIp(logger);
   logger.info(
-    `[ssr-mediasoup] router up — codecs: H264 (video-only per D-D2 reversal), ports ${RTC_MIN_PORT}-${RTC_MAX_PORT}`,
+    `[ssr-mediasoup] router up — codecs: H264 (video-only per D-D2 reversal), ports ${RTC_MIN_PORT}-${RTC_MAX_PORT}, announcedIp=${activeAnnouncedIp ?? "(none — remote clients may not connect)"}`,
   );
   return { worker: activeWorker, router: activeRouter };
 }
@@ -76,7 +116,7 @@ export async function createWebRtcTransport({ router } = {}) {
     throw new Error("createWebRtcTransport: router not initialized — call bootMediasoupRouter() first");
   }
   const transport = await r.createWebRtcTransport({
-    listenIps: [{ ip: LISTEN_IP, announcedIp: ANNOUNCED_IP }],
+    listenIps: [{ ip: LISTEN_IP, announcedIp: activeAnnouncedIp }],
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,

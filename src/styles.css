@@ -2295,7 +2295,7 @@ body[data-ssr-preview="true"] .app-shell {
 
 /* The receiver <video> fills the viewport. object-fit: contain preserves
    the mesh-warp pixel content exactly as encoded server-side. */
-.ssr-video {
+.ssr-video:not([hidden]) {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -2305,8 +2305,12 @@ body[data-ssr-preview="true"] .app-shell {
   z-index: 1;
 }
 
-/* Splash screen — D-D4 */
-.ssr-splash {
+/* Splash screen — D-D4. h3: scope to :not([hidden]) so the HTML hidden
+   attribute reliably keeps the overlay invisible on Dashboard / non-receiver
+   pages. The previous unscoped `display: flex` won the cascade vs the
+   user-agent [hidden] { display: none } rule, leaking the splash onto
+   every page that loaded styles.css. */
+.ssr-splash:not([hidden]) {
   position: fixed;
   inset: 0;
   display: flex;
@@ -2368,7 +2372,7 @@ body[data-ssr-preview="true"] .app-shell {
    Full-viewport modal with Retry button — surfaces every disconnect
    reason that exhausted MAX_RECONNECT_ATTEMPTS or a render-host-down
    heartbeat message. */
-.ssr-error-overlay {
+.ssr-error-overlay:not([hidden]) {
   position: fixed;
   inset: 0;
   display: flex;
