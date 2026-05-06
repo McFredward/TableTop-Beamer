@@ -341,6 +341,13 @@
     const row = Number(e.currentTarget.dataset.gridRow);
     const col = Number(e.currentTarget.dataset.gridCol);
     const pt = getPoint(row, col);
+    // h33 diagnostic: confirm handle pointerdown is reaching this handler.
+    // If user reports drag broken, server stdout shows whether it fires.
+    console.log(
+      `[handle-drag] pointerdown row=${row} col=${col} `
+      + `pt=(${pt.x.toFixed(3)},${pt.y.toFixed(3)}) `
+      + `client=(${e.clientX},${e.clientY})`,
+    );
 
     setActiveHandleKey(`${row}-${col}`);
     pushUndo();

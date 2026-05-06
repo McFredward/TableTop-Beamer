@@ -159,6 +159,44 @@
     }
   }
 
+  // Phase-31 h33: re-position handles + lines whenever the streamed
+  // video's resolution changes. Without this, positionHandles sees
+  // videoWidth/Height = 0 on the very first call (stream hasn't
+  // arrived yet) and falls back to full-viewport layout — handles
+  // render at viewport-corner positions and don't snap to the
+  // letterboxed board edges until the user drags. The 'resize'
+  // event fires whenever videoWidth/Height changes
+  // (https://developer.mozilla.org/.../HTMLVideoElement/resize_event).
+  let _videoResizeListener = null;
+  function _attachVideoResizeListener() {
+    if (_videoResizeListener) return;
+    const v = document.getElementById("ssr-video");
+    if (!v) return;
+    const handler = () => {
+      try {
+        if (handlesVisible) {
+          positionHandles();
+          positionRotateHandles();
+          drawLines();
+          console.log(
+            `[handle-ui] video resize → reposition. videoSize=${v.videoWidth}x${v.videoHeight}`,
+          );
+        }
+      } catch (_) {}
+    };
+    v.addEventListener("resize", handler);
+    v.addEventListener("loadedmetadata", handler);
+    _videoResizeListener = { el: v, handler };
+  }
+  function _detachVideoResizeListener() {
+    if (!_videoResizeListener) return;
+    try {
+      _videoResizeListener.el.removeEventListener("resize", _videoResizeListener.handler);
+      _videoResizeListener.el.removeEventListener("loadedmetadata", _videoResizeListener.handler);
+    } catch (_) {}
+    _videoResizeListener = null;
+  }
+
   function createHandles() {
     if (handlesVisible) return;
     handlesVisible = true;
@@ -185,6 +223,19 @@
 
     rebuildHandleElements();
     drawLines();
+
+    // h33: keep handle/line layout in sync with stream resolution.
+    _attachVideoResizeListener();
+    // Diagnostic: show whether layout is using video letterbox or fallback.
+    try {
+      const v = document.getElementById("ssr-video");
+      const layout = _getStreamContentRect();
+      console.log(
+        `[handle-ui] createHandles videoSize=${v?.videoWidth || 0}x${v?.videoHeight || 0} `
+        + `viewport=${window.innerWidth}x${window.innerHeight} `
+        + `layout=offset(${layout.offsetX.toFixed(0)},${layout.offsetY.toFixed(0)}) size=${layout.w.toFixed(0)}x${layout.h.toFixed(0)}`,
+      );
+    } catch (_) {}
   }
 
   function removeHandles() {
@@ -225,6 +276,8 @@
     removeSquishBars();
     // h12: tear down scale handles alongside rotate/squish handles.
     removeScaleHandles();
+    // h33: stop tracking video resize when align mode exits.
+    _detachVideoResizeListener();
   }
 
   function rebuildHandleElements() {
