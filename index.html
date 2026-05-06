@@ -48,6 +48,29 @@
       }
     } catch (e) { /* private mode / quota — stay on default dark */ }
   </script>
+  <!-- Phase 31 (Plan 03): SSR receiver DOM. Visible only on Pi /output/
+       (body[data-output-role="final-output"]:not([data-ssr-tab="true"])).
+       Splash → ontrack → reconnect banner → error overlay flow per D-D2/D-D3/D-D4.
+       D-B4 binding constraint: every disconnect path renders explicit error UI,
+       NEVER black screen. -->
+  <div id="ssr-splash" class="ssr-splash" hidden>
+    <div class="ssr-splash-content">
+      <h1 class="ssr-splash-logo">TableTop Beamer</h1>
+      <p class="ssr-splash-status" id="ssr-splash-status">Connecting to render server…</p>
+      <div class="ssr-splash-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+  <video id="ssr-video" class="ssr-video" autoplay muted playsinline hidden></video>
+  <div id="ssr-reconnect-banner" class="ssr-reconnect-banner" role="status" aria-live="polite" hidden>
+    Server reconnecting…
+  </div>
+  <div id="ssr-error-overlay" class="ssr-error-overlay" role="alertdialog" aria-modal="true" hidden>
+    <div class="ssr-error-content">
+      <h2 class="ssr-error-title">Render server unreachable</h2>
+      <p class="ssr-error-body" id="ssr-error-body">The connection to the render server has been lost.</p>
+      <button id="ssr-retry-button" class="ssr-error-retry" type="button">Retry</button>
+    </div>
+  </div>
   <div class="app-shell">
     <main class="projection-area" aria-label="Projection area">
       <div id="stage" class="stage">

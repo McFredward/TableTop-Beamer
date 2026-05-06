@@ -2262,3 +2262,150 @@ button.danger.is-armed {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+/* ============================================================
+   Phase 31 — SSR Receiver Status UIs (D-D3 / D-D4 / D-B4)
+   Visible only on Pi /output/
+   (body[data-output-role="final-output"]:not([data-ssr-tab="true"]))
+   ============================================================ */
+
+/* Hide all existing canvas/render chrome on Pi /output/ — Pi has zero
+   render code in the active path. Phase 30 hotfixes stay in repo as
+   defense-in-depth but never render here. */
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #stage,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #fx-canvas,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #fx-gl-canvas,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #room-overlay,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #board-image,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #cluster-pads,
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) .app-shell {
+  display: none !important;
+}
+
+/* The receiver <video> fills the viewport. object-fit: contain preserves
+   the mesh-warp pixel content exactly as encoded server-side. */
+.ssr-video {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  background: #000;
+  z-index: 1;
+}
+
+/* Splash screen — D-D4 */
+.ssr-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #06110c;
+  color: #32d3a3;
+  z-index: 50;
+  font-family: "Inter", "Inter Tight", system-ui, sans-serif;
+}
+.ssr-splash-content {
+  text-align: center;
+  max-width: 640px;
+  padding: 32px;
+}
+.ssr-splash-logo {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  color: #32d3a3;
+}
+.ssr-splash-status {
+  font-size: 18px;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 32px;
+}
+.ssr-splash-spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border: 3px solid rgba(50,211,163,0.2);
+  border-top-color: #32d3a3;
+  border-radius: 50%;
+  animation: ssr-spin 0.8s linear infinite;
+}
+@keyframes ssr-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Reconnect banner — D-C2 */
+.ssr-reconnect-banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: rgba(220, 130, 30, 0.95);
+  color: #06110c;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+  z-index: 40;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Error overlay — D-B4 BINDING ("kein schwarzer Bildschirm").
+   Full-viewport modal with Retry button — surfaces every disconnect
+   reason that exhausted MAX_RECONNECT_ATTEMPTS or a render-host-down
+   heartbeat message. */
+.ssr-error-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 17, 12, 0.92);
+  z-index: 60;
+  font-family: "Inter", system-ui, sans-serif;
+}
+.ssr-error-content {
+  max-width: 480px;
+  padding: 32px;
+  background: #0e1a14;
+  border: 1px solid rgba(220, 80, 60, 0.4);
+  border-radius: 12px;
+  text-align: center;
+}
+.ssr-error-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ff6b6b;
+  margin: 0 0 12px;
+}
+.ssr-error-body {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+.ssr-error-retry {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #32d3a3;
+  color: #06110c;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ssr-error-retry:hover { filter: brightness(1.1); }
+
+/* SSR tab itself shows the existing canvas — Plan 01 + Plan 02 contract.
+   Inside the SSR Chromium tab on the server (data-ssr-tab="true"), the
+   full render pipeline runs and the receiver overlays are hidden so the
+   tab can publish a clean stream. */
+body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-splash,
+body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-video,
+body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-reconnect-banner,
+body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-error-overlay {
+  display: none !important;
+}
