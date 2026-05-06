@@ -203,7 +203,7 @@ Ziel: Architektonischer Pivot — Pi 4 wird zum Thin-Display-Client. Der Server 
 
 Status: PLANS READY (2026-05-06). Discuss-Phase + Research-Phase abgeschlossen. CONTEXT.md (D-A1..D-D4 LOCKED, D-X1..D-X8 Researcher-Discretion), RESEARCH.md (mediasoup + puppeteer-stream + Xvfb headful Chromium stack, audio-capture risk-flagged) und VALIDATION.md liegen vor. Plan-Set 31-00..31-06 (7 Plans) execute-ready.
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 - [x] 31-00-PLAN.md — Wave 0: BLOCKING audio-capture gate + npm install + 5 test scaffolds (D-D2 escalation point)
@@ -211,7 +211,7 @@ Plans:
 - [x] 31-02-PLAN.md — Wave 2: WebRTC stream bring-up (mediasoup SFU + signaling + in-page publisher)
 - [x] 31-03-PLAN.md — Wave 3: Pi receiver re-skin (DOM + status overlays + D-B4 binding constraint + reconnect)
 - [x] 31-04-PLAN.md — Wave 4: Align-mode round-trip (D-D1) + active-animations persistence (D-X7)
-- [ ] 31-05-PLAN.md — Wave 5: Phase-30-hotfix audit (server-vs-Pi gating) + dashboard preview opt-in
+- [x] 31-05-PLAN.md — Wave 5: Phase-30-hotfix audit (server-vs-Pi gating) + dashboard preview opt-in
 - [ ] 31-06-PLAN.md — Wave 6: UAT (11 scenarios) + 30min soak + Phase-29 40/40 retest + closure
 
 Trigger: Phase-30 hat client-seitig auf VC4 GPU plateau'd bei ~12 fps trotz 16-Task-Welle. Ziel ≥20 fps, ideal 30 fps. Phase-30-Stabilitätshotfixes h1-h15 bleiben als Defense-in-Depth im Code, falls SSR später optional wird.
