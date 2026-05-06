@@ -1540,7 +1540,10 @@ function attachLiveWebSocket(server) {
   server.on("upgrade", (req, socket) => {
     const routePath = normalizeRoutePath(req.url || "/");
     if (routePath !== "/api/live/ws") {
-      socket.destroy();
+      // Phase 31 h1: do NOT destroy — other upgrade handlers (e.g. SSR
+      // WebRTC signaling at /api/webrtc/signal) need a chance to claim
+      // this socket. Just ignore and return; if no other handler claims
+      // it, Node closes the socket itself when no listener responds.
       return;
     }
 

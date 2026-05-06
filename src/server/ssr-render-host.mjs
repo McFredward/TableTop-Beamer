@@ -28,6 +28,7 @@
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { readFile } from "node:fs/promises";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { platform } from "node:os";
 
 import { detectChromiumBinary } from "./ssr-browser-detect.mjs";
@@ -217,17 +218,61 @@ export function bootSsrRenderHost({
   let backoffMs = RESTART_BACKOFF_MS_INITIAL;
   let stopRequested = false;
 
+  /**
+   * h1: pick a free display number. /tmp/.X<N>-lock means display N is busy
+   * (or stale-locked from a crashed Xvfb). Try the configured display first;
+   * if locked, walk up to find a free one. Returns the display string used.
+   */
+  function pickFreeDisplay(preferred) {
+    const tryDisplay = (n) => {
+      const lockPath = `/tmp/.X${n}-lock`;
+      if (!existsSync(lockPath)) return true;
+      // Lock exists. Check whether the holding pid is still alive.
+      try {
+        const pid = parseInt(readFileSync(lockPath, "utf8").trim(), 10);
+        if (Number.isFinite(pid) && pid > 0) {
+          process.kill(pid, 0); // throws if pid is gone
+          return false; // pid alive — display in use
+        }
+      } catch {
+        // pid is gone — stale lock. Remove it and reuse the display.
+        try { unlinkSync(lockPath); logger.info(`[ssr-host] removed stale Xvfb lock ${lockPath}`); } catch {}
+        return true;
+      }
+      return false;
+    };
+    const m = (preferred || ":99").match(/^:(\d+)$/);
+    const startN = m ? parseInt(m[1], 10) : 99;
+    for (let n = startN; n < startN + 20; n += 1) {
+      if (tryDisplay(n)) return `:${n}`;
+    }
+    return preferred || ":99"; // give up — let Xvfb spawn fail with a clear log
+  }
+
   async function spawnXvfb() {
+    const chosenDisplay = pickFreeDisplay(display);
+    if (chosenDisplay !== display) {
+      logger.info(`[ssr-host] display ${display} unavailable, using ${chosenDisplay} instead`);
+      // Update the closure-bound display so launchBrowser inherits it via env.
+      display = chosenDisplay;
+    }
     return new Promise((resolve, reject) => {
       const proc = spawn(
         "Xvfb",
-        [display, "-screen", "0", `${viewport.width}x${viewport.height}x24`],
+        [chosenDisplay, "-screen", "0", `${viewport.width}x${viewport.height}x24`],
         { stdio: ["ignore", "pipe", "pipe"] },
       );
+      let stderrTail = "";
+      if (proc.stderr) {
+        proc.stderr.on("data", (chunk) => {
+          stderrTail = (stderrTail + chunk.toString("utf8")).slice(-512);
+        });
+      }
       proc.on("error", reject);
       proc.on("exit", (code, signal) => {
         if (!stopRequested && status.state !== "stopping") {
-          logger.error(`[ssr-host] Xvfb exited unexpectedly code=${code} signal=${signal}`);
+          const tail = stderrTail.split(/\r?\n/).filter(Boolean).slice(-2).join(" | ");
+          logger.error(`[ssr-host] Xvfb exited unexpectedly code=${code} signal=${signal}${tail ? ` :: ${tail}` : ""}`);
           status.state = "reconnecting";
           status.lastError = `Xvfb exit ${code}/${signal}`;
           scheduleRestart();
