@@ -34,6 +34,90 @@
     } else {
       _hashByPath = {};
     }
+    // Phase-31 h15 (2026-05-06): inject <link rel="preload"> tags for
+    // every animation in the manifest. The browser's preload pipeline
+    // runs OUTSIDE the JS fetch queue and outside the renderer's main
+    // thread — it is scheduled by the resource loader directly. This
+    // sidesteps the "second fetch hangs" pathology observed in the SSR
+    // Chromium tab under Xvfb (where, after the first JS fetch
+    // completes, all subsequent JS fetches stall at request-headers
+    // forever even with Connection: close, abort+retry, no-store
+    // bypassed, anti-throttling flags applied). Preloaded resources
+    // are held in the browser's preload cache; when our JS fetch later
+    // requests the same URL with `cache: "default"`, it hits the
+    // preload cache instead of issuing a new HTTP request.
+    //
+    // Hardware-agnostic: works on any browser that supports `<link
+    // rel="preload">` (universal in 2024+). Works the same in
+    // dashboard, Pi-direct /output/, and the SSR Chromium tab. No
+    // environment branching.
+    try {
+      _refreshAnimationPreloadLinks();
+    } catch (err) {
+      // never let preload injection break manifest setup
+      // eslint-disable-next-line no-console
+      console.warn("[asset-manifest] preload-link refresh failed:", err?.message || err);
+    }
+  }
+
+  // Phase-31 h15: track injected <link rel="preload"> elements so we can
+  // refresh them when the manifest changes (asset re-upload, board
+  // switch). Keyed by raw path; value is the <link> element.
+  const _preloadLinkByPath = new Map();
+
+  function _refreshAnimationPreloadLinks() {
+    if (typeof document === "undefined") return; // node tests
+    const head = document.head || document.getElementsByTagName("head")[0];
+    if (!head) return;
+
+    // Walk the manifest and emit a preload link for every asset whose
+    // URL prefix matches our resource categories. We restrict to
+    // /resources/animations/* because that is the only category that
+    // (a) is fetched via JS fetch in the render path (mp4 uses <video>
+    // src which is already preloadable, sounds use <audio>), and (b)
+    // exhibited the fetch-hang under puppeteer-stream + Xvfb.
+    const desiredPaths = new Set();
+    for (const rawPath of Object.keys(_hashByPath)) {
+      if (typeof rawPath !== "string") continue;
+      if (!rawPath.startsWith("/resources/animations/")) continue;
+      desiredPaths.add(rawPath);
+    }
+
+    // Remove links that are no longer in the manifest.
+    for (const [path, el] of _preloadLinkByPath.entries()) {
+      if (!desiredPaths.has(path)) {
+        try { el.remove(); } catch (_) {}
+        _preloadLinkByPath.delete(path);
+      }
+    }
+
+    // Add or update links for each manifest path.
+    for (const rawPath of desiredPaths) {
+      const resolvedUrl = resolveAssetUrlWithHash(rawPath);
+      const existing = _preloadLinkByPath.get(rawPath);
+      if (existing) {
+        // Hash may have changed — update href so the browser preloads
+        // the new bytes. The old preloaded entry is GC'd by the resource
+        // loader once the new one resolves.
+        if (existing.href.endsWith(resolvedUrl) || existing.getAttribute("href") === resolvedUrl) {
+          continue; // no change
+        }
+        try { existing.setAttribute("href", resolvedUrl); } catch (_) {}
+        continue;
+      }
+      const link = document.createElement("link");
+      link.setAttribute("rel", "preload");
+      link.setAttribute("as", "fetch");
+      // Same-origin, no auth — the cross-origin attribute matches what
+      // our JS fetch will send (default `omit` credentials), so the
+      // preload cache hit path engages correctly.
+      link.setAttribute("crossorigin", "anonymous");
+      link.setAttribute("href", resolvedUrl);
+      try {
+        head.appendChild(link);
+        _preloadLinkByPath.set(rawPath, link);
+      } catch (_) { /* DOM not ready yet — will retry on next setManifest */ }
+    }
   }
 
   function resolveAssetUrlWithHash(rawPath) {

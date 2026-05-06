@@ -1093,6 +1093,9 @@
        modules (gif-playback / outside-mp4) so window.TT_BEAMER_RUNTIME_ASSET_MANIFEST
        exists when their fetch / video.src code paths first run. -->
   <script src="/src/app/runtime/state/runtime-asset-manifest.js" defer></script>
+  <!-- Phase 31 h15: hardware-agnostic fetch helper — must load BEFORE
+       gif-playback so window.TT_BEAMER_FETCH_WITH_RETRY is available. -->
+  <script src="/src/app/lib/shared/fetch-with-retry.js" defer></script>
   <script src="/src/app/runtime/render/runtime-gif-decoder.js" defer></script>
   <script src="/src/app/runtime/render/runtime-gif-playback.js" defer></script>
   <script src="/src/app/runtime/render/runtime-outside-mp4.js" defer></script>

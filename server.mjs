@@ -23,6 +23,9 @@ import {
   readFullConfig as readServerRenderingFullConfig,
   scheduleServerRenderingWrite,
 } from "./src/server/ssr-server-rendering-config.mjs";
+// Phase-31 h15: hardware-agnostic resource header helper (Connection: close
+// for /resources/animations/* etc.) — see module header for rationale.
+import { buildStaticResourceHeaders } from "./src/server/static-resource-headers.mjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -3278,9 +3281,12 @@ async function handleStaticFile(req, res, routePath) {
     const fileStat = await stat(targetPath);
     const resolvedPath = fileStat.isDirectory() ? path.join(targetPath, "index.html") : targetPath;
     const stream = createReadStream(resolvedPath);
-    res.writeHead(200, {
-      "content-type": getMimeType(resolvedPath),
-    });
+    // Phase-31 h15 (2026-05-06): hardware-agnostic GIF/MP4 fetch fix.
+    // Resource paths get Connection: close so HTTP/1.1 clients (Chromium,
+    // Pi, Firefox, curl) cannot reuse a half-broken keep-alive socket.
+    // See src/server/static-resource-headers.mjs for full rationale.
+    const headers = buildStaticResourceHeaders(routePath, getMimeType(resolvedPath));
+    res.writeHead(200, headers);
     stream.pipe(res);
   } catch {
     res.writeHead(404, {

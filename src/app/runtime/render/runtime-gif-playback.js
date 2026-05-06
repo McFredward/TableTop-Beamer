@@ -70,33 +70,47 @@
     // built-in `coded-effect.fallback` paths).
     const resolvedUrl = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
     _gifProbe("fetch-start", { path, url: resolvedUrl.slice(-80) });
-    // h14 hotfix (2026-05-06): serialize concurrent GIF fetches through a
-    // global mutex. CDP-captured probes proved that malfunction.gif fetches
-    // in 265ms, but burst/fire's fetch-start fires and fetch-headers-ok
-    // NEVER does inside the puppeteer-stream Chromium tab under Xvfb. The
-    // server serves all four GIFs in <30ms (curl confirmed) — the bug is
-    // in Chromium's HTTP connection pool (concurrent same-host fetches
-    // deadlock under Xvfb). Single-flight serialization sidesteps it.
-    const _gate = window.__ttbGifFetchMutex || Promise.resolve();
-    let _release;
-    const _next = new Promise((r) => (_release = r));
-    window.__ttbGifFetchMutex = _gate.then(() => _next);
-    let response;
-    try {
-      await _gate.catch(() => undefined);
-      _gifProbe("fetch-mutex-acquired", {
-        path,
-        ms: Math.round(performance.now() - _decodeStartedAt),
-      });
-      // h14: also force fresh TCP connection per request to bypass any
-      // stale-connection state in Chromium's keep-alive pool.
-      response = await fetch(resolvedUrl, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
-      });
-    } finally {
-      _release();
+    // Phase-31 h15 (2026-05-06): hardware-agnostic GIF fetch reliability.
+    //
+    // The h14 global fetch mutex was actively HARMFUL: when one fetch
+    // hung (Chromium-under-Xvfb broken keep-alive pool deadlock), the
+    // mutex never released and EVERY subsequent GIF fetch blocked
+    // forever — one stalled GIF cascaded into all GIFs missing.
+    //
+    // Replaced by per-fetch AbortController + 4 s timeout + bounded
+    // retry (helper module src/app/lib/shared/fetch-with-retry.js).
+    // Pairs with server-side Connection: close on
+    // /resources/animations/* (server.mjs handleStaticFile +
+    // src/server/static-resource-headers.mjs) which prevents Chromium
+    // from reusing broken keep-alive sockets in the first place.
+    // Hardware-agnostic — works the same on Pi-direct, dashboard
+    // preview, SSR Chromium tab, every receiver.
+    const fetchHelper = window.TT_BEAMER_FETCH_WITH_RETRY?.fetchWithAbortAndRetry;
+    if (typeof fetchHelper !== "function") {
+      // Loader ordering bug — fetch-with-retry.js must be loaded
+      // before runtime-gif-playback.js. Surface loudly so a smoke run
+      // catches it, but fall back to a plain fetch so /output/ never
+      // hard-fails on a misconfigured deploy (D-B4: "no black screen").
+      // eslint-disable-next-line no-console
+      console.warn("[gif-playback] TT_BEAMER_FETCH_WITH_RETRY missing — using plain fetch");
     }
+    // Cache mode: `cache: "default"` lets Chromium use its disk cache when
+    // the URL+hash matches. The `?v=<hash>` query (Phase-28 B5) already
+    // forces a fresh request when the asset bytes change, so we don't
+    // need `no-store`. h14's `no-store` was added on a hunch about
+    // keep-alive state but it actively bypasses the disk cache, which
+    // means every warmup/board-switch re-downloads the same bytes — and
+    // turns out it doesn't help with the underlying hang. Default mode
+    // is the right hardware-agnostic choice.
+    const response = fetchHelper
+      ? await fetchHelper({
+          url: resolvedUrl,
+          init: { cache: "default" },
+          timeoutMs: 4000,
+          maxAttempts: 2,
+          onProbe: (event, payload) => _gifProbe(event, { path, ...payload }),
+        })
+      : await fetch(resolvedUrl, { cache: "default" });
     if (!response.ok) {
       throw new Error(`GIF fetch failed (${response.status})`);
     }

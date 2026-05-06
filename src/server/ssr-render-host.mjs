@@ -305,95 +305,101 @@ export function bootSsrRenderHost({
     // the stream too. App-mode + the suppression flags below remove
     // every chrome surface so getDisplayMedia captures only the page.
     const ssrUrl = `http://127.0.0.1:${port}/output?ssr=1`;
+
+    // Phase-31 h15 (2026-05-06): MERGED --disable-features / --enable-features.
+    //
+    // ROOT CAUSE of the GIF fetch hang: Chromium accepts only the LAST
+    // `--disable-features=...` argument; passing the flag twice silently
+    // discards the first set. We previously had:
+    //
+    //   --disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,BackForwardCache
+    //   --disable-features=Translate,TranslateUI,…
+    //
+    // Result: the h9 anti-occlusion / anti-throttle defenses NEVER took
+    // effect. The Xvfb-headful SSR tab still got marked "occluded" by
+    // Chromium, and once that flipped, the network service throttled the
+    // renderer's outbound fetches — so malfunction.gif (loaded before the
+    // throttle kicks in) succeeded, but burst.gif/fire.gif/slime.gif
+    // (loaded a beat later) hung waiting for response headers FOREVER.
+    // Same applies to --enable-features.
+    //
+    // Fix: build ONE `--disable-features=` and ONE `--enable-features=`
+    // arg by merging all desired tokens. Hardware-agnostic — the merge
+    // works the same on any host. Pairs with the helper module
+    // src/server/static-resource-headers.mjs (Connection: close on
+    // /resources/animations/*) and src/app/lib/shared/fetch-with-retry.js
+    // (per-fetch abort+retry) for defense-in-depth.
+    const disabledFeatures = [
+      // h9 anti-throttle / anti-occlusion (was being silently dropped):
+      "CalculateNativeWinOcclusion",
+      "IntensiveWakeUpThrottling",
+      "BackForwardCache",
+      // h4 popup / infobar suppression so the captured frame is clean:
+      "Translate",
+      "TranslateUI",
+      "PasswordManagerOnboarding",
+      "InterestFeedV2",
+      "AutofillServerCommunication",
+    ];
+    const hasIgpu = existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129");
+    const enabledFeatures = [
+      ...(hasIgpu ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
+      ...(status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
+      ...(status.encoderConfig?.encoder === "videotoolbox" ? ["PlatformHEVCEncoderSupport"] : []),
+    ];
+
     return launcher({
       executablePath: browserPath,
       headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
       defaultViewport: viewport,
-      // ignoreDefaultArgs strips puppeteer's "--enable-automation" + the
-      // automation infobar so the captured frame has zero chrome.
       ignoreDefaultArgs: ["--enable-automation"],
       args: [
         "--no-sandbox",
         "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
-        // h7 hotfix: REVERT h6 SwiftShader pinning. SwiftShader was
-        // catastrophically slow on this machine (4 fps + visible scanline
-        // tearing in the captured stream). Let Chromium auto-detect — if
-        // /dev/dri/renderD128 is accessible (we add ignore-gpu-blocklist
-        // below) Chromium's libva uses the iGPU for VAAPI; canvas falls
-        // back to llvmpipe but llvmpipe is faster than SwiftShader.
+        // h7: let Chromium auto-detect GL backend — SwiftShader was
+        // catastrophically slow (4 fps + tearing). egl + ignore-gpu-blocklist
+        // (added below if iGPU present) lets libva use the iGPU.
         "--use-gl=egl",
-        // h9: Chromium itself recommends this when WebGL falls back to
-        // software (visible in CDP console as "Automatic fallback to
-        // software WebGL has been deprecated"). Without it, WebGL
-        // contexts may fail to create at all on Xvfb.
         "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
-        // h9 hotfix (2026-05-06): User confirmed GIFs play fine when
-        // visiting /output?ssr=1 in a regular browser — but NOT in the
-        // headful-puppeteer Chromium under Xvfb. Root cause: Chromium
-        // aggressively throttles "occluded" / unfocused tabs:
-        // requestAnimationFrame slows to ~1 Hz, setInterval grows to >=1s,
-        // and the GIF render loop stops advancing frames. The Xvfb-headful
-        // SSR window has no real user focus → all those throttles fire.
+        // h9: anti-throttling. These individual --disable-X flags are
+        // separate from the merged --disable-features below. Both layers
+        // together prevent Chromium from treating the Xvfb-headful tab
+        // as background/occluded.
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
-        "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling,BackForwardCache",
         "--disable-ipc-flooding-protection",
-        // h10 (2026-05-06): user reports SSR fps capped at ~20 on strong
-        // hardware. Chromium's BeginFrameSource under Xvfb has no real
-        // vsync; its software timer falls back to ~20-30 Hz when the
-        // tab is in the "not really visible" state Xvfb produces. These
-        // flags lift the cap so rAF runs at the page's natural rate.
+        // h10: lift fps cap. Chromium's software BeginFrameSource caps
+        // ~20-30 Hz under Xvfb without these.
         "--disable-gpu-vsync",
         "--disable-frame-rate-limit",
-        // h4: app mode — no browser chrome at all. The window opens
-        // with the page content filling its entire client area.
         `--app=${ssrUrl}`,
         `--window-size=${viewport.width},${viewport.height}`,
         "--window-position=0,0",
         "--start-fullscreen",
-        // h4: capture target = the active tab, no source picker dialog.
-        // `auto-select-desktop-capture-source=Entire screen` was the previous
-        // behavior — it captures the whole virtual display including any
-        // overlay UI. Switch to tab-capture which only sees the page DOM.
-        // Title substring of /output/?ssr=1 (index.html sets <title>TableTop Beamer</title>).
+        // h4: tab-capture, page-only (no chrome surfaces in the stream).
         "--auto-select-tab-capture-source-by-title=TableTop Beamer",
-        // h4: suppress every popup / infobar surface so they cannot
-        // appear in the captured frame.
-        "--disable-features=Translate,TranslateUI,PasswordManagerOnboarding,InterestFeedV2,AutofillServerCommunication",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-default-apps",
-        // h4.1: do NOT --disable-extensions — puppeteer-stream injects its
-        // own MV3 extension (id jjndjgheafjngoipoacpjgeicjeomjli) to enable
-        // getDisplayMedia tab capture. Disabling extensions blocks
-        // navigation to its options.html during puppeteer-stream init and
-        // makes puppeteer.launch() throw ERR_BLOCKED_BY_CLIENT.
+        // h4.1: do NOT --disable-extensions — puppeteer-stream's MV3
+        // extension is required for getDisplayMedia tab capture.
         "--disable-prompt-on-repost",
-        "--disable-popup-blocking", // ironically — keep popup-blocker OFF so any popups become same-tab navigations and never spawn extra windows on the desktop
+        "--disable-popup-blocking",
         "--disable-notifications",
         "--disable-sync",
-        "--mute-audio", // server doesn't need to play audio (D-D2 reversal — Pi-local)
+        "--mute-audio", // server doesn't play audio (D-D2 reversal — Pi-local)
         "--hide-crash-restore-bubble",
         "--disable-session-crashed-bubble",
         "--disable-infobars",
-        // h5: enable HW video encoding in Chromium IF /dev/dri/renderD128
-        // exists — this is independent of the ffmpeg encoder-detect probe
-        // (Ubuntu's ffmpeg often ships without VAAPI even when the kernel
-        // /dev node is present; Chromium has its own libva runtime). On
-        // matching iGPUs (Intel iris/i915, AMD radeonsi) this drops the
-        // encode CPU cost ~80% and unlocks 30 fps capture.
-        ...(existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129")
-          ? [
-              "--enable-features=VaapiVideoEncoder,VaapiVideoDecoder,VaapiIgnoreDriverChecks",
-              "--ignore-gpu-blocklist",
-              "--enable-gpu-rasterization",
-            ]
-          : []),
-        // Legacy encoder-config hints retained for explicit-pick compatibility.
-        ...(status.encoderConfig?.encoder === "nvenc" ? ["--enable-features=H264HardwareEncode"] : []),
-        ...(status.encoderConfig?.encoder === "videotoolbox" ? ["--enable-features=PlatformHEVCEncoderSupport"] : []),
+        // ONE merged --disable-features arg (multiple instances would be
+        // silently overwritten — see h15 root-cause comment above).
+        `--disable-features=${disabledFeatures.join(",")}`,
+        // ONE merged --enable-features arg, only emit if non-empty.
+        ...(enabledFeatures.length > 0 ? [`--enable-features=${enabledFeatures.join(",")}`] : []),
+        // h5: companion flags only meaningful when the iGPU is present.
+        ...(hasIgpu ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
         `--display=${display}`,
       ],
       env: { ...process.env, DISPLAY: display },
