@@ -1,0 +1,428 @@
+// src/server/ssr-render-host.mjs
+//
+// Phase 31 Plan 01 — Wave 1: SSR render-host bring-up.
+// Spawns Xvfb + headful Chromium via puppeteer-stream, navigates the tab to
+// http://127.0.0.1:${PORT}/output?ssr=1, manages the lifecycle (start/stop/
+// restart, CDP health-ping every 5s, 3 consecutive failures → relaunch).
+//
+// Per CONTEXT.md "Publishability & Hardware-Agnostic Defaults" (2026-05-06):
+// at boot the host reads `config/global-defaults.json#serverRendering.encoder`
+// (default "auto"); if "auto", the highest-priority available encoder
+// (nvenc > vaapi > videotoolbox > x264-software) from Plan 00's
+// `server-encoder-detect.mjs` is selected. The chosen encoder + preset
+// (bitrate/fps/keyframe-interval) is logged exactly once per boot — this is
+// the diagnostic surface other-user installations rely on.
+//
+// Per D-D2 reversal (2026-05-06): audio is Pi-local (NOT in the WebRTC
+// stream). The Chromium launch still includes
+// `--autoplay-policy=no-user-gesture-required` for general autoplay support
+// (e.g. mp4 animations) but no audio capture is wired up.
+//
+// Per RESEARCH.md § Pitfall 1: headful (NOT --headless=new). § Pitfall 2:
+// `--use-gl=egl` for GPU-accelerated canvas. § Pitfall 3: SSR tab adds
+// `?ssr=1` query so Plan 05 can gate Pi-only hotfixes behind it.
+//
+// Wave 2 (Plan 02) wires the in-page WebRTC publish to mediasoup — this
+// plan ONLY proves the tab boots, navigates, and is process-managed.
+
+import { spawn } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import {
+  detectAvailableEncoders,
+  pickPreferredEncoder,
+  ENCODER_PRIORITY,
+} from "./server-encoder-detect.mjs";
+
+// ---------------------------------------------------------------------
+// Stream-quality preset → concrete bitrate / fps / keyframe-interval map.
+// Plan 04 will move this map into config/global-defaults.json#serverRendering;
+// Plan 01 inlines it as the canonical default so SSR boot is self-contained.
+// ---------------------------------------------------------------------
+const QUALITY_PRESETS = {
+  "low-latency":  { bitrate:  4_000_000, fpsTarget: 30, keyframeIntervalSec: 1, x264Preset: "ultrafast" },
+  "balanced":     { bitrate:  8_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "veryfast"  },
+  "high-quality": { bitrate: 12_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "fast"      },
+};
+
+/**
+ * Resolve the encoder + preset to use for this server-boot.
+ * Reads config/global-defaults.json#serverRendering when present; otherwise
+ * runs auto-detection. ALWAYS returns a usable encoder — x264-software is
+ * the universal fallback per CONTEXT.md.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.rootDir]
+ * @param {{info:Function, warn:Function, error:Function}} [opts.logger]
+ * @returns {Promise<{
+ *   encoder:string,
+ *   source:"auto"|"user",
+ *   available:string[],
+ *   preset:string,
+ *   bitrate:number,
+ *   fpsTarget:number,
+ *   keyframeIntervalSec:number,
+ *   x264Preset:string,
+ *   resolutionPreference:string,
+ * }>}
+ */
+export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = console } = {}) {
+  const configPath = path.join(rootDir, "config", "global-defaults.json");
+  let userChoice = "auto";
+  let userPreset = null;
+  let userResolution = "auto";
+  let userFps = null;
+  try {
+    const raw = await readFile(configPath, "utf8");
+    const cfg = JSON.parse(raw);
+    const sr = (cfg && typeof cfg === "object" && cfg.serverRendering && typeof cfg.serverRendering === "object")
+      ? cfg.serverRendering
+      : {};
+    if (typeof sr.encoder === "string") userChoice = sr.encoder;
+    if (typeof sr.qualityPreset === "string") userPreset = sr.qualityPreset;
+    if (typeof sr.resolutionPreference === "string") userResolution = sr.resolutionPreference;
+    if (Number.isFinite(sr.fpsTarget)) userFps = sr.fpsTarget;
+  } catch (err) {
+    if (err && err.code !== "ENOENT") {
+      logger.warn(`[ssr-host] could not parse config: ${err.message}`);
+    }
+  }
+
+  const available = await detectAvailableEncoders();
+  logger.info(`[ssr-host] available encoders: ${available.join(", ")}`);
+
+  let chosen;
+  let source;
+  if (userChoice === "auto") {
+    chosen = pickPreferredEncoder(available);
+    source = "auto";
+  } else if (available.includes(userChoice)) {
+    chosen = userChoice;
+    source = "user";
+  } else {
+    logger.warn(
+      `[ssr-host] user-selected encoder '${userChoice}' is not available on this host (available: ${available.join(", ")}); falling back to auto-pick`,
+    );
+    chosen = pickPreferredEncoder(available);
+    source = "auto";
+  }
+
+  // Default preset depends on hardware capability per CONTEXT.md:
+  //   NVENC/VAAPI/VideoToolbox present → "balanced"
+  //   software-only                    → "low-latency" (conservative on weak CPUs)
+  const defaultPreset = (chosen === "x264-software") ? "low-latency" : "balanced";
+  const presetName = (userPreset && QUALITY_PRESETS[userPreset]) ? userPreset : defaultPreset;
+  const preset = QUALITY_PRESETS[presetName];
+  const fpsTarget = (userFps != null) ? userFps : preset.fpsTarget;
+
+  logger.info(`[ssr-host] encoder=${chosen} source=${source}`);
+  logger.info(
+    `[ssr-host] qualityPreset=${presetName} bitrate=${preset.bitrate} fpsTarget=${fpsTarget} keyframeIntervalSec=${preset.keyframeIntervalSec}`,
+  );
+
+  return {
+    encoder: chosen,
+    source,
+    available,
+    preset: presetName,
+    bitrate: preset.bitrate,
+    fpsTarget,
+    keyframeIntervalSec: preset.keyframeIntervalSec,
+    x264Preset: preset.x264Preset,
+    resolutionPreference: userResolution,
+  };
+}
+
+// ---------------------------------------------------------------------
+// Defaults
+// ---------------------------------------------------------------------
+const DEFAULT_DISPLAY = process.env.SSR_DISPLAY ?? ":99";
+const DEFAULT_BROWSER_BIN = process.env.SSR_BROWSER_BIN ?? "/usr/bin/chromium";
+const DEFAULT_VIEWPORT = { width: 1920, height: 1080, deviceScaleFactor: 1 };
+const HEALTH_PING_INTERVAL_MS = 5000;
+const HEALTH_PING_FAIL_THRESHOLD = 3; // 3 * 5s = 15s
+const RESTART_BACKOFF_MS_INITIAL = 1000;
+const RESTART_BACKOFF_MS_MAX = 30000;
+
+/**
+ * @typedef {Object} SsrRenderHostStatus
+ * @property {"idle"|"starting"|"running"|"reconnecting"|"stopping"|"crashed"} state
+ * @property {number|null} xvfbPid
+ * @property {boolean} browserConnected
+ * @property {string|null} lastError
+ * @property {number} restartCount
+ * @property {object|null} encoderConfig
+ */
+
+/**
+ * @typedef {Object} SsrRenderHost
+ * @property {() => Promise<void>} start
+ * @property {() => Promise<void>} stop
+ * @property {() => Promise<void>} restart
+ * @property {() => SsrRenderHostStatus} getStatus
+ */
+
+/**
+ * Boot the SSR render host. Returns a control surface; if `autoStart` is
+ * truthy (default), the host begins spawning processes immediately.
+ *
+ * @param {object} opts
+ * @param {number} opts.port — required
+ * @param {string} [opts.display]
+ * @param {string} [opts.browserBin]
+ * @param {{width:number, height:number, deviceScaleFactor:number}} [opts.viewport]
+ * @param {boolean} [opts.autoStart]
+ * @param {{info:Function, warn:Function, error:Function}} [opts.logger]
+ * @returns {SsrRenderHost}
+ */
+export function bootSsrRenderHost({
+  port,
+  display = DEFAULT_DISPLAY,
+  browserBin = DEFAULT_BROWSER_BIN,
+  viewport = DEFAULT_VIEWPORT,
+  autoStart = true,
+  logger = console,
+} = {}) {
+  if (!port) throw new Error("bootSsrRenderHost: `port` is required");
+
+  /** @type {SsrRenderHostStatus} */
+  const status = {
+    state: "idle",
+    xvfbPid: null,
+    browserConnected: false,
+    lastError: null,
+    restartCount: 0,
+    encoderConfig: null,
+  };
+
+  let xvfbProcess = null;
+  let browser = null;
+  let page = null;
+  let cdpSession = null;
+  let healthInterval = null;
+  let healthFailCount = 0;
+  let backoffMs = RESTART_BACKOFF_MS_INITIAL;
+  let stopRequested = false;
+
+  async function spawnXvfb() {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(
+        "Xvfb",
+        [display, "-screen", "0", `${viewport.width}x${viewport.height}x24`],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      proc.on("error", reject);
+      proc.on("exit", (code, signal) => {
+        if (!stopRequested && status.state !== "stopping") {
+          logger.error(`[ssr-host] Xvfb exited unexpectedly code=${code} signal=${signal}`);
+          status.state = "reconnecting";
+          status.lastError = `Xvfb exit ${code}/${signal}`;
+          scheduleRestart();
+        }
+      });
+      // Xvfb does not reliably signal readiness; small grace window.
+      setTimeout(() => {
+        if (proc.pid) {
+          status.xvfbPid = proc.pid;
+          resolve(proc);
+        } else {
+          reject(new Error("Xvfb failed to spawn (no pid)"));
+        }
+      }, 500);
+    });
+  }
+
+  async function launchBrowser() {
+    // Dynamic import so unit tests that don't have puppeteer-stream installed
+    // can still import this module to test resolveEncoderConfig and idle-state.
+    const puppeteerStream = await import("puppeteer-stream");
+    const launcher = puppeteerStream.launch ?? puppeteerStream.default?.launch;
+    if (typeof launcher !== "function") {
+      throw new Error("puppeteer-stream did not export a launch() function");
+    }
+    return launcher({
+      executablePath: browserBin,
+      headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
+      defaultViewport: viewport,
+      args: [
+        "--no-sandbox",
+        "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
+        "--use-gl=egl", // GPU acceleration (RESEARCH § Pattern 1)
+        "--disable-dev-shm-usage",
+        "--auto-select-desktop-capture-source=Entire screen", // for Plan 02 in-page getDisplayMedia
+        // Encoder hint flag derived from resolveEncoderConfig (publishability — CONTEXT.md 2026-05-06).
+        // Different builds of Chromium honor different feature flags; we surface the active encoder as a
+        // hint and let Chromium fall back to libopenh264 if the requested HW path is unavailable.
+        ...(status.encoderConfig?.encoder === "vaapi" ? ["--enable-features=VaapiVideoEncoder"] : []),
+        ...(status.encoderConfig?.encoder === "nvenc" ? ["--enable-features=H264HardwareEncode"] : []),
+        ...(status.encoderConfig?.encoder === "videotoolbox" ? ["--enable-features=PlatformHEVCEncoderSupport"] : []),
+        `--display=${display}`,
+      ],
+      env: { ...process.env, DISPLAY: display },
+    });
+  }
+
+  async function startHealthPings() {
+    if (healthInterval) clearInterval(healthInterval);
+    healthFailCount = 0;
+    healthInterval = setInterval(async () => {
+      if (!cdpSession || stopRequested) return;
+      try {
+        const res = await cdpSession.send("Runtime.evaluate", {
+          expression: "1+1",
+          returnByValue: true,
+        });
+        if (res?.result?.value === 2) {
+          healthFailCount = 0;
+        } else {
+          healthFailCount += 1;
+        }
+      } catch (err) {
+        healthFailCount += 1;
+        logger.warn(
+          `[ssr-host] health ping failed (${healthFailCount}/${HEALTH_PING_FAIL_THRESHOLD}): ${err.message}`,
+        );
+      }
+      if (healthFailCount >= HEALTH_PING_FAIL_THRESHOLD) {
+        logger.error(`[ssr-host] health ping threshold breached, relaunching`);
+        scheduleRestart();
+      }
+    }, HEALTH_PING_INTERVAL_MS);
+  }
+
+  function stopHealthPings() {
+    if (healthInterval) {
+      clearInterval(healthInterval);
+      healthInterval = null;
+    }
+  }
+
+  function scheduleRestart() {
+    if (stopRequested) return;
+    if (status.state === "reconnecting") return; // already in flight
+    status.state = "reconnecting";
+    status.restartCount += 1;
+    const delay = backoffMs;
+    backoffMs = Math.min(backoffMs * 2, RESTART_BACKOFF_MS_MAX);
+    logger.info(`[ssr-host] restarting in ${delay}ms (attempt ${status.restartCount})`);
+    sleep(delay).then(async () => {
+      if (stopRequested) return;
+      try {
+        await teardown();
+        await start();
+        backoffMs = RESTART_BACKOFF_MS_INITIAL;
+      } catch (err) {
+        logger.error(`[ssr-host] restart failed: ${err.message}`);
+        status.lastError = err.message;
+        scheduleRestart(); // exponential backoff continues
+      }
+    });
+  }
+
+  async function start() {
+    if (status.state === "running" || status.state === "starting") return;
+    stopRequested = false;
+    status.state = "starting";
+    status.lastError = null;
+    try {
+      // Resolve encoder + preset BEFORE spawning anything (publishability).
+      status.encoderConfig = await resolveEncoderConfig({
+        rootDir: process.env.SSR_ROOT_DIR ?? process.cwd(),
+        logger,
+      });
+      xvfbProcess = await spawnXvfb();
+      browser = await launchBrowser();
+      page = await browser.newPage();
+      cdpSession = await page.target().createCDPSession();
+      await page.goto(`http://127.0.0.1:${port}/output?ssr=1`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      status.browserConnected = true;
+      status.state = "running";
+      browser.on("disconnected", () => {
+        status.browserConnected = false;
+        if (!stopRequested) {
+          logger.error("[ssr-host] browser disconnected unexpectedly");
+          scheduleRestart();
+        }
+      });
+      await startHealthPings();
+    } catch (err) {
+      status.lastError = err.message;
+      status.state = "crashed";
+      await teardown();
+      throw err;
+    }
+  }
+
+  async function teardown() {
+    stopHealthPings();
+    try { if (cdpSession) await cdpSession.detach().catch(() => {}); } catch {}
+    cdpSession = null;
+    try { if (browser) await browser.close().catch(() => {}); } catch {}
+    browser = null;
+    page = null;
+    try {
+      if (xvfbProcess && xvfbProcess.pid) {
+        xvfbProcess.kill("SIGTERM");
+        // Give it 1s to die, then SIGKILL.
+        await new Promise((r) => setTimeout(r, 1000));
+        try { process.kill(xvfbProcess.pid, 0); xvfbProcess.kill("SIGKILL"); } catch {}
+      }
+    } catch {}
+    xvfbProcess = null;
+    status.xvfbPid = null;
+    status.browserConnected = false;
+  }
+
+  async function stop() {
+    stopRequested = true;
+    status.state = "stopping";
+    await teardown();
+    status.state = "idle";
+  }
+
+  async function restart() {
+    await stop();
+    stopRequested = false;
+    await start();
+  }
+
+  function getStatus() {
+    return { ...status };
+  }
+
+  const host = { start, stop, restart, getStatus };
+
+  if (autoStart) {
+    start().catch((err) => logger.error(`[ssr-host] autoStart failed: ${err.message}`));
+  }
+
+  return host;
+}
+
+// ---------------------------------------------------------------------
+// Active-host registry for graceful shutdown wired from server.mjs.
+// ---------------------------------------------------------------------
+let activeHost = null;
+
+export function getActiveSsrRenderHost() {
+  return activeHost;
+}
+
+export function setActiveSsrRenderHost(host) {
+  activeHost = host;
+}
+
+export async function shutdownSsrRenderHost() {
+  if (activeHost) {
+    await activeHost.stop();
+    activeHost = null;
+  }
+}
+
+// Re-export the priority array so consumers can introspect without
+// importing two modules.
+export { ENCODER_PRIORITY };
