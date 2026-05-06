@@ -133,10 +133,17 @@ export function buildInPagePublisherScript() {
     // 3. Capture tab — D-D2 REVERSAL: video-only, no audio.
     // h4 hotfix: preferCurrentTab + selfBrowserSurface=include hint Chromium
     // to capture the page DOM only (not browser chrome / OS desktop / popups).
-    // Combined with --auto-select-tab-capture-source-by-title=TableTop Beamer
-    // on the launcher, this yields a no-prompt clean capture of just the app.
+    // h5 hotfix: explicit frameRate + width/height + cursor: never. Without
+    // the explicit constraints, Chromium picked a default ~15-20 fps for tab
+    // capture, leading to user-reported 20 fps on /output/ even though the
+    // tab itself rendered at 60 fps.
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
+      video: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 60 },
+        cursor: "never",
+      },
       audio: false,
       preferCurrentTab: true,
       selfBrowserSurface: "include",
@@ -145,6 +152,13 @@ export function buildInPagePublisherScript() {
     });
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error("getDisplayMedia returned no video track");
+    // h5: also nudge the active track to lock in 30fps if the picked
+    // source allows it. applyConstraints is best-effort; failure is fine.
+    try {
+      await videoTrack.applyConstraints({ frameRate: { ideal: 30, max: 60 } });
+    } catch (e) {
+      console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
+    }
 
     // 4. D-A3 simulcast (3 layers) + D-A2 H264 codec preference.
     const videoEncodings = [

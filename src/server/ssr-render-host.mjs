@@ -348,10 +348,20 @@ export function bootSsrRenderHost({
         "--hide-crash-restore-bubble",
         "--disable-session-crashed-bubble",
         "--disable-infobars",
-        // Encoder hint flag derived from resolveEncoderConfig (publishability — CONTEXT.md 2026-05-06).
-        // Different builds of Chromium honor different feature flags; we surface the active encoder as a
-        // hint and let Chromium fall back to libopenh264 if the requested HW path is unavailable.
-        ...(status.encoderConfig?.encoder === "vaapi" ? ["--enable-features=VaapiVideoEncoder"] : []),
+        // h5: enable HW video encoding in Chromium IF /dev/dri/renderD128
+        // exists — this is independent of the ffmpeg encoder-detect probe
+        // (Ubuntu's ffmpeg often ships without VAAPI even when the kernel
+        // /dev node is present; Chromium has its own libva runtime). On
+        // matching iGPUs (Intel iris/i915, AMD radeonsi) this drops the
+        // encode CPU cost ~80% and unlocks 30 fps capture.
+        ...(existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129")
+          ? [
+              "--enable-features=VaapiVideoEncoder,VaapiVideoDecoder,VaapiIgnoreDriverChecks",
+              "--ignore-gpu-blocklist",
+              "--enable-gpu-rasterization",
+            ]
+          : []),
+        // Legacy encoder-config hints retained for explicit-pick compatibility.
         ...(status.encoderConfig?.encoder === "nvenc" ? ["--enable-features=H264HardwareEncode"] : []),
         ...(status.encoderConfig?.encoder === "videotoolbox" ? ["--enable-features=PlatformHEVCEncoderSupport"] : []),
         `--display=${display}`,

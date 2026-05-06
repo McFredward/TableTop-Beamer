@@ -97,15 +97,27 @@ export async function bootReceiver({ logger = console } = {}) {
         // the Chromium tab dies. Show error UI instead of leaving the
         // last frozen frame and waiting for the operator to notice.
         if (s === "host-down") {
+          ui.hideSplash(); // h5: error must be visible above splash
           ui.showError(
             "Render host crashed. The server is restarting the render tab — click Retry to reconnect.",
           );
         }
         if (s === "failed" || s === "ws-closed") {
+          ui.hideSplash(); // h5: reconnect banner must be visible above splash
           ui.showReconnect(`Server reconnecting (${s})…`);
         }
       });
+      // h5: hide the splash on the FIRST received frame too — `connected`
+      // state can lag the actual first paint (transport may report
+      // `connecting` while frames are already flowing). First frame is
+      // the unambiguous proof that the stream is live.
       receiver.onFrameReceived(() => {
+        if (frameCount === 0) {
+          ui.hideSplash();
+          ui.hideReconnect();
+          ui.hideError();
+          reconnectAttempts = 0;
+        }
         lastFrameAtMs = performance.now();
         frameCount += 1;
       });
@@ -118,11 +130,19 @@ export async function bootReceiver({ logger = console } = {}) {
       if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         // D-B4 escalation cap reached — surface the explicit error UI
         // with the Retry button. Operator must take action.
+        ui.hideSplash(); // h5: error must be visible above splash
         ui.showError(
           `Cannot reach render server after ${MAX_RECONNECT_ATTEMPTS} attempts. Check server status, then click Retry.`,
         );
         return;
       }
+      // h5: hide the splash before showing reconnect — splash z-index 50
+      // sat above reconnect z-index 40, hiding the reconnect banner.
+      // First-time /output/ load was the worst case: the SSR Chromium tab
+      // takes ~1-2s to publish, the receiver retries until the producer
+      // is up, and the splash stayed visible the whole time with no sign
+      // of progress. Hiding it lets the reconnect banner show through.
+      ui.hideSplash();
       const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000);
       ui.showReconnect(
         `Retrying in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})…`,

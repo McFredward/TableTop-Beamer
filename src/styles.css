@@ -2300,7 +2300,12 @@ body[data-ssr-preview="true"] .app-shell {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  object-fit: contain;
+  /* h5: was `object-fit: contain` — letterboxed when Pi viewport
+     aspect ≠ stream aspect. User contract: "kein sichtbarer Unterschied"
+     between SSR-tab render and Pi display. `cover` fills the viewport
+     completely while preserving aspect (mild crop on aspect mismatch);
+     when both sides are 16:9 (default) it's pixel-equivalent to fill. */
+  object-fit: cover;
   background: #000;
   z-index: 1;
 }
