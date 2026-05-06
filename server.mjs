@@ -148,6 +148,11 @@ const LIVE_MUTATION_TYPES = new Set([
   "context-update",
   // Phase 31 Plan 04 (D-D1): Pi pointer drag → server mesh-warp update.
   "align-corner-drag",
+  // Phase 31 h30 (2026-05-06): full-grid sync from Pi handle-drag to SSR tab.
+  // The single-vertex align-corner-drag misses rotate / scale / line / squish
+  // gestures; this mutation carries the full grid so the SSR tab can
+  // reproduce any handle-ui drag.
+  "align-grid-snapshot",
   // Phase 31 Plan 04 (publishability): live-sync write to
   // config/global-defaults.json#serverRendering (5 enum settings).
   "serverRendering-update",
@@ -380,6 +385,51 @@ function validateAlignCornerDragPayload(p) {
   if (!Number.isFinite(p.normalizedX) || p.normalizedX < 0 || p.normalizedX > 1) return false;
   if (!Number.isFinite(p.normalizedY) || p.normalizedY < 0 || p.normalizedY > 1) return false;
   if (typeof p.profileId !== "string" || p.profileId.length === 0 || p.profileId.length > 200) return false;
+  return true;
+}
+
+// Phase 31 h30 (2026-05-06) — full-grid sync mutation.
+//
+// align-corner-drag is too narrow: it only conveys a single vertex move
+// matching the receiver-input-forwarder's 4-corner hit-test. When the user
+// drags handles directly on Pi /output/ (handle-ui's full feature set —
+// rotate handles, scale handles, line drag, squish bars, arrow-key fine
+// tune), each gesture mutates many points or shifts the srcXs/srcYs lines.
+// align-grid-snapshot carries the FULL grid so the SSR Chromium tab can
+// reproduce ANY gesture exactly.
+//
+// Payload shape:
+//   srcXs    : finite numbers in [0, 1], strictly ascending, length 2..16
+//   srcYs    : same as srcXs
+//   points   : array of {row:int, col:int, x:number, y:number}, each
+//              row/col in-range, x/y in [0, 1]; length === srcXs.length * srcYs.length
+//   profileId: string 1..200 (active projection-profile id; informational)
+//
+// Sized to the existing 5x5 default grid (25 points) plus headroom.
+// 16x16 = 256 points * ~32 bytes JSON ≈ 8 KB, well under the WS frame
+// budget.  STRIDE T-31-30-01 mitigation: full server-side shape check
+// before apply.
+function validateAlignGridSnapshotPayload(p) {
+  if (!p || typeof p !== "object") return false;
+  if (typeof p.profileId !== "string" || p.profileId.length === 0 || p.profileId.length > 200) return false;
+  if (!Array.isArray(p.srcXs) || p.srcXs.length < 2 || p.srcXs.length > 16) return false;
+  if (!Array.isArray(p.srcYs) || p.srcYs.length < 2 || p.srcYs.length > 16) return false;
+  for (const v of p.srcXs) {
+    if (!Number.isFinite(v) || v < 0 || v > 1) return false;
+  }
+  for (const v of p.srcYs) {
+    if (!Number.isFinite(v) || v < 0 || v > 1) return false;
+  }
+  if (!Array.isArray(p.points)) return false;
+  const expected = p.srcXs.length * p.srcYs.length;
+  if (p.points.length !== expected) return false;
+  for (const pt of p.points) {
+    if (!pt || typeof pt !== "object") return false;
+    if (!Number.isInteger(pt.row) || pt.row < 0 || pt.row >= p.srcYs.length) return false;
+    if (!Number.isInteger(pt.col) || pt.col < 0 || pt.col >= p.srcXs.length) return false;
+    if (!Number.isFinite(pt.x) || pt.x < 0 || pt.x > 1) return false;
+    if (!Number.isFinite(pt.y) || pt.y < 0 || pt.y > 1) return false;
+  }
   return true;
 }
 
@@ -1066,6 +1116,30 @@ function applyLiveMutation({
     }
   }
 
+  // Phase 31 h30: full-grid sync validation. Reject malformed payloads
+  // BEFORE apply. STRIDE T-31-30-01 mitigation.
+  if (mutationType === "align-grid-snapshot") {
+    if (!validateAlignGridSnapshotPayload(payload)) {
+      logErrorEvent("align-grid-snapshot-rejected", "invalid-payload-shape", {
+        clientId,
+        role,
+        mutationId: normalizedMutationId,
+      });
+      return {
+        applied: false,
+        duplicate: false,
+        stale: false,
+        rejected: true,
+        rejectReason: "align-grid-snapshot-invalid-payload",
+        mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+        priority: priority ?? resolveMutationPriority(mutationType, payload),
+        serverTimestamp: new Date().toISOString(),
+        serverIngestTimestamp: ingestAt ?? new Date().toISOString(),
+        version: liveSessionState.version,
+      };
+    }
+  }
+
   // Phase 31 Plan 04 (publishability): validate serverRendering-update before apply.
   if (mutationType === "serverRendering-update") {
     const validation = validateServerRenderingPatch(payload);
@@ -1126,6 +1200,28 @@ function applyLiveMutation({
           normalizedX: payload.normalizedX,
           normalizedY: payload.normalizedY,
           profileId: payload.profileId,
+          at: new Date().toISOString(),
+        },
+      },
+    };
+  } else if (mutationType === "align-grid-snapshot") {
+    // Phase 31 h30: write the full grid snapshot to runtime so the
+    // broadcast snapshot carries it to all clients. The SSR Chromium tab
+    // applies it via gridState.restoreGridSnapshot — the next streamed
+    // frame reflects the gesture exactly. The originating client (Pi)
+    // ignores it via the `originatorClientId` check in the live-sync
+    // apply path so its own grid is not overwritten by its own broadcast.
+    nextSnapshotPatch = {
+      runtime: {
+        ...readRuntimeSnapshot(),
+        lastAlignGridSnapshot: {
+          srcXs: payload.srcXs.slice(),
+          srcYs: payload.srcYs.slice(),
+          points: payload.points.map((pt) => ({
+            row: pt.row, col: pt.col, x: pt.x, y: pt.y,
+          })),
+          profileId: payload.profileId,
+          originatorClientId: clientId,
           at: new Date().toISOString(),
         },
       },

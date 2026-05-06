@@ -384,6 +384,8 @@
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
+    // Phase-31 h30: discard changes the grid → broadcast so SSR tab follows.
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
   }
 
   function _promptProfileNameModal({ kind = "save-as-new" } = {}) {
@@ -598,6 +600,8 @@
     applyTransform();
     if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
+    // Phase-31 h30: profile load swaps the grid wholesale → broadcast.
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
   }
 
   // Phase 28 B1 (D-03 fallback): silent default-geometry restore for the

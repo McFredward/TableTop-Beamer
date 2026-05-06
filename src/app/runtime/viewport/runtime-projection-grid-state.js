@@ -225,6 +225,10 @@
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
+    // Phase-31 h30: undo is a grid mutation too — broadcast so the
+    // SSR tab follows. force=true so the user's Ctrl+Z immediately
+    // shows up in the streamed frame even at low drag rates.
+    try { broadcastGridSnapshot({ force: true }); } catch {}
   }
 
   function resetGrid() {
@@ -244,6 +248,8 @@
     } catch { /* ignore */ }
     if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    // Phase-31 h30: resetGrid is a major grid mutation — broadcast.
+    try { broadcastGridSnapshot({ force: true }); } catch {}
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────
@@ -348,6 +354,63 @@
     if (typeof cb === "function") _handlesVisibleListeners.push(cb);
   }
 
+  // Phase 31 h30 (2026-05-06) — broadcast the full grid to the SSR
+  // Chromium tab so its mesh-warp matches Pi's local handle-drag in
+  // real time. Throttled to ~30 Hz: rAF cadence is enough for the
+  // streamed encoded frames (typically 30 fps), and avoids hammering
+  // /api/live/command at the native pointermove rate (~120 Hz).
+  // Only emits while align mode is active AND handles are visible
+  // (so the user is actively editing). Originator is filtered out on
+  // receive via `originatorClientId` in live-sync-core's fast-path.
+  let _broadcastScheduled = false;
+  let _broadcastLastEmittedAtMs = 0;
+  const _BROADCAST_MIN_INTERVAL_MS = 33; // ~30 Hz
+  function broadcastGridSnapshot({ force = false } = {}) {
+    try {
+      if (!ctx) return;
+      if (!ctx.state || !ctx.state.alignMode) return;
+      const liveSync = window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
+      if (!liveSync || typeof liveSync.emitLiveMutation !== "function") return;
+      const profilePersist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+      let profileId = profilePersist?.getLoadedProfileName?.() || null;
+      if (typeof profileId !== "string" || profileId.length === 0) {
+        // No saved profile loaded — synthesize a stable id derived from
+        // the active board so the server-side V5 ASVS check passes.
+        const boardId = profilePersist?.getCurrentBoardId?.() || "unknown";
+        profileId = `unsaved-${String(boardId).slice(0, 180)}`;
+      }
+      const now = Date.now();
+      if (!force && (now - _broadcastLastEmittedAtMs) < _BROADCAST_MIN_INTERVAL_MS) {
+        if (_broadcastScheduled) return;
+        _broadcastScheduled = true;
+        const wait = _BROADCAST_MIN_INTERVAL_MS - (now - _broadcastLastEmittedAtMs);
+        setTimeout(() => {
+          _broadcastScheduled = false;
+          broadcastGridSnapshot({ force: true });
+        }, Math.max(1, wait));
+        return;
+      }
+      _broadcastLastEmittedAtMs = now;
+      // Compact "points" payload — server validates length === rows*cols.
+      const points = [];
+      for (let row = 0; row < grid.srcYs.length; row++) {
+        for (let col = 0; col < grid.srcXs.length; col++) {
+          const pt = getPoint(row, col);
+          points.push({ row, col, x: pt.x, y: pt.y });
+        }
+      }
+      void liveSync.emitLiveMutation("align-grid-snapshot", {
+        srcXs: grid.srcXs.slice(),
+        srcYs: grid.srcYs.slice(),
+        points,
+        profileId,
+      });
+    } catch (err) {
+      // Never let a broadcast error break the local drag.
+      console.warn("[align-grid-snapshot] broadcast failed:", err?.message || err);
+    }
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE = {
@@ -375,5 +438,7 @@
     buildNewProfileDefaultGrid,
     isTrivialFourCornerGrid,
     getCornerPoints,
+    // Phase 31 h30: full-grid broadcast for handle-drag → SSR tab sync.
+    broadcastGridSnapshot,
   };
 })();

@@ -625,7 +625,13 @@
               // Pi sends drag events at native pointermove rate (~120 Hz);
               // they hit the SSR tab via this path so the streamed warp
               // updates within the next captured frame.
-              || mutationType === "align-corner-drag";
+              || mutationType === "align-corner-drag"
+              // Phase-31 h30 (2026-05-06): align-grid-snapshot carries
+              // the full grid for non-corner gestures (rotate/scale/line/
+              // squish/inner-point drag). Same low-latency requirement as
+              // align-corner-drag — apply immediately so the stream
+              // reflects the gesture within the next encoded frame.
+              || mutationType === "align-grid-snapshot";
             if (
               shouldApplyImmediateStopSnapshot
               && Number.isFinite(sessionVersion)
@@ -641,6 +647,72 @@
               ctx.liveSync.firstServerSnapshotApplied = true;
             }
             ctx.scheduleNextLiveSnapshotPoll(0);
+          }
+          // Phase-31 h30 (2026-05-06): direct fast-path for align-grid-snapshot.
+          // Mirrors the align-corner-drag fast-path but operates on the
+          // FULL grid. The originator (the client whose handle-drag fired
+          // the broadcast) MUST skip applying its own broadcast back —
+          // otherwise the stale server-roundtripped grid clobbers a fresh
+          // local mid-drag state, producing visual judder. We compare
+          // the snapshot's originatorClientId against the local
+          // liveSync.clientId.
+          if (
+            payload?.type === "live-session-update"
+            && payload?.mutationType === "align-grid-snapshot"
+            && ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+          ) {
+            try {
+              const snap = payload?.session?.snapshot?.runtime?.lastAlignGridSnapshot;
+              const snapAt = snap?.at ? Date.parse(snap.at) : 0;
+              const ageMs = Number.isFinite(snapAt) ? Date.now() - snapAt : Infinity;
+              const alignActive = Boolean(ctx.state?.alignMode);
+              const arrivedAfterLoad = Number.isFinite(snapAt) && snapAt >= _pageLoadAtMs;
+              const localClientId = ctx?.liveSync?.clientId ?? null;
+              const isOriginator = !!localClientId
+                && snap?.originatorClientId === localClientId;
+              const accepts =
+                snap && typeof snap === "object"
+                && Array.isArray(snap.srcXs) && Array.isArray(snap.srcYs)
+                && Array.isArray(snap.points)
+                && ageMs <= 5000
+                && alignActive
+                && arrivedAfterLoad
+                && !isOriginator;
+              if (accepts) {
+                const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+                if (gridState && typeof gridState.restoreGridSnapshot === "function") {
+                  const points2D = [];
+                  for (let r = 0; r < snap.srcYs.length; r++) {
+                    points2D[r] = [];
+                    for (let c = 0; c < snap.srcXs.length; c++) {
+                      points2D[r][c] = { x: snap.srcXs[c], y: snap.srcYs[r] };
+                    }
+                  }
+                  for (const pt of snap.points) {
+                    if (
+                      Number.isInteger(pt.row) && Number.isInteger(pt.col)
+                      && points2D[pt.row] && points2D[pt.row][pt.col]
+                    ) {
+                      points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+                    }
+                  }
+                  gridState.restoreGridSnapshot({
+                    srcXs: snap.srcXs.slice(),
+                    srcYs: snap.srcYs.slice(),
+                    points: points2D,
+                  });
+                  _redrawHandlesAfterCornerDrag();
+                  // Refresh dirty flag — the grid changed, profile-persistence
+                  // needs to recompute against _loadedProfileSnapshot.
+                  try {
+                    window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE
+                      ?.notifyDirtyChanged?.();
+                  } catch (_) {}
+                }
+              }
+            } catch (err) {
+              console.warn("[align-grid-snapshot fast-path] apply failed:", err?.message || err);
+            }
           }
           // Phase-31 h20 (2026-05-06): direct fast-path for align-corner-drag.
           // The applyLiveRuntimeSnapshot gate has version-tracking and

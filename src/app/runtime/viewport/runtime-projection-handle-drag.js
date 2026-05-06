@@ -55,6 +55,22 @@
   // `lineCanvas` shadow as a bare identifier.
   let lineCanvas = null;
 
+  // Phase 31 h30 (2026-05-06) — full-grid sync to the SSR Chromium tab.
+  // After every drag step the local handle-ui has already redrawn Pi's
+  // own handles + lines + warp from the new grid; this helper additionally
+  // pushes the grid through the live-sync channel so the SSR tab can
+  // restoreGridSnapshot in lockstep and the next streamed encoded frame
+  // reflects the gesture. Throttled to ~30 Hz inside grid-state. The
+  // helper is resolved lazily so module load order doesn't matter.
+  function _broadcastDragSnapshot({ force = false } = {}) {
+    try {
+      const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+      if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
+        gridStateApi.broadcastGridSnapshot({ force });
+      }
+    } catch (_) { /* never break a drag */ }
+  }
+
   // Drag state — private to this module (handle-ui no longer owns
   // these per the Option-B split).
   let dragState = null;       // { row, col, startX, startY, startPtX, startPtY, allStartPts }
@@ -126,6 +142,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onRotateDragEnd() {
@@ -234,6 +251,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onScaleDragEnd(e) {
@@ -320,6 +338,7 @@
     applyTransform();
     // Re-render room overlay so SVG contours match the grid warp
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onDragEnd() {
@@ -483,6 +502,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onPanDragEnd() {
@@ -547,6 +567,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onLineDragEnd() {
@@ -753,6 +774,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
+    _broadcastDragSnapshot();
   }
 
   function onSquishDragEnd() {
