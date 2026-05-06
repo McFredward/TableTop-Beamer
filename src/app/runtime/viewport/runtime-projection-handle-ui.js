@@ -1632,9 +1632,18 @@
         // core which is ready by the time align-toggle reaches us.
         const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
         if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
-          Promise.resolve().then(() => {
-            try { gridStateApi.broadcastGridSnapshot({ force: true }); } catch (_) {}
-          });
+          // h39: log + broadcast IMMEDIATELY (no defer). The microtask
+          // defer was a leftover from when the helper was potentially
+          // not yet wired; at this point the live-sync core is up,
+          // and the immediate broadcast removes a race window where
+          // the user enters align mode and drags before the deferred
+          // microtask fires — Pi's OLD grid wins until the next user
+          // action triggers a Pi-side broadcast that pulls SSR-tab
+          // toward Pi (the wrong direction).
+          console.log("[align-grid-snapshot] onAlignModeChange(true) on SSR tab — broadcasting authoritative grid");
+          try { gridStateApi.broadcastGridSnapshot({ force: true }); } catch (_) {}
+        } else {
+          console.warn("[align-grid-snapshot] onAlignModeChange(true) on SSR tab — gridStateApi.broadcastGridSnapshot UNAVAILABLE!");
         }
         return;
       }
