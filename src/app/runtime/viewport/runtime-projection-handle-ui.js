@@ -1449,6 +1449,25 @@
 
   function onAlignModeChange(enabled) {
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
+    // Phase-31 h27 (2026-05-06): on the Pi RECEIVER (thin-client mode,
+    // no `?ssr=1`), runtime-orchestration ALSO runs but the visible
+    // surface is the WebRTC <video>, not fx-canvas/handles. Showing
+    // handles on the Pi creates a SECOND set of corner markers
+    // overlaid on top of the streamed video — and they're positioned
+    // from the Pi's OWN local grid state (which can differ from the
+    // SSR tab's grid). User-reported symptom: lines at viewport edge
+    // (Pi's local identity grid) but board at 80% (SSR tab's 10/90
+    // grid) → visual mismatch.
+    //
+    // Fix: only render handle UI when we're the SSR Chromium tab
+    // (where mesh-warp actually runs and the handles correspond to
+    // the warp output). Pi receiver: skip entirely.
+    const isSsrTab = typeof window !== "undefined"
+      && /[?&]ssr=1(\b|&)/.test(window.location?.search || "");
+    if (!isSsrTab) {
+      console.log("[align-handle-ui] Pi-receiver mode — skipping handle render (only SSR tab renders the warp)");
+      return;
+    }
     if (enabled) {
       applyTransform();
       showHandles();

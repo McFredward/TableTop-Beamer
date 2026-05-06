@@ -1105,6 +1105,14 @@ function applyLiveMutation({
   ) {
     nextSnapshotPatch = applyRoomMutationPatch(mutationType, payload);
   } else if (mutationType === "align-corner-drag") {
+    // Phase-31 h27: trace log for Pi → server → SSR-tab correlation.
+    if (payload.phase === "start" || payload.phase === "end") {
+      console.log(
+        `[align-drag] received phase=${payload.phase} v=${payload.vertexId}`,
+        `xy=(${Number(payload.normalizedX).toFixed(3)},${Number(payload.normalizedY).toFixed(3)})`,
+        `from=${role}/${clientId}`,
+      );
+    }
     // The SSR Chromium tab is a live-sync client and applies the mesh-warp
     // update via existing client-side align-mode handlers. Server's role
     // here is validation + fanout — runtime patch carries the drag event

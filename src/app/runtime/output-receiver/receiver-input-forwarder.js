@@ -74,9 +74,24 @@ export function attachInputForwarder({
   connectWs();
 
   function sendDrag(phase, vertexId, normalizedX, normalizedY) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Phase-31 h27: dense logging for end-to-end drag-flow diagnosis.
+    // The user can paste these from the Pi devtools console to confirm
+    // drags are being SENT before we look at server / SSR-tab paths.
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn(
+        `[input-forwarder] sendDrag SKIPPED — ws=${ws ? "exists" : "null"}`,
+        `readyState=${ws?.readyState}`,
+      );
+      return;
+    }
     const profileId = getCurrentProfileId();
-    if (!profileId) return;
+    if (!profileId) {
+      console.warn(
+        `[input-forwarder] sendDrag SKIPPED — no profileId (need to load a profile first)`,
+        `phase=${phase} v=${vertexId}`,
+      );
+      return;
+    }
     const clampedX = Math.max(0, Math.min(1, normalizedX));
     const clampedY = Math.max(0, Math.min(1, normalizedY));
     const msg = {
@@ -94,8 +109,16 @@ export function attachInputForwarder({
     };
     try {
       ws.send(JSON.stringify(msg));
+      // Log start/end always; for move log only every 10th to avoid flooding
+      if (phase !== "move" || (sendDrag._moveCount = (sendDrag._moveCount || 0) + 1) % 10 === 1) {
+        console.log(
+          `[input-forwarder] sent phase=${phase} v=${vertexId}`,
+          `xy=(${clampedX.toFixed(3)},${clampedY.toFixed(3)})`,
+          `profile=${profileId}`,
+        );
+      }
     } catch (err) {
-      logger.warn?.("[input-forwarder] WS send failed", err);
+      console.warn("[input-forwarder] WS send failed:", err?.message || err);
     }
   }
 
@@ -196,14 +219,26 @@ export function attachInputForwarder({
   }
 
   function onPointerDown(e) {
-    if (!isAlignModeActive()) return;
+    const alignActive = isAlignModeActive();
+    console.log(
+      `[input-forwarder] pointerDown alignActive=${alignActive}`,
+      `client=(${e.clientX},${e.clientY})`,
+    );
+    if (!alignActive) return;
     e.preventDefault();
     try {
       overlayEl.setPointerCapture(e.pointerId);
     } catch {}
     const { normalizedX, normalizedY } = pointerToNormalized(e);
     const vid = hitTestVertex({ x: normalizedX, y: normalizedY });
-    if (vid == null) return;
+    console.log(
+      `[input-forwarder] hitTestVertex result=`, vid,
+      `for normalized=(${normalizedX.toFixed(3)},${normalizedY.toFixed(3)})`,
+    );
+    if (vid == null) {
+      console.log("[input-forwarder] no vertex hit — drag not started (try clicking nearer to a corner)");
+      return;
+    }
     activeVertexId = vid;
     const { vx, vy } = pointerToViewportNormalized(e);
     moveGhost(vx, vy);
