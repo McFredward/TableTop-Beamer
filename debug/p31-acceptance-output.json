@@ -1,0 +1,98 @@
+{
+  "phase": "phase31",
+  "phaseTitle": "Server-Side Rendering Pivot",
+  "completedAt": "2026-05-06T09:40:30Z",
+  "deliveryStatus": "DELIVERED-TO-UAT",
+  "automated": {
+    "framework": "node:test",
+    "totalTests": 137,
+    "pass": 135,
+    "fail": 0,
+    "skip": 2,
+    "exitCode": 0,
+    "phase29NonRegression": true,
+    "baselinePhase29Tests": 40,
+    "phase31AddedTests": 97,
+    "ranAt": "2026-05-06T09:40:30Z",
+    "command": "node --test \"test/**/*.test.mjs\""
+  },
+  "wave0Audio": {
+    "status": "RESOLVED_VIA_D-D2_REVERSAL",
+    "smoke_test_runnable": false,
+    "reason": "D-D2 reverted from in-stream to Pi-local audio (see 31-D-D2-REVERSAL-ADDENDUM.md). puppeteer-stream activeTab permission failure on Chrome 131 + headful Xvfb. Test stays in repo as future-feature scaffold (t.skip()).",
+    "rmsAmplitude": null,
+    "passed": null
+  },
+  "uatScenarios": {
+    "scenario1_cold_boot": "PENDING_MANUAL",
+    "scenario2_server_restart_resilience": "PENDING_MANUAL",
+    "scenario3_server_crash_resilience": "PENDING_MANUAL",
+    "scenario4_network_hiccup": "PENDING_MANUAL",
+    "scenario5_align_mode_roundtrip": "PENDING_MANUAL",
+    "scenario6_audio_pi_local_when_triggered": "PENDING_MANUAL",
+    "scenario7_multi_client_stream": "PENDING_MANUAL",
+    "scenario8_phase12_layering": "PENDING_MANUAL",
+    "scenario9_phase19_27_align_features": "PENDING_MANUAL",
+    "scenario10_bandwidth_wlan_5ghz": "PENDING_MANUAL",
+    "scenario11_30min_soak": "PENDING_MANUAL",
+    "scenario12_publishability_ui_encoder_change": "PENDING_MANUAL",
+    "scenario13_publishability_forced_x264_software": "PENDING_MANUAL",
+    "scenario14_publishability_software_only_environment": "PENDING_MANUAL",
+    "scenario15_audioRoute_toggle_graceful_disabled": "PENDING_MANUAL"
+  },
+  "uatScenarioNote": "Scenario 6 renamed per D-D2 REVERSAL ADDENDUM: 'Audio plays from Pi-local Audio when triggered' (verifies trigger -> WS -> Pi HTML5-Audio -> physical audio output). Scenario 15 NEW per D-D2 REVERSAL ADDENDUM: audioRoute UI toggle behaviour — disabled in-stream option shows graceful tooltip/banner.",
+  "performanceTargets": {
+    "piFps": { "target": 24, "measured": null, "passed": null, "unit": "fps" },
+    "operatorLatencyMs": { "target": 150, "measured": null, "passed": null, "unit": "ms" },
+    "serverCpuPercent": { "target": 80, "measured": null, "passed": null, "unit": "%" },
+    "piCpuPercent": { "target": 20, "measured": null, "passed": null, "unit": "%" },
+    "bandwidthMbits": { "target": 8, "measured": null, "passed": null, "unit": "Mbit/s" }
+  },
+  "bindingConstraints": {
+    "D_B4_no_black_screen": {
+      "scenarios_tested": 0,
+      "scenarios_passed": 0,
+      "binding": true,
+      "scenarios": [
+        { "id": 2, "name": "Server SIGINT restart", "blackScreenSeen": null },
+        { "id": 3, "name": "Server tab kill -9 crash", "blackScreenSeen": null },
+        { "id": 4, "name": "Pi WLAN drop", "blackScreenSeen": null },
+        { "id": 12, "name": "Encoder UI change auto-restart", "blackScreenSeen": null }
+      ]
+    }
+  },
+  "phaseContractNonRegression": {
+    "phase11_HF6_seen_once_full_duration": "PASS",
+    "phase12_layering": "PENDING_MANUAL",
+    "phase13_server_auth": "PASS",
+    "phase19_27_align_features": "PENDING_MANUAL",
+    "phase26_h9_gl_seam": "PENDING_MANUAL",
+    "phase28_b6_overlay_sync": "PENDING_MANUAL",
+    "phase29_40_40_tests": "PASS",
+    "phase30_b1_b2_b3": "PENDING_MANUAL"
+  },
+  "automatedGates": {
+    "test_suite_green": "PASS",
+    "phase29_baseline_preserved": "PASS",
+    "ssr_encoder_detect_unit_tests": "PASS",
+    "ssr_state_restore_unit_tests": "PASS",
+    "ssr_server_rendering_config_unit_tests": "PASS",
+    "ssr_webrtc_signaling_protocol_tests": "PASS",
+    "ssr_receiver_disconnect_detection_tests": "PASS",
+    "runtime_env_environment_tests": "PASS",
+    "schema_drift_check": "PASS"
+  },
+  "manualGatesPending": {
+    "uat_scenarios_1_to_15": 15,
+    "performance_measurements": 5,
+    "binding_D_B4_disconnect_audit": 4,
+    "phase_contract_visual_verification": 5,
+    "thirty_minute_soak": 1
+  },
+  "ddReversal": {
+    "trigger_doc": ".planning/phases/phase-31/31-D-D2-REVERSAL-ADDENDUM.md",
+    "applied_in_plans": ["31-02", "31-03", "31-04", "31-05", "31-06"],
+    "scenario6_renamed": "Audio plays from Pi-local Audio when triggered (was: Audio + video sync)",
+    "scenario15_added": "audioRoute toggle in System UI — flipping it does not crash; if 'in-stream' is selected, system gracefully shows a tooltip/banner indicating the feature is deferred."
+  }
+}
