@@ -64,6 +64,20 @@
           state.zoneLoader.detailByBoard[board.id] = "ok";
         }
         syncZoneLoaderStatus();
+        // Phase-31 h46 (2026-05-06): SSR tab opens at server boot and
+        // its first renderRoomOverlay (h38, on align-mode enable) can
+        // race ahead of /api/boards — when it fires before BOARDS is
+        // hydrated, board.rooms is empty and the early-return at
+        // runtime-polygon-editor.js:356 paints nothing. The user
+        // perceives this as "polygons only appear AFTER first
+        // transform" because _redrawHandlesAfterCornerDrag's later
+        // renderRoomOverlay call eventually wins the race. Fix: re-
+        // render after BOARDS hydration if align-mode is currently
+        // active. Idempotent on Pi/Dashboard (no-op when polygons
+        // already painted).
+        if (state?.alignMode === true && typeof ctx.renderRoomOverlay === "function") {
+          try { ctx.renderRoomOverlay(); } catch (_) {}
+        }
         return;
       }
     } catch {

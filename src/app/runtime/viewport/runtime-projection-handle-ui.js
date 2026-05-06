@@ -1660,6 +1660,18 @@
       }
       showHandles();
     } else {
+      // Phase-31 h46 (2026-05-06): symmetric clear with the enable
+      // branch (h38). Without this, the SSR tab's #room-overlay keeps
+      // the polygons it painted on enable — they sit in the DOM
+      // forever and remain visible in the encoded WebRTC stream even
+      // after align-mode is toggled off. renderRoomOverlay's first
+      // step is `replaceChildren()`, then it early-returns on
+      // FINAL && !alignMode — so calling it here clears the DOM
+      // without re-painting. Pi receiver's overlay is already CSS-
+      // hidden when not aligning, but calling this is harmless there.
+      if (typeof ctx.renderRoomOverlay === "function") {
+        try { ctx.renderRoomOverlay(); } catch (_) {}
+      }
       if (_isSsrChromiumTab()) return;
       hideHandles();
       // Keep transform applied — calibration persists

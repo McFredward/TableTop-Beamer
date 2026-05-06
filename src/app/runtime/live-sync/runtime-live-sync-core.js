@@ -941,7 +941,17 @@
               // squish/inner-point drag). Same low-latency requirement as
               // align-corner-drag — apply immediately so the stream
               // reflects the gesture within the next encoded frame.
-              || mutationType === "align-grid-snapshot";
+              || mutationType === "align-grid-snapshot"
+              // Phase-31 h46 (2026-05-06): context-update carries the
+              // alignMode toggle (and other context fields). Without
+              // it in this fast-path, align-toggle DISABLE goes via
+              // the deferred snapshot poll — which on the SSR tab
+              // races with in-flight broadcastGridSnapshot POSTs and
+              // can be killed by the AbortError at line ~259. End
+              // result: SSR tab never applies enabled=false, so its
+              // #room-overlay polygons stay visible in the stream
+              // even after the user toggled align-mode off.
+              || mutationType === "context-update";
             if (
               shouldApplyImmediateStopSnapshot
               && Number.isFinite(sessionVersion)
