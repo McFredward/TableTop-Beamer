@@ -33,14 +33,30 @@
   // the warped board updating but the handle/line overlay frozen at
   // the pre-drag positions. Critical on the SSR Chromium tab: its
   // handles + lines are encoded into the streamed frame the user sees.
+  //
+  // h37 (2026-05-06): also re-render the room polygon overlay after a
+  // grid change. Both the SSR Chromium tab (whose polygons get encoded
+  // into the streamed frame) and Pi /output/ (whose polygons overlay
+  // the streamed video) need this — without it, the polygons stay at
+  // pre-drag positions while the warped board reflects the drag, so
+  // the user sees a desync between the streamed board and the room
+  // outlines until something else triggers a re-render.
   function _redrawHandlesAfterCornerDrag() {
     try {
       const hUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
-      if (!hUi) return;
-      if (typeof hUi.getHandlesVisible === "function" && !hUi.getHandlesVisible()) return;
-      if (typeof hUi.positionHandles === "function") hUi.positionHandles();
-      if (typeof hUi.positionRotateHandles === "function") hUi.positionRotateHandles();
-      if (typeof hUi.drawLines === "function") hUi.drawLines();
+      if (hUi) {
+        if (typeof hUi.getHandlesVisible !== "function" || hUi.getHandlesVisible()) {
+          if (typeof hUi.positionHandles === "function") hUi.positionHandles();
+          if (typeof hUi.positionRotateHandles === "function") hUi.positionRotateHandles();
+          if (typeof hUi.drawLines === "function") hUi.drawLines();
+        }
+      }
+      // h37: refresh the room polygon overlay so the streamed frame
+      // (SSR tab) and the local /output/ overlay (Pi) both reflect
+      // the new grid warp on the same frame as the handles.
+      if (ctx && typeof ctx.renderRoomOverlay === "function") {
+        try { ctx.renderRoomOverlay(); } catch (_) {}
+      }
     } catch (err) {
       console.warn("[align-corner-drag] handle redraw failed:", err?.message || err);
     }
