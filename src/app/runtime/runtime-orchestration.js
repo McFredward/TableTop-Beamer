@@ -68,8 +68,20 @@ document.body.dataset.outputRole = outputRole;
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
   }
+  // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
+  // default per RESEARCH § Q3). Dashboard URL with `?ssr-preview=1` opts
+  // into receiver-bootstrap so the operator's dashboard previews exactly
+  // what the Pi sees (single source of truth). Default behavior (no flag)
+  // keeps the existing local render pipeline — Hybrid fallback per
+  // RESEARCH § Q3 ("dashboard renders locally; Pi receives stream").
+  // Plan 06 UAT decides whether to make shared-stream the default.
+  const __ttbIsSsrPreview = /[?&]ssr-preview=1(\b|&)/.test(__ttbSearch);
+  if (__ttbIsSsrPreview) {
+    document.body.dataset.ssrPreview = "true";
+    document.body.dataset.outputRole = "final-output";
+  }
   const __ttbShouldBootReceiver =
-    outputRole === OUTPUT_ROLE_FINAL && !__ttbIsSsrTab;
+    (outputRole === OUTPUT_ROLE_FINAL && !__ttbIsSsrTab) || __ttbIsSsrPreview;
   if (__ttbShouldBootReceiver) {
     // Pi /output/ — boot the WebRTC receiver. The existing canvas chrome
     // is hidden by CSS so the <video> + status overlays are the only

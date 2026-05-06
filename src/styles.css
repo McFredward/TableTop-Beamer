@@ -2271,14 +2271,25 @@ button.danger.is-armed {
 
 /* Hide all existing canvas/render chrome on Pi /output/ — Pi has zero
    render code in the active path. Phase 30 hotfixes stay in repo as
-   defense-in-depth but never render here. */
+   defense-in-depth but never render here.
+   Phase 31 Plan 05 Task 3: extend to dashboard preview mode
+   (body[data-ssr-preview="true"]) so the operator's preview consumes the
+   same WebRTC stream as Pi (D-B2). Default dashboard (no flag) keeps the
+   render canvas visible — Hybrid fallback per RESEARCH § Q3. */
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #stage,
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #fx-canvas,
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #fx-gl-canvas,
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #room-overlay,
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #board-image,
 body[data-output-role="final-output"]:not([data-ssr-tab="true"]) #cluster-pads,
-body[data-output-role="final-output"]:not([data-ssr-tab="true"]) .app-shell {
+body[data-output-role="final-output"]:not([data-ssr-tab="true"]) .app-shell,
+body[data-ssr-preview="true"] #stage,
+body[data-ssr-preview="true"] #fx-canvas,
+body[data-ssr-preview="true"] #fx-gl-canvas,
+body[data-ssr-preview="true"] #room-overlay,
+body[data-ssr-preview="true"] #board-image,
+body[data-ssr-preview="true"] #cluster-pads,
+body[data-ssr-preview="true"] .app-shell {
   display: none !important;
 }
 
