@@ -315,14 +315,13 @@ export function bootSsrRenderHost({
       args: [
         "--no-sandbox",
         "--autoplay-policy=no-user-gesture-required", // RESEARCH § Pitfall 5
-        // h6: GPU stack tuning. Xvfb has no hardware framebuffer, so
-        // Chromium's default `--use-gl=egl` falls back to llvmpipe
-        // (slow software rasterizer). SwiftShader's Vulkan path is
-        // significantly faster for canvas + WebGL workloads. The user
-        // hit ~20 fps on the powerful server because of this fallback.
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
+        // h7 hotfix: REVERT h6 SwiftShader pinning. SwiftShader was
+        // catastrophically slow on this machine (4 fps + visible scanline
+        // tearing in the captured stream). Let Chromium auto-detect — if
+        // /dev/dri/renderD128 is accessible (we add ignore-gpu-blocklist
+        // below) Chromium's libva uses the iGPU for VAAPI; canvas falls
+        // back to llvmpipe but llvmpipe is faster than SwiftShader.
+        "--use-gl=egl",
         "--disable-dev-shm-usage",
         // h4: app mode — no browser chrome at all. The window opens
         // with the page content filling its entire client area.
