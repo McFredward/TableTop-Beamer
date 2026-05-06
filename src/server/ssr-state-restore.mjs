@@ -189,4 +189,149 @@ export function _resetForTests() {
   pendingResolvers = [];
   for (const r of resolvers) r.resolve();
   lastWriteAt = 0;
+  if (_gridPendingTimer) clearTimeout(_gridPendingTimer);
+  _gridPendingTimer = null;
+  _gridPendingPayload = null;
+  _gridWriteTargetPath = null;
+}
+
+// =====================================================================
+// Phase-31 h41 (2026-05-06) — server-side persistence of the active
+// projection grid.
+//
+// User-reported issue: at /output/ first start the streamed warped
+// board and the locally-rendered handle/polygon overlay are out of
+// sync until the operator triggers any transformation. Root cause is
+// a race between client-side auto-loads of remembered profile names
+// (per-client localStorage state, can diverge between Pi and the SSR
+// Chromium tab). Fix: stop relying on per-client localStorage for the
+// "currently active grid" — persist the grid server-side, write it on
+// every align-grid-snapshot mutation, and restore it into
+// liveSessionState on server boot. New clients (incl. the SSR tab on
+// fresh spawn) pick it up via live-hello and the h40 apply path
+// snaps the warp + handles + polygons in lockstep.
+// =====================================================================
+
+export const ACTIVE_GRID_SCHEMA = "tt-beamer.active-grid.v1";
+
+let _gridPendingTimer = null;
+let _gridPendingPayload = null;
+let _gridWriteTargetPath = null;
+let _gridPendingResolvers = [];
+
+/**
+ * Load the persisted active projection grid. Returns null if no file
+ * yet (fresh install) or schema mismatch / corrupt JSON.
+ *
+ * @param {object} input
+ * @param {string} input.rootDir
+ * @returns {Promise<{
+ *   srcXs: number[], srcYs: number[],
+ *   points: Array<{row:number, col:number, x:number, y:number}>,
+ *   profileId: string|null, persistedAt: string|null,
+ * } | null>}
+ */
+export async function loadActiveGrid({ rootDir } = {}) {
+  if (!rootDir) throw new Error("loadActiveGrid: rootDir is required");
+  const filePath = path.join(rootDir, "config", "runtime-active-grid.json");
+  try {
+    const raw = await readFile(filePath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || parsed.schema !== ACTIVE_GRID_SCHEMA) {
+      return null;
+    }
+    if (
+      !Array.isArray(parsed.srcXs) || !Array.isArray(parsed.srcYs)
+      || !Array.isArray(parsed.points)
+    ) {
+      return null;
+    }
+    return {
+      srcXs: parsed.srcXs.slice(),
+      srcYs: parsed.srcYs.slice(),
+      points: parsed.points.map((p) => ({
+        row: Number(p.row), col: Number(p.col),
+        x: Number(p.x), y: Number(p.y),
+      })),
+      profileId: typeof parsed.profileId === "string" ? parsed.profileId : null,
+      persistedAt: typeof parsed.persistedAt === "string" ? parsed.persistedAt : null,
+    };
+  } catch (err) {
+    if (err && err.code === "ENOENT") return null;
+    return null;
+  }
+}
+
+/**
+ * Debounced write for the active grid. Mirrors persistRunningAnimations
+ * pattern: 200 ms debounce, last-write-wins. Returns a Promise that
+ * resolves when the eventual write hits disk.
+ *
+ * @param {object} input
+ * @param {string} input.rootDir
+ * @param {Array<number>} input.srcXs
+ * @param {Array<number>} input.srcYs
+ * @param {Array<{row:number,col:number,x:number,y:number}>} input.points
+ * @param {string|null} input.profileId
+ */
+export function persistActiveGrid({ rootDir, srcXs, srcYs, points, profileId }) {
+  if (!rootDir) {
+    return Promise.reject(new Error("persistActiveGrid: rootDir is required"));
+  }
+  _gridWriteTargetPath = path.join(rootDir, "config", "runtime-active-grid.json");
+  _gridPendingPayload = {
+    schema: ACTIVE_GRID_SCHEMA,
+    srcXs: Array.isArray(srcXs) ? srcXs.slice() : [],
+    srcYs: Array.isArray(srcYs) ? srcYs.slice() : [],
+    points: Array.isArray(points) ? points.map((p) => ({
+      row: Number(p.row), col: Number(p.col),
+      x: Number(p.x), y: Number(p.y),
+    })) : [],
+    profileId: typeof profileId === "string" ? profileId : null,
+    persistedAt: new Date().toISOString(),
+  };
+  if (_gridPendingTimer) clearTimeout(_gridPendingTimer);
+  return new Promise((resolve, reject) => {
+    _gridPendingResolvers.push({ resolve, reject });
+    _gridPendingTimer = setTimeout(async () => {
+      _gridPendingTimer = null;
+      const payload = _gridPendingPayload;
+      const resolvers = _gridPendingResolvers;
+      _gridPendingPayload = null;
+      _gridPendingResolvers = [];
+      try {
+        await mkdir(path.dirname(_gridWriteTargetPath), { recursive: true });
+        await writeFile(_gridWriteTargetPath, JSON.stringify(payload, null, 2), "utf8");
+        for (const r of resolvers) r.resolve();
+      } catch (err) {
+        for (const r of resolvers) r.reject(err);
+      }
+    }, PERSIST_DEBOUNCE_MS);
+  });
+}
+
+/** Force flush any pending grid write. Used at shutdown. */
+export async function flushActiveGrid() {
+  if (_gridPendingTimer) {
+    clearTimeout(_gridPendingTimer);
+    _gridPendingTimer = null;
+  }
+  if (!_gridPendingPayload || !_gridWriteTargetPath) {
+    const resolvers = _gridPendingResolvers;
+    _gridPendingResolvers = [];
+    for (const r of resolvers) r.resolve();
+    return;
+  }
+  const payload = _gridPendingPayload;
+  const resolvers = _gridPendingResolvers;
+  _gridPendingPayload = null;
+  _gridPendingResolvers = [];
+  try {
+    await mkdir(path.dirname(_gridWriteTargetPath), { recursive: true });
+    await writeFile(_gridWriteTargetPath, JSON.stringify(payload, null, 2), "utf8");
+    for (const r of resolvers) r.resolve();
+  } catch (err) {
+    for (const r of resolvers) r.reject(err);
+    throw err;
+  }
 }

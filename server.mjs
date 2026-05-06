@@ -15,7 +15,11 @@ import { bootMediasoupRouter, shutdownMediasoupRouter } from "./src/server/ssr-m
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
 // Phase 31 Plan 04: D-X7 active-animations persistence + D-D1 align-mode round-trip.
-import { loadSsrInitialState, persistRunningAnimations, flushRunningAnimations } from "./src/server/ssr-state-restore.mjs";
+import {
+  loadSsrInitialState, persistRunningAnimations, flushRunningAnimations,
+  // Phase-31 h41: server-side persistence of the active projection grid.
+  loadActiveGrid, persistActiveGrid, flushActiveGrid,
+} from "./src/server/ssr-state-restore.mjs";
 // Phase 31 Plan 04: serverRendering config schema (5 enum settings) + live-sync.
 import {
   validateServerRenderingPatch,
@@ -1241,6 +1245,19 @@ function applyLiveMutation({
         },
       },
     };
+    // Phase-31 h41: persist the active grid to disk so the SSR Chromium
+    // tab's next boot and any newly-connecting client picks it up via
+    // live-hello + the h40 apply path. Debounced 200 ms inside
+    // persistActiveGrid; fire-and-forget here.
+    persistActiveGrid({
+      rootDir: ROOT_DIR,
+      srcXs: payload.srcXs,
+      srcYs: payload.srcYs,
+      points: payload.points,
+      profileId: payload.profileId,
+    }).catch((err) => {
+      console.error("[active-grid] persist failed:", err?.message || err);
+    });
   } else if (mutationType === "serverRendering-update") {
     // Persist the patched 5-key serverRendering block to global-defaults.json
     // via the Phase-13-style debounced writer. Snapshot patch is a no-op
@@ -4134,6 +4151,38 @@ if (process.env.SSR_RENDER_HOST === "1") {
       } catch (err) {
         console.warn("[ssr-restore] load failed:", err?.message || err);
       }
+
+      // Phase-31 h41: load the persisted active projection grid so the
+      // SSR Chromium tab — which spawns with a fresh user-data-dir and
+      // therefore an empty localStorage — picks up the operator's
+      // calibrated grid via live-hello on its first connect. The
+      // applyLiveRuntimeSnapshot path on the SSR tab handles
+      // runtime.lastAlignGridSnapshot (h40) and snaps the warp +
+      // handles + polygons in lockstep.
+      try {
+        const gridRestored = await loadActiveGrid({ rootDir: ROOT_DIR });
+        if (gridRestored && Array.isArray(gridRestored.points) && gridRestored.points.length > 0) {
+          if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
+          liveSessionState.snapshot.runtime.lastAlignGridSnapshot = {
+            srcXs: gridRestored.srcXs.slice(),
+            srcYs: gridRestored.srcYs.slice(),
+            points: gridRestored.points.map((p) => ({ row: p.row, col: p.col, x: p.x, y: p.y })),
+            profileId: gridRestored.profileId,
+            // No client originated this — it came from disk. Use a
+            // server sentinel so live-sync's originator filter won't
+            // match any real client.
+            originatorClientId: "server-disk-restore",
+            at: gridRestored.persistedAt || new Date().toISOString(),
+          };
+          console.log(
+            `[active-grid] restored profile=${gridRestored.profileId} `
+            + `srcXs=${gridRestored.srcXs.length} srcYs=${gridRestored.srcYs.length} `
+            + `points=${gridRestored.points.length}`,
+          );
+        }
+      } catch (err) {
+        console.warn("[active-grid] load failed:", err?.message || err);
+      }
       await bootMediasoupRouter();
       const signalingState = attachWebRtcSignaling(server);
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
@@ -4210,6 +4259,9 @@ if (process.env.SSR_RENDER_HOST === "1") {
     // Phase 31 Plan 04 (D-X7): flush pending debounced active-animations
     // write BEFORE tearing down the SSR host so we never lose state.
     try { await flushRunningAnimations(); } catch (err) { console.error(err); }
+    // h41: flush the active-grid pending write so the operator's
+    // last calibration survives an immediate shutdown.
+    try { await flushActiveGrid(); } catch (err) { console.error(err); }
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
     try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
@@ -4217,6 +4269,9 @@ if (process.env.SSR_RENDER_HOST === "1") {
   process.on("SIGTERM", async () => {
     console.log("[server] SIGTERM — shutting down SSR render host…");
     try { await flushRunningAnimations(); } catch (err) { console.error(err); }
+    // h41: flush the active-grid pending write so the operator's
+    // last calibration survives an immediate shutdown.
+    try { await flushActiveGrid(); } catch (err) { console.error(err); }
     try { await shutdownSsrRenderHost(); } catch (err) { console.error(err); }
     try { await shutdownMediasoupRouter(); } catch (err) { console.error(err); }
     process.exit(0);
