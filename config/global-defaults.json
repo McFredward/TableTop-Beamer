@@ -28,5 +28,12 @@
         "y": 90
       }
     }
+  },
+  "serverRendering": {
+    "encoder": "auto",
+    "qualityPreset": "balanced",
+    "resolutionPreference": "1080p",
+    "fpsTarget": 30,
+    "audioRoute": "pi-local"
   }
 }
