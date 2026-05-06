@@ -1602,6 +1602,17 @@
   // ── Align mode integration ─────────────────────────────────────────────────
 
   function onAlignModeChange(enabled) {
+    // h45 diagnostic: confirm this handler is actually firing on the
+    // user's setup. If it doesn't appear in server stdout when the
+    // operator toggles align mode, syncAlignModePanel isn't reaching
+    // us — and h44's hoist isn't enough.
+    try {
+      const isSsr = document.body?.dataset?.ssrTab === "true";
+      _piDiag(
+        "align-mode",
+        `onAlignModeChange enabled=${enabled} outputRole=${ctx?.outputRole} ssrTab=${isSsr}`,
+      );
+    } catch (_) {}
     if (!ctx || ctx.outputRole !== ctx.OUTPUT_ROLE_FINAL) return;
     // h32 (2026-05-06): clean split — SSR Chromium tab encodes the
     // warped board only (ZERO overlays in the stream), Pi /output/
