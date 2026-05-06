@@ -70,12 +70,33 @@
     // built-in `coded-effect.fallback` paths).
     const resolvedUrl = window.TT_BEAMER_RUNTIME_ASSET_MANIFEST?.resolveAssetUrlWithHash?.(path) ?? path;
     _gifProbe("fetch-start", { path, url: resolvedUrl.slice(-80) });
-    // h13: drop `cache: "force-cache"` — observed to hang concurrent fetches
-    // for distinct GIF paths inside the puppeteer-stream Chromium tab
-    // (malfunction completes, burst+fire's fetch never returns headers).
-    // The asset URL already carries `?v=<hash>` (Phase-28 B5) so cache
-    // correctness is preserved by URL hashing rather than cache mode.
-    const response = await fetch(resolvedUrl);
+    // h14 hotfix (2026-05-06): serialize concurrent GIF fetches through a
+    // global mutex. CDP-captured probes proved that malfunction.gif fetches
+    // in 265ms, but burst/fire's fetch-start fires and fetch-headers-ok
+    // NEVER does inside the puppeteer-stream Chromium tab under Xvfb. The
+    // server serves all four GIFs in <30ms (curl confirmed) — the bug is
+    // in Chromium's HTTP connection pool (concurrent same-host fetches
+    // deadlock under Xvfb). Single-flight serialization sidesteps it.
+    const _gate = window.__ttbGifFetchMutex || Promise.resolve();
+    let _release;
+    const _next = new Promise((r) => (_release = r));
+    window.__ttbGifFetchMutex = _gate.then(() => _next);
+    let response;
+    try {
+      await _gate.catch(() => undefined);
+      _gifProbe("fetch-mutex-acquired", {
+        path,
+        ms: Math.round(performance.now() - _decodeStartedAt),
+      });
+      // h14: also force fresh TCP connection per request to bypass any
+      // stale-connection state in Chromium's keep-alive pool.
+      response = await fetch(resolvedUrl, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
+    } finally {
+      _release();
+    }
     if (!response.ok) {
       throw new Error(`GIF fetch failed (${response.status})`);
     }
