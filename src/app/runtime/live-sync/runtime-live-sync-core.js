@@ -19,6 +19,8 @@
   // when a slow page load means the snapshot's drag-at is technically
   // within 5 s of "now" but predates the page mount.
   const _pageLoadAtMs = Date.now();
+  // h31 diagnostic counter for align-grid-snapshot receive logs.
+  let _gridSnapApplyLogCount = 0;
 
   // Phase-31 h29 (2026-05-06): after applying align-corner-drag, the
   // grid changes via gridState.setPoint — but neither projection
@@ -656,6 +658,13 @@
           // local mid-drag state, producing visual judder. We compare
           // the snapshot's originatorClientId against the local
           // liveSync.clientId.
+          //
+          // h31 (2026-05-06): NO alignMode gate. The grid is just data;
+          // applying it when alignMode is off is harmless (handles are
+          // hidden, mesh-warp still renders correctly into the canvas).
+          // The previous gate caused the very-first broadcast on align-
+          // mode entry to be dropped because alignMode hadn't propagated
+          // to the receiver yet.
           if (
             payload?.type === "live-session-update"
             && payload?.mutationType === "align-grid-snapshot"
@@ -665,7 +674,6 @@
               const snap = payload?.session?.snapshot?.runtime?.lastAlignGridSnapshot;
               const snapAt = snap?.at ? Date.parse(snap.at) : 0;
               const ageMs = Number.isFinite(snapAt) ? Date.now() - snapAt : Infinity;
-              const alignActive = Boolean(ctx.state?.alignMode);
               const arrivedAfterLoad = Number.isFinite(snapAt) && snapAt >= _pageLoadAtMs;
               const localClientId = ctx?.liveSync?.clientId ?? null;
               const isOriginator = !!localClientId
@@ -675,9 +683,21 @@
                 && Array.isArray(snap.srcXs) && Array.isArray(snap.srcYs)
                 && Array.isArray(snap.points)
                 && ageMs <= 5000
-                && alignActive
                 && arrivedAfterLoad
                 && !isOriginator;
+              // h31 diagnostic: log every receive (rate-limited to start
+              // + every 30th to avoid drag-flood).
+              if (!_gridSnapApplyLogCount || _gridSnapApplyLogCount < 5
+                  || _gridSnapApplyLogCount % 30 === 0) {
+                console.log(
+                  `[align-grid-snapshot] RECV `
+                  + `ageMs=${Math.round(ageMs)} `
+                  + `arrivedAfterLoad=${arrivedAfterLoad} `
+                  + `originator=${snap?.originatorClientId} local=${localClientId} `
+                  + `isOriginator=${isOriginator} accept=${accepts}`,
+                );
+              }
+              _gridSnapApplyLogCount = (_gridSnapApplyLogCount || 0) + 1;
               if (accepts) {
                 const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
                 if (gridState && typeof gridState.restoreGridSnapshot === "function") {

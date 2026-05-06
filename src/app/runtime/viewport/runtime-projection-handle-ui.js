@@ -1472,6 +1472,24 @@
     if (enabled) {
       applyTransform();
       showHandles();
+      // Phase-31 h31 (2026-05-06): SSR-tab broadcasts its grid as
+      // soon as align mode engages so Pi's possibly-stale local grid
+      // (loaded from a different localStorage context) snaps to the
+      // authoritative state shown in the streamed video. Pi DOES NOT
+      // broadcast on entry — letting Pi push its stale grid would
+      // overwrite the SSR tab's correctly-loaded profile. Pi's local
+      // drags broadcast as usual once align mode is active.
+      const isSsrTab = document.body?.dataset?.ssrTab === "true";
+      if (isSsrTab) {
+        const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+        if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
+          // Defer one tick so handles render first; then broadcast the
+          // SSR tab's authoritative grid to all clients.
+          Promise.resolve().then(() => {
+            try { gridStateApi.broadcastGridSnapshot({ force: true }); } catch (_) {}
+          });
+        }
+      }
     } else {
       hideHandles();
       // Keep transform applied — calibration persists

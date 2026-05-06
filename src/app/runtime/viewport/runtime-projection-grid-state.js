@@ -359,18 +359,29 @@
   // real time. Throttled to ~30 Hz: rAF cadence is enough for the
   // streamed encoded frames (typically 30 fps), and avoids hammering
   // /api/live/command at the native pointermove rate (~120 Hz).
-  // Only emits while align mode is active AND handles are visible
-  // (so the user is actively editing). Originator is filtered out on
-  // receive via `originatorClientId` in live-sync-core's fast-path.
+  //
+  // h31 (2026-05-06): no alignMode gate — grid-state's ctx is the
+  // projection-mapping shim's dependency bag (outputRole, getBoardId,
+  // getRenderMode, …) and does NOT carry the runtime state object,
+  // so the previous `ctx.state.alignMode` check returned undefined
+  // and the broadcast never fired. The receive side already filters
+  // by alignActive (live-sync-core's fast-path) so we don't need a
+  // local gate. Brief diagnostic log on each emit so the operator
+  // can verify the round-trip from the server stdout.
   let _broadcastScheduled = false;
   let _broadcastLastEmittedAtMs = 0;
+  let _broadcastLogCount = 0;
   const _BROADCAST_MIN_INTERVAL_MS = 33; // ~30 Hz
   function broadcastGridSnapshot({ force = false } = {}) {
     try {
-      if (!ctx) return;
-      if (!ctx.state || !ctx.state.alignMode) return;
-      const liveSync = window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
-      if (!liveSync || typeof liveSync.emitLiveMutation !== "function") return;
+      const liveSyncCore = window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
+      if (!liveSyncCore || typeof liveSyncCore.emitLiveMutation !== "function") {
+        if (_broadcastLogCount < 3) {
+          console.warn("[align-grid-snapshot] live-sync core not ready — broadcast skipped");
+          _broadcastLogCount += 1;
+        }
+        return;
+      }
       const profilePersist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
       let profileId = profilePersist?.getLoadedProfileName?.() || null;
       if (typeof profileId !== "string" || profileId.length === 0) {
@@ -399,7 +410,15 @@
           points.push({ row, col, x: pt.x, y: pt.y });
         }
       }
-      void liveSync.emitLiveMutation("align-grid-snapshot", {
+      // First N broadcasts log so operator can confirm the path works.
+      // Subsequent ones (during dense drags at ~30 Hz) stay quiet.
+      if (_broadcastLogCount < 5 || force) {
+        const corners = `(${grid.points[0]?.[0]?.x?.toFixed(2)},${grid.points[0]?.[0]?.y?.toFixed(2)})..`
+          + `(${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.x?.toFixed(2)},${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.y?.toFixed(2)})`;
+        console.log(`[align-grid-snapshot] EMIT force=${force} corners=${corners} profile=${profileId}`);
+        _broadcastLogCount += 1;
+      }
+      void liveSyncCore.emitLiveMutation("align-grid-snapshot", {
         srcXs: grid.srcXs.slice(),
         srcYs: grid.srcYs.slice(),
         points,
