@@ -139,10 +139,46 @@
     }
   }
 
+  // Phase-31 h29 (2026-05-06): Pi /output/ runs the receiver pipeline AND
+  // (via runtime-orchestration's "we do NOT return here" branch) the full
+  // render pipeline — so handle-ui draws Pi's local grid handles + lines
+  // on top of the streamed video. The streamed video already contains
+  // the SSR Chromium tab's handles + lines, drawn from the SSR tab's
+  // grid. The two grid states (separate browser localStorage contexts)
+  // routinely diverge — Pi default fresh-load == 80% inset BUT a stale
+  // LS entry takes Pi to identity (100%) while SSR tab still shows 80%.
+  // Result: user sees "lines at 100%, board at 80%" mismatch.
+  //
+  // Fix: skip geometry rendering on Pi-receiver. The receiver overlay
+  // (receiver-input-forwarder.js) handles pointer capture, the streamed
+  // video provides the visible handles + lines + warped board in one
+  // unified render — guaranteed in sync because both come from the
+  // SSR tab's single grid. The toolbar still renders locally so the
+  // user sees confirmation that align mode engaged + has Save/Load
+  // controls without waiting for stream latency.
+  //
+  // h27 attempted to skip ALL of onAlignModeChange — that broke the
+  // toolbar (rebuildAlignToolbar lives inside showHandles). h29 splits
+  // at the geometry-only boundary: createHandles + removeHandles
+  // early-exit; showHandles' rebuildAlignToolbar still runs.
+  function _isPiReceiverPage() {
+    try {
+      return document.body?.dataset?.outputRole === "final-output"
+        && document.body?.dataset?.ssrTab !== "true";
+    } catch (_) {
+      return false;
+    }
+  }
+
   function createHandles() {
     if (handlesVisible) return;
     handlesVisible = true;
     gridState.setHandlesVisible(true);
+
+    // Phase-31 h29: skip Pi-receiver geometry rendering.
+    if (_isPiReceiverPage()) {
+      return;
+    }
 
     // Grid line canvas overlay — pointer-events enabled for line dragging
     lineCanvas = document.createElement("canvas");
@@ -165,6 +201,14 @@
     if (!handlesVisible) return;
     handlesVisible = false;
     gridState.setHandlesVisible(false);
+
+    // Phase-31 h29: Pi-receiver never created the geometry — skip its
+    // teardown. Toolbar + context-menu lifecycle still apply.
+    if (_isPiReceiverPage()) {
+      dismissContextMenu();
+      removeAlignToolbar();
+      return;
+    }
 
     for (const el of handleElements) {
       el.removeEventListener("pointerdown", onHandlePointerDown);

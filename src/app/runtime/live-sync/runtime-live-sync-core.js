@@ -20,6 +20,30 @@
   // within 5 s of "now" but predates the page mount.
   const _pageLoadAtMs = Date.now();
 
+  // Phase-31 h29 (2026-05-06): after applying align-corner-drag, the
+  // grid changes via gridState.setPoint — but neither projection
+  // mapping's applyTransform (intentionally a no-op since Phase 30) nor
+  // setPoint itself trigger handle/line redraw. The local handle-drag
+  // module calls positionHandles + drawLines + positionRotateHandles
+  // after every drag step (handle-drag.js:124-127, 232-235, 317-320,
+  // 481-484, 545-548) — when a drag arrives via WS we need the same
+  // post-step redraw on this side, otherwise the streamed video shows
+  // the warped board updating but the handle/line overlay frozen at
+  // the pre-drag positions. Critical on the SSR Chromium tab: its
+  // handles + lines are encoded into the streamed frame the user sees.
+  function _redrawHandlesAfterCornerDrag() {
+    try {
+      const hUi = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      if (!hUi) return;
+      if (typeof hUi.getHandlesVisible === "function" && !hUi.getHandlesVisible()) return;
+      if (typeof hUi.positionHandles === "function") hUi.positionHandles();
+      if (typeof hUi.positionRotateHandles === "function") hUi.positionRotateHandles();
+      if (typeof hUi.drawLines === "function") hUi.drawLines();
+    } catch (err) {
+      console.warn("[align-corner-drag] handle redraw failed:", err?.message || err);
+    }
+  }
+
   function init(dependencies) {
     ctx = dependencies;
   }
@@ -480,6 +504,13 @@
                 if (proj && typeof proj.applyTransform === "function") {
                   proj.applyTransform();
                 }
+                // Phase-31 h29: refresh handles + lines so the SSR
+                // tab's encoded frame shows the corners at the new
+                // positions (without this, the streamed video shows
+                // the warp updating while the line overlay stays
+                // frozen at pre-drag positions until the next manual
+                // redraw — looks broken to the operator).
+                _redrawHandlesAfterCornerDrag();
                 // Persist on `end` phase so the new corner survives
                 // reload. `start`/`move` phases are transient.
                 if (drag.phase === "end") {
@@ -664,6 +695,13 @@
                     && x >= 0 && x <= 1 && y >= 0 && y <= 1
                   ) {
                     gridState.setPoint(corner.row, corner.col, x, y);
+                    // Phase-31 h29: also refresh the handle/line overlay
+                    // so the streamed encoded frame on the SSR tab shows
+                    // the corner under the user's drag in real time.
+                    // The fast-path reaches here ahead of the slow-path's
+                    // applyLiveRuntimeSnapshot redraw, so doing it here
+                    // ensures even high-rate drag (60 Hz) feels live.
+                    _redrawHandlesAfterCornerDrag();
                     if (drag.phase === "end") {
                       try { gridState.saveToLocalStorage?.(); } catch {}
                     }
