@@ -19,6 +19,8 @@ import {
   DISCONNECT_THRESHOLD_MS,
   MAX_RECONNECT_ATTEMPTS,
 } from "./receiver-status-ui.js";
+// Phase 31 Plan 04 (D-D1): align-mode pointer events forwarded to server.
+import { attachInputForwarder } from "./receiver-input-forwarder.js";
 
 /**
  * Returns true if the current location should boot the receiver — i.e. it's
@@ -171,11 +173,86 @@ export async function bootReceiver({ logger = console } = {}) {
 
   await tryConnect();
 
+  // ── Phase 31 Plan 04 (D-D1): align-mode pointer forwarding ─────────────
+  //
+  // Create a transparent fixed-position overlay above the <video> that
+  // captures pointer events ONLY while alignMode is active. The forwarder
+  // sends each drag as a `align-corner-drag` mutation; server validates +
+  // fanouts, the SSR Chromium tab applies the mesh-warp update, and the
+  // Pi sees it via the next streamed frame. A local SVG ghost (Pitfall 6
+  // mitigation) gives instant visual feedback.
+  let overlayEl = document.getElementById("ssr-input-overlay");
+  if (!overlayEl) {
+    overlayEl = document.createElement("div");
+    overlayEl.id = "ssr-input-overlay";
+    overlayEl.style.cssText =
+      "position:fixed;inset:0;z-index:4;touch-action:none;pointer-events:none";
+    document.body.appendChild(overlayEl);
+  }
+
+  // Local snapshot mirror — alignMode + active projection-profile id.
+  // Wave-4 minimum implementation: poll the existing /api/live/snapshot
+  // route (Phase 13) at 1Hz. Plan-06 UAT can refine this to a WS-driven
+  // mirror if latency requires it.
+  let alignMode = false;
+  let currentProfileId = null;
+  const snapshotInterval = setInterval(async () => {
+    try {
+      const r = await fetch("/api/live/snapshot");
+      if (r.ok) {
+        const j = await r.json();
+        const snap = j?.snapshot ?? j?.session?.snapshot ?? {};
+        alignMode = Boolean(snap?.alignMode);
+        currentProfileId =
+          snap?.runtime?.activeProjectionProfileId
+          ?? snap?.selectedBoard?.lastUsedProfileName
+          ?? (typeof snap?.selectedBoard === "string" ? snap.selectedBoard : null)
+          ?? null;
+        overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+      }
+    } catch {
+      /* ignore — next tick retries */
+    }
+  }, 1000);
+
+  const inputForwarder = attachInputForwarder({
+    overlayEl,
+    isAlignModeActive: () => alignMode,
+    getCurrentProfileId: () => currentProfileId,
+    hitTestVertex: ({ x, y }) => {
+      // Wave-4 minimum: 4-corner hit-test (TL/TR/BR/BL with 20% radius).
+      // The actual mesh-vertex resolution lives in the SSR tab — Pi sends
+      // the closest corner ID and lets the server's mesh-warp profile
+      // resolver pick the precise vertex.
+      const corners = [
+        { x: 0, y: 0, id: 0 },
+        { x: 1, y: 0, id: 1 },
+        { x: 1, y: 1, id: 2 },
+        { x: 0, y: 1, id: 3 },
+      ];
+      let bestId = null;
+      let bestDist = Infinity;
+      for (const c of corners) {
+        const d = Math.hypot(c.x - x, c.y - y);
+        if (d < bestDist) {
+          bestDist = d;
+          bestId = c.id;
+        }
+      }
+      return bestDist < 0.2 ? bestId : null;
+    },
+    logger,
+  });
+
   // Returned for test / debug introspection. The bootstrap is a one-shot
   // top-level coordinator on the page so most callers ignore the return.
   return {
     stop() {
       if (monitorInterval) clearInterval(monitorInterval);
+      if (snapshotInterval) clearInterval(snapshotInterval);
+      try {
+        inputForwarder.teardown();
+      } catch {}
       try {
         receiver?.stop();
       } catch {}
