@@ -28,13 +28,54 @@ ideal 24-30 fps auf /output/.
 
 **Explizit nicht im Scope:**
 - Neue Animations-Typen oder neue Render-Modes.
-- UX-Redesign von Dashboard/Settings.
+- UX-Redesign von Dashboard/Settings (aber: kleine Erweiterung der
+  bestehenden `System & Performance` Subtab um SSR-Einstellungen — siehe
+  unten "Publishability & Hardware-Agnostic Defaults").
 - Schema-Migrationen (Phase 29 v4 bleibt).
 - Cluster / Multi-Server-Render (deferred falls Single-Server reicht).
 - TURN-Server / Internet-Routed-Streaming (LAN-only ist die Annahme).
 - Backwards-Compat zu Phase-30-Local-Render-Pfad als laufende
   Code-Pfad-Variante. (Phase-30-Code bleibt im Repo als Defense-in-Depth,
   aber wird in Phase 31 nicht aktiv aufgerufen.)
+
+**Publishability & Hardware-Agnostic Defaults (User-Constraint, 2026-05-06):**
+Das Projekt wird **publiziert und von anderen Usern genutzt**. Die Phase-31-
+Implementierung darf NICHT auf die spezifische Hardware des Entwicklungs-
+Servers (Lenovo Mini PC, Intel Raptor Lake-P iGPU) hartkodiert werden.
+Stattdessen:
+
+1. **Auto-Detection beim Server-Start.** Detect-Logik prüft beim Bring-up
+   was verfügbar ist (NVENC / VAAPI / VideoToolbox / x264 software) und
+   wählt automatisch den besten verfügbaren Encoder. Detection-Ergebnis
+   wird geloggt und ist im UI sichtbar.
+
+2. **System-Settings-Panel-Erweiterung.** Die bestehende `System &
+   Performance` Subtab (Phase 11 P1) wird um eine `Server-side Rendering`-
+   Sektion erweitert mit:
+   - Encoder-Wahl: `auto / nvenc / vaapi / videotoolbox / x264-software`
+   - Stream-Quality-Preset: `low-latency / balanced / high-quality`
+     (mappt auf konkrete bitrate / framerate / keyframe-interval Werte)
+   - Stream-Resolution-Preference: `auto / 1080p / 720p`
+     (falls user fixe Resolution will statt adaptiv)
+   - Stream-FPS-Target: `30 / 24 / 15`
+   - Audio-Route: `in-stream (default) / pi-local-fallback`
+     (Fallback falls D-D2 auf Server-Hardware nicht stabil läuft)
+
+3. **Persistenz der Settings.** Diese Settings leben in
+   `config/global-defaults.json` unter neuem `serverRendering`-Key,
+   server-authoritativ (Phase 13 Pattern), live-syncable.
+
+4. **Defaults orientieren sich an detection-Result.** Bei NVENC/VAAPI
+   verfügbar: Default-Preset `balanced`. Bei x264-software-only und
+   schwächerer CPU: Default `low-latency` (= 720p, 30fps, niedriger
+   Bitrate, ultrafast preset).
+
+5. **Detection-Fallback-Reihenfolge.** Default-Auswahl wenn `auto`:
+   `nvenc > vaapi > videotoolbox > x264-software`. Letzteres muss IMMER
+   funktionieren.
+
+Dieser Punkt erweitert den Phase-31-Scope. Plan muss entsprechend einen
+Hardware-Detection + Settings-UI-Pfad mit-spezifizieren.
 
 </domain>
 
