@@ -459,6 +459,66 @@
       state.alignMode = runtime.alignMode;
     }
 
+    // Phase-31 h40 (2026-05-06): apply runtime.lastAlignGridSnapshot from
+    // the snapshot envelope. This is the server-recorded latest broadcast
+    // grid (from any client). On a fresh client connect / live-hello,
+    // we receive the latest known grid and snap to it — even if the
+    // broadcast originally fanout'd while we were offline. Without this,
+    // a SSR Chromium tab that boots AFTER Pi has loaded its profile
+    // misses Pi's broadcast (WS not yet connected) and renders the
+    // streamed warped board against its own default grid, while Pi
+    // shows lines at the profile's grid → user-reported entry-time
+    // desync where lines + warped board don't match. Idempotent: the
+    // _lastAppliedAlignGridSnapshotKey gate prevents repeated apply
+    // of the same snapshot during regular polls.
+    if (
+      ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+      && runtime.lastAlignGridSnapshot
+      && typeof runtime.lastAlignGridSnapshot === "object"
+    ) {
+      try {
+        const snap = runtime.lastAlignGridSnapshot;
+        const snapAt = snap.at ? Date.parse(snap.at) : 0;
+        const snapKey = `${snap.at || ""}:${snap.profileId || ""}:${snap.points?.length || 0}`;
+        const localClientId = ctx?.liveSync?.clientId ?? null;
+        const isOriginator = !!localClientId && snap.originatorClientId === localClientId;
+        const acceptable =
+          Array.isArray(snap.srcXs) && Array.isArray(snap.srcYs)
+          && Array.isArray(snap.points)
+          && Number.isFinite(snapAt)
+          && !isOriginator;
+        if (acceptable && state._lastAppliedAlignGridSnapshotKey !== snapKey) {
+          state._lastAppliedAlignGridSnapshotKey = snapKey;
+          const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+          if (gridState && typeof gridState.restoreGridSnapshot === "function") {
+            const points2D = [];
+            for (let r = 0; r < snap.srcYs.length; r++) {
+              points2D[r] = [];
+              for (let c = 0; c < snap.srcXs.length; c++) {
+                points2D[r][c] = { x: snap.srcXs[c], y: snap.srcYs[r] };
+              }
+            }
+            for (const pt of snap.points) {
+              if (
+                Number.isInteger(pt.row) && Number.isInteger(pt.col)
+                && points2D[pt.row] && points2D[pt.row][pt.col]
+              ) {
+                points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+              }
+            }
+            gridState.restoreGridSnapshot({
+              srcXs: snap.srcXs.slice(),
+              srcYs: snap.srcYs.slice(),
+              points: points2D,
+            });
+            _redrawHandlesAfterCornerDrag();
+          }
+        }
+      } catch (err) {
+        console.warn("[align-grid-snapshot] snapshot apply failed:", err?.message || err);
+      }
+    }
+
     // Phase-31 h18 (2026-05-06): apply align-corner-drag from the live
     // mutation envelope. The Pi receiver forwards pointer events as
     // align-corner-drag mutations; server records them on
