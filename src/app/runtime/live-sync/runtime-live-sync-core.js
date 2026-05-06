@@ -173,6 +173,36 @@
             err?.message || err,
           );
         }
+        // Phase-31 h44 (2026-05-06): eager alignMode apply, same shape
+        // as the h43 eager grid apply. The 200-line normalizer trap
+        // inside applyLiveRuntimeSnapshot CAN throw after state.alignMode
+        // is set but BEFORE syncAlignModePanel runs — leaving the body
+        // class `.align-mode-active` un-toggled, so renderRoomOverlay
+        // never fires (overlay starts empty after replaceChildren and
+        // CSS keeps display:none). Visible to the user as: align-mode
+        // toggle on → polygons don't appear; align-mode toggle off →
+        // polygons that DID appear (via drag re-renders) stay visible.
+        // Eagerly applying alignMode + syncAlignModePanel guarantees
+        // the class toggle + renderRoomOverlay regardless of whether
+        // the slow-path completes.
+        try {
+          const pollSnap = envelope.snapshot;
+          const pollRuntime = pollSnap?.runtime;
+          let nextAlign = null;
+          if (typeof pollSnap?.alignMode === "boolean") {
+            nextAlign = pollSnap.alignMode;
+          } else if (typeof pollRuntime?.alignMode === "boolean") {
+            nextAlign = pollRuntime.alignMode;
+          }
+          if (nextAlign !== null && ctx.state) {
+            ctx.state.alignMode = nextAlign;
+            if (typeof ctx.syncAlignModePanel === "function") {
+              ctx.syncAlignModePanel();
+            }
+          }
+        } catch (err) {
+          console.warn("[align-toggle] poll eager-apply failed:", err?.message || err);
+        }
         const applied = applyLiveRuntimeSnapshot(envelope.snapshot, {
           version: incomingVersion,
           mutationEnvelope: null,
@@ -323,6 +353,39 @@
     const runtime = snapshot?.runtime;
     if (!runtime || typeof runtime !== "object") {
       return false;
+    }
+    // Phase-31 h44 (2026-05-06): hoist alignMode + syncAlignModePanel to
+    // the TOP of applyLiveRuntimeSnapshot, BEFORE the throw-prone 200-line
+    // normalizer block. Same root cause as h43's eager grid apply: any
+    // throw in the normalizers (polygons, FX, runningAnimations, audio)
+    // is silently swallowed by the outer message-handler try/catch, so
+    // syncAlignModePanel down the line never runs — the body class
+    // `.align-mode-active` never toggles, renderRoomOverlay never fires,
+    // and align-mode UI looks broken on /output/. Three user-visible
+    // symptoms collapse to this single bug: align-toggle ON without
+    // polygons appearing, polygons appearing only after the first
+    // transformation (the drag's broadcast fires renderRoomOverlay via
+    // h37), and align-toggle OFF leaving polygons stuck visible. The
+    // hoisted block is wrapped in its own try/catch so any throw here
+    // doesn't block the rest of the function. syncAlignModePanel is
+    // idempotent (its `_lastAlignModeState` gate fires onAlignModeChanged
+    // only on real transitions), so a no-op call when state already
+    // matched is harmless.
+    try {
+      let nextAlign = null;
+      if (typeof snapshot?.alignMode === "boolean") {
+        nextAlign = snapshot.alignMode;
+      } else if (typeof runtime.alignMode === "boolean") {
+        nextAlign = runtime.alignMode;
+      }
+      if (nextAlign !== null) {
+        state.alignMode = nextAlign;
+        if (typeof ctx.syncAlignModePanel === "function") {
+          ctx.syncAlignModePanel();
+        }
+      }
+    } catch (err) {
+      console.warn("[align-toggle] hoisted apply failed:", err?.message || err);
     }
     const sharedOutsideFxByBoard =
       snapshot?.outsideFxByBoard && typeof snapshot.outsideFxByBoard === "object"
@@ -808,6 +871,30 @@
                 "[align-grid-snapshot] live-hello eager-apply failed:",
                 err?.message || err,
               );
+            }
+            // Phase-31 h44: eager alignMode apply (mirrors poll path).
+            // See poll handler for rationale — silent throws in the
+            // 200-line normalizer trap can bypass state.alignMode +
+            // syncAlignModePanel handling and leave the body class
+            // un-toggled, so renderRoomOverlay never runs and the
+            // align-mode UI looks broken from /output/.
+            try {
+              const helloSnap = payload?.session?.snapshot;
+              const helloRuntime = helloSnap?.runtime;
+              let nextAlign = null;
+              if (typeof helloSnap?.alignMode === "boolean") {
+                nextAlign = helloSnap.alignMode;
+              } else if (typeof helloRuntime?.alignMode === "boolean") {
+                nextAlign = helloRuntime.alignMode;
+              }
+              if (nextAlign !== null && ctx.state) {
+                ctx.state.alignMode = nextAlign;
+                if (typeof ctx.syncAlignModePanel === "function") {
+                  ctx.syncAlignModePanel();
+                }
+              }
+            } catch (err) {
+              console.warn("[align-toggle] live-hello eager-apply failed:", err?.message || err);
             }
             if (Number.isFinite(payload?.session?.version)) {
               const helloVersion = Number(payload.session.version);
