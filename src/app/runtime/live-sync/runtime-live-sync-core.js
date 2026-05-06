@@ -590,6 +590,51 @@
             }
             ctx.scheduleNextLiveSnapshotPoll(0);
           }
+          // Phase-31 h20 (2026-05-06): direct fast-path for align-corner-drag.
+          // The applyLiveRuntimeSnapshot gate has version-tracking and
+          // suppression guards that can drop a single drag mid-stream
+          // (the pi sends 60+ drags per second; one suppression skip and
+          // the user sees no movement). Bypass those gates entirely:
+          // align-corner-drag is fire-and-forget and idempotent — applying
+          // a stale one is harmless because the next one overwrites.
+          if (
+            payload?.type === "live-session-update"
+            && payload?.mutationType === "align-corner-drag"
+            && ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+          ) {
+            try {
+              const drag = payload?.session?.snapshot?.runtime?.lastAlignCornerDrag;
+              if (drag && typeof drag === "object") {
+                const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+                const grid = gridState?.getGrid?.();
+                if (grid && Array.isArray(grid.srcXs) && Array.isArray(grid.srcYs)) {
+                  const lastRow = Math.max(0, grid.srcYs.length - 1);
+                  const lastCol = Math.max(0, grid.srcXs.length - 1);
+                  const cornerByVertex = [
+                    { row: 0, col: 0 },
+                    { row: 0, col: lastCol },
+                    { row: lastRow, col: lastCol },
+                    { row: lastRow, col: 0 },
+                  ];
+                  const corner = cornerByVertex[drag.vertexId];
+                  const x = Number(drag.normalizedX);
+                  const y = Number(drag.normalizedY);
+                  if (
+                    corner
+                    && Number.isFinite(x) && Number.isFinite(y)
+                    && x >= 0 && x <= 1 && y >= 0 && y <= 1
+                  ) {
+                    gridState.setPoint(corner.row, corner.col, x, y);
+                    if (drag.phase === "end") {
+                      try { gridState.saveToLocalStorage?.(); } catch {}
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn("[align-corner-drag fast-path] apply failed:", err?.message || err);
+            }
+          }
           if (payload?.type === "state-dirty" || payload?.wake === true) {
             liveSync.dirtyHintUntil = Date.now() + 1500;
             ctx.scheduleNextLiveSnapshotPoll(0);

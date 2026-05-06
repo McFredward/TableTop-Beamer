@@ -48,29 +48,24 @@
   }
 
   function buildNewProfileDefaultGrid() {
-    // B6 (Phase 27, hotfix h1): 80%-centered 3×3 grid — outer corners
-    // displaced to 10%/90% so the GL mesh-warp actively shrinks the board
-    // content into 80% of the screen. The original h0 implementation set
-    // BOTH srcXs/srcYs and points to [0.10, 0.50, 0.90], which made
-    // hasGridDisplacements() return false (points equal srcXs) — so the
-    // GL warp was bypassed and the underlying fx-canvas continued to
-    // render at 100% of the screen, with the alignment lines drawn at
-    // 80% on top. Result: parts of the board fell outside the outermost
-    // alignment lines.
+    // Phase-31 h20 (2026-05-06): IDENTITY DEFAULT (full-frame, no shrink).
+    // Phase 27's 10%/90% inset was designed to give the user a "shrink-
+    // first, then expand to fit" workflow but it produced the
+    // user-reported "board overflows the outer lines" issue: the GL warp
+    // shrinks the source into the 80% destination box, but the
+    // underlying fx-canvas still draws at 100%, so the outer 20% leaked
+    // through where the GL canvas had transparent margins.
     //
-    // The fix: srcXs/srcYs cover the full source canvas (0..1), and the
-    // points are pre-displaced to 0.10..0.90 so the GL warp samples the
-    // entire board content and squishes it into the 80% destination box.
-    // hasGridDisplacements() now returns true (point.x !== srcXs[col]),
-    // so the GL warp activates on a fresh-default grid.
-    //
-    // D-07: still applies to FRESH profiles only; existing saved profiles
-    // load verbatim via applyGridPayload(), which replaces both srcXs/srcYs
-    // AND points wholesale.
+    // h20 ships the identity default: srcXs/srcYs/points all at 0..1.
+    // The user sees handles AT the corners of the captured frame,
+    // matching the board extent. Drag-to-align then transforms the
+    // board within the bounds the user has visually defined. New
+    // profiles get this; existing saved profiles continue to load
+    // verbatim via applyGridPayload().
     const srcXs = [0.0, 0.5, 1.0];
     const srcYs = [0.0, 0.5, 1.0];
-    const dstXs = [0.10, 0.50, 0.90];
-    const dstYs = [0.10, 0.50, 0.90];
+    const dstXs = [0.0, 0.5, 1.0];
+    const dstYs = [0.0, 0.5, 1.0];
     const points = [];
     for (let row = 0; row < dstYs.length; row++) {
       points[row] = [];

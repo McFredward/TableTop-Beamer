@@ -268,6 +268,10 @@
       if (glCanvasEl && glCanvasEl.style.display !== "none") {
         glCanvasEl.style.display = "none";
       }
+      // h20: 2D path draws onto fx-canvas — make sure it's visible.
+      if (canvas && canvas.style && canvas.style.visibility === "hidden") {
+        canvas.style.visibility = "";
+      }
       if (!hasGridDisplacements()) return;
       postDrawMeshWarp2D(canvas, canvasCtx);
       return;
@@ -278,6 +282,10 @@
       // the GL overlay so it can't display a stale frame.
       if (glCanvasEl && glCanvasEl.style.display !== "none") {
         glCanvasEl.style.display = "none";
+      }
+      // h20: identity grid, no warp — fx-canvas IS the visible surface.
+      if (canvas && canvas.style && canvas.style.visibility === "hidden") {
+        canvas.style.visibility = "";
       }
       return;
     }
@@ -291,12 +299,27 @@
       if (glCanvasEl && glCanvasEl.style.display !== "block") {
         glCanvasEl.style.display = "block";
       }
+      // Phase-31 h20 (2026-05-06): hide the underlying fx-canvas while
+      // the GL warp is active. Without this, when the user has shrunk
+      // the destination box (e.g. 80% inset), the GL canvas's
+      // transparent border lets the full-size fx-canvas board image
+      // leak through — the user sees board content OUTSIDE their
+      // alignment handles. Hiding fx-canvas makes the GL output the
+      // single visible surface.
+      if (canvas && canvas.style && canvas.style.visibility !== "hidden") {
+        canvas.style.visibility = "hidden";
+      }
       return;
     }
     // GL failed — fall back to 2D warp on fx-canvas. Hide the GL
     // overlay so its (possibly stale) content can't show through.
     if (glCanvasEl && glCanvasEl.style.display !== "none") {
       glCanvasEl.style.display = "none";
+    }
+    // h20: restore fx-canvas visibility for the 2D fallback path
+    // (which draws ONTO fx-canvas).
+    if (canvas && canvas.style && canvas.style.visibility === "hidden") {
+      canvas.style.visibility = "";
     }
     // 2D mesh-warp body lives in postDrawMeshWarp2D (W3.2-C3).
     postDrawMeshWarp2D(canvas, canvasCtx);
