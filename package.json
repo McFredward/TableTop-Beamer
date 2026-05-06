@@ -1,0 +1,21 @@
+{
+  "name": "tt-beamer",
+  "version": "0.31.0-wave0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "wave0:env": "bash scripts/wave0-environment-check.sh",
+    "wave0:audio": "node --test test/ssr-audio-capture-smoke.test.mjs"
+  },
+  "dependencies": {
+    "mediasoup": "^3.14.0",
+    "puppeteer": "^23.0.0",
+    "puppeteer-stream": "^3.0.22"
+  },
+  "devDependencies": {}
+}

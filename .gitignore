@@ -10,6 +10,9 @@ Thumbs.db
 *.log
 logs/*.jsonl
 
+# Node / npm
+node_modules/
+
 # Local environment
 .env
 .env.*
