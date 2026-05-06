@@ -179,6 +179,8 @@ export function createStatusUi({
     const ssrRes = ssrW > 0 && ssrH > 0 ? `${ssrW}x${ssrH}` : "?";
     const ssrDecoder = ssrStats?.lastDecodeVia || "?";
     const ssrRenderer = ssrStats?.webglRenderer || "?";
+    // h18: effective render mode (gl / 2d / gl→2d (loss xN) / auto / …)
+    const renderMode = ssrStats?.renderMode || "?";
     const board = ssrStats?.boardId || "?";
     const activeAnims = typeof ssrStats?.activeAnimations === "number"
       ? ssrStats.activeAnimations : "?";
@@ -207,7 +209,8 @@ export function createStatusUi({
     const lines = [
       `STREAM  ${fmtFps(receivedFps)} · ${streamRes} · ${codec || "?"} · drops=${dropFracPart} · loss=${pktLossPctPart}`,
       `RTC     rtt=${rttMs != null ? rttMs + "ms" : "?"} · jitter=${jitterMs != null ? jitterMs + "ms" : "?"} · avail=${fmtBitrate(availBitrate)} · dec=${decoderImpl}`,
-      `SSR     ${ssrFpsStr} · ${ssrRes} · via=${ssrDecoder} · gpu=${ssrRenderer}`,
+      `SSR     ${ssrFpsStr} · ${ssrRes} · mode=${renderMode} · via=${ssrDecoder}`,
+      `GPU     ${ssrRenderer}`,
       `ENCODE  ${enc}/${encSrc} · ${preset} · target=${fmtBitrate(targetBps)} · ${fpsTarget != null ? fpsTarget + "fps" : "?"}`,
       `PIPE    pc=${pcConnectionState ?? "?"} · gifs=${gifsStr} · attempts=${reconnectAttempts ?? 0}`,
       `BOARD   ${board} · anims=${activeAnims} · ${alignMode} · frame=${fmtMs(lastFrameAgeMs)} · hb=${fmtMs(heartbeatAgeMs)}`,

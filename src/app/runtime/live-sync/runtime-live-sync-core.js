@@ -409,6 +409,71 @@
       state.alignMode = runtime.alignMode;
     }
 
+    // Phase-31 h18 (2026-05-06): apply align-corner-drag from the live
+    // mutation envelope. The Pi receiver forwards pointer events as
+    // align-corner-drag mutations; server records them on
+    // runtime.lastAlignCornerDrag and broadcasts. The SSR tab is the
+    // ONLY renderer that needs to act — when alignMode is on AND the
+    // drag carries a fresher timestamp than what we last applied, we
+    // map vertexId 0/1/2/3 to the four grid corners and update the
+    // mesh-warp profile. The result flows back to the Pi via the next
+    // streamed frame, completing the round-trip the user expects to
+    // feel like local rendering.
+    if (
+      ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+      && runtime.lastAlignCornerDrag
+      && typeof runtime.lastAlignCornerDrag === "object"
+    ) {
+      try {
+        const drag = runtime.lastAlignCornerDrag;
+        const dragKey = `${drag.at || ""}:${drag.vertexId}:${drag.phase}`;
+        if (state._lastAppliedAlignCornerDragKey !== dragKey) {
+          state._lastAppliedAlignCornerDragKey = dragKey;
+          const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+          if (gridState) {
+            const grid = gridState.getGrid?.();
+            if (grid && Array.isArray(grid.srcXs) && Array.isArray(grid.srcYs)) {
+              const lastRow = Math.max(0, grid.srcYs.length - 1);
+              const lastCol = Math.max(0, grid.srcXs.length - 1);
+              // Vertex IDs match receiver-bootstrap.js:hitTestVertex —
+              // 0=TL, 1=TR, 2=BR, 3=BL.
+              const cornerByVertex = [
+                { row: 0, col: 0 },
+                { row: 0, col: lastCol },
+                { row: lastRow, col: lastCol },
+                { row: lastRow, col: 0 },
+              ];
+              const corner = cornerByVertex[drag.vertexId];
+              const x = Number(drag.normalizedX);
+              const y = Number(drag.normalizedY);
+              if (
+                corner
+                && Number.isFinite(x) && Number.isFinite(y)
+                && x >= 0 && x <= 1 && y >= 0 && y <= 1
+              ) {
+                gridState.setPoint(corner.row, corner.col, x, y);
+                // applyTransform is the existing hot-path redraw —
+                // grid-state owns it, so trigger via the projection
+                // mapping module's exposed API.
+                const proj = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
+                if (proj && typeof proj.applyTransform === "function") {
+                  proj.applyTransform();
+                }
+                // Persist on `end` phase so the new corner survives
+                // reload. `start`/`move` phases are transient.
+                if (drag.phase === "end") {
+                  try { gridState.saveToLocalStorage?.(); } catch {}
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // never let a malformed drag break live-sync apply
+        console.warn("[align-corner-drag] apply failed:", err?.message || err);
+      }
+    }
+
     if (mutationType === "clear-all" || mutationType === "stop-animation") {
       ctx.hardStopRuntimeEffects({ clearVisuals: true });
     }

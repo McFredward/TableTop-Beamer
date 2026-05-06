@@ -1138,21 +1138,42 @@ function applyLiveMutation({
         const current = await readServerRenderingFullConfig({ rootDir: ROOT_DIR });
         const next = applyServerRenderingPatch(current, payload);
         await scheduleServerRenderingWrite({ rootDir: ROOT_DIR, fullConfig: next });
-        if (
+        // h18 (2026-05-06): restart the SSR host on ANY quality-relevant
+        // key change (not just `encoder`). resolveEncoderConfig reads
+        // qualityPreset, fpsTarget, resolutionPreference too — so user
+        // changing preset in the dashboard MUST restart for the change
+        // to be reflected in the encoder, the diagnostic overlay's
+        // serverInfo, AND the streamed output. Without this, the user
+        // sees "balanced" forever in the chip (h17 reported issue).
+        const restartKeys = ["encoder", "qualityPreset", "fpsTarget", "resolutionPreference"];
+        const needsRestart =
           process.env.SSR_RENDER_HOST === "1"
           && payload && typeof payload === "object"
-          && Object.prototype.hasOwnProperty.call(payload, "encoder")
-        ) {
-          // Encoder restart: shutdownSsrRenderHost → bootSsrRenderHost
-          // The lifecycle module re-reads config/global-defaults.json at
-          // boot via resolveEncoderConfig, so it picks up the new encoder.
-          console.log(`[serverRendering-update] encoder=${payload.encoder} → restarting SSR render host…`);
+          && restartKeys.some((k) => Object.prototype.hasOwnProperty.call(payload, k));
+        if (needsRestart) {
+          const changedKeys = restartKeys.filter((k) =>
+            Object.prototype.hasOwnProperty.call(payload, k),
+          );
+          console.log(
+            `[serverRendering-update] keys=${changedKeys.join(",")} → restarting SSR render host…`,
+          );
           try { await shutdownSsrRenderHost(); } catch (err) {
             console.warn("[serverRendering-update] shutdown error:", err?.message || err);
           }
           try {
             const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
             setActiveSsrRenderHost(ssrHost);
+            // h18: re-publish serverInfo from the new host so the
+            // diagnostic overlay reflects the new preset/encoder/bitrate
+            // within ~250ms of the restart completing.
+            try {
+              await globalThis.__ttbRefreshServerInfo?.(ssrHost);
+            } catch (err) {
+              console.warn(
+                "[serverRendering-update] serverInfo refresh failed:",
+                err?.message || err,
+              );
+            }
           } catch (err) {
             console.warn("[serverRendering-update] reboot error:", err?.message || err);
           }
@@ -3989,11 +4010,13 @@ if (process.env.SSR_RENDER_HOST === "1") {
       // h17: poll the SSR host status until encoderConfig is resolved
       // (start() sets it synchronously after spawn). Fire-and-forget —
       // the rest of server boot doesn't depend on this.
-      void (async () => {
+      // h18: extracted into a reusable helper so the
+      // serverRendering-update path can re-publish after a host restart.
+      async function refreshServerInfoFromActiveHost(host = ssrHost) {
         const startedAt = Date.now();
         const TIMEOUT_MS = 15000;
         while (Date.now() - startedAt < TIMEOUT_MS) {
-          const status = ssrHost.getStatus?.();
+          const status = host?.getStatus?.();
           if (status?.encoderConfig) {
             const enc = status.encoderConfig;
             try {
@@ -4026,7 +4049,15 @@ if (process.env.SSR_RENDER_HOST === "1") {
           await new Promise((r) => setTimeout(r, 250));
         }
         console.warn("[server] encoder-config snapshot timed out — diagnostic overlay will lack encoder info");
-      })();
+      }
+      // h18: kick off the initial poll. Fire-and-forget — boot doesn't
+      // wait. We expose the helper on globalThis so the
+      // serverRendering-update mutation handler in applyMutation()
+      // can re-call it after a host restart, refreshing the consumer's
+      // diagnostic overlay's serverInfo with the new preset/bitrate
+      // immediately instead of leaving stale h17 boot-time data.
+      globalThis.__ttbRefreshServerInfo = refreshServerInfoFromActiveHost;
+      void refreshServerInfoFromActiveHost();
     } catch (err) {
       console.error(`[server] SSR boot failed: ${err?.message ?? "unknown"}`);
       process.exit(1);

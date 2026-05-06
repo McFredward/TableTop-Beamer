@@ -142,20 +142,28 @@
         // attempt allocates a fresh framebuffer, deepening the GPU
         // memory pressure that triggered the loss in the first place.
         _glContextLossCount += 1;
-        // Phase 30 B2 h10: surface fallback transitions to the user
-        // via toast so they can see WHY the visible mode no longer
-        // matches the configured value. Fire two distinct toasts:
-        //   - first loss → "GL context lost — auto-recovering"
-        //   - permanent disable → "GL permanently off; using 2D"
-        // Each fires at most once per page load (dedup flags).
-        if (!_toastFiredFirstLoss) {
+        // Phase-31 h18 (2026-05-06): on the SSR Chromium tab the
+        // permanent-disable threshold does NOT fire — context losses
+        // there are recoverable (the renderer is iGPU/llvmpipe/SwiftShader,
+        // never Pi VC4). The 2D fallback was kept for legacy Pi-direct
+        // rendering only; SSR makes Pi-direct obsolete, so on SSR-tab we
+        // keep retrying GL forever. The user explicitly asked for this:
+        // "2d wurde nur belassen für schwache renderer hardware wie der
+        // pi, was sich durch SSR erledigt haben sollte".
+        const __envForGl =
+          (typeof window !== "undefined"
+            && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) || "pi";
+        const isSsrTab = __envForGl === "server-ssr";
+        // Toast: only meaningful on Pi where the 2D fallback is the
+        // visible result. On SSR we just log the recovery silently.
+        if (!_toastFiredFirstLoss && !isSsrTab) {
           _toastFiredFirstLoss = true;
           _showLifecycleToast(
             `WebGL context lost (${_glContextLossCount}/${_GL_MAX_CONTEXT_LOSSES}) — recovering`,
             "warning",
           );
         }
-        if (_glContextLossCount >= _GL_MAX_CONTEXT_LOSSES) {
+        if (!isSsrTab && _glContextLossCount >= _GL_MAX_CONTEXT_LOSSES) {
           _glPermanentlyDisabled = true;
           if (!_toastFiredPermanentDisable) {
             _toastFiredPermanentDisable = true;
@@ -172,6 +180,14 @@
               "context losses; using 2D fallback",
             );
           }
+        } else if (isSsrTab && typeof console !== "undefined" && console.warn) {
+          // h18: log on SSR — no permanent-disable, just retry next frame.
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[h18] WebGL context lost on SSR-tab (count=",
+            _glContextLossCount,
+            ") — keeping GL, will re-init next frame",
+          );
         }
       }, false);
       // Phase 30 B1 h7: webglcontextrestored handler. Without this, when

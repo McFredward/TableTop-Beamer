@@ -346,6 +346,10 @@ export function bootSsrRenderHost({
       ...(hasIgpu ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
       ...(status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
       ...(status.encoderConfig?.encoder === "videotoolbox" ? ["PlatformHEVCEncoderSupport"] : []),
+      // h18: tab-capture fast-path lifts the implicit 30 fps cap on
+      // getDisplayMedia tab capture. Pairs with --max-gum-fps=60 below
+      // and the publisher's frameRate: { ideal: 60 } constraint.
+      "TabCaptureFastPath",
     ];
 
     return launcher({
@@ -374,6 +378,12 @@ export function bootSsrRenderHost({
         // ~20-30 Hz under Xvfb without these.
         "--disable-gpu-vsync",
         "--disable-frame-rate-limit",
+        // h18 (2026-05-06): explicit getUserMedia / getDisplayMedia
+        // frame-rate cap. Chromium's MediaStreamVideoSource defaults to
+        // 30 fps even when the constraint says 60 — this flag lifts the
+        // hard cap so the constraint can take effect. (TabCaptureFastPath
+        // is in the merged --enable-features below.)
+        "--max-gum-fps=60",
         `--app=${ssrUrl}`,
         `--window-size=${viewport.width},${viewport.height}`,
         "--window-position=0,0",
@@ -551,7 +561,15 @@ export function bootSsrRenderHost({
       // without mediasoup being available.
       if (process.env.SSR_PUBLISH === "1") {
         try {
-          const producers = await injectInPagePublisher(page, { logger });
+          // h18: thread encoder config to the publisher so it can pick a
+          // single-layer encoding when running on x264-software (3-layer
+          // simulcast triples encode CPU on a software encoder; for
+          // hardware encoders the cost is amortized in fixed-function
+          // silicon and simulcast is fine).
+          const producers = await injectInPagePublisher(page, {
+            logger,
+            encoderConfig: status.encoderConfig,
+          });
           status.producerIds = producers;
         } catch (err) {
           logger.error(`[ssr-host] in-page publisher failed: ${err.message}`);

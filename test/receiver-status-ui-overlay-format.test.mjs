@@ -29,6 +29,7 @@ function fixture() {
       gifsTotal: 4,
       webglRenderer: "Mesa Intel(R) UHD Graphics",
       lastDecodeVia: "parser",
+      renderMode: "gl",
     },
     serverInfo: {
       encoder: "x264-software",
@@ -63,16 +64,17 @@ function fixture() {
   };
 }
 
-test("formatter: emits 6-line panel covering STREAM/RTC/SSR/ENCODE/PIPE/BOARD", () => {
+test("formatter: emits 7-line panel covering STREAM/RTC/SSR/GPU/ENCODE/PIPE/BOARD", () => {
   const out = formatDiagnosticOverlay(fixture());
   const lines = out.split("\n");
-  assert.equal(lines.length, 6, "expected exactly 6 lines");
+  assert.equal(lines.length, 7, "expected exactly 7 lines");
   assert.match(lines[0], /^STREAM\s/);
   assert.match(lines[1], /^RTC\s/);
   assert.match(lines[2], /^SSR\s/);
-  assert.match(lines[3], /^ENCODE\s/);
-  assert.match(lines[4], /^PIPE\s/);
-  assert.match(lines[5], /^BOARD\s/);
+  assert.match(lines[3], /^GPU\s/);
+  assert.match(lines[4], /^ENCODE\s/);
+  assert.match(lines[5], /^PIPE\s/);
+  assert.match(lines[6], /^BOARD\s/);
 });
 
 test("formatter: STREAM line shows fps, resolution, codec, drops, loss", () => {
@@ -94,40 +96,62 @@ test("formatter: RTC line shows rtt, jitter, available bandwidth, decoder impl",
   assert.match(lines[1], /dec=FFmpeg/);
 });
 
-test("formatter: SSR line shows fps, output res, decoder method, GPU renderer", () => {
+test("formatter: SSR line shows fps, output res, render mode, decoder method", () => {
   const out = formatDiagnosticOverlay(fixture());
   const lines = out.split("\n");
   assert.match(lines[2], /30fps/);
   assert.match(lines[2], /1920x1080/);
+  assert.match(lines[2], /mode=/, "render mode must be in SSR line");
   assert.match(lines[2], /via=parser/);
-  assert.match(lines[2], /Mesa Intel/, "WebGL renderer text must be visible");
+});
+
+test("formatter: GPU line shows the WebGL renderer", () => {
+  const out = formatDiagnosticOverlay(fixture());
+  const lines = out.split("\n");
+  assert.match(lines[3], /Mesa Intel/, "WebGL renderer text must be on the GPU line");
 });
 
 test("formatter: ENCODE line shows encoder, preset, target bitrate, fps target", () => {
   const out = formatDiagnosticOverlay(fixture());
   const lines = out.split("\n");
-  assert.match(lines[3], /x264-software\/auto/);
-  assert.match(lines[3], /low-latency/);
-  assert.match(lines[3], /target=4\.0Mbps/);
-  assert.match(lines[3], /30fps/);
+  assert.match(lines[4], /x264-software\/auto/);
+  assert.match(lines[4], /low-latency/);
+  assert.match(lines[4], /target=4\.0Mbps/);
+  assert.match(lines[4], /30fps/);
 });
 
 test("formatter: PIPE line shows pc state, gif counts, reconnect attempts", () => {
   const out = formatDiagnosticOverlay(fixture());
   const lines = out.split("\n");
-  assert.match(lines[4], /pc=connected/);
-  assert.match(lines[4], /gifs=4\/4/);
-  assert.match(lines[4], /attempts=0/);
+  assert.match(lines[5], /pc=connected/);
+  assert.match(lines[5], /gifs=4\/4/);
+  assert.match(lines[5], /attempts=0/);
 });
 
 test("formatter: BOARD line shows board id, animation count, align mode, frame/heartbeat ages", () => {
   const out = formatDiagnosticOverlay(fixture());
   const lines = out.split("\n");
-  assert.match(lines[5], /nemesis-board-a/);
-  assert.match(lines[5], /anims=2/);
-  assert.match(lines[5], /off/, "align mode must show `off` when ssrStats.alignMode === false");
-  assert.match(lines[5], /frame=33ms/);
-  assert.match(lines[5], /hb=320ms/);
+  assert.match(lines[6], /nemesis-board-a/);
+  assert.match(lines[6], /anims=2/);
+  assert.match(lines[6], /off/, "align mode must show `off` when ssrStats.alignMode === false");
+  assert.match(lines[6], /frame=33ms/);
+  assert.match(lines[6], /hb=320ms/);
+});
+
+test("formatter: render mode shows configured value", () => {
+  const fx = fixture();
+  fx.ssrStats.renderMode = "gl";
+  const out = formatDiagnosticOverlay(fx);
+  assert.match(out.split("\n")[2], /mode=gl/);
+});
+
+test("formatter: render mode reflects gl→2d fallback", () => {
+  const fx = fixture();
+  fx.ssrStats.renderMode = "gl→2d (loss x1)";
+  const out = formatDiagnosticOverlay(fx);
+  const ssrLine = out.split("\n")[2];
+  assert.match(ssrLine, /mode=gl→2d/, "render-mode fallback string must surface verbatim");
+  assert.match(ssrLine, /loss x1/, "loss count must be visible to the operator");
 });
 
 test("formatter: missing ssrStats shows `?` placeholders without throwing", () => {
@@ -140,9 +164,9 @@ test("formatter: missing ssrStats shows `?` placeholders without throwing", () =
     rtcStats: null,
   });
   // No assertion on exact text — just that the function returns a string
-  // with 6 lines. Operators see the chip even before the heartbeat lands.
+  // with 7 lines. Operators see the chip even before the heartbeat lands.
   const lines = out.split("\n");
-  assert.equal(lines.length, 6);
+  assert.equal(lines.length, 7);
   // Common pattern: question marks for missing data.
   assert.match(out, /\?/);
 });
@@ -152,7 +176,7 @@ test("formatter: ALIGN flag shown when alignMode is true", () => {
   fx.ssrStats.alignMode = true;
   const out = formatDiagnosticOverlay(fx);
   const lines = out.split("\n");
-  assert.match(lines[5], /ALIGN/);
+  assert.match(lines[6], /ALIGN/);
 });
 
 test("formatter: gif cache loading + fallback counts surface separately", () => {
@@ -163,20 +187,20 @@ test("formatter: gif cache loading + fallback counts surface separately", () => 
   fx.ssrStats.gifsTotal = 4;
   const out = formatDiagnosticOverlay(fx);
   const lines = out.split("\n");
-  assert.match(lines[4], /gifs=2\/4/);
-  assert.match(lines[4], /ld1/, "loading count must surface");
-  assert.match(lines[4], /fb1/, "fallback count must surface");
+  assert.match(lines[5], /gifs=2\/4/);
+  assert.match(lines[5], /ld1/, "loading count must surface");
+  assert.match(lines[5], /fb1/, "fallback count must surface");
 });
 
 test("formatter: large bitrate values use Mbps; small use kbps", () => {
   const fx = fixture();
   fx.serverInfo.bitrateBps = 250_000; // small enough for kbps display
   const out1 = formatDiagnosticOverlay(fx);
-  assert.match(out1.split("\n")[3], /target=250kbps/);
+  assert.match(out1.split("\n")[4], /target=250kbps/);
 
   fx.serverInfo.bitrateBps = 8_000_000;
   const out2 = formatDiagnosticOverlay(fx);
-  assert.match(out2.split("\n")[3], /target=8\.0Mbps/);
+  assert.match(out2.split("\n")[4], /target=8\.0Mbps/);
 });
 
 test("formatter: packet loss ratio reflects packetsLost / (received + lost)", () => {

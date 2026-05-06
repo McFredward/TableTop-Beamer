@@ -67,8 +67,34 @@ function deriveSimulcastBitrates() {
  * D-D2 reversal: explicit `audio: false` — no audio track is captured
  * or produced.
  */
-export function buildInPagePublisherScript() {
+export function buildInPagePublisherScript({ encoderConfig = null } = {}) {
   const bitrates = deriveSimulcastBitrates();
+  // h18: pick simulcast vs single-layer based on encoder. x264-software
+  // is CPU-bound — running 3 spatial layers triples encode cost and
+  // commonly caps the stream around 20 fps on x86_64 workstations. With
+  // hardware encoders (vaapi / nvenc / videotoolbox) the cost is in
+  // fixed-function silicon and 3 layers run essentially free.
+  const enc = encoderConfig?.encoder || "x264-software";
+  const isSoftwareEncoder = enc === "x264-software";
+  const useSimulcast = !isSoftwareEncoder;
+  // For software encoder: single-layer at full resolution. We still
+  // honor the bitrate cap; congestion-control will throttle as needed.
+  const singleLayerBitrate = bitrates.high;
+  // Build the encodings array literal as a string so we can splice it
+  // into the publisher template with a single interpolation. Nesting
+  // template literals doesn't work cleanly here — the inner backticks
+  // close the outer template literal early.
+  const encodingsLiteral = useSimulcast
+    ? `[
+      { rid: "low",  scaleResolutionDownBy: 4.0, maxBitrate: ${bitrates.low} },
+      { rid: "mid",  scaleResolutionDownBy: 2.0, maxBitrate: ${bitrates.mid} },
+      { rid: "high", scaleResolutionDownBy: 1.0, maxBitrate: ${bitrates.high} },
+    ]`
+    : `[
+      { maxBitrate: ${singleLayerBitrate} },
+    ]`;
+  const simulcastLabel = useSimulcast ? "3-layer" : "single-layer";
+  const totalBitrate = useSimulcast ? bitrates.total : singleLayerBitrate;
   return `
 (async () => {
   try {
@@ -141,7 +167,11 @@ export function buildInPagePublisherScript() {
       video: {
         width: { ideal: 1920 },
         height: { ideal: 1080 },
-        frameRate: { ideal: 30, max: 60 },
+        // h18: ask for 60 fps explicitly. The previous "ideal: 30" was
+        // being honored literally, capping us at 30 even when the page
+        // rendered higher. "max: 60" keeps the upper bound; congestion
+        // control / encoder budget naturally clamps where needed.
+        frameRate: { ideal: 60, max: 60 },
         cursor: "never",
       },
       audio: false,
@@ -152,20 +182,33 @@ export function buildInPagePublisherScript() {
     });
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error("getDisplayMedia returned no video track");
-    // h5: also nudge the active track to lock in 30fps if the picked
-    // source allows it. applyConstraints is best-effort; failure is fine.
+    // h18: lock in 60fps via applyConstraints. Best-effort — Chromium
+    // falls back to the source's natural rate if the page can't sustain.
     try {
-      await videoTrack.applyConstraints({ frameRate: { ideal: 30, max: 60 } });
+      await videoTrack.applyConstraints({ frameRate: { ideal: 60, max: 60 } });
     } catch (e) {
       console.warn("[ssr-publisher] applyConstraints frameRate failed", e?.message);
     }
+    // h18: log effective track settings so the operator can read them
+    // in the SSR-tab console when chasing fps issues.
+    try {
+      const settings = videoTrack.getSettings?.();
+      if (settings) {
+        console.log("[ssr-publisher] track settings:", JSON.stringify({
+          frameRate: settings.frameRate,
+          width: settings.width,
+          height: settings.height,
+          deviceId: settings.deviceId,
+        }));
+      }
+    } catch {}
 
-    // 4. D-A3 simulcast (3 layers) + D-A2 H264 codec preference.
-    const videoEncodings = [
-      { rid: "low",  scaleResolutionDownBy: 4.0, maxBitrate: ${bitrates.low} },
-      { rid: "mid",  scaleResolutionDownBy: 2.0, maxBitrate: ${bitrates.mid} },
-      { rid: "high", scaleResolutionDownBy: 1.0, maxBitrate: ${bitrates.high} },
-    ];
+    // 4. D-A3 encoding layers + D-A2 H264 codec preference.
+    // h18 (2026-05-06): single-layer on software encoders (x264) so the
+    // CPU isn't paying triple encode cost. Hardware encoders keep 3
+    // simulcast layers for adaptive-bitrate quality.
+    const videoEncodings = ${encodingsLiteral};
+    console.log("[ssr-publisher] encoder=${enc} simulcast=${simulcastLabel} bitrate=${totalBitrate}");
     const codecOptions = { videoGoogleStartBitrate: 1000 };
     const h264Codec = device.rtpCapabilities.codecs.find((c) => c.mimeType && c.mimeType.toLowerCase() === "video/h264");
     const produceOpts = { track: videoTrack, encodings: videoEncodings, codecOptions: codecOptions };
@@ -256,6 +299,22 @@ export function buildInPagePublisherScript() {
         const m = window.__TT_BEAMER_LAST_GIF_DECODE_METHOD__;
         if (typeof m === "string") out.lastDecodeVia = m;
       } catch {}
+      try {
+        // h18 (2026-05-06): effective render mode (gl/2d/auto + fallback
+        // suffix). The runtime exposes __ttBeamerEffectiveRenderMode()
+        // which composes state.renderMode with live GL-context-loss state
+        // — so the chip honestly reports "gl→2d (loss x1)" if a context
+        // loss is forcing a fallback even though the user configured GL.
+        const m = window.__ttBeamerEffectiveRenderMode;
+        if (typeof m === "function") {
+          const v = m();
+          if (typeof v === "string") out.renderMode = v.slice(0, 60);
+        } else {
+          // Fallback: read configured mode from state probe.
+          const s = window.__ttBeamerStateProbe?.();
+          if (s?.renderMode) out.renderMode = String(s.renderMode);
+        }
+      } catch {}
       return out;
     }
 
@@ -293,8 +352,8 @@ export function buildInPagePublisherScript() {
  * @param {{ logger?: { info: Function, warn: Function, error: Function }, timeoutMs?: number }} [opts]
  * @returns {Promise<{ video: string }>}
  */
-export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000 } = {}) {
-  const script = buildInPagePublisherScript();
+export async function injectInPagePublisher(page, { logger = console, timeoutMs = 20000, encoderConfig = null } = {}) {
+  const script = buildInPagePublisherScript({ encoderConfig });
   await page.evaluate(script);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
