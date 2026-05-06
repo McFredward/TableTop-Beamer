@@ -203,10 +203,10 @@ Ziel: Architektonischer Pivot — Pi 4 wird zum Thin-Display-Client. Der Server 
 
 Status: PLANS READY (2026-05-06). Discuss-Phase + Research-Phase abgeschlossen. CONTEXT.md (D-A1..D-D4 LOCKED, D-X1..D-X8 Researcher-Discretion), RESEARCH.md (mediasoup + puppeteer-stream + Xvfb headful Chromium stack, audio-capture risk-flagged) und VALIDATION.md liegen vor. Plan-Set 31-00..31-06 (7 Plans) execute-ready.
 
-**Plans:** 7 plans in 7 waves
+**Plans:** 1/7 plans executed
 
 Plans:
-- [ ] 31-00-PLAN.md — Wave 0: BLOCKING audio-capture gate + npm install + 5 test scaffolds (D-D2 escalation point)
+- [x] 31-00-PLAN.md — Wave 0: BLOCKING audio-capture gate + npm install + 5 test scaffolds (D-D2 escalation point)
 - [ ] 31-01-PLAN.md — Wave 1: SSR render-host bring-up (Xvfb + headful Chromium + lifecycle)
 - [ ] 31-02-PLAN.md — Wave 2: WebRTC stream bring-up (mediasoup SFU + signaling + in-page publisher)
 - [ ] 31-03-PLAN.md — Wave 3: Pi receiver re-skin (DOM + status overlays + D-B4 binding constraint + reconnect)
