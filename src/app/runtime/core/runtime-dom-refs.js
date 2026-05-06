@@ -201,6 +201,16 @@
       renderModeStatus: document.querySelector("#render-mode-status"),
       diagnosticOverlayToggle: document.querySelector("#diagnostic-overlay-toggle"),
       diagnosticOverlayStatus: document.querySelector("#diagnostic-overlay-status"),
+      // Phase 31 Plan 05 (publishability) — System & Performance subtab
+      // Server-side Rendering controls. Bound by
+      // src/app/lib/ui/settings/server-rendering-panel.js.
+      ssrEncoderSelect: document.querySelector("#ssr-encoder-select"),
+      ssrDetectedEncodersBadge: document.querySelector("#ssr-detected-encoders-badge"),
+      ssrQualityPresetRadios: Array.from(document.querySelectorAll('input[name="ssr-quality-preset"]')),
+      ssrResolutionPreferenceRadios: Array.from(document.querySelectorAll('input[name="ssr-resolution-preference"]')),
+      ssrFpsTargetRadios: Array.from(document.querySelectorAll('input[name="ssr-fps-target"]')),
+      ssrAudioRouteToggle: document.querySelector("#ssr-audio-route-toggle"),
+      ssrServerRenderingStatus: document.querySelector("#ssr-server-rendering-status"),
       toastStack: document.querySelector("#toast-stack"),
       polygonRoomSelect: document.querySelector("#polygon-room-select"),
       showRoomVerticesInput: document.querySelector("#show-room-vertices"),

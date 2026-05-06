@@ -1124,11 +1124,36 @@ function applyLiveMutation({
     // via the Phase-13-style debounced writer. Snapshot patch is a no-op
     // wrt runtime state — the broadcast itself is the live-sync signal so
     // Plan-05's UI re-fetches /api/global-defaults.
+    //
+    // Phase 31 Plan 05 Task 2b step 7: when the patched key includes
+    // `encoder`, restart the SSR Chromium tab so the new encoder takes
+    // effect on the next launch. Pi reconnect banner from Plan 03 D-C2
+    // fires automatically. Gated behind SSR_RENDER_HOST so the standard
+    // (non-SSR) `node server.mjs` path stays unchanged.
     (async () => {
       try {
         const current = await readServerRenderingFullConfig({ rootDir: ROOT_DIR });
         const next = applyServerRenderingPatch(current, payload);
         await scheduleServerRenderingWrite({ rootDir: ROOT_DIR, fullConfig: next });
+        if (
+          process.env.SSR_RENDER_HOST === "1"
+          && payload && typeof payload === "object"
+          && Object.prototype.hasOwnProperty.call(payload, "encoder")
+        ) {
+          // Encoder restart: shutdownSsrRenderHost → bootSsrRenderHost
+          // The lifecycle module re-reads config/global-defaults.json at
+          // boot via resolveEncoderConfig, so it picks up the new encoder.
+          console.log(`[serverRendering-update] encoder=${payload.encoder} → restarting SSR render host…`);
+          try { await shutdownSsrRenderHost(); } catch (err) {
+            console.warn("[serverRendering-update] shutdown error:", err?.message || err);
+          }
+          try {
+            const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
+            setActiveSsrRenderHost(ssrHost);
+          } catch (err) {
+            console.warn("[serverRendering-update] reboot error:", err?.message || err);
+          }
+        }
       } catch (err) {
         console.warn("[serverRendering-update] persist failed:", err?.message || err);
       }
@@ -3753,6 +3778,19 @@ const server = createServer(async (req, res) => {
         // shape on /api/global-defaults) keep working.
         const synthesized = await synthesizeBoardProfiles();
         const response = { ...parsed, boardProfiles: synthesized };
+        // Phase 31 Plan 05: enrich the serverRendering block with the
+        // auto-detected encoder list from liveSessionState.snapshot. This
+        // is a passive read-only field consumed by the System UI's
+        // Detected-encoders badge — NOT validated by the patch validator
+        // (which silently drops unknown keys). Empty list when SSR is
+        // not running, so the badge shows "(auto-detection in progress…)".
+        const detected = liveSessionState.snapshot?.serverRendering?.availableEncoders;
+        if (Array.isArray(detected) && detected.length > 0) {
+          response.serverRendering = {
+            ...(response.serverRendering ?? {}),
+            availableEncoders: detected,
+          };
+        }
         sendJson(res, 200, response);
       } catch {
         sendJson(res, 404, { error: "global defaults not found" });
@@ -3934,6 +3972,24 @@ if (process.env.SSR_RENDER_HOST === "1") {
       });
       const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
       setActiveSsrRenderHost(ssrHost);
+      // Phase 31 Plan 05 Task 2b step 6: surface the auto-detection result
+      // to the System & Performance UI's Detected-encoders badge. The badge
+      // reads `serverRendering.availableEncoders` from /api/global-defaults
+      // (response is enriched here), or — when live-sync push is wired in
+      // a follow-up — from a snapshot listener.
+      try {
+        const encoderConfig = await ssrHost.statusPromise?.catch?.(() => null);
+        if (encoderConfig?.encoderConfig?.available) {
+          if (!liveSessionState.snapshot.serverRendering) {
+            liveSessionState.snapshot.serverRendering = {};
+          }
+          liveSessionState.snapshot.serverRendering.availableEncoders =
+            encoderConfig.encoderConfig.available;
+        }
+      } catch (err) {
+        // Non-fatal: badge will display "(auto-detection in progress…)".
+        console.warn(`[server] availableEncoders snapshot wire failed: ${err?.message ?? "unknown"}`);
+      }
     } catch (err) {
       console.error(`[server] SSR boot failed: ${err?.message ?? "unknown"}`);
       process.exit(1);

@@ -809,6 +809,63 @@
         <p id="mp4-performance-status" class="status-line" aria-live="polite">MP4 controls: balanced profile</p>
       </section>
 
+      <!-- Phase 31 (Plan 05): Server-side Rendering controls. Bound to
+           config/global-defaults.json#serverRendering via existing live-sync.
+           D-D2 reversal: audioRoute toggle defaults to pi-local; in-stream
+           option is disabled until cross-platform audio capture stabilizes
+           (WAVE0_AUDIO_CAPTURE_VERIFIED feature flag). -->
+      <section id="settings-server-rendering" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
+        <h2>Server-side Rendering</h2>
+        <p class="status-line">Controls how the server encodes the projection stream. Defaults adapt to the hardware detected at server boot. Changes apply within a few seconds; the projector briefly shows a "Reconnecting" banner.</p>
+
+        <label for="ssr-encoder-select">
+          Encoder
+          <select id="ssr-encoder-select">
+            <option value="auto">Auto (recommended)</option>
+            <option value="nvenc">NVIDIA NVENC</option>
+            <option value="vaapi">VAAPI (Intel/AMD iGPU)</option>
+            <option value="videotoolbox">Apple VideoToolbox</option>
+            <option value="x264-software">x264 software (universal fallback)</option>
+          </select>
+        </label>
+        <p id="ssr-detected-encoders-badge" class="ssr-detected-encoders-badge" aria-live="polite">Detected: (auto-detection in progress…)</p>
+
+        <fieldset class="ssr-radio-group">
+          <legend>Stream-quality preset</legend>
+          <label><input type="radio" name="ssr-quality-preset" value="low-latency" /> Low latency (4 Mbit/s, 720p, ultrafast)</label>
+          <label><input type="radio" name="ssr-quality-preset" value="balanced" /> Balanced (8 Mbit/s, 1080p, veryfast)</label>
+          <label><input type="radio" name="ssr-quality-preset" value="high-quality" /> High quality (12 Mbit/s, 1080p, fast)</label>
+        </fieldset>
+
+        <fieldset class="ssr-radio-group">
+          <legend>Resolution preference</legend>
+          <label><input type="radio" name="ssr-resolution-preference" value="auto" /> Auto (adaptive 1080p / 720p)</label>
+          <label><input type="radio" name="ssr-resolution-preference" value="1080p" /> 1080p (fixed)</label>
+          <label><input type="radio" name="ssr-resolution-preference" value="720p" /> 720p (fixed)</label>
+        </fieldset>
+
+        <fieldset class="ssr-radio-group">
+          <legend>Stream FPS target</legend>
+          <label><input type="radio" name="ssr-fps-target" value="30" /> 30 fps</label>
+          <label><input type="radio" name="ssr-fps-target" value="24" /> 24 fps</label>
+          <label><input type="radio" name="ssr-fps-target" value="15" /> 15 fps</label>
+        </fieldset>
+
+        <!-- D-D2 REVERSAL (2026-05-06, see 31-D-D2-REVERSAL-ADDENDUM.md):
+             audioRoute defaults to "pi-local" (unchecked = pi-local). The
+             "in-stream" branch (checked) is rendered as a disabled checkbox
+             with tooltip until the WAVE0_AUDIO_CAPTURE_VERIFIED feature flag
+             flips to true. Pi-local audio uses the existing WebSocket-driven
+             runtime-wire-room-audio-binders.js path. -->
+        <label class="inline-checkbox" id="ssr-audio-route-label"
+          title="Currently deferred — requires cross-platform audio capture support (puppeteer-stream activeTab issue on Chrome 131+)">
+          <input id="ssr-audio-route-toggle" type="checkbox" disabled />
+          Use in-stream audio (deferred — Pi-local audio active)
+        </label>
+
+        <p id="ssr-server-rendering-status" class="status-line" aria-live="polite">Server-side rendering: loading…</p>
+      </section>
+
       <footer class="hint dashboard-only" data-view="dashboard">Note: for real projector targeting, move the browser to
         the projector, open the /output path and use fullscreen.</footer>
     </aside>
@@ -1021,6 +1078,11 @@
   <script src="/src/app/lib/input/interaction-guards.js" defer></script>
   <script src="/src/app/lib/render/viewport-lifecycle.js" defer></script>
   <script src="/src/app/lib/ui/settings/rooms.js" defer></script>
+  <!-- Phase 31 Plan 05: Server-side Rendering settings panel module
+       (System & Performance subtab section) — must load BEFORE
+       runtime-orchestration.js so the init function is available when
+       the panel-controller wires it. -->
+  <script src="/src/app/lib/ui/settings/server-rendering-panel.js" defer></script>
   <script src="/src/app/lib/ui/runtime-panels-controller.js" defer></script>
   <script src="/src/app/runtime/core/polygon-contract.js" defer></script>
   <script src="/src/app/runtime/state/runtime-polygon-normalizers.js" defer></script>

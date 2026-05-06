@@ -629,6 +629,28 @@
       setDiagnosticOverlay(diagnosticOverlayToggle.checked);
     });
 
+    // Phase 31 Plan 05 (publishability) — wire the System & Performance
+    // subtab Server-side Rendering section to live-sync. Initialised once
+    // here per ctx; the panel module no-ops if its DOM section is absent
+    // (e.g. on Pi /output/). The panel itself uses fetch("/api/global-defaults")
+    // for the initial config snapshot — keeps the dashboard the
+    // single point-of-truth even when SSR is disabled (server simply
+    // returns the persisted serverRendering block).
+    try {
+      const ssrPanel = window.TT_BEAMER_SETTINGS_SERVER_RENDERING_PANEL;
+      if (ssrPanel && typeof ssrPanel.initServerRenderingPanel === "function") {
+        ssrPanel.initServerRenderingPanel({
+          refs: ctx,
+          emitLiveMutation: ctx.emitLiveMutation,
+        });
+      }
+    } catch (err) {
+      // Defensive: never let a settings-panel init failure break the
+      // wider settings binders chain.
+      // eslint-disable-next-line no-console
+      console.warn("[31-05] initServerRenderingPanel failed:", err?.message || err);
+    }
+
     // Initial sync so dashboard transform inputs match the
     // currently-selected animation definition on first load.
     const initialDef = getRoomAnimationDefinitionById(state.roomDraft.animationId, state.boardId);

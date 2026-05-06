@@ -200,6 +200,10 @@ const {
   mp4RecoverThresholdInput, mp4RecoverThresholdValue, mp4PerformanceStatus,
   renderModeSelect, renderModeStatus,
   diagnosticOverlayToggle, diagnosticOverlayStatus, toastStack,
+  // Phase 31 Plan 05: Server-side Rendering settings (System & Performance subtab)
+  ssrEncoderSelect, ssrDetectedEncodersBadge, ssrQualityPresetRadios,
+  ssrResolutionPreferenceRadios, ssrFpsTargetRadios, ssrAudioRouteToggle,
+  ssrServerRenderingStatus,
   polygonRoomSelect, showRoomVerticesInput, showRoomNamesInput, polygonHandleOpacityInput, polygonHandleOpacityValue, polygonVertexSelect, polygonEdgeSelect,
   polygonInsertVertexButton, polygonDeleteVertexButton, polygonResetRoomButton,
   polygonFocusRoomButton, polygonEditorStatus, roomNameInput, roomCreateShapeSelect,
@@ -2942,6 +2946,19 @@ window.TT_BEAMER_RUNTIME_WIRE_ROOM_AUDIO_BINDERS.wireRoomAudioBinders({
   syncRenderModePanel: () => syncRenderModePanel(),
   diagnosticOverlayToggle,
   diagnosticOverlayStatus,
+  // Phase 31 Plan 05: pass Server-side Rendering settings refs into the
+  // wire-binder so initServerRenderingPanel(ctx) can find the 5 controls.
+  ssrEncoderSelect,
+  ssrDetectedEncodersBadge,
+  ssrQualityPresetRadios,
+  ssrResolutionPreferenceRadios,
+  ssrFpsTargetRadios,
+  ssrAudioRouteToggle,
+  ssrServerRenderingStatus,
+  // Phase 31 Plan 05: live-sync emit so the SSR settings panel can send
+  // serverRendering-update mutations directly through the existing
+  // pipeline (Plan-04 validate→apply→persist→broadcast).
+  emitLiveMutation: (type, payload) => emitLiveMutation(type, payload),
   setDiagnosticOverlay: (enabled) => setDiagnosticOverlay(enabled),
   syncDiagnosticOverlayPanel: () => syncDiagnosticOverlayPanel(),
   armClearAllGuard: () => armClearAllGuard(),

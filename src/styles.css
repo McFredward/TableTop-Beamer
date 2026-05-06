@@ -2409,3 +2409,48 @@ body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-reconnect-banner
 body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-error-overlay {
   display: none !important;
 }
+
+/* ============================================================
+   Phase 31 (Plan 05) — Server-side Rendering settings
+   System & Performance subtab section. Matches existing
+   .panel.settings-only pattern + Phase-22 obsidian theme +
+   diagnostic-chip color palette for the Detected-encoders badge.
+   ============================================================ */
+#settings-server-rendering .ssr-radio-group {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+}
+#settings-server-rendering .ssr-radio-group legend {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 0 6px;
+}
+#settings-server-rendering .ssr-radio-group label {
+  display: block;
+  margin: 4px 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+#settings-server-rendering .ssr-radio-group input[type="radio"] {
+  margin-right: 8px;
+}
+.ssr-detected-encoders-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  margin: 4px 0 12px;
+  font-size: 12px;
+  font-family: "Inter", system-ui, sans-serif;
+  color: #32d3a3;
+  background: rgba(50, 211, 163, 0.12);
+  border: 1px solid rgba(50, 211, 163, 0.25);
+  border-radius: 999px;
+}
+/* D-D2 reversal: in-stream audio toggle is currently disabled. The
+   label is dimmed so it's visually obvious the option is deferred. */
+#ssr-audio-route-label:has(input:disabled) {
+  color: rgba(255, 255, 255, 0.45);
+  cursor: not-allowed;
+}
