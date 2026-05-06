@@ -24,19 +24,47 @@ import { spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
-  writeFileSync,
   readFileSync,
   unlinkSync,
   createWriteStream,
 } from "node:fs";
+import http from "node:http";
 import path from "node:path";
 
 const ALARM_MP3 = path.resolve("./resources/sounds/alarm.mp3");
 const TMPDIR = "/tmp/ttbeamer-wave0";
-const HTML_FIXTURE = path.join(TMPDIR, "audio-fixture.html");
 const CAPTURED_WEBM = path.join(TMPDIR, "captured.webm");
 const DECODED_WAV = path.join(TMPDIR, "decoded.wav");
 const DISPLAY = ":99";
+
+// puppeteer-stream's chrome extension cannot capture file:// pages
+// (activeTab permission is bound to http(s)://). We therefore serve
+// the fixture + alarm.mp3 over a tiny in-process http server.
+function startFixtureServer(alarmBytes, htmlBody) {
+  const server = http.createServer((req, res) => {
+    if (req.url === "/" || req.url === "/index.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(htmlBody);
+      return;
+    }
+    if (req.url === "/alarm.mp3") {
+      res.writeHead(200, {
+        "content-type": "audio/mpeg",
+        "content-length": alarmBytes.length,
+      });
+      res.end(alarmBytes);
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      resolve({ server, port });
+    });
+  });
+}
 
 function hasBin(name) {
   return new Promise((resolve) => {
@@ -72,17 +100,26 @@ test(
     // 2. Tmp dir
     mkdirSync(TMPDIR, { recursive: true });
 
-    // 3. HTML fixture that auto-plays alarm.mp3 from a file:// URL
-    writeFileSync(
-      HTML_FIXTURE,
-      `<!doctype html><html><body>
-        <audio id="a" autoplay loop src="file://${ALARM_MP3}"></audio>
+    // 3. Start tiny http server that serves alarm.mp3 + autoplay HTML.
+    //    puppeteer-stream's chrome extension cannot capture file:// pages
+    //    (activeTab permission is bound to http(s)://).
+    const alarmBytes = readFileSync(ALARM_MP3);
+    const htmlBody = `<!doctype html><html><body>
+        <audio id="a" autoplay loop src="/alarm.mp3"></audio>
         <script>
           const a = document.getElementById("a");
           a.play().catch(e => { document.title = "PLAY_FAIL:" + e.message; });
         </script>
-      </body></html>`,
-    );
+      </body></html>`;
+    const { server, port } = await startFixtureServer(alarmBytes, htmlBody);
+    t.after(() => {
+      try {
+        server.close();
+      } catch {
+        /* ignore */
+      }
+    });
+    const fixtureUrl = `http://127.0.0.1:${port}/`;
 
     // 4. Spawn Xvfb
     const xvfb = spawn(
@@ -99,11 +136,24 @@ test(
       }
     });
 
-    // 5. Headful Chromium via puppeteer-stream
+    // 5. Headful Chromium via puppeteer-stream.
+    //    puppeteer-stream uses puppeteer-core internally and does NOT
+    //    bundle Chrome. We resolve the executable from (in order):
+    //      a) SSR_BROWSER_BIN env override
+    //      b) puppeteer's bundled chrome (puppeteer.executablePath())
+    //      c) /usr/bin/chromium-browser as last-ditch fallback
+    const puppeteer = await import("puppeteer");
+    let resolvedBrowserPath = process.env.SSR_BROWSER_BIN;
+    if (!resolvedBrowserPath) {
+      try {
+        resolvedBrowserPath = puppeteer.default.executablePath();
+      } catch {
+        resolvedBrowserPath = "/usr/bin/chromium-browser";
+      }
+    }
     const { launch, getStream } = await import("puppeteer-stream");
     const browser = await launch({
-      executablePath:
-        process.env.SSR_BROWSER_BIN || "/usr/bin/chromium-browser",
+      executablePath: resolvedBrowserPath,
       headless: false, // CRITICAL: NOT --headless=new (disables audio)
       defaultViewport: { width: 640, height: 480 },
       args: [
@@ -123,11 +173,18 @@ test(
     });
 
     const page = await browser.newPage();
-    await page.goto(`file://${HTML_FIXTURE}`);
+    await page.goto(fixtureUrl, { waitUntil: "load" });
+    // Give the chrome extension time to gain activeTab permission on
+    // the new http:// origin before requesting capture.
+    await new Promise((r) => setTimeout(r, 1000));
 
+    // puppeteer-stream's Chrome extension requires video: true to gain
+    // tabCapture permission; audio-only capture is rejected with
+    // "Extension has not been invoked" on Chrome 131+. We capture both
+    // and let ffmpeg ignore the (mostly black) video track.
     const stream = await getStream(page, {
       audio: true,
-      video: false,
+      video: true,
       frameSize: 100,
     });
     const captureFile = createWriteStream(CAPTURED_WEBM);
@@ -176,7 +233,6 @@ test(
     );
 
     try {
-      unlinkSync(HTML_FIXTURE);
       unlinkSync(CAPTURED_WEBM);
       unlinkSync(DECODED_WAV);
     } catch {
