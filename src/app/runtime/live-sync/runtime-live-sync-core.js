@@ -105,6 +105,74 @@
         liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, incomingVersion);
       }
       if (shouldApplySnapshotVersion(incomingVersion) && envelope.snapshot) {
+        // Phase-31 h43 (2026-05-06): eager grid apply BEFORE
+        // applyLiveRuntimeSnapshot — see live-hello handler for why
+        // (silent throw in 200+ lines of pre-grid apply code can hide
+        // the grid apply at line ~490). The eager apply is idempotent
+        // (gated by _lastAppliedAlignGridSnapshotKey).
+        try {
+          const pollRuntime = envelope.snapshot?.runtime;
+          const pollGridSnap = pollRuntime?.lastAlignGridSnapshot;
+          if (
+            ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+            && pollGridSnap
+            && typeof pollGridSnap === "object"
+            && Array.isArray(pollGridSnap.srcXs)
+            && Array.isArray(pollGridSnap.srcYs)
+            && Array.isArray(pollGridSnap.points)
+          ) {
+            const localClientId = liveSync.clientId;
+            const isOriginator =
+              !!localClientId
+              && pollGridSnap.originatorClientId === localClientId;
+            if (!isOriginator) {
+              const snapKey =
+                `${pollGridSnap.at || ""}:`
+                + `${pollGridSnap.profileId || ""}:`
+                + `${pollGridSnap.points?.length || 0}`;
+              if (ctx.state._lastAppliedAlignGridSnapshotKey !== snapKey) {
+                const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+                if (gridState && typeof gridState.restoreGridSnapshot === "function") {
+                  const points2D = [];
+                  for (let r = 0; r < pollGridSnap.srcYs.length; r++) {
+                    points2D[r] = [];
+                    for (let c = 0; c < pollGridSnap.srcXs.length; c++) {
+                      points2D[r][c] = {
+                        x: pollGridSnap.srcXs[c],
+                        y: pollGridSnap.srcYs[r],
+                      };
+                    }
+                  }
+                  for (const pt of pollGridSnap.points) {
+                    if (
+                      Number.isInteger(pt.row) && Number.isInteger(pt.col)
+                      && points2D[pt.row] && points2D[pt.row][pt.col]
+                    ) {
+                      points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+                    }
+                  }
+                  gridState.restoreGridSnapshot({
+                    srcXs: pollGridSnap.srcXs.slice(),
+                    srcYs: pollGridSnap.srcYs.slice(),
+                    points: points2D,
+                  });
+                  ctx.state._lastAppliedAlignGridSnapshotKey = snapKey;
+                  _redrawHandlesAfterCornerDrag();
+                  console.log(
+                    `[align-grid-snapshot] poll eager-apply OK `
+                    + `profile=${pollGridSnap.profileId} `
+                    + `points=${pollGridSnap.points.length}`,
+                  );
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(
+            "[align-grid-snapshot] poll eager-apply failed:",
+            err?.message || err,
+          );
+        }
         const applied = applyLiveRuntimeSnapshot(envelope.snapshot, {
           version: incomingVersion,
           mutationEnvelope: null,
@@ -664,6 +732,83 @@
           if (payload?.type === "live-hello") {
             liveSync.clientId = payload.clientId ?? null;
             liveSync.dirtyHintUntil = Date.now() + 1200;
+            // Phase-31 h43 (2026-05-06): apply runtime.lastAlignGridSnapshot
+            // EAGERLY here — BEFORE applyLiveRuntimeSnapshot — so the grid
+            // is restored even if applyLiveRuntimeSnapshot throws inside
+            // its 200+ lines of pre-grid-apply code (polygon hydration,
+            // FX normalizers, animations reconciliation). The outer
+            // try/catch around this whole message handler silently
+            // swallows any such throw ("ignore malformed live-sync
+            // payloads"), which is why h40+h41+h42 alone weren't enough
+            // — the grid apply at line ~490 is unreachable when an
+            // earlier line throws on the freshly-booted SSR tab whose
+            // state.* maps are still default-initialized. Guarding the
+            // grid apply with its OWN try/catch and running it before
+            // applyLiveRuntimeSnapshot decouples grid sync from the
+            // success/failure of the rest of the snapshot apply.
+            try {
+              const helloRuntime = payload?.session?.snapshot?.runtime;
+              const helloGridSnap = helloRuntime?.lastAlignGridSnapshot;
+              if (
+                ctx.getOutputRole?.() === ctx.OUTPUT_ROLE_FINAL
+                && helloGridSnap
+                && typeof helloGridSnap === "object"
+                && Array.isArray(helloGridSnap.srcXs)
+                && Array.isArray(helloGridSnap.srcYs)
+                && Array.isArray(helloGridSnap.points)
+              ) {
+                const localClientId = liveSync.clientId;
+                const isOriginator =
+                  !!localClientId
+                  && helloGridSnap.originatorClientId === localClientId;
+                if (!isOriginator) {
+                  const snapKey =
+                    `${helloGridSnap.at || ""}:`
+                    + `${helloGridSnap.profileId || ""}:`
+                    + `${helloGridSnap.points?.length || 0}`;
+                  if (ctx.state._lastAppliedAlignGridSnapshotKey !== snapKey) {
+                    const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+                    if (gridState && typeof gridState.restoreGridSnapshot === "function") {
+                      const points2D = [];
+                      for (let r = 0; r < helloGridSnap.srcYs.length; r++) {
+                        points2D[r] = [];
+                        for (let c = 0; c < helloGridSnap.srcXs.length; c++) {
+                          points2D[r][c] = {
+                            x: helloGridSnap.srcXs[c],
+                            y: helloGridSnap.srcYs[r],
+                          };
+                        }
+                      }
+                      for (const pt of helloGridSnap.points) {
+                        if (
+                          Number.isInteger(pt.row) && Number.isInteger(pt.col)
+                          && points2D[pt.row] && points2D[pt.row][pt.col]
+                        ) {
+                          points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+                        }
+                      }
+                      gridState.restoreGridSnapshot({
+                        srcXs: helloGridSnap.srcXs.slice(),
+                        srcYs: helloGridSnap.srcYs.slice(),
+                        points: points2D,
+                      });
+                      ctx.state._lastAppliedAlignGridSnapshotKey = snapKey;
+                      _redrawHandlesAfterCornerDrag();
+                      console.log(
+                        `[align-grid-snapshot] live-hello eager-apply OK `
+                        + `profile=${helloGridSnap.profileId} `
+                        + `points=${helloGridSnap.points.length}`,
+                      );
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn(
+                "[align-grid-snapshot] live-hello eager-apply failed:",
+                err?.message || err,
+              );
+            }
             if (Number.isFinite(payload?.session?.version)) {
               const helloVersion = Number(payload.session.version);
               liveSync.lastSessionVersion = Math.max(liveSync.lastSessionVersion, helloVersion);
