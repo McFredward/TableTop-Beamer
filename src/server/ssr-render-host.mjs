@@ -28,6 +28,10 @@
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { readFile } from "node:fs/promises";
+import { platform } from "node:os";
+
+import { detectChromiumBinary } from "./ssr-browser-detect.mjs";
+import { probeEnvironment, formatEnvironmentReport } from "./ssr-environment-bootstrap.mjs";
 import path from "node:path";
 import {
   detectAvailableEncoders,
@@ -139,7 +143,10 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
 // Defaults
 // ---------------------------------------------------------------------
 const DEFAULT_DISPLAY = process.env.SSR_DISPLAY ?? ":99";
-const DEFAULT_BROWSER_BIN = process.env.SSR_BROWSER_BIN ?? "/usr/bin/chromium";
+// DEFAULT_BROWSER_BIN is now resolved dynamically at boot via
+// detectChromiumBinary() — see start(). The h0 hardcoded "/usr/bin/chromium"
+// fallback was the source of the 2026-05-06 cross-platform issue
+// (Ubuntu snap installs Chromium at /snap/bin/chromium, not /usr/bin/).
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080, deviceScaleFactor: 1 };
 const HEALTH_PING_INTERVAL_MS = 5000;
 const HEALTH_PING_FAIL_THRESHOLD = 3; // 3 * 5s = 15s
@@ -180,7 +187,7 @@ const RESTART_BACKOFF_MS_MAX = 30000;
 export function bootSsrRenderHost({
   port,
   display = DEFAULT_DISPLAY,
-  browserBin = DEFAULT_BROWSER_BIN,
+  browserBin = null, // null → resolve at boot via detectChromiumBinary()
   viewport = DEFAULT_VIEWPORT,
   autoStart = true,
   logger = console,
@@ -195,6 +202,10 @@ export function bootSsrRenderHost({
     lastError: null,
     restartCount: 0,
     encoderConfig: null,
+    osPlatform: platform(),
+    needsXvfb: platform() === "linux" && !process.env.DISPLAY,
+    resolvedBrowserPath: null,
+    resolvedBrowserSource: null,
   };
 
   let xvfbProcess = null;
@@ -234,7 +245,7 @@ export function bootSsrRenderHost({
     });
   }
 
-  async function launchBrowser() {
+  async function launchBrowser({ browserPath } = {}) {
     // Dynamic import so unit tests that don't have puppeteer-stream installed
     // can still import this module to test resolveEncoderConfig and idle-state.
     const puppeteerStream = await import("puppeteer-stream");
@@ -243,7 +254,7 @@ export function bootSsrRenderHost({
       throw new Error("puppeteer-stream did not export a launch() function");
     }
     return launcher({
-      executablePath: browserBin,
+      executablePath: browserPath,
       headless: false, // CRITICAL: NOT --headless=new — disables WebRTC (RESEARCH § Pitfall 1)
       defaultViewport: viewport,
       args: [
@@ -327,13 +338,57 @@ export function bootSsrRenderHost({
     status.state = "starting";
     status.lastError = null;
     try {
+      // h1 hotfix (2026-05-06): cross-platform environment probe BEFORE
+      // anything else. Logs OS, browser path, Xvfb status, install hints
+      // when something is missing. Auto-installs if SSR_AUTO_INSTALL=1.
+      const envReport = await probeEnvironment({ logger });
+      logger.info(formatEnvironmentReport(envReport));
+      if (!envReport.ready) {
+        const missing = [];
+        if (envReport.needsVirtualDisplay && !envReport.hasVirtualDisplay) missing.push("Xvfb");
+        if (!envReport.browserPath) missing.push("Chromium-family browser");
+        if (!envReport.hasFfmpeg) missing.push("ffmpeg");
+        throw new Error(
+          `[ssr-host] Environment not ready: missing ${missing.join(", ")}. ` +
+          `See [ssr-env] log lines above for OS-specific install commands.`,
+        );
+      }
+
+      // Resolve browser binary cross-platform (env override → puppeteer
+      // bundled → OS common paths). Honors explicit browserBin opt only if
+      // the file actually exists.
+      const browserDetect = browserBin
+        ? { path: browserBin, source: "explicit", availablePaths: [] }
+        : await detectChromiumBinary();
+      if (!browserDetect.path) {
+        throw new Error(
+          `[ssr-host] No Chromium-family browser found. Set SSR_BROWSER_BIN to override, ` +
+          `or run: npx puppeteer browsers install chrome`,
+        );
+      }
+      status.resolvedBrowserPath = browserDetect.path;
+      status.resolvedBrowserSource = browserDetect.source;
+      logger.info(
+        `[ssr-host] browser path resolved: ${browserDetect.path} (source=${browserDetect.source})`,
+      );
+
       // Resolve encoder + preset BEFORE spawning anything (publishability).
       status.encoderConfig = await resolveEncoderConfig({
         rootDir: process.env.SSR_ROOT_DIR ?? process.cwd(),
         logger,
       });
-      xvfbProcess = await spawnXvfb();
-      browser = await launchBrowser();
+
+      // Xvfb only on Linux without DISPLAY. macOS + Windows have native desktops.
+      if (status.needsXvfb) {
+        xvfbProcess = await spawnXvfb();
+      } else {
+        logger.info(
+          `[ssr-host] skipping Xvfb (os=${status.osPlatform}` +
+          (process.env.DISPLAY ? `, DISPLAY=${process.env.DISPLAY}` : "") +
+          `)`,
+        );
+      }
+      browser = await launchBrowser({ browserPath: browserDetect.path });
       page = await browser.newPage();
       cdpSession = await page.target().createCDPSession();
       await page.goto(`http://127.0.0.1:${port}/output?ssr=1`, {
