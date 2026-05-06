@@ -286,6 +286,25 @@ None new. Threat register T-31-W0-01..05 is fully addressed by:
 - LAN-only operator-context noted (T-31-W0-03)
 - Test cleanup via `t.after` + try/unlinkSync (T-31-W0-04, T-31-W0-05)
 
+## Wave-0 Audio-Capture Gate Resolution (2026-05-06)
+
+**Status:** RESOLVED via D-D2 reversal (NOT a test bypass).
+
+The audio-capture smoke test escalated as designed. User decided to revert
+D-D2 from "audio in WebRTC stream" back to the original researcher
+recommendation: **audio Pi-local via WS-trigger**. See
+`.planning/phases/phase-31/31-D-D2-REVERSAL-ADDENDUM.md` for the binding
+addendum that supersedes audio-related sections of CONTEXT.md, RESEARCH.md,
+and Plans 31-02 / 31-03 / 31-04 / 31-05 / 31-06.
+
+Net effect on Wave 0:
+- All infrastructure (Xvfb, Chromium, ffmpeg, mediasoup, encoder
+  auto-detection) is operational and committed.
+- `test/ssr-audio-capture-smoke.test.mjs` STAYS in repo as a future-feature
+  scaffold (will be re-activated if/when puppeteer-stream audio capture or
+  cross-platform alternative ships).
+- Wave 0 is now PASS — Plans 01-06 unblocked.
+
 ## Self-Check: PASSED
 
 - FOUND: package.json

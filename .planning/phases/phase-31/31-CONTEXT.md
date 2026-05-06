@@ -181,8 +181,36 @@ Hardware-Detection + Settings-UI-Pfad mit-spezifizieren.
   (~30-150ms im LAN). User-Touch-Behavior bleibt aus User-Sicht
   unverändert (Phase 13/19/27 Touch-Verträge).
 
-- **D-D2: Audio = im WebRTC-Stream (NICHT Pi-lokal).**
-  *User hat hier von der Empfehlung abgewichen.* Server mischt Animation-
+- **D-D2 (REVISED 2026-05-06): Audio = Pi-lokal via WebSocket-Trigger.**
+  *Reversal nach Wave-0 Audio-Capture-Eskalation.* Ursprünglich hatte der
+  User "Audio im WebRTC-Stream" gewählt. Wave-0-Smoke zeigte: puppeteer-
+  stream Chrome-Extension wirft `activeTab permission`-Fehler auf
+  Chrome 131 + headful Xvfb. Drei Workarounds (`file://`→`http://`,
+  executablePath-resolve, `video:true`) erfolglos. User-Entscheidung
+  2026-05-06: Plan B = Pi-local audio (Original-Researcher-Empfehlung).
+  - Animation-Sounds werden weiterhin als WebSocket-Trigger an Pi
+    geschickt (existierender `runtime-wire-room-audio-binders.js` Pfad).
+  - Pi spielt Audio über HTML5-Audio + Pi-Audio-Hardware ab.
+  - WebRTC-Stream ist VIDEO-ONLY (kein Audio-Track).
+  - System-UI `audio route`-Toggle bleibt erhalten, default = `pi-local`.
+    `in-stream`-Option bleibt als Future-Toggle (auskommentiert/disabled
+    bis puppeteer-stream Audio stabil läuft oder eine Alternative wie
+    PipeWire-loopback Linux-only akzeptabel wird).
+  - Vorteile dieser Entscheidung:
+    - OS-agnostisch (publishability-relevant — Mac/Windows-User funktionieren auch)
+    - Pi nutzt VC4-Audio-HW direkt (geringere Pi-CPU-Last als Audio-Decode aus Stream)
+    - Server muss kein Audio capturen → einfacherer Server-Code
+    - Wave-0 nicht mehr blocking → Phase 31 kann fortgeführt werden
+  - Implikation:
+    - Wave 2 (mediasoup): Producer ist video-only, Audio-Track wird nicht erzeugt.
+    - Wave 3 (Pi receiver): `runtime-wire-room-audio-binders.js` bleibt
+      auf /output/ AKTIV (NICHT deaktivieren wie ursprünglich geplant).
+    - Wave 5 (System UI): `audioRoute` Default = `pi-local`; `in-stream`
+      Option ist disabled mit Tooltip "Future feature — currently requires
+      OS-specific server config".
+
+  --- Original D-D2 ARCHIVIERT (history reference): ---
+  Server mischt Animation-
   Sounds (alarm.mp3, electricity.mp3, etc.) in den WebRTC-Audio-Track.
   Vorteil: garantierte Audio/Video-Synchronisation. Implikation: Pi-
   lokaler Audio-Pfad (`runtime-wire-room-audio-binders.js`-Pattern,
