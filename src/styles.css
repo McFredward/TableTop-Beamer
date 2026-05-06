@@ -2430,6 +2430,20 @@ body[data-output-role="final-output"][data-ssr-tab="true"] .ssr-error-overlay {
   display: none !important;
 }
 
+/* h6 hotfix: hide the diagnostic chip + control panel inside the SSR
+   Chromium tab on the server. The Pi receiver renders its OWN status chip
+   (receiver-status-ui.js) on top of the streamed video — keeping the
+   server-side chip would let it appear in the captured stream and overlap
+   with the Pi-side chip. The Pi-side chip already shows fps + connection
+   state; if more server-side metrics are needed, they can be relayed via
+   the heartbeat WS rather than baked into the streamed pixels. */
+body[data-ssr-tab="true"] .output-status-chip,
+body[data-ssr-tab="true"] #control-panel,
+body[data-ssr-tab="true"] .toast-stack,
+body[data-ssr-tab="true"] #loading-overlay {
+  display: none !important;
+}
+
 /* ============================================================
    Phase 31 (Plan 05) — Server-side Rendering settings
    System & Performance subtab section. Matches existing

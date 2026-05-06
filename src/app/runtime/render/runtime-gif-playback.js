@@ -93,7 +93,20 @@
     // ImageDecoder fast path since dashboard doesn't have the WebGL
     // warp competing for GPU memory.
     const isFinalOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
-    if (!isFinalOutput && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
+    // h6 hotfix: classify "is this a Pi VC4-class environment" instead of
+    // "is this final-output". The SSR Chromium tab on the server runs
+    // /output?ssr=1 which IS final-output, but it's NOT a Pi — forcing it
+    // through the Pi-optimized slow parser path was the fps bottleneck +
+    // GIF "not playing" symptom users saw on /output/ (the Pi receives a
+    // stream, but the SSR tab generating that stream was using putImageData
+    // 1080p paths instead of the fast ImageDecoder + ImageBitmap path).
+    // ARM-UA defense-in-depth in getRuntimeEnvironment keeps real Pis on
+    // the slow path even with ?ssr=1 spoofed.
+    const __ttbEnv =
+      (typeof window !== "undefined"
+        && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
+    const isPiVc4 = __ttbEnv === "pi";
+    if (!isPiVc4 && ctx.gifDecoder.canDecodeGifFramesWithImageDecoder()) {
       try {
         const decoder = new ImageDecoder({ data, type: "image/gif" });
         await decoder.tracks.ready;
@@ -136,16 +149,17 @@
     // and prevents Pi VC4 GPU driver from reaping the WebGL context
     // during long parses. Decoder sets entry.status="ready" on success.
     await ctx.gifDecoder.decodeGifPlaybackFramesWithParser(data, entry, {
-      yieldBetweenFrames: isFinalOutput,
-      // Phase 30 Plan 30-04 T11: skip the per-frame ImageBitmap
-      // pre-bake on /output/. T9's bitmap path was great on
-      // dashboard but on Pi VC4 the cumulative GPU allocation
-      // (e.g. 150 frames × 512×288×4 = ~88 MB for slime) brought
-      // back the CONTEXT_LOST_WEBGL pattern h10/h11 originally
-      // closed. Falling back to the playback-canvas + putImageData
-      // path keeps GIFs playable without GPU pressure; T7's
-      // 512px-max-dim downsample makes the per-frame upload cheap.
-      bakeImageBitmap: !isFinalOutput,
+      // h6 hotfix: yield-between-frames is a Pi VC4 watchdog defense, not
+      // a generic "final-output" property. SSR Chromium tab on server
+      // doesn't need the yields and they dramatically cap fps. Pin to Pi.
+      yieldBetweenFrames: isPiVc4,
+      // Phase 30 Plan 30-04 T11: skip the per-frame ImageBitmap pre-bake
+      // on Pi /output/ specifically (T9's bitmap path was great on
+      // dashboard but on Pi VC4 cumulative GPU allocation revived h10/h11
+      // CONTEXT_LOST_WEBGL pattern). h6 hotfix: ssr-server tab benefits
+      // from the bitmap pre-bake too, so the gate is now Pi-specific
+      // rather than final-output.
+      bakeImageBitmap: !isPiVc4,
     });
     if (entry.status === "ready") {
       _gifProbe("decode-success", {
