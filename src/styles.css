@@ -2314,19 +2314,25 @@ body[data-ssr-preview="true"] .app-shell {
   display: none !important;
 }
 
-/* The receiver <video> fills the viewport. object-fit: contain preserves
-   the mesh-warp pixel content exactly as encoded server-side. */
+/* The receiver <video> fills the viewport. */
 .ssr-video:not([hidden]) {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* h5: was `object-fit: contain` — letterboxed when Pi viewport
-     aspect ≠ stream aspect. User contract: "kein sichtbarer Unterschied"
-     between SSR-tab render and Pi display. `cover` fills the viewport
-     completely while preserving aspect (mild crop on aspect mismatch);
-     when both sides are 16:9 (default) it's pixel-equivalent to fill. */
-  object-fit: cover;
+  /* h22 (2026-05-06): reverted h5's `cover` back to `contain`. cover
+     was masking a real bug: on receivers wider/shorter than 16:9, the
+     stream's top/bottom (including the projection-mapping Y handles
+     and any animations near the edges) got CROPPED. The user
+     manifestly hit this in align mode — handles at 10/90 inset Y
+     became invisible because they were inside the cropped region.
+     `contain` preserves the entire stream content with letterbox bars
+     on aspect-mismatched displays. The original "kein sichtbarer
+     Unterschied" requirement holds when receiver aspect == stream
+     aspect (typical 16:9 projector); on mismatched aspects the
+     letterbox is the lesser evil compared to cropping pixels the
+     SSR tab actually rendered. */
+  object-fit: contain;
   background: #000;
   z-index: 1;
 }

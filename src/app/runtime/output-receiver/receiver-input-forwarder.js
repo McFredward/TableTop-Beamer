@@ -132,13 +132,16 @@ export function attachInputForwarder({
     if (ghostEl) ghostEl.style.display = "none";
   }
 
-  // Phase-31 h19: map pointer coords from receiver-viewport pixels to
-  // STREAM-CONTENT-NORMALIZED [0..1] space. The stream is encoded at the
-  // SSR tab's page dimensions (e.g. 1920×1080); the <video> displays it
-  // with object-fit: cover, so the visible rect on the receiver may be
-  // larger than the viewport and clipped. We compute the visible stream
-  // rect from videoEl.videoWidth/Height + viewport dims, then convert
-  // the click position to (clickX - streamLeft) / streamWidth.
+  // Phase-31 h22 (2026-05-06): map pointer coords from receiver-viewport
+  // pixels to STREAM-CONTENT-NORMALIZED [0..1] space.
+  //
+  // The receiver <video> uses object-fit: contain (h22 reverted h5's
+  // cover). With contain, the stream is scaled to fit ENTIRELY inside
+  // the viewport with letterbox bars on aspect-mismatched displays —
+  // never cropped. We compute the actual displayed stream rect from
+  // videoEl.videoWidth/Height + viewport dims, then map the click into
+  // [0..1] of that rect. Clicks in the letterbox area get clamped to
+  // [0..1] (the SSR-side setPoint also clamps).
   //
   // When videoEl is missing or videoWidth=0 (no frame yet) we fall back
   // to overlay-rect normalization so the previous behavior is preserved.
@@ -153,31 +156,29 @@ export function attachInputForwarder({
         normalizedY: (e.clientY - rect.top) / rect.height,
       };
     }
-    // object-fit: cover — scale to fill the longer axis, crop the shorter.
+    // object-fit: contain — scale to fit ENTIRELY inside viewport,
+    // letterbox on the axis where the stream is shorter relative to
+    // its aspect.
     const viewportAspect = rect.width / rect.height;
     const streamAspect = vw / vh;
     let displayedW, displayedH, offsetX, offsetY;
     if (streamAspect > viewportAspect) {
-      // stream is wider than viewport → cover scales to fill height,
-      // crops left/right. Visible stream content is the centered slice
-      // of the viewport in X, full height.
-      displayedH = rect.height;
-      displayedW = rect.height * streamAspect;
-      offsetX = (rect.width - displayedW) / 2;
-      offsetY = 0;
-    } else {
-      // stream is taller than viewport → cover scales to fill width,
-      // crops top/bottom. Visible content is centered in Y.
+      // Stream is wider than viewport → fit to viewport width;
+      // letterbox top + bottom.
       displayedW = rect.width;
       displayedH = rect.width / streamAspect;
       offsetX = 0;
       offsetY = (rect.height - displayedH) / 2;
+    } else {
+      // Stream is taller than viewport → fit to viewport height;
+      // letterbox left + right.
+      displayedH = rect.height;
+      displayedW = rect.height * streamAspect;
+      offsetX = (rect.width - displayedW) / 2;
+      offsetY = 0;
     }
     const localX = e.clientX - rect.left;
     const localY = e.clientY - rect.top;
-    // Map into stream-content space, clamped to [0..1] (clicks outside
-    // the visible content area shouldn't crash, just clamp to nearest
-    // edge — the SSR-side handler clamps too).
     const nx = Math.max(0, Math.min(1, (localX - offsetX) / displayedW));
     const ny = Math.max(0, Math.min(1, (localY - offsetY) / displayedH));
     return { normalizedX: nx, normalizedY: ny };

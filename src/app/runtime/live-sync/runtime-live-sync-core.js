@@ -12,6 +12,14 @@
 (() => {
   let ctx = null;
 
+  // Phase-31 h22 (2026-05-06): page-load timestamp. Drags older than
+  // this are by definition stale (they were sent BEFORE this page
+  // loaded) and must not be replayed. The 5 s wall-clock check we had
+  // in h21b can fail when the server's clock is slightly ahead, or
+  // when a slow page load means the snapshot's drag-at is technically
+  // within 5 s of "now" but predates the page mount.
+  const _pageLoadAtMs = Date.now();
+
   function init(dependencies) {
     ctx = dependencies;
   }
@@ -434,7 +442,12 @@
         const dragAt = drag.at ? Date.parse(drag.at) : 0;
         const ageMs = Number.isFinite(dragAt) ? Date.now() - dragAt : Infinity;
         const alignActive = Boolean(state.alignMode);
-        const acceptable = ageMs <= 5000 && alignActive;
+        // h22: also reject drags that predate the page load. A server-
+        // persisted alignMode=true + lastAlignCornerDrag from a prior
+        // session would otherwise pass the alignActive+age gates and
+        // silently mutate the freshly-loaded profile → dirty flag.
+        const dragArrivedAfterLoad = Number.isFinite(dragAt) && dragAt >= _pageLoadAtMs;
+        const acceptable = ageMs <= 5000 && alignActive && dragArrivedAfterLoad;
         if (acceptable && state._lastAppliedAlignCornerDragKey !== dragKey) {
           state._lastAppliedAlignCornerDragKey = dragKey;
           const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
@@ -626,7 +639,10 @@
               const dragAt = drag?.at ? Date.parse(drag.at) : 0;
               const ageMs = Number.isFinite(dragAt) ? Date.now() - dragAt : Infinity;
               const alignActive = Boolean(ctx.state?.alignMode);
-              if (drag && typeof drag === "object" && ageMs <= 5000 && alignActive) {
+              // h22: also reject drags that predate the page load (see
+              // _pageLoadAtMs comment at top of module).
+              const dragArrivedAfterLoad = Number.isFinite(dragAt) && dragAt >= _pageLoadAtMs;
+              if (drag && typeof drag === "object" && ageMs <= 5000 && alignActive && dragArrivedAfterLoad) {
                 const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
                 const grid = gridState?.getGrid?.();
                 if (grid && Array.isArray(grid.srcXs) && Array.isArray(grid.srcYs)) {
