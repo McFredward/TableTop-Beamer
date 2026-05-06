@@ -24,17 +24,36 @@ const GIF_PLAYBACK_SRC = readFileSync(
 );
 
 // Build a callable copy of `getRuntimeEnvironment` for unit testing without
-// a browser. We extract the function source (between `function
-// getRuntimeEnvironment` and the matching closing brace) and evaluate it
-// in a sandbox with stubbed `window` / `navigator`.
+// a browser. We extract the function source (signature + body) by walking
+// braces starting from the first `(` of the parameter list — this correctly
+// pairs the destructuring-default `{...} = {}` braces with their closers
+// before reaching the function body.
 function buildGetRuntimeEnvironmentCallable() {
   const startMarker = "function getRuntimeEnvironment(";
   const start = RUNTIME_ENV_SRC.indexOf(startMarker);
   if (start < 0) throw new Error("getRuntimeEnvironment definition not found");
-  // Walk braces from the first `{` after the signature.
-  const openBrace = RUNTIME_ENV_SRC.indexOf("{", start);
+  // Walk through the parameter list to skip past the destructuring-default
+  // braces (e.g. `{ location: loc, userAgent: ua } = {}`).
+  const parenOpen = RUNTIME_ENV_SRC.indexOf("(", start);
+  let parenDepth = 0;
+  let cursor = parenOpen;
+  for (; cursor < RUNTIME_ENV_SRC.length; cursor += 1) {
+    const ch = RUNTIME_ENV_SRC[cursor];
+    if (ch === "(") parenDepth += 1;
+    else if (ch === ")") {
+      parenDepth -= 1;
+      if (parenDepth === 0) {
+        cursor += 1;
+        break;
+      }
+    }
+  }
+  // Now walk to the function body's opening `{`.
+  while (cursor < RUNTIME_ENV_SRC.length && RUNTIME_ENV_SRC[cursor] !== "{") {
+    cursor += 1;
+  }
   let depth = 0;
-  let i = openBrace;
+  let i = cursor;
   for (; i < RUNTIME_ENV_SRC.length; i += 1) {
     const ch = RUNTIME_ENV_SRC[i];
     if (ch === "{") depth += 1;

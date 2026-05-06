@@ -322,7 +322,19 @@
   // boot ("trying multiple modes"). 30 s easily covers parser
   // worst case; on the rare actual stall the queue still moves
   // on. Probe-tag "warm-timeout" is now exceptional, not routine.
-  const WARM_DECODE_TIMEOUT_MS = 30000;
+  //
+  // Phase 31 Plan 05 (Wave 5) — runtime-environment gate. Per
+  // .planning/phases/phase-31/31-HOTFIX-AUDIT.md, T12 is `pi-only`:
+  // the server-side SSR Chromium tab decodes the same GIFs in
+  // <500 ms, so the original 5 s budget is more than sufficient and
+  // surfaces real stalls earlier. ARM-UA defense-in-depth in
+  // getRuntimeEnvironment clamps to "pi" on any ARM hardware
+  // regardless of URL. Falls back to "pi" if the helper is missing
+  // (Phase-30 behavior preserved).
+  const __ttbEnv =
+    (typeof window !== "undefined"
+      && window.TT_BEAMER_RUNTIME_ENV?.getRuntimeEnvironment?.()) ?? "pi";
+  const WARM_DECODE_TIMEOUT_MS = __ttbEnv === "pi" ? 30000 : 5000;
   function _enqueueOutputWarm(path) {
     _outputWarmQueue = _outputWarmQueue
       .then(async () => {
