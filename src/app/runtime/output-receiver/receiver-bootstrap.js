@@ -23,6 +23,39 @@ import {
 import { attachInputForwarder } from "./receiver-input-forwarder.js";
 
 /**
+ * Phase 32 D-B5: pre-flight check before opening a WebRTC session.
+ * Polls /api/ssr/ready until 200 OK + { ready: true } (producer up) or
+ * maxWaitMs elapses. Returns true when the producer is ready, false on timeout.
+ * Best-effort — callers should proceed with the retry loop even on false.
+ *
+ * @param {object} [opts]
+ * @param {Function} [opts.fetch]       - injectable fetch (for unit tests)
+ * @param {number}   [opts.maxWaitMs]   - total timeout (default 60s)
+ * @param {number}   [opts.pollIntervalMs] - poll cadence (default 1s)
+ * @returns {Promise<boolean>}
+ */
+export async function waitForProducer({
+  fetch: _fetch = (typeof window !== "undefined" ? window.fetch : globalThis.fetch),
+  maxWaitMs = 60000,
+  pollIntervalMs = 1000,
+} = {}) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    try {
+      const r = await _fetch("/api/ssr/ready");
+      if (r.ok) {
+        const j = await r.json();
+        if (j && j.ready === true) return true;
+      }
+    } catch {
+      // Network hiccup or fetch reject — keep polling.
+    }
+    await new Promise((res) => setTimeout(res, pollIntervalMs));
+  }
+  return false;
+}
+
+/**
  * Returns true if the current location should boot the receiver — i.e. it's
  * /output/ on the Pi without `?ssr=1`. The SSR Chromium tab on the server
  * runs the full pipeline (Plan 01/02 contract) and is identified by

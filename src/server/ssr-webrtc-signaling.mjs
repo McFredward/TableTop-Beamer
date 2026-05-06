@@ -167,6 +167,21 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
   // a stale connection from the same IP before opening a new one.
   const connectionsByAddr = new Map();
 
+  // Phase 32 D-B5: broadcast producer-ready to all consumer sockets when the
+  // video producer transitions null → non-null. Defined here (not module-level)
+  // so it has closure access to connectionsByAddr.
+  function broadcastProducerReady() {
+    const frame = encodeTextFrame(JSON.stringify({ type: "producer-ready" }));
+    for (const [, entry] of connectionsByAddr) {
+      if (!entry || !entry.conn || entry.conn.role !== "consumer") continue;
+      try {
+        entry.socket.write(frame);
+      } catch {
+        // swallow per-socket errors; consumers will reconnect via their own logic
+      }
+    }
+  }
+
   // Module-level shared state — there is exactly ONE active video Producer
   // at any time (the SSR tab). When the SSR tab restarts, the Producer is
   // re-created via the publisher script and `state.videoProducer` is updated.
@@ -447,7 +462,13 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
             rtpParameters: msg.rtpParameters,
           });
           conn.producers.set(producer.id, producer);
+          // Phase 32 D-B5: broadcast producer-ready on null→non-null transition.
+          const wasNull = state.videoProducer == null;
           state.videoProducer = producer;
+          if (wasNull) {
+            logger.info("[ssr-signal] producer up — broadcasting producer-ready to consumers");
+            broadcastProducerReady();
+          }
           // When the producer closes (SSR tab restart), clear the global slot
           // and notify any active consumers via producer-closed events.
           producer.on("transportclose", () => {

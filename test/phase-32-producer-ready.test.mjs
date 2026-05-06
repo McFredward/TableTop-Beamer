@@ -1,9 +1,10 @@
 // test/phase-32-producer-ready.test.mjs
 //
-// Phase 32 Wave 0 — Block B tests B1-B2, B12-B13 (SKIP-GATED).
-// These tests will be flipped GREEN by Wave 1 when:
-//   - /api/ssr/ready endpoint is added to server.mjs
-//   - waitForProducer() is exported from receiver-bootstrap.js
+// Phase 32 Block B tests B1-B2, B12-B13.
+// Flipped GREEN by 32-02-T1 when:
+//   - buildSsrReadyResponse exported from src/server/ssr-ready-handler.mjs
+//   - /api/ssr/ready route added to server.mjs
+//   - waitForProducer() exported from receiver-bootstrap.js
 //
 // Contains: phase-32-producer-ready
 
@@ -14,19 +15,13 @@ import { strict as assert } from "node:assert";
 
 test(
   "B1: GET /api/ssr/ready returns 503 with body { ready: false, reason: 'producer-starting' } when state.videoProducer is null",
-  { skip: "Wave 1 will add /api/ssr/ready endpoint to server.mjs" },
   async () => {
-    // Simulate the handler logic directly (unit-test the handler function,
-    // not the full HTTP server).
-    // Wave 1 will export handleSsrReadyRequest or similar from a module.
-    // For now: assert the response shape we expect.
-    const videoProducer = null;
-    const ready = videoProducer != null;
-    const body = { ready, reason: ready ? "producer-up" : "producer-starting" };
-    const statusCode = ready ? 200 : 503;
-
-    assert.equal(statusCode, 503);
-    assert.deepEqual(body, { ready: false, reason: "producer-starting" });
+    const { buildSsrReadyResponse } = await import(
+      "../src/server/ssr-ready-handler.mjs"
+    );
+    const result = buildSsrReadyResponse({ videoProducer: null });
+    assert.equal(result.status, 503);
+    assert.deepEqual(result.body, { ready: false, reason: "producer-starting" });
   },
 );
 
@@ -34,16 +29,27 @@ test(
 
 test(
   "B2: GET /api/ssr/ready returns 200 with body { ready: true, reason: 'producer-up' } when state.videoProducer is non-null",
-  { skip: "Wave 1 will add /api/ssr/ready endpoint to server.mjs" },
   async () => {
-    // Simulate the handler logic with a non-null producer.
-    const videoProducer = { id: "mock-producer-123" };
-    const ready = videoProducer != null;
-    const body = { ready, reason: ready ? "producer-up" : "producer-starting" };
-    const statusCode = ready ? 200 : 503;
+    const { buildSsrReadyResponse } = await import(
+      "../src/server/ssr-ready-handler.mjs"
+    );
+    const result = buildSsrReadyResponse({ videoProducer: { id: "mock-producer-123" } });
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body, { ready: true, reason: "producer-up" });
+  },
+);
 
-    assert.equal(statusCode, 200);
-    assert.deepEqual(body, { ready: true, reason: "producer-up" });
+// ── B2b: /api/ssr/ready returns 503 with signaling-not-attached when signalingState is null ──
+
+test(
+  "B2b: GET /api/ssr/ready returns 503 with reason 'signaling-not-attached' when signalingState is null",
+  async () => {
+    const { buildSsrReadyResponse } = await import(
+      "../src/server/ssr-ready-handler.mjs"
+    );
+    const result = buildSsrReadyResponse(null);
+    assert.equal(result.status, 503);
+    assert.deepEqual(result.body, { ready: false, reason: "signaling-not-attached" });
   },
 );
 
@@ -51,27 +57,16 @@ test(
 
 test(
   "B12: waitForProducer({ fetch: mockFetch, maxWaitMs: 5000, pollIntervalMs: 100 }) resolves to true when mockFetch returns 200",
-  { skip: "Wave 1 will export waitForProducer from receiver-bootstrap.js" },
   async () => {
-    // Wave 1 will export waitForProducer from receiver-bootstrap.js.
-    // Mock implementation to assert the expected contract:
-    async function waitForProducer({ fetch: mockFetch, maxWaitMs, pollIntervalMs }) {
-      const deadline = Date.now() + maxWaitMs;
-      while (Date.now() < deadline) {
-        try {
-          const r = await mockFetch("/api/ssr/ready");
-          const j = await r.json();
-          if (j.ready) return true;
-        } catch { /* network hiccup */ }
-        await new Promise((res) => setTimeout(res, pollIntervalMs));
-      }
-      return false;
-    }
+    const { waitForProducer } = await import(
+      "../src/app/runtime/output-receiver/receiver-bootstrap.js"
+    );
 
     let callCount = 0;
     const mockFetch = async () => {
       callCount += 1;
       return {
+        ok: true,
         json: async () => ({ ready: true, reason: "producer-up" }),
         status: 200,
       };
@@ -92,23 +87,13 @@ test(
 
 test(
   "B13: waitForProducer({ fetch: mockFetch, maxWaitMs: 200, pollIntervalMs: 50 }) resolves to false when mockFetch returns 503 throughout",
-  { skip: "Wave 1 will export waitForProducer from receiver-bootstrap.js" },
   async () => {
-    // Same contract assertion as B12 but with perpetual 503 response.
-    async function waitForProducer({ fetch: mockFetch, maxWaitMs, pollIntervalMs }) {
-      const deadline = Date.now() + maxWaitMs;
-      while (Date.now() < deadline) {
-        try {
-          const r = await mockFetch("/api/ssr/ready");
-          const j = await r.json();
-          if (j.ready) return true;
-        } catch { /* network hiccup */ }
-        await new Promise((res) => setTimeout(res, pollIntervalMs));
-      }
-      return false;
-    }
+    const { waitForProducer } = await import(
+      "../src/app/runtime/output-receiver/receiver-bootstrap.js"
+    );
 
     const mockFetch = async () => ({
+      ok: false,
       json: async () => ({ ready: false, reason: "producer-starting" }),
       status: 503,
     });

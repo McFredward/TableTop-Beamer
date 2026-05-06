@@ -13,6 +13,7 @@ import {
 import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
 import { bootMediasoupRouter, shutdownMediasoupRouter } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
+import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
 // Phase 31 Plan 04: D-X7 active-animations persistence + D-D1 align-mode round-trip.
 import {
@@ -30,6 +31,10 @@ import {
 // Phase-31 h15: hardware-agnostic resource header helper (Connection: close
 // for /resources/animations/* etc.) — see module header for rationale.
 import { buildStaticResourceHeaders } from "./src/server/static-resource-headers.mjs";
+
+// Phase 32 D-B5: module-scoped signalingState reference so the /api/ssr/ready
+// route handler can read state.videoProducer without touching the boot block.
+let signalingState = null;
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4173);
@@ -3457,6 +3462,17 @@ const server = createServer(async (req, res) => {
   try {
     const routePath = normalizeRoutePath(req.url || "/");
 
+    // Phase 32 D-B5: producer-readiness gate endpoint.
+    // Pi receiver polls this before opening a WebRTC session to avoid the
+    // cold-boot race where consume() is attempted before the SSR tab's
+    // producer is up. Returns 503 until videoProducer is non-null, then 200.
+    if (req.method === "GET" && routePath === "/api/ssr/ready") {
+      const { status, body } = buildSsrReadyResponse(signalingState);
+      res.writeHead(status, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(body));
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
         ok: true,
@@ -4195,7 +4211,7 @@ if (process.env.SSR_RENDER_HOST === "1") {
         console.warn("[active-grid] load failed:", err?.message || err);
       }
       await bootMediasoupRouter();
-      const signalingState = attachWebRtcSignaling(server);
+      signalingState = attachWebRtcSignaling(server);
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
       // first SSR-tab fetch is instant. Failure is non-fatal — the route
       // will rebuild on demand.
