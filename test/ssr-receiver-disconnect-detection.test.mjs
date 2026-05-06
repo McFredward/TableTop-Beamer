@@ -106,8 +106,15 @@ test("DISCONNECT_THRESHOLD_MS is 8000ms per Phase-31 h36 reconnect-storm fix", (
   assert.equal(DISCONNECT_THRESHOLD_MS, 8000);
 });
 
-test("MAX_RECONNECT_ATTEMPTS is 10 per Plan 03 D-B4 contract", () => {
-  assert.equal(MAX_RECONNECT_ATTEMPTS, 10);
+// Phase 32 D-B2: MAX_RECONNECT_ATTEMPTS was 10 (Plan 03 original contract).
+// 32-02-T2 removes the hard cap in favour of forever-retry adaptive backoff.
+// Test updated to assert the export is gone (undefined = correct post-patch).
+test("MAX_RECONNECT_ATTEMPTS is removed in Phase 32 D-B2 (forever-retry replaces hard cap)", () => {
+  assert.equal(
+    typeof MAX_RECONNECT_ATTEMPTS,
+    "undefined",
+    "MAX_RECONNECT_ATTEMPTS must be undefined after Phase 32 removes the hard cap",
+  );
 });
 
 test("isReceiverPath: /output/ → true", () => {

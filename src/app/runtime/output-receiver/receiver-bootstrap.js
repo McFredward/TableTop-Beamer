@@ -17,7 +17,12 @@ import {
   createStatusUi,
   evaluateDisconnect,
   DISCONNECT_THRESHOLD_MS,
-  MAX_RECONNECT_ATTEMPTS,
+  getBackoffDelay,
+  loadBackoffState,
+  saveBackoffState,
+  clearBackoffState,
+  markStable,
+  STABLE_RESET_THRESHOLD_MS,
 } from "./receiver-status-ui.js";
 // Phase 31 Plan 04 (D-D1): align-mode pointer events forwarded to server.
 import { attachInputForwarder } from "./receiver-input-forwarder.js";
@@ -104,8 +109,14 @@ export async function bootReceiver({ logger = console } = {}) {
   // D-D4: TT-Beamer splash + "Connecting…" first paint.
   ui.showSplash("Connecting to render server…");
 
+  // Phase 32 D-B2: load persisted attempt count from sessionStorage so page
+  // reloads do NOT reset the backoff to 1s rapid-fire. On a clean boot the
+  // key is absent and we start at 0.
+  const backoffStorage = (typeof window !== "undefined" && window.sessionStorage)
+    ? window.sessionStorage : null;
   let receiver = null;
-  let reconnectAttempts = 0;
+  let reconnectAttempts = loadBackoffState(backoffStorage).attempts;
+  let connectionStableSince = null; // tracks when last stable connection started
   let lastFrameAtMs = performance.now();
   let lastHeartbeatAtMs = performance.now();
   let frameCount = 0;
@@ -137,6 +148,8 @@ export async function bootReceiver({ logger = console } = {}) {
     ui.hideError();
     ui.showSplash("Reconnecting…");
     reconnectAttempts = 0;
+    clearBackoffState(backoffStorage);
+    connectionStableSince = null;
     await tryConnect();
   });
 
@@ -156,15 +169,23 @@ export async function bootReceiver({ logger = console } = {}) {
       receiver.onConnectionStateChange((s) => {
         pcState = s;
         if (s === "connected") {
+          // Phase 32 D-B2: clear backoff state on successful connection.
           reconnectAttempts = 0;
+          clearBackoffState(backoffStorage);
+          connectionStableSince = Date.now();
           ui.hideSplash();
           ui.hideReconnect();
           ui.hideError();
+        }
+        if (s === "failed" || s === "ws-closed" || s === "disconnected") {
+          // Reset stable tracker so overlay re-shows on next retry.
+          connectionStableSince = null;
         }
         // D-B4: explicit render-host-down — server publishes this when
         // the Chromium tab dies. Show error UI instead of leaving the
         // last frozen frame and waiting for the operator to notice.
         if (s === "host-down") {
+          connectionStableSince = null;
           ui.hideSplash(); // h5: error must be visible above splash
           ui.showError(
             "Render host crashed. The server is restarting the render tab — click Retry to reconnect.",
@@ -184,7 +205,10 @@ export async function bootReceiver({ logger = console } = {}) {
           ui.hideSplash();
           ui.hideReconnect();
           ui.hideError();
+          // Phase 32 D-B2: clear backoff state on first frame received.
           reconnectAttempts = 0;
+          clearBackoffState(backoffStorage);
+          connectionStableSince = connectionStableSince ?? Date.now();
         }
         lastFrameAtMs = performance.now();
         frameCount += 1;
@@ -207,16 +231,11 @@ export async function bootReceiver({ logger = console } = {}) {
       });
     } catch (err) {
       logger.error(`[ssr-receiver] connect failed: ${err?.message ?? err}`);
+      // Phase 32 D-B2: forever-retry with adaptive backoff schedule.
+      // No hard attempt cap — the Pi retries until stable.
       reconnectAttempts += 1;
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        // D-B4 escalation cap reached — surface the explicit error UI
-        // with the Retry button. Operator must take action.
-        ui.hideSplash(); // h5: error must be visible above splash
-        ui.showError(
-          `Cannot reach render server after ${MAX_RECONNECT_ATTEMPTS} attempts. Check server status, then click Retry.`,
-        );
-        return;
-      }
+      saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
+      connectionStableSince = null; // reset stable tracker on failure
       // h5: hide the splash before showing reconnect — splash z-index 50
       // sat above reconnect z-index 40, hiding the reconnect banner.
       // First-time /output/ load was the worst case: the SSR Chromium tab
@@ -224,9 +243,10 @@ export async function bootReceiver({ logger = console } = {}) {
       // is up, and the splash stayed visible the whole time with no sign
       // of progress. Hiding it lets the reconnect banner show through.
       ui.hideSplash();
-      const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000);
+      // Use D-B2 schedule: attempt 0→1s, 1→2s, 2→5s, 3→10s, ≥4→30s.
+      const delay = getBackoffDelay(reconnectAttempts - 1);
       ui.showReconnect(
-        `Retrying in ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})…`,
+        `RECONNECTING — ${Math.round(delay / 1000)}s (attempt ${reconnectAttempts})`,
       );
       setTimeout(() => {
         tryConnect();
@@ -303,12 +323,28 @@ export async function bootReceiver({ logger = console } = {}) {
       // D-B4: surface ALL detected reasons in the banner so the operator
       // sees what triggered the reconnect. Empty banner == no info ==
       // bad UX.
-      ui.showReconnect(`Server reconnecting (${dec.reasons.join(", ")})…`);
       reconnectAttempts += 1;
+      saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
+      connectionStableSince = null;
+      const monDelay = getBackoffDelay(reconnectAttempts - 1);
+      ui.showReconnect(
+        `RECONNECTING — ${Math.round(monDelay / 1000)}s (attempt ${reconnectAttempts}) [${dec.reasons.join(", ")}]`,
+      );
       try {
         receiver?.stop();
       } catch {}
       tryConnect();
+    }
+
+    // Phase 32 D-B2: stable-reset — if connected >= STABLE_RESET_THRESHOLD_MS,
+    // reset attempts to 0 and clear sessionStorage backoff state.
+    if (connectionStableSince !== null && reconnectAttempts > 0) {
+      const stableMs = Date.now() - connectionStableSince;
+      if (stableMs >= STABLE_RESET_THRESHOLD_MS) {
+        reconnectAttempts = 0;
+        clearBackoffState(backoffStorage);
+        connectionStableSince = Date.now(); // re-stamp so we don't keep resetting
+      }
     }
 
     // fps rolling average over the latest 1s window
@@ -353,6 +389,20 @@ export async function bootReceiver({ logger = console } = {}) {
       reconnectAttempts,
     });
   }, 1000);
+
+  // Phase 32 D-B5: producer-readiness gate. Best-effort 60s wait before
+  // opening the WebRTC session. If the server's SSR tab hasn't produced yet,
+  // this prevents the cold-boot "consume() before producer" race. If
+  // waitForProducer times out, we enter the retry loop anyway (gate is
+  // best-effort, not blocking-forever).
+  try {
+    const producerReady = await waitForProducer({ maxWaitMs: 60000, pollIntervalMs: 1000 });
+    if (!producerReady) {
+      logger.warn("[receiver] waitForProducer timed out after 60s — entering retry loop anyway");
+    }
+  } catch (e) {
+    logger.warn("[receiver] waitForProducer threw:", e?.message);
+  }
 
   await tryConnect();
 
@@ -459,4 +509,14 @@ export async function bootReceiver({ logger = console } = {}) {
 
 // Re-export the shared constants so test code can reference them through
 // the bootstrap module entry point if it prefers a single import.
-export { DISCONNECT_THRESHOLD_MS, MAX_RECONNECT_ATTEMPTS };
+// Phase 32 D-B2: hard attempt cap removed (forever-retry); getBackoffDelay,
+// loadBackoffState, saveBackoffState, clearBackoffState re-exported for tests.
+export {
+  DISCONNECT_THRESHOLD_MS,
+  getBackoffDelay,
+  loadBackoffState,
+  saveBackoffState,
+  clearBackoffState,
+  markStable,
+  STABLE_RESET_THRESHOLD_MS,
+};

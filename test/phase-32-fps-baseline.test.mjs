@@ -2,14 +2,14 @@
 //
 // Phase 32 — Baseline + post-patch proof tests.
 // Baselines 2+3 rewritten GREEN by 32-01-T2 (schema landed).
-// Baselines 4+5 owned by 32-02 (Block B) — DO NOT TOUCH.
+// Baselines 4+5 rewritten GREEN by 32-02-T2 (Block B backoff patched).
 //
-// State after 32-01-T2:
+// State after 32-02-T2:
 //   Baseline 1: FPS_VALUES = [30, 24, 15]            — unchanged (legacy compat)
-//   Baseline 2: STREAM_FPS_CAP_VALUES = [30,45,60,0] — GREEN post-patch
-//   Baseline 3: alignModeBoost = true in defaults     — GREEN post-patch
-//   Baseline 4: MAX_RECONNECT_ATTEMPTS = 10           — owned by 32-02
-//   Baseline 5: backoff formula caps at 10000ms       — owned by 32-02
+//   Baseline 2: STREAM_FPS_CAP_VALUES = [30,45,60,0] — GREEN post-patch (32-01)
+//   Baseline 3: alignModeBoost = true in defaults     — GREEN post-patch (32-01)
+//   Baseline 4: MAX_RECONNECT_ATTEMPTS REMOVED        — GREEN post-patch (32-02)
+//   Baseline 5: RECONNECT_BACKOFF_MS = [1000,...,30000] — GREEN post-patch (32-02)
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
@@ -50,28 +50,26 @@ test("POST-PATCH: SERVER_RENDERING_DEFAULTS includes alignModeBoost: true (Phase
   );
 });
 
-// ── Baseline 4: MAX_RECONNECT_ATTEMPTS = 10 pre-patch (owned by 32-02) ───
+// ── Baseline 4: MAX_RECONNECT_ATTEMPTS REMOVED (owned by 32-02) ───────────
+// Rewritten by 32-02-T2: assert the export is GONE (not = 10 as at Wave 0).
 
-test("BASELINE: MAX_RECONNECT_ATTEMPTS exports value 10 — Wave 1 will remove the hard cap", () => {
+test("POST-PATCH: MAX_RECONNECT_ATTEMPTS export is REMOVED from receiver-status-ui.js (32-02 Block B)", async () => {
+  const m = await import("../src/app/runtime/output-receiver/receiver-status-ui.js");
   assert.equal(
-    ui.MAX_RECONNECT_ATTEMPTS,
-    10,
-    "MAX_RECONNECT_ATTEMPTS must be 10 before Wave 1 converts to forever-retry",
+    typeof m.MAX_RECONNECT_ATTEMPTS,
+    "undefined",
+    "MAX_RECONNECT_ATTEMPTS export must be removed in Phase 32 Block B (32-02-T2)",
   );
 });
 
-// ── Baseline 5: receiver-bootstrap backoff formula pre-patch (owned by 32-02)
+// ── Baseline 5: RECONNECT_BACKOFF_MS schedule (owned by 32-02) ─────────────
+// Rewritten by 32-02-T2: assert RECONNECT_BACKOFF_MS is exported with D-B2 values.
 
-test("BASELINE: receiver-bootstrap backoff formula caps at 10000ms — Wave 1 will replace with 30000ms schedule", () => {
-  const src = readFileSync(
-    new URL(
-      "../src/app/runtime/output-receiver/receiver-bootstrap.js",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  assert.ok(
-    src.includes("Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000)"),
-    "receiver-bootstrap.js must contain the old backoff formula before Wave 1 replaces it",
+test("POST-PATCH: RECONNECT_BACKOFF_MS = [1000, 2000, 5000, 10000, 30000] (32-02 Block B D-B2)", async () => {
+  const m = await import("../src/app/runtime/output-receiver/receiver-status-ui.js");
+  assert.deepEqual(
+    m.RECONNECT_BACKOFF_MS,
+    [1000, 2000, 5000, 10000, 30000],
+    "Backoff schedule must match D-B2 [1000, 2000, 5000, 10000, 30000]",
   );
 });

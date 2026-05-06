@@ -20,7 +20,132 @@
 // during a true crash, but the operator already has explicit `host-down`
 // and `pc-failed` signals which fire instantly via WebRTC state.
 export const DISCONNECT_THRESHOLD_MS = 8000;
-export const MAX_RECONNECT_ATTEMPTS = 10;
+
+// Phase 32 D-B2: adaptive forever-retry backoff schedule.
+// Replaces the legacy hard cap (10 attempts) with infinite retry.
+// Resets to attempts=0 after >=STABLE_RESET_THRESHOLD_MS stable connection.
+export const RECONNECT_BACKOFF_MS = [1000, 2000, 5000, 10000, 30000];
+export const STABLE_RESET_THRESHOLD_MS = 30000;
+export const OVERLAY_HIDE_AFTER_STABLE_MS = 5000;
+const BACKOFF_STATE_KEY = "ssr-reconnect-state";
+
+/**
+ * Return the backoff delay for a given attempt count.
+ * Caps at the last slot (30000ms) for N >= 4.
+ * @param {number} attemptCount
+ * @returns {number} delay in ms
+ */
+export function getBackoffDelay(attemptCount) {
+  const n = Number.isFinite(attemptCount) && attemptCount >= 0 ? attemptCount : 0;
+  const idx = Math.min(n, RECONNECT_BACKOFF_MS.length - 1);
+  return RECONNECT_BACKOFF_MS[idx];
+}
+
+/**
+ * Load backoff state from storage.
+ * @param {Storage} storage  - sessionStorage-like object
+ * @returns {{ attempts: number }}
+ */
+export function loadBackoffState(storage) {
+  if (!storage) return { attempts: 0 };
+  try {
+    const raw = storage.getItem(BACKOFF_STATE_KEY);
+    if (!raw) return { attempts: 0 };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return { attempts: 0 };
+    const attempts = Number(parsed.attempts);
+    return { attempts: Number.isFinite(attempts) && attempts >= 0 ? attempts : 0 };
+  } catch {
+    return { attempts: 0 };
+  }
+}
+
+/**
+ * Save backoff state to storage.
+ * @param {{ attempts: number }} state
+ * @param {Storage} storage  - sessionStorage-like object
+ */
+export function saveBackoffState(state, storage) {
+  if (!storage) return;
+  try {
+    storage.setItem(BACKOFF_STATE_KEY, JSON.stringify({ attempts: state?.attempts ?? 0 }));
+  } catch {
+    // swallow — sessionStorage may be quota-exceeded or in private mode
+  }
+}
+
+/**
+ * Clear backoff state from storage.
+ * @param {Storage} storage  - sessionStorage-like object
+ */
+export function clearBackoffState(storage) {
+  if (!storage) return;
+  try { storage.removeItem(BACKOFF_STATE_KEY); } catch { /* swallow */ }
+}
+
+/**
+ * Mark stable: clear backoff state and reset attempts counter in storage.
+ * Called when connection has been stable for >= STABLE_RESET_THRESHOLD_MS.
+ * @param {Storage} storage  - sessionStorage-like object
+ */
+export function markStable(storage) {
+  clearBackoffState(storage);
+}
+
+// Phase 32 D-B3: module-level store for countdown overlay + stable-connection
+// tracking. These are module-scoped so tests can call markConnectionStable /
+// evaluateOverlayHide without threading a store object through every call.
+const _overlayStore = { connectionStableAtMs: null };
+
+/**
+ * Phase 32 D-B3: stable-connection tracker for overlay-hide decision.
+ * Records the timestamp at which the connection became stable.
+ * @param {{ now?: number, store?: object }} [opts]
+ */
+export function markConnectionStable({ now, store } = {}) {
+  const target = store ?? _overlayStore;
+  target.connectionStableAtMs = Number.isFinite(now) ? now : Date.now();
+}
+
+/**
+ * Phase 32 D-B3: decide whether the overlay should be hidden.
+ * Returns { shouldHide: true } after hideAfterMs ms of stable connection.
+ * @param {{ now?: number, store?: object, hideAfterMs?: number }} [opts]
+ * @returns {{ shouldHide: boolean }}
+ */
+export function evaluateOverlayHide({ now, store, hideAfterMs = OVERLAY_HIDE_AFTER_STABLE_MS } = {}) {
+  const target = store ?? _overlayStore;
+  if (!target || !Number.isFinite(target.connectionStableAtMs)) return { shouldHide: false };
+  const elapsed = (Number.isFinite(now) ? now : Date.now()) - target.connectionStableAtMs;
+  return { shouldHide: elapsed >= hideAfterMs };
+}
+
+/**
+ * Phase 32 D-B3: countdown reconnect overlay.
+ * Drives the #ssr-reconnect-banner text with a per-500ms countdown tick.
+ * Returns a stop() function — the caller invokes it on connection-up or
+ * when a new retry supersedes this one.
+ *
+ * @param {{ doc: Document, delayMs: number, attemptN: number, tickMs?: number }} opts
+ * @returns {() => void} stop function
+ */
+export function showCountdownReconnect({ doc, delayMs, attemptN, tickMs = 500 } = {}) {
+  if (!doc) return () => {};
+  const banner = doc.getElementById("ssr-reconnect-banner");
+  if (!banner) return () => {};
+  const endAt = Date.now() + delayMs;
+  let stopped = false;
+  function tick() {
+    if (stopped) return;
+    const remainSec = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+    banner.textContent = `RECONNECTING — ${remainSec}s (attempt ${attemptN})`;
+    if (banner.style) banner.style.display = "block";
+    if (remainSec <= 0) return;
+    setTimeout(tick, tickMs);
+  }
+  tick();
+  return function stop() { stopped = true; };
+}
 
 /**
  * Pure unit-testable: given the three D-C4 indicators, decide if the
