@@ -32,7 +32,16 @@ const KNOWN_ACTIONS = new Set([
 ]);
 
 const VALID_DTLS_ROLES = new Set(["client", "server", "auto"]);
-const MAX_CONSUMER_CONNECTIONS = 10; // T-31-02-04 DoS cap
+// h38 (2026-05-06): raised from 10 to 50. The original cap was a DoS
+// guard for a hostile WAN-exposed scenario, but the user's deployment
+// is LAN-only and during a reconnect storm transient over-counts (old
+// WS connections in close-progress while new ones open) hit the 10-
+// cap and started rejecting legitimate reconnect attempts — once
+// stuck, only a server restart freed the slots. 50 leaves ample
+// headroom for transient over-counts while still bounding worst-case
+// memory use; the underlying reconnect-storm root cause is being
+// investigated separately.
+const MAX_CONSUMER_CONNECTIONS = 50; // T-31-02-04 DoS cap
 
 // V5 ASVS: validate dtlsParameters shape before passing to transport.connect()
 function validateDtlsParameters(params) {
@@ -148,6 +157,16 @@ function decodeTextFrame(buf) {
  * @param {{ logger?: { info: Function, warn: Function, error: Function } }} [opts]
  */
 export function attachWebRtcSignaling(server, { logger = console } = {}) {
+  // h38 (2026-05-06): per-IP connection registry. The user's deployment
+  // has exactly ONE Pi receiver at a stable LAN address; when Pi
+  // reconnects (e.g., after a heartbeat-stale trigger) the old WS may
+  // not have fully closed server-side yet, so consumerCount transiently
+  // counts both the dead-but-not-cleaned connection and the new one.
+  // Across enough reconnect cycles the count piles up and rejects new
+  // connections at the cap. Tracking by addr lets us proactively close
+  // a stale connection from the same IP before opening a new one.
+  const connectionsByAddr = new Map();
+
   // Module-level shared state — there is exactly ONE active video Producer
   // at any time (the SSR tab). When the SSR tab restarts, the Producer is
   // re-created via the publisher script and `state.videoProducer` is updated.
@@ -219,6 +238,25 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     );
 
     const conn = makeConnState(role);
+    conn.remoteAddr = req.socket?.remoteAddress ?? null;
+
+    // h38: pre-emptively close any stale prior connection from the same
+    // address. Without this, a Pi receiver that triggers a reconnect
+    // before the old WS's close event has fired piles a zombie slot
+    // onto consumerCount; once the cap fills the server starts rejecting
+    // legitimate reconnects until process restart. The intentional
+    // single-connection-per-addr policy fits the LAN deployment shape
+    // (one Pi receiver) without affecting the dashboard preview path.
+    if (role === "consumer" && conn.remoteAddr) {
+      const stale = connectionsByAddr.get(conn.remoteAddr);
+      if (stale && stale.socket && !stale.socket.destroyed) {
+        try { stale.socket.destroy(); } catch (_) {}
+      }
+    }
+    if (conn.remoteAddr) {
+      connectionsByAddr.set(conn.remoteAddr, { socket, conn });
+    }
+
     if (role === "consumer") state.consumerCount += 1;
 
     // h4 hotfix (2026-05-06): D-C4 heartbeat. The receiver expects
@@ -513,10 +551,23 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       if (conn.role === "consumer") {
         state.consumerCount = Math.max(0, state.consumerCount - 1);
       }
+      // h38: drop the per-IP registry entry only if it still points to
+      // THIS connection (a fresh reconnect from the same IP may have
+      // already replaced the entry with a new socket).
+      if (conn.remoteAddr) {
+        const entry = connectionsByAddr.get(conn.remoteAddr);
+        if (entry?.socket === socket) {
+          connectionsByAddr.delete(conn.remoteAddr);
+        }
+      }
       logger.info(`[ssr-signal] disconnect role=${conn.role}`);
     });
-    socket.on("error", () => {
-      // The "close" handler above does the cleanup.
+    socket.on("error", (err) => {
+      // h38: log and force-destroy on socket error so a half-broken
+      // connection doesn't sit holding a consumerCount slot. The close
+      // handler above runs after destroy() and decrements the cap.
+      logger.warn(`[ssr-signal] socket error role=${conn.role}: ${err?.message || err}`);
+      try { socket.destroy(); } catch (_) {}
     });
   });
 

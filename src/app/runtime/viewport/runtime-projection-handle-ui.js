@@ -1611,6 +1611,18 @@
     // mesh-warp tracks every gesture made on Pi within ~33 ms.
     if (enabled) {
       applyTransform();
+      // Phase-31 h38 (2026-05-06): render room polygons on align-mode
+      // entry. Without this, the polygon overlay starts empty —
+      // renderRoomOverlay's `outputRole === FINAL && !alignMode → return`
+      // gate skipped every prior call, so the overlay only populates
+      // after the first transformation triggers a re-render. Both Pi
+      // (whose polygons overlay the streamed video) and the SSR tab
+      // (whose polygons are encoded into the stream) need this initial
+      // render. ctx.renderRoomOverlay is a wrapped function with its
+      // own try/catch — safe to call even if other pieces aren't ready.
+      if (typeof ctx.renderRoomOverlay === "function") {
+        try { ctx.renderRoomOverlay(); } catch (_) {}
+      }
       // Pi gets the full UI; SSR tab gets neither geometry nor toolbar.
       if (_isSsrChromiumTab()) {
         // SSR tab still needs to broadcast its authoritative grid so Pi
