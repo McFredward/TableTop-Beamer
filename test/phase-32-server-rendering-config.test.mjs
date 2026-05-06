@@ -1,8 +1,8 @@
 // test/phase-32-server-rendering-config.test.mjs
 //
-// Phase 32 Wave 0 — Block A tests A4-A7 (SKIP-GATED).
-// These tests will be flipped GREEN by Wave 1 when STREAM_FPS_CAP_VALUES,
-// streamFpsCap, and alignModeBoost are added to ssr-server-rendering-config.mjs.
+// Phase 32 Wave 1 — Block A tests A4-A7 (GREEN — flipped from skip by 32-01-T2).
+// Verifies STREAM_FPS_CAP_VALUES, streamFpsCap, and alignModeBoost added to
+// ssr-server-rendering-config.mjs per Phase 32 D-A2/D-A3.
 //
 // Contains: phase-32-server-rendering-config
 
@@ -14,7 +14,6 @@ import { loadServerRenderingConfig } from "./helpers/phase-32-ssr-test-harness.m
 
 test(
   "A4a: STREAM_FPS_CAP_VALUES export exists and equals [30, 45, 60, 0]",
-  { skip: "Wave 1 will add STREAM_FPS_CAP_VALUES to ssr-server-rendering-config.mjs" },
   async () => {
     const cfg = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -27,7 +26,6 @@ test(
 
 test(
   "A4b: validateServerRenderingPatch({ streamFpsCap: 30 }) → valid",
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -39,7 +37,6 @@ test(
 
 test(
   "A4c: validateServerRenderingPatch({ streamFpsCap: 45 }) → valid",
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -51,7 +48,6 @@ test(
 
 test(
   "A4d: validateServerRenderingPatch({ streamFpsCap: 60 }) → valid",
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -63,7 +59,6 @@ test(
 
 test(
   "A4e: validateServerRenderingPatch({ streamFpsCap: 0 }) → valid (0 = native/no cap)",
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -75,7 +70,6 @@ test(
 
 test(
   "A4f: validateServerRenderingPatch({ streamFpsCap: 99 }) → invalid with reason streamFpsCap-not-in-enum",
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     const r = validateServerRenderingPatch({ streamFpsCap: 99 });
@@ -86,7 +80,6 @@ test(
 
 test(
   'A4g: validateServerRenderingPatch({ streamFpsCap: "60" }) → invalid with reason streamFpsCap-wrong-type',
-  { skip: "Wave 1 will add streamFpsCap to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     const r = validateServerRenderingPatch({ streamFpsCap: "60" });
@@ -99,7 +92,6 @@ test(
 
 test(
   "A5a: validateServerRenderingPatch({ alignModeBoost: true }) → valid",
-  { skip: "Wave 1 will add alignModeBoost to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -111,7 +103,6 @@ test(
 
 test(
   "A5b: validateServerRenderingPatch({ alignModeBoost: false }) → valid",
-  { skip: "Wave 1 will add alignModeBoost to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     assert.deepEqual(
@@ -123,7 +114,6 @@ test(
 
 test(
   'A5c: validateServerRenderingPatch({ alignModeBoost: "yes" }) → invalid with reason alignModeBoost-wrong-type',
-  { skip: "Wave 1 will add alignModeBoost to validateServerRenderingPatch" },
   async () => {
     const { validateServerRenderingPatch } = await loadServerRenderingConfig();
     const r = validateServerRenderingPatch({ alignModeBoost: "yes" });
@@ -136,7 +126,6 @@ test(
 
 test(
   "A6: SERVER_RENDERING_DEFAULTS({ available: ['x264-software'] }) returns streamFpsCap: 60 and alignModeBoost: true",
-  { skip: "Wave 1 will add streamFpsCap and alignModeBoost to SERVER_RENDERING_DEFAULTS" },
   async () => {
     const { SERVER_RENDERING_DEFAULTS } = await loadServerRenderingConfig();
     const defaults = SERVER_RENDERING_DEFAULTS({ available: ["x264-software"] });
@@ -149,7 +138,6 @@ test(
 
 test(
   "A7: applyServerRenderingPatch preserves streamFpsCap and alignModeBoost when other fields change",
-  { skip: "Wave 1 will add streamFpsCap and alignModeBoost to KNOWN_KEYS" },
   async () => {
     const { applyServerRenderingPatch } = await loadServerRenderingConfig();
     const current = {

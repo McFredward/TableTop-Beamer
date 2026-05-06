@@ -27,12 +27,25 @@ export const FPS_VALUES = [30, 24, 15];
 // in-stream audio is deferred — see 31-D-D2-REVERSAL-ADDENDUM.md
 export const AUDIO_ROUTE_VALUES = ["in-stream", "pi-local"];
 
+// Phase 32 D-A3: Stream FPS cap. 0 = native (no cap, hardware-bounded).
+// Distinct from FPS_VALUES (which is the legacy fpsTarget enum kept for
+// backward compatibility per Research Pitfall 5). This field drives the
+// publisher's getDisplayMedia frameRate constraint AND encoder bitrate scaling.
+export const STREAM_FPS_CAP_VALUES = [30, 45, 60, 0];
+// Default is 60fps — the third element of STREAM_FPS_CAP_VALUES (index 2).
+export const STREAM_FPS_CAP_DEFAULT = STREAM_FPS_CAP_VALUES[2]; // 60
+// Phase 32 D-A2: Align-mode boost — when true, publisher reactively bumps
+// frameRate to cap-max=60 during active align-mode drag operations.
+export const ALIGN_MODE_BOOST_DEFAULT = true;
+
 const KNOWN_KEYS = new Set([
   "encoder",
   "qualityPreset",
   "resolutionPreference",
   "fpsTarget",
   "audioRoute",
+  "streamFpsCap",     // Phase 32 D-A3
+  "alignModeBoost",   // Phase 32 D-A2
 ]);
 
 /**
@@ -57,6 +70,8 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
       resolutionPreference: "1080p",
       fpsTarget: 30,
       audioRoute: "pi-local", // D-D2 reversal default
+      streamFpsCap: STREAM_FPS_CAP_DEFAULT,     // Phase 32 D-A3
+      alignModeBoost: ALIGN_MODE_BOOST_DEFAULT, // Phase 32 D-A2
     };
   }
   return {
@@ -65,6 +80,8 @@ export function SERVER_RENDERING_DEFAULTS({ available = [] } = {}) {
     resolutionPreference: "720p",
     fpsTarget: 30,
     audioRoute: "pi-local", // D-D2 reversal default
+    streamFpsCap: STREAM_FPS_CAP_DEFAULT,     // Phase 32 D-A3
+    alignModeBoost: ALIGN_MODE_BOOST_DEFAULT, // Phase 32 D-A2
   };
 }
 
@@ -104,6 +121,22 @@ export function validateServerRenderingPatch(patch) {
     if (typeof patch.audioRoute !== "string") return { valid: false, reason: "audioRoute-wrong-type" };
     // in-stream audio is deferred — see 31-D-D2-REVERSAL-ADDENDUM.md
     if (!AUDIO_ROUTE_VALUES.includes(patch.audioRoute)) return { valid: false, reason: "audioRoute-not-in-enum" };
+  }
+  // Phase 32 D-A3: streamFpsCap validation — strict finite number from enum.
+  // Same pattern as fpsTarget validator above (Research § Security: V5 Input Validation).
+  if ("streamFpsCap" in patch) {
+    if (typeof patch.streamFpsCap !== "number" || !Number.isFinite(patch.streamFpsCap)) {
+      return { valid: false, reason: "streamFpsCap-wrong-type" };
+    }
+    if (!STREAM_FPS_CAP_VALUES.includes(patch.streamFpsCap)) {
+      return { valid: false, reason: "streamFpsCap-not-in-enum" };
+    }
+  }
+  // Phase 32 D-A2: alignModeBoost validation — strict boolean only.
+  if ("alignModeBoost" in patch) {
+    if (typeof patch.alignModeBoost !== "boolean") {
+      return { valid: false, reason: "alignModeBoost-wrong-type" };
+    }
   }
   return { valid: true };
 }
@@ -163,6 +196,10 @@ export async function readServerRenderingConfig({ rootDir, available = [] }) {
       resolutionPreference: typeof sr.resolutionPreference === "string" && RESOLUTION_VALUES.includes(sr.resolutionPreference) ? sr.resolutionPreference : defaults.resolutionPreference,
       fpsTarget: typeof sr.fpsTarget === "number" && FPS_VALUES.includes(sr.fpsTarget) ? sr.fpsTarget : defaults.fpsTarget,
       audioRoute: typeof sr.audioRoute === "string" && AUDIO_ROUTE_VALUES.includes(sr.audioRoute) ? sr.audioRoute : defaults.audioRoute,
+      // Phase 32 D-A3: streamFpsCap — coerce from disk; fall back to default when missing/invalid.
+      streamFpsCap: typeof sr.streamFpsCap === "number" && STREAM_FPS_CAP_VALUES.includes(sr.streamFpsCap) ? sr.streamFpsCap : defaults.streamFpsCap,
+      // Phase 32 D-A2: alignModeBoost — boolean only; fall back to default when missing/invalid.
+      alignModeBoost: typeof sr.alignModeBoost === "boolean" ? sr.alignModeBoost : defaults.alignModeBoost,
     };
   } catch (err) {
     if (err && err.code === "ENOENT") return defaults;
