@@ -439,10 +439,24 @@ export function bootSsrRenderHost({
         // which can hit higher rates given the +extension flags h19
         // also adds.
         "--ozone-platform=x11",
-        // h7: let Chromium auto-detect GL backend — SwiftShader was
-        // catastrophically slow (4 fps + tearing). egl + ignore-gpu-blocklist
-        // (added below if iGPU present) lets libva use the iGPU.
-        "--use-gl=egl",
+        // h7 (Phase 31): SwiftShader was catastrophically slow (4 fps + tearing).
+        // Phase 32 hotfix h4 (2026-05-07) — ROOT CAUSE OF FPS CAP + mp4 BLACK:
+        // Chrome 131 ("Chrome for Testing", the bundled puppeteer binary that
+        // ssr-browser-detect.mjs always selects via priority) removed support
+        // for --use-gl=egl. Passing it crashes the GPU process on every launch
+        // with "Requested GL implementation (gl=egl-gles2,angle=none) not found
+        // in allowed implementations: [(gl=egl-angle,angle=default)]".
+        // Chrome falls back to SwiftShader Vulkan SW renderer for ALL GPU work
+        // — compositor, WebGL mesh-warp, 2D canvas, AND h264 video element
+        // decode. Result: ~25fps idle / 2-5fps under 14 animations + outside-
+        // mp4 (sandstorm) decode pipeline failed → black frames. GIFs work
+        // because they decode via ImageDecoder API (no GPU path).
+        // Fix: --use-gl=angle (ANGLE abstraction, lands on Mesa llvmpipe under
+        // Xvfb). Verified: rAF 58fps + no GPU crashes + mp4 decode works.
+        // ignore-gpu-blocklist + enable-gpu-rasterization (added below if
+        // iGPU present) still let libva see the iGPU.
+        "--use-gl=angle",
+        "--use-angle=default",
         "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
         // h9: anti-throttling. These individual --disable-X flags are
