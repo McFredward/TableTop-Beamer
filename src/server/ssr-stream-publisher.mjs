@@ -246,6 +246,33 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
       }
     } catch {}
 
+    // Phase 32 hotfix h3 (2026-05-07): periodic FPS diagnostic.
+    // Every 5s log (a) actual rAF rate inside this SSR tab, (b) videoTrack
+    // current settings.frameRate. Hard evidence so we can see whether
+    // Xvfb -fakescreenfps actually lifted the rAF rate, and whether the
+    // applied frameRate constraint is being honored. Cheap: only logs.
+    try {
+      let rafCount = 0;
+      let lastRafLogAtMs = Date.now();
+      function rafTick() {
+        rafCount += 1;
+        requestAnimationFrame(rafTick);
+      }
+      requestAnimationFrame(rafTick);
+      setInterval(() => {
+        const now = Date.now();
+        const elapsedMs = now - lastRafLogAtMs;
+        const measuredRafFps = elapsedMs > 0 ? Math.round((rafCount * 1000) / elapsedMs) : 0;
+        rafCount = 0;
+        lastRafLogAtMs = now;
+        let tracFr = null;
+        try { tracFr = videoTrack.getSettings?.()?.frameRate ?? null; } catch {}
+        console.log(\`[ssr-publisher] fps-diag rafFps=\${measuredRafFps} trackFrameRate=\${tracFr}\`);
+      }, 5000);
+    } catch (e) {
+      console.warn("[ssr-publisher] fps-diag setup failed", e?.message || e);
+    }
+
     // 4. D-A3 encoding layers + D-A2 H264 codec preference.
     // h18 (2026-05-06): single-layer on software encoders (x264) so the
     // CPU isn't paying triple encode cost. Hardware encoders keep 3

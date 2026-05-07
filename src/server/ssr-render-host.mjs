@@ -37,10 +37,18 @@ import { detectChromiumBinary } from "./ssr-browser-detect.mjs";
  * Build the canonical Xvfb argument list for a given display + viewport.
  * Exported for unit-testability (Wave-0 test A9 imports this directly).
  *
- * Phase 32 D-A4 root-cause fix: `-fakescreenfps 120` lifts the Xvfb
- * BeginFrameSource above its default (~25 Hz), giving Chromium a 120 Hz
+ * Phase 32 D-A4 root-cause fix: `-fakescreenfps 60` lifts the Xvfb
+ * BeginFrameSource above its default (~25 Hz), giving Chromium a 60 Hz
  * screen budget so the rAF loop can reach 60 fps. Without this flag the
  * BeginFrameSource caps at ~25 Hz regardless of --disable-frame-rate-limit.
+ *
+ * Phase 32 hotfix h3 (2026-05-07): tightened from 120 → 60 Hz.
+ * 120 caused two regressions: (1) outside-mp4 (sandstorm.mp4) decode
+ * pipeline went black — Composite extension + VaapiVideoDecoder
+ * buffer-recycle race with the over-aggressive screen tick; (2) actual
+ * stream fps did NOT lift to 60+ despite the higher fakescreen target.
+ * 60 Hz matches our publisher's `getDisplayMedia({ frameRate: { max: 60 } })`
+ * — no benefit going higher and several drawbacks.
  *
  * @param {{ display: string, width: number, height: number }} opts
  * @returns {string[]}
@@ -55,7 +63,7 @@ export function getXvfbArgs({ display, width, height }) {
     "+extension", "RENDER",
     "+extension", "GLX",
     "+extension", "Composite",
-    "-fakescreenfps", "120",  // Phase 32 D-A4 root-cause: lift Xvfb BeginFrameSource above default ~25Hz; Chromium will target 60fps with 120Hz screen budget
+    "-fakescreenfps", "60",  // Phase 32 D-A4 root-cause + h3: lift Xvfb BeginFrameSource above default ~25Hz; matches publisher's 60-fps cap (was 120; broke mp4 + did not help)
   ];
 }
 import { probeEnvironment, formatEnvironmentReport } from "./ssr-environment-bootstrap.mjs";
