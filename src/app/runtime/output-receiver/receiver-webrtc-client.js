@@ -105,17 +105,37 @@ export async function createWebRtcReceiver({
     let setupOk = false;
     try {
     ws = new WebSocket(signalUrl);
+    // Phase 32 hotfix h12 (2026-05-08): bounded WS-open timeout (10s).
+    // Without this, a TCP-stalled connection (server unreachable but TCP
+    // SYN not RST'd — common on flaky LAN cables / spurious firewall
+    // drops) would block on the OS-default TCP timeout (~75s on Linux).
+    // The publisher script's WS-open path already had a 10s timeout
+    // (ssr-stream-publisher.mjs); the receiver did not. Adding it here
+    // converts a 75s hang into a quick retry that fits the D-B2 adaptive
+    // backoff schedule. 10s matches the publisher and the per-RPC ceiling.
     await new Promise((res, rej) => {
+      let timeoutHandle = null;
+      const cleanup = () => {
+        if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
+      };
       const onOpen = () => {
+        cleanup();
         ws.removeEventListener("error", onErr);
         res();
       };
       const onErr = () => {
+        cleanup();
         ws.removeEventListener("open", onOpen);
         rej(new Error("ws open failed"));
       };
       ws.addEventListener("open", onOpen, { once: true });
       ws.addEventListener("error", onErr, { once: true });
+      timeoutHandle = setTimeout(() => {
+        ws.removeEventListener("open", onOpen);
+        ws.removeEventListener("error", onErr);
+        try { ws.close(); } catch (_) {}
+        rej(new Error("ws open timeout (10s)"));
+      }, 10000);
     });
     ws.addEventListener("message", (e) => {
       let m;
