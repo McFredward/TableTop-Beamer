@@ -121,6 +121,14 @@ export async function bootReceiver({ logger = console } = {}) {
   let receiver = null;
   let reconnectAttempts = loadBackoffState(backoffStorage).attempts;
   let connectionStableSince = null; // tracks when last stable connection started
+  // Phase 32 hotfix h6 (2026-05-07): in-flight flag for tryConnect.
+  // Replaces the monitor's `reconnectAttempts === 0` guard, which was
+  // permanently disabled when sessionStorage held a non-zero attempt count
+  // from a prior failed-session — leaving the monitor unable to fire
+  // tryConnect() on mid-session drops, so the Pi sat stuck on the
+  // RECONNECTING banner without ever retrying. The flag is set true on
+  // tryConnect entry and cleared on completion (success OR catch).
+  let tryConnectInFlight = false;
   // Phase 32 D-B3: countdown overlay state.
   let countdownStop = null;        // stop() returned by showCountdownReconnect
   const connectionStore = {};      // mutable store for markConnectionStable / evaluateOverlayHide
@@ -162,6 +170,15 @@ export async function bootReceiver({ logger = console } = {}) {
   });
 
   async function tryConnect() {
+    // Phase 32 hotfix h6 (2026-05-07): early-return if already in flight to
+    // prevent monitor floods firing parallel tryConnect calls during ICE
+    // handshake. Flag is reset in the success path (onConnectionStateChange
+    // "connected" / first frame) and in the catch block, so subsequent
+    // monitor ticks or onConnectionStateChange events can re-enter.
+    if (tryConnectInFlight) {
+      return;
+    }
+    tryConnectInFlight = true;
     // Phase-31 h25 (2026-05-06): stop any prior receiver before
     // creating a new one. Without this, a failed connect attempt left
     // the previous receiver instance stranded — its WS still claimed a
@@ -181,6 +198,9 @@ export async function bootReceiver({ logger = console } = {}) {
           reconnectAttempts = 0;
           clearBackoffState(backoffStorage);
           connectionStableSince = Date.now();
+          // Phase 32 hotfix h6: connection succeeded — clear in-flight flag
+          // so monitor can detect future disconnects and re-fire tryConnect.
+          tryConnectInFlight = false;
           // Phase 32 D-B3: stop any running countdown and start stable-hide poller.
           if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
           markConnectionStable({ now: Date.now(), store: connectionStore });
@@ -282,6 +302,11 @@ export async function bootReceiver({ logger = console } = {}) {
         delayMs: delay,
         attemptN: reconnectAttempts,
       });
+      // Phase 32 hotfix h6: clear in-flight flag BEFORE setTimeout so the
+      // queued retry call (and any monitor tick that fires before the
+      // setTimeout) can re-enter. Without clearing, the retry would
+      // early-return at the in-flight guard and the Pi would sit forever.
+      tryConnectInFlight = false;
       setTimeout(() => {
         tryConnect();
       }, delay);
@@ -377,7 +402,13 @@ export async function bootReceiver({ logger = console } = {}) {
       lastHeartbeatAtMs,
       nowMs: now,
     });
-    if (dec.disconnected && reconnectAttempts === 0 && pcState !== "host-down") {
+    // Phase 32 hotfix h6: replaced `reconnectAttempts === 0` with
+    // `!tryConnectInFlight`. The old guard was permanently disabled when
+    // sessionStorage held a non-zero attempt count from a prior session,
+    // leaving the Pi unable to retry after a mid-session drop. The
+    // in-flight flag instead prevents floods (parallel tryConnect calls)
+    // without depending on attempt count state.
+    if (dec.disconnected && !tryConnectInFlight && pcState !== "host-down") {
       // D-B4: surface ALL detected reasons in the banner so the operator
       // sees what triggered the reconnect. Empty banner == no info ==
       // bad UX.
