@@ -31,7 +31,7 @@
   },
   "serverRendering": {
     "encoder": "auto",
-    "qualityPreset": "high-quality",
+    "qualityPreset": "balanced",
     "resolutionPreference": "1080p",
     "fpsTarget": 30,
     "audioRoute": "pi-local",
