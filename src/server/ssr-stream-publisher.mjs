@@ -95,9 +95,23 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
   // commonly caps the stream around 20 fps on x86_64 workstations. With
   // hardware encoders (vaapi / nvenc / videotoolbox) the cost is in
   // fixed-function silicon and 3 layers run essentially free.
+  // Phase 32 hotfix h8 (2026-05-07): FORCE single-layer until hardware
+  // encoding is verified working in Chrome 131. The Phase 32 D-A6 VAAPI
+  // detection (probeLibvaRuntime) correctly detects libva on the host,
+  // setting encoder="vaapi" — but Chrome 131's VaapiVideoEncoder feature
+  // flag is a no-op in the bundled puppeteer binary, so Chrome falls back
+  // to OpenH264 software encoding regardless. With useSimulcast=true the
+  // publisher requests 3 layers, but the actual encode is still software
+  // → 3× CPU cost → encoder lags → consumer track stalls → 8s no-frame
+  // → Pi heartbeat-stale → disconnect → reconnect storm. Phase 31's
+  // useSimulcast=false (always single-layer for x264-software) WAS rock-
+  // stable; restoring single-layer behavior is the smallest change to
+  // close the connection regression. When hardware encoding is verified
+  // (a future phase), revert this and re-enable hardware-conditional
+  // simulcast.
   const enc = encoderConfig?.encoder || "x264-software";
   const isSoftwareEncoder = enc === "x264-software";
-  const useSimulcast = !isSoftwareEncoder;
+  const useSimulcast = false;
   // For software encoder: single-layer at full resolution. We still
   // honor the bitrate cap; congestion-control will throttle as needed.
   const singleLayerBitrate = bitrates.high;

@@ -29,22 +29,32 @@ test("h18: x264-software encoder gets single-layer encoding (CPU saver)", () => 
   assert.match(script, /simulcast=single-layer/);
 });
 
-test("h18: vaapi encoder keeps 3-layer simulcast", () => {
+// Phase 32 hotfix h8 (2026-05-07): force single-layer for ALL encoders until
+// hardware encoding is verified working in production. The Phase 31 h18 tests
+// below were rewritten to assert single-layer for previously-3-layer encoders
+// (vaapi, nvenc). When hardware encoding is verified, restore conditional
+// simulcast and re-introduce the 3-layer assertions.
+test("h8: vaapi encoder uses single-layer (h18 3-layer disabled until hardware encode verified)", () => {
   const script = buildInPagePublisherScript({
     encoderConfig: { encoder: "vaapi" },
   });
-  assert.match(script, /rid:\s*"low"/, "vaapi simulcast must keep `rid:\"low\"` layer");
-  assert.match(script, /rid:\s*"mid"/);
-  assert.match(script, /rid:\s*"high"/);
-  assert.match(script, /simulcast=3-layer/);
+  assert.equal(
+    /rid:\s*"low"/.test(script),
+    false,
+    "vaapi must use single-layer until Chrome 131 VaapiVideoEncoder is confirmed (h8)",
+  );
+  assert.match(script, /simulcast=single-layer/);
 });
 
-test("h18: nvenc encoder keeps 3-layer simulcast", () => {
+test("h8: nvenc encoder uses single-layer (h18 3-layer disabled until hardware encode verified)", () => {
   const script = buildInPagePublisherScript({
     encoderConfig: { encoder: "nvenc" },
   });
-  assert.match(script, /rid:\s*"low"/);
-  assert.match(script, /rid:\s*"high"/);
+  assert.equal(
+    /rid:\s*"low"/.test(script),
+    false,
+    "nvenc must use single-layer until hardware encode is confirmed (h8)",
+  );
 });
 
 test("h18: missing encoderConfig defaults to single-layer (safer for unknown hosts)", () => {
@@ -59,11 +69,11 @@ test("h18: missing encoderConfig defaults to single-layer (safer for unknown hos
   );
 });
 
-test("h18: publisher logs the chosen simulcast mode for operator audit", () => {
+test("h8: publisher logs single-layer for ALL encoders (h18 3-layer disabled)", () => {
   // The operator reads server logs to verify the publisher took the
   // right path on this host. The log line is grep-friendly.
   const sw = buildInPagePublisherScript({ encoderConfig: { encoder: "x264-software" } });
   const hw = buildInPagePublisherScript({ encoderConfig: { encoder: "vaapi" } });
   assert.match(sw, /encoder=x264-software simulcast=single-layer/);
-  assert.match(hw, /encoder=vaapi simulcast=3-layer/);
+  assert.match(hw, /encoder=vaapi simulcast=single-layer/);
 });
