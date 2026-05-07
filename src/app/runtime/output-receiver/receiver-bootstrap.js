@@ -302,14 +302,21 @@ export async function bootReceiver({ logger = console } = {}) {
         delayMs: delay,
         attemptN: reconnectAttempts,
       });
-      // Phase 32 hotfix h6: clear in-flight flag BEFORE setTimeout so the
-      // queued retry call (and any monitor tick that fires before the
-      // setTimeout) can re-enter. Without clearing, the retry would
-      // early-return at the in-flight guard and the Pi would sit forever.
-      tryConnectInFlight = false;
       setTimeout(() => {
         tryConnect();
       }, delay);
+    } finally {
+      // Phase 32 hotfix h7 (2026-05-07): ALWAYS clear in-flight flag when
+      // tryConnect's body completes (try-block returned OR catch-block ran).
+      // The flag's purpose is to prevent two concurrent createWebRtcReceiver
+      // calls from racing — once that await resolves (success or fail), the
+      // function is done and any subsequent retry path should be allowed.
+      // Without this, if createWebRtcReceiver succeeded but the connection
+      // never reached "connected" state (went connecting → ws-closed
+      // directly), the flag would stay TRUE forever and the monitor would
+      // be permanently blocked from triggering a retry — exactly the bug
+      // h6 was supposed to fix but did not fully cover.
+      tryConnectInFlight = false;
     }
   }
 
