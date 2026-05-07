@@ -439,10 +439,30 @@ export function bootSsrRenderHost({
         // which can hit higher rates given the +extension flags h19
         // also adds.
         "--ozone-platform=x11",
-        // h7: let Chromium auto-detect GL backend — SwiftShader was
-        // catastrophically slow (4 fps + tearing). egl + ignore-gpu-blocklist
-        // (added below if iGPU present) lets libva use the iGPU.
-        "--use-gl=egl",
+        // h7 (Phase 31): SwiftShader was catastrophically slow (4 fps + tearing).
+        // Phase 32 hotfix h9 (2026-05-07) — re-apply h4 (was reverted in 97d4dd3
+        // when user reported "Jetzt läuft es garnicht mehr". That breakage was
+        // actually BUG-C in h6's incomplete in-flight flag — fixed by h7's
+        // try/finally. With h7 + h8 in place, h9 re-introduces the GPU-crash
+        // fix safely.
+        //
+        // ROOT CAUSE: Chrome 131 ("Chrome for Testing", the bundled puppeteer
+        // binary) removed support for --use-gl=egl. Passing it crashes the
+        // GPU process on every launch with "Requested GL implementation
+        // (gl=egl-gles2,angle=none) not found in allowed implementations:
+        // [(gl=egl-angle,angle=default)]". Chrome falls back to SwiftShader
+        // Vulkan SW renderer for ALL GPU work — compositor, WebGL mesh-warp,
+        // 2D canvas, AND h264 video element decode. Under animation load:
+        // 2-5 fps compositor output. Pi's frame-stale 8s threshold trips →
+        // Pi heartbeat-stale → disconnect → reconnect storm.
+        //
+        // Fix: --use-gl=angle (ANGLE abstraction, lands on Mesa llvmpipe under
+        // Xvfb). Verified by gsd-debugger at the binary level: rAF 58fps, no
+        // GPU crashes, mp4 video decode works. ignore-gpu-blocklist +
+        // enable-gpu-rasterization (added below if iGPU present) still let
+        // libva see the iGPU for whatever paths actually use it.
+        "--use-gl=angle",
+        "--use-angle=default",
         "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
         // h9: anti-throttling. These individual --disable-X flags are

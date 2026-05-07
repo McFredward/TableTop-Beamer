@@ -138,7 +138,18 @@ export function showCountdownReconnect({ doc, delayMs, attemptN, tickMs = 500 } 
   function tick() {
     if (stopped) return;
     const remainSec = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-    banner.textContent = `RECONNECTING — ${remainSec}s (attempt ${attemptN})`;
+    // Phase 32 hotfix h11 (2026-05-07): when the countdown reaches 0 the
+    // setTimeout(tryConnect, delay) is firing — but tryConnect's WS+RPC+DTLS
+    // handshake AND the server-side h19 8s no-producer hold can take 0-10s
+    // before pcState changes. Without h11, the banner stayed at "0s
+    // (attempt N)" for the entire wait, making the user think the system
+    // had hung. h11: once countdown reaches 0, switch to "Connecting…
+    // (attempt N)" so the user can see retry progress is happening.
+    if (remainSec <= 0) {
+      banner.textContent = `Connecting… (attempt ${attemptN})`;
+    } else {
+      banner.textContent = `RECONNECTING — ${remainSec}s (attempt ${attemptN})`;
+    }
     // Phase 32 hotfix: use the SAME visibility mechanism as ui.hideReconnect()
     // (HTMLElement#hidden) so the showCountdownReconnect/hideReconnect pair
     // doesn't fight over inline style vs UA stylesheet. Setting style.display

@@ -268,7 +268,17 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
         try { stale.socket.destroy(); } catch (_) {}
       }
     }
-    if (conn.remoteAddr) {
+    // Phase 32 hotfix h10 (2026-05-07): only register CONSUMER connections in
+    // connectionsByAddr. Previously the ssr-tab (which always connects from
+    // 127.0.0.1) was registered too, so when ANY consumer connected from
+    // 127.0.0.1 (e.g. operator opens /output/ on the server machine for
+    // local testing) the stale-guard above would destroy the ssr-tab's WS.
+    // state.videoProducer would go null permanently because Chrome's CDP
+    // health pings still passed → no scheduleRestart → producer stuck null
+    // → endless `no-producer-yet` reconnect storm.
+    // Fix: scope the registry to consumers only. ssr-tab is a singleton
+    // (one Chromium tab per server) and doesn't need stale-replacement.
+    if (conn.remoteAddr && role === "consumer") {
       connectionsByAddr.set(conn.remoteAddr, { socket, conn });
     }
 
