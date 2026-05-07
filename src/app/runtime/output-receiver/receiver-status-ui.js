@@ -139,7 +139,13 @@ export function showCountdownReconnect({ doc, delayMs, attemptN, tickMs = 500 } 
     if (stopped) return;
     const remainSec = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
     banner.textContent = `RECONNECTING — ${remainSec}s (attempt ${attemptN})`;
-    if (banner.style) banner.style.display = "block";
+    // Phase 32 hotfix: use the SAME visibility mechanism as ui.hideReconnect()
+    // (HTMLElement#hidden) so the showCountdownReconnect/hideReconnect pair
+    // doesn't fight over inline style vs UA stylesheet. Setting style.display
+    // = "block" here used to override hidden=true and keep the banner stuck
+    // on screen permanently after the connection recovered.
+    banner.hidden = false;
+    if (banner.style) banner.style.display = "";
     if (remainSec <= 0) return;
     setTimeout(tick, tickMs);
   }
