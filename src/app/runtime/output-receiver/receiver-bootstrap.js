@@ -341,6 +341,30 @@ export async function bootReceiver({ logger = console } = {}) {
     }
   }
 
+  // Phase 32 hotfix h5 (2026-05-07): waitForProducer MUST run BEFORE the
+  // monitor is armed. Original Phase 32 placement (after setInterval, before
+  // tryConnect) caused a phantom-disconnect race: lastHeartbeatAtMs is
+  // initialized to performance.now() at bootstrap-entry but only updated
+  // by receiver.onHeartbeat — which can't fire until tryConnect creates a
+  // receiver. With monitor armed during the up-to-60s waitForProducer,
+  // tick-7 at T+8s evaluates `now - lastHeartbeatAtMs > DISCONNECT_THRESHOLD_MS`
+  // as TRUE and fires a phantom tryConnect() in parallel. When the awaited
+  // waitForProducer finally resolves, the original tryConnect() on line 446
+  // calls receiver.stop() on the phantom-connected receiver and starts
+  // over — observable as endless connect→disconnect→reconnect.
+  // Producer-readiness gate (D-B5): Best-effort 60s wait BEFORE arming the
+  // monitor, so the monitor's stale-heartbeat indicator can't false-positive
+  // during the wait. If waitForProducer times out, fall through to the retry
+  // loop (gate is best-effort, not blocking-forever).
+  try {
+    const producerReady = await waitForProducer({ maxWaitMs: 60000, pollIntervalMs: 1000 });
+    if (!producerReady) {
+      logger.warn("[receiver] waitForProducer timed out after 60s — entering retry loop anyway");
+    }
+  } catch (e) {
+    logger.warn("[receiver] waitForProducer threw:", e?.message);
+  }
+
   // D-C4 three-indicator monitor + diagnostic chip refresh. Polls every
   // 1s — the chip metrics need that cadence for a useful liveness signal,
   // and disconnect detection at 1s granularity means user-visible
@@ -429,20 +453,11 @@ export async function bootReceiver({ logger = console } = {}) {
     });
   }, 1000);
 
-  // Phase 32 D-B5: producer-readiness gate. Best-effort 60s wait before
-  // opening the WebRTC session. If the server's SSR tab hasn't produced yet,
-  // this prevents the cold-boot "consume() before producer" race. If
-  // waitForProducer times out, we enter the retry loop anyway (gate is
-  // best-effort, not blocking-forever).
-  try {
-    const producerReady = await waitForProducer({ maxWaitMs: 60000, pollIntervalMs: 1000 });
-    if (!producerReady) {
-      logger.warn("[receiver] waitForProducer timed out after 60s — entering retry loop anyway");
-    }
-  } catch (e) {
-    logger.warn("[receiver] waitForProducer threw:", e?.message);
-  }
-
+  // Phase 32 hotfix h5 (2026-05-07): waitForProducer was MOVED above the
+  // monitorInterval setInterval to fix the phantom-disconnect race
+  // (see comment above the relocated block). tryConnect() now fires
+  // immediately after the gate resolves; the monitor is already armed
+  // and will track the live receiver from the first heartbeat onward.
   await tryConnect();
 
   // ── Phase 31 Plan 04 (D-D1): align-mode pointer forwarding ─────────────
