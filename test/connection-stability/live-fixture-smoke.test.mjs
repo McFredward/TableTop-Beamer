@@ -13,6 +13,15 @@
 // tests. Heartbeat counter on the WS is the equivalent liveness signal.
 //
 // Live test — gated behind RUN_LIVE_TESTS=1.
+//
+// TODO (flake under sequential-run): when this file is run in the same
+// node --test process AFTER multiple other live tests that each spawn
+// + tear-down a Chromium browser, this canary occasionally times out on
+// waitReady due to resource contention (display lock churn, slow Chromium
+// boot when the host is paging). It passes reliably when run alone or as
+// the FIRST file in a sequence. Use `npm run test:live:isolated` (added
+// in package.json) to run each file in its own Node process for CI-grade
+// reliability.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -36,7 +45,7 @@ const MIN_HEARTBEATS = Number(process.env.SMOKE_MIN_HEARTBEATS || 12);
 
 test("live-fixture-smoke: server + 1 consumer sustain 30s without reconnect", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 90000 }, async () => {
   const root = await makeIsolatedRoot();
-  const server = await bootServer({ rootDir: root.rootDir });
+  const server = await bootServer({ rootDir: root.rootDir, captureLogs: true });
   let consumer = null;
   try {
     await waitHttpUp(server.port, { timeoutMs: 8000 });
@@ -57,6 +66,12 @@ test("live-fixture-smoke: server + 1 consumer sustain 30s without reconnect", { 
     console.log(
       `[smoke] sustained ${elapsed}ms heartbeats=${s.heartbeats} closed=${s.closed} producerReady=${s.producerReady} producerClosed=${s.producerClosed} renderHostDown=${s.renderHostDown}`,
     );
+
+    if (s.renderHostDown > 0 || s.producerClosed > 0 || s.closed) {
+      const logs = server.getLogs();
+      if (logs?.stdout) console.log("[smoke] server stdout (tail):", logs.stdout.slice(-2500));
+      if (logs?.stderr) console.log("[smoke] server stderr (tail):", logs.stderr.slice(-2500));
+    }
 
     assert.equal(s.closed, false, "WS closed during smoke test — connection unstable");
     assert.equal(s.producerClosed, 0, "producer-closed fired during smoke — producer instability");

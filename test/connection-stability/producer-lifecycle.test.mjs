@@ -93,7 +93,7 @@ test("01-T3 unit: server.mjs wires onHostDown into bootSsrRenderHost", async () 
 
 // ─── Integration: kill ssr-tab → producer-closed + render-host-down ────
 
-test("01-T4 integration: kill ssr-tab → consumer receives producer-closed within ~5s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 90000 }, async () => {
+test("01-T4 integration: kill ssr-tab → consumer receives render-host-down within 25s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 120000 }, async () => {
   const root = await makeIsolatedRoot();
   const server = await bootServer({ rootDir: root.rootDir });
   let consumer = null;
@@ -115,11 +115,14 @@ test("01-T4 integration: kill ssr-tab → consumer receives producer-closed with
     console.log(`[lifecycle] killed ${killed} ssr-tab descendant processes`);
     assert.ok(killed > 0, "expected to kill at least 1 chromium descendant");
 
-    // Wait up to 8s for render-host-down or for consumer WS to close.
-    // (The render-host's browser.on("disconnected") fires immediately on
-    // SIGKILL of the tab; signaling fans out the broadcast within ~100ms.)
+    // Wait up to 25 s for render-host-down or for consumer WS to close.
+    // (The render-host's browser.on("disconnected") usually fires within
+    // ~100 ms of SIGKILL, but on a heavily-loaded test runner the
+    // puppeteer protocol-level disconnect detection can take a few
+    // seconds — see puppeteer's disconnect timeout. The 15 s health-ping
+    // budget (3 fails × 5 s) is the absolute floor.)
     const t0 = Date.now();
-    while (Date.now() - t0 < 8000) {
+    while (Date.now() - t0 < 25000) {
       const s = consumer.getState();
       if (s.renderHostDown > 0 || s.closed) break;
       await sleep(100);

@@ -11,7 +11,7 @@ import {
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
 import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
-import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker } from "./src/server/ssr-mediasoup-router.mjs";
+import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker, setOnRouterRecreated } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
 import { ensureMediasoupClientBundle, readMediasoupClientBundle, MEDIASOUP_CLIENT_BUNDLE_PATH } from "./src/server/ssr-stream-publisher.mjs";
@@ -1302,7 +1302,7 @@ function applyLiveMutation({
             console.warn("[serverRendering-update] shutdown error:", err?.message || err);
           }
           try {
-            // Phase 33 Plan 01-T3: same onHostDown wiring as the boot path.
+            // Phase 33 Plan 01-T3 + 02-T2: same onHostDown + watchdog wiring.
             const ssrHost = bootSsrRenderHost({
               port: PORT,
               autoStart: true,
@@ -1310,6 +1310,10 @@ function applyLiveMutation({
                 try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
                   console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
                 }
+              },
+              getPublisherWsAgeMs: () => {
+                try { return signalingState?.getPublisherWsAgeMs?.() ?? Infinity; }
+                catch { return Infinity; }
               },
             });
             setActiveSsrRenderHost(ssrHost);
@@ -4222,10 +4226,20 @@ if (process.env.SSR_RENDER_HOST === "1") {
       // Phase 32 D-B4: purge any stale mediasoup-worker process from a prior
       // crashed server run before booting the new Worker. This frees the RTC
       // port range (40000-40100) and clears dangling state.
-      console.log("[server] purging stale mediasoup-worker (D-B4)");
+      console.log("[server] purging stale mediasoup-worker (D-B4 / Phase 33-02-T3 PID-scoped)");
       await purgeStaleMediasoupWorker();
       await bootMediasoupRouter();
       signalingState = attachWebRtcSignaling(server);
+      // Phase 33 Plan 02-T1 (Suspect 8): when the mediasoup-worker auto-respawns
+      // after a `worker.died` event, broadcast `producer-ready` to the still-
+      // connected consumers so they jump out of their backoff window. The
+      // SSR Chromium tab will re-attach + re-publish on its own restart path
+      // (or the next health-ping breach triggers it).
+      setOnRouterRecreated(() => {
+        try { signalingState?.broadcastProducerReady?.(); } catch (err) {
+          console.warn(`[server] broadcastProducerReady from router-recreated failed: ${err?.message ?? err}`);
+        }
+      });
       // Best-effort: pre-warm the mediasoup-client browser bundle so the
       // first SSR-tab fetch is instant. Failure is non-fatal — the route
       // will rebuild on demand.
@@ -4238,6 +4252,7 @@ if (process.env.SSR_RENDER_HOST === "1") {
       // signaling layer fans out a `render-host-down` text frame to every
       // open consumer WS, so the Pi UI flips to the actionable
       // "Render host crashed" overlay instead of the generic reconnect banner.
+      // Phase 33 Plan 02-T2 (Suspect 6): wire publisher-WS watchdog.
       const ssrHost = bootSsrRenderHost({
         port: PORT,
         autoStart: true,
@@ -4245,6 +4260,10 @@ if (process.env.SSR_RENDER_HOST === "1") {
           try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
             console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
           }
+        },
+        getPublisherWsAgeMs: () => {
+          try { return signalingState?.getPublisherWsAgeMs?.() ?? Infinity; }
+          catch { return Infinity; }
         },
       });
       setActiveSsrRenderHost(ssrHost);

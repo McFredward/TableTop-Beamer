@@ -13,10 +13,14 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 
-// ── B9a: purgeStaleMediasoupWorker runs pkill -f mediasoup-worker ─────────
+// ── B9a: purgeStaleMediasoupWorker fallback to pkill -f mediasoup-worker ──
+// Phase 33 Plan 02-T3 (Suspect 12): the default path is now PID-scoped via
+// pgrep -P. The legacy pkill -f code path remains as a safety net for
+// environments where pgrep isn't available — this test forces the fallback
+// by injecting a pgrep mock that throws.
 
 test(
-  "B9a: purgeStaleMediasoupWorker({ exec: mockExec }) calls pkill -f mediasoup-worker",
+  "B9a: purgeStaleMediasoupWorker({ exec, pgrep:throws }) falls back to pkill -f mediasoup-worker",
   async () => {
     const { purgeStaleMediasoupWorker } = await import(
       "../src/server/ssr-mediasoup-router.mjs"
@@ -28,7 +32,14 @@ test(
       if (typeof cb === "function") cb(null, "", ""); // success
     };
 
-    await purgeStaleMediasoupWorker({ exec: mockExec, gracePeriodMs: 0 });
+    await purgeStaleMediasoupWorker({
+      exec: mockExec,
+      gracePeriodMs: 0,
+      // Force the legacy fallback path (pgrep failure simulates an
+      // environment without procps).
+      pgrep: async () => { throw new Error("pgrep unavailable"); },
+      logger: { info: () => {}, warn: () => {} },
+    });
 
     assert.ok(
       calls.some((cmd) => cmd.includes("pkill") && cmd.includes("mediasoup-worker")),
@@ -53,8 +64,15 @@ test(
     };
 
     // Must not throw — "no stale worker" is the happy path on a clean boot.
+    // Force fallback (pgrep mock throws) so the test exercises the legacy
+    // exec-error path it was designed to verify.
     await assert.doesNotReject(
-      purgeStaleMediasoupWorker({ exec: mockExec, gracePeriodMs: 0 }),
+      purgeStaleMediasoupWorker({
+        exec: mockExec,
+        gracePeriodMs: 0,
+        pgrep: async () => { throw new Error("pgrep unavailable"); },
+        logger: { info: () => {}, warn: () => {} },
+      }),
       "purgeStaleMediasoupWorker must resolve (not reject) when exec signals no process found",
     );
   },

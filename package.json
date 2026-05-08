@@ -10,6 +10,7 @@
     "start": "node server.mjs",
     "test": "node --test \"test/**/*.test.mjs\"",
     "test:live": "RUN_LIVE_TESTS=1 node --test test/connection-stability/",
+    "test:live:isolated": "for f in test/connection-stability/*.test.mjs; do echo \"--- $f ---\"; RUN_LIVE_TESTS=1 node --test \"$f\" || exit 1; done",
     "wave0:env": "bash scripts/wave0-environment-check.sh",
     "wave0:audio": "node --test test/ssr-audio-capture-smoke.test.mjs"
   },

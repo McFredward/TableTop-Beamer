@@ -225,6 +225,12 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     // `setServerInfo`, included on every consumer heartbeat so the chip
     // can show "encoder=x264-software bitrate=8.0M preset=balanced".
     serverInfo: null,
+    // Phase 33 Plan 02-T2 (Suspect 6): timestamp of the last "publisher is
+    // alive" signal received from the ssr-tab WS. Updated on every ssr-fps /
+    // ssr-stats envelope (1 s cadence). The render-host watchdog reads this
+    // to detect "Chromium CDP is up but the publisher's WS dropped" — the
+    // BUG-B failure mode where state.videoProducer stays null forever.
+    publisherWsLastPongMs: 0,
   };
 
   server.on("upgrade", (req, socket) => {
@@ -306,6 +312,13 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
 
     if (role === "consumer") state.consumerCount += 1;
 
+    // Phase 33 Plan 02-T2 (Suspect 6): seed publisher-liveness timestamp on
+    // ssr-tab connect so the watchdog doesn't misfire during the brief
+    // window before the first ssr-fps envelope arrives (~1 s).
+    if (role === "ssr-tab") {
+      state.publisherWsLastPongMs = Date.now();
+    }
+
     // h4 hotfix (2026-05-06): D-C4 heartbeat. The receiver expects
     // {type:"heartbeat"} every ~1-2s on the same WS. Without it the
     // 3s heartbeat-stale indicator fires and causes a reconnect storm.
@@ -373,6 +386,10 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       // accept it only on ssr-tab connections to prevent consumers
       // from spoofing.
       if (msg.type === "ssr-fps" && conn.role === "ssr-tab") {
+        // Phase 33 Plan 02-T2 (Suspect 6): publisher liveness timestamp.
+        // The ssr-tab posts ssr-fps + ssr-stats every 1 s — that's our
+        // "publisher WS still alive" signal. Render-host watchdog reads it.
+        state.publisherWsLastPongMs = Date.now();
         const f = Number(msg.fps);
         if (Number.isFinite(f) && f >= 0 && f <= 240) {
           state.ssrFps = Math.round(f * 10) / 10;
@@ -387,6 +404,8 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       // caching: the heartbeat sender will copy this verbatim out to
       // every consumer.
       if (msg.type === "ssr-stats" && conn.role === "ssr-tab") {
+        // Phase 33 Plan 02-T2 (Suspect 6): publisher liveness timestamp.
+        state.publisherWsLastPongMs = Date.now();
         const incoming = msg.stats;
         if (incoming && typeof incoming === "object" && !Array.isArray(incoming)) {
           const sanitized = {};
@@ -601,6 +620,13 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       if (state.videoProducer && [...conn.producers.values()].includes(state.videoProducer)) {
         state.videoProducer = null;
       }
+      // Phase 33 Plan 02-T2 (Suspect 6): on ssr-tab disconnect, mark the
+      // publisher-WS as gone so the watchdog detects it on the next tick.
+      // (We zero the timestamp; getPublisherWsAgeMs returns Infinity when
+      // it's 0, which trips the watchdog's stale-threshold immediately.)
+      if (conn.role === "ssr-tab") {
+        state.publisherWsLastPongMs = 0;
+      }
       if (conn.role === "consumer") {
         state.consumerCount = Math.max(0, state.consumerCount - 1);
       }
@@ -633,6 +659,15 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
   state.broadcastToConsumers = broadcastToConsumers;
   state.broadcastRenderHostDown = () => broadcastToConsumers({ type: "render-host-down" });
   state.broadcastProducerReady = broadcastProducerReady;
+
+  // Phase 33 Plan 02-T2 (Suspect 6): publisher-WS-age accessor used by
+  // ssr-render-host's watchdog. Returns Infinity if no ssr-tab has ever
+  // pinged (or the last one disconnected), which trips the staleness
+  // gate immediately.
+  state.getPublisherWsAgeMs = () => {
+    if (!state.publisherWsLastPongMs) return Infinity;
+    return Date.now() - state.publisherWsLastPongMs;
+  };
 
   // h17: expose setServerInfo so server.mjs can publish boot-time
   // encoder/preset/bitrate info into every consumer heartbeat. The

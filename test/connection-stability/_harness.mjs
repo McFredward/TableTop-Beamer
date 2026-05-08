@@ -106,6 +106,19 @@ export async function makeIsolatedRoot() {
  * @param {boolean} [opts.captureLogs=false] - true = collect stdout/stderr
  * @returns {Promise<{ pid: number, port: number, kill: (signal?:string)=>void, child: import('node:child_process').ChildProcess, getLogs: ()=>{stdout:string,stderr:string} }>}
  */
+// Module-level rotating display number. Each bootServer() call picks the
+// next free Xvfb display number > 99 so consecutive tests in the same Node
+// process don't fight over /tmp/.X<N>-lock when prior Xvfb processes haven't
+// fully cleaned up yet. The render-host's pickFreeDisplay() walks 20 slots
+// from the start point, so 100..119 / 120..139 / ... cycle through cleanly.
+let _nextDisplayBase = 100;
+function _allocDisplay() {
+  const n = _nextDisplayBase;
+  _nextDisplayBase += 20; // step well clear of pickFreeDisplay's walk
+  if (_nextDisplayBase > 900) _nextDisplayBase = 100; // wrap
+  return `:${n}`;
+}
+
 export async function bootServer({
   port,
   rootDir,
@@ -113,6 +126,7 @@ export async function bootServer({
   renderHost = true,
   env: extraEnv = {},
   captureLogs = false,
+  display = _allocDisplay(),
 } = {}) {
   const usePort = port ?? (await pickFreePort());
   const env = {
@@ -120,6 +134,7 @@ export async function bootServer({
     PORT: String(usePort),
     HOST: "127.0.0.1",
     NODE_ENV: "test",
+    SSR_DISPLAY: display,
     ...(renderHost ? { SSR_RENDER_HOST: "1" } : {}),
     ...(publish ? { SSR_PUBLISH: "1" } : {}),
     ...(rootDir ? { SSR_ROOT_DIR: rootDir } : {}),
@@ -433,6 +448,8 @@ export async function killSsrTab(serverPid) {
 
 /**
  * Send SIGTERM to the server, wait for clean exit (or SIGKILL after grace).
+ * Also force-kills any leftover descendants (Xvfb, Chromium) so the next
+ * test in the same run starts with a clean slate.
  *
  * @param {{ pid: number, child: import('node:child_process').ChildProcess }} handle
  * @param {number} [graceMs=4000]
@@ -447,18 +464,25 @@ export async function teardown(handle, graceMs = 4000) {
     handle.child.once("exit", () => { clearTimeout(t); res(true); });
   });
 
+  // Always sweep descendants — server.mjs's SIGINT handler may not have
+  // had time to clean up Xvfb / Chromium before we got here, especially
+  // if the test forced SIGKILL. Leaking these locks causes subsequent
+  // tests to fail when they pick the same display.
+  try {
+    const all = await findAllDescendants(handle.pid);
+    for (const p of all) { try { process.kill(p, "SIGKILL"); } catch {} }
+  } catch {}
+
   if (!exited) {
-    // Force-kill the whole process tree
-    try {
-      const all = await findAllDescendants(handle.pid);
-      for (const p of all) { try { process.kill(p, "SIGKILL"); } catch {} }
-    } catch {}
     try { handle.child.kill("SIGKILL"); } catch {}
     await new Promise((res) => {
       const t = setTimeout(() => res(), 1000);
       handle.child.once("exit", () => { clearTimeout(t); res(); });
     });
   }
+
+  // Brief grace so OS can reap zombies + remove /tmp/.X<N>-lock files.
+  await sleep(300);
 }
 
 /**

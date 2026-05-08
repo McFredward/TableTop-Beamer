@@ -259,6 +259,14 @@ export function bootSsrRenderHost({
   // dead Chromium tab. Wired by server.mjs via `signalingState.broadcastRenderHostDown`.
   // No-op by default so unit tests that boot the host in isolation are unaffected.
   onHostDown = null,
+  // Phase 33 Plan 02-T2 (Suspect 6): optional accessor for the age (ms) of
+  // the publisher-WS's last ssr-fps/ssr-stats envelope. When CDP is healthy
+  // (Chromium tab process still alive) but this exceeds 15 s, the publisher
+  // WS dropped silently and the host must restart — closing BUG-B from
+  // phase-32-connect-head-trace.md. Returns null/Infinity if no signaling
+  // is wired or no ssr-tab has ever connected.
+  getPublisherWsAgeMs = null,
+  publisherWsStaleThresholdMs = 15000,
 } = {}) {
   if (!port) throw new Error("bootSsrRenderHost: `port` is required");
 
@@ -553,6 +561,37 @@ export function bootSsrRenderHost({
           }
         }
         scheduleRestart();
+        return;
+      }
+
+      // Phase 33 Plan 02-T2 (Suspect 6): publisher-WS watchdog. Detects
+      // BUG-B from phase-32-connect-head-trace.md — Chromium tab process
+      // is still alive (CDP responsive) but the publisher's WebSocket to
+      // /api/webrtc/signal dropped silently, so state.videoProducer is
+      // null forever and consumers loop on `no-producer-yet`. The CDP
+      // health-ping above CANNOT detect this; the only signal is the
+      // absence of ssr-fps / ssr-stats envelopes from the ssr-tab role.
+      //
+      // We only fire when CDP is healthy (`healthFailCount === 0`); if
+      // CDP is failing the threshold-breach path above will restart anyway.
+      if (typeof getPublisherWsAgeMs === "function" && healthFailCount === 0) {
+        let pubAge;
+        try { pubAge = getPublisherWsAgeMs(); } catch { pubAge = 0; }
+        // Allow a generous warm-up window after a fresh restart: only
+        // declare "stuck" if the timestamp has been in the bad state for
+        // longer than the threshold. The threshold defaults to 15 s, the
+        // publisher posts every 1 s, so 15 missed heartbeats is the gate.
+        if (Number.isFinite(pubAge) && pubAge > publisherWsStaleThresholdMs) {
+          logger.error(
+            `[ssr-host] publisher WS stale (age=${Math.round(pubAge)}ms > ${publisherWsStaleThresholdMs}ms) — CDP healthy but publisher dropped, restarting render-host (BUG-B)`,
+          );
+          if (typeof onHostDown === "function") {
+            try { onHostDown(); } catch (err) {
+              logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
+            }
+          }
+          scheduleRestart();
+        }
       }
     }, HEALTH_PING_INTERVAL_MS);
   }
