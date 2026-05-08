@@ -254,6 +254,11 @@ export function bootSsrRenderHost({
   viewport = DEFAULT_VIEWPORT,
   autoStart = true,
   logger = console,
+  // Phase 33 Plan 01-T3 (Suspect 7): optional callback used to broadcast
+  // `render-host-down` to all WebRTC consumers when health-ping detects a
+  // dead Chromium tab. Wired by server.mjs via `signalingState.broadcastRenderHostDown`.
+  // No-op by default so unit tests that boot the host in isolation are unaffected.
+  onHostDown = null,
 } = {}) {
   if (!port) throw new Error("bootSsrRenderHost: `port` is required");
 
@@ -538,6 +543,15 @@ export function bootSsrRenderHost({
       }
       if (healthFailCount >= HEALTH_PING_FAIL_THRESHOLD) {
         logger.error(`[ssr-host] health ping threshold breached, relaunching`);
+        // Phase 33 Plan 01-T3 (Suspect 7): notify all consumers BEFORE the
+        // restart sleep so their UI flips to the "Render host crashed" overlay
+        // instead of the generic "Reconnecting…" countdown. Best-effort —
+        // a thrown callback must not block the restart path.
+        if (typeof onHostDown === "function") {
+          try { onHostDown(); } catch (err) {
+            logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
+          }
+        }
         scheduleRestart();
       }
     }, HEALTH_PING_INTERVAL_MS);
@@ -683,6 +697,14 @@ export function bootSsrRenderHost({
         status.browserConnected = false;
         if (!stopRequested) {
           logger.error("[ssr-host] browser disconnected unexpectedly");
+          // Phase 33 Plan 01-T3 (Suspect 7): same render-host-down broadcast
+          // as the health-ping breach path — Chromium-process-died is the
+          // analogous "host gone" event from the consumer's POV.
+          if (typeof onHostDown === "function") {
+            try { onHostDown(); } catch (err) {
+              logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
+            }
+          }
           scheduleRestart();
         }
       });

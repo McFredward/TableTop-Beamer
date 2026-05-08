@@ -1302,7 +1302,16 @@ function applyLiveMutation({
             console.warn("[serverRendering-update] shutdown error:", err?.message || err);
           }
           try {
-            const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
+            // Phase 33 Plan 01-T3: same onHostDown wiring as the boot path.
+            const ssrHost = bootSsrRenderHost({
+              port: PORT,
+              autoStart: true,
+              onHostDown: () => {
+                try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
+                  console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
+                }
+              },
+            });
             setActiveSsrRenderHost(ssrHost);
             // h18: re-publish serverInfo from the new host so the
             // diagnostic overlay reflects the new preset/encoder/bitrate
@@ -4223,7 +4232,21 @@ if (process.env.SSR_RENDER_HOST === "1") {
       ensureMediasoupClientBundle().catch((err) => {
         console.warn(`[server] mediasoup-client pre-warm failed: ${err?.message ?? "unknown"}`);
       });
-      const ssrHost = bootSsrRenderHost({ port: PORT, autoStart: true });
+      // Phase 33 Plan 01-T3 (Suspect 7): wire render-host → consumer signal.
+      // The render-host invokes onHostDown when its CDP health-ping breaches
+      // the 3-failures-in-15s threshold OR Chromium browser disconnects. The
+      // signaling layer fans out a `render-host-down` text frame to every
+      // open consumer WS, so the Pi UI flips to the actionable
+      // "Render host crashed" overlay instead of the generic reconnect banner.
+      const ssrHost = bootSsrRenderHost({
+        port: PORT,
+        autoStart: true,
+        onHostDown: () => {
+          try { signalingState?.broadcastRenderHostDown?.(); } catch (err) {
+            console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
+          }
+        },
+      });
       setActiveSsrRenderHost(ssrHost);
       // Phase 31 Plan 05 Task 2b step 6: surface the auto-detection result
       // to the System & Performance UI's Detected-encoders badge. The badge

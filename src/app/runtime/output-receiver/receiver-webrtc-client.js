@@ -53,6 +53,9 @@ export async function createWebRtcReceiver({
   // h17: ssrStats and serverInfo are piggybacked on heartbeat. We expose
   // them as separate channels so the bootstrap can route them to the
   // diagnostic overlay without parsing the heartbeat envelope itself.
+  // Phase 33 Plan 01 (Suspect 4): producerReady is a first-class signal so
+  // the bootstrap can abort `waitForProducer`'s 1s poll the moment the
+  // producer comes up. Saves up to ~1s of cold-boot perceived latency.
   const subscribers = {
     connectionState: [],
     frame: [],
@@ -60,6 +63,7 @@ export async function createWebRtcReceiver({
     ssrFps: [],
     ssrStats: [],
     serverInfo: [],
+    producerReady: [],
   };
   function emit(channel, ...args) {
     for (const cb of subscribers[channel]) {
@@ -158,6 +162,23 @@ export async function createWebRtcReceiver({
       // D-B4: explicit render-host-down message → bootstrap shows error UI
       if (m.type === "render-host-down") {
         emit("connectionState", "host-down");
+        return;
+      }
+      // Phase 33 Plan 01 (Suspect 4): producer-ready broadcast — bootstrap
+      // uses this to abort `waitForProducer`'s 1s poll cadence and any
+      // pending RECONNECT-BACKOFF timer immediately when the producer
+      // comes up, instead of eating up to one full pollIntervalMs.
+      if (m.type === "producer-ready") {
+        emit("producerReady");
+        return;
+      }
+      // Phase 33 Plan 01 (Suspect 5): producer-closed broadcast — server
+      // emits this when the upstream Producer ends (ssr-tab restart). The
+      // bootstrap reacts by calling restart() directly instead of waiting
+      // for the 8s frame-stale timer to detect RTP starvation. Closes the
+      // 8s recovery window after every server-side Chromium restart.
+      if (m.type === "producer-closed") {
+        emit("connectionState", "producer-gone");
         return;
       }
       if (m.requestId && pending.has(m.requestId)) {
@@ -267,6 +288,9 @@ export async function createWebRtcReceiver({
     onConnectionStateChange: (cb) => subscribers.connectionState.push(cb),
     onFrameReceived: (cb) => subscribers.frame.push(cb),
     onHeartbeat: (cb) => subscribers.heartbeat.push(cb),
+    // Phase 33 Plan 01 (Suspect 4): producer-ready event handle. Fired once
+    // per server-side null→non-null Producer transition.
+    onProducerReady: (cb) => subscribers.producerReady.push(cb),
     onSsrFps: (cb) => subscribers.ssrFps.push(cb), // h8: SSR-tab internal render fps
     onSsrStats: (cb) => subscribers.ssrStats.push(cb), // h17: rich SSR stats blob
     onServerInfo: (cb) => subscribers.serverInfo.push(cb), // h17: encoder/preset/bitrate

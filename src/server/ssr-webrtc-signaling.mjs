@@ -182,6 +182,28 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     }
   }
 
+  // Phase 33 Plan 01-T3 (Suspect 7): generic consumer fanout helper. Used
+  // by ssr-render-host to emit `render-host-down` when health-ping detects
+  // CDP unresponsiveness (3 consecutive failures = 15 s) — gives the
+  // consumer a deterministic signal so its UI flips to the "Render host
+  // crashed" overlay instead of the generic "Reconnecting…" countdown.
+  // Returns the count of sockets the message was attempted on.
+  function broadcastToConsumers(payload) {
+    let frame;
+    try { frame = encodeTextFrame(JSON.stringify(payload)); } catch { return 0; }
+    let n = 0;
+    for (const [, entry] of connectionsByAddr) {
+      if (!entry || !entry.conn || entry.conn.role !== "consumer") continue;
+      try {
+        entry.socket.write(frame);
+        n += 1;
+      } catch {
+        // swallow per-socket errors; consumers will reconnect via their own logic
+      }
+    }
+    return n;
+  }
+
   // Module-level shared state — there is exactly ONE active video Producer
   // at any time (the SSR tab). When the SSR tab restarts, the Producer is
   // re-created via the publisher script and `state.videoProducer` is updated.
@@ -601,6 +623,16 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       try { socket.destroy(); } catch (_) {}
     });
   });
+
+  // Phase 33 Plan 01-T3 (Suspect 7): expose the generic fanout helper +
+  // a typed `broadcastRenderHostDown` shortcut. ssr-render-host calls the
+  // shortcut from its health-ping path the moment 3 consecutive CDP
+  // failures cross the threshold, BEFORE scheduleRestart() initiates a
+  // backoff-sleep + relaunch. Consumers see the host-down event ~15 s
+  // earlier than the previous frame-stale-only path.
+  state.broadcastToConsumers = broadcastToConsumers;
+  state.broadcastRenderHostDown = () => broadcastToConsumers({ type: "render-host-down" });
+  state.broadcastProducerReady = broadcastProducerReady;
 
   // h17: expose setServerInfo so server.mjs can publish boot-time
   // encoder/preset/bitrate info into every consumer heartbeat. The

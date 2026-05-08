@@ -133,6 +133,10 @@ export async function bootReceiver({ logger = console } = {}) {
   let countdownStop = null;        // stop() returned by showCountdownReconnect
   const connectionStore = {};      // mutable store for markConnectionStable / evaluateOverlayHide
   let overlayHidePoller = null;    // setInterval handle for hide-after-stable check
+  // Phase 33 Plan 01-T1 (Suspect 4): tracks the in-flight reconnect-backoff
+  // setTimeout so the producer-ready handler can cancel it and jump to an
+  // immediate retry. Null when no retry is pending.
+  let pendingRetryTimeout = null;
   let lastFrameAtMs = performance.now();
   let lastHeartbeatAtMs = performance.now();
   let frameCount = 0;
@@ -228,6 +232,24 @@ export async function bootReceiver({ logger = console } = {}) {
           connectionStore.connectionStableAtMs = null;
           if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
         }
+        // Phase 33 Plan 01-T2 (Suspect 5): producer-closed → producer-gone.
+        // Server tells us the upstream Producer ended (ssr-tab restart);
+        // the WS is still healthy (heartbeats may keep arriving). Without
+        // this branch the only recovery path was the 8s frame-stale timer.
+        // Immediate restart() collapses that 8s gap to a single RPC roundtrip.
+        if (s === "producer-gone") {
+          connectionStableSince = null;
+          connectionStore.connectionStableAtMs = null;
+          if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
+          ui.hideSplash();
+          ui.showReconnect("Render-Producer restarting…");
+          // restart() = stop + reconnect. The bootstrap's onConnectionStateChange
+          // will run again on the new receiver and clear the banner once
+          // CONNECTED is reached. Best-effort — if restart throws (e.g. WS
+          // was closing concurrently), the existing monitor + 8s frame-stale
+          // path picks it up.
+          try { receiver?.restart(); } catch (_) { /* fall through */ }
+        }
         // D-B4: explicit render-host-down — server publishes this when
         // the Chromium tab dies. Show error UI instead of leaving the
         // last frozen frame and waiting for the operator to notice.
@@ -279,6 +301,20 @@ export async function bootReceiver({ logger = console } = {}) {
       receiver.onServerInfo?.((info) => {
         serverInfo = info;
       });
+      // Phase 33 Plan 01-T1 (Suspect 4): producer-ready → if we're idle in
+      // a backoff timer or the consume RPC just rejected with no-producer-yet,
+      // jump out and retry NOW instead of eating the up-to-1s pollIntervalMs
+      // / up-to-30s backoff window.
+      receiver.onProducerReady?.(() => {
+        if (pendingRetryTimeout != null) {
+          try { clearTimeout(pendingRetryTimeout); } catch {}
+          pendingRetryTimeout = null;
+          if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+          // Fire the retry on the next tick so any ongoing message-handler
+          // chain can finish first.
+          setTimeout(() => { tryConnect(); }, 0);
+        }
+      });
     } catch (err) {
       logger.error(`[ssr-receiver] connect failed: ${err?.message ?? err}`);
       // Phase 32 D-B2: forever-retry with adaptive backoff schedule.
@@ -302,7 +338,12 @@ export async function bootReceiver({ logger = console } = {}) {
         delayMs: delay,
         attemptN: reconnectAttempts,
       });
-      setTimeout(() => {
+      // Phase 33 Plan 01-T1 (Suspect 4): track the timeout handle so a
+      // producer-ready event from the active receiver's WS can cancel it
+      // and trigger an immediate retry instead of waiting out the backoff.
+      if (pendingRetryTimeout != null) { try { clearTimeout(pendingRetryTimeout); } catch {} }
+      pendingRetryTimeout = setTimeout(() => {
+        pendingRetryTimeout = null;
         tryConnect();
       }, delay);
     } finally {
@@ -582,6 +623,7 @@ export async function bootReceiver({ logger = console } = {}) {
       if (snapshotInterval) clearInterval(snapshotInterval);
       if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
       if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+      if (pendingRetryTimeout != null) { try { clearTimeout(pendingRetryTimeout); } catch {} pendingRetryTimeout = null; }
       try {
         inputForwarder.teardown();
       } catch {}
