@@ -3,13 +3,14 @@ phase: 32
 phase_id: 32
 title: SSR Stream Performance + Connection Stability
 slug: ssr-stream-performance-connection-stability
-status: PASS-AUTOMATED-PENDING-MANUAL
-status_detail: "automated 13/13 PASS · manual 0/5 PENDING (Pi hardware required for FPS-on-hardware, drag-fluidity perception, cold-boot ×10, Pi-reload ×10, VC4 1080p@60 decode budget)"
+status: FAILED-AT-MANUAL-UAT
+status_detail: "automated 13/13 PASS · 12 nightly hotfixes h1-h12 applied 2026-05-07/08 · manual UAT 2026-05-08 reports image-hang + persistent reconnect-loop · connection stability NOT achieved · superseded by Phase 33. See 32-CLOSURE-ADDENDUM.md for the full hotfix log + outstanding items."
 test_board: nemesis-lockdown-a
 started: 2026-05-06T22:35:00Z
 delivered_to_uat: 2026-05-07T00:30:00Z
-closed: null
-tags: [ssr, fps-lift, reconnect-stability, vaapi, xvfb, fakescreenfps, mediasoup, pi, root-cause]
+closed: 2026-05-08T08:00:00Z
+superseded_by: phase-33-connection-stability-deep-dive
+tags: [ssr, fps-lift, reconnect-stability, vaapi, xvfb, fakescreenfps, mediasoup, pi, root-cause, failed-at-manual-uat, supersede]
 
 # Phase plans
 plans:
@@ -209,11 +210,17 @@ See `32-HUMAN-UAT.md`. Five scenarios deferred to live operator testing:
 
 ---
 
-## Self-Check: PASSED (automated)
+## Self-Check: FAILED-AT-MANUAL-UAT (closure 2026-05-08)
 
-Tag pending: `phase-32-end` (after manual UAT pass) or
-`phase-32-delivered-to-uat` (now — automated coverage complete).
+Automated coverage complete (270/0/4) but manual UAT 2026-05-08 reproduced
+the original failure mode (image-hang + persistent reconnect-loop) despite
+12 nightly hotfixes (h1-h12, h4 reverted). Phase closed FAILED-AT-MANUAL
+and connection-stability work escalated to **Phase 33 — Connection
+Stability Deep Dive**. See `32-CLOSURE-ADDENDUM.md` for the full hotfix
+log + outstanding items + diagnostic-artifact inventory.
+
+Tag: `phase-32-closed-failed-manual` (replaces `phase-32-delivered-to-uat`).
 
 ---
 
-*Phase: 32-ssr-stream-performance-connection-stability · Phase Summary · PASS-AUTOMATED-PENDING-MANUAL · 2026-05-07*
+*Phase: 32-ssr-stream-performance-connection-stability · Phase Summary · FAILED-AT-MANUAL-UAT · closed 2026-05-08 · superseded by Phase 33*

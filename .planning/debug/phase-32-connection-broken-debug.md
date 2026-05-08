@@ -2,15 +2,19 @@
 status: investigating
 trigger: "SSR architecture connection regression — Pi receiver at /output/ either never connects or reconnects in a loop without stabilizing"
 created: 2026-05-07T00:00:00Z
-updated: 2026-05-07T23:30:00Z
+updated: 2026-05-07T23:58:00Z
 ---
 
 ## Current Focus
 
-hypothesis: TWO independent bugs confirmed — (A) sessionStorage backoff persistence breaks the monitor reconnect guard when attempts > 0, AND (B) --use-gl=egl crashes Chrome 131 GPU process (h4 was the fix, h4 was reverted)
-test: live boot baseline (7d4063a) vs HEAD (9b12ea4) on ports 4174/4175; direct Chrome binary test with --use-gl=egl
-expecting: both are confirmed root causes
-next_action: static analysis agent to cross-reference and orchestrator to decide fix
+hypothesis: FOUR bugs now confirmed from live HEAD (9162bc0 h6) trace on port 4181:
+  BUG-A: h38 connectionsByAddr registers ssr-tab → consumer from same IP destroys ssr-tab WS (loopback-specific, but also hits local browser testing)
+  BUG-B: --use-gl=egl Chrome 131 GPU crash → SwiftShader fallback (h4 reverted, BUG-D in trace doc)
+  BUG-C: tryConnectInFlight not cleared on ws-closed/failed paths (fixed in h7 b26daac, not present in h6 test)
+  BUG-D: no-producer-yet infinite loop when Chrome survives WS disconnect (scheduleRestart not triggered by WS close alone)
+test: live boot HEAD h6 on port 4181, puppeteer Pi-sim from loopback, 70s observation
+expecting: all four confirmed — trace logged to .planning/debug/phase-32-connect-head-trace.md
+next_action: apply fixes (h4 re-apply + h38 scope fix + h7 already done)
 
 ## Symptoms
 
@@ -74,6 +78,26 @@ started: After Phase 32 changes (after tag phase-31-end)
   checked: baseline monitor reconnect path: reconnectAttempts always starts at 0, monitor always can fire
   found: In baseline, reconnectAttempts starts at 0 and is only incremented in tryConnect() catch (where setTimeout retry is already scheduled) and monitor. The monitor fires for the first disconnect, schedules a single tryConnect(), and then reconnectAttempts > 0 means subsequent monitor ticks are no-ops (also true in baseline). In baseline this works because a successful reconnect resets to 0.
   implication: The baseline guard `reconnectAttempts === 0` was designed for single-trigger-per-disconnect, not for "if sessionStorage has a previous attempt count". Phase 32's persistence of this counter across page loads is the regression.
+
+- timestamp: 2026-05-07T23:45:00Z
+  checked: live HEAD h6 boot on port 4181 — ssr-signal events around first consumer connect
+  found: Server log shows exact sequence: "[ssr-signal] connect role=consumer addr=127.0.0.1" immediately followed by "[ssr-signal] disconnect role=ssr-tab". h38 connectionsByAddr map registers ALL roles (line 271-272, no role guard). Consumer stale-kill (line 265-268, role=consumer guard) finds ssr-tab's socket under key "127.0.0.1" and destroys it. state.videoProducer → null. Chrome browser stays alive (CDP health pings pass). scheduleRestart never fires. Producer stays null permanently.
+  implication: BUG-A — h38 stale-guard is scoped to role=consumer on the lookup side but NOT on the registration side. Fix: add `&& role === "consumer"` to the connectionsByAddr.set call (line 271). 1-line fix.
+
+- timestamp: 2026-05-07T23:50:00Z
+  checked: client chip polling every 2s for 70s — attempts counter and pc state
+  found: pc=new for entire 70s session. attempts increments 0→2→4→6→8→10→12→14 in steps of +2 every ~10s. Each step corresponds to two sequential tryConnect calls each getting "no-producer-yet" after 8s server-hold. No "connected" state reached. No reconnect overlay detected (puppeteer selector was wrong — overlay uses #ssr-reconnect-banner not data-reconnect-overlay).
+  implication: The "0s hang" is the 8s server-side h19 hold timing out with no-producer-yet. Not a client hang. Each tryConnect waits 8s for producer → fails → catch schedules next retry. "0s" is the countdown display when delay has elapsed but the new tryConnect is waiting inside the 8s server hold.
+
+- timestamp: 2026-05-07T23:55:00Z
+  checked: tryConnectInFlight flag clear paths in h6 (9162bc0) vs h7 (b26daac)
+  found: h6 clears flag only in "connected" callback (line 203) and catch block (line 309). Does NOT clear on "ws-closed", "failed", "disconnected" state transitions. h7 (b26daac, already in main) adds finally block that unconditionally clears flag after try/catch completes. Without h7, a tryConnect that succeeds at WS level but then gets ws-closed before "connected" leaves tryConnectInFlight=true forever — monitor permanently blocked.
+  implication: BUG-C (h6 only) — h7 already fixes this. The h6 worktree used for this test had this bug active, but h7 is already merged to main.
+
+- timestamp: 2026-05-07T23:57:00Z
+  checked: Chrome GPU process args during test boot
+  found: GPU process spawned with "--use-gl=angle --use-angle=swiftshader-webgl" — SwiftShader fallback confirmed. Main Chrome launched with "--use-gl=egl --enable-unsafe-swiftshader". BUG-D (--use-gl=egl causing GPU crash → SwiftShader) reproduced live, consistent with prior static analysis evidence.
+  implication: BUG-D confirmed live. h4 (a774180) fix must be re-applied.
 
 ## Resolution
 

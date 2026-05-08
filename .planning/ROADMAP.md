@@ -482,3 +482,61 @@ Exit Criteria:
 Out of Scope:
 - Aenderungen ausserhalb der Align-Mode-UI.
 - Neue Projection-Mapping-Features ausser dem Trapez-Corner-Release und den Squish-Handles.
+
+## Phase 32 - SSR Stream Performance + Connection Stability (CLOSED-FAILED-AT-MANUAL-UAT)
+
+Status: CLOSED-FAILED am 2026-05-08. Automated 13/13 PASS, aber Live-Pi-UAT reproduzierte image-hang + persistente reconnect-loops trotz 12 nightly hotfixes (h1-h12, h4 reverted). Connection-Stability-Scope wird zu **Phase 33** eskaliert. Block-A FPS-Lift code (Xvfb fakescreenfps, VAAPI libva probe, streamFpsCap schema, settings UI) bleibt landed und wirkt forward.
+
+Closure-Doku: `.planning/phases/phase-32/32-CLOSURE-ADDENDUM.md` + `32-SUMMARY.md` (status FAILED-AT-MANUAL-UAT). Tag pending: `phase-32-closed-failed-manual`.
+
+## Phase 33 - Connection Stability Deep Dive (PLANNING)
+
+Ziel: Make the SSR → Pi WebRTC connection rock-solid under all realistic operator usage. No image-hang. No persistent reconnect loops. No "Server-Restart hilft" workaround. System runs hours without intervention. Page-reload <10s recovery. Server cold-boot <10s recovery. Multi-cycle live-hardware acceptance matrix (10× cold-boot, 10× Pi-reload, 1h steady-state, 3 fault-injection scenarios).
+
+Status: PLANNING. Stub angelegt 2026-05-08 mit 33-CONTEXT.md.
+
+Pflicht-Inputs (Phase-32-hotfix-night Diagnostik):
+- `.planning/debug/phase-32-connect-baseline-p31.md`
+- `.planning/debug/phase-32-connect-head-trace.md`
+- `.planning/debug/phase-32-connection-comprehensive-audit.md`
+- `.planning/debug/phase-32-connection-broken-research.md`
+- `.planning/debug/phase-32-connection-broken-debug.md`
+
+Milestones:
+1. M1 Best-Practices-Research: Twilio/Daily/Jitsi/LiveKit/mediasoup-demo reconnect patterns dokumentiert (33-RESEARCH.md).
+2. M2 State-Machine-Contract: schriftlicher Connection-State-Vertrag mit allen Timern, Messages, Transitionen (33-STATE-MACHINE.md).
+3. M3 Reproducible Failure Harness: lokales Script reproduziert das Live-Failure innerhalb 5 Minuten (33-REPRO-HARNESS.md + test/manual/**).
+4. M4 Three-Layer Isolation: Publisher / Signaling / Receiver einzeln testbar mit synthetischem Gegenstück.
+5. M5 Comprehensive Test Suite: Unit + Live-Fixture + Stress + Fault-Injection + State-Leak.
+6. M6 Operator Telemetry Surface: RECONNECTING countdown zeigt Last-Error-Reason + Total-Attempts + Last-Successful-Connect.
+7. M7 Multi-Cycle Live UAT: ≥10× cold-boot, ≥10× Pi-reload, ≥1h steady-state, ≥3 fault-injection scenarios — alle PASS auf production hardware.
+
+Exit Criteria:
+- 10/10 cold-boots <10s connect, zero stuck-reconnect.
+- 10/10 Pi-reloads <10s connect.
+- ≥1h steady-state run, zero spontaneous reconnects.
+- 3 fault-injection scenarios (kill server, kill mediasoup-worker, drop network) recover <30s.
+- Integration tests reproduce live failure if it ever returns (the gap Phase 32 missed).
+- Each fix references state-machine contract + has regression test (D-06 anti-hotfix-pattern).
+- mp4 outside-sandstorm playback verified (incidental — confirms h9 GPU fix on hardware).
+
+Out of Scope:
+- Neue Animations-Typen oder Render-Features.
+- Audio path changes (Pi-local stays).
+- Codec change away from H264.
+- WAN/TURN/Internet routing.
+- FPS-Lift work über Phase 32 hinaus.
+
+User Decisions (2026-05-08):
+- Investigation BEFORE Code (D-01).
+- No "Just-Try-Another-Hotfix" Pattern (D-06).
+- Architectural refactor erlaubt falls Research zeigt dass production-grade reconnect das verlangt (D-07).
+- Pi-Hardware UAT ist mandatorisch — Phase kann ohne Live-Hardware-Access nicht abgeschlossen werden.
+
+Carrying Forward (LOCKED, do not re-open):
+- D-A1: WebRTC + h264 + mediasoup
+- D-A3: Headful Chromium 131 + Xvfb + puppeteer-stream
+- Pi-local audio (D-D2 reversal)
+- Server-authoritative state
+- streamFpsCap + alignModeBoost settings (Phase 32 Block A)
+- 12 hotfixes h1-h12 (h4 reverted) bleiben net-positiv baseline.

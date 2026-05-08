@@ -1,22 +1,23 @@
 # CURRENT PHASE
 
-- Active: none — Phase 32 delivered to UAT (PASS-AUTOMATED-PENDING-MANUAL) on 2026-05-07.
-- Status: Phase 32 (SSR Stream Performance + Connection Stability) automated
-  13/13 PASS. Five Pi-hardware UAT scenarios (32-HUMAN-UAT.md) deferred to
-  live operator testing. Block A (FPS Lift) delivered Xvfb -fakescreenfps,
-  Chromium-VAAPI libva probe, streamFpsCap schema, publisher cap-wiring,
-  align-mode boost, settings UI. Block B (Connection Stability) delivered
-  /api/ssr/ready producer-readiness gate, MAX_RECONNECT_ATTEMPTS hard cap
-  removal, adaptive backoff [1s, 2s, 5s, 10s, 30s] forever-retry,
-  sessionStorage backoff state, RECONNECTING countdown overlay, and
-  server-side proactive boot mediasoup-worker purge.
-  Test-Suite 274 total / 270 pass / 4 skipped / 0 fail. Phase-31 baseline
-  211 still green inside the 270.
-- App version: `0.32.0-delivered-to-uat`
-- Previous Phase: Phase 31 (Server-Side Rendering Pivot) CLOSED-WITH-HOTFIXES.
-- Next Phase: Phase 33 — TBD (await Phase 32 manual UAT outcome).
+- Active: Phase 33 — Connection Stability Deep Dive (PLANNING). Opened 2026-05-08.
+- Status: Phase 33 stub created with 33-CONTEXT.md.
+  Next step: run `/gsd-plan-phase 33` to drive the research → plan → verify
+  flow with the 5 Phase-32-night debug docs as inputs. Phase scope is
+  exclusively connection stability — investigation BEFORE code, reproducible
+  failure harness, multi-cycle live-hardware acceptance matrix, no "just
+  another hotfix" pattern (D-06).
+- Previous Phase: Phase 32 (SSR Stream Performance + Connection Stability)
+  CLOSED-FAILED-AT-MANUAL-UAT 2026-05-08. Automated coverage 13/13 PASS, but
+  live UAT reproduced image-hang + persistent reconnect-loop despite 12
+  nightly hotfixes h1-h12 (h4 reverted). Connection-stability scope
+  escalated to Phase 33. Phase-32 FPS-Lift code (Block A) remains landed and
+  carries forward. See `.planning/phases/phase-32/32-CLOSURE-ADDENDUM.md`.
+- App version: `0.32.0-closed-failed-manual` (tag pending: `phase-32-closed-failed-manual`).
+- Test-Suite 274 total / 270 pass / 4 skipped / 0 fail (unchanged through all 12 hotfixes — the central gap Phase 33 must close).
 
-Phase 32 closure: `.planning/phases/phase-32/32-SUMMARY.md` (tag `phase-32-delivered-to-uat`)
+Phase 33 stub:    `.planning/phases/phase-33/33-CONTEXT.md`
+Phase 32 closure: `.planning/phases/phase-32/32-CLOSURE-ADDENDUM.md` + `32-SUMMARY.md` (status FAILED-AT-MANUAL-UAT, supersedes by phase-33)
 Phase 31 closure: `.planning/phases/phase-31/31-SUMMARY.md` (tag `phase-31-end`)
 Phase 30 closure: `.planning/phases/phase-30/SUMMARY.md` (tag `phase-30-end-partial`)
 Phase 29 closure: `.planning/phases/phase-29/SUMMARY.md` (tag `phase-29-end`)
