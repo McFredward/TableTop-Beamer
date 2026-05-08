@@ -157,23 +157,35 @@ function decodeTextFrame(buf) {
  * @param {{ logger?: { info: Function, warn: Function, error: Function } }} [opts]
  */
 export function attachWebRtcSignaling(server, { logger = console } = {}) {
-  // h38 (2026-05-06): per-IP connection registry. The user's deployment
-  // has exactly ONE Pi receiver at a stable LAN address; when Pi
-  // reconnects (e.g., after a heartbeat-stale trigger) the old WS may
-  // not have fully closed server-side yet, so consumerCount transiently
-  // counts both the dead-but-not-cleaned connection and the new one.
-  // Across enough reconnect cycles the count piles up and rejects new
-  // connections at the cap. Tracking by addr lets us proactively close
-  // a stale connection from the same IP before opening a new one.
+  // h38 (2026-05-06): per-IP connection registry. Originally one entry per
+  // IP — meant to clean up Pi-zombie sockets after a fast reconnect.
+  //
+  // Phase 33 (Suspect 9, 2026-05-08): refactored to Map<addr, Set<entry>>
+  // so multiple healthy consumers from the same IP coexist (e.g. operator's
+  // local browser + Pi receiver both behind same NAT). The stale-guard in
+  // the connect handler now only destroys entries whose underlying socket
+  // is already half-open / closing — alive sockets are left intact and
+  // the new consumer is added alongside.
+  //
+  // Cap=10 (MAX_CONSUMER_CONNECTIONS) and the per-socket close handler
+  // bound the worst case if zombies accumulate before TCP keepalive fires.
   const connectionsByAddr = new Map();
+  function _allConsumerEntries() {
+    const out = [];
+    for (const set of connectionsByAddr.values()) {
+      for (const entry of set) {
+        if (entry?.conn?.role === "consumer") out.push(entry);
+      }
+    }
+    return out;
+  }
 
   // Phase 32 D-B5: broadcast producer-ready to all consumer sockets when the
   // video producer transitions null → non-null. Defined here (not module-level)
   // so it has closure access to connectionsByAddr.
   function broadcastProducerReady() {
     const frame = encodeTextFrame(JSON.stringify({ type: "producer-ready" }));
-    for (const [, entry] of connectionsByAddr) {
-      if (!entry || !entry.conn || entry.conn.role !== "consumer") continue;
+    for (const entry of _allConsumerEntries()) {
       try {
         entry.socket.write(frame);
       } catch {
@@ -192,8 +204,7 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     let frame;
     try { frame = encodeTextFrame(JSON.stringify(payload)); } catch { return 0; }
     let n = 0;
-    for (const [, entry] of connectionsByAddr) {
-      if (!entry || !entry.conn || entry.conn.role !== "consumer") continue;
+    for (const entry of _allConsumerEntries()) {
       try {
         entry.socket.write(frame);
         n += 1;
@@ -292,31 +303,46 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     const conn = makeConnState(role);
     conn.remoteAddr = req.socket?.remoteAddress ?? null;
 
-    // h38: pre-emptively close any stale prior connection from the same
-    // address. Without this, a Pi receiver that triggers a reconnect
-    // before the old WS's close event has fired piles a zombie slot
-    // onto consumerCount; once the cap fills the server starts rejecting
-    // legitimate reconnects until process restart. The intentional
-    // single-connection-per-addr policy fits the LAN deployment shape
-    // (one Pi receiver) without affecting the dashboard preview path.
+    // h38 + Phase 33 Suspect 9 (2026-05-08): zombie-only stale-guard.
+    // The original h38 pre-emptive destroy was per-IP, which broke when
+    // two healthy consumers connected from the same IP (e.g. operator's
+    // local browser + Pi receiver behind the same NAT). Now: only destroy
+    // entries whose socket is already closing/closed/destroyed (true
+    // zombies that haven't been reaped yet). Healthy peers from the same
+    // IP coexist alongside the new connection.
+    //
+    // h10 (2026-05-07) preserved: only consumer connections are registered;
+    // the ssr-tab (singleton publisher) is never tracked in connectionsByAddr.
     if (role === "consumer" && conn.remoteAddr) {
-      const stale = connectionsByAddr.get(conn.remoteAddr);
-      if (stale && stale.socket && !stale.socket.destroyed) {
-        try { stale.socket.destroy(); } catch (_) {}
+      const set = connectionsByAddr.get(conn.remoteAddr);
+      if (set) {
+        for (const entry of [...set]) {
+          const sock = entry?.socket;
+          if (!sock) {
+            set.delete(entry);
+            continue;
+          }
+          // writable===false means socket is closing/closed; destroy it
+          // and drop the entry.
+          if (sock.destroyed || sock.writable === false) {
+            try { sock.destroy(); } catch (_) {}
+            set.delete(entry);
+          }
+        }
+        if (set.size === 0) connectionsByAddr.delete(conn.remoteAddr);
       }
     }
-    // Phase 32 hotfix h10 (2026-05-07): only register CONSUMER connections in
-    // connectionsByAddr. Previously the ssr-tab (which always connects from
-    // 127.0.0.1) was registered too, so when ANY consumer connected from
-    // 127.0.0.1 (e.g. operator opens /output/ on the server machine for
-    // local testing) the stale-guard above would destroy the ssr-tab's WS.
-    // state.videoProducer would go null permanently because Chrome's CDP
-    // health pings still passed → no scheduleRestart → producer stuck null
-    // → endless `no-producer-yet` reconnect storm.
-    // Fix: scope the registry to consumers only. ssr-tab is a singleton
-    // (one Chromium tab per server) and doesn't need stale-replacement.
     if (conn.remoteAddr && role === "consumer") {
-      connectionsByAddr.set(conn.remoteAddr, { socket, conn });
+      const entry = { socket, conn };
+      let set = connectionsByAddr.get(conn.remoteAddr);
+      if (!set) {
+        set = new Set();
+        connectionsByAddr.set(conn.remoteAddr, set);
+      }
+      set.add(entry);
+      // Stash the entry on the socket so the close handler can find + remove
+      // it without scanning the set.
+      socket._connByAddrEntry = entry;
     }
 
     if (role === "consumer") state.consumerCount += 1;
@@ -645,13 +671,15 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       if (conn.role === "consumer") {
         state.consumerCount = Math.max(0, state.consumerCount - 1);
       }
-      // h38: drop the per-IP registry entry only if it still points to
-      // THIS connection (a fresh reconnect from the same IP may have
-      // already replaced the entry with a new socket).
+      // h38 + Phase 33 Suspect 9: drop just THIS socket's entry from the
+      // per-IP set. Other healthy peers from the same IP (Pi + operator's
+      // local browser) stay registered.
       if (conn.remoteAddr) {
-        const entry = connectionsByAddr.get(conn.remoteAddr);
-        if (entry?.socket === socket) {
-          connectionsByAddr.delete(conn.remoteAddr);
+        const set = connectionsByAddr.get(conn.remoteAddr);
+        const entry = socket._connByAddrEntry;
+        if (set && entry) {
+          set.delete(entry);
+          if (set.size === 0) connectionsByAddr.delete(conn.remoteAddr);
         }
       }
       logger.info(`[ssr-signal] disconnect role=${conn.role}`);

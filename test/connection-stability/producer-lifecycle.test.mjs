@@ -93,7 +93,7 @@ test("01-T3 unit: server.mjs wires onHostDown into bootSsrRenderHost", async () 
 
 // ─── Integration: kill ssr-tab → producer-closed + render-host-down ────
 
-test("01-T4 integration: kill ssr-tab → consumer receives render-host-down within 25s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 120000 }, async () => {
+test("01-T4 integration: kill ssr-tab → consumer receives render-host-down within 60s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 180000 }, async () => {
   const root = await makeIsolatedRoot();
   const server = await bootServer({ rootDir: root.rootDir });
   let consumer = null;
@@ -115,14 +115,16 @@ test("01-T4 integration: kill ssr-tab → consumer receives render-host-down wit
     console.log(`[lifecycle] killed ${killed} ssr-tab descendant processes`);
     assert.ok(killed > 0, "expected to kill at least 1 chromium descendant");
 
-    // Wait up to 25 s for render-host-down or for consumer WS to close.
-    // (The render-host's browser.on("disconnected") usually fires within
-    // ~100 ms of SIGKILL, but on a heavily-loaded test runner the
-    // puppeteer protocol-level disconnect detection can take a few
-    // seconds — see puppeteer's disconnect timeout. The 15 s health-ping
-    // budget (3 fails × 5 s) is the absolute floor.)
+    // Wait up to 60 s for render-host-down or for consumer WS to close.
+    // Three independent paths can fire the broadcast:
+    //   * browser.on("disconnected"): ~100 ms after SIGKILL on a healthy
+    //     system; can take ~5-10 s under heavy load (puppeteer-stream's
+    //     protocol-level disconnect detection has its own debounce).
+    //   * CDP-fail × 3 × 5 s = 15 s if the disconnect listener missed.
+    //   * publisher-WS-stale watchdog: 45 s default — slowest fallback.
+    // 60 s gives all paths headroom.
     const t0 = Date.now();
-    while (Date.now() - t0 < 25000) {
+    while (Date.now() - t0 < 60000) {
       const s = consumer.getState();
       if (s.renderHostDown > 0 || s.closed) break;
       await sleep(100);

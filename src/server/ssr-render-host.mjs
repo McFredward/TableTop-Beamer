@@ -722,6 +722,24 @@ export function bootSsrRenderHost({
         );
       }
       browser = await launchBrowser({ browserPath: browserDetect.path });
+      // Phase 33 Plan 02-T2 (race fix): wire browser.on("disconnected") IMMEDIATELY
+      // after launch — BEFORE any further `await` (newPage / page.goto / publisher
+      // injection). Otherwise a fast Chromium kill during start()'s tail (~5-15s
+      // window of awaits) leaves the disconnect listener un-registered, so
+      // fireHostDown never fires for that kill. The watchdog ALSO can't catch it
+      // because publisherHasEverConnected stays false during the boot window.
+      // Result: stress-run #4 saw `renderHostDown=0` after killSsrTab — fixed here.
+      browser.on("disconnected", () => {
+        status.browserConnected = false;
+        if (!stopRequested) {
+          logger.error("[ssr-host] browser disconnected unexpectedly");
+          // Phase 33 Plan 01-T3 (Suspect 7): same render-host-down broadcast
+          // as the health-ping breach path — Chromium-process-died is the
+          // analogous "host gone" event from the consumer's POV. Latched.
+          fireHostDown("browser-disconnected");
+          scheduleRestart();
+        }
+      });
       page = await browser.newPage();
       // h9: forward SSR-Tab console messages + page errors to server log so
       // debugging the in-tab runtime doesn't require a separate DevTools.
@@ -772,20 +790,12 @@ export function bootSsrRenderHost({
           // health-ping decide whether to relaunch.
         }
       }
-      browser.on("disconnected", () => {
-        status.browserConnected = false;
-        if (!stopRequested) {
-          logger.error("[ssr-host] browser disconnected unexpectedly");
-          // Phase 33 Plan 01-T3 (Suspect 7): same render-host-down broadcast
-          // as the health-ping breach path — Chromium-process-died is the
-          // analogous "host gone" event from the consumer's POV. Latched.
-          fireHostDown("browser-disconnected");
-          scheduleRestart();
-        }
-      });
       // Phase 33 Plan 02-T2: clear the latch on a clean start so the next
-      // genuine host-down event can fire its broadcast. Done AFTER browser.on
-      // wiring so we don't race a fast crash that pre-empts the listener.
+      // genuine host-down event can fire its broadcast. The disconnect
+      // listener is now wired immediately after launchBrowser() (above)
+      // so this latch reset is the LAST thing before health-pings start —
+      // any disconnect in the publisher-injection window has already been
+      // handled by the early-registered listener.
       onHostDownLatched = false;
       await startHealthPings();
     } catch (err) {
