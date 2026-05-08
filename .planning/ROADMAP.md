@@ -489,11 +489,20 @@ Status: CLOSED-FAILED am 2026-05-08. Automated 13/13 PASS, aber Live-Pi-UAT repr
 
 Closure-Doku: `.planning/phases/phase-32/32-CLOSURE-ADDENDUM.md` + `32-SUMMARY.md` (status FAILED-AT-MANUAL-UAT). Tag pending: `phase-32-closed-failed-manual`.
 
-## Phase 33 - Connection Stability Deep Dive (PLANNING)
+## Phase 33 - Connection Stability Deep Dive (PASS-AUTOMATED-PENDING-PI-HARDWARE)
 
 Ziel: Make the SSR → Pi WebRTC connection rock-solid under all realistic operator usage. No image-hang. No persistent reconnect loops. No "Server-Restart hilft" workaround. System runs hours without intervention. Page-reload <10s recovery. Server cold-boot <10s recovery. Multi-cycle live-hardware acceptance matrix (10× cold-boot, 10× Pi-reload, 1h steady-state, 3 fault-injection scenarios).
 
-Status: PLANNING. Stub angelegt 2026-05-08 mit 33-CONTEXT.md.
+Status: PASS-AUTOMATED-PENDING-PI-HARDWARE 2026-05-08. 363 default tests / 346 pass / 17 skip / 0 fail + 80/80 live integration tests + 10/10 manual repro 10× cold-boot. All 14 suspects fixed + regression-tested. 8 Pi-hardware UAT scenarios deferred to operator. Closure-Doku: `.planning/phases/phase-33/33-SUMMARY.md` + `33-VERIFICATION.md`.
+
+Plans delivered:
+- 33-W0 Test infrastructure (harness + smoke + state-leak)
+- 33-01 Producer lifecycle wire-up (S4, S5, S7) — 8s frame-stale → 101ms server-push
+- 33-02 Server self-healing (S6, S8, S12) — mediasoup auto-respawn + ssr-tab WS watchdog + PID-scoped purge
+- 33-03 Receiver state-machine refactor (R-2, R-7, S11, S14) — ConnectionState enum + capped retry + GIVEN_UP + first-frame backoff reset
+- 33-04 Operator telemetry (S10, S13) — status-detail line + GivenUp overlay + Retry button
+- 33-05 Comprehensive test suite + Phase-32 hotfix regression
+- 33-h1/h2/h3 Watchdog tri-state + cold-boot suppression + same-IP multi-consumer fix
 
 Pflicht-Inputs (Phase-32-hotfix-night Diagnostik):
 - `.planning/debug/phase-32-connect-baseline-p31.md`

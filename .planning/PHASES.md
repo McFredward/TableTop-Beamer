@@ -51,8 +51,10 @@
 ## phase-33
 - Number: 33
 - Title: Connection Stability Deep Dive
-- Status: planning
-- Context Entry: `.planning/phases/phase-33/33-CONTEXT.md`
+- Status: pass-automated-pending-pi-hardware
+- Execute Entry: `.planning/phases/phase-33/33-SUMMARY.md`
+- Verification: `.planning/phases/phase-33/33-VERIFICATION.md`
+- Human UAT: `.planning/phases/phase-33/33-HUMAN-UAT.md`
 
 ## Compatibility
 Fuer Tools mit abweichender Benennung existiert zusaetzlich `.planning/phases/phase-1/` als Alias fuer Phase 1.
