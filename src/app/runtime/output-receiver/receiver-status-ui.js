@@ -164,6 +164,221 @@ export function showCountdownReconnect({ doc, delayMs, attemptN, tickMs = 500 } 
   return function stop() { stopped = true; };
 }
 
+// ───── Phase 33 Plan 04: operator telemetry surface ────────────────────────
+
+/**
+ * Phase 33 Plan 04-T1 (D-04, Suspect 10): pure helper formatting "letzte
+ * Verbindung: 2m 17s" (German), "—" if never connected. Caps at 99h.
+ * Exported for unit testing.
+ *
+ * @param {number|null} lastSuccessAtMs
+ * @param {number} [nowMs=Date.now()]
+ * @returns {string}
+ */
+export function formatTimeSinceLastSuccess(lastSuccessAtMs, nowMs = Date.now()) {
+  if (lastSuccessAtMs == null || !Number.isFinite(lastSuccessAtMs)) return "—";
+  const elapsedMs = Math.max(0, nowMs - lastSuccessAtMs);
+  const totalSec = Math.floor(elapsedMs / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  if (minutes < 60) return `${minutes}m ${seconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remMin = minutes % 60;
+  return `${Math.min(99, hours)}h ${remMin}m`;
+}
+
+/**
+ * Phase 33 Plan 04-T1 (D-04, Suspect 10): pure helper composing the status-
+ * detail line shown under the countdown banner. Exported for unit tests so
+ * the line content is locked without a DOM.
+ *
+ * Format:
+ *   [last error truncated to 80 chars] · letzte Verbindung: 2m 17s
+ *
+ * If both inputs are null/empty, returns the empty string.
+ *
+ * @param {{ lastError?: string|null, lastSuccessAtMs?: number|null, nowMs?: number }} opts
+ * @returns {string}
+ */
+export function formatReconnectDetail({ lastError = null, lastSuccessAtMs = null, nowMs = Date.now() } = {}) {
+  const parts = [];
+  if (typeof lastError === "string" && lastError.length > 0) {
+    parts.push(lastError.length > 80 ? lastError.slice(0, 77) + "…" : lastError);
+  }
+  if (lastSuccessAtMs != null) {
+    parts.push(`letzte Verbindung: ${formatTimeSinceLastSuccess(lastSuccessAtMs, nowMs)}`);
+  } else if (parts.length === 0) {
+    return "";
+  } else {
+    parts.push("letzte Verbindung: —");
+  }
+  return parts.join(" · ");
+}
+
+/**
+ * Phase 33 Plan 04-T1: render/refresh the status-detail line under the
+ * countdown banner. Creates the element on first call (id
+ * `ssr-status-detail`) and inserts it as a sibling immediately AFTER the
+ * #ssr-reconnect-banner element. Idempotent — safe to call every tick.
+ *
+ * @param {{ doc?: Document, lastError?: string|null, lastSuccessAtMs?: number|null }} opts
+ */
+export function setReconnectDetail({ doc, lastError = null, lastSuccessAtMs = null } = {}) {
+  if (!doc) return;
+  const banner = doc.getElementById("ssr-reconnect-banner");
+  if (!banner) return;
+  let detail = doc.getElementById("ssr-status-detail");
+  if (!detail) {
+    detail = doc.createElement("div");
+    detail.id = "ssr-status-detail";
+    detail.className = "ssr-status-detail";
+    // Inline styling so the line renders even if styles.css hasn't been
+    // refreshed on the kiosk Pi. The classname remains so an operator
+    // can theme it via CSS later.
+    detail.style.cssText =
+      "font-style: italic; font-size: 12px; opacity: 0.85; " +
+      "margin-top: 4px; text-align: center; color: inherit; " +
+      "max-width: 80ch; word-break: break-word;";
+    if (banner.parentNode) {
+      banner.parentNode.insertBefore(detail, banner.nextSibling);
+    }
+  }
+  const text = formatReconnectDetail({ lastError, lastSuccessAtMs });
+  detail.textContent = text;
+  // Hide the detail line if the banner is hidden OR there's nothing to show.
+  if (!text || banner.hidden) {
+    detail.hidden = true;
+  } else {
+    detail.hidden = false;
+  }
+}
+
+/**
+ * Phase 33 Plan 04-T2: render the GivenUp overlay — operator-actionable
+ * "Verbindung verloren" panel with a Retry button. Idempotent: safe to call
+ * multiple times (re-uses the existing DOM nodes if present).
+ *
+ * Creates DOM dynamically (no index.html change required); the overlay
+ * has id `ssr-given-up-overlay` and is appended to <body>. The retry
+ * button is `ssr-given-up-retry`. Click → calls onRetry callback once
+ * and immediately hides the overlay (caller is responsible for the
+ * follow-up state-machine transition).
+ *
+ * @param {{
+ *   doc?: Document,
+ *   lastError?: string|null,
+ *   attempts?: number,
+ *   lastSuccessAtMs?: number|null,
+ *   onRetry?: () => void
+ * }} opts
+ */
+export function showGivenUpOverlay({
+  doc,
+  lastError = null,
+  attempts = 0,
+  lastSuccessAtMs = null,
+  onRetry = null,
+} = {}) {
+  if (!doc) return;
+  let overlay = doc.getElementById("ssr-given-up-overlay");
+  if (!overlay) {
+    overlay = doc.createElement("div");
+    overlay.id = "ssr-given-up-overlay";
+    overlay.className = "ssr-given-up-overlay";
+    overlay.setAttribute("role", "alertdialog");
+    overlay.setAttribute("aria-modal", "true");
+    // Inline styling so the overlay renders even before styles.css updates
+    // propagate to the kiosk. Mirrors the existing .ssr-error-overlay
+    // visual contract (centered, dark-translucent backdrop).
+    overlay.style.cssText =
+      "position: fixed; inset: 0; z-index: 50; display: flex; " +
+      "align-items: center; justify-content: center; " +
+      "background: rgba(0,0,0,0.85); color: #fff; " +
+      "font-family: system-ui, -apple-system, sans-serif; " +
+      "padding: 24px; text-align: center;";
+
+    const inner = doc.createElement("div");
+    inner.className = "ssr-given-up-content";
+    inner.style.cssText = "max-width: 60ch;";
+
+    const title = doc.createElement("h2");
+    title.id = "ssr-given-up-title";
+    title.className = "ssr-given-up-title";
+    title.textContent = "Verbindung verloren";
+    title.style.cssText = "font-size: 32px; margin: 0 0 16px;";
+
+    const errLine = doc.createElement("p");
+    errLine.id = "ssr-given-up-error";
+    errLine.className = "ssr-given-up-error";
+    errLine.style.cssText = "margin: 8px 0; font-size: 16px;";
+
+    const detailLine = doc.createElement("p");
+    detailLine.id = "ssr-given-up-detail";
+    detailLine.className = "ssr-given-up-detail";
+    detailLine.style.cssText = "margin: 8px 0; font-size: 14px; opacity: 0.85;";
+
+    const retryBtn = doc.createElement("button");
+    retryBtn.id = "ssr-given-up-retry";
+    retryBtn.className = "ssr-given-up-retry";
+    retryBtn.type = "button";
+    retryBtn.textContent = "Erneut verbinden";
+    retryBtn.style.cssText =
+      "margin-top: 16px; padding: 12px 24px; font-size: 18px; " +
+      "background: #1976d2; color: #fff; border: none; " +
+      "border-radius: 4px; cursor: pointer;";
+
+    inner.appendChild(title);
+    inner.appendChild(errLine);
+    inner.appendChild(detailLine);
+    inner.appendChild(retryBtn);
+    overlay.appendChild(inner);
+    (doc.body ?? doc.documentElement).appendChild(overlay);
+  }
+
+  // Refresh content on every call.
+  const errEl = doc.getElementById("ssr-given-up-error");
+  if (errEl) errEl.textContent = `Letzter Fehler: ${lastError || "(unbekannt)"}`;
+  const detailEl = doc.getElementById("ssr-given-up-detail");
+  if (detailEl) {
+    const lastSuccessStr = lastSuccessAtMs != null
+      ? new Date(lastSuccessAtMs).toLocaleTimeString()
+      : "—";
+    detailEl.textContent =
+      `Versuche: ${attempts} · Letzte erfolgreiche Verbindung: ${lastSuccessStr}`;
+  }
+
+  // Bind / re-bind the retry handler. Replace the button to drop prior listeners
+  // so the new onRetry is the only one called.
+  const oldBtn = doc.getElementById("ssr-given-up-retry");
+  if (oldBtn) {
+    const newBtn = oldBtn.cloneNode(true);
+    oldBtn.parentNode?.replaceChild(newBtn, oldBtn);
+    if (typeof onRetry === "function") {
+      newBtn.addEventListener("click", () => {
+        try { onRetry(); } catch { /* swallow — UI must not crash on bad handler */ }
+      });
+    }
+  }
+
+  overlay.hidden = false;
+  overlay.style.display = "flex";
+}
+
+/**
+ * Phase 33 Plan 04-T2: hide the GivenUp overlay (transition out of GIVEN_UP).
+ * Idempotent — no-op if the overlay was never rendered.
+ *
+ * @param {{ doc?: Document }} [opts]
+ */
+export function hideGivenUpOverlay({ doc } = {}) {
+  if (!doc) return;
+  const overlay = doc.getElementById("ssr-given-up-overlay");
+  if (!overlay) return;
+  overlay.hidden = true;
+  overlay.style.display = "none";
+}
+
 /**
  * Pure unit-testable: given the three D-C4 indicators, decide if the
  * receiver should consider itself disconnected. Returns reason codes that

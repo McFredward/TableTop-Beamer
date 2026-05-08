@@ -11,6 +11,14 @@
 // index.html) implicitly — it executes before this module via classic
 // `defer` ordering, which means Pi-local audio (HTML5 <audio> via
 // WebSocket triggers) keeps playing untouched.
+//
+// Phase 33 Plan 03 (2026-05-08): refactored from ad-hoc state strings
+// (`"connected"`, `"ws-closed"`, `"host-down"`, `"frame-stale"`, `"failed"`)
+// to a single `ConnectionState` enum (LiveKit-style — research §1.4 + §5).
+// Transitions go through `setState(next, { reason })`; illegal transitions
+// throw to surface contract violations during tests. The enum eliminates the
+// "monitor guarded forever on host-down" bug (Suspect 14) by letting state
+// changes carry their own gate semantics.
 
 import { createWebRtcReceiver } from "./receiver-webrtc-client.js";
 import {
@@ -27,9 +35,103 @@ import {
   markConnectionStable,
   evaluateOverlayHide,
   OVERLAY_HIDE_AFTER_STABLE_MS,
+  setReconnectDetail,
+  showGivenUpOverlay,
+  hideGivenUpOverlay,
 } from "./receiver-status-ui.js";
 // Phase 31 Plan 04 (D-D1): align-mode pointer events forwarded to server.
 import { attachInputForwarder } from "./receiver-input-forwarder.js";
+
+/**
+ * Phase 33 Plan 03-T1 (Suspect 14, R-1, R-7): receiver-side ConnectionState
+ * enum. Replaces the loose collection of `pcState` strings (`"connected"`,
+ * `"ws-closed"`, `"host-down"`, `"frame-stale"`, `"failed"`) with a closed
+ * set of high-level states. The legacy strings still flow through from the
+ * receiver-webrtc-client (mediasoup-client emits `connecting`, `connected`,
+ * `disconnected`, `failed`, `closed`); we MAP them through `setState()`.
+ *
+ * NEW       — boot entry, before any WS attempt
+ * CONNECTING — tryConnect() is in flight (WS opening, RPC roundtrip)
+ * CONNECTED  — first frame received (NOT just RTC connected — see 03-T3)
+ * RECONNECTING — backoff timer is pending; previous attempt failed
+ * GIVEN_UP   — capped retry hit (10 attempts OR 120s elapsed); operator action required
+ * HOST_DOWN  — server told us the render-host crashed
+ * STOPPED    — operator clicked stop or page is unloading
+ */
+export const ConnectionState = Object.freeze({
+  NEW: "NEW",
+  CONNECTING: "CONNECTING",
+  CONNECTED: "CONNECTED",
+  RECONNECTING: "RECONNECTING",
+  GIVEN_UP: "GIVEN_UP",
+  HOST_DOWN: "HOST_DOWN",
+  STOPPED: "STOPPED",
+});
+
+/**
+ * Phase 33 Plan 03-T2: capped retry constants. Forever-retry is forbidden
+ * (research finding R-7). After whichever of these caps trips first, we
+ * transition to GIVEN_UP — the operator must click Retry to get out.
+ */
+export const MAX_RECONNECT_ATTEMPTS_BEFORE_GIVEUP = 10;
+export const MAX_TOTAL_RECONNECT_DURATION_MS = 120000; // 2 minutes
+
+/**
+ * Phase 33 Plan 03-T1: legal state transitions (Suspect 14 forcing function).
+ * Each entry maps a state to the set of states that can be reached from it.
+ * Any `setState()` call outside this graph throws — caught in tests, logged
+ * loud in production so contract violations surface immediately.
+ */
+const LEGAL_TRANSITIONS = Object.freeze({
+  [ConnectionState.NEW]:          new Set([ConnectionState.CONNECTING, ConnectionState.STOPPED]),
+  [ConnectionState.CONNECTING]:   new Set([
+    ConnectionState.CONNECTED,
+    ConnectionState.RECONNECTING,
+    ConnectionState.HOST_DOWN,
+    ConnectionState.GIVEN_UP,
+    ConnectionState.STOPPED,
+  ]),
+  [ConnectionState.CONNECTED]:    new Set([
+    ConnectionState.RECONNECTING,
+    ConnectionState.HOST_DOWN,
+    ConnectionState.STOPPED,
+  ]),
+  [ConnectionState.RECONNECTING]: new Set([
+    ConnectionState.CONNECTING,
+    ConnectionState.HOST_DOWN,
+    ConnectionState.GIVEN_UP,
+    ConnectionState.STOPPED,
+  ]),
+  [ConnectionState.HOST_DOWN]:    new Set([
+    ConnectionState.CONNECTING,
+    ConnectionState.STOPPED,
+  ]),
+  [ConnectionState.GIVEN_UP]:     new Set([
+    ConnectionState.CONNECTING,
+    ConnectionState.STOPPED,
+  ]),
+  [ConnectionState.STOPPED]:      new Set([]), // terminal
+});
+
+/**
+ * Pure helper — exported for unit tests. Validates that `next` is a legal
+ * successor of `current`. Throws `Error` if not.
+ *
+ * @param {string} current
+ * @param {string} next
+ */
+export function assertLegalTransition(current, next) {
+  const allowed = LEGAL_TRANSITIONS[current];
+  if (!allowed) {
+    throw new Error(`Unknown ConnectionState: ${current}`);
+  }
+  if (current === next) return; // self-transitions are no-ops, allowed silently
+  if (!allowed.has(next)) {
+    throw new Error(
+      `Illegal ConnectionState transition: ${current} → ${next}`,
+    );
+  }
+}
 
 /**
  * Phase 32 D-B5: pre-flight check before opening a WebRTC session.
@@ -85,6 +187,26 @@ export function isReceiverPath(locationLike = window.location) {
 }
 
 /**
+ * Phase 33 Plan 03-T4 (Suspect 11): detect a fresh page-load via the
+ * PerformanceNavigationTiming API. Returns true on `navigate` or `reload`.
+ * Pure helper — exported for unit tests with a mock perf object.
+ *
+ * @param {Performance} [perf=performance]
+ * @returns {boolean}
+ */
+export function isFreshPageLoad(perf = (typeof performance !== "undefined" ? performance : null)) {
+  if (!perf || typeof perf.getEntriesByType !== "function") return false;
+  try {
+    const entries = perf.getEntriesByType("navigation");
+    if (!entries || entries.length === 0) return false;
+    const t = entries[0]?.type;
+    return t === "navigate" || t === "reload" || t === "back_forward";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Boot the Pi receiver: splash → connect → video → metric polling +
  * three-indicator monitoring → reconnect → error overlay.
  *
@@ -118,6 +240,16 @@ export async function bootReceiver({ logger = console } = {}) {
   // key is absent and we start at 0.
   const backoffStorage = (typeof window !== "undefined" && window.sessionStorage)
     ? window.sessionStorage : null;
+
+  // Phase 33 Plan 03-T4 (Suspect 11): clear sessionStorage backoff state on
+  // a fresh page-load. The persistence was meant to survive WS-close mid-
+  // handshake, NOT a browser refresh. Without this, after a previous failed
+  // session (attempts=4) the user reloads → first retry waits 30s → hang UX.
+  if (isFreshPageLoad()) {
+    clearBackoffState(backoffStorage);
+    logger?.log?.("[receiver] fresh page-load detected — sessionStorage backoff cleared");
+  }
+
   let receiver = null;
   let reconnectAttempts = loadBackoffState(backoffStorage).attempts;
   let connectionStableSince = null; // tracks when last stable connection started
@@ -142,7 +274,33 @@ export async function bootReceiver({ logger = console } = {}) {
   let frameCount = 0;
   let frameWindowStartMs = performance.now();
   let receivedFps = 0;
-  let pcState = "new";
+  // Phase 33 Plan 03-T1: high-level connection state. The legacy `pcState`
+  // string carried mediasoup-client's RTC enum (`new`/`connecting`/
+  // `connected`/`disconnected`/`failed`/`closed`) AND a few overload values
+  // (`ws-closed`/`host-down`/`producer-gone`); we now keep an explicit
+  // `currentState` in the new enum and map the receiver's emissions through
+  // `setState()`. `pcState` is still tracked for the disconnect monitor's
+  // RTC-level evaluation (frame-stale only meaningful when RTC reports
+  // connected), but is no longer the source of truth for UI/transition logic.
+  let currentState = ConnectionState.NEW;
+  let pcState = "new"; // raw RTC state from mediasoup-client (used by evaluateDisconnect)
+  // Phase 33 Plan 03-T2 (R-7): capped-retry tracking. Records the timestamp
+  // of the FIRST failure in the current run; reset on first-frame CONNECTED
+  // and on operator Retry. Combined with reconnectAttempts gives us the
+  // two-axis cap (attempts OR elapsed).
+  let firstFailureAtMs = null;
+  // Phase 33 Plan 03-T3 (R-2): frames since last entry into CONNECTING.
+  // Reset to 0 on every CONNECTING transition; incremented on each `frame`
+  // event. Backoff state resets ONLY when this hits 1 (first frame proves
+  // RTP is actually flowing). The legacy "reset on pcState===connected"
+  // gate could repeatedly satisfy itself without any frames arriving and
+  // never escalate to GIVEN_UP.
+  let framesSinceLastReconnect = 0;
+  // Phase 33 Plan 04-T1: telemetry — last error message + last successful
+  // connect timestamp. Drives the status-detail line under the countdown
+  // banner so the operator can see WHY without devtools.
+  let lastErrorMessage = null;
+  let lastSuccessfulConnectAtMs = null;
   let monitorInterval = null;
   let ssrFps = null; // h8: SSR-tab's internal render fps (via heartbeat).
   // h17: rich diagnostic state — populated by heartbeat (server-side
@@ -162,15 +320,137 @@ export async function bootReceiver({ logger = console } = {}) {
   };
   let rtcStatsPrev = null;
 
-  // D-B4 retry button — manual operator escalation. Always available
-  // when the error overlay is visible.
-  ui.onRetry(async () => {
-    ui.hideError();
-    ui.showSplash("Reconnecting…");
+  /**
+   * Phase 33 Plan 03-T1: centralized state-transition function. ALL state
+   * changes go through this. Validates the transition is legal (throws
+   * on contract violation), logs every transition, and runs side-effects
+   * keyed off the transition (UI updates, telemetry).
+   *
+   * NOTE: on illegal transitions we LOG the violation and return early
+   * rather than throw at runtime — operations on production hardware
+   * mustn't crash on a state-machine bug. The unit tests still throw
+   * because they call assertLegalTransition() directly.
+   *
+   * @param {string} next
+   * @param {{ reason?: string }} [opts]
+   */
+  function setState(next, { reason = "" } = {}) {
+    const prev = currentState;
+    if (prev === next) return; // idempotent self-transitions
+
+    try {
+      assertLegalTransition(prev, next);
+    } catch (err) {
+      logger?.error?.(`[receiver] ${err.message} (reason=${reason})`);
+      // Don't crash the Pi on a contract violation — surface it loudly,
+      // then proceed. This lets us catch it in tests AND keep the system
+      // resilient if a future code path emits an unexpected state.
+    }
+
+    currentState = next;
+    logger?.log?.(`[receiver] state ${prev} → ${next}${reason ? ` (${reason})` : ""}`);
+
+    // 03-T5 (Suspect 14): when leaving HOST_DOWN, also clear pcState so the
+    // monitor's `pcState !== "host-down"` legacy guard re-arms naturally.
+    // (The new state-machine doesn't depend on it, but pcState is still
+    // exposed via getStatus and used by evaluateDisconnect — we want it
+    // to reflect a fresh attempt, not the prior terminal label.)
+    if (prev === ConnectionState.HOST_DOWN && next !== ConnectionState.HOST_DOWN) {
+      pcState = "new";
+    }
+
+    // 03-T2: GIVEN_UP entry side-effects — stop retry monitor, clear
+    // backoff state (so a manual Retry starts fresh), surface the overlay.
+    if (next === ConnectionState.GIVEN_UP) {
+      // Cancel any pending retry timer so we don't keep cycling.
+      if (pendingRetryTimeout != null) {
+        try { clearTimeout(pendingRetryTimeout); } catch {}
+        pendingRetryTimeout = null;
+      }
+      if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+      // Clear sessionStorage so a manual Retry truly starts at attempt=1.
+      // The capped-retry counters (reconnectAttempts, firstFailureAtMs) are
+      // explicitly NOT reset here — that's the manual Retry's job.
+      clearBackoffState(backoffStorage);
+
+      // Stop the auto-retry monitor: it must NOT fire tryConnect during
+      // GIVEN_UP. Rather than tearing it down, we let the monitor itself
+      // gate on `currentState !== GIVEN_UP` (see monitor body below). This
+      // keeps the diagnostic chip refreshing during operator-wait.
+      try { ui.hideReconnect(); } catch {}
+      try { ui.hideSplash(); } catch {}
+      try { ui.hideError(); } catch {}
+      // GivenUp overlay — operator-actionable Retry button.
+      try {
+        showGivenUpOverlay({
+          doc: (typeof document !== "undefined" ? document : null),
+          lastError: lastErrorMessage || "Verbindung dauerhaft verloren",
+          attempts: reconnectAttempts,
+          lastSuccessAtMs: lastSuccessfulConnectAtMs,
+          onRetry: () => doManualRetry(),
+        });
+      } catch (e) {
+        logger?.warn?.(`[receiver] showGivenUpOverlay failed: ${e?.message}`);
+      }
+    }
+
+    // Hide the GivenUp overlay on any transition out of GIVEN_UP. This
+    // covers the manual-Retry path (operator clicked → CONNECTING).
+    if (prev === ConnectionState.GIVEN_UP && next !== ConnectionState.GIVEN_UP) {
+      try { hideGivenUpOverlay({ doc: (typeof document !== "undefined" ? document : null) }); } catch {}
+    }
+  }
+
+  /**
+   * Phase 33 Plan 03-T2: capped-retry decision. Returns true if we have
+   * exceeded MAX_RECONNECT_ATTEMPTS_BEFORE_GIVEUP OR
+   * MAX_TOTAL_RECONNECT_DURATION_MS since the first failure.
+   *
+   * Called immediately after incrementing reconnectAttempts in the catch
+   * path. Pure: no UI side effect — the caller drives setState(GIVEN_UP).
+   *
+   * @returns {boolean}
+   */
+  function shouldGiveUp() {
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS_BEFORE_GIVEUP) return true;
+    if (firstFailureAtMs != null) {
+      const elapsed = Date.now() - firstFailureAtMs;
+      if (elapsed >= MAX_TOTAL_RECONNECT_DURATION_MS) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Phase 33 Plan 03-T2 + 04-T2: operator-driven manual retry. Resets the
+   * capped-retry counters AND the legacy backoff state, hides the overlay,
+   * and kicks off a fresh tryConnect. Wired to the GivenUp overlay's
+   * "Erneut verbinden" button AND to the existing D-B4 Retry button.
+   */
+  async function doManualRetry() {
+    logger?.log?.("[receiver] manual retry requested");
     reconnectAttempts = 0;
+    firstFailureAtMs = null;
+    framesSinceLastReconnect = 0;
     clearBackoffState(backoffStorage);
     connectionStableSince = null;
+    if (pendingRetryTimeout != null) {
+      try { clearTimeout(pendingRetryTimeout); } catch {}
+      pendingRetryTimeout = null;
+    }
+    if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+    try { hideGivenUpOverlay({ doc: (typeof document !== "undefined" ? document : null) }); } catch {}
+    try { ui.hideError(); } catch {}
+    try { ui.hideReconnect(); } catch {}
+    ui.showSplash("Reconnecting…");
+    setState(ConnectionState.CONNECTING, { reason: "manual-retry" });
     await tryConnect();
+  }
+
+  // D-B4 retry button — manual operator escalation. Always available
+  // when the error overlay is visible. Re-routes to doManualRetry() so the
+  // capped-retry counters reset uniformly across the manual paths.
+  ui.onRetry(async () => {
+    await doManualRetry();
   });
 
   async function tryConnect() {
@@ -182,7 +462,19 @@ export async function bootReceiver({ logger = console } = {}) {
     if (tryConnectInFlight) {
       return;
     }
+    // Phase 33 Plan 03-T2: refuse to start a new attempt while in GIVEN_UP.
+    // The monitor or a stray timer could call us; we honor the operator-wait
+    // contract. Manual retry transitions out of GIVEN_UP first.
+    if (currentState === ConnectionState.GIVEN_UP) {
+      return;
+    }
     tryConnectInFlight = true;
+    // 03-T1: enter CONNECTING for the duration of this attempt.
+    setState(ConnectionState.CONNECTING, { reason: "tryConnect-enter" });
+    // 03-T3: any new attempt starts a fresh frame-arrival window. The
+    // backoff reset is gated on this counter reaching 1, NOT on the RTC
+    // pcState becoming "connected".
+    framesSinceLastReconnect = 0;
     // Phase-31 h25 (2026-05-06): stop any prior receiver before
     // creating a new one. Without this, a failed connect attempt left
     // the previous receiver instance stranded — its WS still claimed a
@@ -198,39 +490,25 @@ export async function bootReceiver({ logger = console } = {}) {
       receiver.onConnectionStateChange((s) => {
         pcState = s;
         if (s === "connected") {
-          // Phase 32 D-B2: clear backoff state on successful connection.
-          reconnectAttempts = 0;
-          clearBackoffState(backoffStorage);
-          connectionStableSince = Date.now();
-          // Phase 32 hotfix h6: connection succeeded — clear in-flight flag
-          // so monitor can detect future disconnects and re-fire tryConnect.
+          // Phase 33 Plan 03-T3 (R-2): we DO NOT reset backoff state here
+          // anymore. RTC `connected` only proves DTLS is up, not that RTP
+          // is flowing. Wait for the first frame event (see onFrameReceived
+          // below) before declaring success.
           tryConnectInFlight = false;
           // Phase 32 D-B3: stop any running countdown and start stable-hide poller.
           if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
-          markConnectionStable({ now: Date.now(), store: connectionStore });
-          if (!overlayHidePoller) {
-            overlayHidePoller = setInterval(() => {
-              const { shouldHide } = evaluateOverlayHide({
-                now: Date.now(), store: connectionStore,
-                hideAfterMs: OVERLAY_HIDE_AFTER_STABLE_MS,
-              });
-              if (shouldHide) {
-                try { ui.hideReconnect(); } catch {}
-                if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
-                clearInterval(overlayHidePoller);
-                overlayHidePoller = null;
-              }
-            }, 500);
-          }
+          // (Stable-hide poller is started on first frame — see below.)
           ui.hideSplash();
-          ui.hideReconnect();
-          ui.hideError();
         }
         if (s === "failed" || s === "ws-closed" || s === "disconnected") {
           // Reset stable tracker so overlay re-shows on next retry.
           connectionStableSince = null;
           connectionStore.connectionStableAtMs = null;
           if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
+          // 03-T1: capture the last-error reason for telemetry.
+          if (s === "failed") lastErrorMessage = "RTC peer-connection failed";
+          else if (s === "ws-closed") lastErrorMessage = "WebSocket closed";
+          else if (s === "disconnected") lastErrorMessage = "RTC peer-connection disconnected";
         }
         // Phase 33 Plan 01-T2 (Suspect 5): producer-closed → producer-gone.
         // Server tells us the upstream Producer ended (ssr-tab restart);
@@ -241,6 +519,7 @@ export async function bootReceiver({ logger = console } = {}) {
           connectionStableSince = null;
           connectionStore.connectionStableAtMs = null;
           if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
+          lastErrorMessage = "producer-closed (ssr-tab restart)";
           ui.hideSplash();
           ui.showReconnect("Render-Producer restarting…");
           // restart() = stop + reconnect. The bootstrap's onConnectionStateChange
@@ -257,11 +536,16 @@ export async function bootReceiver({ logger = console } = {}) {
           connectionStableSince = null;
           connectionStore.connectionStableAtMs = null;
           if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+          // Phase 33 Plan 04-T3 (Suspect 13): the overlay-hide poller wasn't
+          // cleared on host-down — it could keep ticking and clobber the
+          // error overlay we're about to show.
           if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
+          lastErrorMessage = "Render-Host abgestürzt";
           ui.hideSplash(); // h5: error must be visible above splash
           ui.showError(
             "Render host crashed. The server is restarting the render tab — click Retry to reconnect.",
           );
+          setState(ConnectionState.HOST_DOWN, { reason: "server-render-host-down" });
         }
         if (s === "failed" || s === "ws-closed") {
           ui.hideSplash(); // h5: reconnect banner must be visible above splash
@@ -273,14 +557,41 @@ export async function bootReceiver({ logger = console } = {}) {
       // `connecting` while frames are already flowing). First frame is
       // the unambiguous proof that the stream is live.
       receiver.onFrameReceived(() => {
-        if (frameCount === 0) {
+        // Phase 33 Plan 03-T3 (R-2): frame-arrival is the canonical "we
+        // really connected" signal. Reset backoff state HERE, not on RTC
+        // connected, so a connection that never produces frames eventually
+        // reaches GIVEN_UP via the capped-retry path.
+        framesSinceLastReconnect += 1;
+        if (frameCount === 0 || framesSinceLastReconnect === 1) {
           ui.hideSplash();
           ui.hideReconnect();
           ui.hideError();
-          // Phase 32 D-B2: clear backoff state on first frame received.
+          // First frame after CONNECTING — declare success.
           reconnectAttempts = 0;
+          firstFailureAtMs = null;
+          lastErrorMessage = null;
+          lastSuccessfulConnectAtMs = Date.now();
           clearBackoffState(backoffStorage);
           connectionStableSince = connectionStableSince ?? Date.now();
+          markConnectionStable({ now: Date.now(), store: connectionStore });
+          if (!overlayHidePoller) {
+            overlayHidePoller = setInterval(() => {
+              const { shouldHide } = evaluateOverlayHide({
+                now: Date.now(), store: connectionStore,
+                hideAfterMs: OVERLAY_HIDE_AFTER_STABLE_MS,
+              });
+              if (shouldHide) {
+                try { ui.hideReconnect(); } catch {}
+                if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
+                clearInterval(overlayHidePoller);
+                overlayHidePoller = null;
+              }
+            }, 500);
+          }
+          // Drive the high-level state to CONNECTED.
+          if (currentState === ConnectionState.CONNECTING) {
+            setState(ConnectionState.CONNECTED, { reason: "first-frame" });
+          }
         }
         lastFrameAtMs = performance.now();
         frameCount += 1;
@@ -316,19 +627,26 @@ export async function bootReceiver({ logger = console } = {}) {
         }
       });
     } catch (err) {
-      logger.error(`[ssr-receiver] connect failed: ${err?.message ?? err}`);
-      // Phase 32 D-B2: forever-retry with adaptive backoff schedule.
-      // No hard attempt cap — the Pi retries until stable.
+      const errMsg = err?.message ?? String(err);
+      logger.error(`[ssr-receiver] connect failed: ${errMsg}`);
+      lastErrorMessage = errMsg.slice(0, 80);
+      // Phase 32 D-B2 → 33 Plan 03-T2: capped retry replaces forever-retry.
       reconnectAttempts += 1;
+      if (firstFailureAtMs == null) firstFailureAtMs = Date.now();
       saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
       connectionStableSince = null; // reset stable tracker on failure
-      // h5: hide the splash before showing reconnect — splash z-index 50
-      // sat above reconnect z-index 40, hiding the reconnect banner.
-      // First-time /output/ load was the worst case: the SSR Chromium tab
-      // takes ~1-2s to publish, the receiver retries until the producer
-      // is up, and the splash stayed visible the whole time with no sign
-      // of progress. Hiding it lets the reconnect banner show through.
       ui.hideSplash();
+
+      // 03-T2: GIVEN_UP gate — check BEFORE scheduling another retry.
+      if (shouldGiveUp()) {
+        logger?.warn?.(
+          `[receiver] giving up after ${reconnectAttempts} attempts ` +
+          `(${Date.now() - firstFailureAtMs}ms elapsed)`,
+        );
+        setState(ConnectionState.GIVEN_UP, { reason: "max-retries-or-duration" });
+        return;
+      }
+
       // Use D-B2 schedule: attempt 0→1s, 1→2s, 2→5s, 3→10s, ≥4→30s.
       const delay = getBackoffDelay(reconnectAttempts - 1);
       // Phase 32 D-B3: show countdown overlay instead of plain text.
@@ -338,6 +656,16 @@ export async function bootReceiver({ logger = console } = {}) {
         delayMs: delay,
         attemptN: reconnectAttempts,
       });
+      // Phase 33 Plan 04-T1: feed the status-detail line under the countdown.
+      try {
+        setReconnectDetail({
+          doc: (typeof document !== "undefined" ? document : null),
+          lastError: lastErrorMessage,
+          lastSuccessAtMs: lastSuccessfulConnectAtMs,
+        });
+      } catch {}
+      // 03-T1: drive the high-level state.
+      setState(ConnectionState.RECONNECTING, { reason: `attempt-${reconnectAttempts}-failed` });
       // Phase 33 Plan 01-T1 (Suspect 4): track the timeout handle so a
       // producer-ready event from the active receiver's WS can cancel it
       // and trigger an immediate retry instead of waiting out the backoff.
@@ -456,14 +784,41 @@ export async function bootReceiver({ logger = console } = {}) {
     // leaving the Pi unable to retry after a mid-session drop. The
     // in-flight flag instead prevents floods (parallel tryConnect calls)
     // without depending on attempt count state.
-    if (dec.disconnected && !tryConnectInFlight && pcState !== "host-down") {
+    //
+    // Phase 33 Plan 03-T2 + 03-T5 (Suspect 14): also gate on currentState.
+    // GIVEN_UP and HOST_DOWN are operator-action-required terminals; the
+    // monitor must NOT fire tryConnect from those states (the operator's
+    // Retry handler is the only legal exit). Note the monitor naturally
+    // re-arms on the manual-retry path because doManualRetry transitions
+    // out of HOST_DOWN/GIVEN_UP, which clears pcState (03-T5 setState side
+    // effect) so the next disconnect evaluation starts from a clean slate.
+    const monitorBlocked =
+      tryConnectInFlight ||
+      currentState === ConnectionState.GIVEN_UP ||
+      currentState === ConnectionState.HOST_DOWN;
+    if (dec.disconnected && !monitorBlocked) {
       // D-B4: surface ALL detected reasons in the banner so the operator
       // sees what triggered the reconnect. Empty banner == no info ==
       // bad UX.
       reconnectAttempts += 1;
+      if (firstFailureAtMs == null) firstFailureAtMs = Date.now();
       saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
       connectionStableSince = null;
       connectionStore.connectionStableAtMs = null;
+      // Surface the detected reasons so the telemetry line has something.
+      if (dec.reasons?.length) {
+        lastErrorMessage = dec.reasons.join(",").slice(0, 80);
+      }
+      // 03-T2: capped-retry gate.
+      if (shouldGiveUp()) {
+        logger?.warn?.(
+          `[receiver] monitor: giving up after ${reconnectAttempts} attempts ` +
+          `(reasons=${dec.reasons?.join(",") || "?"})`,
+        );
+        setState(ConnectionState.GIVEN_UP, { reason: "monitor-max-retries-or-duration" });
+        try { receiver?.stop(); } catch {}
+        return;
+      }
       const monDelay = getBackoffDelay(reconnectAttempts - 1);
       // Phase 32 D-B3: countdown overlay for monitor-triggered reconnects.
       if (typeof countdownStop === "function") { countdownStop(); }
@@ -472,6 +827,14 @@ export async function bootReceiver({ logger = console } = {}) {
         delayMs: monDelay,
         attemptN: reconnectAttempts,
       });
+      try {
+        setReconnectDetail({
+          doc: (typeof document !== "undefined" ? document : null),
+          lastError: lastErrorMessage,
+          lastSuccessAtMs: lastSuccessfulConnectAtMs,
+        });
+      } catch {}
+      setState(ConnectionState.RECONNECTING, { reason: "monitor-disconnected" });
       try {
         receiver?.stop();
       } catch {}
@@ -484,9 +847,22 @@ export async function bootReceiver({ logger = console } = {}) {
       const stableMs = Date.now() - connectionStableSince;
       if (stableMs >= STABLE_RESET_THRESHOLD_MS) {
         reconnectAttempts = 0;
+        firstFailureAtMs = null;
         clearBackoffState(backoffStorage);
         connectionStableSince = Date.now(); // re-stamp so we don't keep resetting
       }
+    }
+
+    // Phase 33 Plan 04-T1: keep status-detail telemetry fresh (the
+    // "letzte Verbindung: 2m 17s" component re-computes per tick).
+    if (currentState === ConnectionState.RECONNECTING) {
+      try {
+        setReconnectDetail({
+          doc: (typeof document !== "undefined" ? document : null),
+          lastError: lastErrorMessage,
+          lastSuccessAtMs: lastSuccessfulConnectAtMs,
+        });
+      } catch {}
     }
 
     // fps rolling average over the latest 1s window
@@ -619,6 +995,7 @@ export async function bootReceiver({ logger = console } = {}) {
   // top-level coordinator on the page so most callers ignore the return.
   return {
     stop() {
+      setState(ConnectionState.STOPPED, { reason: "operator-stop" });
       if (monitorInterval) clearInterval(monitorInterval);
       if (snapshotInterval) clearInterval(snapshotInterval);
       if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
@@ -634,12 +1011,21 @@ export async function bootReceiver({ logger = console } = {}) {
     getStatus() {
       return {
         pcState,
+        currentState,
         reconnectAttempts,
+        firstFailureAtMs,
+        framesSinceLastReconnect,
+        lastErrorMessage,
+        lastSuccessfulConnectAtMs,
         receivedFps,
         lastFrameAgeMs: performance.now() - lastFrameAtMs,
         heartbeatAgeMs: performance.now() - lastHeartbeatAtMs,
       };
     },
+    /** Phase 33 Plan 03-T1: external accessor for the connection state. */
+    getCurrentState() { return currentState; },
+    /** Phase 33 Plan 03-T2: programmatic manual retry (for tests + UI). */
+    manualRetry: () => doManualRetry(),
   };
 }
 
