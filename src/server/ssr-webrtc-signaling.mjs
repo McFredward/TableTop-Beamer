@@ -642,7 +642,23 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
             return;
           }
           await c.resume();
+          // Phase 33 iter-3 (2026-05-09): force PLI on every consumer
+          // resume. ROOT CAUSE of "Pi reload → schwarzes Bild + RECONNECTING":
+          // when the FIRST consumer disconnects and the SECOND consumer
+          // subscribes to the same producer, the second consumer's H264
+          // decoder needs a keyframe (SPS/PPS) to start. mediasoup's
+          // auto-keyframe-on-new-consumer is unreliable on the same
+          // producer (observed: video.readyState reaches 4 but currentTime
+          // never advances past 0 — decoder stalled waiting for SPS/PPS).
+          // Explicitly request a keyframe forces the publisher to send one.
+          //
+          // Sent AFTER replying so the consumer doesn't wait on PLI roundtrip.
           send({ type: "consumer-resumed", requestId });
+          if (c.kind === "video" && typeof c.requestKeyFrame === "function") {
+            c.requestKeyFrame().catch((err) =>
+              logger.warn(`[ssr-signal] requestKeyFrame failed: ${err?.message ?? err}`)
+            );
+          }
           return;
         }
       } catch (err) {
