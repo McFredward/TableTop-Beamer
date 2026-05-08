@@ -59,16 +59,35 @@ test("evaluateDisconnect: pc-disconnected yields disconnected", () => {
   assert.ok(r.reasons.includes("pc-disconnected"));
 });
 
-test("evaluateDisconnect: frame stale > threshold yields disconnected when connected", () => {
-  // h36: threshold raised to 8000 ms. Use 10000 ms gap to clearly exceed.
+test("evaluateDisconnect: frame stale > FRAME_STALE_THRESHOLD_MS yields disconnected when connected", () => {
+  // Phase 33 iteration 2 (2026-05-09): FRAME_STALE_THRESHOLD_MS is now
+  // 30000 ms (split from heartbeat threshold). Local GIF decode bursts on
+  // /output/ legitimately pause requestVideoFrameCallback for 5-10 s; the
+  // old 8s threshold mis-classified those as broken stream and tore down
+  // the WS, producing the user's "endless connect/disconnect loop" in
+  // production. Use 35000 ms gap to clearly exceed the new threshold.
   const r = evaluateDisconnect({
     pcConnectionState: "connected",
     lastFrameAtMs: 0,
-    lastHeartbeatAtMs: 10000,
-    nowMs: 10000,
+    lastHeartbeatAtMs: 34900,
+    nowMs: 35000,
   });
   assert.equal(r.disconnected, true);
   assert.ok(r.reasons.includes("frame-stale"));
+});
+
+test("evaluateDisconnect: frame stale within FRAME_STALE_THRESHOLD_MS is healthy (regression for the production reconnect loop)", () => {
+  // The exact symptom the probe captured: pcState=connected,
+  // lastFrameAgeMs=8797, lastHbAgeMs=801. Heartbeats fresh, frames lagging
+  // because of GIF decode pressure. MUST NOT trigger disconnect.
+  const r = evaluateDisconnect({
+    pcConnectionState: "connected",
+    lastFrameAtMs: 0,
+    lastHeartbeatAtMs: 7999,
+    nowMs: 8800,
+  });
+  assert.equal(r.disconnected, false);
+  assert.deepEqual(r.reasons, []);
 });
 
 test("evaluateDisconnect: heartbeat stale > threshold yields disconnected", () => {

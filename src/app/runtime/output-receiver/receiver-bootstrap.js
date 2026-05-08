@@ -797,6 +797,17 @@ export async function bootReceiver({ logger = console } = {}) {
       currentState === ConnectionState.GIVEN_UP ||
       currentState === ConnectionState.HOST_DOWN;
     if (dec.disconnected && !monitorBlocked) {
+      // Phase 33 iteration 2 diagnostic: log WHY the monitor fired so the
+      // probe can see whether it's pc-failed/pc-disconnected/pc-closed/
+      // frame-stale/heartbeat-stale. Without this the state-machine log
+      // shows only "monitor-disconnected" with no actionable reason.
+      logger?.warn?.(
+        `[receiver] monitor fire: reasons=[${dec.reasons.join(",")}] ` +
+        `pcState=${pcState} ` +
+        `lastFrameAgeMs=${Math.round(now - lastFrameAtMs)} ` +
+        `lastHbAgeMs=${Math.round(now - lastHeartbeatAtMs)} ` +
+        `attempt=${reconnectAttempts + 1}`,
+      );
       // D-B4: surface ALL detected reasons in the banner so the operator
       // sees what triggered the reconnect. Empty banner == no info ==
       // bad UX.

@@ -21,6 +21,23 @@
 // and `pc-failed` signals which fire instantly via WebRTC state.
 export const DISCONNECT_THRESHOLD_MS = 8000;
 
+// Phase 33 iteration 2 (2026-05-09): frame-stale threshold separated from
+// heartbeat-stale threshold. The /output/ page is NOT a thin client — it
+// runs the FULL app code in parallel with showing the streamed video,
+// including local GIF decoding (slime.gif is 22MB, decode takes 5-7s).
+// During those decode bursts, requestVideoFrameCallback can pause for
+// several seconds even though heartbeats keep arriving normally and the
+// RTC peer connection is healthy. The Phase-32 8s threshold was too
+// aggressive — it tripped on every heavy GIF decode, tearing down the
+// WS for no reason, producing the user's "endless connect/disconnect
+// loop" in production.
+//
+// New threshold: 30s. Heartbeat (8s) remains the real liveness signal;
+// frame-stale only catches genuine RTP starvation (e.g., firewall blocks
+// the UDP ports despite the WS handshake succeeding) — that scenario
+// won't recover within 30s anyway.
+export const FRAME_STALE_THRESHOLD_MS = 30000;
+
 // Phase 32 D-B2: adaptive forever-retry backoff schedule.
 // Replaces the legacy hard cap (10 attempts) with infinite retry.
 // Resets to attempts=0 after >=STABLE_RESET_THRESHOLD_MS stable connection.
@@ -406,7 +423,11 @@ export function evaluateDisconnect({
   if (pcConnectionState === "closed") reasons.push("pc-closed");
   // Frame staleness only meaningful when PC is supposedly connected — a
   // disconnected PC already triggers via the explicit reason above.
-  if (pcConnectionState === "connected" && nowMs - lastFrameAtMs > thresholdMs) {
+  // Phase 33 iteration 2 (2026-05-09): use FRAME_STALE_THRESHOLD_MS (30s)
+  // not the 8s heartbeat threshold. Local GIF decode bursts can pause
+  // requestVideoFrameCallback for 5-10s legitimately. See constant
+  // declaration above for the full diagnosis.
+  if (pcConnectionState === "connected" && nowMs - lastFrameAtMs > FRAME_STALE_THRESHOLD_MS) {
     reasons.push("frame-stale");
   }
   if (nowMs - lastHeartbeatAtMs > thresholdMs) {
