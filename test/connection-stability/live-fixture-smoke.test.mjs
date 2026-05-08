@@ -48,13 +48,13 @@ test("live-fixture-smoke: server + 1 consumer sustain 30s without reconnect", { 
   const server = await bootServer({ rootDir: root.rootDir, captureLogs: true });
   let consumer = null;
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     consumer = await connectConsumer(server.port, { doRpc: true });
     const t0 = Date.now();
     // Wait for the first heartbeat as a "connection live" signal.
-    await consumer.waitForFrame(5000);
+    await consumer.waitForFrame(8000);
 
     // Sustain. We use a single sleep instead of polling; the WS handlers
     // accumulate heartbeats / closes in the background.

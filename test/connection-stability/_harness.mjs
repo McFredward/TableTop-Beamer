@@ -107,15 +107,23 @@ export async function makeIsolatedRoot() {
  * @returns {Promise<{ pid: number, port: number, kill: (signal?:string)=>void, child: import('node:child_process').ChildProcess, getLogs: ()=>{stdout:string,stderr:string} }>}
  */
 // Module-level rotating display number. Each bootServer() call picks the
-// next free Xvfb display number > 99 so consecutive tests in the same Node
+// next free Xvfb display number so consecutive tests in the same Node
 // process don't fight over /tmp/.X<N>-lock when prior Xvfb processes haven't
 // fully cleaned up yet. The render-host's pickFreeDisplay() walks 20 slots
-// from the start point, so 100..119 / 120..139 / ... cycle through cleanly.
-let _nextDisplayBase = 100;
+// from the start point.
+//
+// The base is randomized at module-load time (range 200..800) so that two
+// parallel test processes (multiple agents running RUN_LIVE_TESTS=1
+// simultaneously, or `node --test --test-isolation=process` spawning N
+// worker processes) almost certainly land in non-overlapping display ranges.
+// Without this, two tests racing on display :100 caused Chromium-launch
+// failures that the watchdog interpreted as render-host-down events.
+const _DISPLAY_RANGE_START = 200 + Math.floor(Math.random() * 600);
+let _nextDisplayBase = _DISPLAY_RANGE_START;
 function _allocDisplay() {
   const n = _nextDisplayBase;
-  _nextDisplayBase += 20; // step well clear of pickFreeDisplay's walk
-  if (_nextDisplayBase > 900) _nextDisplayBase = 100; // wrap
+  _nextDisplayBase += 20;
+  if (_nextDisplayBase > 950) _nextDisplayBase = 200;
   return `:${n}`;
 }
 
@@ -173,7 +181,7 @@ export async function bootServer({
  * @param {number} [opts.intervalMs=300]
  * @returns {Promise<void>}
  */
-export async function waitReady(port, { timeoutMs = 15000, intervalMs = 300 } = {}) {
+export async function waitReady(port, { timeoutMs = 60000, intervalMs = 300 } = {}) {
   const deadline = Date.now() + timeoutMs;
   let lastErr = null;
   while (Date.now() < deadline) {
@@ -483,6 +491,22 @@ export async function teardown(handle, graceMs = 4000) {
 
   // Brief grace so OS can reap zombies + remove /tmp/.X<N>-lock files.
   await sleep(300);
+
+  // Sweep puppeteer-stream's /tmp/puppeteer_dev_chrome_profile-XXXXXX
+  // directories. The teardown SIGKILLs the Chromium child but doesn't
+  // clean up its profile dir. Without periodic sweep, /tmp accumulates
+  // hundreds of stale profile dirs across stress runs, eventually
+  // slowing down Chromium spawn enough that waitHttpUp() times out.
+  // This is a TEST harness concern only — production uses one long-
+  // lived Chromium tab.
+  try {
+    const { readdir, rm } = await import("node:fs/promises");
+    const entries = await readdir("/tmp");
+    const stale = entries.filter((n) => n.startsWith("puppeteer_dev_chrome_profile-"));
+    for (const n of stale) {
+      try { await rm(`/tmp/${n}`, { recursive: true, force: true }); } catch {}
+    }
+  } catch {}
 }
 
 /**

@@ -231,6 +231,15 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     // to detect "Chromium CDP is up but the publisher's WS dropped" — the
     // BUG-B failure mode where state.videoProducer stays null forever.
     publisherWsLastPongMs: 0,
+    // Sticky flag — flipped true once on the first ssr-tab WS upgrade and
+    // never reset for the process lifetime. The watchdog uses this so it
+    // does NOT misfire during cold boot (publisher hasn't reached WS-upgrade
+    // yet — getPublisherWsAgeMs() would return Infinity, tripping the
+    // staleness gate and emitting a bogus render-host-down to consumers).
+    // Once true, the watchdog is armed; if the publisher's WS later
+    // disconnects (resetting publisherWsLastPongMs to 0 → age=Infinity),
+    // the watchdog correctly detects BUG-B and triggers a restart.
+    publisherHasEverConnected: false,
   };
 
   server.on("upgrade", (req, socket) => {
@@ -314,9 +323,15 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
 
     // Phase 33 Plan 02-T2 (Suspect 6): seed publisher-liveness timestamp on
     // ssr-tab connect so the watchdog doesn't misfire during the brief
-    // window before the first ssr-fps envelope arrives (~1 s).
+    // window before the first ssr-fps envelope arrives (~1 s). Also flip
+    // the sticky publisherHasEverConnected flag — that arms the watchdog.
+    // Before this point the watchdog is intentionally disabled (cold-boot
+    // window: the publisher script is still navigating + injecting; the
+    // CDP-fail path will catch real failures, the watchdog must not
+    // double-fire on a healthy boot).
     if (role === "ssr-tab") {
       state.publisherWsLastPongMs = Date.now();
+      state.publisherHasEverConnected = true;
     }
 
     // h4 hotfix (2026-05-06): D-C4 heartbeat. The receiver expects
@@ -661,10 +676,16 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
   state.broadcastProducerReady = broadcastProducerReady;
 
   // Phase 33 Plan 02-T2 (Suspect 6): publisher-WS-age accessor used by
-  // ssr-render-host's watchdog. Returns Infinity if no ssr-tab has ever
-  // pinged (or the last one disconnected), which trips the staleness
-  // gate immediately.
+  // ssr-render-host's watchdog. Three return states:
+  //   * -1: cold-boot (publisher has never connected) → DO NOT fire watchdog.
+  //         The CDP-fail path catches real cold-boot failures; firing the
+  //         watchdog here would emit bogus render-host-down events to
+  //         every consumer mid-startup.
+  //   * Infinity: publisher connected at least once but timestamp is 0
+  //         (WS closed) → fire watchdog (BUG-B: WS dropped, CDP healthy).
+  //   * finite ms: time since last ssr-fps/ssr-stats from publisher.
   state.getPublisherWsAgeMs = () => {
+    if (!state.publisherHasEverConnected) return -1;
     if (!state.publisherWsLastPongMs) return Infinity;
     return Date.now() - state.publisherWsLastPongMs;
   };

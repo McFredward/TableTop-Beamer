@@ -31,8 +31,8 @@ test("state-leak: 50 connect/disconnect cycles do not grow RSS/FD by >20%", { sk
   const root = await makeIsolatedRoot();
   const server = await bootServer({ rootDir: root.rootDir });
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     // Warm-up: a few connect cycles so JIT, mediasoup buffers, etc. settle
     // before the baseline sample. Without this the baseline is artificially

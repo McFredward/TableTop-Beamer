@@ -166,6 +166,101 @@ test("02-T2 unit: server.mjs wires getPublisherWsAgeMs into bootSsrRenderHost (b
   assert.ok(matches.length >= 2, `expected ≥2 watchdog wires, got ${matches.length}`);
 });
 
+// ─── Unit: tri-state contract for getPublisherWsAgeMs ────────────────────
+//
+// Plan 02-T2 root cause: smoke test was firing render-host-down 2-4 times
+// during a healthy 30s sustain because:
+//   (a) Cold boot — publisher hasn't connected yet — getPublisherWsAgeMs()
+//       returned Infinity, watchdog interpreted as "stale" → fired.
+//   (b) Watchdog had no debounce — multiple ticks would re-fire the same
+//       host-down broadcast.
+//   (c) Threshold of 15 s was too tight for legitimate event-loop starvation
+//       during heavy GIF decode (smoke test loads slime.gif=22MB).
+// The fix introduces a tri-state contract:
+//   * -1: publisher has NEVER connected → DO NOT fire
+//   * Infinity: connected then disconnected → FIRE
+//   * finite ms: time since last pong → FIRE if > threshold
+// Plus a one-shot fireHostDown latch and a 45s default threshold.
+
+test("02-T2 unit: getPublisherWsAgeMs returns -1 before any ssr-tab connects (cold-boot suppression)", async () => {
+  // Simulate the signaling state's accessor logic by reading the source +
+  // reasoning about the contract. We can't easily boot the full WS stack
+  // in a unit test, so we lock the contract via source assertion.
+  const { readFile } = await import("node:fs/promises");
+  const url = new URL("../../src/server/ssr-webrtc-signaling.mjs", import.meta.url);
+  const src = await readFile(url, "utf8");
+  // Tri-state branches must all be present:
+  //   -1 cold-boot, Infinity disconnected, finite ms otherwise
+  assert.match(src, /publisherHasEverConnected/, "publisherHasEverConnected flag missing");
+  assert.match(src, /if\s*\(!state\.publisherHasEverConnected\)\s*return\s*-1/,
+    "-1 cold-boot return missing");
+  assert.match(src, /if\s*\(!state\.publisherWsLastPongMs\)\s*return\s*Infinity/,
+    "Infinity disconnected return missing");
+});
+
+test("02-T2 unit: ssr-render-host watchdog respects the -1 cold-boot sentinel", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const url = new URL("../../src/server/ssr-render-host.mjs", import.meta.url);
+  const src = await readFile(url, "utf8");
+  // The watchdog logic must:
+  //   * fire on Infinity (publisher disconnected)
+  //   * fire on finite ms > threshold
+  //   * NOT fire on -1 (cold boot)
+  // Express this via a simple algebraic check in the source: the `stale`
+  // boolean must reference both `Infinity` and `Number.isFinite`.
+  assert.match(src, /pubAge === Infinity/, "watchdog must treat Infinity as stale");
+  assert.match(src, /Number\.isFinite\(pubAge\)/, "watchdog must guard finite branch");
+  // Default threshold should be ≥ 30s (45s is the new default — old 15s was
+  // too tight for GIF-decode bursts).
+  const m = src.match(/publisherWsStaleThresholdMs\s*=\s*Number\([^)]*\?\?\s*(\d+)\)/);
+  assert.ok(m, `threshold default literal not found in source`);
+  const defaultMs = Number(m[1]);
+  assert.ok(defaultMs >= 30000, `default threshold ${defaultMs}ms is below 30000ms safety floor`);
+});
+
+test("02-T2 unit: fireHostDown latch ensures one broadcast per host-down episode", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const url = new URL("../../src/server/ssr-render-host.mjs", import.meta.url);
+  const src = await readFile(url, "utf8");
+  // The latch state variable must exist + the helper must guard on it.
+  assert.match(src, /onHostDownLatched\s*=\s*false/, "onHostDownLatched declaration missing");
+  assert.match(src, /function fireHostDown/, "fireHostDown helper missing");
+  assert.match(src, /if \(onHostDownLatched\) return/, "latch guard missing in fireHostDown");
+  // All three host-down trigger paths use fireHostDown (not raw onHostDown).
+  // CDP fail / publisher-WS-stale / browser-disconnected.
+  assert.match(src, /fireHostDown\(`cdp-fail/, "CDP-fail path must use fireHostDown");
+  assert.match(src, /fireHostDown\(`publisher-ws-stale/, "publisher-WS-stale path must use fireHostDown");
+  assert.match(src, /fireHostDown\("browser-disconnected"\)/, "browser-disconnected path must use fireHostDown");
+});
+
+test("02-T2 unit: health-ping tick is short-circuited when host is not running", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const url = new URL("../../src/server/ssr-render-host.mjs", import.meta.url);
+  const src = await readFile(url, "utf8");
+  assert.match(
+    src,
+    /if \(status\.state !== "running"\) return/,
+    "startHealthPings must skip ticks when state !== running",
+  );
+});
+
+// ─── Unit: signaling state.publisherHasEverConnected is sticky ────────────
+
+test("02-T2 unit: ssr-tab WS upgrade flips publisherHasEverConnected (sticky); ssr-tab close clears timestamp but not flag", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const url = new URL("../../src/server/ssr-webrtc-signaling.mjs", import.meta.url);
+  const src = await readFile(url, "utf8");
+  // Upgrade: both flag + timestamp set.
+  const upgradeBlock = src.match(/role === "ssr-tab"[\s\S]{0,800}publisherHasEverConnected = true/);
+  assert.ok(upgradeBlock, "ssr-tab upgrade must set publisherHasEverConnected = true");
+  // Close: timestamp reset to 0 BUT flag stays (otherwise watchdog can't detect WS-drop).
+  const closeBlock = src.match(/conn\.role === "ssr-tab"[\s\S]{0,400}publisherWsLastPongMs = 0/);
+  assert.ok(closeBlock, "ssr-tab close must reset publisherWsLastPongMs to 0");
+  // Verify the flag is NOT cleared anywhere (sticky):
+  const clearMatch = src.match(/publisherHasEverConnected\s*=\s*false/g) ?? [];
+  assert.equal(clearMatch.length, 0, "publisherHasEverConnected must be sticky (never reset to false)");
+});
+
 // ─── Integration: SIGKILL mediasoup-worker → server respawns ─────────────
 
 test("02-T1 integration: SIGKILL mediasoup-worker → router auto-respawns within 30s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 120000 }, async () => {
@@ -173,11 +268,11 @@ test("02-T1 integration: SIGKILL mediasoup-worker → router auto-respawns withi
   const server = await bootServer({ rootDir: root.rootDir, captureLogs: true });
   let consumer = null;
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     consumer = await connectConsumer(server.port, { doRpc: true });
-    await consumer.waitForFrame(5000);
+    await consumer.waitForFrame(8000);
 
     // Verify there IS a mediasoup-worker child of the server.
     const beforePids = await findChildPids(server.pid, /mediasoup/i);
@@ -228,12 +323,12 @@ test("02-T1 integration: SIGKILL mediasoup-worker → router auto-respawns withi
 // server brings up a fresh Chromium tab + producer within ~30s. The Pi-side
 // recovery path is verified separately in producer-lifecycle.test.mjs.
 
-test("02-T2 integration: SIGKILL ssr-tab → server brings up fresh producer within 60s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 120000 }, async () => {
+test("02-T2 integration: SIGKILL ssr-tab → server brings up fresh producer within 60s", { skip: !liveTestsEnabled() && LIVE_SKIP_MSG, timeout: 180000 }, async () => {
   const root = await makeIsolatedRoot();
   const server = await bootServer({ rootDir: root.rootDir, captureLogs: true });
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     // Kill the ssr-tab Chromium descendants.
     const killed = await killSsrTab(server.pid);

@@ -261,12 +261,21 @@ export function bootSsrRenderHost({
   onHostDown = null,
   // Phase 33 Plan 02-T2 (Suspect 6): optional accessor for the age (ms) of
   // the publisher-WS's last ssr-fps/ssr-stats envelope. When CDP is healthy
-  // (Chromium tab process still alive) but this exceeds 15 s, the publisher
-  // WS dropped silently and the host must restart — closing BUG-B from
-  // phase-32-connect-head-trace.md. Returns null/Infinity if no signaling
-  // is wired or no ssr-tab has ever connected.
+  // (Chromium tab process still alive) but the timestamp is stale, the
+  // publisher WS dropped silently and the host must restart — closing
+  // BUG-B from phase-32-connect-head-trace.md. The signaling layer's
+  // tri-state contract (-1 / Infinity / finite ms) is honored: -1 means
+  // "publisher has never connected" (cold-boot window) → DO NOT fire.
+  //
+  // Default threshold of 45 s gives legitimate event-loop starvation
+  // bursts (heavy GIF decode, large mp4 preload, garbage-collection
+  // pauses) ample headroom. The publisher script's ssr-fps setInterval
+  // runs at 1 s on the JS thread; under heavy load (e.g. decoding a 22 MB
+  // slime.gif during initial board-load) the thread can stall for 10-15 s
+  // while WebSockets continue to flow at TCP layer. 45 s ensures the
+  // watchdog only fires on genuine BUG-B (publisher WS truly dropped).
   getPublisherWsAgeMs = null,
-  publisherWsStaleThresholdMs = 15000,
+  publisherWsStaleThresholdMs = Number(process.env.SSR_PUBLISHER_WS_STALE_MS ?? 45000),
 } = {}) {
   if (!port) throw new Error("bootSsrRenderHost: `port` is required");
 
@@ -292,6 +301,32 @@ export function bootSsrRenderHost({
   let healthFailCount = 0;
   let backoffMs = RESTART_BACKOFF_MS_INITIAL;
   let stopRequested = false;
+  // Phase 33 Plan 02-T2 (Suspect 6): debounce watchdog fires + onHostDown
+  // broadcasts. Once the watchdog declares the publisher stale we want
+  // EXACTLY ONE render-host-down broadcast and EXACTLY ONE scheduleRestart;
+  // the next watchdog probe should not re-fire until a successful start()
+  // resets it. Same logic for onHostDown across the three invocation
+  // paths (CDP-fail / browser-disconnected / publisher-WS-stale).
+  let onHostDownLatched = false;
+
+  /**
+   * Phase 33 Plan 02-T2 (Suspect 6): single entry point for emitting the
+   * `render-host-down` broadcast. Latched so the three trigger paths
+   * (CDP fail × 3, browser.disconnected, publisher-WS stale) emit at most
+   * once until the next successful start(). `reason` is logged to make
+   * sequence-debugging easier.
+   */
+  function fireHostDown(reason) {
+    if (onHostDownLatched) return false;
+    onHostDownLatched = true;
+    logger.error(`[ssr-host] host-down latched (reason=${reason})`);
+    if (typeof onHostDown === "function") {
+      try { onHostDown(); } catch (err) {
+        logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
+      }
+    }
+    return true;
+  }
 
   /**
    * h1: pick a free display number. /tmp/.X<N>-lock means display N is busy
@@ -532,7 +567,14 @@ export function bootSsrRenderHost({
     if (healthInterval) clearInterval(healthInterval);
     healthFailCount = 0;
     healthInterval = setInterval(async () => {
+      // Phase 33 Plan 02-T2: hard-skip the entire health/watchdog tick
+      // when the host is mid-reconnect or shutting down. Without this, a
+      // tick that arrives during teardown() / start() would (a) try to
+      // probe a torn-down cdpSession and increment healthFailCount, or
+      // (b) trigger the publisher-WS watchdog because the publisher has
+      // not yet re-connected to the fresh ssr-tab.
       if (!cdpSession || stopRequested) return;
+      if (status.state !== "running") return;
       try {
         const res = await cdpSession.send("Runtime.evaluate", {
           expression: "1+1",
@@ -553,13 +595,9 @@ export function bootSsrRenderHost({
         logger.error(`[ssr-host] health ping threshold breached, relaunching`);
         // Phase 33 Plan 01-T3 (Suspect 7): notify all consumers BEFORE the
         // restart sleep so their UI flips to the "Render host crashed" overlay
-        // instead of the generic "Reconnecting…" countdown. Best-effort —
-        // a thrown callback must not block the restart path.
-        if (typeof onHostDown === "function") {
-          try { onHostDown(); } catch (err) {
-            logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
-          }
-        }
+        // instead of the generic "Reconnecting…" countdown. Latched so the
+        // next health-ping tick doesn't double-fire the broadcast.
+        fireHostDown(`cdp-fail-${healthFailCount}/${HEALTH_PING_FAIL_THRESHOLD}`);
         scheduleRestart();
         return;
       }
@@ -576,20 +614,22 @@ export function bootSsrRenderHost({
       // CDP is failing the threshold-breach path above will restart anyway.
       if (typeof getPublisherWsAgeMs === "function" && healthFailCount === 0) {
         let pubAge;
-        try { pubAge = getPublisherWsAgeMs(); } catch { pubAge = 0; }
-        // Allow a generous warm-up window after a fresh restart: only
-        // declare "stuck" if the timestamp has been in the bad state for
-        // longer than the threshold. The threshold defaults to 15 s, the
-        // publisher posts every 1 s, so 15 missed heartbeats is the gate.
-        if (Number.isFinite(pubAge) && pubAge > publisherWsStaleThresholdMs) {
+        try { pubAge = getPublisherWsAgeMs(); } catch { pubAge = -1; }
+        // Tri-state contract (signaling.getPublisherWsAgeMs):
+        //   * -1: publisher has NEVER connected (cold-boot window). DO NOT
+        //         fire watchdog — the CDP-fail path or browser.disconnected
+        //         catches real cold-boot failures.
+        //   * Infinity: publisher connected then disconnected (WS closed).
+        //         FIRE watchdog — this is the BUG-B failure mode.
+        //   * finite ms: time since last ssr-fps/ssr-stats. FIRE if >threshold.
+        const stale = (pubAge === Infinity) ||
+          (Number.isFinite(pubAge) && pubAge > publisherWsStaleThresholdMs);
+        if (stale) {
+          const ageDesc = pubAge === Infinity ? "WS-closed" : `${Math.round(pubAge)}ms`;
           logger.error(
-            `[ssr-host] publisher WS stale (age=${Math.round(pubAge)}ms > ${publisherWsStaleThresholdMs}ms) — CDP healthy but publisher dropped, restarting render-host (BUG-B)`,
+            `[ssr-host] publisher WS stale (age=${ageDesc} > ${publisherWsStaleThresholdMs}ms) — CDP healthy but publisher dropped, restarting render-host (BUG-B)`,
           );
-          if (typeof onHostDown === "function") {
-            try { onHostDown(); } catch (err) {
-              logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
-            }
-          }
+          fireHostDown(`publisher-ws-stale-${ageDesc}`);
           scheduleRestart();
         }
       }
@@ -738,15 +778,15 @@ export function bootSsrRenderHost({
           logger.error("[ssr-host] browser disconnected unexpectedly");
           // Phase 33 Plan 01-T3 (Suspect 7): same render-host-down broadcast
           // as the health-ping breach path — Chromium-process-died is the
-          // analogous "host gone" event from the consumer's POV.
-          if (typeof onHostDown === "function") {
-            try { onHostDown(); } catch (err) {
-              logger.warn(`[ssr-host] onHostDown threw: ${err?.message ?? err}`);
-            }
-          }
+          // analogous "host gone" event from the consumer's POV. Latched.
+          fireHostDown("browser-disconnected");
           scheduleRestart();
         }
       });
+      // Phase 33 Plan 02-T2: clear the latch on a clean start so the next
+      // genuine host-down event can fire its broadcast. Done AFTER browser.on
+      // wiring so we don't race a fast crash that pre-empts the listener.
+      onHostDownLatched = false;
       await startHealthPings();
     } catch (err) {
       status.lastError = err.message;

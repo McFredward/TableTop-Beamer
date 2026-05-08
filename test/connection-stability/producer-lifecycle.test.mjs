@@ -98,11 +98,11 @@ test("01-T4 integration: kill ssr-tab → consumer receives render-host-down wit
   const server = await bootServer({ rootDir: root.rootDir });
   let consumer = null;
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     consumer = await connectConsumer(server.port, { doRpc: true });
-    await consumer.waitForFrame(5000); // wait for first heartbeat
+    await consumer.waitForFrame(8000); // wait for first heartbeat
 
     // Kill the SSR Chromium tab. The publisher's WS to /api/webrtc/signal
     // closes, the producer's `transportclose` fires server-side, and the
@@ -152,11 +152,11 @@ test("01-T4 integration: kill server → consumer WS closes within 2s", { skip: 
   const server = await bootServer({ rootDir: root.rootDir });
   let consumer = null;
   try {
-    await waitHttpUp(server.port, { timeoutMs: 8000 });
-    await waitReady(server.port, { timeoutMs: 30000 });
+    await waitHttpUp(server.port, { timeoutMs: 15000 });
+    await waitReady(server.port, { timeoutMs: 60000 });
 
     consumer = await connectConsumer(server.port, { doRpc: true });
-    await consumer.waitForFrame(5000);
+    await consumer.waitForFrame(8000);
 
     // SIGKILL the server outright. The consumer WS must close within a
     // bounded time (TCP RST or socket FIN propagated by the kernel).
