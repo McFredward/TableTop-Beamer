@@ -1311,9 +1311,13 @@ function applyLiveMutation({
                   console.warn(`[server] broadcastRenderHostDown failed: ${err?.message ?? err}`);
                 }
               },
+              // Phase 33 Plan 02-T2 (h2): default to -1 (the cold-boot
+              // sentinel) when signaling isn't attached or accessor is
+              // missing — Infinity would falsely trip the watchdog before
+              // the publisher has had a chance to connect.
               getPublisherWsAgeMs: () => {
-                try { return signalingState?.getPublisherWsAgeMs?.() ?? Infinity; }
-                catch { return Infinity; }
+                try { return signalingState?.getPublisherWsAgeMs?.() ?? -1; }
+                catch { return -1; }
               },
             });
             setActiveSsrRenderHost(ssrHost);
@@ -4262,8 +4266,8 @@ if (process.env.SSR_RENDER_HOST === "1") {
           }
         },
         getPublisherWsAgeMs: () => {
-          try { return signalingState?.getPublisherWsAgeMs?.() ?? Infinity; }
-          catch { return Infinity; }
+          try { return signalingState?.getPublisherWsAgeMs?.() ?? -1; }
+          catch { return -1; }
         },
       });
       setActiveSsrRenderHost(ssrHost);

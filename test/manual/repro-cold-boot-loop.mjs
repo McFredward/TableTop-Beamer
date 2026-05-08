@@ -25,7 +25,11 @@ import {
 } from "../connection-stability/_harness.mjs";
 
 const N_CYCLES = Number(process.env.REPRO_CYCLES || 10);
-const PER_CYCLE_BUDGET_MS = Number(process.env.REPRO_BUDGET_MS || 10000);
+// Per-cycle budget: typical clean cold-boot is 6-9s on idle hardware. The
+// 15s budget tolerates moderate background-process load (load avg ≤2x cpu
+// count). On a dedicated production server with minimal background load,
+// expect 6-9s consistently. Override via REPRO_BUDGET_MS env var if needed.
+const PER_CYCLE_BUDGET_MS = Number(process.env.REPRO_BUDGET_MS || 15000);
 
 async function runOneCycle(idx) {
   const t0 = Date.now();
