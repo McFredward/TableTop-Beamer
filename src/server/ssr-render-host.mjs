@@ -151,7 +151,15 @@ export async function resolveEncoderConfig({ rootDir = process.cwd(), logger = c
   // effectiveStreamFpsCap: 0 = native (no cap) → use 60 as the actual constraint value.
   const effectiveStreamFpsCap = (userStreamFpsCap === 0) ? 60 : userStreamFpsCap;
 
-  const available = await detectAvailableEncoders();
+  let available = await detectAvailableEncoders();
+  // Phase 33 iter-4c (2026-05-09): VAAPI hardware encoder default-off.
+  // Observed on user's gaming PC: VAAPI encoder hot-loop starves the
+  // SSR-tab's main thread, CDP probes time out, consumers can't
+  // negotiate WebRTC → endless reconnect loop. Set SSR_ENABLE_VAAPI=1
+  // to opt back in. NVENC/VideoToolbox unaffected.
+  if (process.env.SSR_ENABLE_VAAPI !== "1") {
+    available = available.filter((e) => e !== "vaapi");
+  }
   logger.info(`[ssr-host] available encoders: ${available.join(", ")}`);
 
   let chosen;
@@ -476,7 +484,14 @@ export function bootSsrRenderHost({
       "InterestFeedV2",
       "AutofillServerCommunication",
     ];
-    const hasIgpu = existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129");
+    // Phase 33 iter-4c (2026-05-09): VAAPI hardware encoder can starve
+    // the SSR-tab's main thread on some hardware (observed on user's
+    // gaming PC with Intel iGPU: CDP probes timed out for 60s+ once a
+    // consumer connected and VAAPI encoder ran hot). Default-disable
+    // VAAPI by env flag; set SSR_ENABLE_VAAPI=1 to re-enable.
+    const hasIgpu =
+      process.env.SSR_ENABLE_VAAPI === "1" &&
+      (existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129"));
     const enabledFeatures = [
       ...(hasIgpu ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
       ...(status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
