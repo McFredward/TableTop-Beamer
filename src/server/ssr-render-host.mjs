@@ -212,7 +212,23 @@ const DEFAULT_DISPLAY = process.env.SSR_DISPLAY ?? ":99";
 // (Ubuntu snap installs Chromium at /snap/bin/chromium, not /usr/bin/).
 const DEFAULT_VIEWPORT = { width: 1920, height: 1080, deviceScaleFactor: 1 };
 const HEALTH_PING_INTERVAL_MS = 5000;
-const HEALTH_PING_FAIL_THRESHOLD = 3; // 3 * 5s = 15s
+// Phase 33 iter-4 (2026-05-09): bumped 3→12 ticks (15s→60s tolerance).
+// User's gaming-PC server log showed the watchdog killing healthy tabs
+// during slime.gif decode + heavy H264 encode bursts (CDP probes timeout
+// 3× → "Target closed" → tab killed → publisher reset → consumer never
+// gets stable stream). 60s tolerance allows the SSR-tab to do legitimate
+// 30s+ heavy work without being prematurely killed. The publisher-WS
+// freshness check (below) is the PRIMARY liveness signal — CDP probe is
+// a backstop for the BUG-B case (publisher WS dropped + Chromium alive).
+// Phase 33 iter-4: watchdog disarmed by default — 30 ticks = 150s, meaning
+// only a genuine 2.5min freeze triggers a relaunch. Pre-Phase-33 SSR worked
+// fine WITHOUT a watchdog at all; we keep the safety net for the BUG-B
+// (publisher-WS-dropped-but-CDP-alive) edge case while accepting that
+// transient SSR-tab freezes (slime.gif decode bursts, encode pressure)
+// resolve themselves without restart. Pre-Phase-32 testing showed the
+// watchdog was killing healthy tabs during normal load bursts.
+const HEALTH_PING_FAIL_THRESHOLD = 30; // 30 * 5s = 150s
+const PUBLISHER_WS_FRESH_MS = 60000;   // trust publisher heartbeat up to 60s old
 const RESTART_BACKOFF_MS_INITIAL = 1000;
 const RESTART_BACKOFF_MS_MAX = 30000;
 
@@ -275,7 +291,7 @@ export function bootSsrRenderHost({
   // while WebSockets continue to flow at TCP layer. 45 s ensures the
   // watchdog only fires on genuine BUG-B (publisher WS truly dropped).
   getPublisherWsAgeMs = null,
-  publisherWsStaleThresholdMs = Number(process.env.SSR_PUBLISHER_WS_STALE_MS ?? 45000),
+  publisherWsStaleThresholdMs = Number(process.env.SSR_PUBLISHER_WS_STALE_MS ?? 180000),
 } = {}) {
   if (!port) throw new Error("bootSsrRenderHost: `port` is required");
 
@@ -575,21 +591,51 @@ export function bootSsrRenderHost({
       // not yet re-connected to the fresh ssr-tab.
       if (!cdpSession || stopRequested) return;
       if (status.state !== "running") return;
-      try {
-        const res = await cdpSession.send("Runtime.evaluate", {
-          expression: "1+1",
-          returnByValue: true,
-        });
-        if (res?.result?.value === 2) {
-          healthFailCount = 0;
-        } else {
+
+      // Phase 33 iter-4 (2026-05-09): publisher-WS heartbeat is the REAL
+      // liveness signal. If the publisher script is sending heartbeats over
+      // its WebSocket, the SSR-tab is responsive at the application level
+      // even if a single CDP Runtime.evaluate happens to be slow (e.g.
+      // because the tab is in the middle of decoding a 22MB GIF — this is
+      // the slime.gif decode burst the user reported as the trigger for
+      // the "RECONNECTING loop"). When the publisher heartbeat is fresh
+      // (<10s ago), trust it and skip the CDP probe entirely. This makes
+      // the watchdog much more tolerant of legitimate load bursts while
+      // still catching the BUG-B failure (publisher WS dropped + CDP
+      // responsive) via the explicit publisherWsAge check below.
+      const _wsAge = typeof getPublisherWsAgeMs === "function"
+        ? getPublisherWsAgeMs() : -1;
+      if (_wsAge >= 0 && _wsAge < PUBLISHER_WS_FRESH_MS) {
+        // Publisher heartbeat fresh → tab is alive at the app layer. Reset
+        // any accumulated CDP-fail count and don't even probe CDP.
+        healthFailCount = 0;
+      } else {
+        // No fresh publisher heartbeat — fall through to CDP probe.
+        // Use Promise.race with explicit 4s timeout so the tick doesn't
+        // hang on puppeteer's default 180s protocolTimeout when the tab
+        // is genuinely unresponsive. Failing fast lets the threshold
+        // (HEALTH_PING_FAIL_THRESHOLD * HEALTH_PING_INTERVAL_MS = 15s)
+        // actually mean what it says.
+        try {
+          const res = await Promise.race([
+            cdpSession.send("Runtime.evaluate", {
+              expression: "1+1", returnByValue: true,
+            }),
+            new Promise((_, rej) => setTimeout(
+              () => rej(new Error("cdp-ping-timeout-4s")), 4000,
+            )),
+          ]);
+          if (res?.result?.value === 2) {
+            healthFailCount = 0;
+          } else {
+            healthFailCount += 1;
+          }
+        } catch (err) {
           healthFailCount += 1;
+          logger.warn(
+            `[ssr-host] health ping failed (${healthFailCount}/${HEALTH_PING_FAIL_THRESHOLD}): ${err.message}`,
+          );
         }
-      } catch (err) {
-        healthFailCount += 1;
-        logger.warn(
-          `[ssr-host] health ping failed (${healthFailCount}/${HEALTH_PING_FAIL_THRESHOLD}): ${err.message}`,
-        );
       }
       if (healthFailCount >= HEALTH_PING_FAIL_THRESHOLD) {
         logger.error(`[ssr-host] health ping threshold breached, relaunching`);

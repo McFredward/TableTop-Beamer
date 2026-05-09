@@ -654,22 +654,14 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
           //
           // Sent AFTER replying so the consumer doesn't wait on PLI roundtrip.
           send({ type: "consumer-resumed", requestId });
-          // Phase 33 iter-4 (2026-05-09): aggressive PLI burst on resume.
-          // Single requestKeyFrame() doesn't reliably produce a keyframe
-          // (Chrome WebRTC stack throttles PLI-driven keyframes after the
-          // first consumer's burst). Sending 10 PLI requests at 500ms
-          // intervals over 5s catches whatever PLI Chrome will honor and
-          // gets the new consumer's H264 decoder primed. Producer also
-          // emits its own periodic keyframes (publisher-side trigger),
-          // but PLI bursts are belt-and-suspenders.
+          // Phase 33 iter-4: single keyframe request after resume — heavier
+          // PLI burst was reverted because it correlated with publisher-tab
+          // freezes (the watchdog kept killing the SSR-tab while it was
+          // busy responding to many PLIs at once + decoding GIFs).
           if (c.kind === "video" && typeof c.requestKeyFrame === "function") {
-            const sendPli = () => c.requestKeyFrame().catch((err) =>
+            c.requestKeyFrame().catch((err) =>
               logger.warn(`[ssr-signal] requestKeyFrame failed: ${err?.message ?? err}`)
             );
-            sendPli();
-            for (let i = 1; i <= 10; i += 1) {
-              setTimeout(sendPli, i * 500).unref?.();
-            }
           }
           return;
         }
