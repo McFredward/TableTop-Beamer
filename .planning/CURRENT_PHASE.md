@@ -1,7 +1,11 @@
 # CURRENT PHASE
 
-- Active: none — Phase 33 (Connection Stability Deep Dive) delivered to UAT
-  (PASS-AUTOMATED-PENDING-PI-HARDWARE) on 2026-05-08.
+- Active: none — Phase 33 (Connection Stability Deep Dive)
+  CLOSED-PASS-WITH-LIVE-FIX on 2026-05-09. Root cause was VAAPI hardware
+  encoder starving the SSR-tab's main thread (Phase 32 introduced VAAPI
+  auto-pick); fixed by default-disabling VAAPI (commit 3cd6748). User
+  confirmed stable connection on 2026-05-09. See 33-CLOSURE.md for full
+  root-cause analysis + iter-cycle history.
 - Status: Phase 33 automated 363 tests / 346 pass / 17 skip / 0 fail +
   80/80 live integration tests + 10/10 manual repro 10× cold-boot script.
   All 14 suspects from 33-STATE-MACHINE.md fixed + regression-tested

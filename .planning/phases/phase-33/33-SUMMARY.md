@@ -3,13 +3,14 @@ phase: 33
 phase_id: 33
 title: Connection Stability Deep Dive
 slug: connection-stability-deep-dive
-status: PASS-AUTOMATED-PENDING-PI-HARDWARE
-status_detail: "automated all goals met (363/346/17/0 default + 80/80 live + 10/10 manual repro). 14/14 suspects fixed + regression-tested. Pi-hardware UAT pending."
+status: CLOSED-PASS-WITH-LIVE-FIX
+status_detail: "Live UAT 2026-05-09 reached PASS after 4 iter-cycles. ROOT CAUSE turned out to be VAAPI hardware encoder starving the SSR-tab's main thread (Phase 32 introduced VAAPI auto-pick). Default-disabling VAAPI restored stable connection. Earlier iter-2..iter-4b fixes (frame-stale threshold, keyframe-burst, capped-retry refactor, heartbeat reset, RPC timeout, watchdog tolerance) were valid hardening but did NOT fix the actual bug — they were chasing symptoms of the VAAPI freeze."
 test_board: nemesis-lockdown-a
 started: 2026-05-08T08:30:00Z
 delivered_to_uat: 2026-05-08T22:00:00Z
-closed: null
-tags: [webrtc, mediasoup, reconnect, stability, livekit-pattern, contract-first, capped-retry, given-up, producer-lifecycle, watchdog, tri-state]
+closed: 2026-05-09T10:00:00Z
+fix_root_cause_commit: 3cd6748
+tags: [webrtc, mediasoup, reconnect, stability, vaapi-disabled, root-cause-found-iter4c]
 
 # Phase plans
 plans:
