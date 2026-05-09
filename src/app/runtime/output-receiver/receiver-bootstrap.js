@@ -475,6 +475,24 @@ export async function bootReceiver({ logger = console } = {}) {
     // backoff reset is gated on this counter reaching 1, NOT on the RTC
     // pcState becoming "connected".
     framesSinceLastReconnect = 0;
+    // Phase 33 iter-4 (2026-05-09): reset heartbeat + frame timestamps
+    // for the new attempt. ROOT CAUSE of "monitor fire: heartbeat-stale
+    // after retry" loops:
+    //   - bootstrap inits lastHeartbeatAtMs = performance.now() at T=0
+    //   - first tryConnect's createWebRtcReceiver() awaits the consume RPC
+    //   - heartbeats arrive on the WS but emit("heartbeat") has no
+    //     subscriber yet (onHeartbeat is registered AFTER the await
+    //     returns, which it doesn't if consume times out)
+    //   - if consume times out at T=10s → tryConnect catch fires → retry
+    //   - 1s later monitor evaluates: now-lastHeartbeatAtMs = 11000ms >
+    //     8000ms → heartbeat-stale fires → another reconnect attempt
+    //   - loop: every retry's monitor instantly fires stale before any
+    //     heartbeat can land
+    // Resetting both timestamps here gives the new attempt a fresh
+    // window to receive a heartbeat / frame before stale-evaluation.
+    const _now = performance.now();
+    lastFrameAtMs = _now;
+    lastHeartbeatAtMs = _now;
     // Phase-31 h25 (2026-05-06): stop any prior receiver before
     // creating a new one. Without this, a failed connect attempt left
     // the previous receiver instance stranded — its WS still claimed a

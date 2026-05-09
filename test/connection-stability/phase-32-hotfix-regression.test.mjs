@@ -121,10 +121,13 @@ test("h11 regression: showCountdownReconnect renders \"Connecting…\" when rema
 test("h12 regression: receiver-webrtc-client.js sets a 10000ms WS open timeout", async () => {
   const url = new URL("../../src/app/runtime/output-receiver/receiver-webrtc-client.js", import.meta.url);
   const src = await readFile(url, "utf8");
-  // The setTimeout literal must be 10000ms; the rejection must include
-  // "ws open timeout" so the catch path can distinguish it.
-  assert.match(src, /setTimeout\([^,]+,\s*10000\)/,
-    "WS-open timeout must be 10000ms (h12)");
+  // The WS-open timeout literal must be 10000ms (immediately followed by
+  // the close-brace + paren ending the setTimeout call). The rejection
+  // must include "ws open timeout" so the catch path can distinguish it.
+  // (The earlier regex `setTimeout([^,]+, 10000)` fails on multi-line
+  // callbacks that contain commas — too strict to verify the literal.)
+  assert.match(src, /\}, ?10000\);/,
+    "WS-open setTimeout must end in `}, 10000);` — the 10000ms literal (h12)");
   assert.match(src, /ws open timeout \(10s\)/,
     "rejection reason text must be 'ws open timeout (10s)' (h12)");
 });

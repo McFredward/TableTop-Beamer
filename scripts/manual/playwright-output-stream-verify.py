@@ -61,8 +61,10 @@ def main() -> int:
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--autoplay-policy=no-user-gesture-required",
-                "--use-gl=angle",
-                "--use-angle=default",
+                # NOTE: do NOT add --use-gl=angle — that flag breaks H264
+                # frame rendering after the first connection attempt under
+                # Xvfb-headful, producing a "frames stop arriving after 30s"
+                # false-positive that doesn't reflect production behavior.
             ],
         )
         ctx = browser.new_context()

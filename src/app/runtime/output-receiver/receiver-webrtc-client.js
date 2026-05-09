@@ -82,6 +82,14 @@ export async function createWebRtcReceiver({
   const pending = new Map();
   let reqIdSeq = 0;
 
+  // Per-action RPC timeout. Server's `consume` action holds for up to 8s
+  // when waiting for the producer (Phase-31 h19) — a 10s ceiling left only
+  // 2s of headroom for network round-trip and mediasoup ICE-candidate
+  // generation, which on slower / loaded servers tipped the receiver into
+  // a "consume timeout" → reconnect loop. 20s gives the server-hold its
+  // full 8s plus comfortable budget for the rest, while still surfacing a
+  // genuine RPC hang within a finite window.
+  const RPC_TIMEOUT_MS = { consume: 20000 };
   function rpc(action, payload = {}) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error(`ws not open for ${action}`));
@@ -92,7 +100,7 @@ export async function createWebRtcReceiver({
       const timer = setTimeout(() => {
         pending.delete(requestId);
         rej(new Error(`${action} timeout`));
-      }, 10000);
+      }, RPC_TIMEOUT_MS[action] ?? 10000);
       pending.set(requestId, { res, rej, timer });
     });
   }

@@ -302,6 +302,41 @@ export function buildInPagePublisherScript({ encoderConfig = null, effectiveStre
     window.__ssrProducerIds = { video: videoProducer.id };
     console.log("[ssr-publisher] producer up:", window.__ssrProducerIds);
 
+    // Phase 33 iter-4 (2026-05-09): periodic encoder-side keyframe trigger.
+    // ROOT CAUSE of "Pi reload / new tab → schwarzes Bild + RECONNECTING":
+    // when consumer #2 subscribes to the same producer (after #1 closed
+    // its transport), mediasoup forwards PLI requests to the publisher's
+    // rtpSender. Observation via instrumented RTCPeerConnection.getStats():
+    //   cycle 1: pliCount=1, keyFramesDecoded=2 (works)
+    //   cycle 2: pliCount=53, keyFramesDecoded=0 (publisher ignores PLI!)
+    // Chrome's WebRTC stack appears to throttle PLI-driven keyframes after
+    // the first consumer's burst is satisfied. Without keyframes, the new
+    // consumer's H264 decoder never starts → 144 RTP packets received but
+    // 0 frames decoded → frame-stale monitor fires → reconnect → loop.
+    //
+    // FIX: every 500ms call rtpSender.requestKeyFrame() if available
+    // (WebRTC Encoded Transform spec). This forces the encoder to emit
+    // a keyframe regardless of PLI status. Cost: ~50KB/s extra (one
+    // keyframe every 0.5s vs delta frames) — negligible at 8Mbps target.
+    try {
+      const sender = videoProducer.rtpSender;
+      if (sender && typeof sender.generateKeyFrame === "function") {
+        setInterval(() => {
+          try { sender.generateKeyFrame(); } catch {}
+        }, 500);
+        console.log("[ssr-publisher] periodic keyframe trigger active (sender.generateKeyFrame, 500ms)");
+      } else if (sender && typeof sender.requestKeyFrame === "function") {
+        setInterval(() => {
+          try { sender.requestKeyFrame(); } catch {}
+        }, 500);
+        console.log("[ssr-publisher] periodic keyframe trigger active (sender.requestKeyFrame, 500ms)");
+      } else {
+        console.warn("[ssr-publisher] no keyframe API on rtpSender — relying on Chrome default keyframe interval");
+      }
+    } catch (e) {
+      console.warn("[ssr-publisher] periodic keyframe setup failed:", e?.message ?? e);
+    }
+
     // h17: SSR-side stats reporter. Replaces h8's single-fps message
     // with a richer { type: "ssr-stats", stats: {...} } envelope so
     // the consumer's diagnostic overlay can show render method,
