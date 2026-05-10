@@ -386,6 +386,62 @@ const {
   bindDevicePixelRatioWatcher,
 } = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
 
+// ── Phase 36 D-07 — ctx-trace harness (gated by ?ctx-trace=1 URL flag) ──
+// When enabled, wraps the dep-bags passed to MAPPING.init and
+// POLYGON_EDITOR.init with a Proxy that logs every property access (top-level
+// AND nested ctx.state.* sub-keys via recursive Proxy) to
+// window._ctxTraceAccessed. Operator runs the dashboard UAT (15 align-mode
+// interactions per RESEARCH §1.4) then dumps via window._ctxTraceDump() to
+// validate the AST-based inventory. Dev-mode only — when the flag is absent
+// _wrapCtxForTrace returns the original ctx reference (zero overhead, zero
+// behavior change).
+const _ctxTraceEnabled = (typeof location !== "undefined")
+  && /[?&]ctx-trace=1\b/.test(location.search || "");
+if (_ctxTraceEnabled) {
+  window._ctxTraceAccessed = new Set();
+  window._ctxTraceDump = () => Array.from(window._ctxTraceAccessed).sort();
+  console.log("[ctx-trace] enabled — exercise align-mode then call window._ctxTraceDump()");
+}
+
+function _wrapStateForTrace(state, label, accessed) {
+  return new Proxy(state, {
+    get(target, key) {
+      if (typeof key === "string") accessed.add(`${label}.${key}`);
+      const v = target[key];
+      if (v && typeof v === "object" && !Array.isArray(v)
+          && (typeof HTMLElement === "undefined" || !(v instanceof HTMLElement))) {
+        return _wrapStateForTrace(v, `${label}.${key}`, accessed);
+      }
+      return v;
+    },
+    set(target, key, val) {
+      if (typeof key === "string") accessed.add(`${label}.${key}=`);
+      target[key] = val;
+      return true;
+    },
+  });
+}
+
+function _wrapCtxForTrace(ctx, label) {
+  if (!_ctxTraceEnabled) return ctx;
+  const accessed = window._ctxTraceAccessed;
+  return new Proxy(ctx, {
+    get(target, key) {
+      if (typeof key === "string") accessed.add(`${label}.${key}`);
+      const v = target[key];
+      if (key === "state" && v && typeof v === "object") {
+        return _wrapStateForTrace(v, `${label}.state`, accessed);
+      }
+      return v;
+    },
+    set(target, key, val) {
+      if (typeof key === "string") accessed.add(`${label}.${key}=`);
+      target[key] = val;
+      return true;
+    },
+  });
+}
+
 // Phase 35 D-01 (Track A): the projection-mapping init is the SAME init
 // that bootAlignMode (output-align-mode.js) drives on the /output/ thin
 // path. Single source of truth: bootAlignMode is exposed on window via
@@ -409,7 +465,11 @@ const {
 // thin args. Single-module / single-source-of-truth is preserved at
 // the bootAlignMode level even though the dashboard does not call it
 // directly.
-window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
+// Phase 36 A1 D-07: when ?ctx-trace=1, wrap the dep-bag with a Proxy that
+// logs every access. When absent, _wrapCtxForTrace returns the original
+// reference (zero overhead). The CALL STRUCTURE is preserved verbatim;
+// only the argument is wrapped.
+window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init(_wrapCtxForTrace({
   stage,
   outputRole,
   OUTPUT_ROLE_FINAL,
@@ -434,7 +494,7 @@ window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
       saveGlobalDefaultsToServer().catch(() => {});
     } catch { /* best-effort — saveGlobalDefaultsToServer may not be ready yet */ }
   },
-});
+}, "mapping.ctx"));
 const {
   applyTransform: applyProjectionTransform,
   showHandles: showProjectionHandles,
@@ -1887,7 +1947,10 @@ const {
 // the single function-level source of truth; this inline call is the
 // dashboard's battle-tested wiring preserved per CONTEXT.md A4
 // ("pure-extract is additive, dashboard is unaffected").
-window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
+//
+// Phase 36 A1 D-07: when ?ctx-trace=1, wrap with the recursive Proxy harness.
+// CALL STRUCTURE preserved verbatim — only the argument is wrapped.
+window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init(_wrapCtxForTrace({
   state,
   roomOverlay,
   triggerFeedback,
@@ -1948,7 +2011,7 @@ window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
       setShipPolygonPoints(boardId, getSelectedPlayArea(boardId)?.polygon || polygon);
     }
   },
-});
+}, "polygon.ctx"));
 const {
   getNormalizedOverlayPoint,
   beginShipPolygonVertexDrag,
