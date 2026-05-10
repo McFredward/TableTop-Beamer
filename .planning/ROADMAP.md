@@ -753,7 +753,7 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-B output-live-sync.js (proven thin subscription)
 
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 - [x] 36-W0-PLAN.md — RED test rails (T1-T10 Live-E2E + dashboard parity + bootHandleUi shape unit + server.mjs dirty-flag stdout log) — COMPLETE 2026-05-10 (commits fd0078e, a6e2529, 3a0c99a; SUMMARY: 36-W0-SUMMARY.md; closure gates ALL pass)
@@ -761,7 +761,7 @@ Plans:
 - [x] 36-A2-PLAN.md — Loader integration (bootHandleUi wiring with FULL §1.5 inventory dep-bag + idempotent JS-time stage/room-overlay DOM append + Q1 alignModeDirtyEndpoint LOCKED) + D-02 (a) inversion (overlay pointer-events:none permanent in receiver-bootstrap.js) + Phase 35-A CSS `pointer-events:none !important` rule REMOVED — COMPLETE 2026-05-10 (commits 584ae6e, d451e1e; SUMMARY: 36-A2-SUMMARY.md; D-08 fail=0 preserved; D-09 script-tag count unchanged at 1; output.html UNCHANGED; bootHandleUi reachable from /output/ via lazy-loader; M3 unblocked)
 - [x] 36-M3-PLAN.md — Wire T1 (sizing) + T2 (corner pulls) + T10 (no dual-path conflict). M3-LATE: dashboard runtime-orchestration migration to bootHandleUi
 - [x] 36-M4-PLAN.md — Wire T3 (vertex drag) + T4 (midpoint drag) + T5 (rotation handle)
-- [ ] 36-M5-PLAN.md — Wire T6 (image-pan) + T7 (right-click menu) + T8 (CTRL+Z undo) + T9 (dirty-flag); Q3 LOCK (immediate broadcast on add/remove line) + Q5 LOCK (1000-entry undo cap)
+- [x] 36-M5-PLAN.md — Wire T6 (image-pan) + T7 (right-click menu) + T8 (CTRL+Z undo) + T9 (dirty-flag); Q3 LOCK (immediate broadcast on add/remove line) + Q5 LOCK (1000-entry undo cap)
 - [ ] 36-V-PLAN.md — Verification: 36-VERIFICATION.md + 36-HUMAN-UAT.md (Pi UAT deferred per D-10)
 
 ## Phase 37 - Transformation Banding Fix (DEFERRED)
