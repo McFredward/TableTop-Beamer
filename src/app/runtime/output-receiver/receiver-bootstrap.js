@@ -1024,18 +1024,34 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     // space (object-fit: cover crops on aspect mismatch — without this,
     // a click at the BOARD's TL in the stream sent the wrong coords).
     getVideoEl: () => videoEl,
-    // Phase 35-iter2 h4-h7: the old align-corner-drag broadcast path is
-    // disabled. /output/ now forwards RAW pointer + keyboard events as
-    // `align-input-event` mutations via output-input-forwarder.js, and
-    // the SSR Chromium tab dispatches synthetic events on its own DOM —
-    // covering all handle types (corner / vertex / midpoint / rotation /
-    // image-pan / right-click context menu / CTRL+Z) without per-handle
-    // server-side mutation types. Returning null here keeps this older
-    // forwarder's listeners attached but inert (each onPointerDown
-    // early-returns when vid == null), which preserves the diagnostic
-    // logs in receiver-input-forwarder.js for cold-boot trace without
-    // emitting duplicate align-corner-drag mutations.
-    hitTestVertex: () => null,
+    // Phase 35-iter2 h8: hitTestVertex restored to delegate to
+    // bootAlignMode's HANDLE_UI hit-test (matches the original Phase 35-A
+    // intent). The h4-h7 input-forwarding detour was reverted — the SSR
+    // tab does NOT render handles (handle-ui line 1638 gates the SSR
+    // tab off the showHandles path), so dispatching synthetic events
+    // there had no effect. Pi /output/ owns the full align-mode UI:
+    // bootAlignMode renders the handles locally + handle-drag.js
+    // broadcasts align-grid-snapshot to keep the SSR-tab's warp grid
+    // in sync with Pi gestures. This delegates per-pointer hit-tests
+    // to the locally-rendered handles, falling back to null if
+    // __ttbAlignMode is not yet initialized (cold-boot race).
+    hitTestVertex: ({ x, y }) => {
+      try {
+        const align = window.__ttbAlignMode;
+        if (align && typeof align.hitTestVertex === "function") {
+          const r = overlayEl?.getBoundingClientRect?.();
+          if (r) {
+            const cx = r.left + x * r.width;
+            const cy = r.top + y * r.height;
+            const id = align.hitTestVertex(cx, cy);
+            return id;
+          }
+        }
+      } catch (_) {
+        // bootAlignMode lookup or call failed — fall through to null.
+      }
+      return null;
+    },
     logger,
   });
 

@@ -1130,17 +1130,6 @@
        draw time. Module scripts are deferred-by-default so the global is
        set well before the first render-loop tick fires. -->
   <script type="module" src="/src/app/runtime/render/runtime-effect-dither.js"></script>
-  <!-- Phase 35-iter2 h5: SSR-tab input replay receiver. Active only when
-       document.body.dataset.ssrTab === "true" (set in head script via the
-       Phase 34 D-04 marker). Listens for align-input-event mutations
-       broadcast from Pi /output/ via /api/live/ws and dispatches
-       synthetic pointer/keyboard events on document so the existing
-       handle-ui / polygon-editor handlers process them as if local.
-       Module script — runs after parse, marker is already set. -->
-  <script type="module">
-    import { bootSsrInputReplay } from "/src/app/runtime/output-receiver/ssr-input-replay.js";
-    bootSsrInputReplay({ logger: console });
-  </script>
   <script src="/src/app/runtime/render/runtime-effect-visuals.js" defer></script>
   <script src="/src/app/runtime/panels/runtime-regression-tests.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-state.js" defer></script>
