@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase 35
-last_updated: "2026-05-10T11:32:00.000Z"
+last_updated: "2026-05-10T11:49:50.542Z"
 progress:
   total_phases: 34
   completed_phases: 10
   total_plans: 55
-  completed_plans: 146
+  completed_plans: 148
   percent: 100
 ---
 
@@ -1589,3 +1589,25 @@ progress:
 - `@flaky_3x` decorator wraps the test body, not the fixture setup. Rationale: a flake during fixture setup (e.g., browser launch) is more critical than a flake in the assertion phase — wrapping at the test level lets fixture failures surface as hard failures, while assertion-phase flakes get the 3× retry safety net.
 - RED rails use `ERR_MODULE_NOT_FOUND` as the failure mode (not `pytest.skip` or `it.skip`) — these are LITERAL test failures so CI cannot accidentally pass before Tracks A/B/C land. Once the production modules exist, the dynamic-import succeeds and the export-shape assertions take over as the GREEN-state gate.
 - Module-level Chrome-availability skip in `conftest.py` — the live-E2E rail is environment-gated (D-05 hardware spec specifies `/opt/google/chrome/chrome`). Machines without it skip the whole module rather than failing loudly. The Lenovo Mini test rig has Chrome installed; CI without Chrome cleanly skips.
+
+## Phase 35 Plan B Closure (2026-05-10)
+
+- Plan 35-B (Track B — Live-Sync Minimal Subset Extract per D-02) is COMPLETE. Four atomic commits: `4124749` (Task 1 — `feat(35-B): add output-live-sync.js`, NEW 211-LOC thin live-sync subscriber modeled on output-audio-binder.js's WS reconnect pattern; NOT extracted from runtime-live-sync-core.js per RESEARCH §B.1; exports `bootOutputLiveSync({logger, role, url})` returning the 13-method subscription = 7 callback registrars + 3 getters + stop); `5c3c39f` (Task 2 — `refactor(35-B): output-audio-binder.js consumes bootOutputLiveSync`, drops own WS plumbing, file goes 160 → 118 LOC, -42 net; subscribes to `onAnimationStart` / `onAnimationStop` / `onClearAll`); `89f7845` (Task 3 — `refactor(35-B): receiver-bootstrap + output.html consume shared liveSync`, inline 1Hz `/api/live/snapshot` poll loop replaced with `onAlignModeChange` + `onProjectionProfileChange` subscriptions when liveSync provided; `attachInputForwarder` reads `liveSync.getAlignMode()` + `liveSync.getActiveProjectionProfileId()`; output.html boots single shared `window.__ttbLiveSync` first then threads it through `bootReceiver` + `bootOutputAudioBinder` so the page opens ONE WS instead of two); `76b8e1e` (Task 4 — `chore(35-B): verification`, D-05 a-d PASS, D-06 PASS, deferred-items log for the pre-existing W0 dashboard test bug).
+- D-02-B1 + D-02-B2 RED → GREEN: `node --test test/phase-35-output-live-sync.test.mjs` reports 3/3 pass after Task 2.
+- D-06 hard-gate UNCHANGED: `RUN_LIVE_TESTS=1 node --test 'test/connection-stability/*.test.mjs'` reports `tests=85 pass=84 fail=0 skipped=1` (master baseline preserved exactly; Track B's receiver-bootstrap.js refactor did not regress anything).
+- D-05 a-d on /output/ PASS: `python3 -m pytest test/live-e2e/test_phase35_alignmode_smoke.py -k "ready_state or current_time or bg_color or server_log_clean"` → 4/4 passed in 58.43s. /output/ thin path still delivers H264 video; refactor preserved behaviour exactly.
+- Full JS suite: 393 tests, 370 pass, 6 fail, 17 skipped — the 6 failures are the documented Track A (D-01-A1, 2 tests) + Track C (D-03-C1, 4 tests) RED rails that turn GREEN when 35-A and 35-C land. Track B's own RED rail flipped to GREEN.
+- Out-of-scope discovery: the W0 dashboard regression test (`test_phase35_dashboard_alignmode.py`) POSTs to `/api/live/mutate`, a route that does not exist on `server.mjs` (real routes are `/api/live/command` POST + `/api/live/snapshot` GET). Verified pre-existing by reverting to `0154b96` — same 405 failure on pre-Track-B code. Logged in `.planning/phases/phase-35/deferred-items.md` for resolution in a follow-up plan; does NOT block Track B closure.
+- Closure-Dokument: `.planning/phases/phase-35/35-B-SUMMARY.md` (full per-task accounting, 1 documentation deviation (D-06 baseline numbers), 1 out-of-scope deferred item (W0 dashboard test endpoint mismatch), all must_haves and success_criteria met).
+- Track A (35-A-PLAN) is now UNBLOCKED. The shared `window.__ttbLiveSync` instance with the 13-method subscription contract is exposed on `output.html` and ready for `bootAlignMode` to consume `onAlignModeChange` + `onProjectionProfileChange` for handle-visibility gating.
+
+## Decisions Phase 35-B
+
+- NEW thin module instead of extraction (D-02 implementation choice): per RESEARCH §B.1, runtime-live-sync-core.js is entangled with ~30 dashboard ctx callbacks (playSoundForAnimation, persistGridState, applyTransform, ...). Pulling the subscription primitive out cleanly would require breaking those closures — multi-day refactor with high regression risk against every dashboard feature. Instead, model a small focused subscriber on output-audio-binder.js's proven Phase-34 WS reconnect pattern. Result: 211 LOC focused module, zero dashboard regression risk, identical envelope-parsing semantics.
+- 13-method subscription contract LOCKED verbatim from RESEARCH §B.2: 7 callback registrars (`onAnimationStart`, `onAnimationStop`, `onClearAll`, `onAlignModeChange`, `onProjectionProfileChange`, `onConnect`, `onDisconnect` — each takes a handler, returns an unsubscribe function) + 3 getters (`getAlignMode`, `getActiveProjectionProfileId`, `getCurrentClientId`) + 1 teardown (`stop`). Track A's `bootAlignMode` will consume the SAME shape.
+- Single shared subscription per page via `window.__ttbLiveSync` global. Pattern matches existing `window.TT_BEAMER_*` convention. Output.html boot order: live-sync → receiver → audio-binder. Page opens ONE WS to `/api/live/ws?role=final-output` instead of two (avoids server-side fanout duplication and reduces reconnect-storm surface).
+- Backwards-compatible signatures: both `bootReceiver({liveSync})` and `bootOutputAudioBinder({liveSync})` accept the subscription as an OPTIONAL arg. When omitted, legacy fallback poll preserves pre-Phase-35 behaviour (no breaking change to existing test fixtures or scripts).
+- Wave-4 4-corner hit-test PRESERVED in receiver-bootstrap.js. Track A's `bootAlignMode` replaces it later. Track B is strictly the live-sync extraction; the alignMode UI is Track A scope.
+- Cold-start fallback retained in output-live-sync.js: 1Hz GET `/api/live/snapshot` until WS `live-hello` arrives. The HTTP poll covers the gap between page load and WS-handshake-complete; once WS is live, the snapshot reconcile is idempotent (no-op on unchanged values via the `pid !== profileId` and `snap.alignMode !== alignMode` guards).
+- Receiver-bootstrap.js inline poll is REMOVED in the liveSync branch only — when liveSync omitted, the legacy poll still runs. This preserves D-06 connection-stability for any test harness that bootstraps the receiver without the new wiring (the connection-stability suite uses headless harnesses that don't load output.html).
+
