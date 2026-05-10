@@ -4134,6 +4134,10 @@ const server = createServer(async (req, res) => {
       }
       _alignModeDirtyLastAcceptedMs = nowMs;
       const dirty = parsed.dirty;
+      // Phase 36 W0 (T9): observable stdout marker for the live-E2E rail.
+      // The prefix `[align-mode-dirty] received dirty=` is grep-asserted by
+      // test_phase36_align_handles.py::test_t9_dirty_flag_visible_on_dashboard.
+      console.log(`[align-mode-dirty] received dirty=${Boolean(dirty)} from=http-post`);
       // Heartbeat semantics (D-06): if a still-dirty POST arrives during the grace window,
       // reset the timer so the flag stays set as long as /output/ keeps reporting dirty.
       if (dirty && _alignModeDirtyGraceTimer) {
