@@ -493,16 +493,27 @@ export function bootSsrRenderHost({
       "InterestFeedV2",
       "AutofillServerCommunication",
     ];
-    // Phase 33 iter-4c (2026-05-09): VAAPI hardware encoder can starve
-    // the SSR-tab's main thread on some hardware (observed on user's
-    // gaming PC with Intel iGPU: CDP probes timed out for 60s+ once a
-    // consumer connected and VAAPI encoder ran hot). Default-disable
-    // VAAPI by env flag; set SSR_ENABLE_VAAPI=1 to re-enable.
-    const hasIgpu =
-      process.env.SSR_ENABLE_VAAPI === "1" &&
-      (existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129"));
+    // Phase 34 D-01 (Track A): decouple iGPU-device presence (relevant for
+    // GL-helpful Chrome flags) from VAAPI opt-in (relevant for
+    // VaapiVideoEncoder feature). Pre-Phase-34 the two were gated by a
+    // single `hasIgpu` constant that required SSR_ENABLE_VAAPI=1 — which
+    // meant the GL-helpful flags --ignore-gpu-blocklist and
+    // --enable-gpu-rasterization were NEVER added in the default
+    // (VAAPI-disabled) configuration, even when an iGPU was physically
+    // present. Result: ANGLE fell through to llvmpipe/SwiftShader, the
+    // mesh-warp WebGL context was unstable, the runtime fell back to 2D
+    // canvas, and the user saw banding in solid-color animations.
+    //
+    // Phase 33 iter-4c (commit 3cd6748) carry-forward: VAAPI is still
+    // default-DISABLED (D-06 hard lock). VAAPI re-enable is opt-in via
+    // SSR_ENABLE_VAAPI=1 — UNCHANGED.
+    const hasIgpuDev =
+      existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129");
+    const hasVaapiEnabled =
+      process.env.SSR_ENABLE_VAAPI === "1" && hasIgpuDev;
     const enabledFeatures = [
-      ...(hasIgpu ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
+      // VAAPI features ONLY when explicitly enabled (D-06 lock).
+      ...(hasVaapiEnabled ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
       ...(status.encoderConfig?.encoder === "nvenc" ? ["H264HardwareEncode"] : []),
       ...(status.encoderConfig?.encoder === "videotoolbox" ? ["PlatformHEVCEncoderSupport"] : []),
       // h18: tab-capture fast-path lifts the implicit 30 fps cap on
@@ -595,8 +606,15 @@ export function bootSsrRenderHost({
         `--disable-features=${disabledFeatures.join(",")}`,
         // ONE merged --enable-features arg, only emit if non-empty.
         ...(enabledFeatures.length > 0 ? [`--enable-features=${enabledFeatures.join(",")}`] : []),
-        // h5: companion flags only meaningful when the iGPU is present.
-        ...(hasIgpu ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
+        // Phase 34 D-01: GL-helpful flags gated on hasIgpuDev (not on
+        // hasVaapiEnabled). These are needed for ANGLE to reach the
+        // iGPU even when VAAPI is default-disabled — they let
+        // Chrome's GPU process trust the Mesa driver under Xvfb.
+        // Without them, Chrome's blocklist excludes Mesa-llvmpipe
+        // hardware paths and ANGLE falls back to SwiftShader software
+        // rendering, which is what triggers WebGL context losses
+        // and the Phase 30 B2 h10 2D-fallback.
+        ...(hasIgpuDev ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
         `--display=${display}`,
       ],
       env: { ...process.env, DISPLAY: display },
