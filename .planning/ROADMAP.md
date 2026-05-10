@@ -605,11 +605,11 @@ Plans:
 - [x] 34-A-PLAN.md — Track A: GL flag fix (decouple hasIgpuDev from hasVaapiEnabled), 2D-fallback ban on `/ssr` only (D-02), force `state.renderMode = "gl"` on `/ssr`, ssr-stats renderMode telemetry log line
 - [x] 34-V-PLAN.md — Verification + closure: 34-VERIFICATION.md, 34-HUMAN-UAT.md, 34-CLOSURE.md; D-06 final gate (connection-stability 80/0)
 
-## Phase 35 - Thin /output/ Refactor + Align-Mode Decoupling + Banding Fix (PLANNING)
+## Phase 35 - Thin /output/ Refactor + Align-Mode Decoupling + Banding Fix (PASS-AUTOMATED-PENDING-OPERATOR-UAT)
 
 Ziel: Phase 34 hat das URL-split-Konzept richtig durchgezogen, aber zwei Defizite hinterlassen die Phase 35 schließt. (1) Der `runtime-projection-handle-ui.js` + `runtime-projection-handle-drag.js` + dependencies sind tief in die runtime-orchestration init-chain verwebt mit injected refs (grid-state, applyTransform, profileSaveFlow, ctx, etc.) — sie sind nicht standalone ladbar in der thin `output.html`. Resultat: Pi-/output/ zeigt zwar den H264-Stream, hat aber kein align-mode UI mehr. (2) Die Solid-color banding in 2D-canvas-fallback wurde in Phase 34 untersucht und als source-side bestätigt (encoder-bitrate-bump zeigte identische output bei 2M und 32M); die Hypothese "GL-flags entkoppeln" hat den Phase-33-class main-thread-hang reproduziert und wurde reverted. Phase 35 macht den eigentlichen refactor + sucht einen banding-fix der die Connection-Stability nicht verletzt.
 
-Status: PLANNING.
+Status: PASS-AUTOMATED-PENDING-OPERATOR-UAT (closes 2026-05-10; all 5 plans complete; D-06 fail=0 invariant upheld at 85/84/0/1; visual UAT-1/UAT-2 deferred to gaming-PC operator session per 35-HUMAN-UAT.md; D-08 Pi UAT items deferred per CONTEXT.md). Tag: `phase-35-end-pending-uat`. See `.planning/phases/phase-35/35-CLOSURE.md`.
 
 Scope (drei Tracks):
 
@@ -662,11 +662,11 @@ Carrying Forward (LOCKED, do not re-open):
 - Pi-local audio (D-D2 reversal)
 - streamFpsCap + alignModeBoost settings
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 35-W0-PLAN.md — Wave 0 BLOCKING rails: scripts/with_server.py + test/live-e2e/ (D-05 a-f) + 3 RED unit tests + CI integration (D-04, D-05, D-06) — CLOSED 2026-05-10 (commits e973d11, c5cd049, ccbf136, 2bb64f6, 0f59f85, f0588c7); D-06 hard-gate verified `pass=84 fail=0 skipped=1` on `test/connection-stability/*.test.mjs`; SUMMARY in 35-W0-SUMMARY.md
 - [x] 35-B-PLAN.md — Track B live-sync minimal subset: bootOutputLiveSync + refactor output-audio-binder + receiver-bootstrap (D-02, D-06)
 - [x] 35-A-PLAN.md — Track A pure-extract align-mode decoupling: bootAlignMode + 11 IIFE script-tag wiring in output.html + remove Wave-4 4-corner approximation (D-01, D-02, D-06)
 - [x] 35-C-PLAN.md — Track C banding fix: Bayer 4×4 dither in runtime-effect-visuals.js solid-color path; conditional C2 SwiftShader escalation (D-03, D-04, D-06)
-- [ ] 35-V-PLAN.md — Verification + closure: 35-VERIFICATION.md, 35-HUMAN-UAT.md, 35-CLOSURE.md; D-06 final gate; operator UAT (all 8 D-decisions)
+- [x] 35-V-PLAN.md — Verification + closure: 35-VERIFICATION.md, 35-HUMAN-UAT.md, 35-CLOSURE.md; D-06 final gate; operator UAT (all 8 D-decisions)
