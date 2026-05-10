@@ -1,0 +1,151 @@
+---
+phase: 35
+slug: thin-output-refactor-align-banding
+status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES
+closed: 2026-05-10
+supersedes: 35-CLOSURE.md (status: PASS-AUTOMATED-PENDING-OPERATOR-UAT — premature)
+---
+
+# Phase 35 — Closure ITER2 Addendum
+
+## TL;DR
+
+The 2026-05-10 operator UAT against the auto-advanced Phase 35 close exposed
+three real regressions that all eight automated gates and the autonomous
+visual smoketest had missed:
+
+1. **Connection: long unstable phase before stable WebRTC.** The original
+   Phase 35-A landed all 11 align-mode IIFE script tags on every `/output/`
+   page-load via `<script defer>`. ~3700 LOC parsed in parallel with WebRTC
+   ICE negotiation, blocking the main thread long enough that ICE candidates
+   timed out. After several reconnect cycles the page eventually settled
+   into a stable connection.
+
+2. **Rooms render as default rectangles instead of operator-drawn polygons.**
+   The bootAlignMode wiring used `noopReturnEmptyArr` stubs for the
+   polygon-editor's `getBoard` / `getRoomPolygonPoints` / `getRoomPoints` /
+   `getShipPolygonPoints` ctx fields. Even when align-mode activated, the
+   polygon-editor saw empty data and fell back to default rectangles. The
+   plan called these "no-op stubs" but the audit was wrong: these methods
+   ARE exercised by `renderRoomOverlay` on `/output/` (the read-only path
+   needs the data, not just the writers).
+
+3. **Banding is back, this time from the projection-transform path.** Phase 35
+   Track C dithered solid-color overlay rendering at
+   `runtime-effect-visuals.js:280-284`. The banding the operator now sees
+   originates from a DIFFERENT code path: the `runtime-projection-2d-fallback-renderer.js`
+   warp output (Phase 32-class issue, fixed at the time by `--ignore-gpu-blocklist`
+   + `--enable-gpu-rasterization` GL flags that Phase 34 hotfix h2 reverted
+   because Mesa-llvmpipe under Xvfb hangs on synchronous GL flush). This is
+   not the same banding Phase 35 fixed.
+
+This addendum supersedes `35-CLOSURE.md`'s `PASS-AUTOMATED-PENDING-OPERATOR-UAT`
+verdict. Phase 35 status is now **CLOSED-PARTIAL-WITH-ITER2-HOTFIXES**.
+
+## Hotfixes h1 + h2 (commit `bfddee2`)
+
+### h1 — Lazy-load align-mode bundle
+
+`output.html` reduced from 17 to 6 script tags. Only the new
+`output-align-mode-loader.js` module loads at page-init. It:
+
+- Subscribes to `liveSync.onAlignModeChange`
+- On `true`: dynamic-loads the 12-script bundle (added
+  `runtime-room-geometry.js` so `getRoomPoints` helper is available),
+  fetches `/api/boards` + `/api/live/snapshot`, builds REAL boardAccess
+  methods, calls `bootAlignMode`, then explicitly triggers
+  `POLYGON_EDITOR.renderRoomOverlay()`
+- 2-second post-load background prefetch warms the bundle cache so
+  first activation is cache-hit-fast (~0ms)
+- Falls back to `runtimeBoards[0].id` when snapshot lacks `selectedBoard`
+
+Module: `src/app/runtime/output-receiver/output-align-mode-loader.js` (NEW, 322 LOC)
+
+### h2 — Real polygon data wiring
+
+Within the loader's `buildBoardAccess`:
+- `getBoard(boardId)` → `runtimeBoards.find(b => b.id === ...)`
+- `getBoards()` → `runtimeBoards`
+- `getRoomPolygonPoints(boardId, roomId)` → reads `room.polygon` / `room.points`
+- `getShipPolygonPoints(boardId)` → reads `board.shipPolygonPoints`
+- `getRoomPoints(room, boardId)` → delegates to the
+  `runtime-room-geometry.js` IIFE if loaded; falls back to
+  `polygon.map(([x,y]) => [x*1000, y*1000])` (correct for the SVG
+  viewBox 1000×1000 coordinate space)
+- `getPlayAreas`, `getRoomLabelPosition`, etc. — backed by the same
+  catalog reads
+- Setters (`setRoomPolygonPoints`, `setShipPolygonPoints`) stay no-op
+  because `/output/` is read-only
+
+Cache invalidates on `liveSync.onProjectionProfileChange`, which also
+re-fetches `/api/live/snapshot` for `selectedBoard` updates and
+re-activates if align-mode is currently on.
+
+## Verification
+
+Live-tested via Playwright + system Chrome (`/opt/google/chrome/chrome`)
+under Xvfb against a freshly-spawned `node server.mjs`:
+
+| Test | Before | After |
+|------|--------|-------|
+| DOMContentLoaded time | variable freeze | **0.04s** |
+| videoReadyState=4 | variable, post-freeze | **0.26s** |
+| Initial src-based scripts | 13+ | **2** |
+| Align-mode IIFEs prefetched after 2s | n/a (eager) | **12** |
+| `#room-overlay` polygons after alignMode toggle | 0 (rectangles only) | **66** |
+| Non-rectangular polygons (4-60 vertices) | 0 | **65** |
+
+Screenshot evidence: `.planning/phases/phase-35/35-iter2-polygons-rendering-evidence.png`
+shows operator-drawn polygons rendering correctly.
+
+JS unit suite: 9/9 PASS (Phase 35 RED→GREEN rails unchanged).
+D-06 connection-stability hard gate: 84 pass / 0 fail / 1 skip — `fail=0`
+invariant preserved.
+
+## What is NOT fixed (carries to Phase 36)
+
+**Bug 3 — Transformation banding.** Per user direction this is a separate
+phase. The fix path will need to address one of:
+- Get hardware GL working on the operator's gaming-PC (different from the
+  test Mesa-llvmpipe constraint that blocks `--ignore-gpu-blocklist`)
+- Alternative software GL backend with 16-bit-fp internal precision (the
+  C2 deferred path: `--use-gl=angle --use-angle=swiftshader`)
+- Higher-precision render-to-texture in the warp shader itself
+
+Phase 36 is opened in ROADMAP.md as a planning entry. CONTEXT.md will
+inherit Phase 35's three carry-forward locks plus the new
+"Phase 35-iter2 h1 lazy-load pattern stays" lock.
+
+## What I got wrong (Phase 35 lessons reinforced)
+
+1. **The lazy-load idea was in the plan but the executor took the
+   easy path.** The Phase 35-A plan said "bootAlignMode integration in
+   output.html" but did not specify "lazy-load only when alignMode=true".
+   The executor read the loosest interpretation: `<script defer>` for
+   every IIFE. The plan-checker did not catch this because no automated
+   test asserted the script-tag count. Phase 36 plan should have a
+   BLOCKING task: "output.html stays at ≤8 src-based script tags
+   throughout this phase" with a grep-verifiable assertion.
+
+2. **The polygon-data stubs failed the same audit Phase 35-A claimed
+   to pass.** RESEARCH §A.1 said "~40 of 60 ctx fields can be safe
+   no-op stubs" — but `getRoomPolygonPoints` was NOT one of those 40.
+   The audit was based on grep-counting which fields are called from
+   drag handlers (write path), not which are called from
+   `renderRoomOverlay` (read path). The audit should have been
+   bidirectional.
+
+3. **The autonomous visual smoketest verified solid-color overlay
+   dithering but NOT polygon rendering.** The 41-distinct-values
+   metric proved Bayer 4×4 was breaking step-bands in the solid-color
+   path. It said NOTHING about whether `#room-overlay` had polygons.
+   The next iteration's smoketest must include both:
+   - Polygon-count assertion (≥1 non-rectangular polygon)
+   - Connection-time assertion (DCL ≤ 2.5s, video ready ≤ 5s)
+
+## Tag
+
+Recommendation: retag `phase-35-end-pending-uat` →
+`phase-35-end-iter2`. When operator confirms Bug 1 + Bug 2 are gone
+on gaming-PC AND Bug 3 visual UAT is acknowledged as deferred-to-36,
+retag `phase-35-end`.

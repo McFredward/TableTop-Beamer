@@ -670,3 +670,69 @@ Plans:
 - [x] 35-A-PLAN.md — Track A pure-extract align-mode decoupling: bootAlignMode + 11 IIFE script-tag wiring in output.html + remove Wave-4 4-corner approximation (D-01, D-02, D-06)
 - [x] 35-C-PLAN.md — Track C banding fix: Bayer 4×4 dither in runtime-effect-visuals.js solid-color path; conditional C2 SwiftShader escalation (D-03, D-04, D-06)
 - [x] 35-V-PLAN.md — Verification + closure: 35-VERIFICATION.md, 35-HUMAN-UAT.md, 35-CLOSURE.md; D-06 final gate; operator UAT (all 8 D-decisions)
+
+Phase 35 iter2 (post-UAT hotfixes, commit `bfddee2`):
+- h1: lazy-load align-mode bundle on /output/ (output-align-mode-loader.js, NEW). Initial scripts cut from 17 to 6; bundle prefetches 2s post-load; activates only when liveSync.onAlignModeChange fires true. Fixes the long-unstable-WebRTC-connection-then-stable pattern operator reported.
+- h2: real polygon data wiring backed by /api/boards reads. Replaces the Phase 35-A no-op stubs (getRoomPolygonPoints / getRoomPoints / getBoard / getShipPolygonPoints) that made rooms render as default rectangles instead of operator-drawn polygons.
+- Verified live: DCL 0.04s, video 0.26s, 66 polygons rendered (65 non-rectangular), D-06 fail=0 preserved.
+- Phase 35 status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES (supersedes premature PASS-AUTOMATED-PENDING-OPERATOR-UAT).
+- Closure addendum: 35-CLOSURE-ITER2-ADDENDUM.md.
+
+## Phase 36 - Transformation Banding Fix (PLANNING)
+
+Ziel: Die Streifen aus dem projection-transform path eliminieren, die beim 2D-fallback warp-output entstehen — nicht der solid-color-overlay-banding den Phase 35 mit Bayer dither gefixt hat. Das ist die Phase-32-class banding die der User mehrfach beschrieben hat ("die bekannten Streifen die durch GL gefixed wurden"). Phase 32 hatte das durch `--ignore-gpu-blocklist + --enable-gpu-rasterization` GL-flags gelöst, Phase 34 hotfix h2 hat diese flags reverted weil Mesa-llvmpipe synchron-flush gehängt hat. Phase 36 muss einen alternativen Pfad finden der die Connection-Stability nicht verletzt.
+
+Status: PLANNING.
+
+Trigger: 2026-05-10 operator UAT nach Phase 35 close — "Die bekannten Streifen die bereits mehrfach gefixed wurden (durch GL?) wegen der transformation sind wieder da".
+
+Scope (zwei kandidate-Pfade):
+
+**Pfad C2 (Phase 35 deferred, primary):** `--use-gl=angle --use-angle=swiftshader` als Chrome-flag. SwiftShader ist Google's pure-software GL ES backend mit 16-bit-fp internal precision (anders als Mesa-llvmpipe's 8-bit). Wichtig: NICHT `--use-gl=swiftshader` (Chromium docs markieren das als kaputt). Risk-Surface: ssr-render-host.mjs Chrome-flag-line. D-06 hard-gate connection-stability MUSS bleiben. Die hasVaapiEnabled-gated `--ignore-gpu-blocklist` + `--enable-gpu-rasterization` flags BLEIBEN UNCHANGED (Phase 34 h2 lock). Nur das `--use-angle=default` → `--use-angle=swiftshader` swap.
+
+**Alternativ (research-required):** Alternative software-GL-stacks (z.B. Mesa-llvmpipe mit specific env-vars wie LIBGL_ALWAYS_SOFTWARE=1 + GALLIUM_DRIVER=llvmpipe + LP_NUM_THREADS=...) oder higher-precision shader path im 2D-fallback-renderer.
+
+Pflicht-Inputs:
+- `.planning/phases/phase-35/35-CLOSURE-ITER2-ADDENDUM.md` — Bug 3 specification
+- `.planning/phases/phase-34/34-CLOSURE-ADDENDUM.md` — Phase 34 h2 GL-flag-revert rationale (Mesa-llvmpipe hang)
+- `.planning/phases/phase-33/33-CLOSURE.md` — VAAPI-default-disabled rationale
+- `.planning/phases/phase-32/32-SUMMARY.md` — wo `--ignore-gpu-blocklist + --enable-gpu-rasterization` landed wurden (the original Phase 32 banding fix)
+- `src/server/ssr-render-host.mjs` — Chrome flags
+- `src/app/runtime/viewport/runtime-projection-2d-fallback-renderer.js` — banding source path
+- `src/app/runtime/viewport/runtime-projection-gl-renderer.js` — alternative if GL flags can be enabled safely
+
+Wave-0 mandate: live-end-to-end-smoke-test extended with **transformation-banding visual regression assertion** (operator-known animation that triggered the original report; pixel-distinct-values measurement proxy for visible bands; before/after screenshot comparison). Phase 35-iter2 hat gezeigt dass der bisherige solid-color smoketest (41 distinct values) nichts über transformation-bands aussagt — neue Metrik nötig.
+
+Milestones:
+1. M1 Research: confirm SwiftShader doesn't have the synchronous-flush issue Mesa-llvmpipe has (RESEARCH §A3 carry-over from Phase 35).
+2. M2 C2 SwiftShader swap implementation behind feature-flag (default off).
+3. M3 Visual smoketest extended.
+4. M4 Live-UAT auf gaming-PC: bands gone + connection stable.
+5. M5 If C2 fails (hangs OR bands persist), document in 36-CLOSURE-ADDENDUM and propose Phase 37.
+
+Exit Criteria:
+- Operator-known animation rendered through projection-transform path shows no visible bands on gaming-PC desktop browser
+- D-06 hard gate `test/connection-stability/**` stays `fail=0`
+- Phase 33 commit `3cd6748` (VAAPI default-disabled) UNCHANGED
+- Phase 34 hotfix h2 (`hasVaapiEnabled`-gated GL flags) UNCHANGED
+- Phase 35-iter2 h1 (lazy-load) UNCHANGED — initial /output/ script-count stays ≤8
+- Phase 35-iter2 h2 (real polygon data) UNCHANGED
+
+Out of Scope:
+- Animations-engine refactor (separates Thema)
+- Audio-pipeline-änderungen (Pi-local stays per D-D2)
+- Codec-wechsel (H264 stays per D-A1)
+- VAAPI re-enable als default (bleibt opt-in)
+- Pixel-diff visual regression suite (Phase 34/35 deferred)
+
+Carrying Forward (LOCKED, do not re-open):
+- VAAPI default-disabled (Phase 33 commit `3cd6748`)
+- Phase 33 watchdog hardening + frame-stale 30s + heartbeat-reset + RPC 20s + watchdog 150s tolerance
+- Phase 34 hotfix h1 (/ssr → OUTPUT_ROLE_FINAL classification)
+- Phase 34 hotfix h2 (hasVaapiEnabled-gated GL flags — Phase 33 baseline)
+- Phase 35 D-A1 (WebRTC + h264 + mediasoup), D-A3 (Headful Chromium 131 + Xvfb)
+- Pi-local audio (D-D2 reversal)
+- streamFpsCap + alignModeBoost settings
+- Phase 35 Bayer 4×4 dither at runtime-effect-visuals.js (solid-color overlay path)
+- Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
+- Phase 35-iter2 h2 polygon-data /api/boards wiring
