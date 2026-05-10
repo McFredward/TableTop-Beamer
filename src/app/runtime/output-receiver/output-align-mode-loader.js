@@ -1,4 +1,10 @@
 // Phase 35-iter2 hotfix h1 — Lazy-load align-mode bundle on /output/.
+// Phase 36 A2 — Wire bootHandleUi (Option H thin-export) instead of
+// the Phase 35-A pure-extract entry point. Append #stage + #room-overlay DOM via JS
+// at bundle activation (NOT in static output.html — D-09 ≤8 src-based
+// scripts budget preserved). receiver-bootstrap.js (D-02 (a) inversion)
+// keeps overlay pointer-events permanently "none" so handle DOM at
+// z:9999 captures clicks naturally.
 //
 // Problem this solves (operator-reported 2026-05-10):
 //   - Original Phase 35-A loaded all 12 align-mode IIFE script tags via
@@ -13,6 +19,12 @@
 //     rooms rendered as default rectangles instead of the polygons the
 //     operator drew on the dashboard.
 //
+//   - Phase 35-A's pure-extract entry point was incomplete (Phase 36
+//     CONTEXT.md D-01 + 35-CLOSURE-ITER2-ADDENDUM): the audit was
+//     grep-only and missed dynamic ctx.X accesses. Phase 36 D-01 LOCKED
+//     Option H — the full handle-ui surface becomes a first-class
+//     thin-exportable building block.
+//
 // Strategy:
 //   1. /output/ page load: only this loader module + 4 other thin
 //      scripts (5 total), no align-mode IIFEs. WebRTC connects
@@ -21,16 +33,19 @@
 //      bundle in the background so it's in the browser cache when
 //      the operator hits align-mode.
 //   3. When liveSync.onAlignModeChange(true) fires: dynamic-load
-//      the bundle (cache-hit instantly if prefetched, ~500ms
-//      cold), fetch /api/boards + /api/live/snapshot, build a real
-//      boardAccess wired to the live data, then call bootAlignMode().
-//   4. When alignMode goes false: stop and remove the
-//      `align-mode-active` body class (CSS hides handles).
+//      the bundle (cache-hit instantly if prefetched, ~500ms cold),
+//      fetch /api/boards + /api/live/snapshot, append #stage + #room-overlay
+//      DOM, build a real boardAccess wired to live data, then call
+//      bootHandleUi() (Option H Phase 36 entry-point).
+//   4. When alignMode goes false: stop the bootHandle, remove the
+//      `align-mode-active` body class (CSS hides handles), hide the
+//      stage div.
 //
 // The IIFE scripts are NOT ES modules — they register on
 // `window.TT_BEAMER_RUNTIME_*`. Dynamic `import()` does not work for
 // them; we use programmatic `<script src=…>` injection instead, then
-// poll `window` for the registration to complete.
+// poll `window` for the registration to complete. boot-handle-ui.js
+// IS an ES module and is loaded via dynamic `import()`.
 
 const ALIGN_MODE_BUNDLE = [
   "/src/app/runtime/core/polygon-contract.js",
@@ -145,6 +160,223 @@ function buildBoardAccess({ getRuntimeBoards, getActiveBoardId, logger }) {
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Phase 36 A2 helpers — NEW
+// ────────────────────────────────────────────────────────────────────────────
+
+// Phase 36 A2: append #stage + #room-overlay DOM via JS so output.html static
+// markup stays under D-09 ≤8 src-based scripts (no static stage/overlay markup).
+// Idempotent — re-invoking does NOT duplicate the elements (right-click add-line
+// flow may re-trigger activation).
+function _ensureStageAndOverlayDom(logger) {
+  let stage = document.getElementById("stage");
+  if (!stage) {
+    stage = document.createElement("div");
+    stage.id = "stage";
+    // pointer-events:none on the container — handles + room-overlay set their
+    // own pointer-events:auto. videoEl + fx-canvas live elsewhere; this stage
+    // is a thin host for align-mode UI only.
+    stage.style.cssText =
+      "position:fixed;inset:0;z-index:5;pointer-events:none;";
+    document.body.appendChild(stage);
+    logger?.log?.("[align-loader] appended #stage to body");
+  } else {
+    // If a previous activate() set display:none on teardown, re-show it now.
+    if (stage.style.display === "none") {
+      stage.style.display = "";
+      logger?.log?.("[align-loader] reactivated existing #stage");
+    }
+  }
+  let roomOverlay = document.getElementById("room-overlay");
+  if (!roomOverlay) {
+    // SVG element — use createElementNS so the browser parses it as SVG.
+    roomOverlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    roomOverlay.id = "room-overlay";
+    roomOverlay.setAttribute("viewBox", "0 0 1000 1000");
+    roomOverlay.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    roomOverlay.style.cssText =
+      "position:absolute;inset:0;width:100%;height:100%;pointer-events:auto;";
+    stage.appendChild(roomOverlay);
+    logger?.log?.("[align-loader] appended #room-overlay (svg) to #stage");
+  }
+  return { stage, roomOverlay };
+}
+
+// Phase 36 A2: minimal /output/-local state factory covering the §1.2 RESEARCH
+// inventory of ctx.state sub-keys exercised by handle-ui + polygon-editor on the
+// read path. Dashboard uses a live state object built in runtime-orchestration.js;
+// /output/ has no settings panel / animation editor / quick-mode, so most fields
+// are sensible defaults.
+function _createOutputState(boardId) {
+  return {
+    boardId: boardId || null,
+    alignMode: true,
+    uiView: "dashboard", // not "settings" — /output/ never enters settings panel paths
+    selectedRoomId: null,
+    selectedRoomByBoard: {},
+    lastPolygonFocus: {},
+    polygonEditor: {
+      activeRoomIdByBoard: {},
+      dragVertexIndex: null, dragPointerId: null,
+      dragBoardId: null, dragRoomId: null,
+      dragStartPoints: [], dragMoved: false,
+      dragVertexOffsetX: 0, dragVertexOffsetY: 0,
+      dragDomRefs: null,
+      dragAreaBoardId: null, dragAreaRoomId: null,
+      dragAreaPointerId: null, dragAreaStartPointerPoint: null,
+      dragAreaStartPoints: [], dragAreaMoved: false,
+      dragAreaDomRefs: null,
+      pendingAreaBoardId: null, pendingAreaRoomId: null,
+      pendingAreaPointerId: null, pendingAreaStartPointerPoint: null,
+      selectedVertexIndex: null, selectedEdgeIndex: null,
+      vertexSelectionActive: false,
+      suppressRoomClickUntil: 0,
+      roomNamesVisible: true,
+      rotatingRoomId: null,
+    },
+    shipPolygonEditor: {
+      dragVertexIndex: null, dragPointerId: null,
+      dragBoardId: null,
+      dragStartPoints: [], dragMoved: false,
+      dragVertexOffsetX: 0, dragVertexOffsetY: 0,
+      dragDomRefs: null,
+      selectedVertexIndex: null, selectedEdgeIndex: null,
+      _lastEdgeTap: null,
+    },
+    renderMode: "auto",
+    runtime: { activeProjectionProfileId: null },
+  };
+}
+
+// Phase 36 A2: polygonState fan-out fields (RESEARCH §1.5). On /output/ this is
+// a thin adapter onto _state — there's no settings panel that would let the
+// operator manually freeze rooms or change handle-scale.
+function _buildPolygonStateStub(state /*, boardAccess */) {
+  return {
+    getCurrentPolygonHandleScale: () => 1,
+    getActivePolygonRoomId: (boardId) =>
+      state.polygonEditor?.activeRoomIdByBoard?.[boardId] || null,
+    setActivePolygonRoomId: (boardId, roomId) => {
+      state.polygonEditor.activeRoomIdByBoard = state.polygonEditor.activeRoomIdByBoard || {};
+      state.polygonEditor.activeRoomIdByBoard[boardId] = roomId;
+    },
+    isRoomFrozen: () => false,
+    getPolygonEditorHandleMetrics: (zoomScale, handleScale) => ({
+      size: 12 * (handleScale || 1),
+      strokeWidth: 2,
+    }),
+    arePlayAreaVerticesEditable: () => false,
+    getSelectedPlayAreaId: () => null,
+    getBoardZoom: () => ({ scale: 1 }),
+  };
+}
+
+// Phase 36 A2: normalizers fan-out (RESEARCH §1.5). On /output/ the IIFE bundle
+// loads runtime-projection-mapping which exposes window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING
+// — remapGridPoint + hasGridDisplacements proxy through it.
+function _buildNormalizersStub() {
+  return {
+    normalizeShipPolygon: (pts) => Array.isArray(pts) ? pts.slice() : [],
+    normalizePolygonPoint: (pt) => Array.isArray(pt) ? pt.slice() : pt,
+    remapGridPoint: (nx, ny) => {
+      const M = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
+      try {
+        if (M && typeof M.remapPoint === "function") {
+          const p = M.remapPoint(nx, ny);
+          if (p && typeof p === "object") return p;
+        }
+      } catch { /* fall through to identity */ }
+      return { x: nx, y: ny };
+    },
+    hasGridDisplacements: () => {
+      const M = window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING;
+      try {
+        return Boolean(M?.hasDisplacements?.());
+      } catch { return false; }
+    },
+  };
+}
+
+// Phase 36 A2: interactions fan-out (RESEARCH §1.5). mapClientPointToNormalized
+// uses #stage's bounding box for client→normalized conversion on /output/.
+// areRoomVerticesEditable returns false because /output/ does not host the
+// dashboard's play-area editor (D-01 thin-output invariant).
+function _buildInteractionsStub() {
+  return {
+    mapClientPointToNormalized: (cx, cy) => {
+      const stage = document.getElementById("stage");
+      if (!stage) return { x: 0, y: 0 };
+      const rect = stage.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return { x: 0, y: 0 };
+      return {
+        x: (cx - rect.left) / rect.width,
+        y: (cy - rect.top) / rect.height,
+      };
+    },
+    beginPolygonDragInteraction: () => {},
+    endPolygonDragInteraction: () => {},
+    isPanArbitrating: () => false,
+    isAcceptablePolygonPointerEvent: (event) => event?.button !== 2, // ignore raw right-click
+    areRoomVerticesEditable: () => false,
+    setPlayAreaPolygon: () => {}, // /output/ is read-only for play-area edits
+  };
+}
+
+// Phase 36 A2: persistence fan-out (RESEARCH §1.5). All persistence is server-
+// owned via emitLiveMutation through liveSync (grid-state.broadcastGridSnapshot
+// uses liveSyncCoreOverride). /output/ never directly POSTs to /api/profiles.
+// pushUndoState is a real client-local stack inside handle-ui — handle-ui owns
+// it; this stub is the polygon-editor's drag-start hook which is no-op on
+// /output/ (no polygon-vertex edits there).
+function _buildPersistenceStub(/* liveSync */) {
+  const noop = () => {};
+  return {
+    persistBoardProfiles: noop,    // server-owned via mutation broadcast
+    pushUndoState: noop,           // polygon-editor drag-start hook (no-op on /output/)
+    saveProjectionMapping: noop,   // dashboard-only
+    discardChanges: noop,          // dashboard-only
+    profileSaveFlow: noop,         // dashboard-only
+    profileLoadFlow: noop,         // dashboard-only
+    profileDeleteFlow: noop,       // dashboard-only
+  };
+}
+
+// Phase 36 A2: sync stubs (RESEARCH §1.5). These fire only when uiView ===
+// "settings" (dashboard side panel). /output/ has uiView="dashboard" forever —
+// no settings panel exists. All no-ops with rationale.
+function _buildSyncStubs() {
+  const noop = () => {};
+  return {
+    syncShipPolygonEditorStatus: noop,
+    syncShipPolygonVertexSelect: noop,
+    syncPolygonVertexSelect: noop,
+    syncPolygonEdgeSelect: noop,
+    syncPolygonEditorStatus: noop,
+    syncPolygonEditorPanel: noop,
+    syncRoomPanelFromSelection: noop,
+    syncSelectedRoomStateForBoard: noop,
+    refreshPersistentRoomSelectionVisualState: noop,
+  };
+}
+
+// Phase 36 A2: dashboard fan-out stubs (RESEARCH §1.5). Quick-mode + room-draft
+// are dashboard-only. cacheRoomPolygonDragDomRefs is a perf hint that handle-ui
+// uses to avoid layout thrash during drags — safe to no-op.
+function _buildDashboardStubs() {
+  const noop = () => {};
+  return {
+    handleQuickModeRoomTap: noop,
+    applyRoomDraftTargetFromRoomClick: noop,
+    isQuickModeActive: () => false,
+    cacheShipPolygonDragDomRefs: noop,
+    cacheRoomPolygonDragDomRefs: noop,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// /output/ align-mode loader — boot function
+// ────────────────────────────────────────────────────────────────────────────
+
 function getRequiredArgsAtBootTime() {
   // Read window.TT_BEAMER_RUNTIME_POLYGON_NORMALIZERS, etc. — these
   // become available only after loadBundleOnce resolves.
@@ -168,22 +400,33 @@ function getRequiredArgsAtBootTime() {
 /**
  * Boot the lazy align-mode loader on /output/. Subscribes to liveSync,
  * lazy-loads the IIFE bundle on first alignMode=true, fetches board
- * data, and wires bootAlignMode with REAL polygon data.
+ * data, appends #stage + #room-overlay DOM, and wires bootHandleUi
+ * (Phase 36 Option H) with REAL polygon data.
  *
  * @param {Object} args
- * @param {HTMLElement} args.stage          - The <#stage> container.
- * @param {SVGElement}  args.roomOverlay    - The <#room-overlay> SVG.
- * @param {HTMLElement} [args.videoEl]      - The <#ssr-video> element.
+ * @param {HTMLElement} args.stage          - DEPRECATED in Phase 36 A2 — loader
+ *                                             appends its own #stage via JS. The
+ *                                             arg is preserved for back-compat
+ *                                             but ignored.
+ * @param {SVGElement}  args.roomOverlay    - DEPRECATED in Phase 36 A2 — loader
+ *                                             appends its own #room-overlay via JS.
+ * @param {HTMLElement} [args.videoEl]      - The <video> element for stream.
  * @param {Object}      args.liveSync       - bootOutputLiveSync handle.
  * @param {Console}     [args.logger]
  * @returns {{ stop: () => void }}
  */
 export function bootAlignModeLoader({
-  stage, roomOverlay, videoEl, liveSync, logger = console,
+  // stage / roomOverlay args ignored — Phase 36 A2 appends them via JS.
+  // eslint-disable-next-line no-unused-vars
+  stage: _ignoredStage, // kept for back-compat; loader appends its own
+  // eslint-disable-next-line no-unused-vars
+  roomOverlay: _ignoredOverlay,
+  videoEl, liveSync, logger = console,
 }) {
   let runtimeBoards = [];
   let activeBoardId = null;
-  let activeHandle = null;
+  /** @type {{stop: Function, hitTestVertex?: Function} | null} */
+  let _currentBootHandle = null;
   let stopped = false;
 
   async function refreshBoardCatalog() {
@@ -226,36 +469,19 @@ export function bootAlignModeLoader({
         }
       }
 
-      const { bootAlignMode } = await import("/src/app/runtime/output-receiver/output-align-mode.js");
-      const { polygonContract, normalizers } = getRequiredArgsAtBootTime();
+      // Phase 36 A2: append stage + room-overlay DOM AFTER bundle loads but
+      // BEFORE bootHandleUi is invoked — handle-ui's MAPPING.init reads
+      // bbox during init, so the elements must exist + be laid out. JS
+      // append (not static HTML) preserves D-09 ≤8 src-based scripts.
+      const { stage: stageEl, roomOverlay: roomOverlayEl } =
+        _ensureStageAndOverlayDom(logger);
 
-      const noop = () => {};
-      const noopReturnNull = () => null;
-      const noopReturnFalse = () => false;
-      const noopReturnTrue = () => true;
-      const noopReturnEmptyArr = () => [];
-
-      const state = window.__ttbState ?? {
-        alignMode: true,
-        boardId: activeBoardId,
-        renderMode: "auto",
-        polygonEditor: { activeRoomIdByBoard: {} },
-        shipPolygonEditor: {
-          dragVertexIndex: null, dragPointerId: null, dragBoardId: null,
-          dragStartPoints: null, dragMoved: false,
-          dragVertexOffsetX: 0, dragVertexOffsetY: 0, dragDomRefs: null,
-        },
-        runtime: { activeProjectionProfileId: liveSync.getActiveProjectionProfileId?.() ?? null },
-      };
-      // Keep state.boardId in sync with the operator's selection
-      state.boardId = activeBoardId ?? state.boardId;
-      state.alignMode = true;
-      window.__ttbState = state;
-
-      // Activate CSS gating BEFORE bootAlignMode renders — the
+      // Activate CSS gating BEFORE bootHandleUi renders — the
       // align-mode-active class is what makes #room-overlay visible
       // (src/styles.css:119). Without it, polygons render but stay hidden.
       document.body.classList.add("align-mode-active");
+
+      const { polygonContract /* normalizers */ } = getRequiredArgsAtBootTime();
 
       const boardAccess = buildBoardAccess({
         getRuntimeBoards: () => runtimeBoards,
@@ -263,59 +489,86 @@ export function bootAlignModeLoader({
         logger,
       });
 
-      if (activeHandle) { try { activeHandle.stop?.(); } catch {} activeHandle = null; }
+      // Phase 36 A2: build the FULL §1.5 RESEARCH inventory dep-bag.
+      const _state = _createOutputState(activeBoardId);
+      _state.runtime.activeProjectionProfileId =
+        liveSync.getActiveProjectionProfileId?.() ?? null;
+      // Phase 35-A's window.__ttbState pattern preserved for any IIFE that may
+      // peek at it during load. Safe to keep — bootHandleUi reads from `state`
+      // arg directly, not the global.
+      window.__ttbState = _state;
 
-      activeHandle = bootAlignMode({
-        stage, roomOverlay, videoEl, state,
+      const polygonState = _buildPolygonStateStub(_state, boardAccess);
+      const normalizers = _buildNormalizersStub();
+      const interactions = _buildInteractionsStub();
+      const persistence = _buildPersistenceStub(liveSync);
+      const sync = _buildSyncStubs();
+      const dashboard = _buildDashboardStubs();
+
+      // Find the <video> element (passed-in or inferred from DOM)
+      const v = videoEl
+        || document.querySelector("video.ssr-video, video#ssr-video, video");
+
+      // Stop any previous handle (idempotent re-activation, e.g. profile switch)
+      if (_currentBootHandle) {
+        try { _currentBootHandle.stop?.(); } catch { /* listener guard */ }
+        _currentBootHandle = null;
+      }
+
+      // Phase 36 A2: dynamic ES-module import of bootHandleUi (Option H).
+      // The IIFE bundle loaded above registers the TT_BEAMER_RUNTIME_*
+      // globals that bootHandleUi resolves internally.
+      const { bootHandleUi } = await import("/src/app/runtime/output-receiver/boot-handle-ui.js");
+
+      _currentBootHandle = bootHandleUi({
+        stage: stageEl,
+        roomOverlay: roomOverlayEl,
+        videoEl: v || null,
+        feedbackEl: null, // /output/ has no toast/feedback target
+        state: _state,
         outputRole: "final-output",
         OUTPUT_ROLE_FINAL: "final-output",
         OUTPUT_ROLE_CONTROL: "control",
         liveSync,
-        polygonContract,
+        // Phase 36 A1: liveSyncCoreOverride routes grid-state's
+        // broadcastGridSnapshot through emitLiveMutation on the /output/
+        // websocket (instead of the dashboard's window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE
+        // which doesn't exist on /output/'s thin script-tag set).
+        liveSyncCoreOverride: { emitLiveMutation: liveSync.emitLiveMutation },
+        polygonContract: polygonContract
+          || (window.TT_BEAMER_POLYGON_CONTRACT ?? null),
         normalizers,
         boardAccess,
-        polygonState: {
-          getActivePolygonRoomId: noopReturnNull, setActivePolygonRoomId: noop,
-          isRoomFrozen: noopReturnFalse,
-          getCurrentPolygonHandleScale: () => 1,
-          getPolygonEditorHandleMetrics: () => ({ size: 12 }),
+        polygonState,
+        interactions,
+        persistence,
+        // Q1 LOCKED — existing endpoint per CONTEXT.md D-06 reconciliation.
+        // The W0 wave added a `[align-mode-dirty] received dirty=` stdout marker
+        // server-side that T9 grep-asserts after handle-ui posts here.
+        alignModeDirtyEndpoint: "/api/align-mode-dirty",
+        sync,
+        dashboard,
+        renderRoomOverlay: () => {
+          try {
+            window.TT_BEAMER_RUNTIME_POLYGON_EDITOR?.renderRoomOverlay?.();
+          } catch (e) {
+            logger?.warn?.("[align-loader] renderRoomOverlay:", e?.message);
+          }
         },
-        interactions: {
-          beginPolygonDragInteraction: noop, endPolygonDragInteraction: noop,
-          isPanArbitrating: noopReturnFalse, isAcceptablePolygonPointerEvent: noopReturnTrue,
-          arePlayAreaVerticesEditable: noopReturnFalse, areRoomVerticesEditable: noopReturnFalse,
-          mapClientPointToNormalized: (cx, cy) => [cx, cy],
-          setPlayAreaPolygon: noop,
-        },
-        persistence: { persistBoardProfiles: noop, pushUndoState: noop, saveProjectionMapping: noop },
-        sync: {
-          syncShipPolygonEditorStatus: noop, syncShipPolygonVertexSelect: noop,
-          syncPolygonVertexSelect: noop, syncPolygonEdgeSelect: noop,
-          syncPolygonEditorStatus: noop, syncPolygonEditorPanel: noop,
-          syncRoomPanelFromSelection: noop, syncSelectedRoomStateForBoard: noop,
-          refreshPersistentRoomSelectionVisualState: noop,
-        },
-        dashboard: {
-          isQuickModeActive: noopReturnFalse, handleQuickModeRoomTap: noop,
-          applyRoomDraftTargetFromRoomClick: noop,
-          cacheShipPolygonDragDomRefs: noopReturnNull,
-          cacheRoomPolygonDragDomRefs: noopReturnNull,
-        },
-        renderRoomOverlay: noop, // bootAlignMode falls back to POLYGON_EDITOR.renderRoomOverlay
+        showToast: (...args) => { try { logger?.log?.("[output-toast]", ...args); } catch { /* logger guard */ } },
+        getRenderMode: () => _state.renderMode || "auto",
+        getBoardId: () => _state.boardId,
         logger,
       });
 
-      window.__ttbAlignMode = activeHandle;
-      logger?.log?.("[align-loader] bootAlignMode wired with live boardAccess");
+      window.__ttbAlignMode = _currentBootHandle;
+      logger?.log?.("[align-loader] bootHandleUi wired with live boardAccess + Option H");
 
-      // Trigger renderRoomOverlay manually — bootAlignMode wires the
+      // Trigger renderRoomOverlay manually — bootHandleUi wires the
       // onAlignModeChange listener to HANDLE_UI for handle visibility,
       // but it does NOT explicitly re-render the polygon-editor overlay
       // on activation. Without this call the SVG <#room-overlay> stays
-      // empty until something else triggers a re-render. Per
-      // runtime-polygon-editor.js renderRoomOverlay() — when alignMode is
-      // true and outputRole=FINAL, it iterates board.rooms and draws
-      // each polygon.
+      // empty until something else triggers a re-render.
       try {
         const PE = window.TT_BEAMER_RUNTIME_POLYGON_EDITOR;
         if (PE && typeof PE.renderRoomOverlay === "function") {
@@ -332,10 +585,15 @@ export function bootAlignModeLoader({
 
   function deactivate() {
     document.body.classList.remove("align-mode-active");
-    if (activeHandle) {
-      try { activeHandle.stop?.(); } catch (e) { logger?.warn?.("[align-loader] stop threw:", e?.message); }
-      activeHandle = null;
+    if (_currentBootHandle) {
+      try { _currentBootHandle.stop?.(); } catch (e) { logger?.warn?.("[align-loader] stop threw:", e?.message); }
+      _currentBootHandle = null;
     }
+    // Optionally hide the stage so it doesn't intercept layout queries while
+    // align-mode is OFF. handle-ui's stop() removes its handle DOM children
+    // already; hiding the host is a defensive nicety.
+    const stage = document.getElementById("stage");
+    if (stage) stage.style.display = "none";
     window.__ttbAlignMode = null;
   }
 
