@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TableTop Beamer — Output</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <!-- Phase 34 D-03 thin consumer: NO render pipeline. Pi /output/ shows
+       the H264 stream from /api/webrtc/signal + a Pi-local audio binder.
+       SSR Chromium tab loads the FULL app at /ssr, not here.
+       Only required scripts: runtime-env.js, receiver-bootstrap.js,
+       output-audio-binder.js, inline diagnostic chip rAF. -->
+</head>
+<body data-output-role="final-output">
+  <!-- Phase 31 Plan 03 receiver DOM. Hidden flags match index.html. -->
+  <div id="ssr-splash" class="ssr-splash" hidden>
+    <div class="ssr-splash-content">
+      <h1 class="ssr-splash-logo">TableTop Beamer</h1>
+      <p class="ssr-splash-status" id="ssr-splash-status">Connecting to render server…</p>
+      <div class="ssr-splash-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+  <video id="ssr-video" class="ssr-video" autoplay muted playsinline hidden></video>
+  <div id="ssr-reconnect-banner" class="ssr-reconnect-banner" role="status" aria-live="polite" hidden>
+    Server reconnecting…
+  </div>
+  <div id="ssr-error-overlay" class="ssr-error-overlay" role="alertdialog" aria-modal="true" hidden>
+    <div class="ssr-error-content">
+      <h2 class="ssr-error-title">Render server unreachable</h2>
+      <p class="ssr-error-body" id="ssr-error-body">The connection to the render server has been lost.</p>
+      <button id="ssr-retry-button" class="ssr-error-retry" type="button">Retry</button>
+    </div>
+  </div>
+
+  <!-- Diagnostic chip — fps + render-mode + canvas + frame-cost. The
+       render-mode + frame-cost fields are only meaningful inside the
+       SSR-tab (the full app on /ssr); on the thin /output/ they show
+       "stream" (no local rendering). The full chip stays as DOM
+       because user wanted it visible (h17). -->
+  <div id="output-status-chip" class="output-status-chip" hidden>
+    <span id="output-status-version"></span>
+    <span id="output-status-fps">- fps</span>
+    <span id="output-status-mode">stream</span>
+    <span id="output-status-canvas">-</span>
+    <span id="output-status-frame-cost">-</span>
+  </div>
+
+  <!-- ssr-input-overlay is created lazily by receiver-bootstrap if
+       absent, but pre-declaring it here matches the index.html
+       contract and avoids a layout-thrash on first align-mode tap. -->
+  <div id="ssr-input-overlay" style="position:fixed;inset:0;z-index:4;touch-action:none;pointer-events:none"></div>
+
+  <!-- Phase 34 D-03: minimal script set. Order matters:
+       1. runtime-env.js  — exposes window.TT_BEAMER_RUNTIME_ENV
+          consumed by receiver-bootstrap (output-role detection).
+       2. inline diagnostic-chip rAF — fps sampling only (D-03 strip:
+          no render-mode probe locally; render-mode lives on /ssr).
+       3. receiver-bootstrap.js (module inline-import) — boots the WebRTC consumer.
+       4. output-audio-binder.js (module inline-import) — Pi-local audio.
+  -->
+  <script src="/src/app/lib/shared/runtime-env.js" defer></script>
+  <script>
+    // Phase 34 D-03: thin diagnostic chip — fps from rAF only; no
+    // render-mode (this page does not render), no frame-cost (no
+    // draw loop). The chip is hidden by default; shown once DOMContentLoaded.
+    document.addEventListener("DOMContentLoaded", () => {
+      const chip = document.getElementById("output-status-chip");
+      const fpsEl = document.getElementById("output-status-fps");
+      const samples = [];
+      let last = performance.now();
+      (function tick(){
+        const t = performance.now();
+        const d = t - last; last = t;
+        if (d > 0 && d < 2000) { samples.push(d); if (samples.length > 60) samples.shift(); }
+        requestAnimationFrame(tick);
+      })();
+      setInterval(() => {
+        if (!fpsEl || samples.length === 0) return;
+        const avg = samples.reduce((a,b)=>a+b,0) / samples.length;
+        fpsEl.textContent = `${(1000/avg).toFixed(1)} fps`;
+      }, 500);
+      if (chip) chip.hidden = false;
+    });
+  </script>
+  <!-- Boot the receiver bootstrap. -->
+  <script type="module">
+    import { bootReceiver } from "/src/app/runtime/output-receiver/receiver-bootstrap.js";
+    bootReceiver({ logger: console }).catch((err) => {
+      console.error("[output] receiver bootstrap failed", err);
+      const splash = document.getElementById("ssr-splash");
+      const errorOverlay = document.getElementById("ssr-error-overlay");
+      const errorBody = document.getElementById("ssr-error-body");
+      if (splash) splash.hidden = true;
+      if (errorOverlay) errorOverlay.hidden = false;
+      if (errorBody) errorBody.textContent =
+        `Receiver bootstrap failed: ${err?.message ?? err}. Reload the page to retry.`;
+    });
+  </script>
+  <!-- Boot the audio binder. Best-effort — failures don't block video. -->
+  <script type="module">
+    import { bootOutputAudioBinder } from "/src/app/runtime/output-receiver/output-audio-binder.js";
+    bootOutputAudioBinder({ logger: console }).catch((err) => {
+      console.warn("[output-audio] binder failed:", err?.message);
+    });
+  </script>
+</body>
+</html>
