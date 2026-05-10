@@ -619,27 +619,46 @@ export function bootAlignModeLoader({
         logger?.warn?.("[align-loader] initial renderRoomOverlay failed:", e?.message);
       }
 
-      // Phase 36 iter2 h2 (2026-05-10): defensive grid-resync broadcast.
+      // Phase 36 iter2 h2+h3 (2026-05-10): defensive grid-resync broadcast.
       // After bootHandleUi loads /output/'s grid from the server's
       // /api/live/snapshot, force a broadcastGridSnapshot so the SSR
-      // Chromium tab's mesh-warp re-applies the saved profile's grid
-      // even if the SSR tab booted with a stale autoLoadRememberedProjectionProfile
-      // result. Operator-reported bug 2 (UAT 2026-05-10):
-      //   "Beim Start oder beim Laden eines neuen Profils muss man erst
-      //    eine kleine transformation machen, damit man die Veränderung
-      //    im Stream sieht."
-      // Symptom: SSR tab encoding stays at identity (or a stale grid)
-      // until any user gesture broadcasts a snapshot. This force-broadcast
-      // closes that window. Originator-filter on the SSR tab side prevents
-      // re-entry from /output/'s own broadcast (different clientId).
-      try {
-        const GS = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-        if (GS && typeof GS.broadcastGridSnapshot === "function") {
-          GS.broadcastGridSnapshot({ force: true });
-          logger?.log?.("[align-loader] post-activate broadcastGridSnapshot({force:true})");
+      // Chromium tab's mesh-warp re-applies the saved profile's grid.
+      // Operator-reported bug 2 (UAT 2026-05-10):
+      //   "Beim laden eines Profils sieht man sofort die Linien-Änderung
+      //    in /output/, aber man muss erst eine kleine Sache verändern,
+      //    damit es auch im Stream sichtbar wird."
+      //
+      // h3 fixes h2's silent-drop: activate() runs from the HTTP-poll
+      // fallback path which can fire BEFORE the WS handshake completes.
+      // emitLiveMutation silently drops messages while ws.readyState !==
+      // OPEN (operator log evidence: "[output-live-sync] emitLiveMutation
+      // skipped — ws not OPEN" right before "[output-live-sync] WS open").
+      // Fix: check liveSync.isWsOpen(); if open, fire immediately. If not,
+      // wait for the next onConnect event and fire once. Reconnects don't
+      // re-fire (one-shot guard) — the next user gesture will broadcast
+      // anyway, and a stale resync after a reconnect could double-write.
+      const fireResyncBroadcast = () => {
+        try {
+          const GS = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+          if (GS && typeof GS.broadcastGridSnapshot === "function") {
+            GS.broadcastGridSnapshot({ force: true });
+            logger?.log?.("[align-loader] post-activate broadcastGridSnapshot({force:true}) fired");
+          }
+        } catch (e) {
+          logger?.warn?.("[align-loader] post-activate broadcast failed:", e?.message);
         }
-      } catch (e) {
-        logger?.warn?.("[align-loader] post-activate broadcast failed:", e?.message);
+      };
+      if (typeof liveSync.isWsOpen === "function" && liveSync.isWsOpen()) {
+        fireResyncBroadcast();
+      } else {
+        logger?.log?.("[align-loader] post-activate broadcast deferred — ws not yet OPEN, waiting for onConnect");
+        let fired = false;
+        const offConnect = liveSync.onConnect?.(() => {
+          if (fired) return;
+          fired = true;
+          fireResyncBroadcast();
+          try { offConnect?.(); } catch {}
+        });
       }
     } catch (err) {
       logger?.error?.("[align-loader] activate failed:", err);

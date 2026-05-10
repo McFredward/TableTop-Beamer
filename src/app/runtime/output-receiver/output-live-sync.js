@@ -225,6 +225,12 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     getAlignMode: () => alignMode,
     getActiveProjectionProfileId: () => profileId,
     getCurrentClientId: () => clientId,
+    // Phase 36 iter2 h3 (2026-05-10): expose ws-open state so callers
+    // can defer emitLiveMutation until the connection is established.
+    // The HTTP-poll-fallback path can fire onAlignModeChange BEFORE the
+    // WS handshake completes — in that window emitLiveMutation silently
+    // drops the message, breaking h2's defensive grid-resync broadcast.
+    isWsOpen: () => ws?.readyState === WebSocket.OPEN,
     emitLiveMutation,
     stop() {
       stopped = true;
