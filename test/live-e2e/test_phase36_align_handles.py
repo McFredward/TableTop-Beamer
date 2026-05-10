@@ -87,7 +87,12 @@ def test_t3_vertex_drag_modifies_correct_vertex(live_server, page):
     time.sleep(0.5)
     snap_url = f"http://127.0.0.1:{live_server['port']}/api/live/snapshot"
     snap = json.loads(urllib.request.urlopen(snap_url, timeout=5).read())
-    last = snap.get("snapshot", snap).get("runtime", {}).get("lastAlignGridSnapshot", {})
+    # Phase 36 M4 — traverse the actual server response shape:
+    # `{ok, changed, session: {snapshot: {runtime: {lastAlignGridSnapshot: ...}}}}`.
+    # The original W0 path `snap.get("snapshot", snap).get("runtime", ...)` did
+    # not traverse `session`, leaving `pts` empty even when the broadcast landed.
+    snap_root = snap.get("session", snap).get("snapshot", snap)
+    last = snap_root.get("runtime", {}).get("lastAlignGridSnapshot", {})
     pts = last.get("points", [])
     p_dragged = next((p for p in pts if p.get("row") == 0 and p.get("col") == 1), None)
     p_anchor  = next((p for p in pts if p.get("row") == 0 and p.get("col") == 0), None)

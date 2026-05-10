@@ -320,6 +320,13 @@
         el.className = "projection-corner-handle";
         el.dataset.gridRow = String(row);
         el.dataset.gridCol = String(col);
+        // Phase 36 M4 T3 — short alias data-row / data-col for the live-E2E
+        // selector `.projection-corner-handle[data-row="0"][data-col="1"]`.
+        // Both `data-grid-row/data-grid-col` (existing dashboard contract,
+        // read by handle-drag at line 353-354) AND `data-row/data-col` (Phase
+        // 36 test selector) are kept; new attrs are read-only aliases.
+        el.dataset.row = String(row);
+        el.dataset.col = String(col);
         const size = 18;
         el.style.cssText = `
           position: fixed;
