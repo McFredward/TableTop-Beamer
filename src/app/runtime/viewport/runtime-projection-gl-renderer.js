@@ -180,14 +180,34 @@
               "context losses; using 2D fallback",
             );
           }
-        } else if (isSsrTab && typeof console !== "undefined" && console.warn) {
-          // h18: log on SSR — no permanent-disable, just retry next frame.
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[h18] WebGL context lost on SSR-tab (count=",
-            _glContextLossCount,
-            ") — keeping GL, will re-init next frame",
-          );
+        } else if (isSsrTab) {
+          // Phase 34 D-02: SSR tab BANS the 2D-fallback (D-02 LOCKED).
+          // We keep retrying GL (h18 carry-forward) but ALSO surface a
+          // hard-fail flag if losses pile up — the Phase 33 watchdog
+          // (ssr-render-host.mjs health-ping path) reads this via the
+          // ssr-stats envelope and can escalate to a tab restart.
+          if (typeof console !== "undefined" && console.error) {
+            // eslint-disable-next-line no-console
+            console.error(
+              `[34-A] WebGL context lost on SSR-tab (count=${_glContextLossCount}) — D-02 forbids 2D-fallback, keeping GL, will re-init next frame`,
+            );
+          }
+          // Surface the loss-count to the publisher's ssr-stats so the
+          // server can correlate render-mode probe values with loss
+          // events. The publisher reads window.__ttBeamerGlLossCount.
+          if (typeof window !== "undefined") {
+            window.__ttBeamerGlLossCount = _glContextLossCount;
+            if (_glContextLossCount >= _GL_MAX_CONTEXT_LOSSES * 2) {
+              // 6 consecutive losses on /ssr — escalate hard.
+              window.__ttBeamerSsrGlHardFailed = true;
+              if (typeof console !== "undefined" && console.error) {
+                // eslint-disable-next-line no-console
+                console.error(
+                  "[34-A] SSR-tab GL hard-failed (>=6 losses) — operator should investigate; D-02 says fail loud, do NOT 2D-fallback",
+                );
+              }
+            }
+          }
         }
       }, false);
       // Phase 30 B1 h7: webglcontextrestored handler. Without this, when

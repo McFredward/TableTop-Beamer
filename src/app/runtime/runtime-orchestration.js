@@ -75,6 +75,15 @@ document.body.dataset.outputRole = outputRole;
     /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
+    // Phase 34 D-02: SSR tab is rendering INTO a stream. 2D-canvas
+    // fallback produces banding in solid-color animations (operator
+    // observed). Force renderMode = "gl" via a window-level hint that
+    // state's renderMode initializer reads after construction. Setting
+    // the hint here (before any state initializer runs) is the simplest
+    // cross-module wiring; the clamp below reads
+    // window.__ttBeamerForceRenderMode and overrides the
+    // persisted/default mode if present.
+    window.__ttBeamerForceRenderMode = "gl";
   }
   // Phase 31 Plan 05 Task 3: dashboard preview shared-stream hook (D-B2
   // default per RESEARCH § Q3). Dashboard URL with `?ssr-preview=1` opts
@@ -425,6 +434,21 @@ const state = window.TT_BEAMER_STATE.createInitialState({
   roomSpeed: roomSpeedInput?.value,
   roomSoundVolume: roomSoundVolumeInput?.value,
 });
+
+// Phase 34 D-02: enforce the SSR-tab GL force set above by the /ssr
+// marker block. This overrides any persisted renderMode loaded from
+// localStorage or server defaults so the SSR-tab always starts in
+// "gl" mode. Runs immediately after state construction so the clamp
+// is in place before BOOTSTRAP.init or any GL-renderer init frame.
+// Non-SSR paths: window.__ttBeamerForceRenderMode is undefined, guard
+// keeps state.renderMode from the persisted/default value unchanged.
+if (
+  typeof window.__ttBeamerForceRenderMode === "string" &&
+  window.__ttBeamerForceRenderMode.length > 0 &&
+  state
+) {
+  state.renderMode = window.__ttBeamerForceRenderMode;
+}
 
 window.TT_BEAMER_RUNTIME_ORCHESTRATION_HELPERS.init({ state });
 
