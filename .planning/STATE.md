@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-05-10T11:16:57.504Z"
+status: Executing Phase 35
+last_updated: "2026-05-10T11:32:00.000Z"
 progress:
   total_phases: 34
   completed_phases: 10
@@ -1571,3 +1571,21 @@ progress:
 - `config/asset-manifest.json` mutation visible in `git status` is unrelated Phase 28 W4 churn (every boot bumps its `generatedAt` timestamp); deliberately excluded from all 3 Phase 29 commits to keep the boundary clean.
 - Per D-06 hard-delete: the disk-side strip is captured in commit 864230f. Git history is the safety net — no `_legacy.json` quarantine, no feature-flag rollback. The `git diff --stat HEAD~3 HEAD config/` output is recorded verbatim in `.planning/phases/phase-29/29-05-SUMMARY.md` per the D-06 sicherheitsnetz convention.
 - Wave 3 closure marker: source-tree (Wave 2) and disk-side (Wave 3) cleanup are now SYNCHRONIZED on this developer's working copy. Next wave is 29-06 (Wave 4 — `BOARD_PACKAGE_SCHEMA` v3 → v4 + bundle-export filter + bundle-import v3 rejection error message).
+
+## Phase 35 Wave 0 Closure (2026-05-10)
+
+- Plan 35-W0 (BLOCKING test infrastructure per D-05) is COMPLETE. Six atomic commits: `e973d11` (Task 1 — `scripts/with_server.py`, 249 lines, Python contextmanager spawning `node server.mjs` with isolated tempdir, free-port allocation, `/api/ssr/ready` polling, SIGTERM→SIGKILL teardown, stderr/stdout tee threads); `c5cd049` (Task 2 — `test/live-e2e/{__init__.py, _flake_retry.py, conftest.py}`, pytest fixtures + @flaky_3x decorator with WAVE0_FLAKE_TOLERANCE=1 opt-in skip); `ccbf136` (Task 3 — `test/live-e2e/test_phase35_alignmode_smoke.py`, D-05 a-f as 6 separate test functions); `2bb64f6` (Task 4 — `test/live-e2e/test_phase35_dashboard_alignmode.py` D-01-A2 canary + `test_phase35_fps_benchmark.py` D-04 baseline harness); `0f59f85` (Task 5 — 3 RED unit tests `phase-35-bootalignmode-shape.test.mjs`, `phase-35-output-live-sync.test.mjs`, `phase-35-bayer-dither.test.mjs`); `f0588c7` (Task 6 — `package.json` npm scripts `test:phase35`, `test:live-e2e`, `test:connection-stability`).
+- D-06 hard-gate verified: `RUN_LIVE_TESTS=1 node --test 'test/connection-stability/*.test.mjs'` reports `tests=85 pass=84 fail=0 skipped=1` (the 1-hour steady-state gated on `RUN_LONG_TESTS=1`). The plan documented `72/0/13` as the expected count, but the actual master count is `85/84/0/1` (the suite has organically grown since the plan was authored). The HARD-GATE INVARIANT is `fail=0`, which is preserved. Wave-0 added zero production code, so connection-stability cannot have regressed.
+- 3 RED rails verified RED: all three `node --test` invocations exit non-zero with `ERR_MODULE_NOT_FOUND` (output-align-mode.js, output-live-sync.js, runtime-effect-dither.js — none of which exist on master, which is correct: they land in 35-A, 35-B, 35-C respectively). The RED state IS the rail.
+- Live-E2E smoke verified: `python3 -m pytest test/live-e2e/test_phase35_alignmode_smoke.py::test_bg_color -v` PASSES against master in ~6s. Full pipeline (with_server → Playwright → /opt/google/chrome/chrome under Xvfb DISPLAY=:98 → /output/ → assertion → teardown) is operational. The Phase-34-class-bug-prevention layer is LIVE.
+- Wave 0 BLOCKING gate is now LIFTED. Per D-05 mandate, no production code in any other Phase 35 plan could merge until this rail was green where applicable. Next plan is 35-B-PLAN (Track B — minimal live-sync subscription extract); when its `output-live-sync.js` lands, `test/phase-35-output-live-sync.test.mjs` turns GREEN automatically.
+- Closure-Dokument: `.planning/phases/phase-35/35-W0-SUMMARY.md` (full per-task accounting, deviation rules invoked: 3× Rule 3 (blocking — pip install pytest, glob pattern for connection-stability path) and 1× Rule 1 (bug — outdated 72/0/13 documentation in plan corrected to 85/84/0/1)).
+
+## Decisions Phase 35-W0
+
+- Approach 1 over Approach 2 for `with_server.py` (D-05 RESEARCH §"Server-spawn pattern"): pure-Python subprocess.Popen wrapper around `node server.mjs` directly. Rejected the cross-spawn-via-`node bin/with-server.mjs` approach (Approach 2) — heavier, no benefit for a Python-test-driven harness.
+- `SSR_ROOT_DIR` for tempdir isolation matches existing `test/connection-stability/_harness.mjs` pattern. Main server's `ROOT_DIR` is repo-hardcoded (`server.mjs:41`); this is an existing constraint Wave-0 INHERITS, not creates. The runtime-active-* writes that occur during a smoke boot land in repo's `config/` — same as the current connection-stability suite already does.
+- Server stdout AND stderr both tee'd to log files via background threads in `with_server.py`. The plan asked only for stderr, but capturing both costs nothing and supports D-05(d) "health ping failed" assertion regardless of which stream the server eventually picks (A8 from CONTEXT.md). The tee-thread design is non-blocking (the test can read the log file after teardown without ever touching the subprocess pipes).
+- `@flaky_3x` decorator wraps the test body, not the fixture setup. Rationale: a flake during fixture setup (e.g., browser launch) is more critical than a flake in the assertion phase — wrapping at the test level lets fixture failures surface as hard failures, while assertion-phase flakes get the 3× retry safety net.
+- RED rails use `ERR_MODULE_NOT_FOUND` as the failure mode (not `pytest.skip` or `it.skip`) — these are LITERAL test failures so CI cannot accidentally pass before Tracks A/B/C land. Once the production modules exist, the dynamic-import succeeds and the export-shape assertions take over as the GREEN-state gate.
+- Module-level Chrome-availability skip in `conftest.py` — the live-E2E rail is environment-gated (D-05 hardware spec specifies `/opt/google/chrome/chrome`). Machines without it skip the whole module rather than failing loudly. The Lenovo Mini test rig has Chrome installed; CI without Chrome cleanly skips.
