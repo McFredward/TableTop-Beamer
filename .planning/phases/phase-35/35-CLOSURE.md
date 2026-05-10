@@ -183,6 +183,27 @@ Per CONTEXT.md D-08 (carry-forward Phase 33 + 34 pattern), all Pi-specific UAT i
 
 **D-06 final gate:** **`fail = 0` invariant upheld** (re-verified twice in V-plan) — 85/84/0/1.
 
+**Autonomous visual smoketest (server-side):** GREEN.
+
+```
+Tool:    Playwright + system Chrome (/opt/google/chrome/chrome) under Xvfb
+Trigger: POST /api/live/command mutationType=trigger-global
+         scope=outside, animation=solid-color colorHex=#ff0000 opacity=0.5
+Capture: 1920x1080 screenshot of /output/ after 4s settle
+Metric:  distinct grayscale values in middle 4-pixel horizontal strip
+Result:  41 distinct red / 40 distinct blue values  (pre-dither baseline ≤3)
+Verdict: dither active and breaking step-bands as designed
+File:    .planning/phases/phase-35/35-banding-after-dither-evidence.png
+Date:    2026-05-10
+```
+
+This is a server-side proxy for D-03-C1-V — confirms the Bayer dither IS executing
+in the live SSR pipeline and producing the high-distinct-value distribution that
+visually corresponds to "no step-bands". It does NOT replace operator gaming-PC
+visual UAT (different display chain, different perceptual conditions), but it
+narrows the operator-UAT failure mode from "did the fix work at all?" to
+"is the visual quality acceptable on operator hardware?".
+
 **Operator visual UAT (UAT-1, UAT-2):** PENDING — operator must run gaming-PC checks per `35-HUMAN-UAT.md` and append result here:
 
 ```
