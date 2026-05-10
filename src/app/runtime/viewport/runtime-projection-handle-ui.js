@@ -550,7 +550,11 @@
 
       // Outer wrapper: hit target (≥32 px on short axis — UI-SPEC Accessibility).
       const wrap = document.createElement("div");
-      wrap.className = "projection-squish-bar";
+      // Phase 36 M4 T4 — additional class `.projection-grid-handle` is a Phase 36
+      // alias for the squish-bar (midpoint-drag handle) so the live-E2E selector
+      // `.projection-grid-handle` matches. Original `.projection-squish-bar`
+      // class preserved (existing CSS / dashboard E2E selectors unchanged).
+      wrap.className = "projection-squish-bar projection-grid-handle";
       wrap.dataset.squishSide = side.key;
       wrap.style.cssText = `
         position: fixed;
@@ -634,8 +638,21 @@
       // Midpoint of the (possibly trapezoid) outer edge in screen space.
       const midX = ((a.x + b.x) / 2) * vw;
       const midY = ((a.y + b.y) / 2) * vh;
-      squishBarElements[i].style.left = `${midX + side.outwardDX}px`;
-      squishBarElements[i].style.top  = `${midY + side.outwardDY}px`;
+      // Phase 36 M4 T4 — when the grid is at identity (M3 default 0/1) the
+      // outer edge sits at the viewport boundary, and `outwardDX/DY=±30`
+      // would push the squish bar OFF screen (TOP at y=−30, etc.) where
+      // pointer events can't reach it. Flip the offset to INWARD when the
+      // outward placement would be off-screen. Drag math (onSquishBarPointerDown
+      // re-derives the outward normal from edge geometry, not from the
+      // sign of outwardDX/DY) is unaffected.
+      let dx = side.outwardDX;
+      let dy = side.outwardDY;
+      const tentLeft = midX + dx;
+      const tentTop  = midY + dy;
+      if (tentLeft < 0 || tentLeft > vw) dx = -dx;
+      if (tentTop  < 0 || tentTop  > vh) dy = -dy;
+      squishBarElements[i].style.left = `${midX + dx}px`;
+      squishBarElements[i].style.top  = `${midY + dy}px`;
     }
   }
 
