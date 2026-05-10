@@ -27,6 +27,13 @@
   let applyTransform = () => {};
   let handlesVisible = false;
 
+  // Phase 36 A1 — optional live-sync-core override (RESEARCH §1.3 (ii)).
+  // When non-null (set via init() from bootHandleUi's mappingDeps on /output/),
+  // broadcastGridSnapshot routes through this object's emitLiveMutation
+  // instead of the dashboard's window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE.
+  // Dashboard path (override null) is byte-identical to pre-Phase-36 behavior.
+  let _liveSyncCoreOverride = null;
+
   // ── State ───────────────────────────────────────────────────────────────────
   //
   // ONE unified grid system. Each intersection stores its own {x, y} position.
@@ -346,6 +353,11 @@
     if (typeof dependencies?.positionRotateHandles === "function") positionRotateHandles = dependencies.positionRotateHandles;
     if (typeof dependencies?.drawLines === "function") drawLines = dependencies.drawLines;
     if (typeof dependencies?.applyTransform === "function") applyTransform = dependencies.applyTransform;
+    // Phase 36 A1 — optional liveSyncCoreOverride DI (RESEARCH §1.3 (ii)).
+    // Dashboard never passes this → null → broadcastGridSnapshot falls back to
+    // window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE (existing path). /output/ passes
+    // a {emitLiveMutation} object via bootHandleUi → bypasses the window global.
+    _liveSyncCoreOverride = (dependencies && typeof dependencies.liveSyncCoreOverride === "object" && dependencies.liveSyncCoreOverride) || null;
     loadFromLocalStorage();
   }
 
@@ -386,7 +398,9 @@
   const _BROADCAST_MIN_INTERVAL_MS = 33; // ~30 Hz
   function broadcastGridSnapshot({ force = false } = {}) {
     try {
-      const liveSyncCore = window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
+      // Phase 36 A1 — prefer init-time-injected liveSyncCoreOverride (set by
+      // bootHandleUi on /output/), fall back to the dashboard's window global.
+      const liveSyncCore = _liveSyncCoreOverride || window.TT_BEAMER_RUNTIME_LIVE_SYNC_CORE;
       if (!liveSyncCore || typeof liveSyncCore.emitLiveMutation !== "function") {
         if (_broadcastLogCount < 3) {
           console.warn("[align-grid-snapshot] live-sync core not ready — broadcast skipped");

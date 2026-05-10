@@ -190,6 +190,30 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   pollOnce();
   connect();
 
+  // Phase 36 A1 — emitLiveMutation (RESEARCH §1.3 critical fix #1, §1.5).
+  // Mirrors runtime-live-sync-core.js's emitLiveMutation envelope shape so the
+  // server-side validator accepts mutations from /output/. Used by grid-state's
+  // broadcastGridSnapshot when wired through liveSyncCoreOverride. Returns
+  // silently if ws is null or not OPEN (caller logs upstream if it cares).
+  function emitLiveMutation(mutationType, payload) {
+    try {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn("[output-live-sync] emitLiveMutation skipped — ws not OPEN");
+        return;
+      }
+      const mutationId = `${mutationType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      ws.send(JSON.stringify({
+        type: "live-mutation",
+        mutationId,
+        mutationType,
+        payload,
+        clientSentAt: new Date().toISOString(),
+      }));
+    } catch (err) {
+      console.warn("[output-live-sync] emitLiveMutation failed:", err?.message || err);
+    }
+  }
+
   return {
     onAnimationStart: on("animationStart"),
     onAnimationStop: on("animationStop"),
@@ -201,6 +225,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     getAlignMode: () => alignMode,
     getActiveProjectionProfileId: () => profileId,
     getCurrentClientId: () => clientId,
+    emitLiveMutation,
     stop() {
       stopped = true;
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
