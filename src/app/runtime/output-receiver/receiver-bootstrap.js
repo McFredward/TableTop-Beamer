@@ -1024,33 +1024,28 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     // space (object-fit: cover crops on aspect mismatch — without this,
     // a click at the BOARD's TL in the stream sent the wrong coords).
     getVideoEl: () => videoEl,
-    // Phase 35-iter2 h8: hitTestVertex restored to delegate to
-    // bootAlignMode's HANDLE_UI hit-test (matches the original Phase 35-A
-    // intent). The h4-h7 input-forwarding detour was reverted — the SSR
-    // tab does NOT render handles (handle-ui line 1638 gates the SSR
-    // tab off the showHandles path), so dispatching synthetic events
-    // there had no effect. Pi /output/ owns the full align-mode UI:
-    // bootAlignMode renders the handles locally + handle-drag.js
-    // broadcasts align-grid-snapshot to keep the SSR-tab's warp grid
-    // in sync with Pi gestures. This delegates per-pointer hit-tests
-    // to the locally-rendered handles, falling back to null if
-    // __ttbAlignMode is not yet initialized (cold-boot race).
+    // Phase 35-iter2 h9: 4-corner approximation restored (Phase 34
+    // baseline). bootAlignMode rendering on /output/ was partial-
+    // reverted — Phase 36 owns the comprehensive align-mode refactor.
+    // Until then, /output/ supports basic corner-pull alignment via the
+    // 4-corner zones: pointer-down in any quadrant maps to the nearest
+    // corner-id (0=TL, 1=TR, 2=BR, 3=BL); receiver-input-forwarder
+    // sends `align-corner-drag` mutation; SSR-tab applies via existing
+    // align-mode handlers. Operators with full vertex/midpoint/rotation
+    // requirements use the dashboard on a separate device for now.
     hitTestVertex: ({ x, y }) => {
-      try {
-        const align = window.__ttbAlignMode;
-        if (align && typeof align.hitTestVertex === "function") {
-          const r = overlayEl?.getBoundingClientRect?.();
-          if (r) {
-            const cx = r.left + x * r.width;
-            const cy = r.top + y * r.height;
-            const id = align.hitTestVertex(cx, cy);
-            return id;
-          }
-        }
-      } catch (_) {
-        // bootAlignMode lookup or call failed — fall through to null.
-      }
-      return null;
+      // Map normalized [0..1] to corner-id 0..3:
+      //   TL (0,0)..(0.5,0.5) → 0
+      //   TR (0.5,0)..(1,0.5) → 1
+      //   BR (0.5,0.5)..(1,1) → 2
+      //   BL (0,0.5)..(0.5,1) → 3
+      if (typeof x !== "number" || typeof y !== "number") return null;
+      const right = x >= 0.5;
+      const bottom = y >= 0.5;
+      if (!right && !bottom) return 0;
+      if (right && !bottom) return 1;
+      if (right && bottom) return 2;
+      return 3;
     },
     logger,
   });

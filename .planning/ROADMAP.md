@@ -679,11 +679,84 @@ Phase 35 iter2 (post-UAT hotfixes):
 - Phase 35 status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES (supersedes premature PASS-AUTOMATED-PENDING-OPERATOR-UAT).
 - Closure addendum: 35-CLOSURE-ITER2-ADDENDUM.md.
 
-## Phase 36 - Transformation Banding Fix (PLANNING)
+## Phase 36 - Comprehensive Align-Mode-on-Thin-/output/ (PLANNING)
 
-Ziel: Die Streifen aus dem projection-transform path eliminieren, die beim 2D-fallback warp-output entstehen — nicht der solid-color-overlay-banding den Phase 35 mit Bayer dither gefixt hat. Das ist die Phase-32-class banding die der User mehrfach beschrieben hat ("die bekannten Streifen die durch GL gefixed wurden"). Phase 32 hatte das durch `--ignore-gpu-blocklist + --enable-gpu-rasterization` GL-flags gelöst, Phase 34 hotfix h2 hat diese flags reverted weil Mesa-llvmpipe synchron-flush gehängt hat. Phase 36 muss einen alternativen Pfad finden der die Connection-Stability nicht verletzt.
+Ziel: Den vollen handle-ui (vertex / midpoint / rotation drag, image-pan, right-click menu für add/remove lines, CTRL+Z undo, dirty-flag, sizing alignment mit stream content) auf der thin /output/ funktionsfähig bringen, OHNE die volle Dashboard-App zu laden. Das ist die comprehensive Version von Phase 35-A's pure-extract Versuch — Phase 35-iter2 hat gezeigt dass die ad-hoc Hotfix-Iterationen nicht ausreichen weil handle-ui mehr implizite ctx-Abhängigkeiten hat als per-bug fixierbar sind.
 
 Status: PLANNING.
+
+Trigger: 2026-05-10 operator UAT nach Phase 35-iter2 h8 — sechs offene align-mode interaction bugs nach mehreren hotfix-Iterationen. h9 hat /output/ partial-reverted auf Phase 34's 4-corner approximation; volle handle-ui ist Phase 36 scope.
+
+Scope (Wave-0 BLOCKING — RED tests pro interaction):
+- T1 sizing: handle frame ist visuell aligned mit stream content (no ESC-required realignment)
+- T2 corner pulls: alle 4 corner handles ändern den stream sichtbar
+- T3 vertex drag: Eckpunkte greifen den richtigen Vertex (nicht falsche corner-id von hitTest fallback)
+- T4 midpoint drag: Linie-Stauch handles sind klickbar + funktionieren  
+- T5 rotation handles: rotation greifbar, Drehung wird im stream übernommen
+- T6 image-pan: Drag im freien Bereich verschiebt stream-content
+- T7 right-click menu: Kontextmenü zum Hinzufügen/Löschen von Linien erscheint
+- T8 CTRL+Z undo: macht Verzerrungen rückgängig im stream
+- T9 dirty-flag: reagiert auf jede gesture, propagiert zum dashboard-side dirty-indicator
+- T10 receiver-input-forwarder + bootAlignMode konflikt-frei (nicht beide gleichzeitig aktiv)
+
+Pflicht-Inputs:
+- `.planning/phases/phase-35/35-CLOSURE-ITER2-ADDENDUM.md` — h9 root-cause analysis
+- `src/app/runtime/output-receiver/output-align-mode.js` — Phase 35-A bootAlignMode Versuch (NICHT geladen, reference)
+- `src/app/runtime/output-receiver/output-align-mode-loader.js` — Phase 35-iter2 h1+h2 lazy-loader Versuch (NICHT geladen, reference)
+- `src/app/runtime/viewport/runtime-projection-handle-ui.js` (1756 LOC) — handle-ui infrastruktur
+- `src/app/runtime/viewport/runtime-projection-handle-drag.js` (941 LOC) — drag handlers
+- `src/app/runtime/runtime-orchestration.js` — dashboard's handle-ui init (für ctx-kontrolle)
+- `src/styles.css` line ~119, ~199 — pointer-event flow zwischen #ssr-input-overlay, #stage, #room-overlay
+- Phase 31 h32 architecture comment in handle-ui.js (line 1617-1622) — pre-Phase-35 architecture rationale
+
+Forschungsfragen (RESEARCH.md scope):
+- Was sind ALLE ctx-fields die handle-ui auf /output/ tatsächlich aufruft? (vollständige inventur — nicht stub-by-grep)
+- Gibt's "init bundles" die als geschlossene units übernommen werden können (z.B. profile-persistence init mit dependencies + alle deren writers)?
+- Wie löse ich den event-handling Konflikt zwischen `#ssr-input-overlay` (z:4) und handle-ui Handles (z:9999)? Drei kandidate Pfade: (a) `#ssr-input-overlay` pointer-events:none wenn handle-ui aktiv, (b) Handles z-index über overlay, (c) handle-ui events bubblen von ssr-input-overlay
+- Soll handle-ui auf /output/ einen "thin export" entry-point bekommen (Option H aus iter2 discussion)?
+
+Three-options analysis:
+- **Option D-extended:** Erst-mal ALLE missing wirings auf einmal in einem cleanen RESEARCH+PLAN cycle (statt iterativ)
+- **Option H:** handle-ui refactor zum first-class thin-export pattern. Bigger diff aber sustainable.
+- Hybrid: Option D-extended für jetzt, Option H als deferred refactor wenn sich's lohnt.
+
+Pflicht-Wave-0: Live-E2E test-rail erweitern um T1-T10 Assertions. Vor jedem code change muss eine RED test existieren der die failure mode reproduziert.
+
+Milestones:
+1. M1 RESEARCH: ctx-inventur fertig + event-handling Konflikt-Lösung gewählt
+2. M2 Wave-0 RED tests existent + funktionieren als regression-Detektoren
+3. M3 Implementation Wave 1: sizing + corner-pulls (T1+T2)
+4. M4 Implementation Wave 2: vertex/midpoint/rotation drag (T3+T4+T5)
+5. M5 Implementation Wave 3: image-pan + right-click + CTRL+Z + dirty (T6+T7+T8+T9)
+6. M6 Live-UAT: alle 10 interactions funktional, D-06 fail=0 preserved
+
+Exit Criteria:
+- Operator-tested align-mode auf gaming-PC desktop browser zeigt:
+  - Korrekte handle-frame-Größe (kein ESC-Realign nötig)
+  - Alle handle-Typen klickbar + verschieben den richtigen Bereich im stream
+  - Right-click menu erscheint, CTRL+Z undoes, dirty-flag korrekt
+- D-06 hard gate `test/connection-stability/**` bleibt `fail=0`
+- /output/ bleibt thin (≤8 src-based scripts initial; align-mode bundle lazy-loaded wie h1)
+- Dashboard align-mode regression check: dashboard side weiterhin funktional
+
+Out of Scope:
+- Voll-App auf /output/ laden (verletzt thin-Ziel)
+- /align separate URL (UX-Änderung — operator soll auf /output/ direkt arbeiten)
+- Audio-pipeline-Änderungen
+- Codec-wechsel von H264
+
+Carrying Forward (LOCKED, do not re-open):
+- VAAPI default-disabled (Phase 33 commit `3cd6748`)
+- Phase 34 hotfix h2 (hasVaapiEnabled-gated GL flags)
+- Phase 35-iter2 h3 banding fix (Bayer dither + drawImage clip)
+- Phase 35-iter2 h1+h2 als reference material (lazy-loader pattern + polygon-data wiring)
+- Phase 35-B output-live-sync.js (proven thin subscription)
+
+## Phase 37 - Transformation Banding Fix (DEFERRED)
+
+Ehemalige Phase 36 (umnummeriert weil align-mode dringender). Ziel: Die Streifen aus dem projection-transform path eliminieren, die beim 2D-fallback warp-output entstehen — nicht der solid-color-overlay-banding den Phase 35 mit Bayer dither gefixt hat. Das ist die Phase-32-class banding die der User mehrfach beschrieben hat ("die bekannten Streifen die durch GL gefixed wurden"). Phase 32 hatte das durch `--ignore-gpu-blocklist + --enable-gpu-rasterization` GL-flags gelöst, Phase 34 hotfix h2 hat diese flags reverted weil Mesa-llvmpipe synchron-flush gehängt hat. Phase 37 muss einen alternativen Pfad finden der die Connection-Stability nicht verletzt.
+
+Status: DEFERRED bis Phase 36 (align-mode) abgeschlossen ist.
 
 Trigger: 2026-05-10 operator UAT nach Phase 35 close — "Die bekannten Streifen die bereits mehrfach gefixed wurden (durch GL?) wegen der transformation sind wieder da".
 

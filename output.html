@@ -50,21 +50,18 @@
        contract and avoids a layout-thrash on first align-mode tap. -->
   <div id="ssr-input-overlay" style="position:fixed;inset:0;z-index:4;touch-action:none;pointer-events:none"></div>
 
-  <!-- Phase 35 D-01 (Track A) + iter2 h2 + h8: #stage and #room-overlay
-       are required by bootAlignMode (handle-ui mounts handles inside
-       #stage; the polygon-editor renders SVG polygons inside
-       #room-overlay; the CSS rule at src/styles.css gates handle
-       visibility on body.align-mode-active). Pi /output/ owns the FULL
-       align-mode UI per pre-Phase-35 architecture — handle-ui has
-       built-in support for vertex/midpoint/rotation/right-click/CTRL+Z.
-       handle-drag.js broadcasts align-grid-snapshot on every drag so
-       the SSR tab's warp stays in sync with Pi's handle gestures.
-       (The h4-h7 input-forwarding architecture was a wrong turn — the
-       SSR tab is INTENTIONALLY not rendering handles per
-       runtime-projection-handle-ui.js line 1638 gate. Reverted in h8.) -->
-  <div id="stage" class="stage" style="position:fixed;inset:0;z-index:3;pointer-events:none">
-    <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-  </div>
+  <!-- Phase 35-iter2 h9: bootAlignMode rendering on /output/ has been
+       partial-reverted because the pure-extract approach surfaced more
+       missing wirings than h1+h2+h8 could plug. /output/ goes back to
+       Phase 34's 4-corner approximation for basic align (corner-pull
+       only). Phase 36 will own the comprehensive align-mode-on-thin-
+       /output/ refactor with proper RED tests for every interaction
+       (vertex/midpoint/rotation drag, image-pan, right-click menu,
+       CTRL+Z, dirty-flag, sizing alignment). Until Phase 36 lands,
+       operator can use the dashboard for full handle-ui interaction. -->
+  <!-- #stage + #room-overlay intentionally OMITTED — Phase 36 will
+       reintroduce them with a properly-init'd handle-ui.    -->
+
 
   <!-- Phase 34 D-03 + Phase 35 D-02 (Track B): minimal script set. Order matters:
        1. runtime-env.js  — exposes window.TT_BEAMER_RUNTIME_ENV
@@ -131,40 +128,19 @@
     });
   </script>
 
-  <!-- Phase 35-iter2 h8 (RESTORED FROM h1+h2): lazy-load align-mode bundle.
-       Pi /output/ owns the full align-mode UI per pre-Phase-35
-       architecture — handle-ui has built-in support for vertex /
-       midpoint / rotation / right-click / CTRL+Z. The h4-h7
-       input-forwarding architecture was reverted because the SSR
-       Chromium tab is INTENTIONALLY not rendering handles (handle-ui
-       line 1638 gates _isSsrChromiumTab) — the architecture splits
-       Pi-owned UI from SSR-owned warped board encoding.
-       output-align-mode-loader.js subscribes to liveSync.onAlignModeChange
-       and dynamic-loads the IIFEs ONLY when alignMode toggles to true.
-       After 2s post-load it prefetches the bundle in background so the
-       first activation is cache-hit-fast (~0ms). h2 polygon-data
-       wiring (real /api/boards reads) stays in place. -->
-  <script type="module">
-    import { bootAlignModeLoader } from "/src/app/runtime/output-receiver/output-align-mode-loader.js";
-    window.addEventListener("DOMContentLoaded", () => {
-      const stage = document.getElementById("stage") ?? document.body;
-      const roomOverlay = document.getElementById("room-overlay");
-      const videoEl = document.getElementById("ssr-video");
-      if (!roomOverlay || !window.__ttbLiveSync) {
-        console.warn("[align-loader] preconditions missing — skipped",
-          { hasRoomOverlay: !!roomOverlay, hasLiveSync: !!window.__ttbLiveSync });
-        return;
-      }
-      try {
-        window.__ttbAlignLoader = bootAlignModeLoader({
-          stage, roomOverlay, videoEl,
-          liveSync: window.__ttbLiveSync,
-          logger: console,
-        });
-      } catch (err) {
-        console.error("[align-loader] init failed:", err);
-      }
-    });
-  </script>
+  <!-- Phase 35-iter2 h9: bootAlignMode rendering on /output/ has been
+       partial-reverted. Phase 35-A's pure-extract surfaced more missing
+       handle-ui ctx wirings (sizing alignment, dirty-flag, right-click
+       menu, CTRL+Z, vertex/midpoint distortion) than h1+h2+h8 could
+       safely plug. Phase 36 owns the comprehensive align-mode refactor.
+       Until then, /output/ uses Phase 34's 4-corner approximation
+       (handled by receiver-input-forwarder + receiver-bootstrap) for
+       basic corner-pull alignment; full handle-ui (vertex/midpoint/
+       rotation/right-click/CTRL+Z) is operator-accessible via the
+       dashboard on a separate device.
+       The output-align-mode-loader.js + output-align-mode.js modules
+       remain in src/app/runtime/output-receiver/ as Phase 36 reference
+       material (NOT loaded — purpose: starting point for the proper
+       refactor without losing the polygon-data wiring research). -->
 </body>
 </html>

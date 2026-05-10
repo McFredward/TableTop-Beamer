@@ -178,3 +178,78 @@ Recommendation: retag `phase-35-end-pending-uat` →
 `phase-35-end-iter2`. When operator confirms Bug 1 + Bug 2 are gone
 on gaming-PC AND Bug 3 visual UAT is acknowledged as deferred-to-36,
 retag `phase-35-end`.
+
+---
+
+## h9 Update — Phase 35-A bootAlignMode partial-revert
+
+After h4-h7 (input-forwarding, reverted) and h8 (restore Phase 35-A
+bootAlignMode), operator-reported additional bugs against the locally-
+rendered handles:
+
+1. Sizing of handle frame doesn't align with stream content (only
+   aligns after ESC).
+2. Outer corner handles + scaling points don't change the stream.
+3. Midpoint handles for line-squish are not clickable.
+4. Vertex points are draggable BUT a SEPARATE ghost circle appears in
+   the mouse, AND the first grab distorts the WRONG corner (e.g.,
+   grabbing top-middle distorts top-left).
+5. Dirty-flag does not react to drags.
+6. Right-click does not invoke the add/remove-line context menu.
+
+Root-cause analysis revealed Phase 35-A's pure-extract approach was
+incomplete. Two competing event-handling models were active
+simultaneously:
+
+| | Phase 31/34 model A | Phase 35-A model B |
+|---|---|---|
+| Handles | invisible 4-corner zones | actual handle DOM |
+| Click capture | `#ssr-input-overlay` (z:4) | handle elements (z:9999) |
+| Broadcast mutation | `align-corner-drag` | `align-grid-snapshot` |
+| Coverage | corner-pull only | vertex / midpoint / rotation |
+
+Both layered on top of each other → corner clicks hit overlay first
+(model A), produces wrong-corner distortion via 4-quadrant approximation;
+midpoint clicks are intercepted by overlay → align-corner-drag with
+random corner-id; etc.
+
+The pure-extract was missing many handle-ui ctx wirings beyond what h2
+fixed. Stream-content-rect sizing, dirty-flag persistence, contextmenu
+infrastructure, undo, cross-module init order — each requires separate
+wiring that none of the iter2 hotfixes plugged.
+
+**h9 decision (2026-05-10):** Per user direction, partial-revert Phase
+35-A's bootAlignMode rendering on /output/. /output/ goes back to the
+Phase 34 4-corner approximation (basic corner-pull alignment via
+`align-corner-drag`). Comprehensive align-mode-on-thin-/output/ refactor
+becomes Phase 36 with proper RED tests for every interaction (sizing,
+vertex/midpoint/rotation drag, image-pan, right-click menu, CTRL+Z,
+dirty-flag) before any code change.
+
+What stays from Phase 35:
+- Phase 35-B live-sync extract (`output-live-sync.js`) — proven, used
+- Phase 35-C iter2 h3 banding fix (Bayer dither + drawImage clip) — proven
+- Phase 35-iter2 h1 lazy-load infrastructure preserved as Phase 36
+  starting point (`output-align-mode.js` + `output-align-mode-loader.js`
+  remain in `src/app/runtime/output-receiver/` — NOT loaded; Phase 36
+  reference material)
+
+What's reverted:
+- `output.html` returns to 5 thin scripts (no bootAlignMode IIFE bundle)
+- `#stage` + `#room-overlay` divs removed from /output/ DOM
+- `receiver-bootstrap.js` `hitTestVertex` returns Phase-34's 4-quadrant
+  corner-id (instead of delegating to bootAlignMode)
+- The dashboard remains the operator's full handle-ui interface for
+  configuration tasks until Phase 36 lands
+
+This is the third partial close of Phase 35 — h9 is the honest answer
+to "every iteration uncovered more missing wirings". The decision
+is documented + Phase 36 has the scope captured.
+
+## h9 Tag
+
+Recommendation: retag `phase-35-end-iter2` to reflect the h9
+partial-revert. Phase 36 is opened in ROADMAP.md with the comprehensive
+align-mode refactor scope — distinct from Phase 36's transformation
+banding which is now Phase 37. (Or fold both into Phase 36 with two
+tracks. Operator's call when planning Phase 36.)
