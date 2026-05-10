@@ -1154,32 +1154,32 @@ Per CONTEXT.md, no `security_enforcement: false` flag — security analysis requ
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should dashboard's `runtime-orchestration.js` continue exposing the same destructured exports (`applyProjectionTransform`, `showProjectionHandles`, etc.)?**
    - What we know: 50+ downstream call sites in `runtime-orchestration.js` use these names.
    - What's unclear: Whether `bootAlignMode` should expose them via its return value, or whether the modules' window-level namespaces stay as the source.
-   - Recommendation: keep `window.TT_BEAMER_RUNTIME_*` namespaces as the source. `bootAlignMode` does NOT change them. Dashboard's destructure stays as-is. Pure-extract is achievable with this constraint.
+   - **RESOLVED:** Keep `window.TT_BEAMER_RUNTIME_*` namespaces as the source. `bootAlignMode` does NOT change them. Dashboard's destructure stays as-is. Pure-extract is achievable with this constraint.
 
 2. **Does Track B `output-live-sync.js` need version-tracking for stale snapshots?**
    - What we know: full live-sync core has `shouldApplySnapshotVersion` to drop stale versions.
    - What's unclear: For thin /output/, does staleness matter?
-   - Recommendation: NO. Animation triggers are idempotent (start/stop by id). Profile changes are last-write-wins. AlignMode is a boolean. Stale events are at worst delayed; no corruption risk.
+   - **RESOLVED:** NO. Animation triggers are idempotent (start/stop by id). Profile changes are last-write-wins. AlignMode is a boolean. Stale events are at worst delayed; no corruption risk.
 
 3. **What's the right alpha-quantization step for the dither cache key?**
    - What we know: 1% steps produce 100 cache entries per (color, size); 10% steps produce 10.
    - What's unclear: Visual delta between 1% and 10% alpha quantization.
-   - Recommendation: Start with 5% (~20 entries per tuple); reduce if cache pressure observed.
+   - **RESOLVED:** Start with 5% (~20 entries per tuple); reduce if cache pressure observed.
 
 4. **Should D-05 also assert the SSR tab is healthy (not just /output/)?**
    - What we know: D-05 spec lists 6 assertions on /output/. The SSR tab is implicit (must be alive for /output/'s stream to play).
    - What's unclear: Whether to add explicit SSR-tab health assertions.
-   - Recommendation: NO — D-05 a/b/d implicitly cover SSR-tab health. If video plays + currentTime advances + no health-ping-fail, SSR tab IS healthy. Explicit SSR-tab assertions are over-engineering.
+   - **RESOLVED:** NO — D-05 a/b/d implicitly cover SSR-tab health. If video plays + currentTime advances + no health-ping-fail, SSR tab IS healthy. Explicit SSR-tab assertions are over-engineering.
 
 5. **Track A: should `runtime-projection-mapping.js` keep its current shim role, or be flattened into `bootAlignMode`?**
    - What we know: mapping is currently a 431-LOC shim that destructures from grid-state and forwards to handle-ui.
    - What's unclear: Whether flattening is in scope.
-   - Recommendation: do NOT flatten. The shim's destructure pattern is byte-identical-preserved; flattening risks subtle regressions. Leave mapping as a shim, just have `bootAlignMode` be the orchestrator above it.
+   - **RESOLVED:** Do NOT flatten. The shim's destructure pattern is byte-identical-preserved; flattening risks subtle regressions. Leave mapping as a shim, just have `bootAlignMode` be the orchestrator above it.
 
 ---
 
