@@ -986,10 +986,17 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
   if (liveSync) {
     alignMode = Boolean(liveSync.getAlignMode?.());
     currentProfileId = liveSync.getActiveProjectionProfileId?.() ?? null;
-    overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+    // Phase 36 D-02 (a): overlay pointer-events permanently "none" so handle
+    // DOM (z:9999, pointer-events:auto via inline style from handle-ui creation)
+    // captures clicks directly. receiver-input-forwarder remains attached but
+    // dormant during align-mode-ON — no events reach overlayEl in this model.
+    // alignMode state is still tracked because hitTestVertex (Wave-4 fallback
+    // when bootHandleUi is not active) gates on it via `isAlignModeActive`.
+    overlayEl.style.pointerEvents = "none";
     offAlignModeChange = liveSync.onAlignModeChange?.((enabled) => {
       alignMode = Boolean(enabled);
-      overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+      // Phase 36 D-02 (a): overlay stays "none" regardless of align-mode toggle.
+      overlayEl.style.pointerEvents = "none";
     });
     offProjectionProfileChange = liveSync.onProjectionProfileChange?.((pid) => {
       currentProfileId = pid ?? null;
@@ -1007,7 +1014,8 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
             ?? snap?.selectedBoard?.lastUsedProfileName
             ?? (typeof snap?.selectedBoard === "string" ? snap.selectedBoard : null)
             ?? null;
-          overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+          // Phase 36 D-02 (a): overlay stays "none" in legacy poll fallback too.
+          overlayEl.style.pointerEvents = "none";
         }
       } catch {
         /* ignore — next tick retries */

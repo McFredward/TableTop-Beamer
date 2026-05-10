@@ -195,22 +195,16 @@ body:not([data-output-role="final-output"]) .output-status-chip {
   z-index: 9997;
 }
 
-/* Phase 35 D-01 (Track A): on the /output/ thin path, handle elements
-   are VISUAL ONLY — pointer events bubble up to #ssr-input-overlay
-   (z-index 4) which feeds receiver-input-forwarder. The forwarder uses
-   bootAlignMode's hitTestVertex (DOM-based handle bbox lookup) to
-   identify which corner was clicked and POSTs an align-corner-drag
-   mutation to /api/live/command. Without this rule, handles' inline
-   z-index:9999 would intercept pointerdown before the overlay (z-index:4)
-   could see it, leaving handle-drag's broadcast path firing into a
-   missing runtime-live-sync-core (it's not loaded on the thin /output/).
-   The line canvas (z-index 9997) stays interactive on dashboard but
-   not on /output/ for the same reason. */
-body[data-output-role="final-output"].align-mode-active .projection-corner-handle,
-body[data-output-role="final-output"].align-mode-active .projection-grid-handle,
-body[data-output-role="final-output"].align-mode-active #projection-grid-line-canvas {
-  pointer-events: none !important;
-}
+/* Phase 36 D-02 — Phase 35-A's `pointer-events:none !important` rule on
+   .projection-corner-handle / .projection-grid-handle / #projection-grid-line-canvas
+   has been REMOVED. That rule was the (c)-bubbling workaround in Phase 35-A,
+   which let receiver-input-forwarder consume corner-clicks via overlay
+   bubbling (model A). Phase 36 LOCKED Option H + D-02 (a): handle DOM at
+   z:9999 captures clicks directly via inline `pointer-events: auto` set by
+   handle-ui creation; receiver-bootstrap.js now permanently sets
+   #ssr-input-overlay's `pointer-events: none` (JS-toggled, not CSS-overridden).
+   With this rule gone, handles' inline pointer-events:auto wins without
+   competition from the !important override. */
 
 /* Play Area boundaries shown during align mode on /output */
 .align-mode-play-area {
