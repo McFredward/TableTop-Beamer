@@ -702,31 +702,13 @@ export function bootAlignModeLoader({
     else deactivate();
   });
 
-  // Phase 36 iter2 h6 (2026-05-10): broadcast current grid on EVERY
-  // WS reconnect (not just the first activate()). Operator UAT root
-  // cause: when profile-load broadcasts fire while the WS is in the
-  // middle of a close handshake, send() returns silently but the
-  // server never receives. The h3 onConnect one-shot only covered the
-  // initial activate. h6 makes it permanent — every reconnect re-pushes
-  // /output/'s current grid (loaded from server snapshot via
-  // bootHandleUi) to the SSR tab.
-  //
-  // Originator filter on the receiving SSR tab prevents loops.
-  // broadcastGridSnapshot's existing 30Hz throttle prevents bursts.
-  // No effect if bootHandleUi hasn't run yet (gridState API not loaded).
-  if (typeof liveSync.onConnect === "function") {
-    liveSync.onConnect(() => {
-      try {
-        const GS = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-        if (GS && typeof GS.broadcastGridSnapshot === "function") {
-          GS.broadcastGridSnapshot({ force: true });
-          logger?.log?.("[align-loader] WS reconnect → resync broadcast fired");
-        }
-      } catch (e) {
-        logger?.warn?.("[align-loader] WS reconnect broadcast failed:", e?.message);
-      }
-    });
-  }
+  // Phase 36 iter2 h7 (2026-05-10): h6 reverted — the permanent
+  // onConnect broadcast caused storm-of-broadcasts on unstable WS
+  // (each reconnect fired a force broadcast → smoothness regression
+  // reported by operator). The proper fix is QUEUE-AND-FLUSH inside
+  // output-live-sync.js itself, so any emit during WS down/closing
+  // is retried on the next onopen — no caller awareness required.
+  // See output-live-sync.js's _pendingLatestByType + flush-on-open.
 
   // Refetch board data when the projection profile changes (operator
   // switched boards or applied a new profile)

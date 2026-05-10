@@ -75,6 +75,11 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   let attempt = 0;
   let reconnectTimer = null;
   let pollTimer = null;
+  // Phase 36 iter2 h7 (2026-05-10): single-slot per-type queue for
+  // mutations attempted while ws is not OPEN. Flushed on next ws.open.
+  // Keys are mutation-type strings; values are the LATEST payload
+  // attempted (last writer wins — grid-snapshot is idempotent).
+  const _pendingLatestByType = new Map();
 
   function emit(event, ...args) {
     for (const h of handlers[event]) {
@@ -153,6 +158,38 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     ws.addEventListener("open", () => {
       attempt = 0;
       logger?.log?.("[output-live-sync] WS open");
+      // Phase 36 iter2 h7 (2026-05-10): flush any mutations that were
+      // queued while ws was not OPEN. Operator UAT root cause: profile-
+      // load broadcast fires while ws is mid-close-handshake → silently
+      // dropped → SSR tab never receives → stream stays stale until
+      // user makes a small drag (which broadcasts again post-reconnect).
+      // The queue stores the LATEST mutation per type (idempotent for
+      // grid-snapshot — last writer wins) so no broadcast storm even
+      // if multiple emits happened during the WS down window.
+      try {
+        if (_pendingLatestByType.size > 0) {
+          for (const [mType, mPayload] of _pendingLatestByType) {
+            const mutationId = `${mType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-flush`;
+            try {
+              ws.send(JSON.stringify({
+                type: "live-mutation",
+                mutationId,
+                mutationType: mType,
+                payload: mPayload,
+                clientSentAt: new Date().toISOString(),
+              }));
+              logger?.log?.(`[output-live-sync] flushed pending mutation type=${mType} on WS reopen`);
+            } catch (e) {
+              logger?.warn?.(`[output-live-sync] flush send failed type=${mType}:`, e?.message);
+            }
+          }
+          _pendingLatestByType.clear();
+        }
+      } catch (err) {
+        logger?.warn?.("[output-live-sync] flush failed:", err?.message || err);
+      }
+      // NOTE: emit("connect") is fired from dispatch() on live-hello,
+      // not here. Adding it here would double-fire onConnect handlers.
     });
     ws.addEventListener("message", (event) => {
       try { dispatch(JSON.parse(event.data)); }
@@ -197,8 +234,15 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   // silently if ws is null or not OPEN (caller logs upstream if it cares).
   function emitLiveMutation(mutationType, payload) {
     try {
+      // Phase 36 iter2 h7 (2026-05-10): queue-and-flush instead of
+      // silently dropping when ws is not OPEN. The previous behavior
+      // (drop + warn) lost mutations during WS close handshakes or
+      // reconnect windows — including the operator's profile-load
+      // broadcast. Now: store LATEST mutation per type and flush on
+      // next ws.open. Idempotent for grid-snapshot (last writer wins).
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        console.warn("[output-live-sync] emitLiveMutation skipped — ws not OPEN");
+        _pendingLatestByType.set(mutationType, payload);
+        console.warn(`[output-live-sync] emitLiveMutation queued — ws not OPEN (type=${mutationType}, queue=${_pendingLatestByType.size})`);
         return;
       }
       const mutationId = `${mutationType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -210,7 +254,15 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         clientSentAt: new Date().toISOString(),
       }));
     } catch (err) {
-      console.warn("[output-live-sync] emitLiveMutation failed:", err?.message || err);
+      // If send threw (e.g., ws transitioned to CLOSING between the
+      // readyState check and send), queue the mutation for retry on
+      // the next reconnect.
+      try {
+        _pendingLatestByType.set(mutationType, payload);
+        console.warn(`[output-live-sync] emitLiveMutation send threw — queued for retry (type=${mutationType}):`, err?.message || err);
+      } catch (e) {
+        console.warn("[output-live-sync] emitLiveMutation failed:", err?.message || err);
+      }
     }
   }
 
