@@ -205,15 +205,35 @@ directly without needing dashboard tab visible. Forwarding context-menu
 events to dashboard would require operator to keep both tabs visible,
 defeating the operator-on-/output/ ergonomic goal.
 
-### D-06: Dirty-flag — Local + broadcast via existing mutation type (LOCKED)
+### D-06: Dirty-flag — Local + broadcast via existing endpoint (LOCKED)
 
 handle-ui's `markDirty()` runs locally on /output/ via `bootHandleUi(...)`.
-On every gesture: local state updated AND broadcast via existing
-mutation type — dashboard's dirty-indicator reflects via live-sync
-subscription. Both pages stay consistent if both open.
+On every gesture: local state updated AND broadcast — dashboard's
+dirty-indicator reflects via live-sync subscription. Both pages stay
+consistent if both open.
 
-The dirty-flag broadcast piggybacks on `align-grid-snapshot` (same
-mutation that already syncs grid state). No new mutation type.
+**Reconciliation [2026-05-10, plan-phase iteration]:** The original
+literal text of D-06 said "broadcast piggybacks on `align-grid-snapshot`
+(same mutation that already syncs grid state)". Phase 36 RESEARCH §1
+discovered the existing implementation actually uses a separate
+`POST /api/align-mode-dirty` endpoint (server.mjs:4114-4120 +
+profile-persistence.js:598). The user-intended behavior — dirty-flag
+propagates from /output/ to dashboard with no new mutation type —
+is preserved by reusing this existing endpoint. The literal mechanism
+("piggyback on align-grid-snapshot") is REVISED to "use the existing
+`/api/align-mode-dirty` endpoint" because:
+
+- Lower risk (existing endpoint, server validator, dashboard subscriber
+  already plumbed)
+- Same observable outcome (operator sees dirty-indicator update)
+- No "new mutation type" introduced (D-06 invariant honored)
+- Piggyback would have required modifying align-grid-snapshot payload
+  shape + server validator + dashboard reader — net higher diff with
+  no user-visible benefit
+
+This reconciliation is locked. RESEARCH §"Open Questions for the
+planner" Q1 documents the resolution. No further user sign-off needed
+because the user-locked intent (D-06 goal) is preserved verbatim.
 
 ### D-07: ctx-inventur methodology — Runtime-trace + AST union (LOCKED)
 

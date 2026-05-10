@@ -1243,26 +1243,34 @@ console.log(
 
 ---
 
-## Open Questions for the planner
+## Open Questions for the planner (RESOLVED)
 
-1. **D-06 literal interpretation:** keep `/api/align-mode-dirty` as separate POST endpoint (recommended) OR add `dirty` field to `align-grid-snapshot` payload (matches CONTEXT.md literal text)?
+All 5 questions resolved during plan-phase iteration on 2026-05-10. Resolutions
+locked in 36-W0-PLAN.md `<objective>` and propagated through downstream plans.
+
+1. **Q1 D-06 literal interpretation:** keep `/api/align-mode-dirty` as separate POST endpoint (recommended) OR add `dirty` field to `align-grid-snapshot` payload (matches CONTEXT.md literal text)?
    - What we know: existing implementation uses `/api/align-mode-dirty`. The `align-grid-snapshot` payload has no `dirty` field today.
    - What's unclear: whether CONTEXT.md author meant "broadcast as a side effect of align-grid-snapshot" or "rely on the existing endpoint that already broadcasts".
    - Recommendation: keep existing endpoint. Document the reconciliation in PLAN.md.
+   - **RESOLVED:** Use existing `POST /api/align-mode-dirty` endpoint. CONTEXT.md D-06 amended on 2026-05-10 with `[reconciliation 2026-05-10]` note documenting the corrected mechanism. User intent (dirty propagates from /output/ to dashboard) preserved; only the message-routing primitive differs from CONTEXT.md's original literal text.
 
-2. **Dashboard regression test rewrite:** keep the file as-is and let M3 dashboard migration GREEN it, OR proactively rewrite with parametrized assertions covering T2/T7/T8?
+2. **Q2 Dashboard regression test rewrite:** keep the file as-is and let M3 dashboard migration GREEN it, OR proactively rewrite with parametrized assertions covering T2/T7/T8?
    - What we know: existing test correctly POSTs to `/api/live/command` (verified at line 59). Failure mode is `wait_for_function` timeout for `.projection-corner-handle`.
    - Recommendation: keep + add parametrized variants of T2/T7/T8 with `[/, /output/]` for breadth.
+   - **RESOLVED:** Keep `test_phase35_dashboard_alignmode.py` as-is + add NEW `test_phase36_dashboard_parity.py` with parametrized variants. The Phase 35 deferred-items.md endpoint-mismatch note is OBSOLETE (test already uses correct endpoint).
 
-3. **Line-add immediate broadcast:** should `addHorizontalLine` / `addVerticalLine` / `removeHorizontalLine` / `removeVerticalLine` call `broadcastGridSnapshot({force:true})` to push the new srcXs/srcYs immediately, or wait for the next drag?
+3. **Q3 Line-add immediate broadcast:** should `addHorizontalLine` / `addVerticalLine` / `removeHorizontalLine` / `removeVerticalLine` call `broadcastGridSnapshot({force:true})` to push the new srcXs/srcYs immediately, or wait for the next drag?
    - What we know: today they wait. T2 (corner pull AFTER add line) would still show the new structure.
    - Recommendation: ADD the explicit call. Cheap, removes a race condition, T7 can assert immediately.
+   - **RESOLVED:** Add explicit `broadcastGridSnapshot({force:true})` call in all 4 line-mutation methods. Wired in M5 plan.
 
-4. **handle-ui internal modularization:** I recommend NO. Planner has discretion. If splitting, propose: align-toolbar.js (~420 LOC) + context-menu.js (~150 LOC) + handle-shell.js (~1180 LOC).
+4. **Q4 handle-ui internal modularization:** I recommend NO. Planner has discretion. If splitting, propose: align-toolbar.js (~420 LOC) + context-menu.js (~150 LOC) + handle-shell.js (~1180 LOC).
+   - **RESOLVED:** NO modularization in Phase 36. Preserves diff bound. CONTEXT.md `<deferred>` records this as a future cleanup option.
 
-5. **Memory cap on undo stack:** add a 1000-entry cap?
+5. **Q5 Memory cap on undo stack:** add a 1000-entry cap?
    - What we know: no cap today; ~21 MB worst-case after 1h of dragging at 30Hz.
    - Recommendation: add a cap (cheap, defensive). 1 LOC change in grid-state.js.
+   - **RESOLVED:** Add 1000-entry FIFO cap to grid-state.js undo stack. Wired in M5 plan as part of T8 wiring. Threat T-LB-1 mitigated.
 
 ---
 
