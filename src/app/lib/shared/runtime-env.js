@@ -14,6 +14,17 @@
     if (pathname === "/output" || pathname.startsWith("/output/")) {
       return OUTPUT_ROLE_FINAL;
     }
+    // Phase 34 D-04 fix (post-UAT): SSR Chromium tab navigates to /ssr
+    // and renders the FINAL polygon-mapped projection — same content the
+    // pre-Phase-34 /output?ssr=1 tab rendered. Without this branch the
+    // SSR tab falls into OUTPUT_ROLE_CONTROL (dashboard mode) and the
+    // captured H264 stream shows the operator UI instead of the
+    // projection, plus runs the full dashboard orchestration which
+    // pegs the SSR-tab CPU. getRuntimeEnvironment() already classifies
+    // /ssr as "server-ssr"; this brings outputRole into alignment.
+    if (pathname === "/ssr" || pathname.startsWith("/ssr/")) {
+      return OUTPUT_ROLE_FINAL;
+    }
     return OUTPUT_ROLE_CONTROL;
   }
 

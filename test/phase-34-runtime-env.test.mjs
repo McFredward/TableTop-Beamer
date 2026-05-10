@@ -117,6 +117,50 @@ test("getRuntimeEnvironment returns 'server-ssr' for /output?ssr=1 (legacy regre
   );
 });
 
+// Phase 34 D-04 post-UAT bug fix: resolveOutputRoleFromLocation must also
+// classify /ssr as OUTPUT_ROLE_FINAL — otherwise the SSR Chromium tab boots
+// in OUTPUT_ROLE_CONTROL (dashboard mode) and the captured H264 stream shows
+// the operator UI instead of the polygon-mapped projection. Operator-reported
+// regression on first /output/ test of Phase 34.
+test("resolveOutputRoleFromLocation returns FINAL for pathname=/ssr (post-UAT fix)", () => {
+  const startMarker = "function resolveOutputRoleFromLocation(";
+  const start = RUNTIME_ENV_SRC.indexOf(startMarker);
+  if (start < 0) throw new Error("resolveOutputRoleFromLocation definition not found");
+  let depth = 0;
+  let i = start;
+  while (i < RUNTIME_ENV_SRC.length && RUNTIME_ENV_SRC[i] !== "{") i += 1;
+  for (; i < RUNTIME_ENV_SRC.length; i += 1) {
+    const ch = RUNTIME_ENV_SRC[i];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) { i += 1; break; }
+    }
+  }
+  const fnSrc = RUNTIME_ENV_SRC.slice(start, i);
+  // eslint-disable-next-line no-new-func
+  const factory = new Function(
+    `const OUTPUT_ROLE_CONTROL = "control"; const OUTPUT_ROLE_FINAL = "final-output"; ${fnSrc} return resolveOutputRoleFromLocation;`,
+  );
+  const resolveOutputRoleFromLocation = factory();
+  assert.equal(
+    resolveOutputRoleFromLocation({ pathname: "/ssr" }),
+    "final-output",
+    "/ssr must classify as OUTPUT_ROLE_FINAL — the SSR tab renders the projection, " +
+    "not the operator dashboard. Without this the captured stream shows the dashboard view.",
+  );
+  assert.equal(
+    resolveOutputRoleFromLocation({ pathname: "/ssr/probe" }),
+    "final-output",
+    "/ssr/* sub-paths must also classify as FINAL.",
+  );
+  // Regression: existing /output and /output/final still work
+  assert.equal(resolveOutputRoleFromLocation({ pathname: "/output" }), "final-output");
+  assert.equal(resolveOutputRoleFromLocation({ pathname: "/output/final" }), "final-output");
+  // Regression: dashboard remains CONTROL
+  assert.equal(resolveOutputRoleFromLocation({ pathname: "/" }), "control");
+});
+
 // EXPECTED: GREEN on master (regression)
 test("getRuntimeEnvironment returns 'pi' for ARM UA regardless of pathname (regression)", () => {
   // ARM-UA defense-in-depth: armv7l/armv8/aarch64 user agents are always
