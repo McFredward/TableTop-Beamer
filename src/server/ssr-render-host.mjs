@@ -2,8 +2,14 @@
 //
 // Phase 31 Plan 01 — Wave 1: SSR render-host bring-up.
 // Spawns Xvfb + headful Chromium via puppeteer-stream, navigates the tab to
-// http://127.0.0.1:${PORT}/output?ssr=1, manages the lifecycle (start/stop/
-// restart, CDP health-ping every 5s, 3 consecutive failures → relaunch).
+// http://127.0.0.1:${PORT}/ssr (Phase 34 D-04 route split), manages
+// the lifecycle (start/stop/restart, CDP health-ping every 5s, 3 consecutive
+// failures → relaunch).
+//
+// Phase 34 D-04: the SSR tab is now identified at server-route level by
+// pathname /ssr; the legacy `?ssr=1` query is tolerated by runtime-env.js
+// but no longer emitted by this module. Both navigation sites (ssrUrl
+// constant below and page.goto call in launchBrowser) use /ssr.
 //
 // Per CONTEXT.md "Publishability & Hardware-Agnostic Defaults" (2026-05-06):
 // at boot the host reads `config/global-defaults.json#serverRendering.encoder`
@@ -19,8 +25,7 @@
 // (e.g. mp4 animations) but no audio capture is wired up.
 //
 // Per RESEARCH.md § Pitfall 1: headful (NOT --headless=new). § Pitfall 2:
-// `--use-gl=egl` for GPU-accelerated canvas. § Pitfall 3: SSR tab adds
-// `?ssr=1` query so Plan 05 can gate Pi-only hotfixes behind it.
+// `--use-gl=egl` for GPU-accelerated canvas.
 //
 // Wave 2 (Plan 02) wires the in-page WebRTC publish to mediasoup — this
 // plan ONLY proves the tab boots, navigates, and is process-managed.
@@ -447,7 +452,11 @@ export function bootSsrRenderHost({
     // any browser popups (translate, save-password, etc.) appeared in
     // the stream too. App-mode + the suppression flags below remove
     // every chrome surface so getDisplayMedia captures only the page.
-    const ssrUrl = `http://127.0.0.1:${port}/output?ssr=1`;
+    // Phase 34 D-04: SSR Chromium tab navigates to /ssr (full app HTML).
+    // /output is now the thin consumer route (output.html). The legacy
+    // `?ssr=1` query is no longer used as a runtime discriminator —
+    // runtime-env.js classifies pathname /ssr as "server-ssr" (34-B Task 1).
+    const ssrUrl = `http://127.0.0.1:${port}/ssr`;
 
     // Phase-31 h15 (2026-05-06): MERGED --disable-features / --enable-features.
     //
@@ -821,7 +830,9 @@ export function bootSsrRenderHost({
         try { logger.warn(`[ssr-tab:reqfailed] ${req.url()} :: ${req.failure()?.errorText ?? "?"}`); } catch {}
       });
       cdpSession = await page.target().createCDPSession();
-      await page.goto(`http://127.0.0.1:${port}/output?ssr=1`, {
+      // Phase 34 D-04: same /ssr route as the launch URL above. Two sites kept
+      // in lockstep — see Pitfall 3 in 34-RESEARCH.md.
+      await page.goto(`http://127.0.0.1:${port}/ssr`, {
         waitUntil: "domcontentloaded",
         timeout: 30_000,
       });

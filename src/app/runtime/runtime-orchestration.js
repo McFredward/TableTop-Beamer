@@ -64,7 +64,15 @@ document.body.dataset.outputRole = outputRole;
 // to suppress the receiver overlays there.
 {
   const __ttbSearch = window.location.search || "";
-  const __ttbIsSsrTab = /[?&]ssr=1(\b|&)/.test(__ttbSearch);
+  const __ttbPath = window.location.pathname || "/";
+  // Phase 34 D-04: SSR Chromium tab is identified by pathname /ssr.
+  // The legacy ?ssr=1 query is also accepted (defense-in-depth: a stale
+  // bookmark, a manual dev nav, or a partial-rollback should not strip
+  // the marker) — runtime-env.js applies the same rule.
+  const __ttbIsSsrTab =
+    __ttbPath === "/ssr" ||
+    __ttbPath.startsWith("/ssr/") ||
+    /[?&]ssr=1(\b|&)/.test(__ttbSearch);
   if (__ttbIsSsrTab) {
     document.body.dataset.ssrTab = "true";
   }
