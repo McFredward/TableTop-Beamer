@@ -199,7 +199,13 @@
   }
 
   // ── Undo stack (grid state snapshots) ──────────────────────────────────────
-  const MAX_UNDO = 50;
+  // Phase 36 M5 (Q5 LOCKED) — _UNDO_STACK_MAX = 1000-entry FIFO cap (T-LB-1
+  // mitigation per CONTEXT.md threat model + RESEARCH §8). Prior cap was 50;
+  // the lock raises it to 1000 to support long operator sessions while still
+  // bounding memory growth. ~21 MB worst-case at 100k entries collapses to
+  // ~200 KB at 1000.
+  const _UNDO_STACK_MAX = 1000;
+  const MAX_UNDO = _UNDO_STACK_MAX;
   let undoStack = [];
 
   function snapshotGridState() {
@@ -218,8 +224,13 @@
   }
 
   function pushUndo() {
+    // Phase 36 M5 (Q5 LOCKED) — FIFO eviction at 1000-entry cap. The while
+    // loop tolerates accidental over-fill (defensive) and shifts the oldest
+    // snapshot off before pushing the new one.
+    while (undoStack.length >= _UNDO_STACK_MAX) {
+      undoStack.shift(); // evict oldest
+    }
     undoStack.push(snapshotGridState());
-    if (undoStack.length > MAX_UNDO) undoStack.shift();
   }
 
   function clearUndo() {

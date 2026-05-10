@@ -197,7 +197,10 @@ def test_t9_dirty_flag_visible_on_dashboard(live_server, page, chrome_browser):
     try:
         dash.goto(f"http://127.0.0.1:{live_server['port']}/",
                   wait_until="domcontentloaded", timeout=15_000)
-        dash.wait_for_selector("#align-mode-dirty-hint", timeout=10_000)
+        # Phase 36 M5 — element exists in dashboard DOM but starts hidden;
+        # wait for attached (not visible) — visibility flips when the
+        # /output/ drag below propagates dirty=true through live-sync.
+        dash.wait_for_selector("#align-mode-dirty-hint", state="attached", timeout=10_000)
         _open_output_align_on(live_server, page)
         h = page.locator(".projection-corner-handle").first
         b = h.bounding_box()

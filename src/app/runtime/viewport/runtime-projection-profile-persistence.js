@@ -229,7 +229,20 @@
   function isCurrentlyDirty() { return _dirty; }
   function addDirtyListener(cb) { if (typeof cb === "function") _dirtyListeners.add(cb); }
   function removeDirtyListener(cb) { _dirtyListeners.delete(cb); }
-  function notifyDirtyChanged() { _recomputeAndNotifyDirty(); }
+  function notifyDirtyChanged() {
+    // Phase 36 M5 (D-06 + Q1 LOCKED) — on /output/, every gesture broadcasts
+    // dirty=true to the dashboard via the existing /api/align-mode-dirty
+    // endpoint. The local _dirty state machine (used for dashboard
+    // aria-describedby + chip UX) only flips on profile-divergent edits
+    // (Phase 29 h3), but the gesture-driven dirty signal must fire
+    // unconditionally on /output/ so the dashboard hint reflects ANY
+    // operator action — per Phase 36 D-06 contract verified by T9.
+    // The 100ms server rate-limit (T-27-03) prevents POST flooding.
+    if (ctx?.outputRole === ctx?.OUTPUT_ROLE_FINAL) {
+      void _postAlignModeDirtyToServer(true);
+    }
+    _recomputeAndNotifyDirty();
+  }
 
   function _validateGridPayloadSchema(data) {
     // D-08: cleanly reject malformed payloads. Returns { ok: true } or { ok: false, reason: string }.
