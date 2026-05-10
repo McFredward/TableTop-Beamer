@@ -30,6 +30,16 @@ visual smoketest had missed:
    ARE exercised by `renderRoomOverlay` on `/output/` (the read-only path
    needs the data, not just the writers).
 
+   **2b. (post-h2) Solid-color animations still flooded their bounding
+   rectangle, not the room polygon.** Track C had swapped `c.fillRect`
+   → `c.putImageData` for the dithered solid-color path. `putImageData`
+   IGNORES the canvas clip path (writes raw pixels), bypassing the
+   polygon-clip the caller had set up via `c.clip()`. Solid-color rooms
+   filled their bounding rectangle; mp4 / gif / other animations were
+   unaffected because they already used `drawImage` (which respects clip).
+   Operator-disambiguated: "Es scheint als betrifft das nur die
+   solid-color animationen".
+
 3. **Banding is back, this time from the projection-transform path.** Phase 35
    Track C dithered solid-color overlay rendering at
    `runtime-effect-visuals.js:280-284`. The banding the operator now sees
@@ -42,7 +52,7 @@ visual smoketest had missed:
 This addendum supersedes `35-CLOSURE.md`'s `PASS-AUTOMATED-PENDING-OPERATOR-UAT`
 verdict. Phase 35 status is now **CLOSED-PARTIAL-WITH-ITER2-HOTFIXES**.
 
-## Hotfixes h1 + h2 (commit `bfddee2`)
+## Hotfixes h1 + h2 + h3
 
 ### h1 — Lazy-load align-mode bundle
 
@@ -80,6 +90,25 @@ Within the loader's `buildBoardAccess`:
 Cache invalidates on `liveSync.onProjectionProfileChange`, which also
 re-fetches `/api/live/snapshot` for `selectedBoard` updates and
 re-activates if align-mode is currently on.
+
+### h3 — Solid-color polygon clip restored (commit `bb7f2e2`)
+
+`putImageData` ignores the canvas clip path. Pre-Phase-35 used
+`fillRect` which respected `c.clip()`. The fix:
+
+- New `getDitheredSolidColorCanvas({hex, alpha, width, height})` helper
+  in `runtime-effect-dither.js` returns an OffscreenCanvas (or
+  HTMLCanvasElement fallback) with the dithered pixels pre-painted.
+  Same Bayer 4×4 math, same FIFO cache semantics.
+- The solid-color call site in `runtime-effect-visuals.js` swaps
+  `c.putImageData(imageData, x, y)` → `c.drawImage(canvas, x, y, w, h)`.
+  `drawImage` respects the clip path, so the dither stays AND the
+  polygon shape is preserved.
+- Defensive fallback to `fillRect` if helper is unavailable
+  (preserved with one-shot console.warn).
+
+Files: `src/app/runtime/render/runtime-effect-dither.js` (+58 LOC),
+`src/app/runtime/render/runtime-effect-visuals.js` (call-site swap).
 
 ## Verification
 

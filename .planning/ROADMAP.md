@@ -671,10 +671,11 @@ Plans:
 - [x] 35-C-PLAN.md — Track C banding fix: Bayer 4×4 dither in runtime-effect-visuals.js solid-color path; conditional C2 SwiftShader escalation (D-03, D-04, D-06)
 - [x] 35-V-PLAN.md — Verification + closure: 35-VERIFICATION.md, 35-HUMAN-UAT.md, 35-CLOSURE.md; D-06 final gate; operator UAT (all 8 D-decisions)
 
-Phase 35 iter2 (post-UAT hotfixes, commit `bfddee2`):
-- h1: lazy-load align-mode bundle on /output/ (output-align-mode-loader.js, NEW). Initial scripts cut from 17 to 6; bundle prefetches 2s post-load; activates only when liveSync.onAlignModeChange fires true. Fixes the long-unstable-WebRTC-connection-then-stable pattern operator reported.
-- h2: real polygon data wiring backed by /api/boards reads. Replaces the Phase 35-A no-op stubs (getRoomPolygonPoints / getRoomPoints / getBoard / getShipPolygonPoints) that made rooms render as default rectangles instead of operator-drawn polygons.
-- Verified live: DCL 0.04s, video 0.26s, 66 polygons rendered (65 non-rectangular), D-06 fail=0 preserved.
+Phase 35 iter2 (post-UAT hotfixes):
+- h1 (`bfddee2`): lazy-load align-mode bundle on /output/ (output-align-mode-loader.js, NEW). Initial scripts cut from 17 to 6; bundle prefetches 2s post-load; activates only when liveSync.onAlignModeChange fires true. Fixes the long-unstable-WebRTC-connection-then-stable pattern operator reported.
+- h2 (`bfddee2`): real polygon data wiring backed by /api/boards reads. Replaces the Phase 35-A no-op stubs that made align-mode handles render against default rectangles.
+- h3 (`bb7f2e2`): solid-color polygon clip restored. Track C had swapped fillRect→putImageData; putImageData ignores canvas clip path so solid-color animations flooded the bounding rectangle. Fix swaps to drawImage (which respects clip) via new getDitheredSolidColorCanvas helper. Bayer dither preserved.
+- Verified live: DCL 0.04s, video 0.26s, 66 polygons rendered (65 non-rectangular), solid-color overlay polygon-clipped (53 distinct row-widths in 118 colored rows = 44.9% diversity), D-06 fail=0 preserved.
 - Phase 35 status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES (supersedes premature PASS-AUTOMATED-PENDING-OPERATOR-UAT).
 - Closure addendum: 35-CLOSURE-ITER2-ADDENDUM.md.
 
