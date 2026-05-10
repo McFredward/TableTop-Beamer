@@ -679,7 +679,7 @@ Phase 35 iter2 (post-UAT hotfixes):
 - Phase 35 status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES (supersedes premature PASS-AUTOMATED-PENDING-OPERATOR-UAT).
 - Closure addendum: 35-CLOSURE-ITER2-ADDENDUM.md.
 
-## Phase 36 - Comprehensive Align-Mode-on-Thin-/output/ (PLANNING)
+## Phase 36 - Comprehensive Align-Mode-on-Thin-/output/ (READY)
 
 Ziel: Den vollen handle-ui (vertex / midpoint / rotation drag, image-pan, right-click menu für add/remove lines, CTRL+Z undo, dirty-flag, sizing alignment mit stream content) auf der thin /output/ funktionsfähig bringen, OHNE die volle Dashboard-App zu laden. Das ist die comprehensive Version von Phase 35-A's pure-extract Versuch — Phase 35-iter2 hat gezeigt dass die ad-hoc Hotfix-Iterationen nicht ausreichen weil handle-ui mehr implizite ctx-Abhängigkeiten hat als per-bug fixierbar sind.
 
@@ -751,6 +751,18 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h3 banding fix (Bayer dither + drawImage clip)
 - Phase 35-iter2 h1+h2 als reference material (lazy-loader pattern + polygon-data wiring)
 - Phase 35-B output-live-sync.js (proven thin subscription)
+
+
+**Plans:** 7 plans
+
+Plans:
+- [x] 36-W0-PLAN.md — RED test rails (T1-T10 Live-E2E + dashboard parity + bootHandleUi shape unit + server.mjs dirty-flag stdout log) — COMPLETE 2026-05-10 (commits fd0078e, a6e2529, 3a0c99a; SUMMARY: 36-W0-SUMMARY.md; closure gates ALL pass)
+- [ ] 36-A1-PLAN.md — Option-H thin-export: bootHandleUi + emitLiveMutation + grid-state liveSyncCoreOverride DI + ?ctx-trace=1 harness
+- [ ] 36-A2-PLAN.md — Loader integration (bootAlignMode → bootHandleUi) + D-02 inversion (overlay pointer-events:none always) + Phase 35-A CSS rule removal
+- [ ] 36-M3-PLAN.md — Wire T1 (sizing) + T2 (corner pulls) + T10 (no dual-path conflict). M3-LATE: dashboard runtime-orchestration migration to bootHandleUi
+- [ ] 36-M4-PLAN.md — Wire T3 (vertex drag) + T4 (midpoint drag) + T5 (rotation handle)
+- [ ] 36-M5-PLAN.md — Wire T6 (image-pan) + T7 (right-click menu) + T8 (CTRL+Z undo) + T9 (dirty-flag); Q3 LOCK (immediate broadcast on add/remove line) + Q5 LOCK (1000-entry undo cap)
+- [ ] 36-V-PLAN.md — Verification: 36-VERIFICATION.md + 36-HUMAN-UAT.md (Pi UAT deferred per D-10)
 
 ## Phase 37 - Transformation Banding Fix (DEFERRED)
 

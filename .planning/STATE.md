@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone complete
-last_updated: "2026-05-10T14:56:59.944Z"
+status: Executing Phase 36
+last_updated: "2026-05-10T16:36:38.269Z"
 progress:
-  total_phases: 34
+  total_phases: 35
   completed_phases: 11
-  total_plans: 55
-  completed_plans: 151
+  total_plans: 62
+  completed_plans: 152
   percent: 100
 ---
 
@@ -1610,3 +1610,21 @@ progress:
 - Wave-4 4-corner hit-test PRESERVED in receiver-bootstrap.js. Track A's `bootAlignMode` replaces it later. Track B is strictly the live-sync extraction; the alignMode UI is Track A scope.
 - Cold-start fallback retained in output-live-sync.js: 1Hz GET `/api/live/snapshot` until WS `live-hello` arrives. The HTTP poll covers the gap between page load and WS-handshake-complete; once WS is live, the snapshot reconcile is idempotent (no-op on unchanged values via the `pid !== profileId` and `snap.alignMode !== alignMode` guards).
 - Receiver-bootstrap.js inline poll is REMOVED in the liveSync branch only — when liveSync omitted, the legacy poll still runs. This preserves D-06 connection-stability for any test harness that bootstraps the receiver without the new wiring (the connection-stability suite uses headless harnesses that don't load output.html).
+
+## Phase 36 Plan W0 Closure (2026-05-10)
+
+- Plan 36-W0 (RED-rails wave per CONTEXT.md D-03 BLOCKING gate) is COMPLETE. Three atomic commits: `fd0078e` (Task 1 — `test(36-W0): add T1-T10 RED rail for /output/ align-mode handle-ui`, NEW 234-LOC `test/live-e2e/test_phase36_align_handles.py` containing 10 Playwright tests covering sizing/4 corner-pulls/vertex drag/midpoint squish/rotation/image-pan/right-click context menu/CTRL+Z undo/dirty-flag dashboard propagation/conflict-free invariant — all wrapped with `@flaky_3x`, all reusing Phase 35 W0 fixtures, all using verified server log strings `[align-grid-snapshot] server-recv` + `[align-drag] received phase=` + new `[align-mode-dirty] received dirty=`); `a6e2529` (Task 2 — `test(36-W0): add dashboard parity rail (T2/T7/T8 parametrized across / and /output/)`, NEW 88-LOC `test/live-e2e/test_phase36_dashboard_parity.py` with 3 functions × 2 paths = 6 collectible parametrized tests forcing every M3-M5 wave to keep dashboard regression GREEN simultaneously with /output/ work; Phase 35 dashboard test untouched per Q2 reconciliation); `3a0c99a` (Task 3 — `test(36-W0): add bootHandleUi shape RED unit + server.mjs dirty-flag stdout marker`, NEW 52-LOC `test/phase-36-boot-handle-ui-shape.test.mjs` with 3 node:test rails RED via ERR_MODULE_NOT_FOUND on missing `boot-handle-ui.js` + ONE additive `console.log` line at server.mjs:4140 inside the existing `/api/align-mode-dirty` POST handler emitting `[align-mode-dirty] received dirty=...` for T9 grep-assertion).
+- W0 closure gates ALL pass: T1-T10 collect-only=10 ✓; parity collect-only=6 ✓; bootHandleUi `node --test` exit=1 (RED-rail correctly RED) ✓; `grep -c '\[align-mode-dirty\] received dirty=' server.mjs`=2 (≥1) ✓; D-09 `<script src=>` budget on output.html=1 (≤8) ✓; `node --check server.mjs` exit=0 ✓; both .py files `python3 -c "import ast; ast.parse(...)"` exit=0 ✓.
+- D-08 connection-stability hard gate preserved by construction: server.mjs change is purely additive (one `console.log` inside an already-rate-limited [T-27-03] + already-validated [T-27-02] POST handler). No connection-state code paths touched. The dff8334 frame-stale 30s baseline + Phase 33 watchdog tri-state cleanup remain intact.
+- Closure-Dokument: `.planning/phases/phase-36/36-W0-SUMMARY.md` (full per-task accounting, Q1-Q5 reconciliation lock-in, closure-gate evidence table, self-check PASSED).
+- Phase 36 implementation waves A1, A2, M3, M4, M5 are now UNBLOCKED. Each subsequent wave MUST flip a subset of T1-T10 from RED to GREEN; final phase closure requires all 10 + 6 parity + 3 unit tests GREEN.
+
+## Decisions Phase 36-W0
+
+- Q1 LOCKED (dirty-flag mechanism): Dirty-flag uses existing `POST /api/align-mode-dirty` endpoint (NOT piggyback on `align-grid-snapshot`). RESEARCH §1.3 / §5 / Open Q1 — existing endpoint already has rate-limit (T-27-03 100ms floor), strict-boolean validation (T-27-02), grace-timer reset semantics, and a dashboard subscriber. CONTEXT.md D-06 literal text "broadcast piggybacks on `align-grid-snapshot`" is interpreted as "the dirty-broadcast is local + observable on dashboard via existing live-sync mechanism" — same goal, lower diff/risk. T9's assertion now anchors on the new `[align-mode-dirty] received dirty=` server stdout line emitted inside this handler.
+- Q2 LOCKED (dashboard regression coverage): Keep `test_phase35_dashboard_alignmode.py` unchanged AND add `test_phase36_dashboard_parity.py` with parametrized variants per RESEARCH §5. The Phase 35 dashboard test has a pre-existing endpoint-mismatch bug (deferred-items.md) that is OUT OF SCOPE for W0; the new parity rail provides authoritative dashboard regression coverage starting at Phase 36 and forces every M3-M5 wave to keep `/` GREEN at the same time as `/output/`.
+- Q3 LOCKED (right-click line add/remove): Right-click "add line" / "remove line" SHALL trigger an immediate `broadcastGridSnapshot({force:true})` so dashboard's grid view reflects the change without waiting for a subsequent drag. Implementation deferred to Wave M5 (right-click-context-menu wave) — NOT W0 scope.
+- Q4 LOCKED (handle-ui modularization): handle-ui internal modularization NOT done in Phase 36 (deferred per RESEARCH §6 + CONTEXT.md deferred ideas). Refactor risk too high; the Option-H thin-export contract is the Phase 36 deliverable, not internal cleanup.
+- Q5 LOCKED (undo stack memory): Undo stack capped at 1000 entries with FIFO eviction (T-LB-1 mitigation). Implementation deferred to Wave M5 (undo wave) — NOT W0 scope. Without this cap, an operator dragging for hours would grow page memory unbounded.
+- RED-rail invariant locked: All 16 live-E2E tests (10 + 6 parity) AND 3 bootHandleUi unit tests will fail today because (a) `bootHandleUi` does not exist, (b) `/output/` does not yet render `.projection-corner-handle` elements via the lazy-loaded module. Tests fail at the deepest right reason (handle-selector wait timeout / ERR_MODULE_NOT_FOUND) — not on syntax, fixture setup, or Python import errors. This is the entire point: when the implementation lands, the dynamic-import succeeds and the export-shape + DOM assertions take over as the GREEN-state gates.
+- Server.mjs `from=` field constant: The new `[align-mode-dirty] received dirty=...` log line uses a literal `from=http-post` because no `role`/`clientId` are in scope of the POST handler (HTTP-only — no per-WebSocket-client identity). Per plan instruction: tests anchor only on the `[align-mode-dirty] received dirty=` prefix, not on the `from=` value, so any literal there is acceptable.
