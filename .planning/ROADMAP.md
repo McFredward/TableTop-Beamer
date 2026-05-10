@@ -865,3 +865,83 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35 Bayer 4×4 dither at runtime-effect-visuals.js (solid-color overlay path)
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
+
+## Phase 38 - SSR-Tab Apply-Path Fix for Single-Shot Grid Mutations (PLANNING)
+
+Ziel: Definitively fix the operator-reported defects from Phase 36-iter2 UAT:
+- **Bug 2**: Profile-load via picker updates /output/'s overlay lines immediately BUT
+  the streamed video stays at the old profile until the operator makes a manual drag.
+- **Bug 4**: Reset via ESC requires TWO presses for the stream to actually sync; one
+  press resets local /output/ but stream stays stale.
+
+Beide haben gleiche root cause class: single-shot grid-state mutations (profile-load,
+ESC reset) reach the SERVER successfully (verified via `[align-grid-snapshot] server-recv`
+logs) but the SSR Chromium tab's mesh-warp render does NOT pick up the change.
+Continuous broadcasts (drag gestures) eventually do — suggesting either a dedup,
+a race, or a CDP/console-relay artifact masking the real issue.
+
+Status: PLANNING. Trigger: 2026-05-11 operator UAT after 7 Phase 36-iter2 hotfixes
+failed to close Bug 2 + Bug 4.
+
+Carrying forward from Phase 36-iter2 (LOCKED, do not re-open):
+- h1 (real-time drag) — proven working
+- h2+h3 (defensive activate broadcast, WS-open deferred) — proven working
+- h4 (profileLoadFlow + applyDefault broadcast) — proven, server receives
+- h5 (SSR autoLoad disk-restored grid fallback) — fixed boot case
+- h7 (output-live-sync queue-and-flush) — proven, survives WS close-handshake
+- h6 (reverted in h7)
+
+Scope (BLOCKING Wave-0 mandate — diagnostic-first):
+- W0: Playwright reproducer that programmatically:
+  - Spawns server (existing scripts/with_server.py)
+  - Loads /output/ in headful Chrome
+  - Triggers a profile-load via /api/live/command
+  - Polls server stdout for `[align-grid-snapshot] server-recv` (broadcast reached server ✓)
+  - Polls SSR-tab side for actual mesh-warp grid state OR adds new `/api/diag/ssr-grid-state` endpoint that returns the SSR tab's current grid.points
+  - Asserts SSR tab grid == broadcast grid within 500ms of broadcast
+  - This test FAILS as RED today; turns GREEN when the apply-path bug is fixed
+
+Forschungsfragen (RESEARCH.md scope):
+1. **Envelope match**: does the server's live-mutation envelope for align-grid-snapshot
+   actually match the SSR tab fast-path's `payload?.type === "live-session-update"` check?
+   Inspect server.mjs broadcast code path. Maybe the type is "live-mutation" not
+   "live-session-update" for align-grid-snapshot.
+2. **CDP relay stability**: do `[ssr-tab:log]` entries STOP after WebRTC consumer
+   disconnect+reconnect (observed in operator log)? Is the SSR tab's `_lastAppliedAlignGridSnapshotKey`
+   gate state being reset somewhere, causing all subsequent broadcasts to dedup-reject?
+3. **Mesh-warp invalidation**: after `gridState.restoreGridSnapshot` mutates grid.points,
+   does postDrawMeshWarp pick up the new points in the next frame? Could there be
+   a cached transform matrix that needs explicit invalidation?
+4. **Originator-filter edge case**: when the SSR tab broadcasts its own grid on
+   alignMode-on (Phase 31 h32 code in handle-ui.js:1638), does the SSR tab somehow
+   re-use that broadcast's originator clientId, causing subsequent broadcasts from
+   /output/ to match isOriginator=true and be filtered out?
+
+Wave structure:
+- M1 RESEARCH: answer all 4 questions with code+evidence (use Playwright + SSR tab CDP if needed)
+- M2 W0 RED test: Playwright reproducer asserting SSR grid stays in sync with broadcasts
+- M3 Fix at identified root cause + W0 turns GREEN
+- M4 Verify: T1-T10 from Phase 36 stay GREEN; D-08 connection-stability `fail=0` preserved
+
+Exit Criteria:
+- Operator: profile-load via dashboard or /output/ picker → stream updates within 500ms
+- Operator: single ESC press → stream resets (no need for double press)
+- D-08 `test/connection-stability/**` stays `fail=0`
+- D-09 `output.html ≤8 src-based scripts` preserved
+- Phase 36 T1-T10 all GREEN
+- Phase 36-iter2 h1+h2+h3+h4+h5+h7 carry-forwards UNCHANGED
+- New Playwright reproducer GREEN as a regression rail
+
+Out of Scope:
+- Phase 36.1 dashboard runtime-orchestration migration (separate)
+- Phase 37 transformation banding fix (separate)
+- CDP relay stability if it turns out to be a Chromium/puppeteer bug unrelated
+  to our app code (document + workaround if necessary)
+
+Carrying forward (LOCKED):
+- All Phase 36-iter2 hotfixes h1, h2, h3, h4, h5, h7
+- VAAPI default-disabled (Phase 33 commit 3cd6748)
+- Phase 34 hotfix h2 (hasVaapiEnabled-gated GL flags)
+- Phase 35-iter2 h3 banding fix (Bayer dither + drawImage clip)
+- Phase 35-B output-live-sync.js (13-method subscription + Phase 36-iter2 h7 queue-and-flush)
+- Connection-stability hard gate (D-08)
