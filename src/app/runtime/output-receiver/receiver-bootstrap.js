@@ -1024,36 +1024,18 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     // space (object-fit: cover crops on aspect mismatch — without this,
     // a click at the BOARD's TL in the stream sent the wrong coords).
     getVideoEl: () => videoEl,
-    // Phase 35 D-01 (Track A): real handle hit-testing routed through
-    // bootAlignMode's HANDLE_UI exports. The Wave-4 4-corner approximation
-    // (TL/TR/BR/BL bounding-box distance) lived here pre-Track-A; it was
-    // a placeholder that always returned 0..3 regardless of where the
-    // actual mesh handles rendered. After Track A, bootAlignMode runs in
-    // output.html, registers handles inside #room-overlay, and exposes
-    // hitTestVertex on window.__ttbAlignMode. The forwarder delegates to
-    // it. If __ttbAlignMode is not yet loaded (cold-boot race window),
-    // fall back to null (no-op — alignMode-active gate already prevents
-    // sends in that case).
-    hitTestVertex: ({ x, y }) => {
-      try {
-        const align = window.__ttbAlignMode;
-        if (align && typeof align.hitTestVertex === "function") {
-          // bootAlignMode.hitTestVertex expects clientX/clientY (DOM coords).
-          // The forwarder hands us normalized 0..1 coords here — convert to
-          // overlayEl-relative client coords using the overlay rect.
-          const r = overlayEl?.getBoundingClientRect?.();
-          if (r) {
-            const cx = r.left + x * r.width;
-            const cy = r.top + y * r.height;
-            const id = align.hitTestVertex(cx, cy);
-            return id;
-          }
-        }
-      } catch (_) {
-        // bootAlignMode lookup or call failed — fall through to null.
-      }
-      return null;
-    },
+    // Phase 35-iter2 h4-h7: the old align-corner-drag broadcast path is
+    // disabled. /output/ now forwards RAW pointer + keyboard events as
+    // `align-input-event` mutations via output-input-forwarder.js, and
+    // the SSR Chromium tab dispatches synthetic events on its own DOM —
+    // covering all handle types (corner / vertex / midpoint / rotation /
+    // image-pan / right-click context menu / CTRL+Z) without per-handle
+    // server-side mutation types. Returning null here keeps this older
+    // forwarder's listeners attached but inert (each onPointerDown
+    // early-returns when vid == null), which preserves the diagnostic
+    // logs in receiver-input-forwarder.js for cold-boot trace without
+    // emitting duplicate align-corner-drag mutations.
+    hitTestVertex: () => null,
     logger,
   });
 

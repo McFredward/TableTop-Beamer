@@ -162,6 +162,19 @@ const LIVE_MUTATION_TYPES = new Set([
   // gestures; this mutation carries the full grid so the SSR tab can
   // reproduce any handle-ui drag.
   "align-grid-snapshot",
+  // Phase 35-iter2 h4-h7 (2026-05-10): raw pointer/keyboard input forwarding
+  // from Pi /output/ to SSR Chromium tab. The 4-corner approximation +
+  // align-corner-drag mutation only covered ONE handle type; align-mode
+  // also needs vertex drags, midpoint drags, rotation handles, image-pan,
+  // right-click context menu, CTRL+Z undo. Operator-reported 2026-05-10.
+  // align-input-event carries one raw event (pointerdown/move/up/click/
+  // contextmenu/keydown) with screen-relative client coords; SSR tab
+  // dispatches a synthetic event at those coords on document so the
+  // existing handle-ui / polygon-editor / runtime-orchestration handlers
+  // process it as if local. Server's role is validation + fanout — no
+  // state mutation; payload is written to runtime.lastAlignInputEvent
+  // with a sequenceId so successive events trigger snapshot updates.
+  "align-input-event",
   // Phase 31 Plan 04 (publishability): live-sync write to
   // config/global-defaults.json#serverRendering (5 enum settings).
   "serverRendering-update",
@@ -394,6 +407,41 @@ function validateAlignCornerDragPayload(p) {
   if (!Number.isFinite(p.normalizedX) || p.normalizedX < 0 || p.normalizedX > 1) return false;
   if (!Number.isFinite(p.normalizedY) || p.normalizedY < 0 || p.normalizedY > 1) return false;
   if (typeof p.profileId !== "string" || p.profileId.length === 0 || p.profileId.length > 200) return false;
+  return true;
+}
+
+// Phase 35-iter2 h4-h7 (2026-05-10) — raw input event forwarding
+// validation. STRIDE T-35-iter2-01 mitigation: Pi pointer/keyboard
+// events are LAN-trusted (same origin as the dashboard) but the
+// payload shape must still be validated server-side before broadcast.
+//
+//   eventType    ∈ {"pointerdown","pointermove","pointerup","pointercancel",
+//                   "click","contextmenu","keydown","keyup","wheel"}
+//   clientX/Y    ∈ ℝ ∩ [-10000, 10000] (finite; allow off-screen for
+//                  pointer-cancel scenarios)
+//   button       ∈ ℤ ∩ [0, 4] (0=primary, 2=secondary; optional)
+//   buttons      ∈ ℤ ∩ [0, 31] bitmask (optional)
+//   key          ∈ string, length 0..32 (optional, for keyboard events)
+//   ctrlKey/shiftKey/altKey/metaKey ∈ boolean (optional)
+//   sequenceId   ∈ ℤ ∩ [0, 2^31] (REQUIRED — distinguishes successive
+//                  events at same coords; SSR tab uses to dedupe)
+//   profileId    ∈ string, length 1..200 (carry-forward for trace)
+const ALLOWED_INPUT_EVENT_TYPES = new Set([
+  "pointerdown", "pointermove", "pointerup", "pointercancel",
+  "click", "contextmenu", "dblclick",
+  "keydown", "keyup",
+  "wheel",
+]);
+function validateAlignInputEventPayload(p) {
+  if (!p || typeof p !== "object") return false;
+  if (typeof p.eventType !== "string" || !ALLOWED_INPUT_EVENT_TYPES.has(p.eventType)) return false;
+  if (!Number.isFinite(p.clientX) || p.clientX < -10000 || p.clientX > 10000) return false;
+  if (!Number.isFinite(p.clientY) || p.clientY < -10000 || p.clientY > 10000) return false;
+  if (p.button != null && (!Number.isInteger(p.button) || p.button < 0 || p.button > 4)) return false;
+  if (p.buttons != null && (!Number.isInteger(p.buttons) || p.buttons < 0 || p.buttons > 31)) return false;
+  if (p.key != null && (typeof p.key !== "string" || p.key.length > 32)) return false;
+  if (!Number.isInteger(p.sequenceId) || p.sequenceId < 0 || p.sequenceId > 2147483647) return false;
+  if (p.profileId != null && (typeof p.profileId !== "string" || p.profileId.length > 200)) return false;
   return true;
 }
 
@@ -1125,6 +1173,29 @@ function applyLiveMutation({
     }
   }
 
+  // Phase 35-iter2 h4-h7: validate align-input-event before broadcast.
+  if (mutationType === "align-input-event") {
+    if (!validateAlignInputEventPayload(payload)) {
+      logErrorEvent("align-input-event-rejected", "invalid-payload-shape", {
+        clientId,
+        role,
+        mutationId: normalizedMutationId,
+      });
+      return {
+        applied: false,
+        duplicate: false,
+        stale: false,
+        rejected: true,
+        rejectReason: "align-input-event-invalid-payload",
+        mutationClass: mutationClass ?? classifyLiveMutationType(mutationType, payload),
+        priority: priority ?? resolveMutationPriority(mutationType, payload),
+        serverTimestamp: new Date().toISOString(),
+        serverIngestTimestamp: ingestAt ?? new Date().toISOString(),
+        version: liveSessionState.version,
+      };
+    }
+  }
+
   // Phase 31 h30: full-grid sync validation. Reject malformed payloads
   // BEFORE apply. STRIDE T-31-30-01 mitigation.
   if (mutationType === "align-grid-snapshot") {
@@ -1209,6 +1280,36 @@ function applyLiveMutation({
           normalizedX: payload.normalizedX,
           normalizedY: payload.normalizedY,
           profileId: payload.profileId,
+          at: new Date().toISOString(),
+        },
+      },
+    };
+  } else if (mutationType === "align-input-event") {
+    // Phase 35-iter2 h4-h7: write the raw input event to the runtime
+    // snapshot under lastAlignInputEvent. The SSR Chromium tab subscribes
+    // to live-session-update, watches this field for sequenceId changes,
+    // and dispatches a synthetic event on document at the forwarded
+    // coords. Originator (Pi /output/) ignores its own broadcast via
+    // the standard originatorClientId check.
+    nextSnapshotPatch = {
+      runtime: {
+        ...readRuntimeSnapshot(),
+        lastAlignInputEvent: {
+          eventType: payload.eventType,
+          clientX: payload.clientX,
+          clientY: payload.clientY,
+          button: payload.button ?? 0,
+          buttons: payload.buttons ?? 0,
+          key: payload.key ?? "",
+          ctrlKey: Boolean(payload.ctrlKey),
+          shiftKey: Boolean(payload.shiftKey),
+          altKey: Boolean(payload.altKey),
+          metaKey: Boolean(payload.metaKey),
+          deltaX: Number.isFinite(payload.deltaX) ? payload.deltaX : 0,
+          deltaY: Number.isFinite(payload.deltaY) ? payload.deltaY : 0,
+          sequenceId: payload.sequenceId,
+          profileId: payload.profileId ?? null,
+          originClientId: clientId,
           at: new Date().toISOString(),
         },
       },

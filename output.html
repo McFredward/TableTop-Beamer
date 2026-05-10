@@ -45,21 +45,18 @@
     <span id="output-status-frame-cost">-</span>
   </div>
 
-  <!-- ssr-input-overlay is created lazily by receiver-bootstrap if
-       absent, but pre-declaring it here matches the index.html
-       contract and avoids a layout-thrash on first align-mode tap. -->
+  <!-- Phase 35-iter2 h4-h7: transparent input-capture overlay.
+       Pi /output/ does NOT render align-mode handles locally — the SSR
+       Chromium tab renders all handles (corner / vertex / midpoint /
+       rotation) and operator sees them through the H264 stream.
+       This overlay catches every pointer + scroll + context-menu event
+       while align-mode is active, and the input-forwarder serializes
+       them as `align-input-event` mutations to the SSR tab's replay
+       receiver. pointer-events:auto when active so events reach us;
+       z-index:4 keeps us above the <video> but below splash/error
+       overlays. The receiver-bootstrap toggles pointer-events on the
+       align-mode body class (CSS in src/styles.css). -->
   <div id="ssr-input-overlay" style="position:fixed;inset:0;z-index:4;touch-action:none;pointer-events:none"></div>
-
-  <!-- Phase 35 D-01 (Track A): #stage and #room-overlay are required
-       by bootAlignMode (handle-ui mounts handles inside #stage; the
-       polygon-editor renders SVG polygons inside #room-overlay; the
-       CSS rule at src/styles.css:119 gates handle visibility on
-       body.align-mode-active). Both elements stay zero-overhead when
-       align-mode is inactive (no rendering happens until the live-sync
-       sub fires onAlignModeChange(true)). -->
-  <div id="stage" class="stage" style="position:fixed;inset:0;z-index:3;pointer-events:none">
-    <svg id="room-overlay" class="room-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-  </div>
 
   <!-- Phase 34 D-03 + Phase 35 D-02 (Track B): minimal script set. Order matters:
        1. runtime-env.js  — exposes window.TT_BEAMER_RUNTIME_ENV
@@ -126,38 +123,46 @@
     });
   </script>
 
-  <!-- Phase 35-iter2 hotfix h1: lazy-load align-mode bundle.
-       The 11 align-mode IIFE scripts + bootAlignMode wiring USED TO load
-       on every /output/ page-load via `<script defer>`. That raced WebRTC
-       ICE negotiation (~3700 LOC parsing on the main thread alongside
-       getDisplayMedia) producing the long unstable-then-stable connection
-       phase the operator reported.
-       output-align-mode-loader.js subscribes to liveSync.onAlignModeChange
-       and dynamic-loads the IIFEs ONLY when alignMode toggles to true.
-       After 2s post-load it prefetches the bundle in background so the
-       first activation is cache-hit-fast (~0ms).
-       Also fixes h2: replaces the no-op stubs (which made rooms render as
-       default rectangles instead of operator-drawn polygons) with REAL
-       /api/boards-backed boardAccess methods. -->
+  <!-- Phase 35-iter2 h4-h7: raw input forwarder.
+       Replaces Phase 35-A's local bootAlignMode rendering on /output/.
+       Pi /output/ no longer renders align-mode handles locally — the SSR
+       Chromium tab is the single source of truth for handle DOM, and
+       its rendered handles reach the operator via the H264 stream. This
+       module captures every pointer + scroll + context-menu + relevant
+       keyboard event while align-mode is active, and forwards each as
+       an `align-input-event` mutation. The SSR tab's ssr-input-replay
+       module dispatches synthetic events at the forwarded coords so the
+       existing handle-ui / polygon-editor / runtime-orchestration
+       handlers process them as if local — covering corner / vertex /
+       midpoint / rotation drag, image-pan, right-click context menu,
+       CTRL+Z, etc. without re-implementing each per /output/. -->
   <script type="module">
-    import { bootAlignModeLoader } from "/src/app/runtime/output-receiver/output-align-mode-loader.js";
+    import { attachOutputInputForwarder } from "/src/app/runtime/output-receiver/output-input-forwarder.js";
     window.addEventListener("DOMContentLoaded", () => {
-      const stage = document.getElementById("stage") ?? document.body;
-      const roomOverlay = document.getElementById("room-overlay");
-      const videoEl = document.getElementById("ssr-video");
-      if (!roomOverlay || !window.__ttbLiveSync) {
-        console.warn("[align-loader] preconditions missing — skipped",
-          { hasRoomOverlay: !!roomOverlay, hasLiveSync: !!window.__ttbLiveSync });
+      const overlayEl = document.getElementById("ssr-input-overlay");
+      if (!overlayEl || !window.__ttbLiveSync) {
+        console.warn("[output-input-forwarder] preconditions missing — skipped",
+          { hasOverlay: !!overlayEl, hasLiveSync: !!window.__ttbLiveSync });
         return;
       }
+      // Toggle pointer-events on the overlay based on align-mode so taps
+      // pass through to the <video> behind it when align-mode is off.
+      const sync = () => {
+        const active = Boolean(window.__ttbLiveSync.getAlignMode?.());
+        overlayEl.style.pointerEvents = active ? "auto" : "none";
+        document.body.classList.toggle("align-mode-active", active);
+      };
+      window.__ttbLiveSync.onAlignModeChange?.(sync);
+      sync();
       try {
-        window.__ttbAlignLoader = bootAlignModeLoader({
-          stage, roomOverlay, videoEl,
-          liveSync: window.__ttbLiveSync,
+        window.__ttbInputForwarder = attachOutputInputForwarder({
+          overlayEl,
+          isAlignModeActive: () => Boolean(window.__ttbLiveSync.getAlignMode?.()),
+          getCurrentProfileId: () => window.__ttbLiveSync.getActiveProjectionProfileId?.() ?? null,
           logger: console,
         });
       } catch (err) {
-        console.error("[align-loader] init failed:", err);
+        console.error("[output-input-forwarder] init failed:", err);
       }
     });
   </script>
