@@ -67,30 +67,31 @@ test("ssr-render-host declares hasIgpuDev separately from hasVaapiEnabled (post-
   }
 });
 
-// EXPECTED: RED on master, GREEN after 34-A
-test("ssr-render-host adds --ignore-gpu-blocklist gated on hasIgpuDev not hasVaapiEnabled (post-34-A)", () => {
-  // Post-34-A target: ...(hasIgpuDev ? ["--ignore-gpu-blocklist", ...] : [])
-  // Current master: ...(hasIgpu ? ["--ignore-gpu-blocklist", ...] : [])
-  // where hasIgpu is VAAPI-gated — so flags are never added with VAAPI off.
-  const pattern = /\.\.\.\(\s*hasIgpuDev\s*\?\s*\[.*?--ignore-gpu-blocklist/s;
+// Phase 34 hotfix h2 (2026-05-10): the GL-helpful flags
+// --ignore-gpu-blocklist and --enable-gpu-rasterization were originally
+// REQUESTED to be decoupled from VAAPI in Track A T1, but UAT showed they
+// reproduce the Phase 33 main-thread-hang under Mesa-llvmpipe + Xvfb on
+// the operator's hardware (consumer connects forever, no video). They are
+// reverted to VAAPI-gated to restore Phase 33 connection-stability baseline.
+// The 2D-fallback / banding visual issue is preserved as a known-deferred
+// item (cannot fix without re-introducing the hang). Re-enable both flags
+// AND VAAPI together via SSR_ENABLE_VAAPI=1 for hardware that handles
+// hardware GPU paint paths cleanly.
+test("ssr-render-host gates --ignore-gpu-blocklist on hasVaapiEnabled (h2 revert)", () => {
+  const pattern = /\.\.\.\(\s*hasVaapiEnabled\s*\?\s*\[.*?--ignore-gpu-blocklist/s;
   assert.ok(
     pattern.test(launchBodyNoComments),
-    "ssr-render-host must spread --ignore-gpu-blocklist under `hasIgpuDev` (not hasIgpu/hasVaapiEnabled). " +
-    "Current master gates it on hasIgpu which is VAAPI-gated — with VAAPI off these flags are never added. " +
-    "Track A must change the gate to hasIgpuDev.",
+    "After hotfix h2 the --ignore-gpu-blocklist flag must be gated on hasVaapiEnabled (Phase 33 baseline). " +
+    "Decoupling to hasIgpuDev triggered the same main-thread-hang as VAAPI did. " +
+    "Visual 2D-fallback / banding is the accepted trade-off for connection stability.",
   );
 });
 
-// EXPECTED: RED on master, GREEN after 34-A
-test("ssr-render-host adds --enable-gpu-rasterization gated on hasIgpuDev (post-34-A)", () => {
-  // Same as above but for the companion flag --enable-gpu-rasterization.
-  // Both flags travel together in a single ...(hasIgpuDev ? [...] : []) spread.
-  const pattern = /\.\.\.\(\s*hasIgpuDev\s*\?[^)]*--enable-gpu-rasterization/s;
+test("ssr-render-host gates --enable-gpu-rasterization on hasVaapiEnabled (h2 revert)", () => {
+  const pattern = /\.\.\.\(\s*hasVaapiEnabled\s*\?[^)]*--enable-gpu-rasterization/s;
   assert.ok(
     pattern.test(launchBodyNoComments),
-    "ssr-render-host must spread --enable-gpu-rasterization under `hasIgpuDev`. " +
-    "Current master gates it on VAAPI-dependent hasIgpu — these flags are never active by default. " +
-    "Track A must decouple.",
+    "After hotfix h2 the --enable-gpu-rasterization flag must be gated on hasVaapiEnabled (Phase 33 baseline).",
   );
 });
 

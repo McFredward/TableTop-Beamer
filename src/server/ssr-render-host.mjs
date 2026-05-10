@@ -606,15 +606,26 @@ export function bootSsrRenderHost({
         `--disable-features=${disabledFeatures.join(",")}`,
         // ONE merged --enable-features arg, only emit if non-empty.
         ...(enabledFeatures.length > 0 ? [`--enable-features=${enabledFeatures.join(",")}`] : []),
-        // Phase 34 D-01: GL-helpful flags gated on hasIgpuDev (not on
-        // hasVaapiEnabled). These are needed for ANGLE to reach the
-        // iGPU even when VAAPI is default-disabled — they let
-        // Chrome's GPU process trust the Mesa driver under Xvfb.
-        // Without them, Chrome's blocklist excludes Mesa-llvmpipe
-        // hardware paths and ANGLE falls back to SwiftShader software
-        // rendering, which is what triggers WebGL context losses
-        // and the Phase 30 B2 h10 2D-fallback.
-        ...(hasIgpuDev ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
+        // Phase 34 hotfix h2 (2026-05-10) — REVERT 34-A T1 GL-flag decoupling.
+        //
+        // Track A T1 moved --ignore-gpu-blocklist and --enable-gpu-rasterization
+        // off the VAAPI gate so they fired whenever an iGPU DRI device existed.
+        // The hypothesis was that those flags were the missing piece for GL on
+        // Mesa-llvmpipe under Xvfb. The actual effect on this hardware:
+        // Chrome's GPU process attempts hardware paint paths through Mesa
+        // llvmpipe, which has the SAME synchronous-flush behavior as VAAPI
+        // (Phase 33 root cause) — the SSR-tab JS main thread blocks for 4+s
+        // at a stretch, CDP health-pings time out, the publisher's getDisplay-
+        // Media frame pump stalls, and consumers see "connecting forever"
+        // with no video. User-confirmed regression on /output/ UAT.
+        //
+        // Restore Phase 33 baseline: GL flags gated on VAAPI opt-in, same as
+        // pre-Phase-34. The 2D-fallback / banding visual issue (Track A's
+        // original target) is reverted to its pre-Phase-34 state — that is a
+        // visual quality issue, not a connection-stability blocker. We trade
+        // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
+        // the operator's discretion (same opt-in as VAAPI itself).
+        ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
         `--display=${display}`,
       ],
       env: { ...process.env, DISPLAY: display },
