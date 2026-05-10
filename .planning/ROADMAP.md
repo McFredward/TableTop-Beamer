@@ -604,3 +604,60 @@ Plans:
 - [x] 34-B-PLAN.md — Track B: atomic URL migration + thin /output/ — server route split (`/ssr` → index.html, `/output` → output.html), runtime-env classifier update, ssr-render-host.mjs URL migration (TWO sites), NEW output.html + output-audio-binder.js
 - [x] 34-A-PLAN.md — Track A: GL flag fix (decouple hasIgpuDev from hasVaapiEnabled), 2D-fallback ban on `/ssr` only (D-02), force `state.renderMode = "gl"` on `/ssr`, ssr-stats renderMode telemetry log line
 - [x] 34-V-PLAN.md — Verification + closure: 34-VERIFICATION.md, 34-HUMAN-UAT.md, 34-CLOSURE.md; D-06 final gate (connection-stability 80/0)
+
+## Phase 35 - Thin /output/ Refactor + Align-Mode Decoupling + Banding Fix (PLANNING)
+
+Ziel: Phase 34 hat das URL-split-Konzept richtig durchgezogen, aber zwei Defizite hinterlassen die Phase 35 schließt. (1) Der `runtime-projection-handle-ui.js` + `runtime-projection-handle-drag.js` + dependencies sind tief in die runtime-orchestration init-chain verwebt mit injected refs (grid-state, applyTransform, profileSaveFlow, ctx, etc.) — sie sind nicht standalone ladbar in der thin `output.html`. Resultat: Pi-/output/ zeigt zwar den H264-Stream, hat aber kein align-mode UI mehr. (2) Die Solid-color banding in 2D-canvas-fallback wurde in Phase 34 untersucht und als source-side bestätigt (encoder-bitrate-bump zeigte identische output bei 2M und 32M); die Hypothese "GL-flags entkoppeln" hat den Phase-33-class main-thread-hang reproduziert und wurde reverted. Phase 35 macht den eigentlichen refactor + sucht einen banding-fix der die Connection-Stability nicht verletzt.
+
+Status: PLANNING.
+
+Scope (drei Tracks):
+
+**Track A — Align-mode decoupling.** Den polygon-editor + projection-handle-ui Code-Pfad isolieren: explizite `bootAlignMode({ video, getProfile, onDrag, ... })` API mit allen heutigen impliziten Abhängigkeiten als expliziten Args. Ziel: standalone-ladbar aus `output.html` ohne den Rest der runtime-orchestration init-chain. ~3000 LOC betroffen (handle-ui + handle-drag + projection-mapping + polygon-editor).
+
+**Track B — Live-sync minimal subset.** Den live-sync WebSocket-subscription den audio-binder + align-mode brauchen aus der vollen `runtime-live-sync-core.js` herausziehen. Heute zieht der full live-sync 800+ LOC orchestration-state-merging Pi-irrelevanter logik mit sich. Ziel: thin subscription die nur trigger-events + outsideFx + roomFx mutations weiterreicht.
+
+**Track C — Banding fix.** Drei kandidate-pfade (von Phase-34 closure dokumentiert):
+- C1: **Source-side dithering** in der 2D-canvas color-overlay rendering. Klassischer 8-bit-trick — pseudo-random noise über solid-color overlays hinzufügen, bricht step-bänder visuell auf. ~5-10% FPS overhead.
+- C2: **`--use-gl=swiftshader`** statt `--use-gl=angle` ausprobieren. Andere software-GL-backend, evtl ohne synchronous-flush-hang. Risk: andere render-issues.
+- C3: **`SSR_ENABLE_VAAPI=1` opt-in test** auf user's hardware mit Phase-34-h2 als safety-baseline. Wenn Hardware das verträgt, hardware-GL liefert 16-bit-fp und beseitigt banding.
+
+Phase 35 Wave-0 muss eine **live-end-to-end-smoke-test** beinhalten — Phase 34's miss kam daher dass automated tests code-shape geprüft haben aber niemand `/output/` mit beiden Tracks live geladen hat. Smoke-test soll: server starten, /output/ in Playwright öffnen mit system Chrome, verifizieren dass (a) stream playback funktioniert, (b) align-mode toggle aktiviert handles auf overlay, (c) drag-events durchkommen.
+
+Pflicht-Inputs:
+- `.planning/phases/phase-34/34-CLOSURE-ADDENDUM.md` — definiert die 3 Tracks
+- `.planning/phases/phase-34/34-CONTEXT.md` — locked decisions die carry-forward gehen
+- `src/app/runtime/output-receiver/receiver-bootstrap.js` — heutiges thin-receiver-fundament
+- `src/app/runtime/viewport/runtime-projection-handle-ui.js` (1756 LOC), `runtime-projection-handle-drag.js` (941 LOC), `runtime-projection-mapping.js` (431 LOC), `runtime-polygon-editor.js` (575 LOC) — refactor-targets
+- `src/app/runtime/live-sync/runtime-live-sync-core.js` — minimal-subset extraktions-target
+
+Milestones:
+1. M1 Track A — bootAlignMode API designed + projection-handle-ui ladbar standalone (no runtime-orchestration dep).
+2. M2 Track B — minimal live-sync subscription extracted; audio-binder + align-mode beide nutzen es ohne full live-sync.
+3. M3 Live-end-to-end smoke-test wave-0 rail liegt + ist in CI runnable.
+4. M4 Track C — gewählten banding-fix-pfad implementiert + visual-confirmed via screenshot-vergleich.
+5. M5 Live-UAT auf gaming-PC desktop browser: stream + align-mode handles + drag + no banding bei solid-color fade.
+
+Exit Criteria:
+- /output/ zeigt H264 stream PLUS funktionierendes align-mode (handles sichtbar, drag funktioniert, server bekommt `align-corner-drag` mutations)
+- Visual smoketest: bekannte solid-color fade-animation auf gaming-PC zeigt KEINE step-bänder
+- D-06 hard gate: `test/connection-stability/**` bleibt 72/0
+- Phase 33 commit `3cd6748` (VAAPI default-disabled) UNCHANGED es sei denn user opt-in nach Track-C-C3 erfolgreich
+- Wave-0 live-end-to-end smoke-test ist in master und wird in default `npm test` ausgeführt
+- Pi /output/ thin-mode CPU-Verbrauch messbar geringer als pre-Phase-34 (deferred bis Pi hardware verfügbar — wie Phase 33 + 34 Pattern)
+
+Out of Scope:
+- Animations-engine refactor (separates Thema)
+- Audio-pipeline-änderungen (Pi-local stays per D-D2)
+- Codec-wechsel (H264 stays per D-A1)
+- Phase-32-FPS-lift work
+- VAAPI re-enable als default (bleibt opt-in)
+
+Carrying Forward (LOCKED, do not re-open):
+- VAAPI default-disabled (Phase 33 commit `3cd6748`)
+- Phase 33 watchdog hardening + frame-stale 30s + heartbeat-reset + RPC 20s + watchdog 150s tolerance
+- Phase 34 hotfix h1 (`/ssr` → OUTPUT_ROLE_FINAL classification)
+- Phase 34 hotfix h2 (GL-flags gated on hasVaapiEnabled — restored Phase 33 baseline)
+- D-A1 (WebRTC + h264 + mediasoup), D-A3 (Headful Chromium 131 + Xvfb)
+- Pi-local audio (D-D2 reversal)
+- streamFpsCap + alignModeBoost settings
