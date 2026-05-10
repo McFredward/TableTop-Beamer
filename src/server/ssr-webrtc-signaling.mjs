@@ -215,6 +215,11 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
     return n;
   }
 
+  // Phase 34 D-01: telemetry counter for ssr-stats renderMode periodic logging.
+  // Incremented on every ssr-stats message from the SSR tab; logged every 10th
+  // message (~10s at the probe's 1s cadence) to avoid log flooding.
+  let ssrStatsLogCounter = 0;
+
   // Module-level shared state — there is exactly ONE active video Producer
   // at any time (the SSR tab). When the SSR tab restarts, the Producer is
   // re-created via the publisher script and `state.videoProducer` is updated.
@@ -469,6 +474,20 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
           if (typeof limited.fps === "number") {
             state.ssrFps = limited.fps;
             state.ssrFpsAtMs = Date.now();
+          }
+          // Phase 34 D-01: telemetry — surface the SSR tab's effective render
+          // mode in the server log every 10 messages (~10s at the probe's 1s
+          // cadence). The renderMode value comes from
+          // __ttBeamerEffectiveRenderMode() inside the SSR tab; values are
+          // "webgl" / "webgl2" / "gl" / "auto" (OK) or
+          // "2d" / "gl->2d (gl-disabled)" / "auto->2d (loss xN)" (FAIL).
+          // Acceptance gate D-05: the value MUST NOT contain "2d" on /ssr.
+          ssrStatsLogCounter += 1;
+          if (ssrStatsLogCounter % 10 === 1) {
+            const rm = limited?.renderMode;
+            if (typeof rm === "string" && rm.length > 0) {
+              logger.info(`[ssr-stats] renderMode=${rm}`);
+            }
           }
         }
         return;
