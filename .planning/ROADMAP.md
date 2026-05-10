@@ -679,11 +679,22 @@ Phase 35 iter2 (post-UAT hotfixes):
 - Phase 35 status: CLOSED-PARTIAL-WITH-ITER2-HOTFIXES (supersedes premature PASS-AUTOMATED-PENDING-OPERATOR-UAT).
 - Closure addendum: 35-CLOSURE-ITER2-ADDENDUM.md.
 
-## Phase 36 - Comprehensive Align-Mode-on-Thin-/output/ (READY)
+## Phase 36 - Comprehensive Align-Mode-on-Thin-/output/ (PASS-AUTOMATED-PENDING-PI-HARDWARE)
 
 Ziel: Den vollen handle-ui (vertex / midpoint / rotation drag, image-pan, right-click menu für add/remove lines, CTRL+Z undo, dirty-flag, sizing alignment mit stream content) auf der thin /output/ funktionsfähig bringen, OHNE die volle Dashboard-App zu laden. Das ist die comprehensive Version von Phase 35-A's pure-extract Versuch — Phase 35-iter2 hat gezeigt dass die ad-hoc Hotfix-Iterationen nicht ausreichen weil handle-ui mehr implizite ctx-Abhängigkeiten hat als per-bug fixierbar sind.
 
-Status: PLANNING.
+Status: PASS-AUTOMATED-PENDING-PI-HARDWARE (closed 2026-05-10; carry-forward pattern matches Phase 33/34/35).
+
+Closure evidence (see `.planning/phases/phase-36/36-VERIFICATION.md` + `36-V-SUMMARY.md`):
+- All 10 T1-T10 RED rails GREEN (`pytest test/live-e2e/test_phase36_align_handles.py -v` → 10/10 passed)
+- D-08 connection-stability `RUN_LIVE_TESTS=1 node --test 'test/connection-stability/*.test.mjs'` → 84/84 pass fail=0
+- D-09 output.html src-script budget: 1 ≤ 8
+- D-02 Phase 35-A `pointer-events:none !important` CSS rule verified ABSENT
+- Q1-Q5 planner reconciliations all locked + source-traceable
+- bootHandleUi contract pass=3 fail=0
+- Phase 35 unit suite pass=9 fail=0; full JS suite 379/396 pass fail=0 (17 skipped env-gated)
+- Pi-hardware UAT deferred per D-10 carry-forward (see `36-HUMAN-UAT.md`)
+- M3-LATE dashboard migration deferred via path-(b) → Phase 36.1 follow-up below
 
 Trigger: 2026-05-10 operator UAT nach Phase 35-iter2 h8 — sechs offene align-mode interaction bugs nach mehreren hotfix-Iterationen. h9 hat /output/ partial-reverted auf Phase 34's 4-corner approximation; volle handle-ui ist Phase 36 scope.
 
@@ -753,7 +764,7 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-B output-live-sync.js (proven thin subscription)
 
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans executed
 
 Plans:
 - [x] 36-W0-PLAN.md — RED test rails (T1-T10 Live-E2E + dashboard parity + bootHandleUi shape unit + server.mjs dirty-flag stdout log) — COMPLETE 2026-05-10 (commits fd0078e, a6e2529, 3a0c99a; SUMMARY: 36-W0-SUMMARY.md; closure gates ALL pass)
@@ -762,7 +773,39 @@ Plans:
 - [x] 36-M3-PLAN.md — Wire T1 (sizing) + T2 (corner pulls) + T10 (no dual-path conflict). M3-LATE: dashboard runtime-orchestration migration to bootHandleUi
 - [x] 36-M4-PLAN.md — Wire T3 (vertex drag) + T4 (midpoint drag) + T5 (rotation handle)
 - [x] 36-M5-PLAN.md — Wire T6 (image-pan) + T7 (right-click menu) + T8 (CTRL+Z undo) + T9 (dirty-flag); Q3 LOCK (immediate broadcast on add/remove line) + Q5 LOCK (1000-entry undo cap)
-- [ ] 36-V-PLAN.md — Verification: 36-VERIFICATION.md + 36-HUMAN-UAT.md (Pi UAT deferred per D-10)
+- [x] 36-V-PLAN.md — Verification: 36-VERIFICATION.md + 36-HUMAN-UAT.md (Pi UAT deferred per D-10) — COMPLETE 2026-05-10 (commits 963ebd0, 9ab3ddb; SUMMARY: 36-V-SUMMARY.md; closure verdict PASS-AUTOMATED-PENDING-PI-HARDWARE-UAT)
+
+## Phase 36.1 - Dashboard runtime-orchestration migration to bootHandleUi (PLANNING)
+
+Trigger: 2026-05-10 — Phase 36 M3 wave path-(b) deferral (per `36-M3-PLAN.md` Task 3 + `.planning/phases/phase-36/deferred-items.md` D1+D2). Phase 36 M3 explicitly authorized this deferral when "dashboard migration encounters complexity (e.g., dashboard has additional implicit deps not in inventory)". The dashboard's `MAPPING.init` (runtime-orchestration.js:472) + `POLYGON_EDITOR.init` (runtime-orchestration.js:~1953) two-call structure is separated by ~1500 LOC of state construction, profile loading, and dep-bag building — refactoring to a single `bootHandleUi(...)` call carries high regression risk to a battle-tested dashboard flow.
+
+Status: PLANNING. Trigger 2026-05-10. Re-opens when (a) operator reports a dashboard-vs-/output/ divergence that traces to the dual init path, OR (b) a future align-mode follow-up wave needs to extend handle-ui ctx where Option H's one-call-site requirement becomes a hard prerequisite, OR (c) when scheduled as scope-clean-up work.
+
+Scope:
+- Migrate dashboard's `runtime-orchestration.js` implicit `MAPPING.init` + `POLYGON_EDITOR.init` pair to use the `bootHandleUi(...)` entry point (Option H, established in Phase 36 A1).
+- Either re-order ~1500 LOC of state setup ahead of the single `bootHandleUi` call site, or split `bootHandleUi` so it can be invoked piecewise to mirror existing two-phase init.
+- Keep `?ctx-trace=1` runtime-trace harness wraps preserved (Phase 36 A1 wiring).
+- D-08 connection-stability `fail=0` hard gate preserved through the migration (NON-NEGOTIABLE).
+- All Phase 36 carry-forward locks (VAAPI default-disabled, Phase 34 h2, Phase 35-iter2 h1/h2/h3, Phase 35-B output-live-sync) preserved unchanged.
+
+Tests to flip GREEN (currently RED per Phase 36 V wave evidence):
+- `test/live-e2e/test_phase35_dashboard_alignmode.py::test_dashboard_alignmode_handles`
+- `test/live-e2e/test_phase36_dashboard_parity.py::test_t2_corner_pull_parity[/]`
+- `test/live-e2e/test_phase36_dashboard_parity.py::test_t7_right_click_menu_parity[/]`
+- `test/live-e2e/test_phase36_dashboard_parity.py::test_t8_ctrl_z_undo_parity[/]`
+
+Estimated effort: ~3-5 days (refactor + dashboard E2E gauntlet + Pi-hardware UAT pass).
+
+Pflicht-Inputs:
+- `.planning/phases/phase-36/deferred-items.md` — D1 (M3-LATE) + D2 (Phase 35 W0 dashboard E2E rail) deferral rationale
+- `.planning/phases/phase-36/36-M3-SUMMARY.md` — Task 3 path-(b) explanation
+- `.planning/phases/phase-36/36-A1-SUMMARY.md` — bootHandleUi(...) API contract (Option H established)
+- `src/app/runtime/runtime-orchestration.js` — dashboard's MAPPING.init / POLYGON_EDITOR.init call sites
+- `src/app/runtime/output-receiver/boot-handle-ui.js` — Option-H entry point that needs to absorb dashboard usage
+
+Out of Scope:
+- /output/ thin path changes (already GREEN per Phase 36 V)
+- New Phase 36 features (Phase 36 closed)
 
 ## Phase 37 - Transformation Banding Fix (DEFERRED)
 
