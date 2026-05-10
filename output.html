@@ -50,13 +50,17 @@
        contract and avoids a layout-thrash on first align-mode tap. -->
   <div id="ssr-input-overlay" style="position:fixed;inset:0;z-index:4;touch-action:none;pointer-events:none"></div>
 
-  <!-- Phase 34 D-03: minimal script set. Order matters:
+  <!-- Phase 34 D-03 + Phase 35 D-02 (Track B): minimal script set. Order matters:
        1. runtime-env.js  — exposes window.TT_BEAMER_RUNTIME_ENV
           consumed by receiver-bootstrap (output-role detection).
        2. inline diagnostic-chip rAF — fps sampling only (D-03 strip:
           no render-mode probe locally; render-mode lives on /ssr).
-       3. receiver-bootstrap.js (module inline-import) — boots the WebRTC consumer.
-       4. output-audio-binder.js (module inline-import) — Pi-local audio.
+       3. output-live-sync.js (module inline) — Phase 35 D-02 thin
+          live-sync subscriber. Boots FIRST so receiver + audio-binder
+          consume the SAME subscription (single WS to /api/live/ws).
+          Exposed on window.__ttbLiveSync.
+       4. receiver-bootstrap.js (module inline-import) — boots the WebRTC consumer.
+       5. output-audio-binder.js (module inline-import) — Pi-local audio.
   -->
   <script src="/src/app/lib/shared/runtime-env.js" defer></script>
   <script>
@@ -82,10 +86,17 @@
       if (chip) chip.hidden = false;
     });
   </script>
+  <!-- Phase 35 D-02 Track B: Boot the shared live-sync subscription FIRST.
+       Both bootReceiver and bootOutputAudioBinder consume window.__ttbLiveSync
+       so the page opens ONE WS to /api/live/ws?role=final-output instead of two. -->
+  <script type="module">
+    import { bootOutputLiveSync } from "/src/app/runtime/output-receiver/output-live-sync.js";
+    window.__ttbLiveSync = bootOutputLiveSync({ logger: console, role: "final-output" });
+  </script>
   <!-- Boot the receiver bootstrap. -->
   <script type="module">
     import { bootReceiver } from "/src/app/runtime/output-receiver/receiver-bootstrap.js";
-    bootReceiver({ logger: console }).catch((err) => {
+    bootReceiver({ logger: console, liveSync: window.__ttbLiveSync }).catch((err) => {
       console.error("[output] receiver bootstrap failed", err);
       const splash = document.getElementById("ssr-splash");
       const errorOverlay = document.getElementById("ssr-error-overlay");
@@ -99,7 +110,7 @@
   <!-- Boot the audio binder. Best-effort — failures don't block video. -->
   <script type="module">
     import { bootOutputAudioBinder } from "/src/app/runtime/output-receiver/output-audio-binder.js";
-    bootOutputAudioBinder({ logger: console }).catch((err) => {
+    bootOutputAudioBinder({ logger: console, liveSync: window.__ttbLiveSync }).catch((err) => {
       console.warn("[output-audio] binder failed:", err?.message);
     });
   </script>

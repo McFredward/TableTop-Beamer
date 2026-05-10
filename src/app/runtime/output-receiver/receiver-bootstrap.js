@@ -212,8 +212,15 @@ export function isFreshPageLoad(perf = (typeof performance !== "undefined" ? per
  *
  * @param {object} [opts]
  * @param {Console} [opts.logger]
+ * @param {import('./output-live-sync.js').LiveSyncSubscription | null} [opts.liveSync]
+ *   Shared live-sync subscription (Phase 35 D-02). When provided,
+ *   alignMode + activeProjectionProfileId are read from the subscription
+ *   getters and the inline 1Hz /api/live/snapshot poll loop is skipped
+ *   (single source of truth across audio-binder + bootAlignMode + here).
+ *   When omitted, falls back to the legacy inline poll for backwards
+ *   compatibility.
  */
-export async function bootReceiver({ logger = console } = {}) {
+export async function bootReceiver({ logger = console, liveSync = null } = {}) {
   // Mark body so CSS hides existing canvas chrome on Pi /output/.
   // (data-output-role is also set by runtime-orchestration.js when it
   // runs the early-exit branch, but we set it again here defensively
@@ -962,34 +969,56 @@ export async function bootReceiver({ logger = console } = {}) {
   }
 
   // Local snapshot mirror — alignMode + active projection-profile id.
-  // Wave-4 minimum implementation: poll the existing /api/live/snapshot
-  // route (Phase 13) at 1Hz. Plan-06 UAT can refine this to a WS-driven
-  // mirror if latency requires it.
+  //
+  // Phase 35 D-02 (Track B): when a shared liveSync subscription is
+  // provided, read state from its getters and subscribe to alignMode
+  // changes for the overlay pointer-events toggle. The inline 1Hz
+  // /api/live/snapshot poll loop that previously lived here is REMOVED
+  // — output-live-sync.js owns that poll now (single source of truth).
+  //
+  // Legacy fallback: if no liveSync was passed (older callers, pre-35-B
+  // bootstraps, tests), the inline poll loop still runs.
   let alignMode = false;
   let currentProfileId = null;
-  const snapshotInterval = setInterval(async () => {
-    try {
-      const r = await fetch("/api/live/snapshot");
-      if (r.ok) {
-        const j = await r.json();
-        const snap = j?.snapshot ?? j?.session?.snapshot ?? {};
-        alignMode = Boolean(snap?.alignMode);
-        currentProfileId =
-          snap?.runtime?.activeProjectionProfileId
-          ?? snap?.selectedBoard?.lastUsedProfileName
-          ?? (typeof snap?.selectedBoard === "string" ? snap.selectedBoard : null)
-          ?? null;
-        overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+  let snapshotInterval = null;
+  let offAlignModeChange = null;
+  let offProjectionProfileChange = null;
+  if (liveSync) {
+    alignMode = Boolean(liveSync.getAlignMode?.());
+    currentProfileId = liveSync.getActiveProjectionProfileId?.() ?? null;
+    overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+    offAlignModeChange = liveSync.onAlignModeChange?.((enabled) => {
+      alignMode = Boolean(enabled);
+      overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+    });
+    offProjectionProfileChange = liveSync.onProjectionProfileChange?.((pid) => {
+      currentProfileId = pid ?? null;
+    });
+  } else {
+    snapshotInterval = setInterval(async () => {
+      try {
+        const r = await fetch("/api/live/snapshot");
+        if (r.ok) {
+          const j = await r.json();
+          const snap = j?.snapshot ?? j?.session?.snapshot ?? {};
+          alignMode = Boolean(snap?.alignMode);
+          currentProfileId =
+            snap?.runtime?.activeProjectionProfileId
+            ?? snap?.selectedBoard?.lastUsedProfileName
+            ?? (typeof snap?.selectedBoard === "string" ? snap.selectedBoard : null)
+            ?? null;
+          overlayEl.style.pointerEvents = alignMode ? "auto" : "none";
+        }
+      } catch {
+        /* ignore — next tick retries */
       }
-    } catch {
-      /* ignore — next tick retries */
-    }
-  }, 1000);
+    }, 1000);
+  }
 
   const inputForwarder = attachInputForwarder({
     overlayEl,
-    isAlignModeActive: () => alignMode,
-    getCurrentProfileId: () => currentProfileId,
+    isAlignModeActive: () => liveSync ? Boolean(liveSync.getAlignMode?.()) : alignMode,
+    getCurrentProfileId: () => liveSync ? (liveSync.getActiveProjectionProfileId?.() ?? null) : currentProfileId,
     // h19: hand the <video> element to the forwarder so it can map
     // pointer coords from receiver-viewport space to stream-content
     // space (object-fit: cover crops on aspect mismatch — without this,
@@ -1027,6 +1056,8 @@ export async function bootReceiver({ logger = console } = {}) {
       setState(ConnectionState.STOPPED, { reason: "operator-stop" });
       if (monitorInterval) clearInterval(monitorInterval);
       if (snapshotInterval) clearInterval(snapshotInterval);
+      if (typeof offAlignModeChange === "function") { try { offAlignModeChange(); } catch {} }
+      if (typeof offProjectionProfileChange === "function") { try { offProjectionProfileChange(); } catch {} }
       if (overlayHidePoller) { clearInterval(overlayHidePoller); overlayHidePoller = null; }
       if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
       if (pendingRetryTimeout != null) { try { clearTimeout(pendingRetryTimeout); } catch {} pendingRetryTimeout = null; }
