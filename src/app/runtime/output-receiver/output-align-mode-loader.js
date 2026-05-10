@@ -428,6 +428,10 @@ export function bootAlignModeLoader({
   /** @type {{stop: Function, hitTestVertex?: Function} | null} */
   let _currentBootHandle = null;
   let stopped = false;
+  // Phase 36 M3 T1 — videoEl resize tracking (cleared on deactivate)
+  let _videoEl = null;
+  let _videoResizeFn = null;
+  let _videoResizeObserver = null;
 
   async function refreshBoardCatalog() {
     try {
@@ -564,6 +568,42 @@ export function bootAlignModeLoader({
       window.__ttbAlignMode = _currentBootHandle;
       logger?.log?.("[align-loader] bootHandleUi wired with live boardAccess + Option H");
 
+      // Phase 36 M3 T1 — wire videoEl resize/loadedmetadata to HANDLE_UI's
+      // re-position so the handle-frame snaps to the stream-content bbox even
+      // when the video element's intrinsic dimensions arrive late (WebRTC
+      // track first frame, fullscreen toggle, network bitrate switch). This
+      // is in addition to handle-ui's internal _attachVideoResizeListener
+      // which already covers the typical case — adding the loader-level hook
+      // gives defense-in-depth for the case where the video re-arrives AFTER
+      // bootHandleUi has already initialized.
+      const HANDLE_UI = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      const _videoResize = () => {
+        try {
+          HANDLE_UI?.onWindowResize?.();
+          window.TT_BEAMER_RUNTIME_POLYGON_EDITOR?.renderRoomOverlay?.();
+        } catch (err) {
+          logger?.warn?.(`[align-loader] _videoResize threw: ${err?.message || err}`);
+        }
+      };
+      if (v) {
+        try { v.addEventListener("loadedmetadata", _videoResize, { passive: true }); } catch {}
+        try { v.addEventListener("resize", _videoResize, { passive: true }); } catch {}
+        if (typeof ResizeObserver !== "undefined") {
+          try {
+            _videoResizeObserver = new ResizeObserver(_videoResize);
+            _videoResizeObserver.observe(v);
+          } catch (err) {
+            logger?.warn?.(`[align-loader] ResizeObserver attach failed: ${err?.message || err}`);
+          }
+        }
+        // One immediate pass after bootHandleUi to align with current bbox
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(_videoResize);
+        }
+        _videoEl = v;
+        _videoResizeFn = _videoResize;
+      }
+
       // Trigger renderRoomOverlay manually — bootHandleUi wires the
       // onAlignModeChange listener to HANDLE_UI for handle visibility,
       // but it does NOT explicitly re-render the polygon-editor overlay
@@ -589,6 +629,23 @@ export function bootAlignModeLoader({
       try { _currentBootHandle.stop?.(); } catch (e) { logger?.warn?.("[align-loader] stop threw:", e?.message); }
       _currentBootHandle = null;
     }
+    // Phase 36 M3 T1 — tear down the videoEl resize listeners + ResizeObserver
+    // so a subsequent re-activation builds a fresh wiring against the (possibly
+    // new) <video> element.
+    try {
+      if (_videoEl && _videoResizeFn) {
+        try { _videoEl.removeEventListener("loadedmetadata", _videoResizeFn); } catch {}
+        try { _videoEl.removeEventListener("resize", _videoResizeFn); } catch {}
+      }
+      if (_videoResizeObserver) {
+        try { _videoResizeObserver.disconnect(); } catch {}
+      }
+    } catch (e) {
+      logger?.warn?.("[align-loader] _videoResize teardown:", e?.message);
+    }
+    _videoEl = null;
+    _videoResizeFn = null;
+    _videoResizeObserver = null;
     // Optionally hide the stage so it doesn't intercept layout queries while
     // align-mode is OFF. handle-ui's stop() removes its handle DOM children
     // already; hiding the host is a defensive nicety.

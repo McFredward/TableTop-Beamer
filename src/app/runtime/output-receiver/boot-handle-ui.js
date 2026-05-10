@@ -265,6 +265,29 @@ export function bootHandleUi(args) {
     logger?.warn?.(`${_LOG_PREFIX} POLYGON_EDITOR.init absent — skipping (test/stub env?)`);
   }
 
+  // Phase 36 M3 T1 — initial alignment pass after init completes. Without this,
+  // handle frame may render at viewport-corner positions until the operator
+  // performs the first window-resize / video-resize event (handle-ui's
+  // positionHandles() reads videoWidth/Height which may be 0 at init time on
+  // /output/ — the WebRTC stream may not have negotiated dimensions yet).
+  // Running an extra pass on next rAF gives the bundle a chance to flush layout.
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      try {
+        HANDLE_UI.onWindowResize?.();
+        polygonCtx.renderRoomOverlay?.();
+      } catch (err) {
+        logger?.warn?.(`${_LOG_PREFIX} initial align pass threw:`, err?.message || err);
+      }
+    });
+  }
+
+  // Phase 36 M3 T2 — boot trace for diagnostic visibility. One-line; tests can
+  // capture via page.on("console", ...) if needed.
+  try {
+    logger?.log?.(`${_LOG_PREFIX} bootHandleUi(...) initialized — outputRole=${outputRole}, liveSyncCoreOverride=${Boolean(liveSyncCoreOverride)}, alignModeDirtyEndpoint=${alignModeDirtyEndpoint}`);
+  } catch { /* logger guard */ }
+
   // ── liveSync subscriptions ──
   let _offAlignModeChange = null;
   let _offProjectionProfileChange = null;
@@ -306,8 +329,16 @@ export function bootHandleUi(args) {
   }
 
   // ── Window resize (handles re-render on viewport change) ──
+  // Phase 36 M3 T1: handle-ui exposes the public method as `onWindowResize`,
+  // not `onResize`. Try both for forward-compat with future renames.
   const _onResize = () => {
-    try { HANDLE_UI.onResize?.(); } catch (err) {
+    try {
+      if (typeof HANDLE_UI.onWindowResize === "function") {
+        HANDLE_UI.onWindowResize();
+      } else if (typeof HANDLE_UI.onResize === "function") {
+        HANDLE_UI.onResize();
+      }
+    } catch (err) {
       logger?.warn?.(`${_LOG_PREFIX} resize:`, err?.message || err);
     }
   };

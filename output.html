@@ -128,19 +128,33 @@
     });
   </script>
 
-  <!-- Phase 35-iter2 h9: bootAlignMode rendering on /output/ has been
-       partial-reverted. Phase 35-A's pure-extract surfaced more missing
-       handle-ui ctx wirings (sizing alignment, dirty-flag, right-click
-       menu, CTRL+Z, vertex/midpoint distortion) than h1+h2+h8 could
-       safely plug. Phase 36 owns the comprehensive align-mode refactor.
-       Until then, /output/ uses Phase 34's 4-corner approximation
-       (handled by receiver-input-forwarder + receiver-bootstrap) for
-       basic corner-pull alignment; full handle-ui (vertex/midpoint/
-       rotation/right-click/CTRL+Z) is operator-accessible via the
-       dashboard on a separate device.
-       The output-align-mode-loader.js + output-align-mode.js modules
-       remain in src/app/runtime/output-receiver/ as Phase 36 reference
-       material (NOT loaded — purpose: starting point for the proper
-       refactor without losing the polygon-data wiring research). -->
+  <!-- Phase 36 M3: wire the lazy align-mode loader (Option H thin-export per
+       CONTEXT.md D-01). The loader's bundle (12 IIFE scripts) is NOT loaded
+       on initial page load — it lazy-loads on the first liveSync.onAlignModeChange(true).
+       This inline `<script type="module">` does NOT count against D-09's ≤8
+       src-based <script> budget (output.html still has 1 src-script:
+       runtime-env.js). The loader appends #stage + #room-overlay via JS at
+       activation and calls bootHandleUi() to bring the full handle-ui
+       (vertex/midpoint/rotation drag, right-click menu, CTRL+Z undo, dirty-
+       flag, sizing alignment) online on /output/. -->
+  <script type="module">
+    import { bootAlignModeLoader } from "/src/app/runtime/output-receiver/output-align-mode-loader.js";
+    // Wait for liveSync to be ready (set by the bootOutputLiveSync inline above).
+    if (window.__ttbLiveSync) {
+      try {
+        bootAlignModeLoader({
+          stage: null,           // loader appends its own #stage via JS
+          roomOverlay: null,     // loader appends its own #room-overlay via JS
+          videoEl: document.getElementById("ssr-video"),
+          liveSync: window.__ttbLiveSync,
+          logger: console,
+        });
+      } catch (err) {
+        console.warn("[output-align-mode-loader] boot failed:", err?.message || err);
+      }
+    } else {
+      console.warn("[output-align-mode-loader] window.__ttbLiveSync missing — align-mode UI will not load");
+    }
+  </script>
 </body>
 </html>

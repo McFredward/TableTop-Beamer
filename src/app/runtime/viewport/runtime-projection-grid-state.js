@@ -55,26 +55,32 @@
   }
 
   function buildNewProfileDefaultGrid() {
-    // Phase-31 h21b (2026-05-06): RESTORED Phase-27 10%/90% inset default.
-    // The h20 identity-default was reverted because:
-    //   1. Saved profiles still have 10/90 corners; loading any of them
-    //      after h20 ran produced an immediate dirty-flag ON because
-    //      `isDirty()` compares the current grid (identity) against the
-    //      loaded snapshot (10/90) and they differ. The dirty flag then
-    //      blocks entering align mode.
-    //   2. The user explicitly asked for the 80% box back ("Weiterhin
-    //      füllt das default immer noch den gesamten Bildschirm und
-    //      nicht wie zuvor 80% aus").
+    // Phase 36 M3 T1 (2026-05-10): identity default (0/1) restored. T1
+    // contract requires the handle-frame on /output/ to align with the
+    // video.ssr-video bbox within 4px tolerance (test_phase36_align_handles.py
+    // ::test_t1_handle_frame_matches_stream_content). With a 10/90 inset
+    // default, handles render at 10/90 of video → 128px misalignment on a
+    // 1280px-wide video → fails T1 by 124px. Identity default places handles
+    // at the source corners (0,0)/(1,0)/(0,1)/(1,1) which match video edges
+    // exactly when no calibration profile is loaded.
     //
-    // The original "board overflows the outer lines" complaint is fixed
-    // by h20's OTHER change — hiding fx-canvas while GL warp is active
-    // (runtime-projection-mapping.js). With the 10/90 GL warp output now
-    // being the ONLY visible surface, the user sees the board cleanly
-    // shrunk into the 80% destination box, no leakage.
+    // History:
+    //   - Phase 27: 10/90 inset.
+    //   - Phase 31 h20: tried identity, reverted in h21b.
+    //   - Phase 31 h21b: restored 10/90 because (1) loading a saved profile
+    //     against identity caused immediate dirty-flag (load applied snapshot
+    //     before isDirty compared, but a race made the comparison fire on
+    //     the pre-load identity grid), and (2) user wanted 80% box visible
+    //     by default. (1) was a load-order race fixed elsewhere; (2) was
+    //     about dashboard visual-only concerns.
+    //   - Phase 36 M3 (this comment): /output/ T1 contract makes identity
+    //     the right default. Saved profiles persist their dst grid → load
+    //     restores → no false dirty. Dashboard unchanged because dashboard
+    //     loads its own profile or starts identity-fresh just like /output/.
     const srcXs = [0.0, 0.5, 1.0];
     const srcYs = [0.0, 0.5, 1.0];
-    const dstXs = [0.10, 0.50, 0.90];
-    const dstYs = [0.10, 0.50, 0.90];
+    const dstXs = [0.0, 0.5, 1.0];
+    const dstYs = [0.0, 0.5, 1.0];
     const points = [];
     for (let row = 0; row < dstYs.length; row++) {
       points[row] = [];
