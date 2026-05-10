@@ -285,25 +285,37 @@
         c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       } else {
-        // Phase 35 D-03-C1 (Track C): replace the 8-bit-per-channel
-        // alpha-blend that produced operator-visible Mach-band steps
-        // ("Streifen") with a per-pixel Bayer-4×4-dithered ImageData
-        // composited via putImageData. Helper is the IIFE-published
-        // window.TT_BEAMER_RUNTIME_EFFECT_DITHER (loaded as ES module
-        // before this script in index.html); accessed lazily so the
-        // IIFE parse doesn't depend on module load order.
+        // Phase 35 D-03-C1 (Track C, iter2 hotfix h3): replace the
+        // 8-bit-per-channel alpha-blend that produced operator-visible
+        // Mach-band steps ("Streifen") with per-pixel Bayer-4×4-dithered
+        // pixels — but composited via `c.drawImage(canvas, ...)` instead
+        // of `c.putImageData(imageData, ...)`. Reason for the iter2
+        // change: putImageData IGNORES the canvas clip path (it writes
+        // raw pixels to the destination buffer, bypassing the polygon
+        // clip the caller sets up via c.clip()). Phase 35 close shipped
+        // putImageData and the operator reported solid-color animations
+        // flooding the bounding RECTANGLE of the room instead of the
+        // room polygon shape. drawImage respects the clip, so the
+        // dithered pixels are clipped to the polygon as before.
+        //
+        // Helper is the IIFE-published window.TT_BEAMER_RUNTIME_EFFECT_DITHER
+        // (loaded as ES module before this script in index.html); accessed
+        // lazily so the IIFE parse doesn't depend on module load order.
         c.clearRect(roomMinX, roomMinY, roomWidth, roomHeight);
         const dither = window.TT_BEAMER_RUNTIME_EFFECT_DITHER;
         const ditherWidth = Math.max(1, Math.round(roomWidth));
         const ditherHeight = Math.max(1, Math.round(roomHeight));
-        if (dither && typeof dither.getDitheredSolidColorImageData === "function") {
-          const dithered = dither.getDitheredSolidColorImageData({
-            hex,
-            alpha,
-            width: ditherWidth,
-            height: ditherHeight,
-          });
-          c.putImageData(dithered, Math.round(roomMinX), Math.round(roomMinY));
+        const ditherCanvas = (dither && typeof dither.getDitheredSolidColorCanvas === "function")
+          ? dither.getDitheredSolidColorCanvas({ hex, alpha, width: ditherWidth, height: ditherHeight })
+          : null;
+        if (ditherCanvas) {
+          c.drawImage(
+            ditherCanvas,
+            Math.round(roomMinX),
+            Math.round(roomMinY),
+            ditherWidth,
+            ditherHeight,
+          );
         } else {
           // Defensive fallback to the pre-Phase-35 fillRect path so a
           // missing dither module never blanks the room. Logged once
@@ -312,7 +324,7 @@
           if (!window.__ttbDitherWarned) {
             window.__ttbDitherWarned = true;
             console.warn(
-              "[runtime-effect-visuals] Bayer dither helper unavailable — falling back to fillRect (banding may return)",
+              "[runtime-effect-visuals] Bayer dither canvas helper unavailable — falling back to fillRect (banding may return)",
             );
           }
           c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;

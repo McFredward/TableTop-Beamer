@@ -102,6 +102,68 @@ export function getDitheredSolidColorImageData({ hex, alpha, width, height }) {
 // asserts the matrix shape if exported).
 export { BAYER_4X4 };
 
+// Phase 35-iter2 hotfix h3: clip-respecting variant.
+//
+// putImageData IGNORES the canvas clip path — it writes raw pixels straight
+// to the destination buffer. The pre-Phase-35 `c.fillRect` respected the
+// polygon-clip the caller had set up via `c.clip()`, so solid-color
+// animations rendered ONLY inside the room polygon. Phase 35 Track C swapped
+// fillRect → putImageData and broke the clip behaviour: solid-color
+// animations now flood the bounding RECTANGLE of the room instead of the
+// room polygon shape (operator-reported 2026-05-10).
+//
+// `c.drawImage(canvas, ...)` does respect the canvas clip path. So we
+// expose a second helper that returns an OffscreenCanvas (or a regular
+// HTMLCanvasElement when OffscreenCanvas is unavailable) with the dithered
+// pixels already painted. The call site in runtime-effect-visuals.js
+// switches from putImageData to drawImage.
+//
+// Cache strategy mirrors getDitheredSolidColorImageData: same key format,
+// same FIFO eviction. A separate cache map because the two outputs are
+// different types — the canvas takes more bytes per entry but creating
+// it from cached ImageData is cheap (one putImageData on the offscreen).
+const _ditherCanvasCache = new Map();
+
+function makeOffscreenCanvas(width, height) {
+  // Prefer OffscreenCanvas when the env supports it (Chrome ≥ 69, all
+  // headful Chromium 131 builds we ship). Fall back to a detached
+  // HTMLCanvasElement so the helper still works in older runtimes /
+  // unit tests with the polyfill.
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(width, height);
+  }
+  if (typeof document !== "undefined" && typeof document.createElement === "function") {
+    const c = document.createElement("canvas");
+    c.width = width;
+    c.height = height;
+    return c;
+  }
+  return null;
+}
+
+export function getDitheredSolidColorCanvas({ hex, alpha, width, height }) {
+  const alphaQ = Math.round(alpha * 100);
+  const key = `${hex}-${alphaQ}-${width}-${height}`;
+  const cached = _ditherCanvasCache.get(key);
+  if (cached) return cached;
+
+  const canvas = makeOffscreenCanvas(width, height);
+  if (!canvas) return null;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  // Reuse the ImageData helper so the dither math stays in one place.
+  const img = getDitheredSolidColorImageData({ hex, alpha, width, height });
+  ctx.putImageData(img, 0, 0);
+
+  _ditherCanvasCache.set(key, canvas);
+  if (_ditherCanvasCache.size > CACHE_MAX_ENTRIES) {
+    const firstKey = _ditherCanvasCache.keys().next().value;
+    _ditherCanvasCache.delete(firstKey);
+  }
+  return canvas;
+}
+
 // Side-effect: register on window for IIFE consumers (runtime-effect-visuals.js
 // is a `<script defer>` IIFE on index.html and cannot use ES `import`. It looks
 // up `window.TT_BEAMER_RUNTIME_EFFECT_DITHER.getDitheredSolidColorImageData(...)`
@@ -110,6 +172,7 @@ export { BAYER_4X4 };
 if (typeof globalThis !== "undefined" && typeof globalThis.window !== "undefined") {
   globalThis.window.TT_BEAMER_RUNTIME_EFFECT_DITHER = {
     getDitheredSolidColorImageData,
+    getDitheredSolidColorCanvas,
     BAYER_4X4,
   };
 }
