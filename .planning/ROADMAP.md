@@ -596,3 +596,11 @@ Carrying Forward (LOCKED, do not re-open):
 - VAAPI default-disabled (Phase 33 commit `3cd6748`)
 - Frame-stale 30s threshold + keyframe-on-resume + heartbeat-reset + RPC 20s + watchdog 150s tolerance (alle Phase 33 iter-fixes bleiben net-positiv).
 - Alle in Phase 33 Carrying-Forward gelisteten Items.
+
+**Plans:** 1/4 plans executed
+
+Plans:
+- [x] 34-W0-PLAN.md — Wave 0: contract tests (route-split, runtime-env, chrome-flags, thin-output script-graph, render-mode probe sink) — RED rails for Tracks A and B
+- [ ] 34-B-PLAN.md — Track B: atomic URL migration + thin /output/ — server route split (`/ssr` → index.html, `/output` → output.html), runtime-env classifier update, ssr-render-host.mjs URL migration (TWO sites), NEW output.html + output-audio-binder.js
+- [ ] 34-A-PLAN.md — Track A: GL flag fix (decouple hasIgpuDev from hasVaapiEnabled), 2D-fallback ban on `/ssr` only (D-02), force `state.renderMode = "gl"` on `/ssr`, ssr-stats renderMode telemetry log line
+- [ ] 34-V-PLAN.md — Verification + closure: 34-VERIFICATION.md, 34-HUMAN-UAT.md, 34-CLOSURE.md; D-06 final gate (connection-stability 80/0)
