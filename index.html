@@ -1123,6 +1123,13 @@
   <script src="/src/app/runtime/render/runtime-audio.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-quick-mode.js" defer></script>
   <script src="/src/app/runtime/render/runtime-canvas-clip.js" defer></script>
+  <!-- Phase 35 D-03-C1: Bayer 4x4 dither helper. Loaded as ES module so
+       test/phase-35-bayer-dither.test.mjs can dynamic-import it. The module
+       side-effect-attaches itself to window.TT_BEAMER_RUNTIME_EFFECT_DITHER
+       which runtime-effect-visuals.js (IIFE, classic-defer) reads lazily at
+       draw time. Module scripts are deferred-by-default so the global is
+       set well before the first render-loop tick fires. -->
+  <script type="module" src="/src/app/runtime/render/runtime-effect-dither.js"></script>
   <script src="/src/app/runtime/render/runtime-effect-visuals.js" defer></script>
   <script src="/src/app/runtime/panels/runtime-regression-tests.js" defer></script>
   <script src="/src/app/runtime/animation/runtime-lifecycle-state.js" defer></script>

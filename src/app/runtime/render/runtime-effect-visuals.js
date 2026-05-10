@@ -277,11 +277,48 @@
       //   (same-room ≥2-anims path, Phase 12-1) — that path is
       //   *intentionally* additive and the clear would defeat it.
       const skipClear = c.globalCompositeOperation === "lighter";
-      c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      if (!skipClear) {
+      if (skipClear) {
+        // Phase 12-1 additive composite — banding doesn't show in this
+        // path (the destination buffer is mostly black; small alpha
+        // increments add discrete brightness levels but the human eye
+        // doesn't perceive them as bands). Keep the existing fillRect.
+        c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
+      } else {
+        // Phase 35 D-03-C1 (Track C): replace the 8-bit-per-channel
+        // alpha-blend that produced operator-visible Mach-band steps
+        // ("Streifen") with a per-pixel Bayer-4×4-dithered ImageData
+        // composited via putImageData. Helper is the IIFE-published
+        // window.TT_BEAMER_RUNTIME_EFFECT_DITHER (loaded as ES module
+        // before this script in index.html); accessed lazily so the
+        // IIFE parse doesn't depend on module load order.
         c.clearRect(roomMinX, roomMinY, roomWidth, roomHeight);
+        const dither = window.TT_BEAMER_RUNTIME_EFFECT_DITHER;
+        const ditherWidth = Math.max(1, Math.round(roomWidth));
+        const ditherHeight = Math.max(1, Math.round(roomHeight));
+        if (dither && typeof dither.getDitheredSolidColorImageData === "function") {
+          const dithered = dither.getDitheredSolidColorImageData({
+            hex,
+            alpha,
+            width: ditherWidth,
+            height: ditherHeight,
+          });
+          c.putImageData(dithered, Math.round(roomMinX), Math.round(roomMinY));
+        } else {
+          // Defensive fallback to the pre-Phase-35 fillRect path so a
+          // missing dither module never blanks the room. Logged once
+          // so misconfiguration surfaces in the console without
+          // spamming the render loop.
+          if (!window.__ttbDitherWarned) {
+            window.__ttbDitherWarned = true;
+            console.warn(
+              "[runtime-effect-visuals] Bayer dither helper unavailable — falling back to fillRect (banding may return)",
+            );
+          }
+          c.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+          c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
+        }
       }
-      c.fillRect(roomMinX, roomMinY, roomWidth, roomHeight);
       return;
     }
 
