@@ -195,6 +195,23 @@ body:not([data-output-role="final-output"]) .output-status-chip {
   z-index: 9997;
 }
 
+/* Phase 35 D-01 (Track A): on the /output/ thin path, handle elements
+   are VISUAL ONLY — pointer events bubble up to #ssr-input-overlay
+   (z-index 4) which feeds receiver-input-forwarder. The forwarder uses
+   bootAlignMode's hitTestVertex (DOM-based handle bbox lookup) to
+   identify which corner was clicked and POSTs an align-corner-drag
+   mutation to /api/live/command. Without this rule, handles' inline
+   z-index:9999 would intercept pointerdown before the overlay (z-index:4)
+   could see it, leaving handle-drag's broadcast path firing into a
+   missing runtime-live-sync-core (it's not loaded on the thin /output/).
+   The line canvas (z-index 9997) stays interactive on dashboard but
+   not on /output/ for the same reason. */
+body[data-output-role="final-output"].align-mode-active .projection-corner-handle,
+body[data-output-role="final-output"].align-mode-active .projection-grid-handle,
+body[data-output-role="final-output"].align-mode-active #projection-grid-line-canvas {
+  pointer-events: none !important;
+}
+
 /* Play Area boundaries shown during align mode on /output */
 .align-mode-play-area {
   fill: none;

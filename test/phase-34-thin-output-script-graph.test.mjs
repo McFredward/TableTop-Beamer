@@ -44,6 +44,18 @@ test("output.html does NOT load runtime-orchestration.js (post-Track-B)", () => 
 });
 
 // EXPECTED: RED on master, GREEN after 34-B
+//
+// Phase 35 D-01 (Track A) update: the projection-gl-renderer and
+// 2d-fallback-renderer entries WERE in the forbidden list pre-Track-A
+// because the thin /output/ had no align-mode UI. Track A explicitly
+// adds them (per RESEARCH §A.4) — they are dependencies of the
+// projection-mapping shim that bootAlignMode orchestrates. Removing
+// them from the forbidden list reflects the post-Phase-35 reality.
+// The Phase-34-era assertion was correct for its scope (no full render
+// pipeline) but Track A's bootAlignMode is NOT the full render pipeline
+// — it's a targeted set of 11 IIFEs whose only entry point on /output/
+// is the bootAlignMode call. The animation-lifecycle / draw-loop /
+// gif-decoder / live-sync-core modules remain forbidden.
 test("output.html does NOT load any of the render pipeline modules (post-Track-B)", () => {
   if (!outputHtmlExists) {
     assert.fail(
@@ -56,8 +68,8 @@ test("output.html does NOT load any of the render pipeline modules (post-Track-B
     "runtime-gif-playback.js",
     "runtime-outside-mp4.js",
     "runtime-draw-loop.js",
-    "runtime-projection-gl-renderer.js",
-    "runtime-projection-2d-fallback-renderer.js",
+    // "runtime-projection-gl-renderer.js"  — Track A loads this (RESEARCH §A.4)
+    // "runtime-projection-2d-fallback-renderer.js"  — Track A loads this (RESEARCH §A.4)
     "runtime-animation-lifecycle.js",
     "runtime-live-sync-core.js",
     "runtime-orchestration-ctx-builder.js",
@@ -115,20 +127,29 @@ test("output.html DOES load output-audio-binder.js (post-Track-B)", () => {
 });
 
 // EXPECTED: RED on master, GREEN after 34-B
-test("output.html script-graph snapshot < 600 bytes script-block (heuristic strip check)", () => {
+//
+// Phase 35 D-01 (Track A) update: Track A adds 11 IIFE script tags +
+// 1 type=module script for bootAlignMode to load the align-mode UI on
+// /output/. These are register-on-window IIFEs (no blocking work; defer'd
+// for document-order execution per Pitfall 5). The post-Phase-35 thin
+// consumer has ~17 script tags (vs ~85 in index.html) — still ~5x
+// thinner than the dashboard. The "<= 8" threshold was a Phase-34
+// advisory not a locked requirement (CONTEXT.md A4 acknowledges Track A
+// expansion). Updated upper bound: 20 — heuristic strip check still
+// catches accidental full-pipeline loads.
+test("output.html script-graph snapshot stays thin (heuristic strip check)", () => {
   if (!outputHtmlExists) {
     assert.fail(
       "output.html missing — Wave 0 gap, will pass after 34-B creates it. " +
-      "Track B must create output.html with at most 8 <script tags (vs ~85 in index.html).",
+      "Track B must create output.html with at most 20 <script tags (vs ~85 in index.html).",
     );
   }
-  // Heuristic: count <script occurrences. The full app (index.html) has ~85.
-  // The thin consumer must have at most 8 (receiver-bootstrap + runtime-env +
-  // output-audio-binder + diagnostic chip inline + reserves).
+  // Heuristic: count <script occurrences. Full app (index.html) has ~85.
+  // Phase 35 thin consumer: ~17 (5 base + 11 align-mode IIFEs + 1 boot module).
   const scriptTagCount = (outputSrc.match(/<script/g) || []).length;
   assert.ok(
-    scriptTagCount <= 8,
-    `output.html must have at most 8 <script tags (thin consumer), found ${scriptTagCount}. ` +
-    "Track B must strip the full render pipeline — the diff from index.html IS the refactor.",
+    scriptTagCount <= 20,
+    `output.html must have at most 20 <script tags (thin consumer + align-mode), found ${scriptTagCount}. ` +
+    "Track A bootAlignMode adds ~12 tags vs Phase-34 baseline — but stays << index.html (~85).",
   );
 });
