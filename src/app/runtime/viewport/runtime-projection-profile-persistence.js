@@ -566,6 +566,16 @@
         applyTransform();
         if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
         _recomputeAndNotifyDirty();
+        // Phase 36 iter2 h4 (2026-05-10): broadcast the new grid so the SSR
+        // Chromium tab's mesh-warp follows. Mirrors applyAndCaptureSnapshot's
+        // Phase-31 h30 fix (line 657). Without this, profileLoadFlow mutates
+        // the dashboard's grid LOCALLY but never pushes to other clients —
+        // operator UAT 2026-05-10: "ich sehe wie die Linien sich sofort
+        // ändern, aber der Stream ändert sich nicht (desync)". The /output/
+        // lines update via onProjectionProfileChange's snapshot refetch path
+        // which does NOT touch grid; only this broadcast brings the stream
+        // (rendered by SSR tab from grid.points) into sync.
+        try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
       } catch (err) {
         _showAlignErrorToast("Load failed: " + (err?.message || err));
       }
@@ -677,6 +687,13 @@
     applyTransform();
     if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
+    // Phase 36 iter2 h4 (2026-05-10): broadcast the default grid so other
+    // clients converge to identity at boot. Without this, the SSR tab boots
+    // with default identity AND broadcasts nothing, while the Pi /output/
+    // (booting independently) might have applied a stale lastAlignGridSnapshot
+    // from a previous session via live-hello — leaving them out of sync until
+    // the next gesture broadcasts. Mirrors applyAndCaptureSnapshot.
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
   }
 
   function init(dependencies) {
