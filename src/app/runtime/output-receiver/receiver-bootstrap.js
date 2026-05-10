@@ -1024,27 +1024,35 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     // space (object-fit: cover crops on aspect mismatch — without this,
     // a click at the BOARD's TL in the stream sent the wrong coords).
     getVideoEl: () => videoEl,
+    // Phase 35 D-01 (Track A): real handle hit-testing routed through
+    // bootAlignMode's HANDLE_UI exports. The Wave-4 4-corner approximation
+    // (TL/TR/BR/BL bounding-box distance) lived here pre-Track-A; it was
+    // a placeholder that always returned 0..3 regardless of where the
+    // actual mesh handles rendered. After Track A, bootAlignMode runs in
+    // output.html, registers handles inside #room-overlay, and exposes
+    // hitTestVertex on window.__ttbAlignMode. The forwarder delegates to
+    // it. If __ttbAlignMode is not yet loaded (cold-boot race window),
+    // fall back to null (no-op — alignMode-active gate already prevents
+    // sends in that case).
     hitTestVertex: ({ x, y }) => {
-      // Wave-4 minimum: 4-corner hit-test (TL/TR/BR/BL with 20% radius).
-      // The actual mesh-vertex resolution lives in the SSR tab — Pi sends
-      // the closest corner ID and lets the server's mesh-warp profile
-      // resolver pick the precise vertex.
-      const corners = [
-        { x: 0, y: 0, id: 0 },
-        { x: 1, y: 0, id: 1 },
-        { x: 1, y: 1, id: 2 },
-        { x: 0, y: 1, id: 3 },
-      ];
-      let bestId = null;
-      let bestDist = Infinity;
-      for (const c of corners) {
-        const d = Math.hypot(c.x - x, c.y - y);
-        if (d < bestDist) {
-          bestDist = d;
-          bestId = c.id;
+      try {
+        const align = window.__ttbAlignMode;
+        if (align && typeof align.hitTestVertex === "function") {
+          // bootAlignMode.hitTestVertex expects clientX/clientY (DOM coords).
+          // The forwarder hands us normalized 0..1 coords here — convert to
+          // overlayEl-relative client coords using the overlay rect.
+          const r = overlayEl?.getBoundingClientRect?.();
+          if (r) {
+            const cx = r.left + x * r.width;
+            const cy = r.top + y * r.height;
+            const id = align.hitTestVertex(cx, cy);
+            return id;
+          }
         }
+      } catch (_) {
+        // bootAlignMode lookup or call failed — fall through to null.
       }
-      return bestDist < 0.2 ? bestId : null;
+      return null;
     },
     logger,
   });
