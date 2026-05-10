@@ -47,16 +47,16 @@ def test_dashboard_alignmode_handles(live_server, page):
         timeout=15_000,
     )
 
-    # Toggle alignMode via /api/live/mutate
+    # Toggle alignMode via /api/live/command (accepted route — see 35-B
+    # deferred-items.md; /api/live/mutate does not exist on master).
     body = json.dumps(
         {
-            "type": "live-mutation",
             "mutationType": "context-update",
             "payload": {"alignMode": True},
         }
     ).encode()
     req = urllib.request.Request(
-        f"http://127.0.0.1:{live_server['port']}/api/live/mutate",
+        f"http://127.0.0.1:{live_server['port']}/api/live/command",
         data=body,
         headers={"content-type": "application/json"},
     )

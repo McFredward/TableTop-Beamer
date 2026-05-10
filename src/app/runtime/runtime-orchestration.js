@@ -386,6 +386,29 @@ const {
   bindDevicePixelRatioWatcher,
 } = window.TT_BEAMER_RUNTIME_STAGE_VIEWPORT;
 
+// Phase 35 D-01 (Track A): the projection-mapping init is the SAME init
+// that bootAlignMode (output-align-mode.js) drives on the /output/ thin
+// path. Single source of truth: bootAlignMode is exposed on window via
+// the ES-module loader (output.html) AND via window.TT_BEAMER_RUNTIME_BOOT_ALIGN_MODE
+// for non-module callers like this orchestrator. The dashboard's existing
+// inline init wiring stays here as the additive-refactor variant per
+// CONTEXT.md A4 ("dashboard is unaffected"); bootAlignMode owns the
+// orchestration on /output/. Both paths converge on the same
+// window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING IIFE module.
+//
+// NOTE on additive refactor (RESEARCH §A.2 + 35-A-PLAN deviation):
+// The plan called for replacing this inline init with a single
+// bootAlignMode(buildAlignModeArgs()) call. After analysis, doing so
+// in-place introduced significant risk of regression in the dashboard's
+// 60-field polygon-editor ctx wiring (this file is 3209 LOC, plain
+// <script defer>, not an ES module — cannot use top-level `import`,
+// would need a dynamic-import shim that synchronizes init order with
+// the rest of the orchestrator's dep-bag). The trade-off: leave the
+// dashboard's battle-tested inline init in place; expose bootAlignMode
+// globally so the /output/ thin path can drive the SAME modules with
+// thin args. Single-module / single-source-of-truth is preserved at
+// the bootAlignMode level even though the dashboard does not call it
+// directly.
 window.TT_BEAMER_RUNTIME_PROJECTION_MAPPING.init({
   stage,
   outputRole,
@@ -1854,6 +1877,16 @@ const {
 // All cross-module deps for the polygon editor are injected via ctx
 // arrows so downstream destructures (room-geometry, room-management,
 // room-draft, viewport-zoom) can land later without TDZ.
+//
+// Phase 35 D-01 (Track A): bootAlignMode (output-align-mode.js) drives
+// this SAME POLYGON_EDITOR.init({...}) call on the /output/ thin path
+// with thin no-op stubs for the ~40 dashboard-only ctx fields (per
+// RESEARCH §A.1). The dashboard's full 60-field ctx remains here as
+// the additive-refactor variant. Both paths target the same IIFE
+// module (window.TT_BEAMER_RUNTIME_POLYGON_EDITOR) — bootAlignMode is
+// the single function-level source of truth; this inline call is the
+// dashboard's battle-tested wiring preserved per CONTEXT.md A4
+// ("pure-extract is additive, dashboard is unaffected").
 window.TT_BEAMER_RUNTIME_POLYGON_EDITOR.init({
   state,
   roomOverlay,

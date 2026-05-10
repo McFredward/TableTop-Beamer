@@ -347,3 +347,13 @@ export function bootAlignMode(args) {
     hitTestVertex,
   };
 }
+
+// Phase 35 D-01 (Track A): also expose on window for non-module callers
+// (runtime-orchestration.js is loaded as a plain `<script defer>`, not a
+// module, so it cannot use the ES `import` syntax to consume bootAlignMode).
+// Module consumers use the named export above; dashboard consumes the same
+// function via window.TT_BEAMER_RUNTIME_BOOT_ALIGN_MODE — single source of
+// truth, no duplicated logic.
+if (typeof window !== "undefined") {
+  window.TT_BEAMER_RUNTIME_BOOT_ALIGN_MODE = bootAlignMode;
+}

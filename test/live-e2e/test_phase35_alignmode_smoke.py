@@ -40,16 +40,21 @@ VIDEO_QUERY = "document.querySelector('video.ssr-video, video')"
 
 
 def _trigger_align_mode(port: int) -> None:
-    """POST /api/live/mutate to enable alignMode globally."""
+    """POST /api/live/command to enable alignMode globally.
+
+    Phase 35 35-B deferred-items.md: server.mjs exposes /api/live/command
+    (POST) and /api/live/snapshot (GET); the original /api/live/mutate path
+    used in Wave-0 W0 does not exist. The accepted body shape is
+    {mutationType, payload, ...}. Track A fix: route to /api/live/command.
+    """
     body = json.dumps(
         {
-            "type": "live-mutation",
             "mutationType": "context-update",
             "payload": {"alignMode": True},
         }
     ).encode()
     req = urllib.request.Request(
-        f"http://127.0.0.1:{port}/api/live/mutate",
+        f"http://127.0.0.1:{port}/api/live/command",
         data=body,
         headers={"content-type": "application/json"},
     )
