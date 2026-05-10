@@ -662,11 +662,11 @@ Carrying Forward (LOCKED, do not re-open):
 - Pi-local audio (D-D2 reversal)
 - streamFpsCap + alignModeBoost settings
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [x] 35-W0-PLAN.md — Wave 0 BLOCKING rails: scripts/with_server.py + test/live-e2e/ (D-05 a-f) + 3 RED unit tests + CI integration (D-04, D-05, D-06) — CLOSED 2026-05-10 (commits e973d11, c5cd049, ccbf136, 2bb64f6, 0f59f85, f0588c7); D-06 hard-gate verified `pass=84 fail=0 skipped=1` on `test/connection-stability/*.test.mjs`; SUMMARY in 35-W0-SUMMARY.md
 - [x] 35-B-PLAN.md — Track B live-sync minimal subset: bootOutputLiveSync + refactor output-audio-binder + receiver-bootstrap (D-02, D-06)
 - [x] 35-A-PLAN.md — Track A pure-extract align-mode decoupling: bootAlignMode + 11 IIFE script-tag wiring in output.html + remove Wave-4 4-corner approximation (D-01, D-02, D-06)
-- [ ] 35-C-PLAN.md — Track C banding fix: Bayer 4×4 dither in runtime-effect-visuals.js solid-color path; conditional C2 SwiftShader escalation (D-03, D-04, D-06)
+- [x] 35-C-PLAN.md — Track C banding fix: Bayer 4×4 dither in runtime-effect-visuals.js solid-color path; conditional C2 SwiftShader escalation (D-03, D-04, D-06)
 - [ ] 35-V-PLAN.md — Verification + closure: 35-VERIFICATION.md, 35-HUMAN-UAT.md, 35-CLOSURE.md; D-06 final gate; operator UAT (all 8 D-decisions)
