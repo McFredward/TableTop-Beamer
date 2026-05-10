@@ -62,8 +62,26 @@
   // restoreGridSnapshot in lockstep and the next streamed encoded frame
   // reflects the gesture. Throttled to ~30 Hz inside grid-state. The
   // helper is resolved lazily so module load order doesn't matter.
-  function _broadcastDragSnapshot({ force = false } = {}) {
+  //
+  // Phase 36 M3 T10 (2026-05-10) — on /output/ (outputRole === final-output)
+  // we suppress per-move broadcasts and emit ONLY on drag END. /output/ does
+  // not render its own mesh-warp (it displays a streamed video), so per-move
+  // sync to the SSR-tab is unnecessary; the END broadcast is sufficient for
+  // the next streamed frame to reflect the new grid. T10 asserts exactly 1
+  // [align-grid-snapshot] server-recv per drag — gating the per-move emits
+  // here is the cheapest way to honor that contract without removing the
+  // existing throttle (which still applies on dashboard / SSR-tab).
+  // T-DOS-1 (existing 30Hz throttle) preserved for non-/output/ paths.
+  function _isFinalOutput() {
     try {
+      return Boolean(ctx && ctx.outputRole === ctx.OUTPUT_ROLE_FINAL);
+    } catch (_) { return false; }
+  }
+  function _broadcastDragSnapshot({ force = false, fromMove = false } = {}) {
+    try {
+      // Phase 36 M3 T10: skip per-move broadcasts on /output/. End-of-drag
+      // broadcasts (fromMove=false, force=true) still go through.
+      if (fromMove && _isFinalOutput()) return;
       const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
       if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
         gridStateApi.broadcastGridSnapshot({ force });
@@ -180,7 +198,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onRotateDragEnd() {
@@ -190,6 +208,9 @@
     document.removeEventListener("pointerup", onRotateDragEnd);
     document.removeEventListener("pointercancel", onRotateDragEnd);
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end (fromMove=false,
+    // force=true) so /output/ broadcasts exactly 1 snapshot per drag.
+    _broadcastDragSnapshot({ force: true });
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
@@ -297,7 +318,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onScaleDragEnd(e) {
@@ -314,6 +335,8 @@
     document.removeEventListener("pointerup", onScaleDragEnd);
     document.removeEventListener("pointercancel", onScaleDragEnd);
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end.
+    _broadcastDragSnapshot({ force: true });
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
@@ -417,7 +440,7 @@
     applyTransform();
     // Re-render room overlay so SVG contours match the grid warp
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onDragEnd(e) {
@@ -437,6 +460,10 @@
     document.removeEventListener("pointercancel", onDragEnd);
     positionHandles();
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end (fromMove=false,
+    // force=true so /output/ broadcasts exactly 1 [align-grid-snapshot]
+    // server-recv per corner-handle drag).
+    _broadcastDragSnapshot({ force: true });
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
@@ -604,7 +631,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onPanDragEnd() {
@@ -615,6 +642,8 @@
     document.removeEventListener("pointerup", onPanDragEnd);
     document.removeEventListener("pointercancel", onPanDragEnd);
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end.
+    _broadcastDragSnapshot({ force: true });
     // h11: pan-drag (the "verschieben" gesture — drag empty canvas to
     // translate the whole grid) is the only mutation path that wasn't
     // wired to the dirty broadcaster. Every other drag-end handler
@@ -670,7 +699,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onLineDragEnd() {
@@ -681,6 +710,8 @@
     document.removeEventListener("pointerup", onLineDragEnd);
     document.removeEventListener("pointercancel", onLineDragEnd);
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end.
+    _broadcastDragSnapshot({ force: true });
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
@@ -879,7 +910,7 @@
     drawLines();
     applyTransform();
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
-    _broadcastDragSnapshot();
+    _broadcastDragSnapshot({ fromMove: true });
   }
 
   function onSquishDragEnd() {
@@ -895,6 +926,8 @@
       ui.setSquishBarDragVisual(sideKey, false);
     }
     saveToLocalStorage();
+    // Phase 36 M3 T10 — emit final grid-snapshot at drag end.
+    _broadcastDragSnapshot({ force: true });
     try { window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE?.notifyDirtyChanged?.(); } catch {}
   }
 
