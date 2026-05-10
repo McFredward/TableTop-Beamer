@@ -59,7 +59,16 @@
     }
     const search = safeLoc?.search ?? "";
     const pathname = safeLoc?.pathname ?? "/";
-    const isSsr = /[?&]ssr=1(\b|&)/.test(search);
+    // Phase 34 D-04: SSR tab is now identified by pathname /ssr (or
+    // /ssr/<sub>) AT SERVER ROUTE LEVEL. The legacy ?ssr=1 query
+    // discriminator is kept as a quiet tolerance — no consumer remains
+    // that legitimately uses it (ssr-render-host.mjs:450 + 824 are
+    // updated in 34-B Task 3 to navigate /ssr directly), but classifying
+    // a stale ?ssr=1 URL as "server-ssr" rather than "pi" is the safe
+    // direction (no quality regression beyond Phase-30 baseline).
+    const isSsrPath = pathname === "/ssr" || pathname.startsWith("/ssr/");
+    const isSsrQuery = /[?&]ssr=1(\b|&)/.test(search);
+    const isSsr = isSsrPath || isSsrQuery;
     const isOutput =
       pathname === "/output" ||
       pathname === "/output/" ||

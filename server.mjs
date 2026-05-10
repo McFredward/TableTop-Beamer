@@ -3442,8 +3442,17 @@ async function handleGlobalDefaultsSave(req, res) {
 }
 
 function resolveStaticPath(urlValue, routePath) {
-  if (routePath === "/output/final" || routePath === "/output") {
+  // Phase 34 D-04: SSR Chromium tab navigates here for the full app.
+  // Localhost-only enforcement is layered at the ssr-tab WS role guard
+  // (ssr-webrtc-signaling.mjs:269); the HTTP response itself is the same
+  // index.html bytes the dashboard receives, so no fingerprinting risk.
+  if (routePath === "/ssr") {
     return path.join(ROOT_DIR, "index.html");
+  }
+  // Phase 34 D-04: thin consumer page (Pi /output/, /output/final).
+  // Replaces the previous "return index.html for /output" mapping.
+  if (routePath === "/output/final" || routePath === "/output") {
+    return path.join(ROOT_DIR, "output.html");
   }
   return toSafePath(urlValue || "/");
 }
