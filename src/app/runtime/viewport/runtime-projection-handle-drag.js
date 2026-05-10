@@ -189,8 +189,15 @@
         const pyAbs = p.y * vh - cy;
         const rxAbs = pxAbs * cosD - pyAbs * sinD;
         const ryAbs = pxAbs * sinD + pyAbs * cosD;
-        grid.points[r][col].x = (rxAbs + cx) / vw;
-        grid.points[r][col].y = (ryAbs + cy) / vh;
+        // Phase 36 M4 T5 — clamp to [0,1]. Server-side validator
+        // (validateAlignGridSnapshotPayload at server.mjs:447-448) rejects
+        // x/y outside [0,1] silently (returns rejected:true with no
+        // server-recv log). With M3 identity grid (corners at viewport
+        // edges), even small rotations push corners out of range —
+        // clamping keeps the broadcast valid while preserving the rotation
+        // direction's visual effect on interior points.
+        grid.points[r][col].x = Math.max(0, Math.min(1, (rxAbs + cx) / vw));
+        grid.points[r][col].y = Math.max(0, Math.min(1, (ryAbs + cy) / vh));
       }
     }
     positionHandles();

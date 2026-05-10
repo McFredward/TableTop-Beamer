@@ -386,6 +386,12 @@
       const el = document.createElement("div");
       el.className = "projection-rotate-handle";
       el.dataset.rotateCorner = corner.key;
+      // Phase 36 M4 T5 — `data-handle-role="rotate"` is the live-E2E selector
+      // alias (test_phase36_align_handles.py uses
+      // `.projection-rotation-handle, [data-handle-role="rotate"]` — OR-list,
+      // matching either). Original `.projection-rotate-handle` class preserved
+      // (existing CSS / dashboard E2E selectors unchanged).
+      el.dataset.handleRole = "rotate";
       el.textContent = "↻";
       const size = 22;
       el.style.cssText = `
@@ -416,13 +422,28 @@
   function positionRotateHandles() {
     if (rotateHandleElements.length !== ROTATE_CORNERS.length) return;
     const layout = _getStreamContentRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     for (let i = 0; i < ROTATE_CORNERS.length; i++) {
       const c = ROTATE_CORNERS[i];
       const row = c.rowFn();
       const col = c.colFn();
       const pt = getPoint(row, col);
-      rotateHandleElements[i].style.left = `${layout.offsetX + pt.x * layout.w + c.offX}px`;
-      rotateHandleElements[i].style.top = `${layout.offsetY + pt.y * layout.h + c.offY}px`;
+      // Phase 36 M4 T5 — when the grid is at identity (M3 default 0/1) the
+      // grid corners sit at the viewport boundary, and `offX/Y=±30` would
+      // push the rotate handle OFF screen (TL at (-30,-30), TR at (vw+30,-30),
+      // etc.) where pointer events can't reach it. Flip the offset to INWARD
+      // when the outward placement would be off-screen. Drag math
+      // (onRotateHandlePointerDown reads centroid + clientX/Y, not handle
+      // position) is unaffected.
+      let dx = c.offX;
+      let dy = c.offY;
+      const tentLeft = layout.offsetX + pt.x * layout.w + dx;
+      const tentTop  = layout.offsetY + pt.y * layout.h + dy;
+      if (tentLeft < 0 || tentLeft > vw) dx = -dx;
+      if (tentTop  < 0 || tentTop  > vh) dy = -dy;
+      rotateHandleElements[i].style.left = `${layout.offsetX + pt.x * layout.w + dx}px`;
+      rotateHandleElements[i].style.top  = `${layout.offsetY + pt.y * layout.h + dy}px`;
     }
     // B9: squish bars track handle positions — called after every drag/resize/undo.
     positionSquishBars();
