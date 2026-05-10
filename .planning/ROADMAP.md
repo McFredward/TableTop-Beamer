@@ -753,11 +753,11 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-B output-live-sync.js (proven thin subscription)
 
 
-**Plans:** 7 plans
+**Plans:** 2/7 plans executed (W0 + A1 complete; A2 next)
 
 Plans:
 - [x] 36-W0-PLAN.md — RED test rails (T1-T10 Live-E2E + dashboard parity + bootHandleUi shape unit + server.mjs dirty-flag stdout log) — COMPLETE 2026-05-10 (commits fd0078e, a6e2529, 3a0c99a; SUMMARY: 36-W0-SUMMARY.md; closure gates ALL pass)
-- [ ] 36-A1-PLAN.md — Option-H thin-export: bootHandleUi + emitLiveMutation + grid-state liveSyncCoreOverride DI + ?ctx-trace=1 harness
+- [x] 36-A1-PLAN.md — Option-H thin-export: bootHandleUi + emitLiveMutation + grid-state liveSyncCoreOverride DI + ?ctx-trace=1 harness — COMPLETE 2026-05-10 (commits a6a86a6, a1b3e20, 06efd15; SUMMARY: 36-A1-SUMMARY.md; bootHandleUi RED→GREEN pass=3 fail=0; D-08 connection-stability fail=0 preserved; dashboard regression untouched)
 - [ ] 36-A2-PLAN.md — Loader integration (bootAlignMode → bootHandleUi) + D-02 inversion (overlay pointer-events:none always) + Phase 35-A CSS rule removal
 - [ ] 36-M3-PLAN.md — Wire T1 (sizing) + T2 (corner pulls) + T10 (no dual-path conflict). M3-LATE: dashboard runtime-orchestration migration to bootHandleUi
 - [ ] 36-M4-PLAN.md — Wire T3 (vertex drag) + T4 (midpoint drag) + T5 (rotation handle)
