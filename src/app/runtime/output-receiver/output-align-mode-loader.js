@@ -618,6 +618,29 @@ export function bootAlignModeLoader({
       } catch (e) {
         logger?.warn?.("[align-loader] initial renderRoomOverlay failed:", e?.message);
       }
+
+      // Phase 36 iter2 h2 (2026-05-10): defensive grid-resync broadcast.
+      // After bootHandleUi loads /output/'s grid from the server's
+      // /api/live/snapshot, force a broadcastGridSnapshot so the SSR
+      // Chromium tab's mesh-warp re-applies the saved profile's grid
+      // even if the SSR tab booted with a stale autoLoadRememberedProjectionProfile
+      // result. Operator-reported bug 2 (UAT 2026-05-10):
+      //   "Beim Start oder beim Laden eines neuen Profils muss man erst
+      //    eine kleine transformation machen, damit man die Veränderung
+      //    im Stream sieht."
+      // Symptom: SSR tab encoding stays at identity (or a stale grid)
+      // until any user gesture broadcasts a snapshot. This force-broadcast
+      // closes that window. Originator-filter on the SSR tab side prevents
+      // re-entry from /output/'s own broadcast (different clientId).
+      try {
+        const GS = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+        if (GS && typeof GS.broadcastGridSnapshot === "function") {
+          GS.broadcastGridSnapshot({ force: true });
+          logger?.log?.("[align-loader] post-activate broadcastGridSnapshot({force:true})");
+        }
+      } catch (e) {
+        logger?.warn?.("[align-loader] post-activate broadcast failed:", e?.message);
+      }
     } catch (err) {
       logger?.error?.("[align-loader] activate failed:", err);
     }
