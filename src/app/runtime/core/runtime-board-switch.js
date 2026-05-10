@@ -44,12 +44,76 @@
   // dropdown does NOT auto-disable just because the user switched boards.
   // CRITICAL: this helper does NOT write state.lastUsedProfileNameByBoard
   // (D-01: only user-explicit save/load triggers do).
+  // Phase 36 iter2 h5 (2026-05-10): operator UAT root cause discovery.
+  // boards.json may have `lastUsedProfileName: null` while runtime-active-
+  // grid.json (Phase-31 h41 server-disk-restore) holds a valid grid from a
+  // previous broadcast. Pre-h5, this branched to applyDefaultAndCaptureSnapshot
+  // (identity) — so the SSR tab booted with identity grid and the stream
+  // showed full-screen default until the operator turned align-mode on
+  // (which triggered /output/'s h2/h3 broadcast that re-pushed the disk-
+  // restored grid via a different originator).
+  //
+  // Fix: when no remembered profile name exists, fetch /api/live/snapshot
+  // and check `runtime.lastAlignGridSnapshot`. If present (server-disk-
+  // restore originator OR any prior broadcast), apply it as the boot grid.
+  // This makes the SSR tab's stream reflect the last-known-good grid even
+  // when boards.json's lastUsedProfileName is out-of-sync with the
+  // runtime-active-grid.json persisted state.
+  async function _tryApplyDiskRestoredGrid() {
+    try {
+      const resp = await fetch("/api/live/snapshot");
+      if (!resp.ok) return false;
+      const snap = await resp.json();
+      const lastSnap = snap?.runtime?.lastAlignGridSnapshot;
+      if (!lastSnap || !Array.isArray(lastSnap.srcXs)
+          || !Array.isArray(lastSnap.srcYs) || !Array.isArray(lastSnap.points)) {
+        return false;
+      }
+      const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+      const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+      if (!persist || !gridState || typeof gridState.restoreGridSnapshot !== "function") {
+        return false;
+      }
+      // Convert from broadcast's flat point list into 2D points array.
+      const points2D = [];
+      for (let r = 0; r < lastSnap.srcYs.length; r++) {
+        points2D[r] = [];
+        for (let c = 0; c < lastSnap.srcXs.length; c++) {
+          points2D[r][c] = { x: lastSnap.srcXs[c], y: lastSnap.srcYs[r] };
+        }
+      }
+      for (const pt of lastSnap.points) {
+        if (Number.isInteger(pt.row) && Number.isInteger(pt.col)
+            && points2D[pt.row] && points2D[pt.row][pt.col]) {
+          points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+        }
+      }
+      gridState.restoreGridSnapshot({
+        srcXs: lastSnap.srcXs.slice(),
+        srcYs: lastSnap.srcYs.slice(),
+        points: points2D,
+      });
+      console.log(
+        `[autoLoad h5] applied disk-restored grid `
+        + `profile=${lastSnap.profileId} originator=${lastSnap.originatorClientId} `
+        + `points=${lastSnap.points.length}`,
+      );
+      return true;
+    } catch (err) {
+      console.warn("[autoLoad h5] disk-restored grid apply failed:", err?.message || err);
+      return false;
+    }
+  }
+
   async function autoLoadRememberedProjectionProfile(boardId) {
     const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
     if (!persist || !ctx?.state) return;
     const remembered = ctx.state.lastUsedProfileNameByBoard?.[boardId] ?? null;
     if (!remembered) {
-      if (typeof persist.applyDefaultAndCaptureSnapshot === "function") {
+      // h5: try disk-restored runtime.lastAlignGridSnapshot first; only
+      // fall back to identity-default if that's empty.
+      const applied = await _tryApplyDiskRestoredGrid();
+      if (!applied && typeof persist.applyDefaultAndCaptureSnapshot === "function") {
         persist.applyDefaultAndCaptureSnapshot();
       }
       return;
@@ -58,17 +122,20 @@
       const url = `/api/projection-profiles/load?boardId=${encodeURIComponent(boardId)}&name=${encodeURIComponent(remembered)}`;
       const resp = await fetch(url);
       if (!resp.ok) {
-        persist.applyDefaultAndCaptureSnapshot();
+        const applied = await _tryApplyDiskRestoredGrid();
+        if (!applied) persist.applyDefaultAndCaptureSnapshot();
         return;
       }
       const body = await resp.json();
       if (!body?.data) {
-        persist.applyDefaultAndCaptureSnapshot();
+        const applied = await _tryApplyDiskRestoredGrid();
+        if (!applied) persist.applyDefaultAndCaptureSnapshot();
         return;
       }
       persist.applyAndCaptureSnapshot(body.data, remembered);
     } catch (_err) {
-      persist.applyDefaultAndCaptureSnapshot();
+      const applied = await _tryApplyDiskRestoredGrid();
+      if (!applied) persist.applyDefaultAndCaptureSnapshot();
     }
   }
 
