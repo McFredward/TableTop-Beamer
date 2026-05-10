@@ -63,25 +63,19 @@
   // reflects the gesture. Throttled to ~30 Hz inside grid-state. The
   // helper is resolved lazily so module load order doesn't matter.
   //
-  // Phase 36 M3 T10 (2026-05-10) — on /output/ (outputRole === final-output)
-  // we suppress per-move broadcasts and emit ONLY on drag END. /output/ does
-  // not render its own mesh-warp (it displays a streamed video), so per-move
-  // sync to the SSR-tab is unnecessary; the END broadcast is sufficient for
-  // the next streamed frame to reflect the new grid. T10 asserts exactly 1
-  // [align-grid-snapshot] server-recv per drag — gating the per-move emits
-  // here is the cheapest way to honor that contract without removing the
-  // existing throttle (which still applies on dashboard / SSR-tab).
-  // T-DOS-1 (existing 30Hz throttle) preserved for non-/output/ paths.
-  function _isFinalOutput() {
-    try {
-      return Boolean(ctx && ctx.outputRole === ctx.OUTPUT_ROLE_FINAL);
-    } catch (_) { return false; }
-  }
+  // Phase 36 iter2 h1 (2026-05-10) — REMOVED M3's fromMove gate. The
+  // gate was added to satisfy T10's overly-strict `n_grid == 1` assertion
+  // (changed in iter2 to `>= 1`). The actual T10 contract is "no
+  // align-corner-drag from receiver-input-forwarder during align-mode-on"
+  // — that's enforced by D-02 (a) overlay pointer-events:none, NOT by
+  // throttling broadcastGridSnapshot. Suppressing per-move broadcasts
+  // produced an operator-visible regression: stream only updated on
+  // mouse-release instead of in real-time during drag. With the gate
+  // removed, /output/ broadcasts at 30Hz throttle (same as dashboard);
+  // the SSR tab applies each broadcast and the encoded frame reflects
+  // the gesture in (near) real-time as it did pre-Phase-36.
   function _broadcastDragSnapshot({ force = false, fromMove = false } = {}) {
     try {
-      // Phase 36 M3 T10: skip per-move broadcasts on /output/. End-of-drag
-      // broadcasts (fromMove=false, force=true) still go through.
-      if (fromMove && _isFinalOutput()) return;
       const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
       if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
         gridStateApi.broadcastGridSnapshot({ force });

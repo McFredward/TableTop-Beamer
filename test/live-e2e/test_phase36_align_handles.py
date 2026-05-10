@@ -238,5 +238,12 @@ def test_t10_no_duplicate_mutations(live_server, page):
     log = open(live_server["stdout_path"]).read()
     n_grid = log.count("[align-grid-snapshot] server-recv")
     n_corner = log.count("[align-drag] received phase=start")
-    assert n_grid == 1, f"expected 1 align-grid-snapshot, got {n_grid}"
+    # Phase 36 iter2 h1 (2026-05-10): T10 asserts no DUAL-PATH conflict —
+    # i.e., receiver-input-forwarder MUST stay dormant (n_corner == 0) and
+    # bootHandleUi's broadcastGridSnapshot MUST be the sole emitter. The
+    # original `n_grid == 1` assertion was over-strict and forced an M3
+    # auto-fix (fromMove gate) that broke real-time drag updates. Per-move
+    # broadcasts at 30Hz throttle are by design — multiple snapshots per
+    # drag is the correct behavior for live mesh-warp tracking.
+    assert n_grid >= 1, f"expected ≥1 align-grid-snapshot, got {n_grid}"
     assert n_corner == 0, f"expected 0 align-corner-drag, got {n_corner}"
