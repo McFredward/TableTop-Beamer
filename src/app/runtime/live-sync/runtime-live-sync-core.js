@@ -1003,18 +1003,20 @@
                 && ageMs <= 5000
                 && arrivedAfterLoad
                 && !isOriginator;
-              // h31 diagnostic: log every receive (rate-limited to start
-              // + every 30th to avoid drag-flood).
-              if (!_gridSnapApplyLogCount || _gridSnapApplyLogCount < 5
-                  || _gridSnapApplyLogCount % 30 === 0) {
-                console.log(
-                  `[align-grid-snapshot] RECV `
-                  + `ageMs=${Math.round(ageMs)} `
-                  + `arrivedAfterLoad=${arrivedAfterLoad} `
-                  + `originator=${snap?.originatorClientId} local=${localClientId} `
-                  + `isOriginator=${isOriginator} accept=${accepts}`,
-                );
-              }
+              // Phase 38 (2026-05-11): log EVERY align-grid-snapshot receive
+              // unconditionally during diagnosis. Previous rate-limit (first 5
+              // + every 30th) masked whether the SSR tab was actually applying
+              // single-shot mutations after a burst of drag broadcasts. With
+              // unconditional logging, operator/test can deterministically
+              // verify the apply path for every broadcast.
+              console.log(
+                `[align-grid-snapshot] RECV `
+                + `ageMs=${Math.round(ageMs)} `
+                + `arrivedAfterLoad=${arrivedAfterLoad} `
+                + `originator=${snap?.originatorClientId} local=${localClientId} `
+                + `isOriginator=${isOriginator} accept=${accepts} `
+                + `profile=${snap?.profileId} points=${snap?.points?.length}`,
+              );
               _gridSnapApplyLogCount = (_gridSnapApplyLogCount || 0) + 1;
               if (accepts) {
                 const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
