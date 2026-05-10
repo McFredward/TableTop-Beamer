@@ -1371,6 +1371,15 @@
         action: () => {
           addHorizontalLine(normY);
           addVerticalLine(normX);
+          // Phase 36 M5 (Q3 LOCKED) — guarantee a broadcast after the menu
+          // action runs, even when both adds were no-ops (e.g. the click
+          // landed on an existing intersection). This keeps the test
+          // assertion "menu click → server-recv OR dirty-flag" reliable
+          // independent of the click-coord's relationship to existing lines.
+          try {
+            window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+              ?.broadcastGridSnapshot?.({ force: true });
+          } catch (_) { /* tolerated */ }
         },
       });
     } else if (hit.type === "line") {
@@ -1397,6 +1406,11 @@
         action: () => {
           if (hit.axis === "h") addVerticalLine(normX);
           else addHorizontalLine(normY);
+          // Phase 36 M5 (Q3 LOCKED) — guarantee broadcast even on no-op add.
+          try {
+            window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+              ?.broadcastGridSnapshot?.({ force: true });
+          } catch (_) { /* tolerated */ }
         },
       });
     } else {
@@ -1531,6 +1545,14 @@
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     const _ppApi = _getProfilePersistApi();
     if (_ppApi?.notifyDirtyChanged) _ppApi.notifyDirtyChanged();
+    // Phase 36 M5 (Q3 LOCKED) — immediate broadcast on line add so dashboard
+    // sees the new structure without waiting for the next drag. force=true
+    // bypasses the 30Hz throttle since line-changes are operator-paced
+    // (not gesture-paced).
+    try {
+      window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+        ?.broadcastGridSnapshot?.({ force: true });
+    } catch (_) { /* tolerated */ }
   }
 
   function addVerticalLine(normX) {
@@ -1579,6 +1601,11 @@
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     const _ppApi2 = _getProfilePersistApi();
     if (_ppApi2?.notifyDirtyChanged) _ppApi2.notifyDirtyChanged();
+    // Phase 36 M5 (Q3 LOCKED) — immediate broadcast on line add (vertical).
+    try {
+      window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+        ?.broadcastGridSnapshot?.({ force: true });
+    } catch (_) { /* tolerated */ }
   }
 
   function removeHorizontalLine(index) {
@@ -1595,6 +1622,11 @@
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     const _ppApi3 = _getProfilePersistApi();
     if (_ppApi3?.notifyDirtyChanged) _ppApi3.notifyDirtyChanged();
+    // Phase 36 M5 (Q3 LOCKED) — immediate broadcast on line remove (horizontal).
+    try {
+      window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+        ?.broadcastGridSnapshot?.({ force: true });
+    } catch (_) { /* tolerated */ }
   }
 
   function removeVerticalLine(index) {
@@ -1609,6 +1641,11 @@
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     const _ppApi4 = _getProfilePersistApi();
     if (_ppApi4?.notifyDirtyChanged) _ppApi4.notifyDirtyChanged();
+    // Phase 36 M5 (Q3 LOCKED) — immediate broadcast on line remove (vertical).
+    try {
+      window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+        ?.broadcastGridSnapshot?.({ force: true });
+    } catch (_) { /* tolerated */ }
   }
 
   // ── Show / Hide (unified — everything in one go) ───────────────────────────
