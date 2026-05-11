@@ -132,6 +132,21 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   // representation and call gridState.restoreGridSnapshot directly (gated
   // by originator-filter so Pi doesn't clobber its own local drag with
   // its own broadcast roundtrip).
+  //
+  // Phase 38 W3 (2026-05-11): two additional guards address operator-
+  // reported regressions:
+  //   (a) "Lines snap back to stream after drag-end" — Pi's poll path
+  //       was fetching server snapshots that pre-dated Pi's just-finished
+  //       drag (round-trip still in-flight) and applying them, clobbering
+  //       the optimistic local state. We now track Pi's last local
+  //       broadcast time; if a remote snap is older than that (with a
+  //       200ms clock-skew tolerance), it's stale → skip apply.
+  //   (b) "Complex profile desync" — 9×9 profile broadcasts triggered
+  //       large, redundant re-applies at 30Hz (poll + WS). We now dedup
+  //       by snap.at; same timestamp → already applied → skip. Also
+  //       reduces CPU load during drag bursts.
+  let _lastLocalBroadcastAtMs = 0;       // Pi clock — set on every Pi emit
+  let _lastAppliedSnapAtMs = 0;           // server clock — last applied snap.at
   function _applyAlignGridSnapshot(snap) {
     if (!snap || typeof snap !== "object") return;
     if (!Array.isArray(snap.srcXs) || !Array.isArray(snap.srcYs)
@@ -141,6 +156,31 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // would either be a no-op or clobber a fresh in-flight drag.
     const isOriginator = !!clientId && snap.originatorClientId === clientId;
     if (isOriginator) return;
+    // (b) Dedup: skip applies of a snap we've already applied. Server's
+    // `at` is unique per mutation (millisecond precision), so identical
+    // at = same mutation. Cuts CPU during 30Hz drag bursts: WS dispatches
+    // each broadcast AND the 1Hz poll, doubling the apply rate without
+    // dedup.
+    const snapAt = Date.parse(snap.at);
+    if (Number.isFinite(snapAt) && _lastAppliedSnapAtMs > 0
+        && snapAt === _lastAppliedSnapAtMs) {
+      return;
+    }
+    // (a) Protect Pi's recent local broadcast from stale remote clobbers.
+    // If we emitted locally within the last 2s AND this remote snap's
+    // server-clock `at` is OLDER than our last local emission (allowing
+    // 200ms clock skew), the server hasn't processed our broadcast yet
+    // — applying this older state would lose the operator's input.
+    if (_lastLocalBroadcastAtMs > 0 && Number.isFinite(snapAt)) {
+      const localAgeMs = Date.now() - _lastLocalBroadcastAtMs;
+      const remoteAgeMs = Date.now() - snapAt;
+      if (localAgeMs < 2000 && remoteAgeMs > localAgeMs + 200) {
+        // Remote snap is older than our local emission by more than
+        // clock-skew tolerance → server-side race: Pi's broadcast still
+        // in-flight. Skip — Pi's local is the latest truth.
+        return;
+      }
+    }
     const gs = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
     if (!gs || typeof gs.restoreGridSnapshot !== "function") return;
     try {
@@ -162,14 +202,22 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         srcYs: snap.srcYs.slice(),
         points: points2D,
       });
+      if (Number.isFinite(snapAt)) _lastAppliedSnapAtMs = snapAt;
       // Trigger handle-ui redraw so overlay lines reflect the new grid
       // immediately (matches runtime-live-sync-core.js's
       // _redrawHandlesAfterCornerDrag). Best-effort — handle-ui may not
       // be loaded if align-mode hasn't been toggled on yet (lazy loader),
       // in which case the redraw is a no-op and lines update on the next
       // align-mode activation.
+      //
+      // Phase 38 W3: when the grid DIMENSIONS change (e.g. profile-load
+      // from 3×3 default to 9×9 xrandrv2), handle-ui's cached handleElements
+      // array no longer matches the grid layout. Call rebuildHandleElements
+      // if available so the handle count tracks the new grid before
+      // positionHandles iterates.
       const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
       if (ui) {
+        try { ui.rebuildHandleElements?.(); } catch {}
         try { ui.positionHandles?.(); } catch {}
         try { ui.positionRotateHandles?.(); } catch {}
         try { ui.drawLines?.(); } catch {}
@@ -331,6 +379,12 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       // next ws.open. Idempotent for grid-snapshot (last writer wins).
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         _pendingLatestByType.set(mutationType, payload);
+        // Phase 38 W3: still mark as "Pi has recent local intent" even
+        // when the WS isn't open — protects Pi's local grid from being
+        // clobbered by a stale poll snapshot during the WS-closed window.
+        if (mutationType === "align-grid-snapshot") {
+          _lastLocalBroadcastAtMs = Date.now();
+        }
         console.warn(`[output-live-sync] emitLiveMutation queued — ws not OPEN (type=${mutationType}, queue=${_pendingLatestByType.size})`);
         return;
       }
@@ -342,6 +396,12 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         payload,
         clientSentAt: new Date().toISOString(),
       }));
+      // Phase 38 W3: track Pi's last local broadcast time so the apply
+      // path can protect against being clobbered by older remote snapshots
+      // during the round-trip window. See _applyAlignGridSnapshot.
+      if (mutationType === "align-grid-snapshot") {
+        _lastLocalBroadcastAtMs = Date.now();
+      }
     } catch (err) {
       // If send threw (e.g., ws transitioned to CLOSING between the
       // readyState check and send), queue the mutation for retry on
