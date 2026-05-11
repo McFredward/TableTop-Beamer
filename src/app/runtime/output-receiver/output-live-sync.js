@@ -66,6 +66,10 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     projectionProfileChange: new Set(),
     connect: new Set(),
     disconnect: new Set(),
+    // Phase 38 W2: align-grid-snapshot subscription so consumers can react
+    // to remote grid mutations (e.g. force a handle-ui redraw after the
+    // local grid is replaced).
+    alignGridSnapshot: new Set(),
   };
   let alignMode = false;
   let profileId = null;
@@ -112,12 +116,83 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     }
   }
 
+  // Phase 38 W2 (2026-05-11): Pi /output/'s thin live-sync must apply
+  // incoming align-grid-snapshot broadcasts to grid-state directly.
+  //
+  // Background: Pi /output/ does NOT load runtime-live-sync-core.js (full
+  // module) — only this thin module + the lazy align-mode-loader bundle.
+  // The full module's WS message handler has fast-path apply for
+  // align-grid-snapshot; this thin module previously didn't, so Pi's local
+  // grid never updated from remote broadcasts. Result (operator UAT
+  // 2026-05-11): "linien an einer leicht verschobenen stelle gegenüber dem
+  // was der Stream anzeigt" — Pi's overlay lines drawn from stale grid,
+  // while SSR-tab's streamed mesh-warp updated correctly.
+  //
+  // Fix: when an align-grid-snapshot envelope arrives, build the points2D
+  // representation and call gridState.restoreGridSnapshot directly (gated
+  // by originator-filter so Pi doesn't clobber its own local drag with
+  // its own broadcast roundtrip).
+  function _applyAlignGridSnapshot(snap) {
+    if (!snap || typeof snap !== "object") return;
+    if (!Array.isArray(snap.srcXs) || !Array.isArray(snap.srcYs)
+        || !Array.isArray(snap.points)) return;
+    // Skip self-originator (Pi's own broadcast bouncing back). The local
+    // drag handler already mutated grid.points; applying the roundtrip
+    // would either be a no-op or clobber a fresh in-flight drag.
+    const isOriginator = !!clientId && snap.originatorClientId === clientId;
+    if (isOriginator) return;
+    const gs = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+    if (!gs || typeof gs.restoreGridSnapshot !== "function") return;
+    try {
+      const points2D = [];
+      for (let r = 0; r < snap.srcYs.length; r++) {
+        points2D[r] = [];
+        for (let c = 0; c < snap.srcXs.length; c++) {
+          points2D[r][c] = { x: snap.srcXs[c], y: snap.srcYs[r] };
+        }
+      }
+      for (const pt of snap.points) {
+        if (Number.isInteger(pt.row) && Number.isInteger(pt.col)
+            && points2D[pt.row] && points2D[pt.row][pt.col]) {
+          points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+        }
+      }
+      gs.restoreGridSnapshot({
+        srcXs: snap.srcXs.slice(),
+        srcYs: snap.srcYs.slice(),
+        points: points2D,
+      });
+      // Trigger handle-ui redraw so overlay lines reflect the new grid
+      // immediately (matches runtime-live-sync-core.js's
+      // _redrawHandlesAfterCornerDrag). Best-effort — handle-ui may not
+      // be loaded if align-mode hasn't been toggled on yet (lazy loader),
+      // in which case the redraw is a no-op and lines update on the next
+      // align-mode activation.
+      const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+      if (ui) {
+        try { ui.positionHandles?.(); } catch {}
+        try { ui.positionRotateHandles?.(); } catch {}
+        try { ui.drawLines?.(); } catch {}
+      }
+    } catch (err) {
+      logger?.warn?.("[output-live-sync] align-grid-snapshot apply failed:", err?.message || err);
+    }
+  }
+
   function dispatch(envelope) {
     if (!envelope || typeof envelope !== "object") return;
     if (envelope.type === "live-hello") {
       clientId = envelope.clientId ?? null;
       const snap = envelope?.session?.snapshot;
       if (snap) reconcileSnapshot(snap);
+      // Phase 38 W2: also seed Pi's grid from the hello snapshot's
+      // lastAlignGridSnapshot. Without this, Pi's grid stays at its
+      // localStorage default while dashboard/SSR are already at the
+      // server-persisted state → first-paint desync until next broadcast.
+      try {
+        const helloGrid = envelope?.session?.snapshot?.runtime?.lastAlignGridSnapshot;
+        if (helloGrid) _applyAlignGridSnapshot(helloGrid);
+      } catch {}
       emit("connect");
       return;
     }
@@ -133,6 +208,11 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       emit("animationStop", mutation.animationId ?? mutation.animation?.id);
     } else if (mt === "clear-all") {
       emit("clearAll");
+    } else if (mt === "align-grid-snapshot") {
+      // Phase 38 W2: apply the broadcast grid directly to grid-state.
+      const snap = envelope?.session?.snapshot?.runtime?.lastAlignGridSnapshot;
+      _applyAlignGridSnapshot(snap);
+      emit("alignGridSnapshot", snap);
     }
   }
 
@@ -214,6 +294,15 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         const j = await r.json();
         const snap = j?.snapshot ?? j?.session?.snapshot ?? j ?? {};
         reconcileSnapshot(snap);
+        // Phase 38 W2: also reconcile the grid snapshot. This is the
+        // safety net for WS-packet-loss — even if a single align-grid-
+        // snapshot broadcast was dropped on the wire, the 1Hz poll
+        // catches up within ~1s. Idempotent (no-op when grid already
+        // matches; gated by originator-filter inside _applyAlignGridSnapshot).
+        try {
+          const pollGrid = snap?.runtime?.lastAlignGridSnapshot;
+          if (pollGrid) _applyAlignGridSnapshot(pollGrid);
+        } catch {}
       }
     } catch {
       /* ignore — next tick retries */
@@ -274,6 +363,7 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     onProjectionProfileChange: on("projectionProfileChange"),
     onConnect: on("connect"),
     onDisconnect: on("disconnect"),
+    onAlignGridSnapshot: on("alignGridSnapshot"),
     getAlignMode: () => alignMode,
     getActiveProjectionProfileId: () => profileId,
     getCurrentClientId: () => clientId,
