@@ -619,6 +619,99 @@ export function bootAlignModeLoader({
         logger?.warn?.("[align-loader] initial renderRoomOverlay failed:", e?.message);
       }
 
+      // Phase 38 W4 (2026-05-11): SEED Pi's grid from the server's
+      // authoritative snapshot BEFORE the iter2-h2 defensive broadcast.
+      //
+      // Background: Pi /output/ does NOT load grid-state in its thin script
+      // set — that module is part of the IIFE bundle loaded above (in
+      // loadBundleOnce()). The W2/W3 wiring in output-live-sync.js routes
+      // every incoming align-grid-snapshot through _applyAlignGridSnapshot;
+      // when called BEFORE the bundle is loaded (live-hello, 1Hz poll)
+      // the apply silently no-ops because window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE
+      // doesn't exist yet. With W4's caching, that silent path now stashes
+      // the latest snap in _pendingGridSnapshot.
+      //
+      // Drain the cache NOW — grid-state has just been loaded by the
+      // bundle and bootHandleUi has just initialized handle-ui to read
+      // from it. The pending snap (if any) is the latest authoritative
+      // grid the server has seen (e.g. the dashboard's just-loaded 9×9
+      // xrandrv2 profile). Applying it here means the iter2-h2 broadcast
+      // below carries the CORRECT grid instead of Pi's 3×3 default.
+      //
+      // Without this seed, the iter2-h2 broadcast emits Pi's 3×3 identity,
+      // server records it as the authoritative lastAlignGridSnapshot, and
+      // fans out to SSR + dashboard — wiping the operator's loaded profile.
+      // Operator UAT 2026-05-11 reproduces this as the "complex profile
+      // desync" (Bug 3) and as part of the "lines snap back" feedback
+      // (Bug 1 — same wipe mechanism).
+      try {
+        let seeded = false;
+        if (typeof liveSync.applyPendingGridSnapshot === "function") {
+          seeded = liveSync.applyPendingGridSnapshot();
+          if (seeded) {
+            logger?.log?.("[align-loader] W4 seed: applied pending grid snapshot from cache");
+          }
+        }
+        // Even if the cache was empty (e.g. server hasn't broadcast any
+        // grid yet), fetch /api/live/snapshot directly as a belt-and-braces
+        // measure. The 1Hz poll will eventually catch up but the iter2-h2
+        // broadcast fires immediately below, so we MUST have the server
+        // state before broadcasting.
+        if (!seeded) {
+          try {
+            const resp = await fetch("/api/live/snapshot");
+            if (resp.ok) {
+              const j = await resp.json();
+              const snap = j?.snapshot ?? j?.session?.snapshot ?? j ?? {};
+              const gridSnap = snap?.runtime?.lastAlignGridSnapshot;
+              if (gridSnap && Array.isArray(gridSnap.srcXs)
+                  && Array.isArray(gridSnap.srcYs)
+                  && Array.isArray(gridSnap.points)) {
+                const gs = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
+                const localClientId = liveSync.getCurrentClientId?.() ?? null;
+                const isOriginator = !!localClientId
+                  && gridSnap.originatorClientId === localClientId;
+                if (gs && typeof gs.restoreGridSnapshot === "function"
+                    && !isOriginator) {
+                  const points2D = [];
+                  for (let r = 0; r < gridSnap.srcYs.length; r++) {
+                    points2D[r] = [];
+                    for (let c = 0; c < gridSnap.srcXs.length; c++) {
+                      points2D[r][c] = { x: gridSnap.srcXs[c], y: gridSnap.srcYs[r] };
+                    }
+                  }
+                  for (const pt of gridSnap.points) {
+                    if (Number.isInteger(pt.row) && Number.isInteger(pt.col)
+                        && points2D[pt.row] && points2D[pt.row][pt.col]) {
+                      points2D[pt.row][pt.col] = { x: pt.x, y: pt.y };
+                    }
+                  }
+                  gs.restoreGridSnapshot({
+                    srcXs: gridSnap.srcXs.slice(),
+                    srcYs: gridSnap.srcYs.slice(),
+                    points: points2D,
+                  });
+                  const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
+                  try { ui?.rebuildHandleElements?.(); } catch {}
+                  try { ui?.positionHandles?.(); } catch {}
+                  try { ui?.positionRotateHandles?.(); } catch {}
+                  try { ui?.drawLines?.(); } catch {}
+                  seeded = true;
+                  logger?.log?.("[align-loader] W4 seed: applied grid from /api/live/snapshot fetch");
+                }
+              }
+            }
+          } catch (err) {
+            logger?.warn?.("[align-loader] W4 seed snapshot-fetch threw:", err?.message || err);
+          }
+        }
+        if (!seeded) {
+          logger?.log?.("[align-loader] W4 seed: no pending grid + no server grid — Pi will broadcast its initialized default");
+        }
+      } catch (err) {
+        logger?.warn?.("[align-loader] W4 seed failed:", err?.message || err);
+      }
+
       // Phase 36 iter2 h2+h3 (2026-05-10): defensive grid-resync broadcast.
       // After bootHandleUi loads /output/'s grid from the server's
       // /api/live/snapshot, force a broadcastGridSnapshot so the SSR

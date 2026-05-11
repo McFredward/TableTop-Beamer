@@ -147,6 +147,31 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
   //       reduces CPU load during drag bursts.
   let _lastLocalBroadcastAtMs = 0;       // Pi clock — set on every Pi emit
   let _lastAppliedSnapAtMs = 0;           // server clock — last applied snap.at
+  // Phase 38 W4 (2026-05-11): cache the LATEST grid snapshot that arrived
+  // while window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE was not yet defined.
+  //
+  // Why this matters: Pi /output/ is the thin Phase-34 HTML that does NOT
+  // ship runtime-projection-grid-state.js in its initial script set — that
+  // module is part of the IIFE bundle lazy-loaded by
+  // output-align-mode-loader.js on the FIRST alignMode=true toggle. The
+  // W2 fix wired live-hello + 1Hz poll to call _applyAlignGridSnapshot;
+  // those paths fire AS SOON AS the WS connects (i.e. immediately on page
+  // load, BEFORE align-mode is toggled and BEFORE the bundle is loaded).
+  // The pre-W4 silent-return at the !gs guard meant every server-side
+  // snapshot was dropped on the floor until SOME post-bundle broadcast
+  // arrived.
+  //
+  // Worse: the loader's iter2-h2 defensive broadcast fires Pi's grid
+  // (still at the 3x3 default since live-hello-seed silently failed)
+  // immediately after bundle load — server stores Pi's 3x3 identity as
+  // the authoritative snapshot, fanning out to SSR + dashboard. The
+  // operator's just-loaded 9x9 xrandrv2 profile gets wiped.
+  //
+  // W4 fix: when grid-state isn't ready, CACHE the latest snap instead
+  // of dropping it. Expose applyPendingGridSnapshot() so the align-mode
+  // loader can drain the cache after the bundle finishes initializing
+  // and BEFORE the iter2-h2 defensive broadcast fires.
+  let _pendingGridSnapshot = null;        // server snap, applied on bundle-ready
   function _applyAlignGridSnapshot(snap) {
     if (!snap || typeof snap !== "object") return;
     if (!Array.isArray(snap.srcXs) || !Array.isArray(snap.srcYs)
@@ -182,7 +207,14 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
       }
     }
     const gs = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-    if (!gs || typeof gs.restoreGridSnapshot !== "function") return;
+    if (!gs || typeof gs.restoreGridSnapshot !== "function") {
+      // Phase 38 W4: grid-state module not loaded yet (this is the thin
+      // /output/ before its first alignMode toggle). Cache the snap so
+      // the loader can drain it once the bundle initializes. Last-writer-
+      // wins (idempotent for grid-snapshot — newer snap subsumes older).
+      _pendingGridSnapshot = snap;
+      return;
+    }
     try {
       const points2D = [];
       for (let r = 0; r < snap.srcYs.length; r++) {
@@ -434,6 +466,31 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     // drops the message, breaking h2's defensive grid-resync broadcast.
     isWsOpen: () => ws?.readyState === WebSocket.OPEN,
     emitLiveMutation,
+    // Phase 38 W4 (2026-05-11): drain the cached pending grid snapshot
+    // and apply it via _applyAlignGridSnapshot. Caller (the align-mode
+    // loader) is expected to call this AFTER the IIFE bundle has loaded
+    // (so window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE is defined) and
+    // BEFORE the loader's iter2-h2 defensive broadcast — otherwise Pi
+    // would emit its 3x3 default before adopting the server-side state,
+    // overwriting the dashboard's loaded profile on the server.
+    applyPendingGridSnapshot() {
+      if (!_pendingGridSnapshot) return false;
+      const snap = _pendingGridSnapshot;
+      _pendingGridSnapshot = null;
+      // Direct call into the apply path — re-run all the gates (originator,
+      // dedup, skew) for safety, even though the cached snap is by
+      // definition from before the bundle existed.
+      try {
+        _applyAlignGridSnapshot(snap);
+        return true;
+      } catch (err) {
+        logger?.warn?.("[output-live-sync] applyPendingGridSnapshot threw:", err?.message || err);
+        return false;
+      }
+    },
+    // Phase 38 W4: expose pending-snapshot presence so callers can decide
+    // whether to seed via this path vs. fetch /api/live/snapshot.
+    hasPendingGridSnapshot: () => !!_pendingGridSnapshot,
     stop() {
       stopped = true;
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
