@@ -866,16 +866,32 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 38 - SSR-Tab Apply-Path Diagnostics (CLOSED-DIAGNOSTIC-INFRASTRUCTURE, 2026-05-11)
+## Phase 38 - Pi /output/ Grid Sync Root-Cause Fix (CLOSED-W2, 2026-05-11)
 
-**Outcome**: Four CDP-based ground-truth tests (test_phase38_ssr_grid_state_cdp +
-test_phase38_ssr_visual_diff) prove the apply path works end-to-end in the
-operator's exact reproducer. The pre-iter2 bug pattern is NOT reproducible
-with the h1-h7 hotfix stack + 1f7582e rate-limit removal in place.
+**Outcome (W2)**: Found and fixed the real root cause. Pi /output/'s thin
+`output-live-sync.js` never handled `align-grid-snapshot` envelopes — broadcasts
+were silently dropped. Pi's overlay lines were drawn from Pi's stale local grid
+while SSR's stream rendered the correct broadcast grid → visible desync.
+
+W2 Fix (commit 9bea236):
+- `output-live-sync.js` now applies `align-grid-snapshot` to grid-state
+- Live-hello seeds the grid from server state
+- 1Hz poll reconciles as packet-loss safety net
+- New `onAlignGridSnapshot` subscription
+- New regression test `test_phase38_pi_ssr_sync_enforcement.py` —
+  queries Pi grid (page.evaluate) AND SSR grid (CDP), asserts convergence
+- See `.planning/phases/phase-38/38-CLOSURE-W2-ADDENDUM.md`
+
+W1 Outcome (CDP diagnostic infrastructure, commit 52b7dba) — preserved:
+- `/api/diag/ssr-grid` + `/api/diag/ssr-screenshot` endpoints
+- 4 CDP-based ground-truth tests for SSR-side apply path
 
 Findings:
-- Operator's "no RECV log" symptom was the rate-limit ("first 5 + every 30th")
-  masking single-shot apply events after a drag burst. Removed.
+- W1 verified SSR-side apply works. Did NOT test Pi side.
+- W2 found Pi side was broken because Pi's thin live-sync didn't handle
+  align-grid-snapshot.
+- Operator's "leicht verschobene Linien" + "Profil-load desync" both
+  resolved by W2 fix.
 - New endpoints `/api/diag/ssr-grid` and `/api/diag/ssr-screenshot` give
   tests + operator a ground-truth probe of SSR-tab state via CDP
 - D-08 connection-stability re-verified GREEN (31.5s sustained, 0 reconnects)
