@@ -218,6 +218,32 @@
 
   function restoreGridSnapshot(snap) {
     if (!snap) return;
+    // Phase 38 W7 diagnostic (2026-05-11): log dimension changes + caller
+    // origin so operator UAT logs reveal which path is mutating the SSR
+    // grid. Low noise — only logs when grid dimensions or corner positions
+    // change non-trivially. Strip after operator's UAT confirms or
+    // disproves H-OPEN-5 hypothesis.
+    try {
+      const oldRows = grid.srcYs?.length ?? 0;
+      const oldCols = grid.srcXs?.length ?? 0;
+      const newRows = snap.srcYs?.length ?? 0;
+      const newCols = snap.srcXs?.length ?? 0;
+      const oldTL = grid.points?.[0]?.[0];
+      const newTL = snap.points?.[0]?.[0];
+      const oldTLStr = oldTL ? `(${(oldTL.x ?? 0).toFixed(3)},${(oldTL.y ?? 0).toFixed(3)})` : "n/a";
+      const newTLStr = newTL ? `(${(newTL.x ?? 0).toFixed(3)},${(newTL.y ?? 0).toFixed(3)})` : "n/a";
+      const cornerChanged = oldTL && newTL
+        ? (Math.abs((oldTL.x ?? 0) - (newTL.x ?? 0)) > 0.001
+           || Math.abs((oldTL.y ?? 0) - (newTL.y ?? 0)) > 0.001)
+        : true;
+      if (oldRows !== newRows || oldCols !== newCols || cornerChanged) {
+        // Caller stack — short trim so log isn't gigantic
+        const stackLine = (new Error()).stack?.split("\n").slice(2, 5).join(" | ") || "no-stack";
+        console.log(
+          `[grid-state] restoreGridSnapshot dims=${oldRows}×${oldCols}→${newRows}×${newCols} TL=${oldTLStr}→${newTLStr} caller=${stackLine}`,
+        );
+      }
+    } catch (_) { /* defensive */ }
     grid.srcXs = snap.srcXs.slice();
     grid.srcYs = snap.srcYs.slice();
     grid.points = snap.points.map((row) => row.map((p) => ({ x: p.x, y: p.y })));
@@ -458,7 +484,10 @@
       if (_broadcastLogCount < 5 || force) {
         const corners = `(${grid.points[0]?.[0]?.x?.toFixed(2)},${grid.points[0]?.[0]?.y?.toFixed(2)})..`
           + `(${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.x?.toFixed(2)},${grid.points[grid.srcYs.length - 1]?.[grid.srcXs.length - 1]?.y?.toFixed(2)})`;
-        const msg = `EMIT force=${force} corners=${corners} profile=${profileId}`;
+        // Phase 38 W7 diagnostic: include dims so operator UAT log shows the
+        // dimension change at the broadcast emit site too.
+        const dims = `${grid.srcYs.length}×${grid.srcXs.length}`;
+        const msg = `EMIT force=${force} dims=${dims} corners=${corners} profile=${profileId}`;
         try {
           const ui = window.TT_BEAMER_RUNTIME_PROJECTION_HANDLE_UI;
           if (ui && typeof ui.piDiag === "function") {

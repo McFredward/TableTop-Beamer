@@ -1236,8 +1236,12 @@ function applyLiveMutation({
       const lastRow = (payload.srcYs?.length ?? 1) - 1;
       const lastCol = (payload.srcXs?.length ?? 1) - 1;
       const cornerBR = payload.points?.find?.((p) => p.row === lastRow && p.col === lastCol);
+      // Phase 38 W7 diagnostic: include dimensions so operator UAT logs
+      // reveal exactly which dims are being stored as authoritative.
+      const dims = `${payload.srcYs?.length ?? 0}×${payload.srcXs?.length ?? 0}`;
       console.log(
         `[align-grid-snapshot] server-recv from=${role}/${clientId} `
+        + `dims=${dims} `
         + `corners=TL(${cornerTL?.x?.toFixed(2)},${cornerTL?.y?.toFixed(2)})..`
         + `BR(${cornerBR?.x?.toFixed(2)},${cornerBR?.y?.toFixed(2)}) `
         + `profile=${payload.profileId}`,

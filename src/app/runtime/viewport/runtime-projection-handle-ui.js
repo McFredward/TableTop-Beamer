@@ -1718,26 +1718,29 @@
       }
       // Pi gets the full UI; SSR tab gets neither geometry nor toolbar.
       if (_isSsrChromiumTab()) {
-        // SSR tab still needs to broadcast its authoritative grid so Pi
-        // (which may have stale localStorage from a different browser
-        // context) snaps to the state visible in the stream before any
-        // user drag. The broadcast helper is keyed on the live-sync
-        // core which is ready by the time align-toggle reaches us.
-        const gridStateApi = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-        if (gridStateApi && typeof gridStateApi.broadcastGridSnapshot === "function") {
-          // h39: log + broadcast IMMEDIATELY (no defer). The microtask
-          // defer was a leftover from when the helper was potentially
-          // not yet wired; at this point the live-sync core is up,
-          // and the immediate broadcast removes a race window where
-          // the user enters align mode and drags before the deferred
-          // microtask fires — Pi's OLD grid wins until the next user
-          // action triggers a Pi-side broadcast that pulls SSR-tab
-          // toward Pi (the wrong direction).
-          console.log("[align-grid-snapshot] onAlignModeChange(true) on SSR tab — broadcasting authoritative grid");
-          try { gridStateApi.broadcastGridSnapshot({ force: true }); } catch (_) {}
-        } else {
-          console.warn("[align-grid-snapshot] onAlignModeChange(true) on SSR tab — gridStateApi.broadcastGridSnapshot UNAVAILABLE!");
-        }
+        // Phase 38 W7 (2026-05-11): SSR tab MUST NOT broadcast its grid
+        // on align-mode toggle. The Phase 31 h39 design assumed Pi might
+        // have stale localStorage and SSR's grid was authoritative —
+        // SSR would push its grid to bring Pi to truth. Since Phase 38
+        // W2/W4, Pi syncs from server's lastAlignGridSnapshot via
+        // live-hello + 1Hz poll, so Pi reaches the authoritative state
+        // without SSR's push.
+        //
+        // The remaining push is now ACTIVELY HARMFUL: if SSR's runtime
+        // restarts mid-session (publisher reconnect, encoder restart,
+        // etc.), this handler re-fires onAlignModeChange(true) at
+        // boot. SSR's grid is whatever its localStorage holds — likely
+        // STALE compared to the server's just-applied profile-load
+        // broadcast. Force-broadcasting SSR's stale grid clobbers the
+        // server's authoritative state. Pi's W3 _lastLocalBroadcastAtMs
+        // guard then keeps Pi at its just-loaded profile while server
+        // and SSR sit at SSR's stale state — exactly the operator's
+        // Bug A symptom (Pi lines at NEW profile, stream at OLD).
+        //
+        // The SSR tab now pulls authoritative state and never pushes.
+        // No-op here is correct; SSR's grid is reconciled via
+        // runtime-live-sync-core.js's poll + WS apply paths.
+        console.log("[align-grid-snapshot] SSR onAlignModeChange(true) — broadcast SUPPRESSED (W7: SSR pulls, never pushes)");
         return;
       }
       showHandles();
