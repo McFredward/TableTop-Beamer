@@ -1482,55 +1482,83 @@ function encodeWebSocketTextFrame(message) {
   return Buffer.concat([header, payload]);
 }
 
-function decodeWebSocketTextFrame(chunk) {
-  if (!chunk || chunk.length < 6) {
-    return null;
+// Phase 38 W10 (2026-05-11) — streaming-capable WebSocket frame decoder.
+//
+// Sentinel return shapes:
+//   { kind: "need-more", consumed: 0 }                 // not enough bytes yet
+//   { kind: "frame", frame: {close, text}, consumed }  // one complete frame consumed
+//   { kind: "protocol-error", consumed }               // malformed / non-text / unmasked
+//
+// Callers maintain a per-socket Buffer and drain it in a loop. This replaces
+// the pre-W10 single-shot decoder (which assumed each socket.on("data", chunk)
+// event delivered a complete frame). That assumption held on localhost (MTU
+// 65536) but broke on real Ethernet (MTU 1500) the moment a single frame
+// exceeded ~1380 bytes — e.g. the operator's 9×9 xrandrv2 align-grid-snapshot
+// (~3-5 KB) which fragmented across multiple TCP segments and was silently
+// dropped. See test/phase-38-w10-ws-frame-fragmentation.test.mjs for the
+// reproducer that proved this.
+function tryDecodeWebSocketFrame(buf) {
+  if (!buf || buf.length < 2) {
+    return { kind: "need-more", consumed: 0 };
   }
-  const firstByte = chunk[0];
-  const secondByte = chunk[1];
+  const firstByte = buf[0];
+  const secondByte = buf[1];
   const opcode = firstByte & 0x0f;
+  // Opcodes we accept: 0x1 (text) and 0x8 (close). Anything else is a
+  // protocol error — consume the header byte to make forward progress.
   if (opcode === 0x8) {
-    return { close: true, text: null };
+    // Close frames: we don't care about the body, just signal close. Still
+    // need enough bytes for the 2-byte header + optional mask+payload.
+    if (buf.length < 2) return { kind: "need-more", consumed: 0 };
+    // Don't bother parsing close payload; the caller will close the socket.
+    return { kind: "frame", frame: { close: true, text: null }, consumed: 2 };
   }
   if (opcode !== 0x1) {
-    return null;
+    return { kind: "protocol-error", consumed: 1 };
   }
   const masked = (secondByte & 0x80) === 0x80;
   const initialPayloadLength = secondByte & 0x7f;
+  // Client→server frames MUST be masked per RFC 6455 §5.1. If a client
+  // sends an unmasked frame, the connection is malformed.
   if (!masked) {
-    return null;
+    return { kind: "protocol-error", consumed: 0 };
   }
-  let payloadLength = initialPayloadLength;
   let cursor = 2;
+  let payloadLength = initialPayloadLength;
   if (initialPayloadLength === 126) {
-    if (chunk.length < cursor + 2) {
-      return null;
-    }
-    payloadLength = chunk.readUInt16BE(cursor);
+    if (buf.length < cursor + 2) return { kind: "need-more", consumed: 0 };
+    payloadLength = buf.readUInt16BE(cursor);
     cursor += 2;
   } else if (initialPayloadLength === 127) {
-    if (chunk.length < cursor + 8) {
-      return null;
-    }
-    const value = Number(chunk.readBigUInt64BE(cursor));
+    if (buf.length < cursor + 8) return { kind: "need-more", consumed: 0 };
+    const value = Number(buf.readBigUInt64BE(cursor));
     if (!Number.isFinite(value) || value > 8 * 1024 * 1024) {
-      return null;
+      // 8 MB hard cap (T-31-30-01 sized for grid-snapshot 16×16 worst case
+      // with headroom). Frames larger than this are rejected to bound
+      // memory; consume the whole frame's header so the buffer can move on.
+      return { kind: "protocol-error", consumed: cursor + 8 };
     }
     payloadLength = value;
     cursor += 8;
   }
-  if (chunk.length < cursor + 4 + payloadLength) {
-    return null;
+  // 4-byte mask + payload bytes must all be present before we can decode.
+  const need = cursor + 4 + payloadLength;
+  if (buf.length < need) {
+    return { kind: "need-more", consumed: 0 };
   }
   const maskOffset = cursor;
   const payloadOffset = maskOffset + 4;
-  const mask = chunk.subarray(maskOffset, maskOffset + 4);
-  const payload = chunk.subarray(payloadOffset, payloadOffset + payloadLength);
+  const mask = buf.subarray(maskOffset, maskOffset + 4);
+  const payload = buf.subarray(payloadOffset, payloadOffset + payloadLength);
   const unmasked = Buffer.alloc(payload.length);
   for (let i = 0; i < payload.length; i += 1) {
     unmasked[i] = payload[i] ^ mask[i % 4];
   }
-  return { close: false, text: unmasked.toString("utf8") };
+  return {
+    kind: "frame",
+    frame: { close: false, text: unmasked.toString("utf8") },
+    consumed: need,
+  };
 }
 
 function sendLiveSocketMessage(socket, payload) {
@@ -1793,18 +1821,19 @@ function attachLiveWebSocket(server) {
       snapshotVersion: liveSessionState.version,
     });
 
-    socket.on("data", (chunk) => {
-      const frame = decodeWebSocketTextFrame(chunk);
-      if (!frame) {
-        logErrorEvent("invalid-ws-frame", "frame-decode-failed", {
-          clientId,
-          role,
-        });
-        return;
-      }
+    // Phase 38 W10 (2026-05-11): per-socket WS frame reassembly buffer.
+    // Each socket.on("data", chunk) appends to recvBuf; we then drain the
+    // buffer via tryDecodeWebSocketFrame in a loop until either no more
+    // complete frames are available or a protocol error is encountered.
+    // The 8 MB cap on the accumulator bounds memory if a misbehaving client
+    // sends junk without ever completing a frame.
+    let recvBuf = Buffer.alloc(0);
+    const RECV_BUF_MAX = 8 * 1024 * 1024 + 1024; // payload cap + header headroom
+
+    function handleDecodedFrame(frame) {
       if (frame.close) {
         socket.end();
-        return;
+        return false; // stop draining
       }
       try {
         const parsed = JSON.parse(frame.text || "{}");
@@ -1822,7 +1851,7 @@ function attachLiveWebSocket(server) {
             clientStats.lastAckAt = new Date(receiveAt).toISOString();
             recordLiveHopSample(liveTelemetry.hops.commitToClientAck, delta);
           }
-          return;
+          return true;
         }
         if (parsed?.type === "live-apply-ack") {
           const envelope = isPlainObject(parsed?.mutationEnvelope) ? parsed.mutationEnvelope : null;
@@ -1839,10 +1868,10 @@ function attachLiveWebSocket(server) {
             recordLiveHopSample(liveTelemetry.hops.commitToApplyAck, delta);
             liveTelemetry.gates.snapshotApplied += 1;
           }
-          return;
+          return true;
         }
         if (parsed?.type !== "live-mutation") {
-          return;
+          return true;
         }
         const mutationId = typeof parsed?.mutationId === "string" ? parsed.mutationId : null;
         enqueueLiveMutation({
@@ -1860,6 +1889,50 @@ function attachLiveWebSocket(server) {
           clientId,
           role,
         });
+      }
+      return true;
+    }
+
+    socket.on("data", (chunk) => {
+      // Append the new bytes to the per-socket reassembly buffer. Bound the
+      // accumulator so a stuck client cannot exhaust server memory.
+      recvBuf = recvBuf.length === 0 ? chunk : Buffer.concat([recvBuf, chunk]);
+      if (recvBuf.length > RECV_BUF_MAX) {
+        logErrorEvent("invalid-ws-frame", "recv-buffer-overflow", {
+          clientId,
+          role,
+          bufLen: recvBuf.length,
+        });
+        socket.destroy();
+        return;
+      }
+      // Drain all complete frames currently in the buffer.
+      while (recvBuf.length > 0) {
+        const r = tryDecodeWebSocketFrame(recvBuf);
+        if (r.kind === "need-more") {
+          // Wait for more bytes to arrive in a subsequent "data" event.
+          return;
+        }
+        if (r.kind === "protocol-error") {
+          logErrorEvent("invalid-ws-frame", "frame-decode-failed", {
+            clientId,
+            role,
+            consumed: r.consumed,
+            bufLen: recvBuf.length,
+          });
+          // Advance past the broken header byte to make forward progress
+          // (or drop the buffer entirely if consumed === 0 — defensive).
+          if (r.consumed > 0 && r.consumed <= recvBuf.length) {
+            recvBuf = recvBuf.subarray(r.consumed);
+          } else {
+            recvBuf = Buffer.alloc(0);
+          }
+          continue;
+        }
+        // r.kind === "frame" — consume and dispatch.
+        recvBuf = recvBuf.subarray(r.consumed);
+        const keepDraining = handleDecodedFrame(r.frame);
+        if (!keepDraining) return;
       }
     });
 
