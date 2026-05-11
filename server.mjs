@@ -4267,20 +4267,110 @@ if (process.env.SSR_RENDER_HOST === "1") {
       // applyLiveRuntimeSnapshot path on the SSR tab handles
       // runtime.lastAlignGridSnapshot (h40) and snaps the warp +
       // handles + polygons in lockstep.
+      //
+      // Phase 38 W5 (2026-05-11): operator UAT — "after server start the
+      // board fills the entire screen with no mesh-warp distortion" (Bug B).
+      // Root cause: when `runtime-active-grid.json` is absent (e.g. fresh
+      // install, or operator never saved an align edit since the file was
+      // introduced), this block leaves `runtime.lastAlignGridSnapshot` null
+      // and `liveSessionState.version` at 0. Every client then falls back
+      // through autoLoadRememberedProjectionProfile → applyDefaultAndCaptureSnapshot
+      // → identity 3×3 grid → `hasGridDisplacements()` returns false →
+      // postDrawMeshWarp returns at the "no warp" guard → fx-canvas is the
+      // visible surface, board fills full screen.
+      //
+      // Fix (W5): if loadActiveGrid returns nothing, scan
+      // config/boards/<id>.json for the active board and apply its
+      // `lastUsedProfileName` from config/projection-profiles.json. Failing
+      // that, pick the first available profile for the active board. The
+      // SSR mesh-warp now has real geometry on cold boot — exactly what
+      // the operator expects when xrandrv2 was their saved profile.
       try {
+        let gridSeed = null;
+        let gridSeedSource = "none";
+
         const gridRestored = await loadActiveGrid({ rootDir: ROOT_DIR });
         if (gridRestored && Array.isArray(gridRestored.points) && gridRestored.points.length > 0) {
-          if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
-          liveSessionState.snapshot.runtime.lastAlignGridSnapshot = {
+          gridSeed = {
             srcXs: gridRestored.srcXs.slice(),
             srcYs: gridRestored.srcYs.slice(),
-            points: gridRestored.points.map((p) => ({ row: p.row, col: p.col, x: p.x, y: p.y })),
+            points: gridRestored.points.map((p) => ({
+              row: p.row, col: p.col, x: p.x, y: p.y,
+            })),
             profileId: gridRestored.profileId,
+            persistedAt: gridRestored.persistedAt || null,
+          };
+          gridSeedSource = "runtime-active-grid";
+        }
+
+        // W5 fallback path — only when runtime-active-grid.json was missing
+        // or empty. Picks an existing profile so SSR boots with mesh-warp.
+        if (!gridSeed) {
+          try {
+            const storedBoards = await loadCanonicalBoardsFromStorage();
+            const allProfiles = await loadProjectionProfilesRaw();
+            // Choose the first board that has at least one profile.
+            // We don't have `selectedBoard` yet at boot (it lands via context-
+            // update from clients), so picking deterministically the first
+            // board with calibration is the safe choice.
+            for (const board of storedBoards) {
+              const boardId = board?.boardId;
+              if (!boardId) continue;
+              const profilesForBoard = allProfiles[boardId];
+              if (!profilesForBoard || typeof profilesForBoard !== "object") continue;
+              const profileNames = Object.keys(profilesForBoard);
+              if (profileNames.length === 0) continue;
+              // Prefer board's remembered lastUsedProfileName when it exists,
+              // otherwise the first sorted name (stable across reboots).
+              const remembered = typeof board.lastUsedProfileName === "string"
+                ? board.lastUsedProfileName
+                : null;
+              const pickName = remembered && profilesForBoard[remembered]
+                ? remembered
+                : profileNames.sort()[0];
+              const data = profilesForBoard[pickName];
+              if (data
+                  && Array.isArray(data.srcXs)
+                  && Array.isArray(data.srcYs)
+                  && Array.isArray(data.points)
+                  && data.points.length > 0) {
+                gridSeed = {
+                  srcXs: data.srcXs.slice(),
+                  srcYs: data.srcYs.slice(),
+                  points: data.points.map((p) => ({
+                    row: p.row, col: p.col, x: p.x, y: p.y,
+                  })),
+                  profileId: pickName,
+                  persistedAt: null,
+                };
+                gridSeedSource = `projection-profile/${boardId}/${pickName}`;
+                // Also seed selectedBoard so downstream consumers
+                // (animations restore, runtime ctx) land on the same board
+                // as the grid. Don't overwrite if disk-animation-restore
+                // already set it to a specific value.
+                if (!normalizeNonEmptyString(liveSessionState.snapshot.selectedBoard)) {
+                  liveSessionState.snapshot.selectedBoard = boardId;
+                }
+                break;
+              }
+            }
+          } catch (err) {
+            console.warn("[active-grid w5] profile-fallback failed:", err?.message || err);
+          }
+        }
+
+        if (gridSeed) {
+          if (!liveSessionState.snapshot.runtime) liveSessionState.snapshot.runtime = {};
+          liveSessionState.snapshot.runtime.lastAlignGridSnapshot = {
+            srcXs: gridSeed.srcXs,
+            srcYs: gridSeed.srcYs,
+            points: gridSeed.points,
+            profileId: gridSeed.profileId,
             // No client originated this — it came from disk. Use a
             // server sentinel so live-sync's originator filter won't
             // match any real client.
             originatorClientId: "server-disk-restore",
-            at: gridRestored.persistedAt || new Date().toISOString(),
+            at: gridSeed.persistedAt || new Date().toISOString(),
           };
           // h42: bump the live-session version so clients DO apply the
           // seeded snapshot via live-hello. shouldApplySnapshotVersion
@@ -4293,11 +4383,14 @@ if (process.env.SSR_RENDER_HOST === "1") {
           liveSessionState.version = Math.max(1, Number(liveSessionState.version || 0) + 1);
           liveSessionState.updatedAt = new Date().toISOString();
           console.log(
-            `[active-grid] restored profile=${gridRestored.profileId} `
-            + `srcXs=${gridRestored.srcXs.length} srcYs=${gridRestored.srcYs.length} `
-            + `points=${gridRestored.points.length} `
-            + `version=${liveSessionState.version}`,
+            `[active-grid] restored profile=${gridSeed.profileId} `
+            + `srcXs=${gridSeed.srcXs.length} srcYs=${gridSeed.srcYs.length} `
+            + `points=${gridSeed.points.length} `
+            + `version=${liveSessionState.version} `
+            + `source=${gridSeedSource}`,
           );
+        } else {
+          console.log("[active-grid] no persisted profile available — SSR will boot at identity");
         }
       } catch (err) {
         console.warn("[active-grid] load failed:", err?.message || err);
