@@ -619,7 +619,20 @@
           && Number.isFinite(snapAt)
           && !isOriginator;
         if (acceptable && state._lastAppliedAlignGridSnapshotKey !== snapKey) {
-          state._lastAppliedAlignGridSnapshotKey = snapKey;
+          // Phase 38 W9 (2026-05-11): set the snap-key gate AFTER the apply,
+          // not before. The previous (pre-W9) order set the key before the
+          // gridState-readiness check — so when gridState was null (window
+          // global not yet attached during very-early boot, or a transient
+          // module-reset window), the key was marked applied even though
+          // restoreGridSnapshot never ran. Subsequent broadcasts/polls
+          // carrying the SAME `at` snap (e.g. the 1Hz poll repeating the
+          // same lastAlignGridSnapshot until a new mutation lands) would
+          // see the key matching and SKIP — leaving the grid stuck at the
+          // earlier state. The fast-path at L986 doesn't use this gate so
+          // it still applies new broadcasts; but the slow-path + poll
+          // cooperate via the key, and the bug could create a window
+          // where the only authoritative server snapshot doesn't reach
+          // the grid until a NEW broadcast (new `at`) arrives.
           const gridState = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
           if (gridState && typeof gridState.restoreGridSnapshot === "function") {
             const points2D = [];
@@ -642,7 +655,22 @@
               srcYs: snap.srcYs.slice(),
               points: points2D,
             });
+            state._lastAppliedAlignGridSnapshotKey = snapKey;
             _redrawHandlesAfterCornerDrag();
+            console.log(
+              `[align-grid-snapshot] slow-path apply OK `
+              + `dims=${snap.srcYs.length}×${snap.srcXs.length} `
+              + `profile=${snap.profileId} `
+              + `at=${snap.at}`,
+            );
+          } else {
+            // Phase 38 W9: gridState not yet attached. Do NOT set the key —
+            // the next poll/broadcast carrying the same `at` must be allowed
+            // to retry the apply once gridState becomes available.
+            console.warn(
+              `[align-grid-snapshot] slow-path skipped: gridState not ready `
+              + `(profile=${snap.profileId} at=${snap.at}) — key NOT set, will retry`,
+            );
           }
         }
       } catch (err) {

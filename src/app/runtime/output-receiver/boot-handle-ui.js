@@ -297,7 +297,21 @@ export function bootHandleUi(args) {
         if (typeof document !== "undefined") {
           document.body?.classList?.toggle("align-mode-active", Boolean(on));
         }
-        HANDLE_UI.showHandles?.(Boolean(on));
+        // Phase 38 W9 (2026-05-11): use HANDLE_UI.onAlignModeChange(boolean)
+        // which has the proper true/false branching (showHandles vs hideHandles
+        // + render/clear room overlay). The previous `HANDLE_UI.showHandles?.(Boolean(on))`
+        // passed a boolean to a zero-arg function — the arg was ignored, so
+        // on align-off the handler became a no-op and the overlay (lines,
+        // handles, line canvas) stayed visible on Pi /output/. Operator UAT
+        // 2026-05-11: "Beim Ausschalten des align modes verschwinden die
+        // lines, punkte und co. (das overlay) in /output/ nicht mehr."
+        if (typeof HANDLE_UI.onAlignModeChange === "function") {
+          HANDLE_UI.onAlignModeChange(Boolean(on));
+        } else if (on) {
+          HANDLE_UI.showHandles?.();
+        } else {
+          HANDLE_UI.hideHandles?.();
+        }
         polygonCtx.renderRoomOverlay?.();
       } catch (err) {
         logger?.warn?.(`${_LOG_PREFIX} onAlignModeChange handler threw:`, err?.message || err);
