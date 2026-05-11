@@ -10,7 +10,7 @@ import {
   dequeueFairMutation,
   createApplySliceController,
 } from "./src/live/hf9-command-pipeline.mjs";
-import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost } from "./src/server/ssr-render-host.mjs";
+import { bootSsrRenderHost, setActiveSsrRenderHost, shutdownSsrRenderHost, getActiveSsrRenderHost } from "./src/server/ssr-render-host.mjs";
 import { bootMediasoupRouter, shutdownMediasoupRouter, purgeStaleMediasoupWorker, setOnRouterRecreated } from "./src/server/ssr-mediasoup-router.mjs";
 import { attachWebRtcSignaling } from "./src/server/ssr-webrtc-signaling.mjs";
 import { buildSsrReadyResponse } from "./src/server/ssr-ready-handler.mjs";
@@ -3504,6 +3504,60 @@ const server = createServer(async (req, res) => {
       const { status, body } = buildSsrReadyResponse(signalingState);
       res.writeHead(status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(body));
+      return;
+    }
+
+    // Phase 38 W0 diagnostic — query the SSR Chromium tab's runtime grid
+    // state directly via CDP. Bypasses console.log scraping (which is rate-
+    // limited and buffered) so tests can deterministically verify that the
+    // SSR tab's grid.points matches the latest broadcast.
+    //
+    // Returns 503 when the SSR render-host is not active (env SSR_RENDER_HOST
+    // != 1 or CDP not yet attached). Returns 200 with { grid: {srcXs, srcYs,
+    // points} } otherwise.
+    if (req.method === "GET" && routePath === "/api/diag/ssr-grid") {
+      const host = getActiveSsrRenderHost();
+      if (!host || typeof host.evaluateInTab !== "function") {
+        sendJson(res, 503, { ok: false, reason: "ssr-host-inactive" });
+        return;
+      }
+      try {
+        const result = await host.evaluateInTab(
+          "(() => { const g = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE; "
+          + "if (!g || typeof g.snapshotGridState !== 'function') return null; "
+          + "return JSON.stringify(g.snapshotGridState()); })()",
+        );
+        if (!result?.ok) {
+          sendJson(res, 503, { ok: false, reason: result?.reason || "eval-failed", detail: result });
+          return;
+        }
+        const grid = result.value ? JSON.parse(result.value) : null;
+        sendJson(res, 200, { ok: true, grid });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "exception", detail: err?.message || String(err) });
+      }
+      return;
+    }
+
+    // Phase 38 W0 — JPEG screenshot of the SSR tab via CDP. Tests use this
+    // to verify the mesh-warp render reflects grid mutations, end-to-end.
+    if (req.method === "GET" && routePath === "/api/diag/ssr-screenshot") {
+      const host = getActiveSsrRenderHost();
+      if (!host || typeof host.captureScreenshot !== "function") {
+        sendJson(res, 503, { ok: false, reason: "ssr-host-inactive" });
+        return;
+      }
+      try {
+        const result = await host.captureScreenshot();
+        if (!result?.ok) {
+          sendJson(res, 503, { ok: false, reason: result?.reason || "screenshot-failed", detail: result });
+          return;
+        }
+        res.writeHead(200, { "content-type": "image/jpeg" });
+        res.end(Buffer.from(result.base64, "base64"));
+      } catch (err) {
+        sendJson(res, 500, { ok: false, reason: "exception", detail: err?.message || String(err) });
+      }
       return;
     }
 

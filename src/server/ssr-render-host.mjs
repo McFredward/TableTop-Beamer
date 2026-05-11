@@ -944,7 +944,56 @@ export function bootSsrRenderHost({
     return { ...status };
   }
 
-  const host = { start, stop, restart, getStatus };
+  // Phase 38 W0 diagnostic: evaluate a JS expression inside the SSR tab via
+  // CDP and return the value. Used by /api/diag/ssr-eval to verify the SSR
+  // tab's actual runtime state (e.g. grid.points after a broadcast) without
+  // depending on console log scraping. Returns null if the CDP session is
+  // not currently attached.
+  async function evaluateInTab(expression, { timeoutMs = 2000 } = {}) {
+    if (!cdpSession) return { ok: false, reason: "no-cdp-session" };
+    try {
+      const res = await Promise.race([
+        cdpSession.send("Runtime.evaluate", {
+          expression,
+          returnByValue: true,
+          awaitPromise: true,
+        }),
+        new Promise((_, rej) => setTimeout(
+          () => rej(new Error(`cdp-eval-timeout-${timeoutMs}ms`)), timeoutMs,
+        )),
+      ]);
+      if (res?.exceptionDetails) {
+        return { ok: false, reason: "exception", details: res.exceptionDetails };
+      }
+      return { ok: true, value: res?.result?.value };
+    } catch (err) {
+      return { ok: false, reason: "error", message: err?.message || String(err) };
+    }
+  }
+
+  // Phase 38 W0 — capture a JPEG screenshot of the SSR tab via CDP so tests
+  // can compare actual rendered pixels before/after a broadcast. Returns
+  // base64-encoded JPEG bytes (CDP default format), or null on failure.
+  async function captureScreenshot({ timeoutMs = 4000, quality = 60 } = {}) {
+    if (!cdpSession) return { ok: false, reason: "no-cdp-session" };
+    try {
+      const res = await Promise.race([
+        cdpSession.send("Page.captureScreenshot", {
+          format: "jpeg",
+          quality,
+          captureBeyondViewport: false,
+        }),
+        new Promise((_, rej) => setTimeout(
+          () => rej(new Error(`cdp-screenshot-timeout-${timeoutMs}ms`)), timeoutMs,
+        )),
+      ]);
+      return { ok: true, base64: res?.data || "" };
+    } catch (err) {
+      return { ok: false, reason: "error", message: err?.message || String(err) };
+    }
+  }
+
+  const host = { start, stop, restart, getStatus, evaluateInTab, captureScreenshot };
 
   if (autoStart) {
     start().catch((err) => logger.error(`[ssr-host] autoStart failed: ${err.message}`));
