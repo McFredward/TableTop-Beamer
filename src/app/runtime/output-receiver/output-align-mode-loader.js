@@ -712,47 +712,46 @@ export function bootAlignModeLoader({
         logger?.warn?.("[align-loader] W4 seed failed:", err?.message || err);
       }
 
-      // Phase 36 iter2 h2+h3 (2026-05-10): defensive grid-resync broadcast.
-      // After bootHandleUi loads /output/'s grid from the server's
-      // /api/live/snapshot, force a broadcastGridSnapshot so the SSR
-      // Chromium tab's mesh-warp re-applies the saved profile's grid.
-      // Operator-reported bug 2 (UAT 2026-05-10):
-      //   "Beim laden eines Profils sieht man sofort die Linien-Änderung
-      //    in /output/, aber man muss erst eine kleine Sache verändern,
-      //    damit es auch im Stream sichtbar wird."
+      // Phase 38 W8 (2026-05-11): REMOVED Pi /output/'s defensive activate
+      // broadcast (formerly Phase 36 iter2 h2/h3). Pi /output/ is a downstream
+      // CONSUMER of the server's authoritative align-grid-snapshot, not a
+      // PRODUCER on activate. It pulls via:
+      //   1. live-hello envelope (output-live-sync.js dispatch → cache or apply)
+      //   2. 1Hz GET /api/live/snapshot poll (output-live-sync.js pollOnce)
+      //   3. WS live-session-update broadcasts (output-live-sync.js dispatch)
+      //   4. W4 drain on align-mode activate (applyPendingGridSnapshot)
+      // All four paths apply server's state TO Pi. Pi has no NEW information
+      // about the grid that the server doesn't already have on activate.
       //
-      // h3 fixes h2's silent-drop: activate() runs from the HTTP-poll
-      // fallback path which can fire BEFORE the WS handshake completes.
-      // emitLiveMutation silently drops messages while ws.readyState !==
-      // OPEN (operator log evidence: "[output-live-sync] emitLiveMutation
-      // skipped — ws not OPEN" right before "[output-live-sync] WS open").
-      // Fix: check liveSync.isWsOpen(); if open, fire immediately. If not,
-      // wait for the next onConnect event and fire once. Reconnects don't
-      // re-fire (one-shot guard) — the next user gesture will broadcast
-      // anyway, and a stale resync after a reconnect could double-write.
-      const fireResyncBroadcast = () => {
-        try {
-          const GS = window.TT_BEAMER_RUNTIME_PROJECTION_GRID_STATE;
-          if (GS && typeof GS.broadcastGridSnapshot === "function") {
-            GS.broadcastGridSnapshot({ force: true });
-            logger?.log?.("[align-loader] post-activate broadcastGridSnapshot({force:true}) fired");
-          }
-        } catch (e) {
-          logger?.warn?.("[align-loader] post-activate broadcast failed:", e?.message);
-        }
-      };
-      if (typeof liveSync.isWsOpen === "function" && liveSync.isWsOpen()) {
-        fireResyncBroadcast();
-      } else {
-        logger?.log?.("[align-loader] post-activate broadcast deferred — ws not yet OPEN, waiting for onConnect");
-        let fired = false;
-        const offConnect = liveSync.onConnect?.(() => {
-          if (fired) return;
-          fired = true;
-          fireResyncBroadcast();
-          try { offConnect?.(); } catch {}
-        });
-      }
+      // The defensive broadcast (h2/h3) was added 2026-05-10 to fix bug:
+      //   "Profile-load on dashboard shows new lines on /output/ but stream
+      //    doesn't update until a small drag."
+      // That bug was actually a SEPARATE issue (W5 — SSR cold-boot fallback +
+      // W6 — picker dimension change). W2/W3/W4 + W7 together now keep SSR
+      // in lockstep with the authoritative server state via SSR's own poll
+      // eager-apply path. Pi's defensive activate broadcast no longer serves
+      // a purpose — it only causes harm:
+      //
+      // Bug (operator UAT 2026-05-11 post-W7): Pi's defensive broadcast
+      // emitted with profileId=`unsaved-<boardId>` whenever
+      // `_loadedProfileName` was null (fresh Pi LS, no profile match).
+      // grid-state.broadcastGridSnapshot synthesizes the unsaved-* label;
+      // server.mjs:1245-1277's align-grid-snapshot mutation handler
+      // PERSISTS this synthetic profileId into runtime-active-grid.json
+      // via persistActiveGrid, OVERWRITING the operator's previously-saved
+      // profileId (e.g. `test`). Next server boot loads the corrupted
+      // state — and the corruption compounds: every Pi-/output/ align-mode
+      // activation re-clobbers the disk file.
+      //
+      // W8 fix (Fix B from 38-DEBUG-W8.md): remove the broadcast entirely.
+      // W4's drain ensures Pi's local grid matches server's state by the
+      // time activate() reaches this point; no broadcast needed because
+      // the server already HAS the authoritative state. This mirrors W7
+      // (SSR suppresses its own onAlignModeChange broadcast for the same
+      // reason — SSR is a consumer, not a producer, on align-toggle).
+      logger?.log?.(
+        "[align-loader] post-activate broadcast SUPPRESSED (W8: Pi /output/ pulls, never pushes — mirrors W7 for SSR)",
+      );
     } catch (err) {
       logger?.error?.("[align-loader] activate failed:", err);
     }
