@@ -866,7 +866,27 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 38 - SSR-Tab Apply-Path Fix for Single-Shot Grid Mutations (PLANNING)
+## Phase 38 - SSR-Tab Apply-Path Diagnostics (CLOSED-DIAGNOSTIC-INFRASTRUCTURE, 2026-05-11)
+
+**Outcome**: Four CDP-based ground-truth tests (test_phase38_ssr_grid_state_cdp +
+test_phase38_ssr_visual_diff) prove the apply path works end-to-end in the
+operator's exact reproducer. The pre-iter2 bug pattern is NOT reproducible
+with the h1-h7 hotfix stack + 1f7582e rate-limit removal in place.
+
+Findings:
+- Operator's "no RECV log" symptom was the rate-limit ("first 5 + every 30th")
+  masking single-shot apply events after a drag burst. Removed.
+- New endpoints `/api/diag/ssr-grid` and `/api/diag/ssr-screenshot` give
+  tests + operator a ground-truth probe of SSR-tab state via CDP
+- D-08 connection-stability re-verified GREEN (31.5s sustained, 0 reconnects)
+
+See `.planning/phases/phase-38/38-CLOSURE.md` for full investigation log.
+
+Tag recommended: `phase-38-cdp-diag-final` at commit 52b7dba.
+
+---
+
+## Phase 38 (original scope, PRESERVED FOR HISTORY) - SSR-Tab Apply-Path Fix for Single-Shot Grid Mutations (PLANNING)
 
 Ziel: Definitively fix the operator-reported defects from Phase 36-iter2 UAT:
 - **Bug 2**: Profile-load via picker updates /output/'s overlay lines immediately BUT
