@@ -866,7 +866,48 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 38 - Pi /output/ Grid Sync Root-Cause Fix (CLOSED-W2, 2026-05-11)
+## Phase 38 - SSR/Pi Sync, WS Fragmentation, Boot Paint (CLOSED-W13, 2026-05-12)
+
+**Final outcome — 13 waves over 2 weeks. THE root cause was W10.**
+
+W10 (commit `df69a74`, tag `phase-38-w10-ws-fragmentation`) — the WS
+frame fragmentation bug in `server.mjs`'s hand-rolled decoder. Hand-
+rolled `decodeWebSocketTextFrame` assumed every `socket.on("data",chunk)`
+event delivered a complete WS frame. On localhost (MTU 65536) this
+worked. On real Ethernet (MTU 1500) any WS frame > ~1380 bytes
+fragments across TCP segments and got silently dropped. Simple profiles
+(3×3 = 9 points ≈ 1KB) worked. Complex profiles (9×9 = 81 points ≈
+3-5KB) ALWAYS desynced.
+
+Fix: `tryDecodeWebSocketFrame(buf)` with per-socket recvBuf + drain loop.
+
+Other landed fixes (kept):
+- W1 (`52b7dba`): CDP diagnostic endpoints `/api/diag/ssr-grid` + `/api/diag/ssr-screenshot`
+- W2 (`9bea236`): Pi /output/ thin sync apply-path
+- W3 (`87b034b`): Pi local-clobber protection + apply dedup
+- W4 (`945addc`): Pi pending-snapshot drain on lazy bundle load
+- W5 (`0978d0c`): Server cold-boot fallback to projection-profiles.json
+- W7 (`4149b86`): SSR suppress defensive broadcast on align-on
+- W8 (`b210473`): Pi /output/ suppress defensive broadcast on align-on
+- W9 (`0283ee8`): Slow-path key-ordering fix + diag logs
+- W10 (`df69a74`): **THE BUG** — WS frame fragmentation reassembly
+- W11 (`dd0866a`): Align-off teardown survives Set-iteration-deletion race
+- W12 (`c99c541`): Boot-paint — invalidate GL cache on grid replace
+- W13 (`c2d14b4`): Restore 10/90 inset as fresh-profile default
+
+**CRITICAL** lessons documented in `.planning/CRITICAL_KNOWN_BUGS.md`:
+1. WS frame fragmentation — every future WS broadcast feature MUST be
+   stress-tested with explicit `socket.write()` segmentation. NEVER
+   rely on localhost MTU.
+2. Multi-subscriber handler ordering — when one subscriber chains to
+   unsubscribe others, cleanup must run BEFORE the unsubscribe.
+
+Phase 38 closes with 25 live-E2E tests + 4 WS-fragmentation unit tests
+exercising the full apply chain.
+
+---
+
+## Phase 38 (early waves W1-W2) - Pi /output/ Grid Sync Root-Cause Fix (HISTORICAL, 2026-05-11)
 
 **Outcome (W2)**: Found and fixed the real root cause. Pi /output/'s thin
 `output-live-sync.js` never handled `align-grid-snapshot` envelopes — broadcasts
