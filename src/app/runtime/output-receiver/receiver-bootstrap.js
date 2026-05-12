@@ -330,6 +330,13 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
   // and on operator Retry. Combined with reconnectAttempts gives us the
   // two-axis cap (attempts OR elapsed).
   let firstFailureAtMs = null;
+  // Phase 39 Plan 39-3 D-02: timestamp at which the receiver first entered
+  // INITIAL_CONNECT (i.e. when the cold-boot attempt started). Compared
+  // against INITIAL_CONNECT_GRACE_MS in handleConnectFailure() to decide
+  // whether to stay in INITIAL_CONNECT (silent retry) or escalate to
+  // RECONNECTING (banner visible, counts against capped-retry budget).
+  // Reset to null on CONNECTED (first frame) and on STOPPED.
+  let firstAttemptStartedAtMs = null;
   // Phase 33 Plan 03-T3 (R-2): frames since last entry into CONNECTING.
   // Reset to 0 on every CONNECTING transition; incremented on each `frame`
   // event. Backoff state resets ONLY when this hits 1 (first frame proves
@@ -390,6 +397,13 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
 
     currentState = next;
     logger?.log?.(`[receiver] state ${prev} → ${next}${reason ? ` (${reason})` : ""}`);
+
+    // Phase 39 Plan 39-3 D-02: clear the cold-boot timestamp on STOPPED so
+    // a future restart (manual retry from a terminal state goes through
+    // CONNECTING, not NEW — but defense-in-depth covers any re-bootstrap).
+    if (next === ConnectionState.STOPPED) {
+      firstAttemptStartedAtMs = null;
+    }
 
     // 03-T5 (Suspect 14): when leaving HOST_DOWN, also clear pcState so the
     // monitor's `pcState !== "host-down"` legacy guard re-arms naturally.
@@ -453,12 +467,121 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
    * @returns {boolean}
    */
   function shouldGiveUp() {
+    // Phase 39 Plan 39-3 D-02: INITIAL_CONNECT attempts do NOT count against
+    // the capped-retry budget. The 10-attempt / 120s cap engages only after
+    // the first escalation to RECONNECTING — silent grace-window retries
+    // (e.g. ~17 in worst case at 300ms/retry over 5s) must not exhaust the
+    // budget before the real reconnect loop even begins.
+    if (currentState === ConnectionState.INITIAL_CONNECT) return false;
+    if (reconnectAttempts < 1) return false;
     if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS_BEFORE_GIVEUP) return true;
     if (firstFailureAtMs != null) {
       const elapsed = Date.now() - firstFailureAtMs;
       if (elapsed >= MAX_TOTAL_RECONNECT_DURATION_MS) return true;
     }
     return false;
+  }
+
+  /**
+   * Phase 39 Plan 39-3 D-02: failure routing helper. Centralizes the choice
+   * between (a) silent retry while still inside the INITIAL_CONNECT grace
+   * window and (b) escalation to RECONNECTING (capped-retry path).
+   *
+   * - INITIAL_CONNECT + elapsed < grace → schedule a fast silent retry,
+   *   stay in INITIAL_CONNECT, do NOT increment reconnectAttempts or set
+   *   firstFailureAtMs. No banner shown.
+   * - INITIAL_CONNECT + elapsed >= grace → escalate to RECONNECTING,
+   *   start the capped-retry budget (reconnectAttempts=1, firstFailureAtMs
+   *   set), schedule normal exponential backoff.
+   * - Any other source state (CONNECTING/CONNECTED via the existing paths)
+   *   → standard escalation: transition to RECONNECTING, increment counters,
+   *   schedule reconnect.
+   *
+   * @param {string} reason - short tag for logs
+   */
+  function handleConnectFailure(reason) {
+    const now = Date.now();
+    if (currentState === ConnectionState.INITIAL_CONNECT) {
+      const elapsed = firstAttemptStartedAtMs != null
+        ? (now - firstAttemptStartedAtMs)
+        : Infinity;
+      if (elapsed < INITIAL_CONNECT_GRACE_MS) {
+        // Silent retry — stay in INITIAL_CONNECT. No banner, no budget hit.
+        logger?.log?.(
+          `[receiver] initial-connect silent retry (elapsed=${elapsed}ms `
+          + `<${INITIAL_CONNECT_GRACE_MS}ms) reason=${reason}`,
+        );
+        scheduleInitialConnectRetry(reason);
+        return;
+      }
+      // Grace expired — escalate to RECONNECTING and start the capped budget.
+      logger?.warn?.(
+        `[receiver] initial-connect grace expired after ${elapsed}ms — `
+        + `escalating to RECONNECTING (reason=${reason})`,
+      );
+      setState(ConnectionState.RECONNECTING, { reason: `initial-connect-grace-expired:${reason}` });
+      firstFailureAtMs = now;
+      reconnectAttempts = 1;
+      saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
+      scheduleReconnectAfterFailure(reason);
+      return;
+    }
+    // Existing path: CONNECTING/CONNECTED failure → standard RECONNECTING.
+    setState(ConnectionState.RECONNECTING, { reason });
+    reconnectAttempts += 1;
+    if (firstFailureAtMs == null) firstFailureAtMs = now;
+    saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
+    scheduleReconnectAfterFailure(reason);
+  }
+
+  /**
+   * Phase 39 Plan 39-3 D-02: schedules a quick silent retry during the
+   * INITIAL_CONNECT grace window. Fixed 300ms delay — small enough to not
+   * delay legitimate cold-boots, large enough to not busy-loop. Does NOT
+   * touch reconnectAttempts or firstFailureAtMs (those are for RECONNECTING
+   * only).
+   */
+  function scheduleInitialConnectRetry(_reason) {
+    if (pendingRetryTimeout != null) {
+      try { clearTimeout(pendingRetryTimeout); } catch {}
+    }
+    pendingRetryTimeout = setTimeout(() => {
+      pendingRetryTimeout = null;
+      // Only retry if still in INITIAL_CONNECT (operator could have stopped).
+      if (currentState === ConnectionState.INITIAL_CONNECT) {
+        tryConnect();
+      }
+    }, 300);
+  }
+
+  /**
+   * Phase 39 Plan 39-3 D-02: schedules a normal backoff retry after we've
+   * already escalated to RECONNECTING. Mirrors the existing tryConnect catch
+   * block's backoff/countdown plumbing — extracted into a helper so both
+   * the in-flight catch path AND the post-grace escalation path share it.
+   *
+   * @param {string} reason - short tag, used for the countdown overlay
+   */
+  function scheduleReconnectAfterFailure(_reason) {
+    const delay = getBackoffDelay(reconnectAttempts - 1);
+    if (typeof countdownStop === "function") { countdownStop(); }
+    countdownStop = showCountdownReconnect({
+      doc: (typeof document !== "undefined" ? document : null),
+      delayMs: delay,
+      attemptN: reconnectAttempts,
+    });
+    try {
+      setReconnectDetail({
+        doc: (typeof document !== "undefined" ? document : null),
+        lastError: lastErrorMessage,
+        lastSuccessAtMs: lastSuccessfulConnectAtMs,
+      });
+    } catch {}
+    if (pendingRetryTimeout != null) { try { clearTimeout(pendingRetryTimeout); } catch {} }
+    pendingRetryTimeout = setTimeout(() => {
+      pendingRetryTimeout = null;
+      tryConnect();
+    }, delay);
   }
 
   /**
@@ -510,8 +633,21 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       return;
     }
     tryConnectInFlight = true;
-    // 03-T1: enter CONNECTING for the duration of this attempt.
-    setState(ConnectionState.CONNECTING, { reason: "tryConnect-enter" });
+    // Phase 39 Plan 39-3 D-02: route the first-ever attempt through
+    // INITIAL_CONNECT (no RECONNECTING banner during the 5s grace window).
+    // Subsequent attempts (currentState === RECONNECTING or already in
+    // INITIAL_CONNECT for a silent retry) follow the existing pathway:
+    //   - RECONNECTING → CONNECTING (LEGAL_TRANSITIONS)
+    //   - INITIAL_CONNECT → INITIAL_CONNECT (idempotent silent retry)
+    if (currentState === ConnectionState.NEW) {
+      setState(ConnectionState.INITIAL_CONNECT, { reason: "tryConnect-cold-boot" });
+      firstAttemptStartedAtMs = Date.now();
+    } else if (currentState === ConnectionState.RECONNECTING) {
+      setState(ConnectionState.CONNECTING, { reason: "tryConnect-reconnect" });
+    }
+    // If currentState === INITIAL_CONNECT (silent retry during grace), or
+    // === CONNECTING (manual-retry path already transitioned us), leave the
+    // state untouched — both are valid entry conditions for the attempt.
     // 03-T3: any new attempt starts a fresh frame-arrival window. The
     // backoff reset is gated on this counter reaching 1, NOT on the RTC
     // pcState becoming "connected".
@@ -625,9 +761,12 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
           ui.hideSplash();
           ui.hideReconnect();
           ui.hideError();
-          // First frame after CONNECTING — declare success.
+          // First frame after CONNECTING / INITIAL_CONNECT — declare success.
           reconnectAttempts = 0;
           firstFailureAtMs = null;
+          // Phase 39 Plan 39-3 D-02: clear the cold-boot timestamp on success
+          // so a future restart-from-STOPPED can re-enter INITIAL_CONNECT.
+          firstAttemptStartedAtMs = null;
           lastErrorMessage = null;
           lastSuccessfulConnectAtMs = Date.now();
           clearBackoffState(backoffStorage);
@@ -647,8 +786,11 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
               }
             }, 500);
           }
-          // Drive the high-level state to CONNECTED.
-          if (currentState === ConnectionState.CONNECTING) {
+          // Drive the high-level state to CONNECTED. Phase 39 Plan 39-3 D-02:
+          // INITIAL_CONNECT → CONNECTED is also legal (happy-path success
+          // during the cold-boot grace window).
+          if (currentState === ConnectionState.CONNECTING
+              || currentState === ConnectionState.INITIAL_CONNECT) {
             setState(ConnectionState.CONNECTED, { reason: "first-frame" });
           }
         }
@@ -689,50 +831,42 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       const errMsg = err?.message ?? String(err);
       logger.error(`[ssr-receiver] connect failed: ${errMsg}`);
       lastErrorMessage = errMsg.slice(0, 80);
-      // Phase 32 D-B2 → 33 Plan 03-T2: capped retry replaces forever-retry.
-      reconnectAttempts += 1;
-      if (firstFailureAtMs == null) firstFailureAtMs = Date.now();
-      saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
       connectionStableSince = null; // reset stable tracker on failure
-      ui.hideSplash();
+      // Phase 39 Plan 39-3 D-02: route failure through handleConnectFailure.
+      // While in INITIAL_CONNECT during the grace window: silent retry, no
+      // RECONNECTING banner, no capped-retry budget hit. After grace expires
+      // (or for non-INITIAL_CONNECT states): escalate to RECONNECTING with
+      // the existing backoff + countdown plumbing.
+      handleConnectFailure(`attempt-failed:${errMsg.slice(0, 40)}`);
 
-      // 03-T2: GIVEN_UP gate — check BEFORE scheduling another retry.
+      // 03-T2: GIVEN_UP gate — check AFTER handleConnectFailure has updated
+      // reconnectAttempts + firstFailureAtMs (only when escalated past the
+      // INITIAL_CONNECT grace). shouldGiveUp() returns false during
+      // INITIAL_CONNECT, so this branch is a no-op while in grace.
       if (shouldGiveUp()) {
         logger?.warn?.(
           `[receiver] giving up after ${reconnectAttempts} attempts ` +
           `(${Date.now() - firstFailureAtMs}ms elapsed)`,
         );
+        // Cancel the pending retry that handleConnectFailure scheduled so we
+        // don't fight ourselves on the way into GIVEN_UP.
+        if (pendingRetryTimeout != null) {
+          try { clearTimeout(pendingRetryTimeout); } catch {}
+          pendingRetryTimeout = null;
+        }
+        if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
         setState(ConnectionState.GIVEN_UP, { reason: "max-retries-or-duration" });
         return;
       }
-
-      // Use D-B2 schedule: attempt 0→1s, 1→2s, 2→5s, 3→10s, ≥4→30s.
-      const delay = getBackoffDelay(reconnectAttempts - 1);
-      // Phase 32 D-B3: show countdown overlay instead of plain text.
-      if (typeof countdownStop === "function") { countdownStop(); }
-      countdownStop = showCountdownReconnect({
-        doc: (typeof document !== "undefined" ? document : null),
-        delayMs: delay,
-        attemptN: reconnectAttempts,
-      });
-      // Phase 33 Plan 04-T1: feed the status-detail line under the countdown.
-      try {
-        setReconnectDetail({
-          doc: (typeof document !== "undefined" ? document : null),
-          lastError: lastErrorMessage,
-          lastSuccessAtMs: lastSuccessfulConnectAtMs,
-        });
-      } catch {}
-      // 03-T1: drive the high-level state.
-      setState(ConnectionState.RECONNECTING, { reason: `attempt-${reconnectAttempts}-failed` });
-      // Phase 33 Plan 01-T1 (Suspect 4): track the timeout handle so a
-      // producer-ready event from the active receiver's WS can cancel it
-      // and trigger an immediate retry instead of waiting out the backoff.
-      if (pendingRetryTimeout != null) { try { clearTimeout(pendingRetryTimeout); } catch {} }
-      pendingRetryTimeout = setTimeout(() => {
-        pendingRetryTimeout = null;
-        tryConnect();
-      }, delay);
+      // The retry timer is owned by scheduleInitialConnectRetry() (silent
+      // grace path) or scheduleReconnectAfterFailure() (escalated path).
+      // ui.hideSplash() is intentionally NOT called during INITIAL_CONNECT
+      // — we want the splash to stay visible across silent retries. It's
+      // hidden by the receiver's onConnectionStateChange "connected" branch
+      // and the first-frame handler on actual success.
+      if (currentState === ConnectionState.RECONNECTING) {
+        ui.hideSplash();
+      }
     } finally {
       // Phase 32 hotfix h7 (2026-05-07): ALWAYS clear in-flight flag when
       // tryConnect's body completes (try-block returned OR catch-block ran).
@@ -870,45 +1004,39 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
       // D-B4: surface ALL detected reasons in the banner so the operator
       // sees what triggered the reconnect. Empty banner == no info ==
       // bad UX.
-      reconnectAttempts += 1;
-      if (firstFailureAtMs == null) firstFailureAtMs = Date.now();
-      saveBackoffState({ attempts: reconnectAttempts }, backoffStorage);
       connectionStableSince = null;
       connectionStore.connectionStableAtMs = null;
       // Surface the detected reasons so the telemetry line has something.
       if (dec.reasons?.length) {
         lastErrorMessage = dec.reasons.join(",").slice(0, 80);
       }
+      // Phase 39 Plan 39-3 D-02: route through handleConnectFailure. In
+      // monitor context the source state is typically CONNECTED (the
+      // monitor doesn't fire from INITIAL_CONNECT because it gates on
+      // pcState and INITIAL_CONNECT doesn't have a settled pcState), so
+      // this almost always falls through to the standard escalation
+      // branch — but the helper centralizes the bookkeeping (counters,
+      // backoff schedule, countdown overlay) in one place.
+      handleConnectFailure(`monitor:${dec.reasons?.join(",") || "?"}`);
       // 03-T2: capped-retry gate.
       if (shouldGiveUp()) {
         logger?.warn?.(
           `[receiver] monitor: giving up after ${reconnectAttempts} attempts ` +
           `(reasons=${dec.reasons?.join(",") || "?"})`,
         );
+        // Cancel the retry scheduled by handleConnectFailure.
+        if (pendingRetryTimeout != null) {
+          try { clearTimeout(pendingRetryTimeout); } catch {}
+          pendingRetryTimeout = null;
+        }
+        if (typeof countdownStop === "function") { countdownStop(); countdownStop = null; }
         setState(ConnectionState.GIVEN_UP, { reason: "monitor-max-retries-or-duration" });
         try { receiver?.stop(); } catch {}
         return;
       }
-      const monDelay = getBackoffDelay(reconnectAttempts - 1);
-      // Phase 32 D-B3: countdown overlay for monitor-triggered reconnects.
-      if (typeof countdownStop === "function") { countdownStop(); }
-      countdownStop = showCountdownReconnect({
-        doc: (typeof document !== "undefined" ? document : null),
-        delayMs: monDelay,
-        attemptN: reconnectAttempts,
-      });
-      try {
-        setReconnectDetail({
-          doc: (typeof document !== "undefined" ? document : null),
-          lastError: lastErrorMessage,
-          lastSuccessAtMs: lastSuccessfulConnectAtMs,
-        });
-      } catch {}
-      setState(ConnectionState.RECONNECTING, { reason: "monitor-disconnected" });
       try {
         receiver?.stop();
       } catch {}
-      tryConnect();
     }
 
     // Phase 32 D-B2: stable-reset — if connected >= STABLE_RESET_THRESHOLD_MS,
