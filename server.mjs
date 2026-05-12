@@ -1978,6 +1978,18 @@ const MIME_TYPES = {
   ".mp3": "audio/mpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  // Phase 39 Plan 39-2 D-01: video MIME types. Without these, Chromium 131
+  // refuses to decode .mp4 served as application/octet-stream and the
+  // <video> element errors with MEDIA_ELEMENT_ERROR (Format error /
+  // NETWORK_NO_SOURCE). Verified empirically in 39-RESEARCH.md.
+  ".mp4":  "video/mp4",
+  ".webm": "video/webm",
+  ".m4v":  "video/mp4",
+  ".mov":  "video/quicktime",
+  // Additional audio MIME entries (research Pitfall 2 — audit asset extensions).
+  ".ogg":  "audio/ogg",
+  ".aac":  "audio/aac",
+  ".m4a":  "audio/mp4",
 };
 
 function getMimeType(filePath) {
