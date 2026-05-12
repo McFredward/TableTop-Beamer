@@ -3565,14 +3565,67 @@ async function handleStaticFile(req, res, routePath) {
   try {
     const fileStat = await stat(targetPath);
     const resolvedPath = fileStat.isDirectory() ? path.join(targetPath, "index.html") : targetPath;
-    const stream = createReadStream(resolvedPath);
+    const contentType = getMimeType(resolvedPath);
     // Phase-31 h15 (2026-05-06): hardware-agnostic GIF/MP4 fetch fix.
     // Resource paths get Connection: close so HTTP/1.1 clients (Chromium,
     // Pi, Firefox, curl) cannot reuse a half-broken keep-alive socket.
     // See src/server/static-resource-headers.mjs for full rationale.
-    const headers = buildStaticResourceHeaders(routePath, getMimeType(resolvedPath));
+    const headers = buildStaticResourceHeaders(routePath, contentType);
+
+    // Phase 39 Plan 39-2 D-01: HTTP Range request support.
+    // Required so Chromium's <video> element can seek (loop-wrap in
+    // runtime-outside-mp4.js#maybeWrapOutsideMp4Loop sets video.currentTime
+    // and Chromium issues a Range request). Without 206 support the
+    // mp4 re-buffers from byte 0 on every loop wrap.
+    const rangeHeader = req.headers["range"];
+    if (typeof rangeHeader === "string" && rangeHeader.toLowerCase().startsWith("bytes=")) {
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader);
+      if (match) {
+        const totalSize = fileStat.size;
+        const startRaw = match[1];
+        const endRaw = match[2];
+        let start;
+        let end;
+        if (startRaw === "" && endRaw !== "") {
+          // suffix length form: bytes=-N -> last N bytes
+          const suffix = Number(endRaw);
+          start = Math.max(0, totalSize - suffix);
+          end = totalSize - 1;
+        } else if (startRaw !== "" && endRaw === "") {
+          // open-ended form: bytes=N-
+          start = Number(startRaw);
+          end = totalSize - 1;
+        } else if (startRaw !== "" && endRaw !== "") {
+          start = Number(startRaw);
+          end = Math.min(Number(endRaw), totalSize - 1);
+        } else {
+          start = NaN;
+          end = NaN;
+        }
+        if (Number.isFinite(start) && Number.isFinite(end) && start >= 0 && start <= end && start < totalSize) {
+          headers["accept-ranges"] = "bytes";
+          headers["content-range"] = `bytes ${start}-${end}/${totalSize}`;
+          headers["content-length"] = String(end - start + 1);
+          res.writeHead(206, headers);
+          createReadStream(resolvedPath, { start, end }).pipe(res);
+          return;
+        }
+        // Range header was syntactically valid `bytes=N-M` but out of range
+        // → 416 Range Not Satisfiable.
+        res.writeHead(416, { ...headers, "content-range": `bytes */${totalSize}` });
+        res.end();
+        return;
+      }
+      // Unknown units in Range header → fall through to 200 (RFC 7233 §4.4).
+    }
+
+    // Default: full 200 response. Advertise Accept-Ranges on all responses
+    // so clients know seeking is supported (additive header — does not
+    // affect the Phase 31 h15 `connection: close` contract on /resources/animations/).
+    headers["accept-ranges"] = "bytes";
+    headers["content-length"] = String(fileStat.size);
     res.writeHead(200, headers);
-    stream.pipe(res);
+    createReadStream(resolvedPath).pipe(res);
   } catch {
     res.writeHead(404, {
       "content-type": "text/plain; charset=utf-8",
