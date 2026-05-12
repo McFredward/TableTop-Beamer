@@ -60,6 +60,12 @@ import { attachInputForwarder } from "./receiver-input-forwarder.js";
  */
 export const ConnectionState = Object.freeze({
   NEW: "NEW",
+  // Phase 39 Plan 39-3 D-02: first-attempt window, no RECONNECTING banner.
+  // Replaces the direct NEW → CONNECTING edge for cold-boot. Failures during
+  // the INITIAL_CONNECT_GRACE_MS window silently retry instead of routing
+  // through RECONNECTING (which fires the visible banner + counts against
+  // capped-retry budget).
+  INITIAL_CONNECT: "INITIAL_CONNECT",
   CONNECTING: "CONNECTING",
   CONNECTED: "CONNECTED",
   RECONNECTING: "RECONNECTING",
@@ -77,13 +83,41 @@ export const MAX_RECONNECT_ATTEMPTS_BEFORE_GIVEUP = 10;
 export const MAX_TOTAL_RECONNECT_DURATION_MS = 120000; // 2 minutes
 
 /**
+ * Phase 39 Plan 39-3 D-02: first-attempt grace window. While in INITIAL_CONNECT,
+ * failures silently re-enter INITIAL_CONNECT (no RECONNECTING banner) until
+ * this many milliseconds have elapsed since firstAttemptStartedAtMs. After
+ * that the state escalates to RECONNECTING and the existing capped-retry
+ * budget (10 attempts / 120s) engages.
+ *
+ * Configurable via process.env.RECEIVER_INITIAL_CONNECT_GRACE_MS (Node test
+ * harness) or window.__TT_BEAMER_INITIAL_CONNECT_GRACE_MS (browser-side
+ * runtime tuning). Defaults to 5000ms per 39-RESEARCH.md §"D-02 Implementation
+ * approach" step 5.
+ */
+const _ENV_GRACE = (typeof process !== "undefined" && process?.env?.RECEIVER_INITIAL_CONNECT_GRACE_MS) || null;
+const _WIN_GRACE = (typeof window !== "undefined" && window?.__TT_BEAMER_INITIAL_CONNECT_GRACE_MS) || null;
+export const INITIAL_CONNECT_GRACE_MS = Number(_WIN_GRACE ?? _ENV_GRACE) > 0
+  ? Number(_WIN_GRACE ?? _ENV_GRACE)
+  : 5000;
+
+/**
  * Phase 33 Plan 03-T1: legal state transitions (Suspect 14 forcing function).
  * Each entry maps a state to the set of states that can be reached from it.
  * Any `setState()` call outside this graph throws — caught in tests, logged
  * loud in production so contract violations surface immediately.
  */
 const LEGAL_TRANSITIONS = Object.freeze({
-  [ConnectionState.NEW]:          new Set([ConnectionState.CONNECTING, ConnectionState.STOPPED]),
+  // Phase 39 Plan 39-3 D-02: cold boot must go via INITIAL_CONNECT
+  // (no RECONNECTING banner during the publisher-boot race window).
+  // CONNECTING removed from NEW's set — the only legal first move is to
+  // INITIAL_CONNECT (or STOPPED for operator-aborted boots).
+  [ConnectionState.NEW]:          new Set([ConnectionState.INITIAL_CONNECT, ConnectionState.STOPPED]),
+  [ConnectionState.INITIAL_CONNECT]: new Set([
+    ConnectionState.CONNECTED,
+    ConnectionState.RECONNECTING,
+    ConnectionState.HOST_DOWN,
+    ConnectionState.STOPPED,
+  ]),
   [ConnectionState.CONNECTING]:   new Set([
     ConnectionState.CONNECTED,
     ConnectionState.RECONNECTING,

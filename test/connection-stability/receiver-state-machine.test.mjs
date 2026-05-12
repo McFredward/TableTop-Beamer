@@ -41,9 +41,13 @@ test("03-T1: ConnectionState is frozen — cannot mutate", () => {
   assert.throws(() => { ConnectionState.NEW = "tampered"; }, TypeError);
 });
 
-test("03-T1: legal transitions — NEW → CONNECTING + STOPPED only", () => {
-  assertLegalTransition(ConnectionState.NEW, ConnectionState.CONNECTING);
+test("03-T1: legal transitions — NEW → INITIAL_CONNECT + STOPPED only", () => {
+  // Phase 39 Plan 39-3 D-02: NEW → CONNECTING was removed. Cold boot must
+  // route through INITIAL_CONNECT so the 5s grace window suppresses the
+  // RECONNECTING banner during publisher-boot race conditions.
+  assertLegalTransition(ConnectionState.NEW, ConnectionState.INITIAL_CONNECT);
   assertLegalTransition(ConnectionState.NEW, ConnectionState.STOPPED);
+  assert.throws(() => assertLegalTransition(ConnectionState.NEW, ConnectionState.CONNECTING));
   assert.throws(() => assertLegalTransition(ConnectionState.NEW, ConnectionState.CONNECTED));
   assert.throws(() => assertLegalTransition(ConnectionState.NEW, ConnectionState.GIVEN_UP));
   assert.throws(() => assertLegalTransition(ConnectionState.NEW, ConnectionState.RECONNECTING));
