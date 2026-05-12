@@ -548,6 +548,28 @@
     if (typeof dependencies?.getPoint === "function") getPoint = dependencies.getPoint;
   }
 
+  // Phase 38 W12 (2026-05-12): explicit cache invalidation entry point.
+  // restoreGridSnapshot (in grid-state.js) replaces grid.{srcXs,srcYs,points}
+  // wholesale, which can change grid DIMENSIONS (e.g. 3×3 identity → 9×9
+  // xrandrv2 at boot via live-hello eager-apply). The next _postDrawMeshWarpGL
+  // call's cache-mismatch check (`_glCachedRows !== rows`) WOULD detect this
+  // and reallocate the cached typed arrays + rebuild the ELEMENT_ARRAY_BUFFER
+  // indices. However, on the SSR Chromium tab — where the operator observed
+  // the boot-paint desync (W12) — calling this proactively from the grid
+  // mutation site itself ensures the next frame's GL state is guaranteed
+  // fresh even if some intermediate caller (e.g. a `applyTransform()` or
+  // `_redrawHandlesAfterCornerDrag()` hook) reads grid before the next
+  // _postDrawMeshWarpGL tick. The reset is cheap (4 scalar writes); the
+  // actual buffer reallocation still happens lazily on the next draw frame.
+  function invalidateCachedArrays() {
+    _glCachedRows = 0;
+    _glCachedCols = 0;
+    _glPositions = null;
+    _glUVs = null;
+    _glIndices = null;
+    _glIndexCount = 0;
+  }
+
   window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER = {
     init,
     postDrawMeshWarpGL: _postDrawMeshWarpGL,
@@ -557,5 +579,9 @@
     // forces 2D. Reading these is cheap (closure scalars).
     isGlPermanentlyDisabled: () => _glPermanentlyDisabled,
     getGlContextLossCount: () => _glContextLossCount,
+    // Phase 38 W12: invalidation hook called from grid-state.restoreGridSnapshot
+    // so the next draw frame rebuilds vertex / index arrays cleanly after a
+    // grid replacement (vs in-place per-point mutation via setPoint).
+    invalidateCachedArrays,
   };
 })();

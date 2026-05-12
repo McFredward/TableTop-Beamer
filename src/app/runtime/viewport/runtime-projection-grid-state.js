@@ -247,6 +247,43 @@
     grid.srcXs = snap.srcXs.slice();
     grid.srcYs = snap.srcYs.slice();
     grid.points = snap.points.map((row) => row.map((p) => ({ x: p.x, y: p.y })));
+    // Phase 38 W12 (2026-05-12): grid REPLACEMENT path needs to force-refresh
+    // the renderer's per-frame cache + the canvas visibility/display state.
+    //
+    // The boot-paint-desync (operator UAT 2026-05-12): live-hello eager-apply
+    // calls this function on the SSR Chromium tab to install the persisted
+    // xrandrv2 9×9 profile. The operator's log confirmed grid.points was
+    // correctly mutated, yet the streamed video showed the board at fullscreen
+    // identity until the operator dragged a handle. The drag path (Pi → server
+    // → SSR fast-path) doesn't go through restoreGridSnapshot — it calls
+    // setPoint() to mutate a single point in-place. That's why dragging fixed
+    // it but boot didn't.
+    //
+    // Fix: when the WHOLE grid is replaced (vs in-place point mutation), we
+    // (1) tell the GL renderer to drop its cached vertex / index arrays so
+    // the next draw frame fully rebuilds them, and (2) toggle the fx-gl-canvas
+    // display state to force the Chromium compositor to invalidate any cached
+    // capture layer. Both steps together guarantee that the next draw cycle
+    // re-evaluates everything from scratch and the WebRTC tab-capture surface
+    // refreshes immediately — even on environments where the compositor's
+    // damage-tracking would otherwise reuse a stale captured frame.
+    try {
+      window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER?.invalidateCachedArrays?.();
+    } catch (_) { /* defensive — never break a grid restore */ }
+    try {
+      const glCanvasEl = (typeof document !== "undefined")
+        ? document.getElementById("fx-gl-canvas") : null;
+      if (glCanvasEl && glCanvasEl.style) {
+        // Force a layout-affecting style flip so the compositor flags this
+        // surface as dirty. The next postDrawMeshWarp tick (within ~16 ms
+        // at 60 fps) restores the correct display value based on whether
+        // _postDrawMeshWarpGL succeeds. The brief display:none flicker is
+        // imperceptible at the captured frame rate and is the simplest
+        // cross-Chromium-version damage-trigger we have without touching
+        // any Chromium-specific compositor API.
+        glCanvasEl.style.display = "none";
+      }
+    } catch (_) { /* defensive */ }
   }
 
   function pushUndo() {
