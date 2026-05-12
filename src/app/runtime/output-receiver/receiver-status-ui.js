@@ -466,6 +466,32 @@ export function createStatusUi({
     if (splashEl) splashEl.hidden = false;
     if (videoEl) videoEl.hidden = true;
   }
+  /**
+   * Phase 39 Plan 39-3 D-02: INITIAL_CONNECT-state render path. Shows the
+   * same "Connecting to render server…" splash as a fresh boot, but
+   * EXPLICITLY hides the RECONNECTING banner and the status-detail line so
+   * the publisher-boot race window (typically 3-5s) appears to the operator
+   * as a clean first-load splash — NOT as a reconnect storm.
+   *
+   * The bootstrap calls this on entry to INITIAL_CONNECT (cold boot) and
+   * during each silent grace-window retry, so the splash stays consistent
+   * across the 5s window. On escalation to RECONNECTING (grace expired) or
+   * success (first frame), the standard showReconnect / hideSplash paths
+   * take over.
+   *
+   * @param {string} [text]
+   */
+  function showInitialConnect(text = "Connecting to render server…") {
+    // Reuse the existing splash mechanism — same visual contract as the
+    // clean-boot splash. Do NOT show the "RECONNECTING — Xs (attempt N)"
+    // countdown banner during the grace window.
+    showSplash(text);
+    if (reconnectEl) reconnectEl.hidden = true;
+    // Suppress the status-detail line too — there's no error or prior
+    // success to report during a legitimate cold-boot.
+    const detailEl = doc.getElementById("ssr-status-detail");
+    if (detailEl) detailEl.hidden = true;
+  }
   function hideSplash() {
     if (splashEl) splashEl.hidden = true;
     if (videoEl) videoEl.hidden = false;
@@ -624,6 +650,9 @@ export function createStatusUi({
   return {
     showSplash,
     hideSplash,
+    // Phase 39 Plan 39-3 D-02: cold-boot splash that suppresses the
+    // RECONNECTING banner during the INITIAL_CONNECT grace window.
+    showInitialConnect,
     showReconnect,
     hideReconnect,
     showError,

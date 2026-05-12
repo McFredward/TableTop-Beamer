@@ -642,6 +642,10 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     if (currentState === ConnectionState.NEW) {
       setState(ConnectionState.INITIAL_CONNECT, { reason: "tryConnect-cold-boot" });
       firstAttemptStartedAtMs = Date.now();
+      // Phase 39 Plan 39-3 D-02: render the clean cold-boot splash and
+      // explicitly suppress any prior RECONNECTING banner / status-detail
+      // line. This is what the operator sees during the 5s grace window.
+      try { ui.showInitialConnect("Connecting to render server…"); } catch {}
     } else if (currentState === ConnectionState.RECONNECTING) {
       setState(ConnectionState.CONNECTING, { reason: "tryConnect-reconnect" });
     }
@@ -743,8 +747,14 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
           setState(ConnectionState.HOST_DOWN, { reason: "server-render-host-down" });
         }
         if (s === "failed" || s === "ws-closed") {
-          ui.hideSplash(); // h5: reconnect banner must be visible above splash
-          ui.showReconnect(`Server reconnecting (${s})…`);
+          // Phase 39 Plan 39-3 D-02: suppress the RECONNECTING banner while
+          // in INITIAL_CONNECT — the cold-boot splash stays visible during
+          // the 5s grace window. handleConnectFailure routes the failure
+          // (silent retry vs. escalate) per the grace-window contract.
+          if (currentState !== ConnectionState.INITIAL_CONNECT) {
+            ui.hideSplash(); // h5: reconnect banner must be visible above splash
+            ui.showReconnect(`Server reconnecting (${s})…`);
+          }
         }
       });
       // h5: hide the splash on the FIRST received frame too — `connected`
