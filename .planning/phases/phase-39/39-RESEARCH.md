@@ -956,32 +956,32 @@ The planner should add Wave 0 tasks to create:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **D-01 / D-03 — What is the operator's renderMode log value?**
    - What we know: it's logged every 10s via `ssr-stats.renderMode` per `ssr-webrtc-signaling.mjs:485-491`.
    - What's unclear: the operator's actual recent server stdout contents.
-   - Recommendation: include in the W1 RED phase — capture `[ssr-stats] renderMode=...` from a clean cold-boot.
+   - **RESOLVED:** Captured during Plan 39-1 Task 3 (renderMode telemetry capture) → written to `.planning/phases/phase-39/39-1-DIAG.md`. This file gates Plan 39-4 Task 1 (sub-path A vs B decision).
 
 2. **D-01 — Has the operator EVER seen MP4 work in SSR?**
    - What we know: GIF works (operator confirmed), MP4 doesn't.
    - What's unclear: whether the MIME table has had `.mp4` removed at some point (git blame), or it was never added.
-   - Recommendation: `git log -p server.mjs | grep -A2 'mp4'` to verify the table never had `.mp4`. If never had it: D-01 was always broken, the operator only noticed now because Phase 38 W10 made other issues fade. If once had it and removed: figure out which commit and why.
+   - **RESOLVED:** Low-risk question, deferred as an informational probe. Plan 39-2 Task 1 `<read_first>` includes the read of server.mjs which surfaces the MIME table state; the fix is identical regardless of historical state ("add `.mp4: video/mp4`"). If git blame reveals a regression-removal commit, it gets recorded in 39-2 as a comment but does not change the fix.
 
 3. **D-02 — Is `INITIAL_CONNECT_GRACE_MS = 5000` the right number?**
    - What we know: typical cold boot on the dev box is 3-8s.
    - What's unclear: the operator's actual cold-boot duration on the gaming PC.
-   - Recommendation: instrument the new state-transition log to print `[receiver] state INITIAL_CONNECT → CONNECTED after ${elapsed}ms`. Operator can report.
+   - **RESOLVED:** Plan 39-3 Task 1 makes the constant env-configurable (`INITIAL_CONNECT_GRACE_MS` env var) per assumption A3 in this research. Operator can tune via env without code change. State-transition log includes elapsed-ms so tuning is data-driven.
 
 4. **D-03 — Are debug PNGs from Phase 35-iter2 (`debug/phase35*banding*.png`) showing the same seams as the operator's current report?**
    - What we know: they exist; phase-description says "Look at debug PNGs from Phase 35-iter2".
    - What's unclear: whether the operator's 2026-05-12 UAT seams match those images visually.
-   - Recommendation: include side-by-side in W3 (fix wave) as a visual regression baseline.
+   - **RESOLVED:** Plan 39-4 Task 2 writes before/after CDP screenshots to `.planning/phases/phase-39/` as visual regression evidence. Side-by-side comparison with Phase 35-iter2 debug PNGs is included in 39-CLOSURE.md (Plan 39-5 Task 2 acceptance). Operator UAT in 39-5 Task 3 is the authoritative visual confirm.
 
 5. **D-02 — Should the server reject consumer WS upgrades until producer-ready?**
    - What we know: `waitForProducer` polling exists at `/api/ssr/ready` but is best-effort.
    - What's unclear: whether enforcing it server-side would close edge races at the cost of cold-boot latency.
-   - Recommendation: defer to Phase 40 if D-02 fix in receiver-only proves insufficient.
+   - **RESOLVED:** Explicitly deferred to Phase 40 (or later) if 39-3 receiver-only fix proves insufficient during operator UAT. Phase 39's INITIAL_CONNECT state addresses the symptom; the structural server-side gating is a larger architecture change out of Phase 39 scope.
 
 ---
 
