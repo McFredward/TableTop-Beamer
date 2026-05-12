@@ -35,6 +35,13 @@
   let _glAttrPos = -1;
   let _glAttrUV = -1;
   let _glUniTex = null;
+  // Phase 39 Plan 39-4 D-03 sub-path B: texture-dimensions uniform location.
+  // Used by the fragment shader's UV-inset epsilon
+  // (clamp(vUV, 0.5/uTexSize, 1.0 - 0.5/uTexSize)) to ensure adjacent
+  // cells sampling at a shared boundary land on the SAME interior texel
+  // from both sides — prevents 1-px ridges from rasterizer-coverage
+  // disagreement at triangle edges. 39-RESEARCH §D-03 Candidate B1.
+  let _glUniTexSize = null;
   // Cached typed arrays so we don't allocate fresh Float32Array /
   // Uint16Array every frame on RPi. Sized for the current grid; we
   // reallocate only when rows/cols change.
@@ -233,6 +240,10 @@
         _glAttrPos = -1;
         _glAttrUV = -1;
         _glUniTex = null;
+        // Phase 39 Plan 39-4 D-03 sub-path B: reset uTexSize uniform location
+        // alongside _glUniTex so the next _initMeshWarpGL re-fetches it on
+        // the freshly-restored context.
+        _glUniTexSize = null;
         _glPositions = null;
         _glUVs = null;
         _glIndices = null;
@@ -267,11 +278,22 @@
         + "void main(){ gl_Position = vec4(aPos, 0.0, 1.0); vUV = aUV; }",
         _gl.VERTEX_SHADER,
       );
+      // Phase 39 Plan 39-4 D-03 sub-path B: shrink UV by half a texel on
+      // each side so cells sampling at a shared boundary land on the SAME
+      // interior texel from both sides. Prevents 1-px ridges from
+      // rasterizer-coverage disagreement at triangle edges that Phase 30
+      // pixel-snap alone could not close on the SSR Chromium's GL impl.
+      // 39-RESEARCH §D-03 Candidate B1; 39-1-DIAG.md → renderMode=gl →
+      // sub-path B chosen in 39-4-SUBPATH.md.
       const fs = compile(
         "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n"
         + "#else\nprecision mediump float;\n#endif\n"
         + "varying highp vec2 vUV;\nuniform sampler2D uTex;\n"
-        + "void main(){ gl_FragColor = texture2D(uTex, vUV); }",
+        + "uniform vec2 uTexSize;\n"
+        + "void main(){\n"
+        + "  vec2 uv = clamp(vUV, 0.5 / uTexSize, 1.0 - 0.5 / uTexSize);\n"
+        + "  gl_FragColor = texture2D(uTex, uv);\n"
+        + "}",
         _gl.FRAGMENT_SHADER,
       );
       if (!vs || !fs) return false;
@@ -287,6 +309,13 @@
       _glAttrPos = _gl.getAttribLocation(_glProgram, "aPos");
       _glAttrUV = _gl.getAttribLocation(_glProgram, "aUV");
       _glUniTex = _gl.getUniformLocation(_glProgram, "uTex");
+      // Phase 39 Plan 39-4 D-03 sub-path B: fetch the uTexSize uniform
+      // location so _postDrawMeshWarpGL can hand the fragment shader the
+      // current texture dimensions for the UV-inset epsilon. May return
+      // null if the GLSL optimizer culls the uniform (e.g. dead-code
+      // elimination on impls that prove the clamp is a no-op) — the
+      // setter is guarded with `if (_glUniTexSize !== null)` below.
+      _glUniTexSize = _gl.getUniformLocation(_glProgram, "uTexSize");
       _glTexture = _gl.createTexture();
       _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
       // Phase 30 B1 h4: NEAREST → LINEAR. Phase-26-h9 chose NEAREST
@@ -491,6 +520,19 @@
     _gl.activeTexture(_gl.TEXTURE0);
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
+    // Phase 39 Plan 39-4 D-03 sub-path B: hand the fragment shader the
+    // current source-canvas dimensions so the UV-inset epsilon
+    // (clamp(vUV, 0.5/uTexSize, ...)) lands on exactly 0.5 of a texel
+    // (~0.0005 UV units at 1920px wide — visually imperceptible, but
+    // exactly enough to make the texel sampled at a shared cell
+    // boundary identical from both sides). `w`/`h` here are the source
+    // canvas's intrinsic pixel dimensions (assigned at the top of this
+    // function from `canvas.width`/`canvas.height`), matching what the
+    // `gl.texImage2D(..., canvas)` upload sees. _glUniTexSize may be
+    // null if the GLSL optimizer dropped the uniform — skip silently.
+    if (_glUniTexSize !== null) {
+      _gl.uniform2f(_glUniTexSize, w, h);
+    }
 
     // In /output/ the GL canvas itself is the visible
     // surface, so clear it OPAQUE black (the projector's "no light"
