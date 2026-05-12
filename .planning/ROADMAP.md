@@ -866,6 +866,55 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
+## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (PLANNING)
+
+Ziel: Drei vom Operator gemeldete SSR-Defekte aus dem UAT 2026-05-12 (nach Phase 38 Closure) abschließen. Alle drei landen in einer Phase, weil sie alle SSR-Stabilisierung sind und parallel implementierbar bleiben.
+
+**D-01 — MP4 Animationen spielen nicht im SSR Stream**
+Getestet mit Nemesis Lockdown A's outside-Animation. GIF-Animationen funktionieren (Operator-Log zeigt `[gif-probe] decode-success`), MP4 nicht. SSR Chromium startet mit `--autoplay-policy=no-user-gesture-required` und `--mute-audio`. Wahrscheinliche Ursachen: codec-support in Headless Chromium 131 ohne ffmpeg-extras, fehlender CORS/range-request für lokale MP4-Files, oder das outside-mp4 video element wird im SSR-DOM nie an die richtige Layer angehängt.
+
+**D-02 — Reconnect Storms vor stabiler Verbindung**
+Operator-Beobachtung: einmal verbunden ist die Connection stabil, aber davor passieren wiederholt RECONNECT-Events. Phase 33 hatte connection-stability deep-dive (PASS-AUTOMATED-PENDING-PI-HARDWARE), Phase 32 SSR Stream Performance. Hypothese: initial-connect race zwischen WebRTC ICE-Gathering, SSR-Tab-Boot, und WebSocket-Bundle-Restore. Phase 38 W10 (WS-Fragmentation) hat WS gehärtet — möglicherweise tauchten Reconnects nur deshalb auf, weil der Initial-Handshake jetzt durchgeht aber andere Layer noch nicht ready sind.
+
+**D-03 — Mesh-Warp Seam Lines (Streifen, besonders solid-color)**
+Operator-Quote: "die deutlich sichtbaren Linien… insbesondere in der solid-color Animation sind sie offensichtlich zu sehen — die sollen komplett verschwinden — in der Vergangenheit haben wir das Problem schon des Öfteren mal behoben gehabt, nach der Implementierung von SSR ist es wieder aufgetreten". Phase 30 closed banding-fix-attempt #1, Phase 35-iter2 h3 hatte Bayer-4×4-Dither + drawImage-clip (carried-forward), Phase 37 deferred-as-still-broken. Nach SSR-Pivot (Phase 31) ist das Problem zurückgekehrt — wahrscheinlich weil das post-warp Pixel-Grid jetzt anders abgetastet wird (Chromium getDisplayMedia compositor sampling, GL mesh-warp UV-bleeding, oder Bayer-Pattern verschwand aus dem SSR-render-path).
+
+Background:
+Phase 38 closed (commit `e881a83`, tag `phase-38-closed`) mit WS-Fragmentation, Align-Off-Teardown, Boot-Paint und 10/90-Inset-Default. Operator UAT 2026-05-12 bestätigte: Sync-Issues sind weg. Diese drei Defekte bleiben.
+
+Scope:
+- **W1 RESEARCH** (gsd-phase-researcher):
+  - D-01: trace MP4 path in `src/app/runtime/render/runtime-outside-mp4.js` vs GIF path; check Chromium 131 ffmpeg-codec status with `chrome://media-internals`; CDP-inspect das `<video>` element in SSR-Tab; check ob die MP4-URL überhaupt vom Server gerequestet wird (server-log grep)
+  - D-02: read Phase 33 RESEARCH+CLOSURE; investigate initial-connect handshake timing (WebRTC, WS, SSR-tab boot order); identify ob D-02 ein Layer-Race ist oder ein echter Reconnect-Loop
+  - D-03: read `.planning/phases/phase-30/*`, `.planning/phases/phase-35-*/*`, `.planning/phases/phase-37/*` für historische Banding-Fix-Pattern; identify warum SSR-Pivot (Phase 31) das Problem reintroduced hat; entscheide ob GL mesh-warp, post-warp compositor sampling, oder ein verlorener Dither-Pass schuld ist
+- **W2 RED tests**: ein Playwright/CDP-Reproduzer pro Defekt, jeder fällt heute, jeder grünt nach Fix
+- **W3+ Fixes**: ein Fix-Commit pro Defekt; Tests bleiben grün
+
+Exit Criteria:
+- D-01: MP4-Animation aus Nemesis Lockdown A spielt sichtbar im SSR-Stream (CDP-Screenshot zeigt Frame-Wechsel zwischen t=0s und t=2s; operator-UAT confirm)
+- D-02: 30s cold-start reconnect-stability test zeigt < 2 RECONNECT-Events; oder root-cause-Erklärung dass es kein echter Reconnect ist sondern initial-connect Phase
+- D-03: Solid-color-Animation im SSR-Stream zeigt keine sichtbaren Streifen bei 3×3, 5×5 und 9×9 Grid; CDP-Screenshot Pixel-Vergleich bestätigt einheitliche Farbe entlang Grid-Zellen
+- Phase 38 Carry-Forwards bleiben grün: WS-Fragmentation-Tests, W11 Align-Off-Teardown, W12 GL-Cache-Invalidation, W13 10/90-Inset-Default
+- D-08 connection-stability `fail=0`
+
+Out of Scope:
+- Phase 36.1 dashboard runtime-orchestration migration (separate)
+- Andere SSR-Defekte die nicht in der UAT 2026-05-12 gemeldet wurden
+
+Carrying forward (LOCKED, aus Phase 38):
+- WS frame reassembly in server.mjs (W10)
+- boot-handle-ui teardown ordering (W11)
+- GL cache invalidation on grid replace (W12)
+- 10/90 inset default für fresh profiles (W13)
+- Alle Phase 38 W1-W9 Fixes
+- VAAPI default-disabled (Phase 33 commit 3cd6748)
+- Phase 35-iter2 h3 Bayer dither + drawImage clip (falls noch effective im SSR-Pfad)
+- output-live-sync.js subscription contract
+
+Requirements: Phase 39 introduces three new acceptance criteria (D-01-MP4-PLAYBACK, D-02-COLD-START-STABILITY, D-03-NO-SEAMS) als Teil des SSR-Stabilization Track.
+
+---
+
 ## Phase 38 - SSR/Pi Sync, WS Fragmentation, Boot Paint (CLOSED-W13, 2026-05-12)
 
 **Final outcome — 13 waves over 2 weeks. THE root cause was W10.**
