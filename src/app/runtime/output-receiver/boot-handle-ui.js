@@ -362,6 +362,38 @@ export function bootHandleUi(args) {
 
   // ── Returned handle ──
   function stop() {
+    // Phase 38 W11 (2026-05-12): explicit handle teardown BEFORE unsubscribing
+    // listeners. The previous order — unsubscribe first, then `showHandles?.(false)`
+    // — was doubly broken:
+    //   1) showHandles is a zero-arg function; the `false` was ignored and
+    //      the call became a no-op (W9 noticed this but only fixed the
+    //      subscription path, not stop()'s teardown).
+    //   2) Even if we replace it with a proper hide call, the subscription
+    //      iteration order means stop() is called from the loader's
+    //      deactivate which is the FIRST handler in the Set. Calling
+    //      _offAlignModeChange() here removes boot-handle-ui's listener
+    //      from the Set DURING iteration — JavaScript's Set iteration skips
+    //      items deleted before being visited, so boot-handle-ui's own
+    //      listener (which would have called HANDLE_UI.onAlignModeChange(false))
+    //      NEVER FIRES on align-off. Operator UAT 2026-05-11: "Das
+    //      deaktivieren des align modes funktioniert nicht. /output/ overlay
+    //      bleibt aktiv". The W9 fix didn't take effect for the same reason.
+    //
+    // Fix: call HANDLE_UI.onAlignModeChange(false) BEFORE unsubscribing so
+    // handles + lineCanvas + room polygons are torn down regardless of the
+    // iteration-deletion race.
+    try {
+      if (typeof HANDLE_UI.onAlignModeChange === "function") {
+        HANDLE_UI.onAlignModeChange(false);
+      } else {
+        HANDLE_UI.hideHandles?.();
+      }
+    } catch (e) { /* teardown guard */ }
+    try {
+      if (typeof document !== "undefined") {
+        document.body?.classList?.remove("align-mode-active");
+      }
+    } catch (e) { /* teardown guard */ }
     try { _offAlignModeChange?.(); } catch (e) { /* listener guard */ }
     try { _offProjectionProfileChange?.(); } catch (e) { /* listener guard */ }
     try {
@@ -369,13 +401,6 @@ export function bootHandleUi(args) {
         window.removeEventListener("resize", _onResize);
       }
     } catch (e) { /* listener guard */ }
-    try { HANDLE_UI.showHandles?.(false); } catch (e) { /* teardown guard */ }
-    try {
-      if (typeof document !== "undefined") {
-        document.body?.classList?.remove("align-mode-active");
-      }
-    } catch (e) { /* teardown guard */ }
-    try { HANDLE_UI.teardown?.(); } catch (e) { /* teardown guard */ }
     logger?.log?.(`${_LOG_PREFIX} stopped`);
   }
 
