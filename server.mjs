@@ -3638,6 +3638,56 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // Phase 39 Plan 39-1: Generic CDP eval endpoint for diagnostic tests.
+    // Reused by D-01 (probe <video> readyState) and D-03 (probe renderMode +
+    // DOM state). Security: localhost-only OR SSR_DIAG_ENABLE=1; expr length
+    // <= 2048; no newlines; no nested eval/Function patterns. See
+    // 39-RESEARCH.md "Security baseline".
+    //
+    // Returns:
+    //   200 { ok: true, value: <CDP-returnByValue result> } on success
+    //   403 { ok: false, error: "forbidden" } when non-localhost without env-gate
+    //   400 { ok: false, error: "invalid_expr" } when expr fails validation
+    //   503 { ok: false, error: "ssr_host_not_available" } when CDP not attached
+    //   500 { ok: false, error: <msg> } on host.evaluateInTab throw
+    if (req.method === "GET" && routePath === "/api/diag/ssr-eval-in-tab") {
+      const remote = req.socket?.remoteAddress || "";
+      const isLocalhostAddr = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+      if (!isLocalhostAddr && process.env.SSR_DIAG_ENABLE !== "1") {
+        res.writeHead(403, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "forbidden" }));
+        return;
+      }
+      const urlObj = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      const expr = urlObj.searchParams.get("expr");
+      if (
+        typeof expr !== "string"
+        || expr.length === 0
+        || expr.length > 2048
+        || /[\n\r]/.test(expr)
+        || /eval\s*\(|Function\s*\(/.test(expr)
+      ) {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "invalid_expr" }));
+        return;
+      }
+      const host = getActiveSsrRenderHost();
+      if (!host || typeof host.evaluateInTab !== "function") {
+        res.writeHead(503, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "ssr_host_not_available" }));
+        return;
+      }
+      try {
+        const result = await host.evaluateInTab(expr, { timeoutMs: 3000 });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: true, value: result }));
+      } catch (err) {
+        res.writeHead(500, { "content-type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: String(err?.message || err) }));
+      }
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
         ok: true,
