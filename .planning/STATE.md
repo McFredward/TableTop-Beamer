@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Milestone complete
-last_updated: "2026-05-10T18:34:52.598Z"
+last_updated: "2026-05-12T22:45:00Z"
 progress:
-  total_phases: 35
-  completed_phases: 12
-  total_plans: 62
-  completed_plans: 158
+  total_phases: 39
+  completed_phases: 13
+  total_plans: 67
+  completed_plans: 163
   percent: 100
 ---
 
@@ -23,14 +23,14 @@ progress:
 ## Lifecycle
 
 - Planning Mode: active
-- Current Phase: 19
-- Current Phase Key: phase-19
-- Last Prepared: 2026-04-18
+- Current Phase: 40 (next planned)
+- Current Phase Key: phase-40
+- Last Prepared: 2026-05-12
 - Execution Readiness: PLANNING
-- Previous Phase: 18 (CLOSED)
-- Last Executed Plan: 18 (UX Overhaul — Dashboard restructure, Settings consolidation, Polygon workflow + Undo/Redo, Mobile-First, Visual Polish, Quick Mode animation picker, Loading overlay, Outside MP4 stability, Pan freedom, Landscape layout)
-- Planned Next Execution: Phase 19 — Align Mode Overhaul + Projection Mapping
-- Last Execution Summary: Phase 18 delivered comprehensive UX overhaul: Quick Mode promotion with inline animation picker, Settings panel consolidation, animation create/edit workflow rework, terminology update, polygon context menu + undo/redo system, mobile-first polish (landscape side-by-side, slider touch guard, pill subtabs), visual modernization (glassmorphism panels, custom sliders), loading overlay with server-snapshot awareness, outside MP4 restart fix, pan at any zoom, canvas sizing fix for rotation, dblclick vertex insert, English texts
+- Previous Phase: 39 (CLOSED-PENDING-VISUAL-UAT)
+- Last Executed Plan: 39 (D-01 MP4 MIME + D-02 INITIAL_CONNECT state + D-03 mesh-warp seam fix — sub-path B UV-inset)
+- Planned Next Execution: Phase 40 — TBD (after operator visual UAT of Phase 39)
+- Last Execution Summary: Phase 39 closed three SSR defects from operator UAT 2026-05-12: D-01 MP4 MIME table extension + RFC 7233 Range support in server.mjs; D-02 INITIAL_CONNECT state in receiver-bootstrap.js suppressing RECONNECTING banner during 5s cold-boot grace; D-03 mesh-warp seam fix via 0.5-texel UV-inset epsilon in runtime-projection-gl-renderer.js fragment shader (sub-path B per renderMode=gl decision). All 16/16 automated regression sections GREEN: Phase 38 W1/W2/W10/W11/W12, Phase 33 receiver-state-machine, Phase 32 cold-boot, Phase 35 Bayer, Phase 31 h15 static-resource-headers, D-08 connection-stability fail=0 (sustained 31504ms closed=false). Visual UAT pending operator hardware verification; tag phase-39-closed-automated until then.
 
 ## Source Inputs
 
@@ -1728,3 +1728,33 @@ progress:
 - Pi-hardware UAT deferred per D-10 carry-forward (matches Phase 33/34/35 pattern)
 - Phase 36.1 follow-up tracked in ROADMAP (dashboard `runtime-orchestration.js` migration to `bootHandleUi`)
 - Tag: `phase-36-end-pending-pi-uat` until operator Pi UAT confirms; then retag `phase-36-end`
+
+## Phase 39 Plan 39-5 Closure (2026-05-12)
+
+- Plan 39-5 (full regression matrix + closure docs + tag `phase-39-closed-automated`) is COMPLETE under auto-mode operator directive. Two atomic commits: `a2da763` (Task 1 — `docs(39-5): Task 1 — full regression matrix GREEN (16 sections, fail=0)`, created `.planning/phases/phase-39/39-5-REGRESSION-LOG.md` with 16 test sections all Exit code 0); and the closure commit (Task 3 — 39-CLOSURE.md + STATE.md + ROADMAP.md + CRITICAL_KNOWN_BUGS.md). The operator-checkpoint Task 2 was auto-approved-pending-visual per directive — all automated rails GREEN; operator must still visually verify D-01 sandstorm.mp4 / D-02 RECONNECT-free cold-boot / D-03 solid-color seamless rendering on hardware before retagging to `phase-39-closed`.
+- 39-5 regression evidence: 16/16 test sections GREEN. D-08 sustained 31504ms heartbeats=21 closed=false producerReady=0 producerClosed=0 renderHostDown=0. D-02 reconnectingEvents=0 in 30s cold-boot. D-03 max_delta=0 on every interior strip across 3×3, 5×5, 9×9 parametric grids. D-01 live e2e PASS 10.58s, readyState=4, videoWidth=1280, monotonic currentTime.
+- 39-5 closure verdict: **CLOSED-PENDING-VISUAL-UAT** (2026-05-12). Tag: `phase-39-closed-automated`. Retag to `phase-39-closed` after operator visual UAT confirms D-01/D-02/D-03 on operator hardware.
+- Closure-Dokument: `.planning/phases/phase-39/39-CLOSURE.md` + `.planning/phases/phase-39/39-5-REGRESSION-LOG.md` + per-plan SUMMARYs (39-1, 39-2, 39-3, 39-4).
+
+## Decisions Phase 39
+
+- Phase 39 fixed three SSR defects from operator UAT 2026-05-12 in one phase: D-01 MP4-Playback (`server.mjs` MIME table + RFC 7233 Range), D-02 cold-boot reconnect storms (`receiver-bootstrap.js` INITIAL_CONNECT state machine extension), D-03 mesh-warp seams (`runtime-projection-gl-renderer.js` UV-inset fragment-shader epsilon — sub-path B per dev-box renderMode=gl).
+- D-03 sub-path B chosen over sub-path A: dev-box renderMode=gl proves GL is active, so seams are sampling artefacts not 2D-fallback. Sub-path A (`--use-angle=swiftshader`) would risk regressing the Phase 34 hotfix h2 Mesa-llvmpipe synchronous-flush protection (D-08 fail>0).
+- D-02 INITIAL_CONNECT_GRACE_MS = 5000ms: covers typical Chromium tab boot + publisher mediasoup-produce RPC roundtrip (operator UAT observed 3-10s).
+- All Phase 38 carry-forwards (W1/W2/W10/W11/W12) verified GREEN on closure commit. Phase 33 receiver-state-machine adapted minimally (NEW->INITIAL_CONNECT) without breaking other transitions.
+- L13 VAAPI flag lock preserved verbatim — `ssr-render-host.mjs` not touched in this phase.
+- Three new entries added to `.planning/CRITICAL_KNOWN_BUGS.md`: #3 MP4-MIME-octet-stream class, #4 INITIAL_CONNECT state-machine classification, #5 renderMode-before-GL-edits discipline.
+
+## Phase 39 Status
+
+- Phase 39 status: **CLOSED-PENDING-VISUAL-UAT** (2026-05-12)
+- All 5 plans executed: 39-1 (diagnostic infra + RED tests), 39-2 (D-01 MP4 MIME + Range), 39-3 (D-02 INITIAL_CONNECT state), 39-4 (D-03 UV-inset sub-path B), 39-5 (verify + close) — all SUMMARY documents committed to master
+- Automated regression matrix: 16/16 sections GREEN, 0 failures
+- D-08 connection-stability hard gate preserved (fail=0 with RUN_LIVE_TESTS=1)
+- VAAPI default-disabled (Phase 33 L6) preserved — `ssr-render-host.mjs` byte-identical
+- Phase 35-iter2 h3 Bayer dither (L7) and output-live-sync.js subscription contract (L8) preserved
+- Phase 38 W10 WS-fragmentation rail (L1) preserved (4/4 subtests GREEN)
+- Phase 30 pixel-snap (lines 456-478) byte-identical
+- Phase 38 W12 invalidateCachedArrays (lines 552-571) byte-identical
+- Visual UAT pending operator hardware verification (D-01 sandstorm.mp4 playback, D-02 cold-boot RECONNECT-free, D-03 solid-color seamless)
+- Tag: `phase-39-closed-automated` until operator visual UAT confirms; then retag `phase-39-closed`

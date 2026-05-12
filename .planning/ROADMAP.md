@@ -866,7 +866,7 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (PLANNING)
+## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (CLOSED-PENDING-VISUAL-UAT, 2026-05-12)
 
 Ziel: Drei vom Operator gemeldete SSR-Defekte aus dem UAT 2026-05-12 (nach Phase 38 Closure) abschließen. Alle drei landen in einer Phase, weil sie alle SSR-Stabilisierung sind und parallel implementierbar bleiben.
 
@@ -912,6 +912,24 @@ Carrying forward (LOCKED, aus Phase 38):
 - output-live-sync.js subscription contract
 
 Requirements: Phase 39 introduces three new acceptance criteria (D-01-MP4-PLAYBACK, D-02-COLD-START-STABILITY, D-03-NO-SEAMS) als Teil des SSR-Stabilization Track.
+
+**Plans:** 5 plans
+
+Plans:
+- [x] 39-1-PLAN.md — Wave 0: diagnostic infra (/api/diag/ssr-eval-in-tab) + 6 RED tests (one per defect + renderMode probe) + capture operator renderMode telemetry to 39-1-DIAG.md
+- [x] 39-2-PLAN.md — Wave 1: D-01 MP4 MIME fix + Range support in server.mjs (depends on 39-1)
+- [x] 39-3-PLAN.md — Wave 1: D-02 INITIAL_CONNECT state in receiver-bootstrap.js + receiver-status-ui.js (depends on 39-1, parallel with 39-2)
+- [x] 39-4-PLAN.md — Wave 2: D-03 mesh-warp seam fix (sub-path B UV-inset shader chosen per 39-1-DIAG.md renderMode=gl)
+- [x] 39-5-PLAN.md — Wave 3: phase verification + operator UAT checkpoint + tag phase-39-closed-automated (depends on 39-2, 39-3, 39-4)
+
+**Closure:** All three defects fixed in one wave each (39-1 diagnostic + 39-2 D-01 +
+39-3 D-02 + 39-4 D-03 + 39-5 verify). See `.planning/phases/phase-39/39-CLOSURE.md`
+for evidence. Automated regression matrix: 16/16 sections GREEN. All Phase 38
+carry-forwards GREEN. D-08 connection-stability fail=0 (sustained 31504ms
+closed=false). Tag (Stage 1): `phase-39-closed-automated`. Operator visual UAT
+pending — when D-01 sandstorm.mp4 / D-02 cold-boot RECONNECT-free / D-03 solid-color
+seamless are confirmed on operator hardware, retag `phase-39-closed` and flip
+status to `CLOSED`.
 
 ---
 
