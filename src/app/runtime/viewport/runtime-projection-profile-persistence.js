@@ -615,6 +615,35 @@
   }
 
   async function _postAlignModeDirtyToServer(nextDirty) {
+    // Phase 39.1 G3-PROBE: log call-site + state on every dirty=true POST
+    // so we can confirm Hypothesis C (HANDLE_UI._refreshAlignToolbarVisual
+    // reading stale _loadedProfileSnapshot after a remote-pushed grid
+    // arrives during board-switch). Greppable by "[G3-PROBE]" in the
+    // SSR-tab console or via /api/diag/ssr-eval-in-tab. Probe stays in
+    // place permanently — it only fires on dirty=true POSTs, which are
+    // already server-rate-limited to 100ms (T-27-03), so the overhead
+    // is negligible. Wrapped in try/catch so a probe failure can NEVER
+    // break dirty-flag posting.
+    if (nextDirty === true) {
+      try {
+        const _g3stack = (new Error("G3-PROBE")).stack || "(no stack)";
+        const _g3snap = _gridStateApi?.snapshotGridState?.();
+        const _g3rows = _g3snap?.srcYs?.length ?? "?";
+        const _g3cols = _g3snap?.srcXs?.length ?? "?";
+        const _g3boardId =
+          (typeof getCurrentBoardId === "function" ? getCurrentBoardId() : null)
+          ?? "?";
+        const _g3loaded = _loadedProfileName ?? "(none)";
+        const _g3hasSnap = !!_loadedProfileSnapshot;
+        console.warn(
+          "[G3-PROBE] dirty=true POST initiated boardId=" + _g3boardId +
+          " loadedProfile=" + _g3loaded +
+          " hasSnapshot=" + _g3hasSnap +
+          " grid=" + _g3rows + "x" + _g3cols +
+          "\nstack:\n" + _g3stack
+        );
+      } catch (_e) { /* probe must never crash callers */ }
+    }
     if (_alignModeDirtyPostInflight) return;
     _alignModeDirtyPostInflight = true;
     try {
