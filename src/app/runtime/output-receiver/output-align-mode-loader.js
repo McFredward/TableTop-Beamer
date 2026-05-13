@@ -428,6 +428,17 @@ export function bootAlignModeLoader({
   /** @type {{stop: Function, hitTestVertex?: Function} | null} */
   let _currentBootHandle = null;
   let stopped = false;
+  // Phase 39.1 G3a (2026-05-13): monotonic token incremented by every
+  // activate() call. Each in-flight activate() captures myToken at entry;
+  // after every await it checks myToken !== _activationToken and returns
+  // early. Prevents stale post-await side-effects from a board-switch-N
+  // activate() clobbering board-switch-N+1 state — the dynamic import
+  // at line ~525 yields control for 50-500ms, during which a fresh
+  // onProjectionProfileChange may have already started a new activate.
+  // Pairs with the synchronous teardown at the onProjectionProfileChange
+  // handler below; together they close G3's "handles without overlay"
+  // window AND any leftover stale-import side-effects.
+  let _activationToken = 0;
   // Phase 36 M3 T1 — videoEl resize tracking (cleared on deactivate)
   let _videoEl = null;
   let _videoResizeFn = null;
@@ -456,10 +467,18 @@ export function bootAlignModeLoader({
 
   async function activate() {
     if (stopped) return;
+    // Phase 39.1 G3a: capture activation token at entry. Every await
+    // below MUST be followed by a stale-token check that returns early
+    // if a newer activate() has started in the meantime. See the
+    // _activationToken declaration block above for the full rationale.
+    const myToken = ++_activationToken;
     try {
       await loadBundleOnce();
+      if (myToken !== _activationToken) return;
       if (!runtimeBoards.length) await refreshBoardCatalog();
+      if (myToken !== _activationToken) return;
       if (!activeBoardId) await refreshSelectedBoard();
+      if (myToken !== _activationToken) return;
 
       // If the live-sync snapshot didn't carry a selectedBoard (e.g.
       // fresh server with no operator session yet), default to the
@@ -523,6 +542,12 @@ export function bootAlignModeLoader({
       // The IIFE bundle loaded above registers the TT_BEAMER_RUNTIME_*
       // globals that bootHandleUi resolves internally.
       const { bootHandleUi } = await import("/src/app/runtime/output-receiver/boot-handle-ui.js");
+      // Phase 39.1 G3a: stale-token check — if a fresh onProjectionProfileChange
+      // started a newer activate() while we were importing, abandon this
+      // activation BEFORE constructing the new bootHandleUi against
+      // potentially stale activeBoardId. The dynamic import is the widest
+      // await window in activate() (50-500ms cold; cache-hit ~5ms warm).
+      if (myToken !== _activationToken) return;
 
       _currentBootHandle = bootHandleUi({
         stage: stageEl,
@@ -660,8 +685,10 @@ export function bootAlignModeLoader({
         if (!seeded) {
           try {
             const resp = await fetch("/api/live/snapshot");
+            if (myToken !== _activationToken) return;
             if (resp.ok) {
               const j = await resp.json();
+              if (myToken !== _activationToken) return;
               const snap = j?.snapshot ?? j?.session?.snapshot ?? j ?? {};
               const gridSnap = snap?.runtime?.lastAlignGridSnapshot;
               if (gridSnap && Array.isArray(gridSnap.srcXs)
@@ -806,6 +833,35 @@ export function bootAlignModeLoader({
   // switched boards or applied a new profile)
   if (typeof liveSync.onProjectionProfileChange === "function") {
     liveSync.onProjectionProfileChange(async () => {
+      // Phase 39.1 G3a (2026-05-13): SYNCHRONOUS teardown BEFORE any
+      // await prevents the old _currentBootHandle (bound to oldBoardId)
+      // from receiving the new grid via align-grid-snapshot during the
+      // async re-mount window.
+      //
+      // The race (per RESEARCH §G3 Root cause #1): the dashboard's
+      // autoLoadRememberedProjectionProfile fires its broadcastGridSnapshot
+      // INDEPENDENTLY of this handler's awaits. activate() below contains
+      // a dynamic import("boot-handle-ui.js") that yields control for
+      // 50-500ms. During that window, the broadcast arrives at Pi /output/,
+      // _applyAlignGridSnapshot mutates the live grid AND calls
+      // rebuildHandleElements/positionHandles/drawLines on the OLD
+      // _currentBootHandle whose _state.boardId still references the OLD
+      // board. polygon-editor.renderRoomOverlay reads the OLD boardId's
+      // polygons (often empty/different layout) -> operator sees handles
+      // WITHOUT overlay lines.
+      //
+      // Fix: tear down the old bootHandle synchronously here, AND remove
+      // the align-mode-active body class synchronously so HANDLE_UI's
+      // CSS-gated visibility flips off immediately. Phase 38 W11
+      // carry-forward: boot-handle-ui.js's stop() does the W11-ordered
+      // teardown (HANDLE_UI.onAlignModeChange(false) BEFORE unsubscribe),
+      // so this sync call follows W11's safe path.
+      if (_currentBootHandle) {
+        try { _currentBootHandle.stop?.(); } catch { /* listener guard */ }
+        _currentBootHandle = null;
+      }
+      document.body.classList.remove("align-mode-active");
+
       await refreshBoardCatalog();
       await refreshSelectedBoard();
       // If align-mode is currently active, the board may have changed
