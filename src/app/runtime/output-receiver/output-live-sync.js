@@ -235,6 +235,28 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         points: points2D,
       });
       if (Number.isFinite(snapAt)) _lastAppliedSnapAtMs = snapAt;
+      // Phase 39.1 G3b (2026-05-13): server-pushed snapshots are the new
+      // authoritative baseline — re-baseline persistence's
+      // _loadedProfileSnapshot so HANDLE_UI's _refreshAlignToolbarVisual
+      // reads dirty=false immediately. Without this, the toolbar's
+      // isDirty() comparison against the STALE pre-board-switch loaded
+      // snapshot returns true after a board-switch's grid arrives,
+      // posting a spurious dirty=true to the dashboard absent any user
+      // action. See .planning/phases/phase-39.1/39.1-G3-DIAG.md (Hyp C).
+      //
+      // Wrapped in try/catch so a persistence-module load order race
+      // (live-sync ready BEFORE the lazy IIFE bundle finishes parsing)
+      // never breaks the grid apply itself — if persistence isn't
+      // wired yet, this is a no-op and the next remote snapshot or the
+      // post-bundle drain catches up.
+      try {
+        const persist = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+        if (persist?.captureCurrentAsLoadedSnapshot) {
+          persist.captureCurrentAsLoadedSnapshot(
+            snap?.profileId ?? snap?.name ?? null,
+          );
+        }
+      } catch (_e) { /* persistence module not loaded yet — safe to skip */ }
       // Trigger handle-ui redraw so overlay lines reflect the new grid
       // immediately (matches runtime-live-sync-core.js's
       // _redrawHandlesAfterCornerDrag). Best-effort — handle-ui may not

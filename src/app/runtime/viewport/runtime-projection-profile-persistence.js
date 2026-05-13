@@ -725,6 +725,35 @@
     try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
   }
 
+  // Phase 39.1 G3b (2026-05-13): re-baseline _loadedProfileSnapshot to the
+  // current grid state. Used by output-live-sync.js when a server-pushed
+  // align-grid-snapshot is applied — the server's snapshot is the new
+  // authoritative baseline, and Pi's local "dirty against loaded snapshot"
+  // comparison must reflect that. Without this, HANDLE_UI's
+  // _refreshAlignToolbarVisual reads stale _loadedProfileSnapshot and
+  // isDirty() returns true -> _postAlignModeDirtyToServer(true) posts a
+  // spurious dirty=true to the dashboard absent any user action (the
+  // operator's "dirty flag wird ohne dass ich was verändert hab getriggert"
+  // quote in 39-VERIFICATION.md). See .planning/phases/phase-39.1/
+  // 39.1-G3-DIAG.md for the Hypothesis C decision + code trace.
+  //
+  // Pattern Authority-pushed-snapshot is the new baseline (RESEARCH §G3
+  // Pattern 3): a consumer receiving a snapshot from the authoritative
+  // source re-baselines its local dirty-tracking state immediately.
+  // Pi /output/ is a consumer (RESEARCH §G3 R3.3 trust model);
+  // dashboard remains the source of truth for explicit profile-load
+  // semantics.
+  function captureCurrentAsLoadedSnapshot(name) {
+    if (!_gridStateApi) return;
+    _loadedProfileName = name || null;
+    _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    try { _persistLoadedProfileToLs?.(); } catch (_e) { /* LS quota — ignore */ }
+    // _recomputeAndNotifyDirty's same-state guard at line 221 keeps this
+    // cheap when called repeatedly with no change: false -> false is a
+    // no-op; true -> false fires the listener fanout once.
+    _recomputeAndNotifyDirty();
+  }
+
   function init(dependencies) {
     ctx = dependencies;
     if (dependencies?.grid) grid = dependencies.grid;
@@ -787,5 +816,10 @@
     // autoLoadRememberedProjectionProfile().
     applyAndCaptureSnapshot,
     applyDefaultAndCaptureSnapshot,
+    // Phase 39.1 G3b: server-pushed-snapshot re-baseline helper. Called
+    // by output-live-sync.js's _applyAlignGridSnapshot to make remote
+    // grids the new clean baseline (so HANDLE_UI's isDirty() reads
+    // false immediately post-apply).
+    captureCurrentAsLoadedSnapshot,
   };
 })();
