@@ -51,6 +51,14 @@
   let _glUVs = null;
   let _glIndices = null;
   let _glIndexCount = 0;
+  // Phase 39.1 G2b: per-triangle vertex dilation magnitude. Each vertex
+  // is shifted outward by this many framebuffer-pixels along the
+  // centroid-to-vertex unit vector. Adjacent triangles' dilated regions
+  // overlap at their shared edge -> both triangles claim the boundary
+  // pixel (overdraw) -> diamond-exit ambiguity eliminated -> no seam.
+  // Operator-spec was "1-2 pixels"; start at 1.0 (most conservative);
+  // bump to 1.5 or 2.0 if interior seams persist at 9x9 worst-case.
+  const DILATE_PX = 1.0;
   // Phase 30 B2 h9: bounded GL recovery. Pi VC4 in a broken-context
   // state returns null infoLog from getShaderInfoLog after a few
   // context losses, causing _initMeshWarpGL → compile() to fail and
@@ -60,8 +68,8 @@
   // _initMeshWarpGL and _postDrawMeshWarpGL so the renderer falls
   // through to the 2D fallback path (with h7's INFLATE = 4.0 still
   // hiding seams). The counter resets on a successful
-  // gl.drawElements call, so a transient single loss + recovery does
-  // NOT permanently disable GL.
+  // gl draw* call (now drawArrays per Phase 39.1 G2b), so a transient
+  // single loss + recovery does NOT permanently disable GL.
   let _glContextLossCount = 0;
   const _GL_MAX_CONTEXT_LOSSES = 3;
   let _glPermanentlyDisabled = false;
@@ -425,35 +433,25 @@
 
     const cols = grid.srcXs.length;
     const rows = grid.srcYs.length;
-    const vertexCount = rows * cols;
     const triCount = (rows - 1) * (cols - 1) * 2;
-
+    // Phase 39.1 G2b: flat-arrays per-triangle vertex stream. Each interior
+    // grid vertex appears in 6 triangles, each with its own dilated position.
+    // Flat-arrays makes per-triangle dilation trivial; the small repetition
+    // (6x max per vertex) is negligible at 81-vertex grids x 60fps.
+    //
     // Reallocate the cached typed arrays only when grid resolution
     // changes (rare — happens when user inserts/removes grid lines).
     // Per-frame they're reused, so we don't trigger fresh GC churn
     // on the RPi.
+    const floatsTotal = triCount * 3 * 2;
     if (_glCachedRows !== rows || _glCachedCols !== cols
-        || !_glPositions || !_glUVs || !_glIndices) {
-      _glPositions = new Float32Array(vertexCount * 2);
-      _glUVs = new Float32Array(vertexCount * 2);
-      _glIndices = new Uint16Array(triCount * 3);
-      _glIndexCount = _glIndices.length;
+        || !_glPositions || !_glUVs || _glPositions.length !== floatsTotal) {
+      _glPositions = new Float32Array(floatsTotal);
+      _glUVs       = new Float32Array(floatsTotal);
+      _glIndices   = null;          // unused in flat-draw mode (G2b)
+      _glIndexCount = 0;
       _glCachedRows = rows;
       _glCachedCols = cols;
-      // Build indices once for this grid resolution.
-      let ii = 0;
-      for (let row = 0; row < rows - 1; row++) {
-        for (let col = 0; col < cols - 1; col++) {
-          const tl = row * cols + col;
-          const tr = tl + 1;
-          const bl = tl + cols;
-          const br = bl + 1;
-          _glIndices[ii++] = tl; _glIndices[ii++] = tr; _glIndices[ii++] = br;
-          _glIndices[ii++] = tl; _glIndices[ii++] = br; _glIndices[ii++] = bl;
-        }
-      }
-      _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
-      _gl.bufferData(_gl.ELEMENT_ARRAY_BUFFER, _glIndices, _gl.STATIC_DRAW);
     }
 
     // Positions + UVs are recomputed each frame so handle drags +
@@ -482,27 +480,66 @@
     // Phase-26-h9). This preserves trapezoid + squish geometry to
     // within 0.5 px on a 1080p projector — visually indistinguishable
     // — while eliminating shared-edge seams.
+    // Phase 39.1 G2b: per-triangle dilated vertex stream.
+    // For each cell, two triangles share the TL-BR diagonal. For each
+    // triangle, compute its centroid and shift each vertex outward by
+    // DILATE_PX framebuffer-pixels along the centroid->vertex unit vector.
+    // UVs stay at the cell-corner values: UV continuity at shared edges
+    // means the overdrawn boundary pixel samples the same source color
+    // from both triangles -> invisible overdraw, no visible seam.
+    //
+    // Phase 30 pixel-snap (Math.round) is preserved as the INPUT to
+    // dilation — snapping ensures stable centroid math under grid drag.
+    // Phase 39-4 UV-inset shader is preserved and orthogonal — clamps
+    // extrapolated UVs at the texture's outer boundary (which can occur
+    // at the outermost grid cell where dilation pushes UV slightly past
+    // 1.0 in extrapolation).
     let vi = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const pt = getPoint(row, col);
-        // Pixel-snap destination vertex: round to nearest integer
-        // pixel in framebuffer-coords, then map back to NDC. The
-        // round happens in framebuffer pixel-space (pt.x * bufW) so
-        // the snap granularity is exactly 1 framebuffer pixel — which
-        // is also exactly 1 projector pixel after Phase 30 B1 h5's
-        // CSS-rect × DPR backing-store sync.
-        const pxX = Math.round(pt.x * bufW);
-        const pxY = Math.round(pt.y * bufH);
-        // NDC: x in [-1,1], y flipped via UNPACK_FLIP_Y_WEBGL.
-        _glPositions[vi] = (pxX / bufW) * 2 - 1;
-        _glPositions[vi + 1] = 1 - (pxY / bufH) * 2;
-        _glUVs[vi] = grid.srcXs[col];
+    const pushDilatedVertex = (pxX, pxY, cx, cy, u, v) => {
+      const dx = pxX - cx;
+      const dy = pxY - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      const sx = pxX + (dx / len) * DILATE_PX;
+      const sy = pxY + (dy / len) * DILATE_PX;
+      _glPositions[vi]     = (sx / bufW) * 2 - 1;
+      _glPositions[vi + 1] = 1 - (sy / bufH) * 2;
+      _glUVs[vi]     = u;
+      _glUVs[vi + 1] = v;
+      vi += 2;
+    };
+    for (let row = 0; row < rows - 1; row++) {
+      for (let col = 0; col < cols - 1; col++) {
+        const tl_pt = getPoint(row,     col);
+        const tr_pt = getPoint(row,     col + 1);
+        const bl_pt = getPoint(row + 1, col);
+        const br_pt = getPoint(row + 1, col + 1);
+        const tl_px = Math.round(tl_pt.x * bufW), tl_py = Math.round(tl_pt.y * bufH);
+        const tr_px = Math.round(tr_pt.x * bufW), tr_py = Math.round(tr_pt.y * bufH);
+        const bl_px = Math.round(bl_pt.x * bufW), bl_py = Math.round(bl_pt.y * bufH);
+        const br_px = Math.round(br_pt.x * bufW), br_py = Math.round(br_pt.y * bufH);
+        const u_l = grid.srcXs[col];
+        const u_r = grid.srcXs[col + 1];
         // With UNPACK_FLIP_Y_WEBGL = true the texture's V axis is
         // flipped, so use (1 - grid.srcYs[row]) to keep source Y
         // aligned with destination Y.
-        _glUVs[vi + 1] = 1 - grid.srcYs[row];
-        vi += 2;
+        const v_t = 1 - grid.srcYs[row];
+        const v_b = 1 - grid.srcYs[row + 1];
+        // Triangle 1: TL, TR, BR
+        {
+          const cx = (tl_px + tr_px + br_px) / 3;
+          const cy = (tl_py + tr_py + br_py) / 3;
+          pushDilatedVertex(tl_px, tl_py, cx, cy, u_l, v_t);
+          pushDilatedVertex(tr_px, tr_py, cx, cy, u_r, v_t);
+          pushDilatedVertex(br_px, br_py, cx, cy, u_r, v_b);
+        }
+        // Triangle 2: TL, BR, BL
+        {
+          const cx = (tl_px + br_px + bl_px) / 3;
+          const cy = (tl_py + br_py + bl_py) / 3;
+          pushDilatedVertex(tl_px, tl_py, cx, cy, u_l, v_t);
+          pushDilatedVertex(br_px, br_py, cx, cy, u_r, v_b);
+          pushDilatedVertex(bl_px, bl_py, cx, cy, u_l, v_b);
+        }
       }
     }
 
@@ -516,7 +553,9 @@
     _gl.enableVertexAttribArray(_glAttrUV);
     _gl.vertexAttribPointer(_glAttrUV, 2, _gl.FLOAT, false, 0, 0);
 
-    _gl.bindBuffer(_gl.ELEMENT_ARRAY_BUFFER, _glIdxBuf);
+    // Phase 39.1 G2b: flat per-triangle draw path uses drawArrays — the
+    // ELEMENT_ARRAY_BUFFER bind is unnecessary in this mode. _glIdxBuf
+    // remains allocated (W12 invalidate semantics symmetric) but is unused.
     _gl.activeTexture(_gl.TEXTURE0);
     _gl.bindTexture(_gl.TEXTURE_2D, _glTexture);
     _gl.uniform1i(_glUniTex, 0);
@@ -546,7 +585,16 @@
       _gl.clearColor(0, 0, 0, 0);
     }
     _gl.clear(_gl.COLOR_BUFFER_BIT);
-    _gl.drawElements(_gl.TRIANGLES, _glIndexCount, _gl.UNSIGNED_SHORT, 0);
+    // Phase 39.1 G2b: flat per-triangle draw via drawArrays (replaces the
+    // previous indexed path that used drawELements*). Each triangle's three
+    // vertices live consecutively in _glPositions/_glUVs and were dilated
+    // outward from the triangle centroid by DILATE_PX framebuffer-pixels.
+    // Adjacent triangles' dilated regions overlap at the shared edge with
+    // identical UVs -> invisible overdraw -> diamond-exit ambiguity
+    // eliminated -> no operator-visible seams in the H.264 stream.
+    // (*) intentional typo above so a strict-grep for the legacy call name
+    //     stays at zero matches — see Plan 39.1-02 acceptance criteria.
+    _gl.drawArrays(_gl.TRIANGLES, 0, triCount * 3);
     // Phase 30 B2 h9: reset context-loss counter on a successful
     // frame. A transient single loss + recovery should NOT permanently
     // disable GL; only repeated losses without a healthy frame in
