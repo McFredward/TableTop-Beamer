@@ -931,6 +931,14 @@ Carrying forward (LOCKED, aus Phase 39 + Phase 38):
 
 Requirements: Phase 39.1 introduces three new acceptance criteria (G1-NO-FLICKER, G2-NO-STREAM-SEAMS, G3-BOARD-SWITCH-CLEAN).
 
+**Plans:** 4 plans (1 Wave-0 + 2 Wave-1 + 1 Wave-2)
+
+Plans:
+- [ ] 39.1-01-PLAN.md — Wave 0: G3-PROBE diagnostic + 3 RED tests (G1/G2/G3) + helpers.py
+- [ ] 39.1-02-PLAN.md — Wave 1: G2 fix (ultra-high preset + bitrate plumbing + per-triangle 1-px dilation in flat-arrays drawArrays)
+- [ ] 39.1-03-PLAN.md — Wave 1: G3 fix (sync teardown + activation token + captureCurrentAsLoadedSnapshot)
+- [ ] 39.1-04-PLAN.md — Wave 2: full regression matrix + operator UAT + closure docs + phase-39.1-closed tag
+
 ---
 
 ## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (CLOSED-WITH-GAPS, 2026-05-13)
