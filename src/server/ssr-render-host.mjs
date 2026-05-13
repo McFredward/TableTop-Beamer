@@ -89,6 +89,17 @@ const QUALITY_PRESETS = {
   "low-latency":  { bitrate:  4_000_000, fpsTarget: 30, keyframeIntervalSec: 1, x264Preset: "ultrafast" },
   "balanced":     { bitrate:  8_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "veryfast"  },
   "high-quality": { bitrate: 12_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "fast"      },
+  // Phase 39.1 G2a: operator-spec'd "high 12+" interpretation. The
+  // operator-reported H.264 stream seams in Phase 39 UAT (2026-05-13)
+  // were not resolved by Phase 39-4's UV-inset shader alone. Bumping
+  // bitrate to 24 Mbps reduces macroblock-quantization noise at the
+  // mesh-cell seams; combined with the per-triangle 1-pixel overlap
+  // in runtime-projection-gl-renderer.js (G2b), this closes
+  // G2-NO-STREAM-SEAMS. 24 Mbps stays well within the Pi 4 H.264
+  // hardware decoder's >50 Mbps level-4.2 capability and the LAN's
+  // gigabit envelope. Operator's PC was rock-stable at 16 Mbps;
+  // 1.5× headroom is the expected envelope per 39.1-RESEARCH §G2 R2.4.
+  "ultra-high":   { bitrate: 24_000_000, fpsTarget: 30, keyframeIntervalSec: 2, x264Preset: "fast"      },
 };
 
 /**

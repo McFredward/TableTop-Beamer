@@ -49,17 +49,31 @@ const ROOT_DIR = path.resolve(__dirname, "..", "..");
  * @param {{ effectiveStreamFpsCap?: number }} [opts]
  * @returns {{ low: number, mid: number, high: number, total: number }}
  */
-function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
+function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60, encoderConfig = null } = {}) {
   let total;
   const envOverride = Number(process.env.SSR_INITIAL_BITRATE);
+  const configOverride = Number(encoderConfig?.bitrate);
+  // Phase 39.1 G2a: env wins; otherwise take max(config, fps-derived) so a
+  // preset bump in config can ONLY raise bitrate, never lower it below the
+  // fps-derived default. Operator-approved 'high+' interpretation: floor
+  // the bitrate at config preset OR fps-derived default, whichever is higher.
+  // Pre-Phase-39.1, deriveSimulcastBitrates ignored encoderConfig.bitrate
+  // entirely — the qualityPreset bitrate field was only consumed by
+  // ssr-host log lines, never plumbed into the actual H.264 RTP encoder
+  // bitrate cap. That's why operator-specifying "high-quality" (12 Mbps)
+  // landed a 16 Mbps stream (the 60fps fps-derived default), with no
+  // observable effect from the config preset choice.
+  let fpsDerived;
+  if (effectiveStreamFpsCap >= 60)      fpsDerived = 16_000_000; // 60fps or native
+  else if (effectiveStreamFpsCap >= 45) fpsDerived = 12_000_000; // 45fps
+  else                                  fpsDerived = 8_000_000;  // 30fps baseline
   if (Number.isFinite(envOverride) && envOverride > 0) {
     total = envOverride;
-  } else if (effectiveStreamFpsCap >= 60) {
-    total = 16_000_000; // 60fps or native → 16 Mbit/s
-  } else if (effectiveStreamFpsCap >= 45) {
-    total = 12_000_000; // 45fps → 12 Mbit/s
   } else {
-    total = 8_000_000;  // 30fps → 8 Mbit/s baseline
+    total = Math.max(
+      Number.isFinite(configOverride) && configOverride > 0 ? configOverride : 0,
+      fpsDerived,
+    );
   }
   // Roughly: low=15%, mid=35%, high=100% of total per spatial layer.
   // The browser's congestion control will downscale layers as needed.
@@ -89,7 +103,7 @@ function deriveSimulcastBitrates({ effectiveStreamFpsCap = 60 } = {}) {
  * @param {{ encoderConfig?: object|null, effectiveStreamFpsCap?: number, alignModeBoost?: boolean }} [opts]
  */
 export function buildInPagePublisherScript({ encoderConfig = null, effectiveStreamFpsCap = 60, alignModeBoost = true } = {}) {
-  const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap });
+  const bitrates = deriveSimulcastBitrates({ effectiveStreamFpsCap, encoderConfig });
   // h18: pick simulcast vs single-layer based on encoder. x264-software
   // is CPU-bound — running 3 spatial layers triples encode cost and
   // commonly caps the stream around 20 fps on x86_64 workstations. With
