@@ -866,7 +866,76 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (CLOSED-PENDING-VISUAL-UAT, 2026-05-12)
+## Phase 39.1 - SSR Stabilization Round 2 Gap Closure: real seams, flickering, board-switch race (PLANNING, 2026-05-13)
+
+Ziel: Drei vom Operator gemeldete Gaps aus Phase 39's UAT 2026-05-13 schließen. Phase 39 hatte einen wrong-layer fix für D-03 — der UV-inset Shader smoothed nur die Texture-Außenboundary, nicht die Inter-Cell-Seams. Operator sieht weiterhin Streifen + zusätzlich ein "Flackern" (vermutlich H.264-Temporal-Noise an genau diesen Seam-Boundaries) + einen Board-Switch Align-Mode-Race. **Positive Carry-Forward von Phase 39: D-01 MP4 Playback funktioniert** ("Ich sehe das MP4 Video im Stream").
+
+**G1 — Default/Autostart zeigt Flackern statt Solid-Color**
+Operator-Quote: "Die default/autostart solid-color animation für alle Räume ist plötzlich die inside Animation mit flackerndem Licht."
+- `config/runtime-active-animations.json` zeigt 13× solid-color (NO hull-flicker)
+- `config/boards/nemesis-lockdown-a.json#defaultAnimations` zeigt 13× solid-color (NO hull-flicker)
+- Phase 39 hat keinen Animation-Render-Code geändert
+- Stärkste Hypothese: das "Flackern" ist temporaler H.264-Noise an den Seam-Boundaries (gleicher Root Cause wie G2)
+- Alternativ: separate Animation-Pipeline-Pfad überschreibt solid-color
+
+**G2 — Mesh-Warp Streifen IMMER NOCH sichtbar im H.264 Stream**
+Operator-Quote: "Die Streifen sind weiterhin da und sichtbar bei Animationen, insbesondere solid-color."
+- Phase 39-4's UV-inset clamp(`vUV, 0.5/uTexSize, 1-0.5/uTexSize`) klemmt nur Texture-Außenrand, nicht zwischen Mesh-Zellen
+- Phase 39-1's Test maß JPEG-CDP-Screenshots (quality=60) — Operator sieht aber H.264-WebRTC-Stream — zwei verschiedene Pipelines mit verschiedenen Kompressions-Artefakten
+- Operator-approved fix (kombiniert):
+  1. H.264 Bitrate bump (`config/global-defaults.json#serverRendering.bitrate` von balanced ≈8Mbps auf 12+ Mbps high)
+  2. 2-Pixel Mesh-Cell-Overlap: jede Mesh-Zelle rendert 1-2 Extra-Pixel in Nachbar-Territorium → eliminiert Rasterizer-Diamond-Exit-Bias an geteilten Edges
+- Phase 39-4 UV-inset Shader bleibt (echter Texture-Boundary-Fix, schadet nicht, reicht nur nicht allein)
+
+**G3 — Board-Switch Partial Align Mode + Spurious Dirty Flag**
+Operator-Quote: "Bei einem Wechsel vom Board wird Teile des Align Modes angezeigt (nur die Handles, nicht die Linien des Overlays) und ohne das ich was verändert hab wird die dirty flag getriggert was durch 'unsaved on /output/' dann verhindert, dass ich den Align Mode aktivieren kann."
+- `output-align-mode-loader.js:808-816`: `onProjectionProfileChange` macht `await activate()` async; `activate()` enthält dynamic `import("...boot-handle-ui.js")` (line 525)
+- Race: zwischen Import und Mount mutiert `switchBoard → autoLoadRememberedProjectionProfile → applyDefaultAndCaptureSnapshot()` das Grid
+- Handles erscheinen mit neuem Grid; Overlay-Polygons lagging (anderer Board)
+- Dirty-Flag-Pfad weniger sicher — vermutlich nachgelagerte WebSocket-Broadcast erzeugt zweite Grid-Mutation nach applyDefault setzt snapshot=current
+
+Background:
+Phase 39 closed `phase-39-closed-automated` (commit 71346a4, 2026-05-12). Operator-UAT 2026-05-13. Siehe `.planning/phases/phase-39/39-VERIFICATION.md` für vollständige Gap-Analyse.
+
+Scope:
+- **W1 RESEARCH** (gsd-phase-researcher):
+  - G2: trace H.264-Stream-Capture-Pfad in `src/server/ssr-stream-publisher.mjs` + `src/server/ssr-render-host.mjs` (encoder config, bitrate, macroblock size); studiere Phase 30/35-iter2 Pixel-Snap + warum Inter-Cell-Boundaries NICHT geschützt sind; identifiziere where to add 2-pixel triangle overlap in `runtime-projection-gl-renderer.js`
+  - G3: trace board-switch async race in `output-align-mode-loader.js:808` + `runtime-board-switch.js:108-140` + persistence `applyDefaultAndCaptureSnapshot()` interaction; identifiziere ob ein 2. WS-Broadcast nach applyDefault das Grid wieder mutiert
+  - G1: nach G2-Fix re-evaluate; falls Flackern bleibt: investigate `findActiveBreakingGate()` in `runtime-draw-loop.js:173+` und ob hull-flicker per-room state falsch state hat
+- **W2 RED tests**:
+  - G2: neuer Test der WebRTC-Stream auf der Pi-Seite captured (nicht JPEG), prüft Seams auf realer H.264-Decoder-Output
+  - G3: Playwright test der board-switch durchführt und beobachtet ob (a) handles fully clean zwischen Boards (b) dirty=false bleibt ohne user-action
+  - G1: nach G2/G3 Fix manueller UAT-Verifikation
+- **W3 Fixes**:
+  - G2: bitrate-bump (config) + 2-pixel triangle overlap in mesh-warp (GL renderer)
+  - G3: synchronous `_currentBootHandle.stop()` BEFORE applyDefault + guard dirty-flag posting against board-switch source
+  - G1: depends on G2 outcome
+
+Exit Criteria:
+- G1: Operator-UAT zeigt uniform red light in allen Räumen beim Autostart, kein Flackern
+- G2: Operator-UAT zeigt keine Streifen mehr im SSR-Stream auf Pi-Seite bei solid-color über 9×9 warped grid; new RED test on H.264 stream is GREEN
+- G3: Operator-UAT zeigt N board-switches in Folge mit voller Align-Mode-Cleanup zwischen Boards + dirty=false ohne user-action
+- Phase 39 Carry-Forwards bleiben grün: D-01 MP4 Playback (operator-bestätigt), D-02 INITIAL_CONNECT (no regression), Phase 38 W10/W11/W12/W13 carry-forwards
+- D-08 connection-stability fail=0
+
+Out of Scope:
+- Andere Defekte die nicht in 39-VERIFICATION.md gelistet sind
+- Komplettes Re-Design der H.264-Encoder-Pipeline (nur Bitrate-Tuning + GL-Side Mesh-Overlap)
+- Re-Schreibung des board-switch async flow (nur targeted race-fix in output-align-mode-loader.js)
+
+Carrying forward (LOCKED, aus Phase 39 + Phase 38):
+- D-01 MP4 MIME + Range support (server.mjs) — operator-confirmed working
+- D-02 INITIAL_CONNECT state machine (receiver-bootstrap.js + receiver-status-ui.js)
+- D-03 UV-inset shader epsilon (runtime-projection-gl-renderer.js fragment shader) — bleibt als Texture-Boundary-Fix
+- Alle Phase 38 W1-W13 Fixes
+
+Requirements: Phase 39.1 introduces three new acceptance criteria (G1-NO-FLICKER, G2-NO-STREAM-SEAMS, G3-BOARD-SWITCH-CLEAN).
+
+---
+
+## Phase 39 - SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams (CLOSED-WITH-GAPS, 2026-05-13)
+
+**Status update (2026-05-13):** Operator UAT found 3 gaps. D-01 MP4 playback works ("Ich sehe das MP4 Video im Stream"). D-02 reconnect storms not negatively reported. D-03 fix was wrong-layer (smoothed Texture-Außenrand, nicht Inter-Cell-Seams; test maß JPEG nicht H.264-Stream). Gap closure handled by Phase 39.1. See `.planning/phases/phase-39/39-VERIFICATION.md`.
 
 Ziel: Drei vom Operator gemeldete SSR-Defekte aus dem UAT 2026-05-12 (nach Phase 38 Closure) abschließen. Alle drei landen in einer Phase, weil sie alle SSR-Stabilisierung sind und parallel implementierbar bleiben.
 
