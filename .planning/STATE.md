@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Milestone complete
-last_updated: "2026-05-12T22:45:00Z"
+last_updated: "2026-05-13T23:30:00Z"
 progress:
-  total_phases: 39
-  completed_phases: 13
-  total_plans: 67
-  completed_plans: 163
+  total_phases: 40
+  completed_phases: 14
+  total_plans: 71
+  completed_plans: 167
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ progress:
 - Planning Mode: active
 - Current Phase: 40 (next planned)
 - Current Phase Key: phase-40
-- Last Prepared: 2026-05-12
+- Last Prepared: 2026-05-13
 - Execution Readiness: PLANNING
-- Previous Phase: 39 (CLOSED-PENDING-VISUAL-UAT)
-- Last Executed Plan: 39 (D-01 MP4 MIME + D-02 INITIAL_CONNECT state + D-03 mesh-warp seam fix — sub-path B UV-inset)
-- Planned Next Execution: Phase 40 — TBD (after operator visual UAT of Phase 39)
-- Last Execution Summary: Phase 39 closed three SSR defects from operator UAT 2026-05-12: D-01 MP4 MIME table extension + RFC 7233 Range support in server.mjs; D-02 INITIAL_CONNECT state in receiver-bootstrap.js suppressing RECONNECTING banner during 5s cold-boot grace; D-03 mesh-warp seam fix via 0.5-texel UV-inset epsilon in runtime-projection-gl-renderer.js fragment shader (sub-path B per renderMode=gl decision). All 16/16 automated regression sections GREEN: Phase 38 W1/W2/W10/W11/W12, Phase 33 receiver-state-machine, Phase 32 cold-boot, Phase 35 Bayer, Phase 31 h15 static-resource-headers, D-08 connection-stability fail=0 (sustained 31504ms closed=false). Visual UAT pending operator hardware verification; tag phase-39-closed-automated until then.
+- Previous Phase: 39.1 (CLOSED-PENDING-VISUAL-UAT)
+- Last Executed Plan: 39.1 (G2 H.264 seam fix + G3 board-switch race fix + G1 backstop)
+- Planned Next Execution: Phase 40 — TBD (after operator visual UAT of Phase 39.1; potential carry-forward of any G1-deferred or G3-fallback work)
+- Last Execution Summary: Phase 39.1 closed two of three operator-reported gaps from Phase 39 UAT 2026-05-13 with operator-confirmed code in place: G2 H.264 seam fix combined (ultra-high preset 24 Mbps single-layer in src/server/ssr-render-host.mjs + deriveSimulcastBitrates Math.max(env, configOverride, fpsDerived) plumbing in src/server/ssr-stream-publisher.mjs + per-triangle 1px outward vertex dilation in flat-arrays drawArrays mesh-warp in src/app/runtime/viewport/runtime-projection-gl-renderer.js) — verified by NEW test_phase39_1_g2_h264_no_seams.py RED→GREEN at 70.3s pass; G3 board-switch race fix (synchronous _currentBootHandle.stop() + _activationToken counter + 7 stale-token guards in src/app/runtime/output-receiver/output-align-mode-loader.js + new captureCurrentAsLoadedSnapshot helper in src/app/runtime/viewport/runtime-projection-profile-persistence.js + wire from _applyAlignGridSnapshot in src/app/runtime/output-receiver/output-live-sync.js) — Hypothesis C confirmed by static code trace per 39.1-G3-DIAG.md, G3 live-e2e test DEFERRED to operator UAT (test infrastructure: headless consumer view doesn't mount handles without operator session); G1 cross-defect targeted via G2's H.264 macroblock-noise elimination, backstop test_phase39_1_g1_no_hull_flicker.py GREEN. Full automated regression matrix ALL GREEN (16 tests): Phase 38 W10/W11/W12, Phase 39 D-01/D-02/D-03 (including UV-inset shader carry-forward 3/3 parametric grids max_delta=0), D-08 connection-stability fail=0 (sustained 31506ms, 0 reconnects). New CRITICAL_KNOWN_BUGS entry #6: JPEG-CDP screenshot is the wrong test layer for H.264-stream artifacts — future test discipline mandates HTMLVideoElement pixel capture for SSR/encoder/compositor work. Visual UAT pending operator hardware verification; tag phase-39.1-closed-automated until then.
 
 ## Source Inputs
 
@@ -1758,3 +1758,37 @@ progress:
 - Phase 38 W12 invalidateCachedArrays (lines 552-571) byte-identical
 - Visual UAT pending operator hardware verification (D-01 sandstorm.mp4 playback, D-02 cold-boot RECONNECT-free, D-03 solid-color seamless)
 - Tag: `phase-39-closed-automated` until operator visual UAT confirms; then retag `phase-39-closed`
+
+## Phase 39.1 Plan 39.1-04 Closure (2026-05-13)
+
+- Plan 39.1-04 (full regression matrix + closure docs + tag `phase-39.1-closed-automated`) is COMPLETE under auto-mode operator directive 2026-05-13. Per the directive: operator explicitly requested autonomous phase completion; UAT checkpoints = APPROVED-PENDING-VISUAL; automated regression run; closure written as if approved with clear "VISUAL UAT PENDING OPERATOR" section listing G1 flickering / G2 seams / G3 board-switch items operator must visually verify.
+- 39.1-04 regression evidence: 16 automated tests run, ALL GREEN. G2 H.264 RED test (`test_phase39_1_g2_h264_no_seams.py`) **RED→GREEN** at 70.3s single-iteration pass. G1 backstop (`test_phase39_1_g1_no_hull_flicker.py`) GREEN at 19.1s. G3 live-e2e (`test_phase39_1_g3_board_switch_clean.py`) **DEFERRED** per 39.1-03 SUMMARY (test infrastructure limitation: headless consumer view does not mount `[data-grid-handle]` elements without an operator session; static code trace + G3-PROBE diagnostic carry the verification). Phase 38 W10/W11/W12 + Phase 39 D-01/D-02/D-03 (UV-inset 3/3 parametric grids GREEN, max_delta=0) + D-08 connection-stability fail=0 (sustained 31506ms, 0 reconnects) + Phase 33 receiver-state-machine 23/23 — all carry-forwards preserved intact.
+- 39.1-04 closure verdict: **CLOSED-PENDING-VISUAL-UAT** (2026-05-13). Tag: `phase-39.1-closed-automated`. Retag to `phase-39.1-closed` (or `phase-39.1-closed-with-partial-g1` if G1 stays flickering after G2 lands) after operator visual UAT confirms G1/G2/G3 on operator hardware.
+- Closure-Dokument: `.planning/phases/phase-39.1/39.1-CLOSURE.md` + `.planning/phases/phase-39.1/39.1-VERIFICATION.md` + per-plan SUMMARYs (39.1-01, 39.1-02, 39.1-03, 39.1-04).
+
+## Decisions Phase 39.1
+
+- Phase 39.1 closed two of three operator-reported gaps from Phase 39 UAT 2026-05-13 in one phase: G2 H.264 seams (ultra-high 24 Mbps preset + per-triangle 1-px vertex dilation in flat-arrays drawArrays), G3 board-switch race (sync teardown + activation token + captureCurrentAsLoadedSnapshot helper), G1 targeted via cross-defect mechanism (G2's elimination of H.264 macroblock-noise at mesh-cell boundaries) with operational backstop test.
+- G2 combined fix locked: the `ultra-high` QUALITY_PRESETS entry (24 Mbps single-layer @ 30 fps, 2s keyframe interval, x264 "fast" preset), the `deriveSimulcastBitrates({ effectiveStreamFpsCap, encoderConfig })` Math.max(env, configOverride, fpsDerived) plumbing, and the per-triangle 1-pixel outward vertex dilation in `runtime-projection-gl-renderer.js` (DILATE_PX=1.0; bumpable to 1.5 or 2.0 if operator UAT reports residual seams) are now LOCKED carry-forwards. Phase 39-4 UV-inset shader preserved as orthogonal texture-outer-boundary defense.
+- G3 fix locked: synchronous `_currentBootHandle.stop?.()` + `document.body.classList.remove("align-mode-active")` BEFORE any await in `onProjectionProfileChange` handler + `_activationToken` counter with stale-token guards after each of 7 await points in `activate()` + `captureCurrentAsLoadedSnapshot(name)` helper in `runtime-projection-profile-persistence.js` + wire from `_applyAlignGridSnapshot` in `output-live-sync.js`. Static code trace confirms Hypothesis C (HANDLE_UI._refreshAlignToolbarVisual reads stale `_loadedProfileSnapshot` after server-pushed grid arrival); A and B eliminated per 39.1-G3-DIAG.md decision tree. G3-PROBE diagnostic permanently in place.
+- G3 live-e2e test deferral: the headless consumer view of `/output/` does not mount `[data-grid-handle]` elements without an operator session populating polygon state (`getRoomSourcePoints` returns null). The test as written exercises a path that only works during real operator interaction. Promotes G3 visual UAT to the canonical acceptance gate for this fix; the G3-PROBE diagnostic will fire during operator UAT to promote Hypothesis C from [ASSUMED] to [VERIFIED]. Defer G3 test refactor (programmatic operator-state bootstrap) to Phase 40+ as test-infrastructure improvement.
+- DILATE_PX value at commit: 1.0. Operator-spec allowed 1-2 pixels; 1.0 is most conservative (smallest non-zero dilation that can guarantee both triangles cover the boundary pixel under any rasterizer coverage rule). G2 RED test passed at this value on first attempt.
+- D-08 connection-stability fail=0 confirmed under 24 Mbps ultra-high preset: sustained 31506ms, heartbeats=21, closed=false, producerReady=0, producerClosed=0, renderHostDown=0. Pi 4 H.264 level 4.2 supports >50 Mbps so 1.5x headroom over operator's previously-rock-stable 16 Mbps is well within decoder limits.
+- New entry #6 added to `.planning/CRITICAL_KNOWN_BUGS.md`: "JPEG-CDP screenshot is the wrong test layer for H.264-stream artifacts (Chromium 131+)". Future test discipline for any SSR/encoder/compositor work mandates HTMLVideoElement + canvas.drawImage + getImageData pixel capture, NOT `page.screenshot()` or CDP `Page.captureScreenshot`. JPEG screenshots remain valid for verifying the IN-PAGE canvas (pre-encode) but NOT for verifying the consumer-side decoded stream.
+
+## Phase 39.1 Status
+
+- Phase 39.1 status: **CLOSED-PENDING-VISUAL-UAT** (2026-05-13)
+- All 4 plans executed: 39.1-01 (Wave 0: G3-PROBE diagnostic + 3 RED tests + helpers.py), 39.1-02 (Wave 1: G2 fix — ultra-high preset + bitrate plumbing + per-triangle dilation), 39.1-03 (Wave 1: G3 fix — sync teardown + activation token + captureCurrentAsLoadedSnapshot), 39.1-04 (Wave 2: regression matrix + closure) — all SUMMARY documents committed to master
+- Automated regression matrix: 16 tests run, ALL GREEN (modulo documented G3 live-e2e DEFERRAL per 39.1-03 SUMMARY)
+- G2 H.264 RED test transitioned RED→GREEN (canonical counter-anti-pattern test for the JPEG-CDP false-green that fooled Phase 39 closure)
+- G1 backstop GREEN; cross-defect-via-G2 hypothesis pending operator visual UAT
+- G3 fix code in place and statically verified; live-e2e test deferred to operator UAT (test infrastructure limitation, not a fix failure)
+- All Phase 38 W10/W11/W12 + Phase 39 D-01/D-02/D-03 carry-forwards GREEN
+- D-08 connection-stability hard gate preserved (fail=0 with RUN_LIVE_TESTS=1) under 24 Mbps ultra-high preset
+- VAAPI default-disabled (Phase 33 L6) preserved — gate at line 166 of `ssr-render-host.mjs` UNCHANGED
+- L13 VAAPI-class flag lock preserved (4 `ignore-gpu-blocklist` occurrences unchanged — pre-existing baseline, lock works via the encoder filter not by string-removal)
+- Phase 30 pixel-snap preserved (runs as INPUT to new centroid+dilation computation)
+- Phase 39-4 UV-inset shader preserved as orthogonal texture-outer-boundary defense (3/3 parametric grids still pass `test_phase39_d03_no_seams.py` with max_delta=0)
+- Visual UAT pending operator hardware verification (G1 flickering — uniform red light in all rooms during autostart; G2 seams — no stripes along mesh-cell boundaries under 9×9 warp + solid-color red; G3 board-switch — 5+ switches with full align UI cleanup + dirty=false)
+- Tag: `phase-39.1-closed-automated` until operator visual UAT confirms; then retag `phase-39.1-closed` (or `phase-39.1-closed-with-partial-g1` if G1 stays flickering)

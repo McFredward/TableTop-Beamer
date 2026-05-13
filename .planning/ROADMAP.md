@@ -866,7 +866,9 @@ Carrying Forward (LOCKED, do not re-open):
 - Phase 35-iter2 h1 lazy-load pattern (output-align-mode-loader.js)
 - Phase 35-iter2 h2 polygon-data /api/boards wiring
 
-## Phase 39.1 - SSR Stabilization Round 2 Gap Closure: real seams, flickering, board-switch race (PLANNING, 2026-05-13)
+## Phase 39.1 - SSR Stabilization Round 2 Gap Closure: real seams, flickering, board-switch race (CLOSED-PENDING-VISUAL-UAT, 2026-05-13)
+
+**Status update (2026-05-13):** Automated regression matrix ALL GREEN on dev box (16 tests). G2 RED→GREEN at commits cc8823c + e3ddd14. G1 backstop GREEN. G3 live-e2e DEFERRED to operator UAT per 39.1-03 SUMMARY (test infrastructure: headless consumer view doesn't mount handles without operator session). G3 fix code in place and statically verified via 39.1-G3-DIAG.md Hypothesis-C trace. All Phase 38 / Phase 39 / D-08 carry-forwards GREEN. **Visual UAT pending operator** (G1 flicker, G2 seams, G3 board-switch). Tag `phase-39.1-closed-automated` at this stage; retag `phase-39.1-closed` after operator visual UAT confirms. See `.planning/phases/phase-39.1/39.1-CLOSURE.md` for evidence and operator UAT checklist.
 
 Ziel: Drei vom Operator gemeldete Gaps aus Phase 39's UAT 2026-05-13 schließen. Phase 39 hatte einen wrong-layer fix für D-03 — der UV-inset Shader smoothed nur die Texture-Außenboundary, nicht die Inter-Cell-Seams. Operator sieht weiterhin Streifen + zusätzlich ein "Flackern" (vermutlich H.264-Temporal-Noise an genau diesen Seam-Boundaries) + einen Board-Switch Align-Mode-Race. **Positive Carry-Forward von Phase 39: D-01 MP4 Playback funktioniert** ("Ich sehe das MP4 Video im Stream").
 
@@ -934,10 +936,12 @@ Requirements: Phase 39.1 introduces three new acceptance criteria (G1-NO-FLICKER
 **Plans:** 4 plans (1 Wave-0 + 2 Wave-1 + 1 Wave-2)
 
 Plans:
-- [ ] 39.1-01-PLAN.md — Wave 0: G3-PROBE diagnostic + 3 RED tests (G1/G2/G3) + helpers.py
-- [ ] 39.1-02-PLAN.md — Wave 1: G2 fix (ultra-high preset + bitrate plumbing + per-triangle 1-px dilation in flat-arrays drawArrays)
-- [ ] 39.1-03-PLAN.md — Wave 1: G3 fix (sync teardown + activation token + captureCurrentAsLoadedSnapshot)
-- [ ] 39.1-04-PLAN.md — Wave 2: full regression matrix + operator UAT + closure docs + phase-39.1-closed tag
+- [x] 39.1-01-PLAN.md — Wave 0: G3-PROBE diagnostic + 3 RED tests (G1/G2/G3) + helpers.py
+- [x] 39.1-02-PLAN.md — Wave 1: G2 fix (ultra-high preset + bitrate plumbing + per-triangle 1-px dilation in flat-arrays drawArrays)
+- [x] 39.1-03-PLAN.md — Wave 1: G3 fix (sync teardown + activation token + captureCurrentAsLoadedSnapshot)
+- [x] 39.1-04-PLAN.md — Wave 2: full regression matrix + operator UAT + closure docs + phase-39.1-closed-automated tag
+
+**Closure:** see `.planning/phases/phase-39.1/39.1-CLOSURE.md` for evidence. Automated regression matrix (16 tests) ALL GREEN on 2026-05-13. G2 RED→GREEN, G1 backstop GREEN, G3 live-e2e DEFERRED to operator UAT per 39.1-03 SUMMARY. Tag `phase-39.1-closed-automated` applied at closure commit. Operator visual UAT outcome 2026-05-13: PENDING — retag `phase-39.1-closed` (or `phase-39.1-closed-with-partial-g1`) after operator confirms G1/G2/G3 visual gates.
 
 ---
 

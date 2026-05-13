@@ -443,3 +443,68 @@ If operator reports:
 
 → Read `renderMode` first, choose sub-path, apply fix, run D-08, ship. Never
 guess which sub-path; the renderMode telemetry is deterministic.
+
+---
+
+## #6 — JPEG-CDP screenshot is the wrong test layer for H.264-stream artifacts (Chromium 131+)
+
+### Discovery
+
+Phase 39 D-03 (2026-05-12, commit `1a8cef2`) added a UV-inset shader fix.
+Verification test `test/live-e2e/test_phase39_d03_no_seams.py` measured CDP
+`Page.captureScreenshot` JPEG pixels and reported `max_delta=0`. Operator
+UAT 2026-05-13 found seams STILL visible in the live H.264 WebRTC stream.
+
+### What the bug was
+
+Phase 39's test captured `Page.captureScreenshot` (JPEG quality=60), which
+uses an 8×8 DCT block size and a quantization profile that smooths
+single-pixel ridges into invisibility. The operator's actual pipeline
+(`getDisplayMedia` → H.264 baseline → WebRTC → Pi decode) uses 4×4 transform
+blocks aligned to mesh-cell edges and quantizes the same single-pixel
+residual into VISIBLE structured noise. Same source image, different
+compression artifact pattern, different visibility threshold.
+
+Net effect: the test was green for a fix that didn't address the operator's
+actual problem.
+
+### The fix (Phase 39.1)
+
+1. New test `test/live-e2e/test_phase39_1_g2_h264_no_seams.py` captures pixels
+   from the HTML5 `<video>` element (H.264-decoded operator-visible frame) via
+   offscreen canvas + getImageData, NOT from a CDP screenshot.
+2. G2 fix combined: ultra-high preset (24 Mbps single-layer) + per-triangle
+   1-px outward vertex dilation (eliminating diamond-exit ambiguity at shared
+   cell edges). Phase 39-4 UV-inset shader preserved as orthogonal
+   texture-boundary defense.
+
+### MANDATORY test rail: test/live-e2e/test_phase39_1_g2_h264_no_seams.py
+
+ANY future change to:
+- `src/server/ssr-stream-publisher.mjs` (bitrate / encoder config)
+- `src/server/ssr-render-host.mjs` (QUALITY_PRESETS)
+- `src/app/runtime/viewport/runtime-projection-gl-renderer.js` (mesh-warp)
+
+MUST keep `test_phase39_1_g2_h264_no_seams.py` green. The JPEG-CDP test
+(`test_phase39_d03_no_seams.py`) remains as a unit test for the UV-inset
+shader fix, but is NOT a substitute for the H.264-decoded video test.
+
+### Future test discipline
+
+For ANY change that touches the SSR rendering or encoding pipeline:
+- Capture pixels from the `<video>` element via canvas.drawImage + getImageData.
+- DO NOT use `page.screenshot()` or CDP `Page.captureScreenshot` to verify a
+  behavior the operator perceives over WebRTC/H.264.
+- JPEG screenshots are valid for verifying the IN-PAGE canvas (pre-encode);
+  they are NOT valid for verifying the consumer-side decoded stream.
+
+### Symptoms to recognize this bug class in future operator UATs
+
+If operator reports:
+- Automated tests are green but operator still sees the bug
+- Bug only visible on the actual deployment hardware, not on dev box
+- Bug specifically involves the streaming pipeline (artifacts, quality, latency)
+
+→ Suspect wrong-layer testing. Audit the test's capture path. If it touches
+Chromium-internal APIs (CDP screenshot, eval-in-tab readback of canvas),
+it's the wrong layer for stream-side artifacts.
