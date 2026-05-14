@@ -754,6 +754,13 @@
     addDirtyListener,
     removeDirtyListener,
     notifyDirtyChanged,
+    // 2026-05-14 fix: recompute the LOCAL dirty state against the loaded
+    // profile snapshot WITHOUT broadcasting dirty=true to the server. Used
+    // by remote-driven sync paths (live-sync-core's align-grid-snapshot
+    // WS-receive) where the grid changed but no local user gesture
+    // happened — calling notifyDirtyChanged there would falsely report
+    // "Unsaved on /output/" to the dashboard after a profile load.
+    recomputeDirtyOnly: _recomputeAndNotifyDirty,
     // Phase 28 B1: silent auto-load helpers consumed by runtime-board-switch
     // autoLoadRememberedProjectionProfile().
     applyAndCaptureSnapshot,

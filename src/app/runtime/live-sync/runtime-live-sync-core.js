@@ -1070,11 +1070,23 @@
                     points: points2D,
                   });
                   _redrawHandlesAfterCornerDrag();
-                  // Refresh dirty flag — the grid changed, profile-persistence
-                  // needs to recompute against _loadedProfileSnapshot.
+                  // 2026-05-14 fix: recompute LOCAL dirty against the loaded
+                  // profile snapshot WITHOUT POSTing dirty=true to the
+                  // server. The previous `notifyDirtyChanged()` here
+                  // unconditionally signaled dirty=true on /output/ even
+                  // though the grid mutation came from a REMOTE broadcast
+                  // (e.g. dashboard's profile-load → broadcastGridSnapshot
+                  // → here), so the dashboard saw "Unsaved on /output/"
+                  // immediately after a clean profile load and the
+                  // operator couldn't exit align-mode without explicit
+                  // discard. Using recomputeDirtyOnly compares the current
+                  // grid against _loadedProfileSnapshot and only flips the
+                  // local _dirty flag (which feeds the chip + aria UX);
+                  // the dashboard's alignModeDirtyOnOutput now reflects
+                  // ONLY local gestures on /output/, never sync hops.
                   try {
                     window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE
-                      ?.notifyDirtyChanged?.();
+                      ?.recomputeDirtyOnly?.();
                   } catch (_) {}
                 }
               }
