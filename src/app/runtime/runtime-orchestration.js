@@ -561,16 +561,19 @@ window.__TT_BEAMER_STATE_FOR_DIAG__ = state;
 // resets _glContextLossCount to 0 on a successful drawElements call.
 window.__ttBeamerEffectiveRenderMode = () => {
   const configured = state?.renderMode ?? "auto";
-  if (configured === "2d") return "2d";
+  // 2026-05-14: 2D fallback retired. Permanent-disable and loss-count
+  // pathways now surface as "gl-failed" / "gl (loss xN)" — the operator
+  // is expected to either switch GL backend (Settings → System) or accept
+  // the visible CONTEXT_LOST recovery. There is no fallback render path.
   const glRenderer = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER;
   const glDisabled = glRenderer?.isGlPermanentlyDisabled?.() === true;
   const lossCount = Number(glRenderer?.getGlContextLossCount?.() || 0);
   if (glDisabled) {
-    return configured === "gl" ? "gl→2d (gl-disabled)" : "auto→2d (gl-disabled)";
+    return configured === "gl" ? "gl-failed" : "auto-failed";
   }
   if (lossCount > 0) {
-    const suffix = `2d (loss x${lossCount})`;
-    return configured === "gl" ? `gl→${suffix}` : `auto→${suffix}`;
+    const suffix = `(loss x${lossCount})`;
+    return `${configured} ${suffix}`;
   }
   return configured;
 };
@@ -1178,11 +1181,14 @@ const {
 // state field with a select-driven UI.
 const RENDER_MODE_LABELS = {
   auto: "Render mode: auto (GL only when warp grid is bent)",
-  "2d": "Render mode: 2D — Pi-friendly (GL skipped)",
   gl: "Render mode: GL — always run mesh warp",
 };
+// 2026-05-14: "2d" is no longer a valid render mode (2D fallback retired —
+// GL is the sole mesh-warp path, with backend selectable via Settings →
+// System). Legacy persisted "2d" values silently coerce to "auto" so old
+// configs keep working without operator intervention.
 function normalizeRenderModeValue(value) {
-  return value === "2d" || value === "gl" ? value : "auto";
+  return value === "gl" ? value : "auto";
 }
 function syncRenderModePanel() {
   const mode = normalizeRenderModeValue(state.renderMode);

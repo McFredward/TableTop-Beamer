@@ -661,6 +661,15 @@ export function bootSsrRenderHost({
         // it back for a working stream. Re-enable via SSR_ENABLE_VAAPI=1 at
         // the operator's discretion (same opt-in as VAAPI itself).
         ...(hasVaapiEnabled ? ["--ignore-gpu-blocklist", "--enable-gpu-rasterization"] : []),
+        // 2026-05-14 streifen-fix attempt: tested SSR_FORCE_WEBGL=1 to layer
+        // --ignore-gpu-blocklist (without --enable-gpu-rasterization). Result:
+        // cdp-ping-timeout-4s within 5s of producer-up — Mesa-llvmpipe
+        // sync-flush stall fires the same way as the Phase 34 h2 documented
+        // failure mode. Conclusion: --ignore-gpu-blocklist on this hardware
+        // class breaks the stream regardless of whether
+        // --enable-gpu-rasterization is also set. Streifen are now fixed at
+        // a different layer (2D-fallback alpha-overlap, see
+        // runtime-projection-2d-fallback-renderer.js) instead.
         `--display=${display}`,
       ],
       env: { ...process.env, DISPLAY: display },

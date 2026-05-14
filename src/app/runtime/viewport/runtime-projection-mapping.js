@@ -46,10 +46,13 @@
   const glRenderer = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER;
   const _postDrawMeshWarpGL = glRenderer.postDrawMeshWarpGL;
 
-  // 2D-fallback renderer (W3.2-C3). Imports postDrawMeshWarp2D for
-  // the GL-fallback branch in postDrawMeshWarp.
-  const fallback = window.TT_BEAMER_RUNTIME_PROJECTION_2D_FALLBACK_RENDERER;
-  const { postDrawMeshWarp2D } = fallback;
+  // 2026-05-14: 2D fallback retired. Pre-SSR the GL path occasionally
+  // failed on Pi VC4 and the per-triangle clip+drawImage 2D fallback kept
+  // /output/ rendering. Post-SSR the renderer always runs in the SSR
+  // Chromium tab on the operator host — there's no VC4 + the GL backend
+  // is operator-selectable via Settings → System (Mesa / SwiftShader).
+  // postDrawMeshWarp2D is gone; if GL fails to init, we surface the error
+  // and bail out of the draw — the operator picks a working backend.
 
   // Handle UI (W3.2-C4). Imports the public surface so the shim's
   // public API can delegate to it. onWindowResize moved with the
@@ -258,24 +261,12 @@
     const isOutput = ctx.outputRole === ctx.OUTPUT_ROLE_FINAL;
     const glCanvasEl = isOutput ? document.getElementById("fx-gl-canvas") : null;
 
-    // Server-driven render-mode override. "2d" forces the GL path off
-    // entirely so /output/ never pays the per-frame texImage2D upload —
-    // critical for Raspberry Pi smoothness. "gl" forces it on (for
-    // diagnostic A/B comparisons). "auto" keeps the original behavior.
+    // Server-driven render-mode override. "gl" forces GL on; "auto" keeps
+    // the historical behavior (GL only when warp grid is bent). 2026-05-14:
+    // the "2d" mode is gone; the GL backend itself is now operator-
+    // selectable in Settings → System (Mesa / SwiftShader). Legacy
+    // "2d" persisted values fall through to "auto" semantically.
     const renderMode = typeof ctx.getRenderMode === "function" ? ctx.getRenderMode() : "auto";
-
-    if (renderMode === "2d") {
-      if (glCanvasEl && glCanvasEl.style.display !== "none") {
-        glCanvasEl.style.display = "none";
-      }
-      // h20: 2D path draws onto fx-canvas — make sure it's visible.
-      if (canvas && canvas.style && canvas.style.visibility === "hidden") {
-        canvas.style.visibility = "";
-      }
-      if (!hasGridDisplacements()) return;
-      postDrawMeshWarp2D(canvas, canvasCtx);
-      return;
-    }
 
     if (renderMode !== "gl" && !hasGridDisplacements()) {
       // No active warp — fx-canvas content is shown directly. Hide
@@ -290,9 +281,10 @@
       return;
     }
 
-    // WebGL path eliminates the per-triangle clip
-    // seams that were visible on MP4 content. Falls back to the 2D
-    // path below only if GL init fails (ancient browser / no GPU).
+    // WebGL path. With the 2D fallback retired, GL is the only mesh-warp
+    // path. If init fails, we surface the failure (a toast + diag flag)
+    // and bail — the operator must pick a working backend in
+    // Settings → System.
     if (_postDrawMeshWarpGL(canvas, canvasCtx)) {
       // In /output/ the GL canvas is the visible
       // surface, so show it now that we know it has fresh content.
@@ -311,18 +303,29 @@
       }
       return;
     }
-    // GL failed — fall back to 2D warp on fx-canvas. Hide the GL
-    // overlay so its (possibly stale) content can't show through.
+    // 2026-05-14: GL init failed. The 2D fallback is gone. Surface the
+    // failure so the operator knows to change backend in Settings →
+    // System. One-shot toast + a window flag so the chip can flip its
+    // status to "GL init failed". The /output/ stream will be black
+    // (clearColor 0,0,0,1 was never drawn) until backend changes.
+    if (typeof window !== "undefined" && !window.__ttBeamerGlInitToasted) {
+      window.__ttBeamerGlInitToasted = true;
+      window.__ttBeamerGlInitFailed = true;
+      try {
+        if (typeof ctx?.showToast === "function") {
+          ctx.showToast(
+            "WebGL konnte nicht initialisiert werden. Wechsle das GL-Backend in Einstellungen → System.",
+            { kind: "error", dedupeKey: "gl-init-failed" },
+          );
+        }
+      } catch (_) { /* never let toast break render path */ }
+    }
     if (glCanvasEl && glCanvasEl.style.display !== "none") {
       glCanvasEl.style.display = "none";
     }
-    // h20: restore fx-canvas visibility for the 2D fallback path
-    // (which draws ONTO fx-canvas).
     if (canvas && canvas.style && canvas.style.visibility === "hidden") {
       canvas.style.visibility = "";
     }
-    // 2D mesh-warp body lives in postDrawMeshWarp2D (W3.2-C3).
-    postDrawMeshWarp2D(canvas, canvasCtx);
   }
 
   // ── Legacy compat ──────────────────────────────────────────────────────────
@@ -361,11 +364,8 @@
       grid,
       getPoint,
     }));
-    // 2D-fallback renderer (W3.2-C3): same grid/getPoint injection.
-    fallback.init(Object.assign({}, dependencies, {
-      grid,
-      getPoint,
-    }));
+    // 2026-05-14: 2D-fallback renderer init removed alongside the module
+    // itself; GL is the sole mesh-warp path.
     // Handle UI (W3.2-C4): grid-state refs + applyTransform (shim) +
     // profile flow callbacks (now from profile-persistence per
     // W3.2-C5) + gridState namespace so its createHandles /

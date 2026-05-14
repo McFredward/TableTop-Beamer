@@ -47,6 +47,12 @@ const BOARD_ASSETS_DIR = path.join(BOARD_STORAGE_DIR, "assets");
 const RESOURCES_DIR = path.join(ROOT_DIR, "resources");
 // Phase 28 B5 — central asset manifest with sha256[:12] cache-busting tokens.
 const ASSET_MANIFEST_PATH = path.join(ROOT_DIR, "config", "asset-manifest.json");
+// 2026-05-14 GL-backend selector. Persisted across server restarts; the
+// operator picks "mesa" or "swiftshader" in Settings → System; the file is
+// read at boot (before launching the SSR Chromium tab) and after every
+// successful POST /api/system/gl-backend.
+const RUNTIME_SYSTEM_PATH = path.join(ROOT_DIR, "config", "runtime-system.json");
+const SUPPORTED_GL_BACKENDS = ["mesa", "swiftshader"];
 const ASSET_MANIFEST_SCHEMA = "tt-beamer.asset-manifest.v1";
 
 const BOARD_CATALOG_SCHEMA = "tt-beamer.board-catalog.v1";
@@ -2051,6 +2057,33 @@ async function saveProjectionProfilesRaw(data) {
   await writeFile(PROJECTION_PROFILES_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
+// 2026-05-14 GL-backend selector. Reads config/runtime-system.json (created
+// lazily on first POST /api/system/gl-backend). Falls back to {} if the file
+// doesn't exist yet — operator gets the env-var default until they pick.
+async function loadRuntimeSystem() {
+  try {
+    const content = await readFile(RUNTIME_SYSTEM_PATH, "utf8");
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveRuntimeSystem(data) {
+  await mkdir(path.dirname(RUNTIME_SYSTEM_PATH), { recursive: true });
+  await writeFile(RUNTIME_SYSTEM_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
+}
+
+// Detect Intel/AMD iGPU presence (mirrors ssr-render-host.mjs:hasIgpuDev
+// check). Used by /api/system/info to gate the "Mesa (GPU)" backend option
+// in the dashboard so the operator can't pick it on hardware where it would
+// silently fall back to SwiftShader anyway.
+import { existsSync as _fsExistsSync } from "node:fs";
+function detectIgpuDev() {
+  return _fsExistsSync("/dev/dri/renderD128") || _fsExistsSync("/dev/dri/renderD129");
+}
+
 // ── Minimal pure-Node ZIP encoder/decoder (DEFLATE) ───────────────────────
 // Used by the board-package export/import so large MP4 assets travel as
 // real .zip instead of base64-inflated JSON.
@@ -3753,6 +3786,89 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    // 2026-05-14 GL-backend selector. /api/system/info exposes the active
+    // backend + hardware detection so the dashboard's System panel renders
+    // the selector with the correct disabled state. /api/system/gl-backend
+    // POSTs a new backend, persists to disk, restarts the SSR tab.
+    if (req.method === "GET" && routePath === "/api/system/info") {
+      const sys = await loadRuntimeSystem();
+      const hasIgpuDev = detectIgpuDev();
+      const requested = (process.env.SSR_GL_BACKEND || "auto").toLowerCase();
+      // Persisted picks override env. If neither set, fall through to "auto".
+      const current = typeof sys.glBackend === "string"
+        && SUPPORTED_GL_BACKENDS.includes(sys.glBackend)
+        ? sys.glBackend
+        : (SUPPORTED_GL_BACKENDS.includes(requested) ? requested : null);
+      sendJson(res, 200, {
+        ok: true,
+        glBackend: {
+          current,
+          persisted: typeof sys.glBackend === "string" ? sys.glBackend : null,
+          envRequested: requested,
+          hasIgpuDev,
+          supported: SUPPORTED_GL_BACKENDS.slice(),
+          disabledReasons: hasIgpuDev ? {} : {
+            mesa: "Keine kompatible GPU erkannt (kein /dev/dri/renderD*). "
+              + "Mesa benötigt eine Intel/AMD iGPU oder dedizierte GPU. "
+              + "Wähle SoftwareWebGL für reines CPU-Rendering.",
+          },
+        },
+      });
+      return;
+    }
+    if (req.method === "POST" && routePath === "/api/system/gl-backend") {
+      let bodyRaw;
+      try { bodyRaw = await parseJsonBody(req, { maxBytes: 1024 }); }
+      catch (err) {
+        sendJson(res, 400, { ok: false, error: "invalid_json", detail: err?.message || "" });
+        return;
+      }
+      const backend = typeof bodyRaw?.backend === "string"
+        ? bodyRaw.backend.toLowerCase()
+        : null;
+      if (!SUPPORTED_GL_BACKENDS.includes(backend)) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "invalid_backend",
+          supported: SUPPORTED_GL_BACKENDS.slice(),
+        });
+        return;
+      }
+      const hasIgpuDev = detectIgpuDev();
+      if (backend === "mesa" && !hasIgpuDev) {
+        sendJson(res, 400, {
+          ok: false,
+          error: "mesa_unavailable",
+          detail: "No iGPU device found at /dev/dri/renderD*; pick swiftshader instead.",
+        });
+        return;
+      }
+      try {
+        const sys = await loadRuntimeSystem();
+        sys.glBackend = backend;
+        await saveRuntimeSystem(sys);
+        process.env.SSR_GL_BACKEND = backend;
+        // Restart the SSR Chromium tab so the new --use-angle flag takes
+        // effect immediately. The operator's /output/ briefly shows a
+        // reconnect banner — same UX as the encoder-change restart path.
+        const host = getActiveSsrRenderHost();
+        let restartFired = false;
+        if (host && typeof host.restart === "function") {
+          // Don't await — restart() can take ~5s and we don't want the POST
+          // to hang. The reconnect banner on /output/ is the user-facing
+          // signal that the restart is in flight.
+          host.restart().catch((err) => {
+            console.warn(`[runtime-system] SSR restart failed: ${err?.message || err}`);
+          });
+          restartFired = true;
+        }
+        sendJson(res, 200, { ok: true, glBackend: backend, restartFired });
+      } catch (err) {
+        sendJson(res, 500, { ok: false, error: "persist_failed", detail: err?.message || "" });
+      }
+      return;
+    }
+
     if (req.method === "GET" && routePath === "/api/health") {
       sendJson(res, 200, {
         ok: true,
@@ -4431,6 +4547,21 @@ if (process.env.SSR_RENDER_HOST === "1") {
   // IIFE so the existing call order around it stays unchanged.
   (async () => {
     try {
+      // 2026-05-14 GL-backend selector: hydrate process.env.SSR_GL_BACKEND
+      // from the persisted runtime-system.json BEFORE launching the SSR
+      // Chromium tab. The persisted value beats the env var so operator
+      // dashboard picks survive restarts. If the file doesn't exist yet
+      // (fresh install) the env var or the "auto" default still wins.
+      try {
+        const sys = await loadRuntimeSystem();
+        if (sys && typeof sys.glBackend === "string"
+          && SUPPORTED_GL_BACKENDS.includes(sys.glBackend)) {
+          process.env.SSR_GL_BACKEND = sys.glBackend;
+          console.log(`[runtime-system] glBackend=${sys.glBackend} (from disk)`);
+        }
+      } catch (err) {
+        console.warn(`[runtime-system] load failed: ${err?.message || err}`);
+      }
       // Phase 31 Plan 04 (D-X7): restore active animations from disk on
       // boot BEFORE the SSR tab connects. Survivors land in
       // liveSessionState.snapshot.runtime so the initial WS snapshot

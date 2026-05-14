@@ -762,12 +762,11 @@
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
         <h2>Render mode (/output/)</h2>
-        <p class="status-line">Controls how the projector view composites the canvas. On a Raspberry Pi the GL warp can drop frame rate dramatically — switch to 2D if /output/ stutters.</p>
+        <p class="status-line">Controls how the projector view composites the canvas. The 2D fallback was retired on 2026-05-14 — the SSR Chromium tab always uses WebGL.</p>
         <label>
           Mode
           <select id="render-mode-select">
             <option value="auto">Auto (GL only when warp grid is bent)</option>
-            <option value="2d">2D — Pi-friendly, skip GL entirely</option>
             <option value="gl">GL — always run mesh warp</option>
           </select>
         </label>
@@ -777,6 +776,30 @@
           Show diagnostic overlay (version · fps · render mode · canvas · frame cost)
         </label>
         <p id="diagnostic-overlay-status" class="status-line" aria-live="polite">Diagnostic overlay: hidden</p>
+      </section>
+
+      <!-- 2026-05-14: GL backend selector (SSR Chromium tab).
+           Operator picks whether the SSR tab's WebGL context is backed by
+           Mesa (GPU) or SwiftShader (CPU). Mesa is grayed-out + reason-
+           tooltipped when no compatible iGPU device is detected at server
+           boot. Change POSTs /api/system/gl-backend → server writes to
+           config/runtime-system.json + restarts the SSR Chromium tab. -->
+      <section id="settings-gl-backend" class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
+        <h2>GL backend (SSR-Tab)</h2>
+        <p class="status-line">Wählt aus, wie der SSR-Chromium-Tab WebGL ausführt. Mesa nutzt die GPU; SoftwareWebGL nutzt reines CPU-Rendering (SwiftShader) als Fallback ohne GPU. Änderung startet den SSR-Tab neu — /output/ zeigt kurz "Reconnecting".</p>
+        <fieldset class="ssr-radio-group" id="gl-backend-radio-group">
+          <legend>Backend</legend>
+          <label id="gl-backend-mesa-label">
+            <input type="radio" name="gl-backend" value="mesa" />
+            Mesa (GPU)
+          </label>
+          <label id="gl-backend-swiftshader-label">
+            <input type="radio" name="gl-backend" value="swiftshader" />
+            SoftwareWebGL (SwiftShader)
+          </label>
+        </fieldset>
+        <p id="gl-backend-disabled-hint" class="status-line" hidden></p>
+        <p id="gl-backend-status" class="status-line" aria-live="polite">GL backend: loading…</p>
       </section>
 
       <section class="panel settings-only view-hidden" data-view="settings" data-settings-tab="system" hidden>
@@ -1104,6 +1127,11 @@
        runtime-orchestration.js so the init function is available when
        the panel-controller wires it. -->
   <script src="/src/app/lib/ui/settings/server-rendering-panel.js" defer></script>
+  <!-- 2026-05-14: GL backend selector panel (Settings → System).
+       Fetches /api/system/info on mount; POSTs /api/system/gl-backend on
+       radio change. Mesa option is disabled with a tooltip when the server
+       reports no compatible iGPU. -->
+  <script src="/src/app/lib/ui/settings/gl-backend-panel.js" defer></script>
   <script src="/src/app/lib/ui/runtime-panels-controller.js" defer></script>
   <script src="/src/app/runtime/core/polygon-contract.js" defer></script>
   <script src="/src/app/runtime/state/runtime-polygon-normalizers.js" defer></script>
@@ -1178,7 +1206,10 @@
   <script src="/src/app/runtime/state/runtime-play-area-geometry.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-projection-grid-state.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-projection-gl-renderer.js" defer></script>
-  <script src="/src/app/runtime/viewport/runtime-projection-2d-fallback-renderer.js" defer></script>
+  <!-- 2026-05-14: runtime-projection-2d-fallback-renderer.js retired.
+       SSR Chromium tab is the sole render surface; the GL backend is
+       operator-selectable in Settings → System. -->
+
   <script src="/src/app/runtime/viewport/runtime-projection-handle-drag.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-projection-handle-ui.js" defer></script>
   <script src="/src/app/runtime/viewport/runtime-projection-profile-persistence.js" defer></script>
