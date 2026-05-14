@@ -94,35 +94,33 @@
       // /output/ — likely a CSS/timing edge case on Chromium.
       _glCanvas = document.getElementById("fx-gl-canvas")
                 || document.createElement("canvas");
-      // Phase 30 B1 h7: antialias: false retained from h6 (revert h3).
-      // The h3 attempt to enable MSAA caused WebGL CONTEXT_LOST_WEBGL
-      // on Pi VC4 immediately after the first successful warp frame —
-      // confirmed by user console log showing CONTEXT_LOST + post-loss
-      // shader recompile failures. The Pi VC4 GPU's framebuffer memory
-      // budget (shared with system RAM) cannot afford the 4× MSAA
-      // expansion of a 1365×1080 buffer. Returning to no-AA preserves
-      // a Pi-friendly memory profile.
+      // Phase 30 B1 h7 (HISTORIC): antialias was disabled because the Pi VC4
+      // GPU's framebuffer memory budget (shared with system RAM) cannot afford
+      // the 4× MSAA expansion of a 1365×1080 buffer — h3 had enabled MSAA and
+      // caused immediate WebGL CONTEXT_LOST_WEBGL on Pi VC4.
       //
-      // Phase 30 B1 h7: tighten GL context options for Pi VC4 stability.
-      // The user's console log showed CONTEXT_LOST_WEBGL after the first
-      // successful warp frame. Likely contributing factors:
-      //   - desynchronized:true allows the compositor to present the GL
-      //     canvas out-of-band; on Pi VC4 this can race with framebuffer
-      //     allocation and produce momentary white frames AND increase
-      //     context-loss likelihood under memory pressure.
-      //   - preserveDrawingBuffer:true holds the framebuffer in memory
-      //     between frames, doubling effective VRAM commitment on the Pi
-      //     (which only has shared system+GPU memory).
-      // Tightening to desynchronized:false + preserveDrawingBuffer:false
-      // trades a tiny per-frame upload cost (we redraw every frame anyway)
-      // for a much smaller memory footprint and synchronized presentation.
-      // User-facing effect: GL stays alive across boot, h4's LINEAR
-      // sampling becomes the actual rendering path (not the 2D-fallback
-      // clip-AA path that produces streifen), and the boot-time white
-      // flash from desynchronized GL canvas presentation disappears.
+      // Post-Phase-31 SSR-pivot status (re-evaluated 2026-05-14): the GL
+      // renderer no longer runs on the Pi at all. Pi /output/ loads only
+      // runtime-env.js in steady state — the projection mesh-warp GL pipeline
+      // runs exclusively in the SSR Chromium tab on the operator gaming PC
+      // (dedicated GPU, no VC4 memory constraint), and in the dashboard
+      // (gaming PC again). The Pi VC4 memory budget that motivated h7 no
+      // longer applies. Re-enabling MSAA closes the residual sub-pixel
+      // discontinuities at mesh-warp shared edges; pre-SSR those were
+      // imperceptible at projector viewing distance, but post-SSR the H.264
+      // encoder amplified them into visible cell-boundary streifen.
+      //
+      // The other h7 options (desynchronized:false + preserveDrawingBuffer:false
+      // + low-power preference) are kept — they're cheap and remove a known
+      // boot-time white-flash race independent of the AA decision.
+      //
+      // Edge case: if a user activates align-mode on Pi /output/ in some future
+      // scenario, the GL renderer would re-load there. If that ever causes
+      // Pi-side CONTEXT_LOST, narrow the antialias re-enable to a runtime guard
+      // (e.g. detect outputRole !== "final-output-pi" via a feature flag).
       const glOpts = {
         premultipliedAlpha: false,
-        antialias: false,
+        antialias: true,
         preserveDrawingBuffer: false,
         powerPreference: "low-power",
         desynchronized: false,
