@@ -511,6 +511,31 @@ export function bootSsrRenderHost({
       existsSync("/dev/dri/renderD128") || existsSync("/dev/dri/renderD129");
     const hasVaapiEnabled =
       process.env.SSR_ENABLE_VAAPI === "1" && hasIgpuDev;
+
+    // 2026-05-14 GL-backend selector. Operator picks via SSR_GL_BACKEND env
+    // var (later via dashboard System settings). "mesa" needs the iGPU node;
+    // we gracefully fall back to "swiftshader" when no iGPU device is present.
+    // The resolved value drives --use-angle=... below and is exposed via
+    // globalThis.__ttBeamerSsrGlBackend for /api/system/info.
+    const glBackendRequested = (process.env.SSR_GL_BACKEND || "auto").toLowerCase();
+    let glBackendResolved;
+    if (glBackendRequested === "swiftshader") {
+      glBackendResolved = "swiftshader";
+    } else if (glBackendRequested === "mesa" && !hasIgpuDev) {
+      glBackendResolved = "swiftshader"; // graceful fallback — Mesa needs iGPU node
+    } else {
+      glBackendResolved = "default"; // = ANGLE → Mesa under Xvfb (historic)
+    }
+    logger.info(
+      `[ssr-host] glBackend requested=${glBackendRequested} resolved=${glBackendResolved} hasIgpuDev=${hasIgpuDev}`,
+    );
+    if (typeof globalThis !== "undefined") {
+      globalThis.__ttBeamerSsrGlBackend = {
+        requested: glBackendRequested,
+        resolved: glBackendResolved,
+        hasIgpuDev,
+      };
+    }
     const enabledFeatures = [
       // VAAPI features ONLY when explicitly enabled (D-06 lock).
       ...(hasVaapiEnabled ? ["VaapiVideoEncoder", "VaapiVideoDecoder", "VaapiIgnoreDriverChecks"] : []),
@@ -560,8 +585,18 @@ export function bootSsrRenderHost({
         // GPU crashes, mp4 video decode works. ignore-gpu-blocklist +
         // enable-gpu-rasterization (added below if iGPU present) still let
         // libva see the iGPU for whatever paths actually use it.
+        //
+        // 2026-05-14 GL-backend selector: SSR_GL_BACKEND env var picks
+        // between Mesa (= "mesa", needs --ignore-gpu-blocklist below) and
+        // pure software (= "swiftshader"). Default "auto" preserves the
+        // historic --use-angle=default path that worked on most hardware
+        // pre-this-change. On hardware without an iGPU device (no
+        // /dev/dri/renderDxxx), "mesa" silently falls back to "swiftshader"
+        // since Mesa needs the iGPU node. The /api/system/info endpoint
+        // exposes the resolved value so the dashboard UI can gate the
+        // selector accordingly. See Phase 39 39-1-DIAG.md sub-path A.
         "--use-gl=angle",
-        "--use-angle=default",
+        `--use-angle=${glBackendResolved}`,
         "--enable-unsafe-swiftshader",
         "--disable-dev-shm-usage",
         // h9: anti-throttling. These individual --disable-X flags are
