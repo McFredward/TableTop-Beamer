@@ -112,40 +112,72 @@ function encodeTextFrame(json) {
 }
 
 /**
- * Decode a single text frame (client → server, MUST be masked per RFC 6455).
- * Returns { text } | { close: true } | null when frame is malformed.
+ * Streaming-capable WebSocket frame decoder for the /api/webrtc/signal
+ * endpoint. Mirrors the Phase 38 W10 fix in server.mjs (tryDecodeWebSocketFrame)
+ * for /api/live — without it, the single-shot decoder lost any frame that
+ * fragmented across TCP segments. On a LAN with MTU 1500 the `consume` RPC's
+ * rtpCapabilities payload (~4-6 KB on first connect) routinely fragments,
+ * the server never sees the request, and the client times out after 20 s.
+ *
+ * Sentinel return shapes:
+ *   { kind: "need-more", consumed: 0 }                 — accumulate more bytes
+ *   { kind: "frame", frame: {close, text}, consumed }  — one frame consumed
+ *   { kind: "protocol-error", consumed }               — malformed; advance and retry
+ *
+ * Callers maintain a per-socket Buffer and drain it in a loop until either
+ * a "need-more" or no bytes remain. Bounded by an 8 MB cap on the caller's
+ * accumulator (handled in the socket.on("data", ...) handler below).
  */
-function decodeTextFrame(buf) {
-  if (buf.length < 2) return null;
-  const opcode = buf[0] & 0x0f;
-  if (opcode === 0x8) return { close: true };
-  if (opcode !== 0x1) return null; // we only handle text frames here
-  const masked = (buf[1] & 0x80) !== 0;
-  let len = buf[1] & 0x7f;
-  let off = 2;
-  if (len === 126) {
-    if (buf.length < off + 2) return null;
-    len = buf.readUInt16BE(off);
-    off += 2;
-  } else if (len === 127) {
-    if (buf.length < off + 8) return null;
-    len = Number(buf.readBigUInt64BE(off));
-    off += 8;
+function tryDecodeFrame(buf) {
+  if (!buf || buf.length < 2) {
+    return { kind: "need-more", consumed: 0 };
   }
-  let mask = null;
-  if (masked) {
-    if (buf.length < off + 4) return null;
-    mask = buf.subarray(off, off + 4);
-    off += 4;
+  const firstByte = buf[0];
+  const secondByte = buf[1];
+  const opcode = firstByte & 0x0f;
+  if (opcode === 0x8) {
+    return { kind: "frame", frame: { close: true, text: null }, consumed: 2 };
   }
-  if (buf.length < off + len) return null;
-  const payload = Buffer.from(buf.subarray(off, off + len));
-  if (masked && mask) {
-    for (let i = 0; i < payload.length; i++) {
-      payload[i] ^= mask[i & 3];
+  if (opcode !== 0x1) {
+    return { kind: "protocol-error", consumed: 1 };
+  }
+  const masked = (secondByte & 0x80) === 0x80;
+  const initialPayloadLength = secondByte & 0x7f;
+  if (!masked) {
+    return { kind: "protocol-error", consumed: 0 };
+  }
+  let cursor = 2;
+  let payloadLength = initialPayloadLength;
+  if (initialPayloadLength === 126) {
+    if (buf.length < cursor + 2) return { kind: "need-more", consumed: 0 };
+    payloadLength = buf.readUInt16BE(cursor);
+    cursor += 2;
+  } else if (initialPayloadLength === 127) {
+    if (buf.length < cursor + 8) return { kind: "need-more", consumed: 0 };
+    const value = Number(buf.readBigUInt64BE(cursor));
+    if (!Number.isFinite(value) || value > 8 * 1024 * 1024) {
+      return { kind: "protocol-error", consumed: cursor + 8 };
     }
+    payloadLength = value;
+    cursor += 8;
   }
-  return { text: payload.toString("utf8") };
+  const need = cursor + 4 + payloadLength;
+  if (buf.length < need) {
+    return { kind: "need-more", consumed: 0 };
+  }
+  const maskOffset = cursor;
+  const payloadOffset = maskOffset + 4;
+  const mask = buf.subarray(maskOffset, maskOffset + 4);
+  const payload = buf.subarray(payloadOffset, payloadOffset + payloadLength);
+  const unmasked = Buffer.alloc(payload.length);
+  for (let i = 0; i < payload.length; i += 1) {
+    unmasked[i] = payload[i] ^ mask[i % 4];
+  }
+  return {
+    kind: "frame",
+    frame: { close: false, text: unmasked.toString("utf8") },
+    consumed: need,
+  };
 }
 
 /**
@@ -408,20 +440,15 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       send({ type: "error", reason, requestId });
     }
 
-    socket.on("data", async (buf) => {
-      const frame = decodeTextFrame(buf);
-      if (!frame) return;
-      if (frame.close) {
-        socket.end();
-        return;
-      }
-      let msg;
-      try {
-        msg = JSON.parse(frame.text);
-      } catch {
-        sendErr("invalid-json");
-        return;
-      }
+    // 2026-05-14 fix: per-socket reassembly buffer. Mirrors the Phase 38 W10
+    // pattern from server.mjs's /api/live handler. Without it, large frames
+    // (notably consume's rtpCapabilities ~4-6 KB) fragmented across TCP
+    // segments on real LANs and the single-shot decoder silently dropped
+    // them — the consumer never got a response and timed out after 20 s.
+    let recvBuf = Buffer.alloc(0);
+    const RECV_BUF_MAX = 8 * 1024 * 1024 + 1024;
+
+    async function dispatchMessage(msg) {
       if (!msg || typeof msg !== "object") {
         sendErr("invalid-message");
         return;
@@ -687,6 +714,43 @@ export function attachWebRtcSignaling(server, { logger = console } = {}) {
       } catch (err) {
         logger.error(`[ssr-signal] action=${action} error: ${err?.message}`);
         sendErr(err?.message ?? "internal-error", requestId);
+      }
+    }
+
+    socket.on("data", (chunk) => {
+      // Append to per-socket reassembly buffer, then drain in a loop.
+      recvBuf = recvBuf.length === 0 ? chunk : Buffer.concat([recvBuf, chunk]);
+      if (recvBuf.length > RECV_BUF_MAX) {
+        logger.warn(`[ssr-signal] recv-buffer-overflow role=${conn.role} addr=${conn.remoteAddr} bufLen=${recvBuf.length}`);
+        try { socket.destroy(); } catch (_) {}
+        return;
+      }
+      while (recvBuf.length > 0) {
+        const r = tryDecodeFrame(recvBuf);
+        if (r.kind === "need-more") return;
+        if (r.kind === "protocol-error") {
+          logger.warn(`[ssr-signal] frame decode failed role=${conn.role} consumed=${r.consumed}`);
+          recvBuf = r.consumed > 0 && r.consumed <= recvBuf.length
+            ? recvBuf.subarray(r.consumed)
+            : Buffer.alloc(0);
+          continue;
+        }
+        recvBuf = recvBuf.subarray(r.consumed);
+        if (r.frame.close) {
+          try { socket.end(); } catch (_) {}
+          return;
+        }
+        let parsed;
+        try { parsed = JSON.parse(r.frame.text); }
+        catch {
+          sendErr("invalid-json");
+          continue;
+        }
+        // dispatchMessage is async — fire-and-forget so we keep draining
+        // the buffer (multiple RPCs can arrive in a single TCP segment).
+        Promise.resolve(dispatchMessage(parsed)).catch((err) => {
+          logger.warn(`[ssr-signal] dispatch error: ${err?.message ?? err}`);
+        });
       }
     });
 
