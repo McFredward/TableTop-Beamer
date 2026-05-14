@@ -53,7 +53,7 @@ const ALIGN_MODE_BUNDLE = [
   "/src/app/runtime/state/runtime-room-geometry.js",
   "/src/app/runtime/viewport/runtime-projection-grid-state.js",
   "/src/app/runtime/viewport/runtime-projection-gl-renderer.js",
-  // 2026-05-14: 2D fallback retired; GL is the sole mesh-warp path.
+  "/src/app/runtime/viewport/runtime-projection-2d-fallback-renderer.js",
   "/src/app/runtime/viewport/runtime-projection-profile-persistence.js",
   "/src/app/runtime/viewport/runtime-projection-handle-drag.js",
   "/src/app/runtime/viewport/runtime-projection-handle-ui.js",

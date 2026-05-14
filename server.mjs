@@ -4718,13 +4718,22 @@ if (process.env.SSR_RENDER_HOST === "1") {
       } catch (err) {
         console.warn("[active-grid] load failed:", err?.message || err);
       }
+      // 2026-05-14 boot-race fix: attach the /api/webrtc/signal WebSocket
+      // upgrade handler BEFORE the mediasoup boot. Without this, the HTTP
+      // server is listening but `/api/webrtc/signal` has no upgrade handler
+      // during the multi-second mediasoup boot — Firefox sees "Can't
+      // connect" and the receiver waits the full 10 s ws-open timeout
+      // before retrying. With the handler attached early, the WS opens
+      // immediately; per-RPC handlers return "router-not-ready" until the
+      // router boots, and the receiver's INITIAL_CONNECT 300 ms silent-
+      // retry path picks up the moment it's ready.
+      signalingState = attachWebRtcSignaling(server);
       // Phase 32 D-B4: purge any stale mediasoup-worker process from a prior
       // crashed server run before booting the new Worker. This frees the RTC
       // port range (40000-40100) and clears dangling state.
       console.log("[server] purging stale mediasoup-worker (D-B4 / Phase 33-02-T3 PID-scoped)");
       await purgeStaleMediasoupWorker();
       await bootMediasoupRouter();
-      signalingState = attachWebRtcSignaling(server);
       // Phase 33 Plan 02-T1 (Suspect 8): when the mediasoup-worker auto-respawns
       // after a `worker.died` event, broadcast `producer-ready` to the still-
       // connected consumers so they jump out of their backoff window. The

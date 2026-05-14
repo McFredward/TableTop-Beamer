@@ -46,13 +46,20 @@
   const glRenderer = window.TT_BEAMER_RUNTIME_PROJECTION_GL_RENDERER;
   const _postDrawMeshWarpGL = glRenderer.postDrawMeshWarpGL;
 
-  // 2026-05-14: 2D fallback retired. Pre-SSR the GL path occasionally
-  // failed on Pi VC4 and the per-triangle clip+drawImage 2D fallback kept
-  // /output/ rendering. Post-SSR the renderer always runs in the SSR
-  // Chromium tab on the operator host — there's no VC4 + the GL backend
-  // is operator-selectable via Settings → System (Mesa / SwiftShader).
-  // postDrawMeshWarp2D is gone; if GL fails to init, we surface the error
-  // and bail out of the draw — the operator picks a working backend.
+  // 2D-fallback renderer. Loaded alongside the GL renderer so we can fall
+  // back when getContext("webgl",…) returns null on the SSR Chromium tab.
+  // On hardware where Mesa is blocklisted AND --ignore-gpu-blocklist causes
+  // sync-flush stalls (Intel iGPU + Xvfb), this is the path that actually
+  // renders the mesh-warp. The 2D-fallback's per-cell INFLATE alpha-overlap
+  // streifen are addressed inside the fallback renderer itself (pre-
+  // composite onto opaque black before the warp on /output/).
+  //
+  // Long-term plan: when the operator picks a working GL backend via
+  // Settings → System (Mesa / SoftwareWebGL), the GL path takes over and
+  // this fallback never runs. Until then, leaving it wired keeps the
+  // mesh-warp transformation working in all environments.
+  const fallback = window.TT_BEAMER_RUNTIME_PROJECTION_2D_FALLBACK_RENDERER;
+  const { postDrawMeshWarp2D } = fallback;
 
   // Handle UI (W3.2-C4). Imports the public surface so the shim's
   // public API can delegate to it. onWindowResize moved with the
@@ -281,51 +288,36 @@
       return;
     }
 
-    // WebGL path. With the 2D fallback retired, GL is the only mesh-warp
-    // path. If init fails, we surface the failure (a toast + diag flag)
-    // and bail — the operator must pick a working backend in
-    // Settings → System.
+    // WebGL path eliminates the per-triangle clip seams that were visible
+    // on MP4 content. Falls back to the 2D path below only if GL init
+    // fails (no WebGL context on this Chromium build — common on
+    // Mesa-blocklisted hardware until the operator picks a working backend
+    // via Settings → System).
     if (_postDrawMeshWarpGL(canvas, canvasCtx)) {
-      // In /output/ the GL canvas is the visible
-      // surface, so show it now that we know it has fresh content.
       if (glCanvasEl && glCanvasEl.style.display !== "block") {
         glCanvasEl.style.display = "block";
       }
-      // Phase-31 h20 (2026-05-06): hide the underlying fx-canvas while
-      // the GL warp is active. Without this, when the user has shrunk
-      // the destination box (e.g. 80% inset), the GL canvas's
-      // transparent border lets the full-size fx-canvas board image
-      // leak through — the user sees board content OUTSIDE their
-      // alignment handles. Hiding fx-canvas makes the GL output the
-      // single visible surface.
+      // Phase-31 h20: hide the underlying fx-canvas while GL warp is
+      // active so its full-size board image doesn't leak through the
+      // GL canvas's transparent border when the destination box is
+      // shrunk (e.g. 80% inset).
       if (canvas && canvas.style && canvas.style.visibility !== "hidden") {
         canvas.style.visibility = "hidden";
       }
       return;
     }
-    // 2026-05-14: GL init failed. The 2D fallback is gone. Surface the
-    // failure so the operator knows to change backend in Settings →
-    // System. One-shot toast + a window flag so the chip can flip its
-    // status to "GL init failed". The /output/ stream will be black
-    // (clearColor 0,0,0,1 was never drawn) until backend changes.
-    if (typeof window !== "undefined" && !window.__ttBeamerGlInitToasted) {
-      window.__ttBeamerGlInitToasted = true;
-      window.__ttBeamerGlInitFailed = true;
-      try {
-        if (typeof ctx?.showToast === "function") {
-          ctx.showToast(
-            "WebGL konnte nicht initialisiert werden. Wechsle das GL-Backend in Einstellungen → System.",
-            { kind: "error", dedupeKey: "gl-init-failed" },
-          );
-        }
-      } catch (_) { /* never let toast break render path */ }
-    }
+    // GL init failed (e.g. Chromium's Mesa-llvmpipe + Xvfb returns null
+    // from getContext("webgl",...)). Fall back to the 2D path so the
+    // mesh-warp transformation still applies. The 2D path's INFLATE-
+    // overlap streifen are handled inside postDrawMeshWarp2D itself
+    // (pre-composite onto opaque black on /output/).
     if (glCanvasEl && glCanvasEl.style.display !== "none") {
       glCanvasEl.style.display = "none";
     }
     if (canvas && canvas.style && canvas.style.visibility === "hidden") {
       canvas.style.visibility = "";
     }
+    postDrawMeshWarp2D(canvas, canvasCtx);
   }
 
   // ── Legacy compat ──────────────────────────────────────────────────────────
@@ -364,8 +356,11 @@
       grid,
       getPoint,
     }));
-    // 2026-05-14: 2D-fallback renderer init removed alongside the module
-    // itself; GL is the sole mesh-warp path.
+    // 2D-fallback renderer (W3.2-C3): same grid/getPoint injection.
+    fallback.init(Object.assign({}, dependencies, {
+      grid,
+      getPoint,
+    }));
     // Handle UI (W3.2-C4): grid-state refs + applyTransform (shim) +
     // profile flow callbacks (now from profile-persistence per
     // W3.2-C5) + gridState namespace so its createHandles /

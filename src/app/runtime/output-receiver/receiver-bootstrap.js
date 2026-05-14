@@ -995,8 +995,18 @@ export async function bootReceiver({ logger = console, liveSync = null } = {}) {
     // re-arms on the manual-retry path because doManualRetry transitions
     // out of HOST_DOWN/GIVEN_UP, which clears pcState (03-T5 setState side
     // effect) so the next disconnect evaluation starts from a clean slate.
+    // 2026-05-14 fix: also block the monitor while a backoff retry is
+    // already pending. Without this, the monitor fires every 1 s during
+    // RECONNECTING, each fire calls handleConnectFailure → which CANCELS
+    // the scheduled pendingRetryTimeout and reschedules with a longer
+    // backoff. Net effect: the retry never runs because each monitor tick
+    // restarts it, the operator's "retries waren instant statt die
+    // Sekunden abzuwarten" complaint. With the gate, the monitor only
+    // ticks the diagnostic line; the scheduled retry actually fires on
+    // its backoff delay.
     const monitorBlocked =
       tryConnectInFlight ||
+      pendingRetryTimeout != null ||
       currentState === ConnectionState.GIVEN_UP ||
       currentState === ConnectionState.HOST_DOWN;
     if (dec.disconnected && !monitorBlocked) {
