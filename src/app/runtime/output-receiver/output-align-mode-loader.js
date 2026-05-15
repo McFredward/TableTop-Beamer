@@ -808,25 +808,32 @@ export function bootAlignModeLoader({
     liveSync.onProjectionProfileChange(async () => {
       await refreshBoardCatalog();
       await refreshSelectedBoard();
-      // 2026-05-15 fix: tear down handles + polygons before reacting.
-      // Operator UAT: "Beim switchen von einem board werden immer noch
-      // elemente vom align mode angezeigt, die hier nichts zu suchen
-      // haben" — handles + room polygons from the previous board's
-      // align session persisted after a board switch even though
-      // align-mode was off. Two causes addressed:
-      //   1. If align-mode is ACTIVE, the previous board's polygons +
-      //      handles need to be torn down and rebuilt against the new
-      //      board's geometry (boards have different room layouts).
-      //   2. If align-mode is OFF but the prior session left stale
-      //      DOM (e.g. a race where align-mode flipped off mid-board-
-      //      switch and only some teardown ran), an unconditional
-      //      deactivate clears it.
-      // deactivate() is idempotent: stops the boot handle, removes the
-      // align-mode-active body class, hides the stage. Safe to call
-      // even when there's nothing to tear down.
-      deactivate();
+      // 2026-05-15: branch on current align-mode state.
+      //
+      // align-mode ON → re-activate. activate() is internally idempotent
+      //   (stops _currentBootHandle first via its own stop+reinit dance),
+      //   so the new board's polygons + handles replace the old board's
+      //   cleanly. CRITICAL: do NOT call deactivate() first — the WS-
+      //   receive that triggered this projectionProfileChange ALSO
+      //   restores the new grid + fires recomputeDirtyOnly synchronously
+      //   between our `await refreshBoardCatalog` returns. If we tore
+      //   down the toolbar before reactivating, the dirty listener
+      //   registered during the prior toolbar build was unregistered;
+      //   the new listener (registered later in activate()) misses the
+      //   _dirty change that already fired → /output/'s discard button
+      //   never reflects the dirty state. Operator UAT 2026-05-15:
+      //   "Das dirty flag funktioniert jetzt gar nicht im /output/".
+      //
+      // align-mode OFF → call deactivate() to ensure no stale handles
+      //   linger from a prior align session that may not have torn down
+      //   fully (the operator's original board-switch handles-persist
+      //   bug). deactivate() is a no-op when there's nothing to tear
+      //   down, so it's safe even on the first board switch of a
+      //   session.
       if (liveSync.getAlignMode?.() === true) {
         await activate();
+      } else {
+        deactivate();
       }
     });
   }
