@@ -752,6 +752,41 @@ export function bootAlignModeLoader({
       logger?.log?.(
         "[align-loader] post-activate broadcast SUPPRESSED (W8: Pi /output/ pulls, never pushes — mirrors W7 for SSR)",
       );
+
+      // 2026-05-15 fix: capture the server-restored grid as /output/'s
+      // LOCAL loaded-profile baseline so isDirty() works on subsequent
+      // drags. Operator UAT: "Wird nach einem Server restart bisher NIE
+      // ein profil im align mode explizit geladen … wird bei egal welcher
+      // Änderung das dirty flag in /output/ nicht gesetzt".
+      //
+      // Server-restart path applies the active grid via live-hello (not
+      // via a mutation broadcast), so my earlier WS-receive
+      // captureRemoteBaseline call never fired. By the time we reach
+      // here, the W4 seed block has applied the server's authoritative
+      // grid to grid-state. We snapshot that as the local baseline +
+      // record the profileId so the Save/Discard buttons activate when
+      // the operator drags.
+      try {
+        const PERSIST = window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+        if (PERSIST && typeof PERSIST.captureRemoteBaseline === "function") {
+          let profileId = null;
+          try {
+            // Fetch the most recent server snapshot so we know which
+            // profile name the grid corresponds to. Cheap (~5 ms); only
+            // runs on align-mode activation.
+            const resp = await fetch("/api/live/snapshot");
+            if (resp.ok) {
+              const j = await resp.json();
+              const snap = j?.snapshot ?? j?.session?.snapshot ?? j ?? {};
+              profileId = snap?.runtime?.lastAlignGridSnapshot?.profileId ?? null;
+            }
+          } catch (_) { /* fall through with null profileId */ }
+          PERSIST.captureRemoteBaseline(profileId);
+          logger?.log?.(`[align-loader] captureRemoteBaseline applied profileId=${profileId ?? "(none)"}`);
+        }
+      } catch (err) {
+        logger?.warn?.("[align-loader] captureRemoteBaseline failed:", err?.message || err);
+      }
     } catch (err) {
       logger?.error?.("[align-loader] activate failed:", err);
     }
