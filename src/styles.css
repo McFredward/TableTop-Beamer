@@ -469,6 +469,17 @@ body[data-output-role="final-output"] .toast-stack {
  * stroke from CSS were brittle because is-selected interacts with
  * several other CSS rules (hover, is-rotating, theme overrides). */
 
+/* /output/ has no interactive room logic — but the SVG polygons still
+ * had pointer-events: auto, so a cursor parked over the projected
+ * window would trigger :hover and show one room highlighted "like the
+ * dashboard". Disable pointer-events entirely on the projected output
+ * so :hover never fires and click/pointerdown handlers cannot mutate
+ * selectedRoomId. Outlines stay visible in the default styling. */
+body[data-output-role="final-output"] .room-zone {
+  pointer-events: none;
+  cursor: default;
+}
+
 .room-zone.is-frozen {
   fill: rgba(100, 100, 120, 0.12);
   stroke: rgba(140, 140, 160, 0.5);
