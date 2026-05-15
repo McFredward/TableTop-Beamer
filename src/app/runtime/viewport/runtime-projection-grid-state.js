@@ -344,7 +344,10 @@
     if (handlesVisible) { rebuildHandleElements(); drawLines(); positionRotateHandles(); }
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     // Phase-31 h30: resetGrid is a major grid mutation — broadcast.
-    try { broadcastGridSnapshot({ force: true }); } catch {}
+    // 2026-05-15: reset establishes a fresh baseline (identity-default
+    // grid), so tag isBaseline=true. Without this, /output/'s WS-receive
+    // would relay dirty=true after a reset.
+    try { broadcastGridSnapshot({ force: true, isBaseline: true }); } catch {}
   }
 
   // ── Persistence ────────────────────────────────────────────────────────────

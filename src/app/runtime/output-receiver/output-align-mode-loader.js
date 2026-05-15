@@ -808,8 +808,23 @@ export function bootAlignModeLoader({
     liveSync.onProjectionProfileChange(async () => {
       await refreshBoardCatalog();
       await refreshSelectedBoard();
-      // If align-mode is currently active, the board may have changed
-      // — re-activate so the polygon-editor reads the new state.
+      // 2026-05-15 fix: tear down handles + polygons before reacting.
+      // Operator UAT: "Beim switchen von einem board werden immer noch
+      // elemente vom align mode angezeigt, die hier nichts zu suchen
+      // haben" — handles + room polygons from the previous board's
+      // align session persisted after a board switch even though
+      // align-mode was off. Two causes addressed:
+      //   1. If align-mode is ACTIVE, the previous board's polygons +
+      //      handles need to be torn down and rebuilt against the new
+      //      board's geometry (boards have different room layouts).
+      //   2. If align-mode is OFF but the prior session left stale
+      //      DOM (e.g. a race where align-mode flipped off mid-board-
+      //      switch and only some teardown ran), an unconditional
+      //      deactivate clears it.
+      // deactivate() is idempotent: stops the boot handle, removes the
+      // align-mode-active body class, hides the stage. Safe to call
+      // even when there's nothing to tear down.
+      deactivate();
       if (liveSync.getAlignMode?.() === true) {
         await activate();
       }
