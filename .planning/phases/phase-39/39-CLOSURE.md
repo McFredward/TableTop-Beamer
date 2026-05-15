@@ -1,10 +1,12 @@
 ---
 phase: 39
 slug: ssr-stabilization-round-2
-status: CLOSED-PENDING-VISUAL-UAT
+status: CLOSED
 closed: 2026-05-12
+visual_uat_completed: 2026-05-15
 predecessor: phase-38-closed (commit e881a83)
-tag: phase-39-closed-automated
+tag: phase-39-closed
+supersedes_tag: phase-39-closed-automated
 ---
 
 # Phase 39 — SSR Stabilization Round 2: MP4 Playback, Reconnect Storms, Mesh-Warp Seams
@@ -258,8 +260,66 @@ RECONNECTING / closed=true / producerReady>0 appears (Mesa-llvmpipe hang risk).
 
 ## Recommendation
 
-**Stage 1 (this commit):** Tag `phase-39-closed-automated` at the closure commit.
+**Stage 1 (commit `b9653cf`):** Tag `phase-39-closed-automated` at the closure commit.
 Status: `CLOSED-PENDING-VISUAL-UAT`.
 
-**Stage 2 (after operator visual UAT):** Retag `phase-39-closed` at the operator-
-confirmed commit. Update STATE.md and ROADMAP.md to flip status to `CLOSED`.
+**Stage 2 (commit `c07bd67`, 2026-05-15):** Retag `phase-39-closed`. Status flipped
+to `CLOSED` after operator UAT confirmed all D-01/D-02/D-03 visual gates plus the
+five hotfix series below.
+
+## Visual UAT — 2026-05-15 closure
+
+Operator UAT 2026-05-13 → 2026-05-15 surfaced two classes of regression on top of
+the Phase 39 D-01/D-02/D-03 baseline:
+
+1. **Stream connect-storms** — WS frame fragmentation on `/api/webrtc/signal` +
+   boot-race between HTTP listen and signaling handler registration + retry-loop
+   instant-fire when monitor cancelled `pendingRetryTimeout`.
+2. **Mid-session UI regressions** in `/output/` align-mode — dirty-flag never
+   firing after server restart, orphan handles after board-switch with align-off,
+   spurious "highlighted" room polygon on the projected output.
+
+The original Stage-1 closure also bundled an ad-hoc operator feature request
+(`feat(system)`) that was not in the 39-CONTEXT.md scope: GL-backend selector
+(Mesa/SwiftShader) under Settings → System + complete retirement of the 2D
+fallback renderer. That feature regressed the entire mesh-warp transformation
+on the operator's hardware (GL initialization fails silently on their iGPU/Xvfb
+combo); the 2D fallback was restored as a temporary measure with the
+streifen-fix baked in pre-warp.
+
+### Hotfix series — h1 through h6 (2026-05-13 → 2026-05-15)
+
+| # | Commit | Defect | Fix |
+|---|---|---|---|
+| h1 | `3f0fb9a` | WS frame fragmentation on `/api/webrtc/signal` → `consume timeout 20s` | Streaming `tryDecodeFrame` reassembly mirroring server.mjs Phase 38 W10 pattern |
+| h2 | (server.mjs) | Boot-race: `attachWebRtcSignaling` registered AFTER `bootMediasoupRouter()` → WS open timeout 10s | Moved `attachWebRtcSignaling(server)` BEFORE mediasoup boot |
+| h3 | `e21b6a2` | (a) 2D fallback removal broke mesh-warp transformation on operator hardware (GL silently absent); (b) streifen artifacts | Restored 2D fallback with pre-composite onto opaque black for /output/ + retry-cancel guard in receiver-bootstrap monitor |
+| h4 | `ba3ff7f` `b88be38` `573d25d` `032de6d` `3f77045` `60d3ba7` | Dirty-flag mis-fires (profile-load falsely dirty, board-switch broke listener, server-restart never set baseline) | `isBaseline` envelope tag distinguishing baseline-broadcasts from drag-edits + `captureRemoteBaseline()` at end of `activate()` for server-restart path |
+| h5 | `573d25d` | Orphan polygon handles persisted on /output/ after board-switch with align-mode off | DOM scrub in `deactivate()` for handles attached to `document.body` (not `#stage`) |
+| h6 | `c07bd67` | /output/ room-zone showed hover-highlight "like the dashboard" — cursor parked over projected output triggered :hover, looked like is-selected | `body[data-output-role="final-output"] .room-zone { pointer-events: none; cursor: default; }` |
+
+All six items confirmed by operator on 2026-05-15.
+
+### Carry-forward state
+
+- Phase 39 D-01/D-02/D-03 unchanged — all locks remain green.
+- Phase 38 W10 WS-fragmentation reassembly extended to `/api/webrtc/signal`
+  (h1) — same pattern, second consumer.
+- 2D fallback renderer NOT retired (deferred — see Phase 40 below). The
+  ad-hoc 2D-fallback-retirement portion of `0bf8b85` is reverted in spirit
+  by `e21b6a2`. The 2D fallback now coexists with GL as the auto-fallback
+  on hardware where GL fails to init.
+- GL-backend selector UI (Mesa/SwiftShader) ships in this phase but
+  SwiftShader is non-functional — see Phase 40 scope.
+
+### Deferred to Phase 40
+
+- **Remove GL-backend selector (Mesa/SwiftShader)** — operator decision
+  2026-05-15. Reasoning: Mesa works on all Linux hardware (llvmpipe is
+  the universal CPU fallback inside the Mesa stack itself); SwiftShader
+  provides no compatibility benefit and the current code path is broken
+  (stream does not connect). Switch entry removed from runtime-system.json
+  + Settings → System + `--use-angle` resolution logic in
+  `ssr-render-host.mjs`. Undocumented `SSR_GL_BACKEND=swiftshader` env
+  var may be retained as emergency escape hatch (TBD during Phase 40
+  planning).

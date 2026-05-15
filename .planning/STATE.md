@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Milestone complete
-last_updated: "2026-05-12T22:45:00Z"
+last_updated: "2026-05-15T00:00:00Z"
 progress:
   total_phases: 39
   completed_phases: 13
@@ -27,10 +27,10 @@ progress:
 - Current Phase Key: phase-40
 - Last Prepared: 2026-05-12
 - Execution Readiness: PLANNING
-- Previous Phase: 39 (CLOSED-PENDING-VISUAL-UAT)
-- Last Executed Plan: 39 (D-01 MP4 MIME + D-02 INITIAL_CONNECT state + D-03 mesh-warp seam fix — sub-path B UV-inset)
-- Planned Next Execution: Phase 40 — TBD (after operator visual UAT of Phase 39)
-- Last Execution Summary: Phase 39 closed three SSR defects from operator UAT 2026-05-12: D-01 MP4 MIME table extension + RFC 7233 Range support in server.mjs; D-02 INITIAL_CONNECT state in receiver-bootstrap.js suppressing RECONNECTING banner during 5s cold-boot grace; D-03 mesh-warp seam fix via 0.5-texel UV-inset epsilon in runtime-projection-gl-renderer.js fragment shader (sub-path B per renderMode=gl decision). All 16/16 automated regression sections GREEN: Phase 38 W1/W2/W10/W11/W12, Phase 33 receiver-state-machine, Phase 32 cold-boot, Phase 35 Bayer, Phase 31 h15 static-resource-headers, D-08 connection-stability fail=0 (sustained 31504ms closed=false). Visual UAT pending operator hardware verification; tag phase-39-closed-automated until then.
+- Previous Phase: 39 (CLOSED — visual UAT confirmed 2026-05-15, tag phase-39-closed)
+- Last Executed Plan: 39 (D-01 MP4 MIME + D-02 INITIAL_CONNECT state + D-03 mesh-warp seam fix — sub-path B UV-inset) + iter-3 hotfix series h1–h6 (WS-fragmentation on /api/webrtc/signal, boot-race, retry-cancel guard, 2D-fallback restore w/ streifen-fix, dirty-flag isBaseline tag + captureRemoteBaseline on activate, board-switch handle scrub, /output/ room-zone hover suppression)
+- Planned Next Execution: Phase 40 — Remove GL-backend selector (Mesa-only). Retire UI switch, runtime-system.json glBackend, SSR_GL_BACKEND-resolution logic in ssr-render-host.mjs. Mesa with llvmpipe is the universal Linux fallback; SwiftShader path is currently broken and provides no compatibility benefit. Operator decision 2026-05-15.
+- Last Execution Summary: Phase 39 closed three SSR defects from operator UAT 2026-05-12 (D-01 MP4 MIME table extension + RFC 7233 Range; D-02 INITIAL_CONNECT state in receiver-bootstrap.js suppressing RECONNECTING banner during 5s cold-boot grace; D-03 mesh-warp seam fix via 0.5-texel UV-inset epsilon in fragment shader) plus iter-3 hotfix series h1–h6 closing operator UAT regressions on connection stability + align-mode UX. Phase 39 fully CLOSED 2026-05-15.
 
 ## Source Inputs
 
