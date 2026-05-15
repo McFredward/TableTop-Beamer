@@ -92,6 +92,24 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
     }
   }
 
+  // Pull global-defaults from the server and reflect diagnosticOverlay
+  // into body.dataset so the chip's CSS gate updates immediately. Called
+  // on live-hello (initial state) and on every global-config-update
+  // envelope. Best-effort — a failed fetch leaves the previous value in
+  // place; never throws.
+  async function _refreshDiagnosticOverlayFromGlobalDefaults() {
+    try {
+      const r = await fetch("/api/global-defaults");
+      if (!r.ok) return;
+      const cfg = await r.json();
+      if (cfg && typeof cfg === "object" && Object.prototype.hasOwnProperty.call(cfg, "diagnosticOverlay")) {
+        document.body.dataset.diagnosticOverlay = cfg.diagnosticOverlay ? "true" : "false";
+      }
+    } catch (e) {
+      logger?.warn?.("[output-live-sync] global-defaults fetch failed:", e?.message ?? e);
+    }
+  }
+
   function on(event) {
     return (handler) => {
       handlers[event].add(handler);
@@ -273,7 +291,19 @@ export function bootOutputLiveSync({ logger = console, role = "final-output", ur
         const helloGrid = envelope?.session?.snapshot?.runtime?.lastAlignGridSnapshot;
         if (helloGrid) _applyAlignGridSnapshot(helloGrid);
       } catch {}
+      // Pull the diagnostic-overlay preference from global-defaults so
+      // /output/ reflects the operator's dashboard toggle on first paint.
+      _refreshDiagnosticOverlayFromGlobalDefaults();
       emit("connect");
+      return;
+    }
+    // Dashboard toggled a global-defaults field. The only such field
+    // visible on /output/ today is diagnosticOverlay — refresh it.
+    // Skip asset-manifest broadcasts which use the same envelope type.
+    if (envelope.type === "global-config-update") {
+      if (envelope.target !== "config/asset-manifest.json") {
+        _refreshDiagnosticOverlayFromGlobalDefaults();
+      }
       return;
     }
     if (envelope.type !== "live-session-update") return;
