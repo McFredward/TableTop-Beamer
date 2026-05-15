@@ -1089,7 +1089,16 @@
                     const profilePersist =
                       window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
                     if (snap?.isBaseline) {
-                      profilePersist?.recomputeDirtyOnly?.();
+                      // 2026-05-15 fix: capture this baseline as the LOCAL
+                      // loaded profile snapshot. Without this, /output/'s
+                      // _loadedProfileSnapshot stayed null after server
+                      // restart (or any dashboard-only profile load) and
+                      // isDirty() always returned false → Save/Discard
+                      // buttons never activated on drag (operator UAT
+                      // 2026-05-15). captureRemoteBaseline records the
+                      // just-applied grid + profileId so subsequent drags
+                      // correctly flip _dirty=true.
+                      profilePersist?.captureRemoteBaseline?.(snap?.profileId);
                     } else {
                       profilePersist?.notifyDirtyChanged?.();
                     }

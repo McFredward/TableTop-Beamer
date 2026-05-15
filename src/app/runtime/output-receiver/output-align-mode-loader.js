@@ -786,6 +786,31 @@ export function bootAlignModeLoader({
     const stage = document.getElementById("stage");
     if (stage) stage.style.display = "none";
     window.__ttbAlignMode = null;
+
+    // 2026-05-15 fix: defensive DOM scrub. Handles are appended to
+    // document.body (NOT to #stage), so hiding the stage does NOT hide
+    // orphan handles that may have been left behind by an incomplete
+    // teardown. Operator UAT: "wenn bei ausgeschaltete align mode das
+    // board gewechselt wird, dass dann die handles sichtbar sind —
+    // allerdings geschieht das NUR wenn man vorher einmal den align
+    // mode aktiviert hatte und wieder deaktiviert hat."
+    //
+    // Scrub by id/class: lineCanvas, handle elements, rotate-handle
+    // elements, squish-bar elements, scale-handle elements, align-
+    // toolbar root. These are owned by handle-ui but live in body.
+    try {
+      const orphans = document.querySelectorAll(
+        "#projection-grid-line-canvas, "
+        + ".projection-corner-handle, "
+        + ".projection-rotate-handle, "
+        + ".projection-squish-bar, "
+        + ".projection-scale-handle, "
+        + ".projection-align-toolbar",
+      );
+      for (const el of orphans) {
+        try { el.remove(); } catch (_) { /* keep going */ }
+      }
+    } catch (_) { /* never break deactivate */ }
   }
 
   // Subscribe to align-mode toggles

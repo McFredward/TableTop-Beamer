@@ -229,6 +229,41 @@
   function isCurrentlyDirty() { return _dirty; }
   function addDirtyListener(cb) { if (typeof cb === "function") _dirtyListeners.add(cb); }
   function removeDirtyListener(cb) { _dirtyListeners.delete(cb); }
+
+  // 2026-05-15 fix: capture a remote-applied baseline as the LOCAL loaded
+  // profile. Background: /output/'s `_loadedProfileSnapshot` was set only
+  // when /output/ explicitly loaded a profile via its own toolbar. When
+  // the dashboard loaded a profile and broadcast it (or after a server
+  // restart that auto-loaded a profile via live-hello), /output/ applied
+  // the new grid but kept its own _loadedProfileSnapshot null →
+  // isDirty() always returned false → /output/'s Save/Discard buttons
+  // never activated on drag. Operator UAT: "Die flag wird korrekt
+  // gesetzt wenn man vorher ein neues Profil geladen hat. Wird der
+  // Server einfach nur neugestartet und das Profil nicht verändert und
+  // dann in den align mode gegangen wird in /output/ das flag nicht
+  // korrekt gesetzt!".
+  //
+  // captureRemoteBaseline takes the just-applied grid as the new local
+  // baseline + records the profileId. Skips when profileId is a
+  // synthesized "unsaved-*" sentinel (no real profile to track) and
+  // when grid-state isn't ready. It does NOT push undo or mutate the
+  // grid — the grid was already applied by the WS-receive path; this
+  // just snapshots it as "the loaded baseline" so subsequent drags
+  // can correctly flip _dirty=true on profile-divergent edits.
+  function captureRemoteBaseline(profileId) {
+    if (!_gridStateApi || typeof _gridStateApi.snapshotGridState !== "function") {
+      return;
+    }
+    const isSyntheticUnsaved =
+      typeof profileId === "string" && profileId.startsWith("unsaved-");
+    const nextName = (typeof profileId === "string" && !isSyntheticUnsaved)
+      ? profileId
+      : null;
+    _loadedProfileName = nextName;
+    _loadedProfileSnapshot = _gridStateApi.snapshotGridState();
+    try { _persistLoadedProfileToLs(); } catch (_) { /* never break a sync */ }
+    _recomputeAndNotifyDirty();
+  }
   function notifyDirtyChanged() {
     // Phase 36 M5 (D-06 + Q1 LOCKED) — on /output/, every gesture broadcasts
     // dirty=true to the dashboard via the existing /api/align-mode-dirty
@@ -768,6 +803,7 @@
     // happened — calling notifyDirtyChanged there would falsely report
     // "Unsaved on /output/" to the dashboard after a profile load.
     recomputeDirtyOnly: _recomputeAndNotifyDirty,
+    captureRemoteBaseline,
     // Phase 28 B1: silent auto-load helpers consumed by runtime-board-switch
     // autoLoadRememberedProjectionProfile().
     applyAndCaptureSnapshot,
