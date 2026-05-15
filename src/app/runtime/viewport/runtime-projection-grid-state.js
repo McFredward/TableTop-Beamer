@@ -472,7 +472,7 @@
   let _broadcastLastEmittedAtMs = 0;
   let _broadcastLogCount = 0;
   const _BROADCAST_MIN_INTERVAL_MS = 33; // ~30 Hz
-  function broadcastGridSnapshot({ force = false } = {}) {
+  function broadcastGridSnapshot({ force = false, isBaseline = false } = {}) {
     try {
       // Phase 36 A1 — prefer init-time-injected liveSyncCoreOverride (set by
       // bootHandleUi on /output/), fall back to the dashboard's window global.
@@ -538,6 +538,13 @@
         srcYs: grid.srcYs.slice(),
         points,
         profileId,
+        // 2026-05-15 fix: hint to receivers that this snapshot is a baseline
+        // reset (profile load / discard / new-profile / silent auto-load),
+        // not a gesture-driven edit. The /output/ live-sync-core WS-receive
+        // path uses this to call recomputeDirtyOnly + POST(false) instead of
+        // the relay POST(true), so the dashboard's "Unsaved on /output/"
+        // chip clears immediately after a clean load.
+        isBaseline: Boolean(isBaseline),
       });
     } catch (err) {
       // Never let a broadcast error break the local drag.

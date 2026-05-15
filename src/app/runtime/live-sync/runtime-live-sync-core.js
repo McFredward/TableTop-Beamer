@@ -1070,23 +1070,29 @@
                     points: points2D,
                   });
                   _redrawHandlesAfterCornerDrag();
-                  // 2026-05-14 fix: recompute LOCAL dirty against the loaded
-                  // profile snapshot WITHOUT POSTing dirty=true to the
-                  // server. The previous `notifyDirtyChanged()` here
-                  // unconditionally signaled dirty=true on /output/ even
-                  // though the grid mutation came from a REMOTE broadcast
-                  // (e.g. dashboard's profile-load → broadcastGridSnapshot
-                  // → here), so the dashboard saw "Unsaved on /output/"
-                  // immediately after a clean profile load and the
-                  // operator couldn't exit align-mode without explicit
-                  // discard. Using recomputeDirtyOnly compares the current
-                  // grid against _loadedProfileSnapshot and only flips the
-                  // local _dirty flag (which feeds the chip + aria UX);
-                  // the dashboard's alignModeDirtyOnOutput now reflects
-                  // ONLY local gestures on /output/, never sync hops.
+                  // 2026-05-15 fix: branch on snap.isBaseline.
+                  //
+                  // Baseline broadcast (profile-load / discard / new-profile
+                  // / silent auto-load) — the dashboard set a fresh baseline
+                  // and broadcast it. /output/ should NOT relay dirty=true.
+                  // The server-side handler already cleared the dirty flag
+                  // on this mutation; here we just recompute the local
+                  // _dirty against the new grid (against /output/'s own
+                  // _loadedProfileSnapshot which is usually null → false).
+                  //
+                  // Non-baseline (drag) — the dashboard mutated the grid
+                  // via a gesture. /output/ relays dirty=true to the server
+                  // via the existing notifyDirtyChanged path; the server
+                  // broadcasts alignModeDirtyOnOutput=true to all clients
+                  // so the dashboard chip shows "Unsaved on /output/".
                   try {
-                    window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE
-                      ?.recomputeDirtyOnly?.();
+                    const profilePersist =
+                      window.TT_BEAMER_RUNTIME_PROJECTION_PROFILE_PERSISTENCE;
+                    if (snap?.isBaseline) {
+                      profilePersist?.recomputeDirtyOnly?.();
+                    } else {
+                      profilePersist?.notifyDirtyChanged?.();
+                    }
                   } catch (_) {}
                 }
               }

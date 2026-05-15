@@ -1265,9 +1265,21 @@ function applyLiveMutation({
           profileId: payload.profileId,
           originatorClientId: clientId,
           at: new Date().toISOString(),
+          // 2026-05-15 fix: propagate isBaseline so /output/'s WS-receive
+          // can distinguish a profile-load reset from a drag-mutation and
+          // POST dirty=false (instead of the relay POST(true)) — fixes
+          // operator's "Unsaved on /output/" sticking after a clean load.
+          isBaseline: Boolean(payload.isBaseline),
         },
       },
     };
+    // Server-side mirror: a baseline mutation also clears the dirty flag
+    // immediately, so the broadcast that lands on clients carries
+    // alignModeDirtyOnOutput=false in the same envelope (no race with the
+    // separate /api/align-mode-dirty POST).
+    if (payload.isBaseline) {
+      _setAlignModeDirty(false, "align-grid-snapshot-baseline");
+    }
     // Phase-31 h41: persist the active grid to disk so the SSR Chromium
     // tab's next boot and any newly-connecting client picks it up via
     // live-hello + the h40 apply path. Debounced 200 ms inside

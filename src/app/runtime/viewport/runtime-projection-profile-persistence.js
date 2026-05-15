@@ -399,7 +399,9 @@
     if (typeof ctx.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
     // Phase-31 h30: discard changes the grid → broadcast so SSR tab follows.
-    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+    // 2026-05-15: tag this as a baseline reset so /output/'s WS-receive
+    // doesn't relay dirty=true (and the server clears any stale flag).
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
     // Phase-31 h36 (2026-05-06): the user reported that after the FIRST
     // ESC the streamed board updates but the local handle/lines stay at
     // the dragged positions; the SECOND ESC catches them up. The first
@@ -575,7 +577,10 @@
         // lines update via onProjectionProfileChange's snapshot refetch path
         // which does NOT touch grid; only this broadcast brings the stream
         // (rendered by SSR tab from grid.points) into sync.
-        try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+        // 2026-05-15: tag isBaseline so /output/ doesn't relay dirty=true
+        // after a clean profile load (operator's "Unsaved on /output/"
+        // stuck after profile-load complaint).
+        try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
       } catch (err) {
         _showAlignErrorToast("Load failed: " + (err?.message || err));
       }
@@ -664,7 +669,8 @@
     if (typeof ctx?.renderRoomOverlay === "function") ctx.renderRoomOverlay();
     _recomputeAndNotifyDirty();
     // Phase-31 h30: profile load swaps the grid wholesale → broadcast.
-    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+    // 2026-05-15: silent auto-load is a baseline reset.
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
   }
 
   // Phase 28 B1 (D-03 fallback): silent default-geometry restore for the
@@ -693,7 +699,8 @@
     // (booting independently) might have applied a stale lastAlignGridSnapshot
     // from a previous session via live-hello — leaving them out of sync until
     // the next gesture broadcasts. Mirrors applyAndCaptureSnapshot.
-    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true }); } catch {}
+    // 2026-05-15: identity reset is a baseline.
+    try { _gridStateApi?.broadcastGridSnapshot?.({ force: true, isBaseline: true }); } catch {}
   }
 
   function init(dependencies) {
